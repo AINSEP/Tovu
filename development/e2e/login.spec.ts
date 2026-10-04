@@ -41,16 +41,24 @@ test.describe("admin login (Mandate 1)", () => {
   });
 
   test("wrong password shows an error and never reaches the admin shell", async ({ page }) => {
+    const response = page.waitForResponse((res) => res.url().endsWith("/api/admin/v1/auth/login") && res.request().method() === "POST");
     await attemptLoginAsAdmin(page, { username: DEFAULT_ADMIN_USERNAME, password: "definitely-not-the-password" });
+    expect((await response).status()).toBe(401);
+    expect(await (await response).json()).toEqual({ error: "invalid username or password", code: "UNAUTHENTICATED" });
     await expect(page.locator(".login-error")).toBeVisible();
+    await expect(page.locator(".login-error")).toHaveText("invalid username or password");
     await expect(page.locator(".admin-layout")).toHaveCount(0);
     // Still on the login form, not silently redirected anywhere.
     await expect(page.locator(".login-card")).toBeVisible();
   });
 
   test("unknown username shows an error rather than a different failure mode", async ({ page }) => {
+    const response = page.waitForResponse((res) => res.url().endsWith("/api/admin/v1/auth/login") && res.request().method() === "POST");
     await attemptLoginAsAdmin(page, { username: "not-a-real-user", password: DEFAULT_ADMIN_PASSWORD });
+    expect((await response).status()).toBe(401);
+    expect(await (await response).json()).toEqual({ error: "invalid username or password", code: "UNAUTHENTICATED" });
     await expect(page.locator(".login-error")).toBeVisible();
+    await expect(page.locator(".login-error")).toHaveText("invalid username or password");
     await expect(page.locator(".admin-layout")).toHaveCount(0);
   });
 
@@ -63,11 +71,18 @@ test.describe("admin login (Mandate 1)", () => {
 
   test("logout returns to the login screen and the session cookie stops authenticating", async ({ page }) => {
     await loginAsAdmin(page);
+    const session = (await page.context().cookies()).find((cookie) => cookie.name === "tovu_session");
+    expect(session).toBeTruthy();
+    const headers = { Cookie: `tovu_session=${session!.value}` };
+    expect((await page.request.get("/api/admin/v1/auth/me", { headers })).status()).toBe(200);
     await logoutAsAdmin(page);
     await expect(page.locator(".login-card")).toBeVisible();
 
-    // Reload to prove this is a real server-side session revocation, not just client state reset —
-    // if `me()` still resolved, App.tsx would render `.admin-layout` again on the next boot check.
+    const replay = await page.request.get("/api/admin/v1/auth/me", { headers });
+    expect(replay.status()).toBe(401);
+    expect((await replay.json()).code).toBe("UNAUTHENTICATED");
+
+    // Reload also checks that App.tsx's next boot check keeps the browser signed out.
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.locator(".login-card")).toBeVisible({ timeout: 10_000 });
     await expect(page.locator(".admin-layout")).toHaveCount(0);

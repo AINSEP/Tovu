@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { ContentTypeFieldDef } from "#src/features/content-types/index";
 
-import { createEntry, publishEntry } from "../../index.js";
+import { createEntry, publishEntry, EntrySlugConflictError } from "../../index.js";
 import type { EntryRecord } from "../../index.js";
 import { TrashAwareInMemoryEntryRepo } from "../../trash-aware-memory-repo.js";
 
@@ -159,7 +159,7 @@ test("listPublishedForDisplay (memory twin): sorts by a declared field asc/desc,
 
 test("listPublishedForDisplay (memory twin): limit bounds the result count", async () => {
   const repo = new TrashAwareInMemoryEntryRepo();
-  for (const idSeed of ["r1", "r2", "r3", "r4", "r5"]) {
+  for (const idSeed of ["r3", "r5", "r1", "r4", "r2"]) {
     await createPublishedEntry({
       repo,
       workspaceId: "ws-1",
@@ -177,6 +177,7 @@ test("listPublishedForDisplay (memory twin): limit bounds the result count", asy
     query: { type: "recipe", where: [], sort: { by: "title", dir: "asc" }, limit: 2 },
   });
   assert.equal(limited.length, 2);
+  assert.deepEqual(limited.map((row) => row.id), ["r1", "r2"]);
 });
 
 test("listPublishedForDisplay (memory twin): excludes drafts, trashed rows, and rows of other content types", async () => {
@@ -250,4 +251,90 @@ test("listPublishedForDisplay (memory twin): excludes drafts, trashed rows, and 
     query: { type: "recipe", where: [], sort: { by: "title", dir: "asc" }, limit: 10 },
   });
   assert.deepEqual(result.map((e) => e.slug), [published.slug], "only the live, published recipe must be returned");
+});
+
+
+function seed(repo: TrashAwareInMemoryEntryRepo, id: string, siteFields: Record<string, unknown> = {}, title = id) {
+  return createPublishedEntry({ repo, workspaceId: "ws-1", type: "recipe", contentTypeFields: RECIPE_FIELDS, idSeed: id, slug: `${id}-slug`, title, siteFields });
+}
+
+test("memory display sorting puts missing numeric fields first asc and last desc", async () => {
+  const repo = new TrashAwareInMemoryEntryRepo();
+  await seed(repo, "ten", { prepTime: 10 });
+  await seed(repo, "two", { prepTime: 2 });
+  await seed(repo, "nine", { prepTime: 9 });
+  await seed(repo, "none");
+  for (const [dir, expected] of [["asc", ["none", "two", "nine", "ten"]], ["desc", ["ten", "nine", "two", "none"]]] as const) {
+    const rows = await repo.listPublishedForDisplay({ workspaceId: "ws-1", query: { type: "recipe", where: [], sort: { by: { field: "prepTime" }, dir }, limit: 10 } });
+    assert.deepEqual(rows.map((row) => row.id), [...expected]);
+  }
+});
+
+test("memory display boolean sorting distinguishes false from true in both directions", async () => {
+  const repo = new TrashAwareInMemoryEntryRepo();
+  await seed(repo, "yes", { vegetarian: true });
+  await seed(repo, "no", { vegetarian: false });
+  for (const [dir, expected] of [["asc", ["no", "yes"]], ["desc", ["yes", "no"]]] as const) {
+    const rows = await repo.listPublishedForDisplay({ workspaceId: "ws-1", query: { type: "recipe", where: [], sort: { by: { field: "vegetarian" }, dir }, limit: 10 } });
+    assert.deepEqual(rows.map((row) => row.id), [...expected]);
+  }
+});
+
+test("memory display ties use ascending id before applying the limit, even for descending sorts", async () => {
+  const repo = new TrashAwareInMemoryEntryRepo();
+  for (const id of ["r3", "r1", "r2"]) await seed(repo, id, {}, "Same");
+  for (const dir of ["asc", "desc"] as const) {
+    const rows = await repo.listPublishedForDisplay({ workspaceId: "ws-1", query: { type: "recipe", where: [], sort: { by: "title", dir }, limit: 2 } });
+    assert.deepEqual(rows.map((row) => row.id), ["r1", "r2"]);
+  }
+});
+
+test("memory display built-in title/published/updated sorts choose conflicting exact orders", async () => {
+  const repo = new TrashAwareInMemoryEntryRepo();
+  for (const row of [
+    { id: "r-c", title: "Alpha", publishedAt: "2026-09-22T00:00:00.000Z", updatedAt: "2026-09-24T00:00:00.000Z" },
+    { id: "r-a", title: "Middle", publishedAt: "2026-09-24T00:00:00.000Z", updatedAt: "2026-09-23T00:00:00.000Z" },
+    { id: "r-b", title: "Zulu", publishedAt: "2026-09-23T00:00:00.000Z", updatedAt: "2026-09-22T00:00:00.000Z" },
+  ]) {
+    const entry = await seed(repo, row.id, {}, row.title);
+    await repo.save({ ...entry, publishedAt: row.publishedAt, updatedAt: row.updatedAt });
+  }
+  for (const [by, asc] of [["title", ["r-c", "r-a", "r-b"]], ["published", ["r-c", "r-b", "r-a"]], ["updated", ["r-b", "r-a", "r-c"]]] as const) {
+    for (const dir of ["asc", "desc"] as const) {
+      const rows = await repo.listPublishedForDisplay({ workspaceId: "ws-1", query: { type: "recipe", where: [], sort: { by, dir }, limit: 2 } });
+      assert.deepEqual(rows.map((row) => row.id), (dir === "asc" ? [...asc] : [...asc].reverse()).slice(0, 2), `${by} ${dir}`);
+    }
+  }
+});
+
+test("memory repo hides trashed holders, refuses slug reuse and ignores stale saves", async () => {
+  const repo = new TrashAwareInMemoryEntryRepo();
+  const stale = await seed(repo, "holder");
+  const trashed = { ...stale, deletedAt: "2026-09-24T00:00:00.000Z" };
+  await repo.saveAny(trashed);
+  assert.equal(await repo.findById({ workspaceId: "ws-1", id: stale.id }), null);
+  assert.equal(await repo.findBySlug({ workspaceId: "ws-1", type: "recipe", slug: stale.slug }), null);
+  await repo.save({ ...stale, title: "stale overwrite", version: stale.version + 1 });
+  assert.deepEqual(await repo.findAnyById({ workspaceId: "ws-1", id: stale.id }), trashed);
+  await assert.rejects(() => repo.save({ ...stale, id: "replacement" }), EntrySlugConflictError);
+  assert.equal(await repo.findAnyById({ workspaceId: "ws-1", id: "replacement" }), null);
+  assert.deepEqual(await repo.findAnyBySlug({ workspaceId: "ws-1", type: "recipe", slug: stale.slug }), trashed);
+});
+
+test("memory repo excludes types, trash, status and other workspaces before applying a bounded list", async () => {
+  const repo = new TrashAwareInMemoryEntryRepo();
+  const widget = await seed(repo, "widget");
+  await repo.save({ ...widget, type: "widget", updatedAt: "2026-09-29T00:00:00.000Z" });
+  const trashed = await seed(repo, "trash");
+  await repo.saveAny({ ...trashed, deletedAt: "2026-09-24T00:00:00.000Z", updatedAt: "2026-09-28T00:00:00.000Z" });
+  const foreign = await seed(repo, "foreign");
+  await repo.save({ ...foreign, id: "foreign-ws2", workspaceId: "ws-2", updatedAt: "2026-09-27T00:00:00.000Z" });
+  const draft = await seed(repo, "draft");
+  await repo.save({ ...draft, status: "draft", updatedAt: "2026-09-26T00:00:00.000Z" });
+  const live = await seed(repo, "live");
+  await repo.save({ ...live, updatedAt: "2026-09-25T00:00:00.000Z" });
+  const rows = await repo.listByWorkspaceExcludingTypes({ workspaceId: "ws-1", excludeTypes: ["widget"], status: "published", orderBy: "updatedAt", orderDirection: "desc", limit: 1 });
+  assert.deepEqual(rows.map((row) => row.id), ["live"]);
+  const unrestricted = await repo.listByWorkspaceExcludingTypes({ workspaceId: "ws-1", excludeTypes: [] });
+  assert.deepEqual(unrestricted.map((row) => row.id).sort(), ["draft", "foreign", "live", "widget"]);
 });

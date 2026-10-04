@@ -120,6 +120,22 @@ test("createPublishCredential seals the connection and returns a summary with NO
   assert.equal(JSON.stringify(summary).includes("ghp_secret_value"), false);
 });
 
+for (const failure of ["key acquisition", "sealing"] as const) {
+  test(`create/update translate ${failure} failures and leave stored credentials unchanged`, async () => {
+    const deps = makeDeps();
+    const existing = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "existing", connection: { providerId: "vercel", token: "original-token" } });
+    const before = structuredClone(await deps.repo.listByWorkspace({ workspaceId: WORKSPACE }));
+    const broken = failure === "key acquisition"
+      ? { ...deps, keyring: new BrokenKeyring() }
+      : { ...deps, sealer: { ...deps.sealer, open: deps.sealer.open.bind(deps.sealer), seal: async () => { throw new Error("seal failed"); } } };
+    await assert.rejects(() => createPublishCredential(broken, { workspaceId: WORKSPACE, label: "new", connection: { providerId: "vercel", token: "new-token" }, isDefault: true }), PublishCredentialSecretStoreUnconfiguredError);
+    assert.deepEqual(await deps.repo.listByWorkspace({ workspaceId: WORKSPACE }), before);
+    await assert.rejects(() => updatePublishCredential(broken, { workspaceId: WORKSPACE, id: existing.id, label: "changed", connection: { providerId: "vercel", token: "replacement-token" } }), PublishCredentialSecretStoreUnconfiguredError);
+    assert.deepEqual(await deps.repo.listByWorkspace({ workspaceId: WORKSPACE }), before);
+    assert.equal((await resolveForPublish(deps, { workspaceId: WORKSPACE, id: existing.id }))?.connection.token, "original-token");
+  });
+}
+
 test("describeCredential/listPublishCredentials never touch the sealer — a broken sealer does not fail them", async () => {
   const deps = makeDeps();
   await createPublishCredential(deps, {
@@ -209,7 +225,7 @@ test("AAD binding: a credential set's ciphertext does not open under a DIFFERENT
   const tampered = { ...rowOne!, sealed: rowTwo!.sealed };
   await deps.repo.update(tampered);
 
-  await assert.rejects(() => resolveForPublish(deps, { workspaceId: WORKSPACE, id: first.id }));
+  await assert.rejects(() => resolveForPublish(deps, { workspaceId: WORKSPACE, id: first.id }), PublishCredentialSecretStoreUnconfiguredError);
 });
 
 test("createPublishCredential rejects a second credential with the same (workspace, provider, label)", async () => {
@@ -369,7 +385,10 @@ test("deletePublishCredential removes the row; a second delete of the same id is
 
 test("deletePublishCredential on an id that never existed is a harmless no-op", async () => {
   const deps = makeDeps();
+  await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "survivor", connection: { providerId: "vercel", token: "untouched" } });
+  const before = structuredClone(await deps.repo.listByWorkspace({ workspaceId: WORKSPACE }));
   await deletePublishCredential(deps, { workspaceId: WORKSPACE, id: "never-existed" });
+  assert.deepEqual(await deps.repo.listByWorkspace({ workspaceId: WORKSPACE }), before);
 });
 
 test("listPublishCredentials only returns the requesting workspace's own rows (tenant isolation)", async () => {
@@ -380,6 +399,21 @@ test("listPublishCredentials only returns the requesting workspace's own rows (t
   const mine = await listPublishCredentials(deps, { workspaceId: WORKSPACE });
   assert.equal(mine.length, 1);
   assert.equal(mine[0]!.label, "mine");
+});
+
+test("resolve/update/delete/heal cannot access another workspace's credential", async () => {
+  const deps = makeDeps();
+  const created = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "owner", connection: { providerId: "vercel", token: "private-token" } });
+  const before = structuredClone(await deps.repo.findById({ workspaceId: WORKSPACE, id: created.id }));
+  const foreign = { workspaceId: OTHER_WORKSPACE, id: created.id };
+  assert.equal(await resolveForPublish(deps, foreign), null);
+  await assert.rejects(() => updatePublishCredential(deps, { ...foreign, label: "intruder", connection: { providerId: "vercel", token: "intruder-token" } }), PublishCredentialNotFoundError);
+  assert.deepEqual(await deps.repo.findById({ workspaceId: WORKSPACE, id: created.id }), before);
+  await deletePublishCredential(deps, foreign);
+  assert.deepEqual(await deps.repo.findById({ workspaceId: WORKSPACE, id: created.id }), before);
+  await healAccountLabel(deps, { ...foreign, accountLabel: "intruder" });
+  assert.deepEqual(await deps.repo.findById({ workspaceId: WORKSPACE, id: created.id }), before);
+  assert.equal((await resolveForPublish(deps, { workspaceId: WORKSPACE, id: created.id }))?.connection.token, "private-token");
 });
 
 /**
@@ -450,15 +484,24 @@ test("updatePublishCredential with isDefault:false on the CURRENT default is a n
 });
 
 test("deleting the default promotes the group's most-recently-updated remaining row", async () => {
-  const deps = makeDeps();
+  let now = NOW;
+  const deps = makeDeps({ clock: { nowMs: () => Date.parse(now), nowIso: () => now } });
   const first = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "One", connection: { providerId: "vercel", token: "a" } });
-  await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "Two", connection: { providerId: "vercel", token: "b" } });
-
+  now = "2026-08-16T00:00:00.000Z";
+  const second = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "Two", connection: { providerId: "vercel", token: "b" } });
+  now = "2026-08-17T00:00:00.000Z";
+  const third = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "Three", connection: { providerId: "vercel", token: "c" } });
+  // Updated order differs from creation/insertion order.
+  now = "2026-08-18T00:00:00.000Z";
+  await updatePublishCredential(deps, { workspaceId: WORKSPACE, id: second.id, label: "Two updated" });
   await deletePublishCredential(deps, { workspaceId: WORKSPACE, id: first.id });
-
   const remaining = await listPublishCredentials(deps, { workspaceId: WORKSPACE });
-  assert.equal(remaining.length, 1);
-  assert.equal(remaining[0]!.isDefault, true, "the only remaining row for the provider must become the default");
+  assert.equal(remaining.length, 2);
+  assert.equal(remaining.find((row) => row.id === second.id)?.isDefault, true);
+  assert.equal(remaining.find((row) => row.id === third.id)?.isDefault, false);
+  const resolved = await resolveDefaultForPublish(deps, { workspaceId: WORKSPACE, providerId: "vercel" });
+  assert.equal(resolved?.id, second.id);
+  assert.deepEqual(resolved?.connection, { providerId: "vercel", token: "b" });
 });
 
 test("deleting the LAST credential for a provider leaves that provider with no default — not an error", async () => {
@@ -672,10 +715,12 @@ test("healAccountLabel persists a real value, readable back through listPublishC
 });
 
 test("healAccountLabel never disturbs the sealed connection, isDefault, or updatedAt — a verify is not a credential change", async () => {
-  const deps = makeDeps();
+  let now = NOW;
+  const deps = makeDeps({ clock: { nowMs: () => Date.parse(now), nowIso: () => now } });
   const created = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "x", connection: { providerId: "github-pages", token: "t" } });
   const before = await deps.repo.findById({ workspaceId: WORKSPACE, id: created.id });
 
+  now = "2026-08-20T00:00:00.000Z";
   await healAccountLabel(deps, { workspaceId: WORKSPACE, id: created.id, accountLabel: "leonaburime-ucla" });
 
   const after = await deps.repo.findById({ workspaceId: WORKSPACE, id: created.id });
@@ -688,7 +733,10 @@ test("healAccountLabel never disturbs the sealed connection, isDefault, or updat
 
 test("healAccountLabel on a non-existent id is a harmless no-op (matches this port's other idempotent-write contracts)", async () => {
   const deps = makeDeps();
+  await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "survivor", connection: { providerId: "vercel", token: "untouched" } });
+  const before = structuredClone(await deps.repo.listByWorkspace({ workspaceId: WORKSPACE }));
   await healAccountLabel(deps, { workspaceId: WORKSPACE, id: "no-such-id", accountLabel: "someone" });
+  assert.deepEqual(await deps.repo.listByWorkspace({ workspaceId: WORKSPACE }), before);
 });
 
 test("updatePublishCredential with connection OMITTED preserves a previously-healed accountLabel", async () => {

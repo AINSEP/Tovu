@@ -143,3 +143,43 @@ test("GET /:slug -- a NULL memberAccessJson post still renders publicly (pre-exi
   const res = await fetch(`${baseUrl}/${post.slug}`);
   assert.equal(res.status, 200, "a post with no member-access value ever set must keep rendering publicly, unchanged");
 });
+
+for (const tokenKind of ["unknown", "expired"] as const) {
+  test(`GET /:slug and / -- an ${tokenKind} member cookie cannot expose gated content`, async (t) => {
+    const theme = loadTheme({
+      themeDir: path.join(process.cwd(), "development", "fixtures", "theme-archive", "dispatch"),
+      id: "dispatch",
+      source: "built-in",
+    });
+    assert.equal(theme.status, "valid");
+    const gated = memberGatedPost({ memberAccessJson: JSON.stringify({ visibility: "members" }) });
+    const publicPost = memberGatedPost({ id: "public-control", slug: "public-control", title: "Public Control Post" });
+    const session = activeMemberSession();
+    if (tokenKind === "expired") session.expiresAt = "2000-01-01T00:00:00.000Z";
+    const { server, baseUrl } = await startServer({
+      themes: [theme],
+      postRepo: new InMemoryPostRepo([gated, publicPost]),
+      memberSessionRepo: new InMemoryMemberSessionRepo([session]),
+    });
+    t.after(() => closeServer(server));
+    const cookie = `tovu_member_session=${tokenKind === "unknown" ? "forged-member-token" : RAW_MEMBER_TOKEN}`;
+
+    const anonymousPost = await fetch(`${baseUrl}/${gated.slug}`);
+    assert.equal(anonymousPost.status, 404);
+    const anonymousPostHtml = await anonymousPost.text();
+    const denied = await fetch(`${baseUrl}/${gated.slug}`, { headers: { cookie } });
+    assert.equal(denied.status, 404);
+    const deniedHtml = await denied.text();
+    assert.equal(deniedHtml, anonymousPostHtml, "invalid sessions must get the anonymous denial");
+    assert.doesNotMatch(deniedHtml, /Members Only Post/);
+
+    const anonymousHome = await fetch(baseUrl);
+    assert.equal(anonymousHome.status, 200);
+    assert.match(await anonymousHome.text(), /Public Control Post/);
+    const home = await fetch(baseUrl, { headers: { cookie } });
+    assert.equal(home.status, 200);
+    const html = await home.text();
+    assert.match(html, /Public Control Post/, "positive control: the listing really renders posts");
+    assert.doesNotMatch(html, /Members Only Post|members-only-post/);
+  });
+}

@@ -65,14 +65,10 @@ function isScannableFile(entry: string): boolean {
   return SCANNED_EXTENSIONS.has(path.extname(entry)) && !/\.(test|spec)\.[jt]sx?$/.test(entry);
 }
 
-/** `readdirSync`, or `[]` for a directory that cannot be listed (missing, not a directory,
- *  permission denied) — a walk that hits an unreadable directory should skip it, not throw. */
+/** Enumeration errors must fail the credential gate: an unreadable or missing source tree
+ * cannot establish that the shipped UI is free of the default password. */
 function readDirEntries(dir: string): string[] {
-  try {
-    return readdirSync(dir);
-  } catch {
-    return [];
-  }
+  return readdirSync(dir);
 }
 
 /** `true`/`false`/`null` for "is a directory" / "is a file" / "could not stat" (deleted between

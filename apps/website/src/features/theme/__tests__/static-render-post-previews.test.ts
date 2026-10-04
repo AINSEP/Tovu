@@ -114,6 +114,7 @@ test("renderStaticPage: real previews replace the marker's inner content, preser
   });
   assert.ok(rendered?.startsWith('<section class="blog-grid" data-embed-config='), "the marker's own tag/attrs survive the substitution");
   assert.ok(rendered?.includes("Hello World"));
+  assert.ok(rendered?.includes('<time datetime="2026-09-01T00:00:00.000Z">Sep 1, 2026</time>'));
   assert.ok(rendered?.includes('href="/hello-world"'));
   assert.ok(!rendered?.includes("fallback card"), "real data replaces the authored fallback");
 });
@@ -143,8 +144,25 @@ test("renderStaticPage: title/date values are HTML-escaped", () => {
   const rendered = renderStaticPage({
     theme,
     pageId: "blog",
-    postPreviews: [preview({ title: '<script>alert(1)</script>', href: "/xss" })],
+    postPreviews: [preview({ title: '<script>alert(1)</script>', href: "/xss", dateIso: 'date" onmouseover="bad&<', dateLabel: '<img src=x>&"' })],
   });
   assert.ok(!rendered?.includes("<script>alert(1)</script>"), "an unescaped title must never reach the output");
   assert.ok(rendered?.includes("&lt;script&gt;"));
+  assert.ok(rendered?.includes('<time datetime="date&quot; onmouseover=&quot;bad&amp;&lt;">&lt;img src=x&gt;&amp;&quot;</time>'));
+
+});
+
+test("post-previews: positive fractional limits scan and render at least one bounded preview", () => {
+  for (const [limit, expected] of [[0.5, 1], [1.5, 1], [2.9, 2]]) {
+    const html = `<div data-embed-config='{"type":"post-previews","limit":${limit}}'>fallback</div>`;
+    assert.equal(scanPostPreviewsLimit(html), expected);
+    const rendered = renderStaticPage({ theme: minimalTheme({ blog: html }), pageId: "blog",
+      postPreviews: [preview({ title: "First" }), preview({ title: "Second" }), preview({ title: "Third" })] });
+    assert.ok(rendered);
+    assert.equal((rendered.match(/<article class="post-card">/g) ?? []).length, expected);
+    assert.ok(rendered.includes("First"));
+    assert.equal(rendered.includes("Second"), expected === 2);
+    assert.equal(rendered.includes("Third"), false);
+    assert.equal(rendered.includes("fallback"), false);
+  }
 });

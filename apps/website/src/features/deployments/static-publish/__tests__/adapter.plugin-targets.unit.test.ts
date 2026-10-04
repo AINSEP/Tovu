@@ -18,7 +18,6 @@ import type {
   LoadedDeployTarget,
 } from "#src/features/deployments/deploy-targets/types";
 import { renderHeadersFile } from "#src/features/site-export/static-security-headers";
-import { PUBLIC_PAGE_SECURITY_HEADERS } from "#src/contracts/core/public-page-security-headers";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 
 import { publishStaticSite, type StaticPublishDeps } from "../adapter.js";

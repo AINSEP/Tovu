@@ -39,5 +39,10 @@ test("two hashes of the same password are not identical (salted)", async () => {
 test("default cost parameters (OWASP minimum) still produce a working hash", async () => {
   const hasher = new Argon2PasswordHasher({ loadBinding: loadArgon2Binding });
   const hash = await hasher.hash({ password: "default-cost-password" });
+  const parameters = /^\$argon2id\$v=19\$m=(\d+),t=(\d+),p=(\d+)\$/.exec(hash);
+  assert.ok(parameters, "must be an Argon2id PHC string with encoded work factors");
+  assert.ok(Number(parameters[1]) >= 19_456, "default memory cost must meet the 19 MiB minimum");
+  assert.ok(Number(parameters[2]) >= 2, "default time cost must use at least two iterations");
+  assert.ok(Number(parameters[3]) >= 1);
   assert.equal(await hasher.verify({ hash: hash, password: "default-cost-password" }), true);
 });

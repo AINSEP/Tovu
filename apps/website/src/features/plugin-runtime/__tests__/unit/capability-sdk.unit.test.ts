@@ -24,11 +24,11 @@ function fakeCoreDeps(): CapabilityScopedSdkCoreDeps {
     getCurrentEntry: () => ({
       id: "entry-1",
       workspaceId: "ws-1",
-      title: "t",
+      title: "Distinctive article",
       slug: "s",
       status: "draft",
-      bodyJson: {},
-      ext: {},
+      bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Plugin content" }] }] },
+      ext: { analytics: { words: 37 } },
     }),
     writeExtField: () => {},
     attachFilter: () => {},
@@ -65,6 +65,17 @@ for (const capabilities of allCapabilitySubsets()) {
     assert.equal(typeof sdk.addFilter, "function", `addFilter must be a callable even when ungranted [${label}]`);
     assert.equal(typeof sdk.addAction, "function", `addAction must be a callable even when ungranted [${label}]`);
     assert.equal(typeof sdk.addContribution, "function", `addContribution must be a callable even when ungranted [${label}]`);
+    // v1 has no action/contribution hook names; an ungranted call must still deny first.
+    if (!capabilities.includes("hooks.attach")) {
+      for (const invoke of [() => sdk.addAction("uncatalogued" as never, (() => {}) as never), () => sdk.addContribution("uncatalogued" as never, (() => {}) as never)]) {
+        assert.throws(invoke, (error: unknown) => {
+          assert.ok(error instanceof CapabilityDeniedError);
+          assert.equal(error.pluginId, "p");
+          assert.equal(error.capability, "hooks.attach");
+          return true;
+        });
+      }
+    }
   });
 
   test(`CIC U-003-B1 (ESCALATE_SECURITY) [${label}]: content.read() throws CapabilityDeniedError iff content.read is NOT granted`, () => {
@@ -73,6 +84,11 @@ for (const capabilities of allCapabilitySubsets()) {
 
     if (granted) {
       assert.doesNotThrow(() => sdk.content.read());
+      assert.deepEqual(sdk.content.read(), {
+        id: "entry-1", workspaceId: "ws-1", title: "Distinctive article", slug: "s", status: "draft",
+        bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Plugin content" }] }] },
+        ext: { analytics: { words: 37 } },
+      });
     } else {
       assert.throws(() => sdk.content.read(), CapabilityDeniedError);
     }
@@ -90,12 +106,16 @@ for (const capabilities of allCapabilitySubsets()) {
   });
 
   test(`CIC U-003-B1 (ESCALATE_SECURITY) [${label}]: addFilter() throws CapabilityDeniedError iff hooks.attach is NOT granted`, () => {
-    const sdk = buildCapabilityScopedSdk({ pluginId: "p", capabilities, coreDeps: fakeCoreDeps() });
+    const attached: unknown[] = [];
+    const coreDeps = fakeCoreDeps();
+    coreDeps.attachFilter = (hookName, filter) => { attached.push({ hookName, filter }); };
+    const sdk = buildCapabilityScopedSdk({ pluginId: "p", capabilities, coreDeps });
     const granted = capabilities.includes("hooks.attach");
     const noop = () => ({});
 
     if (granted) {
       assert.doesNotThrow(() => sdk.addFilter(HOOK_CONTENT_ENTRY_BEFORE_SAVE, noop));
+      assert.deepEqual(attached, [{ hookName: HOOK_CONTENT_ENTRY_BEFORE_SAVE, filter: noop }]);
     } else {
       assert.throws(() => sdk.addFilter(HOOK_CONTENT_ENTRY_BEFORE_SAVE, noop), CapabilityDeniedError);
     }

@@ -7,13 +7,14 @@ import { afterEach, beforeEach, test } from "node:test";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 
-import { applyPendingAgentPluginTokens, listPendingAgentPluginTokenIds, PENDING_AGENT_PLUGIN_TOKENS_FILENAME } from "../pending-agent-plugin-tokens.js";
+import { applyPendingAgentPluginTokens, listPendingAgentPluginTokenIds, PENDING_AGENT_PLUGIN_TOKENS_FILENAME, sealPendingAgentPluginTokensForNewSite } from "../pending-agent-plugin-tokens.js";
+import { siteSecretSealer } from "../storage-secret.js";
 
 /**
  * @file `applyPendingAgentPluginTokens`: the new site's first boot opens the tokens create-site
  * onboarding sealed for it, imports each, and deletes the file once every token was handled.
- * Real AES-GCM sealer over an in-memory keyring; the file is written the way the seal path writes it
- * (the seal path itself makes real site-key files, so it is not exercised here).
+ * Most cases use a real AES-GCM sealer over an in-memory keyring. The onboarding round-trip also
+ * exercises the production writer and boot key source with an isolated environment-provided key.
  */
 
 const TOKEN = "sbp_pending_token_never_logged";
@@ -143,4 +144,29 @@ test("listPendingAgentPluginTokenIds: the plugin ids in the file, without openin
   assert.deepEqual([...listPendingAgentPluginTokenIds(siteDir)].sort(), ["other", "supabase"]);
   fs.writeFileSync(target(), "{not json");
   assert.deepEqual([...listPendingAgentPluginTokenIds(siteDir)], []);
+});
+
+test("production onboarding writer round-trips multiple tokens through a freshly constructed boot sealer", async (t) => {
+  const keys = ["TOVU_RUNTIME_MODE", "TOVU_SITE_KEY", "TOVU_INTEGRATIONS_ROOT_KEY"];
+  const previous = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
+  t.after(() => {
+    for (const [key, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[key]; else process.env[key] = value;
+    }
+  });
+  // Production's real env source is isolated; no ~/.tovu key is read or created.
+  process.env.TOVU_RUNTIME_MODE = "production";
+  process.env.TOVU_SITE_KEY = "8c".repeat(32);
+  delete process.env.TOVU_INTEGRATIONS_ROOT_KEY;
+  await sealPendingAgentPluginTokensForNewSite({ siteDir, siteKeyId: "round-trip-site", tokens: { supabase: TOKEN, other: "distinct-other-site-token" } });
+  const raw = fs.readFileSync(target(), "utf8");
+  assert.ok(!raw.includes(TOKEN) && !raw.includes("distinct-other-site-token"));
+  assert.equal(fs.statSync(target()).mode & 0o777, 0o600);
+  const bootSealer = siteSecretSealer(siteDir, process.env, "round-trip-site").sealer;
+  const calls: Array<[string, string]> = [];
+  const { logs, log } = recorder();
+  await applyPendingAgentPluginTokens({ siteDir, sealer: bootSealer, importToken: async (id, token) => { calls.push([id, token]); return "saved"; } }, log);
+  assert.deepEqual(calls.sort(), [["other", "distinct-other-site-token"], ["supabase", TOKEN]]);
+  assert.deepEqual(logs.warn, []);
+  assert.equal(fs.existsSync(target()), false);
 });

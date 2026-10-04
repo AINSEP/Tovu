@@ -474,7 +474,13 @@ export async function publishStaticSite(deps: StaticPublishDeps, input: StaticPu
   }
 
   const publishInput: DeployPublishInput = { files, projectName: input.projectName };
-  return publishAndMapOutcome(targetResult.target, publishInput, input, plan.basePath);
+  const outcome = await publishAndMapOutcome(targetResult.target, publishInput, input, plan.basePath);
+  // A plugin can include its credential in an error message. Keep the useful provider explanation
+  // while removing the resolved token before this site-publish response reaches HTTP or a tool.
+  if (!outcome.ok && resolvedCredential.token) {
+    return { ...outcome, message: outcome.message.replaceAll(resolvedCredential.token, "[REDACTED]") };
+  }
+  return outcome;
 }
 
 /**

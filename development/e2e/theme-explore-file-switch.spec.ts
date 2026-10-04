@@ -23,8 +23,13 @@ const READ_DELAY_MS = 400;
 
 test.describe("theme Explore — switching files in the HTML view never blanks the editor (2026-09-14 regression)", () => {
   test("the editor shows real, editable text on every frame of a file switch", async ({ page }) => {
+    let heldRead: { path: string; reached: boolean; wait: Promise<void> } | undefined;
     await page.route(/\/themes\/[^/]+\/file\?path=/, async (route) => {
-      if (route.request().method() === "GET") await new Promise((resolve) => setTimeout(resolve, READ_DELAY_MS));
+      const pending = heldRead;
+      if (route.request().method() === "GET" && pending?.path === new URL(route.request().url()).searchParams.get("path")) {
+        pending.reached = true;
+        await pending.wait;
+      }
       await route.continue();
     });
     await loginAsAdmin(page);
@@ -41,12 +46,23 @@ test.describe("theme Explore — switching files in the HTML view never blanks t
     const pages = titles.filter((title) => title.endsWith(".html")).slice(0, 3);
     expect(pages).toHaveLength(3);
 
+    const contents = new Map<string, string>();
+    for (const path of pages) {
+      const response = await page.request.get(`/api/admin/v1/workspaces/workspace-local/themes/basic/file?path=${encodeURIComponent(path)}`);
+      expect(response.status()).toBe(200);
+      const body = await response.json();
+      expect(body.path).toBe(path);
+      expect(body.content.length).toBeGreaterThan(0);
+      contents.set(path, body.content);
+    }
+    expect(new Set(contents.values()).size).toBe(3);
+
     await page.evaluate(() => {
-      const store = window as unknown as { __switchSamples: Array<{ len: number; readOnly: boolean }> };
+      const store = window as unknown as { __switchSamples: Array<{ present: boolean; len: number; readOnly: boolean }> };
       store.__switchSamples = [];
       const sample = () => {
         const textarea = document.querySelector<HTMLTextAreaElement>(".page-html-source");
-        if (textarea) store.__switchSamples.push({ len: textarea.value.length, readOnly: textarea.readOnly });
+        store.__switchSamples.push({ present: textarea !== null, len: textarea?.value.length ?? 0, readOnly: textarea?.readOnly ?? true });
         requestAnimationFrame(sample);
       };
       requestAnimationFrame(sample);
@@ -55,17 +71,28 @@ test.describe("theme Explore — switching files in the HTML view never blanks t
     for (const target of [pages[1]!, pages[2]!, pages[0]!]) {
       const before = await editor.inputValue();
       const row = page.locator(`.theme-explore-file-row button[title="${target}"]`);
-      await row.click();
-      // The highlight follows the click straight away, while the held read is still out.
-      await expect(row).toHaveAttribute("aria-current", "true", { timeout: READ_DELAY_MS });
+      let release!: () => void;
+      heldRead = { path: target, reached: false, wait: new Promise<void>((resolve) => { release = resolve; }) };
+      try {
+        await row.click();
+        await expect.poll(() => heldRead?.reached).toBe(true);
+        // Assert the highlight and held buffer before the response can arrive.
+        await expect(row).toHaveAttribute("aria-current", "true");
+        await expect(editor).toHaveValue(before);
+        await page.waitForTimeout(READ_DELAY_MS); // keep the sampled paint window open
+      } finally {
+        heldRead = undefined;
+        release();
+      }
       await expect(editor).not.toHaveValue(before, { timeout: 10_000 });
+      await expect(editor).toHaveValue(contents.get(target)!, { timeout: 10_000 });
     }
 
     const samples = await page.evaluate(
-      () => (window as unknown as { __switchSamples: Array<{ len: number; readOnly: boolean }> }).__switchSamples
+      () => (window as unknown as { __switchSamples: Array<{ present: boolean; len: number; readOnly: boolean }> }).__switchSamples
     );
     expect(samples.length).toBeGreaterThan(20);
-    expect(samples.filter((s) => s.len === 0 || s.readOnly)).toEqual([]);
+    expect(samples.filter((s) => !s.present || s.len === 0 || s.readOnly)).toEqual([]);
   });
 
   /**
@@ -94,12 +121,23 @@ test.describe("theme Explore — switching files in the HTML view never blanks t
     const pages = titles.filter((title) => title.endsWith(".html")).slice(0, 3);
     expect(pages).toHaveLength(3);
 
+    const contents = new Map<string, string>();
+    for (const path of pages) {
+      const response = await page.request.get(`/api/admin/v1/workspaces/workspace-local/themes/basic/file?path=${encodeURIComponent(path)}`);
+      expect(response.status()).toBe(200);
+      const body = await response.json();
+      expect(body.path).toBe(path);
+      expect(body.content.length).toBeGreaterThan(0);
+      contents.set(path, body.content);
+    }
+    expect(new Set(contents.values()).size).toBe(3);
+
     await page.evaluate(() => {
-      const store = window as unknown as { __switchSamples: Array<{ len: number; readOnly: boolean }> };
+      const store = window as unknown as { __switchSamples: Array<{ present: boolean; len: number; readOnly: boolean }> };
       store.__switchSamples = [];
       const sample = () => {
         const textarea = document.querySelector<HTMLTextAreaElement>(".page-html-source");
-        if (textarea) store.__switchSamples.push({ len: textarea.value.length, readOnly: textarea.readOnly });
+        store.__switchSamples.push({ present: textarea !== null, len: textarea?.value.length ?? 0, readOnly: textarea?.readOnly ?? true });
         requestAnimationFrame(sample);
       };
       requestAnimationFrame(sample);
@@ -112,17 +150,19 @@ test.describe("theme Explore — switching files in the HTML view never blanks t
         window.dispatchEvent(new PopStateEvent("popstate"));
       }, `/admin/themes/explore?theme=basic&file=${encodeURIComponent(target)}`);
       await expect(editor).not.toHaveValue(before, { timeout: 10_000 });
+      await expect(editor).toHaveValue(contents.get(target)!, { timeout: 10_000 });
     }
 
     const beforeBack = await editor.inputValue();
     await page.goBack();
     await expect(editor).not.toHaveValue(beforeBack, { timeout: 10_000 });
+    await expect(editor).toHaveValue(contents.get(pages[1]!)!, { timeout: 10_000 });
 
     const samples = await page.evaluate(
-      () => (window as unknown as { __switchSamples: Array<{ len: number; readOnly: boolean }> }).__switchSamples
+      () => (window as unknown as { __switchSamples: Array<{ present: boolean; len: number; readOnly: boolean }> }).__switchSamples
     );
     expect(samples.length).toBeGreaterThan(20);
-    expect(samples.filter((s) => s.len === 0 || s.readOnly)).toEqual([]);
+    expect(samples.filter((s) => !s.present || s.len === 0 || s.readOnly)).toEqual([]);
   });
 
   /**
@@ -193,11 +233,11 @@ test.describe("theme Explore — switching files in the HTML view never blanks t
 
     const before = await editor.inputValue();
     await page.evaluate(() => {
-      const store = window as unknown as { __switchSamples: Array<{ len: number; readOnly: boolean }> };
+      const store = window as unknown as { __switchSamples: Array<{ present: boolean; len: number; readOnly: boolean }> };
       store.__switchSamples = [];
       const sample = () => {
         const textarea = document.querySelector<HTMLTextAreaElement>(".page-html-source");
-        if (textarea) store.__switchSamples.push({ len: textarea.value.length, readOnly: textarea.readOnly });
+        store.__switchSamples.push({ present: textarea !== null, len: textarea?.value.length ?? 0, readOnly: textarea?.readOnly ?? true });
         requestAnimationFrame(sample);
       };
       requestAnimationFrame(sample);
@@ -214,9 +254,9 @@ test.describe("theme Explore — switching files in the HTML view never blanks t
     );
 
     const samples = await page.evaluate(
-      () => (window as unknown as { __switchSamples: Array<{ len: number; readOnly: boolean }> }).__switchSamples
+      () => (window as unknown as { __switchSamples: Array<{ present: boolean; len: number; readOnly: boolean }> }).__switchSamples
     );
-    expect(samples.filter((s) => s.len === 0 || s.readOnly)).toEqual([]);
+    expect(samples.filter((s) => !s.present || s.len === 0 || s.readOnly)).toEqual([]);
     expect(await editor.inputValue()).toBe(before);
     expect(fileReads.some((url) => new URL(url).searchParams.get("path") === renamedTo)).toBe(false);
 

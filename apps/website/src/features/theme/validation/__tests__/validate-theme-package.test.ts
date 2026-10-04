@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
+import { syncBuiltinESMExports } from "node:module";
 import path from "node:path";
 import test from "node:test";
 
@@ -236,10 +237,11 @@ test("v2-strict: build.sourceDir naming the reserved preview/ directory is rejec
   });
 
   const result = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "author" });
-  assert.ok(
-    findError(result, "v2-build-sourcedir-conflict") || findError(result, "structure-sourcedir-generated-conflict"),
-    JSON.stringify(result.errors)
-  );
+  // Both independent guards currently emit a finding; losing either must fail.
+  assert.deepEqual(result.errors.filter((error) => error.ruleId.includes("sourcedir")).map(({ ruleId, path }) => ({ ruleId, path })), [
+    { ruleId: "v2-build-sourcedir-conflict", path: undefined },
+    { ruleId: "structure-sourcedir-generated-conflict", path: undefined },
+  ]);
 });
 
 test("v2-strict: an unrecognized build.source is rejected", () => {
@@ -395,6 +397,34 @@ test("v2-strict: two partials entries pointing at the identical source file are 
   assert.ok(findError(result, "references-duplicate-source"), JSON.stringify(result.errors));
 });
 
+test("v2-strict: variant and renderer page references report missing files and duplicate owners", () => {
+  const dir = tmpDir("tovu-validate-v2-reference-wiring-");
+  writeMinimalV2Static(dir, {
+    partials: {
+      nav: { source: "render/partials/nav.html", variants: { missing: "render/partials/missing.html", compact: "render/partials/compact.html" } },
+      footer: { variants: { compact: "render/partials/compact.html" } },
+    },
+    renderer: { adapter: "html@1", pages: {
+      home: { source: "render/pages/index.html" },
+      copy: { source: "render/pages/index.html" },
+      absent: { source: "render/pages/missing.html" },
+    } },
+  });
+  fs.writeFileSync(path.join(dir, "render/partials/compact.html"), "<nav>compact</nav>");
+  const result = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "author" });
+  assert.equal(result.valid, false);
+  assert.deepEqual(result.errors.filter((error) => error.ruleId.startsWith("references-")), [
+    { ruleId: "references-missing-file", path: "render/partials/missing.html", severity: "error",
+      message: "partials.nav references 'render/partials/missing.html', which does not exist in this theme package" },
+    { ruleId: "references-duplicate-source", path: "render/partials/compact.html", severity: "error",
+      message: "partials entries [nav, footer] all reference the same file 'render/partials/compact.html' — each logical id should have its own source, or this is a copy-paste error" },
+    { ruleId: "references-missing-file", path: "render/pages/missing.html", severity: "error",
+      message: "renderer.pages.absent references 'render/pages/missing.html', which does not exist in this theme package" },
+    { ruleId: "references-duplicate-source", path: "render/pages/index.html", severity: "error",
+      message: "renderer.pages entries [home, copy] all reference the same file 'render/pages/index.html' — each logical id should have its own source, or this is a copy-paste error" },
+  ]);
+});
+
 // ---------------------------------------------------------------------------
 // markup — schema-version-agnostic
 // ---------------------------------------------------------------------------
@@ -428,6 +458,8 @@ test("markup: an unknown data-embed-config type is rejected, and 'form' names th
   const err = findError(result, "markup-embed-config-unknown-type");
   assert.ok(err, JSON.stringify(result.errors));
   assert.match(err!.message, /'form' was removed/);
+  assert.ok(err!.message.includes('embed a contact-form widget instead: {"type":"widget","slug":"<contact-form widget slug>"}'));
+  assert.equal(err!.path, "render/pages/index.html");
 });
 
 test("markup: every real current embed type (widget/media/post/content/menu/partial) is accepted", () => {
@@ -484,31 +516,42 @@ test("markup: a data-embed-config attribute written with double quotes is flagge
 test("markup: an extension-less file (a root LICENSE, an approved v2 root) is walked but skipped by the markup scan, not misread as markup", () => {
   const dir = tmpDir("tovu-validate-markup-extensionless-");
   writeMinimalV2Static(dir);
-  fs.writeFileSync(path.join(dir, "LICENSE"), "MIT License\n\nCopyright (c) ...", "utf8");
+  const hostileMarkup = '<div data-agent-element="forbidden"></div>';
+  fs.writeFileSync(path.join(dir, "LICENSE"), hostileMarkup, "utf8");
 
   const result = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "author" });
   assert.equal(result.valid, true, JSON.stringify(result.errors));
   assert.equal(findError(result, "structure-unapproved-root"), undefined, JSON.stringify(result.errors));
+  assert.equal([...result.errors, ...result.warnings].some((finding) => finding.path === "LICENSE"), false);
+  fs.writeFileSync(path.join(dir, "render/pages/index.html"), hostileMarkup, "utf8");
+  const htmlResult = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "author" });
+  assert.equal(htmlResult.valid, false);
+  assert.equal(findError(htmlResult, "markup-data-agent-element-forbidden")?.path, "render/pages/index.html");
 });
 
-test("markup: a markup file that becomes unreadable after the walk is skipped rather than thrown", () => {
+test("markup: a markup file that becomes unreadable after the walk is skipped rather than thrown", (t) => {
   const dir = tmpDir("tovu-validate-markup-unreadable-");
-  writeMinimalV2Static(dir);
-  const unreadable = path.join(dir, "render", "pages", "broken.html");
-  fs.writeFileSync(unreadable, "<html><body>content</body></html>", "utf8");
-  fs.chmodSync(unreadable, 0o000);
-
-  try {
-    if (process.getuid && process.getuid() === 0) {
-      // Running as root (some CI containers): permission bits don't block reads, so this environment
-      // cannot exercise the branch this test targets. Skip rather than assert a false negative.
-      return;
+  writeMinimalV2Static(dir, { partials: undefined });
+  const unreadable = path.join(dir, "render/pages/broken.html");
+  fs.writeFileSync(unreadable, '<div data-agent-element="forbidden"></div>', "utf8");
+  const original = fs.readFileSync;
+  let attempts = 0;
+  const denied = t.mock.method(fs, "readFileSync", (...args: Parameters<typeof fs.readFileSync>) => {
+    if (String(args[0]) === path.join(fs.realpathSync(dir), "render/pages/broken.html")) {
+      attempts++;
+      throw Object.assign(new Error("permission denied"), { code: "EACCES" });
     }
+    return original(...args);
+  });
+  syncBuiltinESMExports();
+  try {
     const result = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "author" });
-    // No throw, and no finding attributable to a file the scan could never actually read.
-    assert.equal(result.schemaVersion, 2);
+    assert.equal(attempts, 1, "the walk must retain the file and the markup scan must try to read it");
+    assert.deepEqual(result, { schemaVersion: 2, valid: true, errors: [], warnings: [] });
   } finally {
-    fs.chmodSync(unreadable, 0o644);
+    denied.mock.restore();
+    syncBuiltinESMExports();
+    fs.rmSync(dir, { recursive: true, force: true });
   }
 });
 
@@ -555,13 +598,26 @@ test("profiles: a missing marketplace preview thumbnail is a WARNING under autho
   assert.ok(findError(publishResult, "preview-thumbnail-missing"), JSON.stringify(publishResult.errors));
 });
 
-test("profiles: install is at least as strict as author — a containment violation still fails install", () => {
+test("profiles: install rejects an unknown manifest field", () => {
   const dir = tmpDir("tovu-validate-profile-install-");
   writeMinimalV2Static(dir, { totallyMadeUpField: true });
 
   const result = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "install" });
   assert.equal(result.valid, false);
   assert.ok(findError(result, "v2-unknown-field"), JSON.stringify(result.errors));
+});
+
+test("profiles: install is at least as strict as author — a containment violation still fails install", () => {
+  const dir = tmpDir("tovu-validate-profile-install-containment-");
+  writeMinimalV2Static(dir, { partials: undefined,
+    build: { source: "compiled", sourceDir: "../outside", artifactHashes: { "render/pages/index.html": "sha256:x" } },
+  });
+  for (const profile of ["author", "install"] as const) {
+    const result = validateThemePackage({ themeDir: dir, id: "my-theme", profile });
+    assert.equal(result.valid, false);
+    assert.deepEqual(result.errors, [{ ruleId: "structure-sourcedir-escapes", severity: "error",
+      message: "build.sourceDir '../outside' must be a relative, contained path (no leading '/', no '..')" }]);
+  }
 });
 
 // ---------------------------------------------------------------------------

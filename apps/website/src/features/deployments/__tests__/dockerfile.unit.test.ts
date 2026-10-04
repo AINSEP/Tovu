@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { beforeEach, afterEach } from "node:test";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import {
   readDockerfileSource,
@@ -12,18 +15,22 @@ import {
  * the agent tool (those get their own coverage in `dockerfile-source-route.test.ts` and
  * `tool-registrations.integration.test.ts` respectively) — Terra audit finding C5, 2026-08-15.
  *
- * There is nowhere else for these tests to write — `writeDockerfileSource`/
- * `writeDockerfileSourceWithIfMatch` accept no path input at all, by design (see `dockerfile.ts`'s
- * own header). Every test here captures the real repo-root Dockerfile's before-state and restores
- * it in `t.after()`, same discipline as the sibling route/tool test suites.
+ * Each serial test resolves the Dockerfile from a fresh temporary cwd. The checkout is never
+ * written, including when a test process is interrupted.
  */
 
-test("readDockerfileSource: etag is a deterministic, content-derived strong validator — same contents, same etag", (t) => {
-  const before = readDockerfileSource();
-  t.after(() => {
-    if (before.exists) writeDockerfileSource(before.contents!);
-  });
+const originalCwd = process.cwd();
+let testRoot: string;
+beforeEach(() => {
+  testRoot = mkdtempSync(join(tmpdir(), "tovu-dockerfile-test-"));
+  process.chdir(testRoot);
+});
+afterEach(() => {
+  process.chdir(originalCwd);
+  rmSync(testRoot, { recursive: true, force: true });
+});
 
+test("readDockerfileSource: etag is a deterministic, content-derived strong validator — same contents, same etag", () => {
   writeDockerfileSource("FROM node:22\n");
   const first = readDockerfileSource();
   const second = readDockerfileSource();
@@ -31,12 +38,7 @@ test("readDockerfileSource: etag is a deterministic, content-derived strong vali
   assert.match(first.etag, /^"[0-9a-f]{64}"$/, "must be a quoted sha256 hex digest, not Express's own auto-generated weak etag shape");
 });
 
-test("readDockerfileSource: a real content change produces a different etag", (t) => {
-  const before = readDockerfileSource();
-  t.after(() => {
-    if (before.exists) writeDockerfileSource(before.contents!);
-  });
-
+test("readDockerfileSource: a real content change produces a different etag", () => {
   writeDockerfileSource("FROM node:22\n");
   const first = readDockerfileSource();
   writeDockerfileSource("FROM node:22\nRUN echo hi\n");
@@ -45,19 +47,17 @@ test("readDockerfileSource: a real content change produces a different etag", (t
 });
 
 test("readDockerfileSource: the missing-file etag is a fixed sentinel, never shaped like a real hash", () => {
-  // Not exercised against the real repo-root Dockerfile (it exists in this checkout) — this only
-  // pins the sentinel's own shape, which `writeDockerfileSourceWithIfMatch`'s conflict tests below
-  // rely on being distinguishable from a real 64-hex-char sha256 digest.
-  const missingShapeAssertionSubject = 'W/"missing"';
-  assert.doesNotMatch(missingShapeAssertionSubject, /^"[0-9a-f]{64}"$/);
+  const missing = readDockerfileSource();
+  assert.deepEqual(missing, { exists: false, contents: null, etag: 'W/"missing"' });
+  assert.doesNotMatch(missing.etag, /^"[0-9a-f]{64}"$/);
+  const result = writeDockerfileSourceWithIfMatch("FROM node:22\n", missing.etag);
+  assert.ok(result.ok);
+  assert.equal(result.snapshot.contents, "FROM node:22\n");
+  assert.match(result.snapshot.etag, /^"[0-9a-f]{64}"$/);
+  assert.deepEqual(readDockerfileSource(), result.snapshot);
 });
 
-test("writeDockerfileSourceWithIfMatch: succeeds and writes when ifMatch names the CURRENT etag", (t) => {
-  const before = readDockerfileSource();
-  t.after(() => {
-    if (before.exists) writeDockerfileSource(before.contents!);
-  });
-
+test("writeDockerfileSourceWithIfMatch: succeeds and writes when ifMatch names the CURRENT etag", () => {
   writeDockerfileSource("FROM node:22\n");
   const current = readDockerfileSource();
 
@@ -74,12 +74,7 @@ test("writeDockerfileSourceWithIfMatch: succeeds and writes when ifMatch names t
   assert.deepEqual(readDockerfileSource(), result.snapshot);
 });
 
-test("writeDockerfileSourceWithIfMatch: a stale ifMatch is refused and the file is left untouched — the actual lost-update reproduction", (t) => {
-  const before = readDockerfileSource();
-  t.after(() => {
-    if (before.exists) writeDockerfileSource(before.contents!);
-  });
-
+test("writeDockerfileSourceWithIfMatch: a stale ifMatch is refused and the file is left untouched — the actual lost-update reproduction", () => {
   // Writer A reads first.
   writeDockerfileSource("FROM node:22\n");
   const staleIfMatch = readDockerfileSource().etag;
@@ -103,12 +98,7 @@ test("writeDockerfileSourceWithIfMatch: a stale ifMatch is refused and the file 
   assert.notEqual(onDisk.contents, writerAAttempt);
 });
 
-test("writeDockerfileSourceWithIfMatch: comparing against a CACHED etag instead of a fresh read would wrongly allow the same race back in — this proves the comparison is fresh", (t) => {
-  const before = readDockerfileSource();
-  t.after(() => {
-    if (before.exists) writeDockerfileSource(before.contents!);
-  });
-
+test("writeDockerfileSourceWithIfMatch: comparing against a CACHED etag instead of a fresh read would wrongly allow the same race back in — this proves the comparison is fresh", () => {
   writeDockerfileSource("FROM node:22\n");
   const cachedFromLongAgo = readDockerfileSource().etag;
 
@@ -126,12 +116,7 @@ test("writeDockerfileSourceWithIfMatch: comparing against a CACHED etag instead 
   assert.equal(result.current.contents, rightBeforeAttempt.contents);
 });
 
-test("writeDockerfileSource (unconditional): stays available for cleanup/restore callers and performs no etag check", (t) => {
-  const before = readDockerfileSource();
-  t.after(() => {
-    if (before.exists) writeDockerfileSource(before.contents!);
-  });
-
+test("writeDockerfileSource (unconditional): stays available for cleanup/restore callers and performs no etag check", () => {
   writeDockerfileSource("FROM node:22\n");
   writeDockerfileSource("FROM node:22\nRUN changed-underneath\n"); // a "concurrent" change
   // Unconditional — no ifMatch parameter exists on this function at all, so there is nothing for a

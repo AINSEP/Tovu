@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 
 import { ToolInputError } from "@jini-ai/core";
@@ -28,9 +28,8 @@ import { buildDeploymentsRegistrations, type DeploymentsToolDeps } from "../../t
  * — this suite really runs `exportSite` and must not write into the checked-out repo's own
  * `infra/export`.
  *
- * The Dockerfile round-trip tests write to the SAME real repo-root `Dockerfile` the HTTP route tests
- * do (there is no path input to redirect them elsewhere, by design — see `dockerfile.ts`'s header).
- * Each captures the real before-state via `readDockerfileSource()` and restores it in `t.after()`.
+ * Dockerfile cases mock only the cwd resolution root to a temporary directory, so no test
+ * writes the checkout's Dockerfile.
  *
  * `getExportRunSnapshot()`'s `currentRun` (`export-run.ts`) is a process-local singleton shared by
  * every test in THIS file — the "idle" test is declared before the "trigger" test so its precondition
@@ -48,6 +47,12 @@ import { buildDeploymentsRegistrations, type DeploymentsToolDeps } from "../../t
  */
 
 const exportOutputDir = mkdtempSync(path.join(tmpdir(), "tovu-deployments-tools-test-"));
+
+function isolateDockerfile(t: TestContext): void {
+  const root = mkdtempSync(path.join(tmpdir(), "tovu-tools-dockerfile-"));
+  t.mock.method(process, "cwd", () => root);
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+}
 
 function ctx(input: unknown) {
   return { principal: { id: "admin-1", kind: "user" as const }, signal: new AbortController().signal, input };
@@ -81,10 +86,8 @@ test("all 4 deployments tools are registered with input schemas the model needs"
 // deployment_list assertions retired with the never-written deployment tables (2026-10-03).
 
 test("deployment_set_dockerfile refuses when the caller lacks system.write, and never touches the file", async (t) => {
+  isolateDockerfile(t);
   const before = readDockerfileSource();
-  t.after(() => {
-    if (before.exists) writeDockerfileSource(before.contents!);
-  });
 
   const deps: DeploymentsToolDeps = { ...createRouteDeps(), authorize: async () => ({ allowed: false, reason: "no grant" }) };
   const registrations = buildDeploymentsRegistrations(deps);
@@ -101,10 +104,8 @@ test("deployment_set_dockerfile refuses when the caller lacks system.write, and 
 });
 
 test("deployment_set_dockerfile refuses when 'ifMatch' is missing from input, even for an otherwise-authorized caller, and never touches the file", async (t) => {
+  isolateDockerfile(t);
   const before = readDockerfileSource();
-  t.after(() => {
-    if (before.exists) writeDockerfileSource(before.contents!);
-  });
 
   const registrations = buildDeploymentsRegistrations(grantingDeps());
   const tool = registrations.find((r) => r.descriptor.id === "deployment_set_dockerfile")!;
@@ -114,10 +115,7 @@ test("deployment_set_dockerfile refuses when 'ifMatch' is missing from input, ev
 });
 
 test("deployment_get_dockerfile / deployment_set_dockerfile round-trip the repo-root Dockerfile with a real etag", async (t) => {
-  const before = readDockerfileSource();
-  t.after(() => {
-    if (before.exists) writeDockerfileSource(before.contents!);
-  });
+  isolateDockerfile(t);
 
   const registrations = buildDeploymentsRegistrations(grantingDeps());
   const byId = new Map(registrations.map((r) => [r.descriptor.id, r]));
@@ -142,10 +140,7 @@ test("deployment_get_dockerfile / deployment_set_dockerfile round-trip the repo-
 });
 
 test("deployment_set_dockerfile refuses a stale ifMatch with a message the assistant can act on, and never touches the file — the actual lost-update reproduction", async (t) => {
-  const before = readDockerfileSource();
-  t.after(() => {
-    if (before.exists) writeDockerfileSource(before.contents!);
-  });
+  isolateDockerfile(t);
 
   const registrations = buildDeploymentsRegistrations(grantingDeps());
   const byId = new Map(registrations.map((r) => [r.descriptor.id, r]));

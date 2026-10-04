@@ -294,6 +294,8 @@ execute the sequence, then stop.
   const embedAttempt = calls.find((c) => c.name === "widgets_insert_embed" && inputObj(c.input).hostEntryId === postId);
   expect(embedAttempt, `expected the assistant to attempt widgets_insert_embed against the post. ${diag()}`).toBeTruthy();
   expect(embedAttempt!.isError, `widgets_insert_embed against a real post should fail (no reachable host) — it succeeded instead: ${embedAttempt!.content}`).toBe(true);
+  expect(embedAttempt!.content).toContain("WIDGETS_INSTANCE_NOT_FOUND");
+  expect(embedAttempt!.content).toContain(`host entry '${postId}' was not found`);
 
   await request.post(`${RUNS_PATH}/${runId}/cancel`, { data: {} }).catch(() => undefined);
 
@@ -560,8 +562,15 @@ test.describe("EMPIRICAL PROBE: theme regions — observed, not just grepped", (
 
     const post = await createPostHttp(request, { title: "Region Probe Post", slug: "mutation-region-probe-post", status: "published" });
 
-    const homeHtml = await (await fetch(`${baseURL}/`)).text();
-    const postHtml = await (await fetch(`${baseURL}/mutation-region-probe-post`)).text();
+    const homeRes = await fetch(`${baseURL}/`);
+    const postRes = await fetch(`${baseURL}/mutation-region-probe-post`);
+    expect(homeRes.status).toBe(200);
+    expect(postRes.status).toBe(200);
+    const homeHtml = await homeRes.text();
+    const postHtml = await postRes.text();
+    expect(homeHtml).toMatch(/<main\b/);
+    expect(homeHtml).toMatch(/<h1\b/);
+    expect(postHtml).toContain("Region Probe Post");
 
     // THE OBSERVATION (not an inference): with the widget genuinely bound AND placed in both
     // regions a theme commonly declares, it appears on NEITHER the home page NOR a real post. This

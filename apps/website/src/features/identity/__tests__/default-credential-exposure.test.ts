@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
+import fs from "node:fs";
+import path from "node:path";
+import { tmpdir } from "node:os";
+import { syncBuiltinESMExports } from "node:module";
 
 import {
   findSecretInText,
@@ -35,8 +39,43 @@ test("the default password is non-empty — an empty value would make this whole
   assert.ok(DEFAULT_OWNER_PASSWORD.length > 0);
 });
 
-test("REGRESSION: the shipped admin UI does not contain the seeded default password", () => {
+test("REGRESSION: the shipped admin UI source does not contain the seeded default password", (t) => {
   // Guards the real, thrice-recurring bug: apps/admin/src/features/auth/Login.tsx rendering
   // `local dev default: admin / <password>` into the production sign-in page.
+  const read = fs.readFileSync.bind(fs);
+  const visited: string[] = [];
+  t.mock.method(fs, "readFileSync", (...args: Parameters<typeof fs.readFileSync>) => { visited.push(String(args[0])); return read(...args); });
+  syncBuiltinESMExports();
+  t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports(); });
   assert.deepEqual(scanForDefaultCredentialExposure(), []);
+  assert.ok(visited.includes(path.resolve(import.meta.dirname, "../../../../../admin/src/features/auth/Login.tsx")), "the scan must actually inspect Login.tsx");
+});
+
+
+function redirectAdminRoot(t: TestContext, fixture: string): void {
+  const realRoot = path.resolve(import.meta.dirname, "../../../../../..", "apps/admin/src");
+  const remap = (file: fs.PathLike | number) => typeof file === "string" && (file === realRoot || file.startsWith(`${realRoot}${path.sep}`)) ? path.join(fixture, path.relative(realRoot, file)) : file;
+  const read = fs.readFileSync.bind(fs), entries = fs.readdirSync.bind(fs), stat = fs.statSync.bind(fs);
+  t.mock.method(fs, "readFileSync", (file: fs.PathOrFileDescriptor, ...options: unknown[]) => (read as Function)(remap(file), ...options));
+  t.mock.method(fs, "readdirSync", (dir: fs.PathLike, ...options: unknown[]) => (entries as Function)(remap(dir), ...options));
+  t.mock.method(fs, "statSync", (file: fs.PathLike, ...options: unknown[]) => (stat as Function)(remap(file), ...options));
+  syncBuiltinESMExports();
+  t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports(); });
+}
+
+test("the complete scanner detects a planted credential in the shipped Login path", (t) => {
+  const fixture = fs.mkdtempSync(path.join(tmpdir(), "tovu-credential-scan-"));
+  t.after(() => fs.rmSync(fixture, { recursive: true, force: true }));
+  fs.mkdirSync(path.join(fixture, "features/auth"), { recursive: true });
+  fs.writeFileSync(path.join(fixture, "features/auth/Login.tsx"), `export const hint = "${DEFAULT_OWNER_PASSWORD}";\n`);
+  fs.writeFileSync(path.join(fixture, "clean.ts"), "export const clean = true;");
+  redirectAdminRoot(t, fixture);
+  assert.deepEqual(scanForDefaultCredentialExposure(), [{ file: "apps/admin/src/features/auth/Login.tsx", line: 1 }]);
+});
+
+test("a missing scanner root is an error rather than a clean scan", (t) => {
+  const fixture = fs.mkdtempSync(path.join(tmpdir(), "tovu-missing-credential-scan-"));
+  t.after(() => fs.rmSync(fixture, { recursive: true, force: true }));
+  redirectAdminRoot(t, path.join(fixture, "missing"));
+  assert.throws(() => scanForDefaultCredentialExposure(), { code: "ENOENT" });
 });

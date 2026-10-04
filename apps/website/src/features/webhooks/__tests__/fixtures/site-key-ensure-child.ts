@@ -1,4 +1,5 @@
-import { writeFileSync } from "node:fs";
+import { existsSync, writeFileSync } from "node:fs";
+import { setTimeout as delay } from "node:timers/promises";
 
 import { ensureSiteKey } from "../../site-key-ensure.js";
 import { findSiteKeyDependentData } from "#src/platform/site-dir/site-key-dependent-data";
@@ -7,18 +8,16 @@ import { findSiteKeyDependentData } from "#src/platform/site-dir/site-key-depend
  * @file Cross-process half of the A2 race test (site-key plan §A.2: "a race test with 2 child
  * processes on the same temp HOME and siteKeyId: exactly 1 file, same fingerprint in both").
  *
- * The parent test has no way to pause `ensureSiteKey` mid-write — the race this proves safe is genuinely between two OS processes both reaching
- * `atomicCreateSiteKeyFile` at roughly the same wall-clock instant, not an artificially staged one.
- * Spawned via `tsx` (see `../integration/site-key-ensure-race.integration.test.ts`), same pattern as
- * `activation-writer-child.ts`.
+ * The injected data scan is awaited after key absence has been observed. A ready file and
+ * parent-controlled release file hold both processes at that point before either can publish.
  *
- * argv: `home siteDir siteKeyId outputFilePath`. Writes `{action, fingerprint}` as JSON to
+ * argv: `home siteDir siteKeyId outputFilePath releaseFilePath`. Writes `{action, fingerprint}` as JSON to
  * `outputFilePath` — never to stdout, so the parent test's own process output stays clean.
  */
 
-const [home, siteDir, siteKeyId, outputFilePath] = process.argv.slice(2);
-if (!home || !siteDir || !siteKeyId || !outputFilePath) {
-  process.stderr.write("usage: site-key-ensure-child.ts <home> <siteDir> <siteKeyId> <outputFilePath>\n");
+const [home, siteDir, siteKeyId, outputFilePath, releaseFilePath] = process.argv.slice(2);
+if (!home || !siteDir || !siteKeyId || !outputFilePath || !releaseFilePath) {
+  process.stderr.write("usage: site-key-ensure-child.ts <home> <siteDir> <siteKeyId> <outputFilePath> <releaseFilePath>\n");
   process.exit(1);
 }
 
@@ -27,5 +26,16 @@ delete env.TOVU_SITE_KEY;
 delete env.TOVU_INTEGRATIONS_ROOT_KEY;
 delete env.TOVU_RUNTIME_MODE;
 
-const result = await ensureSiteKey({ siteDir, siteKeyId, mode: "local", env, home, findSiteKeyDependentData });
+const result = await ensureSiteKey({ siteDir, siteKeyId, mode: "local", env, home,
+  findSiteKeyDependentData: async (dir) => {
+    const hasData = await findSiteKeyDependentData(dir);
+    writeFileSync(`${outputFilePath}.ready`, "ready");
+    const deadline = Date.now() + 20_000;
+    while (!existsSync(releaseFilePath)) {
+      if (Date.now() > deadline) throw new Error("parent did not release site-key race barrier");
+      await delay(10);
+    }
+    return hasData;
+  },
+});
 writeFileSync(outputFilePath, JSON.stringify(result), "utf8");

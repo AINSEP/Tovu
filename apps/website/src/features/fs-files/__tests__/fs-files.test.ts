@@ -4,6 +4,8 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
+import { createNodeGuardedReaderFilesystem } from "@jini-ai/platform/fs/guarded-reader";
+
 import {
   FsFilePathError,
   isDeniedFsFileName,
@@ -587,4 +589,58 @@ test("Windows trailing-dot, trailing-space, and ::$DATA spellings of denied name
   }
   assert.equal(isDeniedFsPathSegment(".tovu. "), true, "trailing dot and space together");
   assert.equal(isDeniedFsFileName("notes.txt"), false, "an ordinary name must still pass");
+});
+
+
+test("storage-secret files and crashed-write variants are denied on read and omitted from listings", (t) => {
+  const { root } = makeAllowedRoot();
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  for (const name of [".storage-secret.json", "..storage-secret.json.1234.abcdef.tmp", ".storage-secret.json.backup"]) {
+    fs.writeFileSync(path.join(root, name), "sealed database credentials");
+    assert.equal(isDeniedFsFileName(name), true, name);
+    assert.throws(() => readFsFile({ rootPath: root, relativePath: name }), /denied filename pattern/);
+  }
+  assert.deepEqual(listFsFiles({ rootPath: root }), { files: ["manifest.json", "references/checklist.template.md"], truncated: false });
+  assert.equal(isDeniedFsFileName("storage-secret.json"), false);
+});
+
+test("listing truncates beyond depth 12 and never enumerates the deeper directory", (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-fs-depth-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  let directory = root;
+  for (let depth = 1; depth <= 14; depth++) {
+    directory = path.join(directory, "d");
+    fs.mkdirSync(directory);
+    if (depth === 12 || depth === 13) fs.writeFileSync(path.join(directory, `at-${depth}.txt`), "x");
+  }
+  const enumerated: string[] = [];
+  const filesystem = { ...createNodeGuardedReaderFilesystem({}), readdirSync: ((dir: fs.PathLike) => {
+    enumerated.push(String(dir));
+    return fs.readdirSync(dir);
+  }) as typeof fs.readdirSync };
+  const result = listFsFiles({ rootPath: root }, { filesystem });
+  assert.deepEqual(result, { files: [`${Array(12).fill("d").join("/")}/at-12.txt`], truncated: true });
+  assert.equal(enumerated.length, 13, "only root and depths 1 through 12 are enumerated");
+  assert.equal(enumerated.includes(path.join(fs.realpathSync(root), ...Array(13).fill("d"))), false);
+});
+
+test("a wide denied-file listing spends at most 20000 entries even though it yields no results", (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-fs-entry-budget-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const denied = Array.from({ length: 20_001 }, (_, index) => `.env.${index}`);
+  fs.writeFileSync(path.join(root, ".env.exemplar"), "secret");
+  const stat = fs.lstatSync(path.join(root, ".env.exemplar"));
+  const base = fs.realpathSync(root);
+  let inspected = 0;
+  // Virtual wide directory over a real file stat: enumeration and entry visits remain independent.
+  const filesystem = { ...createNodeGuardedReaderFilesystem({}),
+    readdirSync: ((dir: fs.PathLike) => { assert.equal(String(dir), base); return denied; }) as typeof fs.readdirSync,
+    lstatSync: ((file: fs.PathLike) => {
+      assert.equal(String(file), path.join(base, `.env.${inspected}`));
+      inspected += 1;
+      return stat;
+    }) as typeof fs.lstatSync,
+  };
+  assert.deepEqual(listFsFiles({ rootPath: root }, { filesystem }), { files: [], truncated: true });
+  assert.equal(inspected, 20_000);
 });

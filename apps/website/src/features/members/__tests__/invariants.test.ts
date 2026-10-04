@@ -1,14 +1,13 @@
 /**
  * ADR-030 §2 hard invariant: a `kind='member'` principal must never hold an
- * operator RBAC role or permission. There is no operator-permission/RBAC code
- * in this repo yet to test an actual `authorize()` rejection against (ADR-021's
- * `principals`/`principal_roles` tables + the "reject any member-kind principal"
- * gate are not implemented anywhere yet) — so this is a structural placeholder,
+ * operator RBAC role or permission. Operator RBAC exists, but its principal-kind vocabulary
+ * does not include members yet; there is no member-kind `authorize()` gate to exercise.
+ * This is a structural placeholder,
  * not a full enforcement test. It asserts the two things that ARE checkable
  * today: (1) the `members` public barrel exposes no role/permission/RBAC-shaped
- * symbol, so nothing here could accidentally wire a member into the operator
- * axis, and (2) `MemberRecord`/`MemberContext` carry no role/permission field at
- * the type level. When ADR-021's principal-kind extension + `authorize()` guard
+ * symbol, and (2) representative typed fixtures carry no role/permission field.
+ * Production member and resolved-context shapes are checked in `write-service.test.ts`.
+ * When ADR-021's principal-kind extension + `authorize()` guard
  * land, replace this with a real "member-kind authorize() call is rejected" test.
  */
 import assert from "node:assert/strict";
@@ -23,11 +22,9 @@ test("members barrel exports no RBAC role/permission symbol (ADR-030 §2, struct
   assert.deepEqual(rbacLike, [], "members barrel must not export any operator RBAC role/permission symbol");
 });
 
-test("MemberRecord and MemberContext carry no role/permission field (type-level note, enforced by the compiler)", () => {
-  // If `MemberRecord`/`MemberContext` ever grow a `role`/`permissions` field,
-  // this object literal (built from only the documented keys) would need one
-  // too to type-check the assignment below — the compiler is the actual
-  // enforcement; this test just keeps a runtime witness of the intended shape.
+test("representative MemberRecord and MemberContext fixtures carry no role/permission field", () => {
+  // These fixtures document the intended shape; they cannot prohibit optional type keys.
+  // The sibling write-service tests inspect real sign-in and resolver outputs.
   const member: MemberRecord = {
     id: "member-1",
     workspaceId: "ws-1",

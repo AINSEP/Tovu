@@ -100,6 +100,10 @@ function githubInput(routeDeps: ReturnType<typeof createRouteDeps>): StaticPubli
   };
 }
 
+test("the snapshot is idle with no timestamps, target, result, or error before the first run", () => {
+  assert.deepEqual(getPublishRunSnapshot(), { status: "idle", startedAtIso: null, finishedAtIso: null, target: null });
+});
+
 test("runPublishAndAwait: a full success records history with owner/repo/basePath/branch/commitSha, reachable:true, triggeredBy:agent_tool", async () => {
   const routeDeps = testRouteDeps();
   // owner/repo/branch/commitSha are the HOST's own facts (`providerMetadata`), not the request's:
@@ -142,6 +146,17 @@ test("runPublishAndAwait: history's owner/repo/branch/commitSha come from provid
   assert.equal(recorded!.branch, "main");
   assert.equal(recorded!.commitSha, "sha-from-host");
   assert.equal(recorded!.deploymentId, "dpl-other");
+
+  const invalidMetadata = { owner: 123, repo: {}, branch: false, commitSha: null };
+  const invalidDeps = { ...deps, buildTarget: () => fakeDeployTarget("https://example.test/invalid", "ready", "dpl-invalid", invalidMetadata) };
+  const outcome = await runPublishAndAwait(invalidDeps, githubInput(routeDeps), clock, history);
+  assert.equal(outcome.ok, true);
+  const dropped = await history.getLast({ workspaceId: routeDeps.workspaceId, target: "github-pages" });
+  assert.ok(dropped);
+  for (const key of ["owner", "repo", "branch", "commitSha"] as const) {
+    assert.equal(Object.hasOwn(dropped, key), false, `${key} must be absent for non-string metadata`);
+  }
+  assert.equal(dropped.deploymentId, "dpl-invalid");
 });
 
 test("runPublishAndAwait: a non-github-pages target never carries commitSha/branch, even though deploymentId is still recorded verbatim", async () => {
@@ -211,7 +226,9 @@ test("startPublishRun: the fire-and-forget path records history too, once the ba
   const history = new InMemoryPublishHistoryStore();
   const input = githubInput(routeDeps);
 
-  startPublishRun(deps, input, clock, history);
+  const started = startPublishRun(deps, input, clock, history);
+  assert.equal(started.status, "running");
+  assert.equal(getPublishRunSnapshot().status, "running");
 
   // Bounded poll — the same "wait for the shared snapshot to leave 'running'" contract this file's
   // own `getPublishRunSnapshot` exists to answer; a real export against the hermetic fixture is fast
@@ -227,3 +244,31 @@ test("startPublishRun: the fire-and-forget path records history too, once the ba
   assert.equal(recorded!.url, "https://example.test/bg");
   assert.equal(recorded!.triggeredBy, "admin_ui", "startPublishRun is the admin route's own entry point");
 });
+
+
+for (const mode of ["awaited", "background"] as const) {
+  test(`${mode} unexpected publish failure settles the run with its error and permits the next run`, { timeout: 5000 }, async () => {
+    const routeDeps = testRouteDeps();
+    const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), loadDeployTargets: routeDeps.loadDeployTargets, buildTarget: () => assert.fail("must not build") };
+    const history = new InMemoryPublishHistoryStore();
+    const failure = new Error("run ID generation failed");
+    const input = { ...githubInput(routeDeps), idGen: { newId: () => { throw failure; } }, exportSiteBound: async () => assert.fail("must not export") };
+    if (mode === "awaited") {
+      const run = runPublishAndAwait(deps, input, clock, history);
+      assert.equal(getPublishRunSnapshot().status, "running");
+      await assert.rejects(run, (error) => error === failure);
+    } else {
+      assert.equal(startPublishRun(deps, input, clock, history).status, "running");
+      const deadline = Date.now() + 2000;
+      while (getPublishRunSnapshot().status === "running" && Date.now() < deadline) {
+        await new Promise<void>((resolve) => setImmediate(resolve));
+      }
+    }
+    assert.deepEqual(getPublishRunSnapshot(), { status: "errored", startedAtIso: "2026-08-16T12:00:00.000Z", finishedAtIso: "2026-08-16T12:00:00.000Z", target: "github-pages", error: "run ID generation failed" });
+    assert.equal(await history.getLast({ workspaceId: routeDeps.workspaceId, target: "github-pages" }), null);
+    // A normal refusal can start and settle after the unexpected failure.
+    const recovered = await runPublishAndAwait(deps, { ...input, projectName: "" }, clock, history);
+    assert.deepEqual(recovered, { ok: false, code: "INVALID_CONFIG", message: "projectName must be 1-200 characters" });
+    assert.equal(getPublishRunSnapshot().error, undefined);
+  });
+}

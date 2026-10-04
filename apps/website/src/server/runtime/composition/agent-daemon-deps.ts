@@ -84,6 +84,13 @@ export function startPluginActivationPolling(
   const intervalMs = options.intervalMs ?? 5000;
   const attachedIds = new Set<string>();
   let stopped = false;
+  // A pass can already be awaiting readiness or a durable read when stop() clears the timer.
+  // Check again at each registry boundary so that settling that pass cannot change hooks.
+  const pollingDeps: PluginActivationPollDeps = {
+    ...deps,
+    onPluginEnabled: async (pluginId) => { if (!stopped) await deps.onPluginEnabled(pluginId); },
+    onPluginDisabled: (pluginId) => { if (!stopped) deps.onPluginDisabled(pluginId); },
+  };
 
   const seeded = deps.pluginRuntimeReady.then(async () => {
     const records = await deps.pluginActivationRepo.listAll();
@@ -95,7 +102,7 @@ export function startPluginActivationPolling(
   const timer = setInterval(() => {
     if (stopped) return;
     void seeded
-      .then(() => reconcilePluginActivationsOnce(deps, attachedIds))
+      .then(() => stopped ? undefined : reconcilePluginActivationsOnce(pollingDeps, attachedIds))
       .catch((error: unknown) => {
         // eslint-disable-next-line no-console
         console.warn(`[plugin-runtime] plugin activation poll failed: ${error instanceof Error ? error.message : String(error)}`);

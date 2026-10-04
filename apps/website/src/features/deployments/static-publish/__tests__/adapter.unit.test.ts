@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -11,7 +11,7 @@ import type { DeployFile, DeployPublishInput, DeployPublishResult, DeployTarget 
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import type { RouteDeps } from "#src/server/routes/types";
 
-import { publishStaticSite, toDeployFile, publishOutputDir as computePublishOutputDir } from "../adapter.js";
+import { publishStaticSite, readStaticPublishConfig, toDeployFile, publishOutputDir as computePublishOutputDir } from "../adapter.js";
 import type { HostDeployPublishInput } from "#src/features/deployments/deploy-targets/types";
 import type { PublishCredentialSource, StaticPublishConfig } from "../types.js";
 import { PUBLIC_PAGE_SECURITY_HEADERS } from "#src/contracts/core/public-page-security-headers";
@@ -144,12 +144,8 @@ test("publishStaticSite: an invalid config is rejected before credentials or the
 });
 
 test("publishStaticSite: a missing token fails cleanly with NO_CREDENTIALS_CONFIGURED, before any export or publish attempt", async () => {
-  let exportAttempted = false;
+  let exportAttempts = 0;
   const deps: RouteDeps = testRouteDeps();
-  // Wrapping workspaceRepo.findById (an arbitrary read exportSite touches early) would be fragile
-  // to internal exportSite ordering; instead this test proves the STRONGER claim — the deploy
-  // target is never even constructed — via `buildTarget` below never firing.
-  void exportAttempted;
 
   const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
       credentialSource: { async resolve() { return { ok: false, reason: "GITHUB_TOKEN is not set" }; }, async isConfigured() { return { configured: false, reason: "GITHUB_TOKEN is not set" }; } },
@@ -161,7 +157,7 @@ test("publishStaticSite: a missing token fails cleanly with NO_CREDENTIALS_CONFI
       workspaceId: deps.workspaceId,
       publishOutputRootDir: deps.publishOutputRootDir,
       idGen: deps.idGen,
-      exportSiteBound: deps.exportSiteBound,
+      exportSiteBound: async (options) => { exportAttempts += 1; return deps.exportSiteBound(options); },
       config: { target: "github-pages", owner: "octo", repo: "demo" },
       projectName: "demo",
     }
@@ -171,6 +167,7 @@ test("publishStaticSite: a missing token fails cleanly with NO_CREDENTIALS_CONFI
   if (result.ok) throw new Error("unreachable");
   assert.equal(result.code, "NO_CREDENTIALS_CONFIGURED");
   assert.equal(result.message, "GITHUB_TOKEN is not set");
+  assert.equal(exportAttempts, 0);
   // "Fails cleanly without leaking": the message NAMES the missing env var (helpful, expected —
   // "GITHUB_TOKEN" legitimately contains the substring "token") but must never carry a `Bearer `
   // header shape or a `key": "value"` pair that would indicate an actual credential VALUE leaked
@@ -249,8 +246,9 @@ async function publishInputFor(config: StaticPublishConfig): Promise<HostDeployP
       credentialSource: { async resolve() { return { ok: true, token: "fake-token-never-used-by-fake-target", accountId: "acct-1" }; }, async isConfigured() { return { configured: true }; } },
       buildTarget: () => ({
         id: "fake",
-        async publish(input: HostDeployPublishInput): Promise<DeployPublishResult> {
-          received = input;
+        // The devops port passes response headers as its optional second argument.
+        async publish(input: DeployPublishInput, optional?: Parameters<DeployTarget["publish"]>[1]): Promise<DeployPublishResult> {
+          received = { ...input, ...optional };
           return { targetId: "fake", url: "https://example.test/published", status: "ready" };
         },
         async checkReachability() {
@@ -666,6 +664,7 @@ test("publishStaticSite: rejects a projectName over the 200-character limit", as
 
 test("publishStaticSite: exportSiteBound itself throwing (not merely returning failed routes) is caught as EXPORT_FAILED, and the run directory is still cleaned up", async () => {
   const deps: RouteDeps = testRouteDeps();
+  let runDir: string | undefined;
   const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
       credentialSource: { async resolve() { return { ok: true, token: "t" }; }, async isConfigured() { return { configured: true }; } },
       buildTarget: () => {
@@ -676,13 +675,19 @@ test("publishStaticSite: exportSiteBound itself throwing (not merely returning f
       workspaceId: deps.workspaceId,
       publishOutputRootDir: deps.publishOutputRootDir,
       idGen: deps.idGen,
-      exportSiteBound: async () => {
+      exportSiteBound: async ({ outputDir }) => {
+        runDir = outputDir;
+        mkdirSync(outputDir, { recursive: true });
+        writeFileSync(path.join(outputDir, "partial.html"), "partially exported");
+        assert.equal(existsSync(outputDir), true);
         throw new Error("simulated exportSiteBound crash");
       },
       config: { target: "vercel" },
       projectName: "demo",
     }
   );
+  assert.ok(runDir, "export must have been attempted");
+  assert.equal(existsSync(runDir), false, "failed export artifacts must be removed");
   assert.equal(result.ok, false);
   if (result.ok) throw new Error("unreachable");
   assert.equal(result.code, "EXPORT_FAILED");
@@ -776,4 +781,58 @@ test("publishStaticSite: with no credentialId on the input, resolve() is called 
 
   assert.deepEqual(seen.value, { workspaceId: deps.workspaceId, target: "vercel" });
   assert.equal("credentialId" in (seen.value ?? {}), false, "an absent choice must never travel as an explicit undefined");
+});
+
+
+test("readStaticPublishConfig drops unknown keys, validates types, and treats optional blanks according to input mode", async () => {
+  const registry = await hermeticDeployTargets("workspace-local");
+  const target = registry.get("github-pages")!;
+  assert.ok(target);
+  assert.deepEqual(readStaticPublishConfig(target, { target: "vercel", owner: "octo", repo: "demo", injected: "secret", branch: " " }, { blankAsAbsent: true }), { ok: true, config: { target: "github-pages", owner: "octo", repo: "demo" } });
+  assert.deepEqual(readStaticPublishConfig(target, { owner: "octo", repo: "demo", branch: " " }, { blankAsAbsent: false }), { ok: true, config: { target: "github-pages", owner: "octo", repo: "demo", branch: " " } });
+  assert.deepEqual(readStaticPublishConfig(target, { owner: 42, repo: "demo" }, { blankAsAbsent: false }), { ok: false, message: "'owner' must be a string" });
+  for (const owner of [undefined, " ", 42]) {
+    const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets, credentialSource: neverCalledCredentialSource(), buildTarget: () => assert.fail("must not build") }, {
+      workspaceId: "workspace-local", publishOutputRootDir: publishOutputDir, idGen: { newId: () => assert.fail("must not allocate a run") },
+      exportSiteBound: async () => assert.fail("must not export"), config: { target: "github-pages", owner, repo: "demo" } as unknown as StaticPublishConfig, projectName: "demo",
+    });
+    assert.deepEqual(result, { ok: false, code: "INVALID_CONFIG", message: "'owner' (non-empty string) is required for target 'github-pages'" });
+  }
+});
+
+test("concurrent publishes preserve each run's route and asset bytes and clean both output directories", { timeout: 5000 }, async () => {
+  const captures = [{ value: null }, { value: null }] as Array<{ value: DeployFile[] | null }>;
+  const dirs: string[] = [];
+  let entered = 0;
+  let release!: () => void;
+  const bothEntered = new Promise<void>((resolve) => { release = resolve; });
+  const results = await Promise.all(["A", "B"].map((marker, index) => publishStaticSite({
+    loadDeployTargets: hermeticDeployTargets,
+    credentialSource: { resolve: async () => ({ ok: true, token: `token-${marker}` }), isConfigured: async () => ({ configured: true }) },
+    buildTarget: () => fakeDeployTarget(captures[index]!),
+  }, {
+    workspaceId: "workspace-local", publishOutputRootDir: publishOutputDir, idGen: { newId: () => `content-${marker}` }, config: { target: "vercel" }, projectName: marker,
+    exportSiteBound: async ({ outputDir }) => {
+      dirs.push(outputDir);
+      mkdirSync(outputDir, { recursive: true });
+      writeFileSync(path.join(outputDir, "index.html"), `<p>${marker}</p>`);
+      if (++entered === 2) release();
+      await bothEntered;
+      return {
+        outputDir, routes: { succeeded: [{ path: "/", kind: "page", outputFile: "index.html", data: `<p>${marker}</p>`, contentType: "text/html" }], failed: [] },
+        assets: { succeeded: [{ url: "/assets/site.css", outputFile: "assets/site.css", data: Buffer.from(`body{--run:${marker}}`), contentType: "text/css" }, { url: "/assets/hero.png", outputFile: "assets/hero.png", data: Buffer.from([index, 2, 3]), contentType: "image/png" }], failed: [] },
+        skippedManifestEntries: [], unreferencedThemeFiles: [],
+      };
+    },
+  })));
+  assert.deepEqual(results.map((result) => result.ok), [true, true]);
+  assert.equal(new Set(dirs).size, 2);
+  for (const [index, marker] of ["A", "B"].entries()) {
+    assert.deepEqual(captures[index]!.value, [
+      { file: "index.html", data: `<p>${marker}</p>`, contentType: "text/html" },
+      { file: "assets/site.css", data: Buffer.from(`body{--run:${marker}}`), contentType: "text/css" },
+      { file: "assets/hero.png", data: Buffer.from([index, 2, 3]), contentType: "image/png" },
+    ]);
+  }
+  assert.equal(dirs.every((dir) => !existsSync(dir)), true);
 });

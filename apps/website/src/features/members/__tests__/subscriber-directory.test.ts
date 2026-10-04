@@ -91,8 +91,8 @@ test("getContact: a member in another workspace is not visible (workspace scopin
 });
 
 test("getContacts: returns one contact per found id, in no particular required order", async () => {
-  const active = makeMember({ id: "member-active" });
-  const unverified = makeMember({ id: "member-unverified", emailVerifiedAt: undefined });
+  const active = makeMember({ id: "member-active", email: "active@example.com" });
+  const unverified = makeMember({ id: "member-unverified", email: "unverified@example.com", emailVerifiedAt: undefined });
   const directory = new MembersSubscriberDirectory({
     members: new InMemoryMemberRepo([active, unverified]),
   });
@@ -106,6 +106,10 @@ test("getContacts: returns one contact per found id, in no particular required o
   assert.equal(contacts.length, 2);
   assert.equal(byId.get(active.id)?.emailDeliverable, true);
   assert.equal(byId.get(unverified.id)?.emailDeliverable, false);
+  assert.deepEqual(byId, new Map([
+    ["member-active", { subscriberId: "member-active", workspaceId: WORKSPACE_ID, email: "active@example.com", emailDeliverable: true }],
+    ["member-unverified", { subscriberId: "member-unverified", workspaceId: WORKSPACE_ID, email: "unverified@example.com", emailDeliverable: false }],
+  ]));
 });
 
 test("getContacts: unknown ids are silently omitted from the result, not errored or null-padded", async () => {
@@ -129,4 +133,14 @@ test("getContacts: an empty subscriberIds array returns an empty array", async (
   const contacts = await directory.getContacts({ workspaceId: WORKSPACE_ID, subscriberIds: [] });
 
   assert.deepEqual(contacts, []);
+});
+
+// F4.4: verification must not mask the independent active-status gate.
+test("getContact: a pending but verified member is still not emailDeliverable", async () => {
+  const directory = new MembersSubscriberDirectory({
+    members: new InMemoryMemberRepo([makeMember({ id: "pending-verified", status: "pending" })]),
+  });
+  assert.deepEqual(await directory.getContact({ workspaceId: WORKSPACE_ID, subscriberId: "pending-verified" }), {
+    subscriberId: "pending-verified", workspaceId: WORKSPACE_ID, email: "reader@example.com", emailDeliverable: false,
+  });
 });

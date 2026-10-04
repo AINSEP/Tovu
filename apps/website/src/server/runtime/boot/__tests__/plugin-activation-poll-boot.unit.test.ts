@@ -57,3 +57,39 @@ test("plugin-runtime-attach: once started, a plugin disabled by ANOTHER process 
   await new Promise((resolve) => setTimeout(resolve, 60));
   assert.deepEqual(enabledCalls, ["reading-time"], "no reconciliation may run after stop()");
 });
+
+for (const heldStep of ["readiness", "activation read"] as const) {
+  test(`stop cancels a queued reconciliation waiting on ${heldStep}`, async (t) => {
+    t.mock.timers.enable({ apis: ["setInterval"] });
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => { release = resolve; });
+    let reads = 0;
+    const changes: string[] = [];
+    const deps = {
+      workspaceId: WORKSPACE_ID,
+      pluginRuntimeReady: heldStep === "readiness" ? held : Promise.resolve(),
+      pluginActivationRepo: { listAll: async () => {
+        reads += 1;
+        if (reads === 1) return [row("boot-plugin", true)];
+        if (heldStep === "activation read") await held;
+        return [row("late-plugin", true)];
+      } },
+      onPluginEnabled: async (id: string) => { changes.push(`enable:${id}`); },
+      onPluginDisabled: (id: string) => { changes.push(`disable:${id}`); },
+    } as unknown as NewsletterRouteDeps;
+    const attach = buildBootModules(deps, { useMemory: true, defaultContentDbPath: () => ":memory:", pluginActivationPollIntervalMs: 10 })
+      .find((module) => module.name === "plugin-runtime-attach")!;
+    t.after(() => attach.stop());
+    await attach.start();
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    t.mock.timers.tick(10);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(reads, heldStep === "readiness" ? 0 : 2, "the intended continuation must be held in flight");
+    await attach.stop();
+    release();
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    t.mock.timers.tick(100);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.deepEqual(changes, [], "settling work queued before stop must not change the registry");
+  });
+}

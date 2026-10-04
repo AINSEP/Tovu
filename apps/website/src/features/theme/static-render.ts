@@ -425,7 +425,7 @@ function clampPostPreviewsLimit(configuredLimit: unknown): number {
   if (typeof configuredLimit !== "number" || !Number.isFinite(configuredLimit) || configuredLimit <= 0) {
     return DEFAULT_POST_PREVIEWS_LIMIT;
   }
-  return Math.min(Math.floor(configuredLimit), MAX_POST_PREVIEWS_LIMIT);
+  return Math.max(1, Math.min(Math.floor(configuredLimit), MAX_POST_PREVIEWS_LIMIT));
 }
 
 /** One preview's markup — title links to the post, with its display date underneath. Intentionally

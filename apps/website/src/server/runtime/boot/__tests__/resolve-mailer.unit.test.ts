@@ -197,7 +197,8 @@ test("SMTP credential configured (no hosted-API credential): resolves to SmtpMai
   });
 
   let capturedConfig: unknown;
-  const fakeTransport: SmtpTransport = { sendMail: async () => ({ messageId: "smtp-1" }) };
+  const deliveries: SmtpMailPayload[] = [];
+  const fakeTransport: SmtpTransport = { sendMail: async (mail) => { deliveries.push(mail); return { messageId: "smtp-1" }; } };
   const deps = makeResolveDeps(
     {
       customCredentialRepo: credentialDeps.repo,
@@ -220,6 +221,12 @@ test("SMTP credential configured (no hosted-API credential): resolves to SmtpMai
     secure: true,
     auth: { user: "mailer@example.com", pass: "app-password" },
   });
+  const delivered = await mailer.send(
+    { workspaceId: WORKSPACE, from: { email: "sender@example.com", name: "Sender" }, to: { email: "reader@example.com" }, subject: "SMTP resolution delivery", text: "Distinct SMTP body" },
+    { workspaceId: WORKSPACE, idempotencyKey: "smtp-delivery", sourceContext: { module: "test" } },
+  );
+  assert.equal(delivered.ok, true);
+  assert.deepEqual(deliveries, [{ from: { name: "Sender", address: "sender@example.com" }, to: { address: "reader@example.com" }, subject: "SMTP resolution delivery", text: "Distinct SMTP body" }]);
 });
 
 test("an SMTP credential with no username is treated as not-configured (unauthenticated relay is not representable)", async () => {
@@ -301,6 +308,10 @@ test("both credentials present but both fail to decrypt: falls back to console a
     baseUrl: "https://api.resend.com",
     connection: { token: "re_live_key" },
   });
+  await createCustomCredential(credentialDeps, {
+    workspaceId: WORKSPACE, label: MAIL_SMTP_CREDENTIAL_LABEL, category: "ops", baseUrl: "https://smtp.example.com:587",
+    connection: { token: "smtp-unopenable", username: "mailer@example.com" },
+  });
 
   const brokenOpenSealer = {
     seal: credentialDeps.sealer.seal.bind(credentialDeps.sealer),
@@ -318,6 +329,8 @@ test("both credentials present but both fail to decrypt: falls back to console a
     warnings[0],
     `[mail] no working mail credential found (the "${MAIL_HTTP_API_CREDENTIAL_LABEL}" credential is saved but could ` +
       "not be decrypted (custom credential could not be decrypted (secret store unconfigured, or the stored row is " +
+      "corrupted): simulated decrypt failure); " +
+      `the "${MAIL_SMTP_CREDENTIAL_LABEL}" credential is saved but could not be decrypted (custom credential could not be decrypted (secret store unconfigured, or the stored row is ` +
       "corrupted): simulated decrypt failure)) — falling back to ConsoleMailerAdapter, so outbound mail (form " +
       "notifications, newsletter, member verification) will NOT actually be sent. " +
       `Add a "${MAIL_HTTP_API_CREDENTIAL_LABEL}" (recommended) or "${MAIL_SMTP_CREDENTIAL_LABEL}" ` +
@@ -434,5 +447,95 @@ test("no plugin adds a mail adapter and nothing is configured: the production wa
     '[mail] no working mail credential found — none is configured — falling back to ConsoleMailerAdapter, so ' +
       'outbound mail (form notifications, newsletter, member verification) will NOT actually be sent. ' +
       `Add a "${MAIL_SMTP_CREDENTIAL_LABEL}" credential under Access Tokens (category "ops") to fix this.`,
+  ]);
+});
+
+test("registry load rejection diagnoses the failure and a later successful load delivers through the adapter", async () => {
+  const credentials = makeCredentialWriteDeps();
+  await createCustomCredential(credentials, { workspaceId: WORKSPACE, label: MAIL_HTTP_API_CREDENTIAL_LABEL, category: "ops", baseUrl: "https://api.resend.com", connection: { token: "registry-recovery-key" } });
+  let failLoad = true;
+  const warnings: string[] = [];
+  const httpClient = new FakeHttpClient();
+  const { mailer, ready } = createResolvedMailer(makeResolveDeps({
+    customCredentialRepo: credentials.repo, sealer: credentials.sealer, httpClient,
+    loadMailAdapters: async () => { if (failLoad) throw new Error("registry unavailable"); return loadBundledMailAdapters(); },
+  }, warnings));
+  await ready;
+  assert.equal(mailer.capabilities().driver, "console");
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0], /plugin mail adapters could not be listed \(registry unavailable\)/);
+  failLoad = false;
+  const result = await mailer.send(
+    { workspaceId: WORKSPACE, from: { email: "sender@example.com" }, to: { email: "reader@example.com" }, subject: "Registry recovery", text: "Recovered body" },
+    { workspaceId: WORKSPACE, idempotencyKey: "registry-recovery", sourceContext: { module: "test" } },
+  );
+  assert.equal(result.ok, true);
+  assert.equal(httpClient.calls.length, 1);
+  assert.equal(httpClient.calls[0].headers.Authorization, "Bearer registry-recovery-key");
+  assert.equal(JSON.parse(httpClient.calls[0].body!).subject, "Registry recovery");
+  assert.equal(warnings.length, 1);
+});
+
+test("multiple working adapters select the first in registry order, ahead of a configured SMTP credential", async () => {
+  const bundled = (await loadBundledMailAdapters()).list()[0];
+  assert.ok(bundled);
+  const second = { ...bundled, descriptor: { ...bundled.descriptor, id: "second", credentialLabel: "Second Mail API" } };
+  const credentials = makeCredentialWriteDeps();
+  for (const [label, token, baseUrl, username] of [
+    [MAIL_HTTP_API_CREDENTIAL_LABEL, "first-api-key", "https://api.first.test", undefined],
+    ["Second Mail API", "second-api-key", "https://api.second.test", undefined],
+    [MAIL_SMTP_CREDENTIAL_LABEL, "smtp-key", "https://smtp.example.com:465", "mailer"],
+  ]) {
+    await createCustomCredential(credentials, { workspaceId: WORKSPACE, label: label!, category: "ops", baseUrl: baseUrl!, connection: { token: token!, ...(username ? { username } : {}) } });
+  }
+  for (const [adapters, token, origin] of [
+    [[bundled, second], "first-api-key", "https://api.first.test"],
+    [[second, bundled], "second-api-key", "https://api.second.test"],
+  ] as const) {
+    const httpClient = new FakeHttpClient();
+    const { mailer, ready } = createResolvedMailer(makeResolveDeps({
+      customCredentialRepo: credentials.repo, sealer: credentials.sealer, httpClient,
+      loadMailAdapters: async () => ({ list: () => adapters, refusals: [] }),
+      createSmtpTransport: () => { assert.fail("working plugin adapters must win over SMTP"); },
+    }));
+    await ready;
+    await mailer.send({ workspaceId: WORKSPACE, from: { email: "sender@example.com" }, to: { email: "reader@example.com" }, subject: "Ordered delivery", text: "Order probe" },
+      { workspaceId: WORKSPACE, idempotencyKey: "ordered", sourceContext: { module: "test" } });
+    assert.equal(httpClient.calls.length, 1);
+    assert.equal(httpClient.calls[0].url, `${origin}/emails`);
+    assert.equal(httpClient.calls[0].headers.Authorization, `Bearer ${token}`);
+  }
+});
+
+test("sendBatch waits for pending resolution and delivers each distinct message and its options before and after readiness", async () => {
+  const credentials = makeCredentialWriteDeps();
+  await createCustomCredential(credentials, { workspaceId: WORKSPACE, label: MAIL_HTTP_API_CREDENTIAL_LABEL, category: "ops", baseUrl: "https://api.resend.com", connection: { token: "batch-api-key" } });
+  let release!: (registry: MailAdapterRegistry) => void;
+  const registry = new Promise<MailAdapterRegistry>((resolve) => { release = resolve; });
+  const httpClient = new FakeHttpClient();
+  const { mailer, ready } = createResolvedMailer(makeResolveDeps({ customCredentialRepo: credentials.repo, sealer: credentials.sealer, httpClient, loadMailAdapters: () => registry }));
+  const messages = ["one", "two"].map((id) => ({ workspaceId: WORKSPACE, from: { email: "sender@example.com" }, to: { email: `${id}@example.com` }, subject: `Batch ${id}`, text: `Body ${id}` }));
+  let settled = false;
+  const pending = mailer.sendBatch(messages, { workspaceId: WORKSPACE, idempotencyKey: "pending-batch", timeoutMs: 4321, sourceContext: { module: "test" } }).then((result) => { settled = true; return result; });
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(settled, false, "a configured batch cannot report console success while resolution is pending");
+  assert.deepEqual(httpClient.calls, []);
+  release(await loadBundledMailAdapters());
+  const pendingResults = await pending;
+  await ready;
+  assert.equal(pendingResults.length, 2);
+  assert.ok(pendingResults.every((result) => result.ok));
+  const afterResults = await mailer.sendBatch(messages, { workspaceId: WORKSPACE, idempotencyKey: "ready-batch", timeoutMs: 7654, sourceContext: { module: "test" } });
+  assert.equal(afterResults.length, 2);
+  assert.ok(afterResults.every((result) => result.ok));
+  assert.equal(httpClient.calls.length, 4);
+  assert.deepEqual(httpClient.calls.map((call) => ({
+    method: call.method, url: call.url, token: call.headers.Authorization,
+    key: call.headers["Idempotency-Key"], timeout: call.timeoutMs, body: JSON.parse(call.body!),
+  })), [
+    { method: "POST", url: "https://api.resend.com/emails", token: "Bearer batch-api-key", key: "pending-batch:0", timeout: 4321, body: { from: "sender@example.com", to: "one@example.com", subject: "Batch one", text: "Body one" } },
+    { method: "POST", url: "https://api.resend.com/emails", token: "Bearer batch-api-key", key: "pending-batch:1", timeout: 4321, body: { from: "sender@example.com", to: "two@example.com", subject: "Batch two", text: "Body two" } },
+    { method: "POST", url: "https://api.resend.com/emails", token: "Bearer batch-api-key", key: "ready-batch:0", timeout: 7654, body: { from: "sender@example.com", to: "one@example.com", subject: "Batch one", text: "Body one" } },
+    { method: "POST", url: "https://api.resend.com/emails", token: "Bearer batch-api-key", key: "ready-batch:1", timeout: 7654, body: { from: "sender@example.com", to: "two@example.com", subject: "Batch two", text: "Body two" } },
   ]);
 });

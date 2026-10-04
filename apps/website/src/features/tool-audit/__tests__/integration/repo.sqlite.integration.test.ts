@@ -46,13 +46,23 @@ function event(overrides: Partial<ToolAttemptEvent> = {}): ToolAttemptEvent {
 
 test("an appended attempt survives closing and reopening the database — the whole point of the table", async (t) => {
   const { db, filePath, tmpDir } = openTempContentDb();
-  t.after(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
+  let reopened: ReturnType<typeof openContentDb> | undefined;
+  t.after(() => {
+    if (db.$client.open) db.$client.close();
+    if (reopened?.$client.open) reopened.$client.close();
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
 
   await new SqliteToolAttemptAuditSink(db).append(event());
   await new SqliteToolAttemptAuditSink(db).append(event({ phase: "completed", detail: null }));
 
-  const reopened = openContentDb(filePath);
+  db.$client.close();
+  assert.equal(db.$client.open, false);
+  reopened = openContentDb(filePath);
   const rows = reopened.select().from(agentToolAttempts).all();
+  assert.deepEqual(rows.map(({ id, ...persisted }) => persisted), [
+    event(), event({ phase: "completed", detail: null }),
+  ]);
 
   assert.equal(rows.length, 2);
   assert.deepEqual(
@@ -88,13 +98,17 @@ test("append never throws, even when the underlying write fails — audit is obs
   assert.equal(errors.length, 1, "the failure must be reported, not silently dropped");
 });
 
-test("rows are scoped by workspace, so one tenant's trail cannot be read as another's (ADR-007)", async (t) => {
+test("stores each event's workspaceId alongside its attemptId (ADR-007)", async (t) => {
   const { db, tmpDir } = openTempContentDb();
   t.after(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
   const sink = new SqliteToolAttemptAuditSink(db);
 
-  await sink.append(event({ workspaceId: "ws-1" }));
-  await sink.append(event({ workspaceId: "ws-2" }));
+  await sink.append(event({ workspaceId: "ws-1", attemptId: "first-workspace-attempt" }));
+  await sink.append(event({ workspaceId: "ws-2", attemptId: "second-workspace-attempt" }));
+  assert.deepEqual(db.select().from(agentToolAttempts).all().map(({ attemptId, workspaceId }) => ({ attemptId, workspaceId })), [
+    { attemptId: "first-workspace-attempt", workspaceId: "ws-1" },
+    { attemptId: "second-workspace-attempt", workspaceId: "ws-2" },
+  ]);
 
   assert.equal(db.select().from(agentToolAttempts).where(eq(agentToolAttempts.workspaceId, "ws-1")).all().length, 1);
   assert.equal(db.select().from(agentToolAttempts).where(eq(agentToolAttempts.workspaceId, "ws-2")).all().length, 1);

@@ -85,3 +85,22 @@ test("rejectOversizedJsonBody accepts a body exactly at the byte boundary", () =
   assert.equal(nextCalled, true);
   assert.equal(getStatus(), undefined);
 });
+
+test("rejectOversizedJsonBody accepts the exact UTF-8 byte cap and rejects one byte over it", () => {
+  // Eight bytes of JSON syntax plus four three-byte characters = 20 bytes, only 12 characters.
+  for (const [body, expectedBytes, accepted] of [
+    [{ a: "界界界界" }, 20, true],
+    [{ a: "界界界界x" }, 21, false],
+  ] as const) {
+    const serialized = JSON.stringify(body);
+    assert.ok(serialized.length < 20, "character counting would accept both fixtures");
+    assert.equal(Buffer.byteLength(serialized, "utf8"), expectedBytes);
+    const { req, res, getStatus, getJson } = fakeReqRes(body);
+    let nextCalls = 0;
+    rejectOversizedJsonBody({ maxBytes: 20 })(req, res, () => { nextCalls += 1; });
+
+    assert.equal(nextCalls, accepted ? 1 : 0);
+    assert.equal(getStatus(), accepted ? undefined : 413);
+    assert.deepEqual(getJson(), accepted ? undefined : { error: "Content too large to save.", code: "PAYLOAD_TOO_LARGE" });
+  }
+});

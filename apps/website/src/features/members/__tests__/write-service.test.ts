@@ -157,6 +157,11 @@ test("requestSignInLink -> completeSignIn happy path: hashes both tokens at rest
   assert.equal(completeResult.member.id, pendingMember!.id);
   assert.equal(completeResult.member.emailVerifiedAt, clock.nowIso());
   assert.equal(completeResult.member.version, pendingMember!.version + 1);
+  // F2.3/F6.3: inspect production-created members, not a literal that omits operator fields.
+  for (const member of [pendingMember, completeResult.member]) {
+    assert.ok(!("role" in member) && !("permissions" in member));
+    assert.ok(!("roles" in member) && !("isAdmin" in member));
+  }
   assert.deepEqual(await deps.members.findById({ workspaceId: WORKSPACE_ID, id: pendingMember!.id }), completeResult.member);
 
   assert.ok(completeResult.rawSessionToken, "completeSignIn must surface the raw session token for the cookie");

@@ -1,13 +1,20 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { beforeEach } from "node:test";
 
 import { signPayload, verifySignature } from "../signing.js";
 
 const secret = Buffer.from("test-signing-secret");
 const rawBody = JSON.stringify({ topic: "post.published", data: { id: "post-1" } });
-// verifySignature checks the header's `t=` against real wall-clock time (no injectable clock in
-// its contract), so fixtures that expect a successful verify must use a timestamp close to now.
-const timestampSeconds = Math.floor(Date.now() / 1000);
+const timestampSeconds = 1720000000;
+beforeEach((t) => { t.mock.method(Date, "now", () => timestampSeconds * 1000); });
+
+// F4.1: independently calculated with Python hmac/sha256 over the literal UTF-8 wire bytes.
+test("signPayload matches the published timestamp-dot-body HMAC-SHA256 wire format", () => {
+  const body = '{"topic":"post.published","data":{"id":"post-1"}}';
+  const expected = "t=1720000000,v1=0abfec753eb9bc10c30880638c61b6c0b8a9943bd774fa3f78f5850964c7a059";
+  assert.equal(signPayload({ secret: Buffer.from("test-signing-secret"), rawBody: body, timestampSeconds: 1720000000 }), expected);
+  assert.equal(verifySignature({ secret: Buffer.from("test-signing-secret"), rawBody: body, header: expected, toleranceSeconds: 300 }), true);
+});
 
 test("signPayload then verifySignature round-trips for the same secret and body", () => {
   const header = signPayload({ secret, rawBody, timestampSeconds });
@@ -39,27 +46,16 @@ test("verifySignature rejects a signature made with a different secret", () => {
   );
 });
 
-test("verifySignature rejects a timestamp outside the tolerance window", () => {
-  const header = signPayload({ secret, rawBody, timestampSeconds });
-  const nowSeconds = Math.floor(Date.now() / 1000);
-
-  // Force the header's timestamp far outside "now" (the function under test compares against
-  // real wall-clock time), independent of the fixed timestampSeconds fixture above.
-  const staleHeader = signPayload({
-    secret,
-    rawBody,
-    timestampSeconds: nowSeconds - 10_000,
-  });
-
-  assert.equal(
-    verifySignature({ secret, rawBody, header: staleHeader, toleranceSeconds: 300 }),
-    false
-  );
-  // Sanity check: the same header verifies fine with a wide-enough tolerance.
-  assert.equal(
-    verifySignature({ secret, rawBody, header: staleHeader, toleranceSeconds: 20_000 }),
-    true
-  );
+test("verifySignature rejects timestamps outside either side of the tolerance window and accepts its exact boundaries", () => {
+  for (const offset of [-10_000, 10_000]) {
+    const header = signPayload({ secret, rawBody, timestampSeconds: timestampSeconds + offset });
+    assert.equal(verifySignature({ secret, rawBody, header, toleranceSeconds: 300 }), false);
+    assert.equal(verifySignature({ secret, rawBody, header, toleranceSeconds: 20_000 }), true);
+  }
+  for (const [offset, accepted] of [[-301, false], [-300, true], [0, true], [300, true], [301, false]] as const) {
+    const header = signPayload({ secret, rawBody, timestampSeconds: timestampSeconds + offset });
+    assert.equal(verifySignature({ secret, rawBody, header, toleranceSeconds: 300 }), accepted, `timestamp offset ${offset}`);
+  }
 });
 
 test("verifySignature accepts a header carrying two v1 values (rotation overlap) if either matches", () => {

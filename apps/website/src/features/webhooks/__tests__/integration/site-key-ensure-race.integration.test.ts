@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { fingerprintRootKeyHex } from "../../keyring.env.js";
+import { setTimeout as delay } from "node:timers/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -32,7 +34,9 @@ function runChild(args: readonly string[]): Promise<ChildOutcome> {
     child.stderr?.on("data", (chunk: Buffer) => {
       stderr += chunk.toString("utf8");
     });
-    child.on("exit", (code) => resolve({ code, stderr }));
+    const deadline = setTimeout(() => { stderr += "child timed out"; child.kill("SIGKILL"); }, 30_000);
+    child.on("error", (error) => { clearTimeout(deadline); resolve({ code: null, stderr: error.message }); });
+    child.on("close", (code) => { clearTimeout(deadline); resolve({ code, stderr }); });
   });
 }
 
@@ -52,10 +56,25 @@ test("2 concurrent processes minting the same siteKeyId under the same home conv
   try {
     const siteKeyId = "race-site";
 
-    const [outcomeA, outcomeB] = await Promise.all([
-      runChild([home, siteDir, siteKeyId, outputA]),
-      runChild([home, siteDir, siteKeyId, outputB]),
-    ]);
+    const release = path.join(home, "release");
+    const children = [
+      runChild([home, siteDir, siteKeyId, outputA, release]),
+      runChild([home, siteDir, siteKeyId, outputB, release]),
+    ];
+    let outcomes: ChildOutcome[];
+    try {
+      const deadline = Date.now() + 20_000;
+      while (!existsSync(`${outputA}.ready`) || !existsSync(`${outputB}.ready`)) {
+        assert.ok(Date.now() < deadline, "both children must observe absence and reach the barrier");
+        await delay(10);
+      }
+      assert.equal(existsSync(path.join(home, ".tovu/site-keys", `${siteKeyId}.hex`)), false,
+        "neither process may publish before both are ready");
+    } finally {
+      writeFileSync(release, "go");
+      outcomes = await Promise.all(children);
+    }
+    const [outcomeA, outcomeB] = outcomes;
 
     assert.equal(outcomeA.code, 0, `child A must exit 0 — stderr: ${outcomeA.stderr}`);
     assert.equal(outcomeB.code, 0, `child B must exit 0 — stderr: ${outcomeB.stderr}`);
@@ -63,19 +82,17 @@ test("2 concurrent processes minting the same siteKeyId under the same home conv
     const resultA = JSON.parse(readFileSync(outputA, "utf8")) as SiteKeyEnsureOutcome;
     const resultB = JSON.parse(readFileSync(outputB, "utf8")) as SiteKeyEnsureOutcome;
 
-    // Both processes started with nothing configured. Exactly one WRITES ("mint", the first to
-    // link its temp file onto the final path); the other either loses the link race and reads the
-    // winner's bytes back as "mint" too (both temp files existed at once), or — if its own read of
-    // the (by-then-already-valid) per-site file happens after the winner's write fully landed —
-    // sees a valid file already there and reports "noop" without writing anything itself. Either
-    // way both must report the SAME fingerprint (§A.2: "both read back the final file and use its
-    // bytes, never their own in-memory candidate").
-    assert.ok(["mint", "noop"].includes(resultA.action), `unexpected action from A: ${resultA.action}`);
-    assert.ok(["mint", "noop"].includes(resultB.action), `unexpected action from B: ${resultB.action}`);
+    // Both crossed the absence check before release, so both must take the mint path.
+    assert.equal(resultA.action, "mint");
+    assert.equal(resultB.action, "mint");
     assert.equal(resultA.fingerprint, resultB.fingerprint, "both processes must converge on the SAME key");
     assert.ok(resultA.fingerprint, "a fingerprint must be present");
 
     const siteKeysDir = path.join(home, ".tovu", "site-keys");
+    const finalHex = readFileSync(path.join(siteKeysDir, `${siteKeyId}.hex`), "utf8").trim();
+    assert.match(finalHex, /^[0-9a-f]{64}$/);
+    assert.equal(resultA.fingerprint, fingerprintRootKeyHex(finalHex), "both results must name the key actually on disk");
+    assert.equal(resultB.fingerprint, fingerprintRootKeyHex(finalHex));
     const entries = readdirSync(siteKeysDir);
     assert.deepEqual(entries, [`${siteKeyId}.hex`], "exactly one file must exist — no leftover temp files, no duplicate");
   } finally {

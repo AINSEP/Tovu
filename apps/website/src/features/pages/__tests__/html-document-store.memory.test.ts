@@ -3,7 +3,8 @@ import test from "node:test";
 
 import { InMemoryPostRepo, createPost } from "../../post/index.js";
 import { InMemoryPagesHtmlDocumentStore } from "../html-document-store.memory.js";
-import { PageConcurrentEditError } from "../html-document-store.sqlite.js";
+import { InMemoryEntryRefsRepo } from "../../../contracts/core/entry-refs/repo.memory.js";
+import { PageKindMismatchError, PageConcurrentEditError } from "../html-document-store.sqlite.js";
 
 /**
  * @file CIC-1 certification for `InMemoryPagesHtmlDocumentStore` — the store `pages_write_region`'s
@@ -47,10 +48,15 @@ test("write() after read() updates body_html and increments version (sanity, mir
 
   await store.ensureHtmlFormat("<p>old</p>");
   await store.read();
+  const beforeVersion = store.capturedVersion();
+  assert.ok(beforeVersion !== null);
+  assert.equal(beforeVersion, 2);
   await store.write("<p>new</p>");
 
   const row = await repo.findById({ workspaceId: WS, id: "page-1" });
   assert.equal(row?.bodyHtml, "<p>new</p>");
+  assert.equal(row?.version, beforeVersion + 1);
+  assert.equal(store.capturedVersion(), row?.version);
 });
 
 test("write() stores a canvas-serialized embed marker in the readable single-quoted form (mirrors the sqlite test)", async () => {
@@ -160,4 +166,59 @@ test("write() rejects when the row was trashed between this instance's read() an
 
   const finalRow = await repo.findById({ workspaceId: WS, id: "page-1" });
   assert.equal(finalRow?.bodyHtml, "<p>base</p>", "the trashed row's body_html must be untouched");
+});
+
+// F6.2/F6.3: exercise this adapter, not only the SQL sibling.
+test("ensureHtmlFormat refuses a post without changing its body or revision ledger", async () => {
+  const clock = { nowMs: () => Date.parse("2026-09-09T00:00:00.000Z"), nowIso: () => "2026-09-09T00:00:00.000Z" };
+  const repo = new InMemoryPostRepo([]);
+  await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "page-1", title: "T", kind: "page" } });
+  await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "post-1", title: "Article", kind: "post" } });
+  const before = structuredClone(await repo.findById({ workspaceId: WS, id: "post-1" }));
+  const revisionsBefore = structuredClone(await repo.listRevisions({ workspaceId: WS, postId: "post-1" }));
+  const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "post-1" }, { repo, clock });
+  await assert.rejects(store.ensureHtmlFormat("<p>replacement</p>"), PageKindMismatchError);
+  assert.deepEqual(await repo.findById({ workspaceId: WS, id: "post-1" }), before);
+  assert.deepEqual(await repo.listRevisions({ workspaceId: WS, postId: "post-1" }), revisionsBefore);
+});
+
+test("conversion and write append recoverable original, converted, and edited snapshots with sequence and actor", async () => {
+  const clock = { nowMs: () => Date.parse("2026-09-09T00:00:00.000Z"), nowIso: () => "2026-09-09T00:00:00.000Z" };
+  const repo = new InMemoryPostRepo([]);
+  await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "page-1", title: "T", kind: "page" } });
+  const row = await repo.findById({ workspaceId: WS, id: "page-1" });
+  assert.ok(row);
+  const original = {
+    ...row, version: 5, updatedAt: "2026-09-01T00:00:00.000Z",
+    bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Original document" }] }] },
+  };
+  await repo.save(original);
+  const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1", actorId: "editor-7" }, { repo, clock });
+  await store.ensureHtmlFormat("<p>converted</p>");
+  await store.write("<p>edited</p>");
+  const revisions = (await repo.listRevisions({ workspaceId: WS, postId: "page-1" })).filter((revision) => revision.seq >= 5);
+  const converted = { ...original, bodyFormat: "html", bodyHtml: "<p>converted</p>", version: 6, updatedAt: clock.nowIso() };
+  const edited = { ...converted, bodyHtml: "<p>edited</p>", version: 7 };
+  assert.deepEqual(revisions.map(({ workspaceId, postId, seq, op, stateJson, actorId, recordedAt }) => ({ workspaceId, postId, seq, op, stateJson, actorId, recordedAt })), [original, converted, edited].map((stateJson, index) => ({
+    workspaceId: WS, postId: "page-1", seq: 5 + index, op: "update", stateJson,
+    actorId: "editor-7", recordedAt: "2026-09-09T00:00:00.000Z",
+  })));
+});
+
+test("conversion, replacement, and removal reindex exact HTML embed references without disturbing another page", async () => {
+  const clock = { nowMs: () => Date.parse("2026-09-09T00:00:00.000Z"), nowIso: () => "2026-09-09T00:00:00.000Z" };
+  const repo = new InMemoryPostRepo([]);
+  await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "page-1", title: "T", kind: "page" } });
+  const refs = new InMemoryEntryRefsRepo();
+  const sibling = { workspaceId: WS, sourceEntryId: "other-page", sourceKind: "page-html-embed" as const, targetKind: "entry" as const, targetId: "keep-widget", fieldPath: "bodyHtml[embed:widget#1]" };
+  await refs.replaceForSource({ workspaceId: WS, sourceEntryId: "other-page", refs: [sibling] });
+  const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { repo, clock, entryRefsRepo: refs });
+  const expected = { workspaceId: WS, sourceEntryId: "page-1", sourceKind: "page-html-embed", targetKind: "entry", fieldPath: "bodyHtml[embed:widget#1]" };
+  await store.ensureHtmlFormat(`<div data-embed-config='{"type":"widget","id":"seed-widget"}'></div>`);
+  assert.deepEqual(await refs.findBySource({ workspaceId: WS, sourceEntryId: "page-1" }), [{ ...expected, targetId: "seed-widget" }]);
+  await store.write(`<div data-embed-config='{"type":"widget","id":"edited-widget"}'></div>`);
+  assert.deepEqual(await refs.findBySource({ workspaceId: WS, sourceEntryId: "page-1" }), [{ ...expected, targetId: "edited-widget" }]);
+  await store.write("<p>no embed</p>");
+  assert.deepEqual(await refs.findBySource({ workspaceId: WS, sourceEntryId: "page-1" }), []);
+  assert.deepEqual(await refs.findBySource({ workspaceId: WS, sourceEntryId: "other-page" }), [sibling]);
 });

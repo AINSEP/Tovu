@@ -130,6 +130,29 @@ test("a deliberate shutdown kills the current child and does not trigger a respa
   assert.equal(spawnCount, 1, "an exit that follows a deliberate shutdown must never trigger a respawn");
 });
 
+test("shutdown cancels recovery that was already scheduled by an unexpected exit", (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  let now = 0;
+  const children = [createFakeDaemonProcess(), createFakeDaemonProcess()];
+  let spawnCount = 0;
+  const supervisor = createDaemonSupervisor({
+    spawnDaemonProcess: () => children[spawnCount++].handle,
+    now: () => now,
+    policy: createRespawnPolicy({ now: () => now, backoffScheduleMs: [50], crashLoopMaxFailures: 10 }),
+  });
+  t.after(() => supervisor.shutdown());
+  supervisor.start();
+  children[0].emitExit(1);
+  now = 49;
+  t.mock.timers.tick(49);
+  assert.equal(spawnCount, 1, "the recovery deadline has not arrived");
+  supervisor.shutdown();
+  now = 100;
+  t.mock.timers.tick(51);
+  assert.equal(spawnCount, 1, "the pending retry cannot spawn during teardown");
+  assert.deepEqual(supervisor.ensureStarted(), { ok: false, reason: "shutting down" });
+});
+
 // win32 has no process groups: `process.kill(-pid, "SIGTERM")` throws there (caught, then falls
 // through to a direct `currentChild.kill()`, which only reaches the immediate `npx`/`tsx` hop and
 // orphans the daemon underneath it). The two tests below inject `platform` so both branches of

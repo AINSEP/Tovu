@@ -3,6 +3,9 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import { parse, type DefaultTreeAdapterMap } from "parse5";
+import sharp from "sharp";
+import ts from "typescript";
 
 /**
  * @file Canary: `content/themes/static/tovu-starter` stays de-branded.
@@ -29,7 +32,7 @@ const OLD_THEME_LOGO = path.resolve(
   "../../../../../../content/themes/static/tovu-theme/assets/logo.png"
 );
 
-const SCAN_EXTENSIONS = [".html", ".css", ".js", ".json", ".webmanifest"];
+const SCAN_EXTENSIONS = [".html", ".css", ".js", ".json", ".webmanifest", ".svg"];
 const EXCLUDED_RELATIVE_PREFIXES = ["scripts/vendor/"];
 const EXCLUDED_FILENAMES = ["NOTICE.md"];
 
@@ -51,25 +54,34 @@ const FORBIDDEN_PATTERNS: ForbiddenPattern[] = [
   },
 ];
 
-/**
- * Strips HTML, CSS/JS block, and JS line comments so comment prose (which legitimately names the
- * Tovu platform, B20) can't trip the brand-content checks below.
- *
- * This is deliberately naive, not a parser: it also drops the rest of a line after `//` that isn't
- * preceded by `:` (so an `http://` URL survives), which is enough for this theme's own hand-written
- * files. Content in `theme.json`'s `$schema` value is removed up front for the same reason: it is a
- * platform URL, not branding, and this keeps the check from depending on that value staying lowercase.
- *
- * @param source Raw file text.
- * @returns The same text with comment bodies (and the `$schema` value) removed.
- * @complexity O(n) in file length — a fixed number of regex passes.
- */
-function stripCommentsAndSchemaUrl(source: string): string {
-  return source
-    .replace(/"\$schema"\s*:\s*"[^"]*"/g, '"$schema": ""')
-    .replace(/<!--[\s\S]*?-->/g, "")
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .replace(/(^|[^:])\/\/.*$/gm, "$1");
+/** Remove comments according to the file's syntax, preserving URLs and string content. */
+function stripCommentsAndSchemaUrl(source: string, extension: string): string {
+  if (extension === ".html" || extension === ".svg") {
+    const comments: { startOffset: number; endOffset: number }[] = [];
+    const walk = (node: DefaultTreeAdapterMap["node"]): void => {
+      if (node.nodeName === "#comment" && node.sourceCodeLocation) comments.push(node.sourceCodeLocation);
+      if ("childNodes" in node) for (const child of node.childNodes) walk(child);
+      if ("content" in node) walk(node.content);
+    };
+    walk(parse(source, { sourceCodeLocationInfo: true }));
+    for (const { startOffset, endOffset } of comments.sort((a, b) => b.startOffset - a.startOffset)) {
+      source = source.slice(0, startOffset) + source.slice(endOffset);
+    }
+    return source;
+  }
+  if (extension === ".js") {
+    return ts.createPrinter({ removeComments: true }).printFile(
+      ts.createSourceFile("theme.js", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS)
+    );
+  }
+  if (extension === ".css") {
+    // Preserve quoted strings; CSS has block comments but no // comments.
+    return source.replace(/"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\/\*[\s\S]*?\*\//g,
+      (token) => token.startsWith("/*") ? "" : token);
+  }
+  const json = JSON.parse(source);
+  delete json.$schema;
+  return JSON.stringify(json);
 }
 
 /**
@@ -103,7 +115,7 @@ test("canary: the starter theme sweep is not vacuous", () => {
 for (const relativePath of SCANNED_FILES) {
   test(`canary: ${relativePath} carries no Tovu Theme branding`, () => {
     const raw = fs.readFileSync(path.join(THEME_DIR, relativePath), "utf8");
-    const stripped = stripCommentsAndSchemaUrl(raw);
+    const stripped = stripCommentsAndSchemaUrl(raw, path.extname(relativePath));
 
     for (const { label, pattern } of FORBIDDEN_PATTERNS) {
       const match = stripped.match(pattern);
@@ -128,4 +140,53 @@ test("canary: the starter's logo is not tovu-theme's logo", () => {
     "content/themes/static/tovu-starter/assets/logo.png is byte-identical to tovu-theme's logo — " +
       "the starter needs its own neutral generated mark, not the Tovu gold one."
   );
+});
+
+// F5.6: positive controls for the preprocessing used by the actual sweep.
+test("canary scanner preserves branding after URLs and inside strings, and scans SVG", () => {
+  for (const extension of [".html", ".svg"]) {
+    assert.match(stripCommentsAndSchemaUrl('<a href="//example.test">Tovu</a><!-- Tovu -->', extension), /Tovu<\/a>/);
+    assert.equal(stripCommentsAndSchemaUrl("<!-- Tovu -->", extension), "");
+  }
+  assert.equal(isScanned("assets/logo.svg"), true);
+  assert.match(stripCommentsAndSchemaUrl('const url = "//example.test/Tovu"; // comment', ".js"), /Tovu/);
+  assert.match(stripCommentsAndSchemaUrl('a { content: "//Tovu"; } /* Tovu comment */', ".css"), /"\/\/Tovu"/);
+  assert.match(stripCommentsAndSchemaUrl('{"url":"//example.test","name":"Tovu"}', ".json"), /Tovu/);
+});
+
+const IMAGE_FILES = ALL_FILES.filter((file) => /\.(png|jpe?g|webp|gif|avif)$/.test(file)).sort();
+const OLD_THEME_DIR = path.dirname(path.dirname(OLD_THEME_LOGO));
+
+async function appearance(bytes: Buffer) {
+  const { data, info } = await sharp(bytes).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  return { width: info.width, height: info.height, data };
+}
+
+test("canary image sweep includes the logo, icons and screenshots", () => {
+  assert.ok(IMAGE_FILES.includes("assets/logo.png"));
+  assert.ok(IMAGE_FILES.includes("icons/icon-192.png"));
+  assert.ok(IMAGE_FILES.includes("screenshots/index.png"));
+});
+
+for (const file of IMAGE_FILES) {
+  test(`canary: ${file} does not reuse tovu-theme's image appearance`, async (t) => {
+    const oldPath = path.join(OLD_THEME_DIR, file);
+    if (!fs.existsSync(oldPath)) {
+      t.skip("No same-named branded asset to compare");
+      return;
+    }
+    const starter = fs.readFileSync(path.join(THEME_DIR, file));
+    const branded = fs.readFileSync(oldPath);
+    assert.notEqual(crypto.createHash("sha256").update(starter).digest("hex"),
+      crypto.createHash("sha256").update(branded).digest("hex"));
+    assert.notDeepEqual(await appearance(starter), await appearance(branded),
+      `${file} must have neutral artwork even if the branded image was re-encoded`);
+  });
+}
+
+test("canary appearance comparison ignores lossless PNG re-encoding", async () => {
+  const original = fs.readFileSync(OLD_THEME_LOGO);
+  const reencoded = await sharp(original).png({ compressionLevel: 0 }).toBuffer();
+  assert.notDeepEqual(reencoded, original);
+  assert.deepEqual(await appearance(reencoded), await appearance(original));
 });

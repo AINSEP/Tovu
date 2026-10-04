@@ -302,3 +302,39 @@ runSubmissionContractSuite("SqliteFormSubmissionRepo", () => {
     },
   };
 });
+
+
+test("memory Trash seams remove only the scoped definition and its submissions, including hidden submissions", async () => {
+  const definitions = new InMemoryFormDefinitionRepo();
+  const submissions = new InMemoryFormSubmissionRepo();
+  await definitions.create(makeDefinition());
+  await definitions.create(makeDefinition({ id: "def-2", slug: "other" }));
+  await definitions.create(makeDefinition({ id: "def-foreign", workspaceId: "ws-2" }));
+  await submissions.create(makeSubmission());
+  await submissions.create(makeSubmission({ id: "sub-hidden" }));
+  await submissions.create(makeSubmission({ id: "sub-sibling", formDefinitionId: "def-2" }));
+  await submissions.create(makeSubmission({ id: "sub-foreign", workspaceId: "ws-2" }));
+  const hidden = await submissions.findAnyById({ workspaceId: WORKSPACE_ID, id: "sub-hidden" });
+  assert.ok(hidden);
+  await submissions.save({ ...hidden, deletedAt: NOW });
+  const definition = await definitions.findAnyById({ workspaceId: WORKSPACE_ID, id: "def-1" });
+  assert.ok(definition);
+  await definitions.save({ ...definition, deletedAt: NOW });
+  await definitions.hardDelete({ workspaceId: "wrong", id: "def-1" });
+  await submissions.hardDelete({ workspaceId: "wrong", id: "sub-hidden" });
+  await submissions.deleteAllForDefinition({ workspaceId: "wrong", formDefinitionId: "def-1" });
+  assert.ok(await definitions.findAnyById({ workspaceId: WORKSPACE_ID, id: "def-1" }));
+  assert.ok(await submissions.findAnyById({ workspaceId: WORKSPACE_ID, id: "sub-1" }));
+  assert.ok(await submissions.findAnyById({ workspaceId: WORKSPACE_ID, id: "sub-hidden" }));
+  await submissions.deleteAllForDefinition({ workspaceId: WORKSPACE_ID, formDefinitionId: "def-1" });
+  await definitions.hardDelete({ workspaceId: WORKSPACE_ID, id: "def-1" });
+  assert.equal(await definitions.findAnyById({ workspaceId: WORKSPACE_ID, id: "def-1" }), null);
+  for (const id of ["sub-1", "sub-hidden"]) assert.equal(await submissions.findAnyById({ workspaceId: WORKSPACE_ID, id }), null);
+  assert.ok(await definitions.findById({ workspaceId: WORKSPACE_ID, id: "def-2" }));
+  assert.ok(await definitions.findById({ workspaceId: "ws-2", id: "def-foreign" }));
+  assert.deepEqual(await submissions.findById({ workspaceId: WORKSPACE_ID, id: "sub-sibling" }), makeSubmission({ id: "sub-sibling", formDefinitionId: "def-2" }));
+  assert.deepEqual(await submissions.findById({ workspaceId: "ws-2", id: "sub-foreign" }), makeSubmission({ id: "sub-foreign", workspaceId: "ws-2" }));
+  await submissions.hardDelete({ workspaceId: WORKSPACE_ID, id: "sub-sibling" });
+  assert.equal(await submissions.findAnyById({ workspaceId: WORKSPACE_ID, id: "sub-sibling" }), null);
+  assert.ok(await submissions.findById({ workspaceId: "ws-2", id: "sub-foreign" }));
+});

@@ -179,6 +179,11 @@ test("the move copies every table, seals the secret, switches the meta last, and
   const pgliteDir = path.join(siteDir, "pglite");
   const source = openPgliteKernel<unknown>({ dataDir: pgliteDir });
   const sourceCounts = await counts(source);
+  // PGlite hands jsonb back as a string while node-postgres parses it, so both sides read the row as text.
+  const sourceMessages = (await source.query<{ message: string }>(sql`SELECT to_jsonb(m)::text AS message FROM ai_chat.ai_chat_messages AS m ORDER BY id`))
+    .map((row) => JSON.parse(row.message) as Record<string, unknown>);
+  assert.equal(sourceMessages.length, 1);
+  assert.equal(sourceMessages[0].content, "hello", "the copy fixture must contain actual message text");
   await source.close();
 
   const metaBefore = JSON.parse(metaText());
@@ -204,6 +209,9 @@ test("the move copies every table, seals the secret, switches the meta last, and
   try {
     const targetCounts = await counts(store.content as unknown as StorageKernel<unknown>);
     assert.deepEqual(targetCounts, sourceCounts, "every table has the same rows on Postgres");
+    const targetMessages = (await store.content.query<{ message: string }>(sql`SELECT to_jsonb(m)::text AS message FROM ai_chat.ai_chat_messages AS m ORDER BY id`))
+      .map((row) => JSON.parse(row.message) as Record<string, unknown>);
+    assert.deepEqual(targetMessages, sourceMessages, "all chat-message columns, including content, must survive the move");
     const [chat] = await store.content.query<{ id: string }>(sql`SELECT id FROM ai_chat.ai_chats`);
     assert.equal(chat.id, "chat-1");
     const [item] = await store.content.query<{ data: string; kind: string; tags: string[] }>(

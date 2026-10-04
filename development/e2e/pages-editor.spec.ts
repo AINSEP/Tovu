@@ -55,7 +55,7 @@ test.describe("Pages editor", () => {
     await source.fill(html);
 
     await page.getByRole("button", { name: /^Save/ }).click();
-    await expect(page.getByText("Saved")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("Saved", { exact: true })).toBeVisible({ timeout: 10_000 });
 
     // Back to the preview: the iframe must actually render the markup, which is the only proof the
     // srcdoc pipeline works end to end rather than the textarea merely holding a string.
@@ -119,7 +119,7 @@ test.describe("Pages editor", () => {
     await page.getByRole("tab", { name: "HTML" }).click();
     await page.getByRole("textbox", { name: "Page HTML" }).fill("<h1>Persisted</h1>");
     await page.getByRole("button", { name: /^Save/ }).click();
-    await expect(page.getByText("Saved")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("Saved", { exact: true })).toBeVisible({ timeout: 10_000 });
 
     await page.goto(url);
     await page.getByRole("tab", { name: "HTML" }).click();
@@ -135,15 +135,22 @@ test.describe("Pages editor", () => {
     await page.getByRole("tab", { name: "HTML" }).click();
     await page.getByRole("textbox", { name: "Page HTML" }).fill("<h1>Keep me</h1>");
     await page.getByRole("button", { name: /^Save/ }).click();
-    await expect(page.getByText("Saved")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("Saved", { exact: true })).toBeVisible({ timeout: 10_000 });
 
     // The metadata write — a different server-side path from the HTML one. This exact sequence used
     // to revert the page to doc format and discard the body, silently, with a 200.
     await page.getByRole("textbox", { name: "Page title" }).fill("Renamed page");
+    const renamed = page.waitForResponse((response) =>
+      response.request().method() === "PUT" &&
+      /\/workspaces\/[^/]+\/posts\/[^/?]+$/.test(new URL(response.url()).pathname) &&
+      response.request().postDataJSON()?.title === "Renamed page"
+    );
     await page.getByRole("button", { name: /^Save/ }).click();
-    await expect(page.getByText("Saved")).toBeVisible({ timeout: 10_000 });
+    expect((await renamed).status()).toBe(200);
+    await expect(page.getByText("Saved", { exact: true })).toBeVisible({ timeout: 10_000 });
 
     await page.goto(url);
+    await expect(page.getByRole("textbox", { name: "Page title" })).toHaveValue("Renamed page");
     await page.getByRole("tab", { name: "HTML" }).click();
     await expect(page.getByRole("textbox", { name: "Page HTML" })).toHaveValue("<h1>Keep me</h1>");
   });
@@ -162,7 +169,7 @@ test.describe("Pages editor — Interactive tab (GrapesJS)", () => {
     await page.getByRole("tab", { name: "HTML" }).click();
     await page.getByRole("textbox", { name: "Page HTML" }).fill("<h1>Hello Interactive</h1>");
     await page.getByRole("button", { name: /^Save/ }).click();
-    await expect(page.getByText("Saved")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("Saved", { exact: true })).toBeVisible({ timeout: 10_000 });
 
     await page.getByRole("tab", { name: "Interactive" }).click();
     // GrapesJS's Canvas always constructs (and never removes) an initial, never-rendered
@@ -201,7 +208,7 @@ test.describe("Pages editor — Interactive tab (GrapesJS)", () => {
     await page.getByRole("tab", { name: "HTML" }).click();
     await page.getByRole("textbox", { name: "Page HTML" }).fill(html);
     await page.getByRole("button", { name: /^Save/ }).click();
-    await expect(page.getByText("Saved")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("Saved", { exact: true })).toBeVisible({ timeout: 10_000 });
 
     await page.getByRole("tab", { name: "Interactive" }).click();
     const canvas = page.frameLocator(".interactive-html-editor iframe.gjs-frame");
@@ -255,7 +262,7 @@ test.describe("Pages editor — Interactive tab (GrapesJS)", () => {
     await page.getByRole("tab", { name: "HTML" }).click();
     await page.getByRole("textbox", { name: "Page HTML" }).fill(html);
     await page.getByRole("button", { name: /^Save/ }).click();
-    await expect(page.getByText("Saved")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("Saved", { exact: true })).toBeVisible({ timeout: 10_000 });
 
     await page.getByRole("tab", { name: "Interactive" }).click();
     const canvas = page.frameLocator(".interactive-html-editor iframe.gjs-frame");
@@ -309,7 +316,7 @@ test.describe("Pages editor — Interactive tab (GrapesJS)", () => {
     await page.getByRole("tab", { name: "HTML" }).click();
     await page.getByRole("textbox", { name: "Page HTML" }).fill(html);
     await page.getByRole("button", { name: /^Save/ }).click();
-    await expect(page.getByText("Saved")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("Saved", { exact: true })).toBeVisible({ timeout: 10_000 });
 
     await page.getByRole("tab", { name: "Interactive" }).click();
     const canvas = page.frameLocator(".interactive-html-editor iframe.gjs-frame");
@@ -338,5 +345,20 @@ test.describe("Pages editor — Interactive tab (GrapesJS)", () => {
     const styleBlock = exported.match(/<style>([\s\S]*?)<\/style>/)?.[1] ?? "";
     expect(styleBlock.split("\n").length).toBeGreaterThan(1);
     expect(styleBlock).toMatch(/\n\s+border-top-left-radius: 12px;/);
+
+    // Check the rule on its intended element after saving and reopening the page.
+    const url = page.url();
+    const savedHtml = page.waitForResponse((response) =>
+      response.request().method() === "PUT" && /\/pages\/[^/]+\/html$/.test(new URL(response.url()).pathname)
+    );
+    await page.getByRole("button", { name: /^Save/ }).click();
+    expect((await savedHtml).status()).toBe(200);
+    await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+    await page.goto(url);
+    await page.getByRole("tab", { name: "Preview" }).click();
+    const savedCard = page.frameLocator('iframe[title="Page preview"]').locator(".card");
+    await expect(savedCard).toContainText("Some body text. Edited.");
+    await expect(savedCard).toHaveCSS("border-top-left-radius", "12px");
+    await expect(savedCard).toHaveCSS("background-color", "rgb(238, 238, 255)");
   });
 });

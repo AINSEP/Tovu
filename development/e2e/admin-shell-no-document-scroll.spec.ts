@@ -84,6 +84,11 @@ async function injectVisuallyHiddenProbe(page: Page, probeId: string): Promise<n
   return page.evaluate((id) => {
     const content = document.querySelector(".admin-content");
     if (!content) throw new Error(".admin-content not found — the admin shell did not render");
+    // Keep the regression reachable even on a screen whose real content fits the viewport.
+    const spacer = document.createElement("div");
+    spacer.style.height = `${window.innerHeight + 64}px`;
+    spacer.style.flexShrink = "0";
+    content.appendChild(spacer);
     const host = document.createElement("div");
     host.id = id;
     const span = document.createElement("span");
@@ -116,7 +121,8 @@ test.describe("the admin shell never scrolls the document itself", () => {
     await loginAsAdmin(page);
     await page.goto("/admin/deployment?tab=static-site");
     await expect(page.locator(".admin-content .card").first()).toBeVisible();
-    await injectVisuallyHiddenProbe(page, PROBE_ID);
+    const probeTop = await injectVisuallyHiddenProbe(page, PROBE_ID);
+    expect(probeTop).toBeGreaterThan(page.viewportSize()!.height);
 
     // The mechanism itself, asserted directly rather than only through its symptom: a
     // screen-reader-only box that resolves its offsets against the document can push the page
@@ -153,6 +159,24 @@ test.describe("the admin shell never scrolls the document itself", () => {
     });
     expect(scrollers.contentOverflows).toBe(true);
     expect(scrollers.navOverflows).toBe(true);
+    for (const selector of [".admin-content", ".cms-nav"]) {
+      const scroller = page.locator(selector);
+      await scroller.evaluate((el) => {
+        el.scrollTop = 0;
+        const target = document.createElement("div");
+        target.dataset.scrollReachProbe = "true";
+        target.textContent = "Below-fold scroll target";
+        target.style.flexShrink = "0";
+        el.appendChild(target);
+      });
+      const target = scroller.locator('[data-scroll-reach-probe="true"]');
+      await expect(target).not.toBeInViewport();
+      await scroller.hover();
+      await page.mouse.wheel(0, 100_000);
+      await expect.poll(() => scroller.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+      await expect(target).toBeInViewport();
+      expect(await maxDocumentScrollY(page)).toBe(0);
+    }
   });
 
   test("Themes: the shared TabBar screen holds the same contract", async ({ page }) => {
@@ -161,7 +185,8 @@ test.describe("the admin shell never scrolls the document itself", () => {
     await expect(page.locator(".admin-content").first()).toBeVisible();
     await expect(page.locator(".tab-bar").first()).toBeVisible();
 
-    await injectVisuallyHiddenProbe(page, PROBE_ID);
+    const probeTop = await injectVisuallyHiddenProbe(page, PROBE_ID);
+    expect(probeTop).toBeGreaterThan(page.viewportSize()!.height);
     expect(await maxDocumentScrollY(page)).toBe(0);
   });
 });

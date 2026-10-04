@@ -3,7 +3,7 @@ import { createTransactionalInMemoryIdentityRepos } from "@jini-ai/user-manageme
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
+import type { SurfaceEmission, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import { type IdentityRepos } from "@jini-ai/user-management";
 import { type IdentityToolDeps } from "@jini-ai/user-management/server";
 import { InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPolicyRepo, InMemoryPrincipalRepo, InMemoryPrincipalRoleRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo, InMemorySessionRepo, InMemoryUserRepo, seedIdentity } from "@jini-ai/user-management/server";
@@ -87,17 +87,24 @@ function ctx(h: Harness, input: unknown): ToolExecutionContext {
 }
 
 /** Starts the call, returns the dialog's HTML and a function that answers it with `params`. */
-async function raise(h: Harness, toolId: string, input: unknown) {
+async function raise(h: Harness, toolId: string, input: unknown, signal = new AbortController().signal) {
   const tool = h.tools.get(toolId);
   assert.ok(tool, `expected '${toolId}' to be wired`);
-  const emitted: unknown[] = [];
-  const pending = tool.handler(ctx(h, input), { emitSurface: async (s) => void emitted.push(s) });
-  await new Promise((resolve) => setImmediate(resolve));
+  const emitted: SurfaceEmission[] = [];
+  let didEmit!: () => void;
+  const emission = new Promise<void>((resolve) => { didEmit = resolve; });
+  const pending = tool.handler({ ...ctx(h, input), signal }, { emitSurface: async (surface) => { emitted.push(surface); didEmit(); } });
+  let timer!: ReturnType<typeof setTimeout>;
+  try {
+    await Promise.race([emission, pending.then(() => { throw new Error(`${toolId} completed without emitting a dialog`); }), new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error(`${toolId} did not emit a dialog`)), 2000); })]);
+  } finally {
+    clearTimeout(timer);
+  }
   assert.equal(emitted.length, 1, `${toolId}: the dialog must be emitted before the call parks`);
   const html = (emitted[0] as { payload: { resource: UIResource } }).payload.resource.resource.text;
   const exchangeId = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`))![1]!;
   const answer = (params: Record<string, unknown>) => h.store.deliver({ exchangeId, toolId, principalId: h.ownerPrincipalId, params });
-  return { pending, html, answer };
+  return { pending, html, answer, emitted, exchangeId };
 }
 
 /** A user plus a custom role and policy to grant — created straight through the repos. */
@@ -132,14 +139,24 @@ test("identity_role_delete: the dialog names the role; cancel keeps it, confirm 
   assert.equal(await h.repos.roles.findById({ workspaceId: WORKSPACE_ID, id: "r-editor" }), null);
 });
 
-test("identity_policy_delete: the dialog names the policy; cancel keeps it", async () => {
+test("identity_policy_delete: the dialog names the policy; cancel keeps it, confirm deletes it and its permissions", async () => {
   const h = await buildHarness();
   await seedTargets(h);
+  await h.repos.policyPermissions.save({ id: "perm-review", workspaceId: WORKSPACE_ID, policyId: "pol-review", permission: "content.read" });
   const { pending, html, answer } = await raise(h, "identity_policy_delete", { policyId: "pol-review" });
   assert.match(html, /Delete the policy Reviewers\?/);
   answer({ decision: "cancel" });
   assert.deepEqual(await pending, { deleted: false, cancelled: true, note: "The user cancelled. Nothing was changed." });
   assert.ok(await h.repos.policies.findById({ workspaceId: WORKSPACE_ID, id: "pol-review" }));
+  assert.equal((await h.repos.policyPermissions.listByPolicyId({ workspaceId: WORKSPACE_ID, policyId: "pol-review" })).length, 1);
+  const second = await raise(h, "identity_policy_delete", { policyId: "pol-review" });
+  assert.deepEqual(h.store.deliver({ exchangeId: second.exchangeId, toolId: "identity_policy_delete", principalId: "p-intruder", params: { decision: "confirm" } }), { ok: false, reason: "binding-mismatch" });
+  assert.ok(await h.repos.policies.findById({ workspaceId: WORKSPACE_ID, id: "pol-review" }));
+  assert.deepEqual(second.answer({ decision: "confirm" }), { ok: true });
+  assert.deepEqual(await second.pending, { deleted: { policyId: "pol-review" } });
+  assert.equal(await h.repos.policies.findById({ workspaceId: WORKSPACE_ID, id: "pol-review" }), null);
+  assert.deepEqual(await h.repos.policyPermissions.listByPolicyId({ workspaceId: WORKSPACE_ID, policyId: "pol-review" }), []);
+  assert.ok(await h.repos.roles.findById({ workspaceId: WORKSPACE_ID, id: "r-editor" }));
 });
 
 test("every gated delete/create is refused outright with no emitSurface", async () => {
@@ -204,4 +221,45 @@ test("identity_user_create: Cancel creates nothing", async () => {
   answer({ [SURFACE_DISMISSED_PARAM]: true });
   assert.deepEqual(await pending, { created: false, cancelled: true, note: "The user cancelled. Nothing was changed." });
   assert.equal(await h.repos.users.findByUsername({ workspaceId: WORKSPACE_ID, username: "newcomer" }), null);
+});
+
+
+test("identity_user_create: abort closes the parked exchange and creates no user", { timeout: 3000 }, async () => {
+  const h = await buildHarness();
+  const controller = new AbortController();
+  const dialog = await raise(h, "identity_user_create", { username: "aborted" }, controller.signal);
+  controller.abort();
+  assert.deepEqual(await dialog.pending, { created: false, cancelled: false, reason: "abandoned", note: "The confirmation dialog was closed because the run ended. Nothing was changed." });
+  assert.equal(h.store.size(), 0);
+  assert.equal(await h.repos.users.findByUsername({ workspaceId: WORKSPACE_ID, username: "aborted" }), null);
+  assert.deepEqual(dialog.answer({ password: "too-late" }), { ok: false, reason: "unknown-or-closed" });
+});
+
+test("identity_user_create: an empty password emits a failure outcome without creating a user", async () => {
+  const h = await buildHarness();
+  const dialog = await raise(h, "identity_user_create", { username: "empty" });
+  dialog.answer({ password: "" });
+  assert.deepEqual(await dialog.pending, { created: false, cancelled: false, note: "The user submitted no password. Nothing was created." });
+  assert.equal(await h.repos.users.findByUsername({ workspaceId: WORKSPACE_ID, username: "empty" }), null);
+  assert.equal(dialog.emitted.length, 2);
+  const outcome = (dialog.emitted[1]!.payload as { resource: UIResource }).resource.resource.text;
+  assert.match(outcome, /User not created/);
+  assert.match(outcome, /No password was entered\. Nothing was created\./);
+  assert.equal(h.store.size(), 0);
+});
+
+test("identity_user_create: a failed creation rejects, reports failure, and preserves the existing user", async () => {
+  const h = await buildHarness();
+  await seedTargets(h);
+  const before = structuredClone(await h.repos.users.findByUsername({ workspaceId: WORKSPACE_ID, username: "ada" }));
+  const dialog = await raise(h, "identity_user_create", { username: "ada" });
+  dialog.answer({ password: "rejected-human-password" });
+  await assert.rejects(dialog.pending, /already in use/);
+  assert.deepEqual(await h.repos.users.findByUsername({ workspaceId: WORKSPACE_ID, username: "ada" }), before);
+  assert.equal(dialog.emitted.length, 2);
+  const outcome = (dialog.emitted[1]!.payload as { resource: UIResource }).resource.resource.text;
+  assert.match(outcome, /User not created/);
+  assert.match(outcome, /already in use/);
+  assert.equal(JSON.stringify(dialog.emitted[1]).includes("rejected-human-password"), false);
+  assert.equal(h.store.size(), 0);
 });

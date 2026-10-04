@@ -1459,6 +1459,21 @@ test("menu widget: an item with no attrs at all renders exactly as before this f
   assert.match(html, /<li><a href="\/">Home<\/a><\/li>/);
 });
 
+test("menu widget: nested hostile labels stay inert, unsafe child URLs are neutralized, and unavailable children have no link", () => {
+  const html = renderWidgetIr({
+    componentId: "menu",
+    props: { title: "<Menu>", items: [{
+      label: "<Parent>", href: "/parent", available: true,
+      attrs: { cssClass: "featured", rel: "nofollow", openInNewTab: true },
+      children: [
+        { label: "<script>alert(1)</script>", href: "javascript:alert(1)", available: true },
+        { label: "Hidden & private", href: "/unavailable-target", available: false },
+      ],
+    }] },
+  });
+  assert.equal(html, '<nav class="widget widget-menu"><h3 class="widget-menu-title">&lt;Menu&gt;</h3><ul><li class="featured"><a href="/parent" rel="nofollow" target="_blank">&lt;Parent&gt;</a><ul><li><a href="#">&lt;script&gt;alert(1)&lt;/script&gt;</a></li><li><span class="widget-menu-item--unavailable">Hidden &amp; private</span></li></ul></li></ul></nav>');
+});
+
 test("widgets: protocol-relative hrefs never reach public HTML through any widget href surface (open-redirect fix, 2026-08-20)", () => {
   // social-links and menu both go THROUGH safeHref (render.ts:1408/1436) — fixed by the same
   // safeHref change the C7 test above proves.

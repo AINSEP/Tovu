@@ -37,6 +37,9 @@ test("end() exports exactly one span per trackRequest() call", () => {
   tracker.end({ statusCode: 200, routePattern: "/welcome" });
 
   assert.equal(exporter.getFinishedSpans().length, 1);
+  const [span] = exporter.getFinishedSpans();
+  assert.equal(span.resource.attributes["service.name"], "tovu-test");
+  assert.equal(span.instrumentationScope.name, "tovu.observability");
 });
 
 test("the exported span's name combines the method and the FINAL route pattern from end(), not the raw path known at trackRequest() time", () => {

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
+import { syncBuiltinESMExports } from "node:module";
 import path from "node:path";
 import test from "node:test";
 
@@ -111,7 +112,7 @@ test("walkThemePackage: a package over the 4000-file ceiling is truncated and re
   const saturated = path.join(dir, "a-saturated");
   fs.mkdirSync(saturated);
   for (let i = 0; i < 4001; i++) {
-    fs.writeFileSync(path.join(saturated, `f${i}.txt`), "", "utf8");
+    fs.writeFileSync(path.join(saturated, `f${String(i).padStart(4, "0")}.txt`), "", "utf8");
   }
   // Alphabetically after "a-saturated": by the time the top-level walk reaches this entry, `truncated`
   // is already `true`, so `walk()`'s own leading `if (truncated) return;` guard must fire for it.
@@ -123,7 +124,19 @@ test("walkThemePackage: a package over the 4000-file ceiling is truncated and re
   const issue = result.issues.find((i) => i.ruleId === "structure-max-files");
   assert.ok(issue, JSON.stringify(result.issues));
   assert.match(issue!.message, /exceeds the 4000-file ceiling/);
+  assert.deepEqual(result.files.map((f) => f.relativePath).sort(),
+    Array.from({ length: 4000 }, (_, i) => `a-saturated/f${String(i).padStart(4, "0")}.txt`));
   assert.equal(result.files.some((f) => f.relativePath === "b-after/should-not-be-counted.txt"), false);
+});
+
+test("walkThemePackage: exactly 4000 files are retained without a ceiling issue", (t) => {
+  const dir = tmpDir("tovu-structure-at-maxfiles-");
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const expected = Array.from({ length: 4000 }, (_, i) => `f${String(i).padStart(4, "0")}.txt`);
+  for (const name of expected) fs.writeFileSync(path.join(dir, name), "");
+  const result = walkThemePackage({ themeDir: dir });
+  assert.deepEqual(result.issues, []);
+  assert.deepEqual(result.files.map((f) => f.relativePath).sort(), expected);
 });
 
 test("walkThemePackage: a non-regular, non-directory entry (a FIFO) is silently skipped — neither listed as a file nor flagged as an issue", () => {
@@ -136,19 +149,28 @@ test("walkThemePackage: a non-regular, non-directory entry (a FIFO) is silently 
   assert.deepEqual(result.files, []);
 });
 
-test("walkThemePackage: an unreadable subdirectory is reported (structure-unreadable-dir) rather than throwing", () => {
+test("walkThemePackage: an unreadable subdirectory is reported (structure-unreadable-dir) rather than throwing", (t) => {
   const dir = tmpDir("tovu-structure-unreadable-sub-");
   const locked = path.join(dir, "locked");
   fs.mkdirSync(locked);
   fs.writeFileSync(path.join(locked, "secret.txt"), "x", "utf8");
-  fs.chmodSync(locked, 0o000);
+  const original = fs.readdirSync;
+  const denied = t.mock.method(fs, "readdirSync", (...args: Parameters<typeof fs.readdirSync>) => {
+    if (String(args[0]) === path.join(fs.realpathSync(dir), "locked")) {
+      throw Object.assign(new Error("permission denied"), { code: "EACCES" });
+    }
+    return original(...args);
+  });
+  syncBuiltinESMExports();
   try {
     const result = walkThemePackage({ themeDir: dir });
-    const issue = result.issues.find((i) => i.ruleId === "structure-unreadable-dir");
-    assert.ok(issue, JSON.stringify(result.issues));
-    assert.match(issue!.message, /cannot read directory 'locked'/);
+    assert.deepEqual(result.files, []);
+    assert.deepEqual(result.issues, [{ ruleId: "structure-unreadable-dir", message: "cannot read directory 'locked': permission denied" }]);
+    assert.ok(denied.mock.calls.some((call) => String(call.arguments[0]).endsWith("/locked")));
   } finally {
-    fs.chmodSync(locked, 0o755);
+    denied.mock.restore();
+    syncBuiltinESMExports();
+    fs.rmSync(dir, { recursive: true, force: true });
   }
 });
 
@@ -174,18 +196,22 @@ test("checkApprovedRoots: a tokens.<mode>.json root file matches the pattern and
   assert.deepEqual(issues, []);
 });
 
-test("checkApprovedRoots: an unreadable theme directory is reported (structure-unreadable-dir) rather than throwing", () => {
-  const parent = tmpDir("tovu-structure-checkroots-unreadable-");
-  const dir = path.join(parent, "theme");
-  fs.mkdirSync(dir);
-  fs.chmodSync(dir, 0o000);
+test("checkApprovedRoots: an unreadable theme directory is reported (structure-unreadable-dir) rather than throwing", (t) => {
+  const dir = tmpDir("tovu-structure-checkroots-unreadable-");
+  const original = fs.readdirSync;
+  const denied = t.mock.method(fs, "readdirSync", (...args: Parameters<typeof fs.readdirSync>) => {
+    if (String(args[0]) === dir) throw Object.assign(new Error("permission denied"), { code: "EACCES" });
+    return original(...args);
+  });
+  syncBuiltinESMExports();
   try {
-    const issues = checkApprovedRoots({ themeDir: dir });
-    assert.equal(issues.length, 1);
-    assert.equal(issues[0].ruleId, "structure-unreadable-dir");
-    assert.match(issues[0].message, /cannot read theme directory/);
+    assert.deepEqual(checkApprovedRoots({ themeDir: dir }), [
+      { ruleId: "structure-unreadable-dir", message: "cannot read theme directory: permission denied" },
+    ]);
   } finally {
-    fs.chmodSync(dir, 0o755);
+    denied.mock.restore();
+    syncBuiltinESMExports();
+    fs.rmSync(dir, { recursive: true, force: true });
   }
 });
 

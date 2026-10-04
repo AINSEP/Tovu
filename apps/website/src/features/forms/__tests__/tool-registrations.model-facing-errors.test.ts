@@ -28,7 +28,7 @@ const WORKSPACE_ID = "ws-forms-errors";
 const PRINCIPAL_ID = "principal-1";
 const NOW = "2026-09-16T00:00:00.000Z";
 
-function makeRouteDeps(options: { allow?: boolean } = {}): FormsToolDeps {
+function makeRouteDeps(options: { allow?: boolean; grants?: readonly string[] } = {}): FormsToolDeps {
   const allow = options.allow ?? true;
   let counter = 0;
   return {
@@ -45,7 +45,7 @@ function makeRouteDeps(options: { allow?: boolean } = {}): FormsToolDeps {
     },
     formDefinitionRepo: new InMemoryFormDefinitionRepo(),
     formSubmissionRepo: new InMemoryFormSubmissionRepo(),
-    authorize: async () => (allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" }),
+    authorize: async ({ permission }) => ((options.grants ? options.grants.includes(permission) : allow) ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" }),
   };
 }
 
@@ -155,4 +155,59 @@ test("the pre-existing withSchemaOnRejection path is UNCHANGED — a shape rejec
   assert.match(result.error.message, /^at least one of 'name', 'fields', or 'notify' is required/, result.error.message);
   assert.match(result.error.message, /Schema for 'forms_update_definition'/, result.error.message);
   assert.doesNotMatch(result.error.message, /^FORMS_/, "a decorated shape rejection must not be re-prefixed");
+});
+
+
+async function seedSubmissionReads(deps: FormsToolDeps) {
+  for (const id of ["form-a", "form-b"]) {
+    await deps.formDefinitionRepo.create({ id, workspaceId: WORKSPACE_ID, name: id, slug: id, fields: [{ id: "message", label: "Message", type: "text", required: true }], notify: { enabled: false, recipients: [] }, status: "active", createdAt: NOW, updatedAt: NOW, version: 1 });
+  }
+  for (const [id, formDefinitionId, submittedAt, message] of [
+    ["sub-a-old", "form-a", "2026-09-16T00:00:00.000Z", "older A"],
+    ["sub-a-new", "form-a", "2026-09-16T00:01:00.000Z", "newer A"],
+    ["sub-b", "form-b", "2026-09-16T00:02:00.000Z", "private B"],
+  ]) {
+    await deps.formSubmissionRepo.create({ id, formDefinitionId, workspaceId: WORKSPACE_ID, submittedAt, sourceIp: "192.0.2.1", data: { message } });
+  }
+}
+
+test("submission read tools require submissions.read independently of manage", async () => {
+  for (const grants of [["admin.forms.manage"], ["admin.forms.submissions.read"]]) {
+    const deps = makeRouteDeps({ grants });
+    await seedSubmissionReads(deps);
+    const harness = await buildHarness(deps);
+    for (const [toolId, input] of [["forms_list_submissions", { formId: "form-a" }], ["forms_get_submission", { formId: "form-a", submissionId: "sub-a-new" }]] as const) {
+      const result = await call(harness, toolId, input);
+      if (grants.includes("admin.forms.submissions.read")) {
+        assert.ok(result.ok, JSON.stringify(result));
+        assert.equal(result.value.result.status, "completed");
+        const output = result.value.result.output as { submission?: { id: string }; submissions?: Array<{ id: string }> };
+        if (toolId === "forms_get_submission") assert.equal(output.submission?.id, "sub-a-new");
+        else assert.deepEqual(output.submissions?.map((row) => row.id), ["sub-a-new", "sub-a-old"]);
+      } else {
+        assert.equal(result.ok, false);
+        assert.ok(!result.ok);
+        assert.deepEqual(result.error, { code: "BAD_REQUEST", message: "FORMS_FORBIDDEN: principal 'principal-1' is not authorized for 'admin.forms.submissions.read' (insufficient_permission)" });
+      }
+    }
+  }
+});
+
+test("submission get refuses a mismatched form, while correct get and paginated list preserve content", async () => {
+  const deps = makeRouteDeps();
+  await seedSubmissionReads(deps);
+  const harness = await buildHarness(deps);
+  const get = await call(harness, "forms_get_submission", { formId: "form-b", submissionId: "sub-b" });
+  assert.ok(get.ok, JSON.stringify(get));
+  assert.deepEqual(get.value.result.output, { submission: { id: "sub-b", formDefinitionId: "form-b", data: { message: "private B" }, sourceIp: "192.0.2.1", submittedAt: "2026-09-16T00:02:00.000Z" } });
+  const wrong = await call(harness, "forms_get_submission", { formId: "form-a", submissionId: "sub-b" });
+  assert.equal(wrong.ok, false);
+  assert.ok(!wrong.ok);
+  assert.deepEqual(wrong.error, { code: "BAD_REQUEST", message: "FORMS_SUBMISSION_NOT_FOUND: submission 'sub-b' was not found" });
+  const first = await call(harness, "forms_list_submissions", { formId: "form-a", limit: 1 });
+  assert.ok(first.ok, JSON.stringify(first));
+  assert.deepEqual(first.value.result.output, { submissions: [{ id: "sub-a-new", formDefinitionId: "form-a", data: { message: "newer A" }, sourceIp: "192.0.2.1", submittedAt: "2026-09-16T00:01:00.000Z" }], nextCursor: "sub-a-new" });
+  const second = await call(harness, "forms_list_submissions", { formId: "form-a", limit: 1, cursor: "sub-a-new" });
+  assert.ok(second.ok, JSON.stringify(second));
+  assert.deepEqual(second.value.result.output, { submissions: [{ id: "sub-a-old", formDefinitionId: "form-a", data: { message: "older A" }, sourceIp: "192.0.2.1", submittedAt: NOW }], nextCursor: null });
 });

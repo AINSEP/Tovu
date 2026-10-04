@@ -7,6 +7,7 @@ import { FormDefinitionNotFoundError, FormRateLimitExceededError, FormSubmission
 import { FORMS_SUBMIT_PROFILE } from "../rate-limit-profile.js";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "../repo.memory.js";
 import { submitForm } from "../submit-service.js";
+import type { DomainEvent } from "@jini-ai/cms/core";
 import type { FormDefinitionRecord } from "@jini-ai/cms-forms";
 
 /**
@@ -91,6 +92,12 @@ test("submitForm: AC-11/REQ-07 — rejects a nonexistent slug with FormDefinitio
 
 test("submitForm: AC-12/REQ-07/EC-03 — rejects a disabled slug with the identical FormDefinitionNotFoundError", async () => {
   const deps = makeDeps();
+  let missingMessage: string | undefined;
+  await assert.rejects(() => submitForm({ deps, input: { workspaceId: WORKSPACE_ID, slug: "contact", body: { name: "Ada", email: "ada@example.com" }, sourceIp: "1.1.1.1" } }), (error: unknown) => {
+    assert.ok(error instanceof FormDefinitionNotFoundError);
+    missingMessage = error.message;
+    return true;
+  });
   await deps.definitionRepo.create(makeDefinition({ status: "disabled" }));
   await assert.rejects(
     () =>
@@ -98,7 +105,11 @@ test("submitForm: AC-12/REQ-07/EC-03 — rejects a disabled slug with the identi
         deps,
         input: { workspaceId: WORKSPACE_ID, slug: "contact", body: { name: "Ada", email: "ada@example.com" }, sourceIp: "1.1.1.1" },
       }),
-    FormDefinitionNotFoundError
+    (error: unknown) => {
+      assert.ok(error instanceof FormDefinitionNotFoundError);
+      assert.equal(error.message, missingMessage);
+      return true;
+    }
   );
 });
 
@@ -179,13 +190,20 @@ test("submitForm: AC-14/REQ-09 — the 6th submission in-window from the same (i
   );
 });
 
-test("submitForm: INV-07 — enqueues exactly one form.submission.received event per accepted submission", async () => {
+test("submitForm: INV-07 — enqueues exactly one form.submission.received event per accepted submission", { timeout: 2000 }, async (t) => {
   const deps = makeDeps();
   await deps.definitionRepo.create(makeDefinition());
 
-  const received: string[] = [];
+  const received: DomainEvent[] = [];
+  const enqueued: DomainEvent[] = [];
+  const enqueue = deps.outbox.enqueue.bind(deps.outbox);
+  t.mock.method(deps.outbox, "enqueue", async (event: DomainEvent) => { enqueued.push(structuredClone(event)); await enqueue(event); });
+  let delivered!: () => void;
+  const delivery = new Promise<void>((resolve) => { delivered = resolve; });
+  const markDelivered = deps.outbox.markDelivered.bind(deps.outbox);
+  t.mock.method(deps.outbox, "markDelivered", async (input: { id: string }) => { await markDelivered(input); delivered(); });
   await deps.bus.subscribe({ eventName: "form.submission.received", handler: async (event) => {
-    received.push(event.id);
+    received.push(event);
   } });
 
   await submitForm({
@@ -193,36 +211,48 @@ test("submitForm: INV-07 — enqueues exactly one form.submission.received event
     input: { workspaceId: WORKSPACE_ID, slug: "contact", body: { name: "Ada", email: "ada@example.com" }, sourceIp: "1.1.1.1" },
   });
 
-  // Give the fire-and-forget processOutbox() call (AC-24 below) a tick to actually deliver.
-  await new Promise((resolve) => setTimeout(resolve, 10));
+  await delivery;
 
-  assert.equal(received.length, 1);
+  assert.equal(enqueued.length, 1);
+  assert.deepEqual(received, enqueued);
+  const page = await deps.submissionRepo.listByDefinition({ workspaceId: WORKSPACE_ID, formDefinitionId: "def-1", limit: 10 });
+  assert.equal(page.items.length, 1);
+  const submission = page.items[0]!;
+  assert.deepEqual(received[0], { id: "id-2", name: "form.submission.received", workspaceId: WORKSPACE_ID, aggregateId: submission.id, occurredAt: NOW, payload: { workspaceId: WORKSPACE_ID, formDefinitionId: submission.formDefinitionId, submissionId: submission.id } });
 });
 
-test("submitForm: AC-24/INV-05 — the response resolves before a slow/throwing subscriber settles (fire-and-forget outbox drain)", async () => {
+test("submitForm: AC-24/INV-05 — the response resolves before a slow/throwing subscriber settles (fire-and-forget outbox drain)", { timeout: 2000 }, async (t) => {
   const deps = makeDeps();
   await deps.definitionRepo.create(makeDefinition());
 
   let subscriberSettled = false;
+  let entered!: () => void;
+  const subscriberEntered = new Promise<void>((resolve) => { entered = resolve; });
+  let settled!: () => void;
+  const subscriberDone = new Promise<void>((resolve) => { settled = resolve; });
   let releaseSubscriber: () => void = () => {};
   const hang = new Promise<void>((resolve) => {
     releaseSubscriber = resolve;
   });
   await deps.bus.subscribe({ eventName: "form.submission.received", handler: async () => {
+    entered();
     await hang;
     subscriberSettled = true;
+    settled();
     throw new Error("simulated slow/throwing MailerPort.send()");
   } });
 
+  t.after(() => releaseSubscriber());
   const result = await submitForm({
     deps,
     input: { workspaceId: WORKSPACE_ID, slug: "contact", body: { name: "Ada", email: "ada@example.com" }, sourceIp: "3.3.3.3" },
   });
 
   assert.equal(result.status, "accepted");
+  await subscriberEntered;
   assert.equal(subscriberSettled, false, "submitForm must not wait for the subscriber to settle");
 
   releaseSubscriber();
-  await new Promise((resolve) => setTimeout(resolve, 10));
+  await subscriberDone;
   assert.equal(subscriberSettled, true, "the subscriber eventually runs, just not before the response");
 });

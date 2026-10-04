@@ -2,16 +2,15 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import os from "node:os";
+import { spawnSync } from "node:child_process";
+import { pathToFileURL } from "node:url";
 
 /**
  * @file 2026-09-09 integrations-root-key fix, then durability fix (same day, second pass) —
- * `runProductionReadinessGateOrExit`'s own env-var wiring (`boot-readiness-gate.ts`). No prior test
- * file covered this function at all: it reads real `process.env` and calls `process.exit(1)` on
- * failure, so a genuine end-to-end behavioral test needs a subprocess (as this file's own header
- * describes for a *different*, manually-run verification) — out of proportion for pinning one
- * wiring line. A source-level assertion, same technique
- * `production-readiness-boot.integration.test.ts`'s AC-23/24 test and its own `newsletterKeyring`
- * regression test already use, is the proportionate check here.
+ * `runProductionReadinessGateOrExit`'s own env-var wiring (`boot-readiness-gate.ts`). The source
+ * checks pin the shared keyring wiring; an isolated subprocess also exercises the real refusal
+ * and success paths, including missing, invalid, and valid durable key material.
  *
  * SUPERSEDED (second pass, same day): the first version of this test pinned
  * `hasMissingIntegrationsRootKey: !process.env.TOVU_INTEGRATIONS_ROOT_KEY` — env-var-only. That
@@ -40,4 +39,35 @@ test("2026-09-09 durability fix: boot-readiness-gate.ts imports inspectRootKeyMa
     /import\s*\{\s*inspectRootKeyMaterial\s*\}\s*from\s*"#src\/features\/webhooks\/keyring\.env"/,
     "must reuse the SAME env-first/file-second precedence EnvOrFileKeyring itself uses, not a second, driftable implementation of that check"
   );
+});
+
+test("the production boot adapter refuses missing or invalid root keys and accepts a valid durable key file", (t) => {
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "boot-gate-"));
+  t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
+  const gateUrl = pathToFileURL(path.join(import.meta.dirname, "..", "boot-readiness-gate.ts")).href;
+  const script = `process.chdir(process.env.TEST_GATE_CWD); const { runProductionReadinessGateOrExit } = await import(${JSON.stringify(gateUrl)}); await runProductionReadinessGateOrExit(); console.log("gate-passed");`;
+  const env = { ...process.env, TEST_GATE_CWD: cwd, TOVU_RUNTIME_MODE: "production", TOVU_ADMIN_PASSWORD: "nondefault-test-password", ANALYTICS_ROOT_KEY_SEED: "test-analytics-seed" };
+  delete env.TOVU_INTEGRATIONS_ROOT_KEY;
+  const run = () => spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script], { env, encoding: "utf8", timeout: 30000 });
+  const missing = run();
+  assert.equal(missing.error, undefined);
+  assert.equal(missing.status, 1, missing.stderr);
+  assert.match(missing.stderr, /missing-integrations-root-key/);
+  assert.doesNotMatch(missing.stdout, /gate-passed/);
+
+  const keyFile = path.join(cwd, "sites", ".tovu", "integrations-root-key.hex");
+  fs.mkdirSync(path.dirname(keyFile), { recursive: true });
+  fs.writeFileSync(keyFile, "not-a-key");
+  const invalid = run();
+  assert.equal(invalid.error, undefined);
+  assert.equal(invalid.status, 1, invalid.stderr);
+  assert.match(invalid.stderr, /missing-integrations-root-key/);
+  assert.doesNotMatch(invalid.stdout, /gate-passed/);
+
+  fs.writeFileSync(keyFile, "7a".repeat(32), { mode: 0o600 });
+  const valid = run();
+  assert.equal(valid.error, undefined);
+  assert.equal(valid.status, 0, valid.stderr);
+  assert.match(valid.stdout, /gate-passed/);
+  assert.doesNotMatch(valid.stderr, /Refusing to boot/);
 });
