@@ -156,7 +156,7 @@ test("a headless call cannot apply, and an expired confirmation resolves execute
   // The exchange's timer is unref'ed; keep the runner alive until the explicit result settles.
   const keepAlive = setInterval(() => {}, 1000);
   try {
-    const result = await r.handler(context({ bundleId: f.bundleId }, { emitSurface: async () => undefined }));
+    const result = await r.handler(context({ bundleId: f.bundleId }), { emitSurface: async () => undefined });
     assert.deepEqual(result, { executed: false, cancelled: false, reason: "expired", note: "The user did not answer the confirmation dialog before it expired. Nothing was changed." });
   } finally { clearInterval(keepAlive); }
   assert.deepEqual(f.applied, []);
