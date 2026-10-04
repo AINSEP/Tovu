@@ -65,6 +65,7 @@ import {
   type TaxonomyRepoPort,
   type TaxonomyRevisionRepoPort,
   type TermRepoPort,
+  type ImportableTermRepoPort,
   type UnassignableEntryTermRepoPort,
   type WriteServiceDeps,
   type TransactionalRepoPort,
@@ -87,7 +88,7 @@ export interface TaxonomyToolDeps {
   clock: Clock;
   idGen: { newId(): string };
   taxonomyRepo: TaxonomyRepoPort & TaxonomyListPort & TransactionalRepoPort;
-  termRepo: TermRepoPort & TermListPort;
+  termRepo: TermRepoPort & TermListPort & ImportableTermRepoPort;
   entryTermRepo: EntryTermRepoPort & MergeableEntryTermRepoPort & UnassignableEntryTermRepoPort & {
     listForContent(input: { contentType: string; contentId: string }): Promise<ReadonlyArray<{ termId: string }>>;
   };

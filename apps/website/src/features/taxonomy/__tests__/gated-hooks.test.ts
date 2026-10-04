@@ -3,7 +3,7 @@ import test from "node:test";
 import { InMemoryEntryTermRepo, InMemoryTermRepo } from "../index.js";
 import { buildMergeTermHooks } from "../gated-hooks.js";
 
-const AT = "2026-09-29T12:00:00Z";
+const AT = "2026-09-29T12:00:00.000Z";
 
 // BUG (F4.6/F6.3): merging must advance the source's concurrency version, not reset it to 1.
 test("merge recomputes overlap and persists deprecation, an advanced version and a complete audit record", async () => {
@@ -25,10 +25,10 @@ test("merge recomputes overlap and persists deprecation, an advanced version and
   assert.equal(await assignments.countByTerm({ termId: "from" }), 0);
   assert.equal(await assignments.countByTerm({ termId: "into" }), 1);
   assert.equal(await assignments.countByTerm({ termId: "unrelated" }), 1);
-  assert.deepEqual(await terms.findByIdFull("into"), { id: "into", taxonomyId: "taxonomy-8", parentId: null, name: "New", status: "active", updatedAt: "before", version: 4 });
+  assert.deepEqual(await terms.findByIdFull({ id: "into" }), { id: "into", taxonomyId: "taxonomy-8", parentId: null, name: "New", status: "active", updatedAt: "before", version: 4 });
   // F2.5: the revision port is the contract; assert the complete delivered record.
   assert.deepEqual(revisions, [{ taxonomyId: "taxonomy-8", op: "deprecate", previousState: { mergedInto: "into", fromTermId: "from", repointedCount: 1 }, actorId: "actor-7", recordedAt: AT }]);
-  assert.deepEqual(await terms.findByIdFull("from"), { id: "from", taxonomyId: "taxonomy-8", parentId: null, name: "Old", status: "deprecated", updatedAt: AT, version: 7 });
+  assert.deepEqual(await terms.findByIdFull({ id: "from" }), { id: "from", taxonomyId: "taxonomy-8", parentId: null, name: "Old", status: "deprecated", updatedAt: AT, version: 7 });
 });
 
 test("a repoint failure propagates before term updates or audit writes", async () => {
