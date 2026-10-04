@@ -161,6 +161,8 @@ test("the closed handler drops the crash-safety row only AFTER the child is stop
   let closedRows = 0;
   const window = { on: (_event: string, listener: () => void) => { onClosed = listener; } };
   vm.runInNewContext(handler, {
+    process: { platform: "win32" },
+    quitPhase: "idle",
     window,
     openSites: new Map([["/site", { window }]]),
     siteDir: "/site", partition: "site-partition", ctx: { registryPath: "/registry" },

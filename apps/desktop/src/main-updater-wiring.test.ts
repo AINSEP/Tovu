@@ -62,6 +62,9 @@ test("the actual startup helper starts the created controller, and boot catches 
     app: { isPackaged: true, getPath: () => "/user-data", quit: () => {} },
     process: { windowsStore: false, platform: "darwin", env: {}, pid: 42 }, SELFTEST: false,
     updaterSkipReason: () => null,
+    readAutomaticUpdates: () => true,
+    desktopPreferencesPath: () => "/user-data/desktop-preferences.json",
+    quitPhase: "idle",
     presenceDirPath: (dir: string) => `${dir}/presence`,
     promptUpdateReady: () => {}, explainOthersOpen: () => {},
     createAutoUpdateController: (options: { updater: unknown; presenceDir: string }) => {
@@ -70,12 +73,12 @@ test("the actual startup helper starts the created controller, and boot catches 
       calls.push("create"); return { start: () => calls.push("start") };
     }, console: { log: () => {} },
   };
-  const start = new Function(...Object.keys(deps), `let autoUpdate; ${executable}; return startAutoUpdater;`)(...Object.values(deps));
+  const start = new Function(...Object.keys(deps), `let autoUpdate; let nativeAutoUpdater; let autoUpdaterStarting = false; ${executable}; return startAutoUpdater;`)(...Object.values(deps));
   await start();
   assert.deepEqual(calls, ["create", "start"]);
   calls.length = 0;
   const skipped = { ...deps, updaterSkipReason: () => "disabled" };
-  await new Function(...Object.keys(skipped), `let autoUpdate; ${executable}; return startAutoUpdater;`)(...Object.values(skipped))();
+  await new Function(...Object.keys(skipped), `let autoUpdate; let nativeAutoUpdater; let autoUpdaterStarting = false; ${executable}; return startAutoUpdater;`)(...Object.values(skipped))();
   assert.deepEqual(calls, []);
 
   let bootStatement: ts.ExpressionStatement | undefined;

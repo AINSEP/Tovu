@@ -366,6 +366,7 @@ function CardActions({
   // `null` for `provisioning`/`blocked` — a site with nothing to start yet, or ever. See
   // `powerControl`'s own doc on why that is no button rather than a disabled one.
   const control = powerControl(status);
+  const restart = power.restartControlOf?.(project);
 
   return (
     <div
@@ -414,6 +415,17 @@ function CardActions({
           onClick={() => void power.toggle(project)}
         >
           {control.label}
+        </button>
+      )}
+      {restart && (
+        <button
+          type="button"
+          className="button button--quiet card__power"
+          disabled={restart.disabled}
+          aria-label={restart.ariaLabel}
+          onClick={() => void power.restart(project)}
+        >
+          {restart.label}
         </button>
       )}
     </div>

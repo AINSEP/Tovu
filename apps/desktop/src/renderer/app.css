@@ -1,4 +1,25 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+/* Unmodified OFL fonts ship with the renderer; see public/THIRD_PARTY_NOTICES.md. */
+@font-face {
+  font-family: 'DM Sans';
+  src: url('../vendor/fonts/dm-sans-variable.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 100 1000;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Space Grotesk';
+  src: url('../vendor/fonts/space-grotesk-variable.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('../vendor/fonts/jetbrains-mono-variable.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 100 800;
+  font-display: swap;
+}
 
 /*
  * `@jini-ai/ui` ships remixicon's CSS but not its woff2 — it expects the host app to serve

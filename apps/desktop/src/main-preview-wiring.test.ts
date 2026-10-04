@@ -159,7 +159,7 @@ test("both places a site enters openSites schedule its preview capture", () => {
 
   assert.match(
     windowBody,
-    /openSites\.set\(siteDir, \{ server, window \}\);\s*\n\s*scheduleSitePreview\(siteDir, server\.port, partition\);/,
+    /openSites\.set\(siteDir, \{ server, window, siteDir \}\);\s*\n\s*scheduleSitePreview\(siteDir, server\.port, partition\);/,
     "openSiteWindow must schedule a capture immediately after publishing into openSites",
   );
   assert.match(

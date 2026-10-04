@@ -53,7 +53,8 @@
  *
  * **Crash-safety**, now in scope (`site-process-registry.ts`): every open site's `{siteDir, port,
  * workspaceId, pid}` is persisted to a small JSON registry the moment its `tovu serve` reports ready,
- * and removed the moment it is stopped deliberately (a window closed, or the app quit cleanly). If
+ * and removed the moment it is stopped deliberately (a window closed on Windows/Linux, or the app
+ * quit cleanly). macOS window close retains the server and registry until an explicit stop/quit. If
  * Electron itself is hard-killed (SIGKILL, a crash, a forced logout) before that removal runs, the
  * NEXT launch's `reconcileOrphans()` finds the stale row, proves the pid is STILL that row's own
  * `tovu serve` (identity-before-kill — see that file's own header), and terminates it before any
@@ -142,6 +143,8 @@ import { windowBoundsFilePath, readWindowBounds, writeWindowBounds, resolveWindo
 import { registerSpellCheckContextMenu } from "./src/spellcheck-menu.ts";
 import { updaterSkipReason } from "./src/update-policy.ts";
 import { createAutoUpdateController } from "./src/auto-update-controller.ts";
+import { automaticUpdatesMenu, readAutomaticUpdates, writeAutomaticUpdates } from "./src/desktop-update-preference.ts";
+import { desktopCopy } from "./src/desktop-i18n.ts";
 import { presenceDirPath, createInstancePresence } from "./src/instance-presence.ts";
 import {
   MOVE_PROMPT,
@@ -177,6 +180,8 @@ type RejectedDefault = NonNullable<Parameters<NonNullable<Parameters<typeof reso
 interface OpenSite {
   server: TovuServerHandle;
   window?: BrowserWindow;
+  /** Reopen a macOS window without consulting the recent-site list, which may have been cleared. */
+  siteDir?: string;
 }
 
 /** The per-launch inputs a site open reads: {@link bootOwnServerMode}'s `ctx`, or the sites-home
@@ -393,6 +398,8 @@ let quitPhase: QuitPhase = "idle";
 /** The auto-updater, or `null` when this launch does not run one (dev, the Microsoft Store build, a
  *  self-test). `before-quit` asks it whether the final quit installs an update. */
 let autoUpdate: AutoUpdateController | null = null;
+let nativeAutoUpdater: import("./src/auto-update-controller.ts").AutoUpdateControllerDeps["updater"] | null = null;
+let autoUpdaterStarting = false;
 
 /**
  * How long a graceful quit gets before `app.exit(1)`. The first termination signal arms it
@@ -487,6 +494,9 @@ function createWindow(url: string, title?: string, partition?: string): BrowserW
   const window = new BrowserWindow({
     width: 1360,
     height: 900,
+    // Leave room for the admin navigation and editor; sites-home has its own narrower floor.
+    minWidth: 1024,
+    minHeight: 700,
     title: title ?? "Tovu",
     show: !SELFTEST,
     webPreferences: {
@@ -951,28 +961,39 @@ function sweepSitePreviewsOnBoot(projectsPath: string): void {
  */
 async function openSiteWindow(siteDir: string, ctx: SiteOpenCtx, options: SiteOpenOptions = {}): Promise<BrowserWindow> {
   const already = openSites.get(siteDir);
-  if (already) {
-    // `window!`: own-server mode only. Every entry this can find was set here, with a window. The
-    // sites-home tabs' `openSiteServer` sets none, and no launch reaches both functions.
-    already.window!.show();
-    already.window!.focus();
-    return already.window!;
+  if (already?.window && !already.window.isDestroyed()) {
+    // Previously `window!` was safe: own-server entries always had a window; sites-home entries
+    // set none, and no launch reaches both modes. A macOS close now also leaves a windowless entry.
+    already.window.show();
+    already.window.focus();
+    return already.window;
   }
 
-  const { server, partition } = await startSiteBackend(siteDir, ctx, options);
+  // On macOS a closed window leaves its server supervised. Reopening reuses that server and
+  // cookie jar instead of spawning a second process over the same content.db.
+  const { server, partition } = already
+    ? { server: already.server, partition: sitePartition(siteDir) }
+    : await startSiteBackend(siteDir, ctx, options);
 
   let window;
   try {
     window = createWindow(server.adminUrl, readSiteName(siteDir), partition);
   } catch (error) {
-    recordSiteClosed(ctx.registryPath, siteDir, { pid: server.pid });
-    await server.stop();
+    if (!already) {
+      recordSiteClosed(ctx.registryPath, siteDir, { pid: server.pid });
+      await server.stop();
+    }
     throw error;
   }
 
-  openSites.set(siteDir, { server, window });
+  openSites.set(siteDir, { server, window, siteDir });
   scheduleSitePreview(siteDir, server.port, partition);
   window.on("closed", () => {
+    if (process.platform === "darwin" && quitPhase === "idle") {
+      const entry = openSites.get(siteDir);
+      if (entry?.window === window) entry.window = undefined;
+      return;
+    }
     // Only when the current entry is still THIS window's (D-09). `site-supervisor.ts` removes an
     // entry whose child died, and the operator can re-open the same site from "Open Recent" while
     // this dead window is still on screen — a second `tovu serve`, a second window, a REPLACEMENT
@@ -1177,6 +1198,7 @@ function buildAppMenu(ctx: SiteOpenCtx): Menu {
       ],
     },
     { role: "editMenu" },
+    desktopUpdateSettingsMenu(),
     { role: "windowMenu" },
   ];
   return Menu.buildFromTemplate(template);
@@ -1394,7 +1416,12 @@ async function bootOwnServerMode(): Promise<void> {
   refreshAppMenu(ctx);
 
   app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) void promptAndOpenNewSite(ctx);
+    if (BrowserWindow.getAllWindows().length !== 0 || quitPhase !== "idle") return;
+    if (openSites.size === 0) void promptAndOpenNewSite(ctx);
+    else for (const entry of openSites.values()) {
+      const siteDir = entry.siteDir;
+      if (siteDir) void serializer.run(siteDir, () => openSiteWindow(siteDir, ctx)).catch(reportBootFailure);
+    }
   });
 }
 
@@ -1404,34 +1431,76 @@ async function bootOwnServerMode(): Promise<void> {
  * not at the top, so a dev launch never loads it.
  */
 async function startAutoUpdater(): Promise<void> {
-  const skip = updaterSkipReason({
-    isPackaged: app.isPackaged,
-    windowsStore: process.windowsStore === true,
-    platform: process.platform,
-    disabledByEnv: process.env.TOVU_DESKTOP_DISABLE_UPDATER === "1",
-    selftest: SELFTEST,
-  });
-  if (skip !== null) {
-    console.log(`[tovu-desktop] auto-update off: ${skip}`);
-    return;
+  if (autoUpdate || autoUpdaterStarting || !readAutomaticUpdates({ preferencePath: desktopPreferencesPath() })) return;
+  autoUpdaterStarting = true;
+  try {
+    const skip = updaterSkipReason({
+      isPackaged: app.isPackaged,
+      windowsStore: process.windowsStore === true,
+      platform: process.platform,
+      disabledByEnv: process.env.TOVU_DESKTOP_DISABLE_UPDATER === "1",
+      selftest: SELFTEST,
+    });
+    if (skip !== null) {
+      console.log(`[tovu-desktop] auto-update off: ${skip}`);
+      return;
+    }
+    const { autoUpdater } = (await import("electron-updater")).default;
+    // The operator may turn updates off while the lazy import is resolving.
+    if (!readAutomaticUpdates({ preferencePath: desktopPreferencesPath() }) || quitPhase !== "idle") return;
+    nativeAutoUpdater = autoUpdater;
+    autoUpdate = createAutoUpdateController({
+      updater: autoUpdater,
+      platform: process.platform,
+      pid: process.pid,
+      presenceDir: presenceDirPath(app.getPath("userData")),
+      now: Date.now,
+      promptUpdateReady,
+      explainOthersOpen,
+      quit: () => app.quit(),
+      log: (message) => console.log(`[tovu-desktop] ${message}`),
+    });
+    autoUpdate.start();
+  } finally {
+    autoUpdaterStarting = false;
   }
-  const { autoUpdater } = (await import("electron-updater")).default;
-  autoUpdate = createAutoUpdateController({
-    updater: autoUpdater,
-    platform: process.platform,
-    pid: process.pid,
-    presenceDir: presenceDirPath(app.getPath("userData")),
-    now: Date.now,
-    promptUpdateReady,
-    explainOthersOpen,
-    quit: () => app.quit(),
-    log: (message) => console.log(`[tovu-desktop] ${message}`),
+}
+
+function desktopPreferencesPath(): string {
+  return path.join(app.getPath("userData"), "desktop-preferences.json");
+}
+
+/** Persist first: a failed write must leave the actual updater and the checkbox unchanged. */
+function setAutomaticUpdates({ enabled }: { enabled: boolean }): void {
+  writeAutomaticUpdates({ preferencePath: desktopPreferencesPath(), enabled });
+  if (!enabled) {
+    autoUpdate?.willQuit();
+    autoUpdate = null;
+    // A download already in flight may finish, but its stopped controller cannot prompt/install.
+    // Electron-updater's Windows quit listener also reads this flag before installing.
+    if (nativeAutoUpdater) {
+      nativeAutoUpdater.autoDownload = false;
+      nativeAutoUpdater.autoInstallOnAppQuit = false;
+    }
+  } else {
+    void startAutoUpdater().catch((error: Error) => console.error(`[tovu-desktop] auto-update not started: ${error.message}`));
+  }
+}
+
+function desktopUpdateSettingsMenu(): MenuItemConstructorOptions {
+  return automaticUpdatesMenu({
+    locale: app.getLocale(),
+    enabled: readAutomaticUpdates({ preferencePath: desktopPreferencesPath() }),
+    setEnabled: setAutomaticUpdates,
+    onError: ({ error }) => dialog.showErrorBox(desktopCopy({ locale: app.getLocale() }).saveUpdateError,
+      error instanceof Error ? error.message : String(error)),
   });
-  autoUpdate.start();
 }
 
 /** The "Update ready" prompt, as a sheet on the focused window. Resolves `true` for Restart. */
 async function promptUpdateReady(version: string): Promise<boolean> {
+  // The download event may already have queued its prompt when the checkbox is turned off.
+  if (!readAutomaticUpdates({ preferencePath: desktopPreferencesPath() })) return false;
   const options = {
     type: "info" as const,
     buttons: ["Restart to update", "Later"],
@@ -1536,6 +1605,10 @@ app
     // these channels outside the sites home window today). See `find-in-page-ipc.ts`.
     registerFindInPageIpc({ ipcMain, browserWindow: BrowserWindow });
     applyDockIcon();
+    // App-wide Settings is available in attach mode too; own-server mode replaces this below.
+    Menu.setApplicationMenu(Menu.buildFromTemplate([
+      ...sitesHomeMenuTemplate({ platform: process.platform }), desktopUpdateSettingsMenu(),
+    ]));
     // Not awaited: the updater's first check waits on its own timer, and a failure to load it must
     // never block or fail the boot.
     startAutoUpdater().catch((error: Error) => console.error(`[tovu-desktop] auto-update not started: ${error.message}`));
@@ -1657,9 +1730,14 @@ app
       // Electron's default menu, rebuilt, plus History: Back (Cmd+[) and Forward (Cmd+]) for the
       // visible project tab. A menu accelerator still fires with focus inside a tab's guest. See
       // `site-history-menu.ts`.
-      Menu.setApplicationMenu(Menu.buildFromTemplate(sitesHomeMenuTemplate({ platform: process.platform })));
+      Menu.setApplicationMenu(Menu.buildFromTemplate([
+        ...sitesHomeMenuTemplate({ platform: process.platform }), desktopUpdateSettingsMenu(),
+      ]));
       if (SELFTEST) selftestTracker = buildSelftestTracker(1);
       openSitesHomeWindow();
+      app.on("activate", () => {
+        if (BrowserWindow.getAllWindows().length === 0 && quitPhase === "idle") openSitesHomeWindow();
+      });
       return;
     }
 
@@ -1668,6 +1746,9 @@ app
       // Attach mode is always exactly one window.
       if (SELFTEST) selftestTracker = buildSelftestTracker(1);
       createWindow(attachUrl, "Tovu");
+      app.on("activate", () => {
+        if (BrowserWindow.getAllWindows().length === 0 && quitPhase === "idle") createWindow(attachUrl, "Tovu");
+      });
       return;
     }
 
@@ -1727,6 +1808,10 @@ app.on("before-quit", (event) => {
  * app itself, so this quit is held.
  */
 function finalQuitHeldForUpdate(): boolean {
+  if (!readAutomaticUpdates({ preferencePath: desktopPreferencesPath() })) {
+    if (nativeAutoUpdater) nativeAutoUpdater.autoInstallOnAppQuit = false;
+    return false;
+  }
   return autoUpdate?.beforeFinalQuit() ?? false;
 }
 
@@ -1735,5 +1820,5 @@ app.on("will-quit", () => {
 });
 
 app.on("window-all-closed", () => {
-  app.quit();
+  if (process.platform !== "darwin") app.quit();
 });

@@ -11,7 +11,7 @@
       the app — nothing may load from a remote origin, so there is no CDN or registry that can
       swap code under this bridge on a release this repo never reviewed.
     -->
-    <meta http-equiv="Content-Security-Policy" content="script-src 'self'; object-src 'none'; base-uri 'none';" />
+    <meta http-equiv="Content-Security-Policy" content="script-src 'self'; style-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none';" />
     <!--
       kUInetic: declarative `data-kui="..."` animation attributes, available anywhere in the
       app once loaded here. Vendored at 0.1.4 under `public/vendor/kuinetic/` (own LICENSE

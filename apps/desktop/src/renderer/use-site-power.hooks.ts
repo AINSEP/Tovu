@@ -23,9 +23,32 @@ import { useCallback, useState } from 'react';
 
 import { runnerInventoryBridge } from './runner-api.js';
 import type { SiteLifecycleStatus, SiteRecord } from '../contracts/project.js';
+import { desktopCopy } from '../desktop-i18n.js';
 
 /** Which way a click moves a site. */
 export type SitePowerAction = 'start' | 'stop';
+type SitePowerOperation = SitePowerAction | 'restart';
+
+/** Await a graceful stop before starting; never start if stopping failed. */
+export async function performSiteRestart({ id, bridge }: {
+  id: string;
+  bridge: Parameters<typeof performPowerAction>[2];
+}, { onStopped }: { onStopped?: (record: SiteRecord) => void } = {}): Promise<SitePowerResult> {
+  const stopped = await performPowerAction('stop', id, bridge);
+  if (stopped.error !== undefined) return stopped;
+  onStopped?.(stopped.record);
+  return performPowerAction('start', id, bridge);
+}
+
+export function restartControl({ project, status, restarting }: {
+  project: SiteRecord;
+  status: SiteLifecycleStatus;
+  restarting: boolean;
+}, { locale = typeof navigator === 'undefined' ? 'en' : navigator.language }: { locale?: string } = {}) {
+  const copy = desktopCopy({ locale });
+  const label = restarting ? copy.restarting : copy.restart;
+  return { label, ariaLabel: `${label} ${project.displayName}`, disabled: status !== 'running' || Boolean(project.folderMissing) };
+}
 
 /** What the card should render for a site's power control. */
 export interface SitePowerControl {
@@ -65,6 +88,8 @@ export interface SitePower {
   errorOf: (id: string) => string | null;
   /** Start a stopped site or stop a running one. A no-op while one is already in flight. */
   toggle: (project: SiteRecord) => Promise<void>;
+  restart: (project: SiteRecord) => Promise<void>;
+  restartControlOf: (project: SiteRecord) => ReturnType<typeof restartControl>;
 }
 
 /** The status a click's own transition reads as while it is in flight. */
@@ -113,13 +138,16 @@ export async function performPowerAction(
  * @complexity O(1) per call; the two maps hold one entry per site with an unsettled action.
  */
 export function useSitePower(onSiteUpdated?: (record: SiteRecord) => void): SitePower {
-  const [pending, setPending] = useState<Readonly<Record<string, SitePowerAction>>>({});
+  const [pending, setPending] = useState<Readonly<Record<string, SitePowerOperation>>>({});
   const [errors, setErrors] = useState<Readonly<Record<string, string>>>({});
+  // A stable lock independent of React's batched render: a fast second click uses the old closure.
+  // useState's lazy initializer preserves the Set for this hook's lifetime without scheduling it.
+  const [inFlight] = useState(() => new Set<string>());
 
   const statusOf = useCallback(
     (project: SiteRecord) => {
       const action = pending[project.id];
-      return action === undefined ? project.status : IN_FLIGHT_STATUS[action];
+      return action === undefined ? project.status : action === 'restart' ? 'starting' : IN_FLIGHT_STATUS[action];
     },
     [pending],
   );
@@ -131,25 +159,49 @@ export function useSitePower(onSiteUpdated?: (record: SiteRecord) => void): Site
       const action = powerControl(statusOf(project))?.action;
       // `null` covers both "nothing to do for this status" and "a transition is already running",
       // so a second click during a stop cannot queue a second one behind it.
-      if (action === undefined || action === null) return;
+      if (action === undefined || action === null || inFlight.has(project.id)) return;
 
       const id = project.id;
+      inFlight.add(id);
       setPending((current) => ({ ...current, [id]: action }));
       setErrors((current) => withoutKey(current, id));
 
-      const result = await performPowerAction(action, id, runnerInventoryBridge());
-      if (result.error === undefined) onSiteUpdated?.(result.record);
-      else setErrors((current) => ({ ...current, [id]: result.error }));
-
-      // Cleared on BOTH arms: a start that failed leaves the site stopped, which is what the polled
-      // record already says. Holding `starting` after that would be the button remembering its own
-      // press — the one thing this control must never do.
-      setPending((current) => withoutKey(current, id));
+      try {
+        const result = await performPowerAction(action, id, runnerInventoryBridge());
+        if (result.error === undefined) onSiteUpdated?.(result.record);
+        else setErrors((current) => ({ ...current, [id]: result.error }));
+      } finally {
+        // Cleared on BOTH arms: a start that failed leaves the site stopped, which is what the
+        // polled record already says. Holding `starting` after that would be the button remembering
+        // its own press — the one thing this control must never do.
+        inFlight.delete(id);
+        setPending((current) => withoutKey(current, id));
+      }
     },
-    [onSiteUpdated, statusOf],
+    [onSiteUpdated, statusOf, inFlight],
   );
 
-  return { statusOf, errorOf, toggle };
+  const restartControlOf = useCallback((project: SiteRecord) => restartControl({
+    project, status: statusOf(project), restarting: pending[project.id] === 'restart',
+  }), [pending, statusOf]);
+
+  const restart = useCallback(async (project: SiteRecord) => {
+    if (restartControlOf(project).disabled || inFlight.has(project.id)) return;
+    const id = project.id;
+    inFlight.add(id);
+    setPending(current => ({ ...current, [id]: 'restart' as const }));
+    setErrors(current => withoutKey(current, id));
+    try {
+      const result = await performSiteRestart({ id, bridge: runnerInventoryBridge() }, { onStopped: onSiteUpdated });
+      if (result.error === undefined) onSiteUpdated?.(result.record);
+      else setErrors(current => ({ ...current, [id]: result.error }));
+    } finally {
+      inFlight.delete(id);
+      setPending(current => withoutKey(current, id));
+    }
+  }, [inFlight, onSiteUpdated, restartControlOf]);
+
+  return { statusOf, errorOf, toggle, restart, restartControlOf };
 }
 
 /**
