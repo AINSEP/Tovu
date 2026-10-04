@@ -16,17 +16,17 @@
     "about",
     "pricing",
     "docs",
-    "blog",
     "changelog",
     "download",
     "signin",
     "signup"
   ],
   "templates": [
-    "blog-post.html",
-    "blog-sidebar-template.html",
-    "page-shell.html",
-    "index"
+    "posts-default.html",
+    "posts-sidebar.html",
+    "pages-default.html",
+    "index",
+    "listing-default.html"
   ],
   "slots": {
     "nav": {
@@ -39,5 +39,6 @@
         "minimal": "footer-minimal.html"
       }
     }
-  }
+  },
+  "publishedPages": []
 }

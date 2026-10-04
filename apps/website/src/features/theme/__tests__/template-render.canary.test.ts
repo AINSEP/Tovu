@@ -164,11 +164,11 @@ test("canary: the page-embed stage leaves theme-owned markers untouched", () => 
   const out = renderHtmlPageBody(template, undefined);
 
   assert.ok(out.includes(`'{"type":"partial","id":"nav"`), "the nav partial marker must survive this stage");
-  // `docs-current-page-sidebar` (2026-08-31 docs-nav restructure) is the reserved sentinel id the
-  // template now carries in place of the old fixed `docs-themes-menu` literal — see
+  // `docs-section` is the reserved sentinel id the promoted template carries in place of
+  // `docs-current-page-sidebar` (formerly the fixed `docs-themes-menu` literal) — see
   // `pages.ts`'s `resolveStaticMenusForRender` for why a shared template can carry one literal id
-  // and still give every doc page its own sidebar menu.
-  assert.ok(out.includes(`"type":"menu","id":"docs-current-page-sidebar"`), "the docs menu marker must survive this stage");
+  // and still give every doc page its context-specific sidebar menu.
+  assert.ok(out.includes(`"type":"menu","id":"docs-section"`), "the docs menu marker must survive this stage");
   assert.ok(out.includes(`'{"type":"partial","id":"footer"}'`), "the footer partial marker must survive this stage");
 });
 
@@ -182,14 +182,14 @@ test("canary: an OWNED marker with nothing resolved still degrades to the REQ-28
 });
 
 test("canary: a POST-style template (blog-sidebar-template.html) renders nav, tree menu, footer, and body together", () => {
-  // Keyed by `docs-current-page-sidebar` (2026-08-31 docs-nav restructure), the reserved sentinel
-  // id the real template now carries in its menu marker — see `resolveStaticMenusForRender`'s own
-  // doc. A hand-built `menus` map keyed by the OLD `docs-themes-menu` literal would no longer match
-  // that marker at all, so this fixture's key has to track the template's real marker id, not name
-  // a specific stored menu.
+  // Keyed by `docs-section`, the reserved sentinel id the promoted site template carries after
+  // the docs IA restructure (formerly `docs-current-page-sidebar`) — see
+  // `resolveStaticMenusForRender`'s own doc. A hand-built `menus` map keyed by a retired literal
+  // would no longer match that marker at all, so this fixture's key has to track the template's
+  // real marker id, not name a specific stored menu.
   const html = renderThroughTemplate(tovuTheme(), templateFor(tovuTheme(), "sidebar"), "Theme Authoring", {
     "menu-header-nav": items({ label: "About", href: "/about" }),
-    "docs-current-page-sidebar": items({
+    "docs-section": items({
       label: "Menus",
       href: "#menus",
       isCurrent: true,

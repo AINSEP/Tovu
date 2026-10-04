@@ -99,6 +99,17 @@ jobs:
         continue-on-error: true
         run: npm run typecheck
 
+      - name: Check shipped theme and reference-site drift
+        # This is a dedicated gate: the broad Test step has a legacy failure baseline, so
+        # stock/reference or stock/reset drift must also fail the summary directly.
+        # Only the tracked repo reference is compared; user installations can diverge freely.
+        id: gate-shipped-theme-drift
+        continue-on-error: true
+        run: >-
+          node --import tsx --test
+          apps/website/src/features/theme/__tests__/shipped-site-theme-drift.canary.test.ts
+          apps/website/src/features/theme/__tests__/shipped-theme-original-drift.canary.test.ts
+
       - name: Test
         # PGHOST/PGPORT/PGUSER/PGPASSWORD are libpq's standard env var names; src/platform/db/migration/pg-fixture.ts
         # reads the first three (PGPASSWORD flows to `psql` automatically via inherited process env) and
@@ -346,6 +357,7 @@ jobs:
           check "${{ steps.gate-inventory.outcome }}"          "check:inventory"
           check "${{ steps.gate-src-complexity.outcome }}"     "check:src-complexity-drift"
           check "${{ steps.gate-seed-content-drift.outcome }}" "check:seed-content-drift"
+          check "${{ steps.gate-shipped-theme-drift.outcome }}" "shipped theme/reference/reset drift"
           check "${{ steps.gate-coverage-integrity.outcome }}" "check:coverage-integrity"
           check "${{ steps.gate-seal-aad.outcome }}"           "check:seal-aad"
           check "${{ steps.gate-default-credential.outcome }}" "check:default-credential"

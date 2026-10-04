@@ -11,7 +11,7 @@
 <meta name="theme-color" content="#020203" />
 <!-- Fixed 2026-08-11 (was a disclosed limitation: every post through this template shared one
      fixed tab/SEO title). The tag directly below now carries the same literal placeholder
-     `page-shell.html` already used — `injectPageTitle` (static-render.ts) substitutes it with the
+     `pages-default.html` already used — `injectPageTitle` (static-render.ts) substitutes it with the
      current entity's own title before render, the same string-substitution idea
      `injectPostEmbedId` applies to a marker's own id attribute. See that function's own doc for why
      the match is scoped to the exact tag and must never be echoed as literal text elsewhere in this
@@ -52,5 +52,6 @@
 <!-- kUInetic from jsDelivr @0 (picks up 0.x releases); the vendored copy loads instead when the CDN is unreachable (offline desktop / self-hosted). -->
 <script src="https://cdn.jsdelivr.net/npm/kuinetic@0.2.3/dist/kuinetic.all.min.js" crossorigin="anonymous"></script>
 <script>window.kuinetic||document.write('<script src="../scripts/vendor/kuinetic.all.js"><\/script>')</script>
+<script src="../scripts/vendor/lightbox.js"></script>
 </body>
 </html>
