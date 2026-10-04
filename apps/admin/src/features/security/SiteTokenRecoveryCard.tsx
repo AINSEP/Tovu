@@ -44,7 +44,9 @@ function SiteTokenUnlockForm({ recovery }: { recovery: SiteTokenRecoveryControll
         <input
           id="site-token-recovery-token"
           type="password"
-          autoComplete="off"
+          // Chrome ignores "off" on a password field and offers a saved login password here; this is
+          // a pasted secret, never a sign-in, so it uses "new-password" like every other secret field.
+          autoComplete="new-password"
           spellCheck={false}
           placeholder={translate("64 characters, 0-9 and a-f")}
           value={recovery.token}
