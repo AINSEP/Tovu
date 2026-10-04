@@ -1,11 +1,14 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createFakeSourceConfigDependencies, type SourceConfigItem } from "@jini-ai/ui";
 
 import { FetchQueryProvider } from "@/lib/fetch-query";
 
 import { Providers } from "../Providers";
+import { useRouteLocation } from "@/lib/router";
+import { defaultIntegrationsPort } from "../../integrations/hooks/integrations-dependencies.hooks";
+import { defaultAlwaysAllowPort } from "../hooks/always-allow-dependencies.hooks";
 import type { ProvidersController } from "../hooks/use-providers.hooks";
 
 /**
@@ -33,11 +36,12 @@ function renderPage(tabId?: string | null) {
   // `ExternalMcpSettingsPanel` reads the running assistant's admissions through `useFetchQuery`,
   // which needs a query client — same requirement `ExternalMcpSettingsPanel.unit.test.tsx` documents
   // for that panel directly.
-  return render(
-    <FetchQueryProvider>
-      <Providers tabId={tabId} useProvidersHook={() => fixtureProviders()} />
-    </FetchQueryProvider>,
-  );
+  function RoutedPage() {
+    const location = useRouteLocation();
+    const query = new URLSearchParams(location.split("?")[1] ?? "");
+    return <Providers tabId={query.get("tab") ?? tabId} useProvidersHook={() => fixtureProviders()} />;
+  }
+  return render(<FetchQueryProvider><RoutedPage /></FetchQueryProvider>);
 }
 
 describe("Providers — tab strip: MCP Server and Webhooks tagged Soon, External MCP untouched", () => {
@@ -45,6 +49,7 @@ describe("Providers — tab strip: MCP Server and Webhooks tagged Soon, External
     // Same convention `SourceControl.unit.test.tsx` documents: `navigate()` drives real
     // `history.pushState`, so one test's click could otherwise leak into the next.
     window.history.replaceState(null, "", "/");
+    vi.restoreAllMocks();
   });
 
   it("tags MCP Server and Webhooks Soon, and leaves External MCP untagged", () => {
@@ -57,15 +62,28 @@ describe("Providers — tab strip: MCP Server and Webhooks tagged Soon, External
     expect(within(externalMcpTab).queryByText("Soon")).not.toBeInTheDocument();
   });
 
-  it("keeps both tagged tabs fully clickable — Soon is a tag, not a disabled tab", async () => {
+  it.each([["MCP Server", "mcp-server"], ["Webhooks", "webhooks"]])("keeps the tagged %s tab clickable and routes to its own panel", async (label, tabId) => {
     const user = userEvent.setup();
     renderPage("external-mcp");
-    const mcpTab = screen.getByRole("tab", { name: /MCP Server/ });
+    const mcpTab = screen.getByRole("tab", { name: new RegExp(`^${label}`) });
     expect(mcpTab).not.toBeDisabled();
     expect(mcpTab).not.toHaveAttribute("aria-disabled");
 
     await user.click(mcpTab);
-    expect(window.location.search).toBe("?tab=mcp-server");
+    expect(window.location.search).toBe(`?tab=${tabId}`);
+    expect(mcpTab).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByText("Coming soon")).toBeInTheDocument();
+  });
+  it("clicking Always allow shows its real panel", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(defaultAlwaysAllowPort, "listExternalMcpToolApprovals").mockResolvedValue({ approvals: [] });
+    vi.spyOn(defaultAlwaysAllowPort, "listExternalMcpServers").mockResolvedValue({ servers: [] });
+    renderPage("external-mcp");
+    await user.click(screen.getByRole("tab", { name: /^Always allow/ }));
+    expect(window.location.search).toBe("?tab=always-allow");
+    expect(screen.getByRole("tab", { name: /^Always allow/ })).toHaveAttribute("aria-selected", "true");
+    expect(await screen.findByText("Nothing is set to Always allow. Pick it on a tool's approval card in chat.")).toBeInTheDocument();
+    expect(screen.queryByText("Coming soon")).not.toBeInTheDocument();
   });
 });
 
@@ -76,6 +94,7 @@ describe("Providers — no Composio tab (Composio is the `composio` agent plugin
     expect(names).toHaveLength(4);
     expect(names[0]).toMatch(/^External MCP/);
     expect(names[1]).toMatch(/^Always allow/);
+    expect(names).toEqual(["External MCP", "Always allow", "MCP ServerSoon", "WebhooksSoon"]);
     expect(names.some((name) => /composio/i.test(name))).toBe(false);
   });
 
@@ -122,16 +141,19 @@ describe("Providers — Webhooks tab body: visible but greyed and inert, same as
     expect(screen.getByText("Coming soon")).toBeInTheDocument();
   });
 
-  it("wraps the real webhooks list in the shared genuinely-inert wrapper", () => {
-    // `Integrations` fetches its own list on mount (no fixture hook wired here — this suite only
-    // owns the wrapper contract, not the list's own load states, which are
-    // `use-integrations.unit.test.tsx`'s job), so this asserts on the WRAPPER regardless of whether
-    // the list has resolved to "Loading…" or real rows yet, rather than a button name that only
-    // exists post-load.
-    renderPage("webhooks");
-    const inertWrap = document.querySelector(".settings-ui-inert-control");
-    expect(inertWrap).not.toBeNull();
-    expect(inertWrap).toHaveAttribute("inert");
-    expect(inertWrap?.textContent).toBeTruthy();
+  it("wraps the real webhooks list in the shared genuinely-inert wrapper", async () => {
+    const list = vi.spyOn(defaultIntegrationsPort, "listIntegrationSubscriptions").mockResolvedValue({ subscriptions: [] });
+    try {
+      renderPage("webhooks");
+      const addWebhook = await screen.findByRole("button", { name: "Add webhook" });
+      const inertWrap = addWebhook.closest(".settings-ui-inert-control");
+      expect(inertWrap).not.toBeNull();
+      expect(inertWrap).toHaveAttribute("inert");
+      expect(inertWrap?.textContent).toBeTruthy();
+      expect(within(inertWrap as HTMLElement).getByText("Send webhook notifications to external services when content on this site changes.")).toBeInTheDocument();
+      expect(within(inertWrap as HTMLElement).getByRole("button", { name: "Add webhook" })).toBeInTheDocument();
+    } finally {
+      list.mockRestore();
+    }
   });
 });

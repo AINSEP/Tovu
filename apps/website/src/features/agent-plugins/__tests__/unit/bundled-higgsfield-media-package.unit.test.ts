@@ -299,6 +299,18 @@ test("failure-modes.md maps every observed failure string to a real cause", asyn
   // The bare 500 is the one most likely to be misreported as a catastrophe; it must be named as a
   // LOST error message rather than a diagnosis.
   assert.match(failures, /reason was lost|lost error message/i);
+  const sections = new Map([...failures.matchAll(/^## (\d+)\. ([\s\S]*?)(?=^## |$(?![\s\S]))/gm)].map((match) => [match[1], match[2]]));
+  const expectedSections: Record<string, readonly string[]> = {
+    "1": ["remote-declares-not-read-only", "not-in-operator-allowlist", "do **not** guess which", "Settings → External MCP", "Remember the restart"],
+    "2": ["Requires basic plan or higher", "an account entitlement gate on the selected model", "try a model that is not gated (`z_image`", "stop and put the choice to the operator"],
+    "3": ["the request timed out after 15000ms", "when it follows a `job_status` call with `sync: true`", "structural incompatibility", "call `job_status` again **without** `sync`, and poll"],
+    "4": ["INTERNAL_ERROR: an internal error occurred", "known, still-unfixed relay defect", 'treat it as "the reason was lost"', "Re-run the same call\non a path that reports properly", "**Do not:** invent a cause"],
+  };
+  for (const [id, clauses] of Object.entries(expectedSections)) {
+    const section = sections.get(id);
+    assert.ok(section, `failure section ${id} must exist`);
+    for (const clause of clauses) assert.ok(section.includes(clause), `section ${id} must carry its own diagnosis/recovery: ${clause}`);
+  }
 });
 
 test("failure-modes.md routes an expired OAuth token to the one tool that can surface it", async () => {

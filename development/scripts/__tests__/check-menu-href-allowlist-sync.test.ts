@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { pathToFileURL } from "node:url";
 
 import {
   ACCEPTED_HREFS,
@@ -126,6 +130,13 @@ test("compareCheckers: SYNTHETIC MISMATCH — a deliberately-wrong checker is ca
 
 test("buildSharedTable: every REJECTED_HREFS row is expectedAccept:false and every ACCEPTED_HREFS row is expectedAccept:true", () => {
   const table = buildSharedTable();
+  // Independent literals pin the bypass classes the CLI must continue exercising.
+  for (const href of ["javascript:alert(1)", "JaVaScRiPt:alert(1)", " javascript:alert(1)",
+    "\u0001javascript:alert(1)", "\u0000javascript:alert(1)", "java\tscript:alert(1)",
+    "java\nscript:alert(1)", "java\rscript:alert(1)", "data:text/html,<script>alert(1)</script>",
+    "vbscript:msgbox(1)", "//evil.example", "/\\evil.example", "/\t/evil.example"]) {
+    assert.ok(REJECTED_HREFS.includes(href), `missing dangerous href class: ${JSON.stringify(href)}`);
+  }
   assert.equal(table.length, REJECTED_HREFS.length + ACCEPTED_HREFS.length);
   for (const href of REJECTED_HREFS) {
     assert.ok(table.some((row) => row.href === href && row.expectedAccept === false));
@@ -151,6 +162,10 @@ test("loadHrefChecker: extracts a real, callable checker from render.ts that beh
   const checker = await loadHrefChecker(renderTsPath);
   assert.equal(checker("/quickstart"), true);
   assert.equal(checker("javascript:alert(1)"), false);
+  for (const { href, expectedAccept } of buildSharedTable()) {
+    assert.equal(checker(href), expectedAccept, JSON.stringify(href));
+  }
+  assert.equal(checker("vbscript:msgbox(1)"), false);
 });
 
 // ---------------------------------------------------------------------------
@@ -162,3 +177,40 @@ test("live: jini:isAllowedHref, render.ts:safeHref, and static-render.ts:safeHre
   const mismatches = await runMenuHrefAllowlistSync();
   assert.deepEqual(mismatches, [], `href allowlist copies have drifted: ${JSON.stringify(mismatches)}`);
 });
+
+for (const scenario of ["mismatch", "extraction"] as const) {
+  test(`CLI returns nonzero for ${scenario} and reports the reason`, () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "href-cli-"));
+    const preload = path.join(dir, "source-fixture.mjs");
+    try {
+      const fixture = scenario === "extraction" ? "function deletedSafeHref() {}" :
+        FIXTURE_SOURCE.replace('if (value.startsWith("#")) return value;', 'if (value.startsWith("javascript:")) return value;');
+      writeFileSync(preload, `
+        import fs from "node:fs";
+        import { syncBuiltinESMExports } from "node:module";
+        const read = fs.readFileSync;
+        fs.readFileSync = (file, ...args) => {
+          if (String(file).endsWith("/server/inbound/public-http/http/site/render.ts")) return ${JSON.stringify(fixture)};
+          return read(file, ...args);
+        };
+        syncBuiltinESMExports();
+      `);
+      const result = spawnSync(process.execPath, ["--import", "tsx", "--import", pathToFileURL(preload).href,
+        path.resolve(import.meta.dirname, "../check-menu-href-allowlist-sync.ts")], { encoding: "utf8", timeout: 20_000 });
+      assert.ifError(result.error);
+      assert.equal(result.status, 1, result.stderr);
+      assert.doesNotMatch(result.stdout, / — ok — /);
+      if (scenario === "extraction") {
+        assert.match(result.stderr, /could not run the comparison at all.*extraction failure/);
+        assert.match(result.stderr, /could not find the SAFE_HREF_RESOLUTION_BASE/);
+      } else {
+        assert.match(result.stderr, /produced disagreement/);
+        assert.ok(result.stderr.includes('"javascript:alert(1)" (expected accept=false)'));
+        assert.ok(result.stderr.includes('"render.ts:safeHref":true'));
+        assert.ok(result.stderr.includes('"jini:isAllowedHref":false'));
+      }
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+}

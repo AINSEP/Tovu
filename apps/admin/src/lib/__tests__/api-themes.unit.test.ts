@@ -98,6 +98,7 @@ test("getThemeDetail GETs one theme's explore surface by id", async () => {
   const { calls } = stubFetchCapturing(okJson(detail));
   await expect(api.getThemeDetail("basic")).resolves.toEqual(detail);
   expect(calls[0].url).toBe(`${BASE}/themes/basic`);
+  expect(calls[0].init?.method ?? "GET").toBe("GET");
 });
 
 test("getThemeDetail throws ApiError for an unknown theme id", async () => {

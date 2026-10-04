@@ -3,6 +3,8 @@ import test from "node:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
+import { pathToFileURL } from "node:url";
 
 import { loadRepoRootEnvFile } from "../load-repo-root-env.mjs";
 
@@ -74,3 +76,47 @@ test("loadRepoRootEnvFile: a variable already set in process.env (shell export) 
     delete process.env[key];
   }
 });
+
+for (const script of ["dev.mjs", "dev-desktop.mjs"]) {
+  test(`${script}: loads the fixture .env before reading the admin port`, () => {
+    const dir = makeTempEnvFile("TOVU_ADMIN_DEV_PORT=6517\n");
+    const preload = path.join(dir, "env-order.mjs");
+    const repoRoot = path.resolve(import.meta.dirname, "../../..");
+    try {
+      fs.writeFileSync(preload, `
+        import assert from "node:assert/strict";
+        import fs from "node:fs";
+        import { syncBuiltinESMExports } from "node:module";
+        const exists = fs.existsSync;
+        fs.existsSync = file => String(file) === ${JSON.stringify(path.join(repoRoot, ".env"))} || exists(file);
+        const load = process.loadEnvFile.bind(process);
+        let loaded = false, reads = 0;
+        process.loadEnvFile = file => {
+          assert.equal(file, ${JSON.stringify(path.join(repoRoot, ".env"))});
+          load(${JSON.stringify(path.join(dir, ".env"))});
+          loaded = true;
+        };
+        const env = process.env;
+        process.env = new Proxy(env, { get(target, key) {
+          if (key === "TOVU_ADMIN_DEV_PORT") {
+            reads++;
+            assert.equal(loaded, true, "port read before .env was loaded");
+            assert.equal(target[key], "6517");
+          }
+          return target[key];
+        }});
+        process.on("exit", () => assert.ok(reads > 0, "the real entry point must read the admin port"));
+        syncBuiltinESMExports();
+      `);
+      const env = { ...process.env };
+      delete env.TOVU_ADMIN_DEV_PORT;
+      const result = spawnSync(process.execPath, ["--import", pathToFileURL(preload).href,
+        "--input-type=module", "-e", `process.argv[1] = "/fixture-import"; await import(${JSON.stringify(new URL(`../${script}`, import.meta.url).href)})`],
+        { encoding: "utf8", env, timeout: 10_000 });
+      assert.ifError(result.error);
+      assert.equal(result.status, 0, result.stderr);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+}

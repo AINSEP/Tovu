@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 import { diffAgainstBaseline, type Violation } from "../check-src-complexity-drift.js";
 import debt from "../admin-complexity-debt.json" with { type: "json" };
@@ -98,4 +103,50 @@ test("real baseline snapshot: development/scripts/admin-complexity-debt.json dif
   const { added, removed } = diffAgainstBaseline(violations, violations);
   assert.deepEqual(added, [], "a baseline diffed against itself must never report new violations");
   assert.deepEqual(removed, [], "a baseline diffed against itself must never report stale entries");
+});
+
+// Keep the CLI and scanner real; replace only the ESLint process boundary.
+test("admin CLI scans the strict admin scope, converts ESLint errors, and fails on new debt", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "admin-drift-cli-"));
+  const preload = path.join(dir, "eslint-fixture.mjs");
+  const newReason = "Function 'newAdminFunction' has a complexity of 10. Maximum allowed is 9.";
+  try {
+    writeFileSync(preload, `
+      import assert from "node:assert/strict";
+      import cp from "node:child_process";
+      import { syncBuiltinESMExports } from "node:module";
+      import path from "node:path";
+      cp.execFileSync = (command, args, options) => {
+        assert.equal(command, "npx");
+        assert.deepEqual(args, ["eslint", "--no-error-on-unmatched-pattern", "--rule",
+          JSON.stringify({ complexity: ["error", 9], "sonarjs/cognitive-complexity": ["error", 9] }),
+          "-f", "json", "apps/admin/src/**/*.{ts,tsx}"]);
+        assert.equal(options.cwd, ${JSON.stringify(path.resolve(import.meta.dirname, "../../.."))});
+        const results = [
+          { filePath: path.join(options.cwd, "apps/admin/src/new-admin.ts"), messages: [
+            { ruleId: "complexity", line: 2, message: ${JSON.stringify(newReason)} },
+            { ruleId: "no-unused-vars", line: 3, message: "IGNORE unrelated lint" }
+          ] },
+          { filePath: path.join(options.cwd, "apps/admin/src/__tests__/ignored.test.ts"),
+            messages: [{ ruleId: "complexity", line: 1, message: "IGNORE test debt" }] },
+          { filePath: path.join(options.cwd, "apps/admin/src/__measurements__/ignored.test.ts"),
+            messages: [{ ruleId: "complexity", line: 1, message: "IGNORE measurement debt" }] }
+        ];
+        throw Object.assign(new Error("ESLint found errors"), { stdout: JSON.stringify(results) });
+      };
+      syncBuiltinESMExports();
+    `);
+    const result = spawnSync(process.execPath, ["--import", "tsx", "--import", pathToFileURL(preload).href,
+      path.resolve(import.meta.dirname, "../check-admin-complexity-drift.ts")], { encoding: "utf8", timeout: 20_000 });
+    assert.ifError(result.error);
+    assert.equal(result.status, 1, result.stderr);
+    assert.match(result.stderr, /1 NEW apps\/admin complexity violation/);
+    assert.ok(result.stderr.includes(`[complexity] apps/admin/src/new-admin.ts: ${newReason}`));
+    assert.doesNotMatch(result.stderr, /IGNORE/);
+    assert.match(result.stdout, /admin-complexity-debt\.json no longer reproduce/);
+    const recorded = (debt as { violations: Violation[] }).violations[0]!;
+    assert.ok(result.stdout.includes(`[${recorded.rule}] ${recorded.file}: ${recorded.reason}`), "the admin debt file supplies removed entries");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

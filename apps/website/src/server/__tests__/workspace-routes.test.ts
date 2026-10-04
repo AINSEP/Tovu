@@ -194,6 +194,9 @@ test("AC-05: PATCH renames name/slug, rejects a colliding slug, and rejects an i
     body: JSON.stringify({ slug: "other-slug" }),
   });
   assert.equal(collide.status, 409);
+  const afterConflict = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}`, { headers: { cookie } });
+  assert.equal(afterConflict.status, 200);
+  assert.equal(((await afterConflict.json()) as { workspace: { slug: string } }).workspace.slug, "renamed-site");
 
   const invalid = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}`, {
     method: "PATCH",
@@ -201,6 +204,9 @@ test("AC-05: PATCH renames name/slug, rejects a colliding slug, and rejects an i
     body: JSON.stringify({ slug: "Not Valid" }),
   });
   assert.equal(invalid.status, 400);
+  const afterInvalid = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}`, { headers: { cookie } });
+  assert.equal(afterInvalid.status, 200);
+  assert.equal(((await afterInvalid.json()) as { workspace: { slug: string } }).workspace.slug, "renamed-site");
 });
 
 test("AC-06/INV-05: DELETE always refuses in v1 (BOUND_WORKSPACE) for the caller's own workspace, checked after auth", async (t) => {

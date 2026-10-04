@@ -4,7 +4,7 @@ import { agentPluginActivations } from "../../activation-effects.js";
 const { setAgentPluginActivation } = agentPluginActivations;
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -174,6 +174,12 @@ test("a boot that seeded nothing writes no ledger at all", async () => {
   try {
     await recordBundledAgentPluginDigests({ workspaceRoot: path.join(dir, "never-created"), seeded: [] });
     assert.deepEqual([...(await readBundledAgentPluginDigests(path.join(dir, "never-created")))], []);
+    await assert.rejects(() => stat(path.join(dir, "never-created")), { code: "ENOENT" });
+    await recordBundledAgentPluginDigests({ workspaceRoot: dir, seeded: [{ pluginId: "github", archiveDigest: DIGEST_A }] });
+    const ledgerPath = path.join(dir, BUNDLED_DIGESTS_FILENAME);
+    const before = await readFile(ledgerPath);
+    await recordBundledAgentPluginDigests({ workspaceRoot: dir, seeded: [] });
+    assert.deepEqual(await readFile(ledgerPath), before);
   } finally {
     await forceRemove(dir);
   }

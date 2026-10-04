@@ -82,6 +82,7 @@ export type HrefChecker = (href: string) => boolean;
 
 export const REJECTED_HREFS: readonly string[] = [
   "javascript:alert(1)",
+  "vbscript:msgbox(1)",
   "java\tscript:alert(1)",
   "java\nscript:alert(1)",
   "java\rscript:alert(1)",

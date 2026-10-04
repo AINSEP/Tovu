@@ -75,12 +75,26 @@ function runContractSuite(label: string, makeRepo: () => ChangeSetRepoPort) {
     const found = await repo.findByIdempotencyKey({ workspaceId: "workspace-1", idempotencyKey: "client-key-1" });
     assert.ok(found);
     assert.equal(found?.id, "cs-idem");
+    assert.equal(await repo.findByIdempotencyKey({ workspaceId: "workspace-other", idempotencyKey: "client-key-1" }), null);
   });
 
   test(`[${label}] findByIdempotencyKey returns null for an unused key`, async () => {
     const repo = makeRepo();
     const found = await repo.findByIdempotencyKey({ workspaceId: "workspace-1", idempotencyKey: "never-used" });
     assert.equal(found, null);
+  });
+
+  // The memory double has no database constraints; pin the durable adapters' unique index.
+  if (label !== "memory") test(`[${label}] duplicate idempotency keys reject only within the same workspace`, async () => {
+    const repo = makeRepo();
+    await repo.insert({ record: makeRecord({ id: "first", idempotencyKey: "shared-key" }), items: [makeItem("first")] });
+    await assert.rejects(() => repo.insert({
+      record: makeRecord({ id: "duplicate", idempotencyKey: "shared-key" }), items: [makeItem("duplicate")],
+    }), /unique|duplicate/i);
+    assert.equal(await repo.findById({ workspaceId: "workspace-1", id: "duplicate" }), null);
+    await repo.insert({ record: makeRecord({ id: "foreign", workspaceId: "workspace-2", idempotencyKey: "shared-key" }), items: [makeItem("foreign")] });
+    assert.equal((await repo.findByIdempotencyKey({ workspaceId: "workspace-1", idempotencyKey: "shared-key" }))?.id, "first");
+    assert.equal((await repo.findByIdempotencyKey({ workspaceId: "workspace-2", idempotencyKey: "shared-key" }))?.id, "foreign");
   });
 
   test(`[${label}] multiple change sets with no idempotency key never collide with each other`, async () => {
@@ -90,6 +104,7 @@ function runContractSuite(label: string, makeRepo: () => ChangeSetRepoPort) {
 
     const list = await repo.listByWorkspace({ workspaceId: "workspace-1" });
     assert.equal(list.length, 2);
+    assert.deepEqual(list.map(({ id }) => id).sort(), ["cs-a", "cs-b"]);
   });
 
   test(`[${label}] listByWorkspace lists every change set for that workspace, none from another`, async () => {
@@ -135,6 +150,10 @@ function runContractSuite(label: string, makeRepo: () => ChangeSetRepoPort) {
     await repo.insert({ record: record, items: [makeItem(record.id, { inversePayload: undefined })] });
 
     const found = await repo.findById({ workspaceId: "workspace-1", id: record.id });
+    assert.ok(found, "the change set must survive the write");
+    assert.equal(found.changeSet.id, "cs-no-inverse");
+    assert.equal(found.items.length, 1);
+    assert.equal(found.items[0].id, "cs-no-inverse-item-1");
     assert.equal(found?.items[0].inversePayload, undefined);
   });
 }

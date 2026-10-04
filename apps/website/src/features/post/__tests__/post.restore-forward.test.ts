@@ -203,6 +203,8 @@ for (const adapter of ADAPTERS) {
     const { forgetRemoved, calls: forgotten } = recordingForget();
     const prior = await seedPublishedPost(repo, outbox);
 
+    outbox.events.length = 0;
+    const revisions = await repo.listRevisions({ workspaceId: WS, postId: prior.id });
     const vanished: PostRepoPort = Object.assign(Object.create(Object.getPrototypeOf(repo) as object), repo, {
       findById: async () => null,
     });
@@ -211,6 +213,9 @@ for (const adapter of ADAPTERS) {
       null,
       "a row that has since been removed must not be resurrected by a compensation"
     );
+    assert.deepEqual(await repo.listRevisions({ workspaceId: WS, postId: prior.id }), revisions);
+    assert.deepEqual(outbox.events, []);
+    assert.deepEqual(forgotten, []);
   });
 
   test(`${adapter.name}: stands down rather than clobber a writer that landed after the compensation was assembled`, async () => {
@@ -256,4 +261,30 @@ for (const adapter of ADAPTERS) {
       "a stood-down compensation must not append a restore revision for a write it did not make"
     );
   });
+}
+
+for (const adapter of ADAPTERS) {
+  for (const failingStep of ["revision", "forget"] as const) {
+    test(`${adapter.name}: failed restore ${failingStep} rolls back the row and revision and publishes nothing`, async () => {
+      const repo = adapter.make();
+      const outbox = recordingOutbox();
+      const prior = await seedPublishedPost(repo, outbox);
+      await deletePost({ deps: { repo, clock, outbox, remove: removeVia(repo) }, input: { workspaceId: WS, id: prior.id } });
+      const current = await repo.findById({ workspaceId: WS, id: prior.id });
+      const revisions = await repo.listRevisions({ workspaceId: WS, postId: prior.id });
+      outbox.events.length = 0;
+      const failure = new Error(`failed ${failingStep}`);
+      const faulty = new Proxy(repo, { get(target, prop) {
+        if (prop === "appendRevision" && failingStep === "revision") return async (input: Parameters<PostRepoPort["appendRevision"]>[0]) => { await target.appendRevision(input); throw failure; };
+        const value = Reflect.get(target, prop);
+        return typeof value === "function" ? value.bind(target) : value;
+      } });
+      let forgetCalls = 0;
+      await assert.rejects(restorePostForward({ deps: { repo: faulty, clock, outbox, forgetRemoved: async () => { forgetCalls++; throw failure; } }, input: { prior } }), (error) => error === failure);
+      assert.equal(forgetCalls, failingStep === "forget" ? 1 : 0);
+      assert.deepEqual(await repo.findById({ workspaceId: WS, id: prior.id }), current);
+      assert.deepEqual(await repo.listRevisions({ workspaceId: WS, postId: prior.id }), revisions);
+      assert.deepEqual(outbox.events, []);
+    });
+  }
 }

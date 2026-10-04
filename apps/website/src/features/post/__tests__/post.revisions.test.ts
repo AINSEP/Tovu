@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 
 import type { OutboxPort } from "@jini-ai/cms/core";
@@ -85,7 +86,7 @@ for (const adapter of ADAPTERS) {
     assert.equal(rows[0].seq, 1);
     assert.equal(rows[0].op, "create");
     assert.equal(rows[0].actorId, "user-1");
-    assert.ok(rows[0].contentHash.length > 0, "contentHash must be computed, not left blank");
+    assert.equal(rows[0].contentHash, createHash("sha256").update(JSON.stringify(seed({ version: 1 }))).digest("hex"));
     assert.deepEqual(rows[0].stateJson, seed({ version: 1 }));
   });
 
@@ -113,6 +114,7 @@ for (const adapter of ADAPTERS) {
     assert.equal(second.previousId, first.id);
     const rows = await repo.listRevisions({ workspaceId: WS, postId: "post-1" });
     assert.deepEqual(rows.map((r) => r.seq), [1, 2], "listRevisions reads back oldest-first");
+    assert.notEqual(rows[0].contentHash, rows[1].contentHash, "a constant hash cannot identify changed state");
   });
 
   test(`${adapter.name}: appendRevision is scoped by (workspaceId, postId) — an unrelated post's history does not chain in`, async () => {

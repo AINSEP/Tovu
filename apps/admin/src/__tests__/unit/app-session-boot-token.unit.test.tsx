@@ -2,6 +2,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
+import { isPublishToLiveAvailable, setPublishToLiveAvailable } from "../../features/publish-content/hooks/publish-availability.store";
 import { useAdminSession } from "../../App.hooks";
 
 /**
@@ -32,6 +33,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  setPublishToLiveAvailable(true);
   vi.unstubAllGlobals();
   window.history.replaceState(null, "", "/admin/");
 });
@@ -120,4 +122,22 @@ it("no fragment: never calls boot-session, only the existing /auth/me chain runs
 
   expect(calls).toEqual(["/api/admin/v1/auth/me"]);
   expect(result.current.user).toBeNull();
+});
+
+it.each([
+  [{ canPublishToLive: false }, false],
+  [{ canPublishToLive: true }, true],
+  [{}, true],
+] as const)("boot auth/me publishes availability %j into the real store", async (flag, expected) => {
+  setPublishToLiveAvailable(!expected);
+  vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+    if (String(url) !== "/api/admin/v1/auth/me") throw new Error(`unexpected session URL ${url}`);
+    return new Response(JSON.stringify({ user: { id: "owner-1", username: "admin" }, ...flag }), {
+      status: 200, headers: { "content-type": "application/json" },
+    });
+  }));
+  const { result } = renderHook(() => useAdminSession());
+  await waitFor(() => expect(result.current.checking).toBe(false));
+  expect(result.current.user?.id).toBe("owner-1");
+  expect(isPublishToLiveAvailable()).toBe(expected);
 });

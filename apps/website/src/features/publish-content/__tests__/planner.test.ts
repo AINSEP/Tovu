@@ -724,6 +724,8 @@ test("referencedBy: two retire rows collect both ids into a single referencesTo 
     )
   );
 
+  const holder1: ReferenceHolder = { entityType: "ref", entityId: "menu-1", entityLabel: "Header", referencedId: "holder-1" };
+  const holder2: ReferenceHolder = { entityType: "ref", entityId: "menu-2", entityLabel: "Footer", referencedId: "holder-2" };
   const referencesToCalls: (readonly string[])[] = [];
   registerPublishContentContributor(
     fakeContributor(
@@ -732,20 +734,22 @@ test("referencedBy: two retire rows collect both ids into a single referencesTo 
         destination: new Map(),
         referencesTo: async (ids) => {
           referencesToCalls.push(ids);
-          return [];
+          return [holder2, holder1];
         },
       })
     )
   );
 
   const entities = [makeEntity({ entityType: "widget", id: "w1" }), makeEntity({ entityType: "widget", id: "w2" })];
-  await planImport(
+  const report = await planImport(
     { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities },
     makeDeps({})
   );
 
   assert.equal(referencesToCalls.length, 1, "one referencesTo call for the whole plan, not one per retire row");
   assert.deepEqual([...referencesToCalls[0]].sort(), ["holder-1", "holder-2"]);
+  assert.deepEqual(report.rows.find((row) => row.entityId === "w1")?.referencedBy, [holder1]);
+  assert.deepEqual(report.rows.find((row) => row.entityId === "w2")?.referencedBy, [holder2]);
 });
 
 test("refused: unknown artifact format version rejects the whole bundle before any catalog or baseline read", async () => {

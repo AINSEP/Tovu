@@ -7,8 +7,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { LIPAY_MANIFEST, LIPAY_PLUGIN_ID } from "../lipay-plugin.js";
-import { cleanup, makeLipay } from "./support.js";
+import { activateLipay, LIPAY_MANIFEST, LIPAY_PLUGIN_ID } from "../lipay-plugin.js";
+import { InMemoryPaymentCredentials } from "../credentials.js";
+import { declareDataModule } from "../../data-module.js";
+import { cleanup, makeLipay, tempDb, FakeHttpClient, TestClock, testIdGen } from "./support.js";
 
 const objectNames = (db: import("better-sqlite3").Database, type: "table" | "index"): string[] =>
   (db.prepare(`SELECT name FROM sqlite_master WHERE type = ? ORDER BY name`).all(type) as { name: string }[]).map(
@@ -94,4 +96,19 @@ test("lipay: the manifest models no orders, no providers and no card data", () =
   const payments = LIPAY_MANIFEST.tables[0];
   assert.ok(payments.columns.some((c) => c.name === "amount_minor" && c.type === "INTEGER"));
   assert.ok(payments.columns.some((c) => c.name === "currency" && c.notNull === true));
+});
+
+test("activation refuses an incompatible schema before returning a payments API", async (t) => {
+  const { db, dbPath, dir } = tempDb();
+  t.after(() => cleanup(db, dir));
+  const incompatible = { ...LIPAY_MANIFEST, tables: LIPAY_MANIFEST.tables.map((table) => ({ ...table, columns: table.columns.map((column) => column.name === "amount_minor" ? { ...column, type: "TEXT" as const } : column) })) };
+  const seeded = await declareDataModule({ db, dbPath, decl: incompatible });
+  assert.equal(seeded.ok, true, JSON.stringify(seeded.error));
+  const http = new FakeHttpClient();
+  await assert.rejects(() => activateLipay({
+    db, dbPath, workspaceId: "workspace-1", httpClient: http,
+    credentials: new InMemoryPaymentCredentials({}), providers: [], clock: new TestClock(0),
+    idGen: testIdGen(), webhookBaseUrl: "https://site.test", returnUrl: "https://site.test/return",
+  }), { message: /lipay dataModule declaration failed: COLUMN_TYPE_MISMATCH/ });
+  assert.deepEqual(http.calls, []);
 });

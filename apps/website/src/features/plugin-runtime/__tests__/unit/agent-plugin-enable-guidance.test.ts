@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import Ajv from "ajv";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
@@ -35,7 +36,14 @@ function claimsIn(text: string): string[] {
 test("premise: plugins_set_enabled accepts the 'agent-plugin' family", () => {
   const tool = pluginAgentToolCatalog.find((entry) => entry.name === "plugins_set_enabled");
   assert.ok(tool, "plugins_set_enabled is missing from pluginAgentToolCatalog");
-  assert.match(JSON.stringify(tool.inputSchema), /"agent-plugin"/);
+  const schema = tool.inputSchema as { required: string[]; properties: { family: { type: string; enum: string[] } } };
+  assert.equal(schema.properties.family.type, "string");
+  assert.deepEqual(schema.properties.family.enum, ["site-runtime", "agent-plugin"]);
+  assert.ok(schema.required.includes("family"));
+  const validate = new Ajv().compile(schema);
+  assert.equal(validate({ family: "agent-plugin", pluginId: "composio", enabled: true }), true);
+  assert.equal(validate({ pluginId: "composio", enabled: true }), false);
+  assert.equal(validate({ family: "unknown", pluginId: "composio", enabled: true }), false);
 });
 
 test("the custom fs root's description names plugins_set_enabled for enabling tovuize-site, and never claims no tool can", () => {
@@ -55,4 +63,12 @@ test("no bundled Agent Plugin markdown tells the model it cannot enable a plugin
     claimsIn(fs.readFileSync(path.join(AGENT_PLUGINS_CONTENT, file), "utf8")).map((claim) => `${file}: ${claim}`),
   );
   assert.deepEqual(offenders, []);
+});
+
+test("bundled cold-start guidance names the enable tool and Agent Plugin family", () => {
+  for (const pluginId of ["composio", "higgsfield-media"]) {
+    const guidance = fs.readFileSync(path.join(AGENT_PLUGINS_CONTENT, pluginId, "skills", pluginId, "SKILL.md"), "utf8");
+    assert.match(guidance, /plugins_set_enabled[\s\S]*family: "agent-plugin"/);
+    assert.match(guidance, new RegExp(`pluginId: "${pluginId}"`));
+  }
 });

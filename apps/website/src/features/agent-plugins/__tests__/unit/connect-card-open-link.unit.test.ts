@@ -1,14 +1,19 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createRequire } from "node:module";
+import path from "node:path";
 
 import { buildAgentPluginConnectCard } from "../../connect-card-ui.js";
+
+// DOM tooling is installed with the admin app, where these cards are hosted.
+const { JSDOM } = createRequire(path.resolve(import.meta.dirname, "../../../../../../../apps/admin/package.json"))("jsdom");
 
 /**
  * @file Regression: the connect card's sign-in button did nothing. The card's bridge posted
  * `ui/open-link` as a JSON-RPC NOTIFICATION (no `id`), but `@mcp-ui/client`'s AppBridge registers
  * `ui/open-link` with `setRequestHandler`, so an id-less message reaches no handler and is dropped
  * silently — the admin's `onOpenLink` never fires. This runs the card's REAL inline scripts against
- * a fake window, clicks the button, and asserts what reaches the Host is a request it will answer.
+ * a DOM, clicks the actual button, and asserts what reaches the Host is a request it will answer.
  */
 
 interface Posted {
@@ -25,33 +30,29 @@ function inlineScripts(html: string): string[] {
 /** Mounts a surface's scripts, completes the handshake, clicks the one action button, and returns what was posted. */
 async function clickOpenLink(html: string): Promise<Posted | undefined> {
   const posted: Posted[] = [];
-  const listeners: ((event: { data: unknown; source: unknown; origin: string }) => void)[] = [];
-  const clicks: (() => void)[] = [];
-  const button = { disabled: false, addEventListener: (_type: string, fn: () => void) => clicks.push(fn) };
-  const fakeWindow: Record<string, unknown> = {
-    parent: { postMessage: (message: Posted) => posted.push(message) },
-    addEventListener: (_type: string, fn: (event: { data: unknown; source: unknown; origin: string }) => void) => listeners.push(fn),
-  };
-  const fakeDocument = {
-    documentElement: { scrollWidth: 320, scrollHeight: 200, setAttribute: () => {} },
-    getElementById: () => ({ textContent: "", setAttribute: () => {} }),
-    querySelectorAll: (selector: string) => selector === "[data-mcpui-action]" && /<button[^>]*data-mcpui-action="open-link"/.test(html) ? [button] : [],
-  };
-  for (const source of inlineScripts(html)) {
-    // eslint-disable-next-line @typescript-eslint/no-implied-eval, no-new-func
-    new Function("window", "document", "ResizeObserver", source)(fakeWindow, fakeDocument, undefined);
+  const dom = new JSDOM(html, { runScripts: "outside-only", url: "https://card.example" });
+  const host = new JSDOM("", { url: "https://host.example" });
+  host.window.postMessage = (message: Posted) => posted.push(JSON.parse(JSON.stringify(message)));
+  Object.defineProperty(dom.window, "parent", { value: host.window });
+  try {
+    for (const source of inlineScripts(html)) dom.window.eval(source);
+    const buttons = dom.window.document.querySelectorAll('button[data-mcpui-action="open-link"]');
+    assert.equal(buttons.length, 1, "the rendered card must have one sign-in button");
+    const button = buttons[0];
+    assert.equal(button.textContent.trim(), "Sign in to Supabase");
+    const initialize = posted.find((message) => message.method === "ui/initialize");
+    assert.ok(initialize?.id, "the bridge must start a handshake");
+    button.click();
+    assert.equal(posted.filter((message) => message.method === "ui/open-link").length, 0, "a pre-handshake click must wait for the Host");
+    dom.window.dispatchEvent(new dom.window.MessageEvent("message", { source: host.window, origin: "https://host.example", data: { jsonrpc: "2.0", id: initialize.id, result: {} } }));
+    await Promise.resolve();
+    await Promise.resolve();
+    assert.equal(posted.filter((message) => message.method === "ui/open-link").length, 1, "the held click must be delivered once after the handshake");
+    return posted.find((message) => message.method === "ui/open-link");
+  } finally {
+    dom.window.close();
+    host.window.close();
   }
-  const initialize = posted.find((message) => message.method === "ui/initialize");
-  assert.ok(initialize?.id, "the bridge must start a handshake");
-  assert.equal(clicks.length, 1, "the card must wire exactly one open-link button");
-  clicks[0]!();
-  assert.equal(posted.filter((message) => message.method === "ui/open-link").length, 0, "a pre-handshake click must wait for the Host");
-  for (const fn of listeners) fn({ source: fakeWindow.parent, origin: "https://host.example", data: { jsonrpc: "2.0", id: initialize.id, result: {} } });
-  await Promise.resolve();
-  await Promise.resolve();
-  assert.equal(clicks.length, 1, "the card must wire exactly one open-link button");
-  assert.equal(posted.filter((message) => message.method === "ui/open-link").length, 1, "the held click must be delivered once after the handshake");
-  return posted.find((message) => message.method === "ui/open-link");
 }
 
 const SIGN_IN = "https://api.supabase.com/v1/oauth/authorize?client_id=x";

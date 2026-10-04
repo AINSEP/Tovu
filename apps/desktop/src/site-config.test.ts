@@ -88,7 +88,9 @@ test("writeSiteName refuses a config.json that is not a JSON object", () => {
   for (const body of ["[1,2,3]", '"just a string"', "{ not json", "null"]) {
     const dir = tempDir();
     fs.writeFileSync(path.join(dir, "config.json"), body);
+    const before = fs.readFileSync(path.join(dir, "config.json"));
     assert.throws(() => writeSiteName(dir, "new name"), /could not be read as a site config/, `body: ${body}`);
+    assert.deepEqual(fs.readFileSync(path.join(dir, "config.json")), before);
   }
 });
 
@@ -97,7 +99,9 @@ test("writeSiteName refuses an oversized config.json instead of parsing it", () 
   // a config file.
   const dir = tempDir();
   fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify({ name: "x", pad: "p".repeat(70 * 1024) }));
+  const before = fs.readFileSync(path.join(dir, "config.json"));
   assert.throws(() => writeSiteName(dir, "new name"), /could not be read as a site config/);
+  assert.deepEqual(fs.readFileSync(path.join(dir, "config.json")), before);
 });
 
 test("writeSiteName leaves no temp file behind on success", () => {

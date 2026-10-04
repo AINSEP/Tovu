@@ -1161,8 +1161,8 @@ async function duplicatePostOrPage(
       entityId: newId,
       operation: "create",
       captureInverse: async () => null,
-      execute: () =>
-        createPost({
+      execute: () => routeDeps.postRepo.transaction(async () => {
+        const created = await createPost({
           deps: {
             repo: routeDeps.postRepo,
             clock: routeDeps.clock,
@@ -1186,23 +1186,21 @@ async function duplicatePostOrPage(
             delegatedByWorkspaceId: routeDeps.workspaceId,
             delegatedById: input.principalId,
           },
-        }),
+        });
+        if (sourceHtml === undefined) return created;
+        // Conversion belongs to the copy's transaction: a refused conversion must not leave a
+        // created row/revision behind or reach executeCommand's change-set recording step.
+        // Seeds the new row's HTML body — mirrors pages_write_html's own `ensureHtmlFormat` step.
+        // `created.post` is stale after this (still "doc" format, version 1); re-read to return the
+        // row's real, post-conversion state.
+        await routeDeps.pagesHtmlStore!({ workspaceId: routeDeps.workspaceId, postId: newId }).ensureHtmlFormat(sourceHtml);
+        return getAdminPostById({ deps: { repo: routeDeps.postRepo }, input: { workspaceId: routeDeps.workspaceId, id: newId } });
+      }),
       captureEntityVersion: ({ result }) => result.post.version,
     },
   });
 
-  let finalPost = result.post;
-  if (sourceHtml !== undefined) {
-    // Seeds the new row's HTML body — mirrors pages_write_html's own `ensureHtmlFormat` step.
-    // `result.post` is stale after this (still "doc" format, version 1); re-read to return the row's
-    // real, post-conversion state.
-    await routeDeps.pagesHtmlStore!({ workspaceId: routeDeps.workspaceId, postId: newId }).ensureHtmlFormat(sourceHtml);
-    const { post: reread } = await getAdminPostById({
-      deps: { repo: routeDeps.postRepo },
-      input: { workspaceId: routeDeps.workspaceId, id: newId },
-    });
-    finalPost = reread;
-  }
+  const finalPost = result.post;
 
   // Mirrors content_post_create's identical inline processOutbox call — only fires an event when
   // this copy was itself created directly as `status: "published"` (the default is "draft", so the

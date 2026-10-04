@@ -195,6 +195,14 @@ test("every ToolRefusalReason except the default-deny one carries operator-actio
     "connection-tool-cap-reached",
   ] as const;
 
+  const expected: Record<typeof reasons[number], readonly [RegExp, RegExp]> = {
+    "remote-declares-destructive": [/marks this tool as destructive/, /no setting.*turns this one on[\s\S]*own interface directly/],
+    "remote-declares-not-read-only": [/server says this tool makes changes/, /add it to BOTH "Allowed tools" and "Allowed to make changes"/],
+    "missing-or-invalid-input-schema": [/no usable input schema/, /report it to that vendor/],
+    "invalid-remote-tool-name": [/name Tovu will not register.*at most 64 characters/, /external server's bug, not a Tovu setting/],
+    "duplicate-remote-tool-name": [/same tool name twice.*refuses the repeat/, /external server's bug, not a Tovu setting/],
+    "connection-tool-cap-reached": [/maximum number of tools/, /shorten "Allowed tools".*restart the assistant/],
+  };
   for (const reason of reasons) {
     const items = summarizeFederatedRefusals(snapshot("c", { refused: [{ remoteName: "t", reason }] }));
     assert.equal(items.length, 1, `${reason} produced no item`);
@@ -203,6 +211,7 @@ test("every ToolRefusalReason except the default-deny one carries operator-actio
     // No reason may fall through to a generic placeholder — that is how a "reported" refusal
     // becomes useless without becoming absent.
     assert.doesNotMatch(explanation, /unknown|unspecified/i);
+    for (const clause of expected[reason]) assert.match(explanation, clause, reason);
   }
 });
 

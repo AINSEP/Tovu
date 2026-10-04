@@ -3,7 +3,7 @@
 import { agentPluginActivations } from "../../activation-effects.js";
 const { deleteAgentPluginActivation, filterActiveAgentPlugins, isAgentPluginActive, normalizeActivations, readAgentPluginActivations, recordBundledAgentPluginIfAbsent, resolveAgentPluginActivation, setAgentPluginActivation } = agentPluginActivations;
 import assert from "node:assert/strict";
-import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -160,7 +160,9 @@ test("deleteAgentPluginActivation is a no-op, not an error, when no record exist
 test("deleteAgentPluginActivation rejects an invalid plugin id", async () => {
   const root = await freshWorkspaceRoot();
   try {
-    await assert.rejects(() => deleteAgentPluginActivation({ workspaceRoot: root, pluginId: "Not Valid!" }));
+    await assert.rejects(() => deleteAgentPluginActivation({ workspaceRoot: root, pluginId: "Not Valid!" }), {
+      message: "agent-plugin activation: 'Not Valid!' is not a valid Agent Plugin id",
+    });
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -386,6 +388,28 @@ test("resolveAgentPluginActivation: an id that names an Object.prototype member 
     // hand back an inherited function instead of `undefined`.
     assert.deepEqual(await resolveAgentPluginActivation({ workspaceRoot: root, pluginId: "constructor" }), { verdict: "active" });
     assert.deepEqual(await resolveAgentPluginActivation({ workspaceRoot: root, pluginId: "valueof" }), { verdict: "active" });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("EISDIR read errors remain undetermined, writers refuse, and existing bytes survive", async () => {
+  const root = await freshWorkspaceRoot();
+  const activationsDirectory = path.join(root, ACTIVATIONS_FILENAME);
+  const blockingFile = path.join(activationsDirectory, "operator-file");
+  const original = "operator-owned bytes";
+  try {
+    await mkdir(activationsDirectory);
+    await writeFile(blockingFile, original);
+    const workspaceRoot = root;
+    const verdict = await resolveAgentPluginActivation({ workspaceRoot, pluginId: "my-plugin" });
+    assert.equal(verdict.verdict, "undetermined");
+    await assert.rejects(() => setAgentPluginActivation({ workspaceRoot, pluginId: "my-plugin", enabled: true, actor: "op" }), AgentPluginActivationsUnreadableError);
+    await assert.rejects(() => deleteAgentPluginActivation({ workspaceRoot, pluginId: "my-plugin" }), AgentPluginActivationsUnreadableError);
+    await assert.rejects(() => recordBundledAgentPluginIfAbsent({ workspaceRoot, pluginId: "my-plugin" }), AgentPluginActivationsUnreadableError);
+    assert.equal(await readFile(blockingFile, "utf8"), original);
+    assert.deepEqual(await readdir(root), [ACTIVATIONS_FILENAME]);
+    assert.deepEqual(await readdir(activationsDirectory), ["operator-file"]);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

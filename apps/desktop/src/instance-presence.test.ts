@@ -63,7 +63,12 @@ test("this process is alive; a pid far past the range is not", () => {
   assert.equal(isPidAlive({ pid: 2 ** 30 }), false);
 });
 
-test("a process owned by another user (EPERM) still counts as alive", { skip: process.platform === "win32" || process.getuid?.() === 0 }, () => {
-  // pid 1 is init/launchd, which a non-root process may not signal.
-  assert.equal(isPidAlive({ pid: 1 }), true);
+test("a process owned by another user (EPERM) still counts as alive", (t) => {
+  const kill = t.mock.method(process, "kill", (pid: number, signal: number | string) => {
+    assert.equal(pid, 12345);
+    assert.equal(signal, 0);
+    throw Object.assign(new Error("permission denied"), { code: "EPERM" });
+  });
+  assert.equal(isPidAlive({ pid: 12345 }), true);
+  assert.equal(kill.mock.callCount(), 1);
 });

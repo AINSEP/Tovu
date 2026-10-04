@@ -109,6 +109,7 @@ describe("posts", () => {
     // consistency with templatePreviewUrl and the rest of this sweep; see
     // `api-id-url-encoding.unit.test.ts` for the full id-encoding coverage this fix added.
     expect(calls[0].url).toBe(`${BASE_WORKSPACE}/posts/${encodeURIComponent("a/b")}`);
+    expect(calls[0].init?.method ?? "GET").toBe("GET");
   });
 
   test("getPost propagates a thrown ApiError with the server's exact message", async () => {
@@ -240,6 +241,7 @@ describe("policies", () => {
       policyPermissions: [{ id: "pp1", policyId: "pol1", permission: "read" }],
     });
     expect(calls[0].url).toBe(`${BASE_WORKSPACE}/policies/pol1/permissions`);
+    expect(calls[0].init?.method ?? "GET").toBe("GET");
   });
 
   test("removePolicyPermission DELETEs the specific permission by both ids", async () => {
@@ -272,6 +274,7 @@ describe("forms", () => {
     const { calls } = stubFetchCapturing(() => jsonResponse({ data: { id: "f1", name: "Contact" } }));
     await expect(api.getForm("f1")).resolves.toEqual({ data: { id: "f1", name: "Contact" } });
     expect(calls[0].url).toBe(`${BASE_WORKSPACE}/forms/f1`);
+    expect(calls[0].init?.method ?? "GET").toBe("GET");
   });
 
   test("createForm resolves the created form definition", async () => {
@@ -362,6 +365,7 @@ describe("seo", () => {
     );
     await api.getSeoEntry("e1");
     expect(calls[0].url).toBe(`${BASE_WORKSPACE}/seo/entries/e1`);
+    expect(calls[0].init?.method ?? "GET").toBe("GET");
   });
 
   // `putSeoEntry` previously only had an "empty options" test — the "options passed" branch was
@@ -382,6 +386,7 @@ describe("seo", () => {
       data: { entryId: "e1", score: 80, issues: [], resolved: {} },
     });
     expect(calls[0].url).toBe(`${BASE_WORKSPACE}/seo/entries/e1/analyze`);
+    expect(calls[0].init?.method ?? "GET").toBe("GET");
   });
 
   // Doc comment on `putSeoEntry` claims failures here are always 400 validation errors, never the
@@ -442,6 +447,7 @@ describe("redirects", () => {
       data: { redirectId: "r1", hitCount: 12, lastHitAt: "2026-09-01T00:00:00.000Z" },
     });
     expect(calls[0].url).toBe(`${BASE_WORKSPACE}/redirects/r1/hits`);
+    expect(calls[0].init?.method ?? "GET").toBe("GET");
   });
 
   test("importRedirects POSTs { rules } and resolves the created/failed breakdown", async () => {

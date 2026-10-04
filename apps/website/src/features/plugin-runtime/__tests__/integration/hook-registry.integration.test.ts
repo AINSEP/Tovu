@@ -98,7 +98,10 @@ test("CIC U-004-B1/F1 (BR-07/EC-10, fail-closed): a filter that throws rejects r
     []
   );
 
-  await assert.rejects(() => registry.runBeforeSave(draft()), PluginHookFailedError);
+  const input = draft({ ext: { existing: { keep: "original" } } });
+  const original = structuredClone(input);
+  await assert.rejects(() => registry.runBeforeSave(input), { name: "PluginHookFailedError", pluginId: "throwing-plugin", message: "plugin 'throwing-plugin' content.entry.beforeSave filter failed: boom" });
+  assert.deepEqual(input, original, "an earlier successful filter must not leak into the rejected draft");
 });
 
 test("EC-06 (CAPABILITY_DENIED inside a filter is fail-closed the same as a plain throw)", async () => {
@@ -114,7 +117,7 @@ test("EC-06 (CAPABILITY_DENIED inside a filter is fail-closed the same as a plai
     []
   );
 
-  await assert.rejects(() => registry.runBeforeSave(draft()), PluginHookFailedError);
+  await assert.rejects(() => registry.runBeforeSave(draft()), { name: "PluginHookFailedError", pluginId: "denied-plugin", message: "plugin 'denied-plugin' content.entry.beforeSave filter failed: capability denied" });
 });
 
 test("BR-06/AC-07: a filter returning a value for a field it did NOT declare rejects with FIELD_PATH_INVALID semantics (fail-closed)", async () => {
@@ -126,7 +129,7 @@ test("BR-06/AC-07: a filter returning a value for a field it did NOT declare rej
     [{ path: "ext.sneaky-plugin.declaredField", type: "string" }] // does NOT include undeclaredField
   );
 
-  await assert.rejects(() => registry.runBeforeSave(draft()), PluginHookFailedError);
+  await assert.rejects(() => registry.runBeforeSave(draft()), { name: "PluginHookFailedError", pluginId: "sneaky-plugin", message: "plugin 'sneaky-plugin' returned undeclared ext field 'undeclaredField' (FIELD_PATH_INVALID)" });
 });
 
 test("BR-06/AC-07: a filter returning a value whose type does not match its declared field type rejects (FIELD_TYPE_MISMATCH, fail-closed)", async () => {
@@ -138,7 +141,7 @@ test("BR-06/AC-07: a filter returning a value whose type does not match its decl
     [{ path: "ext.type-mismatch-plugin.count", type: "integer" }]
   );
 
-  await assert.rejects(() => registry.runBeforeSave(draft()), PluginHookFailedError);
+  await assert.rejects(() => registry.runBeforeSave(draft()), { name: "PluginHookFailedError", pluginId: "type-mismatch-plugin", message: "plugin 'type-mismatch-plugin' returned ext field 'count' with a value not matching its declared type 'integer' (FIELD_TYPE_MISMATCH)" });
 });
 
 test("REQ-05/RT-001: the filter receives the entry read-only and cannot mutate core fields via its return value — a returned 'slug'/'status'/'title'/'bodyJson' key is rejected, not silently merged into ext", async () => {
@@ -150,7 +153,7 @@ test("REQ-05/RT-001: the filter receives the entry read-only and cannot mutate c
     [] // no declared fields at all — 'slug' is not a declared ext field, and is also a core field name
   );
 
-  await assert.rejects(() => registry.runBeforeSave(draft()), PluginHookFailedError);
+  await assert.rejects(() => registry.runBeforeSave(draft()), { name: "PluginHookFailedError", pluginId: "core-field-attacker", message: "plugin 'core-field-attacker' returned undeclared ext field 'slug' (FIELD_PATH_INVALID)" });
 });
 
 test("ADR-024 §3: a synchronous (non-async) filter function is honored exactly like an async one — core always awaits", async () => {
@@ -369,4 +372,43 @@ test("auto-quarantine: counters are scoped by workspace as well as plugin", asyn
 
   await assert.rejects(() => registry.runBeforeSave(draft({ workspaceId: "ws-a" })), PluginHookFailedError);
   assert.deepEqual(quarantines.map((event) => event.workspaceId), ["ws-a"]);
+});
+
+// F4.4: a declared ext field may share a core name, but remains inside the plugin namespace.
+test("a declared ext slug does not change the entry's core slug", async () => {
+  const registry = createHookRegistry();
+  registry.attach("p", "site", async () => ({ slug: "plugin-slug" }), [{ path: "ext.p.slug", type: "string" }]);
+  const input = draft();
+  assert.deepEqual(await registry.runBeforeSave(input), { p: { slug: "plugin-slug" } });
+  assert.equal(input.slug, "hello");
+  assert.deepEqual(input.ext, {});
+});
+
+for (const patch of [null, 42, "text", []]) {
+  test(`malformed patch ${JSON.stringify(patch)} fails closed`, async () => {
+    const registry = createHookRegistry();
+    registry.attach("malformed", "site", async () => patch as never, []);
+    await assert.rejects(() => registry.runBeforeSave(draft()), {
+      name: "PluginHookFailedError", pluginId: "malformed",
+      message: "plugin 'malformed' returned a non-object ext patch from its beforeSave filter",
+    });
+  });
+}
+
+test("failed quarantine persistence preserves the failure and detaches the filter for the next save", async () => {
+  const persistenceError = new Error("activation store unavailable");
+  let calls = 0;
+  const events: unknown[] = [];
+  const registry = createHookRegistry({ failureThreshold: 1, onQuarantine: async (event) => { events.push(event); throw persistenceError; } });
+  registry.attach("bad", "site", async () => { calls++; throw new Error("filter exploded"); }, []);
+  await assert.rejects(() => registry.runBeforeSave(draft()), (error: unknown) => {
+    assert.ok(error instanceof PluginHookFailedError);
+    assert.equal(error.pluginId, "bad");
+    assert.equal(error.message, "plugin 'bad' content.entry.beforeSave filter failed: filter exploded; automatic quarantine persistence failed: activation store unavailable");
+    assert.equal(error.cause, persistenceError);
+    return true;
+  });
+  assert.deepEqual(events, [{ pluginId: "bad", workspaceId: "ws-1", consecutiveFailures: 1, reason: "plugin 'bad' content.entry.beforeSave filter failed: filter exploded" }]);
+  assert.deepEqual(await registry.runBeforeSave(draft()), {});
+  assert.equal(calls, 1);
 });

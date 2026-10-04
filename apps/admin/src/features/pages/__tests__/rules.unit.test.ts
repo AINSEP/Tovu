@@ -241,21 +241,21 @@ describe("updatedPageColumnSortLabel", () => {
 });
 
 describe("comparePagesByTitle / comparePagesBySlug", () => {
-  const a = page({ id: "pg-a", title: "Alpha", slug: "alpha" });
+  const a = page({ id: "pg-a", title: "Alpha", slug: "charlie" });
   const b = page({ id: "pg-b", title: "Bravo", slug: "bravo" });
-  const c = page({ id: "pg-c", title: "Charlie", slug: "charlie" });
+  const c = page({ id: "pg-c", title: "Charlie", slug: "alpha" });
 
-  for (const [name, fn] of [
-    ["comparePagesByTitle", comparePagesByTitle],
-    ["comparePagesBySlug", comparePagesBySlug],
+  for (const [name, fn, ascending, descending] of [
+    ["comparePagesByTitle", comparePagesByTitle, ["pg-a", "pg-b", "pg-c"], ["pg-c", "pg-b", "pg-a"]],
+    ["comparePagesBySlug", comparePagesBySlug, ["pg-c", "pg-b", "pg-a"], ["pg-a", "pg-b", "pg-c"]],
   ] as const) {
     describe(name, () => {
       it("sorts A-to-Z ascending", () => {
-        expect([c, a, b].sort(fn).map((p) => p.id)).toEqual(["pg-a", "pg-b", "pg-c"]);
+        expect([c, a, b].sort(fn).map((p) => p.id)).toEqual(ascending);
       });
 
       it("negating it sorts Z-to-A", () => {
-        expect([c, a, b].sort((x, y) => -fn(x, y)).map((p) => p.id)).toEqual(["pg-c", "pg-b", "pg-a"]);
+        expect([c, a, b].sort((x, y) => -fn(x, y)).map((p) => p.id)).toEqual(descending);
       });
     });
   }

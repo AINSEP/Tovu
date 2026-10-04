@@ -78,7 +78,7 @@ async function makeHarness(row: {
     assert.ok(saved);
     return saved;
   };
-  return { run, read, logs, notifications: () => notifications };
+  return { run, read, repo, plugins, logs, notifications: () => notifications };
 }
 
 test("renameToolNames: replaces renamed names in place, drops a duplicate the rename creates, null when nothing matched", () => {
@@ -182,3 +182,37 @@ test("a plugin listing that throws is a warning, never a boot failure", async ()
   );
   assert.deepEqual(logs, ["[agent-plugins] could not list plugins to apply tool renames: package store unreadable"]);
 });
+
+for (const operation of ["findByServerId", "upsert"] as const) {
+  test(`a per-server ${operation} failure preserves that row and still renames a later server`, async (t) => {
+    const h = await makeHarness({ allowedToolNames: "get_logs", writeAllowedToolNames: "get_logs" });
+    const before = await h.read();
+    await h.repo.upsert({ ...before, serverId: "later", label: "later server" });
+    h.plugins[0] = { pluginId: PLUGIN, servers: { supabase: DECLARED, later: DECLARED } };
+    if (operation === "findByServerId") {
+      const original = h.repo.findByServerId.bind(h.repo);
+      t.mock.method(h.repo, "findByServerId", async (input: Parameters<typeof original>[0]) => {
+        if (input.serverId === SERVER) throw new Error("repository unavailable");
+        return original(input);
+      });
+    } else {
+      const original = h.repo.upsert.bind(h.repo);
+      t.mock.method(h.repo, "upsert", async (input: Parameters<typeof original>[0]) => {
+        if (input.serverId === SERVER) throw new Error("repository unavailable");
+        return original(input);
+      });
+    }
+    await h.run();
+    t.mock.restoreAll();
+    assert.deepEqual(await h.read(), before);
+    const later = await h.repo.findByServerId({ workspaceId: WORKSPACE, serverId: "later" });
+    assert.ok(later);
+    assert.deepEqual(JSON.parse(later.allowedToolNames!), ["query_logs"]);
+    assert.deepEqual(JSON.parse(later.writeAllowedToolNames!), ["query_logs"]);
+    assert.equal(h.notifications(), 1);
+    assert.deepEqual(h.logs, [
+      "warn: [agent-plugins] could not apply the 'supabase' plugin's tool renames to 'supabase': repository unavailable",
+      "info: [agent-plugins] 'later': renamed saved tools to follow the 'supabase' plugin (get_logs -> query_logs).",
+    ]);
+  });
+}

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import Ajv from "ajv";
 
 import { DOC_NODE_HANDLERS, MARK_RENDERERS, renderDocNode, type MediaAssetRenderMeta } from "#src/server/inbound/public-http/http/site/render";
 import { postAgentToolCatalog, TIPTAP_DOC_SCHEMA } from "../agent-tools.js";
@@ -36,6 +37,11 @@ import { postAgentToolCatalog, TIPTAP_DOC_SCHEMA } from "../agent-tools.js";
  * guard reads `DOC_NODE_HANDLERS`/`MARK_RENDERERS` (both newly exported from `render.ts` for exactly
  * this — no behavior change, see their own doc comments) directly, not a hand-copied checklist.
  */
+
+const validateDoc = new Ajv({ strict: false }).compile(TIPTAP_DOC_SCHEMA);
+function assertValidDoc(doc: unknown): void {
+  assert.equal(validateDoc(doc), true, JSON.stringify(validateDoc.errors));
+}
 
 test("schema structure: blockNode.oneOf's type consts are exactly the documented block-level vocabulary", () => {
   const schema = JSON.parse(JSON.stringify(TIPTAP_DOC_SCHEMA)) as {
@@ -94,6 +100,7 @@ test("hardBreak: minimal required-only node ({type}) inside a paragraph's inline
       },
     ],
   };
+  assertValidDoc(doc);
   assert.equal(renderDocNode(doc), "<p>line one<br/>line two</p>");
 });
 
@@ -107,6 +114,7 @@ test("taskList/taskItem: minimal required-only nodes ({type, content}, attrs omi
       },
     ],
   };
+  assertValidDoc(doc);
   assert.equal(
     renderDocNode(doc),
     '<ul data-type="taskList"><li data-type="taskItem"><label><input type="checkbox" disabled/><span></span></label><div><p>Buy milk</p></div></li></ul>'
@@ -123,6 +131,7 @@ test("taskItem attrs.checked: true renders the checked attribute (documented opt
       },
     ],
   };
+  assertValidDoc(doc);
   assert.equal(
     renderDocNode(doc),
     '<ul data-type="taskList"><li data-type="taskItem"><label><input type="checkbox" checked disabled/><span></span></label><div><p>Done</p></div></li></ul>'
@@ -147,6 +156,7 @@ test("table family: minimal required-only table>tableRow>tableCell/tableHeader (
       },
     ],
   };
+  assertValidDoc(doc);
   assert.equal(renderDocNode(doc), "<table><tr><th><p>Name</p></th><td><p>Ada</p></td></tr></table>");
 });
 
@@ -171,6 +181,7 @@ test("tableCell documented attrs (colspan/rowspan/align) are the ones the render
       },
     ],
   };
+  assertValidDoc(doc);
   assert.equal(renderDocNode(doc), '<table><tr><td colspan="2" rowspan="2" style="text-align:center"><p>Merged</p></td></tr></table>');
 });
 
@@ -193,6 +204,7 @@ test('tableCell attrs.align "justify" is NOT in the schema\'s enum, and a value 
       },
     ],
   };
+  assert.equal(validateDoc(doc), false, "this fixture deliberately violates the advertised schema");
   assert.equal(renderDocNode(doc), "<table><tr><td><p>J</p></td></tr></table>");
 });
 
@@ -201,6 +213,7 @@ test("media, schema-required assetId+transformName only, resolved asset is a VID
   const mediaAssetMetadata: ReadonlyMap<string, MediaAssetRenderMeta> = new Map([
     ["asset-clip", { width: null, height: null, cssClass: null, htmlAttributes: null, contentType: "video/mp4" }],
   ]);
+  assertValidDoc(doc);
   const html = renderDocNode(doc, undefined, undefined, mediaAssetMetadata);
   assert.equal(html, '<video src="/m/asset-clip/original" controls>Your browser does not support the video tag.</video>');
 });
@@ -210,12 +223,14 @@ test("media, schema-required assetId+transformName only, resolved asset is an IM
   const mediaAssetMetadata: ReadonlyMap<string, MediaAssetRenderMeta> = new Map([
     ["asset-photo", { width: null, height: null, cssClass: null, htmlAttributes: null, contentType: "image/png" }],
   ]);
+  assertValidDoc(doc);
   const html = renderDocNode(doc, undefined, new Map([["public", 7]]), mediaAssetMetadata);
   assert.equal(html, '<img src="/m/asset-photo/public.v7/image.jpg" alt="" loading="lazy">');
 });
 
 test('media with a transformName OTHER than the schema\'s documented "public" const degrades to the placeholder for a non-video asset, proving the const lock is load-bearing, not decorative', () => {
   const doc = { type: "doc", content: [{ type: "media", attrs: { assetId: "asset-photo", transformName: "thumbnail" } }] };
+  assert.equal(validateDoc(doc), false, "this fixture deliberately violates the advertised schema");
   const html = renderDocNode(doc, undefined, new Map([["public", 7]]));
   assert.equal(html, '<figure class="media-ph" style="aspect-ratio:16 / 9"><span class="media-ph__label">Media</span></figure>');
 });
@@ -250,12 +265,14 @@ test("media, schema-optional cssClass+htmlAttributes: a per-post node style roun
   const mediaAssetMetadata: ReadonlyMap<string, MediaAssetRenderMeta> = new Map([
     ["asset-styled", { width: null, height: null, cssClass: "asset-default", htmlAttributes: null, contentType: "image/png" }],
   ]);
+  assertValidDoc(doc);
   const html = renderDocNode(doc, undefined, new Map([["public", 1]]), mediaAssetMetadata);
   assert.equal(html, '<img src="/m/asset-styled/public.v1/image.jpg" alt="" class="post-specific" data-kui="hero" loading="lazy">');
 });
 
 test("youtube: minimal required-only node (attrs.src only, start omitted) renders a real nocookie <iframe>, not a placeholder", () => {
   const doc = { type: "doc", content: [{ type: "youtube", attrs: { src: "https://youtu.be/abcDEF12345" } }] };
+  assertValidDoc(doc);
   assert.equal(
     renderDocNode(doc),
     '<div class="youtube-embed"><iframe src="https://www.youtube-nocookie.com/embed/abcDEF12345" title="YouTube video" ' +
@@ -265,6 +282,7 @@ test("youtube: minimal required-only node (attrs.src only, start omitted) render
 
 test("mention: minimal required-only node (attrs.id+label) renders a real link, not a dropped node", () => {
   const doc = { type: "doc", content: [{ type: "paragraph", content: [{ type: "mention", attrs: { id: "pricing", label: "Pricing" } }] }] };
+  assertValidDoc(doc);
   assert.equal(renderDocNode(doc), '<p><a class="post-mention" href="/pricing">@Pricing</a></p>');
 });
 
@@ -275,7 +293,9 @@ test("mention: minimal required-only node (attrs.id+label) renders a real link, 
 // ---------------------------------------------------------------------------
 
 function textNodeWithMark(mark: unknown) {
-  return { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "x", marks: [mark] }] }] };
+  const doc = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "x", marks: [mark] }] }] };
+  assertValidDoc(doc);
+  return doc;
 }
 
 test("mark strike: boolean-style ({type} only, no attrs) renders <s>", () => {
@@ -315,21 +335,25 @@ test("mark highlight: documented attrs.color renders <mark style=\"background-co
 
 test("paragraph attrs.textAlign: documented value renders a real style attr", () => {
   const doc = { type: "doc", content: [{ type: "paragraph", attrs: { textAlign: "center" }, content: [{ type: "text", text: "Hi" }] }] };
+  assertValidDoc(doc);
   assert.equal(renderDocNode(doc), '<p style="text-align:center">Hi</p>');
 });
 
 test('paragraph attrs.textAlign: "left" (the schema\'s own documented default) is a no-op, not an explicit style — proves the "omit rather than send" guidance is accurate, not just a suggestion', () => {
   const doc = { type: "doc", content: [{ type: "paragraph", attrs: { textAlign: "left" }, content: [{ type: "text", text: "Left" }] }] };
+  assertValidDoc(doc);
   assert.equal(renderDocNode(doc), "<p>Left</p>");
 });
 
 test("heading attrs.textAlign alongside attrs.level: both documented attrs render together", () => {
   const doc = { type: "doc", content: [{ type: "heading", attrs: { level: 2, textAlign: "right" }, content: [{ type: "text", text: "T" }] }] };
+  assertValidDoc(doc);
   assert.equal(renderDocNode(doc), '<h2 id="t" style="text-align:right">T</h2>');
 });
 
 test("codeBlock attrs.language: documented value renders a real language-* class, not a bare <code>", () => {
   const doc = { type: "doc", content: [{ type: "codeBlock", attrs: { language: "python" }, content: [{ type: "text", text: "x = 1" }] }] };
+  assertValidDoc(doc);
   assert.equal(renderDocNode(doc), '<pre><code class="language-python">x = 1</code></pre>');
 });
 
@@ -431,3 +455,14 @@ for (const toolName of ["content_post_create", "content_post_update"]) {
     assert.equal(slugPattern.test("//"), false, `${toolName}'s slug pattern must accept '/' only on its own`);
   });
 }
+
+test("schema-required YouTube fields and table/media constraints match the renderer fixtures", () => {
+  const youtube = TIPTAP_DOC_SCHEMA.$defs.blockNode.oneOf.find((node) => node.properties.type.const === "youtube");
+  assert.ok(youtube);
+  assert.deepEqual(youtube.required, ["type", "attrs"]);
+  assert.deepEqual(youtube.properties.attrs.required, ["src"]);
+  assert.deepEqual(TIPTAP_DOC_SCHEMA.$defs.tableCellAttrs.properties.align.enum, ["left", "center", "right"]);
+  const media = TIPTAP_DOC_SCHEMA.$defs.blockNode.oneOf.find((node) => node.properties.type.const === "media");
+  assert.ok(media);
+  assert.equal(media.properties.attrs.properties.transformName.const, "public");
+});

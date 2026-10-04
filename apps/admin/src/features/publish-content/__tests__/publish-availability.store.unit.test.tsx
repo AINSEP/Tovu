@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, renderHook, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { PublishSectionButton } from "../PublishSectionButton";
@@ -7,7 +7,7 @@ import {
   readPublishToLiveAvailability,
   setPublishToLiveAvailable,
 } from "../hooks/publish-availability.store";
-import { requestPublish } from "../hooks/publish-request.store";
+import { closePublishRequest, requestPublish, usePublishRequest } from "../hooks/publish-request.store";
 
 /**
  * @file Hide-Publish-on-the-live-site — the one flag every Publish entry point reads. The live site
@@ -15,7 +15,7 @@ import { requestPublish } from "../hooks/publish-request.store";
  * else (and any older server without the field) Publish stays available.
  */
 describe("publish-availability store", () => {
-  afterEach(() => setPublishToLiveAvailable(true));
+  afterEach(() => { closePublishRequest(); setPublishToLiveAvailable(true); });
 
   it("reads /auth/me's canPublishToLive, treating an absent field as available", () => {
     expect(readPublishToLiveAvailability({ canPublishToLive: false })).toBe(false);
@@ -39,8 +39,12 @@ describe("publish-availability store", () => {
   });
 
   it("requestPublish (deep link, chat, WebMCP) never opens the dialog on the live site", async () => {
+    const subscriber = renderHook(() => usePublishRequest());
+    expect(subscriber.result.current).toBeNull();
     setPublishToLiveAvailable(false);
-    const result = await requestPublish({});
+    let result!: Awaited<ReturnType<typeof requestPublish>>;
+    await act(async () => { result = await requestPublish({}); });
+    expect(subscriber.result.current).toBeNull();
     expect(result.opened).toBe(false);
     expect(result.planned).toBe(false);
     expect(result.nextStep).toBe(

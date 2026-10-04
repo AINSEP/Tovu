@@ -54,6 +54,44 @@ test("packs and unpacks every file losslessly, including nested and non-ASCII co
   }
 });
 
+test("binary assets round-trip without UTF-8 decoding", async () => {
+  const dir = await fixtureDir({ "plugin.json": '{"name":"binary"}' });
+  const expected = Buffer.from([0, 0xff, 0xfe, 0xc3, 0x28, 0x80, 10, 13, 0]);
+  try {
+    await writeFile(path.join(dir, "asset.bin"), expected);
+    const packed = await packAgentPluginDirectory(dir);
+    const returned = new Map<string, Buffer>();
+    for await (const entry of createBundledSourceArchiveReader().entries(packed.bytes)) {
+      assert.equal(entry.kind, "file");
+      if (entry.kind !== "file") assert.fail("expected regular file");
+      const chunks: Buffer[] = [];
+      for await (const chunk of entry.openReadStream()) chunks.push(Buffer.from(chunk));
+      returned.set(entry.entryPath, Buffer.concat(chunks));
+    }
+    assert.deepEqual([...returned.keys()], ["asset.bin", "plugin.json"]);
+    assert.deepEqual(returned.get("asset.bin"), expected);
+    assert.deepEqual(returned.get("plugin.json"), Buffer.from('{"name":"binary"}'));
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("the source-tree cap accepts 2048 files and refuses 2049", async () => {
+  const dir = await fixtureDir({});
+  try {
+    for (let index = 0; index < 2048; index += 1) await writeFile(path.join(dir, `file-${index}.txt`), "x");
+    const packed = await packAgentPluginDirectory(dir);
+    assert.equal(packed.files.length, 2048);
+    assert.equal(Object.keys(await readBack(packed.bytes)).length, 2048);
+    await writeFile(path.join(dir, "over-cap.txt"), "x");
+    await assert.rejects(() => packAgentPluginDirectory(dir), {
+      message: `bundled agent plugin at '${dir}' has 2049 files, over the 2048-file cap — is this the right directory?`,
+    });
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test("the digest is a real SHA-256 of the archive bytes and is deterministic across packs", async () => {
   const dir = await fixtureDir({ "plugin.json": '{"name":"x"}', "a.md": "a" });
   try {

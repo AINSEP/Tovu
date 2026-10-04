@@ -57,7 +57,9 @@ export async function recoverIncompleteDataModuleMigrations(required: {
 
 /** Restores each entry's snapshot over the SQLite file at `dbPath`. No connection may hold it open. */
 export function restoreSqliteSnapshots(dbPath: string, entries: readonly JournalEntry[]): void {
-  for (const entry of entries) {
+  // The journal scan returns oldest first. Newer whole-file snapshots may contain older pending
+  // journal rows, so unwind newest first or the final copy revives an attempt already restored.
+  for (const entry of [...entries].reverse()) {
     restoreFromSnapshot({ dbPath, snapshotPath: entry.snapshotPath });
   }
 }

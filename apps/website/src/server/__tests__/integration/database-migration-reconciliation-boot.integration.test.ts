@@ -75,6 +75,13 @@ test("a non-terminal migration_runs row (simulated crash mid-migration) is recon
 test("ADR-041/043/044/045 re-audit round 2 (codex finding R2-F2-BLOCK-NOT-ENFORCED): a real HTTP request to a normal admin route or the public site is actually refused (503 SITE_BLOCKED_PENDING_RECOVERY) while siteStatus is BLOCKED_PENDING_RECOVERY -- detection alone (siteStatus flipping) is not enough; Recovery, auth, and healthz stay reachable so an operator can resolve it", async (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-migration-reconcile-serving-gate-"));
   const dbPath = path.join(dir, "content.db");
+  const previousDist = process.env.TOVU_ADMIN_DIST;
+  const previousProxy = process.env.TOVU_ADMIN_DEV_PROXY_URL;
+  const adminDist = path.join(dir, "admin-dist");
+  fs.mkdirSync(adminDist);
+  fs.writeFileSync(path.join(adminDist, "index.html"), "<!doctype html><h1>Recovery shell fixture</h1>");
+  process.env.TOVU_ADMIN_DIST = adminDist;
+  delete process.env.TOVU_ADMIN_DEV_PROXY_URL;
   try {
     const databaseJournalDbPath = defaultDatabaseJournalDbPath(dbPath);
     fs.mkdirSync(path.dirname(databaseJournalDbPath), { recursive: true });
@@ -133,18 +140,22 @@ test("ADR-041/043/044/045 re-audit round 2 (codex finding R2-F2-BLOCK-NOT-ENFORC
     const adminPrefixedSlugBody = (await adminPrefixedSlug.json()) as { code: string };
     assert.equal(adminPrefixedSlugBody.code, "SITE_BLOCKED_PENDING_RECOVERY", "must be the gate's own refusal, not some other unrelated 503");
 
-    // The real admin shell itself (exact "/admin" and any "/admin/..." sub-path) must still be
-    // reachable -- distinguish this from the bypass case above by confirming it does NOT carry
-    // the gate's own refusal code (whatever admin-static.ts itself returns for an unbuilt/built
-    // shell is a separate, expected concern this test does not assert on).
+    // The admin shell and its SPA subpaths must still serve our controlled built shell;
+    // a non-JSON refusal or another 503 cannot masquerade as access.
     const adminShellExact = await fetch(`${baseUrl}/admin`);
-    const adminShellExactBody = (await adminShellExact.json().catch(() => ({}))) as { code?: string };
-    assert.notEqual(adminShellExactBody.code, "SITE_BLOCKED_PENDING_RECOVERY", "/admin itself must not be blocked by the gate");
+    assert.equal(adminShellExact.status, 200, "/admin itself must stay reachable");
+    assert.match(adminShellExact.headers.get("content-type") ?? "", /text\/html/);
+    assert.match(await adminShellExact.text(), /Recovery shell fixture/);
 
     const adminShellSubpath = await fetch(`${baseUrl}/admin/settings`);
-    const adminShellSubpathBody = (await adminShellSubpath.json().catch(() => ({}))) as { code?: string };
-    assert.notEqual(adminShellSubpathBody.code, "SITE_BLOCKED_PENDING_RECOVERY", "/admin/... sub-paths must not be blocked by the gate");
+    assert.equal(adminShellSubpath.status, 200, "/admin/settings must stay reachable");
+    assert.match(adminShellSubpath.headers.get("content-type") ?? "", /text\/html/);
+    assert.match(await adminShellSubpath.text(), /Recovery shell fixture/);
   } finally {
+    if (previousDist === undefined) delete process.env.TOVU_ADMIN_DIST;
+    else process.env.TOVU_ADMIN_DIST = previousDist;
+    if (previousProxy === undefined) delete process.env.TOVU_ADMIN_DEV_PROXY_URL;
+    else process.env.TOVU_ADMIN_DEV_PROXY_URL = previousProxy;
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });

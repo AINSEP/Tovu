@@ -3,6 +3,7 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
+import { ForbiddenError } from "@jini-ai/cms/core";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import { buildContentDuplicationRegistrations } from "#src/features/content-duplication/tool-registrations";
@@ -216,7 +217,15 @@ test("a permission-denied caller cannot duplicate anything", async () => {
   await seedPost(postRepo);
   const registrations = registrationsFor(deps);
 
-  await assert.rejects(call(tool(registrations, "content_duplicate"), { resource: "page", id: "source-1" }));
+  const before = await postRepo.list({ workspaceId: WORKSPACE_ID });
+  await assert.rejects(call(tool(registrations, "content_duplicate"), { resource: "page", id: "source-1" }), (error: unknown) => {
+    assert.ok(error instanceof ForbiddenError);
+    assert.equal(error.permission, "content.write");
+    assert.equal(error.reason, "denied");
+    assert.equal(error.message, "principal 'principal-under-test' is not authorized for 'content.write' (denied)");
+    return true;
+  });
+  assert.deepEqual(await postRepo.list({ workspaceId: WORKSPACE_ID }), before);
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -283,9 +292,25 @@ test("duplicating an HTML-format page with NO pagesHtmlStore wired fails loudly 
 
   await assert.rejects(
     call(tool(registrations, "content_duplicate"), { resource: "page", id: "source-1" }),
-    /html/i,
+    { message: "content_duplicate: 'source-1' is a bespoke-HTML page, and this workspace has no HTML-body store wired for duplication. Nothing was copied — its content is never silently dropped." },
   );
 
   const rowCountAfter = (await postRepo.list({ workspaceId: WORKSPACE_ID })).length;
   assert.equal(rowCountAfter, rowCountBefore, "no orphan draft row may be created when the HTML body genuinely cannot be copied");
+});
+
+test("HTML conversion failure leaves no copy, slug, revision or change set", async () => {
+  const { deps, postRepo } = fakeRouteDeps();
+  await seedPost(postRepo, { bodyFormat: "html", bodyHtml: "<p>Keep source</p>" });
+  const before = await postRepo.list({ workspaceId: WORKSPACE_ID });
+  const failure = new Error("conversion failed");
+  const registrations = registrationsFor({ ...deps, pagesHtmlStore: (scope) => {
+    if (scope.postId === "source-1") return new InMemoryPagesHtmlDocumentStore(scope, { repo: postRepo, clock: deps.clock });
+    return { read: async () => "", ensureHtmlFormat: async () => { throw failure; } };
+  } } as PostToolDeps);
+  await assert.rejects(call(tool(registrations, "content_duplicate"), { resource: "page", id: "source-1", overrides: { slug: "failed-copy" } }), (error) => error === failure);
+  assert.deepEqual(await postRepo.list({ workspaceId: WORKSPACE_ID }), before);
+  assert.equal(await postRepo.findBySlug({ workspaceId: WORKSPACE_ID, slug: "failed-copy" }), null);
+  assert.deepEqual(await postRepo.listRevisions({ workspaceId: WORKSPACE_ID, postId: "id-1" }), []);
+  assert.deepEqual(await deps.changeSets.listByWorkspace({ workspaceId: WORKSPACE_ID }), []);
 });

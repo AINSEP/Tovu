@@ -110,10 +110,11 @@ test("content_post_list resolves publicUrl for every row with zero additional po
   const registrations = registrationsFor(deps);
 
   const result = (await call(tool(registrations, "content_post_list"), { kind: "post" })) as {
-    posts: Array<{ id: string; publicUrl: string | null }>;
+    posts: Array<{ id: string; slug: string; publicUrl: string | null }>;
   };
 
   assert.equal(result.posts.length, 20);
+  assert.deepEqual(result.posts.map(({ id, slug, publicUrl }) => ({ id, slug, publicUrl })).sort((a, b) => a.id.localeCompare(b.id)), Array.from({ length: 20 }, (_, i) => ({ id: `p${i}`, slug: `post-${i}`, publicUrl: `/post-${i}` })).sort((a, b) => a.id.localeCompare(b.id)));
   assert.ok(
     result.posts.every((p) => typeof p.publicUrl === "string" && p.publicUrl.startsWith("/post-")),
     "expected every row to still resolve its own publicUrl correctly"

@@ -279,6 +279,12 @@ describe("inline permission form", () => {
     expect(screen.getByPlaceholderText(/e\.g\. content\.write/i)).toBeInTheDocument();
     // Only one form row exists even though two policies are rendered.
     expect(screen.getAllByPlaceholderText(/e\.g\. content\.write/i)).toHaveLength(1);
+    const customRow = screen.getByText("Custom Policy").closest("tr")!;
+    const otherRow = screen.getByText("Other Policy").closest("tr")!;
+    const permissionRow = screen.getByPlaceholderText(/e\.g\. content\.write/i).closest("tr");
+    expect(customRow.nextElementSibling).toBe(permissionRow);
+    expect(within(permissionRow!).getByPlaceholderText("resource type (optional)")).toBeInTheDocument();
+    expect(otherRow.nextElementSibling).not.toBe(permissionRow);
   });
 
   it("disables Add while permissionInput is empty", () => {
@@ -459,6 +465,11 @@ describe("create forms", () => {
   it("disables 'Create role' while roleName is empty or a create is already saving", () => {
     renderRoles({ roleName: "" });
     expect(screen.getByRole("button", { name: /create role/i })).toBeDisabled();
+  });
+
+  it("disables role creation with a nonempty name while the role create is saving", () => {
+    renderRoles({ roleName: "New Role", roleSaving: true });
+    expect(screen.getByRole("button", { name: "Creating…" })).toBeDisabled();
   });
 
   it("shows the roleError text inside the create-role form", () => {

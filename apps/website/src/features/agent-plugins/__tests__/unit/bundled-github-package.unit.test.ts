@@ -135,6 +135,9 @@ test("SKILL.md: a repository secret is ALWAYS the human's step, and says WHY", a
   const auth = await readReference("auth-and-tokens.md");
   assert.ok(skill.includes("### Rule 1 — A repository secret is ALWAYS the human's step. This is not negotiable."));
   assert.ok(skill.includes("So you never call `PUT /repos/{owner}/{repo}/actions/secrets/{name}`, you never fetch\n`.../actions/secrets/public-key` in order to encrypt something, and you never ask a human to paste\na token into the chat so you can do it for them."));
+  assert.ok(skill.includes("You hand them the exact instruction instead:"));
+  assert.ok(skill.includes("Go to **Settings → Secrets and variables → Actions → New repository secret**"));
+  assert.ok(auth.includes("Then **wait for confirmation before dispatching anything that needs it.**"));
 
   // The mechanism is the whole argument — a rule with no reason gets treated as friction and
   // routed around. Encrypting against the repo's public key means holding the plaintext.
@@ -150,6 +153,7 @@ test("SKILL.md: a repository secret is ALWAYS the human's step, and says WHY", a
   // bare word "token" — both documents necessarily discuss tokens in order to forbid handling them.
   for (const document of [skill, auth]) {
     for (const banned of [
+      /(?:^|\n)\s*(?:[-*]\s*)?(?:upload|set|create|write|store)\s+(?:the\s+)?(?:repo|repository)\s+secrets?\b[^\n]*custom_credential_make_request/i,
       /ask (the |a )?(human|operator|user) (for|to paste) (the |their )?(api )?token/i,
       /set the (repo(sitory)? )?secret (yourself|via the api|through the api)/i,
       /paste the token into/i,

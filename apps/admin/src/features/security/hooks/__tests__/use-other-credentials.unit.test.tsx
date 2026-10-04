@@ -208,18 +208,31 @@ describe("useOtherCredentials — replace: no-op guards", () => {
 
   it("does nothing for a store that does not support Replace, even with a token typed", async () => {
     const deleteExternalMcpServer = vi.fn();
+    const listExternalMcpServers = vi.fn(() => Promise.resolve({ servers: [fakeExternalMcpServer({ serverId: "s1", label: "S1" })] }));
     const port = createFakeOtherCredentialsPort({
-      listExternalMcpServers: () => Promise.resolve({ servers: [fakeExternalMcpServer({ serverId: "s1", label: "S1" })] }),
+      listExternalMcpServers,
       deleteExternalMcpServer,
     });
+    const writes = [
+      "setSiteAssistantCredential", "deleteSiteAssistantCredential",
+      "setAdminByokCredential", "deleteAdminByokCredential",
+      "saveMediaProviders", "deleteExternalMcpServer",
+    ] as const;
+    const writeSpies = writes.map((method) => vi.spyOn(port, method));
     const { result } = renderHook(() => useOtherCredentials(port, T, LOCALE, { query: "", category: "all" }), { wrapper });
     await waitFor(() => expect(result.current.groups).toBeDefined());
     const row = findGroup(result.current.groups, "external-mcp")!.rows[0]!;
     act(() => result.current.setDraftToken(row.key, "irrelevant"));
 
+    const before = { ...findGroup(result.current.groups, "external-mcp")!.rows[0]! };
+    expect(before.token).toBe("irrelevant");
+    expect(listExternalMcpServers).toHaveBeenCalledTimes(1);
     await act(() => result.current.replace(findGroup(result.current.groups, "external-mcp")!.rows[0]!));
 
     expect(deleteExternalMcpServer).not.toHaveBeenCalled();
+    for (const write of writeSpies) expect(write).not.toHaveBeenCalled();
+    expect(listExternalMcpServers).toHaveBeenCalledTimes(1);
+    expect(findGroup(result.current.groups, "external-mcp")!.rows[0]!).toEqual(before);
   });
 });
 

@@ -107,7 +107,13 @@ function create({ credential, kit }) {
     }
     if (response.status < 200 || response.status >= 300) return classifyError(response.status, response.bodyText);
 
-    const parsed = JSON.parse(response.bodyText);
+    let parsed;
+    try {
+      parsed = JSON.parse(response.bodyText);
+    } catch {
+      // HTTP acceptance still stands if a proxy strips or corrupts the optional response body.
+      // Keep the existing idempotency-key fallback so this batch can continue without resending.
+    }
     const providerMessageId = typeof parsed?.id === "string" ? parsed.id : opts.idempotencyKey;
     return { ok: true, providerMessageId, acceptedAt: new Date().toISOString() };
   }

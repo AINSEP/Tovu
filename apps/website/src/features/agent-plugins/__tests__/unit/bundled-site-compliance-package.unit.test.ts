@@ -86,7 +86,15 @@ test("the rulepacks are separate files, not inlined into SKILL.md", async () => 
 });
 
 test("SKILL.md's output contract requires citations, forbids verdicts, and mandates 'cannot determine'", async () => {
-  const skill = (await readFile(path.join(SKILL_DIR, "SKILL.md"), "utf8")).toLowerCase();
+  const markdown = await readFile(path.join(SKILL_DIR, "SKILL.md"), "utf8");
+  const contract = markdown.split("## Output Contract (non-negotiable)\n")[1]?.split("\n## ")[0];
+  assert.ok(contract, "the authoritative output contract must exist");
+  assert.ok(contract.includes("A finding without a citation is not a finding — it is a guess, and you must delete it rather\nthan ship it. Every single finding must name **where you observed it**."));
+  assert.ok(contract.includes("Write the citation inline with the finding."));
+  assert.ok(contract.includes("If the evidence tool\n  returned `unavailable`, you observed nothing — say `cannot-determine`."));
+  assert.ok(contract.includes('### 4. "Cannot determine" is a required output, not a fallback'));
+  assert.ok(contract.includes("Never emit, in any wording:"));
+  const skill = markdown.toLowerCase();
 
   assert.ok(skill.includes("cannot-determine") || skill.includes("cannot determine"));
   assert.ok(skill.includes("output contract"));

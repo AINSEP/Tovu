@@ -81,7 +81,9 @@ test("renderRenderYaml: rejects a region outside Render's own enum, e.g. a Fly r
 });
 
 test("renderRenderYaml: accepts every documented Render region", () => {
-  for (const region of RENDER_VALID_REGIONS) {
+  const expectedRegions = ["oregon", "ohio", "virginia", "frankfurt", "singapore"];
+  assert.deepEqual(RENDER_VALID_REGIONS, expectedRegions);
+  for (const region of expectedRegions) {
     const result = renderRenderYaml(FIXTURE_DESCRIPTOR, { region });
     assert.match(result.contents, new RegExp(`region: ${region}\\n`));
   }

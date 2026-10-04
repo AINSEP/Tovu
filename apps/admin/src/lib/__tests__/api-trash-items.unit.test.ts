@@ -45,10 +45,17 @@ test("trash POSTs { type, id } to /trash/items", async () => {
 });
 
 test("trash sends the exact type string for every registry kind, unmodified", async () => {
-  const { body } = stubFetchCapturing();
+  const { calls, body } = stubFetchCapturing();
   for (const type of ["widget", "menu", "term", "taxonomy", "form_submission"]) {
     await api.trash({ type, id: "x" });
   }
+  expect(calls.map((_, i) => body(i))).toEqual([
+    { type: "widget", id: "x" },
+    { type: "menu", id: "x" },
+    { type: "term", id: "x" },
+    { type: "taxonomy", id: "x" },
+    { type: "form_submission", id: "x" },
+  ]);
   expect(body(0)).toEqual({ type: "widget", id: "x" });
   expect(body(4)).toEqual({ type: "form_submission", id: "x" });
 });

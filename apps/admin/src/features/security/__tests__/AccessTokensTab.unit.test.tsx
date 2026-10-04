@@ -74,7 +74,7 @@ function makeOtherCredentials(overrides: Partial<OtherCredentialsController> = {
 }
 
 describe("AccessTokensTab search box", () => {
-  it("disables browser autocomplete so Chrome cannot silently fill in a saved login", () => {
+  it("renders the autocomplete=off attribute guard on the search field", () => {
     render(<AccessTokensTab useAccessTokensHook={() => makeAccessTokens()} useOtherCredentialsHook={() => makeOtherCredentials()} />);
 
     expect(screen.getByLabelText("Search access tokens")).toHaveAttribute("autocomplete", "off");
@@ -121,6 +121,21 @@ describe("AccessTokensTab category filter keyboard (WAI-ARIA tabs)", () => {
 
     expect(setCategory).toHaveBeenCalledWith("general");
     expect(document.activeElement).toBe(screen.getByRole("tab", { name: "General" }));
+  });
+
+  it.each([
+    ["Source control", "ArrowLeft", "All", "all", "source-control"],
+    ["General", "Home", "All", "all", "general"],
+    ["All", "ArrowLeft", "General", "general", "all"],
+    ["General", "ArrowRight", "All", "all", "general"],
+  ] as const)("moves focus from %s with %s to %s, including wraparound", async (from, key, to, category, initialCategory) => {
+    const user = userEvent.setup();
+    const setCategory = vi.fn();
+    render(<AccessTokensTab useAccessTokensHook={() => makeAccessTokens({ category: initialCategory, setCategory })} useOtherCredentialsHook={() => makeOtherCredentials()} />);
+    screen.getByRole("tab", { name: from }).focus();
+    await user.keyboard(`{${key}}`);
+    expect(setCategory).toHaveBeenCalledExactlyOnceWith(category);
+    expect(document.activeElement).toBe(screen.getByRole("tab", { name: to }));
   });
 
   it("gives only the active category a roving tabindex of 0, and leaves the Add custom provider button untouched", () => {

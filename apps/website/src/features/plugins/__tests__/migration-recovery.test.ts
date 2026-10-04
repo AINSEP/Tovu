@@ -128,6 +128,35 @@ test("recovery clears the WAL/SHM sidecars left by the crashed attempt (T8)", as
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
+test("multiple incomplete SQLite attempts are settled in one boot without reviving an earlier journal entry", async (t) => {
+  const { dir, dbPath } = makeDbWithCoreContent();
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const db = new Database(dbPath);
+  await ensureMigrationJournal(db);
+  const firstSnapshot = await snapshotDb({ db, dbPath, label: "first-pending" });
+  assert.ok(firstSnapshot);
+  await beginJournalEntry({ db, pluginId: "first-pending", snapshotPath: firstSnapshot });
+  // A second declaration can snapshot while the first is still pending; its backup then contains
+  // the first journal row. Replaying this newer backup last would revive that interrupted attempt.
+  const secondSnapshot = await snapshotDb({ db, dbPath, label: "second-pending" });
+  assert.ok(secondSnapshot);
+  assert.notEqual(firstSnapshot, secondSnapshot);
+  await beginJournalEntry({ db, pluginId: "second-pending", snapshotPath: secondSnapshot });
+  assert.deepEqual((await findIncompleteJournalEntries(db)).map((entry) => entry.pluginId), ["first-pending", "second-pending"]);
+  db.close();
+
+  assert.deepEqual(await recoverAtBoot(dbPath), {
+    recovered: 2,
+    entries: [{ pluginId: "first-pending", snapshotPath: firstSnapshot }, { pluginId: "second-pending", snapshotPath: secondSnapshot }],
+  });
+  const restored = new Database(dbPath);
+  try {
+    assert.deepEqual(restored.prepare("SELECT * FROM posts").all(), [{ id: "p1" }]);
+    assert.deepEqual(await findIncompleteJournalEntries(restored), [], "one recovery pass must settle both attempts");
+  } finally { restored.close(); }
+  assert.deepEqual(await recoverAtBoot(dbPath), { recovered: 0, entries: [] });
+});
+
 test("a COMMITTED entry is left alone — recovery is a no-op for a successful prior attempt", async () => {
   const { dir, dbPath } = makeDbWithCoreContent();
   const db = new Database(dbPath);
@@ -218,4 +247,31 @@ test("postgres/PGlite: an incomplete entry is a rolled-back transaction — mark
   } finally {
     await kernel.close();
   }
+});
+
+test("missing recovery snapshot rejects boot and keeps the incomplete attempt visible", async (t) => {
+  const { dir, dbPath } = makeDbWithCoreContent();
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const db = new Database(dbPath);
+  const snapshotPath = await snapshotDb({ db, dbPath, label: "missing-snapshot" });
+  assert.ok(snapshotPath);
+  await ensureMigrationJournal(db);
+  await beginJournalEntry({ db, pluginId: "missing-snapshot", snapshotPath });
+  db.prepare('CREATE TABLE "p_missing__partial" (id TEXT PRIMARY KEY)').run();
+  db.close();
+  fs.rmSync(snapshotPath);
+  let bootContinued = false;
+  await assert.rejects(async () => {
+    await recoverAtBoot(dbPath);
+    bootContinued = true;
+  }, { code: "ENOENT" });
+  assert.equal(bootContinued, false);
+  const reopened = new Database(dbPath);
+  try {
+    const incomplete = await findIncompleteJournalEntries(reopened);
+    assert.equal(incomplete.length, 1);
+    assert.equal(incomplete[0].pluginId, "missing-snapshot");
+    assert.deepEqual(reopened.prepare("SELECT * FROM posts").all(), [{ id: "p1" }]);
+    assert.ok(reopened.prepare("SELECT name FROM sqlite_master WHERE name='p_missing__partial'").get());
+  } finally { reopened.close(); }
 });

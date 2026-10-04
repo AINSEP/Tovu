@@ -389,3 +389,17 @@ for (const adapter of ADAPTERS) {
     );
   });
 }
+
+for (const adapter of ADAPTERS) {
+  for (const bodyFormat of ["doc", "html"] as const) {
+    test(`${adapter.name}: soft delete preserves every content field of a ${bodyFormat} row`, async () => {
+      const repo = adapter.make();
+      await repo.save(seed({ kind: bodyFormat === "html" ? "page" : "post", bodyFormat, bodyHtml: bodyFormat === "html" ? "<section><h1>Keep this HTML</h1></section>" : null, bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Keep this text" }] }] }, ext: { plugin: { value: "keep" } } }));
+      const before = await repo.findById({ workspaceId: WS, id: "post-1" });
+      assert.ok(before);
+      await deletePost({ deps: { repo, clock, outbox: noopOutbox, remove: removeVia(repo) }, input: { workspaceId: WS, id: "post-1" } });
+      const after = await repo.findById({ workspaceId: WS, id: "post-1" });
+      assert.deepEqual(after, { ...before, deletedAt: "2026-07-30T12:00:00.000Z", updatedAt: "2026-07-30T12:00:00.000Z", version: 4 });
+    });
+  }
+}

@@ -95,9 +95,8 @@ test("tovu theme normalize-build <dir>: missing --primary-stylesheet exits 2 (VA
 test("tovu theme normalize-build <dir> --pages a.html,b.html: rewrites every named page file, defaulting off just index.html", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-cli-theme-normalize-multipage-"));
   fs.writeFileSync(path.join(dir, "styles.css"), "body{}", "utf8");
-  const page = '<link rel="stylesheet" href="styles.css">';
-  fs.writeFileSync(path.join(dir, "a.html"), page, "utf8");
-  fs.writeFileSync(path.join(dir, "b.html"), page, "utf8");
+  fs.writeFileSync(path.join(dir, "a.html"), '<head><link rel="stylesheet" href="styles.css"></head><body><h1>Alpha café</h1></body>', "utf8");
+  fs.writeFileSync(path.join(dir, "b.html"), '<head><link rel="stylesheet" href="styles.css"></head><body><p>Beta content</p></body>', "utf8");
 
   const result = runCli(["theme", "normalize-build", dir, "--primary-stylesheet", "styles.css", "--pages", "a.html,b.html"]);
   assert.equal(result.status, 0, `stderr: ${result.stderr}`);
@@ -105,6 +104,8 @@ test("tovu theme normalize-build <dir> --pages a.html,b.html: rewrites every nam
   for (const page of ["a.html", "b.html"]) {
     const rewritten = fs.readFileSync(path.join(dir, page), "utf8");
     assert.ok(!rewritten.includes('href="styles.css"'), `${page} must have been rewritten`);
+    const content = page === "a.html" ? "<h1>Alpha café</h1>" : "<p>Beta content</p>";
+    assert.equal(rewritten, `<head><link rel="stylesheet" href="../css/styles.css" /></head><body>${content}</body>`);
   }
 });
 

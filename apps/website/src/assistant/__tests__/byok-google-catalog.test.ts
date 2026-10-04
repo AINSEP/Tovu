@@ -147,6 +147,22 @@ test("EVERY wired tool's outbound Gemini schema is structurally valid — the wh
   // report green while validating nothing at all — the exact failure mode it exists to prevent.
   assert.ok(descriptors.length > 100, `expected the full wired catalog, got ${descriptors.length} descriptors`);
 
+  // Required first-party inventory, independent of the installer's returned list.
+  assert.deepEqual(contributions.contributors.list({}).map(({ domain }) => domain).sort(), [
+    "agent-plugin-connect", "agent-plugin-search", "analytics", "change-sets", "comments",
+    "commerce-get-status", "content-duplication", "content-stats", "content-types", "custom-credentials",
+    "database", "database-transfer", "deploy-ops", "deployments", "domain-dns", "entries",
+    "external-mcp", "external-mcp-operations", "forms", "fs-files", "identity",
+    "identity-policy-list-permissions", "integrations", "media", "media-generation", "media-import",
+    "media-providers", "media-view", "members", "menus", "newsletter", "newsletter-delivery",
+    "pages", "permanent-delete", "plugins", "post", "post-preview", "publish-content",
+    "publish-content-disconnect", "recovery", "redirects", "seo", "settings", "settings-ui-locales",
+    "site-backup", "site-evidence", "site-inspection", "sites", "sites-list", "source-control",
+    "static-publish", "system-mail", "taxonomy", "theme-set-active", "theme-set-page-published",
+    "themes", "trash", "widgets", "workspace",
+  ].sort());
+  assert.deepEqual(contributions.derivedContributors.list({}).map(({ domain }) => domain), ["trash-item"]);
+
   let nodeCount = 0;
   for (const descriptor of descriptors) nodeCount += assertGeminiValid(descriptor);
 

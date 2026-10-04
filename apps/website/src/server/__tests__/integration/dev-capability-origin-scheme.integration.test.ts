@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
+import { syncBuiltinESMExports } from "node:module";
 import path from "node:path";
 import test from "node:test";
 
@@ -25,18 +26,40 @@ function mkTempDbPath(): string {
   return path.join(dir, "content.db");
 }
 
-test("a fresh boot's dev-capability origin resolves to scheme https, matching the dev API server's own TLS termination (51c59f5c)", async () => {
-  const dbPath = mkTempDbPath();
-  try {
-    const deps = await createSiteRouteDeps(dbPath);
-    const origin = await deps.originRegistry.canonicalOrigin({ workspaceId: deps.workspaceId });
-    assert.equal(origin.scheme, "https");
-    assert.equal(origin.host, "localhost");
-    assert.equal(origin.port, 3000);
-  } finally {
-    fs.rmSync(path.dirname(dbPath), { recursive: true, force: true });
-  }
-});
+for (const hasCerts of [true, false]) {
+  test(`a fresh boot derives ${hasCerts ? "https" : "http"} from controlled TLS material`, async (t) => {
+    const dbPath = mkTempDbPath();
+    const names = ["TOVU_DISABLE_DEV_TLS", "TOVU_PUBLIC_URL", "TOVU_RUNTIME_MODE", "PORT"];
+    const original = new Map(names.map(name => [name, process.env[name]]));
+    const exists = fs.existsSync;
+    const read = fs.readFileSync;
+    const isTlsFile = (file: unknown) => /\/\.certs\/localhost(?:-key)?\.pem$/.test(String(file));
+    const existsMock = t.mock.method(fs, "existsSync", (file) => isTlsFile(file) ? hasCerts : exists(file));
+    const readMock = t.mock.method(fs, "readFileSync", (file, ...args) => isTlsFile(file) ? Buffer.from("fixture PEM; no listener is started") : read(file, ...args));
+    syncBuiltinESMExports();
+    delete process.env.TOVU_DISABLE_DEV_TLS;
+    delete process.env.TOVU_PUBLIC_URL;
+    process.env.TOVU_RUNTIME_MODE = "local";
+    process.env.PORT = "3000";
+    try {
+      const deps = await createSiteRouteDeps(dbPath);
+      const origin = await deps.originRegistry.canonicalOrigin({ workspaceId: deps.workspaceId });
+      assert.equal(origin.scheme, hasCerts ? "https" : "http");
+      assert.equal(origin.host, "localhost");
+      assert.equal(origin.port, 3000);
+      await Promise.all(Object.values(deps).filter(value => value instanceof Promise));
+    } finally {
+      existsMock.mock.restore();
+      readMock.mock.restore();
+      syncBuiltinESMExports();
+      for (const [name, value] of original) {
+        if (value === undefined) delete process.env[name];
+        else process.env[name] = value;
+      }
+      fs.rmSync(path.dirname(dbPath), { recursive: true, force: true });
+    }
+  });
+}
 
 /**
  * REGRESSION (2026-09-05 audit finding, Chunk D finding 3): `seedDevCapabilityOrigin`'s `scheme`

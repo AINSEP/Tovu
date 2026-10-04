@@ -88,6 +88,20 @@ test("re-registering the same entityType REPLACES the earlier entry in place, no
   assert.equal(contributors[0], replacement, "the replaced entry must be the NEW registration, not the old one");
 });
 
+test("catalog rebuild includes contributors registered after the first build", () => {
+  const deps = {} as PublishContentDeps;
+  registerPublishContentContributor(fakeContributor("post"));
+  const first = buildPublishContentCatalog(deps);
+  assert.deepEqual(first.applyOrder, ["post"]);
+
+  registerPublishContentContributor(fakeContributor("page", ["post"]));
+  const second = buildPublishContentCatalog(deps);
+  assert.deepEqual(second.handlers.map((handler) => handler.entityType), ["post", "page"]);
+  assert.equal(second.handlerByType.get("post"), second.handlers[0]);
+  assert.equal(second.handlerByType.get("page"), second.handlers[1]);
+  assert.deepEqual(second.applyOrder, ["post", "page"]);
+});
+
 test("resetPublishContentContributorsForTests clears every registration", () => {
   registerPublishContentContributor(fakeContributor("post"));
   registerPublishContentContributor(fakeContributor("page"));

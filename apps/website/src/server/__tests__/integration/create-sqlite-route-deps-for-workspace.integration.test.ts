@@ -2,9 +2,19 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import test from "node:test";
+import test, { mock } from "node:test";
 
-import { createSiteRouteDepsForWorkspace } from "../../runtime/composition/deps.js";
+import { openSiteContentDb } from "../../runtime/composition/open-site-content-db.js";
+
+const openedHandles: Awaited<ReturnType<typeof openSiteContentDb>>[] = [];
+mock.module(new URL("../../runtime/composition/open-site-content-db.ts", import.meta.url).href, {
+  namedExports: { openSiteContentDb: async (dbPath: string) => {
+    const db = await openSiteContentDb(dbPath);
+    openedHandles.push(db);
+    return db;
+  } },
+});
+const { createSiteRouteDepsForWorkspace } = await import("../../runtime/composition/deps.js");
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { workspaces } from "#src/platform/db/schema.sqlite";
 
@@ -113,7 +123,9 @@ test("workspaceIdOverride supplied: the db opened for validation is the SAME han
     seedDb.insert(workspaces).values({ id: "ws-shared-handle", name: "Shared Handle", slug: "shared-handle", createdAt: "2026-01-01T00:00:00.000Z" }).run();
     seedDb.$client.close();
 
+    const before = openedHandles.length;
     const deps = await createSiteRouteDepsForWorkspace("ws-shared-handle", dbPath);
+    assert.equal(openedHandles.length - before, 1, "validation and composition must open only one connection");
     const found = await deps.workspaceRepo.findById({ id: "ws-shared-handle" });
     assert.ok(found, "the returned deps must read from the same on-disk db the override was validated against");
     assert.equal(found?.name, "Shared Handle");

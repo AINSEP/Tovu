@@ -496,6 +496,11 @@ describe("Theme Pages tab", () => {
       await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
       // Exactly the two locked rows carry a lock glyph — an `aria-hidden` svg, so found by class.
       expect(document.querySelectorAll(".theme-page-lock-glyph")).toHaveLength(2);
+      for (const [pageId, expected] of [["index", 1], ["blog-post", 1], ["about", 0], ["pricing", 0]] as const) {
+        const row = screen.getByRole("button", { name: `Actions for "${pageId}"` }).closest("tr");
+        expect(row).not.toBeNull();
+        expect(row!.querySelectorAll(".theme-page-lock-glyph")).toHaveLength(expected);
+      }
     });
 
     it("never renders a locked-row info icon for a switchable row", async () => {

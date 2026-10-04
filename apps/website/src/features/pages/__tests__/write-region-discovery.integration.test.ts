@@ -128,11 +128,14 @@ test("describe_tool returns pages_write_region's real schema — the handle, the
   const entry = JSON.parse(payload.content) as {
     id: string;
     description: string;
-    inputSchema?: { required?: string[]; properties?: Record<string, unknown> };
+    inputSchema?: { required?: string[]; properties?: Record<string, { type?: string; minimum?: number }> };
   };
   assert.equal(entry.id, "pages_write_region");
   assert.deepEqual(entry.inputSchema?.required, ["id", "handle", "html"]);
-  assert.ok(entry.inputSchema?.properties?.expectedVersion, "the optimistic-concurrency basis must be describable, or the model cannot send one");
+  const properties = entry.inputSchema?.properties;
+  assert.equal(properties?.expectedVersion.type, "integer");
+  assert.equal(properties?.expectedVersion.minimum, 0);
+  for (const field of ["id", "handle", "html"]) assert.equal(properties?.[field].type, "string");
 
   // The one instruction the model cannot recover from getting wrong — sending the region element
   // back would nest a second one inside the first rather than replace it — must survive any later

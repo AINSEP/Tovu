@@ -200,16 +200,18 @@ describe("SitemapModal — regenerate in the footer", () => {
 
   it("does NOT refetch after a FAILED regenerate", async () => {
     const user = userEvent.setup();
-    const port = sequencedSitemapPort([ONE_URL_XML, TWO_URL_XML]);
+    const port = countingSitemapPort(ONE_URL_XML);
     const { onRegenerate } = renderModal(port, { onRegenerate: vi.fn(async () => false) });
     await screen.findByRole("heading", { name: "Sitemap · 1 URLs" });
 
+    expect(port.calls).toBe(1);
     await user.click(screen.getByRole("button", { name: "Regenerate sitemap" }));
     expect(onRegenerate).toHaveBeenCalledTimes(1);
 
     // Give a wrongly-fired refetch a turn of the event loop to resolve before asserting it never
     // happened — the count must still read the FIRST fetch's result.
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await flushPendingFetches();
+    expect(port.calls).toBe(1);
     expect(screen.getByRole("heading", { name: "Sitemap · 1 URLs" })).toBeInTheDocument();
   });
 });

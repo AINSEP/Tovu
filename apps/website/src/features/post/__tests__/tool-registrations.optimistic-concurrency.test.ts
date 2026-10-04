@@ -201,8 +201,9 @@ for (const [label, value] of [
  * indistinguishable from a crash — so these tests assert the wire result, not just the throw.
  * ---------------------------------------------------------------------------------------------- */
 
-async function delegatedHarness() {
+async function delegatedHarness(overrides: Partial<PostToolDeps> = {}) {
   const { deps, postRepo } = fakeRouteDeps();
+  Object.assign(deps, overrides);
   await seedPost(postRepo);
   const registry = createToolRegistry({});
   for (const registration of buildPostRegistrations(deps, { surfaceExchanges: createSurfaceExchangeStore() })) {
@@ -212,6 +213,32 @@ async function delegatedHarness() {
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog() });
   const { run } = await lifecycle.start({ contextRef: "ctx-1" });
   return { postRepo, routeDeps: { lifecycle, toolExecutor, resolvePrincipal: () => ({ id: PRINCIPAL_ID }) }, run };
+}
+
+for (const removal of ["delete", "trash"] as const) {
+  test(`a post ${removal === "delete" ? "deleted" : "trashed"} during its hook reaches the model as not-found with no losing revision`, async () => {
+    let repo: InMemoryPostRepo;
+    const harness = await delegatedHarness({
+      pluginBeforeSaveHook: async () => {
+        if (removal === "delete") await repo.hardDelete({ workspaceId: WORKSPACE_ID, id: "p1" });
+        else await repo.softDelete({ workspaceId: WORKSPACE_ID, id: "p1", deletedAt: NOW, updatedAt: NOW, version: 2 });
+        return {};
+      },
+    });
+    repo = harness.postRepo;
+    const result = await delegatedToolExecuteRoute.handle({
+      input: { runId: harness.run.id, toolUseId: `tu-${removal}`, toolId: "content_post_update", input: updateInput({ title: "Should not land", expectedVersion: 1 }) },
+      deps: harness.routeDeps as never,
+    });
+    assert.equal(result.ok, false, JSON.stringify(result));
+    if (result.ok) return;
+    assert.equal(result.error.code, "BAD_REQUEST");
+    assert.equal(result.error.message, "CONTENT_POST_NOT_FOUND: post 'p1' was not found");
+    const stored = await repo.findById({ workspaceId: WORKSPACE_ID, id: "p1" });
+    if (removal === "delete") assert.equal(stored, null);
+    else { assert.equal(stored?.deletedAt, NOW); assert.equal(stored?.title, "Shared Post"); }
+    assert.deepEqual(await repo.listRevisions({ workspaceId: WORKSPACE_ID, postId: "p1" }), []);
+  });
 }
 
 test("a version conflict reaches the model as an actionable BAD_REQUEST, NOT a redacted INTERNAL_ERROR", async () => {

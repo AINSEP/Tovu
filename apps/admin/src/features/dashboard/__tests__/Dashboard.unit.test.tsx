@@ -2,6 +2,7 @@ import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { setPublishToLiveAvailable } from "../../publish-content/hooks/publish-availability.store";
 import { Dashboard } from "../Dashboard";
 
 /**
@@ -128,7 +129,17 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  setPublishToLiveAvailable(true);
   vi.unstubAllGlobals();
+});
+
+it.each([false, true])("Publish all content availability follows the live-site flag %s", async (available) => {
+  fetchMock.mockImplementation(routeFetch(successRoutes()));
+  setPublishToLiveAvailable(available);
+  render(<Dashboard />);
+  await screen.findByText("editorial");
+  if (available) expect(screen.getByRole("button", { name: "Publish all content" })).toBeInTheDocument();
+  else expect(screen.queryByRole("button", { name: "Publish all content" })).not.toBeInTheDocument();
 });
 
 it("renders every stat card's real value and the merged, sorted activity panel when all 5 fetches succeed", async () => {

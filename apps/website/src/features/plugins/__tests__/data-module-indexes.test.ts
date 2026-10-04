@@ -107,7 +107,7 @@ test("a unique index is enforced", async () => {
   } });
 
   db.prepare(`INSERT INTO "p_idxtest__widgets" (id, slug) VALUES ('a', 'x')`).run();
-  assert.throws(() => db.prepare(`INSERT INTO "p_idxtest__widgets" (id, slug) VALUES ('b', 'x')`).run());
+  assert.throws(() => db.prepare(`INSERT INTO "p_idxtest__widgets" (id, slug) VALUES ('b', 'x')`).run(), /UNIQUE constraint failed: p_idxtest__widgets.slug/);
 
   db.close();
   fs.rmSync(dir, { recursive: true, force: true });
@@ -157,6 +157,12 @@ test("dataModule: a live index whose shape no longer matches its declaration is 
   const idx = liveIndex(db, "idx_p_idxtest__widgets__by_workspace");
   assert.ok(idx, "the index still exists under the same name — dropped and recreated, not left orphaned");
   assert.match(idx!.sql, /"workspace_id", "status"/, "the live index now reflects the new column list");
+  for (const columns of [["status", "workspace_id"], ["id", "status"]]) {
+    const next = await declareDataModule({ db, dbPath, decl: { ...v1, tables: [{ ...v1.tables[0]!, indexes: [{ name: "by_workspace", columns }] }] } });
+    assert.equal(next.ok, true, JSON.stringify(next.error));
+    const live = (db.prepare('PRAGMA index_info("idx_p_idxtest__widgets__by_workspace")').all() as Array<{ name: string }>).map((row) => row.name);
+    assert.deepEqual(live, columns, "equal-length reorders and substitutions must reconcile exactly");
+  }
 
   db.close();
   fs.rmSync(dir, { recursive: true, force: true });
@@ -243,4 +249,40 @@ test("dataModule: ADVERSARIAL — recreating an index as UNIQUE against live dup
 
   db.close();
   fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test("missing-index verification rolls back index, column and migration writes and settles the journal", async (t) => {
+  const { db, dbPath, dir } = openDb();
+  t.after(() => { db.close(); fs.rmSync(dir, { recursive: true, force: true }); });
+  const v1 = { pluginId: "idxtest", pluginTier: "tier-2" as const, provenance, tables: [{ name: "widgets", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }] }] };
+  assert.equal((await declareDataModule({ db, dbPath, decl: v1 })).ok, true);
+  const migrations = db.prepare("SELECT * FROM _plugin_migrations ORDER BY id").all();
+  let indexReads = 0;
+  const proxied = new Proxy(db, { get(target, prop) {
+    if (prop !== "prepare") {
+      const value = Reflect.get(target, prop);
+      return typeof value === "function" ? value.bind(target) : value;
+    }
+    return (sql: string) => {
+      const statement = target.prepare(sql);
+      if (!sql.includes("pragma_index_list(")) return statement;
+      return new Proxy(statement, { get(real, name) {
+        if (name === "all") return (params: unknown[]) => {
+          if (params[0] === "p_idxtest__widgets" && ++indexReads === 2) return [];
+          return real.all(params);
+        };
+        const value = Reflect.get(real, name);
+        return typeof value === "function" ? value.bind(real) : value;
+      } });
+    };
+  } });
+  const result = await declareDataModule({ db: proxied, dbPath, decl: { ...v1, tables: [{ ...v1.tables[0]!, columns: [...v1.tables[0]!.columns, { name: "sku", type: "TEXT" }], indexes: [{ name: "by_sku", columns: ["sku"] }] }] } });
+  assert.equal(indexReads, 2, "the fault must reach post-DDL index verification");
+  assert.equal(result.ok, false);
+  assert.equal(result.error?.code, "DDL_FAILED");
+  assert.match(result.error?.message ?? "", /post-DDL verification failed: index idx_p_idxtest__widgets__by_sku/);
+  assert.equal(liveIndex(db, "idx_p_idxtest__widgets__by_sku"), undefined);
+  assert.deepEqual((db.prepare('PRAGMA table_info("p_idxtest__widgets")').all() as Array<{ name: string }>).map((row) => row.name), ["id"]);
+  assert.deepEqual(db.prepare("SELECT * FROM _plugin_migrations ORDER BY id").all(), migrations);
+  assert.deepEqual(db.prepare("SELECT phase FROM _plugin_migration_journal ORDER BY id DESC LIMIT 1").get(), { phase: "ROLLED_BACK" });
 });

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -75,6 +75,8 @@ describe("loading and error-before-load states", () => {
     renderWith({ posts: [POST], error: "failed to create post" });
     expect(screen.getByText("failed to create post")).toBeInTheDocument();
     expect(screen.getByRole("table")).toBeInTheDocument();
+    const banner = screen.getByText("failed to create post");
+    expect(banner.compareDocumentPosition(screen.getByRole("table")) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
 });
 
@@ -138,8 +140,8 @@ describe("Updated column sort (2026-08-10)", () => {
 });
 
 describe("Title/Slug/Status column sort (2026-09-02)", () => {
-  const alpha = { ...POST, id: "p-alpha", title: "Alpha Post", slug: "alpha-post", status: "published" as const };
-  const bravo = { ...POST, id: "p-bravo", title: "Bravo Post", slug: "bravo-post", status: "draft" as const };
+  const alpha = { ...POST, id: "p-alpha", title: "Alpha Post", slug: "z-alpha-post", status: "published" as const };
+  const bravo = { ...POST, id: "p-bravo", title: "Bravo Post", slug: "a-bravo-post", status: "draft" as const };
 
   function rowOrder(): string[] {
     return screen.getAllByRole("row").slice(1).map((row) => row.textContent ?? "");
@@ -174,7 +176,8 @@ describe("Title/Slug/Status column sort (2026-09-02)", () => {
     const user = userEvent.setup();
     renderWith({ posts: [bravo, alpha] });
     await user.click(screen.getByRole("button", { name: /not sorted by slug/i }));
-    expect(rowOrder()[0]).toContain("Alpha Post");
+    expect(rowOrder()[0]).toContain("Bravo Post");
+    expect(screen.getAllByRole("row").slice(1).map(row => within(row).getByRole("link", { name: /^(Alpha|Bravo) Post$/ }).textContent)).toEqual(["Bravo Post", "Alpha Post"]);
   });
 
   it("clicking Status sorts draft before published (ascending)", async () => {

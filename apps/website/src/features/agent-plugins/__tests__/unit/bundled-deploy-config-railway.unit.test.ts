@@ -86,7 +86,9 @@ test("renderRailwayConfig: rejects a region outside Railway's own 4 identifiers"
 });
 
 test("renderRailwayConfig: pins numReplicas to 1 for every documented region — never more, since Tovu's SQLite volume is single-writer", () => {
-  for (const region of RAILWAY_VALID_REGIONS) {
+  const expectedRegions = ["us-west2", "us-east4-eqdc4a", "europe-west4-drams3a", "asia-southeast1-eqsg3a"];
+  assert.deepEqual(RAILWAY_VALID_REGIONS, expectedRegions);
+  for (const region of expectedRegions) {
     const result = renderRailwayConfig(FIXTURE_DESCRIPTOR, { region });
     const parsed = JSON.parse(result.contents) as { deploy: { multiRegionConfig: Record<string, { numReplicas: number }> } };
     assert.deepEqual(Object.keys(parsed.deploy.multiRegionConfig), [region]);

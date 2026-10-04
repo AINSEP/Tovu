@@ -237,6 +237,34 @@ test("send() handles a non-JSON error body without throwing", async () => {
   assert.deepEqual(result, { ok: false, retryable: true, errorCode: "HTTP_503", message: "<html>Service Unavailable</html>" });
 });
 
+for (const bodyText of ["", "<html>Accepted</html>"]) {
+  test(`send() preserves HTTP acceptance for an undecodable success body ${JSON.stringify(bodyText)}`, async () => {
+    const http = new FakeHttpClient([{ status: 202, headers: {}, bodyText }]);
+    const result = await (await makeAdapter(http)).send(makeMessage(), SEND_OPTIONS);
+    assert.equal(result.ok, true);
+    if (!result.ok) assert.fail(JSON.stringify(result));
+    assert.equal(result.providerMessageId, "idem-1");
+    assert.match(result.acceptedAt, /^\d{4}-\d{2}-\d{2}T/);
+    assert.equal(http.calls.length, 1);
+  });
+}
+
+test("sendBatch() keeps every per-message result after empty and malformed successful replies", async () => {
+  const http = new FakeHttpClient([
+    { status: 204, headers: {}, bodyText: "" },
+    { status: 200, headers: {}, bodyText: "not JSON" },
+    { status: 422, headers: {}, bodyText: '{"name":"validation_error","message":"bad address"}' },
+    { status: 200, headers: {}, bodyText: '{"id":"last-accepted"}' },
+  ]);
+  const results = await (await makeAdapter(http)).sendBatch(
+    ["one", "two", "three", "four"].map((name) => makeMessage({ to: { email: `${name}@example.com` } })), SEND_OPTIONS,
+  );
+  assert.deepEqual(results.map((result) => result.ok ? result.providerMessageId : result.errorCode),
+    ["idem-1:0", "idem-1:1", "validation_error", "last-accepted"]);
+  assert.deepEqual(http.calls.map((call) => JSON.parse(call.body!).to),
+    ["one@example.com", "two@example.com", "three@example.com", "four@example.com"]);
+});
+
 test("send() maps a thrown transport error (network failure/EgressPolicy refusal) to a retryable TRANSPORT_ERROR, never throws", async () => {
   const http = new FakeHttpClient([
     () => {

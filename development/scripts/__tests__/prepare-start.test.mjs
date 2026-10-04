@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { spawnSync } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 import { planStartSteps } from "../prepare-start.mjs";
 
@@ -112,3 +117,94 @@ test("app build steps carry their own app name, so main() knows which stamp file
     ["admin", "site-chat"],
   );
 });
+
+test("full-length manifest SHA and HEAD agree; a different abbreviated SHA triggers a rebuild", () => {
+  const headSha = "abcdef1234567890abcdef1234567890abcdef1234";
+  const input = { has: hasOnly(BUILT), headSha, builtStamps: { admin: headSha, "site-chat": headSha } };
+  assert.deepEqual(planStartSteps({ ...input, builtSha: headSha }).steps, []);
+  assert.deepEqual(planStartSteps({ ...input, builtSha: "abcdef1" }).steps.map(s => s.args), [["run", "build:server"]]);
+});
+
+for (const scenario of ["success", "admin-fails", "fresh"]) {
+  test(`prepare-start CLI: ${scenario} preserves build order and stamps only successful apps`, () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "prepare-start-cli-"));
+    const preload = path.join(dir, "build-fixture.mjs");
+    const trace = path.join(dir, "trace.jsonl");
+    const repoRoot = path.resolve(import.meta.dirname, "../../..");
+    const headSha = "abcdef1234567890abcdef1234567890abcdef1234";
+    try {
+      fs.writeFileSync(trace, "");
+      if (scenario === "fresh") {
+        fs.writeFileSync(path.join(dir, "admin.sha"), `${headSha}\n`);
+        fs.writeFileSync(path.join(dir, "site-chat.sha"), `${headSha}\n`);
+      }
+      fs.writeFileSync(preload, `
+        import assert from "node:assert/strict";
+        import cp from "node:child_process";
+        import fs from "node:fs";
+        import { syncBuiltinESMExports } from "node:module";
+        const root = ${JSON.stringify(repoRoot)};
+        const dir = ${JSON.stringify(dir)};
+        const read = fs.readFileSync, write = fs.writeFileSync, exists = fs.existsSync;
+        const record = event => write(${JSON.stringify(trace)}, JSON.stringify(event) + "\\n", { flag: "a" });
+        const redirect = file => {
+          const rel = String(file).slice(root.length + 1);
+          if (rel === "node_modules/.cache/tovu/start-build.log") return dir + "/build.log";
+          for (const app of ["admin", "site-chat"])
+            if (rel === "apps/" + app + "/dist/.tovu-build-sha") return dir + "/" + app + ".sha";
+          return null;
+        };
+        cp.execFileSync = (command, args, options) => {
+          assert.equal(command, "git"); assert.deepEqual(args, ["rev-parse", "HEAD"]); assert.equal(options.cwd, root);
+          return ${JSON.stringify(headSha + '\n')};
+        };
+        cp.spawnSync = (command, args, options) => {
+          assert.equal(command, "npm"); assert.equal(options.cwd, root);
+          const status = ${JSON.stringify(scenario)} === "admin-fails" && args.join(" ") === "--prefix apps/admin run build:local" ? 7 : 0;
+          record({ kind: "build", args, status });
+          return { status, stdout: "fixture build\\n", stderr: "" };
+        };
+        fs.existsSync = file => String(file).startsWith(root + "/") ? ${JSON.stringify(scenario)} === "fresh" : exists(file);
+        fs.mkdirSync = file => assert.equal(String(file), root + "/node_modules/.cache/tovu");
+        fs.readFileSync = (file, ...args) => {
+          if (String(file) === root + "/dist/runtime-manifest.json") {
+            if (${JSON.stringify(scenario)} === "fresh") return JSON.stringify({ tovuSha: ${JSON.stringify(headSha)} });
+            throw new Error("missing manifest");
+          }
+          return read(redirect(file) ?? file, ...args);
+        };
+        fs.writeFileSync = (file, data, ...args) => {
+          const target = redirect(file);
+          assert.ok(target, "unexpected write: " + file);
+          if (String(file).endsWith("/.tovu-build-sha")) record({ kind: "stamp", app: String(file).split("/").at(-3), sha: data });
+          return write(target, data, ...args);
+        };
+        syncBuiltinESMExports();
+      `);
+      const result = spawnSync(process.execPath, ["--import", pathToFileURL(preload).href,
+        path.resolve(import.meta.dirname, "../prepare-start.mjs")], { encoding: "utf8", timeout: 10_000 });
+      assert.ifError(result.error);
+      assert.equal(result.status, scenario === "admin-fails" ? 7 : 0, result.stderr);
+      const events = fs.readFileSync(trace, "utf8").trim().split("\n").filter(Boolean).map(line => JSON.parse(line));
+      const build = (args, status = 0) => ({ kind: "build", args, status });
+      const expected = scenario === "fresh" ? [] : [
+        build(["run", "build:server"]), build(["--prefix", "apps/admin", "install"]),
+        build(["--prefix", "apps/admin", "run", "build:local"], scenario === "admin-fails" ? 7 : 0),
+        ...(scenario === "admin-fails" ? [] : [
+          { kind: "stamp", app: "admin", sha: `${headSha}\n` },
+          build(["--prefix", "apps/site-chat", "install"]), build(["--prefix", "apps/site-chat", "run", "build:local"]),
+          { kind: "stamp", app: "site-chat", sha: `${headSha}\n` }
+        ])
+      ];
+      assert.deepEqual(events, expected);
+      for (const app of ["admin", "site-chat"]) {
+        const stamp = path.join(dir, `${app}.sha`);
+        if (scenario === "admin-fails") assert.equal(fs.existsSync(stamp), false, "failed or unattempted build must not be stamped");
+        else assert.equal(fs.readFileSync(stamp, "utf8"), `${headSha}\n`);
+      }
+      if (scenario === "admin-fails") assert.match(result.stderr, /failed.*Full log:/);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+}

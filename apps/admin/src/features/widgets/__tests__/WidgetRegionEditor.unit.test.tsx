@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -135,6 +135,14 @@ describe("placements list", () => {
     const { container } = render(
       <WidgetRegionEditor regionKey="footer" useWidgetRegionEditorHook={() => baseController({ placements: [draft] })} />,
     );
+    const row = screen.getByRole("checkbox", { name: "Enabled" }).closest(".menu-item-row");
+    expect(row).not.toBeNull();
+    const controls = within(row as HTMLElement);
+    expect(controls.getByRole("checkbox", { name: "Enabled" })).toBeChecked();
+    for (const name of ["Move up", "Move down", "Remove"]) {
+      expect(controls.getByRole("button", { name })).toBeInTheDocument();
+    }
+    expect(row!.textContent).not.toContain("()");
     expect(container.textContent).not.toContain("()");
   });
 
@@ -187,9 +195,24 @@ describe("page chrome", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("stale version");
   });
 
-  it("renders the Add widget control for placing a new widget", () => {
-    render(<WidgetRegionEditor regionKey="footer" useWidgetRegionEditorHook={() => baseController()} />);
-    expect(screen.getByRole("button", { name: "+ Add widget" })).toBeInTheDocument();
+  it("renders the Add widget control and places the selected existing widget", async () => {
+    const user = userEvent.setup();
+    const controller = baseController();
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ widgets: [
+      { id: "w9", title: "Reusable footer", widgetType: "text", config: {} },
+    ] }), { status: 200, headers: { "Content-Type": "application/json" } })));
+    try {
+      render(<WidgetRegionEditor regionKey="footer" useWidgetRegionEditorHook={() => controller} />);
+      await user.click(screen.getByRole("button", { name: "+ Add widget" }));
+      const dialog = await screen.findByRole("dialog");
+      await user.click(within(dialog).getByRole("combobox", { name: "Existing Text widgets" }));
+      await user.click(screen.getByRole("option", { name: "Reusable footer" }));
+      await user.click(within(dialog).getByRole("button", { name: "Use this widget" }));
+      expect(controller.addPlacement).toHaveBeenCalledExactlyOnceWith("w9");
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
 

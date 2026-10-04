@@ -10,6 +10,8 @@ import {
   PluginEnabledError,
   PluginNotUninstallableError,
   uninstallPlugin,
+  previewUninstallPlugin,
+  forgetPluginActivations,
   type UninstallPluginRequired,
 } from "../../uninstall.js";
 
@@ -137,4 +139,37 @@ test("an already-parked plugin becomes PluginAlreadyInTrashError", async () => {
   await assert.rejects(() => uninstallPlugin(h.required), PluginAlreadyInTrashError);
   assert.equal(h.removeCalls.length, 1);
   assert.equal((await repo.listAll()).length, 1);
+});
+
+for (const activated of [true, false]) {
+  test(`uninstall without preview succeeds for ${activated ? "disabled" : "never-activated"} plugin`, async () => {
+    const repo = new InMemoryPluginActivationRepo();
+    if (activated) await saveDisabled(repo);
+    const before = await repo.listAll();
+    const h = requestFor(SITE, repo);
+    assert.deepEqual(await uninstallPlugin(h.required), { trashed: true });
+    assert.deepEqual(h.removeCalls, [{ workspaceId: WS, id: SITE.id, display: { title: SITE.name, subtitle: `${SITE.id} ${SITE.version}` }, at: AT, expectedVersion: null, actor: ACTOR }]);
+    assert.deepEqual(await repo.listAll(), before);
+  });
+}
+
+test("preview reports exact identity without removing files or changing activation rows", async () => {
+  const repo = new InMemoryPluginActivationRepo();
+  await saveDisabled(repo);
+  const before = await repo.listAll();
+  const h = requestFor(SITE, repo);
+  assert.deepEqual(await previewUninstallPlugin(h.required), { pluginId: "my-plugin", name: "My Plugin", version: "1.0.0" });
+  assert.deepEqual(h.removeCalls, []);
+  assert.deepEqual(await repo.listAll(), before);
+});
+
+test("permanent purge forgets only the target across every workspace", async () => {
+  const repo = new InMemoryPluginActivationRepo();
+  await saveDisabled(repo);
+  await repo.save({ pluginId: SITE.id, workspaceId: "ws-2", version: SITE.version, enabled: false, updatedAt: AT });
+  const other = { pluginId: "other", workspaceId: WS, version: "2.0.0", enabled: true, updatedAt: AT };
+  await repo.save(other);
+  assert.equal((await repo.listAll()).length, 3);
+  await forgetPluginActivations({ pluginId: SITE.id }, { repo });
+  assert.deepEqual(await repo.listAll(), [other]);
 });

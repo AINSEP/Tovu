@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { EventEmitter } from "node:events";
+import type { ClientRequest } from "node:http";
 import { createServer } from "node:http";
 import test from "node:test";
 import type { TestContext } from "node:test";
@@ -56,8 +58,21 @@ test("resolve returns the origin when something is actually listening there", as
 });
 
 test("resolve returns null when nothing is listening — the case that must NOT break a desktop with no Vite running", async () => {
-  // Port 1 is privileged and unbound; the connection is refused immediately rather than timing out.
-  const resolved = await resolveAdminDevProxyUrl({ isPackaged: false, env: { TOVU_ADMIN_DEV_PROXY_URL: "http://127.0.0.1:1" } });
+  let probes = 0;
+  const requestFn = () => {
+    probes += 1;
+    const req = new EventEmitter();
+    return Object.assign(req, {
+      end() { queueMicrotask(() => req.emit("error", Object.assign(new Error("refused"), { code: "ECONNREFUSED" }))); },
+      destroy() {},
+    }) as ClientRequest;
+  };
+  const resolved = await resolveAdminDevProxyUrl({
+    isPackaged: false,
+    env: { TOVU_ADMIN_DEV_PROXY_URL: "http://127.0.0.1:5173" },
+    requestFn,
+  });
+  assert.equal(probes, 1);
   assert.equal(resolved, null);
 });
 

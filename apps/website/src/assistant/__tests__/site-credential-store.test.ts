@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
 import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
-import type { KeyringPort } from "../../features/webhooks/index.js";
+import type { KeyringPort, SecretSealerPort } from "../../features/webhooks/index.js";
 import { InMemorySiteAssistantCredentialRepo } from "../site-credential-store.memory.js";
 import {
   SiteAssistantCredentialValidationError,
@@ -109,7 +109,13 @@ test("a non-string baseUrl or model is also rejected before any write — not ju
 });
 
 test("setting nothing at all on a never-before-configured workspace seeds an empty row with defaults, touching neither sealer nor keyring", async () => {
-  const { deps } = makeDeps();
+  const repo = new InMemorySiteAssistantCredentialRepo();
+  const keyring = new BrokenKeyring();
+  const sealer: SecretSealerPort = {
+    seal: async () => { throw new Error("metadata setup must never seal"); },
+    open: async () => { throw new Error("metadata setup must never open"); },
+  };
+  const deps = { repo, keyring, sealer, clock };
   const view = await setSiteAssistantCredential(deps, { workspaceId: WORKSPACE });
 
   assert.equal(view.isSet, false);
@@ -117,6 +123,11 @@ test("setting nothing at all on a never-before-configured workspace seeds an emp
   assert.equal(view.provider, "google");
   assert.equal(view.baseUrl, null);
   assert.equal(view.model, null);
+  assert.deepEqual(await repo.findByWorkspaceId(WORKSPACE), {
+    workspaceId: WORKSPACE, provider: "google", baseUrl: null, model: null,
+    sealed: null, masked: null, aadVersion: 0,
+    createdAt: clock.nowIso(), updatedAt: clock.nowIso(),
+  });
 });
 
 test("omitting apiKey leaves the previously-stored key untouched — only provider/baseUrl/model change", async () => {
@@ -331,6 +342,8 @@ test("a metadata-only edit over a legacy (aadVersion 0) row leaves the ciphertex
   await setSiteAssistantCredential(deps, { workspaceId: WORKSPACE, model: "gemini-flash-latest" });
 
   const row = await repo.findByWorkspaceId(WORKSPACE);
+  assert.ok(row, "metadata edit must preserve the row");
+  assert.deepEqual(row.sealed, legacySealed, "carry forward the exact sealed record");
   assert.equal(row?.aadVersion, 0, "aadVersion must still say legacy — the ciphertext itself was never re-sealed");
   const resolved = await resolveSiteAssistantApiKey({ repo, sealer }, { workspaceId: WORKSPACE });
   assert.equal(resolved?.apiKey, "legacy-untouched-1111", "the carried-forward ciphertext must still open correctly");

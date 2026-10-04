@@ -4,6 +4,9 @@ import test from "node:test";
 import type { OutboxPort } from "@jini-ai/cms/core";
 import { createPost, updatePost, InMemoryPostRepo } from "../../post/index.js";
 import { InMemoryPagesHtmlDocumentStore } from "../html-document-store.memory.js";
+import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
+import { postRepoFor } from "#src/features/post/repo";
+import { SqlPagesHtmlDocumentStore } from "../html-document-store.js";
 import { DEFAULT_PAGE_SKELETON } from "../skeleton.js";
 
 /**
@@ -85,6 +88,8 @@ test("updatePost: a caller-supplied bodyJson is ignored on an html-format Page, 
   const repo = new InMemoryPostRepo([]);
   const generated = `<section data-agent-element="page-body" data-agent-role="region"><p>Real content</p></section>`;
   await seedHtmlPage(repo, generated);
+  const original = await repo.findById({ workspaceId: "ws-1", id: "page-1" });
+  assert.ok(original);
 
   const { post } = await updatePost({
     deps: { repo, clock, outbox: noopOutbox },
@@ -102,6 +107,9 @@ test("updatePost: a caller-supplied bodyJson is ignored on an html-format Page, 
 
   assert.equal(post.bodyFormat, "html");
   assert.equal(post.bodyHtml, generated, "the html body wins; the supplied doc must not replace it");
+  assert.deepEqual(post.bodyJson, original.bodyJson);
+  const saved = await repo.findById({ workspaceId: "ws-1", id: "page-1" });
+  assert.deepEqual(saved?.bodyJson, original.bodyJson);
 });
 
 test("updatePost: a doc-format Page is unaffected — the fix must not widen the CIC-3 guarantee", async () => {
@@ -127,4 +135,26 @@ test("updatePost: a doc-format Page is unaffected — the fix must not widen the
   assert.equal(post.bodyFormat, "doc", "a doc row stays doc — this path can still never make html");
   assert.equal(post.bodyHtml ?? null, null);
   assert.deepEqual(post.bodyJson, nextBody, "and its Tiptap body is still written from the input");
+});
+
+// F1.2/F6.3: the SQL body columns must remain mutually exclusive after a metadata edit.
+describeEachDialect("HTML metadata preservation", { tables: ["posts", "post_revisions"], make: (kernel) => kernel }, (makeKernel) => {
+  test("SQL metadata edit ignores the supplied document and keeps body_json NULL", async () => {
+    const kernel = makeKernel();
+    const repo = postRepoFor(kernel);
+    await createPost({ deps: { repo, clock }, input: { workspaceId: "ws-1", id: "page-sql", title: "Landing", kind: "page" } });
+    const html = "<section>Original HTML</section>";
+    const store = new SqlPagesHtmlDocumentStore({ workspaceId: "ws-1", postId: "page-sql" }, { kernel, clock });
+    await store.ensureHtmlFormat(html);
+    const original = await repo.findById({ workspaceId: "ws-1", id: "page-sql" });
+    assert.ok(original);
+    const { post } = await updatePost({
+      deps: { repo, clock, outbox: noopOutbox },
+      input: { workspaceId: "ws-1", id: "page-sql", title: "Renamed", slug: "renamed", status: "draft", bodyJson: { type: "doc", content: [{ type: "paragraph" }] } },
+    });
+    assert.deepEqual(post.bodyJson, original.bodyJson);
+    assert.deepEqual((await repo.findById({ workspaceId: "ws-1", id: "page-sql" }))?.bodyJson, original.bodyJson);
+    const row = await kernel.run((q) => q.selectFrom("posts").select(["body_json", "body_html", "body_format"]).where("id", "=", "page-sql").executeTakeFirstOrThrow());
+    assert.deepEqual(row, { body_json: null, body_html: html, body_format: "html" });
+  });
 });

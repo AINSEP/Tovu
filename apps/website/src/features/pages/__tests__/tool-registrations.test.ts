@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import Ajv from "ajv";
+import { parseEmbedMarkerConfig } from "#src/contracts/core/embeds/marker";
 
 import { InMemoryPostRepo, createPost, VERSION_CONFLICT_CODE } from "../../post/index.js";
 import { InMemoryPagesHtmlDocumentStore } from "../html-document-store.memory.js";
@@ -67,6 +69,11 @@ test("pages_write_html and pages_write_region tell the model to write the JSON e
   const { byName } = harness();
   for (const name of ["pages_write_html", "pages_write_region"]) {
     const description = byName.get(name)?.descriptor.description ?? "";
+    const escape = description.match(/must be written as the JSON escape `([^`]+)`/)?.[1];
+    assert.ok(escape, `${name} must supply an escape`);
+    const example = description.match(/`(\{"type":"collection","id":"<content-type-key>"\})`/)?.[1];
+    assert.ok(example, `${name} must supply the collection example`);
+    assert.deepEqual(parseEmbedMarkerConfig(example.replace("<content-type-key>", `reader${escape}s`)), { config: { type: "collection", id: "reader\'s" } });
     assert.match(description, /must be written as the JSON escape `\\u0027`/, `${name} must document the \\u0027 JSON escape`);
   }
 });
@@ -75,7 +82,26 @@ test("all four Pages tools are registered with the input schemas the model needs
   const { byName } = harness();
   assert.deepEqual([...byName.keys()].sort(), ["pages_move_region", "pages_read_html", "pages_write_html", "pages_write_region"]);
   for (const [name, entry] of byName) {
-    assert.ok(entry.descriptor.inputSchema, `${name} must publish an input schema`);
+    const schema = entry.descriptor.inputSchema as { type: string; required: string[]; properties: Record<string, { type: string; minimum?: number }> };
+    assert.ok(schema, `${name} must publish an input schema`);
+    const required = name === "pages_read_html" ? ["id"] : name === "pages_write_html" ? ["id", "html"] : name === "pages_write_region" ? ["id", "handle", "html"] : ["id", "handle"];
+    assert.equal(schema.type, "object");
+    assert.deepEqual(schema.required, required);
+    for (const field of required) assert.equal(schema.properties[field].type, "string", `${name}.${field}`);
+    const validate = new Ajv().compile(schema);
+    const valid = Object.fromEntries(required.map((field) => [field, field === "html" ? "<p>Hi</p>" : "hero"]));
+    assert.equal(validate(valid), true, `${name}: ${JSON.stringify(validate.errors)}`);
+    for (const field of required) {
+      const missing = { ...valid }; delete missing[field];
+      assert.equal(validate(missing), false, `${name} requires ${field}`);
+      assert.equal(validate({ ...valid, [field]: 42 }), false, `${name}.${field} must be a string`);
+    }
+    if (name !== "pages_read_html") {
+      assert.equal(schema.properties.expectedVersion.type, "integer");
+      assert.equal(schema.properties.expectedVersion.minimum, 0);
+      assert.equal(validate({ ...valid, expectedVersion: 0 }), true);
+      for (const expectedVersion of ["1", -1, 1.5]) assert.equal(validate({ ...valid, expectedVersion }), false);
+    }
   }
 });
 

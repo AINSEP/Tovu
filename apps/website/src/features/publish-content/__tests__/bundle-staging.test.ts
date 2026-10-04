@@ -110,6 +110,8 @@ test("loadActiveBundle returns the record when it has not yet expired", async ()
   const result = await loadActiveBundle({ repo, workspaceId: "ws-1", id: bundleId, now: receivedAt });
   assert.ok(result);
   assert.equal(result?.id, bundleId);
+  assert.equal(await loadActiveBundle({ repo, workspaceId: "foreign-ws", id: bundleId, now: receivedAt }), null);
+  assert.deepEqual(await loadActiveBundle({ repo, workspaceId: "ws-1", id: bundleId, now: receivedAt }), result);
 });
 
 test("loadActiveBundle returns null for an unknown id (never throws)", async () => {

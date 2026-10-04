@@ -39,6 +39,7 @@ test("removes a fixture tree containing read-only nested directories", () => {
   }) as typeof process.stderr.write;
   try {
     removeFixtureTree(root);
+    assert.equal(fs.existsSync(root), false, "subject must remove the tree before fallback cleanup");
   } finally {
     process.stderr.write = originalWrite;
     if (fs.existsSync(root)) {

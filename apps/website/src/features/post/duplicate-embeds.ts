@@ -63,18 +63,18 @@ function walk(root: unknown, newPlacementId: () => string): unknown {
       continue;
     }
 
-    if (node.type === "widgetEmbed" && isPlainObject(node.attrs) && typeof node.attrs.placementId === "string") {
-      place({ ...node, attrs: { ...node.attrs, placementId: newPlacementId() } });
-      continue;
+    const source = node.type === "widgetEmbed" && isPlainObject(node.attrs) && typeof node.attrs.placementId === "string"
+      ? { ...node, attrs: { ...node.attrs, placementId: newPlacementId() } }
+      : node;
+    const copy: Record<string, unknown> = {};
+    place(copy);
+    // Clone every field, including leaf text nodes, marks and nested attrs; walking only content
+    // would leave the copy sharing mutable objects with its source.
+    const entries = Object.entries(source);
+    for (let i = entries.length - 1; i >= 0; i--) {
+      const [key, value] = entries[i]!;
+      stack.push({ node: value, place: (cloned) => { copy[key] = cloned; } });
     }
-
-    if (Array.isArray(node.content)) {
-      const copy: Record<string, unknown> = { ...node };
-      place(copy);
-      stack.push({ node: node.content, place: (value) => { copy.content = value; } });
-      continue;
-    }
-    place(node);
   }
   return result;
 }

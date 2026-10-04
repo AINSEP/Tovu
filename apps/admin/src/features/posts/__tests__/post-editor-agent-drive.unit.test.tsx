@@ -1,4 +1,5 @@
-import { render } from "@testing-library/react";
+import { useState } from "react";
+import { act, render, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { executePageCapability } from "@jini-ai/agentic/core";
 import { createDomPageDriver } from "@jini-ai/agentic/dom";
@@ -116,6 +117,20 @@ function renderPostEditor(overrides: Partial<PostEditorController> = {}) {
   return { ctrl, container };
 }
 
+function renderStatefulPostEditor(initialView: "edit" | "preview") {
+  const ctrl = controller();
+  function Harness() {
+    const [view, setView] = useState(initialView);
+    return <PostEditor postId="p1" usePostEditorHook={() => ({
+      ...ctrl,
+      view,
+      setView: (next) => { ctrl.setView(next); setView(next); },
+    })} />;
+  }
+  const { container } = render(<Harness />);
+  return { container, ctrl };
+}
+
 interface FoundElement {
   handle: string;
   role?: string;
@@ -149,13 +164,22 @@ describe("driving the post editor's Editor/Preview tabs and expand toggle throug
   });
 
   it("page.click on post-view-preview's handle actually switches the view — reachable AND clickable, not merely tagged", async () => {
-    const { container, ctrl } = renderPostEditor({ view: "edit" });
+    const { container, ctrl } = renderStatefulPostEditor("edit");
     const driver = createDomPageDriver({ root: container, pages: {} });
 
-    await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "post-view-preview" } });
-    await driver.settle?.({});
+    expect(within(container).getByRole("tab", { name: "Editor" })).toHaveAttribute("aria-selected", "true");
+    expect(container.querySelector('[data-agent-element="post-editor-shell"]') !== null).toBe(true);
+    expect(container.querySelector("iframe[title='Post preview']") !== null).toBe(false);
+    await act(async () => {
+      await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "post-view-preview" } });
+      await driver.settle?.({});
+    });
 
     expect(ctrl.setView).toHaveBeenCalledWith("preview");
+    expect(within(container).getByRole("tab", { name: "Preview" })).toHaveAttribute("aria-selected", "true");
+    expect(within(container).getByRole("tab", { name: "Editor" })).toHaveAttribute("aria-selected", "false");
+    expect(container.querySelector('[data-agent-element="post-editor-shell"]') !== null).toBe(false);
+    expect(container.querySelector("iframe[title='Post preview']") !== null).toBe(true);
   });
 
   it("post-preview-expand is reachable and clickable once the Preview tab is open", async () => {
@@ -190,13 +214,22 @@ describe("driving the post editor's Editor/Preview tabs and expand toggle throug
   });
 
   it("post-view-edit switches back to the editor view", async () => {
-    const { container, ctrl } = renderPostEditor({ view: "preview" });
+    const { container, ctrl } = renderStatefulPostEditor("preview");
     const driver = createDomPageDriver({ root: container, pages: {} });
 
-    await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "post-view-edit" } });
-    await driver.settle?.({});
+    expect(within(container).getByRole("tab", { name: "Preview" })).toHaveAttribute("aria-selected", "true");
+    expect(container.querySelector('[data-agent-element="post-editor-shell"]') !== null).toBe(false);
+    expect(container.querySelector("iframe[title='Post preview']") !== null).toBe(true);
+    await act(async () => {
+      await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "post-view-edit" } });
+      await driver.settle?.({});
+    });
 
     expect(ctrl.setView).toHaveBeenCalledWith("edit");
+    expect(within(container).getByRole("tab", { name: "Editor" })).toHaveAttribute("aria-selected", "true");
+    expect(within(container).getByRole("tab", { name: "Preview" })).toHaveAttribute("aria-selected", "false");
+    expect(container.querySelector('[data-agent-element="post-editor-shell"]') !== null).toBe(true);
+    expect(container.querySelector("iframe[title='Post preview']") !== null).toBe(false);
   });
 });
 

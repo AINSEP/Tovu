@@ -1,6 +1,9 @@
 import { createTovuOAuthGuard } from "#src/platform/oauth/endpoint-safety";
 import assert from "node:assert/strict";
 import test from "node:test";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 
 import {
   createDeviceAuthorizationStore,
@@ -14,6 +17,11 @@ import { createPendingAuthorizationStore, type OAuthFetch, type OAuthProviderDes
 
 import { createApplyConnectDefaults } from "../../apply-connect-defaults.js";
 import type { McpServerConfig } from "../../mcp-metadata.js";
+import { packAgentPluginDirectory, createBundledSourceArchiveReader } from "../../bundled-source-archive.js";
+import { installAgentPlugin } from "../../install.js";
+import { resolveAgentPluginLayout } from "../../layout.js";
+import { agentPluginActivations } from "../../activation-effects.js";
+import { forceRemove } from "../fixtures/force-remove.js";
 
 /**
  * @file `apply-connect-defaults.ts` — S-G2: a plugin's declared `tovuDefaultTools` are granted on the
@@ -53,7 +61,7 @@ const tokenFetch = (async () =>
     headers: { "content-type": "application/json" },
   })) as OAuthFetch;
 
-async function makeHarness(row: { allowedToolNames?: string; provisionedByPluginId?: string; url?: string; enableThrows?: boolean }) {
+async function makeHarness(row: { allowedToolNames?: string; provisionedByPluginId?: string; url?: string; enableThrows?: boolean; productionBindings?: boolean }) {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer(keyring);
@@ -84,11 +92,13 @@ async function makeHarness(row: { allowedToolNames?: string; provisionedByPlugin
     workspaceId: WORKSPACE,
     repo,
     clock,
-    resolveServers: async (input) => (input.pluginId === PLUGIN ? DECLARED : {}),
-    enablePlugin: async (input) => {
-      if (row.enableThrows) throw new Error("activation store unwritable");
-      enabledPlugins.push(input.pluginId);
-    },
+    ...(row.productionBindings ? {} : {
+      resolveServers: async (input: { pluginId: string }) => (input.pluginId === PLUGIN ? DECLARED : {}),
+      enablePlugin: async (input: { pluginId: string }) => {
+        if (row.enableThrows) throw new Error("activation store unwritable");
+        enabledPlugins.push(input.pluginId);
+      },
+    }),
     notifyRosterChanged: async () => {
       rosterNotifications += 1;
     },
@@ -136,6 +146,38 @@ test("after the first OAuth callback, a plugin-provisioned row with empty lists 
   assert.equal(row.writeGrantsUpdatedAt, "2026-09-27T12:00:00.000Z");
   assert.deepEqual(h.enabledPlugins, [PLUGIN]);
   assert.equal(h.rosterNotifications(), 1);
+});
+
+test("OAuth callback composes installed defaults with real plugin activation storage", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "tovu-connect-defaults-"));
+  const previous = process.env.TOVU_AGENT_PLUGINS_DIR;
+  process.env.TOVU_AGENT_PLUGINS_DIR = path.join(dir, "installed");
+  try {
+    const source = path.join(dir, "source");
+    await mkdir(source);
+    await writeFile(path.join(source, "plugin.json"), JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: PLUGIN, version: "1.0.0" }));
+    await writeFile(path.join(source, "mcp.json"), JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json", mcpServers: DECLARED }));
+    const packed = await packAgentPluginDirectory(source);
+    const layout = resolveAgentPluginLayout();
+    await installAgentPlugin({ archive: packed.bytes, expectedSha256: packed.sha256,
+      archiveReader: createBundledSourceArchiveReader(), layout, workspaceId: WORKSPACE });
+    const workspaceRoot = layout.forWorkspace(WORKSPACE).root;
+    await agentPluginActivations.setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN, enabled: false, actor: "test:operator" });
+    const h = await makeHarness({ provisionedByPluginId: PLUGIN, productionBindings: true });
+    await h.signIn();
+    const row = await h.readRow();
+    assert.equal(row.enabled, true);
+    assert.deepEqual(JSON.parse(row.allowedToolNames!), ["list_projects", "create_project"]);
+    assert.deepEqual(JSON.parse(row.writeAllowedToolNames!), ["create_project"]);
+    const activation = (await agentPluginActivations.readAgentPluginActivations({ workspaceRoot })).plugins[PLUGIN];
+    assert.equal(activation?.enabled, true);
+    assert.equal(activation?.updatedBy, "system:connect-defaults");
+    assert.equal(h.rosterNotifications(), 1);
+  } finally {
+    if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR;
+    else process.env.TOVU_AGENT_PLUGINS_DIR = previous;
+    await forceRemove(dir);
+  }
 });
 
 test("a row the operator already edited is untouched by a sign-in", async () => {

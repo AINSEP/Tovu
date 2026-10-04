@@ -1,6 +1,6 @@
-import { render, screen } from "@testing-library/react";
+import { render, renderHook, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { PublishSectionButton } from "../PublishSectionButton";
 import * as publishRequestStore from "../hooks/publish-request.store";
@@ -14,6 +14,10 @@ import * as publishRequestStore from "../hooks/publish-request.store";
  * gives it here with no `fetch` stub, matching every English-literal assertion below.
  */
 describe("PublishSectionButton", () => {
+  afterEach(() => {
+    publishRequestStore.closePublishRequest();
+    vi.restoreAllMocks();
+  });
   it.each([
     ["pages", "Publish pages"],
     ["posts", "Publish posts"],
@@ -46,23 +50,15 @@ describe("PublishSectionButton", () => {
     ["settings", "Publish site settings", ["site-setting"]],
   ] as const)("clicking the %s section's button opens the dialog scoped to that section's whole type set", async (section, label, entityTypes) => {
     const user = userEvent.setup();
-    const requestPublishSpy = vi.spyOn(publishRequestStore, "requestPublish").mockResolvedValue({
-      opened: true,
-      planned: false,
-      site: null,
-      willPublish: [],
-      willOverwrite: [],
-      leftAlone: [],
-      unmatchedItems: [],
-      unknownTypes: [],
-      nextStep: "",
-    });
+    const requestPublishSpy = vi.spyOn(publishRequestStore, "requestPublish");
+    const subscriber = renderHook(() => publishRequestStore.usePublishRequest());
+    expect(subscriber.result.current).toBeNull();
 
     render(<PublishSectionButton section={section} />);
     await user.click(screen.getByRole("button", { name: label }));
 
     expect(requestPublishSpy).toHaveBeenCalledTimes(1);
     expect(requestPublishSpy).toHaveBeenCalledWith({}, { entityTypes: [...entityTypes] });
-    requestPublishSpy.mockRestore();
+    expect(subscriber.result.current).toMatchObject({ criteria: {}, scope: { entityTypes: [...entityTypes] } });
   });
 });

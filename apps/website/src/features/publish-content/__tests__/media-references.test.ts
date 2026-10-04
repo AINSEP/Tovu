@@ -49,6 +49,18 @@ test("an html body contributes media markers by id or slug, and /m/ URLs", () =>
   assert.deepEqual(keys({ bodyHtml }), ["asset-4", "asset-5", "hero-shot"]);
 });
 
+test("URL media keys are decoded while malformed escapes retain their original key", () => {
+  const bodyJson = {
+    type: "doc",
+    content: [
+      { type: "image", attrs: { src: "/api/admin/v1/workspaces/w/media/hero%20photo/original" } },
+      { type: "image", attrs: { src: "/m/caf%C3%A9/public.v1/image.webp" } },
+      { type: "image", attrs: { src: "/m/bad%ZZ/original" } },
+    ],
+  };
+  assert.deepEqual(keys({ bodyJson }), ["bad%ZZ", "café", "hero photo"]);
+});
+
 test("an SEO share image ref contributes its asset id (seoExtJson is stored as a JSON string)", () => {
   assert.deepEqual(keys({ seoExtJson: JSON.stringify({ ogImage: "asset-6:public", twitterImage: "asset-7:public" }) }), [
     "asset-6",

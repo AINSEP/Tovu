@@ -117,6 +117,37 @@ async function indexRow(h: Harness): Promise<TrashItem | null> {
   return h.trashRepo.findByEntity({ workspaceId: WS, entityType: POST_ENTITY_TYPE, entityId: "post-1" });
 }
 
+for (const failingStep of ["revision", "forget"] as const) {
+  test(`failed restore ${failingStep} preserves the real Trash index and the trashed row`, async (t) => {
+    const h = harness();
+    t.after(() => h.client.close());
+    const prior = await seedTrashedPost(h);
+    const indexBefore = await indexRow(h);
+    assert.ok(indexBefore, "the failure must start with a real indexed trash item");
+    const rowBefore = await h.postRepo.findById({ workspaceId: WS, id: prior.id });
+    const revisionsBefore = await h.postRepo.listRevisions({ workspaceId: WS, postId: prior.id });
+    h.outbox.events.length = 0;
+    const failure = new Error(`failed ${failingStep}`);
+    const repo = new Proxy(h.postRepo, {
+      get(target, property) {
+        if (property === "appendRevision" && failingStep === "revision") {
+          return async (input: Parameters<SqlitePostRepo["appendRevision"]>[0]) => { await target.appendRevision(input); throw failure; };
+        }
+        const value = Reflect.get(target, property);
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+    await assert.rejects(restorePostForward({
+      deps: { repo, clock, outbox: h.outbox, forgetRemoved: async (input) => { await h.forgetRemovedPost(input); if (failingStep === "forget") throw failure; } },
+      input: { prior },
+    }), (error) => error === failure);
+    assert.deepEqual(await h.postRepo.findById({ workspaceId: WS, id: prior.id }), rowBefore);
+    assert.deepEqual(await h.postRepo.listRevisions({ workspaceId: WS, postId: prior.id }), revisionsBefore);
+    assert.deepEqual(await indexRow(h), indexBefore);
+    assert.deepEqual(h.outbox.events, []);
+  });
+}
+
 test("rollback of a delete drops the Trash index row, so the Trash cannot list a live post", async () => {
   const h = harness();
   const prior = await seedTrashedPost(h);

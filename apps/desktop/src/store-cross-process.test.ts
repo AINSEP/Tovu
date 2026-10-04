@@ -26,23 +26,23 @@ import { stateFilePath, readDesktopState, rememberSiteDir } from "./site-dir-sto
 
 const SRC_DIR = path.dirname(fileURLToPath(import.meta.url));
 
-/** How long the child holds its write open once it has signalled — long enough that this process's
- *  own write certainly runs inside that window. */
-const STALL_MS = 400;
-
 /** Runs in the child: hold the first `fs.writeFileSync` whose data carries the child's own value (the
  *  store persisting the child's change), signal through the sentinel, then let the write complete. */
 const CHILD_SCRIPT = `
 import fs from "node:fs";
 import { pathToFileURL } from "node:url";
-const [modulePath, exportName, filePath, value, sentinelPath, stallMs] = process.argv.slice(1);
+const [modulePath, exportName, filePath, value, sentinelPath, releasePath] = process.argv.slice(1);
 const realWriteFileSync = fs.writeFileSync;
 let stalled = false;
 fs.writeFileSync = (target, data, ...rest) => {
   if (!stalled && String(data).includes(value)) {
     stalled = true;
     realWriteFileSync(sentinelPath, "writing");
-    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, Number(stallMs));
+    const deadline = Date.now() + 10000;
+    while (!fs.existsSync(releasePath)) {
+      if (Date.now() > deadline) throw new Error("parent never released the write barrier");
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5);
+    }
   }
   return realWriteFileSync(target, data, ...rest);
 };
@@ -76,17 +76,40 @@ interface OtherProcessWrite {
  *  for that process to finish. */
 async function whileAnotherProcessWrites(other: OtherProcessWrite, ownWrite: () => void): Promise<void> {
   const sentinelPath = path.join(path.dirname(other.filePath), "other-process-is-writing");
-  const args = [path.join(SRC_DIR, other.moduleFile), other.exportName, other.filePath, other.value, sentinelPath, String(STALL_MS)];
+  const releasePath = `${sentinelPath}-release`;
+  const args = [path.join(SRC_DIR, other.moduleFile), other.exportName, other.filePath, other.value, sentinelPath, releasePath];
   const child = spawn(process.execPath, ["--no-warnings", "--input-type=module", "-e", CHILD_SCRIPT, ...args], { stdio: ["ignore", "ignore", "pipe"] });
   let stderr = "";
   child.stderr!.setEncoding("utf8");
   child.stderr!.on("data", (chunk: string) => (stderr += chunk));
   const exited = once(child, "exit");
 
-  await waitForSentinel(sentinelPath, child, () => stderr);
-  ownWrite();
+  const realOpen = fs.openSync;
+  let contended = false;
+  try {
+    await waitForSentinel(sentinelPath, child, () => stderr);
+    // Release only AFTER the parent's real lock acquisition has hit the child's lock.
+    // If exclusion disappears, ownWrite runs while the child is held; the read-back then loses
+    // the parent's value, and the contention assertion fails too.
+    fs.openSync = ((target, ...rest) => {
+      try {
+        return realOpen(target, ...rest);
+      } catch (error) {
+        if (String(target) === `${other.filePath}.lock` && (error as NodeJS.ErrnoException).code === "EEXIST") {
+          contended = true;
+          fs.writeFileSync(releasePath, "parent attempted write");
+        }
+        throw error;
+      }
+    }) as typeof fs.openSync;
+    ownWrite();
+  } finally {
+    fs.openSync = realOpen;
+    fs.writeFileSync(releasePath, "release");
+  }
   const [code] = await exited;
   assert.equal(code, 0, `the other process failed: ${stderr}`);
+  assert.equal(contended, true, "the parent's write must attempt acquisition while the child still holds the lock");
 }
 
 test("desktop-projects.json: a project another process adds while this one is writing is not lost", async () => {

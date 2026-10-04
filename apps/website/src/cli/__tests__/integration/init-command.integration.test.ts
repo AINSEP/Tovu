@@ -51,6 +51,7 @@ test("AC-01/api.spec.md §5: tovu init <dir> --name <name> exits 0, prints the c
     assert.match(result.stdout, /Demo/, "stdout must include the site name (api.spec.md §5: 'created site '<name>' at <dir>')");
     assert.match(result.stdout, new RegExp(target.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), "stdout must include the dir (api.spec.md §5)");
     assert.match(result.stdout, /tovu serve/, "api.spec.md §5: stdout must include 'next: tovu serve <dir>'");
+    assert.equal(JSON.parse(fs.readFileSync(path.join(target, "config.json"), "utf8")).name, "Demo");
     assert.ok(fs.existsSync(path.join(target, ".site-meta.json")), "a real install dir must exist on disk after a successful init");
   } finally {
     fs.rmSync(parent, { recursive: true, force: true });

@@ -77,6 +77,24 @@ async function buildHarness(deps: PostToolDeps) {
 
 type Harness = Awaited<ReturnType<typeof buildHarness>>;
 
+test("authorized content_post_search forwards normalized options and returns complete hits through the real tool harness", async () => {
+  const { deps } = makeRouteDeps();
+  const requests: unknown[] = [];
+  const hit = {
+    id: "match-1", kind: "page" as const, title: "Coffee plans", slug: "coffee-plans",
+    status: "published" as const, updatedAt: NOW, snippet: "Espresso pricing", score: 7.25,
+  };
+  deps.postSearch = { search: async (request) => { requests.push(request); return [hit]; } };
+  const result = await call(await buildHarness(deps), "content_post_search", {
+    query: "Coffee ESPRESSO", kind: "page", status: "published", limit: 3,
+  });
+  assert.equal(result.ok, true, JSON.stringify(result));
+  if (!result.ok) return;
+  assert.deepEqual(requests, [{ workspaceId: WORKSPACE_ID, terms: ["coffee", "espresso"], kind: "page", status: "published", limit: 3 }]);
+  assert.equal(result.value.result.status, "completed");
+  assert.deepEqual(result.value.result.output, { hits: [hit] });
+});
+
 let toolUseCounter = 0;
 
 async function call(harness: Harness, toolId: string, input: unknown) {
@@ -259,6 +277,12 @@ test("a shape rejection keeps its schema decoration and gains no second code pre
     !result.error.message.startsWith("CONTENT_POST_VALIDATION_FAILED"),
     "listing PostValidationError must not re-prefix a message withSchemaOnRejection already shaped"
   );
+  const schemaText = result.error.message.split("Schema for 'content_post_update': ")[1];
+  assert.ok(schemaText, "the model must receive the input schema with the rejection");
+  const schema = JSON.parse(schemaText);
+  assert.deepEqual(schema.required, ["id", "kind"]);
+  assert.equal(schema.properties.expectedVersion.type, "integer");
+  assert.equal(schema.properties.expectedVersion.minimum, 0);
 });
 
 test("an UNLISTED failure stays redacted — the allowlist is not a blanket unwrap", async () => {

@@ -233,6 +233,14 @@ test("adopt DERIVES the schema stamp from the db's own applied migrations — a 
 test("--dry-run prints the exact stamp it would write and writes NOTHING", () => {
   const { parent, dir } = markerlessFixture("Dry Run Site");
   try {
+    const entries = journalEntries();
+    const target = entries[entries.length - 2];
+    const newest = entries[entries.length - 1];
+    assert.notEqual(target.idx, newest.idx, "fixture must be behind runtime");
+    const sqlite = new Database(path.join(dir, "content.db"));
+    sqlite.prepare("DELETE FROM __drizzle_migrations WHERE created_at >= ?").run(newest.when);
+    assert.equal(sqlite.prepare("SELECT MAX(created_at) AS applied FROM __drizzle_migrations").get().applied, target.when);
+    sqlite.close();
     const treeBefore = treeIgnoringSqliteSidecars(dir);
     const result = runCli(["adopt", dir, "--dry-run"]);
 
@@ -242,6 +250,9 @@ test("--dry-run prints the exact stamp it would write and writes NOTHING", () =>
     assert.match(result.stdout, /\.site-meta\.json/);
     assert.match(result.stdout, /schemaVersion=\d+/, "the dry run must show the DERIVED stamp, not a placeholder");
     assert.match(result.stdout, /schemaTag=\d{4}_/, "the dry run must show the derived schemaTag");
+    const stamp = /schemaVersion=(\d+) schemaTag=(\S+)/.exec(result.stdout);
+    assert.ok(stamp, "dry-run must report the exact applied identity");
+    assert.deepEqual(stamp.slice(1), [String(target.idx), target.tag]);
     assert.equal(fs.existsSync(path.join(dir, "config.json")), false, "--dry-run must not write config.json");
     assert.equal(fs.existsSync(path.join(dir, ".site-meta.json")), false, "--dry-run must not write .site-meta.json");
     assert.deepEqual(treeIgnoringSqliteSidecars(dir), treeBefore, "--dry-run must leave the directory tree exactly as it found it");

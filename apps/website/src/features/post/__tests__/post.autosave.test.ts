@@ -198,6 +198,21 @@ function runAutosaveContract(name: string, withRepo: () => Promise<{ repo: PostR
       teardown();
     }
   });
+  test(`${name}: foreign workspace cannot read, replace or clear an existing autosave`, async () => {
+    const { repo, teardown } = await withRepo();
+    try {
+      const snapshot = { bodyFormat: "doc" as const, title: "Private draft", bodyJson: { type: "doc", content: [{ type: "paragraph" }] }, slug: "private-draft", baseVersion: 1, savedAt: "2026-09-06T00:00:01.000Z", savedByPrincipalId: "owner" };
+      assert.deepEqual(await repo.writeAutosave({ workspaceId: "ws-1", id: "post-1", snapshot }), { applied: true });
+      const before = await repo.readAutosave({ workspaceId: "ws-1", id: "post-1" });
+      assert.deepEqual(before, snapshot);
+      assert.equal(await repo.readAutosave({ workspaceId: "foreign", id: "post-1" }), null);
+      assert.deepEqual(await repo.writeAutosave({ workspaceId: "foreign", id: "post-1", snapshot: { ...snapshot, title: "Attacker" } }), { applied: false });
+      assert.deepEqual(await repo.readAutosave({ workspaceId: "ws-1", id: "post-1" }), before);
+      await repo.clearAutosave({ workspaceId: "foreign", id: "post-1" });
+      assert.deepEqual(await repo.readAutosave({ workspaceId: "ws-1", id: "post-1" }), before);
+    } finally { teardown(); }
+  });
+
 }
 
 runAutosaveContract("InMemoryPostRepo", async () => {

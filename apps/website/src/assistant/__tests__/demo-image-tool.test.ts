@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { inflateSync } from "node:zlib";
+import { crc32, inflateSync } from "node:zlib";
 
 import type { ToolRegistration } from "@jini-ai/core";
 
@@ -83,6 +83,27 @@ test("the image block's data is a real, decodable PNG — not a stub string", as
   const idat = png.subarray(idatStart + 8, idatStart + 8 + idatLength);
   const raw = inflateSync(idat); // throws if the deflate stream — and therefore the whole file — is not real
   assert.equal(raw.length, (1 + 64 * 3) * 64);
+  assert.deepEqual([...ihdr.subarray(8)], [8, 2, 0, 0, 0], "8-bit RGB, no interlacing");
+  const chunkTypes: string[] = [];
+  let offset = 8;
+  while (offset < png.length) {
+    assert.ok(offset + 12 <= png.length, "complete chunk header and CRC");
+    const length = png.readUInt32BE(offset);
+    const end = offset + 8 + length;
+    assert.ok(end + 4 <= png.length, "complete chunk payload");
+    chunkTypes.push(png.toString("ascii", offset + 4, offset + 8));
+    assert.equal(png.readUInt32BE(end), crc32(png.subarray(offset + 4, end)), "chunk integrity");
+    offset = end + 4;
+  }
+  assert.deepEqual(chunkTypes, ["IHDR", "IDAT", "IEND"]);
+  assert.equal(png.readUInt32BE(png.length - 12), 0, "empty terminal IEND");
+  for (let y = 0; y < 64; y += 1) {
+    const row = y * (1 + 64 * 3);
+    assert.equal(raw[row], 0, "unfiltered row");
+    for (let x = 0; x < 64; x += 1) {
+      assert.deepEqual([...raw.subarray(row + 1 + x * 3, row + 4 + x * 3)], [79, 70, 229]);
+    }
+  }
 });
 
 test("two calls produce byte-identical images — the swatch is deterministic, not randomly generated", async () => {

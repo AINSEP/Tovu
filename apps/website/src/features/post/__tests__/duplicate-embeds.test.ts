@@ -120,3 +120,14 @@ test("a 5000-deep document is copied with fresh placementIds minted in document 
   assert.equal(minted, 3);
   assert.equal((doc.content[0].attrs as { placementId: string }).placementId, "old-first", "the source document must not be mutated");
 });
+
+test("the copied document isolates nested text, marks and attributes from the source", () => {
+  const doc = { type: "doc", content: [{ type: "paragraph", attrs: { textAlign: "center" }, content: [{ type: "text", text: "original", marks: [{ type: "link", attrs: { href: "/original" } }] }] }, { type: "widgetEmbed", attrs: { placementId: "source", widgetEntryId: "w", metadata: { label: "original" } } }] };
+  const original = structuredClone(doc);
+  const copy = copyBodyJsonWithFreshEmbedPlacements(doc, () => "fresh") as typeof doc;
+  copy.content[0].attrs!.textAlign = "right";
+  copy.content[0].content![0].text = "changed";
+  copy.content[0].content![0].marks[0].attrs.href = "/changed";
+  copy.content[1].attrs!.metadata!.label = "changed";
+  assert.deepEqual(doc, original);
+});

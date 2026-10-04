@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { OutboxPort } from "@jini-ai/cms/core";
-import { PostVersionConflictError, updatePost, type PostRecord, type UpdatePostInput } from "../post.js";
+import { PostNotFoundError, PostVersionConflictError, updatePost, type PostRecord, type UpdatePostInput } from "../post.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
 
 /**
@@ -167,3 +167,23 @@ test("C01: two saves from the same basis interleaved through the hook produce ex
   assert.deepEqual(after?.bodyJson, bodyWith("first"));
   assert.equal(after?.version, 2, "exactly one save landed, so the row advanced exactly once");
 });
+
+for (const removal of ["delete", "trash"] as const) {
+  test(`row ${removal} while the hook is parked rejects as not-found without a revision or resurrection`, { timeout: 5000 }, async () => {
+    const repo = new InMemoryPostRepo([seedPost]);
+    const gate = makeGate();
+    const pending = operatorSave(repo, "losing body", 1, gate.hook);
+    const rejected = assert.rejects(pending, (error) => error instanceof PostNotFoundError && error.message === "post 'post-1' was not found");
+    await gate.parked;
+    try {
+      if (removal === "delete") await repo.hardDelete({ workspaceId: "workspace-1", id: "post-1" });
+      else await repo.softDelete({ workspaceId: "workspace-1", id: "post-1", deletedAt: "2026-09-07T00:00:00.000Z", updatedAt: "2026-09-07T00:00:00.000Z", version: 2 });
+      const before = await repo.findById({ workspaceId: "workspace-1", id: "post-1" });
+      const revisions = await repo.listRevisions({ workspaceId: "workspace-1", postId: "post-1" });
+      gate.release();
+      await rejected;
+      assert.deepEqual(await repo.findById({ workspaceId: "workspace-1", id: "post-1" }), before);
+      assert.deepEqual(await repo.listRevisions({ workspaceId: "workspace-1", postId: "post-1" }), revisions);
+    } finally { gate.release(); await pending.catch(() => {}); }
+  });
+}

@@ -30,16 +30,17 @@ test("resolveActiveThemeId: degrades to '' when the workspace has no presentatio
 });
 
 test("resolveActiveThemeId: any OTHER repo error propagates uncaught, not silently degraded to ''", async () => {
+  const failure = Object.assign(new TypeError("simulated repo failure", { cause: new Error("disk offline") }), { code: "DB_IOERR" });
   const failingRepo = {
     findByWorkspaceId: async () => {
-      throw new Error("simulated repo failure");
+      throw failure;
     },
     save: async () => {},
     listAll: async () => [],
   };
   await assert.rejects(
     resolveActiveThemeId({ presentationRepo: failingRepo, workspaceId: "ws-1" }),
-    /simulated repo failure/,
+    (error) => error === failure,
     "a real repo/DB failure must not be mistaken for the documented 'no row yet' case"
   );
 });

@@ -86,6 +86,12 @@ const DESKTOP_DIR = path.join(REPO_ROOT, "apps/desktop");
 const RENDERER_ENTRY = path.join(DESKTOP_DIR, "dist/renderer/index.html");
 const ADMIN_DIST_INDEX = path.join(REPO_ROOT, "apps/admin/dist/index.html");
 
+// Before anything below reads `process.env` (including the `env: process.env` passthrough in `start()`)
+// — see this file's header comment and `load-repo-root-env.mjs` for why.
+if (loadRepoRootEnvFile(REPO_ROOT)) {
+  console.log("tovu desktop: loaded .env");
+}
+
 /**
  * The port the admin Vite binds. Same expression `development/scripts/dev.mjs`,
  * `apps/admin/vite.config.ts` and `apps/desktop/src/admin-dev-proxy.ts` each use for their own copy
@@ -95,12 +101,6 @@ const ADMIN_VITE_PORT = Number(process.env.TOVU_ADMIN_DEV_PORT ?? 5173);
 
 /** How long one probe request may take before it counts as "nothing there". */
 const ADMIN_PROBE_TIMEOUT_MS = 1_500;
-
-// Before anything below reads `process.env` (including the `env: process.env` passthrough in `start()`)
-// — see this file's header comment and `load-repo-root-env.mjs` for why.
-if (loadRepoRootEnvFile(REPO_ROOT)) {
-  console.log("tovu desktop: loaded .env");
-}
 
 /** Runs an npm script in `apps/desktop` to completion before anything else starts. */
 function runToCompletion(label, npmScript) {

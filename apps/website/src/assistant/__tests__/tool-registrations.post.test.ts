@@ -649,6 +649,7 @@ test("content_post_search: kind and status narrow the result set", async () => {
   assert.deepEqual(pagesOnly.hits.map((hit) => hit.id), [ids.about]);
 
   const publishedOnly = await search(deps, { query: "pricing", status: "published" });
+  assert.deepEqual(publishedOnly.hits.map(({ id }) => id), [ids.pricing, ids.about]);
   assert.equal(
     publishedOnly.hits.some((hit) => hit.id === ids.draft),
     false,

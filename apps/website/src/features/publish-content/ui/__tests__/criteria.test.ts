@@ -78,6 +78,18 @@ test("overwrite:true ticks only overwritable rows that also match the criteria",
   assert.deepEqual([...selection.overwriteKeys], ["page:p-1"]);
 });
 
+test("item IDs, qualified keys and intersected type/title filters select exact rows", () => {
+  const rows = toPublishReportRows(report([
+    row({ outcome: "created", entityType: "page", entityId: "p1", entityLabel: "About" }),
+    row({ outcome: "created", entityType: "page", entityId: "p2", entityLabel: "Contact" }),
+    row({ outcome: "created", entityType: "post", entityId: "p1", entityLabel: "About" }),
+    row({ outcome: "created", entityType: "post", entityId: "post2", entityLabel: "Other" }),
+  ]));
+  assert.deepEqual([...applyPublishCriteria(rows, { items: ["p1"] }).deselectedKeys].sort(), ["page:p2", "post:post2"]);
+  assert.deepEqual([...applyPublishCriteria(rows, { items: ["page:p1"] }).deselectedKeys].sort(), ["page:p2", "post:p1", "post:post2"]);
+  assert.deepEqual([...applyPublishCriteria(rows, { types: ["page"], items: ["About"] }).deselectedKeys].sort(), ["page:p2", "post:p1", "post:post2"]);
+});
+
 test("overwrite omitted ticks nothing, even for a matching overwritable row", () => {
   const rows = toPublishReportRows(
     report([row({ outcome: "blocked", entityType: "page", entityId: "p-1", canOverwrite: true, reason: "slug taken" })])
@@ -174,7 +186,7 @@ test("decode rejects a value over the size cap", () => {
 });
 
 test("decode drops unknown fields rather than rejecting the whole payload", () => {
-  const encoded = encodeURIComponent(JSON.stringify({ types: ["page"], evil: { __proto__: { polluted: true } } }));
+  const encoded = encodeURIComponent('{"types":["page"],"__proto__":{"polluted":true},"evil":{"ignored":true}}');
   const decoded = decodePublishCriteriaFromQuery(encoded);
   assert.deepEqual(decoded, { types: ["page"] });
   assert.equal(({} as Record<string, unknown>).polluted, undefined);

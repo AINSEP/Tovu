@@ -279,6 +279,17 @@ test("referencedByLabels is empty for a row with no referencedBy at all", () => 
 
 test("friendlyPublishReason rewrites every reason planner.ts and its handlers can currently produce", () => {
   const cases: ReadonlyArray<[string, string]> = [
+    ["site-setting 'private' is not one this site publishes", "Only the site title and SEO basics can be published."],
+    ["site-setting 'logo' points at this computer", "This image link only works on this computer. Pick an image from Media instead."],
+    ["active theme 'custom' is not installed at this destination", "This theme isn't on the live site yet. Publish the theme too."],
+    ["theme 'custom' is not supported", "This theme isn't on the live site yet. Publish the theme too."],
+    ["presentation settings for workspace 'ws1' were not found", "The live site isn't set up for themes yet. Update the live site, then try again."],
+    ["setting 'title' was not found", "The live site doesn't have this setting yet. Update the live site, then try again."],
+    ["setting 'title' has been tombstoned", "The live site doesn't have this setting yet. Update the live site, then try again."],
+    ["setting 'title' does not allow scope 'workspace'", "The live site doesn't have this setting yet. Update the live site, then try again."],
+    ["secret:true definitions are not supported", "The live site doesn't have this setting yet. Update the live site, then try again."],
+    ["value for 'title' does not match the definition schema", "This setting's value isn't valid on the live site."],
+    ["value for 'title' must be 1..80 characters", "This setting's value isn't valid on the live site."],
     [
       "no registered publish-content handler for entity type 'widget' on this instance",
       "This kind of content can't be published from here yet.",

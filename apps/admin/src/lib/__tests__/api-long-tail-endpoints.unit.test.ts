@@ -81,6 +81,7 @@ test("listRoles hits GET /roles", async () => {
   const { calls } = stubFetchCapturing();
   await api.listRoles();
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/roles`);
+  expect(calls[0].init?.method ?? "GET").toBe("GET");
 });
 
 test("createRole POSTs { name } to /roles", async () => {
@@ -135,6 +136,7 @@ test("getExternalMcpAdmissions hits GET /mcp-servers/admissions", async () => {
   const { calls } = stubFetchCapturing();
   await api.getExternalMcpAdmissions();
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/mcp-servers/admissions`);
+  expect(calls[0].init?.method ?? "GET").toBe("GET");
 });
 
 test("getExternalMcpAdmissions surfaces a 503 (daemon unreachable) as an ApiError rather than an empty snapshot", async () => {
@@ -159,6 +161,7 @@ test("listIntegrationSubscriptions hits GET /integrations/subscriptions", async 
   const { calls } = stubFetchCapturing();
   await api.listIntegrationSubscriptions();
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/integrations/subscriptions`);
+  expect(calls[0].init?.method ?? "GET").toBe("GET");
 });
 
 test("createIntegrationSubscription POSTs the input verbatim to /integrations/subscriptions", async () => {
@@ -180,6 +183,7 @@ test("listIntegrationDeliveries hits GET /integrations/subscriptions/:id/deliver
   const { calls } = stubFetchCapturing();
   await api.listIntegrationDeliveries("s1");
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/integrations/subscriptions/s1/deliveries`);
+  expect(calls[0].init?.method ?? "GET").toBe("GET");
 });
 
 // --- Content types -----------------------------------------------------------------
@@ -188,6 +192,7 @@ test("listContentTypes hits GET /content-types — not workspace-scoped", async 
   const { calls } = stubFetchCapturing();
   await api.listContentTypes();
   expect(calls[0].url).toBe(`/api/admin/v1/content-types`);
+  expect(calls[0].init?.method ?? "GET").toBe("GET");
 });
 
 test("createContentType POSTs the input verbatim to /content-types", async () => {
@@ -299,6 +304,7 @@ test("assignedTerms GETs /taxonomy/assigned-terms with both ids encoded", async 
   const { calls } = stubFetchCapturing();
   await api.assignedTerms({ contentType: "recipe", contentId: "e 1" });
   expect(calls[0].url).toBe(`/api/admin/v1/taxonomy/assigned-terms?contentType=recipe&contentId=e%201`);
+  expect(calls[0].init?.method ?? "GET").toBe("GET");
 });
 
 test("planMergeTerm POSTs { intoTermId } to /taxonomy/terms/:id/merge/plan", async () => {
@@ -331,12 +337,14 @@ test("getDatabaseSchemaState hits GET /database/schema-state", async () => {
   const { calls } = stubFetchCapturing();
   await api.getDatabaseSchemaState();
   expect(calls[0].url).toBe(`/api/admin/v1/database/schema-state`);
+  expect(calls[0].init?.method ?? "GET").toBe("GET");
 });
 
 test("listDatabaseRestorePoints hits GET /database/restore-points", async () => {
   const { calls } = stubFetchCapturing();
   await api.listDatabaseRestorePoints();
   expect(calls[0].url).toBe(`/api/admin/v1/database/restore-points`);
+  expect(calls[0].init?.method ?? "GET").toBe("GET");
 });
 
 test("createDatabaseRestorePoint POSTs the options verbatim (empty by default) to /database/restore-points", async () => {
@@ -375,6 +383,7 @@ test("listRecoveryRestorePoints hits GET /recovery/restore-points", async () => 
   const { calls } = stubFetchCapturing();
   await api.listRecoveryRestorePoints();
   expect(calls[0].url).toBe(`/api/admin/v1/recovery/restore-points`);
+  expect(calls[0].init?.method ?? "GET").toBe("GET");
 });
 
 test("computeRecoveryDisclosure POSTs { restorePointId } to /recovery/disclosure", async () => {
@@ -407,6 +416,7 @@ test("getRecoveryStatus hits GET /recovery/status", async () => {
   const { calls } = stubFetchCapturing();
   await api.getRecoveryStatus();
   expect(calls[0].url).toBe(`/api/admin/v1/recovery/status`);
+  expect(calls[0].init?.method ?? "GET").toBe("GET");
 });
 
 test("planRestore POSTs { restorePointId } to /recovery/restore/plan", async () => {
@@ -481,6 +491,7 @@ test("listExternalMcpServers hits GET /mcp-servers", async () => {
   const { calls } = stubFetchCapturing();
   await api.listExternalMcpServers();
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/mcp-servers`);
+  expect(calls[0].init?.method ?? "GET").toBe("GET");
 });
 
 test("saveExternalMcpServer PUTs the body verbatim to /mcp-servers/:id", async () => {
@@ -549,4 +560,5 @@ test("getCommentsSettings hits GET /comments/settings", async () => {
   const { calls } = stubFetchCapturing();
   await api.getCommentsSettings();
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/comments/settings`);
+  expect(calls[0].init?.method ?? "GET").toBe("GET");
 });
