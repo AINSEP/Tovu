@@ -137,7 +137,8 @@ async function main(): Promise<void> {
   // A dry run must never migrate the schema — which `openContentDb` does unconditionally. Only
   // `--apply` gets the read-write, migrating open; every dry run opens strictly read-only.
   const db = args.apply ? openContentDb(dbPath) : openContentDbReadOnly(dbPath);
-  const clock = { nowIso: () => new Date().toISOString() };
+  // `PagesHtmlDocumentStore` takes the kernel `Clock` (`@jini-ai/core/primitives`), which is `nowMs`-only.
+  const clock = { nowMs: () => Date.now() };
   const entryRefsRepo = new SqliteEntryRefsRepo(db);
 
   const rows = loadTargetRows(db);
