@@ -3,6 +3,10 @@
 **Effective date: [EFFECTIVE DATE]**
 **Last updated: [EFFECTIVE DATE]**
 
+> **2026-10-04 activation note:** the form-IP retention wording below describes the owner-approved
+> 90-day rule. The nullable-IP migration (0006) is installed; Tovu's cleanup stays off until a
+> `@jini-ai/cms-forms` release exporting `sweepExpiredSubmissionIps` is installed. Publish it then.
+
 > **This is not legal advice.** This Policy was prepared from a technical audit of the code that
 > runs tovu.dev, so that it describes what this site actually does rather than what a template
 > assumes. It is a starting point, not a finished legal instrument. A qualified lawyer in
@@ -124,10 +128,13 @@ When you submit a form we store:
 - **Your IP address, in full and unmodified.** We want to be direct about this, because it differs
   from how the rest of the site behaves: form submissions are the one place on tovu.dev where a
   raw, unhashed IP address is written to our database. We collect it to rate-limit submissions and
-  to identify abuse. It is not truncated, not hashed, and not automatically deleted.
+  to identify abuse. It is not truncated or hashed. IP addresses on form submissions are deleted
+  after 90 days; this removes the address without deleting the submission itself.
 - The time of submission.
 
-**Retention:** there is no automatic expiry on form submissions. They persist until we delete them.
+**Retention:** IP addresses on form submissions are deleted after 90 days. Cleanup runs when the
+site starts and daily while it is running; overdue addresses are removed on the next pass. The
+submission's answers and timestamp persist until we delete the submission.
 A submission can be permanently and irreversibly deleted by us, one record at a time, from our
 admin interface. Ask us and we will do it — see §9.
 
@@ -383,7 +390,7 @@ from doing so.
 
 | Data | How long |
 |---|---|
-| Form submissions | Indefinitely — there is no automatic expiry. Deletable on request, permanently. |
+| Form submissions | IP addresses are deleted after 90 days. Answers and timestamps persist until the submission is deleted. Deletable on request, permanently. |
 | Comments | Indefinitely once approved. Permanently destroyable on request. |
 | Newsletter subscriptions | Indefinitely, including after you unsubscribe (the status changes; the record stays) |
 | Newsletter delivery records | Indefinitely |
@@ -399,7 +406,9 @@ marked as removed rather than destroyed, the underlying row still exists in our 
 tried to be precise in the table above about which is which, rather than using "delete" to mean
 both.
 
-We do not currently operate a scheduled purge. If you would prefer a defined retention period —
+Form submission IP cleanup runs automatically at site startup and daily while the site is
+running. It clears the IP address and keeps the submission. If you would prefer a defined
+retention period for the submission's contents —
 "contact form submissions deleted after 24 months", for instance — that is a reasonable thing to
 ask for and we will consider it.
 

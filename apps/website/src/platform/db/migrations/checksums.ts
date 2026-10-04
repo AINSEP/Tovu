@@ -21,4 +21,5 @@ export const MIGRATION_CHECKSUMS: Readonly<Record<string, string>> = {
   "0003_coercion_json_as_json": "1135e06ed42097731f6ef16c2c4d826b0b23a171640e50df96517136876e99cf",
   "0004_drop_unused_deployment_tables": "315701db702123c69de2b4f56497b191b1245f326fa6fdd2beabc01550838b3c",
   "0005_media_createdby": "81cefae555b8d577076fcc3adb42ff50be82935d4e76ed13042f9475f3346c5a",
+  "0006_submission_ip_retention": "46d094a528ef15a53db38f942c1984194e203afaae931da2c1e8ce61d07f89e7",
 };

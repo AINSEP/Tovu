@@ -471,7 +471,7 @@ export interface FormSubmissionsTable {
   workspace_id: string;
   form_definition_id: string;
   data_json: string;
-  source_ip: string;
+  source_ip: string | null;
   submitted_at: string;
   deleted_at: string | null;
   version: Generated<number>;

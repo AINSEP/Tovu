@@ -80,6 +80,7 @@ import { isInMemoryDbPath } from "#src/features/plugins/snapshot";
 import { resolveSiteStorage } from "#src/platform/site-dir/site-storage";
 import type { SiteStorage } from "#src/platform/site-dir/types";
 import { startChatExpirySweep } from "#src/assistant/persistence/chat-expiry-sweep";
+import { startSubmissionIpExpirySweep } from "#src/features/forms/submission-ip-expiry-sweep";
 import { hydrateContentDbFromSeed } from "#src/platform/db/sqlite/hydrate-content-db-from-seed";
 import { hydrateBlobStoreFromSeed } from "#src/features/media/hydrate-blob-store-from-seed";
 import { resolveWorkspace } from "#src/platform/site-dir/resolve-workspace";
@@ -743,7 +744,8 @@ function createSiteDisplayNameSource(dbPath: string): SiteDisplayNameSource {
  * `bootSiteDir` has already validated, migrated, and stamped it (BR-05/BR-06).
  *
  * The API process (`owner`) also starts the hourly guest-chat expiry sweep here, on the chat kernel
- * of that store; the agent daemon (`client`) leaves retention to it. The returned store's `close()`
+ * of that store, plus daily form-submitter IP cleanup when the package/schema gates are ready;
+ * the agent daemon (`client`) leaves retention to it. The returned store's `close()`
  * stops the sweep (waiting for a pass in flight) before closing the underlying store, so no pass
  * ever queries a closed store. `release` is what {@link createSiteRouteDeps} runs when the rest of
  * the composition fails: close what this call opened, or only stop the sweep on a supplied store.
@@ -760,7 +762,13 @@ async function openCompositionStore(
   // seed) unless `overrides.db`, then `chat.db` beside it (`defaultChatDbPath`). `chat.db`'s
   // directory is `dirname(dbPath)`, which the content open already required to exist.
   const opened = supplied ?? (await openSiteStore({ storage, dbPath, chatDbPath: defaultChatDbPath(dbPath), role }, { db: overrides?.db }));
-  const stopSweep = startOwnerChatExpirySweep(role, opened.chat);
+  const stopChatSweep = startOwnerChatExpirySweep(role, opened.chat);
+  // Owner only, just like chat retention. Stop both passes before closing the supplied/opened
+  // store, including composition-failure cleanup. Jini's export and migration 0006 gate the IP sweep.
+  const stopSubmissionIpSweep = role === "owner"
+    ? startSubmissionIpExpirySweep({ kernel: opened.content })
+    : async () => {};
+  const stopSweep = async (): Promise<void> => { await Promise.all([stopChatSweep(), stopSubmissionIpSweep()]); };
   const store: SiteStore = {
     ...opened,
     close: async () => {

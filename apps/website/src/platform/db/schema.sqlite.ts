@@ -523,7 +523,8 @@ export const formDefinitions = sqliteTable(
 );
 
 /**
- * `form_submissions` (state.spec.md §1.2) — immutable except for permanent delete (REQ-14). FK to
+ * `form_submissions` (state.spec.md §1.2) — immutable except for permanent delete (REQ-14)
+ * and owner-approved source-IP clearing after 90 days (2026-10-04). FK to
  * `form_definitions.id` per the ADR's Module Boundaries.
  *
  * Owner ruling 2026-09-21 superseded the original INV-08 ("a form definition is never permanently
@@ -541,7 +542,7 @@ export const formSubmissions = sqliteTable(
       .notNull()
       .references(() => formDefinitions.id, { onDelete: "restrict" }),
     dataJson: text("data_json").notNull(),
-    sourceIp: text("source_ip").notNull(),
+    sourceIp: text("source_ip"),
     submittedAt: text("submitted_at").notNull(),
     /** Trash marker (migration 0072), mirroring `formDefinitions.deletedAt` above. Nullable and
      *  additive — every pre-existing row backfills to live (`NULL`). Not yet read by any query
@@ -555,6 +556,7 @@ export const formSubmissions = sqliteTable(
   (table) => [
     index("idx_form_submissions_definition").on(table.formDefinitionId, table.submittedAt),
     index("idx_form_submissions_workspace").on(table.workspaceId),
+    index("idx_form_submissions_ip_retention").on(table.submittedAt, table.id).where(sql`${table.sourceIp} IS NOT NULL`),
   ]
 );
 
