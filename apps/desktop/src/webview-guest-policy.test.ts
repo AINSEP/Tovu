@@ -140,9 +140,11 @@ test("the sites-home attach registration executes the admission check before gra
     node.expression.expression.getText(ast) === "window.webContents.on" &&
     node.expression.arguments[0]?.getText(ast) === '"will-attach-webview"');
   assert.equal(registrations.length, 1, "registration must execute directly in the window setup");
+  const registration = registrations[0];
+  assert.ok(registration);
   let handler: ((event: ReturnType<typeof attachEvent>, prefs: GuestWebPreferences, params: { src: string }) => void) | undefined;
   const asked: string[] = [];
-  new Function("window", "admitGuestSource", "applyGuestWebPreferences", "isSupervisedGuestUrl", "SPEECH_PRELOAD_PATH", registrations[0].getText(ast))(
+  new Function("window", "admitGuestSource", "applyGuestWebPreferences", "isSupervisedGuestUrl", "SPEECH_PRELOAD_PATH", registration.getText(ast))(
     { webContents: { on: (channel: string, callback: typeof handler) => { assert.equal(channel, "will-attach-webview"); handler = callback; } } },
     admitGuestSource, applyGuestWebPreferences,
     (src: string) => { asked.push(src); return src === SUPERVISED; }, PRELOAD,

@@ -36,7 +36,8 @@ test('native checkbox applies the chosen value, and restores it after a persiste
   assert.equal(item.type, 'checkbox');
   item.click({ checked: false });
   assert.deepEqual(saved, [false]);
-  assert.deepEqual(errors, []);
+  // Keep the empty expectation from narrowing this collector to never[] before the failure callback.
+  assert.deepEqual<unknown[]>(errors, []);
   const failure = new Error('disk full');
   const broken = automaticUpdatesMenu({ locale: 'en', enabled: true, setEnabled: () => { throw failure; }, onError: ({ error }) => errors.push(error) }).submenu[0];
   assert.ok(broken);
