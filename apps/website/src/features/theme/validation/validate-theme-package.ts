@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { loadTheme } from "../theme.js";
 import { checkApprovedRoots, checkSourceDirContainment, walkThemePackage, type PackageWalkEntry } from "./structure.js";
 import { checkDeclaredReferences } from "./references.js";
-import { checkMarkupFile, checkTovuAgentAttributePresence } from "./markup.js";
+import { checkMarkupFile } from "./markup.js";
 import { validateManifestV2 } from "./manifest-v2.js";
 import {
   resolveSeverity,
@@ -191,7 +191,6 @@ function checkMarkupFiles(files: readonly PackageWalkEntry[]): ThemeValidationIs
       continue;
     }
     issues.push(...checkMarkupFile({ relativePath: file.relativePath, content }));
-    issues.push(...checkTovuAgentAttributePresence({ relativePath: file.relativePath, content }));
   }
   return issues;
 }

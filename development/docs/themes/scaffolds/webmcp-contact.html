@@ -1,0 +1,17 @@
+<!-- Copy into a theme page AFTER registering a contact form with slug "contact".
+     The real Forms handler owns validation, rate limits, anti-spam and success.
+     No toolautosubmit: the visitor decides when to submit. -->
+<form method="post" action="/forms/contact/submit"
+      toolname="contact_message" tooldescription="Send a contact message">
+  <label>Email
+    <input name="email" type="email" required toolparamtitle="Email"
+           toolparamdescription="Your reply address">
+  </label>
+  <label>Message
+    <textarea name="message" required toolparamtitle="Message"
+              toolparamdescription="The message to send"></textarea>
+  </label>
+  <div hidden aria-hidden="true"><input type="text" name="_hp" tabindex="-1" autocomplete="off"></div>
+  <button type="submit">Send</button>
+</form>
+<a href="/" data-toolname="contact_home" data-tooldescription="Open the home page">Home</a>

@@ -232,6 +232,8 @@ import { parsePublicJsonBody, respondToOversizedBody } from "../../inbound/share
 import { applyTrustProxy } from "../../inbound/shared/trust-proxy.js";
 import { applySiteServingGate } from "../../inbound/public-http/middleware/site-serving-gate.js";
 import { applyPublicPageSecurityHeaders } from "../../inbound/public-http/middleware/public-page-security-headers.js";
+import { applyPublishedWebMcp } from '../../inbound/public-http/middleware/published-webmcp.js';
+import { isPublishedWebMcpEnabled } from '#src/features/webmcp/settings';
 import { registerAdminStatic } from "../../inbound/admin-http/admin-static.js";
 import { registerSiteChatStatic } from "../../inbound/public-http/middleware/site-chat-static.js";
 import { registerThemePreviewStatic } from "../../inbound/public-http/middleware/theme-preview-static.js";
@@ -1667,6 +1669,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // nosniff + Referrer-Policy + a report-only CSP on every non-admin response, set before any
   // public route runs. See `public-page-security-headers.ts`.
   applyPublicPageSecurityHeaders(app);
+  applyPublishedWebMcp({ app, readEnabled: () => isPublishedWebMcpEnabled(routeDeps, { workspaceId: routeDeps.workspaceId }) });
 
   // MUST stay ahead of the blanket `express.json()` immediately below. Payment webhooks are
   // HMAC-signed over the exact received bytes, and the blanket parser destroys them — so this one

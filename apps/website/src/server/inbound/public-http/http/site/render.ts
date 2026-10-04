@@ -2372,7 +2372,7 @@ function renderContactFormField(f: JsonValue): string {
   const kind = str(o.type, "text");
   const extraAttrs = renderExtraFieldAttrs(o);
   const errorId = `widget-contact-${id}-error`;
-  const inputEl = renderContactFormInput(kind, id, required, extraAttrs, ` aria-describedby="${errorId}"`, o.maxLength);
+  const inputEl = renderContactFormInput(kind, id, required, `${extraAttrs} toolparamtitle="${label}" toolparamdescription="${label}"`, ` aria-describedby="${errorId}"`, o.maxLength);
   const errorSlot = `<div class="widget-form-field-error" data-field="${id}" id="${errorId}" hidden></div>`;
   return `<div class="widget-form-field"><label for="widget-contact-${id}">${label}${required ? " *" : ""}</label>${inputEl}${errorSlot}</div>`;
 }
@@ -2417,7 +2417,7 @@ function renderWidgetContactForm(props: JsonObject): string {
   return (
     FORM_BASELINE_STYLE +
     successSlot +
-    `<form class="widget ${FORM_CLASS} widget-contact-form" method="post" action="/forms/${escapedSlug}/submit" data-form-slug="${escapedSlug}" ${legacyAttrs}>` +
+    `<form class="widget ${FORM_CLASS} widget-contact-form" toolname="form_${escapeHtml(slug.replace(/[^A-Za-z0-9_.-]/g, '_').slice(0, 123))}" tooldescription="${escapedSlug}" method="post" action="/forms/${escapedSlug}/submit" data-form-slug="${escapedSlug}" ${legacyAttrs}>` +
     errorSlot +
     fields +
     `<div hidden aria-hidden="true"><input type="text" name="_hp" tabindex="-1" autocomplete="off"></div>` +

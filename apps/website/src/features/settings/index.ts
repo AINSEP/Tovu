@@ -149,8 +149,9 @@ export {
   APPEARANCE_NAMESPACE,
   LANGUAGE_NAMESPACE,
   type EnsureSettingsUiTabDefinitionsInput,
-  ensureSettingsUiTabDefinitions,
 } from "@jini-ai/cms/settings";
+
+export { ensureSettingsUiTabDefinitions } from '../webmcp/settings.js';
 
 export {
   type AgentWritablePreference,

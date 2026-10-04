@@ -385,10 +385,34 @@ existing form handler has accepted it.
 
 Buttons, links and tabs use unique `data-toolname` and `data-tooldescription`
 attributes. These valid HTML attributes describe actions; they do not register
-tools with the browser by themselves. A published-site registration script is
-still required for non-form actions. The admin WebMCP bridge does not supply that
-script to themes. Declarative form discovery requires a compatible browser.
-The theme validator and scaffolds still need to adopt this convention.
+tools with the browser by themselves. Tovu now injects the published-site script
+when the workspace setting `core.privacy.published_site_webmcp_enabled` is ON
+(the default). Turning it off removes the script and native form-tool attributes
+from served HTML; regenerate static exports after changing this setting.
+The existing admin browser opt-out also stops registration locally on that origin.
+Declarative form discovery requires a compatible browser; no polyfill is loaded.
+
+The script supports site-relative HTTP(S) anchors and explicit
+`button[type="button"]` actions (including button-based tabs). Anchors navigate
+to their actual same-origin target. Buttons ask for human confirmation and then
+activate their existing click handler. No input values, cookies, credentials or
+arbitrary agent URLs enter the tool schema/result. Keep secrets and file uploads
+out of advertised forms. Hidden anti-forgery controls remain owned by the real
+form handler. A tool call does not authorize a server mutation or imply success.
+Duplicate names are refused; use unique names across rendered partials and loop
+iterations. Tools unregister when controls change or the page closes.
+
+`tovu theme validate` now checks annotation placement, names/descriptions,
+duplicates within each file, parameter controls, unsafe automatic submission and
+external targets. It rejects retired `data-tovu-agent` and admin-only
+`data-agent-element`. The shipped `tovu-starter` navigation and `storefront` home
+page demonstrate the convention; [contact scaffold](scaffolds/webmcp-contact.html)
+shows a real POST form after its `contact` definition has been registered.
+
+The workspace opt-out uses the existing authorized Settings ledger write:
+`PUT /api/admin/v1/workspaces/<workspaceId>/settings/value` with
+`{"namespace":"core.privacy","key":"published_site_webmcp_enabled","scope":"workspace","valueJson":false}`.
+This is separate from the browser-local admin toggle.
 
 The underlying [WebMCP draft](https://webmachinelearning.github.io/webmcp/) and
 [Chrome declarative API guide](https://developer.chrome.com/docs/ai/webmcp/declarative-api)

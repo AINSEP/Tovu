@@ -1,11 +1,12 @@
 import { scanEmbedMarkers } from "#src/contracts/core/embeds/marker";
 import type { ThemeValidationIssue } from "./profiles.js";
+import { checkWebMcpMarkup } from './webmcp-markup.js';
 
 /**
  * @file Theme markup checks: the admin-only `data-agent-element` attribute must never appear in
  * theme-authored markup, `data-embed-config` markers must use the real, current embed vocabulary and
- * the real (single-quoted) attribute shape the runtime actually recognizes, and a `data-tovu-agent`
- * handle (once implemented) gets a minimal presence check.
+ * the real (single-quoted) attribute shape the runtime actually recognizes. Browser-agent
+ * actions now use tool* forms and data-tool* actions, replacing the unsettled data-tovu-agent.
  *
  * Vocabulary verified directly against the runtime that owns it, not assumed from the design doc,
  * which had drifted (see `theme-authoring-guide-v2.md` §8's 2026-08-18 correction): `widget`,
@@ -92,11 +93,15 @@ export function checkMarkupFile(
     }
   }
 
-  return issues;
+  return [...issues, ...checkWebMcpMarkup({ relativePath, content })];
 }
 
 /**
- * Minimal presence check for `data-tovu-agent` — deliberately NOT a full syntax/grammar validation.
+ * Legacy compatibility helper, no longer called by theme package validation.
+ * The public validator now rejects every retired handle via checkWebMcpMarkup.
+ * Retained so callers/tests of the earlier presence-only contract stay importable.
+ *
+ * Historical rationale: minimal presence check for `data-tovu-agent` — deliberately NOT a full syntax/grammar validation.
  * `theme-authoring-guide-v2.md` §8 marks this attribute `[TARGET, NOT YET IMPLEMENTED]`: zero code
  * anywhere defines its value grammar yet, so enforcing one here would invent a contract nothing else
  * agrees to. This only catches the one unambiguous mistake possible before that contract exists: the

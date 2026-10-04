@@ -16,9 +16,10 @@ export interface HtmlMenuItem {
   readonly children: readonly HtmlMenuItem[];
 }
 
-function renderList(items: readonly HtmlMenuItem[], depth: number, sanitizeHref: (href: string) => string): string {
-  const children = items.map((item) => {
-    const nested = renderList(item.children, depth + 1, sanitizeHref);
+function renderList(items: readonly HtmlMenuItem[], depth: number, sanitizeHref: (href: string) => string, toolPrefix: string): string {
+  const children = items.map((item, index) => {
+    const toolName = `${toolPrefix}_${index}`;
+    const nested = renderList(item.children, depth + 1, sanitizeHref, toolName);
     const linkable = item.available && item.href !== null;
     // Keep unavailable headings only when they still contain available descendants.
     if (!linkable && nested === "") return "";
@@ -30,8 +31,13 @@ function renderList(items: readonly HtmlMenuItem[], depth: number, sanitizeHref:
     const relTokens = new Set((item.attrs?.rel ?? "").split(/\s+/).filter(Boolean));
     if (item.attrs?.openInNewTab) { relTokens.add("noopener"); relTokens.add("noreferrer"); }
     const rel = relTokens.size ? ` rel="${escapeHtml([...relTokens].join(" "))}"` : "";
+    const href = linkable ? sanitizeHref(item.href!) : '';
+    // Only site-relative navigation is advertised. The browser rechecks origin
+    // against its actual base URL before executing; external links remain ordinary links.
+    const tool = href && !/^(?:[a-z][a-z0-9+.-]*:|[\\/]{2})/i.test(href) && !/[\\\u0000-\u0020]/.test(href)
+      ? ` data-toolname="${escapeHtml(toolName.slice(0, 128))}" data-tooldescription="${escapeHtml(item.label)}"` : '';
     const body = linkable
-      ? `<a href="${escapeHtml(sanitizeHref(item.href!))}"${current}${target}${rel}>${label}</a>`
+      ? `<a href="${escapeHtml(href)}"${current}${target}${rel}${tool}>${label}</a>`
       : `<span data-tovu-menu-label>${label}</span>`;
     return `<li data-tovu-menu-item data-depth="${depth}" data-current="${item.isCurrent}" data-active="${item.isActive === true}" data-has-children="${nested !== ""}">${body}${nested}</li>`;
   }).join("");
@@ -42,6 +48,6 @@ export function renderHtmlMenu(
   { id, items, sanitizeHref }: { id: string; items: readonly HtmlMenuItem[]; sanitizeHref: (href: string) => string },
   _optional = {},
 ): string {
-  const list = renderList(items, 0, sanitizeHref);
+  const list = renderList(items, 0, sanitizeHref, `menu_${id.replace(/[^A-Za-z0-9_.-]/g, '_').slice(0, 64)}`);
   return list === "" ? "" : `<nav data-tovu-menu="${escapeHtml(id)}">${list}</nav>`;
 }
