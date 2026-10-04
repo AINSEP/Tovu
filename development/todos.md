@@ -22,6 +22,30 @@ before building the eventual agent tool catalog. See
 
 ---
 
+## Raw-HTML embed mode for forms, menus and categories/tags (owner idea, 2026-10-03; NOT now, after the admin media swap is committed)
+
+**Goal.** Site builders get plain, semantic, unstyled HTML that they style however they want.
+
+**Build it on the existing `data-embed-config` marker spine** (`apps/website/src/contracts/core/embeds/marker.ts`, resolved by `features/widgets/html-embeds.ts`). Add a render mode instead of a new mechanism, e.g.
+`<div data-embed-config='{"type":"form","id":"contact","mode":"html"}'></div>`.
+
+- **The server resolves it as it does today.** A form submits to OUR backend automatically, because the server fills in the action and endpoint. The author never writes an endpoint.
+- **Owner decision (2026-10-03): BOTH `{"type":"form",…}` and `{"type":"widget",…}` must work. Make it as flexible as possible for users; it must not be widget-only.**
+- **Verified at HEAD, 2026-10-03:** today it IS widget-only.
+  - `type:"form"` was removed on 2026-08-10.
+  - The theme validator (`features/theme/validation/markup.ts` `KNOWN_EMBED_TYPES`) rejects it with "embed a contact-form widget instead".
+  - No resolver handles `"form"`.
+- **Work:** re-add `form` as a known type that resolves through the same form or widget renderer (one code path, two spellings), and add it to the resolver and to the validator's known types.
+- **Same mode for:** `menu`, which already exists as a type, and a categories/tags type.
+
+**Output requirements:** stable `data-*` hooks only, with no theme classes or inline styles. Forms work as plain POST without JavaScript; an optional small script adds inline validation and messages. Spam protection: honeypot plus rate limit.
+
+**Admin:** a "Copy HTML embed" button on forms, menus and taxonomy, the same idea as the media embed/clipboard control.
+
+**Generic in Jini:** the HTML renderers belong in Jini's domain packages (framework-free), so any product gets them.
+
+---
+
 ## Assistant permissions: maybe gate the AI agent separately LATER (owner call, 2026-10-03; NOT now)
 
 **Today, and kept deliberately:** the assistant acts with the full authority of the logged-in person. Every native mutating tool calls `authorize()` against that person. API-key runs also run fully. The owner said limiting anyone now is "unnecessary and just preemptive".
