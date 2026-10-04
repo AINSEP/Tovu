@@ -1,7 +1,10 @@
-import { render, screen } from "@testing-library/react";
+import { useState } from "react";
+import userEvent from "@testing-library/user-event";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { WidgetInstanceEditor, widgetInstanceGuard } from "../WidgetInstanceEditor";
+import type { WidgetInstanceEditorController } from "../hooks/use-widget-instance-editor.hooks";
 import type { AdminWidget } from "@/lib/api";
 
 /**
@@ -104,6 +107,37 @@ describe("WidgetConfigFields wiring (Batch D2 i18n — components/shared-compone
 
     expect(screen.getByLabelText("Texto")).toBeInTheDocument();
     expect(screen.queryByLabelText("Text")).not.toBeInTheDocument();
+  });
+});
+
+function editorController(overrides: Partial<WidgetInstanceEditorController> = {}): WidgetInstanceEditorController {
+  return { isNew: true, widget: null, whereUsed: { count: 0, references: [] }, title: "", setTitle: vi.fn(), config: {}, setConfig: vi.fn(), message: null, error: null, fieldErrors: [], loading: false, saving: false, widgetType: "text", save: vi.fn(), confirmLeave: vi.fn(() => true), t: (key) => key, locale: "en", ...overrides };
+}
+
+describe("editor controls", () => {
+  it("sends the edited title and config to Save, and blocks Back when leaving is declined", async () => {
+    const user = userEvent.setup();
+    const saved = vi.fn();
+    const confirmLeave = vi.fn(() => false);
+    function useEditor() {
+      const [title, setTitle] = useState("");
+      const [config, setConfig] = useState<Record<string, unknown>>({ body: "" });
+      return editorController({ title, setTitle, config, setConfig, save: async () => { saved({ title, config }); }, confirmLeave });
+    }
+    render(<WidgetInstanceEditor widgetId={null} widgetType="text" useWidgetInstanceEditorHook={useEditor} />);
+    await user.type(screen.getByLabelText("Widget title"), "Announcement");
+    await user.type(screen.getByLabelText("Text"), "Shipping Friday");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(saved).toHaveBeenCalledTimes(1);
+    expect(saved).toHaveBeenCalledWith({ title: "Announcement", config: { body: "Shipping Friday" } });
+    expect(fireEvent.click(screen.getByRole("link", { name: "Back: Widgets" }))).toBe(false);
+    expect(confirmLeave).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows the controller's success, save error and field errors", () => {
+    render(<WidgetInstanceEditor widgetId={null} widgetType="text" useWidgetInstanceEditorHook={() => editorController({ message: "Saved widget.", error: "Write denied", fieldErrors: [{ field: "text", reason: "Text is required" }] })} />);
+    expect(screen.getByText("Saved widget.")).toBeInTheDocument();
+    expect(screen.getAllByRole("alert").map((node) => node.textContent)).toEqual(["Write denied", "text: Text is required"]);
   });
 });
 

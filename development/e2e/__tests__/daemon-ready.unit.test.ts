@@ -12,16 +12,19 @@ import { isDaemonKnownFailed } from "../daemon-ready.js";
  * trusting a bare TCP connect (see that file's own module doc for why a connect alone is not
  * sufficient: a leaked port can still be squatted by an orphaned daemon from a previous run).
  *
- * `waitForAgentDaemon` itself is deliberately NOT covered here — it memoizes its own promise at
- * module scope by design ("the daemon boots once per webServer"), which makes repeated calls
- * within one test process return a stale cached result rather than exercising fresh state. This
- * function has no such memoization, so it is the right unit to pin directly.
+ * The poll-loop test imports an isolated module instance so its memoized readiness promise cannot
+ * reuse another test's result, and gives it a listening port whose boot is explicitly known failed.
  */
 
 async function startStandInReadyz(body: unknown, status = 200): Promise<{ port: number; server: Server }> {
-  const server = createServer((_req, res) => {
+  const server = createServer((req, res) => {
+    if (req.method !== "GET" || req.url !== "/readyz") {
+      res.writeHead(404);
+      res.end();
+      return;
+    }
     res.writeHead(status, { "content-type": "application/json" });
-    res.end(JSON.stringify(body));
+    res.end(typeof body === "string" ? body : JSON.stringify(body));
   });
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
@@ -57,4 +60,35 @@ test("isDaemonKnownFailed is false for a truthy-but-not-literally-true value —
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
 
   assert.equal(await isDaemonKnownFailed(port), false);
+});
+
+test("isDaemonKnownFailed reads a known-failed flag from a 503 readiness response", async (t) => {
+  const { port, server } = await startStandInReadyz({ ready: false, assistantDaemonKnownFailed: true }, 503);
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  assert.equal(await isDaemonKnownFailed(port), true);
+});
+
+test("isDaemonKnownFailed tolerates a non-JSON readiness response", async (t) => {
+  const { port, server } = await startStandInReadyz("not JSON", 503);
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  assert.equal(await isDaemonKnownFailed(port), false);
+});
+
+test("waitForAgentDaemon rejects a known-failed boot even when its port accepts connections", async (t) => {
+  const { port, server } = await startStandInReadyz({ assistantDaemonKnownFailed: true }, 503);
+  const previousApi = process.env.E2E_API_PORT;
+  const previousDaemon = process.env.E2E_AGENT_DAEMON_PORT;
+  process.env.E2E_API_PORT = String(port);
+  process.env.E2E_AGENT_DAEMON_PORT = String(port);
+  t.after(async () => {
+    if (previousApi === undefined) delete process.env.E2E_API_PORT;
+    else process.env.E2E_API_PORT = previousApi;
+    if (previousDaemon === undefined) delete process.env.E2E_AGENT_DAEMON_PORT;
+    else process.env.E2E_AGENT_DAEMON_PORT = previousDaemon;
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  });
+  // A fresh module owns its memoized readiness promise; sibling calls cannot satisfy this test.
+  const moduleUrl = new URL("../daemon-ready.ts?known-failed-boot", import.meta.url);
+  const { waitForAgentDaemon } = await import(moduleUrl.href);
+  await assert.rejects(waitForAgentDaemon({ timeoutMs: 2_000, pollMs: 10 }), /KNOWN to have failed/);
 });

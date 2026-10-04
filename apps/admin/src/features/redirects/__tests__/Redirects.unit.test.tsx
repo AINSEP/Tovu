@@ -1,11 +1,11 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/lib/fetch-query";
 import { Redirects } from "../Redirects";
 import { useRedirects } from "../hooks/use-redirects.hooks";
-import { createFakeRedirectsPort } from "../hooks/redirects-dependencies.hooks";
+import { createFakeRedirectsPort, defaultRedirectsPort } from "../hooks/redirects-dependencies.hooks";
 
 /**
  * @file `Redirects` — the first component test for this screen. Drives the REAL `useRedirects`
@@ -54,6 +54,9 @@ describe("Redirects — create form", () => {
     await user.click(screen.getByRole("button", { name: "Add redirect" }));
 
     await screen.findByText("fromPattern '/old-path-x' conflicts with an existing rule");
+    expect(port.createRedirect).toHaveBeenCalledWith(
+      { matchType: "exact", fromPattern: "/old-path-x", toTarget: "/new-path-x", statusCode: 301 },
+    );
     expect(screen.getByLabelText("From path")).toHaveValue("/old-path-x");
     expect(screen.getByLabelText("To target")).toHaveValue("/new-path-x");
   });
@@ -75,5 +78,57 @@ describe("Redirects — create form", () => {
     await waitFor(() => expect(screen.getByLabelText("From path")).toHaveValue(""));
     expect(screen.getByLabelText("To target")).toHaveValue("");
     expect(port.rules).toHaveLength(1);
+    expect(port.rules[0]).toMatchObject({ fromPattern: "/old-path-y", toTarget: "/new-path-y" });
+  });
+});
+
+
+afterEach(() => vi.restoreAllMocks());
+
+describe("Redirects — table actions and bulk import", () => {
+  async function renderRule() {
+    const port = createFakeRedirectsPort();
+    const { data: rule } = await port.createRedirect({ matchType: "exact", fromPattern: "/old-ui", toTarget: "/new-ui", statusCode: 301 });
+    render(<FetchQueryProvider><Redirects useRedirectsHook={() => useRedirects(port, (k) => k, "en")} /></FetchQueryProvider>);
+    const row = (await screen.findByText("/old-ui")).closest("tr")!;
+    return { port, rule, row };
+  }
+
+  it("disables the selected rule from its row menu, then deletes only after confirmation", async () => {
+    const user = userEvent.setup();
+    const { port, row } = await renderRule();
+    await user.click(within(row).getByRole("button", { name: /Actions/ }));
+    await user.click(screen.getByRole("menuitem", { name: "Disable" }));
+    await waitFor(() => expect(within(row).getByText("disabled")).toBeInTheDocument());
+    expect((await port.listRedirects()).data[0].status).toBe("disabled");
+    await user.click(within(row).getByRole("button", { name: /Actions/ }));
+    await user.click(screen.getByRole("menuitem", { name: "Delete" }));
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText(/old-ui/)).toBeInTheDocument();
+    expect((await port.listRedirects()).data).toHaveLength(1);
+    await user.click(within(dialog).getByRole("button", { name: "Delete", exact: true }));
+    await waitFor(() => expect(screen.queryByText("/old-ui")).not.toBeInTheDocument());
+    expect((await port.listRedirects()).data).toEqual([]);
+  });
+
+  it("loads a row's hit count and imports the JSON typed into the bulk form", async () => {
+    const user = userEvent.setup();
+    const { port, rule, row } = await renderRule();
+    const hits = vi.spyOn(defaultRedirectsPort, "getRedirectHits").mockImplementation(async (id) => {
+      expect(id).toBe(rule.id);
+      return { data: { redirectId: id, workspaceId: "fake-ws", hitCount: 17, lastHitAt: null } };
+    });
+    const importing = vi.spyOn(defaultRedirectsPort, "importRedirects").mockImplementation(port.importRedirects);
+    expect(hits).not.toHaveBeenCalled();
+    await user.click(within(row).getByRole("button", { name: "Load hits" }));
+    expect(await within(row).findByText("17")).toBeInTheDocument();
+    await user.click(screen.getByText("Bulk import"));
+    const batch = [{ matchType: "exact", fromPattern: "/import-old", toTarget: "/import-new", statusCode: 302 }];
+    await user.type(screen.getByRole("textbox", { name: /JSON array/ }), JSON.stringify(batch).replace(/\[/g, "[[").replace(/\{/g, "{{"));
+    await user.click(screen.getByRole("button", { name: "Import", exact: true }));
+    await waitFor(() => expect(importing).toHaveBeenCalledWith(batch));
+    const importedRow = (await screen.findByText("/import-old", { selector: "td" })).closest("tr")!;
+    expect(within(importedRow).getByText("/import-new")).toBeInTheDocument();
+    expect((await port.listRedirects()).data).toHaveLength(2);
   });
 });

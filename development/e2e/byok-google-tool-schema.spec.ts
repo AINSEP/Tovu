@@ -29,7 +29,8 @@ import { setByokModel } from "./byok-model-field.js";
  * sufficient — the point of the whole feature is a chat turn that works. The deputy's
  * `streamGenerateContent` response is a minimal, real-shaped Gemini SSE frame (`alt=sse`, bare
  * `data: {...}\n\n` records — verified against `@jini-ai/agent-runtime`'s `decodeSseStream`, which
- * needs no `event:` line), so the turn completes with `finishReason: 'STOP'` and no tool call, and
+ * needs no `event:` line). The deputy first requests a real catalog read, then completes the turn
+ * with `finishReason: 'STOP'`, and
  * the reply is asserted to actually render in `AssistantDock`'s `ChatPane`.
  */
 
@@ -87,7 +88,9 @@ async function startGeminiDeputy(): Promise<Deputy> {
         const frame = {
           candidates: [
             {
-              content: { parts: [{ text: DEPUTY_REPLY_TEXT }], role: "model" },
+              content: { parts: streamRequests.length === 1
+                ? [{ functionCall: { name: "describe_tool", args: { id: "theme_list" }, id: "deputy-describe-theme" } }]
+                : [{ text: DEPUTY_REPLY_TEXT }], role: "model" },
               finishReason: "STOP",
             },
           ],
@@ -135,9 +138,9 @@ interface SchemaViolation {
 }
 
 /**
- * The exhaustive, recursive check this whole spec exists to run: every key Gemini's real API is
- * confirmed (see `byok-provider-turn.ts#GOOGLE_SUPPORTED_SCHEMA_KEYS`'s own doc) to reject, checked
- * at EVERY depth of the parsed tree — not just the top level, since the original bug report included
+ * The exhaustive, recursive check accepts only supported schema keywords at every schema position.
+ * Property names are data, so their schemas are checked individually. This covers every depth
+ * rather than just the top level, since the original bug report included
  * a violation nested at `parameters.properties[4].value.properties[0].value`.
  */
 function collectGoogleSchemaViolations(node: unknown, path: string, out: SchemaViolation[]): void {
@@ -148,9 +151,14 @@ function collectGoogleSchemaViolations(node: unknown, path: string, out: SchemaV
   if (node === null || typeof node !== "object") return;
 
   const record = node as Record<string, unknown>;
-  for (const forbiddenKey of ["additionalProperties", "$schema", "$ref", "$defs", "const"] as const) {
-    if (forbiddenKey in record) {
-      out.push({ path: `${path}.${forbiddenKey}`, issue: `forbidden key "${forbiddenKey}" is present` });
+  const supportedKeys = new Set([
+    "type", "format", "title", "description", "nullable", "default", "items", "minItems", "maxItems",
+    "enum", "properties", "propertyOrdering", "required", "minProperties", "maxProperties", "minimum",
+    "maximum", "minLength", "maxLength", "pattern", "example", "anyOf",
+  ]);
+  for (const key of Object.keys(record)) {
+    if (!supportedKeys.has(key)) {
+      out.push({ path: `${path}.${key}`, issue: `unsupported schema key "${key}" is present` });
     }
   }
   if ("type" in record && Array.isArray(record.type)) {
@@ -166,9 +174,11 @@ function collectGoogleSchemaViolations(node: unknown, path: string, out: SchemaV
       }
     });
   }
-  for (const [key, value] of Object.entries(record)) {
-    collectGoogleSchemaViolations(value, `${path}.${key}`, out);
+  for (const [name, schema] of Object.entries((record.properties ?? {}) as Record<string, unknown>)) {
+    collectGoogleSchemaViolations(schema, `${path}.properties.${name}`, out);
   }
+  if (record.items !== undefined) collectGoogleSchemaViolations(record.items, `${path}.items`, out);
+  if (record.anyOf !== undefined) collectGoogleSchemaViolations(record.anyOf, `${path}.anyOf`, out);
 }
 
 /** Drives Settings -> Execution mode -> BYOK -> Google Gemini, points the endpoint at the deputy,
@@ -291,6 +301,15 @@ test("BYOK Gemini: the real outbound tool schema is Gemini-clean at every depth,
     // because "3 tools go out" is now the property worth protecting: a regression that quietly
     // reintroduced the full catalog would restore ~119 KB per message and would otherwise pass.
     expect(declarations.map((d) => d.name)).toEqual(["search_tools", "describe_tool", "execute_delegated_tool"]);
+    const requiredFields = [["query"], ["id"], ["toolId"]];
+    const propertyNames = [["limit", "query"], ["id"], ["input", "toolId"]];
+    declarations.forEach((decl, i) => {
+      expect(decl.parameters).toMatchObject({ type: "object", required: requiredFields[i] });
+      const properties = (decl.parameters as { properties: Record<string, { type?: string }> }).properties;
+      expect(Object.keys(properties).sort()).toEqual(propertyNames[i]);
+      expect(properties[requiredFields[i]![0]!]?.type).toBe("string");
+    });
+    expect((declarations[2]!.parameters as { properties: { input: { type: string } } }).properties.input.type).toBe("object");
 
     const violations: SchemaViolation[] = [];
     declarations.forEach((decl, i) => {
@@ -303,6 +322,14 @@ test("BYOK Gemini: the real outbound tool schema is Gemini-clean at every depth,
     await expect(dock.locator(".jini-message-error")).toHaveCount(0, { timeout: 20_000 });
     const assistantReply = dock.locator(".jini-message-assistant").last();
     await expect(assistantReply).toContainText(DEPUTY_REPLY_TEXT, { timeout: 20_000 });
+    expect(deputy.streamRequests()).toHaveLength(2);
+    const continuation = deputy.streamRequests()[1]!.body as {
+      contents: Array<{ role: string; parts: Array<{ functionResponse?: { name: string; id: string; response: { content: string; isError: boolean } } }> }>;
+    };
+    const responses = continuation.contents.flatMap((content) => content.parts).flatMap((part) => part.functionResponse ? [part.functionResponse] : []);
+    expect(responses).toHaveLength(1);
+    expect(responses[0]).toMatchObject({ name: "describe_tool", id: "deputy-describe-theme", response: { isError: false } });
+    expect(JSON.parse(responses[0]!.response.content)).toMatchObject({ id: "theme_list", inputSchema: { type: "object" } });
   } finally {
     await deputy.close();
   }

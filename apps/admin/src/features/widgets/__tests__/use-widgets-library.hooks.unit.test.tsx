@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -216,7 +217,12 @@ describe("useWidgetsLibrary — delete confirms first, then trashes exactly once
   it("requestTrash opens the confirm and sends nothing until confirmed", async () => {
     const port = createFakeWidgetsPort({ widgets: [WIDGET] });
     const trashSpy = vi.spyOn(port, "trashWidget");
-    const { result } = renderHook(() => useWidgetsLibrary({ port, locale: "en", t: (key: string) => key }));
+    const allowed = new Set(["listWidgets", "trashWidget"]);
+    const strictPort = new Proxy(port, { get(target, name, receiver) {
+      if (typeof name === "string" && !allowed.has(name)) throw new Error(`unexpected widget operation: ${name}`);
+      return Reflect.get(target, name, receiver);
+    } });
+    const { result } = renderHook(() => useWidgetsLibrary({ port: strictPort, locale: "en", t: (key: string) => key }));
     await waitFor(() => expect(result.current.widgets).toHaveLength(1));
 
     act(() => result.current.requestTrash(WIDGET));
@@ -229,6 +235,7 @@ describe("useWidgetsLibrary — delete confirms first, then trashes exactly once
     expect(trashSpy).toHaveBeenCalledTimes(1);
     expect(trashSpy).toHaveBeenCalledWith(WIDGET.id);
     expect(result.current.pendingTrash).toBeNull();
+    expect(result.current.error).toBeNull();
     await waitFor(() => expect(result.current.widgets).toEqual([]));
   });
 
@@ -334,7 +341,7 @@ describe("useWidgetsLibrary/WidgetsLibrary — no permanent-removal call remains
     "src/features/widgets/WidgetsLibrary.tsx",
   ])("%s calls no purge/force-purge method and passes no force option", async (relPath) => {
     const [fs, path] = await Promise.all([import("node:fs/promises"), import("node:path")]);
-    const source = await fs.readFile(path.join(process.cwd(), relPath), "utf-8");
+    const source = await fs.readFile(path.join(path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../.."), relPath), "utf-8");
     expect(source).not.toMatch(/\.purge\w*\s*\(/i);
     expect(source).not.toMatch(/force\s*:/i);
     expect(source).not.toMatch(/pendingForcePurge|confirmForcePurge|trashOrPurge/);

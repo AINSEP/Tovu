@@ -28,11 +28,13 @@ function buildApp(depsOverrides: Partial<RedirectRouteDeps> = {}): express.Expre
     workspaceId: "ws-1",
     authorize: async () => ({ allowed: true, reason: "matched" }),
     redirectRepo: {
-      findById: async ({ id }: { id: string }) => (id === "red-1" ? fakeRule : null),
+      findById: async ({ id, workspaceId }: { id: string; workspaceId: string }) =>
+        (id === "red-1" && workspaceId === "ws-1" ? fakeRule : null),
     } as any,
     redirectHitSink: {
-      getStats: async ({ redirectId }: { redirectId: string }) => {
-        if (redirectId === "red-1") {
+      getStats: async (input: { redirectId: string; workspaceId: string }) => {
+        assert.deepEqual(input, { redirectId: "red-1", workspaceId: "ws-1" });
+        if (input.redirectId === "red-1") {
           return { redirectId: "red-1", workspaceId: "ws-1", hitCount: 42, lastHitAt: "2026-01-02T00:00:00Z" };
         }
         return null;

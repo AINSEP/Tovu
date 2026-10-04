@@ -3,6 +3,7 @@ import test from "node:test";
 
 import type { PostRecord } from "#src/features/post/index";
 import { InMemoryPostRepo } from "#src/features/post/index";
+import { InMemoryTransformDefinitionRepo } from "#src/features/media/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import { InMemoryMenuRepo, NAV_DOC_TYPE } from "#src/features/navigation/index";
 import type { NavMenuEntry } from "#src/features/navigation/index";
@@ -199,7 +200,7 @@ test("integration: GET /:slug a normal published post renders through the generi
         { type: "paragraph", content: [{ type: "text", text: "hello" }] },
         // A real ref-based image node — exercises collectImageAssetIds's full `node.type ===
         // "image" && isPlainObject(attrs) && typeof assetId === "string"` true arm.
-        { type: "image", attrs: { assetId: "asset-int-1", transformName: "public" } },
+        { type: "image", attrs: { assetId: "asset-int-1", transformName: "public", alt: "Authored asset" } },
         // A legacy src-only image node (no assetId) — exercises the same chain's false arm.
         { type: "image", attrs: { src: "legacy.jpg" } },
       ],
@@ -212,11 +213,29 @@ test("integration: GET /:slug a normal published post renders through the generi
     version: 1,
   } as unknown as PostRecord;
 
-  const app = createApp(testDeps({ postRepo: new InMemoryPostRepo([post]) }));
+  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [{
+    id: "integration-public-transform", workspaceId: WORKSPACE_ID, name: "public", version: 7,
+    params: { format: "webp" }, owner: "core", createdAt: "2026-08-17T00:00:00.000Z",
+  }] });
+  const deps = testDeps({ postRepo: new InMemoryPostRepo([post]), transformDefinitionRepo });
+  await deps.mediaRepo.save({
+    id: "asset-int-1", workspaceId: WORKSPACE_ID, title: "Integration asset", slug: "integration-asset",
+    alt: "Stored alt", caption: "", credit: "", source: { sha256: "sha-integration-asset" },
+    status: "active", createdAt: "2026-08-17T00:00:00.000Z", updatedAt: "2026-08-17T00:00:00.000Z",
+    version: 1, width: 640, height: 480, cssClass: "integration-image", htmlAttributes: null,
+  });
+  const app = createApp(deps);
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}/a-generic-post-int`);
   assert.equal(res.status, 200);
+  const html = await res.text();
+  assert.match(html, /<p>hello<\/p>/);
+  assert.ok(html.includes('<img src="/m/integration-asset/public.v7/image.jpg" alt="Authored asset" width="640" height="480" class="integration-image" loading="lazy">'));
+  // A relative `src` fails safeImageSrc's http(s) allowlist, so the legacy node degrades to the
+  // placeholder rather than emitting the author's URL.
+  assert.ok(html.includes('<figure class="media-ph" style="aspect-ratio:16 / 9"><span class="media-ph__label">Image</span></figure>'));
+  assert.ok(!html.includes("legacy.jpg"));
 });
 
 test("integration: GET /:slug a static theme with an empty templateChoice renders the missing-template diagnostic page", async (t) => {

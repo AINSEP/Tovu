@@ -174,10 +174,9 @@ test("REQ-01/BR-02 (property-style): every one of the 6 well-formed-except-one-f
 
   for (const { label, overrides, expectedCode } of mutations) {
     const result = validateManifest(required(validManifest(overrides)));
-    assert.ok(
-      codesOf(result).includes(expectedCode),
-      `mutation "${label}" must produce ${expectedCode} (found: ${codesOf(result).join(", ")})`
-    );
+    assert.deepEqual(codesOf(result), [expectedCode], `mutation "${label}" must report only its own error`);
+    assert.equal(result.errors[0].file, null);
+    assert.ok(result.errors[0].message.length > 0);
   }
 });
 
@@ -244,4 +243,33 @@ test("BUG REGRESSION: an omitted queryable field is MANIFEST_MALFORMED — it is
     codesOf(result).includes("MANIFEST_MALFORMED"),
     `an omitted 'queryable' must be rejected as malformed (found: ${codesOf(result).join(", ")})`,
   );
+});
+
+// F4.4: each malformed value breaks only the named shape guard.
+test("malformed top-level JSON values return a structured error without throwing", () => {
+  for (const manifest of [null, [], "plugin", 42, true]) {
+    assert.deepEqual(validateManifest(required(manifest)).errors, [{
+      code: "MANIFEST_MALFORMED", file: null, message: "tovu.plugin.json must be a JSON object",
+    }]);
+  }
+});
+
+test("non-array capabilities, hooks and fields each report their own shape diagnostic", () => {
+  for (const key of ["capabilities", "hooks", "fields"] as const) {
+    assert.deepEqual(validateManifest(required(validManifest({ [key]: {} } as never))).errors, [{
+      code: "MANIFEST_MALFORMED", file: null, message: `'${key}' must be an array`,
+    }]);
+  }
+});
+
+test("unsupported field types and non-object declarations return structured diagnostics", () => {
+  assert.deepEqual(validateManifest(required(validManifest({ fields: [null] as never }))).errors, [{
+    code: "MANIFEST_MALFORMED", file: null, message: "each 'fields' entry must be an object",
+  }]);
+  assert.deepEqual(validateManifest(required(validManifest({ fields: [
+    { path: "ext.word-count.count", type: "date" as never, queryable: false },
+  ] }))).errors, [{
+    code: "MANIFEST_MALFORMED", file: null,
+    message: "field 'ext.word-count.count' has an unrecognized type 'date'",
+  }]);
 });

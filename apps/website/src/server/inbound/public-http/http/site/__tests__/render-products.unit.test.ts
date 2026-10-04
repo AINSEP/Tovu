@@ -93,7 +93,11 @@ test("buildTemplateRenderData: a product's specs and currency pass through uncha
 });
 
 test("buildTemplateRenderData: a product never emits a `description` field, even if one somehow reached SiteProduct -- see storefront.ts's file header for why raw HTML from an unsanitized source must never reach product.liquid's `| raw` output", () => {
-  const data = buildTemplateRenderData(minimalContext({ products: [siteProduct()] }));
+  const hostile = { ...siteProduct(), description: "<script>x</script>", unknownField: "must not leak" };
+  const data = buildTemplateRenderData(minimalContext({ products: [hostile], product: hostile }));
   const products = data.products as Array<Record<string, unknown>>;
   assert.equal("description" in products[0], false);
+  const expectedKeys = ["compareAtPriceFormatted", "currency", "id", "price", "priceFormatted", "slug", "specs", "stock", "title"];
+  assert.deepEqual(Object.keys(products[0]).sort(), expectedKeys);
+  assert.deepEqual(Object.keys(data.product as Record<string, unknown>).sort(), expectedKeys);
 });

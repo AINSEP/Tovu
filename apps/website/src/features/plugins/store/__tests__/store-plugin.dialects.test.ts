@@ -84,6 +84,23 @@ describeEachDialect<ContentKernel>("store plugin data", { tables: [], make: fres
     assert.equal(await orderCount(kernel), 1);
   });
 
+  test("an order INSERT failure rolls back the preceding stock and version update", async (t) => {
+    const kernel = makeKernel();
+    const store = await activateStore({ db: kernel, dbPath: ":memory:" });
+    t.mock.method(Date, "now", () => 1234);
+    t.mock.method(Math, "random", () => 0.5);
+    // Force the generated order id to collide in the real database, after the stock UPDATE.
+    await kernel.execute(sql`INSERT INTO p_store__orders (id, product_id, qty, total, at)
+      VALUES ('ord-1234-i', 'prod-notebook', 1, 900, 1000)`);
+    const before = await store.listProducts();
+    await assert.rejects(store.checkout("prod-candle", 1), /unique|duplicate/i);
+    assert.deepEqual(await store.listProducts(), before);
+    assert.equal(await orderCount(kernel), 1);
+    assert.deepEqual(await kernel.query(sql`SELECT product_id, qty, total, at FROM p_store__orders`), [
+      { product_id: "prod-notebook", qty: 1, total: 900, at: 1000 },
+    ]);
+  });
+
   test("concurrent checkouts never oversell", async () => {
     const kernel = makeKernel();
     const store = await activateStore({ db: kernel, dbPath: ":memory:" });

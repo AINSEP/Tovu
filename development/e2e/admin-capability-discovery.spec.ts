@@ -164,6 +164,23 @@ function readRequestedToolCallOrder(dbPath: string, runId: string): string[] {
   }
 }
 
+function completedPluginAttempts(dbPath: string, runId: string): number {
+  const db = new Database(dbPath);
+  try {
+    return (db.prepare(`
+      SELECT COUNT(*) AS count FROM agent_tool_attempts requested
+      JOIN agent_tool_attempts completed ON completed.attempt_id = requested.attempt_id
+        AND completed.workspace_id = requested.workspace_id AND completed.run_id = requested.run_id
+        AND completed.tool_id = requested.tool_id
+      WHERE requested.workspace_id = ? AND requested.run_id = ? AND requested.tool_id = ?
+        AND requested.phase = 'requested' AND completed.phase = 'completed'
+        AND completed.execution_id IS NOT NULL
+    `).get(WORKSPACE_ID, runId, AGENT_PLUGIN_TOOL_ID) as { count: number }).count;
+  } finally {
+    db.close();
+  }
+}
+
 test.describe("capability discovery — a real agent finds and calls an installed Agent Plugin, unaided", () => {
   test.beforeAll(() => {
     // Asserted, not assumed: the daemon subprocess `webServer.command` spawns below inherits this
@@ -218,6 +235,24 @@ test.describe("capability discovery — a real agent finds and calls an installe
         `'${AGENT_PLUGIN_TOOL_ID}' for an uncontested compliance question with no competing native ` +
         `tool. Tool calls actually recorded for run ${runId}, in order: [${toolCallOrder.join(", ")}]`
     ).toBe(true);
+    expect(completedPluginAttempts(process.env.E2E_CAPABILITY_DISCOVERY_CONTENT_DB!, runId!)).toBeGreaterThan(0);
+    expect((await readTranscript(page)).at(-1)?.runStatus).toBe("succeeded");
+    const replay = await page.request.get(`/api/runs/${runId}/events`, { timeout: 30_000 });
+    expect(replay.status()).toBe(200);
+    const guidanceResults = (await replay.text()).split("\n\n").flatMap((frame) => {
+      const data = frame.split("\n").filter((line) => line.startsWith("data:")).map((line) => line.slice(5).trim()).join("\n");
+      if (!data) return [];
+      const event = JSON.parse(data);
+      if (event.kind !== "agent" || event.payload?.type !== "tool_result" || event.payload.isError) return [];
+      try {
+        const result = JSON.parse(event.payload.content);
+        return result.pluginId === "ui-ux-design" && typeof result.guidance === "string" && result.guidance.trim().length > 0
+          ? [result] : [];
+      } catch {
+        return [];
+      }
+    });
+    expect(guidanceResults.length, "the successful installed guidance must reach the run's tool-result stream").toBeGreaterThan(0);
   });
 
   test("B — contested (EXPECTED-FAILING, real measured defect): a design-polish question loses the same #1-ranked Agent Plugin to a native theme tool", async ({
@@ -228,7 +263,6 @@ test.describe("capability discovery — a real agent finds and calls an installe
     // (`ADS-memory/reports/2026-08-24-capability-discovery-retrieval-is-not-the-problem.md`), not
     // flakiness and not a test bug. Do not tune the assertion below to pass, and do not skip this
     // test — if it ever starts passing, remove `test.fail()`; that would be a real signal.
-    test.fail();
     test.setTimeout(10 * 60_000);
 
     await openAssistantDock(page);
@@ -247,6 +281,9 @@ test.describe("capability discovery — a real agent finds and calls an installe
     // this exact prompt, and the agent still calls `theme_list` (rank #5) instead of the plugin — the
     // agent prefers an executable native verb over guidance content whenever one plausibly fits the
     // goal it has already formed. This assertion is the DESIRED behavior and is expected to be red.
+    expect((await readTranscript(page)).at(-1)?.runStatus, "the run must succeed before measuring tool selection").toBe("succeeded");
+    expect(toolCallOrder.length, "tool execution must be observed before measuring selection").toBeGreaterThan(0);
+    test.fail();
     expect(
       toolCallOrder.includes(AGENT_PLUGIN_TOOL_ID),
       `expected the installed Agent Plugin ('${AGENT_PLUGIN_TOOL_ID}') to be called for this ` +

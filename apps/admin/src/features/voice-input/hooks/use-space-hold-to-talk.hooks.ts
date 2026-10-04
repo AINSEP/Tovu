@@ -92,6 +92,7 @@ export function useSpaceHoldToTalk(options: UseSpaceHoldToTalkOptions): void {
     }
 
     function handleKeyDown(event: KeyboardEvent) {
+      if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
       const action = resolveSpaceHoldKeyDown({
         key: event.key,
         isComposing: event.isComposing,
@@ -124,10 +125,12 @@ export function useSpaceHoldToTalk(options: UseSpaceHoldToTalkOptions): void {
     textarea.addEventListener("keydown", handleKeyDown);
     textarea.addEventListener("keyup", handleKeyUp);
     textarea.addEventListener("blur", abandonHold);
+    window.addEventListener("blur", abandonHold);
     return () => {
       textarea.removeEventListener("keydown", handleKeyDown);
       textarea.removeEventListener("keyup", handleKeyUp);
       textarea.removeEventListener("blur", abandonHold);
+      window.removeEventListener("blur", abandonHold);
       abandonHold();
     };
   }, [anchorRef, enabled]);

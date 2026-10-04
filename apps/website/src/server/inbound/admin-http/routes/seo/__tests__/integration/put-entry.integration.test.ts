@@ -137,8 +137,17 @@ test("put-entry: an unknown entry id 404s", async (t) => {
 });
 
 test("put-entry: a valid patch succeeds (200) and persists across a second GET", async (t) => {
-  const app = createApp(testDeps());
+  const deps = testDeps();
+  await deps.seoReady;
+  const post = await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: ENTRY_ID });
+  assert.ok(post);
+  await deps.postRepo.save({ ...post, seoExtJson: JSON.stringify({ description: "Preserved SEO description" }) });
+  const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const before = await fetch(`${baseUrl}${PATH}`, { headers: { cookie } });
+  assert.equal(before.status, 200);
+  const original = await before.json() as { data: { description?: string } };
+  assert.equal(original.data.description, "Preserved SEO description");
   const res = await fetch(`${baseUrl}${PATH}`, {
     method: "PUT",
     headers: { cookie, "content-type": "application/json" },
@@ -147,18 +156,23 @@ test("put-entry: a valid patch succeeds (200) and persists across a second GET",
   assert.equal(res.status, 200);
   const body = (await res.json()) as { data: { title?: string } };
   assert.equal(body.data.title, "Integration SEO Title");
+  const read = await fetch(`${baseUrl}${PATH}`, { headers: { cookie } });
+  assert.equal(read.status, 200);
+  const saved = await read.json() as { data: { title?: string; description?: string } };
+  assert.equal(saved.data.title, "Integration SEO Title");
+  assert.equal(saved.data.description, original.data.description);
 });
 
 test("put-entry: an unexpected repo failure 500s", async (t) => {
   const base = createRouteDeps();
-  const deps = testDeps({
-    postRepo: {
-      ...base.postRepo,
-      save: async () => {
-        throw new Error("boom");
-      },
-    },
+  await base.seoReady;
+  const before = await base.postRepo.findById({ workspaceId: WORKSPACE_ID, id: ENTRY_ID });
+  let reached = false;
+  t.mock.method(base.postRepo, "saveIfVersion", async () => {
+    reached = true;
+    throw new Error("boom");
   });
+  const deps = base;
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const res = await fetch(`${baseUrl}${PATH}`, {
@@ -167,6 +181,9 @@ test("put-entry: an unexpected repo failure 500s", async (t) => {
     body: JSON.stringify({ title: "x" }),
   });
   assert.equal(res.status, 500);
+  assert.deepEqual(await res.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+  assert.equal(reached, true, "the conditional write must be the failing operation");
+  assert.deepEqual(await base.postRepo.findById({ workspaceId: WORKSPACE_ID, id: ENTRY_ID }), before);
 });
 
 test("put-entry: `req.body ?? {}` fallback, forced via a direct handler call -- `express.json()` always defaults `req.body` to `{}` on any real request, so the only way to genuinely pass `undefined` through is a forced direct call -- treated as an empty (no-op) patch, still 200s", async () => {

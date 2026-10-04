@@ -32,19 +32,11 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import ts from "typescript";
 
 const UI_ROOT = path.resolve(import.meta.dirname, "..");
 const INDEX_FILE = path.join(UI_ROOT, "index.ts");
 const REPORT_CONTRACT_FILE = path.resolve(UI_ROOT, "../report-contract.ts");
-
-/** Matches a whole `import ... from "spec"` statement (value or type), capturing whether the `type`
- *  keyword appears immediately after `import`, and the specifier text — copied verbatim from
- *  `post-no-direct-registry-import.boundary.test.ts` (see that file for why the lazy gap needs
- *  comment-stripped input first). */
-const IMPORT_STATEMENT_PATTERN = /\bimport\s+(type\s+)?(?:[^;]*?)\bfrom\s*(["'])([^"']+)\2/g;
-/** `export … from "spec"` re-exports are module edges too — `index.ts` is built almost entirely out
- *  of them, so a reachability walk that only looked at `import` would walk nothing at all. */
-const EXPORT_STATEMENT_PATTERN = /\bexport\s+(type\s+)?(?:[^;]*?)\bfrom\s*(["'])([^"']+)\2/g;
 
 const REACT_SPECIFIER_PATTERN = /^react(-dom)?(\/|$)/;
 
@@ -66,21 +58,33 @@ interface ModuleEdge {
   readonly typeOnly: boolean;
 }
 
-function stripComments(source: string): string {
-  return source.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/\/\/[^\n]*/g, " ");
+function edgesInSource(source: string): readonly ModuleEdge[] {
+  const parsed = ts.createSourceFile("fixture.ts", source, ts.ScriptTarget.Latest, true);
+  const edges: ModuleEdge[] = [];
+  const visit = (node: ts.Node): void => {
+    if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
+      const clause = node.importClause;
+      const bindings = clause?.namedBindings;
+      const typeOnly = Boolean(clause?.isTypeOnly || (!clause?.name && bindings && ts.isNamedImports(bindings) &&
+        bindings.elements.length > 0 && bindings.elements.every(e => e.isTypeOnly)));
+      edges.push({ specifier: node.moduleSpecifier.text, typeOnly });
+    } else if (ts.isExportDeclaration(node) && node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
+      const bindings = node.exportClause;
+      const typeOnly = Boolean(node.isTypeOnly || (bindings && ts.isNamedExports(bindings) &&
+        bindings.elements.length > 0 && bindings.elements.every(e => e.isTypeOnly)));
+      edges.push({ specifier: node.moduleSpecifier.text, typeOnly });
+    } else if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword &&
+      node.arguments[0] && ts.isStringLiteralLike(node.arguments[0])) {
+      edges.push({ specifier: node.arguments[0].text, typeOnly: false });
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(parsed);
+  return edges;
 }
 
 function edgesOf(file: string): readonly ModuleEdge[] {
-  const source = stripComments(fs.readFileSync(file, "utf8"));
-  const edges: ModuleEdge[] = [];
-  for (const pattern of [IMPORT_STATEMENT_PATTERN, EXPORT_STATEMENT_PATTERN]) {
-    pattern.lastIndex = 0;
-    let match: RegExpExecArray | null;
-    while ((match = pattern.exec(source)) !== null) {
-      edges.push({ specifier: match[3], typeOnly: Boolean(match[1]) });
-    }
-  }
-  return edges;
+  return edgesInSource(fs.readFileSync(file, "utf8"));
 }
 
 /** Resolves a relative `.js` specifier back to the `.ts` file it was written against (both TS
@@ -89,7 +93,7 @@ function edgesOf(file: string): readonly ModuleEdge[] {
 function resolveRelative(fromFile: string, specifier: string): string | null {
   if (!specifier.startsWith(".")) return null;
   const joined = path.resolve(path.dirname(fromFile), specifier);
-  return joined.endsWith(".js") ? `${joined.slice(0, -".js".length)}.ts` : `${joined}.ts`;
+  return joined.endsWith(".js") ? `${joined.slice(0, -".js".length)}.ts` : joined.endsWith(".ts") ? joined : `${joined}.ts`;
 }
 
 function collectUiFiles(dir: string, out: string[]): void {
@@ -213,4 +217,17 @@ test("the shared report contract is a dependency-free client-safe leaf, not a pl
     false,
     "the hand-maintained planner/UI assignability checker must stay deleted"
   );
+});
+
+test("the client boundary sees side-effect, re-export and dynamic imports while ignoring comments", () => {
+  for (const source of [
+    'import "../planner.js";', 'export * from "../planner.js";', 'await import("../planner.js");',
+  ]) {
+    assert.deepEqual(edgesInSource(source), [{ specifier: "../planner.js", typeOnly: false }]);
+    assert.equal(resolveRelative(INDEX_FILE, "../planner.js"), path.resolve(UI_ROOT, "../planner.ts"));
+  }
+  assert.deepEqual(edgesInSource('import "node:fs";'), [{ specifier: "node:fs", typeOnly: false }]);
+  assert.deepEqual(edgesInSource('import type { X } from "../report-contract.js";'),
+    [{ specifier: "../report-contract.js", typeOnly: true }]);
+  assert.deepEqual(edgesInSource('// import "node:fs";'), []);
 });

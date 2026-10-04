@@ -75,6 +75,7 @@ test("the agent daemon boots and listens — no import cycle on its entry path",
       TOVU_WORKSPACE: "workspace-local",
       // Never touch the developer's real content.db.
       TOVU_DB: "memory",
+      TOVU_AGENT_DAEMON_TOKEN: "daemon-boots-test-token",
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -87,8 +88,11 @@ test("the agent daemon boots and listens — no import cycle on its entry path",
     if (child.exitCode === null) child.kill("SIGKILL");
   });
 
-  const outcome = await new Promise<"listening" | "exited">((resolve) => {
-    const deadline = setTimeout(() => resolve(child.exitCode === null ? "listening" : "exited"), 45_000);
+  const outcome = await new Promise<"listening" | "exited" | "timeout">((resolve) => {
+    const deadline = setTimeout(() => {
+      clearInterval(poll);
+      resolve("timeout");
+    }, 45_000);
     const poll = setInterval(() => {
       if (/listening on/i.test(output)) {
         clearTimeout(deadline);
@@ -112,5 +116,10 @@ test("the agent daemon boots and listens — no import cycle on its entry path",
       `lazily.\n\n${output}`,
   );
 
-  assert.equal(outcome, "listening", `expected the daemon to start listening, but it exited:\n${output}`);
+  assert.equal(outcome, "listening", `expected the daemon to start listening, got ${outcome}:\n${output}`);
+  const response = await fetch(`http://127.0.0.1:${port}/api/agents`, {
+    headers: { authorization: "Bearer daemon-boots-test-token" },
+    signal: AbortSignal.timeout(5_000),
+  });
+  assert.equal(response.status, 200, await response.text());
 });

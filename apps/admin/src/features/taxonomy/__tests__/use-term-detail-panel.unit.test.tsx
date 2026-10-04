@@ -98,12 +98,13 @@ describe("success and failure", () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ term: termFixture({ name: "New Name" }) }));
     const onRenamed = vi.fn();
     const { result } = renderHook(() => useWiredTermDetailPanel({ term: termFixture(), onRenamed }), { wrapper });
-    act(() => result.current.setNewName("New Name"));
+    act(() => result.current.setNewName("  New Name  "));
 
     await act(async () => {
       await result.current.rename(formEvent());
     });
 
+    expect(fetchMock).toHaveBeenCalledWith("/api/admin/v1/taxonomy/terms/t1", expect.objectContaining({ method: "PUT", body: JSON.stringify({ newName: "New Name" }) }));
     expect(result.current.message).toBe("Renamed.");
     expect(result.current.error).toBeNull();
     expect(result.current.saving).toBe(false);
@@ -111,9 +112,14 @@ describe("success and failure", () => {
   });
 
   it("sets error, clears any prior message, and does not call onRenamed on failure", async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "name already exists" }, 409));
+    fetchMock.mockResolvedValueOnce(jsonResponse({ term: termFixture({ name: "First rename" }) })).mockResolvedValueOnce(jsonResponse({ error: "name already exists" }, 409));
     const onRenamed = vi.fn();
     const { result } = renderHook(() => useWiredTermDetailPanel({ term: termFixture(), onRenamed }), { wrapper });
+    act(() => result.current.setNewName("First rename"));
+    await act(() => result.current.rename(formEvent()));
+    expect(result.current.message).toBe("Renamed.");
+    expect(onRenamed).toHaveBeenCalledTimes(1);
+    onRenamed.mockClear();
     act(() => result.current.setNewName("Taken Name"));
 
     await act(async () => {
@@ -148,34 +154,27 @@ describe("resetting when the selected term changes", () => {
 });
 
 describe("stale rename settlement across a term switch (no key={term.id} remount)", () => {
-  /**
-   * `Taxonomy.tsx` mounts `TermDetailPanel` with no `key={selected.term.id}` — switching the
-   * selected term re-renders the SAME hook instance with a new `term` prop rather than remounting a
-   * fresh one. The term-change effect resets `newName`/`message`/`renameMutation` the moment `term`
-   * changes, but a `rename()` call already in flight for the PREVIOUS term has no way to know that
-   * happened: its `then`/`catch` still unconditionally writes `message`/(via the mutation's own
-   * `.error`) into state that is now rendering the NEW term's form. Same class of bug
-   * `use-widget-instance-editor.hooks.ts`'s `activeEntityRef` guard already fixes for its own
-   * save()-after-navigate case — this hook has no equivalent guard.
-   */
-  it("a rename started for term A that settles AFTER switching to term B must not show its outcome against B's form", async () => {
+  // The panel remains mounted when selection changes, so both successful and failed stale
+  // requests must leave the new term's form and onRenamed callback untouched.
+  it.each(["success", "failure"])("ignores stale %s after switching from term A to B", async (outcome) => {
     const term1 = termFixture({ id: "t1", name: "Term A" });
     const term2 = termFixture({ id: "t2", name: "Term B" });
     const port = createFakeTaxonomyPort({
       groups: [{ taxonomy: { id: "tax1", name: "Category", hierarchical: false, status: "active", updatedAt: "x", version: 1 }, terms: [term1, term2] }],
     });
     let resolveRename!: (v: { term: AdminTerm }) => void;
-    port.renameTerm = vi.fn(() => new Promise<{ term: AdminTerm }>((resolve) => (resolveRename = resolve)));
+    let rejectRename!: (reason: Error) => void;
+    port.renameTerm = vi.fn(() => new Promise<{ term: AdminTerm }>((resolve, reject) => { resolveRename = resolve; rejectRename = reject; }));
+    const onRenamed = vi.fn();
 
-    const { result, rerender } = renderHook(({ term }) => useTermDetailPanel({ term, onRenamed: vi.fn() }, port, "en"), {
+    const { result, rerender } = renderHook(({ term }) => useTermDetailPanel({ term, onRenamed }, port, "en"), {
       initialProps: { term: term1 },
       wrapper,
     });
 
     act(() => result.current.setNewName("Renamed A"));
-    act(() => {
-      void result.current.rename(formEvent());
-    });
+    let rename!: Promise<void>;
+    act(() => { rename = result.current.rename(formEvent()); });
     await waitFor(() => expect(port.renameTerm).toHaveBeenCalledTimes(1));
 
     // Operator switches the selection to term B while A's rename is still in flight — the SAME
@@ -187,15 +186,18 @@ describe("stale rename settlement across a term switch (no key={term.id} remount
 
     // A's stale rename now settles.
     await act(async () => {
-      resolveRename({ term: { ...term1, name: "Renamed A" } });
+      if (outcome === "success") resolveRename({ term: { ...term1, name: "Renamed A" } });
+      else rejectRename(new Error("stale rename failed"));
+      await rename;
     });
-    await new Promise((resolve) => setTimeout(resolve, 20));
 
     // Must still read as term B's untouched form — A's late success must not paint "Renamed." (or
     // any state at all) onto a form that is now showing a different term.
     expect(result.current.message).toBeNull();
     expect(result.current.error).toBeNull();
     expect(result.current.newName).toBe("Term B");
+    expect(result.current.saving).toBe(false);
+    expect(onRenamed).not.toHaveBeenCalled();
   });
 });
 

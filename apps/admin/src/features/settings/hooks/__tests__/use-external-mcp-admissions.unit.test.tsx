@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { ApiError, type AdminExternalMcpAdmissionsSnapshot } from "@/lib/api";
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider, useFetchQuery } from "@/lib/fetch-query";
 
 import {
   isAssistantStartingError,
@@ -339,5 +339,26 @@ describe("isAssistantStartingError", () => {
     ["nothing", null],
   ])("does not wait on %s", (_label, error) => {
     expect(isAssistantStartingError(error)).toBe(false);
+  });
+});
+
+
+describe("useExternalMcpAdmissions — restart permission", () => {
+  it.each(["absent", "failed", "granted"])("evaluates restart after the permission read is %s", async (kind) => {
+    const { port } = fakePort();
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => { release = resolve; });
+    port.me = vi.fn(async () => {
+      await pending;
+      if (kind === "failed") throw new Error("permission read denied");
+      return { effectivePermissions: kind === "granted" ? ["system.write"] : [] };
+    });
+    const { result } = renderHook(() => ({ controller: useExternalMcpAdmissions({ port, savedAllowedToolNamesById: SAVED }), query: useFetchQuery({ key: ["auth", "me"], fetch: () => port.me() }) }), { wrapper });
+    expect(result.current.controller.canRestart).toBe(false);
+    await waitFor(() => expect(port.me).toHaveBeenCalledTimes(1));
+    await act(async () => { release(); await pending; });
+    await waitFor(() => expect(result.current.query.status).toBe(kind === "failed" ? "error" : "success"));
+    expect(result.current.controller.canRestart).toBe(kind === "granted");
+    await waitFor(() => expect(result.current.controller.connections).toHaveLength(1));
   });
 });

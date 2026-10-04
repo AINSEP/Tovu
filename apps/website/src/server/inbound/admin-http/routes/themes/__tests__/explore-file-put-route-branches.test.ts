@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -289,29 +290,35 @@ test("PUT over an existing file of exactly 1 MB succeeds without the flag -- GET
 });
 
 test("PUT that fails for a reason OTHER than ThemePathError 500s via sendThemeFileError's generic branch", async (t) => {
-  // Deny write permission on the TARGET FILE itself (writeFileSync opens an existing file with the
-  // "w" flag, which needs write permission on the file, not its parent directory) so
-  // `writeThemeFile`'s `writeFileSync` throws a raw EACCES, not a `ThemePathError` -- the one branch
-  // of `sendThemeFileError` PUT's regression tests never reach, since every other PUT failure here is
-  // a deliberate `ThemePathError`-shaped refusal (400/403), not a 500.
   const themesDir = makePlainThemesRoot();
-  const target = path.join(themesDir, "static", "plain", "logo.svg");
-  fs.chmodSync(target, 0o444);
-  t.after(() => fs.chmodSync(target, 0o644));
-
+  t.after(() => fs.rmSync(themesDir, { recursive: true, force: true }));
+  const target = fs.realpathSync(path.join(themesDir, "static", "plain", "logo.svg"));
+  const original = fs.readFileSync(target, "utf8");
   const app = buildTestApp(themesDir);
   const baseUrl = await startTestServer(app, t);
-
-  const res = await fetch(`${baseUrl}${BASE("plain")}/file`, {
-    method: "PUT",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ path: "logo.svg", content: "<svg><circle/></svg>" }),
+  const rename = fs.renameSync;
+  let reached = false;
+  const fault = t.mock.method(fs, "renameSync", (...args: Parameters<typeof fs.renameSync>) => {
+    if (String(args[1]) === target) {
+      reached = true;
+      throw Object.assign(new Error("injected rename failure"), { code: "EIO" });
+    }
+    return rename(...args);
   });
-  const body = (await res.json()) as { error?: string; code?: string };
-  if (process.getuid && process.getuid() === 0) {
-    t.skip("running as root: chmod 555 does not deny root a write, so EACCES cannot be forced here");
-    return;
+  syncBuiltinESMExports();
+  try {
+    const res = await fetch(`${baseUrl}${BASE("plain")}/file`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ path: "logo.svg", content: "<svg><circle/></svg>" }),
+    });
+    assert.equal(reached, true, "the real atomic writer must reach the failed rename");
+    assert.equal(res.status, 500);
+    assert.deepEqual(await res.json(), { error: "internal error" });
+    assert.equal(fs.readFileSync(target, "utf8"), original);
+    assert.deepEqual(fs.readdirSync(path.dirname(target)).filter((name) => name.startsWith(".logo.svg.")), []);
+  } finally {
+    fault.mock.restore();
+    syncBuiltinESMExports();
   }
-  assert.equal(res.status, 500, `expected a permission-denied write to 500, got ${res.status}: ${JSON.stringify(body)}`);
-  assert.equal(body.error, "internal error");
 });

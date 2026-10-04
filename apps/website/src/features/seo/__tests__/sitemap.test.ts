@@ -13,7 +13,7 @@ import {
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { registerConfiguredOrigin, SqliteOriginSettingRepo } from "#src/platform/db/sqlite/origin-repo.sqlite";
 import { ensureSeoSettingDefinitions } from "../settings.js";
-import { buildSitemap, invalidateSitemapCache } from "../sitemap.js";
+import { buildSitemap, invalidateSitemapCache, registerSitemapCollectHook, resetSitemapCollectHooksForTests } from "../sitemap.js";
 
 /**
  * @file T033 — failing-first unit certification of `buildSitemap`
@@ -244,18 +244,39 @@ test("buildSitemap: a trashed post that still carries status: 'published' is exc
   );
 });
 
-test("buildSitemap: entries are ordered by keyset id ascending (behavior.spec.md §2.2)", async () => {
+test("buildSitemap: entries are ordered by keyset id ascending with lastmod from updatedAt", async () => {
   const deps = await makeDeps([
-    post({ id: "c", slug: "c-post" }),
-    post({ id: "a", slug: "a-post" }),
-    post({ id: "b", slug: "b-post" }),
+    post({ id: "c", slug: "a-post", updatedAt: "2026-07-15T00:00:00.000Z", createdAt: "2026-01-01T00:00:00.000Z" }),
+    post({ id: "a", slug: "z-post", updatedAt: "2026-07-13T00:00:00.000Z", createdAt: "2026-01-02T00:00:00.000Z" }),
+    post({ id: "b", slug: "m-post", updatedAt: "2026-07-14T00:00:00.000Z", createdAt: "2026-01-03T00:00:00.000Z" }),
   ]);
-
   const entries = await buildSitemap(deps, { workspaceId: WORKSPACE });
-  assert.deepEqual(
-    entries.map((e) => e.loc),
-    entries.map((e) => e.loc).slice().sort()
-  );
-  assert.ok(entries[0]!.loc.includes("a-post"));
-  assert.ok(entries[2]!.loc.includes("c-post"));
+  assert.deepEqual(entries.map(e => e.loc), ["/z-post", "/m-post", "/a-post"]);
+  assert.deepEqual(entries, [
+    { loc: "/z-post", lastmod: "2026-07-13T00:00:00.000Z" },
+    { loc: "/m-post", lastmod: "2026-07-14T00:00:00.000Z" },
+    { loc: "/a-post", lastmod: "2026-07-15T00:00:00.000Z" },
+  ]);
+});
+
+test("sitemap contributors append entries in priority order with workspace context and reset removes them", async () => {
+  resetSitemapCollectHooksForTests();
+  const calls: unknown[] = [];
+  try {
+    const deps = await makeDeps([post({ slug: "base-post" })]);
+    registerSitemapCollectHook({ priority: 20, handle: async ctx => { calls.push(["later", ctx]); return [{ loc: "/later", lastmod: "2026-07-02" }]; } });
+    registerSitemapCollectHook({ priority: 5, handle: async ctx => { calls.push(["earlier", ctx]); return [{ loc: "/earlier", lastmod: "2026-07-01" }]; } });
+    assert.deepEqual(await buildSitemap(deps, { workspaceId: WORKSPACE }), [
+      { loc: "/base-post", lastmod: "2026-07-13T00:00:00.000Z" },
+      { loc: "/earlier", lastmod: "2026-07-01" }, { loc: "/later", lastmod: "2026-07-02" },
+    ]);
+    assert.deepEqual(calls, [["earlier", { workspaceId: WORKSPACE, baseUrl: "" }], ["later", { workspaceId: WORKSPACE, baseUrl: "" }]]);
+    resetSitemapCollectHooksForTests();
+    invalidateSitemapCache({ workspaceId: WORKSPACE });
+    assert.deepEqual(await buildSitemap(deps, { workspaceId: WORKSPACE }), [{ loc: "/base-post", lastmod: "2026-07-13T00:00:00.000Z" }]);
+    assert.equal(calls.length, 2);
+  } finally {
+    resetSitemapCollectHooksForTests();
+    invalidateSitemapCache({ workspaceId: WORKSPACE });
+  }
 });

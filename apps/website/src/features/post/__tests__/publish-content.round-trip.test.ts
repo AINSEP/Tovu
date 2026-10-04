@@ -102,13 +102,14 @@ async function packAll(kind: PostKind, rows: PostRecord[]): Promise<PackedEntity
 async function roundTrip(
   kind: PostKind,
   source: PostRecord,
-  destinationRows: PostRecord[] = []
-): Promise<{ sourceEntity: PackedEntity; repacked: PackedEntity | undefined }> {
+  destinationRows: PostRecord[] = [],
+  destinationClock?: { nowMs(): number }
+): Promise<{ sourceEntity: PackedEntity; repacked: PackedEntity | undefined; landed: PostRecord | null }> {
   const [sourceEntity] = await packAll(kind, [source]);
   assert.ok(sourceEntity, "the source row must pack — nothing to round-trip otherwise");
 
   const contributor = kind === "post" ? contributePostPublish() : contributePagePublish();
-  const destinationDeps = makeDeps(destinationRows);
+  const destinationDeps = { ...makeDeps(destinationRows), ...(destinationClock ? { clock: destinationClock } : {}) };
   const destinationHandler = contributor.build(destinationDeps);
   const existing = destinationRows.find((row) => row.id === source.id);
 
@@ -120,7 +121,8 @@ async function roundTrip(
 
   const repackedAll: PackedEntity[] = [];
   for await (const entity of destinationHandler.pack()) repackedAll.push(entity);
-  return { sourceEntity, repacked: repackedAll.find((entity) => entity.id === source.id) };
+  return { sourceEntity, repacked: repackedAll.find((entity) => entity.id === source.id),
+    landed: await destinationDeps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: source.id }) };
 }
 
 // ---------------------------------------------------------------------------
@@ -367,3 +369,21 @@ test("publishing over a TRASHED destination row is refused rather than silently 
     "precheck accepted an entity whose destination row is in the trash — applying it would resurrect it"
   );
 });
+
+for (const kind of ["post", "page"] as const) {
+  test(`${kind}: plugin extension data is excluded from transport and preserves destination-local namespaces`, async () => {
+    const source = fullyPopulatedPost({ kind });
+    const destination = { ...source, version: 3, ext: { "destination-plugin": { cached: "local value" } } };
+    const clock = { nowMs: () => Date.parse("2026-09-19T12:00:00.000Z") };
+    const existing = await roundTrip(kind, source, [destination], clock);
+    assert.equal("ext" in existing.sourceEntity.state, false);
+    assert.deepEqual(existing.landed?.ext, { "destination-plugin": { cached: "local value" } });
+    assert.ok(existing.repacked);
+    assert.equal(existing.repacked.contentHash, existing.sourceEntity.contentHash);
+    const empty = await roundTrip(kind, source, [], clock);
+    assert.equal("ext" in empty.sourceEntity.state, false);
+    assert.equal(empty.landed?.ext, undefined);
+    assert.ok(empty.repacked);
+    assert.equal(empty.repacked.contentHash, empty.sourceEntity.contentHash);
+  });
+}

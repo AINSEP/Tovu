@@ -8,7 +8,8 @@
  */
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, readdir, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
+import fsPromises, { chmod, stat, mkdir, mkdtemp, readdir, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
+import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test, { afterEach } from "node:test";
@@ -29,7 +30,8 @@ import {
 } from "#src/features/publish-content/type-registry";
 
 import { contributeThemeFilesPublish, packThemeFilesEntities } from "../publish-content.js";
-import { discoverAllBuiltInThemes } from "../theme.js";
+import { discoverAllBuiltInThemes, rescanThemes } from "../theme.js";
+import { renderStaticPartial } from "../static-render.js";
 
 const WORKSPACE_ID = "11111111-1111-1111-1111-111111111111";
 const OPERATOR_ID = "operator-1";
@@ -284,18 +286,32 @@ test("apply() keeps only the last 2 previous copies of a tree", async () => {
   assert.deepEqual(css.sort(), ["header { order: 1; }", "header { order: 2; }"]);
 });
 
-test("a mid-write failure (a missing blob) leaves the old tree serving and no staging dir", async () => {
+test("a mid-write failure (a missing blob) leaves the old tree serving and no staging dir", async (t) => {
   const fixture = await makeFixture();
   const { entities } = await packThemeFilesEntities({ themesDir: fixture.sourceThemes });
-  const cssSha = (entities[0].state.files as Array<{ path: string; sha256: string }>).find((f) => f.path === "css/theme.css")!.sha256;
-  const entity = await packAndStage(fixture, { skipSha: cssSha });
+  const missingSha = (entities[0].state.files as Array<{ path: string; sha256: string }>).find((f) => f.path === "theme.json")!.sha256;
+  const entity = await packAndStage(fixture, { skipSha: missingSha });
+  const originalExists = fixture.blobStore.exists.bind(fixture.blobStore);
+  let missingChecks = 0;
+  let stagedBeforeFailure: Record<string, string> | undefined;
+  t.mock.method(fixture.blobStore, "exists", async required => {
+    if (required.storageKey.includes(missingSha) && ++missingChecks === 2) {
+      const key = createHash("sha256").update("key-missing").digest("hex").slice(0, 32);
+      stagedBeforeFailure = await readTree(path.join(fixture.destThemes, ".publish-staging", key));
+    }
+    return originalExists(required);
+  });
   await assert.rejects(
-    handlerFor(fixture.deps).apply({ entity, expectedVersion: 0, principalId: OPERATOR_ID, idempotencyKey: "key-missing" }),
+    handlerFor({ ...fixture.deps, clock: { nowMs: () => Date.parse("2026-09-24T12:00:00.000Z") } }).apply({ entity, expectedVersion: 0, principalId: OPERATOR_ID, idempotencyKey: "key-missing" }),
     (error: unknown) =>
       error instanceof PublishContentApplyRowError &&
       error.rowOutcome === "blocked" &&
-      error.message === `Theme: static/basic was not published: the bytes for "css/theme.css" never reached this site`
+      error.message === `Theme: static/basic was not published: the bytes for "theme.json" never reached this site`
   );
+  assert.deepEqual(stagedBeforeFailure, {
+    "css/theme.css": SOURCE_BASIC["css/theme.css"],
+    "render/partials/nav.html": SOURCE_BASIC["render/partials/nav.html"],
+  });
   assert.deepEqual(await readTree(path.join(fixture.destThemes, "static/basic")), ORIGINAL_BASIC);
   assert.deepEqual(await readdir(path.join(fixture.destThemes, ".publish-staging")), []);
   assert.equal(await exists(path.join(fixture.destThemes, ".publish-previous")), false);
@@ -408,34 +424,120 @@ test("round trip: a theme edited on live plans 'conflict' offered as an overwrit
 // in-memory theme refresh (2026-09-24 live bug: assets updated, rendered header stayed old)
 // ---------------------------------------------------------------------------
 
-/** Records what `static/basic/render/partials/nav.html` held on disk each time the handler asked the
- *  running site to re-read its themes — the renderer serves `DiscoveredTheme.partials` from memory. */
-function recordReloads(fixture: Fixture): string[] {
+/** Use the production refresh adapter and renderer over the live, shared discovery array. */
+async function recordReloads(fixture: Fixture): Promise<string[]> {
+  const manifest = JSON.stringify({ apiVersion: 2, id: "basic", name: "Basic", version: "1.0.0", tier: "static",
+    description: "Refresh fixture", license: { spdx: "MIT" }, slots: { nav: { source: "nav.html" } } });
+  for (const root of [fixture.sourceThemes, fixture.destThemes]) {
+    await writeTree(path.join(root, "static/basic"), { "theme.json": manifest, "tokens.json": "{}", "render/pages/index.html": "<html><body>Home</body></html>" });
+  }
+  const themes = discoverAllBuiltInThemes({ dir: fixture.destThemes, source: "site" });
+  const sharedThemes = themes;
+  const render = () => {
+    const theme = themes.find(theme => theme.manifest.id === "basic");
+    assert.ok(theme);
+    assert.equal(theme.status, "valid", JSON.stringify(theme.errors));
+    const html = renderStaticPartial({ theme, partialId: "nav" });
+    assert.ok(html);
+    return html;
+  };
+  assert.match(render(), /<nav>original header<\/nav>/);
   const seen: string[] = [];
   (fixture.deps.ports["theme-files"] as { onReplaced?: () => Promise<void> }).onReplaced = async () => {
-    seen.push(await readFile(path.join(fixture.destThemes, "static/basic/render/partials/nav.html"), "utf8").catch(() => "<missing>"));
+    rescanThemes({ themes, dir: fixture.destThemes, source: "site" });
+    assert.equal(themes, sharedThemes);
+    seen.push(render());
   };
   return seen;
 }
 
-test("apply() asks the running site to re-read its themes after the swap, so new partials render", async () => {
+test("apply() refreshes the running site's theme cache so new partials render", async () => {
   const fixture = await makeFixture();
-  const seen = recordReloads(fixture);
+  const seen = await recordReloads(fixture);
   const entity = await packAndStage(fixture);
-  await handlerFor(fixture.deps).apply({ entity, expectedVersion: 0, principalId: OPERATOR_ID, idempotencyKey: "key-reload" });
-  assert.deepEqual(seen, ["<nav>new header</nav>"]);
+  await handlerFor({ ...fixture.deps, clock: { nowMs: () => Date.parse("2026-09-24T12:00:00.000Z") } }).apply({ entity, expectedVersion: 0, principalId: OPERATOR_ID, idempotencyKey: "key-reload" });
+  assert.equal(seen.length, 1);
+  assert.match(seen[0], /<nav>new header<\/nav>/);
+  assert.doesNotMatch(seen[0], /original header/);
 });
 
-test("rollback asks the running site to re-read its themes again, so the restored partials render", async () => {
+test("rollback refreshes the running site's cache so restored partials render", async () => {
   const fixture = await makeFixture();
-  const seen = recordReloads(fixture);
+  const seen = await recordReloads(fixture);
   const entity = await packAndStage(fixture);
-  fixture.changeSets.insert = async () => {
-    throw new Error("change-set store is down");
-  };
+  fixture.changeSets.insert = async () => { throw new Error("change-set store is down"); };
   await assert.rejects(
-    handlerFor(fixture.deps).apply({ entity, expectedVersion: 0, principalId: OPERATOR_ID, idempotencyKey: "key-reload-rollback" }),
+    handlerFor({ ...fixture.deps, clock: { nowMs: () => Date.parse("2026-09-24T12:00:00.000Z") } }).apply({ entity, expectedVersion: 0, principalId: OPERATOR_ID, idempotencyKey: "key-reload-rollback" }),
     /change-set store is down/
   );
-  assert.equal(seen.at(-1), "<nav>original header</nav>");
+  assert.equal(seen.length, 2);
+  assert.match(seen[0], /<nav>new header<\/nav>/);
+  assert.match(seen[1], /<nav>original header<\/nav>/);
+  assert.doesNotMatch(seen[1], /new header/);
+});
+
+for (const kind of ["checksum", "tree hash"] as const) {
+  test(`apply rejects a wrong ${kind} without replacing the serving tree`, async (t) => {
+    const fixture = await makeFixture();
+    const packed = await packAndStage(fixture);
+    if (kind === "checksum") {
+      const sha = (packed.state.files as Array<{ path: string; sha256: string }>).find(file => file.path === "css/theme.css")!.sha256;
+      const get = fixture.blobStore.get.bind(fixture.blobStore);
+      t.mock.method(fixture.blobStore, "get", async required => required.storageKey.includes(sha)
+        ? new TextEncoder().encode("corrupt bytes") : get(required));
+    }
+    const entity = kind === "tree hash" ? { ...packed, contentHash: "0".repeat(64) } : packed;
+    await assert.rejects(handlerFor({ ...fixture.deps, clock: { nowMs: () => Date.parse("2026-09-24T12:00:00.000Z") } }).apply({
+      entity, expectedVersion: 0, principalId: OPERATOR_ID, idempotencyKey: `bad-${kind}`,
+    }), error => error instanceof PublishContentApplyRowError && error.rowOutcome === "blocked" && error.message ===
+      (kind === "checksum" ? 'Theme: static/basic was not published: the bytes for "css/theme.css" do not match their checksum'
+        : "Theme: static/basic was not published: the copy written on this site does not match what was sent"));
+    assert.deepEqual(await readTree(path.join(fixture.destThemes, "static/basic")), ORIGINAL_BASIC);
+    assert.deepEqual(await readdir(path.join(fixture.destThemes, ".publish-staging")), []);
+    assert.equal(await exists(path.join(fixture.destThemes, ".publish-previous")), false);
+  });
+}
+
+test("a failed staging-to-live rename restores the tree moved by the first rename", async (t) => {
+  const fixture = await makeFixture();
+  const entity = await packAndStage(fixture);
+  const target = path.join(fixture.destThemes, "static/basic");
+  const originalRename = fsPromises.rename;
+  const moves: Array<[string, string]> = [];
+  let previousAtFailure: Record<string, string> | undefined;
+  const mock = t.mock.method(fsPromises, "rename", async (from, to) => {
+    moves.push([String(from), String(to)]);
+    if (String(from).includes("/.publish-staging/") && String(to) === target) {
+      previousAtFailure = await readTree(moves[0][1]);
+      throw new Error("second rename canary");
+    }
+    return originalRename(from, to);
+  });
+  syncBuiltinESMExports();
+  t.after(() => { mock.mock.restore(); syncBuiltinESMExports(); });
+  await assert.rejects(handlerFor({ ...fixture.deps, clock: { nowMs: () => Date.parse("2026-09-24T12:00:00.000Z") } }).apply({
+    entity, expectedVersion: 0, principalId: OPERATOR_ID, idempotencyKey: "second-rename",
+  }), /second rename canary/);
+  assert.deepEqual(previousAtFailure, ORIGINAL_BASIC);
+  assert.equal(moves.length, 3);
+  assert.equal(moves[0][0], target);
+  assert.deepEqual(moves[2], [moves[0][1], target]);
+  assert.deepEqual(await readTree(target), ORIGINAL_BASIC);
+  assert.deepEqual(await readdir(path.join(fixture.destThemes, ".publish-staging")), []);
+});
+
+test("apply normalizes executable modes and restores bits masked by the process umask", async () => {
+  const fixture = await makeFixture({ destFiles: null });
+  const rel = "render/partials/nav.html";
+  await chmod(path.join(fixture.sourceThemes, "static/basic", rel), 0o700);
+  const entity = await packAndStage(fixture);
+  assert.equal((entity.state.files as Array<{ path: string; mode: number }>).find(file => file.path === rel)!.mode, 0o755);
+  const oldUmask = process.umask(0o077);
+  try {
+    await handlerFor({ ...fixture.deps, clock: { nowMs: () => Date.parse("2026-09-24T12:00:00.000Z") } }).apply({
+      entity, expectedVersion: undefined, principalId: OPERATOR_ID, idempotencyKey: "mode",
+    });
+    assert.equal((await stat(path.join(fixture.destThemes, "static/basic", rel))).mode & 0o777, 0o755);
+    assert.equal((await stat(path.join(fixture.destThemes, "static/basic/css/theme.css"))).mode & 0o777, 0o644);
+  } finally { process.umask(oldUmask); }
 });

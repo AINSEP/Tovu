@@ -157,13 +157,15 @@ test("a same-origin ABSOLUTE target (matching the workspace's own verified origi
   assert.equal(result.matched, true);
 });
 
-test("no matching rule resolves to matched:false without ever consulting the oracle for a nonexistent path", async () => {
+test("no matching rule resolves to matched:false without ever consulting the oracle for a nonexistent path", async (t) => {
   const repo = new InMemoryRedirectRepo([]);
   const originRegistry = makeOriginRegistry();
+  const oracle = t.mock.method(originRegistry, "isAllowedRedirectTarget", async () => { throw new Error("no candidate to check"); });
   const resolver = new RedirectPhaseHandlerResolver({ repo, matcher: redirectMatcher, originRegistry });
 
   const result = await resolver.resolve({ workspaceId: WORKSPACE_ID, path: "/nowhere", phase: "post_content" });
   assert.deepEqual(result, { matched: false });
+  assert.equal(oracle.mock.callCount(), 0);
 });
 
 test("pre_content phase only considers override:true rules", async () => {
@@ -186,4 +188,45 @@ test("pre_content phase matches an override:true rule", async () => {
 
   const result = await resolver.resolve({ workspaceId: WORKSPACE_ID, path: "/x", phase: "pre_content" });
   assert.equal(result.matched, true);
+});
+
+for (const pending of [false, true]) {
+  test(`redirect resolution records the exact hit and completes with an ${pending ? "unsettled" : "rejecting"} outbox`, async () => {
+    let release!: () => void;
+    const held = new Promise<void>(resolve => { release = resolve; });
+    const events: unknown[] = [];
+    const resolver = new RedirectPhaseHandlerResolver({
+      repo: new InMemoryRedirectRepo([rule({ id: "hit-rule", fromPattern: "/old", toTarget: "/new" })]),
+      matcher: redirectMatcher, originRegistry: makeOriginRegistry(),
+      hits: { clock: { nowMs: () => Date.parse("2026-07-13T00:00:00.000Z") }, idGen: { newId: () => "hit-1" },
+        outbox: { enqueue: async event => { events.push(event); if (pending) await held; else throw new Error("hit sink unavailable"); } } as never },
+    });
+    const resolution = resolver.resolve({ workspaceId: WORKSPACE_ID, path: "/old", phase: "post_content" });
+    try {
+      const result = await Promise.race([resolution, new Promise(resolve => setImmediate(() => resolve("still waiting on outbox")))]);
+      assert.deepEqual(result, { matched: true, redirectId: "hit-rule", location: "/new", statusCode: 301, matchType: "exact" });
+      assert.deepEqual(events, [{ id: "hit-1", name: "redirect.hit", occurredAt: "2026-07-13T00:00:00.000Z",
+        aggregateId: "hit-rule", workspaceId: WORKSPACE_ID,
+        payload: { workspaceId: WORKSPACE_ID, redirectId: "hit-rule", at: "2026-07-13T00:00:00.000Z" } }]);
+    } finally { release(); await resolution; }
+  });
+}
+
+test("a relative redirect without a verified origin fails closed", async () => {
+  const resolver = new RedirectPhaseHandlerResolver({
+    repo: new InMemoryRedirectRepo([rule({})]), matcher: redirectMatcher,
+    originRegistry: new OriginRegistry({ repo: new InMemoryOriginSettingRepo([]) }),
+  });
+  assert.deepEqual(await resolver.resolve({ workspaceId: WORKSPACE_ID, path: "/a", phase: "post_content" }), { matched: false });
+});
+
+test("an allowed absolute redirect fails closed when the canonical origin cannot be read", async (t) => {
+  const originRegistry = makeOriginRegistry({ redirectAllowlist: ["partner.example"] });
+  t.mock.method(originRegistry, "canonicalOrigin", async () => { throw new Error("origin unavailable"); });
+  const oracle = t.mock.method(originRegistry, "isAllowedRedirectTarget");
+  const resolver = new RedirectPhaseHandlerResolver({
+    repo: new InMemoryRedirectRepo([rule({ toTarget: "https://partner.example/new" })]), matcher: redirectMatcher, originRegistry,
+  });
+  assert.deepEqual(await resolver.resolve({ workspaceId: WORKSPACE_ID, path: "/a", phase: "post_content" }), { matched: false });
+  assert.deepEqual(oracle.mock.calls.map(c => c.arguments), [[{ workspaceId: WORKSPACE_ID }, "https://partner.example/new"]]);
 });

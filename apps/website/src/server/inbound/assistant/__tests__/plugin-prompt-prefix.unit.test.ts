@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
-import { readdir, readFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 
 import { createInMemoryEventLog, createRunLifecycle } from "@jini-ai/daemon";
 
@@ -33,14 +33,24 @@ import { assemblePromptWithPluginPrefix, resolveAgentPluginPromptPrefix } from "
  * `finish()` call, not that a mock recorded being called.
  */
 
-// `resolveAgentPluginLayout()` (called with no args, deep inside `resolveAgentPluginPromptPrefix`,
-// exactly as `onStarted` itself calls it) resolves `sites/<name>/agent-plugins` (default site name
-// `tovu-dev`, per `resolveSiteRoot()` — the `infra/agent-plugins` root it used before 2026-08-27 is
-// gone) relative to `process.cwd()` — this file relies on being invoked from the repo root, the
-// standard `node --import tsx --test <path>` invocation this repo's own test scripts use.
-const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../../../..");
 const WORKSPACE_ID = "workspace-local";
 const PLUGIN_ID = "ui-ux-design";
+
+async function isolatedPluginRoot(t: TestContext): Promise<string> {
+  const root = await mkdtemp(path.join(tmpdir(), "tovu-plugin-prompt-prefix-"));
+  const previousRoot = process.env.TOVU_AGENT_PLUGINS_DIR;
+  const previousDelivery = process.env.TOVU_AGENT_PLUGIN_DELIVERY;
+  process.env.TOVU_AGENT_PLUGINS_DIR = root;
+  process.env.TOVU_AGENT_PLUGIN_DELIVERY = "inject";
+  t.after(async () => {
+    if (previousRoot === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR;
+    else process.env.TOVU_AGENT_PLUGINS_DIR = previousRoot;
+    if (previousDelivery === undefined) delete process.env.TOVU_AGENT_PLUGIN_DELIVERY;
+    else process.env.TOVU_AGENT_PLUGIN_DELIVERY = previousDelivery;
+    await rm(root, { recursive: true, force: true });
+  });
+  return root;
+}
 
 async function newRealLifecycleWithRun() {
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog() });
@@ -74,47 +84,22 @@ test("resolveAgentPluginPromptPrefix resolves to an empty prefix and never touch
   assert.equal(status?.state, "running", "an empty-refs run must not be touched by plugin resolution at all");
 });
 
-test("resolveAgentPluginPromptPrefix resolves the REAL installed ui-ux-design SKILL.md and the daemon's own prepend puts it before the base prompt", async () => {
+test("resolveAgentPluginPromptPrefix resolves an isolated installed ui-ux-design SKILL.md and the daemon's own prepend puts it before the base prompt", async (t) => {
   const { lifecycle, run } = await newRealLifecycleWithRun();
 
-  // Read the real, already-installed SKILL.md independently off disk, exactly as
-  // `resolve-agent-plugin-refs.real-install.unit.test.ts` does, so the assertion below compares
-  // against bytes this test read itself rather than a value the code under test merely produced.
-  const layoutRoot = path.join(REPO_ROOT, "sites", "tovu-dev", "agent-plugins", "ws", WORKSPACE_ID, "packages", "sha256");
-  let digestDirs: string[];
-  try {
-    digestDirs = await readdir(layoutRoot);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    assert.fail(
-      `expected a real installed Agent Plugin package tree at ${layoutRoot} (workspace ` +
-        `'${WORKSPACE_ID}') but found none (${message}). This test proves the daemon's real wiring ` +
-        `against this machine's real install — if 'ui-ux-design' was never installed here, install ` +
-        `it first rather than treating this failure as a regression.`,
-    );
-    return;
-  }
-  // This workspace can have more than one plugin installed (e.g. `site-compliance` alongside this
-  // one), so `digestDirs[0]` is not necessarily `ui-ux-design` -- `readdir` order is not guaranteed
-  // to match install order. Find the digest whose own `plugin.json` names this plugin, the same way
-  // the real resolver identifies a package.
-  let digestDir: string | undefined;
-  for (const candidate of digestDirs) {
-    const manifest = JSON.parse(
-      await readFile(path.join(layoutRoot, candidate, "plugin.json"), "utf8"),
-    ) as { name?: string };
-    if (manifest.name === PLUGIN_ID) {
-      digestDir = candidate;
-      break;
-    }
-  }
-  assert.ok(
-    digestDir,
-    `none of the installed packages under ${layoutRoot} (${digestDirs.join(", ")}) has plugin.json name '${PLUGIN_ID}'`,
-  );
-  const skillPath = path.join(layoutRoot, digestDir as string, "skills", PLUGIN_ID, "SKILL.md");
+  const root = await isolatedPluginRoot(t);
+  const packageDir = path.join(root, "ws", WORKSPACE_ID, "packages", "sha256", "a".repeat(64));
+  const skillDir = path.join(packageDir, "skills", PLUGIN_ID);
+  await mkdir(skillDir, { recursive: true });
+  await writeFile(path.join(packageDir, "plugin.json"), JSON.stringify({
+    $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: PLUGIN_ID, version: "1.0.0",
+  }));
+  await writeFile(path.join(root, "ws", WORKSPACE_ID, "activations.json"), JSON.stringify({
+    schemaVersion: 1, plugins: { [PLUGIN_ID]: { enabled: true, origin: "operator-installed", updatedAt: "2026-10-03T00:00:00.000Z", updatedBy: "fixture" } },
+  }));
+  const skillPath = path.join(skillDir, "SKILL.md");
+  await writeFile(skillPath, "# UI/UX Design\n\nUse an 8px grid and give controls visible focus rings.\n");
   const realSkillMarkdown = await readFile(skillPath, "utf8");
-  assert.ok(realSkillMarkdown.length > 0, `real SKILL.md at ${skillPath} was unexpectedly empty`);
 
   const pluginPromptPrefix = await resolveAgentPluginPromptPrefix(run, [PLUGIN_ID], lifecycle, WORKSPACE_ID);
 
@@ -140,7 +125,8 @@ test("resolveAgentPluginPromptPrefix resolves the REAL installed ui-ux-design SK
   assert.ok(finalPrompt.includes(realSkillMarkdown), "the final assembled prompt must carry the real installed skill text");
 });
 
-test("resolveAgentPluginPromptPrefix fails the run closed (via the REAL lifecycle) when a pinned pluginRefId is not installed", async () => {
+test("resolveAgentPluginPromptPrefix fails the run closed (via the REAL lifecycle) when a pinned pluginRefId is not installed", async (t) => {
+  await isolatedPluginRoot(t);
   const { lifecycle, run } = await newRealLifecycleWithRun();
 
   const result = await resolveAgentPluginPromptPrefix(run, ["not-a-real-installed-plugin-id"], lifecycle, WORKSPACE_ID);
@@ -155,7 +141,8 @@ test("resolveAgentPluginPromptPrefix fails the run closed (via the REAL lifecycl
   assert.equal(status?.state, "failed");
 });
 
-test("resolveAgentPluginPromptPrefix tells the user why the run could not start (an error event before end)", async () => {
+test("resolveAgentPluginPromptPrefix tells the user why the run could not start (an error event before end)", async (t) => {
+  await isolatedPluginRoot(t);
   const { lifecycle, run } = await newRealLifecycleWithRun();
 
   await resolveAgentPluginPromptPrefix(run, ["not-a-real-installed-plugin-id"], lifecycle, WORKSPACE_ID);

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
+import ts from "typescript";
 
 /**
  * @file GitHub's REST calls live in the bundled `github` Agent Plugin
@@ -27,17 +28,42 @@ async function coreSourceFiles(dir: string): Promise<string[]> {
   return nested.flat();
 }
 
+function githubCodeLines(source: string): number[] {
+  const file = ts.createSourceFile("boundary.ts", source, ts.ScriptTarget.Latest, true);
+  const lines = new Set<number>();
+  function visit(node: ts.Node): void {
+    if ((ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)
+      || node.kind === ts.SyntaxKind.TemplateHead || node.kind === ts.SyntaxKind.TemplateMiddle || node.kind === ts.SyntaxKind.TemplateTail)
+      && (/^(?:https?:\/\/)?api\.github\.com(?:[/:]|$)/.test((node as ts.StringLiteral).text)
+        || GITHUB_API_CODE.test(node.getText(file)))) {
+      lines.add(file.getLineAndCharacterOfPosition(node.getStart(file)).line + 1);
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(file);
+  return [...lines];
+}
+
 test("core source-control, site-backup and custom-credentials carry no GitHub REST code", async () => {
   const offenders: string[] = [];
   for (const dir of CORE_DIRS) {
     for (const file of await coreSourceFiles(path.join(FEATURES_ROOT, dir))) {
-      const lines = (await readFile(file, "utf8")).split("\n");
-      lines.forEach((line, index) => {
-        if (GITHUB_API_CODE.test(line)) offenders.push(`${path.relative(FEATURES_ROOT, file)}:${index + 1}`);
-      });
+      for (const line of githubCodeLines(await readFile(file, "utf8"))) {
+        offenders.push(`${path.relative(FEATURES_ROOT, file)}:${line}`);
+      }
     }
   }
   assert.deepEqual(offenders, []);
+});
+
+test("the guard catches literal and constructed GitHub destinations and ignores explanatory text", () => {
+  for (const source of [
+    "fetch('https://api.github.com/repos/acme/site/contents/index.html')",
+    'fetch("https://api.github.com/repos/" + owner)',
+    'fetch(`https://api.github.com/\nrepos/${owner}`)',
+    'const hostname = "api.github.com"; fetch("https://" + hostname + "/repos/x")',
+  ]) assert.equal(githubCodeLines(source).length, 1, source);
+  assert.deepEqual(githubCodeLines('// fetch("https://api.github.com/x")\nconst description = "For example, use https://api.github.com";'), []);
 });
 
 test("the pattern does catch the calls it guards against", () => {

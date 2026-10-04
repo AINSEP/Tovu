@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryPublishContentRunRepo, type PublishContentRunRecord } from "../run-repo.js";
+import { openContentDb } from "#src/platform/db/sqlite/content-db";
+import { SqlitePublishContentRunRepo } from "#src/platform/db/sqlite/publish-content-run-repo.sqlite";
+import { getPublishContentRunStatus, InMemoryPublishContentRunRepo, type PublishContentRunRecord } from "../run-repo.js";
 
 /**
  * @file Closes the mutation-sweep gap on `run-repo.ts:123`'s
@@ -55,3 +57,37 @@ test("InMemoryPublishContentRunRepo.findById: an unknown id returns null regardl
   const result = await repo.findById({ workspaceId: "workspace-a", id: "no-such-run" });
   assert.equal(result, null);
 });
+
+for (const adapter of ["memory", "sqlite"] as const) {
+  test(`${adapter}: status decodes the full saved report, progress and retired change sets within its workspace`, async t => {
+    const db = adapter === "sqlite" ? openContentDb(":memory:") : null;
+    if (db) t.after(() => db.$client.close());
+    const repo = db ? new SqlitePublishContentRunRepo(db) : new InMemoryPublishContentRunRepo();
+    const report = { refused: false, refusalReason: null, applyOrder: ["post"], rows: [
+      { entityType: "post", entityId: "post-1", entityLabel: "Title", outcome: "forced", writes: true,
+        reason: "operator overwrite", canOverwrite: true, retires: { entityType: "post", entityId: "holder-1", entityLabel: "Old title", hash: "holder-hash" } },
+    ] };
+    const items = [
+      { entityType: "post", entityId: "post-1", idempotencyKey: "exact-version", phase: "content_applied", outcome: "forced",
+        writes: true, reason: "operator overwrite", changeSetId: "cs-write", retiredChangeSetId: "cs-retire",
+        errorSummary: "baseline failed", updatedAt: "2026-09-20T00:00:01.000Z" },
+      { entityType: "post", entityId: "post-2", idempotencyKey: "next-version", phase: "pending", outcome: "created",
+        writes: true, reason: null, changeSetId: null, retiredChangeSetId: null, errorSummary: null,
+        updatedAt: "2026-09-20T00:00:00.000Z" },
+    ];
+    await repo.save(record({ direction: "import" }));
+    const saved = record({ phase: "failed", direction: "import", restorePointId: "rp-1", finishedAt: "2026-09-20T00:00:02.000Z",
+      changeSetIdsJson: '["cs-write"]', reportJson: JSON.stringify(report), itemsJson: JSON.stringify(items) });
+    await repo.save(saved);
+    assert.deepEqual(await repo.findById({ workspaceId: "workspace-a", id: "run-1" }), saved);
+    assert.deepEqual(await getPublishContentRunStatus(repo, { workspaceId: "workspace-a", runId: "run-1" }), {
+      id: "run-1", workspaceId: "workspace-a", direction: "import", phase: "failed", restorePointId: "rp-1", actorId: "actor-1",
+      startedAt: "2026-09-20T00:00:00.000Z", finishedAt: "2026-09-20T00:00:02.000Z",
+      changeSetIds: ["cs-write"], retiredChangeSetIds: ["cs-retire"], report, items,
+    });
+    assert.equal(await getPublishContentRunStatus(repo, { workspaceId: "workspace-b", runId: "run-1" }), null);
+    assert.equal(await getPublishContentRunStatus(repo, { workspaceId: "workspace-a", runId: "missing" }), null);
+    assert.equal(await repo.findById({ workspaceId: "workspace-b", id: "run-1" }), null);
+    assert.equal(await repo.findById({ workspaceId: "workspace-a", id: "missing" }), null);
+  });
+}

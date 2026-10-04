@@ -41,7 +41,10 @@ function buildApp(postRepo: TaxonomyRouteDeps["postRepo"]): express.Express {
 
 test("assign-terms: a trashed post is refused with 409 ENTITY_IN_TRASH", async (t) => {
   const postRepo = {
-    findById: async () => ({ workspaceId: "ws-1", kind: "post", deletedAt: "2026-09-24T00:00:00.000Z" }),
+    findById: async ({ workspaceId, id }: { workspaceId: string; id: string }) =>
+      workspaceId === "ws-1" && id === "p1"
+        ? { id, workspaceId, kind: "post", deletedAt: "2026-09-24T00:00:00.000Z" }
+        : null,
   } as any;
   const baseUrl = await startTestServer(buildApp(postRepo), t);
   const res = await fetch(`${baseUrl}/api/admin/v1/taxonomy/assign-terms`, {
@@ -53,4 +56,24 @@ test("assign-terms: a trashed post is refused with 409 ENTITY_IN_TRASH", async (
   const body = await res.json();
   assert.equal(body.code, "ENTITY_IN_TRASH");
   assert.equal(body.error, "ENTITY_IN_TRASH: post 'p1' is in the Trash. Restore it from the Trash before changing it.");
+});
+
+test("assign-terms: a trashed page is refused with 409 ENTITY_IN_TRASH", async (t) => {
+  const postRepo = {
+    findById: async ({ workspaceId, id }: { workspaceId: string; id: string }) =>
+      workspaceId === "ws-1" && id === "page-1"
+        ? { id, workspaceId, kind: "page", deletedAt: "2026-09-24T00:00:00.000Z" }
+        : null,
+  } as any;
+  const baseUrl = await startTestServer(buildApp(postRepo), t);
+  const res = await fetch(`${baseUrl}/api/admin/v1/taxonomy/assign-terms`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ contentType: "page", contentId: "page-1", termIds: ["t1"] }),
+  });
+  assert.equal(res.status, 409);
+  assert.deepEqual(await res.json(), {
+    code: "ENTITY_IN_TRASH",
+    error: "ENTITY_IN_TRASH: page 'page-1' is in the Trash. Restore it from the Trash before changing it.",
+  });
 });

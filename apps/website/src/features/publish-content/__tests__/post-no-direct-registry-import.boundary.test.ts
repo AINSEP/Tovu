@@ -24,6 +24,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import ts from "typescript";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "../../../../../..");
 const SRC_ROOT = path.join(REPO_ROOT, "apps", "website", "src");
@@ -33,14 +34,30 @@ const REGISTRY_FILE = path.join(SRC_ROOT, "features", "publish-content", "type-r
 const SKIP_DIR_NAMES = new Set(["node_modules", "dist", "build", "coverage", "__tests__"]);
 const SOURCE_EXTENSIONS = new Set([".ts", ".tsx"]);
 
-/** Matches a whole `import ... from "spec"` statement (value or type), capturing whether the
- *  `type` keyword appears immediately after `import`, and the specifier text — copied verbatim from
- *  `domain-no-direct-tool-registration.boundary.test.ts` (see that file's own doc for why the lazy
- *  gap needs comment-stripped input first). */
-const IMPORT_STATEMENT_PATTERN = /\bimport\s+(type\s+)?(?:[^;]*?)\bfrom\s*(["'])([^"']+)\2/g;
-
-function stripComments(source: string): string {
-  return source.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/\/\/[^\n]*/g, " ");
+// F5.6: use the language parser so every runtime import form is visible.
+function valueSpecifiers(source: string): string[] {
+  const parsed = ts.createSourceFile("fixture.ts", source, ts.ScriptTarget.Latest, true);
+  const specs: string[] = [];
+  const visit = (node: ts.Node): void => {
+    if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
+      const clause = node.importClause;
+      const bindings = clause?.namedBindings;
+      const typeOnly = clause?.isTypeOnly || (!clause?.name && bindings && ts.isNamedImports(bindings) &&
+        bindings.elements.length > 0 && bindings.elements.every(e => e.isTypeOnly));
+      if (!typeOnly) specs.push(node.moduleSpecifier.text);
+    } else if (ts.isExportDeclaration(node) && node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
+      const bindings = node.exportClause;
+      const typeOnly = node.isTypeOnly || (bindings && ts.isNamedExports(bindings) &&
+        bindings.elements.length > 0 && bindings.elements.every(e => e.isTypeOnly));
+      if (!typeOnly) specs.push(node.moduleSpecifier.text);
+    } else if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword &&
+      node.arguments[0] && ts.isStringLiteralLike(node.arguments[0])) {
+      specs.push(node.arguments[0].text);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(parsed);
+  return specs;
 }
 
 function collectProductionFiles(dir: string, out: string[]): void {
@@ -59,7 +76,7 @@ function resolvesToRegistryFile(fromFile: string, specifier: string): boolean {
   if (specifier.startsWith("#src/features/publish-content/type-registry")) return true;
   if (!specifier.startsWith(".")) return false;
   const resolved = path.resolve(path.dirname(fromFile), specifier);
-  return resolved === REGISTRY_FILE || resolved === REGISTRY_FILE.replace(/\.ts$/, "");
+  return resolved.replace(/\.(?:js|ts)$/, "") === REGISTRY_FILE.replace(/\.ts$/, "");
 }
 
 test("no production file under src/features/post/ value-imports type-registry.ts (type-only PublishContentContributor/Handler imports are fine)", () => {
@@ -69,11 +86,7 @@ test("no production file under src/features/post/ value-imports type-registry.ts
 
   const offenders: string[] = [];
   for (const file of files) {
-    const source = stripComments(fs.readFileSync(file, "utf8"));
-    for (const match of source.matchAll(IMPORT_STATEMENT_PATTERN)) {
-      const isTypeOnly = match[1] !== undefined;
-      const specifier = match[3];
-      if (isTypeOnly) continue;
+    for (const specifier of valueSpecifiers(fs.readFileSync(file, "utf8"))) {
       if (resolvesToRegistryFile(file, specifier)) {
         offenders.push(`${path.relative(REPO_ROOT, file)} value-imports "${specifier}"`);
       }
@@ -85,4 +98,20 @@ test("no production file under src/features/post/ value-imports type-registry.ts
     [],
     `features/post must not call the publish-content registry directly — only a composition root may. Offending edges:\n  ${offenders.join("\n  ")}`,
   );
+});
+
+test("the registry boundary detects static, side-effect, re-export and dynamic .js edges", () => {
+  const file = path.join(POST_ROOT, "fixture.ts");
+  for (const source of [
+    'import { x } from "../publish-content/type-registry.js";',
+    'import "../publish-content/type-registry.js";',
+    'export { x } from "../publish-content/type-registry.js";',
+    'export * from "../publish-content/type-registry.js";',
+    'await import("../publish-content/type-registry.js");',
+  ]) {
+    assert.deepEqual(valueSpecifiers(source).filter(spec => resolvesToRegistryFile(file, spec)),
+      ["../publish-content/type-registry.js"]);
+  }
+  assert.deepEqual(valueSpecifiers('import type { X } from "../publish-content/type-registry.js";'), []);
+  assert.deepEqual(valueSpecifiers('// import "../publish-content/type-registry.js";'), []);
 });

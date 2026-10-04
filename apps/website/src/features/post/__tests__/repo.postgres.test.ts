@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
+import { sql } from "kysely";
 
 import { openPostgresKernel } from "#src/platform/db/kernel/index";
 import { freshPostgresContentDatabase } from "#src/platform/db/__tests__/postgres-database";
@@ -21,16 +22,19 @@ const WS = "ws-pg";
 
 let first: ContentKernel;
 let second: ContentKernel;
+let observer: ContentKernel;
 
 before(async () => {
   const url = freshPostgresContentDatabase(DATABASE);
   first = openPostgresKernel<ContentDatabase>({ connectionString: url });
   second = openPostgresKernel<ContentDatabase>({ connectionString: url });
+  observer = openPostgresKernel<ContentDatabase>({ connectionString: url });
 });
 
 after(async () => {
   await first?.close();
   await second?.close();
+  await observer?.close();
 });
 
 function revision(seq: number): PostRevisionInput {
@@ -60,7 +64,9 @@ test("two connections: a concurrent appendRevision waits for the open one and ch
   let release!: () => void;
   const released = new Promise<void>((resolve) => (release = resolve));
   // A caller's own transaction around the append (as updatePost does): the lock is held to its end.
+  let holderPid = 0;
   const inA = first.transaction(async () => {
+    [{ pid: holderPid }] = await first.query(sql<{ pid: number }>`SELECT pg_backend_pid() AS pid`);
     const result = await repoA.appendRevision(revision(2));
     appended();
     await released;
@@ -69,16 +75,29 @@ test("two connections: a concurrent appendRevision waits for the open one and ch
   await appendedInA;
 
   let settled = false;
-  const inB = repoB.appendRevision(revision(3)).finally(() => (settled = true));
-  await new Promise((resolve) => setTimeout(resolve, 150));
-  // Read before releasing, assert after: a failure must not leave A's transaction open (the pool
-  // would keep the test process alive).
-  const waited = !settled;
-  release();
-  assert.equal(waited, true, "the second connection's append must wait for the first transaction");
+  let waiterPid!: (pid: number) => void;
+  const waiterReady = new Promise<number>(resolve => { waiterPid = resolve; });
+  const inB = second.transaction(async () => {
+    const [{ pid }] = await second.query(sql<{ pid: number }>`SELECT pg_backend_pid() AS pid`);
+    waiterPid(pid);
+    return repoB.appendRevision(revision(3));
+  }).finally(() => { settled = true; });
+  let waited = false;
+  try {
+    const pid = await Promise.race([waiterReady, inB.then(() => { throw new Error("append completed before its connection was observed"); })]);
+    const deadline = Date.now() + 5000;
+    while (!settled && Date.now() < deadline) {
+      const [{ blocked }] = await observer.query(sql<{ blocked: boolean }>`SELECT ${holderPid} = ANY(pg_blocking_pids(${pid})) AS blocked`);
+      if (blocked) { waited = true; break; }
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
+  } finally {
+    release();
+    await Promise.allSettled([inA, inB]);
+  }
+  const [a, b] = await Promise.all([inA, inB]);
+  assert.equal(waited, true, "Postgres must report B blocked by A before A is released");
 
-  const a = await inA;
-  const b = await inB;
   assert.equal(a.previousId, base.id);
   assert.equal(b.previousId, a.id);
   const chain = await repoB.listRevisions({ workspaceId: WS, postId: "p1" });

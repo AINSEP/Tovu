@@ -69,9 +69,14 @@ test("put-entry: mismatched workspaceId 404s", async (t) => {
 });
 
 test("put-entry: forbidden 403s", async (t) => {
-  const app = buildApp({ authorize: async () => ({ allowed: false, reason: "no grant" }) });
+  const base = createRouteDeps();
+  await base.seoReady;
+  const before = await base.postRepo.findById({ workspaceId: WORKSPACE_ID, id: ENTRY_ID });
+  assert.ok(before);
+  const app = buildApp({ postRepo: base.postRepo, authorize: async () => ({ allowed: false, reason: "no grant" }) });
   const { status } = await put(t, app, { title: "x" });
   assert.equal(status, 403);
+  assert.deepEqual(await base.postRepo.findById({ workspaceId: WORKSPACE_ID, id: ENTRY_ID }), before);
 });
 
 test("put-entry: an unregistered field 400s (SEO_FIELD_VALIDATION_ERROR)", async (t) => {
@@ -96,12 +101,20 @@ test("put-entry: an unknown entry id 404s (SEO_ENTRY_NOT_FOUND)", async (t) => {
 });
 
 test("put-entry: a valid patch succeeds (200) and the meta reflects it", async (t) => {
-  const app = buildApp();
+  const base = createRouteDeps();
+  await base.seoReady;
+  const before = await base.postRepo.findById({ workspaceId: WORKSPACE_ID, id: ENTRY_ID });
+  assert.ok(before);
+  const app = buildApp({ postRepo: base.postRepo });
   const { status, json } = await put(t, app, { title: "New SEO Title", noindex: true });
   assert.equal(status, 200, JSON.stringify(json));
   const body = json as { data: { title?: string; robots?: { noindex?: boolean } } };
   assert.equal(body.data.title, "New SEO Title");
   assert.equal(body.data.robots?.noindex, true);
+  const saved = await base.postRepo.findById({ workspaceId: WORKSPACE_ID, id: ENTRY_ID });
+  assert.ok(saved);
+  assert.deepEqual(JSON.parse(saved.seoExtJson!), { title: "New SEO Title", noindex: true });
+  assert.equal(saved.title, before.title);
 });
 
 test("put-entry: a request with no body at all still succeeds as a real empty patch (express.json() itself always defaults req.body to {}, confirmed by direct check -- see the type-bypass test below for the `req.body ?? {}` branch this does NOT reach)", async (t) => {
@@ -166,14 +179,17 @@ test("put-entry: workspaceId/entryId params, and req.body itself, can never actu
 
 test("put-entry: an unexpected repo failure 500s", async (t) => {
   const base = createRouteDeps();
-  const app = buildApp({
-    postRepo: {
-      ...base.postRepo,
-      save: async () => {
-        throw new Error("boom");
-      },
-    },
+  await base.seoReady;
+  const before = await base.postRepo.findById({ workspaceId: WORKSPACE_ID, id: ENTRY_ID });
+  let reached = false;
+  t.mock.method(base.postRepo, "saveIfVersion", async () => {
+    reached = true;
+    throw new Error("boom");
   });
-  const { status } = await put(t, app, { title: "x" });
+  const app = buildApp({ postRepo: base.postRepo });
+  const { status, json } = await put(t, app, { title: "x" });
   assert.equal(status, 500);
+  assert.deepEqual(json, { error: "internal error", code: "INTERNAL_ERROR" });
+  assert.equal(reached, true, "the conditional write must be the failing operation");
+  assert.deepEqual(await base.postRepo.findById({ workspaceId: WORKSPACE_ID, id: ENTRY_ID }), before);
 });

@@ -63,11 +63,15 @@ describe("prettifyHtml", () => {
     expect(output).toContain('<script>if (1<2) { var s = "<div><div>"; }</script>');
   });
 
+  it.each(["style", "textarea"])("copies <%s> content byte for byte", (tag) => {
+    const input = `<${tag}>\n  literal <div><p>text</p></div>\n    indented\n</${tag}>`;
+    expect(prettifyHtml(input)).toBe(input);
+  });
+
   it("does not treat a quoted '>' inside an attribute value as the tag's end", () => {
     const input = '<div data-x="a > b"><p>text</p></div>';
     const output = prettifyHtml(input);
-    expect(output).toContain('<div data-x="a > b">');
-    expect(output).toContain("<p>text</p>");
+    expect(output).toBe('<div data-x="a > b">\n  <p>text</p>\n</div>');
   });
 
   it("degrades gracefully on a malformed close tag with no matching open, without corrupting output", () => {
@@ -87,8 +91,7 @@ describe("prettifyHtml", () => {
   it("copies an HTML comment through untouched, without treating it as a tag", () => {
     const input = "<div><!-- a note --><p>text</p></div>";
     const output = prettifyHtml(input);
-    expect(output).toContain("<!-- a note -->");
-    expect(output).toContain("<p>text</p>");
+    expect(output).toBe("<div><!-- a note --><p>text</p>\n</div>");
   });
 
   it("degrades gracefully on an unterminated comment at end of input", () => {
@@ -100,7 +103,7 @@ describe("prettifyHtml", () => {
   it("copies a leading doctype declaration through untouched", () => {
     const input = "<!doctype html><html><body><p>x</p></body></html>";
     const output = prettifyHtml(input);
-    expect(output).toContain("<!doctype html>");
+    expect(output).toBe("<!doctype html><html>\n  <body>\n    <p>x</p>\n  </body>\n</html>");
   });
 
   it("degrades gracefully on an unterminated doctype at end of input", () => {
@@ -110,12 +113,10 @@ describe("prettifyHtml", () => {
   });
 
   it("recognizes a self-closing tag as its own tag kind, not an open tag", () => {
-    // <hr/> is both void and block-level: if self-close parsing were broken, the tokenizer would
-    // treat it as an unclosed open tag and mis-indent everything that follows.
-    const input = "<div><hr/><p>after</p></div>";
+    // A non-void block tag makes self-close classification decide the sibling depth.
+    const input = "<div><section/><hr/><p>after</p></div>";
     const output = prettifyHtml(input);
-    expect(output).toContain("<hr/>");
-    expect(output).toContain("<p>after</p>");
+    expect(output).toBe("<div>\n  <section/>\n  <hr/>\n  <p>after</p>\n</div>");
   });
 
   it("degrades gracefully on a raw-text element with no closing tag at all", () => {

@@ -67,6 +67,9 @@ function overviewNavItem(page: Page) {
 }
 
 test.describe("admin locale survives an interactive login", () => {
+  test.afterEach(async ({ page }) => {
+    await setLocale(page, "en");
+  });
   test("a stored non-English locale renders in the sidebar on a fresh form login", async ({ page, browser }) => {
     // Arrange: store pt-BR as this operator's preference, in a session that is then discarded.
     await loginAsAdmin(page);

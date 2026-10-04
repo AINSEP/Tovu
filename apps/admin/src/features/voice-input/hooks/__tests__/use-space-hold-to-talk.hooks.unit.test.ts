@@ -98,6 +98,37 @@ describe("useSpaceHoldToTalk", () => {
     expect(onEngage).not.toHaveBeenCalled();
   });
 
+  it.each(["ctrlKey", "metaKey", "altKey", "shiftKey", "isComposing"] as const)("leaves %s + Space alone", (flag) => {
+    const { anchor, textarea } = mountComposerLikeDom();
+    const onEngage = vi.fn();
+    const onRelease = vi.fn();
+    renderGesture({ anchor, onEngage, onRelease });
+    textarea.focus();
+    const event = new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true, [flag]: true });
+    expect(textarea.dispatchEvent(event)).toBe(true);
+    act(() => vi.advanceTimersByTime(SPACE_HOLD_TO_TALK_MS * 2));
+    expect(event.defaultPrevented).toBe(false);
+    expect(onEngage).not.toHaveBeenCalled();
+    releaseSpace(textarea);
+    expect(onRelease).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])("abandons the hold on window blur (engaged: %s)", (engaged) => {
+    const { anchor, textarea } = mountComposerLikeDom();
+    const onEngage = vi.fn();
+    const onRelease = vi.fn();
+    renderGesture({ anchor, onEngage, onRelease });
+    textarea.focus();
+    pressSpace(textarea);
+    if (engaged) act(() => vi.advanceTimersByTime(SPACE_HOLD_TO_TALK_MS));
+    window.dispatchEvent(new Event("blur"));
+    act(() => vi.advanceTimersByTime(SPACE_HOLD_TO_TALK_MS * 2));
+    expect(onEngage).toHaveBeenCalledTimes(engaged ? 1 : 0);
+    expect(onRelease).toHaveBeenCalledTimes(engaged ? 1 : 0);
+    releaseSpace(textarea);
+    expect(onRelease).toHaveBeenCalledTimes(engaged ? 1 : 0);
+  });
+
   it("releases a live hold when the textarea loses focus — the mic never stays open unattended", () => {
     const { anchor, textarea } = mountComposerLikeDom();
     const onRelease = vi.fn();

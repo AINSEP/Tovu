@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { acquireOperationLock, releaseOperationLock } from "#src/contracts/core/operation-lock";
 import { confirmRestore, executeRestore, planRestore } from "../../recovery-orchestrator.js";
 
 /**
@@ -16,6 +17,7 @@ import { confirmRestore, executeRestore, planRestore } from "../../recovery-orch
 function fakeGateway() {
   const mintedPlanIds = new Set<string>();
   const calls: string[] = [];
+  const tokens = new Set<string>();
   return {
     calls,
     plan: async () => {
@@ -27,10 +29,13 @@ function fakeGateway() {
     confirm: async (input: { planId: string }) => {
       calls.push("confirm");
       if (!mintedPlanIds.has(input.planId)) return { ok: false, error: { code: "PLAN_STALE" } };
+      tokens.add("token-ceremony-1");
       return { ok: true, value: { confirmationToken: "token-ceremony-1" } };
     },
-    execute: async () => {
+    execute: async (input: { confirmationToken: string; confirmerPrincipalId?: string }) => {
       calls.push("execute");
+      if (!tokens.delete(input.confirmationToken) || input.confirmerPrincipalId !== "user-1")
+        return { ok: false, error: { code: "FORBIDDEN" } };
       return { ok: true, value: { restoreRunId: "run-ceremony-1", state: "RESTORING" } };
     },
   };
@@ -51,23 +56,28 @@ test("AC-36: costClass='cheap' still requires the full plan -> confirm(with disc
   });
   assert.equal(confirm.ok, true);
 
-  assert.deepEqual(gateway.calls, ["plan", "confirm"], "plan() and confirm() must both run in order — no step is ever skipped for costClass:'cheap'");
+  assert.deepEqual(confirm, { ok: true, value: { confirmationToken: "token-ceremony-1" } });
+  const executed = await executeRestore({
+    deps: { gateway, operationLock: { acquireOperationLock, releaseOperationLock }, clock: { nowMs: () => Date.parse("2026-10-03T00:00:00Z") } },
+    input: { principalId: "user-1", principalKind: "user", confirmationToken: (confirm.value as { confirmationToken: string }).confirmationToken, siteId: "ceremony-site" },
+  });
+  assert.deepEqual(executed, { ok: true, value: { restoreRunId: "run-ceremony-1", state: "RESTORING" } });
+  assert.deepEqual(gateway.calls, ["plan", "confirm", "execute"]);
 });
 
 test("AC-12: the RecoveryOrchestrator module exposes exactly plan/confirm/execute as separate functions — no combined single-call restore function exists", async () => {
   const module = await import("../../recovery-orchestrator.js");
-  const exportedNames = Object.keys(module);
+  assert.deepEqual(Object.entries(module).filter(([, value]) => typeof value === "function").map(([name]) => name).sort(),
+    ["confirmRestore", "executeRestore", "planRestore"]);
+});
 
-  assert.ok(exportedNames.includes("planRestore"));
-  assert.ok(exportedNames.includes("confirmRestore"));
-  assert.ok(exportedNames.includes("executeRestore"));
-
-  const forbiddenNamePattern = /^(restore|directRestore|restoreNow|oneStepRestore|singleCallRestore)$/i;
-  for (const name of exportedNames) {
-    assert.equal(
-      forbiddenNamePattern.test(name),
-      false,
-      `found a suspicious combined-restore export '${name}' — REQ-06/AC-12 require exactly plan()/confirm()/execute(), no direct endpoint`
-    );
-  }
+test("unplanned confirmation and unconfirmed execution are refused through the orchestrator", async () => {
+  const gateway = fakeGateway();
+  assert.deepEqual(await confirmRestore({ deps: { gateway }, input: {
+    principalId: "user-1", principalKind: "user", planId: "not-minted", planHash: "sha256:" + "f".repeat(64), disclosureAcknowledged: true,
+  } }), { ok: false, error: { code: "PLAN_STALE" } });
+  assert.deepEqual(await executeRestore({
+    deps: { gateway, operationLock: { acquireOperationLock, releaseOperationLock }, clock: { nowMs: () => 0 } },
+    input: { principalId: "user-1", principalKind: "user", confirmationToken: "not-minted", siteId: "unconfirmed-site" },
+  }), { ok: false, error: { code: "FORBIDDEN" } });
 });

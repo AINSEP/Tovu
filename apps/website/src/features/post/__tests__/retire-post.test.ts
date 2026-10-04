@@ -134,3 +134,29 @@ test("restoring from Trash brings the row back at its renamed slug, not the orig
   assert.equal(isTrashed(restored!), false);
   assert.equal(restored?.slug, "about-replaced-20260924");
 });
+
+for (const [label, overrides, emits, operations] of [
+  ["published", {}, true, ["update", "delete"]],
+  ["draft", { status: "draft" }, false, ["update", "delete"]],
+  ["already trashed", { deletedAt: "2026-09-01T00:00:00.000Z" }, false, ["update"]],
+] as const) {
+  test(`retiring a ${label} holder records revisions and emits only its public transition`, async () => {
+    const repo = new InMemoryPostRepo([seed(overrides)]);
+    const events: Parameters<OutboxPort["enqueue"]>[0][] = [];
+    const outbox = { ...noopOutbox, enqueue: async (event: Parameters<OutboxPort["enqueue"]>[0]) => { events.push(event); } };
+    const { post, revisionId } = await retirePostForReplacement({
+      deps: { repo, clock: { ...clock, nowMs: () => Date.parse("2026-09-24T12:00:00.000Z") }, outbox, remove: removeVia(repo) },
+      input: { workspaceId: WS, id: "post-1", expectedVersion: 3, today: "20260924", actorId: "publisher" },
+    });
+    assert.deepEqual(events, emits ? [{
+      id: "post-1-entry.unpublished-5", name: "entry.unpublished",
+      occurredAt: "2026-09-24T12:00:00.000Z", aggregateId: "post-1", workspaceId: WS,
+      payload: { entryId: "post-1", contentType: "page" },
+    }] : []);
+    const revisions = await repo.listRevisions({ workspaceId: WS, postId: "post-1" });
+    assert.deepEqual(revisions.map(r => [r.op, r.seq, r.actorId, r.stateJson.slug]),
+      operations.map((op, i) => [op, 4 + i, "publisher", "about-replaced-20260924"]));
+    assert.equal(revisions.at(-1)?.id, revisionId);
+    assert.deepEqual(revisions.at(-1)?.stateJson, post);
+  });
+}

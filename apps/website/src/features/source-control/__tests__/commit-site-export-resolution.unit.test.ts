@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import ts from "typescript";
 
 /**
  * @file Pins that `commit-site.ts` reaches `#src/features/site-export/index` through the ordinary ESM
@@ -62,25 +63,62 @@ const NO_FIRST_PARTY_REQUIRE_FILES = [
   "apps/website/src/features/deployments/static-publish/adapter.ts",
 ];
 
-/** Any `require("#src/...")` / `require("../…")`-shaped call naming a first-party specifier. Node
- *  builtins (`require("node:sea")`) and real npm packages are out of scope — they carry no second
- *  first-party instantiation. */
-const FIRST_PARTY_REQUIRE = /require\(\s*["'](?:#src\/|\.\.?\/)/;
-
-/** Comments are stripped before matching: the very doc comment in `commit-site.ts` that explains why
- *  the `require()` was removed quotes it verbatim, and a check that a file may not *describe* the
- *  construct it deliberately stopped using would be unusable — it would punish the explanation. */
-function stripComments(source: string): string {
-  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+function firstPartyRequires(source: string): string[] {
+  const file = ts.createSourceFile("boundary.ts", source, ts.ScriptTarget.Latest, true);
+  const loaders = new Set(["require"]);
+  const constructors = new Set(["createRequire"]);
+  const values = new Map<string, string>();
+  function stringValue(node: ts.Expression): string | undefined {
+    if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) return node.text;
+    if (ts.isIdentifier(node)) return values.get(node.text);
+    if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.PlusToken) {
+      const left = stringValue(node.left), right = stringValue(node.right);
+      if (left !== undefined && right !== undefined) return left + right;
+    }
+  }
+  function isLoader(node: ts.Expression): boolean {
+    return ts.isIdentifier(node) && loaders.has(node.text)
+      || ts.isCallExpression(node) && ts.isIdentifier(node.expression) && constructors.has(node.expression.text);
+  }
+  const matches: string[] = [];
+  function visit(node: ts.Node): void {
+    if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)
+      && ["node:module", "module"].includes(node.moduleSpecifier.text)) {
+      const bindings = node.importClause?.namedBindings;
+      if (bindings && ts.isNamedImports(bindings)) for (const item of bindings.elements) {
+        if ((item.propertyName ?? item.name).text === "createRequire") constructors.add(item.name.text);
+      }
+    }
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
+      if (isLoader(node.initializer)) loaders.add(node.name.text);
+      const value = stringValue(node.initializer);
+      if (value !== undefined) values.set(node.name.text, value);
+    }
+    if (ts.isCallExpression(node) && isLoader(node.expression) && node.arguments[0]) {
+      const specifier = stringValue(node.arguments[0]);
+      if (specifier && /^(?:#src\/|\.\.?\/)/.test(specifier)) matches.push(specifier);
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(file);
+  return matches;
 }
 
 for (const relativePath of NO_FIRST_PARTY_REQUIRE_FILES) {
-  test(`${relativePath}: resolves first-party modules by import, never by a call-time require() (a require() is a second, CJS-transpiled instantiation under tsx)`, () => {
-    const source = stripComments(fs.readFileSync(path.join(REPO_ROOT, relativePath), "utf8"));
-    assert.doesNotMatch(
-      source,
-      FIRST_PARTY_REQUIRE,
-      `${relativePath} require()s a first-party module. Under tsx that loads the module — and its whole import graph — a second time through the CJS hook, giving every one of those files two V8 coverage images that merge into one corrupted lcov block. See this file's header for the measurement and for why the cycle this used to work around is gone.`
-    );
+  test(`${relativePath}: resolves first-party modules by import, never by a call-time require()`, () => {
+    assert.deepEqual(firstPartyRequires(fs.readFileSync(path.join(REPO_ROOT, relativePath), "utf8")), [],
+      `${relativePath} loads a first-party module through the CJS hook`);
   });
 }
+
+test("the require guard catches whitespace, templates, aliases and statically computed specifiers", () => {
+  for (const source of [
+    'require ("#src/features/site-export/index")',
+    'require(`../site-export/index.js`)',
+    'const load = require; load("./local.js")',
+    'const prefix = "#src/"; require(prefix + "features/site-export/index")',
+    'import { createRequire as makeRequire } from "node:module"; const load = makeRequire(import.meta.url); load("#src/x")',
+    'createRequire(import.meta.url)("../local.js")',
+  ]) assert.equal(firstPartyRequires(source).length, 1, source);
+  assert.deepEqual(firstPartyRequires('// require("#src/x")\nimport x from "./x.js"; require("node:fs"); const text = `require("#src/x")`;'), []);
+});

@@ -95,3 +95,18 @@ test("manifest text is phrased as a pointer to a search vocabulary, never an exi
   assert.equal(/\byou can\b/i.test(CAPABILITY_MANIFEST_TEXT), false);
   assert.equal(/\bis installed\b/i.test(CAPABILITY_MANIFEST_TEXT), false);
 });
+
+test("the complete mandate instruction keeps its unconditional scope and both escape-route prohibitions", () => {
+  const instruction = `MANDATORY FIRST STEP — applies to your very first reply in this conversation, with no exceptions.
+
+Before you answer, before you ask a clarifying question, and before you read any file or call any other tool, you MUST first run at least one \`search_tools\` query built from the category vocabulary above.
+
+This applies EVEN IF:
+- you already believe you know what the user means, or
+- you have already thought of a plausible native tool, file, or theme that seems to answer it, or
+- you were only going to ask a clarifying question first, or
+- the request seems simple enough not to need it.
+
+A plausible answer you reached on your own is NOT evidence that nothing is installed for this. Search first, then answer. Briefly state what you searched for and what came back.`;
+  assert.equal(buildCapabilityManifestPrefix("mandate"), `${CAPABILITY_MANIFEST_TEXT}\n\n${instruction}`);
+});

@@ -37,6 +37,7 @@ function analysisFixture(overrides: Partial<SeoEntryAnalysis> = {}): SeoEntryAna
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe("useSeoEntryPanel — injected port", () => {
@@ -240,5 +241,54 @@ describe("useSeoEntryPanel — clearing an override", () => {
     // `value={fieldValue(...) ?? ""}`, so this is the exact expression the box renders — without
     // it, `null` would be an uncontrolled-input value and the box would not stay empty.
     expect(pending ?? "").toBe("");
+  });
+});
+
+
+describe("useSeoEntryPanel — failures and entry changes", () => {
+  it("reports a failed load without resolved metadata", async () => {
+    const port = createFakeSeoPort();
+    port.getSeoEntry = vi.fn().mockRejectedValue(new Error("SEO read denied"));
+    const { result } = renderHook(() => useSeoEntryPanel({ entryId: "entry-1" }, port, "en"));
+    await waitFor(() => expect(result.current.loadError).toBe("SEO read denied"));
+    expect(result.current.resolved).toBeNull();
+    expect(result.current.analysis).toBeNull();
+  });
+
+  it("keeps the edited field after save failure and allows retry", async () => {
+    const port = createFakeSeoPort({ entries: { "entry-1": { meta: metaFixture(), analysis: analysisFixture() } } });
+    const put = vi.spyOn(port, "putSeoEntry").mockRejectedValueOnce(new Error("SEO write denied"));
+    const { result } = renderHook(() => useSeoEntryPanel({ entryId: "entry-1" }, port, "en"));
+    await waitFor(() => expect(result.current.resolved).not.toBeNull());
+    act(() => result.current.setField("title", "Retry title"));
+    await act(async () => { await result.current.save(); });
+    expect(result.current.saveError).toBe("SEO write denied");
+    expect(result.current.touched).toEqual({ title: "Retry title" });
+    expect(result.current.fieldValue("title", "Original title")).toBe("Retry title");
+    expect(result.current.saving).toBe(false);
+    expect(result.current.notice).toBeNull();
+    await act(async () => { await result.current.save(); });
+    expect(put).toHaveBeenNthCalledWith(2, { entryId: "entry-1" }, { title: "Retry title" });
+    expect(result.current.saveError).toBeNull();
+    expect(result.current.resolved?.title).toBe("Retry title");
+    expect(result.current.touched).toEqual({});
+  });
+
+  it("clears edits and metadata while the newly selected entry loads", async () => {
+    const port = createFakeSeoPort({ entries: { "entry-1": { meta: metaFixture(), analysis: analysisFixture() } } });
+    const { result, rerender } = renderHook(({ entryId }) => useSeoEntryPanel({ entryId }, port, "en"), { initialProps: { entryId: "entry-1" } });
+    await waitFor(() => expect(result.current.resolved).not.toBeNull());
+    act(() => result.current.setField("title", "Unsaved entry one"));
+    let release!: (value: { data: SeoEntryMeta }) => void;
+    vi.spyOn(port, "getSeoEntry").mockImplementationOnce(() => new Promise((resolve) => { release = resolve; }));
+    vi.spyOn(port, "getSeoEntryAnalyze").mockResolvedValueOnce({ data: analysisFixture({ entryId: "entry-2", score: 55 }) });
+    rerender({ entryId: "entry-2" });
+    expect(result.current.touched).toEqual({});
+    expect(result.current.resolved).toBeNull();
+    expect(result.current.analysis).toBeNull();
+    await act(async () => { release({ data: metaFixture({ title: "Entry two" }) }); });
+    expect(result.current.resolved?.title).toBe("Entry two");
+    expect(result.current.analysis?.entryId).toBe("entry-2");
+    expect(result.current.touched).toEqual({});
   });
 });

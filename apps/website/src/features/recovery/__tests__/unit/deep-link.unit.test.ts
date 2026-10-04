@@ -37,7 +37,9 @@ test("AC-30/INV-04: resolveDeepLinkContext returns a value from the server-side 
   });
 
   assert.equal(result.found, true);
-  assert.equal(result.restorePoint?.restorePointId, "rp-envelope-value");
+  assert.deepEqual(result, { found: true, restorePoint: {
+    restorePointId: "rp-envelope-value", capturedAt: "2026-07-14T00:00:00.000Z",
+  } });
 });
 
 test("AC-31/EC-03: a restorePointId that no longer resolves to a live record returns {found:false} rather than proceeding with the envelope's stale value", async () => {
@@ -81,4 +83,14 @@ test("resolveDeepLinkContext never mutates the input envelope object", async () 
   });
 
   assert.deepEqual(inputEnvelope, snapshot);
+});
+
+test("an envelope with no restorePointId returns not-found without a lookup", async () => {
+  let calls = 0;
+  const result = await resolveDeepLinkContext({
+    deps: { lookup: { findRestorePointById: async () => { calls++; throw new Error("no id to look up"); } } },
+    input: { principalId: "user-1", principalKind: "user", envelope: envelope({ restorePointId: null }) },
+  });
+  assert.deepEqual(result, { found: false, restorePoint: null });
+  assert.equal(calls, 0);
 });

@@ -76,13 +76,15 @@ test("insertRedirectAndRevision writes exactly 1 record + 1 revision, in call or
 });
 
 test("insertRedirectAndRevision issues no transaction control of its own (no begin/commit-shaped calls)", async () => {
-  const { db } = makeFakeDb();
-  // The RedirectDbHandle type has no begin/commit members at all — if
-  // insertRedirectAndRevision tried to call one, this would be a type error.
-  // This test documents that discipline is enforced at the type level, not
-  // just by convention (Decision A / EC-05).
-  const dbKeys = Object.keys(db);
-  assert.deepEqual(dbKeys.sort(), ["insertRedirect", "insertRevision"]);
+  const { db, records, revisions } = makeFakeDb();
+  const transactionCalls: string[] = [];
+  const observed = { ...db, begin: () => transactionCalls.push("begin"), commit: () => transactionCalls.push("commit"),
+    rollback: () => transactionCalls.push("rollback"), transaction: () => transactionCalls.push("transaction") };
+  const record = makeRecord();
+  await insertRedirectAndRevision({ db: observed, record, revision: makeRevision(record) });
+  assert.deepEqual(records, [record]);
+  assert.deepEqual(revisions, [makeRevision(record)]);
+  assert.deepEqual(transactionCalls, []);
 });
 
 test("insertRedirectAndRevision called twice against the SAME db handle (simulating the chokepoint then the capture slot sharing a connection) persists both", async () => {
@@ -117,4 +119,33 @@ test("insertRedirectAndRevision propagates a throw from the db handle uncaught",
   };
 
   await assert.rejects(() => insertRedirectAndRevision({ db, record, revision }), /boom/);
+});
+
+test("writes await the redirect before the revision and propagate a later asynchronous revision failure", async () => {
+  let releaseRedirect!: () => void;
+  const redirectWrite = new Promise<void>(resolve => { releaseRedirect = resolve; });
+  let rejectRevision!: (err: Error) => void;
+  const revisionWrite = new Promise<void>((_, reject) => { rejectRevision = reject; });
+  const calls: string[] = [];
+  const record = makeRecord();
+  let settled = false;
+  const done = insertRedirectAndRevision({ record, revision: makeRevision(record), db: {
+    insertRedirect: () => { calls.push("redirect"); return redirectWrite; },
+    insertRevision: () => { calls.push("revision"); return revisionWrite; },
+  } });
+  const observed = done.finally(() => { settled = true; });
+  const rejection = assert.rejects(observed, { message: "revision disk failure" });
+  await new Promise<void>(resolve => setImmediate(resolve));
+  const callsBeforeRelease = [...calls];
+  const settledBeforeRelease = settled;
+  releaseRedirect();
+  await new Promise<void>(resolve => setImmediate(resolve));
+  const callsBeforeRevisionFailure = [...calls];
+  const settledBeforeRevisionFailure = settled;
+  rejectRevision(new Error("revision disk failure"));
+  await rejection;
+  assert.deepEqual(callsBeforeRelease, ["redirect"]);
+  assert.equal(settledBeforeRelease, false);
+  assert.deepEqual(callsBeforeRevisionFailure, ["redirect", "revision"]);
+  assert.equal(settledBeforeRevisionFailure, false);
 });

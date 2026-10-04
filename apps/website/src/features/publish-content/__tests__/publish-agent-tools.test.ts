@@ -7,7 +7,8 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import type { AssistantSurfaceDeps } from "../../../contracts/core/tool-surface-exchanges.js";
 import { publishContentAgentToolCatalog, PUBLISH_CONTENT_CONNECT_TOOL_ID, PUBLISH_CONTENT_STATUS_TOOL_ID } from "../agent-tools.js";
-import type { PublishContentPeerRecord } from "../peers.js";
+import { InMemoryPublishContentPeerRepo, type PublishContentPeerRecord } from "../peers.js";
+import { createFileProvisioning, COMMITTED_JSON_CODEC } from "../../publish-trust/provisioning.js";
 import { describePublishReadiness, siteLabelFor } from "../publish-readiness.js";
 import { buildPublishContentRegistrations, plainSentence, type PublishContentToolDeps } from "../tool-registrations.js";
 import { registerPublishContentContributor, resetPublishContentContributorsForTests } from "../type-registry.js";
@@ -226,8 +227,12 @@ test("the status tool answers the never-connected install in plain sentences", a
 
   assert.equal(result.ready, false);
   assert.equal(result.verdict, "not-connected");
+  assert.equal(result.summary, "This computer is not set up to publish to example.com yet.");
+  assert.equal(result.missing, "This computer has not been connected to example.com.");
+  assert.equal(result.nextStep, "Connect this computer to example.com, then publish.");
   for (const field of ["summary", "missing", "nextStep"]) {
-    assertReadableByAPerson(String(result[field]), `status.${field}`);
+    assert.equal(typeof result[field], "string");
+    assertReadableByAPerson(result[field] as string, `status.${field}`);
   }
 });
 
@@ -261,3 +266,56 @@ test("connect refuses an install with nothing publishable rather than connecting
   assert.equal(result.connected, false);
   assertReadableByAPerson(String(result.message), "connect.nothing-publishable");
 });
+
+for (const failure of [null, "handshake", "provisioning"] as const) {
+  test(`connect handler ${failure ?? "saves a connection and status reads it"}`, async (t) => {
+    t.after(resetPublishContentContributorsForTests);
+    resetPublishContentContributorsForTests();
+    registerPublishContentContributor({ entityType: "post", dependsOn: [], build: () => null as never });
+    const repo = new InMemoryPublishContentPeerRepo();
+    const files = new Map<string, string>();
+    const requests: unknown[] = [];
+    const provisioning = createFileProvisioning({
+      io: { read: async path => failure === "provisioning" ? "{broken config" : files.get(path) ?? null, write: async (path, contents) => {
+        files.set(path, contents);
+      } }, codec: COMMITTED_JSON_CODEC, path: "/test/publishing.json",
+    });
+    const deps = toolDeps({
+      publishContentPeerRepo: repo, publishTrustProvisioning: provisioning,
+      siteAssistantSecretKeyring: { derive: async () => new Uint8Array(32).fill(7) } as never,
+      publishContentPeerHttpClient: { send: async request => {
+        requests.push(request);
+        return { status: failure === "handshake" ? 401 : 200, headers: {}, bodyText: JSON.stringify({
+          installationId: "remote-install", workspaceId: "remote-workspace", origin: "https://example.com",
+        }) };
+      } },
+    });
+    const result = await registrationFor(deps, PUBLISH_CONTENT_CONNECT_TOOL_ID).handler(
+      execContext({ siteUrl: "https://example.com" }));
+    assert.deepEqual(requests, [{ method: "GET", url: "https://example.com/api/publish-trust/v1/identity", headers: {}, timeoutMs: 15000 }]);
+    const rows = await repo.listByWorkspace({ workspaceId: WORKSPACE_ID });
+    if (failure !== null) {
+      assert.equal((result as Record<string, unknown>).connected, false);
+      assert.equal(rows.length, 0);
+      assert.equal(files.size, 0);
+      assert.equal((result as Record<string, unknown>).message, failure === "handshake"
+        ? "example.com doesn't recognise this computer yet. Connect it, then deploy the site once."
+        : "This site's publishing settings could not be saved on this computer.");
+      return;
+    }
+    assert.equal((result as Record<string, unknown>).connected, true);
+    assert.equal(rows.length, 1);
+    assert.deepEqual([rows[0].workspaceId, rows[0].baseUrl, rows[0].remoteWorkspaceId, rows[0].sealed],
+      [WORKSPACE_ID, "https://example.com", "remote-workspace", null]);
+    const provisioned = await provisioning.readProvisioned();
+    assert.equal(provisioned.ok, true);
+    if (provisioned.ok) {
+      assert.equal(provisioned.grants.length, 1);
+      assert.equal(provisioned.grants[0].workspaceId, "remote-workspace");
+      assert.deepEqual(provisioned.grants[0].entityTypes, ["post"]);
+    }
+    assert.deepEqual(await registrationFor(deps, PUBLISH_CONTENT_STATUS_TOOL_ID).handler(execContext({})), {
+      ready: true, verdict: "ready", summary: "This computer publishes to example.com.", missing: null, nextStep: null,
+    });
+  });
+}

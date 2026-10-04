@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { InMemorySettingsRepo } from "../../settings/index.js";
-import { ensureSeoSettingDefinitions } from "../settings.js";
+import { ensureSeoSettingDefinitions, getSeoSettings, setSeoSettings } from "../settings.js";
 
 /**
  * @file T020 — failing-first certification: `ensureSeoSettingDefinitions` is
@@ -34,9 +34,21 @@ test("ensureSeoSettingDefinitions: idempotent — calling twice registers exactl
   const firstPass = await settingsRepo.listActiveDefinitions({ workspaceId: "workspace-1" });
   const seoDefsFirst = firstPass.filter((d) => d.namespace === "site.seo");
   assert.equal(seoDefsFirst.length, 8);
+  assert.deepEqual(seoDefsFirst.map(d => d.key).sort(), [
+    "default_description", "default_og_image", "default_robots_nofollow", "default_robots_noindex",
+    "robots_rules", "sitemap_enabled", "title_template", "twitter_site",
+  ]);
+  const snapshot = structuredClone(seoDefsFirst);
+  await setSeoSettings(deps, { workspaceId: "workspace-1", callerPrincipalId: "system-seo",
+    patch: { titleTemplate: "%s | configured site", sitemapEnabled: false } });
+  const configured = await getSeoSettings(deps, { workspaceId: "workspace-1" });
 
   await ensureSeoSettingDefinitions(deps, input);
   const secondPass = await settingsRepo.listActiveDefinitions({ workspaceId: "workspace-1" });
   const seoDefsSecond = secondPass.filter((d) => d.namespace === "site.seo");
   assert.equal(seoDefsSecond.length, 8, "rerun must not double-register");
+  assert.deepEqual(seoDefsSecond, snapshot, "rerun must preserve identities and definition metadata");
+  assert.deepEqual(await getSeoSettings(deps, { workspaceId: "workspace-1" }), configured);
+  assert.equal(configured.titleTemplate, "%s | configured site");
+  assert.equal(configured.sitemapEnabled, false);
 });

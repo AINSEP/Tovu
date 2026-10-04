@@ -171,6 +171,40 @@ describe("holding space in the composer", () => {
     expect(transport.startRunCalls).toHaveLength(0);
   });
 
+  it.each(["ControlLeft", "MetaLeft", "AltLeft", "ShiftLeft"])("does not record %s + Space in the real composer", async (modifier) => {
+    const transport = createRecordingTransport();
+    render(<VoiceComposerHarness transport={transport} transcript="must not record" />);
+    await findMicButton();
+    const textarea = composerTextarea();
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    await user.click(textarea);
+    await user.keyboard(`[${modifier}>][Space>]`);
+    act(() => vi.advanceTimersByTime(SPACE_HOLD_TO_TALK_MS * 2));
+    await flush();
+    expect(screen.getByRole("button", { name: "Hold to talk" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Recording — release to send" })).not.toBeInTheDocument();
+    await user.keyboard(`[/Space][/${modifier}]`);
+    await flush();
+    expect(textarea.value).not.toBe("must not record");
+    expect(transport.startRunCalls).toHaveLength(0);
+  });
+
+  it("leaves composing Space events unprevented without opening the microphone", async () => {
+    const transport = createRecordingTransport();
+    render(<VoiceComposerHarness transport={transport} transcript="must not record" />);
+    await findMicButton();
+    const textarea = composerTextarea();
+    textarea.focus();
+    expect(fireEvent.keyDown(textarea, { key: " ", isComposing: true })).toBe(true);
+    act(() => vi.advanceTimersByTime(SPACE_HOLD_TO_TALK_MS * 2));
+    await flush();
+    expect(screen.getByRole("button", { name: "Hold to talk" })).toBeInTheDocument();
+    fireEvent.keyUp(textarea, { key: " " });
+    await flush();
+    expect(textarea).toHaveValue("");
+    expect(transport.startRunCalls).toHaveLength(0);
+  });
+
   it("releases an engaged hold on blur and delivers its transcript to the real composer", async () => {
     const transport = createRecordingTransport();
     render(<VoiceComposerHarness transport={transport} transcript="released on blur" />);

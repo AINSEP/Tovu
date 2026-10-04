@@ -97,7 +97,6 @@ test.describe("byok state races (REQ: async state must be scoped to the provider
     // changes, so a stale verdict from one provider renders under a DIFFERENT provider's card. If
     // this test ever starts reporting "expected to fail but passed", the bug has been fixed —
     // remove this `test.fail()` pin (and update this file's own header count).
-    test.fail();
     await login(page);
 
     await page.route("**/assistant/execution/models", (route) => route.fulfill(jsonRoute({ ok: true, models: ["stub-model"] })));
@@ -113,10 +112,12 @@ test.describe("byok state races (REQ: async state must be scoped to the provider
 
     // Switch to a provider that has never had Test Connection clicked for it.
     await page.getByRole("tab", { name: "OpenAI", exact: true }).click();
+    await expect(page.getByRole("tab", { name: "OpenAI", exact: true })).toHaveAttribute("aria-selected", "true");
 
     // DESIRED: OpenAI has no verdict of its own yet, so no test-connection status should render
     // under its card — least of all Anthropic's own failure message. This is the assertion that
     // currently fails: `connectionTest` is unscoped hook state, so the stale node is still there.
+    test.fail();
     await expect(page.locator(".jini-byok-test-status")).toHaveCount(0);
   });
 
@@ -130,7 +131,6 @@ test.describe("byok state races (REQ: async state must be scoped to the provider
     // operator has moved to a different provider still overwrites that provider's status. If this
     // test ever starts reporting "expected to fail but passed", the bug has been fixed — remove
     // this `test.fail()` pin.
-    test.fail();
     await login(page);
     await page.route("**/assistant/execution/models", (route) => route.fulfill(jsonRoute({ ok: true, models: ["stub-model"] })));
 
@@ -158,20 +158,20 @@ test.describe("byok state races (REQ: async state must be scoped to the provider
 
     // Switch away BEFORE the blocked response ever resolves.
     await page.getByRole("tab", { name: "OpenAI", exact: true }).click();
-
-    let responseCount = 0;
-    page.on("response", (response) => {
-      if (response.url().includes("/assistant/execution/test-connection")) responseCount += 1;
-    });
+    await expect(page.getByRole("tab", { name: "OpenAI", exact: true })).toHaveAttribute("aria-selected", "true");
+    expect(call, "the Anthropic request must be held before releasing it").toBe(1);
+    const delivered = page.waitForResponse((response) => response.url().includes("/assistant/execution/test-connection"));
     releaseFirst();
-    await expect.poll(() => responseCount).toBeGreaterThanOrEqual(1);
+    const response = await delivered;
+    expect(await response.finished()).toBeNull();
+    expect(await response.json()).toEqual({ ok: false, message: "STALE anthropic result — must never land under OpenAI" });
+    await expect(page.locator('button:has-text("Testing…")')).toHaveCount(0);
 
     // DESIRED: the stale Anthropic verdict must never render as OpenAI's own status. This is the
     // assertion that currently fails — the ticket-free `connectionTest` state accepts whichever
     // response lands last, regardless of which provider it was actually about.
-    await expect(page.locator(".jini-byok-test-status")).not.toHaveText(/STALE anthropic result/, {
-      timeout: 3_000,
-    });
+    test.fail();
+    await expect(page.locator(".jini-byok-test-status")).toHaveCount(0);
   });
 
   test("HELD: an in-flight model-discovery response for OpenAI, resolved after switching to Google, does NOT clobber Google's fresh model list", async ({
@@ -211,6 +211,10 @@ test.describe("byok state races (REQ: async state must be scoped to the provider
     await page.unroute("**/assistant/execution/models");
     await page.route("**/assistant/execution/models", async (route) => {
       switchCall += 1;
+      expect(route.request().method()).toBe("POST");
+      expect(route.request().postDataJSON()).toMatchObject(switchCall === 1
+        ? { protocol: "openai", baseUrl: "https://api.openai.com/v1", apiKey: "" }
+        : { protocol: "google", baseUrl: "https://generativelanguage.googleapis.com", apiKey: "" });
       if (switchCall === 1) {
         await firstResponseGate;
         await route.fulfill(jsonRoute({ ok: true, models: ["STALE-openai-model"] }));
@@ -230,8 +234,11 @@ test.describe("byok state races (REQ: async state must be scoped to the provider
 
     // Now release the stale OpenAI response. The `modelDiscoveryTicket` guard in
     // `useExecutionTab.ts` should make this a no-op.
+    const staleResponse = page.waitForResponse((response) => response.url().includes("/assistant/execution/models")
+      && response.request().postDataJSON()?.protocol === "openai");
     releaseFirst();
-    await page.waitForTimeout(300);
+    expect(await (await staleResponse).finished()).toBeNull();
+    await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
     expect(await readOptions()).toEqual(["fresh-google-model"]);
   });
 

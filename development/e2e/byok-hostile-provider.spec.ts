@@ -2,7 +2,7 @@ import * as http from "node:http";
 import type { AddressInfo } from "node:net";
 import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
 
-import { byokModelPicker, openByokModelMenu, readByokModelOptions, setByokModel } from "./byok-model-field.js";
+import { byokModelPicker, byokModelPickerTrigger, chooseByokModelFromPicker, openByokModelMenu, readByokModelOptions, setByokModel } from "./byok-model-field.js";
 
 /**
  * @file BYOK hostile-provider adversarial battery (2026-08-04 dispatch, item #7).
@@ -93,7 +93,7 @@ test.describe("malformed / truncated / empty response bodies", () => {
       expect(body.models).toEqual([]);
       // The exact V8 JSON.parse error text, not a generic "bad response" — legible to
       // whoever's debugging, not a leaked stack trace either.
-      expect(body.message).toMatch(/JSON|Unexpected token|not valid/i);
+      expect(body.message).toBe("Expected property name or '}' in JSON at position 1 (line 1 column 2)");
     } finally {
       await malformed.close();
     }
@@ -111,6 +111,7 @@ test.describe("malformed / truncated / empty response bodies", () => {
       const body = await res.json();
       expect(body.ok).toBe(false);
       expect(body.models).toEqual([]);
+      expect(body.message).toBe("Unterminated string in JSON at position 37 (line 1 column 38)");
     } finally {
       await truncated.close();
     }
@@ -260,6 +261,7 @@ test.describe("volume attacks: an oversized body and 10,000 models — the soft 
       // fix that caps this (a real, reasonable hardening) would fail this assertion — that's
       // the intended tripwire, not a claim that 10,000 is a correct or desired behavior.
       expect(body.models).toHaveLength(10_000);
+      expect([...body.models].sort()).toEqual(many.map((model) => model.id).sort());
       expect(elapsedMs).toBeLessThan(20_000);
     } finally {
       await flood.close();
@@ -268,12 +270,15 @@ test.describe("volume attacks: an oversized body and 10,000 models — the soft 
 });
 
 test.describe("the real operator path in the browser: does the UI hang, stay usable, and recover", () => {
-  test("a malformed response shows a clear error without wedging the form, and a subsequent Test Connection against a healthy deputy recovers it", async ({
+  test("a malformed discovery response shows a parsing error without wedging the form, and editing the endpoint to a healthy deputy recovers the model picker", async ({
     page,
   }) => {
     await loginPage(page);
+    await page.route("**/settings/events", (route) => route.abort());
 
-    const malformed = await startDeputy((_req, res) => {
+    const malformedKeys: Array<string | undefined> = [];
+    const malformed = await startDeputy((req, res) => {
+      malformedKeys.push(req.headers.authorization);
       res.writeHead(200, { "content-type": "application/json" });
       res.end("{not json");
     });
@@ -282,12 +287,14 @@ test.describe("the real operator path in the browser: does the UI hang, stay usa
       // Default protocol is Anthropic; switch to OpenAI (the protocol every deputy in this
       // file speaks) and point its baseUrl at the hostile deputy.
       await page.getByRole("tab", { name: "OpenAI", exact: true }).click();
+      const apiKeyInput = page.locator('.jini-byok-card .jini-field-input-row input');
+      await apiKeyInput.fill("sk-openai-test-FAKE-KEY-NOT-REAL");
       await page.locator('label:has-text("Base URL") input').fill(malformed.baseUrl);
-      await expect(page.locator(".jini-field-hint.is-error[role='status']")).toBeVisible({ timeout: 10_000 });
+      await expect.poll(() => malformedKeys.includes("Bearer sk-openai-test-FAKE-KEY-NOT-REAL")).toBe(true);
+      await expect(page.locator(".jini-field-hint.is-error[role='status']")).toContainText("Expected property name or '}' in JSON at position 1 (line 1 column 2)", { timeout: 10_000 });
 
       // The form stays fully interactive while that error is showing — a hostile response
       // must not disable or freeze anything else on the page.
-      const apiKeyInput = page.locator('.jini-byok-card .jini-field-input-row input');
       await apiKeyInput.fill("sk-openai-test-FAKE-KEY-NOT-REAL");
       await expect(apiKeyInput).toHaveValue("sk-openai-test-FAKE-KEY-NOT-REAL");
       await setByokModel(page, "gpt-4o");
@@ -297,7 +304,7 @@ test.describe("the real operator path in the browser: does the UI hang, stay usa
     }
 
     // Recovery: swap in a well-behaved deputy at the SAME baseUrl port is not possible (ports
-    // differ), so instead point at a fresh healthy deputy and click Test Connection — this is
+    // differ), so instead point at a fresh healthy deputy — this is
     // exactly `byok-model-discovery-self-heal.spec.ts`'s own proven re-fire mechanism, now
     // proven to also clear a HOSTILE-origin error, not just a benign one.
     const healthy = await startDeputy((_req, res) => {
@@ -307,6 +314,8 @@ test.describe("the real operator path in the browser: does the UI hang, stay usa
     try {
       await page.locator('label:has-text("Base URL") input').fill(healthy.baseUrl);
       await expect(page.locator(".jini-field-hint.is-error[role='status']")).toHaveCount(0, { timeout: 10_000 });
+      await expect(byokModelPicker(page)).toBeVisible({ timeout: 10_000 });
+      expect(await readByokModelOptions(page)).toEqual(["gpt-4o"]);
     } finally {
       await healthy.close();
     }
@@ -380,6 +389,9 @@ test.describe("10,000 models rendered in the real browser: no hang", () => {
       // for — and the product-side bound is the locator timeout on the picker appearing.
       const options = await readByokModelOptions(page);
       expect(options).toHaveLength(10_000); // uncapped — see the API-level test's own flag on this
+      expect([...options].sort()).toEqual(many.map((model) => model.id).sort());
+      await chooseByokModelFromPicker(page, "flood-model-9999");
+      await expect(byokModelPickerTrigger(page)).toHaveAttribute("aria-label", "Model: flood-model-9999");
 
       // The page is still responsive after handling a 10,000-model response — proves "doesn't
       // hang", not just "eventually finishes": a real keystroke into an unrelated field still

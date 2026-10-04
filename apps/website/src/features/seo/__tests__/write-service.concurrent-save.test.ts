@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryPostRepo, type PostRecord, type PostRepoPort } from "../../post/index.js";
+import { EntityNotLiveError } from "@jini-ai/cms/core";
+import { SeoConcurrentWriteError } from "../errors.js";
 import { setEntrySeoOverrides } from "../write-service.js";
 
 /**
@@ -180,3 +182,31 @@ test("SEO-01: the uncontended path is unchanged — one predicated write, versio
   assert.equal(after?.version, 2);
   assert.deepEqual(after?.bodyJson, { type: "doc", content: [] });
 });
+
+for (const outcome of ["exhausted", "trashed"] as const) {
+  test(`SEO merge refuses ${outcome} retries without revisions or cache invalidation`, async (t) => {
+    const original = seedPost();
+    const repo = new InMemoryPostRepo([original]);
+    const attempts: number[] = [];
+    const invalidations: unknown[] = [];
+    t.mock.method(repo, "saveIfVersion", async (required) => {
+      attempts.push(required.ifVersion);
+      if (outcome === "trashed") {
+        await repo.softDelete({ workspaceId: WORKSPACE, id: ENTRY_ID,
+          deletedAt: "2026-09-18T00:00:00.000Z", updatedAt: "2026-09-18T00:00:00.000Z", version: 2 });
+      }
+      return { applied: false };
+    });
+    await assert.rejects(setEntrySeoOverrides({
+      deps: { postRepo: repo, authorize: alwaysAllow, clock: { nowMs: () => Date.parse("2026-09-18T00:00:00.000Z") },
+        invalidateSitemapCache: input => { invalidations.push(input); } },
+      input: { workspaceId: WORKSPACE, entryId: ENTRY_ID, callerPrincipalId: "p1", patch: { noindex: true } },
+    }), outcome === "exhausted" ? SeoConcurrentWriteError : EntityNotLiveError);
+    assert.deepEqual(attempts, outcome === "exhausted" ? [1, 1, 1] : [1]);
+    assert.deepEqual(await repo.findById({ workspaceId: WORKSPACE, id: ENTRY_ID }), outcome === "trashed"
+      ? { ...original, deletedAt: "2026-09-18T00:00:00.000Z", updatedAt: "2026-09-18T00:00:00.000Z", version: 2 }
+      : original);
+    assert.deepEqual(await repo.listRevisions({ workspaceId: WORKSPACE, postId: ENTRY_ID }), []);
+    assert.deepEqual(invalidations, []);
+  });
+}

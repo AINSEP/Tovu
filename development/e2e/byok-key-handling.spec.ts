@@ -387,9 +387,11 @@ test.describe("byok key-handling edge cases", () => {
   });
 
   test("a 10,000-character API key does not hang or crash discovery or test-connection", async () => {
-    const deputy = await startDeputy((_req, res) => {
+    const deputy = await startDeputy((req, res) => {
       res.writeHead(200, { "content-type": "application/json" });
-      res.end(JSON.stringify({ data: [{ id: "deputy-model", object: "model" }] }));
+      res.end(JSON.stringify(req.url?.endsWith("/chat/completions")
+        ? { choices: [{ message: { content: "ok" } }] }
+        : { data: [{ id: "deputy-model", object: "model" }] }));
     });
 
     try {
@@ -408,6 +410,17 @@ test.describe("byok key-handling edge cases", () => {
       // not an SLA, just proof nothing degenerated into pathological (e.g. O(n^2) redaction regex)
       // behavior on a large input.
       expect(elapsedMs).toBeLessThan(10_000);
+      const connectionStart = Date.now();
+      const connection = await sharedApi.post(TEST_CONN_PATH, {
+        data: { protocol: "openai", baseUrl: `http://127.0.0.1:${deputy.port}`, apiKey: hugeKey, model: "gpt-4o" },
+        timeout: 10_000,
+      });
+      expect(connection.status()).toBe(200);
+      expect(await connection.json()).toEqual({ ok: true, message: "valid completion" });
+      expect(deputy.hits()).toBe(2);
+      expect(deputy.lastUrl()).toBe("/v1/chat/completions");
+      expect(deputy.lastHeaders()?.authorization).toBe(`Bearer ${hugeKey}`);
+      expect(Date.now() - connectionStart).toBeLessThan(10_000);
     } finally {
       await deputy.close();
     }
@@ -461,6 +474,26 @@ test.describe("byok key-handling edge cases", () => {
     } finally {
       await deputy200Echo.close();
     }
+    const googleKey = "AIzaGoogleQueryCanary9f3a7c";
+    const googleEcho = await startDeputy((req, res) => {
+      res.writeHead(401, { "content-type": "application/json" });
+      res.end(JSON.stringify({ error: { message: `Google rejected request URL ${req.url}` } }));
+    });
+    try {
+      const response = await sharedApi.post(MODELS_PATH, {
+        data: { protocol: "google", baseUrl: `http://127.0.0.1:${googleEcho.port}`, apiKey: googleKey },
+      });
+      expect(response.status()).toBe(200);
+      expect(googleEcho.hits()).toBe(1);
+      expect(googleEcho.lastUrl()).toBe(`/v1beta/models?key=${googleKey}`);
+      const body = await response.json();
+      expect(body.ok).toBe(false);
+      expect(body.message).toContain("Google rejected request URL /v1beta/models?key=");
+      expect(body.message).toContain("[REDACTED:");
+      expect(body.message).not.toContain(googleKey);
+    } finally {
+      await googleEcho.close();
+    }
   });
 
   test("browser-level: an endpoint that echoes the API key in its error body never shows the raw key anywhere in the settings UI", async ({
@@ -512,6 +545,9 @@ test.describe("byok key-handling edge cases", () => {
 
       await page.locator('button:has-text("Test connection")').click();
       await expect(page.locator(".jini-byok-test-status.is-error")).toBeVisible({ timeout: 15_000 });
+      await expect.poll(() => deputy.lastHeaders()?.authorization).toBe(`Bearer ${canaryKey}`);
+      await expect(page.locator(".jini-byok-test-status.is-error")).toContainText("Access denied for");
+      await expect(page.locator(".jini-byok-test-status.is-error")).toContainText("[REDACTED:");
 
       const bodyText = await page.locator("body").innerText();
       expect(bodyText).not.toContain(canaryKey);
@@ -677,6 +713,10 @@ test.describe("Base URL edits settle before sending a draft API key (MSG-1 known
       // reaches the UI (`model-catalog.ts`: `detail: redactSecrets(detail, [input.apiKey])`).
       const errorHint = page.locator(".jini-field-hint.is-error[role='status']");
       await expect(errorHint).toBeVisible({ timeout: 15_000 });
+      await expect.poll(() => deputy.lastHeaders()?.["x-api-key"]).toBe(canaryKey);
+      await expect.poll(() => deputy.hits()).toBeGreaterThanOrEqual(1);
+      await expect(errorHint).toContainText("bad credentials:");
+      await expect(errorHint).toContainText("[REDACTED:");
       const errorText = await errorHint.innerText();
       expect(errorText).not.toContain(canaryKey);
     } finally {

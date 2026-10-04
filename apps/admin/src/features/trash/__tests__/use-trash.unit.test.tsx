@@ -1,8 +1,8 @@
 import { act, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminIdentityUser, AdminTrashItem, AdminTrashPage } from "@/lib/api";
-import { FetchQueryProvider, useInvalidate } from "@/lib/fetch-query";
+import type { AdminIdentityUser, AdminTrashItem, AdminTrashPage, AdminTrashRestoreReport } from "@/lib/api";
+import { FetchQueryProvider, useInvalidate, useFetchQuery } from "@/lib/fetch-query";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { createFakeTrashPort } from "../hooks/trash-dependencies.hooks";
 import { useTrash } from "../hooks/use-trash.hooks";
@@ -82,6 +82,7 @@ describe("useTrash", () => {
       await result.current.onRestoreSelected();
     });
     expect(port.restoreCalls).toEqual([{ items: [{ entityType: "post", entityId: "post-9" }] }]);
+    expect(result.current.selected.size).toBe(0);
 
     await waitFor(() => expect(result.current.items).not.toBeNull());
     act(() => result.current.toggle("row-9"));
@@ -89,6 +90,53 @@ describe("useTrash", () => {
       await result.current.onPurgeConfirmed();
     });
     expect(port.purgeCalls).toEqual([{ ids: ["row-9"] }]);
+    expect(result.current.selected.size).toBe(0);
+  });
+
+  it.each(["restore", "purge"] as const)("reports a failed %s and retains the selection for retry", async (action) => {
+    const port = createFakeTrashPort({ items: [item()] });
+    const failed = vi.fn().mockRejectedValue("offline");
+    if (action === "restore") port.restoreTrashItems = failed;
+    else port.purgeTrashItems = failed;
+    const { result } = renderHook(() => useTrash({ port, locale: "en" }), { wrapper });
+    await waitFor(() => expect(result.current.items).toEqual([item()]));
+    act(() => result.current.toggle("trash-1"));
+    await act(() => action === "restore" ? result.current.onRestoreSelected() : result.current.onPurgeConfirmed());
+    expect(failed).toHaveBeenCalledTimes(1);
+    expect(result.current.error).toBe(action === "restore" ? "failed to restore" : "failed to delete permanently");
+    expect(result.current.busy).toBe(false);
+    expect([...result.current.selected]).toEqual(["trash-1"]);
+    expect(result.current.notice).toBeNull();
+  });
+
+  it("ignores another restore while busy and clears the selection after success", async () => {
+    const port = createFakeTrashPort({ items: [item()] });
+    let release!: (report: AdminTrashRestoreReport) => void;
+    port.restoreTrashItems = vi.fn(() => new Promise<AdminTrashRestoreReport>((resolve) => { release = resolve; }));
+    const { result } = renderHook(() => useTrash({ port, locale: "en" }), { wrapper });
+    await waitFor(() => expect(result.current.items).toEqual([item()]));
+    act(() => result.current.toggle("trash-1"));
+    let first!: Promise<void>;
+    act(() => { first = result.current.onRestoreSelected(); });
+    expect(result.current.busy).toBe(true);
+    await act(() => result.current.onRestoreSelected());
+    expect(port.restoreTrashItems).toHaveBeenCalledTimes(1);
+    await act(async () => { release({ restored: 1, results: [{ entityType: "post", entityId: "post-1", outcome: "restored" }] }); await first; });
+    expect(result.current.busy).toBe(false);
+    expect(result.current.selected.size).toBe(0);
+    expect(result.current.error).toBeNull();
+  });
+
+  it.each([[1, "Restored. 1/2"], [0, "Nothing was restored."]] as const)("reports %i restored without claiming total success", async (restored, notice) => {
+    const port = createFakeTrashPort({ items: [item(), item({ id: "row-2", entityId: "post-2" })], restoreReport: {
+      restored, results: [{ entityType: "post", entityId: "post-1", outcome: restored ? "restored" : "forbidden" }, { entityType: "post", entityId: "post-2", outcome: "forbidden" }],
+    } });
+    const { result } = renderHook(() => useTrash({ port, locale: "en" }), { wrapper });
+    await waitFor(() => expect(result.current.items).toHaveLength(2));
+    act(() => result.current.toggleAll());
+    await act(() => result.current.onRestoreSelected());
+    expect(result.current.notice).toBe(notice);
+    expect(result.current.selected.size).toBe(0);
   });
 
   it("select-all covers only the rows on screen, and toggles back off", async () => {
@@ -118,7 +166,8 @@ describe("useTrash", () => {
     const { result } = renderHook(() => useTrash({ port, locale: "en" }), { wrapper });
     await waitFor(() => expect(result.current.items).not.toBeNull());
 
-    act(() => result.current.toggleAll());
+    act(() => { result.current.toggleAll(); result.current.setPurgeConfirmOpen(true); });
+    expect(result.current.purgeConfirmOpen).toBe(true);
     await act(async () => {
       await result.current.onPurgeConfirmed();
     });
@@ -224,16 +273,16 @@ describe("useTrash — actorUsernames (2026-09-21)", () => {
   });
 
   it("degrades to an empty map, without touching `error`, when listUsers fails (an operator without user.manage/member.manage)", async () => {
-    const port = createFakeTrashPort({ items: [item()], listUsersError: new Error("403 forbidden") });
-    const { result } = renderHook(() => useTrash({ port, locale: "en" }), { wrapper });
-
-    await waitFor(() => expect(result.current.items).not.toBeNull());
-    // Give the (failing) actorUsernames query a turn to settle.
-    await act(async () => {
-      await Promise.resolve();
-    });
-    expect(result.current.actorUsernames.size).toBe(0);
-    expect(result.current.error).toBeNull();
+    const port = createFakeTrashPort({ items: [item()] });
+    let reject!: (reason: Error) => void;
+    port.listUsers = vi.fn(() => new Promise<{ users: AdminIdentityUser[] }>((_, fail) => { reject = fail; }));
+    const { result } = renderHook(() => ({ trash: useTrash({ port, locale: "en" }), users: useFetchQuery({ key: KEYS.actorUsernames(), fetch: () => port.listUsers!() }) }), { wrapper });
+    await waitFor(() => expect(result.current.trash.items).not.toBeNull());
+    await waitFor(() => expect(port.listUsers).toHaveBeenCalledTimes(1));
+    await act(async () => { reject(new Error("403 forbidden")); });
+    await waitFor(() => expect(result.current.users.status).toBe("error"));
+    expect(result.current.trash.actorUsernames.size).toBe(0);
+    expect(result.current.trash.error).toBeNull();
   });
 
   it("stays an empty map, without calling listUsers, when the port carries no listUsers method at all", async () => {
@@ -372,6 +421,10 @@ describe("useTrash — Refresh (2026-09-21)", () => {
       void result.current.loadMore();
     });
     await waitFor(() => expect(cursorCalls).toHaveLength(1));
+    await act(async () => { cursorCalls[0].resolve({ items: [item({ id: "p2" })], nextCursor: "c3" }); });
+    await waitFor(() => expect(result.current.items?.map((i) => i.id)).toEqual(["p1", "p2"]));
+    act(() => { void result.current.loadMore(); });
+    await waitFor(() => expect(cursorCalls).toHaveLength(2));
 
     firstPageResult = { items: [item({ id: "fresh" })], nextCursor: null };
     act(() => {
@@ -382,7 +435,7 @@ describe("useTrash — Refresh (2026-09-21)", () => {
     // The Load more from before the refresh finally resolves — it must not append onto the
     // refreshed page.
     await act(async () => {
-      cursorCalls[0].resolve({ items: [item({ id: "stale-more" })], nextCursor: null });
+      cursorCalls[1].resolve({ items: [item({ id: "stale-more" })], nextCursor: null });
       await Promise.resolve();
     });
     expect(result.current.items?.map((i) => i.id)).toEqual(["fresh"]);

@@ -1,9 +1,9 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import { createFakeObservabilityStatusPort } from "../hooks/observability-status-dependencies.hooks";
-import { useObservabilityStatus } from "../hooks/use-observability-status.hooks";
+import { useObservabilityStatus, useWiredObservabilityStatus } from "../hooks/use-observability-status.hooks";
 
 /**
  * @file `useObservabilityStatus` driven against the injected `ObservabilityStatusPort`, no `fetch`
@@ -14,6 +14,7 @@ import { useObservabilityStatus } from "../hooks/use-observability-status.hooks"
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe("useObservabilityStatus — injected port (no fetch stub, no api spy)", () => {
@@ -53,5 +54,36 @@ describe("useObservabilityStatus — injected port (no fetch stub, no api spy)",
     await waitFor(() => expect(result.current.error).not.toBeNull());
     expect(result.current.status).toBeNull();
     expect(result.current.error).toBe("boom");
+  });
+});
+
+
+describe("observability default binding and error copy", () => {
+  it("loads the wired status through the real GET endpoint", async () => {
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url === "/api/admin/v1/workspaces/workspace-local/system/observability-status" && (init?.method ?? "GET") === "GET") {
+        return Response.json({ enabled: true, serviceName: "test-service" });
+      }
+      if (url === "/api/admin/v1/workspaces/workspace-local/settings/effective?namespace=core.language") {
+        return Response.json({ data: [] });
+      }
+      throw new Error(`unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const { result } = renderHook(() => useWiredObservabilityStatus());
+    await waitFor(() => expect(result.current.status).toEqual({ enabled: true, serviceName: "test-service" }));
+    expect(result.current.error).toBeNull();
+    expect(fetchMock.mock.calls.filter(([url]) => url.endsWith("/system/observability-status"))).toHaveLength(1);
+  });
+
+  it.each([
+    ["non-Error rejection", "offline", "no se pudo cargar el estado de observabilidad"],
+    ["empty ApiError", new ApiError("", 503), "no se pudo cargar el estado de observabilidad"],
+    ["ApiError message", new ApiError("permission denied", 403), "permission denied"],
+  ])("maps %s to operator copy", async (_name, failure, expected) => {
+    const port = createFakeObservabilityStatusPort({ failWith: failure });
+    const { result } = renderHook(() => useObservabilityStatus({ port, locale: "es", t: (key) => key }));
+    await waitFor(() => expect(result.current.error).toBe(expected));
+    expect(result.current.status).toBeNull();
   });
 });

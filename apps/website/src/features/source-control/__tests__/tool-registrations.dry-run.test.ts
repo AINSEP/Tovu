@@ -106,12 +106,13 @@ test("source_control_execute_commit dryRun:true previews the export without comm
     executeCommit,
     { provider: "github", owner: "octo", repo: "my-site", commitMessage: "content update", dryRun: true },
     async (s) => void emitted.push(s)
-  )) as { dryRun: boolean; committed: boolean; fileCount: number; totalBytes: number; credentialConfigured: boolean };
+  )) as { dryRun: boolean; committed: boolean; fileCount: number; totalBytes: number; paths: string[]; credentialConfigured: boolean };
 
   assert.equal(result.dryRun, true);
   assert.equal(result.committed, false);
   assert.equal(result.fileCount, 2);
-  assert.ok(result.totalBytes > 0);
+  assert.equal(result.totalBytes, 23);
+  assert.deepEqual(result.paths, ["index.html", "style.css"]);
   assert.equal(result.credentialConfigured, true);
   assert.equal(gitAdapterCalls.count, 0, "gitAdapter.commit must never be called on a dry run");
   assert.equal(emitted.length, 0, "no confirmation dialog must be emitted on a dry run");
@@ -137,3 +138,33 @@ test("source_control_execute_commit dryRun:true reports credentialConfigured:fal
   assert.equal(gitAdapterCalls.count, 0);
   assert.equal(emitted.length, 0);
 });
+
+for (const kind of ["throw", "route", "asset"] as const) {
+  test(`dry-run ${kind} export failure is reported and removes a created run directory`, async () => {
+    const gitCalls = { count: 0 };
+    const captured = { outputDir: null as string | null };
+    const exportSiteBound: ExportSiteBoundFn = async options => {
+      const report = await fakeExportSiteBound(captured)(options);
+      assert.equal(existsSync(options.outputDir), true);
+      if (kind === "throw") throw new Error("export canary");
+      if (kind === "route") report.routes.failed.push({ path: "/broken", reason: "route canary" } as never);
+      else report.assets.failed.push({ url: "/broken.css", reason: "asset canary" } as never);
+      return report;
+    };
+    const deps = fakeDeps({ gitAdapter: neverCalledGitAdapter(gitCalls), exportSiteBound });
+    const emitted: unknown[] = [];
+    const result = await call(buildExecuteCommitTool(deps), {
+      provider: "github", owner: "octo", repo: "site", commitMessage: "preview", dryRun: true,
+    }, async surface => { emitted.push(surface); }) as Record<string, unknown>;
+    assert.equal(result.code, "EXPORT_FAILED");
+    assert.equal(result.dryRun, true);
+    assert.equal(result.committed, false);
+    assert.equal(result.message, kind === "throw" ? "export failed before committing could start: export canary"
+      : kind === "route" ? "refused to commit: 1 route(s) failed to export (first: '/broken' — route canary)"
+      : "refused to commit: 1 asset(s) failed to export (first: '/broken.css' — asset canary)");
+    assert.equal(gitCalls.count, 0);
+    assert.deepEqual(emitted, []);
+    assert.ok(captured.outputDir);
+    assert.equal(existsSync(captured.outputDir), false);
+  });
+}

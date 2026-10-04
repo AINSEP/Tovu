@@ -66,8 +66,11 @@ test("CIC-1 (ESCALATE_SECURITY) [mixed grant set]: every one of the 8 positions 
 
 for (const capability of GLUE_CAPABILITIES) {
   test(`default-deny: '${capability}' throws GlueCapabilityDeniedError when NOT granted`, () => {
-    const gate = buildGlueCapabilityGate({ moduleId: "m", capabilities: [], coreDelegates: fakeDelegates() });
+    const calls: GlueCapability[] = [];
+    const delegates = Object.fromEntries(GLUE_CAPABILITIES.map(key => [key, () => { calls.push(key); }])) as Record<GlueCapability, GlueCapabilityDelegate>;
+    const gate = buildGlueCapabilityGate({ moduleId: "m", capabilities: [], coreDelegates: delegates });
     assert.throws(() => gate[capability](), GlueCapabilityDeniedError);
+    assert.deepEqual(calls, []);
   });
 
   test(`granted: '${capability}' delegates to coreDelegates when granted, never throwing`, () => {
@@ -141,3 +144,16 @@ test("buildGlueCapabilityGate builds a fresh object per call — two builds neve
 
   assert.notEqual(first, second);
 });
+
+for (const granted of GLUE_CAPABILITIES) {
+  test(`granting only ${granted} never executes another capability's delegate`, () => {
+    const calls: GlueCapability[] = [];
+    const delegates = Object.fromEntries(GLUE_CAPABILITIES.map(key => [key, () => { calls.push(key); return key; }])) as Record<GlueCapability, GlueCapabilityDelegate>;
+    const gate = buildGlueCapabilityGate({ moduleId: "m", capabilities: [granted], coreDelegates: delegates });
+    for (const capability of GLUE_CAPABILITIES) {
+      if (capability === granted) assert.equal(gate[capability](), granted);
+      else assert.throws(() => gate[capability](), GlueCapabilityDeniedError);
+    }
+    assert.deepEqual(calls, [granted]);
+  });
+}

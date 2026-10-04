@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/lib/fetch-query";
 import { AccessTokensTab } from "../AccessTokensTab";
@@ -48,6 +48,13 @@ if (typeof HTMLDialogElement.prototype.close !== "function") {
     this.removeAttribute("open");
   };
 }
+
+beforeEach(() => {
+  vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+    if (String(url).includes("/settings/effective") && String(url).includes("namespace=core.language")) return Response.json({ data: [] });
+    throw new Error(`unexpected request: ${url}`);
+  }));
+});
 
 function makeAccessTokens(overrides: Partial<AccessTokensController> = {}): AccessTokensController {
   return {
@@ -541,6 +548,15 @@ describe("AccessTokensTab — AddTokenForm: Save/Cancel", () => {
   });
 });
 
+describe("AccessTokensTab — catalog secret fields", () => {
+  it.each(["add", "replace"])("masks the catalog %s token and suppresses saved-login autofill", (kind) => {
+    renderTab({ groups: [groupFor("publish", "netlify", kind === "replace" ? [rowState({ row: row() })] : [], addForm({ visible: kind === "add" }))] });
+    const input = screen.getByLabelText("Personal access token");
+    expect(input).toHaveAttribute("type", "password");
+    expect(input).toHaveAttribute("autocomplete", "new-password");
+  });
+});
+
 describe("AccessTokensTab — TokenInputFields: provider-specific extra fields", () => {
   it("shows Account ID for Cloudflare Pages (a required field) and calls setAddField when typed into", () => {
     const setAddField = vi.fn();
@@ -609,12 +625,15 @@ describe("AccessTokensTab — RemoveConfirmDialog: cancel/confirm and the last-r
     fireEvent.click(within(dialog).getByRole("button", { name: "Remove from Tovu", hidden: true }));
 
     expect(removeToken).toHaveBeenCalledWith(target.row);
+    expect(dialog).not.toHaveAttribute("open");
   });
 
   it("shows the last-saved-row note only when this is the only saved row for the provider", () => {
-    const { container } = renderTab({ groups: [groupFor("publish", "netlify", [rowState({ row: row() })])] });
+    renderTab({ groups: [groupFor("publish", "netlify", [rowState({ row: row() })])] });
     fireEvent.click(screen.getByRole("button", { name: "Remove from Tovu — Production" }));
-    expect(container.textContent).toMatch(/the only saved Netlify token/);
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveAttribute("open");
+    expect(within(dialog).getByText("This is the only saved Netlify token — after removing it, nothing here will be marked as connected.")).toBeInTheDocument();
   });
 
   it("omits the last-saved-row note when the provider has more than one saved row", () => {
@@ -626,7 +645,9 @@ describe("AccessTokensTab — RemoveConfirmDialog: cancel/confirm and the last-r
     // own `aria-label` comment for why this control's accessible name now includes it.
     fireEvent.click(within(row1).getByRole("button", { name: "Remove from Tovu — Production" }));
 
-    expect(within(row1).queryByText(/the only saved Netlify token/)).not.toBeInTheDocument();
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveAttribute("open");
+    expect(within(dialog).queryByText("This is the only saved Netlify token — after removing it, nothing here will be marked as connected.")).not.toBeInTheDocument();
   });
 });
 
@@ -759,24 +780,17 @@ describe("AccessTokensTab — AddCustomCredentialDialog", () => {
   });
 });
 
-describe("AccessTokensTab — default hook resolution (resolveAccessTokensHook/resolveOtherCredentialsHook's own real-binding fallback)", () => {
-  it("falls back to the real useWiredAccessTokens when no override is passed, without crashing", () => {
-    expect(() =>
-      render(
-        <FetchQueryProvider>
-          <AccessTokensTab useOtherCredentialsHook={() => makeOtherCredentials()} />
-        </FetchQueryProvider>
-      )
-    ).not.toThrow();
-  });
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
-  it("falls back to the real useWiredOtherCredentials when no override is passed, without crashing", () => {
-    expect(() =>
-      render(
-        <FetchQueryProvider>
-          <AccessTokensTab useAccessTokensHook={() => makeAccessTokens()} />
-        </FetchQueryProvider>
-      )
-    ).not.toThrow();
+describe("AccessTokensTab — default hook resolution", () => {
+  it.each(["access", "other"])("settles the real %s hook's load failure in the page", async (kind) => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ error: "credential read failed" }), { status: 500, headers: { "content-type": "application/json" } })));
+    render(<FetchQueryProvider><AccessTokensTab
+      useAccessTokensHook={kind === "access" ? undefined : () => makeAccessTokens()}
+      useOtherCredentialsHook={kind === "other" ? undefined : () => makeOtherCredentials()}
+    /></FetchQueryProvider>);
+    expect(screen.getByText("Loading access tokens…")).toBeInTheDocument();
+    expect(await screen.findByRole("status")).toHaveTextContent("credential read failed");
+    expect(screen.queryByText("Loading access tokens…")).not.toBeInTheDocument();
   });
 });

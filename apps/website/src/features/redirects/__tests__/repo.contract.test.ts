@@ -47,7 +47,7 @@ function makeRevision(record: RedirectRecord, seq = 1): RedirectRevision {
   };
 }
 
-function runContractSuite(label: string, makeRepo: () => RedirectRepoPort) {
+function runContractSuite(label: string, makeRepo: () => RedirectRepoPort & { listRevisionsForTests(id: string): RedirectRevision[] | Promise<RedirectRevision[]> }) {
   test(`[${label}] save() then findById() round-trips the record`, async () => {
     const repo = makeRepo();
     const record = makeRecord();
@@ -125,11 +125,15 @@ function runContractSuite(label: string, makeRepo: () => RedirectRepoPort) {
 
   test(`[${label}] listDynamic returns only active wildcard rules, capped at limit`, async () => {
     const repo = makeRepo();
+    for (const matchType of ["exact", "prefix"] as const) {
+      const record = makeRecord({ id: `distractor-${matchType}`, matchType, fromPattern: "/a-very-long-distractor" });
+      await repo.save({ record, revision: makeRevision(record) });
+    }
     for (let i = 0; i < 3; i++) {
       const record = makeRecord({
         id: `wc-${i}`,
         matchType: "wildcard",
-        fromPattern: `/wc-${i}/*`,
+        fromPattern: `/wc-${"long".repeat(i)}/*`,
         toTarget: "/x/$1",
       });
       await repo.save({ record, revision: makeRevision(record) });
@@ -140,6 +144,7 @@ function runContractSuite(label: string, makeRepo: () => RedirectRepoPort) {
     const dynamic = await repo.listDynamic({ workspaceId: "workspace-1", includeOverrideOnly: false, limit: 2 });
     assert.equal(dynamic.length, 2);
     assert.ok(dynamic.every((r) => r.status === "active"));
+    assert.deepEqual(dynamic.map(r => r.id), ["wc-2", "wc-1"]);
   });
 
   test(`[${label}] list applies status/source/matchType filters`, async () => {
@@ -196,6 +201,11 @@ function runContractSuite(label: string, makeRepo: () => RedirectRepoPort) {
 
     const found = await repo.findById({ workspaceId: "workspace-1", id: record.id });
     assert.equal(found?.status, "disabled");
+    const ledger = await repo.listRevisionsForTests(record.id);
+    assert.deepEqual(ledger.map(r => [r.redirectId, r.workspaceId, r.seq, r.tombstoned, r.actorId, r.recordedAt, r.state]), [
+      [record.id, record.workspaceId, 1, false, "user-1", record.createdAt, record],
+      [record.id, record.workspaceId, 2, true, "user-1", "2026-07-14T00:00:00.000Z", tombstoned],
+    ]);
 
     // Tombstoned but still listable when no status filter is applied (AC-07).
     const listed = await repo.list({ workspaceId: "workspace-1" });

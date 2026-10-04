@@ -10,6 +10,7 @@ import {
   type SourceConfigItem,
 } from "@jini-ai/ui";
 
+import { TOVU_ADMIN_VERSION } from "@/lib/app-version";
 import { SettingsUi } from "../SettingsUi";
 import type { SettingsUiController } from "../hooks/use-settings-ui.hooks";
 import type { SettingsSlice } from "@/hooks/use-settings-slice.hooks";
@@ -37,6 +38,11 @@ import {
   DEFAULT_NOTIFICATIONS,
   DEFAULT_PRIVACY,
 } from "@/lib/settings-tabs";
+
+vi.mock("@/lib/settings-tabs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/settings-tabs")>();
+  return { ...actual, DEFAULT_INSTRUCTIONS: "default instructions sentinel" };
+});
 
 /**
  * @file `SettingsUi` — the Open Design settings-dialog port, driven entirely through the
@@ -208,7 +214,7 @@ describe("InstructionsTab onChange landmine", () => {
     const textarea = screen.getByLabelText("Custom instructions");
     await user.clear(textarea);
 
-    expect(controller.instructions.onChange).toHaveBeenCalledWith(DEFAULT_INSTRUCTIONS);
+    expect(controller.instructions.onChange).toHaveBeenCalledWith("default instructions sentinel");
   });
 
   it("typing real text calls onChange with that text verbatim — the fallback only fires on an all-empty field", async () => {
@@ -228,7 +234,7 @@ describe("Notifications patch merge", () => {
   it("merges NotificationsTab's onChange patch onto the current value rather than replacing it wholesale", async () => {
     const user = userEvent.setup();
     const controller = baseController({
-      notifications: makeSlice<typeof DEFAULT_NOTIFICATIONS>({ ...DEFAULT_NOTIFICATIONS, soundEnabled: false }),
+      notifications: makeSlice<typeof DEFAULT_NOTIFICATIONS>({ ...DEFAULT_NOTIFICATIONS, soundEnabled: false, desktopEnabled: !DEFAULT_NOTIFICATIONS.desktopEnabled, successSoundId: "custom-success", failureSoundId: "custom-failure" }),
     });
     render(<SettingsUi useSettingsUiHook={() => controller} />);
 
@@ -238,6 +244,9 @@ describe("Notifications patch merge", () => {
     expect(controller.notifications.onChange).toHaveBeenCalledWith({
       ...DEFAULT_NOTIFICATIONS,
       soundEnabled: true,
+      desktopEnabled: !DEFAULT_NOTIFICATIONS.desktopEnabled,
+      successSoundId: "custom-success",
+      failureSoundId: "custom-failure",
     });
   });
 });
@@ -245,14 +254,14 @@ describe("Notifications patch merge", () => {
 describe("Appearance (dialog theme) onChange merge", () => {
   it("merges AppearanceTab's theme selection onto the current value", async () => {
     const user = userEvent.setup();
-    const controller = baseController({ appearance: makeSlice(DEFAULT_APPEARANCE) });
+    const controller = baseController({ appearance: makeSlice({ ...DEFAULT_APPEARANCE, accentColor: "#a855f7" }) });
     render(<SettingsUi useSettingsUiHook={() => controller} />);
 
     await goToTab(user, "appearance");
     const group = screen.getByRole("group", { name: "Appearance" });
     await user.click(within(group).getByRole("button", { name: /dark/i }));
 
-    expect(controller.appearance.onChange).toHaveBeenCalledWith({ ...DEFAULT_APPEARANCE, theme: "dark" });
+    expect(controller.appearance.onChange).toHaveBeenCalledWith({ ...DEFAULT_APPEARANCE, accentColor: "#a855f7", theme: "dark" });
   });
 });
 
@@ -486,7 +495,7 @@ describe("About tab", () => {
     render(<SettingsUi useSettingsUiHook={() => baseController()} />);
     await goToTab(user, "about");
 
-    expect(screen.getByText(/^Tovu Admin /)).toBeInTheDocument();
+    expect(screen.getByText(`Tovu Admin ${TOVU_ADMIN_VERSION}`, { exact: true })).toBeInTheDocument();
     // "no updater surface" means no update-status/check control — the panel's own hint prose
     // mentioning "updater" in passing (deployments, not an in-app updater) is not itself a surface.
     expect(screen.queryByRole("button", { name: /update/i })).not.toBeInTheDocument();

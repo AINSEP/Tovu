@@ -123,10 +123,10 @@ describe("plugin uninstall/turn-off dialogs — Confirm and Cancel are both agen
   });
 
   it.each(["remove", "disable"] as const)("AgentPluginDisableConfirmDialog (%s) publishes both Confirm and Cancel", (variant) => {
-    const { container } = render(
+    render(
       <AgentPluginDisableConfirmDialog variant={variant} name="Site Compliance" agentHandleBase="row-x" onConfirm={vi.fn()} onCancel={vi.fn()} t={(k) => k} />,
     );
-    expect(container.ownerDocument.querySelector(`[data-agent-element="row-x-${variant}-confirm"]`)).not.toBeNull();
-    expect(container.ownerDocument.querySelector(`[data-agent-element="row-x-${variant}-cancel"]`)).not.toBeNull();
+    expect(screen.getByRole("button", { name: variant === "remove" ? "Turn off" : "Disable" })).toHaveAttribute("data-agent-element", `row-x-${variant}-confirm`);
+    expect(screen.getByRole("button", { name: "Cancel" })).toHaveAttribute("data-agent-element", `row-x-${variant}-cancel`);
   });
 });

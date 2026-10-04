@@ -145,11 +145,26 @@ test.describe("azure Test Connection: NOT short-circuited — a real asymmetry w
     // never does.
     let hitCount = 0;
     let receivedPath: string | undefined;
+    let receivedMethod: string | undefined;
+    let receivedHeaders: http.IncomingHttpHeaders | undefined;
+    let receivedBody: unknown;
     const deputy = http.createServer((req, res) => {
       hitCount++;
       receivedPath = req.url;
-      res.writeHead(200, { "content-type": "application/json" });
-      res.end(JSON.stringify({ choices: [{ message: { content: "ok" } }] }));
+      receivedMethod = req.method;
+      receivedHeaders = req.headers;
+      const chunks: Buffer[] = [];
+      req.on("data", (chunk: Buffer) => chunks.push(chunk));
+      req.on("end", () => {
+        const rawBody = Buffer.concat(chunks).toString("utf8");
+        try {
+          receivedBody = JSON.parse(rawBody);
+        } catch {
+          receivedBody = rawBody;
+        }
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ choices: [{ message: { content: "ok" } }] }));
+      });
     });
     await new Promise<void>((resolve) => deputy.listen(0, "127.0.0.1", resolve));
     const port = (deputy.address() as AddressInfo).port;
@@ -169,6 +184,14 @@ test.describe("azure Test Connection: NOT short-circuited — a real asymmetry w
       // default api-version (2024-10-21) in the query — confirmed against the real builder,
       // not inferred.
       expect(receivedPath).toBe("/openai/deployments/my-deployment/chat/completions?api-version=2024-10-21");
+      expect(receivedMethod).toBe("POST");
+      expect(receivedHeaders?.["api-key"]).toBe("fake-key");
+      expect(receivedHeaders?.authorization).toBeUndefined();
+      expect(receivedBody).toEqual({
+        max_tokens: 512,
+        messages: [{ role: "user", content: "Reply with only: ok" }],
+        stream: false,
+      });
       expect(body).toEqual({ ok: true, message: "valid completion" });
     } finally {
       await new Promise<void>((resolve) => deputy.close(() => resolve()));

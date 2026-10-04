@@ -79,6 +79,11 @@ describe("TAXONOMY_DICT: the shared Categories & Tags box", () => {
     "Categories & tags saved.",
     "Failed to save categories & tags",
     "Failed to load categories & tags",
+    "+ Add term",
+    "Term name",
+    "Type a name, then press Enter",
+    "Add term",
+    "Failed to create term",
   ];
 
   it("translates every string it renders in every locale", () => {

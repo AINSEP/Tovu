@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { FetchQueryProvider } from "@/lib/fetch-query";
 import { useSourceControlCredentials } from "../hooks/use-source-control-credentials.hooks";
 import { createFakeSourceControlCredentialsPort } from "../hooks/source-control-credentials-dependencies.hooks";
-import type { AdminSourceControlCredentialSummary } from "@/lib/api";
+import { ApiError, type AdminSourceControlCredentialSummary } from "@/lib/api";
 import { SOURCE_CONTROL_PROVIDERS_SNAPSHOT } from "./source-control-providers.fixture";
 
 /** The fake port with the fixture hosts listed (GitHub, and Forge with a required username). */
@@ -113,7 +113,8 @@ describe("useSourceControlCredentials", () => {
   });
 
   it("save() UPDATEs the existing default's id when this provider already has a saved connection", async () => {
-    const updateCredential = vi.fn().mockResolvedValue(githubCredential({ id: "cred-github-1" }));
+    const updated = githubCredential({ updatedAt: "2026-10-03T09:00:00.000Z" });
+    const updateCredential = vi.fn().mockResolvedValue(updated);
     const port = fakePort({
       listCredentials: () => Promise.resolve({ credentials: [githubCredential()] }),
       updateCredential,
@@ -125,6 +126,10 @@ describe("useSourceControlCredentials", () => {
     await act(() => result.current.save("github"));
 
     expect(updateCredential).toHaveBeenCalledWith("cred-github-1", { connection: { providerId: "github", token: "ghp_new" } });
+    const githubRow = result.current.rows!.find((row) => row.providerId === "github")!;
+    expect(githubRow.saved).toEqual(updated);
+    expect(githubRow.token).toBe("");
+    expect(githubRow.saving).toBe(false);
   });
 
   it("save() requires the token AND every required declared field before it will call createCredential", async () => {
@@ -145,8 +150,13 @@ describe("useSourceControlCredentials", () => {
     });
   });
 
-  it("save() surfaces a rejected write as that row's own error, and resets saving to false", async () => {
-    const createCredential = vi.fn().mockRejectedValue(new Error("server exploded"));
+  it.each([
+    [new Error("server exploded"), "Could not save this connection (server exploded)."],
+    [new ApiError("duplicate", 409, "DUPLICATE_LABEL"), "This connection was already saved — reload the page and try again."],
+    [new ApiError("bad request", 400, "VALIDATION", { detail: "token is required" }), "Could not save this connection (token is required)."],
+    [new ApiError("server exploded", 500), "Could not save this connection (server exploded)."],
+  ])("save() surfaces %s as the row error and clears saving", async (failure, expected) => {
+    const createCredential = vi.fn().mockRejectedValue(failure);
     const port = fakePort({ listCredentials: () => Promise.resolve({ credentials: [] }), createCredential });
     const { result } = renderHook(() => useSourceControlCredentials(port, T, "en"), { wrapper });
     await waitFor(() => expect(result.current.rows).toBeDefined());
@@ -156,7 +166,7 @@ describe("useSourceControlCredentials", () => {
 
     const githubRow = result.current.rows!.find((row) => row.providerId === "github")!;
     expect(githubRow.saving).toBe(false);
-    expect(githubRow.error).not.toBeNull();
+    expect(githubRow.error).toBe(expected);
     expect(githubRow.saved).toBeUndefined();
     expect(githubRow.token).toBe("ghp_abc"); // draft is NOT cleared on a failed save
   });

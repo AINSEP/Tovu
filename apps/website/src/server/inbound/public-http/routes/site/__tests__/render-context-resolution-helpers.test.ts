@@ -58,7 +58,7 @@ test("resolveHtmlEmbedsForRender: an html-format post with a null bodyHtml falls
   const deps = createRouteDeps();
   const post = postRecord({ bodyFormat: "html", bodyHtml: null });
   const result = await resolveHtmlEmbedsForRender(deps, post);
-  assert.notEqual(result, undefined, "an html-format post must still resolve (against the empty-string fallback), not short-circuit");
+  assert.deepEqual(result, new Map(), "the empty HTML fallback must resolve no embeds");
 });
 
 test("resolveMediaAssetMetadataForRender: an undefined post short-circuits to an empty map, never scanning for image assetIds", async () => {

@@ -70,7 +70,7 @@ export function pct(hit: number, found: number): number {
  *  `node --test`) and, implicitly, by which of `LCOV_UNIT_PATH`/`LCOV_INTEGRATION_PATH` a given
  *  test's coverage ends up in. */
 export function isIntegrationTestFile(relPath: string): boolean {
-  const normalized = relPath.split(path.sep).join("/");
+  const normalized = relPath.replace(/\\/g, "/");
   if (/\.integration\.test\.ts$/.test(normalized)) return true;
   return normalized.includes("/__tests__/integration/");
 }

@@ -51,15 +51,19 @@ test.describe("admin composer discovery popover has no phantom scroll space from
     const menu = page.locator(".jini-composer-discovery-menu");
     await expect(menu).toBeVisible();
 
+    await menu.hover();
+    await page.mouse.wheel(0, 10_000);
+    await expect.poll(() => menu.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+    await expect.poll(() => menu.evaluate((el) => Math.abs(el.scrollHeight - el.clientHeight - el.scrollTop))).toBeLessThanOrEqual(1);
+
     const result = await menu.evaluate((el) => {
       const overflows = el.scrollHeight > el.clientHeight;
-      el.scrollTop = el.scrollHeight; // scroll all the way to the end
       const rows = Array.from(el.querySelectorAll(".jini-composer-discovery-item"));
       const lastRow = rows[rows.length - 1] as HTMLElement | undefined;
       if (!lastRow) return { overflows, rowCount: 0, gapBelowLastRow: null };
       const menuBottom = el.getBoundingClientRect().bottom;
       const lastRowBottom = lastRow.getBoundingClientRect().bottom;
-      return { overflows, rowCount: rows.length, gapBelowLastRow: menuBottom - lastRowBottom };
+      return { overflows, rowCount: rows.length, gapBelowLastRow: menuBottom - lastRowBottom, rowTop: lastRow.getBoundingClientRect().top, menuTop: el.getBoundingClientRect().top };
     });
 
     // Sanity check on the test's own premise: if today's bundled catalog ever shrinks below 280px
@@ -78,5 +82,7 @@ test.describe("admin composer discovery popover has no phantom scroll space from
     // last row is fine; anything approaching even one row's own height is the bug back.
     expect(result.gapBelowLastRow).not.toBeNull();
     expect(result.gapBelowLastRow as number).toBeLessThan(20);
+    expect(result.gapBelowLastRow as number).toBeGreaterThanOrEqual(-1);
+    expect(result.rowTop as number).toBeGreaterThanOrEqual((result.menuTop as number) - 1);
   });
 });

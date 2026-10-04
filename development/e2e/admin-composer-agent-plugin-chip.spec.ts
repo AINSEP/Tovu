@@ -118,13 +118,25 @@ test.describe("admin composer — Agent Plugin chip pin/remove/send wiring", () 
     await page.getByRole("button", { name: `Remove ${AGENT_PLUGIN_MENU_ITEM_NAME}` }).click();
 
     await expect(chip).toHaveCount(0);
+    const captured = page.waitForRequest((request) => request.method() === "POST" && new URL(request.url()).pathname === "/api/runs");
+    await page.route("**/api/runs", async (route) => {
+      if (route.request().method() !== "POST") return route.continue();
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ run: { id: "removed-plugin-run", state: "running" } }) });
+    });
+    const textarea = page.locator("textarea.jini-composer-input");
+    await textarea.fill("send after removing the plugin");
+    await textarea.press("Enter");
+    const context = JSON.parse((await captured).postDataJSON().contextRef) as Record<string, unknown>;
+    expect(context).not.toHaveProperty("pluginRefIds");
   });
 
   test("sending with the chip pinned puts pluginRefIds on the real outbound /api/runs request body", async ({ page }) => {
     await openDock(page);
     await pinAgentPluginChip(page);
+    await pinAgentPluginChip(page);
     const chip = page.locator(".jini-attachment-chip", { hasText: AGENT_PLUGIN_MENU_ITEM_NAME });
     await expect(chip).toBeVisible();
+    await expect(chip).toHaveCount(1);
 
     let capturedContextRef: Record<string, unknown> | null = null;
     let resolveCaptured!: () => void;
@@ -135,6 +147,12 @@ test.describe("admin composer — Agent Plugin chip pin/remove/send wiring", () 
     // Intercepts ONLY the exact `/api/runs` POST that starts a run — the trailing-segment routes
     // (`/api/runs/:id/events`, `/api/runs/:id/cancel`) do not match this glob (it requires the URL
     // to END at "/api/runs"), so this leaves this test's own SSE reattach path alone.
+    let runNumber = 0;
+    await page.route("**/api/runs/*/events", (route) => route.fulfill({
+      status: 200,
+      contentType: "text/event-stream",
+      body: 'event: end\ndata: {"status":"succeeded","code":0}\n\n',
+    }));
     await page.route("**/api/runs", async (route: Route) => {
       const request = route.request();
       if (request.method() !== "POST") {
@@ -149,7 +167,7 @@ test.describe("admin composer — Agent Plugin chip pin/remove/send wiring", () 
       await route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ run: { id: "e2e-fake-run-id", state: "running" } }),
+        body: JSON.stringify({ run: { id: `e2e-fake-run-${++runNumber}`, state: "running" } }),
       });
     });
 
@@ -161,6 +179,14 @@ test.describe("admin composer — Agent Plugin chip pin/remove/send wiring", () 
     await captured;
     expect(capturedContextRef).not.toBeNull();
     expect((capturedContextRef as unknown as Record<string, unknown>)["pluginRefIds"]).toEqual([AGENT_PLUGIN_REF_ID]);
+    await expect(chip).toHaveCount(1);
+    await textarea.fill("does the same pinned plugin reach the next turn?");
+    await expect(page.locator('button[aria-label="Send"]')).toBeEnabled();
+    const secondRequest = page.waitForRequest((request) => request.method() === "POST" && new URL(request.url()).pathname === "/api/runs");
+    await textarea.press("Enter");
+    const secondBody = (await secondRequest).postDataJSON() as { contextRef: string };
+    expect(JSON.parse(secondBody.contextRef).pluginRefIds).toEqual([AGENT_PLUGIN_REF_ID]);
+    await expect.poll(() => runNumber).toBe(2);
   });
 
   test("selecting the Agent Plugin row via the SLASH trigger pins the chip and leaves the draft empty", async ({

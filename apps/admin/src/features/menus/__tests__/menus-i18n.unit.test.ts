@@ -83,6 +83,8 @@ describe("MENUS_DICT: 'Move to trash' confirm dialog copy", () => {
   it.each(LOCALES)("carries every trash-dialog key in %s", (locale) => {
     const missing = TRASH_KEYS.filter((key) => MENUS_DICT[locale]?.[key] === undefined);
     expect(missing).toEqual([]);
+    expect(MENUS_DICT[locale]['Move "{title}" to trash?']).toContain("{title}");
+    for (const key of TRASH_KEYS) expect(MENUS_DICT[locale][key], `${locale}: ${key}`).not.toBe(key);
   });
 
   it("no longer carries the removed force-purge dialog keys in any locale", () => {

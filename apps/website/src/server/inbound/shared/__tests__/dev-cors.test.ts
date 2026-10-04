@@ -126,8 +126,9 @@ test("applyDevCors: handles OPTIONS preflight request with 204 status", () => {
   applyDevCors(fakeApp);
 
   let sentStatus: number | undefined;
+  const headers: Record<string, string> = {};
   const fakeRes = {
-    header: () => {},
+    header: (name: string, value: string) => { headers[name] = value; },
     sendStatus: (code: number) => {
       sentStatus = code;
     },
@@ -145,4 +146,10 @@ test("applyDevCors: handles OPTIONS preflight request with 204 status", () => {
 
   assert.equal(nextCalled, false, "next() must not be called on OPTIONS");
   assert.equal(sentStatus, 204);
+  assert.deepEqual(headers, {
+    "Access-Control-Allow-Origin": "http://localhost:5173",
+    "Vary": "Origin",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "GET,PUT,PATCH,OPTIONS",
+  });
 });

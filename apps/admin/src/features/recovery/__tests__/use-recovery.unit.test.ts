@@ -59,6 +59,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
   sessionStorage.clear();
 });
 
@@ -234,19 +235,30 @@ describe("deep-link re-resolution (sessionStorage envelope)", () => {
     sessionStorage.setItem("recovery-deep-link-envelope", JSON.stringify({ v: 1, restorePointId: "rp1" }));
     fetchMock.mockResolvedValueOnce(jsonResponse(STATUS));
     fetchMock.mockResolvedValueOnce(jsonResponse({ items: [POINT] }));
-    fetchMock.mockResolvedValueOnce(jsonResponse({ found: true, restorePoint: { restorePointId: "rp1", capturedAt: "2026-08-01T00:00:00.000Z" } }));
-    renderHook(() => useWiredRecovery());
-    await waitFor(() => expect(sessionStorage.getItem("recovery-deep-link-envelope")).toBeNull());
+    let release!: (response: Response) => void;
+    fetchMock.mockImplementationOnce(() => new Promise<Response>((resolve) => { release = resolve; }));
+    const { result } = renderHook(() => useWiredRecovery());
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    expect(sessionStorage.getItem("recovery-deep-link-envelope")).toBeNull();
+    expect(result.current.selected).toBeNull();
+    await act(async () => {
+      release(jsonResponse({ found: true, restorePoint: { restorePointId: "rp1", capturedAt: "2026-08-01T00:00:00.000Z" } }));
+    });
+    await waitFor(() => expect(result.current.selected).toEqual(POINT));
   });
 
   it("selects the matching restore point when the server resolves found:true", async () => {
-    sessionStorage.setItem("recovery-deep-link-envelope", JSON.stringify({ v: 1, restorePointId: "rp1" }));
+    const envelope = { v: 1, restorePointId: "rp1", correlationId: "recovery-test", siteId: "site1", ledgerEventId: null, drift: "none", intent: "restore", issuedAt: "2026-08-01T00:00:00.000Z" };
+    sessionStorage.setItem("recovery-deep-link-envelope", JSON.stringify(envelope));
     fetchMock.mockResolvedValueOnce(jsonResponse(STATUS));
     fetchMock.mockResolvedValueOnce(jsonResponse({ items: [POINT] }));
     fetchMock.mockResolvedValueOnce(jsonResponse({ found: true, restorePoint: { restorePointId: "rp1", capturedAt: "2026-08-01T00:00:00.000Z" } }));
     const { result } = renderHook(() => useWiredRecovery());
     await waitFor(() => expect(result.current.selected).toEqual(POINT));
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock.mock.calls[2]).toEqual(["/api/admin/v1/recovery/deep-link", expect.objectContaining({ method: "POST", body: JSON.stringify({ envelope }) })]);
   });
+
 
   it("also navigates to the restore tab on a resolved match — tabs (2026-09-10) put the ceremony behind ?tab=restore", async () => {
     sessionStorage.setItem("recovery-deep-link-envelope", JSON.stringify({ v: 1, restorePointId: "rp1" }));
@@ -264,7 +276,9 @@ describe("deep-link re-resolution (sessionStorage envelope)", () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ found: true, restorePoint: { restorePointId: "does-not-exist", capturedAt: "2026-08-01T00:00:00.000Z" } }));
     const { result } = renderHook(() => useWiredRecovery());
     await waitFor(() => expect(result.current.points).not.toBeNull());
-    await new Promise((r) => setTimeout(r, 0));
+    await act(async () => {
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    });
     expect(result.current.selected).toBeNull();
   });
 
@@ -275,7 +289,9 @@ describe("deep-link re-resolution (sessionStorage envelope)", () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ found: false, restorePoint: null }));
     const { result } = renderHook(() => useWiredRecovery());
     await waitFor(() => expect(result.current.points).not.toBeNull());
-    await new Promise((r) => setTimeout(r, 0));
+    await act(async () => {
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    });
     expect(result.current.selected).toBeNull();
     expect(result.current.error).toBeNull();
   });
@@ -287,7 +303,9 @@ describe("deep-link re-resolution (sessionStorage envelope)", () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: "" }, 500));
     const { result } = renderHook(() => useWiredRecovery());
     await waitFor(() => expect(result.current.points).not.toBeNull());
-    await new Promise((r) => setTimeout(r, 0));
+    await act(async () => {
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    });
     expect(result.current.selected).toBeNull();
     expect(result.current.error).toBeNull();
   });
@@ -451,4 +469,35 @@ describe("useRecovery — content refresh bus", () => {
     });
     expect(result.current.points).toEqual([POINT, secondPoint]);
   });
+
+  it("ignores a stale refresh rejection after a newer list succeeded", async () => {
+    const port = createFakeRecoveryPort({ status: STATUS, points: [POINT] });
+    const { result } = renderHook(() => useRecovery({ port }));
+    await waitFor(() => expect(result.current.points).toEqual([POINT]));
+    let rejectEarlier!: (error: Error) => void;
+    const newer = { ...POINT, id: "rp-new" };
+    vi.spyOn(port, "listRecoveryRestorePoints")
+      .mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectEarlier = reject; }))
+      .mockResolvedValueOnce({ items: [newer] });
+    act(() => { publishContentRefresh(); publishContentRefresh(); });
+    await waitFor(() => expect(result.current.points).toEqual([newer]));
+    await act(async () => { rejectEarlier(new Error("stale failure")); });
+    expect(result.current.error).toBeNull();
+    expect(result.current.points).toEqual([newer]);
+  });
+
+  it("clears a previous load error as soon as a retry starts", async () => {
+    const port = createFakeRecoveryPort({ status: STATUS, points: [POINT] });
+    const list = vi.spyOn(port, "listRecoveryRestorePoints").mockRejectedValueOnce(new Error("offline"));
+    const { result } = renderHook(() => useRecovery({ port }));
+    await waitFor(() => expect(result.current.error).toBe("offline"));
+    let release!: (value: { items: AdminRestorePoint[] }) => void;
+    list.mockImplementationOnce(() => new Promise((resolve) => { release = resolve; }));
+    act(() => publishContentRefresh());
+    expect(result.current.error).toBeNull();
+    await act(async () => { release({ items: [POINT] }); });
+    await waitFor(() => expect(result.current.points).toEqual([POINT]));
+    expect(result.current.error).toBeNull();
+  });
+
 });

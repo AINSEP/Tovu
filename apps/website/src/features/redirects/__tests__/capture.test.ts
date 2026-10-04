@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { SlugChangeCaptureInput } from "#src/platform/routing/index";
+import { InMemoryRedirectRepo } from "../repo.memory.js";
 import { RedirectSlugChangeCapture } from "../capture.js";
 import type { RedirectDbHandle } from "../ports.internal.js";
 import type { RedirectRecord, RedirectRevision } from "../types.js";
@@ -105,10 +106,16 @@ test("onSlugChange retrying the same change (same oldPath/newPath) does not dupl
   assert.equal(revisions.length, 1, "no duplicate revision row on retry");
 });
 
-test("onSlugChange issues NO transaction control of its own (EC-05, Decision A) — the db handle has no begin/commit-shaped members", async () => {
-  const { db } = makeFakeDb();
-  const dbKeys = Object.keys(db);
-  assert.deepEqual(dbKeys.sort(), ["insertRedirect", "insertRevision"]);
+test("onSlugChange issues NO transaction control of its own (EC-05, Decision A)", async () => {
+  const { db, records, revisions } = makeFakeDb();
+  const txCalls: string[] = [];
+  const observed = { ...db, begin: () => txCalls.push("begin"), commit: () => txCalls.push("commit"),
+    rollback: () => txCalls.push("rollback"), transaction: () => txCalls.push("transaction") };
+  await new RedirectSlugChangeCapture({ repo: makeFakeRepo(), db: observed,
+    clock: { nowMs: () => Date.parse("2026-07-13T00:00:00.000Z") }, idGen: makeIdGen() }).onSlugChange(baseInput);
+  assert.equal(records.length, 1);
+  assert.equal(revisions.length, 1);
+  assert.deepEqual(txCalls, []);
 });
 
 test("onSlugChange propagates an unexpected throw uncaught", async () => {
@@ -126,25 +133,41 @@ test("onSlugChange propagates an unexpected throw uncaught", async () => {
   await assert.rejects(() => capture.onSlugChange(baseInput), /disk full/);
 });
 
-test("onSlugChange for a distinct change (different oldPath) does not collide with a prior capture", async () => {
-  const { db, records } = makeFakeDb();
-  const repo = makeFakeRepo();
-  const capture = new RedirectSlugChangeCapture({ repo, db, clock, idGen: makeIdGen() });
-
+test("onSlugChange for distinct old paths preserves both redirects and their revisions in keyed storage", async () => {
+  const repo = new InMemoryRedirectRepo();
+  const ids = makeIdGen();
+  const capture = new RedirectSlugChangeCapture({ repo, db: repo,
+    clock: { nowMs: () => Date.parse("2026-07-13T00:00:00.000Z") }, idGen: ids });
   await capture.onSlugChange(baseInput);
-  const repoAfterFirst = makeFakeRepo(records);
-  const captureSecond = new RedirectSlugChangeCapture({
-    repo: repoAfterFirst,
-    db,
-    clock,
-    idGen: makeIdGen(),
-  });
-  await captureSecond.onSlugChange({
-    ...baseInput,
-    oldPath: "/another-old-slug",
-    newPath: "/another-new-slug",
-    changeSetId: "cs-2",
-  });
-
-  assert.equal(records.length, 2);
+  await capture.onSlugChange({ ...baseInput, oldPath: "/another-old-slug", newPath: "/another-new-slug", changeSetId: "cs-2" });
+  const first = await repo.findByFromPattern({ workspaceId: baseInput.workspaceId, fromPattern: baseInput.oldPath });
+  const second = await repo.findByFromPattern({ workspaceId: baseInput.workspaceId, fromPattern: "/another-old-slug" });
+  assert.equal(first?.toTarget, "/new-slug");
+  assert.equal(second?.toTarget, "/another-new-slug");
+  assert.notEqual(first?.id, second?.id);
+  assert.equal((await repo.list({ workspaceId: baseInput.workspaceId })).length, 2);
+  for (const row of [first, second]) {
+    assert.ok(row);
+    assert.deepEqual(repo.listRevisionsForTests(row.id).map(r => [r.redirectId, r.seq, r.state]), [[row.id, 1, row]]);
+  }
 });
+
+for (const overrides of [
+  { source: "manual", toTarget: "/new-slug" },
+  { source: "auto_slug_change", toTarget: "/different-target" },
+  { source: "auto_slug_change", toTarget: "/new-slug", status: "disabled" },
+] as const) {
+  test(`existing ${overrides.source}/${overrides.toTarget}/${overrides.status ?? "active"} is not an exact active retry`, async () => {
+    const repo = new InMemoryRedirectRepo();
+    const capture = new RedirectSlugChangeCapture({ repo, db: repo,
+      clock: { nowMs: () => Date.parse("2026-07-13T00:00:00.000Z") }, idGen: makeIdGen() });
+    await capture.onSlugChange(baseInput);
+    const prior = (await repo.findByFromPattern({ workspaceId: baseInput.workspaceId, fromPattern: baseInput.oldPath }))!;
+    repo.insertRedirect({ ...prior, ...overrides });
+    await capture.onSlugChange(baseInput);
+    const rows = await repo.list({ workspaceId: baseInput.workspaceId });
+    assert.equal(rows.length, 2);
+    assert.equal(rows.filter(r => r.source === "auto_slug_change" && r.status === "active" && r.toTarget === "/new-slug").length, 1);
+    assert.deepEqual(await repo.findById({ workspaceId: baseInput.workspaceId, id: prior.id }), { ...prior, ...overrides });
+  });
+}
