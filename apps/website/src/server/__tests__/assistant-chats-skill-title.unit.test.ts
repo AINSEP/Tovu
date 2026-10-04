@@ -12,8 +12,8 @@ function harness() {
   const store = {
     create: async (input: { title?: string }) => ({ id: "c", title: input.title ?? null }),
     get: async () => ({ id: "c", title }),
-    rename: async (_id: string, value: string) => { title = value; },
-    appendMessage: async (_id: string, message: unknown) => message,
+    rename: async ({ title: value }: { id: string; title: string }) => { title = value; },
+    appendMessage: async ({ message }: { conversationId: string; message: unknown }) => message,
   };
   const app = { use() {}, ...Object.fromEntries(["get", "post", "put", "patch", "delete"].map(method => [method, (path: string, handler: Handler) => { routes.set(`${method} ${path}`, handler); }])) } as unknown as Express;
   const deps = { workspaceId: "ws", chatHistory: () => store, chatRunLedger: { reconcileInterrupted: async () => 0 } } as unknown as RouteDeps;
