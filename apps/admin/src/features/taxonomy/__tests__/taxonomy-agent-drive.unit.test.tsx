@@ -63,6 +63,8 @@ function term(overrides: Partial<AdminTerm> = {}): AdminTerm {
 
 function baseController(overrides: Partial<TaxonomyController> = {}): TaxonomyController {
   return {
+    copyHtmlEmbed: vi.fn(),
+    copyFeedback: null,
     taxonomies: [],
     error: null,
     selectedTermId: null,

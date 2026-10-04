@@ -11,6 +11,7 @@ import {
   withInnerContentFinal,
   type EmbedMarker,
 } from "#src/contracts/core/embeds/marker";
+import { renderHtmlMenu } from "#src/features/navigation/html-render";
 import { escapeHtml } from "#src/platform/html/escape";
 import { withEntryListStyleOnce } from "./entry-list-render.js";
 import { findUnrewrittenAssetPaths, rewriteAssetPaths, tokenStylesheetSentinel } from "./static-asset-contract.js";
@@ -356,6 +357,11 @@ function injectMenuEmbeds(
     if (marker.type !== MENU_MARKER_TYPE || marker.id === undefined) return undefined;
     const items = menus[marker.id];
     if (items === undefined) return undefined;
+    if (marker.config.mode === "html") {
+      const plain = renderHtmlMenu({ id: marker.id, items, sanitizeHref: safeHref });
+      // Match forms: a bare marker disappears; explicitly authored wrapper attributes survive.
+      return plain === "" ? undefined : withElementKeptIfAttributed(marker, plain);
+    }
     const inner = marker.config.variant === "tree" ? renderMenuTree(items) : renderMenuLinks(items);
     return inner === "" ? undefined : withInnerContent(marker, inner);
   });

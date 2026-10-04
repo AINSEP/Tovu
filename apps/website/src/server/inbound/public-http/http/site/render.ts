@@ -12,6 +12,7 @@ import {
 } from "#src/features/theme/entry-list-render";
 import type { ResolveHtmlPageEmbedsResult, ResolvePageWidgetsResult } from "#src/features/widgets/resolver-service";
 import { isPageEmbedType } from "#src/features/widgets/page-embed-types";
+import { renderHtmlTaxonomy } from "#src/features/taxonomy/html-render";
 import type { AssignedTermView } from "#src/features/taxonomy/repo.sqlite";
 import type { WidgetRenderIR } from "#src/features/widgets/types";
 import { substituteHtmlEmbeds, type EmbedOccurrence, type PageHtmlEmbedRef } from "#src/features/widgets/html-embeds";
@@ -2713,6 +2714,12 @@ const WIDGET_IR_RENDERERS: Record<string, (ir: WidgetRenderIR) => string> = {
   "recent-entries": (ir) => renderWidgetRecentEntries(ir),
   "entry-summary": (ir) => renderWidgetEntrySummary(ir.props),
   menu: (ir) => renderWidgetMenu(ir.props),
+  "taxonomy-list": (ir) => renderHtmlTaxonomy({
+    id: str(ir.props.id), name: str(ir.props.name), hierarchical: ir.props.hierarchical === true,
+    terms: (Array.isArray(ir.props.terms) ? ir.props.terms : []).filter(isObject).map((term) => ({
+      id: str(term.id), name: str(term.name), parentId: typeof term.parentId === "string" ? term.parentId : null,
+    })),
+  }),
   "contact-form": (ir) => renderWidgetContactForm(ir.props),
   "media-image": (ir) => renderWidgetMediaImage(ir.props),
   "post-content": (ir) => renderWidgetPostContent(ir.props),

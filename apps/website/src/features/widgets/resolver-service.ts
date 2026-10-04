@@ -23,6 +23,8 @@ import type { JsonObject, UUID } from "@jini-ai/core/primitives";
 import type { EntryListPort, EntryRecord, EntryRepoPort } from "../entries/index.js";
 import { CORE_PUBLIC_TRANSFORM_NAME, findMediaByIdOrSlug, getLatestTransformDefinition } from "../media/index.js";
 import type { MediaContentTypeStorePort, MediaRepoPort, TransformDefinitionRepoPort } from "../media/index.js";
+import type { TaxonomyListPort, TermListPort } from "../taxonomy/index.js";
+import { resolveTaxonomyEmbeds } from "./resolvers/taxonomy.js";
 import type { PostRecord, PostRepoPort } from "../post/index.js";
 import { findPublishedPostById, findPublishedPostBySlug } from "../post/index.js";
 import { parseWidgetAreaPayload, parseWidgetInstancePayload } from "./entry-payload.js";
@@ -321,6 +323,8 @@ export interface ResolveHtmlPageEmbedsDeps extends WidgetInstanceResolutionDeps 
   readonly mediaRepo?: MediaRepoPort;
   readonly transformRepo?: TransformDefinitionRepoPort;
   readonly postRepo?: PostRepoPort;
+  readonly taxonomyRepo?: TaxonomyListPort;
+  readonly termRepo?: TermListPort;
   /**
    * Video/embed capability (2026-08-24) — optional, same "degrade gracefully when absent" contract
    * `mediaRepo`/`transformRepo` already have. When present, {@link resolveMediaTypeEmbeds} uses it
@@ -1196,6 +1200,7 @@ async function resolveContentTypeEmbeds(
 const HTML_EMBED_RESOLVERS: Readonly<Record<string, HtmlEmbedResolver>> = {
   widget: resolveWidgetTypeEmbeds,
   form: resolveFormTypeEmbeds,
+  taxonomy: (refs, deps) => resolveTaxonomyEmbeds({ refs, deps }),
   media: resolveMediaTypeEmbeds,
   post: resolvePostTypeEmbeds,
   content: resolveContentTypeEmbeds,

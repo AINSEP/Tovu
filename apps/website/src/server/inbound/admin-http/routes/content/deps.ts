@@ -114,6 +114,6 @@ export type ContentRouteDeps = Pick<
   | "siteTitlePreservationStore"
   | "workspaceRepo"
   | "siteDisplayName"
->;
+> & Partial<Pick<RouteDeps, "taxonomyRepo" | "termRepo">>;
 
 export type ContentRouteRegistrar = (app: Express, deps: ContentRouteDeps) => void;

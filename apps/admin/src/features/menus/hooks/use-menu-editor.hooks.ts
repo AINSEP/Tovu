@@ -4,6 +4,7 @@ import { navigate as realNavigate } from "@/lib/router";
 import { slugRedirectPath } from "@/lib/slug-redirect-path";
 import { useDirtyGuard } from "@/hooks/use-dirty-guard.hooks";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { menuHtmlEmbed } from "../html-rules";
 import { t as translate } from "../menus-i18n";
 import { defaultMenusPort } from "./menus-dependencies.hooks";
 import type { MenusPort } from "./menus-port.hooks";
@@ -41,6 +42,7 @@ export interface MenuEditorDependencies {
   port: MenusPort;
   navigate: (path: string, options?: { replace?: boolean }) => void;
   t: Translate;
+  clipboard?: { writeText: (text: string) => Promise<void> };
 }
 
 function newItemId(): string {
@@ -128,6 +130,8 @@ interface MenuFormState {
 }
 
 export interface MenuEditorController {
+  copyHtmlEmbed: () => Promise<void>;
+  copyFeedback: string | null;
   isNew: boolean;
   menu: AdminMenu | null;
   title: string;
@@ -161,8 +165,9 @@ export interface MenuEditorController {
   t: Translate;
 }
 
-export function useMenuEditor(menuId: string | null, { port, navigate, t }: MenuEditorDependencies): MenuEditorController {
+export function useMenuEditor(menuId: string | null, { port, navigate, t, clipboard }: MenuEditorDependencies): MenuEditorController {
   const isNew = menuId === null;
+  const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
   const [menu, setMenu] = useState<AdminMenu | null>(null);
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
@@ -189,6 +194,7 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t }: Menu
   // biome-ignore lint/correctness/useExhaustiveDependencies: stale-response guard keyed on menuId/isNew only — see comment above; `port` intentionally excluded.
   useEffect(() => {
     let cancelled = false;
+    setCopyFeedback(null);
     if (isNew) {
       setMenu(null);
       setTitle("");
@@ -265,6 +271,17 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t }: Menu
     setItems((prev) => [...prev, newItem()]);
   }
 
+  async function copyHtmlEmbed() {
+    if (!menu) return;
+    const copyingForMenuId = menuId;
+    try {
+      await (clipboard ?? navigator.clipboard).writeText(menuHtmlEmbed({ slug: menu.slug }));
+      if (activeMenuIdRef.current === copyingForMenuId) setCopyFeedback(t("Copied!"));
+    } catch {
+      if (activeMenuIdRef.current === copyingForMenuId) setCopyFeedback(t("Could not copy embed"));
+    }
+  }
+
   async function save() {
     // Drop a same-tick duplicate outright — see `savingRef`'s own comment above and
     // `MenuEditorController.saving`'s doc for why this screen prefers "the second click never
@@ -306,6 +323,8 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t }: Menu
   }
 
   return {
+    copyHtmlEmbed,
+    copyFeedback,
     isNew,
     menu,
     title,

@@ -12,6 +12,7 @@ import {
   type DeleteBlockedState,
 } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { useTaxonomyHtmlEmbed } from "./use-taxonomy-html-embed.hooks";
 import { t as translate } from "../taxonomy-i18n";
 import { defaultTaxonomyPort } from "./taxonomy-dependencies.hooks";
 import type { TaxonomyPort } from "./taxonomy-port.hooks";
@@ -81,6 +82,8 @@ import type { TaxonomyPort } from "./taxonomy-port.hooks";
  */
 
 export interface TaxonomyController {
+  copyHtmlEmbed: (required: { taxonomy: AdminTaxonomy }) => Promise<void>;
+  copyFeedback: string | null;
   taxonomies: AdminTaxonomyWithTerms[] | null;
   error: string | null;
   selectedTermId: string | null;
@@ -160,6 +163,7 @@ async function runGuardedDelete(
 export function useTaxonomy(port: TaxonomyPort, locale: string, t: (key: string) => string): TaxonomyController {
   const list = useFetchQuery({ key: KEYS.list, fetch: () => port.listTaxonomies() });
   const taxonomies = list.data?.items ?? null;
+  const { copyHtmlEmbed, copyFeedback } = useTaxonomyHtmlEmbed({ taxonomies, t });
 
   // Out-of-band writes — today an assistant run that called `taxonomy_create_taxonomy`, later an
   // SSE frame from another tab. Invalidating rather than calling `list.refetch()` keeps this on the
@@ -265,6 +269,8 @@ export function useTaxonomy(port: TaxonomyPort, locale: string, t: (key: string)
   }
 
   return {
+    copyHtmlEmbed,
+    copyFeedback,
     taxonomies,
     error,
     selectedTermId,

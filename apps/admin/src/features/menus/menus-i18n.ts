@@ -9,6 +9,9 @@ import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
 export const MENUS_DICT: Record<string, Record<string, string>> = {
   es: {
+    "Copy HTML embed": "Copiar inserción HTML",
+    "Copied!": "¡Copiado!",
+    "Could not copy embed": "No se pudo copiar la inserción",
     "Loading menus…": "Cargando menús…",
     "Route name": "Nombre de la ruta",
     "route name": "nombre de la ruta",
@@ -67,6 +70,9 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ Agregar elemento",
   },
   id: {
+    "Copy HTML embed": "Salin sematan HTML",
+    "Copied!": "Disalin!",
+    "Could not copy embed": "Tidak dapat menyalin sematan",
     "Loading menus…": "Memuat menu…",
     "Route name": "Nama rute",
     "route name": "nama rute",
@@ -117,6 +123,9 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ Tambah item",
   },
   de: {
+    "Copy HTML embed": "HTML-Einbettung kopieren",
+    "Copied!": "Kopiert!",
+    "Could not copy embed": "Einbettung konnte nicht kopiert werden",
     "Loading menus…": "Menüs werden geladen…",
     "Route name": "Routenname",
     "route name": "Routenname",
@@ -168,6 +177,9 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ Element hinzufügen",
   },
   "zh-CN": {
+    "Copy HTML embed": "复制 HTML 嵌入代码",
+    "Copied!": "已复制！",
+    "Could not copy embed": "无法复制嵌入代码",
     "Loading menus…": "正在加载菜单…",
     "Route name": "路由名称",
     "route name": "路由名称",
@@ -217,6 +229,9 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ 添加项目",
   },
   "zh-TW": {
+    "Copy HTML embed": "複製 HTML 嵌入碼",
+    "Copied!": "已複製！",
+    "Could not copy embed": "無法複製嵌入碼",
     "Loading menus…": "正在載入選單…",
     "Route name": "路由名稱",
     "route name": "路由名稱",
@@ -266,6 +281,9 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ 新增項目",
   },
   "pt-BR": {
+    "Copy HTML embed": "Copiar incorporação HTML",
+    "Copied!": "Copiado!",
+    "Could not copy embed": "Não foi possível copiar a incorporação",
     "Loading menus…": "Carregando menus…",
     "Route name": "Nome da rota",
     "route name": "nome da rota",
@@ -316,6 +334,9 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ Adicionar item",
   },
   ru: {
+    "Copy HTML embed": "Копировать HTML для вставки",
+    "Copied!": "Скопировано!",
+    "Could not copy embed": "Не удалось скопировать код вставки",
     "Loading menus…": "Загрузка меню…",
     "Route name": "Название маршрута",
     "route name": "название маршрута",
@@ -367,6 +388,9 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ Добавить пункт",
   },
   fa: {
+    "Copy HTML embed": "کپی کد جاسازی HTML",
+    "Copied!": "کپی شد!",
+    "Could not copy embed": "کد جاسازی کپی نشد",
     "Loading menus…": "در حال بارگذاری منوها…",
     "Route name": "نام مسیر",
     "route name": "نام مسیر",
@@ -416,6 +440,9 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ افزودن مورد",
   },
   ar: {
+    "Copy HTML embed": "نسخ كود تضمين HTML",
+    "Copied!": "تم النسخ!",
+    "Could not copy embed": "تعذر نسخ كود التضمين",
     "Loading menus…": "جارٍ تحميل القوائم…",
     "Route name": "اسم المسار",
     "route name": "اسم المسار",
@@ -465,6 +492,9 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ إضافة عنصر",
   },
   ja: {
+    "Copy HTML embed": "HTML埋め込みコードをコピー",
+    "Copied!": "コピーしました！",
+    "Could not copy embed": "埋め込みコードをコピーできませんでした",
     "Loading menus…": "メニューを読み込み中…",
     "Route name": "ルート名",
     "route name": "ルート名",
@@ -514,6 +544,9 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ 項目を追加",
   },
   ko: {
+    "Copy HTML embed": "HTML 삽입 코드 복사",
+    "Copied!": "복사됨!",
+    "Could not copy embed": "삽입 코드를 복사할 수 없습니다",
     "Loading menus…": "메뉴 목록을 불러오는 중…",
     "Route name": "경로 이름",
     "route name": "경로 이름",
@@ -563,6 +596,9 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ 항목 추가",
   },
   pl: {
+    "Copy HTML embed": "Kopiuj kod HTML do osadzenia",
+    "Copied!": "Skopiowano!",
+    "Could not copy embed": "Nie udało się skopiować kodu osadzenia",
     "Loading menus…": "Ładowanie menu…",
     "Route name": "Nazwa trasy",
     "route name": "nazwa trasy",
@@ -614,6 +650,9 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ Dodaj pozycję",
   },
   hu: {
+    "Copy HTML embed": "HTML-beágyazás másolása",
+    "Copied!": "Másolva!",
+    "Could not copy embed": "A beágyazás másolása nem sikerült",
     "Loading menus…": "Menük betöltése…",
     "Route name": "Útvonal neve",
     "route name": "útvonal neve",
@@ -665,6 +704,9 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ Elem hozzáadása",
   },
   fr: {
+    "Copy HTML embed": "Copier le code HTML intégré",
+    "Copied!": "Copié !",
+    "Could not copy embed": "Impossible de copier le code intégré",
     "Loading menus…": "Chargement des menus…",
     "Route name": "Nom de la route",
     "route name": "nom de la route",
@@ -715,6 +757,9 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ Ajouter un élément",
   },
   uk: {
+    "Copy HTML embed": "Копіювати HTML для вставлення",
+    "Copied!": "Скопійовано!",
+    "Could not copy embed": "Не вдалося скопіювати код вставлення",
     "Loading menus…": "Завантаження меню…",
     "Route name": "Назва маршруту",
     "route name": "назва маршруту",
@@ -766,6 +811,9 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ Додати пункт",
   },
   tr: {
+    "Copy HTML embed": "HTML gömme kodunu kopyala",
+    "Copied!": "Kopyalandı!",
+    "Could not copy embed": "Gömme kodu kopyalanamadı",
     "Loading menus…": "Menüler yükleniyor…",
     "Route name": "Rota adı",
     "route name": "rota adı",
@@ -817,6 +865,9 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ Öğe ekle",
   },
   th: {
+    "Copy HTML embed": "คัดลอกโค้ดฝัง HTML",
+    "Copied!": "คัดลอกแล้ว!",
+    "Could not copy embed": "ไม่สามารถคัดลอกโค้ดฝังได้",
     "Loading menus…": "กำลังโหลดเมนู…",
     "Route name": "ชื่อเส้นทาง",
     "route name": "ชื่อเส้นทาง",
@@ -866,6 +917,9 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ เพิ่มรายการ",
   },
   it: {
+    "Copy HTML embed": "Copia codice HTML da incorporare",
+    "Copied!": "Copiato!",
+    "Could not copy embed": "Impossibile copiare il codice da incorporare",
     "Loading menus…": "Caricamento dei menu…",
     "Route name": "Nome della rotta",
     "route name": "nome della rotta",
@@ -916,6 +970,9 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ Aggiungi voce",
   },
   hi: {
+    "Copy HTML embed": "HTML एम्बेड कॉपी करें",
+    "Copied!": "कॉपी किया गया!",
+    "Could not copy embed": "एम्बेड कॉपी नहीं हो सका",
     "Loading menus…": "मेनू लोड हो रहे हैं…",
     "Route name": "रूट का नाम",
     "route name": "रूट का नाम",
@@ -972,6 +1029,9 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ आइटम जोड़ें",
   },
   ur: {
+    "Copy HTML embed": "HTML ایمبیڈ کاپی کریں",
+    "Copied!": "کاپی ہو گیا!",
+    "Could not copy embed": "ایمبیڈ کاپی نہیں ہو سکا",
     "Loading menus…": "مینو لوڈ ہو رہے ہیں…",
     "Route name": "روٹ کا نام",
     "route name": "روٹ کا نام",
@@ -1028,6 +1088,9 @@ export const MENUS_DICT: Record<string, Record<string, string>> = {
     "+ Add item": "+ آئٹم شامل کریں",
   },
   bn: {
+    "Copy HTML embed": "HTML এম্বেড কপি করুন",
+    "Copied!": "কপি হয়েছে!",
+    "Could not copy embed": "এম্বেড কপি করা যায়নি",
     "Loading menus…": "মেনুগুলি লোড হচ্ছে…",
     "Route name": "রুটের নাম",
     "route name": "রুটের নাম",

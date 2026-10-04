@@ -575,6 +575,8 @@ export function Taxonomy({ useTaxonomyHook = useWiredTaxonomy }: TaxonomyProps =
   // A callback ref supplies the mounted container before any menu can open.
   const [menuPortalContainer, setMenuPortalContainer] = useState<HTMLDivElement | null>(null);
   const {
+    copyHtmlEmbed,
+    copyFeedback,
     taxonomies,
     error,
     selectedTermId,
@@ -595,7 +597,7 @@ export function Taxonomy({ useTaxonomyHook = useWiredTaxonomy }: TaxonomyProps =
     confirmDeleteTaxonomy,
     t,
   } = useTaxonomyHook();
-  const deleteState = { requestDeleteTerm, deleteTermBlocked, requestDeleteTaxonomy, deleteTaxonomyBlocked };
+  const deleteState = { copyHtmlEmbed, requestDeleteTerm, deleteTermBlocked, requestDeleteTaxonomy, deleteTaxonomyBlocked };
 
   if (error && !taxonomies) return <div className="notice error">{error}</div>;
   if (!taxonomies) return <div className="notice">{t("Loading taxonomies…")}</div>;
@@ -603,6 +605,7 @@ export function Taxonomy({ useTaxonomyHook = useWiredTaxonomy }: TaxonomyProps =
   return (
     <div className="page" ref={setMenuPortalContainer}>
       <TaxonomyPageHeader formOpen={formOpen} setFormOpen={setFormOpen} t={t} />
+      {copyFeedback ? <p role="status">{copyFeedback}</p> : null}
       {error ? <div className="notice error">{error}</div> : null}
 
       {formOpen ? (
@@ -681,6 +684,7 @@ function namespaceList(
   setSelectedTermId: (id: string) => void,
   load: () => void,
   deleteState: {
+    copyHtmlEmbed: (required: { taxonomy: AdminTaxonomy }) => Promise<void>;
     requestDeleteTerm: (term: AdminTerm | null) => void;
     deleteTermBlocked: { termId: string; state: DeleteBlockedState } | null;
     requestDeleteTaxonomy: (taxonomy: AdminTaxonomy | null) => void;
@@ -722,6 +726,7 @@ function namespaceList(
           <section key={group.taxonomy.id} className="settings-namespace-group taxonomy-namespace-group">
             <div className="taxonomy-namespace-group-header">
               <h2>{group.taxonomy.name}</h2>
+              <button type="button" className="btn-secondary" onClick={() => deleteState.copyHtmlEmbed({ taxonomy: group.taxonomy })}>{t("Copy HTML embed")}</button>
               <TaxonomyRowMenu
                 portalContainer={menuPortalContainer}
                 triggerLabel={t('Actions for taxonomy "{name}"').replace("{name}", group.taxonomy.name)}

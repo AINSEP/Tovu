@@ -336,6 +336,8 @@ export interface MenuEditorProps {
 
 export function MenuEditor({ menuId, useMenuEditorHook = useWiredMenuEditor }: MenuEditorProps) {
   const {
+    copyHtmlEmbed,
+    copyFeedback,
     isNew,
     menu,
     title,
@@ -410,6 +412,8 @@ export function MenuEditor({ menuId, useMenuEditorHook = useWiredMenuEditor }: M
           className="page-header-actions page-actions"
           {...agentHandle({ handle: "menu-editor-actions" }, { role: "region", label: "Save status and the Save button" })}
         >
+          {menu ? <button type="button" className="btn-secondary" onClick={copyHtmlEmbed}>{t("Copy HTML embed")}</button> : null}
+          {copyFeedback ? <span role="status">{copyFeedback}</span> : null}
           {message ? <span className="save-ok">{message}</span> : null}
           {error ? <span className="save-error">{error}</span> : null}
           <button onClick={save} disabled={saving} {...agentHandle({ handle: "menu-editor-save" }, { role: "button", label: "Save this menu" })}>

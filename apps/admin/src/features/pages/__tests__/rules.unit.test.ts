@@ -409,7 +409,7 @@ describe("buildPageSavePlan", () => {
     });
   });
 
-  it("omits bodyJson whenever the HTML route will fire — updatePageHtml converts the row first, so the server no longer demands one", () => {
+  it("omits bodyJson for an already-html row — the metadata writer no longer demands one", () => {
     const plan = buildPageSavePlan({ bodyFormat: "html", bodyJson: { type: "doc", content: [] }, version: 7 }, FORM);
     expect(plan.canSaveHtml).toBe(true);
     expect(plan.updatePostPayload).not.toHaveProperty("bodyJson");
@@ -425,7 +425,7 @@ describe("buildPageSavePlan", () => {
   it("saves the HTML authored into a brand-new page — the 2026-09-06 fix", () => {
     const plan = buildPageSavePlan({ bodyFormat: "doc", bodyJson: { type: "doc", content: [] }, version: 7 }, FORM);
     expect(plan.canSaveHtml).toBe(true);
-    expect(plan.updatePostPayload).not.toHaveProperty("bodyJson");
+    expect(plan.updatePostPayload.bodyJson).toEqual({ type: "doc", content: [] });
   });
 
   it("prefers nextStatus over the form's own status, and writes it to both fields", () => {

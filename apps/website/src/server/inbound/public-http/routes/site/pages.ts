@@ -406,6 +406,8 @@ export async function resolveHtmlEmbedsForRender(deps: RenderContextResolutionDe
       transformRepo: deps.transformDefinitionRepo,
       postRepo: deps.postRepo,
       mediaContentTypeStore: deps.mediaContentTypeStore,
+      taxonomyRepo: deps.taxonomyRepo,
+      termRepo: deps.termRepo,
     },
     input: { workspaceId: deps.workspaceId, html: post.bodyHtml ?? "" },
   });
@@ -777,6 +779,8 @@ export async function finishStaticTierDocument(
       mediaRepo: deps.mediaRepo,
       transformRepo: deps.transformDefinitionRepo,
       mediaContentTypeStore: deps.mediaContentTypeStore,
+      taxonomyRepo: deps.taxonomyRepo,
+      termRepo: deps.termRepo,
       ...(pendingContentOverride !== undefined ? { pendingContentOverride } : {}),
     },
     input: { workspaceId: deps.workspaceId, html: expanded },
@@ -1050,7 +1054,7 @@ export const MAX_CONTENT_EMBED_FETCHES = 50;
 export type ContentMarkerResolutionDeps = Pick<
   RouteDeps,
   "workspaceId" | "postRepo" | "entryRepo" | "mediaRepo" | "transformDefinitionRepo" | "mediaContentTypeStore"
->;
+> & Partial<Pick<RouteDeps, "taxonomyRepo" | "termRepo">>;
 
 /** The narrow dependency slice {@link renderViaTemplate} and {@link resolveStaticMenusForRender}
  * actually need — same "`Pick` of `RouteDeps`, not the whole composition-root shape" reasoning as
@@ -1079,7 +1083,7 @@ export type TemplateRenderDeps = Pick<
   // C5 (collections plan, 2026-09-23) — `resolveCollectionListsForRender`'s content-type lookup for
   // a `{"type":"collection"}` marker's `typeKey`, threaded through `finishStaticTierDocument`.
   | "contentTypeRepo"
->;
+> & Partial<Pick<RouteDeps, "taxonomyRepo" | "termRepo">>;
 
 /**
  * The narrow dependency slice the four `resolve*ForRender` helpers below need — same "`Pick` of
@@ -1096,7 +1100,7 @@ export type TemplateRenderDeps = Pick<
 export type RenderContextResolutionDeps = Pick<
   RouteDeps,
   "workspaceId" | "postRepo" | "entryRepo" | "mediaRepo" | "transformDefinitionRepo" | "widgetBindingRepo" | "mediaContentTypeStore"
->;
+> & Partial<Pick<RouteDeps, "taxonomyRepo" | "termRepo">>;
 
 /** A `{"type":"content"}` marker's authored `slug`, or `undefined` when absent/non-string/empty —
  * the marker-scan-side counterpart to `resolver-service.ts`'s `normalizeEmbedSlug`, needed here
@@ -1248,6 +1252,8 @@ export async function resolveHtmlFormatContentMarkers(
           mediaRepo: deps.mediaRepo,
           transformRepo: deps.transformDefinitionRepo,
           mediaContentTypeStore: deps.mediaContentTypeStore,
+          taxonomyRepo: deps.taxonomyRepo,
+          termRepo: deps.termRepo,
         },
         input: { workspaceId: deps.workspaceId, html: nestedHtml },
       });
@@ -1417,6 +1423,8 @@ export async function renderViaTemplate(
       mediaRepo: deps.mediaRepo,
       transformRepo: deps.transformDefinitionRepo,
       mediaContentTypeStore: deps.mediaContentTypeStore,
+      taxonomyRepo: deps.taxonomyRepo,
+      termRepo: deps.termRepo,
       ...(pendingBodyJson !== undefined
         ? { pendingContentOverride: { id: post.id, title: post.title, slug: post.slug, updatedAt: post.updatedAt, bodyJson: pendingBodyJson } }
         : {}),

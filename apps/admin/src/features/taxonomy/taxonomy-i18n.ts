@@ -12,6 +12,9 @@ import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
 export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
   es: {
+    "Copy HTML embed": "Copiar inserción HTML",
+    "Copied!": "¡Copiado!",
+    "Could not copy embed": "No se pudo copiar la inserción",
     Content: "Contenido",
     "Categories & Tags": "Categorías y etiquetas",
     "Organize content with taxonomies and terms — categories, tags, and any custom hierarchy you define.":
@@ -75,6 +78,9 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Actions for term \"{name}\"": "Acciones para el término \"{name}\"",
   },
   id: {
+    "Copy HTML embed": "Salin sematan HTML",
+    "Copied!": "Disalin!",
+    "Could not copy embed": "Tidak dapat menyalin sematan",
     Content: "Konten",
     "Categories & Tags": "Kategori & Tag",
     "Organize content with taxonomies and terms — categories, tags, and any custom hierarchy you define.":
@@ -126,6 +132,9 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Actions for term \"{name}\"": "Tindakan untuk istilah \"{name}\"",
   },
   de: {
+    "Copy HTML embed": "HTML-Einbettung kopieren",
+    "Copied!": "Kopiert!",
+    "Could not copy embed": "Einbettung konnte nicht kopiert werden",
     Content: "Inhalt",
     "Categories & Tags": "Kategorien & Schlagwörter",
     "Organize content with taxonomies and terms — categories, tags, and any custom hierarchy you define.":
@@ -177,6 +186,9 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Actions for term \"{name}\"": "Aktionen für Begriff \"{name}\"",
   },
   "zh-CN": {
+    "Copy HTML embed": "复制 HTML 嵌入代码",
+    "Copied!": "已复制！",
+    "Could not copy embed": "无法复制嵌入代码",
     Content: "内容",
     "Categories & Tags": "分类与标签",
     "Organize content with taxonomies and terms — categories, tags, and any custom hierarchy you define.":
@@ -227,6 +239,9 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Actions for term \"{name}\"": "术语\"{name}\"的操作",
   },
   "zh-TW": {
+    "Copy HTML embed": "複製 HTML 嵌入碼",
+    "Copied!": "已複製！",
+    "Could not copy embed": "無法複製嵌入碼",
     Content: "內容",
     "Categories & Tags": "分類與標籤",
     "Organize content with taxonomies and terms — categories, tags, and any custom hierarchy you define.":
@@ -277,6 +292,9 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Actions for term \"{name}\"": "詞彙\"{name}\"的操作",
   },
   "pt-BR": {
+    "Copy HTML embed": "Copiar incorporação HTML",
+    "Copied!": "Copiado!",
+    "Could not copy embed": "Não foi possível copiar a incorporação",
     Content: "Conteúdo",
     "Categories & Tags": "Categorias e Tags",
     "Organize content with taxonomies and terms — categories, tags, and any custom hierarchy you define.":
@@ -328,6 +346,9 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Actions for term \"{name}\"": "Ações para o termo \"{name}\"",
   },
   ru: {
+    "Copy HTML embed": "Копировать HTML для вставки",
+    "Copied!": "Скопировано!",
+    "Could not copy embed": "Не удалось скопировать код вставки",
     Content: "Контент",
     "Categories & Tags": "Категории и теги",
     "Organize content with taxonomies and terms — categories, tags, and any custom hierarchy you define.":
@@ -379,6 +400,9 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Actions for term \"{name}\"": "Действия для термина \"{name}\"",
   },
   fa: {
+    "Copy HTML embed": "کپی کد جاسازی HTML",
+    "Copied!": "کپی شد!",
+    "Could not copy embed": "کد جاسازی کپی نشد",
     Content: "محتوا",
     "Categories & Tags": "دسته‌بندی‌ها و برچسب‌ها",
     "Organize content with taxonomies and terms — categories, tags, and any custom hierarchy you define.":
@@ -430,6 +454,9 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Actions for term \"{name}\"": "عملیات مربوط به اصطلاح \"{name}\"",
   },
   ar: {
+    "Copy HTML embed": "نسخ كود تضمين HTML",
+    "Copied!": "تم النسخ!",
+    "Could not copy embed": "تعذر نسخ كود التضمين",
     Content: "المحتوى",
     "Categories & Tags": "الفئات والوسوم",
     "Organize content with taxonomies and terms — categories, tags, and any custom hierarchy you define.":
@@ -481,6 +508,9 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Actions for term \"{name}\"": "إجراءات لمصطلح \"{name}\"",
   },
   ja: {
+    "Copy HTML embed": "HTML埋め込みコードをコピー",
+    "Copied!": "コピーしました！",
+    "Could not copy embed": "埋め込みコードをコピーできませんでした",
     Content: "コンテンツ",
     "Categories & Tags": "カテゴリーとタグ",
     "Organize content with taxonomies and terms — categories, tags, and any custom hierarchy you define.":
@@ -532,6 +562,9 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Actions for term \"{name}\"": "用語\"{name}\"の操作",
   },
   ko: {
+    "Copy HTML embed": "HTML 삽입 코드 복사",
+    "Copied!": "복사됨!",
+    "Could not copy embed": "삽입 코드를 복사할 수 없습니다",
     Content: "콘텐츠",
     "Categories & Tags": "카테고리 및 태그",
     "Organize content with taxonomies and terms — categories, tags, and any custom hierarchy you define.":
@@ -583,6 +616,9 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Actions for term \"{name}\"": "용어 \"{name}\" 작업",
   },
   pl: {
+    "Copy HTML embed": "Kopiuj kod HTML do osadzenia",
+    "Copied!": "Skopiowano!",
+    "Could not copy embed": "Nie udało się skopiować kodu osadzenia",
     Content: "Treść",
     "Categories & Tags": "Kategorie i tagi",
     "Organize content with taxonomies and terms — categories, tags, and any custom hierarchy you define.":
@@ -634,6 +670,9 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Actions for term \"{name}\"": "Działania dla terminu \"{name}\"",
   },
   hu: {
+    "Copy HTML embed": "HTML-beágyazás másolása",
+    "Copied!": "Másolva!",
+    "Could not copy embed": "A beágyazás másolása nem sikerült",
     Content: "Tartalom",
     "Categories & Tags": "Kategóriák és címkék",
     "Organize content with taxonomies and terms — categories, tags, and any custom hierarchy you define.":
@@ -685,6 +724,9 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Actions for term \"{name}\"": "Műveletek: kifejezés \"{name}\"",
   },
   fr: {
+    "Copy HTML embed": "Copier le code HTML intégré",
+    "Copied!": "Copié !",
+    "Could not copy embed": "Impossible de copier le code intégré",
     Content: "Contenu",
     "Categories & Tags": "Catégories et étiquettes",
     "Organize content with taxonomies and terms — categories, tags, and any custom hierarchy you define.":
@@ -736,6 +778,9 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Actions for term \"{name}\"": "Actions pour le terme \"{name}\"",
   },
   uk: {
+    "Copy HTML embed": "Копіювати HTML для вставлення",
+    "Copied!": "Скопійовано!",
+    "Could not copy embed": "Не вдалося скопіювати код вставлення",
     Content: "Вміст",
     "Categories & Tags": "Категорії та теги",
     "Organize content with taxonomies and terms — categories, tags, and any custom hierarchy you define.":
@@ -787,6 +832,9 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Actions for term \"{name}\"": "Дії для терміна \"{name}\"",
   },
   tr: {
+    "Copy HTML embed": "HTML gömme kodunu kopyala",
+    "Copied!": "Kopyalandı!",
+    "Could not copy embed": "Gömme kodu kopyalanamadı",
     Content: "İçerik",
     "Categories & Tags": "Kategoriler ve Etiketler",
     "Organize content with taxonomies and terms — categories, tags, and any custom hierarchy you define.":
@@ -838,6 +886,9 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Actions for term \"{name}\"": "\"{name}\" terimi için işlemler",
   },
   th: {
+    "Copy HTML embed": "คัดลอกโค้ดฝัง HTML",
+    "Copied!": "คัดลอกแล้ว!",
+    "Could not copy embed": "ไม่สามารถคัดลอกโค้ดฝังได้",
     Content: "เนื้อหา",
     "Categories & Tags": "หมวดหมู่และแท็ก",
     "Organize content with taxonomies and terms — categories, tags, and any custom hierarchy you define.":
@@ -889,6 +940,9 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Actions for term \"{name}\"": "การดำเนินการสำหรับคำศัพท์ \"{name}\"",
   },
   it: {
+    "Copy HTML embed": "Copia codice HTML da incorporare",
+    "Copied!": "Copiato!",
+    "Could not copy embed": "Impossibile copiare il codice da incorporare",
     Content: "Contenuto",
     "Categories & Tags": "Categorie e tag",
     "Organize content with taxonomies and terms — categories, tags, and any custom hierarchy you define.":
@@ -940,6 +994,9 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Actions for term \"{name}\"": "Azioni per il termine \"{name}\"",
   },
   hi: {
+    "Copy HTML embed": "HTML एम्बेड कॉपी करें",
+    "Copied!": "कॉपी किया गया!",
+    "Could not copy embed": "एम्बेड कॉपी नहीं हो सका",
     Content: "कंटेंट",
     "Categories & Tags": "श्रेणियां और टैग",
     "Organize content with taxonomies and terms — categories, tags, and any custom hierarchy you define.":
@@ -991,6 +1048,9 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Actions for term \"{name}\"": "टर्म \"{name}\" के लिए कार्रवाइयां",
   },
   ur: {
+    "Copy HTML embed": "HTML ایمبیڈ کاپی کریں",
+    "Copied!": "کاپی ہو گیا!",
+    "Could not copy embed": "ایمبیڈ کاپی نہیں ہو سکا",
     Content: "کنٹینٹ",
     "Categories & Tags": "کیٹیگریز اور ٹیگز",
     "Organize content with taxonomies and terms — categories, tags, and any custom hierarchy you define.":
@@ -1042,6 +1102,9 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Actions for term \"{name}\"": "ٹرم \"{name}\" کے لیے کارروائیاں",
   },
   bn: {
+    "Copy HTML embed": "HTML এম্বেড কপি করুন",
+    "Copied!": "কপি হয়েছে!",
+    "Could not copy embed": "এম্বেড কপি করা যায়নি",
     Content: "কন্টেন্ট",
     "Categories & Tags": "ক্যাটাগরি ও ট্যাগ",
     "Organize content with taxonomies and terms — categories, tags, and any custom hierarchy you define.":

@@ -1533,11 +1533,10 @@ describe("HTML authoring into a newly created (doc-format, empty-document) Page"
     expect(deps.port.updatePageHtmlCalls).toEqual(["<h1>Hand-authored</h1>"]);
     // The body reached the row, not just the writer — the fake stores what it was handed.
     expect(deps.port.current.bodyHtml).toBe("<h1>Hand-authored</h1>");
-    // `updatePageHtml` converts the row to html format before `updatePost` runs, so the server's
-    // `existing.bodyFormat !== "html" && !isJsonObject(input.bodyJson)` check no longer applies and
-    // the round-tripped placeholder must NOT be sent (see `buildPageSavePlan`'s own doc).
+    // The metadata CAS runs before HTML conversion, so its validation still sees doc format.
+    // Round-trip the loaded document until the dedicated HTML writer replaces it.
     expect(deps.port.updatePostCalls).toHaveLength(1);
-    expect(deps.port.updatePostCalls[0]).not.toHaveProperty("bodyJson");
+    expect(deps.port.updatePostCalls[0]).toMatchObject({ bodyJson: NEW_PAGE.bodyJson });
     // Not the "this page's body uses the document editor and can't be edited here yet" apology.
     expect(result.current.message).toBe("en:Saved");
   });

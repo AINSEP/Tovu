@@ -23,6 +23,7 @@ import type { ThemeValidationIssue } from "./profiles.js";
 const KNOWN_EMBED_TYPES: ReadonlySet<string> = new Set([
   "widget",
   "form",
+  "taxonomy",
   "media",
   "post",
   "content",

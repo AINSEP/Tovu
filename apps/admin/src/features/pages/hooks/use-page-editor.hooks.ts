@@ -861,9 +861,10 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
       // 2026-09-06 so a brand-new Page's hand-authored HTML is savable at all, and given the
       // optimistic-concurrency basis 2026-09-07).
       //
-      // `updatePost` needs a round-tripped `bodyJson` for every Page the HTML route does NOT fire
-      // for: `features/post/post.ts`'s `updatePost` requires it to be a JSON object for any Page not
-      // already in `html` format. It is meaningless for an html-format row (no Tiptap document
+      // `updatePost` needs a round-tripped `bodyJson` for every Page still in doc format
+      // when metadata is written, including one the subsequent HTML route will convert:
+      // `features/post/post.ts`'s `updatePost` requires it to be a JSON object for any Page
+      // not already in `html` format. It is meaningless for an html-format row (no Tiptap document
       // exists) so the server skips the check there, but a doc-format row's `bodyJson` IS its real
       // content. This editor has no way to EDIT that document, so round-tripping the loaded value
       // unchanged satisfies the requirement without touching it — the alternative (omitting it)

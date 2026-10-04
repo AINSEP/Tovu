@@ -518,6 +518,8 @@ describe("attrs — advanced per-item fields", () => {
 describe("injected hook seam (useMenuEditorHook)", () => {
   function fakeController(overrides: Partial<MenuEditorController> = {}): MenuEditorController {
     return {
+      copyHtmlEmbed: vi.fn(),
+      copyFeedback: null,
       isNew: true,
       menu: null,
       title: "",

@@ -215,8 +215,8 @@ export function themePageRowMenuItems(row: ThemePageRow, handlers: ThemePageRowM
 /** What `usePageEditor`'s `save` sends to the two write routes, and whether the HTML route applies
  *  at all — see `use-page-editor.hooks.ts`'s own `save` for the full "why two routes" reasoning, and
  *  {@link pageAcceptsHtmlBody} for exactly when `updatePageHtml` is allowed to fire (`updatePost`
- *  needs a round-tripped `bodyJson` for every Page it does NOT fire for, since that field is
- *  meaningless once an html row exists). */
+ *  needs a round-tripped `bodyJson` for every Page still in doc format when metadata is written,
+ *  including a new Page about to be converted by the subsequent HTML write). */
 export interface PageSavePlan {
   canSaveHtml: boolean;
   statusToWrite: "draft" | "published";
@@ -377,7 +377,9 @@ export function buildPageSavePlan(
       // the version THIS editor loaded. That is why `save` now writes metadata first and only
       // reaches the body once this guard has passed — see `save`'s own doc.
       expectedVersion: page.version,
-      ...(canSaveHtml ? {} : { bodyJson: page.bodyJson }),
+      // Metadata is written BEFORE conversion. The server still validates bodyJson
+      // against the loaded doc format even when the following HTML write will replace it.
+      ...(page.bodyFormat === "html" ? {} : { bodyJson: page.bodyJson }),
     },
   };
 }
