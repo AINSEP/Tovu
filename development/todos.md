@@ -76,7 +76,7 @@ plugin install from a local folder/zip, raw-HTML forms, media `createdBy`.
 
 ### Publish
 - **Publish installed skills, site plugins and agent-plugin files** (09-24, L3093–3098): only the theme-files handler exists in the publish type registry.
-- **Advanced manual publish "YOLO" backstop — BS6 + schema install left** (09-24, L3101–3102): BS1–BS5 landed `445575f6c` (see Done). Left: (1) install the staged audit-table schema (`ADS-memory/.local-artifacts/codex-waves/features-2026-10-04/staged/publish-backstop/INSTALL.md`; dev server stopped, backups first) — until then every send returns `BACKSTOP_NOT_INSTALLED`; (2) BS6 admin UI (selection, before/after plan, typed-host + reason confirm, result + Undo, localized) — follow-up prompt `codex-waves/features-2026-10-04/followups/backstop-bs6-ui.md`. Only the read-only gaps tool/endpoint exists.
+- **Advanced manual publish "YOLO" backstop — BS6 + schema install left** (09-24, L3101–3102): BS1–BS5 landed `445575f6c` (see Done). Left: (1) install the staged audit-table schema (`ADS-memory/.local-artifacts/codex-waves/features-2026-10-04/staged/publish-backstop/INSTALL.md`). Held 10-04: renumbered to `0007_publish_backstop` (`renumbered/`, scratch-verified), but it declares no schema so `schema-migration-drift.test.ts` would go red. Fix first: `followups/backstop-schema-install-drift.md`. Until then every send returns `BACKSTOP_NOT_INSTALLED`; (2) BS6 admin UI (selection, before/after plan, typed-host + reason confirm, result + Undo, localized) — follow-up prompt `codex-waves/features-2026-10-04/followups/backstop-bs6-ui.md`. Only the read-only gaps tool/endpoint exists.
 
 ### Persistence & CAS (web-medium `wm` plan: `ADS-memory/.local-artifacts/fix-plan-web-medium-2026-09-24.md`; owner ordered these run 09-24, L3256)
 - **wm S1→S2** (L3314): listed as remaining on 09-24; confirm state before starting.
@@ -97,7 +97,7 @@ plugin install from a local folder/zip, raw-HTML forms, media `createdBy`.
 - **Migrate-forward never updates `.site-meta.json`** (09-21, L2612): only `init-site.ts:269` writes it, so the banner's promise may be false; check under the new storage runner.
 
 ### Media
-- **Size + upload date on the LIVE Media page** (09-21/09-26, L2712–2724/L3494/L3501): done in Jini `MediaCard` (Jini `587ebf0b`), but `/admin/media` is still the legacy page (Jini media parked 10-03), so the owner does not see it yet. Shows up when the Jini page is switched on, or add it to the legacy card.
+- **File size on the LIVE Media page** (09-21/09-26, L2712–2724/L3494/L3501): upload date is now on the legacy cards (`a2eede1a2`, seen in Chrome 10-04). Size is still missing: the media API sends no `byteSize`. Pick a size source first: `codex-waves/features-2026-10-04/followups/media-card-byte-size.md`.
 - **Sound-on pill on the home promo video** (09-26, L3497): owner: for THIS video only, no global rule; owner killed the writer before it landed.
 
 ### DB
@@ -171,7 +171,11 @@ plugin install from a local folder/zip, raw-HTML forms, media `createdBy`.
 - **Desktop: Google Fonts vendored + CSP `style-src`/`font-src 'self'`** (L3053) — `ee199361f`.
 - **Desktop: auto-update on/off** (L3042): Settings → Automatically update Tovu, default on — `ee199361f`.
 - **Publish backstop BS1–BS5** (L3101–3102) — `445575f6c`. Owner answers 10-04: **B1** owner AND built-in admins can use it (no custom role can be granted it); **B2** ON at the live destination (`deploy/publish-trust.json` grants raw-row/raw-file + `publish_content.backstop`); **B3** plugin `p_*` tables allowed (deny-list + secret scan still apply). BS6 + schema install still open under Publish.
-- **Plugin-memory layout B** (L704–718/L1014–1020): per-plugin package/memory/data, idempotent boot migration, memory tools, admin Memory pane, Higgsfield learns its account — `852d711e6` + Jini `e4eac924`/`9cac0d86` (unreleased `persistent-state` entry). Left: `dev.tovu.memory` namespace + learned seeds (owner call); Memory pane styling (`codex-waves/features-2026-10-04/followups/layout-b-memory-pane-ui.md`).
+- **Plugin-memory layout B** (L704–718/L1014–1020): per-plugin package/memory/data, idempotent boot migration, memory tools, admin Memory pane, Higgsfield learns its account — `852d711e6` + Jini `e4eac924`/`9cac0d86` (unreleased `persistent-state` entry). Left: `dev.tovu.memory` namespace + learned seeds (owner call).
+- **Plugin Memory pane styled + Layout B migration unblocks** (10-04): styled form, empty states, tab-aware title — `30127dd29`; rejected legacy entries quarantined so seeding no longer refuses forever — `b0e099fe7` + Jini `c4927575`.
+- **Builder form field errors friendly** (10-04): `/contact` empty email shows "Please enter your email." — `090192e86`.
+- **Footer items are Page links** (10-04): the menu editor opens footer items in the page picker, keeps a `lastKnownHref`, and the public footer renders plain `<a href>` — `3872c6727` + Jini `2c464c82`.
+- **Media cards show the upload date** (10-04) — `a2eede1a2` + Jini `7960c02a`; size still open under Media.
 
 ---
 
