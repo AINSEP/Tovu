@@ -61,7 +61,7 @@ async function bootSite(t: TestContext): Promise<{ deps: RouteDeps; baseUrl: str
   // Pinned to "tovu-theme" rather than the seeded default: S2's `/pricing` surface is Tovu Theme's
   // own real static page. `tovu-starter` never shipped it, having dropped it in its own
   // de-branding pass — see `publishPricingPage`'s own comment for the shared precedent.
-  const currentPresentation = await deps.presentationRepo.findByWorkspaceId(deps.workspaceId);
+  const currentPresentation = await deps.presentationRepo.findByWorkspaceId({ workspaceId: deps.workspaceId });
   await deps.presentationRepo.save({ ...currentPresentation!, activeThemeId: "tovu-theme" });
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
   await deps.siteTitleReady;
@@ -98,14 +98,17 @@ test("EC-03 (REQ-05): the in-memory root is a new site with no site directory, s
   assert.ok(products.includes(`<span>${IN_MEMORY_WORKSPACE_NAME} — powered by Tovu</span>`), "B: footer");
 });
 
-test("AC-03 (REQ-02, INV-06): entry routes keep the entry's own title, with and without an owner title", async (t) => {
+// Owner decision 2026-10-03 (e47adfe0b): the content-owned home (the Page claiming "/") is the one
+// entry whose <title> yields to an owner-set core.site.title — explicit SEO title, else the owner
+// title, else the Page's own title. Every other entry route keeps its own title regardless.
+test("AC-03 (REQ-02, INV-06): entry routes keep the entry's own title, with and without an owner title; the home Page takes the owner title once one is set", async (t) => {
   const site = await bootSite(t);
   assertSingleTitle(await getHtml(site.baseUrl, "/welcome"), "Welcome to Tovu", "S5 GET /welcome (no owner title)");
   assertSingleTitle(await getHtml(site.baseUrl, "/"), "Home", "S5 GET / with the seeded Page (no owner title)");
 
   assert.equal((await putSiteTitle(site, OWNER_TITLE)).status, 200, "the owner write must be accepted");
   assertSingleTitle(await getHtml(site.baseUrl, "/welcome"), "Welcome to Tovu", "S5 GET /welcome (owner title set)");
-  assertSingleTitle(await getHtml(site.baseUrl, "/"), "Home", "S5 GET / with the seeded Page (owner title set)");
+  assertSingleTitle(await getHtml(site.baseUrl, "/"), OWNER_TITLE, "S5 GET / with the seeded Page (owner title set)");
 });
 
 test("AC-04/AC-11 (REQ-02, REQ-03, T-W2): an owner title written through the generic settings route reaches every S1-S3 surface and the chrome", async (t) => {

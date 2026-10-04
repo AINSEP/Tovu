@@ -205,7 +205,10 @@ test("AC-10, AC-01, AC-02, AC-07 (T-W1): a database seeded before this feature b
 
   // INV-06: entry routes keep the entry's own title on a pre-existing site too.
   assertSingleTitle(await getHtml(site.baseUrl, "/welcome"), "Welcome to Tovu", "S5 GET /welcome");
-  assertSingleTitle(await getHtml(site.baseUrl, "/"), "Home", "S5 GET / with the seeded Page");
+  // Owner decision 2026-10-03 (e47adfe0b): the home Page's <title> is its explicit SEO title, else
+  // the workspace core.site.title, else its own title. The pin IS this site's workspace title, so
+  // a pinned pre-existing site's home renders the legacy title like every other site surface.
+  assertSingleTitle(await getHtml(site.baseUrl, "/"), LEGACY_TITLE, "S5 GET / with the seeded Page");
 
   await unpublishHomePage(site.deps);
   await assertSiteTitleSurfaces(site, LEGACY_TITLE);

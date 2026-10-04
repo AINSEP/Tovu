@@ -463,10 +463,15 @@ test("B: a valid signed-in member session keeps each public page private", async
 
 test("B: a content-owned homepage stays public anonymously and private for form or member state", async (t) => {
   const { app, deps } = buildPublicSiteApp();
+  // The seed already ships a Page claiming "/" ("Home"), and the slug is unique (the SQLite index
+  // rejects a second row; the in-memory repo's `findBySlug` returns the first). Rewrite that row
+  // rather than adding a second one, so the probe text is what GET / actually renders.
+  const seededHome = await deps.postRepo.findBySlug({ workspaceId: deps.workspaceId, slug: "/" });
+  assert.ok(seededHome, "expected the seeded Page claiming '/'");
   await deps.postRepo.save({
-    id: "cache-owned-home", workspaceId: deps.workspaceId, slug: "/", kind: "page", title: "Authored homepage cache probe",
-    status: "published", bodyFormat: "doc", bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Authored homepage cache probe" }] }] },
-    bodyHtml: null, updatedAt: deps.clock.nowIso(), version: 1, createdByPrincipalId: null,
+    ...seededHome, title: "Authored homepage cache probe", status: "published", bodyFormat: "doc",
+    bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Authored homepage cache probe" }] }] },
+    bodyHtml: null, updatedAt: deps.clock.nowIso(), version: seededHome.version + 1,
   });
   const memberCookie = await seedMemberCookie(deps);
   const baseUrl = await startTestServer(app, t);
