@@ -5,7 +5,7 @@ import { fetchDestinationIdentity, openPublishSession, PublishTrustHandshakeErro
 
 // A destination with no Site Token answers every handshake route with a typed 503. The owner must
 // read what to fix on that site, not "try again in a moment", which no retry will ever satisfy.
-test("a destination without a Site Token is named as the thing to fix", async () => {
+test("a destination without a Site key is named as the thing to fix", async () => {
   const requests: unknown[] = [];
   const httpClient = {
     send: async (request: unknown) => { requests.push(request); return ({
@@ -22,7 +22,7 @@ test("a destination without a Site Token is named as the thing to fix", async ()
       assert.equal(err.failure, "refused");
       assert.equal(
         err.message,
-        "dest.example has no Site Token set up yet, so it cannot accept publishes. Set one up on that site, then try again."
+        "dest.example has no Site key set up yet, so it cannot accept publishes. Set one up on that site, then try again."
       );
       return true;
     }

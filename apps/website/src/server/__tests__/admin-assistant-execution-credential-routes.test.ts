@@ -30,13 +30,13 @@ const CREDENTIAL_PATH = `/api/admin/v1/workspaces/${WORKSPACE_ID}/assistant/exec
 /** Always fails — simulates a missing `TOVU_INTEGRATIONS_ROOT_KEY` without touching real env state. */
 class BrokenKeyring implements KeyringPort {
   async activeKey(): Promise<{ readonly keyId: string }> {
-    throw new Error("no root key: TOVU_INTEGRATIONS_ROOT_KEY is not set and allowFileFallback is disabled");
+    throw new Error("no site key: TOVU_SITE_KEY is not set and allowFileFallback is disabled");
   }
   async deriveSigningSecret(): Promise<Uint8Array> {
-    throw new Error("no root key");
+    throw new Error("no site key");
   }
   async derive(): Promise<Uint8Array> {
-    throw new Error("no root key");
+    throw new Error("no site key");
   }
 }
 
@@ -199,7 +199,7 @@ test("DELETE clears the key; a second DELETE on an already-cleared credential is
   assert.equal(second.status, 200);
 });
 
-test("PUT with an apiKey fails closed with 503 SECRET_STORE_UNCONFIGURED when the master secret is unavailable", async (t) => {
+test("PUT with an apiKey fails closed with 503 SECRET_STORE_UNCONFIGURED when the site key is unavailable", async (t) => {
   const brokenKeyring = new BrokenKeyring();
   const { app } = buildTestApp({
     siteAssistantSecretKeyring: brokenKeyring,

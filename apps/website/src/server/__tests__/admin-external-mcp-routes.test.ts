@@ -32,13 +32,13 @@ const DUMMY_TOKEN = "ghp_UNIT_DUMMY_NOT_A_REAL_TOKEN_4242";
 /** Always fails — simulates a missing `TOVU_INTEGRATIONS_ROOT_KEY` without touching real env state. */
 class BrokenKeyring implements KeyringPort {
   async activeKey(): Promise<{ readonly keyId: string }> {
-    throw new Error("no root key: TOVU_INTEGRATIONS_ROOT_KEY is not set");
+    throw new Error("no site key: TOVU_SITE_KEY is not set");
   }
   async deriveSigningSecret(): Promise<Uint8Array> {
-    throw new Error("no root key");
+    throw new Error("no site key");
   }
   async derive(): Promise<Uint8Array> {
-    throw new Error("no root key");
+    throw new Error("no site key");
   }
 }
 

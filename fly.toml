@@ -52,7 +52,7 @@ primary_region = "iad" # PLACEHOLDER — confirm the intended region.
 
 [env]
   # Non-secret only. Real secrets (TOVU_ADMIN_PASSWORD, TOVU_ADMIN_USER,
-  # TOVU_INTEGRATIONS_ROOT_KEY — see docker-compose.yml's own comments for
+  # TOVU_SITE_KEY — see docker-compose.yml's own comments for
   # what each does) go through `fly secrets set`, never in this committed
   # file.
   TOVU_RUNTIME_MODE = "production"

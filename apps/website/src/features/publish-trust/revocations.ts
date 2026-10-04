@@ -170,7 +170,7 @@ function refusalMessage(refusal: Exclude<AdmissionRefusal, never>, siteLabel: st
     case "expired":
       return `This computer's connection to ${siteLabel} has run out. Reconnect it to carry on publishing.`;
     case "superseded-key":
-      return `${siteLabel} is still set up for this computer's previous sign-in. This happens right after the Site Token is regenerated — reconnect and deploy once to finish the change.`;
+      return `${siteLabel} is still set up for this computer's previous sign-in. This happens right after the Site key is regenerated — reconnect and deploy once to finish the change.`;
     case "revocations-unreadable":
       return `${siteLabel} can't check which computers are allowed to publish right now, so it isn't accepting changes. This clears once the site is healthy again.`;
   }

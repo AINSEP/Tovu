@@ -431,7 +431,7 @@ test("a tampered session payload is refused — the MAC covers every field", asy
   assert.match(result.ok ? "" : result.reason, /signature is invalid/);
 });
 
-test("a token minted under a different Site Token is refused", async () => {
+test("a token minted under a different Site key is refused", async () => {
   const clock = movableClock();
   const { token } = await mintPublishSession(
     { keyring: testKeyring(ATTACKER_ROOT), workspaceId: WORKSPACE, clock },

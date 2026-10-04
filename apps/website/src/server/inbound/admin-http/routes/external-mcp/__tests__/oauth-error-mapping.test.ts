@@ -188,7 +188,7 @@ test("an unconfigured secret store is a 503 SECRET_STORE_UNCONFIGURED, the same 
   const { app } = buildApp({
     service: {
       beginConnect: async () => {
-        throw new ExternalMcpSecretStoreUnconfiguredError("no root key is configured");
+        throw new ExternalMcpSecretStoreUnconfiguredError("no site key is configured");
       },
     },
   });
@@ -196,7 +196,7 @@ test("an unconfigured secret store is a 503 SECRET_STORE_UNCONFIGURED, the same 
 
   const res = await post(baseUrl, "/connect");
   assert.equal(res.status, 503);
-  assert.deepEqual(await res.json(), { error: "no root key is configured", code: "SECRET_STORE_UNCONFIGURED" });
+  assert.deepEqual(await res.json(), { error: "no site key is configured", code: "SECRET_STORE_UNCONFIGURED" });
 });
 
 test("a validation error is a 400 INVALID_MCP_SERVER naming the offending field", async (t) => {

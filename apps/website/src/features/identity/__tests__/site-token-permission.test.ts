@@ -135,7 +135,7 @@ async function dropAdminIntegrationsManage(repos: IdentityRepos): Promise<void> 
 test("an 'editor' principal does NOT hold admin.security.tokens.manage", async () => {
   const { principals, can } = await buildChain();
   const decision = await can(principals.editor, SITE_TOKEN_MANAGE);
-  assert.equal(decision.allowed, false, "editor must not be able to view/generate the root key");
+  assert.equal(decision.allowed, false, "editor must not be able to view/generate the site key");
   assert.equal(decision.reason, "no_grant");
 });
 
@@ -197,7 +197,7 @@ test("the pre-integrations-manage backfill is additive — it never invents an a
   const held = (await repos.policyPermissions.listByPolicyId({ workspaceId: WORKSPACE, policyId: policy.id })).map((row) => row.permission);
 
   assert.ok(held.includes(SITE_TOKEN_MANAGE), "the one capability under discussion is granted");
-  assert.ok(!held.includes(INTEGRATIONS_MANAGE), "restoring root-key management must not also silently restore integration-connection management");
+  assert.ok(!held.includes(INTEGRATIONS_MANAGE), "restoring site key management must not also silently restore integration-connection management");
 });
 
 test("a custom policy holding only the integrations anchor inherits token management through migration", async () => {

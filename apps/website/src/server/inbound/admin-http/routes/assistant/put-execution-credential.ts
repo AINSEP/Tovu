@@ -95,7 +95,7 @@ export const registerAdminAssistantPutExecutionCredentialRoute: AssistantSetting
       if (err instanceof ExecutionCredentialSecretStoreUnconfiguredError) {
         res.status(503).json({
           error:
-            "the execution credential secret store is not configured — set TOVU_INTEGRATIONS_ROOT_KEY (a hex-encoded root key) in the server environment",
+            "the execution credential secret store is not configured — set TOVU_SITE_KEY (a hex-encoded site key) in the server environment",
           code: "SECRET_STORE_UNCONFIGURED",
         });
         return;

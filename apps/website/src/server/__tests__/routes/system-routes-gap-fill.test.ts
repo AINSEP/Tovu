@@ -19,10 +19,10 @@ import type { RouteDeps } from "../../routes/types.js";
 
 const brokenSealer = {
   async seal(): Promise<never> {
-    throw new Error("TOVU_INTEGRATIONS_ROOT_KEY is not set");
+    throw new Error("TOVU_SITE_KEY is not set");
   },
   async open(): Promise<never> {
-    throw new Error("TOVU_INTEGRATIONS_ROOT_KEY is not set");
+    throw new Error("TOVU_SITE_KEY is not set");
   },
 } as unknown as RouteDeps["siteAssistantSecretSealer"];
 
@@ -31,13 +31,13 @@ for (const surface of [
     name: "custom-credentials",
     path: "system/custom/credentials",
     body: { label: "name.com", category: "general", baseUrl: "https://api.name.com", connection: { token: "sk_never_stored" } },
-    detail: /^custom credential secret store is unconfigured: TOVU_INTEGRATIONS_ROOT_KEY is not set$/,
+    detail: /^custom credential secret store is unconfigured: TOVU_SITE_KEY is not set$/,
   },
   {
     name: "source-control-credentials",
     path: "system/source-control/credentials",
     body: { label: "default", connection: { providerId: "github", token: "ghp_never_stored" } },
-    detail: /^source control credential secret store is unconfigured: TOVU_INTEGRATIONS_ROOT_KEY is not set$/,
+    detail: /^source control credential secret store is unconfigured: TOVU_SITE_KEY is not set$/,
   },
 ]) {
   test(`${surface.name}: POST with a secret store that cannot seal is 503 SECRET_STORE_UNCONFIGURED and stores no row`, async (t) => {

@@ -72,7 +72,7 @@ export function buildConfirmationSurface(spec: { plan: SiteBackupPlan; exchangeI
 
   const warning = [
     plan.database
-      ? "The database in this backup holds your members, form submissions, admin accounts and saved credentials (encrypted with this site's Site Token)."
+      ? "The database in this backup holds your members, form submissions, admin accounts and saved credentials (encrypted with this site's Site key)."
       : "The database is not included in this backup.",
     `The folder '${plan.folder}' in ${repoName} is replaced as a whole: files that are there now and not in this backup are removed from it. Nothing outside that folder changes.`,
     "This makes a real commit. Tovu cannot undo it.",

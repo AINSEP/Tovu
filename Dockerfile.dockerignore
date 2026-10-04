@@ -86,7 +86,7 @@ development/e2e
 **/*.key
 
 # Stray/duplicate site data outside the tracked repo-root `sites/` tree, and root-level dev
-# databases — found 2026-09-24 while auditing this file for the TOVU_INTEGRATIONS_ROOT_KEY leak
+# databases — found 2026-09-24 while auditing this file for the TOVU_SITE_KEY leak
 # risk: `apps/website/sites/tovu-com/content.db` (a real, non-empty content.db + WAL/shm sidecars,
 # left behind by running a dev server from an unusual cwd) is NOT reached by the `sites/*/content.db`
 # block above, because it isn't under the repo-root `sites/` this Dockerfile's `RUN rm -rf sites`

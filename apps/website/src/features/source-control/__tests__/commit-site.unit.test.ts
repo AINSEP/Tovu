@@ -230,7 +230,7 @@ test("commitSiteToSourceControl: no saved credential fails cleanly with NO_CREDE
  * `spawnAgentDaemon()`: "there is no retry path today"), so the escaped rejection would have taken
  * down the daemon process outright, not just answered one request with a 500.
  */
-test("commitSiteToSourceControl: a genuine decrypt failure (e.g. a boot with no root key) returns {ok:false, NO_CREDENTIALS_CONFIGURED} — the SAME 'never throws' contract every other failure mode already gets, never an unhandled rejection", async () => {
+test("commitSiteToSourceControl: a genuine decrypt failure (e.g. a boot with no site key) returns {ok:false, NO_CREDENTIALS_CONFIGURED} — the SAME 'never throws' contract every other failure mode already gets, never an unhandled rejection", async () => {
   const deps = await withGithubCredential(testRouteDeps());
   // A sealer backed by a DIFFERENT keyring than the one the credential was actually sealed under —
   // `sealer.open()` fails auth-tag verification, the same shape a missing root key produces live.

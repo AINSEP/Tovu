@@ -173,7 +173,7 @@ test("fly-server.md keeps secrets out of fly.toml and names all three as boot-bl
   const skill = await readSkill();
   assert.match(skill, /TOVU_ADMIN_PASSWORD/);
   assert.match(skill, /ANALYTICS_ROOT_KEY_SEED/);
-  assert.match(skill, /TOVU_INTEGRATIONS_ROOT_KEY/);
+  assert.match(skill, /TOVU_SITE_KEY/);
 
   // As of 2026-09-09 (ddfa5e07) all three are boot-blocking — TOVU_INTEGRATIONS_ROOT_KEY's old
   // silent-rekey-on-redeploy failure mode was closed by a boot gate, so there is no longer a

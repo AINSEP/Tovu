@@ -28,13 +28,13 @@ const PROVIDERS_PATH = `/api/admin/v1/workspaces/${WORKSPACE_ID}/media/providers
 /** Always fails — simulates a missing `TOVU_INTEGRATIONS_ROOT_KEY` without touching real env state. */
 class BrokenKeyring implements KeyringPort {
   async activeKey(): Promise<{ readonly keyId: string }> {
-    throw new Error("no root key: TOVU_INTEGRATIONS_ROOT_KEY is not set and allowFileFallback is disabled");
+    throw new Error("no site key: TOVU_SITE_KEY is not set and allowFileFallback is disabled");
   }
   async deriveSigningSecret(): Promise<Uint8Array> {
-    throw new Error("no root key");
+    throw new Error("no site key");
   }
   async derive(): Promise<Uint8Array> {
-    throw new Error("no root key");
+    throw new Error("no site key");
   }
 }
 
@@ -198,7 +198,7 @@ test("a UI-spelled provider id is rejected at the boundary with a 400", async (t
   assert.deepEqual(await (await get(baseUrl, PROVIDERS_PATH, cookie)).json(), {});
 });
 
-test("a missing master secret is a 503 SECRET_STORE_UNCONFIGURED, not a 500", async (t) => {
+test("a missing site key is a 503 SECRET_STORE_UNCONFIGURED, not a 500", async (t) => {
   const brokenKeyring = new BrokenKeyring();
   const { app } = buildTestApp({
     siteAssistantSecretKeyring: brokenKeyring,

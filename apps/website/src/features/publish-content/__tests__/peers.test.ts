@@ -282,7 +282,7 @@ test("a failing keyring fails CLOSED — the row is never written in plaintext",
     ...writeDeps(),
     keyring: {
       activeKey: async () => {
-        throw new Error("TOVU_INTEGRATIONS_ROOT_KEY is not set");
+        throw new Error("TOVU_SITE_KEY is not set");
       },
     } as unknown as PublishContentPeerWriteDeps["keyring"],
   };

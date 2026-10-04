@@ -35,12 +35,13 @@ rebuilt. Everything beside it is irreplaceable.
 ```
 sites/
   .tovu/
-    integrations-root-key.hex   generated fallback for TOVU_INTEGRATIONS_ROOT_KEY (production)
+    site-key.hex               site key on the durable production volume
+    <legacy key file>           read-only fallback for existing installs
   <name>/                       one folder per site, as above
 ```
 
-2026-09-09: `EnvOrFileKeyring`'s generated-file fallback (`apps/website/src/features/webhooks/
-keyring.env.ts`) writes here in production mode, specifically so it lands on this volume (durable
+The site-key writer targets this directory in production, so an explicitly created key lands
+on this volume (durable
 across a redeploy) rather than the container's `homedir()` (ephemeral rootfs). Deliberately a
 SIBLING of every site folder, never nested inside one: the "Backing a site up" section above copies
 `sites/<name>/` alone as a complete, self-contained backup, and this key must never ride along with

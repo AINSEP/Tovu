@@ -65,7 +65,7 @@ const HANDSHAKE_REFUSAL = { error: "the publishing handshake was refused", code:
 /** What every handshake route answers when this install has no usable root key, so it has no
  *  installation id to state or sign against. Says nothing about any grant, like `/identity`. */
 const NO_SITE_TOKEN = {
-  error: "This site has no usable Site Token yet, so it cannot accept publishes. Set one up on this site first.",
+  error: "This site has no usable Site key yet, so it cannot accept publishes. Set one up on this site first.",
   code: "SECRET_STORE_UNCONFIGURED",
 } as const;
 

@@ -80,7 +80,7 @@ test("each destination gets its own key — a signature for one cannot authentic
   );
 });
 
-test("regenerating the Site Token changes the publishing key — rotation for free", async () => {
+test("regenerating the Site key changes the publishing key — rotation for free", async () => {
   const underSiteTokenA = await derivePublishSigningKey(keyInput({ keyring: testKeyring(ROOT_A) }));
   const underSiteTokenB = await derivePublishSigningKey(keyInput({ keyring: testKeyring(ROOT_B) }));
   assert.notEqual(underSiteTokenA.publicKeyB64u, underSiteTokenB.publicKeyB64u);

@@ -282,7 +282,7 @@ test("connecting learns the destination's workspace instead of asking a human fo
     assert.equal(grants.length, 1);
     assert.equal(grants[0].workspaceId, s.destinationDeps.workspaceId);
     assert.match(written, /"publicKeys"/);
-    assert.ok(!written.includes(SOURCE_ROOT_KEY), "the Site Token must never reach committed config");
+    assert.ok(!written.includes(SOURCE_ROOT_KEY), "the Site key must never reach committed config");
     assert.ok(!/privateKey|secret|apiKey/i.test(written), written);
     const [seed] = await s.sourceDeps.postRepo.list({ workspaceId: "workspace-local" });
     assert.ok(seed);

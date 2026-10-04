@@ -1,6 +1,6 @@
 ---
 name: deploy
-description: Put the site online on a hosting service, using the workspace's own saved credentials. Covers picking a host, getting a token, previewing before publishing, and explaining failures in plain words. Hosts this plugin currently runs itself - Netlify, Cloudflare Pages, Vercel, GitHub Pages, S3-compatible storage. Also deploys the Tovu server itself to fly.io with no CLI installed (flyctl runs on GitHub's runner) - one machine only (SQLite), the volume shadowing sites/, secrets never in fly.toml, the sealed-credential root key, and deploying ships code, not content.
+description: Put the site online on a hosting service, using the workspace's own saved credentials. Covers picking a host, getting a token, previewing before publishing, and explaining failures in plain words. Hosts this plugin currently runs itself - Netlify, Cloudflare Pages, Vercel, GitHub Pages, S3-compatible storage. Also deploys the Tovu server itself to fly.io with no CLI installed (flyctl runs on GitHub's runner) - one machine only (SQLite), the volume shadowing sites/, secrets never in fly.toml, the sealed-credential site key, and deploying ships code, not content.
 ---
 
 # Deploy the site to a host
@@ -44,7 +44,7 @@ A different job from publishing the static export: this puts the Tovu server its
 database) on one fly.io machine, through a GitHub Actions workflow, so nobody installs flyctl or
 Docker. Read `references/fly-server.md` before any step: it has the five Fly rules generic fly.io
 advice gets wrong (one machine only, the volume shadowing `sites/`, secrets never in `fly.toml`,
-`TOVU_INTEGRATIONS_ROOT_KEY` before the first deploy, migrations apply themselves), the procedure, and
+`TOVU_SITE_KEY` before the first deploy, migrations apply themselves), the procedure, and
 the two templates it writes (`references/fly.template.toml`, `references/fly-deploy.template.yml`).
 Say first: deploying ships code, not content. Every GitHub step belongs to the bundled `github`
 plugin.

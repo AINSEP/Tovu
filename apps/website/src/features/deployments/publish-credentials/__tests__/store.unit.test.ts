@@ -33,13 +33,13 @@ import type { DeployTargetRegistry, LoadedDeployTarget } from "#src/features/dep
  *  for the identical class of problem on a sibling secret store. */
 class BrokenKeyring implements KeyringPort {
   async activeKey(): Promise<{ readonly keyId: string }> {
-    throw new Error("no root key: TOVU_INTEGRATIONS_ROOT_KEY is not set and allowFileFallback is disabled");
+    throw new Error("no site key: TOVU_SITE_KEY is not set and allowFileFallback is disabled");
   }
   async deriveSigningSecret(): Promise<Uint8Array> {
-    throw new Error("no root key");
+    throw new Error("no site key");
   }
   async derive(): Promise<Uint8Array> {
-    throw new Error("no root key");
+    throw new Error("no site key");
   }
 }
 
@@ -186,7 +186,7 @@ test("resolveForPublish returns null for a non-existent id — not an error", as
  * already had a passing "throws on a bad AAD" test above; a raw `Error` would satisfy that just as
  * well as this typed one does, which is exactly how this gap went unnoticed.
  */
-test("resolveForPublish converts a decrypt failure (missing root key) into the typed PublishCredentialSecretStoreUnconfiguredError, never a raw Error the route layer's sendStoreError cannot map", async () => {
+test("resolveForPublish converts a decrypt failure (missing site key) into the typed PublishCredentialSecretStoreUnconfiguredError, never a raw Error the route layer's sendStoreError cannot map", async () => {
   const workingDeps = makeDeps();
   const created = await createPublishCredential(workingDeps, {
     workspaceId: WORKSPACE,

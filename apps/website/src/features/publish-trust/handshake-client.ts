@@ -177,7 +177,7 @@ async function callHandshake(
     // `handshake.ts` answers this when the destination has no usable root key. No retry fixes it,
     // so the sentence names the fix instead of "try again".
     throw new PublishTrustHandshakeError(
-      `${site} has no Site Token set up yet, so it cannot accept publishes. Set one up on that site, then try again.`,
+      `${site} has no Site key set up yet, so it cannot accept publishes. Set one up on that site, then try again.`,
       "refused"
     );
   }

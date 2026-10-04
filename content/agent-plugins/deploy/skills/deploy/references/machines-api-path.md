@@ -16,7 +16,7 @@ installed anywhere:
 1. `POST /v1/apps` — create the app.
 2. `POST /v1/apps/<app>/volumes` — create the volume, mounted at `/workspace/Tovu/sites`.
 3. `POST /v1/apps/<app>/secrets/...` — set `TOVU_ADMIN_PASSWORD`, `ANALYTICS_ROOT_KEY_SEED`,
-   and `TOVU_INTEGRATIONS_ROOT_KEY`.
+   and `TOVU_SITE_KEY`.
 4. `POST /v1/apps/<app>/machines` with `config.image` — start exactly one machine.
 5. `GET /v1/apps/<app>/machines` — poll until healthy, checking `/readyz`.
 
@@ -53,6 +53,6 @@ If an operator asks for a CLI-free deploy that skips GitHub: the honest answer i
 mechanism is ready and the image is not. Say that, and use the CI path.
 
 **Every rule in `references/fly-server.md` still applies to this path** — one machine, the volume
-shadowing `sites/`, secrets never in committed config, `TOVU_INTEGRATIONS_ROOT_KEY` set
+shadowing `sites/`, secrets never in committed config, `TOVU_SITE_KEY` set
 explicitly, and code-not-content. Rule 1 in particular becomes *more* load-bearing here, since
 `POST /v1/apps/<app>/machines` will happily create a second machine with no warning at all.

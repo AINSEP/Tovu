@@ -17,7 +17,7 @@ const clock = { nowIso: () => "2026-09-26T00:00:00.000Z" };
 
 /** Registers the routes on a stand-in app and returns each handler by `METHOD path`. */
 function routes(overrides: Partial<PublishTrustHandshakeDeps> = {}): Map<string, Handler> {
-  const noKey = Promise.reject(new Error("no root key"));
+  const noKey = Promise.reject(new Error("no site key"));
   noKey.catch(() => undefined);
   const handlers = new Map<string, Handler>();
   const app = {
@@ -75,7 +75,7 @@ function fakeRes() {
 }
 
 const KEYLESS_BODY = {
-  error: "This site has no usable Site Token yet, so it cannot accept publishes. Set one up on this site first.",
+  error: "This site has no usable Site key yet, so it cannot accept publishes. Set one up on this site first.",
   code: "SECRET_STORE_UNCONFIGURED",
 };
 

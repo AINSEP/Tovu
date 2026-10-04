@@ -43,5 +43,5 @@ test("installUnhandledRejectionGuard: with the guard installed, the SAME unhandl
   assert.equal(code, 0, "the process must exit cleanly, not be terminated by the rejection");
   assert.equal(stdout.includes("STILL_ALIVE"), true, "the deferred `setTimeout` callback firing is direct proof the process was still alive well after the rejection — a dead process cannot print this");
   assert.match(stderr, /\[unhandledRejection\]/, "the guard must emit its diagnostic to stderr");
-  assert.match(stderr, /Error: simulated: no root key/, "the diagnostic must include the rejected error's reason");
+  assert.match(stderr, /Error: simulated: no site key/, "the diagnostic must include the rejected error's reason");
 });

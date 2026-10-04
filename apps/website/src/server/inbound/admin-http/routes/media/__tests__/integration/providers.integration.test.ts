@@ -200,7 +200,7 @@ test("put-providers: an unconfigured secret store 503s", async (t) => {
     siteAssistantSecretKeyring: {
       ...base.siteAssistantSecretKeyring,
       activeKey: async () => {
-        throw new Error("no root key configured");
+        throw new Error("no site key configured");
       },
     },
   });

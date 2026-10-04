@@ -979,7 +979,7 @@ function sealerThatOpensAFutureSchemaVersion(inner: SecretSealerPort): SecretSea
  *  re-seal. Never recovers — models a sustained outage, not a blip. */
 function keyringWithNoActiveKey(inner: KeyringPort): KeyringPort {
   return {
-    activeKey: () => Promise.reject(new Error("TOVU_INTEGRATIONS_ROOT_KEY is not set")),
+    activeKey: () => Promise.reject(new Error("TOVU_SITE_KEY is not set")),
     deriveSigningSecret: (input) => inner.deriveSigningSecret(input),
     derive: (input) => inner.derive(input),
   };
@@ -993,7 +993,7 @@ function keyringWhoseActiveKeyFailsThenRecovers(inner: KeyringPort, failures: nu
   return {
     activeKey: () => {
       calls += 1;
-      if (calls <= failures) return Promise.reject(new Error("TOVU_INTEGRATIONS_ROOT_KEY is not set"));
+      if (calls <= failures) return Promise.reject(new Error("TOVU_SITE_KEY is not set"));
       return inner.activeKey();
     },
     deriveSigningSecret: (input) => inner.deriveSigningSecret(input),
@@ -1037,7 +1037,7 @@ function serviceWithBrokenDependency(
 
 const CONNECTED_SCRIPT: readonly ScriptStep[] = [{ json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }];
 
-test("disconnect still clears an UNOPENABLE blob and reaches disconnected — a rotated root key must not wedge the escape hatch", async () => {
+test("disconnect still clears an UNOPENABLE blob and reaches disconnected — a rotated site key must not wedge the escape hatch", async () => {
   const base = await makeHarness({ script: CONNECTED_SCRIPT });
   await connect(base.service);
   const service = serviceWithBrokenDependency(base, { sealer: sealerThatCannotOpen(base.sealer) });

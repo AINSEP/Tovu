@@ -193,10 +193,10 @@ test("the never-connected refusal says what to do, in ordinary words", () => {
   assert.match(admission.allowed === false ? admission.message : "", /nothing to copy and no key to keep/);
 });
 
-test("a rotated Site Token is explained as a rotation, not as a mystery", () => {
+test("a rotated Site key is explained as a rotation, not as a mystery", () => {
   const admission = ask({ grants: [grantFor("laptop")], revocations: [], publicKeyB64u: "pk-after-regenerate" });
   assert.equal(admission.allowed === false && admission.refusal, "superseded-key");
-  assert.match(admission.allowed === false ? admission.message : "", /Site Token is regenerated/);
+  assert.match(admission.allowed === false ? admission.message : "", /Site key is regenerated/);
 });
 
 // ---------------------------------------------------------------------------

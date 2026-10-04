@@ -63,7 +63,7 @@ name: Deploy to Fly.io
 #        four checks `collectUnsafeDefaultFailures` (production-readiness-gate.ts:77-84) fails
 #        boot on. Set it to any random value before the first production deploy, e.g.:
 #        node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
-#      - TOVU_INTEGRATIONS_ROOT_KEY — NOT boot-blocking (absent from the gate entirely — see
+#      - TOVU_SITE_KEY — NOT boot-blocking (absent from the gate entirely — see
 #        deploy-config.ts:109-115), but every route needing at-rest secret encryption (visitor AI
 #        assistant provider credentials, the newsletter integration) fails closed with
 #        503 SECRET_STORE_UNCONFIGURED until it's set. Strongly recommended before first real use;

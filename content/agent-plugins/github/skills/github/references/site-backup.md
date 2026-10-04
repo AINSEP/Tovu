@@ -81,7 +81,7 @@ database snapshot's size. Anything skipped and any notes come next, then every f
 line each, capped at 200 lines.
 
 Its warning says three things. The database holds members, form submissions, admin accounts and
-saved credentials, encrypted with the site's Site Token. The folder is replaced as a whole, and
+saved credentials, encrypted with the site's Site key. The folder is replaced as a whole, and
 nothing outside it changes. And this is a real commit that Tovu cannot undo.
 
 | Result | Meaning |
@@ -110,7 +110,7 @@ not in the backup, though the database still lists every media item. Pass that o
 
 **Never in a backup, by design:** chat history and chat attachments, the rendered export, MCP
 server config files (they can hold tokens), plugin OAuth data, and `.git`. Symbolic links are never
-followed; each is listed in `skipped`. The Site Token is not in the backup either. The saved
+followed; each is listed in `skipped`. The Site key is not in the backup either. The saved
 credentials inside the database are encrypted with it, so the human needs to keep it safe on their
 own.
 
@@ -122,7 +122,7 @@ own.
 |---|---|---|
 | `CREDENTIAL_NOT_FOUND` | No saved credential has that label, or none points at `https://api.github.com` | Save a GitHub token on the **Access Tokens** page (*Add custom provider*, base URL `https://api.github.com`), or name the right label with `credential`. Never have a token typed into the chat. |
 | `CREDENTIAL_AMBIGUOUS` | More than one saved credential points at GitHub | Ask which one, then plan with `credential` |
-| `CREDENTIAL_UNREADABLE` | The credential **is saved** but this server cannot decrypt it | Not a bad GitHub token, so replacing it is the wrong first move. It starts with the **Site Token**, and the message names which case applies. No Site Token: start Tovu with it (`npm run dev` from the repo root, or `npm run desktop`). Malformed: fix it under **Secrets → Site Token**. A different Site Token from the one the credential was saved under: check **Secrets → Site Token**, or save the credential again. |
+| `CREDENTIAL_UNREADABLE` | The credential **is saved** but this server cannot decrypt it | Not a bad GitHub token, so replacing it is the wrong first move. It starts with the **Site key**, and the message names which case applies. No Site key: start Tovu with it (`npm run dev` from the repo root, or `npm run desktop`). Malformed: fix it under **Secrets → Site key**. A different Site key from the one the credential was saved under: check **Secrets → Site key**, or save the credential again. |
 | `REPOSITORY_NOT_FOUND` | This credential cannot see that `owner/repo` | Confirm the names, then the token's repository access |
 | `REPOSITORY_NOT_PRIVATE` | Public or internal | Back up to a private repository. Never offer a public one |
 | `NO_PUSH_PERMISSION` | The token can read the repository but not push to it | The token needs write access to the repository's contents. That change is made on GitHub. |

@@ -120,9 +120,9 @@ committed file:
 |---|---|---|
 | `TOVU_ADMIN_PASSWORD` | **Boot-blocking** | The production readiness gate refuses to boot. `hasDefaultOwnerPassword` is true whenever it is unset **or still equal to the default**, and that is one of the `collectUnsafeDefaultFailures` checks. |
 | `ANALYTICS_ROOT_KEY_SEED` | **Boot-blocking** | `hasDevSecretPlaceholder` is literally `!process.env.ANALYTICS_ROOT_KEY_SEED`. Unset means the app falls back to the dev placeholder seed, and the gate refuses to boot. |
-| `TOVU_INTEGRATIONS_ROOT_KEY` | **Boot-blocking.** See Rule 4. | `hasMissingIntegrationsRootKey` is `!process.env.TOVU_INTEGRATIONS_ROOT_KEY`. Unset in production and the gate refuses to boot with `PRODUCTION_BOOT_UNSAFE_DEFAULT` (`missing-integrations-root-key`) — it must be set in fly secrets **before** the first deploy. |
+| `TOVU_SITE_KEY` | **Boot-blocking.** See Rule 4. | The gate checks the shared site-key reader. Missing environment and durable-file material refuses production boot (`missing-site-key`); conflicting env names refuse with `site-key-env-conflict`. Set this secret before the first deploy. |
 
-Both boot-blocking checks only run when `TOVU_RUNTIME_MODE=production`, which the template
+These boot-blocking checks only run when `TOVU_RUNTIME_MODE=production`, which the template
 sets. Generate either value as 32 random bytes hex:
 
 ```
@@ -133,40 +133,30 @@ node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
 write, a commit message, or your reply. If a secret value has to exist, the operator types it —
 into GitHub's secret form, or into `custom_credential_set_token`'s masked field.
 
-### Rule 4 — `TOVU_INTEGRATIONS_ROOT_KEY` must be set before the first deploy, or the boot refuses.
+### Rule 4 — provision `TOVU_SITE_KEY` before the first deploy.
 
-**This is a boot-blocking prerequisite, not a footnote — read it before you set app secrets.** A
-production boot with this var unset now fails loudly (`PRODUCTION_BOOT_UNSAFE_DEFAULT`,
-`missing-integrations-root-key`), fixed 2026-09-09 after this used to fail silently — the
-history below is why it matters, not a description of today's behavior.
+The site key protects saved credentials. Production requires a usable environment key or an
+existing durable-volume key; otherwise the boot gate refuses with `missing-site-key`.
+The preferred environment name is `TOVU_SITE_KEY`. The deprecated name remains a read-only
+fallback during the migration window. If both names are set to different keys, boot refuses with
+`site-key-env-conflict`; neither key is selected and no key file is written.
 
-`EnvOrFileKeyring.resolveRootKey()` resolves the master key in this order:
+Readers never generate keys. Production reads the environment first, then the durable-volume
+file `sites/.tovu/site-key.hex`, then the legacy volume file. Local sites automatically create
+or adopt their own key outside the portable site folder; no Generate click is needed.
+Newsletter and webhook signing require the environment key in production.
 
-1. `process.env.TOVU_INTEGRATIONS_ROOT_KEY`, hex-decoded. If present, done.
-2. Otherwise — and `allowFileFallback` defaults to **true** outside production — it looks for
-   `~/.tovu/integrations-root-key.hex`.
-3. If that file does not exist, it generates 32 random bytes, writes them to that path, and uses
-   them.
-
-In the container, `USER node`, so `~` is `/home/node` — **not** on the volume, which is mounted
-at `/workspace/Tovu/sites`. The container filesystem is ephemeral, so step 2/3's fallback file
-never survives a redeploy. That used to matter silently: every deploy and every machine restart
-would generate a brand-new random master key, and every credential sealed under the previous key
-became permanently undecryptable, with nothing reporting it. The production readiness gate now
-closes exactly that gap by refusing to boot instead of falling back — the fallback itself still
-exists (for local dev, where it's harmless), it is just no longer reachable in production.
-
-So, before the first deploy, set it explicitly:
+For a brand-new install only, the operator can generate a key and set it privately:
 
 ```
-fly secrets set TOVU_INTEGRATIONS_ROOT_KEY=$(openssl rand -hex 32) -a <app>
+fly secrets set TOVU_SITE_KEY=$(openssl rand -hex 32) -a <app>
 ```
 
-**Never rotate it casually once set.** Treat it as the one value whose loss is unrecoverable —
-every credential sealed under the old key becomes undecryptable the moment the key changes,
-boot-blocking gate or not. If the operator already deployed without it, before this fix shipped,
-say plainly that credentials saved on the server so far are gone and must be re-entered — do not
-imply they can be recovered.
+For an existing install, **reuse the existing key bytes** under the new name, verify the site
+still unlocks its saved credentials, then remove the deprecated variable. Do not run the random
+key command above as a rename. Never rotate casually: a different key cannot recover data
+sealed under the old key. Changed keys leave old credentials undecryptable without their original
+site key. Keep a private backup of the existing key.
 
 ### Rule 5 — Migrations apply themselves. Do not add a migration step.
 

@@ -27,13 +27,13 @@ import {
  *  on why this table's decrypt path is not shared with the publish-credentials sibling). */
 class BrokenKeyring implements KeyringPort {
   async activeKey(): Promise<{ readonly keyId: string }> {
-    throw new Error("no root key: TOVU_INTEGRATIONS_ROOT_KEY is not set and allowFileFallback is disabled");
+    throw new Error("no site key: TOVU_SITE_KEY is not set and allowFileFallback is disabled");
   }
   async deriveSigningSecret(): Promise<Uint8Array> {
-    throw new Error("no root key");
+    throw new Error("no site key");
   }
   async derive(): Promise<Uint8Array> {
-    throw new Error("no root key");
+    throw new Error("no site key");
   }
 }
 
@@ -92,7 +92,7 @@ test("resolveDefaultForSourceControl throws on a genuine decrypt failure rather 
  * TYPE, not just that it throws — the test right above already proved "rejects", and a raw `Error`
  * satisfies that assertion just as well as this typed one does, which is exactly how this gap hid.
  */
-test("resolveDefaultForSourceControl converts a decrypt failure (missing root key) into the typed SourceControlCredentialSecretStoreUnconfiguredError, never a raw Error", async () => {
+test("resolveDefaultForSourceControl converts a decrypt failure (missing site key) into the typed SourceControlCredentialSecretStoreUnconfiguredError, never a raw Error", async () => {
   const workingDeps = makeDeps();
   await createSourceControlCredential(workingDeps, { workspaceId: WORKSPACE, label: "x", connection: { providerId: "github", token: "t" } });
 

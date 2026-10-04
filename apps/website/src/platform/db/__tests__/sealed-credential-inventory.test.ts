@@ -220,7 +220,7 @@ for (const each of eachDialect({ tables: TABLES, make: (kernel) => kernel })) {
     assertNoSecretIn(inventory, fixture.secrets);
   });
 
-  test(`the same rows sealed under a DIFFERENT root key report opensUnderActiveKey=false rather than throwing [${each.name}]`, async () => {
+  test(`the same rows sealed under a DIFFERENT site key report opensUnderActiveKey=false rather than throwing [${each.name}]`, async () => {
     const other = await freshFixture(each.make());
     const activeKeyring = new InMemoryKeyring();
     const inventory = await listSealedCredentials(depsFor(other, { sealer: new AesGcmSecretSealer(activeKeyring), keyring: activeKeyring }));
@@ -268,7 +268,7 @@ for (const each of eachDialect({ tables: TABLES, make: (kernel) => kernel })) {
     assert.equal(vendor?.unknownReason, "no-descriptor");
   });
 
-  test(`undeterminable: with no root key source present, every row is unknown/no-root-key and the sealer is never called [${each.name}]`, async () => {
+  test(`undeterminable: with no site key source present, every row is unknown/no-root-key and the sealer is never called [${each.name}]`, async () => {
     const fixture = await freshFixture(each.make());
     const sealer = countingSealer(fixture.sealer);
     const inventory = await listSealedCredentials(depsFor(fixture, { sealer, keyring: fixture.keyring, hasRootKeySource: () => false }));

@@ -35,7 +35,7 @@ function sendPutSiteCredentialError(res: Response, err: unknown): void {
   if (err instanceof SiteAssistantSecretStoreUnconfiguredError) {
     res.status(503).json({
       error:
-        "site assistant secret store is not configured — set TOVU_INTEGRATIONS_ROOT_KEY (a hex-encoded root key) in the server environment",
+        "site assistant secret store is not configured — set TOVU_SITE_KEY (a hex-encoded site key) in the server environment",
       code: "SECRET_STORE_UNCONFIGURED",
     });
     return;

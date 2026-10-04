@@ -67,7 +67,7 @@ export const registerAdminMediaPutProvidersRoute: MediaProviderRouteRegistrar = 
       if (err instanceof MediaProviderCredentialSecretStoreUnconfiguredError) {
         res.status(503).json({
           error:
-            "the media provider credential store is not configured — set TOVU_INTEGRATIONS_ROOT_KEY (a hex-encoded root key) in the server environment",
+            "the media provider credential store is not configured — set TOVU_SITE_KEY (a hex-encoded site key) in the server environment",
           code: "SECRET_STORE_UNCONFIGURED",
         });
         return;

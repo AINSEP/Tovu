@@ -39,13 +39,13 @@ function makeDeps() {
  *  touching real env state. */
 class BrokenKeyring implements KeyringPort {
   async activeKey(): Promise<{ readonly keyId: string }> {
-    throw new Error("no root key: TOVU_INTEGRATIONS_ROOT_KEY is not set");
+    throw new Error("no site key: TOVU_SITE_KEY is not set");
   }
   async deriveSigningSecret(): Promise<Uint8Array> {
-    throw new Error("no root key");
+    throw new Error("no site key");
   }
   async derive(): Promise<Uint8Array> {
-    throw new Error("no root key");
+    throw new Error("no site key");
   }
 }
 
@@ -237,10 +237,10 @@ class NonErrorThrowingKeyring implements KeyringPort {
     throw "boom: no key material available";
   }
   async deriveSigningSecret(): Promise<Uint8Array> {
-    throw new Error("no root key");
+    throw new Error("no site key");
   }
   async derive(): Promise<Uint8Array> {
-    throw new Error("no root key");
+    throw new Error("no site key");
   }
 }
 
@@ -261,7 +261,7 @@ test("a non-Error rejection from the keyring is still stringified into the secre
   );
 });
 
-test("a missing master secret fails closed WITHOUT writing or deleting anything", async () => {
+test("a missing site key fails closed WITHOUT writing or deleting anything", async () => {
   const { repo, deps } = makeDeps();
   await saveMediaProviderCredentials(deps, {
     workspaceId: WORKSPACE,
@@ -548,7 +548,7 @@ test("resolveMediaProviderCredential returns null (not an error) for a row saved
   assert.equal(resolved, null, "no sealed key means nothing to decrypt — this must not throw or fabricate a key");
 });
 
-test("resolveMediaProviderCredential fails closed with MediaProviderCredentialSecretStoreUnconfiguredError when the master secret is unavailable at decrypt time", async () => {
+test("resolveMediaProviderCredential fails closed with MediaProviderCredentialSecretStoreUnconfiguredError when the site key is unavailable at decrypt time", async () => {
   const repo = new InMemoryMediaProviderCredentialRepo();
   const workingKeyring = new InMemoryKeyring();
   const workingSealer = new AesGcmSecretSealer(workingKeyring);

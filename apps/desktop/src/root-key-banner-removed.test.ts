@@ -25,13 +25,13 @@ function source(...parts: string[]) {
   return raw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
 }
 
-test("main.ts no longer imports or installs the root-key boot guard", () => {
+test("main.ts no longer imports or installs the site key boot guard", () => {
   const mainProcess = source("main.ts");
   assert.doesNotMatch(mainProcess, /installRootKeyBootGuard/, "main.ts still references installRootKeyBootGuard");
   assert.doesNotMatch(mainProcess, /root-key-boot-guard\.ts/, "main.ts still imports root-key-boot-guard.ts");
 });
 
-test("the renderer entry no longer mounts the root-key banner", () => {
+test("the renderer entry no longer mounts the site key banner", () => {
   const rendererEntry = source("src", "renderer", "main.tsx");
   assert.doesNotMatch(rendererEntry, /RootKeyBanner/, "main.tsx still references RootKeyBanner");
   assert.doesNotMatch(rendererEntry, /<RootKeyBanner\s*\/>/, "main.tsx still mounts <RootKeyBanner />");
@@ -43,13 +43,13 @@ test("the renderer bridge no longer declares rootKeyStatus", () => {
   assert.doesNotMatch(runnerApi, /contracts\/root-key\.js/, "runner-api.ts still imports contracts/root-key.js");
 });
 
-test("the preload no longer exposes the root-key status channel", () => {
+test("the preload no longer exposes the site key status channel", () => {
   const preload = source("src", "preload", "preload.mts");
   assert.doesNotMatch(preload, /rootKeyStatus/, "preload.mts still exposes rootKeyStatus");
   assert.doesNotMatch(preload, /ROOT_KEY_CHANNELS/, "preload.mts still references ROOT_KEY_CHANNELS");
 });
 
-test("none of the deleted root-key module files remain on disk", () => {
+test("none of the deleted site key module files remain on disk", () => {
   const deleted = [
     "src/root-key-status.ts",
     "src/root-key-status.test.ts",

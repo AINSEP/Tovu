@@ -37,13 +37,13 @@ const CREDENTIALS_PATH = "system/publish/credentials";
  *  the identical class of problem on a sibling secret store. */
 class BrokenKeyring implements KeyringPort {
   async activeKey(): Promise<{ readonly keyId: string }> {
-    throw new Error("no root key: TOVU_INTEGRATIONS_ROOT_KEY is not set and allowFileFallback is disabled");
+    throw new Error("no site key: TOVU_SITE_KEY is not set and allowFileFallback is disabled");
   }
   async deriveSigningSecret(): Promise<Uint8Array> {
-    throw new Error("no root key");
+    throw new Error("no site key");
   }
   async derive(): Promise<Uint8Array> {
-    throw new Error("no root key");
+    throw new Error("no site key");
   }
 }
 
@@ -570,7 +570,7 @@ test("publish-credentials: a network failure during POST .../:id/verify reports 
  * the one after: a second, unrelated request against the SAME live server, issued right after the
  * failing one — a dead process cannot answer this; it would `ECONNREFUSED`/reject, not return 200.
  */
-test("publish-credentials: a root key missing at verify time (present at save time) 503s with SECRET_STORE_UNCONFIGURED, and the server survives to answer the next request", async (t) => {
+test("publish-credentials: a site key missing at verify time (present at save time) 503s with SECRET_STORE_UNCONFIGURED, and the server survives to answer the next request", async (t) => {
   // App 1: a normal, working sealer — saves the credential the way a healthy prior boot would have.
   const deps1 = createRouteDeps();
   const app1 = createApp(deps1);

@@ -329,7 +329,7 @@ function toByokProtocol(provider: string): ByokProtocol | null {
  */
 function describeMissingKey(protocol: ByokProtocol, storedKeyPresent: boolean): string {
   const unopenable = storedKeyPresent
-    ? " A key IS stored for this workspace but could not be decrypted — check that the server's TOVU_INTEGRATIONS_ROOT_KEY is the same one it was saved under, then re-save the key."
+    ? " A key IS stored for this workspace but could not be decrypted — check that the server's TOVU_SITE_KEY is the same one it was saved under, then re-save the key."
     : "";
   if (protocol === "google") {
     return `site assistant is not configured — save a key on the Visitor's AI Assistant admin tab, or set GEMINI_API_KEY in the server environment.${unopenable}`;

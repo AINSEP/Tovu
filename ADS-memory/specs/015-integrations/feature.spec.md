@@ -50,7 +50,7 @@ Integrations owns the outbound webhook subsystem: subscription CRUD (gated admin
 - No `webhooks.beforeDispatch` hook is registered anywhere at runtime; `processDueDeliveries`'s `hooks` parameter defaults to `[]`.
 - No API-key admin surface (list/prefix/last-used/revoke over identity's `api_keys`) exists in this admin section at all — the section is 100% webhooks.
 
-**Desired state (per ADR-036, for context — not this spec's job to build):** an operator manages webhook subscriptions and outbound API keys from one admin section; every subscribed domain event reliably fans out, signs, and delivers with retry/backoff/dead-lettering through a real running delivery worker against a real guarded HTTP transport; signing secrets are derived from a real `KeyringPort` root key, never a dev map.
+**Desired state (per ADR-036, for context — not this spec's job to build):** an operator manages webhook subscriptions and outbound API keys from one admin section; every subscribed domain event reliably fans out, signs, and delivers with retry/backoff/dead-lettering through a real running delivery worker against a real guarded HTTP transport; signing secrets are derived from a real `KeyringPort` site key, never a dev map.
 
 **Why now (why this spec exists):** to give the already-shipped code the spec package it should have had, so downstream stages (Red-Team, Software Architect for the still-missing runtime wiring, Programmer) have a precise, evidence-sourced account of what is real versus stubbed, instead of relying on ADR-036 prose that has already drifted from the code in at least two material ways (the permission string; the "delivery worker is the first real consumer" claim, which undersells that nothing consumes it yet).
 
@@ -192,7 +192,7 @@ Integrations owns the outbound webhook subsystem: subscription CRUD (gated admin
 - INV-03: `processDueDeliveries` never calls `httpClient.send` after a `beforeDispatch` hook has thrown, rejected, or vetoed (`{ send: false }`) — fail-closed by behavior, not merely by comment, per ADR-036's Round-3 audit fold.
 - INV-04: The exact `rawBody` string passed to `signer.signForSubscription` is the same string passed to `httpClient.send`'s `body` — no re-serialization occurs between signing and sending.
 - INV-05: A delivery never exceeds `MAX_DELIVERY_ATTEMPTS` (8) attempts before transitioning to `dead`.
-- INV-06: No signing secret, root key, or sealed-secret plaintext ever appears in any `AdminWebhookSubscriptionResponse`/`AdminWebhookDeliveryResponse` JSON payload — the response DTOs (`src/server/http/admin/integrations.ts`) only ever project `secretVersion`/`previousSecretVersion` (a generation number), never key material.
+- INV-06: No signing secret, site key, or sealed-secret plaintext ever appears in any `AdminWebhookSubscriptionResponse`/`AdminWebhookDeliveryResponse` JSON payload — the response DTOs (`src/server/http/admin/integrations.ts`) only ever project `secretVersion`/`previousSecretVersion` (a generation number), never key material.
 - INV-07: Every mutation to a `WebhookSubscriptionRecord` goes through `subscriptions.ts`'s exported functions (`createSubscription`/`updateSubscription`/`pauseSubscription`/`deleteSubscription`) — no route or UI code constructs or persists a record directly.
 
 ---

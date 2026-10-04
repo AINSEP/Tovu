@@ -251,7 +251,7 @@ test("site-backup.md: a site backup is plan-then-push, private-only, and never f
   // Site Token, and swapping the GitHub token would not help.
   assert.match(backup, /CREDENTIAL_NOT_FOUND/);
   assert.match(backup, /CREDENTIAL_UNREADABLE/);
-  assert.match(backup, /Site Token/);
+  assert.match(backup, /Site key/);
   assert.match(backup, /npm run dev/);
   assert.match(backup, /npm run desktop/);
 

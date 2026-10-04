@@ -41,7 +41,7 @@ test("dialog names the private target, replacement, scopes, sensitive database a
     Contents: "tovu-backup.json (manifest)\ndatabase/content.db (2 B)",
   });
   assert.equal(h.doc.querySelector(".mcpui-warning")?.textContent,
-    "The database in this backup holds your members, form submissions, admin accounts and saved credentials (encrypted with this site's Site Token). The folder 'site-eight' in team/archive is replaced as a whole: files that are there now and not in this backup are removed from it. Nothing outside that folder changes. This makes a real commit. Tovu cannot undo it.");
+    "The database in this backup holds your members, form submissions, admin accounts and saved credentials (encrypted with this site's Site key). The folder 'site-eight' in team/archive is replaced as a whole: files that are there now and not in this backup are removed from it. Nothing outside that folder changes. This makes a real commit. Tovu cannot undo it.");
   const encoded = h.resource.resource.text.match(/var PLAN = (.*);/);
   assert.ok(encoded);
   assert.deepEqual(JSON.parse(encoded[1]), {

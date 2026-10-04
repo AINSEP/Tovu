@@ -91,7 +91,7 @@ test("a sealed address copied onto another workspace's row does not open, and sa
   });
 });
 
-test("a destination sealed under another root key does not open", async (t) => {
+test("a destination sealed under another site key does not open", async (t) => {
   const { db } = fixture(t);
   const other = new InMemoryKeyring("v1");
   const repo = new DatabaseDestinationRepo(db);

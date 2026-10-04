@@ -418,7 +418,7 @@ const CUSTOM_CREDENTIALS_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = 
     error: CustomCredentialSecretStoreUnconfiguredError,
     code: "CUSTOM_CREDENTIALS_SECRET_STORE_UNAVAILABLE",
     message:
-      "this site's secret store could not open the saved credential: its Site Token is missing or unusable, " +
+      "this site's secret store could not open the saved credential: its Site key is missing or unusable, " +
       "or the stored credential is unreadable. No request was sent",
     guidance: "An operator can check this site's token on the admin Secrets page.",
   },
@@ -720,7 +720,7 @@ const FORM_SAVE_CALLER_SAFE_ERRORS: readonly CallerSafeErrorRule[] = [
   {
     error: CustomCredentialSecretStoreUnconfiguredError,
     message:
-      "The site's secret store could not seal or open this credential: its Site Token is missing or unusable, or the stored credential is unreadable. Nothing was saved.",
+      "The site's secret store could not seal or open this credential: its Site key is missing or unusable, or the stored credential is unreadable. Nothing was saved.",
   },
 ];
 

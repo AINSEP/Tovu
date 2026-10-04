@@ -28,7 +28,7 @@ if (mode === "--with-guard") {
 
 // The exact shape Express 4 produces from an async route handler that throws with no surrounding
 // try/catch: a promise rejects and nothing ever awaits or `.catch()`s it.
-Promise.reject(new Error("simulated: no root key"));
+Promise.reject(new Error("simulated: no site key"));
 
 // If the process is still alive after Node would have delivered the unhandledRejection event, this
 // fires and prints proof of survival. Under `--without-guard`, Node's default behavior ends the

@@ -9,7 +9,7 @@ import { requirePublishTrust } from "../publish-trust-auth.js";
 // cannot verify must still reach the session gate (an API key uses the same header), not leave the
 // request hanging on the rejected derivation.
 test("a keyless instance passes a bearer request on to the session gate instead of hanging", async () => {
-  const noKey = Promise.reject(new Error("no root key"));
+  const noKey = Promise.reject(new Error("no site key"));
   noKey.catch(() => undefined);
   const middleware = requirePublishTrust({
     keyring: {} as never,
@@ -44,7 +44,7 @@ test("a keyring that fails at verify time passes the request on instead of hangi
   const middleware = requirePublishTrust({
     keyring: {
       derive: async () => {
-        throw new Error("no root key");
+        throw new Error("no site key");
       },
     } as never,
     workspaceId: "w-1",

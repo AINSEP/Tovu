@@ -227,7 +227,7 @@ test("disconnecting a computer that was never connected is a no-op, not an error
 // Staleness: a rotation the destination has not been redeployed for
 // ---------------------------------------------------------------------------
 
-test("a Site Token regeneration is reported as a stale key, not as connected", () => {
+test("a Site key regeneration is reported as a stale key, not as connected", () => {
   // The generation is unchanged — only the derived key moved. A generation comparison would call
   // this current and leave the owner debugging a refusal the source insisted could not happen.
   const res = resolvePublishTrust({ envValue: undefined, fileContents: JSON.stringify([grantFor("laptop")]) });

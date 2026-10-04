@@ -65,17 +65,17 @@ registerPermissionMigration({
   from: DERIVED_FROM_PERMISSION,
   to: [SITE_TOKEN_MANAGE_PERMISSION],
   reason:
-    "The admin Security page's Site Token tab reads/generates the TOVU_INTEGRATIONS_ROOT_KEY " +
-    "root key — the key that decrypts every sealed credential this install holds, including " +
+    "The admin Security page's Site key tab reads/generates the TOVU_SITE_KEY " +
+    "site key — the key that decrypts every sealed credential this install holds, including " +
     "every connection admin.integrations.manage already protects. Every principal already " +
-    "trusted with integration connection config inherits root-key management too.",
+    "trusted with integration connection config inherits site key management too.",
 });
 
 registerBuiltinRoleGrant({
   role: "admin",
   permission: SITE_TOKEN_MANAGE_PERMISSION,
   reason:
-    "The built-in admin role manages the root key that decrypts every sealed credential this " +
+    "The built-in admin role manages the site key that decrypts every sealed credential this " +
     "install holds; editor and viewer do not. Stated directly against the role, not only via the " +
     "admin.integrations.manage migration above, because that migration only reaches a workspace " +
     "whose admin policy already HOLDS admin.integrations.manage — a workspace seeded before that " +

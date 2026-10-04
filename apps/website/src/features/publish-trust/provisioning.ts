@@ -378,7 +378,7 @@ export function describeConnection(input: {
   if (!grant.publicKeys.some((k) => k.publicKeyB64u === input.publicKeyB64u)) {
     return {
       verdict: "superseded-key",
-      message: `${siteLabel} is still carrying an older key for this computer, so it will refuse a publish. This happens after the Site Token is regenerated. Reconnect and deploy to finish the change.`,
+      message: `${siteLabel} is still carrying an older key for this computer, so it will refuse a publish. This happens after the Site key is regenerated. Reconnect and deploy to finish the change.`,
     };
   }
 

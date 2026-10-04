@@ -39,13 +39,13 @@ function makeDeps() {
  *  `TOVU_INTEGRATIONS_ROOT_KEY` without touching real env state. */
 class BrokenKeyring implements KeyringPort {
   async activeKey(): Promise<{ readonly keyId: string }> {
-    throw new Error("no root key: TOVU_INTEGRATIONS_ROOT_KEY is not set and allowFileFallback is disabled");
+    throw new Error("no site key: TOVU_SITE_KEY is not set and allowFileFallback is disabled");
   }
   async deriveSigningSecret(): Promise<Uint8Array> {
-    throw new Error("no root key");
+    throw new Error("no site key");
   }
   async derive(): Promise<Uint8Array> {
-    throw new Error("no root key");
+    throw new Error("no site key");
   }
 }
 
@@ -156,7 +156,7 @@ test("a rotation (second apiKey) fully replaces the first — the old key no lon
   assert.equal(resolved?.apiKey, "new-key-2222");
 });
 
-test("a missing master secret fails CLOSED with a distinct error, and writes nothing", async () => {
+test("a missing site key fails CLOSED with a distinct error, and writes nothing", async () => {
   const { repo, sealer } = makeDeps();
   const brokenKeyring = new BrokenKeyring();
   const brokenSealer = new AesGcmSecretSealer(brokenKeyring); // sealer over the broken keyring
