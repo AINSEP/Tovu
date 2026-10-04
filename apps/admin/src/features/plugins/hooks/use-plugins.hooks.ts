@@ -8,6 +8,9 @@ import { t as translate } from "../plugins-i18n";
 import { defaultPluginsPort } from "./plugins-dependencies.hooks";
 import type { PluginsPort } from "./plugins-port.hooks";
 import type { Translate } from "@/lib/dictionary-translator";
+import { usePluginInstall, type PluginInstallController } from "./use-plugin-install.hooks";
+import { defaultPluginInstallPort } from "./plugin-install-dependencies.hooks";
+import type { PluginInstallPort } from "./plugin-install-port.hooks";
 
 /**
  * @file Everything the Plugins list does, so `Plugins.tsx` is only markup.
@@ -50,12 +53,15 @@ import type { Translate } from "@/lib/dictionary-translator";
  */
 
 export interface PluginsDependencies {
+  installPort?: PluginInstallPort;
   port: PluginsPort;
   locale: string;
   t: Translate;
 }
 
 export interface PluginsController {
+  install?: PluginInstallController;
+  canInstallFolder?: boolean;
   /** `null` until the initial load settles — the caller renders a loading state. */
   plugins: AdminPlugin[] | null;
   error: string | null;
@@ -122,7 +128,7 @@ function withId(ids: ReadonlySet<string>, id: string, present: boolean): Readonl
  * wire must never be unlocked by an UNRELATED row's request settling — see both `finally` blocks.
  * @overallScore 92
  */
-export function usePlugins({ port, locale, t }: PluginsDependencies): PluginsController {
+export function usePlugins({ port, locale, t, installPort = defaultPluginInstallPort }: PluginsDependencies): PluginsController {
   const [plugins, setPlugins] = useState<AdminPlugin[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [rowError, setRowError] = useState<string | null>(null);
@@ -131,6 +137,7 @@ export function usePlugins({ port, locale, t }: PluginsDependencies): PluginsCon
   const [inspectedPluginId, setInspectedPluginId] = useState<string | null>(null);
   const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null);
   const settlement = useSettlementGeneration();
+  const [canInstallFolder, setCanInstallFolder] = useState(false);
 
   function reload(): Promise<void> {
     const generation = settlement.next();
@@ -139,6 +146,7 @@ export function usePlugins({ port, locale, t }: PluginsDependencies): PluginsCon
       .then((r) => {
         if (!settlement.isCurrent(generation)) return; // a newer reload already won
         setPlugins(r.plugins);
+        setCanInstallFolder(r.installSources?.includes("folder") === true);
         setError(null);
       })
       .catch((e) => {
@@ -190,7 +198,11 @@ export function usePlugins({ port, locale, t }: PluginsDependencies): PluginsCon
     }
   }
 
+  const install = usePluginInstall({ port: installPort, t, onInstalled: reload });
+
   return {
+    install,
+    canInstallFolder,
     plugins,
     error,
     rowError,

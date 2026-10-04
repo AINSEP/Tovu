@@ -42,6 +42,7 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 import * as semver from "semver";
 
@@ -217,7 +218,14 @@ export async function loadPlugin(
   // --- Step (3): only now, after both prior checks pass, is the plugin's code ever evaluated. ---
   let importedModule: unknown;
   try {
-    importedModule = await importModule(entryPath);
+    // Same-version replacement must evaluate the reviewed entry again. Build this URL only at
+    // step (3), after integrity and SDK compatibility have passed (CIC U-001 order unchanged).
+    // Injected import seams keep their original path contract. Imported helper modules may still
+    // be cached by Node; a restart remains necessary after replacing a package with helpers.
+    const importPath = _optional.importModule === undefined
+      ? `${pathToFileURL(entryPath).href}?integrity=${createHash("sha256").update(JSON.stringify(manifest.integrity)).digest("hex")}`
+      : entryPath;
+    importedModule = await importModule(importPath);
   } catch {
     return { loaded: false, reason: "CODE_ENTRY_MISSING" };
   }

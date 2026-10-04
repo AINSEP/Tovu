@@ -1,4 +1,4 @@
-import { ApiError, api, type AdminPlugin, type AdminPluginFiles } from "@/lib/api";
+import { ApiError, api, authenticatedAdminRequest, WORKSPACE_ID, type AdminPlugin, type AdminPluginFiles } from "@/lib/api";
 import type { PluginsPort } from "./plugins-port.hooks";
 
 /**
@@ -10,7 +10,7 @@ import type { PluginsPort } from "./plugins-port.hooks";
 /** The live implementation, as a module-level singleton — matches `redirects-dependencies
  *  .hooks.ts`'s `defaultRedirectsPort`. */
 export const defaultPluginsPort: PluginsPort = {
-  listPlugins: () => api.listPlugins(),
+  listPlugins: () => authenticatedAdminRequest({ path: `/workspaces/${WORKSPACE_ID}/plugins`, method: "GET" }),
   setPluginEnabled: (id, patch) => api.setPluginEnabled(id, patch),
   uninstallPlugin: (id) => api.uninstallPlugin(id),
   getPluginFiles: (id) => api.getPluginFiles(id),
@@ -18,6 +18,7 @@ export const defaultPluginsPort: PluginsPort = {
 
 /** Seed state for {@link createFakePluginsPort}. */
 export interface FakePluginsPortOptions {
+  installSources?: string[];
   plugins?: AdminPlugin[];
   /** `PLUGIN_FILES` responses by plugin id; an id with no entry rejects like the real route's 404. */
   packageFiles?: Record<string, AdminPluginFiles>;
@@ -46,7 +47,7 @@ export function createFakePluginsPort(options: FakePluginsPortOptions = {}): Plu
     plugins,
 
     async listPlugins() {
-      return { plugins: [...plugins] };
+      return { plugins: [...plugins], ...(options.installSources ? { installSources: options.installSources } : {}) };
     },
 
     async setPluginEnabled(id, patch) {

@@ -1356,6 +1356,7 @@ export interface WidgetsDeps {
  * lifecycle hook, not a content-model repo).
  */
 export interface PluginRuntimeDeps {
+  pluginInstaller?: import("#src/features/plugin-runtime/install").PluginInstallerPort;
   /**
    * SPEC-005 (ADR-005-ARCH) — the `plugin_activations` persistence port (mirrors
    * `PresentationSettingsRepoPort` exactly, rule-of-two). Consumed by the `plugins` admin routes

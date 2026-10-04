@@ -24,6 +24,7 @@ import type { RemovePluginFn } from "#src/features/plugin-runtime/uninstall";
  * handler bodies are what carry the "not implemented" stub behavior.
  */
 export interface PluginsRouteDeps {
+  pluginInstaller?: import("#src/features/plugin-runtime/install").PluginInstallerPort;
   workspaceId: UUID;
   authorize: AuthorizeFn;
   clock: ClockPort;

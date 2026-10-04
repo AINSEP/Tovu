@@ -9,6 +9,7 @@ import {
   type PluginActivationRecord,
 } from "#src/features/plugin-runtime/activation";
 import { PluginLoadError } from "#src/features/plugin-runtime/loader";
+import { PluginInstallError } from "#src/features/plugin-runtime/install";
 import { toAdminPluginResponse } from "#src/server/inbound/admin-http/http/plugins";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { PluginsRouteDeps, PluginsRouteRegistrar } from "./deps.js";
@@ -43,6 +44,10 @@ async function rollbackPluginActivation(
 /** Maps this route's thrown error types onto the admin error envelope.
  *  @complexity O(1). */
 function sendSetPluginEnabledError(res: Response, err: unknown): void {
+  if (err instanceof PluginInstallError) {
+    res.status(409).json({ error: err.message, code: err.code });
+    return;
+  }
   if (err instanceof ForbiddenError) {
     res.status(403).json({ error: err.message, code: "FORBIDDEN", details: { permission: err.permission, reason: err.reason } });
     return;

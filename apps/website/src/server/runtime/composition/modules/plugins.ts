@@ -2,6 +2,7 @@ import { registerPluginsListRoute } from "#src/server/inbound/admin-http/routes/
 import { registerPluginSetEnabledRoute } from "#src/server/inbound/admin-http/routes/plugins/set-enabled";
 import { registerPluginFilesRoute } from "#src/server/inbound/admin-http/routes/plugins/files";
 import { registerPluginUninstallRoute } from "#src/server/inbound/admin-http/routes/plugins/uninstall";
+import { registerPluginInstallRoutes } from "#src/server/inbound/admin-http/routes/plugins/install";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { ServerModuleHandle } from "./types.js";
 
@@ -19,8 +20,8 @@ import type { ServerModuleHandle } from "./types.js";
  * and `PLUGIN_FILES` (2026-09-13 — the read-only package-files viewer; see `files.ts`'s header).
  * The admin UI screen (REQ-12..18) consumes the Phase 1 contract as a black box; the `word-count`
  * dogfood plugin (Phase 2) and the `post.ts` hook-wiring (Phase 3) were later, gated phases that
- * added no new routes to this module. Install/update remain unbuilt (Milestone 2's own scope note:
- * uninstall/disable first, since revocation is what makes installing safe).
+ * added no new routes to this module. Local folder install/update now use the owner-approved
+ * 2026-09-22 plan: uninstall/disable came first, since revocation is what makes installing safe.
  */
 export function createPluginsModule(deps: RouteDeps): ServerModuleHandle {
   return {
@@ -30,6 +31,7 @@ export function createPluginsModule(deps: RouteDeps): ServerModuleHandle {
       registerPluginSetEnabledRoute(app, deps);
       registerPluginUninstallRoute(app, deps);
       registerPluginFilesRoute(app, deps);
+      registerPluginInstallRoutes(app, deps);
     },
   };
 }

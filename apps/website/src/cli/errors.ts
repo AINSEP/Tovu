@@ -1,4 +1,5 @@
 import { CommanderError } from "commander";
+import { PluginInstallError } from "../features/plugin-runtime/install.js";
 
 import {
   InitDirNotEmptyError,
@@ -182,6 +183,7 @@ function mapSiteDirError(err: unknown): CliOutcome | undefined {
  * @overallScore 100
  */
 export function mapErrorToCliOutcome(err: unknown): CliOutcome {
+  if (err instanceof PluginInstallError) return { exitCode: 2, stderrLine: stderrLine(err.code, err.message) };
   if (err instanceof CommanderError) {
     if (COMMANDER_SUCCESS_CODES.has(err.code)) {
       return { exitCode: 0 };

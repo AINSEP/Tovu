@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { lstat } from "node:fs/promises";
 import path from "node:path";
+import { assertPluginInstallIdle, installSitePlugin, previewSitePluginInstall, type PluginInstallerPort } from "#src/features/plugin-runtime/install";
 
 import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 
@@ -176,6 +177,7 @@ export interface ComposePluginRuntimeRequired {
 }
 
 export interface PluginRuntimeBindings {
+  readonly pluginInstaller?: PluginInstallerPort;
   readonly hookRegistry: HookRegistry;
   readonly discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>;
   readonly onPluginEnabled: (pluginId: string) => Promise<void>;
@@ -225,6 +227,9 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired): Pl
     discoverPluginRuntimePlugins({ builtIns: sources, ...(installDir === undefined ? {} : { installDir }) });
 
   async function onPluginEnabled(pluginId: string): Promise<void> {
+    // A package replacement and an enable cannot race: save-before-callback activation is
+    // compensated if install owns the directory lock, while installs refuse an enabled row.
+    if (installDir !== undefined) await assertPluginInstallIdle({ installDir });
     const record = (await discoverPlugins()).find((candidate) => candidate.id === pluginId);
     if (!record) {
       throw new PluginLoadError(pluginId, "PLUGIN_EXPORT_INVALID");
@@ -363,6 +368,10 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired): Pl
   }
 
   return {
+    ...(installDir === undefined ? {} : { pluginInstaller: {
+      preview: (input) => previewSitePluginInstall({ ...input, deps: { installDir, builtInIds: sources.map((source) => source.manifest.id), repo: activationRepo } }),
+      install: (input) => installSitePlugin({ ...input, deps: { installDir, builtInIds: sources.map((source) => source.manifest.id), repo: activationRepo } }),
+    } satisfies PluginInstallerPort }),
     hookRegistry,
     discoverPlugins,
     onPluginEnabled,

@@ -2229,6 +2229,7 @@ async function composeSiteRouteDeps(
     onPluginDisabled: pluginRuntime.onPluginDisabled,
     removePlugin,
     readPluginPackageFiles: pluginRuntime.readPluginPackageFiles,
+    pluginInstaller: pluginRuntime.pluginInstaller,
     pluginBeforeSaveHook: pluginRuntime.beforeSaveHook,
     pluginRuntimeReady,
     // Deployment read model retired with its unused tables (2026-10-03).

@@ -11,7 +11,7 @@ import type { AdminPlugin, AdminPluginFiles } from "@/lib/api";
  * identical note).
  */
 export interface PluginsPort {
-  listPlugins(): Promise<{ plugins: AdminPlugin[] }>;
+  listPlugins(): Promise<{ plugins: AdminPlugin[]; installSources?: string[] }>;
   /** The route's own response is a partial patch echo (`id`/`version`/`enabled`/`updatedAt`) plus a
    *  `changeSetId`, not a full `AdminPlugin` — `use-plugins.hooks.ts` never reads it, always
    *  re-fetching the authoritative list via `reload()` afterward. Kept exactly as narrow as the

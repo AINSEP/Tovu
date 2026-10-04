@@ -1,4 +1,6 @@
 import { Command } from "commander";
+import { runPluginInstallCommand } from "./commands/plugin/install.js";
+import { runPluginIntegrityCommand } from "./commands/plugin/integrity.js";
 
 import { runAdoptCommand } from "./commands/adopt.js";
 import { runTokenSignInPluginsCommand } from "./commands/agent-plugin-tokens.js";
@@ -41,6 +43,18 @@ export function createProgram(): Command {
   program.description("Tovu — the website product you own. Manage local site install directories.");
   program.exitOverride();
   program.configureOutput({ writeErr: () => {} });
+
+  const pluginProgram = program.command("plugin").description("install and inspect local site plugins");
+  pluginProgram.command("install").argument("<dir>", "plugin package folder")
+    .option("--site <dir>", "site directory (default: TOVU_SITE_DIR / active site)")
+    .option("--replace", "replace the same version, only while disabled everywhere")
+    .option("--yes", "acknowledge the full-machine-access consent warning")
+    .action(async (dir: string, options: { site?: string; replace?: boolean; yes?: boolean }) => {
+      await runPluginInstallCommand({ dir, ...options });
+    });
+  pluginProgram.command("integrity").argument("<dir>", "plugin package folder")
+    .option("--write", "write the complete integrity map to tovu.plugin.json")
+    .action(async (dir: string, options: { write?: boolean }) => { await runPluginIntegrityCommand({ dir, ...options }); });
 
   program
     .command("init")

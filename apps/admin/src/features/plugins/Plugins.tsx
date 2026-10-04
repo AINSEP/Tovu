@@ -1,4 +1,5 @@
 import type { ComponentType } from "react";
+import { agentHandle } from "@jini-ai/agentic";
 
 import type { AdminPlugin } from "@/lib/api";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
@@ -8,6 +9,7 @@ import { navigate } from "../../lib/router";
 import { PluginRow } from "./PluginRow";
 import { PluginPackageFilesModal } from "./PluginPackageFilesModal";
 import { PluginRemoveConfirmDialog } from "./PluginRemoveConfirmDialog";
+import { InstallPluginDialog } from "./InstallPluginDialog";
 import { DownloadedTabIcon, InstalledTabIcon, MarketplaceTabIcon, PluginTrashIcon } from "./plugins-visuals";
 import { filterInstalledPlugins, pluginRemoveAriaLabel, pluginRemoveBlocker, pluginToggleAriaLabel, pluginToggleControl } from "./rules";
 import { useWiredPlugins, type PluginsController } from "./hooks/use-plugins.hooks";
@@ -259,7 +261,8 @@ function DownloadedPanel({ plugins, controller, rowHandleById }: PluginsTabPanel
 }
 
 /** Marketplace: a designed empty state — see this file's header for why nothing is listed. */
-function MarketplacePanel({ controller: { t } }: PluginsTabPanelProps) {
+function MarketplacePanel({ controller }: PluginsTabPanelProps) {
+  const { t } = controller;
   return (
     <div className="card">
       <div className="empty-state" role="note">
@@ -268,7 +271,7 @@ function MarketplacePanel({ controller: { t } }: PluginsTabPanelProps) {
           {t("Marketplace is planned for a future release. Tovu does not fetch, list, or install plugins from a marketplace yet.")}
         </p>
         <p className="page-description">
-          {t("Install a plugin by placing its files in this site's plugin install directory.")}
+          {controller.canInstallFolder ? t("Install plugin") : t("Install a plugin by placing its files in this site's plugin install directory.")}
         </p>
       </div>
     </div>
@@ -331,6 +334,9 @@ function LoadedPlugins({ plugins, controller, activeTabId }: { plugins: AdminPlu
             {t("Enable or disable plugins discovered in this site's plugin install directory.")}
           </p>
         </div>
+        {controller.canInstallFolder && controller.install ? (
+          <button type="button" onClick={controller.install.open} {...agentHandle({ handle: "plugins-install" }, { role: "button", label: t("Install plugin") })}>{t("Install plugin")}</button>
+        ) : null}
       </div>
       {rowError ? (
         <div className="notice error">
@@ -349,6 +355,8 @@ function LoadedPlugins({ plugins, controller, activeTabId }: { plugins: AdminPlu
       <TabBar ariaLabel={t("Plugins")} tabs={tabs} activeId={activeTabId} onChange={navigateToPluginsTab} containerHandle="plugins-tab-bar" />
 
       <ActivePanel plugins={plugins} controller={controller} rowHandleById={rowHandleById} />
+
+      {controller.install?.isOpen ? <InstallPluginDialog controller={controller.install} /> : null}
 
       {inspectedPlugin ? <PluginPackageFilesModal plugin={inspectedPlugin} onClose={controller.onCloseInspector} /> : null}
 

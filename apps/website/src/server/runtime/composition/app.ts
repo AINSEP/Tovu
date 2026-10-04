@@ -1340,6 +1340,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     onPluginDisabled: pluginRuntime.onPluginDisabled,
     removePlugin,
     readPluginPackageFiles: pluginRuntime.readPluginPackageFiles,
+    pluginInstaller: pluginRuntime.pluginInstaller,
     pluginBeforeSaveHook: pluginRuntime.beforeSaveHook,
     // In-memory activationRepo starts empty every test run, so there is nothing to re-attach —
     // mirrors `commentsReady`'s identical hermetic-vs-real split.
