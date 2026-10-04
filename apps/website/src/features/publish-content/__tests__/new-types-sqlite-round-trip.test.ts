@@ -158,7 +158,7 @@ test("form, content-type, widget and widget-area round-trip to `unchanged` on SQ
   const widget = await dst.repos.entries.findById({ workspaceId: WORKSPACE_ID, id: about.id });
   assert.equal(widget?.title, "About us");
   assert.deepEqual(parseWidgetInstancePayload(widget!.fieldsJson).config, { body: "Updated introduction" });
-  const areas = await dst.repos.entries.listByWorkspace({ workspaceId: WORKSPACE_ID, type: "widget_area" });
+  const areas = await dst.repos.entries.listByWorkspace({ workspaceId: WORKSPACE_ID }, { type: "widget_area" });
   assert.equal(areas.length, 1);
   assert.deepEqual(parseWidgetAreaPayload(areas[0]!.fieldsJson).doc.placements, placements);
 });
