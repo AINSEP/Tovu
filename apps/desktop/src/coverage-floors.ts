@@ -137,13 +137,15 @@ export function isInExcludedDir(relPath: string, excludeDirs: readonly string[] 
  * `.js` or `.ts`, runs on bare node. Only the renderer and contracts `.test.ts` files, whose `.js`
  * specifiers need bundler resolution, run under tsx. `package.json`'s `test` script carries the
  * same split, and `coverage-runner-split.test.ts` fails when the two disagree.
+ * The node pass enables module mocks for both preload exposure/parity tests, just as `npm test`
+ * does; enabling them only in the suite would leave the coverage gate unable to run those tests.
  *
  * Several of these globs match nothing today. Measured on node 24.2.0: a glob that matches nothing
  * exits 0 reporting "tests 0", with no error. Only a literal path errors. So `check-coverage.ts`'s
  * `runSuite` refuses to run a pass whose globs match no test file at all.
  */
 export const TEST_PASSES: readonly TestPass[] = [
-  { id: "node", nodeArgs: [], globs: ["src/*.test.ts", "src/!(renderer|contracts)/**/*.test.ts"] },
+  { id: "node", nodeArgs: ["--experimental-test-module-mocks"], globs: ["src/*.test.ts", "src/!(renderer|contracts)/**/*.test.ts"] },
   { id: "tsx", nodeArgs: ["--import", "tsx"], globs: ["src/renderer/**/*.test.ts", "src/contracts/**/*.test.ts"] },
 ];
 

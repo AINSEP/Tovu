@@ -9,15 +9,38 @@
  */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { globSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { TEST_PASSES, parseNodeTestScript, runnerSplitDrift } from "./coverage-floors.ts";
 
 const PACKAGE_JSON = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "package.json");
+const DESKTOP_ROOT = path.dirname(PACKAGE_JSON);
 
 test("package.json's test script runs the same globs under the same runners as TEST_PASSES", () => {
   const manifest = JSON.parse(readFileSync(PACKAGE_JSON, "utf8"));
   assert.deepEqual(runnerSplitDrift(TEST_PASSES, parseNodeTestScript(manifest.scripts.test)), []);
+});
+
+test("every suite and coverage pass using module mocks enables Node's module-mock flag", () => {
+  const manifest = JSON.parse(readFileSync(PACKAGE_JSON, "utf8"));
+  // Agreement alone would accept both runners dropping the flag. Inspect their actual inputs,
+  // including the compiled-preload parity check that skips on a never-built CI checkout.
+  for (const [runner, passes] of [
+    ["npm test", parseNodeTestScript(manifest.scripts.test)],
+    ["coverage", TEST_PASSES],
+  ] as const) {
+    const checked: string[] = [];
+    for (const pass of passes) {
+      const mockTests = globSync([...pass.globs], { cwd: DESKTOP_ROOT }).filter((file) =>
+        /\bmock\.module\s*\(/.test(readFileSync(path.join(DESKTOP_ROOT, file), "utf8")),
+      );
+      for (const file of mockTests) {
+        assert.ok(pass.nodeArgs.includes("--experimental-test-module-mocks"), `${runner} must enable module mocks for ${file}`);
+        checked.push(file);
+      }
+    }
+    assert.ok(checked.length > 0, `${runner} must include the module-mocking preload tests`);
+  }
 });

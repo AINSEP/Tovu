@@ -73,18 +73,9 @@ test("the preload subscribes to that channel", () => {
   assert.match(read("preload", "preload.mts"), /onSiteHistory:[^\n]*\n?\s*subscribe\(SITE_HISTORY_CHANNEL, listener\)/);
 });
 
-test("main.ts installs the sites-home menu in the sites-home branch, before the window opens", () => {
-  const main = read("..", "main.ts");
-  const branch = main.indexOf("if (sitesUiRequested()) {");
-  const install = main.indexOf("Menu.setApplicationMenu(Menu.buildFromTemplate(sitesHomeMenuTemplate({ platform: process.platform })));");
-  const open = main.indexOf("openSitesHomeWindow();");
-  assert.notEqual(branch, -1, "expected the sites-home branch in main.ts");
-  assert.notEqual(install, -1, "expected main.ts to install sitesHomeMenuTemplate");
-  assert.ok(branch < install && install < open, "the menu must be installed inside the sites-home branch, before the window opens");
-  assert.match(main, /import \{ sitesHomeMenuTemplate \} from "\.\/src\/site-history-menu\.ts";/);
-});
-
-test("menu installation and opening execute directly inside the sites-home branch in that order", () => {
+function sitesHomeBootStatements() {
+  // The real entry point remains ../main.ts. Inspect its AST so extending the menu (Settings)
+  // or formatting the call cannot invalidate the guard, and comments cannot satisfy it.
   const main = ts.createSourceFile("main.ts", read("..", "main.ts"), ts.ScriptTarget.Latest, true);
   const branches: ts.IfStatement[] = [];
   const visit = (node: ts.Node) => {
@@ -95,24 +86,51 @@ test("menu installation and opening execute directly inside the sites-home branc
   assert.equal(branches.length, 1);
   const branch = branches[0]!;
   assert.ok(ts.isBlock(branch.thenStatement));
-  // Execute these actual statements while omitting unrelated registry/server boot setup.
-  const statements = branch.thenStatement.statements.filter((statement) =>
+  const statements = branch.thenStatement.statements.filter((statement): statement is ts.ExpressionStatement =>
     ts.isExpressionStatement(statement) && ts.isCallExpression(statement.expression) &&
     ["Menu.setApplicationMenu", "openSitesHomeWindow"].includes(statement.expression.expression.getText(main)),
   );
   assert.equal(statements.length, 2, "both operations must be direct statements of the sites-home branch");
+  return { main, branch, statements };
+}
+
+test("main.ts installs the sites-home menu in the sites-home branch, before the window opens", () => {
+  const { main, statements } = sitesHomeBootStatements();
+  assert.deepEqual(statements.map((statement) => {
+    assert.ok(ts.isCallExpression(statement.expression));
+    return statement.expression.expression.getText(main);
+  }), ["Menu.setApplicationMenu", "openSitesHomeWindow"]);
+  const templates: ts.CallExpression[] = [];
+  const visit = (node: ts.Node) => {
+    if (ts.isCallExpression(node) && node.expression.getText(main) === "sitesHomeMenuTemplate") templates.push(node);
+    ts.forEachChild(node, visit);
+  };
+  visit(statements[0]!);
+  assert.equal(templates.length, 1, "the installed menu must include sitesHomeMenuTemplate exactly once");
+  assert.match(main.text, /import \{ sitesHomeMenuTemplate \} from "\.\/src\/site-history-menu\.ts";/);
+});
+
+test("menu installation and opening execute directly inside the sites-home branch in that order", () => {
+  const { main, branch, statements } = sitesHomeBootStatements();
+  // Execute these actual statements while omitting unrelated registry/server boot setup.
   const body = `if (${branch.expression.getText(main)}) { ${statements.map((statement) => statement.getText(main)).join("\n")} }`;
-  const boot = new Function("Menu", "sitesUiRequested", "openSitesHomeWindow", "sitesHomeMenuTemplate", "process", body);
-  for (const requested of [true, false]) {
-    const calls: string[] = [];
-    const template = {};
-    const menu = {};
-    boot({
-      buildFromTemplate(value: unknown) { assert.equal(value, template); calls.push("build"); return menu; },
-      setApplicationMenu(value: unknown) { assert.equal(value, menu); calls.push("install"); },
-    }, () => requested, () => calls.push("open"), (options: unknown) => {
-      assert.deepEqual(options, { platform: "darwin" }); return template;
-    }, { platform: "darwin" });
-    assert.deepEqual(calls, requested ? ["build", "install", "open"] : []);
+  const boot = new Function("Menu", "sitesUiRequested", "openSitesHomeWindow", "sitesHomeMenuTemplate", "desktopUpdateSettingsMenu", "process", body);
+  for (const platform of ["darwin", "linux", "win32"]) {
+    for (const requested of [true, false]) {
+      const calls: string[] = [];
+      const template = [{ label: "History" }, { label: "Find" }];
+      const settings = { label: "Settings" };
+      const menu = {};
+      boot({
+        buildFromTemplate(value: unknown) {
+          assert.deepEqual(value, [...template, settings], "the installed template must preserve the home menus and append Settings");
+          calls.push("build"); return menu;
+        },
+        setApplicationMenu(value: unknown) { assert.equal(value, menu); calls.push("install"); },
+      }, () => requested, () => calls.push("open"), (options: unknown) => {
+        assert.deepEqual(options, { platform }); calls.push("template"); return template;
+      }, () => { calls.push("settings"); return settings; }, { platform });
+      assert.deepEqual(calls, requested ? ["template", "settings", "build", "install", "open"] : []);
+    }
   }
 });
