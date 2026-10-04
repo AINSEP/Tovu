@@ -106,7 +106,7 @@ describe("Redirects — table actions and bulk import", () => {
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).getByText(/old-ui/)).toBeInTheDocument();
     expect((await port.listRedirects()).data).toHaveLength(1);
-    await user.click(within(dialog).getByRole("button", { name: "Delete", exact: true }));
+    await user.click(within(dialog).getByRole("button", { name: "Delete" }));
     await waitFor(() => expect(screen.queryByText("/old-ui")).not.toBeInTheDocument());
     expect((await port.listRedirects()).data).toEqual([]);
   });
@@ -125,7 +125,7 @@ describe("Redirects — table actions and bulk import", () => {
     await user.click(screen.getByText("Bulk import"));
     const batch = [{ matchType: "exact", fromPattern: "/import-old", toTarget: "/import-new", statusCode: 302 }];
     await user.type(screen.getByRole("textbox", { name: /JSON array/ }), JSON.stringify(batch).replace(/\[/g, "[[").replace(/\{/g, "{{"));
-    await user.click(screen.getByRole("button", { name: "Import", exact: true }));
+    await user.click(screen.getByRole("button", { name: "Import" }));
     await waitFor(() => expect(importing).toHaveBeenCalledWith(batch));
     const importedRow = (await screen.findByText("/import-old", { selector: "td" })).closest("tr")!;
     expect(within(importedRow).getByText("/import-new")).toBeInTheDocument();
