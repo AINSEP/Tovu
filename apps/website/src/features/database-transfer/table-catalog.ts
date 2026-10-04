@@ -105,7 +105,7 @@ export function collectTransferTables(): TransferTable[] {
 
 /**
  * EVERY table `schema.postgres.ts` declares, in the same foreign-key-safe order, nothing left out:
- * the full schema a fresh Postgres database is created with (`platform/db/pglite/content-schema.ts`).
+ * the full schema a fresh Postgres database is created with (`platform/db/__tests__/pg-content-schema.ts`, test support).
  *
  * @complexity O(tables + foreign keys).
  */

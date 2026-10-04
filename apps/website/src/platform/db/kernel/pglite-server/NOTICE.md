@@ -3,6 +3,8 @@
 - Upstream: `@electric-sql/pglite-socket` **0.2.11** (npm), `packages/pglite-socket/src/index.ts` in
   github.com/electric-sql/pglite. Copyright Electric DB Limited. Apache License 2.0: `LICENSE` beside this file.
 - Vendored 2026-09-28 into `socket-server.ts` (storage plan R1e), used with `@electric-sql/pglite` **0.5.8** (pinned).
+  The code now lives in `@jini-ai/db` (Jini `packages/db/src/pglite/socket-server.ts`); Tovu's re-export shim
+  was deleted 2026-10-03 (development/DELETED-CODE.md). The test below lives at `kernel/__tests__/`.
 - Why vendored: the fixes below, and to drop the 7 extension packages the upstream CLI pulls in
   (age, pgtap, pg_ivm, pgvector, pg_uuidv7, pg_hashids, pg_textsearch). Evidence:
   `ADS-memory/reports/2026-09-28-pglite-socket-spike.md`.

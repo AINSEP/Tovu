@@ -123,8 +123,8 @@ function columnBuilder(col: SQLiteColumn, tableSqlName: string): string {
 /**
  * Which text columns hold JSON documents: exactly the columns the migration manifest classifies
  * `json-text` (the `_json` naming convention plus its reviewed allowlist for JSON columns that break
- * the convention, e.g. `posts.ext`). One classification drives both the column type here and the
- * row-copy verification in `migration/verify.ts`, so the two can never disagree about a column.
+ * the convention, e.g. `posts.ext`). One classification drives the column type here, so it can never
+ * disagree with the manifest about a column.
  */
 function isJsonColumn(col: SQLiteColumn, tableSqlName: string): boolean {
   return col.columnType === "SQLiteText" && classifyCoreColumn(tableSqlName, col).kind === "json-text";
@@ -144,8 +144,8 @@ function isJsonColumn(col: SQLiteColumn, tableSqlName: string): boolean {
  *  - The stored document is normalised, not byte-preserved: object keys come back in jsonb's own
  *    order (by key length, then bytewise), insignificant whitespace is dropped and re-emitted as
  *    `", "`/`": "`, and for duplicate keys only the last value survives. A read therefore returns
- *    equivalent JSON, never the exact string written — so row-copy verification compares JSON values,
- *    not bytes (`verifyJsonDocumentCopy` in `migration/verify.ts`).
+ *    equivalent JSON, never the exact string written — so any row-copy verification must compare JSON
+ *    values, not bytes.
  */
 const JSON_TEXT_DECLARATION = `/** Native jsonb column exposed as the same serialised \`string\` the SQLite schema stores. */
 const jsonText = customType<{ data: string; driverData: unknown }>({

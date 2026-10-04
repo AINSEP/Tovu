@@ -16,9 +16,6 @@
     "autoincrement": 8,
     "fts5": 7
   },
-  "apps/website/src/platform/db/schema.mysql.ts": {
-    "autoincrement": 12
-  },
   "apps/website/src/platform/db/schema.sqlite.ts": {
     "autoincrement": 12
   },

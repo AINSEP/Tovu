@@ -6,10 +6,10 @@ import { join } from "node:path";
 import { after, afterEach, before, test } from "node:test";
 
 import { PGlite } from "@electric-sql/pglite";
+import { PgliteSocketServer } from "@jini-ai/db/pglite";
 import pg from "pg";
 
 import { PGLITE_LOW_MEMORY_START_PARAMS, PGLITE_SOCKET_FILE } from "../drivers/pglite-owner.js";
-import { PgliteSocketServer } from "../pglite-server/socket-server.js";
 
 /**
  * @file The vendored PGlite socket server's fixes from upstream (see `pglite-server/NOTICE.md`),

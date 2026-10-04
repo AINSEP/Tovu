@@ -1,5 +1,5 @@
 import { psql, recreateDatabase } from "../migration/pg-fixture.js";
-import { pgContentSchemaSql } from "../pglite/content-schema.js";
+import { pgContentSchemaSql } from "./pg-content-schema.js";
 
 /**
  * @file A fresh database on the local Postgres server for tests that need REAL connections (two
@@ -16,7 +16,7 @@ export function freshPostgresDatabase(name: string): string {
   return `postgresql://${encodeURIComponent(user)}@/${name}?host=${encodeURIComponent(host)}${port}`;
 }
 
-/** {@link freshPostgresDatabase} with the whole content schema created (`pglite/content-schema.ts`). */
+/** {@link freshPostgresDatabase} with the whole content schema created (`pg-content-schema.ts`). */
 export function freshPostgresContentDatabase(name: string): string {
   const url = freshPostgresDatabase(name);
   const created = psql(name, pgContentSchemaSql());

@@ -10,25 +10,18 @@ import Database from "better-sqlite3";
 import { sql } from "kysely";
 import * as jini from "@jini-ai/db/kernel";
 import { sqliteKernel as jiniSqliteKernel } from "@jini-ai/db/kernel/sqlite";
-import { PgliteSocketServer as JiniSocketServer } from "@jini-ai/db/pglite";
-import { buildKernel } from "../kernel-core.js";
-import { TurnLock } from "../turn-lock.js";
 import { jsonText } from "../dialect.js";
 import { UnsupportedCapabilityError } from "../port.js";
 import { openMemorySqliteKernel, sqliteKernel, sqliteClientOf, sqliteConnectionOf } from "../drivers/sqlite.js";
 import { openPgliteKernel } from "../drivers/pglite.js";
 import { defaultPgliteSocketDir, ensurePrivateDir, acquireOwnerLock, OWNER_LOCK_FILE, PGLITE_LOW_MEMORY_START_PARAMS, PgliteOwnerLockedError } from "../drivers/pglite-owner.js";
-import { PgliteSocketServer } from "../pglite-server/socket-server.js";
 import { storageOps, StorageOpNotSupportedError } from "../ops.js";
 import { hasLedger, runMigrations } from "../../migrations/runner.js";
 import { MigrationChecksumError, UnknownAppliedMigrationError, type MigrationStep } from "../../migrations/step.js";
 
 test("kernel shims expose the same shared implementations and error constructors", () => {
-  assert.equal(buildKernel, jini.buildKernel);
-  assert.equal(TurnLock, jini.TurnLock);
   assert.equal(jsonText, jini.jsonText);
   assert.equal(UnsupportedCapabilityError, jini.UnsupportedCapabilityError);
-  assert.equal(PgliteSocketServer, JiniSocketServer);
 });
 
 test("same-file locking crosses from a Tovu shim into a direct Jini kernel", async () => {

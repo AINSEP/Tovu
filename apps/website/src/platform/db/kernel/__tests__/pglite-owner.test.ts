@@ -26,7 +26,7 @@ import {
 } from "../drivers/pglite-owner.js";
 import { openPgliteSocketKernel } from "../drivers/pglite-socket.js";
 import type { StorageKernel } from "../port.js";
-import { ensurePgContentSchema } from "../../pglite/content-schema.js";
+import { ensurePgContentSchema } from "../../__tests__/pg-content-schema.js";
 
 /**
  * @file The PGlite owner (`drivers/pglite-owner.ts`) and its socket clients

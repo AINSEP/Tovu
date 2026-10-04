@@ -1,5 +1,5 @@
 /**
- * @file GENERATED — do not edit. Kysely types for ContentDatabase, read from a fresh PGlite database with the content schema (`pglite/content-schema.ts`)
+ * @file GENERATED — do not edit. Kysely types for ContentDatabase, read from a fresh PGlite database with the content schema (`__tests__/pg-content-schema.ts`)
  * by `platform/db/kernel/typegen.ts`. Regenerate: `UPDATE_DATABASE_TYPES=1` + `kernel/__tests__/database-types.test.ts`
  */
 import type { ColumnType, Generated, SqlBool } from "kysely";

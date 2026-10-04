@@ -4,11 +4,12 @@ import path from "node:path";
 import { after, test } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { renderDatabaseTypes } from "@jini-ai/db/kernel";
+
 import { listColumns, listTables } from "../dialect.js";
 import { openPgliteKernel } from "../drivers/pglite.js";
 import { sqliteKernel } from "../drivers/sqlite.js";
-import { renderDatabaseTypes } from "../typegen.js";
-import { ensurePgContentSchema } from "../../pglite/content-schema.js";
+import { ensurePgContentSchema } from "../../__tests__/pg-content-schema.js";
 import { migrateSqliteContentFile, openSqliteContentConnection } from "../../sqlite/content-db.js";
 
 /**
@@ -52,7 +53,7 @@ after(() => pg.close());
 test("content-database.generated.ts matches the reference database", async () => {
   const rendered = await renderDatabaseTypes(pg, {
     interfaceName: "ContentDatabase",
-    source: "a fresh PGlite database with the content schema (`pglite/content-schema.ts`)",
+    source: "a fresh PGlite database with the content schema (`__tests__/pg-content-schema.ts`)",
     regenerate: REGENERATE,
   });
   if (process.env.UPDATE_DATABASE_TYPES === "1") fs.writeFileSync(GENERATED, rendered);

@@ -4,12 +4,14 @@ import { collectSchemaTables } from "../../../features/database-transfer/table-c
 import { constraintSql, createTableSql, indexSql } from "../../../features/database-transfer/postgres-ddl.js";
 
 /**
- * @file The content schema on a fresh Postgres (PGlite) database, built from `schema.postgres.ts`
- * through the same DDL the SQLite→Postgres copy writes (`features/database-transfer`), so there is
- * one Postgres layout, not two.
+ * @file Test support: the content schema on a fresh Postgres (PGlite) database, built from
+ * `schema.postgres.ts` through the same DDL the SQLite→Postgres copy writes
+ * (`features/database-transfer`), so there is one Postgres layout, not two.
  *
- * Stand-in until the migrator lands (storage-adapter plan, slice M1): it creates the schema ONCE on
- * an empty database and never changes an existing one.
+ * It creates the schema ONCE on an empty database and never changes an existing one. Production
+ * Postgres sites get their schema from the migration runner; this is the reference the type
+ * generator (`kernel/__tests__/database-types.test.ts`) and the baseline/owner tests compare against.
+ * Moved from `pglite/content-schema.ts` (no production importer; see development/DELETED-CODE.md).
  */
 
 /** True when the content tables are already there. */

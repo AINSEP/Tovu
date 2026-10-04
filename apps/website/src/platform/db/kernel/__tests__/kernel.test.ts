@@ -4,13 +4,12 @@ import { after, beforeEach, describe, test } from "node:test";
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { Kysely, type RawBuilder, sql, SqliteDialect } from "kysely";
+import { buildKernel, TurnLock } from "@jini-ai/db/kernel";
 
 import { jsonSet, jsonText, listColumns, listTables, nowIso, tableExists, toBool, toBytes } from "../dialect.js";
 import { openPgliteKernel } from "../drivers/pglite.js";
 import { sqliteKernel } from "../drivers/sqlite.js";
-import { buildKernel } from "../kernel-core.js";
 import { type StorageKernel, UnsupportedCapabilityError } from "../port.js";
-import { TurnLock } from "../turn-lock.js";
 
 /**
  * @file The storage kernel's rules, proven on EVERY embedded driver by the same assertions:

@@ -1,11 +1,10 @@
 /**
- * @file Pure-logic tests for `src/platform/db/migration/manifest.ts` and `verify.ts` — no live database.
+ * @file Pure-logic tests for `src/platform/db/migration/manifest.ts` — no live database.
  *
  * Live-Postgres proof of the semantics these classifications rest on (int4 vs int8 capacity,
  * identity reseeding, the timestamp-timezone ambiguity, the JSON-in-plain-text gap) lives in
  * `migration-manifest-postgres.test.ts`. This file is everything that can be proven without a
- * server: that the manifest's classification covers the real schema completely and without drift,
- * and that `verify.ts`'s pure checks accept/reject the right shapes.
+ * server: that the manifest's classification covers the real schema completely and without drift.
  */
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -40,7 +39,6 @@ import {
   topologicalTableCopyOrder,
   WATERMARK_IS_NOT_A_MIGRATION_BOUNDARY,
 } from "../migration/manifest.js";
-import { verifyBooleanCopy, verifyClassifiedValue, verifyExactTextCopy, verifyJsonText, verifyUtcTimestampText } from "../migration/verify.js";
 import * as pgSchema from "../schema.postgres.js";
 
 const SCHEMA_SOURCE = fs.readFileSync(path.resolve(import.meta.dirname, "../schema.sqlite.ts"), "utf8");
@@ -621,7 +619,7 @@ test("JSON-completeness tripwire (R4-F1/C-1): no text() column outside isJsonCol
   // a sealed-ciphertext column can document that it encrypts (composio_connector_credentials.sealed_ciphertext
   // did, until migration 0075 dropped it; the sanity assertions at the end of this test pin the wording)
   // the OUTPUT of `JSON.stringify(...)` — the column itself stores base64 AES-GCM ciphertext, not
-  // plaintext JSON, and verifyJsonText would fail on every real row if this heuristic treated that
+  // plaintext JSON, and a JSON-validity check would fail on every real row if this heuristic treated that
   // mention as a JSON signal. Flagging that column would be the heuristic being wrong, not the schema.
   //
   // Column identity is the FULLY QUALIFIED "table.column", matching REVIEWED_JSON_COLUMNS's own key
@@ -880,14 +878,11 @@ test("PG_BIGINT53_SAFE_INTEGER_CEILING documents Number.MAX_SAFE_INTEGER and exp
   assert.match(PG_BIGINT53_SAFE_INTEGER_CEILING.doNotFixBySwitchingMode, /BigInt/);
 });
 
-// --- MEDIUM #9: Z vs offset forms both verify, but do not sort consistently against each other -----
+// --- MEDIUM #9: Z vs offset forms are both valid, but do not sort consistently against each other -----
 
-test("TIMESTAMP_ORDERING_REQUIRES_CANONICAL_Z documents the collation hazard without asking verifyUtcTimestampText to reject the offset form", () => {
+test("TIMESTAMP_ORDERING_REQUIRES_CANONICAL_Z documents the collation hazard", () => {
   assert.match(TIMESTAMP_ORDERING_REQUIRES_CANONICAL_Z.hazard, /collation/);
   assert.match(TIMESTAMP_ORDERING_REQUIRES_CANONICAL_Z.requirement, /normalize to canonical Z/);
-  // Both forms must still verify — this constant documents a sort-order hazard, not a validity one.
-  assert.equal(verifyUtcTimestampText("2026-08-12T10:00:00Z"), null);
-  assert.equal(verifyUtcTimestampText("2026-08-12T10:00:00-04:00"), null);
 });
 
 test("Z and offset forms genuinely disagree under plain string comparison, even though both name valid, unambiguous instants — the mechanism TIMESTAMP_ORDERING_REQUIRES_CANONICAL_Z documents", () => {
@@ -927,181 +922,4 @@ test("classifyPluginColumn: TEXT columns follow the same *_json / *_at naming co
 test("classifyPluginColumn: REAL and BLOB pass through as their own kinds", () => {
   assert.equal(classifyPluginColumn({ name: "score", type: "REAL" }).kind, "real");
   assert.equal(classifyPluginColumn({ name: "payload", type: "BLOB" }).kind, "blob");
-});
-
-// --- verify.ts -------------------------------------------------------------------------------
-
-test("verifyUtcTimestampText: accepts Z and numeric-offset forms, rejects naive-local, rejects null-pass-through", () => {
-  assert.equal(verifyUtcTimestampText("2026-08-12T10:00:00Z"), null);
-  assert.equal(verifyUtcTimestampText("2026-08-12T10:00:00+00:00"), null);
-  assert.equal(verifyUtcTimestampText(null), null);
-  const naive = verifyUtcTimestampText("2026-08-12T10:00:00");
-  assert.equal(naive?.code, "NAIVE_LOCAL_TIMESTAMP");
-  const garbage = verifyUtcTimestampText("not-a-date Z");
-  assert.equal(garbage?.code, "UNPARSEABLE_TIMESTAMP");
-});
-
-test("verifyUtcTimestampText: accepts fractional seconds, and a genuine leap-day instant in a leap year", () => {
-  assert.equal(verifyUtcTimestampText("2026-08-12T10:00:00.123Z"), null);
-  assert.equal(verifyUtcTimestampText("2028-02-29T00:00:00Z"), null, "2028 is a leap year — Feb 29 is a real date");
-});
-
-test("verifyUtcTimestampText: rejects Date.parse's looser forms that bare Date.parse would silently accept (MEDIUM #11)", () => {
-  // Space-separated date-time: Date.parse("2026-08-12 10:00:00Z") parses successfully (isNaN false)
-  // even though it is not the RFC3339 "T"-separated shape this manifest's timestamps are declared to
-  // use. Verified before tightening: a live scan of infra/content.db found zero space-separated
-  // values in any schema.sqlite.ts-declared timestamp column, so this does not retroactively flag real data.
-  const spaceSeparated = verifyUtcTimestampText("2026-08-12 10:00:00Z");
-  assert.equal(spaceSeparated?.code, "UNPARSEABLE_TIMESTAMP");
-
-  // Invalid calendar date: Date.parse("2026-02-30T00:00:00Z") does NOT return NaN — it silently
-  // normalizes to March 2nd instead of failing, which the old bare-Date.parse check let straight
-  // through as "valid". 2026 is not a leap year, so Feb 29 is invalid too. Same shape for a 30-day
-  // month: April has no 31st, and Date.parse silently rolls "2026-04-31" into May 1st.
-  const feb30 = verifyUtcTimestampText("2026-02-30T00:00:00Z");
-  assert.equal(feb30?.code, "INVALID_CALENDAR_DATE");
-  const feb29NonLeap = verifyUtcTimestampText("2026-02-29T00:00:00Z");
-  assert.equal(feb29NonLeap?.code, "INVALID_CALENDAR_DATE");
-  const april31 = verifyUtcTimestampText("2026-04-31T00:00:00Z");
-  assert.equal(april31?.code, "INVALID_CALENDAR_DATE");
-
-  // Confirm the OLD lax check really would have accepted all of these — otherwise this "regression"
-  // test would not be exercising the bug it claims to (V8's Date.parse DOES reject syntactically
-  // out-of-range fields like month 13 or hour 25 on its own; the silent-normalization bug is
-  // specifically a day-of-month that is in the 1-31 syntactic range but invalid for that month).
-  assert.ok(!Number.isNaN(Date.parse("2026-08-12 10:00:00Z")), "sanity: Date.parse accepts the space-separated form");
-  assert.ok(!Number.isNaN(Date.parse("2026-02-30T00:00:00Z")), "sanity: Date.parse silently normalizes Feb 30");
-  assert.ok(!Number.isNaN(Date.parse("2026-04-31T00:00:00Z")), "sanity: Date.parse silently normalizes April 31");
-});
-
-test("verifyUtcTimestampText: rejects an out-of-range UTC offset — the regression the STRICT_RFC3339_SHAPE/isValidCalendarInstant rewrite silently introduced by dropping Date.parse's own offset-bounds checking", () => {
-  // Before this fix: STRICT_RFC3339_SHAPE matched any two-digit:two-digit offset (no range check at
-  // all), and isValidCalendarInstant only round-trips the date/time fields — neither one looks at the
-  // offset's own magnitude, so all three of these shape-matched and calendar-round-tripped cleanly
-  // and were wrongly ACCEPTED. Date.parse itself has always rejected all three (see the sanity
-  // assertions below) — this is a real loss of a check the previous round had for free, not a new one.
-  const overHourBoundary = verifyUtcTimestampText("2026-08-12T10:00:00+24:00");
-  assert.equal(overHourBoundary?.code, "INVALID_UTC_OFFSET");
-  const overMinuteBoundary = verifyUtcTimestampText("2026-08-12T10:00:00+23:60");
-  assert.equal(overMinuteBoundary?.code, "INVALID_UTC_OFFSET");
-  const wayOutOfRange = verifyUtcTimestampText("2026-08-12T10:00:00+99:99");
-  assert.equal(wayOutOfRange?.code, "INVALID_UTC_OFFSET");
-  const negativeOverHourBoundary = verifyUtcTimestampText("2026-08-12T10:00:00-24:00");
-  assert.equal(negativeOverHourBoundary?.code, "INVALID_UTC_OFFSET");
-
-  // Confirm Date.parse really would have rejected all four — otherwise this would not be a genuine
-  // regression relative to the pre-rewrite behavior this manifest replaced.
-  assert.ok(Number.isNaN(Date.parse("2026-08-12T10:00:00+24:00")), "sanity: Date.parse rejects +24:00");
-  assert.ok(Number.isNaN(Date.parse("2026-08-12T10:00:00+23:60")), "sanity: Date.parse rejects +23:60");
-  assert.ok(Number.isNaN(Date.parse("2026-08-12T10:00:00+99:99")), "sanity: Date.parse rejects +99:99");
-  assert.ok(Number.isNaN(Date.parse("2026-08-12T10:00:00-24:00")), "sanity: Date.parse rejects -24:00");
-});
-
-test("verifyUtcTimestampText: accepts boundary-VALID offsets — the fix must not reject the legitimate edge of the range along with the illegitimate one", () => {
-  // ±15:59, not ±23:59 — Postgres's own timezone-displacement cap (2026-08-12 round-3 fix), see
-  // isValidUtcOffset's own doc and the live proof in migration-manifest-postgres.test.ts.
-  assert.equal(verifyUtcTimestampText("2026-08-12T10:00:00+15:59"), null, "+15:59 is the maximum valid positive offset (Postgres's own cap)");
-  assert.equal(verifyUtcTimestampText("2026-08-12T10:00:00-15:59"), null, "-15:59 is the maximum valid negative offset (Postgres's own cap)");
-  assert.equal(verifyUtcTimestampText("2026-08-12T10:00:00+00:00"), null, "+00:00 is a valid (if redundant with Z) offset");
-});
-
-// --- round-3 audit (2026-08-12): the ±23:59 bound above was itself wrong — Postgres genuinely
-// rejects +16:00 through +23:59, so the PREVIOUS round's fix let values through this validator that
-// its own destination database can never accept -----------------------------------------------------
-
-test("verifyUtcTimestampText: rejects offsets Postgres itself rejects (+16:00 through +23:59) even though Date.parse alone accepts every one of them — this was the round-3 regression: the ±23:59 bound matched Date.parse, not Postgres, the actual authority this validator answers to", () => {
-  // Live Postgres 14.18 proof (migration-manifest-postgres.test.ts): '...+16:00'::timestamptz ->
-  // ERROR: time zone displacement out of range. '...+15:59'::timestamptz -> OK. The cap is exactly
-  // ±15:59, so +16:00 is the smallest value that must now be rejected, and +23:59 (the OLD bound's own
-  // "valid" boundary case) must be rejected too.
-  const justOverNewBoundary = verifyUtcTimestampText("2026-08-12T10:00:00+16:00");
-  assert.equal(justOverNewBoundary?.code, "INVALID_UTC_OFFSET");
-  const oldBoundaryNowInvalid = verifyUtcTimestampText("2026-08-12T10:00:00+23:59");
-  assert.equal(oldBoundaryNowInvalid?.code, "INVALID_UTC_OFFSET");
-  const negativeJustOverNewBoundary = verifyUtcTimestampText("2026-08-12T10:00:00-16:00");
-  assert.equal(negativeJustOverNewBoundary?.code, "INVALID_UTC_OFFSET");
-  const negativeOldBoundaryNowInvalid = verifyUtcTimestampText("2026-08-12T10:00:00-23:59");
-  assert.equal(negativeOldBoundaryNowInvalid?.code, "INVALID_UTC_OFFSET");
-
-  // Confirm Date.parse genuinely accepts all four — otherwise this would not be exercising the gap
-  // between "what Date.parse allows" and "what Postgres allows" that this fix closes.
-  assert.ok(!Number.isNaN(Date.parse("2026-08-12T10:00:00+16:00")), "sanity: Date.parse accepts +16:00 (Postgres does not)");
-  assert.ok(!Number.isNaN(Date.parse("2026-08-12T10:00:00+23:59")), "sanity: Date.parse accepts +23:59 (Postgres does not)");
-  assert.ok(!Number.isNaN(Date.parse("2026-08-12T10:00:00-16:00")), "sanity: Date.parse accepts -16:00 (Postgres does not)");
-  assert.ok(!Number.isNaN(Date.parse("2026-08-12T10:00:00-23:59")), "sanity: Date.parse accepts -23:59 (Postgres does not)");
-});
-
-test("verifyJsonText: accepts valid JSON and null, rejects malformed JSON", () => {
-  assert.equal(verifyJsonText('{"a":1}'), null);
-  assert.equal(verifyJsonText("[]"), null);
-  assert.equal(verifyJsonText(null), null);
-  assert.equal(verifyJsonText("{not valid json")?.code, "INVALID_JSON");
-});
-
-test("verifyBooleanCopy: 0->false and 1->true are accepted; a mismatch and a non-0/1 source both fail with distinct codes", () => {
-  assert.equal(verifyBooleanCopy(1, true), null);
-  assert.equal(verifyBooleanCopy(0, false), null);
-  assert.equal(verifyBooleanCopy(1, false)?.code, "BOOLEAN_COPY_MISMATCH");
-  assert.equal(verifyBooleanCopy(2, true)?.code, "INVALID_SQLITE_BOOLEAN_SOURCE");
-});
-
-// --- BLOCKER #3: verifyClassifiedValue must check COPY FIDELITY (source vs destination), not just
-// destination shape ------------------------------------------------------------------------------
-
-test("verifyExactTextCopy: exact match passes (including null==null), any mismatch fails with one distinct code", () => {
-  assert.equal(verifyExactTextCopy("x", "x"), null);
-  assert.equal(verifyExactTextCopy(null, null), null);
-  assert.equal(verifyExactTextCopy('{"a":1}', '{"a":1}'), null);
-  assert.equal(verifyExactTextCopy("x", "y")?.code, "TEXT_COPY_FIDELITY_MISMATCH");
-  assert.equal(verifyExactTextCopy(null, "x")?.code, "TEXT_COPY_FIDELITY_MISMATCH");
-  assert.equal(verifyExactTextCopy("x", null)?.code, "TEXT_COPY_FIDELITY_MISMATCH");
-});
-
-test("verifyClassifiedValue dispatches to the right check per column kind, and passes id/plain-integer/boolean kinds through their own dedicated paths", () => {
-  assert.equal(verifyClassifiedValue({ kind: "json-text" }, '{"a":1}', '{"a":1}'), null);
-  assert.equal(verifyClassifiedValue({ kind: "utc-timestamp-text" }, "2026-08-12T10:00:00Z", "2026-08-12T10:00:00Z"), null);
-  assert.equal(verifyClassifiedValue({ kind: "plain-text" }, "hello", "hello"), null);
-  assert.equal(verifyClassifiedValue({ kind: "boolean-flag" }, 1, true), null);
-  assert.equal(verifyClassifiedValue({ kind: "reviewed-id", growthClass: "unbounded", rationale: "x" }, 1, 1), null);
-  assert.equal(verifyClassifiedValue({ kind: "reviewed-id", growthClass: "bounded", rationale: "x" }, 1, 1), null);
-  assert.equal(verifyClassifiedValue({ kind: "plain-integer" }, 1, 1), null);
-});
-
-test("verifyClassifiedValue rejects a copier that silently substitutes a different-but-valid value — the exact audited example ({\"role\":\"admin\"} copied as {\"role\":\"member\"}) — for every text-family kind", () => {
-  // Before the fix, all three of these passed: json-text and utc-timestamp-text validated only
-  // postgresValue's SHAPE, ignoring sqliteValue entirely, and plain-text had no check at all. The old
-  // tests passed `null` as the source value for json-text/utc-timestamp-text, which is what concealed
-  // the omission (null never triggers a shape check either way) — this test uses REAL matching source
-  // shapes on purpose, so it actually exercises the fidelity comparison.
-  const jsonSwap = verifyClassifiedValue({ kind: "json-text" }, '{"role":"admin"}', '{"role":"member"}');
-  assert.equal(jsonSwap?.code, "JSON_COPY_FIDELITY_MISMATCH");
-
-  const timestampSwap = verifyClassifiedValue({ kind: "utc-timestamp-text" }, "2026-08-12T10:00:00Z", "2026-08-12T11:00:00Z");
-  assert.equal(timestampSwap?.code, "TEXT_COPY_FIDELITY_MISMATCH");
-
-  const plainTextSwap = verifyClassifiedValue({ kind: "plain-text" }, "hello", "goodbye");
-  assert.equal(plainTextSwap?.code, "TEXT_COPY_FIDELITY_MISMATCH");
-});
-
-test("json-text copy fidelity is JSON-value equality: jsonb's normalisation (key order, whitespace, duplicate keys) passes, any value change still fails", () => {
-  // Exactly what Postgres jsonb hands back for the source on the left — keys reordered by length,
-  // whitespace re-emitted as ", " / ": ", duplicate key collapsed to its last value.
-  assert.equal(verifyClassifiedValue({ kind: "json-text" }, '{"zz":1,"a":{"y":[1,2],"x":null},"a2":true}', '{"a": {"x": null, "y": [1, 2]}, "a2": true, "zz": 1}'), null);
-  assert.equal(verifyClassifiedValue({ kind: "json-text" }, '{"k":1,"k":2}', '{"k": 2}'), null);
-  assert.equal(verifyClassifiedValue({ kind: "json-text" }, null, null), null);
-  // Array order IS meaning; so are types, nullness, and nested values.
-  assert.equal(verifyClassifiedValue({ kind: "json-text" }, "[1,2]", "[2, 1]")?.code, "JSON_COPY_FIDELITY_MISMATCH");
-  assert.equal(verifyClassifiedValue({ kind: "json-text" }, '{"a":1}', '{"a": "1"}')?.code, "JSON_COPY_FIDELITY_MISMATCH");
-  assert.equal(verifyClassifiedValue({ kind: "json-text" }, '{"a":{"b":1}}', '{"a": {"b": 1, "c": 2}}')?.code, "JSON_COPY_FIDELITY_MISMATCH");
-  assert.equal(verifyClassifiedValue({ kind: "json-text" }, '{"a":1}', null)?.code, "JSON_COPY_FIDELITY_MISMATCH");
-  assert.equal(verifyClassifiedValue({ kind: "json-text" }, null, '{"a": 1}')?.code, "JSON_COPY_FIDELITY_MISMATCH");
-  // A malformed source cannot be compared as JSON at all.
-  assert.equal(verifyClassifiedValue({ kind: "json-text" }, "{bad", '{"a": 1}')?.code, "INVALID_JSON");
-});
-
-test("verifyClassifiedValue still catches a destination-shape violation even when fidelity passes (fidelity and shape are two DIFFERENT checks, not one replacing the other)", () => {
-  // The source and destination match exactly, so fidelity passes — but the matched value is itself
-  // malformed JSON / a naive-local timestamp, which the shape check (run second) must still catch.
-  assert.equal(verifyClassifiedValue({ kind: "json-text" }, "{bad", "{bad")?.code, "INVALID_JSON");
-  assert.equal(verifyClassifiedValue({ kind: "utc-timestamp-text" }, "2026-08-12T10:00:00", "2026-08-12T10:00:00")?.code, "NAIVE_LOCAL_TIMESTAMP");
 });

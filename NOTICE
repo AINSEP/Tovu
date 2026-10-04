@@ -163,8 +163,8 @@ Licence:   Apache-2.0
 Copyright: Copyright Electric DB Limited
 Text:      apps/website/src/platform/db/kernel/pglite-server/LICENSE
 
-Modified (not copied verbatim) into:
-  apps/website/src/platform/db/kernel/pglite-server/socket-server.ts
+Modified (not copied verbatim) into the @jini-ai/db package
+(Jini repo: packages/db/src/pglite/socket-server.ts), which Tovu depends on.
 
 Every change from upstream is listed in `NOTICE.md` in the same directory.
 

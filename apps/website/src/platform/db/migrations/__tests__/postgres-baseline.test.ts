@@ -7,7 +7,7 @@ import { sql } from "kysely";
 import { openPgliteKernel } from "../../kernel/drivers/pglite.js";
 import type { StorageKernel } from "../../kernel/port.js";
 import { readSchemaShape, type SchemaShape } from "../../kernel/schema-shape.js";
-import { ensurePgContentSchema } from "../../pglite/content-schema.js";
+import { ensurePgContentSchema } from "../../__tests__/pg-content-schema.js";
 import { migrateContentDatabase } from "../index.js";
 import { LegacyHistoryError } from "../step.js";
 
@@ -15,7 +15,7 @@ import { LegacyHistoryError } from "../step.js";
  * @file The Postgres half of `0000_legacy_baseline` (ADR-066 §6), on PGlite: the frozen statements
  * apply (drizzle-kit's own baseline did not: 42830, a composite FK before its unique index), and a
  * fresh database at head has the same tables, columns, defaults, indexes and constraints as the
- * reference built from `schema.postgres.ts` today (`pglite/content-schema.ts`) — the check that a
+ * reference built from `schema.postgres.ts` today (`__tests__/pg-content-schema.ts`) — the check that a
  * schema-file change without a migration step goes red. Real Postgres: `runner.postgres.test.ts`.
  */
 

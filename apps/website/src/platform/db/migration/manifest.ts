@@ -26,8 +26,8 @@
  * registry below with its rationale attached, not scattered as tribal knowledge.
  *
  * Scope this round (per the dispatch brief): build the manifest and its migration-verification
- * consumer (`./verify.ts`), proven against a real local Postgres fixture
- * (`__tests__/migration-manifest-postgres.test.ts`). `classifyPluginColumn` below is a generic
+ * consumer (`./verify.ts`, deleted 2026-10-03 with no production caller; see development/DELETED-CODE.md),
+ * proven against a real local Postgres fixture (`__tests__/migration-manifest-postgres.test.ts`). `classifyPluginColumn` below is a generic
  * convention seam for a *future* Postgres DDL path for plugin-declared tables (`data-module.ts`
  * only targets SQLite today) — it is written and tested now so that path does not have to invent
  * its own semantic conventions later.
@@ -296,8 +296,8 @@ export const REVIEWED_INTEGER_ID_COLUMNS: Readonly<Record<string, AutoIncrementR
 /**
  * A SEPARATE hazard from the timestamp representation decision above, carried as its own invariant because the
  * two have different triggers and different fixes: that decision is about a naive-local string being
- * ambiguous once cast to `timestamptz`; this one is about two forms `verifyUtcTimestampText` BOTH
- * treat as fully valid — a trailing `Z` and an explicit `+HH:MM`/`-HH:MM` offset — sorting WRONG
+ * ambiguous once cast to `timestamptz`; this one is about two forms that are BOTH
+ * fully valid — a trailing `Z` and an explicit `+HH:MM`/`-HH:MM` offset — sorting WRONG
  * against each other under plain string collation, even though neither is ambiguous on its own.
  *
  * `"...T10:00:00-05:00"` (15:00 UTC) sorts BEFORE `"...T12:00:00Z"` (12:00 UTC) under byte/string
@@ -314,22 +314,22 @@ export const REVIEWED_INTEGER_ID_COLUMNS: Readonly<Record<string, AutoIncrementR
  *
  * NOT broken today: the app writes only `toISOString()` (always `Z`), and a live scan of
  * `infra/content.db` found zero non-`Z` text timestamps in any `schema.sqlite.ts`-declared table — see this
- * manifest's own 2026-08-12 audit. `verifyUtcTimestampText` deliberately keeps accepting BOTH forms
+ * manifest's own 2026-08-12 audit. A validity check must keep accepting BOTH forms
  * (both are valid UTC-designated instants; rejecting the offset form would be a false rejection, not a
  * fix for this). The obligation this invariant records is forward-looking: any importer capable of
  * introducing the offset form — a WordPress import is exactly such a path — MUST normalize to
- * canonical `Z` before insert, because passing `verifyUtcTimestampText` proves the value is a valid
+ * canonical `Z` before insert, because passing a validity check proves the value is a valid
  * instant, not that it will sort correctly next to the `Z`-form values already present.
  */
 export const TIMESTAMP_ORDERING_REQUIRES_CANONICAL_Z = {
   hazard:
-    'a UTC-offset form ("+HH:MM"/"-HH:MM") and the "Z" form both pass verifyUtcTimestampText as equally valid, ' +
+    'a UTC-offset form ("+HH:MM"/"-HH:MM") and the "Z" form are both valid UTC-designated instants, ' +
     "but they do not sort consistently against each other under the plain string collation this app's " +
     "ORDER BY / .orderBy() calls use on these text columns.",
   currentState: "not broken today — the app writes only toISOString() (always Z); zero non-Z values found live.",
   requirement:
     "any importer or migration path capable of introducing the offset form must normalize to canonical Z before " +
-    "insert. verifyUtcTimestampText accepting the offset form is not a substitute for that normalization.",
+    "insert. Accepting the offset form as valid is not a substitute for that normalization.",
 } as const;
 
 /** Matches this schema's timestamp naming convention: `*_at`, or the bare column literally named
@@ -346,11 +346,11 @@ export function isTimestampColumnName(sqlColumnName: string): boolean {
 
 /** Historical migration rationale (the unused runtime declaration below was removed):
  * SQLite stores JSON documents as TEXT; the generated Postgres schema stores every json-text column as
- * native jsonb (MySQL: native JSON), still typed string (generate-postgres-schema.ts's
+ * native jsonb, still typed string (generate-postgres-schema.ts's
  * JSON_TEXT_DECLARATION). SQLite does not enforce JSON validity, so a corrupted payload that SQLite kept is
  * REJECTED by the jsonb insert — the copy fails loudly instead of carrying it across. jsonb also normalises
- * the document (key order, whitespace, duplicate keys), so verify.ts's verifyJsonDocumentCopy compares JSON
- * values, not bytes.
+ * the document (key order, whitespace, duplicate keys), so a row-copy check must compare JSON
+ * values, not bytes (the deleted verify.ts's verifyJsonDocumentCopy did).
  */
 // JSON_TEXT_NOTE (apps/website/src/platform/db/migration/manifest.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
 

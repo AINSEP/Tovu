@@ -23,7 +23,6 @@ import test from "node:test";
 
 import { IDENTITY_COLUMN_INSERT_OVERRIDE, reseedSequenceSql } from "../migration/manifest.js";
 import { dropDatabase, psql, recreateDatabase } from "../migration/pg-fixture.js";
-import { verifyJsonText, verifyUtcTimestampText } from "../migration/verify.js";
 
 /** Same admin-connection target `pg-fixture.ts` uses internally for `DROP`/`CREATE DATABASE` — not
  * exported from there (deliberately hardcoded, per that file's own doc, so no env var can redirect
@@ -424,14 +423,9 @@ test("a naive-local timestamp string casts to a DIFFERENT instant depending on t
     naiveUnderJst,
     "a naive-local timestamp string resolving to the SAME instant under two different session timezones would mean the ambiguity this manifest warns about does not actually exist — it does"
   );
-
-  // Ties the live proof back to the pure classifier: the naive string this proof used is exactly
-  // what verifyUtcTimestampText rejects, and the canonical string is exactly what it accepts.
-  assert.equal(verifyUtcTimestampText(NAIVE_LOCAL)?.code, "NAIVE_LOCAL_TIMESTAMP");
-  assert.equal(verifyUtcTimestampText(CANONICAL), null);
 });
 
-// --- MEDIUM #9: Z and offset forms both verify as valid, but do not sort consistently against each
+// --- MEDIUM #9: Z and offset forms are both valid, but do not sort consistently against each
 // other under plain string collation — a SEPARATE hazard from the naive-local ambiguity above -------
 
 test("string-collation ORDER BY on a text timestamp column disagrees with chronological ORDER BY when Z and offset forms mix — the concrete mechanism TIMESTAMP_ORDERING_REQUIRES_CANONICAL_Z documents", () => {
@@ -459,17 +453,12 @@ test("string-collation ORDER BY on a text timestamp column disagrees with chrono
     "plain string-collation ORDER BY on the raw text column must disagree with chronological order here — that " +
       "disagreement IS the hazard TIMESTAMP_ORDERING_REQUIRES_CANONICAL_Z documents, not a test bug"
   );
-
-  // Both forms remain individually valid per verifyUtcTimestampText — the hazard is about mixing
-  // them under a string sort, not about either form being rejected on its own.
-  assert.equal(verifyUtcTimestampText(EARLIER_Z), null);
-  assert.equal(verifyUtcTimestampText(LATER_OFFSET), null);
 });
 
 // --- round-3 audit (2026-08-12): Postgres caps timezone displacement at ±15:59, not the ±23:59
-// isValidUtcOffset used to enforce (matching Date.parse's own bound instead of Postgres's) -----------
+// the deleted migration/verify.ts used to enforce (matching Date.parse's own bound instead of Postgres's) ---
 
-test("Postgres accepts a UTC offset up to and including ±15:59 and rejects ±16:00 and beyond, in both directions — the exact bound isValidUtcOffset must enforce, not the ±23:59 Date.parse allows", () => {
+test("Postgres accepts a UTC offset up to and including ±15:59 and rejects ±16:00 and beyond, in both directions — the bound a UTC-offset check must enforce, not the ±23:59 Date.parse allows", () => {
   const acceptedPositive = psql(FIXTURE_DB, `SELECT '2026-08-12T10:00:00+15:59'::timestamptz;`);
   assert.equal(acceptedPositive.ok, true, `+15:59 must be accepted by a live server: ${acceptedPositive.stderr}`);
 
@@ -487,21 +476,13 @@ test("Postgres accepts a UTC offset up to and including ±15:59 and rejects ±16
   // A value the OLD ±23:59 bound wrongly accepted (it matched Date.parse's bound, not Postgres's) —
   // proves the OLD bound really did let through values this exact server rejects, not a hypothetical.
   const oldBoundWronglyAccepted = psql(FIXTURE_DB, `SELECT '2026-08-12T10:00:00+20:00'::timestamptz;`);
-  assert.equal(oldBoundWronglyAccepted.ok, false, "expected +20:00 to be rejected — the old ±23:59 bound in isValidUtcOffset let this straight through verify.ts");
+  assert.equal(oldBoundWronglyAccepted.ok, false, "expected +20:00 to be rejected — the old ±23:59 bound in the (since deleted) migration/verify.ts let this straight through");
   assert.match(oldBoundWronglyAccepted.stderr, /time zone displacement out of range/i);
-
-  // Ties the live proof back to the pure classifier: the boundary this proof establishes on a real
-  // server is exactly what verifyUtcTimestampText must accept/reject.
-  assert.equal(verifyUtcTimestampText("2026-08-12T10:00:00+15:59"), null);
-  assert.equal(verifyUtcTimestampText("2026-08-12T10:00:00+16:00")?.code, "INVALID_UTC_OFFSET");
-  assert.equal(verifyUtcTimestampText("2026-08-12T10:00:00-15:59"), null);
-  assert.equal(verifyUtcTimestampText("2026-08-12T10:00:00-16:00")?.code, "INVALID_UTC_OFFSET");
-  assert.equal(verifyUtcTimestampText("2026-08-12T10:00:00+20:00")?.code, "INVALID_UTC_OFFSET");
 });
 
 // --- 3. JSON vs text: a plain text column enforces nothing, on Postgres exactly as on SQLite -----
 
-test("a plain Postgres text column silently accepts malformed JSON — proving the manifest's verifyJsonText check is necessary, not redundant with either dialect's type system", () => {
+test("a plain Postgres text column silently accepts malformed JSON — proving a json-text column needs a semantic check beyond either dialect's type system", () => {
   const create = psql(FIXTURE_DB, `CREATE TABLE fx_json_gap (id integer PRIMARY KEY, payload text);`);
   assert.equal(create.ok, true, create.stderr);
 
@@ -511,7 +492,4 @@ test("a plain Postgres text column silently accepts malformed JSON — proving t
 
   const readBack = psql(FIXTURE_DB, `SELECT payload FROM fx_json_gap WHERE id = 1;`);
   assert.equal(readBack.stdout.trim(), MALFORMED, "the malformed payload round-trips byte-for-byte, exactly the silent-corruption shape this manifest's classifier exists to catch downstream");
-
-  // The layer that actually catches it is verify.ts, not the schema:
-  assert.equal(verifyJsonText(readBack.stdout.trim())?.code, "INVALID_JSON");
 });

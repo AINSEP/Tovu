@@ -8,7 +8,7 @@
  * decision this task was explicitly told not to make unilaterally. `psql` is already on the host
  * running these tests, so it is the only way to prove behavior against a live server without adding
  * a new runtime dependency mid-task. This file is TEST INFRASTRUCTURE ONLY — nothing in
- * `manifest.ts`/`verify.ts` depends on it, and it must never be imported from product code.
+ * `manifest.ts` depends on it, and it must never be imported from product code.
  */
 import { spawnSync } from "node:child_process";
 
