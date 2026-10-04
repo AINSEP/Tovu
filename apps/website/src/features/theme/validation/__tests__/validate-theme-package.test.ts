@@ -445,27 +445,27 @@ test("markup: data-agent-element in theme markup is rejected on both schema vers
   assert.ok(findError(v2Result, "markup-data-agent-element-forbidden"), JSON.stringify(v2Result.errors));
 });
 
-test("markup: an unknown data-embed-config type is rejected, and 'form' names the widget replacement", () => {
+test("markup: an unknown data-embed-config type is rejected", () => {
   const dir = tmpDir("tovu-validate-markup-form-");
   writeMinimalV2Static(dir);
   fs.writeFileSync(
     path.join(dir, "render", "pages", "index.html"),
-    `<div data-embed-config='{"type":"form","id":"contact"}'></div>`,
+    `<div data-embed-config='{"type":"unknown-form-type","id":"contact"}'></div>`,
     "utf8"
   );
 
   const result = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "author" });
   const err = findError(result, "markup-embed-config-unknown-type");
   assert.ok(err, JSON.stringify(result.errors));
-  assert.match(err!.message, /'form' was removed/);
-  assert.ok(err!.message.includes('embed a contact-form widget instead: {"type":"widget","slug":"<contact-form widget slug>"}'));
+  assert.match(err!.message, /unknown-form-type/);
+  assert.match(err!.message, /widget, form/);
   assert.equal(err!.path, "render/pages/index.html");
 });
 
-test("markup: every real current embed type (widget/media/post/content/menu/partial) is accepted", () => {
+test("markup: every real current embed type (widget/form/media/post/content/menu/partial) is accepted", () => {
   const dir = tmpDir("tovu-validate-markup-vocab-");
   writeMinimalV2Static(dir);
-  const markers = ["widget", "media", "post", "content", "menu", "partial"]
+  const markers = ["widget", "form", "media", "post", "content", "menu", "partial"]
     .map((type) => `<div data-embed-config='{"type":"${type}","id":"x"}'></div>`)
     .join("\n");
   fs.writeFileSync(path.join(dir, "render", "pages", "index.html"), markers, "utf8");

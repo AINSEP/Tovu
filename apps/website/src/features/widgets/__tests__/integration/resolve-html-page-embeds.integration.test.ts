@@ -40,6 +40,9 @@ import { WIDGET_CONTENT_TYPE, WIDGET_FIELD_NAMESPACE } from "../../types.js";
  * And the `form` embed type it covered is gone (`embed-type-inventory.md`): those tests now exercise
  * the mechanism that replaced it — a real, persisted `contact-form` WIDGET instance — plus one
  * regression test pinning that `form` itself is now an unregistered token.
+ *
+ * **2026-10-04: the owner restored `form`** as a second spelling of the same contact-form widget
+ * path; that regression test now pins the two spellings to identical IR instead.
  */
 
 const WORKSPACE_ID = "ws-html-embeds";
@@ -177,24 +180,31 @@ test('resolveHtmlPageEmbeds: a contact-form WIDGET instance resolves through the
   assert.equal(ir?.props.formDefinitionId, "form-1");
 });
 
-test('resolveHtmlPageEmbeds: the RETIRED "form" embed type has no resolver — every occurrence is absent from the result, exactly like any unregistered token, and nothing throws', async () => {
-  // The regression this pins: a stored Page written before 2026-08-10 may still carry a `form`
-  // marker. Removing the type must make it inert-and-degraded, never a crash and never a silent
-  // resolution through some surviving code path. Note this is a DIFFERENT outcome from "unresolved":
-  // `isPageEmbedType("form")` is now false, so `render.ts` leaves the marker's own markup untouched
-  // rather than substituting a REQ-28 placeholder over it.
+test('resolveHtmlPageEmbeds: the RESTORED "form" embed type resolves by form id AND slug through the SAME contact-form resolver, producing the identical IR a contact-form widget produces', async () => {
+  // Owner decision 2026-10-04: both spellings work. `form` was retired 2026-08-10 because it was
+  // shorthand for a synthetic contact-form widget; restoring it is only safe while it stays on that
+  // ONE registered resolver, so this pins byte-identical IR against a real persisted widget instance
+  // (a stored Page written before 2026-08-10 that still carries a `form` marker now renders again).
   const entryRepo = new InMemoryEntryRepo();
+  await seedContactFormWidget(entryRepo, "cf-widget-1", "form-1");
   const formDefinitionRepo = new InMemoryFormDefinitionRepo();
   await formDefinitionRepo.create(formDefinition());
   registerCoreResolver({ typeKey: "contact-form", resolver: createContactFormResolver({ formDefinitionRepo }) });
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { entryRepo },
-    input: { workspaceId: WORKSPACE_ID, html: `<div data-embed-config='{"type":"form","id":"form-1"}'></div>` },
+    input: {
+      workspaceId: WORKSPACE_ID,
+      html: `<div data-embed-config='{"type":"form","id":"form-1"}'></div><div data-embed-config='{"type":"form","id":"contact-us"}'></div><div data-embed-config='{"type":"widget","id":"cf-widget-1"}'></div>`,
+    },
   });
 
-  assert.equal(resolved.get("form"), undefined);
-  assert.equal(resolved.size, 0);
+  const widgetIr = resolved.get("widget")?.get("cf-widget-1");
+  assert.equal(widgetIr?.componentId, "contact-form");
+  assert.equal(widgetIr?.props.slug, "contact-us");
+  assert.deepEqual(resolved.get("form")?.get("form-1"), widgetIr);
+  assert.deepEqual(resolved.get("form")?.get("contact-us"), widgetIr);
+  assert.equal(resolved.size, 2);
 });
 
 test('resolveHtmlPageEmbeds: a contact-form widget referencing a DISABLED form definition degrades to the REQ-28 placeholder IR (REQ-38\'s EC-05 taxonomy), never throws', async () => {

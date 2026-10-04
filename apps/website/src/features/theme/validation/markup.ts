@@ -10,19 +10,19 @@ import type { ThemeValidationIssue } from "./profiles.js";
  * Vocabulary verified directly against the runtime that owns it, not assumed from the design doc,
  * which had drifted (see `theme-authoring-guide-v2.md` §8's 2026-08-18 correction): `widget`,
  * `media`, `post`, `content` resolve via `resolver-service.ts`'s `HTML_EMBED_RESOLVERS`; `menu` and
- * `partial` resolve via `static-render.ts`'s `THEME_OWNED_MARKER_TYPES`. `form` was removed
- * 2026-08-10 (`resolver-service.ts`'s own doc comment) and is deliberately absent — a manifest or
- * marker naming it is now an error here, not a silent pass-through.
+ * `partial` resolve via `static-render.ts`'s `THEME_OWNED_MARKER_TYPES`. `form`, restored by the
+ * owner 2026-10-04, resolves through the contact-form widget path.
  */
 
-/** The complete, current `data-embed-config` `type` vocabulary — eight values, kept in sync with
- * `resolver-service.ts`'s `HTML_EMBED_RESOLVERS` (widget/media/post/content) plus
+/** The complete, current `data-embed-config` `type` vocabulary — nine values, kept in sync with
+ * `resolver-service.ts`'s `HTML_EMBED_RESOLVERS` (widget/form/media/post/content) plus
  * `THEME_OWNED_MARKER_TYPES` (menu/partial/post-previews/collection). Duplicated here rather than
  * imported: both are `resolver-service.ts`-internal (`const`, not exported), and this validator is a
  * different feature's territory to own — same reasoning `THEME_OWNED_MARKER_TYPES`'s own doc gives for
  * its own, independent duplication of the same literals. Re-verify against current `HEAD` if this drifts. */
 const KNOWN_EMBED_TYPES: ReadonlySet<string> = new Set([
   "widget",
+  "form",
   "media",
   "post",
   "content",
@@ -85,7 +85,7 @@ export function checkMarkupFile(
     if (!KNOWN_EMBED_TYPES.has(marker.type)) {
       issues.push({
         ruleId: "markup-embed-config-unknown-type",
-        message: `'${relativePath}': data-embed-config type '${marker.type}' is not a recognized embed type — expected one of ${[...KNOWN_EMBED_TYPES].join(", ")}${marker.type === "form" ? " ('form' was removed 2026-08-10 — embed a contact-form widget instead: {\"type\":\"widget\",\"slug\":\"<contact-form widget slug>\"})" : ""}`,
+        message: `'${relativePath}': data-embed-config type '${marker.type}' is not a recognized embed type — expected one of ${[...KNOWN_EMBED_TYPES].join(", ")}`,
         path: relativePath,
       });
     }

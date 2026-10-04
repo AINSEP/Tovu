@@ -63,6 +63,8 @@ export function createFakeFormsPort(options: FakeFormsPortOptions = {}): FormsPo
         name: input.name,
         slug: input.slug,
         fields: input.fields as AdminFormField[],
+        mode: input.mode,
+        html: input.html,
         notify: options.notify ?? blankNotify(),
         status: "active",
         createdAt: new Date(0).toISOString(),

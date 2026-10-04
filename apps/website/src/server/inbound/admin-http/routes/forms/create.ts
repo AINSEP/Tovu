@@ -1,3 +1,4 @@
+import type { FormAuthoring } from "#src/features/forms/html-authoring";
 import { DuplicateCommandError } from "@jini-ai/cms/core";
 import { mapFormsWriteError, toAdminFormDefinitionResponse } from "#src/server/inbound/admin-http/http/forms";
 import { createFormDefinition } from "#src/features/forms/write-service";
@@ -12,13 +13,15 @@ function parseFormCreateBody(rawBody: unknown): {
   slug: string;
   fields: FieldDescriptor[];
   notify: NotifyConfig | undefined;
-} {
+} & FormAuthoring {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   return {
     name: String(body.name ?? ""),
     slug: String(body.slug ?? ""),
     fields: Array.isArray(body.fields) ? (body.fields as FieldDescriptor[]) : [],
     notify: body.notify as NotifyConfig | undefined,
+    ...(body.mode !== undefined ? { mode: body.mode as FormAuthoring["mode"] } : {}),
+    ...(body.html !== undefined ? { html: body.html as string } : {}),
   };
 }
 

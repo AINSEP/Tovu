@@ -41,9 +41,19 @@ test("scanHtmlEmbeds: an unregistered/future type token scans exactly like a kno
   assert.deepEqual(refs, [{ type: "some-future-type", id: "x1", slug: null, name: null, variant: null, header: true }]);
 });
 
-test('scanHtmlEmbeds: the RETIRED "form" type scans like any other unregistered token — removing it from the resolver registry (2026-08-10) changed resolution, never scanning', () => {
+test('scanHtmlEmbeds: the "form" type scans like any other token — its 2026-08-10 removal and 2026-10-04 restoration changed resolution, never scanning', () => {
   const refs = scanHtmlEmbeds(`<div data-embed-config='{"type":"form","id":"f1"}'></div>`);
   assert.deepEqual(refs, [{ type: "form", id: "f1", slug: null, name: null, variant: null, header: true }]);
+});
+
+test('scanHtmlEmbeds: only mode "html" is carried onto the ref; any other mode value is dropped', () => {
+  const refs = scanHtmlEmbeds(
+    `<div data-embed-config='{"type":"form","id":"f1","mode":"html"}'></div><div data-embed-config='{"type":"form","id":"f2","mode":"fancy"}'></div>`,
+  );
+  assert.deepEqual(refs, [
+    { type: "form", id: "f1", slug: null, name: null, variant: null, header: true, mode: "html" },
+    { type: "form", id: "f2", slug: null, name: null, variant: null, header: true },
+  ]);
 });
 
 test("scanHtmlEmbeds: name and variant config keys are captured alongside id", () => {

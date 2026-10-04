@@ -16,7 +16,6 @@ export type {
   FieldType,
   NotifyConfig,
   FormDefinitionStatus,
-  FormDefinitionRecord,
   FormSubmissionRecord,
   FormSubmissionPage,
 } from "@jini-ai/cms-forms";
@@ -29,3 +28,6 @@ export {
   FormSubmissionNotFoundError,
   FormRateLimitExceededError,
 } from "@jini-ai/cms-forms";
+
+// Host authoring extension until HTML form support moves upstream into Jini.
+export type { HtmlFormDefinitionRecord as FormDefinitionRecord, FormAuthoring } from "./html-authoring.js";

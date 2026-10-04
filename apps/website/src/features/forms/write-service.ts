@@ -27,6 +27,8 @@ import {
   type FormDefinitionRecord,
 } from "@jini-ai/cms-forms";
 import type { OutboxPort } from "@jini-ai/cms/core";
+import { prepareFormAuthoring, withFormAuthoring } from "./authoring-adapter.js";
+import type { FormAuthoring, HtmlFormDefinitionRecord } from "./html-authoring.js";
 
 /** Tovu's command-gateway adapter. Policy stays here; validation and audited writes live in Jini. */
 export interface FormWriteServiceDeps extends Omit<PackageWriteDeps, "permission" | "reservedSlugs"> {
@@ -41,11 +43,11 @@ const RESERVED_SLUGS = new Set(["new"]);
 
 export interface CreateFormDefinitionRequired {
   deps: FormWriteServiceDeps;
-  input: PackageCreateRequired["input"] & { notify?: NotifyConfig; idempotencyKey?: string };
+  input: PackageCreateRequired["input"] & FormAuthoring & { notify?: NotifyConfig; idempotencyKey?: string };
 }
 export interface UpdateFormDefinitionRequired {
   deps: FormWriteServiceDeps;
-  input: PackageUpdateRequired["input"] & { idempotencyKey?: string };
+  input: Omit<PackageUpdateRequired["input"], "patch"> & { patch: PackageUpdateRequired["input"]["patch"] & FormAuthoring; idempotencyKey?: string };
 }
 export interface SetFormDefinitionStatusRequired {
   deps: FormWriteServiceDeps;
@@ -76,10 +78,13 @@ export async function createFormDefinition(
   { deps, input }: CreateFormDefinitionRequired,
   _optional: Record<string, never> = {},
 ): Promise<{ definition: FormDefinitionRecord }> {
-  const { notify, idempotencyKey, ...requiredInput } = input;
+  const { notify, idempotencyKey, mode, html, ...requiredInput } = input;
+  const authoring = await prepareFormAuthoring({ deps, input });
+  const boundDeps = authoring ? { ...deps, repo: withFormAuthoring({ repo: deps.repo, authoring }) } : deps;
+  if (authoring?.fields) requiredInput.fields = authoring.fields;
   try {
     return await createPackageFormDefinition(
-      { deps: packageDeps(deps), input: requiredInput },
+      { deps: packageDeps(boundDeps), input: requiredInput },
       { notify, idempotencyKey, outbox: deps.outbox },
     );
   } catch (error) {
@@ -101,13 +106,20 @@ export async function createFormDefinition(
  * @returns The updated definition; package validation and command errors propagate.
  * @complexity O(f + r) package validation, one command.
  */
-export function updateFormDefinition(
+export async function updateFormDefinition(
   { deps, input }: UpdateFormDefinitionRequired,
   _optional: Record<string, never> = {},
 ): Promise<{ definition: FormDefinitionRecord }> {
-  const { idempotencyKey, ...requiredInput } = input;
+  const { idempotencyKey, patch, ...target } = input;
+  const existing = await deps.repo.findById({ workspaceId: input.workspaceId, id: input.formId }) as HtmlFormDefinitionRecord | null;
+  const authoring = await prepareFormAuthoring({ deps, input: { ...target, ...patch }, existing: existing ?? undefined });
+  const boundDeps = authoring ? {
+    ...deps,
+    repo: withFormAuthoring({ repo: deps.repo, authoring }, { replaceFields: authoring.mode === "html" || (existing?.mode === "html" && patch.fields !== undefined) }),
+  } : deps;
+  const { mode, html, ...builderPatch } = patch;
   return updatePackageFormDefinition(
-    { deps: packageDeps(deps), input: requiredInput },
+    { deps: packageDeps(boundDeps), input: { ...target, patch: { ...builderPatch, ...(authoring?.fields ? { fields: authoring.fields } : {}) } } },
     { idempotencyKey, outbox: deps.outbox },
   );
 }

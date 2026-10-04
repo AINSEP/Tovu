@@ -1,3 +1,4 @@
+import { formHtmlStarter, formHtmlEmbed, formAnswerColumns, type FormAnswerColumn } from "../html-rules";
 import { useEffect, useRef, useState } from "react";
 
 import type { AdminFormDefinition, AdminFormField, AdminFormNotify } from "@/lib/api";
@@ -74,6 +75,13 @@ export interface FormEditorController {
   setName: (value: string) => void;
   slug: string;
   setSlug: (value: string) => void;
+  mode: "builder" | "html";
+  onModeChange: (mode: "builder" | "html") => void;
+  html: string;
+  setHtml: (html: string) => void;
+  copyEmbed: () => void;
+  copyFeedback: string | null;
+  answerColumns: FormAnswerColumn[];
   fields: AdminFormField[];
   setFields: (fields: AdminFormField[]) => void;
   tab: "fields" | "submissions";
@@ -105,12 +113,15 @@ export interface FormEditorController {
 
 export function useFormEditor(
   props: { formId: string; tab: "fields" | "submissions" },
-  deps: { port: FormsPort; navigate: (path: string) => void; t: (key: string) => string }
+  deps: { port: FormsPort; navigate: (path: string) => void; t: (key: string) => string; clipboard?: { writeText: (text: string) => Promise<void> } }
 ): FormEditorController {
   const { port, navigate, t } = deps;
   const { tab } = props;
   const isNew = props.formId === "new";
   const [form, setForm] = useState<AdminFormDefinition | null>(null);
+  const [mode, setMode] = useState<"builder" | "html">("builder");
+  const [html, setHtml] = useState("");
+  const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [fields, setFields] = useState<AdminFormField[]>([blankField()]);
@@ -142,6 +153,8 @@ export function useFormEditor(
     setName(loaded.name);
     setSlug(loaded.slug);
     setFields(loaded.fields);
+    setMode(loaded.mode ?? "builder");
+    setHtml(loaded.html ?? "");
     setNotify(loaded.notify);
   }, [props.formId, isNew, list.status, list.data]);
 
@@ -152,7 +165,7 @@ export function useFormEditor(
   // `use-collection-entry-editor.hooks.ts`'s `save()`/`toggleLifecycle()` document for why THEIR
   // `invalidates` names only the sibling `KEYS.entries(...)`, never their own `KEYS.entry(...)`.
   const updateMutation = useFetchMutation({
-    run: (input: { name: string; fields: AdminFormField[]; notify: AdminFormNotify }) =>
+    run: (input: { name: string; fields: AdminFormField[]; notify: AdminFormNotify; mode?: "builder" | "html"; html?: string }) =>
       // Targets the loaded record's real id, never `props.formId` directly — the admin URL now
       // carries the form's slug when one resolves (ui-fixes-backlog.md #8), so `props.formId` may
       // itself BE that slug. `form.id` is always the real id regardless of which one the URL held,
@@ -165,8 +178,8 @@ export function useFormEditor(
     invalidates: [KEYS.list],
   });
   const createMutation = useFetchMutation({
-    run: (input: { name: string; slug: string; fields: AdminFormField[]; notify: AdminFormNotify }) =>
-      port.createForm({ name: input.name, slug: input.slug, fields: input.fields }, { notify: input.notify }),
+    run: (input: { name: string; slug: string; fields: AdminFormField[]; notify: AdminFormNotify; mode?: "builder" | "html"; html?: string }) =>
+      port.createForm({ name: input.name, slug: input.slug, fields: input.fields, ...(input.mode ? { mode: input.mode, html: input.html } : {}) }, { notify: input.notify }),
     invalidates: [KEYS.list],
   });
   const statusMutation = useFetchMutation({
@@ -174,12 +187,27 @@ export function useFormEditor(
     invalidates: [KEYS.list],
   });
 
+  function onModeChange(next: "builder" | "html") {
+    if (next === "html" && !html) setHtml(formHtmlStarter({ fields }, { submitLabel: t("Send") }));
+    setMode(next);
+  }
+
+  async function copyEmbed() {
+    if (!form) return;
+    try {
+      await (deps.clipboard ?? navigator.clipboard).writeText(formHtmlEmbed({ slug: form.slug }));
+      setCopyFeedback(t("Copied!"));
+    } catch { setCopyFeedback(t("Could not copy embed")); }
+  }
+
   async function handleSave() {
+    // Ordinary Builder saves keep their existing endpoint/permissions. A mode change is explicit.
+    const authoring = mode === "html" ? { mode, html } : form?.mode === "html" ? { mode } : {};
     try {
       if (isNew) {
         // `notify` here is always this hook's own blank default — a new form has no earlier value
         // to carry through, and there is no UI on this screen to set one instead.
-        const created = await createMutation.mutate({ name, slug, fields, notify });
+        const created = await createMutation.mutate({ name, slug, fields, notify, ...authoring });
         // Slug, not id — see this hook's own file header / `get-by-id.ts` for the id-or-slug
         // resolution this now lands on (ui-fixes-backlog.md #8).
         navigate(`/forms/${created.data.slug}`);
@@ -191,11 +219,13 @@ export function useFormEditor(
         // hook's own `KEYS.form(id)` read (see the mutations' own comment above), so there is no
         // background refetch to wait for or to accidentally clobber an in-progress edit with.
         // Mirrors `use-collection-entry-editor.hooks.ts`'s `save()`.
-        const { data: updated } = await updateMutation.mutate({ name, fields, notify });
+        const { data: updated } = await updateMutation.mutate({ name, fields, notify, ...authoring });
         setForm(updated);
         setName(updated.name);
         setSlug(updated.slug);
         setFields(updated.fields);
+        setMode(updated.mode ?? "builder");
+        setHtml(updated.html ?? "");
         setNotify(updated.notify);
       }
     } catch {
@@ -247,6 +277,8 @@ export function useFormEditor(
   return {
     isNew,
     form,
+    mode, onModeChange, html, setHtml, copyEmbed, copyFeedback,
+    answerColumns: formAnswerColumns({ fields: form?.fields ?? [] }),
     name,
     setName,
     slug,

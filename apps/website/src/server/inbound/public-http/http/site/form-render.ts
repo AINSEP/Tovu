@@ -319,7 +319,9 @@ export function decodeFormSubmissionResultFromQuery(query: Record<string, unknow
  *  function return value is always inserted literally. */
 function showFormSuccessMessage(html: string, slugPattern: string): string {
   const successRegex = new RegExp(`(<div class="[^"]*\\b${FORM_SUCCESS_CLASS}\\b[^"]*" ${FORM_SLUG_ATTR}="${slugPattern}"[^>]*) hidden>`, "i");
-  return html.replace(successRegex, (_match, openTag: string) => `${openTag}>`);
+  const plainRegex = new RegExp(`(<div data-tovu-form-success ${FORM_SLUG_ATTR}="${slugPattern}"[^>]*) hidden>`, "i");
+  return html.replace(successRegex, (_match, openTag: string) => `${openTag}>`)
+    .replace(plainRegex, (_match, openTag: string) => `${openTag}>`);
 }
 
 /** Adds `hidden` to the matched `<form ...>` block's own opening tag — used on success, once the
@@ -335,7 +337,9 @@ function hideFormElement(formHtml: string): string {
  *  Matches on the generic class/attribute, same reasoning as {@link showFormSuccessMessage}. */
 function showFormErrorSummary(formHtml: string, slugPattern: string, message: string): string {
   const errorRegex = new RegExp(`(<div class="[^"]*\\b${FORM_ERROR_CLASS}\\b[^"]*" ${FORM_SLUG_ATTR}="${slugPattern}"[^>]*) hidden><\\/div>`, "i");
-  return formHtml.replace(errorRegex, (_match, openTag: string) => `${openTag}>${message}</div>`);
+  const plainRegex = new RegExp(`(<div data-tovu-form-error ${FORM_SLUG_ATTR}="${slugPattern}"[^>]*) hidden><\\/div>`, "i");
+  return formHtml.replace(errorRegex, (_match, openTag: string) => `${openTag}>${message}</div>`)
+    .replace(plainRegex, (_match, openTag: string) => `${openTag}>${message}</div>`);
 }
 
 /** Un-hides each per-field error slot named in `fieldErrors` with its own (HTML-escaped) `reason`
@@ -468,7 +472,9 @@ export function injectFormSubmissionResultIntoHtml(html: string, result: FormSub
     updatedForm = showFormErrorSummary(
       showFieldValues(showFieldErrors(originalForm, result.fieldErrors), result.values),
       slugPattern,
-      "Please fix the highlighted fields below."
+      originalForm.includes("data-tovu-form=")
+        ? "Please check your answers. " + result.fieldErrors.map(({ field, reason }) => `${escapeHtml(field)}: ${escapeHtml(reason)}`).join("; ")
+        : "Please fix the highlighted fields below."
     );
   } else if (result.kind === "rate-limited") {
     const plural = result.retryAfterSeconds === 1 ? "" : "s";

@@ -1,3 +1,4 @@
+import { renderHtmlForm } from "#src/features/forms/html-render";
 import type { JsonObject, JsonValue } from "@jini-ai/core/primitives";
 import { MAX_SLUG_LENGTH, SLUG_FORMAT_PATTERN, type PostRecord } from "#src/features/post/post";
 import type { DiscoveredTheme, StaticMenuItem, TemplateNode } from "#src/features/theme/index";
@@ -1787,7 +1788,9 @@ export function renderHtmlPageBody(html: string, resolved: ResolveHtmlPageEmbeds
     if ((ref.type === "content" || ref.type === "post") && ref.id === null && ref.slug === null) return undefined;
     const lookupKey = ref.id ?? ref.slug;
     const ir = (lookupKey !== null ? resolved?.get(ref.type)?.get(lookupKey) : undefined) ?? HTML_EMBED_PLACEHOLDER_IR;
-    return renderWidgetIr(withOccurrenceMediaAttributes(withOccurrenceHeader(ir, ref), ref, occurrence));
+    const formIr = ir.componentId === "contact-form" && ref.mode === "html"
+      ? { ...ir, props: { ...ir.props, mode: "html" } } : ir;
+    return renderWidgetIr(withOccurrenceMediaAttributes(withOccurrenceHeader(formIr, ref), ref, occurrence));
   });
 }
 
@@ -2397,6 +2400,13 @@ const DEFAULT_CONTACT_FORM_SUCCESS_MESSAGE = "Thanks — your message has been s
 function renderWidgetContactForm(props: JsonObject): string {
   const slug = str(props.slug);
   if (!slug) return renderWidgetPlaceholder();
+  if (props.mode === "html") return renderHtmlForm({
+    slug, action: `/forms/${encodeURIComponent(slug)}/submit`,
+    fields: arr(props.fields) as unknown as import("@jini-ai/cms-forms").FieldDescriptor[],
+  }, {
+    ...(typeof props.html === "string" ? { html: props.html } : {}),
+    successMessage: str(props.successMessage) || DEFAULT_CONTACT_FORM_SUCCESS_MESSAGE,
+  });
   const escapedSlug = escapeHtml(slug);
   const fields = arr(props.fields).map(renderContactFormField).join("");
   const successMessage = escapeHtml(str(props.successMessage) || DEFAULT_CONTACT_FORM_SUCCESS_MESSAGE);
@@ -2409,6 +2419,7 @@ function renderWidgetContactForm(props: JsonObject): string {
     `<form class="widget ${FORM_CLASS} widget-contact-form" method="post" action="/forms/${escapedSlug}/submit" data-form-slug="${escapedSlug}" ${legacyAttrs}>` +
     errorSlot +
     fields +
+    `<div hidden aria-hidden="true"><input type="text" name="_hp" tabindex="-1" autocomplete="off"></div>` +
     `<button type="submit">Send</button></form>`
   );
 }

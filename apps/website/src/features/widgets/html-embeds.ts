@@ -139,6 +139,7 @@ export interface PageHtmlEmbedRef {
    * type — this is a `"content"`-marker-specific concern, not a general marker attribute.
    */
   readonly header: boolean;
+  readonly mode?: "html";
 }
 
 /**
@@ -213,6 +214,7 @@ function toEmbedRef(marker: EmbedMarker): PageHtmlEmbedRef {
     name: configString(marker.config, "name"),
     variant: configString(marker.config, "variant"),
     header: configBooleanDefaultTrue(marker.config, "header"),
+    ...(marker.config.mode === "html" ? { mode: "html" as const } : {}),
   };
 }
 

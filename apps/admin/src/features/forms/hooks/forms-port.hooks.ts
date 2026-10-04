@@ -20,12 +20,12 @@ export interface FormsPort {
   listForms(): Promise<{ data: AdminFormDefinition[] }>;
   getForm(id: string): Promise<{ data: AdminFormDefinition }>;
   createForm(
-    input: { name: string; slug: string; fields: AdminFormField[] },
+    input: { name: string; slug: string; fields: AdminFormField[]; mode?: "builder" | "html"; html?: string },
     options?: { notify?: AdminFormNotify }
   ): Promise<{ data: AdminFormDefinition }>;
   updateForm(
     target: { id: string },
-    options?: { name?: string; fields?: AdminFormField[]; notify?: AdminFormNotify; status?: "active" | "disabled" }
+    options?: { name?: string; fields?: AdminFormField[]; notify?: AdminFormNotify; status?: "active" | "disabled"; mode?: "builder" | "html"; html?: string }
   ): Promise<{ data: AdminFormDefinition }>;
   /** Moves a form to the Trash via the generic `POST /trash/items` route (`type: "form"`) — see
    *  `api.ts`'s `trash` doc comment for why this is the shared route rather than a form-specific

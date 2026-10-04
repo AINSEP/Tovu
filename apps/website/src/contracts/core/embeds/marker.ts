@@ -20,6 +20,9 @@
  *     <div data-embed-config='{"type":"partial","id":"nav","current":"index"}'></div>
  *     <nav data-embed-config='{"type":"menu","id":"docs-nav","variant":"tree"}'>fallback</nav>
  *
+ * Forms may request plain output with `{"type":"form","id":"contact","mode":"html"}`;
+ * `mode` is resolver-owned config, so the parser carries it through unchanged.
+ *
  * `type` and `id` are ordinary keys, not separate attributes, so a new key never requires a new
  * attribute name. The attribute is single-quoted precisely so the JSON's own double quotes need no
  * escaping.

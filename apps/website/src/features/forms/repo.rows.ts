@@ -1,8 +1,8 @@
+import { decodeFormFields, encodeFormFields } from "./html-authoring.js";
 import type { Insertable, Selectable } from "kysely";
 
 import type { ContentDatabase } from "../../platform/db/content-database.generated.js";
 import type {
-  FieldDescriptor,
   FormDefinitionRecord,
   FormDefinitionStatus,
   FormSubmissionRecord,
@@ -25,7 +25,7 @@ export function toDefinitionRecord(row: FormDefinitionRow): FormDefinitionRecord
     workspaceId: row.workspace_id,
     name: row.name,
     slug: row.slug,
-    fields: JSON.parse(row.fields_json) as FieldDescriptor[],
+    ...decodeFormFields({ json: row.fields_json }),
     notify: JSON.parse(row.notify_json) as NotifyConfig,
     status: row.status as FormDefinitionStatus,
     createdAt: row.created_at,
@@ -44,7 +44,7 @@ export function toDefinitionRow(record: FormDefinitionRecord): Insertable<Conten
     workspace_id: record.workspaceId,
     name: record.name,
     slug: record.slug,
-    fields_json: JSON.stringify(record.fields),
+    fields_json: encodeFormFields({ definition: record }),
     notify_json: JSON.stringify(record.notify),
     status: record.status,
     created_at: record.createdAt,

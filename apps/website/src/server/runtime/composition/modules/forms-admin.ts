@@ -1,3 +1,4 @@
+import { registerAdminFormsAuthoringRoute } from "#src/server/inbound/admin-http/routes/forms/authoring";
 import { registerAdminFormsCreateRoute } from "#src/server/inbound/admin-http/routes/forms/create";
 import { registerAdminFormsDeleteSubmissionRoute } from "#src/server/inbound/admin-http/routes/forms/delete-submission";
 import type { FormsRouteDeps } from "#src/server/inbound/admin-http/routes/forms/deps";
@@ -28,6 +29,7 @@ export function createFormsAdminModule(deps: FormsRouteDeps): ServerModuleHandle
       registerAdminFormsCreateRoute(app, deps);
       registerAdminFormsGetRoute(app, deps);
       registerAdminFormsUpdateRoute(app, deps);
+      registerAdminFormsAuthoringRoute(app, deps);
       registerAdminFormsListSubmissionsRoute(app, deps);
       registerAdminFormsGetSubmissionRoute(app, deps);
       registerAdminFormsDeleteSubmissionRoute(app, deps);

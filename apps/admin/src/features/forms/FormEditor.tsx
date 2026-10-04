@@ -1,3 +1,4 @@
+import type { FormAnswerColumn } from "./html-rules";
 import { ConfirmDialog, DataTable } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
 import { SeeMore } from "../../components/SeeMore/SeeMore";
@@ -569,9 +570,10 @@ export interface FormSubmissionsProps {
   useFormSubmissionsHook?: typeof useWiredFormSubmissions;
   /** Translator closure — see `FormEditor()`'s own `t`. */
   t: (key: string) => string;
+  answerColumns?: FormAnswerColumn[];
 }
 
-function FormSubmissions({ formId, useFormSubmissionsHook = useWiredFormSubmissions, t }: FormSubmissionsProps) {
+function FormSubmissions({ formId, useFormSubmissionsHook = useWiredFormSubmissions, t, answerColumns = [] }: FormSubmissionsProps) {
   const { submissions, nextCursor, error, selectedId, setSelectedId, load, loadingMore } = useFormSubmissionsHook({ formId });
 
   if (selectedId) {
@@ -616,6 +618,7 @@ function FormSubmissions({ formId, useFormSubmissionsHook = useWiredFormSubmissi
         columns={[
           { key: "submitted-at", header: t("Submitted at"), cell: (s) => s.submittedAt },
           { key: "source-ip", header: t("Source IP"), cell: (s) => s.sourceIp },
+          ...answerColumns,
           {
             key: "view",
             cell: (s, index) => (
@@ -682,6 +685,12 @@ function FormEditorFieldsBody(props: {
   onSave: () => void;
   /** Translator closure — see `FormEditor()`'s own `t`. */
   t: (key: string) => string;
+  mode: "builder" | "html";
+  onModeChange: (mode: "builder" | "html") => void;
+  html: string;
+  onHtmlChange: (html: string) => void;
+  onCopyEmbed: () => void;
+  copyFeedback: string | null;
 }) {
   const {
     name,
@@ -697,6 +706,7 @@ function FormEditorFieldsBody(props: {
     onStatusToggle,
     onSave,
     t,
+    mode, onModeChange, html, onHtmlChange, onCopyEmbed, copyFeedback,
   } = props;
 
   return (
@@ -733,9 +743,17 @@ function FormEditorFieldsBody(props: {
       </div>
 
       <div className="field-group">
-        <div className="table-scroll">
-          <FormFieldsEditor fields={fields} existingFieldIds={existingFieldIds} onChange={onFieldsChange} t={t} />
+        <div className="segmented" role="group" aria-label={t("Form authoring mode")}>
+          <button type="button" className={mode === "builder" ? "is-active" : ""} aria-pressed={mode === "builder"} onClick={() => onModeChange("builder")}>{t("Builder")}</button>
+          <button type="button" className={mode === "html" ? "is-active" : ""} aria-pressed={mode === "html"} onClick={() => onModeChange("html")}>{t("HTML")}</button>
         </div>
+        {mode === "html" ? (
+          <textarea className="page-html-source" value={html} onChange={(event) => onHtmlChange(event.target.value)} spellCheck={false} aria-label={t("Form HTML")} />
+        ) : (
+          <div className="table-scroll">
+            <FormFieldsEditor fields={fields} existingFieldIds={existingFieldIds} onChange={onFieldsChange} t={t} />
+          </div>
+        )}
       </div>
 
       {/* `form-actions` is a spacing-only hook layered on top of the shared `.editor-actions`
@@ -746,6 +764,8 @@ function FormEditorFieldsBody(props: {
           class is shared with the other editor screens and a global change would shift spacing on
           screens nobody has looked at yet. */}
       <div className="editor-actions form-actions">
+        {form ? <button type="button" className="btn-secondary" onClick={onCopyEmbed}>{t("Copy HTML embed")}</button> : null}
+        {copyFeedback ? <span role="status">{copyFeedback}</span> : null}
         {!isNew && form ? (
           // Reversible-but-access-affecting (turns off the live site's ability to accept
           // submissions through this form) — `.btn-warning`, not `.btn-danger`: nothing is
@@ -849,8 +869,9 @@ function FormEditorMainPanel(props: {
   fieldsBody: React.ReactNode;
   /** Translator closure — see `FormEditor()`'s own `t`. */
   t: (key: string) => string;
+  answerColumns: FormAnswerColumn[];
 }) {
-  const { isNew, tab, formId, fieldsBody, t } = props;
+  const { isNew, tab, formId, fieldsBody, t, answerColumns } = props;
 
   if (isNew) {
     return <div className="form-editor-panel">{fieldsBody}</div>;
@@ -864,13 +885,15 @@ function FormEditorMainPanel(props: {
   }
   return (
     <div className="form-editor-panel" role="tabpanel" id="form-panel-submissions" aria-labelledby="form-tab-submissions">
-      <FormSubmissions formId={formId} t={t} />
+      <FormSubmissions formId={formId} t={t} answerColumns={answerColumns} />
     </div>
   );
 }
 
 export function FormEditor({ formId, tab, useFormEditorHook = useWiredFormEditor }: FormEditorProps) {
   const {
+    answerColumns,
+    mode, onModeChange, html, setHtml, copyEmbed, copyFeedback,
     isNew,
     form,
     name,
@@ -910,6 +933,7 @@ export function FormEditor({ formId, tab, useFormEditorHook = useWiredFormEditor
   // views — kept as one JSX value instead of two copies so the two paths can't drift.
   const fieldsBody = (
     <FormEditorFieldsBody
+      mode={mode} onModeChange={onModeChange} html={html} onHtmlChange={setHtml} onCopyEmbed={copyEmbed} copyFeedback={copyFeedback}
       name={name}
       onNameChange={setName}
       slug={slug}
@@ -967,7 +991,7 @@ export function FormEditor({ formId, tab, useFormEditorHook = useWiredFormEditor
 
       <FormEditorTabStrip showTabs={showTabs} tab={activeTab} onTabChange={onTabChange} tabRefs={tabRefs} onTabsKeyDown={onTabsKeyDown} t={t} />
 
-      <FormEditorMainPanel isNew={isNew} tab={activeTab} formId={formId} fieldsBody={fieldsBody} t={t} />
+      <FormEditorMainPanel isNew={isNew} tab={activeTab} formId={formId} fieldsBody={fieldsBody} t={t} answerColumns={answerColumns} />
     </div>
   );
 }

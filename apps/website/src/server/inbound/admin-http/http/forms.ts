@@ -40,6 +40,8 @@ export interface AdminFormDefinitionDto {
   name: string;
   slug: string;
   fields: AdminFormFieldDto[];
+  mode?: "builder" | "html";
+  html?: string;
   notify: AdminFormNotifyDto;
   status: string;
   createdAt: string;
@@ -62,6 +64,8 @@ export function toAdminFormDefinitionDto(definition: FormDefinitionRecord): Admi
     name: definition.name,
     slug: definition.slug,
     fields: definition.fields.map((f) => ({ ...f })),
+    mode: (definition as { mode?: "builder" | "html" }).mode ?? "builder",
+    html: (definition as { html?: string }).html,
     notify: { enabled: definition.notify.enabled, recipients: [...definition.notify.recipients] },
     status: definition.status,
     createdAt: definition.createdAt,

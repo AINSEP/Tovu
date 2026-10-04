@@ -1596,6 +1596,8 @@ export interface AdminFormDefinition {
   status: "active" | "disabled";
   createdAt: string;
   updatedAt: string;
+  mode?: "builder" | "html";
+  html?: string;
 }
 
 export interface AdminFormSubmission {
@@ -3200,7 +3202,7 @@ export const api = {
   listForms: () => request<{ data: AdminFormDefinition[] }>(`/workspaces/${WORKSPACE_ID}/forms`),
   getForm: (id: string) => request<{ data: AdminFormDefinition }>(`/workspaces/${WORKSPACE_ID}/forms/${encodeURIComponent(id)}`),
   createForm: (
-    input: { name: string; slug: string; fields: AdminFormField[] },
+    input: { name: string; slug: string; fields: AdminFormField[]; mode?: "builder" | "html"; html?: string },
     options: { notify?: AdminFormNotify } = {}
   ) =>
     request<{ data: AdminFormDefinition }>(`/workspaces/${WORKSPACE_ID}/forms`, {
@@ -3209,9 +3211,9 @@ export const api = {
     }),
   updateForm: (
     { id }: { id: string },
-    options: { name?: string; fields?: AdminFormField[]; notify?: AdminFormNotify; status?: "active" | "disabled" } = {}
+    options: { name?: string; fields?: AdminFormField[]; notify?: AdminFormNotify; status?: "active" | "disabled"; mode?: "builder" | "html"; html?: string } = {}
   ) =>
-    request<{ data: AdminFormDefinition }>(`/workspaces/${WORKSPACE_ID}/forms/${encodeURIComponent(id)}`, {
+    request<{ data: AdminFormDefinition }>(`/workspaces/${WORKSPACE_ID}/forms/${encodeURIComponent(id)}${options.mode !== undefined || options.html !== undefined ? "/authoring" : ""}`, {
       method: "PUT",
       body: JSON.stringify(options),
     }),

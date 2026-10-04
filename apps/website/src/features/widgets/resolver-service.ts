@@ -488,6 +488,21 @@ async function resolveWidgetTypeEmbeds(
   return buildResolvedWidgetMap(refs, idBySlug, resolvedRaw);
 }
 
+/** A form slug/id is a synthetic contact-form instance, resolved through the widget pipeline. */
+async function resolveFormTypeEmbeds(
+  refs: readonly PageHtmlEmbedRef[],
+  _deps: ResolveHtmlPageEmbedsDeps,
+  context: WidgetResolveContext,
+): Promise<ReadonlyMap<string, WidgetRenderIR>> {
+  const keys = [...new Set(refs.map((ref) => ref.id ?? ref.slug).filter((key): key is string => key !== null))];
+  const results = await resolveWidgetType({
+    typeKey: "contact-form",
+    context,
+    instances: keys.map((id) => ({ id, widgetType: "contact-form", config: { formDefinitionRef: id } })),
+  });
+  return new Map(keys.map((key) => [key, toRenderIr(results.get(key))]));
+}
+
 /** Mirrors `render.ts`'s own `MAX_MEDIA_REF_ID_LENGTH`/`PLAUSIBLE_MEDIA_REF_ID_PATTERN` shape check
  * for an `assetId`/`transformName` that will eventually become a `/m/` URL path segment —
  * duplicated here rather than imported for the same reason `core/entry-refs/extractor.ts`
@@ -1174,17 +1189,13 @@ async function resolveContentTypeEmbeds(
  * an author's markup typo (unknown type) and an author's stale reference (known type, dead id) are
  * different problems needing different fixes.
  *
- * **`form` was a registered type here until 2026-08-10 and is deliberately gone** — see
- * `development/docs/architecture/embed-type-inventory.md`. It never named a distinct capability: its
- * resolver built a synthetic, never-persisted `contact-form` {@link WidgetInstanceView} and routed it
- * through the same `resolveWidgetType` a real `contact-form` widget instance already used. That is
- * shorthand, not a mechanism, and it cost a permanent second spelling for every reference in the
- * marker vocabulary, the `entry_refs` index, and every consumer's type switch. `contact-form` remains
- * a first-class WIDGET type and `src/forms/` is untouched; embedding a form is
- * `{"type":"widget","id":"<contact-form widget entry id>"}`.
+ * Historically `form` was removed (2026-08-10) because it was shorthand for a synthetic
+ * contact-form widget. The owner explicitly restores both spellings (2026-10-04): keep that
+ * synthetic instance on the SAME registered contact-form resolver so the two cannot drift.
  */
 const HTML_EMBED_RESOLVERS: Readonly<Record<string, HtmlEmbedResolver>> = {
   widget: resolveWidgetTypeEmbeds,
+  form: resolveFormTypeEmbeds,
   media: resolveMediaTypeEmbeds,
   post: resolvePostTypeEmbeds,
   content: resolveContentTypeEmbeds,

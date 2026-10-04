@@ -25,22 +25,26 @@ export interface ContactFormResolverDeps {
   formDefinitionRepo: FormDefinitionRepoPort;
 }
 
-export function createContactFormResolver(deps: ContactFormResolverDeps): WidgetResolver {
+export function createContactFormResolver(deps: ContactFormResolverDeps, _optional = {}): WidgetResolver {
   return {
     async resolveMany(instances, context) {
       const results = new Map<string, WidgetResolveResult>();
       for (const instance of instances) {
         const formDefinitionId =
           typeof instance.config.formDefinitionId === "string" ? instance.config.formDefinitionId : undefined;
-        if (!formDefinitionId) {
+        const formDefinitionRef = typeof instance.config.formDefinitionRef === "string" ? instance.config.formDefinitionRef : undefined;
+        if (!formDefinitionId && !formDefinitionRef) {
           results.set(instance.id, { ok: false, reason: "invalid-config" });
           continue;
         }
 
-        const definition = await deps.formDefinitionRepo.findById({
+        const byId = await deps.formDefinitionRepo.findById({
           workspaceId: context.workspaceId,
-          id: formDefinitionId,
+          id: formDefinitionId ?? formDefinitionRef!,
         });
+        const definition = byId ?? (formDefinitionRef ? await deps.formDefinitionRepo.findBySlug({
+          workspaceId: context.workspaceId, slug: formDefinitionRef,
+        }) : null);
         // REQ-38/EC-05: a disabled, trashed (`findById` hides it) or purged definition is the same
         // failure-isolation placeholder, never an error.
         if (!definition || definition.status !== "active") {
@@ -64,6 +68,9 @@ export function createContactFormResolver(deps: ContactFormResolverDeps): Widget
               // hardcoded field-type list. Cast: FieldDescriptor[] has no index signature of its
               // own, but every field is plain JSON-serializable data (SPEC-010 forms/types.ts).
               fields: definition.fields as unknown as JsonObject,
+              ...((definition as import("../../forms/index.js").FormDefinitionRecord).mode === "html" ? {
+                mode: "html", html: (definition as import("../../forms/index.js").FormDefinitionRecord).html ?? "",
+              } : {}),
               successMessage: typeof instance.config.successMessage === "string" ? instance.config.successMessage : null,
             },
           },
