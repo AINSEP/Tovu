@@ -22,6 +22,13 @@ import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore } from "../../con
  * test: a non-allowlisted `toolName` is rejected, and the fake executor's `execute` is never called.
  */
 
+// The allowlisted tool these cases use is `settings_set_value`: like `content_post_delete` before it,
+// it is reachable by both shapes (an exchange answer and a no-exchange call), so one id exercises
+// every branch. `content_post_delete` left the allowlist with the 2026-10-01 confirmation policy
+// (6eac86229): moving a post to trash is reversible, so it runs without a card and no surface
+// callback may execute it. The permanent-delete ids that kept a card are exchange-only
+// (`isMcpUiToolCallPermitted`), so they cannot stand in for the no-exchange cases.
+
 interface RecordedCall {
   principal: Principal;
   run: RunRef;
@@ -34,7 +41,7 @@ function createFakeToolExecutor(
 ): { executor: ToolExecutor; calls: RecordedCall[] } {
   const calls: RecordedCall[] = [];
   const executor: ToolExecutor = {
-    execute: async (principal, run, toolId, input) => {
+    execute: async ({ principal, run, toolId, input }) => {
       const call = { principal, run, toolId, input };
       calls.push(call);
       return respond(call);
@@ -65,7 +72,7 @@ test("rejects a call with no principal header — 401, and the executor is never
   const { executor, calls } = createFakeToolExecutor(() => ({ executionId: "x", status: "completed", output: {} }));
   const baseUrl = await startTestServer(buildApp(executor), t);
 
-  const res = await postToolCall(baseUrl, { toolName: "content_post_delete", params: {} });
+  const res = await postToolCall(baseUrl, { toolName: "settings_set_value", params: {} });
 
   assert.equal(res.status, 401);
   assert.equal(calls.length, 0);
@@ -109,7 +116,7 @@ test("executes an allowlisted toolName, passing the header principal, a syntheti
 
   const res = await postToolCall(
     baseUrl,
-    { toolName: "content_post_delete", params: { id: "post-1", kind: "post", confirmationToken: "tok" } },
+    { toolName: "settings_set_value", params: { id: "post-1", kind: "post", confirmationToken: "tok" } },
     { [RUN_PRINCIPAL_HEADER]: "principal-42" }
   );
 
@@ -117,7 +124,7 @@ test("executes an allowlisted toolName, passing the header principal, a syntheti
   assert.deepEqual(await res.json(), { deleted: true, cancelled: false });
   assert.equal(calls.length, 1);
   assert.deepEqual(calls[0].principal, { id: "principal-42" });
-  assert.equal(calls[0].toolId, "content_post_delete");
+  assert.equal(calls[0].toolId, "settings_set_value");
   assert.deepEqual(calls[0].input, { id: "post-1", kind: "post", confirmationToken: "tok" });
   assert.ok(calls[0].run.id.length > 0, "a synthetic RunRef must still satisfy the structural {id} contract");
 });
@@ -126,13 +133,13 @@ test("surfaces a 'failed' execution result (e.g. a stale/reused token) as 400 wi
   const { executor } = createFakeToolExecutor(() => ({
     executionId: "exec-2",
     status: "failed",
-    error: "content_post_delete: the confirmation could not be redeemed (unknown-or-expired).",
+    error: "settings_set_value: the confirmation could not be redeemed (unknown-or-expired).",
   }));
   const baseUrl = await startTestServer(buildApp(executor), t);
 
   const res = await postToolCall(
     baseUrl,
-    { toolName: "content_post_delete", params: { id: "post-1", kind: "post" } },
+    { toolName: "settings_set_value", params: { id: "post-1", kind: "post" } },
     { [RUN_PRINCIPAL_HEADER]: "principal-42" }
   );
 
@@ -144,7 +151,7 @@ test("maps a non-object params to an empty object rather than forwarding an unex
   const { executor, calls } = createFakeToolExecutor(() => ({ executionId: "x", status: "completed", output: {} }));
   const baseUrl = await startTestServer(buildApp(executor), t);
 
-  await postToolCall(baseUrl, { toolName: "content_post_delete", params: "not-an-object" }, { [RUN_PRINCIPAL_HEADER]: "principal-1" });
+  await postToolCall(baseUrl, { toolName: "settings_set_value", params: "not-an-object" }, { [RUN_PRINCIPAL_HEADER]: "principal-1" });
 
   assert.deepEqual(calls[0]?.input, {});
 });
@@ -163,11 +170,11 @@ test("a body carrying an exchange id delivers to the held-open call and never in
   const { executor, calls } = createFakeToolExecutor(() => ({ executionId: "x", status: "completed", output: {} }));
   const baseUrl = await startTestServer(buildApp(executor, surfaceExchanges), t);
 
-  const exchange = surfaceExchanges.open({ toolId: "content_post_delete", principalId: "principal-1" }, async () => undefined);
+  const exchange = surfaceExchanges.open({ toolId: "settings_set_value", principalId: "principal-1" }, async () => undefined);
   const answer = exchange.receive();
   const res = await postToolCall(
     baseUrl,
-    { toolName: "content_post_delete", params: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id, plan: "pro", extras: ["a", "b"] } },
+    { toolName: "settings_set_value", params: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id, plan: "pro", extras: ["a", "b"] } },
     { [RUN_PRINCIPAL_HEADER]: "principal-1" }
   );
 
@@ -185,10 +192,10 @@ test("the delivery response carries no tool output — the agent's own call retu
   const { executor } = createFakeToolExecutor(() => ({ executionId: "x", status: "completed", output: { secret: "leaked" } }));
   const baseUrl = await startTestServer(buildApp(executor, surfaceExchanges), t);
 
-  const exchange = surfaceExchanges.open({ toolId: "content_post_delete", principalId: "principal-1" }, async () => undefined);
+  const exchange = surfaceExchanges.open({ toolId: "settings_set_value", principalId: "principal-1" }, async () => undefined);
   const res = await postToolCall(
     baseUrl,
-    { toolName: "content_post_delete", params: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id } },
+    { toolName: "settings_set_value", params: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id } },
     { [RUN_PRINCIPAL_HEADER]: "principal-1" }
   );
 
@@ -204,7 +211,7 @@ test("an unknown, expired or already-closed exchange is 409, not 404 or a silent
 
   const res = await postToolCall(
     baseUrl,
-    { toolName: "content_post_delete", params: { [SURFACE_EXCHANGE_ID_PARAM]: "never-minted" } },
+    { toolName: "settings_set_value", params: { [SURFACE_EXCHANGE_ID_PARAM]: "never-minted" } },
     { [RUN_PRINCIPAL_HEADER]: "principal-1" }
   );
 
@@ -218,11 +225,11 @@ test("an exchange delivery from the wrong principal is refused and leaves the ca
   const { executor, calls } = createFakeToolExecutor(() => ({ executionId: "x", status: "completed", output: {} }));
   const baseUrl = await startTestServer(buildApp(executor, surfaceExchanges), t);
 
-  const exchange = surfaceExchanges.open({ toolId: "content_post_delete", principalId: "alice" }, async () => undefined);
+  const exchange = surfaceExchanges.open({ toolId: "settings_set_value", principalId: "alice" }, async () => undefined);
   const answer = exchange.receive();
   const res = await postToolCall(
     baseUrl,
-    { toolName: "content_post_delete", params: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id } },
+    { toolName: "settings_set_value", params: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id } },
     { [RUN_PRINCIPAL_HEADER]: "mallory" }
   );
 
@@ -257,7 +264,7 @@ test("a body with no exchange id still takes the legacy redemption path unchange
 
   const res = await postToolCall(
     baseUrl,
-    { toolName: "content_post_delete", params: { id: "post-1", token: "t" } },
+    { toolName: "settings_set_value", params: { id: "post-1", token: "t" } },
     { [RUN_PRINCIPAL_HEADER]: "principal-1" }
   );
 
@@ -275,12 +282,12 @@ test("an empty or non-string exchange id falls through to the legacy path rather
 
   const empty = await postToolCall(
     baseUrl,
-    { toolName: "content_post_delete", params: { [SURFACE_EXCHANGE_ID_PARAM]: "" } },
+    { toolName: "settings_set_value", params: { [SURFACE_EXCHANGE_ID_PARAM]: "" } },
     { [RUN_PRINCIPAL_HEADER]: "principal-1" }
   );
   const wrongType = await postToolCall(
     baseUrl,
-    { toolName: "content_post_delete", params: { [SURFACE_EXCHANGE_ID_PARAM]: 42 } },
+    { toolName: "settings_set_value", params: { [SURFACE_EXCHANGE_ID_PARAM]: 42 } },
     { [RUN_PRINCIPAL_HEADER]: "principal-1" }
   );
 
@@ -294,7 +301,7 @@ test("a top-level exchangeId works without any tool-call params — the channel-
   const { executor, calls } = createFakeToolExecutor(() => ({ executionId: "x", status: "completed", output: {} }));
   const baseUrl = await startTestServer(buildApp(executor, surfaceExchanges), t);
 
-  const exchange = surfaceExchanges.open({ toolId: "content_post_delete", principalId: "principal-1" }, async () => undefined);
+  const exchange = surfaceExchanges.open({ toolId: "settings_set_value", principalId: "principal-1" }, async () => undefined);
   const answer = exchange.receive();
 
   // MCP-UI has to smuggle its correlation through tool-call params, because an mcp-ui surface can
@@ -303,7 +310,7 @@ test("a top-level exchangeId works without any tool-call params — the channel-
   // is what stops this route from being MCP-only.
   const res = await postToolCall(
     baseUrl,
-    { toolName: "content_post_delete", exchangeId: exchange.id, params: { action: "submit", value: 7 } },
+    { toolName: "settings_set_value", exchangeId: exchange.id, params: { action: "submit", value: 7 } },
     { [RUN_PRINCIPAL_HEADER]: "principal-1" }
   );
 
@@ -317,13 +324,13 @@ test("a top-level exchangeId wins over a params-borne one, so one body cannot na
   const { executor } = createFakeToolExecutor(() => ({ executionId: "x", status: "completed", output: {} }));
   const baseUrl = await startTestServer(buildApp(executor, surfaceExchanges), t);
 
-  const real = surfaceExchanges.open({ toolId: "content_post_delete", principalId: "principal-1" }, async () => undefined);
-  const other = surfaceExchanges.open({ toolId: "content_post_delete", principalId: "principal-1" }, async () => undefined);
+  const real = surfaceExchanges.open({ toolId: "settings_set_value", principalId: "principal-1" }, async () => undefined);
+  const other = surfaceExchanges.open({ toolId: "settings_set_value", principalId: "principal-1" }, async () => undefined);
   const realAnswer = real.receive();
 
   await postToolCall(
     baseUrl,
-    { toolName: "content_post_delete", exchangeId: real.id, params: { [SURFACE_EXCHANGE_ID_PARAM]: other.id } },
+    { toolName: "settings_set_value", exchangeId: real.id, params: { [SURFACE_EXCHANGE_ID_PARAM]: other.id } },
     { [RUN_PRINCIPAL_HEADER]: "principal-1" }
   );
 
