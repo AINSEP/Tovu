@@ -321,7 +321,7 @@ describe("decrypt-failed — a saved connection that never reached admission", (
     expect(drifted[0]?.entries).toHaveLength(1);
     expect(drifted[0]?.entries[0]?.kind).toBe("decrypt-failed");
     expect(drifted[0]?.entries[0]?.messageKey).toBe(
-      "This server's saved credentials can't be unlocked because the site token isn't available. Add or restore it on the Secrets page's Site Token tab, then restart the assistant.",
+      "This server's saved credentials can't be unlocked because the site key isn't available. Add or restore it on the Secrets page's Site key tab, then restart the assistant.",
     );
     // The generic guess must not also be present — this is a REPLACEMENT, not an addition.
     expect(drifted[0]?.entries[0]?.messageKey).not.toBe("The assistant isn't running this server at all. Restart the assistant to load it.");

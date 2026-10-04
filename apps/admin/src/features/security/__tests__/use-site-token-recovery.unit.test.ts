@@ -46,7 +46,7 @@ describe("isSiteTokenLocked", () => {
   });
 });
 
-describe("useSiteTokenRecovery — Paste your old token", () => {
+describe("useSiteTokenRecovery — Paste your old site key", () => {
   it("unlocks with the pasted token, clears it from state, reports the result and refreshes the tab", async () => {
     const port = makePort({ importToken: vi.fn(async () => ({ outcome: "unlocked" as const, fingerprint: "fp", keyFilePath: "/k", resealed: 2, runtimeMode: "local" as const })) });
     const onRecovered = vi.fn(async () => {});
@@ -63,7 +63,7 @@ describe("useSiteTokenRecovery — Paste your old token", () => {
   });
 
   it("shows the server's sentence when the token doesn't open anything, and keeps the input", async () => {
-    const detail = "That token does not open this site's saved credentials. Nothing was changed.";
+    const detail = "That site key does not open this site's saved credentials. Nothing was changed.";
     const port = makePort({ importToken: vi.fn(async () => { throw new ApiError("TOKEN_DOES_NOT_OPEN", 409, undefined, { error: "TOKEN_DOES_NOT_OPEN", detail }); }) });
     const onRecovered = vi.fn();
     const { result } = renderHook(() => useSiteTokenRecovery(port, t, onRecovered));

@@ -8,10 +8,17 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "unknown error": "unknown error", "this workspace": "this workspace", All: "All", Secrets: "Secrets", "Source control": "Source control", Hosting: "Hosting", Media: "Media", AI: "AI", Ops: "Ops", General: "General",
     "External MCP servers": "External MCP servers", "Providers · External MCP": "Providers · External MCP", "No environment variables set": "No environment variables set", "1 environment variable set": "1 environment variable set", "{count} environment variables set": "{count} environment variables set",
     "A key is created automatically when this site starts.": "A key is created automatically when this site starts.",
+
+    "Active: environment variable {name}": "Active: environment variable {name}",
+    "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.": "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.",
+
+    "Paste your old site key": "Paste your old site key",
+    "They were locked with a site key that isn't on this computer.": "They were locked with a site key that isn't on this computer.",
+    "Your credentials need their original site key — use the card above.": "Your credentials need their original site key — use the card above.",
   },
   es: {
     "Custom credential": "Credencial personalizada",
-    "Access Tokens": "Tokens de acceso", "Site Token": "Token del sitio", Operations: "Operaciones", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Un solo lugar para ver todos los tokens de acceso de esta instalación y crear, rotar o eliminar uno sin buscar entre las pantallas que lo crearon.",
+    "Access Tokens": "Tokens de acceso", "Site key": "Clave del sitio", Operations: "Operaciones", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Un solo lugar para ver todos los tokens de acceso de esta instalación y crear, rotar o eliminar uno sin buscar entre las pantallas que lo crearon.",
     "unknown error": "error desconocido", "this workspace": "este espacio de trabajo", All: "Todos", Secrets: "Secretos", "Source control": "Control de código fuente", Hosting: "Alojamiento", Media: "Medios", AI: "IA", Ops: "Operaciones", General: "General",
     "External MCP servers": "Servidores MCP externos", "Providers · External MCP": "Proveedores · MCP externo", "No environment variables set": "No hay variables de entorno configuradas", "1 environment variable set": "1 variable de entorno configurada", "{count} environment variables set": "{count} variables de entorno configuradas",
     "Loading access tokens…": "Cargando tokens de acceso…", "Filter by category": "Filtrar por categoría", "+ Add custom provider": "+ Añadir proveedor personalizado", token: "token", saved: "guardado",
@@ -29,10 +36,17 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "AI Assistant": "Asistente de IA", "Settings · Execution mode": "Configuración · Modo de ejecución", "Providers · Media": "Proveedores · Medios",
     "A key is created automatically when this site starts.": "La clave se crea automáticamente cuando este sitio se inicia.", "(optional)": "(opcional)",
     "Its plugin is off or missing. You can still remove saved tokens.": "Su plugin está desactivado o no existe. Aún puedes quitar los tokens guardados.",
+
+    "Active: environment variable {name}": "Activa: variable de entorno {name}",
+    "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.": "Las variables de entorno de la clave del sitio no coinciden. Configura TOVU_SITE_KEY con la clave existente y elimina la variable obsoleta; no se cambió nada.",
+
+    "Paste your old site key": "Pega tu antigua clave del sitio",
+    "They were locked with a site key that isn't on this computer.": "Se protegieron con una clave del sitio que no está en este equipo.",
+    "Your credentials need their original site key — use the card above.": "Tus credenciales necesitan su clave del sitio original; usa la tarjeta de arriba.",
   },
   de: {
     "Custom credential": "Eigene Zugangsdaten",
-    "Access Tokens": "Zugriffstoken", "Site Token": "Website-Token", Operations: "Vorgänge", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Ein Ort, um alle Zugriffstoken dieser Installation zu sehen und eines zu erstellen, zu rotieren oder zu entfernen, ohne die Bildschirme durchsuchen zu müssen, die es erstellt haben.",
+    "Access Tokens": "Zugriffstoken", "Site key": "Website-Schlüssel", Operations: "Vorgänge", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Ein Ort, um alle Zugriffstoken dieser Installation zu sehen und eines zu erstellen, zu rotieren oder zu entfernen, ohne die Bildschirme durchsuchen zu müssen, die es erstellt haben.",
     "unknown error": "unbekannter Fehler", "this workspace": "dieser Arbeitsbereich", All: "Alle", Secrets: "Geheimnisse", "Source control": "Quellcodeverwaltung", Hosting: "Hosting", Media: "Medien", AI: "KI", Ops: "Betrieb", General: "Allgemein",
     "External MCP servers": "Externe MCP-Server", "Providers · External MCP": "Anbieter · Externes MCP", "No environment variables set": "Keine Umgebungsvariablen festgelegt", "1 environment variable set": "1 Umgebungsvariable festgelegt", "{count} environment variables set": "{count} Umgebungsvariablen festgelegt",
     "Loading access tokens…": "Zugriffstoken werden geladen…", "Filter by category": "Nach Kategorie filtern", "+ Add custom provider": "+ Benutzerdefinierten Anbieter hinzufügen", token: "Token", saved: "gespeichert",
@@ -50,10 +64,17 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "AI Assistant": "KI-Assistent", "Settings · Execution mode": "Einstellungen · Ausführungsmodus", "Providers · Media": "Anbieter · Medien",
     "A key is created automatically when this site starts.": "Ein Schlüssel wird automatisch erstellt, wenn diese Website startet.", "(optional)": "(optional)",
     "Its plugin is off or missing. You can still remove saved tokens.": "Sein Plugin ist ausgeschaltet oder fehlt. Gespeicherte Token können Sie weiterhin entfernen.",
+
+    "Active: environment variable {name}": "Aktiv: Umgebungsvariable {name}",
+    "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.": "Die Umgebungsvariablen für den Website-Schlüssel widersprechen sich. Setzen Sie TOVU_SITE_KEY auf den vorhandenen Schlüssel und entfernen Sie die veraltete Variable; nichts wurde geändert.",
+
+    "Paste your old site key": "Fügen Sie Ihren bisherigen Website-Schlüssel ein",
+    "They were locked with a site key that isn't on this computer.": "Sie wurden mit einem Website-Schlüssel geschützt, der auf diesem Computer fehlt.",
+    "Your credentials need their original site key — use the card above.": "Ihre Zugangsdaten benötigen den ursprünglichen Website-Schlüssel – verwenden Sie die Karte oben.",
   },
   fr: {
     "Custom credential": "Identifiant personnalisé",
-    "Access Tokens": "Jetons d’accès", "Site Token": "Jeton du site", Operations: "Opérations", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Un seul endroit pour voir tous les jetons d’accès de cette installation et en créer, renouveler ou supprimer un sans chercher parmi les écrans qui l’ont créé.",
+    "Access Tokens": "Jetons d’accès", "Site key": "Clé du site", Operations: "Opérations", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Un seul endroit pour voir tous les jetons d’accès de cette installation et en créer, renouveler ou supprimer un sans chercher parmi les écrans qui l’ont créé.",
     "unknown error": "erreur inconnue", "this workspace": "cet espace de travail", All: "Tous", Secrets: "Secrets", "Source control": "Gestion du code source", Hosting: "Hébergement", Media: "Médias", AI: "IA", Ops: "Opérations", General: "Général",
     "External MCP servers": "Serveurs MCP externes", "Providers · External MCP": "Fournisseurs · MCP externe", "No environment variables set": "Aucune variable d'environnement définie", "1 environment variable set": "1 variable d'environnement définie", "{count} environment variables set": "{count} variables d'environnement définies",
     "Loading access tokens…": "Chargement des jetons d'accès…", "Filter by category": "Filtrer par catégorie", "+ Add custom provider": "+ Ajouter un fournisseur personnalisé", token: "jeton", saved: "enregistré",
@@ -71,10 +92,17 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "AI Assistant": "Assistant IA", "Settings · Execution mode": "Paramètres · Mode d'exécution", "Providers · Media": "Fournisseurs · Médias",
     "A key is created automatically when this site starts.": "Une clé est créée automatiquement au démarrage de ce site.", "(optional)": "(facultatif)",
     "Its plugin is off or missing. You can still remove saved tokens.": "Son plugin est désactivé ou absent. Vous pouvez toujours supprimer les jetons enregistrés.",
+
+    "Active: environment variable {name}": "Active : variable d'environnement {name}",
+    "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.": "Les variables d'environnement de la clé du site sont en conflit. Définissez TOVU_SITE_KEY avec la clé existante et supprimez la variable obsolète ; rien n'a été modifié.",
+
+    "Paste your old site key": "Collez votre ancienne clé du site",
+    "They were locked with a site key that isn't on this computer.": "Elles ont été protégées avec une clé du site absente de cet ordinateur.",
+    "Your credentials need their original site key — use the card above.": "Vos identifiants nécessitent leur clé du site d'origine ; utilisez la carte ci-dessus.",
   },
   it: {
     "Custom credential": "Credenziale personalizzata",
-    "Access Tokens": "Token di accesso", "Site Token": "Token del sito", Operations: "Operazioni", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Un unico posto per vedere tutti i token di accesso di questa installazione e crearne, ruotarne o rimuoverne uno senza cercare nelle schermate che lo hanno creato.",
+    "Access Tokens": "Token di accesso", "Site key": "Chiave del sito", Operations: "Operazioni", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Un unico posto per vedere tutti i token di accesso di questa installazione e crearne, ruotarne o rimuoverne uno senza cercare nelle schermate che lo hanno creato.",
     "unknown error": "errore sconosciuto", "this workspace": "questo spazio di lavoro", All: "Tutti", Secrets: "Segreti", "Source control": "Controllo del codice sorgente", Hosting: "Hosting", Media: "Media", AI: "IA", Ops: "Operazioni", General: "Generale",
     "External MCP servers": "Server MCP esterni", "Providers · External MCP": "Provider · MCP esterno", "No environment variables set": "Nessuna variabile d'ambiente impostata", "1 environment variable set": "1 variabile d'ambiente impostata", "{count} environment variables set": "{count} variabili d'ambiente impostate",
     "Loading access tokens…": "Caricamento dei token di accesso…", "Filter by category": "Filtra per categoria", "+ Add custom provider": "+ Aggiungi provider personalizzato", token: "token", saved: "salvato",
@@ -92,10 +120,17 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "AI Assistant": "Assistente IA", "Settings · Execution mode": "Impostazioni · Modalità di esecuzione", "Providers · Media": "Provider · Media",
     "A key is created automatically when this site starts.": "Una chiave viene creata automaticamente all'avvio di questo sito.", "(optional)": "(facoltativo)",
     "Its plugin is off or missing. You can still remove saved tokens.": "Il suo plugin è disattivato o mancante. Puoi comunque rimuovere i token salvati.",
+
+    "Active: environment variable {name}": "Attiva: variabile d'ambiente {name}",
+    "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.": "Le variabili d'ambiente della chiave del sito sono in conflitto. Imposta TOVU_SITE_KEY sulla chiave esistente e rimuovi la variabile obsoleta; nulla è stato modificato.",
+
+    "Paste your old site key": "Incolla la tua vecchia chiave del sito",
+    "They were locked with a site key that isn't on this computer.": "Sono state protette con una chiave del sito che non è su questo computer.",
+    "Your credentials need their original site key — use the card above.": "Le tue credenziali richiedono la chiave del sito originale: usa la scheda sopra.",
   },
   "pt-BR": {
     "Custom credential": "Credencial personalizada",
-    "Access Tokens": "Tokens de acesso", "Site Token": "Token do site", Operations: "Operações", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Um só lugar para ver todos os tokens de acesso desta instalação e criar, alternar ou remover um sem procurar nas telas que o criaram.",
+    "Access Tokens": "Tokens de acesso", "Site key": "Chave do site", Operations: "Operações", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Um só lugar para ver todos os tokens de acesso desta instalação e criar, alternar ou remover um sem procurar nas telas que o criaram.",
     "unknown error": "erro desconhecido", "this workspace": "este espaço de trabalho", All: "Todos", Secrets: "Segredos", "Source control": "Controle de código-fonte", Hosting: "Hospedagem", Media: "Mídia", AI: "IA", Ops: "Operações", General: "Geral",
     "External MCP servers": "Servidores MCP externos", "Providers · External MCP": "Provedores · MCP externo", "No environment variables set": "Nenhuma variável de ambiente definida", "1 environment variable set": "1 variável de ambiente definida", "{count} environment variables set": "{count} variáveis de ambiente definidas",
     "Loading access tokens…": "Carregando tokens de acesso…", "Filter by category": "Filtrar por categoria", "+ Add custom provider": "+ Adicionar provedor personalizado", token: "token", saved: "salvo",
@@ -113,10 +148,17 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "AI Assistant": "Assistente de IA", "Settings · Execution mode": "Configurações · Modo de execução", "Providers · Media": "Provedores · Mídia",
     "A key is created automatically when this site starts.": "Uma chave é criada automaticamente quando este site é iniciado.", "(optional)": "(opcional)",
     "Its plugin is off or missing. You can still remove saved tokens.": "O plugin dele está desativado ou ausente. Você ainda pode remover os tokens salvos.",
+
+    "Active: environment variable {name}": "Ativa: variável de ambiente {name}",
+    "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.": "As variáveis de ambiente da chave do site estão em conflito. Defina TOVU_SITE_KEY com a chave existente e remova a variável obsoleta; nada foi alterado.",
+
+    "Paste your old site key": "Cole sua antiga chave do site",
+    "They were locked with a site key that isn't on this computer.": "Foram protegidas com uma chave do site que não está neste computador.",
+    "Your credentials need their original site key — use the card above.": "Suas credenciais precisam da chave do site original; use o cartão acima.",
   },
   pl: {
     "Custom credential": "Własne dane logowania",
-    "Access Tokens": "Tokeny dostępu", "Site Token": "Token witryny", Operations: "Operacje", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Jedno miejsce, aby zobaczyć wszystkie tokeny dostępu tej instalacji oraz utworzyć, zmienić lub usunąć token bez przeszukiwania ekranów, na których go utworzono.",
+    "Access Tokens": "Tokeny dostępu", "Site key": "Klucz witryny", Operations: "Operacje", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Jedno miejsce, aby zobaczyć wszystkie tokeny dostępu tej instalacji oraz utworzyć, zmienić lub usunąć token bez przeszukiwania ekranów, na których go utworzono.",
     "unknown error": "nieznany błąd", "this workspace": "ten obszar roboczy", All: "Wszystkie", Secrets: "Sekrety", "Source control": "Kontrola wersji", Hosting: "Hosting", Media: "Media", AI: "AI", Ops: "Operacje", General: "Ogólne",
     "External MCP servers": "Zewnętrzne serwery MCP", "Providers · External MCP": "Dostawcy · Zewnętrzne MCP", "No environment variables set": "Nie ustawiono zmiennych środowiskowych", "1 environment variable set": "Ustawiono 1 zmienną środowiskową", "{count} environment variables set": "Ustawiono {count} zmiennych środowiskowych",
     "Loading access tokens…": "Wczytywanie tokenów dostępu…", "Filter by category": "Filtruj według kategorii", "+ Add custom provider": "+ Dodaj niestandardowego dostawcę", token: "token", saved: "zapisano",
@@ -134,10 +176,17 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "AI Assistant": "Asystent AI", "Settings · Execution mode": "Ustawienia · Tryb wykonania", "Providers · Media": "Dostawcy · Media",
     "A key is created automatically when this site starts.": "Klucz jest tworzony automatycznie podczas uruchamiania tej witryny.", "(optional)": "(opcjonalnie)",
     "Its plugin is off or missing. You can still remove saved tokens.": "Jego wtyczka jest wyłączona lub jej brak. Nadal możesz usunąć zapisane tokeny.",
+
+    "Active: environment variable {name}": "Aktywny: zmienna środowiskowa {name}",
+    "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.": "Zmienne środowiskowe klucza witryny są sprzeczne. Ustaw TOVU_SITE_KEY na istniejący klucz i usuń przestarzałą zmienną; niczego nie zmieniono.",
+
+    "Paste your old site key": "Wklej poprzedni klucz witryny",
+    "They were locked with a site key that isn't on this computer.": "Zostały zabezpieczone kluczem witryny, którego nie ma na tym komputerze.",
+    "Your credentials need their original site key — use the card above.": "Twoje dane uwierzytelniające wymagają oryginalnego klucza witryny — użyj karty powyżej.",
   },
   hu: {
     "Custom credential": "Egyéni hitelesítő adat",
-    "Access Tokens": "Hozzáférési tokenek", "Site Token": "Webhelytoken", Operations: "Műveletek", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Egy helyen láthatja a telepítés összes hozzáférési tokenjét, és létrehozhat, lecserélhet vagy eltávolíthat egyet anélkül, hogy végig kellene keresnie a létrehozó képernyőket.",
+    "Access Tokens": "Hozzáférési tokenek", "Site key": "Webhelykulcs", Operations: "Műveletek", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Egy helyen láthatja a telepítés összes hozzáférési tokenjét, és létrehozhat, lecserélhet vagy eltávolíthat egyet anélkül, hogy végig kellene keresnie a létrehozó képernyőket.",
     "unknown error": "ismeretlen hiba", "this workspace": "ez a munkaterület", All: "Összes", Secrets: "Titkok", "Source control": "Forráskód-kezelés", Hosting: "Tárhely", Media: "Média", AI: "MI", Ops: "Műveletek", General: "Általános",
     "External MCP servers": "Külső MCP-kiszolgálók", "Providers · External MCP": "Szolgáltatók · Külső MCP", "No environment variables set": "Nincsenek beállított környezeti változók", "1 environment variable set": "1 környezeti változó van beállítva", "{count} environment variables set": "{count} környezeti változó van beállítva",
     "Loading access tokens…": "Hozzáférési tokenek betöltése…", "Filter by category": "Szűrés kategória szerint", "+ Add custom provider": "+ Egyéni szolgáltató hozzáadása", token: "token", saved: "mentve",
@@ -155,10 +204,17 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "AI Assistant": "AI-asszisztens", "Settings · Execution mode": "Beállítások · Végrehajtási mód", "Providers · Media": "Szolgáltatók · Média",
     "A key is created automatically when this site starts.": "A kulcs automatikusan létrejön, amikor ez a webhely elindul.", "(optional)": "(nem kötelező)",
     "Its plugin is off or missing. You can still remove saved tokens.": "A bővítménye ki van kapcsolva vagy hiányzik. A mentett tokeneket továbbra is eltávolíthatja.",
+
+    "Active: environment variable {name}": "Aktív: {name} környezeti változó",
+    "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.": "A webhelykulcs környezeti változói ütköznek. Állítsa a TOVU_SITE_KEY értékét a meglévő kulcsra, és távolítsa el az elavult változót; semmi sem változott.",
+
+    "Paste your old site key": "Illessze be a régi webhelykulcsát",
+    "They were locked with a site key that isn't on this computer.": "Olyan webhelykulccsal védték őket, amely nincs ezen a számítógépen.",
+    "Your credentials need their original site key — use the card above.": "A hitelesítő adatokhoz az eredeti webhelykulcs kell — használja a fenti kártyát.",
   },
   tr: {
     "Custom credential": "Özel kimlik bilgisi",
-    "Access Tokens": "Erişim belirteçleri", "Site Token": "Site belirteci", Operations: "İşlemler", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Bu kurulumdaki tüm erişim belirteçlerini görebileceğiniz ve onu oluşturan ekranlarda aramadan bir belirteç oluşturabileceğiniz, değiştirebileceğiniz veya kaldırabileceğiniz tek yer.",
+    "Access Tokens": "Erişim belirteçleri", "Site key": "Site anahtarı", Operations: "İşlemler", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Bu kurulumdaki tüm erişim belirteçlerini görebileceğiniz ve onu oluşturan ekranlarda aramadan bir belirteç oluşturabileceğiniz, değiştirebileceğiniz veya kaldırabileceğiniz tek yer.",
     "unknown error": "bilinmeyen hata", "this workspace": "bu çalışma alanı", All: "Tümü", Secrets: "Gizli bilgiler", "Source control": "Kaynak kod yönetimi", Hosting: "Barındırma", Media: "Medya", AI: "YZ", Ops: "İşlemler", General: "Genel",
     "External MCP servers": "Harici MCP sunucuları", "Providers · External MCP": "Sağlayıcılar · Harici MCP", "No environment variables set": "Ortam değişkeni ayarlanmadı", "1 environment variable set": "1 ortam değişkeni ayarlandı", "{count} environment variables set": "{count} ortam değişkeni ayarlandı",
     "Loading access tokens…": "Erişim jetonları yükleniyor…",
@@ -214,10 +270,17 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
 
     "A key is created automatically when this site starts.": "Bu site başladığında bir anahtar otomatik olarak oluşturulur.", "(optional)": "(isteğe bağlı)",
     "Its plugin is off or missing. You can still remove saved tokens.": "Eklentisi kapalı veya eksik. Kayıtlı belirteçleri yine de kaldırabilirsiniz.",
+
+    "Active: environment variable {name}": "Etkin: {name} ortam değişkeni",
+    "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.": "Site anahtarı ortam değişkenleri çakışıyor. TOVU_SITE_KEY değerini mevcut anahtara ayarlayın ve kullanımdan kaldırılan değişkeni silin; hiçbir şey değiştirilmedi.",
+
+    "Paste your old site key": "Eski site anahtarınızı yapıştırın",
+    "They were locked with a site key that isn't on this computer.": "Bu bilgisayarda olmayan bir site anahtarıyla korundular.",
+    "Your credentials need their original site key — use the card above.": "Kimlik bilgileriniz için özgün site anahtarı gerekiyor; yukarıdaki kartı kullanın.",
   },
   ru: {
     "Custom credential": "Свои учётные данные",
-    "Access Tokens": "Токены доступа", "Site Token": "Токен сайта", Operations: "Операции", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Одно место, где можно увидеть все токены доступа этой установки, создать, заменить или удалить токен без поиска по экранам, в которых он был создан.",
+    "Access Tokens": "Токены доступа", "Site key": "Ключ сайта", Operations: "Операции", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Одно место, где можно увидеть все токены доступа этой установки, создать, заменить или удалить токен без поиска по экранам, в которых он был создан.",
     "unknown error": "неизвестная ошибка", "this workspace": "это рабочее пространство", All: "Все", Secrets: "Секреты", "Source control": "Управление исходным кодом", Hosting: "Хостинг", Media: "Медиа", AI: "ИИ", Ops: "Операции", General: "Общее",
     "External MCP servers": "Внешние серверы MCP", "Providers · External MCP": "Провайдеры · Внешний MCP", "No environment variables set": "Переменные окружения не заданы", "1 environment variable set": "Задана 1 переменная окружения", "{count} environment variables set": "Задано переменных окружения: {count}",
     "Loading access tokens…": "Загрузка токенов доступа…",
@@ -273,10 +336,17 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
 
     "A key is created automatically when this site starts.": "Ключ создаётся автоматически при запуске этого сайта.", "(optional)": "(необязательно)",
     "Its plugin is off or missing. You can still remove saved tokens.": "Его плагин отключён или отсутствует. Сохранённые токены по-прежнему можно удалить.",
+
+    "Active: environment variable {name}": "Активен: переменная окружения {name}",
+    "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.": "Переменные окружения ключа сайта конфликтуют. Задайте TOVU_SITE_KEY существующий ключ и удалите устаревшую переменную; ничего не изменено.",
+
+    "Paste your old site key": "Вставьте прежний ключ сайта",
+    "They were locked with a site key that isn't on this computer.": "Они защищены ключом сайта, которого нет на этом компьютере.",
+    "Your credentials need their original site key — use the card above.": "Для ваших учётных данных нужен исходный ключ сайта — используйте карточку выше.",
   },
   uk: {
     "Custom credential": "Власні облікові дані",
-    "Access Tokens": "Токени доступу", "Site Token": "Токен сайту", Operations: "Операції", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Одне місце, щоб переглянути всі токени доступу цієї інсталяції та створити, замінити чи вилучити токен без пошуку на екранах, де його створено.",
+    "Access Tokens": "Токени доступу", "Site key": "Ключ сайту", Operations: "Операції", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Одне місце, щоб переглянути всі токени доступу цієї інсталяції та створити, замінити чи вилучити токен без пошуку на екранах, де його створено.",
     "unknown error": "невідома помилка", "this workspace": "цей робочий простір", All: "Усі", Secrets: "Секрети", "Source control": "Керування вихідним кодом", Hosting: "Хостинг", Media: "Медіа", AI: "ШІ", Ops: "Операції", General: "Загальне",
     "External MCP servers": "Зовнішні сервери MCP", "Providers · External MCP": "Постачальники · Зовнішній MCP", "No environment variables set": "Змінні середовища не встановлено", "1 environment variable set": "Встановлено 1 змінну середовища", "{count} environment variables set": "Встановлено змінних середовища: {count}",
     "Loading access tokens…": "Завантаження токенів доступу…",
@@ -332,10 +402,17 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
 
     "A key is created automatically when this site starts.": "Ключ створюється автоматично під час запуску цього сайту.", "(optional)": "(необов’язково)",
     "Its plugin is off or missing. You can still remove saved tokens.": "Його плагін вимкнено або він відсутній. Збережені токени все одно можна видалити.",
+
+    "Active: environment variable {name}": "Активний: змінна середовища {name}",
+    "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.": "Змінні середовища ключа сайту конфліктують. Задайте TOVU_SITE_KEY наявний ключ і видаліть застарілу змінну; нічого не змінено.",
+
+    "Paste your old site key": "Вставте попередній ключ сайту",
+    "They were locked with a site key that isn't on this computer.": "Їх захищено ключем сайту, якого немає на цьому комп’ютері.",
+    "Your credentials need their original site key — use the card above.": "Для ваших облікових даних потрібен початковий ключ сайту — скористайтеся карткою вище.",
   },
   id: {
     "Custom credential": "Kredensial kustom",
-    "Access Tokens": "Token akses", "Site Token": "Token situs", Operations: "Operasi", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Satu tempat untuk melihat setiap token akses yang dimiliki instalasi ini, serta membuat, merotasi, atau menghapusnya tanpa mencari di layar yang membuatnya.",
+    "Access Tokens": "Token akses", "Site key": "Kunci situs", Operations: "Operasi", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "Satu tempat untuk melihat setiap token akses yang dimiliki instalasi ini, serta membuat, merotasi, atau menghapusnya tanpa mencari di layar yang membuatnya.",
     "unknown error": "kesalahan tidak diketahui", "this workspace": "ruang kerja ini", All: "Semua", Secrets: "Rahasia", "Source control": "Kontrol sumber", Hosting: "Hosting", Media: "Media", AI: "AI", Ops: "Operasi", General: "Umum",
     "External MCP servers": "Server MCP eksternal", "Providers · External MCP": "Penyedia · MCP eksternal", "No environment variables set": "Tidak ada variabel lingkungan yang ditetapkan", "1 environment variable set": "1 variabel lingkungan ditetapkan", "{count} environment variables set": "{count} variabel lingkungan ditetapkan",
     "Loading access tokens…": "Memuat token akses…",
@@ -391,10 +468,17 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
 
     "A key is created automatically when this site starts.": "Kunci dibuat secara otomatis saat situs ini dimulai.", "(optional)": "(opsional)",
     "Its plugin is off or missing. You can still remove saved tokens.": "Pluginnya nonaktif atau tidak ada. Anda tetap dapat menghapus token yang tersimpan.",
+
+    "Active: environment variable {name}": "Aktif: variabel lingkungan {name}",
+    "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.": "Variabel lingkungan kunci situs bertentangan. Atur TOVU_SITE_KEY ke kunci yang ada dan hapus variabel lama; tidak ada yang diubah.",
+
+    "Paste your old site key": "Tempel kunci situs lama Anda",
+    "They were locked with a site key that isn't on this computer.": "Kredensial dilindungi dengan kunci situs yang tidak ada di komputer ini.",
+    "Your credentials need their original site key — use the card above.": "Kredensial Anda memerlukan kunci situs aslinya; gunakan kartu di atas.",
   },
   ar: {
     "Custom credential": "بيانات اعتماد مخصصة",
-    "Access Tokens": "رموز الوصول", "Site Token": "رمز الموقع", Operations: "العمليات", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "مكان واحد لرؤية كل رموز الوصول التي يحتفظ بها هذا التثبيت، وإنشاء أحدها أو تدويره أو إزالته دون البحث في الشاشات التي أنشأته.",
+    "Access Tokens": "رموز الوصول", "Site key": "مفتاح الموقع", Operations: "العمليات", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "مكان واحد لرؤية كل رموز الوصول التي يحتفظ بها هذا التثبيت، وإنشاء أحدها أو تدويره أو إزالته دون البحث في الشاشات التي أنشأته.",
     "unknown error": "خطأ غير معروف", "this workspace": "مساحة العمل هذه", All: "الكل", Secrets: "الأسرار", "Source control": "إدارة الشفرة المصدرية", Hosting: "الاستضافة", Media: "الوسائط", AI: "الذكاء الاصطناعي", Ops: "العمليات", General: "عام",
     "External MCP servers": "خوادم MCP الخارجية", "Providers · External MCP": "الموفرون · MCP خارجي", "No environment variables set": "لم يتم تعيين متغيرات بيئة", "1 environment variable set": "تم تعيين متغير بيئة واحد", "{count} environment variables set": "تم تعيين {count} من متغيرات البيئة",
     "Loading access tokens…": "جارٍ تحميل رموز الوصول…",
@@ -450,10 +534,17 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
 
     "A key is created automatically when this site starts.": "يتم إنشاء مفتاح تلقائيًا عند بدء تشغيل هذا الموقع.", "(optional)": "(اختياري)",
     "Its plugin is off or missing. You can still remove saved tokens.": "المكوّن الإضافي الخاص به متوقف أو مفقود. لا يزال بإمكانك إزالة الرموز المحفوظة.",
+
+    "Active: environment variable {name}": "نشط: متغير البيئة {name}",
+    "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.": "متغيرات البيئة لمفتاح الموقع متعارضة. اضبط TOVU_SITE_KEY على المفتاح الحالي واحذف المتغير المهمل؛ لم يتغير شيء.",
+
+    "Paste your old site key": "الصق مفتاح الموقع القديم",
+    "They were locked with a site key that isn't on this computer.": "تمت حمايتها بمفتاح موقع غير موجود على هذا الكمبيوتر.",
+    "Your credentials need their original site key — use the card above.": "تحتاج بيانات اعتمادك إلى مفتاح الموقع الأصلي — استخدم البطاقة أعلاه.",
   },
   fa: {
     "Custom credential": "اعتبارنامهٔ سفارشی",
-    "Access Tokens": "توکن‌های دسترسی", "Site Token": "توکن سایت", Operations: "عملیات", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "یک جا برای دیدن همهٔ توکن‌های دسترسی این نصب و ایجاد، چرخش یا حذف یکی از آن‌ها، بدون جست‌وجو در صفحه‌هایی که آن را ساخته‌اند.",
+    "Access Tokens": "توکن‌های دسترسی", "Site key": "کلید سایت", Operations: "عملیات", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "یک جا برای دیدن همهٔ توکن‌های دسترسی این نصب و ایجاد، چرخش یا حذف یکی از آن‌ها، بدون جست‌وجو در صفحه‌هایی که آن را ساخته‌اند.",
     "unknown error": "خطای ناشناخته", "this workspace": "این فضای کاری", All: "همه", Secrets: "اسرار", "Source control": "کنترل کد منبع", Hosting: "میزبانی", Media: "رسانه", AI: "هوش مصنوعی", Ops: "عملیات", General: "عمومی",
     "External MCP servers": "سرورهای MCP خارجی", "Providers · External MCP": "ارائه‌دهندگان · MCP خارجی", "No environment variables set": "هیچ متغیر محیطی تنظیم نشده است", "1 environment variable set": "۱ متغیر محیطی تنظیم شده است", "{count} environment variables set": "{count} متغیر محیطی تنظیم شده است",
     "Loading access tokens…": "در حال بارگذاری توکن‌های دسترسی…",
@@ -509,10 +600,17 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
 
     "A key is created automatically when this site starts.": "کلید هنگام شروع این سایت به‌طور خودکار ایجاد می‌شود.", "(optional)": "(اختیاری)",
     "Its plugin is off or missing. You can still remove saved tokens.": "افزونهٔ آن خاموش است یا وجود ندارد. همچنان می‌توانید توکن‌های ذخیره‌شده را حذف کنید.",
+
+    "Active: environment variable {name}": "فعال: متغیر محیطی {name}",
+    "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.": "متغیرهای محیطی کلید سایت با هم تعارض دارند. TOVU_SITE_KEY را روی کلید موجود تنظیم کنید و متغیر منسوخ را حذف کنید؛ چیزی تغییر نکرد.",
+
+    "Paste your old site key": "کلید قبلی سایت را جای‌گذاری کنید",
+    "They were locked with a site key that isn't on this computer.": "آن‌ها با کلید سایتی محافظت شده‌اند که روی این رایانه نیست.",
+    "Your credentials need their original site key — use the card above.": "اطلاعات ورود شما به کلید اصلی سایت نیاز دارد؛ از کارت بالا استفاده کنید.",
   },
   hi: {
     "Custom credential": "कस्टम क्रेडेंशियल",
-    "Access Tokens": "एक्सेस टोकन", "Site Token": "साइट टोकन", Operations: "संचालन", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "इस इंस्टॉलेशन के सभी एक्सेस टोकन देखने और उन्हें बनाने, बदलने या हटाने के लिए एक जगह, बिना उन्हें बनाने वाली स्क्रीन खोजे।",
+    "Access Tokens": "एक्सेस टोकन", "Site key": "साइट कुंजी", Operations: "संचालन", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "इस इंस्टॉलेशन के सभी एक्सेस टोकन देखने और उन्हें बनाने, बदलने या हटाने के लिए एक जगह, बिना उन्हें बनाने वाली स्क्रीन खोजे।",
     "unknown error": "अज्ञात त्रुटि", "this workspace": "यह कार्यस्थान", All: "सभी", Secrets: "रहस्य", "Source control": "स्रोत नियंत्रण", Hosting: "होस्टिंग", Media: "मीडिया", AI: "AI", Ops: "संचालन", General: "सामान्य",
     "External MCP servers": "बाहरी MCP सर्वर", "Providers · External MCP": "प्रदाता · बाहरी MCP", "No environment variables set": "कोई परिवेश चर सेट नहीं है", "1 environment variable set": "1 परिवेश चर सेट है", "{count} environment variables set": "{count} परिवेश चर सेट हैं",
     "Loading access tokens…": "एक्सेस टोकन लोड हो रहे हैं…",
@@ -568,10 +666,17 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
 
     "A key is created automatically when this site starts.": "यह साइट शुरू होने पर कुंजी स्वचालित रूप से बन जाती है।", "(optional)": "(वैकल्पिक)",
     "Its plugin is off or missing. You can still remove saved tokens.": "इसका प्लगइन बंद है या मौजूद नहीं है। आप सहेजे गए टोकन अब भी हटा सकते हैं।",
+
+    "Active: environment variable {name}": "सक्रिय: परिवेश चर {name}",
+    "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.": "साइट कुंजी के परिवेश चरों में विरोध है। TOVU_SITE_KEY को मौजूदा कुंजी पर सेट करें और पुराने चर को हटा दें; कुछ भी नहीं बदला गया।",
+
+    "Paste your old site key": "अपनी पुरानी साइट कुंजी पेस्ट करें",
+    "They were locked with a site key that isn't on this computer.": "वे ऐसी साइट कुंजी से सुरक्षित हैं जो इस कंप्यूटर पर नहीं है।",
+    "Your credentials need their original site key — use the card above.": "आपकी सहेजी गई क्रेडेंशियल को मूल साइट कुंजी चाहिए — ऊपर दिए कार्ड का उपयोग करें।",
   },
   bn: {
     "Custom credential": "কাস্টম ক্রেডেনশিয়াল",
-    "Access Tokens": "অ্যাক্সেস টোকেন", "Site Token": "সাইট টোকেন", Operations: "কার্যক্রম", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "এই ইনস্টলেশনের সব অ্যাক্সেস টোকেন দেখার এবং যে স্ক্রিনে তৈরি হয়েছে তা খুঁজে না বেড়িয়ে টোকেন তৈরি, পরিবর্তন বা সরানোর একটি জায়গা।",
+    "Access Tokens": "অ্যাক্সেস টোকেন", "Site key": "সাইট কী", Operations: "কার্যক্রম", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "এই ইনস্টলেশনের সব অ্যাক্সেস টোকেন দেখার এবং যে স্ক্রিনে তৈরি হয়েছে তা খুঁজে না বেড়িয়ে টোকেন তৈরি, পরিবর্তন বা সরানোর একটি জায়গা।",
     "unknown error": "অজানা ত্রুটি", "this workspace": "এই কর্মক্ষেত্র", All: "সব", Secrets: "গোপন তথ্য", "Source control": "সোর্স নিয়ন্ত্রণ", Hosting: "হোস্টিং", Media: "মিডিয়া", AI: "AI", Ops: "কার্যক্রম", General: "সাধারণ",
     "External MCP servers": "বাহ্যিক MCP সার্ভার", "Providers · External MCP": "প্রদানকারী · বাহ্যিক MCP", "No environment variables set": "কোনো পরিবেশ ভেরিয়েবল সেট করা নেই", "1 environment variable set": "1টি পরিবেশ ভেরিয়েবল সেট করা আছে", "{count} environment variables set": "{count}টি পরিবেশ ভেরিয়েবল সেট করা আছে",
     "Loading access tokens…": "অ্যাক্সেস টোকেন লোড হচ্ছে…",
@@ -627,10 +732,17 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
 
     "A key is created automatically when this site starts.": "এই সাইট শুরু হলে একটি কী স্বয়ংক্রিয়ভাবে তৈরি হয়।", "(optional)": "(ঐচ্ছিক)",
     "Its plugin is off or missing. You can still remove saved tokens.": "এর প্লাগইন বন্ধ বা অনুপস্থিত। আপনি এখনও সংরক্ষিত টোকেন সরাতে পারেন।",
+
+    "Active: environment variable {name}": "সক্রিয়: পরিবেশ ভেরিয়েবল {name}",
+    "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.": "সাইট কী-এর পরিবেশ ভেরিয়েবলগুলোতে দ্বন্দ্ব আছে। TOVU_SITE_KEY-তে বিদ্যমান কী সেট করুন এবং পুরোনো ভেরিয়েবল সরান; কিছুই পরিবর্তন হয়নি।",
+
+    "Paste your old site key": "আপনার পুরোনো সাইট কী পেস্ট করুন",
+    "They were locked with a site key that isn't on this computer.": "এগুলো এমন একটি সাইট কী দিয়ে সুরক্ষিত যা এই কম্পিউটারে নেই।",
+    "Your credentials need their original site key — use the card above.": "আপনার পরিচয়পত্রের জন্য মূল সাইট কী দরকার — উপরের কার্ড ব্যবহার করুন।",
   },
   ur: {
     "Custom credential": "حسب ضرورت سند",
-    "Access Tokens": "رسائی ٹوکن", "Site Token": "سائٹ ٹوکن", Operations: "عملیات", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "اس انسٹالیشن کے تمام رسائی ٹوکن دیکھنے اور انہیں بنانے، تبدیل کرنے یا ہٹانے کے لیے ایک جگہ، انہیں بنانے والی اسکرینیں ڈھونڈے بغیر۔",
+    "Access Tokens": "رسائی ٹوکن", "Site key": "سائٹ کی کلید", Operations: "عملیات", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "اس انسٹالیشن کے تمام رسائی ٹوکن دیکھنے اور انہیں بنانے، تبدیل کرنے یا ہٹانے کے لیے ایک جگہ، انہیں بنانے والی اسکرینیں ڈھونڈے بغیر۔",
     "unknown error": "نامعلوم خرابی", "this workspace": "یہ ورک اسپیس", All: "سب", Secrets: "راز", "Source control": "ماخذ کنٹرول", Hosting: "ہوسٹنگ", Media: "میڈیا", AI: "AI", Ops: "عملیات", General: "عمومی",
     "External MCP servers": "بیرونی MCP سرورز", "Providers · External MCP": "فراہم کنندگان · بیرونی MCP", "No environment variables set": "کوئی ماحول متغیر سیٹ نہیں ہے", "1 environment variable set": "1 ماحول متغیر سیٹ ہے", "{count} environment variables set": "{count} ماحول متغیر سیٹ ہیں",
     "Loading access tokens…": "رسائی ٹوکنز لوڈ ہو رہے ہیں…",
@@ -686,10 +798,17 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
 
     "A key is created automatically when this site starts.": "جب یہ سائٹ شروع ہوتی ہے تو ایک کی خودکار طور پر بن جاتی ہے۔", "(optional)": "(اختیاری)",
     "Its plugin is off or missing. You can still remove saved tokens.": "اس کا پلگ ان بند ہے یا موجود نہیں۔ آپ اب بھی محفوظ کردہ ٹوکن ہٹا سکتے ہیں۔",
+
+    "Active: environment variable {name}": "فعال: ماحول متغیر {name}",
+    "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.": "سائٹ کی کلید کے ماحول متغیرات میں تضاد ہے۔ TOVU_SITE_KEY کو موجودہ کلید پر مقرر کریں اور متروک متغیر ہٹا دیں؛ کچھ تبدیل نہیں ہوا۔",
+
+    "Paste your old site key": "اپنی پرانی سائٹ کی کلید پیسٹ کریں",
+    "They were locked with a site key that isn't on this computer.": "انہیں سائٹ کی ایسی کلید سے محفوظ کیا گیا جو اس کمپیوٹر پر نہیں ہے۔",
+    "Your credentials need their original site key — use the card above.": "آپ کی اسناد کو سائٹ کی اصل کلید چاہیے — اوپر والا کارڈ استعمال کریں۔",
   },
   ja: {
     "Custom credential": "カスタム認証情報",
-    "Access Tokens": "アクセストークン", "Site Token": "サイトトークン", Operations: "操作", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "このインストールが保持するすべてのアクセストークンを確認し、作成元の画面を探し回らずに作成、ローテーション、削除できる場所です。",
+    "Access Tokens": "アクセストークン", "Site key": "サイトキー", Operations: "操作", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "このインストールが保持するすべてのアクセストークンを確認し、作成元の画面を探し回らずに作成、ローテーション、削除できる場所です。",
     "unknown error": "不明なエラー", "this workspace": "このワークスペース", All: "すべて", Secrets: "シークレット", "Source control": "ソース管理", Hosting: "ホスティング", Media: "メディア", AI: "AI", Ops: "運用", General: "一般",
     "External MCP servers": "外部 MCP サーバー", "Providers · External MCP": "プロバイダー · 外部 MCP", "No environment variables set": "環境変数は設定されていません", "1 environment variable set": "環境変数が 1 件設定されています", "{count} environment variables set": "環境変数が {count} 件設定されています",
     "Loading access tokens…": "アクセストークンを読み込み中…",
@@ -745,10 +864,17 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
 
     "A key is created automatically when this site starts.": "このサイトが起動すると、キーが自動的に作成されます。", "(optional)": "（任意）",
     "Its plugin is off or missing. You can still remove saved tokens.": "このプラグインはオフか、見つかりません。保存済みのトークンは引き続き削除できます。",
+
+    "Active: environment variable {name}": "有効: 環境変数 {name}",
+    "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.": "サイトキーの環境変数が競合しています。TOVU_SITE_KEY に既存のキーを設定し、旧変数を削除してください。何も変更されていません。",
+
+    "Paste your old site key": "以前のサイトキーを貼り付けてください",
+    "They were locked with a site key that isn't on this computer.": "このコンピューターにないサイトキーで保護されています。",
+    "Your credentials need their original site key — use the card above.": "保存済み認証情報には元のサイトキーが必要です。上のカードを使用してください。",
   },
   ko: {
     "Custom credential": "사용자 지정 자격 증명",
-    "Access Tokens": "액세스 토큰", "Site Token": "사이트 토큰", Operations: "작업", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "이 설치에 있는 모든 액세스 토큰을 보고, 생성한 화면을 찾지 않아도 토큰을 만들고 교체하거나 제거할 수 있는 곳입니다.",
+    "Access Tokens": "액세스 토큰", "Site key": "사이트 키", Operations: "작업", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "이 설치에 있는 모든 액세스 토큰을 보고, 생성한 화면을 찾지 않아도 토큰을 만들고 교체하거나 제거할 수 있는 곳입니다.",
     "unknown error": "알 수 없는 오류", "this workspace": "이 작업 공간", All: "전체", Secrets: "비밀", "Source control": "소스 제어", Hosting: "호스팅", Media: "미디어", AI: "AI", Ops: "운영", General: "일반",
     "External MCP servers": "외부 MCP 서버", "Providers · External MCP": "공급자 · 외부 MCP", "No environment variables set": "설정된 환경 변수가 없습니다", "1 environment variable set": "환경 변수 1개가 설정되었습니다", "{count} environment variables set": "환경 변수 {count}개가 설정되었습니다",
     "Loading access tokens…": "액세스 토큰 불러오는 중…",
@@ -804,10 +930,17 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
 
     "A key is created automatically when this site starts.": "이 사이트가 시작되면 키가 자동으로 생성됩니다.", "(optional)": "(선택 사항)",
     "Its plugin is off or missing. You can still remove saved tokens.": "플러그인이 꺼져 있거나 없습니다. 저장된 토큰은 계속 제거할 수 있습니다.",
+
+    "Active: environment variable {name}": "활성: 환경 변수 {name}",
+    "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.": "사이트 키 환경 변수가 충돌합니다. TOVU_SITE_KEY를 기존 키로 설정하고 이전 변수를 제거하세요. 아무것도 변경되지 않았습니다.",
+
+    "Paste your old site key": "기존 사이트 키를 붙여넣으세요",
+    "They were locked with a site key that isn't on this computer.": "이 컴퓨터에 없는 사이트 키로 보호되었습니다.",
+    "Your credentials need their original site key — use the card above.": "저장된 자격 증명에 원래 사이트 키가 필요합니다. 위의 카드를 사용하세요.",
   },
   th: {
     "Custom credential": "ข้อมูลรับรองที่กำหนดเอง",
-    "Access Tokens": "โทเค็นการเข้าถึง", "Site Token": "โทเค็นเว็บไซต์", Operations: "การดำเนินการ", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "ที่เดียวสำหรับดูโทเค็นการเข้าถึงทั้งหมดของการติดตั้งนี้ และสร้าง หมุนเวียน หรือลบโทเค็นโดยไม่ต้องค้นหาจากหน้าจอที่สร้างโทเค็นนั้น",
+    "Access Tokens": "โทเค็นการเข้าถึง", "Site key": "คีย์เว็บไซต์", Operations: "การดำเนินการ", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "ที่เดียวสำหรับดูโทเค็นการเข้าถึงทั้งหมดของการติดตั้งนี้ และสร้าง หมุนเวียน หรือลบโทเค็นโดยไม่ต้องค้นหาจากหน้าจอที่สร้างโทเค็นนั้น",
     "unknown error": "ข้อผิดพลาดที่ไม่ทราบสาเหตุ", "this workspace": "พื้นที่ทำงานนี้", All: "ทั้งหมด", Secrets: "ความลับ", "Source control": "การควบคุมซอร์ส", Hosting: "โฮสติ้ง", Media: "สื่อ", AI: "AI", Ops: "การดำเนินงาน", General: "ทั่วไป",
     "External MCP servers": "เซิร์ฟเวอร์ MCP ภายนอก", "Providers · External MCP": "ผู้ให้บริการ · MCP ภายนอก", "No environment variables set": "ไม่ได้ตั้งค่าตัวแปรสภาพแวดล้อม", "1 environment variable set": "ตั้งค่าตัวแปรสภาพแวดล้อม 1 รายการ", "{count} environment variables set": "ตั้งค่าตัวแปรสภาพแวดล้อม {count} รายการ",
     "Loading access tokens…": "กำลังโหลดโทเคนการเข้าถึง…",
@@ -863,10 +996,17 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
 
     "A key is created automatically when this site starts.": "คีย์จะถูกสร้างขึ้นโดยอัตโนมัติเมื่อไซต์นี้เริ่มทำงาน", "(optional)": "(ไม่บังคับ)",
     "Its plugin is off or missing. You can still remove saved tokens.": "ปลั๊กอินของผู้ให้บริการนี้ปิดอยู่หรือไม่มีอยู่ คุณยังคงลบโทเค็นที่บันทึกไว้ได้",
+
+    "Active: environment variable {name}": "ใช้งานอยู่: ตัวแปรสภาพแวดล้อม {name}",
+    "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.": "ตัวแปรสภาพแวดล้อมของคีย์เว็บไซต์ขัดแย้งกัน ตั้งค่า TOVU_SITE_KEY เป็นคีย์ที่มีอยู่และลบตัวแปรเก่า ไม่มีการเปลี่ยนแปลงใด ๆ",
+
+    "Paste your old site key": "วางคีย์เว็บไซต์เดิมของคุณ",
+    "They were locked with a site key that isn't on this computer.": "ข้อมูลเหล่านี้ถูกป้องกันด้วยคีย์เว็บไซต์ที่ไม่มีในคอมพิวเตอร์นี้",
+    "Your credentials need their original site key — use the card above.": "ข้อมูลรับรองของคุณต้องใช้คีย์เว็บไซต์เดิม ใช้การ์ดด้านบน",
   },
   "zh-CN": {
     "Custom credential": "自定义凭据",
-    "Access Tokens": "访问令牌", "Site Token": "站点令牌", Operations: "操作", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "在一个位置查看此安装保存的所有访问令牌，并可创建、轮换或删除令牌，无需在创建它的各个界面中查找。",
+    "Access Tokens": "访问令牌", "Site key": "站点密钥", Operations: "操作", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "在一个位置查看此安装保存的所有访问令牌，并可创建、轮换或删除令牌，无需在创建它的各个界面中查找。",
     "unknown error": "未知错误", "this workspace": "此工作区", All: "全部", Secrets: "密钥", "Source control": "源代码管理", Hosting: "托管", Media: "媒体", AI: "AI", Ops: "运维", General: "常规",
     "External MCP servers": "外部 MCP 服务器", "Providers · External MCP": "提供商 · 外部 MCP", "No environment variables set": "未设置环境变量", "1 environment variable set": "已设置 1 个环境变量", "{count} environment variables set": "已设置 {count} 个环境变量",
     "Loading access tokens…": "正在加载访问令牌…",
@@ -922,10 +1062,17 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
 
     "A key is created automatically when this site starts.": "此站点启动时会自动创建密钥。", "(optional)": "（可选）",
     "Its plugin is off or missing. You can still remove saved tokens.": "其插件已关闭或缺失。你仍可移除已保存的令牌。",
+
+    "Active: environment variable {name}": "已启用：环境变量 {name}",
+    "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.": "站点密钥环境变量冲突。请将 TOVU_SITE_KEY 设置为现有密钥并删除旧变量；未做任何更改。",
+
+    "Paste your old site key": "粘贴原来的站点密钥",
+    "They were locked with a site key that isn't on this computer.": "它们由此计算机上没有的站点密钥保护。",
+    "Your credentials need their original site key — use the card above.": "您的凭据需要原来的站点密钥；请使用上方卡片。",
   },
   "zh-TW": {
     "Custom credential": "自訂憑證",
-    "Access Tokens": "存取權杖", "Site Token": "網站權杖", Operations: "操作", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "在同一處查看此安裝保有的所有存取權杖，並可建立、輪替或移除權杖，不必在建立它的各個畫面中尋找。",
+    "Access Tokens": "存取權杖", "Site key": "網站金鑰", Operations: "操作", "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it.": "在同一處查看此安裝保有的所有存取權杖，並可建立、輪替或移除權杖，不必在建立它的各個畫面中尋找。",
     "unknown error": "未知錯誤", "this workspace": "此工作區", All: "全部", Secrets: "機密", "Source control": "原始碼管理", Hosting: "代管", Media: "媒體", AI: "AI", Ops: "維運", General: "一般",
     "External MCP servers": "外部 MCP 伺服器", "Providers · External MCP": "提供者 · 外部 MCP", "No environment variables set": "未設定環境變數", "1 environment variable set": "已設定 1 個環境變數", "{count} environment variables set": "已設定 {count} 個環境變數",
     "Loading access tokens…": "正在載入存取權杖…",
@@ -981,6 +1128,13 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
 
     "A key is created automatically when this site starts.": "此網站啟動時會自動建立金鑰。", "(optional)": "（選填）",
     "Its plugin is off or missing. You can still remove saved tokens.": "其外掛已關閉或不存在。你仍可移除已儲存的權杖。",
+
+    "Active: environment variable {name}": "已啟用：環境變數 {name}",
+    "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.": "網站金鑰環境變數衝突。請將 TOVU_SITE_KEY 設為現有金鑰並刪除舊變數；未做任何變更。",
+
+    "Paste your old site key": "貼上原本的網站金鑰",
+    "They were locked with a site key that isn't on this computer.": "它們由這台電腦上沒有的網站金鑰保護。",
+    "Your credentials need their original site key — use the card above.": "您的認證需要原本的網站金鑰；請使用上方卡片。",
   },
 };
 
@@ -1103,7 +1257,28 @@ export function removeDialogLastRowNote(locale: string, provider: string): strin
 /** Site Token tab's load-error banner — same `{error}`-interpolated shape as
  *  {@link accessTokensLoadErrorMessage}. */
 const SITE_TOKEN_LOAD_ERROR_TEMPLATE: Record<string, string> = {
-  en: "Couldn't load the Site Token's status: {error}",
+  "en": "Couldn't load the site key's status: {error}",
+  "es": "No se pudo cargar el estado de la clave del sitio: {error}",
+  "de": "Der Status des Website-Schlüssels konnte nicht geladen werden: {error}",
+  "fr": "Impossible de charger l'état de la clé du site : {error}",
+  "it": "Impossibile caricare lo stato della chiave del sito: {error}",
+  "pt-BR": "Não foi possível carregar o estado da chave do site: {error}",
+  "pl": "Nie udało się wczytać stanu klucza witryny: {error}",
+  "hu": "Nem sikerült betölteni a webhelykulcs állapotát: {error}",
+  "tr": "Site anahtarının durumu yüklenemedi: {error}",
+  "ru": "Не удалось загрузить состояние ключа сайта: {error}",
+  "uk": "Не вдалося завантажити стан ключа сайту: {error}",
+  "id": "Tidak dapat memuat status kunci situs: {error}",
+  "ar": "تعذر تحميل حالة مفتاح الموقع: {error}",
+  "fa": "وضعیت کلید سایت بارگیری نشد: {error}",
+  "hi": "साइट कुंजी की स्थिति लोड नहीं हो सकी: {error}",
+  "bn": "সাইট কী-এর অবস্থা লোড করা যায়নি: {error}",
+  "ur": "سائٹ کی کلید کی حالت لوڈ نہیں ہو سکی: {error}",
+  "ja": "サイトキーの状態を読み込めませんでした: {error}",
+  "ko": "사이트 키 상태를 불러올 수 없습니다: {error}",
+  "th": "โหลดสถานะคีย์เว็บไซต์ไม่ได้: {error}",
+  "zh-CN": "无法加载站点密钥状态：{error}",
+  "zh-TW": "無法載入網站金鑰狀態：{error}",
 };
 export function siteTokenLoadErrorMessage(locale: string, error: string): string {
   return interpolate(localeEntry({ table: SITE_TOKEN_LOAD_ERROR_TEMPLATE, locale }), { error });
@@ -1113,7 +1288,28 @@ export function siteTokenLoadErrorMessage(locale: string, error: string): string
  *  409 (`KEY_DEPENDENT_DATA`/`KEY_MISMATCH`/`KEY_INVALID`/`SITE_META_UNREADABLE`/`ALREADY_EXISTS`)
  *  is shown with its own words in `SiteTokenTab.tsx`, not wrapped in this template. */
 const SITE_TOKEN_GENERATE_ERROR_TEMPLATE: Record<string, string> = {
-  en: "Couldn't generate a key: {error}",
+  "en": "Couldn't generate a site key: {error}",
+  "es": "No se pudo generar una clave del sitio: {error}",
+  "de": "Ein Website-Schlüssel konnte nicht erzeugt werden: {error}",
+  "fr": "Impossible de générer une clé du site : {error}",
+  "it": "Impossibile generare una chiave del sito: {error}",
+  "pt-BR": "Não foi possível gerar uma chave do site: {error}",
+  "pl": "Nie udało się wygenerować klucza witryny: {error}",
+  "hu": "Nem sikerült webhelykulcsot létrehozni: {error}",
+  "tr": "Site anahtarı oluşturulamadı: {error}",
+  "ru": "Не удалось создать ключ сайта: {error}",
+  "uk": "Не вдалося створити ключ сайту: {error}",
+  "id": "Tidak dapat membuat kunci situs: {error}",
+  "ar": "تعذر إنشاء مفتاح الموقع: {error}",
+  "fa": "کلید سایت ایجاد نشد: {error}",
+  "hi": "साइट कुंजी बनाई नहीं जा सकी: {error}",
+  "bn": "সাইট কী তৈরি করা যায়নি: {error}",
+  "ur": "سائٹ کی کلید بنائی نہیں جا سکی: {error}",
+  "ja": "サイトキーを生成できませんでした: {error}",
+  "ko": "사이트 키를 생성할 수 없습니다: {error}",
+  "th": "สร้างคีย์เว็บไซต์ไม่ได้: {error}",
+  "zh-CN": "无法生成站点密钥：{error}",
+  "zh-TW": "無法產生網站金鑰：{error}",
 };
 export function siteTokenGenerateErrorMessage(locale: string, error: string): string {
   return interpolate(localeEntry({ table: SITE_TOKEN_GENERATE_ERROR_TEMPLATE, locale }), { error });
@@ -1123,7 +1319,28 @@ export function siteTokenGenerateErrorMessage(locale: string, error: string): st
  *  reveal has no known-marker cases to special-case (a reveal either works or fails outright), so
  *  this is the only error template that call site needs. */
 const SITE_TOKEN_REVEAL_ERROR_TEMPLATE: Record<string, string> = {
-  en: "Couldn't reveal the Site Token: {error}",
+  "en": "Couldn't reveal the site key: {error}",
+  "es": "No se pudo revelar la clave del sitio: {error}",
+  "de": "Der Website-Schlüssel konnte nicht angezeigt werden: {error}",
+  "fr": "Impossible de révéler la clé du site : {error}",
+  "it": "Impossibile mostrare la chiave del sito: {error}",
+  "pt-BR": "Não foi possível revelar a chave do site: {error}",
+  "pl": "Nie udało się ujawnić klucza witryny: {error}",
+  "hu": "Nem sikerült megjeleníteni a webhelykulcsot: {error}",
+  "tr": "Site anahtarı gösterilemedi: {error}",
+  "ru": "Не удалось показать ключ сайта: {error}",
+  "uk": "Не вдалося показати ключ сайту: {error}",
+  "id": "Tidak dapat menampilkan kunci situs: {error}",
+  "ar": "تعذر إظهار مفتاح الموقع: {error}",
+  "fa": "کلید سایت نمایش داده نشد: {error}",
+  "hi": "साइट कुंजी दिखाई नहीं जा सकी: {error}",
+  "bn": "সাইট কী দেখানো যায়নি: {error}",
+  "ur": "سائٹ کی کلید دکھائی نہیں جا سکی: {error}",
+  "ja": "サイトキーを表示できませんでした: {error}",
+  "ko": "사이트 키를 표시할 수 없습니다: {error}",
+  "th": "แสดงคีย์เว็บไซต์ไม่ได้: {error}",
+  "zh-CN": "无法显示站点密钥：{error}",
+  "zh-TW": "無法顯示網站金鑰：{error}",
 };
 export function siteTokenRevealErrorMessage(locale: string, error: string): string {
   return interpolate(localeEntry({ table: SITE_TOKEN_REVEAL_ERROR_TEMPLATE, locale }), { error });

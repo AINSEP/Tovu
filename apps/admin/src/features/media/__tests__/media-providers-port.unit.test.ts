@@ -50,7 +50,7 @@ describe("mediaProvidersPort.saveMediaProviders", () => {
   });
 
   it("REJECTS on failure, unlike fetchMediaProviders — the tab renders this as its save-error state", async () => {
-    saveMediaProviders.mockRejectedValue(new Error("no master key"));
-    await expect(mediaProvidersPort.saveMediaProviders({})).rejects.toThrow("no master key");
+    saveMediaProviders.mockRejectedValue(new Error("no site key"));
+    await expect(mediaProvidersPort.saveMediaProviders({})).rejects.toThrow("no site key");
   });
 });

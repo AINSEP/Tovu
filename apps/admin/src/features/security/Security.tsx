@@ -146,10 +146,10 @@ export function Security(props: SecurityProps) {
       ? [
           {
             id: "site-token",
-            label: t(locale, "Site Token"),
+            label: t(locale, "Site key"),
             icon: <SiteTokenIcon size={16} />,
             handle: "security-tab-site-token",
-            handleLabel: "Switch to the Site Token tab — view and generate the Site Token that decrypts every credential this install has saved (BYOK/AI keys, publish, source-control, media-provider, and MCP credentials), plus webhook signing and newsletter tokens on a local install",
+            handleLabel: "Switch to the Site key tab — view and generate the Site key that decrypts every credential this install has saved (BYOK/AI keys, publish, source-control, media-provider, and MCP credentials), plus webhook signing and newsletter tokens on a local install",
           } satisfies TabBarTab,
         ]
       : []),
@@ -165,7 +165,7 @@ export function Security(props: SecurityProps) {
         className="page-header"
         {...agentHandle({ handle: "security-header" }, {
           role: "region",
-          label: "Secrets panel header — every saved access token and the Site Token that protects them, in one place",
+          label: "Secrets panel header — every saved access token and the Site key that protects them, in one place",
         })}
       >
         <div className="page-header-text">

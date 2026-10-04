@@ -73,3 +73,18 @@ describe.each(["constructor", "toString", "__proto__"])("templated copy for inhe
     );
   });
 });
+
+describe("site key terminology and environment conflict copy", () => {
+  for (const locale of LOCALES) {
+    it(`has translated site key copy in ${locale}`, () => {
+      for (const key of ["Site key", "Active: environment variable {name}", "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed."]) {
+        expect(t(locale, key)).not.toBe(key);
+      }
+      expect(t(locale, "Active: environment variable {name}")).toContain("{name}");
+    });
+  }
+  it("names the key in German and Spanish", () => {
+    expect(t("de", "Site key")).toBe("Website-Schlüssel");
+    expect(t("es", "Site key")).toBe("Clave del sitio");
+  });
+});

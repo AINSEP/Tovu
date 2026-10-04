@@ -27,7 +27,7 @@ function snapshotFixture(overrides: Partial<AdminDeploymentOverview> = {}): Admi
     envVars: [
       { name: "TOVU_ADMIN_PASSWORD", set: true },
       { name: "TOVU_ADMIN_USER", set: true },
-      { name: "TOVU_INTEGRATIONS_ROOT_KEY", set: false },
+      { name: "TOVU_SITE_KEY", set: false },
       { name: "JINI_AGENT_DAEMON_PORT", set: true },
     ],
     ...overrides,
@@ -138,12 +138,12 @@ describe("real fields, honestly labeled", () => {
     render(<OverviewTab useDeploymentOverviewHook={() => controllerFixture()} />);
     expect(screen.getByText("TOVU_ADMIN_PASSWORD")).toBeInTheDocument();
     expect(screen.getByText("TOVU_ADMIN_USER")).toBeInTheDocument();
-    expect(screen.getByText("TOVU_INTEGRATIONS_ROOT_KEY")).toBeInTheDocument();
+    expect(screen.getByText("TOVU_SITE_KEY")).toBeInTheDocument();
     expect(screen.getByText("JINI_AGENT_DAEMON_PORT")).toBeInTheDocument();
     for (const [name, status] of [
       ["TOVU_ADMIN_PASSWORD", "Set"],
       ["TOVU_ADMIN_USER", "Set"],
-      ["TOVU_INTEGRATIONS_ROOT_KEY", "Not set"],
+      ["TOVU_SITE_KEY", "Not set"],
       ["JINI_AGENT_DAEMON_PORT", "Set"],
     ]) {
       const row = screen.getByText(name).closest("li")!;
@@ -154,7 +154,7 @@ describe("real fields, honestly labeled", () => {
     expect(screen.getAllByText("Not set")).toHaveLength(1);
   });
 
-  it("frames an unset TOVU_INTEGRATIONS_ROOT_KEY as a warning tone, not the neutral 'not set' every other absent var gets", () => {
+  it("frames an unset TOVU_SITE_KEY as a warning tone, not the neutral 'not set' every other absent var gets", () => {
     render(
       <OverviewTab
         useDeploymentOverviewHook={() =>
@@ -163,7 +163,7 @@ describe("real fields, honestly labeled", () => {
               envVars: [
                 { name: "TOVU_ADMIN_PASSWORD", set: true },
                 { name: "TOVU_ADMIN_USER", set: false },
-                { name: "TOVU_INTEGRATIONS_ROOT_KEY", set: false },
+                { name: "TOVU_SITE_KEY", set: false },
                 { name: "JINI_AGENT_DAEMON_PORT", set: false },
               ],
             }),
@@ -180,19 +180,19 @@ describe("real fields, honestly labeled", () => {
     expect(notSetPills.every((el) => el.className.includes("status-neutral"))).toBe(true);
   });
 
-  it("shows a malformed root key as invalid with a warning tone", () => {
+  it("shows a malformed site key as invalid with a warning tone", () => {
     render(<OverviewTab useDeploymentOverviewHook={() => controllerFixture({
-      snapshot: snapshotFixture({ envVars: [{ name: "TOVU_INTEGRATIONS_ROOT_KEY", set: false, source: "env", invalid: true }] }),
+      snapshot: snapshotFixture({ envVars: [{ name: "TOVU_SITE_KEY", set: false, source: "env", invalid: true }] }),
     })} />);
-    const row = screen.getByText("TOVU_INTEGRATIONS_ROOT_KEY").closest("li")!;
+    const row = screen.getByText("TOVU_SITE_KEY").closest("li")!;
     expect(within(row).getByText("Invalid — the keyring rejects it")).toHaveClass("status-warning");
   });
 
-  it("labels a root key resolved from the generated key file", () => {
+  it("labels a site key resolved from the generated key file", () => {
     render(<OverviewTab useDeploymentOverviewHook={() => controllerFixture({
-      snapshot: snapshotFixture({ envVars: [{ name: "TOVU_INTEGRATIONS_ROOT_KEY", set: true, source: "file" }] }),
+      snapshot: snapshotFixture({ envVars: [{ name: "TOVU_SITE_KEY", set: true, source: "file" }] }),
     })} />);
-    const row = screen.getByText("TOVU_INTEGRATIONS_ROOT_KEY").closest("li")!;
+    const row = screen.getByText("TOVU_SITE_KEY").closest("li")!;
     expect(within(row).getByText("Set (generated key file)")).toHaveClass("status-ok");
   });
 
@@ -205,7 +205,7 @@ describe("real fields, honestly labeled", () => {
               envVars: [
                 { name: "TOVU_ADMIN_PASSWORD", set: false },
                 { name: "TOVU_ADMIN_USER", set: true },
-                { name: "TOVU_INTEGRATIONS_ROOT_KEY", set: true },
+                { name: "TOVU_SITE_KEY", set: true },
                 { name: "JINI_AGENT_DAEMON_PORT", set: true },
               ],
             }),

@@ -184,7 +184,7 @@ const REMOVED_BUT_STILL_RUNNING_KEY =
  * nothing here, because the decrypt will fail again on the next boot until the token itself is fixed.
  */
 const DECRYPT_FAILED_KEY =
-  "This server's saved credentials can't be unlocked because the site token isn't available. Add or restore it on the Secrets page's Site Token tab, then restart the assistant.";
+  "This server's saved credentials can't be unlocked because the site key isn't available. Add or restore it on the Secrets page's Site key tab, then restart the assistant.";
 
 /**
  * A saved, enabled connection the daemon tried at its last boot and could not start (2026-09-29).

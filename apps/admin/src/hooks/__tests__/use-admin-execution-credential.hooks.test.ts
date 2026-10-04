@@ -317,7 +317,7 @@ describe("useAdminExecutionCredential — cross-mount staleness (Finding 2)", ()
 
 describe("useAdminExecutionCredential — save FAILURE leaves the local key intact", () => {
   it("a rejected save reports an error and does NOT clear the typed key", async () => {
-    setAdminExecutionCredential.mockRejectedValue(new FakeApiError("no master key", 503, "SECRET_STORE_UNCONFIGURED"));
+    setAdminExecutionCredential.mockRejectedValue(new FakeApiError("no site key", 503, "SECRET_STORE_UNCONFIGURED"));
     const onByokChange = vi.fn();
     const { result } = renderHook(() => useWiredAdminExecutionCredential({ byok: byok({ apiKey: "sk-typed-key" }), onByokChange }));
     await waitFor(() => expect(result.current.stored).not.toBeNull());
@@ -327,7 +327,7 @@ describe("useAdminExecutionCredential — save FAILURE leaves the local key inta
     });
 
     expect(result.current.saveState.status).toBe("error");
-    expect((result.current.saveState as { message: string }).message).toMatch(/no encryption master key/i);
+    expect((result.current.saveState as { message: string }).message).toMatch(/no site key/i);
     // The local field was never told to clear — the caller's `byok.apiKey` (and therefore whatever
     // it renders) is untouched by a failed save.
     expect(onByokChange).not.toHaveBeenCalled();
@@ -378,7 +378,7 @@ describe("useAdminExecutionCredential — one-time migration prompt", () => {
 
   it("a FAILED migration save leaves localStorage untouched and the prompt still showing — no auto-clear", async () => {
     window.localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify({ apiKey: "sk-legacy" }));
-    setAdminExecutionCredential.mockRejectedValue(new FakeApiError("no master key", 503, "SECRET_STORE_UNCONFIGURED"));
+    setAdminExecutionCredential.mockRejectedValue(new FakeApiError("no site key", 503, "SECRET_STORE_UNCONFIGURED"));
     const { result } = renderHook(() => useWiredAdminExecutionCredential({ byok: byok(), onByokChange: vi.fn() }));
     await waitFor(() => expect(result.current.legacyKey).toBe("sk-legacy"));
 
@@ -451,7 +451,7 @@ describe("injected port — useAdminExecutionCredential with no lib/api mock", (
   it("a save the port rejects surfaces an error and never clears the typed field", async () => {
     const port = createFakeAdminExecutionCredentialPort({
       onSave: () => {
-        throw new FakeApiError("no master key", 503, "SECRET_STORE_UNCONFIGURED");
+        throw new FakeApiError("no site key", 503, "SECRET_STORE_UNCONFIGURED");
       },
     });
     const onByokChange = vi.fn();
@@ -465,7 +465,7 @@ describe("injected port — useAdminExecutionCredential with no lib/api mock", (
     });
 
     expect(result.current.saveState.status).toBe("error");
-    expect((result.current.saveState as { message: string }).message).toMatch(/no encryption master key/i);
+    expect((result.current.saveState as { message: string }).message).toMatch(/no site key/i);
     expect(onByokChange).not.toHaveBeenCalled();
     expect(setAdminExecutionCredential).not.toHaveBeenCalled();
   });

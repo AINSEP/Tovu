@@ -14,13 +14,13 @@ import { START_FRESH_CONFIRMATION, type SiteTokenRecoveryController } from "./ho
 export function SiteTokenRecoveryCard({ recovery }: { recovery: SiteTokenRecoveryController }) {
   const translate = recovery.t;
   return (
-    <section className="card site-token-recovery-card" {...agentHandle({ handle: "security-site-token-recovery" }, { role: "region", label: "Unlock saved credentials locked with a different Site Token" })}>
+    <section className="card site-token-recovery-card" {...agentHandle({ handle: "security-site-token-recovery" }, { role: "region", label: "Unlock saved credentials locked with a different Site key" })}>
       <h3 className="site-token-status-heading">{translate("Your saved credentials are locked")}</h3>
       {recovery.resultMessage ? (
         <p className="notice" role="status">{recovery.resultMessage}</p>
       ) : (
         <>
-          <p className="site-token-status-note">{translate("They were locked with a site token that isn't on this computer.")}</p>
+          <p className="site-token-status-note">{translate("They were locked with a site key that isn't on this computer.")}</p>
           <SiteTokenUnlockForm recovery={recovery} />
           <SiteTokenStartFresh recovery={recovery} />
         </>
@@ -39,7 +39,7 @@ function SiteTokenUnlockForm({ recovery }: { recovery: SiteTokenRecoveryControll
         void recovery.unlock();
       }}
     >
-      <label htmlFor="site-token-recovery-token">{translate("Paste your old token")}</label>
+      <label htmlFor="site-token-recovery-token">{translate("Paste your old site key")}</label>
       <div className="site-token-recovery-row">
         <input
           id="site-token-recovery-token"

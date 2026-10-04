@@ -57,7 +57,8 @@ export function isSiteTokenLocked(status: AdminSiteTokenStatus | undefined, gene
  *  is not true there (boot refuses to mint over saved credentials). `null` when not locked.
  *  @complexity O(1). */
 export function siteTokenLockedNote(status: AdminSiteTokenStatus | undefined, generateError: SiteTokenGenerateFailure | null, t: Translate): string | null {
-  return isSiteTokenLocked(status, generateError) ? t("Your credentials need their original token — use the card above.") : null;
+  if (status?.state === "env-conflict") return t("Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.");
+  return isSiteTokenLocked(status, generateError) ? t("Your credentials need their original site key — use the card above.") : null;
 }
 
 /** The server's own sentence for a refusal, else the shared fallback. @complexity O(1). */

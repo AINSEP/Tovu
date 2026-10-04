@@ -363,7 +363,7 @@ export function deploymentEnvVarNoteKey(name: string): string {
   const notes: Record<string, string> = {
     TOVU_ADMIN_PASSWORD: "Falls back to a public default.",
     TOVU_ADMIN_USER: 'Falls back to "admin".',
-    TOVU_INTEGRATIONS_ROOT_KEY: "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.",
+    TOVU_SITE_KEY: "Required to boot in production. Missing locally shows as a 503 on the AI Assistant screen instead.",
     JINI_AGENT_DAEMON_PORT: "Falls back to port 4319.",
   };
   return notes[name] ?? "";

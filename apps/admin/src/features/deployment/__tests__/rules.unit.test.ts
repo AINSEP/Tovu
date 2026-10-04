@@ -86,7 +86,7 @@ describe("isEnvVarRowUnsafe", () => {
     expect(isEnvVarRowUnsafe({ name: "TOVU_ADMIN_PASSWORD", set: true })).toBe(false);
   });
   it("does not flag any other unset var — only the password has a real safety consequence at boot", () => {
-    expect(isEnvVarRowUnsafe({ name: "TOVU_INTEGRATIONS_ROOT_KEY", set: false })).toBe(false);
+    expect(isEnvVarRowUnsafe({ name: "TOVU_SITE_KEY", set: false })).toBe(false);
     expect(isEnvVarRowUnsafe({ name: "TOVU_ADMIN_USER", set: false })).toBe(false);
     expect(isEnvVarRowUnsafe({ name: "JINI_AGENT_DAEMON_PORT", set: false })).toBe(false);
   });
@@ -94,15 +94,15 @@ describe("isEnvVarRowUnsafe", () => {
 
 // c7-rev-settings-deploy 2026-09-24: the root key resolves from the env var OR a generated key
 // file; the row must say which, and a malformed key must read as a warning, not a neutral "Not set".
-describe("envVarStatusLabelKey / isEnvVarRowUnsafe — root key source and validity", () => {
-  it("labels a root key resolved from the generated key file", () => {
-    expect(envVarStatusLabelKey({ name: "TOVU_INTEGRATIONS_ROOT_KEY", set: true, source: "file" })).toBe("Set (generated key file)");
+describe("envVarStatusLabelKey / isEnvVarRowUnsafe — site key source and validity", () => {
+  it("labels a site key resolved from the generated key file", () => {
+    expect(envVarStatusLabelKey({ name: "TOVU_SITE_KEY", set: true, source: "file" })).toBe("Set (generated key file)");
   });
-  it("labels a root key from the env var as plain Set", () => {
-    expect(envVarStatusLabelKey({ name: "TOVU_INTEGRATIONS_ROOT_KEY", set: true, source: "env" })).toBe("Set");
+  it("labels a site key from the env var as plain Set", () => {
+    expect(envVarStatusLabelKey({ name: "TOVU_SITE_KEY", set: true, source: "env" })).toBe("Set");
   });
-  it("labels malformed root key material as invalid, and flags the row unsafe", () => {
-    const row = { name: "TOVU_INTEGRATIONS_ROOT_KEY", set: false, source: "env" as const, invalid: true as const };
+  it("labels malformed site key material as invalid, and flags the row unsafe", () => {
+    const row = { name: "TOVU_SITE_KEY", set: false, source: "env" as const, invalid: true as const };
     expect(envVarStatusLabelKey(row)).toBe("Invalid — the keyring rejects it");
     expect(isEnvVarRowUnsafe(row)).toBe(true);
   });
@@ -129,7 +129,7 @@ describe("credentialVerifyStatusClass", () => {
 
 describe("deploymentEnvVarNoteKey", () => {
   it("returns a distinct note per known var", () => {
-    const names = ["TOVU_ADMIN_PASSWORD", "TOVU_ADMIN_USER", "TOVU_INTEGRATIONS_ROOT_KEY", "JINI_AGENT_DAEMON_PORT"];
+    const names = ["TOVU_ADMIN_PASSWORD", "TOVU_ADMIN_USER", "TOVU_SITE_KEY", "JINI_AGENT_DAEMON_PORT"];
     const notes = names.map(deploymentEnvVarNoteKey);
     expect(new Set(notes).size).toBe(names.length);
     expect(notes.every((n) => n.length > 0)).toBe(true);
@@ -138,9 +138,9 @@ describe("deploymentEnvVarNoteKey", () => {
     expect(deploymentEnvVarNoteKey("JINI_AGENT_DAEMON_PORT")).toBe("Falls back to port 4319.");
   });
 
-  it("states the integrations Site Token is boot-blocking in production, with the local-mode 503 fallback noted too", () => {
-    expect(deploymentEnvVarNoteKey("TOVU_INTEGRATIONS_ROOT_KEY")).toMatch(/required to boot in production/i);
-    expect(deploymentEnvVarNoteKey("TOVU_INTEGRATIONS_ROOT_KEY")).toMatch(/503/);
+  it("states the integrations Site key is boot-blocking in production, with the local-mode 503 fallback noted too", () => {
+    expect(deploymentEnvVarNoteKey("TOVU_SITE_KEY")).toMatch(/required to boot in production/i);
+    expect(deploymentEnvVarNoteKey("TOVU_SITE_KEY")).toMatch(/503/);
   });
 
   it("returns an empty string for an unrecognized name rather than throwing or fabricating a note", () => {

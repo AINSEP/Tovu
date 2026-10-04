@@ -515,7 +515,7 @@ describe("accessTokenReplaceReadyToSave (Replace flow)", () => {
     expect(accessTokenReplaceReadyToSave(blankFields({ name: "Production" }), "Production", GITHUB_PAGES_INFO)).toBe(false);
   });
 
-  it("is ready when a new token is typed, name unchanged, for a provider needing no extra field", () => {
+  it("is ready when a new site key is typed, name unchanged, for a provider needing no extra field", () => {
     expect(accessTokenReplaceReadyToSave(blankFields({ name: "Production", token: "tok" }), "Production", GITHUB_PAGES_INFO)).toBe(true);
   });
 
@@ -880,7 +880,7 @@ describe("customCredentialReplaceReadyToSave (2026-09-01 owner-reported bug: use
     expect(customCredentialReplaceReadyToSave(blankCustomRowFields({ name: "name.com", username: "" }), "name.com", "old-user")).toBe(true);
   });
 
-  it("is ready whenever a new token is typed, regardless of name/username", () => {
+  it("is ready whenever a new site key is typed, regardless of name/username", () => {
     expect(customCredentialReplaceReadyToSave(blankCustomRowFields({ name: "name.com", username: "old-user", token: "tok" }), "name.com", "old-user")).toBe(true);
   });
 

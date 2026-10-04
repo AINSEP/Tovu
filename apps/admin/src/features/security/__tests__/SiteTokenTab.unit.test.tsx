@@ -52,10 +52,10 @@ function renderTab(status: AdminSiteTokenStatus = ACTIVE_FILE_STATUS) {
 }
 
 describe("SiteTokenTab — status card copy", () => {
-  it('labels the section "Site Token" with the canonical terminology', () => {
+  it('labels the section "Site key" with the canonical terminology', () => {
     renderTab();
 
-    expect(screen.getByRole("heading", { name: "Site Token" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Site key" })).toBeInTheDocument();
   });
 
   it("renders the fingerprint label beside the active key's fingerprint", () => {
@@ -106,7 +106,7 @@ describe("SiteTokenTab — Generate gating (sol finding 3-1)", () => {
   const NO_KEY_STATUS: AdminSiteTokenStatus = {
     active: false,
     source: "none",
-    keyFilePath: "/data/tovu/integrations-root-key.hex",
+    keyFilePath: `/data/tovu/site-key.hex`,
     runtimeMode: "local",
     state: "missing",
   };
@@ -115,7 +115,7 @@ describe("SiteTokenTab — Generate gating (sol finding 3-1)", () => {
     active: false,
     source: "file",
     invalid: true,
-    keyFilePath: "/data/tovu/integrations-root-key.hex",
+    keyFilePath: `/data/tovu/site-key.hex`,
     runtimeMode: "production",
     state: "invalid",
   };
@@ -124,7 +124,7 @@ describe("SiteTokenTab — Generate gating (sol finding 3-1)", () => {
     active: false,
     source: "env",
     invalid: true,
-    keyFilePath: "/data/tovu/integrations-root-key.hex",
+    keyFilePath: `/data/tovu/site-key.hex`,
     runtimeMode: "production",
     state: "invalid",
   };
@@ -201,7 +201,7 @@ describe("SiteTokenTab — recovery card for a locked site", () => {
     renderLocked(MISMATCH_STATUS);
 
     expect(screen.getByRole("heading", { name: "Your saved credentials are locked" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Paste your old token")).toBeInTheDocument();
+    expect(screen.getByLabelText("Paste your old site key")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Unlock" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Start fresh…" })).toBeInTheDocument();
     expect(screen.getByText("Lost it? A restore point is saved first, then only the credentials that can't be unlocked are removed.")).toBeInTheDocument();
@@ -232,7 +232,7 @@ describe("SiteTokenTab — recovery card for a locked site", () => {
     const unlock = vi.fn(async () => {});
     const openStartFresh = vi.fn(async () => {});
     renderLocked(MISMATCH_STATUS, { token: "old-token", setToken, unlock, openStartFresh });
-    await user.type(screen.getByLabelText("Paste your old token"), "x");
+    await user.type(screen.getByLabelText("Paste your old site key"), "x");
     expect(setToken).toHaveBeenCalledWith("old-tokenx");
     await user.click(screen.getByRole("button", { name: "Unlock" }));
     expect(unlock).toHaveBeenCalledTimes(1);
@@ -261,7 +261,7 @@ describe("SiteTokenTab — recovery card for a locked site", () => {
   it("the pasted token field is a password field hidden from the assistant", () => {
     renderLocked(MISMATCH_STATUS, { token: "abc" });
 
-    const input = screen.getByLabelText("Paste your old token");
+    const input = screen.getByLabelText("Paste your old site key");
     expect(input).toHaveAttribute("type", "password");
     expect(input).toHaveAttribute(AGENT_PRIVATE_ATTRIBUTE);
   });
@@ -277,9 +277,9 @@ describe("SiteTokenTab — recovery card for a locked site", () => {
 /** A locked site's status card must not promise a key will be made at startup — boot refuses to
  *  mint over saved credentials. It points at the recovery card instead. */
 describe("SiteTokenTab — status note for a locked site", () => {
-  const LOCKED_NOTE = "Your credentials need their original token — use the card above.";
+  const LOCKED_NOTE = "Your credentials need their original site key — use the card above.";
 
-  it("missing-with-data: says the credentials need their original token, not that a key is created at startup", () => {
+  it("missing-with-data: says the credentials need their original site key, not that a key is created at startup", () => {
     renderTab({ active: false, source: "none", keyFilePath: "/k", runtimeMode: "local", state: "missing-with-data" });
 
     expect(screen.getByText(LOCKED_NOTE)).toBeInTheDocument();
@@ -297,4 +297,11 @@ describe("SiteTokenTab — status note for a locked site", () => {
 
     expect(screen.getByText("A key is created automatically when this site starts.")).toBeInTheDocument();
   });
+});
+
+it("shows the env-conflict note without offering key recovery or Generate", () => {
+  renderTab({ active: false, source: "env", reason: "env-conflict", invalid: true, keyFilePath: "", runtimeMode: "production", state: "env-conflict" });
+  expect(screen.getByText("Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.")).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Generate a key" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Unlock" })).not.toBeInTheDocument();
 });

@@ -116,37 +116,37 @@ describe("Security — page shell", () => {
     expect(window.location.search).toBe("?tab=access-tokens");
   });
 
-  describe("Site Token tab — gated on admin.security.tokens.manage (2026-09-10)", () => {
-    it("shows the Site Token tab and its panel for a principal WITH the permission", () => {
+  describe("Site key tab — gated on admin.security.tokens.manage (2026-09-10)", () => {
+    it("shows the Site key tab and its panel for a principal WITH the permission", () => {
       const { container } = renderPage({ tabId: "site-token", canManageSiteToken: true });
       const tablist = screen.getByRole("tablist");
       expect(within(tablist).getAllByRole("tab")).toHaveLength(2);
-      const tab = within(tablist).getByRole("tab", { name: /Site Token/ });
+      const tab = within(tablist).getByRole("tab", { name: /Site key/ });
       expect(tab).toHaveAttribute("aria-selected", "true");
       const panel = container.querySelector<HTMLElement>('[data-agent-element="security-site-token"]')!;
       expect(panel).toBeInTheDocument();
       expect(within(panel).getByText("Loading…")).toBeInTheDocument();
     });
 
-    it("publishes the Site Token tab's agent label describing the corrected site-token wording", () => {
+    it("publishes the Site key tab's agent label describing the corrected site-token wording", () => {
       renderPage({ tabId: "site-token", canManageSiteToken: true });
-      expect(screen.getByRole("tab", { name: /Site Token/ })).toHaveAttribute(
+      expect(screen.getByRole("tab", { name: /Site key/ })).toHaveAttribute(
         "data-agent-label",
-        "Switch to the Site Token tab — view and generate the Site Token that decrypts every credential this install has saved (BYOK/AI keys, publish, source-control, media-provider, and MCP credentials), plus webhook signing and newsletter tokens on a local install"
+        "Switch to the Site key tab — view and generate the Site key that decrypts every credential this install has saved (BYOK/AI keys, publish, source-control, media-provider, and MCP credentials), plus webhook signing and newsletter tokens on a local install"
       );
     });
 
-    it("hides the Site Token tab entirely for a principal WITHOUT the permission", () => {
+    it("hides the Site key tab entirely for a principal WITHOUT the permission", () => {
       renderPage({ canManageSiteToken: false });
       const tablist = screen.getByRole("tablist");
-      expect(within(tablist).queryByRole("tab", { name: /Site Token/ })).not.toBeInTheDocument();
+      expect(within(tablist).queryByRole("tab", { name: /Site key/ })).not.toBeInTheDocument();
       expect(within(tablist).getAllByRole("tab")).toHaveLength(1);
     });
 
     it("resolves a direct ?tab=site-token link to Access Tokens for a principal WITHOUT the permission, rendering neither the tab nor its panel", () => {
       const { container } = renderPage({ tabId: "site-token", canManageSiteToken: false });
       expect(screen.getByRole("tab", { name: /Access Tokens/ })).toHaveAttribute("aria-selected", "true");
-      expect(screen.queryByRole("tab", { name: /Site Token/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole("tab", { name: /Site key/ })).not.toBeInTheDocument();
       // `SiteTokenTab.tsx`'s own root `<div>` carries `data-agent-element="security-site-token"`
       // (`agentHandle` — a plain data attribute, NOT a real ARIA role/label). Its absence proves the
       // panel itself never mounted, not just that its tab button is hidden.

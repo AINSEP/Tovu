@@ -46,7 +46,7 @@ function handlesIn(root: ParentNode): string[] {
   return Array.from(root.querySelectorAll(`[${AGENT_ELEMENT_ATTRIBUTE}]`)).map((element) => element.getAttribute(AGENT_ELEMENT_ATTRIBUTE) ?? "");
 }
 
-describe("SiteTokenTab — the root key is human-only", () => {
+describe("SiteTokenTab — the site key is human-only", () => {
   it("does not publish the Reveal button to the agent", () => {
     const { container } = render(<SiteTokenTab useSiteTokenHook={() => makeSiteToken()} />);
     expect(screen.getByRole("button", { name: "Reveal" })).not.toHaveAttribute(AGENT_ELEMENT_ATTRIBUTE);

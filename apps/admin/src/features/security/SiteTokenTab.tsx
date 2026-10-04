@@ -1,3 +1,4 @@
+import { siteTokenStatusBadgeLabel } from "./hooks/site-token-status.rules";
 import { AGENT_PRIVATE_ATTRIBUTE, agentHandle } from "@jini-ai/agentic";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
@@ -66,7 +67,7 @@ export function SiteTokenTab(props: SiteTokenTabProps) {
       className="site-token-tab"
       {...agentHandle({ handle: "security-site-token" }, {
         role: "region",
-        label: "View, reveal, and generate the Site Token that protects every credential this install holds",
+        label: "View, reveal, and generate the Site key that protects every credential this install holds",
       })}
     >
       <SiteTokenBody controller={controller} recovery={recovery} />
@@ -80,7 +81,7 @@ function SiteTokenBody({ controller, recovery }: { controller: SiteTokenControll
   const translate = controller.t;
   if (controller.loadError) {
     return (
-      <p className="notice error" role="status" {...agentHandle({ handle: "security-site-token-load-error" }, { role: "status", label: "Shows the error when the Site Token's status could not be loaded" })}>
+      <p className="notice error" role="status" {...agentHandle({ handle: "security-site-token-load-error" }, { role: "status", label: "Shows the error when the Site key's status could not be loaded" })}>
         {controller.loadError}
       </p>
     );
@@ -110,7 +111,7 @@ function SiteTokenBody({ controller, recovery }: { controller: SiteTokenControll
  *  a real but secondary caveat, not something a first-time reader needs to parse up front. */
 function SiteTokenScopeNotice({ runtimeMode, t: translate }: { runtimeMode: "production" | "local"; t: Translate }) {
   return (
-    <div className="notice warning site-token-scope-notice" {...agentHandle({ handle: "security-site-token-scope-notice" }, { role: "status", label: "What this Site Token does and does not cover" })}>
+    <div className="notice warning site-token-scope-notice" {...agentHandle({ handle: "security-site-token-scope-notice" }, { role: "status", label: "What this Site key does and does not cover" })}>
       <p>{translate("This key protects the passwords, API keys, and other credentials you've saved in Tovu — including on your live site.")}</p>
       {runtimeMode === "production" ? (
         <p>{translate("On a live site, this key is stored right next to your database. Anyone who gets a full backup of your server would get both your data and the key that unlocks it.")}</p>
@@ -129,10 +130,10 @@ function SiteTokenStatusCard({ controller }: { controller: SiteTokenController }
   const status = controller.status;
   if (!status) return null;
   return (
-    <section className="card site-token-status-card" {...agentHandle({ handle: "security-site-token-status" }, { role: "region", label: "The active Site Token's source, fingerprint, and reveal control" })}>
-      <h3 className="site-token-status-heading">{translate("Site Token")}</h3>
+    <section className="card site-token-status-card" {...agentHandle({ handle: "security-site-token-status" }, { role: "region", label: "The active Site key's source, fingerprint, and reveal control" })}>
+      <h3 className="site-token-status-heading">{translate("Site key")}</h3>
       <p className="site-token-status-badge-row">
-        <span className={`status ${siteTokenStatusBadgeClass(status.active, status.invalid)}`}>{siteTokenStatusBadgeLabel(status.active, status.source, translate)}</span>
+        <span className={`status ${siteTokenStatusBadgeClass(status.active, status.invalid)}`}>{siteTokenStatusBadgeLabel({ status, t: translate })}</span>
         {status.fingerprint ? (
           <span className="site-token-fingerprint-group" title={translate("A short ID for this key. It changes if the key changes.")}>
             <span className="site-token-fingerprint-label">{translate("Fingerprint")}</span>
@@ -156,10 +157,6 @@ function siteTokenStatusBadgeClass(active: boolean, invalid: boolean | undefined
   return active ? "status-ok" : "status-neutral";
 }
 
-function siteTokenStatusBadgeLabel(active: boolean, source: "env" | "file" | "none", translate: Translate): string {
-  if (!active) return translate("None");
-  return source === "env" ? translate("Active — environment variable") : translate("Active — key file");
-}
 
 /** The source-specific explanatory line under the badge — one sentence per case, no `{path}`
  *  template needed (the path is rendered as its own `<code>`, not interpolated into translated
@@ -175,7 +172,7 @@ function siteTokenStatusBadgeLabel(active: boolean, source: "env" | "file" | "no
 function siteTokenStatusNote(status: { active: boolean; source: "env" | "file" | "none"; invalid?: boolean; keyFilePath: string }, translate: Translate) {
   if (status.invalid) {
     return status.source === "env" ? (
-      <>{translate("A key is set up for this install, but it's not in a usable format, so Tovu can't use it. Fix the value stored in the TOVU_INTEGRATIONS_ROOT_KEY environment variable to resolve this.")}</>
+      <>{translate("A key is set up for this install, but it's not in a usable format, so Tovu can't use it. Fix the value stored in the TOVU_SITE_KEY environment variable to resolve this.")}</>
     ) : (
       <>
         {translate("The key file at")} <code>{status.keyFilePath}</code> {translate("isn't in a usable format, so Tovu can't use it. It will need to be replaced by hand on the server — this tab can't do that yet.")}
@@ -217,7 +214,7 @@ function SiteTokenRevealAction({ controller }: { controller: SiteTokenController
         {controller.revealing ? translate("Revealing…") : translate("Reveal")}
       </button>
       {controller.revealError ? (
-        <p className="notice error" role="status" {...agentHandle({ handle: "security-site-token-reveal-error" }, { role: "status", label: "Shows the error when revealing the Site Token failed" })}>
+        <p className="notice error" role="status" {...agentHandle({ handle: "security-site-token-reveal-error" }, { role: "status", label: "Shows the error when revealing the Site key failed" })}>
           {controller.revealError}
         </p>
       ) : null}
@@ -237,7 +234,7 @@ function SiteTokenRevealedValue({ hex, onHide, t: translate }: { hex: string; on
         <button type="button" className="btn-secondary" onClick={() => void copy()}>
           {copied ? translate("Copied!") : translate("Copy")}
         </button>
-        <button type="button" className="btn-ghost" onClick={onHide} {...agentHandle({ handle: "security-site-token-hide" }, { role: "button", label: "Hide the revealed Site Token" })}>
+        <button type="button" className="btn-ghost" onClick={onHide} {...agentHandle({ handle: "security-site-token-hide" }, { role: "button", label: "Hide the revealed Site key" })}>
           {translate("Hide")}
         </button>
       </div>
@@ -264,7 +261,7 @@ function SiteTokenGenerateAction({ controller }: { controller: SiteTokenControll
         className="btn-primary"
         disabled={controller.generating}
         onClick={() => void controller.generate()}
-        {...agentHandle({ handle: "security-site-token-generate" }, { role: "button", label: "Generate a Site Token file for this install" })}
+        {...agentHandle({ handle: "security-site-token-generate" }, { role: "button", label: "Generate a Site key file for this install" })}
       >
         {controller.generating ? translate("Generating…") : translate("Generate a key")}
       </button>
@@ -282,7 +279,7 @@ function SiteTokenGenerateErrorNote({ failure, t: translate }: { failure: SiteTo
         ? siteTokenGenerateErrorMessage(locale, failure.detail)
         : failure.detail;
   return (
-    <p className="notice error" role="status" {...agentHandle({ handle: "security-site-token-generate-error" }, { role: "status", label: "Shows the error when generating a Site Token file failed" })}>
+    <p className="notice error" role="status" {...agentHandle({ handle: "security-site-token-generate-error" }, { role: "status", label: "Shows the error when generating a Site key file failed" })}>
       {text}
     </p>
   );

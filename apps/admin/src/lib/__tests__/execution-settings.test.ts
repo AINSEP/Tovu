@@ -631,8 +631,8 @@ describe("loadAdminExecutionCredential / saveAdminExecutionCredential — the ex
   });
 
   it("saveAdminExecutionCredential propagates a rejection (e.g. SECRET_STORE_UNCONFIGURED) rather than swallowing it", async () => {
-    setAdminExecutionCredential.mockRejectedValue(new FakeApiError("no master key", 503));
-    await expect(saveAdminExecutionCredential({ apiKey: "sk-new" })).rejects.toThrow("no master key");
+    setAdminExecutionCredential.mockRejectedValue(new FakeApiError("no site key", 503));
+    await expect(saveAdminExecutionCredential({ apiKey: "sk-new" })).rejects.toThrow("no site key");
   });
 
   // Same class of fix as `loadExecutionConfig`'s own malformed-response test above — see that

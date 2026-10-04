@@ -36,7 +36,7 @@ describe("assistant error copy", () => {
 
   it("explains an unconfigured secret store without blaming the pasted key", () => {
     expect(describeApiError(new ApiError("operator-only detail", 503, "SECRET_STORE_UNCONFIGURED"), "fallback"))
-      .toBe("The server cannot store keys yet: it has no encryption master key. Set TOVU_INTEGRATIONS_ROOT_KEY (hex) in the server environment and restart. Your key was not saved, and nothing is wrong with it.");
+      .toBe("The server can't store keys yet: it has no site key. Set TOVU_SITE_KEY (hex) and restart. Your key was not saved.");
   });
 
   it("delegates unrelated API, ordinary Error and non-Error failures", () => {

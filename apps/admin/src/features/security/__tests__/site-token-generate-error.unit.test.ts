@@ -18,12 +18,12 @@ function refusal(code: string, detail: string): ApiError {
 
 describe("classifySiteTokenGenerateError", () => {
   it("KEY_DEPENDENT_DATA → 'locked', carrying the server's own words", () => {
-    const detail = "This site has saved credentials locked with a site token that is not on this computer.";
+    const detail = "This site has saved credentials locked with a site key that is not on this computer.";
     expect(classifySiteTokenGenerateError(refusal("KEY_DEPENDENT_DATA", detail), t)).toEqual({ kind: "locked", code: "KEY_DEPENDENT_DATA", detail });
   });
 
   it("KEY_MISMATCH → 'locked'", () => {
-    const detail = "The site token on this computer is not the one this site's saved credentials were locked with.";
+    const detail = "The site key on this computer is not the one this site's saved credentials were locked with.";
     expect(classifySiteTokenGenerateError(refusal("KEY_MISMATCH", detail), t)).toEqual({ kind: "locked", code: "KEY_MISMATCH", detail });
   });
 

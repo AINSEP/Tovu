@@ -444,7 +444,7 @@ describe("usePublishCredentials — save, provider already connected (update)", 
   });
 });
 
-describe("usePublishCredentials — credentialsForProvider (the Static Site token-picker's data source)", () => {
+describe("usePublishCredentials — credentialsForProvider (the Static Site key-picker's data source)", () => {
   it("returns every saved connection for a provider, not just the default one", async () => {
     const backup: AdminPublishCredentialSummary = { ...GH_CREDENTIAL, id: "cred-2", label: "backup", isDefault: false };
     const port = createFakePublishCredentialsPort({
@@ -466,7 +466,7 @@ describe("usePublishCredentials — credentialsForProvider (the Static Site toke
   });
 });
 
-describe("usePublishCredentials — selectCredential (the Static Site token-picker's write)", () => {
+describe("usePublishCredentials — selectCredential (the Static Site key-picker's write)", () => {
   it("PUTs isDefault: true to the chosen credential's id, then refetches the provider's list", async () => {
     const backup: AdminPublishCredentialSummary = { ...GH_CREDENTIAL, id: "cred-2", label: "backup", isDefault: false };
     const promoted: AdminPublishCredentialSummary = { ...backup, isDefault: true };

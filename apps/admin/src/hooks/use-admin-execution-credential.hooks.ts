@@ -136,7 +136,7 @@ function describeAdminExecutionCredentialError(e: unknown, fallback: string): st
     // sibling site-credential code — the server has no master secret to encrypt under, and that is
     // an operator-actionable server fact, not a problem with the key that was just typed.
     if (e.code === "SECRET_STORE_UNCONFIGURED")
-      return "The server cannot store keys yet: it has no encryption master key. Set TOVU_INTEGRATIONS_ROOT_KEY (hex) in the server environment and restart. Your key was not saved, and nothing is wrong with it.";
+      return "The server can't store keys yet: it has no site key. Set TOVU_SITE_KEY (hex) and restart. Your key was not saved.";
   }
   return describeApiErrorDefault(e, fallback);
 }

@@ -38,6 +38,8 @@ describe("AdminSiteTokenState parity with the server's SiteTokenState union", ()
   });
 
   it("is a real, non-trivial list — proves the regex above actually matched something", () => {
-    expect(ADMIN_SITE_TOKEN_STATES.length).toBeGreaterThanOrEqual(5);
+    expect(ADMIN_SITE_TOKEN_STATES.length).toBeGreaterThanOrEqual(6);
   });
 });
+
+it("includes env-conflict independently of the parity check", () => { expect(ADMIN_SITE_TOKEN_STATES).toContain("env-conflict"); });

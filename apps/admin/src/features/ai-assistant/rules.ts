@@ -30,7 +30,7 @@ export function describeApiError(e: unknown, fallback: string): string {
     // pasted a key and been told it did not save. The distinction that matters to them is that
     // NOTHING IS WRONG WITH THEIR KEY — the server has no master secret to encrypt it under.
     if (e.code === "SECRET_STORE_UNCONFIGURED")
-      return "The server cannot store keys yet: it has no encryption master key. Set TOVU_INTEGRATIONS_ROOT_KEY (hex) in the server environment and restart. Your key was not saved, and nothing is wrong with it.";
+      return "The server can't store keys yet: it has no site key. Set TOVU_SITE_KEY (hex) and restart. Your key was not saved.";
     if (e.code === "SITE_CREDENTIAL_VALIDATION_ERROR") return e.message || "That value was rejected.";
   }
   return describeApiErrorDefault(e, fallback);

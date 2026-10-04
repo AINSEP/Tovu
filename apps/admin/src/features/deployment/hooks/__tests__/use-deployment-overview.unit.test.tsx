@@ -30,7 +30,7 @@ function snapshotFixture(overrides: Partial<AdminDeploymentOverview> = {}): Admi
     envVars: [
       { name: "TOVU_ADMIN_PASSWORD", set: false },
       { name: "TOVU_ADMIN_USER", set: false },
-      { name: "TOVU_INTEGRATIONS_ROOT_KEY", set: false },
+      { name: "TOVU_SITE_KEY", set: false },
       { name: "JINI_AGENT_DAEMON_PORT", set: false },
     ],
     ...overrides,

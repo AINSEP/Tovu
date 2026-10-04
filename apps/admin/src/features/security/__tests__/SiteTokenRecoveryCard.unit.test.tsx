@@ -31,8 +31,8 @@ it("blocks empty and busy unlock attempts and renders the server's unlock error"
   expect(busy).toBeDisabled();
   await user.click(busy);
   expect(ctrl.unlock).not.toHaveBeenCalled();
-  rerender(<SiteTokenRecoveryCard recovery={{ ...ctrl, token: "old-token", unlockError: "This token does not open saved credentials." }} />);
-  expect(screen.getByRole("status").textContent).toBe("This token does not open saved credentials.");
+  rerender(<SiteTokenRecoveryCard recovery={{ ...ctrl, token: "old-token", unlockError: "This site key does not open saved credentials." }} />);
+  expect(screen.getByRole("status").textContent).toBe("This site key does not open saved credentials.");
   expect(screen.getByRole("button", { name: "Unlock" })).toBeEnabled();
   await user.click(screen.getByRole("button", { name: "Unlock" }));
   expect(vi.mocked(ctrl.unlock).mock.calls).toEqual([[]]);

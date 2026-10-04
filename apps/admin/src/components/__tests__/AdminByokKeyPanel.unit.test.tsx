@@ -72,10 +72,10 @@ describe("AdminByokMigrationPrompt", () => {
   it("surfaces the error message when a migration save fails", () => {
     render(
       <AdminByokMigrationPrompt
-        controller={controller({ legacyKey: "sk-legacy", saveState: { status: "error", message: "no master key" } })}
+        controller={controller({ legacyKey: "sk-legacy", saveState: { status: "error", message: "no site key" } })}
       />,
     );
-    expect(screen.getByText("no master key")).toBeInTheDocument();
+    expect(screen.getByText("no site key")).toBeInTheDocument();
   });
 
   it("never renders the raw legacy key value anywhere in the prompt", () => {

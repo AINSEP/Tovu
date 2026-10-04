@@ -239,8 +239,8 @@ test("setAssistantSiteCredential PUTs the patch verbatim; omitted apiKey means '
   expect(body()).not.toHaveProperty("apiKey");
 });
 
-test("setAssistantSiteCredential throws ApiError with code SECRET_STORE_UNCONFIGURED when no root key is configured", async () => {
-  stubFetchCapturing(errJson(503, "no master key configured", "SECRET_STORE_UNCONFIGURED"));
+test("setAssistantSiteCredential throws ApiError with code SECRET_STORE_UNCONFIGURED when no site key is configured", async () => {
+  stubFetchCapturing(errJson(503, "no site key configured", "SECRET_STORE_UNCONFIGURED"));
   const error = await api.setAssistantSiteCredential({ apiKey: "sk-new" }).catch((e: unknown) => e);
   expect(error).toBeInstanceOf(ApiError);
   expect((error as ApiError).code).toBe("SECRET_STORE_UNCONFIGURED");
@@ -277,8 +277,8 @@ test("setAdminExecutionCredential PUTs the patch verbatim", async () => {
   expect(body()).toEqual({ apiKey: "sk-new", protocol: "openai", model: "gpt-4o" });
 });
 
-test("setAdminExecutionCredential throws ApiError with code SECRET_STORE_UNCONFIGURED when no root key is configured", async () => {
-  stubFetchCapturing(errJson(503, "no master key configured", "SECRET_STORE_UNCONFIGURED"));
+test("setAdminExecutionCredential throws ApiError with code SECRET_STORE_UNCONFIGURED when no site key is configured", async () => {
+  stubFetchCapturing(errJson(503, "no site key configured", "SECRET_STORE_UNCONFIGURED"));
   const error = await api.setAdminExecutionCredential({ apiKey: "sk-new" }).catch((e: unknown) => e);
   expect(error).toBeInstanceOf(ApiError);
   expect((error as ApiError).code).toBe("SECRET_STORE_UNCONFIGURED");

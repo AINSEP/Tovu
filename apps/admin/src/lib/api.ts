@@ -787,7 +787,7 @@ export type AdminSiteTokenRuntimeMode = "production" | "local";
  * file's own union text off disk and checks it against this list, so the two can never silently
  * drift apart. Keep both edited together.
  */
-export const ADMIN_SITE_TOKEN_STATES = ["active", "missing", "missing-with-data", "mismatch", "invalid"] as const;
+export const ADMIN_SITE_TOKEN_STATES = ["active", "missing", "missing-with-data", "mismatch", "invalid", "env-conflict"] as const;
 export type AdminSiteTokenState = (typeof ADMIN_SITE_TOKEN_STATES)[number];
 
 /** Mirrors `GET .../system/site-token`'s response shape (`inspectRootKeyMaterial`, server-side).
@@ -796,6 +796,8 @@ export type AdminSiteTokenState = (typeof ADMIN_SITE_TOKEN_STATES)[number];
  *  before" across a reload without revealing it. Call `api.revealSiteToken()` for the actual
  *  value, behind its own explicit action. */
 export interface AdminSiteTokenStatus {
+  envVarName?: string;
+  reason?: "empty" | "not-hex" | "odd-length" | "too-short" | "env-conflict";
   active: boolean;
   source: "env" | "file" | "none";
   fingerprint?: string;
