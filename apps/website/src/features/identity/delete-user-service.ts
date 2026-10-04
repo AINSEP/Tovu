@@ -1,6 +1,6 @@
 import type { UUID } from "@jini-ai/core/primitives";
 import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, OwnerRequiredError } from "@jini-ai/user-management";
-import { resolveEffectivePermissions, authorizeDepsFrom, type AuthServiceDeps } from "@jini-ai/user-management/server";
+import { resolveEffectivePermissions, authorizeDepsFrom, assertOwnerTargetMayBeModified, type AuthServiceDeps } from "@jini-ai/user-management/server";
 import { UserDeleteUnsupportedError } from "./user-purge-types.js";
 
 /**
@@ -246,6 +246,14 @@ export async function trashUser(required: {
     if (target.id === input.seededOwnerPrincipalId) {
       throw new OwnerRequiredError({ message: "the seeded owner principal can never be deleted" });
     }
+
+    // Trashing disables the account too; delegated admins must not modify owner principals.
+    await assertOwnerTargetMayBeModified({
+      deps: identity,
+      workspaceId: input.workspaceId,
+      callerPrincipalId: input.callerPrincipalId,
+      principalId: target.id,
+    });
 
     if (target.status === "active") {
       const holdsOwnerWildcard = await principalHoldsOwnerWildcard({

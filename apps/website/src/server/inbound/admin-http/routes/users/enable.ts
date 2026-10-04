@@ -1,4 +1,4 @@
-import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError } from "@jini-ai/user-management";
+import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, OwnerRequiredError } from "@jini-ai/user-management";
 import { enablePrincipal } from "@jini-ai/user-management/server";
 import { toAdminUserResponse } from "#src/server/inbound/admin-http/http/users";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -77,6 +77,10 @@ export const registerAdminUserEnableRoute: UsersRouteRegistrar = (app, deps) => 
         return;
       }
 
+      if (err instanceof OwnerRequiredError) {
+        res.status(409).json({ error: err.message, code: "OWNER_REQUIRED" });
+        return;
+      }
       res.status(500).json({ error: "internal error" });
     }
   });

@@ -45,6 +45,8 @@ async function buildApp(
     principalRoleRepo: base.principalRoleRepo,
     principalPolicyRepo: base.principalPolicyRepo,
     passwordHasher: base.passwordHasher,
+    transactions: base.transactions,
+    tokens: base.tokens,
     ownerPrincipalId: base.ownerPrincipalId,
     isInTrash: base.isInTrash,
     ...depsOverrides,
@@ -202,7 +204,7 @@ test("CREATE_USER route: 409 RESOURCE_CONFLICT when username is already in use",
   assert.equal(body.details.field, "username");
 });
 
-test("CREATE_USER route: 403 FORBIDDEN when caller holds neither user.manage nor member.manage", async (t) => {
+test("CREATE_USER route: 403 FORBIDDEN when caller lacks user.manage", async (t) => {
   const { app, deps } = await buildApp({}, "unauthorized-user");
   await seedBarePrincipal(deps, "unauthorized-user");
   const baseUrl = await startTestServer(app, t);
@@ -215,7 +217,7 @@ test("CREATE_USER route: 403 FORBIDDEN when caller holds neither user.manage nor
   assert.equal(res.status, 403);
   const body = (await res.json()) as { code: string; details: { permission: string } };
   assert.equal(body.code, "FORBIDDEN");
-  assert.equal(body.details.permission, "user.manage|member.manage");
+  assert.equal(body.details.permission, "user.manage");
 });
 
 test("CREATE_USER route: 500 internal error when an unexpected error is thrown", async (t) => {

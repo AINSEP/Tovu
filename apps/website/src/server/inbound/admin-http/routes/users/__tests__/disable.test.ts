@@ -205,21 +205,11 @@ test("INV-08: DISABLE_PRINCIPAL route: 409 OWNER_REQUIRED when disabling the tar
   assert.ok(realSeededOwner);
   await base.principalRepo.save({ ...realSeededOwner!, status: "disabled", disabledAt: base.clock.nowIso() });
 
-  // A caller with `user.manage` only (not the wildcard) so IT never counts toward the headcount.
-  const callerId = "inv08-caller";
-  await base.principalRepo.save({
-    id: callerId,
-    workspaceId: WORKSPACE_ID,
-    kind: "user",
-    displayName: callerId,
-    status: "active",
-    createdAt: base.clock.nowIso(),
-  });
-
-  // The lone remaining owner-`*` holder — NOT the recognized "seeded owner" (see the
+  // The lone remaining owner acts on itself to pass the owner-target guard — NOT the recognized "seeded owner" (see the
   // `ownerPrincipalId` override below), so only the INV-08 count check can refuse this, not the
   // seeded-owner identity check.
   const lastOwnerId = "inv08-last-owner";
+  const callerId = lastOwnerId;
   await base.principalRepo.save({
     id: lastOwnerId,
     workspaceId: WORKSPACE_ID,
@@ -244,11 +234,12 @@ test("INV-08: DISABLE_PRINCIPAL route: 409 OWNER_REQUIRED when disabling the tar
     principalRoleRepo: base.principalRoleRepo,
     principalPolicyRepo: base.principalPolicyRepo,
     passwordHasher: base.passwordHasher,
+    transactions: base.transactions,
+    tokens: base.tokens,
     // Overridden: does not match `lastOwnerId`, so `target.id === seededOwnerPrincipalId` is
     // false and execution reaches the INV-08 count check instead of short-circuiting on it.
     ownerPrincipalId: Promise.resolve("unrelated-owner-id-for-inv08-test"),
   };
-  await attachSinglePermissionPolicy(deps, callerId, "user.manage");
   await attachSinglePermissionPolicy(deps, lastOwnerId, "*");
 
   const app = express();
@@ -262,8 +253,10 @@ test("INV-08: DISABLE_PRINCIPAL route: 409 OWNER_REQUIRED when disabling the tar
 
   const res = await fetch(`${baseUrl}${urlFor(lastOwnerId)}`, { method: "POST" });
   assert.equal(res.status, 409);
-  const body = (await res.json()) as { code: string };
-  assert.equal(body.code, "OWNER_REQUIRED");
+  assert.deepEqual(await res.json(), {
+    error: "the workspace must keep at least one active owner-`*` principal",
+    code: "OWNER_REQUIRED",
+  });
 
   const stored = await deps.principalRepo.findById({ workspaceId: WORKSPACE_ID, id: lastOwnerId });
   assert.equal(stored?.status, "active", "the last owner-`*` principal must remain active — refused, not disabled");

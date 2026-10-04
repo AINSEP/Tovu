@@ -44,6 +44,8 @@ async function buildApp(
     principalRoleRepo: base.principalRoleRepo,
     principalPolicyRepo: base.principalPolicyRepo,
     passwordHasher: base.passwordHasher,
+    transactions: base.transactions,
+    tokens: base.tokens,
     ownerPrincipalId: base.ownerPrincipalId,
     isInTrash: base.isInTrash,
     ...depsOverrides,
@@ -141,7 +143,7 @@ test("UPDATE_USER route: 200 sets email, clears it back to undefined on an empty
   assert.equal(clearedBody.user.email, undefined);
 });
 
-test("UPDATE_USER route: 403 FORBIDDEN when caller lacks user.manage and member.manage", async (t) => {
+test("UPDATE_USER route: 403 FORBIDDEN when caller lacks user.manage for another operator", async (t) => {
   const { app } = await buildApp({}, "unauthorized-user");
   const baseUrl = await startTestServer(app, t);
 
@@ -153,7 +155,7 @@ test("UPDATE_USER route: 403 FORBIDDEN when caller lacks user.manage and member.
   assert.equal(res.status, 403);
   const body = (await res.json()) as { code: string; details: { permission: string } };
   assert.equal(body.code, "FORBIDDEN");
-  assert.equal(body.details.permission, "user.manage|member.manage");
+  assert.equal(body.details.permission, "user.manage");
 });
 
 test("UPDATE_USER route: 404 RESOURCE_NOT_FOUND for a nonexistent principalId", async (t) => {

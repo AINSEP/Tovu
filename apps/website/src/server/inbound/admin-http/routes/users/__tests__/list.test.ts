@@ -41,6 +41,8 @@ async function buildApp(
     principalRoleRepo: base.principalRoleRepo,
     principalPolicyRepo: base.principalPolicyRepo,
     passwordHasher: base.passwordHasher,
+    transactions: base.transactions,
+    tokens: base.tokens,
     ownerPrincipalId: base.ownerPrincipalId,
     isInTrash: base.isInTrash,
     ...depsOverrides,

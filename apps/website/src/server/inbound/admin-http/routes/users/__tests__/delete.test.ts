@@ -12,12 +12,12 @@ import { SqliteUserPurge } from "#src/features/identity/user-purge.sqlite";
 import {
   bindRemoveEntity,
   createContentDbTransactionRunner,
-  createTrashService,
   createUserTrashAdapter,
   SqliteTrashRepo,
   USER_ENTITY_TYPE,
   type TrashAdapter,
 } from "#src/features/trash/index";
+import { createTrashService } from "@jini-ai/cms/trash";
 import {
   createCapturingResponse,
   extractRouteHandler,
@@ -25,7 +25,9 @@ import {
 } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminUserDeleteRoute } from "../delete.js";
 import { identityServiceDepsFrom, type UsersRouteDeps } from "../deps.js";
-import { assignRole, createUser } from "@jini-ai/user-management/server";
+import { assignRole, createUser, resolveEffectivePermissions, authorizeDepsFrom } from "@jini-ai/user-management/server";
+import { OwnerRequiredError } from "@jini-ai/user-management";
+import { trashUser } from "#src/features/identity/delete-user-service";
 
 /**
  * @file RED-first coverage for the `DELETE_USER` HTTP route (delete-user plan v2 Slice 2/3, and the
@@ -85,8 +87,9 @@ async function buildApp(
   const trash = createTrashService({
     repo: trashRepo,
     adapters: new Map<string, TrashAdapter>([[USER_ENTITY_TYPE, adapter]]),
-    idGen: counterTrashIdGen(),
-    transaction: createContentDbTransactionRunner(db.$client),
+    idGen: { newId: counterTrashIdGen().next },
+    transaction: ({ work }) => createContentDbTransactionRunner(db.$client)(work),
+    entityPolicy: ({ entityType }) => entityType === USER_ENTITY_TYPE,
   });
 
   const deps: UsersRouteDeps = {
@@ -107,7 +110,7 @@ async function buildApp(
     transactions: wiring.transactions,
     tokens: wiring.tokens,
     ownerPrincipalId: wiring.ownerPrincipalId,
-    removeUser: bindRemoveEntity(trash, USER_ENTITY_TYPE),
+    removeUser: bindRemoveEntity({ trash, entityType: USER_ENTITY_TYPE }),
     isInTrash: async (principalIdToCheck: string) =>
       (await trashRepo.findByEntity({ workspaceId: WORKSPACE_ID, entityType: USER_ENTITY_TYPE, entityId: principalIdToCheck })) !== null,
     ...depsOverrides,
@@ -196,6 +199,49 @@ test("DELETE_USER route: 204 when the caller holds the built-in admin role (not 
   const baseUrl = await startTestServer(appAsAdmin, t);
   const res = await fetch(`${baseUrl}${urlFor(target.id)}`, { method: "DELETE" });
   assert.equal(res.status, 204);
+});
+
+test("DELETE_USER route: 409 OWNER_REQUIRED when a non-owner admin with user.manage trashes another owner", async () => {
+  const { deps, ownerId } = await buildApp();
+  const svcDeps = identityServiceDepsFrom(deps);
+  const { principal: caller } = await createUser({
+    deps: svcDeps,
+    input: { workspaceId: WORKSPACE_ID, callerPrincipalId: ownerId, username: "delegated-trash-admin", password: "correct-horse-battery" },
+  });
+  const adminRole = await deps.roleRepo.findByName({ workspaceId: WORKSPACE_ID, name: "admin" });
+  const ownerRole = await deps.roleRepo.findByName({ workspaceId: WORKSPACE_ID, name: "owner" });
+  assert.ok(adminRole);
+  assert.ok(ownerRole);
+  await assignRole({ deps: svcDeps, input: { workspaceId: WORKSPACE_ID, callerPrincipalId: ownerId, principalId: caller.id, roleId: adminRole.id } });
+  const policyId = "delegated-trash-user-manage";
+  await deps.policyRepo.save({ id: policyId, workspaceId: WORKSPACE_ID, name: policyId, isBuiltin: false, isFrozen: false });
+  await deps.policyPermissionRepo.save({ id: "trash-user-manage-permission", workspaceId: WORKSPACE_ID, policyId, permission: "user.manage", resourceType: null, constraintJson: null });
+  await deps.principalPolicyRepo.save({ id: "trash-user-manage-link", workspaceId: WORKSPACE_ID, principalId: caller.id, policyId });
+  const permissions = await resolveEffectivePermissions({ deps: authorizeDepsFrom(svcDeps.repos), workspaceId: WORKSPACE_ID, principalId: caller.id });
+  assert.ok(permissions.some((row) => row.permission === "user.manage"));
+  assert.ok(!permissions.some((row) => row.permission === "*"));
+  const { principal: target } = await createUser({
+    deps: svcDeps,
+    input: { workspaceId: WORKSPACE_ID, callerPrincipalId: ownerId, username: "protected-trash-owner", password: "correct-horse-battery" },
+  });
+  await assignRole({ deps: svcDeps, input: { workspaceId: WORKSPACE_ID, callerPrincipalId: ownerId, principalId: target.id, roleId: ownerRole.id } });
+  const before = await deps.principalRepo.findById({ workspaceId: WORKSPACE_ID, id: target.id });
+  await assert.rejects(
+    trashUser({
+      deps: { identity: svcDeps, removeUser: deps.removeUser, isInTrash: deps.isInTrash },
+      input: { workspaceId: WORKSPACE_ID, callerPrincipalId: caller.id, principalId: target.id, seededOwnerPrincipalId: ownerId },
+    }),
+    (err: unknown) => err instanceof OwnerRequiredError && err.message === "only an owner can modify an owner principal"
+  );
+  const handler = extractRouteHandler(mountApp(deps, caller.id), "delete", ROUTE_PATH);
+  const { res, capture } = createCapturingResponse();
+  res.send = () => res;
+  res.locals.principal = { id: caller.id };
+  await handler({ params: { workspaceId: WORKSPACE_ID, principalId: target.id } }, res);
+  assert.equal(capture.statusCode, 409);
+  assert.deepEqual(capture.jsonBody, { error: "only an owner can modify an owner principal", code: "OWNER_REQUIRED" });
+  assert.deepEqual(await deps.principalRepo.findById({ workspaceId: WORKSPACE_ID, id: target.id }), before);
+  assert.equal(await deps.isInTrash!(target.id), false);
 });
 
 test("DELETE_USER route: 409 SELF_DELETE when the caller targets their own principal", async (t) => {

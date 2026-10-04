@@ -62,7 +62,7 @@ async function usernameHeldByTrashedUser(deps: UsersRouteDeps, rawUsername: stri
 
 /**
  * POST users — `CREATE_USER` (state.spec §3, REQ-01/MF-1). Gated by
- * `user.manage` OR `member.manage` (AC-22, admin onboarding), enforced
+ * `user.manage` only (operator login creation), enforced
  * inside `grant-service.ts`'s `createUser` rather than here — see that
  * file's header for why the gate lives in the service function.
  *

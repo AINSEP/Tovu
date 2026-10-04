@@ -13,8 +13,8 @@ import type { UsersRouteRegistrar } from "./deps.js";
  * disabled legacy `user-local` seed row) are filtered out: this screen is
  * "Users" (human operators), not the full principal roster.
  *
- * Gated by `user.manage`/`member.manage` (either), matching `createUser`'s own gate
- * (`grant-service.ts`) — no separate `user.read` permission exists in the catalog. 2026-07-16
+ * Gated by `user.manage`/`member.manage` (either) for this read-only roster;
+ * operator creation separately requires `user.manage`. No separate `user.read` permission exists in the catalog. 2026-07-16
  * authz sweep: this route previously had zero permission check beyond session auth, letting any
  * authenticated admin session read the full user roster regardless of role.
  */

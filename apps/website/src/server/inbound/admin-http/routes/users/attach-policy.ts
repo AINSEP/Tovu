@@ -1,6 +1,6 @@
 import type { Response } from "express";
 
-import { GrantExceedsIssuerError, IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError } from "@jini-ai/user-management";
+import { GrantExceedsIssuerError, IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, OwnerRequiredError } from "@jini-ai/user-management";
 import { attachPolicy } from "@jini-ai/user-management/server";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
@@ -21,6 +21,10 @@ function sendAttachPolicyError(res: Response, err: unknown): void {
   }
   if (err instanceof IdentityNotFoundError) {
     res.status(404).json({ error: err.message });
+    return;
+  }
+  if (err instanceof OwnerRequiredError) {
+    res.status(409).json({ error: err.message, code: "OWNER_REQUIRED" });
     return;
   }
   res.status(500).json({ error: "internal error" });

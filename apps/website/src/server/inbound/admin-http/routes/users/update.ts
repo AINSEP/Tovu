@@ -1,6 +1,6 @@
 import type { Response } from "express";
 
-import { IdentityForbiddenError, IdentityNotFoundError } from "@jini-ai/user-management";
+import { IdentityForbiddenError, IdentityNotFoundError, OwnerRequiredError } from "@jini-ai/user-management";
 import { updateUser } from "@jini-ai/user-management/server";
 import { toAdminUserResponse } from "#src/server/inbound/admin-http/http/users";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -51,12 +51,17 @@ function sendUserUpdateError(res: Response, err: unknown): void {
     res.status(404).json({ error: err.message, code: "RESOURCE_NOT_FOUND" });
     return;
   }
+  if (err instanceof OwnerRequiredError) {
+    res.status(409).json({ error: err.message, code: "OWNER_REQUIRED" });
+    return;
+  }
   res.status(500).json({ error: "internal error" });
 }
 
 /**
- * PATCH users/:principalId — `UPDATE_USER` (SPEC-006 0.6.0, REQ-16). Gated by `user.manage` **or**
- * `member.manage` (mirrors `CREATE_USER`'s admin-onboarding gate). `email`-only — `username` and
+ * PATCH users/:principalId — `UPDATE_USER` (SPEC-006 0.6.0, REQ-16). Gated by `user.manage`;
+ * existing self-profile edits also accept `member.manage`. Only owners may edit owner targets.
+ * `email`-only — `username` and
  * `password` fields in the body are silently ignored (AC-28), not rejected.
  */
 export const registerAdminUserUpdateRoute: UsersRouteRegistrar = (app, deps) => {
@@ -76,7 +81,22 @@ export const registerAdminUserUpdateRoute: UsersRouteRegistrar = (app, deps) => 
         throw new UserInTrashError("this user is in the Trash; restore them first");
       }
 
-      const { user } = await updateUser({ deps: identityServiceDepsFrom(deps), input: { workspaceId: deps.workspaceId, callerPrincipalId: caller.id, principalId } }, { ...parseUserUpdateBody(req.body) });
+      const serviceDeps = identityServiceDepsFrom(deps);
+      const { email } = parseUserUpdateBody(req.body);
+      const { user } = await deps.transactions.run({
+        workspaceId: deps.workspaceId,
+        execute: async () => {
+          // Jini's email setter clears an omitted value. HTTP PATCH retains an omitted field;
+          // read and write in the same identity transaction so a competing edit cannot be lost.
+          const current = email === undefined
+            ? await deps.userRepo.findByPrincipalId({ workspaceId: deps.workspaceId, principalId })
+            : undefined;
+          return updateUser({
+            deps: serviceDeps,
+            input: { workspaceId: deps.workspaceId, callerPrincipalId: caller.id, principalId },
+          }, { email: email === undefined ? current?.email : email });
+        },
+      });
 
       res.json({ user: await assembleUpdatedUserResponse(deps, principalId, user) });
     } catch (err) {
