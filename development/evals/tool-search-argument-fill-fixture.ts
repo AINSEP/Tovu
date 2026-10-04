@@ -59,7 +59,6 @@ export const TIER1_CLEAN: readonly string[] = [
   "custom_credential_list",
   "database_list_pending_migrations",
   "database_list_restore_points",
-  "deployment_list",
   "external_mcp_list",
   "forms_list_definitions",
   "identity_policy_list",
@@ -128,10 +127,10 @@ function main(): void {
   if (!outDir) throw new Error("usage: tsx tool-search-argument-fill-fixture.ts <out-dir>");
   mkdirSync(outDir, { recursive: true });
 
-  // Pre-collapse catalog: the 36 originals still exist here, which is what the fat arm collapses.
+  // Pre-collapse catalog: the 35 originals still exist here, which is what the fat arm collapses.
   const uncollapsed = buildEvalToolRegistry(fakeEvalRouteDeps(), undefined, { includeContentReadCollapse: false });
   const preIds = new Map((uncollapsed.list({}) as readonly Descriptor[]).map((d) => [d.id, d]));
-  // The REAL shipped catalog, with the 29 cards, for the card-selection arm.
+  // The REAL shipped catalog, with the 28 cards, for the card-selection arm.
   const shipped = buildEvalToolRegistry(fakeEvalRouteDeps());
   const shippedIds = new Set(shipped.list({}).map((d) => d.id));
 
@@ -322,8 +321,8 @@ ${queryBlock}
   writeFileSync(join(outDir, "afill-arm-B-fat-free.md"), fatPayload("B (fat entry, free-string resource)", false));
 
   // ---- Arm C: the card design's counterpart decision, held INFORMATION-SYMMETRIC to arm A ------
-  // Arm A shows the model 29 resources with their own text and asks for a `resource` ARGUMENT.
-  // Arm C shows the model the identical 29 resources with the identical text and asks for a TOOL ID.
+  // Arm A shows the model 28 resources with their own text and asks for a `resource` ARGUMENT.
+  // Arm C shows the model the identical 28 resources with the identical text and asks for a TOOL ID.
   // The retrieval step is deliberately NOT re-measured here — it is already measured
   // deterministically for both designs (`tool-search-fat-concat-arm.eval.ts`: D1-strict 85% top-10
   // on the affected cases, C2 97%). Holding it out is what makes A-vs-C attributable to the shape
@@ -368,20 +367,20 @@ ${queryBlock}
   writeFileSync(join(outDir, "afill-arm-C-card-pick.md"), cardPayload);
 
   // ---- Arms D and E: the 2x2 that separates GRANULARITY from VERB-LABELLING -------------------
-  // A2 (one fat entry) false-fills on out-of-scope requests where C (29 cards) abstains. Two
+  // A2 (one fat entry) false-fills on out-of-scope requests where C (28 cards) abstains. Two
   // mechanisms could produce that and the A2-vs-C contrast cannot tell them apart:
   //   (i)  GRANULARITY — one option that covers everything invites being applied to everything;
   //   (ii) VERB-LABELLING — every card id the model must type contains the word `content_read`,
   //        whereas the fat entry's enum values are bare resource NOUNS with no verb attached, so
   //        choosing among them answers "what is this request ABOUT", not "what should I DO".
-  // D holds granularity at 29 and STRIPS the verb (bare-noun tool ids). E holds granularity at 1
+  // D holds granularity at 28 and STRIPS the verb (bare-noun tool ids). E holds granularity at 1
   // and ADDS the verb (enum values prefixed `read_`). Whichever variable moves the abstention rate
   // is the mechanism.
   const bareCardBlock = resources
     .map((r) => `- ${r}: ${membersByResource.get(r)!.map(plainOf).join(" ")}`)
     .join("\n");
 
-  const barePayload = `# Task — arm D (29 tools, bare-noun ids)
+  const barePayload = `# Task — arm D (28 tools, bare-noun ids)
 
 You are the tool-calling model behind a website admin assistant. A site administrator types a request
 in their own words. Your ONLY job is to decide which tool you would call.

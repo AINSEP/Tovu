@@ -10,9 +10,9 @@
  * that data, however plausible the mechanism.
  *
  * **C2 holds text provenance fixed and varies only entry count**: ONE catalog entry whose description
- * is the mechanical concatenation of exactly the same 36 tools' `indexedDescriptionFor` output that
- * arm D1 chunks across 29 cards. Same words, same source, same total vocabulary, one document instead
- * of 29. Whatever separates C2 from D1 is granularity and nothing else.
+ * is the mechanical concatenation of exactly the same 35 tools' `indexedDescriptionFor` output that
+ * arm D1 chunks across 28 cards. Same words, same source, same total vocabulary, one document instead
+ * of 28. Whatever separates C2 from D1 is granularity and nothing else.
  *
  * A peer's `content_delete` eval ran the fat-concat shape at n=8 and reported 100% top-10, which is
  * what prompted this. That result is not contradicted by anything here — see the report's discussion
@@ -49,7 +49,6 @@ const TIER1_CLEAN: readonly string[] = [
   "custom_credential_list",
   "database_list_pending_migrations",
   "database_list_restore_points",
-  "deployment_list",
   "external_mcp_list",
   "forms_list_definitions",
   "identity_policy_list",
@@ -138,7 +137,7 @@ function pct(hits: number, n: number): string {
 function run(): void {
   // `includeContentReadCollapse: false` is REQUIRED, not optional. The collapse shipped on
   // 2026-09-08 (`a2fa0bfc`) and `buildAssistantToolRegistrations` now performs it unconditionally by
-  // default, so the default registry no longer contains any of the 36 read tools. Without this the
+  // default, so the default registry no longer contains any of the 35 read tools. Without this the
   // baseline arm silently becomes the treatment and every affected case scores as a permanent miss —
   // the integrity guard below caught exactly that on this file's first run.
   const registry = buildEvalToolRegistry(fakeEvalRouteDeps(), undefined, { includeContentReadCollapse: false });
@@ -171,19 +170,19 @@ function run(): void {
   /** The exact per-tool indexed text the shipped catalog holds today — keywords and doc2query folded. */
   const foldedTextOf = (id: string) => indexedDescriptionFor(id, byId.get(id)?.description ?? "");
 
-  // ---- D1: 29 resource cards, each the concatenation of its own members' folded text.
+  // ---- D1: 28 resource cards, each the concatenation of its own members' folded text.
   const cards = new Map<string, string[]>();
   for (const id of TIER1_CLEAN) cards.set(resourceKeyOf(id), [...(cards.get(resourceKeyOf(id)) ?? []), id]);
   const cardList = [...cards.entries()].sort(([a], [b]) => a.localeCompare(b));
 
-  // ---- C2: ONE entry, the concatenation of ALL 36 — i.e. every card's text, undivided.
+  // ---- C2: ONE entry, the concatenation of ALL 35 — i.e. every card's text, undivided.
   const fatText = TIER1_CLEAN.map(foldedTextOf).join(" ");
 
   const shippedCardIds = [...shippedIds].filter((id) => id.startsWith("content_read")).sort();
 
   const arms = [
     {
-      name: "D1 29 cards (mechanical text)",
+      name: "D1 28 cards (mechanical text)",
       list: [
         ...survivors,
         ...cardList.map(([key, ids]) => ({

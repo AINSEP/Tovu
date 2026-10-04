@@ -83,7 +83,7 @@ const DELETE_FAMILY: readonly string[] = [
 const READ_TIER1_CLEAN: ReadonlySet<string> = new Set([
   "backup_list_restore_points", "collections_content_type_list", "collections_entry_list",
   "comments_list_moderation_queue", "content_post_get", "content_post_list", "custom_credential_list",
-  "database_list_pending_migrations", "database_list_restore_points", "deployment_list",
+  "database_list_pending_migrations", "database_list_restore_points",
   "external_mcp_list", "forms_list_definitions", "identity_policy_list", "identity_role_list",
   "identity_user_list", "media_list_assets", "members_get_by_id", "members_list", "menus_get_menu",
   "menus_list_menus", "newsletter_get_campaign", "newsletter_list_campaigns", "newsletter_list_lists",

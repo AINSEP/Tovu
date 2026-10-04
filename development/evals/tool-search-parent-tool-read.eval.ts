@@ -58,7 +58,6 @@ const TIER1_CLEAN: readonly string[] = [
   "custom_credential_list",
   "database_list_pending_migrations",
   "database_list_restore_points",
-  "deployment_list",
   "external_mcp_list",
   "forms_list_definitions",
   "identity_policy_list",
@@ -265,7 +264,7 @@ function run(): void {
   console.log(`  tier 3 (does not collapse)     ${TIER3_EXCLUDED.length}`);
 
   const arms = [
-    { name: "T1 only (36 collapsed)", ids: TIER1_CLEAN },
+    { name: "T1 only (35 collapsed)", ids: TIER1_CLEAN },
     { name: "T1+T2 (42 collapsed)", ids: [...TIER1_CLEAN, ...TIER2_PARENT_SCOPED] },
   ] as const;
 
@@ -397,7 +396,7 @@ function runAddendum(): void {
   const survivors = all.filter((d) => !collapsed.has(d.id));
   const byId = new Map(all.map((d) => [d.id, d]));
 
-  // ---- Group the 36 collapsed tools into resource cards. A card's indexed text is the member
+  // ---- Group the 35 collapsed tools into resource cards. A card's indexed text is the member
   // ---- tools' OWN live indexed text, concatenated — no authored vocabulary.
   const cards = new Map<string, string[]>();
   for (const id of TIER1_CLEAN) {
@@ -463,7 +462,7 @@ function runAddendum(): void {
   );
 
   console.log(`\n\n${"=".repeat(110)}\nADDENDUM — one tool, one index card per resource\n${"=".repeat(110)}\n`);
-  console.log(`  36 collapsed tools -> ${cardList.length} resource cards (${TIER1_CLEAN.length - cardList.length} merged by the blind rule)`);
+  console.log(`  35 collapsed tools -> ${cardList.length} resource cards (${TIER1_CLEAN.length - cardList.length} merged by the blind rule)`);
   console.log(`  index schema: fts5(id, description), ranked bm25(6.0, 1.0) -- the id column is weighted 6x\n`);
   for (const [key, ids] of cardList) console.log(`    ${`content_read.${key}`.padEnd(40)} <- ${ids.join(", ")}`);
   console.log(`\n  Blind-rule artifact: ${RESOURCE_KEY_ARTIFACTS}\n`);
@@ -482,7 +481,7 @@ function runAddendum(): void {
   console.log(`  ${"configuration".padEnd(32)}${CUTOFFS.map((k) => `top-${k}`.padEnd(19)).join("")}`);
   for (const r of rows) console.log(`  ${r.name.padEnd(32)}${CUTOFFS.map((k) => pct(r.vecs[k].filter(Boolean).length, n)).join("")}`);
 
-  console.log(`\n  Restricted to the ${affectedIdx.length} cases whose ground truth is inside the 36-tool collapse set\n`);
+  console.log(`\n  Restricted to the ${affectedIdx.length} cases whose ground truth is inside the 35-tool collapse set\n`);
   console.log(`  ${"configuration".padEnd(32)}${CUTOFFS.map((k) => `top-${k}`.padEnd(19)).join("")}`);
   const restrict = (v: boolean[]) => affectedIdx.filter((i) => v[i]).length;
   for (const r of rows) console.log(`  ${r.name.padEnd(32)}${CUTOFFS.map((k) => pct(restrict(r.vecs[k]), affectedIdx.length)).join("")}`);
@@ -527,7 +526,7 @@ runAddendum();
 
 const TIER1_CLEAN_SET = new Set(TIER1_CLEAN);
 
-/** Redirects a case's ground truth to `content_read.<resource>` when that id was one of the 36
+/** Redirects a case's ground truth to `content_read.<resource>` when that id was one of the 35
  *  collapsed — using the SAME `resourceKeyOf` the shipped collapse itself is keyed by, not a
  *  second, hand-maintained mapping. An id NOT in the collapsed set passes through unchanged. */
 function realCatalogAcceptable(c: EvalCase): ReadonlySet<string> {
@@ -549,7 +548,7 @@ function runRealCatalog(): void {
 
   console.log(`\n\n${"=".repeat(110)}\nSECOND ADDENDUM — the REAL shipped catalog (buildAssistantToolRegistrations, unmodified)\n${"=".repeat(110)}\n`);
   console.log(`  wired tools, real catalog        ${registry.list({}).length}`);
-  console.log(`  content_read.* cards actually built  ${cardIds.length} of 29 expected`);
+  console.log(`  content_read.* cards actually built  ${cardIds.length} of 28 expected`);
   console.log(`  Tier-1 ids still present (should be 0) ${stillPresent.length}${stillPresent.length ? " -> " + stillPresent.join(", ") : ""}`);
 
   const realQuery = buildToolCatalogQuery(registry);
@@ -563,7 +562,7 @@ function runRealCatalog(): void {
     .filter(([c]) => [c.expect, ...(c.alsoAcceptable ?? [])].some((id) => TIER1_CLEAN_SET.has(id)))
     .map(([, i]) => i);
   const restrict = (v: boolean[]) => affectedIdx.filter((i) => v[i]).length;
-  console.log(`\n  Restricted to the ${affectedIdx.length} cases whose ground truth is inside the 36-tool collapse set\n`);
+  console.log(`\n  Restricted to the ${affectedIdx.length} cases whose ground truth is inside the 35-tool collapse set\n`);
   console.log(`  ${"configuration".padEnd(34)}${CUTOFFS.map((k) => `top-${k}`.padEnd(19)).join("")}`);
   console.log(`  ${"REAL SHIPPED CATALOG".padEnd(34)}${CUTOFFS.map((k) => pct(restrict(realVecs[k]), affectedIdx.length)).join("")}`);
 

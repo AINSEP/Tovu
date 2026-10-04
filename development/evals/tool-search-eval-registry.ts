@@ -20,11 +20,12 @@
  * loud-failure guard, so a future suite that copies this helper cannot reintroduce the silent-9-tool
  * failure mode: a catalog smaller than {@link MIN_EXPECTED_TOOL_COUNT} throws instead of scoring.
  */
-import { createToolRegistry, type ToolRegistration, type ToolRegistry } from "@jini-ai/core";
+import { createContributionRegistry, createToolRegistry, type ToolRegistration, type ToolRegistry } from "@jini-ai/core";
 import {
   buildAssistantToolRegistrations,
   type AssistantSurfaceDeps,
 } from "../../apps/website/src/assistant/tool-registrations.js";
+import type { DerivedToolContributor, ToolContributor } from "../../apps/website/src/assistant/tool-contribution-registry.js";
 import { installFirstPartyToolContributors } from "../../apps/website/src/server/runtime/composition/tool-catalog-manifest.js";
 import type { RouteDeps } from "../../apps/website/src/server/routes/types.js";
 
@@ -86,9 +87,16 @@ export function buildEvalToolRegistry(
   surfaces?: AssistantSurfaceDeps,
   options?: { readonly includeContentReadCollapse?: boolean },
 ): ToolRegistry {
-  installFirstPartyToolContributors();
+  // A fresh pair of contribution registries per build, the same way `createAssistantByokModule`
+  // makes its own: the core registries start empty, so the install must fill THIS pair and the
+  // build must read the same pair.
+  const contributions = {
+    contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: ToolContributor }) => contribution.domain }),
+    derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor }) => contribution.domain }),
+  };
+  installFirstPartyToolContributors({ contributions });
   const registry = createToolRegistry({});
-  const registrations: readonly ToolRegistration[] = buildAssistantToolRegistrations(routeDeps, surfaces, options);
+  const registrations: readonly ToolRegistration[] = buildAssistantToolRegistrations(routeDeps, surfaces, { ...options, contributions });
   for (const registration of registrations) registry.register(registration);
 
   const size = registry.list({}).length;
