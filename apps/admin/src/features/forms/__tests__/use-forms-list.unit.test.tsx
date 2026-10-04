@@ -43,6 +43,18 @@ afterEach(() => {
 });
 
 describe("useFormsList — injected port", () => {
+  it("orders the initial response and refreshed updates newest first without mutating the port", async () => {
+    const older = formFixture({ id: "old", updatedAt: "2026-08-01T00:00:00Z" });
+    const newer = formFixture({ id: "new", updatedAt: "2026-09-01T00:00:00Z" });
+    const port = createFakeFormsPort({ forms: [older, newer] });
+    const { result } = renderHook(() => useFormsList({ port, t: (key) => key }), { wrapper });
+    await waitFor(() => expect(result.current.forms?.map((form) => form.id)).toEqual(["new", "old"]));
+    expect(port.forms.map((form) => form.id)).toEqual(["old", "new"]);
+
+    port.forms[0] = { ...older, updatedAt: "2026-10-04T00:00:00Z" };
+    act(() => publishContentRefresh([FORMS_LIST_RESOURCE]));
+    await waitFor(() => expect(result.current.forms?.map((form) => form.id)).toEqual(["old", "new"]));
+  });
   it("loads forms on mount from the fake port's seed, with no fetch involved", async () => {
     const networkMock = vi.fn();
     vi.stubGlobal("fetch", networkMock);

@@ -40,7 +40,7 @@ Product calls that govern future work. Dates are when the owner said it. Archive
 - **Public file URLs (09-23):** serve only files something published uses, plus a user-changeable setting, default protected.
 - **Users (09-24):** owner/admin keep resetting others' passwords (add an info icon saying why); owner + built-in admin role may trash/restore/purge users; NO production lockout on the default password; first start with admin/tovu-dev is OK on localhost with a dismissible "change your password before deploying" banner.
 - **Tovu Starter (09-27):** a copy of Tovu Theme with all Tovu stuff stripped; default for every desktop app and zip; never touch the active Tovu theme.
-- **kUInetic CDN (09-27):** "NO exact pin (no hand bumps); use major range kuinetic@0 + local fallback". Currently contradicted by `c91d9849f` (pinned 0.2.3), see the open item below.
+- **kUInetic CDN (09-27):** "NO exact pin (no hand bumps); use major range kuinetic@0 + local fallback". Reconfirmed 10-04; the exact-pin change in `c91d9849f` is reverted in the theme sources.
 - **Storage (09-28):** SQLite is the default; PGlite is an option chosen at site creation with full parity (one PGlite for content, one for chats); the choice is not permanent (PGlite → Supabase Postgres later); PGlite stays hidden until parity. Drop Drizzle after Q1; AI chats live in Postgres schema `ai_chat`; every SQLite site gets a `tovu_migrations` table plus a one-time backup on next boot.
 - **Approvals (09-28):** write-shaped inputs always ask; a `query` input stays always-ask.
 - **Hooks (09-23):** about 20 core hooks now, plus plugin-published namespaced hooks (`acme.invoice.created`) on top of the typed core catalog, low priority.
@@ -139,7 +139,7 @@ plugin install from a local folder/zip, raw-HTML forms, media `createdBy`.
 - **AI disclosure + report link; legal identity/contact inputs** (09-24, L3042/L3303): owner inputs still open: own name as controller, $0 cap vs $50 floor, state/county, tovu.dev vs tovu.com, contact email, form-IP retention.
 
 ### Owner-only actions and calls
-- **kUInetic auto-upgrade vs pin** (needs an owner call): owner said `kuinetic@0` range, no exact pin (09-27, L3519); `c91d9849f` later pinned 0.2.3 because jsDelivr caches `@0` for a week and stale browsers ran 0.2.2. Pick one.
+- **kUInetic auto-upgrade vs pin — resolved 10-04:** owner reconfirmed `kuinetic@0` major range + local fallback, no exact pin (09-27, L3519). Reverted `c91d9849f` in the theme sources. Its reason remains relevant: jsDelivr caches `@0` for a week, so a major-range URL does not guarantee immediate browser freshness.
 - **Delete the stray public branch `codex/test-rigor-w01-postwave-20261001`** (10-02, L3726): still on origin (remote-tracking ref present 10-04).
 - **Codex GitHub app can see the 4 AINSEP repos?** (10-02, L3727): external app permission, check in GitHub.
 - **Dispose of stale release-build clones and scratch artifacts** (09-14/09-21, L1446/L1468/L2622).

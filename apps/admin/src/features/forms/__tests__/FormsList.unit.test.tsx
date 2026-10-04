@@ -95,6 +95,44 @@ afterEach(() => {
   window.history.pushState(null, "", "/");
 });
 
+describe("Created / Updated column", () => {
+  it("replaces Status with both human-readable dates and puts the newest update first", async () => {
+    const recent = { ...DISABLED_FORM, updatedAt: "2026-10-04T16:52:00.000Z" };
+    fetchMock.mockImplementation(routeFetch([{ match: "/forms", handler: () => Promise.resolve(jsonResponse({ data: [ACTIVE_FORM, recent] })) }]));
+    renderScreen(<FormsList />);
+
+    expect(await screen.findByRole("columnheader", { name: "Created / Updated" })).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Status" })).not.toBeInTheDocument();
+    const recentRow = await rowFor("Newsletter");
+    // Browser time zone varies across machines; use known calendar dates and require the time.
+    const dateCell = within(recentRow).getAllByRole("cell")[2];
+    expect(dateCell.textContent).toMatch(/^Created .*2026.* · Updated .*2026/);
+    expect(dateCell.textContent).toMatch(/\d{1,2}:\d{2}/);
+    expect(dateCell.textContent).not.toContain("T16:52");
+    const rows = screen.getAllByRole("row").slice(1);
+    expect(within(rows[0]).getByRole("link", { name: "Newsletter" })).toBeInTheDocument();
+    expect(within(rows[1]).getByRole("link", { name: "Contact" })).toBeInTheDocument();
+  });
+
+  it("uses the stored admin locale for the header, event labels and date formatting", async () => {
+    vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url.includes("/settings/effective")) {
+        return Promise.resolve(jsonResponse({ data: [{ key: "locale", value: "de" }] }));
+      }
+      return fetchMock(input, init);
+    });
+    fetchMock.mockImplementation(routeFetch([{ match: "/forms", handler: () => Promise.resolve(jsonResponse({ data: [ACTIVE_FORM] })) }]));
+    renderScreen(<FormsList />);
+
+    expect(await screen.findByRole("columnheader", { name: "Erstellt / Aktualisiert" })).toBeInTheDocument();
+    const dateCell = within(await rowFor("Contact")).getAllByRole("cell")[2];
+    expect(dateCell.textContent).toMatch(/^Erstellt .* · Aktualisiert /);
+    expect(dateCell.textContent).toMatch(/(?:Juni|Juli)/);
+    expect(dateCell.textContent).not.toContain("Jul ");
+  });
+});
+
 describe("More column", () => {
   it("renders a More header and one RowMenu trigger per row", async () => {
     fetchMock.mockImplementation(routeFetch([{ match: "/forms", handler: () => Promise.resolve(jsonResponse({ data: [ACTIVE_FORM, DISABLED_FORM] })) }]));
@@ -222,6 +260,16 @@ describe("delete (T7a, move to Trash)", () => {
 });
 
 describe("status toggle", () => {
+  // The list no longer has a Status column (owner 2026-10-04: "Created / Updated" replaced it),
+  // so the row's current status is observable through its own toggle item: "Disable" while
+  // active, "Enable" while disabled. findByRole retries, so this also waits out the refetch.
+  async function expectToggleItem(user: ReturnType<typeof userEvent.setup>, row: HTMLElement, formName: string, label: "Enable" | "Disable") {
+    await user.click(within(row).getByRole("button", { name: `Actions for form "${formName}"` }));
+    expect(await screen.findByRole("menuitem", { name: label })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: label === "Enable" ? "Disable" : "Enable" })).not.toBeInTheDocument();
+    await user.keyboard("{Escape}");
+  }
+
   it("selecting Disable PUTs status: disabled and updates the row's badge via the invalidated list refetch", async () => {
     const user = userEvent.setup();
     // Stateful GET handler (2026-08-12, `lib/fetch-query` migration) — the toggle mutation no
@@ -251,7 +299,7 @@ describe("status toggle", () => {
     await user.click(within(row).getByRole("button", { name: 'Actions for form "Contact"' }));
     await user.click(screen.getByRole("menuitem", { name: "Disable" }));
 
-    await waitFor(() => expect(within(row).getByText("disabled")).toBeInTheDocument());
+    await expectToggleItem(user, row, "Contact", "Enable");
     const putCall = fetchMock.mock.calls.find(([, init]) => (init as RequestInit | undefined)?.method === "PUT");
     expect(putCall).toBeTruthy();
     const putBody = JSON.parse(String((putCall![1] as RequestInit).body));
@@ -286,7 +334,7 @@ describe("status toggle", () => {
     await user.click(within(row).getByRole("button", { name: 'Actions for form "Newsletter"' }));
     await user.click(screen.getByRole("menuitem", { name: "Enable" }));
 
-    await waitFor(() => expect(within(row).getByText("active")).toBeInTheDocument());
+    await expectToggleItem(user, row, "Newsletter", "Disable");
     const putCall = fetchMock.mock.calls.find(([, init]) => (init as RequestInit | undefined)?.method === "PUT");
     expect(JSON.parse(String((putCall![1] as RequestInit).body))).toEqual({ status: "active" });
   });
@@ -312,7 +360,7 @@ describe("status toggle", () => {
     expect(await screen.findByText("boom")).toBeInTheDocument();
     // Still on screen — the table did not disappear behind a full-page error.
     expect(screen.getByRole("link", { name: "Contact" })).toBeInTheDocument();
-    expect(within(row).getByText("active")).toBeInTheDocument();
+    await expectToggleItem(user, row, "Contact", "Disable");
   });
 
   it("guards against a second toggle firing while the first is still in flight (RowMenu has no per-item disabled, so the guard lives in useFormsList's own toggleStatus)", async () => {
@@ -358,7 +406,7 @@ describe("status toggle", () => {
     // invalidation-triggered refetch's microtask reads it.
     current = { ...current, status: "disabled" };
     resolvePut(jsonResponse({ data: current }));
-    await waitFor(() => expect(within(row).getByText("disabled")).toBeInTheDocument());
+    await expectToggleItem(user, row, "Contact", "Enable");
   });
 });
 

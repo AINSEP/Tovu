@@ -38,6 +38,39 @@ import type { QueryKey } from "../../lib/fetch-query";
  */
 export const FORMS_LIST_RESOURCE = "forms";
 
+/** The list has no sort control: recently edited forms belong first. Copy before sorting so
+ * the query cache and injected repository keep their own order; ties retain response order. */
+export function newestUpdatedForms(
+  { forms }: { forms: readonly AdminFormDefinition[] },
+  _optional: Record<string, never> = {},
+): AdminFormDefinition[] {
+  return [...forms].sort((a, b) =>
+    (Date.parse(b.updatedAt) || 0) - (Date.parse(a.updatedAt) || 0));
+}
+
+/** Form-specific date copy. The shared admin timestamp helper intentionally slices ISO text
+ * and its relative helper is English-only; these two events need the operator's locale and
+ * browser time zone. Absolute dates remain accurate while the list stays open without a timer. */
+export function formDatesLabel(
+  { form, locale, t }: {
+    form: Pick<AdminFormDefinition, "createdAt" | "updatedAt">;
+    locale: string;
+    t: (key: string) => string;
+  },
+  { timeZone }: { timeZone?: string } = {},
+): string {
+  const formatter = new Intl.DateTimeFormat(locale, {
+    year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone,
+  });
+  const dateLabel = (iso: string): string => {
+    const date = new Date(iso);
+    return Number.isNaN(date.getTime()) ? "—" : formatter.format(date);
+  };
+  return t("Created {created} · Updated {updated}")
+    .replace("{created}", dateLabel(form.createdAt))
+    .replace("{updated}", dateLabel(form.updatedAt));
+}
+
 export const KEYS = {
   list: ["forms", "list"] as QueryKey,
   form: (id: string): QueryKey => ["forms", "detail", id],

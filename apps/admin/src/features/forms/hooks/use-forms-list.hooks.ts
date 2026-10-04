@@ -1,9 +1,9 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { AdminFormDefinition } from "@/lib/api";
 import { useFetchMutation, useFetchQuery, useInvalidate } from "@/lib/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
-import { FORMS_LIST_RESOURCE, KEYS, describeTrashError, formsListError } from "../rules";
+import { FORMS_LIST_RESOURCE, KEYS, describeTrashError, formDatesLabel, formsListError, newestUpdatedForms } from "../rules";
 import { t as translate } from "../forms-i18n";
 import { defaultFormsPort } from "./forms-dependencies.hooks";
 import type { FormsPort } from "./forms-port.hooks";
@@ -50,6 +50,7 @@ import type { FormsPort } from "./forms-port.hooks";
 
 export interface FormsListController {
   forms: AdminFormDefinition[] | null;
+  formatFormDates: (form: AdminFormDefinition) => string;
   error: string | null;
   /** In-flight row action (status toggle, or the confirmed delete) — one at a time, same
    *  `rowSavingId` convention `Posts.tsx`/`Pages.tsx` use for their own row actions. Shared between
@@ -72,7 +73,10 @@ export interface FormsListController {
   t: (key: string) => string;
 }
 
-export function useFormsList(deps: { port: FormsPort; t: (key: string) => string }): FormsListController {
+export function useFormsList(
+  deps: { port: FormsPort; t: (key: string) => string },
+  { locale = "en" }: { locale?: string } = {},
+): FormsListController {
   const { port, t } = deps;
   const list = useFetchQuery({ key: KEYS.list, fetch: () => port.listForms() });
   const invalidate = useInvalidate();
@@ -142,7 +146,8 @@ export function useFormsList(deps: { port: FormsPort; t: (key: string) => string
     }
   }
 
-  const forms = list.data?.data ?? null;
+  const forms = useMemo(() => list.data ? newestUpdatedForms({ forms: list.data.data }) : null, [list.data]);
+  const formatFormDates = (form: AdminFormDefinition) => formDatesLabel({ form, locale, t });
   const error = formsListError({
     toggleError: toggleMutation.error,
     deleteError: deleteMutation.error,
@@ -154,7 +159,7 @@ export function useFormsList(deps: { port: FormsPort; t: (key: string) => string
     versionChangedMessage: t("This item changed since you loaded it. Reload and try again."),
   });
 
-  return { forms, error, rowSavingId, toggleStatus, pendingDelete, setPendingDelete, removeForm, t };
+  return { forms, formatFormDates, error, rowSavingId, toggleStatus, pendingDelete, setPendingDelete, removeForm, t };
 }
 
 /**
@@ -168,5 +173,5 @@ export function useFormsList(deps: { port: FormsPort; t: (key: string) => string
 export function useWiredFormsList(): FormsListController {
   const locale = useAdminLocale();
   const t = (key: string): string => translate(locale, key);
-  return useFormsList({ port: defaultFormsPort, t });
+  return useFormsList({ port: defaultFormsPort, t }, { locale });
 }

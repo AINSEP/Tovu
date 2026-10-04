@@ -16,6 +16,17 @@ import { FORMS_DICT, t } from "../forms-i18n";
 describe("FORMS_DICT: cross-locale key parity", () => {
   const locales = Object.keys(FORMS_DICT);
 
+  it("translates the dates column and preserves both event placeholders in every locale", () => {
+    for (const locale of locales) {
+      expect(FORMS_DICT[locale]["Created / Updated"], locale).toBeTruthy();
+      const template = FORMS_DICT[locale]["Created {created} · Updated {updated}"];
+      expect(template, locale).toContain("{created}");
+      expect(template, locale).toContain("{updated}");
+      expect(template, locale).not.toBe("Created {created} · Updated {updated}");
+    }
+    expect(t("en", "Created / Updated")).toBe("Created / Updated");
+  });
+
   it("covers the same 21 locales the rest of this app's feature dictionaries ship", () => {
     const EXPECTED_LOCALES = [
       "ar", "bn", "de", "es", "fa", "fr", "hi", "hu", "id", "it",

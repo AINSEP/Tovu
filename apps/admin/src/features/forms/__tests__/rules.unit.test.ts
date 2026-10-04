@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { ApiError, type AdminFormDefinition } from "@/lib/api";
-import { describeTrashError, formRowMenuItems, formsListError } from "../rules";
+import { describeTrashError, formDatesLabel, formRowMenuItems, formsListError, newestUpdatedForms } from "../rules";
+import { t } from "../forms-i18n";
 
 /**
  * @file T7a (2026-09-21) pure-logic coverage: the forms-delete confirm flow's `RowMenu` items, its
@@ -26,6 +27,40 @@ function form(overrides: Partial<AdminFormDefinition> = {}): AdminFormDefinition
     ...overrides,
   };
 }
+
+describe("forms list dates", () => {
+  const datedForm = form({ createdAt: "2026-10-04T09:52:00Z", updatedAt: "2026-10-05T14:03:00Z" });
+
+  it("formats both distinct events in English with a controllable time zone", () => {
+    expect(formDatesLabel({ form: datedForm, locale: "en-US", t: (key) => key }, { timeZone: "UTC" }))
+      .toBe("Created Oct 4, 2026, 9:52 AM · Updated Oct 5, 2026, 2:03 PM");
+    expect(formDatesLabel({ form: datedForm, locale: "en-US", t: (key) => key }, { timeZone: "America/Los_Angeles" }))
+      .toBe("Created Oct 4, 2026, 2:52 AM · Updated Oct 5, 2026, 7:03 AM");
+  });
+
+  it("localizes event labels and calendar dates together", () => {
+    expect(formDatesLabel({ form: datedForm, locale: "de", t: (key) => t("de", key) }, { timeZone: "UTC" }))
+      .toBe("Erstellt 4. Okt. 2026, 9:52 · Aktualisiert 5. Okt. 2026, 14:03");
+  });
+
+  it("tolerates missing or malformed dates without hiding the valid event", () => {
+    expect(formDatesLabel({ form: { createdAt: "", updatedAt: datedForm.updatedAt }, locale: "en-US", t: (key) => key }, { timeZone: "UTC" }))
+      .toBe("Created — · Updated Oct 5, 2026, 2:03 PM");
+    expect(formDatesLabel({ form: { createdAt: "invalid", updatedAt: "invalid" }, locale: "en-US", t: (key) => key }))
+      .toBe("Created — · Updated —");
+  });
+
+  it("sorts by update instant, preserves ties and never mutates the input", () => {
+    const older = form({ id: "old", createdAt: "2026-10-04T00:00:00Z", updatedAt: "2026-08-01T00:00:00Z" });
+    const newer = form({ id: "new", updatedAt: "2026-10-04T09:52:00Z" });
+    const sameInstant = form({ id: "tie", updatedAt: "2026-10-04T02:52:00-07:00" });
+    const invalid = form({ id: "invalid", updatedAt: "bad" });
+    const forms = Object.freeze([older, newer, invalid, sameInstant]);
+    expect(newestUpdatedForms({ forms }).map((entry) => entry.id)).toEqual(["new", "tie", "old", "invalid"]);
+    expect(forms.map((entry) => entry.id)).toEqual(["old", "new", "invalid", "tie"]);
+    expect(newestUpdatedForms({ forms: [] })).toEqual([]);
+  });
+});
 
 describe("describeTrashError", () => {
   const versionChangedMessage = "This item changed since you loaded it. Reload and try again.";

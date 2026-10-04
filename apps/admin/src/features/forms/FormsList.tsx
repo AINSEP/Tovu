@@ -4,7 +4,7 @@ import { agentHandle } from "@jini-ai/agentic";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { formRowMenuItems } from "./rules";
 import { useWiredFormsList } from "./hooks/use-forms-list.hooks";
-import { RecipientLabel, ServerLabel } from "@/components/status-labels";
+import { RecipientLabel } from "@/components/status-labels";
 import { PublishSectionButton } from "../publish-content/PublishSectionButton";
 
 /**
@@ -44,7 +44,7 @@ export interface FormsListProps {
 }
 
 export function FormsList({ useFormsListHook = useWiredFormsList }: FormsListProps = {}) {
-  const { forms, error, rowSavingId, toggleStatus, pendingDelete, setPendingDelete, removeForm, t } = useFormsListHook();
+  const { forms, formatFormDates, error, rowSavingId, toggleStatus, pendingDelete, setPendingDelete, removeForm, t } = useFormsListHook();
 
   if (error && !forms) return <div className="notice error">{error}</div>;
   if (!forms) return <div className="notice">{t("Loading forms…")}</div>;
@@ -117,9 +117,9 @@ export function FormsList({ useFormsListHook = useWiredFormsList }: FormsListPro
           },
           { key: "slug", header: t("Slug"), cell: (form) => form.slug },
           {
-            key: "status",
-            header: t("Status"),
-            cell: (form) => <span className={`status status-${form.status}`}><ServerLabel value={form.status} /></span>,
+            key: "dates",
+            header: t("Created / Updated"),
+            cell: (form) => formatFormDates(form),
           },
           { key: "fields", header: t("Fields"), cell: (form) => form.fields.length },
           {

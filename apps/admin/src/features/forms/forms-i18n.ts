@@ -11,6 +11,8 @@ import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
 export const FORMS_DICT: Record<string, Record<string, string>> = {
   es: {
+    "Created / Updated": "Creado / Actualizado",
+    "Created {created} · Updated {updated}": "Creado {created} · Actualizado {updated}",
     "Builder": "Constructor",
     "HTML": "HTML",
     "Form authoring mode": "Modo de edición del formulario",
@@ -87,6 +89,8 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Actions for form \"{name}\"": "Acciones para el formulario \"{name}\"",
   },
   id: {
+    "Created / Updated": "Dibuat / Diperbarui",
+    "Created {created} · Updated {updated}": "Dibuat {created} · Diperbarui {updated}",
     "Builder": "Pembuat",
     "HTML": "HTML",
     "Form authoring mode": "Mode penyusunan formulir",
@@ -145,6 +149,8 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Actions for form \"{name}\"": "Tindakan untuk formulir \"{name}\"",
   },
   de: {
+    "Created / Updated": "Erstellt / Aktualisiert",
+    "Created {created} · Updated {updated}": "Erstellt {created} · Aktualisiert {updated}",
     "Builder": "Baukasten",
     "HTML": "HTML",
     "Form authoring mode": "Formularbearbeitungsmodus",
@@ -205,6 +211,8 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Actions for form \"{name}\"": "Aktionen für Formular \"{name}\"",
   },
   "zh-CN": {
+    "Created / Updated": "创建 / 更新",
+    "Created {created} · Updated {updated}": "创建于 {created} · 更新于 {updated}",
     "Builder": "构建器",
     "HTML": "HTML",
     "Form authoring mode": "表单编写模式",
@@ -262,6 +270,8 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Actions for form \"{name}\"": "表单\"{name}\"的操作",
   },
   "zh-TW": {
+    "Created / Updated": "建立 / 更新",
+    "Created {created} · Updated {updated}": "建立於 {created} · 更新於 {updated}",
     "Builder": "建構工具",
     "HTML": "HTML",
     "Form authoring mode": "表單編寫模式",
@@ -319,6 +329,8 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Actions for form \"{name}\"": "表單\"{name}\"的操作",
   },
   "pt-BR": {
+    "Created / Updated": "Criado / Atualizado",
+    "Created {created} · Updated {updated}": "Criado {created} · Atualizado {updated}",
     "Builder": "Construtor",
     "HTML": "HTML",
     "Form authoring mode": "Modo de edição do formulário",
@@ -378,6 +390,8 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Actions for form \"{name}\"": "Ações para o formulário \"{name}\"",
   },
   ru: {
+    "Created / Updated": "Создано / Обновлено",
+    "Created {created} · Updated {updated}": "Создано {created} · Обновлено {updated}",
     "Builder": "Конструктор",
     "HTML": "HTML",
     "Form authoring mode": "Режим редактирования формы",
@@ -437,6 +451,8 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Actions for form \"{name}\"": "Действия для формы \"{name}\"",
   },
   fa: {
+    "Created / Updated": "ایجاد / به‌روزرسانی",
+    "Created {created} · Updated {updated}": "ایجاد {created} · به‌روزرسانی {updated}",
     "Builder": "فرم‌ساز",
     "HTML": "HTML",
     "Form authoring mode": "حالت ویرایش فرم",
@@ -495,6 +511,8 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Actions for form \"{name}\"": "عملیات مربوط به فرم \"{name}\"",
   },
   ar: {
+    "Created / Updated": "الإنشاء / التحديث",
+    "Created {created} · Updated {updated}": "أُنشئ {created} · حُدّث {updated}",
     "Builder": "منشئ النماذج",
     "HTML": "HTML",
     "Form authoring mode": "وضع تحرير النموذج",
@@ -552,6 +570,8 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Actions for form \"{name}\"": "إجراءات لنموذج \"{name}\"",
   },
   ja: {
+    "Created / Updated": "作成 / 更新",
+    "Created {created} · Updated {updated}": "作成 {created} · 更新 {updated}",
     "Builder": "ビルダー",
     "HTML": "HTML",
     "Form authoring mode": "フォームの編集モード",
@@ -610,6 +630,8 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Actions for form \"{name}\"": "フォーム\"{name}\"の操作",
   },
   ko: {
+    "Created / Updated": "생성 / 수정",
+    "Created {created} · Updated {updated}": "생성 {created} · 수정 {updated}",
     "Builder": "빌더",
     "HTML": "HTML",
     "Form authoring mode": "양식 작성 모드",
@@ -667,6 +689,8 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Actions for form \"{name}\"": "양식 \"{name}\" 작업",
   },
   pl: {
+    "Created / Updated": "Utworzono / Zaktualizowano",
+    "Created {created} · Updated {updated}": "Utworzono {created} · Zaktualizowano {updated}",
     "Builder": "Kreator",
     "HTML": "HTML",
     "Form authoring mode": "Tryb edycji formularza",
@@ -726,6 +750,8 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Actions for form \"{name}\"": "Działania dla formularza \"{name}\"",
   },
   hu: {
+    "Created / Updated": "Létrehozva / Frissítve",
+    "Created {created} · Updated {updated}": "Létrehozva {created} · Frissítve {updated}",
     "Builder": "Űrlapkészítő",
     "HTML": "HTML",
     "Form authoring mode": "Űrlapszerkesztési mód",
@@ -786,6 +812,8 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Actions for form \"{name}\"": "Műveletek: űrlap \"{name}\"",
   },
   fr: {
+    "Created / Updated": "Créé / Mis à jour",
+    "Created {created} · Updated {updated}": "Créé {created} · Mis à jour {updated}",
     "Builder": "Constructeur",
     "HTML": "HTML",
     "Form authoring mode": "Mode de rédaction du formulaire",
@@ -846,6 +874,8 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Actions for form \"{name}\"": "Actions pour le formulaire \"{name}\"",
   },
   uk: {
+    "Created / Updated": "Створено / Оновлено",
+    "Created {created} · Updated {updated}": "Створено {created} · Оновлено {updated}",
     "Builder": "Конструктор",
     "HTML": "HTML",
     "Form authoring mode": "Режим редагування форми",
@@ -905,6 +935,8 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Actions for form \"{name}\"": "Дії для форми \"{name}\"",
   },
   tr: {
+    "Created / Updated": "Oluşturulma / Güncellenme",
+    "Created {created} · Updated {updated}": "Oluşturulma {created} · Güncellenme {updated}",
     "Builder": "Oluşturucu",
     "HTML": "HTML",
     "Form authoring mode": "Form düzenleme modu",
@@ -964,6 +996,8 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Actions for form \"{name}\"": "\"{name}\" formu için işlemler",
   },
   th: {
+    "Created / Updated": "สร้าง / อัปเดต",
+    "Created {created} · Updated {updated}": "สร้าง {created} · อัปเดต {updated}",
     "Builder": "ตัวสร้าง",
     "HTML": "HTML",
     "Form authoring mode": "โหมดแก้ไขแบบฟอร์ม",
@@ -1022,6 +1056,8 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Actions for form \"{name}\"": "การดำเนินการสำหรับแบบฟอร์ม \"{name}\"",
   },
   it: {
+    "Created / Updated": "Creato / Aggiornato",
+    "Created {created} · Updated {updated}": "Creato {created} · Aggiornato {updated}",
     "Builder": "Generatore",
     "HTML": "HTML",
     "Form authoring mode": "Modalità di creazione del modulo",
@@ -1080,6 +1116,8 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Actions for form \"{name}\"": "Azioni per il modulo \"{name}\"",
   },
   hi: {
+    "Created / Updated": "बनाया गया / अपडेट किया गया",
+    "Created {created} · Updated {updated}": "बनाया गया {created} · अपडेट किया गया {updated}",
     "Builder": "फ़ॉर्म निर्माता",
     "HTML": "HTML",
     "Form authoring mode": "फ़ॉर्म संपादन मोड",
@@ -1149,6 +1187,8 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Actions for form \"{name}\"": "फ़ॉर्म \"{name}\" के लिए कार्रवाइयां",
   },
   ur: {
+    "Created / Updated": "تخلیق / تازہ کاری",
+    "Created {created} · Updated {updated}": "تخلیق {created} · تازہ کاری {updated}",
     "Builder": "فارم ساز",
     "HTML": "HTML",
     "Form authoring mode": "فارم کی تدوین کا طریقہ",
@@ -1218,6 +1258,8 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Actions for form \"{name}\"": "فارم \"{name}\" کے لیے کارروائیاں",
   },
   bn: {
+    "Created / Updated": "তৈরি / হালনাগাদ",
+    "Created {created} · Updated {updated}": "তৈরি {created} · হালনাগাদ {updated}",
     "Builder": "ফর্ম নির্মাতা",
     "HTML": "HTML",
     "Form authoring mode": "ফর্ম সম্পাদনার ধরন",

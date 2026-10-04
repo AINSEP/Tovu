@@ -14,7 +14,7 @@
 <script src="../scripts/theme-toggle.js"></script>
 <!-- kUInetic pre-JS cloak: entrance effects stay hidden until the runtime (end of body) arms them, instead of flashing visible first. Fail-open — see css/kuinetic-cloak.css. The preload starts the CDN fetch now rather than at the end of body. -->
 <link rel="stylesheet" href="../css/kuinetic-cloak.css" />
-<link rel="preload" href="https://cdn.jsdelivr.net/npm/kuinetic@0.2.3/dist/kuinetic.all.min.js" as="script" crossorigin="anonymous" />
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/kuinetic@0/dist/kuinetic.all.min.js" as="script" crossorigin="anonymous" />
 <script src="../scripts/kui-cloak.js"></script>
 </head>
 <body>
@@ -49,7 +49,7 @@
 
 <script src="../scripts/main.js"></script>
 <!-- kUInetic from jsDelivr @0 (picks up 0.x releases); the vendored copy loads instead when the CDN is unreachable (offline desktop / self-hosted). -->
-<script src="https://cdn.jsdelivr.net/npm/kuinetic@0.2.3/dist/kuinetic.all.min.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/kuinetic@0/dist/kuinetic.all.min.js" crossorigin="anonymous"></script>
 <script>window.kuinetic||document.write('<script src="../scripts/vendor/kuinetic.all.js"><\/script>')</script>
 </body>
 </html>
