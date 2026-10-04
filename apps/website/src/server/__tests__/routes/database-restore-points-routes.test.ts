@@ -205,8 +205,9 @@ test("database restore-points routes: POST 400s (ValidationError) for an 'expens
     body: JSON.stringify({ trigger: "manual" }),
   });
   assert.equal(refused.status, 400);
+  // Jini keeps spec ids out of caller-facing text (owner decision INV-06, see 8995108cc).
   assert.deepEqual(await refused.json(), {
-    error: "AC-26: an 'expensive' restore point requires an explicit costAck; the confirmer must acknowledge the cost/disk estimate first",
+    error: "an 'expensive' restore point requires an explicit costAck; the confirmer must acknowledge the cost/disk estimate first",
     code: "VALIDATION_ERROR",
   });
 
