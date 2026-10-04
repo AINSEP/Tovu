@@ -157,6 +157,5 @@
   "apps/website/src/platform/db/drizzle/meta/0076_snapshot.json": "01876e3f0ab36e7ed1860c057860883be98e721754e770e3fbd61176c19e24c1",
   "apps/website/src/platform/db/drizzle/meta/0058_snapshot.json": "5565bd2074bb84002d2a2726fdf6367302294054f1731607734f561ebfebe62d",
   "apps/website/src/platform/db/migrations/chat/0001_sqlite_chat_tables.ts": "d12f18507f0df3c8eedf1d5abf27380107d2779238127f9f59be3d1382a8235f",
-  "apps/website/src/platform/db/migrations/chat/0000_chat_baseline.ts": "b146767a9ac3adc0b0441fbd637fa28524a4f5870cbfe8e863336fb26a9ae514",
-  "apps/website/src/platform/db/migrations/checksums.ts": "4b39c1df91f388dfb9ce36f0d7e3e6985196ae4b24855ba98d4a265197cef036"
+  "apps/website/src/platform/db/migrations/chat/0000_chat_baseline.ts": "41f0b550301b742dbaadcc9e799dc206f3ec45fad21ff0fe3cf82fa7e55e5c1e"
 }

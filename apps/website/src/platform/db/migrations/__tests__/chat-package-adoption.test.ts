@@ -14,6 +14,7 @@ import { createChatHistoryStore } from "#src/assistant/persistence/chat-history-
 import { hashSessionKey } from "#src/assistant/persistence/tenant-scope";
 import { createChatHistoryStore as beforeAdoption } from "./chat-pre-adoption.fixture.js";
 import { SQLITE_CHAT_STATEMENTS } from "./chat-pre-adoption-schema.fixture.js";
+import { MIGRATION_CHECKSUMS } from "../checksums.js";
 
 const T0 = 1_790_000_000_000;
 const USER = { scopeId: "ws", ownerKind: "user", ownerId: "alice" } as const;
@@ -139,6 +140,16 @@ test("a pre-ledger fixture retains every chat value while adopting only its firs
   } finally { db?.close(); rmSync(dir, { recursive: true, force: true }); }
 });
 
+/** Every pin in checksums.ts at the C3 handoff (5ec1a964d^); later migrations may only add pins. */
+const C3_PINNED_CHECKSUMS: Record<string, string> = {
+  "0000_legacy_baseline": "2dc785cd1a16b371ac1cc8f6798c688d3c2e0a9a489c54535ef1cf8ca324e714",
+  "0001_post_search": "234ca1fdbacd2462582ef55c551f4b5046236384b6e90f799d95fecb944e6795",
+  "chat/0000_chat_baseline": "d7673b2b2ac8af992a396b375fa38da8ffbf852285c772016dc47c82d66d17a9",
+  "0002_drop_empty_legacy_chat_tables": "1e33d7ab4ba950fcfa5c8fdb86d312a571f5e88c2d043e603970ad2914a7583b",
+  "chat/0001_sqlite_chat_tables": "6ab892750dcd9201f17bd05df3f3f69f84a6342d54647984d6c834dd7d5d164f",
+  "0003_coercion_json_as_json": "1135e06ed42097731f6ef16c2c4d826b0b23a171640e50df96517136876e99cf",
+};
+
 test("C3 changes zero bytes in historical SQL, metadata, chat steps or checksum pins", () => {
   const root = process.cwd();
   const expected = JSON.parse(readFileSync(new URL("./chat-package-adoption.sources.json", import.meta.url), "utf8")) as Record<string, string>;
@@ -147,10 +158,14 @@ test("C3 changes zero bytes in historical SQL, metadata, chat steps or checksum 
     ...readdirSync(resolve(root, drizzle)).filter(n => n.endsWith(".sql")).map(n => `${drizzle}/${n}`),
     ...readdirSync(resolve(root, `${drizzle}/meta`)).map(n => `${drizzle}/meta/${n}`),
     ...readdirSync(resolve(root, "apps/website/src/platform/db/migrations/chat")).filter(n => n.endsWith(".ts")).map(n => `apps/website/src/platform/db/migrations/chat/${n}`),
-    "apps/website/src/platform/db/migrations/checksums.ts",
   ];
   assert.deepEqual(actualFiles.sort(), Object.keys(expected).sort());
   for (const [file, hash] of Object.entries(expected)) {
     assert.equal(createHash("sha256").update(readFileSync(resolve(root, file))).digest("hex"), hash, `${file}: historical bytes changed after the C3 handoff`);
+  }
+  // checksums.ts legitimately grows a pin per new migration (0004 landed after C3), so its raw
+  // bytes cannot be frozen; what C3 must not touch is every pin that existed at the handoff.
+  for (const [id, checksum] of Object.entries(C3_PINNED_CHECKSUMS)) {
+    assert.equal(MIGRATION_CHECKSUMS[id], checksum, `checksums.ts: pin '${id}' changed after the C3 handoff`);
   }
 });
