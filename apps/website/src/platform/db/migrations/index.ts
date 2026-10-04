@@ -7,6 +7,7 @@ import { coercionJsonAsJson } from "./0003_coercion_json_as_json.js";
 import { dropUnusedDeploymentTables } from "./0004_drop_unused_deployment_tables.js";
 import { chatBaseline } from "./chat/0000_chat_baseline.js";
 import { sqliteChatTables } from "./chat/0001_sqlite_chat_tables.js";
+import { mediaCreatedBy } from "./0005_media_createdby.js";
 import { MIGRATION_CHECKSUMS } from "./checksums.js";
 import { LEDGER_TABLE, type MigrationReport, runMigrations } from "./runner.js";
 import type { MigrationStep } from "./step.js";
@@ -35,6 +36,7 @@ export const CONTENT_MIGRATIONS: readonly MigrationStep[] = [
   dropEmptyLegacyChatTables(pinned("0002_drop_empty_legacy_chat_tables")),
   coercionJsonAsJson(pinned("0003_coercion_json_as_json")),
   dropUnusedDeploymentTables({ checksum: pinned("0004_drop_unused_deployment_tables") }),
+  mediaCreatedBy({ checksum: pinned("0005_media_createdby") }),
 ];
 
 export const CHAT_MIGRATIONS: readonly MigrationStep[] = [

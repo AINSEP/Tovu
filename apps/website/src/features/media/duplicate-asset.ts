@@ -1,12 +1,12 @@
 import {
   findMediaByIdOrSlug,
   updateMediaMetadata,
-  uploadMedia,
   sniffContentType,
   type MediaRecord,
   type MediaToolDeps,
 } from "@jini-ai/cms/media";
 import { ToolInputError } from "@jini-ai/core";
+import { uploadMedia } from "./created-by.js";
 
 import type { DuplicateResourceHandlerContributor } from "#src/assistant/index";
 import type { MediaPublicUrlDeps } from "./tool-registrations.js";

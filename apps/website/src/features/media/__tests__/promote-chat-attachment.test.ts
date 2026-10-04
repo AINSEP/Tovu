@@ -199,6 +199,8 @@ describe("media_promote_chat_attachment (end to end)", () => {
       assert.equal(row.alt, "A mountain at sunrise");
       assert.equal(row.caption, "Summer cover");
       assert.equal(row.credit, "Jane Photographer");
+      assert.equal((row as { createdBy?: string }).createdBy, PRINCIPAL_ID,
+        "promotion must stamp the current actor, not the attachment/blob owner or editable credit");
       assert.equal(out.media.sha256, createHash("sha256").update(AVIF_BYTES).digest("hex"));
       const blob = await assetBlobRepo.findByHash({ workspaceId: WORKSPACE_ID, sha256: out.media.sha256 });
       assert.ok(blob);

@@ -13,6 +13,8 @@ import type { MediaRecord } from "#src/features/media/index";
 
 export interface AdminMediaResponse {
   id: string;
+  /** Stable creation principal ID; NULL means unknown legacy/pre-migration attribution. */
+  createdBy: string | null;
   workspaceId: string;
   title: string;
   /** Human-memorable, unique-per-workspace lookup key (2026-09-07) — see `MediaRecord.slug`'s own
@@ -79,6 +81,7 @@ export interface AdminMediaListEnvelope {
 export function toAdminMediaResponse(media: MediaRecord, contentType: string | null, publicUrl: string | null): AdminMediaResponse {
   return {
     id: media.id,
+    createdBy: media.createdBy ?? null,
     workspaceId: media.workspaceId,
     title: media.title,
     slug: media.slug,

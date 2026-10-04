@@ -69,6 +69,16 @@ function rejection(message: string) {
   };
 }
 
+test("local imports stamp the authenticated owner, ignoring caller attribution", async (t) => {
+  const fixture = await setup(t);
+  fs.writeFileSync(path.join(fixture.rootPath, "created-by.png"), PNG);
+  const result = await fixture.run({ root: "repo", path: "created-by.png", createdBy: "forged" });
+  assert.equal((result.media as { createdBy?: string }).createdBy, "owner");
+  const stored = await fixture.deps.mediaRepo.findById({ workspaceId: "ws-local", id: result.media.id });
+  assert.ok(stored);
+  assert.equal((stored as { createdBy?: string }).createdBy, "owner");
+});
+
 test("catalog schema, domain registration and derived risk declare a permission-gated durable mutation", async (t) => {
   const definition = mediaImportAgentToolCatalog.find((entry) => entry.name === TOOL);
   assert.ok(definition, "media_import_local_file must be in media-import catalog");
@@ -97,7 +107,7 @@ for (const [filename, bytes, contentType, publicUrl, defaultTitle] of [
     const first = await f.run({ root: "custom", path: filename, title: "Summer launch", alt: "A summer scene", caption: "Launch video" });
     const sha256 = createHash("sha256").update(bytes).digest("hex");
     assert.deepEqual(Object.keys(first), ["media"]);
-    assert.deepEqual(first.media, { id: "local-2", slug: "summer-launch", title: "Summer launch", alt: "A summer scene", caption: "Launch video", credit: "", sha256, status: "active", version: 1, publicUrl, sourceUrl: "" });
+    assert.deepEqual(first.media, { id: "local-2", slug: "summer-launch", title: "Summer launch", alt: "A summer scene", caption: "Launch video", createdBy: "owner", credit: "", sha256, status: "active", version: 1, publicUrl, sourceUrl: "" });
     assert.deepEqual(await f.deps.mediaContentTypeStore.getMany({ workspaceId: "ws-local", sha256s: [sha256] }), new Map([[sha256, contentType]]));
     const stored = await f.deps.blobStore.get({ storageKey: `ws/ws-local/blobs/${sha256.slice(0, 2)}/${sha256}` });
     assert.deepEqual(Buffer.from(stored), bytes);

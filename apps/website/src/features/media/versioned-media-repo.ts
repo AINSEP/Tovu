@@ -1,5 +1,6 @@
 import type { UUID } from "@jini-ai/core/primitives";
-import { MediaConflictError, type MediaRecord, type MediaRepoPort, type AssetRenditionRecord } from "@jini-ai/cms/media";
+import { MediaConflictError, type MediaRepoPort, type AssetRenditionRecord } from "@jini-ai/cms/media";
+import { preserveMediaCreator, type MediaRecord } from "./created-by.js";
 
 /**
  * @file `MediaRepoPort` extended with an atomic compare-and-set write, and the in-memory adapter
@@ -24,8 +25,9 @@ import { MediaConflictError, type MediaRecord, type MediaRepoPort, type AssetRen
  * of the upstream port: any `MediaRepoPort` implementation still satisfies every existing caller,
  * and only the publish-import path (which is being fixed here) requires the wider one.
  *
- * Imports types directly from `@jini-ai/cms/media` rather than this directory's own `./index.js`
- * barrel, so the barrel re-exporting THIS file (see `index.ts`) never becomes a cycle.
+ * Imports legacy types directly from `@jini-ai/cms/media` and the additive record from the release
+ * adapter, rather than this directory's own `./index.js` barrel, so the barrel re-exporting THIS
+ * file (see `index.ts`) never becomes a cycle.
  */
 
 /** `MediaRepoPort` plus an atomic compare-and-set write and a create-only insert — the two
@@ -35,6 +37,10 @@ import { MediaConflictError, type MediaRecord, type MediaRepoPort, type AssetRen
  *  `importMediaEntity` compares a caller-supplied `baseVersion` against a row read several awaits
  *  earlier, with real blob-store I/O in between). */
 export interface VersionedMediaRepoPort extends MediaRepoPort {
+  /** Additive release compatibility: the published port's record predates createdBy. */
+  findById(required: { workspaceId: UUID; id: UUID }): Promise<MediaRecord | null>;
+  findBySlug(required: { workspaceId: UUID; slug: string }): Promise<MediaRecord | null>;
+  list(required: { workspaceId: UUID }): Promise<MediaRecord[]>;
   /** Explicit file replacement, separate from metadata/import's write-once source rule.
    * The source compare-and-set and rendition invalidation MUST commit atomically. Hosts
    * without that transaction capability omit this method and the route refuses the command.
@@ -144,7 +150,7 @@ export class InMemoryVersionedMediaRepo implements VersionedMediaRepoPort {
     if (index === -1) {
       this.rows.push(record);
     } else {
-      this.rows[index] = record;
+      this.rows[index] = preserveMediaCreator({ record, original: this.rows[index] });
     }
     this.retireSlug(record.workspaceId, record.id, priorSlug, record.slug, record.updatedAt);
   }
@@ -175,7 +181,7 @@ export class InMemoryVersionedMediaRepo implements VersionedMediaRepoPort {
     if (index === -1 || this.rows[index].version !== ifVersion) return { applied: false };
     this.reclaimOwnSlug(record.workspaceId, record.id, record.slug);
     const priorSlug = this.rows[index].slug;
-    this.rows[index] = record;
+    this.rows[index] = preserveMediaCreator({ record, original: this.rows[index] });
     this.retireSlug(record.workspaceId, record.id, priorSlug, record.slug, record.updatedAt);
     return { applied: true };
   }

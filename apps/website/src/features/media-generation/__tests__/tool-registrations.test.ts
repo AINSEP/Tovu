@@ -168,6 +168,19 @@ function executionContext(input: Record<string, unknown>): ToolExecutionContext 
   return { executionId: "exec-1", principal: { id: PRINCIPAL_ID }, run: { id: "run-1" }, input, signal: new AbortController().signal };
 }
 
+test("generated assets stamp the acting principal independently of the model and credit", async () => {
+  const fixture = fakeRouteDeps();
+  await seedOpenAiCredential(fixture);
+  const result = await wired("media_generate_asset", fixture.deps).handler(executionContext({
+    prompt: "A green bicycle", credit: "Editorial credit", createdBy: "forged-source-actor",
+  })) as { media: { id: string; createdBy: string } };
+  assert.equal(result.media.createdBy, PRINCIPAL_ID);
+  const stored = await fixture.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: result.media.id });
+  assert.ok(stored);
+  assert.equal((stored as { createdBy?: string }).createdBy, PRINCIPAL_ID);
+  assert.equal(stored.credit, "Editorial credit");
+});
+
 function catalogEntry(toolId: string): AgentToolDefinition {
   const entry = mediaGenerationAgentToolCatalog.find((tool) => tool.name === toolId);
   assert.ok(entry, `catalog has no entry for '${toolId}'`);
@@ -254,7 +267,7 @@ test("with a saved credential: generates through the injected seam, uploads the 
   await seedPublicTransform(transformDefinitionRepo);
 
   const out = (await wired("media_generate_asset", deps).handler(executionContext({ prompt: "a red bicycle on a beach" }))) as {
-    media: { id: string; slug: string; title: string; alt: string; caption: string; credit: string; sha256: string; status: string; version: number; placeholder: boolean; publicUrl: string | null };
+    media: { id: string; slug: string; title: string; alt: string; caption: string; credit: string; sha256: string; status: string; version: number; placeholder: boolean; publicUrl: string | null; createdBy: string | null };
   };
 
   assert.equal(generateCalls.length, 1);
@@ -276,7 +289,8 @@ test("with a saved credential: generates through the injected seam, uploads the 
   assert.equal(createHash("sha256").update(storedBytes).digest("hex"), out.media.sha256);
   assert.equal(out.media.publicUrl, `/m/${out.media.slug}/public.v1/image.webp`);
   assert.equal(out.media.placeholder, false, "a real (non-stub) generation must report placeholder:false");
-  assert.deepEqual(Object.keys(out.media).sort(), ["alt", "caption", "credit", "id", "placeholder", "publicUrl", "sha256", "slug", "status", "title", "version"]);
+  assert.deepEqual(Object.keys(out.media).sort(), ["alt", "caption", "createdBy", "credit", "id", "placeholder", "publicUrl", "sha256", "slug", "status", "title", "version"]);
+  assert.equal(out.media.createdBy, PRINCIPAL_ID, "the view carries the acting principal, like media_upload_asset's");
 });
 
 test("an explicit model is passed through instead of the default", async () => {

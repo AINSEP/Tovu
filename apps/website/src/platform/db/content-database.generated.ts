@@ -499,6 +499,7 @@ export interface IdentityUsersTable {
 export interface MediaTable {
   id: string;
   workspace_id: string;
+  created_by: string | null;
   title: string;
   slug: string | null;
   alt: string;

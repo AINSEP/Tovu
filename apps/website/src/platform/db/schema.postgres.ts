@@ -520,6 +520,7 @@ export const identityUsers = pgTable("identity_users", {
 export const media = pgTable("media", {
   id: text("id").primaryKey(),
   workspaceId: text("workspace_id").notNull(),
+  createdBy: text("created_by"),
   title: text("title").notNull(),
   slug: text("slug"),
   alt: text("alt").notNull(),

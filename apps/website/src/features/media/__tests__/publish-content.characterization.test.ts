@@ -89,6 +89,22 @@ const entity = (record: MediaRecord): PackedEntity => ({
   state: { ...record } as unknown as Record<string, unknown>,
 });
 
+test("creation attribution travels in packed state without changing legacy content hashes", async () => {
+  for (const createdBy of [undefined, null, "source-owner", "destination-agent"]) {
+    const base = await deps();
+    const ports = base.ports.media!;
+    const fixture: PublishContentDeps = { ...base, ports: { ...base.ports,
+      media: { ...ports, repo: new InMemoryVersionedMediaRepo([{ ...PHOTO, createdBy }, BARE]) },
+    } };
+    const handler = contributeMediaPublish().build(fixture);
+    assert.deepEqual(await handler.inspect("media-photo"), { version: 4, hash: PINNED_HASHES["media-photo"] });
+    const packed: PackedEntity[] = [];
+    for await (const item of handler.pack()) packed.push(item);
+    assert.equal(packed[0].contentHash, PINNED_HASHES["media-photo"]);
+    assert.equal(packed[0].state.createdBy ?? null, createdBy ?? null);
+  }
+});
+
 test("pack(): pinned contentHash, required blob and packed state per media row", async () => {
   const packed: PackedEntity[] = [];
   for await (const e of contributeMediaPublish().build(await deps()).pack()) packed.push(e);

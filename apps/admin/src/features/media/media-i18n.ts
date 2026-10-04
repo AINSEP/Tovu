@@ -1636,10 +1636,34 @@ const MEDIA_IMPORT_STRINGS: Record<string, Record<string, string>> = {
   bn: { "Remote image URL": "দূরবর্তী ছবির URL", "Import from URL": "URL থেকে আমদানি করুন", "Importing…": "আমদানি হচ্ছে…", "Imported image alt text (optional)": "আমদানি করা ছবির বিকল্প টেক্সট (ঐচ্ছিক)", "Could not import media.": "মিডিয়া আমদানি করা যায়নি।" },
 };
 
+const MEDIA_PROVENANCE_STRINGS: Record<string, Record<string, string>> = {
+  es: { "Created by": "Creado por", Unknown: "Desconocido" },
+  id: { "Created by": "Dibuat oleh", Unknown: "Tidak diketahui" },
+  de: { "Created by": "Erstellt von", Unknown: "Unbekannt" },
+  "zh-CN": { "Created by": "创建者", Unknown: "未知" },
+  "zh-TW": { "Created by": "建立者", Unknown: "未知" },
+  "pt-BR": { "Created by": "Criado por", Unknown: "Desconhecido" },
+  ru: { "Created by": "Создано пользователем", Unknown: "Неизвестно" },
+  fa: { "Created by": "ایجادشده توسط", Unknown: "نامشخص" },
+  ar: { "Created by": "أنشأه", Unknown: "غير معروف" },
+  ja: { "Created by": "作成者", Unknown: "不明" },
+  ko: { "Created by": "생성자", Unknown: "알 수 없음" },
+  pl: { "Created by": "Utworzone przez", Unknown: "Nieznane" },
+  hu: { "Created by": "Létrehozta", Unknown: "Ismeretlen" },
+  fr: { "Created by": "Créé par", Unknown: "Inconnu" },
+  uk: { "Created by": "Створено користувачем", Unknown: "Невідомо" },
+  tr: { "Created by": "Oluşturan", Unknown: "Bilinmiyor" },
+  th: { "Created by": "สร้างโดย", Unknown: "ไม่ทราบ" },
+  it: { "Created by": "Creato da", Unknown: "Sconosciuto" },
+  hi: { "Created by": "निर्माता", Unknown: "अज्ञात" },
+  ur: { "Created by": "تخلیق کنندہ", Unknown: "نامعلوم" },
+  bn: { "Created by": "তৈরি করেছেন", Unknown: "অজানা" },
+};
+
 export const MEDIA_DICT: Record<string, Record<string, string>> = Object.fromEntries(
   Object.entries(MEDIA_TRANSLATIONS).map(([locale, entries]) => [
     locale,
-    { ...entries, ...(MEDIA_AUDIT_STRINGS[locale] ?? {}), ...(MEDIA_IMPORT_STRINGS[locale] ?? {}) },
+    { ...entries, ...(MEDIA_AUDIT_STRINGS[locale] ?? {}), ...(MEDIA_IMPORT_STRINGS[locale] ?? {}), ...(MEDIA_PROVENANCE_STRINGS[locale] ?? {}) },
   ]),
 );
 

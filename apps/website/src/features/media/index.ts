@@ -16,7 +16,6 @@
 export type {
   MediaStatus,
   MediaSource,
-  MediaRecord,
   AssetBlobStatus,
   AssetBlobRecord,
   AssetRenditionRecord,
@@ -70,7 +69,6 @@ export {
   DEFAULT_MAX_UPLOAD_BYTES,
   DEFAULT_ALLOWED_MIME_TYPES,
   resolveWriteOnceSource,
-  uploadMedia,
   listMedia,
   getMediaById,
   findMediaByIdOrSlug,
@@ -121,6 +119,8 @@ export { mediaAgentToolCatalog } from "@jini-ai/cms/media";
 export type { AgentToolDefinition } from "@jini-ai/core";
 
 export type { MediaContentTypeStorePort } from "./content-type-store.js";
+export { uploadMedia } from "./created-by.js";
+export type { MediaRecord } from "./created-by.js";
 export { InMemoryMediaContentTypeStore } from "./content-type-store.js";
 
 export type { VersionedMediaRepoPort } from "./versioned-media-repo.js";

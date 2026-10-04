@@ -161,6 +161,7 @@ export const mediaImportDerivedRisk: DerivedRiskByToolId = new Map<string, Agent
  *  is: `@jini-ai/cms/media`'s equivalent view type is an internal projection, not public surface. */
 export interface ImportedMediaView {
   id: string;
+  createdBy: string | null;
   /** The asset's short lookup name (2026-09-16) — a page marker can reference this instead of the
    *  long `id`; mirrors `@jini-ai/cms/media`'s own `MediaToolView.slug` addition. */
   slug: string;
@@ -217,6 +218,7 @@ async function persistImportedMedia(required: { routeDeps: MediaImportToolDeps; 
   return {
     media: {
       id: media.id, slug: media.slug, title: media.title, alt: media.alt, caption: media.caption,
+      createdBy: media.createdBy ?? null,
       credit: media.credit, sha256: media.source.sha256, status: media.status, version: media.version,
       publicUrl: urls.get(media.id) ?? null, sourceUrl,
     },

@@ -17,6 +17,7 @@ export const defaultMediaPort: MediaPort = {
   trashMedia: (id) => api.trashMedia(id),
   deleteMedia: (id) => api.deleteMedia(id),
   mediaOriginalUrl: (id) => api.mediaOriginalUrl(id),
+  listUsers: () => api.listUsers(),
 };
 
 /** Seed state for {@link createFakeMediaPort}. */

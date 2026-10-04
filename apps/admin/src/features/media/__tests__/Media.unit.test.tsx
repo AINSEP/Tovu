@@ -1014,6 +1014,33 @@ describe("EditMediaPanel — HTML attributes field", () => {
  * divergent UI), and it renders inside a `<dialog>` (not the old inline `.card`).
  */
 describe("EditMediaModal — eye-icon trigger", () => {
+  it.each(["plugin-api-key", null])("shows read-only creation attribution (%s) in the edit dialog", async (createdBy) => {
+    fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse({
+      media: [{ ...ACTIVE_ITEM, createdBy }],
+    })) }]));
+    const user = userEvent.setup();
+    const { container } = renderScreen();
+    const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
+    await user.click(within(card).getByRole("button", { name: /edit "sunset photo"/i }));
+    const dialog = document.querySelector("dialog.media-edit-dialog")! as HTMLElement;
+    await waitFor(() => expect(dialog.hasAttribute("open")).toBe(true));
+    expect(within(dialog).getByText("Created by")).toBeInTheDocument();
+    expect(within(dialog).getByText(createdBy ?? "Unknown")).toBeInTheDocument();
+    expect(within(dialog).queryByRole("textbox", { name: "Created by" })).not.toBeInTheDocument();
+  });
+  it("names the creator by username when the users list knows the principal", async () => {
+    fetchMock.mockImplementation(routeFetch([
+      { match: "/users", handler: () => Promise.resolve(jsonResponse({ users: [{ principalId: "owner-principal", username: "leona" }] })) },
+      { match: "/media", handler: () => Promise.resolve(jsonResponse({ media: [{ ...ACTIVE_ITEM, createdBy: "owner-principal" }] })) },
+    ]));
+    const user = userEvent.setup();
+    const { container } = renderScreen();
+    const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
+    await user.click(within(card).getByRole("button", { name: /edit "sunset photo"/i }));
+    const dialog = document.querySelector("dialog.media-edit-dialog")! as HTMLElement;
+    expect(await within(dialog).findByText("leona")).toBeInTheDocument();
+    expect(within(dialog).queryByText("owner-principal")).not.toBeInTheDocument();
+  });
   it("the card's eye icon opens the SAME edit form the row menu's 'Edit metadata' opens, inside a <dialog>", async () => {
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
     const user = userEvent.setup();

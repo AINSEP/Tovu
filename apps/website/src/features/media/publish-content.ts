@@ -40,9 +40,12 @@ import { verifyPublishedMedia } from "./verify-published-media.js";
  *
  * ## Hash stability
  *
- * The hash is over the whole record (`legacyHashState`), as before the migration; `content-hash.ts`
- * drops `id`/`workspaceId`/`version`/`updatedAt` itself. The packed state is the whole record too,
- * because `importMediaEntity` spreads it into the destination row.
+ * The hash retains the legacy whole-record input; `content-hash.ts` drops
+ * `id`/`workspaceId`/`version`/`updatedAt` itself. The new `createdBy` is also excluded: the
+ * destination stamps its own applying principal, so comparing creator IDs as content would make
+ * an unchanged asset appear to drift after every publish. Legacy hashes remain byte-identical.
+ * Packed state still includes known attribution for export, because `importMediaEntity` spreads
+ * it into the destination row before preserving/stamping the destination's own creation actor.
  */
 
 /** Machine-readable cause for a refused media apply. One discriminant rather than one error class
@@ -87,6 +90,7 @@ export class MediaApplyConflictError extends PublishContentApplyRowError {
  *  The dispositions document intent only: the hash is `legacyHashState`'s. */
 const MEDIA_FIELDS: Record<keyof MediaRecord, FieldDisposition> = {
   id: "provenance",
+  createdBy: "provenance",
   workspaceId: "provenance",
   title: "transferred",
   slug: "transferred",
@@ -116,7 +120,10 @@ export const contributeMediaPublish = (): PublishContentContributor =>
     fields: MEDIA_FIELDS,
     // Packed exactly as the row holds it: an absent field stays absent rather than becoming `null`.
     omitWhenAbsent: Object.keys(MEDIA_FIELDS),
-    legacyHashState: (row) => ({ ...row }),
+    legacyHashState: (row) => {
+      const { createdBy: _creator, ...legacyState } = row;
+      return legacyState;
+    },
     requiredBlobs: (row) => [row.source.sha256],
     // Other media this item names by a `/m/{key}/` URL in its own `htmlAttributes` — a video's
     // `poster`, chiefly — travel with it, or the destination renders a poster URL that 404s.

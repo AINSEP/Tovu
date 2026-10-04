@@ -50,6 +50,24 @@ function makeIdGen(prefix = "generated") {
   return { newId: () => `${prefix}-${++n}` };
 }
 
+test("media provenance: destination creates use the applying actor and updates keep that actor", async () => {
+  const deps = makeDeps();
+  const record = makeMediaRecord({ createdBy: "source-claim" });
+  const first = await importMediaEntity({ deps, input: { workspaceId: WORKSPACE_ID, record,
+    bytes: HELLO_BYTES, blobCreatedByPrincipal: "destination-agent", baseVersion: null } });
+  assert.equal(first.status, "imported");
+  const stored = await deps.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: record.id });
+  assert.equal(stored?.createdBy, "destination-agent");
+  const update = await importMediaEntity({ deps, input: { workspaceId: WORKSPACE_ID,
+    record: { ...record, createdBy: "another-source-claim", title: "Updated" },
+    bytes: HELLO_BYTES, blobCreatedByPrincipal: "different-importer", baseVersion: 1 } });
+  assert.equal(update.status, "imported");
+  const updated = await deps.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: record.id });
+  assert.equal(updated?.createdBy, "destination-agent");
+  assert.equal(updated?.title, "Updated");
+  assert.equal((await deps.assetBlobRepo.findByHash({ workspaceId: WORKSPACE_ID, sha256: HELLO_SHA256 }))?.createdByPrincipal, "destination-agent");
+});
+
 function makeMediaRecord(overrides: Partial<MediaRecord> = {}): MediaRecord {
   return {
     id: "source-asset-1",

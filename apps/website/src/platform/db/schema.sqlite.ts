@@ -1374,6 +1374,8 @@ export const media = sqliteTable(
   {
     id: text("id").primaryKey(),
     workspaceId: text("workspace_id").notNull(),
+    /** Creation principal, write-once; legacy NULL stays unknown. Never inferred from credit/blob. */
+    createdBy: text("created_by"),
     title: text("title").notNull(),
     /**
      * Human-memorable lookup key (owner-directed, 2026-09-07) — ADDITIONAL to `id`, never a

@@ -352,6 +352,7 @@ function EditMediaPanel(props: EditMediaPanelProps) {
     copyHash,
     copyUrl,
     copyEmbedCode,
+    createdByLabel,
     save,
   } = useEditMediaPanelHook({ item, onSaved, onCancel });
 
@@ -368,6 +369,9 @@ function EditMediaPanel(props: EditMediaPanelProps) {
           {t("Editing")} "{item.title}"
         </h2>
       </div>
+      <p className="jini-hint media-edit-created-by">
+        <span>{t("Created by")}</span>: <span>{createdByLabel}</span>
+      </p>
       {/* Field layout per the OD reference (od-settings-external-mcp-customform.png): uppercase
           letterspaced label above its control (`.field-label`), short fields pairing into a
           row (`.field-row`) instead of every field stacking full-width regardless of length. */}

@@ -55,6 +55,8 @@ export interface MediaPort {
   ): Promise<{ media: AdminMedia }>;
   trashMedia(id: string): Promise<{ media: AdminMedia }>;
   deleteMedia(id: string): Promise<{ purged: boolean }>;
+  /** Names the edit dialog's "Created by" principal. Optional: a port without it shows raw ids. */
+  listUsers?(): Promise<{ users: ReadonlyArray<{ principalId: string; username: string }> }>;
   /**
    * Synchronous URL builder for a media asset's authenticated byte-serving preview/original file —
    * NOT a network call itself; see `lib/api.ts`'s own `mediaOriginalUrl` for the exact URL shape.

@@ -2,7 +2,8 @@ import type { Kysely, Selectable } from "kysely";
 
 import type { ContentDatabase, AssetBlobsTable, AssetRenditionsTable, MediaSlugHistoryTable, MediaTable, TransformRegistryTable } from "../content-database.generated.js";
 import type { ContentKernel } from "../content-kernel.js";
-import { isUniqueViolation } from "../kernel/dialect.js";
+import { isUniqueViolation, listColumns } from "../kernel/dialect.js";
+import type { MediaRecord } from "#src/features/media/created-by";
 import type { MediaContentTypeStorePort } from "#src/features/media/content-type-store";
 import type { VersionedMediaRepoPort } from "#src/features/media/versioned-media-repo";
 import type { UUID } from "@jini-ai/core/primitives";
@@ -14,7 +15,6 @@ import type {
   AssetBlobRecord,
   AssetBlobStatus,
   AssetRenditionRecord,
-  MediaRecord,
   MediaStatus,
   TransformDefinitionRecord,
   TransformParams,
@@ -43,9 +43,11 @@ import type {
 
 type ContentQueries = Kysely<ContentDatabase>;
 
-function toMediaRecord(row: Selectable<MediaTable>): MediaRecord {
+function toMediaRecord(row: Selectable<MediaTable> & { created_by?: string | null }): MediaRecord {
   return {
     id: row.id,
+    // selectAll works on both schemas; absence/NULL is honest legacy unknown attribution.
+    ...(row.created_by != null ? { createdBy: row.created_by } : {}),
     workspaceId: row.workspace_id,
     title: row.title,
     // `row.slug` is nullable in the DB (see `schema.sqlite.ts`'s doc: backfilled out of band, not on
@@ -77,7 +79,7 @@ function toMediaRecord(row: Selectable<MediaTable>): MediaRecord {
  *
  * @complexity O(1) — a fixed field-by-field copy, no iteration.
  */
-function toMediaRow(record: MediaRecord): MediaTable {
+function toMediaRow(record: MediaRecord): Omit<MediaTable, "created_by"> {
   return {
     id: record.id,
     workspace_id: record.workspaceId,
@@ -160,6 +162,17 @@ function slugLockKey(workspaceId: UUID): string {
 
 export class SqlMediaRepo implements VersionedMediaRepoPort {
   constructor(protected readonly kernel: ContentKernel) {}
+
+  /** Only creation writes can stamp provenance. Use the existing dialect port to inspect the
+   * optional column before INSERT, avoiding a failed statement that would abort a PG transaction.
+   * Do not cache absence: the owner can install the staged migration while this repo is alive. */
+  private async creationValues(required: { record: MediaRecord }, _optional: Record<string, never> = {}):
+    Promise<Omit<MediaTable, "created_by"> & { created_by?: string | null }> {
+    const { record } = required;
+    const columns = await listColumns(this.kernel, "media");
+    return { ...toMediaRow(record), ...(columns.some(column => column.name === "created_by")
+      ? { created_by: record.createdBy ?? null } : {}) };
+  }
 
   async findById(required: { workspaceId: UUID; id: UUID }): Promise<MediaRecord | null> {
     const row = await this.kernel.run((db) =>
@@ -262,7 +275,7 @@ export class SqlMediaRepo implements VersionedMediaRepoPort {
           if (existingRow) {
             await db.updateTable("media").set(values).where("workspace_id", "=", record.workspaceId).where("id", "=", record.id).execute();
           } else {
-            await db.insertInto("media").values(values).execute();
+            await db.insertInto("media").values(await this.creationValues({ record })).execute();
           }
           if (claimant) await deleteHistoryRow(db, record.workspaceId, record.slug);
           await retireSlug(db, record.workspaceId, record.id, existingRow?.slug ?? null, record.slug, record.updatedAt);
@@ -381,7 +394,7 @@ export class SqlMediaRepo implements VersionedMediaRepoPort {
           assertSlugReclaimable(claimant, record.id, record.slug);
           const inserted = await db
             .insertInto("media")
-            .values(toMediaRow(record))
+            .values(await this.creationValues({ record }))
             .onConflict((oc) => oc.column("id").doNothing())
             .returning("id")
             .execute();

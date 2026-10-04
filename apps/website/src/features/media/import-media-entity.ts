@@ -299,6 +299,9 @@ export async function importMediaEntity(required: {
     // createdAt is write-once, same convention `posts.createdByPrincipalId`/`createdAt` establish
     // (`platform/db/schema.sqlite.ts`) — an existing row keeps its own; a brand-new row takes the source's.
     createdAt: existingById?.createdAt ?? record.createdAt,
+    // Destination creation belongs to the applying principal, never an untrusted source claim.
+    // Updates retain the destination creator, including an honestly unknown legacy value.
+    createdBy: existingById ? existingById.createdBy ?? null : blobCreatedByPrincipal,
     updatedAt: deps.clock.nowIso(),
   };
 

@@ -34,6 +34,17 @@ export const KEYS = {
  */
 export const MEDIA_RESOURCE = "media";
 
+/** Read-only provenance: never derive facts from editorial credit. The caller localizes Unknown.
+ *  `userNames` maps principal id -> username; an id with no known user (API key, removed user,
+ *  or a caller who may not list users) still shows the raw id rather than nothing. */
+export function mediaCreatedByLabel(required: {
+  item: Pick<AdminMedia, "createdBy">; unknownLabel: string;
+}, optional: { userNames?: ReadonlyMap<string, string> } = {}): string {
+  const id = required.item.createdBy;
+  if (!id) return required.unknownLabel;
+  return optional.userNames?.get(id) ?? id;
+}
+
 /** @complexity Time/space: O(1). */
 export function describeApiError(e: unknown, fallback: string): string {
   if (e instanceof ApiError) return e.message || fallback;

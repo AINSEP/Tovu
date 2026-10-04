@@ -296,6 +296,7 @@ function buildNoCredentialError(providerId: string): Error {
  *  package's public surface (an internal projection, not a contract this domain depends on). */
 interface GeneratedMediaView {
   id: string;
+  createdBy: string | null;
   /** The asset's short lookup name (2026-09-16) — a page marker can reference this instead of the
    *  long `id`; mirrors `@jini-ai/cms/media`'s own `MediaToolView.slug` addition. */
   slug: string;
@@ -372,6 +373,7 @@ export function buildMediaGenerationRegistrations(routeDeps: MediaGenerationTool
           return {
             media: {
               id: media.id,
+              createdBy: media.createdBy ?? null,
               slug: media.slug,
               title: media.title,
               alt: media.alt,

@@ -1428,6 +1428,8 @@ export interface AdminWidgetRegionBinding {
 
 export interface AdminMedia {
   id: string;
+  /** Read-only acting principal at creation; absent/null on legacy servers or assets. */
+  createdBy?: string | null;
   workspaceId: string;
   title: string;
   /** Human-memorable, unique-per-workspace lookup key (2026-09-07) — auto-derived from `title` at

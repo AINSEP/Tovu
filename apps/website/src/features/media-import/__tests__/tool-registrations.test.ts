@@ -169,6 +169,21 @@ function executionContext(input: Record<string, unknown>): ToolExecutionContext 
   return { executionId: "exec-1", principal: { id: PRINCIPAL_ID }, run: { id: "run-1" }, input, signal: new AbortController().signal };
 }
 
+test("URL imports attribute each new row to its actor even when the source bytes are shared", async () => {
+  const fixture = fakeRouteDeps({ responses: [imageResponse(REAL_PNG), imageResponse(REAL_PNG)] });
+  for (const actor of ["owner-importing", "plugin-api-key"]) {
+    const result = await wired("media_import_from_url", fixture.deps).handler({
+      ...executionContext({ url: "https://example.com/photo.png", createdBy: "forged", credit: "Higgsfield" }),
+      principal: { id: actor },
+    }) as { media: { id: string; createdBy: string } };
+    assert.equal(result.media.createdBy, actor);
+    const stored = await fixture.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: result.media.id });
+    assert.ok(stored);
+    assert.equal((stored as { createdBy?: string }).createdBy, actor);
+  }
+  assert.equal((await fixture.assetBlobRepo.list({ workspaceId: WORKSPACE_ID })).length, 1);
+});
+
 function catalogEntry(toolId: string): AgentToolDefinition {
   const entry = mediaImportAgentToolCatalog.find((tool) => tool.name === toolId);
   assert.ok(entry, `catalog has no entry for '${toolId}'`);
@@ -186,7 +201,7 @@ function wired(toolId: string, deps: RouteDeps): ToolRegistration {
 }
 
 interface ImportResult {
-  media: { id: string; title: string; alt: string; caption: string; credit: string; sha256: string; status: string; version: number; publicUrl: string | null; sourceUrl: string };
+  media: { id: string; title: string; alt: string; caption: string; credit: string; sha256: string; status: string; version: number; publicUrl: string | null; sourceUrl: string; createdBy: string | null };
 }
 
 // ---------------------------------------------------------------------------
@@ -252,7 +267,8 @@ test("the returned view is the same shape media_upload_asset/media_generate_asse
 
   const out = (await wired("media_import_from_url", deps).handler(executionContext({ url: SOURCE_URL }))) as ImportResult;
 
-  assert.deepEqual(Object.keys(out.media).sort(), ["alt", "caption", "credit", "id", "publicUrl", "sha256", "slug", "sourceUrl", "status", "title", "version"]);
+  assert.deepEqual(Object.keys(out.media).sort(), ["alt", "caption", "createdBy", "credit", "id", "publicUrl", "sha256", "slug", "sourceUrl", "status", "title", "version"]);
+  assert.equal(out.media.createdBy, PRINCIPAL_ID, "the view carries the acting principal, like media_upload_asset's");
   assert.equal(out.media.status, "active");
   assert.equal(out.media.version, 1);
   assert.equal(out.media.publicUrl, "/m/8f3ac91b0e/public.v1/image.webp");

@@ -1,14 +1,15 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import { embedMarkerSnippet } from "@tovu/embed-marker";
 
 import type { AdminMedia } from "@/lib/api";
-import { useFetchMutation } from "@/lib/fetch-query";
+import { useFetchMutation, useFetchQuery } from "@/lib/fetch-query";
 import {
   KEYS,
   describeApiError,
   describeMediaHtmlAttributeError,
   diffMediaMetadata,
+  mediaCreatedByLabel,
   parseMediaHtmlAttributes,
   parseOptionalPixelSize,
   type MediaMetadataPatch,
@@ -131,6 +132,9 @@ export interface EditMediaPanelController {
   /** Copies {@link embedSnippet}. Unlike `copyUrl`, this needs no null-guard: `item.slug` is always
    *  a non-empty string (uploads always derive one, `deriveUniqueMediaSlug`). */
   copyEmbedCode: () => Promise<void>;
+  /** Read-only "Created by": the creator's username when this caller can list users, else the
+   *  raw principal id; localized "Unknown" for legacy rows with no recorded creator. */
+  createdByLabel: string;
   save: () => Promise<void>;
 }
 
@@ -253,6 +257,17 @@ export function useEditMediaPanel(props: EditMediaPanelHookProps, { port, locale
 
   const error = saveMutation.error ? describeApiError(saveMutation.error, t(locale, "failed to save media metadata")) : null;
 
+  const creators = useFetchQuery({
+    key: ["media", "creator-names"],
+    fetch: () => (port.listUsers ? port.listUsers() : Promise.resolve({ users: [] })),
+    enabled: Boolean(item.createdBy),
+  });
+  const userNames = useMemo(
+    () => new Map((creators.data?.users ?? []).map((user) => [user.principalId, user.username] as const)),
+    [creators.data],
+  );
+  const createdByLabel = mediaCreatedByLabel({ item, unknownLabel: t(locale, "Unknown") }, { userNames });
+
   return {
     draft,
     setTitle,
@@ -275,6 +290,7 @@ export function useEditMediaPanel(props: EditMediaPanelHookProps, { port, locale
     copyHash,
     copyUrl,
     copyEmbedCode,
+    createdByLabel,
     save,
   };
 }
