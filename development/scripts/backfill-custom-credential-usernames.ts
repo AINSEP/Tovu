@@ -1,3 +1,4 @@
+import { siteKeyEnvOnlySources } from "../../apps/website/src/features/webhooks/site-key-sources.js";
 /**
  * Populates `custom_credential_sets.username` (`apps/website/src/platform/db/schema.sqlite.ts`, migration
  * `0054`) from the `username` field already sitting inside each row's sealed `{token, username?}`
@@ -359,7 +360,7 @@ async function main(): Promise<void> {
     // whenever the table has any NULL-username row to classify, same as `--apply`. A table with no
     // NULL rows at all (nothing to classify) still needs no key.
     const db = openContentDbReadOnly(dbPath);
-    const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
+    const keyring = new EnvOrFileKeyring({ sources: siteKeyEnvOnlySources({}) });
     const sealer = new AesGcmSecretSealer(keyring);
     const result = await runCustomCredentialUsernameBackfill({ db, sealer, keyring }, { apply: false });
     console.log(
@@ -373,7 +374,7 @@ async function main(): Promise<void> {
   // Constructed before the pending check (moved up from after it): `countPending` now needs to
   // decrypt to tell a genuinely pending row from a token-only one, and a fully-migrated database
   // (no NULL rows at all) still resolves no root key, same as before this change.
-  const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
+  const keyring = new EnvOrFileKeyring({ sources: siteKeyEnvOnlySources({}) });
   const sealer = new AesGcmSecretSealer(keyring);
 
   const { pending, unreadable, totalRows } = await countPending(db, { sealer, keyring });

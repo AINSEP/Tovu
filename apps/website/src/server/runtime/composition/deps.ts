@@ -124,7 +124,7 @@ import { SqliteMenuRepo, SqliteNavLocationBindingRepo } from "#src/features/navi
 import { buildMenuTrashFollowUpHooks } from "#src/features/navigation/menu-trash-follow-ups";
 import { SqliteWebhookDeliveryRepo, SqliteWebhookSubscriptionRepo } from "#src/platform/db/sqlite/webhook-repo.sqlite";
 import { EnvOrFileKeyring } from "#src/features/webhooks/keyring.env";
-import { resolveSiteKeyId, siteKeySources } from "#src/features/webhooks/site-key-sources";
+import { resolveSiteKeyId, siteKeySources, siteKeyEnvOnlySources } from "#src/features/webhooks/site-key-sources";
 import { createKeyringBackedSigner } from "#src/features/webhooks/signing.keyring";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { SqliteSiteAssistantCredentialRepo } from "#src/platform/db/sqlite/site-credential-repo.sqlite";
@@ -1632,20 +1632,12 @@ async function composeSiteRouteDeps(
   // does, so no startup or first-run path depended on the mint. This instance still READS an
   // existing file; with no env var and no file, a local unsubscribe request now fails closed.
   const memberRepo = new SqliteMemberRepo(kernel);
-  // site-key plan §A3a: `sources` is threaded in ONLY outside production (`siteKeySourcesList` is
-  // computed once, above). Passing it unconditionally would make `resolveRootKey()` take the
-  // `sources`-driven early-return branch (`keyring.env.ts`'s own `if (this.sources)` check) and
-  // never consult `allowFileFallback` again — silently ADDING a file fallback for
-  // webhook-signing/newsletter-token material in production, which the `allowFileFallback:
-  // runtimeMode !== "production"` line immediately below exists specifically to deny. Kept as a
-  // separate `undefined`-in-production local (rather than a nested object literal inside the
-  // `EnvOrFileKeyring({...})` call below) so `production-readiness-boot.integration.test.ts`'s two
-  // source-text regression tests — which scan for `allowFileFallback`/`allowFileAutoGenerate` via a
-  // `[^}]*` pattern that cannot cross a nested `{`/`}` — keep matching this construction unchanged.
-  const newsletterKeyringSources = runtimeMode !== "production" ? siteKeySourcesList : undefined;
+  // Production signing must remain env-only: a source list must not accidentally add a volume
+  // fallback for newsletter/webhook signing. Locally it uses the site's usual ordered sources.
+  // Every keyring is read-only, so an anonymous unsubscribe request can never mint a site key.
+  // Keep the source policy as a flat local next to this reader; the integration tests exercise it.
+  const newsletterKeyringSources = runtimeMode !== "production" ? siteKeySourcesList : siteKeyEnvOnlySources({});
   const newsletterKeyring = new EnvOrFileKeyring({
-    allowFileFallback: runtimeMode !== "production",
-    allowFileAutoGenerate: false,
     sources: newsletterKeyringSources,
   });
   const newsletterSubscriberDirectory = new MembersSubscriberDirectory({ members: memberRepo });
@@ -1681,8 +1673,6 @@ async function composeSiteRouteDeps(
   // instance's own default (non-`sources`) resolution already used (`site-key-sources.ts`'s
   // `legacyVolumeFilePath` doc: "the production durable-volume path ... reused here unchanged").
   const siteAssistantSecretKeyring = new EnvOrFileKeyring({
-    allowFileFallback: true,
-    allowFileAutoGenerate: false,
     sources: siteKeySourcesList,
   });
   const siteAssistantSecretSealer = new AesGcmSecretSealer(siteAssistantSecretKeyring);

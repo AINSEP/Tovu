@@ -115,8 +115,11 @@ function classifyPublicUrl(raw) {
  * @param {NodeJS.ProcessEnv} env - mutated in place.
  * @complexity O(1).
  */
+export const LEGACY_SITE_KEY_ENV_VAR_NAME = "TOVU_INTEGRATIONS_ROOT_KEY"; // site-key-legacy: remove on/after 2026-11-01 (D3)
 export function clearBlankRootKeyEnv(env) {
-  if (env.TOVU_INTEGRATIONS_ROOT_KEY === "") delete env.TOVU_INTEGRATIONS_ROOT_KEY;
+  for (const name of ["TOVU_SITE_KEY", LEGACY_SITE_KEY_ENV_VAR_NAME]) {
+    if (env[name] !== undefined && env[name].trim().length === 0) delete env[name];
+  }
 }
 
 /**

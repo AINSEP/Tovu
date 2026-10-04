@@ -1,3 +1,4 @@
+import { LEGACY_SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
 import assert from "node:assert/strict";
 import test from "node:test";
 import os from "node:os";
@@ -70,10 +71,10 @@ test("siteTokenState: not active, this site's content.db holds key-dependent dat
 test("GET status treats a failed open-store scan as missing-with-data rather than an empty store", async (t) => {
   const dir = mkdtempSync(join(os.tmpdir(), "tovu-token-scan-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
-  const variables = ["TOVU_SITE_KEY", "TOVU_INTEGRATIONS_ROOT_KEY", "TOVU_RUNTIME_MODE"] as const;
+  const variables = ["TOVU_SITE_KEY", LEGACY_SITE_KEY_ENV_VAR_NAME, "TOVU_RUNTIME_MODE"] as const;
   const previous = variables.map((key) => process.env[key]);
   delete process.env.TOVU_SITE_KEY;
-  delete process.env.TOVU_INTEGRATIONS_ROOT_KEY;
+  delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
   process.env.TOVU_RUNTIME_MODE = "local";
   t.mock.method(os, "homedir", () => dir);
   t.mock.method(process, "cwd", () => dir);

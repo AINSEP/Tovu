@@ -1,3 +1,4 @@
+import { siteKeyEnvOnlySources } from "../../apps/website/src/features/webhooks/site-key-sources.js";
 /**
  * Copies every `publish_credential_sets`/`source_control_credential_sets` row into the new
  * vendor-scoped `vendor_credential_sets` table (`src/platform/db/schema.sqlite.ts`, migration `0045`), decrypting
@@ -424,7 +425,7 @@ async function main(): Promise<void> {
   // Constructed unconditionally but touches no env var until `sealer.open`/`sealer.seal` is actually
   // called (`EnvOrFileKeyring`'s own doc) — a dry run below never calls either, so a dry run needs no
   // `TOVU_INTEGRATIONS_ROOT_KEY` at all.
-  const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
+  const keyring = new EnvOrFileKeyring({ sources: siteKeyEnvOnlySources({}) });
   const sealer = new AesGcmSecretSealer(keyring);
 
   if (!args.apply) {

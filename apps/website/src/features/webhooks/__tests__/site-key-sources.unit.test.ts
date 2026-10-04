@@ -6,13 +6,15 @@ import test from "node:test";
 
 import {
   SITE_KEY_ENV_VAR_NAME,
+  LEGACY_SITE_KEY_ENV_VAR_NAME,
+  LEGACY_SITE_KEY_FILENAME,
+  resolveSiteKeyEnv,
   resolveSiteKeyFingerprint,
   resolveSiteKeyId,
   siteKeyFilePathFrom,
   siteKeySources,
   siteKeySourcesForSiteDir,
 } from "../site-key-sources.js";
-import { DEFAULT_ROOT_KEY_ENV_VAR_NAME } from "../keyring.env.js";
 
 /**
  * @file Site-key plan §A.1 slice 1 — `siteKeySources` is a pure ordering function: given a mode,
@@ -31,13 +33,14 @@ test("site-aware source composition uses the metadata key id and caller mode, en
   const local = siteKeySourcesForSiteDir({ siteDir, mode: "local", env, home: HOME, cwd: CWD });
   assert.deepEqual(local, [
     { kind: "per-site-file", path: join(HOME, ".tovu", "site-keys", "key-distinct.hex") },
-    { kind: "env", envVarName: "TOVU_SITE_KEY" },
-    { kind: "legacy-shared-file", path: join(HOME, ".tovu", "integrations-root-key.hex") },
+    { kind: "env" },
+    { kind: "legacy-shared-file", path: join(HOME, ".tovu", LEGACY_SITE_KEY_FILENAME) },
   ]);
-  assert.equal(siteKeyFilePathFrom(local, "/fallback.hex"), join(HOME, ".tovu", "site-keys", "key-distinct.hex"));
+  assert.equal(siteKeyFilePathFrom(local), join(HOME, ".tovu", "site-keys", "key-distinct.hex"));
   assert.deepEqual(siteKeySourcesForSiteDir({ siteDir, mode: "production", env, home: HOME, cwd: CWD }), [
-    { kind: "env", envVarName: "TOVU_SITE_KEY" },
-    { kind: "legacy-volume-file", path: join(CWD, "sites", ".tovu", "integrations-root-key.hex") },
+    { kind: "env" },
+    { kind: "volume-file", path: join(CWD, "sites", ".tovu", "site-key.hex") },
+    { kind: "legacy-volume-file", path: join(CWD, "sites", ".tovu", LEGACY_SITE_KEY_FILENAME) },
   ]);
 });
 
@@ -49,8 +52,8 @@ test("local mode with a siteKeyId: [per-site file, env, legacy shared file], in 
     ["per-site-file", "env", "legacy-shared-file"]
   );
   assert.equal(sources[0].path, join(HOME, ".tovu", "site-keys", "site-abc.hex"));
-  assert.equal(sources[1].envVarName, DEFAULT_ROOT_KEY_ENV_VAR_NAME);
-  assert.equal(sources[2].path, join(HOME, ".tovu", "integrations-root-key.hex"));
+  assert.deepEqual(sources[1], { kind: "env" });
+  assert.equal(sources[2].path, join(HOME, ".tovu", LEGACY_SITE_KEY_FILENAME));
 });
 
 test("production mode: [env, legacy volume file] — never a per-site file, regardless of siteKeyId", () => {
@@ -58,10 +61,11 @@ test("production mode: [env, legacy volume file] — never a per-site file, rega
 
   assert.deepEqual(
     sources.map((s) => s.kind),
-    ["env", "legacy-volume-file"]
+    ["env", "volume-file", "legacy-volume-file"]
   );
-  assert.equal(sources[0].envVarName, DEFAULT_ROOT_KEY_ENV_VAR_NAME);
-  assert.equal(sources[1].path, join(CWD, "sites", ".tovu", "integrations-root-key.hex"));
+  assert.deepEqual(sources[0], { kind: "env" });
+  assert.equal(sources[1].path, join(CWD, "sites", ".tovu", "site-key.hex"));
+  assert.equal(sources[2].path, join(CWD, "sites", ".tovu", LEGACY_SITE_KEY_FILENAME));
 });
 
 test("a missing siteKeyId drops the per-site candidate in local mode: [env, legacy shared file]", () => {
@@ -92,19 +96,19 @@ test("the env candidate prefers TOVU_SITE_KEY over the legacy name when it is al
   });
 
   const envSource = sources.find((s) => s.kind === "env");
-  assert.equal(envSource?.envVarName, SITE_KEY_ENV_VAR_NAME);
+  assert.deepEqual(envSource, { kind: "env" });
 });
 
 test("the env candidate names the legacy var when only it is set — an unmodified install still resolves", () => {
   const sources = siteKeySources({
     mode: "production",
-    env: { [DEFAULT_ROOT_KEY_ENV_VAR_NAME]: "bb".repeat(32) },
+    env: { [LEGACY_SITE_KEY_ENV_VAR_NAME]: "bb".repeat(32) },
     home: HOME,
     cwd: CWD,
   });
 
   const envSource = sources.find((s) => s.kind === "env");
-  assert.equal(envSource?.envVarName, DEFAULT_ROOT_KEY_ENV_VAR_NAME);
+  assert.deepEqual(envSource, { kind: "env" });
 });
 
 test("every non-env source carries a path and no envVarName; the env source carries envVarName and no path", () => {
@@ -113,10 +117,10 @@ test("every non-env source carries a path and no envVarName; the env source carr
   for (const source of sources) {
     if (source.kind === "env") {
       assert.equal(source.path, undefined);
-      assert.ok(source.envVarName);
+      assert.deepEqual(source, { kind: "env" });
     } else {
       assert.ok(source.path);
-      assert.equal(source.envVarName, undefined);
+      assert.equal("envVarName" in source, false);
     }
   }
 });
@@ -178,7 +182,7 @@ test("resolveSiteKeyId: undefined when siteId is present but not a non-empty str
 
 test("siteKeyFilePathFrom: the per-site-file candidate's path when one is present in sources", () => {
   const sources = siteKeySources({ mode: "local", env: {}, home: HOME, cwd: CWD, siteKeyId: "site-abc" });
-  assert.equal(siteKeyFilePathFrom(sources, "/fallback/path.hex"), join(HOME, ".tovu", "site-keys", "site-abc.hex"));
+  assert.equal(siteKeyFilePathFrom(sources), join(HOME, ".tovu", "site-keys", "site-abc.hex"));
 });
 
 /**
@@ -227,7 +231,7 @@ test("resolveSiteKeyFingerprint: undefined when the field is present but not a n
 
 test("siteKeyFilePathFrom: the given fallback when sources has no per-site-file candidate (e.g. production)", () => {
   const sources = siteKeySources({ mode: "production", env: {}, home: HOME, cwd: CWD });
-  assert.equal(siteKeyFilePathFrom(sources, "/fallback/path.hex"), "/fallback/path.hex");
+  assert.equal(siteKeyFilePathFrom(sources), join(CWD, "sites", ".tovu", "site-key.hex"));
 });
 
 /**
@@ -265,12 +269,12 @@ test("the env candidate falls back to the legacy name when TOVU_SITE_KEY is set 
   for (const blank of ["", "   "]) {
     const sources = siteKeySources({
       mode: "local",
-      env: { [SITE_KEY_ENV_VAR_NAME]: blank, [DEFAULT_ROOT_KEY_ENV_VAR_NAME]: "a".repeat(64) },
+      env: { [SITE_KEY_ENV_VAR_NAME]: blank, [LEGACY_SITE_KEY_ENV_VAR_NAME]: "a".repeat(64) },
       home: "/home/u",
       cwd: "/w",
       siteKeyId: "site-1",
     });
     const envSource = sources.find((source) => source.kind === "env");
-    assert.equal(envSource?.envVarName, DEFAULT_ROOT_KEY_ENV_VAR_NAME, `TOVU_SITE_KEY=${JSON.stringify(blank)} must not win`);
+    assert.deepEqual(resolveSiteKeyEnv({ env: { [SITE_KEY_ENV_VAR_NAME]: blank, [LEGACY_SITE_KEY_ENV_VAR_NAME]: "aa".repeat(32) } }), { kind: "ok", value: "aa".repeat(32), varName: LEGACY_SITE_KEY_ENV_VAR_NAME, deprecated: true });
   }
 });

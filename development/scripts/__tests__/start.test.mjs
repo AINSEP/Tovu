@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 
-import { clearBlankRootKeyEnv, planStart, probePortFree, resolveStartHost, startQuietEnvDefaults } from "../start.mjs";
+import { clearBlankRootKeyEnv, LEGACY_SITE_KEY_ENV_VAR_NAME, planStart, probePortFree, resolveStartHost, startQuietEnvDefaults } from "../start.mjs";
 
 /**
  * @file `planStart` — the pure port/env decision `development/scripts/start.mjs`'s `main()` makes
@@ -148,19 +148,19 @@ test("non-loopback TOVU_PUBLIC_URL is never dropped", async () => {
  * a blank shell `TOVU_INTEGRATIONS_ROOT_KEY` would hide `.env`'s real key and let
  * `tovu root-key ensure` mint a second one.
  */
-test("clearBlankRootKeyEnv: blank TOVU_INTEGRATIONS_ROOT_KEY is removed so .env can fill it", () => {
-  const env = { TOVU_INTEGRATIONS_ROOT_KEY: "" };
+test("clearBlankRootKeyEnv: blank TOVU_SITE_KEY is removed so .env can fill it", () => {
+  const env = { TOVU_SITE_KEY: "" };
   clearBlankRootKeyEnv(env);
-  assert.equal("TOVU_INTEGRATIONS_ROOT_KEY" in env, false);
+  assert.equal("TOVU_SITE_KEY" in env, false);
 });
 
-test("clearBlankRootKeyEnv: a set TOVU_INTEGRATIONS_ROOT_KEY is left untouched", () => {
-  const env = { TOVU_INTEGRATIONS_ROOT_KEY: "abc" };
+test("clearBlankRootKeyEnv: a set TOVU_SITE_KEY is left untouched", () => {
+  const env = { TOVU_SITE_KEY: "abc" };
   clearBlankRootKeyEnv(env);
-  assert.equal(env.TOVU_INTEGRATIONS_ROOT_KEY, "abc");
+  assert.equal(env.TOVU_SITE_KEY, "abc");
 });
 
-test("startQuietEnvDefaults: silences the root-key wall and daemon lifecycle lines by default", () => {
+test("startQuietEnvDefaults: silences the site key wall and daemon lifecycle lines by default", () => {
   assert.deepEqual(startQuietEnvDefaults({}), { TOVU_ROOT_KEY_NOTICE: "off", TOVU_DAEMON_LIFECYCLE_LOG: "off" });
 });
 
@@ -210,7 +210,7 @@ test("main supplies the imported server with loopback binding and the final env 
       copyFileSync(new URL(`../${name}`, import.meta.url), path.join(fixture, "development", "scripts", name));
     }
     writeFileSync(path.join(fixture, "package.json"), '{"type":"module"}');
-    writeFileSync(path.join(fixture, ".env"), "TOVU_INTEGRATIONS_ROOT_KEY=fixture-root-key\nTOVU_PUBLIC_URL=http://localhost:3000\n");
+    writeFileSync(path.join(fixture, ".env"), "TOVU_SITE_KEY=fixture-root-key\nTOVU_PUBLIC_URL=http://localhost:3000\n");
     // Any port probe fails this regression. The stub reads the exact env main supplied; no
     // repository .env or existing compiled server is touched.
     writeFileSync(path.join(fixture, "runner.mjs"), `
@@ -231,12 +231,12 @@ test("main supplies the imported server with loopback binding and the final env 
           port: process.env.PORT,
           autoStartPort: process.env.TOVU_START_AUTO_PORT,
           publicUrlPresent: "TOVU_PUBLIC_URL" in process.env,
-          rootKey: process.env.TOVU_INTEGRATIONS_ROOT_KEY,
+          rootKey: process.env.TOVU_SITE_KEY,
           rootKeyNotice: process.env.TOVU_ROOT_KEY_NOTICE,
           lifecycleLog: process.env.TOVU_DAEMON_LIFECYCLE_LOG,
         }));
     `);
-    const env = { ...process.env, TOVU_INTEGRATIONS_ROOT_KEY: "" };
+    const env = { ...process.env, TOVU_SITE_KEY: "", [LEGACY_SITE_KEY_ENV_VAR_NAME]: "" };
     for (const key of ["TOVU_HOST", "PORT", "TOVU_PUBLIC_URL", "TOVU_ROOT_KEY_NOTICE", "TOVU_DAEMON_LIFECYCLE_LOG", "TOVU_START_AUTO_PORT"]) delete env[key];
     if (env.NODE_V8_COVERAGE) env.NODE_V8_COVERAGE = path.join(fixture, "coverage");
     const child = spawnSync(process.execPath, ["--experimental-test-module-mocks", "runner.mjs"], {
@@ -277,3 +277,16 @@ test("unparsable TOVU_PUBLIC_URL → refuses auto-pick without probing or changi
   });
   assert.deepEqual(result, { port: 3000, envOverrides: {}, envRemovals: [], refuse: "unparsable-public-url" });
 });
+
+for (const name of ["TOVU_SITE_KEY", LEGACY_SITE_KEY_ENV_VAR_NAME]) {
+  test(`clearBlankRootKeyEnv clears whitespace under ${name} and preserves set keys`, () => {
+    for (const blank of ["", " ", "\t\n"]) {
+      const env = { [name]: blank };
+      clearBlankRootKeyEnv(env);
+      assert.equal(name in env, false);
+    }
+    const env = { [name]: "ab".repeat(32) };
+    clearBlankRootKeyEnv(env);
+    assert.equal(env[name], "ab".repeat(32));
+  });
+}

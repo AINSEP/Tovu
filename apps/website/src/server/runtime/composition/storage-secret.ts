@@ -58,10 +58,8 @@ export function siteSecretSealer(
   siteKeyId: string | undefined = resolveSiteKeyId({ siteDir })
 ): SiteSecretSealer {
   const keyring = new EnvOrFileKeyring({
-    allowFileFallback: true,
-    allowFileAutoGenerate: false,
-    sources: siteKeySources({ mode: resolveRuntimeMode(), env, home: homedir(), cwd: process.cwd(), siteKeyId }),
-  });
+    sources: siteKeySources({ mode: resolveRuntimeMode({ env }), env, home: homedir(), cwd: process.cwd(), siteKeyId }),
+  }, { env: () => env });
   return { keyring, sealer: new AesGcmSecretSealer(keyring) };
 }
 

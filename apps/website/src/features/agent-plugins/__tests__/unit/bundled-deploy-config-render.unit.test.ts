@@ -31,7 +31,7 @@ const FIXTURE_DESCRIPTOR: DeploymentDescriptor = {
   healthCheckPath: "/readyz",
   secrets: [
     { name: "TOVU_ADMIN_PASSWORD", requirement: "boot-blocking" },
-    { name: "TOVU_INTEGRATIONS_ROOT_KEY", requirement: "recommended" },
+    { name: "TOVU_SITE_KEY", requirement: "recommended" },
   ],
 };
 
@@ -55,7 +55,7 @@ test("renderRenderYaml: exact render.yaml contents for a known descriptor and re
         value: "4000"
       - key: TOVU_ADMIN_PASSWORD
         sync: false
-      - key: TOVU_INTEGRATIONS_ROOT_KEY
+      - key: TOVU_SITE_KEY
         sync: false
     disk:
       name: acme_sites
@@ -76,7 +76,7 @@ test("renderRenderYaml: never emits a secret VALUE — sync: false prompts in th
   const result = renderRenderYaml(FIXTURE_DESCRIPTOR, { region: "frankfurt" });
 
   assert.match(result.contents, /- key: TOVU_ADMIN_PASSWORD\n {8}sync: false/);
-  assert.match(result.contents, /- key: TOVU_INTEGRATIONS_ROOT_KEY\n {8}sync: false/);
+  assert.match(result.contents, /- key: TOVU_SITE_KEY\n {8}sync: false/);
   assert.ok(!result.contents.includes(sentinel), "generated config must not contain the environment secret");
   assert.ok(!JSON.stringify(result.notes).includes(sentinel), "instructions must not contain the environment secret");
 });

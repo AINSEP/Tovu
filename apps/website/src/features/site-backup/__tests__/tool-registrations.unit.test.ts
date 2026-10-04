@@ -1,3 +1,4 @@
+import { LEGACY_SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -178,12 +179,12 @@ function isolateHomeDir(t: TestContext): string {
   const dir = mkdtempSync(path.join(tmpdir(), "tovu-site-backup-test-home-"));
   const saved = {
     HOME: process.env.HOME,
-    TOVU_INTEGRATIONS_ROOT_KEY: process.env.TOVU_INTEGRATIONS_ROOT_KEY,
+    [LEGACY_SITE_KEY_ENV_VAR_NAME]: process.env[LEGACY_SITE_KEY_ENV_VAR_NAME],
     TOVU_SITE_KEY: process.env.TOVU_SITE_KEY,
     TOVU_RUNTIME_MODE: process.env.TOVU_RUNTIME_MODE,
   };
   process.env.HOME = dir;
-  delete process.env.TOVU_INTEGRATIONS_ROOT_KEY;
+  delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
   delete process.env.TOVU_SITE_KEY;
   delete process.env.TOVU_RUNTIME_MODE;
   t.after(() => {
@@ -568,7 +569,7 @@ test("two saved GitHub credentials are CREDENTIAL_AMBIGUOUS until one is named",
   assert.equal(named.credential, "github-b");
 });
 
-test("a credential saved under a different Site Token is CREDENTIAL_UNREADABLE, not CREDENTIAL_NOT_FOUND, and touches neither GitHub nor the database", async (t) => {
+test("a credential saved under a different Site key is CREDENTIAL_UNREADABLE, not CREDENTIAL_NOT_FOUND, and touches neither GitHub nor the database", async (t) => {
   // Sealed with the harness keyring, opened with a sealer over a DIFFERENT keyring: the real failure.
   const h = harness(t, { openSealer: () => new AesGcmSecretSealer(new InMemoryKeyring()) });
   await h.seed();
@@ -577,16 +578,16 @@ test("a credential saved under a different Site Token is CREDENTIAL_UNREADABLE, 
 
   assert.equal(result.planned, false);
   assert.equal(result.code, "CREDENTIAL_UNREADABLE");
-  assert.match(result.message as string, /'github' is saved but cannot be decrypted with this server's Site Token: it differs/);
+  assert.match(result.message as string, /'github' is saved but cannot be decrypted with this server's Site key: it differs/);
   assert.doesNotMatch(result.message as string, /could not be decrypted \(secret store|authenticate|unconfigured/i, "never the decrypt error's own text");
   assert.equal(h.github.calls.length, 0);
   assert.equal(h.dbOps.captureCalls.length, 0);
 });
 
-test("the unreadable-credential message follows the Site Token's status and never echoes the decrypt error", async (t) => {
+test("the unreadable-credential message follows the Site key's status and never echoes the decrypt error", async (t) => {
   const cases = [
     { status: { active: true }, expected: /differs from the one the credential was saved under/ },
-    { status: { active: false }, expected: /this server has no Site Token \(TOVU_INTEGRATIONS_ROOT_KEY is not set/ },
+    { status: { active: false }, expected: /this server has no Site key \(TOVU_SITE_KEY is not set/ },
     { status: { active: false, invalid: true }, expected: /set but malformed/ },
   ];
   for (const { status, expected } of cases) {
@@ -602,7 +603,7 @@ test("the unreadable-credential message follows the Site Token's status and neve
   }
 });
 
-test("site-key plan §A3b: a site with an ACTIVE per-site key file is never told 'this server has no Site Token' — the default status is site-aware, not env/legacy-only", async (t) => {
+test("site-key plan §A3b: a site with an ACTIVE per-site key file is never told 'this server has no Site key' — the default status is site-aware, not env/legacy-only", async (t) => {
   const home = isolateHomeDir(t);
   const h = harness(t, { openSealer: (sealedWith) => new LeakySealer(sealedWith), useDefaultRootKeyStatus: true });
   await h.seed();
@@ -619,7 +620,7 @@ test("site-key plan §A3b: a site with an ACTIVE per-site key file is never told
   assert.equal(result.code, "CREDENTIAL_UNREADABLE");
   assert.doesNotMatch(
     result.message as string,
-    /this server has no Site Token/,
+    /this server has no Site key/,
     "wrong: an env/legacy-only check cannot see the ACTIVE per-site key file, so it wrongly reports none configured at all"
   );
   assert.match(

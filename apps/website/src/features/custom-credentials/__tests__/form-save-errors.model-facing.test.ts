@@ -1,3 +1,4 @@
+import { LEGACY_SITE_KEY_FILENAME } from "#src/features/webhooks/site-key-sources";
 /**
  * @file Regression suite for the SAVE-failure branch of `custom_credential_set_token` and
  * `custom_credential_create` (2026-09-16, w7).
@@ -51,10 +52,10 @@ const SUBMITTED_TOKEN = "LEAK-NEW-TOKEN-91c2";
 /** The SHIPPED keyring, configured the way an install with no Site Token is: env var unset, no key
  *  file, no auto-generation. Nothing is read or written — the path does not exist. */
 const MISSING_SITE_TOKEN_ENV = "TOVU_W7_TEST_UNSET_SITE_TOKEN";
-const MISSING_SITE_TOKEN_PATH = "/nonexistent-w7-root-key-dir/integrations-root-key.hex";
+const MISSING_SITE_TOKEN_PATH = `/nonexistent-w7-root-key-dir/${LEGACY_SITE_KEY_FILENAME}`;
 
 const SECRET_STORE_MESSAGE =
-  "The site's secret store could not seal or open this credential: its Site Token is missing or unusable, or the stored credential is unreadable. Nothing was saved.";
+  "The site's secret store could not seal or open this credential: its Site key is missing or unusable, or the stored credential is unreadable. Nothing was saved.";
 const INTERNAL_FAILURE_MESSAGE = "Saving failed because of an internal server error. Nothing was saved. The server log has the details.";
 
 class ExplodingHttpClient implements HttpClientPort {
@@ -182,9 +183,9 @@ test("set_token: a seal failure that quotes the submitted token never reaches th
   assert.match(harness.logLines[0]!, /custom_credential_set_token: save failed .*error=CustomCredentialSecretStoreUnconfiguredError/);
 });
 
-test("set_token: the SHIPPED keyring's missing-root-key text (env var name, absolute key-file path) never reaches the model or the human", async () => {
+test("set_token: the SHIPPED keyring's missing-site key text (env var name, absolute key-file path) never reaches the model or the human", async () => {
   const harness = await buildHarness({
-    keyring: new EnvOrFileKeyring({ envVarName: MISSING_SITE_TOKEN_ENV, keyFilePath: MISSING_SITE_TOKEN_PATH, allowFileFallback: true, allowFileAutoGenerate: false }),
+    keyring: new EnvOrFileKeyring({ sources: [{ kind: "env" }, { kind: "per-site-file", path: MISSING_SITE_TOKEN_PATH }] }, { env: () => ({ TOVU_SITE_KEY: process.env[MISSING_SITE_TOKEN_ENV] }) }),
   });
 
   const { wireText, eventsText } = await submitForm(harness, SET_TOKEN_TOOL_ID, { label: "fly.io" }, { token: SUBMITTED_TOKEN });

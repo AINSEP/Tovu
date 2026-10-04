@@ -1,3 +1,4 @@
+import { LEGACY_SITE_KEY_FILENAME } from "#src/features/webhooks/site-key-sources";
 /**
  * @file RED regression suite for the custom-credentials half of the 2026-09-16 "always say the real
  * reason" sweep, modelled on `features/post/__tests__/tool-registrations.model-facing-errors.test.ts`:
@@ -120,7 +121,7 @@ async function call(harness: Harness, toolId: string, input: unknown) {
  *  failure — pinned here rather than imported so a silent reword of the rule fails this suite. */
 const SECRET_STORE_UNAVAILABLE_MESSAGE =
   "CUSTOM_CREDENTIALS_SECRET_STORE_UNAVAILABLE: this site's secret store could not open the saved credential: " +
-  "its Site Token is missing or unusable, or the stored credential is unreadable. No request was sent. " +
+  "its Site key is missing or unusable, or the stored credential is unreadable. No request was sent. " +
   "An operator can check this site's token on the admin Secrets page.";
 
 const VALID_WRITE_FILES_INPUT = { owner: "octo", repo: "demo", branch: "main", commitMessage: "deploy", files: [{ path: "fly.toml", content: "app = 'demo'" }] };
@@ -324,14 +325,14 @@ test("a secret-store failure names its KIND under a fixed message — its own te
   assert.equal(httpClient.calls.length, 0);
 });
 
-test("a MISSING SITE TOKEN reaches the model as the actionable secret-store reason, not a redacted 500", async () => {
+test("a MISSING SITE KEY reaches the model as the actionable secret-store reason, not a redacted 500", async () => {
   // The live 2026-09-18 incident, verbatim: the desktop app booted its site server with no
   // `TOVU_INTEGRATIONS_ROOT_KEY` and no key file, so `EnvOrFileKeyring` threw this exact text,
   // `decryptRecord` wrapped it, and BOTH credential-using tools answered `500 INTERNAL_ERROR` —
   // the one operator-fixable condition in this domain, indistinguishable from a crash.
   const keyringMessage =
-    "no Site Token: TOVU_INTEGRATIONS_ROOT_KEY is not set, no key file exists at " +
-    "/Users/someone/.tovu/integrations-root-key.hex, and this instance does not auto-generate one";
+    "no Site key: TOVU_SITE_KEY is not set, no key file exists at " +
+    `/Users/someone/.tovu/${LEGACY_SITE_KEY_FILENAME}, and this instance does not auto-generate one`;
   const { deps, httpClient } = await makeRouteDeps({
     sealer: (inner) => ({
       seal: (input) => inner.seal(input),
@@ -355,8 +356,8 @@ test("a MISSING SITE TOKEN reaches the model as the actionable secret-store reas
     // The KIND is safe to name; the keyring's own text is not — it publishes the env var name and
     // an absolute filesystem path, the same disclosure `FORM_SAVE_CALLER_SAFE_ERRORS` already refuses.
     const wire = JSON.stringify(result);
-    assert.ok(!wire.includes("TOVU_INTEGRATIONS_ROOT_KEY"), `${toolId} leaked the env var name`);
-    assert.ok(!wire.includes("integrations-root-key.hex"), `${toolId} leaked the key file path`);
+    assert.ok(!wire.includes("TOVU_SITE_KEY"), `${toolId} leaked the env var name`);
+    assert.ok(!wire.includes(LEGACY_SITE_KEY_FILENAME), `${toolId} leaked the key file path`);
   }
   assert.equal(httpClient.calls.length, 0, "no outbound call may be attempted once the credential cannot be opened");
 });

@@ -212,7 +212,7 @@ test("§4.2 / §2.1 step 1: a default owner password is inert outside production
  * container's own ephemeral rootfs, not the persistent volume, so an unset var used to boot fine and
  * silently mint a fresh, throwaway root key on every redeploy.
  */
-test("2026-09-09 fix: a missing TOVU_INTEGRATIONS_ROOT_KEY refuses production boot, names the check", async () => {
+test("2026-09-09 fix: a missing TOVU_SITE_KEY refuses production boot, names the check", async () => {
   const result = await runProductionReadinessGate({
     mode: "production",
     inventory: [entry()],
@@ -226,11 +226,11 @@ test("2026-09-09 fix: a missing TOVU_INTEGRATIONS_ROOT_KEY refuses production bo
   });
   assert.equal(result.ok, false);
   if (!result.ok) {
-    assert.ok(result.failures.some((f) => f.code === "PRODUCTION_BOOT_UNSAFE_DEFAULT" && f.details.checkName === "missing-integrations-root-key"));
+    assert.ok(result.failures.some((f) => f.code === "PRODUCTION_BOOT_UNSAFE_DEFAULT" && f.details.checkName === "missing-site-key"));
   }
 });
 
-test("2026-09-09 fix: a set TOVU_INTEGRATIONS_ROOT_KEY boots normally alongside every other safe default", async () => {
+test("2026-09-09 fix: a set TOVU_SITE_KEY boots normally alongside every other safe default", async () => {
   const result = await runProductionReadinessGate({
     mode: "production",
     inventory: [entry()],
@@ -245,7 +245,7 @@ test("2026-09-09 fix: a set TOVU_INTEGRATIONS_ROOT_KEY boots normally alongside 
   assert.equal(result.ok, true);
 });
 
-test("2026-09-09 fix: a missing TOVU_INTEGRATIONS_ROOT_KEY is inert outside production mode — a local developer with no env var set must still boot", async () => {
+test("2026-09-09 fix: a missing TOVU_SITE_KEY is inert outside production mode — a local developer with no env var set must still boot", async () => {
   const result = await runProductionReadinessGate({
     mode: "local",
     inventory: [entry()],
@@ -257,7 +257,7 @@ test("2026-09-09 fix: a missing TOVU_INTEGRATIONS_ROOT_KEY is inert outside prod
       hasMissingIntegrationsRootKey: true,
     },
   });
-  assert.equal(result.ok, true, "local mode must never refuse boot due to a missing integrations root key");
+  assert.equal(result.ok, true, "local mode must never refuse boot due to a missing integrations site key");
 });
 
 test("2026-09-09 fix: aggregates alongside other unsafe defaults and undurable capabilities, not just reported alone", async () => {
@@ -279,7 +279,7 @@ test("2026-09-09 fix: aggregates alongside other unsafe defaults and undurable c
     assert.equal(result.failures.length, 3);
     assert.ok(result.failures.some((f) => f.code === "PRODUCTION_CAPABILITY_NOT_DURABLE"));
     assert.ok(result.failures.some((f) => f.details.checkName === "dev-secret-placeholder"));
-    assert.ok(result.failures.some((f) => f.details.checkName === "missing-integrations-root-key"));
+    assert.ok(result.failures.some((f) => f.details.checkName === "missing-site-key"));
   }
 });
 

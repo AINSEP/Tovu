@@ -1,3 +1,5 @@
+import { homedir } from "node:os";
+import { siteKeySources } from "#src/features/webhooks/site-key-sources";
 import { inspectRootKeyMaterial, type RootKeyStatus } from "#src/features/webhooks/keyring.env";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 
@@ -67,22 +69,27 @@ export function warnIfNoRootKeyAtBoot(deps: RootKeyBootNoticeDeps = {}): void {
   // exact-match switch, not a general "truthy" flag, so a stray `TOVU_ROOT_KEY_NOTICE=1` a future
   // caller sets for some other reason can never accidentally silence this wall.
   const env = deps.env ?? process.env;
-  if (env.TOVU_ROOT_KEY_NOTICE === "off") return;
+  const quiet = env.TOVU_ROOT_KEY_NOTICE === "off";
 
   const mode = (deps.mode ?? resolveRuntimeMode)();
-  if (mode === "production") return;
 
   const log = deps.log ?? ((line: string) => console.warn(line));
   let status: RootKeyStatus;
   try {
-    status = (deps.inspect ?? inspectRootKeyMaterial)();
+    status = deps.inspect ? deps.inspect() : inspectRootKeyMaterial({ sources: siteKeySources({ mode, env, home: homedir(), cwd: process.cwd() }) }, { env: () => env });
   } catch {
+    if (quiet || mode === "production") return;
     // Reported rather than rethrown: this runs on the boot path, and "I could not check" is still
     // worth saying out loud — it is the same class of surprise as "there is no key".
-    safely(log, ["[root-key] could not determine whether this server has usable root-key material."]);
+    safely(log, ["[site-key] could not determine whether this server has usable site key material."]);
     return;
   }
-  if (status.active) return;
+  if (status.reason === "env-conflict") {
+    safely(log, ["[site-key] environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed."]);
+    return;
+  }
+  if (status.deprecated) safely(log, ["[site-key] the legacy site key environment variable is deprecated. Set TOVU_SITE_KEY to the same value, then remove the legacy variable."]);
+  if (status.active || quiet || mode === "production") return;
 
   safely(log, rootKeyBootNoticeLines(status));
 }
@@ -105,12 +112,12 @@ function safely(log: (line: string) => void, lines: readonly string[]): void {
  */
 export function rootKeyBootNoticeLines(status: RootKeyStatus): readonly string[] {
   const cause = status.invalid
-    ? `the ${status.source === "env" ? "TOVU_INTEGRATIONS_ROOT_KEY environment variable" : `key file at ${status.keyFilePath}`} is present but not usable (${status.reason ?? "unreadable"})`
-    : `TOVU_INTEGRATIONS_ROOT_KEY is not set and there is no key file at ${status.keyFilePath}`;
+    ? `the ${status.source === "env" ? `${status.envVarName ?? "TOVU_SITE_KEY"} environment variable` : `key file at ${status.keyFilePath}`} is present but not usable (${status.reason ?? "unreadable"})`
+    : `TOVU_SITE_KEY is not set and there is no key file at ${status.keyFilePath}`;
 
   return [
     "",
-    "  ⚠  THIS SERVER HAS NO USABLE ROOT KEY",
+    "  ⚠  THIS SERVER HAS NO USABLE SITE KEY",
     `     ${cause}.`,
     "",
     "     It will serve pages and list credentials normally. Anything that READS a stored",
@@ -121,9 +128,9 @@ export function rootKeyBootNoticeLines(status: RootKeyStatus): readonly string[]
     "     from the REPO ROOT. Only that launcher loads the repo's .env; `electron .` inside",
     "     apps/desktop does not.",
     "     If this is `npm run dev`: that launcher DOES load .env — check the file actually",
-    "     defines TOVU_INTEGRATIONS_ROOT_KEY.",
-    `     Otherwise set TOVU_INTEGRATIONS_ROOT_KEY, or generate a key file at ${status.keyFilePath}`,
-    "     from the admin Secrets page (Site Token tab, Generate).",
+    "     defines TOVU_SITE_KEY.",
+    `     Otherwise restore the original site key at ${status.keyFilePath}, or set TOVU_SITE_KEY.`,
+    "     New local sites create their own site key automatically when they start.",
     "",
     "     Credentials already stored are sealed under whatever key was in place when they were",
     "     saved. Generating a new key will not recover them.",

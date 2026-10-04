@@ -1,3 +1,4 @@
+import { LEGACY_SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
 import assert from "node:assert/strict";
 import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from "node:child_process";
 import fs from "node:fs";
@@ -177,7 +178,7 @@ function buildSealedCiphertextDb(dbPath: string): void {
  * covers both the value read and the `TOVU_SITE_KEY`-vs-legacy name choice), but this test wants
  * the nothing-configured case without depending on that rule. */
 function isolatedEnv(tempHome: string): NodeJS.ProcessEnv {
-  return { HOME: tempHome, TOVU_INTEGRATIONS_ROOT_KEY: undefined, TOVU_SITE_KEY: undefined };
+  return { HOME: tempHome, [LEGACY_SITE_KEY_ENV_VAR_NAME]: undefined, TOVU_SITE_KEY: undefined };
 }
 
 test("site-key plan §A3a: a fresh tovu serve boot, with no key anywhere, mints this site's own per-site key file under HOME/.tovu/site-keys/<siteId>.hex", async () => {
@@ -194,7 +195,7 @@ test("site-key plan §A3a: a fresh tovu serve boot, with no key anywhere, mints 
 
     assert.ok(fs.existsSync(perSiteFilePath), `expected ${perSiteFilePath} to exist after boot — ensureSiteKeyForBoot must mint it when nothing else resolves`);
     const written = fs.readFileSync(perSiteFilePath, "utf8").trim();
-    assert.match(written, /^[0-9a-f]{64}$/, "the minted per-site file must hold a 32-byte hex root key, the same shape ensureSiteKey's own unit tests assert");
+    assert.match(written, /^[0-9a-f]{64}$/, "the minted per-site file must hold a 32-byte hex site key, the same shape ensureSiteKey's own unit tests assert");
   } finally {
     if (child.exitCode === null && !child.killed) {
       await stopGracefully(child);

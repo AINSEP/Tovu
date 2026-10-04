@@ -1,3 +1,4 @@
+import { LEGACY_SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -147,7 +148,7 @@ test("listPendingAgentPluginTokenIds: the plugin ids in the file, without openin
 });
 
 test("production onboarding writer round-trips multiple tokens through a freshly constructed boot sealer", async (t) => {
-  const keys = ["TOVU_RUNTIME_MODE", "TOVU_SITE_KEY", "TOVU_INTEGRATIONS_ROOT_KEY"];
+  const keys = ["TOVU_RUNTIME_MODE", "TOVU_SITE_KEY", LEGACY_SITE_KEY_ENV_VAR_NAME];
   const previous = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
   t.after(() => {
     for (const [key, value] of Object.entries(previous)) {
@@ -157,7 +158,7 @@ test("production onboarding writer round-trips multiple tokens through a freshly
   // Production's real env source is isolated; no ~/.tovu key is read or created.
   process.env.TOVU_RUNTIME_MODE = "production";
   process.env.TOVU_SITE_KEY = "8c".repeat(32);
-  delete process.env.TOVU_INTEGRATIONS_ROOT_KEY;
+  delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
   await sealPendingAgentPluginTokensForNewSite({ siteDir, siteKeyId: "round-trip-site", tokens: { supabase: TOKEN, other: "distinct-other-site-token" } });
   const raw = fs.readFileSync(target(), "utf8");
   assert.ok(!raw.includes(TOKEN) && !raw.includes("distinct-other-site-token"));

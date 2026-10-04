@@ -24,9 +24,9 @@ test("upsertEnvLine: appends a new KEY=value to an empty source", () => {
 });
 
 test("upsertEnvLine: appends without disturbing existing lines (order and content untouched)", () => {
-  const source = "TOVU_ADMIN_PASSWORD=secret123\nTOVU_INTEGRATIONS_ROOT_KEY=abc\n";
+  const source = "TOVU_ADMIN_PASSWORD=secret123\nTOVU_SITE_KEY=abc\n";
   const result = upsertEnvLine(source, "TOVU_SITE", "my-site");
-  assert.equal(result, "TOVU_ADMIN_PASSWORD=secret123\nTOVU_INTEGRATIONS_ROOT_KEY=abc\nTOVU_SITE=my-site\n");
+  assert.equal(result, "TOVU_ADMIN_PASSWORD=secret123\nTOVU_SITE_KEY=abc\nTOVU_SITE=my-site\n");
 });
 
 test("TOVU_SITE persistence preserves prefix siblings and comments when the exact key is absent", () => {
@@ -69,9 +69,9 @@ test("persistence defaults to the child process working directory for both write
 });
 
 test("upsertEnvLine: replaces an existing KEY=value in place, preserving every other line verbatim", () => {
-  const source = "TOVU_ADMIN_PASSWORD=secret123\nTOVU_SITE=old-site\nTOVU_INTEGRATIONS_ROOT_KEY=abc\n";
+  const source = "TOVU_ADMIN_PASSWORD=secret123\nTOVU_SITE=old-site\nTOVU_SITE_KEY=abc\n";
   const result = upsertEnvLine(source, "TOVU_SITE", "new-site");
-  assert.equal(result, "TOVU_ADMIN_PASSWORD=secret123\nTOVU_SITE=new-site\nTOVU_INTEGRATIONS_ROOT_KEY=abc\n");
+  assert.equal(result, "TOVU_ADMIN_PASSWORD=secret123\nTOVU_SITE=new-site\nTOVU_SITE_KEY=abc\n");
 });
 
 test("upsertEnvLine: a source with no trailing newline still gets exactly one new line appended (no blank line inserted)", () => {

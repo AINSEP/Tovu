@@ -1,3 +1,4 @@
+import { LEGACY_SITE_KEY_FILENAME } from "#src/features/webhooks/site-key-sources";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -307,14 +308,15 @@ test("a denied-pattern file is silently excluded from listFsFiles, not merely re
 //     nor the shell rc files that export notarization/API creds, nor Claude's own OAuth store.
 // ---------------------------------------------------------------------------
 
-test("isDeniedFsFileName matches any '*root-key*.hex' basename, not just the literal generated filename", () => {
-  for (const name of ["integrations-root-key.hex", "root-key.hex", "old-root-key-backup.hex", "INTEGRATIONS-ROOT-KEY.HEX"]) {
+test("isDeniedFsFileName matches any '*root-key*.hex' site key basename, not just the literal generated filename", () => {
+  // Filename patterns stay unchanged during the copy-only stage; the deny-rule widening is Stage C.
+  for (const name of [LEGACY_SITE_KEY_FILENAME, "root-key.hex", "old-root-key-backup.hex", "INTEGRATIONS-ROOT-KEY.HEX"]) {
     assert.equal(isDeniedFsFileName(name), true, `expected '${name}' to be denied`);
   }
   assert.equal(isDeniedFsFileName("root-key.txt"), false, "a name merely containing 'root-key' without the .hex extension must not match");
 });
 
-test("a '*root-key*.hex' file is refused on read and excluded from listFsFiles even outside a .tovu directory", () => {
+test("a '*root-key*.hex' site key file is refused on read and excluded from listFsFiles even outside a .tovu directory", () => {
   const { root } = makeAllowedRoot();
   fs.mkdirSync(path.join(root, "backups"), { recursive: true });
   fs.writeFileSync(path.join(root, "backups", "old-root-key.hex"), "deadbeef", "utf8");
@@ -323,30 +325,30 @@ test("a '*root-key*.hex' file is refused on read and excluded from listFsFiles e
   assert.equal(files.includes("backups/old-root-key.hex"), false);
 });
 
-test("the production root-key layout (sites/.tovu/integrations-root-key.hex) is refused via the denied '.tovu' segment", () => {
+test(`the production site key layout (sites/.tovu/${LEGACY_SITE_KEY_FILENAME}) is refused via the denied '.tovu' segment`, () => {
   const { root } = makeAllowedRoot();
   fs.mkdirSync(path.join(root, "sites", ".tovu"), { recursive: true });
-  fs.writeFileSync(path.join(root, "sites", ".tovu", "integrations-root-key.hex"), "deadbeef", "utf8");
+  fs.writeFileSync(path.join(root, "sites", ".tovu", LEGACY_SITE_KEY_FILENAME), "deadbeef", "utf8");
   assert.throws(
-    () => resolveFsFilePath({ rootPath: root, relativePath: "sites/.tovu/integrations-root-key.hex" }),
+    () => resolveFsFilePath({ rootPath: root, relativePath: `sites/.tovu/${LEGACY_SITE_KEY_FILENAME}` }),
     /denied path segment/,
   );
   assert.throws(
-    () => readFsFile({ rootPath: root, relativePath: "sites/.tovu/integrations-root-key.hex" }),
+    () => readFsFile({ rootPath: root, relativePath: `sites/.tovu/${LEGACY_SITE_KEY_FILENAME}` }),
     /denied path segment/,
   );
 });
 
-test("the local home-dir custom-root layout (.tovu/integrations-root-key.hex) is refused via the denied '.tovu' segment", () => {
+test(`the local home-dir custom-root layout (.tovu/${LEGACY_SITE_KEY_FILENAME}) is refused via the denied '.tovu' segment`, () => {
   const { root } = makeAllowedRoot();
   fs.mkdirSync(path.join(root, ".tovu"), { recursive: true });
-  fs.writeFileSync(path.join(root, ".tovu", "integrations-root-key.hex"), "deadbeef", "utf8");
+  fs.writeFileSync(path.join(root, ".tovu", LEGACY_SITE_KEY_FILENAME), "deadbeef", "utf8");
   assert.throws(
-    () => resolveFsFilePath({ rootPath: root, relativePath: ".tovu/integrations-root-key.hex" }),
+    () => resolveFsFilePath({ rootPath: root, relativePath: `.tovu/${LEGACY_SITE_KEY_FILENAME}` }),
     /denied path segment/,
   );
   assert.throws(
-    () => readFsFile({ rootPath: root, relativePath: ".tovu/integrations-root-key.hex" }),
+    () => readFsFile({ rootPath: root, relativePath: `.tovu/${LEGACY_SITE_KEY_FILENAME}` }),
     /denied path segment/,
   );
 });
@@ -354,7 +356,7 @@ test("the local home-dir custom-root layout (.tovu/integrations-root-key.hex) is
 test("a '.tovu' directory is never descended into or reported by listFsFiles", () => {
   const { root } = makeAllowedRoot();
   fs.mkdirSync(path.join(root, ".tovu"), { recursive: true });
-  fs.writeFileSync(path.join(root, ".tovu", "integrations-root-key.hex"), "deadbeef", "utf8");
+  fs.writeFileSync(path.join(root, ".tovu", LEGACY_SITE_KEY_FILENAME), "deadbeef", "utf8");
   const files = listFsFiles({ rootPath: root }).files;
   assert.equal(
     files.some((f) => f.startsWith(".tovu")),
@@ -373,7 +375,7 @@ test("isDeniedFsFileName matches the shell rc family that carries exported notar
 test(".bash_profile, .zshrc, and .profile are refused on read and excluded from listFsFiles", () => {
   const { root } = makeAllowedRoot();
   for (const name of [".bash_profile", ".zshrc", ".profile"]) {
-    fs.writeFileSync(path.join(root, name), "export TOVU_INTEGRATIONS_ROOT_KEY=deadbeef", "utf8");
+    fs.writeFileSync(path.join(root, name), "export TOVU_SITE_KEY=deadbeef", "utf8");
   }
   for (const name of [".bash_profile", ".zshrc", ".profile"]) {
     assert.throws(() => readFsFile({ rootPath: root, relativePath: name }), /denied filename pattern/, `expected '${name}' to be refused`);
@@ -562,12 +564,12 @@ test("node_modules, .git, and dist are excluded from listFsFiles but not from fs
 
 test("a Unicode case-fold spelling of a denied filename is refused before the file system can fold it", () => {
   const { root } = makeAllowedRoot();
-  fs.writeFileSync(path.join(root, ".bashrc"), "export TOVU_INTEGRATIONS_ROOT_KEY=deadbeef", "utf8");
+  fs.writeFileSync(path.join(root, ".bashrc"), "export TOVU_SITE_KEY=deadbeef", "utf8");
   assert.throws(
     () => readFsFile({ rootPath: root, relativePath: ".baſhrc" }),
     { message: "path '.baſhrc' matches a denied filename pattern and cannot be accessed" },
   );
-  assert.equal(isDeniedFsFileName("integrations-root-Key.hex"), true, "KELVIN SIGN spelling of the root key file");
+  assert.equal(isDeniedFsFileName("integrations-root-Key.hex"), true, "KELVIN SIGN spelling of the site key file");
 });
 
 test("a Unicode case-fold spelling of a denied path segment is refused", () => {
@@ -581,10 +583,10 @@ test("a Unicode case-fold spelling of a denied path segment is refused", () => {
 test("Windows trailing-dot, trailing-space, and ::$DATA spellings of denied names are refused", () => {
   const { root } = makeAllowedRoot();
   assert.throws(
-    () => resolveFsFilePath({ rootPath: root, relativePath: ".tovu./integrations-root-key.hex" }),
-    { message: "path '.tovu./integrations-root-key.hex' contains a denied path segment ('.tovu.') and cannot be accessed" },
+    () => resolveFsFilePath({ rootPath: root, relativePath: `.tovu./${LEGACY_SITE_KEY_FILENAME}` }),
+    { message: `path '.tovu./${LEGACY_SITE_KEY_FILENAME}' contains a denied path segment ('.tovu.') and cannot be accessed` },
   );
-  for (const name of [".env.", ".env ", ".env::$DATA", "integrations-root-key.hex.", "integrations-root-key.hex::$DATA"]) {
+  for (const name of [".env.", ".env ", ".env::$DATA", `${LEGACY_SITE_KEY_FILENAME}.`, `${LEGACY_SITE_KEY_FILENAME}::$DATA`]) {
     assert.equal(isDeniedFsFileName(name), true, `expected '${name}' to be denied`);
   }
   assert.equal(isDeniedFsPathSegment(".tovu. "), true, "trailing dot and space together");

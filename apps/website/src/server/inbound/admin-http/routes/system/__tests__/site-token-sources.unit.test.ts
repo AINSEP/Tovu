@@ -1,3 +1,5 @@
+import { LEGACY_SITE_KEY_FILENAME } from "#src/features/webhooks/site-key-sources";
+import { LEGACY_SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os, { homedir, tmpdir } from "node:os";
@@ -54,8 +56,8 @@ test("resolveSiteTokenSources: local mode with a resolvable siteKeyId prefers th
     assert.equal(keyFilePath, join(homedir(), ".tovu", "site-keys", "site-abc.hex"));
     assert.deepEqual(sources, [
       { kind: "per-site-file", path: `${SOURCE_HOME}/.tovu/site-keys/site-abc.hex` },
-      { kind: "env", envVarName: "TOVU_INTEGRATIONS_ROOT_KEY" },
-      { kind: "legacy-shared-file", path: `${SOURCE_HOME}/.tovu/integrations-root-key.hex` },
+      { kind: "env" },
+      { kind: "legacy-shared-file", path: `${SOURCE_HOME}/.tovu/${LEGACY_SITE_KEY_FILENAME}` },
     ]);
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -71,10 +73,10 @@ test("resolveSiteTokenSources: no .site-meta.json falls back to today's behavior
       sources.map((s) => s.kind),
       ["env", "legacy-shared-file"]
     );
-    assert.equal(keyFilePath, join(homedir(), ".tovu", "integrations-root-key.hex"));
+    assert.equal(keyFilePath, undefined);
     assert.deepEqual(sources, [
-      { kind: "env", envVarName: "TOVU_INTEGRATIONS_ROOT_KEY" },
-      { kind: "legacy-shared-file", path: `${SOURCE_HOME}/.tovu/integrations-root-key.hex` },
+      { kind: "env" },
+      { kind: "legacy-shared-file", path: `${SOURCE_HOME}/.tovu/${LEGACY_SITE_KEY_FILENAME}` },
     ]);
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -98,12 +100,13 @@ test("resolveSiteTokenSources: production mode never has a per-site candidate, e
 
     assert.deepEqual(
       sources.map((s) => s.kind),
-      ["env", "legacy-volume-file"]
+      ["env", "volume-file", "legacy-volume-file"]
     );
-    assert.equal(keyFilePath, join(process.cwd(), "sites", ".tovu", "integrations-root-key.hex"));
+    assert.equal(keyFilePath, join(process.cwd(), "sites", ".tovu", "site-key.hex"));
     assert.deepEqual(sources, [
-      { kind: "env", envVarName: "TOVU_INTEGRATIONS_ROOT_KEY" },
-      { kind: "legacy-volume-file", path: `${SOURCE_CWD}/sites/.tovu/integrations-root-key.hex` },
+      { kind: "env" },
+      { kind: "volume-file", path: `${SOURCE_CWD}/sites/.tovu/site-key.hex` },
+      { kind: "legacy-volume-file", path: `${SOURCE_CWD}/sites/.tovu/${LEGACY_SITE_KEY_FILENAME}` },
     ]);
   } finally {
     if (originalMode === undefined) delete process.env.TOVU_RUNTIME_MODE;
@@ -117,11 +120,11 @@ test("resolveSiteTokenSources: the new env name wins only when nonblank", (t) =>
   const dir = mkdtempSync(join(tmpdir(), "tovu-site-token-sources-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   writeFileSync(join(dir, ".site-meta.json"), JSON.stringify({ siteId: "site-abc" }));
-  for (const [value, envVarName] of [["new-key", "TOVU_SITE_KEY"], [" \t ", "TOVU_INTEGRATIONS_ROOT_KEY"]]) {
-    assert.deepEqual(resolveSiteTokenSources(depsFor(dir), { TOVU_RUNTIME_MODE: "local", TOVU_SITE_KEY: value, TOVU_INTEGRATIONS_ROOT_KEY: "old-key" }).sources, [
+  for (const [value, envVarName] of [["new-key", "TOVU_SITE_KEY"], [" \t ", "TOVU_SITE_KEY"]]) {
+    assert.deepEqual(resolveSiteTokenSources(depsFor(dir), { TOVU_RUNTIME_MODE: "local", TOVU_SITE_KEY: value, [LEGACY_SITE_KEY_ENV_VAR_NAME]: "old-key" }).sources, [
       { kind: "per-site-file", path: `${SOURCE_HOME}/.tovu/site-keys/site-abc.hex` },
-      { kind: "env", envVarName },
-      { kind: "legacy-shared-file", path: `${SOURCE_HOME}/.tovu/integrations-root-key.hex` },
+      { kind: "env" },
+      { kind: "legacy-shared-file", path: `${SOURCE_HOME}/.tovu/${LEGACY_SITE_KEY_FILENAME}` },
     ]);
   }
 });
@@ -133,10 +136,10 @@ for (const meta of ["{ malformed", "{}", '{"siteId":42}', '{"siteId":"../escape"
     writeFileSync(join(dir, ".site-meta.json"), meta);
     assert.deepEqual(resolveSiteTokenSources(depsFor(dir), { TOVU_RUNTIME_MODE: "local" }), {
       sources: [
-        { kind: "env", envVarName: "TOVU_INTEGRATIONS_ROOT_KEY" },
-        { kind: "legacy-shared-file", path: `${SOURCE_HOME}/.tovu/integrations-root-key.hex` },
+        { kind: "env" },
+        { kind: "legacy-shared-file", path: `${SOURCE_HOME}/.tovu/${LEGACY_SITE_KEY_FILENAME}` },
       ],
-      keyFilePath: `${SOURCE_HOME}/.tovu/integrations-root-key.hex`,
+      keyFilePath: undefined,
     });
   });
 }

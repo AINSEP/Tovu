@@ -1,3 +1,4 @@
+import { LEGACY_SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -157,7 +158,7 @@ function mkTempHome(): string {
 function bareKeyEnv(): NodeJS.ProcessEnv {
   const env = { ...process.env };
   delete env.TOVU_SITE_KEY;
-  delete env.TOVU_INTEGRATIONS_ROOT_KEY;
+  delete env[LEGACY_SITE_KEY_ENV_VAR_NAME];
   delete env.TOVU_RUNTIME_MODE;
   return env;
 }
@@ -208,11 +209,7 @@ test("site-key plan §A.4: a duplicate of a site with a sealed row can still dec
     // Seal a real secret under the source's own resolved key, via the exact construction
     // `server/runtime/composition/deps.ts` uses for the credential sealer (EnvOrFileKeyring with
     // `sources`, never auto-generating).
-    const sourceKeyring = new EnvOrFileKeyring({
-      allowFileFallback: true,
-      allowFileAutoGenerate: false,
-      sources: siteKeySources({ mode: "local", env, home, cwd: process.cwd(), siteKeyId: source.siteId }),
-    });
+    const sourceKeyring = new EnvOrFileKeyring({ sources: siteKeySources({ mode: "local", env, home, cwd: process.cwd(), siteKeyId: source.siteId }) });
     const sealer = new AesGcmSecretSealer(sourceKeyring);
     const key = await sourceKeyring.activeKey();
     const plaintext = "a real vendor api token, never stored in the clear";
@@ -249,11 +246,7 @@ test("site-key plan §A.4: a duplicate of a site with a sealed row can still dec
 
     // The actual proof: decrypt the copied row under the DUPLICATE's own, independently
     // constructed keyring — nothing here reuses the source's in-memory keyring instance.
-    const targetKeyring = new EnvOrFileKeyring({
-      allowFileFallback: true,
-      allowFileAutoGenerate: false,
-      sources: siteKeySources({ mode: "local", env, home, cwd: process.cwd(), siteKeyId: targetMeta.siteKeyId }),
-    });
+    const targetKeyring = new EnvOrFileKeyring({ sources: siteKeySources({ mode: "local", env, home, cwd: process.cwd(), siteKeyId: targetMeta.siteKeyId }) });
     const targetSealer = new AesGcmSecretSealer(targetKeyring);
     const copyDb = new Database(path.join(targetDir, "content.db"), { readonly: true });
     let copiedRow: { sealed_ciphertext: string; nonce: string; alg: string; key_id: string } | undefined;
@@ -279,11 +272,7 @@ test("site-key plan §A.4: a duplicate of a site with a sealed row can still dec
     const secondEnsure = await ensureSiteKeyForBoot({ siteDir: secondDir, mode: "local", env, home, findSiteKeyDependentData });
     assert.equal(secondEnsure?.action, "noop");
     assert.equal(secondEnsure?.fingerprint, mintResult?.fingerprint);
-    const secondKeyring = new EnvOrFileKeyring({
-      allowFileFallback: true,
-      allowFileAutoGenerate: false,
-      sources: siteKeySources({ mode: "local", env, home, cwd: process.cwd(), siteKeyId: secondMeta.siteKeyId }),
-    });
+    const secondKeyring = new EnvOrFileKeyring({ sources: siteKeySources({ mode: "local", env, home, cwd: process.cwd(), siteKeyId: secondMeta.siteKeyId }) });
     const secondDb = new Database(path.join(secondDir, "content.db"), { readonly: true });
     try {
       const row = secondDb.prepare("SELECT sealed_ciphertext, nonce, alg, key_id FROM site_key_test_sealed_row").get() as NonNullable<typeof copiedRow>;

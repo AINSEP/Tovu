@@ -1,3 +1,4 @@
+import { LEGACY_SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -70,7 +71,7 @@ test("deployment-overview: a mismatched workspaceId in the URL 404s", async (t) 
 test("deployment-overview: the seeded owner gets 200 with real process/env-derived fields, never a fabricated value", async (t) => {
   const previousPassword = process.env.TOVU_ADMIN_PASSWORD;
   const previousDaemonPort = process.env.JINI_AGENT_DAEMON_PORT;
-  const previousRootKey = process.env.TOVU_INTEGRATIONS_ROOT_KEY;
+  const previousRootKey = process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
   const previousMode = process.env.TOVU_RUNTIME_MODE;
   const previousUser = process.env.TOVU_ADMIN_USER;
   const previousHome = process.env.HOME;
@@ -79,7 +80,7 @@ test("deployment-overview: the seeded owner gets 200 with real process/env-deriv
   // machine running the suite (under the real home) cannot make the root-key row active.
   delete process.env.TOVU_ADMIN_PASSWORD;
   delete process.env.JINI_AGENT_DAEMON_PORT;
-  delete process.env.TOVU_INTEGRATIONS_ROOT_KEY;
+  delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
   delete process.env.TOVU_RUNTIME_MODE;
   delete process.env.TOVU_ADMIN_USER;
   const home = mkdtempSync(path.join(tmpdir(), "tovu-deployment-overview-route-home-"));
@@ -91,8 +92,8 @@ test("deployment-overview: the seeded owner gets 200 with real process/env-deriv
     else process.env.TOVU_ADMIN_PASSWORD = previousPassword;
     if (previousDaemonPort === undefined) delete process.env.JINI_AGENT_DAEMON_PORT;
     else process.env.JINI_AGENT_DAEMON_PORT = previousDaemonPort;
-    if (previousRootKey === undefined) delete process.env.TOVU_INTEGRATIONS_ROOT_KEY;
-    else process.env.TOVU_INTEGRATIONS_ROOT_KEY = previousRootKey;
+    if (previousRootKey === undefined) delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
+    else process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = previousRootKey;
     if (previousMode === undefined) delete process.env.TOVU_RUNTIME_MODE;
     else process.env.TOVU_RUNTIME_MODE = previousMode;
     if (previousUser === undefined) delete process.env.TOVU_ADMIN_USER;
@@ -127,7 +128,7 @@ test("deployment-overview: the seeded owner gets 200 with real process/env-deriv
   assert.deepEqual(body.envVars, [
     { name: "TOVU_ADMIN_PASSWORD", set: false },
     { name: "TOVU_ADMIN_USER", set: false },
-    { name: "TOVU_INTEGRATIONS_ROOT_KEY", set: false, source: "none" },
+    { name: "TOVU_SITE_KEY", set: false, source: "none" },
     { name: "JINI_AGENT_DAEMON_PORT", set: false },
   ]);
   // Never echoes a secret VALUE — only ever "set"/"not set" markers, matching every field name
@@ -137,7 +138,7 @@ test("deployment-overview: the seeded owner gets 200 with real process/env-deriv
   process.env.TOVU_ADMIN_PASSWORD = "overview-presence-secret";
   process.env.TOVU_ADMIN_USER = "overview-present-user";
   process.env.JINI_AGENT_DAEMON_PORT = "4444";
-  process.env.TOVU_INTEGRATIONS_ROOT_KEY = "a".repeat(64);
+  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = "a".repeat(64);
   process.env.TOVU_RUNTIME_MODE = "production";
   const productionRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/deployment-overview`, { headers: { cookie } });
   assert.equal(productionRes.status, 200);
@@ -148,7 +149,7 @@ test("deployment-overview: the seeded owner gets 200 with real process/env-deriv
   assert.deepEqual(production.envVars, [
     { name: "TOVU_ADMIN_PASSWORD", set: true },
     { name: "TOVU_ADMIN_USER", set: true },
-    { name: "TOVU_INTEGRATIONS_ROOT_KEY", set: true, source: "env" },
+    { name: "TOVU_SITE_KEY", set: true, source: "env" },
     { name: "JINI_AGENT_DAEMON_PORT", set: true },
   ]);
   assert.doesNotMatch(JSON.stringify(production), /overview-presence-secret|overview-present-user/);

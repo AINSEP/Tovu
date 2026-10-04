@@ -11,29 +11,29 @@ import { buildDeploymentOverviewSnapshot } from "../../inbound/admin-http/routes
  */
 function rootKeyRow(rootKey: Parameters<typeof buildDeploymentOverviewSnapshot>[0]["rootKey"]) {
   const snapshot = buildDeploymentOverviewSnapshot({ defaultOwnerPasswordUnsafe: false, rootKey });
-  return snapshot.envVars.find((row) => row.name === "TOVU_INTEGRATIONS_ROOT_KEY");
+  return snapshot.envVars.find((row) => row.name === "TOVU_SITE_KEY");
 }
 
-test("deployment-overview root key: a valid generated key file counts as set, with its source", () => {
+test("deployment-overview site key: a valid generated key file counts as set, with its source", () => {
   assert.deepEqual(rootKeyRow({ active: true, source: "file", fingerprint: "ab12", keyFilePath: "/x/root.key" }), {
-    name: "TOVU_INTEGRATIONS_ROOT_KEY",
+    name: "TOVU_SITE_KEY",
     set: true,
     source: "file",
   });
 });
 
-test("deployment-overview root key: a malformed env value is not set, and is flagged invalid", () => {
+test("deployment-overview site key: a malformed env value is not set, and is flagged invalid", () => {
   assert.deepEqual(rootKeyRow({ active: false, source: "env", invalid: true, reason: "too-short", keyFilePath: "/x/root.key" }), {
-    name: "TOVU_INTEGRATIONS_ROOT_KEY",
+    name: "TOVU_SITE_KEY",
     set: false,
     source: "env",
     invalid: true,
   });
 });
 
-test("deployment-overview root key: nothing configured is not set, source none", () => {
+test("deployment-overview site key: nothing configured is not set, source none", () => {
   assert.deepEqual(rootKeyRow({ active: false, source: "none", keyFilePath: "/x/root.key" }), {
-    name: "TOVU_INTEGRATIONS_ROOT_KEY",
+    name: "TOVU_SITE_KEY",
     set: false,
     source: "none",
   });

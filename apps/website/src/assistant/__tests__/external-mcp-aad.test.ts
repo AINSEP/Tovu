@@ -1,8 +1,9 @@
+import { LEGACY_SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import test from "node:test";
 
-process.env.TOVU_INTEGRATIONS_ROOT_KEY ??= randomBytes(32).toString("hex");
+process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] ??= randomBytes(32).toString("hex");
 
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
@@ -24,7 +25,7 @@ import {
  * here is OAuth credentials for an external MCP server.
  */
 
-const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
+const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] });
 const sealer = new AesGcmSecretSealer(keyring);
 const deps = { sealer, keyring };
 

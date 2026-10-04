@@ -1,3 +1,5 @@
+import { homedir } from "node:os";
+import { siteKeySources } from "#src/features/webhooks/site-key-sources";
 import type { Express } from "express";
 
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
@@ -86,7 +88,7 @@ export interface DeploymentOverviewSnapshot {
 const REQUIRED_ENV_VAR_NAMES = [
   "TOVU_ADMIN_PASSWORD",
   "TOVU_ADMIN_USER",
-  "TOVU_INTEGRATIONS_ROOT_KEY",
+  "TOVU_SITE_KEY",
   "JINI_AGENT_DAEMON_PORT",
 ] as const;
 
@@ -94,7 +96,7 @@ const REQUIRED_ENV_VAR_NAMES = [
  *  key file, validated — rather than the env var's bare presence. @complexity O(1). */
 function rootKeyEnvVarStatus(rootKey: RootKeyStatus): DeploymentEnvVarStatus {
   return {
-    name: "TOVU_INTEGRATIONS_ROOT_KEY",
+    name: "TOVU_SITE_KEY",
     set: rootKey.active,
     source: rootKey.source,
     ...(rootKey.invalid ? { invalid: true as const } : {}),
@@ -102,7 +104,7 @@ function rootKeyEnvVarStatus(rootKey: RootKeyStatus): DeploymentEnvVarStatus {
 }
 
 function envVarStatus(name: (typeof REQUIRED_ENV_VAR_NAMES)[number], rootKey: RootKeyStatus): DeploymentEnvVarStatus {
-  return name === "TOVU_INTEGRATIONS_ROOT_KEY" ? rootKeyEnvVarStatus(rootKey) : { name, set: Boolean(process.env[name]) };
+  return name === "TOVU_SITE_KEY" ? rootKeyEnvVarStatus(rootKey) : { name, set: Boolean(process.env[name]) };
 }
 
 /**
@@ -119,7 +121,7 @@ export function buildDeploymentOverviewSnapshot(input: {
   rootKey?: RootKeyStatus;
 }): DeploymentOverviewSnapshot {
   const mode = resolveRuntimeMode();
-  const rootKey = input.rootKey ?? inspectRootKeyMaterial();
+  const rootKey = input.rootKey ?? inspectRootKeyMaterial({ sources: siteKeySources({ mode, env: process.env, home: homedir(), cwd: process.cwd() }) });
   return {
     mode,
     productionReadinessGate: { applicable: mode === "production", passed: mode === "production" },

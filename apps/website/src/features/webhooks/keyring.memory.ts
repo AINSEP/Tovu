@@ -23,7 +23,7 @@ export class InMemoryKeyring implements KeyringPort {
 
   constructor(keyId = "v1") {
     this.keyring = new FixedRootKeyKeyring({
-      hex: randomBytes(32).toString("hex"), hkdfSalt: HKDF_EXTRACTION_SALT,
+      hex: randomBytes(32).toString("hex"), hkdfSalt: HKDF_EXTRACTION_SALT, // site-key-frozen: never change (every sealed row depends on these bytes)
     }, { keyId });
   }
 

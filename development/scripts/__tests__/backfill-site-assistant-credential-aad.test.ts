@@ -1,3 +1,4 @@
+import { LEGACY_SITE_KEY_ENV_VAR_NAME } from "../../../apps/website/src/features/webhooks/site-key-sources.js";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
@@ -29,8 +30,8 @@ function tmpDir(prefix: string): string {
 }
 
 function runScript(dbPath: string, rootKeyHex: string | undefined, extraArgs: string[] = []): string {
-  const env = { ...process.env, ...(rootKeyHex !== undefined ? { TOVU_INTEGRATIONS_ROOT_KEY: rootKeyHex } : {}) };
-  if (rootKeyHex === undefined) delete env.TOVU_INTEGRATIONS_ROOT_KEY;
+  const env = { ...process.env, ...(rootKeyHex !== undefined ? { [LEGACY_SITE_KEY_ENV_VAR_NAME]: rootKeyHex } : {}) };
+  if (rootKeyHex === undefined) delete env[LEGACY_SITE_KEY_ENV_VAR_NAME];
   return execFileSync("node", ["--import", "tsx", SCRIPT, "--db", dbPath, ...extraArgs], {
     cwd: REPO_ROOT,
     encoding: "utf8",
@@ -43,8 +44,8 @@ test("backfill-site-assistant-credential-aad: seals OLD (no aad), migrates in pl
   const dbPath = path.join(scratch, "content.db");
   const rootKeyHex = randomBytes(32).toString("hex");
 
-  process.env.TOVU_INTEGRATIONS_ROOT_KEY = rootKeyHex;
-  const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
+  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = rootKeyHex;
+  const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] });
   const sealer = new AesGcmSecretSealer(keyring);
   const activeKey = await keyring.activeKey();
 
@@ -94,7 +95,7 @@ test("backfill-site-assistant-credential-aad: seals OLD (no aad), migrates in pl
     ])
     .run();
   seedDb.$client.close();
-  delete process.env.TOVU_INTEGRATIONS_ROOT_KEY;
+  delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
 
   const dryRunOutput = runScript(dbPath, undefined);
   assert.match(dryRunOutput, /DRY RUN: 1 row\(s\) would be migrated, 1 total pending/);
@@ -114,8 +115,8 @@ test("backfill-site-assistant-credential-aad: seals OLD (no aad), migrates in pl
   assert.equal(rowOne.masked, "••••1111", "masked must survive untouched");
   assert.equal(rowTwo.aadVersion, 0, "a row with no key must be left untouched");
 
-  process.env.TOVU_INTEGRATIONS_ROOT_KEY = rootKeyHex;
-  const openSealer = new AesGcmSecretSealer(new EnvOrFileKeyring({ allowFileFallback: false }));
+  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = rootKeyHex;
+  const openSealer = new AesGcmSecretSealer(new EnvOrFileKeyring({ sources: [{ kind: "env" }] }));
   const reopened = await openSealer.open({
     sealed: { keyId: rowOne.sealedKeyId!, ciphertext: rowOne.sealedCiphertext!, nonce: rowOne.sealedNonce!, alg: rowOne.sealedAlg! },
     aad: buildSiteAssistantCredentialAad({ workspaceId: WORKSPACE }),
@@ -128,7 +129,7 @@ test("backfill-site-assistant-credential-aad: seals OLD (no aad), migrates in pl
     })
   );
 
-  delete process.env.TOVU_INTEGRATIONS_ROOT_KEY;
+  delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
   db.$client.close();
 
   const secondApplyOutput = runScript(dbPath, rootKeyHex, ["--apply"]);

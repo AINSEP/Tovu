@@ -31,7 +31,7 @@ const FIXTURE_DESCRIPTOR: DeploymentDescriptor = {
   healthCheckPath: "/readyz",
   secrets: [
     { name: "TOVU_ADMIN_PASSWORD", requirement: "boot-blocking" },
-    { name: "TOVU_INTEGRATIONS_ROOT_KEY", requirement: "recommended" },
+    { name: "TOVU_SITE_KEY", requirement: "recommended" },
   ],
 };
 
@@ -74,7 +74,7 @@ test("renderRailwayConfig: never emits a secret VALUE or any env-var field at al
   const result = renderRailwayConfig(FIXTURE_DESCRIPTOR, { region: "us-west2" });
 
   assert.ok(!result.contents.includes("TOVU_ADMIN_PASSWORD"));
-  assert.ok(!result.contents.includes("TOVU_INTEGRATIONS_ROOT_KEY"));
+  assert.ok(!result.contents.includes("TOVU_SITE_KEY"));
   const parsed = JSON.parse(result.contents) as Record<string, unknown>;
   assert.ok(!("envVars" in parsed), "no top-level envVars key");
   assert.ok(!("variables" in parsed), "no top-level variables key");

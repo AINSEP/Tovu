@@ -1,3 +1,4 @@
+import { siteKeyEnvOnlySources } from "../../apps/website/src/features/webhooks/site-key-sources.js";
 /**
  * @file Shared scaffold behind every `backfill-*-aad.ts` script (argument parsing, the
  * dry-run/`--apply` split, the per-unit seal-verify-write loop, restore-point capture, and the
@@ -223,7 +224,7 @@ export async function runAadBackfillMain(argv: readonly string[], config: AadBac
   if (!args.apply) {
     // Read-only open: a dry run must never migrate or write the bootstrap watermark row.
     const db = openContentDbReadOnly(dbPath);
-    const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
+    const keyring = new EnvOrFileKeyring({ sources: siteKeyEnvOnlySources({}) });
     const sealer = new AesGcmSecretSealer(keyring);
     const result = await runAadBackfill({ db, sealer, keyring }, { apply: false }, config);
     print(config.messages.dryRunSummary(result));
@@ -231,7 +232,7 @@ export async function runAadBackfillMain(argv: readonly string[], config: AadBac
   }
 
   const db = openContentDb(dbPath);
-  const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
+  const keyring = new EnvOrFileKeyring({ sources: siteKeyEnvOnlySources({}) });
   const sealer = new AesGcmSecretSealer(keyring);
 
   const pendingCount = config.loadPending(db).length;

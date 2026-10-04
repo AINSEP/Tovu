@@ -7,7 +7,6 @@ import type { Express, Request, Response } from "express";
 import type { UUID } from "@jini-ai/core/primitives";
 
 import {
-  defaultRootKeyFilePath,
   fingerprintRootKeyHex,
   generateFileRootKey,
   inspectRootKeyMaterial,
@@ -150,15 +149,16 @@ const BASE_PATH = "/api/admin/v1/workspaces/:workspaceId/system/site-token";
 export function resolveSiteTokenSources(
   deps: Pick<AdminSiteTokenDeps, "siteBinding">,
   env: NodeJS.ProcessEnv = process.env
-): { sources: SiteKeySource[]; keyFilePath: string } {
+): { sources: SiteKeySource[]; keyFilePath: string | undefined } {
   const mode = resolveRuntimeMode({ env });
   const sources = siteKeySourcesForSiteDir({ siteDir: deps.siteBinding.dir, mode, env, home: homedir(), cwd: process.cwd() });
-  return { sources, keyFilePath: siteKeyFilePathFrom(sources, defaultRootKeyFilePath()) };
+  return { sources, keyFilePath: siteKeyFilePathFrom(sources) };
 }
 
 export interface SiteTokenStateInput {
   readonly active: boolean;
   readonly invalid?: boolean;
+  readonly reason?: string;
   /** The currently-resolved key material's own fingerprint (only meaningful when `active`). */
   readonly fingerprint?: string;
   /** `.site-meta.json`'s stamped `siteKeyFingerprint` ({@link resolveSiteKeyFingerprint}) —
@@ -185,6 +185,7 @@ export interface SiteTokenStateInput {
  * @complexity O(1) — a fixed sequence of comparisons over already-computed inputs; no I/O.
  */
 export function siteTokenState(input: SiteTokenStateInput): SiteTokenState {
+  if (input.reason === "env-conflict") return "env-conflict";
   if (input.invalid) return "invalid";
   if (input.active) {
     return input.metaFingerprint !== undefined && input.metaFingerprint !== input.fingerprint
@@ -241,7 +242,7 @@ async function rejectUnlessAuthorized(req: Request, res: Response, deps: AdminSi
   // admin session, never by a machine credential a leaked key could replay.
   if (
     !rejectUnlessSessionCredential(res, {
-      message: "api-key credentials may not read or manage the site token; use an admin session",
+      message: "api-key credentials may not read or manage the site key; use an admin session",
       permission: SITE_TOKEN_MANAGE_PERMISSION,
     })
   ) {
@@ -267,6 +268,7 @@ export function registerAdminSiteTokenRoutes(app: Express, deps: AdminSiteTokenD
     const state = siteTokenState({
       active: status.active,
       invalid: status.invalid,
+      reason: status.reason,
       fingerprint: status.fingerprint,
       metaFingerprint: status.active ? resolveSiteKeyFingerprint({ siteDir: deps.siteBinding.dir }) : undefined,
       hasKeyDependentData:
@@ -298,7 +300,7 @@ export function registerAdminSiteTokenRoutes(app: Express, deps: AdminSiteTokenD
         res.status(409).json({ error: "ALREADY_EXISTS", detail: err.message });
         return;
       }
-      console.error("[site-token] unexpected error", err);
+      console.error("[site-key] unexpected error", err);
       res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
     }
   });
@@ -327,7 +329,7 @@ async function respondWithRecovery(res: Response, run: () => Promise<RouteResult
     const result = await run();
     res.status(result.status).json({ ...result.body, runtimeMode: resolveRuntimeMode() });
   } catch (err) {
-    console.error("[site-token] recovery failed", err);
+    console.error("[site-key] recovery failed", err);
     res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
   }
 }
@@ -359,7 +361,8 @@ export interface SiteTokenStoreInput {
 /** `site-key-ensure.ts`'s `installSiteKey` result, restated structurally (see {@link SiteKeyEnsureOutcome}). */
 export type SiteKeyInstallOutcome =
   | { readonly outcome: "installed"; readonly keyFilePath: string; readonly fingerprint: string }
-  | { readonly outcome: "env-key-set" };
+  | { readonly outcome: "env-key-set" }
+  | { readonly outcome: "env-conflict" };
 
 /** What the key verbs need from the composition root: `site-key-ensure.ts`'s writers (boot's
  *  `ensureSiteKeyForSite`, recovery's `installSiteKey`/`mintSiteKeyHex`) and the sealed-value checks
@@ -389,17 +392,18 @@ type GenerateResult = RouteResult;
 /** Plain-words refusals — the key the site's data needs is not here, so nothing is written. */
 const REFUSALS = {
   KEY_DEPENDENT_DATA:
-    "This site has saved credentials locked with a site token that is not on this computer. A new token could not open them, so none was created. Put the original site token back to unlock them.",
+    "This site has saved credentials locked with a site key that is not on this computer. A new site key could not open them, so none was created. Put the original site key back to unlock them.",
   KEY_MISMATCH:
-    "The site token on this computer is not the one this site's saved credentials were locked with, so nothing was changed. Put the original site token back to unlock them.",
-  KEY_INVALID: "A site token is set on this computer but is not a valid key, so nothing was changed. Fix or remove it, then try again.",
-  SITE_META_UNREADABLE: "This site's .site-meta.json cannot be read, so its site token cannot be set up. Nothing was changed.",
-  TOKEN_INVALID: "That is not a site token. A site token is 64 characters of 0-9 and a-f.",
-  TOKEN_DOES_NOT_OPEN: "That token does not open this site's saved credentials. Nothing was changed.",
-  ENV_KEY_SET: "A different site token is set in this server's environment and overrides the key file, so nothing was changed. Change it there instead.",
+    "The site key on this computer is not the one this site's saved credentials were locked with, so nothing was changed. Put the original site key back to unlock them.",
+  ENV_CONFLICT: "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.",
+  KEY_INVALID: "A site key is set on this computer but is not a valid key, so nothing was changed. Fix or remove it, then try again.",
+  SITE_META_UNREADABLE: "This site's .site-meta.json cannot be read. Repair this site first; no site key was written.",
+  TOKEN_INVALID: "That is not a site key. A site key is 64 characters of 0-9 and a-f.",
+  TOKEN_DOES_NOT_OPEN: "That site key does not open this site's saved credentials. Nothing was changed.",
+  ENV_KEY_SET: "A different site key is set in this server's environment and overrides the key file, so nothing was changed. Change it there instead.",
   RESTORE_POINT_UNAVAILABLE: "A restore point can't be made for this site's database right now, so nothing was changed.",
   STORAGE_SECRET_LOCKED:
-    "This site's database connection is locked with the old token, and starting fresh can't replace it. Paste your old token instead. Nothing was changed.",
+    "This site's database connection is locked with the old site key, and starting fresh can't replace it. Paste your old site key instead. Nothing was changed.",
   CONFIRMATION_REQUIRED: "Type START FRESH to confirm. Nothing was changed.",
 } as const;
 
@@ -427,6 +431,8 @@ function success(outcome: GenerateOutcome, fingerprint: string, keyFilePath: str
  * @complexity O(1) file reads plus at most one key-dependent-data scan.
  */
 async function generateSiteToken(deps: AdminSiteTokenDeps, siteKey: SiteTokenKeyWriter): Promise<GenerateResult> {
+  const initialStatus = inspectRootKeyMaterial({ sources: resolveSiteTokenSources(deps).sources });
+  if (initialStatus.reason === "env-conflict") return refusal("ENV_CONFLICT");
   const hasData = (): Promise<boolean> => siteHasKeyDependentData(deps);
   const mode = resolveRuntimeMode();
   const ensured = await siteKey.ensureSiteKeyForSite({ siteDir: deps.siteBinding.dir, findSiteKeyDependentData: hasData });
@@ -456,6 +462,7 @@ async function generateProductionSiteToken(deps: AdminSiteTokenDeps, hasData: ()
   if (status.active && status.fingerprint !== undefined) return success("already-active", status.fingerprint, status.keyFilePath);
   if (status.invalid) return refusal("KEY_INVALID");
   if (await hasData()) return refusal("KEY_DEPENDENT_DATA");
+  if (keyFilePath === undefined) return refusal("SITE_META_UNREADABLE");
   const generated = generateFileRootKey({ keyFilePath });
   stampSiteKeyFingerprint(deps.siteBinding.dir, generated.fingerprint);
   return success("created", generated.fingerprint, generated.keyFilePath);
@@ -498,6 +505,7 @@ async function importSiteToken(deps: AdminSiteTokenDeps, siteKey: SiteTokenKeyWr
   const siteDir = deps.siteBinding.dir;
   const fingerprint = fingerprintRootKeyHex(parsed.hex);
   const current = revealRootKeyMaterial({ sources: resolveSiteTokenSources(deps).sources });
+  if (current.reason === "env-conflict") return refusal("ENV_CONFLICT");
   if (current.source === "env" && current.fingerprint !== fingerprint) return refusal("ENV_KEY_SET");
   const store = { siteDir, contentKernel: deps.contentKernel, hex: parsed.hex };
   const check = await siteKey.checkKey(store);
@@ -513,6 +521,7 @@ async function importSiteToken(deps: AdminSiteTokenDeps, siteKey: SiteTokenKeyWr
   }
   const installed = siteKey.installSiteKey({ siteDir, hex: parsed.hex });
   if (installed === undefined) return refusal("SITE_META_UNREADABLE");
+  if (installed.outcome === "env-conflict") return refusal("ENV_CONFLICT");
   if (installed.outcome === "env-key-set") return refusal("ENV_KEY_SET");
   return { status: 200, body: { outcome: "unlocked", fingerprint, keyFilePath: installed.keyFilePath, resealed, restorePointId } };
 }
@@ -534,6 +543,7 @@ interface StartFreshPlan {
  *  @complexity one sealed-value scan plus one webhook list. */
 async function planStartFresh(deps: AdminSiteTokenDeps, siteKey: SiteTokenKeyWriter): Promise<StartFreshPlan | RouteResult> {
   const current = revealRootKeyMaterial({ sources: resolveSiteTokenSources(deps).sources });
+  if (current.reason === "env-conflict") return refusal("ENV_CONFLICT");
   if (current.source === "env" && current.hex === undefined) return refusal("ENV_KEY_SET");
   const hex = current.hex ?? siteKey.mintSiteKeyHex();
   const check = await siteKey.checkKey({ siteDir: deps.siteBinding.dir, contentKernel: deps.contentKernel, hex });
@@ -583,6 +593,7 @@ async function startFresh(deps: AdminSiteTokenDeps, siteKey: SiteTokenKeyWriter,
   const { discarded, kept } = await siteKey.discardNotOpening({ siteDir: deps.siteBinding.dir, contentKernel: deps.contentKernel, hex: plan.hex });
   const installed = siteKey.installSiteKey({ siteDir: deps.siteBinding.dir, hex: plan.hex });
   if (installed === undefined) return refusal("SITE_META_UNREADABLE");
+  if (installed.outcome === "env-conflict") return refusal("ENV_CONFLICT");
   if (installed.outcome === "env-key-set") return refusal("ENV_KEY_SET");
   return {
     status: 200,

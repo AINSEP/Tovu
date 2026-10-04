@@ -1,7 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { DEFAULT_ROOT_KEY_ENV_VAR_NAME } from "./keyring.env.js";
 import type { RuntimeMode } from "#src/contracts/core/runtime-mode";
 
 /**
@@ -12,13 +11,13 @@ import type { RuntimeMode } from "#src/contracts/core/runtime-mode";
  *
  * Local mode checks, in order: this site's own key file, the env var, then the one legacy shared
  * file every install used before per-site keys existed. Production checks only the env var and the
- * legacy durable-volume file — it never has (or wants) a per-site file; see A.1's "why per-site
+ * durable-volume files — it never has (or wants) a per-site file; see A.1's "why per-site
  * rather than one key per OS user" and A.3's "production never mints".
  *
- * The env var name itself is `TOVU_SITE_KEY` when already set, otherwise the current (pre-rename)
- * `TOVU_INTEGRATIONS_ROOT_KEY` — Stage D1 (not built yet) is what turns this into a real dual-name
- * alias with conflict detection; today this module only prefers the new name when it happens to
- * already be present.
+ * Both environment names resolve through `resolveSiteKeyEnv`: blank values are absent, the
+ * preferred name wins for equal key bytes, and different values refuse every reader and writer.
+ * Production checks the env source, then the new durable-volume file, then the legacy file.
+ * Legacy files remain read-only adoption sources; only the per-site/new-volume paths are targets.
  *
  * Architectural role:
  * `features/webhooks` domain helper, alongside `keyring.env.ts` (whose readers this feeds) and
@@ -26,23 +25,23 @@ import type { RuntimeMode } from "#src/contracts/core/runtime-mode";
  */
 
 /** The site key's forward-looking env var name (site-key plan §B.1: the eventual rename target).
- *  Preferred over {@link DEFAULT_ROOT_KEY_ENV_VAR_NAME} whenever it is already set. */
+ *  Preferred over the legacy alias whenever set; conflicting aliases refuse resolution. */
 export const SITE_KEY_ENV_VAR_NAME = "TOVU_SITE_KEY";
 
 /** The legacy shared-file name every pre-per-site-key install still carries — reused verbatim (not
  *  duplicated) via {@link legacySharedFilePath}/{@link legacyVolumeFilePath}, so this module and
- *  `keyring.env.ts`'s `defaultRootKeyFilePath` can never drift on the same literal. */
-const LEGACY_KEY_FILENAME = "integrations-root-key.hex";
+ *  all site-key readers can never drift on the same literal. */
+export const LEGACY_SITE_KEY_FILENAME = "integrations-root-key.hex"; // site-key-legacy: remove on/after 2026-11-01 (D3)
+export const LEGACY_SITE_KEY_ENV_VAR_NAME = "TOVU_INTEGRATIONS_ROOT_KEY"; // site-key-legacy: remove on/after 2026-11-01 (D3)
 
-export type SiteKeySourceKind = "per-site-file" | "env" | "legacy-shared-file" | "legacy-volume-file";
+export type SiteKeySourceKind = "per-site-file" | "env" | "legacy-shared-file" | "volume-file" | "legacy-volume-file";
 
 /** One candidate place to look for the site key, in the order a caller should try them. Exactly
- *  one of `path`/`envVarName` is set, matching `kind` (`"env"` → `envVarName`, everything else →
- *  `path`) — never both, never neither. */
+ *  file source carries `path`; an env source has no fixed variable name because the shared
+ *  dual-name resolver decides which alias is active at read time. */
 export interface SiteKeySource {
   readonly kind: SiteKeySourceKind;
   readonly path?: string;
-  readonly envVarName?: string;
 }
 
 export interface SiteKeySourcesInput {
@@ -64,10 +63,10 @@ export interface SiteKeySourcesInput {
  * @complexity O(1) — a fixed-size list, no I/O.
  */
 export function siteKeySources(input: SiteKeySourcesInput): SiteKeySource[] {
-  const envSource: SiteKeySource = { kind: "env", envVarName: resolveEnvVarName(input.env) };
+  const envSource: SiteKeySource = { kind: "env" };
 
   if (input.mode === "production") {
-    return [envSource, { kind: "legacy-volume-file", path: legacyVolumeFilePath(input.cwd) }];
+    return [envSource, { kind: "volume-file", path: join(input.cwd, "sites", ".tovu", "site-key.hex") }, { kind: "legacy-volume-file", path: legacyVolumeFilePath(input.cwd) }];
   }
 
   const sources: SiteKeySource[] = [];
@@ -79,13 +78,26 @@ export function siteKeySources(input: SiteKeySourcesInput): SiteKeySource[] {
   return sources;
 }
 
-/** Prefers the new `TOVU_SITE_KEY` name when it is set to a non-blank value; otherwise names the
- *  current real var so an unmodified install (nothing D1-renamed yet) still resolves. A blank
- *  `TOVU_SITE_KEY` counts as unset ({@link readSiteKeySourceMaterial}'s "blank env = absent" rule) —
- *  it must never shadow a real value under the legacy name. */
-function resolveEnvVarName(env: Record<string, string | undefined>): string {
-  const preferred = env[SITE_KEY_ENV_VAR_NAME];
-  return preferred !== undefined && preferred.trim().length > 0 ? SITE_KEY_ENV_VAR_NAME : DEFAULT_ROOT_KEY_ENV_VAR_NAME;
+/** Both names are read-only inputs. Blank values are absent; different values fail closed.
+ * Trimming and hex case normalization match the validator, so equal key bytes do not conflict.
+ * No secret material is included in a conflict result. */
+export type SiteKeyEnvResolution =
+  | { readonly kind: "absent" }
+  | { readonly kind: "ok"; readonly value: string; readonly varName: string; readonly deprecated: boolean }
+  | { readonly kind: "conflict" };
+
+export function resolveSiteKeyEnv(input: { readonly env: Record<string, string | undefined> }, _optional = {}): SiteKeyEnvResolution {
+  const value = input.env[SITE_KEY_ENV_VAR_NAME]?.trim();
+  const legacy = input.env[LEGACY_SITE_KEY_ENV_VAR_NAME]?.trim();
+  if (value && legacy && value.toLowerCase() !== legacy.toLowerCase()) return { kind: "conflict" };
+  if (value) return { kind: "ok", value, varName: SITE_KEY_ENV_VAR_NAME, deprecated: Boolean(legacy) };
+  if (legacy) return { kind: "ok", value: legacy, varName: LEGACY_SITE_KEY_ENV_VAR_NAME, deprecated: true };
+  return { kind: "absent" };
+}
+
+/** Newsletter signing and maintenance backfills require an env key, with no file fallback. */
+export function siteKeyEnvOnlySources(_required = {}, _optional = {}): SiteKeySource[] {
+  return [{ kind: "env" }];
 }
 
 /** Characters a `siteKeyId` may contain: `initSite` writes a UUID, so letters, digits, `-`, `_` and
@@ -107,13 +119,13 @@ function perSiteFilePath(home: string, siteKeyId: string): string {
 /** `~/.tovu/integrations-root-key.hex` — the one shared file every install had before per-site
  *  keys, still read (never written by a reader) as an adoption source. */
 function legacySharedFilePath(home: string): string {
-  return join(home, ".tovu", LEGACY_KEY_FILENAME);
+  return join(home, ".tovu", LEGACY_SITE_KEY_FILENAME);
 }
 
 /** `<cwd>/sites/.tovu/integrations-root-key.hex` — the production durable-volume path
  *  (`keyring.env.ts`'s `defaultRootKeyFilePath` production branch), reused here unchanged. */
 function legacyVolumeFilePath(cwd: string): string {
-  return join(cwd, "sites", ".tovu", LEGACY_KEY_FILENAME);
+  return join(cwd, "sites", ".tovu", LEGACY_SITE_KEY_FILENAME);
 }
 
 /**
@@ -223,22 +235,11 @@ export function resolveSiteKeyFingerprint(input: ResolveSiteKeyFingerprintInput)
   return typeof meta.siteKeyFingerprint === "string" && meta.siteKeyFingerprint.length > 0 ? meta.siteKeyFingerprint : undefined;
 }
 
-/**
- * The per-site-file candidate's path out of an already-computed {@link SiteKeySource} list, or
- * `fallback` when none exists — production (no per-site candidate at all, A.1) and a site with no
- * resolvable `siteKeyId` both land on `fallback`. Backs the admin Site Token route's `generate`
- * action (owner change: generate stays, but (re)writes THIS site's own key file when one exists) —
- * kept here, not duplicated at the call site, so the "which path does generate target" decision has
- * one home next to the ordering it is derived from.
- *
- * @param fallback - typically `defaultRootKeyFilePath()` (`keyring.env.ts`) — not imported here to
- *   keep this module free of a dependency on that one, since a caller with no fallback opinion of
- *   its own can still pass it in directly.
- * @complexity O(n) in `sources.length` — a single linear find.
- */
-export function siteKeyFilePathFrom(sources: readonly SiteKeySource[], fallback: string): string {
-  const perSite = sources.find((source) => source.kind === "per-site-file");
-  return perSite?.path ?? fallback;
+/** The per-site/new-volume write target from the source list. Never target a legacy shared file:
+ * a local site with unreadable metadata must be repaired before a key can be written.
+ * @complexity O(n) in sources.length. */
+export function siteKeyFilePathFrom(sources: readonly SiteKeySource[]): string | undefined {
+  return sources.find(source => source.kind === "per-site-file" || source.kind === "volume-file")?.path;
 }
 
 /**
@@ -260,14 +261,18 @@ export function siteKeyFilePathFrom(sources: readonly SiteKeySource[], fallback:
  *
  * @complexity O(1) env read, or one `existsSync` plus a file read for a file-kind source.
  */
+export type SiteKeySourceMaterial =
+  | { readonly raw: string; readonly envVarName?: string; readonly deprecated?: boolean }
+  | { readonly conflict: true };
+
 export function readSiteKeySourceMaterial(
   source: SiteKeySource,
   env: Record<string, string | undefined>
-): string | undefined {
+): SiteKeySourceMaterial | undefined {
   if (source.kind === "env") {
-    if (source.envVarName === undefined) return undefined;
-    const raw = env[source.envVarName];
-    return raw === undefined || raw.trim().length === 0 ? undefined : raw;
+    const resolved = resolveSiteKeyEnv({ env });
+    if (resolved.kind === "conflict") return { conflict: true };
+    return resolved.kind === "ok" ? { raw: resolved.value, envVarName: resolved.varName, deprecated: resolved.deprecated } : undefined;
   }
-  return source.path !== undefined && existsSync(source.path) ? readFileSync(source.path, "utf8") : undefined;
+  return source.path !== undefined && existsSync(source.path) ? { raw: readFileSync(source.path, "utf8") } : undefined;
 }

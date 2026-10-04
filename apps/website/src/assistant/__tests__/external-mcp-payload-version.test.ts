@@ -1,8 +1,9 @@
+import { LEGACY_SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import test from "node:test";
 
-process.env.TOVU_INTEGRATIONS_ROOT_KEY ??= randomBytes(32).toString("hex");
+process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] ??= randomBytes(32).toString("hex");
 
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
 import { EnvOrFileKeyring } from "../../features/webhooks/keyring.env.js";
@@ -22,7 +23,7 @@ import {
  * only way out later is a migration over live credentials. This is the cheap end of that trade.
  */
 
-const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
+const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] });
 const sealer = new AesGcmSecretSealer(keyring);
 const deps = { sealer, keyring };
 

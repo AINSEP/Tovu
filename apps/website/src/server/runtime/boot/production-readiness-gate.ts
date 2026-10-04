@@ -33,6 +33,7 @@ export interface EnvSnapshot {
    * turns that into a loud boot-time refusal instead.
    */
   hasMissingIntegrationsRootKey: boolean;
+  hasSiteKeyEnvConflict?: boolean;
 }
 
 export type BootRefusalCode =
@@ -96,7 +97,8 @@ function collectUnsafeDefaultFailures(envSnapshot: EnvSnapshot): BootRefusalFail
   if (envSnapshot.hasLocalhostEgressAllowance) failures.push(unsafeDefaultFailure("localhost-egress-allowance"));
   if (envSnapshot.hasAlwaysOnAnalyticsStub) failures.push(unsafeDefaultFailure("always-enabled-analytics-stub"));
   if (envSnapshot.hasDefaultOwnerPassword) failures.push(unsafeDefaultFailure("default-owner-password"));
-  if (envSnapshot.hasMissingIntegrationsRootKey) failures.push(unsafeDefaultFailure("missing-integrations-root-key"));
+  if (envSnapshot.hasSiteKeyEnvConflict) failures.push(unsafeDefaultFailure("site-key-env-conflict"));
+  if (envSnapshot.hasMissingIntegrationsRootKey && !envSnapshot.hasSiteKeyEnvConflict) failures.push(unsafeDefaultFailure("missing-site-key"));
   return failures;
 }
 

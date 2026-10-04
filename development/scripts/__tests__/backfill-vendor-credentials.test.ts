@@ -1,3 +1,4 @@
+import { LEGACY_SITE_KEY_ENV_VAR_NAME } from "../../../apps/website/src/features/webhooks/site-key-sources.js";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
@@ -102,9 +103,9 @@ function tableRows(dbPath: string, table: string): unknown[] {
 }
 
 function runScript(dbPath: string, rootKeyHex: string | undefined, extraArgs: string[] = []): string {
-  const env = { ...process.env, ...(rootKeyHex !== undefined ? { TOVU_INTEGRATIONS_ROOT_KEY: rootKeyHex } : {}) };
+  const env = { ...process.env, ...(rootKeyHex !== undefined ? { [LEGACY_SITE_KEY_ENV_VAR_NAME]: rootKeyHex } : {}) };
   delete env.TOVU_INTEGRATIONS_ROOT_KEY_UNUSED;
-  if (rootKeyHex === undefined) delete env.TOVU_INTEGRATIONS_ROOT_KEY;
+  if (rootKeyHex === undefined) delete env[LEGACY_SITE_KEY_ENV_VAR_NAME];
   return execFileSync("node", ["--import", "tsx", SCRIPT, "--db", dbPath, ...extraArgs], {
     cwd: REPO_ROOT,
     encoding: "utf8",
@@ -120,8 +121,8 @@ test("backfill-vendor-credentials: seals OLD, migrates, opens NEW — plus vendo
   // --- Seed two OLD-format rows that will merge into the SAME "github" vendor group (this is the
   // real-world common case this script's own header documents: every existing row's label is the
   // hardcoded literal "default"), plus one that stays solo (gitlab, no collision). ---
-  process.env.TOVU_INTEGRATIONS_ROOT_KEY = rootKeyHex;
-  const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
+  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = rootKeyHex;
+  const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] });
   const sealer = new AesGcmSecretSealer(keyring);
   const activeKey = await keyring.activeKey();
 
@@ -202,7 +203,7 @@ test("backfill-vendor-credentials: seals OLD, migrates, opens NEW — plus vendo
     ])
     .run();
   seedDb.$client.close();
-  delete process.env.TOVU_INTEGRATIONS_ROOT_KEY;
+  delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
   const originalPublishRows = tableRows(dbPath, "publish_credential_sets");
   const originalSourceControlRows = tableRows(dbPath, "source_control_credential_sets");
 
@@ -260,8 +261,8 @@ test("backfill-vendor-credentials: seals OLD, migrates, opens NEW — plus vendo
   // --- THE MANDATORY PROOF: seal OLD, migrate, open NEW. A fresh keyring/sealer pair (same
   // construction as production) must decrypt each new row's ciphertext under buildVendorCredentialAad
   // and recover the EXACT original plaintext this test sealed under the OLD AAD above. ---
-  process.env.TOVU_INTEGRATIONS_ROOT_KEY = rootKeyHex;
-  const openKeyring = new EnvOrFileKeyring({ allowFileFallback: false });
+  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = rootKeyHex;
+  const openKeyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] });
   const openSealer = new AesGcmSecretSealer(openKeyring);
 
   const reopenedPublish = await openSealer.open({
@@ -299,7 +300,7 @@ test("backfill-vendor-credentials: seals OLD, migrates, opens NEW — plus vendo
     /Unsupported state|unable to authenticate|bad decrypt/i
   );
 
-  delete process.env.TOVU_INTEGRATIONS_ROOT_KEY;
+  delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
   db.$client.close();
   const targetRowsBeforeSecondApply = tableRows(dbPath, "vendor_credential_sets");
 
@@ -327,11 +328,11 @@ test("backfill-vendor-credentials: seals OLD, migrates, opens NEW — plus vendo
 test("backfill-vendor-credentials: resumes a partial github group and migrates the S3 secretAccessKey", async (t) => {
   const scratch = tmpDir("backfill-vendor-resume-");
   t.after(() => fs.rmSync(scratch, { recursive: true, force: true }));
-  const priorKey = process.env.TOVU_INTEGRATIONS_ROOT_KEY;
-  t.after(() => { if (priorKey === undefined) delete process.env.TOVU_INTEGRATIONS_ROOT_KEY; else process.env.TOVU_INTEGRATIONS_ROOT_KEY = priorKey; });
+  const priorKey = process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
+  t.after(() => { if (priorKey === undefined) delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME]; else process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = priorKey; });
   const rootKeyHex = randomBytes(32).toString("hex");
-  process.env.TOVU_INTEGRATIONS_ROOT_KEY = rootKeyHex;
-  const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
+  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = rootKeyHex;
+  const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] });
   const sealer = new AesGcmSecretSealer(keyring);
   const key = await keyring.activeKey();
   const dbPath = path.join(scratch, "content.db");
@@ -380,8 +381,8 @@ test("backfill-vendor-credentials: a corrupted source row aborts the run without
   const dbPath = path.join(scratch, "content.db");
   const rootKeyHex = randomBytes(32).toString("hex");
 
-  process.env.TOVU_INTEGRATIONS_ROOT_KEY = rootKeyHex;
-  const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
+  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = rootKeyHex;
+  const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] });
   const sealer = new AesGcmSecretSealer(keyring);
   const activeKey = await keyring.activeKey();
 
@@ -442,7 +443,7 @@ test("backfill-vendor-credentials: a corrupted source row aborts the run without
     })
     .run();
   seedDb.$client.close();
-  delete process.env.TOVU_INTEGRATIONS_ROOT_KEY;
+  delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
 
   assert.throws(() => runScript(dbPath, rootKeyHex, ["--apply"]), /Command failed/);
 

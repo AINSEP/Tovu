@@ -1,3 +1,5 @@
+import { LEGACY_SITE_KEY_FILENAME } from "#src/features/webhooks/site-key-sources";
+import { LEGACY_SITE_KEY_ENV_VAR_NAME, SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -27,7 +29,7 @@ import type { RootKeyStatus } from "#src/features/webhooks/keyring.env";
  * below contains or asserts on a key VALUE — `RootKeyStatus` has no field that can hold one.
  */
 
-const KEY_FILE = "/fake/home/.tovu/integrations-root-key.hex";
+const KEY_FILE = `/fake/home/.tovu/${LEGACY_SITE_KEY_FILENAME}`;
 
 function status(over: Partial<RootKeyStatus> = {}): RootKeyStatus {
   return { active: false, source: "none", keyFilePath: KEY_FILE, ...over };
@@ -50,13 +52,13 @@ function run(over: {
   return lines;
 }
 
-test("a local boot with no root key warns", () => {
+test("a local boot with no site key warns", () => {
   assert.notEqual(run().length, 0, "booting silently is the whole defect");
 });
 
 test("the warning names the env var, the key file, and the launcher that loads .env", () => {
   const text = run().join("\n");
-  assert.match(text, /TOVU_INTEGRATIONS_ROOT_KEY/);
+  assert.match(text, /TOVU_SITE_KEY/);
   assert.ok(text.includes(KEY_FILE), "the operator must be told where a key file would go");
   assert.match(text, /npm run desktop/);
   assert.match(text, /repo root/i);
@@ -65,7 +67,7 @@ test("the warning names the env var, the key file, and the launcher that loads .
 
 test("the warning says the failure will arrive far from this cause", () => {
   const text = run().join("\n").replace(/\s+/g, " ");
-  assert.match(text, /THIS SERVER HAS NO USABLE ROOT KEY/);
+  assert.match(text, /THIS SERVER HAS NO USABLE SITE KEY/);
   assert.ok(text.includes("Anything that READS a stored credential — a deploy, a saved API key, a custom credential request — will fail, far from this cause."), "the missing boot key must be connected to later credential failures");
 });
 
@@ -105,7 +107,7 @@ test("TOVU_ROOT_KEY_NOTICE=off silences the wall even for an inactive status", (
   assert.deepEqual(lines, [], "start.mjs already spoke — this function must not repeat it");
 });
 
-test("TOVU_ROOT_KEY_NOTICE=off does not even probe", () => {
+test("TOVU_ROOT_KEY_NOTICE=off still probes for conflict and deprecation", () => {
   let probed = false;
   run({
     env: { TOVU_ROOT_KEY_NOTICE: "off" },
@@ -114,7 +116,7 @@ test("TOVU_ROOT_KEY_NOTICE=off does not even probe", () => {
       return status();
     },
   });
-  assert.equal(probed, false);
+  assert.equal(probed, true);
 });
 
 test("any other TOVU_ROOT_KEY_NOTICE value leaves the wall unchanged", () => {
@@ -124,7 +126,7 @@ test("any other TOVU_ROOT_KEY_NOTICE value leaves the wall unchanged", () => {
   }
 });
 
-test("production does not even probe", () => {
+test("production still probes for deprecation", () => {
   let probed = false;
   run({
     mode: () => "production",
@@ -133,7 +135,7 @@ test("production does not even probe", () => {
       return status();
     },
   });
-  assert.equal(probed, false);
+  assert.equal(probed, true);
 });
 
 test("a probe that throws is reported, never propagated onto the boot path", () => {
@@ -231,25 +233,46 @@ test("with no injected mode, production is read from the REAL runtime mode", () 
 });
 
 test("with no injected probe, the REAL inspectRootKeyMaterial is what decides", () => {
-  const before = process.env.TOVU_INTEGRATIONS_ROOT_KEY;
+  const before = process.env[SITE_KEY_ENV_VAR_NAME];
+  const beforeLegacy = process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
   const beforeNotice = process.env.TOVU_ROOT_KEY_NOTICE;
   const lines: string[] = [];
   try {
     delete process.env.TOVU_ROOT_KEY_NOTICE;
+    // Use the preferred name alone: legacy material intentionally emits a deprecation notice.
+    delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
     // Throwaway synthetic material, never written to disk — only its presence is asserted on.
-    process.env.TOVU_INTEGRATIONS_ROOT_KEY = "a".repeat(64);
+    process.env[SITE_KEY_ENV_VAR_NAME] = "a".repeat(64);
     warnIfNoRootKeyAtBoot({ mode: () => "local", log: (l) => lines.push(l) });
     assert.deepEqual(lines, [], "a real, usable key must silence this — a false alarm trains it away");
 
-    delete process.env.TOVU_INTEGRATIONS_ROOT_KEY;
-    process.env.TOVU_INTEGRATIONS_ROOT_KEY = "nope";
+    process.env[SITE_KEY_ENV_VAR_NAME] = "nope";
     lines.length = 0;
     warnIfNoRootKeyAtBoot({ mode: () => "local", log: (l) => lines.push(l) });
     assert.notEqual(lines.length, 0, "a real, unusable key must warn");
   } finally {
     if (beforeNotice === undefined) delete process.env.TOVU_ROOT_KEY_NOTICE;
     else process.env.TOVU_ROOT_KEY_NOTICE = beforeNotice;
-    if (before === undefined) delete process.env.TOVU_INTEGRATIONS_ROOT_KEY;
-    else process.env.TOVU_INTEGRATIONS_ROOT_KEY = before;
+    if (before === undefined) delete process.env[SITE_KEY_ENV_VAR_NAME];
+    else process.env[SITE_KEY_ENV_VAR_NAME] = before;
+    if (beforeLegacy === undefined) delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
+    else process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = beforeLegacy;
   }
+});
+
+test("legacy site-key env emits exactly one deprecation line, including quiet startup", () => {
+  const lines: string[] = [];
+  warnIfNoRootKeyAtBoot({ mode: () => "local", env: { TOVU_ROOT_KEY_NOTICE: "off" },
+    inspect: () => ({ active: true, source: "env", keyFilePath: "", envVarName: "legacy", deprecated: true }),
+    log: line => lines.push(line) });
+  assert.equal(lines.length, 1);
+  assert.match(lines[0]!, /deprecated.*TOVU_SITE_KEY/);
+});
+test("conflicting site-key env warns locally even when quiet startup is enabled", () => {
+  const lines: string[] = [];
+  warnIfNoRootKeyAtBoot({ mode: () => "local", env: { TOVU_ROOT_KEY_NOTICE: "off" },
+    inspect: () => ({ active: false, source: "env", keyFilePath: "", invalid: true, reason: "env-conflict" }),
+    log: line => lines.push(line) });
+  assert.equal(lines.length, 1);
+  assert.match(lines[0]!, /conflict/);
 });

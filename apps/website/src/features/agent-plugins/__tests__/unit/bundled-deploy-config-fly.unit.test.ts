@@ -31,7 +31,7 @@ const FIXTURE_DESCRIPTOR: DeploymentDescriptor = {
   healthCheckPath: "/readyz",
   secrets: [
     { name: "TOVU_ADMIN_PASSWORD", requirement: "boot-blocking" },
-    { name: "TOVU_INTEGRATIONS_ROOT_KEY", requirement: "recommended" },
+    { name: "TOVU_SITE_KEY", requirement: "recommended" },
   ],
 };
 
@@ -83,12 +83,12 @@ test("renderFlyToml: never emits a secret VALUE — only fly secrets set NAME in
   const result = renderFlyToml(FIXTURE_DESCRIPTOR, { region: "iad" });
 
   assert.ok(!result.contents.includes("TOVU_ADMIN_PASSWORD"), "fly.toml has no field for secrets at all");
-  assert.ok(!result.contents.includes("TOVU_INTEGRATIONS_ROOT_KEY"));
+  assert.ok(!result.contents.includes("TOVU_SITE_KEY"));
   assert.deepEqual(result.notes, [
     "Create the volume before the first deploy — this file only MOUNTS it, it does not create it: fly volumes create acme_sites --region iad -a acme-app",
     MIGRATIONS_NOTE,
     "Set TOVU_ADMIN_PASSWORD (boot-blocking) with: fly secrets set TOVU_ADMIN_PASSWORD=<value> -a acme-app",
-    "Set TOVU_INTEGRATIONS_ROOT_KEY (recommended) with: fly secrets set TOVU_INTEGRATIONS_ROOT_KEY=<value> -a acme-app",
+    "Set TOVU_SITE_KEY (recommended) with: fly secrets set TOVU_SITE_KEY=<value> -a acme-app",
   ]);
   assert.ok(!result.contents.includes(sentinel), "generated config must not contain the environment secret");
   assert.ok(!JSON.stringify(result.notes).includes(sentinel), "instructions must not contain the environment secret");

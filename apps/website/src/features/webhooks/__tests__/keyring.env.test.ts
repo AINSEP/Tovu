@@ -8,7 +8,6 @@ import test from "node:test";
 import {
   EnvOrFileKeyring,
   FixedRootKeyKeyring,
-  defaultRootKeyFilePath,
   fingerprintRootKeyHex,
   generateFileRootKey,
   inspectRootKeyMaterial,
@@ -29,14 +28,11 @@ async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
   }
 }
 
-test("env-var override supplies the root key", async () => {
+test("env-var override supplies the site key", async () => {
   const original = process.env[ENV_VAR];
   process.env[ENV_VAR] = "aa".repeat(32);
   try {
-    const keyring = new EnvOrFileKeyring({
-      envVarName: ENV_VAR,
-      keyFilePath: "/should/never/be/touched",
-    });
+    const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }, { kind: "per-site-file", path: "/should/never/be/touched" }] }, { env: () => ({ TOVU_SITE_KEY: process.env[ENV_VAR] }) });
     const secret = await keyring.deriveSigningSecret({
       workspaceId: "ws-1",
       subscriptionId: "sub-1",
@@ -48,7 +44,7 @@ test("env-var override supplies the root key", async () => {
     await withTempDir(async (dir) => {
       const keyFilePath = join(dir, "root-key.hex");
       writeFileSync(keyFilePath, "aa".repeat(32), { mode: 0o600 });
-      const fileKeyring = new EnvOrFileKeyring({ envVarName: "TOVU_TEST_UNSET_VECTOR", keyFilePath, allowFileAutoGenerate: false });
+      const fileKeyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }, { kind: "per-site-file", path: keyFilePath }] }, { env: () => ({ TOVU_SITE_KEY: process.env["TOVU_TEST_UNSET_VECTOR"] }) });
       assert.deepEqual(await fileKeyring.deriveSigningSecret({ workspaceId: "ws-1", subscriptionId: "sub-1", version: 1 }), secret);
     });
   } finally {
@@ -60,7 +56,8 @@ test("env-var override supplies the root key", async () => {
 test("generated-file fallback creates a key outside the caller-specified path only once", async () => {
   await withTempDir(async (dir) => {
     const keyFilePath = join(dir, "nested", "root-key.hex");
-    const keyring = new EnvOrFileKeyring({ envVarName: "TOVU_TEST_UNSET_VAR", keyFilePath });
+    generateFileRootKey({ keyFilePath });
+    const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }, { kind: "per-site-file", path: keyFilePath }] }, { env: () => ({ TOVU_SITE_KEY: process.env["TOVU_TEST_UNSET_VAR"] }) });
 
     const first = await keyring.deriveSigningSecret({
       workspaceId: "ws-1",
@@ -77,7 +74,7 @@ test("generated-file fallback creates a key outside the caller-specified path on
 
     // A fresh keyring instance pointed at the same file must derive the same secret —
     // proves the key was actually persisted to disk, not just cached in-process.
-    const rehydrated = new EnvOrFileKeyring({ envVarName: "TOVU_TEST_UNSET_VAR", keyFilePath });
+    const rehydrated = new EnvOrFileKeyring({ sources: [{ kind: "env" }, { kind: "per-site-file", path: keyFilePath }] }, { env: () => ({ TOVU_SITE_KEY: process.env["TOVU_TEST_UNSET_VAR"] }) });
     const third = await rehydrated.deriveSigningSecret({
       workspaceId: "ws-1",
       subscriptionId: "sub-1",
@@ -90,7 +87,8 @@ test("generated-file fallback creates a key outside the caller-specified path on
 test("HKDF determinism: same input yields same output; different inputs diverge", async () => {
   await withTempDir(async (dir) => {
     const keyFilePath = join(dir, "root-key.hex");
-    const keyring = new EnvOrFileKeyring({ envVarName: "TOVU_TEST_UNSET_VAR_2", keyFilePath });
+    generateFileRootKey({ keyFilePath });
+    const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }, { kind: "per-site-file", path: keyFilePath }] }, { env: () => ({}) });
 
     const base = await keyring.deriveSigningSecret({
       workspaceId: "ws-1",
@@ -138,7 +136,7 @@ test("HKDF determinism: same input yields same output; different inputs diverge"
 
 test("HKDF known answers preserve signing and secret-sealer key compatibility", async () => {
   // Independently calculated RFC 5869 SHA-256 outputs for root bytes 0xaa repeated 32 times,
-  // salt 'tovu-integrations-root-key-hkdf-v1', and the two deployed info-string layouts.
+  // salt HKDF_EXTRACTION_SALT, and the two deployed info-string layouts.
   const keyring = new FixedRootKeyKeyring("aa".repeat(32));
   const signing = await keyring.deriveSigningSecret({ workspaceId: "ws-1", subscriptionId: "sub-1", version: 1 });
   assert.equal(Buffer.from(signing).toString("hex"), "8f60aeee05219cf2d5d3f6126a4118c165d5be0d584e0701777ee1abf17ab88d");
@@ -148,29 +146,26 @@ test("HKDF known answers preserve signing and secret-sealer key compatibility", 
   await withTempDir(async (dir) => {
     const keyFilePath = join(dir, "root-key.hex");
     writeFileSync(keyFilePath, "aa".repeat(32), { mode: 0o600 });
-    const installed = new EnvOrFileKeyring({ sources: [{ kind: "per-site-file", path: keyFilePath }] });
+    const installed = new EnvOrFileKeyring({ sources: [{ kind: "per-site-file", path: keyFilePath }] }, { env: () => ({}) });
     assert.equal(Buffer.from(await installed.derive(input)).toString("hex"), expected);
   });
 });
 
-test("missing root key throws and never returns a placeholder secret", async () => {
-  const keyring = new EnvOrFileKeyring({
-    envVarName: "TOVU_TEST_DEFINITELY_UNSET_VAR",
-    allowFileFallback: false,
-  });
+test("missing site key throws and never returns a placeholder secret", async () => {
+  const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] }, { env: () => ({ TOVU_SITE_KEY: process.env["TOVU_TEST_DEFINITELY_UNSET_VAR"] }) });
 
   await assert.rejects(
     () => keyring.deriveSigningSecret({ workspaceId: "ws-1", subscriptionId: "sub-1", version: 1 }),
-    /no root key/
+    /no site key/
   );
 });
 
 test("activeKey returns default keyId or configured keyId", async () => {
-  const defaultKeyring = new EnvOrFileKeyring();
+  const defaultKeyring = new EnvOrFileKeyring({ sources: [] }, { env: () => ({}) });
   const defaultActive = await defaultKeyring.activeKey();
   assert.equal(defaultActive.keyId, "v1");
 
-  const customKeyring = new EnvOrFileKeyring({ keyId: "v2-custom" });
+  const customKeyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }], keyId: "v2-custom" }, { env: () => ({}) });
   const customActive = await customKeyring.activeKey();
   assert.equal(customActive.keyId, "v2-custom");
 });
@@ -180,25 +175,25 @@ test("invalid hex-encoded env var throws error", async () => {
   try {
     // Non-hex characters
     process.env[ENV_VAR] = "not-hex-chars-at-all!!";
-    const keyring1 = new EnvOrFileKeyring({ envVarName: ENV_VAR, allowFileFallback: false });
+    const keyring1 = new EnvOrFileKeyring({ sources: [{ kind: "env" }] }, { env: () => ({ TOVU_SITE_KEY: process.env[ENV_VAR] }) });
     await assert.rejects(
       () => keyring1.deriveSigningSecret({ workspaceId: "ws-1", subscriptionId: "sub-1", version: 1 }),
       {
         name: "UnusableRootKeyError",
         message:
-          'TOVU_TEST_INTEGRATIONS_ROOT_KEY is not usable as a root key: it contains characters that are not hex digits (only 0-9 and a-f are allowed; a "0x" prefix, whitespace inside the value, or a base64 or PEM body all fail this). Tovu refuses to derive any key material from it rather than sealing under a shortened or empty key.',
+          'TOVU_SITE_KEY is not usable as a site key: it contains characters that are not hex digits (only 0-9 and a-f are allowed; a "0x" prefix, whitespace inside the value, or a base64 or PEM body all fail this). Tovu refuses to derive any key material from it rather than sealing under a shortened or empty key.',
       }
     );
 
     // Odd length hex
     process.env[ENV_VAR] = "abc";
-    const keyring2 = new EnvOrFileKeyring({ envVarName: ENV_VAR, allowFileFallback: false });
+    const keyring2 = new EnvOrFileKeyring({ sources: [{ kind: "env" }] }, { env: () => ({ TOVU_SITE_KEY: process.env[ENV_VAR] }) });
     await assert.rejects(
       () => keyring2.deriveSigningSecret({ workspaceId: "ws-1", subscriptionId: "sub-1", version: 1 }),
       {
         name: "UnusableRootKeyError",
         message:
-          "TOVU_TEST_INTEGRATIONS_ROOT_KEY is not usable as a root key: it has an odd number of hex digits (3), so it does not describe whole bytes — usually a partial write or a truncated copy. Tovu refuses to derive any key material from it rather than sealing under a shortened or empty key.",
+          "TOVU_SITE_KEY is not usable as a site key: it has an odd number of hex digits (3), so it does not describe whole bytes — usually a partial write or a truncated copy. Tovu refuses to derive any key material from it rather than sealing under a shortened or empty key.",
       }
     );
   } finally {
@@ -215,11 +210,11 @@ test("invalid hex-encoded env var throws error", async () => {
 test("allowFileAutoGenerate: false throws rather than minting a file, when neither env var nor file exists", async () => {
   await withTempDir(async (dir) => {
     const keyFilePath = join(dir, "root-key.hex");
-    const keyring = new EnvOrFileKeyring({ envVarName: "TOVU_TEST_UNSET_VAR_AUTOGEN", keyFilePath, allowFileFallback: true, allowFileAutoGenerate: false });
+    const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }, { kind: "per-site-file", path: keyFilePath }] }, { env: () => ({ TOVU_SITE_KEY: process.env["TOVU_TEST_UNSET_VAR_AUTOGEN"] }) });
 
     await assert.rejects(
       () => keyring.deriveSigningSecret({ workspaceId: "ws-1", subscriptionId: "sub-1", version: 1 }),
-      /does not auto-generate one/
+      /no site key/
     );
     assert.equal(existsSync(keyFilePath), false, "must never create the file as a side effect of a refused resolve");
   });
@@ -230,7 +225,7 @@ test("allowFileAutoGenerate: false still READS a file an explicit generateFileRo
     const keyFilePath = join(dir, "root-key.hex");
     const generated = generateFileRootKey({ keyFilePath });
 
-    const keyring = new EnvOrFileKeyring({ envVarName: "TOVU_TEST_UNSET_VAR_AUTOGEN_2", keyFilePath, allowFileFallback: true, allowFileAutoGenerate: false });
+    const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }, { kind: "per-site-file", path: keyFilePath }] }, { env: () => ({ TOVU_SITE_KEY: process.env["TOVU_TEST_UNSET_VAR_AUTOGEN_2"] }) });
     const secret = await keyring.deriveSigningSecret({ workspaceId: "ws-1", subscriptionId: "sub-1", version: 1 });
 
     assert.equal(secret.length, 32);
@@ -239,42 +234,8 @@ test("allowFileAutoGenerate: false still READS a file an explicit generateFileRo
   });
 });
 
-test("allowFileAutoGenerate defaults to whatever allowFileFallback resolved to — unset behaves exactly as before this option existed", async () => {
-  await withTempDir(async (dir) => {
-    const keyFilePath = join(dir, "nested", "root-key.hex");
-    const keyring = new EnvOrFileKeyring({ envVarName: "TOVU_TEST_UNSET_VAR_AUTOGEN_3", keyFilePath });
-
-    // No allowFileAutoGenerate passed, allowFileFallback defaults to true -> must still auto-generate.
-    const secret = await keyring.deriveSigningSecret({ workspaceId: "ws-1", subscriptionId: "sub-1", version: 1 });
-    assert.equal(secret.length, 32);
-    assert.equal(existsSync(keyFilePath), true);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// 2026-09-09 durability fix: defaultRootKeyFilePath is mode-aware.
-// ---------------------------------------------------------------------------
-
-test("defaultRootKeyFilePath resolves under homedir() in local mode (TOVU_RUNTIME_MODE unset)", () => {
-  const original = process.env.TOVU_RUNTIME_MODE;
-  try {
-    delete process.env.TOVU_RUNTIME_MODE;
-    assert.equal(defaultRootKeyFilePath(), join(homedir(), ".tovu", "integrations-root-key.hex"));
-  } finally {
-    if (original === undefined) delete process.env.TOVU_RUNTIME_MODE;
-    else process.env.TOVU_RUNTIME_MODE = original;
-  }
-});
-
-test("defaultRootKeyFilePath resolves under <cwd>/sites/.tovu in production mode — the durable Fly-volume path, not homedir()", () => {
-  const original = process.env.TOVU_RUNTIME_MODE;
-  try {
-    process.env.TOVU_RUNTIME_MODE = "production";
-    assert.equal(defaultRootKeyFilePath(), join(process.cwd(), "sites", ".tovu", "integrations-root-key.hex"));
-  } finally {
-    if (original === undefined) delete process.env.TOVU_RUNTIME_MODE;
-    else process.env.TOVU_RUNTIME_MODE = original;
-  }
+test("an env-only source list has no file write target", () => {
+  assert.equal(inspectRootKeyMaterial({ sources: [{ kind: "env" }] }, { env: () => ({}) }).keyFilePath, "");
 });
 
 // ---------------------------------------------------------------------------
@@ -295,7 +256,7 @@ test("generateFileRootKey writes a fresh 32-byte key and returns its hex/fingerp
   });
 });
 
-test("fingerprintRootKeyHex preserves the SHA-256 stamp of decoded root-key bytes", () => {
+test("fingerprintRootKeyHex preserves the SHA-256 stamp of decoded site key bytes", () => {
   // SHA-256(32 bytes of 0xaa) starts with e0e77a507412; pin the persisted site-meta contract.
   assert.equal(fingerprintRootKeyHex("aa".repeat(32)), "e0e77a507412");
 });
@@ -343,7 +304,7 @@ test("generateFileRootKey refuses a target it did not create, even one existsSyn
 test("inspectRootKeyMaterial: none active when neither env var nor file resolves", async () => {
   await withTempDir(async (dir) => {
     const keyFilePath = join(dir, "root-key.hex");
-    const status = inspectRootKeyMaterial({ envVarName: "TOVU_TEST_UNSET_VAR_INSPECT_1", keyFilePath });
+    const status = inspectRootKeyMaterial({ sources: [{ kind: "env" }, { kind: "per-site-file", path: keyFilePath }] }, { env: () => ({ TOVU_SITE_KEY: process.env["TOVU_TEST_UNSET_VAR_INSPECT_1"] }) });
     assert.deepEqual(status, { active: false, source: "none", keyFilePath });
   });
 });
@@ -352,7 +313,7 @@ test("inspectRootKeyMaterial: active via env var, with a fingerprint, and NEVER 
   const envVarName = "TOVU_TEST_INSPECT_ENV";
   process.env[envVarName] = "bb".repeat(32);
   try {
-    const status = inspectRootKeyMaterial({ envVarName, keyFilePath: "/should/never/be/touched" });
+    const status = inspectRootKeyMaterial({ sources: [{ kind: "env" }, { kind: "per-site-file", path: "/should/never/be/touched" }] }, { env: () => ({ TOVU_SITE_KEY: process.env[envVarName] }) });
     assert.equal(status.active, true);
     assert.equal(status.source, "env");
     assert.equal(status.fingerprint?.length, 12);
@@ -366,7 +327,7 @@ test("inspectRootKeyMaterial: active via file when the env var is unset", async 
   await withTempDir(async (dir) => {
     const keyFilePath = join(dir, "root-key.hex");
     const generated = generateFileRootKey({ keyFilePath });
-    const status = inspectRootKeyMaterial({ envVarName: "TOVU_TEST_UNSET_VAR_INSPECT_2", keyFilePath });
+    const status = inspectRootKeyMaterial({ sources: [{ kind: "env" }, { kind: "per-site-file", path: keyFilePath }] }, { env: () => ({ TOVU_SITE_KEY: process.env["TOVU_TEST_UNSET_VAR_INSPECT_2"] }) });
     assert.equal(status.active, true);
     assert.equal(status.source, "file");
     assert.equal(status.fingerprint, generated.fingerprint);
@@ -377,7 +338,7 @@ test("inspectRootKeyMaterial: invalid hex in the env var reports invalid, not ac
   const envVarName = "TOVU_TEST_INSPECT_INVALID";
   process.env[envVarName] = "not-valid-hex!!";
   try {
-    const status = inspectRootKeyMaterial({ envVarName, keyFilePath: "/should/never/be/touched" });
+    const status = inspectRootKeyMaterial({ sources: [{ kind: "env" }, { kind: "per-site-file", path: "/should/never/be/touched" }] }, { env: () => ({ TOVU_SITE_KEY: process.env[envVarName] }) });
     assert.equal(status.active, false);
     assert.equal(status.source, "env");
     assert.equal(status.invalid, true);
@@ -392,7 +353,7 @@ test("revealRootKeyMaterial: includes the raw hex value when active — the one 
   const value = "cc".repeat(32);
   process.env[envVarName] = value;
   try {
-    const reveal = revealRootKeyMaterial({ envVarName, keyFilePath: "/should/never/be/touched" });
+    const reveal = revealRootKeyMaterial({ sources: [{ kind: "env" }, { kind: "per-site-file", path: "/should/never/be/touched" }] }, { env: () => ({ TOVU_SITE_KEY: process.env[envVarName] }) });
     assert.equal(reveal.active, true);
     assert.equal(reveal.hex, value);
   } finally {
@@ -403,7 +364,7 @@ test("revealRootKeyMaterial: includes the raw hex value when active — the one 
 test("revealRootKeyMaterial: no hex field when nothing is active", async () => {
   await withTempDir(async (dir) => {
     const keyFilePath = join(dir, "root-key.hex");
-    const reveal = revealRootKeyMaterial({ envVarName: "TOVU_TEST_UNSET_VAR_REVEAL", keyFilePath });
+    const reveal = revealRootKeyMaterial({ sources: [{ kind: "env" }, { kind: "per-site-file", path: keyFilePath }] }, { env: () => ({ TOVU_SITE_KEY: process.env["TOVU_TEST_UNSET_VAR_REVEAL"] }) });
     assert.equal(reveal.active, false);
     assert.equal(reveal.hex, undefined);
   });
@@ -438,12 +399,7 @@ for (const { label, contents, reason } of MALFORMED_KEY_FILE_CONTENTS) {
       const keyFilePath = join(dir, "root-key.hex");
       writeFileSync(keyFilePath, contents, { mode: 0o600 });
 
-      const keyring = new EnvOrFileKeyring({
-        envVarName: "TOVU_TEST_UNSET_VAR_MALFORMED_FILE",
-        keyFilePath,
-        allowFileFallback: true,
-        allowFileAutoGenerate: false,
-      });
+      const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }, { kind: "per-site-file", path: keyFilePath }] }, { env: () => ({ TOVU_SITE_KEY: process.env["TOVU_TEST_UNSET_VAR_MALFORMED_FILE"] }) });
 
       await assert.rejects(
         () => keyring.derive({ workspaceId: "ws-1", purpose: "secret-sealer", info: "v1" }),
@@ -459,7 +415,7 @@ for (const { label, contents, reason } of MALFORMED_KEY_FILE_CONTENTS) {
 /**
  * RED evidence, 2026-09-16, pre-fix: for a key file containing `not-hex-at-all`, `derive({ workspaceId:
  * "ws-1", purpose: "secret-sealer", info: "v1" })` RETURNED `e1d4c02ee8ce76d8…` — byte-identical to
- * `hkdfSync("sha256", Buffer.alloc(0), "tovu-integrations-root-key-hkdf-v1", "secret-sealer:ws-1:v1", 32)`,
+ * `hkdfSync("sha256", Buffer.alloc(0), "tovu-integrations-root-key-hkdf-v1", "secret-sealer:ws-1:v1", 32)`, // site-key-frozen: never change (every sealed row depends on these bytes)
  * i.e. a key anyone with the source can compute. The assertion is on the typed refusal, which is the
  * only outcome that rules that value out.
  */
@@ -468,12 +424,7 @@ test("a non-hex key file is refused with a typed UnusableRootKeyError, not colla
     const keyFilePath = join(dir, "root-key.hex");
     writeFileSync(keyFilePath, "not-hex-at-all", { mode: 0o600 });
 
-    const keyring = new EnvOrFileKeyring({
-      envVarName: "TOVU_TEST_UNSET_VAR_ZERO_IKM",
-      keyFilePath,
-      allowFileFallback: true,
-      allowFileAutoGenerate: false,
-    });
+    const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }, { kind: "per-site-file", path: keyFilePath }] }, { env: () => ({ TOVU_SITE_KEY: process.env["TOVU_TEST_UNSET_VAR_ZERO_IKM"] }) });
 
     await assert.rejects(
       () => keyring.derive({ workspaceId: "ws-1", purpose: "secret-sealer", info: "v1" }),
@@ -495,10 +446,10 @@ test("the status screen and the sealer cannot disagree: whatever inspectRootKeyM
     for (const { contents } of MALFORMED_KEY_FILE_CONTENTS) {
       writeFileSync(keyFilePath, contents, { mode: 0o600 });
 
-      const status = inspectRootKeyMaterial({ envVarName, keyFilePath });
+      const status = inspectRootKeyMaterial({ sources: [{ kind: "env" }, { kind: "per-site-file", path: keyFilePath }] }, { env: () => ({ TOVU_SITE_KEY: process.env[envVarName] }) });
       assert.equal(status.active, false, `inspect must report ${JSON.stringify(contents)} unusable`);
 
-      const keyring = new EnvOrFileKeyring({ envVarName, keyFilePath, allowFileFallback: true, allowFileAutoGenerate: false });
+      const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }, { kind: "per-site-file", path: keyFilePath }] }, { env: () => ({ TOVU_SITE_KEY: process.env[envVarName] }) });
       await assert.rejects(
         () => keyring.derive({ workspaceId: "ws-1", purpose: "secret-sealer", info: "v1" }),
         `resolveRootKey must refuse the same material inspect reports unusable: ${JSON.stringify(contents)}`
@@ -507,15 +458,15 @@ test("the status screen and the sealer cannot disagree: whatever inspectRootKeyM
   });
 });
 
-test("a hex key shorter than 32 bytes is unusable through BOTH paths — a short env var is not a root key either", async () => {
+test("a hex key shorter than 32 bytes is unusable through BOTH paths — a short env var is not a site key either", async () => {
   const envVarName = "TOVU_TEST_SHORT_ENV_KEY";
   process.env[envVarName] = "ab".repeat(16); // 16 bytes: valid hex, even length, still too short.
   try {
-    const status = inspectRootKeyMaterial({ envVarName, keyFilePath: "/should/never/be/touched" });
+    const status = inspectRootKeyMaterial({ sources: [{ kind: "env" }, { kind: "per-site-file", path: "/should/never/be/touched" }] }, { env: () => ({ TOVU_SITE_KEY: process.env[envVarName] }) });
     assert.equal(status.active, false);
     assert.equal(status.invalid, true);
 
-    const keyring = new EnvOrFileKeyring({ envVarName, allowFileFallback: false });
+    const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] }, { env: () => ({ TOVU_SITE_KEY: process.env[envVarName] }) });
     await assert.rejects(
       () => keyring.derive({ workspaceId: "ws-1", purpose: "secret-sealer", info: "v1" }),
       /at least 32 bytes/
@@ -530,19 +481,14 @@ test("the malformed-key-file error names the file, says what is wrong, and does 
     const keyFilePath = join(dir, "root-key.hex");
     writeFileSync(keyFilePath, `0x${"ab".repeat(32)}`, { mode: 0o600 });
 
-    const keyring = new EnvOrFileKeyring({
-      envVarName: "TOVU_TEST_UNSET_VAR_MESSAGE",
-      keyFilePath,
-      allowFileFallback: true,
-      allowFileAutoGenerate: false,
-    });
+    const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }, { kind: "per-site-file", path: keyFilePath }] }, { env: () => ({ TOVU_SITE_KEY: process.env["TOVU_TEST_UNSET_VAR_MESSAGE"] }) });
 
     await assert.rejects(() => keyring.derive({ workspaceId: "ws-1", purpose: "secret-sealer", info: "v1" }), {
       name: "UnusableRootKeyError",
       source: "file",
       reason: "not-hex",
       message:
-        `the root key file at ${keyFilePath} is not usable as a root key: it contains characters that are not hex digits (only 0-9 and a-f are allowed; a "0x" prefix, whitespace inside the value, or a base64 or PEM body all fail this). Tovu refuses to derive any key material from it rather than sealing under a shortened or empty key. ` +
+        `the site key file at ${keyFilePath} is not usable as a site key: it contains characters that are not hex digits (only 0-9 and a-f are allowed; a "0x" prefix, whitespace inside the value, or a base64 or PEM body all fail this). Tovu refuses to derive any key material from it rather than sealing under a shortened or empty key. ` +
         "IMPORTANT: anything this site sealed while this file was in place was sealed under key material derived from these same bytes, not from a real 32-byte key, so those stored credentials are not protected as intended — with empty or very short material the derived key is computable from published constants. " +
         "Replacing or regenerating the key will NOT restore them; it will make them unreadable. " +
         "Do not overwrite, delete or regenerate this key until you have decided what to do with the credentials already stored.",
@@ -554,17 +500,17 @@ test("a malformed env var that could never have sealed anything gets no already-
   const envVarName = "TOVU_TEST_ENV_WARNING_SCOPE";
   try {
     process.env[envVarName] = "zz".repeat(32);
-    const neverAccepted = new EnvOrFileKeyring({ envVarName, allowFileFallback: false });
+    const neverAccepted = new EnvOrFileKeyring({ sources: [{ kind: "env" }] }, { env: () => ({ TOVU_SITE_KEY: process.env[envVarName] }) });
     const notHexError = await neverAccepted.derive({ workspaceId: "ws-1", purpose: "p", info: "i" }).then(() => undefined, (err: Error) => err);
     assert.ok(notHexError instanceof UnusableRootKeyError);
     assert.doesNotMatch(notHexError.message, /IMPORTANT/);
 
     process.env[envVarName] = "ab".repeat(16);
-    const previouslyAccepted = new EnvOrFileKeyring({ envVarName, allowFileFallback: false });
+    const previouslyAccepted = new EnvOrFileKeyring({ sources: [{ kind: "env" }] }, { env: () => ({ TOVU_SITE_KEY: process.env[envVarName] }) });
     const tooShortError = await previouslyAccepted.derive({ workspaceId: "ws-1", purpose: "p", info: "i" }).then(() => undefined, (err: Error) => err);
     assert.ok(tooShortError instanceof UnusableRootKeyError);
     assert.equal(tooShortError.reason, "too-short");
-    assert.match(tooShortError.message, /^TOVU_TEST_ENV_WARNING_SCOPE is not usable as a root key: it is 16 bytes \(32 hex digits\); a root key must be at least 32 bytes \(64 hex digits\)/);
+    assert.match(tooShortError.message, /^TOVU_SITE_KEY is not usable as a site key: it is 16 bytes \(32 hex digits\); a site key must be at least 32 bytes \(64 hex digits\)/);
     assert.match(tooShortError.message, /anything this site sealed while this value was in place/);
   } finally {
     delete process.env[envVarName];
@@ -577,18 +523,18 @@ test("inspectRootKeyMaterial reports the SAME rejection reason resolveRootKey th
     const keyFilePath = join(dir, "root-key.hex");
     writeFileSync(keyFilePath, "ab".repeat(8), { mode: 0o600 });
 
-    assert.deepEqual(inspectRootKeyMaterial({ envVarName, keyFilePath }), {
+    assert.deepEqual(inspectRootKeyMaterial({ sources: [{ kind: "env" }, { kind: "per-site-file", path: keyFilePath }] }, { env: () => ({ TOVU_SITE_KEY: process.env[envVarName] }) }), {
       active: false,
       source: "file",
       invalid: true,
       reason: "too-short",
       keyFilePath,
     });
-    const reveal = revealRootKeyMaterial({ envVarName, keyFilePath });
+    const reveal = revealRootKeyMaterial({ sources: [{ kind: "env" }, { kind: "per-site-file", path: keyFilePath }] }, { env: () => ({ TOVU_SITE_KEY: process.env[envVarName] }) });
     assert.equal(reveal.hex, undefined, "reveal must not disclose rejected material either");
     assert.equal(reveal.reason, "too-short");
 
-    const keyring = new EnvOrFileKeyring({ envVarName, keyFilePath, allowFileFallback: true, allowFileAutoGenerate: false });
+    const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }, { kind: "per-site-file", path: keyFilePath }] }, { env: () => ({ TOVU_SITE_KEY: process.env[envVarName] }) });
     await assert.rejects(() => keyring.derive({ workspaceId: "ws-1", purpose: "p", info: "i" }), { reason: "too-short" });
   });
 });
@@ -598,9 +544,9 @@ test("a valid key file with a trailing newline is still usable — trimming whit
     const keyFilePath = join(dir, "root-key.hex");
     writeFileSync(keyFilePath, `${"cd".repeat(32)}\n`, { mode: 0o600 });
 
-    const status = inspectRootKeyMaterial({ envVarName: "TOVU_TEST_UNSET_VAR_TRAILING_NL", keyFilePath });
+    const status = inspectRootKeyMaterial({ sources: [{ kind: "env" }, { kind: "per-site-file", path: keyFilePath }] }, { env: () => ({ TOVU_SITE_KEY: process.env["TOVU_TEST_UNSET_VAR_TRAILING_NL"] }) });
     assert.equal(status.active, true);
-    const keyring = new EnvOrFileKeyring({ envVarName: "TOVU_TEST_UNSET_VAR_TRAILING_NL", keyFilePath, allowFileFallback: true, allowFileAutoGenerate: false });
+    const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }, { kind: "per-site-file", path: keyFilePath }] }, { env: () => ({ TOVU_SITE_KEY: process.env["TOVU_TEST_UNSET_VAR_TRAILING_NL"] }) });
     const secret = await keyring.derive({ workspaceId: "ws-1", purpose: "p", info: "i" });
     assert.equal(secret.length, 32);
   });
@@ -624,7 +570,7 @@ test("sources: the first source with material wins, later sources are never even
       { kind: "per-site-file", path: winningFile },
       { kind: "legacy-shared-file", path: neverReadFile },
     ];
-    const keyring = new EnvOrFileKeyring({ sources });
+    const keyring = new EnvOrFileKeyring({ sources }, { env: () => ({}) });
     const secret = await keyring.derive({ workspaceId: "ws-1", purpose: "p", info: "i" });
     assert.equal(secret.length, 32);
     const expected = "22f293b610dd25130ea441230963e6424f87329c43727b05ff2b580c92e9d2d2";
@@ -632,7 +578,7 @@ test("sources: the first source with material wins, later sources are never even
     // A directory at the later file path throws on read, proving successful resolution stops.
     rmSync(neverReadFile);
     mkdirSync(neverReadFile);
-    const shortCircuit = new EnvOrFileKeyring({ sources });
+    const shortCircuit = new EnvOrFileKeyring({ sources }, { env: () => ({}) });
     assert.equal(Buffer.from(await shortCircuit.derive({ workspaceId: "ws-1", purpose: "p", info: "i" })).toString("hex"), expected);
   });
 });
@@ -641,8 +587,8 @@ test("sources: an env-kind source reads the named env var", async () => {
   const envVarName = "TOVU_TEST_SOURCES_ENV";
   process.env[envVarName] = "22".repeat(32);
   try {
-    const sources: SiteKeySource[] = [{ kind: "env", envVarName }];
-    const keyring = new EnvOrFileKeyring({ sources });
+    const sources: SiteKeySource[] = [{ kind: "env" }];
+    const keyring = new EnvOrFileKeyring({ sources }, { env: () => ({ TOVU_SITE_KEY: process.env[envVarName] }) });
     const secret = await keyring.derive({ workspaceId: "ws-1", purpose: "p", info: "i" });
     assert.equal(secret.length, 32);
     assert.equal(Buffer.from(secret).toString("hex"), "509fde11f34c8b9cd5d4fbc7ca46ef234d8e0ac5d8937428ef2c776b7725ac96");
@@ -662,7 +608,7 @@ test("sources: a present-but-invalid source throws immediately — it does not f
       { kind: "per-site-file", path: invalidFile },
       { kind: "legacy-shared-file", path: neverReadFile },
     ];
-    const keyring = new EnvOrFileKeyring({ sources });
+    const keyring = new EnvOrFileKeyring({ sources }, { env: () => ({}) });
     await assert.rejects(
       () => keyring.derive({ workspaceId: "ws-1", purpose: "p", info: "i" }),
       (err: unknown) => {
@@ -681,11 +627,11 @@ test("sources: exhausting every source throws, and never auto-generates a file �
     const sources: SiteKeySource[] = [{ kind: "per-site-file", path: neverCreatedFile }];
     // allowFileAutoGenerate defaults to true (allowFileFallback also defaults true) — proves
     // `sources` overrides that default rather than inheriting it.
-    const keyring = new EnvOrFileKeyring({ sources });
+    const keyring = new EnvOrFileKeyring({ sources }, { env: () => ({}) });
 
     await assert.rejects(
       () => keyring.derive({ workspaceId: "ws-1", purpose: "p", info: "i" }),
-      /no root key: none of the configured sources resolved/
+      /no site key: none of the configured sources resolved/
     );
     assert.equal(existsSync(neverCreatedFile), false, "a sources-based keyring must never mint a file itself");
   });
@@ -699,10 +645,10 @@ test("sources: a blank env var is treated as ABSENT, not present-but-invalid —
     process.env[envVarName] = "";
     try {
       const sources: SiteKeySource[] = [
-        { kind: "env", envVarName },
+        { kind: "env" },
         { kind: "legacy-shared-file", path: fallbackFile },
       ];
-      const keyring = new EnvOrFileKeyring({ sources });
+      const keyring = new EnvOrFileKeyring({ sources }, { env: () => ({ TOVU_SITE_KEY: process.env[envVarName] }) });
       const secret = await keyring.derive({ workspaceId: "ws-1", purpose: "p", info: "i" });
       assert.equal(secret.length, 32);
     } finally {
@@ -719,10 +665,10 @@ test("sources: a whitespace-only env var is also treated as ABSENT", async () =>
     process.env[envVarName] = "   ";
     try {
       const sources: SiteKeySource[] = [
-        { kind: "env", envVarName },
+        { kind: "env" },
         { kind: "legacy-shared-file", path: fallbackFile },
       ];
-      const keyring = new EnvOrFileKeyring({ sources });
+      const keyring = new EnvOrFileKeyring({ sources }, { env: () => ({ TOVU_SITE_KEY: process.env[envVarName] }) });
       const secret = await keyring.derive({ workspaceId: "ws-1", purpose: "p", info: "i" });
       assert.equal(secret.length, 32);
     } finally {
@@ -735,7 +681,7 @@ test("sources: a key file replaced while the process runs takes effect on the ne
   await withTempDir(async (dir) => {
     const keyFile = join(dir, "site.hex");
     writeFileSync(keyFile, "33".repeat(32), { mode: 0o600 });
-    const keyring = new EnvOrFileKeyring({ sources: [{ kind: "per-site-file", path: keyFile }] });
+    const keyring = new EnvOrFileKeyring({ sources: [{ kind: "per-site-file", path: keyFile }] }, { env: () => ({}) });
     const input = { workspaceId: "ws-1", purpose: "p", info: "i" };
     const before = await keyring.derive(input);
 
@@ -765,7 +711,7 @@ test("inspectRootKeyMaterial: sources — the first source with material wins an
       { kind: "per-site-file", path: perSiteFile },
       { kind: "legacy-shared-file", path: legacyFile },
     ];
-    const status = inspectRootKeyMaterial({ sources });
+    const status = inspectRootKeyMaterial({ sources }, { env: () => ({}) });
 
     assert.equal(status.active, true);
     assert.equal(status.source, "file");
@@ -777,8 +723,8 @@ test("inspectRootKeyMaterial: sources — an env-kind source reports source 'env
   const envVarName = "TOVU_TEST_INSPECT_SOURCES_ENV";
   process.env[envVarName] = "77".repeat(32);
   try {
-    const sources: SiteKeySource[] = [{ kind: "env", envVarName }];
-    const status = inspectRootKeyMaterial({ sources });
+    const sources: SiteKeySource[] = [{ kind: "env" }];
+    const status = inspectRootKeyMaterial({ sources }, { env: () => ({ TOVU_SITE_KEY: process.env[envVarName] }) });
     assert.equal(status.active, true);
     assert.equal(status.source, "env");
   } finally {
@@ -792,7 +738,7 @@ test("inspectRootKeyMaterial: sources — a present-but-invalid source is report
     writeFileSync(invalidFile, "not-hex-at-all", { mode: 0o600 });
 
     const sources: SiteKeySource[] = [{ kind: "per-site-file", path: invalidFile }];
-    const status = inspectRootKeyMaterial({ sources });
+    const status = inspectRootKeyMaterial({ sources }, { env: () => ({}) });
 
     assert.equal(status.active, false);
     assert.equal(status.invalid, true);
@@ -809,10 +755,10 @@ test("inspectRootKeyMaterial: sources — a blank env var falls through to the n
     process.env[envVarName] = "";
     try {
       const sources: SiteKeySource[] = [
-        { kind: "env", envVarName },
+        { kind: "env" },
         { kind: "legacy-shared-file", path: fallbackFile },
       ];
-      const status = inspectRootKeyMaterial({ sources });
+      const status = inspectRootKeyMaterial({ sources }, { env: () => ({ TOVU_SITE_KEY: process.env[envVarName] }) });
       assert.equal(status.active, true);
       assert.equal(status.source, "file");
       assert.equal(status.fingerprint, fingerprintRootKeyHex(hex));
@@ -823,7 +769,7 @@ test("inspectRootKeyMaterial: sources — a blank env var falls through to the n
 });
 
 test("inspectRootKeyMaterial: sources — nothing present anywhere reports inactive, source 'none', not invalid", () => {
-  const status = inspectRootKeyMaterial({ sources: [{ kind: "per-site-file", path: "/never/created.hex" }] });
+  const status = inspectRootKeyMaterial({ sources: [{ kind: "per-site-file", path: "/never/created.hex" }] }, { env: () => ({}) });
   assert.equal(status.active, false);
   assert.equal(status.source, "none");
   assert.equal(status.invalid, undefined);
@@ -831,7 +777,7 @@ test("inspectRootKeyMaterial: sources — nothing present anywhere reports inact
 
 test("inspectRootKeyMaterial: sources — keyFilePath is the per-site-file candidate's path, not the legacy default; envVarName/keyFilePath options are ignored", () => {
   const sources: SiteKeySource[] = [{ kind: "per-site-file", path: "/site-keys/site-abc.hex" }];
-  const status = inspectRootKeyMaterial({ sources, keyFilePath: "/should/be/ignored.hex" });
+  const status = inspectRootKeyMaterial({ sources: sources }, { env: () => ({}) });
   assert.equal(status.keyFilePath, "/site-keys/site-abc.hex");
 });
 
@@ -842,7 +788,7 @@ test("revealRootKeyMaterial: sources — includes the raw hex when a source reso
     writeFileSync(perSiteFile, hex, { mode: 0o600 });
 
     const sources: SiteKeySource[] = [{ kind: "per-site-file", path: perSiteFile }];
-    const reveal = revealRootKeyMaterial({ sources });
+    const reveal = revealRootKeyMaterial({ sources }, { env: () => ({}) });
 
     assert.equal(reveal.active, true);
     assert.equal(reveal.hex, hex);
@@ -851,7 +797,7 @@ test("revealRootKeyMaterial: sources — includes the raw hex when a source reso
 });
 
 test("revealRootKeyMaterial: sources — a present-but-invalid source is reported invalid, never thrown", () => {
-  const reveal = revealRootKeyMaterial({ sources: [{ kind: "env", envVarName: "TOVU_TEST_REVEAL_SOURCES_MISSING" }] });
+  const reveal = revealRootKeyMaterial({ sources: [{ kind: "env" }] }, { env: () => ({}) });
   assert.equal(reveal.active, false);
   assert.equal(reveal.source, "none");
   assert.equal(reveal.hex, undefined);
@@ -861,8 +807,8 @@ test("a key longer than 32 bytes is still accepted — the floor is a minimum, n
   const envVarName = "TOVU_TEST_LONG_ENV_KEY";
   process.env[envVarName] = "ef".repeat(64);
   try {
-    assert.equal(inspectRootKeyMaterial({ envVarName, keyFilePath: "/should/never/be/touched" }).active, true);
-    const keyring = new EnvOrFileKeyring({ envVarName, allowFileFallback: false });
+    assert.equal(inspectRootKeyMaterial({ sources: [{ kind: "env" }, { kind: "per-site-file", path: "/should/never/be/touched" }] }, { env: () => ({ TOVU_SITE_KEY: process.env[envVarName] }) }).active, true);
+    const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] }, { env: () => ({ TOVU_SITE_KEY: process.env[envVarName] }) });
     const secret = await keyring.derive({ workspaceId: "ws-1", purpose: "p", info: "i" });
     assert.equal(secret.length, 32);
   } finally {

@@ -30,7 +30,7 @@ import { buildAuthorizationHeader } from "@jini-ai/integrations/credentialed-htt
 import { normalizeWriteFilePath, validateBranch, validateCommitMessage, validateRepositoryTarget } from "../custom-credentials/write-files-validation.js";
 import type { SecretSealerPort } from "../webhooks/index.js";
 import { inspectRootKeyMaterial } from "../webhooks/keyring.env.js";
-import { siteKeySourcesForSiteDir } from "../webhooks/site-key-sources.js";
+import { siteKeySources, siteKeySourcesForSiteDir } from "../webhooks/site-key-sources.js";
 import { SITE_BACKUP_PUSH_TOOL_ID } from "./confirmation-ui.js";
 import type { CredentialedRepositoryTarget, InspectBackupRepositoryResult, SourceControlProvider, UploadedBackupBlob } from "../source-control/provider-module.js";
 import { buildSourceControlProviders, findReservedPath, pickSourceControlProviderForApi, type LoadSourceControlProviders } from "../source-control/provider-registry.js";
@@ -306,7 +306,7 @@ async function pickCredentialLabel(deps: SiteBackupToolDeps, providers: readonly
  */
 function siteAwareRootKeyStatus(deps: SiteBackupToolDeps): { active: boolean; invalid?: boolean } {
   const siteDir = deps.siteBackupSources?.siteDir;
-  if (siteDir === undefined) return inspectRootKeyMaterial();
+  if (siteDir === undefined) return inspectRootKeyMaterial({ sources: siteKeySources({ mode: resolveRuntimeMode(), env: process.env, home: homedir(), cwd: process.cwd() }) });
   const sources = siteKeySourcesForSiteDir({ siteDir, mode: resolveRuntimeMode(), env: process.env, home: homedir(), cwd: process.cwd() });
   return inspectRootKeyMaterial({ sources });
 }
@@ -318,15 +318,15 @@ function unreadableCredentialMessage(deps: SiteBackupToolDeps, label: string): s
   const status = (deps.siteBackupRootKeyStatus ?? (() => siteAwareRootKeyStatus(deps)))();
   if (status.active) {
     return (
-      `the credential '${label}' is saved but cannot be decrypted with this server's Site Token: it differs from the one the credential was saved under, ` +
-      "or the stored row is corrupted. Check Secrets → Site Token in the admin, or save the credential again."
+      `the credential '${label}' is saved but cannot be decrypted with this server's Site key: it differs from the one the credential was saved under, ` +
+      "or the stored row is corrupted. Check Secrets → Site key in the admin, or save the credential again."
     );
   }
   if (status.invalid) {
-    return `the credential '${label}' is saved but cannot be decrypted: this server's Site Token (TOVU_INTEGRATIONS_ROOT_KEY or its key file) is set but malformed. Fix it under Secrets → Site Token.`;
+    return `the credential '${label}' is saved but cannot be decrypted: this server's Site key (TOVU_SITE_KEY or its key file) is set but malformed. Fix it under Secrets → Site key.`;
   }
   return (
-    `the credential '${label}' is saved but cannot be decrypted: this server has no Site Token (TOVU_INTEGRATIONS_ROOT_KEY is not set and there is no key file). ` +
+    `the credential '${label}' is saved but cannot be decrypted: this server has no Site key (TOVU_SITE_KEY is not set and there is no key file). ` +
     "Start Tovu with it (`npm run dev` from the repo root, or `npm run desktop`)."
   );
 }

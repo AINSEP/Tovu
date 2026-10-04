@@ -1,3 +1,5 @@
+import { LEGACY_SITE_KEY_FILENAME } from "#src/features/webhooks/site-key-sources";
+import { LEGACY_SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -19,7 +21,7 @@ async function withComposedSite(
 ): Promise<void> {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-production-composition-"));
   const cwd = process.cwd();
-  const names = ["TOVU_RUNTIME_MODE", "TOVU_ADMIN_PASSWORD", "ANALYTICS_ROOT_KEY_SEED", "TOVU_INTEGRATIONS_ROOT_KEY", "TOVU_SITE_KEY"];
+  const names = ["TOVU_RUNTIME_MODE", "TOVU_ADMIN_PASSWORD", "ANALYTICS_ROOT_KEY_SEED", "TOVU_SITE_KEY", LEGACY_SITE_KEY_ENV_VAR_NAME];
   const original = new Map(names.map((name) => [name, process.env[name]]));
   const home = t.mock.method(os, "homedir", () => root);
   syncBuiltinESMExports();
@@ -34,7 +36,7 @@ async function withComposedSite(
     process.env.TOVU_RUNTIME_MODE = mode;
     process.env.TOVU_ADMIN_PASSWORD = "composition-test-password";
     process.env.ANALYTICS_ROOT_KEY_SEED = "12".repeat(32);
-    process.env.TOVU_INTEGRATIONS_ROOT_KEY = "34".repeat(32);
+    process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = "34".repeat(32);
     delete process.env.TOVU_SITE_KEY;
     const dbPath = path.join(root, "site", "content.db");
     fs.mkdirSync(path.dirname(dbPath));
@@ -72,16 +74,16 @@ for (const mode of ["local", "production"] as const) {
   test(`composed public unsubscribe in ${mode} refuses a missing key without minting one`, async (t) => {
     await withComposedSite(t, mode, async ({ root, open }) => {
       const deps = await open();
-      delete process.env.TOVU_INTEGRATIONS_ROOT_KEY;
-      const localKey = path.join(root, ".tovu", "integrations-root-key.hex");
-      const productionKey = path.join(root, "sites", ".tovu", "integrations-root-key.hex");
-      await assert.rejects(processUnsubscribe({ deps: toPublicUnsubscribeDeps(deps), input: { rawToken: "e30.x" } }), /no root key/);
+      delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
+      const localKey = path.join(root, ".tovu", LEGACY_SITE_KEY_FILENAME);
+      const productionKey = path.join(root, "sites", ".tovu", "site-key.hex");
+      await assert.rejects(processUnsubscribe({ deps: toPublicUnsubscribeDeps(deps), input: { rawToken: "e30.x" } }), /no site key/);
       assert.equal(fs.existsSync(localKey), false);
       assert.equal(fs.existsSync(productionKey), false);
       if (mode === "production") {
         fs.mkdirSync(path.dirname(productionKey), { recursive: true });
         fs.writeFileSync(productionKey, "56".repeat(32));
-        await assert.rejects(processUnsubscribe({ deps: toPublicUnsubscribeDeps(deps), input: { rawToken: "e30.x" } }), /allowFileFallback is disabled/);
+        await assert.rejects(processUnsubscribe({ deps: toPublicUnsubscribeDeps(deps), input: { rawToken: "e30.x" } }), /no site key/);
         assert.equal(fs.readFileSync(productionKey, "utf8"), "56".repeat(32));
       }
     });
@@ -228,32 +230,5 @@ test("§2.1 step 1: the real composition boots successfully in local mode despit
  * the silent-rekey bug this whole fix closes for production. This assertion fails against that
  * hardcoded construction and passes only once the fallback is gated off `runtimeMode`.
  */
-test("2026-09-09 fix (regression): newsletterKeyring's allowFileFallback is gated on runtimeMode, not hardcoded true — a hardcoded true would silently re-mint ~/.tovu/integrations-root-key.hex on every container redeploy", () => {
-  assert.match(
-    DEPS_SOURCE,
-    /const newsletterKeyring = new EnvOrFileKeyring\(\{\s*allowFileFallback:\s*runtimeMode !== "production"\s*(?:,[^}]*)?\}\);/,
-    'newsletterKeyring must not be constructed with a bare `new EnvOrFileKeyring()` (implicit allowFileFallback: true in every mode) — it must read `allowFileFallback: runtimeMode !== "production"` so the generated-file fallback is disabled specifically in production, where the file lives on the container\'s ephemeral rootfs rather than the persistent volume.'
-  );
-});
-
-/**
- * 2026-09-16 fix (regression): `newsletterKeyring` must never MINT a root key file unattended.
- *
- * It was the only `EnvOrFileKeyring` left on the implicit `allowFileAutoGenerate` default, which in
- * local mode (every desktop launch) resolves to `true`. Its one live runtime consumer is the PUBLIC,
- * cookie-less `GET|POST /newsletter/unsubscribe?token=...` route: `processUnsubscribe` derives the
- * expected signature before it can reject a token, so an anonymous request carrying any
- * base64url-JSON token (`e30.x` is enough) minted `~/.tovu/integrations-root-key.hex` — verified by a
- * direct probe against a temp key path on 2026-09-16. `siteAssistantSecretKeyring` then reads that
- * same default path, so a key no operator created, saw or backed up silently became the key every
- * stored credential is sealed under — exactly what that keyring's own `allowFileAutoGenerate: false`
- * (2026-09-09) exists to prevent. Source-level for the same reason as the test above: building the
- * real composition here could write to the REAL home directory.
- */
-test("2026-09-16 fix (regression): newsletterKeyring passes allowFileAutoGenerate: false — an anonymous unsubscribe request must never mint the root key the credential sealer then adopts", () => {
-  assert.match(
-    DEPS_SOURCE,
-    /const newsletterKeyring = new EnvOrFileKeyring\(\{[^}]*\ballowFileAutoGenerate:\s*false\b[^}]*\}\);/,
-    "newsletterKeyring must opt out of unattended key minting explicitly; leaving allowFileAutoGenerate unset defaults it to allowFileFallback, which is true in local mode"
-  );
-});
+// D1: the real-composition behavior tests above now pin read-only resolution and env-only
+// production newsletter signing, replacing the former allowFileFallback/allowFileAutoGenerate regexes.

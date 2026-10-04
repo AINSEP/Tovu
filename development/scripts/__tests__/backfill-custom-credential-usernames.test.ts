@@ -1,3 +1,4 @@
+import { LEGACY_SITE_KEY_ENV_VAR_NAME } from "../../../apps/website/src/features/webhooks/site-key-sources.js";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
@@ -49,8 +50,8 @@ function tmpDir(prefix: string): string {
 }
 
 function runScript(dbPath: string, rootKeyHex: string | undefined, extraArgs: string[] = []): string {
-  const env = { ...process.env, ...(rootKeyHex !== undefined ? { TOVU_INTEGRATIONS_ROOT_KEY: rootKeyHex } : {}) };
-  if (rootKeyHex === undefined) delete env.TOVU_INTEGRATIONS_ROOT_KEY;
+  const env = { ...process.env, ...(rootKeyHex !== undefined ? { [LEGACY_SITE_KEY_ENV_VAR_NAME]: rootKeyHex } : {}) };
+  if (rootKeyHex === undefined) delete env[LEGACY_SITE_KEY_ENV_VAR_NAME];
   return execFileSync("node", ["--import", "tsx", SCRIPT, "--db", dbPath, ...extraArgs], {
     cwd: REPO_ROOT,
     encoding: "utf8",
@@ -75,8 +76,11 @@ test("backfill-custom-credential-usernames: populates the column from the sealed
   const dbPath = path.join(scratch, "content.db");
   const rootKeyHex = randomBytes(32).toString("hex");
 
-  process.env.TOVU_INTEGRATIONS_ROOT_KEY = rootKeyHex;
-  const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
+  // Readers now reread on every derivation; retain the synthetic key through the reopen proof
+  // without depending on a cached key or changing this test runner's environment.
+  const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] }, {
+    env: () => ({ [LEGACY_SITE_KEY_ENV_VAR_NAME]: rootKeyHex }),
+  });
   const sealer = new AesGcmSecretSealer(keyring);
   const activeKey = await keyring.activeKey();
 
@@ -109,7 +113,6 @@ test("backfill-custom-credential-usernames: populates the column from the sealed
     })
     .run();
   seedDb.$client.close();
-  delete process.env.TOVU_INTEGRATIONS_ROOT_KEY;
 
   // --- Dry run: decrypts this row (same as --apply, so its count is accurate — see the
   // "dry run's reported would-migrate count matches --apply's" test below for the case this
@@ -167,8 +170,8 @@ test("backfill-custom-credential-usernames: a row that fails to decrypt is skipp
   const dbPath = path.join(scratch, "content.db");
   const rootKeyHex = randomBytes(32).toString("hex");
 
-  process.env.TOVU_INTEGRATIONS_ROOT_KEY = rootKeyHex;
-  const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
+  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = rootKeyHex;
+  const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] });
   const sealer = new AesGcmSecretSealer(keyring);
   const activeKey = await keyring.activeKey();
 
@@ -237,7 +240,7 @@ test("backfill-custom-credential-usernames: a row that fails to decrypt is skipp
     sealedAlg: goodSealed.alg,
   });
   seedDb.$client.close();
-  delete process.env.TOVU_INTEGRATIONS_ROOT_KEY;
+  delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
 
   let threw = false;
   try {
@@ -267,8 +270,8 @@ test("backfill-custom-credential-usernames: a sealed payload with no username is
   const dbPath = path.join(scratch, "content.db");
   const rootKeyHex = randomBytes(32).toString("hex");
 
-  process.env.TOVU_INTEGRATIONS_ROOT_KEY = rootKeyHex;
-  const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
+  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = rootKeyHex;
+  const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] });
   const sealer = new AesGcmSecretSealer(keyring);
   const activeKey = await keyring.activeKey();
 
@@ -335,7 +338,7 @@ test("backfill-custom-credential-usernames: a sealed payload with no username is
     sealedAlg: pendingSealed.alg,
   });
   seedDb.$client.close();
-  delete process.env.TOVU_INTEGRATIONS_ROOT_KEY;
+  delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
 
   const applyOutput = runScript(dbPath, rootKeyHex, ["--apply"]);
   assert.match(applyOutput, new RegExp(`SKIPPED \\(no username in sealed payload\\): workspace=${WORKSPACE} id=${credId}`));
@@ -357,8 +360,8 @@ test("backfill-custom-credential-usernames: a database whose ONLY NULL row is un
   const dbPath = path.join(scratch, "content.db");
   const rootKeyHex = randomBytes(32).toString("hex");
 
-  process.env.TOVU_INTEGRATIONS_ROOT_KEY = rootKeyHex;
-  const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
+  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = rootKeyHex;
+  const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] });
   const sealer = new AesGcmSecretSealer(keyring);
   const activeKey = await keyring.activeKey();
 
@@ -398,7 +401,7 @@ test("backfill-custom-credential-usernames: a database whose ONLY NULL row is un
     })
     .run();
   seedDb.$client.close();
-  delete process.env.TOVU_INTEGRATIONS_ROOT_KEY;
+  delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
 
   let threw = false;
   let output = "";
@@ -428,8 +431,8 @@ test("backfill-custom-credential-usernames: dry run's reported would-migrate cou
   const dbPath = path.join(scratch, "content.db");
   const rootKeyHex = randomBytes(32).toString("hex");
 
-  process.env.TOVU_INTEGRATIONS_ROOT_KEY = rootKeyHex;
-  const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
+  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = rootKeyHex;
+  const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] });
   const sealer = new AesGcmSecretSealer(keyring);
   const activeKey = await keyring.activeKey();
 
@@ -466,7 +469,7 @@ test("backfill-custom-credential-usernames: dry run's reported would-migrate cou
     })
     .run();
   seedDb.$client.close();
-  delete process.env.TOVU_INTEGRATIONS_ROOT_KEY;
+  delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
 
   // Dry run now decrypts to classify the row (same as --apply), so it needs the real root key.
   const dryRunOutput = runScript(dbPath, rootKeyHex, []);
@@ -495,8 +498,8 @@ test("backfill-custom-credential-usernames: countPending converges to 0 with a t
   const dbPath = path.join(scratch, "content.db");
   const rootKeyHex = randomBytes(32).toString("hex");
 
-  process.env.TOVU_INTEGRATIONS_ROOT_KEY = rootKeyHex;
-  const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
+  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = rootKeyHex;
+  const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] });
   const sealer = new AesGcmSecretSealer(keyring);
   const activeKey = await keyring.activeKey();
 
@@ -560,7 +563,7 @@ test("backfill-custom-credential-usernames: countPending converges to 0 with a t
     sealedAlg: pendingSealed.alg,
   });
   seedDb.$client.close();
-  delete process.env.TOVU_INTEGRATIONS_ROOT_KEY;
+  delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
 
   // --- First apply: migrates the genuinely pending row, skips the token-only row (no username to
   // copy) — the token-only row's `username` column stays NULL, as it always will. ---
@@ -600,8 +603,8 @@ test("backfill-custom-credential-usernames: the FAILED-only summary line reports
   const dbPath = path.join(scratch, "content.db");
   const rootKeyHex = randomBytes(32).toString("hex");
 
-  process.env.TOVU_INTEGRATIONS_ROOT_KEY = rootKeyHex;
-  const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
+  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = rootKeyHex;
+  const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] });
   const sealer = new AesGcmSecretSealer(keyring);
   const activeKey = await keyring.activeKey();
 
@@ -669,7 +672,7 @@ test("backfill-custom-credential-usernames: the FAILED-only summary line reports
     sealedAlg: alreadyMigratedSealed.alg,
   });
   seedDb.$client.close();
-  delete process.env.TOVU_INTEGRATIONS_ROOT_KEY;
+  delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
 
   let output = "";
   try {

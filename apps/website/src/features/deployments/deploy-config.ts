@@ -212,7 +212,7 @@ export function createDeployConfigKit(): DeployConfigKit {
 const REQUIRED_SECRETS: readonly DeploymentSecret[] = [
   { name: "TOVU_ADMIN_PASSWORD", requirement: "boot-blocking" },
   { name: "ANALYTICS_ROOT_KEY_SEED", requirement: "boot-blocking" },
-  { name: "TOVU_INTEGRATIONS_ROOT_KEY", requirement: "boot-blocking" },
+  { name: "TOVU_SITE_KEY", requirement: "boot-blocking" },
 ];
 
 /**
