@@ -201,7 +201,8 @@ function loadSourceRows(db: ContentDb): SourceRow[] {
       origin: "publish" as const,
       workspaceId: row.workspaceId,
       id: row.id,
-      vendorId: PUBLISH_PROVIDER_TO_VENDOR[row.providerId as PublishProviderId],
+      // `PublishProviderId` is an open `string` now; this frozen legacy table only ever holds the keys above.
+      vendorId: PUBLISH_PROVIDER_TO_VENDOR[row.providerId as keyof typeof PUBLISH_PROVIDER_TO_VENDOR],
       label: row.label,
       sealed: { keyId: row.sealedKeyId, ciphertext: row.sealedCiphertext, nonce: row.sealedNonce, alg: row.sealedAlg },
       oldAad: buildPublishCredentialAad({ workspaceId: row.workspaceId, providerId: row.providerId as PublishProviderId, id: row.id }),

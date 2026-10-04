@@ -25,7 +25,7 @@
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
-import { nextAvailableThemeId, type ThemeTier } from "../../src/features/theme/theme.js";
+import { nextAvailableThemeId, type ThemeTier } from "../../apps/website/src/features/theme/theme.js";
 
 const THEMES_ROOT = process.env.TOVU_THEMES_DIR ?? resolve(process.cwd(), "content/themes");
 const CATALOG_DIR = "__original-themes__";

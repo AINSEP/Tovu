@@ -61,7 +61,7 @@ const DRIZZLE_IS_TABLE = Symbol.for("drizzle:IsDrizzleTable");
 /** Every exported Drizzle table in `schema.sqlite.ts`, paired with the export name it must keep. */
 function collectTables(): Array<{ exportName: string; table: never }> {
   return Object.entries(schema)
-    .filter(([, v]) => Boolean(v && typeof v === "object" && (v as Record<symbol, unknown>)[DRIZZLE_IS_TABLE]))
+    .filter(([, v]) => Boolean(v && typeof v === "object" && (v as unknown as Record<symbol, unknown>)[DRIZZLE_IS_TABLE]))
     .map(([exportName, table]) => ({ exportName, table: table as never }));
 }
 

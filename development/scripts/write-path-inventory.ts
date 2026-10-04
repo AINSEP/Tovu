@@ -94,7 +94,7 @@ function enclosingFunctionName(node: Node): string {
   if (Node.isMethodDeclaration(fn) || Node.isConstructorDeclaration(fn)) {
     const cls = fn.getFirstAncestor(Node.isClassDeclaration);
     const clsName = cls?.getName() ?? "(anon class)";
-    return `${clsName}.${fn.getName?.() ?? "constructor"}`;
+    return `${clsName}.${Node.isMethodDeclaration(fn) ? fn.getName() : "constructor"}`;
   }
   if (Node.isFunctionDeclaration(fn)) return fn.getName() ?? "(anon function)";
   // Arrow/function expression: try the nearest variable declaration name.
@@ -268,6 +268,7 @@ function collectTableWriteSites(project: Project, tableFilter?: string): WriteSi
     if (tableFilter && tableName !== tableFilter) continue;
 
     const nameNode = decl.getNameNode();
+    if (!Node.isIdentifier(nameNode)) continue; // a destructured binding is never a `sqliteTable(...)` export
     const refs = nameNode.findReferencesAsNodes();
 
     for (const ref of refs) {
