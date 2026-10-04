@@ -71,9 +71,6 @@ plugin install from a local folder/zip, raw-HTML forms, media `createdBy`.
 - **First-run Agree screen** (legal, 09-24, L3042): not built.
 - **Third-party notices + Electron license files in the package** (09-24, L3038/L3042): no THIRD_PARTY_NOTICES generator; `LICENSES.chromium.html` reported dropped.
 - **Browser-server ZIP launchers (Mac/Win/Linux) + release assets** (09-23, L2990–2996): run-from-zip plan S3–S5 left (`ADS-memory/.local-artifacts/run-from-zip-plan-2026-09-23.md`); Download page still has a `ZIP_URL` placeholder.
-- **Root `build:server` is not Windows-portable** (09-24, L3047): uses `rm -rf`/`mkdir -p`/`cp -R`; move to a node script.
-- **`npm start` port probe-then-bind race** (09-24, L3047): `development/scripts/start.mjs`.
-- **js-backslide guard enforces nothing** (09-12, L54): `core.hooksPath` unset so `apps/desktop/scripts/hooks/pre-push` never runs, and CI is off. Wire the hook (or a CI job when CI returns).
 - **Desktop hand checks** (09-12, L47–50): the 5 toolbar checks (arrows/URL layout, back/forward across admin↔site, Reload keeps history, Cmd+[ / Cmd+], History menu present + Help empty) and the restart click-through. Fold into the release hand-check gate below.
 
 ### Plugins
@@ -81,7 +78,6 @@ plugin install from a local folder/zip, raw-HTML forms, media `createdBy`.
 - **Plugin hooks S2–S6** (09-23, L2984–2987): S1 catalog landed `068402eaf`; rest in `ADS-memory/.local-artifacts/handoffs/2026-09-23-hooks-lane.md`. Before the SDK 0.2.0 bump fix plugin ranges (`^0.1.0` excludes 0.2.0).
 - **Plugin-published namespaced hooks** (owner YES 09-23, L2981): runtime publication on top of the typed catalog, after hooks S2–S6.
 - **Plugin-memory layout B** (09-14, L704–718/L1014–1020): spec revised `ad7a90a55`; implementation not started; needs the owner's build go.
-- **Higgsfield plugin says video is not covered** (09-26, L3483–3485): `content/agent-plugins/higgsfield-media/skills/higgsfield-media/references/models-and-plan-gates.md:130` says `generate_video` is not allowlisted; owner says video works and the promo shows it. Fix the docs or wire video.
 - **Installed SKILL.md copies refresh on plugin upgrade?** (09-14, L1371): unverified; add a test.
 
 ### Publish
@@ -93,9 +89,7 @@ plugin install from a local folder/zip, raw-HTML forms, media `createdBy`.
 - **wm S3 entries** (L3314): Jini `entries/write-service` checks version before the transaction and saves with no persistence `expectedVersion` guard.
 - **wm S4 menus** (L3314): Jini `navigation/menu-service:updateMenuTree` same pattern.
 - **wm S5 content types** (L3314): Jini `content-types/lifecycle.ts:220` tears down indexes before the transactional save.
-- **wm S10 sitemap** (L3314): `setSeoSettings` does not invalidate the web process's sitemap.
 - **wm S16 tool failures** (L3314): redirect/comment domain errors not mapped to actionable model-facing errors; taxonomy unassign pending.
-- **wm S18 taxonomy unassign** (L3314): `taxonomy/tool-registrations.ts:299` returns every requested termId; Jini `unassignTerms` returns void.
 
 ### Chat & admin
 - **Typed answers to a pending ask_choice, jl A1a/A1b** (09-24, L3318): typing produces no request; on a consumed answer the client must DROP the text or it starts a second PAID run (L2243). No `deliverTypedAnswer` producer in admin or Jini chat.
@@ -109,8 +103,7 @@ plugin install from a local folder/zip, raw-HTML forms, media `createdBy`.
 - **Migrate-forward never updates `.site-meta.json`** (09-21, L2612): only `init-site.ts:269` writes it, so the banner's promise may be false; check under the new storage runner.
 
 ### Media
-- **File size visible on Media cards** (09-21, L2712–2724): Jini `MediaCard` renders `jini-media-card-size` with `hidden`.
-- **Upload date on Media items** (09-26, L3494/L3501): missed earlier; Jini `MediaCard` shows no date.
+- **Size + upload date on the LIVE Media page** (09-21/09-26, L2712–2724/L3494/L3501): done in Jini `MediaCard` (Jini `587ebf0b`), but `/admin/media` is still the legacy page (Jini media parked 10-03), so the owner does not see it yet. Shows up when the Jini page is switched on, or add it to the legacy card.
 - **Sound-on pill on the home promo video** (09-26, L3497): owner: for THIS video only, no global rule; owner killed the writer before it landed.
 
 ### DB
@@ -131,12 +124,10 @@ plugin install from a local folder/zip, raw-HTML forms, media `createdBy`.
 
 ### Security
 - **Rotate the GitHub + NVIDIA keys** printed by `pgrep -fl` (owner-only, 10-02, L3724).
-- **GitHub writes: reject nested `.git` paths and keep executable modes, jl C2** (09-24, L3318): `isReservedGitPath` checks only the first segment; `content/agent-plugins/github/source-control/write-files.mjs:275` always emits mode 100644.
-- **Token rotation drops a sealed-only username, jl C3** (09-24, L3318): `custom-credentials/tool-registrations.ts:852` reseals with `current.username` only.
 - **List/cursor/branch validation, jl C6a–C6c** (09-24, L3318): plan `ADS-memory/.local-artifacts/fix-plan-jini-leftovers-2026-09-24.md`.
 - **Regenerate a leaked site key from the UI** (09-12, L88): must re-encrypt every sealed credential; an env-set key cannot change from the UI. Recovery routes exist (`82444fec4`), no regenerate flow.
 - **Finish the site-key rename** (09-19/09-24, L2412/L3240): `TOVU_SITE_KEY` with fallback exists only in `features/webhooks/site-key-sources.ts`; UI still says "Site Token"; the env-var move is a coordinated production secret migration (Fly secrets, `~/.bash_profile`, CI) and prod must be updated first.
-- **AI disclosure + report link; legal identity/contact inputs** (09-24, L3042/L3303): owner inputs still open: own name as controller, $0 cap vs $50 floor, state/county, tovu.dev vs tovu.com, contact email, form-IP retention.
+- **Legal: controller name + desktop AI report link** (09-24, L3042/L3303): the rest landed 10-04 (`a0336c0dc`, see Done below). Still open: the pages say `[[OWNER NAME]]` where the owner's name goes, and the desktop Help menu has no "Report AI content" link. Form-IP cleanup (`2a41f672e`) stays off until a `@jini-ai/cms-forms` release with `sweepExpiredSubmissionIps` is installed.
 
 ### Owner-only actions and calls
 - **kUInetic auto-upgrade vs pin — resolved 10-04:** owner reconfirmed `kuinetic@0` major range + local fallback, no exact pin (09-27, L3519). Reverted `c91d9849f` in the theme sources. Its reason remains relevant: jsDelivr caches `@0` for a week, so a major-range URL does not guarantee immediate browser freshness.
@@ -168,6 +159,18 @@ plugin install from a local folder/zip, raw-HTML forms, media `createdBy`.
 - **Composio as an optional small Agent Plugin** (10-02, L3732): only if wanted again.
 - **Test gaps for the later combined batch** (09-30, L500–507): D-03 listener `[resetKey]` dependency mutant; real overflow measurement/ResizeObserver in a browser; SiteGrid delete-confirmation (`isCardOpenable(project, true)` never tested).
 - Already tracked elsewhere in this file, not repeated: admin motifs, admin buffet, EmDash gaps, workerd, public site search bar, Observability instrumentation (monitoring Later), raw-HTML forms/menus/widgets.
+
+### Done 2026-10-04
+- **Root `build:server` Windows-portable** (L3047): Node script `development/scripts/build-server.mjs` — `bebc5736f`.
+- **`npm start` probe-then-bind race** (L3047): binds the real listener first, retries in auto-port mode — `bebc5736f` (+ Jini `587ebf0b`, unreleased `listenServer`).
+- **js-backslide pre-push hook wired** (L54): `npm prepare` sets `core.hooksPath` (skips CI and non-checkouts) — `bebc5736f`.
+- **Higgsfield docs cover video** (L3483–3485): `generate_video` + its write grant documented — `bebc5736f`.
+- **wm S10 sitemap invalidation** (L3314) — `bebc5736f`.
+- **wm S18 taxonomy unassign** returns only removed ids (L3314) — `bebc5736f` + Jini `587ebf0b`.
+- **jl C2** nested `.git` rejected, executable modes kept (L3318) — `bebc5736f`.
+- **jl C3** rotation keeps a sealed-only username (L3318) — `bebc5736f`.
+- **Media card size + upload date in Jini `MediaCard`** (L2712–2724/L3494) — Jini `587ebf0b`; live page still legacy, see Media above.
+- **Legal owner inputs + web AI disclosure/report link** (L3042/L3303): $0 cap, California / Los Angeles County, tovu.dev, contact form instead of email, 90-day form-IP line — `a0336c0dc`.
 
 ---
 
