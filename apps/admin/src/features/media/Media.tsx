@@ -21,6 +21,7 @@ import { useWiredMediaPreview } from "./hooks/use-media-preview.hooks";
 import { useWiredEditMediaPanel, type EditMediaPanelController } from "./hooks/use-edit-media-panel.hooks";
 import { useEditMediaModal } from "./hooks/use-edit-media-modal.hooks";
 import { useMediaLightbox } from "./hooks/use-media-lightbox.hooks";
+import { useMediaCardMetadata } from "./hooks/use-media-card-metadata.hooks";
 import { useMediaTabs, type MediaContentTabId, type MediaTabId, type MediaTabsController } from "./hooks/use-media-tabs.hooks";
 import { MEDIA_PROVIDER_CATALOG, PINNED_MEDIA_PROVIDER_IDS } from "./media-provider-catalog";
 import { mediaProvidersPort } from "./media-providers-port";
@@ -1001,6 +1002,16 @@ function resolveMediaTabsHook(useMediaTabsHook: typeof useMediaTabs | undefined)
   return useMediaTabsHook ?? useMediaTabs;
 }
 
+function MediaCardMetadata(props: { item: AdminMedia; locale: string }) {
+  const metadata = useMediaCardMetadata({ item: props.item }, { locale: props.locale });
+  return metadata.hasMetadata ? (
+    <p className="media-card-size">
+      <span>{metadata.byteSize}</span>{metadata.metadataSeparator}
+      {metadata.uploadDate ? <time dateTime={metadata.uploadDateTime}>{metadata.uploadDate}</time> : null}
+    </p>
+  ) : null;
+}
+
 /**
  * The grid-or-empty-state half of the "all"/"images"/"videos" tabs — split out of `Media` for the
  * same reason `MediaToolbar`/`MediaPurgeDialog` above already are: `visibleMedia.length === 0`'s
@@ -1071,6 +1082,7 @@ function MediaGridOrEmpty({
                 items={mediaRowMenuItems(item, editingId, { onToggleEdit, onTrash, onRequestPurge }, locale)}
               />
             </div>
+            <MediaCardMetadata item={item} locale={locale} />
           </div>
         </div>
       ))}

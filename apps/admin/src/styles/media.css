@@ -206,6 +206,12 @@
   gap: var(--space-2);
 }
 
+.media-card-size {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
 /* ============================================================
    EDIT MODAL — `EditMediaModal`'s `<dialog>` (owner ask, 2026-09-07). Used to be a `.card` sitting
    above the grid, pushing every card down while open; now a modal reachable from either the row's
