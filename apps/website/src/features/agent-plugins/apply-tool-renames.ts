@@ -1,10 +1,5 @@
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
-import {
-  notifyExternalMcpRosterChanged,
-  type ExternalMcpServerRecord,
-  type ExternalMcpServerRepoPort,
-  type ExternalMcpStoreDeps,
-} from "#src/assistant/index";
+import type { ExternalMcpServerRecord, ExternalMcpServerRepoPort, ExternalMcpStoreDeps } from "#src/assistant/index";
 
 import { deriveAgentPluginConnectionId } from "./federate-mcp.js";
 import { listInstalledAgentPluginServers, type InstalledAgentPluginServers, type TokenImportLog } from "./import-access-token.js";
@@ -38,8 +33,10 @@ export interface ApplyAgentPluginToolRenamesDeps {
   readonly clock: ExternalMcpStoreDeps["clock"];
   /** Injected for tests. Defaults to `import-access-token.ts`'s `listInstalledAgentPluginServers`. */
   readonly listPlugins?: () => Promise<readonly InstalledAgentPluginServers[]>;
-  /** Injected for tests. Defaults to `notifyExternalMcpRosterChanged`. */
-  readonly notifyRosterChanged?: () => Promise<void>;
+  /** Announces a changed roster so live runtimes reload — the composition root passes
+   *  `notifyExternalMcpRosterChanged`. A port rather than a value import: a feature module may not
+   *  value-import `#src/assistant/` (`domain-no-direct-tool-registration.boundary.test.ts`). */
+  readonly notifyRosterChanged: () => Promise<void>;
 }
 
 /** A stored JSON tool list as names, or `null` when it is not a JSON array of strings (left alone). */
@@ -117,5 +114,5 @@ export async function applyAgentPluginToolRenames(deps: ApplyAgentPluginToolRena
       }
     }
   }
-  if (changed) await (deps.notifyRosterChanged ?? (() => notifyExternalMcpRosterChanged()))();
+  if (changed) await deps.notifyRosterChanged();
 }
