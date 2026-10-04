@@ -113,9 +113,9 @@ function call(tool: ToolRegistration, input: unknown, emitSurface?: SurfaceEmitt
     run: { id: "run-1" },
     input,
     signal: new AbortController().signal,
-    ...(emitSurface ? { emitSurface } : {}),
   };
-  return Promise.resolve(tool.handler(ctx)) as Promise<Record<string, unknown>>;
+  // Like the daemon's ToolExecutor: emitSurface is the handler's optional second argument, spread in only when supplied.
+  return Promise.resolve(tool.handler(ctx, emitSurface ? { emitSurface } : {})) as Promise<Record<string, unknown>>;
 }
 
 async function raiseCard(h: ReturnType<typeof harness>, planId: string) {

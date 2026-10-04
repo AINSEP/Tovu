@@ -91,7 +91,7 @@ test("U-003-ORD1 (binding on this domain, per SPEC-019 CIC U-001-ORD1): the shar
     operationLock: {
       async acquireOperationLock(params) {
         assert.deepEqual(params.input, { siteId: "site-1", operationKind: "migration" });
-        assert.equal(typeof params.deps.clock.nowIso, "function");
+        assert.equal(typeof params.deps.clock.nowMs, "function"); // the kernel Clock port: milliseconds, ISO formatted by nowIso()
         acquireClock = params.deps.clock;
         order.push("lock-acquired");
         return { ok: true, value: handle };

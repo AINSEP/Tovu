@@ -14,7 +14,8 @@ import { buildMigrateForwardHooks, type MigrateForwardDbOpsPort } from "../../ga
  * `artifactRef`/`costClass`/`kind` it just captured.
  */
 
-const CLOCK = { nowIso: () => "2026-09-24T00:00:00.000Z" };
+// The kernel Clock port (`nowMs`); gated-hooks formats it with nowIso().
+const CLOCK = { nowMs: () => Date.parse("2026-09-24T00:00:00.000Z") };
 
 function fakeIdGen(ids: string[]) {
   let i = 0;

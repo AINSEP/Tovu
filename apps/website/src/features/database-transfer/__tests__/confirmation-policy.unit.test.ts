@@ -66,7 +66,7 @@ test("n06: replacing a prior copy still requires a confirmation channel", async 
 
 test("n06: replacement without an answer writes nothing", async t => {
   const h = await harness(t, {replaces: "2026-09-30T00:00:00.000Z"});
-  const result = await h.registration.handler({...h.ctx, emitSurface: async () => undefined});
+  const result = await h.registration.handler(h.ctx, {emitSurface: async () => undefined});
   assert.deepEqual(result, {copied: false, cancelled: false, reason: "expired"});
   assert.deepEqual(h.scripts, []);
 });

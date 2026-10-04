@@ -397,9 +397,12 @@ test("T2: every table in the snapshot is copied or left out with a reason; a plu
 test("an unconfirmed first-copy plan cannot overwrite a copy created since planning", async () => {
   const original = await copyAs(SITE, "first-copy-sentinel");
   assert.equal(original.result.ok, true);
+  const menusBefore = await count("menus", "tovu");
+  assert.equal(menusBefore, 2);
   const result = await copyInto(original.schema, SITE);
   assert.equal(result.ok, false);
   assert.equal(!result.ok && result.code, "COPY_FAILED");
   assert.equal(await sql(FIXTURE_DB, "SELECT snapshot_at FROM tovu._tovu_transfer"), "first-copy-sentinel");
-  assert.equal(await count("menus", "tovu"), 1);
+  // The fixture snapshot holds two menus; the refused copy must leave the original copy's rows as they were.
+  assert.equal(await count("menus", "tovu"), menusBefore);
 });
