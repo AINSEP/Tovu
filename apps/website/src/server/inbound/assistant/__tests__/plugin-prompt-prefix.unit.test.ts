@@ -149,10 +149,10 @@ test("resolveAgentPluginPromptPrefix tells the user why the run could not start 
 
   const kinds: string[] = [];
   const errors: unknown[] = [];
-  await lifecycle.stream(run.id, (event) => {
+  await lifecycle.stream({ runId: run.id, onEvent: (event) => {
     kinds.push(event.kind);
     if (event.kind === "error") errors.push(event.payload);
-  });
+  } });
   assert.deepEqual(kinds.slice(-2), ["error", "end"]);
   assert.deepEqual(errors, [
     { message: "The assistant could not start: a selected Agent Plugin could not be loaded. Remove it from the message or reinstall it, then send again." },
