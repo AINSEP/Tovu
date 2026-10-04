@@ -92,9 +92,6 @@
     "@jini-ai/chat@^0.5.0": {
       "@jini-ai/ui": "$@jini-ai/ui"
     },
-    "@jini-ai/cms-forms": {
-      "@jini-ai/cms": "$@jini-ai/cms"
-    },
     "@jini-ai/http-kit": {
       "@jini-ai/daemon": "$@jini-ai/daemon",
       "@jini-ai/agent-runtime": "$@jini-ai/agent-runtime"
@@ -112,7 +109,7 @@
     "@jini-ai/chat": "^0.5.0",
     "@jini-ai/cli": "^0.4.0",
     "@jini-ai/cms": "^0.4.1",
-    "@jini-ai/cms-forms": "^0.2.0",
+    "@jini-ai/cms-forms": "^0.2.1",
     "@jini-ai/core": "^0.4.0",
     "@jini-ai/daemon": "^0.5.0",
     "@jini-ai/db": "^0.2.0",
@@ -127,7 +124,7 @@
     "@jini-ai/platform": "^0.5.0",
     "@jini-ai/sandbox": "^0.4.0",
     "@jini-ai/sidecar": "^0.4.0",
-    "@jini-ai/ui": "^0.4.0",
+    "@jini-ai/ui": "^0.4.1",
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/exporter-trace-otlp-http": "^0.221.0",
     "@opentelemetry/resources": "^2.10.0",
