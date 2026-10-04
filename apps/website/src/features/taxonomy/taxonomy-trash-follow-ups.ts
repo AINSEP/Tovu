@@ -50,10 +50,13 @@ export interface TaxonomyRevisionWritePort {
   }): Promise<unknown>;
 }
 
-/** The loose `{enqueue(event)}` shape `toTaxonomyOutbox` (`@jini-ai/cms/taxonomy`) adapts a real
- *  outbox into — matched structurally so this file imports neither. */
+/** The loose `{enqueue({event})}` shape `toTaxonomyOutbox` (`@jini-ai/cms/taxonomy`) adapts a real
+ *  outbox into — matched structurally so this file imports neither. Declared as a function-typed
+ *  PROPERTY, not a method: method parameters are checked bivariantly, which is how the old flat
+ *  `enqueue(event)` shape kept type-checking against Jini's `enqueue({event})` while every purge
+ *  follow-up threw at runtime. A property is checked contravariantly, so a shape drift fails tsc. */
 export interface TaxonomyEventOutboxPort {
-  enqueue(event: Record<string, unknown>): Promise<void>;
+  enqueue: (required: { event: Record<string, unknown> }) => Promise<void>;
 }
 
 /** `SqliteTermRepo.findForPurgeAudit`'s exact shape (`repo.sqlite.ts`) — trash-blind, since a
@@ -122,11 +125,13 @@ export function createTermPurgeFollowUp(deps: {
         recordedAt: now,
       });
       await deps.outbox.enqueue({
-        name: "taxonomy.term_deleted",
-        termId: entityId,
-        taxonomyId: prior.taxonomyId,
-        actorId: prior.actorId,
-        occurredAt: now,
+        event: {
+          name: "taxonomy.term_deleted",
+          termId: entityId,
+          taxonomyId: prior.taxonomyId,
+          actorId: prior.actorId,
+          occurredAt: now,
+        },
       });
     },
   };
@@ -164,11 +169,13 @@ export function createTaxonomyPurgeFollowUp(deps: {
         recordedAt: now,
       });
       await deps.outbox.enqueue({
-        name: "taxonomy.deleted",
-        taxonomyId: entityId,
-        deletedTermIds: prior.deletedTermIds,
-        actorId: prior.actorId,
-        occurredAt: now,
+        event: {
+          name: "taxonomy.deleted",
+          taxonomyId: entityId,
+          deletedTermIds: prior.deletedTermIds,
+          actorId: prior.actorId,
+          occurredAt: now,
+        },
       });
     },
   };

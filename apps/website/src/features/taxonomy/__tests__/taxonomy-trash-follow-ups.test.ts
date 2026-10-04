@@ -21,7 +21,7 @@ function recordingRevisions(): TaxonomyRevisionWritePort & { rows: unknown[] } {
 
 function recordingOutbox(): TaxonomyEventOutboxPort & { events: Record<string, unknown>[] } {
   const events: Record<string, unknown>[] = [];
-  return { events, enqueue: async (event) => void events.push(event) };
+  return { events, enqueue: async ({ event }) => void events.push(event) };
 }
 
 function trashLookup(row: { actorPrincipalId: string } | null, entityType = "term", entityId = "term-1"): PurgeTrashLookupPort {
