@@ -567,9 +567,11 @@ const MAX_TARGET_VALUE_LENGTH = 200;
  * exposed it. Hoisting it as data (not a switch statement) is what lets both the server's own resolvers
  * and the admin's UI-only describer read the identical precedence rule.
  *
- * - `widget`/`media`/`post`/`content`: `id`, else `slug` — the four types registered in
+ * - `widget`/`form`/`media`/`post`/`content`: `id`, else `slug` — registered in
  *   `resolver-service.ts`'s `HTML_EMBED_RESOLVERS` (see `marker-target-parity.unit.test.ts`, which fails
- *   loudly if a future registered type is added here without `"slug"`).
+ *   loudly if a registered type has no matching row or incorrect target keys).
+ * - `taxonomy`: `id` only — `widgets/resolvers/taxonomy.ts` reads `ref.id`, accepting a real
+ *   taxonomy id or a unique taxonomy name through that key; `ref.slug` is never consulted.
  * - {@link COLLECTION_MARKER_TYPE}: `id`, else `typeKey` — `routes/site/pages.ts`'s
  *   `collectionMarkerTypeKey` tries `config.id` before `config.typeKey`; `slug` is never consulted.
  * - {@link MENU_MARKER_TYPE} / {@link PARTIAL_MARKER_TYPE}: `id` only — `static-render.ts` resolves
@@ -584,6 +586,8 @@ const MAX_TARGET_VALUE_LENGTH = 200;
  */
 export const EMBED_MARKER_TARGET_KEYS: Readonly<Record<string, readonly ("id" | "slug" | "typeKey")[]>> = {
   widget: ["id", "slug"],
+  form: ["id", "slug"],
+  taxonomy: ["id"],
   media: ["id", "slug"],
   post: ["id", "slug"],
   content: ["id", "slug"],
