@@ -1,11 +1,37 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { FEDERATED_CONNECTION_DEFAULTS } from "@jini-ai/mcp/federation";
+import { IDENTITY_STDIO_LAUNCH_RESOLVER, spawnMcpStdioChannel as spawnSharedStdioChannel, type ResolvedStdioLaunch } from "@jini-ai/mcp/federation/stdio";
+
 import { ScriptedMcpStdioChannel, type CapturedRpcMessage } from "../mcp-federation/adapter.memory.js";
-import { connectMcpStdioSession, spawnMcpStdioChannel } from "../mcp-federation/adapter.stdio.js";
+import { createDefaultConnect } from "../mcp-federation/bootstrap.js";
+import type { McpSessionPort, McpStdioChannel } from "../mcp-federation/ports.js";
+import { tovuFederationMessages } from "../mcp-federation/presets.js";
+
+// The stdio client moved to @jini-ai/mcp/federation/stdio (adapter.stdio.ts was deleted). Each
+// session below is opened through Tovu's production binding, `createDefaultConnect` with an
+// injected channel, so the handshake still carries Tovu's client identity and close wording.
+function connectMcpStdioSession({ channel, requestTimeoutMs }: { channel: McpStdioChannel; requestTimeoutMs: number }): Promise<McpSessionPort> {
+  return createDefaultConnect({ resolver: IDENTITY_STDIO_LAUNCH_RESOLVER }, { spawnChannel: () => channel })({
+    config: { connectionId: "supabase", label: "Supabase", allowedToolNames: [], writeAllowedToolNames: [], ...FEDERATED_CONNECTION_DEFAULTS, callTimeoutMs: requestTimeoutMs },
+    launch: { command: "scripted", args: [], env: {} },
+  });
+}
+
+/** The real child-process channel, adapted to the host line-callback ABI the way bootstrap.ts does. */
+function spawnMcpStdioChannel(resolved: ResolvedStdioLaunch): McpStdioChannel {
+  const channel = spawnSharedStdioChannel({ ...resolved, messages: tovuFederationMessages });
+  return {
+    send: (message) => channel.send({ message }),
+    onMessage: (listener) => channel.onMessage({ listener: ({ message }) => listener(message) }),
+    onClose: (listener) => channel.onClose({ listener: ({ reason }) => listener(reason) }),
+    close: () => channel.close({}),
+  };
+}
 
 /**
- * @file Tests for the REAL MCP client in `mcp-federation/adapter.stdio.ts`, driven against
+ * @file Tests for the REAL MCP client (now `@jini-ai/mcp/federation/stdio`'s `adapter.stdio.ts`), driven against
  * `ScriptedMcpStdioChannel` — a fake pipe, not a fake client.
  *
  * This is the file that makes the "no live Supabase project is available in this sandbox"

@@ -1,3 +1,4 @@
+// Local federation forks moved to @jini-ai/mcp/federation (+ /stdio, /approvals); see development/DELETED-CODE.md.
 /**
  * @file The `chat.db` half of G3 remembered approvals: "Allow for this chat", stored with the
  * conversation (`assistant_conversation_tool_approvals`, created by `platform/db/sqlite/chat-db.ts`)
@@ -7,7 +8,7 @@
 import { type ChatKernel, chatKernel } from "#src/platform/db/chat-kernel";
 import type { SqliteConnectionSource } from "@jini-ai/db/kernel/sqlite";
 
-import type { ConversationToolApprovalStore } from "../external-mcp-tool-approvals.js";
+import type { ConversationToolApprovalStore } from "../external-mcp-tool-approval-ports.js";
 
 /**
  * A {@link ConversationToolApprovalStore} over the chat kernel: one Kysely body for every dialect.

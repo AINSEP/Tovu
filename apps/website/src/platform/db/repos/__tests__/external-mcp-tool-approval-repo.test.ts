@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { UUID } from "@jini-ai/core/primitives";
 
-import type { ExternalMcpToolApprovalRecord } from "#src/assistant/external-mcp-tool-approvals";
+import type { ExternalMcpToolApprovalRecord } from "#src/assistant/external-mcp-tool-approval-ports";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { SqlExternalMcpToolApprovalRepo } from "../external-mcp-tool-approval-repo.js";

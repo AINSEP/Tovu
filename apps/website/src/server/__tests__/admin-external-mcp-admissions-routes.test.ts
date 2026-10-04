@@ -7,7 +7,7 @@ import test from "node:test";
 import express from "express";
 
 import { AGENT_DAEMON_TOKEN_ENV_VAR, requireAgentDaemonToken } from "../../assistant/daemon-auth.js";
-import type { FederatedAdmissionReport } from "../../assistant/mcp-federation/trust.js";
+import type { FederatedAdmissionReport } from "@jini-ai/mcp/federation";
 import { registerFederationAdmissionsRoute } from "../inbound/assistant/federation-admissions-route.js";
 import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.js";
 

@@ -12,7 +12,7 @@ import {
   type ExternalMcpServerRecord,
 } from "#src/assistant/index";
 import { isHttpLaunchSpec, type FederatedMcpConnectionConfig, type McpHttpLaunchSpec, type McpSessionPort } from "#src/assistant/mcp-federation/ports";
-import { describeRemoteToolSurface } from "#src/assistant/mcp-federation/trust";
+import { describeRemoteToolSurface } from "@jini-ai/mcp/federation";
 import type { ExternalMcpToolDeps } from "#src/features/external-mcp/deps";
 
 /** Injectable session factory — the seam a route test scripts instead of opening a real socket.

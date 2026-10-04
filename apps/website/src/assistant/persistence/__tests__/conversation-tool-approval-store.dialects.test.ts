@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { ConversationToolApprovalKey } from "../../external-mcp-tool-approvals.js";
+import type { ConversationToolApprovalKey } from "@jini-ai/mcp/federation";
 import { createSqliteConversationToolApprovalStore } from "../conversation-tool-approval-store.js";
 import { describeEachChatDialect } from "./chat-dialect-matrix.js";
 import { seedChat } from "./chat-seed.js";

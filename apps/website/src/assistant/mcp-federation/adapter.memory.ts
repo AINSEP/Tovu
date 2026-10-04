@@ -1,4 +1,14 @@
-import type { McpHttpExchange, McpHttpResponse, McpSessionPort, McpStdioChannel, RemoteToolDescriptor, RemoteToolResult } from "./ports.js";
+import {
+  InMemoryMcpSession as SharedSession,
+  ScriptedMcpStdioChannel as SharedStdioChannel,
+  ScriptedMcpHttpExchange as SharedHttpExchange,
+  type CapturedRpcMessage, type CapturedHttpRequest, type ScriptedHttpReply,
+} from "@jini-ai/mcp/federation/testing";
+import type { RemoteToolDescriptor, RemoteToolResult } from "@jini-ai/mcp/federation";
+import type { McpSessionPort, McpStdioChannel, McpHttpExchange, McpHttpResponse } from "./ports.js";
+import { tovuFederationMessages } from "./presets.js";
+export type { CapturedRpcMessage, CapturedHttpRequest, ScriptedHttpReply } from "@jini-ai/mcp/federation/testing";
+// Generic fake state/protocol behavior moved to Jini; host session/channel/exchange ABIs remain here.
 
 /**
  * @file The in-memory doubles for both federation seams — ADR-006 rule-of-two's partner to
@@ -26,218 +36,60 @@ import type { McpHttpExchange, McpHttpResponse, McpSessionPort, McpStdioChannel,
  * works.
  *
  * Architectural role:
- * Test doubles. Ships in `src/` beside the port they implement, exactly as every feature's
+ * Host ABI adapters for Jini test doubles. Ships in `src/` beside the port they implement, exactly as every feature's
  * `repo.memory.ts` does, so they are importable from `__tests__/` without a second tsconfig.
  */
 
-/**
- * A scripted `McpSessionPort`: a fixed tool list plus a per-tool call handler.
- *
- * `callTool` records every call, so a test can assert not just the returned value but that the
- * REMOTE NAME was sent — the property that proves namespacing is applied on the way in and stripped
- * on the way out, which is the single most load-bearing behaviour in the registration layer.
- */
+/** Adapt the old host callback ABI; Jini records remote names and owns fake session state. */
 export class InMemoryMcpSession implements McpSessionPort {
-  readonly calls: Array<{ name: string; arguments: Record<string, unknown> }> = [];
-  closed = false;
-
-  private readonly tools: RemoteToolDescriptor[];
-  private readonly handler: (name: string, args: Record<string, unknown>) => RemoteToolResult | Promise<RemoteToolResult>;
-  private readonly listToolsBehaviour: (() => Promise<RemoteToolDescriptor[]>) | undefined;
-
-  constructor(options: {
-    tools: readonly RemoteToolDescriptor[];
-    /** Defaults to echoing the call back, which is enough for most wiring assertions. */
+  private readonly session: SharedSession;
+  constructor(options: { tools: readonly RemoteToolDescriptor[];
     onCall?: (name: string, args: Record<string, unknown>) => RemoteToolResult | Promise<RemoteToolResult>;
-    /** Overrides `listTools` wholesale, for the "the remote is down at connect time" cases. */
     onListTools?: () => Promise<RemoteToolDescriptor[]>;
   }) {
-    this.tools = [...options.tools];
-    this.handler = options.onCall ?? ((name, args) => ({ content: [{ type: "text", text: `called ${name} with ${JSON.stringify(args)}` }] }));
-    this.listToolsBehaviour = options.onListTools;
-  }
-
-  async listTools(): Promise<RemoteToolDescriptor[]> {
-    if (this.listToolsBehaviour) return this.listToolsBehaviour();
-    return [...this.tools];
-  }
-
-  async callTool(request: { name: string; arguments: Record<string, unknown> }): Promise<RemoteToolResult> {
-    this.calls.push({ name: request.name, arguments: request.arguments });
-    return this.handler(request.name, request.arguments);
-  }
-
-  async close(): Promise<void> {
-    this.closed = true;
-  }
-}
-
-/** One JSON-RPC message the fake channel received from the client under test. */
-export interface CapturedRpcMessage {
-  jsonrpc?: string;
-  id?: number;
-  method?: string;
-  params?: Record<string, unknown>;
-  error?: { code?: number; message?: string };
-}
-
-/**
- * A fake {@link McpStdioChannel} that plays the SERVER side of MCP, under the test's control.
- *
- * `respond` is a plain function of the received message, so a test scripts a server by writing one:
- * return a response object to reply, or `undefined` to stay silent (the case that exercises the
- * client's timeout path). Everything the client sends is captured in {@link sent}, which is how
- * handshake ordering is asserted — that `initialize` comes first and that
- * `notifications/initialized` follows it with no `id`.
- */
-export class ScriptedMcpStdioChannel implements McpStdioChannel {
-  /** Every message the client wrote, parsed, in order. */
-  readonly sent: CapturedRpcMessage[] = [];
-  closedReason: string | null = null;
-
-  private readonly messageListeners: Array<(message: string) => void> = [];
-  private readonly closeListeners: Array<(reason: string) => void> = [];
-  private readonly respond: (message: CapturedRpcMessage) => unknown;
-
-  constructor(options: {
-    /** Return a JSON-RPC response object to reply with, or `undefined` for silence. */
-    respond: (message: CapturedRpcMessage) => unknown;
-  }) {
-    this.respond = options.respond;
-  }
-
-  send(message: string): void {
-    if (this.closedReason !== null) throw new Error("scripted channel is closed");
-    const parsed = JSON.parse(message) as CapturedRpcMessage;
-    this.sent.push(parsed);
-    const reply = this.respond(parsed);
-    // Delivered on a later microtask, as a real pipe would: a client that only works when its reply
-    // arrives synchronously inside its own `send` is a client that does not work.
-    if (reply !== undefined) queueMicrotask(() => this.deliver(reply));
-  }
-
-  onMessage(listener: (message: string) => void): void {
-    this.messageListeners.push(listener);
-  }
-
-  onClose(listener: (reason: string) => void): void {
-    this.closeListeners.push(listener);
-  }
-
-  close(): void {
-    this.fail("closed by Tovu");
-  }
-
-  /** Pushes a message to the client out of band — for late replies, unsolicited server requests,
-   * and notifications. */
-  deliver(message: unknown): void {
-    const line = typeof message === "string" ? message : JSON.stringify(message);
-    for (const listener of this.messageListeners) listener(line);
-  }
-
-  /** Simulates the far end dying. */
-  fail(reason: string): void {
-    if (this.closedReason !== null) return;
-    this.closedReason = reason;
-    for (const listener of this.closeListeners) listener(reason);
-  }
-
-  /** The last id the client used for `method`, for building a matching reply. */
-  idFor(method: string): number | undefined {
-    for (let i = this.sent.length - 1; i >= 0; i -= 1) {
-      if (this.sent[i]?.method === method) return this.sent[i]?.id;
-    }
-    return undefined;
-  }
-}
-
-/** One request the fake exchange received from the client under test. */
-export interface CapturedHttpRequest {
-  readonly url: string;
-  readonly method: "POST" | "DELETE";
-  readonly headers: Readonly<Record<string, string>>;
-  /** The parsed JSON-RPC frame, or `undefined` for a bodyless request. */
-  readonly message: CapturedRpcMessage | undefined;
-}
-
-/** What a scripted server answers with. Defaults fill in the boring parts so a test states only
- *  the field it is actually exercising. */
-export interface ScriptedHttpReply {
-  readonly status?: number;
-  readonly contentType?: string;
-  readonly sessionId?: string;
-  /** A JSON-RPC object (serialized for the client), or a raw string for malformed-body cases. */
-  readonly body?: unknown;
-}
-
-/**
- * A fake {@link McpHttpExchange} that plays the SERVER side of MCP's Streamable HTTP transport.
- *
- * The hosted counterpart to {@link ScriptedMcpStdioChannel}, and it exists for the same reason: so
- * `adapter.http.ts`'s REAL handshake ordering, session-id propagation, SSE framing, pagination,
- * status mapping and timeout behaviour are exercised against something that can misbehave on
- * purpose — answer 401, answer with an unparseable body, issue a header-injecting session id,
- * paginate forever, or never answer at all — rather than against a stub of the client itself.
- *
- * `respond` is a plain function of the received request, so a test scripts a server by writing one.
- * Returning `undefined` means "never answer", which is how the timeout path is reached: the
- * returned promise stays pending until the client's own `AbortSignal` fires.
- */
-export class ScriptedMcpHttpExchange implements McpHttpExchange {
-  /** Every request the client made, in order. */
-  readonly sent: CapturedHttpRequest[] = [];
-
-  private readonly respond: (request: CapturedHttpRequest) => ScriptedHttpReply | undefined;
-
-  constructor(options: { respond: (request: CapturedHttpRequest) => ScriptedHttpReply | undefined }) {
-    this.respond = options.respond;
-  }
-
-  async send(request: {
-    readonly url: string;
-    readonly method: "POST" | "DELETE";
-    readonly headers: Readonly<Record<string, string>>;
-    readonly body?: string;
-    readonly signal?: AbortSignal;
-  }): Promise<McpHttpResponse> {
-    const captured: CapturedHttpRequest = {
-      url: request.url,
-      method: request.method,
-      headers: { ...request.headers },
-      message: request.body === undefined ? undefined : (JSON.parse(request.body) as CapturedRpcMessage),
-    };
-    this.sent.push(captured);
-
-    const reply = this.respond(captured);
-    if (reply === undefined) return this.neverAnswer(request.signal);
-
-    return {
-      status: reply.status ?? 200,
-      contentType: reply.contentType ?? "application/json",
-      ...(reply.sessionId === undefined ? {} : { sessionId: reply.sessionId }),
-      text: typeof reply.body === "string" ? reply.body : JSON.stringify(reply.body ?? {}),
-    };
-  }
-
-  /** A server that accepts the request and then goes quiet. Settles only when the client aborts,
-   *  which is exactly what a real stalled connection does. */
-  private neverAnswer(signal: AbortSignal | undefined): Promise<McpHttpResponse> {
-    return new Promise<McpHttpResponse>((_resolve, reject) => {
-      if (!signal) return;
-      if (signal.aborted) {
-        reject(new Error("aborted"));
-        return;
-      }
-      signal.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
+    const onCall = options.onCall;
+    this.session = new SharedSession({ tools: options.tools }, {
+      ...(onCall ? { onCall: ({ name, args }) => onCall(name, args) } : {}),
+      ...(options.onListTools ? { onListTools: options.onListTools } : {}),
     });
   }
+  get calls() { return this.session.calls; }
+  get closed() { return this.session.closed; }
+  set closed(value: boolean) { this.session.closed = value; }
+  listTools(): Promise<RemoteToolDescriptor[]> { return this.session.listTools(); }
+  callTool(request: { name: string; arguments: Record<string, unknown> }): Promise<RemoteToolResult> { return this.session.callTool(request); }
+  close(): Promise<void> { return this.session.close({}); }
+}
 
-  /** The last request whose JSON-RPC `method` matches, for asserting on what was sent. */
-  lastRequestFor(method: string): CapturedHttpRequest | undefined {
-    for (let i = this.sent.length - 1; i >= 0; i -= 1) {
-      const candidate = this.sent[i];
-      if (candidate?.message?.method === method) return candidate;
-    }
-    return undefined;
+/** Preserve host line callbacks and close wording; Jini owns scheduling, capture and fan-out. */
+export class ScriptedMcpStdioChannel implements McpStdioChannel {
+  private readonly channel: SharedStdioChannel;
+  constructor(options: { respond: (message: CapturedRpcMessage) => unknown }) {
+    const respond = options.respond;
+    this.channel = new SharedStdioChannel({ respond: ({ message }) => respond(message), messages: tovuFederationMessages });
   }
+  get sent() { return this.channel.sent; }
+  get closedReason() { return this.channel.closedReason; }
+  set closedReason(value: string | null) { this.channel.closedReason = value; }
+  send(message: string): void { this.channel.send({ message }); }
+  onMessage(listener: (message: string) => void): void { this.channel.onMessage({ listener: ({ message }) => listener(message) }); }
+  onClose(listener: (reason: string) => void): void { this.channel.onClose({ listener: ({ reason }) => listener(reason) }); }
+  close(): void { this.channel.close({}); }
+  deliver(message: unknown): void { this.channel.deliver({ message }); }
+  fail(reason: string): void { this.channel.fail({ reason }); }
+  idFor(method: string): number | undefined { return this.channel.idFor({ method }); }
+}
+
+/** Preserve the single host request bag; Jini owns response scripting and cancellation. */
+export class ScriptedMcpHttpExchange implements McpHttpExchange {
+  private readonly exchange: SharedHttpExchange;
+  constructor(options: { respond: (request: CapturedHttpRequest) => ScriptedHttpReply | undefined }) {
+    const respond = options.respond;
+    this.exchange = new SharedHttpExchange({ respond: ({ request }) => respond(request) });
+  }
+  get sent() { return this.exchange.sent; }
+  send({ body, signal, ...request }: { url: string; method: "POST" | "DELETE";
+    headers: Readonly<Record<string, string>>; body?: string; signal?: AbortSignal;
+  }): Promise<McpHttpResponse> { return this.exchange.send(request, { body, signal }); }
+  lastRequestFor(method: string): CapturedHttpRequest | undefined { return this.exchange.lastRequestFor({ method }); }
 }

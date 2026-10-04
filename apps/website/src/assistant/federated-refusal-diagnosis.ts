@@ -1,3 +1,5 @@
+// Local federation forks moved to @jini-ai/mcp/federation (+ /stdio, /approvals); see development/DELETED-CODE.md.
+import { tovuFederationMessages } from "./mcp-federation/presets.js";
 /**
  * @file The CALL-TIME half of "a refusal must never be silent" — `mcp-federation/refusal-notice.ts`
  * is the BOOT-TIME half (the prompt prefix every run starts with). Read that file's header first;
@@ -82,8 +84,8 @@ import type { Principal, RunRef, SurfaceEmitter } from "@jini-ai/core";
 import type { ToolExecutionResult, ToolExecutor } from "@jini-ai/daemon";
 
 import { redactSecretShapes } from "../contracts/core/secret-redaction.js";
-import { FEDERATED_TOOL_ID_PREFIX, parseFederatedConnectionId } from "./mcp-federation/trust.js";
-import { findFederatedToolRefusal, type FederationAdmissionSnapshotEntry } from "./mcp-federation/refusal-notice.js";
+import { FEDERATED_TOOL_ID_PREFIX, parseFederatedConnectionId } from "@jini-ai/mcp/federation";
+import { findFederatedToolRefusal, type FederationAdmissionSnapshotEntry } from "@jini-ai/mcp/federation";
 
 /**
  * The federation boot pass's own live state, for the "still connecting" case below — deliberately
@@ -165,7 +167,7 @@ function isUnknownToolError(error: unknown): boolean {
  */
 function diagnoseStillConnectingOrFailed(toolId: string, status: FederationBootStatus | undefined): ToolExecutionResult | null {
   if (!status) return null;
-  const connectionId = parseFederatedConnectionId(toolId);
+  const connectionId = parseFederatedConnectionId({ toolId });
   if (connectionId === null) return null;
 
   if (!status.settled) {
@@ -240,7 +242,7 @@ export function withFederatedRefusalDiagnosis(
         return await inner.execute({ principal, run, toolId, input }, { signal, emitSurface });
       } catch (error) {
         if (!isUnknownToolError(error) || !toolId.startsWith(FEDERATED_TOOL_ID_PREFIX)) throw error;
-        const refusal = findFederatedToolRefusal(toolId, getSnapshot());
+        const refusal = findFederatedToolRefusal({ toolId, snapshot: getSnapshot(), messages: tovuFederationMessages });
         if (refusal === null) {
           const stillConnecting = diagnoseStillConnectingOrFailed(toolId, getBootStatus?.());
           if (stillConnecting !== null) return stillConnecting;

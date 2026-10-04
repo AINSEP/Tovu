@@ -4,8 +4,7 @@ import test from "node:test";
 import type { Principal, RunRef } from "@jini-ai/core";
 import type { ToolExecutionResult, ToolExecutor } from "@jini-ai/daemon";
 
-import type { FederatedAdmissionReport } from "../mcp-federation/trust.js";
-import type { FederationAdmissionSnapshotEntry } from "../mcp-federation/refusal-notice.js";
+import type { FederatedAdmissionReport, FederationAdmissionSnapshotEntry } from "@jini-ai/mcp/federation";
 import { withFederatedRefusalDiagnosis, type FederationBootStatus } from "../federated-refusal-diagnosis.js";
 
 /**
@@ -43,7 +42,7 @@ function snapshot(connectionId: string, overrides: Partial<FederatedAdmissionRep
  *  .test.ts`'s own inline stub `ToolExecutor`, which is the precedent for this shape). */
 function stubExecutor(unknownIds: ReadonlySet<string>): ToolExecutor {
   return {
-    execute: async (_principal, _run, toolId): Promise<ToolExecutionResult> => {
+    execute: async ({ toolId }): Promise<ToolExecutionResult> => {
       if (unknownIds.has(toolId)) throw new Error(`ToolExecutor: unknown tool "${toolId}"`);
       return { executionId: "e", status: "completed", output: { ok: true } };
     },
@@ -63,7 +62,7 @@ test("an attempted call to a not-in-operator-allowlist federated tool comes back
   const snap = snapshot("higgsfield", { refused: [{ remoteName: "tiktok_publish", reason: "not-in-operator-allowlist" }] });
 
   const executor = withFederatedRefusalDiagnosis(inner, () => snap);
-  const result = await executor.execute(PRINCIPAL, RUN, toolId, {});
+  const result = await executor.execute({ principal: PRINCIPAL, run: RUN, toolId, input: {} });
 
   assert.equal(result.status, "failed");
   assert.equal(result.errorKind, "validation");
@@ -82,7 +81,7 @@ test("this is a REAL 400-mappable outcome, not a thrown exception — the proper
 
   const executor = withFederatedRefusalDiagnosis(inner, () => snap);
   // No try/catch: if this decorator still throws for a refused id, this call rejects and the test fails.
-  const result = await executor.execute(PRINCIPAL, RUN, toolId, {});
+  const result = await executor.execute({ principal: PRINCIPAL, run: RUN, toolId, input: {} });
   assert.equal(result.status, "failed", "must be a returned result, never a thrown error, for a known refusal");
 });
 
@@ -102,7 +101,7 @@ test("a refused tool whose remote-advertised name is secret-shaped is redacted, 
   const inner = stubExecutor(new Set([toolId]));
   const snap = snapshot("higgsfield", { refused: [{ remoteName: secretShapedName, reason: "not-in-operator-allowlist" }] });
 
-  const result = await withFederatedRefusalDiagnosis(inner, () => snap).execute(PRINCIPAL, RUN, toolId, {});
+  const result = await withFederatedRefusalDiagnosis(inner, () => snap).execute({ principal: PRINCIPAL, run: RUN, toolId, input: {} });
 
   assert.equal(result.status, "failed");
   assert.doesNotMatch(result.error ?? "", /sk-ant-api03-ABCDEFGHIJ1234567890/, "the secret-shaped remote name must never reach the model verbatim");
@@ -122,7 +121,7 @@ test("a write-grant refusal attempted directly is also legible, with its own dis
   const inner = stubExecutor(new Set([toolId]));
   const snap = snapshot("higgsfield", { refused: [{ remoteName: "generate_image", reason: "remote-declares-not-read-only" }] });
 
-  const result = await withFederatedRefusalDiagnosis(inner, () => snap).execute(PRINCIPAL, RUN, toolId, {});
+  const result = await withFederatedRefusalDiagnosis(inner, () => snap).execute({ principal: PRINCIPAL, run: RUN, toolId, input: {} });
 
   assert.equal(result.status, "failed");
   assert.match(result.error ?? "", /Allowed to make changes/);
@@ -136,7 +135,7 @@ test("a write-grant refusal attempted directly is also legible, with its own dis
 test("an admitted federated tool's normal completion is untouched", async () => {
   const toolId = "mcp__higgsfield__generate_image";
   const inner = stubExecutor(new Set());
-  const result = await withFederatedRefusalDiagnosis(inner, () => []).execute(PRINCIPAL, RUN, toolId, {});
+  const result = await withFederatedRefusalDiagnosis(inner, () => []).execute({ principal: PRINCIPAL, run: RUN, toolId, input: {} });
 
   assert.deepEqual(result, { executionId: "e", status: "completed", output: { ok: true } });
 });
@@ -146,7 +145,7 @@ test("a native (non-federated) unknown tool id still throws unchanged — this d
   const inner = stubExecutor(new Set([toolId]));
 
   await assert.rejects(
-    () => withFederatedRefusalDiagnosis(inner, () => []).execute(PRINCIPAL, RUN, toolId, {}),
+    () => withFederatedRefusalDiagnosis(inner, () => []).execute({ principal: PRINCIPAL, run: RUN, toolId, input: {} }),
     /unknown tool "some_native_typo"/,
   );
 });
@@ -156,7 +155,7 @@ test("a federated-SHAPED id this boot never refused still throws unchanged — n
   const inner = stubExecutor(new Set([toolId]));
   const snap = snapshot("higgsfield", { refused: [{ remoteName: "tiktok_publish", reason: "not-in-operator-allowlist" }] });
 
-  await assert.rejects(() => withFederatedRefusalDiagnosis(inner, () => snap).execute(PRINCIPAL, RUN, toolId, {}), /unknown tool/);
+  await assert.rejects(() => withFederatedRefusalDiagnosis(inner, () => snap).execute({ principal: PRINCIPAL, run: RUN, toolId, input: {} }), /unknown tool/);
 });
 
 test("a genuinely unrelated throw (not 'unknown tool') passes straight through, never reinterpreted as a refusal", async () => {
@@ -171,7 +170,7 @@ test("a genuinely unrelated throw (not 'unknown tool') passes straight through, 
   };
   const snap = snapshot("higgsfield", { refused: [{ remoteName: "tiktok_publish", reason: "not-in-operator-allowlist" }] });
 
-  await assert.rejects(() => withFederatedRefusalDiagnosis(inner, () => snap).execute(PRINCIPAL, RUN, toolId, {}), /connection reset/);
+  await assert.rejects(() => withFederatedRefusalDiagnosis(inner, () => snap).execute({ principal: PRINCIPAL, run: RUN, toolId, input: {} }), /connection reset/);
 });
 
 // ---------------------------------------------------------------------------
@@ -186,12 +185,12 @@ test("the snapshot is read LIVE at call time — a refusal that only exists afte
 
   // Composed before "boot" finished — captured with the empty snapshot, exactly like
   // `agent-daemon-server.ts` composing `toolExecutor` at module scope before `start()` runs.
-  await assert.rejects(() => executor.execute(PRINCIPAL, RUN, toolId, {}), /unknown tool/, "pre-boot: nothing to diagnose yet, so the original throw still surfaces");
+  await assert.rejects(() => executor.execute({ principal: PRINCIPAL, run: RUN, toolId, input: {} }), /unknown tool/, "pre-boot: nothing to diagnose yet, so the original throw still surfaces");
 
   // "start()" resolves and reassigns the module-scope binding `getSnapshot` closes over.
   live = snapshot("higgsfield", { refused: [{ remoteName: "tiktok_publish", reason: "not-in-operator-allowlist" }] });
 
-  const result = await executor.execute(PRINCIPAL, RUN, toolId, {});
+  const result = await executor.execute({ principal: PRINCIPAL, run: RUN, toolId, input: {} });
   assert.equal(result.status, "failed", "the SAME executor instance now diagnoses the call, with no re-composition");
 });
 
@@ -211,7 +210,7 @@ test("a federated id with no snapshot refusal, while the boot pass has not settl
   const inner = stubExecutor(new Set([toolId]));
   const status: FederationBootStatus = { settled: false, connectFailures: [] };
 
-  const result = await withFederatedRefusalDiagnosis(inner, () => [], () => status).execute(PRINCIPAL, RUN, toolId, {});
+  const result = await withFederatedRefusalDiagnosis(inner, () => [], () => status).execute({ principal: PRINCIPAL, run: RUN, toolId, input: {} });
 
   assert.equal(result.status, "failed");
   assert.equal(result.errorKind, "validation");
@@ -225,7 +224,7 @@ test("a federated id with no snapshot refusal, once the boot pass has settled wi
   const inner = stubExecutor(new Set([toolId]));
   const status: FederationBootStatus = { settled: true, connectFailures: [{ connectionId: "echo-server", reason: "connect ECONNREFUSED" }] };
 
-  const result = await withFederatedRefusalDiagnosis(inner, () => [], () => status).execute(PRINCIPAL, RUN, toolId, {});
+  const result = await withFederatedRefusalDiagnosis(inner, () => [], () => status).execute({ principal: PRINCIPAL, run: RUN, toolId, input: {} });
 
   assert.equal(result.status, "failed");
   assert.equal(result.errorKind, "validation");
@@ -237,7 +236,7 @@ test("a federated id whose connectionId IS in the known boot roster, while the b
   const inner = stubExecutor(new Set([toolId]));
   const status: FederationBootStatus = { settled: false, connectFailures: [], configuredConnectionIds: ["echo-server", "other-server"] };
 
-  const result = await withFederatedRefusalDiagnosis(inner, () => [], () => status).execute(PRINCIPAL, RUN, toolId, {});
+  const result = await withFederatedRefusalDiagnosis(inner, () => [], () => status).execute({ principal: PRINCIPAL, run: RUN, toolId, input: {} });
 
   assert.equal(result.status, "failed");
   assert.equal(result.error, "External MCP server 'echo-server' is still connecting — try again in a moment.");
@@ -249,7 +248,7 @@ test("a federated id whose connectionId is NOT in the known boot roster, while t
   const status: FederationBootStatus = { settled: false, connectFailures: [], configuredConnectionIds: ["echo-server"] };
 
   await assert.rejects(
-    () => withFederatedRefusalDiagnosis(inner, () => [], () => status).execute(PRINCIPAL, RUN, toolId, {}),
+    () => withFederatedRefusalDiagnosis(inner, () => [], () => status).execute({ principal: PRINCIPAL, run: RUN, toolId, input: {} }),
     /unknown tool "mcp__ghost-server__whatever"/,
   );
 });
@@ -259,7 +258,7 @@ test("configuredConnectionIds omitted (the boot roster is not yet known) still d
   const inner = stubExecutor(new Set([toolId]));
   const status: FederationBootStatus = { settled: false, connectFailures: [] };
 
-  const result = await withFederatedRefusalDiagnosis(inner, () => [], () => status).execute(PRINCIPAL, RUN, toolId, {});
+  const result = await withFederatedRefusalDiagnosis(inner, () => [], () => status).execute({ principal: PRINCIPAL, run: RUN, toolId, input: {} });
 
   assert.equal(result.status, "failed");
   assert.equal(result.error, "External MCP server 'echo-server' is still connecting — try again in a moment.");
@@ -271,7 +270,7 @@ test("a settled boot pass with no matching connect failure still throws unchange
   const status: FederationBootStatus = { settled: true, connectFailures: [] };
 
   await assert.rejects(
-    () => withFederatedRefusalDiagnosis(inner, () => [], () => status).execute(PRINCIPAL, RUN, toolId, {}),
+    () => withFederatedRefusalDiagnosis(inner, () => [], () => status).execute({ principal: PRINCIPAL, run: RUN, toolId, input: {} }),
     /unknown tool "mcp__echo-server__echo"/,
   );
 });
@@ -280,7 +279,7 @@ test("getBootStatus omitted (the daemon's own call site) is byte-identical to be
   const toolId = "mcp__echo-server__echo";
   const inner = stubExecutor(new Set([toolId]));
 
-  await assert.rejects(() => withFederatedRefusalDiagnosis(inner, () => []).execute(PRINCIPAL, RUN, toolId, {}), /unknown tool/);
+  await assert.rejects(() => withFederatedRefusalDiagnosis(inner, () => []).execute({ principal: PRINCIPAL, run: RUN, toolId, input: {} }), /unknown tool/);
 });
 
 test("resumeConfirmation, cancel, and getAuditRecord are untouched pass-throughs", () => {
@@ -288,21 +287,21 @@ test("resumeConfirmation, cancel, and getAuditRecord are untouched pass-throughs
   let cancelled: string | null = null;
   const inner: ToolExecutor = {
     execute: async () => ({ executionId: "e", status: "completed" }),
-    resumeConfirmation: (id, decision) => {
-      resumed = [id, decision];
+    resumeConfirmation: ({ executionId, decision }) => {
+      resumed = [executionId, decision];
     },
-    cancel: (id) => {
-      cancelled = id;
+    cancel: ({ executionId }) => {
+      cancelled = executionId;
     },
-    getAuditRecord: (id) => ({ executionId: id, toolId: "t", principalId: "p", runId: "r", events: [] }),
+    getAuditRecord: ({ executionId }) => ({ executionId, toolId: "t", principalId: "p", runId: "r", events: [] }),
   };
   const executor = withFederatedRefusalDiagnosis(inner, () => []);
 
-  executor.resumeConfirmation("exec-1", "confirm");
+  executor.resumeConfirmation({ executionId: "exec-1", decision: "confirm" });
   assert.deepEqual(resumed, ["exec-1", "confirm"]);
 
-  executor.cancel("exec-2");
+  executor.cancel({ executionId: "exec-2" });
   assert.equal(cancelled, "exec-2");
 
-  assert.deepEqual(executor.getAuditRecord("exec-3"), { executionId: "exec-3", toolId: "t", principalId: "p", runId: "r", events: [] });
+  assert.deepEqual(executor.getAuditRecord({ executionId: "exec-3" }), { executionId: "exec-3", toolId: "t", principalId: "p", runId: "r", events: [] });
 });

@@ -1,10 +1,13 @@
+// Local federation forks moved to @jini-ai/mcp/federation (+ /stdio, /approvals); see development/DELETED-CODE.md.
+import { tovuFederationMessages } from "./mcp-federation/presets.js";
 import type { ToolRegistry } from "@jini-ai/core";
 
 import { attachFederatedMcpTools, type FederationLogger } from "./mcp-federation/bootstrap.js";
-import type { ResolvedFederatedConnection } from "./mcp-federation/config.js";
+import type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 import type { McpSessionPort } from "./mcp-federation/ports.js";
-import { buildFederatedRefusalPrefix } from "./mcp-federation/refusal-notice.js";
-import { createFederationReloadCoordinator, type FederationReloadResult } from "./mcp-federation/reload.js";
+import { buildFederatedRefusalPrefix } from "@jini-ai/mcp/federation";
+import { createFederationReloadCoordinator } from "./mcp-federation/reload-adapter.js";
+import type { FederationReloadResult } from "@jini-ai/mcp/federation";
 import type { FederationDeps } from "./mcp-federation/registrations.js";
 
 /**
@@ -131,7 +134,7 @@ export function createFederationRuntime(params: CreateFederationRuntimeParams): 
   let configuredConnectionIds: readonly string[] | undefined;
 
   function recomputePrefix(): void {
-    cachedPrefix = buildFederatedRefusalPrefix(mergedReports);
+    cachedPrefix = buildFederatedRefusalPrefix({ snapshot: mergedReports, messages: tovuFederationMessages });
   }
 
   async function runStart(): Promise<void> {
@@ -160,16 +163,15 @@ export function createFederationRuntime(params: CreateFederationRuntimeParams): 
       mergedReports = attached.reports;
       mergedConnectFailures = attached.connectFailures;
       recomputePrefix();
-      coordinator = createFederationReloadCoordinator(
-        {
+      coordinator = createFederationReloadCoordinator({ coordDeps: {
           registry: params.registry,
           deps: params.deps,
           resolveConnections: params.resolveConnections,
           attach,
           logger,
-        },
-        mergedReports.map((entry) => entry.connectionId),
-      );
+          ...(params.connect ? { connect: params.connect } : {}),
+        }, initiallyAdmitted: mergedReports.map((entry) => entry.connectionId),
+      });
     } catch (error) {
       logger.warn(`mcp-federation: boot pass failed, continuing without federated tools — ${messageOf(error)}`);
     } finally {

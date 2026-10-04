@@ -1,3 +1,4 @@
+// Local trust/protocol/transport forks moved to @jini-ai/mcp/federation (+ /stdio); see development/DELETED-CODE.md.
 /**
  * @file The typed boundary for OUTBOUND MCP federation — Tovu's agent daemon acting as an MCP
  * *client* of a third-party MCP server, so the in-app assistant can call that server's tools in
@@ -148,30 +149,25 @@ export interface FederatedMcpConnectionConfig {
    * Remote readOnlyHint:false or destructiveHint:true vetoes each declaration. */
   readonly readOnlyRemoteNames?: ReadonlySet<string>;
   /**
-   * DEFAULT-DENY, SECOND list of REMOTE tool names (pre-namespacing) the operator has separately
-   * authorized to write. A tool declaring `readOnlyHint: false` is admitted only if it appears in
-   * BOTH this list AND {@link allowedToolNames} — `trust.ts` R3's override, checked only after R2's
-   * allowlist passes. It is deliberately a second list rather than a flag on `allowedToolNames`:
-   * "available to the model" and "allowed to write" are independent operator decisions, and a
-   * single list conflating them cannot express "readable but not writable" for the same tool.
+   * SECOND list of REMOTE tool names the operator separately declared as writes. Historically
+   * admission required membership in BOTH this list and allowedToolNames: availability and write
+   * authorization were independent decisions, so a single list could not represent both.
+   * Under the owner policy of 2026-10-01, the allowlist alone gates admission and protected actions
+   * use per-call confirmation. This list remains configuration/report metadata; it grants no
+   * admission, permissions or read-only descriptor status.
    *
-   * Same "no safe default at this layer" rule as {@link allowedToolNames}: every connection that has
-   * never been told to allow a write must resolve to an empty list here, and a vendor preset that
-   * wants a non-empty default authors it itself, on purpose, the same way
-   * an Agent Plugin's `tovuDefaultTools.write` is authored rather than inherited from the remote.
-   *
-   * Does NOT reach a tool declaring `destructiveHint: true` — that refusal is unconditional in this
-   * slice, regardless of either list. See `trust.ts`'s R3 header for the full argument, including
-   * the gap this override does not close: a remote that declares no annotations at all is admitted
-   * with no override needed, because R3 only ever catches a server that HONESTLY says
-   * `readOnlyHint: false`.
+   * Keep its default empty: a vendor preset authors a non-empty write declaration on purpose,
+   * just as an Agent Plugin's tovuDefaultTools.write is authored rather than inherited from a remote.
+   * Destructive hints veto operator read-only declarations; destructive protected actions require
+   * a fresh one-call answer. Absent hints cannot establish that a remote is read-only or incapable
+   * of writes. See the shared trust R3 and isOperatorDeclaredReadOnly rules.
    */
   readonly writeAllowedToolNames: readonly string[];
   /** How long the initialize+list handshake may take before federation is abandoned for this boot. */
   readonly connectTimeoutMs: number;
   /** Per-`tools/call` ceiling. */
   readonly callTimeoutMs: number;
-  /** Hard cap on a single federated result's serialized size, before it is handed to the model. */
+  /** UTF-8 cap on serialized text and separately on the aggregate image array; wrapper prose is outside both budgets. */
   readonly maxResultBytes: number;
   /** Hard cap on how many tools this connection may contribute, whatever the remote advertises. */
   readonly maxTools: number;
@@ -311,8 +307,9 @@ export interface FederatedCallConfirmationRequest {
   readonly inputSchema: Readonly<Record<string, unknown>>;
   /**
    * Input names, in the schema or in this call's arguments, that look like writes (`trust.ts`
-   * `WRITE_SHAPED_INPUT_WORDS`), sorted. Non-empty: the card is shown whatever the hints say, no
-   * remembered approval skips it, and it offers nothing to remember.
+   * `WRITE_SHAPED_INPUT_WORDS`), sorted. For a protected action that requires a card, non-empty
+   * means no remembered approval skips it and nothing may be remembered. Input names alone do
+   * not turn an ordinary action into a protected one.
    */
   readonly writeShapedInputs: readonly string[];
 }

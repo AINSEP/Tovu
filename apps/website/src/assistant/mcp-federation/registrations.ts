@@ -1,18 +1,17 @@
+// Local federation forks moved to @jini-ai/mcp/federation (+ /stdio, /approvals); see development/DELETED-CODE.md.
 import type { ToolRegistration, ToolExecutionContext, ToolExecutionOptions } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
 import {
   buildFederatedMcpRegistrations as buildJiniRegistrations,
   federateSession as federateJiniSession,
-  defaultFederationMessages,
-  type FederationMessages,
   type FederationDeps as JiniFederationDeps,
 } from "@jini-ai/mcp/federation";
-import { McpAuthFailedError } from "./mcp-protocol.js";
+import { McpAuthFailedError } from "@jini-ai/mcp/federation";
 import { toJiniMcpSession } from "./adapter.http.js";
-import { explainFederatedToolRefusal, safeRemoteName } from "./refusal-notice.js";
+import { tovuFederationMessages } from "./presets.js";
 import type { FederatedCallConfirmationOutcome, FederatedCallConfirmationRequest, FederatedCallTarget,
   FederatedMcpConnectionConfig, McpSessionPort, RemoteToolDescriptor } from "./ports.js";
-import type { FederatedAdmissionReport } from "./trust.js";
+import type { FederatedAdmissionReport } from "@jini-ai/mcp/federation";
 // Implementation and security rationale: Jini/packages/mcp/src/federation/{registrations,trust}.ts.
 
 /**
@@ -185,49 +184,6 @@ export interface FederatedRegistrationResult {
   readonly report: FederatedAdmissionReport;
 }
 
-/** Tovu owns settings vocabulary and model-facing refusal copy; protocol behavior lives in Jini. */
-export const tovuFederationMessages: FederationMessages = {
-  ...defaultFederationMessages,
-  refusalExplanations: {
-    "not-in-operator-allowlist": explainFederatedToolRefusal("not-in-operator-allowlist"),
-    "remote-declares-not-read-only": explainFederatedToolRefusal("remote-declares-not-read-only"),
-    "remote-declares-destructive": explainFederatedToolRefusal("remote-declares-destructive"),
-    "missing-or-invalid-input-schema": explainFederatedToolRefusal("missing-or-invalid-input-schema"),
-    "invalid-remote-tool-name": explainFederatedToolRefusal("invalid-remote-tool-name"),
-    "duplicate-remote-tool-name": explainFederatedToolRefusal("duplicate-remote-tool-name"),
-    "connection-tool-cap-reached": explainFederatedToolRefusal("connection-tool-cap-reached"),
-  },
-  unprintableName: safeRemoteName(undefined),
-  absentExplanation: 'the administrator allowed this tool, but the server does not offer a tool by that name — most likely a typo in "Allowed tools", or the server was started without the feature that provides it.',
-  inertWriteGrantExplanation: 'the administrator put this tool in "Allowed to make changes" but not in "Allowed tools", so the grant does nothing at all. Fix: add the same name to "Allowed tools" too, then restart the assistant.',
-  prefixHeading: "EXTERNAL TOOL AVAILABILITY — read this before telling anyone that a capability is missing or that you do not know why something failed.",
-  prefixInstruction: "These external tools were withheld from your catalog when this assistant started. They are NOT in `search_tools`, `describe_tool` " +
-    "cannot describe them, and calling them is impossible — their absence is a configuration decision that was already made, not a " +
-    "missing feature and not a fault of yours. If a user asks for something one of these would do, say exactly which tool was withheld " +
-    "and repeat the fix below verbatim. Never guess at, or invent, a different reason for the capability being unavailable. This list " +
-    "is fixed for the lifetime of this assistant process: a setting changed now takes effect only after the assistant is restarted.",
-  omittedRefusals: ({ omitted, total }) => `- …and ${omitted} more, for ${total} withheld in total. The administrator can see the complete list in Settings → External MCP.`,
-  authenticationRefused: ({ method }) => `mcp-federation: the server refused '${method}' with 401 — its authorization has expired or been revoked, reconnect it in Settings → External MCP`,
-  closedByHost: "closed by Tovu",
-  nativeCollision: ({ toolId }) => `mcp-federation: federated tool id '${toolId}' collides with a natively-registered tool — an external server must never be able to shadow Tovu's own catalog`,
-  confirmationWarning: ({ request }) => {
-    const base = request.destructive
-      ? `${request.connectionLabel} marks this tool as destructive: it can delete or overwrite data, and that may not be undoable.`
-      : `This can change things in ${request.connectionLabel}.`;
-    return request.writeShapedInputs.length
-      ? `${base} Its input ${request.writeShapedInputs.join(", ")} looks like it can change data, so Tovu asks every time.` : base;
-  },
-  // Command basenames, including Windows suffixes, select the original installed-toolchain advice.
-  launchUnavailable: ({ command, searchedDirs }) => {
-    const name = command.replace(/\.(cmd|exe)$/i, "").split(/[\\/]/).pop();
-    if (name === "uvx" || name === "uv") return 'This server needs "uvx" (from uv), which isn\'t installed on this computer. Tovu includes ' +
-      "Node.js (node, npm, npx) but not uv. Install uv from https://docs.astral.sh/uv/ and restart Tovu.";
-    if (name === "docker") return 'This server needs "docker", which isn\'t installed or isn\'t on this computer\'s standard ' +
-      "paths. Install Docker Desktop, start it, then restart Tovu.";
-    return `This server's command "${command}" wasn't found on this computer. Tovu searched: ${searchedDirs.join(", ")}.`;
-  },
-};
-
 /** Binds Tovu's one CMS permission evaluator and translates workspace metadata to Jini scope.
  * Existing liveness, confirmation and 401 hooks remain host-owned; none becomes a permissive default.
  * @complexity O(1), no I/O at construction.
@@ -241,11 +197,9 @@ export function toJiniFederationDeps({ deps }: { deps: FederationDeps }): JiniFe
     }, { entityType, entityId }),
     ...(deps.assertConnectionUsable ? { assertConnectionUsable: ({ connectionId, call }: { connectionId: string; call: FederatedCallTarget }) => deps.assertConnectionUsable!(connectionId, call) } : {}),
     onAuthFailed: async ({ connectionId, error }) => {
-      // The session bridge retains the host error as its cause; preserve that identity on return.
-      const hostError = error.cause instanceof McpAuthFailedError
-        ? error.cause : new McpAuthFailedError(error.message, { cause: error });
-      if (deps.onAuthFailed) return deps.onAuthFailed(connectionId, hostError);
-      throw hostError;
+      // Both transports use the package's auth error identity; the terminal host hook receives it unchanged.
+      if (deps.onAuthFailed) return deps.onAuthFailed(connectionId, error);
+      throw error;
     },
     ...(deps.confirmCall ? { confirmCall: ({ context, request }: Parameters<NonNullable<JiniFederationDeps["confirmCall"]>>[0]) => deps.confirmCall!(context, request) } : {}),
   };

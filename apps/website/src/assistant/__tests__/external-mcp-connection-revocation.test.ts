@@ -17,7 +17,7 @@ import {
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
 import { InMemoryMcpSession } from "../mcp-federation/adapter.memory.js";
 import { attachFederatedMcpTools } from "../mcp-federation/bootstrap.js";
-import type { ResolvedFederatedConnection } from "../mcp-federation/config.js";
+import type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 import type { FederatedMcpConnectionConfig, RemoteToolDescriptor } from "../mcp-federation/ports.js";
 
 /**

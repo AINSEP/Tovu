@@ -1,11 +1,12 @@
+// Local federation forks moved to @jini-ai/mcp/federation (+ /stdio, /approvals); see development/DELETED-CODE.md.
 import { createHash } from "node:crypto";
 
 import { nowIso, type Clock as ClockPort, type ISODateTime, type UUID } from "@jini-ai/core/primitives";
 
 import type { KeyringPort, SealedSecret, SecretSealerPort } from "../features/webhooks/index.js";
-import { FEDERATED_CONNECTION_DEFAULTS, type ResolvedFederatedConnection } from "./mcp-federation/config.js";
+import { FEDERATED_CONNECTION_DEFAULTS, type ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 import type { McpLaunchSpec } from "./mcp-federation/ports.js";
-import { assertValidConnectionId } from "./mcp-federation/trust.js";
+import { assertValidConnectionId } from "@jini-ai/mcp/federation";
 
 /**
  * @file The operator-editable roster of external MCP servers — what Settings → External MCP writes,
@@ -1187,7 +1188,7 @@ export interface SaveExternalMcpServerInput {
  *  federated tool id and two copies of that rule could drift. */
 function assertValidExternalMcpServerId(serverId: string): void {
   try {
-    assertValidConnectionId(serverId);
+    assertValidConnectionId({ connectionId: serverId });
   } catch (err) {
     throw new ExternalMcpValidationError(err instanceof Error ? err.message : String(err), "id");
   }

@@ -52,7 +52,7 @@ import { withFederatedRefusalDiagnosis } from "./federated-refusal-diagnosis.js"
 import { buildExternalMcpFederationDeps, createStoredExternalMcpConnectionSource } from "./external-mcp-connection-source.js";
 import { attachAssistantToolExtensions, type InstalledExtensionRegistrar } from "./installed-extension-tools.js";
 import type { FederationRuntime } from "./external-mcp-federation-runtime.js";
-import type { ResolvedFederatedConnection } from "./mcp-federation/config.js";
+import type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 import type { McpSessionPort } from "./mcp-federation/ports.js";
 import { buildToolCatalogQuery, listToolCatalogEntries } from "./tool-catalog-query.js";
 import { type AssistantToolRegistryDeps, buildAssistantToolRegistrations } from "./tool-registrations.js";

@@ -3,7 +3,8 @@ import test from "node:test";
 
 import type { ToolDescriptor, ToolRegistration, ToolRegistry } from "@jini-ai/core";
 
-import { FEDERATED_CONNECTION_DEFAULTS, type ResolvedFederatedConnection } from "../mcp-federation/config.js";
+import { FEDERATED_CONNECTION_DEFAULTS, type ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
+import { McpLaunchUnavailableError, type McpStdioLaunchResolver, type ResolvedStdioLaunch } from "@jini-ai/mcp/federation/stdio";
 import type {
   FederatedCallTarget,
   FederatedMcpConnectionConfig,
@@ -12,7 +13,6 @@ import type {
   McpStdioChannel,
   McpStdioLaunchSpec,
 } from "../mcp-federation/ports.js";
-import { McpLaunchUnavailableError, type McpStdioLaunchResolver, type ResolvedStdioLaunch } from "../mcp-federation/stdio-launch-resolver.js";
 
 /**
  * @file `bootstrap.ts`'s `defaultConnect` — the production session factory `attachFederatedMcpTools`
@@ -79,44 +79,13 @@ function fakeRegistry(): ToolRegistry & { registered: ToolRegistration[] } {
   };
 }
 
-test("defaultConnect hands the hosted transport callTimeoutMs as its per-request bound, matching the stdio arm — not connectTimeoutMs", async (t) => {
-  const seenRequestTimeouts: number[] = [];
-
-  // Loading the real module first and spreading it (rather than a bare `{ connectMcpHttpSession }`)
-  // keeps `createFetchMcpHttpExchange` and every other export real for anything else in this process
-  // that needs them — see the identical rationale in `test-agent-mock-module.test.ts`. This import is
-  // also what makes the mock registration below the module's first-ever load in this process.
-  const real = await import("../mcp-federation/adapter.http.js");
-  t.mock.module("../mcp-federation/adapter.http.js", {
-    namedExports: {
-      ...real,
-      connectMcpHttpSession: async (deps: { requestTimeoutMs: number }) => {
-        seenRequestTimeouts.push(deps.requestTimeoutMs);
-        return fakeSession();
-      },
-    },
-  });
-
-  const { attachFederatedMcpTools } = await import("../mcp-federation/bootstrap.js");
-
-  const registry = fakeRegistry();
-  const authorize = async () => ({ allowed: true, reason: "matched" });
-
-  const result = await attachFederatedMcpTools({
-    registry,
-    deps: { authorize, workspaceId: WORKSPACE_ID },
-    connections: [HTTP_CONNECTION],
-    env: {},
-  });
-
-  assert.equal(seenRequestTimeouts.length, 1, "defaultConnect should call connectMcpHttpSession exactly once for one hosted connection");
-  assert.equal(
-    seenRequestTimeouts[0],
-    CONFIG.callTimeoutMs,
-    "the hosted transport's per-request bound must be callTimeoutMs (30s) — connectTimeoutMs (60s) must not be substituted for it, which would make callTimeoutMs dead configuration on this transport",
-  );
-  assert.equal(result.registeredToolIds.length, 0, "no tools were allowlisted on this fixture — this test is only about the timeout wiring");
-});
+// RETIRED in r4-mcp-federation: "defaultConnect hands the hosted transport callTimeoutMs as its
+// per-request bound, matching the stdio arm — not connectTimeoutMs". The hosted arm and its timeout
+// wiring moved into `@jini-ai/mcp/federation/stdio`'s `createDefaultConnect`, which Tovu's binding only
+// supplies with client identity and copy; it no longer reaches `adapter.http.ts`'s export, so the
+// module mock this test relied on cannot observe it. The same three assertions run against the moved
+// code in Jini `packages/mcp/src/federation/__tests__/mcp-federation.bootstrap.test.ts`, test of the
+// same name, through its `connectHttp` seam.
 
 test("attachFederatedMcpTools stamps preset connections with a preset origin, for external-mcp-revocation.ts's roster/preset split", async () => {
   const { attachFederatedMcpTools } = await import("../mcp-federation/bootstrap.js");
@@ -185,14 +154,14 @@ test("createDefaultConnect: a stdioLaunchResolver that throws McpLaunchUnavailab
   let spawnCalls = 0;
   const throwingResolver: McpStdioLaunchResolver = {
     resolve(): ResolvedStdioLaunch {
-      throw new McpLaunchUnavailableError(UVX_UNAVAILABLE_MESSAGE);
+      throw new McpLaunchUnavailableError({ message: UVX_UNAVAILABLE_MESSAGE });
     },
   };
   const fakeSpawnChannel = (): McpStdioChannel => {
     spawnCalls += 1;
     throw new Error("spawnChannel must not be called — the resolver must throw before any spawn");
   };
-  const uvxConnect = createDefaultConnect(throwingResolver, fakeSpawnChannel);
+  const uvxConnect = createDefaultConnect({ resolver: throwingResolver }, { spawnChannel: fakeSpawnChannel });
 
   const okSession: McpSessionPort = {
     listTools: async () => [{ name: "ping", inputSchema: { type: "object", properties: {} } }],

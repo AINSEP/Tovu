@@ -60,7 +60,7 @@ import type { SourceControlCredentialSetRepoPort } from "../../features/source-c
 import type { VendorCredentialSetRepoPort } from "../../features/vendor-credentials/index.js";
 import type { MediaProviderCredentialRepoPort } from "../../features/media/index.js";
 import type { ExternalMcpServerRepoPort } from "../../assistant/external-mcp-store.js";
-import type { ConversationToolApprovalStore, ExternalMcpToolApprovalRepoPort } from "../../assistant/external-mcp-tool-approvals.js";
+import type { ConversationToolApprovalStore, ExternalMcpToolApprovalRepoPort } from "../../assistant/external-mcp-tool-approval-ports.js";
 import type { DeviceAuthorizationStore, ExternalMcpOAuthService } from "#src/assistant/external-mcp-oauth";
 import type { PendingAuthorizationStore } from "#src/platform/oauth/index";
 import type {

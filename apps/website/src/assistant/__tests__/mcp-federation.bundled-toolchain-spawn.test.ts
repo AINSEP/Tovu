@@ -7,7 +7,7 @@ import test from "node:test";
 import type { ToolDescriptor, ToolRegistration, ToolRegistry } from "@jini-ai/core";
 
 import { attachFederatedMcpTools } from "../mcp-federation/bootstrap.js";
-import { FEDERATED_CONNECTION_DEFAULTS } from "../mcp-federation/config.js";
+import { FEDERATED_CONNECTION_DEFAULTS } from "@jini-ai/mcp/federation";
 import type { FederatedMcpConnectionConfig, McpStdioLaunchSpec } from "../mcp-federation/ports.js";
 
 /**

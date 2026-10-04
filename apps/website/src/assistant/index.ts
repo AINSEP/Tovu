@@ -1,3 +1,4 @@
+// Local federation forks moved to @jini-ai/mcp/federation (+ /stdio, /approvals); see development/DELETED-CODE.md.
 /**
  * @file Public surface (barrel) for `assistant` — ADR-009 §1: "A module's public contract is its
  * `index.ts`; boundary lint forbids deep imports." Six sibling modules already carry this shape
@@ -250,13 +251,12 @@ export type {
   ExternalMcpStoreDeps,
 } from "./external-mcp-store.js";
 export { InMemoryExternalMcpServerRepo } from "./external-mcp-store.memory.js";
+export { InMemoryExternalMcpToolApprovalRepo, createInMemoryConversationToolApprovalStore } from "./external-mcp-tool-approval-adapters.js";
 export {
-  InMemoryExternalMcpToolApprovalRepo,
-  createInMemoryConversationToolApprovalStore,
   type ConversationToolApprovalStore,
   type ExternalMcpToolApprovalRecord,
   type ExternalMcpToolApprovalRepoPort,
-} from "./external-mcp-tool-approvals.js";
+} from "./external-mcp-tool-approval-ports.js";
 
 // The OAuth half of the same surface — `authMode: "oauth"` connections. Exposed through this barrel
 // rather than deep-imported so the `no-deep-imports:assistant` boundary rule keeps holding for the
@@ -275,8 +275,8 @@ export type {
   ExternalMcpOAuthService,
 } from "./external-mcp-oauth.js";
 
-export { FEDERATED_CONNECTION_DEFAULTS, isFederationEnabled, parseAllowedToolNames, positiveIntOrDefault } from "./mcp-federation/config.js";
-export type { ResolvedFederatedConnection } from "./mcp-federation/config.js";
+export { FEDERATED_CONNECTION_DEFAULTS, isFederationEnabled, parseAllowedToolNames, positiveIntOrDefault } from "@jini-ai/mcp/federation";
+export type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 // Added 2026-08-26 (write-tools outline, C-007): the ONLY other external consumer of the hosted MCP
 // transport besides `mcp-federation/bootstrap.ts` itself — the admin probe route needs to open the
 // exact same kind of short-lived session bootstrap.ts's `defaultConnect` opens for a `streamable_http`

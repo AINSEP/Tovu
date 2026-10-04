@@ -1,13 +1,27 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { McpStdioLaunchSpec } from "../mcp-federation/ports.js";
 import {
-  createBundledNodeLaunchResolver,
+  createBundledNodeLaunchResolver as createSharedBundledNodeLaunchResolver,
   IDENTITY_STDIO_LAUNCH_RESOLVER,
   McpLaunchUnavailableError,
-  stdioLaunchResolverFromEnv,
-} from "../mcp-federation/stdio-launch-resolver.js";
+  type McpStdioLaunchResolver,
+} from "@jini-ai/mcp/federation/stdio";
+
+import { tovuStdioLaunchResolverFromEnv as stdioLaunchResolverFromEnv } from "../mcp-federation/bootstrap.js";
+import type { McpStdioLaunchSpec } from "../mcp-federation/ports.js";
+import { tovuFederationMessages } from "../mcp-federation/presets.js";
+
+// The resolver moved to @jini-ai/mcp/federation/stdio. Tovu's launch copy is injected exactly as the
+// host binds it, so the three §2 messages below still pin what a Tovu desktop user reads.
+function createBundledNodeLaunchResolver({ toolchainDir, npmRoot, isExecutable, ...options }: {
+  toolchainDir: string; npmRoot: string; execPath?: string; platform?: NodeJS.Platform;
+  parentEnv?: NodeJS.ProcessEnv; isExecutable?: (candidatePath: string) => boolean;
+}): McpStdioLaunchResolver {
+  return createSharedBundledNodeLaunchResolver({ toolchainDir, npmRoot, messages: tovuFederationMessages }, {
+    ...options, ...(isExecutable ? { isExecutable: ({ candidatePath }: { candidatePath: string }) => isExecutable(candidatePath) } : {}),
+  });
+}
 
 /**
  * @file Tests for `stdio-launch-resolver.ts`, the desktop-only rewrite of stdio MCP launch specs
@@ -40,22 +54,46 @@ const NPM_CONFIG_ENV = (toolchainDir: string) => ({
   npm_config_fetch_retry_maxtimeout: "5000",
 });
 
-test("stdioLaunchResolverFromEnv: env missing either var returns the identity resolver", () => {
+test("stdioLaunchResolverFromEnv: env missing both vars returns the identity resolver", () => {
   const s = spec("npx", ["-y", "pkg"]);
-  for (const env of [{}, { TOVU_NODE_TOOLCHAIN_DIR: "/toolchain" }, { TOVU_BUNDLED_NPM_ROOT: "/npm" }]) {
-    const resolver = stdioLaunchResolverFromEnv(env);
-    assert.equal(resolver, IDENTITY_STDIO_LAUNCH_RESOLVER);
-    assert.deepEqual(resolver.resolve(s), { command: "npx", args: ["-y", "pkg"], cwd: undefined, env: s.env, launchEnv: {} });
+  const resolver = stdioLaunchResolverFromEnv({});
+  assert.equal(resolver, IDENTITY_STDIO_LAUNCH_RESOLVER);
+  assert.deepEqual(resolver.resolve({ spec: s }), { command: "npx", args: ["-y", "pkg"], cwd: undefined, env: s.env, launchEnv: {} });
+});
+
+// r4-mcp-federation BEHAVIOR-CHANGES "Configured incomplete bundled launch": a half-configured
+// desktop bundle used to fall back to whatever `npx` is on PATH; it now refuses the launch.
+test("stdioLaunchResolverFromEnv: env with exactly one var set refuses instead of running a PATH binary", () => {
+  for (const env of [{ TOVU_NODE_TOOLCHAIN_DIR: "/toolchain" }, { TOVU_BUNDLED_NPM_ROOT: "/npm" }]) {
+    assert.throws(
+      () => stdioLaunchResolverFromEnv(env),
+      (error: unknown) => {
+        assert.ok(error instanceof McpLaunchUnavailableError);
+        assert.equal(error.message, "mcp-federation: TOVU_NODE_TOOLCHAIN_DIR and TOVU_BUNDLED_NPM_ROOT must both be set to non-empty paths.");
+        return true;
+      },
+    );
   }
 });
 
-test("stdioLaunchResolverFromEnv: both vars set but npx-cli.js missing falls back to identity plus a warning", () => {
+test("stdioLaunchResolverFromEnv: both vars set but npx-cli.js missing refuses instead of running a PATH binary", () => {
+  assert.throws(
+    () => stdioLaunchResolverFromEnv({ TOVU_NODE_TOOLCHAIN_DIR: "/toolchain", TOVU_BUNDLED_NPM_ROOT: "/npm" }, { exists: () => false }),
+    (error: unknown) => {
+      assert.ok(error instanceof McpLaunchUnavailableError);
+      assert.equal(error.message, "mcp-federation: TOVU_BUNDLED_NPM_ROOT is set (/npm) but /npm/bin/npx-cli.js is missing");
+      return true;
+    },
+  );
+});
+
+test("stdioLaunchResolverFromEnv: an explicitly permitted missing npx-cli.js falls back to identity plus a warning", () => {
   const resolver = stdioLaunchResolverFromEnv(
     { TOVU_NODE_TOOLCHAIN_DIR: "/toolchain", TOVU_BUNDLED_NPM_ROOT: "/npm" },
-    { exists: () => false },
+    { exists: () => false, allowIdentityFallback: true },
   );
   const s = spec("npx", ["-y", "pkg"]);
-  const resolved = resolver.resolve(s);
+  const resolved = resolver.resolve({ spec: s });
   assert.equal(resolved.command, "npx");
   assert.deepEqual(resolved.args, ["-y", "pkg"]);
   assert.deepEqual(resolved.launchEnv, {});
@@ -68,7 +106,7 @@ test("stdioLaunchResolverFromEnv: both vars set and npx-cli.js present delegates
     { TOVU_NODE_TOOLCHAIN_DIR: "/toolchain", TOVU_BUNDLED_NPM_ROOT: "/npm", PATH: "/usr/bin" },
     { exists: () => true },
   );
-  const resolved = resolver.resolve(spec("npx", ["-y", "pkg"]));
+  const resolved = resolver.resolve({ spec: spec("npx", ["-y", "pkg"]) });
   assert.equal(resolved.command, process.execPath);
   assert.deepEqual(resolved.args, ["/npm/bin/npx-cli.js", "-y", "pkg"]);
   assert.equal(resolved.warning, undefined);
@@ -82,7 +120,7 @@ test("createBundledNodeLaunchResolver: posix npx is rewritten to execPath runnin
     platform: "linux",
     parentEnv: { PATH: "/usr/bin:/bin" },
   });
-  const resolved = resolver.resolve(spec("npx", ["-y", "pkg"]));
+  const resolved = resolver.resolve({ spec: spec("npx", ["-y", "pkg"]) });
   assert.deepEqual(resolved, {
     command: "/Applications/Tovu.app/electron",
     args: [`/npm/bin/${NPX_CLI}`, "-y", "pkg"],
@@ -105,7 +143,7 @@ test("createBundledNodeLaunchResolver: posix npm is rewritten to execPath runnin
     platform: "linux",
     parentEnv: { PATH: "/usr/bin" },
   });
-  const resolved = resolver.resolve(spec("npm", ["install"]));
+  const resolved = resolver.resolve({ spec: spec("npm", ["install"]) });
   assert.equal(resolved.command, "/electron");
   assert.deepEqual(resolved.args, [`/npm/bin/${NPM_CLI}`, "install"]);
   assert.deepEqual(resolved.launchEnv, {
@@ -123,7 +161,7 @@ test("createBundledNodeLaunchResolver: posix node is rewritten to execPath with 
     platform: "linux",
     parentEnv: { PATH: "/usr/bin" },
   });
-  const resolved = resolver.resolve(spec("node", ["server.js"]));
+  const resolved = resolver.resolve({ spec: spec("node", ["server.js"]) });
   assert.equal(resolved.command, "/electron");
   assert.deepEqual(resolved.args, ["server.js"]);
   assert.deepEqual(resolved.launchEnv, {
@@ -142,16 +180,16 @@ test("createBundledNodeLaunchResolver: win32 npx.cmd/npm.cmd/node.exe are matche
     parentEnv: { PATH: "C:\\Windows" },
   });
 
-  const npx = resolver.resolve(spec("npx.cmd", ["-y", "pkg"]));
+  const npx = resolver.resolve({ spec: spec("npx.cmd", ["-y", "pkg"]) });
   assert.equal(npx.command, "C:\\electron.exe");
   assert.deepEqual(npx.args, [`C:\\npm\\bin\\${NPX_CLI}`, "-y", "pkg"]);
   assert.equal(npx.launchEnv.PATH, "C:\\toolchain\\bin;C:\\Windows");
   assert.equal(npx.launchEnv.ELECTRON_RUN_AS_NODE, "1");
 
-  const npm = resolver.resolve(spec("npm.cmd", ["install"]));
+  const npm = resolver.resolve({ spec: spec("npm.cmd", ["install"]) });
   assert.deepEqual(npm.args, [`C:\\npm\\bin\\${NPM_CLI}`, "install"]);
 
-  const node = resolver.resolve(spec("node.exe", ["server.js"]));
+  const node = resolver.resolve({ spec: spec("node.exe", ["server.js"]) });
   assert.equal(node.command, "C:\\electron.exe");
   assert.deepEqual(node.args, ["server.js"]);
 });
@@ -163,7 +201,7 @@ test("createBundledNodeLaunchResolver: PATH order is toolchain bin, then parent 
     platform: "darwin",
     parentEnv: { PATH: "/usr/bin:/usr/local/bin", HOME: "/Users/op" },
   });
-  const resolved = resolver.resolve(spec("node", []));
+  const resolved = resolver.resolve({ spec: spec("node", []) });
   assert.equal(
     resolved.launchEnv.PATH,
     "/toolchain/bin:/usr/bin:/usr/local/bin:/opt/homebrew/bin:/Users/op/.local/bin:/Users/op/.cargo/bin",
@@ -177,7 +215,7 @@ test("createBundledNodeLaunchResolver: darwin well-known $HOME dirs are skipped 
     platform: "darwin",
     parentEnv: { PATH: "/usr/bin" },
   });
-  const resolved = resolver.resolve(spec("node", []));
+  const resolved = resolver.resolve({ spec: spec("node", []) });
   assert.equal(resolved.launchEnv.PATH, "/toolchain/bin:/usr/bin:/opt/homebrew/bin:/usr/local/bin");
 });
 
@@ -189,7 +227,7 @@ test("createBundledNodeLaunchResolver: a bare non-Node command found on the sear
     parentEnv: { PATH: "/usr/bin", HOME: "/Users/op" },
     isExecutable: (candidatePath) => candidatePath === "/Users/op/.local/bin/uvx",
   });
-  const resolved = resolver.resolve(spec("uvx", ["mcp-server-thing"]));
+  const resolved = resolver.resolve({ spec: spec("uvx", ["mcp-server-thing"]) });
   assert.equal(resolved.command, "/Users/op/.local/bin/uvx");
   assert.deepEqual(resolved.args, ["mcp-server-thing"]);
   assert.equal("ELECTRON_RUN_AS_NODE" in resolved.launchEnv, false);
@@ -210,7 +248,7 @@ for (const missing of ["uvx", "docker", "foo"] as const) {
       isExecutable: () => false,
     });
     assert.throws(
-      () => resolver.resolve(spec(missing)),
+      () => resolver.resolve({ spec: spec(missing) }),
       (error: unknown) => {
         assert.ok(error instanceof McpLaunchUnavailableError);
         const message = (error as Error).message;
@@ -244,7 +282,7 @@ test("createBundledNodeLaunchResolver: an existing absolute command is left unch
     parentEnv: { PATH: "/usr/bin" },
     isExecutable: (candidatePath) => candidatePath === "/opt/vendor/server",
   });
-  const resolved = resolver.resolve(spec("/opt/vendor/server", ["--flag"]));
+  const resolved = resolver.resolve({ spec: spec("/opt/vendor/server", ["--flag"]) });
   assert.equal(resolved.command, "/opt/vendor/server");
   assert.deepEqual(resolved.args, ["--flag"]);
   assert.equal("ELECTRON_RUN_AS_NODE" in resolved.launchEnv, false);
@@ -260,7 +298,7 @@ test("createBundledNodeLaunchResolver: a missing absolute command throws a gener
     isExecutable: () => false,
   });
   assert.throws(
-    () => resolver.resolve(spec("/opt/vendor/missing-server", ["--flag"])),
+    () => resolver.resolve({ spec: spec("/opt/vendor/missing-server", ["--flag"]) }),
     (error: unknown) => {
       assert.ok(error instanceof McpLaunchUnavailableError);
       assert.equal(
@@ -284,7 +322,7 @@ test("createBundledNodeLaunchResolver: a relative command with a path separator 
       return candidatePath === "/work/bin/server";
     },
   });
-  const resolved = resolver.resolve(spec("./bin/server", ["--flag"], { cwd: "/work" }));
+  const resolved = resolver.resolve({ spec: spec("./bin/server", ["--flag"], { cwd: "/work" }) });
   assert.equal(resolved.command, "./bin/server");
   assert.deepEqual(resolved.args, ["--flag"]);
   assert.equal(resolved.cwd, "/work");
@@ -300,7 +338,7 @@ test("createBundledNodeLaunchResolver: on win32 a bare command is also found as 
     parentEnv: { PATH: "C:\\tools" },
     isExecutable: (candidatePath) => candidatePath === "C:\\tools\\uvx.exe",
   });
-  const resolved = resolver.resolve(spec("uvx", ["mcp-server-thing"]));
+  const resolved = resolver.resolve({ spec: spec("uvx", ["mcp-server-thing"]) });
   assert.equal(resolved.command, "C:\\tools\\uvx.exe");
   assert.equal("ELECTRON_RUN_AS_NODE" in resolved.launchEnv, false);
 });

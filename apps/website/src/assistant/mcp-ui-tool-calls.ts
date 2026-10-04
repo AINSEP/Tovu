@@ -14,7 +14,7 @@
  * `mcp-ui-tool-calls-route.ts` and `server/modules/assistant.ts`) so the two cannot drift apart.
  */
 
-import { FEDERATED_TOOL_ID_PREFIX } from "./mcp-federation/trust.js";
+import { FEDERATED_TOOL_ID_PREFIX } from "@jini-ai/mcp/federation";
 
 /**
  * Tool ids `mcp-ui-tool-calls-route.ts`'s callback endpoint is willing to reach at all — for either

@@ -12,7 +12,7 @@ import { createExternalMcpModule } from "../runtime/composition/modules/external
 import type { ExternalMcpProbeRouteDeps, ExternalMcpProbeSessionFactory } from "../inbound/admin-http/routes/external-mcp/probe.js";
 import { registerAdminExternalMcpProbeRoute } from "../inbound/admin-http/routes/external-mcp/probe.js";
 import { createRateLimiter, type RateLimiter } from "../../contracts/core/rate-limit/rate-limit.js";
-import { FEDERATED_CONNECTION_DEFAULTS } from "../../assistant/mcp-federation/config.js";
+import { FEDERATED_CONNECTION_DEFAULTS } from "@jini-ai/mcp/federation";
 import type { RouteDeps } from "../routes/types.js";
 import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.js";
 
@@ -336,7 +336,7 @@ test("an unauthenticated probe is refused by the session gate", async (t) => {
 
 test("an exhausted probe budget returns 429 and Retry-After without another connection", async (t) => {
   let connects = 0;
-  const limiter = createRateLimiter({ profile: { max: 1, burst: 0, windowSeconds: 60 }, clock: { nowIso: () => "2026-08-25T12:00:00.000Z" } });
+  const limiter = createRateLimiter({ profile: { max: 1, burst: 0, windowSeconds: 60 }, clock: { nowMs: () => Date.parse("2026-08-25T12:00:00.000Z") } });
   const { app, deps } = buildTestApp({ limiter, connect: async () => {
     connects += 1;
     return scriptedSession({ tools: [] });

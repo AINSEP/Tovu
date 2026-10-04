@@ -8,7 +8,7 @@ import {
   type ExternalMcpServerRecord,
 } from "./external-mcp-store.js";
 import type { FederatedCallTarget } from "./mcp-federation/ports.js";
-import { refusalForAdmittedToolUnderCurrentGrants } from "./mcp-federation/trust.js";
+import { refusalForAdmittedToolUnderCurrentGrants } from "@jini-ai/mcp/federation";
 
 /**
  * @file Per-call operator-revocation checks for an already-admitted federated tool — the roster half
@@ -113,7 +113,7 @@ function isOAuthDisconnected(record: ExternalMcpServerRecord): boolean {
  *  to the generic one. @complexity O(1). */
 function grantRefusalFor(record: ExternalMcpServerRecord, call: FederatedCallTarget): ExternalMcpRevocationReason | null {
   const grants = readExternalMcpToolGrants(record);
-  const refusal = refusalForAdmittedToolUnderCurrentGrants({ remoteName: call.remoteName, declaredAnnotations: call.declaredAnnotations }, grants);
+  const refusal = refusalForAdmittedToolUnderCurrentGrants({ tool: { remoteName: call.remoteName, declaredAnnotations: call.declaredAnnotations }, grants });
   if (refusal === null) return null;
   return refusal === "remote-declares-not-read-only" ? "write-not-allowed" : "tool-not-allowed";
 }

@@ -1,14 +1,13 @@
+// Local federation forks moved to @jini-ai/mcp/federation (+ /stdio, /approvals); see development/DELETED-CODE.md.
 import {
   connectMcpHttpSession as connectJiniHttpSession,
   createFetchMcpHttpExchange as createJiniFetchExchange,
-  McpAuthFailedError as JiniMcpAuthFailedError,
-  McpProtocolError as JiniMcpProtocolError,
   type McpSessionPort as JiniMcpSessionPort,
   type McpBearerTokenSupplier,
   type McpAuthenticationChallengeHook,
 } from "@jini-ai/mcp/federation";
-import { CLIENT_INFO, McpAuthFailedError, McpProtocolError } from "./mcp-protocol.js";
-import { tovuFederationMessages } from "./registrations.js";
+import { TOVU_MCP_CLIENT_INFO } from "./presets.js";
+import { tovuFederationMessages } from "./presets.js";
 import type { McpHttpExchange, McpHttpLaunchSpec, McpSessionPort } from "./ports.js";
 // Transport code and rationale: Jini/packages/mcp/src/federation/{adapter.http,mcp-protocol}.ts.
 
@@ -164,25 +163,12 @@ import type { McpHttpExchange, McpHttpLaunchSpec, McpSessionPort } from "./ports
  * @overallScore 100
  */
 
-/** Preserves the host's error class identity for stdio, probe and existing 401 consumers.
- * @complexity O(1); provider bodies and credentials never enter a newly constructed message.
- */
-function hostMcpError(error: unknown): unknown {
-  if (error instanceof JiniMcpAuthFailedError) return new McpAuthFailedError(error.message, { cause: error });
-  if (error instanceof JiniMcpProtocolError) return new McpProtocolError(error.message, { cause: error });
-  return error;
-}
-
 /** Adapts the session's optional call fields and close ABI; stdio and HTTP still share one host port. */
 export function toJiniMcpSession({ session }: { session: McpSessionPort }): JiniMcpSessionPort {
   return {
     listTools: () => session.listTools(),
     async callTool(request, options = {}) {
-      try { return await session.callTool({ ...request, ...(options.signal === undefined ? {} : { signal: options.signal }) }); }
-      catch (error) {
-        if (error instanceof McpAuthFailedError) throw new JiniMcpAuthFailedError({ message: error.message }, { cause: error });
-        throw error;
-      }
+      return session.callTool({ ...request, ...(options.signal === undefined ? {} : { signal: options.signal }) });
     },
     close: () => session.close(),
   };
@@ -192,14 +178,13 @@ export function toJiniMcpSession({ session }: { session: McpSessionPort }): Jini
 export function toTovuMcpSession({ session }: { session: JiniMcpSessionPort }): McpSessionPort {
   return {
     async listTools() {
-      try { return await session.listTools(); } catch (error) { throw hostMcpError(error); }
+      return session.listTools();
     },
     async callTool({ name, arguments: args, signal }) {
-      try { return await session.callTool({ name, arguments: args }, { signal }); }
-      catch (error) { throw hostMcpError(error); }
+      return session.callTool({ name, arguments: args }, { signal });
     },
     async close() {
-      try { await session.close({}); } catch (error) { throw hostMcpError(error); }
+      await session.close({});
     },
   };
 }
@@ -215,16 +200,14 @@ export async function connectMcpHttpSession(deps: {
   bearerToken?: McpBearerTokenSupplier;
   onAuthenticationChallenge?: McpAuthenticationChallengeHook;
 } = {}): Promise<McpSessionPort> {
-  try {
-    const session = await connectJiniHttpSession({
+  const session = await connectJiniHttpSession({
       exchange: { send: (request, options = {}) => deps.exchange.send({ ...request, ...options }) },
       spec: deps.spec, requestTimeoutMs: deps.requestTimeoutMs,
-      messages: tovuFederationMessages, clientInfo: CLIENT_INFO,
+      messages: tovuFederationMessages, clientInfo: TOVU_MCP_CLIENT_INFO,
       // Undefined explicitly preserves the supplied authenticating headers; it is not an OAuth fallback.
       bearerToken: optional.bearerToken ?? (() => undefined),
     }, { onAuthenticationChallenge: optional.onAuthenticationChallenge });
-    return toTovuMcpSession({ session });
-  } catch (error) { throw hostMcpError(error); }
+  return toTovuMcpSession({ session });
 }
 
 /** Adapts native fetch to the host exchange; Jini owns redirect refusal and protocol response fields. */

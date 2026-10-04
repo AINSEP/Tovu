@@ -5,7 +5,7 @@ import express from "express";
 
 import type { UUID } from "@jini-ai/core/primitives";
 
-import { InMemoryExternalMcpToolApprovalRepo } from "../../assistant/external-mcp-tool-approvals.js";
+import { InMemoryExternalMcpToolApprovalRepo } from "../../assistant/external-mcp-tool-approval-adapters.js";
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
 import { createExternalMcpModule } from "../runtime/composition/modules/external-mcp.js";

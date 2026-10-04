@@ -1,16 +1,19 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import * as shared from "@jini-ai/mcp/federation";
+import { admitRemoteTools, type FederatedAdmissionReport, type FederationAdmissionSnapshotEntry, type ToolRefusalReason } from "@jini-ai/mcp/federation";
+
 import type { FederatedMcpConnectionConfig } from "../mcp-federation/ports.js";
-import { admitRemoteTools, type FederatedAdmissionReport } from "../mcp-federation/trust.js";
-import {
-  buildFederatedRefusalPrefix,
-  explainFederatedToolRefusal,
-  findFederatedToolRefusal,
-  safeRemoteName,
-  summarizeFederatedRefusals,
-  type FederationAdmissionSnapshotEntry,
-} from "../mcp-federation/refusal-notice.js";
+import { tovuFederationMessages as messages } from "../mcp-federation/presets.js";
+
+// The reducers moved to @jini-ai/mcp/federation; Tovu's settings copy is injected exactly as the
+// host binds it, so every assertion below still pins the wording a Tovu operator and model read.
+const buildFederatedRefusalPrefix = (snapshot: readonly FederationAdmissionSnapshotEntry[]) => shared.buildFederatedRefusalPrefix({ snapshot, messages });
+const summarizeFederatedRefusals = (snapshot: readonly FederationAdmissionSnapshotEntry[]) => shared.summarizeFederatedRefusals({ snapshot, messages });
+const explainFederatedToolRefusal = (reason: ToolRefusalReason) => shared.explainFederatedToolRefusal({ reason, messages });
+const findFederatedToolRefusal = (toolId: string, snapshot: readonly FederationAdmissionSnapshotEntry[]) => shared.findFederatedToolRefusal({ toolId, snapshot, messages });
+const safeRemoteName = (remoteName: unknown) => shared.safeRemoteName({ remoteName, messages });
 
 /**
  * @file The model-facing half of "a refusal must never be silent".

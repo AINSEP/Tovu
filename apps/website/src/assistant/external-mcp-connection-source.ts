@@ -14,8 +14,8 @@ import {
   type ExternalMcpOAuthTokenResolverPort,
   type ExternalMcpServerRepoPort,
 } from "./external-mcp-store.js";
-import type { ResolvedFederatedConnection } from "./mcp-federation/config.js";
-import type { McpAuthFailedError } from "./mcp-federation/mcp-protocol.js";
+import type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
+import type { McpAuthFailedError } from "@jini-ai/mcp/federation";
 import type { FederationDeps } from "./mcp-federation/registrations.js";
 
 /**

@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { type CapturedHttpRequest, ScriptedMcpHttpExchange, type ScriptedHttpReply } from "../mcp-federation/adapter.memory.js";
 import { connectMcpHttpSession, createFetchMcpHttpExchange } from "../mcp-federation/adapter.http.js";
-import { McpAuthFailedError, McpProtocolError } from "../mcp-federation/mcp-protocol.js";
+import { McpAuthFailedError, McpProtocolError } from "@jini-ai/mcp/federation";
 import type { McpHttpLaunchSpec } from "../mcp-federation/ports.js";
 
 /**

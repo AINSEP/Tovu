@@ -1,3 +1,4 @@
+// Local federation forks moved to @jini-ai/mcp/federation (+ /stdio, /approvals); see development/DELETED-CODE.md.
 /**
  * @file Narrow port for `server/agent-daemon/agent-daemon-server.ts` — the daemon entry point
  * (relocated out of `assistant/` to `server/agent-daemon/`, 2026-08-17), which needs deep access to
@@ -28,8 +29,8 @@ export { attachFederatedMcpTools } from "./mcp-federation/bootstrap.js";
 // process already booted, without a restart. See that file's own header for the R5 guarantee it
 // preserves (never revises an already-admitted connection) and for why concurrency is coalesced
 // rather than naively single-flighted.
-export { createFederationReloadCoordinator } from "./mcp-federation/reload.js";
-export type { FederationReloadResult } from "./mcp-federation/reload.js";
+export { createFederationReloadCoordinator } from "./mcp-federation/reload-adapter.js";
+export type { FederationReloadResult } from "@jini-ai/mcp/federation";
 // So `agent-daemon-server.ts` can give its shared `federationDeps` local an explicit type — needed
 // for `onAuthFailed`'s parameter to infer as `McpAuthFailedError` (this type's own field) rather than
 // `unknown`, now that it is built as a standalone `const` instead of inline at the boot call site.
@@ -42,12 +43,12 @@ export { createLiveToolCatalogQuery } from "./tool-catalog-live-query.js";
 // the prompt text that tells the model which external tools were withheld and why. Exported through
 // this port for the same reason the line above is — the daemon process reaches this subtree only
 // here. See `mcp-federation/refusal-notice.ts`.
-export { buildFederatedRefusalPrefix } from "./mcp-federation/refusal-notice.js";
+export { buildFederatedRefusalPrefix } from "@jini-ai/mcp/federation";
 // The CALL-TIME counterpart to `buildFederatedRefusalPrefix` above — see that file's header and
 // `federated-refusal-diagnosis.ts`'s own for why the boot-time prefix and this decorator
 // deliberately disagree about `not-in-operator-allowlist`.
 export { withFederatedRefusalDiagnosis } from "./federated-refusal-diagnosis.js";
-export type { ResolvedFederatedConnection } from "./mcp-federation/config.js";
+export type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 export { readEnabledExternalMcpConfigs, toResolvedFederatedConnections } from "./external-mcp-store.js";
 // The daemon builds its OWN OAuth service: it refreshes tokens before launching an `authMode:
 // "oauth"` child process, and gates federated calls on a connection that has since gone

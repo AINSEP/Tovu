@@ -24,9 +24,9 @@ import type { PluginCapabilityToolDeps } from "../features/plugin-runtime/capabi
 import type { PluginDiscoveryRecord } from "../features/plugin-runtime/discovery.js";
 
 import { createFederationRuntime, type FederationRuntime } from "./external-mcp-federation-runtime.js";
-import type { ResolvedFederatedConnection } from "./mcp-federation/config.js";
+import type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 import type { McpSessionPort } from "./mcp-federation/ports.js";
-import type { FederationReloadResult } from "./mcp-federation/reload.js";
+import type { FederationReloadResult } from "@jini-ai/mcp/federation";
 import type { FederationDeps } from "./mcp-federation/registrations.js";
 
 /** Everything an {@link InstalledExtensionRegistrar} needs from its caller: the plugin-capability
