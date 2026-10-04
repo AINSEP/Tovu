@@ -1428,8 +1428,8 @@ export interface AdminWidgetRegionBinding {
 
 export interface AdminMedia {
   id: string;
-  /** Source file size when supplied by the server; legacy responses omit it. */
-  byteSize?: number;
+  /** Original blob bytes; null when unavailable. Legacy servers omit the field. */
+  byteSize?: number | null;
   /** Read-only acting principal at creation; absent/null on legacy servers or assets. */
   createdBy?: string | null;
   workspaceId: string;

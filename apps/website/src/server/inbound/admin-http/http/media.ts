@@ -24,6 +24,8 @@ export interface AdminMediaResponse {
   caption: string;
   credit: string;
   sha256: string;
+  /** Original blob bytes; null when storage is missing or cannot report a size. */
+  byteSize: number | null;
   status: MediaRecord["status"];
   createdAt: string;
   updatedAt: string;
@@ -67,18 +69,24 @@ export interface AdminMediaListEnvelope {
 }
 
 /**
- * `contentType`/`publicUrl` are REQUIRED positional parameters rather than optional ones with a
+ * `contentType`/`publicUrl` are REQUIRED fields rather than optional ones with a
  * `null` default: neither can be derived from `MediaRecord` alone (`contentType` is looked up
  * per-blob from `MediaContentTypeStorePort`; `publicUrl` needs a batched content-type AND
  * transform-registry lookup — see `resolveMediaPublicUrls`), and a default would let a caller that
  * simply forgot to look one up silently emit `null`, which the admin UI reads as a specific claim
  * ("this blob's bytes were unreadable" / "this asset has no public URL"). Making both explicit
- * forces each of the four routes to state what it actually knows.
+ * forces each route to state what it actually knows. `byteSize` is likewise supplied by the
+ * blob-store capability, never inferred from the media record or a transformed rendition.
  *
  * @complexity O(1).
  * @overallScore 100
  */
-export function toAdminMediaResponse(media: MediaRecord, contentType: string | null, publicUrl: string | null): AdminMediaResponse {
+export function toAdminMediaResponse(
+  { media, contentType, publicUrl, byteSize }: {
+    media: MediaRecord; contentType: string | null; publicUrl: string | null; byteSize: number | null;
+  },
+  _optional: Record<string, never> = {},
+): AdminMediaResponse {
   return {
     id: media.id,
     createdBy: media.createdBy ?? null,
@@ -89,6 +97,7 @@ export function toAdminMediaResponse(media: MediaRecord, contentType: string | n
     caption: media.caption,
     credit: media.credit,
     sha256: media.source.sha256,
+    byteSize,
     status: media.status,
     createdAt: media.createdAt,
     updatedAt: media.updatedAt,
@@ -111,16 +120,26 @@ export function toAdminMediaResponse(media: MediaRecord, contentType: string | n
  * O(1)-query contract as `contentTypesBySha256` above) returns them. An id ABSENT from this map
  * (should not happen for any id in `media`, but kept fail-soft rather than throwing) becomes a
  * `null` `publicUrl`, same as an id present with an explicit `null` value.
- * @complexity O(n) in `media.length` — both map lookups per row are O(1).
+ * @param byteSizesBySha256 - Original blob sizes, keyed by hash; unknown or absent becomes null.
+ * @complexity O(n) in `media.length` — map lookups per row are O(1).
  */
 export function toAdminMediaListResponse(
-  media: MediaRecord[],
-  contentTypesBySha256: ReadonlyMap<string, string>,
-  publicUrlsById: ReadonlyMap<string, string | null>
+  { media, contentTypesBySha256, publicUrlsById, byteSizesBySha256 }: {
+    media: MediaRecord[];
+    contentTypesBySha256: ReadonlyMap<string, string>;
+    publicUrlsById: ReadonlyMap<string, string | null>;
+    byteSizesBySha256: ReadonlyMap<string, number | null>;
+  },
+  _optional: Record<string, never> = {},
 ): AdminMediaListEnvelope {
   return {
     media: media.map((item) =>
-      toAdminMediaResponse(item, contentTypesBySha256.get(item.source.sha256) ?? null, publicUrlsById.get(item.id) ?? null)
+      toAdminMediaResponse({
+        media: item,
+        contentType: contentTypesBySha256.get(item.source.sha256) ?? null,
+        publicUrl: publicUrlsById.get(item.id) ?? null,
+        byteSize: byteSizesBySha256.get(item.source.sha256) ?? null,
+      })
     ),
   };
 }

@@ -18,7 +18,7 @@ export function useMediaCardMetadata(
     formatters?: MediaMetadataFormatters;
   } = {},
 ) {
-  const byteSize = item.byteSize === undefined ? null : formatters.formatByteSize({ bytes: item.byteSize }, { locale });
+  const byteSize = item.byteSize == null ? null : formatters.formatByteSize({ bytes: item.byteSize }, { locale });
   const uploadDate = formatters.formatUploadDate?.({ createdAt: item.createdAt }, { locale }) ?? null;
   return {
     byteSize,

@@ -83,31 +83,33 @@ function media(id: string, sha256: string) {
     id, workspaceId: "ws-7", title: "Launch clip", slug: "launch-clip", alt: "Launch", caption: "Day one", credit: "Studio",
     source: { sha256 }, status: "active", createdAt: "2026-09-10T00:00:00Z", updatedAt: "2026-09-11T00:00:00Z",
     version: 8, width: 854, height: 480, cssClass: "hero-video", htmlAttributes: 'loading="lazy"', internalPath: "/private/blob",
-  } as Parameters<typeof toAdminMediaResponse>[0];
+  } as Parameters<typeof toAdminMediaResponse>[0]["media"];
 }
 
 test("media projection preserves metadata and uses the supplied content type and public URL", () => {
-  assert.deepEqual(toAdminMediaResponse(media("asset-9", "blob-sha-3"), "video/mp4", "/m/launch-clip"), {
+  assert.deepEqual(toAdminMediaResponse({ media: media("asset-9", "blob-sha-3"), contentType: "video/mp4", publicUrl: "/m/launch-clip", byteSize: 13 }), {
     id: "asset-9", workspaceId: "ws-7", title: "Launch clip", slug: "launch-clip", alt: "Launch", caption: "Day one", credit: "Studio",
-    sha256: "blob-sha-3", status: "active", createdAt: "2026-09-10T00:00:00Z", updatedAt: "2026-09-11T00:00:00Z",
+    createdBy: null, byteSize: 13, sha256: "blob-sha-3", status: "active", createdAt: "2026-09-10T00:00:00Z", updatedAt: "2026-09-11T00:00:00Z",
     version: 8, width: 854, height: 480, cssClass: "hero-video", htmlAttributes: 'loading="lazy"', contentType: "video/mp4", publicUrl: "/m/launch-clip",
   });
 });
 
 // F4.3/F6.2: distinct id/sha keys, reversed map insertion, and independently absent entries.
 test("media list joins content types by sha256 and URLs by id, with null for either missing lookup", () => {
-  const result = toAdminMediaListResponse(
-    [media("asset-a", "sha-a"), media("asset-b", "sha-b"), media("asset-c", "sha-c"), media("asset-d", "sha-d")],
-    new Map([["sha-c", "image/png"], ["sha-b", "video/webm"], ["sha-a", "video/mp4"]]),
-    new Map([["asset-d", "/m/d"], ["asset-b", null], ["asset-a", "/m/a"]]),
-  );
+  const result = toAdminMediaListResponse({
+    media: [media("asset-a", "sha-a"), media("asset-b", "sha-b"), media("asset-c", "sha-c"), media("asset-d", "sha-d")],
+    contentTypesBySha256: new Map([["sha-c", "image/png"], ["sha-b", "video/webm"], ["sha-a", "video/mp4"]]),
+    publicUrlsById: new Map([["asset-d", "/m/d"], ["asset-b", null], ["asset-a", "/m/a"]]),
+    byteSizesBySha256: new Map([["sha-b", 0], ["sha-a", 13], ["sha-c", null]]),
+  });
+  assert.deepEqual(result.media.map((item) => item.byteSize), [13, 0, null, null]);
   assert.deepEqual(result.media.map(({ id, sha256, contentType, publicUrl }) => ({ id, sha256, contentType, publicUrl })), [
     { id: "asset-a", sha256: "sha-a", contentType: "video/mp4", publicUrl: "/m/a" },
     { id: "asset-b", sha256: "sha-b", contentType: "video/webm", publicUrl: null },
     { id: "asset-c", sha256: "sha-c", contentType: "image/png", publicUrl: null },
     { id: "asset-d", sha256: "sha-d", contentType: null, publicUrl: "/m/d" },
   ]);
-  assert.deepEqual(toAdminMediaListResponse([], new Map(), new Map()), { media: [] });
+  assert.deepEqual(toAdminMediaListResponse({ media: [], contentTypesBySha256: new Map(), publicUrlsById: new Map(), byteSizesBySha256: new Map() }), { media: [] });
 });
 
 test("member projection excludes operator notes, extension fields and token material", () => {

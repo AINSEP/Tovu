@@ -4,6 +4,7 @@ import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { entityNotLiveResponse } from "#src/server/inbound/admin-http/http/entity-not-live";
 import { toAdminMediaResponse } from "#src/server/inbound/admin-http/http/media";
 import { readRecordedContentType } from "./content-type.js";
+import { resolveMediaByteSizes } from "./byte-size.js";
 import type { MediaRouteRegistrar } from "./deps.js";
 import { parseOptionalSlugField, parseOptionalStringField, parseOptionalTitleField } from "./parse.js";
 
@@ -123,11 +124,12 @@ export const registerAdminMediaUpdateRoute: MediaRouteRegistrar = (app, deps) =>
           ...parseMediaMetadataPatch(req.body),
         },
       });
-      const [contentType, publicUrl] = await Promise.all([
+      const [contentType, publicUrl, byteSizes] = await Promise.all([
         readRecordedContentType(deps, media.source.sha256),
         resolveMediaPublicUrls(deps, [media]).then((urls) => urls.get(media.id) ?? null),
+        resolveMediaByteSizes({ deps, media: [media] }),
       ]);
-      res.json({ media: toAdminMediaResponse(media, contentType, publicUrl) });
+      res.json({ media: toAdminMediaResponse({ media, contentType, publicUrl, byteSize: byteSizes.get(media.source.sha256) ?? null }) });
     } catch (err) {
       const { status, body } = mapMediaUpdateError(err);
       res.status(status).json(body);

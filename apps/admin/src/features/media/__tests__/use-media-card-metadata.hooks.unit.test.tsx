@@ -40,6 +40,18 @@ describe("legacy media card metadata", () => {
     expect(result.current.metadataSeparator).toBe("");
   });
 
+  it("hides a null size from the blob store without calling the size formatter", () => {
+    const size = vi.fn(() => "invented size");
+    const date = vi.fn(() => "Oct 4, 2026");
+    const { result } = renderHook(() => useMediaCardMetadata({
+      item: { byteSize: null, createdAt: "2026-10-04T00:00:00Z" },
+    }, { formatters: { formatByteSize: size, formatUploadDate: date } }));
+    expect(size).not.toHaveBeenCalled();
+    expect(result.current.byteSize).toBeNull();
+    expect(result.current.uploadDate).toBe("Oct 4, 2026");
+    expect(result.current.metadataSeparator).toBe("");
+  });
+
   it("hides the line when neither value is available", () => {
     const { result } = renderHook(() => useMediaCardMetadata({ item: { createdAt: "" } }));
     expect(result.current.hasMetadata).toBe(false);

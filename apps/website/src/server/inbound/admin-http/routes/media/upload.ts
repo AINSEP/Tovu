@@ -169,7 +169,7 @@ export const registerAdminMediaUploadRoute: MediaRouteRegistrar = (app, deps) =>
       });
 
       const publicUrl = (await resolveMediaPublicUrls(deps, [media])).get(media.id) ?? null;
-      res.status(201).json({ media: toAdminMediaResponse(media, verifiedContentType, publicUrl) });
+      res.status(201).json({ media: toAdminMediaResponse({ media, contentType: verifiedContentType, publicUrl, byteSize: bytes.byteLength }) });
     } catch (err) {
       if (err instanceof MediaValidationError) {
         res.status(400).json({ error: err.message });

@@ -66,7 +66,7 @@ export function registerAdminMediaImportUrlRoute(
       // the next rendition needs the persisted sniffed type to serve this blob correctly.
       await deps.mediaContentTypeStore.set({ workspaceId: deps.workspaceId, sha256: media.source.sha256, contentType: fetched.contentType });
       const publicUrl = (await resolveMediaPublicUrls(deps, [media])).get(media.id) ?? null;
-      res.status(201).json({ media: toAdminMediaResponse(media, fetched.contentType, publicUrl) });
+      res.status(201).json({ media: toAdminMediaResponse({ media, contentType: fetched.contentType, publicUrl, byteSize: fetched.bytes.byteLength }) });
     } catch (error) {
       if (error instanceof EgressRefusedError) {
         // Full DNS diagnosis is operator-log-only, matching the assistant tool's refusal contract.

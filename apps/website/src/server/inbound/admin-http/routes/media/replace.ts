@@ -88,7 +88,7 @@ export function registerAdminMediaReplaceRoute({ app, deps }: { app: Express; de
         res.status(409).json({ error: 'media changed while replacing its file', code: 'MEDIA_REPLACE_CONFLICT' }); return;
       }
       const publicUrl = (await resolveMediaPublicUrls(deps, [saved])).get(saved.id) ?? null;
-      res.json({ media: toAdminMediaResponse(saved, upload.contentType, publicUrl) });
+      res.json({ media: toAdminMediaResponse({ media: saved, contentType: upload.contentType, publicUrl, byteSize: upload.bytes.byteLength }) });
     } catch (error) {
       res.status(error instanceof MediaValidationError ? 400 : 500).json({
         error: error instanceof MediaValidationError ? error.message : 'internal error',
