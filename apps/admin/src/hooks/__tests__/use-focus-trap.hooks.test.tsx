@@ -134,6 +134,32 @@ describe("useFocusTrap", () => {
     expect(event.defaultPrevented).toBe(false);
   });
 
+  // The host already delegates to Jini, but a package version alone does not prove that the
+  // installed dist includes its opener-restoration fix. Exercise the actual consumed hook.
+  it("returns focus to the connected opener when the dialog closes", () => {
+    const { rerender } = render(<button type="button">opener</button>);
+    const opener = button("opener");
+    opener.focus();
+    rerender(<><button type="button">opener</button><Dialog label="A" /></>);
+    button("A first").focus();
+
+    rerender(<button type="button">opener</button>);
+
+    expect(document.activeElement).toBe(opener);
+  });
+
+  it("returns focus when the trap deactivates while the dialog stays mounted", () => {
+    const { rerender } = render(<button type="button">opener</button>);
+    const opener = button("opener");
+    opener.focus();
+    rerender(<><button type="button">opener</button><Dialog label="A" /></>);
+    button("A last").focus();
+
+    rerender(<><button type="button">opener</button><Dialog label="A" trapped={false} /></>);
+
+    expect(document.activeElement).toBe(opener);
+  });
+
   it("ignores keys other than Tab", () => {
     render(<Dialog label="A" />);
     button("A last").focus();

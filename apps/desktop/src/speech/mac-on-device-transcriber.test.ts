@@ -13,6 +13,21 @@ import { ensureHelperCompiled, checkAvailability, transcribeWav, parseHelperJson
 import { createMacOnDeviceTranscriptionPort, speechHelperSourcePath, macTranscriberMessages, DEFAULT_BINARY_PATH } from "./mac-on-device-transcriber.ts";
 const policy = { compilerPath: "swiftc", locale: "en-US", messages: macTranscriberMessages };
 
+/** Exercise the same compiler result against installed 0.4.0 and the pending async release.
+ * The legacy fake is retained only until the published package switches process contracts. */
+function compilerPorts({ spawnSync }: { spawnSync: () => { status: number | null; stderr?: Buffer | string; error?: NodeJS.ErrnoException } }) {
+  return {
+    spawnSync,
+    execFileAsync: async ({ file }: { file: string; args: string[] }) => {
+      assert.equal(file, "swiftc", "must not invoke the helper after a compiler failure");
+      const result = spawnSync();
+      if (result.error) throw result.error;
+      if (result.status !== 0) throw Object.assign(new Error("compiler failed"), { stderr: result.stderr });
+      return { stdout: "" };
+    },
+  };
+}
+
 /** A minimal fake `fs` recording every call it receives, backed by an in-memory existence set. */
 function fakeFs({ existing = [] }: { existing?: string[] } = { existing: [] }) {
   const exists = new Set(existing);
@@ -33,30 +48,30 @@ function fakeFs({ existing = [] }: { existing?: string[] } = { existing: [] }) {
   };
 }
 
-test("ensureHelperCompiled is a no-op when the binary already exists", () => {
+test("ensureHelperCompiled is a no-op when the binary already exists", async () => {
   const fs = fakeFs({ existing: ["/bin/helper"] });
   const spawnSync = () => assert.fail("must not compile when already built");
-  const result = ensureHelperCompiled({ fs, spawnSync, ...policy, sourcePath: "/src.swift", binaryPath: "/bin/helper" });
+  const result = await ensureHelperCompiled({ fs, ...compilerPorts({ spawnSync }), ...policy, sourcePath: "/src.swift", binaryPath: "/bin/helper" });
   assert.deepEqual(result, { ok: true });
 });
 
-test("ensureHelperCompiled reports a clear reason when swiftc is not installed", () => {
+test("ensureHelperCompiled reports a clear reason when swiftc is not installed", async () => {
   const fs = fakeFs();
   const spawnSync = () => ({ status: null, stderr: "", error: Object.assign(new Error("not found"), { code: "ENOENT" }) });
-  const result = ensureHelperCompiled({ fs, spawnSync, ...policy, sourcePath: "/src.swift", binaryPath: "/bin/helper" });
+  const result = await ensureHelperCompiled({ fs, ...compilerPorts({ spawnSync }), ...policy, sourcePath: "/src.swift", binaryPath: "/bin/helper" });
   assert.equal(result.ok, false);
   assert.match(result.error, /swiftc-not-found/);
 });
 
-test("ensureHelperCompiled reports the compiler's own stderr on a failed build", () => {
+test("ensureHelperCompiled reports the compiler's own stderr on a failed build", async () => {
   const fs = fakeFs();
   const spawnSync = () => ({ status: 1, stderr: Buffer.from("error: syntax error") });
-  const result = ensureHelperCompiled({ fs, spawnSync, ...policy, sourcePath: "/src.swift", binaryPath: "/bin/helper" });
+  const result = await ensureHelperCompiled({ fs, ...compilerPorts({ spawnSync }), ...policy, sourcePath: "/src.swift", binaryPath: "/bin/helper" });
   assert.equal(result.ok, false);
   assert.match(result.error, /syntax error/);
 });
 
-test("ensureHelperCompiled compiles once and creates the parent directory first", () => {
+test("ensureHelperCompiled compiles once and creates the parent directory first", async () => {
   const fs = fakeFs();
   const operations: unknown[] = [];
   const mkdirSync = fs.mkdirSync;
@@ -69,11 +84,15 @@ test("ensureHelperCompiled compiles once and creates the parent directory first"
     fs.exists.add("/speech/.build/helper");
     return { status: 0, stderr: "" };
   };
-  const deps = { fs, spawnSync, ...policy, sourcePath: "/speech/src.swift", binaryPath: "/speech/.build/helper" };
-  const result = ensureHelperCompiled(deps);
+  const deps = { fs, spawnSync, execFileAsync: async ({ file, args }: { file: string; args: string[] }) => {
+    const result = spawnSync({ command: file, args });
+    assert.equal(result.status, 0);
+    return { stdout: "" };
+  }, ...policy, sourcePath: "/speech/src.swift", binaryPath: "/speech/.build/helper" };
+  const result = await ensureHelperCompiled(deps);
   assert.deepEqual(result, { ok: true });
   assert.equal(fs.calls.mkdirSync[0]![0], "/speech/.build");
-  assert.deepEqual(ensureHelperCompiled(deps), { ok: true });
+  assert.deepEqual(await ensureHelperCompiled(deps), { ok: true });
   assert.deepEqual(operations, [
     ["mkdir", "/speech/.build", { recursive: true }],
     ["swiftc", ["-O", "/speech/src.swift", "-o", "/speech/.build/helper"]],
@@ -87,8 +106,7 @@ test("parseHelperJson throws a message that includes the raw stdout on malformed
 test("checkAvailability reports unavailable without spawning the helper when compilation fails", async () => {
   const fs = fakeFs();
   const spawnSync = () => ({ status: null, error: Object.assign(new Error("not found"), { code: "ENOENT" }) });
-  const execFileAsync = () => assert.fail("must not run the helper when compilation failed");
-  const result = await checkAvailability({ fs, spawnSync, execFileAsync, ...policy, sourcePath: "/s.swift", binaryPath: "/b" });
+  const result = await checkAvailability({ fs, ...compilerPorts({ spawnSync }), ...policy, sourcePath: "/s.swift", binaryPath: "/b" });
   assert.equal(result.available, false);
   assert.match(result.reason!, /swiftc-not-found/);
 });
@@ -166,7 +184,7 @@ test("transcribeWav always removes the temp file even when the child process its
 test("transcribeWav rejects without writing a temp file when compilation itself fails", async () => {
   const fs = fakeFs();
   const spawnSync = () => ({ status: null, error: Object.assign(new Error("not found"), { code: "ENOENT" }) });
-  const deps = { fs, spawnSync, execFileAsync: () => assert.fail("must not run"), ...policy, sourcePath: "/s.swift", binaryPath: "/b", tempFilePath: () => "/tmp/rec.wav" };
+  const deps = { fs, ...compilerPorts({ spawnSync }), ...policy, sourcePath: "/s.swift", binaryPath: "/b", tempFilePath: () => "/tmp/rec.wav" };
 
   await assert.rejects(() => transcribeWav({ wavBuffer: Buffer.from("x"), ...deps }), /swiftc-not-found/);
   assert.equal(fs.calls.writeFileSync.length, 0);
@@ -283,9 +301,9 @@ test("the published helper probes without prompting and cancels timed-out recogn
 });
 
 // REGRESSION: fails if whitespace-only compiler diagnostics bypass the fallback message.
-test("blank compiler diagnostics use the host's unknown-error wording", () => {
-  const result = ensureHelperCompiled({ fs: fakeFs(),
-    spawnSync: () => ({ status: 1, stderr: "   " }), ...policy,
+test("blank compiler diagnostics use the host's unknown-error wording", async () => {
+  const result = await ensureHelperCompiled({ fs: fakeFs(),
+    ...compilerPorts({ spawnSync: () => ({ status: 1, stderr: "   " }) }), ...policy,
     sourcePath: "/src.swift", binaryPath: "/bin/helper" });
   assert.deepEqual(result, { ok: false, error: "swiftc-failed: unknown compiler error" });
 });

@@ -220,14 +220,16 @@ function toChatCoreRunStatus(state: string): "queued" | "running" | "succeeded" 
   }
 }
 
-/** `signal` is only available on the `startRun` path (`StartRunInput.signal`) — `reattachRun`'s
- * signature carries no abort signal at all, so a reattached subscription only ever ends via the
- * stream's own `end`/`error` frame. */
+/** Both startRun and reattachRun carry their owner's cancellation signal, so an abandoned pane
+ * closes its subscription without waiting for the run's own end/error frame. */
 /** Shown when the agent daemon answers 404 for a run it was streaming — it restarted and lost it. */
 const RUN_FORGOTTEN_MESSAGE =
   "The assistant restarted while this answer was running, so it stopped. Send your message again to retry.";
 
 function subscribeToRun(runId: string, handlers: RunHandlers, signal?: AbortSignal): void {
+  // Abort events are not replayed to new listeners. A late start response or an already-cancelled
+  // reattach must not open a stream that will keep reconnecting after its owner has gone away.
+  if (signal?.aborted) return;
   const source = new EventSource(`${RUNS_URL}/${encodeURIComponent(runId)}/events`);
   const collected: AgentEvent[] = [];
   let settled = false;
