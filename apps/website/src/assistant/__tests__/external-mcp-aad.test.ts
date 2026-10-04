@@ -4,11 +4,14 @@ import test from "node:test";
 
 process.env.TOVU_INTEGRATIONS_ROOT_KEY ??= randomBytes(32).toString("hex");
 
+import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
 import { EnvOrFileKeyring } from "../../features/webhooks/keyring.env.js";
 import { buildExternalMcpEnvAad, buildExternalMcpOAuthAad } from "../external-mcp-aad.js";
 import {
   openExternalMcpOAuthPayload,
+  readEnabledExternalMcpConfigs,
+  saveExternalMcpServer,
   sealExternalMcpOAuthPayload,
 } from "../external-mcp-store.js";
 
@@ -121,4 +124,32 @@ test("external-mcp OAuth blob: a v0 legacy row still opens, so the fix does not 
   });
 
   assert.equal(opened.clientSecret, "legacy-secret");
+});
+
+// F2.6/F6.4: seal through the real store writer, then read back through the federation read path.
+test('external-mcp env ciphertext opens only in its original row and slot', async () => {
+  const repo = new InMemoryExternalMcpServerRepo();
+  const clock = { nowMs: () => 0, nowIso: () => '2026-01-01T00:00:00.000Z' };
+  await saveExternalMcpServer({ ...deps, repo, clock }, {
+    workspaceId: WORKSPACE, serverId: SERVER_A, label: 'A', transport: 'stdio',
+    enabled: true, command: 'node', args: '', allowedToolNames: '', writeAllowedToolNames: '',
+    principalId: 'owner', env: 'API_KEY=row-a-secret',
+  });
+  const row = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: SERVER_A });
+  assert.ok(row?.sealedEnv);
+  assert.equal(row.aadVersion, 1);
+  await repo.upsert({ ...row, serverId: SERVER_B });
+  const result = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
+  assert.deepEqual(result.configs.map(c => c.serverId), [SERVER_A]);
+  const target = result.configs[0]!.target;
+  assert.equal(target.kind, 'stdio');
+  if (target.kind !== 'stdio') assert.fail('expected stdio');
+  assert.deepEqual(target.env, { API_KEY: 'row-a-secret' });
+  assert.equal(result.failures.length, 1);
+  assert.equal(result.failures[0]!.serverId, SERVER_B);
+  assert.match(result.failures[0]!.reason, /could not be decrypted/);
+  await assert.rejects(() => sealer.open({
+    sealed: row.sealedEnv!, key: { keyId: row.sealedEnv!.keyId },
+    aad: buildExternalMcpOAuthAad({ workspaceId: WORKSPACE, serverId: SERVER_A }),
+  }));
 });

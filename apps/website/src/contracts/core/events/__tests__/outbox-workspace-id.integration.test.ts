@@ -122,6 +122,8 @@ test("entries chokepoint: createEntry through toEntryOutbox persists workspace_i
   const row = readOutboxRow(db, "entries-evt-1");
   assert.ok(row, "entry.created must be persisted in outbox_events");
   assert.equal(row!.id, "entries-evt-1");
+  assert.deepEqual(JSON.parse(row.eventJson).payload, { workspaceId, entryId: "entry-1", type: "post", slug: "hello-world" });
+  assert.equal(readOutboxEventName(db, "entries-evt-1"), "entry.created");
   assert.equal(row!.workspaceId, workspaceId);
 });
 
@@ -165,6 +167,8 @@ test("content-types chokepoint: deprecateContentType through toContentTypeOutbox
   const row = readOutboxRow(db, "ct-evt-1");
   assert.ok(row, "content_type.deprecated event must be persisted in outbox_events");
   assert.equal(row!.id, "ct-evt-1");
+  assert.equal(readOutboxEventName(db, "ct-evt-1"), "content_type.deprecated");
+  assert.deepEqual(JSON.parse(row.eventJson).payload, { workspaceId, key: "article" });
   assert.equal(row!.workspaceId, workspaceId);
 });
 
@@ -371,6 +375,10 @@ test("widgets chokepoint: createWidgetInstance binds the RAW SqliteOutboxAdapter
   for (const row of rows) {
     assert.equal(row.workspaceId, workspaceId, `every outbox row written by the widgets chokepoint must carry the widget's own workspaceId, got ${row.workspaceId}`);
     assert.ok(row.id, "every outbox row must have a non-empty id");
+    const event = JSON.parse(row.eventJson);
+    assert.equal(event.name, "entry.created");
+    assert.equal(event.payload.entryId, instance.id);
+    assert.equal(event.payload.workspaceId, workspaceId);
   }
 });
 

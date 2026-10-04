@@ -89,7 +89,7 @@ test("boot: an already-held port exits cleanly and names the port, instead of th
   );
 
   assert.equal(result.status, 1, `expected a clean exit code 1, got ${String(result.status)}:\n${output}`);
-  assert.ok(output.includes(String(port)), `expected the failure to name port ${port}:\n${output}`);
+  assert.match(output, new RegExp(`port ${port} is already in use`, "i"), `expected the diagnostic itself to name port ${port}:\n${output}`);
   assert.ok(
     /already in use/i.test(output),
     `expected the failure to say the port is already in use:\n${output}`,

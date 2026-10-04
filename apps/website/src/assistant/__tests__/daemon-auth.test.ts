@@ -279,3 +279,16 @@ test("omitting options.env entirely falls back to the real process.env, not just
 
   assert.equal(res.status, 201, "the real process.env token must be honored with no injected env override");
 });
+
+// F6.2: Express req.path strips a query; exemptions otherwise use exact, case-sensitive paths.
+test('exemption ignores the query but does not normalize slashes or case', async (t) => {
+  const harness = await bootGatedServer({ [AGENT_DAEMON_TOKEN_ENV_VAR]: TOKEN }, [DELEGATED_TOOL_CALLS_PATH]);
+  t.after(harness.close);
+  const query = await fetch(`${harness.baseUrl}${DELEGATED_TOOL_CALLS_PATH}?x=1`, { method: 'POST' });
+  assert.equal(query.status, 201);
+  for (const path of [`${DELEGATED_TOOL_CALLS_PATH}/`, DELEGATED_TOOL_CALLS_PATH.toUpperCase(), DELEGATED_TOOL_CALLS_PATH.replace('/api/', '/api//')]) {
+    const response = await fetch(`${harness.baseUrl}${path}`, { method: 'POST' });
+    assert.equal(response.status, 401, path);
+  }
+  assert.equal(harness.probeCount(), 1);
+});

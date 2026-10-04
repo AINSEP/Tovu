@@ -32,7 +32,7 @@
 /** The slice of Electron's `WebContents` this tracker touches. Overloaded per event, as Electron's own
  *  declaration is, so a real `BrowserWindow` and a test fake both satisfy it. */
 interface SelftestWebContents {
-  once(event: "did-fail-load", listener: (event: unknown, code: number, description: string) => void): unknown;
+  on(event: "did-fail-load", listener: (event: unknown, code: number, description: string, validatedURL: string, isMainFrame: boolean) => void): unknown;
   once(event: "did-finish-load", listener: () => void): unknown;
   getURL(): string;
   getTitle(): string;
@@ -75,8 +75,8 @@ function createSelftestTracker(expectedCount: number, callbacks: SelftestCallbac
 
   return {
     add(window: SelftestWindow): void {
-      window.webContents.once("did-fail-load", (_event: unknown, code: number, description: string) => {
-        if (failed) return;
+      window.webContents.on("did-fail-load", (_event: unknown, code: number, description: string, _validatedURL: string, isMainFrame: boolean) => {
+        if (failed || !isMainFrame || code === -3) return;
         failed = true;
         callbacks.onWindowFailed({ url: window.webContents.getURL(), code, description });
         callbacks.onAllSettled({ failed: true });

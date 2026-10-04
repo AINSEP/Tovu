@@ -168,6 +168,9 @@ export function buildAdminScreenPath(input: { path: string; tab?: string }): str
   if (segment.length === 0) {
     throw new ToolInputError({ message: "'path' must name a screen segment, not just a leading slash" });
   }
+  if (!/^[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+)*$/.test(segment)) {
+    throw new ToolInputError({ message: "'path' must contain only screen segments, without traversal, a query, a fragment, or a URL scheme" });
+  }
   const tab = input.tab?.trim();
   const query = tab ? `?tab=${encodeURIComponent(tab)}` : "";
   return `${ADMIN_BASE_PATH}/${segment}${query}`;

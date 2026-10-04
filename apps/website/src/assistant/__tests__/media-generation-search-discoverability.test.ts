@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { realToolCatalog } from "./real-tool-catalog.fixture.js";
 
 import { mediaGenerationAgentToolCatalog } from "../../features/media-generation/agent-tools.js";
 import { buildToolCatalogQuery } from "../tool-catalog-query.js";
@@ -71,4 +72,14 @@ test("media_generate_asset never gets confused for media_upload_asset when the o
   const catalog = buildToolCatalogQuery(fakeRegistry());
   const hits = catalog.search({ query: "generate a new image for me" }, { limit: 10 });
   assert.equal(hits[0]?.id, "media_generate_asset", `expected media_generate_asset to rank #1; got ${hits.map((h) => h.id).join(", ")}`);
+});
+
+// F2.4/F4.2: new competing production registrations must participate in ranking automatically.
+test('media_generate_asset ranks first for operator phrasings against the full registered catalog', async () => {
+  const { registry, catalog } = await realToolCatalog();
+  assert.ok(registry.has({ toolId: 'media_generate_asset' }), 'the searchable capability must actually be registered');
+  for (const query of ['can you generate an image of a sunset for me', 'make me a logo with AI', 'draw an illustration for the blog post', 'I need a hero banner for the homepage, can you create one']) {
+    const hits = catalog.search({ query }, { limit: 10 });
+    assert.equal(hits[0]?.id, 'media_generate_asset', `${query}: got ${hits.map(hit => hit.id).join(', ')}`);
+  }
 });

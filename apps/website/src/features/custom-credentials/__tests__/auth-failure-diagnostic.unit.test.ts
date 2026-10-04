@@ -7,7 +7,7 @@ import { InMemoryCustomCredentialSetRepo } from "../repo.memory.js";
 import { createCustomCredential, type CustomCredentialWriteDeps } from "../store.js";
 import { makeCredentialedRequest, verifyCustomCredential, type CredentialedRequestDeps } from "../credentialed-request.js";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platform/http/index.js";
-import type { ToolFailureDiagnostic } from "../../../contracts/core/tool-failure-diagnostics.js";
+import { isIssuedToolFailureDiagnostic, type ToolFailureDiagnostic } from "../../../contracts/core/tool-failure-diagnostics.js";
 import { loadBundledAuthSchemes } from "./bundled-auth-schemes.fixture.js";
 
 /**
@@ -233,19 +233,24 @@ test("makeCredentialedRequest: a stored-username 401 carries no remedyToolId —
   assert.equal(result.authDiagnostic!.remedyToolId, undefined);
 });
 
-test("makeCredentialedRequest: authDiagnostic is a genuine instance of the general ToolFailureDiagnostic contract, not a parallel shape", async () => {
+test("makeCredentialedRequest: the general tool-failure diagnostic is issued for recovery, with hint and remedy together", async () => {
   const writeDeps = await seedWithoutUsername();
   const httpClient = new FakeHttpClient([{ status: 401, headers: {}, bodyText: "unauthorized" }]);
   const deps = makeDeps(httpClient, writeDeps);
 
   const result = await makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "name.com", method: "GET", url: "https://api.name.com/v4/domains" });
 
-  // Read through the GENERAL contract's own type — if `AuthFailureDiagnostic` were only a parallel
-  // shape (same field names, no real `extends`), this assignment would still compile by accident;
-  // what it CANNOT fake is agreement on the runtime values, asserted below against the same object.
+  assert.ok(result.authDiagnostic);
+  // The type annotation documents the shared shape; the recovery contract's validator proves
+  // issuance by identity. Returning a plain object or a copy of an issued one fails this (F4.1).
   const asGeneralContract: ToolFailureDiagnostic = result.authDiagnostic!;
-  assert.equal(asGeneralContract.hint, result.authDiagnostic!.hint);
-  assert.equal(asGeneralContract.remedyToolId, result.authDiagnostic!.remedyToolId);
+  assert.equal(isIssuedToolFailureDiagnostic(asGeneralContract), true);
+  assert.equal(isIssuedToolFailureDiagnostic({ ...asGeneralContract }), false, "matching fields alone must not authorize recovery");
+  assert.equal(asGeneralContract.hint,
+    "This request was sent with a Bearer token and no saved username. Some providers (e.g. ones that " +
+    "authenticate a token against an account username via HTTP Basic) may reject a Bearer-only request " +
+    "for that reason — this credential has no username saved. If that's the cause, saving one may fix it.");
+  assert.equal(asGeneralContract.remedyToolId, "custom_credential_set_username");
 });
 
 test("makeCredentialedRequest: the authDiagnostic never carries the token, in any field, serialized", async () => {

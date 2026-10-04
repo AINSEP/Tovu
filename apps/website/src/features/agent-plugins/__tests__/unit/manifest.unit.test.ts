@@ -50,6 +50,7 @@ test("an unrecognized top-level field is a non-fatal warning, not a rejection (s
 test("a non-object manifest is rejected", () => {
   const result = parseAgentPluginManifest({ value: "not-an-object" });
   assert.equal(result.ok, false);
+  if (!result.ok) assert.deepEqual(result.errors, ['plugin.json must be a JSON object']);
 });
 
 test("a missing $schema is rejected", () => {
@@ -65,6 +66,7 @@ test("a $schema pointing at an unrecognized version is rejected (loader pins v1.
 test("a missing name is rejected", () => {
   const result = parseAgentPluginManifest({ value: { $schema: SCHEMA_1_0_0 } });
   assert.equal(result.ok, false);
+  if (!result.ok) assert.deepEqual(result.errors, ["plugin.json 'name' is required and must be a string"]);
 });
 
 for (const invalidName of ["My-Plugin", "-start", "end-", "has--double", "has..double", ".leading", "trailing.", "", "a".repeat(65)]) {
@@ -95,6 +97,7 @@ test("mcp.json: parses server ids from the mcpServers object", () => {
 test("mcp.json: a missing mcpServers object is rejected", () => {
   const result = parseAgentPluginMcpConfig({ value: { $schema: MCP_SCHEMA_1_0_0 } });
   assert.equal(result.ok, false);
+  if (!result.ok) assert.deepEqual(result.errors, ["mcp.json 'mcpServers' is required and must be an object"]);
 });
 
 test("mcp.json: a non-object manifest is rejected", () => {
@@ -198,6 +201,7 @@ test("mcp.json: tovuTokenAuth with https helpUrl and probeUrl passes through", (
 test("mcp.json: tovuTokenAuth with a non-https or missing URL excludes the server, so a token is never probed in the clear", () => {
   for (const bad of [
     { helpUrl: "https://example.com/tokens", probeUrl: "http://api.example.com/v1/me" },
+    { helpUrl: "http://example.com/tokens", probeUrl: "https://api.example.com/v1/me" },
     { helpUrl: "javascript:alert(1)", probeUrl: "https://api.example.com/v1/me" },
     { helpUrl: "https://example.com/tokens" },
     "https://example.com/tokens",

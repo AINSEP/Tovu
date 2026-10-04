@@ -89,7 +89,7 @@ export async function acquireOperationLock(
 
 /**
  * Frees `input.siteId`'s lock. Idempotent — releasing a site with no held lock is a no-op, never
- * an error.
+ * an error. A stale holder cannot release a later acquisition for the same site.
  *
  * @complexity O(1).
  * @overallScore 100
@@ -98,7 +98,8 @@ export async function releaseOperationLock(
   required: { deps: { clock: ClockPort }; input: { siteId: string; handle: OperationLockHandle } },
   _optional: Record<string, never> = {}
 ): Promise<void> {
-  activeLocksBySiteId.delete(required.input.siteId);
+  const { siteId, handle } = required.input;
+  if (activeLocksBySiteId.get(siteId) === handle) activeLocksBySiteId.delete(siteId);
 }
 
 /**

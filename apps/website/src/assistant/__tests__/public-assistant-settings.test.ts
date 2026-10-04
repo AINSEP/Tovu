@@ -4,6 +4,7 @@ import test from "node:test";
 
 import {
   InMemorySettingsRepo,
+  ForbiddenError,
   getEffective,
   resolveDefinitionRaw,
   registerDefinitions,
@@ -188,19 +189,11 @@ test("a non-boolean publicEnabled is rejected before any write happens", async (
 });
 
 test("a denied principal cannot flip the switch", async () => {
-  const { settingsRepo, principals } = await withDefinitions();
-  const denyingDeps = {
-    settingsRepo,
-    clock,
-    ids,
-    principals,
-    getEffective,
-    set,
-    authorize: async () => ({ allowed: false, reason: "insufficient_permission" }),
-  };
-
-  await assert.rejects(() =>
-    setPublicAssistantSettings(denyingDeps, { workspaceId: WORKSPACE, patch: { publicEnabled: true }, callerPrincipalId: "principal-1" }),
+  const { settingsRepo, deps } = await withDefinitions();
+  const denyingDeps = { ...deps, authorize: async () => ({ allowed: false, reason: "insufficient_permission" }) };
+  await assert.rejects(
+    () => setPublicAssistantSettings(denyingDeps, { workspaceId: WORKSPACE, patch: { publicEnabled: true }, callerPrincipalId: "principal-1" }),
+    (error: unknown) => error instanceof ForbiddenError && /not authorized.*admin\.assistant\.manage.*insufficient_permission/.test(error.message),
   );
   assert.equal(await isPublicAssistantEnabled(readOnlyDeps(settingsRepo), { workspaceId: WORKSPACE }), false);
 });

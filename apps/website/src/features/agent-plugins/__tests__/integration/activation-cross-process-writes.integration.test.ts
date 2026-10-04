@@ -98,15 +98,12 @@ test("X1: a second process's write during a first process's paused rename is not
     childA = a.child;
     await waitForSignal(path.join(signalDir, "plugin-a.paused"), a.result, 30_000);
 
-    const b = spawnChild(["plain", root, signalDir, "plugin-b"]);
+    const b = spawnChild(["observe-lock", root, signalDir, "plugin-b"]);
     childB = b.child;
     await waitForSignal(path.join(signalDir, "plugin-b.started"), b.result, 30_000);
 
-    // A genuine, awaited real-time wait — not a background race — so A stays paused (holding the
-    // lock) for the whole window: only that proves B could not have finished DURING it. A background
-    // race constructed right before releasing A would settle almost as soon as B unblocks, which
-    // happens quickly after release regardless of whether the lock ever worked.
-    const bEarlyOutcome = await waitForExit(b.result, 3000);
+    await waitForSignal(path.join(signalDir, "plugin-b.contended"), b.result, 30_000);
+    await assert.rejects(readFile(path.join(signalDir, "plugin-b.write-complete")), { code: "ENOENT" });
 
     await writeFile(path.join(signalDir, "plugin-a.release"), "1", "utf8");
 
@@ -119,11 +116,6 @@ test("X1: a second process's write during a first process's paused rename is not
       (await resolveAgentPluginActivation({ workspaceRoot: root, pluginId: "plugin-b" })).verdict,
       "inactive",
       "plugin-b's disable was erased by a process that had read activations.json before plugin-b was written",
-    );
-    assert.equal(
-      bEarlyOutcome,
-      "timeout",
-      "process B finished its write while process A was between its read and its rename, so there is no cross-process lock",
     );
     assert.deepEqual(await readdir(root), ["activations.json"], "no activations.json.lock may be left behind");
   } finally {

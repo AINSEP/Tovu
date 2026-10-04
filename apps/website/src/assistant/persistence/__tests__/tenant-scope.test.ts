@@ -1,6 +1,5 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
 
 import Database from "better-sqlite3";
 import { CHAT_HISTORY_DDL } from "@jini-ai/chat/store/sqlite";
@@ -30,7 +29,7 @@ function freshChatDb(): Database.Database {
 describe("hashSessionKey", () => {
   it("returns the sha256 hex digest of the raw session key", () => {
     const key = "raw-cookie-value";
-    assert.equal(hashSessionKey(key), createHash("sha256").update(key).digest("hex"));
+    assert.equal(hashSessionKey(key), "9d566b131ff2087e4202a460d96b2db8686f941fdbae1aea6cba83c1f030dc5b");
   });
 
   it("is deterministic for the same input", () => {
@@ -97,9 +96,9 @@ describe("chatExpiryFor", () => {
     assert.equal(chatExpiryFor(principal, 1_000), undefined);
   });
 
-  it("returns now + GUEST_CHAT_TTL_MS for a guest principal", () => {
+  it("retains guest chats for exactly two days", () => {
     const principal: GuestChatPrincipal = { kind: "guest", workspaceId: "ws-1", sessionKey: "k" };
-    assert.equal(chatExpiryFor(principal, 1_000), 1_000 + GUEST_CHAT_TTL_MS);
+    assert.equal(chatExpiryFor(principal, 1_000), 172_801_000);
   });
 
   it("defaults `now` to Date.now() when omitted", () => {

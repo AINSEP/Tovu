@@ -65,11 +65,20 @@ test("renderRenderYaml: exact render.yaml contents for a known descriptor and re
   );
 });
 
-test("renderRenderYaml: never emits a secret VALUE — sync: false prompts in the Dashboard instead", () => {
+test("renderRenderYaml: never emits a secret VALUE — sync: false prompts in the Dashboard instead", (t) => {
+  const previousPassword = process.env.TOVU_ADMIN_PASSWORD;
+  const sentinel = "deployment-secret-value-must-never-escape-9374";
+  process.env.TOVU_ADMIN_PASSWORD = sentinel;
+  t.after(() => {
+    if (previousPassword === undefined) delete process.env.TOVU_ADMIN_PASSWORD;
+    else process.env.TOVU_ADMIN_PASSWORD = previousPassword;
+  });
   const result = renderRenderYaml(FIXTURE_DESCRIPTOR, { region: "frankfurt" });
 
   assert.match(result.contents, /- key: TOVU_ADMIN_PASSWORD\n {8}sync: false/);
   assert.match(result.contents, /- key: TOVU_INTEGRATIONS_ROOT_KEY\n {8}sync: false/);
+  assert.ok(!result.contents.includes(sentinel), "generated config must not contain the environment secret");
+  assert.ok(!JSON.stringify(result.notes).includes(sentinel), "instructions must not contain the environment secret");
 });
 
 test("renderRenderYaml: rejects a missing region rather than defaulting to Render's own \"oregon\" default", () => {

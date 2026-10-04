@@ -51,3 +51,10 @@ test("behavior.spec.md §4: watermark per-transaction increment limit is exactly
   assert.equal(result.newValue, 1);
   assert.equal(counter, 1, "a single stampWatermark call must increment exactly once, never twice");
 });
+
+test('stampWatermark rejects a closed non-null transaction before incrementing', () => {
+  let increments = 0;
+  const tx = { isOpen: false, increment: () => ++increments };
+  assert.throws(() => stampWatermark({ tx: tx as unknown as Parameters<typeof stampWatermark>[0]['tx'] }), WatermarkTransactionRequiredError);
+  assert.equal(increments, 0);
+});

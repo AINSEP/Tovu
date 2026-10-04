@@ -21,6 +21,7 @@ import { forceRemove } from "../fixtures/force-remove.js";
 
 const realFsp = await import("node:fs/promises");
 const log: string[] = [];
+let failDirectorySyncFor: string | undefined;
 
 const wrappedOpen = (async (...args: Parameters<typeof realFsp.open>) => {
   const handle = await realFsp.open(...args);
@@ -28,6 +29,7 @@ const wrappedOpen = (async (...args: Parameters<typeof realFsp.open>) => {
   const target = String(args[0]);
   handle.sync = (async () => {
     log.push(`sync:${path.basename(target)}`);
+    if (target === failDirectorySyncFor) throw Object.assign(new Error("directory fsync unsupported"), { code: "EINVAL" });
     return realSync();
   }) as typeof handle.sync;
   return handle;
@@ -40,7 +42,7 @@ const wrappedRename = (async (from: Parameters<typeof realFsp.rename>[0], to: Pa
 
 mock.module("node:fs/promises", { namedExports: { ...realFsp, open: wrappedOpen, rename: wrappedRename } });
 
-const { setAgentPluginActivation } = (await import("../../activation-effects.js")).agentPluginActivations;
+const { setAgentPluginActivation, resolveAgentPluginActivation } = (await import("../../activation-effects.js")).agentPluginActivations;
 
 async function freshRoot(): Promise<string> {
   return mkdtemp(path.join(os.tmpdir(), "tovu-activation-durable-"));
@@ -81,3 +83,22 @@ test(
     }
   },
 );
+
+// F6.2/F6.4: fail the directory fsync after the real rename, then read the served activation.
+test('D2: unsupported directory fsync does not reject a persisted activation', { skip: process.platform === 'win32' }, async () => {
+  const root = await freshRoot();
+  try {
+    log.length = 0;
+    failDirectorySyncFor = root;
+    await setAgentPluginActivation({ workspaceRoot: root, pluginId: 'plugin-fsync', enabled: false, actor: 'op' });
+    const renameIndex = log.indexOf('rename:activations.json');
+    const directorySyncIndex = log.indexOf(`sync:${path.basename(root)}`);
+    assert.ok(renameIndex >= 0 && directorySyncIndex > renameIndex, 'a real rename precedes the attempted directory fsync');
+    assert.equal((await resolveAgentPluginActivation({ workspaceRoot: root, pluginId: 'plugin-fsync' })).verdict, 'inactive');
+    const saved = JSON.parse(await realFsp.readFile(path.join(root, 'activations.json'), 'utf8'));
+    assert.equal(saved.plugins['plugin-fsync'].enabled, false);
+  } finally {
+    failDirectorySyncFor = undefined;
+    await forceRemove(root);
+  }
+});

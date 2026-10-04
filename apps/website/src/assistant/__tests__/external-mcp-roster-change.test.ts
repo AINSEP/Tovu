@@ -34,12 +34,19 @@ test("registering the same key twice keeps only the last listener, so one call",
 });
 
 test("a listener that never resolves makes notify({waitMs: 20}) resolve within 200ms", async () => {
-  onExternalMcpRosterChanged("stuck", () => new Promise(() => {}));
+  let stuckCalls = 0;
+  let healthyCalls = 0;
+  let release!: () => void;
+  onExternalMcpRosterChanged("stuck", () => { stuckCalls++; return new Promise<void>(resolve => { release = resolve; }); });
+  onExternalMcpRosterChanged("healthy", () => { healthyCalls++; });
 
   const startedAt = Date.now();
   await notifyExternalMcpRosterChanged({ waitMs: 20 });
   const elapsedMs = Date.now() - startedAt;
 
+  release();
+  assert.equal(stuckCalls, 1);
+  assert.equal(healthyCalls, 1);
   assert.ok(elapsedMs < 200, `expected notify to resolve within 200ms, took ${elapsedMs}ms`);
 });
 
@@ -51,5 +58,8 @@ test("a throwing listener does not reject notify", async () => {
     throw new Error("also boom");
   });
 
+  let healthyCalls = 0;
+  onExternalMcpRosterChanged("healthy", () => { healthyCalls++; });
   await assert.doesNotReject(() => notifyExternalMcpRosterChanged());
+  assert.equal(healthyCalls, 1, "throwing listeners must not stop the fan-out");
 });

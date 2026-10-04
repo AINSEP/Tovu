@@ -59,8 +59,15 @@ test("U-001-B1: acquireOperationLock for a DIFFERENT site succeeds even while si
   const siteOne = await acquireOperationLock({ deps: { clock }, input: { siteId: "site-1", operationKind: "restore" } });
   assert.equal(siteOne.ok, true);
 
-  const siteTwo = await acquireOperationLock({ deps: { clock }, input: { siteId: "site-2", operationKind: "migration" } });
-  assert.equal(siteTwo.ok, true);
+  assert.ok(siteOne.ok);
+  let siteTwo: Awaited<ReturnType<typeof acquireOperationLock>> | undefined;
+  try {
+    siteTwo = await acquireOperationLock({ deps: { clock }, input: { siteId: "site-2", operationKind: "migration" } });
+    assert.equal(siteTwo.ok, true);
+  } finally {
+    if (siteTwo?.ok) await releaseOperationLock({ deps: { clock }, input: { siteId: "site-2", handle: siteTwo.value } });
+    await releaseOperationLock({ deps: { clock }, input: { siteId: "site-1", handle: siteOne.value } });
+  }
 });
 
 test("releaseOperationLock frees the site so a subsequent acquireOperationLock for the same site succeeds", async () => {
@@ -72,6 +79,7 @@ test("releaseOperationLock frees the site so a subsequent acquireOperationLock f
 
   const second = await acquireOperationLock({ deps: { clock }, input: { siteId: "site-3", operationKind: "migration" } });
   assert.equal(second.ok, true);
+  if (second.ok) await releaseOperationLock({ deps: { clock }, input: { siteId: "site-3", handle: second.value } });
 });
 
 test("releasing a lock for a site with no held lock is a no-op, not an error (idempotent release)", async () => {
@@ -92,4 +100,22 @@ test("isOperationInFlight (Finding 3 fix, 2026-07-16 re-audit): false for a site
 
   await releaseOperationLock({ deps: { clock }, input: { siteId: "site-4", handle: acquired.value } });
   assert.equal(isOperationInFlight("site-4"), false);
+});
+
+// F6.2/F7.5: old holders must not release a newer operation, even at the same pinned timestamp.
+test('releasing a stale handle cannot free a newer holder for the same site', async () => {
+  const siteId = 'stale-handle-site';
+  const first = await acquireOperationLock({ deps: { clock }, input: { siteId, operationKind: 'restore' } });
+  assert.ok(first.ok);
+  await releaseOperationLock({ deps: { clock }, input: { siteId, handle: first.value } });
+  const current = await acquireOperationLock({ deps: { clock }, input: { siteId, operationKind: 'restore' } });
+  assert.ok(current.ok);
+  try {
+    await releaseOperationLock({ deps: { clock }, input: { siteId, handle: first.value } });
+    assert.equal(isOperationInFlight(siteId), true);
+    const blocked = await acquireOperationLock({ deps: { clock }, input: { siteId, operationKind: 'migration' } });
+    assert.deepEqual(blocked, { ok: false, error: { code: 'OPERATION_IN_FLIGHT', message: `an operation is already in flight for site '${siteId}'` } });
+  } finally {
+    await releaseOperationLock({ deps: { clock }, input: { siteId, handle: current.value } });
+  }
 });

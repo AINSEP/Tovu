@@ -57,9 +57,25 @@ describeEachChatDialect(
       assert.equal(rows[0]!.granted_at, "2026-09-29T00:00:00.000Z");
     });
 
+    // F6.2: a conflict target missing tool_name must not replace another tool's approval.
+    test("two different tools in one chat retain independent approval rows", async () => {
+      const { kernel, store } = make();
+      await seedChat(kernel, "c1");
+      const second = { ...KEY, toolName: "read_email", fingerprint: "fp-read" };
+      await store.grant(KEY, AT);
+      await store.grant(second, AT);
+      assert.equal(await store.has(KEY), true);
+      assert.equal(await store.has(second), true);
+      const rows = await kernel.run(db => db.selectFrom("assistant_conversation_tool_approvals").select(["tool_name", "fingerprint"]).execute());
+      assert.deepEqual(rows.sort((a, b) => a.tool_name.localeCompare(b.tool_name)), [
+        { tool_name: "read_email", fingerprint: "fp-read" },
+        { tool_name: "send_email", fingerprint: "fp-1" },
+      ]);
+    });
+
     test("grant throws for a conversation that does not exist; deleting a chat deletes its approvals", async () => {
       const { kernel, store } = make();
-      await assert.rejects(store.grant(KEY, AT));
+      await assert.rejects(store.grant(KEY, AT), /FOREIGN KEY constraint failed|violates foreign key constraint/);
       await seedChat(kernel, "c1");
       await store.grant(KEY, AT);
       await kernel.run((db) => db.deleteFrom("ai_chats").where("id", "=", "c1").execute());

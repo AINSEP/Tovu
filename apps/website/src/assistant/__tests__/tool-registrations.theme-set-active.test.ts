@@ -152,7 +152,7 @@ test("theme_set_active: refuses a principal without theme.set, without writing",
   const routeDeps = fakeDeps({ allow: false });
   const handler = handlerFor(routeDeps);
 
-  await assert.rejects(() => handler(ctxFor({ themeId: "aurora" })));
+  await assert.rejects(() => handler(ctxFor({ themeId: "aurora" })), /not authorized/);
   assert.equal(await resolveActiveThemeId(routeDeps), "basic", "a refused call must not have written");
 });
 

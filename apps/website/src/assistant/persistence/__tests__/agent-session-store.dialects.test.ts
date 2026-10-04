@@ -13,7 +13,7 @@ import { seedChat } from "./chat-seed.js";
 describeEachChatDialect(
   "agent session store",
   (kernel) => ({ kernel, store: createSqliteAgentSessionStore(kernel) }),
-  (make) => {
+  (make, dialect) => {
     test("get is null until set; set round-trips and overwrites; clear removes", async () => {
       const { kernel, store } = make();
       await seedChat(kernel, "c1");
@@ -42,7 +42,13 @@ describeEachChatDialect(
 
     test("set fails for a conversation that does not exist (foreign key)", async () => {
       const { store } = make();
-      await assert.rejects(store.setSessionId({ conversationId: "missing", agentId: "claude", sessionId: "s1" }));
+      await assert.rejects(store.setSessionId({ conversationId: "missing", agentId: "claude", sessionId: "s1" }), (error: unknown) => {
+        assert.ok(error instanceof Error && error.cause instanceof Error);
+        assert.equal(error.name, "AgentSessionStoreError");
+        assert.equal((error.cause as Error & { code?: string }).code,
+          dialect === "sqlite" ? "SQLITE_CONSTRAINT_FOREIGNKEY" : "23503");
+        return true;
+      });
     });
 
     test("deleting the conversation deletes its sessions", async () => {

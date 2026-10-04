@@ -135,10 +135,11 @@ test("CRUX: at least one realistic operator phrasing surfaces search_agent_plugi
  * reported so a reader can see what actually happens, matching the house "do not tune queries to
  * force a pass" convention.
  */
-test("ambiguous 'what plugins do I have installed' — reports both plugin families' rankings rather than asserting one", async () => {
+test("ambiguous 'what plugins do I have installed' — finds at least one of the two plugin families", async () => {
   const hits = await rankedIds("what plugins do I have installed", 10);
   logHits("what plugins do I have installed", hits);
-  assert.ok(hits.length > 0, "expected at least one hit for a plausible plugin query");
+  assert.ok(hits.some(hit => ["search_agent_plugin_local", "plugins_list"].includes(hit.id)),
+    `expected a plugin discovery tool in top 10, got ${hits.map(hit => hit.id).join(", ")}`);
 });
 
 /**

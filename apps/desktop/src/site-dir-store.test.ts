@@ -10,7 +10,7 @@ import assert from "node:assert/strict";
 import os from "node:os";
 import fs from "node:fs";
 import path from "node:path";
-import { EventEmitter } from "node:events";
+import { EventEmitter, once } from "node:events";
 import { spawn } from "node:child_process";
 import { PassThrough, Writable } from "node:stream";
 
@@ -464,14 +464,13 @@ test("initSiteDir keeps an operator-set TOVU_SITE_DIR instead of replacing it", 
   assert.equal(capturedEnv!.TOVU_SITE_DIR, "/operator/pinned");
 });
 
-/** Runs `body` and returns every uncaught exception raised while it — and one macrotask after it — ran. */
+/** Runs `body` and returns every uncaught exception raised until its child and token stream have closed. */
 async function uncaughtDuring(body: () => Promise<unknown>): Promise<Error[]> {
   const caught: Error[] = [];
   const listener = (error: Error): void => void caught.push(error);
   process.on("uncaughtException", listener);
   try {
-    await body().catch(() => undefined);
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await body();
   } finally {
     process.off("uncaughtException", listener);
   }
@@ -483,6 +482,8 @@ async function uncaughtDuring(body: () => Promise<unknown>): Promise<Error[]> {
 // startup crash) turned the write into an uncaught EPIPE — which crashes the Electron main process.
 test("initSiteDir: a real child that exits before reading the tokens rejects the create instead of crashing on EPIPE", async () => {
   let result: unknown;
+  let childClosed!: Promise<unknown>;
+  let stdinClosed!: Promise<unknown>;
   const uncaught = await uncaughtDuring(async () => {
     result = await initSiteDir({
       repoRoot: fakeRepoRoot(),
@@ -492,14 +493,19 @@ test("initSiteDir: a real child that exits before reading the tokens rejects the
       spawnFn: (_command, _args, options) => {
         // Spelled as a literal (not `options.stdio`) so `spawn` types the child's streams as non-null.
         assert.deepEqual(options.stdio, ["pipe", "pipe", "pipe"]);
-        return spawn(process.execPath, ["-e", "process.stderr.write('tovu: UNKNOWN_OPTION: --agent-plugin-tokens-stdin\\n'); process.exit(2)"], {
+        const child = spawn(process.execPath, ["-e", "process.stderr.write('tovu: UNKNOWN_OPTION: --agent-plugin-tokens-stdin\\n'); process.exit(2)"], {
           stdio: ["pipe", "pipe", "pipe"],
         });
+        childClosed = once(child, "close");
+        // Do not reject on the expected EPIPE: closure, after stream error delivery, is the signal.
+        stdinClosed = new Promise(resolve => child.stdin.once("close", resolve));
+        return child;
       },
     }).then(
       () => "resolved",
       (error: Error) => error.message,
     );
+    await Promise.all([childClosed, stdinClosed]);
   });
   assert.deepEqual(uncaught.map((error) => error.message), []);
   assert.equal(result, "tovu init failed for /a/new/site: UNKNOWN_OPTION: --agent-plugin-tokens-stdin");
@@ -508,6 +514,7 @@ test("initSiteDir: a real child that exits before reading the tokens rejects the
 test("initSiteDir: tokens that never reached the child fail the create even when the child exits 0", async () => {
   const child = fakeInitChild(0) as FakeInitChild & { stdin: Writable };
   child.stdin = new Writable({ write: (_chunk, _encoding, callback) => callback(Object.assign(new Error("write EPIPE"), { code: "EPIPE" })) });
+  const stdinClosed = new Promise(resolve => child.stdin.once("close", resolve));
   let result: unknown;
   const uncaught = await uncaughtDuring(async () => {
     result = await initSiteDir({
@@ -520,17 +527,22 @@ test("initSiteDir: tokens that never reached the child fail the create even when
       () => "resolved",
       (error: Error) => error.message,
     );
+    await stdinClosed;
   });
   assert.deepEqual(uncaught.map((error) => error.message), []);
   assert.equal(result, "tovu init for /a/new/site could not receive its Agent Plugin tokens: write EPIPE");
 });
 
-test("initSiteDir creates a real, servable site through Tovu's actual CLI", async () => {
+test("initSiteDir creates a complete site with the requested name through Tovu's actual CLI", async (t) => {
   // The checkout's own root (src -> apps/desktop -> apps -> repo), not a literal path: a
   // machine-specific absolute path exists on one laptop and nowhere else, CI runners included. This
   // test needs the root CLI built (`npm run build` at the repo root) — the release workflow's gates
   // job builds it before `npm run gates` for exactly this reason.
   const repoRoot = path.resolve(import.meta.dirname, "..", "..", "..");
+  if (!fs.existsSync(path.join(repoRoot, "dist/src/cli/main.js"))) {
+    t.skip("requires the built root CLI: dist/src/cli/main.js (npm run build)");
+    return;
+  }
   const target = path.join(tempDir(), "created-site");
   await initSiteDir({ repoRoot, dir: target, name: "Created By Test" });
 

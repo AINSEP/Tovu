@@ -154,7 +154,7 @@ test("commerce_products: a cross-workspace grants_member_tier_id is rejected by 
         grantsMemberTierId: "tier-in-a",
       })
     )
-  );
+  , /FOREIGN KEY constraint failed/);
 });
 
 test("commerce_products: a same-workspace grants_member_tier_id is accepted", async () => {
@@ -190,7 +190,8 @@ test("SqliteCommerceProductRepo: a product with no specs round-trips specs as un
   await repo.save(sampleProduct());
 
   const found = await repo.findById({ workspaceId: "ws-1", id: "product-1" });
-  assert.equal(found?.specs, undefined);
+  assert.ok(found, "the product must be retrieved before checking its optional specs");
+  assert.equal(found.specs, undefined);
 });
 
 // ---------------------------------------------------------------------------
@@ -222,7 +223,7 @@ test("commerce_product_images: the same media cannot be linked to one product tw
 
   await assert.rejects(() =>
     repo.save({ id: "img-2", workspaceId: "ws-1", productId: "product-1", mediaId: "media-1", position: 1, createdAt: NOW })
-  );
+  , /UNIQUE constraint failed: commerce_product_images\.workspace_id, commerce_product_images\.product_id, commerce_product_images\.media_id/);
 });
 
 test("commerce_product_images: a nonexistent media_id is rejected by the FK", async () => {
@@ -233,7 +234,7 @@ test("commerce_product_images: a nonexistent media_id is rejected by the FK", as
 
   await assert.rejects(() =>
     repo.save({ id: "img-1", workspaceId: "ws-1", productId: "product-1", mediaId: "no-such-media", position: 0, createdAt: NOW })
-  );
+  , /FOREIGN KEY constraint failed/);
 });
 
 // ---------------------------------------------------------------------------
@@ -275,10 +276,10 @@ test("commerce_prices: a compare_at_amount_cents that is not strictly greater th
 
   await assert.rejects(() =>
     repo.save(samplePrice({ id: "equal-compare-at", unitAmountCents: 3500, compareAtAmountCents: 3500 }))
-  );
+  , /CHECK constraint failed: commerce_prices_compare_at_amount_cents_check/);
   await assert.rejects(() =>
     repo.save(samplePrice({ id: "lower-compare-at", unitAmountCents: 3500, compareAtAmountCents: 3000 }))
-  );
+  , /CHECK constraint failed: commerce_prices_compare_at_amount_cents_check/);
 });
 
 test("commerce_prices: a negative unit_amount_cents is rejected by the CHECK constraint", async () => {
@@ -287,7 +288,7 @@ test("commerce_prices: a negative unit_amount_cents is rejected by the CHECK con
   await new SqliteCommerceProductRepo(db).save(sampleProduct());
   const repo = new SqliteCommercePriceRepo(db);
 
-  await assert.rejects(() => repo.save(samplePrice({ id: "bad-price", unitAmountCents: -1 })));
+  await assert.rejects(() => repo.save(samplePrice({ id: "bad-price", unitAmountCents: -1 })), /CHECK constraint failed: commerce_prices_unit_amount_cents_check/);
 });
 
 test("commerce_prices: an uppercase currency is rejected by the CHECK constraint", async () => {
@@ -296,7 +297,7 @@ test("commerce_prices: an uppercase currency is rejected by the CHECK constraint
   await new SqliteCommerceProductRepo(db).save(sampleProduct());
   const repo = new SqliteCommercePriceRepo(db);
 
-  await assert.rejects(() => repo.save(samplePrice({ id: "bad-currency", currency: "USD" })));
+  await assert.rejects(() => repo.save(samplePrice({ id: "bad-currency", currency: "USD" })), /CHECK constraint failed: commerce_prices_currency_check/);
 });
 
 // ---------------------------------------------------------------------------
@@ -370,7 +371,7 @@ test("SqliteCommerceOrderRepo.placeOrder: a line item FK failure rolls back the 
       order: sampleOrder(),
       items: [sampleOrderItem({ priceId: "does-not-exist", productId: "does-not-exist" })],
     })
-  );
+  , /FOREIGN KEY constraint failed/);
 
   const order = await repo.findById({ workspaceId: "ws-1", id: "order-1" });
   assert.equal(order, null, "the order header must not survive when its line item fails to insert");
@@ -394,5 +395,5 @@ test("commerce_orders: an unknown member_id is rejected by the FK", async () => 
   seedWorkspace(db, "ws-1");
   const repo = new SqliteCommerceOrderRepo(db);
 
-  await assert.rejects(() => repo.placeOrder({ order: sampleOrder({ memberId: "no-such-member" }), items: [] }));
+  await assert.rejects(() => repo.placeOrder({ order: sampleOrder({ memberId: "no-such-member" }), items: [] }), /FOREIGN KEY constraint failed/);
 });

@@ -108,3 +108,23 @@ test("the tool handler refuses a non-object input", async () => {
   const handler = buildHandler();
   await assert.rejects(() => call(handler, "access-tokens"), /object/i);
 });
+
+// F6.2/F4.4: each unsafe path is the only invalid input; reject before building a link.
+for (const path of ['../api', 'media?x=1', 'media#top', 'https://evil.example', '%2e%2e/api']) {
+  test(`buildAdminScreenPath rejects an unsafe screen path: ${path}`, () => {
+    assert.throws(() => buildAdminScreenPath({ path }), (error: unknown) =>
+      error instanceof ToolInputError && /path/.test(error.message));
+  });
+}
+
+test('the tool normalizes a public origin with a trailing slash', async (t) => {
+  const previous = process.env.TOVU_PUBLIC_URL;
+  t.after(() => {
+    if (previous === undefined) delete process.env.TOVU_PUBLIC_URL;
+    else process.env.TOVU_PUBLIC_URL = previous;
+  });
+  process.env.TOVU_PUBLIC_URL = 'https://example.tovu.test/';
+  assert.deepEqual(await call(buildHandler(), { path: 'media' }), {
+    path: '/admin/media', url: 'https://example.tovu.test/admin/media',
+  });
+});

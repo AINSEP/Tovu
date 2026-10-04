@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { realToolCatalog } from "./real-tool-catalog.fixture.js";
 
 import { mediaAgentToolCatalog } from "../../features/media/index.js";
 import { mediaGenerationAgentToolCatalog } from "../../features/media-generation/agent-tools.js";
@@ -103,4 +104,14 @@ test("asking to GENERATE an image still finds media_generate_asset, not the impo
 test("asking to upload bytes still finds media_upload_asset — the importer does not displace it either", () => {
   const hits = buildToolCatalogQuery(fakeRegistry()).search({ query: "upload these base64 bytes as a new asset" }, { limit: 10 });
   assert.equal(hits[0]?.id, "media_upload_asset", `got ${hits.map((hit) => hit.id).join(", ")}`);
+});
+
+// F2.4/F4.2: new competing production registrations must participate in ranking automatically.
+test('media_import_from_url ranks first for operator phrasings against the full registered catalog', async () => {
+  const { registry, catalog } = await realToolCatalog();
+  assert.ok(registry.has({ toolId: 'media_import_from_url' }), 'the searchable capability must actually be registered');
+  for (const query of ['save the image at this link into the media library', 'can you download this picture from the web and add it to our files', 'I have a URL for an image, put it in the media library', 'grab that photo from the CDN and store it with our other images', 'import an image from a remote address']) {
+    const hits = catalog.search({ query }, { limit: 10 });
+    assert.equal(hits[0]?.id, 'media_import_from_url', `${query}: got ${hits.map(hit => hit.id).join(', ')}`);
+  }
 });

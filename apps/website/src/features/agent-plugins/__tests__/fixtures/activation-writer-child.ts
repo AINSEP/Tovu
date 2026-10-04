@@ -59,6 +59,24 @@ function installPauseBeforeRename(): void {
   (require("node:module") as typeof import("node:module")).syncBuiltinESMExports();
 }
 
+// Observe a real lock attempt rather than guessing whether the child had enough CPU time.
+function installContentionSignal(): void {
+  const require = createRequire(import.meta.url);
+  const fsp = require("node:fs/promises") as typeof import("node:fs/promises");
+  const realOpen = fsp.open;
+  fsp.open = (async (...args: Parameters<typeof realOpen>) => {
+    try { return await realOpen(...args); }
+    catch (error) {
+      if (path.basename(String(args[0])) === "activations.json.lock" && args[1] === "wx" &&
+          error instanceof Error && "code" in error && error.code === "EEXIST") {
+        await writeFile(signalPath(`${pluginId}.contended`), "1", "utf8");
+      }
+      throw error;
+    }
+  }) as typeof realOpen;
+  (require("node:module") as typeof import("node:module")).syncBuiltinESMExports();
+}
+
 async function runBurst(setAgentPluginActivation: typeof import("../../activation-effects.js").agentPluginActivations.setAgentPluginActivation): Promise<void> {
   const count = Number(countArg ?? "0");
   await writeFile(signalPath(`${pluginId}.ready`), "1", "utf8");
@@ -71,6 +89,7 @@ async function runBurst(setAgentPluginActivation: typeof import("../../activatio
 async function main(): Promise<void> {
   await mkdir(signalDir, { recursive: true });
   if (mode === "pause-before-rename") installPauseBeforeRename();
+  if (mode === "observe-lock") installContentionSignal();
 
   const { setAgentPluginActivation } = (await import("../../activation-effects.js")).agentPluginActivations;
 
@@ -81,6 +100,7 @@ async function main(): Promise<void> {
 
   await writeFile(signalPath(`${pluginId}.started`), "1", "utf8");
   await setAgentPluginActivation({ workspaceRoot, pluginId, enabled: false, actor: "child" });
+  await writeFile(signalPath(`${pluginId}.write-complete`), "1", "utf8");
 }
 
 main().catch((error: unknown) => {

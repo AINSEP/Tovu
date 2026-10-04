@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import ts from "typescript";
 
 import { EMBED_MARKER_TARGET_KEYS, embedMarkerTarget } from "../marker.js";
 import { isPageEmbedType } from "../../../../features/widgets/resolver-service.js";
@@ -67,5 +68,14 @@ test("marker-target parity: the target-value length bound matches html-embeds.ts
 test("marker.ts stays import-free so the admin's alias never pulls in server-only code", () => {
   const source = readSource("../marker.ts");
 
-  assert.doesNotMatch(source, /^import /m);
+  const parsed = ts.createSourceFile("marker.ts", source, ts.ScriptTarget.Latest, true);
+  const dependencies: string[] = [];
+  function visit(node: ts.Node) {
+    if (ts.isImportDeclaration(node) || (ts.isExportDeclaration(node) && node.moduleSpecifier)) dependencies.push(node.getText(parsed));
+    if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) dependencies.push(node.getText(parsed));
+    if (ts.isImportEqualsDeclaration(node)) dependencies.push(node.getText(parsed));
+    ts.forEachChild(node, visit);
+  }
+  visit(parsed);
+  assert.deepEqual(dependencies, [], "marker must not acquire a dependency through imports or re-exports");
 });

@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { lookup } from "node:dns/promises";
 import test from "node:test";
 
 import { createToolRegistry } from "@jini-ai/core";
@@ -220,7 +219,10 @@ async function executeThroughGuardedClient() {
         maxResponseBytes: 1_000_000,
         maxDecompressedBytes: 1_000_000,
       },
-    }),
+    }, { dns: { resolve: async ({ hostname }) => {
+      assert.equal(hostname, "localhost");
+      return ["127.0.0.42"];
+    } } }),
     customCredentialsAudit: audit,
   };
 
@@ -237,8 +239,7 @@ async function executeThroughGuardedClient() {
 }
 
 test("an egress refusal tells the model WHICH host was refused and why, but never the address that host resolved to", async () => {
-  const resolved = (await lookup("localhost", { all: true, verbatim: true })).map((entry) => entry.address);
-  assert.ok(resolved.length > 0, "precondition: localhost resolves through the hosts file");
+  const resolved = ["127.0.0.42"];
 
   const { result, transport } = await executeThroughGuardedClient();
 
@@ -252,7 +253,7 @@ test("an egress refusal tells the model WHICH host was refused and why, but neve
 });
 
 test("the address the model is not told stays available server-side, in the audit trail", async () => {
-  const resolved = (await lookup("localhost", { all: true, verbatim: true })).map((entry) => entry.address);
+  const resolved = ["127.0.0.42"];
 
   const { audit } = await executeThroughGuardedClient();
 

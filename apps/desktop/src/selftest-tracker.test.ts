@@ -1,9 +1,13 @@
 /**
  * @file Direct tests for `selftest-tracker.ts`. No Electron: a fake window is just
- * `{ webContents: { once, getURL, getTitle } }`, the only surface this module touches.
+ * `{ webContents: { on, once, getURL, getTitle } }`, the only surface this module touches.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
+import { EventEmitter } from "node:events";
+import fs from "node:fs";
+import { runInNewContext } from "node:vm";
+import ts from "typescript";
 
 import { createSelftestTracker } from "./selftest-tracker.ts";
 import type { SelftestCallbacks } from "./selftest-tracker.ts";
@@ -18,17 +22,11 @@ interface RecordedCalls {
 /** A fake window whose `did-finish-load`/`did-fail-load` fire only when the test calls
  *  `finishLoad()`/`failLoad()` — so a test controls the exact ORDER events happen in. */
 function fakeWindow(url: string, title: string) {
-  const listeners: Record<string, (...args: unknown[]) => void> = {};
+  const contents = Object.assign(new EventEmitter(), { getURL: () => url, getTitle: () => title });
   return {
-    webContents: {
-      once(event: string, cb: (...args: any[]) => void) { // any: one fake method stands in for both of `once`'s per-event listener overloads
-        listeners[event] = cb;
-      },
-      getURL: () => url,
-      getTitle: () => title,
-    },
-    finishLoad: () => listeners["did-finish-load"]?.(),
-    failLoad: (code: number, description: string) => listeners["did-fail-load"]?.(undefined, code, description),
+    webContents: contents,
+    finishLoad: () => contents.emit("did-finish-load"),
+    failLoad: (code: number, description: string, isMainFrame = true) => contents.emit("did-fail-load", undefined, code, description, url, isMainFrame),
   };
 }
 
@@ -77,17 +75,32 @@ test("two windows, added one at a time: the FIRST window finishing before the SE
   assert.deepEqual(calls.settled, [{ failed: false }]);
 });
 
-test("a window whose did-finish-load fires before add() is ever called for it is impossible to miss, because add() is called synchronously at window-creation time — this test proves the tracker itself never assumes otherwise: calling finishLoad() before add() is simply a caller error with no listener registered yet, not something the tracker silently tolerates", () => {
+// F2.4/F3.5: execute main's actual createWindow body; a load may complete immediately.
+test("createWindow registers the tracker before navigation can finish", () => {
+  const source = fs.readFileSync(new URL("../main.ts", import.meta.url), "utf8");
+  const parsed = ts.createSourceFile("main.ts", source, ts.ScriptTarget.Latest, true);
+  const declaration = parsed.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === "createWindow");
+  assert.ok(declaration);
+  const compiled = ts.transpileModule(declaration.getText(parsed), {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None },
+  }).outputText;
   const { calls, callbacks } = recordingCallbacks();
-  const tracker = createSelftestTracker(1, callbacks);
-  const window = fakeWindow("http://x/a", "A");
-
-  window.finishLoad(); // no-op: no listener registered yet
-  assert.deepEqual(calls.loaded, []);
-
-  tracker.add(window);
-  window.finishLoad();
+  class BrowserWindow {
+    webContents = fakeWindow("http://x/a", "A").webContents;
+    on() { return this; }
+    loadURL() {
+      assert.equal(this.webContents.listenerCount("did-finish-load"), 1);
+      this.webContents.emit("did-finish-load");
+    }
+  }
+  const create = runInNewContext(`${compiled}\ncreateWindow`, {
+    BrowserWindow, SELFTEST: true, SPEECH_PRELOAD_PATH: "/speech.js", URL,
+    selftestTracker: createSelftestTracker(1, callbacks),
+    installAppWindowNavigationPolicy: () => {}, shell: { openExternal: () => {} },
+  });
+  create("http://x/a", "A");
   assert.deepEqual(calls.loaded, [{ url: "http://x/a", title: "A" }]);
+  assert.deepEqual(calls.settled, [{ failed: false }]);
 });
 
 test("a failed load reports failure and settles with failed:true, without waiting for the other window", () => {
@@ -135,3 +148,19 @@ test("a successful load after a failure elsewhere does not also settle as succes
 
   assert.deepEqual(calls.settled, [{ failed: true }], "only the original failure settlement, never a second success one");
 });
+
+// F3.2/F3.3/F6.2: Electron delivers the URL and frame flag, and once removes its listener.
+for (const [code, isMainFrame] of [[-2, false], [-3, true]] as const) {
+  test(`nonfatal load (${code}, main frame ${isMainFrame}) does not fail or consume the fatal-load listener`, () => {
+    const { calls, callbacks } = recordingCallbacks();
+    const tracker = createSelftestTracker(1, callbacks);
+    const window = fakeWindow("http://x/a", "A");
+    tracker.add(window);
+    window.failLoad(code, "ignored load", isMainFrame);
+    assert.deepEqual(calls.failed, []);
+    assert.deepEqual(calls.settled, []);
+    window.failLoad(-2, "net::ERR_FAILED", true);
+    assert.deepEqual(calls.failed, [{ url: "http://x/a", code: -2, description: "net::ERR_FAILED" }]);
+    assert.deepEqual(calls.settled, [{ failed: true }]);
+  });
+}

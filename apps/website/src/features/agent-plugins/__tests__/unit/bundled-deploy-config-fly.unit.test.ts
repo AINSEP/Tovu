@@ -72,7 +72,14 @@ primary_region = "iad"
   );
 });
 
-test("renderFlyToml: never emits a secret VALUE — only fly secrets set NAME instructions in notes", () => {
+test("renderFlyToml: never emits a secret VALUE — only fly secrets set NAME instructions in notes", (t) => {
+  const previousPassword = process.env.TOVU_ADMIN_PASSWORD;
+  const sentinel = "deployment-secret-value-must-never-escape-9374";
+  process.env.TOVU_ADMIN_PASSWORD = sentinel;
+  t.after(() => {
+    if (previousPassword === undefined) delete process.env.TOVU_ADMIN_PASSWORD;
+    else process.env.TOVU_ADMIN_PASSWORD = previousPassword;
+  });
   const result = renderFlyToml(FIXTURE_DESCRIPTOR, { region: "iad" });
 
   assert.ok(!result.contents.includes("TOVU_ADMIN_PASSWORD"), "fly.toml has no field for secrets at all");
@@ -83,6 +90,8 @@ test("renderFlyToml: never emits a secret VALUE — only fly secrets set NAME in
     "Set TOVU_ADMIN_PASSWORD (boot-blocking) with: fly secrets set TOVU_ADMIN_PASSWORD=<value> -a acme-app",
     "Set TOVU_INTEGRATIONS_ROOT_KEY (recommended) with: fly secrets set TOVU_INTEGRATIONS_ROOT_KEY=<value> -a acme-app",
   ]);
+  assert.ok(!result.contents.includes(sentinel), "generated config must not contain the environment secret");
+  assert.ok(!JSON.stringify(result.notes).includes(sentinel), "instructions must not contain the environment secret");
 });
 
 test("renderFlyToml: rejects a missing region rather than defaulting to one", () => {

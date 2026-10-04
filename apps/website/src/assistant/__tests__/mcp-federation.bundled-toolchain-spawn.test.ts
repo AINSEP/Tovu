@@ -129,7 +129,7 @@ test("without the desktop toolchain env, the real spawn is unchanged: same comma
     fs.writeFileSync(server, FIXTURE_SERVER);
 
     const report = await attachAndReport(
-      { command: process.execPath, args: [server, "--flag"], env: { API_KEY: "k" } },
+      { command: process.execPath, args: [server, "--flag"], env: { API_KEY: "k", PATH: root } },
       { PATH: "/usr/bin:/bin", HOME: root },
       path.join(root, "report.json"),
     );
@@ -137,9 +137,11 @@ test("without the desktop toolchain env, the real spawn is unchanged: same comma
     assert.deepEqual(report.argv, [server, "--flag"]);
     assert.equal(report.env.ELECTRON_RUN_AS_NODE, undefined);
     assert.equal(report.env.npm_config_cache, undefined);
-    assert.equal(report.env.PATH, process.env.PATH, "PATH is the inherited parent PATH, untouched");
+    assert.equal(report.env.PATH, root, "the explicit connection PATH must survive unchanged");
+    const inheritedNames = ["API_KEY", "HOME", "PATH", "TMPDIR", ...(process.platform === "win32"
+      ? ["SystemRoot", "windir", "ComSpec", "PATHEXT", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "TEMP", "TMP"] : [])].map(key => key.toLowerCase());
     for (const key of report.envKeys) {
-      assert.ok(["API_KEY", "HOME", "PATH", "TMPDIR"].includes(key) || key.startsWith("__CF"), `unexpected child env key ${key}`);
+      assert.ok(inheritedNames.includes(key.toLowerCase()) || key.startsWith("__CF"), `unexpected child env key ${key}`);
     }
   } finally {
     fs.rmSync(root, { recursive: true, force: true });

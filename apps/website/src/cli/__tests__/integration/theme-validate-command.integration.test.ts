@@ -70,7 +70,7 @@ test("tovu theme validate <dir>: a valid theme exits 0 and prints a human-readab
 
   const result = runCli(["theme", "validate", dir]);
   assert.equal(result.status, 0, `stderr: ${result.stderr}`);
-  assert.match(result.stdout, /VALID/);
+  assert.match(result.stdout, /: VALID$/m);
 });
 
 test("tovu theme validate <dir> --json: prints the full machine-readable result", () => {
@@ -101,7 +101,7 @@ test("tovu theme validate <dir>: a valid theme missing author-profile-advisory f
 
   const result = runCli(["theme", "validate", dir]);
   assert.equal(result.status, 0, `stderr: ${result.stderr}`);
-  assert.match(result.stdout, /VALID/);
+  assert.match(result.stdout, /: VALID$/m);
   assert.match(result.stdout, /warnings \(\d+\):/);
   assert.match(result.stdout, /\[description-missing\]/);
 });

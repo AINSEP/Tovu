@@ -63,7 +63,14 @@ test("renderRailwayConfig: exact railway.json contents for a known descriptor an
   assert.doesNotThrow(() => JSON.parse(result.contents));
 });
 
-test("renderRailwayConfig: never emits a secret VALUE or any env-var field at all — railway.json has no such section", () => {
+test("renderRailwayConfig: never emits a secret VALUE or any env-var field at all — railway.json has no such section", (t) => {
+  const previousPassword = process.env.TOVU_ADMIN_PASSWORD;
+  const sentinel = "deployment-secret-value-must-never-escape-9374";
+  process.env.TOVU_ADMIN_PASSWORD = sentinel;
+  t.after(() => {
+    if (previousPassword === undefined) delete process.env.TOVU_ADMIN_PASSWORD;
+    else process.env.TOVU_ADMIN_PASSWORD = previousPassword;
+  });
   const result = renderRailwayConfig(FIXTURE_DESCRIPTOR, { region: "us-west2" });
 
   assert.ok(!result.contents.includes("TOVU_ADMIN_PASSWORD"));
@@ -75,6 +82,8 @@ test("renderRailwayConfig: never emits a secret VALUE or any env-var field at al
     result.notes.some((note) => note.includes("railway variables set TOVU_ADMIN_PASSWORD")),
     "the secret instead appears as a CLI instruction in notes"
   );
+  assert.ok(!result.contents.includes(sentinel), "generated config must not contain the environment secret");
+  assert.ok(!JSON.stringify(result.notes).includes(sentinel), "instructions must not contain the environment secret");
 });
 
 test("renderRailwayConfig: rejects a missing region — railway.json has no single-service region default to fall back to", () => {

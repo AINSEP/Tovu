@@ -198,3 +198,16 @@ test("TokenStorePort.tryRedeem itself reports which single caller performed the 
   const redeemedCount = [a, b].filter((r) => r.redeemed).length;
   assert.equal(redeemedCount, 1, "tryRedeem must be a single atomic conditional operation, never letting two callers both win");
 });
+
+// F6.2/F6.4: expiry must persist the transition, rather than leave every token minted.
+test('expireToken persists expired for a minted token past its TTL', async () => {
+  const store = new InMemoryTokenStore();
+  const minted = mintToken(baseMintParams());
+  await store.save(minted);
+  assert.equal((await store.findByToken(minted.confirmationToken))?.status, 'minted');
+  await expireToken({ store, token: minted.confirmationToken, now: TEN_MIN_ONE_SEC_LATER });
+  const expired = await store.findByToken(minted.confirmationToken);
+  assert.ok(expired);
+  assert.equal(expired.status, 'expired');
+  assert.equal(isRedeemable({ record: expired, now: TEN_MIN_ONE_SEC_LATER }), false);
+});

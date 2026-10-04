@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { realToolCatalog } from "./real-tool-catalog.fixture.js";
 
 import { TOOL_SEARCH_KEYWORDS } from "../tool-search-keywords.js";
 
@@ -48,4 +49,12 @@ test("content_duplicate's keywords name every resource it actually supports, so 
   for (const resource of ["post", "page", "form", "media"]) {
     assert.match(keywords, new RegExp(`\\b${resource}\\b`), `expected content_duplicate's keywords to mention '${resource}'`);
   }
+});
+
+// F1.4/F2.4: pin a live registered id and execute production search against its competitors.
+test("'copy this page' ranks the actual content_duplicate tool first in the full catalog", async () => {
+  const { registry, catalog } = await realToolCatalog();
+  assert.ok(registry.has({ toolId: 'content_duplicate' }));
+  const hits = catalog.search({ query: 'copy this page' }, { limit: 10 });
+  assert.equal(hits[0]?.id, 'content_duplicate', `got ${hits.map(hit => hit.id).join(', ')}`);
 });
