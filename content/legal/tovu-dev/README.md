@@ -10,7 +10,7 @@ IP addresses. Each page contains one unresolved identity field, `[[OWNER NAME]]`
 Existing legal clauses and the original effective date were preserved; the last-updated date
 is 2026-10-04. Both pages have an `#ai-disclosure` section and a “Report AI content” form link.
 
-The form-IP cleanup worker has a staged nullable-IP migration and Jini release dependency.
+The form-IP cleanup worker's nullable-IP migration is committed and installed (2a41f672e); cleanup stays off until a `@jini-ai/cms-forms` release exporting `sweepExpiredSubmissionIps` is installed.
 The wording records the owner's retention rule; coordinate deployment with that worker's
 handoff before treating cleanup as active. No schema or migration was changed by this copy edit.
 
@@ -19,5 +19,5 @@ The active Quartz legal templates in `content/themes/static/` and
 historical backup snapshots were left intact.
 
 Regression tests are in `development/scripts/__tests__/legal-owner-inputs.unit.test.ts`.
-They have not been run. They check owner inputs, the seeded contact form destination,
+They ran green in `verify-2026-10-04/legal`. They check owner inputs, the seeded contact form destination,
 HTML/seed parity, preserved sections, and active theme copies.
