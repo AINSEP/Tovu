@@ -1,4 +1,5 @@
 import { useSelectedSkills, useComposerDiscoveryDraft, useSkillOnlySend } from "./hooks/composer-skills.hooks";
+import { useBrowserAgentSettings } from "../../features/webmcp/browser-agent-settings.hooks";
 import { useSkillInstall } from "../../features/skills/use-skill-install.hooks";
 import { SkillInstallConfirmation } from "../../features/skills/SkillInstallConfirmation";
 import {
@@ -409,6 +410,7 @@ export function AssistantDock({
   onFolderDropCaptureReady,
 }: AssistantDockProps) {
   const agentBridge = resolveAgentBridge(agentBridgeProp);
+  const { enabled: webMcpEnabled } = useBrowserAgentSettings({});
   // Translates this component's own pane chrome (eyebrow, title fallback, composer placeholder)
   // and — via `chatI18n` — the `ConversationList` switcher mounted in `header` below. See
   // {@link useAssistantDockChrome}'s own doc for why `locale`/`t`/`chatI18n` are one hook rather
@@ -605,7 +607,8 @@ export function AssistantDock({
         // agent handle (`PublishContentDialog.tsx`), so neither this in-page WebMCP surface nor the
         // daemon-relayed one above can press it — see plan §3 for the full gate. Nothing here makes
         // the Publish button agent-proof by keeping WebMCP off; it already is, regardless.
-        agentControl={{ enabled: true, bridgeAccess: agentBridge?.bridgeAccess, webmcp: true }}
+        // The owner's default now has a browser-local opt-out in Settings → Privacy.
+        agentControl={{ enabled: true, bridgeAccess: agentBridge?.bridgeAccess, webmcp: webMcpEnabled }}
         uploadAttachments={uploadAttachments}
         // Restores a persisted draft's ATTACHMENTS, not just its text. `@jini-ai/chat` caches the
         // references but hands back only the subset a host confirms is still served — the staged

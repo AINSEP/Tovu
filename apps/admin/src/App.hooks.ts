@@ -2,6 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } fro
 import { createFrontendSessionBridge, type FrontendSessionBridge } from "@jini-ai/chat/react";
 import { createDomPageDriver } from "@jini-ai/agentic/dom";
 import { toWebMcpTool, type WebMcpRegisterToolOptions, type WebMcpToolRegistration } from "@jini-ai/agentic";
+import { registerAdminPageWebMcpTools } from "./features/webmcp/admin-page-tools";
+import { getBrowserAgentEnabled, useBrowserAgentSettings } from "./features/webmcp/browser-agent-settings.hooks";
+import { t as tWebMcp } from "./features/webmcp/webmcp-i18n";
+import { useWiredAdminLocale } from "./hooks/use-admin-locale.hooks";
 
 import { buildAdminAgentPages } from "./lib/agent-pages";
 import {
@@ -940,7 +944,9 @@ interface AdminWebMcpModelContext {
 function resolveWebMcpModelContext(): AdminWebMcpModelContext | undefined {
   const doc = document as unknown as { modelContext?: AdminWebMcpModelContext };
   const nav = navigator as unknown as { modelContext?: AdminWebMcpModelContext };
-  return doc.modelContext ?? nav.modelContext;
+  if (typeof doc.modelContext?.registerTool === "function") return doc.modelContext;
+  if (typeof nav.modelContext?.registerTool === "function") return nav.modelContext;
+  return undefined;
 }
 
 /**
@@ -968,28 +974,40 @@ export function registerAdminWebMcpTool(
   signal: AbortSignal,
   modelContext: AdminWebMcpModelContext | undefined = resolveWebMcpModelContext(),
 ): void {
-  if (!modelContext) return;
+  if (!modelContext || signal.aborted || !getBrowserAgentEnabled({})) return;
   const registration = toWebMcpTool({
     capability: PUBLISH_CONTENT_CAPABILITY,
-    execute: ({ id, args }) => executors["admin."]!(id, args),
+    execute: ({ id, args }) => {
+      if (signal.aborted || !getBrowserAgentEnabled({})) throw new Error("WebMCP admin access is disabled or closed");
+      return executors["admin."]!(id, args);
+    },
   }, { signal });
-  modelContext.registerTool(registration, registration.registerOptions);
+  try {
+    void Promise.resolve(modelContext.registerTool(registration, registration.registerOptions)).catch((error: unknown) => {
+      if (!signal.aborted) console.warn("[admin] WebMCP publish registration failed", error);
+    });
+  } catch (error) {
+    if (!signal.aborted) console.warn("[admin] WebMCP publish registration failed", error);
+  }
 }
 
 export function useAgentPageBridge(): UseAgentPageBridge {
   const [contentEl, setContentEl] = useState<HTMLElement | null>(null);
   const [agentBridge, setAgentBridge] = useState<FrontendSessionBridge | null>(null);
+  const { enabled: webMcpEnabled } = useBrowserAgentSettings({});
+  const locale = useWiredAdminLocale();
 
   // Stable for the app's lifetime: rebuilding it would tear down the driver (and with it the SSE
   // connection) on every render.
   const agentPages = useMemo(() => buildAdminAgentPages(), []);
+  const pageDriver = useMemo(() => contentEl ? createDomPageDriver({ root: contentEl, pages: agentPages }) : null, [contentEl, agentPages]);
+  const executors = useMemo(() => buildAdminCapabilityExecutors(contentEl), [contentEl]);
 
   useEffect(() => {
-    if (!contentEl) return;
+    if (!pageDriver) return;
 
-    const executors = buildAdminCapabilityExecutors(contentEl);
     const bridge = createFrontendSessionBridge({ baseUrl: "", fetch, openStream: ({ url }) => new EventSource(url) }, {
-      pageDriver: createDomPageDriver({ root: contentEl, pages: agentPages }),
+      pageDriver,
       executors,
       onError: logFrontendSessionError,
     });
@@ -998,19 +1016,27 @@ export function useAgentPageBridge(): UseAgentPageBridge {
     bridge.ready.catch((error: unknown) => console.error("[admin] page control never attached", error));
     setAgentBridge(bridge);
 
-    // Plan §4 S5: registers the same `executors["admin."]` dispatcher as a WebMCP tool, when this
-    // browser exposes one. Its own AbortController, not `bridge.close()`'s lifetime — the two are
-    // unrelated unregistration mechanisms for unrelated surfaces (daemon-relayed SSE vs. page-native
-    // WebMCP) that just happen to share this effect's mount/unmount window.
-    const webMcpController = new AbortController();
-    registerAdminWebMcpTool(executors, webMcpController.signal);
-
     return () => {
       bridge.close();
-      webMcpController.abort();
       setAgentBridge((current) => (current === bridge ? null : current));
     };
-  }, [contentEl, agentPages]);
+  }, [pageDriver, executors]);
+
+  useEffect(() => {
+    if (!pageDriver || !webMcpEnabled) return;
+    // Plan §4 S5: expose the SAME admin dispatcher and page driver as the assistant relay.
+    // Its own AbortController, not bridge.close()'s lifetime: these are unrelated surfaces
+    // (daemon-relayed SSE vs. page-native WebMCP). Opting out unregisters browser tools while
+    // keeping the assistant attached. Abort is the draft's only unregister mechanism.
+    const webMcpController = new AbortController();
+    registerAdminWebMcpTool(executors, webMcpController.signal);
+    registerAdminPageWebMcpTools({ driver: pageDriver, signal: webMcpController.signal }, {
+      requestUserInteraction: async ({ capability, args }) => window.confirm(
+        `${tWebMcp(locale, "Allow the browser agent to perform this admin action?")}\n\n${capability.id}\n${JSON.stringify(args, null, 2)}`,
+      ),
+    });
+    return () => webMcpController.abort();
+  }, [pageDriver, executors, webMcpEnabled, locale]);
 
   return { contentEl, setContentEl, agentBridge };
 }

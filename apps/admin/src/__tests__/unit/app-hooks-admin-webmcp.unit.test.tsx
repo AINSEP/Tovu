@@ -3,15 +3,19 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { registerAdminWebMcpTool, useAgentPageBridge } from "../../App.hooks";
 import { PUBLISH_CONTENT_CAPABILITY } from "@tovu/publish-content-ui";
+import { PAGE_CAPABILITIES } from "@jini-ai/agentic";
+import { setBrowserAgentEnabled } from "../../features/webmcp/browser-agent-settings.hooks";
 
 vi.mock("@jini-ai/chat/react", () => ({
   createFrontendSessionBridge: vi.fn(() => ({ ready: Promise.resolve(), close: vi.fn() })),
 }));
+vi.mock("../../hooks/use-admin-locale.hooks", () => ({ useWiredAdminLocale: () => "en" }));
 
 const documentContextDescriptor = Object.getOwnPropertyDescriptor(document, "modelContext");
 const navigatorContextDescriptor = Object.getOwnPropertyDescriptor(navigator, "modelContext");
 
 afterEach(() => {
+  act(() => setBrowserAgentEnabled({ enabled: true }));
   for (const [target, descriptor] of [[document, documentContextDescriptor], [navigator, navigatorContextDescriptor]] as const) {
     if (descriptor) Object.defineProperty(target, "modelContext", descriptor);
     else Reflect.deleteProperty(target, "modelContext");
@@ -113,11 +117,38 @@ describe("registerAdminWebMcpTool", () => {
     const element = document.createElement("main");
     act(() => result.current.setContentEl(element));
 
-    expect(registerTool).toHaveBeenCalledTimes(1);
+    expect(registerTool).toHaveBeenCalledTimes(1 + PAGE_CAPABILITIES.length);
     const [registration, options] = registerTool.mock.calls[0];
     expect(registration.name).toBe(PUBLISH_CONTENT_CAPABILITY.id);
     expect(options.signal.aborted).toBe(false);
     unmount();
     expect(options.signal.aborted).toBe(true);
+  });
+
+  it("opt-out aborts every browser tool without tearing down the assistant bridge", async () => {
+    const { createFrontendSessionBridge } = await import("@jini-ai/chat/react");
+    const registerTool = vi.fn();
+    Object.defineProperty(document, "modelContext", { configurable: true, value: { registerTool } });
+    const { result } = renderHook(() => useAgentPageBridge());
+    act(() => result.current.setContentEl(document.createElement("main")));
+    const bridge = result.current.agentBridge!;
+    const callsBeforeToggle = vi.mocked(createFrontendSessionBridge).mock.calls.length;
+    const signals = registerTool.mock.calls.map((call) => call[1].signal as AbortSignal);
+    act(() => setBrowserAgentEnabled({ enabled: false }));
+    expect(signals.every((signal) => signal.aborted)).toBe(true);
+    expect(result.current.agentBridge).toBe(bridge);
+    expect(bridge.close).not.toHaveBeenCalled();
+    act(() => setBrowserAgentEnabled({ enabled: true }));
+    expect(registerTool).toHaveBeenCalledTimes(2 * (1 + PAGE_CAPABILITIES.length));
+    expect(vi.mocked(createFrontendSessionBridge).mock.calls).toHaveLength(callsBeforeToggle);
+  });
+
+  it("stale publish callbacks cannot bypass an opt-out", async () => {
+    const registerTool = vi.fn();
+    const executor = vi.fn();
+    registerAdminWebMcpTool({ "admin.": executor }, new AbortController().signal, { registerTool });
+    act(() => setBrowserAgentEnabled({ enabled: false }));
+    await expect(registerTool.mock.calls[0][0].execute({})).rejects.toThrow(/disabled/);
+    expect(executor).not.toHaveBeenCalled();
   });
 });

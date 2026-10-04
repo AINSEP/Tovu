@@ -138,6 +138,7 @@ import { t as tCapability } from "./settings-capabilities-i18n";
 import { t as tSettingsExecution } from "./settings-execution-i18n";
 import { t as tSettings } from "./settings-i18n";
 import { memoryPanelDictionaries } from "./settings-memory-i18n";
+import { BrowserAgentSettingsPanel } from "../webmcp/BrowserAgentSettingsPanel";
 import { t as tApp } from "../../app-i18n";
 import { SETTINGS_DIALOG_DICTIONARIES as CMS_SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/cms/settings";
 
@@ -471,6 +472,7 @@ export function SettingsUi(props: SettingsUiProps) {
        */
       panel: (
         <div className="settings-ui-inert-wrap">
+          <BrowserAgentSettingsPanel locale={settingsLocale} />
           <p className="settings-ui-inert-note" role="note">
             {tCap(
               "Not wired up: this installation has no outbound telemetry pipeline, so nothing is sent regardless of this choice. The control below is shown for reference and disabled until a real collection path exists.",

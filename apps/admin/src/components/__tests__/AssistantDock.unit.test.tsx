@@ -4,6 +4,7 @@ import { isValidElement, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ExecutionConfig } from "@jini-ai/ui";
 import type { FrontendSessionBridge } from "@jini-ai/chat/react";
+import { setBrowserAgentEnabled } from "../../features/webmcp/browser-agent-settings.hooks";
 
 /**
  * @file `AssistantDock`'s own prop-wiring to `ChatPane` through the DOM — the render layer only.
@@ -710,6 +711,21 @@ describe("AssistantDock agentControl wiring (chat.* frontend-control bridge)", (
 
     const props = chatPaneSpy.mock.calls.at(-1)?.[0] as { agentControl?: { webmcp?: boolean } };
     expect(props.agentControl?.webmcp).toBe(true);
+  });
+
+  it("turns off only the chat pane's browser tools when the operator opts out", () => {
+    render(<AssistantDock useChats={() => fakeChats()} />);
+    try {
+      act(() => setBrowserAgentEnabled({ enabled: false }));
+      const props = chatPaneSpy.mock.calls.at(-1)?.[0] as { agentControl?: { enabled?: boolean; webmcp?: boolean } };
+      expect(props.agentControl?.webmcp).toBe(false);
+      expect(props.agentControl?.enabled).toBe(true);
+      act(() => setBrowserAgentEnabled({ enabled: true }));
+      const next = chatPaneSpy.mock.calls.at(-1)?.[0] as { agentControl?: { webmcp?: boolean } };
+      expect(next.agentControl?.webmcp).toBe(true);
+    } finally {
+      act(() => setBrowserAgentEnabled({ enabled: true }));
+    }
   });
 });
 

@@ -140,7 +140,7 @@ validator's own approved-root allowlist (`validation/structure.ts`'s `V2_APPROVE
 │   └── vendor/<lib>/              #   pinned, licensed, never hand-edited
 ├── ai/                            # OPTIONAL — published-site agent surface [NOT YET IMPLEMENTED, §12]
 │   ├── capabilities.json
-│   ├── elements.json              #   catalog of data-tovu-agent handles + semantics
+│   ├── elements.json              #   catalog of toolname/data-toolname actions + semantics (§8)
 │   └── scoring.json
 ├── locales/                       # OPTIONAL i18n UI strings
 ├── tests/                         # [NOT YET IMPLEMENTED, §13]
@@ -358,12 +358,42 @@ verify the vocabulary against `HTML_EMBED_RESOLVERS` (`resolver-service.ts:756-7
 `widget`/`media`/`post`/`content`) plus `THEME_OWNED_MARKER_TYPES` (`menu`/`partial`) before relying
 on this list in a future session, in case it moves again.
 
-**`data-tovu-agent` (the theme-markup agent-handle attribute, distinct from admin's
-`data-agent-element`) is `[TARGET, NOT YET IMPLEMENTED]`.** Verified: zero hits for
-`data-tovu-agent` anywhere in `src/`. The admin-only `data-agent-element` convention is real but
-lives exclusively under `src/features/pages/` (Page-authoring addressable-editing markup, v1
-§6.6) — it has never been used in theme markup, and the debate's Decision 6 (adopt a distinct name
-rather than reuse this one) has no code to point to yet either way.
+**Browser-agent markup (owner decision 2026-09-17; updated 2026-10-04).**
+The proposed `data-tovu-agent` attribute is retired. Themes use WebMCP's `tool*`
+vocabulary for forms and `data-tool*` for other actions. Keep `data-agent-element`
+out of theme markup: it addresses editable page regions in the admin authoring
+tools, rather than visitor actions.
+
+On a real form, add a unique `toolname` and an accurate `tooldescription`. Named
+controls may carry `toolparamtitle` and `toolparamdescription`. Preserve the
+actual action, method, field names, validation and anti-forgery controls.
+`toolautosubmit` is appropriate only for read-only actions such as search;
+contact, newsletter, booking and purchase forms retain human submission.
+Do not annotate fake endpoints or imply a submission succeeded before the
+existing form handler has accepted it.
+
+```html
+<form action="/search" method="get" toolname="search_site"
+      tooldescription="Search published site content" toolautosubmit>
+  <label>Search <input name="q" toolparamtitle="Search query"
+                      toolparamdescription="Words to find in published content"></label>
+  <button type="submit">Search</button>
+</form>
+<a href="/contact" data-toolname="open_contact"
+   data-tooldescription="Open the contact page">Contact</a>
+```
+
+Buttons, links and tabs use unique `data-toolname` and `data-tooldescription`
+attributes. These valid HTML attributes describe actions; they do not register
+tools with the browser by themselves. A published-site registration script is
+still required for non-form actions. The admin WebMCP bridge does not supply that
+script to themes. Declarative form discovery requires a compatible browser.
+The theme validator and scaffolds still need to adopt this convention.
+
+The underlying [WebMCP draft](https://webmachinelearning.github.io/webmcp/) and
+[Chrome declarative API guide](https://developer.chrome.com/docs/ai/webmcp/declarative-api)
+define the browser form attributes. The `data-tool*` convention is Tovu's owner
+decision, which can migrate if the specification adds non-form attributes later.
 
 ## 9. `regions` — widget-placement region keys `[REAL, shape verified]`
 
