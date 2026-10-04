@@ -47,8 +47,9 @@ export const INFINITE_ANIMATION_ALLOWLIST: Record<string, string> = {
 
 /** Files allowed to call `setInterval(` → why. */
 export const INTERVAL_ALLOWLIST: Record<string, string> = {
-  "apps/desktop/src/auto-update-controller.ts": "main process, one tick per 15 minutes, unref'd",
+  // 8ac88814c moved the main-process, unref'd 15-minute update tick into @jini-ai/desktop-host.
   "apps/desktop/src/renderer/visible-interval.ts": "the visibility-aware helper itself: stops while the window is hidden",
+  "apps/admin/src/lib/visible-interval.ts": "the admin's copy of the same visibility-aware helper: stops while the window is hidden",
 };
 
 const ROOTS = ["apps/desktop/main.ts", "apps/desktop/src", "apps/admin/src", "apps/site-chat/src", "content/themes/static"];

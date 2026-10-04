@@ -2,6 +2,7 @@ import { draftAfterSkillSelection, type SelectedComposerSkill } from "@/features
 import { captureSkillDrop } from "@/features/skills/skill-drop";
 import { createInstalledSkillsComposerCapabilitySource } from "@/features/plugins/installed-skills-composer-source";
 import { loadSkillDraft, SKILLS_CHANGED_EVENT } from "@/features/skills/api";
+import { startVisibleInterval } from "@/lib/visible-interval";
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import {
   createDaemonAttachmentUploader,
@@ -602,12 +603,13 @@ export function useComposerCapabilities(): UseComposerCapabilities {
       });
     };
     void reload();
-    const interval = window.setInterval(() => void reload(), 10_000);
+    // Visible-only: an idle, hidden admin must not keep fetching skills (check-idle-motion.ts).
+    const stopPolling = startVisibleInterval(() => void reload(), 10_000);
     window.addEventListener(SKILLS_CHANGED_EVENT, reload);
     window.addEventListener("focus", reload);
     return () => {
       cancelled = true;
-      window.clearInterval(interval);
+      stopPolling();
       window.removeEventListener(SKILLS_CHANGED_EVENT, reload);
       window.removeEventListener("focus", reload);
     };
