@@ -1,3 +1,4 @@
+import { useCallback, useState } from "react";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import type { Translate } from "@/lib/dictionary-translator";
 import { t as translate } from "../plugins-i18n";
@@ -46,4 +47,18 @@ export function useWiredAgentPluginDetailsModal(pluginId: string): PluginPackage
   const locale = useAdminLocale();
   const t = (key: string): string => translate(locale, key);
   return useAgentPluginDetailsModal({ pluginId, port: defaultAgentPluginsPort, t });
+}
+
+/** The shell owns the selected tab; its onView callback keeps host copy aligned with it. */
+export function useAgentPluginDetailsView(required: { displayName: string; t: Translate; memoryT: Translate }, _optional = {}) {
+  const { displayName, t, memoryT } = required;
+  const [memoryOpen, setMemoryOpen] = useState(false);
+  const onView = useCallback((viewId: string) => setMemoryOpen(viewId === "plugin-memory"), []);
+  return {
+    onView,
+    title: `${displayName} ${memoryOpen ? memoryT("Memory") : t("package files")}`,
+    subtitle: memoryOpen
+      ? memoryT("Edit project notes and review what this plugin has learned.")
+      : t("Read-only view of this plugin's files; nothing runs from this screen."),
+  };
 }

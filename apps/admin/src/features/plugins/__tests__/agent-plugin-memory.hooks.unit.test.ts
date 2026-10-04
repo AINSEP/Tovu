@@ -41,8 +41,51 @@ test('a late response from a different plugin never fills this plugin’s editor
 
 test('every supported plugin locale includes the memory editor and uninstall choices', () => {
   const locales = ['es','id','de','zh-CN','zh-TW','pt-BR','ru','fa','ar','ja','ko','pl','hu','fr','uk','tr','th','it','hi','ur','bn'];
-  for (const locale of locales) for (const key of ['Memory','Project notes','Learned knowledge','Save note','Uninstall · keep memory','Uninstall and delete memory']) {
+  for (const locale of locales) for (const key of ['Memory','Project notes','Learned knowledge','Save note','Uninstall · keep memory','Uninstall and delete memory',
+    'Note files', 'No note files yet. Save a project note to get started.',
+    'Nothing learned yet. The assistant saves what it verifies here.',
+    'Edit project notes and review what this plugin has learned.']) {
     expect(PLUGIN_MEMORY_DICT[locale]?.[key]).toBeTruthy();
     expect(PLUGIN_MEMORY_DICT[locale]?.[key]).not.toBe(key);
   }
+});
+
+test('empty-state messages wait for a successful read and update after saving the first note', async () => {
+  let settle!: (value: PluginMemoryListing) => void;
+  const pending = new Promise<PluginMemoryListing>(resolve => { settle = resolve; });
+  const port: AgentPluginMemoryPort = { read: () => pending, saveNote: async input => ({ ...listing(input.pluginId, input.text), learned: [] }) };
+  const { result } = renderHook(() => useAgentPluginMemory({ pluginId: 'example', port, t }));
+  expect(result.current.editorDisabled).toBe(true);
+  expect(result.current.notesEmptyMessage).toBeNull();
+  expect(result.current.learnedEmptyMessage).toBeNull();
+  await act(async () => { settle({ ...listing('example', ''), notes: [], learned: [] }); await pending; });
+  expect(result.current.editorDisabled).toBe(false);
+  expect(result.current.notesEmptyMessage).toBe('No note files yet. Save a project note to get started.');
+  expect(result.current.learnedEmptyMessage).toBe('Nothing learned yet. The assistant saves what it verifies here.');
+  act(() => result.current.setText('First note'));
+  await act(async () => { await result.current.save(); });
+  expect(result.current.notesEmptyMessage).toBeNull();
+  expect(result.current.learnedEmptyMessage).toBe('Nothing learned yet. The assistant saves what it verifies here.');
+});
+
+test('a failed memory read does not claim there are no notes or learned facts', async () => {
+  const port: AgentPluginMemoryPort = { read: async () => { throw new Error('offline'); }, saveNote: async () => listing('example', '') };
+  const { result } = renderHook(() => useAgentPluginMemory({ pluginId: 'example', port, t }));
+  await waitFor(() => expect(result.current.status).toBe('Could not load memory.'));
+  expect(result.current.editorDisabled).toBe(true);
+  expect(result.current.notesEmptyMessage).toBeNull();
+  expect(result.current.learnedEmptyMessage).toBeNull();
+});
+
+test('the editor stays disabled while a save is in flight and becomes editable again when it settles', async () => {
+  let finishSave!: (value: PluginMemoryListing) => void;
+  const pendingSave = new Promise<PluginMemoryListing>(resolve => { finishSave = resolve; });
+  const port: AgentPluginMemoryPort = { read: async () => listing('example', 'Original'), saveNote: () => pendingSave };
+  const { result } = renderHook(() => useAgentPluginMemory({ pluginId: 'example', port, t }));
+  await waitFor(() => expect(result.current.editorDisabled).toBe(false));
+  let request!: Promise<void>;
+  act(() => { request = result.current.save(); });
+  expect(result.current.editorDisabled).toBe(true);
+  await act(async () => { finishSave(listing('example', 'Saved')); await request; });
+  expect(result.current.editorDisabled).toBe(false);
 });

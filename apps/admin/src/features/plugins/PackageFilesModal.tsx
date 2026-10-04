@@ -41,6 +41,8 @@ export interface PackageFilesModalProps {
   readonly t: Translate;
   readonly onClose: () => void;
   readonly additionalViews?: readonly { id: string; label: string; custom: ReactNode }[];
+  /** Forward the shared shell's selected-view notification so the host can update its header. */
+  readonly onView?: (viewId: string) => void;
 }
 
 /** A package-relative path with a `<wbr>` after every `/` (visual QA, 2026-08-31). Used by the
@@ -252,6 +254,7 @@ export function PackageFilesModal({
   t,
   onClose,
   additionalViews = [],
+  onView,
 }: PackageFilesModalProps) {
   const selectedFileHeadingId = useId();
   // File paths are stable and unique within one package, same per-row-handle derivation every
@@ -267,6 +270,7 @@ export function PackageFilesModal({
       className="agent-plugin-source-modal"
       title={title}
       subtitle={subtitle}
+      onView={onView}
       views={[
         {
           id: "package-source",

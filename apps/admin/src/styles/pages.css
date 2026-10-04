@@ -68,7 +68,9 @@
   margin: 1rem 0 0.75rem;
 }
 
-.segmented {
+/* Package viewers use Jini's accessible tabs; share this admin treatment with the page toolbar. */
+.segmented,
+.agent-plugin-source-modal [data-preview-modal-tabs] {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
@@ -78,7 +80,8 @@
   background: var(--surface-2);
 }
 
-.segmented button {
+.segmented button,
+.agent-plugin-source-modal [data-preview-modal-tabs] button {
   border: 0;
   background: transparent;
   padding: 0.35rem 0.75rem;
@@ -88,10 +91,20 @@
   color: var(--muted);
 }
 
-.segmented button.is-active {
+.segmented button.is-active,
+.agent-plugin-source-modal [data-preview-modal-tabs] button[aria-selected="true"] {
   background: var(--surface);
   color: var(--fg);
   box-shadow: 0 1px 2px rgb(0 0 0 / 8%);
+}
+
+/* The shell clips its stage; the padded Memory card must scroll when notes exceed its height. */
+.agent-plugin-source-modal [data-preview-modal-stage-custom] > .card {
+  height: 100%;
+  overflow: auto;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .page-editor-width {

@@ -5,6 +5,7 @@ import type { InspectedAgentPlugin } from "./hooks/use-agent-plugins.hooks";
 import { PackageFilesModal } from "./PackageFilesModal";
 import {
   useWiredAgentPluginDetailsModal,
+  useAgentPluginDetailsView,
   type AgentPluginDetailsModalController,
 } from "./hooks/use-agent-plugin-details-modal.hooks";
 
@@ -19,7 +20,7 @@ export interface AgentPluginDetailsModalProps {
 }
 
 /**
- * Read-only inspection of one installed Agent Plugin's package files.
+ * Inspection of one installed Agent Plugin's package files and editable project memory.
  *
  * Renders through the shared `PackageFilesModal` (2026-09-13), the same component the Plugins
  * screen's viewer uses. Since 2026-09-13 its content comes from `AGENT_PLUGIN_FILES` — the server
@@ -28,12 +29,14 @@ export interface AgentPluginDetailsModalProps {
  */
 export function AgentPluginDetailsModal({ plugin, t, onClose, useDetails = useWiredAgentPluginDetailsModal }: AgentPluginDetailsModalProps) {
   const memory = useWiredAgentPluginMemory({ pluginId: plugin.id });
+  const view = useAgentPluginDetailsView({ displayName: plugin.displayName, t, memoryT: memory.t });
   const { files, selectedFile, selectFile, status = null, listNotice = null } = useDetails(plugin.id);
 
   return (
     <PackageFilesModal
-      title={`${plugin.displayName} ${t("package files")}`}
-      subtitle={t("Read-only view of this plugin's files; nothing runs from this screen.")}
+      title={view.title}
+      subtitle={view.subtitle}
+      onView={view.onView}
       files={files}
       selectedFile={selectedFile}
       onSelectFile={selectFile}
