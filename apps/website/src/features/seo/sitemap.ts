@@ -1,3 +1,5 @@
+import type { EventBusPort, OutboxPort } from "@jini-ai/cms/core";
+import { processOutbox } from "../../contracts/core/events/index.js";
 import type { UUID } from "@jini-ai/core/primitives";
 import { resolvePostMemberAccess } from "../members/index.js";
 import { isTrashed, type PostRecord, type PostRepoPort } from "../post/index.js";
@@ -204,5 +206,19 @@ export function createSeoEventSubscriptions(): SeoEventSubscriptions {
   const handler = async (event: { payload: { entryId: UUID; contentType: string }; workspaceId: UUID }) => {
     invalidateSitemapCache({ workspaceId: event.workspaceId });
   };
-  return { onEntryPublished: handler, onEntryUpdated: handler, onEntryUnpublished: handler };
+  return { onEntryPublished: handler, onEntryUpdated: handler, onEntryUnpublished: handler,
+    onSitemapInvalidated: async event => { invalidateSitemapCache({ workspaceId: event.workspaceId }); } };
+}
+
+export const SITEMAP_INVALIDATED_EVENT = "seo.sitemap_invalidated";
+
+/** The daemon enqueues through its enqueue-only outbox; the web process owns delivery.
+ * Local invalidation also prevents reads in this process from seeing the old snapshot. */
+export async function requestSitemapInvalidation(deps: {
+  outbox: OutboxPort; bus: EventBusPort; clock: { nowIso(): string }; idGen: { newId(): string };
+}, input: { workspaceId: UUID }): Promise<void> {
+  invalidateSitemapCache(input);
+  await deps.outbox.enqueue({ id: deps.idGen.newId(), name: SITEMAP_INVALIDATED_EVENT,
+    occurredAt: deps.clock.nowIso(), aggregateId: input.workspaceId, workspaceId: input.workspaceId, payload: {} });
+  await processOutbox({ outbox: deps.outbox, bus: deps.bus, clock: { nowMs: () => Date.parse(deps.clock.nowIso()) } });
 }

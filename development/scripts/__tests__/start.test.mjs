@@ -12,9 +12,8 @@ import { clearBlankRootKeyEnv, planStart, probePortFree, resolveStartHost, start
  * @file `planStart` — the pure port/env decision `development/scripts/start.mjs`'s `main()` makes
  * before importing the compiled server (npm-start-just-works-plan-2026-09-24, Slice 2, decision 4).
  *
- * `isPortFree` is an injected (possibly async) predicate, the same "pure planner, real I/O supplied
- * by the caller" shape `prepare-start.mjs`'s `planStartSteps` already uses for `input.has`. A test
- * double never touches a real socket; `main()` supplies a real `net`-backed one.
+ * `isPortFree` is retained as a legacy input only. Tests prove it is never called: availability
+ * is decided by the actual HTTP(S) listener, with collision retries covered in Jini devops.
  *
  * `dotenvLoaded` is accepted for parity with the object `main()` builds once and threads through —
  * decision 4's "PORT unset in the shell AND in .env" is already fully reflected in `env` by the time
@@ -27,7 +26,7 @@ function alwaysFree() {
   return true;
 }
 
-test("PORT unset, TOVU_PUBLIC_URL loopback:3000, port 3000 busy → picks 3001 and drops TOVU_PUBLIC_URL", async () => {
+test("PORT unset, TOVU_PUBLIC_URL loopback:3000, port 3000 busy → defers binding and drops TOVU_PUBLIC_URL", async () => {
   const calls = [];
   const isPortFree = async (port) => {
     calls.push(port);
@@ -40,10 +39,10 @@ test("PORT unset, TOVU_PUBLIC_URL loopback:3000, port 3000 busy → picks 3001 a
     isPortFree,
   });
 
-  assert.equal(result.port, 3001);
-  assert.deepEqual(result.envOverrides, { PORT: "3001" });
+  assert.equal(result.port, 3000);
+  assert.deepEqual(result.envOverrides, { TOVU_START_AUTO_PORT: "1" });
   assert.deepEqual(result.envRemovals, ["TOVU_PUBLIC_URL"]);
-  assert.deepEqual(calls, [3000, 3001]);
+  assert.deepEqual(calls, [], "the launcher must never probe; the actual server binds");
   assert.equal(result.refuse, undefined);
 });
 
@@ -75,7 +74,7 @@ test("non-loopback TOVU_PUBLIC_URL → no auto-pick; the refusal is left to inde
   assert.equal(result.refuse, "non-loopback-public-url");
 });
 
-test("3000-3019 all busy → no auto-pick", async () => {
+test("3000-3019 all busy → let actual listener report exhaustion", async () => {
   const probed = [];
   const isPortFree = async (port) => {
     probed.push(port);
@@ -85,22 +84,19 @@ test("3000-3019 all busy → no auto-pick", async () => {
   const result = await planStart({ env: {}, dotenvLoaded: true, isPortFree });
 
   assert.equal(result.port, 3000);
-  assert.deepEqual(result.envOverrides, {});
-  assert.equal(result.refuse, "no-free-port-in-range");
-  assert.deepEqual(
-    probed,
-    Array.from({ length: 20 }, (_, i) => 3000 + i)
-  );
+  assert.deepEqual(result.envOverrides, { TOVU_START_AUTO_PORT: "1" });
+  assert.equal(result.refuse, undefined);
+  assert.deepEqual(probed, [], "a probe cannot determine whether the eventual bind will succeed");
 });
 
-test("PORT unset, TOVU_PUBLIC_URL unset, port 3000 free → no overrides at all (nothing to change)", async () => {
+test("PORT unset, TOVU_PUBLIC_URL unset, port 3000 free → enable direct binding", async () => {
   const result = await planStart({ env: {}, dotenvLoaded: true, isPortFree: alwaysFree });
 
   assert.equal(result.port, 3000);
-  assert.deepEqual(result.envOverrides, {});
+  assert.deepEqual(result.envOverrides, { TOVU_START_AUTO_PORT: "1" });
 });
 
-test("PORT unset, TOVU_PUBLIC_URL loopback at a port OTHER than 3000, 3000 busy → PORT overridden, TOVU_PUBLIC_URL dropped", async () => {
+test("PORT unset, TOVU_PUBLIC_URL loopback at a port OTHER than 3000, 3000 busy → defer binding, TOVU_PUBLIC_URL dropped", async () => {
   const isPortFree = async (port) => port !== 3000;
 
   const result = await planStart({
@@ -109,8 +105,8 @@ test("PORT unset, TOVU_PUBLIC_URL loopback at a port OTHER than 3000, 3000 busy 
     isPortFree,
   });
 
-  assert.equal(result.port, 3001);
-  assert.deepEqual(result.envOverrides, { PORT: "3001" });
+  assert.equal(result.port, 3000);
+  assert.deepEqual(result.envOverrides, { TOVU_START_AUTO_PORT: "1" });
   assert.deepEqual(result.envRemovals, ["TOVU_PUBLIC_URL"]);
 });
 
@@ -132,11 +128,11 @@ test("PORT set, TOVU_PUBLIC_URL loopback → PORT untouched, TOVU_PUBLIC_URL sti
   assert.deepEqual(result.envRemovals, ["TOVU_PUBLIC_URL"]);
 });
 
-test("port 3000 free, TOVU_PUBLIC_URL loopback → no overrides, TOVU_PUBLIC_URL dropped", async () => {
+test("port 3000 free, TOVU_PUBLIC_URL loopback → direct binding, TOVU_PUBLIC_URL dropped", async () => {
   const result = await planStart({ env: { TOVU_PUBLIC_URL: "http://127.0.0.1:3000" }, dotenvLoaded: true, isPortFree: alwaysFree });
 
   assert.equal(result.port, 3000);
-  assert.deepEqual(result.envOverrides, {});
+  assert.deepEqual(result.envOverrides, { TOVU_START_AUTO_PORT: "1" });
   assert.deepEqual(result.envRemovals, ["TOVU_PUBLIC_URL"]);
 });
 
@@ -191,17 +187,17 @@ test("resolveStartHost: TOVU_HOST explicitly set → the user's value wins untou
   assert.equal(resolveStartHost({ TOVU_HOST: "0.0.0.0" }), "0.0.0.0");
 });
 
-test("IPv6 loopback TOVU_PUBLIC_URL → picks a free port and drops the stale URL", async () => {
+test("IPv6 loopback TOVU_PUBLIC_URL → enables direct binding and drops the stale URL", async () => {
   const calls = [];
   const result = await planStart({
     env: { TOVU_PUBLIC_URL: "http://[::1]:3000" },
     dotenvLoaded: true,
     isPortFree: async (port) => { calls.push(port); return port !== 3000; },
   });
-  assert.equal(result.port, 3001);
-  assert.deepEqual(result.envOverrides, { PORT: "3001" });
+  assert.equal(result.port, 3000);
+  assert.deepEqual(result.envOverrides, { TOVU_START_AUTO_PORT: "1" });
   assert.deepEqual(result.envRemovals, ["TOVU_PUBLIC_URL"]);
-  assert.deepEqual(calls, [3000, 3001]);
+  assert.deepEqual(calls, [], "the launcher must never probe; the actual server binds");
   assert.equal(result.refuse, undefined);
 });
 
@@ -215,25 +211,15 @@ test("main supplies the imported server with loopback binding and the final env 
     }
     writeFileSync(path.join(fixture, "package.json"), '{"type":"module"}');
     writeFileSync(path.join(fixture, ".env"), "TOVU_INTEGRATIONS_ROOT_KEY=fixture-root-key\nTOVU_PUBLIC_URL=http://localhost:3000\n");
-    // Port probes are deterministic. The stub reads the exact env main supplied; no
+    // Any port probe fails this regression. The stub reads the exact env main supplied; no
     // repository .env or existing compiled server is touched.
     writeFileSync(path.join(fixture, "runner.mjs"), `
       import { mock } from "node:test";
       import { EventEmitter } from "node:events";
       import { fileURLToPath } from "node:url";
       mock.module("node:net", { namedExports: {
-        connect: ({port}) => {
-          const socket = new EventEmitter();
-          socket.destroy = () => {};
-          process.nextTick(() => socket.emit(port === 3000 ? "connect" : "error"));
-          return socket;
-        },
-        createServer: () => {
-          const server = new EventEmitter();
-          server.listen = (_options, ready) => ready();
-          server.close = (done) => done();
-          return server;
-        },
+        connect: () => { throw new Error("launcher must not probe"); },
+        createServer: () => { throw new Error("launcher must not bind a probe"); },
       }});
       const entry = new URL("./development/scripts/start.mjs", import.meta.url);
       process.argv[1] = fileURLToPath(entry);
@@ -243,6 +229,7 @@ test("main supplies the imported server with loopback binding and the final env 
         console.log("LAUNCHER_RESULT " + JSON.stringify({
           host: process.env.TOVU_HOST,
           port: process.env.PORT,
+          autoStartPort: process.env.TOVU_START_AUTO_PORT,
           publicUrlPresent: "TOVU_PUBLIC_URL" in process.env,
           rootKey: process.env.TOVU_INTEGRATIONS_ROOT_KEY,
           rootKeyNotice: process.env.TOVU_ROOT_KEY_NOTICE,
@@ -250,7 +237,7 @@ test("main supplies the imported server with loopback binding and the final env 
         }));
     `);
     const env = { ...process.env, TOVU_INTEGRATIONS_ROOT_KEY: "" };
-    for (const key of ["TOVU_HOST", "PORT", "TOVU_PUBLIC_URL", "TOVU_ROOT_KEY_NOTICE", "TOVU_DAEMON_LIFECYCLE_LOG"]) delete env[key];
+    for (const key of ["TOVU_HOST", "PORT", "TOVU_PUBLIC_URL", "TOVU_ROOT_KEY_NOTICE", "TOVU_DAEMON_LIFECYCLE_LOG", "TOVU_START_AUTO_PORT"]) delete env[key];
     if (env.NODE_V8_COVERAGE) env.NODE_V8_COVERAGE = path.join(fixture, "coverage");
     const child = spawnSync(process.execPath, ["--experimental-test-module-mocks", "runner.mjs"], {
       cwd: fixture, env, encoding: "utf8", timeout: 10_000,
@@ -259,7 +246,7 @@ test("main supplies the imported server with loopback binding and the final env 
     const line = child.stdout.split("\n").find((value) => value.startsWith("LAUNCHER_RESULT "));
     assert.ok(line, "the compiled server stub must actually be imported");
     assert.deepEqual(JSON.parse(line.slice("LAUNCHER_RESULT ".length)), {
-      host: "127.0.0.1", port: "3001", publicUrlPresent: false,
+      host: "127.0.0.1", autoStartPort: "1", publicUrlPresent: false,
       rootKey: "fixture-root-key", rootKeyNotice: "off", lifecycleLog: "off",
     });
   } finally {

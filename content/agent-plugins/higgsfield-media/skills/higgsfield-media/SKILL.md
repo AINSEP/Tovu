@@ -1,20 +1,20 @@
 ---
 name: higgsfield-media
-description: Connect Higgsfield from nothing, then generate an image and land it in this site's Media library. Covers the cold start (Higgsfield authenticates by OAuth browser sign-in, NOT an API key, and discovers its own endpoints and client — the only value a human supplies is the URL; the enable step and, where TOVU_PUBLIC_URL is unset, the authorization step both need the admin UI) and the whole generate chain — generate_image (asynchronous, returns a job id and not an image), job_status polling (never with sync:true, which cannot complete over Tovu's federated transport), and media_import_from_url for the CDN URL. Also covers the two things that make this fail silently for a whole session: the per-tool write grant a federated write tool needs, and the account plan gate that rejects some models at submit with "Requires basic plan or higher".
+description: Connect Higgsfield from nothing, then generate an image or video and land it in this site's Media library. Covers the cold start (Higgsfield authenticates by OAuth browser sign-in, NOT an API key, and discovers its own endpoints and client — the only value a human supplies is the URL; the enable step and, where TOVU_PUBLIC_URL is unset, the authorization step both need the admin UI) and the whole generate chain — generate_image (asynchronous, returns a job id and not an image), job_status polling (never with sync:true, which cannot complete over Tovu's federated transport), and media_import_from_url for the CDN URL. Also covers the two things that make this fail silently for a whole session: the per-tool write grant a federated write tool needs, and the account plan gate that rejects some models at submit with "Requires basic plan or higher".
 ---
 
 # Higgsfield → Media library
 
 ## The one thing to say before anything else
 
-**`generate_image` does not return an image.** It returns a *job id*, and the job is still
+**`generate_image` and `generate_video` return asynchronous jobs.** `generate_image` does not return an image. It returns a *job id*, and the job is still
 running when the call comes back. If you report success at that point you have reported a
 generation that does not exist yet, and there is nothing to import.
 
-The chain is four calls, not one:
+For images or video, submit, poll to completion, then import the returned CDN URL:
 
 ```
-mcp__higgsfield__generate_image   -> job id, status "pending"
+mcp__higgsfield__generate_image (or generate_video) -> job id, status "pending"
 mcp__higgsfield__job_status       -> "in_progress" ... repeat ... "completed" + a CDN URL
 media_import_from_url             -> a real row in the Media library
 ```
@@ -34,7 +34,7 @@ Four separate things must all be true, and each one fails differently:
 | The connection row exists and is enabled | `external_mcp_save` (in chat), or Settings → External MCP | No `mcp__higgsfield__*` tool exists at all |
 | Its OAuth is connected | `external_mcp_oauth_connect` (in chat), or Settings → External MCP | Calls fail `is disconnected: its authorization expired or was revoked` |
 | The tool is in the allowlist | The tool picker's per-tool tick | Tool is refused `not-in-operator-allowlist`; you never see it |
-| `generate_image` is *also* granted **"may write"** | The second tick on the same row | Tool is refused `remote-declares-not-read-only`; you never see it |
+| `generate_image` / `generate_video` is *also* granted **"may write"** | The second tick on the same row | Tool is refused `remote-declares-not-read-only`; you never see it |
 
 The last row is the one that has cost this project the most time. See
 [the write grant](#the-write-grant-two-lists-not-one) below.
@@ -102,8 +102,8 @@ never writes silently. The values that are known-correct for Higgsfield:
 | `url` | `https://mcp.higgsfield.ai/mcp` |
 | `authMode` | `oauth` |
 | `oauthGrant` | `authorization_code` |
-| `allowedToolNames` | `generate_image, models_explore, job_status, jobs_wait, show_generations, reveal_generation, show_generation_by_ids` |
-| `writeAllowedToolNames` | `generate_image, reveal_generation` |
+| `allowedToolNames` | `generate_image, generate_video, models_explore, job_status, jobs_wait, show_generations, reveal_generation, show_generation_by_ids` |
+| `writeAllowedToolNames` | `generate_image, generate_video, reveal_generation` |
 
 Leave `oauthClientId`, `oauthScopes` and every `oauth*Endpoint` field **unset** — discovery and
 dynamic registration fill them in. Never pass a credential as a tool argument; there is no schema
@@ -121,7 +121,7 @@ reading `oauth.status` — **there is no "wait for it" tool**.
 > request and therefore works either way. The refusal is a fact about the deployment, not about
 > Higgsfield.
 
-**Step D — the write grant, then a restart.** Even with OAuth connected, `generate_image` stays
+**Step D — the write grant, then a restart.** Even with OAuth connected, `generate_image` or `generate_video` stays
 refused until it is in `writeAllowedToolNames` *and* the assistant has restarted. See the next
 section — this is the failure that looks like nothing at all.
 
@@ -140,7 +140,7 @@ Rule R3 of that posture is the one that matters here:
 > tool writes — is **refused**, even when the operator has allowlisted it, unless the operator has
 > **also** named it in a second list, `writeAllowedToolNames`.
 
-`generate_image` declares that it writes. So it needs to be in **both** lists. In the admin UI
+`generate_image` and `generate_video` declare that they write. Each requested generator needs to be in **both** lists. In the admin UI
 that is two ticks on the same row of the External MCP tool picker: the allowlist tick, and a
 second **"may write"** tick that only appears for a tool that declares it writes.
 

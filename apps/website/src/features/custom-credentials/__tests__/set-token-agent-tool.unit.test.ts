@@ -512,3 +512,18 @@ test("a run cancelled before the form opens returns {saved:false, reason:'abando
   assert.equal(surfaceExchanges.size(), 0);
   assert.equal(sealer.sealCalls, 0);
 });
+
+test("token rotation preserves a legacy username stored only in the sealed connection", async () => {
+  const { deps, repo, sealer, writeDeps } = fakeRouteDeps();
+  const seeded = await seedNameCom(writeDeps, { token: "old-secret-token", username: "sealed-user@example.com" });
+  const row = await repo.findById({ workspaceId: WORKSPACE_ID, id: seeded.id });
+  assert.ok(row);
+  const { username: _plaintextUsername, ...legacy } = row;
+  await repo.update(legacy);
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const { pending, exchangeId } = await raiseForm(tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID));
+  surfaceExchanges.deliver({ exchangeId, toolId: TOOL_ID, principalId: PRINCIPAL_ID, params: { token: "rotated-secret-token" } });
+  await pending;
+  const resolved = await resolveCustomCredentialByLabel({ repo, sealer }, { workspaceId: WORKSPACE_ID, label: "name.com" });
+  assert.deepEqual(resolved?.connection, { token: "rotated-secret-token", username: "sealed-user@example.com" });
+});

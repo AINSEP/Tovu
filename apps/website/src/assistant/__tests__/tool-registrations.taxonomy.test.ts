@@ -376,6 +376,7 @@ test("taxonomy_assign_terms / taxonomy_unassign_terms: a collection entry is tag
   assert.deepEqual(await wired("taxonomy_unassign_terms", deps).handler(executionContext({ ...target, termIds: [quick] })), {
     ...target,
     unassignedTermIds: [quick],
+    notAssignedTermIds: [],
   });
   assert.deepEqual(await termCounts(entryTermRepo, [quick!, vegan!]), [0, 1]);
 });
@@ -631,4 +632,18 @@ test(`${MERGE_TOOL}: a click from anyone but the delegating human is refused and
   answer(PRINCIPAL_ID, "cancel");
   assert.deepEqual(await pending, { merged: false, cancelled: true, note: "The user cancelled. Nothing was changed." });
   assert.equal(await entryTermRepo.countByTerm({ termId: fromTermId }), 1);
+});
+
+test("taxonomy_unassign_terms returns only removed ids, reporting existing but unassigned terms separately", async () => {
+  const { deps, entryTermRepo, contentTypeRepo } = fakeRouteDeps();
+  const [quick, vegan] = await seedTaggableEntry(deps, contentTypeRepo);
+  const target = { contentType: "recipe", contentId: "entry-1" };
+  await wired("taxonomy_assign_terms", deps).handler(executionContext({ ...target, termIds: [quick] }));
+  assert.deepEqual(await wired("taxonomy_unassign_terms", deps).handler(executionContext({ ...target, termIds: [quick, vegan] })), {
+    ...target, unassignedTermIds: [quick], notAssignedTermIds: [vegan],
+  });
+  assert.deepEqual(await termCounts(entryTermRepo, [quick!, vegan!]), [0, 0]);
+  assert.deepEqual(await wired("taxonomy_unassign_terms", deps).handler(executionContext({ ...target, termIds: [quick, vegan] })), {
+    ...target, unassignedTermIds: [], notAssignedTermIds: [quick, vegan],
+  });
 });

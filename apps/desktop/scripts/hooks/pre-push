@@ -9,7 +9,7 @@
 # This hook is bypassable (`git push --no-verify`) and per-clone. That is fine: it is the fast path,
 # not the authority. The workflow is the authority.
 #
-# INSTALL (not done automatically — a hook changes how YOUR git behaves, so it is your call):
+# INSTALL (npm prepare installs this per checkout, except CI and archive installs):
 #   git config core.hooksPath apps/desktop/scripts/hooks
 # UNINSTALL:
 #   git config --unset core.hooksPath

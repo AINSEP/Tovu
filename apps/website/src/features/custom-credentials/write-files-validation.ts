@@ -124,8 +124,7 @@ export function validateCommitMessage(value: unknown): string {
  *  the collision class this closes. Applied AFTER lexical normalization, so `./.git`/`.GIT/x` are
  *  both caught the same way regardless of how the caller spelled the segment. */
 function isReservedGitPath(normalized: string): boolean {
-  const lower = normalized.toLowerCase();
-  return lower === ".git" || lower.startsWith(".git/");
+  return normalized.split("/").some(segment => segment.toLowerCase() === ".git");
 }
 
 /**

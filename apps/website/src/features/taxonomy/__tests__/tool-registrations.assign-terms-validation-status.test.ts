@@ -105,7 +105,7 @@ test("assignment handlers persist changes and permission refusals preserve those
     assert.deepEqual(await assignedIds(), [term.id]);
   }
   deniedPermission = undefined;
-  assert.deepEqual(await call("taxonomy_unassign_terms", input), { ...target, unassignedTermIds: [term.id] });
+  assert.deepEqual(await call("taxonomy_unassign_terms", input), { ...target, unassignedTermIds: [term.id], notAssignedTermIds: [] });
   assert.deepEqual(await assignedIds(), []);
   for (const permission of ["content.write", "admin.taxonomy.manage"]) {
     deniedPermission = permission;

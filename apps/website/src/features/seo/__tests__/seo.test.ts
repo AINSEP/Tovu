@@ -608,3 +608,33 @@ for (const kind of ["post", "page"] as const) {
     });
   }
 }
+
+// wm S10: settings writes clear a populated cache, not merely an empty one.
+test("SEO default robots writes invalidate the populated sitemap", async () => {
+  const { buildSitemap, invalidateSitemapCache } = await import("../sitemap.js");
+  const deps = await makeDeps([seedPost()]);
+  invalidateSitemapCache({ workspaceId: WORKSPACE });
+  assert.equal((await buildSitemap(deps, { workspaceId: WORKSPACE })).length, 1);
+  await setSeoSettings({ ...deps.settingsDeps, invalidateSitemap: invalidateSitemapCache }, {
+    workspaceId: WORKSPACE, callerPrincipalId: "system-seo", patch: { defaultRobots: { noindex: true, nofollow: false } },
+  });
+  assert.deepEqual(await buildSitemap(deps, { workspaceId: WORKSPACE }), []);
+});
+
+test("daemon invalidation stays pending until the serving bus drains it", async () => {
+  const { requestSitemapInvalidation, SITEMAP_INVALIDATED_EVENT, createSeoEventSubscriptions, buildSitemap, invalidateSitemapCache } = await import("../sitemap.js");
+  const { InMemoryOutbox, InMemoryEventBus, processOutbox, toEnqueueOnlyOutbox } = await import("../../../contracts/core/events/index.js");
+  const deps = await makeDeps([seedPost()]);
+  const outbox = new InMemoryOutbox(), servingBus = new InMemoryEventBus();
+  const subscription = createSeoEventSubscriptions();
+  await servingBus.subscribe({ eventName: SITEMAP_INVALIDATED_EVENT, handler: subscription.onSitemapInvalidated });
+  await requestSitemapInvalidation({ outbox: toEnqueueOnlyOutbox(outbox), bus: new InMemoryEventBus(), clock, idGen: ids }, { workspaceId: WORKSPACE });
+  // Refill the web cache independently before the deferred delivery, simulating a second process.
+  invalidateSitemapCache({ workspaceId: WORKSPACE });
+  assert.equal((await buildSitemap(deps, { workspaceId: WORKSPACE })).length, 1);
+  await setSeoSettings(deps.settingsDeps, { workspaceId: WORKSPACE, callerPrincipalId: "system-seo", patch: { defaultRobots: { noindex: true, nofollow: false } } });
+  assert.equal((await buildSitemap(deps, { workspaceId: WORKSPACE })).length, 1);
+  assert.equal(await processOutbox({ outbox, bus: servingBus, clock }), 1);
+  assert.deepEqual(await buildSitemap(deps, { workspaceId: WORKSPACE }), []);
+  assert.equal(await processOutbox({ outbox, bus: servingBus, clock }), 0);
+});

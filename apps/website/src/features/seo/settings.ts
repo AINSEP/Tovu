@@ -187,6 +187,7 @@ export async function getSeoSettings(
 }
 
 export interface SeoSettingsWriteDeps extends GetSeoSettingsDeps {
+  invalidateSitemap?: (input: { workspaceId: UUID }) => void | Promise<void>;
   clock: ClockPort | { nowIso(): string };
   ids: IdGeneratorPort;
   authorize: AuthorizeFn;
@@ -399,6 +400,10 @@ export async function setSeoSettings(deps: SeoSettingsWriteDeps, input: SetSeoSe
         requiredPermissionOverride: "admin.seo.manage",
       },
     });
+  }
+
+  if (input.patch.defaultRobots !== undefined || input.patch.sitemapEnabled !== undefined || input.patch.robotsRules !== undefined) {
+    await deps.invalidateSitemap?.({ workspaceId: input.workspaceId });
   }
 
   return getSeoSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: input.workspaceId });

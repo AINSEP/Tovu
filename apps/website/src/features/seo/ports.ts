@@ -64,6 +64,7 @@ export interface SeoQueryPort {
  * changes (REQ-10).
  */
 export interface SeoEventSubscriptions {
+  onSitemapInvalidated(event: { workspaceId: UUID }): Promise<void>;
   onEntryPublished(event: { payload: { entryId: UUID; contentType: string }; workspaceId: UUID }): Promise<void>;
   onEntryUpdated(event: { payload: { entryId: UUID; contentType: string }; workspaceId: UUID }): Promise<void>;
   onEntryUnpublished(event: { payload: { entryId: UUID; contentType: string }; workspaceId: UUID }): Promise<void>;

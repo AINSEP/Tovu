@@ -37,7 +37,7 @@ import {
 } from "./errors.js";
 import { getEntryMeta, analyzeEntry } from "./seo.js";
 import { getSeoSettings, setSeoSettings } from "./settings.js";
-import { regenerateSitemapCache, invalidateSitemapCache } from "./sitemap.js";
+import { regenerateSitemapCache, requestSitemapInvalidation } from "./sitemap.js";
 import type { SeoExtFieldsPatch, SeoSettings } from "./types.js";
 import { setEntrySeoOverrides } from "./write-service.js";
 
@@ -54,6 +54,8 @@ const CATALOG_BY_ID = indexCatalogById({ catalog: getSeoAgentToolCatalog() });
  * this same object as their `media` dependency, exactly as `RouteDeps` does today.
  */
 export interface SeoToolDeps {
+  outbox: import("@jini-ai/cms/core").OutboxPort;
+  bus: import("@jini-ai/cms/core").EventBusPort;
   authorize: AuthorizeFn;
   workspaceId: string;
   clock: { nowIso(): string };
@@ -161,7 +163,7 @@ export function buildSeoRegistrations(routeDeps: SeoToolDeps): ToolRegistration[
           isShapeRejection: ({ error }) => error instanceof SeoFieldValidationError || error instanceof SeoInvalidCanonicalUrlError,
           fn: () =>
           setEntrySeoOverrides({
-            deps: { postRepo: routeDeps.postRepo, authorize: routeDeps.authorize, invalidateSitemapCache, clock: { nowMs: () => Date.parse(routeDeps.clock.nowIso()) } },
+            deps: { postRepo: routeDeps.postRepo, authorize: routeDeps.authorize, invalidateSitemapCache: input => requestSitemapInvalidation(routeDeps, input), clock: { nowMs: () => Date.parse(routeDeps.clock.nowIso()) } },
             input: {
               workspaceId: routeDeps.workspaceId,
               entryId,
@@ -194,6 +196,7 @@ export function buildSeoRegistrations(routeDeps: SeoToolDeps): ToolRegistration[
               ids: routeDeps.idGen,
               authorize: routeDeps.authorize,
               principals: routeDeps.principalRepo,
+              invalidateSitemap: input => requestSitemapInvalidation(routeDeps, input),
             },
             { workspaceId: routeDeps.workspaceId, patch: seoSettingsPatchFromInput(input), callerPrincipalId: ctx.principal.id },
           ) });
@@ -209,6 +212,7 @@ export function buildSeoRegistrations(routeDeps: SeoToolDeps): ToolRegistration[
         { postRepo: routeDeps.postRepo, settingsRepo: routeDeps.settingsRepo, media: routeDeps, originRegistry: routeDeps.originRegistry },
         { workspaceId: routeDeps.workspaceId },
       );
+      await requestSitemapInvalidation(routeDeps, { workspaceId: routeDeps.workspaceId });
       return { accepted: true };
     },
   };

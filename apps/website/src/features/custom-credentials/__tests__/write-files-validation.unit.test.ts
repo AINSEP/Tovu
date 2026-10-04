@@ -163,3 +163,11 @@ test("resource limits are pinned independently and accept their inclusive byte b
     assert.deepEqual(validateWriteFilesInput({ ...VALID, files }).files, files);
   }
 });
+
+test("every .git path segment is reserved, including nested Windows spellings", () => {
+  for (const path of ["vendor/.git/config", "a/b/.GIT", "a\\b\\.GiT\\hooks/x", "a//./.git/config"]) {
+    assert.throws(() => normalizeWriteFilePath(path), CustomCredentialValidationError);
+  }
+  assert.equal(normalizeWriteFilePath("a/.github/config"), "a/.github/config");
+  assert.equal(normalizeWriteFilePath("a/.gitignore"), "a/.gitignore");
+});

@@ -11,7 +11,7 @@ import { randomUUID } from "node:crypto";
 import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "#src/contracts/core/events/index";
 import { createNoopObservabilityPort } from "#src/platform/observability/index";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
-import { createSeoEventSubscriptions, createSeoPageHeadHook, ensureSeoSettingDefinitions } from "#src/features/seo/index";
+import { SITEMAP_INVALIDATED_EVENT, createSeoEventSubscriptions, createSeoPageHeadHook, ensureSeoSettingDefinitions } from "#src/features/seo/index";
 import { registerPageHeadContributor, resetPageHeadRegistry } from "../../inbound/public-http/http/site/page-head.js";
 import { InMemoryPostRepo, InMemoryPostSearchIndex, createPostRevertRegistry, listPublishedPosts } from "#src/features/post/index";
 import type { PostRecord } from "#src/features/post/index";
@@ -1587,6 +1587,7 @@ function subscribeSiteEventHandlersOnce(routeDeps: NewsletterRouteDeps): void {
   // is itself idempotent). Delivered by the serving process's background outbox drainer
   // (`serving-app.ts`) or by a route's own inline `processOutbox` call.
   const seoEventSubscriptions = createSeoEventSubscriptions();
+  void routeDeps.bus.subscribe({ eventName: SITEMAP_INVALIDATED_EVENT, handler: seoEventSubscriptions.onSitemapInvalidated });
   void routeDeps.bus.subscribe({ eventName: "entry.published", handler: seoEventSubscriptions.onEntryPublished });
   void routeDeps.bus.subscribe({ eventName: "entry.updated", handler: seoEventSubscriptions.onEntryUpdated });
   void routeDeps.bus.subscribe({ eventName: "entry.unpublished", handler: seoEventSubscriptions.onEntryUnpublished });

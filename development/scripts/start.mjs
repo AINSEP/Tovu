@@ -14,7 +14,7 @@
  *      it — SECURITY: `index.ts` itself defaults an unset `TOVU_HOST` to Node's all-interfaces
  *      bind (correct for its OTHER caller, the container entrypoint), so without this step a plain
  *      `npm start` would be reachable from the whole LAN by default.
- *   3. Pick a free port (3000-3019) ONLY when nothing already pins one, drop a loopback
+ *   3. Enable direct-bind port retries (3000-3019) ONLY when nothing already pins one, drop a loopback
  *      `TOVU_PUBLIC_URL` — see `planStart` below — and set the quiet-boot switches
  *      (`startQuietEnvDefaults`) so the server's one URL line is the whole output.
  *   4. `await import()` the compiled server IN-PROCESS — no extra child process, no signal
@@ -25,8 +25,8 @@
  *      2026-09-24: `ensureSiteKeyForBoot`'s boot-path wiring made the standalone CLI command and
  *      this launcher's own spawn of it redundant).
  *
- * `index.ts` itself stays free of `.env`-loading or port-auto-pick logic: it is also the container
- * entrypoint (`Dockerfile`'s `CMD ["node","dist/src/index.js"]`), and neither belongs on that path.
+ * `index.ts` stays free of `.env`-loading; it is also the container
+ * entrypoint (`Dockerfile`'s `CMD ["node","dist/src/index.js"]`). Port retries are opt-in for this launcher.
  */
 import { connect, createServer } from "node:net";
 import path from "node:path";
@@ -35,7 +35,6 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { loadRepoRootEnvFile } from "./load-repo-root-env.mjs";
 
 const DEFAULT_START_PORT = 3000;
-const PORT_PROBE_RANGE = 20; // 3000-3019 inclusive
 
 /** `hostname === "localhost" | "127.0.0.1" | "::1"` — the three loopback forms this repo's own
  *  `TOVU_PUBLIC_URL` values use. A plain, self-contained check (this file runs under bare `node`,
@@ -46,7 +45,7 @@ function isLoopbackHostname(hostname) {
 }
 
 /**
- * Pure(ish) port/env decision (step 3 above). Auto-picks a free port only when ALL of: `PORT` is
+ * Port/env decision (step 3 above). Enables actual-listener retries only when ALL of: `PORT` is
  * unset in `env`, and `TOVU_PUBLIC_URL` is either unset or loopback. A non-loopback
  * `TOVU_PUBLIC_URL` or an explicit `PORT` is left completely alone — including never probing —
  * because today's `index.ts` `EADDRINUSE` refusal already covers that case correctly, and this
@@ -67,19 +66,19 @@ function isLoopbackHostname(hostname) {
  * @param {boolean} input.dotenvLoaded - accepted for parity with the object `main()` builds once;
  *   not read by this function itself (see this file's own header for why the merged `env` above
  *   already carries everything step 3 needs).
- * @param {(port: number) => boolean | Promise<boolean>} input.isPortFree - probes one port.
- *   Injected so this function never touches a real socket directly; `main()` supplies a real one.
+ * @param {(port: number) => boolean | Promise<boolean>} [input.isPortFree] - legacy compatibility input;
+ *   never called. Only the actual server bind decides availability.
  * @returns {Promise<{ port: number, envOverrides: Record<string, string>, envRemovals: string[], refuse?: string }>}
  *   `envOverrides` holds only the keys that actually changed — empty when nothing needs to change,
- *   even when a probe ran and 3000 itself turned out to be free. `envRemovals` names variables
+ *   with only a retry-mode flag in auto mode. `envRemovals` names variables
  *   `main()` must delete. `refuse` is set (and no probe runs) exactly when auto-pick was skipped
- *   outright; its value is a stable machine-readable reason, not user-facing text — this function
+ *   for a public or malformed URL; its value is a stable machine-readable reason, not user-facing text — this function
  *   never prints anything itself.
  * @complexity O(1) when `PORT` is set or `TOVU_PUBLIC_URL` is non-loopback (no probing); otherwise
- *   at most `PORT_PROBE_RANGE` calls to `isPortFree`.
+ *   O(1) in auto mode too; the actual listener owns retrying occupied ports.
  */
 export async function planStart(input) {
-  const { env, isPortFree } = input;
+  const { env } = input;
   const publicUrl = classifyPublicUrl(env.TOVU_PUBLIC_URL);
   const envRemovals = publicUrl === "loopback" ? ["TOVU_PUBLIC_URL"] : [];
 
@@ -91,15 +90,8 @@ export async function planStart(input) {
   if (publicUrl === "unparsable") return { port: DEFAULT_START_PORT, envOverrides: {}, envRemovals, refuse: "unparsable-public-url" };
   if (publicUrl === "public") return { port: DEFAULT_START_PORT, envOverrides: {}, envRemovals, refuse: "non-loopback-public-url" };
 
-  for (let port = DEFAULT_START_PORT; port < DEFAULT_START_PORT + PORT_PROBE_RANGE; port++) {
-    // eslint-disable-next-line no-await-in-loop -- sequential by design: stop at the FIRST free port.
-    const free = await isPortFree(port);
-    if (!free) continue;
-    if (port === DEFAULT_START_PORT) return { port, envOverrides: {}, envRemovals };
-    return { port, envOverrides: { PORT: String(port) }, envRemovals };
-  }
-
-  return { port: DEFAULT_START_PORT, envOverrides: {}, envRemovals, refuse: "no-free-port-in-range" };
+  // The server binds directly and retains the socket. Probing here would race its later bind.
+  return { port: DEFAULT_START_PORT, envOverrides: { TOVU_START_AUTO_PORT: "1" }, envRemovals };
 }
 
 /** `"unset" | "unparsable" | "loopback" | "public"` for a raw `TOVU_PUBLIC_URL` value. */
@@ -159,7 +151,7 @@ export function startQuietEnvDefaults(env) {
 }
 
 /**
- * Resolves the `TOVU_HOST` value `main()` both probes with and writes back to `process.env` before
+ * Resolves the `TOVU_HOST` value `main()` writes back to `process.env` before
  * importing `dist/src/index.js` in-process. `index.ts`'s own default (`resolveBindHost` called with
  * `process.env.TOVU_HOST`, falling back to `undefined`) is Node's all-interfaces bind — correct for
  * `index.ts`'s OTHER caller, the container entrypoint (Docker/compose/Fly/Render all bind every
@@ -193,7 +185,7 @@ function isPortReachable(port, host) {
 }
 
 /**
- * Real probe for {@link planStart}'s `isPortFree`.
+ * Legacy probe retained for callers; npm start never uses it to select a port.
  *
  * A bind-and-release on `host` ALONE is not enough: measured directly (2026-09-24 live check), an
  * existing server already listening on the IPv6 wildcard address let an explicit IPv4 `127.0.0.1`
@@ -206,7 +198,7 @@ function isPortReachable(port, host) {
  * usable" (fails closed toward NOT auto-picking a port this process cannot actually bind anyway).
  *
  * @param {number} port
- * @param {string} host - the address `main()` will actually bind to if this port is chosen.
+ * @param {string} host - the address the caller wants to probe.
  * @returns {Promise<boolean>}
  * @complexity O(1) — up to two connect attempts plus one bind/close.
  */
@@ -233,11 +225,8 @@ async function main() {
   // and defaults to Node's all-interfaces bind when it's unset (see `resolveStartHost`'s header) —
   // this write is what actually narrows a plain `npm start` to loopback-only, not just the probe.
   process.env.TOVU_HOST = host;
-  const plan = await planStart({
-    env: process.env,
-    dotenvLoaded,
-    isPortFree: (port) => probePortFree(port, host),
-  });
+  delete process.env.TOVU_START_AUTO_PORT;
+  const plan = await planStart({ env: process.env, dotenvLoaded });
   for (const key of plan.envRemovals) delete process.env[key];
   Object.assign(process.env, plan.envOverrides, startQuietEnvDefaults(process.env));
 

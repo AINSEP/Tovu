@@ -232,6 +232,7 @@ function commitInput(files: { path: string; content: string }[]) {
 
 test("commit: one file — blob, tree (with base_tree), commit, non-force ref update, in order", async () => {
   const client = new SequentialFakeHttpClient([
+    { match: /\/git\/trees\/parent-tree-sha$/, method: "GET", status: 200, json: { tree: [], truncated: false } },
     { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "blob-sha" } },
     { match: /\/git\/trees$/, method: "POST", status: 201, json: { sha: "new-tree-sha" } },
     { match: /\/git\/commits$/, method: "POST", status: 201, json: { sha: "new-commit-sha" } },
@@ -240,7 +241,7 @@ test("commit: one file — blob, tree (with base_tree), commit, non-force ref up
   const result = await commitGitHubFiles({ httpClient: client }, commitInput([{ path: "fly.toml", content: "app = 'demo'" }]), PLAN);
   assert.deepEqual(result, { ok: true, commitSha: "new-commit-sha", commitUrl: "https://github.com/octo/demo/commit/new-commit-sha" });
   for (const call of client.calls) assert.equal(call.headers.Authorization, buildAuthorizationHeader({ connection: CONNECTION, schemes: [] }));
-  const blobBody = JSON.parse(client.calls[0]!.body!);
+  const blobBody = JSON.parse(client.calls.find(c => c.url.endsWith("/git/blobs"))!.body!);
   assert.equal(blobBody.encoding, "base64");
   assert.equal(Buffer.from(blobBody.content, "base64").toString("utf8"), "app = 'demo'");
   const commitBody = JSON.parse(client.calls.find((c) => c.url.endsWith("/git/commits"))!.body!);
@@ -265,6 +266,7 @@ test("commit: one file — blob, tree (with base_tree), commit, non-force ref up
 
 test("commit: two files with identical content create exactly one blob", async () => {
   const client = new SequentialFakeHttpClient([
+    { match: /\/git\/trees\/parent-tree-sha$/, method: "GET", status: 200, json: { tree: [], truncated: false } },
     { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "shared-blob-sha" } },
     { match: /\/git\/trees$/, method: "POST", status: 201, json: { sha: "new-tree-sha" } },
     { match: /\/git\/commits$/, method: "POST", status: 201, json: { sha: "new-commit-sha" } },
@@ -290,6 +292,7 @@ test("commit: two files with identical content create exactly one blob", async (
 
 test("commit: a diverged branch (422 on ref update) is refused, not overwritten", async () => {
   const client = new SequentialFakeHttpClient([
+    { match: /\/git\/trees\/parent-tree-sha$/, method: "GET", status: 200, json: { tree: [], truncated: false } },
     { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "blob-sha" } },
     { match: /\/git\/trees$/, method: "POST", status: 201, json: { sha: "new-tree-sha" } },
     { match: /\/git\/commits$/, method: "POST", status: 201, json: { sha: "new-commit-sha" } },
@@ -300,7 +303,9 @@ test("commit: a diverged branch (422 on ref update) is refused, not overwritten"
 });
 
 test("commit: a network failure creating the blob aborts before the tree/commit/ref calls", async () => {
-  const client = new SequentialFakeHttpClient([{ match: /\/git\/blobs$/, method: "POST", status: 0, networkError: "connection reset" }]);
+  const client = new SequentialFakeHttpClient([
+    { match: /\/git\/trees\/parent-tree-sha$/, method: "GET", status: 200, json: { tree: [], truncated: false } },
+    { match: /\/git\/blobs$/, method: "POST", status: 0, networkError: "connection reset" }]);
   const result = await commitGitHubFiles({ httpClient: client }, commitInput([{ path: "fly.toml", content: "x" }]), PLAN);
   assert.deepEqual(result, {
     ok: false,
@@ -313,6 +318,7 @@ test("commit: a network failure creating the blob aborts before the tree/commit/
 
 test("commit: a provider error creating the tree is reported with the provider's own message", async () => {
   const client = new SequentialFakeHttpClient([
+    { match: /\/git\/trees\/parent-tree-sha$/, method: "GET", status: 200, json: { tree: [], truncated: false } },
     { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "blob-sha" } },
     { match: /\/git\/trees$/, method: "POST", status: 422, json: { message: "invalid tree entry" } },
   ]);
@@ -337,5 +343,40 @@ test("validation: a branch containing a '..' segment is refused before any URL i
 test("validation: a branch with a leading, trailing, or doubled slash is refused", () => {
   for (const branch of ["/main", "main/", "feature//x"]) {
     assert.throws(() => validateWriteFilesInput(branchValidationInput(branch)), /invalid branch name/, `branch '${branch}' must be refused`);
+  }
+});
+
+test("commit preserves executable and regular modes from the confirmed base tree", async () => {
+  const client = new SequentialFakeHttpClient([
+    { match: /\/git\/trees\/parent-tree-sha$/, method: "GET", status: 200, json: { tree: [{ path: "scripts", type: "tree", mode: "040000", sha: "scripts-tree" }] } },
+    { match: /\/git\/trees\/scripts-tree$/, method: "GET", status: 200, json: { tree: [
+      { path: "run.sh", type: "blob", mode: "100755", sha: "old-exec" },
+      { path: "notes.txt", type: "blob", mode: "100644", sha: "old-notes" },
+    ] } },
+    { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "shared-blob" } },
+    { match: /\/git\/trees$/, method: "POST", status: 201, json: { sha: "new-tree" } },
+    { match: /\/git\/commits$/, method: "POST", status: 201, json: { sha: "new-commit" } },
+    { match: /\/git\/refs\/heads\/main$/, method: "PATCH", status: 200, json: {} },
+  ]);
+  const files = ["scripts/run.sh", "scripts/notes.txt", "new.txt"].map(path => ({ path, content: "same" }));
+  const result = await commitGitHubFiles({ httpClient: client }, commitInput(files), PLAN);
+  assert.equal(result.ok, true);
+  assert.equal(client.remainingCount(), 0);
+  const body = JSON.parse(client.calls.find(c => c.method === "POST" && c.url.endsWith("/git/trees"))!.body!);
+  assert.deepEqual(body.tree.map((entry: { path: string; mode: string }) => [entry.path, entry.mode]), [
+    ["scripts/run.sh", "100755"], ["scripts/notes.txt", "100644"], ["new.txt", "100644"],
+  ]);
+});
+
+test("commit refuses truncated mode lookups and symlinks before writing blobs", async () => {
+  for (const json of [
+    { tree: [], truncated: true },
+    { tree: [{ path: "fly.toml", type: "blob", mode: "120000", sha: "link" }] },
+  ]) {
+    const client = new SequentialFakeHttpClient([{ match: /\/git\/trees\/parent-tree-sha$/, method: "GET", status: 200, json }]);
+    const result = await commitGitHubFiles({ httpClient: client }, commitInput([{ path: "fly.toml", content: "x" }]), PLAN);
+    assert.equal(result.ok, false);
+    assert.equal(client.calls.length, 1);
+    assert.equal(client.calls[0]!.method, "GET");
   }
 });

@@ -830,6 +830,13 @@ async function handleSetTokenAnswer(answer: SurfaceMessage, ctx: SetTokenAnswerC
     // value the username held before the form opened. `existing.id` is still safe to reuse — it names
     // WHICH row to update and cannot go stale the way a plaintext column value can.
     const current = await describeCredential({ repo: routeDeps.customCredentialSetRepo }, { workspaceId: routeDeps.workspaceId, id: existing.id });
+    // Half-migrated credentials keep the username only in their sealed connection. Resolve that
+    // fallback from the current row, retaining the fresh-read protection against form-open races.
+    const resolved = current && current.username === undefined
+      ? await resolveCustomCredentialByLabel({ repo: routeDeps.customCredentialSetRepo, sealer: routeDeps.siteAssistantSecretSealer },
+        { workspaceId: routeDeps.workspaceId, label: current.label })
+      : null;
+    const username = current?.username ?? resolved?.connection.username;
     await updateCustomCredential(
       {
         repo: routeDeps.customCredentialSetRepo,
@@ -849,7 +856,7 @@ async function handleSetTokenAnswer(answer: SurfaceMessage, ctx: SetTokenAnswerC
         // the fresh read above rather than the `existing` snapshot. If the row was deleted while the
         // form was open, `current` is `null` and `updateCustomCredential`'s own `findById` throws
         // `CustomCredentialNotFoundError` below, same as it always has.
-        connection: { token, ...(current?.username !== undefined ? { username: current.username } : {}) },
+        connection: { token, ...(username !== undefined ? { username } : {}) },
       }
     );
   } catch (err) {

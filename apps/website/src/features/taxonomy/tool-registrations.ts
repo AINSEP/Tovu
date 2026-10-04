@@ -289,14 +289,15 @@ export function buildTaxonomyRegistrations(
       // to plain `EntryTermRepoPort`), but `unassignTerms` needs the `UnassignableEntryTermRepoPort`
       // capability too — override `entryTerms` back to `routeDeps.entryTermRepo`'s own wider type
       // rather than widening `taxonomyDeps`'s return type for every OTHER handler that doesn't need it.
-      await unassignTerms({
+      const { removedTermIds } = await unassignTerms({
         deps: { ...taxonomyDeps(routeDeps), entryTerms: routeDeps.entryTermRepo },
         principalId: ctx.principal.id,
         contentType,
         contentId,
         termIds,
       });
-      return { contentType, contentId, unassignedTermIds: termIds };
+      const removed = new Set(removedTermIds);
+      return { contentType, contentId, unassignedTermIds: removedTermIds, notAssignedTermIds: termIds.filter(id => !removed.has(id)) };
     },
 
     taxonomy_plan_merge_term: async (ctx) => {

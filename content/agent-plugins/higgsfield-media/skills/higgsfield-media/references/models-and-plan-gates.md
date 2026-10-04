@@ -115,19 +115,24 @@ Note also that `use_unlim` caps `count` to 1 regardless of what you asked for.
 
 ## What is and is not enabled here
 
-The operator's allowlist for this connection currently admits seven Higgsfield tools:
-`generate_image`, `models_explore`, `job_status`, `jobs_wait`, `show_generations`,
-`reveal_generation`, `show_generation_by_ids`. Of those, two carry the write grant:
-`generate_image` and `reveal_generation`.
+This plugin covers images and video. The workflow's tool list includes `generate_image` and
+`generate_video`, followed by `job_status` polling and `media_import_from_url` for the completed
+CDN asset. The owner confirmed video coverage on 2026-10-04. Consult the live federated tool list
+for each generator's input schema and the current connection's allowlist/write grants.
 
-Everything else Higgsfield advertises — video generation, upscaling, billing, TikTok publishing,
-website deployment, sandbox execution, and the rest — is refused `not-in-operator-allowlist` and
-does not exist from inside a run. **This is normal and correct**, not a misconfiguration: a
-default-deny allowlist against a server that advertises tens of tools is the posture working as
-designed. Do not report those absences as problems, and do not ask the operator to widen the
-allowlist unless they have asked for a capability that genuinely needs it.
+The seven-tool, image-only allowlist recorded during the September image trial was a snapshot of
+that operator's connection, not a limit imposed by this plugin. `plugin.json` currently declares
+only `models_explore` and `job_status` as default read tools; it does not deny video or automatically
+grant generation writes. For a video request, `generate_video` must be both allowlisted and granted
+"may write", just as `generate_image` is for images. SKILL.md's setup table includes both.
 
-**Video is not covered by this plugin.** `generate_video` is not allowlisted, so the chain in
-SKILL.md is image-only. `media_import_from_url` itself does accept `video/mp4` and `video/webm`,
-so nothing in Tovu blocks video — the gap is on the allowlist side, and widening it is an
-operator decision.
+For video, use the same asynchronous chain: submit `generate_video`, poll `job_status` without
+`sync:true` until completion, then import the video CDN URL using `media_import_from_url`.
+The import tool accepts `video/mp4` and `video/webm`. A job id alone does not mean the video
+exists or has reached the site's Media library. Select a video model using the live model list;
+image-model plan results above do not establish a video model's availability.
+
+Other advertised tools (upscaling, billing, publishing, deployment, or sandbox execution) still
+require their own operator allowlist entries and write grants where applicable. A
+`not-in-operator-allowlist` refusal describes that connection's current policy; report the missing
+grant only when it blocks the capability the operator requested.

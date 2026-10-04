@@ -1,3 +1,5 @@
+import { createServer as createHttpServer } from "node:http";
+import { listenServer } from "@jini-ai/devops/local-dev";
 import { createServer as createHttpsServer } from "node:https";
 import { createRouteDeps } from "./server/runtime/composition/app.js";
 import { createServingApp } from "./server/runtime/composition/serving-app.js";
@@ -35,7 +37,9 @@ import { resolveCheckoutRoot } from "./platform/site-dir/product-root.js";
  * SPIKE: on the SQLite runtime, the sample Tier-3 store plugin is activated at boot — it declares
  * its own table through the never-brick dataModule seam, seeds products, and surfaces them at /store.
  */
-const port = Number(process.env.PORT ?? 3000);
+let port = Number(process.env.PORT ?? 3000);
+const autoStartPort = process.env.TOVU_START_AUTO_PORT === "1";
+delete process.env.TOVU_START_AUTO_PORT;
 const useMemory = process.env.TOVU_DB === "memory";
 // LAN-bind plan (2026-09-23): `undefined` is this entry point's OWN existing default (Node's own
 // all-interfaces bind) — unchanged, per the plan's Decision (a container has to listen on every
@@ -279,6 +283,49 @@ async function main(): Promise<void> {
   // adopted or minted.
   if (!useMemory) await ensureSiteKeyForBoot({ siteDir: siteDir(), findSiteKeyDependentData });
 
+  // Reserve the actual HTTP(S) listener before composition derives origins or spawns daemons.
+  // During boot it answers 503; attaching the app later keeps this SAME socket bound throughout.
+  let requestHandler: import("node:http").RequestListener = (_request, response) => {
+    response.writeHead(503, { "Retry-After": "1" });
+    response.end("Server is starting");
+  };
+  const server = devTls.active && devTls.credentials
+    ? createHttpsServer(devTls.credentials, (request, response) => requestHandler(request, response))
+    : createHttpServer((request, response) => requestHandler(request, response));
+  // WHY THIS EXISTS: without it, a listen failure is an unhandled `'error'` event on the Server,
+  // which Node re-throws — so the process dies with a raw stack trace and no statement of what is
+  // wrong. Measured 2026-08-15: `tsx watch` restarted this process on a source edit, force-killed
+  // the previous one after its 5s grace period ("Process didn't exit in 5s"), and the replacement
+  // hit the still-held port. What the operator saw was a dead server and a login page that would
+  // not authenticate; what they needed to see was "port 3000 is already in use".
+  //
+  // EADDRINUSE gets a named, actionable message because it is the one failure here with an obvious
+  // operator fix. Everything else re-raises rather than being swallowed into a generic line — an
+  // unknown listen failure should still surface its own error, just not as an unhandled event.
+  //
+  // Pinned/dev entrypoints use `exit(1)` rather than a retry loop: a port collision in dev means
+  // another Tovu is already serving, and silently retrying would make two processes race for the port on every restart.
+  // `dev.mjs` already preflights ports and names the holder; `dev:server` alone does not, which is
+  // exactly the path this was hit on. Only npm start opts into direct-bind retries.
+  try {
+    port = await listenServer({ server, port }, { ...(bindHost === undefined ? {} : { host: bindHost }), attempts: autoStartPort ? 20 : 1 });
+    process.env.PORT = String(port);
+  } catch (caught) {
+    const error = caught as NodeJS.ErrnoException;
+    if (error.code === "EADDRINUSE") {
+      console.error(
+        `Refusing to start: port ${port} is already in use.\n` +
+          `  Another Tovu (or an orphan from a previous run) is still holding it.\n` +
+          `  Find it with:  lsof -ti :${port} -sTCP:LISTEN\n` +
+          `  Then stop that process, or set PORT to a free port.`,
+      );
+      process.exit(1);
+    }
+    throw error;
+  }
+
+  server.on("error", (error: Error) => { throw error; });
+
   // The store the composition opens: a PGlite owner's socket goes to the agent daemon below.
   let siteStore: SiteStore | undefined;
   const deps = useMemory
@@ -343,19 +390,9 @@ async function main(): Promise<void> {
   // a newer/older Node where this is fixed, or a non-`allowHTTP1`-compat approach (e.g. a real
   // HTTP/2-native framework in front, or `spdy`), verified under the same SSE-reconnect load before
   // it ships.
-  // Express's own `.listen()` overloads type `hostname` as a required `string`
-  // (`@types/express-serve-static-core`), not `string | undefined` — `bindHost === undefined` (no
-  // TOVU_HOST override, Node's own all-interfaces default) is routed to the callback-only overload
-  // explicitly, same reasoning and same pattern as `cli/commands/serve.ts`'s own `app.listen` call.
-  // `https.Server.listen` (inherited from `net.Server`) types `hostname` as optional, so its branch
-  // needs no such split — kept split anyway, for one uniform shape across both branches.
-  const server = devTls.active && devTls.credentials
-    ? bindHost !== undefined
-      ? createHttpsServer(devTls.credentials, app).listen(port, bindHost, onListening)
-      : createHttpsServer(devTls.credentials, app).listen(port, onListening)
-    : bindHost !== undefined
-      ? app.listen(port, bindHost, onListening)
-      : app.listen(port, onListening);
+  // The listener above uses Node's options overload and omits an undefined hostname, preserving
+  // the all-interfaces container default without Express's required-hostname overload ambiguity.
+  requestHandler = app;
 
   // Forwards Vite's HMR WebSocket through this server's own `upgrade` event when
   // `TOVU_ADMIN_DEV_PROXY_URL` is set — the one thing `admin-static.ts`'s ordinary Express routing
@@ -364,6 +401,7 @@ async function main(): Promise<void> {
   // doc for the precedence this mirrors. Registered on `server` directly rather than `app`, so it
   // works identically whether TLS is active or not.
   registerAdminDevProxyUpgrade(server);
+  onListening();
 
   function onListening() {
     const store = useMemory ? "in-memory" : `sqlite (${defaultContentDbPath()})`;
@@ -410,33 +448,6 @@ async function main(): Promise<void> {
       });
   }
 
-  // WHY THIS EXISTS: without it, a listen failure is an unhandled `'error'` event on the Server,
-  // which Node re-throws — so the process dies with a raw stack trace and no statement of what is
-  // wrong. Measured 2026-08-15: `tsx watch` restarted this process on a source edit, force-killed
-  // the previous one after its 5s grace period ("Process didn't exit in 5s"), and the replacement
-  // hit the still-held port. What the operator saw was a dead server and a login page that would
-  // not authenticate; what they needed to see was "port 3000 is already in use".
-  //
-  // EADDRINUSE gets a named, actionable message because it is the one failure here with an obvious
-  // operator fix. Everything else re-raises rather than being swallowed into a generic line — an
-  // unknown listen failure should still surface its own error, just not as an unhandled event.
-  //
-  // `exit(1)` rather than a retry loop: a port collision in dev means another Tovu is already
-  // serving, and silently retrying would make two processes race for the port on every restart.
-  // `dev.mjs` already preflights ports and names the holder; `dev:server` alone does not, which is
-  // exactly the path this was hit on.
-  server.on("error", (error: NodeJS.ErrnoException) => {
-    if (error.code === "EADDRINUSE") {
-      console.error(
-        `Refusing to start: port ${port} is already in use.\n` +
-          `  Another Tovu (or an orphan from a previous run) is still holding it.\n` +
-          `  Find it with:  lsof -ti :${port} -sTCP:LISTEN\n` +
-          `  Then stop that process, or set PORT to a free port.`,
-      );
-      process.exit(1);
-    }
-    throw error;
-  });
 }
 
 // ADR-049 (process-shape correction) — Tovu never spawns a coding-agent CLI itself; that lives

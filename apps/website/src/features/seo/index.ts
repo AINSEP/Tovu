@@ -23,6 +23,8 @@ export {
   computeIndexableEntries,
   regenerateSitemapCache,
   invalidateSitemapCache,
+  requestSitemapInvalidation,
+  SITEMAP_INVALIDATED_EVENT,
   createSeoEventSubscriptions,
   registerSitemapCollectHook,
   resetSitemapCollectHooksForTests,

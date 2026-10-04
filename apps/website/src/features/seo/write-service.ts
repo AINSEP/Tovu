@@ -162,7 +162,7 @@ export interface SetEntrySeoOverridesDeps {
   postRepo: PostRepoPort;
   authorize: AuthorizeFn;
   /** Injected so this chokepoint stays testable ahead of Phase 6's `sitemap.ts` (see file header). */
-  invalidateSitemapCache: (input: { workspaceId: string }) => void;
+  invalidateSitemapCache: (input: { workspaceId: string }) => void | Promise<void>;
   /**
    * `post_revisions` timestamping (2026-09-18, round 4) — see {@link mergeOverridesOntoCurrentRow}'s
    * updated doc. Required, not optional-with-a-fallback like `createPost`/`updatePost`'s own
@@ -326,7 +326,7 @@ export async function setEntrySeoOverrides(
   const mergedOverrides = await mergeOverridesOntoCurrentRow(deps.postRepo, deps.clock, input);
 
   if (touchesSitemapEligibility(input.patch as Record<string, unknown>)) {
-    deps.invalidateSitemapCache({ workspaceId: input.workspaceId });
+    await deps.invalidateSitemapCache({ workspaceId: input.workspaceId });
   }
 
   return { overrides: mergedOverrides };

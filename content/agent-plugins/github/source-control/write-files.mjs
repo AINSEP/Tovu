@@ -252,12 +252,50 @@ export function createFileWriter(git) {
     return { ok: true, plan: { parentCommitSha, baseTreeSha, fileStates: existence.fileStates } };
   }
 
+  /** Read each directory of the CONFIRMED tree, never the mutable branch. Non-recursive
+   * lookups avoid GitHub's recursive-tree truncation limit and preserve executable blobs.
+   * @param {{ target: Target, baseTreeSha: string, files: readonly WriteFile[] }} required */
+  async function readFileModes({ target, baseTreeSha, files }) {
+    /** @type {Map<string, any[]>} */
+    const trees = new Map();
+    /** @type {Map<string, string>} */
+    const modes = new Map();
+    for (const file of files) {
+      let treeSha = baseTreeSha;
+      const segments = file.path.split("/");
+      for (let index = 0; index < segments.length; index++) {
+        let tree = trees.get(treeSha);
+        if (!tree) {
+          const result = await git.getJson(target, `${repoPathOf(target)}/git/trees/${enc(treeSha)}`, "GitHub file-mode lookup failed");
+          if (!result.ok) return result;
+          if (!result.found || !Array.isArray(result.json.tree) || result.json.truncated === true) {
+            return { ok: false, code: "provider-error", message: "GitHub returned an incomplete tree — refusing to guess file modes" };
+          }
+          tree = result.json.tree;
+          trees.set(treeSha, tree);
+        }
+        const entry = tree.find(entry => entry.path === segments[index]);
+        if (!entry) { modes.set(file.path, "100644"); break; }
+        if (index < segments.length - 1) {
+          if (entry.type !== "tree" || typeof entry.sha !== "string" || !entry.sha) return notRegularFileFailure(file.path);
+          treeSha = entry.sha;
+        } else {
+          if (entry.type !== "blob" || !["100644", "100755"].includes(entry.mode)) return notRegularFileFailure(file.path);
+          modes.set(file.path, entry.mode);
+        }
+      }
+    }
+    return { ok: true, modes };
+  }
+
   /**
    * @param {Target & { branch: string, commitMessage: string, files: readonly WriteFile[] }} input
    * @param {{ parentCommitSha: string, baseTreeSha: string }} plan
    */
   async function commitFiles(input, plan) {
     const repoPath = repoPathOf(input);
+    const fileModes = await readFileModes({ target: input, baseTreeSha: plan.baseTreeSha, files: input.files });
+    if (!fileModes.ok) return fileModes;
 
     /** @type {Map<string, string>} */
     const blobShaByHash = new Map();
@@ -272,7 +310,7 @@ export function createFileWriter(git) {
         blobSha = blobResult.sha;
         blobShaByHash.set(hash, blobSha);
       }
-      entries.push({ path: file.path, mode: "100644", type: "blob", sha: blobSha });
+      entries.push({ path: file.path, mode: fileModes.modes.get(file.path), type: "blob", sha: blobSha });
     }
 
     const treeResult = await git.postJson(input, `${repoPath}/git/trees`, { tree: entries, base_tree: plan.baseTreeSha }, "GitHub tree creation failed");
