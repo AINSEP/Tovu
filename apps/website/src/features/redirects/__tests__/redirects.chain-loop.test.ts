@@ -45,7 +45,7 @@ function makeDeps(): RedirectsWriteDeps {
     transaction: async (fn) => fn(),
     matcher: redirectMatcher,
     originRegistry: new OriginRegistry({ repo: originRepo }),
-    clock: { nowIso: () => `2026-07-13T00:00:${String(clockTick++).padStart(2, "0")}.000Z` },
+    clock: { nowMs: () => Date.parse("2026-07-13T00:00:00.000Z") + 1000 * clockTick++ },
     idGen: { newId: () => `redirect-${++idTick}` },
     outbox: new InMemoryOutbox(),
   };
@@ -140,7 +140,10 @@ test("updateRedirect rejects a target completing a whole-chain cycle and a dupli
   }
   const before = await deps.repo.findById({ workspaceId: WORKSPACE_ID, id: "redirect-3" });
   assert.ok(before);
-  const revisionsBefore = await deps.repo.listRevisions({ workspaceId: WORKSPACE_ID, redirectId: before.id });
+  // The in-memory repo is the only revision reader; the write port exposes none.
+  const memoryRepo = deps.repo as InMemoryRedirectRepo;
+  const revisionsBefore = memoryRepo.listRevisionsForTests(before.id);
+  assert.equal(revisionsBefore.length, 1, "the create wrote exactly one revision, so an unchanged list is a real check");
   await assert.rejects(
     () => updateRedirect({ deps, input: { workspaceId: WORKSPACE_ID, actorId: ACTOR_ID, id: before.id, toTarget: "/a" } }),
     RedirectLoopError,
@@ -151,5 +154,5 @@ test("updateRedirect rejects a target completing a whole-chain cycle and a dupli
     RedirectConflictError,
   );
   assert.deepEqual(await deps.repo.findById({ workspaceId: WORKSPACE_ID, id: before.id }), before);
-  assert.deepEqual(await deps.repo.listRevisions({ workspaceId: WORKSPACE_ID, redirectId: before.id }), revisionsBefore);
+  assert.deepEqual(memoryRepo.listRevisionsForTests(before.id), revisionsBefore);
 });
