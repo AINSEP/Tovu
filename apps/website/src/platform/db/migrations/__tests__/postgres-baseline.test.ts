@@ -40,7 +40,7 @@ describe("0000_legacy_baseline on Postgres (PGlite)", () => {
   test("applies on an empty database and matches schema.postgres.ts at head", async () => {
     const kernel = pglite();
     const report = await migrateContentDatabase(kernel);
-    assert.deepEqual(report.applied, ["0000_legacy_baseline", "0001_post_search", "0002_drop_empty_legacy_chat_tables", "0003_coercion_json_as_json"]);
+    assert.deepEqual(report.applied, ["0000_legacy_baseline", "0001_post_search", "0002_drop_empty_legacy_chat_tables", "0003_coercion_json_as_json", "0004_drop_unused_deployment_tables"]);
     const reference = pglite(ensurePgContentSchema);
     // `post_search_document` is step 0001's, not the baseline's (`post-search-step.test.ts`).
     const actual = await readSchemaShape(kernel, { exclude: ["tovu_migrations", "post_search_document"] });
