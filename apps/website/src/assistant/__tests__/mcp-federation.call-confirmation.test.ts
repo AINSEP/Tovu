@@ -16,10 +16,18 @@ import { buildFederatedCallConfirmSpec, createFederatedCallConfirmer } from "../
 import { InMemoryMcpSession } from "../mcp-federation/adapter.memory.js";
 import type { FederatedMcpConnectionConfig, RemoteToolDescriptor } from "../mcp-federation/ports.js";
 import { buildFederatedMcpRegistrations, type FederationDeps } from "../mcp-federation/registrations.js";
-import { admitRemoteTools, refusalForAdmittedToolUnderCurrentGrants } from "../mcp-federation/trust.js";
+import * as shared from "@jini-ai/mcp/federation";
+import { admitRemoteTools } from "@jini-ai/mcp/federation";
 import { isMcpUiToolCallPermitted } from "../mcp-ui-tool-calls.js";
 import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "../mcp-ui-tool-calls-route.js";
 import { RUN_PRINCIPAL_HEADER } from "../run-ownership.js";
+
+// The trust tier moved to @jini-ai/mcp/federation; this wrapper keeps the original positional call
+// so the assertions below are unchanged.
+const refusalForAdmittedToolUnderCurrentGrants = (
+  tool: Parameters<typeof shared.refusalForAdmittedToolUnderCurrentGrants>[0]["tool"],
+  grants: Parameters<typeof shared.refusalForAdmittedToolUnderCurrentGrants>[0]["grants"],
+) => shared.refusalForAdmittedToolUnderCurrentGrants({ tool, grants });
 
 /**
  * @file G3: the one approval rule for every federated (external MCP / agent plugin) tool.
@@ -365,7 +373,9 @@ test("G3 route rule: a federated id is permitted only as an answer to an open ca
   assert.equal(isMcpUiToolCallPermitted("mcp__supabase__execute_sql", true), true);
   assert.equal(isMcpUiToolCallPermitted("mcp__supabase__execute_sql", false), false);
   assert.equal(isMcpUiToolCallPermitted("identity_user_delete_everything", true), false);
-  assert.equal(isMcpUiToolCallPermitted("content_post_delete", false), true);
+  // A native redeemable id needs no open card. (`content_post_delete` left the redeemable set in
+  // 6eac86229 when deletion became a reversible trash move; `settings_set_value` is still on it.)
+  assert.equal(isMcpUiToolCallPermitted("settings_set_value", false), true);
 });
 
 function refusingExecutor(): { executor: ToolExecutor; executed: string[] } {

@@ -10,18 +10,22 @@ import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@ji
 import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
 import { openChatDb } from "../../platform/db/sqlite/chat-db.js";
 import { buildFederatedCallConfirmSpec, createFederatedCallConfirmer } from "../external-mcp-call-confirmation.js";
-import {
-  InMemoryExternalMcpToolApprovalRepo,
-  createInMemoryConversationToolApprovalStore,
-  federatedToolApprovalFingerprint,
-  type ConversationToolApprovalStore,
-  type ExternalMcpToolApprovalRepoPort,
-} from "../external-mcp-tool-approvals.js";
+import * as shared from "@jini-ai/mcp/federation";
+import type { FederatedToolIdentity } from "@jini-ai/mcp/federation";
+import { InMemoryExternalMcpToolApprovalRepo, createInMemoryConversationToolApprovalStore } from "../external-mcp-tool-approval-adapters.js";
+import type { ConversationToolApprovalStore, ExternalMcpToolApprovalRepoPort } from "../external-mcp-tool-approval-ports.js";
 import { InMemoryMcpSession } from "../mcp-federation/adapter.memory.js";
 import type { FederatedMcpConnectionConfig, RemoteToolDescriptor } from "../mcp-federation/ports.js";
+import { TOVU_MCP_APPROVAL_FINGERPRINT_DOMAIN } from "../mcp-federation/presets.js";
 import { buildFederatedMcpRegistrations, type FederationDeps } from "../mcp-federation/registrations.js";
-import { describeFederatedTool } from "../mcp-federation/trust.js";
 import { createSqliteConversationToolApprovalStore } from "../persistence/conversation-tool-approval-store.js";
+
+// The trust tier and approval fingerprint moved to @jini-ai/mcp/federation. These wrappers keep the
+// original call shapes and bind Tovu's fingerprint domain exactly as the host confirmer does.
+const federatedToolApprovalFingerprint = (identity: FederatedToolIdentity) =>
+  shared.federatedToolApprovalFingerprint({ identity, fingerprintDomain: TOVU_MCP_APPROVAL_FINGERPRINT_DOMAIN });
+const describeFederatedTool = ({ remoteDescription, ...required }: { label: string; remoteName: string; remoteDescription?: string | undefined }) =>
+  shared.describeFederatedTool(required, { remoteDescription });
 
 /**
  * @file G3 remembered approvals (owner rule 2026-09-27): the card's Allow / Allow for this chat /
@@ -30,8 +34,10 @@ import { createSqliteConversationToolApprovalStore } from "../persistence/conver
  * - Allow runs this one call and remembers nothing.
  * - Allow for this chat stops asking for this tool in this conversation only, and survives a restart
  *   (kept in chat.db with the conversation).
- * - Always allow stops asking for this tool on this connection for the whole site, is never offered
- *   for a destructive tool, and can be revoked.
+ * - Always allow stops asking for this tool on this connection for the whole site, and can be revoked.
+ * - A destructive tool offers neither remember choice, and no remembered approval skips its card
+ *   (r4-mcp-federation BEHAVIOR-CHANGES "Destructive cards/grants"). The chat cases below therefore
+ *   use `send_email`, a protected but non-destructive tool.
  * - Any remembered approval stops applying when the tool's server, name or hints change.
  */
 
@@ -45,7 +51,7 @@ const SCHEMA = { type: "object", properties: { project_id: { type: "string" }, n
 const CONFIG: FederatedMcpConnectionConfig = {
   connectionId: "supabase",
   label: "Supabase",
-  allowedToolNames: ["delete_project", "send_email"],
+  allowedToolNames: ["delete_project", "send_email", "send_message"],
   writeAllowedToolNames: [],
   connectTimeoutMs: 1_000,
   callTimeoutMs: 1_000,
@@ -57,6 +63,7 @@ const CONFIG: FederatedMcpConnectionConfig = {
 const TOOLS: RemoteToolDescriptor[] = [
   { name: "delete_project", description: "Permanently deletes a project.", inputSchema: SCHEMA, annotations: { readOnlyHint: false, destructiveHint: true } },
   { name: "send_email", description: "Sends an email to a real person.", inputSchema: SCHEMA, annotations: { readOnlyHint: false } },
+  { name: "send_message", description: "Sends a chat message to a real person.", inputSchema: SCHEMA, annotations: { readOnlyHint: false } },
 ];
 
 interface Stores {
@@ -217,21 +224,22 @@ test("G3 remembered: a non-destructive card offers Allow / Allow for this chat /
   ]);
 });
 
-test("G3 remembered: a destructive card never offers Always allow", async () => {
+// Stricter since r4-mcp-federation (BEHAVIOR-CHANGES "Destructive cards/grants"): a destructive card
+// used to offer "Allow for this chat"; it now offers neither remember choice.
+test("G3 remembered: a destructive card never offers Always allow or Allow for this chat", async () => {
   const h = harness(memoryStores());
   const card = await callAndAnswer(h, "delete_project", { decision: "cancel" });
   assert.deepEqual(card.buttons, [
     ["confirm", "Allow"],
-    ["allow-chat", "Allow for this chat"],
     ["cancel", "Cancel"],
   ]);
 });
 
-test("G3 remembered: the spec builder never offers Always allow for a destructive tool, even when asked to", () => {
+test("G3 remembered: the spec builder never offers a remember choice for a destructive tool, even when asked to", () => {
   const request = { toolId: "mcp__supabase__delete_project", remoteName: "delete_project", connectionId: "supabase", connectionLabel: "Supabase", arguments: {}, destructive: true, declaredAnnotations: undefined, origin: undefined, description: "", inputSchema: {}, writeShapedInputs: [] };
   const spec = buildFederatedCallConfirmSpec(request, { offerChat: true, offerAlways: true });
   assert.deepEqual(spec.confirmLabel, "Allow");
-  assert.deepEqual(spec.alternatives?.map((entry) => entry.label), ["Allow for this chat"]);
+  assert.equal(spec.alternatives, undefined);
 });
 
 test("G3 remembered: with no conversation to remember in, the card offers no Allow for this chat", async () => {
@@ -303,23 +311,35 @@ test("G3 remembered: Allow runs exactly this call and remembers nothing — the 
 
 test("G3 remembered: Allow for this chat runs this call, then the same tool runs without a card in the same chat", async () => {
   const h = harness(memoryStores());
+  await callAndAnswer(h, "send_email", { decision: "confirm", choice: "chat" }, { conversation: "chat-a" });
+  assert.equal(h.sent.length, 1);
+  assert.equal(await runsWithoutCard(h, "send_email", { conversation: "chat-a" }), true);
+  assert.equal(h.sent.length, 2);
+});
+
+// Stricter since r4-mcp-federation (BEHAVIOR-CHANGES "Destructive cards/grants"): this destructive
+// call used to run without a card after "Allow for this chat"; a forged chat choice now runs only the
+// answered call, remembers nothing, and the next call in the same chat asks again.
+test("G3 remembered: a forged Allow for this chat on a destructive card runs that one call and the next call asks again", async () => {
+  const stores = memoryStores();
+  const h = harness(stores);
   await callAndAnswer(h, "delete_project", { decision: "confirm", choice: "chat" }, { conversation: "chat-a" });
   assert.equal(h.sent.length, 1);
-  assert.equal(await runsWithoutCard(h, "delete_project", { conversation: "chat-a" }), true);
-  assert.equal(h.sent.length, 2);
+  assert.equal(await runsWithoutCard(h, "delete_project", { conversation: "chat-a" }), false);
+  assert.equal(h.sent.length, 1);
 });
 
 test("G3 remembered: a new conversation asks again after Allow for this chat", async () => {
   const h = harness(memoryStores());
-  await callAndAnswer(h, "delete_project", { decision: "confirm", choice: "chat" }, { conversation: "chat-a" });
-  assert.equal(await runsWithoutCard(h, "delete_project", { conversation: "chat-b" }), false);
+  await callAndAnswer(h, "send_email", { decision: "confirm", choice: "chat" }, { conversation: "chat-a" });
+  assert.equal(await runsWithoutCard(h, "send_email", { conversation: "chat-b" }), false);
 });
 
 test("G3 remembered: Allow for this chat covers only that tool, and only that person", async () => {
   const h = harness(memoryStores());
-  await callAndAnswer(h, "delete_project", { decision: "confirm", choice: "chat" }, { conversation: "chat-a" });
-  assert.equal(await runsWithoutCard(h, "send_email", { conversation: "chat-a" }), false);
-  assert.equal(await runsWithoutCard(h, "delete_project", { conversation: "chat-a", principalId: OTHER_PRINCIPAL_ID }), false);
+  await callAndAnswer(h, "send_email", { decision: "confirm", choice: "chat" }, { conversation: "chat-a" });
+  assert.equal(await runsWithoutCard(h, "send_message", { conversation: "chat-a" }), false);
+  assert.equal(await runsWithoutCard(h, "send_email", { conversation: "chat-a", principalId: OTHER_PRINCIPAL_ID }), false);
 });
 
 test("G3 remembered: Allow for this chat survives a restart — it is kept in chat.db with the conversation", async () => {
@@ -332,14 +352,14 @@ test("G3 remembered: Allow for this chat survives a restart — it is kept in ch
       .run("chat-a", WORKSPACE_ID, PRINCIPAL_ID);
     const always = new InMemoryExternalMcpToolApprovalRepo();
     const before = harness({ always, chat: createSqliteConversationToolApprovalStore(first) });
-    await callAndAnswer(before, "delete_project", { decision: "confirm", choice: "chat" }, { conversation: "chat-a" });
+    await callAndAnswer(before, "send_email", { decision: "confirm", choice: "chat" }, { conversation: "chat-a" });
     first.close();
 
     // A fresh process: a new handle on the same file, new stores, a new registry.
     const second = openChatDb(path);
     const after = harness({ always, chat: createSqliteConversationToolApprovalStore(second) });
-    assert.equal(await runsWithoutCard(after, "delete_project", { conversation: "chat-a" }), true);
-    assert.equal(await runsWithoutCard(after, "delete_project", { conversation: "chat-b" }), false);
+    assert.equal(await runsWithoutCard(after, "send_email", { conversation: "chat-a" }), true);
+    assert.equal(await runsWithoutCard(after, "send_email", { conversation: "chat-b" }), false);
 
     // Deleting the chat deletes what it remembered.
     second.prepare(`DELETE FROM ai_chats WHERE id = ?`).run("chat-a");
@@ -356,9 +376,9 @@ test("G3 remembered: a chat the store cannot record in (not in ai_chats) still r
   try {
     const db = openChatDb(join(dir, "chat.db"));
     const h = harness({ always: new InMemoryExternalMcpToolApprovalRepo(), chat: createSqliteConversationToolApprovalStore(db) });
-    await callAndAnswer(h, "delete_project", { decision: "confirm", choice: "chat" }, { conversation: "chat-missing" });
+    await callAndAnswer(h, "send_email", { decision: "confirm", choice: "chat" }, { conversation: "chat-missing" });
     assert.equal(h.sent.length, 1);
-    assert.equal(await runsWithoutCard(h, "delete_project", { conversation: "chat-missing" }), false);
+    assert.equal(await runsWithoutCard(h, "send_email", { conversation: "chat-missing" }), false);
     db.close();
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -480,8 +500,8 @@ test("G3 remembered: the fingerprint ignores hint key order but not hint values"
 test("remembered chat approvals use the live tracker conversation lookup and stay isolated", async () => {
   const tracker = createLiveRunTracker();
   const h = harness(memoryStores(), { tracker });
-  await callAndAnswer(h, "delete_project", { decision: "confirm", choice: "chat" }, { conversation: "chat-tracker-a" });
-  assert.equal(await runsWithoutCard(h, "delete_project", { conversation: "chat-tracker-a" }), true);
-  assert.equal(await runsWithoutCard(h, "delete_project", { conversation: "chat-tracker-b" }), false);
+  await callAndAnswer(h, "send_email", { decision: "confirm", choice: "chat" }, { conversation: "chat-tracker-a" });
+  assert.equal(await runsWithoutCard(h, "send_email", { conversation: "chat-tracker-a" }), true);
+  assert.equal(await runsWithoutCard(h, "send_email", { conversation: "chat-tracker-b" }), false);
   assert.equal(h.sent.length, 2);
 });

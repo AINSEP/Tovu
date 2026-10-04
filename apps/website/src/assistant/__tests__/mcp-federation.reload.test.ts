@@ -4,9 +4,18 @@ import test from "node:test";
 import type { ToolDescriptor, ToolRegistration, ToolRegistry } from "@jini-ai/core";
 
 import type { AttachFederatedMcpToolsParams, AttachFederatedToolsResult } from "../mcp-federation/bootstrap.js";
-import { FEDERATED_CONNECTION_DEFAULTS, type ResolvedFederatedConnection } from "../mcp-federation/config.js";
+import * as shared from "@jini-ai/mcp/federation";
+import { FEDERATED_CONNECTION_DEFAULTS, type ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 import type { FederatedMcpConnectionConfig, McpHttpLaunchSpec } from "../mcp-federation/ports.js";
-import { createFederationReloadCoordinator, selectUnadmittedConnections } from "../mcp-federation/reload.js";
+import { createFederationReloadCoordinator as createTovuReloadCoordinator, type FederationReloadCoordinatorDeps } from "../mcp-federation/reload-adapter.js";
+
+// The coordinator moved to @jini-ai/mcp/federation; Tovu's reload-adapter binds its registrations
+// and attach ports to it. These wrappers keep the original positional call shape so every
+// assertion below is unchanged and still runs through the host binding the daemon uses.
+const selectUnadmittedConnections = (allConnections: readonly ResolvedFederatedConnection[], admittedConnectionIds: ReadonlySet<string>) =>
+  shared.selectUnadmittedConnections({ allConnections, admittedConnectionIds });
+const createFederationReloadCoordinator = (coordDeps: FederationReloadCoordinatorDeps, initiallyAdmitted: Iterable<string>) =>
+  createTovuReloadCoordinator({ coordDeps, initiallyAdmitted });
 
 /**
  * @file `mcp-federation/reload.ts` — the coordinator that lets an operator-authorized event (an

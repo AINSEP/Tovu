@@ -6,17 +6,23 @@ import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@ji
 
 import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
 import { createFederatedCallConfirmer } from "../external-mcp-call-confirmation.js";
-import {
-  InMemoryExternalMcpToolApprovalRepo,
-  createInMemoryConversationToolApprovalStore,
-  federatedToolApprovalFingerprint,
-  type ConversationToolApprovalStore,
-  type ExternalMcpToolApprovalRepoPort,
-} from "../external-mcp-tool-approvals.js";
+import * as shared from "@jini-ai/mcp/federation";
+import { WRITE_SHAPED_INPUT_WORDS, admitRemoteTools, type FederatedToolIdentity } from "@jini-ai/mcp/federation";
+import { InMemoryExternalMcpToolApprovalRepo, createInMemoryConversationToolApprovalStore } from "../external-mcp-tool-approval-adapters.js";
+import type { ConversationToolApprovalStore, ExternalMcpToolApprovalRepoPort } from "../external-mcp-tool-approval-ports.js";
 import { InMemoryMcpSession } from "../mcp-federation/adapter.memory.js";
 import type { FederatedMcpConnectionConfig, RemoteToolDescriptor } from "../mcp-federation/ports.js";
+import { TOVU_MCP_APPROVAL_FINGERPRINT_DOMAIN } from "../mcp-federation/presets.js";
 import { buildFederatedMcpRegistrations, type FederationDeps } from "../mcp-federation/registrations.js";
-import { WRITE_SHAPED_INPUT_WORDS, admitRemoteTools, describeFederatedTool, writeShapedInputNames } from "../mcp-federation/trust.js";
+
+// The trust tier and approval fingerprint moved to @jini-ai/mcp/federation. These wrappers keep the
+// original call shapes and bind Tovu's fingerprint domain exactly as the host confirmer does, so
+// every assertion below is unchanged.
+const federatedToolApprovalFingerprint = (identity: FederatedToolIdentity) =>
+  shared.federatedToolApprovalFingerprint({ identity, fingerprintDomain: TOVU_MCP_APPROVAL_FINGERPRINT_DOMAIN });
+const describeFederatedTool = ({ remoteDescription, ...required }: { label: string; remoteName: string; remoteDescription?: string | undefined }) =>
+  shared.describeFederatedTool(required, { remoteDescription });
+const writeShapedInputNames = (args: unknown) => shared.writeShapedInputNames({ args });
 
 /**
  * @file G3 extra safety checks (owner approved 2026-09-27 ~23:20), on the one generic approval rule:

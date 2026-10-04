@@ -20,8 +20,7 @@ import {
   saveExternalMcpServer,
   toResolvedFederatedConnections,
 } from "../external-mcp-store.js";
-import { admitRemoteTools } from "../mcp-federation/trust.js";
-import { FEDERATED_CONNECTION_DEFAULTS, type ResolvedFederatedConnection } from "../mcp-federation/config.js";
+import { FEDERATED_CONNECTION_DEFAULTS, admitRemoteTools, type ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 import type { ExternalMcpServerConfig, ExternalMcpServerRecord, SaveExternalMcpOAuthInput } from "../external-mcp-store.js";
 
 /**

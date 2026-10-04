@@ -11,15 +11,13 @@ import type {
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { InMemoryMcpSession } from "../mcp-federation/adapter.memory.js";
 import { attachFederatedMcpTools } from "../mcp-federation/bootstrap.js";
-import type { ResolvedFederatedConnection } from "../mcp-federation/config.js";
-import { McpAuthFailedError } from "../mcp-federation/mcp-protocol.js";
+import { FEDERATED_ENTITY_TYPE, FEDERATED_TOOL_PERMISSION, McpAuthFailedError, type ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 import type { FederatedMcpConnectionConfig, RemoteToolDescriptor } from "../mcp-federation/ports.js";
 import {
   registerFederatedMcpPreset,
   resetFederatedMcpPresetsForTests,
 } from "../mcp-federation/presets.js";
 import { buildFederatedMcpRegistrations, federateSession } from "../mcp-federation/registrations.js";
-import { FEDERATED_ENTITY_TYPE, FEDERATED_TOOL_PERMISSION } from "../mcp-federation/trust.js";
 
 /**
  * @file The federation wiring half: that an admitted remote tool becomes a real `ToolRegistration`,
@@ -190,7 +188,7 @@ test("a gate that passes lets the call through unchanged, and is asked about THI
 
 test("with no onAuthFailed configured, a live auth failure propagates unchanged", async () => {
   const { deps } = fakeDeps();
-  const refused = new McpAuthFailedError("mcp-federation: the server refused 'tools/call' with 401");
+  const refused = new McpAuthFailedError({ message: "mcp-federation: the server refused 'tools/call' with 401" });
   const session = new InMemoryMcpSession({
     tools: REMOTE_TOOLS,
     onCall: () => {
@@ -223,7 +221,7 @@ test("onAuthFailed runs on a live McpAuthFailedError, naming the connection, and
   const session = new InMemoryMcpSession({
     tools: REMOTE_TOOLS,
     onCall: () => {
-      throw new McpAuthFailedError("mcp-federation: the server refused 'tools/call' with 401");
+      throw new McpAuthFailedError({ message: "mcp-federation: the server refused 'tools/call' with 401" });
     },
   });
   const { registrations } = await federateSession({ session, config: CONFIG, deps, nativeToolIds: new Set() });
