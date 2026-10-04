@@ -53,5 +53,8 @@ const PROVIDER_BACKEND_NOTE_TEMPLATE: Record<string, string> = {
 export const t = createDictionaryTranslator(AUTHENTICATION_TRANSLATIONS);
 
 export function providerBackendNote(locale: string, provider: string): string {
-  return interpolate(PROVIDER_BACKEND_NOTE_TEMPLATE[locale] ?? PROVIDER_BACKEND_NOTE_TEMPLATE.en, { provider });
+  // Own-property lookup: a plain `[locale]` read resolves "constructor"/"toString"/"__proto__" to an
+  // Object.prototype member, and `interpolate` then throws on a non-string template.
+  const template = Object.hasOwn(PROVIDER_BACKEND_NOTE_TEMPLATE, locale) ? PROVIDER_BACKEND_NOTE_TEMPLATE[locale] : PROVIDER_BACKEND_NOTE_TEMPLATE.en;
+  return interpolate(template, { provider });
 }
