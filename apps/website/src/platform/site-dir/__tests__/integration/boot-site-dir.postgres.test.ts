@@ -6,8 +6,7 @@ import { after, before, test } from "node:test";
 
 import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
 
-import { freshPostgresDatabase } from "#src/platform/db/__tests__/postgres-database";
-import { psql } from "#src/platform/db/migration/pg-fixture";
+import { freshPostgresDatabase, psql } from "#src/platform/db/__tests__/postgres-database";
 import { bootSiteDir, closeSiteDirBoot } from "../../boot-site-dir.js";
 import { initSite } from "../../init-site.js";
 import { SITE_META_FILENAME } from "../../site-storage.js";

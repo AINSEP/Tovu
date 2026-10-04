@@ -1,6 +1,10 @@
 import { psql, recreateDatabase } from "../migration/pg-fixture.js";
 import { pgContentSchemaSql } from "./pg-content-schema.js";
 
+// The one door to pg-fixture for tests outside this directory: pg-fixture-import-boundary.test.ts
+// allows its import only here, so a product file can never reach the psql-spawning helpers.
+export { dropDatabase, psql } from "../migration/pg-fixture.js";
+
 /**
  * @file A fresh database on the local Postgres server for tests that need REAL connections (two
  * independent clients, pooled transactions) — what PGlite's single connection cannot show.

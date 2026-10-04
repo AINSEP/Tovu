@@ -9,8 +9,7 @@ import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
 import { createApp } from "#src/server/runtime/composition/app";
 
 import { exportSite } from "#src/features/site-export/index";
-import { freshPostgresDatabase } from "#src/platform/db/__tests__/postgres-database";
-import { psql } from "#src/platform/db/migration/pg-fixture";
+import { freshPostgresDatabase, psql } from "#src/platform/db/__tests__/postgres-database";
 import { CHAT_MIGRATIONS, CONTENT_MIGRATIONS } from "#src/platform/db/migrations/index";
 import { SITE_META_FILENAME } from "#src/platform/site-dir/site-storage";
 import type { NewsletterRouteDeps } from "#src/server/inbound/admin-http/routes/newsletter/deps";

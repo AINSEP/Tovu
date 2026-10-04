@@ -5,8 +5,7 @@ import { join } from "node:path";
 import { after, test } from "node:test";
 
 import { findSiteKeyDependentData } from "../../site-key-dependent-data.js";
-import { dropDatabase, psql } from "#src/platform/db/migration/pg-fixture";
-import { freshPostgresDatabase } from "#src/platform/db/__tests__/postgres-database";
+import { dropDatabase, freshPostgresDatabase, psql } from "#src/platform/db/__tests__/postgres-database";
 
 /**
  * @file `findSiteKeyDependentData` on a Postgres site whose connection string comes from an

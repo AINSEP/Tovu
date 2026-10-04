@@ -5,8 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 
-import { freshPostgresDatabase } from "#src/platform/db/__tests__/postgres-database";
-import { psql } from "#src/platform/db/migration/pg-fixture";
+import { freshPostgresDatabase, psql } from "#src/platform/db/__tests__/postgres-database";
 import { openSiteStore } from "#src/server/runtime/composition/open-site-store";
 import { STORAGE_SECRET_FILENAME } from "#src/server/runtime/composition/storage-secret";
 import { runInitCommand } from "../../commands/init.js";
