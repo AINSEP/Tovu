@@ -10,6 +10,11 @@ import { toAdminMediaResponse } from "#src/server/inbound/admin-http/http/media"
 import { duplicateMediaAsset } from "../duplicate-asset.js";
 import { buildMediaRegistrationsForTovu } from "../tool-registrations.js";
 import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { uploadMedia as packageUploadMedia } from "@jini-ai/cms/media";
+
+test("the host uses Jini's canonical upload service without a release adapter", () => {
+  assert.equal(uploadMedia, packageUploadMedia);
+});
 
 /** Owner dispatch 2026-10-04; SPEC: staged/m-media-createdby/SPEC.md. No live schema edits. */
 function row(optional: Partial<MediaRecord> = {}): MediaRecord {
@@ -19,7 +24,7 @@ function row(optional: Partial<MediaRecord> = {}): MediaRecord {
     width: null, height: null, cssClass: null, htmlAttributes: null, ...optional };
 }
 
-test("compatibility upload attributes separate assets sharing bytes to their own actors", async () => {
+test("canonical upload attributes separate assets sharing bytes to their own actors", async () => {
   let id = 0;
   const deps = { clock: { nowMs: () => Date.parse("2026-10-04T00:00:00Z") },
     idGen: { newId: () => `created-by-${++id}` }, mediaRepo: new InMemoryVersionedMediaRepo(),
@@ -77,7 +82,8 @@ test("one registered upload handler isolates attribution between concurrent acto
     removeMedia: async () => { assert.fail("unexpected removal"); },
   };
   const upload = buildMediaRegistrationsForTovu(deps, { surfaceExchanges: createSurfaceExchangeStore() })
-    .find(tool => tool.descriptor.id === "media_upload_asset")!;
+    .find(tool => tool.descriptor.id === "media_upload_asset");
+  assert.ok(upload);
   await Promise.all(["owner", "plugin-agent"].map(async actor => {
     const result = await upload.handler({ executionId: `upload-${actor}`, principal: { id: actor },
       run: { id: "run" }, signal: new AbortController().signal,
@@ -99,8 +105,9 @@ for (const adapter of eachDialect({ tables: ["media", "media_slug_history", "ass
     }
     await repo.save(row({ createdBy: "before-install" }));
     const legacy = await repo.findById({ workspaceId: "creator-ws", id: "asset" });
+    assert.ok(legacy);
     assert.equal(legacy?.createdBy ?? null, null);
-    assert.equal(toAdminMediaResponse(legacy!, "image/png", null).createdBy, null);
+    assert.equal(toAdminMediaResponse({ media: legacy, contentType: "image/png", publicUrl: null, byteSize: null }).createdBy, null);
     // Simulate the additive column on a disposable kernel; the staged migration has its own
     // install-time test so permanent product tests never depend on scratch artifact paths.
     await kernel.execute(sql`ALTER TABLE media ADD COLUMN created_by text`);
@@ -133,6 +140,6 @@ for (const adapter of eachDialect({ tables: ["media", "media_slug_history", "ass
 }
 
 test("admin DTO exposes known creator and unknown legacy values without reading credit", () => {
-  assert.equal(toAdminMediaResponse(row({ createdBy: "plugin-key" }), "image/png", null).createdBy, "plugin-key");
-  assert.equal(toAdminMediaResponse(row(), "image/png", null).createdBy, null);
+  assert.equal(toAdminMediaResponse({ media: row({ createdBy: "plugin-key" }), contentType: "image/png", publicUrl: null, byteSize: null }).createdBy, "plugin-key");
+  assert.equal(toAdminMediaResponse({ media: row(), contentType: "image/png", publicUrl: null, byteSize: null }).createdBy, null);
 });

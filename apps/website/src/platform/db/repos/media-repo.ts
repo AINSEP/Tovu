@@ -3,7 +3,7 @@ import type { Kysely, Selectable } from "kysely";
 import type { ContentDatabase, AssetBlobsTable, AssetRenditionsTable, MediaSlugHistoryTable, MediaTable, TransformRegistryTable } from "../content-database.generated.js";
 import type { ContentKernel } from "../content-kernel.js";
 import { isUniqueViolation, listColumns } from "../kernel/dialect.js";
-import type { MediaRecord } from "#src/features/media/created-by";
+import type { MediaRecord } from "@jini-ai/cms/media";
 import type { MediaContentTypeStorePort } from "#src/features/media/content-type-store";
 import type { VersionedMediaRepoPort } from "#src/features/media/versioned-media-repo";
 import type { UUID } from "@jini-ai/core/primitives";

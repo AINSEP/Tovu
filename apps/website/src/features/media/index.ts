@@ -119,8 +119,9 @@ export { mediaAgentToolCatalog } from "@jini-ai/cms/media";
 export type { AgentToolDefinition } from "@jini-ai/core";
 
 export type { MediaContentTypeStorePort } from "./content-type-store.js";
-export { uploadMedia } from "./created-by.js";
-export type { MediaRecord } from "./created-by.js";
+// Jini owns upload validation, dedup, GC locking, renditions and immutable creation attribution.
+export { uploadMedia } from "@jini-ai/cms/media";
+export type { MediaRecord } from "@jini-ai/cms/media";
 export { InMemoryMediaContentTypeStore } from "./content-type-store.js";
 
 export type { VersionedMediaRepoPort } from "./versioned-media-repo.js";

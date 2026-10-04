@@ -9,7 +9,6 @@ import { CORE_PUBLIC_TRANSFORM_NAME } from "./bootstrap.js";
 import { assertAllowedSniffedContentType, getLatestTransformDefinition, mediaPublicPath, mediaUrlKey } from "./index.js";
 import type { MediaContentTypeStorePort } from "./content-type-store.js";
 import { TOVU_MAX_UPLOAD_BYTES } from "../../contracts/core/upload-limits.js";
-import { mediaRepoWithCreator } from "./created-by.js";
 
 export { buildMediaRegistrations, mediaDerivedRisk, type MediaToolDeps };
 
@@ -239,6 +238,8 @@ export function buildMediaRegistrationsForTovu(
   routeDeps: MediaToolDeps & MediaPublicUrlDeps & MediaTrashToolDeps,
   surfaces: AssistantSurfaceDeps
 ): ToolRegistration[] {
+  // Jini binds creation attribution to each invocation's authenticated principal, so parallel
+  // agent/user uploads and chat promotions never share mutable actor state.
   const registrations = buildMediaRegistrations(routeDeps, {
     resolvePublicUrls: ({ assets }) => resolveMediaPublicUrls(routeDeps, assets),
     recordUploadContentType: buildRecordUploadContentType(routeDeps),
@@ -248,19 +249,6 @@ export function buildMediaRegistrationsForTovu(
   return registrations.map((registration) => {
     if (registration.descriptor.id === MEDIA_TRASH_TOOL_ID) {
       return { ...registration, handler: buildMediaTrashHandler(routeDeps, registration.handler) };
-    }
-    if (registration.descriptor.id === "media_upload_asset") {
-      return { ...registration, handler: (async (ctx, optional) => {
-        // The published package predates asset attribution. Bind its upload repo per invocation,
-        // so concurrent callers and chat promotions stamp their own authenticated principal.
-        const scoped = buildMediaRegistrations({ ...routeDeps,
-          mediaRepo: mediaRepoWithCreator({ mediaRepo: routeDeps.mediaRepo, principalId: ctx.principal.id }),
-        }, { resolvePublicUrls: ({ assets }) => resolveMediaPublicUrls(routeDeps, assets),
-          recordUploadContentType: buildRecordUploadContentType(routeDeps), maxUploadBytes: TOVU_MAX_UPLOAD_BYTES });
-        const upload = scoped.find(tool => tool.descriptor.id === "media_upload_asset")!;
-        const result = await upload.handler(ctx, optional) as { media: Record<string, unknown> };
-        return { ...result, media: { ...result.media, createdBy: ctx.principal.id } };
-      }) satisfies ToolHandler };
     }
     return registration;
   });

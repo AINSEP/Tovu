@@ -1,6 +1,6 @@
 import type { UUID } from "@jini-ai/core/primitives";
 import { MediaConflictError, type MediaRepoPort, type AssetRenditionRecord } from "@jini-ai/cms/media";
-import { preserveMediaCreator, type MediaRecord } from "./created-by.js";
+import { preserveMediaCreator, type MediaRecord } from "@jini-ai/cms/media";
 
 /**
  * @file `MediaRepoPort` extended with an atomic compare-and-set write, and the in-memory adapter
@@ -25,8 +25,8 @@ import { preserveMediaCreator, type MediaRecord } from "./created-by.js";
  * of the upstream port: any `MediaRepoPort` implementation still satisfies every existing caller,
  * and only the publish-import path (which is being fixed here) requires the wider one.
  *
- * Imports legacy types directly from `@jini-ai/cms/media` and the additive record from the release
- * adapter, rather than this directory's own `./index.js` barrel, so the barrel re-exporting THIS
+ * Imports types and the immutable-creator rule directly from `@jini-ai/cms/media`, rather than
+ * this directory's own `./index.js` barrel, so the barrel re-exporting THIS
  * file (see `index.ts`) never becomes a cycle.
  */
 
@@ -37,10 +37,6 @@ import { preserveMediaCreator, type MediaRecord } from "./created-by.js";
  *  `importMediaEntity` compares a caller-supplied `baseVersion` against a row read several awaits
  *  earlier, with real blob-store I/O in between). */
 export interface VersionedMediaRepoPort extends MediaRepoPort {
-  /** Additive release compatibility: the published port's record predates createdBy. */
-  findById(required: { workspaceId: UUID; id: UUID }): Promise<MediaRecord | null>;
-  findBySlug(required: { workspaceId: UUID; slug: string }): Promise<MediaRecord | null>;
-  list(required: { workspaceId: UUID }): Promise<MediaRecord[]>;
   /** Explicit file replacement, separate from metadata/import's write-once source rule.
    * The source compare-and-set and rendition invalidation MUST commit atomically. Hosts
    * without that transaction capability omit this method and the route refuses the command.

@@ -6,7 +6,7 @@ import {
   type MediaToolDeps,
 } from "@jini-ai/cms/media";
 import { ToolInputError } from "@jini-ai/core";
-import { uploadMedia } from "./created-by.js";
+import { uploadMedia } from "@jini-ai/cms/media";
 
 import type { DuplicateResourceHandlerContributor } from "#src/assistant/index";
 import type { MediaPublicUrlDeps } from "./tool-registrations.js";
