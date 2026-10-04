@@ -1,3 +1,4 @@
+import { appendPluginNotes, assertOwnedPluginPath } from "./memory.js";
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
 import { agentPluginActivations } from "./activation-effects.js";
@@ -61,6 +62,7 @@ const { resolveAgentPluginActivation } = agentPluginActivations;
  */
 import { readdir, stat } from "node:fs/promises";
 import path from "node:path";
+import { assertContainedOnDisk } from "./package-paths.js";
 
 import { type AgentPluginActivationVerdict } from "@jini-ai/agent-plugins/lifecycle";
 import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests, type BundledAgentPluginDigests } from "./bundled-digests.js";
@@ -142,7 +144,7 @@ export async function resolveAgentPluginRefs(
     const refusal = activationRefusal(pluginRefId, await resolveAgentPluginActivation({ workspaceRoot: workspaceLayout.root, pluginId: pluginRefId }));
     if (refusal !== undefined) return { ok: false, reason: refusal };
 
-    const resolved = await resolveOnePluginRef(pluginRefId, workspaceLayout.packages, deliveryMode, bundledDigests);
+    const resolved = await resolveOnePluginRef(pluginRefId, workspaceLayout.root, deliveryMode, bundledDigests);
     if (!resolved.ok) return resolved;
     sections.push(resolved.section);
   }
@@ -185,24 +187,28 @@ function activationRefusal(pluginRefId: string, verdict: AgentPluginActivationVe
  *  `ADS-memory/knowledge/2026-08-26-removed-capability-search.md`.) Reusing this rather than
  *  re-walking `packages/sha256/*` a second, less-validated way keeps the digest-directory-name check
  *  and the per-digest failure isolation in exactly one place. */
-export async function listInstalledPlugins(packagesDir: string): Promise<readonly InstalledAgentPlugin[]> {
-  let entries: string[];
-  try {
-    entries = await readdir(packagesDir);
-  } catch (error) {
-    if (isEnoent(error)) return [];
-    throw error;
-  }
-
+export async function listInstalledPlugins(workspaceRoot: string): Promise<readonly InstalledAgentPlugin[]> {
+  let folders;
+  try { folders = await readdir(workspaceRoot, { withFileTypes: true }); }
+  catch (error) { if (isEnoent(error)) return []; throw error; }
   const installed: InstalledAgentPlugin[] = [];
-  for (const digest of entries) {
-    if (!SHA256_DIGEST_DIRNAME_PATTERN.test(digest)) continue;
+  for (const folder of folders) {
+    if (!folder.isDirectory() || !/^[a-z0-9]+(?:[-.][a-z0-9]+)*$/.test(folder.name) || folder.name.length > 64) continue;
+    const packagesDir = path.join(workspaceRoot, folder.name, "package", "sha256");
+    let entries;
     try {
-      installed.push(await indexInstalledRoot(path.join(packagesDir, digest), digest));
-    } catch {
-      // A digest directory that no longer indexes cleanly (a manifest that failed validation, a
-      // package.json missing) is skipped, not fatal to every OTHER ref this run might resolve —
-      // it simply cannot be a match for anything, the same as if it were absent.
+      await assertOwnedPluginPath({ workspaceRoot, entryPath: path.relative(workspaceRoot, packagesDir) });
+      entries = await readdir(packagesDir, { withFileTypes: true });
+    } catch { continue; }
+    for (const entry of entries) {
+      if (!entry.isDirectory() || !SHA256_DIGEST_DIRNAME_PATTERN.test(entry.name)) continue;
+      try {
+        const packageRoot = await assertContainedOnDisk(workspaceRoot, path.relative(workspaceRoot, path.join(packagesDir, entry.name)));
+        const plugin = await indexInstalledRoot(packageRoot, entry.name);
+        if (plugin.pluginId === folder.name) installed.push(plugin);
+      } catch {
+        // One corrupt package never hides another plugin. Memory-only folders are not installs.
+      }
     }
   }
   return installed;
@@ -280,7 +286,7 @@ async function resolveOnePluginRef(
 
   let skillMarkdown: string;
   try {
-    skillMarkdown = await readInstalledSkillMarkdown(plugin.packageRoot, skillPath);
+    skillMarkdown = await appendPluginNotes({ workspaceRoot: packagesDir, pluginId: plugin.pluginId, guidance: await readInstalledSkillMarkdown(plugin.packageRoot, skillPath) });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return {

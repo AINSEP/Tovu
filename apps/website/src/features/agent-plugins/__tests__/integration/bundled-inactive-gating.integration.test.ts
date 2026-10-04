@@ -75,7 +75,7 @@ async function withSeededWorkspace<T>(
 test("seeding installs the real bundled package and records it INACTIVE", async () => {
   await withSeededWorkspace(async ({ workspaceRoot }) => {
     const layout = resolveAgentPluginLayout().forWorkspace(WORKSPACE_ID);
-    const installed = await listInstalledPlugins(layout.packages);
+    const installed = await listInstalledPlugins(layout.root);
 
     const seeded = installed.find((plugin) => plugin.pluginId === PLUGIN_ID);
     assert.ok(seeded, "the bundled site-compliance package must actually be on disk after seeding");
@@ -96,7 +96,7 @@ test("seeding installs the real bundled package and records it INACTIVE", async 
 test("every bundled plugin not seeded enabled, supabase and tovuize-site included, is listed as switched off yet gets no tool and no prompt injection", async () => {
   await withSeededWorkspace(async () => {
     const layout = resolveAgentPluginLayout().forWorkspace(WORKSPACE_ID);
-    const bundledIds = [...new Set((await listInstalledPlugins(layout.packages)).map((plugin) => plugin.pluginId))].filter(
+    const bundledIds = [...new Set((await listInstalledPlugins(layout.root)).map((plugin) => plugin.pluginId))].filter(
       (pluginId) => !BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED.has(pluginId),
     );
     assert.deepEqual([...BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED].sort(), ["deploy", "github", "resend"]);
@@ -186,7 +186,7 @@ test("re-seeding is idempotent — same digest, no duplicate install, decision p
     // re-breaks this assertion on the next addition. `listInstalledPlugins` already does the
     // digest -> pluginId walk (same one `test 1` above uses) — filtering its result to PLUGIN_ID is
     // what actually answers "did THIS plugin get a second digest published for it".
-    const installedAfterReseed = await listInstalledPlugins(layout.forWorkspace(WORKSPACE_ID).packages);
+    const installedAfterReseed = await listInstalledPlugins(layout.forWorkspace(WORKSPACE_ID).root);
     const ownDigests = installedAfterReseed.filter((plugin) => plugin.pluginId === PLUGIN_ID);
     assert.equal(
       ownDigests.length,

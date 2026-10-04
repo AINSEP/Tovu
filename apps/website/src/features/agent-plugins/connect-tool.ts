@@ -118,7 +118,7 @@ export interface ResolvedAgentPluginForConnect {
 export async function defaultResolveInstalledAgentPlugin(workspaceId: string, pluginId: string): Promise<ResolvedAgentPluginForConnect | null> {
   const workspaceLayout = resolveAgentPluginLayout().forWorkspace(workspaceId);
   const installed = preferBundledAgentPluginDigests(
-    await listInstalledPlugins(workspaceLayout.packages),
+    await listInstalledPlugins(workspaceLayout.root),
     await readBundledAgentPluginDigests(workspaceLayout.root),
   );
   const plugin = installed.find((candidate) => candidate.pluginId === pluginId);

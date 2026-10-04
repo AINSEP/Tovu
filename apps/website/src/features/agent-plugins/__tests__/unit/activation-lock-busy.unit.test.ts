@@ -203,7 +203,7 @@ test("B6: a busy pre-flight fails every bundled plugin with a reason naming the 
     assert.equal(outcome.pluginId, "mini-bundled");
     assert.equal(outcome.status, "failed");
     assert.match(outcome.reason ?? "", /write lock/);
-    assert.deepEqual(await listInstalledPlugins(layout.forWorkspace(WORKSPACE_ID).packages), []);
+    assert.deepEqual(await listInstalledPlugins(layout.forWorkspace(WORKSPACE_ID).root), []);
   } finally {
     behavior = (lockPath, run, options) => real.withFileLock({ lockPath, run }, options);
     await forceRemove(cwd);

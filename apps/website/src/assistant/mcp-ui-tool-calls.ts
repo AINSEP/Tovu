@@ -70,6 +70,7 @@ export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
   // here anyway so a later cancel/retry action needs no second edit to stop being a silent 403.
   // (It replaced the Supabase-only `supabase_get_database` prototype, deleted 2026-09-27.)
   "agent_plugin_connect",
+  "agent_plugin_write_note",
   // 2026-08-15 — `deployment_propose_custom_provider_credential` (`features/deployments/
   // publish-agent-tools.ts`) holds up the SAME shape `content_post_delete`/
   // `deployment_execute_static_publish` do: its handler opens a `SurfaceExchangeStore` exchange and

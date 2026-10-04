@@ -162,7 +162,7 @@ test("the superseded digest's bytes stay on disk — nothing is deleted by an up
     const secondDigest = await seedFrom(upgradedSourceRoot);
 
     const layout = resolveAgentPluginLayout().forWorkspace(WORKSPACE_ID);
-    const digestsOnDisk = (await listInstalledPlugins(layout.packages))
+    const digestsOnDisk = (await listInstalledPlugins(layout.root))
       .filter((plugin) => plugin.pluginId === PLUGIN_ID)
       .map((plugin) => plugin.archiveDigest)
       .sort();

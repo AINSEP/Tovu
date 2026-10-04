@@ -1,3 +1,5 @@
+import { AgentPluginMemoryPanel } from "./AgentPluginMemoryPanel";
+import { useWiredAgentPluginMemory } from "./hooks/use-agent-plugin-memory.hooks";
 import type { Translate } from "@/lib/dictionary-translator";
 import type { InspectedAgentPlugin } from "./hooks/use-agent-plugins.hooks";
 import { PackageFilesModal } from "./PackageFilesModal";
@@ -25,6 +27,7 @@ export interface AgentPluginDetailsModalProps {
  * following a symlink — rather than a compile-time catalog that missed plugins nobody had listed.
  */
 export function AgentPluginDetailsModal({ plugin, t, onClose, useDetails = useWiredAgentPluginDetailsModal }: AgentPluginDetailsModalProps) {
+  const memory = useWiredAgentPluginMemory({ pluginId: plugin.id });
   const { files, selectedFile, selectFile, status = null, listNotice = null } = useDetails(plugin.id);
 
   return (
@@ -38,6 +41,7 @@ export function AgentPluginDetailsModal({ plugin, t, onClose, useDetails = useWi
       listNotice={listNotice}
       handlePrefix="agent-plugin-file"
       t={t}
+      additionalViews={[{ id: "plugin-memory", label: memory.t("Memory"), custom: <AgentPluginMemoryPanel controller={memory} /> }]}
       onClose={onClose}
     />
   );

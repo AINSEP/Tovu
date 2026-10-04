@@ -1,3 +1,6 @@
+import { buildPluginMemoryRegistrations } from "./memory-tools.js";
+import { WRITE_PLUGIN_NOTE, pluginNoteCatalog, pluginNoteRisk, pluginNoteHandler } from "./write-note-tool.js";
+import { appendPluginNotes } from "./memory.js";
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
 import { agentPluginActivations } from "./activation-effects.js";
@@ -430,7 +433,7 @@ export async function loadInstalledAgentPluginToolSources(ctx: {
   // them, by the build's own recorded answer rather than by picking one — see `bundled-digests.ts`.
   // An id that ledger has no authority over still reaches `assertSingleDigestPerPlugin` unchanged.
   const installed = preferBundledAgentPluginDigests(
-    await listInstalledPlugins(workspaceLayout.packages),
+    await listInstalledPlugins(workspaceLayout.root),
     await readBundledAgentPluginDigests(workspaceLayout.root),
   );
 
@@ -693,7 +696,7 @@ export function createAgentPluginToolGate(ctx: { readonly workspaceId: string })
       }
       if (activation.verdict !== "active") return false;
 
-      return isInstalledDigestPresent(workspaceLayout.packages, plugin.archiveDigest);
+      return isInstalledDigestPresent(workspaceLayout.pluginPackagesDir({ pluginId: plugin.pluginId }), plugin.archiveDigest);
     },
   };
 }
@@ -796,9 +799,18 @@ export async function registerInstalledAgentPluginTools(
   ctx: { readonly workspaceId: string },
 ): Promise<void> {
   const sources = await loadInstalledAgentPluginToolSources(ctx);
-  for (const registration of buildAgentPluginToolRegistrations(sources, createAgentPluginToolGate(ctx))) {
-    registry.register(registration);
+  const gate = createAgentPluginToolGate(ctx);
+  for (const registration of buildAgentPluginToolRegistrations(sources, gate)) {
+    const handler = registration.handler;
+    registry.register({ ...registration, handler: async (execution, optional) => {
+      const result = await handler(execution, optional) as { pluginId: string; guidance: string };
+      return { ...result, guidance: await appendPluginNotes({
+        workspaceRoot: resolveAgentPluginLayout().forWorkspace(ctx.workspaceId).root,
+        pluginId: result.pluginId, guidance: result.guidance,
+      }) };
+    } });
   }
+  for (const registration of buildPluginMemoryRegistrations({ sources, workspaceId: ctx.workspaceId, gate })) registry.register(registration);
 }
 
 /**
@@ -965,7 +977,7 @@ export async function loadAgentPluginSearchCandidates(ctx: { readonly workspaceI
   // upgraded BUNDLED plugin is no longer one of those cases: its superseded package is dropped here,
   // so this lists the version the running build ships (`bundled-digests.ts`).
   const installed = preferBundledAgentPluginDigests(
-    await listInstalledPlugins(workspaceLayout.packages),
+    await listInstalledPlugins(workspaceLayout.root),
     await readBundledAgentPluginDigests(workspaceLayout.root),
   );
   const activations = await readAgentPluginActivations({ workspaceRoot: workspaceLayout.root });
@@ -1083,6 +1095,7 @@ export function contributeAgentPluginSearchTools(): ToolContributor {
  */
 export function buildAgentPluginConnectRegistrations(routeDeps: AgentPluginAccessTokenToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
+    [WRITE_PLUGIN_NOTE]: pluginNoteHandler({ deps: routeDeps, surfaces }),
     // Both handlers forward `optional`: it carries `emitSurface`, the only channel their card can use.
     [AGENT_PLUGIN_CONNECT_TOOL_ID]: async (ctx, optional) => {
       const input = requireInputRecord({ input: ctx.input });
@@ -1103,8 +1116,8 @@ export function buildAgentPluginConnectRegistrations(routeDeps: AgentPluginAcces
 }
 
 /** Both tools the `agent-plugin-connect` domain wires: sign-in, and its access-token fallback. */
-export const agentPluginConnectDomainCatalog = [...agentPluginConnectAgentToolCatalog, ...agentPluginAccessTokenAgentToolCatalog];
-const agentPluginConnectDomainRisk: DerivedRiskByToolId = new Map([...agentPluginConnectDerivedRisk, ...agentPluginAccessTokenDerivedRisk]);
+export const agentPluginConnectDomainCatalog = [...agentPluginConnectAgentToolCatalog, ...agentPluginAccessTokenAgentToolCatalog, ...pluginNoteCatalog];
+const agentPluginConnectDomainRisk: DerivedRiskByToolId = new Map([...agentPluginConnectDerivedRisk, ...agentPluginAccessTokenDerivedRisk, ...pluginNoteRisk]);
 
 /** Contributes `agent_plugin_connect` and `agent_plugin_set_access_token` to the assistant's static
  *  tool catalog — called once by `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`. */

@@ -46,7 +46,7 @@ export const registerAgentPluginFilesRoute: AgentPluginsRouteRegistrar = (app, d
       // An upgraded bundled plugin's superseded package is dropped first, so this browses the
       // version the running build ships rather than whichever digest the walk reached first.
       const plugin = preferBundledAgentPluginDigests(
-        await listInstalledPlugins(workspaceLayout.packages),
+        await listInstalledPlugins(workspaceLayout.root),
         await readBundledAgentPluginDigests(workspaceLayout.root),
       ).find((candidate) => candidate.pluginId === pluginId);
       if (!plugin) {
@@ -55,7 +55,7 @@ export const registerAgentPluginFilesRoute: AgentPluginsRouteRegistrar = (app, d
       }
 
       const { files, truncated } = await readPluginPackageFiles({
-        input: { rootDir: plugin.packageRoot, containerDir: workspaceLayout.packages },
+        input: { rootDir: plugin.packageRoot, containerDir: workspaceLayout.pluginPackagesDir({ pluginId }) },
       });
       res.json({ pluginId, files, truncated, limits: PLUGIN_PACKAGE_FILE_LIMITS });
     } catch {

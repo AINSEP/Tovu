@@ -1,3 +1,4 @@
+import { withAgentPluginStateLock } from "./memory.js";
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
 import { agentPluginActivations } from "./activation-effects.js";
@@ -110,9 +111,10 @@ const { deleteAgentPluginActivation, isAgentPluginRecordedAsBundled, resolveAgen
  * `.uninstalling-*` directory an operator can delete — strictly better than a half-deleted install.
  */
 import { randomUUID } from "node:crypto";
-import { chmod, readdir, rename, rm, stat } from "node:fs/promises";
+import { chmod, readdir, rename, rm, rmdir, stat } from "node:fs/promises";
 import type { Dirent } from "node:fs";
 import path from "node:path";
+import { assertContainedOnDisk } from "./package-paths.js";
 
 
 import type { InstalledAgentPlugin } from "./install.js";
@@ -141,6 +143,8 @@ export interface UninstallAgentPluginOptional {
    *  resolves now are exactly this preview's `archiveDigests`: a confirmation is consent to remove what was
    *  resolved for the dialog, not whatever the id names by the time the answer arrives (t91 F2.2). */
   readonly confirmedPreview?: AgentPluginUninstallPreview;
+  /** Only the browser-confirmed choice may delete persistent state. Off by default. */
+  readonly deleteMemory?: boolean;
   /** INTERNAL — `retire-bundled.ts` only, never an agent tool or HTTP route. Skips the bundled refusal
    *  (this file's header, item 2) and nothing else: that refusal exists because a bundled plugin is
    *  re-seeded on every boot, which stops being true once Tovu no longer ships its source
@@ -217,12 +221,20 @@ export async function previewAgentPluginUninstall(required: UninstallAgentPlugin
  * @complexity O(d) in this workspace's installed-digest count (one `listInstalledPlugins` walk) plus
  * O(f) in the total file count under the matching digest(s) being removed.
  */
-export async function uninstallAgentPlugin(
+export async function uninstallAgentPlugin(required: UninstallAgentPluginRequired, optional: UninstallAgentPluginOptional = {}): Promise<UninstallAgentPluginResult> {
+  const workspaceRoot = required.layout.forWorkspace(required.workspaceId).root;
+  return withAgentPluginStateLock({ workspaceRoot, pluginId: required.pluginId, run: () => uninstallAgentPluginUnlocked(required, optional) });
+}
+
+async function uninstallAgentPluginUnlocked(
   required: UninstallAgentPluginRequired,
   optional: UninstallAgentPluginOptional = {},
 ): Promise<UninstallAgentPluginResult> {
   const { workspaceRoot, packagesDir, matches } = await resolveUninstallTargets(required, optional.retiredBundled === true);
   assertUnchangedSincePreview(required.pluginId, optional.confirmedPreview, matches);
+  if (optional.deleteMemory && (!optional.confirmedPreview || optional.confirmedPreview.pluginId !== required.pluginId)) {
+    throw new Error("Deleting plugin memory requires a confirmed preview for this plugin");
+  }
 
   // Reversible work first — see this file's header, "Why removal stages first". Nothing on this
   // side of the try is destructive: every step up to and including the activation-record delete can
@@ -244,6 +256,21 @@ export async function uninstallAgentPlugin(
     await removeFrozenPackageTree(tree.quarantined);
   }
 
+  // Remove only empty package ancestors: a concurrently-installed digest must never be deleted.
+  for (const directory of [packagesDir, path.dirname(packagesDir)]) {
+    try { await rmdir(directory); } catch (error) {
+      if (!isMissingOrNonempty(error)) throw error;
+    }
+  }
+  if (optional.deleteMemory) {
+    const pluginRoot = required.layout.forWorkspace(required.workspaceId).pluginRootDir({ pluginId: required.pluginId });
+    await assertContainedOnDisk(workspaceRoot, path.relative(workspaceRoot, pluginRoot));
+    // No package may have appeared since this uninstall's preview. Preserve it on a race.
+    if ((await listInstalledPlugins(workspaceRoot)).some((plugin) => plugin.pluginId === required.pluginId)) {
+      throw new Error("Plugin was reinstalled during uninstall; persistent memory was kept");
+    }
+    await rm(pluginRoot, { recursive: true, force: true });
+  }
   return { pluginId: required.pluginId, removedDigests: matches.map((plugin) => plugin.archiveDigest) };
 }
 
@@ -338,7 +365,7 @@ async function resolveUninstallTargets(required: UninstallAgentPluginRequired, r
   // layout". `forWorkspace` itself still throws for a syntactically invalid `workspaceId`.
   const workspaceLayout = layout.forWorkspace(workspaceId);
 
-  const installed = await listInstalledPlugins(workspaceLayout.packages);
+  const installed = await listInstalledPlugins(workspaceLayout.root);
   const matches = installed.filter((plugin) => plugin.pluginId === pluginId);
   if (matches.length === 0) {
     throw new AgentPluginNotFoundError(`Agent Plugin '${pluginId}' is not installed in this workspace — nothing to uninstall`);
@@ -355,7 +382,7 @@ async function resolveUninstallTargets(required: UninstallAgentPluginRequired, r
     throw new AgentPluginNotUninstallableError(malformedEntryRefusalMessage(pluginId));
   }
 
-  return { workspaceRoot: workspaceLayout.root, packagesDir: workspaceLayout.packages, matches };
+  return { workspaceRoot: workspaceLayout.root, packagesDir: workspaceLayout.pluginPackagesDir({ pluginId }), matches };
 }
 
 /** Names the levers that do work for a bundled plugin — see this file's header, item 2. */
@@ -410,4 +437,9 @@ async function makeTreeWritable(dir: string): Promise<void> {
       await chmod(absolute, 0o600).catch(() => undefined);
     }
   }
+}
+
+function isMissingOrNonempty(error: unknown): boolean {
+  return typeof error === "object" && error !== null && "code" in error &&
+    ["ENOENT", "ENOTEMPTY", "EEXIST"].includes(String(error.code));
 }

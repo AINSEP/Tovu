@@ -88,7 +88,7 @@ test("pluginDataDir joins the plugin id under this workspace's own data root", (
   const layout = resolveAgentPluginLayout({ cwd: "/srv/tovu-site", env: {} });
   const ws = layout.forWorkspace(WORKSPACE_ID);
   const dir = ws.pluginDataDir("ui-ux-design");
-  assert.equal(dir, path.join(ws.root, "data", "ui-ux-design"));
+  assert.equal(dir, path.join(ws.root, "ui-ux-design", "data"));
 });
 
 test("pluginDataDir rejects a plugin id that isn't a valid Agent Plugin name", () => {

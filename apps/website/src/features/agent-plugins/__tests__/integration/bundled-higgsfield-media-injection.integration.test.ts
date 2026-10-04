@@ -76,7 +76,7 @@ async function withSeededWorkspace<T>(fn: (context: { readonly workspaceRoot: st
 test("higgsfield-media seeds from the real bundled tree and is recorded INACTIVE, like every bundled plugin", async () => {
   await withSeededWorkspace(async ({ workspaceRoot }) => {
     const layout = resolveAgentPluginLayout().forWorkspace(WORKSPACE_ID);
-    const installed = await listInstalledPlugins(layout.packages);
+    const installed = await listInstalledPlugins(layout.root);
 
     const seeded = installed.find((plugin) => plugin.pluginId === PLUGIN_ID);
     assert.ok(seeded, "the bundled higgsfield-media package must be on disk after seeding");

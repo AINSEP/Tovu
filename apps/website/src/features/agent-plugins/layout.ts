@@ -1,3 +1,4 @@
+import { pluginStatePaths } from "@jini-ai/agent-plugins/persistent-state";
 /**
  * @file Filesystem layout for installed Agent Plugins (the agent-plugins.org package format).
  *
@@ -105,11 +106,15 @@ export interface AgentPluginWorkspaceLayout {
   /** `<instance root>/ws/<workspaceId>` */
   readonly root: string;
   /** `<root>/packages/sha256` — immutable, content-addressed WITHIN this workspace only. */
+  /** Legacy flat store: migration input only. */
   readonly packages: string;
+  pluginRootDir(required: { pluginId: string }, optional?: Record<string, never>): string;
+  pluginPackagesDir(required: { pluginId: string }, optional?: Record<string, never>): string;
+  pluginMemoryDir(required: { pluginId: string; kind: "learned" | "notes" }, optional?: Record<string, never>): string;
   /** `<root>/staging` — private atomic-extraction directories for this workspace's own installs. */
   readonly staging: string;
   /**
-   * This workspace's writable `PLUGIN_DATA` root for one installed plugin: `<root>/data/<pluginId>`.
+   * This workspace's writable `PLUGIN_DATA` root: `<root>/<pluginId>/data/`.
    *
    * @throws {Error} If `pluginId` does not match the Agent Plugins name grammar — used as a raw
    * path segment, so an unvalidated caller must not be able to smuggle a traversal segment through.
@@ -169,16 +174,28 @@ export function resolveAgentPluginLayout(optional: ResolveAgentPluginLayoutOptio
         throw new Error(`forWorkspace: '${workspaceId}' is not a valid workspace id`);
       }
       const workspaceRoot = path.join(root, "ws", normalizedWorkspaceId);
+      const pluginRootDir = ({ pluginId }: { pluginId: string }, _optional = {}): string => {
+        if (!SAFE_ID_SEGMENT_PATTERN.test(pluginId) || pluginId.length > MAX_ID_SEGMENT_LENGTH) {
+          throw new Error(`'${pluginId}' is not a valid Agent Plugin id`);
+        }
+        return pluginStatePaths({ workspaceRoot, pluginId }).root;
+      };
 
       return {
         root: workspaceRoot,
+        pluginRootDir,
+        pluginPackagesDir: ({ pluginId }, _optional = {}) => path.join(pluginRootDir({ pluginId }), "package", "sha256"),
+        pluginMemoryDir: ({ pluginId, kind }, _optional = {}) => {
+          if (kind !== "learned" && kind !== "notes") throw new Error("Invalid plugin memory kind");
+          return path.join(pluginRootDir({ pluginId }), "memory", kind);
+        },
         packages: path.join(workspaceRoot, "packages", "sha256"),
         staging: path.join(workspaceRoot, "staging"),
         pluginDataDir(pluginId: string): string {
           if (!SAFE_ID_SEGMENT_PATTERN.test(pluginId) || pluginId.length > MAX_ID_SEGMENT_LENGTH) {
             throw new Error(`pluginDataDir: '${pluginId}' is not a valid Agent Plugin id`);
           }
-          return path.join(workspaceRoot, "data", pluginId);
+          return path.join(pluginRootDir({ pluginId }), "data");
         },
       };
     },

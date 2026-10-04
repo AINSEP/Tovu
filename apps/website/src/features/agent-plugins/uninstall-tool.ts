@@ -3,7 +3,8 @@ import { requireToolPermission } from "@jini-ai/cms/core";
 import { ToolInputError, type ToolExecutionOptions, type ToolExecutionContext } from "@jini-ai/core";
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import {
-  resolveConfirmationDecision,
+  askOnce,
+  classifyConfirmationAnswer,
   type AssistantSurfaceDeps,
   type ConfirmationOutcome,
 } from "../../contracts/core/tool-surface-exchanges.js";
@@ -151,7 +152,7 @@ async function confirmUninstall(
   ctx: Pick<ToolExecutionContext, "principal" | "signal">,
   preview: AgentPluginUninstallPreview,
   optional: ToolExecutionOptions = {},
-): Promise<ConfirmationOutcome> {
+): Promise<ConfirmationOutcome & { deleteMemory?: boolean }> {
   const emitSurface = optional.emitSurface;
   if (!emitSurface) {
     throw new Error(
@@ -167,7 +168,9 @@ async function confirmUninstall(
   const closeOnAbort = () => exchange.close();
   ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
   try {
-    return await resolveConfirmationDecision(exchange, { channel: "mcp-ui", payload: { resource: ui } });
+    const answer = await askOnce(exchange, { channel: "mcp-ui", payload: { resource: ui } });
+    const outcome = classifyConfirmationAnswer(answer);
+    return { ...outcome, deleteMemory: outcome.confirmed && answer.status === "received" && answer.params.choice === "delete-memory" };
   } finally {
     ctx.signal.removeEventListener("abort", closeOnAbort);
   }
@@ -198,9 +201,9 @@ function notConfirmedUninstallResult(outcome: Exclude<ConfirmationOutcome, { con
  * `uninstallRefusedResult`, like the preview's.
  * @complexity O(1) beyond `uninstallAgentPlugin`.
  */
-async function uninstallConfirmedAgentPlugin(request: UninstallAgentPluginRequired, preview: AgentPluginUninstallPreview): Promise<unknown> {
+async function uninstallConfirmedAgentPlugin(request: UninstallAgentPluginRequired, preview: AgentPluginUninstallPreview, deleteMemory = false): Promise<unknown> {
   try {
-    const result = await uninstallAgentPlugin(request, { confirmedPreview: preview });
+    const result = await uninstallAgentPlugin(request, { confirmedPreview: preview, deleteMemory });
     return {
       uninstalled: true,
       cancelled: false,
@@ -263,5 +266,5 @@ export async function runAgentPluginUninstall(
   const outcome = await confirmUninstall(surfaces, ctx, previewed.preview, optional);
   if (!outcome.confirmed) return notConfirmedUninstallResult(outcome, pluginId);
 
-  return uninstallConfirmedAgentPlugin(request, previewed.preview);
+  return uninstallConfirmedAgentPlugin(request, previewed.preview, outcome.deleteMemory === true);
 }

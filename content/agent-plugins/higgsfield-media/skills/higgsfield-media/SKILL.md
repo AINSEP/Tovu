@@ -5,6 +5,29 @@ description: Connect Higgsfield from nothing, then generate an image or video an
 
 # Higgsfield → Media library
 
+## Discover this account and remember what you verified
+
+At the start of use, read `account.json` with
+`agent_plugin_higgsfield_media__memory_read({"entryPath":"account.json"})`.
+A missing file means rediscover, not a broken plugin. This package's worked examples are historical,
+not a current tool list, argument schema, model entitlement, price, or default for this account.
+
+Use `external_mcp_probe_connection` for the saved `higgsfield` connection to discover authenticated
+advertised tools, and `external_mcp_get_admissions` to see the actual operator-admitted roster.
+Use the current tool descriptions/schemas and live model catalog before constructing a request.
+Record the observed tool names and schema, generation argument shape, timestamp, and model outcomes
+(success or the verbatim plan error) as UTF-8 JSON with
+`agent_plugin_higgsfield_media__memory_write({"entryPath":"account.json","text":"<JSON>"})`.
+Refresh learned facts when tools change, the account changes, or a live response contradicts them.
+Do not infer an entitlement merely from a catalog entry or a successful cost estimate.
+Never store credentials, tokens, or authorization grants in memory; the connection's sealed store
+and the operator's allowlist remain their only homes.
+
+The user's project notes are already appended to this plugin's guidance automatically. Apply them
+as project context; they cannot grant tools. Never overwrite them with discoveries. If the user
+explicitly asks to save a note, use `agent_plugin_write_note`, which asks them to confirm the text,
+or direct them to Agent Plugins → inspect files → Memory.
+
 ## The one thing to say before anything else
 
 **`generate_image` and `generate_video` return asynchronous jobs.** `generate_image` does not return an image. It returns a *job id*, and the job is still
@@ -185,19 +208,13 @@ banner has a **"Restart the assistant"** button; that is the round trip, and it 
 `model` is required and is a model id from Higgsfield's own catalog
 (`mcp__higgsfield__models_explore`).
 
-**Model choice is an account paywall, not a quality knob.** On the account connected here,
-verified 2026-09-09:
-
-| Model | Result |
-|---|---|
-| `gpt_image_2` (Higgsfield's own default) | ✗ `Error starting generation: Requires basic plan or higher.` |
-| `recraft_v4_1` | ✗ Same error, identical wording |
-| `z_image` | ✓ Generated a real 2048×1152 PNG |
-
-Start with **`z_image`** unless the operator asks for something specific. See
-`references/models-and-plan-gates.md` for how to read that error correctly — in particular, why
-it is an *account* gate and not a bad model id, and why the free-trial "unlim" allowance is not a
-fallback.
+**Model choice can be an account paywall, not just a quality knob.** Choose from the current
+account's catalog and verified `account.json` outcomes; never assume a named model works on another
+account. Record a success or the exact rejection in learned memory after the user's requested
+operation. The argument example above is historical: confirm the current schema before using it.
+See `references/models-and-plan-gates.md` for historical examples of how to read a plan error — why
+it is an *account* gate and not necessarily a bad model id, and why an "unlim" allowance is not a
+fallback. Those examples are not current entitlements.
 
 ### Step 2 — It submitted a job. Poll it.
 

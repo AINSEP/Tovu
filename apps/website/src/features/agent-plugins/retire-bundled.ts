@@ -127,7 +127,7 @@ async function retireOne(
     return { pluginId, successorId, status: "failed", reason: `cannot tell whether '${pluginId}' was enabled: ${verdict.reason}` };
   }
 
-  const installed = (await listInstalledPlugins(workspaceLayout.packages)).filter((plugin) => plugin.pluginId === pluginId);
+  const installed = (await listInstalledPlugins(workspaceLayout.root)).filter((plugin) => plugin.pluginId === pluginId);
   const hasRecord = Object.hasOwn((await readAgentPluginActivations({ workspaceRoot: workspaceRoot })).plugins, pluginId);
 
   if (installed.length === 0 && !hasRecord) {

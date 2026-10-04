@@ -301,7 +301,7 @@ export async function resolveAgentPluginMcpServers(input: {
   const bundledDigests = await readBundledAgentPluginDigests(workspaceLayout.root);
   if (input.bundledOnly && !bundledDigests.has(input.pluginId)) return {};
   const installed = preferBundledAgentPluginDigests(
-    await listInstalledPlugins(workspaceLayout.packages),
+    await listInstalledPlugins(workspaceLayout.root),
     bundledDigests,
   );
   const plugin = installed.find((candidate) => candidate.pluginId === input.pluginId);

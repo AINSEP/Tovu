@@ -1,3 +1,4 @@
+import { registerAgentPluginMemoryRoutes } from "#src/server/inbound/admin-http/routes/agent-plugins/memory";
 import { registerAgentPluginFilesRoute } from "#src/server/inbound/admin-http/routes/agent-plugins/files";
 import { registerAgentPluginsListRoute } from "#src/server/inbound/admin-http/routes/agent-plugins/list";
 import { registerAgentPluginSetEnabledRoute } from "#src/server/inbound/admin-http/routes/agent-plugins/set-enabled";
@@ -27,6 +28,7 @@ export function createAgentPluginsModule(deps: RouteDeps): ServerModuleHandle {
       registerAgentPluginsListRoute(app, deps);
       registerAgentPluginSetEnabledRoute(app, deps);
       registerAgentPluginFilesRoute(app, deps);
+      registerAgentPluginMemoryRoutes(app, deps);
     },
   };
 }

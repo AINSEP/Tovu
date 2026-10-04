@@ -47,11 +47,11 @@ test("resolveAgentPluginRefs injects the REAL installed ui-ux-design SKILL.md ve
 
   let digestDirs: string[];
   try {
-    digestDirs = await readdir(layout.packages);
+    digestDirs = await readdir(layout.pluginPackagesDir({ pluginId: PLUGIN_ID }));
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     assert.fail(
-      `expected a real installed Agent Plugin package tree at ${layout.packages} (workspace ` +
+      `expected a real installed Agent Plugin package tree at ${layout.pluginPackagesDir({ pluginId: PLUGIN_ID })} (workspace ` +
         `'${WORKSPACE_ID}') but found none (${message}). This test proves the REAL on-disk install ` +
         `on this machine, not portable logic — if 'ui-ux-design' was never installed here, install it ` +
         `first rather than treating this failure as a wiring regression.`,
@@ -64,11 +64,11 @@ test("resolveAgentPluginRefs injects the REAL installed ui-ux-design SKILL.md ve
   // (`site-compliance`) was installed beside it — a stale environment assumption failing as though
   // it were a wiring regression. Package count was never what this test proves; the verbatim-bytes
   // assertion below is.
-  const skillPaths = digestDirs.map((digest) => path.join(layout.packages, digest, "skills", PLUGIN_ID, "SKILL.md"));
+  const skillPaths = digestDirs.map((digest) => path.join(layout.pluginPackagesDir({ pluginId: PLUGIN_ID }), digest, "skills", PLUGIN_ID, "SKILL.md"));
   const skillPath = skillPaths.find((candidate) => existsSync(candidate));
   assert.ok(
     skillPath !== undefined,
-    `expected one installed digest under ${layout.packages} to carry skills/${PLUGIN_ID}/SKILL.md, ` +
+    `expected one installed digest under ${layout.pluginPackagesDir({ pluginId: PLUGIN_ID })} to carry skills/${PLUGIN_ID}/SKILL.md, ` +
       `searched: ${skillPaths.join(", ") || "(none)"}`,
   );
   const realSkillMarkdown = await readFile(skillPath, "utf8");

@@ -183,7 +183,7 @@ test("uninstalls an operator-installed plugin: removes the package root and dele
     assert.deepEqual(result.removedDigests, [installed.archiveDigest]);
 
     await assert.rejects(() => stat(installed.packageRoot), "the package root must actually be gone from disk");
-    assert.deepEqual(await readdir(workspaceLayout.packages).catch(() => []), [], "no digest directory for this plugin may remain");
+    assert.deepEqual(await readdir(workspaceLayout.pluginPackagesDir({ pluginId: "my-custom-plugin" })).catch(() => []), [], "no digest directory for this plugin may remain");
 
     const activations = await readAgentPluginActivations({ workspaceRoot: workspaceLayout.root });
     assert.equal(
@@ -269,7 +269,7 @@ test("a failed uninstall puts every staged package tree back — no digest is le
       "staging has to unfreeze a package root to rename it; a restored tree must be frozen again, not left writable",
     );
     assert.deepEqual(
-      (await readdir(workspaceLayout.packages)).sort(),
+      (await readdir(workspaceLayout.pluginPackagesDir({ pluginId: "multi-digest" }))).sort(),
       [first.archiveDigest, second.archiveDigest].sort(),
       "the rollback must restore the original digest names and leave no staged directory behind",
     );
@@ -366,7 +366,7 @@ test("a confirmed preview refuses — removing nothing — when an archive for t
 
     assert.equal((await stat(first.packageRoot)).isDirectory(), true);
     assert.equal((await stat(second.packageRoot)).isDirectory(), true);
-    assert.deepEqual((await readdir(workspaceLayout.packages)).sort(), [first.archiveDigest, second.archiveDigest].sort());
+    assert.deepEqual((await readdir(workspaceLayout.pluginPackagesDir({ pluginId: "changed-plugin" }))).sort(), [first.archiveDigest, second.archiveDigest].sort());
     const activations = await readAgentPluginActivations({ workspaceRoot: workspaceLayout.root });
     assert.equal(activations.plugins["changed-plugin"]?.enabled, false);
   } finally {

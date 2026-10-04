@@ -1,5 +1,9 @@
 # Models, plans, and credits
 
+**Historical examples, not current account knowledge.** Read or refresh `account.json` in this
+plugin’s learned memory and confirm the live schema. Never copy these examples into learned memory
+as if this account had produced them.
+
 Everything here was observed against the live connected Higgsfield account on 2026-09-09. Where a
 fact is about *this* account rather than about Higgsfield in general, it says so.
 

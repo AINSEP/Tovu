@@ -79,7 +79,7 @@ export type TrustedPluginVerdict = { readonly trusted: TrustedPluginPackage } | 
 export async function findTrustedPluginPackages(query: TrustedPluginPackagesQuery): Promise<readonly TrustedPluginVerdict[]> {
   const layout = resolveAgentPluginLayout().forWorkspace(query.workspaceId);
   const bundled = await readBundledAgentPluginDigests(layout.root);
-  const preferred = preferBundledAgentPluginDigests(await listInstalledPlugins(layout.packages), bundled);
+  const preferred = preferBundledAgentPluginDigests(await listInstalledPlugins(layout.root), bundled);
   const installed = query.orderByPluginId ? [...preferred].sort((a, b) => a.pluginId.localeCompare(b.pluginId)) : preferred;
 
   const verdicts: TrustedPluginVerdict[] = [];

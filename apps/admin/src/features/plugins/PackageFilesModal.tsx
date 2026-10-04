@@ -1,7 +1,7 @@
 import { CodeWithLines, RemixIcon } from "@jini-ai/ui";
 import { PreviewModalShell } from "@jini-ai/ui/renderers";
 import { agentHandle } from "@jini-ai/agentic";
-import { Fragment, useId } from "react";
+import { Fragment, useId, type ReactNode } from "react";
 
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import type { Translate } from "@/lib/dictionary-translator";
@@ -40,6 +40,7 @@ export interface PackageFilesModalProps {
   readonly handlePrefix: string;
   readonly t: Translate;
   readonly onClose: () => void;
+  readonly additionalViews?: readonly { id: string; label: string; custom: ReactNode }[];
 }
 
 /** A package-relative path with a `<wbr>` after every `/` (visual QA, 2026-08-31). Used by the
@@ -250,6 +251,7 @@ export function PackageFilesModal({
   handlePrefix,
   t,
   onClose,
+  additionalViews = [],
 }: PackageFilesModalProps) {
   const selectedFileHeadingId = useId();
   // File paths are stable and unique within one package, same per-row-handle derivation every
@@ -300,6 +302,7 @@ export function PackageFilesModal({
             </div>
           ),
         },
+        ...additionalViews,
       ]}
       onClose={onClose}
     />

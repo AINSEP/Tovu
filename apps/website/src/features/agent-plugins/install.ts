@@ -1,3 +1,4 @@
+import { assertOwnedPluginPath, withAgentPluginStateLock } from "./memory.js";
 /**
  * @file `installAgentPlugin()` — content-addressed, adversarially-hardened extraction of one Agent
  * Plugin (agent-plugins.org) archive into one workspace's own `AgentPluginWorkspaceLayout.packages`.
@@ -241,20 +242,8 @@ export async function installAgentPlugin(
     );
   }
 
-  await mkdir(workspaceLayout.packages, { recursive: true, mode: 0o700 });
-
-  const finalRoot = path.join(workspaceLayout.packages, digest);
-  const alreadyPublished = await isRealDirectory(finalRoot);
-  if (alreadyPublished) {
-    // Content-addressed dedup, scoped to THIS workspace's own tree (`workspaceLayout` was just
-    // resolved above, atomically, from this same `workspaceId`): identical bytes were already
-    // extracted, verified, and frozen by a prior install of this same workspace's — never
-    // re-extracted for a different workspace, by construction, since a different workspace's
-    // `workspaceLayout.packages` is a different path entirely. `archiveReader.entries()` is never
-    // called on this path.
-    return indexInstalledRoot(finalRoot, digest);
-  }
-
+  await mkdir(workspaceLayout.root, { recursive: true, mode: 0o700 });
+  await assertOwnedPluginPath({ workspaceRoot: workspaceLayout.root, entryPath: "staging" });
   await mkdir(workspaceLayout.staging, { recursive: true, mode: 0o700 });
   const transactionRoot = await mkdtemp(path.join(workspaceLayout.staging, "install-"));
   const extractionRoot = path.join(transactionRoot, "root");
@@ -263,15 +252,38 @@ export async function installAgentPlugin(
   try {
     const executablePaths = await extractEntries(archiveReader.entries(archive), extractionRoot);
     const indexed = await indexInstalledRoot(extractionRoot, digest);
-    // Publish BEFORE freezing permissions, not after: `rename()` moves `extractionRoot` as a single
-    // directory-entry operation, and on this filesystem renaming an already-read-only (0o555)
-    // directory itself fails EACCES (observed, not merely theoretical — see the regression test this
-    // ordering fixed). Freezing after publish also closes a smaller race for free: nothing outside
-    // this function can observe the package at its live path while it is still writable, because the
-    // live path does not exist until `publish` returns.
-    await publish(extractionRoot, finalRoot);
-    await freezeTree(finalRoot, executablePaths);
-    return { ...indexed, packageRoot: finalRoot };
+    return await withAgentPluginStateLock({ workspaceRoot: workspaceLayout.root, pluginId: indexed.pluginId, run: async () => {
+      // Layout B needs the manifest id before choosing the package destination. Dedup still
+      // skips publication and freezing, after one bounded staging extraction.
+      const pluginId = indexed.pluginId;
+      const packagesDir = workspaceLayout.pluginPackagesDir({ pluginId });
+      await assertOwnedPluginPath({ workspaceRoot: workspaceLayout.root, entryPath: path.relative(workspaceLayout.root, packagesDir) });
+      await mkdir(packagesDir, { recursive: true, mode: 0o700 });
+      const finalRoot = await assertContainedOnDisk(packagesDir, digest);
+      for (const directory of [workspaceLayout.pluginDataDir(pluginId),
+        workspaceLayout.pluginMemoryDir({ pluginId, kind: "learned" }),
+        workspaceLayout.pluginMemoryDir({ pluginId, kind: "notes" })]) {
+        await assertOwnedPluginPath({ workspaceRoot: workspaceLayout.root, entryPath: path.relative(workspaceLayout.root, directory) });
+        await mkdir(directory, { recursive: true, mode: 0o700 });
+      }
+      if (await isRealDirectory(finalRoot)) {
+      // Content-addressed dedup, scoped to THIS workspace's own tree (`workspaceLayout` was just
+      // resolved above, atomically, from this same `workspaceId`): identical bytes were already
+      // extracted, verified, and frozen by a prior install of this same workspace's — never
+      // re-extracted for a different workspace, by construction, since a different workspace's
+      // `workspaceLayout.packages` is a different path entirely. one bounded staging extraction precedes this check.
+        return indexInstalledRoot(finalRoot, digest);
+      }
+      // Publish BEFORE freezing permissions, not after: `rename()` moves `extractionRoot` as a single
+      // directory-entry operation, and on this filesystem renaming an already-read-only (0o555)
+      // directory itself fails EACCES (observed, not merely theoretical — see the regression test this
+      // ordering fixed). Freezing after publish also closes a smaller race for free: nothing outside
+      // this function can observe the package at its live path while it is still writable, because the
+      // live path does not exist until `publish` returns.
+      await publish(extractionRoot, finalRoot);
+      await freezeTree(finalRoot, executablePaths);
+      return { ...indexed, packageRoot: finalRoot };
+    } });
   } finally {
     // Whether this install succeeded (bytes now live at `finalRoot`) or failed, the staging
     // transaction directory itself must never be left behind — on success `rename` already moved

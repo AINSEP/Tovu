@@ -89,7 +89,7 @@ export interface InstalledAgentPluginServers {
 export async function listInstalledAgentPluginServers(workspaceId: string): Promise<readonly InstalledAgentPluginServers[]> {
   const workspaceLayout = resolveAgentPluginLayout().forWorkspace(workspaceId);
   const ledger = await readBundledAgentPluginDigests(workspaceLayout.root);
-  const installed = preferBundledAgentPluginDigests(await listInstalledPlugins(workspaceLayout.packages), ledger);
+  const installed = preferBundledAgentPluginDigests(await listInstalledPlugins(workspaceLayout.root), ledger);
   const seen = new Set<string>();
   const out: InstalledAgentPluginServers[] = [];
   for (const plugin of installed) {

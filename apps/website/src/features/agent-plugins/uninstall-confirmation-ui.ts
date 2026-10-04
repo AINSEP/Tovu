@@ -1,3 +1,4 @@
+import { memoryText } from "./memory-i18n.js";
 import { buildConfirmationSurface, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 
 import { SURFACE_EXCHANGE_ID_PARAM } from "../../contracts/core/tool-surface-exchanges.js";
@@ -58,10 +59,14 @@ export function buildUninstallConfirmationResource(spec: { preview: AgentPluginU
       "tool stays listed until Tovu restarts.",
     danger: true,
     confirm: {
-      label: "Uninstall",
+      label: memoryText({ key: "Uninstall · keep memory" }),
       toolName: PLUGINS_UNINSTALL_TOOL_ID,
       params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "confirm" },
     },
+    alternatives: [{ id: "delete-memory", label: memoryText({ key: "Uninstall and delete memory" }),
+      toolName: PLUGINS_UNINSTALL_TOOL_ID,
+      params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "confirm", choice: "delete-memory" },
+    }],
     // A tool action, not a bare dismiss: cancelling posts back and resolves the parked call at once.
     cancel: {
       label: "Cancel",

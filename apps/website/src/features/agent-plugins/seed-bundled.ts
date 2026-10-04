@@ -1,3 +1,4 @@
+import { migrateSiteAgentPluginLayouts } from "./memory.js";
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
 import { agentPluginActivations } from "./activation-effects.js";
@@ -163,6 +164,14 @@ export async function seedBundledAgentPlugins(
   const { layout, workspaceId, sourceRoot } = required;
 
   const pluginDirNames = await listBundledPluginDirs(sourceRoot);
+  // The migration must finish before new installs, including bundled packages, are published.
+  try {
+    const migration = await migrateSiteAgentPluginLayouts({ layout, workspaceId });
+    if (!migration.complete) throw new Error("Legacy plugin layout could not be fully migrated; see boot log");
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    return { sourceRoot, outcomes: pluginDirNames.map(pluginId => ({ pluginId, status: "failed" as const, reason })), retirements: [] };
+  }
 
   // ONE strict pre-flight read BEFORE any install — so a bundled package never lands on disk
   // without the activation record that would keep it inactive (this file's header). Every bundled

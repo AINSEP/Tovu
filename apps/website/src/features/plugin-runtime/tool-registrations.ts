@@ -154,7 +154,7 @@ function toAgentPluginListRow(p: InstalledAgentPlugin): AgentPluginListRow {
  *  call over the newer, less-exercised half of this tool. */
 async function listAgentPluginsForResponse(workspaceId: string): Promise<readonly AgentPluginListRow[]> {
   try {
-    const installed = await listInstalledPlugins(resolveAgentPluginLayout().forWorkspace(workspaceId).packages);
+    const installed = await listInstalledPlugins(resolveAgentPluginLayout().forWorkspace(workspaceId).root);
     return installed.map(toAgentPluginListRow);
   } catch {
     return [];

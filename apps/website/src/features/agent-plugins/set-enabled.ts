@@ -80,7 +80,7 @@ export interface SetAgentPluginEnabledResult {
  */
 export async function setAgentPluginEnabled(input: SetAgentPluginEnabledInput): Promise<SetAgentPluginEnabledResult> {
   const workspaceLayout = resolveAgentPluginLayout().forWorkspace(input.workspaceId);
-  const installed = await listInstalledPlugins(workspaceLayout.packages);
+  const installed = await listInstalledPlugins(workspaceLayout.root);
   if (!installed.some((plugin) => plugin.pluginId === input.pluginId)) {
     throw new AgentPluginNotInstalledError(input.pluginId);
   }
