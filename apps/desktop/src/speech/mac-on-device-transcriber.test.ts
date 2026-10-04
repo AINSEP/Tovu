@@ -2,12 +2,12 @@
  * @file Direct tests for `mac-on-device-transcriber.ts` with injected dependencies, plus a
  * darwin-only contract check against the compiled Swift helper.
  */
-import test from "node:test";
+import test, { after, before, describe } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
+import { spawnSync, type SpawnSyncReturns } from "node:child_process";
 
 import { ensureHelperCompiled, checkAvailability, transcribeWav, parseHelperJson } from "@jini-ai/desktop-host/speech/macos";
 import { createMacOnDeviceTranscriptionPort, speechHelperSourcePath, macTranscriberMessages, DEFAULT_BINARY_PATH } from "./mac-on-device-transcriber.ts";
@@ -184,25 +184,34 @@ test("createMacOnDeviceTranscriptionPort composes overrides into a working port 
   assert.deepEqual(await port.transcribe({ wavBuffer: Buffer.from("x") }), { text: "hello", elapsedMs: 50 });
 });
 
-test("the real Swift helper check command emits the availability JSON contract", { skip: process.platform !== "darwin", timeout: 60000 }, (t) => {
-  const toolchain = spawnSync("swiftc", ["--version"], { encoding: "utf8", timeout: 10000 });
-  if (toolchain.error && "code" in toolchain.error && toolchain.error.code === "ENOENT") {
-    t.skip("Swift toolchain is not installed");
-    return;
-  }
-  assert.equal(toolchain.status, 0, toolchain.stderr);
-  const buildDir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-speech-contract-"));
-  t.after(() => fs.rmSync(buildDir, { recursive: true, force: true }));
-  const binaryPath = path.join(buildDir, "helper");
-  const compiled = spawnSync("swiftc", ["-module-cache-path", path.join(buildDir, "cache"), speechHelperSourcePath({}), "-o", binaryPath], { encoding: "utf8", timeout: 30000 });
-  assert.equal(compiled.status, 0, compiled.stderr);
-  const checked = spawnSync(binaryPath, ["check", "en-US"], { encoding: "utf8", timeout: 20000 });
-  assert.equal(checked.status, 0, checked.stderr);
-  const payload = parseHelperJson({ stdout: checked.stdout, invalidOutput: macTranscriberMessages.invalidOutput });
-  assert.deepEqual(Object.keys(payload).sort(), ["available", "reason"]);
-  assert.equal(typeof payload.available, "boolean");
-  if (payload.available) assert.equal(payload.reason, null);
-  else assert.equal(typeof payload.reason, "string");
+// Compiling the helper is fixture setup with its own budget, so the contract test times only the
+// helper's `check`. A cold first `swiftc` launch pays the xcrun shim lookup (~9s with
+// `xcrun_nocache=1`, ~12s under suite load) plus a module build into this empty cache (~9s);
+// warm, both are ~1s. The product pays this once: ensureHelperCompiled caches the binary at
+// DEFAULT_BINARY_PATH and every later availability check only runs it (~0.5s).
+describe("the real Swift helper (darwin toolchain)", { skip: process.platform !== "darwin" }, () => {
+  let buildDir = "";
+  let compiled: SpawnSyncReturns<string> | undefined;
+  before(() => {
+    buildDir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-speech-contract-"));
+    compiled = spawnSync("swiftc", ["-module-cache-path", path.join(buildDir, "cache"), speechHelperSourcePath({}), "-o", path.join(buildDir, "helper")], { encoding: "utf8", timeout: 110000 });
+  }, { timeout: 120000 });
+  after(() => fs.rmSync(buildDir, { recursive: true, force: true }));
+
+  test("the real Swift helper check command emits the availability JSON contract", { timeout: 30000 }, (t) => {
+    if (compiled?.error && "code" in compiled.error && compiled.error.code === "ENOENT") {
+      t.skip("Swift toolchain is not installed");
+      return;
+    }
+    assert.equal(compiled?.status, 0, compiled?.stderr || String(compiled?.error));
+    const checked = spawnSync(path.join(buildDir, "helper"), ["check", "en-US"], { encoding: "utf8", timeout: 20000 });
+    assert.equal(checked.status, 0, checked.stderr);
+    const payload = parseHelperJson({ stdout: checked.stdout, invalidOutput: macTranscriberMessages.invalidOutput });
+    assert.deepEqual(Object.keys(payload).sort(), ["available", "reason"]);
+    assert.equal(typeof payload.available, "boolean");
+    if (payload.available) assert.equal(payload.reason, null);
+    else assert.equal(typeof payload.reason, "string");
+  });
 });
 
 // REGRESSION: fails if the legacy helper cache is reused for the explicit-locale protocol.
