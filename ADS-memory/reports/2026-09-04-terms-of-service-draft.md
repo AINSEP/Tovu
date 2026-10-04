@@ -1,12 +1,14 @@
 # Terms of Service
 
+> **Owner inputs, 2026-10-04:** tovu.dev; California law and Los Angeles County, California venue; US$0 liability cap; contact through the [site contact form](https://tovu.dev/contact#send-a-message); form submission IP addresses deleted after 90 days. The controller name remains `[[OWNER NAME]]`. Other historic drafting fields below are not part of the published page.
+
 **Effective date: [EFFECTIVE DATE]**
 **Last updated: [EFFECTIVE DATE]**
 
 > **This is not legal advice.** These Terms were prepared from a technical audit of tovu.dev and
 > the Tovu software, so that they describe what actually exists rather than what a template
 > assumes. They are a starting point, not a finished legal instrument. A qualified lawyer in
-> **[JURISDICTION]** should review them before you rely on them — in particular the liability,
+> **California** should review them before you rely on them — in particular the liability,
 > warranty, licensing, and governing-law sections, which are the ones that decide what happens if
 > something goes badly wrong.
 
@@ -16,15 +18,10 @@
 
 | Placeholder | What it needs |
 |---|---|
-| `[LEGAL ENTITY NAME]` | The registered legal entity that publishes Tovu and operates tovu.dev |
-| `[JURISDICTION]` | Country/state whose law governs these Terms, and where your lawyer practices |
-| `[GOVERNING LAW]` | The body of law chosen — often the same as `[JURISDICTION]` but state it explicitly |
-| `[VENUE]` | The courts that will hear a dispute |
-| `[CONTACT EMAIL]` | A real, monitored mailbox. **Do not reuse the `support@example.com` placeholder currently shown on `/contact` — that address is not real.** |
+| `[[OWNER NAME]]` | The individual who publishes Tovu and operates tovu.dev; owner name is still unresolved |
 | `[POSTAL ADDRESS]` | Registered postal address for legal notices |
 | `[EFFECTIVE DATE]` | The date this version takes effect |
 | `[SOFTWARE LICENSE]` | **See §4.1 — this is the most urgent gap.** The license under which the downloadable software is offered. |
-| `[LIABILITY CAP]` | The monetary ceiling in §13. Note that where nothing has been paid, the cap needs to be a stated figure, not "the amount you paid". |
 | `[TRADEMARK LIST]` | The names and marks you claim, and whether any are registered |
 | `[NOTICE PERIOD]` | How much notice you give before a material change to these Terms takes effect |
 
@@ -46,7 +43,7 @@ on Tovu, whether their modifications must be published, and whether you can late
 
 ## 1. What these Terms cover
 
-These Terms of Service are an agreement between you and **[LEGAL ENTITY NAME]** ("we", "us",
+These Terms of Service are an agreement between you and **[[OWNER NAME]]** ("we", "us",
 "our"). They cover two distinct things, and it matters which one you are dealing with:
 
 **(a) The website at tovu.dev** — reading it, browsing it, using its forms, subscribing to
@@ -126,7 +123,7 @@ these Terms by reference.
 
 ### 3.4 Security research
 
-We welcome good-faith security research. If you find a vulnerability, email **[CONTACT EMAIL]**
+We welcome good-faith security research. If you find a vulnerability, use the **[contact form](https://tovu.dev/contact#send-a-message)**
 before disclosing it publicly, give us a reasonable opportunity to fix it, do not access or modify
 anyone else's data, and do not degrade the service. We will not pursue legal action against
 research conducted on those terms. We do not currently run a paid bug bounty.
@@ -216,7 +213,7 @@ Specifically, you are responsible for:
   your visitors into your database. That data is never sent to us, and we have no access to it and
   no visibility into it. Under GDPR, UK GDPR, CCPA, and equivalent laws, that makes **you** the
   controller. You need your own privacy policy, your own lawful bases, and your own process for
-  handling data subject requests. **[LEGAL ENTITY NAME] is not your data processor and there is
+  handling data subject requests. **[[OWNER NAME]] is not your data processor and there is
   nothing for us to sign a data processing agreement about.**
 - **Configuring the Software securely.** Including, and we single these out because they have
   direct consequences for your visitors:
@@ -382,7 +379,7 @@ here limits those rights. Where an exclusion is not permitted, it applies only t
 
 ## 12. Indemnity
 
-You will indemnify and hold harmless **[LEGAL ENTITY NAME]**, its officers, employees, and agents
+You will indemnify and hold harmless **[[OWNER NAME]]**, its officers, employees, and agents
 from any claim, loss, liability, damage, cost, or expense (including reasonable legal fees) arising
 out of:
 
@@ -416,13 +413,9 @@ were told such loss was possible.
 **In particular, we are not liable for data loss.** You are responsible for your own backups.
 
 **Our total aggregate liability** to you for all claims arising out of or relating to these Terms,
-the Site, or the Software is limited to the greater of (a) the total amount you have paid us in the
-twelve months before the claim arose, and (b) **[LIABILITY CAP]**.
+the Site, or the Software is limited to **US$0**, to the fullest extent permitted by law.
 
-Because we currently charge nothing, limb (a) is zero for most people. **[LIABILITY CAP]** must
-therefore be a real, stated figure — a cap that resolves to nothing may be treated as an attempt to
-exclude liability entirely, which many courts will not enforce. Discuss the number with your
-lawyer.
+The exclusions below for liability that cannot lawfully be limited still apply.
 
 **What we do not exclude.** Nothing here excludes or limits our liability for death or personal
 injury caused by our negligence, for fraud or fraudulent misrepresentation, or for anything else
@@ -438,7 +431,7 @@ available. Without them we would not do so.
 
 You may not use, export, or re-export the Software in violation of any applicable export control
 or sanctions law. You confirm that you are not located in, and are not a national or resident of,
-a country subject to a comprehensive embargo under **[GOVERNING LAW]**, and that you are not on any
+a country subject to a comprehensive embargo under applicable export control or sanctions law, and that you are not on any
 restricted-party or denied-persons list.
 
 ---
@@ -447,22 +440,21 @@ restricted-party or denied-persons list.
 
 We will give you notice by posting on the Site, or by email if we hold an address for you.
 
-Give us formal legal notice in writing to **[LEGAL ENTITY NAME]**, **[POSTAL ADDRESS]**, with a
-copy by email to **[CONTACT EMAIL]**.
+Give us formal legal notice using the [contact form](https://tovu.dev/contact#send-a-message).
 
 ---
 
 ## 16. Governing law and disputes
 
-These Terms are governed by **[GOVERNING LAW]**, without regard to its conflict-of-laws rules.
+These Terms are governed by **the laws of the State of California**, without regard to its conflict-of-laws rules.
 
 Any dispute arising out of or relating to these Terms, the Site, or the Software will be brought
-exclusively in the courts of **[VENUE]**, and you and we each consent to their jurisdiction.
+exclusively in the courts of **Los Angeles County, California**, and you and we each consent to their jurisdiction.
 
 **If you are a consumer**, this does not deprive you of the protection of the mandatory law of the
 country where you live, or of your right to bring proceedings in your local courts.
 
-**Please talk to us first.** Before starting formal proceedings, email **[CONTACT EMAIL]** and
+**Please talk to us first.** Before starting formal proceedings, use the **[contact form](https://tovu.dev/contact#send-a-message)** and
 describe the problem. Most disputes are resolved faster and more cheaply that way.
 
 *Consider with your lawyer whether to add mandatory arbitration and a class-action waiver. These
@@ -504,13 +496,13 @@ the English version governs.
 
 | For | Contact |
 |---|---|
-| Questions about these Terms | **[CONTACT EMAIL]** |
-| Legal notices | **[LEGAL ENTITY NAME]**, **[POSTAL ADDRESS]** |
-| Security reports | **[CONTACT EMAIL]** |
+| Questions about these Terms | **[contact form](https://tovu.dev/contact#send-a-message)** |
+| Legal notices | [contact form](https://tovu.dev/contact#send-a-message) |
+| Security reports | **[contact form](https://tovu.dev/contact#send-a-message)** |
 
 ---
 
 *These Terms were drafted from a technical audit of the Tovu source code and the live tovu.dev
 deployment, so that the factual claims in them are verifiable rather than assumed. They have not
-been reviewed by a lawyer. Have one in **[JURISDICTION]** review them before relying on them — and
+been reviewed by a lawyer. Have one in **California** review them before relying on them — and
 resolve the licensing gap in §4.1 first.*

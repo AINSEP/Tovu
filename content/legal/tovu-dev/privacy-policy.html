@@ -1,0 +1,207 @@
+<style>
+  .lg { max-width: 48rem; margin: 0 auto; color: var(--fg, #1a1a1a); }
+  .lg h2 { margin: 2.5rem 0 .75rem; font-size: 1.45rem; line-height: 1.25; scroll-margin-top: 5rem; }
+  .lg h3 { margin: 1.75rem 0 .5rem; font-size: 1.1rem; line-height: 1.3; scroll-margin-top: 5rem; }
+  .lg p { margin: 0 0 1rem; line-height: 1.7; }
+  .lg ul, .lg ol { margin: 0 0 1rem; padding-left: 1.35rem; line-height: 1.7; }
+  .lg li { margin: 0 0 .45rem; }
+  .lg li > ul, .lg li > ol { margin: .45rem 0 0; }
+  .lg hr { border: 0; border-top: 1px solid var(--border, #e2ddd8); margin: 2.75rem 0; }
+  .lg code { font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace); font-size: .9em; background: var(--surface-2, #f6f2ef); padding: .1em .35em; border-radius: 4px; }
+  .lg a { color: var(--accent, #8a4b2a); }
+  .lg-callout { margin: 0 0 1.75rem; padding: 1rem 1.25rem; border-left: 3px solid var(--accent, #8a4b2a); background: var(--surface-2, #f6f2ef); border-radius: 0 6px 6px 0; }
+  .lg-callout p:last-child { margin-bottom: 0; }
+  .lg-notice { margin: 0 0 1.75rem; padding: 1.1rem 1.35rem; border: 2px solid var(--accent, #8a4b2a); border-radius: 8px; background: var(--surface-2, #f6f2ef); }
+  .lg-notice p { margin: 0 0 .6rem; }
+  .lg-notice p:last-child { margin-bottom: 0; }
+  .lg-tablewrap { overflow-x: auto; margin: 0 0 1.5rem; }
+  .lg table { border-collapse: collapse; width: 100%; font-size: .95rem; }
+  .lg th, .lg td { text-align: left; vertical-align: top; padding: .55rem .7rem; border-bottom: 1px solid var(--border, #e2ddd8); line-height: 1.55; }
+  .lg th { font-weight: 600; border-bottom-width: 2px; white-space: nowrap; }
+  .lg td code { white-space: nowrap; }
+</style>
+<div class="lg">
+<div class="lg-notice" role="note"><p><strong>Tovu is a free project run by one person, not a company. It&rsquo;s provided as is, with no warranty. Use it at your own risk. My liability is limited as described in the <a href="/terms-of-service">Terms of Service</a>.</strong></p><p>There are no ads, and I don&rsquo;t sell your data. The Tovu app keeps your data on your own computer. This website collects a little: what you type into a form, with your IP address, and what you type into the chat, which goes to an AI provider. Section 3 has the detail. In the rest of this Policy, &ldquo;we&rdquo; means that person.</p></div>
+<p><strong>Effective date: 2026-09-05</strong> &middot; <strong>Last updated: 2026-10-04</strong></p>
+<blockquote class="lg-callout"><p><strong>Draft. Not legal advice.</strong> This Policy was written from an audit of the code that runs tovu.dev, so it describes what this site actually does rather than what a template assumes. It has not been reviewed by a lawyer.</p></blockquote>
+
+<h2 id="two-things">1. Two things are called Tovu</h2>
+<p><strong>tovu.dev</strong> &mdash; this website. We run it, and we hold what it collects. Sections 2&ndash;13 describe it.</p>
+<p><strong>Tovu</strong> &mdash; software you download and run yourself. Your install collects data into <em>your</em> database, on <em>your</em> servers. It is never sent to us. Section 14 covers it. If that is why you are here, the short answer is: the software sends us nothing, but it does talk to a few third parties, such as GitHub for update checks and the AI provider you pick. Section 14 lists them.</p>
+
+<h2 id="who">2. Who we are</h2>
+<!-- TODO (owner): once a company (for example an LLC) is formed, name it here as the operator and data controller, with its address. -->
+<p>Tovu is a free, open-source project run by one individual, not a company. <strong>[[OWNER NAME]]</strong> runs tovu.dev and is responsible, as data controller, for what it collects. &ldquo;We&rdquo;, &ldquo;us&rdquo; and &ldquo;our&rdquo; in this Policy mean that individual and, if one is formed later, any company that takes over running Tovu. Nothing is sold here today, and there are no ads.</p>
+<p>Contact for anything in this Policy, including privacy requests: <a href="/contact#send-a-message">contact form</a>. General, non-private questions can also go to <a href="https://github.com/AINSEP/Tovu/issues">github.com/AINSEP/Tovu/issues</a>; issues are public, so leave personal details out.</p>
+<p>This Policy is written with the UK GDPR, the EU GDPR, and the CCPA as amended by the CPRA in mind. Where a law gives you a right, you have it whether or not we list it here; where a law does not apply to us, describing it here is not a promise to follow it beyond what this Policy says.</p>
+<p>We have not appointed a Data Protection Officer, and are not required to: a DPO is mandatory under GDPR Art. 37 only for public authorities, for large-scale systematic monitoring, or for large-scale special-category data. None applies here. We have no EU or UK Article 27 representative for the same reason &mdash; this site is a documentation site for free software, not an offering targeted at EU or UK residents, and its processing is occasional and low-risk. We would rather say that than name a representative we do not have.</p>
+
+<h2 id="collect">3. What this site collects</h2>
+<p>Only <strong>forms</strong> and the <strong>site chat</strong> are in use today. Everything else below is a capability of the software that is switched off here; we describe it because we may switch it on, and we say so where we do.</p>
+
+<h3 id="forms">3.1 Forms &mdash; active</h3>
+<p>When you submit a form we store the values you typed, the time, and <strong>your IP address in full, unhashed</strong>. That is the one place on this site a raw IP is written down; we use it to rate-limit and to identify abuse. IP addresses on form submissions are deleted after 90 days. The answers and timestamp remain until the submission is deleted. To request deletion of a submission, use the <a href="/contact#send-a-message">contact form</a>.</p>
+<p>A failed submission sets a <code>tovu_form_flash</code> cookie for 120 seconds so your answers survive the reload. It holds only what you just typed, is HttpOnly, and is same-origin. Forms also carry a hidden spam-trap field; if it comes back filled the submission is discarded.</p>
+
+<h3 id="chat">3.2 Site chat &mdash; active, and it sends what you type to an AI provider</h3>
+<p>The chat widget on every page sends what you type to the AI model provider we have configured, to generate a reply. That provider handles it under its own terms and privacy policy. <strong>Today that provider is Google (Gemini API).</strong> The software can also use Anthropic, OpenAI, Azure OpenAI, OpenRouter, or any compatible endpoint; if we switch, we will update this section and the table in section 4.</p>
+<p><strong>Do not type anything into the chat you would not send to a third party.</strong> Its answers are generated by AI and can be wrong.</p>
+<p>The key is ours, not yours &mdash; you supply nothing and see nothing. Requests are rate-limited using your IP address, which is read for that check and not stored. Your conversation is kept in your browser's <code>sessionStorage</code>: it is per-tab, it dies when you close the tab, and it never reaches us as a stored record.</p>
+
+<h3 id="analytics">3.3 Analytics &mdash; capability present, no events recorded</h3>
+<p>No page on this site loads an analytics script today, so nothing is recorded. If we enable analytics it is our own, first-party, and sets no cookie. It is not Google Analytics and not an advertising pixel.</p>
+<p>It does not store your IP address or User-Agent. Before anything is written, your IP is truncated to a coarse network block, combined with a broad device class and a salt that rotates daily, and hashed one way. The structure that reaches storage has no field for an IP or a User-Agent, so neither can leak downstream by mistake. Because the salt rotates daily you cannot be followed from one day to the next; there is no persistent visitor ID and no cross-site identifier. Global Privacy Control and Do Not Track are honored. Property names and values that look like personal data are rejected before storage.</p>
+<p>Stored: a page path, a coarse device class, browser and OS family, a referring hostname, campaign tags, an event name, and the daily hash. Country and region columns exist but are always empty &mdash; we do no geolocation.</p>
+
+<h3 id="newsletter">3.4 Newsletter &mdash; capability present, no subscriptions</h3>
+<p>There is no signup box on this site, and no public route that creates a subscription. If we ever add you to a list, your subscription starts pending and becomes active only when you click a confirmation link. The subscription record holds a reference to your identity record, not your email. Confirmation tokens are stored only as hashes, with an expiry. Unsubscribing is a public, one-click, signed link that needs no login and sets no cookie &mdash; it changes the status, it does not erase the record.</p>
+
+<h3 id="comments">3.5 Comments &mdash; capability present, not in use</h3>
+<p>No comment has ever been stored here. If we turn them on: comments are anonymous, we store the name you give plus optional email and website, and <strong>your IP is never stored</strong> &mdash; it is hashed with a secret salt as the request arrives. Spam filtering is entirely local; nothing is sent to a third-party scoring service. Comments can be permanently purged, and that purge is a real hard delete.</p>
+
+<h3 id="members">3.6 Member accounts &mdash; capability present, no accounts</h3>
+<p>Sign-in would be passwordless, by emailed one-time link. <strong>There is no password anywhere in this system.</strong> We would store your email, optionally a name, verification state, status, and an internal note. Sessions store a hash of the session token &mdash; never the token &mdash; plus, unlike the rest of the site, your IP and User-Agent in full, for session security. Consent would be recorded as a purpose-by-purpose ledger, with withdrawal recorded as its own entry rather than by erasing the original.</p>
+<p><strong>Member records cannot be deleted.</strong> They are designed to be disabled, never destroyed, because a member is an actor in the site's revision history. There is no code path anywhere that removes one. Section 10 explains what we do instead.</p>
+
+<h3 id="media">3.7 Media</h3>
+<p>Images here are uploaded by us; there is no public upload. Publicly served images are re-encoded, which does not carry EXIF or GPS metadata into what you download. Original files are stored as received, metadata intact. If you send us an image, assume it still carries whatever your camera put in it.</p>
+
+<h3 id="payments">3.8 Payments &mdash; not operational</h3>
+<p>Nothing can be bought here. The only payment provider wired in is a non-functional reference implementation with no gateway behind it. There are zero order records. Card details could never reach our database in any case &mdash; the order record has no field for a card number, billing address, or cardholder name, only opaque processor references. One caveat if we ever enable it: processor notifications are stored verbatim as received, and some processors put a customer name or email in them.</p>
+
+<h3 id="logs">3.9 Logs</h3>
+<p>We log errors, not request bodies, IPs, or email addresses. We have not audited every error path, so it is conceivable an error message could carry a fragment of something you typed. We do not use logs to build profiles and we do not share them.</p>
+
+<h2 id="third-parties">4. Third parties</h2>
+<div class="lg-tablewrap"><table><thead><tr><th>Who</th><th>When</th><th>What they get</th></tr></thead><tbody>
+<tr><td>The AI provider we configure (today: Google, Gemini API)</td><td>Every message you send the site chat</td><td>Your message and the conversation context</td></tr>
+<tr><td>GitHub</td><td>When you download Tovu, open an issue, or the desktop app checks for updates</td><td>Your IP address and request details; for update checks, the app version and platform</td></tr>
+<tr><td>Hosting provider</td><td>Continuously, once deployed</td><td>Whatever passes through the server</td></tr>
+<tr><td>An email provider</td><td>Only if we configure one</td><td>Recipient address and message content</td></tr>
+<tr><td>A payment processor</td><td>Never &mdash; not enabled</td><td>Nothing</td></tr>
+<tr><td>A spam-filtering service</td><td>Never &mdash; not enabled</td><td>Nothing</td></tr>
+</tbody></table></div>
+<p><strong>No third-party script, font, pixel, or tracker loads on this site.</strong> We verified this against every published page: a page load fetches its resources exclusively from this site's own origin. No Google Fonts, no analytics SDK, no error-reporting SDK, no embedded widget. The typefaces you see are whatever your own device already has. Download links point to GitHub, so clicking one sends your request to GitHub.</p>
+<!-- TODO: tovu.dev is not yet deployed to production. Name the hosting provider and region here, and in section 11, before it is. -->
+<p><strong>Where this site is hosted is not yet settled</strong>, because it is not yet deployed. We will name the provider and region here before it is. The transfer we can already describe is the site chat: today's provider, Google, is a US company, so your chat messages leave the UK and EEA (section 11).</p>
+<p>We may also disclose data to professional advisers under confidentiality, or to law enforcement, courts, or regulators where legally required. If we are ever compelled to hand over your data we will try to tell you, unless the law forbids it. If the project or its assets are transferred (for example, to a company we form), your data may move with it under this Policy.</p>
+<p>There are no ads on this site. We have never sold personal data. We do not sell or share it today. Section 17 says what may change and what we will do first.</p>
+
+<h2 id="cookies">5. Cookies and browser storage</h2>
+<p>This is the complete list. All three are strictly necessary, and there are no analytics, advertising, or third-party cookies.</p>
+<div class="lg-tablewrap"><table><thead><tr><th>Name</th><th>Purpose</th><th>Lifetime</th><th>Flags</th></tr></thead><tbody>
+<tr><td><code>tovu_session</code></td><td>Keeps our own administrators signed in. Never set for visitors.</td><td>Session expiry</td><td>HttpOnly, Secure, SameSite=Strict</td></tr>
+<tr><td><code>tovu_member_session</code></td><td>Keeps a signed-in member signed in. Only if accounts are enabled.</td><td>Session expiry</td><td>HttpOnly, Secure, SameSite=Lax</td></tr>
+<tr><td><code>tovu_form_flash</code></td><td>Returns your own just-typed answers after a form validation error</td><td>120 seconds</td><td>HttpOnly, SameSite=Lax</td></tr>
+</tbody></table></div>
+<p>The site chat also uses <code>sessionStorage</code> to keep your conversation within the tab you are using. It is not a cookie, it is not sent to us, and it is discarded when you close the tab.</p>
+<p>You see no cookie banner because there is nothing non-essential to consent to.</p>
+
+<h2 id="bases">6. Legal bases (UK and EU GDPR)</h2>
+<div class="lg-tablewrap"><table><thead><tr><th>Processing</th><th>Basis</th></tr></thead><tbody>
+<tr><td>Form submissions, to reply to you</td><td>Legitimate interests, Art. 6(1)(f) &mdash; answering someone who deliberately contacted us</td></tr>
+<tr><td>Site chat messages</td><td>Legitimate interests, Art. 6(1)(f) &mdash; answering a question you chose to ask</td></tr>
+<tr><td>IP for rate-limiting and abuse prevention</td><td>Legitimate interests, Art. 6(1)(f)</td></tr>
+<tr><td>Newsletter, if enabled</td><td>Consent, Art. 6(1)(a), withdrawable at any time</td></tr>
+<tr><td>Member accounts, if enabled</td><td>Contract, Art. 6(1)(b)</td></tr>
+<tr><td>Non-identifying analytics, if enabled</td><td>Legitimate interests, Art. 6(1)(f) &mdash; no cookie, no retained IP, no cross-day identifier</td></tr>
+<tr><td>Consent records</td><td>Legal obligation, Art. 6(1)(c) &mdash; the GDPR requires us to be able to demonstrate consent</td></tr>
+<tr><td>Security logging</td><td>Legitimate interests, Art. 6(1)(f)</td></tr>
+</tbody></table></div>
+<p>We do not knowingly process special category data. If you type something like that into a free-text field or the chat, you are doing so on your own initiative and can ask us to delete it. You may object to anything we base on legitimate interests.</p>
+
+<h2 id="retention">7. How long we keep things</h2>
+<div class="lg-tablewrap"><table><thead><tr><th>Data</th><th>How long</th></tr></thead><tbody>
+<tr><td>Form submissions</td><td>IP addresses on form submissions are deleted after 90 days. The answers and timestamp remain until the submission is deleted. Request deletion using the <a href="/contact#send-a-message">contact form</a>.</td></tr>
+<tr><td>Site chat conversations</td><td>Not retained by us. They live in your tab and end with it. The AI provider's retention is set by its own terms.</td></tr>
+<tr><td>Comments, if enabled</td><td>Indefinitely once approved. Permanently destroyable.</td></tr>
+<tr><td>Newsletter subscriptions and send records</td><td>Indefinitely, including after you unsubscribe &mdash; the status changes, the record stays</td></tr>
+<tr><td>Member accounts</td><td>Indefinitely. These cannot be destroyed &mdash; see section 10.</td></tr>
+<tr><td>Consent records</td><td>Indefinitely by design &mdash; they are the evidence that consent was obtained</td></tr>
+<tr><td>Analytics events</td><td>Indefinitely, as non-identifying aggregate data</td></tr>
+</tbody></table></div>
+<p>Form submission IP addresses are cleared automatically after 90 days; this does not delete the submission. Where another record is only marked as removed rather than destroyed, the row still exists; the table above says which is which.</p>
+
+<h2 id="use">8. What we do with it</h2>
+<p>Answer you. Prevent spam and abuse. Answer chat questions. Send email you asked for. Understand aggregate readership. Prove consent was obtained. Meet legal obligations. Investigate security incidents.</p>
+<p>Today we do not advertise, sell your data, share it for cross-context behavioral advertising, or build profiles. We do not make automated decisions with legal or similarly significant effects. If any of that changes, section 17 applies.</p>
+
+<h2 id="rights">9. Your rights</h2>
+<p>Under the UK and EU GDPR you may: access what we hold and get a copy; correct it; erase it (read section 10 first); restrict processing while a dispute is resolved; object to anything based on legitimate interests, including direct marketing, which we will stop without a balancing test; receive data you gave us in a portable format; withdraw consent at any time; and not be subject to solely automated decision-making, which we do not do at all.</p>
+<p><strong>How to exercise them:</strong> use the <a href="/contact#send-a-message">contact form</a>. That is the whole mechanism. There is no self-service privacy dashboard, no export button, and no delete-my-account button &mdash; they do not exist in the software and we will not describe features we have not built. A person reads your request and acts on it.</p>
+<p>Tell us enough to find your records &mdash; the email you used, or roughly when and what you submitted. We will ask for more only if we cannot identify you. We will respond within the time the law requires, and we aim to respond within 30 days. Under the GDPR that is one month, which the law lets us extend by two further months for a complex request; if we extend, we will tell you within the first month. No charge, unless a request is manifestly unfounded or excessive.</p>
+<p>You may complain to a data protection supervisory authority at any time without going through us &mdash; the one where you live, where you work, or where you think the problem happened. In the UK that is the Information Commissioner's Office (ico.org.uk); the European Data Protection Board publishes the list of national authorities. We have no establishment in the EU or UK, so there is no lead authority to name.</p>
+
+<h2 id="erasure">10. Erasure, exactly</h2>
+<p><strong>Permanently and irreversibly destroyed on request:</strong> your form submissions, including the IP stored with them; your comments, via the purge function.</p>
+<p><strong>Only disabled and overwritten:</strong> member accounts. The software cannot delete a member record &mdash; a member participates in the site's revision history, and destroying the record would corrupt it, so the capability was deliberately never built. What we do instead is disable the account and overwrite the identifying fields, so what remains no longer identifies you. We will confirm when it is done.</p>
+<p><strong>Kept:</strong> consent records, where we need them to show consent was properly obtained and withdrawn &mdash; Art. 17(3) permits this. Records the law requires us to keep. Analytics events, which carry no identifier that could be traced back to you.</p>
+<p>Erasure applies to live systems immediately and to any backups as they age out of rotation. We do not restore erased data into a live system.</p>
+
+<h2 id="transfers">11. International transfers</h2>
+<p>Your site chat messages go to the AI provider we configure; today that is Google, a US company. Where personal data leaves the UK or EEA the lawful mechanisms are an adequacy decision, Standard Contractual Clauses, or a permitted derogation; Google participates in the EU&ndash;US and UK&ndash;US Data Privacy Framework. GitHub, also a US company, receives download and update-check requests. These are the transfers we can currently identify. The hosting location is not yet settled (section 4). For self-hosted installs, data lives wherever the operator deploys it.</p>
+
+<h2 id="children">12. Children</h2>
+<p>This site is not directed at children and we do not knowingly collect data from anyone under 16, or the applicable age of digital consent where you live. There is no age gate, no date-of-birth field, and no age verification, so we have no technical means of knowing a visitor's age. What we rely on is that this is a site about content management software. If you believe a child has given us personal data, tell us and we will delete it.</p>
+
+<h2 id="security">13. Security</h2>
+<p>What is structurally true, rather than reassuring adjectives:</p>
+<ul>
+  <li>No passwords exist in this system. There is no password database to breach.</li>
+  <li>Session tokens are never stored &mdash; only a hash, so nothing in the database can be replayed as a login.</li>
+  <li>Newsletter confirmation tokens are stored as hashes, with an expiry.</li>
+  <li>Analytics discards personal data before storage by construction: the structure that reaches storage has no IP or User-Agent field.</li>
+  <li>Comment IPs are hashed at the network boundary, before storage.</li>
+  <li>All cookies are HttpOnly, so no JavaScript on the page can read them.</li>
+  <li>Member sessions and administrator sessions are architecturally isolated and cannot read one another. Deleting a visitor's data is a permission that must be explicitly granted.</li>
+  <li>Traffic is served over HTTPS.</li>
+</ul>
+<p>What we do not claim: no security certification, no third-party penetration test, no guarantee. If you find a vulnerability, please report it using the <a href="/contact#send-a-message">contact form</a> before disclosing it publicly.</p>
+<p>If a personal data breach is likely to risk your rights and freedoms, we will notify the supervisory authority as the law requires: under GDPR Art. 33, without undue delay and, where feasible, within 72 hours of becoming aware. If it is likely to be high risk to you, we will contact you without undue delay, as Art. 34 requires, and tell you what happened, what was involved, and what you can do. We do not promise a shorter deadline than the law sets.</p>
+
+<h2 id="self-hosted">14. Self-hosted Tovu &mdash; you are the controller</h2>
+<p>If you run Tovu yourself, everything above is essentially irrelevant to your install.</p>
+<p><strong>Your install sends us nothing.</strong> No content, no visitor data, no configuration, no usage, no crash reports. Your database is yours.</p>
+<p><strong>It does talk to third parties.</strong> These go straight from your machine to them, not through us:</p>
+<ul>
+  <li><strong>GitHub</strong> &mdash; the desktop app checks GitHub for a new release shortly after launch and then every few hours, and downloads updates from there. GitHub sees your IP address, the app version, and your platform. Set <code>TOVU_DESKTOP_DISABLE_UPDATER=1</code> to turn this off.</li>
+  <li><strong>The npm registry</strong> &mdash; when you install Tovu, a plugin, or another package.</li>
+  <li><strong>The AI provider you pick</strong> &mdash; see below.</li>
+  <li><strong>Any service you connect</strong> &mdash; for example a publishing host, a source-control account, or an external tool server. Each gets what you send it, under its own terms.</li>
+</ul>
+<p><strong>You are the data controller for your site.</strong> Every mechanism in section 3 runs in your install and writes to your database. You decide what to enable. You need your own privacy policy &mdash; do not copy this one, it describes our choices. We are not your processor, and there is nothing for us to sign a data processing agreement about. (A hosted Tovu would change that; see section 17.)</p>
+<p><strong>The admin AI assistant uses the provider you pick.</strong> Your content, prompts, and any files or pages the assistant reads go to that provider, under your account and its terms. It does not route through us. The software supports:</p>
+<ul>
+  <li><strong>Your own API key</strong> with Anthropic, OpenAI, Azure OpenAI, Google Gemini, OpenRouter, or any compatible endpoint you enter.</li>
+  <li><strong>A local model</strong> through Ollama, which stays on your machine.</li>
+  <li><strong>A coding-agent CLI already installed on your machine</strong>, such as Claude Code or Codex. That tool sends content to its own vendor under its own terms.</li>
+</ul>
+<p><strong>AI you connect is not ours.</strong> The AI providers, coding-agent CLIs, and tool (MCP) servers you connect process your data under their own terms and privacy policies, not this one. To the fullest extent permitted by law, we are not responsible for how they handle, keep, or use it, or for leaks or exposure through them or through what an AI agent does with the access you give it. You choose them and what they can reach. Terms of Service section 11.1 has more.</p>
+<p>Things worth checking in your own install:</p>
+<ul>
+  <li><strong>The visitor site chat is off by default and costs money when on.</strong> If you enable it, whatever your visitors type goes to the model provider you configured, on your key. Disclose that in your own policy.</li>
+  <li><strong>Set a real secret for <code>COMMENTS_IP_SALT</code>.</strong> Left unset with comments enabled, the software falls back to a publicly documented development value and your commenters' IP hashes become trivially reversible.</li>
+  <li><strong>Check what your theme actually loads.</strong> A theme manifest that declares web fonts can, on some render paths, make every page fetch them from Google and send your visitors' IPs there. Read your own rendered HTML rather than assuming. (The theme this site runs does not.)</li>
+  <li>Decide whether to honor Do Not Track and Global Privacy Control in the analytics configuration.</li>
+  <li>Member records cannot be deleted in your install either. If you take on members, plan for anonymization rather than deletion.</li>
+</ul>
+
+<h2 id="california">15. California, and other US states</h2>
+<p><strong>Today we do not sell or share your personal information</strong> as the CCPA defines those terms, and never have. We run no advertising and have no advertising partners. Because there is nothing to opt out of, there is no "Do Not Sell or Share" link. If that changes, we will add that link and an opt-out before any selling or sharing starts (section 17). We honor Global Privacy Control and treat it as a valid do-not-sell-or-share request. We collect no sensitive personal information, so the right to limit its use does not arise.</p>
+<p>In California's categories we collect <strong>identifiers</strong> (IP address from forms and chat rate-limiting; email if you give us one) and <strong>internet activity</strong> in a limited, non-identifying form. We collect no commercial information, no geolocation, no biometric, audio or video data, no employment or education records, no protected classifications, and we draw no inferences to build a profile.</p>
+<p>California rights &mdash; know, delete, correct, opt out of sale or sharing (nothing to opt out of), limit sensitive information (none collected), and non-discrimination. We will never give you worse service for exercising a privacy right, and we run no financial incentive programs. To exercise them, use the <a href="/contact#send-a-message">contact form</a>. We will respond within the time the law requires, and we aim to respond within 30 days. Under the CCPA that is 45 days, which the law lets us extend once by a further 45 days if we tell you why. We will verify your identity proportionately, usually by asking you to confirm from the email address associated with the data, and we accept authorized agents with written proof of authority.</p>
+<p>Virginia, Colorado, Connecticut, Utah, Texas, Oregon, Montana and other states grant broadly similar rights. If you live in one, ask and we will honor the equivalent right, within the time that law allows. Today we do no targeted advertising, no sale, and no profiling, so those opt-outs have no subject matter here yet.</p>
+
+<h2 id="changes">16. Changes</h2>
+<p>We may update this Policy, and will change the date at the top when we do. For a material change &mdash; a new category of data, a new third party, a new purpose &mdash; we will say so on this page, and email you if we hold your address, before it takes effect, and ask for consent where consent is required rather than assume it. Previous versions are available on request.</p>
+
+<h2 id="future">17. What may change</h2>
+<p>Two things we might do if Tovu later becomes a business. Neither happens today. Before either does, we will update this Policy and ask for your consent where the law requires it.</p>
+<ul>
+  <li><strong>Advertising</strong> &mdash; if we later show ads or use advertising data, that could count as "selling" or "sharing" under US state law. Before we do, we will say what data is involved and who gets it, add a "Do Not Sell or Share My Personal Information" link, honor opt-outs and Global Privacy Control, and ask for consent to any non-essential cookies where the law requires.</li>
+  <li><strong>Hosted Tovu</strong> &mdash; if we later run Tovu sites for customers, then for those sites the customer is the controller and we are its processor. We will offer a data processing agreement, publish a list of our subprocessors and give notice before adding one, tell customers about a breach affecting their data without undue delay, and let customers export their data before we delete it when they leave. Hosted Tovu will have its own terms.</li>
+</ul>
+<h2 id="ai-disclosure">About AI and reporting content</h2>
+<p>Tovu includes AI assistants. AI output can be wrong, misleading, harmful, or infringing. Review it before you publish it or rely on it. What you send to an AI provider is handled under that provider's terms and privacy policy. See the <a href="/privacy-policy">Privacy Policy</a> and <a href="/terms-of-service">Terms of Service</a> for details.</p>
+<p><a href="/contact#send-a-message">Report AI content</a> using the site's contact form. Include where you saw it and what happened, and avoid including secrets or unnecessary personal information.</p>
+</div>

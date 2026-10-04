@@ -1,5 +1,7 @@
 # Privacy Policy
 
+> **Owner inputs, 2026-10-04:** tovu.dev; California law and Los Angeles County, California venue; US$0 liability cap; contact through the [site contact form](https://tovu.dev/contact#send-a-message); form submission IP addresses deleted after 90 days. The controller name remains `[[OWNER NAME]]`. Other historic drafting fields below are not part of the published page.
+
 **Effective date: [EFFECTIVE DATE]**
 **Last updated: [EFFECTIVE DATE]**
 
@@ -10,7 +12,7 @@
 > **This is not legal advice.** This Policy was prepared from a technical audit of the code that
 > runs tovu.dev, so that it describes what this site actually does rather than what a template
 > assumes. It is a starting point, not a finished legal instrument. A qualified lawyer in
-> **[JURISDICTION]** should review it before you rely on it, and before it is published as the
+> **California** should review it before you rely on it, and before it is published as the
 > operative policy for a live business.
 
 ---
@@ -23,9 +25,7 @@ than guessed.
 
 | Placeholder | What it needs |
 |---|---|
-| `[LEGAL ENTITY NAME]` | The registered legal entity that operates tovu.dev (sole trader, LLC, Ltd, etc.) |
-| `[JURISDICTION]` | Country/state whose law governs, and where your lawyer practices |
-| `[CONTACT EMAIL]` | A real, monitored mailbox for privacy requests. **Do not reuse the `support@example.com` placeholder currently shown on `/contact` — that address is not real.** |
+| `[[OWNER NAME]]` | The individual who operates tovu.dev; owner name is still unresolved |
 | `[POSTAL ADDRESS]` | Registered postal address (GDPR Art. 13 requires an identifiable controller) |
 | `[EFFECTIVE DATE]` | The date this version takes effect |
 | `[HOSTING PROVIDER AND REGION]` | Who hosts tovu.dev and in which country/region the servers sit |
@@ -76,11 +76,11 @@ to us, skip to §15. The short answer is: nothing.
 
 ## 2. Who we are
 
-**[LEGAL ENTITY NAME]** ("we", "us", "our") operates tovu.dev and is the **data controller** for
+**[[OWNER NAME]]** ("we", "us", "our") operates tovu.dev and is the **data controller** for
 the personal data described in §3 to §14 of this Policy.
 
 - Postal address: **[POSTAL ADDRESS]**
-- Email for all privacy matters: **[CONTACT EMAIL]**
+- Contact form for all privacy matters: **[contact form](https://tovu.dev/contact#send-a-message)**
 - Data Protection Officer: **[DPO CONTACT]** *(delete this line if no DPO has been appointed)*
 - EU Article 27 representative: **[EU REPRESENTATIVE]** *(delete if established in the EU)*
 - UK Article 27 representative: **[UK REPRESENTATIVE]** *(delete if established in the UK)*
@@ -433,10 +433,10 @@ If the UK or EU GDPR applies to you, you have the right to:
 
 ### How to exercise any of these
 
-**Email [CONTACT EMAIL].** That is the whole mechanism, and we want to be straightforward about
+**Use the [contact form](https://tovu.dev/contact#send-a-message).** That is the whole mechanism, and we want to be straightforward about
 why: this site does not have a self-service privacy dashboard, an export button, or a delete-my-
 account button. Those do not exist in the software, and we are not going to describe features we
-have not built. A person reads your email and acts on it.
+have not built. A person reads your request and acts on it.
 
 Tell us what you want and enough information for us to find your records — the email address you
 used, or the approximate date and content of a form submission. We may ask for more information if
@@ -449,7 +449,7 @@ or decline — and explain why.
 
 ### If you are unhappy
 
-Please tell us first, at **[CONTACT EMAIL]** — most problems are faster to fix directly.
+Please tell us first, at **[contact form](https://tovu.dev/contact#send-a-message)** — most problems are faster to fix directly.
 
 You also have the right to complain to a data protection supervisory authority at any time, without
 going through us. Ours is **[LEAD SUPERVISORY AUTHORITY]**. If you are in the EU or UK you may
@@ -464,7 +464,7 @@ authorities is published by the European Data Protection Board.
 We are treating this as its own section because a truthful answer is more useful than a
 reassuring one.
 
-**How to ask:** email **[CONTACT EMAIL]** and say you want your data erased. A person handles it
+**How to ask:** use the **[contact form](https://tovu.dev/contact#send-a-message)** and say you want your data erased. A person handles it
 manually. There is no self-service delete button on this site, and this Policy does not claim
 there is one.
 
@@ -531,7 +531,7 @@ date-of-birth field and no age verification anywhere, so we have no technical me
 a visitor's age. What we rely on is that this is a site about content management software, with
 nothing on it that is directed at or attractive to children.
 
-If you believe a child has provided us with personal data, email **[CONTACT EMAIL]** and we will
+If you believe a child has provided us with personal data, use the **[contact form](https://tovu.dev/contact#send-a-message)** and we will
 delete it promptly.
 
 ---
@@ -559,7 +559,7 @@ We would rather describe what is actually true than list reassuring adjectives.
 
 **What we are not claiming:** we do not hold a security certification, we have not commissioned a
 third-party penetration test, and we do not offer a guarantee. No system is perfectly secure. If
-you find a vulnerability, please tell us at **[CONTACT EMAIL]** rather than disclosing it publicly,
+you find a vulnerability, please tell us at **[contact form](https://tovu.dev/contact#send-a-message)** rather than disclosing it publicly,
 and we will work with you.
 
 ---
@@ -613,7 +613,7 @@ through us and we do not supply the credential.
 - **Member records cannot be deleted in your install either** (§10). If you take on members and
   they exercise erasure rights, plan for anonymization rather than deletion.
 
-**[LEGAL ENTITY NAME] is not a processor for your install.** We do not receive, host, or process
+**[[OWNER NAME]] is not a processor for your install.** We do not receive, host, or process
 your visitors' data, and there is nothing for us to sign a data processing agreement about. If you
 need one from a hosting provider, that is a conversation with your host, not with us.
 
@@ -675,7 +675,7 @@ does not arise here.
   worse experience because you exercised a privacy right. We do not operate financial incentive
   programs.
 
-**How to exercise them:** email **[CONTACT EMAIL]**. We will confirm receipt within **10 business
+**How to exercise them:** use the **[contact form](https://tovu.dev/contact#send-a-message)**. We will confirm receipt within **10 business
 days** and respond substantively within **45 days**, extendable once by a further 45 days if we
 tell you why.
 
@@ -695,7 +695,7 @@ in the preceding twelve months.**
 Several other states (Virginia, Colorado, Connecticut, Utah, Texas, Oregon, Montana and others)
 have enacted comprehensive privacy laws granting broadly similar rights: to know, access, correct,
 delete, obtain a portable copy, and opt out of targeted advertising, sale, and profiling. If you
-are a resident of such a state, contact us at **[CONTACT EMAIL]** and we will honor the equivalent
+are a resident of such a state, contact us at **[contact form](https://tovu.dev/contact#send-a-message)** and we will honor the equivalent
 right. We do not conduct targeted advertising, sell personal data, or engage in profiling, so those
 opt-outs have no subject matter here.
 
@@ -721,8 +721,8 @@ Previous versions are available on request.
 
 | For | Contact |
 |---|---|
-| Anything about this Policy or your data | **[CONTACT EMAIL]** |
-| Post | **[LEGAL ENTITY NAME]**, **[POSTAL ADDRESS]** |
+| Anything about this Policy or your data | **[contact form](https://tovu.dev/contact#send-a-message)** |
+| Post | **[[OWNER NAME]]**, **[POSTAL ADDRESS]** |
 | Data Protection Officer | **[DPO CONTACT]** *(delete if none appointed)* |
 | EU representative | **[EU REPRESENTATIVE]** *(delete if established in the EU)* |
 | UK representative | **[UK REPRESENTATIVE]** *(delete if established in the UK)* |
@@ -732,4 +732,4 @@ Previous versions are available on request.
 
 *This Policy was drafted from a technical audit of the source code and live database of tovu.dev,
 so that the factual claims in it are verifiable rather than assumed. It has not been reviewed by a
-lawyer. Have one in **[JURISDICTION]** review it before relying on it.*
+lawyer. Have one in **California** review it before relying on it.*
