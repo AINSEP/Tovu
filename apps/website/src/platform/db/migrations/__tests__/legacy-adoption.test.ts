@@ -10,11 +10,11 @@ import { sql } from "kysely";
 import { openMemorySqliteKernel, sqliteKernel } from "../../kernel/drivers/sqlite.js";
 import type { StorageKernel } from "../../kernel/port.js";
 import { readSchemaShape } from "../../kernel/schema-shape.js";
-import { openContentDb } from "../../sqlite/content-db.js";
-import { migrateContentDatabase } from "../index.js";
+import { CONTENT_MIGRATIONS, migrateContentDatabase, runMigrations } from "../index.js";
 import { applyLegacyEntries, FROZEN_CHAIN, readFrozenChain } from "../legacy-sqlite.js";
 import { hasLedger } from "../runner.js";
 import { LegacyHistoryError } from "../step.js";
+import { openLegacyContentDb } from "./legacy-content-db.fixture.js";
 
 /**
  * @file SQLite adoption of the frozen drizzle chain (ADR-066 §5), on scratch databases only:
@@ -26,8 +26,6 @@ import { LegacyHistoryError } from "../step.js";
  */
 
 const BOOKKEEPING = ["__drizzle_migrations", "tovu_migrations"];
-const LEGACY_CHAT_TABLES = ["ai_chats", "ai_chat_messages", "assistant_agent_sessions"];
-const UNUSED_DEPLOYMENT_TABLES = ["deployment_run_events", "deployment_runs", "deployment_targets", "releases", "deployment_environments"];
 const chain = readFrozenChain();
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-legacy-adoption-"));
 const opened: Array<StorageKernel<unknown>> = [];
@@ -66,26 +64,37 @@ describe("0000_legacy_baseline on SQLite", () => {
     assert.equal(chain.at(-1)?.tag, FROZEN_CHAIN.lastTag);
   });
 
-  test("a brand-new database gets the whole chain, the same schema drizzle's migrator builds", async () => {
+  test("a brand-new database and an adopted Drizzle database reach the same current schema", async () => {
     const kernel = memory();
     const report = await migrateContentDatabase(kernel);
-    assert.deepEqual(report.applied, ["0000_legacy_baseline", "0001_post_search", "0002_drop_empty_legacy_chat_tables", "0003_coercion_json_as_json", "0004_drop_unused_deployment_tables"]);
+    assert.deepEqual(report.applied, CONTENT_MIGRATIONS.map(step => step.id));
     assert.equal(await drizzleRows(kernel), 78);
-    const viaDrizzle = sqliteKernel<unknown>(openContentDb(":memory:"));
+    const viaDrizzle = sqliteKernel<unknown>(openLegacyContentDb({ filePath: ":memory:" }));
+    opened.push(viaDrizzle);
+    assert.equal(await hasLedger(viaDrizzle), false, "the comparison starts at the frozen chain, before adoption");
     // Steps 0002 and 0004 drop the empty legacy chat and unused deployment tables
-    // drizzle's chain creates; compare every remaining schema object.
+    // drizzle's chain creates; steps 0005/0006 also evolve columns. Bring both paths to head
+    // before comparing every remaining schema object, including future steps.
+    assert.deepEqual((await migrateContentDatabase(viaDrizzle)).applied, CONTENT_MIGRATIONS.map(step => step.id));
     const mine = await readSchemaShape(kernel, { exclude: BOOKKEEPING });
-    assert.deepEqual(mine, await readSchemaShape(viaDrizzle, { exclude: [...BOOKKEEPING, ...LEGACY_CHAT_TABLES, ...UNUSED_DEPLOYMENT_TABLES] }));
+    assert.deepEqual(mine, await readSchemaShape(viaDrizzle, { exclude: BOOKKEEPING }));
   });
 
   test("a drizzle-migrated database is adopted with no schema change and no new drizzle rows", async () => {
-    const db = openContentDb(":memory:");
+    const db = openLegacyContentDb({ filePath: ":memory:" });
     const kernel = sqliteKernel<unknown>(db);
-    const before = await readSchemaShape(kernel, { exclude: [...BOOKKEEPING, ...LEGACY_CHAT_TABLES, ...UNUSED_DEPLOYMENT_TABLES] });
-    const report = await migrateContentDatabase(kernel);
-    assert.deepEqual(report.applied, ["0000_legacy_baseline", "0001_post_search", "0002_drop_empty_legacy_chat_tables", "0003_coercion_json_as_json", "0004_drop_unused_deployment_tables"]);
-    assert.deepEqual(await readSchemaShape(kernel, { exclude: BOOKKEEPING }), before, "only the empty legacy chat and unused deployment tables are gone");
+    opened.push(kernel);
+    assert.equal(await hasLedger(kernel), false, "a frozen-chain fixture has no Tovu ledger");
+    const before = await readSchemaShape(kernel, { exclude: BOOKKEEPING });
+    // Baseline adoption is schema-neutral. Later content steps deliberately alter the schema.
+    const baseline = CONTENT_MIGRATIONS.slice(0, 1);
+    const report = await runMigrations(kernel, baseline);
+    assert.deepEqual(report.applied, baseline.map(step => step.id));
+    assert.deepEqual(await readSchemaShape(kernel, { exclude: BOOKKEEPING }), before, "adoption itself preserves every legacy schema object");
     assert.equal(await drizzleRows(kernel), 78);
+    assert.deepEqual((await migrateContentDatabase(kernel)).applied, CONTENT_MIGRATIONS.slice(1).map(step => step.id));
+    assert.equal(await drizzleRows(kernel), 78, "later steps add no Drizzle rows either");
+    assert.deepEqual(await ledgerIds(kernel), CONTENT_MIGRATIONS.map(step => step.id));
     assert.deepEqual((await migrateContentDatabase(kernel)).applied, [], "a rerun applies nothing");
   });
 
@@ -94,7 +103,7 @@ describe("0000_legacy_baseline on SQLite", () => {
     const report = await migrateContentDatabase(kernel);
     assert.equal(await drizzleRows(kernel), 78);
     assert.ok(report.notes.some((note) => note.includes("0058_keen_mauler") && note.includes("0077_external_mcp_tool_approvals") && note.includes("(20)")));
-    assert.deepEqual(await ledgerIds(kernel), ["0000_legacy_baseline", "0001_post_search", "0002_drop_empty_legacy_chat_tables", "0003_coercion_json_as_json", "0004_drop_unused_deployment_tables"]);
+    assert.deepEqual(await ledgerIds(kernel), CONTENT_MIGRATIONS.map(step => step.id));
   });
 
   test("a recorded hash that is not in the chain stops adoption, nothing recorded", async () => {
@@ -146,7 +155,7 @@ describe("0000_legacy_baseline on SQLite", () => {
 
   test("a file-backed database is backed up before adoption", async () => {
     const file = path.join(tmp, "content.db");
-    const db = openContentDb(file);
+    const db = openLegacyContentDb({ filePath: file });
     const backupPath = path.join(tmp, "backup.db");
     const report = await migrateContentDatabase(sqliteKernel<unknown>(db), { backupPath });
     assert.ok(report.notes.some((note) => note.includes(backupPath)));

@@ -9,8 +9,9 @@ import Database from "better-sqlite3";
 import { beginJournalEntry, ensureMigrationJournal } from "#src/features/plugins/migration-journal";
 import { snapshotDb } from "#src/features/plugins/snapshot";
 import { closeSqliteConnection } from "#src/platform/db/kernel/drivers/sqlite";
+import { openLegacyContentDb } from "#src/platform/db/migrations/__tests__/legacy-content-db.fixture";
 import { CONTENT_MIGRATIONS, MigrationChecksumError } from "#src/platform/db/migrations/index";
-import { MIGRATION_BACKUP_PREFIX, openContentDb } from "#src/platform/db/sqlite/content-db";
+import { MIGRATION_BACKUP_PREFIX } from "#src/platform/db/sqlite/content-db";
 import { openSiteContentDb } from "../open-site-content-db.js";
 
 /**
@@ -33,9 +34,9 @@ test("openSiteContentDb restores a crash-interrupted dataModule attempt, then pr
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-open-site-content-db-"));
   const dbPath = path.join(dir, "content.db");
 
-  // A real prior boot (migrated, no watermark row: `openContentDb` alone writes no rows), then a
+  // A prior legacy boot (frozen Drizzle chain, no Tovu ledger or seeded/watermark rows), then a
   // crash mid-DDL. The watermark row after reopening proves the store was prepared on the restored file.
-  closeSqliteConnection(openContentDb(dbPath));
+  closeSqliteConnection(openLegacyContentDb({ filePath: dbPath }));
   const raw = new Database(dbPath);
   const snapshotPath = await snapshotDb({ db: raw, dbPath, label: "crashed-plugin" });
   await ensureMigrationJournal(raw);
@@ -77,7 +78,7 @@ test("openSiteContentDb on a fresh path creates, migrates, seeds once and writes
 test("openSiteContentDb copies an existing unadopted file to ops/ first and keeps only the newest copy", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-open-site-content-db-backup-"));
   const dbPath = path.join(dir, "content.db");
-  closeSqliteConnection(openContentDb(dbPath)); // the legacy chain, no ledger: what every site had before R1h
+  closeSqliteConnection(openLegacyContentDb({ filePath: dbPath })); // explicit frozen chain, no ledger: a site before R1h
   const ops = path.join(dir, "ops");
   fs.mkdirSync(ops);
   const older = `${MIGRATION_BACKUP_PREFIX}2000-01-01T00-00-00-000Z.db`;

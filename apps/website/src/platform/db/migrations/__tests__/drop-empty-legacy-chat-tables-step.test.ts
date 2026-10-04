@@ -7,9 +7,9 @@ import { listTables } from "../../kernel/dialect.js";
 import { openPgliteKernel } from "../../kernel/drivers/pglite.js";
 import { openMemorySqliteKernel, sqliteKernel } from "../../kernel/drivers/sqlite.js";
 import type { StorageKernel } from "../../kernel/port.js";
-import { openContentDb } from "../../sqlite/content-db.js";
 import { DROP_EMPTY_LEGACY_CHAT_TABLES_ID } from "../0002_drop_empty_legacy_chat_tables.js";
 import { migrateContentDatabase } from "../index.js";
+import { openLegacyContentDb } from "./legacy-content-db.fixture.js";
 
 /**
  * @file Step `0002_drop_empty_legacy_chat_tables` (the two-db split's `content.db` half): drops each
@@ -26,7 +26,7 @@ after(async () => {
 
 /** A content database at the legacy chain's head (drizzle's migrator), not yet adopted. */
 function legacyContentKernel(): StorageKernel<unknown> {
-  const kernel = sqliteKernel<unknown>(openContentDb(":memory:"));
+  const kernel = sqliteKernel<unknown>(openLegacyContentDb({ filePath: ":memory:" }));
   opened.push(kernel);
   return kernel;
 }

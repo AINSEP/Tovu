@@ -9,8 +9,9 @@ import { listTables } from "../../kernel/dialect.js";
 import type { StorageKernel } from "../../kernel/port.js";
 import { readSchemaShape } from "../../kernel/schema-shape.js";
 import { openChatDb } from "../../sqlite/chat-db.js";
-import { openContentDb } from "../../sqlite/content-db.js";
-import { CHAT_MIGRATIONS, migrateChatDatabase, migrateContentDatabase } from "../index.js";
+import { CHAT_MIGRATIONS, CONTENT_MIGRATIONS, migrateChatDatabase, migrateContentDatabase, runMigrations } from "../index.js";
+import { hasLedger } from "../runner.js";
+import { openLegacyContentDb } from "./legacy-content-db.fixture.js";
 
 /**
  * @file Step `0001_post_search` on SQLite (recorded, changes nothing: FTS5 is in the legacy chain)
@@ -31,13 +32,18 @@ function open<K extends StorageKernel<unknown>>(kernel: K): K {
 
 describe("0001_post_search", () => {
   test("SQLite: recorded, the schema is unchanged", async () => {
-    const kernel = sqliteKernel<unknown>(openContentDb(":memory:"));
+    const kernel = open(sqliteKernel<unknown>(openLegacyContentDb({ filePath: ":memory:" })));
+    assert.equal(await hasLedger(kernel), false, "the fixture starts at the frozen Drizzle chain");
     // Steps 0002 and 0004 drop the empty legacy chat and unused deployment tables;
-    // every other table remains unchanged.
-    const before = (await listTables(kernel)).filter((name) => !["ai_chats", "ai_chat_messages", "assistant_agent_sessions", "deployment_run_events", "deployment_runs", "deployment_targets", "releases", "deployment_environments"].includes(name));
-    const report = await migrateContentDatabase(kernel);
-    assert.deepEqual(report.applied, ["0000_legacy_baseline", "0001_post_search", "0002_drop_empty_legacy_chat_tables", "0003_coercion_json_as_json", "0004_drop_unused_deployment_tables"]);
-    assert.deepEqual((await listTables(kernel)).filter((name) => name !== "tovu_migrations"), before);
+    // later steps also alter columns/add tables. Isolate the SQLite search step so its
+    // schema-neutral contract stays meaningful as the full content history grows.
+    const before = await readSchemaShape(kernel, { exclude: ["__drizzle_migrations", "tovu_migrations"] });
+    const throughSearch = CONTENT_MIGRATIONS.slice(0, 2);
+    const report = await runMigrations(kernel, throughSearch);
+    assert.deepEqual(report.applied, throughSearch.map(step => step.id));
+    assert.deepEqual(await readSchemaShape(kernel, { exclude: ["__drizzle_migrations", "tovu_migrations"] }), before);
+    assert.deepEqual((await migrateContentDatabase(kernel)).applied, CONTENT_MIGRATIONS.slice(2).map(step => step.id));
+    assert.deepEqual((await migrateContentDatabase(kernel)).applied, [], "a rerun applies nothing");
   });
 
   test("PGlite: builds the search configuration, the projection table and its GIN index", async () => {

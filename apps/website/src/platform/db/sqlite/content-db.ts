@@ -9,6 +9,7 @@ import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import { sqliteKernel } from "../kernel/drivers/sqlite.js";
 import { migrateContentDatabase, type MigrationReport } from "../migrations/index.js";
 import * as schema from "../schema.sqlite.js";
+import { bootstrapFreshContentDb } from "./fresh-content-db.js";
 
 /**
  * @file Per-site content.db bootstrap (Drizzle over better-sqlite3).
@@ -116,18 +117,26 @@ function removeOlderMigrationBackups(kept: string): void {
 }
 
 /**
- * Open (or create) a content.db and apply the frozen chain with drizzle's migrator, synchronously:
- * for fresh throwaway databases (`:memory:`, the hermetic composition), tests and dev scripts. A
- * site's boot never uses it (`server/runtime/composition/open-site-content-db.ts`,
- * `site-dir/boot-site-dir.ts` run the migration runner). Drizzle decides "applied" by the journal
- * stamps, which is sound for a new file or one at the chain's head (every adopted site), not for a
- * partial legacy history; it writes no `tovu_migrations` ledger and keeps the legacy chat tables
- * (the site's first boot adopts the file and drops the empty ones, step `0002`).
+ * Open (or create) a content.db synchronously for throwaway databases (`:memory:`, the hermetic
+ * composition), tests and scripts. An empty database gets the frozen baseline and current content
+ * steps atomically through bootstrapFreshContentDb, including the normal ledger.
+ *
+ * Existing files retain the frozen-chain path through drizzle's migrator. Drizzle decides
+ * "applied" by journal stamps, which is sound for a file at the chain's head (every adopted site),
+ * not for a partial legacy history. This existing-file path writes no `tovu_migrations` ledger and
+ * keeps any legacy chat tables (a legacy site's first boot adopts the file and drops the empty
+ * ones, step `0002`). Site boot uses the migration runner instead
+ * (`server/runtime/composition/open-site-content-db.ts`, `site-dir/boot-site-dir.ts`).
  */
 export function openContentDb(filePath: string): ContentDb {
   const db = openSqliteContentConnection(filePath);
-  migrate(db, { migrationsFolder: MIGRATIONS_DIR });
-  return db;
+  try {
+    if (!bootstrapFreshContentDb({ db })) migrate(db, { migrationsFolder: MIGRATIONS_DIR });
+    return db;
+  } catch (error) {
+    db.$client.close();
+    throw error;
+  }
 }
 
 /**

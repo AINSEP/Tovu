@@ -223,7 +223,7 @@ test("commerce_product_images: the same media cannot be linked to one product tw
 
   await assert.rejects(() =>
     repo.save({ id: "img-2", workspaceId: "ws-1", productId: "product-1", mediaId: "media-1", position: 1, createdAt: NOW })
-  , /UNIQUE constraint failed: commerce_product_images\.workspace_id, commerce_product_images\.product_id, commerce_product_images\.media_id/);
+  , /UNIQUE constraint failed: commerce_product_images\.product_id, commerce_product_images\.media_id/);
 });
 
 test("commerce_product_images: a nonexistent media_id is rejected by the FK", async () => {
