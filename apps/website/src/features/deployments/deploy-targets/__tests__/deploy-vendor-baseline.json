@@ -1,6 +1,1 @@
-{
-  "apps/admin/src/features/deployment/rules.ts": {
-    "fly": 2,
-    "railway": 2
-  }
-}
+{}
