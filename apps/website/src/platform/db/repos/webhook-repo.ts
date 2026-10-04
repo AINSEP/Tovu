@@ -313,13 +313,15 @@ export class SqlWebhookDeliveryRepo implements WebhookDeliveryRepoPort, Delivery
     workspaceId: string;
     subscriptionId: IntegrationId;
     limit: number;
-  }): Promise<WebhookDeliveryRecord[]> {
+  }, _optional: Record<string, never> = {}): Promise<WebhookDeliveryRecord[]> {
     const rows = await this.kernel.run((db) =>
       db
         .selectFrom("webhook_deliveries")
         .selectAll()
         .where("workspace_id", "=", required.workspaceId)
         .where("subscription_id", "=", required.subscriptionId)
+        .orderBy("created_at", "desc")
+        .orderBy("id", "desc")
         .limit(required.limit)
         .execute()
     );

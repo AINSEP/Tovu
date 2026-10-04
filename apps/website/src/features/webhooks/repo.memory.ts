@@ -204,12 +204,16 @@ export class InMemoryWebhookDeliveryRepo implements WebhookDeliveryRepoPort {
     workspaceId: string;
     subscriptionId: IntegrationId;
     limit: number;
-  }): Promise<WebhookDeliveryRecord[]> {
+  }, _optional: Record<string, never> = {}): Promise<WebhookDeliveryRecord[]> {
     return [...this.rows.values()]
       .filter(
         (row) =>
           row.workspaceId === required.workspaceId && row.subscriptionId === required.subscriptionId
       )
+      .sort((a, b) => {
+        if (a.createdAt !== b.createdAt) return a.createdAt < b.createdAt ? 1 : -1;
+        return a.id < b.id ? 1 : a.id > b.id ? -1 : 0;
+      })
       .slice(0, required.limit);
   }
 }

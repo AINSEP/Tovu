@@ -98,6 +98,7 @@ function runContractSuite(adapterName: string, makeRepo: () => WebhookSubscripti
     const matches = await repo.findMatching({ workspaceId: "workspace-1", topic: "post.published" });
     const ids = matches.map((r) => r.id).sort();
     assert.deepEqual(ids, ["sub-exact", "sub-owner-wildcard", "sub-wildcard-entity"]);
+    assert.deepEqual((await repo.findMatching({ workspaceId: "workspace-1", topic: "postage.created" })).map((row) => row.id), ["sub-owner-wildcard"]);
   });
 }
 

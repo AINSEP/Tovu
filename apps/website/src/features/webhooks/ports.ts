@@ -184,11 +184,12 @@ export interface WebhookDeliveryRepoPort {
     deadAtIso?: ISODateTime;
   }): Promise<void>;
   findById(required: { workspaceId: UUID; id: IntegrationId }): Promise<WebhookDeliveryRecord | null>;
+  /** Newest-first by createdAt, then id descending; ordering is applied before the limit. */
   listBySubscription(required: {
     workspaceId: UUID;
     subscriptionId: IntegrationId;
     limit: number;
-  }): Promise<WebhookDeliveryRecord[]>;
+  }, optional?: Record<string, never>): Promise<WebhookDeliveryRecord[]>;
 }
 
 /** Persistence for sealed outbound-integration credentials (v1 = seam only, ADR-036 §8). */

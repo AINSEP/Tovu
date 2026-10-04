@@ -489,10 +489,18 @@ test("integrations routes: deliveries endpoint returns the log newest-first and 
     body: JSON.stringify({ label: "Endpoint", targetUrl: "https://example.com/hooks", topics: ["*"] }),
   });
   const { subscription } = (await created.json()) as { subscription: { id: string } };
+  assert.equal(created.status, 201);
+  const otherCreated = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/integrations/subscriptions`, {
+    method: "POST", headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ label: "Other endpoint", targetUrl: "https://example.com/other-hooks", topics: ["*"] }),
+  });
+  assert.equal(otherCreated.status, 201);
+  const other = (await otherCreated.json()) as { subscription: { id: string } };
 
   await deps.webhookDeliveryRepo.enqueue(
     makeDelivery({ id: "d-1", eventId: "event-d-1", subscriptionId: subscription.id, createdAt: "2026-07-10T00:00:00.000Z" })
   );
+  await deps.webhookDeliveryRepo.enqueue(makeDelivery({ id: "other-mid", eventId: "event-other-mid", subscriptionId: other.subscription.id, createdAt: "2026-07-10T01:00:00.000Z" }));
   await deps.webhookDeliveryRepo.enqueue(
     makeDelivery({
       id: "d-2",
@@ -504,6 +512,7 @@ test("integrations routes: deliveries endpoint returns the log newest-first and 
       lastError: "bad gateway",
     })
   );
+  await deps.webhookDeliveryRepo.enqueue(makeDelivery({ id: "other-newest", eventId: "event-other-newest", subscriptionId: other.subscription.id, createdAt: "2026-07-10T03:00:00.000Z" }));
 
   const res = await fetch(
     `${baseUrl}/api/admin/v1/workspaces/workspace-local/integrations/subscriptions/${subscription.id}/deliveries`,
@@ -516,6 +525,13 @@ test("integrations routes: deliveries endpoint returns the log newest-first and 
     ["d-2", "d-1"]
   );
   assert.equal(deliveries[0].status, "failed");
+  assert.deepEqual((deliveries as Array<{ id: string; subscriptionId: string; eventId: string; status: string }>).map(({ id, subscriptionId, eventId, status }) => ({ id, subscriptionId, eventId, status })), [
+    { id: "d-2", subscriptionId: subscription.id, eventId: "event-d-2", status: "failed" },
+    { id: "d-1", subscriptionId: subscription.id, eventId: "event-d-1", status: "delivered" },
+  ]);
+  const limited = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/integrations/subscriptions/${subscription.id}/deliveries?limit=1`, { headers: { cookie } });
+  assert.equal(limited.status, 200);
+  assert.deepEqual(await limited.json(), { deliveries: [deliveries[0]] });
 
   const missing = await fetch(
     `${baseUrl}/api/admin/v1/workspaces/workspace-local/integrations/subscriptions/missing/deliveries`,

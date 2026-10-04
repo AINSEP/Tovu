@@ -67,11 +67,9 @@ export const registerAdminIntegrationsDeliveriesRoute: IntegrationsRouteRegistra
           limit: resolvePageSize(req.query.limit),
         });
 
-        // Newest-first for the log view — the repo makes no ordering guarantee, so this route
-        // is the one place that owns "most recent" semantics for this response.
-        const newestFirst = [...deliveries].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-
-        res.json({ deliveries: newestFirst.map(toAdminDeliveryResponse) });
+        // Newest-first for the log view — the repo orders before limiting (with id breaking ties).
+        // Sorting here after LIMIT would leave the wrong rows on the "most recent" page (F1761).
+        res.json({ deliveries: deliveries.map(toAdminDeliveryResponse) });
       } catch {
         res.status(500).json({ error: "internal error" });
       }

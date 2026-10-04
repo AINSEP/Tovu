@@ -11,6 +11,7 @@ import { registerAdminFormsCreateRoute } from "../../inbound/admin-http/routes/f
 import { registerAdminFormsDeleteSubmissionRoute } from "../../inbound/admin-http/routes/forms/delete-submission.js";
 import { registerAdminFormsGetSubmissionRoute } from "../../inbound/admin-http/routes/forms/get-submission.js";
 import { registerAdminFormsListSubmissionsRoute } from "../../inbound/admin-http/routes/forms/list-submissions.js";
+import { createTrashModule } from "../../runtime/composition/modules/trash.js";
 import type { RouteDeps } from "../../routes/types.js";
 
 /**
@@ -29,6 +30,7 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   registerAdminFormsListSubmissionsRoute(app, deps);
   registerAdminFormsGetSubmissionRoute(app, deps);
   registerAdminFormsDeleteSubmissionRoute(app, deps);
+  createTrashModule(deps).registerRoutes?.(app);
   return { app, deps };
 }
 
@@ -255,6 +257,12 @@ test("admin forms submissions: delete moves the submission to the Trash (form na
     submittedAt: "2026-07-13T00:00:00.000Z",
   });
 
+  const beforeRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/forms/${formId}/submissions/sub-trash`, {
+    headers: { cookie },
+  });
+  assert.equal(beforeRes.status, 200);
+  const before = await beforeRes.json();
+
   const deleteRes = await fetch(
     `${baseUrl}/api/admin/v1/workspaces/workspace-local/forms/${formId}/submissions/sub-trash`,
     { method: "DELETE", headers: { cookie } }
@@ -269,15 +277,21 @@ test("admin forms submissions: delete moves the submission to the Trash (form na
   assert.equal(item.displaySubtitle, "2026-07-13T00:00:00.000Z");
   assert.ok(!JSON.stringify(item).includes("Ada Lovelace"), "the Trash row must not carry the visitor's data");
 
-  const restored = await deps.trash.restore({
-    workspaceId: deps.workspaceId,
-    entityType: "form_submission",
-    entityId: "sub-trash",
-    at: "2026-07-14T00:00:00.000Z",
+  const restored = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/trash/restore`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ items: [{ entityType: "form_submission", entityId: "sub-trash" }] }),
   });
-  assert.equal(restored, "restored");
+  assert.equal(restored.status, 200);
+  assert.deepEqual(await restored.json(), {
+    restored: 1,
+    results: [{ entityType: "form_submission", entityId: "sub-trash", outcome: "restored" }],
+  });
   const getRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/forms/${formId}/submissions/sub-trash`, {
     headers: { cookie },
   });
   assert.equal(getRes.status, 200);
+  assert.deepEqual(await getRes.json(), before);
+  const after = await deps.trash.list({ workspaceId: deps.workspaceId, now: "2026-07-14T00:00:00.000Z", limit: 50 });
+  assert.ok(!after.items.some((row) => row.entityType === "form_submission" && row.entityId === "sub-trash"));
 });

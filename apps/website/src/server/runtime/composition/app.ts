@@ -549,9 +549,12 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   const workspaceId = seededWorkspace.id;
   const taxonomyDb = createLazyProxy<ContentDb>(() => openContentDb(":memory:"));
   const sqliteTrashDb = createLazyProxy<TrashDb>(() => createSqliteTrashDb({ db: taxonomyDb }));
+  // `form_submission` mirrors production (`deps.ts` registers every `registry.ts` kind): without
+  // it the Trash routes' permission gate reports a hermetically trashed submission as "forbidden"
+  // and it can never be restored (F3469/F1868). Its writes still go through the in-memory adapter.
   const trashRegistry = new Map(
     [...buildTrashRegistry()].filter(([entityType]) =>
-      entityType === "term" || entityType === "taxonomy"
+      entityType === "term" || entityType === "taxonomy" || entityType === "form_submission"
     )
   );
   const trashRepo = new InMemoryTrashRepo({});

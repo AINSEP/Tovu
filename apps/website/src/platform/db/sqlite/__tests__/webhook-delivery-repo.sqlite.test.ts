@@ -268,6 +268,26 @@ function runContractSuite(
     assert.ok(["d-1", "d-2"].includes(rows[0]!.id));
   });
 
+  test(`[${adapterName}] listBySubscription orders newest-first with descending id ties before limiting`, async () => {
+    const repo = makeRepo();
+    const oldest = makeDelivery({ id: "d-oldest", eventId: "event-oldest" });
+    const middle = makeDelivery({ id: "d-middle", eventId: "event-middle", createdAt: "2026-07-10T01:00:00.000Z" });
+    const tiedA = makeDelivery({ id: "d-tied-a", eventId: "event-tied-a", createdAt: "2026-07-10T02:00:00.000Z" });
+    const tiedB = makeDelivery({ id: "d-tied-b", eventId: "event-tied-b", createdAt: tiedA.createdAt });
+    // Older and equal-time rows arrive in the opposite order to the requested page. Sorting
+    // the already-limited result cannot fix either mistake (F1761).
+    for (const row of [oldest, tiedA,
+      makeDelivery({ id: "d-other-workspace", workspaceId: "workspace-2", createdAt: "2026-07-10T03:00:00.000Z" }),
+      makeDelivery({ id: "d-other-subscription", subscriptionId: "sub-2", createdAt: "2026-07-10T03:00:00.000Z" }),
+      tiedB, middle]) {
+      await repo.enqueue(row);
+    }
+    const required = { workspaceId: "workspace-1", subscriptionId: "sub-1" };
+    assert.deepEqual(await repo.listBySubscription({ ...required, limit: 1 }), [tiedB]);
+    assert.deepEqual(await repo.listBySubscription({ ...required, limit: 2 }), [tiedB, tiedA]);
+    assert.deepEqual(await repo.listBySubscription({ ...required, limit: 10 }), [tiedB, tiedA, middle, oldest]);
+  });
+
   test(`[${adapterName}] payload_json round-trip: enqueue -> save -> claim -> findById byte-identical envelope (INV-P4)`, async () => {
     const repo = makeRepo();
     await repo.enqueue(makeDelivery());
