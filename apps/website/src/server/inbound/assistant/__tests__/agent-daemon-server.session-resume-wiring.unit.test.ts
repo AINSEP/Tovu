@@ -107,7 +107,7 @@ describe("H2 wiring — overlapping runs on one conversation must not both resum
     // cleanup call is inside the SAME finally() this file already uses for principal cleanup, so
     // unregister landing before it confirms it is in that same block rather than some unrelated
     // later one.
-    const attachmentCleanupIndex = onStartedSource.indexOf("attachmentStore?.cleanupRun(run.id)");
+    const attachmentCleanupIndex = onStartedSource.indexOf("attachmentStore?.cleanupRun({ runId: run.id })");
     assert.ok(attachmentCleanupIndex > -1, "this test's own anchor (the attachment cleanup call) must still exist verbatim");
     assert.ok(
       waitForTerminalIndex < unregisterIndex && unregisterIndex < attachmentCleanupIndex,
