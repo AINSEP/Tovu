@@ -25,8 +25,8 @@ import { withModelFacingErrors, type ModelFacingErrorRule } from "@jini-ai/core/
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import Database from "better-sqlite3";
 import { databaseFile } from "@jini-ai/db/kernel";
+import { openSqliteFileKernel, type SqliteKernel } from "../../platform/db/kernel/drivers/sqlite.js";
 import { contentKernel } from "../../platform/db/content-kernel.js";
 import { createDatabaseTransferTools, databaseTransferAgentToolCatalog } from "@jini-ai/db/tools";
 import { TRANSFER_NAMING } from "./copy-engine.js";
@@ -79,14 +79,14 @@ async function captureChatSnapshot(deps: DatabaseTransferToolDeps): Promise<Buff
   if (contentPath === null) throw new Error("the chat snapshot source is not wired");
   const path = process.env.TOVU_CHAT_DB ?? join(dirname(contentPath), "chat.db");
   const dir = await mkdtemp(join(tmpdir(), "tovu-transfer-chat-"));
-  let connection: Database.Database | undefined;
+  let source: SqliteKernel<unknown> | undefined;
   try {
-    connection = new Database(path, { readonly: true, fileMustExist: true });
+    source = openSqliteFileKernel(path, { readOnly: true });
     const snapshotPath = join(dir, "chat.db");
-    await connection.backup(snapshotPath);
+    await source.backupTo(snapshotPath);
     return await readFile(snapshotPath);
   } finally {
-    try { connection?.close(); }
+    try { await source?.close(); }
     finally { await rm(dir, { recursive: true, force: true }); }
   }
 }
