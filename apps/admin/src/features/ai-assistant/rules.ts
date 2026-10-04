@@ -80,7 +80,11 @@ export function hasStoredCredential(stored: SiteAssistantCredential | null): boo
  * @overallScore 100
  */
 export function isPresetSuppliedEndpoint(baseUrl: string): boolean {
-  return DEFAULT_PROVIDER_PRESETS.some((p) => !p.custom && p.baseUrl === baseUrl.trim());
+  const trimmed = baseUrl.trim();
+  // Azure OpenAI's preset ships `baseUrl: ''` as a placeholder, so without this guard a cleared
+  // field "matches" it and authorizes key-bearing discovery with no destination at all (F4.4/F6.2).
+  if (trimmed === "") return false;
+  return DEFAULT_PROVIDER_PRESETS.some((p) => !p.custom && p.baseUrl === trimmed);
 }
 
 /** Which provider presets this form's current credentials already satisfy — the filled/unfilled
