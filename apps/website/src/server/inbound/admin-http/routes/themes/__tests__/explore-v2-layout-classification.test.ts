@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
+import { cpSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
@@ -27,13 +29,16 @@ import { InMemoryPostRepo } from "#src/features/post/index";
 const WORKSPACE_ID = "ws-v2-explore";
 const REAL_THEMES_DIR = join(fileURLToPath(new URL(".", import.meta.url)), "../../../../../../../../../content/themes");
 
-function buildTestApp(): express.Express {
-  const themes = discoverAllBuiltInThemes({ dir: REAL_THEMES_DIR, source: "built-in" });
+function buildTestApp(t: TestContext): express.Express {
+  const themesDir = mkdtempSync(join(tmpdir(), "tovu-explore-theme-"));
+  t.after(() => rmSync(themesDir, { recursive: true, force: true }));
+  cpSync(join(REAL_THEMES_DIR, "static", "tovu-theme"), join(themesDir, "static", "tovu-theme"), { recursive: true });
+  const themes = discoverAllBuiltInThemes({ dir: themesDir, source: "built-in" });
   const deps = {
     workspaceId: WORKSPACE_ID,
     authorize: async () => ({ allowed: true, reason: "matched" }),
     themes,
-    themesDir: REAL_THEMES_DIR,
+    themesDir,
     // The detail route now does one `postRepo.list()` per request (slug-collision signal) — an
     // empty in-memory repo, matching this fixture's lack of any posts to collide with.
     postRepo: new InMemoryPostRepo(),
@@ -52,7 +57,7 @@ function buildTestApp(): express.Express {
 const BASE = `/api/admin/v1/workspaces/${WORKSPACE_ID}/themes/tovu-theme`;
 
 test("the real v2 'basic' theme classifies render/pages/*.html as 'page', editable", async (t) => {
-  const app = buildTestApp();
+  const app = buildTestApp(t);
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}${BASE}`);
@@ -67,7 +72,7 @@ test("the real v2 'basic' theme classifies render/pages/*.html as 'page', editab
 });
 
 test("the real v2 'basic' theme classifies render/partials/*.html as 'partial', editable", async (t) => {
-  const app = buildTestApp();
+  const app = buildTestApp(t);
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}${BASE}`);
@@ -81,7 +86,7 @@ test("the real v2 'basic' theme classifies render/partials/*.html as 'partial', 
 });
 
 test("rename hard-blocks render/pages/index.html on a real v2 theme -- REQUIRED_THEME_FILES must track apiVersion, not just pages/index.html", async (t) => {
-  const app = buildTestApp();
+  const app = buildTestApp(t);
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}${BASE}/file/rename`, {

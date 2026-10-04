@@ -49,9 +49,9 @@ function readFieldByRegex(frontmatter: string, key: string): string | undefined 
  */
 export function readFrontmatterField(markdown: string, key: string): string | undefined {
   if (!markdown.startsWith("---")) return undefined;
-  const end = markdown.indexOf("\n---", 3);
-  if (end === -1) return undefined;
-  const frontmatter = markdown.slice(3, end);
+  const closing = markdown.slice(3).match(/\r?\n---[ \t]*(?:\r?\n|$)/);
+  if (!closing) return undefined;
+  const frontmatter = markdown.slice(3, 3 + closing.index!);
 
   let parsed: unknown;
   try {

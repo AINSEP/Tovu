@@ -18,7 +18,10 @@ function makeDeps(overrides: Partial<{
 }> = {}): LaunchGateDeps {
   const { sendingEnabled = true, consentBound = true, originThrows = false, mailerDriver = "smtp" } = overrides;
   return {
-    isSendingEnabled: async () => sendingEnabled,
+    isSendingEnabled: async (workspaceId) => {
+      assert.equal(workspaceId, WS, "the gate must read the requested workspace's setting");
+      return sendingEnabled;
+    },
     consentCapability: consentBound
       ? { request: async () => ({ requested: true }), confirm: async () => ({ status: "granted", consentRevisionId: "r1" }), revoke: async () => ({ status: "revoked" }) }
       : null,
@@ -48,6 +51,19 @@ test("evaluateLaunchGate: all four preconditions met -> gate reports met (AC-30)
   const result = await evaluateLaunchGate({ deps: makeDeps(), workspaceId: WS, isTestSend: false });
   assert.equal(result.met, true);
   assert.deepEqual(result.unmetPreconditions, []);
+});
+
+test("evaluateLaunchGate: conflicting workspace settings are evaluated independently", async () => {
+  const deps = makeDeps();
+  const requested: string[] = [];
+  deps.isSendingEnabled = async (workspaceId) => {
+    requested.push(workspaceId);
+    assert.ok([WS, "ws-disabled"].includes(workspaceId), "unexpected workspace");
+    return workspaceId === WS;
+  };
+  assert.deepEqual(await evaluateLaunchGate({ deps, workspaceId: "ws-disabled", isTestSend: false }), { met: false, unmetPreconditions: ["sending_enabled_false"] });
+  assert.deepEqual(await evaluateLaunchGate({ deps, workspaceId: WS, isTestSend: false }), { met: true, unmetPreconditions: [] });
+  assert.deepEqual(requested, ["ws-disabled", WS]);
 });
 
 test("evaluateLaunchGate: (a) sending_enabled=false + (c) origin unresolved -> BOTH named, fixed order (AC-27/28/29 combo)", async () => {

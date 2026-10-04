@@ -73,6 +73,23 @@ function resolverWith(rules: RedirectRecord[], opts: { redirectAllowlist?: strin
   });
 }
 
+test("a relative target fails closed when no verified origin is configured", async () => {
+  const resolver = new RedirectPhaseHandlerResolver({ repo: new InMemoryRedirectRepo([rule({ fromPattern: "/old", toTarget: "/admin" })]), matcher: redirectMatcher, originRegistry: new OriginRegistry({ repo: new InMemoryOriginSettingRepo() }) });
+  assert.deepEqual(await resolver.resolve({ workspaceId: WORKSPACE_ID, path: "/old", phase: "post_content" }), { matched: false });
+});
+
+test("an absolute target fails closed when the verified origin disappears after the host oracle allowed it", async (t) => {
+  const originRegistry = makeOriginRegistry();
+  // The real host oracle still accepts the stored trusted host; the following origin lookup fails.
+  const canonical = t.mock.method(originRegistry, "canonicalOrigin", async () => { throw new Error("origin no longer verified"); });
+  const allowed = t.mock.method(originRegistry, "isAllowedRedirectTarget");
+  const resolver = new RedirectPhaseHandlerResolver({ repo: new InMemoryRedirectRepo([rule({ fromPattern: "/old", toTarget: "https://trusted.example/admin" })]), matcher: redirectMatcher, originRegistry });
+  assert.deepEqual(await resolver.resolve({ workspaceId: WORKSPACE_ID, path: "/old", phase: "post_content" }), { matched: false });
+  assert.equal(allowed.mock.calls[0]?.result instanceof Promise, true);
+  assert.equal(await allowed.mock.calls[0]!.result, true, "the earlier host guard must not mask this case");
+  assert.equal(canonical.mock.callCount(), 1);
+});
+
 test("a wildcard capture that interpolates the ADMIN surface into a site-relative location never resolves to matched:true", async () => {
   // `/go/*` -> `/$1` passes the write gate: the STORED target is `/$1`, which names no reserved
   // segment. The request supplies the segment.

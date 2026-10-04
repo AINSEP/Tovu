@@ -61,7 +61,7 @@ interface Harness {
   repo: SqliteTrashRepo;
 }
 
-function harness(hooks: TrashFollowUpHooks): Harness {
+function harness(hooks: TrashFollowUpHooks, entry: TrashEntry = buildEntry()): Harness {
   const db: ContentDb = openContentDb(":memory:");
   const client = (db as unknown as { $client: Database.Database }).$client;
   client
@@ -69,7 +69,7 @@ function harness(hooks: TrashFollowUpHooks): Harness {
     .run(WS, WS, WS, "2026-01-01T00:00:00.000Z");
 
   const trashDb = createSqliteTrashDb({ db });
-  const baseAdapter = createTableTrashAdapter({ entry: buildEntry(), db: trashDb });
+  const baseAdapter = createTableTrashAdapter({ entry, db: trashDb });
   const wrapped = withFollowUps({ adapter: baseAdapter }, hooks);
   const adapters = new Map<string, TrashAdapter>([[ENTITY_TYPE, wrapped]]);
   const repo = new SqliteTrashRepo(client);
@@ -142,7 +142,7 @@ test("afterHide never fires when hide is a no-op (the row is already trashed)", 
   assert.deepEqual(calls, [], "nothing changed, so nothing should have finished");
 });
 
-test("afterHide never fires on a blocked, not-found, or version-changed hide", async () => {
+test("afterHide never fires on a not-found or version-changed hide", async () => {
   const calls: unknown[] = [];
   const h = harness({ afterHide: async (required) => void calls.push(required) });
   seedRow(h.client, "row-1", { status: "published", version: 1 });
@@ -170,6 +170,19 @@ test("afterHide never fires on a blocked, not-found, or version-changed hide", a
   assert.deepEqual(missing, { ok: false, reason: "not-found" });
 
   assert.deepEqual(calls, []);
+});
+
+test("afterHide never fires when a table blocker prevents the transition", async (t) => {
+  const calls: unknown[] = [];
+  const entry = { ...buildEntry(), blocker: { table: "menus", parentIdColumn: "id", code: "ROW_BLOCKED" } };
+  const h = harness({ afterHide: async (required) => void calls.push(required) }, entry);
+  t.after(() => h.client.close());
+  seedRow(h.client, "row-blocked");
+  const outcome = await h.trash.trash({ workspaceId: WS, entityType: ENTITY_TYPE, entityId: "row-blocked", actor: { principalId: "p-1" }, display: { title: "Blocked row" }, at: AT, expectedVersion: 1 });
+  assert.deepEqual(outcome, { ok: false, reason: "blocked", code: "ROW_BLOCKED", count: 1 });
+  assert.deepEqual(calls, []);
+  assert.deepEqual(readRow(h.client, "row-blocked"), { status: "published", version: 1 });
+  assert.equal(await h.repo.findByEntity({ workspaceId: WS, entityType: ENTITY_TYPE, entityId: "row-blocked" }), null);
 });
 
 test("a throwing afterHide rolls back the whole trash op — the row stays live and no trashed_items row is inserted", async () => {
@@ -282,7 +295,7 @@ test("a throwing afterUnhide rolls back the whole restore — the row stays tras
 // beforePurge / afterPurge
 // ---------------------------------------------------------------------------
 
-test("beforePurge reads the row's pre-purge state and afterPurge receives exactly that, once, only on 'purged'", async () => {
+test("beforePurge reads the row's pre-purge state and afterPurge receives exactly that once on a successful purge", async () => {
   const afterCalls: { workspaceId: string; entityId: string; priorState: unknown }[] = [];
   const h = harness({
     beforePurge: async (required) => {
@@ -319,6 +332,18 @@ test("beforePurge reads the row's pre-purge state and afterPurge receives exactl
     { workspaceId: WS, entityId: "row-1", priorState: { titleAtPurgeTime: "Row row-1" } },
   ]);
   assert.equal(readRow(h.client, "row-1"), undefined, "the row must actually be gone");
+});
+
+test("afterPurge never fires on a version-changed purge and the row survives", async (t) => {
+  const afterCalls: unknown[] = [];
+  const h = harness({ afterPurge: async (required) => void afterCalls.push(required) });
+  t.after(() => h.client.close());
+  seedRow(h.client, "row-stale", { status: "trashed", version: 3 });
+  await h.repo.insert({ row: { id: "trash-stale", workspaceId: WS, entityType: ENTITY_TYPE, entityId: "row-stale", trashedAt: AT, purgeAfter: "2099-01-01T00:00:00.000Z", actorPrincipalId: "p-1", actorPluginId: null, displayTitle: "Stale row", displaySubtitle: null, entityVersion: 2, priorMarker: "published" } });
+  assert.deepEqual(await h.trash.purgeSelected({ workspaceId: WS, ids: ["trash-stale"], actor: { principalId: "p-1" }, authorizeItem: async () => true }), { purged: 0, results: [{ id: "trash-stale", outcome: "version-changed" }] });
+  assert.deepEqual(afterCalls, []);
+  assert.deepEqual(readRow(h.client, "row-stale"), { status: "trashed", version: 3 });
+  assert.notEqual(await h.repo.findByEntity({ workspaceId: WS, entityType: ENTITY_TYPE, entityId: "row-stale" }), null);
 });
 
 test("afterPurge never fires on a no-op purge outcome (already-gone)", async () => {

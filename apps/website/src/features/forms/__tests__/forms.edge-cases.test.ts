@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
-import { FormFieldValidationError } from "@jini-ai/cms-forms";
+import { FormDefinitionNotFoundError, FormFieldValidationError } from "@jini-ai/cms-forms";
 import { FORMS_SUBMIT_PROFILE } from "../rate-limit-profile.js";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "../repo.memory.js";
 import { submitForm } from "../submit-service.js";
@@ -160,4 +160,9 @@ test("EC-05: a definition disabled after submitForm's status check still accepts
   // Confirm the definition really is disabled now — a SUBSEQUENT submission is rejected.
   const definitionNow = await realRepo.findBySlug({ workspaceId: WORKSPACE_ID, slug: "contact" });
   assert.equal(definitionNow?.status, "disabled");
+  await assert.rejects(
+    () => submitForm({ deps, input: { workspaceId: WORKSPACE_ID, slug: "contact", body: { name: "Grace", email: "grace@example.com" }, sourceIp: "2.2.2.2" } }),
+    FormDefinitionNotFoundError
+  );
+  assert.equal((await deps.submissionRepo.listByDefinition({ workspaceId: WORKSPACE_ID, formDefinitionId: "def-1", limit: 10 })).items.length, 1);
 });

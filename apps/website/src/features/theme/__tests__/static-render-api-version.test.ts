@@ -44,6 +44,7 @@ test("a v2 theme (apiVersion: 2) matches the css/theme.css sentinel and injects 
   const source = `<!doctype html><html><head><link rel="stylesheet" href="../css/theme.css" /></head><body></body></html>`;
   const rendered = renderStaticPage({ theme: makeTheme(source, 2), pageId: "index" });
   assert.ok(rendered?.includes("<style>"), "v2 theme should get token injection against its own sentinel");
+  assert.ok(rendered?.includes(":root {\n  --color: red;\n}"), "v2 must inject the configured token value");
   assert.ok(rendered?.includes(`href="/theme-assets/v2-test/css/theme.css"`));
 });
 

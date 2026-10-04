@@ -31,3 +31,9 @@ test("isHoneypotTripped: true when _hp has leading/trailing whitespace around re
 test("isHoneypotTripped: false when _hp is null", () => {
   assert.equal(isHoneypotTripped({ hp: null }), false);
 });
+
+test("isHoneypotTripped: non-string JSON values do not trip the string-only trap", () => {
+  for (const hp of [123, ["x"], {}, true]) {
+    assert.equal(isHoneypotTripped({ hp }), false, JSON.stringify(hp));
+  }
+});

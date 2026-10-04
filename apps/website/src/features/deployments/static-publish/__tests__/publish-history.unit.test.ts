@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { openContentDb } from "#src/platform/db/sqlite/content-db";
+import { SqlitePublishHistoryStore } from "#src/platform/db/sqlite/publish-history-repo.sqlite";
+import { workspaces } from "#src/platform/db/schema.sqlite";
 
 import { InMemoryPublishHistoryStore, type PublishHistoryEntry } from "../publish-history.js";
 import {
@@ -117,4 +120,19 @@ test("resolvePublishHistoryListLimit: defaults when omitted, clamps below 1 and 
   assert.equal(resolvePublishHistoryListLimit(-5), 1);
   assert.equal(resolvePublishHistoryListLimit(1_000_000), MAX_PUBLISH_HISTORY_LIST_LIMIT);
   assert.equal(resolvePublishHistoryListLimit(10), 10);
+});
+
+test("both publish-history adapters return newest recorded first, even when publishedAt is out of order", async (t) => {
+  const db = openContentDb(":memory:");
+  t.after(() => db.$client.close());
+  db.insert(workspaces).values({ id: WORKSPACE_A, name: WORKSPACE_A, slug: WORKSPACE_A, createdAt: "2026-08-16T00:00:00.000Z" }).run();
+  for (const store of [new InMemoryPublishHistoryStore(), new SqlitePublishHistoryStore(db)]) {
+    await store.recordSuccess({ workspaceId: WORKSPACE_A, entry: entry({ url: "u1", publishedAt: "2026-08-16T00:00:00.000Z" }) });
+    await store.recordSuccess({ workspaceId: WORKSPACE_A, entry: entry({ url: "u2", publishedAt: "2026-08-14T00:00:00.000Z" }) });
+    await store.recordSuccess({ workspaceId: WORKSPACE_A, entry: entry({ target: "vercel", url: "u3", publishedAt: "2026-08-15T00:00:00.000Z" }) });
+    assert.equal((await store.getLast({ workspaceId: WORKSPACE_A, target: "github-pages" }))?.url, "u2");
+    assert.deepEqual((await store.list({ workspaceId: WORKSPACE_A })).map(row => row.url), ["u3", "u2", "u1"]);
+    assert.deepEqual((await store.list({ workspaceId: WORKSPACE_A, target: "github-pages", limit: 1 })).map(row => row.url), ["u2"]);
+    assert.deepEqual(await store.list({ workspaceId: WORKSPACE_B }), []);
+  }
 });

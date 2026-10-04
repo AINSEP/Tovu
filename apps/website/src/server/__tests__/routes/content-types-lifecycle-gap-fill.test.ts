@@ -3,7 +3,7 @@ import test from "node:test";
 
 import express from "express";
 
-import { bootAuthenticated } from "../helpers/http-test-server.js";
+import { bootAuthenticated, loginAsBarePrincipal } from "../helpers/http-test-server.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerAdminContentTypeRegisterRoute } from "../../inbound/admin-http/routes/content-types/register.js";
@@ -53,12 +53,16 @@ test("lifecycle: 403s for a caller without admin.collections.manage", async (t) 
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   await registerType(baseUrl, cookie, "forbidden_type");
 
-  deps.authorize = async () => ({ allowed: false, reason: "insufficient role" });
-  const { status, json } = await lifecycle(baseUrl, cookie, "forbidden_type", "deprecate", 1);
+  const bareCookie = await loginAsBarePrincipal(deps, baseUrl, { username: "bare-content-types" });
+  const { status, json } = await lifecycle(baseUrl, bareCookie, "forbidden_type", "deprecate", 1);
   assert.equal(status, 403);
   const body = json as { code?: string; details?: { permission?: string } };
   assert.equal(body.code, "FORBIDDEN");
   assert.equal(body.details?.permission, "admin.collections.manage");
+  const stored = await deps.contentTypeRepo.findByKey({ workspaceId: deps.workspaceId, key: "forbidden_type" });
+  assert.ok(stored, "denied lifecycle must retain the registered type");
+  assert.equal(stored.status, "active");
+  assert.equal(stored.version, 1);
 });
 
 test("lifecycle: 400 VALIDATION_ERROR when expectedVersion is missing or not a number", async (t) => {

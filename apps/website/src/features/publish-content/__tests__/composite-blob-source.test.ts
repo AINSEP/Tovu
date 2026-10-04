@@ -29,12 +29,15 @@ function fakeBlobStore(storageKeys: ReadonlySet<string>) {
   };
 }
 
-test("checks the blob store first and never touches the file index when it has the blob", async () => {
+test("checks the blob store first and never touches the file index when it has the blob", async (t) => {
   const store = fakeBlobStore(new Set(["key-a"]));
   const index = createFileBlobIndex();
+  index.set("sha-a", { absPath: "/conflicting-index-entry", size: 999 });
+  const readIndex = t.mock.method(index, "get", () => { throw new Error("blob-store hit must not read the index"); });
   const source = createCompositePeerBlobSource({ blobStore: store, fileBlobIndex: index });
   assert.equal(await source.exists({ sha256: "sha-a", storageKey: "key-a" }), true);
   assert.deepEqual(await source.get({ sha256: "sha-a", storageKey: "key-a" }), new TextEncoder().encode("bytes-for-key-a"));
+  assert.equal(readIndex.mock.callCount(), 0);
 });
 
 test("falls back to the file index and reads real bytes off disk when the store does not have it", async () => {

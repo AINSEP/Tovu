@@ -123,6 +123,19 @@ test("inspect(): the destination's hash equals the pinned pack hash", async () =
   }
 });
 
+test("pack(): wildcard state, title and independently calculated content hash are pinned", async () => {
+  const deps = makeWriteDeps();
+  await createRedirect({ deps, input: { workspaceId: WORKSPACE_ID, matchType: "wildcard", fromPattern: "/legacy/*", toTarget: "/new/$1", statusCode: 301, actorId: ACTOR_ID } });
+  const handler = contributeRedirectPublish().build(publishDeps(deps));
+  const rows: PackedEntity[] = [];
+  for await (const row of handler.pack()) rows.push(row);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].id, "wildcard:/legacy/*");
+  // SHA-256 of the canonical literal transferred state, sorted by field name.
+  assert.equal(rows[0].contentHash, "c20946aedc3f5798aa9a2439054e36578775cfdae66e4bbbc63a67306be9abc6");
+  assert.deepEqual(rows[0].state, { matchType: "wildcard", fromPattern: "/legacy/*", toTarget: "/new/$1", statusCode: 301, status: "active", override: false, priority: 0, createdAt: "2026-09-24T00:00:00.000Z", source: "manual", sourceEntryId: null, fromPathAtCapture: null, toPathAtCapture: null, title: "matches /legacy/* → /new/$1" });
+});
+
 test("precheck(): exact reason strings", async () => {
   const unwired = contributeRedirectPublish().build(publishDeps(undefined));
   assert.equal(

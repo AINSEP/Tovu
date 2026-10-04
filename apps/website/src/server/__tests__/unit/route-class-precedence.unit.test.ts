@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import express from "express";
 
 import { createApp } from "../../runtime/composition/app.js";
 
@@ -22,6 +23,7 @@ import { createApp } from "../../runtime/composition/app.js";
 
 interface ExpressRouteLayer {
   route?: { path: string; methods: Record<string, boolean> };
+  handle?: { stack?: ExpressRouteLayer[] };
 }
 
 interface ExpressAppWithRouter {
@@ -30,13 +32,25 @@ interface ExpressAppWithRouter {
 
 function routeLayers(app: ReturnType<typeof createApp>): { path: string; methods: string[] }[] {
   const stack = (app as unknown as ExpressAppWithRouter)._router.stack;
-  return stack
-    .filter((layer): layer is Required<ExpressRouteLayer> => Boolean(layer.route))
-    .map((layer) => ({
-      path: layer.route.path,
-      methods: Object.keys(layer.route.methods).filter((m) => layer.route.methods[m]),
-    }));
+  return flattenRouteLayers(stack);
 }
+
+function flattenRouteLayers(stack: ExpressRouteLayer[]): { path: string; methods: string[] }[] {
+  return stack.flatMap((layer) => layer.route
+    ? [{ path: layer.route.path, methods: Object.keys(layer.route.methods).filter((m) => layer.route!.methods[m]) }]
+    : flattenRouteLayers(layer.handle?.stack ?? []));
+}
+
+test("route enumeration includes mounted routers at their actual registration position", () => {
+  const app = express();
+  app.get("/:slug", (_req, res) => res.end());
+  const inner = express.Router();
+  inner.post("/late", (_req, res) => res.end());
+  const outer = express.Router();
+  outer.use(inner);
+  app.use(outer);
+  assert.deepEqual(routeLayers(app), [{ path: "/:slug", methods: ["get"] }, { path: "/late", methods: ["post"] }]);
+});
 
 test("the site catch-all (GET /:slug) is registered after every other route", () => {
   const app = createApp();

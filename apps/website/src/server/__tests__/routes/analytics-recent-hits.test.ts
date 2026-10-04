@@ -173,6 +173,27 @@ test("AC-31: owner's non-numeric ?limit= is ignored rather than erroring", async
   assert.equal(body.hits.length, 3); // falls back to the sink's default limit, not an error
 });
 
+test("recent hits: zero, negative, fractional and oversized limits use the real sink's clamp", async (t) => {
+  const { app, deps } = buildTestApp();
+  await deps.analyticsSink.acceptBatch(Array.from({ length: 501 }, (_, i) => makeHit({ path: `/hit-${i}` })));
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  for (const [limit, count] of [["0", 1], ["-5", 1], ["1.9", 1], ["100000", 500]] as const) {
+    const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/analytics/recent-hits?limit=${limit}`, { headers: { cookie } });
+    assert.equal(res.status, 200);
+    const body = await res.json() as { hits: Array<{ path: string }> };
+    assert.deepEqual(body.hits.map(hit => hit.path), Array.from({ length: count }, (_, i) => `/hit-${500 - i}`));
+  }
+});
+
+test("recent hits: a sink failure returns a caller-safe 500 INTERNAL_ERROR", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  t.mock.method(deps.analyticsSink, "list", async () => { throw new Error("private sink failure"); });
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/analytics/recent-hits`, { headers: { cookie } });
+  assert.equal(res.status, 500);
+  assert.deepEqual(await res.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+});
+
 test("AC-29: 404s on a workspace id that does not match the deployed workspace (checked before authorize)", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie: ownerCookie } = await bootAuthenticated(app, t);

@@ -153,7 +153,9 @@ test("resolveAppDistDir never throws: with no apps/<app> ancestor it returns a p
 });
 
 test("resolveAppDistDir(), called with no fromDir from a real file inside apps/website/src, finds this checkout's apps/admin/dist", () => {
-  assert.equal(resolveAppDistDir("admin"), path.join(resolveProductRoot(), "apps", "admin", "dist"));
+  const root = path.resolve(import.meta.dirname, "../../../../../../..");
+  assert.equal(JSON.parse(readFileSync(path.join(root, "package.json"), "utf8")).name, "tovu");
+  assert.equal(resolveAppDistDir("admin"), path.join(root, "apps", "admin", "dist"));
 });
 
 // `index.ts`, `deps.ts` and `app.ts` each looked for the repo-root `.certs/` pair with a fixed `../`
@@ -190,5 +192,7 @@ test("resolveCheckoutRoot never throws: with no apps/website ancestor it returns
 });
 
 test("resolveCheckoutRoot(), called with no fromDir from a real file inside apps/website/src, finds this checkout", () => {
-  assert.equal(resolveCheckoutRoot(), resolveProductRoot());
+  const root = path.resolve(import.meta.dirname, "../../../../../../..");
+  assert.equal(JSON.parse(readFileSync(path.join(root, "package.json"), "utf8")).name, "tovu");
+  assert.equal(resolveCheckoutRoot(), root);
 });

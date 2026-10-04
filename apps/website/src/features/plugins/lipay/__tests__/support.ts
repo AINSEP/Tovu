@@ -32,8 +32,9 @@ export class FakeHttpClient implements HttpClientPort {
 
   async send(request: HttpRequest): Promise<HttpResponse> {
     this.calls.push(request);
-    const entry = this.responses[Math.min(this.cursor, this.responses.length - 1)];
+    const entry = this.responses[this.cursor];
     this.cursor += 1;
+    if (entry === undefined) throw new Error(`unexpected provider request: ${request.method} ${request.url} (script exhausted)`);
     if (typeof entry === "function") return entry();
     return entry;
   }

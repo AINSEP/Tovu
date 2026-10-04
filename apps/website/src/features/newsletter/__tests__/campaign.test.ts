@@ -27,7 +27,7 @@ test("non-pipeline tiers can never set status to 'sent' directly", () => {
     assert.equal(allow("sending", "sent", tier).allowed, false);
   }
 });
-test("pipeline tier: 'sending' rejected from any status other than 'scheduled'", () => {
+test("pipeline tier: draft -> sending is rejected; paused -> sending resumes", () => {
   assert.equal(allow("draft", "sending", "pipeline").allowed, false);
   assert.equal(allow("paused", "sending", "pipeline").allowed, true); // resume path, allowed below too
 });

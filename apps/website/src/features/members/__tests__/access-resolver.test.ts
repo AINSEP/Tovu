@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
 
-import { DefaultMemberAccessResolver } from "../access-resolver.js";
+import { DefaultMemberAccessResolver, resolvePostMemberAccess } from "../access-resolver.js";
 import {
   InMemoryMemberSessionRepo,
   InMemoryMemberSubscriptionRepo,
@@ -24,6 +24,14 @@ function anonymousContext(): MemberContext {
 function authenticatedContext(activeTierIds: string[], isPaid: boolean): MemberContext {
   return { isAuthenticated: true, memberId: "member-1", activeTierIds, isPaid };
 }
+
+test("resolvePostMemberAccess: ungated values are public, valid JSON round-trips, and malformed JSON fails closed", () => {
+  for (const raw of [null, undefined, ""]) assert.deepEqual(resolvePostMemberAccess(raw), { visibility: "public" });
+  assert.deepEqual(resolvePostMemberAccess('{"visibility":"tiers","tierIds":["gold"]}'), { visibility: "tiers", tierIds: ["gold"] });
+  const resolver = new DefaultMemberAccessResolver({ sessions: new InMemoryMemberSessionRepo(), subscriptions: new InMemoryMemberSubscriptionRepo(), tiers: new InMemoryMemberTierRepo() });
+  assert.deepEqual(resolver.decide({ access: resolvePostMemberAccess("{not json"), context: authenticatedContext(["gold"], true) }),
+    { allowed: false, visibility: "malformed_member_access_json", reason: "unknown_visibility", teaser: false });
+});
 
 test("decide: public visibility always allows, authenticated or not", () => {
   const resolver = new DefaultMemberAccessResolver({

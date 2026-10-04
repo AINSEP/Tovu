@@ -43,6 +43,18 @@ test("no frontmatter block at all returns undefined", () => {
   assert.equal(readFrontmatterField("# Just a heading\n\nSome prose.\n", "description"), undefined);
 });
 
+test("unterminated frontmatter returns undefined", () => {
+  assert.equal(readFrontmatterField("---\ndescription: unfinished\nbody", "description"), undefined);
+});
+
+test("CRLF frontmatter parses normally", () => {
+  assert.equal(readFrontmatterField("---\r\ndescription: Windows skill\r\n---\r\nbody", "description"), "Windows skill");
+});
+
+test("a four-dash line does not close an otherwise unterminated frontmatter block", () => {
+  assert.equal(readFrontmatterField("---\ndescription: unfinished\n----\nbody", "description"), undefined);
+});
+
 test("a missing key returns undefined", () => {
   const md = "---\nname: x\n---\nbody";
   assert.equal(readFrontmatterField(md, "description"), undefined);

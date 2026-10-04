@@ -294,7 +294,7 @@ test("adapters resolve at CALL time, not at registration time", async () => {
   assert.deepEqual(result, { ok: true, version: 2 });
 });
 
-test("a restore racing a purge always leaves the item alive — the version moved, so the purge stands down", async () => {
+test("a purge whose version moved stands down and leaves the item alive in Trash", async () => {
   const h = harness();
   seedPost(h.client, "post-1", '{"type":"doc"}');
   await h.trash.trash({

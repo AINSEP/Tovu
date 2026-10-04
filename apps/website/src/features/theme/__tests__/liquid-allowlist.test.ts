@@ -62,6 +62,17 @@ test("a disallowed filter is rejected", () => {
   assert.match(violations[0], /disallowed filter "sha256"/);
 });
 
+for (const template of [
+  "{% if secret %}{{ secret | sha256 }}{% endif %}",
+  "{% for post in posts %}{{ post.title | sha256 }}{% endfor %}",
+  "{% assign digest = secret | sha256 %}",
+  "{{ secret | escape | sha256 }}",
+]) {
+  test(`a disallowed filter is rejected in this template: ${template}`, () => {
+    assert.deepEqual(lintLiquidTemplate(template), ['disallowed filter "sha256"']);
+  });
+}
+
 test("a dynamic-expression filter (where_exp) is rejected even though it is a built-in LiquidJS filter", () => {
   const violations = lintLiquidTemplate('{{ posts | where_exp: "p", "p.title" }}');
   assert.match(violations[0], /disallowed filter "where_exp"/);

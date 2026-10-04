@@ -56,6 +56,7 @@ test("AC-11/REQ-06: every capability named in ADR-046's Context as currently in-
 
 test("AC-02/EC-01: an entry with an ambiguous owner documents the ambiguity explicitly rather than guessing", () => {
   const ambiguous = CAPABILITY_INVENTORY.filter((e) => e.ownerAmbiguous === true);
+  assert.ok(ambiguous.length > 0, "the inventory's known ambiguous ownership must remain explicitly documented");
   for (const entry of ambiguous) {
     assert.ok(
       entry.ownerModule.length > 0 && entry.ownerModule.toLowerCase() !== "unknown",

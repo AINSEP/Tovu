@@ -1,12 +1,10 @@
 import assert from "node:assert/strict";
-import { once } from "node:events";
-import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
 import test from "node:test";
 
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { PluginHookFailedError } from "#src/features/plugin-runtime/hook-registry";
 import { sendPluginHookFailedError } from "../plugin-hook-error.js";
+import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-server";
 
 /**
  * @file P0c (hooks v2 plan, 2026-09-23) — `PluginHookFailedError`'s own doc comment has always
@@ -54,19 +52,7 @@ test("HTTP: creating a post through a throwing beforeSave filter returns 500 PLU
   deps.pluginBeforeSaveHook = async () => {
     throw new PluginHookFailedError("throwing-plugin", "plugin 'throwing-plugin' content.entry.beforeSave filter failed: boom");
   };
-  const server = createServer(createApp(deps));
-  server.listen(0);
-  await once(server, "listening");
-  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
-  const { port } = server.address() as AddressInfo;
-  const baseUrl = `http://127.0.0.1:${port}`;
-
-  const login = await fetch(`${baseUrl}/api/admin/v1/auth/login`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ username: "admin", password: "tovu-dev" }),
-  });
-  const cookie = login.headers.get("set-cookie")?.split(";")[0] ?? "";
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
 
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/posts`, {
     method: "POST",
@@ -78,4 +64,32 @@ test("HTTP: creating a post through a throwing beforeSave filter returns 500 PLU
   const body = (await res.json()) as { code?: string; pluginId?: string };
   assert.equal(body.code, "PLUGIN_HOOK_FAILED");
   assert.equal(body.pluginId, "throwing-plugin");
+});
+
+test("HTTP: updating a post through a throwing beforeSave filter returns PLUGIN_HOOK_FAILED and leaves the stored post unchanged", async (t) => {
+  const deps = createRouteDeps();
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+  const base = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/posts`;
+  const created = await fetch(base, { method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ title: "Original post", status: "draft", bodyJson: { type: "doc", content: [] } }) });
+  assert.equal(created.status, 201);
+  const { post } = await created.json() as { post: { id: string } };
+  const before = await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: post.id });
+  assert.ok(before);
+  deps.pluginBeforeSaveHook = async () => { throw new PluginHookFailedError("throwing-plugin", "update filter failed: boom"); };
+  // PUT validates the complete editable fields before invoking the hook; keep this request valid
+  // so the failure exercises the plugin error mapping rather than input validation.
+  const updated = await fetch(`${base}/${post.id}`, {
+    method: "PUT",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({
+      title: "Blocked update",
+      slug: before.slug,
+      status: before.status,
+      expectedVersion: before.version,
+      bodyJson: { type: "doc", content: [] },
+    }),
+  });
+  assert.equal(updated.status, 500);
+  assert.deepEqual(await updated.json(), { error: "update filter failed: boom", code: "PLUGIN_HOOK_FAILED", pluginId: "throwing-plugin" });
+  assert.deepEqual(await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: post.id }), before);
 });

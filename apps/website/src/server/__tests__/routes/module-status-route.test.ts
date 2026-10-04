@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { bootAuthenticated } from "../helpers/http-test-server.js";
-import { setReadinessSnapshot } from "../../runtime/lifecycle/readiness-state.js";
+import { getReadinessSnapshot, setReadinessSnapshot } from "../../runtime/lifecycle/readiness-state.js";
 import type { RouteDeps } from "../../routes/types.js";
 import type { BootResult } from "../../runtime/lifecycle/boot-lifecycle.js";
 
@@ -50,9 +50,14 @@ test("module-status: an unauthorized principal (no grants) gets 403", async (t) 
     headers: { cookie },
   });
   assert.equal(res.status, 403);
+  const body = await res.json() as Record<string, unknown>;
+  assert.equal(body.code, "FORBIDDEN");
+  assert.equal(Object.hasOwn(body, "modules"), false);
 });
 
 test("module-status: the seeded owner (wildcard grant) gets 200 with the full module list", async (t) => {
+  const prior = getReadinessSnapshot();
+  t.after(() => setReadinessSnapshot(prior));
   const knownResult: BootResult = {
     ok: true,
     modules: [
@@ -74,6 +79,8 @@ test("module-status: the seeded owner (wildcard grant) gets 200 with the full mo
 });
 
 test("module-status: reports 503 (not 200) when the snapshot's ok is false, same body as always", async (t) => {
+  const prior = getReadinessSnapshot();
+  t.after(() => setReadinessSnapshot(prior));
   // Mirrors `/readyz`'s own mapping — a CRITICAL module actually failing to boot is a real failure
   // state a monitoring probe must be able to see from the status code alone, not just from reading
   // the JSON body. Regression for the route unconditionally returning 200 regardless of `ok`.

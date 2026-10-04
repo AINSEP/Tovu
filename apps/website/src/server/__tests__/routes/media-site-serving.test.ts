@@ -67,7 +67,7 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   return { app, deps };
 }
 
-test("ADR-027 §4: a published post's ref-based image node renders a real <img> on GET /:slug, and that <img>'s own src resolves 200 through the real /m/ route", async (t) => {
+test("ADR-027 §4: a published post's ref-based image renders on GET /:slug; its missing rendition returns 404 through /m/", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -234,6 +234,7 @@ test("ADR-027 §4: a published post with a legacy hostile-scheme-src image node 
   });
 
   const siteRes = await fetch(`${baseUrl}/legacy-image-post`);
+  assert.equal(siteRes.status, 200);
   const html = await siteRes.text();
   assert.match(html, /media-ph/);
   assert.doesNotMatch(html, /<img/);

@@ -29,6 +29,11 @@ function validBody(overrides: Record<string, unknown> = {}): Record<string, unkn
 test("bundle body validation accepts the current artifact and entity version fields", () => {
   const result = validateBundleBody(validBody());
   assert.equal("error" in result, false);
+  assert.deepEqual(result, { artifactFormatVersion: 1, hashVersion: 1, sourceLabel: "source", entities: [{ entityType: "post", id: "p-1", schemaVersion: 1, contentHash: "hash", hashVersion: 1, requiredBlobs: [], state: {} }], blobManifest: [] });
+});
+
+test("bundle body validation preserves an integer stale hashVersion for the import planner to reject", () => {
+  assert.deepEqual(validateBundleBody(validBody({ hashVersion: 0 })), { artifactFormatVersion: 1, hashVersion: 0, sourceLabel: "source", entities: [{ entityType: "post", id: "p-1", schemaVersion: 1, contentHash: "hash", hashVersion: 1, requiredBlobs: [], state: {} }], blobManifest: [] });
 });
 
 test("bundle body validation rejects a missing or unknown artifact format version", () => {
@@ -51,4 +56,3 @@ test("bundle body validation rejects a missing or non-integer per-type schema ve
     { error: "entities[0].schemaVersion must be an integer" }
   );
 });
-

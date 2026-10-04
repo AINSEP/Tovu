@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -83,7 +83,7 @@ function hashTree(dir: string, prefix = ""): Record<string, string> {
 
 test(
   "a real Astro build's unmodified output run through the install-time conformance gate",
-  { timeout: 60_000 },
+  { timeout: 60_000, skip: existsSync(ASTRO_BIN) ? false : `Astro binary unavailable: ${ASTRO_BIN}` },
   () => {
     rmSync(DIST_DIR, { recursive: true, force: true });
 

@@ -58,6 +58,8 @@ const PLAN_STEPS: Step[] = [
   { match: /\/git\/commits\/parent-sha$/, status: 200, json: { tree: { sha: "base-tree-sha" } } },
   // One listing per parent directory (S21): root-level fly.toml is checked via the root listing.
   { match: /\/contents\?ref=main$/, status: 200, json: [] },
+  // Commit now reads the immutable base tree to preserve existing file modes.
+  { match: /\/git\/trees\/base-tree-sha$/, status: 200, json: { tree: [] } },
 ];
 
 /** A transport failure whose text carries an internal address and â€” the worst case for an adapter
@@ -180,4 +182,18 @@ test("a provider rejection during the commit still carries GitHub's own reason â
 
   assert.match(wireText, /"reason":"error","message":"GitHub blob creation failed: Invalid blob content"/);
   assert.ok(!wireText.includes(LEAK_MARKER), wireText);
+});
+
+test("a rejected branch update after blob, tree and commit creation carries GitHub's reason without transport-detail logging", async () => {
+  const harness = await buildHarness([
+    ...PLAN_STEPS,
+    { match: /\/git\/blobs$/, status: 201, json: { sha: "blob-sha" } },
+    { match: /\/git\/trees$/, status: 201, json: { sha: "tree-sha" } },
+    { match: /\/git\/commits$/, status: 201, json: { sha: "commit-sha" } },
+    { match: /\/git\/refs\/heads\/main$/, status: 403, json: { message: "Protected branch update failed" } },
+  ]);
+  const { wireText, eventsText } = await callWrite(harness);
+  assert.match(wireText, /"executed":false,"cancelled":false,"reason":"error","message":"GitHub branch update failed: Protected branch update failed"/);
+  assert.deepEqual(harness.logLines, [], "provider reasons are already published; only log-only transport details are logged");
+  assertNowhere({ result: wireText, events: eventsText, log: harness.logLines.join("\n") }, LEAK_MARKER);
 });

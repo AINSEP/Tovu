@@ -44,6 +44,15 @@ test("RT-005: consecutive/irregular whitespace inside a single text node collaps
   assert.equal(countWords(bodyJson), 4);
 });
 
+test("RT-005: punctuation tokens count as tokens and Unicode whitespace separates them", () => {
+  assert.equal(countWords(paragraph(textNode("a - b"))), 3);
+  assert.equal(countWords(paragraph(textNode("one\u00a0two\u2003three"))), 3);
+});
+
+test("RT-005: missing text and non-array content are ignored without losing valid sibling text", () => {
+  assert.equal(countWords({ type: "doc", content: [{ type: "text", text: undefined }, { type: "paragraph", content: { type: "text", text: "ignored" } }, textNode("real words")] }), 2);
+});
+
 test("RT-005: a text node containing only whitespace contributes zero tokens, not an empty-string token", () => {
   const bodyJson = { type: "doc", content: [paragraph(textNode("   "), textNode("real word"))] };
   assert.equal(countWords(bodyJson), 2);

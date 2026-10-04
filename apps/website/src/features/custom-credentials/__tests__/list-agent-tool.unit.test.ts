@@ -289,8 +289,8 @@ test("omits `username` entirely for a credential saved without one — never an 
 // 4. Authorization and input contract
 // ---------------------------------------------------------------------------
 
-test("a denied principal is refused and the repo is never read", async () => {
-  const { deps, sealer, writeDeps, authorizeCalls } = fakeRouteDeps({ allow: false });
+test("a denied principal is refused and the repo is never read", async (t) => {
+  const { deps, repo, sealer, writeDeps, authorizeCalls } = fakeRouteDeps({ allow: false });
   await createCustomCredential(writeDeps, {
     workspaceId: WORKSPACE_ID,
     label: "fly.io",
@@ -299,17 +299,24 @@ test("a denied principal is refused and the repo is never read", async () => {
     connection: { token: "flyio-secret-token" },
   });
 
+  const list = t.mock.method(repo, "listByWorkspace", () => { throw new Error("denied call read the repo"); });
+  const find = t.mock.method(repo, "findById", () => { throw new Error("denied call read the repo"); });
   await assert.rejects(
     () => call(tool(buildRegistrations(deps, createSurfaceExchangeStore()), TOOL_ID)),
     /is not authorized for 'custom-credentials\.read'/
   );
   assert.equal(authorizeCalls[0]?.permission, "custom-credentials.read");
   assert.equal(sealer.openCalls, 0);
+  assert.equal(list.mock.callCount(), 0);
+  assert.equal(find.mock.callCount(), 0);
 });
 
 test("rejects a non-empty input — this tool takes no arguments", async () => {
   const { deps } = fakeRouteDeps();
-  await assert.rejects(() => call(tool(buildRegistrations(deps, createSurfaceExchangeStore()), TOOL_ID), { unexpected: "field" }));
+  await assert.rejects(
+    () => call(tool(buildRegistrations(deps, createSurfaceExchangeStore()), TOOL_ID), { unexpected: "field" }),
+    /this tool accepts no input — omit 'input' or pass \{\}/
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -345,8 +352,12 @@ function catalogEntry(name: string) {
 test("the description names every field a listed row actually carries", async () => {
   const row = await listOneFullRow();
   const { description } = catalogEntry(TOOL_ID);
+  const fieldList = description.match(/For each one, returns: (.*?)\. Never returns/s);
+  assert.ok(fieldList, "the description must identify the fields returned for each credential");
   for (const field of Object.keys(row)) {
-    assert.match(description, new RegExp(`\\b${field}\\b`), `a listed row carries '${field}', but the description never names it`);
+    // Parenthetical prose is explanatory, rather than a declaration of a returned field.
+    const declarations = fieldList[1]!.replace(/\([^)]*\)/g, "");
+    assert.match(declarations, new RegExp(`\\b${field}\\b`), `a listed row carries '${field}', but the field list never names it`);
   }
 });
 

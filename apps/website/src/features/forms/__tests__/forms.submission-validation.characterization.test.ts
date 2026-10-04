@@ -68,6 +68,18 @@ test("validateSubmissionPayload: each rejecting branch reports its exact reason 
   ]);
 });
 
+test("validateSubmissionPayload: email accepts arbitrary non-empty strings; email and textarea reject non-string JSON values", () => {
+  assert.deepEqual(
+    validateSubmissionPayload({ definition: definition(), body: { name: "Ada", email: "not-an-email", message: "hello" } }),
+    { valid: true, data: { name: "Ada", email: "not-an-email", message: "hello" } }
+  );
+  for (const field of ["email", "message"]) {
+    for (const value of [123, ["x"], {}, true]) {
+      assert.deepEqual(errorsOf({ name: "Ada", email: "ada@example.com", [field]: value }), [{ field, reason: "must be a string" }]);
+    }
+  }
+});
+
 // ---------------------------------------------------------------------------
 // Absence: `null` and `undefined` are the same signal; requiredness decides.
 // ---------------------------------------------------------------------------
