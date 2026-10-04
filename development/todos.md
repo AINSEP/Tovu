@@ -76,7 +76,6 @@ plugin install from a local folder/zip, raw-HTML forms, media `createdBy`.
 
 ### Publish
 - **Publish installed skills, site plugins and agent-plugin files** (09-24, L3093–3098): only the theme-files handler exists in the publish type registry.
-- **Advanced manual publish "YOLO" backstop — schema install left** (09-24, L3101–3102): BS1–BS5 landed `445575f6c`; BS6 admin UI (Dashboard → "Advanced: send by hand") landed `87b41d024`. Left: install the audit table as runtime migration `0007_publish_backstop` (`ADS-memory/.local-artifacts/codex-waves/features-2026-10-04/staged/publish-backstop/install-0007.patch`, schema declarations included). Held 10-04: the patch does not add the 0007 operation to `platform/db/sqlite/fresh-content-db.ts`, so every fresh `openContentDb` would throw. Fix first: `followups/backstop-0007-fresh-bootstrap.md`. Until then the screen says "needs audit storage installed" and every send returns `BACKSTOP_NOT_INSTALLED`.
 
 ### Persistence & CAS (web-medium `wm` plan: `ADS-memory/.local-artifacts/fix-plan-web-medium-2026-09-24.md`; owner ordered these run 09-24, L3256)
 - **wm S1→S2** (L3314): listed as remaining on 09-24; confirm state before starting.
@@ -170,7 +169,8 @@ plugin install from a local folder/zip, raw-HTML forms, media `createdBy`.
 - **Desktop: minWidth/minHeight 1024×700 on site/admin windows** (L52) — `ee199361f`.
 - **Desktop: Google Fonts vendored + CSP `style-src`/`font-src 'self'`** (L3053) — `ee199361f`.
 - **Desktop: auto-update on/off** (L3042): Settings → Automatically update Tovu, default on — `ee199361f`.
-- **Publish backstop BS1–BS5** (L3101–3102) — `445575f6c`. Owner answers 10-04: **B1** owner AND built-in admins can use it (no custom role can be granted it); **B2** ON at the live destination (`deploy/publish-trust.json` grants raw-row/raw-file + `publish_content.backstop`); **B3** plugin `p_*` tables allowed (deny-list + secret scan still apply). BS6 + schema install still open under Publish.
+- **Publish backstop BS1–BS5** (L3101–3102) — `445575f6c`. Owner answers 10-04: **B1** owner AND built-in admins can use it (no custom role can be granted it); **B2** ON at the live destination (`deploy/publish-trust.json` grants raw-row/raw-file + `publish_content.backstop`); **B3** plugin `p_*` tables allowed (deny-list + secret scan still apply). BS6 screens `87b41d024`.
+- **Publish backstop audit table installed** (10-04): migration `0007_publish_backstop` + fresh-DB step, applied to tovu-dev; no preselected destination, warning-style notice, panel below stats — `ca33c07e4`. tovu.fly.dev gets 0007 on its next deploy.
 - **Plugin-memory layout B** (L704–718/L1014–1020): per-plugin package/memory/data, idempotent boot migration, memory tools, admin Memory pane, Higgsfield learns its account — `852d711e6` + Jini `e4eac924`/`9cac0d86` (unreleased `persistent-state` entry). Left: `dev.tovu.memory` namespace + learned seeds (owner call).
 - **Plugin Memory pane styled + Layout B migration unblocks** (10-04): styled form, empty states, tab-aware title — `30127dd29`; rejected legacy entries quarantined so seeding no longer refuses forever — `b0e099fe7` + Jini `c4927575`.
 - **Builder form field errors friendly** (10-04): `/contact` empty email shows "Please enter your email." — `090192e86`.
