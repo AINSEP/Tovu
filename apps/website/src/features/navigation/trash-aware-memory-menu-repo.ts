@@ -19,7 +19,9 @@ export type TrashableMenuRecord = NavMenuEntry & { priorStatus: MenuStatus | nul
 
 export class TrashAwareInMemoryMenuRepo implements MenuRepoPort, MenuTrashLookup {
   private readonly inner = new InMemoryMenuRepo({});
-  /** id → status held immediately before the most recent trash. */
+  /** `workspaceId::id` → status held immediately before the most recent trash. Keyed by workspace
+   *  because a menu id is only unique within its workspace; an id-only key leaked one workspace's
+   *  restore status into another's same-id menu. */
   private readonly priorStatus = new Map<string, MenuStatus>();
 
   /** @complexity O(n) over stored menus (the inner repo's scan). */
@@ -71,14 +73,18 @@ export class TrashAwareInMemoryMenuRepo implements MenuRepoPort, MenuTrashLookup
   /** Trash seam: the row whether or not it is trashed, plus its restore marker. @complexity O(n). */
   async findAnyById(required: { workspaceId: string; id: string }): Promise<TrashableMenuRecord | null> {
     const row = await this.inner.findById(required);
-    return row ? { ...row, priorStatus: this.priorStatus.get(row.id) ?? null } : null;
+    return row ? { ...row, priorStatus: this.priorStatus.get(priorStatusKey(row)) ?? null } : null;
   }
 
   /** Trash seam: writes the row and updates the prior-status marker as given. @complexity O(n). */
   async saveAny(record: TrashableMenuRecord): Promise<void> {
     const { priorStatus, ...row } = record;
     await this.inner.save(row);
-    if (priorStatus === null) this.priorStatus.delete(row.id);
-    else this.priorStatus.set(row.id, priorStatus);
+    if (priorStatus === null) this.priorStatus.delete(priorStatusKey(row));
+    else this.priorStatus.set(priorStatusKey(row), priorStatus);
   }
+}
+
+function priorStatusKey(row: { workspaceId: string; id: string }): string {
+  return `${row.workspaceId}::${row.id}`;
 }
