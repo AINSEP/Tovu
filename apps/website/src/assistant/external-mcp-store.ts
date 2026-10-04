@@ -7,6 +7,12 @@ import type { KeyringPort, SealedSecret, SecretSealerPort } from "../features/we
 import { FEDERATED_CONNECTION_DEFAULTS, type ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 import type { McpLaunchSpec } from "./mcp-federation/ports.js";
 import { assertValidConnectionId } from "@jini-ai/mcp/federation";
+import {
+  EXTERNAL_MCP_AUTH_MODES,
+  externalMcpRecordHasStaticAccessToken,
+  resolveExternalMcpAuthMode,
+  type ExternalMcpAuthMode,
+} from "../features/external-mcp/auth-mode.js";
 
 /**
  * @file The operator-editable roster of external MCP servers — what Settings → External MCP writes,
@@ -62,17 +68,16 @@ import { assertValidConnectionId } from "@jini-ai/mcp/federation";
 export const SUPPORTED_EXTERNAL_MCP_TRANSPORTS = ["stdio", "streamable_http"] as const;
 export type ExternalMcpTransport = (typeof SUPPORTED_EXTERNAL_MCP_TRANSPORTS)[number];
 
-/**
- * How a server's credentials are obtained — independent of {@link ExternalMcpTransport}.
- *
- * - `none` — no credentials at all. Common for local developer tooling.
- * - `static_env` — the operator pasted a `KEY=VALUE` block. What this store has always done, and
- *   the default for every row that predates this field.
- * - `oauth` — Tovu holds a token it obtained itself and must keep alive. See
- *   `assistant/external-mcp-oauth.ts`.
- */
-export const EXTERNAL_MCP_AUTH_MODES = ["none", "static_env", "oauth"] as const;
-export type ExternalMcpAuthMode = (typeof EXTERNAL_MCP_AUTH_MODES)[number];
+/** `EXTERNAL_MCP_AUTH_MODES`/`ExternalMcpAuthMode` (how a server's credentials are obtained) and
+ *  their two readers live in the external-MCP domain module `features/external-mcp/auth-mode.ts`
+ *  (moved 2026-10-03, owner decision C — see that file's header). Re-exported here so every
+ *  `#src/assistant/index` importer keeps working unchanged. */
+export {
+  EXTERNAL_MCP_AUTH_MODES,
+  externalMcpRecordHasStaticAccessToken,
+  resolveExternalMcpAuthMode,
+  type ExternalMcpAuthMode,
+} from "../features/external-mcp/auth-mode.js";
 
 /**
  * The runtime lifecycle of an OAuth-backed connection.
@@ -648,21 +653,6 @@ function toolNameSetsEqual(a: readonly string[], b: readonly string[]): boolean 
   return a.every((name) => setB.has(name));
 }
 
-/**
- * Reads a row's auth mode, defaulting a row written before the column existed.
- *
- * `static_env` is the correct default rather than `none`: every pre-existing row was written by a
- * form whose only credential mechanism was the env block, and a row with an empty block behaves
- * identically under either mode. Defaulting to `none` would silently relabel rows that DO carry a
- * sealed block as credential-free.
- *
- * @complexity O(1).
- */
-export function resolveExternalMcpAuthMode(record: Pick<ExternalMcpServerRecord, "authMode">): ExternalMcpAuthMode {
-  const mode = record.authMode;
-  return EXTERNAL_MCP_AUTH_MODES.includes(mode as ExternalMcpAuthMode) ? (mode as ExternalMcpAuthMode) : "static_env";
-}
-
 /** A row's OAuth status, defaulting an absent or unrecognized value to `disconnected` — the safe
  *  direction, since it is the state in which no token is used and the operator is prompted. */
 export function resolveExternalMcpOAuthStatus(record: Pick<ExternalMcpServerRecord, "oauthStatus">): ExternalMcpOAuthStatus {
@@ -710,20 +700,6 @@ export function externalMcpRecordHasStoredToken(
 ): boolean {
   if (record.sealedOAuth === null) return false;
   return resolveExternalMcpOAuthStatus(record) === "connected" || record.oauthExpiresAt !== null;
-}
-
-/**
- * Whether a row holds a `static_env` access token — answered from plaintext columns, never by unsealing.
- *
- * Truthful because a `static_env` row's sealed OAuth blob only ever holds that token: leaving `oauth`
- * clears the client secret and token set ({@link resolveSealedOAuthBlob}), and entering `oauth` never
- * carries this token forward ({@link openExternalMcpOAuthPayload}'s callers rebuild the payload from
- * `clientSecret`/`tokens` alone).
- *
- * @complexity O(1).
- */
-export function externalMcpRecordHasStaticAccessToken(record: Pick<ExternalMcpServerRecord, "authMode" | "sealedOAuth">): boolean {
-  return resolveExternalMcpAuthMode(record) === "static_env" && Boolean(record.sealedOAuth);
 }
 
 function toView(record: ExternalMcpServerRecord): ExternalMcpServerView {

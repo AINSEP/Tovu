@@ -1,9 +1,9 @@
 import {
-  externalMcpRecordHasStaticAccessToken,
   saveExternalMcpServer,
   type ExternalMcpServerRecord,
   type ExternalMcpStoreDeps,
 } from "#src/assistant/index";
+import { externalMcpRecordHasStaticAccessToken } from "../external-mcp/auth-mode.js";
 
 import { classifyAgentPluginMcpServerTrust, readInstalledMcpServers } from "./capability-projection.js";
 import { resolveAgentPluginLayout } from "./layout.js";

@@ -8,12 +8,12 @@ import type { AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exc
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 import {
   ExternalMcpValidationError,
-  externalMcpRecordHasStaticAccessToken,
   resolveExternalMcpOAuthStatus,
   type ExternalMcpOAuthService,
   type ExternalMcpServerRecord,
   type ExternalMcpServerRepoPort,
 } from "#src/assistant/index";
+import { externalMcpRecordHasStaticAccessToken } from "../external-mcp/auth-mode.js";
 
 import { buildAgentPluginConnectCard } from "./connect-card-ui.js";
 import { deriveAgentPluginConnectionId, provisionAgentPluginMcpServers } from "./federate-mcp.js";
