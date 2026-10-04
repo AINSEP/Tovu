@@ -63,12 +63,12 @@ test("register: an existing key is refused with 409 CONTENT_TYPE_ALREADY_EXISTS 
   assert.equal(row?.version, 3);
 });
 
-test("register: a tombstoned key is refused with 409 CONTENT_TYPE_ALREADY_EXISTS naming INV-06", async (t) => {
+test("register: a tombstoned key is refused with 409 CONTENT_TYPE_ALREADY_EXISTS", async (t) => {
   const { baseUrl, repo } = await buildApp(t, "tombstone");
   const { status, json } = await send(`${baseUrl}/api/admin/v1/content-types`, "POST", { key: "recipe", label: "Recipe", fields: FIELDS });
   assert.equal(status, 409);
   assert.equal(json.code, "CONTENT_TYPE_ALREADY_EXISTS");
-  assert.equal(json.error, "content type 'recipe' was permanently deleted; its key can't be reused (INV-06)");
+  assert.equal(json.error, "content type 'recipe' was permanently deleted; its key can't be reused");
   assert.equal((await repo.findByKey({ workspaceId: "ws-1", key: "recipe" }))?.status, "tombstone");
 });
 

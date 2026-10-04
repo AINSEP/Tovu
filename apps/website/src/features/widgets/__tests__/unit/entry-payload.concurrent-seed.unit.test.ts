@@ -62,7 +62,7 @@ test("ensureWidgetContentTypesRegistered: a tombstoned key is still a failure", 
     () => ensureWidgetContentTypesRegistered({ deps: seedDeps(repo), workspaceId: "ws-1" }),
     (err: unknown) => {
       assert.ok(err instanceof ContentTypeAlreadyExistsError);
-      assert.equal(err.message, "content type 'widget' was permanently deleted; its key can't be reused (INV-06)");
+      assert.equal(err.message, "content type 'widget' was permanently deleted; its key can't be reused");
       return true;
     }
   );
