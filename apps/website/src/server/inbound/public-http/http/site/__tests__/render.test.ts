@@ -1844,7 +1844,48 @@ test("injectFormSubmissionResultIntoHtml: success reveals the success message an
   assert.match(updated, /<form hidden class="widget tovu-form widget-contact-form"/);
 });
 
-test("injectFormSubmissionResultIntoHtml: validation reveals the matching field's error, escaped, and leaves an unrelated field's slot untouched", () => {
+test("builder form: an empty required email shows a friendly field sentence while preserving the summary and machine errors", () => {
+  const html = contactFormPageHtml("contact-us");
+  const result: FormSubmissionRedirectResult = {
+    kind: "validation",
+    slug: "contact-us",
+    fieldErrors: [{ field: "email", reason: "required" }],
+  };
+  const params = encodeFormSubmissionResultQuery(result);
+  assert.equal(params.get("form_errors"), JSON.stringify([{ field: "email", reason: "required" }]));
+  const decoded = decodeFormSubmissionResultFromQuery(Object.fromEntries(params));
+  assert.deepEqual(decoded, result);
+
+  const updated = injectFormSubmissionResultIntoHtml(html, decoded);
+  assert.match(updated, /<div class="widget-form-field-error" data-field="email" id="widget-contact-email-error">Please enter your email\.<\/div>/);
+  assert.match(updated, /<div class="tovu-form-error widget-contact-form-error" data-form-slug="contact-us" data-contact-form-slug="contact-us">Please fix the highlighted fields below\.<\/div>/);
+  assert.doesNotMatch(updated, />required<\/div>/);
+  assert.equal(encodeFormSubmissionResultQuery(result).toString(), params.toString(), "rendering must leave machine-readable reasons unchanged");
+});
+
+test("builder field instructions use document language and honor a form language override", () => {
+  const html = contactFormPageHtml();
+  const result: FormSubmissionRedirectResult = { kind: "validation", slug: "contact", fieldErrors: [{ field: "email", reason: "required" }] };
+  for (const [page, expected] of [
+    [`<html lang="es-MX">${html}</html>`, "Introduce Email."],
+    [`<html lang="es-MX">${html.replace("<form ", '<form lang="fr" ')}</html>`, "Veuillez renseigner Email."],
+  ]) {
+    const updated = injectFormSubmissionResultIntoHtml(page, result);
+    assert.ok(updated.includes(`id="widget-contact-email-error">${expected}</div>`));
+    assert.match(updated, /Please fix the highlighted fields below\./);
+  }
+});
+
+test("builder fields translate length and invalid reasons into label-based instructions", () => {
+  for (const [reason, message] of [["too_long", "Please shorten your email."], ["invalid", "Please check your email."]]) {
+    const updated = injectFormSubmissionResultIntoHtml(contactFormPageHtml(), {
+      kind: "validation", slug: "contact", fieldErrors: [{ field: "email", reason }],
+    });
+    assert.ok(updated.includes(`id="widget-contact-email-error">${message}</div>`));
+  }
+});
+
+test("injectFormSubmissionResultIntoHtml: validation reveals a friendly matching field error without echoing a forged reason, and leaves an unrelated field's slot untouched", () => {
   const html = renderWidgetIr({
     componentId: "contact-form",
     props: {
@@ -1861,31 +1902,35 @@ test("injectFormSubmissionResultIntoHtml: validation reveals the matching field'
     slug: "contact",
     fieldErrors: [{ field: "email", reason: "<script>bad</script>" }],
   });
-  assert.match(updated, /<div class="widget-form-field-error" data-field="email" id="widget-contact-email-error">&lt;script&gt;bad&lt;\/script&gt;<\/div>/);
-  assert.doesNotMatch(updated, /<script>bad<\/script><\/div>/, "reason text must be escaped, not raw HTML");
+  assert.match(updated, /<div class="widget-form-field-error" data-field="email" id="widget-contact-email-error">Please check your email\.<\/div>/);
+  assert.doesNotMatch(updated, /bad|&lt;script&gt;/, "forged reason text must never be echoed");
   assert.match(updated, /data-field="message"[^>]*hidden><\/div>/, "an untouched field's error slot must stay hidden");
   assert.match(updated, /Please fix the highlighted fields below\./);
 });
 
-test("injectFormSubmissionResultIntoHtml: a field reason containing an apostrophe is HTML-escaped, not left to survive raw (2026-09-06 escapeHtml fix — form-render.ts's copy omitted the apostrophe entity)", () => {
-  const html = contactFormPageHtml();
+test("injectFormSubmissionResultIntoHtml: a field label containing an apostrophe is HTML-escaped (2026-09-06 escapeHtml fix — form-render.ts's copy omitted the apostrophe entity)", () => {
+  const html = renderWidgetIr({ componentId: "contact-form", props: {
+    slug: "contact", fields: [{ id: "email", label: "Recipient's email", type: "email", required: true }],
+  } });
   const updated = injectFormSubmissionResultIntoHtml(html, {
     kind: "validation",
     slug: "contact",
-    fieldErrors: [{ field: "email", reason: "Don't leave this blank" }],
+    fieldErrors: [{ field: "email", reason: "required" }],
   });
-  assert.match(updated, /Don&#39;t leave this blank/, "an apostrophe in attacker-influenced text must be escaped");
-  assert.doesNotMatch(updated, /Don't leave this blank</, "a raw, unescaped apostrophe must never survive into rendered HTML");
+  assert.match(updated, /id="widget-contact-email-error">Please enter Recipient&#39;s email\.<\/div>/, "an apostrophe in the field instruction must be escaped");
+  assert.doesNotMatch(updated, /Recipient's email</, "a raw, unescaped apostrophe must never survive into rendered HTML");
 });
 
-test("injectFormSubmissionResultIntoHtml: a field reason containing '$&'/'$1'-shaped text renders literally instead of corrupting the surrounding HTML (String.prototype.replace's own replacement-pattern syntax)", () => {
-  const html = contactFormPageHtml();
+test("injectFormSubmissionResultIntoHtml: a field label containing '$&'/'$1'-shaped text renders literally instead of corrupting the surrounding HTML (String.prototype.replace's own replacement-pattern syntax)", () => {
+  const html = renderWidgetIr({ componentId: "contact-form", props: {
+    slug: "contact", fields: [{ id: "email", label: "cost is $1.00, not $&", type: "email", required: true }],
+  } });
   const updated = injectFormSubmissionResultIntoHtml(html, {
     kind: "validation",
     slug: "contact",
-    fieldErrors: [{ field: "email", reason: "cost is $1.00, not $&" }],
+    fieldErrors: [{ field: "email", reason: "required" }],
   });
-  assert.match(updated, /cost is \$1\.00, not \$&amp;/);
+  assert.match(updated, /id="widget-contact-email-error">Please enter cost is \$1\.00, not \$&amp;\.<\/div>/);
   // A `$&` mis-substitution would have duplicated the matched substring inline — the baseline count
   // (success slot + form tag + the form's own error-summary div, all three carry the attribute) must
   // stay exactly 3, not grow. Checked on BOTH the legacy attribute and the generic one it now stands
@@ -1941,7 +1986,7 @@ test("decodeFormSubmissionResultFromQuery: malformed/hostile query input degrade
   assert.equal(decoded?.kind === "validation" ? decoded.fieldErrors.length : -1, 20);
 });
 
-test("decodeFormSubmissionResultFromQuery -> injectFormSubmissionResultIntoHtml: a hand-crafted hostile form_errors query value round-trips as raw text and is only ever escaped at the HTML sink, never double-escaped or left raw", () => {
+test("decodeFormSubmissionResultFromQuery -> injectFormSubmissionResultIntoHtml: a hostile form_errors reason round-trips as raw machine data and renders a safe label-based instruction", () => {
   // Simulates an attacker hitting a page directly with a hand-crafted `form_errors` query string
   // (not one this app's own redirect produced) whose `reason` carries an HTML-breaking payload, and
   // whose `field` carries a lookalike-but-wrong name — this exercises readFieldErrorsFromQuery's
@@ -1970,8 +2015,8 @@ test("decodeFormSubmissionResultFromQuery -> injectFormSubmissionResultIntoHtml:
 
   const decoded = decodeFormSubmissionResultFromQuery(query);
   assert.equal(decoded?.kind, "validation");
-  // Decoded value is the RAW, unescaped string — proves this module's own "escape at the sink, not
-  // at the decode boundary" rule, not merely that the final HTML happens to be safe.
+  // Decoded value is the RAW, unescaped string — decoding preserves machine data; localization
+  // happens only at the HTML sink, so a safe final response alone cannot prove the decoder contract.
   assert.equal(decoded?.kind === "validation" ? decoded.fieldErrors[0]?.reason : undefined, hostileReason);
   // `__proto__` as a field name is read as a plain data property, never used to write through an
   // object's prototype — Object.prototype itself is untouched by decoding this query.
@@ -1981,9 +2026,10 @@ test("decodeFormSubmissionResultFromQuery -> injectFormSubmissionResultIntoHtml:
   assert.doesNotMatch(updated, /<script>alert\(1\)<\/script>/, "the hostile reason must never reach the response as live markup");
   assert.match(
     updated,
-    /<div class="widget-form-field-error" data-field="email" id="widget-contact-email-error">&quot;&gt;&lt;script&gt;alert\(1\)&lt;\/script&gt;<\/div>/,
-    "the email field's error slot must show the reason, HTML-escaped"
+    /<div class="widget-form-field-error" data-field="email" id="widget-contact-email-error">Please check your email\.<\/div>/,
+    "the email field's error slot must show a friendly instruction"
   );
+  assert.doesNotMatch(updated, /alert\(1\)|__proto__|no-such-field/);
 });
 
 // ---------------------------------------------------------------------------
@@ -2083,7 +2129,7 @@ test("injectFormSubmissionResultIntoHtml: validation WITH flash values re-popula
   const updated = injectFormSubmissionResultIntoHtml(html, {
     kind: "validation",
     slug: "contact",
-    fieldErrors: [{ field: "message", reason: "Required" }],
+    fieldErrors: [{ field: "message", reason: "required" }],
     values: { name: "Ada <Lovelace>", email: "ada@example.com" },
   });
   // The two fields that were VALID (no error) must come back with what the visitor typed — this is
@@ -2092,7 +2138,8 @@ test("injectFormSubmissionResultIntoHtml: validation WITH flash values re-popula
   assert.match(updated, /<input type="email" name="email" id="widget-contact-email"[^>]*aria-describedby="widget-contact-email-error"[^>]* value="ada@example\.com"\/>/);
   // The invalid field has no flash entry (only name/email were supplied above) — its own error slot
   // still gets its message, and its <textarea> is untouched (not forced empty, not crashed on).
-  assert.match(updated, /<div class="widget-form-field-error" data-field="message"[^>]*>Required<\/div>/);
+  assert.match(updated, /<div class="widget-form-field-error" data-field="message"[^>]*>Please enter Message\.<\/div>/);
+  assert.match(updated, /<textarea name="message" id="widget-contact-message"[^>]*><\/textarea>/);
 });
 
 test("injectFormSubmissionResultIntoHtml: a flash value naming a field this page's form does not have is a silent no-op for that entry (stale/forged flash)", () => {

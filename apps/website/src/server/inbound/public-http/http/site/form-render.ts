@@ -343,9 +343,9 @@ function showFormErrorSummary(formHtml: string, slugPattern: string, message: st
     .replace(plainRegex, (_match, openTag: string) => `${openTag}>${message}</div>`);
 }
 
-/** Un-hides each per-field error slot named in `fieldErrors` with its own (HTML-escaped) `reason`
- *  text. `field`/`reason` came off `readFieldErrorsFromQuery` — a visitor-controlled query string —
- *  so both get the same `escapeHtml` treatment field labels get; a slot naming a field the form
+/** Un-hides each per-field error slot named in `fieldErrors` with its localized, HTML-escaped
+ *  instruction. `field` came off `readFieldErrorsFromQuery` — a visitor-controlled query string —
+ *  and messages include server-rendered labels, so both get `escapeHtml`; a slot naming a field the form
  *  doesn't actually have (stale/forged) simply never matches and is a no-op for that one entry, not
  *  a partial-corruption risk. `.widget-form-field`/`.widget-form-field-error` are already
  *  form-generic class names (not `contact-form`-specific), so no change was needed here for the
@@ -471,9 +471,11 @@ export function injectFormSubmissionResultIntoHtml(html: string, result: FormSub
     updatedForm = hideFormElement(originalForm);
   } else if (result.kind === "validation") {
     const authored = originalForm.includes("data-tovu-form=");
-    const messages = authored
-      ? formValidationMessages({ formHtml: originalForm, errors: result.fieldErrors.length ? result.fieldErrors : [{ field: "", reason: "invalid" }], locale: formDocumentLocale({ html }) })
-      : result.fieldErrors.map(({ field, reason }) => ({ field, message: reason }));
+    const messages = formValidationMessages({
+      formHtml: originalForm,
+      errors: result.fieldErrors.length ? result.fieldErrors : [{ field: "", reason: "invalid" }],
+      locale: formDocumentLocale({ html }),
+    });
     updatedForm = showFormErrorSummary(
       showFieldValues(showFieldErrors(originalForm, messages), result.values),
       slugPattern,
