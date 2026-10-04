@@ -1121,9 +1121,18 @@ const TERM_PICKER_I18N: Record<string, Record<string, string>> = {
   "ur": { "Tick the categories and tags that apply, then save.": "متعلقہ زمرہ جات اور ٹیگز منتخب کریں، پھر محفوظ کریں۔", "Save categories & tags": "زمرہ جات اور ٹیگز محفوظ کریں", "Categories & tags saved.": "زمرہ جات اور ٹیگز محفوظ ہو گئے۔", "Failed to save categories & tags": "زمرہ جات اور ٹیگز محفوظ نہیں ہو سکے", "Loading categories & tags…": "زمرہ جات اور ٹیگز لوڈ ہو رہے ہیں…", "Failed to load categories & tags": "زمرہ جات اور ٹیگز لوڈ نہیں ہو سکے" },
   "bn": { "Tick the categories and tags that apply, then save.": "প্রযোজ্য বিভাগ ও ট্যাগগুলোতে টিক দিন, তারপর সংরক্ষণ করুন।", "Save categories & tags": "বিভাগ ও ট্যাগ সংরক্ষণ করুন", "Categories & tags saved.": "বিভাগ ও ট্যাগ সংরক্ষিত হয়েছে।", "Failed to save categories & tags": "বিভাগ ও ট্যাগ সংরক্ষণ করা যায়নি", "Loading categories & tags…": "বিভাগ ও ট্যাগ লোড হচ্ছে…", "Failed to load categories & tags": "বিভাগ ও ট্যাগ লোড করা যায়নি" },
 };
-for (const [locale, translations] of Object.entries(TERM_PICKER_I18N)) {
-  Object.assign(TAXONOMY_DICT[locale], translations);
+// Same extension pattern as `forms-i18n.ts`/`collections-i18n.ts`: merging through a parameter keeps
+// `TAXONOMY_DICT` itself indexed only by `createDictionaryTranslator` (dictionary-lookup-sinks guard).
+function mergeDictionaryTranslations(
+  dictionary: Record<string, Record<string, string>>,
+  translationsByLocale: Record<string, Record<string, string>>,
+) {
+  for (const [locale, translations] of Object.entries(translationsByLocale)) {
+    Object.assign(dictionary[locale], translations);
+  }
 }
+
+mergeDictionaryTranslations(TAXONOMY_DICT, TERM_PICKER_I18N);
 
 // 2026-09-26: the box's own add input (`TermPicker.tsx`) — type a name to tick or create a term.
 // "Term name", "+ Add term", "Add term" and "Failed to create term" are the Categories & Tags
@@ -1151,9 +1160,7 @@ const TERM_PICKER_ADD_I18N: Record<string, Record<string, string>> = {
   "ur": { "Type a name, then press Enter": "نام لکھیں، پھر Enter دبائیں" },
   "bn": { "Type a name, then press Enter": "একটি নাম লিখুন, তারপর Enter চাপুন" },
 };
-for (const [locale, translations] of Object.entries(TERM_PICKER_ADD_I18N)) {
-  Object.assign(TAXONOMY_DICT[locale], translations);
-}
+mergeDictionaryTranslations(TAXONOMY_DICT, TERM_PICKER_ADD_I18N);
 
 /** `TAXONOMY_DICT[locale]?.[key] ?? COMMON_I18N[locale]?.[key] ?? key` via
  *  `createDictionaryTranslator` (same fallback `trash-i18n.ts` uses) — a shared word this dict
