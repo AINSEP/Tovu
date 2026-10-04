@@ -100,7 +100,12 @@ async function getFreePort(): Promise<number> {
  * than the scaled default at rest and needs a stable ceiling more than proportional headroom.
  */
 function runCliSync(args: string[], env: NodeJS.ProcessEnv = {}, timeoutMs = 30_000 * loadFactor()): { status: number | null; stdout: string; stderr: string } {
-  const result = spawnSync(process.execPath, ["--import", TSX_LOADER, CLI_MAIN, ...args], { encoding: "utf8", env: { ...childProcessCoverageEnv(WORKER_COVERAGE_DIR), ...env }, timeout: timeoutMs });
+  const result = spawnSync(process.execPath, ["--import", TSX_LOADER, CLI_MAIN, ...args], {
+    encoding: "utf8",
+    env: { ...childProcessCoverageEnv(WORKER_COVERAGE_DIR), ...env },
+    // `loadFactor()` is fractional under load, and `spawnSync` throws ERR_OUT_OF_RANGE on a non-integer.
+    timeout: Math.ceil(timeoutMs),
+  });
   return { status: result.status, stdout: result.stdout, stderr: result.stderr };
 }
 
@@ -147,7 +152,8 @@ const FETCH_POLL_TIMEOUT_MS = 2000;
  * gets proportionally more room instead of a false failure.
  */
 function fetchTimeoutSignal(baseMs = 10000): AbortSignal {
-  return AbortSignal.timeout(baseMs * loadFactor());
+  // `AbortSignal.timeout` throws ERR_OUT_OF_RANGE on the fractional value `loadFactor()` gives under load.
+  return AbortSignal.timeout(Math.ceil(baseMs * loadFactor()));
 }
 
 async function waitForHttpReady(port: number, child: ChildProcessWithoutNullStreams, timeoutMs = 20000): Promise<void> {

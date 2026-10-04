@@ -81,7 +81,8 @@ const FETCH_POLL_TIMEOUT_MS = 2000;
 /** Bounds a single, non-retried fetch made after `waitForHttpReady` already proved the server is
  *  up, scaled by {@link loadFactor} like every other post-boot timing assumption in this file. */
 function fetchTimeoutSignal(baseMs = 10000): AbortSignal {
-  return AbortSignal.timeout(baseMs * loadFactor());
+  // `AbortSignal.timeout` throws ERR_OUT_OF_RANGE on the fractional value `loadFactor()` gives under load.
+  return AbortSignal.timeout(Math.ceil(baseMs * loadFactor()));
 }
 
 /**
@@ -98,7 +99,8 @@ function runCliSync(args: string[], env: NodeJS.ProcessEnv = {}, timeoutMs = 30_
   const result = require("node:child_process").spawnSync(process.execPath, ["--import", TSX_LOADER, CLI_MAIN, ...args], {
     encoding: "utf8",
     env: { ...childProcessCoverageEnv(WORKER_COVERAGE_DIR), ...env },
-    timeout: timeoutMs,
+    // `loadFactor()` is fractional under load, and `spawnSync` throws ERR_OUT_OF_RANGE on a non-integer.
+    timeout: Math.ceil(timeoutMs),
   });
   return { status: result.status, stderr: result.stderr };
 }
