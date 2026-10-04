@@ -8,7 +8,7 @@
  * label) sits in the middle of the Spanish sentence, not always in the same relative position
  * English puts it.
  */
-import { interpolate } from "../../lib/template-i18n";
+import { interpolate, localeEntry } from "../../lib/template-i18n";
 import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
 export const COLLECTIONS_DICT: Record<string, Record<string, string>> = {
@@ -1280,8 +1280,8 @@ export function lifecycleFailureMessage(
   op: "deprecate" | "reactivate" | "tombstone",
   label: string,
 ): string {
-  const verb = (LIFECYCLE_VERB[locale] ?? LIFECYCLE_VERB.en)[op];
-  return interpolate(LIFECYCLE_FAILURE_TEMPLATE[locale] ?? LIFECYCLE_FAILURE_TEMPLATE.en, { verb, label });
+  const verb = localeEntry({ table: LIFECYCLE_VERB, locale })[op];
+  return interpolate(localeEntry({ table: LIFECYCLE_FAILURE_TEMPLATE, locale }), { verb, label });
 }
 
 const ENTRY_LIFECYCLE_FAILURE: Record<string, Record<"publish" | "unpublish", string>> = {
@@ -1322,5 +1322,5 @@ const ENTRY_LIFECYCLE_FAILURE: Record<string, Record<"publish" | "unpublish", st
  *  ("publish"/"unpublish"), so it can't be a flat `COLLECTIONS_DICT` entry. Reuses this
  *  dictionary's own Publish/Unpublish verb translations. */
 export function entryLifecycleFailureMessage(locale: string, op: "publish" | "unpublish"): string {
-  return (ENTRY_LIFECYCLE_FAILURE[locale] ?? ENTRY_LIFECYCLE_FAILURE.en)[op];
+  return localeEntry({ table: ENTRY_LIFECYCLE_FAILURE, locale })[op];
 }

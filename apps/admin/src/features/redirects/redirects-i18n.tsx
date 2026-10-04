@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { createDictionaryTranslator } from "../../lib/dictionary-translator";
-import { interpolate } from "../../lib/template-i18n";
+import { interpolate, localeEntry } from "../../lib/template-i18n";
 
 /**
  * @file Spanish translation for the Redirects screen (`/admin/redirects`) — the create form, the
@@ -748,7 +748,7 @@ const IMPORT_RULES_LABEL_FRAGMENTS: Record<string, { before: string; after: stri
 
 /** The bulk-import label sentence embeds the rule-shape `<code>` block mid-sentence. */
 export function importRulesLabel(locale: string, shapeCode: ReactNode): ReactNode {
-  const f = IMPORT_RULES_LABEL_FRAGMENTS[locale] ?? IMPORT_RULES_LABEL_FRAGMENTS.en;
+  const f = localeEntry({ table: IMPORT_RULES_LABEL_FRAGMENTS, locale });
   return (
     <>
       {f.before}
@@ -785,7 +785,7 @@ const IMPORT_RESULT_SUMMARY_TEMPLATE: Record<string, string> = {
 
 /** The import result summary — "{created} created, {failed} failed." */
 export function importResultSummary(locale: string, created: number, failed: number): string {
-  return interpolate(IMPORT_RESULT_SUMMARY_TEMPLATE[locale] ?? IMPORT_RESULT_SUMMARY_TEMPLATE.en, {
+  return interpolate(localeEntry({ table: IMPORT_RESULT_SUMMARY_TEMPLATE, locale }), {
     created,
     failed,
   });
@@ -819,7 +819,7 @@ const CREATED_LABEL: Record<string, string> = {
 /** One created-item line: "Created {fromPattern} → {toTarget}" — "Created" is a status word, not
  *  full-sentence copy, so translated as a short label preceding the arrow. */
 export function createdLabel(locale: string): string {
-  return CREATED_LABEL[locale] ?? CREATED_LABEL.en;
+  return localeEntry({ table: CREATED_LABEL, locale });
 }
 
 const FAILED_ITEM_LABEL_TEMPLATE: Record<string, string> = {
@@ -849,7 +849,7 @@ const FAILED_ITEM_LABEL_TEMPLATE: Record<string, string> = {
 
 /** One failed-item line: "Item {index} ({code})". */
 export function failedItemLabel(locale: string, index: number, code: string): string {
-  return interpolate(FAILED_ITEM_LABEL_TEMPLATE[locale] ?? FAILED_ITEM_LABEL_TEMPLATE.en, { index, code });
+  return interpolate(localeEntry({ table: FAILED_ITEM_LABEL_TEMPLATE, locale }), { index, code });
 }
 
 const DELETE_REDIRECT_BODY_FRAGMENTS: Record<string, { before: string; after: string }> = {
@@ -879,7 +879,7 @@ const DELETE_REDIRECT_BODY_FRAGMENTS: Record<string, { before: string; after: st
 
 /** The delete-confirm body embeds the rule's own `fromPattern` mid-sentence. */
 export function deleteRedirectBody(locale: string, fromPattern: string): ReactNode {
-  const f = DELETE_REDIRECT_BODY_FRAGMENTS[locale] ?? DELETE_REDIRECT_BODY_FRAGMENTS.en;
+  const f = localeEntry({ table: DELETE_REDIRECT_BODY_FRAGMENTS, locale });
   return (
     <p>
       {f.before}
@@ -916,5 +916,5 @@ const ACTIONS_FOR_REDIRECT_TEMPLATE: Record<string, string> = {
 
 /** The row-menu trigger's accessible name embeds the rule's own `fromPattern`. */
 export function actionsForRedirectLabel(locale: string, fromPattern: string): string {
-  return interpolate(ACTIONS_FOR_REDIRECT_TEMPLATE[locale] ?? ACTIONS_FOR_REDIRECT_TEMPLATE.en, { fromPattern });
+  return interpolate(localeEntry({ table: ACTIONS_FOR_REDIRECT_TEMPLATE, locale }), { fromPattern });
 }

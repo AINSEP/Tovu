@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { createDictionaryTranslator } from "../../lib/dictionary-translator";
+import { localeEntry } from "../../lib/template-i18n";
 
 /**
  * @file Spanish translation for the Database screen (`/admin/database`) — filter bar, table
@@ -1220,7 +1221,7 @@ const PLAN_READY_FRAGMENTS: Record<string, { before: string; after: string }> = 
 };
 
 export function planReadyMessage(locale: string, planId: string): ReactNode {
-  const f = PLAN_READY_FRAGMENTS[locale] ?? PLAN_READY_FRAGMENTS.en;
+  const f = localeEntry({ table: PLAN_READY_FRAGMENTS, locale });
   return (
     <>
       {f.before}

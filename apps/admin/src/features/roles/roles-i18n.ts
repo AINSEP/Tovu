@@ -5,6 +5,7 @@
  * in this app uses: translated value, else the English source string itself.
  */
 import { createDictionaryTranslator } from "../../lib/dictionary-translator";
+import { localeEntry } from "../../lib/template-i18n";
 
 const ROLES_TRANSLATIONS: Record<string, Record<string, string>> = {
   es: {
@@ -1426,7 +1427,7 @@ const ROLES_DESCRIPTION_PARTS: Record<string, { prefix: string; linkLabel: strin
 };
 
 export function rolesDescriptionParts(locale: string): { prefix: string; linkLabel: string; suffix: string } {
-  return ROLES_DESCRIPTION_PARTS[locale] ?? ROLES_DESCRIPTION_PARTS.en;
+  return localeEntry({ table: ROLES_DESCRIPTION_PARTS, locale });
 }
 
 /** The role-delete confirm body's prefix/suffix around the role's own (untranslated) name — same
@@ -1458,7 +1459,7 @@ const ROLE_DELETE_BODY_PARTS: Record<string, { prefix: string; suffix: string }>
 };
 
 export function roleDeleteBodyParts(locale: string): { prefix: string; suffix: string } {
-  return ROLE_DELETE_BODY_PARTS[locale] ?? ROLE_DELETE_BODY_PARTS.en;
+  return localeEntry({ table: ROLE_DELETE_BODY_PARTS, locale });
 }
 
 /** Same as {@link roleDeleteBodyParts}, for the policy-delete confirm body. */
@@ -1488,7 +1489,7 @@ const POLICY_DELETE_BODY_PARTS: Record<string, { prefix: string; suffix: string 
 };
 
 export function policyDeleteBodyParts(locale: string): { prefix: string; suffix: string } {
-  return POLICY_DELETE_BODY_PARTS[locale] ?? POLICY_DELETE_BODY_PARTS.en;
+  return localeEntry({ table: POLICY_DELETE_BODY_PARTS, locale });
 }
 
 /** Same "own the whole sentence per locale" shape as {@link roleDeleteBodyParts}/
@@ -1522,5 +1523,5 @@ const PERMISSION_REMOVE_BODY_PARTS: Record<string, { prefix: string; suffix: str
 };
 
 export function permissionRemoveBodyParts(locale: string): { prefix: string; suffix: string } {
-  return PERMISSION_REMOVE_BODY_PARTS[locale] ?? PERMISSION_REMOVE_BODY_PARTS.en;
+  return localeEntry({ table: PERMISSION_REMOVE_BODY_PARTS, locale });
 }

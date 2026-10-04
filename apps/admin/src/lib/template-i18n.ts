@@ -51,3 +51,17 @@ export function splitOnPlaceholders(template: string, tokens: readonly string[])
 export function pickPlural(count: number, forms: { one: string; other: string }): string {
   return pickPackagePlural({ count, forms });
 }
+
+/** The `locale` entry of a per-locale copy table, or `fallback` (default: the table's `en` entry).
+ *
+ * Own-property lookup on purpose: the plain `TABLE[locale] ?? TABLE.en` read every per-locale table
+ * used resolves a locale of "constructor", "toString" or "__proto__" to an Object.prototype member,
+ * which is truthy, so the English fallback never ran and `interpolate` threw on a non-string
+ * template (first fixed in authentication-i18n.ts, d56cd5cb2).
+ */
+export function localeEntry<T>(
+  { table, locale }: { table: Readonly<Record<string, T>>; locale: string },
+  { fallback = table.en }: { fallback?: T } = {},
+): T {
+  return Object.hasOwn(table, locale) ? (table[locale] ?? fallback) : fallback;
+}

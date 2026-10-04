@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { createDictionaryTranslator } from "../../lib/dictionary-translator";
+import { localeEntry } from "../../lib/template-i18n";
 
 /**
  * @file Spanish translation for the Recovery screen (`/admin/recovery`) — the restore-points
@@ -1145,7 +1146,7 @@ const SINCE_DISCARD_FRAGMENTS: Record<string, { before: string; after: string }>
 };
 
 export function sinceDiscardMessage(locale: string, createdAt: string): ReactNode {
-  const f = SINCE_DISCARD_FRAGMENTS[locale] ?? SINCE_DISCARD_FRAGMENTS.en;
+  const f = localeEntry({ table: SINCE_DISCARD_FRAGMENTS, locale });
   return (
     <>
       {f.before}
@@ -1201,7 +1202,7 @@ const UNKNOWN_DISCARD_COUNT_PREFIX: Record<string, string> = {
  */
 export function discardCountLine(locale: string, count: number | "unknown", categoryLabelText: string): ReactNode {
   if (count === "unknown") {
-    const prefix = UNKNOWN_DISCARD_COUNT_PREFIX[locale] ?? UNKNOWN_DISCARD_COUNT_PREFIX.en;
+    const prefix = localeEntry({ table: UNKNOWN_DISCARD_COUNT_PREFIX, locale });
     return (
       <span className="recovery-loss-row">
         {/* Every locale's prefix already ends in its own trailing space, so the two spans still
@@ -1250,7 +1251,7 @@ const BASELINE_UNAVAILABLE_TEXT: Record<string, string> = {
 };
 
 export function baselineUnavailableMessage(locale: string): ReactNode {
-  return <>{BASELINE_UNAVAILABLE_TEXT[locale] ?? BASELINE_UNAVAILABLE_TEXT.en}</>;
+  return <>{localeEntry({ table: BASELINE_UNAVAILABLE_TEXT, locale })}</>;
 }
 
 /** "Restore plan ready (plan <code>{planId}</code>). Confirming issues a one-time execution token
@@ -1347,7 +1348,7 @@ const RESTORE_PLAN_READY_FRAGMENTS: Record<string, { before: string; after: stri
 };
 
 export function restorePlanReadyMessage(locale: string, planId: string): ReactNode {
-  const f = RESTORE_PLAN_READY_FRAGMENTS[locale] ?? RESTORE_PLAN_READY_FRAGMENTS.en;
+  const f = localeEntry({ table: RESTORE_PLAN_READY_FRAGMENTS, locale });
   return (
     <>
       {f.before}
@@ -1386,7 +1387,7 @@ const RESTORE_DONE_FRAGMENTS: Record<string, { before: string; middle: string; a
 };
 
 export function restoreDoneMessage(locale: string, restoreRunId: string, stateNode: ReactNode): ReactNode {
-  const f = RESTORE_DONE_FRAGMENTS[locale] ?? RESTORE_DONE_FRAGMENTS.en;
+  const f = localeEntry({ table: RESTORE_DONE_FRAGMENTS, locale });
   return (
     <>
       {f.before}

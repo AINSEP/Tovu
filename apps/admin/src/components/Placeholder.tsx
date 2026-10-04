@@ -3,7 +3,7 @@ import { getNav, type AdminNavItem } from "../nav";
 import { useWiredAdminLocale } from "../hooks/use-admin-locale.hooks";
 import { translateAdminNavLabel } from "../lib/admin-nav-i18n";
 import { DEFAULT_LOCALE } from "../lib/settings-tabs";
-import { interpolate } from "../lib/template-i18n";
+import { interpolate, localeEntry } from "../lib/template-i18n";
 
 /**
  * @file Fallback screen for a section with no dedicated component yet — reached either directly
@@ -93,7 +93,7 @@ const COMING_SOON_TEMPLATE: Record<string, string> = {
 /** "X is coming soon." in the caller's locale — `label` here is already translated (by
  *  `Placeholder`, via `translateAdminNavLabel`) by the time it reaches this component. */
 function comingSoonDescription(locale: string, label: string): string {
-  return interpolate(COMING_SOON_TEMPLATE[locale] ?? COMING_SOON_TEMPLATE.en, { label });
+  return interpolate(localeEntry({ table: COMING_SOON_TEMPLATE, locale }), { label });
 }
 
 export function ComingSoonNotice(props: {
@@ -174,7 +174,7 @@ export function Placeholder(props: {
   const locale = useWiredAdminLocale();
   const item = findNavItem(props.sectionId);
   if (!item) {
-    const unknownSectionPrefix = UNKNOWN_SECTION_PREFIX[locale] ?? UNKNOWN_SECTION_PREFIX.en;
+    const unknownSectionPrefix = localeEntry({ table: UNKNOWN_SECTION_PREFIX, locale });
     return (
       <div
         className="notice error"

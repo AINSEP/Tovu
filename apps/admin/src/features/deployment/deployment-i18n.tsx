@@ -1,4 +1,4 @@
-import { interpolate } from "../../lib/template-i18n";
+import { interpolate, localeEntry } from "../../lib/template-i18n";
 import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
 /**
@@ -2209,7 +2209,7 @@ const OVERVIEW_LOAD_ERROR_TEMPLATE: Record<string, string> = {
 };
 
 export function deploymentOverviewLoadErrorMessage(locale: string, error: string): string {
-  return interpolate(OVERVIEW_LOAD_ERROR_TEMPLATE[locale] ?? OVERVIEW_LOAD_ERROR_TEMPLATE.en, { error });
+  return interpolate(localeEntry({ table: OVERVIEW_LOAD_ERROR_TEMPLATE, locale }), { error });
 }
 
 /** The Dockerfile tab's load-error banner — same shape as {@link deploymentOverviewLoadErrorMessage}. */
@@ -2239,7 +2239,7 @@ const DOCKERFILE_LOAD_ERROR_TEMPLATE: Record<string, string> = {
 };
 
 export function dockerfileLoadErrorMessage(locale: string, error: string): string {
-  return interpolate(DOCKERFILE_LOAD_ERROR_TEMPLATE[locale] ?? DOCKERFILE_LOAD_ERROR_TEMPLATE.en, { error });
+  return interpolate(localeEntry({ table: DOCKERFILE_LOAD_ERROR_TEMPLATE, locale }), { error });
 }
 
 /**
@@ -2265,7 +2265,7 @@ const DOCKERFILE_SAVE_ERROR_TEMPLATE: Record<string, string> = {
 };
 
 export function dockerfileSaveErrorMessage(locale: string, error: string): string {
-  return interpolate(DOCKERFILE_SAVE_ERROR_TEMPLATE[locale] ?? DOCKERFILE_SAVE_ERROR_TEMPLATE.en, { error });
+  return interpolate(localeEntry({ table: DOCKERFILE_SAVE_ERROR_TEMPLATE, locale }), { error });
 }
 
 /** The Static Site tab's export-status LOAD-error banner (the initial `GET .../system/export` this
@@ -2283,7 +2283,7 @@ const EXPORT_LOAD_ERROR_TEMPLATE: Record<string, string> = {
 };
 
 export function exportLoadErrorMessage(locale: string, error: string): string {
-  return interpolate(EXPORT_LOAD_ERROR_TEMPLATE[locale] ?? EXPORT_LOAD_ERROR_TEMPLATE.en, { error });
+  return interpolate(localeEntry({ table: EXPORT_LOAD_ERROR_TEMPLATE, locale }), { error });
 }
 
 /**
@@ -2306,7 +2306,7 @@ const EXPORT_TRIGGER_ERROR_TEMPLATE: Record<string, string> = {
 };
 
 export function exportTriggerErrorMessage(locale: string, error: string): string {
-  return interpolate(EXPORT_TRIGGER_ERROR_TEMPLATE[locale] ?? EXPORT_TRIGGER_ERROR_TEMPLATE.en, { error });
+  return interpolate(localeEntry({ table: EXPORT_TRIGGER_ERROR_TEMPLATE, locale }), { error });
 }
 
 /**
@@ -2323,7 +2323,7 @@ const EXPORT_POLL_ERROR_TEMPLATE: Record<string, string> = {
 };
 
 export function exportPollErrorMessage(locale: string, error: string): string {
-  return interpolate(EXPORT_POLL_ERROR_TEMPLATE[locale] ?? EXPORT_POLL_ERROR_TEMPLATE.en, { error });
+  return interpolate(localeEntry({ table: EXPORT_POLL_ERROR_TEMPLATE, locale }), { error });
 }
 
 /** The Static Site tab's publish-status LOAD-error banner (the initial `GET .../system/publish` this
@@ -2341,7 +2341,7 @@ const PUBLISH_LOAD_ERROR_TEMPLATE: Record<string, string> = {
 };
 
 export function publishLoadErrorMessage(locale: string, error: string): string {
-  return interpolate(PUBLISH_LOAD_ERROR_TEMPLATE[locale] ?? PUBLISH_LOAD_ERROR_TEMPLATE.en, { error });
+  return interpolate(localeEntry({ table: PUBLISH_LOAD_ERROR_TEMPLATE, locale }), { error });
 }
 
 /** The Static Site tab's publish-preview error banner — a failed `GET .../system/publish/preview`
@@ -2359,7 +2359,7 @@ const PUBLISH_PREVIEW_ERROR_TEMPLATE: Record<string, string> = {
 };
 
 export function publishPreviewErrorMessage(locale: string, error: string): string {
-  return interpolate(PUBLISH_PREVIEW_ERROR_TEMPLATE[locale] ?? PUBLISH_PREVIEW_ERROR_TEMPLATE.en, { error });
+  return interpolate(localeEntry({ table: PUBLISH_PREVIEW_ERROR_TEMPLATE, locale }), { error });
 }
 
 /** The Static Site tab's "Publish" trigger-error banner — same shape and same "409 while already
@@ -2378,7 +2378,7 @@ const PUBLISH_TRIGGER_ERROR_TEMPLATE: Record<string, string> = {
 };
 
 export function publishTriggerErrorMessage(locale: string, error: string): string {
-  return interpolate(PUBLISH_TRIGGER_ERROR_TEMPLATE[locale] ?? PUBLISH_TRIGGER_ERROR_TEMPLATE.en, { error });
+  return interpolate(localeEntry({ table: PUBLISH_TRIGGER_ERROR_TEMPLATE, locale }), { error });
 }
 
 /** The Static Site tab's publish POLL-error banner — same split and same 2026-08-15 fix
@@ -2390,7 +2390,7 @@ const PUBLISH_POLL_ERROR_TEMPLATE: Record<string, string> = {
 };
 
 export function publishPollErrorMessage(locale: string, error: string): string {
-  return interpolate(PUBLISH_POLL_ERROR_TEMPLATE[locale] ?? PUBLISH_POLL_ERROR_TEMPLATE.en, { error });
+  return interpolate(localeEntry({ table: PUBLISH_POLL_ERROR_TEMPLATE, locale }), { error });
 }
 
 /**
@@ -2404,7 +2404,7 @@ const PUBLISH_CREDENTIALS_LOAD_ERROR_TEMPLATE: Record<string, string> = {
 };
 
 export function publishCredentialsLoadErrorMessage(locale: string, error: string): string {
-  return interpolate(PUBLISH_CREDENTIALS_LOAD_ERROR_TEMPLATE[locale] ?? PUBLISH_CREDENTIALS_LOAD_ERROR_TEMPLATE.en, { error });
+  return interpolate(localeEntry({ table: PUBLISH_CREDENTIALS_LOAD_ERROR_TEMPLATE, locale }), { error });
 }
 
 /**
@@ -2419,7 +2419,7 @@ const PUBLISH_CREDENTIAL_SAVE_ERROR_TEMPLATE: Record<string, string> = {
 };
 
 export function publishCredentialSaveErrorMessage(locale: string, error: string): string {
-  return interpolate(PUBLISH_CREDENTIAL_SAVE_ERROR_TEMPLATE[locale] ?? PUBLISH_CREDENTIAL_SAVE_ERROR_TEMPLATE.en, { error });
+  return interpolate(localeEntry({ table: PUBLISH_CREDENTIAL_SAVE_ERROR_TEMPLATE, locale }), { error });
 }
 
 /** One provider row's re-verify-error banner — same shape as {@link PUBLISH_CREDENTIAL_SAVE_ERROR_TEMPLATE}
@@ -2433,7 +2433,7 @@ const PUBLISH_CREDENTIAL_VERIFY_ERROR_TEMPLATE: Record<string, string> = {
 };
 
 export function publishCredentialVerifyErrorMessage(locale: string, error: string): string {
-  return interpolate(PUBLISH_CREDENTIAL_VERIFY_ERROR_TEMPLATE[locale] ?? PUBLISH_CREDENTIAL_VERIFY_ERROR_TEMPLATE.en, { error });
+  return interpolate(localeEntry({ table: PUBLISH_CREDENTIAL_VERIFY_ERROR_TEMPLATE, locale }), { error });
 }
 
 /** The "which saved token publishes" picker's failed-switch banner — same shape as
@@ -2445,5 +2445,5 @@ const PUBLISH_CREDENTIAL_SELECT_ERROR_TEMPLATE: Record<string, string> = {
 };
 
 export function publishCredentialSelectErrorMessage(locale: string, error: string): string {
-  return interpolate(PUBLISH_CREDENTIAL_SELECT_ERROR_TEMPLATE[locale] ?? PUBLISH_CREDENTIAL_SELECT_ERROR_TEMPLATE.en, { error });
+  return interpolate(localeEntry({ table: PUBLISH_CREDENTIAL_SELECT_ERROR_TEMPLATE, locale }), { error });
 }

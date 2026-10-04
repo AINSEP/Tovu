@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { createDictionaryTranslator } from "../../lib/dictionary-translator";
-import { interpolate } from "../../lib/template-i18n";
+import { interpolate, localeEntry } from "../../lib/template-i18n";
 
 /**
  * @file Spanish translation for the Integrations list (`/admin/integrations`) and its
@@ -806,7 +806,7 @@ const DELETE_WEBHOOK_FRAGMENTS: Record<string, { before: string; after: string }
 };
 
 export function deleteWebhookBody(locale: string, label: string): ReactNode {
-  const f = DELETE_WEBHOOK_FRAGMENTS[locale] ?? DELETE_WEBHOOK_FRAGMENTS.en;
+  const f = localeEntry({ table: DELETE_WEBHOOK_FRAGMENTS, locale });
   return (
     <p>
       {f.before}
@@ -843,5 +843,5 @@ const ACTIONS_FOR_WEBHOOK_TEMPLATE: Record<string, string> = {
 };
 
 export function actionsForWebhookLabel(locale: string, label: string): string {
-  return interpolate(ACTIONS_FOR_WEBHOOK_TEMPLATE[locale] ?? ACTIONS_FOR_WEBHOOK_TEMPLATE.en, { label });
+  return interpolate(localeEntry({ table: ACTIONS_FOR_WEBHOOK_TEMPLATE, locale }), { label });
 }

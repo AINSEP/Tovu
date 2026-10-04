@@ -1,6 +1,6 @@
 import type { AdminDegradedBanner, AdminRestorePoint, DatabaseContextEnvelope } from "../../lib/api";
 import { t } from "./recovery-i18n";
-import { interpolate } from "../../lib/template-i18n";
+import { interpolate, localeEntry } from "../../lib/template-i18n";
 import { formatTimestamp } from "../../lib/format-timestamp";
 
 /**
@@ -59,7 +59,7 @@ const UNTAUGHT_CATEGORY_TEMPLATE: Record<string, string> = {
 export function categoryLabel(category: string, locale: string): string {
   const known = CATEGORY_LABELS[category];
   if (known) return t(locale, known);
-  return interpolate(UNTAUGHT_CATEGORY_TEMPLATE[locale] ?? UNTAUGHT_CATEGORY_TEMPLATE.en, { category });
+  return interpolate(localeEntry({ table: UNTAUGHT_CATEGORY_TEMPLATE, locale }), { category });
 }
 
 /** Short, human badge text for a `restorePoint.costClass`/`status.costClass` value. Never rendered

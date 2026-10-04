@@ -1,5 +1,5 @@
 import { createDictionaryTranslator } from "../../lib/dictionary-translator";
-import { interpolate } from "../../lib/template-i18n";
+import { interpolate, localeEntry } from "../../lib/template-i18n";
 
 const AUTHENTICATION_TRANSLATIONS: Record<string, Record<string, string>> = {
   es: { 'Client ID': 'ID de cliente', 'OAuth 2.0 Web application client ID from Google Cloud Console.': 'ID de cliente de aplicación web OAuth 2.0 de Google Cloud Console.', 'Client secret': 'Secreto de cliente', 'Enter Google client secret': 'Introduce el secreto de cliente de Google', 'OAuth 2.0 client secret paired with the client ID.': 'Secreto de cliente OAuth 2.0 vinculado al ID de cliente.', 'App ID': 'ID de aplicación', 'Enter Meta app ID': 'Introduce el ID de aplicación de Meta', 'Application ID from Meta for Developers.': 'ID de aplicación de Meta for Developers.', 'App secret': 'Secreto de aplicación', 'Enter Meta app secret': 'Introduce el secreto de aplicación de Meta', 'Application secret paired with the app ID.': 'Secreto de aplicación vinculado al ID de aplicación.', 'Enter LinkedIn client ID': 'Introduce el ID de cliente de LinkedIn', 'OAuth 2.0 client ID from the LinkedIn developer application.': 'ID de cliente OAuth 2.0 de la aplicación para desarrolladores de LinkedIn.', 'Enter LinkedIn client secret': 'Introduce el secreto de cliente de LinkedIn', required: "obligatorio", "Required credentials": "Credenciales obligatorias", "Authentication overview": "Resumen de autenticación", "Tovu currently signs administrators in with a local username and password. A provider authentication backend, secure provider-credential storage contract, callback handling, and token lifecycle are not implemented yet.": "Tovu inicia sesión de administradores actualmente con un nombre de usuario y una contraseña locales. Aún no están implementados un backend de autenticación de proveedor, un contrato de almacenamiento seguro de credenciales de proveedor, el manejo de devoluciones de llamada ni el ciclo de vida de los tokens.", "Provider setup preview": "Vista previa de la configuración del proveedor", "Open a provider tab to see the credentials an operator will need once the backend capability exists.": "Abre una pestaña de proveedor para ver las credenciales que necesitará un operador cuando exista la capacidad de backend.", People: "Personas", Authentication: "Autenticación", "Review current sign-in support and future provider requirements.": "Revisa la compatibilidad actual de inicio de sesión y los futuros requisitos de proveedores." },
@@ -53,8 +53,5 @@ const PROVIDER_BACKEND_NOTE_TEMPLATE: Record<string, string> = {
 export const t = createDictionaryTranslator(AUTHENTICATION_TRANSLATIONS);
 
 export function providerBackendNote(locale: string, provider: string): string {
-  // Own-property lookup: a plain `[locale]` read resolves "constructor"/"toString"/"__proto__" to an
-  // Object.prototype member, and `interpolate` then throws on a non-string template.
-  const template = Object.hasOwn(PROVIDER_BACKEND_NOTE_TEMPLATE, locale) ? PROVIDER_BACKEND_NOTE_TEMPLATE[locale] : PROVIDER_BACKEND_NOTE_TEMPLATE.en;
-  return interpolate(template, { provider });
+  return interpolate(localeEntry({ table: PROVIDER_BACKEND_NOTE_TEMPLATE, locale }), { provider });
 }

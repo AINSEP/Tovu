@@ -1,4 +1,4 @@
-import { interpolate } from "../../lib/template-i18n";
+import { interpolate, localeEntry } from "../../lib/template-i18n";
 import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
 /**
@@ -586,7 +586,7 @@ const SOURCE_CONTROL_CREDENTIALS_LOAD_ERROR_TEMPLATE: Record<string, string> = {
 
 export function sourceControlCredentialsLoadErrorMessage(locale: string, error: string): string {
   return interpolate(
-    SOURCE_CONTROL_CREDENTIALS_LOAD_ERROR_TEMPLATE[locale] ?? SOURCE_CONTROL_CREDENTIALS_LOAD_ERROR_TEMPLATE.en,
+    localeEntry({ table: SOURCE_CONTROL_CREDENTIALS_LOAD_ERROR_TEMPLATE, locale }),
     { error }
   );
 }
@@ -602,7 +602,7 @@ const SOURCE_CONTROL_CREDENTIAL_SAVE_ERROR_TEMPLATE: Record<string, string> = {
 
 export function sourceControlCredentialSaveErrorMessage(locale: string, error: string): string {
   return interpolate(
-    SOURCE_CONTROL_CREDENTIAL_SAVE_ERROR_TEMPLATE[locale] ?? SOURCE_CONTROL_CREDENTIAL_SAVE_ERROR_TEMPLATE.en,
+    localeEntry({ table: SOURCE_CONTROL_CREDENTIAL_SAVE_ERROR_TEMPLATE, locale }),
     { error }
   );
 }

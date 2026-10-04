@@ -1,4 +1,4 @@
-import { interpolate } from "../../lib/template-i18n";
+import { interpolate, localeEntry } from "../../lib/template-i18n";
 import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 import type { OtherCredentialStoreInfo } from "./rules";
 
@@ -992,7 +992,7 @@ const ACCESS_TOKENS_LOAD_ERROR_TEMPLATE: Record<string, string> = {
   en: "Couldn't load saved access tokens: {error}",
 };
 export function accessTokensLoadErrorMessage(locale: string, error: string): string {
-  return interpolate(ACCESS_TOKENS_LOAD_ERROR_TEMPLATE[locale] ?? ACCESS_TOKENS_LOAD_ERROR_TEMPLATE.en!, { error });
+  return interpolate(localeEntry({ table: ACCESS_TOKENS_LOAD_ERROR_TEMPLATE, locale }), { error });
 }
 
 /** One row's save-error banner — mirrors `publishCredentialSaveErrorMessage`'s exact shape. */
@@ -1000,7 +1000,7 @@ const ACCESS_TOKEN_SAVE_ERROR_TEMPLATE: Record<string, string> = {
   en: "Couldn't save this token: {error}",
 };
 export function accessTokenSaveErrorMessage(locale: string, error: string): string {
-  return interpolate(ACCESS_TOKEN_SAVE_ERROR_TEMPLATE[locale] ?? ACCESS_TOKEN_SAVE_ERROR_TEMPLATE.en!, { error });
+  return interpolate(localeEntry({ table: ACCESS_TOKEN_SAVE_ERROR_TEMPLATE, locale }), { error });
 }
 
 /** A failed Remove — its own action-specific wording, distinct from
@@ -1011,7 +1011,7 @@ const ACCESS_TOKEN_REMOVE_ERROR_TEMPLATE: Record<string, string> = {
   en: "Couldn't remove this token: {error}",
 };
 export function accessTokenRemoveErrorMessage(locale: string, error: string): string {
-  return interpolate(ACCESS_TOKEN_REMOVE_ERROR_TEMPLATE[locale] ?? ACCESS_TOKEN_REMOVE_ERROR_TEMPLATE.en!, { error });
+  return interpolate(localeEntry({ table: ACCESS_TOKEN_REMOVE_ERROR_TEMPLATE, locale }), { error });
 }
 
 /** A failed "Make default" — same action-specific reasoning as {@link accessTokenRemoveErrorMessage}. */
@@ -1019,7 +1019,7 @@ const ACCESS_TOKEN_MAKE_DEFAULT_ERROR_TEMPLATE: Record<string, string> = {
   en: "Couldn't make this token the default: {error}",
 };
 export function accessTokenMakeDefaultErrorMessage(locale: string, error: string): string {
-  return interpolate(ACCESS_TOKEN_MAKE_DEFAULT_ERROR_TEMPLATE[locale] ?? ACCESS_TOKEN_MAKE_DEFAULT_ERROR_TEMPLATE.en!, { error });
+  return interpolate(localeEntry({ table: ACCESS_TOKEN_MAKE_DEFAULT_ERROR_TEMPLATE, locale }), { error });
 }
 
 /** A duplicate-name rejection — this page's own case, since neither origin store's dictionary has a
@@ -1029,7 +1029,7 @@ const ACCESS_TOKEN_DUPLICATE_NAME_TEMPLATE: Record<string, string> = {
   en: 'A token named "{name}" already exists for {provider}.',
 };
 export function accessTokenDuplicateNameMessage(locale: string, name: string, provider: string): string {
-  return interpolate(ACCESS_TOKEN_DUPLICATE_NAME_TEMPLATE[locale] ?? ACCESS_TOKEN_DUPLICATE_NAME_TEMPLATE.en!, { name, provider });
+  return interpolate(localeEntry({ table: ACCESS_TOKEN_DUPLICATE_NAME_TEMPLATE, locale }), { name, provider });
 }
 
 /** The Remove confirm dialog's three pieces of copy (`rules.ts`'s own "Remove from Tovu, never
@@ -1040,7 +1040,7 @@ export function accessTokenDuplicateNameMessage(locale: string, name: string, pr
  *  inverts the claim. */
 const REMOVE_DIALOG_TITLE_TEMPLATE: Record<string, string> = { en: 'Remove "{name}" from Tovu?' };
 export function removeDialogTitle(locale: string, name: string): string {
-  return interpolate(REMOVE_DIALOG_TITLE_TEMPLATE[locale] ?? REMOVE_DIALOG_TITLE_TEMPLATE.en!, { name });
+  return interpolate(localeEntry({ table: REMOVE_DIALOG_TITLE_TEMPLATE, locale }), { name });
 }
 
 /** Two placeholders, not one: `{credentialLabel}` (what the saved row is FOR — `AccessTokenProviderInfo.label`,
@@ -1052,7 +1052,7 @@ const REMOVE_DIALOG_BODY_TEMPLATE: Record<string, string> = {
   en: "This deletes Tovu's saved copy of this {credentialLabel} token. It does NOT revoke the token on {vendor} — it stays valid there until you revoke it yourself.",
 };
 export function removeDialogBody(locale: string, credentialLabel: string, vendor: string): string {
-  return interpolate(REMOVE_DIALOG_BODY_TEMPLATE[locale] ?? REMOVE_DIALOG_BODY_TEMPLATE.en!, { credentialLabel, vendor });
+  return interpolate(localeEntry({ table: REMOVE_DIALOG_BODY_TEMPLATE, locale }), { credentialLabel, vendor });
 }
 
 /** `external-mcp`'s Remove body — the shared {@link removeDialogBody} does not fit: there is no
@@ -1089,7 +1089,7 @@ const REMOVE_DIALOG_EXTERNAL_MCP_BODY: Record<string, string> = {
  *  placeholders, exactly as before (Tier 2 has no vendor/destination split — its deep links go to
  *  Tovu's own screens). @complexity O(1). */
 export function otherCredentialRemoveDialogBody(locale: string, store: Pick<OtherCredentialStoreInfo, "id" | "purposeLabel">): string {
-  if (store.id === "external-mcp") return REMOVE_DIALOG_EXTERNAL_MCP_BODY[locale] ?? REMOVE_DIALOG_EXTERNAL_MCP_BODY.en!;
+  if (store.id === "external-mcp") return localeEntry({ table: REMOVE_DIALOG_EXTERNAL_MCP_BODY, locale });
   return removeDialogBody(locale, store.purposeLabel, store.purposeLabel);
 }
 
@@ -1097,7 +1097,7 @@ const REMOVE_DIALOG_LAST_ROW_TEMPLATE: Record<string, string> = {
   en: "This is the only saved {provider} token — after removing it, nothing here will be marked as connected.",
 };
 export function removeDialogLastRowNote(locale: string, provider: string): string {
-  return interpolate(REMOVE_DIALOG_LAST_ROW_TEMPLATE[locale] ?? REMOVE_DIALOG_LAST_ROW_TEMPLATE.en!, { provider });
+  return interpolate(localeEntry({ table: REMOVE_DIALOG_LAST_ROW_TEMPLATE, locale }), { provider });
 }
 
 /** Site Token tab's load-error banner — same `{error}`-interpolated shape as
@@ -1106,7 +1106,7 @@ const SITE_TOKEN_LOAD_ERROR_TEMPLATE: Record<string, string> = {
   en: "Couldn't load the Site Token's status: {error}",
 };
 export function siteTokenLoadErrorMessage(locale: string, error: string): string {
-  return interpolate(SITE_TOKEN_LOAD_ERROR_TEMPLATE[locale] ?? SITE_TOKEN_LOAD_ERROR_TEMPLATE.en!, { error });
+  return interpolate(localeEntry({ table: SITE_TOKEN_LOAD_ERROR_TEMPLATE, locale }), { error });
 }
 
 /** Site Token tab's generic generate-error banner — used only for a `"generic"` failure; a known
@@ -1116,7 +1116,7 @@ const SITE_TOKEN_GENERATE_ERROR_TEMPLATE: Record<string, string> = {
   en: "Couldn't generate a key: {error}",
 };
 export function siteTokenGenerateErrorMessage(locale: string, error: string): string {
-  return interpolate(SITE_TOKEN_GENERATE_ERROR_TEMPLATE[locale] ?? SITE_TOKEN_GENERATE_ERROR_TEMPLATE.en!, { error });
+  return interpolate(localeEntry({ table: SITE_TOKEN_GENERATE_ERROR_TEMPLATE, locale }), { error });
 }
 
 /** Site Token tab's reveal-error banner — same `{error}`-interpolated shape. Unlike generate,
@@ -1126,5 +1126,5 @@ const SITE_TOKEN_REVEAL_ERROR_TEMPLATE: Record<string, string> = {
   en: "Couldn't reveal the Site Token: {error}",
 };
 export function siteTokenRevealErrorMessage(locale: string, error: string): string {
-  return interpolate(SITE_TOKEN_REVEAL_ERROR_TEMPLATE[locale] ?? SITE_TOKEN_REVEAL_ERROR_TEMPLATE.en!, { error });
+  return interpolate(localeEntry({ table: SITE_TOKEN_REVEAL_ERROR_TEMPLATE, locale }), { error });
 }

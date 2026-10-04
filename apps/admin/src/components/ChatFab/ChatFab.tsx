@@ -1,7 +1,7 @@
 import { agentHandle } from "@jini-ai/agentic";
 import { useFabPosition } from "./ChatFab.hooks";
 import { DEFAULT_LOCALE } from "../../lib/settings-tabs";
-import { interpolate } from "../../lib/template-i18n";
+import { interpolate, localeEntry } from "../../lib/template-i18n";
 
 interface ChatFabProps {
   open: boolean;
@@ -71,7 +71,7 @@ const FAB_ACTION_TEMPLATE: Record<string, { open: string; close: string }> = {
 /** "Open {label}"/"Close {label}" in the caller's locale — `label` itself is already translated
  *  (by the caller; see `App.tsx`'s `dockT("assistant")`) by the time it reaches this component. */
 function fabActionLabel(locale: string, action: "open" | "close", label: string): string {
-  const forms = FAB_ACTION_TEMPLATE[locale] ?? FAB_ACTION_TEMPLATE.en;
+  const forms = localeEntry({ table: FAB_ACTION_TEMPLATE, locale });
   return interpolate(forms[action], { label });
 }
 

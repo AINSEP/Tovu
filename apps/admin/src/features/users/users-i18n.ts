@@ -5,7 +5,7 @@
  * uses: translated value, else the English source string itself.
  */
 import { createDictionaryTranslator } from "../../lib/dictionary-translator";
-import { interpolate } from "../../lib/template-i18n";
+import { interpolate, localeEntry } from "../../lib/template-i18n";
 
 const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
   es: {
@@ -1556,5 +1556,5 @@ const PASSWORD_RESET_NOTICE_TEMPLATE: Record<string, string> = {
  *  mid-sentence, so it can't be a flat `ES` entry the way `roles-i18n.ts`'s
  *  `roleDeleteBodyParts` etc. handle the same shape. */
 export function passwordResetNotice(locale: string, username: string): string {
-  return interpolate(PASSWORD_RESET_NOTICE_TEMPLATE[locale] ?? PASSWORD_RESET_NOTICE_TEMPLATE.en, { username });
+  return interpolate(localeEntry({ table: PASSWORD_RESET_NOTICE_TEMPLATE, locale }), { username });
 }
