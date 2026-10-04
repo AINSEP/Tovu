@@ -3,13 +3,14 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Recovery } from "../Recovery";
+import { t as recoveryT } from "../recovery-i18n";
 import type { RecoveryController } from "../hooks/use-recovery.hooks";
 import { navigate } from "@/lib/router";
 import type { AdminDegradedBanner, AdminRecoveryStatus, AdminRestorePoint } from "@/lib/api";
 
 // Tabs (2026-09-10): `Recovery` now navigates between "restore-points" and "restore" via `?tab=`,
-// same `TabBar` + `navigate(..., { replace: true })` convention `Database.tsx`'s own test file
-// mocks this identical way.
+// The inline SettingsDialogShell stays URL-controlled; Database's test file mocks
+// this same replace-history navigation.
 vi.mock("../../../lib/router", () => ({ navigate: vi.fn() }));
 
 /**
@@ -199,37 +200,73 @@ describe("restore points list", () => {
 });
 
 describe("tabs", () => {
-  it("renders the page header and the two-tab tab bar", () => {
+  it("uses the owner's inline SettingsDialogShell convention without a modal overlay", () => {
+    renderRecovery();
+    const shell = screen.getByRole("region", { name: "Recovery" });
+    expect(shell).toHaveClass("jini-tabbed-dialog--inline");
+    expect(shell).not.toHaveAttribute("aria-modal");
+    expect(shell.closest(".recovery-section")).toHaveAttribute("data-agent-element", "recovery-tab-bar");
+    expect(within(shell).getByRole("complementary", { name: "Recovery" })).toBeInTheDocument();
+    expect(within(shell).getByRole("button", { name: "Restore points" })).toHaveAttribute("data-agent-element", "tab-restore-points");
+    expect(within(shell).getByRole("button", { name: "Restore" })).toHaveAttribute("data-agent-element", "tab-restore");
+    expect(screen.queryByTestId("settings-dialog-backdrop")).not.toBeInTheDocument();
+  });
+
+  it("translates the shell navigation and create action through Recovery's existing dictionary", () => {
+    renderRecovery({ locale: "es", t: (key) => recoveryT("es", key) });
+    expect(screen.getByRole("complementary", { name: "Recuperación" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Puntos de restauración" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Restaurar" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "Crear punto de restauración" })).toBeEnabled();
+  });
+
+  it("renders the page header and the two shell navigation buttons", () => {
     renderRecovery();
     expect(screen.getByRole("heading", { name: "Recovery", level: 1 })).toBeInTheDocument();
-    expect(screen.getByRole("tablist", { name: "Recovery" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Restore points" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Restore" })).toBeInTheDocument();
+    expect(screen.getByRole("complementary", { name: "Recovery" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Restore points" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Restore" })).toBeInTheDocument();
   });
 
   it("defaults to the Restore points tab when no tabId is given", () => {
     renderRecovery();
-    expect(screen.getByRole("tab", { name: "Restore points" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("tab", { name: "Restore" })).toHaveAttribute("aria-selected", "false");
+    expect(screen.getByRole("button", { name: "Restore points" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Restore" })).toHaveAttribute("aria-pressed", "false");
     expect(screen.getByRole("table")).toBeInTheDocument();
   });
 
   it("opens on the tab named by tabId", () => {
     renderRecovery({ points: [], selected: null }, { tabId: "restore" });
-    expect(screen.getByRole("tab", { name: "Restore" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("button", { name: "Restore" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
   });
 
   it("falls back to Restore points for an unrecognized tabId", () => {
     renderRecovery({}, { tabId: "bogus" });
-    expect(screen.getByRole("tab", { name: "Restore points" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("button", { name: "Restore points" })).toHaveAttribute("aria-pressed", "true");
   });
 
   it("clicking the Restore tab calls navigate with the new ?tab= query, replacing history", async () => {
     const user = userEvent.setup();
     renderRecovery();
-    await user.click(screen.getByRole("tab", { name: "Restore" }));
+    await user.click(screen.getByRole("button", { name: "Restore" }));
     expect(navigate).toHaveBeenCalledWith("/recovery?tab=restore", { replace: true });
+  });
+
+  it("waits for the router prop when switching sections, then mounts only the requested panel", async () => {
+    const user = userEvent.setup();
+    const controller = recoveryController();
+    const useRecoveryHook = () => controller;
+    const view = render(<Recovery useRecoveryHook={useRecoveryHook} />);
+    await user.click(screen.getByRole("button", { name: "Restore" }));
+    expect(screen.getByRole("button", { name: "Restore" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "Create restore point" })).toBeInTheDocument();
+
+    view.rerender(<Recovery useRecoveryHook={useRecoveryHook} tabId="restore" />);
+    expect(screen.getByRole("button", { name: "Restore" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByRole("button", { name: "Create restore point" })).not.toBeInTheDocument();
+    expect(screen.getByText("Select a restore point from the Restore points tab to begin.")).toBeInTheDocument();
+    expect(controller.setSelected).not.toHaveBeenCalled();
   });
 
   it("on the Restore tab with nothing selected, prompts back to Restore points instead of rendering the ceremony", () => {

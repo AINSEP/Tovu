@@ -1,11 +1,10 @@
 import { DataTable } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
+import { I18nProvider, SETTINGS_DIALOG_DICTIONARIES, SettingsDialogShell, type SettingsDialogTab } from "@jini-ai/ui";
+import "@jini-ai/ui/settings-dialog.css";
 
-import { TabBar, type TabBarTab } from "../../components/TabBar";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { formatTimestamp } from "../../lib/format-timestamp";
-import { navigate } from "../../lib/router";
-import { resolveActiveTabId } from "../../lib/resolve-active-tab-id";
 import type { AdminDisclosureResult, AdminRecoveryStatus, AdminRestorePoint } from "../../lib/api";
 import {
   categoryLabel,
@@ -15,6 +14,7 @@ import {
   restoreButtonAccessibleName,
 } from "./rules";
 import { useWiredRecovery } from "./hooks/use-recovery.hooks";
+import { useRecoveryNavigation } from "./hooks/use-recovery-navigation.hooks";
 import { ServerLabel } from "@/components/status-labels";
 import { useWiredRestoreFlow, type CeremonyStep } from "./hooks/use-restore-flow.hooks";
 import {
@@ -40,16 +40,16 @@ import {
  *
  * ## Tabs (2026-09-10)
  *
- * `TabBar` + `?tab=` deep-linking, NOT `SettingsDialogShell` — this screen is a list-plus-ceremony
- * operational surface (the same shape `Database.tsx` already is), not a settings form, so it takes
- * `Database.tsx`'s own tab convention (`resolveActiveTabId`, `navigate(..., { replace: true })`)
- * rather than the vertical-sidebar dialog shell `Plugins.tsx`/`AgentPlugins.tsx`/`Security.tsx` use
- * for theirs. Two tabs: **Restore points** (`RestorePointsPanel` — the list, the create action, and
+ * The initial implementation chose `TabBar` because this is a list-plus-ceremony operational
+ * surface, the same shape as Database, rather than a settings form. The owner's explicit
+ * `SettingsDialogShell` requirement takes precedence (2026-10-04 cleanup): the inline shell now
+ * matches Agent Plugins, while retaining `?tab=` deep-linking and replace-history navigation.
+ * Two tabs: **Restore points** (`RestorePointsPanel` — the list, the create action, and
  * the entry point into a restore) and **Restore** (`RestoreTabPanel` — `RestoreFlow` for whichever
  * point is selected, or a prompt back to the list when nothing is selected yet). Selecting a row
  * and confirming/cancelling the ceremony both navigate between the two tabs explicitly (see
- * `Recovery`'s own `onSelectPoint`/`onBackFromFlow` below) rather than deriving the active tab from
- * `selected` — the tab bar stays a plain, always-clickable pair either way, same as `Database.tsx`.
+ * `use-recovery-navigation.hooks.ts`) rather than deriving the active tab from `selected` — both
+ * sections stay independently reachable either way, same as Database's URL-owned tabs.
  *
  * The restore ceremony (`plan`/`confirm`/`execute`, SPEC-019 C-301/C-302/C-303) is wired to the
  * real `core/gated-mutations`-backed routes (Session 5-6 backend gap closure). `executeRestore`
@@ -81,16 +81,6 @@ import {
  * `RestorePointsPanel` have no hook of their own, so they keep receiving `locale` as a prop from
  * `Recovery` and import `t` directly — same carve-out `Database.tsx`'s local subcomponents use.
  */
-
-const RECOVERY_TAB_IDS = ["restore-points", "restore"] as const;
-type RecoveryTabId = (typeof RECOVERY_TAB_IDS)[number];
-
-/** Falls back to the "restore-points" tab for an absent or unrecognized `?tab=` value — same
- *  shared guard, same reasoning, as `Database.tsx`'s own `resolveDatabaseTabId`: a stale link or a
- *  typo must not blank the panel. */
-function resolveRecoveryTabId(tabId: string | null | undefined): RecoveryTabId {
-  return resolveActiveTabId(tabId, RECOVERY_TAB_IDS, "restore-points");
-}
 
 function DegradedBannerView(props: { locale: string; status: AdminRecoveryStatus }) {
   const { locale, status } = props;
@@ -501,9 +491,9 @@ function RestoreFlow({
 
 /** The "Restore" tab's own panel — `RestoreFlow` for whichever point is selected, or a prompt back
  *  to the "Restore points" tab when nothing is selected yet (a direct `?tab=restore` visit, or the
- *  ceremony was already backed out of via `onBack`). Split out purely so `recoveryTabPanel`'s own
- *  dispatch stays a flat if-chain, same complexity-gate reason `Database.tsx`'s own
- *  `databaseTabPanel` documents. */
+ *  ceremony was already backed out of via `onBack`). Originally split out so `recoveryTabPanel`
+ *  stayed a flat dispatch (Database's same complexity-gate reason). The shared shell now owns
+ *  that dispatch; this component keeps the selected-point guard out of the page's markup. */
 function RestoreTabPanel(props: { locale: string; selected: AdminRestorePoint | null; onBack: () => void }) {
   if (!props.selected) {
     return (
@@ -513,29 +503,6 @@ function RestoreTabPanel(props: { locale: string; selected: AdminRestorePoint | 
     );
   }
   return <RestoreFlow point={props.selected} onBack={props.onBack} />;
-}
-
-/** Dispatches the one active tab's panel as a flat if-chain — same shape `Database.tsx`'s own
- *  `databaseTabPanel` uses, for the identical complexity-gate reason: a component's OWN
- *  cyclomatic/cognitive score counts a ternary written directly in its JSX, not one delegated to a
- *  plain function like this.
- *  @complexity O(1) — two mutually exclusive branches, no iteration. */
-function recoveryTabPanel(
-  activeTabId: RecoveryTabId,
-  props: {
-    locale: string;
-    points: AdminRestorePoint[];
-    creating: boolean;
-    onCreate: () => void;
-    onSelect: (point: AdminRestorePoint) => void;
-    selected: AdminRestorePoint | null;
-    onBack: () => void;
-  },
-) {
-  if (activeTabId === "restore") return <RestoreTabPanel locale={props.locale} selected={props.selected} onBack={props.onBack} />;
-  return (
-    <RestorePointsPanel locale={props.locale} points={props.points} creating={props.creating} onCreate={props.onCreate} onSelect={props.onSelect} />
-  );
 }
 
 export interface RecoveryProps {
@@ -548,37 +515,28 @@ export interface RecoveryProps {
    */
   useRecoveryHook?: typeof useWiredRecovery;
   /** The `?tab=` query value from `panels.tsx`'s `recovery` route (`URLSearchParams.get` returns
-   *  `null` when the param is absent). See {@link resolveRecoveryTabId}. */
+   *  `null` when the param is absent). Validated by `useRecoveryNavigation`. */
   tabId?: string | null;
 }
 
 export function Recovery({ useRecoveryHook = useWiredRecovery, tabId }: RecoveryProps = {}) {
   const { status, points, error, creating, createRestorePoint, selected, setSelected, t, locale } = useRecoveryHook();
+  const { activeTabId, onTabChange, onSelectPoint, onBackFromFlow } = useRecoveryNavigation({ tabId, setSelected });
 
   if (error && !points) return <div className="notice error">{error}</div>;
   if (!points || !status) return <div className="notice">{t("Loading restore points…")}</div>;
 
-  const activeTabId = resolveRecoveryTabId(tabId);
-
-  function handleTabChange(nextTabId: string) {
-    navigate(`/recovery?tab=${nextTabId}`, { replace: true });
-  }
-
-  // Selecting a row and backing out of the ceremony both navigate between the two tabs explicitly
-  // (rather than deriving `activeTabId` from `selected`) — see this file's own header for why.
-  function onSelectPoint(point: AdminRestorePoint) {
-    setSelected(point);
-    navigate("/recovery?tab=restore", { replace: true });
-  }
-
-  function onBackFromFlow() {
-    setSelected(null);
-    navigate("/recovery?tab=restore-points", { replace: true });
-  }
-
-  const tabs: TabBarTab[] = [
-    { id: "restore-points", label: t("Restore points") },
-    { id: "restore", label: t("Restore") },
+  // The former recoveryTabPanel used a flat dispatch to avoid nested JSX branch complexity.
+  // The shell now owns that dispatch: each tab supplies one presentation-only panel.
+  const tabs: SettingsDialogTab[] = [
+    {
+      id: "restore-points", label: t("Restore points"), title: t("Recovery"),
+      panel: <RestorePointsPanel locale={locale} points={points} creating={creating} onCreate={createRestorePoint} onSelect={onSelectPoint} />,
+    },
+    {
+      id: "restore", label: t("Restore"), title: t("Recovery"),
+      panel: <RestoreTabPanel locale={locale} selected={selected} onBack={onBackFromFlow} />,
+    },
   ];
 
   return (
@@ -593,16 +551,23 @@ export function Recovery({ useRecoveryHook = useWiredRecovery, tabId }: Recovery
       {error ? <div className="notice error">{error}</div> : null}
       <DegradedBannerView locale={locale} status={status} />
 
-      <TabBar ariaLabel={t("Recovery")} tabs={tabs} activeId={activeTabId} onChange={handleTabChange} containerHandle="recovery-tab-bar" />
-      {recoveryTabPanel(activeTabId, {
-        locale,
-        points,
-        creating,
-        onCreate: createRestorePoint,
-        onSelect: onSelectPoint,
-        selected,
-        onBack: onBackFromFlow,
-      })}
+      <I18nProvider initialLocale={locale} dictionaries={SETTINGS_DIALOG_DICTIONARIES} fallbackLocale="en" syncDocumentAttributes={false}>
+        <div
+          className="settings-ui-section settings-ui-section--page-flow recovery-section"
+          {...agentHandle({ handle: "recovery-tab-bar" }, { role: "region", label: t("Recovery") })}
+        >
+          <SettingsDialogShell
+            tabs={tabs}
+            activeTabId={activeTabId}
+            onActiveTabIdChange={onTabChange}
+            presentation="inline"
+            className="jini-tabbed-dialog--inline"
+            fullscreenEnabled={false}
+            dialogAriaLabelledBy="recovery-shell-title"
+            labels={{ kicker: "", sidebarAriaLabel: t("Recovery") }}
+          />
+        </div>
+      </I18nProvider>
     </div>
   );
 }

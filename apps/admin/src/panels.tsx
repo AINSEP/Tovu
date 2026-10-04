@@ -858,8 +858,8 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     id: "recovery",
     // `?tab=<id>` picks the initially-active tab and stays in sync as the operator switches tabs
     // (see `Recovery`'s `tabId` prop) — same `?tab=` deep-linking convention as `database`'s own
-    // entry above (Recovery took its tab shape from `Database.tsx`, not `SettingsDialogShell` —
-    // see `Recovery.tsx`'s own header comment).
+    // entry above. Recovery's inline SettingsDialogShell keeps this URL-owned navigation;
+    // see `Recovery.tsx`'s own header comment for the owner's shell requirement.
     render: (ctx) => <Recovery tabId={ctx.query.get("tab")} />,
     nav: {
       // Renamed from "backups" — ADR-045: Recovery supersedes Backups as a concept, there is no
