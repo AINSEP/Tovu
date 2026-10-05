@@ -3,6 +3,8 @@ import type { Response } from "express";
 import type { AuthorizeFn } from "@jini-ai/cms/core";
 import type { PrincipalRecord } from "@jini-ai/user-management";
 import { getAuthedPrincipal } from "../dev-auth.js";
+import { PluginHookFailedError } from "#src/features/plugin-runtime/hook-registry";
+import { pluginHookFailedBody } from "./plugin-hook-error.js";
 import {
   WidgetAreaConflictError,
   WidgetAreaNotFoundError,
@@ -159,6 +161,9 @@ const WIDGET_ERROR_MAPPERS: ReadonlyArray<
     (err: WidgetEmbedHostUnsupportedError) => ({ status: 400, body: { error: err.message, code: "WIDGETS_EMBED_HOST_UNSUPPORTED", details: { reason: err.reason } } }),
   ],
   [WidgetForbiddenError, widgetForbiddenToResponse],
+  // A post/page save under an embed insert/remove/reorder or a widget tool route can be refused by
+  // a plugin's beforeSave hook — the same fixed-text envelope the posts routes and agent tools give.
+  [PluginHookFailedError, (err: PluginHookFailedError) => ({ status: 500, body: { ...pluginHookFailedBody(err) } })],
 ];
 
 /**
@@ -191,6 +196,7 @@ export function mapWidgetErrorToResponse(err: unknown, res: Response): void {
   // else in the request path (see `ADS-memory/.local-artifacts/agent-reports/
   // 20260803-widget-delete-outbox-bug.md`); promoted to permanent since the same blind spot would
   // recur for the next unrecognized error otherwise.
-  if (status === 500) console.error("[widgets] unrecognized error reaching mapWidgetErrorToResponse:", err);
+  // Only the fallback has no `code` (a mapped 500, the plugin hook refusal, is recognized).
+  if (status === 500 && body.code === undefined) console.error("[widgets] unrecognized error reaching mapWidgetErrorToResponse:", err);
   res.status(status).json(body);
 }

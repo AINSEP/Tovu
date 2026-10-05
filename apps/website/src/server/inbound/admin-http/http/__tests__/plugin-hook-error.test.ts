@@ -4,6 +4,7 @@ import test from "node:test";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { PluginHookFailedError } from "#src/features/plugin-runtime/hook-registry";
 import { sendPluginHookFailedError } from "../plugin-hook-error.js";
+import { widgetErrorToResponse } from "../widgets.js";
 import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-server";
 
 /**
@@ -103,4 +104,11 @@ test("HTTP: updating a post through a throwing beforeSave filter returns PLUGIN_
   assert.equal(updated.status, 500);
   assert.deepEqual(await updated.json(), { error: "a site plugin (throwing-plugin) refused this save; the content was not saved", code: "PLUGIN_HOOK_FAILED", pluginId: "throwing-plugin" });
   assert.deepEqual(await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: post.id }), before);
+});
+
+test("widgetErrorToResponse: a hook refusal behind a widget embed/tool route is PLUGIN_HOOK_FAILED naming the plugin, not a bare 500", () => {
+  assert.deepEqual(widgetErrorToResponse(new PluginHookFailedError("seo", "plugin 'seo' content.entry.beforeSave filter failed: token=sk-live-123")), {
+    status: 500,
+    body: { error: "a site plugin (seo) refused this save; the content was not saved", code: "PLUGIN_HOOK_FAILED", pluginId: "seo" },
+  });
 });
