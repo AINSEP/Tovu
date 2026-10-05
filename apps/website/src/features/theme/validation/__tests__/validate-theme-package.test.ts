@@ -500,8 +500,10 @@ test("markup: the theme-owned collection embed type is accepted", () => {
   assert.equal(findError(result, "markup-embed-config-unknown-type"), undefined, JSON.stringify(result.errors));
 });
 
-test("markup: a data-embed-config attribute written with double quotes is flagged as unrecognized-at-runtime", () => {
+// The runtime has accepted browser-serialized double quotes since 38b61166f (2026-09-26).
+test("markup: a browser-serialized double-quoted data-embed-config passes package validation", (t) => {
   const dir = tmpDir("tovu-validate-markup-doublequote-");
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   writeMinimalV2Static(dir);
   fs.writeFileSync(
     path.join(dir, "render", "pages", "index.html"),
@@ -510,7 +512,8 @@ test("markup: a data-embed-config attribute written with double quotes is flagge
   );
 
   const result = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "author" });
-  assert.ok(findError(result, "markup-embed-config-not-single-quoted"), JSON.stringify(result.errors));
+  assert.equal(result.valid, true, JSON.stringify(result.errors));
+  assert.deepEqual(result.errors, []);
 });
 
 test("markup: an extension-less file (a root LICENSE, an approved v2 root) is walked but skipped by the markup scan, not misread as markup", () => {

@@ -36,3 +36,19 @@ test("one partial may reuse its own source for a variant without a duplicate-own
     nav: { source: "nav.html", variants: { default: "nav.html" } },
   } }), []);
 });
+
+test("repeated variants count each logical owner once for both manifest maps", (t) => {
+  const themeDir = mkdtempSync(join(tmpdir(), "tovu-b10-reference-distinct-owners-"));
+  t.after(() => rmSync(themeDir, { recursive: true, force: true }));
+  writeFileSync(join(themeDir, "shared.html"), "shared");
+  for (const fieldName of ["partials", "renderer.pages"]) {
+    const nav = { variants: { default: "shared.html", compact: "shared.html" } };
+    assert.deepEqual(checkDeclaredReferences({ themeDir, fieldName, entries: { nav } }), []);
+    assert.deepEqual(checkDeclaredReferences({ themeDir, fieldName, entries: {
+      nav, footer: { source: "shared.html", variants: { default: "shared.html" } },
+    } }), [{
+      ruleId: "references-duplicate-source", path: "shared.html",
+      message: `${fieldName} entries [nav, footer] all reference the same file 'shared.html' — each logical id should have its own source, or this is a copy-paste error`,
+    }]);
+  }
+});

@@ -5,7 +5,7 @@ import { checkWebMcpMarkup } from './webmcp-markup.js';
 /**
  * @file Theme markup checks: the admin-only `data-agent-element` attribute must never appear in
  * theme-authored markup, `data-embed-config` markers must use the real, current embed vocabulary and
- * the real (single-quoted) attribute shape the runtime actually recognizes. Browser-agent
+ * the quoted attribute shapes the runtime actually recognizes. Browser-agent
  * actions now use tool* forms and data-tool* actions, replacing the unsettled data-tovu-agent.
  *
  * Vocabulary verified directly against the runtime that owns it, not assumed from the design doc,
@@ -15,8 +15,8 @@ import { checkWebMcpMarkup } from './webmcp-markup.js';
  * owner 2026-10-04, resolves through the contact-form widget path.
  */
 
-/** The complete, current `data-embed-config` `type` vocabulary — nine values, kept in sync with
- * `resolver-service.ts`'s `HTML_EMBED_RESOLVERS` (widget/form/media/post/content) plus
+/** The complete, current `data-embed-config` `type` vocabulary — ten values, kept in sync with
+ * `resolver-service.ts`'s `HTML_EMBED_RESOLVERS` (widget/form/taxonomy/media/post/content) plus
  * `THEME_OWNED_MARKER_TYPES` (menu/partial/post-previews/collection). Duplicated here rather than
  * imported: both are `resolver-service.ts`-internal (`const`, not exported), and this validator is a
  * different feature's territory to own — same reasoning `THEME_OWNED_MARKER_TYPES`'s own doc gives for
@@ -34,14 +34,14 @@ const KNOWN_EMBED_TYPES: ReadonlySet<string> = new Set([
   "collection",
 ]);
 
-/** Tolerant pre-scan for `data-embed-config` written with a quote style the REAL runtime scanner
- * (`core/embeds/marker.ts`'s `MARKER_PATTERN`) does not recognize — double-quoted or unquoted. The
- * real scanner requires single quotes BY DESIGN (so the JSON payload's own double quotes need no
- * escaping — see that module's file header); a marker spelled any other way is not a runtime bug to
- * fix there, it is a silently-inert marker an author needs to be told about, which is what this
- * pre-scan exists to catch. Matches loosely on purpose (it only needs to prove the attribute is
- * PRESENT in a shape the real scanner will miss, not to parse its JSON payload). */
-const MALFORMED_QUOTE_PATTERN = /data-embed-config\s*=\s*(?!')(?:"[^"]*"|[^\s>]+)/g;
+/** Tolerant pre-scan for unquoted `data-embed-config` values the REAL runtime scanner
+ * (`core/embeds/marker.ts`'s `MARKER_PATTERN`) does not recognize. Single quotes were originally
+ * required so JSON's own double quotes needed no escaping; since 2026-09-26 the scanner also accepts
+ * browser-serialized, entity-encoded double-quoted values. Quoted payloads belong to that scanner,
+ * while an unquoted marker remains silently inert and needs an author-facing finding. Matches loosely
+ * on purpose: it only proves the attribute is present in a shape the runtime will miss, rather than
+ * parsing JSON a second time. */
+const UNQUOTED_EMBED_CONFIG_PATTERN = /data-embed-config\s*=\s*(?!['"])[^\s>]+/g;
 
 const DATA_AGENT_ELEMENT_PATTERN = /data-agent-element\b/;
 
@@ -67,10 +67,11 @@ export function checkMarkupFile(
     });
   }
 
-  for (const match of content.matchAll(MALFORMED_QUOTE_PATTERN)) {
+  for (const match of content.matchAll(UNQUOTED_EMBED_CONFIG_PATTERN)) {
     issues.push({
+      // Keep the historical rule id for callers; both quoted forms are now supported.
       ruleId: "markup-embed-config-not-single-quoted",
-      message: `'${relativePath}' has a data-embed-config attribute not written with single quotes (found: ${match[0].slice(0, 60)}) — the runtime scanner only recognizes the single-quoted form and will leave this marker unresolved, silently`,
+      message: `'${relativePath}' has an unquoted data-embed-config attribute (found: ${match[0].slice(0, 60)}) — the runtime scanner requires a single- or double-quoted value and will leave this marker unresolved, silently`,
       path: relativePath,
     });
   }

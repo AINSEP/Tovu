@@ -36,3 +36,61 @@ test("menu read failures propagate and a later call uses recovered data", async 
   fail = false;
   assert.deepEqual((await resolver.resolveMany(instances, context)).get("w"), { ok: false, reason: "target-disabled" });
 });
+
+// F2.6/F3.6: keep the navigation resolver real and pin the menu read request.
+// F4.3/F5.2: both modes use the same tree, with a live grandchild under unavailable parents.
+// Filtering only the top level, dropping every unavailable parent, or always filtering fails.
+for (const publicOnly of [true, false]) {
+  test(`${publicOnly ? "public" : "diagnostic"} menus preserve visible descendants and ${publicOnly ? "prune" : "retain"} unavailable leaves at every depth`, async () => {
+    const menu: NavMenuEntry = {
+      id: "nested-footer", workspaceId: "ws-nested", slug: "nested-footer", title: "Nested footer",
+      status: "published", locations: [], updatedAt: "2026-10-04", version: 4,
+      doc: { type: "menu", version: 1, items: [
+        { id: "dead-top", label: "Dead top", target: { kind: "entryRef", entryId: "missing-top" } },
+        { id: "group", label: "Group", target: { kind: "entryRef", entryId: "missing-group" }, children: [
+          { id: "dead-child", label: "Dead child", target: { kind: "entryRef", entryId: "missing-child" } },
+          { id: "subgroup", label: "Subgroup", target: { kind: "entryRef", entryId: "missing-subgroup" }, children: [
+            { id: "docs", label: "Docs", target: { kind: "url", href: "/docs" } },
+          ] },
+          { id: "empty-group", label: "Empty group", target: { kind: "entryRef", entryId: "missing-empty-group" }, children: [
+            { id: "dead-grandchild", label: "Dead grandchild", target: { kind: "entryRef", entryId: "missing-grandchild" } },
+          ] },
+        ] },
+        { id: "home", label: "Home", target: { kind: "url", href: "/" }, children: [
+          { id: "dead-leaf", label: "Dead leaf", target: { kind: "entryRef", entryId: "missing-leaf" } },
+        ] },
+      ] },
+    };
+    const originalDoc = structuredClone(menu.doc);
+    const reads: unknown[] = [];
+    const resolver = createMenuResolver({ publicOnly, navMenuReadModel: {
+      getMenu: async (params) => {
+        assert.deepEqual(params, { workspaceId: "ws-nested", menuId: "nested-footer" });
+        reads.push(params);
+        return menu;
+      },
+    } as NavMenuReadModel });
+    const results = await resolver.resolveMany([{ id: "footer-widget", widgetType: "menu", config: { menuRef: "nested-footer" } }], { workspaceId: "ws-nested", preview: false });
+    // Literal caller-visible fields, independent of resolveMenuDoc's output.
+    const item = (id: string, label: string, href: string | null, children: unknown[] = []) => ({
+      id, label, href, available: href !== null, isCurrent: false, isActive: false, attrs: undefined, children,
+    });
+    const expected = publicOnly ? [
+      item("group", "Group", null, [item("subgroup", "Subgroup", null, [item("docs", "Docs", "/docs")])]),
+      item("home", "Home", "/"),
+    ] : [
+      item("dead-top", "Dead top", null),
+      item("group", "Group", null, [
+        item("dead-child", "Dead child", null),
+        item("subgroup", "Subgroup", null, [item("docs", "Docs", "/docs")]),
+        item("empty-group", "Empty group", null, [item("dead-grandchild", "Dead grandchild", null)]),
+      ]),
+      item("home", "Home", "/", [item("dead-leaf", "Dead leaf", null)]),
+    ];
+    assert.deepEqual(results.get("footer-widget"), {
+      ok: true, ir: { componentId: "menu", props: { title: "Nested footer", items: expected } }, dependencyKeys: ["nested-footer"],
+    });
+    assert.deepEqual(reads, [{ workspaceId: "ws-nested", menuId: "nested-footer" }]);
+    assert.deepEqual(menu.doc, originalDoc);
+  });
+}

@@ -45,9 +45,9 @@ function checkMissingFilesAndCollectOwners(
   themeDir: string,
   fieldName: string,
   entries: Record<string, unknown>
-): { issues: ThemeValidationIssue[]; sourceOwners: Map<string, string[]> } {
+): { issues: ThemeValidationIssue[]; sourceOwners: Map<string, Set<string>> } {
   const issues: ThemeValidationIssue[] = [];
-  const sourceOwners = new Map<string, string[]>();
+  const sourceOwners = new Map<string, Set<string>>();
 
   for (const [id, entry] of Object.entries(entries)) {
     for (const source of collectDeclaredSources(entry)) {
@@ -58,7 +58,10 @@ function checkMissingFilesAndCollectOwners(
           path: source,
         });
       }
-      sourceOwners.set(source, [...(sourceOwners.get(source) ?? []), id]);
+      // A source and its variants may reuse a file; collisions concern distinct logical ids.
+      const owners = sourceOwners.get(source) ?? new Set<string>();
+      owners.add(id);
+      sourceOwners.set(source, owners);
     }
   }
   return { issues, sourceOwners };
@@ -66,13 +69,13 @@ function checkMissingFilesAndCollectOwners(
 
 /** Flags any source path declared by more than one logical id — a copy-paste manifest bug (this
  *  file's own header). */
-function checkDuplicateSources(fieldName: string, sourceOwners: ReadonlyMap<string, string[]>): ThemeValidationIssue[] {
+function checkDuplicateSources(fieldName: string, sourceOwners: ReadonlyMap<string, ReadonlySet<string>>): ThemeValidationIssue[] {
   const issues: ThemeValidationIssue[] = [];
   for (const [source, owners] of sourceOwners) {
-    if (owners.length > 1) {
+    if (owners.size > 1) {
       issues.push({
         ruleId: "references-duplicate-source",
-        message: `${fieldName} entries [${owners.join(", ")}] all reference the same file '${source}' — each logical id should have its own source, or this is a copy-paste error`,
+        message: `${fieldName} entries [${[...owners].join(", ")}] all reference the same file '${source}' — each logical id should have its own source, or this is a copy-paste error`,
         path: source,
       });
     }
