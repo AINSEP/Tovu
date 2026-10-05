@@ -84,12 +84,14 @@ export class TrashAwareInMemoryEntryRepo implements EntryRepoPort, EntryListPort
   /**
    * With `expectedVersion`, the inner repo's compare-and-set decides; a trashed row is a conflict
    * (found none — the same as the SQL repo), not a silent skip, since the inner repo cannot see the Trash.
+   * A create (`expectedVersion: null`) goes on to the inner repo, which still holds a trashed row and
+   * so refuses its id, as the SQL primary key does.
    * @throws EntrySlugConflictError when a trashed row holds the slug (same text as the SQLite repo).
-   * @throws VersionConflictError when the compare-and-set misses.
+   * @throws VersionConflictError when the compare-and-set misses or a create finds the id taken.
    * @complexity O(n) over stored entries (one slug scan).
    */
-  async save(row: EntryRecord, options: { expectedVersion?: number | undefined } = {}): Promise<void> {
-    if (this.deletedAt.has(row.id)) {
+  async save(row: EntryRecord, options: { expectedVersion?: number | null | undefined } = {}): Promise<void> {
+    if (this.deletedAt.has(row.id) && options.expectedVersion !== null) {
       if (options.expectedVersion === undefined) return;
       throw new VersionConflictError({ message: `expected version ${options.expectedVersion} for entry '${row.id}', found none` });
     }

@@ -28,6 +28,12 @@ import type { TrashableEntryRecord } from "./trash-aware-memory-repo.js";
 
 type EntriesSelect = SelectQueryBuilder<ContentDatabase, "entries", EntryRow>;
 
+/** A write refused by the slug index: the reads hide a trashed holder, so that is the one the
+ *  chokepoint's own slug check could not have seen. */
+function trashedSlugConflict(slug: string): EntrySlugConflictError {
+  return new EntrySlugConflictError({ message: `an entry with slug '${slug}' is in the Trash — restore it, or delete it permanently from the Trash, to reuse the slug` });
+}
+
 /** Publish-content's entry read (`publish-content.ts`): the row plus its Trash marker, trashed rows
  *  included, so a precheck refuses a trashed destination instead of planning a create that `save`
  *  would then silently skip. */
@@ -91,16 +97,22 @@ export class SqlEntryRepo implements EntryRepoPort, EntryListPort, EntryDisplayL
    * With `expectedVersion` the save is a compare-and-set instead (wm S3): one conditional UPDATE on
    * the live row holding that version, inside the caller's transaction, so two writers that read the
    * same version cannot both land (a Postgres writer blocked on the row lock re-checks the WHERE
-   * against the winner's row).
+   * against the winner's row). With `expectedVersion: null` (an import-as-create) it is an insert that
+   * lands only when the id is free, so two creates of one id cannot both land either.
    * @throws EntrySlugConflictError when a trashed row holds the slug: the reads above hide it, so the
    *         chokepoint's own slug check could not see it.
    * @throws VersionConflictError ``expected version <n> for entry '<id>', found <stored|none>`` when the
-   *         compare-and-set misses (stale version, trashed or missing row).
+   *         compare-and-set misses (stale version, trashed or missing row), or
+   *         ``expected no entry '<id>', found <stored>`` when a create finds the id taken.
    * @complexity O(1).
    */
-  async save(record: EntryRecord, options: { expectedVersion?: number | undefined } = {}): Promise<void> {
+  async save(record: EntryRecord, options: { expectedVersion?: number | null | undefined } = {}): Promise<void> {
     const values = toRow(record);
     try {
+      if (options.expectedVersion === null) {
+        await this.insertIfAbsent(record, values);
+        return;
+      }
       if (options.expectedVersion !== undefined) {
         await this.compareAndSet(record, values, options.expectedVersion);
         return;
@@ -113,11 +125,26 @@ export class SqlEntryRepo implements EntryRepoPort, EntryListPort, EntryDisplayL
           .execute()
       );
     } catch (error) {
-      if (isUniqueViolation(error)) {
-        throw new EntrySlugConflictError({ message: `an entry with slug '${record.slug}' is in the Trash — restore it, or delete it permanently from the Trash, to reuse the slug` });
-      }
+      if (isUniqueViolation(error)) throw trashedSlugConflict(record.slug);
       throw error;
     }
+  }
+
+  /**
+   * The insert behind `save`'s `expectedVersion: null`. `ON CONFLICT DO NOTHING` has no target on
+   * purpose: with only `(id)` as the target, a Postgres create racing another on the same id can hit
+   * the `(workspace_id, type, slug)` unique index first and fail with a unique violation, which also
+   * aborts the transaction. Untargeted, a writer blocked on the winner's uncommitted insert waits,
+   * then inserts nothing. A miss is told apart by whether a row (trashed, or in any workspace) holds
+   * the id; if none does, the only other unique index, the slug, refused it.
+   */
+  private async insertIfAbsent(record: EntryRecord, values: ReturnType<typeof toRow>): Promise<void> {
+    const inserted = await this.kernel.run((db) => db.insertInto("entries").values(values).onConflict((oc) => oc.doNothing()).executeTakeFirst());
+    // A driver that reported no count reads as inserted, as in the forms repo's `createOnce`.
+    if (Number(inserted.numInsertedOrUpdatedRows) !== 0) return;
+    const holder = await this.kernel.run((db) => db.selectFrom("entries").select("version").where("id", "=", record.id).executeTakeFirst());
+    if (!holder) throw trashedSlugConflict(record.slug);
+    throw new VersionConflictError({ message: `expected no entry '${record.id}', found ${holder.version}` });
   }
 
   /** The conditional UPDATE behind `save`'s `expectedVersion`; on a miss, re-reads the live version for the message. */
