@@ -1,6 +1,7 @@
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import type { RedirectDbHandle } from "./ports.internal.js";
 import type { RedirectRepoPort } from "./ports.js";
+import { compareLongestFirst, compareSamePatternExactFirst, compareTieBreak } from "./order.js";
 import { toRecord, toRevision, toRevisionRow, toRow, updatableColumns } from "./repo.rows.js";
 import { RedirectNotFoundError } from "./types.js";
 import type { ListRedirectsFilter, RedirectRecord, RedirectRevision } from "./types.js";
@@ -17,19 +18,6 @@ import type { ListRedirectsFilter, RedirectRecord, RedirectRevision } from "./ty
  * `insertRevision` open no transaction of their own (ADR-PIPE-009 Decision A): atomicity is the
  * caller's, and nested calls join it.
  */
-
-function compareTieBreak(a: RedirectRecord, b: RedirectRecord): number {
-  if (a.priority !== b.priority) return b.priority - a.priority;
-  const aRecency = a.updatedAt || a.createdAt;
-  const bRecency = b.updatedAt || b.createdAt;
-  if (aRecency !== bRecency) return aRecency > bRecency ? -1 : 1;
-  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
-}
-
-/** Longest pattern first, then the shared tie-break. */
-function compareLongestFirst(a: RedirectRecord, b: RedirectRecord): number {
-  return b.fromPattern.length - a.fromPattern.length || compareTieBreak(a, b);
-}
 
 export class SqlRedirectRepo implements RedirectRepoPort, RedirectDbHandle {
   constructor(protected readonly kernel: ContentKernel) {}
@@ -127,9 +115,7 @@ export class SqlRedirectRepo implements RedirectRepoPort, RedirectDbHandle {
       (r) => r.fromPattern === required.fromPattern
     );
     if (candidates.length === 0) return null;
-    candidates.sort(
-      (a, b) => (a.matchType === "exact" ? 0 : 1) - (b.matchType === "exact" ? 0 : 1) || (a.id < b.id ? -1 : 1)
-    );
+    candidates.sort(compareSamePatternExactFirst);
     return candidates[0];
   }
 

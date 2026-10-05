@@ -123,6 +123,24 @@ function runContractSuite(label: string, makeRepo: () => RedirectRepoPort & { li
     assert.equal(found?.id, "long");
   });
 
+  test(`[${label}] lookupLongestPrefix with includeOverrideOnly skips a longer non-override prefix`, async () => {
+    const repo = makeRepo();
+    const overrideShort = makeRecord({ id: "override-short", matchType: "prefix", fromPattern: "/a", override: true });
+    const plainLong = makeRecord({ id: "plain-long", matchType: "prefix", fromPattern: "/a/b", override: false });
+    await repo.save({ record: overrideShort, revision: makeRevision(overrideShort) });
+    await repo.save({ record: plainLong, revision: makeRevision(plainLong) });
+    // Never prefix candidates, however long: an exact rule and a disabled prefix rule.
+    const exactLonger = makeRecord({ id: "exact-longer", matchType: "exact", fromPattern: "/a/b/c", override: true });
+    const disabledLonger = makeRecord({ id: "disabled-longer", matchType: "prefix", fromPattern: "/a/b/c", status: "disabled", override: true });
+    await repo.save({ record: exactLonger, revision: makeRevision(exactLonger) });
+    await repo.save({ record: disabledLonger, revision: makeRevision(disabledLonger) });
+
+    const overrideOnly = await repo.lookupLongestPrefix({ workspaceId: "workspace-1", path: "/a/b/c", includeOverrideOnly: true });
+    assert.equal(overrideOnly?.id, "override-short");
+    const any = await repo.lookupLongestPrefix({ workspaceId: "workspace-1", path: "/a/b/c", includeOverrideOnly: false });
+    assert.equal(any?.id, "plain-long");
+  });
+
   test(`[${label}] listDynamic returns only active wildcard rules, capped at limit`, async () => {
     const repo = makeRepo();
     for (const matchType of ["exact", "prefix"] as const) {

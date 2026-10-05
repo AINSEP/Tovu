@@ -9,18 +9,11 @@
  * semantics without this file importing `ports.internal.ts`'s function value
  * (only its `RedirectDbHandle` type, structurally satisfied here).
  */
+import { compareLongestFirst, compareSamePatternExactFirst, compareTieBreak } from "./order.js";
 import type { RedirectDbHandle } from "./ports.internal.js";
 import type { RedirectRepoPort } from "./ports.js";
 import { RedirectNotFoundError } from "./types.js";
 import type { ListRedirectsFilter, RedirectRecord, RedirectRevision } from "./types.js";
-
-function compareTieBreak(a: RedirectRecord, b: RedirectRecord): number {
-  if (a.priority !== b.priority) return b.priority - a.priority;
-  const aRecency = a.updatedAt || a.createdAt;
-  const bRecency = b.updatedAt || b.createdAt;
-  if (aRecency !== bRecency) return aRecency > bRecency ? -1 : 1;
-  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
-}
 
 export class InMemoryRedirectRepo implements RedirectRepoPort, RedirectDbHandle {
   private readonly records = new Map<string, RedirectRecord>();
@@ -67,7 +60,7 @@ export class InMemoryRedirectRepo implements RedirectRepoPort, RedirectDbHandle 
       if (required.path === pattern) return true;
       return required.path.startsWith(pattern.endsWith("/") ? pattern : `${pattern}/`);
     });
-    candidates.sort((a, b) => b.fromPattern.length - a.fromPattern.length || compareTieBreak(a, b));
+    candidates.sort(compareLongestFirst);
     return candidates[0] ? { ...candidates[0] } : null;
   }
 
@@ -79,7 +72,7 @@ export class InMemoryRedirectRepo implements RedirectRepoPort, RedirectDbHandle 
     const candidates = this.all(required.workspaceId).filter(
       (r) => r.status === "active" && r.matchType === "wildcard" && (!required.includeOverrideOnly || r.override)
     );
-    candidates.sort((a, b) => b.fromPattern.length - a.fromPattern.length || compareTieBreak(a, b));
+    candidates.sort(compareLongestFirst);
     return candidates.slice(0, required.limit).map((r) => ({ ...r }));
   }
 
@@ -99,9 +92,7 @@ export class InMemoryRedirectRepo implements RedirectRepoPort, RedirectDbHandle 
       (r) => r.status === "active" && r.fromPattern === required.fromPattern
     );
     if (candidates.length === 0) return null;
-    candidates.sort(
-      (a, b) => (a.matchType === "exact" ? 0 : 1) - (b.matchType === "exact" ? 0 : 1) || (a.id < b.id ? -1 : 1)
-    );
+    candidates.sort(compareSamePatternExactFirst);
     return { ...candidates[0] };
   }
 
