@@ -274,8 +274,10 @@ describe("AssistantDock", () => {
   it("hands ChatPane a typed-answer deliverer that answers the pending assistant_ask_choice through the admin route", async () => {
     mcpUiFetch.mockResolvedValue(new Response(JSON.stringify({ delivered: true }), { status: 202 }));
     render(<AssistantDock useChats={() => fakeChats()} />);
-    const deliver = chatPaneSpy.mock.calls.at(-1)?.[0].deliverTypedAnswer as (input: { text: string }) => Promise<string>;
+    const deliver = chatPaneSpy.mock.calls.at(-1)?.[0].deliverTypedAnswer as ((input: { text: string }) => Promise<string>) & { toolName: string };
 
+    // Without the tool id the pane would treat ANY pending card (a delete confirm) as this question.
+    expect(deliver.toolName).toBe("assistant_ask_choice");
     await expect(deliver({ text: "deploy it" })).resolves.toBe("delivered");
     expect(mcpUiFetch).toHaveBeenCalledWith("/api/admin/v1/mcp-ui/tool-calls", expect.objectContaining({
       method: "POST",

@@ -27,6 +27,11 @@ describe("createAdminTypedAnswerPoster", () => {
     });
   });
 
+  it("tags the poster with assistant_ask_choice, so the pane routes typed text to it only while that tool's card is open", () => {
+    const fake = fakeFetch(async () => new Response(null, { status: 202 }));
+    expect(createAdminTypedAnswerPoster({ fetch: fake.fetch }).toolName).toBe("assistant_ask_choice");
+  });
+
   it("reports 409 SURFACE_NOT_PENDING (answer already consumed or expired) as not-pending", async () => {
     const fake = fakeFetch(async () => new Response(JSON.stringify({ code: "SURFACE_NOT_PENDING" }), { status: 409 }));
     await expect(createAdminTypedAnswerPoster({ fetch: fake.fetch })({ text: "deploy it" })).resolves.toBe("not-pending");
