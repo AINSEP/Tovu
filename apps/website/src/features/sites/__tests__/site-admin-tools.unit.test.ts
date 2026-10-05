@@ -7,7 +7,7 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import type { SiteListEntry } from "#src/platform/site-dir/index";
 
 import type { SitesToolDeps } from "../deps.js";
-import { SITE_SWITCH_RESTART_INSTRUCTIONS } from "../site-admin.js";
+import { SITE_SWITCH_RESTART_INSTRUCTIONS, SITE_SWITCH_RESTARTING_NOTICE } from "../site-admin.js";
 import { buildSitesRegistrations } from "../tool-registrations.js";
 
 /**
@@ -100,11 +100,24 @@ test("sites_create_site: a caller without system.write is refused and nothing is
   assert.equal(env.creates.length, 0);
 });
 
-test("sites_switch_site: persists the choice and returns the restart instructions", async () => {
+test("sites_switch_site: with no dev supervisor it persists the choice and returns the restart instructions", async () => {
   const env = fake();
   const result = await handlerFor(env.deps, "sites_switch_site")(ctxFor({ name: "alpha" }));
   assert.deepEqual(env.persists, [[{ name: "alpha" }, { cwd: "/repo" }]]);
-  assert.deepEqual(result, { activeSiteName: "alpha", restartRequired: true, restartInstructions: SITE_SWITCH_RESTART_INSTRUCTIONS });
+  assert.deepEqual(result, { activeSiteName: "alpha", restartRequired: true, restartInstructions: SITE_SWITCH_RESTART_INSTRUCTIONS, restarting: false });
+});
+
+test("sites_switch_site: under npm run dev it restarts by default; restartNow:false only saves", async () => {
+  const env = fake();
+  const requests: unknown[] = [];
+  env.deps.devRestart = { requestRestart: (required) => void requests.push(required) };
+  const result = await handlerFor(env.deps, "sites_switch_site")(ctxFor({ name: "alpha" }));
+  assert.deepEqual(result, { activeSiteName: "alpha", restartRequired: true, restartInstructions: SITE_SWITCH_RESTARTING_NOTICE, restarting: true });
+  assert.deepEqual(requests, [{ reason: "switch site to 'alpha'" }]);
+
+  const saved = await handlerFor(env.deps, "sites_switch_site")(ctxFor({ name: "alpha", restartNow: false }));
+  assert.deepEqual(saved, { activeSiteName: "alpha", restartRequired: true, restartInstructions: SITE_SWITCH_RESTART_INSTRUCTIONS });
+  assert.equal(requests.length, 1);
 });
 
 test("sites_switch_site: an unknown site is a schema-attached refusal and nothing is persisted", async () => {

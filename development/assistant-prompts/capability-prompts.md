@@ -300,7 +300,7 @@ owner's OK. Leave out the 4 test pages/forms (owner decision 2026-10-04).
 | A-05 | What sites do I have on this computer? | `sites_list` | Matches Sites → All sites | RO | OK |
 | A-06 | Make a copy of this site called "staging". | `sites_duplicate_site` | "staging" listed and boots | LOCAL | OK |
 | A-07 | Create a brand-new empty site called "bakery". | `sites_create_site` (same `createSiteForOwner` as the admin Create route; local dev only, switcher flag ON) | New site listed | LOCAL | BUILT 2026-10-05 (S1) |
-| A-08 | Switch to my "staging" site. | `sites_switch_site` (same `activateSite` as the admin Activate route; persists TOVU_SITE, restart needed) | Admin now serves staging | LOCAL | BUILT 2026-10-05 (S1: persist + restart words) |
+| A-08 | Switch to my "staging" site. | `sites_switch_site` (same `activateSite` as the admin Activate route; persists TOVU_SITE, then `npm run dev` restarts the API onto it) | Admin now serves staging | LOCAL | BUILT 2026-10-05 (S1 persist, S2 dev.mjs restart) |
 | A-09 | Is checkout set up? | `commerce_get_status` | Matches Payments screen | RO | OK |
 | A-10 | Connect Stripe and add a product. | **NONE** | Product sellable | EXT | GAP (EXPECTED, no tool found) |
 
@@ -441,7 +441,7 @@ stub-BYOK as a cheap regression run of handlers). Claude in Chrome only for the 
 
 | Needed | Rows |
 |---|---|
-| API started with `.env` loaded (root key), or saved credentials can't decrypt and BYOK/Higgsfield are skipped | all EXT rows, M-03/04/05, I-*, B-*, D-03/05/08/09 |
+| API started with `.env` loaded (site key), or saved credentials can't decrypt and BYOK/Higgsfield are skipped | all EXT rows, M-03/04/05, I-*, B-*, D-03/05/08/09 |
 | Local CLI (Claude Code) installed, or a BYOK key saved in Settings | every row |
 | Admin tab open and bound to the run | O-06, O-07, L-06 |
 | Live site deployed with the publish peer connected (`publish_content_status` = works); owner OK (HOLD) | L-03/04/05/07/10, ST-1/2/3/4/10 |

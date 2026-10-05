@@ -192,6 +192,9 @@ import type { SitesToolDeps } from "../features/sites/index.js";
 // `platform/site-dir` (it used to live under `server/runtime/composition/`, which made this import
 // an `assistant <-> server` module cycle).
 import { isSiteSwitcherEnabled as REAL_IS_SITE_SWITCHER_ENABLED } from "../platform/site-dir/index.js";
+// Same pattern for `SitesToolDeps.devRestart` (2026-10-05, OD-S1): the `npm run dev` restart channel,
+// `null` outside `dev.mjs`. Read from the env here so `features/sites` never reads `process.env` itself.
+import { devRestartPortFromEnv } from "../platform/dev-supervisor/index.js";
 import type { TaxonomyToolDeps } from "../features/taxonomy/tool-registrations.js";
 import type { ThemeToolDeps } from "../features/theme/tool-registrations.js";
 import type { SetActiveThemeToolDeps } from "../features/theme/set-active-theme-tool.js";
@@ -675,6 +678,7 @@ export function buildAssistantToolRegistrations(
   const enrichedRouteDeps: AssistantToolRegistryDeps = {
     ...routeDeps,
     isSiteSwitcherEnabled: routeDeps.isSiteSwitcherEnabled ?? REAL_IS_SITE_SWITCHER_ENABLED,
+    devRestart: routeDeps.devRestart === undefined ? devRestartPortFromEnv() : routeDeps.devRestart,
   };
 
   for (const slice of allToolContributors(options.contributions)) {

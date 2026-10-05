@@ -12,6 +12,7 @@ import {
   type SiteListEntry,
   isSiteSwitcherEnabled as isSiteSwitcherEnabledReal,
 } from "#src/platform/site-dir/index";
+import { devRestartPortFromEnv, type DevRestartPort } from "#src/platform/dev-supervisor/index";
 import { listNewSiteAgentPluginTokenSignInPlugins } from "#src/features/agent-plugins/new-site-agent-plugin-tokens";
 import {
   activateSite,
@@ -122,6 +123,9 @@ export type AdminSitesDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "site
   persistActiveSite?: typeof persistActiveSiteReal;
   isSiteSwitcherEnabled?: typeof isSiteSwitcherEnabledReal;
   readPersistedActiveSite?: typeof readPersistedActiveSiteReal;
+  /** The `npm run dev` restart channel for Activate's `restartNow`. Defaults to
+   *  `devRestartPortFromEnv()` (`null` outside `dev.mjs`); a test passes a fake or `null`. */
+  devRestart?: DevRestartPort | null;
 };
 
 /** HTTP status for each refusal code the shared feature functions return. 403 for the
@@ -296,9 +300,12 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
       });
       if (!authorized) return;
 
+      // `restartNow: true` (2026-10-05, OD-S1) asks the `npm run dev` supervisor to restart onto the
+      // new site; without it, Activate behaves exactly as before (persist + instructions).
+      const restartNow = (req.body as Record<string, unknown> | null | undefined)?.restartNow === true;
       const activated = activateSite(
-        { switcherBase: gate.switcherBase, name: String(req.params.name ?? "") },
-        { listSites, persistActiveSite: deps.persistActiveSite },
+        { switcherBase: gate.switcherBase, name: String(req.params.name ?? ""), restartNow, dirOverridden: deps.siteBinding.dirOverridden },
+        { listSites, persistActiveSite: deps.persistActiveSite, devRestart: deps.devRestart === undefined ? devRestartPortFromEnv() : deps.devRestart },
       );
       if (!activated.ok) {
         sendRefusal(res, activated);

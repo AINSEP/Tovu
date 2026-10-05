@@ -14,6 +14,7 @@ export {
   createSiteForOwner,
   resolveSiteSwitchBase,
   SITE_SWITCH_RESTART_INSTRUCTIONS,
+  SITE_SWITCH_RESTARTING_NOTICE,
   type ActivateSiteResult,
   type CreateSiteForOwnerResult,
   type SiteAdminRefusal,

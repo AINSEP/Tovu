@@ -97,6 +97,10 @@ const SWITCH_SITE_INPUT_SCHEMA = {
       pattern: "^[a-z0-9-]+$",
       description: "The folder name of an EXISTING registered site under sites/ (as returned by sites_list).",
     },
+    restartNow: {
+      type: "boolean",
+      description: "Default true: when running under `npm run dev`, restart the dev server onto the new site a few seconds after this call. false = only save the choice.",
+    },
   },
 } as const;
 
@@ -135,7 +139,8 @@ export const sitesAgentToolCatalog: readonly AgentToolDefinition[] = [
     name: "sites_switch_site",
     description: [
       "Makes another existing site the one this local dev server serves — the same thing the admin Sites screen's Activate button does.",
-      "Saves the choice (TOVU_SITE in the repo's .env); it takes effect when the dev server restarts. Returns {activeSiteName, restartRequired, restartInstructions} — tell the person the restartInstructions.",
+      "Saves the choice (TOVU_SITE in the repo's .env). With restartNow (default true) under `npm run dev`, the dev server then restarts onto the new site by itself a few seconds later — the chat and admin reconnect on their own; reply in one short line and stop.",
+      "Without a dev supervisor (a hand-started `tovu serve`), nothing restarts. Returns {activeSiteName, restartRequired, restartInstructions, restarting} — restarting says whether a restart was started; tell the person the restartInstructions.",
       "Refuses if name is not a registered site (call sites_list first). Disabled where site switching is off (the desktop app, where each site is its own window, and hosted sites).",
     ].join(" "),
     sideEffects: "mutates-durable-state",

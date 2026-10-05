@@ -22,12 +22,20 @@
  *
  * Deliberately NOT a process manager. No restart-on-crash, no log multiplexing beyond inherited
  * stdio. If a child dies, we tear down and exit non-zero so the failure is visible.
+ *
+ * One exception, restart-on-REQUEST (owner decision OD-S1, 2026-10-05): after a site switch the
+ * server writes a request file (`TOVU_DEV_RESTART_REQUEST_FILE`, see `createApiRestarter` below and
+ * `apps/website/src/platform/dev-supervisor/dev-restart.ts`), and this script restarts ONLY the API
+ * child onto the newly persisted `TOVU_SITE`; admin Vite keeps running. The server still never kills
+ * itself. A crash is still a crash: an exit nobody asked for tears everything down exactly as before.
  */
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync, unlinkSync, unwatchFile, watchFile } from "node:fs";
 import net from "node:net";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { parseEnv } from "node:util";
 
 import { loadRepoRootEnvFile } from "./load-repo-root-env.mjs";
 import { listenersOn } from "./port-listeners.mjs";
@@ -40,6 +48,10 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..
 // same reason: without it, a desktop-launched site server never sees a secret like
 // `TOVU_SITE_KEY`, and a stored OAuth MCP server silently fails to decrypt instead of
 // surfacing as unset config.
+// Captured BEFORE `.env` loads: a `TOVU_SITE` exported in the shell wins over `.env` (see
+// `load-repo-root-env.mjs`), so a restart after a site switch must keep it — see `siteEnvForRestart`.
+const SHELL_TOVU_SITE = process.env.TOVU_SITE;
+
 if (loadRepoRootEnvFile(REPO_ROOT)) {
   console.log("tovu dev: loaded .env");
 }
@@ -141,6 +153,8 @@ function preflight() {
 
 const children = [];
 let shuttingDown = false;
+/** Children whose next exit is a requested restart, not a crash (see `createApiRestarter`). */
+const plannedExits = new WeakSet();
 
 /** Kill a child's whole process group, so `npx -> tsx -> node` chains die with it. */
 function killGroup(child) {
@@ -204,6 +218,19 @@ function waitForPort(port, timeoutMs = 30_000) {
   });
 }
 
+/**
+ * What a child's exit means. Only a restart this script asked for (`createApiRestarter`) is
+ * `planned`; every other exit outside shutdown is a `crash`, which tears the stack down as it always
+ * has — restart-on-request adds no restart-on-crash.
+ *
+ * @param {{shuttingDown: boolean, planned: boolean}} input
+ * @returns {"ignore" | "planned" | "crash"}
+ */
+export function classifyChildExit({ shuttingDown, planned }) {
+  if (shuttingDown) return "ignore";
+  return planned ? "planned" : "crash";
+}
+
 function start(name, command, args, env) {
   const child = spawn(command, args, {
     cwd: REPO_ROOT,
@@ -216,7 +243,12 @@ function start(name, command, args, env) {
     shutdown(1);
   });
   child.on("exit", (code, signal) => {
-    if (shuttingDown) return;
+    const kind = classifyChildExit({ shuttingDown, planned: plannedExits.has(child) });
+    if (kind === "ignore") return;
+    if (kind === "planned") {
+      children.splice(children.indexOf(child), 1);
+      return;
+    }
     console.error(
       `\ntovu dev: ${name} exited (code ${code ?? "none"}, signal ${signal ?? "none"}) — ` +
         "shutting the other half down so you don't get a half-running stack.\n"
@@ -225,6 +257,140 @@ function start(name, command, args, env) {
   });
   children.push(child);
   return child;
+}
+
+/** Mirrors `apps/website/src/platform/dev-supervisor/dev-restart.ts`'s constant of the same name
+ *  (that file is TypeScript; this one runs under bare `node` and cannot import it). */
+export const DEV_RESTART_REQUEST_FILE_ENV = "TOVU_DEV_RESTART_REQUEST_FILE";
+
+/**
+ * The `TOVU_SITE` a restarted API child should get. `.env` is re-read because a site switch just
+ * rewrote it; this process's own `process.env` still holds the value from boot. A shell-exported
+ * `TOVU_SITE` wins over `.env` (the same precedence a human restart would see), so the switch is
+ * inert and `warning` says so.
+ *
+ * @param {{shellSite: string | undefined, envFileText: string | null}} input
+ * @returns {{env: Record<string, string>, warning?: string}}
+ */
+export function siteEnvForRestart({ shellSite, envFileText }) {
+  if (shellSite !== undefined) {
+    return {
+      env: {},
+      warning: `tovu dev: TOVU_SITE=${shellSite} is exported in your shell, so it wins over .env — the API restarts on that same site. Unset it to let a site switch take effect.`,
+    };
+  }
+  const site = envFileText === null ? undefined : parseEnv(envFileText).TOVU_SITE;
+  return { env: site ? { TOVU_SITE: site } : {} };
+}
+
+/**
+ * Restart-on-request state machine for the API child. Every effect is injected, so a test drives it
+ * with fakes (`development/scripts/__tests__/dev-api-restart.test.mjs`).
+ *
+ * `restart()` marks the running child as a PLANNED exit (so `start()`'s exit handler does not treat
+ * it as a crash and tear the stack down), stops it, waits for its ports to free up (the API's own
+ * SIGTERM handler shuts its agent daemon down; starting before :4319 is free would collide), then
+ * starts a fresh child with `envForRestart()`. Concurrent requests share one restart. A Ctrl-C that
+ * lands mid-restart wins: nothing new is started once `isShuttingDown()` is true.
+ *
+ * @param {{
+ *   startApi: (env: Record<string, string>) => any,
+ *   stopChild: (child: any) => Promise<void>,
+ *   markPlanned: (child: any) => void,
+ *   waitForPortsFree: () => Promise<unknown>,
+ *   envForRestart: () => Record<string, string>,
+ *   isShuttingDown: () => boolean,
+ *   log: (message: string) => void,
+ * }} deps
+ */
+export function createApiRestarter(deps) {
+  let child = null;
+  let inFlight = null;
+  async function run(reason) {
+    deps.log(`\ntovu dev: restarting the API (${reason}) — admin Vite keeps running…\n`);
+    if (child) {
+      deps.markPlanned(child);
+      await deps.stopChild(child);
+    }
+    await deps.waitForPortsFree();
+    if (deps.isShuttingDown()) return false;
+    child = deps.startApi(deps.envForRestart());
+    return true;
+  }
+  return {
+    start(env) {
+      child = deps.startApi(env);
+      return child;
+    },
+    current: () => child,
+    /** @returns {Promise<boolean>} whether a new child was started. */
+    restart(reason) {
+      if (!inFlight) inFlight = run(reason).finally(() => (inFlight = null));
+      return inFlight;
+    },
+  };
+}
+
+/** Resolves once `child` has exited; SIGTERMs its group, then SIGKILLs it after `graceMs`. */
+function stopChildGroup(child, graceMs = 8000) {
+  if (child.exitCode !== null || child.signalCode !== null) return Promise.resolve();
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      try {
+        process.kill(-child.pid, "SIGKILL");
+      } catch {
+        /* gone */
+      }
+    }, graceMs);
+    child.once("exit", () => {
+      clearTimeout(timer);
+      resolve();
+    });
+    killGroup(child);
+  });
+}
+
+/** Resolves once nothing listens on any of `ports`, or after `timeoutMs` (then starts anyway). */
+async function waitForPortsFree(ports, timeoutMs = 15_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (ports.some((port) => listenersOn(port).length > 0)) {
+    if (Date.now() > deadline) return false;
+    await new Promise((resolve) => setTimeout(resolve, 300));
+  }
+  return true;
+}
+
+/** Reads the repo-root `.env`, or `null` when there is none. */
+function readRepoEnvFile() {
+  try {
+    return readFileSync(path.join(REPO_ROOT, ".env"), "utf8");
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Polls `requestFile` and calls `onRequest(reason)` each time the server writes it. The file is
+ * deleted on sight so one request is one restart. Polling (500ms), not `fs.watch`: it behaves the
+ * same on every platform and the file may not exist yet.
+ */
+function watchRestartRequests(requestFile, onRequest) {
+  watchFile(requestFile, { interval: 500 }, (current) => {
+    if (current.mtimeMs === 0) return; // missing — including right after we deleted it
+    let reason = "requested by the server";
+    try {
+      reason = JSON.parse(readFileSync(requestFile, "utf8")).reason ?? reason;
+    } catch {
+      /* unreadable — still a request */
+    }
+    try {
+      unlinkSync(requestFile);
+    } catch {
+      /* already gone */
+    }
+    onRequest(reason);
+  });
+  return () => unwatchFile(requestFile);
 }
 
 /**
@@ -352,7 +518,31 @@ async function main() {
     TOVU_ENABLE_SITE_SWITCHER: process.env.TOVU_ENABLE_SITE_SWITCHER ?? "1",
   };
   if (extraCaCerts) apiEnv.NODE_EXTRA_CA_CERTS = extraCaCerts;
-  start("api server", "npx", ["tsx", "watch", "apps/website/src/index.ts"], apiEnv);
+  // Per-supervisor request file (OD-S1): two `npm run dev`s on different ports never cross.
+  const restartRequestFile = path.join(os.tmpdir(), `tovu-dev-restart-${process.pid}.json`);
+  try {
+    unlinkSync(restartRequestFile);
+  } catch {
+    /* no stale request */
+  }
+  apiEnv[DEV_RESTART_REQUEST_FILE_ENV] = restartRequestFile;
+  const apiRestarter = createApiRestarter({
+    startApi: (env) => start("api server", "npx", ["tsx", "watch", "apps/website/src/index.ts"], env),
+    stopChild: (child) => stopChildGroup(child),
+    markPlanned: (child) => plannedExits.add(child),
+    waitForPortsFree: () => waitForPortsFree([API_PORT, DAEMON_PORT]),
+    envForRestart: () => {
+      const site = siteEnvForRestart({ shellSite: SHELL_TOVU_SITE, envFileText: readRepoEnvFile() });
+      if (site.warning) console.warn(site.warning);
+      return { ...apiEnv, ...site.env };
+    },
+    isShuttingDown: () => shuttingDown,
+    log: (message) => console.log(message),
+  });
+  apiRestarter.start(apiEnv);
+  watchRestartRequests(restartRequestFile, (reason) => {
+    if (!shuttingDown) void apiRestarter.restart(reason);
+  });
 
   /**
    * Vite starts only once the API is accepting connections.

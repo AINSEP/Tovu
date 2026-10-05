@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { InitDirNotEmptyError, ValidationError, type SiteBinding, type SiteListEntry } from "#src/platform/site-dir/index";
 
-import { activateSite, createSiteForOwner, resolveSiteSwitchBase, SITE_SWITCH_RESTART_INSTRUCTIONS } from "../site-admin.js";
+import { activateSite, createSiteForOwner, resolveSiteSwitchBase, SITE_SWITCH_RESTART_INSTRUCTIONS, SITE_SWITCH_RESTARTING_NOTICE } from "../site-admin.js";
 
 /**
  * @file `site-admin.ts` — the create/activate logic the admin Sites routes and the
@@ -78,4 +78,36 @@ test("activateSite: an unknown name refuses SITE_NOT_FOUND and persists nothing"
   const result = activateSite({ switcherBase: "/repo", name: "ghost" }, { listSites: () => [SITE], persistActiveSite: () => { persisted = true; } });
   assert.deepEqual(result, { ok: false, code: "SITE_NOT_FOUND", error: "site 'ghost' was not found" });
   assert.equal(persisted, false);
+});
+
+test("activateSite: restartNow with a dev supervisor asks it to restart and says so", () => {
+  const requests: unknown[] = [];
+  const result = activateSite(
+    { switcherBase: "/repo", name: "alpha", restartNow: true },
+    { listSites: () => [SITE], persistActiveSite: () => {}, devRestart: { requestRestart: (required) => void requests.push(required) } },
+  );
+  assert.deepEqual(requests, [{ reason: "switch site to 'alpha'" }]);
+  assert.deepEqual(result, { ok: true, activeSiteName: "alpha", restartRequired: true, restartInstructions: SITE_SWITCH_RESTARTING_NOTICE, restarting: true });
+});
+
+test("activateSite: restartNow without a supervisor falls back to the restart instructions", () => {
+  const result = activateSite({ switcherBase: "/repo", name: "alpha", restartNow: true }, { listSites: () => [SITE], persistActiveSite: () => {}, devRestart: null });
+  assert.deepEqual(result, { ok: true, activeSiteName: "alpha", restartRequired: true, restartInstructions: SITE_SWITCH_RESTART_INSTRUCTIONS, restarting: false });
+});
+
+test("activateSite: TOVU_SITE_DIR set means no pointless restart, and the reason is given", () => {
+  let requested = false;
+  const result = activateSite(
+    { switcherBase: "/repo", name: "alpha", restartNow: true, dirOverridden: true },
+    { listSites: () => [SITE], persistActiveSite: () => {}, devRestart: { requestRestart: () => { requested = true; } } },
+  );
+  assert.equal(requested, false);
+  assert.equal(result.ok && result.restarting, false);
+  assert.match(result.ok ? result.restartInstructions : "", /TOVU_SITE_DIR is set/);
+});
+
+test("activateSite: an unknown name never restarts", () => {
+  let requested = false;
+  activateSite({ switcherBase: "/repo", name: "ghost", restartNow: true }, { listSites: () => [SITE], persistActiveSite: () => {}, devRestart: { requestRestart: () => { requested = true; } } });
+  assert.equal(requested, false);
 });

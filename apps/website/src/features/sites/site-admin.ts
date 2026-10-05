@@ -9,6 +9,7 @@ import {
   type SiteListEntry,
 } from "#src/platform/site-dir/index";
 import type { HttpClientPort } from "#src/platform/http/index";
+import type { DevRestartPort } from "#src/platform/dev-supervisor/index";
 import {
   bundledAgentPluginsSourceRoot,
   firstNewSiteAgentPluginTokenRefusal,
@@ -35,7 +36,9 @@ import { checkAgentPluginAccessToken as checkAgentPluginAccessTokenReal } from "
  * Activate persists the choice (`active-site.ts`'s `persistActiveSite`) and returns explicit restart
  * instructions — it does NOT kill, signal, or re-exec any process (standing rule: no admin API
  * terminates the server on a click). The `restartRequired`/`restartInstructions` fields exist so the
- * UI never has to hardcode that prose itself.
+ * UI never has to hardcode that prose itself. Since OD-S1 (2026-10-05) it may instead ASK the
+ * `npm run dev` supervisor to restart the API child (`platform/dev-supervisor/dev-restart.ts`) —
+ * the supervisor does the restart; this process still never ends itself.
  *
  * Create also takes an optional `agentPluginTokens: { [pluginId]: token }` (2026-09-29): each is
  * checked against the plugin's probe URL first (a rejected one refuses the create, nothing made),
@@ -207,15 +210,26 @@ export async function createSiteForOwner(
   }
 }
 
+/** What the person is told when the dev supervisor is restarting the server for them (S2). */
+export const SITE_SWITCH_RESTARTING_NOTICE =
+  "The dev server is restarting onto the new site now. The admin reconnects by itself in a few seconds — nothing to do.";
+
 export interface ActivateSiteRequired {
   /** From {@link resolveSiteSwitchBase}. Both the lookup and the `.env` write are rooted here. */
   switcherBase: string;
   name: string;
+  /** Ask the dev supervisor to restart now (OD-S1, 2026-10-05). Ignored when there is none. */
+  restartNow?: boolean;
+  /** `siteBinding.dirOverridden`: `TOVU_SITE_DIR` wins over `TOVU_SITE`, so a restart would come
+   *  back on the SAME site — never restart for nothing. */
+  dirOverridden?: boolean;
 }
 
 export interface ActivateSitePorts {
   listSites?: (optional?: { cwd?: string }) => readonly SiteListEntry[];
   persistActiveSite?: typeof persistActiveSiteReal;
+  /** Present only under `npm run dev` (`platform/dev-supervisor`). `null`/absent = no supervisor. */
+  devRestart?: DevRestartPort | null;
 }
 
 export interface ActivateSiteResult {
@@ -223,13 +237,27 @@ export interface ActivateSiteResult {
   activeSiteName: string;
   restartRequired: true;
   restartInstructions: string;
+  /** Set only when `restartNow` was asked: whether a restart was actually requested. */
+  restarting?: boolean;
+}
+
+/** Whether to fire the restart, and if not, why (so the person is told the real reason). */
+function restartDecision(required: ActivateSiteRequired, devRestart: DevRestartPort | null | undefined): { restart: boolean; note?: string } {
+  if (!required.restartNow) return { restart: false };
+  if (required.dirOverridden) {
+    return { restart: false, note: " Not restarting: TOVU_SITE_DIR is set, so a restart would come back on the same site — unset it first." };
+  }
+  return devRestart ? { restart: true } : { restart: false };
 }
 
 /**
  * Makes `name` the site the NEXT dev-server start serves (`TOVU_SITE=<name>` in the switcher tree's
  * `.env`). Looks the name up with the strict `listSites()` — an `unregistered` served folder is not
  * a valid target, because `tovu serve` would refuse it.
- * @complexity O(sites) for the lookup plus one `.env` rewrite; cyclomatic 2.
+ *
+ * With `restartNow` and a dev supervisor (`ports.devRestart`, only under `npm run dev`), it also asks
+ * the supervisor to restart the API child onto the new site. Still never kills this process itself.
+ * @complexity O(sites) for the lookup plus one `.env` rewrite; cyclomatic 4.
  */
 export function activateSite(
   required: ActivateSiteRequired,
@@ -239,5 +267,10 @@ export function activateSite(
   const match = (ports.listSites ?? listSitesReal)({ cwd: switcherBase }).find((site) => site.name === name);
   if (!match) return { ok: false, code: "SITE_NOT_FOUND", error: `site '${name}' was not found` };
   (ports.persistActiveSite ?? persistActiveSiteReal)({ name }, { cwd: switcherBase });
-  return { ok: true, activeSiteName: name, restartRequired: true, restartInstructions: SITE_SWITCH_RESTART_INSTRUCTIONS };
+  const base = { ok: true as const, activeSiteName: name, restartRequired: true as const };
+  if (!required.restartNow) return { ...base, restartInstructions: SITE_SWITCH_RESTART_INSTRUCTIONS };
+  const decision = restartDecision(required, ports.devRestart);
+  if (!decision.restart) return { ...base, restartInstructions: SITE_SWITCH_RESTART_INSTRUCTIONS + (decision.note ?? ""), restarting: false };
+  ports.devRestart!.requestRestart({ reason: `switch site to '${name}'` });
+  return { ...base, restartInstructions: SITE_SWITCH_RESTARTING_NOTICE, restarting: true };
 }

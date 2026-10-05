@@ -1,6 +1,6 @@
 import path from "node:path";
 
-import { buildDomainRegistrations, indexCatalogById, optionalString, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { buildDomainRegistrations, indexCatalogById, optionalBoolean, optionalString, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 
 import type { ToolContributor } from "#src/assistant/index";
@@ -213,10 +213,15 @@ export function buildSitesRegistrations(routeDeps: SitesToolDeps): ToolRegistrat
     },
 
     sites_switch_site: async (ctx) => {
-      const name = requireSiteFolderName(requireInputRecord({ input: ctx.input }), "name");
+      const input = requireInputRecord({ input: ctx.input });
+      const name = requireSiteFolderName(input, "name");
+      const restartNow = optionalBoolean({ input, key: "restartNow" }) ?? true;
       const switcherBase = await gateSiteSwitchWrite(routeDeps, switcherEnabled, ctx.principal.id);
       return withSchemaOnRejection({ toolId: "sites_switch_site", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => {
-        const { ok: _ok, ...activated } = orThrowRefusal(activateSite({ switcherBase, name }, { listSites: routeDeps.listSites, persistActiveSite: routeDeps.persistActiveSite }));
+        const { ok: _ok, ...activated } = orThrowRefusal(activateSite(
+          { switcherBase, name, restartNow, dirOverridden: routeDeps.siteBinding.dirOverridden },
+          { listSites: routeDeps.listSites, persistActiveSite: routeDeps.persistActiveSite, devRestart: routeDeps.devRestart },
+        ));
         return activated;
       } });
     },
