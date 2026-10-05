@@ -17,7 +17,7 @@ import { installUnhandledRejectionGuard } from "../../server/runtime/boot/proces
 import { registerPluginSdkResolver } from "../../server/runtime/boot/plugin-sdk-resolver.js";
 import { ensureAgentDaemonToken } from "../../assistant/index.js";
 import { runProductionReadinessGateOrExit } from "../../server/runtime/boot/boot-readiness-gate.js";
-import { warnIfNoRootKeyAtBoot } from "../../server/runtime/boot/root-key-boot-notice.js";
+import { warnIfNoSiteKeyAtBoot } from "../../server/runtime/boot/site-key-boot-notice.js";
 import { ensureSiteKeyForBoot } from "../../features/webhooks/site-key-ensure.js";
 import { findSiteKeyDependentData } from "../../platform/site-dir/site-key-dependent-data.js";
 import { runBootLifecycle } from "../../server/runtime/lifecycle/boot-lifecycle.js";
@@ -284,7 +284,7 @@ export async function runServeCommand(input: RunServeCommandInput): Promise<void
   // Same pairing as `index.ts`: the gate above is production-only, so a LOCAL `tovu serve` — which
   // is what the desktop shell spawns for every site — said nothing at all about a missing root key
   // until this existed. See `root-key-boot-notice.ts`.
-  warnIfNoRootKeyAtBoot();
+  warnIfNoSiteKeyAtBoot();
 
   warnIfLegacyEnvVarsIgnored();
 

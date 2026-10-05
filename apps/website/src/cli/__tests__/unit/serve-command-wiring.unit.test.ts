@@ -192,7 +192,7 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
   module("../../../server/runtime/boot/plugin-sdk-resolver.ts", { registerPluginSdkResolver: () => {} });
   module("../../../server/runtime/boot/process-error-guards.ts", { installUnhandledRejectionGuard: () => {} });
   module("../../../server/runtime/boot/boot-readiness-gate.ts", { runProductionReadinessGateOrExit: async () => {} });
-  module("../../../server/runtime/boot/root-key-boot-notice.ts", { warnIfNoRootKeyAtBoot: () => {} });
+  module("../../../server/runtime/boot/site-key-boot-notice.ts", { warnIfNoSiteKeyAtBoot: () => {} });
   module("../../../features/webhooks/site-key-ensure.ts", { ensureSiteKeyForBoot: async () => {} });
   module("../../../server/runtime/boot/bootstrap.ts", { buildBootModules: () => [], logCriticalBootFailures: () => {} });
   module("../../../server/runtime/lifecycle/boot-lifecycle.ts", { runBootLifecycle: async () => ({ ok: true, modules: [] }) });

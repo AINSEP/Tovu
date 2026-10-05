@@ -27,18 +27,18 @@ import { pathToFileURL } from "node:url";
 
 const SOURCE = fs.readFileSync(path.join(import.meta.dirname, "..", "boot-readiness-gate.ts"), "utf8");
 
-test("2026-09-09 durability fix: hasMissingIntegrationsRootKey reads !inspectRootKeyMaterial().active, not the env var alone", () => {
+test("2026-09-09 durability fix: hasMissingSiteKey reads !inspectSiteKeyMaterial().active, not the env var alone", () => {
   assert.match(
     SOURCE,
-    /hasMissingIntegrationsRootKey:\s*!siteKeyStatus\.active,/,
-    "the boot gate's envSnapshot must accept a valid key file too (via inspectRootKeyMaterial), not only the raw env var — otherwise a generated file is invisible to this gate and boot refuses even when one exists"
+    /hasMissingSiteKey:\s*!siteKeyStatus\.active,/,
+    "the boot gate's envSnapshot must accept a valid key file too (via inspectSiteKeyMaterial), not only the raw env var — otherwise a generated file is invisible to this gate and boot refuses even when one exists"
   );
 });
 
-test("2026-09-09 durability fix: boot-readiness-gate.ts imports inspectRootKeyMaterial from the real keyring module, not a local reimplementation", () => {
+test("2026-09-09 durability fix: boot-readiness-gate.ts imports inspectSiteKeyMaterial from the real keyring module, not a local reimplementation", () => {
   assert.match(
     SOURCE,
-    /import\s*\{\s*inspectRootKeyMaterial\s*\}\s*from\s*"#src\/features\/webhooks\/keyring\.env"/,
+    /import\s*\{\s*inspectSiteKeyMaterial\s*\}\s*from\s*"#src\/features\/webhooks\/keyring\.env"/,
     "must reuse the SAME env-first/file-second precedence EnvOrFileKeyring itself uses, not a second, driftable implementation of that check"
   );
 });

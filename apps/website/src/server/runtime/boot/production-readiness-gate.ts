@@ -32,7 +32,7 @@ export interface EnvSnapshot {
    * instance hits it first) either mints an ephemeral root key or throws mid-request — this check
    * turns that into a loud boot-time refusal instead.
    */
-  hasMissingIntegrationsRootKey: boolean;
+  hasMissingSiteKey: boolean;
   hasSiteKeyEnvConflict?: boolean;
 }
 
@@ -98,7 +98,7 @@ function collectUnsafeDefaultFailures(envSnapshot: EnvSnapshot): BootRefusalFail
   if (envSnapshot.hasAlwaysOnAnalyticsStub) failures.push(unsafeDefaultFailure("always-enabled-analytics-stub"));
   if (envSnapshot.hasDefaultOwnerPassword) failures.push(unsafeDefaultFailure("default-owner-password"));
   if (envSnapshot.hasSiteKeyEnvConflict) failures.push(unsafeDefaultFailure("site-key-env-conflict"));
-  if (envSnapshot.hasMissingIntegrationsRootKey && !envSnapshot.hasSiteKeyEnvConflict) failures.push(unsafeDefaultFailure("missing-site-key"));
+  if (envSnapshot.hasMissingSiteKey && !envSnapshot.hasSiteKeyEnvConflict) failures.push(unsafeDefaultFailure("missing-site-key"));
   return failures;
 }
 

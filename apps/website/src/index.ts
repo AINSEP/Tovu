@@ -7,7 +7,7 @@ import { deriveDevScheme, resolveDevTls, resolveDevTlsCertPaths } from "./server
 import { createSiteRouteDeps, defaultContentDbPath, siteDir } from "./server/runtime/composition/deps.js";
 import type { SiteStore } from "./server/runtime/composition/open-site-store.js";
 import { runProductionReadinessGateOrExit } from "./server/runtime/boot/boot-readiness-gate.js";
-import { warnIfNoRootKeyAtBoot } from "./server/runtime/boot/root-key-boot-notice.js";
+import { warnIfNoSiteKeyAtBoot } from "./server/runtime/boot/site-key-boot-notice.js";
 import { ensureSiteKeyForBoot } from "./features/webhooks/site-key-ensure.js";
 import { findSiteKeyDependentData } from "./platform/site-dir/site-key-dependent-data.js";
 import { runBootLifecycle } from "./server/runtime/lifecycle/boot-lifecycle.js";
@@ -274,7 +274,7 @@ async function main(): Promise<void> {
   // "Do not refuse to boot without a root key" was implemented as "do not mention it", and that
   // silence cost an afternoon on 2026-09-18 — see `root-key-boot-notice.ts`'s own header. Warns
   // and carries on; never refuses, never throws.
-  warnIfNoRootKeyAtBoot();
+  warnIfNoSiteKeyAtBoot();
 
   if (!useMemory) await guardContentDbSchemaOrExit(defaultContentDbPath());
   // site-key plan §A3a: gated identically to the schema guard right above — a `:memory:` boot has

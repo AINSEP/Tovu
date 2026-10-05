@@ -73,7 +73,7 @@ test("index.ts main(): a refusing schema guard stops a disk boot before site-key
     ensureAgentDaemonToken: () => {},
     registerPluginSdkResolver: () => {},
     runProductionReadinessGateOrExit: async () => {},
-    warnIfNoRootKeyAtBoot: () => {},
+    warnIfNoSiteKeyAtBoot: () => {},
     defaultContentDbPath: () => "/isolated/content.db",
     guardContentDbSchemaOrExit: async (dbPath: string) => {
       calls.push("schema");

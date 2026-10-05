@@ -3,11 +3,11 @@
  * (`prepare-start.mjs`) has already built whatever a fresh checkout was missing by the time this
  * runs.
  *
- * Four things, in order, so a fresh checkout with no manually-set `TOVU_INTEGRATIONS_ROOT_KEY`
+ * Four things, in order, so a fresh checkout with no manually-set `TOVU_SITE_KEY`
  * "just works" (npm-start-just-works-plan-2026-09-24):
  *
  *   1. Load `.env` — `dev.mjs`/`dev-desktop.mjs` already did this; `npm start` never did, so an
- *      owner's key in `.env` never reached a plain `npm start` boot. (`clearBlankRootKeyEnv` below
+ *      owner's key in `.env` never reached a plain `npm start` boot. (`clearBlankSiteKeyEnv` below
  *      runs first, before `.env` loads, so a blank shell-exported var never shadows `.env`'s real
  *      value.)
  *   2. Default `TOVU_HOST` to loopback-only (`resolveStartHost` below) when the operator hasn't set
@@ -19,7 +19,7 @@
  *      (`startQuietEnvDefaults`) so the server's one URL line is the whole output.
  *   4. `await import()` the compiled server IN-PROCESS — no extra child process, no signal
  *      forwarding to build, and `index.ts`'s own `process.ppid` watchdog still sees `npm` as its
- *      parent exactly as it does today. The imported `index.js` itself now ensures a usable root key
+ *      parent exactly as it does today. The imported `index.js` itself now ensures a usable site key
  *      exists (`ensureSiteKeyForBoot`, site-key plan §A3a) before it starts listening — this
  *      launcher no longer spawns a separate `tovu root-key ensure` step to do that (removed
  *      2026-09-24: `ensureSiteKeyForBoot`'s boot-path wiring made the standalone CLI command and
@@ -105,9 +105,9 @@ function classifyPublicUrl(raw) {
 }
 
 /**
- * Deletes a BLANK `TOVU_INTEGRATIONS_ROOT_KEY` from `env` — must run before `.env` is loaded.
+ * Deletes a BLANK `TOVU_SITE_KEY` from `env` — must run before `.env` is loaded.
  * `process.loadEnvFile` never overrides a variable that is already present, even an empty one, and
- * the keyring (`keyring.env.ts`'s `readActiveRootKeyMaterial`) treats an empty value as absent. So a
+ * the keyring (`keyring.env.ts`'s `readActiveSiteKeyMaterial`) treats an empty value as absent. So a
  * blank shell value (an `export VAR=$UNSET` in a profile is enough) would hide `.env`'s real key,
  * and the boot path's own `ensureSiteKeyForBoot` (site-key plan §A3a) would then mint a second key
  * file — two keys for one install's data.
@@ -116,7 +116,7 @@ function classifyPublicUrl(raw) {
  * @complexity O(1).
  */
 export const LEGACY_SITE_KEY_ENV_VAR_NAME = "TOVU_INTEGRATIONS_ROOT_KEY"; // site-key-legacy: remove on/after 2026-11-01 (D3)
-export function clearBlankRootKeyEnv(env) {
+export function clearBlankSiteKeyEnv(env) {
   for (const name of ["TOVU_SITE_KEY", LEGACY_SITE_KEY_ENV_VAR_NAME]) {
     if (env[name] !== undefined && env[name].trim().length === 0) delete env[name];
   }
@@ -124,13 +124,13 @@ export function clearBlankRootKeyEnv(env) {
 
 /**
  * The quiet-boot switches `npm start` sets so its whole output is the server's one URL line:
- * `TOVU_ROOT_KEY_NOTICE=off` (silences `root-key-boot-notice.ts`'s local-mode "no usable root key"
+ * `TOVU_SITE_KEY_NOTICE=off` (silences `site-key-boot-notice.ts`'s local-mode "no usable site key"
  * wall unconditionally — `npm start`'s whole point is a one-line boot) and
  * `TOVU_DAEMON_LIFECYCLE_LOG=off` (hides the agent daemon's first-spawn and deliberate-exit lines;
  * respawns and crashes still print — see `daemon-supervisor.ts`). An operator's own
  * `TOVU_DAEMON_LIFECYCLE_LOG` (e.g. `on`) wins.
  *
- * `TOVU_ROOT_KEY_NOTICE=off` used to rest on a claim that was briefly FALSE (2026-09-24, before
+ * `TOVU_SITE_KEY_NOTICE=off` used to rest on a claim that was briefly FALSE (2026-09-24, before
  * `site-key-ensure.ts`'s `ensureSiteKeyForBoot` learned to mint a missing `.site-meta.json`): the
  * default `sites/<name>/` directory this launcher boots is never given one by `tovu init` (it isn't
  * an install dir at all — see `content-db-schema-guard.ts`'s own header), so `ensureSiteKeyForBoot`
@@ -148,7 +148,7 @@ export function clearBlankRootKeyEnv(env) {
  * @complexity O(1).
  */
 export function startQuietEnvDefaults(env) {
-  const defaults = { TOVU_ROOT_KEY_NOTICE: "off" };
+  const defaults = { TOVU_SITE_KEY_NOTICE: "off" };
   if (env.TOVU_DAEMON_LIFECYCLE_LOG === undefined) defaults.TOVU_DAEMON_LIFECYCLE_LOG = "off";
   return defaults;
 }
@@ -220,7 +220,7 @@ export async function probePortFree(port, host) {
 async function main() {
   const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 
-  clearBlankRootKeyEnv(process.env);
+  clearBlankSiteKeyEnv(process.env);
   const dotenvLoaded = loadRepoRootEnvFile(repoRoot);
 
   const host = resolveStartHost(process.env);

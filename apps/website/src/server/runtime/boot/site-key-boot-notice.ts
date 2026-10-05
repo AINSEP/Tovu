@@ -1,16 +1,16 @@
 import { homedir } from "node:os";
 import { siteKeySources } from "#src/features/webhooks/site-key-sources";
-import { inspectRootKeyMaterial, type RootKeyStatus } from "#src/features/webhooks/keyring.env";
+import { inspectSiteKeyMaterial, type SiteKeyStatus } from "#src/features/webhooks/keyring.env";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 
 /**
  * @file The LOCAL-mode counterpart to `runProductionReadinessGateOrExit()`: a server booted with
- * no usable integrations root key says so, once, on its own terminal.
+ * no usable integrations site key says so, once, on its own terminal.
  *
  * ## Why local mode had nothing
  *
  * `boot-readiness-gate.ts` already refuses to boot in PRODUCTION when
- * `inspectRootKeyMaterial().active` is false. In local mode it returns immediately, which is
+ * `inspectSiteKeyMaterial().active` is false. In local mode it returns immediately, which is
  * correct — a developer machine must be able to boot without a key, and refusing would be
  * unrecoverable (the admin Secrets page that generates one lives behind this very boot). But
  * "don't refuse" was implemented as "don't mention it", and that silence is the defect.
@@ -33,21 +33,21 @@ import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
  * ## What it does not do
  *
  * Never throws, never exits, never changes what boots. A missing key is recoverable and the app is
- * what recovers it. And it never reads or prints key material — {@link RootKeyStatus} carries a
+ * what recovers it. And it never reads or prints key material — {@link SiteKeyStatus} carries a
  * one-way fingerprint at most, and this file only ever reads its boolean and path fields.
  */
 
 /** The reader and the writer, injected so this is testable without a real environment, a real
  *  `~/.tovu`, or a captured console. */
-export interface RootKeyBootNoticeDeps {
-  /** Defaults to `inspectRootKeyMaterial` — the SAME function the admin Secrets page reports and
+export interface SiteKeyBootNoticeDeps {
+  /** Defaults to `inspectSiteKeyMaterial` — the SAME function the admin Secrets page reports and
    *  the production gate checks, so these three can never disagree about what "has a key" means. */
-  inspect?: () => RootKeyStatus;
+  inspect?: () => SiteKeyStatus;
   /** Defaults to `resolveRuntimeMode`. */
   mode?: () => "production" | "local";
   /** Defaults to `console.warn`. One call per line. */
   log?: (line: string) => void;
-  /** Source for the `TOVU_ROOT_KEY_NOTICE` switch below. Defaults to `process.env`. */
+  /** Source for the `TOVU_SITE_KEY_NOTICE` switch below. Defaults to `process.env`. */
   env?: NodeJS.ProcessEnv;
 }
 
@@ -61,22 +61,22 @@ export interface RootKeyBootNoticeDeps {
  * @throws never. A probe that fails is reported as "cannot tell", not propagated onto the boot path.
  * @complexity O(1) plus at most one small file read inside `inspect`.
  */
-export function warnIfNoRootKeyAtBoot(deps: RootKeyBootNoticeDeps = {}): void {
+export function warnIfNoSiteKeyAtBoot(deps: SiteKeyBootNoticeDeps = {}): void {
   // npm-start-just-works-plan-2026-09-24 decision 6: `development/scripts/start.mjs` sets this
   // to exactly `"off"` once it has either printed its own one-line key notice or confirmed a key
   // is active, so this function never doubles that up with its own longer wall underneath it. Any
   // OTHER value (including unset) leaves this function's own behavior untouched — this is a single
-  // exact-match switch, not a general "truthy" flag, so a stray `TOVU_ROOT_KEY_NOTICE=1` a future
+  // exact-match switch, not a general "truthy" flag, so a stray `TOVU_SITE_KEY_NOTICE=1` a future
   // caller sets for some other reason can never accidentally silence this wall.
   const env = deps.env ?? process.env;
-  const quiet = env.TOVU_ROOT_KEY_NOTICE === "off";
+  const quiet = env.TOVU_SITE_KEY_NOTICE === "off";
 
   const mode = (deps.mode ?? resolveRuntimeMode)();
 
   const log = deps.log ?? ((line: string) => console.warn(line));
-  let status: RootKeyStatus;
+  let status: SiteKeyStatus;
   try {
-    status = deps.inspect ? deps.inspect() : inspectRootKeyMaterial({ sources: siteKeySources({ mode, env, home: homedir(), cwd: process.cwd() }) }, { env: () => env });
+    status = deps.inspect ? deps.inspect() : inspectSiteKeyMaterial({ sources: siteKeySources({ mode, env, home: homedir(), cwd: process.cwd() }) }, { env: () => env });
   } catch {
     if (quiet || mode === "production") return;
     // Reported rather than rethrown: this runs on the boot path, and "I could not check" is still
@@ -91,7 +91,7 @@ export function warnIfNoRootKeyAtBoot(deps: RootKeyBootNoticeDeps = {}): void {
   if (status.deprecated) safely(log, ["[site-key] the legacy site key environment variable is deprecated. Set TOVU_SITE_KEY to the same value, then remove the legacy variable."]);
   if (status.active || quiet || mode === "production") return;
 
-  safely(log, rootKeyBootNoticeLines(status));
+  safely(log, siteKeyBootNoticeLines(status));
 }
 
 /** Writes the notice, tolerating a sink that throws — a dead stderr must not take the boot down. */
@@ -110,7 +110,7 @@ function safely(log: (line: string) => void, lines: readonly string[]): void {
  * Every path and variable name is read from the STATUS, so this can never name a different file
  * than the one that was actually checked. Nothing here reads key material.
  */
-export function rootKeyBootNoticeLines(status: RootKeyStatus): readonly string[] {
+export function siteKeyBootNoticeLines(status: SiteKeyStatus): readonly string[] {
   const cause = status.invalid
     ? `the ${status.source === "env" ? `${status.envVarName ?? "TOVU_SITE_KEY"} environment variable` : `key file at ${status.keyFilePath}`} is present but not usable (${status.reason ?? "unreadable"})`
     : `TOVU_SITE_KEY is not set and there is no key file at ${status.keyFilePath}`;

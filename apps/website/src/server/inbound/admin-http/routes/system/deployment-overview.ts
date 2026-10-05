@@ -7,8 +7,8 @@ import { DEFAULT_OWNER_PASSWORD } from "#src/features/identity/wiring";
 import { defaultContentDbPath, mediaUploadsDir } from "#src/server/runtime/composition/deps";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { isAssistantDaemonKnownFailed } from "#src/server/runtime/lifecycle/readiness-state";
-import { inspectRootKeyMaterial, type RootKeyStatus } from "#src/features/webhooks/keyring.env";
-import { resolveSiteTokenSources } from "./site-token.js";
+import { inspectSiteKeyMaterial, type SiteKeyStatus } from "#src/features/webhooks/keyring.env";
+import { resolveSiteKeySources } from "./site-key.js";
 import type { RouteDeps } from "#src/server/routes/types";
 
 /**
@@ -27,7 +27,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  * ## Site-key plan §A3b — site-aware root-key row
  *
  * The `TOVU_INTEGRATIONS_ROOT_KEY` row resolves THIS site's own ordered source list
- * ({@link resolveSiteTokenSources}, `site-token.ts`) instead of `inspectRootKeyMaterial()`'s
+ * ({@link resolveSiteKeySources}, `site-token.ts`) instead of `inspectRootKeyMaterial()`'s
  * module-level env-then-legacy-default precedence — the same seam the Site Token tab's own
  * `GET`/`reveal`/`generate` verbs already use, so a site with a resolvable per-site key file
  * (`~/.tovu/site-keys/<siteKeyId>.hex`) reports it as active here too, not only on that tab. A site
@@ -45,7 +45,7 @@ export interface DeploymentEnvVarStatus {
   set: boolean;
   /** Root key row only: where the keyring's material came from. `set` there means "usable root key",
    *  so a valid generated key file counts, and malformed env/file material does not. */
-  source?: RootKeyStatus["source"];
+  source?: SiteKeyStatus["source"];
   /** Root key row only, present iff material was found but the keyring would reject it. */
   invalid?: true;
 }
@@ -94,17 +94,17 @@ const REQUIRED_ENV_VAR_NAMES = [
 
 /** The root key row, from what `EnvOrFileKeyring` would actually resolve — the env var OR a generated
  *  key file, validated — rather than the env var's bare presence. @complexity O(1). */
-function rootKeyEnvVarStatus(rootKey: RootKeyStatus): DeploymentEnvVarStatus {
+function siteKeyEnvVarStatus(siteKey: SiteKeyStatus): DeploymentEnvVarStatus {
   return {
     name: "TOVU_SITE_KEY",
-    set: rootKey.active,
-    source: rootKey.source,
-    ...(rootKey.invalid ? { invalid: true as const } : {}),
+    set: siteKey.active,
+    source: siteKey.source,
+    ...(siteKey.invalid ? { invalid: true as const } : {}),
   };
 }
 
-function envVarStatus(name: (typeof REQUIRED_ENV_VAR_NAMES)[number], rootKey: RootKeyStatus): DeploymentEnvVarStatus {
-  return name === "TOVU_SITE_KEY" ? rootKeyEnvVarStatus(rootKey) : { name, set: Boolean(process.env[name]) };
+function envVarStatus(name: (typeof REQUIRED_ENV_VAR_NAMES)[number], siteKey: SiteKeyStatus): DeploymentEnvVarStatus {
+  return name === "TOVU_SITE_KEY" ? siteKeyEnvVarStatus(siteKey) : { name, set: Boolean(process.env[name]) };
 }
 
 /**
@@ -113,15 +113,15 @@ function envVarStatus(name: (typeof REQUIRED_ENV_VAR_NAMES)[number], rootKey: Ro
  *
  * @param input.defaultOwnerPasswordUnsafe the one field that needs the database, resolved by the
  *   caller ({@link isOwnerOnDefaultPassword}) so this stays synchronous.
- * @param input.rootKey test seam; defaults to a live {@link inspectRootKeyMaterial} read.
+ * @param input.rootKey test seam; defaults to a live {@link inspectSiteKeyMaterial} read.
  * @complexity O(1) — fixed-size env var list, no iteration over caller-controlled data.
  */
 export function buildDeploymentOverviewSnapshot(input: {
   defaultOwnerPasswordUnsafe: boolean;
-  rootKey?: RootKeyStatus;
+  siteKey?: SiteKeyStatus;
 }): DeploymentOverviewSnapshot {
   const mode = resolveRuntimeMode();
-  const rootKey = input.rootKey ?? inspectRootKeyMaterial({ sources: siteKeySources({ mode, env: process.env, home: homedir(), cwd: process.cwd() }) });
+  const siteKey = input.siteKey ?? inspectSiteKeyMaterial({ sources: siteKeySources({ mode, env: process.env, home: homedir(), cwd: process.cwd() }) });
   return {
     mode,
     productionReadinessGate: { applicable: mode === "production", passed: mode === "production" },
@@ -129,7 +129,7 @@ export function buildDeploymentOverviewSnapshot(input: {
     daemonKnownFailed: isAssistantDaemonKnownFailed(),
     dbPath: defaultContentDbPath(),
     uploadsDir: mediaUploadsDir(),
-    envVars: REQUIRED_ENV_VAR_NAMES.map((name) => envVarStatus(name, rootKey)),
+    envVars: REQUIRED_ENV_VAR_NAMES.map((name) => envVarStatus(name, siteKey)),
   };
 }
 
@@ -182,11 +182,11 @@ export function registerAdminDeploymentOverviewRoute(app: Express, deps: AdminDe
       // `resolveSiteTokenSources` seam `site-token.ts`'s GET/reveal/generate verbs use) rather than
       // `buildDeploymentOverviewSnapshot`'s bare-default `inspectRootKeyMaterial()`, so a site with a
       // resolvable per-site key file reports it here too, not just on the Site Token tab.
-      const { sources } = resolveSiteTokenSources(deps);
+      const { sources } = resolveSiteKeySources(deps);
       res.status(200).json(
         buildDeploymentOverviewSnapshot({
           defaultOwnerPasswordUnsafe: await isOwnerOnDefaultPassword(deps),
-          rootKey: inspectRootKeyMaterial({ sources }),
+          siteKey: inspectSiteKeyMaterial({ sources }),
         })
       );
     } catch (err) {

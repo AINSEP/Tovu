@@ -160,7 +160,7 @@ test("SPEC-022 durability fix regression: gated-mutations' historical exact refu
         hasDurableAdapter: false,
       },
     ],
-    envSnapshot: { hasDevSecretPlaceholder: false, hasLocalhostEgressAllowance: false, hasAlwaysOnAnalyticsStub: false, hasDefaultOwnerPassword: false, hasMissingIntegrationsRootKey: false },
+    envSnapshot: { hasDevSecretPlaceholder: false, hasLocalhostEgressAllowance: false, hasAlwaysOnAnalyticsStub: false, hasDefaultOwnerPassword: false, hasMissingSiteKey: false },
   });
 
   assert.equal(result.ok, false);
@@ -201,7 +201,7 @@ test("AC-05/INV-01 (regression, FAILS FIRST without the fix): the real compositi
       hasLocalhostEgressAllowance: false,
       hasAlwaysOnAnalyticsStub: false,
       hasDefaultOwnerPassword: false,
-      hasMissingIntegrationsRootKey: false,
+      hasMissingSiteKey: false,
     },
   });
 
@@ -213,7 +213,7 @@ test("§2.1 step 1: the real composition boots successfully in local mode despit
   const result = await runProductionReadinessGate({
     mode,
     inventory: CAPABILITY_INVENTORY,
-    envSnapshot: { hasDevSecretPlaceholder: false, hasLocalhostEgressAllowance: false, hasAlwaysOnAnalyticsStub: false, hasDefaultOwnerPassword: false, hasMissingIntegrationsRootKey: false },
+    envSnapshot: { hasDevSecretPlaceholder: false, hasLocalhostEgressAllowance: false, hasAlwaysOnAnalyticsStub: false, hasDefaultOwnerPassword: false, hasMissingSiteKey: false },
   });
   assert.equal(result.ok, true, "local mode must never be blocked by production-only containment");
 });

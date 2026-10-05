@@ -6,17 +6,17 @@ import path from "node:path";
 import test from "node:test";
 
 import {
-  rootKeyBootNoticeLines,
-  warnIfNoRootKeyAtBoot,
-} from "../root-key-boot-notice.js";
-import type { RootKeyStatus } from "#src/features/webhooks/keyring.env";
+  siteKeyBootNoticeLines,
+  warnIfNoSiteKeyAtBoot,
+} from "../site-key-boot-notice.js";
+import type { SiteKeyStatus } from "#src/features/webhooks/keyring.env";
 
 /**
- * @file Coverage for `root-key-boot-notice.ts` — the local-mode "this server has no root key"
+ * @file Coverage for `site-key-boot-notice.ts` — the local-mode "this server has no site key"
  * warning.
  *
  * The defect it exists for is a DELAY, not a wrong value (2026-09-18: a site server booted with no
- * root key, behaved normally, and failed hours later on a deploy with an opaque 500). So what is
+ * site key, behaved normally, and failed hours later on a deploy with an opaque 500). So what is
  * pinned here is mostly WHEN it speaks and WHEN it does not:
  *
  *   - local mode, no usable key  → warns, naming the cause and every remedy;
@@ -26,24 +26,24 @@ import type { RootKeyStatus } from "#src/features/webhooks/keyring.env";
  *   - anything failing           → still silent-ish and NEVER thrown, because this is a boot path.
  *
  * Every dependency is injected: no real environment, no real `~/.tovu`, no real console. Nothing
- * below contains or asserts on a key VALUE — `RootKeyStatus` has no field that can hold one.
+ * below contains or asserts on a key VALUE — `SiteKeyStatus` has no field that can hold one.
  */
 
 const KEY_FILE = `/fake/home/.tovu/${LEGACY_SITE_KEY_FILENAME}`;
 
-function status(over: Partial<RootKeyStatus> = {}): RootKeyStatus {
+function status(over: Partial<SiteKeyStatus> = {}): SiteKeyStatus {
   return { active: false, source: "none", keyFilePath: KEY_FILE, ...over };
 }
 
 /** Collects the lines a run would print. */
 function run(over: {
-  inspect?: () => RootKeyStatus;
+  inspect?: () => SiteKeyStatus;
   mode?: () => "production" | "local";
   log?: (line: string) => void;
   env?: NodeJS.ProcessEnv;
 } = {}) {
   const lines: string[] = [];
-  warnIfNoRootKeyAtBoot({
+  warnIfNoSiteKeyAtBoot({
     mode: over.mode ?? (() => "local"),
     inspect: over.inspect ?? (() => status()),
     log: over.log ?? ((line) => lines.push(line)),
@@ -102,15 +102,21 @@ test("production is silent — the readiness gate has already refused the boot",
   assert.deepEqual(lines, [], "warning immediately before process.exit(1) helps nobody");
 });
 
-test("TOVU_ROOT_KEY_NOTICE=off silences the wall even for an inactive status", () => {
-  const lines = run({ env: { TOVU_ROOT_KEY_NOTICE: "off" } });
+test("TOVU_SITE_KEY_NOTICE=off silences the wall even for an inactive status", () => {
+  const lines = run({ env: { TOVU_SITE_KEY_NOTICE: "off" } });
   assert.deepEqual(lines, [], "start.mjs already spoke — this function must not repeat it");
 });
 
-test("TOVU_ROOT_KEY_NOTICE=off still probes for conflict and deprecation", () => {
+test("C4: the retired notice switch does not silence the site-key notice", () => {
+  const retiredSwitch = ["TOVU", "ROOT", "KEY", "NOTICE"].join("_");
+  const lines = run({ env: { [retiredSwitch]: "off" } });
+  assert.notEqual(lines.length, 0, "the renamed notice switch has no compatibility alias");
+});
+
+test("TOVU_SITE_KEY_NOTICE=off still probes for conflict and deprecation", () => {
   let probed = false;
   run({
-    env: { TOVU_ROOT_KEY_NOTICE: "off" },
+    env: { TOVU_SITE_KEY_NOTICE: "off" },
     inspect: () => {
       probed = true;
       return status();
@@ -119,9 +125,9 @@ test("TOVU_ROOT_KEY_NOTICE=off still probes for conflict and deprecation", () =>
   assert.equal(probed, true);
 });
 
-test("any other TOVU_ROOT_KEY_NOTICE value leaves the wall unchanged", () => {
+test("any other TOVU_SITE_KEY_NOTICE value leaves the wall unchanged", () => {
   for (const value of ["on", "1", "", "OFF"]) {
-    const lines = run({ env: { TOVU_ROOT_KEY_NOTICE: value } });
+    const lines = run({ env: { TOVU_SITE_KEY_NOTICE: value } });
     assert.notEqual(lines.length, 0, `value ${JSON.stringify(value)} must not be treated as "off"`);
   }
 });
@@ -150,7 +156,7 @@ test("a probe that throws is reported, never propagated onto the boot path", () 
 
 test("a log sink that throws cannot take the boot down with it", () => {
   assert.doesNotThrow(() =>
-    warnIfNoRootKeyAtBoot({
+    warnIfNoSiteKeyAtBoot({
       env: {},
       mode: () => "local",
       inspect: () => status(),
@@ -162,13 +168,13 @@ test("a log sink that throws cannot take the boot down with it", () => {
 });
 
 test("the notice reads its paths from the status, never from a literal of its own", () => {
-  const text = rootKeyBootNoticeLines(status({ keyFilePath: "/elsewhere/key.hex" })).join("\n");
+  const text = siteKeyBootNoticeLines(status({ keyFilePath: "/elsewhere/key.hex" })).join("\n");
   assert.ok(text.includes("/elsewhere/key.hex"));
   assert.equal(text.includes(KEY_FILE), false, "a hardcoded path sends the operator to the wrong file");
 });
 
 test("the notice never carries a fingerprint or any other key-derived value", () => {
-  const text = rootKeyBootNoticeLines(status({ invalid: true, source: "env", reason: "too-short" })).join("\n");
+  const text = siteKeyBootNoticeLines(status({ invalid: true, source: "env", reason: "too-short" })).join("\n");
   assert.equal(/[0-9a-f]{12,}/.test(text), false, "nothing key-derived belongs in a boot log");
 });
 
@@ -190,16 +196,16 @@ for (const [label, parts] of [
   ["index.ts", ["index.ts"]],
   ["cli/commands/serve.ts", ["cli", "commands", "serve.ts"]],
 ] as const) {
-  test(`${label} calls warnIfNoRootKeyAtBoot on its boot path`, () => {
+  test(`${label} calls warnIfNoSiteKeyAtBoot on its boot path`, () => {
     const src = bootPathSource(...parts);
-    assert.match(src, /import \{ warnIfNoRootKeyAtBoot \} from "[^"]*root-key-boot-notice\.js";/);
-    assert.match(src, /\n\s*warnIfNoRootKeyAtBoot\(\);/);
+    assert.match(src, /import \{ warnIfNoSiteKeyAtBoot \} from "[^"]*site-key-boot-notice\.js";/);
+    assert.match(src, /\n\s*warnIfNoSiteKeyAtBoot\(\);/);
   });
 
   test(`${label} warns beside the production gate, not somewhere else`, () => {
     const src = bootPathSource(...parts);
     const gate = src.indexOf("await runProductionReadinessGateOrExit();");
-    const warn = src.indexOf("warnIfNoRootKeyAtBoot();");
+    const warn = src.indexOf("warnIfNoSiteKeyAtBoot();");
     assert.notEqual(gate, -1);
     assert.notEqual(warn, -1);
     assert.ok(warn > gate, "the local warning belongs after the production gate has declined to act");
@@ -208,7 +214,7 @@ for (const [label, parts] of [
 
 // ---------------------------------------------------------------------------------------------
 // The DEFAULT dependencies. Every test above injects `mode` and `inspect`, which left the
-// `?? resolveRuntimeMode` / `?? inspectRootKeyMaterial` fallbacks unexercised — a mutation sweep
+// `?? resolveRuntimeMode` / `?? inspectSiteKeyMaterial` fallbacks unexercised — a mutation sweep
 // (2026-09-18) dropped both and nothing failed. Those defaults are the ONLY ones the two real boot
 // paths use, so an unwired default is the whole check quietly reading nothing. Each test below
 // sets up and tears down exactly the environment it reads, so neither asserts on this machine's
@@ -217,42 +223,42 @@ for (const [label, parts] of [
 
 test("with no injected mode, production is read from the REAL runtime mode", () => {
   const before = process.env.TOVU_RUNTIME_MODE;
-  const beforeNotice = process.env.TOVU_ROOT_KEY_NOTICE;
+  const beforeNotice = process.env.TOVU_SITE_KEY_NOTICE;
   const lines: string[] = [];
   try {
-    delete process.env.TOVU_ROOT_KEY_NOTICE;
+    delete process.env.TOVU_SITE_KEY_NOTICE;
     process.env.TOVU_RUNTIME_MODE = "production";
-    warnIfNoRootKeyAtBoot({ inspect: () => status(), log: (l) => lines.push(l) });
+    warnIfNoSiteKeyAtBoot({ inspect: () => status(), log: (l) => lines.push(l) });
     assert.deepEqual(lines, [], "the real resolveRuntimeMode must be what silences production");
   } finally {
-    if (beforeNotice === undefined) delete process.env.TOVU_ROOT_KEY_NOTICE;
-    else process.env.TOVU_ROOT_KEY_NOTICE = beforeNotice;
+    if (beforeNotice === undefined) delete process.env.TOVU_SITE_KEY_NOTICE;
+    else process.env.TOVU_SITE_KEY_NOTICE = beforeNotice;
     if (before === undefined) delete process.env.TOVU_RUNTIME_MODE;
     else process.env.TOVU_RUNTIME_MODE = before;
   }
 });
 
-test("with no injected probe, the REAL inspectRootKeyMaterial is what decides", () => {
+test("with no injected probe, the REAL inspectSiteKeyMaterial is what decides", () => {
   const before = process.env[SITE_KEY_ENV_VAR_NAME];
   const beforeLegacy = process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
-  const beforeNotice = process.env.TOVU_ROOT_KEY_NOTICE;
+  const beforeNotice = process.env.TOVU_SITE_KEY_NOTICE;
   const lines: string[] = [];
   try {
-    delete process.env.TOVU_ROOT_KEY_NOTICE;
+    delete process.env.TOVU_SITE_KEY_NOTICE;
     // Use the preferred name alone: legacy material intentionally emits a deprecation notice.
     delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
     // Throwaway synthetic material, never written to disk — only its presence is asserted on.
     process.env[SITE_KEY_ENV_VAR_NAME] = "a".repeat(64);
-    warnIfNoRootKeyAtBoot({ mode: () => "local", log: (l) => lines.push(l) });
+    warnIfNoSiteKeyAtBoot({ mode: () => "local", log: (l) => lines.push(l) });
     assert.deepEqual(lines, [], "a real, usable key must silence this — a false alarm trains it away");
 
     process.env[SITE_KEY_ENV_VAR_NAME] = "nope";
     lines.length = 0;
-    warnIfNoRootKeyAtBoot({ mode: () => "local", log: (l) => lines.push(l) });
+    warnIfNoSiteKeyAtBoot({ mode: () => "local", log: (l) => lines.push(l) });
     assert.notEqual(lines.length, 0, "a real, unusable key must warn");
   } finally {
-    if (beforeNotice === undefined) delete process.env.TOVU_ROOT_KEY_NOTICE;
-    else process.env.TOVU_ROOT_KEY_NOTICE = beforeNotice;
+    if (beforeNotice === undefined) delete process.env.TOVU_SITE_KEY_NOTICE;
+    else process.env.TOVU_SITE_KEY_NOTICE = beforeNotice;
     if (before === undefined) delete process.env[SITE_KEY_ENV_VAR_NAME];
     else process.env[SITE_KEY_ENV_VAR_NAME] = before;
     if (beforeLegacy === undefined) delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
@@ -262,7 +268,7 @@ test("with no injected probe, the REAL inspectRootKeyMaterial is what decides", 
 
 test("legacy site-key env emits exactly one deprecation line, including quiet startup", () => {
   const lines: string[] = [];
-  warnIfNoRootKeyAtBoot({ mode: () => "local", env: { TOVU_ROOT_KEY_NOTICE: "off" },
+  warnIfNoSiteKeyAtBoot({ mode: () => "local", env: { TOVU_SITE_KEY_NOTICE: "off" },
     inspect: () => ({ active: true, source: "env", keyFilePath: "", envVarName: "legacy", deprecated: true }),
     log: line => lines.push(line) });
   assert.equal(lines.length, 1);
@@ -270,7 +276,7 @@ test("legacy site-key env emits exactly one deprecation line, including quiet st
 });
 test("conflicting site-key env warns locally even when quiet startup is enabled", () => {
   const lines: string[] = [];
-  warnIfNoRootKeyAtBoot({ mode: () => "local", env: { TOVU_ROOT_KEY_NOTICE: "off" },
+  warnIfNoSiteKeyAtBoot({ mode: () => "local", env: { TOVU_SITE_KEY_NOTICE: "off" },
     inspect: () => ({ active: false, source: "env", keyFilePath: "", invalid: true, reason: "env-conflict" }),
     log: line => lines.push(line) });
   assert.equal(lines.length, 1);

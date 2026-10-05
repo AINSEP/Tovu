@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 
-import { clearBlankRootKeyEnv, LEGACY_SITE_KEY_ENV_VAR_NAME, planStart, probePortFree, resolveStartHost, startQuietEnvDefaults } from "../start.mjs";
+import { clearBlankSiteKeyEnv, LEGACY_SITE_KEY_ENV_VAR_NAME, planStart, probePortFree, resolveStartHost, startQuietEnvDefaults } from "../start.mjs";
 
 /**
  * @file `planStart` — the pure port/env decision `development/scripts/start.mjs`'s `main()` makes
@@ -143,29 +143,29 @@ test("non-loopback TOVU_PUBLIC_URL is never dropped", async () => {
 });
 
 /**
- * `clearBlankRootKeyEnv` runs BEFORE `.env` is loaded. `process.loadEnvFile` never overrides a
+ * `clearBlankSiteKeyEnv` runs BEFORE `.env` is loaded. `process.loadEnvFile` never overrides a
  * variable already present, even an empty one, and the keyring treats an empty value as absent — so
- * a blank shell `TOVU_INTEGRATIONS_ROOT_KEY` would hide `.env`'s real key and let
+ * a blank shell `TOVU_SITE_KEY` would hide `.env`'s real key and let
  * `tovu root-key ensure` mint a second one.
  */
-test("clearBlankRootKeyEnv: blank TOVU_SITE_KEY is removed so .env can fill it", () => {
+test("clearBlankSiteKeyEnv: blank TOVU_SITE_KEY is removed so .env can fill it", () => {
   const env = { TOVU_SITE_KEY: "" };
-  clearBlankRootKeyEnv(env);
+  clearBlankSiteKeyEnv(env);
   assert.equal("TOVU_SITE_KEY" in env, false);
 });
 
-test("clearBlankRootKeyEnv: a set TOVU_SITE_KEY is left untouched", () => {
+test("clearBlankSiteKeyEnv: a set TOVU_SITE_KEY is left untouched", () => {
   const env = { TOVU_SITE_KEY: "abc" };
-  clearBlankRootKeyEnv(env);
+  clearBlankSiteKeyEnv(env);
   assert.equal(env.TOVU_SITE_KEY, "abc");
 });
 
 test("startQuietEnvDefaults: silences the site key wall and daemon lifecycle lines by default", () => {
-  assert.deepEqual(startQuietEnvDefaults({}), { TOVU_ROOT_KEY_NOTICE: "off", TOVU_DAEMON_LIFECYCLE_LOG: "off" });
+  assert.deepEqual(startQuietEnvDefaults({}), { TOVU_SITE_KEY_NOTICE: "off", TOVU_DAEMON_LIFECYCLE_LOG: "off" });
 });
 
 test("startQuietEnvDefaults: an operator's own TOVU_DAEMON_LIFECYCLE_LOG wins", () => {
-  assert.deepEqual(startQuietEnvDefaults({ TOVU_DAEMON_LIFECYCLE_LOG: "on" }), { TOVU_ROOT_KEY_NOTICE: "off" });
+  assert.deepEqual(startQuietEnvDefaults({ TOVU_DAEMON_LIFECYCLE_LOG: "on" }), { TOVU_SITE_KEY_NOTICE: "off" });
 });
 
 /**
@@ -231,13 +231,13 @@ test("main supplies the imported server with loopback binding and the final env 
           port: process.env.PORT,
           autoStartPort: process.env.TOVU_START_AUTO_PORT,
           publicUrlPresent: "TOVU_PUBLIC_URL" in process.env,
-          rootKey: process.env.TOVU_SITE_KEY,
-          rootKeyNotice: process.env.TOVU_ROOT_KEY_NOTICE,
+          siteKey: process.env.TOVU_SITE_KEY,
+          siteKeyNotice: process.env.TOVU_SITE_KEY_NOTICE,
           lifecycleLog: process.env.TOVU_DAEMON_LIFECYCLE_LOG,
         }));
     `);
     const env = { ...process.env, TOVU_SITE_KEY: "", [LEGACY_SITE_KEY_ENV_VAR_NAME]: "" };
-    for (const key of ["TOVU_HOST", "PORT", "TOVU_PUBLIC_URL", "TOVU_ROOT_KEY_NOTICE", "TOVU_DAEMON_LIFECYCLE_LOG", "TOVU_START_AUTO_PORT"]) delete env[key];
+    for (const key of ["TOVU_HOST", "PORT", "TOVU_PUBLIC_URL", "TOVU_SITE_KEY_NOTICE", "TOVU_DAEMON_LIFECYCLE_LOG", "TOVU_START_AUTO_PORT"]) delete env[key];
     if (env.NODE_V8_COVERAGE) env.NODE_V8_COVERAGE = path.join(fixture, "coverage");
     const child = spawnSync(process.execPath, ["--experimental-test-module-mocks", "runner.mjs"], {
       cwd: fixture, env, encoding: "utf8", timeout: 10_000,
@@ -247,7 +247,7 @@ test("main supplies the imported server with loopback binding and the final env 
     assert.ok(line, "the compiled server stub must actually be imported");
     assert.deepEqual(JSON.parse(line.slice("LAUNCHER_RESULT ".length)), {
       host: "127.0.0.1", autoStartPort: "1", publicUrlPresent: false,
-      rootKey: "fixture-root-key", rootKeyNotice: "off", lifecycleLog: "off",
+      siteKey: "fixture-root-key", siteKeyNotice: "off", lifecycleLog: "off",
     });
   } finally {
     rmSync(fixture, { recursive: true, force: true });
@@ -279,14 +279,14 @@ test("unparsable TOVU_PUBLIC_URL → refuses auto-pick without probing or changi
 });
 
 for (const name of ["TOVU_SITE_KEY", LEGACY_SITE_KEY_ENV_VAR_NAME]) {
-  test(`clearBlankRootKeyEnv clears whitespace under ${name} and preserves set keys`, () => {
+  test(`clearBlankSiteKeyEnv clears whitespace under ${name} and preserves set keys`, () => {
     for (const blank of ["", " ", "\t\n"]) {
       const env = { [name]: blank };
-      clearBlankRootKeyEnv(env);
+      clearBlankSiteKeyEnv(env);
       assert.equal(name in env, false);
     }
     const env = { [name]: "ab".repeat(32) };
-    clearBlankRootKeyEnv(env);
+    clearBlankSiteKeyEnv(env);
     assert.equal(env[name], "ab".repeat(32));
   });
 }

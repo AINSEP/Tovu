@@ -3,7 +3,7 @@ import { siteKeySources } from "#src/features/webhooks/site-key-sources";
 import { runProductionReadinessGate } from "./production-readiness-gate.js";
 import { CAPABILITY_INVENTORY } from "../configuration/capability-inventory.js";
 import { DEFAULT_OWNER_PASSWORD } from "../../../features/identity/wiring.js";
-import { inspectRootKeyMaterial } from "#src/features/webhooks/keyring.env";
+import { inspectSiteKeyMaterial } from "#src/features/webhooks/keyring.env";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 
 /**
@@ -36,7 +36,7 @@ export async function runProductionReadinessGateOrExit(): Promise<void> {
   if (mode !== "production") return;
 
   const sources = siteKeySources({ mode, env: process.env, home: homedir(), cwd: process.cwd() });
-  const siteKeyStatus = inspectRootKeyMaterial({ sources });
+  const siteKeyStatus = inspectSiteKeyMaterial({ sources });
   const result = await runProductionReadinessGate({
     mode,
     inventory: CAPABILITY_INVENTORY,
@@ -72,7 +72,7 @@ export async function runProductionReadinessGateOrExit(): Promise<void> {
       // branch) — this gate does not currently distinguish "absent" from "present but corrupt" in
       // its own failure code (`missing-integrations-root-key` either way); both are equally unsafe
       // to boot on, so the coarser signal is still correct, just not maximally specific.
-      hasMissingIntegrationsRootKey: !siteKeyStatus.active,
+      hasMissingSiteKey: !siteKeyStatus.active,
       hasSiteKeyEnvConflict: siteKeyStatus.reason === "env-conflict",
     },
   });
