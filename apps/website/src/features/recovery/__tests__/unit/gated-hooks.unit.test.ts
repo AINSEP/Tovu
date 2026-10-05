@@ -9,6 +9,7 @@ for (const [error, expected] of [
   [new PlanStaleError({ message: "changed plan" }), { code: "PLAN_STALE", message: "changed plan" }],
   [new TokenExpiredError({ message: "expired token" }), { code: "TOKEN_EXPIRED", message: "expired token" }],
   [new TokenAlreadyRedeemedError({ message: "spent token" }), { code: "TOKEN_ALREADY_REDEEMED", message: "spent token" }],
+  [new RestorePointNotFoundError("restore point 'gone' was not found"), { code: "RESTORE_POINT_NOT_FOUND", message: "restore point 'gone' was not found" }],
   [new Error("disk failed"), { code: "INTERNAL_ERROR", message: "disk failed" }],
   ["untyped failure", { code: "INTERNAL_ERROR", message: "internal error" }],
 ] as const) {
@@ -47,11 +48,22 @@ function harness(options: { missing?: boolean; failRestore?: boolean; restartReq
     siteStatus: { get: async () => "BLOCKED_PENDING_RECOVERY", set: async (workspaceId, status) => { trace.push(["status", workspaceId, status]); } },
   };
   const hooks = buildRestoreHooks(input);
-  return { trace, execute: async () => hooks.executeMutation(await hooks.computePlan()) };
+  return { trace, hooks, execute: async () => hooks.executeMutation(await hooks.computePlan()) };
 }
-test("a missing restore point performs no physical restore, ledger write, or recovery unblock", async () => {
+test("plan refuses an unknown restore point instead of letting it reach confirm and execute", async () => {
   const h = harness({ missing: true });
-  await assert.rejects(h.execute(), RestorePointNotFoundError);
+  await assert.rejects(h.hooks.computePlan(), { name: "RestorePointNotFoundError", message: "restore point 'chosen' was not found" });
+});
+test("plan for an existing restore point hashes only the chosen id", async () => {
+  const h = harness();
+  const plan = await h.hooks.computePlan();
+  assert.deepEqual(plan.details, { restorePointId: "chosen" });
+  assert.equal(typeof plan.planHash, "string");
+  assert.deepEqual(h.trace, []);
+});
+test("a restore point deleted after the plan was verified performs no physical restore, ledger write, or recovery unblock", async () => {
+  const h = harness({ missing: true });
+  await assert.rejects(h.hooks.executeMutation({ planHash: "verified", details: { restorePointId: "chosen" } }), RestorePointNotFoundError);
   assert.deepEqual(h.trace, []);
 });
 test("a failed physical restore records no success and never resolves an interrupted migration", async () => {

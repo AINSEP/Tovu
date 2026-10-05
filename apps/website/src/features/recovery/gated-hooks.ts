@@ -85,7 +85,8 @@ export class RestorePointNotFoundError extends Error {
  * `core/gated-mutations/gateway.ts`'s `GatedMutationHooks.scopeKind` and `core/gated-mutations/
  * composition.ts`'s `buildOwnerOnlyInstanceAuthorize` for the evaluator this now routes through.
  *
- * @complexity O(n) in the number of restore points (`list()` scan — low-volume, ADR-041 §2).
+ * @complexity O(n) in the number of restore points (one `list()` scan per `computePlan` and per
+ * `executeMutation` — low-volume, ADR-041 §2).
  * @overallScore 100
  */
 export function buildRestoreHooks(input: BuildRestoreHooksInput): GatedMutationHooks<{ restorePointId: string }, { restoreRunId: string; state: string; restartRequired: boolean }> {
@@ -95,16 +96,18 @@ export function buildRestoreHooks(input: BuildRestoreHooksInput): GatedMutationH
     mutatePermission: "backup.restore",
     scopeId: input.workspaceId,
     scopeKind: "instance",
+    // The plan refuses an unknown restore point itself: without this, a wrong id passed plan AND
+    // confirm (minting a real token) and only failed at execute. The gateway re-runs this at
+    // execute's plan re-derivation too, so a point deleted after confirm is caught there.
     computePlan: async () => {
+      await findRestorePoint(input);
       const details = { restorePointId: input.restorePointId };
       return { planHash: planHashOf(details), details };
     },
     executeMutation: async () => {
-      const points = await input.restorePointsRepo.list();
-      const target = points.find((p) => p.id === input.restorePointId);
-      if (!target) {
-        throw new RestorePointNotFoundError(`restore point '${input.restorePointId}' was not found`);
-      }
+      // Re-checked here, not trusted from the plan: the point can be deleted between execute's
+      // plan re-derivation and this mutation (token redemption runs in between).
+      const target = await findRestorePoint(input);
 
       // 2026-07-16: closes the "ledger-only" gap this file previously disclosed — swap the file
       // FIRST, ledger-record second. If the process dies between the two, the file already
@@ -159,6 +162,17 @@ export function buildRestoreHooks(input: BuildRestoreHooksInput): GatedMutationH
   };
 }
 
+/** Looks up the restore point `input.restorePointId` names, throwing `RestorePointNotFoundError`
+ *  when it does not exist. @complexity O(n) in restore points (one `list()` scan). */
+async function findRestorePoint(input: Pick<BuildRestoreHooksInput, "restorePointsRepo" | "restorePointId">): Promise<{ id: string; artifactRef: string }> {
+  const points = await input.restorePointsRepo.list();
+  const target = points.find((p) => p.id === input.restorePointId);
+  if (!target) {
+    throw new RestorePointNotFoundError(`restore point '${input.restorePointId}' was not found`);
+  }
+  return target;
+}
+
 export interface RecoveryErrorPayload {
   code: string;
   message?: string;
@@ -180,6 +194,7 @@ function classifyRecoveryError(err: unknown): RecoveryErrorPayload {
   if (err instanceof PlanStaleError) return { code: "PLAN_STALE", message: err.message };
   if (err instanceof TokenExpiredError) return { code: "TOKEN_EXPIRED", message: err.message };
   if (err instanceof TokenAlreadyRedeemedError) return { code: "TOKEN_ALREADY_REDEEMED", message: err.message };
+  if (err instanceof RestorePointNotFoundError) return { code: "RESTORE_POINT_NOT_FOUND", message: err.message };
   return { code: "INTERNAL_ERROR", message: err instanceof Error ? err.message : "internal error" };
 }
 

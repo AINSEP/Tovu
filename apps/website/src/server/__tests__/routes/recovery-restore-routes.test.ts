@@ -193,6 +193,20 @@ test("recovery restore: plan -> confirm -> execute succeeds end-to-end and recor
   assert.equal(await deps.siteStatusRepo.get(deps.workspaceId), "SERVING", "a restore that needs no restart must unblock the running process");
 });
 
+test("recovery restore: planning an unknown restore point is refused 404 RESTORE_POINT_NOT_FOUND, not deferred to a 500 at execute", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await seedRestorePoint(deps);
+
+  const planRes = await fetch(`${baseUrl}/api/admin/v1/recovery/restore/plan`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ restorePointId: "no-such-point" }),
+  });
+  assert.equal(planRes.status, 404);
+  assert.deepEqual(await planRes.json(), { error: "restore point 'no-such-point' was not found", code: "RESTORE_POINT_NOT_FOUND" });
+});
+
 test("recovery restore: confirm without disclosureAcknowledged===true mints no token (INV-02)", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
