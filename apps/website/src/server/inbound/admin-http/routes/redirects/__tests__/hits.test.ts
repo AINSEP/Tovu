@@ -10,6 +10,7 @@ import {
 } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminRedirectHitsRoute } from "../hits.js";
 import type { RedirectRouteDeps } from "#src/server/inbound/admin-http/http/redirects";
+import { createRouteDeps } from "#src/server/runtime/composition/app";
 
 function buildApp(depsOverrides: Partial<RedirectRouteDeps> = {}): express.Express {
   const fakeRule = {
@@ -24,7 +25,10 @@ function buildApp(depsOverrides: Partial<RedirectRouteDeps> = {}): express.Expre
     updatedAt: "2026-01-01T00:00:00Z",
   };
 
+  // `RedirectRouteDeps` is the full `RouteDeps`; start from the composed defaults and override only
+  // the seams this route reads.
   const deps: RedirectRouteDeps = {
+    ...createRouteDeps(),
     workspaceId: "ws-1",
     authorize: async () => ({ allowed: true, reason: "matched" }),
     redirectRepo: {

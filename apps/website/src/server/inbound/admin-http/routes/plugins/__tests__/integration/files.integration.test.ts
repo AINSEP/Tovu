@@ -168,7 +168,7 @@ test("PLUGIN_FILES symlink escape: the binding refuses a site record whose folde
 
   const runtime = composePluginRuntime({
     workspaceId: "ws",
-    clock: { nowIso: () => new Date(0).toISOString() },
+    clock: { nowMs: () => 0 },
     activationRepo: new InMemoryPluginActivationRepo(),
     sources: [],
     installDir,
@@ -183,7 +183,7 @@ test("PLUGIN_FILES symlink escape: the binding refuses a site record whose folde
 test("PLUGIN_FILES: a built-in with no sourceDir, or a site record with no installDir, lists no files", async () => {
   const runtime = composePluginRuntime({
     workspaceId: "ws",
-    clock: { nowIso: () => new Date(0).toISOString() },
+    clock: { nowMs: () => 0 },
     activationRepo: new InMemoryPluginActivationRepo(),
     sources: [{ manifest: WORD_COUNT_MANIFEST, source: "built-in", entryPath: "built-in:word-count", importModule: async () => ({}) }],
   });

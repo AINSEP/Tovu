@@ -68,6 +68,8 @@ function buildTestApp(): { app: express.Express; pluginDeps: PluginsRouteDeps; b
     onPluginEnabled: async () => {},
     onPluginDisabled: () => {},
     removePlugin: baseDeps.removePlugin,
+    readPluginPackageFiles: baseDeps.readPluginPackageFiles,
+    previewPluginBeforeSave: baseDeps.previewPluginBeforeSave,
   };
 
   const app = express();

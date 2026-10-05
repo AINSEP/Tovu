@@ -3,7 +3,9 @@ import test from "node:test";
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
-import { InMemoryTaxonomyRepo, InMemoryTermRepo } from "#src/features/taxonomy/index";
+import { openContentDb } from "#src/platform/db/sqlite/content-db";
+import { createRouteDeps } from "#src/server/runtime/composition/app";
+import { SqliteTaxonomyRepo, SqliteTermRepo } from "#src/features/taxonomy/repo.sqlite";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminTaxonomyAssignTermsRoute } from "../assign-terms.js";
 import type { TaxonomyRouteDeps } from "../deps.js";
@@ -13,19 +15,20 @@ import type { TaxonomyRouteDeps } from "../deps.js";
  * 409 and the guard's own code, not a 500 or a silent join.
  */
 function buildApp(postRepo: TaxonomyRouteDeps["postRepo"]): express.Express {
+  // The same SQLite adapters `createRouteDeps` composes (the CMS package's in-memory taxonomy/term
+  // repos lack the host's `findForTrash`/`findAnyById` reads `TaxonomyRouteDeps` requires).
+  const db = openContentDb(":memory:");
+  // Composed defaults for every seam the trashed-post refusal never reaches (outbox, revisions,
+  // removers, entry/content-type repos); the seams it does read are overridden below.
   const deps: TaxonomyRouteDeps = {
+    ...createRouteDeps(),
     workspaceId: "ws-1",
     authorize: async () => ({ allowed: true, reason: "matched" }),
-    clock: { nowIso: () => "2026-09-24T00:00:00.000Z" } as any,
-    idGen: { newId: () => "id-1" } as any,
-    outbox: { enqueue: async () => {} } as any,
-    taxonomyRepo: new InMemoryTaxonomyRepo(),
-    termRepo: new InMemoryTermRepo(),
-    entryTermRepo: {} as any,
-    taxonomyRevisionRepo: {} as any,
+    clock: { nowMs: () => Date.parse("2026-09-24T00:00:00.000Z"), nowIso: () => "2026-09-24T00:00:00.000Z" },
+    idGen: { newId: () => "id-1" },
+    taxonomyRepo: new SqliteTaxonomyRepo({ db, workspaceId: "ws-1" }),
+    termRepo: new SqliteTermRepo({ db, workspaceId: "ws-1" }),
     postRepo,
-    entryRepo: {} as any,
-    contentTypeRepo: {} as any,
     stampWatermark: async () => {},
   };
 

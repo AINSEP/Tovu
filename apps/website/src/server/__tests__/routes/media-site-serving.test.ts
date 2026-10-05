@@ -40,12 +40,15 @@ function declarativeTheme(): DiscoveredTheme {
   return {
     manifest: { id: "media-test-theme", name: "Media Test Theme", version: "1.0.0", tier: "declarative", engine: 1 },
     tokens: {},
+    tokensLight: {},
     templates: {
       home: { type: "doc", content: [{ type: "slot", name: "content" }] },
       entry: { type: "doc", content: [{ type: "slot", name: "content" }] },
     },
     liquidTemplates: {},
     handlebarsTemplates: {},
+    pages: {},
+    partials: {},
     dir: "/nonexistent/test-theme",
     css: "",
     source: "site",
@@ -61,8 +64,8 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   app.use(express.json());
   registerAuthRoutes(app, deps);
   app.use("/api/admin", requireAdminSession(deps));
-  createContentModule(deps).registerRoutes(app);
-  createMediaModule(deps).registerRoutes(app);
+  createContentModule(deps).registerRoutes?.(app);
+  createMediaModule(deps).registerRoutes?.(app);
   registerSiteRoutes(app, deps);
   return { app, deps };
 }

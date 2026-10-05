@@ -12,6 +12,7 @@ import {
 } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminNewsletterImportSubscriptionsRoute } from "../import-subscriptions.js";
 import type { NewsletterRouteDeps } from "../deps.js";
+import type { NewsletterListRow } from "#src/features/newsletter/types";
 
 const WORKSPACE_ID = "workspace-local";
 
@@ -125,14 +126,13 @@ test("import-subscriptions: successful import returns 207 Multi-Status", async (
   // Create a real list. `NewsletterListRepoPort.save` returns `Promise<void>` (ports.ts), not the
   // saved row, so the list literal itself — not a nonexistent return value — is the reference used
   // below.
-  const list = {
+  const list: NewsletterListRow = {
     id: "import-target-list",
     workspaceId: WORKSPACE_ID,
     name: "Target List",
     slug: "target-list",
-    description: null,
     isDefault: false,
-    subscriberCount: 0,
+    status: "active",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };

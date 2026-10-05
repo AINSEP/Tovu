@@ -7,7 +7,7 @@ import { createToolRegistry, type SurfaceEmission } from "@jini-ai/core";
 import { createToolExecutor } from "@jini-ai/daemon";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
-import { buildMediaRegistrationsForTovu, type MediaPublicUrlDeps, type MediaToolDeps } from "#src/features/media/tool-registrations";
+import { buildMediaRegistrationsForTovu, type MediaPublicUrlDeps, type MediaToolDeps, type MediaTrashToolDeps } from "#src/features/media/tool-registrations";
 
 import { startTestServer } from "../../server/__tests__/helpers/http-test-server.js";
 import { RUN_PRINCIPAL_HEADER } from "../run-ownership.js";
@@ -43,7 +43,7 @@ const ONE_PIXEL_PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0
  *  (no `delegate`, matching `agent-daemon-server.ts`'s own construction), over the real hermetic
  *  `createRouteDeps()` fixture — same discipline as the static-publish integration test this mirrors. */
 function buildRealMediaToolExecutor(surfaceExchanges: SurfaceExchangeStore) {
-  const deps: MediaToolDeps & MediaPublicUrlDeps = {
+  const deps: MediaToolDeps & MediaPublicUrlDeps & MediaTrashToolDeps = {
     ...createRouteDeps(),
     authorize: async () => ({ allowed: true, reason: "matched" }),
     workspaceId: WORKSPACE_ID,

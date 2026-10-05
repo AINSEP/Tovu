@@ -262,8 +262,10 @@ test("delete: an unexpected repo failure 500s", async (t) => {
   // would lose the moment it is called off a different object.
   const originalRepo = deps.webhookSubscriptionRepo;
   deps.webhookSubscriptionRepo = {
+    insert: (record) => originalRepo.insert(record),
     findById: (input) => originalRepo.findById(input),
     listByWorkspace: (input) => originalRepo.listByWorkspace(input),
+    findMatching: (input) => originalRepo.findMatching(input),
     save: async () => {
       throw new Error("boom");
     },
@@ -414,8 +416,10 @@ test("pause: an unexpected repo failure 500s", async (t) => {
   // Same delegate-through-arrow-functions technique as the delete 500 test above — see its comment.
   const originalRepo = deps.webhookSubscriptionRepo;
   deps.webhookSubscriptionRepo = {
+    insert: (record) => originalRepo.insert(record),
     findById: (input) => originalRepo.findById(input),
     listByWorkspace: (input) => originalRepo.listByWorkspace(input),
+    findMatching: (input) => originalRepo.findMatching(input),
     save: async () => {
       throw new Error("boom");
     },

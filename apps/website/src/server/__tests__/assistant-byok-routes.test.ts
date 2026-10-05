@@ -111,6 +111,7 @@ async function writeCustomInstructions(deps: RouteDeps, text: string): Promise<v
     seq: 1,
     updatedBy: "test",
     updatedAt: deps.clock.nowIso(),
+    originPluginId: null,
   });
 }
 
@@ -495,11 +496,11 @@ function stubByokToolSurface(options: { readonly settled: boolean; readonly refu
 /** Builds a hand-assembled express app around a caller-supplied `toolSurface`, mirroring the
  *  no-hang test's identical shape below — `createApp` always builds its own production
  *  `ByokToolSurface` and offers no seam to swap in {@link stubByokToolSurface}'s bare stand-in. */
-async function bootWithStubSurface(deps: RouteDeps, toolSurface: ByokToolSurface, t: import("node:test").TestContext) {
+async function bootWithStubSurface(deps: ReturnType<typeof createRouteDeps>, toolSurface: ByokToolSurface, t: import("node:test").TestContext) {
   const app = express();
   app.use(express.json());
   registerAuthRoutes(app, deps);
-  createAssistantByokModule(deps, toolSurface).registerRoutes(app);
+  createAssistantByokModule(deps, toolSurface).registerRoutes?.(app);
   return bootAuthenticated(app, t);
 }
 
@@ -793,6 +794,8 @@ async function seedTrashedPostAndStubPurgeTurn(t: import("node:test").TestContex
     title: "BYOK emitSurface probe",
     slug: postId,
     bodyJson: { type: "doc", content: [] },
+    bodyFormat: "doc",
+    bodyHtml: null,
     status: "draft",
     kind: "post",
     updatedAt: deps.clock.nowIso(),
@@ -1038,7 +1041,7 @@ test(`${BYOK_TURN_PATH}: an UNREDEEMED confirmation resolves via its own bounded
   const app = express();
   app.use(express.json());
   registerAuthRoutes(app, deps);
-  createAssistantByokModule(deps, toolSurface).registerRoutes(app);
+  createAssistantByokModule(deps, toolSurface).registerRoutes?.(app);
 
   const { baseUrl } = await bootAuthenticated(app, t);
   const cookie = await loginWithPermissions(deps, baseUrl, ["content.read", "content.write"]);

@@ -58,6 +58,8 @@ const SAMPLE_REPORT: FederatedAdmissionReport = {
       inputSchema: {},
       declaredAnnotations: { readOnlyHint: false },
       writeAuthorized: true,
+      writeShapedInputs: [],
+      confirmation: "none",
     },
   ],
   refused: [{ remoteName: "delete_everything", reason: "remote-declares-destructive" }],

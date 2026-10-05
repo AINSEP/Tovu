@@ -47,13 +47,20 @@ export function removeVia(repo: MinimalRedirectStore): RemoveRedirectFn {
       updatedAt: at
     })
   });
-  return (required) =>
-    adapter.hide({
+  // Redirects register no Trash blocker, so the adapter can never answer "blocked"; narrow it away
+  // exactly as the composition root's `removeEntityWithoutBlocker` (app.ts) does for the real binding.
+  return async (required) => {
+    const result = await adapter.hide({
       workspaceId: required.workspaceId,
       entityId: required.id,
       at: required.at,
       expectedVersion: required.expectedVersion,
     });
+    if (!result.ok && result.reason === "blocked") {
+      throw new Error(`trash: redirect '${required.id}' reported 'blocked' with no blocker registered — test double bug`);
+    }
+    return result;
+  };
 }
 
 /**

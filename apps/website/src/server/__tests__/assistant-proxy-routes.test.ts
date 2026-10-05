@@ -171,7 +171,7 @@ function harness() {
         // delivery branch never triggers and every request still reaches the stand-in daemon exactly
         // as before — see `modules/assistant.ts`'s own doc for why the real store must be shared with
         // `assistant-byok.ts` in production, which this proxy-only harness has no need to compose.
-        createAssistantModule(deps, createSurfaceExchangeStore()).registerRoutes(app);
+        createAssistantModule(deps, createSurfaceExchangeStore()).registerRoutes?.(app);
         return app;
       },
     };

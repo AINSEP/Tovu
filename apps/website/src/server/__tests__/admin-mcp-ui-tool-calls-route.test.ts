@@ -80,7 +80,7 @@ function harness() {
         // A fresh, empty store: none of this file's request bodies carry an exchangeId (top-level or
         // in `params`), so the new local-delivery branch never triggers and every request still
         // reaches the stand-in daemon exactly as before these tests were written.
-        createAssistantModule(deps, createSurfaceExchangeStore()).registerRoutes(app);
+        createAssistantModule(deps, createSurfaceExchangeStore()).registerRoutes?.(app);
         return app;
       },
     };
@@ -223,7 +223,7 @@ async function bootWithStore(t: import("node:test").TestContext) {
   const app = express();
   app.use(express.json());
   registerAuthRoutes(app, deps);
-  createAssistantModule(deps, surfaceExchanges).registerRoutes(app);
+  createAssistantModule(deps, surfaceExchanges).registerRoutes?.(app);
 
   recorded = [];
   const baseUrl = await startTestServer(app, t);

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 
 import express from "express";
 
@@ -100,7 +100,7 @@ async function openRealDialog(
 
 /** Stands up the real daemon-side route over a shared store and returns its base URL. */
 async function startRoute(
-  t: Parameters<Parameters<typeof test>[1]>[0],
+  t: TestContext,
   toolExecutor: ReturnType<typeof buildRealAskChoiceToolExecutor>,
   surfaceExchanges: SurfaceExchangeStore,
 ): Promise<string> {

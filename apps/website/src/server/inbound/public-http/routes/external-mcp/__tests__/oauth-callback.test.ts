@@ -49,6 +49,7 @@ function fakeOAuthService(completeAuthorizationCallback: ExternalMcpOAuthService
     completeAuthorizationCallback,
     pollDeviceAuthorization: notUsedByThisRoute,
     disconnect: notUsedByThisRoute,
+    reportAuthFailure: notUsedByThisRoute,
     tokenResolver: { resolveAccessToken: notUsedByThisRoute },
   };
 }

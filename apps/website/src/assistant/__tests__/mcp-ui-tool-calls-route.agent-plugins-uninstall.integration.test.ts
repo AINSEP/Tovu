@@ -98,7 +98,7 @@ function buildToolExecutor(surfaceExchanges: SurfaceExchangeStore) {
   const deps: PluginsToolDeps = {
     authorize: async () => ({ allowed: true, reason: "matched" }),
     workspaceId: WORKSPACE_ID,
-    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => new Date().toISOString() },
+    clock: { nowMs: () => Date.now() },
     idGen: { newId: () => "id-1" },
     changeSets: new InMemoryChangeSetRepo(),
     outbox: { enqueue: async () => undefined, claimPending: async () => [], markDelivered: async () => {}, markFailed: async () => {} },

@@ -5,6 +5,7 @@ import express from "express";
 import { createTransactionalInMemoryIdentityRepos, NodeSessionTokens } from "@jini-ai/user-management/server";
 import { InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPolicyRepo, InMemoryPrincipalRepo, InMemoryPrincipalRoleRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo, InMemorySessionRepo, InMemoryUserRepo } from "@jini-ai/user-management/server";
 import { InMemoryApiKeyRepo } from "#src/features/identity/repo.memory";
+import { createSettingsPrincipalLookup } from "#src/features/settings/index";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import type { ApiKeysRouteDeps, ApiKeysRouteRegistrar } from "../deps.js";
 import { registerAdminApiKeyPrincipalCreateRoute } from "../create-principal.js";
@@ -22,7 +23,8 @@ async function depsForHandler(): Promise<ApiKeysRouteDeps> {
   } });
   const deps: ApiKeysRouteDeps = {
     workspaceId: "ws-7", clock: { nowIso: () => NOW, nowMs: () => Date.parse(NOW) }, idGen: { newId: () => `new-${++id}` },
-    principalRepo: repos.principals, userRepo: repos.users, sessionRepo: repos.sessions,
+    // RouteDeps' principalRepo also carries the settings lookup port; bind it the way app.ts does.
+    principalRepo: Object.assign(repos.principals, createSettingsPrincipalLookup({ repo: repos.principals })), userRepo: repos.users, sessionRepo: repos.sessions,
     roleRepo: repos.roles, policyRepo: repos.policies, policyPermissionRepo: repos.policyPermissions,
     rolePolicyRepo: repos.rolePolicies, principalRoleRepo: repos.principalRoles, principalPolicyRepo: repos.principalPolicies,
     transactions: repos.transactions, tokens: new NodeSessionTokens({}),
@@ -68,7 +70,7 @@ test("API-key principal create redacts a persistence failure after a valid reque
 test("API-key issuance redacts an unexpected target lookup failure", async (t) => {
   const deps = await depsForHandler();
   const find = deps.principalRepo.findById.bind(deps.principalRepo);
-  const fault = t.mock.method(deps.principalRepo, "findById", async (input) => input.id === "machine-3" ? fail() : find(input));
+  const fault = t.mock.method(deps.principalRepo, "findById", async (input: Parameters<typeof find>[0]) => input.id === "machine-3" ? fail() : find(input));
   const capture = await invoke(registerAdminApiKeyIssueRoute, deps, "/api/admin/v1/api-keys", {
     principalId: "machine-3", label: "Export", policyIds: ["manage-keys"], expiresAt: "2027-01-01T00:00:00Z",
   });

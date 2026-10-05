@@ -38,6 +38,8 @@ function buildApp(depsOverrides: Partial<MediaRouteDeps> = {}): express.Express 
   const deps: MediaRouteDeps = {
     workspaceId: base.workspaceId,
     authorize: async () => ({ allowed: true, reason: "matched" }),
+    removeMedia: base.removeMedia,
+    forgetRemovedMedia: base.forgetRemovedMedia,
     clock: base.clock,
     idGen: base.idGen,
     mediaRepo: base.mediaRepo,

@@ -235,11 +235,12 @@ test("a connect/list failure is a 502, and the session is still closed", async (
 
 test("a successful probe describes every advertised tool, admitted or not, with the WRITES/DESTRUCTIVE/silent badges", async (t) => {
   let closed = false;
-  let seenSpec: McpHttpLaunchSpec | null = null;
-  let seenTimeout: number | undefined;
+  // A holder object, not a bare `let`: TS's control-flow analysis cannot see the closure's write,
+  // so a `let seenSpec = null` stays narrowed to `null` (and `.url` to `never`) at the assertion.
+  const seen: { spec: McpHttpLaunchSpec | null; timeout: number | undefined } = { spec: null, timeout: undefined };
   const connect: ExternalMcpProbeSessionFactory = async (spec, timeout) => {
-    seenSpec = spec;
-    seenTimeout = timeout;
+    seen.spec = spec;
+    seen.timeout = timeout;
     return scriptedSession({
       tools: [
         { name: "generate_image", description: "Makes an image.", inputSchema: {}, annotations: { readOnlyHint: false } },
@@ -266,8 +267,8 @@ test("a successful probe describes every advertised tool, admitted or not, with 
   assert.equal(response.status, 200);
   assert.equal(typeof body.probedAt, "string");
   assert.equal(closed, true, "the session must be closed after a successful probe too");
-  assert.equal(seenSpec?.url, "https://mcp.example.com/mcp");
-  assert.equal(seenTimeout, FEDERATED_CONNECTION_DEFAULTS.connectTimeoutMs);
+  assert.equal(seen.spec?.url, "https://mcp.example.com/mcp");
+  assert.equal(seen.timeout, FEDERATED_CONNECTION_DEFAULTS.connectTimeoutMs);
 
   const byName = Object.fromEntries(body.tools.map((entry) => [entry.remoteName, entry]));
   assert.equal(byName.generate_image?.writeDeclared, true);
@@ -294,6 +295,9 @@ test("INV-006: the response carries no secret — not the OAuth bearer token, no
       throw new Error("not used");
     },
     async disconnect() {},
+    async reportAuthFailure() {
+      throw new Error("not used");
+    },
     tokenResolver: {
       async resolveAccessToken() {
         return FAKE_TOKEN;

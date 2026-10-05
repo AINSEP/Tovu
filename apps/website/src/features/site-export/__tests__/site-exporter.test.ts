@@ -54,6 +54,12 @@ class FailingSlugPostRepo implements PostRepoPort {
   save(record: PostRecord): Promise<void> {
     return this.inner.save(record);
   }
+  saveIfVersion(required: Parameters<PostRepoPort["saveIfVersion"]>[0]) {
+    return this.inner.saveIfVersion(required);
+  }
+  hardDelete(required: { workspaceId: UUID; id: UUID }): Promise<void> {
+    return this.inner.hardDelete(required);
+  }
   softDelete(required: { workspaceId: UUID; id: UUID; deletedAt: string; updatedAt: string; version: number }): Promise<void> {
     return this.inner.softDelete(required);
   }
@@ -65,6 +71,15 @@ class FailingSlugPostRepo implements PostRepoPort {
   }
   clearAutosave(required: { workspaceId: UUID; id: UUID }) {
     return this.inner.clearAutosave(required);
+  }
+  appendRevision(input: Parameters<PostRepoPort["appendRevision"]>[0]) {
+    return this.inner.appendRevision(input);
+  }
+  listRevisions(required: Parameters<PostRepoPort["listRevisions"]>[0]) {
+    return this.inner.listRevisions(required);
+  }
+  transaction<T>(fn: () => Promise<T>): Promise<T> {
+    return this.inner.transaction(fn);
   }
 }
 
@@ -124,8 +139,8 @@ async function enablePublicAssistant(deps: ReturnType<typeof createRouteDeps>): 
  *  handlers out of both the crawl and these widget tests — one sample-store product brings them in. */
 function withOneSampleProduct(deps: ReturnType<typeof createRouteDeps>): void {
   deps.store = {
-    listProducts: () => [{ id: "prod-widget-1", slug: "widget-mug", title: "Widget Mug", price: 1200, stock: 3, version: 1 }],
-    checkout: () => ({ ok: false, reason: "not-found", retries: 0 }),
+    listProducts: async () => [{ id: "prod-widget-1", slug: "widget-mug", title: "Widget Mug", price: 1200, stock: 3, version: 1 }],
+    checkout: async () => ({ ok: false, reason: "not-found", retries: 0 }),
   };
 }
 

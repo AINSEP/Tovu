@@ -34,7 +34,7 @@ function resolveReturnTo(raw: unknown): string {
 
 const money = (cents: number): string => `$${(cents / 100).toFixed(2)}`;
 
-export function registerStoreRoutes(app: Express, deps: RouteDeps): void {
+export function registerStoreRoutes(app: Express, deps: Pick<RouteDeps, "store">): void {
   app.get("/store", async (req, res) => {
     const store = deps.store;
     if (!store) {

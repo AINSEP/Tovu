@@ -529,7 +529,9 @@ for (const scope of [
   test(`push/plan honors valid row scope ${JSON.stringify(scope)}`, async (t) => {
     registerFixtureContributors();
     t.after(() => resetPublishContentContributorsForTests());
-    let staged: PackedEntity[] | null = null;
+    // Assigned inside the fake client callback, which control-flow analysis cannot see; the
+    // assertion keeps `staged` from narrowing to `null` (and then `never` after `assert.ok`).
+    let staged = null as PackedEntity[] | null;
     const { app } = buildApp(fakePeerHttpClient((entities) => { staged = entities; }));
     const server = await startTestServer(app, t);
     assert.equal((await createPeer(server)).status, 201);

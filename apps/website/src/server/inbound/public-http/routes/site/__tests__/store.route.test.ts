@@ -43,14 +43,14 @@ const ATTACK_RETURN_TOS: readonly string[] = [
 type StoreDep = NonNullable<RouteDeps["store"]>;
 
 const purchasingStore: StoreDep = {
-  listProducts: () => [],
-  checkout: () => ({ ok: true, orderId: "order-1", remainingStock: 4, retries: 0 }),
+  listProducts: async () => [],
+  checkout: async () => ({ ok: true, orderId: "order-1", remainingStock: 4, retries: 0 }),
 };
 
 /** Boots the store routes alone and returns a `GET /store/buy` caller that never follows redirects. */
 async function bootStore(t: import("node:test").TestContext, store: StoreDep | undefined) {
   const app = express();
-  registerStoreRoutes(app, { store } as RouteDeps);
+  registerStoreRoutes(app, { store });
   const baseUrl = await startTestServer(app, t);
   return async (returnTo: string): Promise<{ status: number; location: string | null }> => {
     const res = await fetch(`${baseUrl}/store/buy?productId=p1&returnTo=${encodeURIComponent(returnTo)}`, {
@@ -102,11 +102,11 @@ test("GET /store/buy honors an on-site returnTo: /products and /store?x=1", asyn
 test("GET /store renders prices, escapes hostile text, and keeps sold-out products unpurchasable", async (t) => {
   const app = express();
   registerStoreRoutes(app, { store: {
-    listProducts: () => [
+    listProducts: async () => [
       { id: "available&1", slug: "available", title: '<script>alert("product")</script>', price: 4200, stock: 2, version: 1 },
       { id: "sold", slug: "sold", title: "Sold product", price: 999, stock: 0, version: 1 },
     ], checkout: purchasingStore.checkout,
-  } } as RouteDeps);
+  } });
   const baseUrl = await startTestServer(app, t);
   const res = await fetch(`${baseUrl}/store?msg=${encodeURIComponent('<img src=x onerror="bad">')}`);
   assert.equal(res.status, 200);
@@ -126,14 +126,14 @@ test("store listing/checkout failures complete with a fixed 500, and refused pur
   for (const failure of ["listing", "checkout"] as const) {
     const app = express();
     registerStoreRoutes(app, { store: {
-      listProducts: () => { if (failure === "listing") throw new Error("private storage details"); return []; },
-      checkout: () => { throw new Error("private checkout details"); },
-    } } as RouteDeps);
+      listProducts: async () => { if (failure === "listing") throw new Error("private storage details"); return []; },
+      checkout: async () => { throw new Error("private checkout details"); },
+    } });
     const baseUrl = await startTestServer(app, t);
     const res = await fetch(`${baseUrl}${failure === "listing" ? "/store" : "/store/buy?productId=p1"}`, { redirect: "manual", signal: AbortSignal.timeout(3000) });
     assert.equal(res.status, 500);
     assert.equal(await res.text(), "<h1>Store error</h1>");
   }
-  const buy = await bootStore(t, { listProducts: () => [], checkout: () => ({ ok: false, reason: "not-found", retries: 0 }) });
+  const buy = await bootStore(t, { listProducts: async () => [], checkout: async () => ({ ok: false, reason: "not-found", retries: 0 }) });
   assert.deepEqual(await buy("/products"), { status: 302, location: `/products?msg=${encodeURIComponent("Could not buy: not-found.")}` });
 });

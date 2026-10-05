@@ -1,3 +1,4 @@
+/// <reference path="./yazl.d.ts" />
 import * as yazl from "yazl";
 
 /**

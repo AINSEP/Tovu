@@ -1,4 +1,5 @@
-import { chmod, readdir, rm, type Dirent } from "node:fs/promises";
+import type { Dirent } from "node:fs";
+import { chmod, readdir, rm } from "node:fs/promises";
 import path from "node:path";
 
 /**

@@ -3,26 +3,37 @@ import test from "node:test";
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
-import { InMemoryTaxonomyRepo, InMemoryTermRepo } from "#src/features/taxonomy/index";
+import { openContentDb } from "#src/platform/db/sqlite/content-db";
+import { createRouteDeps } from "#src/server/runtime/composition/app";
+import { SqliteTaxonomyRepo, SqliteTermRepo } from "#src/features/taxonomy/repo.sqlite";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminTaxonomyListRoute } from "../list.js";
 import type { TaxonomyRouteDeps } from "../deps.js";
 
-function buildApp(depsOverrides: Partial<TaxonomyRouteDeps> = {}): express.Express {
-  const taxonomyRepo = new InMemoryTaxonomyRepo();
-  const termRepo = new InMemoryTermRepo();
+/** The same SQLite adapters `createRouteDeps` composes, over a private in-memory database. (The CMS
+ *  package's `InMemoryTaxonomyRepo`/`InMemoryTermRepo` lack the host's trash/publish reads —
+ *  `findForTrash`/`findAnyById` — so they no longer satisfy `TaxonomyRouteDeps`.) */
+function createTaxonomyRepos(): Pick<TaxonomyRouteDeps, "taxonomyRepo" | "termRepo"> {
+  const db = openContentDb(":memory:");
+  return {
+    taxonomyRepo: new SqliteTaxonomyRepo({ db, workspaceId: "ws-1" }),
+    termRepo: new SqliteTermRepo({ db, workspaceId: "ws-1" }),
+  };
+}
 
+function buildApp(depsOverrides: Partial<TaxonomyRouteDeps> = {}): express.Express {
+  const { taxonomyRepo, termRepo } = createTaxonomyRepos();
+
+  // Composed defaults for every seam this route never reads (outbox, revisions, removers, ...);
+  // the seams it does read are overridden below.
   const deps: TaxonomyRouteDeps = {
+    ...createRouteDeps(),
     workspaceId: "ws-1",
     authorize: async () => ({ allowed: true, reason: "matched" }),
-    clock: { now: () => new Date("2026-01-01T00:00:00Z") },
-    idGen: { generate: () => "id-1" },
-    outbox: { enqueue: async () => {} } as any,
+    clock: { nowMs: () => Date.parse("2026-01-01T00:00:00Z"), nowIso: () => "2026-01-01T00:00:00.000Z" },
+    idGen: { newId: () => "id-1" },
     taxonomyRepo,
     termRepo,
-    entryTermRepo: {} as any,
-    taxonomyRevisionRepo: {} as any,
-    postRepo: {} as any,
     stampWatermark: async () => {},
     ...depsOverrides,
   };
@@ -38,8 +49,7 @@ function buildApp(depsOverrides: Partial<TaxonomyRouteDeps> = {}): express.Expre
 }
 
 test("list: returns 200 with taxonomies and terms when authorized", async (t) => {
-  const taxonomyRepo = new InMemoryTaxonomyRepo();
-  const termRepo = new InMemoryTermRepo();
+  const { taxonomyRepo, termRepo } = createTaxonomyRepos();
   await taxonomyRepo.insert({
     id: "tax-1",
     name: "Categories",

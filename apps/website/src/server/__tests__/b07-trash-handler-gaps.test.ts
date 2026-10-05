@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
 import Database from "better-sqlite3";
-import type { TrashItem, TrashPort } from "@jini-ai/cms/trash";
+import type { RestoreOutcome, TrashItem, TrashPort } from "@jini-ai/cms/trash";
+import type { TrashDb } from "../../features/trash/index.js";
 import { sqliteKernel } from "../../platform/db/kernel/drivers/sqlite.js";
 import { buildTrashRegistry } from "../../features/trash/registry.js";
 import { registerAdminTrashListRoute } from "../inbound/admin-http/routes/trash/list.js";
@@ -21,7 +22,11 @@ const ROOT = "/api/admin/v1/workspaces/:workspaceId/trash";
 const base = { workspaceId: WS, clock: { nowIso: () => AT }, registry: buildTrashRegistry(),
   authorize: async () => ({ allowed: true, reason: "granted" }) };
 
-async function invoke(register: TrashRouteRegistrar, deps: object, suffix = "", body?: unknown, query: object = {}) {
+/** Each test fakes only the port members its route path reaches. Typing the fakes member-wise
+ *  (rather than as a bare `object`) still checks every faked method against the real port. */
+type TrashRouteFakes = { [K in keyof TrashRouteDeps]?: Partial<TrashRouteDeps[K]> };
+
+async function invoke(register: TrashRouteRegistrar, deps: TrashRouteFakes, suffix = "", body?: unknown, query: object = {}) {
   const app = express();
   register(app, { ...base, ...deps } as TrashRouteDeps);
   const { res, capture } = createCapturingResponse();
@@ -66,7 +71,7 @@ test("trash list projects snapshot values and rounds remaining partial days upwa
   const reads: unknown[] = [];
   const capture = await invoke(registerAdminTrashListRoute, {
     trash: { list: async () => ({ items: [snapshot], nextCursor: "next-page" }) },
-    userRepo: { async list(input: unknown) { reads.push(input); return [{ principalId: "deleter-7", username: "curator" }]; } },
+    userRepo: { async list(input: unknown) { reads.push(input); return [{ principalId: "deleter-7", workspaceId: WS, username: "curator", passwordHash: "argon2id$never-projected" }]; } },
   });
   assert.deepEqual(reads, [{ workspaceId: WS }]);
   assert.deepEqual(capture, { statusCode: 200, jsonBody: { items: [{
@@ -110,7 +115,7 @@ test("trash items maps a marker-write race to 409 and an unexpected write failur
   t.after(() => client.close());
   client.exec("CREATE TABLE form_definitions (id TEXT, workspace_id TEXT, name TEXT, slug TEXT, deleted_at TEXT, version INTEGER)");
   client.prepare("INSERT INTO form_definitions VALUES (?, ?, ?, ?, NULL, ?)").run("form-7", WS, "Signup form", "signup", 8);
-  const db = sqliteKernel(client);
+  const db: TrashDb = sqliteKernel(client);
   const calls: unknown[] = [];
   for (const fail of [false, true]) {
     const capture = await invoke(registerAdminTrashMoveToTrashRoute, {
@@ -138,7 +143,7 @@ test("purge enforces selection bounds while delivering duplicate ids and the cal
     const { authorizeItem, ...selection } = input;
     calls.push(selection);
     assert.equal(typeof authorizeItem, "function");
-    return { purged: 0, results: input.ids.map((id) => ({ id, outcome: "not-found" })) };
+    return { purged: 0, results: input.ids.map((id) => ({ id, outcome: "not-found" as const })) };
   } } };
   for (const body of [null, {}, { ids: [] }, { ids: ["row", ""] }, { ids: ["row", 7] }, { ids: Array(201).fill("row") }]) {
     assert.deepEqual(await invoke(registerAdminTrashPurgeRoute, deps, "/purge", body), {
@@ -158,7 +163,7 @@ test("purge enforces selection bounds while delivering duplicate ids and the cal
 
 test("restore rejects a malformed member of a selection and accepts exactly the maximum selection", async () => {
   const calls: unknown[][] = [];
-  const deps = { trash: { async restore(...args: unknown[]) { calls.push(args); return "not-found"; } } };
+  const deps = { trash: { async restore(...args: unknown[]) { calls.push(args); return "not-found" as const; } } };
   const validItem = { entityType: "post", entityId: "post-7" };
   for (const body of [null, {}, { items: [] }, { items: [validItem, null] }, { items: [validItem, { entityType: "", entityId: "post-8" }] },
     { items: [validItem, { entityType: "post", entityId: 7 }] }, { items: Array(201).fill(validItem) }]) {
@@ -176,14 +181,16 @@ test("restore rejects a malformed member of a selection and accepts exactly the 
 
 // F1.2/F4.1: restored must count successes only; every outcome remains aligned with its entity.
 test("restore preserves per-item failure outcomes and uses one timestamp for the whole selection", async () => {
-  const outcomes = new Map([ ["ok", "restored"], ["gone", "not-found"], ["changed", "version-changed"], ["uninstalled", "adapter-unavailable"] ]);
+  const outcomes = new Map<string, RestoreOutcome>([ ["ok", "restored"], ["gone", "not-found"], ["changed", "version-changed"], ["uninstalled", "adapter-unavailable"] ]);
   const calls: unknown[][] = [];
   let ticks = 0;
   const capture = await invoke(registerAdminTrashRestoreRoute, {
     clock: { nowIso() { ticks++; return AT; } },
     trash: { async restore(input: { entityId: string }, optional: unknown) {
       calls.push([input, optional]);
-      return outcomes.get(input.entityId);
+      const outcome = outcomes.get(input.entityId);
+      assert.ok(outcome, `no scripted outcome for ${input.entityId}`);
+      return outcome;
     } },
   }, "/restore", { items: ["gone", "ok", "uninstalled", "changed"].map((entityId) => ({ entityType: "post", entityId })) });
   assert.equal(ticks, 1);

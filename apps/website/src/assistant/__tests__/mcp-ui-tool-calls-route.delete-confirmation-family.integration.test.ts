@@ -33,7 +33,7 @@ import { discoverAllBuiltInThemes } from "#src/features/theme/index";
 import { buildThemesRegistrations, type ThemeToolDeps } from "#src/features/theme/tool-registrations";
 
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
-import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "#src/features/origin/index";
+import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry, type OriginRegistryPort } from "#src/features/origin/index";
 import { redirectMatcher } from "#src/features/redirects/matcher";
 import type { RedirectDbHandle } from "#src/features/redirects/ports.internal";
 import { InMemoryRedirectRepo } from "#src/features/redirects/repo.memory";
@@ -109,10 +109,10 @@ async function setupComments(surfaceExchanges: SurfaceExchangeStore): ReturnType
   const workspaceId = "ws-mcp-ui-comments-trash-integration";
   const commentRepo = new InMemoryCommentRepo();
   const settingsRepo = new InMemorySettingsRepo();
-  const clock = { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW };
+  const clock = { nowMs: () => Date.parse(NOW) };
   let counter = 0;
   const idGen = { newId: () => `id-${++counter}` };
-  const commentWriteService = createCommentWriteService({ repo: commentRepo, outbox: { enqueue: async () => {} }, hooks: createCommentHookRegistry(), clock, idGen, ...commentTrashDoubles() });
+  const commentWriteService = createCommentWriteService({ repo: commentRepo, outbox: new InMemoryOutbox(), hooks: createCommentHookRegistry(), clock, idGen, ...commentTrashDoubles() });
   const deps = {
     workspaceId,
     clock,
@@ -174,7 +174,7 @@ async function setupWidgets(surfaceExchanges: SurfaceExchangeStore): ReturnType<
   const widgetTrash = memoryWidgetTrash();
   const deps = {
     workspaceId,
-    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
+    clock: { nowMs: () => Date.parse(NOW) },
     idGen: { newId: () => `id-${++counter}` },
     outbox: { enqueue: async () => undefined } as unknown as WidgetsToolDeps["outbox"],
     entryRepo: widgetTrash.entryRepo,
@@ -182,6 +182,7 @@ async function setupWidgets(surfaceExchanges: SurfaceExchangeStore): ReturnType<
     entryRefsRepo: new InMemoryEntryRefsRepo(),
     widgetBindingRepo: new InMemoryWidgetRegionBindingRepo(),
     postRepo: { marker: "not needed by this suite" } as unknown as WidgetsToolDeps["postRepo"],
+    forgetRemovedPost: async () => { throw new Error("forgetRemovedPost is not needed by this suite"); },
     changeSets: { marker: "not needed by this suite" } as unknown as WidgetsToolDeps["changeSets"],
     pluginBeforeSaveHook: undefined as unknown as WidgetsToolDeps["pluginBeforeSaveHook"],
     authorize: PRE_AUTHORIZED,
@@ -264,7 +265,7 @@ async function setupRedirects(surfaceExchanges: SurfaceExchangeStore): ReturnTyp
     transaction: async (fn) => fn(),
     matcher: redirectMatcher,
     originRegistry: new OriginRegistry({ repo: originRepo }),
-    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
+    clock: { nowMs: () => Date.parse(NOW) },
     idGen: { newId: () => `redirect-${++idTick}` },
     outbox: new InMemoryOutbox(),
   };
@@ -302,9 +303,10 @@ async function setupWebhooks(surfaceExchanges: SurfaceExchangeStore): ReturnType
   const workspaceId = "ws-mcp-ui-webhooks-delete-integration";
   const webhookSubscriptionRepo = new InMemoryWebhookSubscriptionRepo();
   const webhookDeliveryRepo = new InMemoryWebhookDeliveryRepo();
-  const originRegistry = { isAllowedEgressTarget: async () => true };
+  const originRegistry: Pick<OriginRegistryPort, "isAllowedEgressTarget"> = { isAllowedEgressTarget: async () => true };
   let idCounter = 0;
-  const clock = { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW };
+  // Both readers: `createSubscription` still takes a `{ nowIso() }` clock, the tool deps a `Clock`.
+  const clock = { nowMs: () => Date.parse(NOW), nowIso: () => NOW };
   const idGen = { newId: () => `sub-${++idCounter}` };
   const deps = {
     workspaceId,

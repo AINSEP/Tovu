@@ -144,7 +144,7 @@ test("forms list-submissions: a non-string ?cursor= (repeated query param, parse
 
 test("forms list-submissions: an explicit valid ?limit=&cursor= pair is threaded through to the repo", async (t) => {
   const deps = createRouteDeps();
-  let seen: { limit?: number; cursor?: string } = {};
+  let seen: { limit?: number; cursor?: string | null } = {};
   const realListByDefinition = deps.formSubmissionRepo.listByDefinition.bind(deps.formSubmissionRepo);
   deps.formSubmissionRepo.listByDefinition = async (params) => {
     seen = { limit: params.limit, cursor: params.cursor };

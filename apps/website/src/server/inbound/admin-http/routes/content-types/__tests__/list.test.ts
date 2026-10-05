@@ -3,6 +3,7 @@ import test from "node:test";
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
+import { InMemoryEventBus } from "#src/contracts/core/events/index";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminContentTypeListRoute } from "../list.js";
 import type { ContentTypesRouteDeps } from "../deps.js";
@@ -25,9 +26,10 @@ function buildApp(depsOverrides: Partial<ContentTypesRouteDeps> = {}): express.E
   const deps: ContentTypesRouteDeps = {
     workspaceId: "ws-1",
     authorize: async () => ({ allowed: true, reason: "matched" }),
-    clock: { now: () => new Date("2026-01-01T00:00:00Z") },
-    idGen: { generate: () => "id-1" },
+    clock: { nowMs: () => Date.parse("2026-01-01T00:00:00.000Z"), nowIso: () => "2026-01-01T00:00:00.000Z" },
+    idGen: { newId: () => "id-1" },
     outbox: { enqueue: async () => {} } as any,
+    bus: new InMemoryEventBus(),
     contentTypeRepo: fakeRepo as any,
     contentTypeIndexProvisioner: {} as any,
     entryRepo: {} as any,

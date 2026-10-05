@@ -129,6 +129,8 @@ test("a live daemon's real report is relayed verbatim", async (t) => {
             inputSchema: {},
             declaredAnnotations: { readOnlyHint: false },
             writeAuthorized: true,
+            writeShapedInputs: [],
+            confirmation: "confirm",
           },
         ],
         refused: [],

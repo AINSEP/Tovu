@@ -158,8 +158,8 @@ test("MEMBER_DISABLE route: 200 idempotent no-op when the member is already disa
   let repeatWrites = 0;
   const originalSave = deps.memberRepo.save.bind(deps.memberRepo);
   const originalRevoke = deps.memberSessionRepo.revokeAllForMember.bind(deps.memberSessionRepo);
-  t.mock.method(deps.memberRepo, "save", async (...args) => { repeatWrites++; return originalSave(...args); });
-  t.mock.method(deps.memberSessionRepo, "revokeAllForMember", async (...args) => { repeatWrites++; return originalRevoke(...args); });
+  t.mock.method(deps.memberRepo, "save", async (...args: Parameters<typeof originalSave>) => { repeatWrites++; return originalSave(...args); });
+  t.mock.method(deps.memberSessionRepo, "revokeAllForMember", async (...args: Parameters<typeof originalRevoke>) => { repeatWrites++; return originalRevoke(...args); });
   const second = await fetch(`${baseUrl}${urlFor(member.id)}`, { method: "POST" });
   assert.equal(second.status, 200);
   const body = (await second.json()) as { member: { status: string } };

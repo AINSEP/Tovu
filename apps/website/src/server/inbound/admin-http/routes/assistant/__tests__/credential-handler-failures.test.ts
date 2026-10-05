@@ -2,9 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import express from "express";
+import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 
 import { InMemoryAdminExecutionCredentialRepo } from "#src/assistant/execution-credential-store.memory";
 import { InMemorySiteAssistantCredentialRepo } from "#src/assistant/site-credential-store.memory";
+import { InMemorySettingsRepo, createSettingsPrincipalLookup, set, type ResolvedSetting } from "#src/features/settings/index";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
+import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import type { AssistantSettingsRouteDeps, AssistantSettingsRouteRegistrar } from "../deps.js";
 import { registerAdminAssistantGetExecutionCredentialRoute } from "../get-execution-credential.js";
@@ -19,17 +23,29 @@ import { registerAdminAssistantPutSettingsRoute } from "../put-settings.js";
 const NOW = "2026-09-15T01:02:03.000Z";
 const BASE = "/api/admin/v1/workspaces/:workspaceId/assistant";
 
+/** A resolved `site.assistant.public_enabled` read, as `getEffective` returns it. */
+function resolved(value: boolean): ResolvedSetting {
+  return { value, sourceLayer: "workspace", defVersion: 1 };
+}
+
 function depsForHandler(): AssistantSettingsRouteDeps {
   // These tests start after authentication and do not claim middleware/permission coverage.
   // Credential services and memory repositories remain real; only explicit I/O faults are mocked.
+  const principals = new InMemoryPrincipalRepo({});
+  const keyring = new InMemoryKeyring();
   return {
     workspaceId: "ws-7", clock: { nowMs: () => Date.parse(NOW), nowIso: () => NOW }, idGen: { newId: () => "setting-9" },
     authorize: async () => ({ allowed: true, reason: "test_grant" }),
     assistantSettingsReady: Promise.resolve(), adminAssistantEnabled: false,
     adminExecutionCredentialRepo: new InMemoryAdminExecutionCredentialRepo(),
     siteAssistantCredentialRepo: new InMemorySiteAssistantCredentialRepo(),
-    getEffective: async () => ({ value: false }),
-  } as AssistantSettingsRouteDeps;
+    siteAssistantSecretKeyring: keyring,
+    siteAssistantSecretSealer: new AesGcmSecretSealer(keyring),
+    settingsRepo: new InMemorySettingsRepo(),
+    getEffective: async () => resolved(false),
+    set,
+    principalRepo: Object.assign(principals, createSettingsPrincipalLookup({ repo: principals })),
+  };
 }
 
 async function invoke(
@@ -127,7 +143,7 @@ for (const { method, register, expectedBody } of [
     let release!: () => void;
     deps.assistantSettingsReady = new Promise<void>((resolve) => { release = resolve; });
     const reads: unknown[] = [];
-    deps.getEffective = async (_deps, input) => { reads.push(input); return { value: true }; };
+    deps.getEffective = async (_deps, input) => { reads.push(input); return resolved(true); };
     let settled = false;
     const pending = invoke(register, deps, method, "settings").then((capture) => { settled = true; return capture; });
     try {

@@ -260,7 +260,7 @@ test("READ-ONLY: the recovery remedy-refusal message on a completed result is by
   registry.register({
     descriptor: { id: "ro_probe_read", readOnly: true, inputSchema: { type: "object", properties: {} } },
     policy: { authorize: () => "allow" },
-    handler: () => {
+    handler: async () => {
       reads += 1;
       return issueToolFailureDiagnostic({ hint: "needs a write", remedyToolId: "ro_probe_write" });
     },
@@ -268,7 +268,7 @@ test("READ-ONLY: the recovery remedy-refusal message on a completed result is by
   registry.register({
     descriptor: { id: "ro_probe_write", inputSchema: { type: "object", properties: {} } },
     policy: { authorize: () => "allow" },
-    handler: () => { writes += 1; return { saved: true }; },
+    handler: async () => { writes += 1; return { saved: true }; },
   });
   assert.equal(isReadOnlyTool({ descriptor: registry.list({}).find((d) => d.id === "ro_probe_write") }), false, "PREMISE: the remedy must not itself be read-only");
 
@@ -335,6 +335,7 @@ test("BYOK: execute_delegated_tool's error carries the SAME ID as the default [t
   const result = await s.executeMetaTool(PRINCIPAL, RUN, { name: "execute_delegated_tool", input: { toolId: "throws_secret_byok", input: {} } });
 
   assert.equal(result.isError, true);
+  assert.ok(typeof result.content === "string", "execute_delegated_tool's error reply is plain text");
   const idMatch = result.content.match(TOOL_ERROR_ID_PATTERN);
   assert.ok(idMatch, `expected an ERR-… id in: ${result.content}`);
   containsNoSecret(result.content);

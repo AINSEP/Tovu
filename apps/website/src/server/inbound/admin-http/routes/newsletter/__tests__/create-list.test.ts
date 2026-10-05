@@ -12,7 +12,7 @@ import {
 } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminNewsletterCreateListRoute } from "../create-list.js";
 import type { NewsletterRouteDeps } from "../deps.js";
-import type { ListRecord } from "#src/features/newsletter/index";
+import type { NewsletterListRow } from "#src/features/newsletter/types";
 
 const WORKSPACE_ID = "workspace-local";
 
@@ -113,7 +113,7 @@ test("create-list: successful creation returns 201 and creates list", async (t) 
     { name: "Weekly Digest", slug: "weekly-digest" }
   );
   assert.equal(status, 201);
-  const body = json as { data?: ListRecord };
+  const body = json as { data?: NewsletterListRow };
   assert.equal(body.data?.name, "Weekly Digest");
   assert.equal(body.data?.slug, "weekly-digest");
 

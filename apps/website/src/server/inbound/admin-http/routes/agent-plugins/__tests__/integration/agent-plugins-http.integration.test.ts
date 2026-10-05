@@ -96,7 +96,14 @@ function buildTestApp(): { app: express.Express; agentPluginsDeps: AgentPluginsR
   // .test.ts`'s own `buildTestApp`, which threads `baseDeps.authorize` through for exactly this
   // reason.
   const baseDeps = createRouteDeps();
-  const agentPluginsDeps: AgentPluginsRouteDeps = { workspaceId: baseDeps.workspaceId, authorize: baseDeps.authorize };
+  const agentPluginsDeps: AgentPluginsRouteDeps = {
+    workspaceId: baseDeps.workspaceId,
+    authorize: baseDeps.authorize,
+    clock: baseDeps.clock,
+    externalMcpServerRepo: baseDeps.externalMcpServerRepo,
+    siteAssistantSecretSealer: baseDeps.siteAssistantSecretSealer,
+    siteAssistantSecretKeyring: baseDeps.siteAssistantSecretKeyring,
+  };
 
   const app = express();
   app.use(express.json());

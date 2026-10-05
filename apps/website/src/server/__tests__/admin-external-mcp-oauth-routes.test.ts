@@ -70,7 +70,7 @@ function scriptedFetch(script: readonly ScriptStep[]) {
 async function buildTestApp(options: { script?: readonly ScriptStep[]; grant?: string } = {}) {
   const base = createRouteDeps();
   const http = scriptedFetch(options.script ?? []);
-  const oauthDeps = {
+  const oauthDeps: Parameters<typeof createExternalMcpOAuthService>[0] = {
     workspaceId: base.workspaceId,
     repo: base.externalMcpServerRepo,
     sealer: base.siteAssistantSecretSealer,
@@ -101,6 +101,8 @@ async function buildTestApp(options: { script?: readonly ScriptStep[]; grant?: s
       command: "npx",
       args: "-y higgs-mcp",
       allowedToolNames: "generate_image",
+      writeAllowedToolNames: "",
+      principalId: "owner",
       oauth: {
         providerId: PROVIDER.providerId,
         grant: options.grant ?? "authorization_code",
@@ -374,6 +376,8 @@ test("connecting a server that is not OAuth-authenticated is a 400 naming the fi
       command: "npx",
       args: "-y plain-mcp",
       allowedToolNames: "",
+      writeAllowedToolNames: "",
+      principalId: "owner",
     },
   );
   const { baseUrl, cookie } = await bootAuthenticated(app, t);

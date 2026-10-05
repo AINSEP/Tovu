@@ -4,6 +4,7 @@ import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
 import { InMemoryContentTypeRepo, type ContentTypeRecord } from "#src/features/content-types/index";
+import { InMemoryEventBus } from "#src/contracts/core/events/index";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminContentTypeRegisterRoute } from "../register.js";
 import { registerAdminContentTypeUpdateFieldsRoute } from "../update-fields.js";
@@ -28,9 +29,10 @@ async function buildApp(t: import("node:test").TestContext, status?: ContentType
   const deps: ContentTypesRouteDeps = {
     workspaceId: "ws-1",
     authorize: async () => ({ allowed: true, reason: "matched" }),
-    clock: { nowMs: () => Date.parse("2026-09-24T00:00:00.000Z") },
+    clock: { nowMs: () => Date.parse("2026-09-24T00:00:00.000Z"), nowIso: () => "2026-09-24T00:00:00.000Z" },
     idGen: { newId: () => "id-1" } as any,
     outbox: { enqueue: async () => {} } as any,
+    bus: new InMemoryEventBus(),
     contentTypeRepo: repo,
     contentTypeIndexProvisioner: {
       provisionIndexesForNewContentType: async (input: unknown) => { indexCalls.push({ op: "register", input }); },

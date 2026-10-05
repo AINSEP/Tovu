@@ -13,7 +13,12 @@ import type { RouteDeps } from "#src/server/routes/types";
  * overridden to a fresh `LocalBufferSink` per test so assertions don't see another test's hits.
  */
 
-function testDeps(overrides: Partial<RouteDeps> = {}): ReturnType<typeof createRouteDeps> {
+/** The local buffer sink keeps the `all()` inspection accessor the assertions below read. */
+type LocalAnalyticsSink = ReturnType<typeof createLocalAnalyticsSink>;
+
+function testDeps(
+  overrides: Partial<RouteDeps> & { analyticsSink?: LocalAnalyticsSink } = {}
+): ReturnType<typeof createRouteDeps> & { analyticsSink: LocalAnalyticsSink } {
   return { ...createRouteDeps(), analyticsSink: createLocalAnalyticsSink({}), ...overrides };
 }
 

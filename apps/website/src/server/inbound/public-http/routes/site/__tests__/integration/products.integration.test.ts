@@ -83,8 +83,8 @@ test("products: with no Commerce repos wired, falls back to the sample store plu
       commerceProductRepo: undefined,
       commercePriceRepo: undefined,
       store: {
-        listProducts: () => [{ id: "sample-1", slug: "sample-1", title: "Sample Fallback Product", price: 999, stock: 1, version: 0 }],
-        checkout: () => ({ ok: false, reason: "not-found", retries: 0 }),
+        listProducts: async () => [{ id: "sample-1", slug: "sample-1", title: "Sample Fallback Product", price: 999, stock: 1, version: 0 }],
+        checkout: async () => ({ ok: false, reason: "not-found", retries: 0 }),
       },
     })
   );
@@ -101,8 +101,8 @@ test("products: Commerce repos are wired but have zero active priced products, f
       commerceProductRepo: fakeProductRepo([]),
       commercePriceRepo: fakePriceRepo({}),
       store: {
-        listProducts: () => [{ id: "int-fallback-1", slug: "int-fallback-1", title: "Integration Fallback Product", price: 500, stock: 2, version: 0 }],
-        checkout: () => ({ ok: false, reason: "not-found", retries: 0 }),
+        listProducts: async () => [{ id: "int-fallback-1", slug: "int-fallback-1", title: "Integration Fallback Product", price: 500, stock: 2, version: 0 }],
+        checkout: async () => ({ ok: false, reason: "not-found", retries: 0 }),
       },
     })
   );
@@ -126,7 +126,7 @@ test("products: neither Commerce nor a store plugin is wired at all — resolveS
 
 test("products: an unknown product id 404s through the real composed app", async (t) => {
   const app = createApp(
-    testDeps({ commerceProductRepo: fakeProductRepo([]), commercePriceRepo: fakePriceRepo({}), store: { listProducts: () => [], checkout: () => ({ ok: false, reason: "not-found", retries: 0 }) } })
+    testDeps({ commerceProductRepo: fakeProductRepo([]), commercePriceRepo: fakePriceRepo({}), store: { listProducts: async () => [], checkout: async () => ({ ok: false, reason: "not-found", retries: 0 }) } })
   );
   const baseUrl = await startTestServer(app, t);
 

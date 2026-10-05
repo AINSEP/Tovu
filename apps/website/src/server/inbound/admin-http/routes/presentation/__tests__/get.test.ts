@@ -48,6 +48,16 @@ function buildApp(depsOverrides: Partial<ContentRouteDeps> = {}): express.Expres
     mediaRepo: base.mediaRepo,
     transformDefinitionRepo: base.transformDefinitionRepo,
     menuRepo: base.menuRepo,
+    removePost: base.removePost,
+    forgetRemovedPost: base.forgetRemovedPost,
+    packageThemesDir: base.packageThemesDir,
+    mediaContentTypeStore: base.mediaContentTypeStore,
+    contentTypeRepo: base.contentTypeRepo,
+    widgetBindingRepo: base.widgetBindingRepo,
+    settingsRepo: base.settingsRepo,
+    siteTitlePreservationStore: base.siteTitlePreservationStore,
+    workspaceRepo: base.workspaceRepo,
+    siteDisplayName: base.siteDisplayName,
     ...depsOverrides,
   };
   const app = express();

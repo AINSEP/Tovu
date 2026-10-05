@@ -131,6 +131,8 @@ test("ADR-041/043/044/045 re-audit round 2 (codex finding R2-F2-BLOCK-NOT-ENFORC
       title: "Admin News",
       slug: "admin-news",
       bodyJson: {},
+      bodyFormat: "doc",
+      bodyHtml: null,
       status: "published",
       kind: "page",
       updatedAt: deps.clock.nowIso(),

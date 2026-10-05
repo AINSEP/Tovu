@@ -6,6 +6,7 @@ import type { OutboundEmail } from "#src/features/members/index";
 import { createCapturingResponse, extractRouteHandler, startTestServer } from "../helpers/http-test-server.js";
 
 import express from "express";
+import { nowIso } from "@jini-ai/core/primitives";
 
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { createRateLimiter, MAGIC_LINK_COMPLETE_ATTEMPT, MAGIC_LINK_PER_EMAIL, MAGIC_LINK_PER_IP } from "#src/contracts/core/rate-limit/rate-limit";
@@ -93,8 +94,8 @@ test("INV-06: a registered and an unregistered email both get {delivered:true} b
     workspaceId: deps.workspaceId,
     email: "registered@example.com",
     status: "active",
-    createdAt: deps.clock.nowIso(),
-    updatedAt: deps.clock.nowIso(),
+    createdAt: nowIso({ clock: deps.clock }),
+    updatedAt: nowIso({ clock: deps.clock }),
     version: 1,
   });
 
@@ -114,8 +115,8 @@ test("INV-06: a registered and an unregistered email both get 429 identically on
     workspaceId: deps.workspaceId,
     email: "registered2@example.com",
     status: "active",
-    createdAt: deps.clock.nowIso(),
-    updatedAt: deps.clock.nowIso(),
+    createdAt: nowIso({ clock: deps.clock }),
+    updatedAt: nowIso({ clock: deps.clock }),
     version: 1,
   });
 

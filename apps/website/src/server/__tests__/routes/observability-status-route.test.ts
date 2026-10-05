@@ -46,6 +46,9 @@ async function loginAsBarePrincipal(deps: RouteDeps, baseUrl: string): Promise<s
 }
 
 test.beforeEach((t) => {
+  // A per-test hook always receives that test's own TestContext; @types/node types every hook
+  // argument as `TestContext | SuiteContext`, so narrow before using `t.after`/`t.mock`.
+  if (!("mock" in t)) throw new Error("beforeEach expected a TestContext");
   const keys = ["OTEL_EXPORTER_OTLP_ENDPOINT", "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "OTEL_SERVICE_NAME"] as const;
   const before = keys.map((key) => process.env[key]);
   for (const key of keys) delete process.env[key];

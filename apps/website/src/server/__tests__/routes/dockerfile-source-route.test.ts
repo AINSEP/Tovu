@@ -46,6 +46,9 @@ function getEtag(res: Response): string {
 
 const FIXTURE_DOCKERFILE = "# isolated fixture\nFROM node:22-slim\n";
 test.beforeEach((t) => {
+  // A per-test hook always receives that test's own TestContext; @types/node types every hook
+  // argument as `TestContext | SuiteContext`, so narrow before using `t.after`/`t.mock`.
+  if (!("mock" in t)) throw new Error("beforeEach expected a TestContext");
   const root = mkdtempSync(join(tmpdir(), "tovu-dockerfile-route-"));
   t.mock.method(process, "cwd", () => root);
   writeFileSync(join(root, "Dockerfile"), FIXTURE_DOCKERFILE);

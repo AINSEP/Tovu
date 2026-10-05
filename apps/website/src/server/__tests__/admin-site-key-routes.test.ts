@@ -49,6 +49,9 @@ const WORKSPACE = "workspace-local";
 const BASE = `/api/admin/v1/workspaces/${WORKSPACE}/system/site-key`;
 
 test.beforeEach((t) => {
+  // A per-test hook always receives that test's own TestContext; @types/node types every hook
+  // argument as `TestContext | SuiteContext`, so narrow before using `t.after`/`t.mock`.
+  if (!("mock" in t)) throw new Error("beforeEach expected a TestContext");
   for (const name of ["TOVU_SITE_KEY", LEGACY_SITE_KEY_ENV_VAR_NAME, "TOVU_RUNTIME_MODE"]) {
     const original = process.env[name];
     delete process.env[name];

@@ -57,6 +57,8 @@ function buildTestApp(overrides: Partial<PluginsRouteDeps> = {}): { app: express
       onDisabledCalls.push(id);
     },
     removePlugin: baseDeps.removePlugin,
+    readPluginPackageFiles: baseDeps.readPluginPackageFiles,
+    previewPluginBeforeSave: baseDeps.previewPluginBeforeSave,
     ...overrides,
   };
   (pluginDeps as unknown as { onEnabledCalls: string[] }).onEnabledCalls = onEnabledCalls;
@@ -120,7 +122,7 @@ test("set-enabled: PATCH for an incompatible plugin is 422 PLUGIN_INCOMPATIBLE, 
 test("set-enabled: an enable whose load hook throws PluginLoadError maps to 500 PLUGIN_LOAD_FAILED with pluginId/reason, and the activation row is NOT left enabled (activation.ts's own compensation)", async (t) => {
   const { app, pluginDeps } = buildTestApp({
     onPluginEnabled: async () => {
-      throw new PluginLoadError("word-count", "runtime-error");
+      throw new PluginLoadError("word-count", "PLUGIN_SETUP_FAILED");
     },
   });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
@@ -134,6 +136,7 @@ test("set-enabled: an enable whose load hook throws PluginLoadError maps to 500 
   const body = (await res.json()) as { code?: string; details?: { pluginId?: string; reason?: string } };
   assert.equal(body.code, "PLUGIN_LOAD_FAILED");
   assert.equal(body.details?.pluginId, "word-count");
+  assert.equal(body.details?.reason, "PLUGIN_SETUP_FAILED");
 
   const stored = await pluginDeps.pluginActivationRepo.getActivation({ workspaceId: WORKSPACE_ID, pluginId: "word-count" });
   assert.equal(stored, null, "a first-time enable whose load hook fails must not leave a phantom enabled row");
@@ -146,7 +149,7 @@ test("set-enabled: PATCH {enabled:false} disables a plugin and invokes onPluginD
     workspaceId: WORKSPACE_ID,
     version: "1.0.0",
     enabled: true,
-    updatedAt: pluginDeps.clock.nowIso(),
+    updatedAt: new Date(pluginDeps.clock.nowMs()).toISOString(),
   });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -169,7 +172,7 @@ test("set-enabled: an omitted request body is 400 VALIDATION_ERROR and the activ
     workspaceId: WORKSPACE_ID,
     version: "1.0.0",
     enabled: true,
-    updatedAt: pluginDeps.clock.nowIso(),
+    updatedAt: new Date(pluginDeps.clock.nowMs()).toISOString(),
   });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -228,7 +231,7 @@ test("set-enabled: a record-persistence failure AFTER disabling a previously-ena
     workspaceId: WORKSPACE_ID,
     version: "1.0.0",
     enabled: true,
-    updatedAt: pluginDeps.clock.nowIso(),
+    updatedAt: new Date(pluginDeps.clock.nowMs()).toISOString(),
   });
   pluginDeps.changeSets.insert = async () => {
     throw new Error("change-set store unavailable");
@@ -254,7 +257,7 @@ test("set-enabled: a record-persistence failure AFTER re-enabling a previously-d
     workspaceId: WORKSPACE_ID,
     version: "0.9.0",
     enabled: false,
-    updatedAt: pluginDeps.clock.nowIso(),
+    updatedAt: new Date(pluginDeps.clock.nowMs()).toISOString(),
   });
   pluginDeps.changeSets.insert = async () => {
     throw new Error("change-set store unavailable");

@@ -120,7 +120,7 @@ function harness() {
         const app = express();
         app.use(express.json());
         registerAuthRoutes(app, deps);
-        createAssistantModule(deps, createSurfaceExchangeStore()).registerRoutes(app);
+        createAssistantModule(deps, createSurfaceExchangeStore()).registerRoutes?.(app);
         return { app, deps };
       },
     };

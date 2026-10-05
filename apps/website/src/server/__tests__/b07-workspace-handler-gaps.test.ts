@@ -13,9 +13,14 @@ const ROOT = "/api/admin/v1/workspaces";
 const own = { id: WS, name: "Curated Journal", slug: "curated-journal", createdAt: "2026-09-03T14:23:00Z" };
 const other = { id: "ws-foreign", name: "Foreign Journal", slug: "foreign-journal", createdAt: "2026-09-04T09:00:00Z" };
 
-async function invoke(register: WorkspaceRouteRegistrar, workspaceRepo: object, body?: unknown, workspaceId = WS) {
+/** Each test fakes only the repo members its route path reaches; `Partial` of the real port still
+ *  checks every faked method's signature. The routes under test read no `clock`/`idGen`/`outbox`/`bus`. */
+async function invoke(register: WorkspaceRouteRegistrar, workspaceRepo: Partial<WorkspaceRouteDeps["workspaceRepo"]>, body?: unknown, workspaceId = WS) {
   const app = express();
-  register(app, { workspaceId: WS, workspaceRepo, authorize: async () => ({ allowed: true, reason: "granted" }) } as WorkspaceRouteDeps);
+  const fakes: Pick<WorkspaceRouteDeps, "workspaceId" | "authorize"> & { workspaceRepo: typeof workspaceRepo } = {
+    workspaceId: WS, workspaceRepo, authorize: async () => ({ allowed: true, reason: "granted" }),
+  };
+  register(app, fakes as WorkspaceRouteDeps);
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "operator-b07" };
   const list = register === registerAdminWorkspaceListRoute;

@@ -8,7 +8,7 @@ import { registerAdminWidgetEmbedInsertRoute } from "../../embed-insert.js";
 const path = "/api/admin/v1/workspaces/:workspaceId/entries/:hostEntryId/widget-embeds";
 const host = {
   id: "host-7", workspaceId: "ws-7", type: "article", slug: "host-seven", title: "Host Seven",
-  status: "draft" as const, version: 4, fieldsJson: {},
+  status: "draft" as const, version: 4, fieldsJson: {}, publishedAt: null,
   bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Keep this content" }] }] },
   createdAt: "2026-09-01T00:00:00Z", updatedAt: "2026-09-02T00:00:00Z",
 };

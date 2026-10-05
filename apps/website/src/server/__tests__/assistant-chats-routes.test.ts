@@ -256,12 +256,17 @@ test("404s rather than 403s on another principal's conversation id", async (t) =
     userId: "someone-else",
   });
 
-  assert.equal(await otherStore.get(conversation.id), null, "another user could read the conversation");
-  assert.deepEqual(await otherStore.messages(conversation.id), []);
-  await otherStore.delete(conversation.id);
+  // Object arguments, per the `ChatStore` port: a bare id string left `required.id` undefined, so
+  // these reads returned null/[] for ANY caller and the delete matched nothing — the isolation
+  // checks passed without ever naming the conversation.
+  assert.equal(await otherStore.get({ id: conversation.id }), null, "another user could read the conversation");
+  assert.deepEqual(await otherStore.messages({ conversationId: conversation.id }), []);
+  await otherStore.delete({ id: conversation.id });
+  // The owner store is keyed by the logged-in owner's principal id, exactly as the route's `storeFor` does.
   assert.notEqual(
-    await deps.chatHistory({ kind: "user", workspaceId: deps.workspaceId, userId: "admin" }),
+    await deps.chatHistory({ kind: "user", workspaceId: deps.workspaceId, userId: await deps.ownerPrincipalId }).get({ id: conversation.id }),
     null,
+    "another user's store-level delete removed the owner's conversation",
   );
   // The owner's copy must have survived the other principal's delete.
   const stillThere = (await (await api(baseUrl, cookie, "")).json()) as { conversations: unknown[] };

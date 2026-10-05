@@ -88,8 +88,12 @@ function makeDelivery(overrides: Partial<WebhookDeliveryRecord> = {}): WebhookDe
   };
 }
 
-function buildTestApp(): { app: express.Express; deps: IntegrationsRouteDeps } {
-  const deps: IntegrationsRouteDeps = {
+/** The full hermetic `RouteDeps` (the auth middleware and the bare-principal login below need it)
+ *  plus the integration routes' own DI seams — the `sites-route.test.ts` convention. */
+type IntegrationsTestDeps = ReturnType<typeof createRouteDeps> & IntegrationsRouteDeps;
+
+function buildTestApp(): { app: express.Express; deps: IntegrationsTestDeps } {
+  const deps: IntegrationsTestDeps = {
     ...createRouteDeps(),
     webhookSubscriptionRepo: new InMemoryWebhookSubscriptionRepo(),
     webhookDeliveryRepo: new InMemoryWebhookDeliveryRepo(),
@@ -228,12 +232,14 @@ test("integrations routes: pause surfaces an unexpected repo failure as 500 (gen
   // distinct from both typed-error branches already covered elsewhere in this file.
   const originalRepo = deps.webhookSubscriptionRepo;
   deps.webhookSubscriptionRepo = {
+    insert: (record) => originalRepo.insert(record),
     findById: (input) => originalRepo.findById(input),
     listByWorkspace: (input) => originalRepo.listByWorkspace(input),
+    findMatching: (input) => originalRepo.findMatching(input),
     save: async () => {
       throw new Error("boom");
     },
-  } as typeof deps.webhookSubscriptionRepo;
+  };
 
   const res = await fetch(
     `${baseUrl}/api/admin/v1/workspaces/workspace-local/integrations/subscriptions/${subscription.id}/pause`,
@@ -376,12 +382,14 @@ test("integrations routes: delete surfaces an unexpected repo failure as 500 (ge
   // 500s" test — see its comment for why arrow-delegation (not bare method references) is required.
   const originalRepo = deps.webhookSubscriptionRepo;
   deps.webhookSubscriptionRepo = {
+    insert: (record) => originalRepo.insert(record),
     findById: (input) => originalRepo.findById(input),
     listByWorkspace: (input) => originalRepo.listByWorkspace(input),
+    findMatching: (input) => originalRepo.findMatching(input),
     save: async () => {
       throw new Error("boom");
     },
-  } as typeof deps.webhookSubscriptionRepo;
+  };
 
   const res = await fetch(
     `${baseUrl}/api/admin/v1/workspaces/workspace-local/integrations/subscriptions/${subscription.id}`,

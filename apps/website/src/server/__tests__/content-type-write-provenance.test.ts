@@ -11,6 +11,7 @@ import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/d
 import { createContentTypesModule } from "../runtime/composition/modules/content-types.js";
 import type { RouteDeps } from "../routes/types.js";
 import { startTestServer } from "./helpers/http-test-server.js";
+import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "../../contracts/core/rate-limit/rate-limit.js";
 import { installFirstPartyToolContributors } from "../runtime/composition/tool-catalog-manifest.js";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { DerivedToolContributor, ToolContributor } from "../../assistant/index.js";
@@ -49,14 +50,22 @@ installFirstPartyToolContributors({ contributions });
 
 const CONTENT_TYPE_MANAGE = "admin.collections.manage";
 
-function buildApp(): { app: express.Express; deps: RouteDeps } {
-  const deps: RouteDeps = createRouteDeps();
+/** `createRouteDeps()`'s own type, not bare `RouteDeps`: `buildAssistantToolRegistrations` below
+ *  needs the composed tool-surface deps that `RouteDeps` omits. */
+function buildApp(): { app: express.Express; deps: ReturnType<typeof createRouteDeps> } {
+  const deps = createRouteDeps();
   const app = express();
   app.use(express.json());
   registerAuthRoutes(app, deps);
   app.use("/api/admin", requireAdminSession(deps));
   createContentTypesModule(deps).registerRoutes?.(app);
   return { app, deps };
+}
+
+/** The tool-registry deps `createApp` composes: `createRouteDeps()` plus the per-boot
+ *  `magicLinkPerEmailLimiter` (members tools), built the same way as in `app.ts`. */
+function toolRegistryDeps(deps: ReturnType<typeof createRouteDeps>) {
+  return { ...deps, magicLinkPerEmailLimiter: createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: deps.clock }) };
 }
 
 /**
@@ -209,7 +218,7 @@ test("an agent-tool write records principalKind 'agent' while carrying the SAME 
 
   // 2. The SAME human asks the assistant to make the next change. The daemon executes the tool
   //    under the principal Tovu's proxy stamped into the run — the same principal id as above.
-  const registration = buildAssistantToolRegistrations(deps, undefined, { contributions }).find(
+  const registration = buildAssistantToolRegistrations(toolRegistryDeps(deps), undefined, { contributions }).find(
     (r) => r.descriptor.id === "collections_content_type_update_fields"
   );
   assert.ok(registration);
@@ -243,7 +252,7 @@ test("every agent tool stamps 'agent' — deprecate/reactivate/tombstone include
     body: JSON.stringify({ key: "recipe", label: "Recipe", fields: FIELDS }),
   });
 
-  const byId = new Map(buildAssistantToolRegistrations(deps, undefined, { contributions }).map((r) => [r.descriptor.id, r]));
+  const byId = new Map(buildAssistantToolRegistrations(toolRegistryDeps(deps), undefined, { contributions }).map((r) => [r.descriptor.id, r]));
   const ctx = (input: Record<string, unknown>) => ({
     executionId: "exec-1",
     principal: { id: principalId },

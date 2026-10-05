@@ -90,7 +90,9 @@ async function withServer<T>(lipay: LipayApi, run: (baseUrl: string) => Promise<
   }
 }
 
-function signedDelivery(body: unknown, timestampSeconds: number): { raw: Buffer; signature: string } {
+// `Buffer<ArrayBuffer>`, not bare `Buffer` (= `Buffer<ArrayBufferLike>`): only the former is a
+// fetch `BodyInit`, and `Buffer.from(string)` already returns it.
+function signedDelivery(body: unknown, timestampSeconds: number): { raw: Buffer<ArrayBuffer>; signature: string } {
   const raw = Buffer.from(JSON.stringify(body), "utf8");
   return { raw, signature: signLipayWebhook({ secret: WEBHOOK_SECRET, rawBody: raw, timestampSeconds }) };
 }
