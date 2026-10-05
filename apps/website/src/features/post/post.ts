@@ -1133,16 +1133,27 @@ function resolveUpdateBodyFields(
 }
 
 /**
- * Validates and normalizes `createPost`'s title. api.spec.md `title` maxLength bound
- * ({@link MAX_TITLE_LENGTH}); an empty/whitespace-only title is NOT a hard failure on create
- * (unlike `updatePost`) — it defaults to "Untitled", certified by "createPost defaults an empty
- * title to 'Untitled'" in post.test.ts.
+ * api.spec.md `title` maxLength bound ({@link MAX_TITLE_LENGTH}), measured on the trimmed title —
+ * one check, one message, for both `createPost` and `updatePost`. The update path used to check
+ * only that the title was non-empty, so a retitle could store a title create would have refused.
+ *
+ * @throws PostValidationError `title must be 200 characters or fewer`.
+ * @complexity O(1).
  */
-function resolveTitle(input: CreatePostInput): string {
-  const trimmedTitle = input.title.trim();
+function assertTitleWithinLimit(trimmedTitle: string): void {
   if (trimmedTitle.length > MAX_TITLE_LENGTH) {
     throw new PostValidationError(`title must be ${MAX_TITLE_LENGTH} characters or fewer`);
   }
+}
+
+/**
+ * Validates and normalizes `createPost`'s title against {@link assertTitleWithinLimit}; an
+ * empty/whitespace-only title is NOT a hard failure on create (unlike `updatePost`) — it defaults
+ * to "Untitled", certified by "createPost defaults an empty title to 'Untitled'" in post.test.ts.
+ */
+function resolveTitle(input: CreatePostInput): string {
+  const trimmedTitle = input.title.trim();
+  assertTitleWithinLimit(trimmedTitle);
   return trimmedTitle || "Untitled";
 }
 
@@ -1314,7 +1325,7 @@ export async function createPost(
 /**
  * Validates and normalizes `updatePost`'s caller-supplied `title`/`slug`, and validates
  * `bodyJson`/`status` in place, in behavior.spec.md's documented order (first failure wins):
- * title, then slug format/length/reserved-word, then `bodyJson` shape, then `status` enum — the same ordering
+ * title (required, then length), then slug format/length/reserved-word, then `bodyJson` shape, then `status` enum — the same ordering
  * discipline `resolveCreateFields`'s per-field validators follow for `createPost`.
  */
 function validateUpdatePostInput(
@@ -1325,6 +1336,7 @@ function validateUpdatePostInput(
   const slug = input.slug.trim().toLowerCase();
 
   if (!title) throw new PostValidationError("title is required");
+  assertTitleWithinLimit(title);
   // `existing.kind` is immutable (PostKind's own doc: "Fixed at creation; v1 has no post<->page
   // conversion path"), so the row's real kind — not any caller-supplied value, `UpdatePostInput`
   // carries none — is what gates the same root-slug exception `resolveExplicitSlug` applies on create.

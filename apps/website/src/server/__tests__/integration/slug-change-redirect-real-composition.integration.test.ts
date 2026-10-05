@@ -13,7 +13,7 @@ import { bootSite, expectJson, send, SITE_DIALECTS, type BootedSite } from "../h
  * published page or post whose slug changes leaves a 301 from its old URL, whichever surface made
  * the change (the Pages route, the Posts route, or the `content_post_update` agent tool). Also the
  * update half of SPEC-002 REQ-04 (a reserved or over-120-character slug is refused on update with
- * create's message).
+ * create's message), and the same for an over-200-character title (api.spec.md §4 `title` maxLength).
  *
  * `deps.ts` binds `RedirectSlugChangeCapture` into routing's slot; until `updatePost` called it,
  * the old URL 404ed. The same expectations are drafted in
@@ -163,5 +163,28 @@ for (const dialect of SITE_DIALECTS) {
     assert.equal(stored.post.slug, "rename-me");
     const atLimit = (await expectJson<{ post: AdminPost }>(await put(site, "pages", stored.post, { slug: "a".repeat(120) }), 200)).post;
     assert.equal(atLimit.slug, "a".repeat(120));
+  });
+
+  test(`title length [${dialect}]: a 201-character retitle is 400 with create's message on PUT /posts, PUT /pages and the agent tool; 200 passes`, async (t) => {
+    const site = await bootSite(t, dialect);
+    const tooLong = "t".repeat(201);
+    const created = await expectJson<{ error: string }>(await send(site, "POST", `${site.ws}/posts`, { title: tooLong }), 400);
+    const post = await create(site, "posts", { title: "Short", slug: "short-post" });
+    const page = await create(site, "pages", { title: "Short", slug: "short-page" });
+    const updateTool = await agentUpdateTool(site);
+
+    const updatedPost = await expectJson<{ error: string }>(await put(site, "posts", post, { title: tooLong }), 400);
+    const updatedPage = await expectJson<{ error: string }>(await put(site, "pages", page, { title: tooLong }), 400);
+    await assert.rejects(() => updateTool({ id: post.id, kind: "post", title: tooLong }), /title must be 200 characters or fewer/);
+
+    assert.equal(created.error, "title must be 200 characters or fewer");
+    // PUT /posts answers `{ error }` without the `code` POST /posts and PUT /pages send — a route-level
+    // shape difference outside this rule, so only its message is compared.
+    assert.equal(updatedPost.error, created.error);
+    assert.deepEqual(updatedPage, created);
+    const stored = await expectJson<{ post: AdminPost }>(await send(site, "GET", `${site.ws}/posts/${post.id}`), 200);
+    assert.equal(stored.post.title, "Short");
+    const atLimit = (await expectJson<{ post: AdminPost }>(await put(site, "posts", stored.post, { title: "t".repeat(200) }), 200)).post;
+    assert.equal(atLimit.title, "t".repeat(200));
   });
 }
