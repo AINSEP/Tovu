@@ -62,6 +62,8 @@ async function callPluginsList(deps = fakeDeps()): Promise<{ plugins: unknown[];
 const RUNTIME_ROW = {
   id: "word-count", name: "Word Count", version: "1.0.0", source: "site", tier: "tier-3",
   status: "valid", enabled: true, quarantine: null, errors: [],
+  // 2026-10-04 (36b97dfdb): every row carries conflicts[], empty when no name is contested.
+  conflicts: [],
 };
 
 function runtimeDeps(): Deps {
