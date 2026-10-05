@@ -26,6 +26,10 @@ import {
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeMenusTools } from "../../features/navigation/tool-registrations.js";
+import { createRetiredReadToolIdRewriter } from "../content-read-tool.js";
+import { KEYWORD_MARKER } from "../tool-search-keywords.js";
+
+const rewriteRetiredMenuReads = createRetiredReadToolIdRewriter({ retiredIds: new Set(["menus_list_menus", "menus_get_menu"]) });
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -149,8 +153,24 @@ test("every wired Menus registration publishes its catalog entry's inputSchema a
     // file could not have built its registrations at all had that thrown.
     if (id === "content_read.menu") continue;
     assert.ok(registration.descriptor.inputSchema, `${id} must publish an inputSchema`);
-    assert.deepEqual(registration.descriptor.inputSchema, catalogEntry(id).inputSchema, `${id}'s published schema must be its catalog entry's, not a second copy`);
-    assert.equal(registration.descriptor.description, catalogEntry(id).description);
+    // The one sanctioned difference: the collapse points the catalog's mentions of the retired
+    // menus_list_menus/menus_get_menu at content_read.menu (`createRetiredReadToolIdRewriter`).
+    const expected = rewriteRetiredMenuReads({ ...registration, descriptor: { ...registration.descriptor, description: catalogEntry(id).description, inputSchema: catalogEntry(id).inputSchema } }).descriptor;
+    assert.deepEqual(registration.descriptor.inputSchema, expected.inputSchema, `${id}'s published schema must be its catalog entry's, not a second copy`);
+    assert.equal(registration.descriptor.description, expected.description);
+  }
+});
+
+test("no published Menus tool names the retired menus_list_menus/menus_get_menu; menuId points at content_read.menu", () => {
+  const { deps } = fakeRouteDeps();
+  const registrations = menusRegistrations(deps);
+  const assign = registrations.get("menus_assign_location");
+  assert.ok(assign);
+  const menuId = (assign.descriptor.inputSchema as { properties: { menuId: { description: string } } }).properties.menuId;
+  assert.equal(menuId.description, "The menu's id, as returned by content_read.menu, or menus_create_menu.");
+  for (const [id, registration] of registrations) {
+    const text = `${registration.descriptor.description.split(KEYWORD_MARKER)[0]} ${JSON.stringify(registration.descriptor.inputSchema)}`;
+    assert.doesNotMatch(text, /\bmenus_(list_menus|get_menu)\b/, `${id} still names a retired menu read tool`);
   }
 });
 

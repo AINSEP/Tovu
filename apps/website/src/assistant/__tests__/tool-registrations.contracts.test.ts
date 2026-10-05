@@ -90,7 +90,7 @@ import {
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
-import { RETIRED_READ_TOOL_TO_CARD } from "../content-read-tool.js";
+import { createRetiredReadToolIdRewriter, RETIRED_READ_TOOL_TO_CARD } from "../content-read-tool.js";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -404,12 +404,17 @@ const CATALOG_SCHEMA_OVERRIDE_IDS: ReadonlySet<string> = new Set(["identity_user
 // ---------------------------------------------------------------------------
 
 test("every wired registration publishes the inputSchema from its catalog entry — the descriptor no longer carries only {id, description}", () => {
-  for (const [id, registration] of registrationsById()) {
+  const registrations = registrationsById();
+  // The one sanctioned difference: a retired read tool id in the catalog's prose is pointed at its
+  // content_read card (`createRetiredReadToolIdRewriter`), the same rewrite the collapse applies.
+  const rewrite = createRetiredReadToolIdRewriter({ retiredIds: new Set([...RETIRED_READ_TOOL_TO_CARD.keys()].filter((retired) => !registrations.has(retired))) });
+  for (const [id, registration] of registrations) {
     assert.ok(registration.descriptor.inputSchema, `${id} must publish an inputSchema`);
     if (DERIVED_CONTENT_READ_IDS.has(id)) continue; // union schema / concatenated description — see DERIVED_CONTENT_READ_IDS's own doc
     if (CATALOG_SCHEMA_OVERRIDE_IDS.has(id)) continue; // deliberate divergence, asserted honestly in the dedicated test below — see CATALOG_SCHEMA_OVERRIDE_IDS's own doc
-    assert.deepEqual(registration.descriptor.inputSchema, catalogEntry(id).inputSchema, `${id}'s published schema must be its catalog entry's, not a second copy`);
-    assert.equal(registration.descriptor.description, catalogEntry(id).description);
+    const expected = rewrite({ ...registration, descriptor: { ...registration.descriptor, description: catalogEntry(id).description, inputSchema: catalogEntry(id).inputSchema } }).descriptor;
+    assert.deepEqual(registration.descriptor.inputSchema, expected.inputSchema, `${id}'s published schema must be its catalog entry's, not a second copy`);
+    assert.equal(registration.descriptor.description, expected.description);
   }
 });
 

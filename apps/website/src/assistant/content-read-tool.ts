@@ -222,6 +222,55 @@ export function currentToolIdFor(toolId: string): string {
   return RETIRED_READ_TOOL_TO_CARD.get(toolId) ?? toolId;
 }
 
+/** One card id repeated in a list ("X, X, or Y", "X or X", "X/X") once two retired members of the
+ *  same card both resolve to it. */
+const REPEATED_CARD_ID_PATTERN = /(content_read\.[a-z_]+)(?:(?:\s*,\s*|\s+or\s+|\s+and\s+|\s*\/\s*)\1\b)+/g;
+
+/** Applies `rewriteText` to every string `description` in a JSON schema.
+ *  @complexity O(n) in the schema size. */
+function rewriteSchemaDescriptions(value: unknown, rewriteText: (text: string) => string): unknown {
+  if (Array.isArray(value)) return value.map((child) => rewriteSchemaDescriptions(child, rewriteText));
+  if (typeof value !== "object" || value === null) return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, child]) => [key, key === "description" && typeof child === "string" ? rewriteText(child) : rewriteSchemaDescriptions(child, rewriteText)]),
+  );
+}
+
+/**
+ * Builds the rewrite that points every retired read tool id in a registration's description and
+ * input-schema descriptions at the card that serves it now.
+ *
+ * Package-owned catalogs (menus, media, identity, ...) still say "the menu's id, as returned by
+ * menus_list_menus" — true in a host that does not collapse reads, but in this one those ids no
+ * longer exist and a model told to call them finds nothing (capability inventory 2026-10-05). The
+ * collapse is THIS host's decision, so the rewrite lives here rather than in each package. Only the
+ * plain text before {@link KEYWORD_MARKER} is rewritten: the indexed tail is keyed vocabulary, not
+ * prose, and must stay exactly what the retrieval measurements scored.
+ *
+ * @param required.retiredIds the member ids this collapse actually retired. A member whose card was
+ *        skipped (not every member present) still ships under its own id and must keep its name.
+ * @returns a function returning the registration unchanged (same object) when nothing mentions a
+ *          retired id, else a copy with the rewritten descriptor.
+ * @complexity O(r) to build; O(n) per registration in its descriptor size.
+ */
+export function createRetiredReadToolIdRewriter(required: { retiredIds: ReadonlySet<string> }): (registration: ToolRegistration) => ToolRegistration {
+  if (required.retiredIds.size === 0) return (registration) => registration;
+  // Whole words only: `\b` stops `content_post_get` matching inside a longer id.
+  const retiredIdPattern = new RegExp(`\\b(${[...required.retiredIds].join("|")})\\b`, "g");
+  const rewriteText = (text: string): string => {
+    const markerAt = text.indexOf(KEYWORD_MARKER);
+    const plain = markerAt === -1 ? text : text.slice(0, markerAt);
+    const tail = markerAt === -1 ? "" : text.slice(markerAt);
+    return plain.replace(retiredIdPattern, (id) => currentToolIdFor(id)).replace(REPEATED_CARD_ID_PATTERN, "$1") + tail;
+  };
+  return (registration) => {
+    const description = registration.descriptor.description === undefined ? undefined : rewriteText(registration.descriptor.description);
+    const inputSchema = rewriteSchemaDescriptions(registration.descriptor.inputSchema, rewriteText) as typeof registration.descriptor.inputSchema;
+    if (description === registration.descriptor.description && JSON.stringify(inputSchema) === JSON.stringify(registration.descriptor.inputSchema)) return registration;
+    return { ...registration, descriptor: { ...registration.descriptor, description, inputSchema } };
+  };
+}
+
 /** Every wired tool in this codebase publishes a real `inputSchema` (`buildDomainRegistrations`
  *  refuses to wire one that does not), so this is a type-satisfying fallback only, never expected
  *  to actually apply — typed explicitly because a bare `{}` literal has no index signature. */
@@ -363,7 +412,8 @@ function unionInputSchema(
  * The composition-root final step: takes the already-built flat registration list every domain
  * contributed (`buildAssistantToolRegistrations`'s own loop), replaces the 36 Tier-1 read tools it
  * contains with the 29 `content_read.<resource>` cards defined above, and leaves everything else —
- * all 141 other tools — completely untouched.
+ * all 141 other tools — untouched except that a retired id named in their prose is pointed at its
+ * card (see {@link createRetiredReadToolIdRewriter}).
  *
  * Called from `tool-registrations.ts`'s `buildAssistantToolRegistrations` as its own last step, NOT
  * registered as a `ToolContributor` — see this file's header for why it structurally cannot be one
@@ -446,5 +496,6 @@ export function deriveContentReadRegistrations(sourceRegistrations: readonly Too
     derivedRisk: derivedRisk as DerivedRiskByToolId,
   });
 
-  return [...sourceRegistrations.filter((registration) => !retiredIds.has(registration.descriptor.id)), ...collapsed];
+  // Survivors and cards alike may still name a retired id in their prose; see `createRetiredReadToolIdRewriter`.
+  return [...sourceRegistrations.filter((registration) => !retiredIds.has(registration.descriptor.id)), ...collapsed].map(createRetiredReadToolIdRewriter({ retiredIds }));
 }
