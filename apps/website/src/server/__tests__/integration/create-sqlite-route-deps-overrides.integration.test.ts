@@ -39,6 +39,17 @@ import { workspaces } from "#src/platform/db/schema.sqlite";
  * This file adds fresh, independent regression + contract coverage for the SAME property.
  */
 
+/**
+ * F1833: settles every readiness promise the composition started — including the detached boot tail
+ * (`legacyPublishCredentialsReady`) — so no boot step is still reading the store when a test deletes
+ * the directory under it. allSettled: a failing step is that step's own test's business, and a
+ * rejection here would mask the assertion that actually failed.
+ */
+async function settleBoot(deps: object | undefined): Promise<void> {
+  if (deps === undefined) return;
+  await Promise.allSettled(Object.entries(deps).filter(([key, value]) => key.endsWith("Ready") && value instanceof Promise).map(([, value]) => value));
+}
+
 function mkTempDbPath(): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-deps-overrides-"));
   return path.join(dir, "content.db");
@@ -46,10 +57,12 @@ function mkTempDbPath(): string {
 
 test("legacy default path (no overrides): createSiteRouteDeps(dbPath) still resolves workspaceId to \"workspace-local\" — REQ-10/AC-13 byte-for-byte parity", async () => {
   const dbPath = mkTempDbPath();
+  let deps: Awaited<ReturnType<typeof createSiteRouteDeps>> | undefined;
   try {
-    const deps = await createSiteRouteDeps(dbPath);
+    deps = await createSiteRouteDeps(dbPath);
     assert.equal(deps.workspaceId, "workspace-local", "the additive signature change must not alter the legacy default path's resolved workspace id");
   } finally {
+    await settleBoot(deps);
     fs.rmSync(path.dirname(dbPath), { recursive: true, force: true });
   }
 });
@@ -58,10 +71,12 @@ test("legacy default path with no dbPath argument at all also still resolves wor
   const dbPath = mkTempDbPath();
   const originalEnv = process.env.TOVU_CONTENT_DB;
   process.env.TOVU_CONTENT_DB = dbPath;
+  let deps: Awaited<ReturnType<typeof createSiteRouteDeps>> | undefined;
   try {
-    const deps = await createSiteRouteDeps();
+    deps = await createSiteRouteDeps();
     assert.equal(deps.workspaceId, "workspace-local");
   } finally {
+    await settleBoot(deps);
     if (originalEnv === undefined) delete process.env.TOVU_CONTENT_DB;
     else process.env.TOVU_CONTENT_DB = originalEnv;
     fs.rmSync(path.dirname(dbPath), { recursive: true, force: true });
@@ -136,15 +151,42 @@ test("overrides.workspaceId supplied without overrides.db -> throws (must be sup
 
 test("B1 regression: legacy default path (no overrides) with a pre-existing 2nd workspace row resolves to the OLDEST instead of throwing (boot-bricking regression)", async () => {
   const dbPath = mkTempDbPath();
+  let deps: Awaited<ReturnType<typeof createSiteRouteDeps>> | undefined;
   try {
     const seedDb = openContentDb(dbPath);
     seedDb.insert(workspaces).values({ id: "ws-original", name: "Original", slug: "original", createdAt: "2026-01-01T00:00:00.000Z" }).run();
     seedDb.insert(workspaces).values({ id: "ws-added-later", name: "Added Later", slug: "added-later", createdAt: "2026-01-02T00:00:00.000Z" }).run();
     seedDb.$client.close();
 
-    const deps = await createSiteRouteDeps(dbPath);
+    deps = await createSiteRouteDeps(dbPath);
     assert.equal(deps.workspaceId, "ws-original", "the oldest pre-existing row must win — this must not throw SiteCorruptError (B1)");
   } finally {
+    await settleBoot(deps);
+    fs.rmSync(path.dirname(dbPath), { recursive: true, force: true });
+  }
+});
+
+test("F1833: legacyPublishCredentialsReady settles only after the owner's legacy publish-credential copy has finished", async () => {
+  const dbPath = mkTempDbPath();
+  let deps: Awaited<ReturnType<typeof createSiteRouteDeps>> | undefined;
+  try {
+    deps = await createSiteRouteDeps(dbPath);
+    assert.ok(deps.legacyPublishCredentialsReady instanceof Promise, "the real SQLite composition must expose its boot tail");
+    // The copy reads `loadDeployTargets` off routeDeps when it starts, which is after every boot
+    // writer settles — later than this line. A deliberately slow stand-in marks when the copy's
+    // first step has actually finished, not merely begun.
+    const original = deps.loadDeployTargets;
+    let copyStepFinished = false;
+    deps.loadDeployTargets = async (workspaceId) => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      const registry = await original(workspaceId);
+      copyStepFinished = true;
+      return registry;
+    };
+    await deps.legacyPublishCredentialsReady;
+    assert.equal(copyStepFinished, true, "legacyPublishCredentialsReady resolved while copyLegacyPublishCredentialsAtBoot was still running");
+  } finally {
+    await settleBoot(deps);
     fs.rmSync(path.dirname(dbPath), { recursive: true, force: true });
   }
 });

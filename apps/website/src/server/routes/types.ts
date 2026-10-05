@@ -280,6 +280,15 @@ export interface MediaDeps {
    * a fire-and-forget background copy.
    */
   blobHydrationReady?: Promise<HydrateBlobStoreFromSeedResult | undefined>;
+  /**
+   * Resolves once the composition root's detached boot tail has finished: the legacy trashed-widget
+   * adoption and, on the owner process, `copyLegacyPublishCredentialsAtBoot` (legacy
+   * `publish_credential_sets` rows moved into `vendor_credential_sets`). Never rejects; both steps log
+   * their own failures. Optional like `blobHydrationReady`: only the real SQLite composition
+   * (`server/runtime/composition/deps.ts`) wires it. No route gates on it; it lets a boot test (or
+   * anything closing the store) await that tail instead of deleting the site directory under it (F1833).
+   */
+  legacyPublishCredentialsReady?: Promise<void>;
 }
 
 /**
