@@ -179,7 +179,7 @@ const HAND_WRITTEN_RULES = [
       // calls" from a code-knowledge-graph and that number drove a planned remediation. It is an
       // indexer artifact — 60 of the 61 bind an ordinary `readFileSync`/`existsSync`/`dirname` call
       // anywhere under `apps/website/src/features/` to the same-named properties of the stub fs object in
-      // `apps/website/src/server/http/site/liquid-worker.ts` (lines 46-54), and the 61st points the wrong way
+      // `apps/website/src/server/http/site/liquid-worker.ts` (lines 46-54; that stub now lives in `server/inbound/public-http/http/site/liquid-render.ts`), and the 61st points the wrong way
       // (`features/database/migrate-forward/execute.ts` DECLARES an injected `gatewayExecute`
       // parameter that `server/inbound/admin-http/routes/taxonomy/merge-term.ts` SUPPLIES — the server passing
       // the feature what it needs, i.e. the fix, not the violation). Import-level ground truth was
