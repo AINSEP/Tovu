@@ -15,6 +15,8 @@ import { buildToolCatalogQuery } from "#src/assistant/tool-catalog-query";
 import { MCP_UI_REDEEMABLE_TOOL_IDS } from "#src/assistant/mcp-ui-tool-calls";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { resolveSkillLayout } from "#src/features/skills/layout";
+import { collectSiteBackupFiles } from "#src/features/site-backup/sources";
+import { describeSiteBinding } from "#src/platform/site-dir/site-registry";
 import { createRouteDeps } from "../app.js";
 import { createSiteRouteDeps, mediaUploadsDir } from "../deps.js";
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
@@ -81,6 +83,49 @@ test("createSiteRouteDeps gives site backup the directories the site is served f
   const result = (await callPlan(plan)) as { planned: boolean; code: string };
   assert.equal(result.planned, false);
   assert.equal(result.code, "CREDENTIAL_NOT_FOUND");
+});
+
+test("caller-supplied site, uploads and themes directories are the exact folders the backup collects from, not the defaults", async (t) => {
+  // Three distinct override folders, each holding a file no default folder has. Comparing sources
+  // against the DEFAULT directories (the test above) cannot tell a composition that ignores an
+  // override from one that honors it when both happen to be the default.
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-site-backup-overrides-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const siteDir = path.join(root, "site-override");
+  const uploadsDir = path.join(root, "uploads-override");
+  const themesDir = path.join(root, "themes-override");
+  fs.mkdirSync(siteDir, { recursive: true });
+  fs.mkdirSync(path.join(uploadsDir, "originals"), { recursive: true });
+  fs.mkdirSync(path.join(themesDir, "static", "override-only"), { recursive: true });
+  fs.writeFileSync(path.join(siteDir, "config.json"), '{"marker":"site-override"}', "utf8");
+  fs.writeFileSync(path.join(uploadsDir, "originals", "override-only.bin"), "uploads-override-bytes", "utf8");
+  fs.writeFileSync(path.join(themesDir, "static", "override-only", "marker.css"), "/* themes-override */", "utf8");
+
+  const deps = await createSiteRouteDeps(path.join(root, "content.db"), {
+    uploadsDir,
+    themesDir,
+    siteBinding: { dir: siteDir, name: "site-override", dirOverridden: true, switcherCompatible: false },
+  });
+  await deps.identityReady;
+
+  const sources = deps.siteBackupSources;
+  assert.ok(sources);
+  assert.equal(sources.siteDir, siteDir);
+  assert.equal(sources.themesDir, themesDir);
+  assert.equal(sources.mediaUploadsDir, process.env.TOVU_MEDIA_BLOB_STORE === "s3" ? null : uploadsDir);
+  assert.notEqual(siteDir, describeSiteBinding().dir, "precondition: the override differs from the default site folder");
+
+  const collected = await collectSiteBackupFiles({ sources, include: { database: false, media: true, themes: true, plugins: false, settings: true } });
+  const byPath = new Map(collected.files.map((file) => [file.path, file]));
+  assert.equal(byPath.get("settings/config.json")?.absPath, path.join(siteDir, "config.json"));
+  assert.equal(byPath.get("themes/static/override-only/marker.css")?.absPath, path.join(themesDir, "static", "override-only", "marker.css"));
+  if (process.env.TOVU_MEDIA_BLOB_STORE !== "s3") {
+    assert.equal(byPath.get("uploads/originals/override-only.bin")?.absPath, path.join(uploadsDir, "originals", "override-only.bin"));
+  }
+  // Every collected settings/themes/media file comes from the override folders and nowhere else.
+  for (const file of collected.files) {
+    assert.ok([siteDir, themesDir, uploadsDir].some((dir) => file.absPath.startsWith(dir + path.sep)), `${file.path} was collected from ${file.absPath}, outside the override folders`);
+  }
 });
 
 test("the in-memory runtime registers both tools, and they answer UNAVAILABLE rather than backing up nothing", async () => {

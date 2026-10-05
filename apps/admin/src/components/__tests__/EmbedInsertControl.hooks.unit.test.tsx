@@ -132,6 +132,29 @@ describe("useEmbedInsertControl — formControl / menuControl are independent pi
     expect(result.current.formControl.pickerType).toBeNull();
   });
 
+  it("an editor that rejects the widget command surfaces 'not placed' in that control's error slot, not a silent success", async () => {
+    const editor = fakeEditor();
+    vi.mocked(editor.commands.insertWidgetEmbed).mockReturnValue(false);
+    const { result } = renderHook(() => useEmbedInsertControl(editor));
+
+    act(() => result.current.formControl.setPickerType("contact-form"));
+    await act(async () => {
+      await result.current.formControl.handleUseExisting("cf1");
+    });
+
+    expect(editor.commands.insertWidgetEmbed).toHaveBeenCalledWith(expect.objectContaining({ widgetEntryId: "cf1" }));
+    expect(result.current.formControl.error).toBe("the editor could not place the widget at the cursor");
+    expect(result.current.menuControl.error).toBeNull();
+  });
+
+  it("a rejected insertWidget throws for its direct caller (the Widget... flow) instead of returning normally", () => {
+    const editor = fakeEditor();
+    vi.mocked(editor.commands.insertWidgetEmbed).mockReturnValue(false);
+    const { result } = renderHook(() => useEmbedInsertControl(editor));
+
+    expect(() => result.current.insertWidget("w1")).toThrow("the editor could not place the widget at the cursor");
+  });
+
   it("menuControl.handleUseExisting resolves independently of formControl", async () => {
     const editor = fakeEditor();
     const { result } = renderHook(() => useEmbedInsertControl(editor));

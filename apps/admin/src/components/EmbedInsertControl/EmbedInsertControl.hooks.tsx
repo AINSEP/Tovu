@@ -46,8 +46,15 @@ export function useEmbedInsertControl(editor: EmbedEditor | null) {
   const [widgetMode, setWidgetMode] = useState(false);
   const [mediaPicking, setMediaPicking] = useState(false);
 
+  // A TipTap command returns false when it cannot apply (the schema refuses the node at the current
+  // selection). Ignoring that reported a placement that never happened as a success: the picker
+  // closed and nothing appeared. Throwing hands it to `useWidgetAddControl`'s existing onResolved
+  // catch, which shows "failed to place widget" / "created but not placed" in the control's error
+  // slot. A null editor stays a no-op: the component renders nothing until the editor exists.
   const insertWidget = (widgetEntryId: string) => {
-    editor?.commands.insertWidgetEmbed({ placementId: newPlacementId(), widgetEntryId });
+    if (!editor) return;
+    const placed = editor.commands.insertWidgetEmbed({ placementId: newPlacementId(), widgetEntryId });
+    if (!placed) throw new Error("the editor could not place the widget at the cursor");
   };
 
   const formControl = useWidgetAddControl({ triggerLabel: "Form", onResolved: insertWidget });

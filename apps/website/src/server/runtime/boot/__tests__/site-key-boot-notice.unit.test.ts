@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import ts from "typescript";
 
 import {
   siteKeyBootNoticeLines,
@@ -184,31 +185,69 @@ test("the notice never carries a fingerprint or any other key-derived value", ()
 // the same source-text technique `boot-readiness-gate.unit.test.ts` uses (neither `index.ts` nor
 // `serve.ts` is importable by a test: they run real boot side effects at module scope).
 //
-// Comment-stripped, because both files' own comments name this function while explaining it.
+// Parsed, not regex-matched: a text match accepted `if (false) warnIfNoSiteKeyAtBoot();` (the call,
+// its newline and its ordering all survive) while the boot warning never fired. A real boot cannot
+// run here (`serve-command*.integration` suites hang on this machine and orphan servers), so the
+// AST pins the call's LOCATION instead: an unconditional statement of the boot function's own body,
+// the very next statement after the production gate, before anything that binds or announces a
+// server. Comments are not AST nodes, so the files' own prose naming this function cannot match.
 // ---------------------------------------------------------------------------------------------
 
-function bootPathSource(...parts: string[]) {
-  const raw = fs.readFileSync(path.join(import.meta.dirname, "..", "..", "..", "..", ...parts), "utf8");
-  return raw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+function bootPathAst(...parts: string[]): ts.SourceFile {
+  const file = path.join(import.meta.dirname, "..", "..", "..", "..", ...parts);
+  return ts.createSourceFile(file, fs.readFileSync(file, "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
 }
 
-for (const [label, parts] of [
-  ["index.ts", ["index.ts"]],
-  ["cli/commands/serve.ts", ["cli", "commands", "serve.ts"]],
+function isBareCallStatement(node: ts.Node, callee: string, { awaited }: { awaited: boolean }): boolean {
+  if (!ts.isExpressionStatement(node)) return false;
+  let expression = node.expression;
+  if (awaited) {
+    if (!ts.isAwaitExpression(expression)) return false;
+    expression = expression.expression;
+  }
+  return ts.isCallExpression(expression) && ts.isIdentifier(expression.expression) && expression.expression.text === callee && expression.arguments.length === 0;
+}
+
+function findAll(root: ts.Node, match: (node: ts.Node) => boolean): ts.Node[] {
+  const found: ts.Node[] = [];
+  const visit = (node: ts.Node): void => {
+    if (match(node)) found.push(node);
+    ts.forEachChild(node, visit);
+  };
+  visit(root);
+  return found;
+}
+
+for (const [label, parts, bootFunction] of [
+  ["index.ts", ["index.ts"], "main"],
+  ["cli/commands/serve.ts", ["cli", "commands", "serve.ts"], "runServeCommand"],
 ] as const) {
-  test(`${label} calls warnIfNoSiteKeyAtBoot on its boot path`, () => {
-    const src = bootPathSource(...parts);
-    assert.match(src, /import \{ warnIfNoSiteKeyAtBoot \} from "[^"]*site-key-boot-notice\.js";/);
-    assert.match(src, /\n\s*warnIfNoSiteKeyAtBoot\(\);/);
+  test(`${label} imports warnIfNoSiteKeyAtBoot from site-key-boot-notice`, () => {
+    const source = bootPathAst(...parts);
+    const imports = source.statements.filter(ts.isImportDeclaration).filter((statement) =>
+      ts.isStringLiteral(statement.moduleSpecifier) && /site-key-boot-notice\.js$/.test(statement.moduleSpecifier.text));
+    assert.equal(imports.length, 1);
+    const bindings = imports[0].importClause?.namedBindings;
+    assert.ok(bindings && ts.isNamedImports(bindings));
+    assert.deepEqual(bindings.elements.map((element) => element.name.text), ["warnIfNoSiteKeyAtBoot"]);
   });
 
-  test(`${label} warns beside the production gate, not somewhere else`, () => {
-    const src = bootPathSource(...parts);
-    const gate = src.indexOf("await runProductionReadinessGateOrExit();");
-    const warn = src.indexOf("warnIfNoSiteKeyAtBoot();");
-    assert.notEqual(gate, -1);
-    assert.notEqual(warn, -1);
-    assert.ok(warn > gate, "the local warning belongs after the production gate has declined to act");
+  test(`${label} calls warnIfNoSiteKeyAtBoot unconditionally in ${bootFunction}(), as the statement right after the production gate`, () => {
+    const source = bootPathAst(...parts);
+    const warnCalls = findAll(source, (node) => isBareCallStatement(node, "warnIfNoSiteKeyAtBoot", { awaited: false }));
+    assert.equal(warnCalls.length, 1, "exactly one call statement, and nowhere else");
+    const gates = findAll(source, (node) => isBareCallStatement(node, "runProductionReadinessGateOrExit", { awaited: true }));
+    assert.equal(gates.length, 1);
+
+    const warn = warnCalls[0];
+    const body = warn.parent;
+    // A Block directly owned by the boot function: not an if/try/loop body, not a nested callback.
+    assert.ok(ts.isBlock(body), `the call must sit in a plain block, not under ${ts.SyntaxKind[body.kind]}`);
+    assert.ok(ts.isFunctionDeclaration(body.parent) && body.parent.name?.text === bootFunction,
+      `the call must be a top-level statement of ${bootFunction}()`);
+    assert.equal(gates[0].parent, body, "the gate and the warning share one block");
+    const index = body.statements.indexOf(warn as ts.Statement);
+    assert.equal(body.statements[index - 1], gates[0], "the warning is the statement right after the production gate");
   });
 }
 
