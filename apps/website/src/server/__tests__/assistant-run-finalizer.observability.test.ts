@@ -1,12 +1,17 @@
 import assert from "node:assert/strict";
 import { AsyncLocalStorage } from "node:async_hooks";
-import test from "node:test";
+import { once } from "node:events";
+import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import type { AddressInfo } from "node:net";
+import test, { type TestContext } from "node:test";
 
+import { SpanKind, SpanStatusCode } from "@opentelemetry/api";
 import type { ChatMessage } from "@jini-ai/chat/core";
 
-import { createAssistantRunFinalizer, type RunDaemonClient } from "../runtime/composition/modules/assistant-run-finalizer.js";
+import { createAssistantRunFinalizer, createHttpRunDaemonClient, type RunDaemonClient } from "../runtime/composition/modules/assistant-run-finalizer.js";
 import { createNoopObservabilityPort, type AgentRunStatus, type ObservabilityPort } from "#src/platform/observability/index";
-import type { ChatRunLedger } from "../../assistant/index.js";
+import { assertSpanOmits, createInMemoryOtel } from "#src/platform/observability/__tests__/fixtures/in-memory-otel";
+import { AGENT_DAEMON_TOKEN_ENV_VAR, type ChatRunLedger } from "../../assistant/index.js";
 
 /**
  * @file The finalizer is the API-side seam that sees every daemon run's terminal outcome, so it is
@@ -112,4 +117,102 @@ test("the follow loop, including its ledger write, runs inside the tracked run's
   finalizer.watch({ principalId: "p1", conversationId: "conv-1", message: stub });
   await finalizer.idle();
   assert.deepEqual(seen, [true]);
+});
+
+// --- The default daemon client's loopback requests: one outbound CLIENT span each through the
+// finalizer's port — method, host/port and status, never the run id, principal or token.
+
+const DAEMON_TOKEN = "tok-finalizer-6a0";
+
+/** A real stand-in daemon on loopback plus the env the client resolves it from, both undone after the test. */
+async function standInDaemon(t: TestContext, handler: (req: IncomingMessage, res: ServerResponse) => void): Promise<number> {
+  const server = createServer(handler);
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  const daemonPort = (server.address() as AddressInfo).port;
+  withDaemonEnv(t, `http://127.0.0.1:${daemonPort}`);
+  t.after(async () => {
+    server.closeAllConnections();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  });
+  return daemonPort;
+}
+
+function withDaemonEnv(t: TestContext, url: string): void {
+  const previous = { url: process.env.JINI_AGENT_DAEMON_URL, token: process.env[AGENT_DAEMON_TOKEN_ENV_VAR] };
+  process.env.JINI_AGENT_DAEMON_URL = url;
+  process.env[AGENT_DAEMON_TOKEN_ENV_VAR] = DAEMON_TOKEN;
+  t.after(() => {
+    if (previous.url === undefined) delete process.env.JINI_AGENT_DAEMON_URL;
+    else process.env.JINI_AGENT_DAEMON_URL = previous.url;
+    if (previous.token === undefined) delete process.env[AGENT_DAEMON_TOKEN_ENV_VAR];
+    else process.env[AGENT_DAEMON_TOKEN_ENV_VAR] = previous.token;
+  });
+}
+
+test("createHttpRunDaemonClient: runStatus and openEvents are each one CLIENT span, never the run id, principal or token", async (t) => {
+  const daemonPort = await standInDaemon(t, (req, res) => {
+    if (req.url?.endsWith("/events")) {
+      res.writeHead(200, { "content-type": "text/event-stream" });
+      res.write(": open\n\n"); // stays open: the span must end at the headers, not with the stream
+      return;
+    }
+    res.statusCode = req.url?.includes("gone") ? 404 : 200;
+    res.end("{}");
+  });
+  const { exporter, port } = createInMemoryOtel();
+  const client = createHttpRunDaemonClient({ observability: port });
+
+  assert.equal(await client.runStatus("run-secret-77", "principal-secret-3"), 200);
+  const events = await client.openEvents("run-secret-77", "principal-secret-3");
+  assert.equal(events.status, 200);
+  assert.equal(await client.runStatus("run-gone", "principal-secret-3"), 404);
+
+  const spans = exporter.getFinishedSpans();
+  assert.equal(spans.length, 3, "the events span ended at its headers, with the stream still open");
+  await events.body?.cancel();
+  for (const span of spans) {
+    assert.equal(span.name, "GET 127.0.0.1");
+    assert.equal(span.kind, SpanKind.CLIENT);
+    assert.equal(span.attributes["server.port"], daemonPort);
+    assertSpanOmits(span, ["run-secret-77", "run-gone", "principal-secret-3", DAEMON_TOKEN, "/api"]);
+  }
+  assert.deepEqual(spans.map((span) => span.attributes["http.response.status_code"]), [200, 200, 404]);
+  assert.equal(spans[2].status.code, SpanStatusCode.ERROR);
+});
+
+test("createHttpRunDaemonClient: an unreachable daemon is a null status and an ERROR span with the error type", async (t) => {
+  const reservation = createServer();
+  reservation.listen(0, "127.0.0.1");
+  await once(reservation, "listening");
+  const closedPort = (reservation.address() as AddressInfo).port;
+  await new Promise<void>((resolve) => reservation.close(() => resolve()));
+  withDaemonEnv(t, `http://127.0.0.1:${closedPort}`);
+  const { exporter, port } = createInMemoryOtel();
+
+  assert.equal(await createHttpRunDaemonClient({ observability: port }).runStatus("run-secret-77", "p1"), null);
+
+  const [span] = exporter.getFinishedSpans();
+  assert.equal(span.status.code, SpanStatusCode.ERROR);
+  assert.equal(typeof span.attributes["error.type"], "string");
+  assertSpanOmits(span, ["run-secret-77", DAEMON_TOKEN]);
+});
+
+test("createAssistantRunFinalizer without a daemon traces its default client's loopback requests with its own port", async (t) => {
+  await standInDaemon(t, (_req, res) => {
+    res.writeHead(200, { "content-type": "text/event-stream" });
+    res.end(frame("end", { code: 0, status: "succeeded" }));
+  });
+  const { exporter, port } = createInMemoryOtel();
+  const ledger = fakeLedger();
+  const finalizer = createAssistantRunFinalizer({ ledger, observability: port, checkpointIntervalMs: 0 });
+
+  finalizer.watch({ principalId: "p1", conversationId: "conv-1", message: stub });
+  await finalizer.idle();
+
+  assert.deepEqual(ledger.settled, ["succeeded"]);
+  const clientSpans = exporter.getFinishedSpans().filter((span) => span.kind === SpanKind.CLIENT);
+  assert.equal(clientSpans.length, 1);
+  assert.equal(clientSpans[0].name, "GET 127.0.0.1");
+  assertSpanOmits(clientSpans[0], ["run-1", DAEMON_TOKEN]);
 });
