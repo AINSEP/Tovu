@@ -135,8 +135,10 @@ function sendStoreError(res: Response, err: unknown): void {
  *   rendered into the public site unmodified. Sanitizing it would delete the feature — authoring
  *   arbitrary markup is what a Page IS — so the exposure is bounded by WHO may write it instead:
  *   the same principals already trusted with raw theme source, which is the same trust level the
- *   theme layer has always had. The authoring preview is separately safe by construction
- *   (opaque-origin `srcdoc`, no `allow-same-origin`); the published page is not sandboxed. A holder
+ *   theme layer has always had. The admin preview iframes carry `sandbox` (admin
+ *   `features/pages/rules.ts`'s `PAGE_PREVIEW_IFRAME_SANDBOX`, 2026-10-04), but WITH
+ *   `allow-scripts allow-same-origin` and a same-origin document, so preview script still runs with
+ *   the admin origin; that constant's doc says why. The published page is not sandboxed. A holder
  *   of `pages.edit_html` can still put script on the public site, and that is intended.
  */
 export const registerAdminPageUpdateHtmlRoute: ContentRouteRegistrar = (app, deps) => {

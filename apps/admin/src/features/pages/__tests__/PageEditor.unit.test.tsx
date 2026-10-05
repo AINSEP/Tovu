@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { PageEditor } from "../PageEditor";
 import type { PageEditorController } from "../hooks/use-page-editor.hooks";
 import { api, type AdminPost } from "@/lib/api";
+import { PAGE_PREVIEW_IFRAME_SANDBOX } from "../rules";
 
 // The shared Categories & Tags box reads its own taxonomy list and terms; stubbed to echo its
 // content ref so this file's fetch queue and assertions stay about the editor itself (its own
@@ -654,6 +655,18 @@ describe("view toggle (Preview / Interactive / HTML)", () => {
     expect(src).toMatch(/[^/]\/\?_v=\d+$|^\/\?_v=\d+$/);
     expect(src).not.toMatch(/\/\/\?/);
     expect(src).toContain("?_v=5");
+  });
+
+  // Both preview branches carry `sandbox` with the shared flag set (`PAGE_PREVIEW_IFRAME_SANDBOX`'s
+  // own doc says why each flag is there) — never a bare iframe, never `allow-top-navigation`.
+  it("sandboxes the live-site preview iframe with the shared flag set", () => {
+    renderEditor({ view: "preview", status: "published", dirty: false, contentDirty: false, slug: "about" });
+    expect(screen.getByTitle("Page preview")).toHaveAttribute("sandbox", PAGE_PREVIEW_IFRAME_SANDBOX);
+  });
+
+  it("sandboxes the template-preview iframe with the shared flag set", () => {
+    renderEditor({ view: "preview", status: "draft", dirty: false, contentDirty: false });
+    expect(screen.getByTitle("Page preview")).toHaveAttribute("sandbox", PAGE_PREVIEW_IFRAME_SANDBOX);
   });
 
   // 2026-09-09 widening — a clean draft now gets the SAME template-preview mechanism a published

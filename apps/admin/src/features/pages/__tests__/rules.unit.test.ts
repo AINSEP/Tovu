@@ -21,6 +21,7 @@ import {
   pageEditorSurface,
   pageLivePreviewPath,
   pagePartialSaveMessage,
+  PAGE_PREVIEW_IFRAME_SANDBOX,
   pagePickerValue,
   pagePreviewFormTarget,
   pagePublicPath,
@@ -722,5 +723,13 @@ describe("sort labels and conflict copy are translated, not English passthrough"
     expect(message).toContain("die von dir geladene Version");
     expect(message).toContain("Version 7");
     expect(message).not.toMatch(/Someone else|version you loaded/);
+  });
+});
+
+describe("PAGE_PREVIEW_IFRAME_SANDBOX", () => {
+  it("is exactly the four flags the preview needs, and never lets the preview navigate the admin tab", () => {
+    expect(PAGE_PREVIEW_IFRAME_SANDBOX.split(" ").sort()).toEqual(["allow-forms", "allow-popups", "allow-same-origin", "allow-scripts"]);
+    expect(PAGE_PREVIEW_IFRAME_SANDBOX).not.toMatch(/allow-top-navigation/);
+    expect(PAGE_PREVIEW_IFRAME_SANDBOX).not.toMatch(/allow-popups-to-escape-sandbox/);
   });
 });

@@ -591,6 +591,33 @@ export function pagePreviewFormTarget(page: AdminPost | null): string {
 }
 
 /**
+ * The `sandbox` flags on BOTH `PagePreviewFrame` iframes (live site and template preview), 2026-10-04.
+ * Before this the preview iframes had no `sandbox` at all, while `update-html.ts`'s header claimed the
+ * authoring preview was sandboxed.
+ *
+ * Each flag is there because the preview needs it to render and behave exactly as it did unsandboxed:
+ * - `allow-scripts`: theme JS (menus, carousels, Liquid-rendered widgets) must run in the preview.
+ * - `allow-same-origin`: without it the document gets an opaque origin, which (a) breaks the per-tab
+ *   scroll memory (`onPreviewFrameLoad` reads `contentWindow.scrollY`; the template-preview branch is
+ *   same-origin through the `/api` proxy) and (b) turns `/theme-assets/...` font and module-script
+ *   loads into CORS requests the site does not answer.
+ * - `allow-forms`: shipped themes have real forms (sign-in/sign-up pages, newsletter footers).
+ * - `allow-popups`: authored HTML uses `target="_blank"` links; a popup inherits this sandbox (no
+ *   `allow-popups-to-escape-sandbox`).
+ *
+ * Deliberately absent: `allow-top-navigation` (and its user-activation variant), so the preview can
+ * never navigate the admin tab itself by `target="_top"` links or `top.location`, and `allow-modals`.
+ * Link clicks inside the frame still navigate the frame, which needs no flag.
+ *
+ * Honest limit: a same-origin document with `allow-scripts allow-same-origin` can reach its parent
+ * and strip its own sandbox, so on the template-preview branch (same origin as the admin) this is a
+ * guard against accidental top navigation and popups escaping, not an isolation boundary. Real
+ * isolation needs an opaque origin (drop `allow-same-origin`), which costs the scroll memory and
+ * theme fonts above, so it is a separate owner decision.
+ */
+export const PAGE_PREVIEW_IFRAME_SANDBOX = "allow-scripts allow-same-origin allow-forms allow-popups";
+
+/**
  * The working copy's editable HTML for a loaded row — exactly the mount effect's own
  * `post.bodyFormat === "html" ? (post.bodyHtml ?? "") : ""` rule, lifted out so
  * `applyExternalPage` (an assistant write landing while the editor is open) can seed the SAME

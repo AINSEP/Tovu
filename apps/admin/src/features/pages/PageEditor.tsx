@@ -37,6 +37,7 @@ import {
   pageLivePreviewPath,
   pagePickerValue,
   pagePublicPath,
+  PAGE_PREVIEW_IFRAME_SANDBOX,
   pageVersionConflictMessage,
   pickerValueToChoice,
   THEME_DEFAULT_SENTINEL,
@@ -1366,6 +1367,7 @@ function PagePreviewFrame({
         src={siteUrl(pageLivePreviewPath(slug, version))}
         title={t("Page preview")}
         className="page-preview-iframe"
+        sandbox={PAGE_PREVIEW_IFRAME_SANDBOX}
         referrerPolicy="no-referrer"
         onLoad={(e) => onFrameLoad(e.currentTarget)}
       />
@@ -1386,6 +1388,7 @@ function PagePreviewFrame({
         name={previewFormTarget}
         title={t("Page preview")}
         className="page-preview-iframe"
+        sandbox={PAGE_PREVIEW_IFRAME_SANDBOX}
         referrerPolicy="no-referrer"
         onLoad={(e) => onFrameLoad(e.currentTarget)}
       />

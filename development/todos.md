@@ -781,9 +781,11 @@ feature. Don't build a vendor-specific widget. Verified 2026-09-21 by a read-onl
   only).
 - **Side findings, unfixed:**
   - ~~`features/theme/validation/markup.ts:24` `KNOWN_EMBED_TYPES` omits `post-previews`.~~ DONE `9937d5a09`.
-  - `update-html.ts:131` says the authoring preview is a sandboxed `srcdoc`, but the preview iframes at
-    `apps/admin/src/features/pages/PageEditor.tsx:1365,1385` (re-checked 10-04) have no `sandbox` attribute. It's unverified whether script in
-    the preview runs with the admin origin.
+  - ~~Page-editor preview iframes had no `sandbox`.~~ DONE 10-04: both carry `PAGE_PREVIEW_IFRAME_SANDBOX`
+    (`apps/admin/src/features/pages/rules.ts`: `allow-scripts allow-same-origin allow-forms allow-popups`, no top navigation);
+    `update-html.ts`'s false "opaque-origin srcdoc" claim corrected. Still open (owner decision): the template-preview branch is
+    same-origin with the admin, so with `allow-same-origin` its script still runs with the admin origin. Dropping that flag isolates it
+    but loses preview scroll memory and theme fonts/module scripts (CORS). `PostEditor.tsx`'s preview iframes are not sandboxed either.
 
 **2026-09-22: owner confirms this is definitely wanted, scheduled for later.** Verified no migration
 is needed — the widget/field/menu types involved are app-code unions, not DB schema, and their data
