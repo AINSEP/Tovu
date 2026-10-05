@@ -156,6 +156,33 @@ test("a bundled upgrade of an ENABLED plugin keeps run-start injection working, 
   });
 });
 
+test("an edited bundled SKILL.md refreshes the site's installed copy even with NO version bump", async () => {
+  // Owner worklist (09-14, e3 lane o14): "installed site copies of edited SKILL.md files may not
+  // refresh". The cases above bump the version too; this one changes ONLY the SKILL.md bytes, the
+  // shape of a docs-only fix to a bundled plugin, and asserts on the installed copy itself.
+  await withUpgradeScenario(async ({ workspaceRoot, seedFrom }) => {
+    const editedOnly = await mkdtemp(path.join(tmpdir(), "tovu-bundled-skill-edit-"));
+    try {
+      await cp(BUNDLED_SOURCE_ROOT, editedOnly, { recursive: true });
+      const firstDigest = await seedFrom(BUNDLED_SOURCE_ROOT);
+      await setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN_ID, enabled: true, actor: "operator:test" });
+      await appendFile(path.join(editedOnly, PLUGIN_ID, "skills", PLUGIN_ID, "SKILL.md"), `\n\n${UPGRADE_MARKER}\n`, "utf8");
+
+      const secondDigest = await seedFrom(editedOnly);
+      assert.notEqual(secondDigest, firstDigest, "a SKILL.md-only edit must still change the content digest");
+
+      const layout = resolveAgentPluginLayout().forWorkspace(WORKSPACE_ID);
+      const installedCopy = await readFile(path.join(layout.root, PLUGIN_ID, "package", "sha256", secondDigest, "skills", PLUGIN_ID, "SKILL.md"), "utf8");
+      assert.ok(installedCopy.includes(UPGRADE_MARKER), "the site's installed SKILL.md copy must carry the edit");
+
+      const injected = await resolveAgentPluginRefs([PLUGIN_ID], layout);
+      assert.ok(injected.ok && injected.promptPrefix.includes(UPGRADE_MARKER), "run-start injection must serve the edited SKILL.md");
+    } finally {
+      await forceRemove(editedOnly);
+    }
+  });
+});
+
 test("the superseded digest's bytes stay on disk — nothing is deleted by an upgrade", async () => {
   await withUpgradeScenario(async ({ upgradedSourceRoot, seedFrom }) => {
     const firstDigest = await seedFrom(BUNDLED_SOURCE_ROOT);
