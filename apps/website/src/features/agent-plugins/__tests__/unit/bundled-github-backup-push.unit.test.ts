@@ -6,7 +6,7 @@ import test from "node:test";
 import { buildAuthorizationHeader } from "@jini-ai/integrations/credentialed-http";
 import type { CustomProviderConnectionInput } from "#src/features/custom-credentials/types";
 import { createSourceControlProviderKit } from "#src/features/source-control/provider-kit";
-import type { CommitBackupTreeInput, SourceControlProvider } from "#src/features/source-control/provider-module";
+import type { CommitBackupTreeInput, SourceControlProviderOperations } from "#src/features/source-control/provider-module";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/http/index";
 
 import { loadSourceControlProviderRegistryFromSource } from "#src/features/source-control/provider-registry";
@@ -15,7 +15,7 @@ const GITHUB_PACKAGE_ROOT = path.resolve(import.meta.dirname, "../../../../../..
 const registry = await loadSourceControlProviderRegistryFromSource({ pluginId: "github", packageRoot: GITHUB_PACKAGE_ROOT });
 
 /** The bundled `github` plugin's provider over `httpClient`, built with the real kit. */
-function githubProvider(httpClient: HttpClientPort): SourceControlProvider {
+function githubProvider(httpClient: HttpClientPort): SourceControlProviderOperations {
   const loaded = registry.get("github");
   if (!loaded) throw new Error(`github provider did not load: ${registry.refusals.join("; ")}`);
   return loaded.module.create({ kit: createSourceControlProviderKit({ httpClient }) });
@@ -27,7 +27,7 @@ function withAuthorization<T extends { connection: CustomProviderConnectionInput
   return { ...rest, authorization: buildAuthorizationHeader({ connection, schemes: [] }) };
 }
 
-const inspectBackupRepository = (deps: { httpClient: HttpClientPort }, input: Omit<Parameters<SourceControlProvider["inspectBackupRepository"]>[0], "authorization"> & { connection: CustomProviderConnectionInput }) =>
+const inspectBackupRepository = (deps: { httpClient: HttpClientPort }, input: Omit<Parameters<SourceControlProviderOperations["inspectBackupRepository"]>[0], "authorization"> & { connection: CustomProviderConnectionInput }) =>
   githubProvider(deps.httpClient).inspectBackupRepository(withAuthorization(input));
 const uploadBackupBlob = (deps: { httpClient: HttpClientPort }, target: { baseUrl: string; connection: CustomProviderConnectionInput; owner: string; repo: string }, file: { path: string; content: Uint8Array }) =>
   githubProvider(deps.httpClient).uploadBackupBlob(withAuthorization(target), file);

@@ -81,10 +81,12 @@ test("importMediaEntity + renderDocNode: an image node authored against the SOUR
   const imported = await deps.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: "source-system-asset-42" });
   assert.ok(imported, "the imported row must be findable by the source id");
 
+  // `slug: null` keeps the id-keyed `/m/<id>/...` URL this case pins: the subject is that the
+  // source id survives the import, not which key the public URL prefers.
   const mediaAssetMetadata = new Map<string, MediaAssetRenderMeta>([
     [
       imported!.id,
-      { width: imported!.width, height: imported!.height, cssClass: imported!.cssClass, htmlAttributes: imported!.htmlAttributes, contentType: null },
+      { width: imported!.width, height: imported!.height, cssClass: imported!.cssClass, htmlAttributes: imported!.htmlAttributes, contentType: null, slug: null },
     ],
   ]);
   const mediaTransformVersions = new Map<string, number>([["public", 1]]);

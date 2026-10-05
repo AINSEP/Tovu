@@ -4,6 +4,7 @@ import test from "node:test";
 import { ContentTypeAlreadyExistsError, InMemoryContentTypeRepo } from "#src/features/content-types/index";
 import type { ContentTypeRecord } from "#src/features/content-types/index";
 import { ensureWidgetContentTypesRegistered } from "#src/features/widgets/entry-payload";
+import { InMemoryOutbox } from "#src/contracts/core/events/index";
 
 /**
  * S9 (web-high fix plan, 2026-09-24): two concurrent first-widget creates both see `findByKey`
@@ -40,9 +41,9 @@ function seedDeps(contentTypeRepo: InMemoryContentTypeRepo) {
   let n = 0;
   return {
     contentTypeRepo,
-    clock: { nowIso: () => "2026-09-24T00:00:00.000Z" },
+    clock: { nowMs: () => Date.parse("2026-09-24T00:00:00.000Z") },
     ids: { newId: () => `id-${++n}` },
-    outbox: { enqueue: async () => undefined } as never,
+    outbox: new InMemoryOutbox(),
   };
 }
 

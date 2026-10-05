@@ -422,7 +422,7 @@ test("a failed post embed change-set write compensates content forward and prese
   const repos = makeSharedRepos();
   const oldWidget = await makeWidgetInstance(repos);
   const newWidget = await makeWidgetInstance(repos);
-  const body = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Keep me" }] }, { type: "widgetEmbed", attrs: { placementId: "prior-placement", widgetEntryId: oldWidget } }] };
+  const body: PostRecord["bodyJson"] = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Keep me" }] }, { type: "widgetEmbed", attrs: { placementId: "prior-placement", widgetEntryId: oldWidget } }] };
   const post = await seedPost(repos, { bodyJson: body });
   const priorRefs = [{ workspaceId: WORKSPACE_ID, sourceEntryId: post.id, sourceKind: "widget-embed" as const, fieldPath: "bodyJson.content[1]", targetKind: "entry" as const, targetId: oldWidget }];
   await repos.entryRefsRepo.replaceForSource({ workspaceId: WORKSPACE_ID, sourceEntryId: post.id, refs: priorRefs });

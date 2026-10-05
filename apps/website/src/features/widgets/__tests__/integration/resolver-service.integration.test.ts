@@ -130,6 +130,7 @@ test("REQ-27: an unknown widget type resolves to a typed unknown-type failure, n
   const results = await resolveWidgetType({
     // @ts-expect-error — deliberately an unregistered type key.
     typeKey: "carousel",
+    // @ts-expect-error — the same deliberately unregistered type key, on the instance.
     instances: [instance({ id: "w-1", widgetType: "carousel" })],
     context: CTX,
   });

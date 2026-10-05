@@ -47,11 +47,38 @@ const PNG_BYTES = new Uint8Array([
   0x42, 0x60, 0x82,
 ]);
 
+/** The real in-memory store, plus a count of the objects it holds. The cms class exposes no count,
+ *  and the bytes assertion below needs one: a missing `size` read as `undefined === undefined`. */
+class CountingBlobStore extends InMemoryBlobStore {
+  private readonly storedKeys = new Set<string>();
+
+  override async put(input: Parameters<InMemoryBlobStore["put"]>[0]): ReturnType<InMemoryBlobStore["put"]> {
+    const result = await super.put(input);
+    this.storedKeys.add(result.storageKey);
+    return result;
+  }
+
+  override async putIfAbsent(input: Parameters<InMemoryBlobStore["putIfAbsent"]>[0]): ReturnType<InMemoryBlobStore["putIfAbsent"]> {
+    const result = await super.putIfAbsent(input);
+    this.storedKeys.add(result.storageKey);
+    return result;
+  }
+
+  override async remove(input: { storageKey: string }): Promise<void> {
+    await super.remove(input);
+    this.storedKeys.delete(input.storageKey);
+  }
+
+  get size(): number {
+    return this.storedKeys.size;
+  }
+}
+
 function fakeRouteDeps(allowedPermissions: string[] = ["media.upload"]) {
   const mediaRepo = new InMemoryMediaRepo({});
   const assetBlobRepo = new InMemoryAssetBlobRepo({});
   const assetRenditionRepo = new InMemoryAssetRenditionRepo({});
-  const blobStore = new InMemoryBlobStore();
+  const blobStore = new CountingBlobStore();
   const contentTypes = new Map<string, string>();
 
   let counter = 0;
@@ -144,6 +171,7 @@ test("the copy REFERENCES the source's bytes: same sha256, ONE blob row, ONE sto
   const source = await seedAsset(deps);
   const blobRowsBefore = (await assetBlobRepo.list({ workspaceId: WORKSPACE_ID })).length;
   const objectsBefore = blobStore.size;
+  assert.equal(objectsBefore, 1, "the seeded upload stored its bytes as one object");
 
   const { media } = (await call(duplicateTool(deps), { resource: "media", id: source.id })) as { media: MediaRecord };
 

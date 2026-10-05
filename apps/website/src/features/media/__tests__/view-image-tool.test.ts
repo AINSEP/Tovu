@@ -302,7 +302,7 @@ test("PASS-THROUGH: through the real ToolExecutor and the daemon's read-only del
 
   const registry = createToolRegistry({});
   for (const registration of buildMediaViewImageRegistrations(harness.deps)) registry.register(registration);
-  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog() });
+  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   const { run } = await lifecycle.start({ contextRef: "ctx-view-image" });
   const routeDeps = { toolExecutor: createToolExecutor({ registry }), lifecycle, toolRegistry: registry, resolvePrincipal: () => ({ id: PRINCIPAL_ID }) };
 

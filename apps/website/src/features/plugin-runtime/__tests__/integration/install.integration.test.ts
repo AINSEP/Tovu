@@ -122,7 +122,7 @@ test("same-version replacement refreshes nested dynamic ESM and CommonJS helpers
     const preview = await previewSitePluginInstall({ sourceDir: f.sourceDir, replace: true, deps: f.deps });
     await installSitePlugin({ sourceDir: f.sourceDir, replace: true, expectedDigest: preview.digest, deps: f.deps });
   }
-  const runtime = composePluginRuntime({ workspaceId: "workspace-local", clock: { nowMs: () => 0, nowIso: () => new Date(0).toISOString() }, activationRepo: f.repo, sources: [], installDir: f.installDir });
+  const runtime = composePluginRuntime({ workspaceId: "workspace-local", clock: { nowMs: () => 0 }, activationRepo: f.repo, sources: [], installDir: f.installDir });
   await update(1); assert.equal(globals[marker], undefined);
   await runtime.onPluginEnabled("local-test"); assert.equal(globals[marker], 2);
   runtime.onPluginDisabled("local-test");

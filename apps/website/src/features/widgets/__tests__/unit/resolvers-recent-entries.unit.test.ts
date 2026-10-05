@@ -4,7 +4,7 @@ import test from "node:test";
 import type { ContentTypeFieldDef, ContentTypeRecord } from "#src/features/content-types/index";
 import type { EntryRecord } from "#src/features/entries/index";
 import { TrashAwareInMemoryEntryRepo } from "#src/features/entries/trash-aware-memory-repo";
-import { SYSTEM_CONTENT_TYPES, type CollectionListQuery, type EntryDisplayListPort } from "#src/features/entries/public-list";
+import { SYSTEM_CONTENT_TYPES, type CollectionListQuery, type EntryDisplayListPort, type EntryListExcludingTypesPort } from "#src/features/entries/public-list";
 import { createRecentEntriesResolver, type ContentTypeLookup } from "../../resolvers/recent-entries.js";
 import type { WidgetInstanceView, WidgetResolveContext } from "../../types.js";
 
@@ -331,8 +331,11 @@ test("D1: a collection-path item's href is also null (entry pages are off)", asy
 
 test("REQ-25: the registered clamp (20) still wins over a collection instance's own maxItems, defense in depth", async () => {
   const calls: CollectionListQuery[] = [];
-  const spyEntryList: EntryDisplayListPort & { listByWorkspace: () => Promise<EntryRecord[]> } = {
+  const spyEntryList: EntryDisplayListPort & EntryListExcludingTypesPort & { listByWorkspace: () => Promise<EntryRecord[]> } = {
     async listByWorkspace() {
+      return [];
+    },
+    async listByWorkspaceExcludingTypes() {
       return [];
     },
     async listPublishedForDisplay(params) {

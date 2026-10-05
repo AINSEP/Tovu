@@ -114,8 +114,8 @@ test("dataModule: a FAILED migration keeps its snapshot, and that snapshot is th
 test("dataModule: rejects a table outside the p_{pluginId}__* namespace / bad declaration (no DDL)", async () => {
   const { db, dbPath, dir } = openWithCore();
   const bad = await declareDataModule({ db, dbPath, decl: {
+    ...productsDecl,
     pluginId: "Bad-Id", // invalid: not a stable lowercase id
-    tables: productsDecl.tables,
   } });
   assert.equal(bad.ok, false);
   assert.equal(bad.error?.code, "BAD_PLUGIN_ID");
@@ -123,7 +123,7 @@ test("dataModule: rejects a table outside the p_{pluginId}__* namespace / bad de
   assert.equal(tableExists(db, "p_Bad-Id__products"), false);
 
   const badType = await declareDataModule({ db, dbPath, decl: {
-    pluginId: "hello",
+    ...productsDecl,
     tables: [{ name: "x", columns: [{ name: "c", type: "DROP TABLE" as never }] }],
   } });
   assert.equal(badType.ok, false);

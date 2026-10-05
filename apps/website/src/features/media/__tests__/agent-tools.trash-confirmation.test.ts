@@ -86,10 +86,11 @@ async function seedMediaAsset(deps: MediaToolDeps & MediaPublicUrlDeps & MediaTr
 }
 
 test("media.delete is checked before any dialog is raised, and a denied principal never sees one", async () => {
-  const seedDeps = makeDeps();
+  const mediaRepo = new InMemoryMediaRepo({});
+  const seedDeps = makeDeps({ mediaRepo });
   const seedSurfaces = createSurfaceExchangeStore();
   const asset = await seedMediaAsset(seedDeps, seedSurfaces);
-  const deps = makeDeps({ allowedPermissions: ["media.upload", "media.read"], mediaRepo: seedDeps.mediaRepo });
+  const deps = makeDeps({ allowedPermissions: ["media.upload", "media.read"], mediaRepo });
   const surfaceExchanges = createSurfaceExchangeStore();
   const trashTool = tool(buildRegistrations(deps, surfaceExchanges), TRASH_TOOL_ID);
 

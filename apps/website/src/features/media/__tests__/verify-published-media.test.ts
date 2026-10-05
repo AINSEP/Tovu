@@ -34,10 +34,9 @@ for (const fault of ["blob-read", "type-write"] as const) {
     const p = ports([media()]);
     await p.blobStore.putIfAbsent({ workspaceId: WS, sha256: SHA, bytes: PNG });
     const missing = media({ id: "missing", slug: "lost-photo" });
-    const receiver = fault === "blob-read" ? p.blobStore : p.contentTypeStore;
-    const method = fault === "blob-read" ? "get" : "set";
+    const unavailable = async (): Promise<never> => { throw new Error("storage unavailable"); };
     // F3.4/F5.5: fake only the failing I/O boundary; verification stays real.
-    const mock = t.mock.method(receiver, method, async () => { throw new Error("storage unavailable"); });
+    const mock = fault === "blob-read" ? t.mock.method(p.blobStore, "get", unavailable) : t.mock.method(p.contentTypeStore, "set", unavailable);
     assert.deepEqual(await verifyPublishedMedia(p, WS, [packed(media()), packed(missing)]), [
       "Media 'intro': the site could not read its file type, so a video may show as a broken image.",
       "Media 'lost-photo' was published but is not on the site.",
@@ -83,13 +82,13 @@ for (const fault of ["row-lookup", "blob-exists"] as const) {
     let failuresDelivered = 0;
     if (fault === "row-lookup") {
       const find = p.repo.findById.bind(p.repo);
-      t.mock.method(p.repo, "findById", async (query) => {
+      t.mock.method(p.repo, "findById", async (query: Parameters<typeof p.repo.findById>[0]) => {
         requests.push(query);
         if (query.workspaceId === WS && query.id === "video") { failuresDelivered++; throw new Error("row storage unavailable"); }
         return find(query);
       });
     } else {
-      t.mock.method(p.blobStore, "exists", async (query) => { requests.push(query); failuresDelivered++; throw new Error("blob storage unavailable"); });
+      t.mock.method(p.blobStore, "exists", async (query: Parameters<typeof p.blobStore.exists>[0]) => { requests.push(query); failuresDelivered++; throw new Error("blob storage unavailable"); });
     }
     const missing = media({ id: "missing", slug: "lost-photo" });
     const problems = await verifyPublishedMedia(p, WS, [packed(media()), packed(missing)]);

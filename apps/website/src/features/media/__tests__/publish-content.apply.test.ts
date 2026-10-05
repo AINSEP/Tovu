@@ -153,6 +153,7 @@ test("apply() writes the media row under the SOURCE id — the id a post's embed
     entity: packedFrom(record),
     expectedVersion: undefined,
     principalId: OPERATOR_ID,
+    idempotencyKey: "media-apply-1",
   });
 
   assert.ok(result.changeSetId, "apply() must return the change set it recorded");
@@ -188,16 +189,18 @@ test("apply() + renderDocNode: a post's embed authored against the SOURCE asset 
   const record = makeMediaRecord();
   await stageBlobBytes(fixture.blobStore, PHOTO_SHA256, PHOTO_BYTES);
 
-  await handlerFor(fixture.deps).apply({ entity: packedFrom(record), expectedVersion: undefined, principalId: OPERATOR_ID });
+  await handlerFor(fixture.deps).apply({ entity: packedFrom(record), expectedVersion: undefined, principalId: OPERATOR_ID, idempotencyKey: "media-apply-2" });
 
   // Resolve the way a real render caller does — look the row back up by the id the post's doc node
   // carries, and build the render maps from what is actually there.
   const imported = await fixture.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: "source-system-asset-42" });
   assert.ok(imported, "the imported row must be findable by the source id");
+  // `slug: null` keeps the id-keyed `/m/<id>/...` URL this case pins: the subject is that the
+  // source id survives the import, not which key the public URL prefers.
   const mediaAssetMetadata = new Map<string, MediaAssetRenderMeta>([
     [
       imported.id,
-      { width: imported.width, height: imported.height, cssClass: imported.cssClass, htmlAttributes: imported.htmlAttributes, contentType: null },
+      { width: imported.width, height: imported.height, cssClass: imported.cssClass, htmlAttributes: imported.htmlAttributes, contentType: null, slug: null },
     ],
   ]);
   const mediaTransformVersions = new Map<string, number>([["public", 1]]);
@@ -225,7 +228,7 @@ test("apply() blocks with 'blocked:missing-blob' when the bundle names a sha thi
   // Deliberately NOT staged — this is the exact "bundle manifest lists a sha we never got" case.
 
   const thrown = await handlerFor(fixture.deps)
-    .apply({ entity: packedFrom(record), expectedVersion: undefined, principalId: OPERATOR_ID })
+    .apply({ entity: packedFrom(record), expectedVersion: undefined, principalId: OPERATOR_ID, idempotencyKey: "media-apply-3" })
     .then(
       () => null,
       (error: unknown) => error
@@ -264,10 +267,13 @@ test("apply() never re-stamps an existing asset_blobs row's createdByPrincipal, 
   const fixture = await makeFixture({ blobRows: [existingBlob] });
   await stageBlobBytes(fixture.blobStore, PHOTO_SHA256, PHOTO_BYTES);
 
-  const result = await handlerFor(fixture.deps).apply({
+  // `apply()` declares only `changeSetId`; the handler's own write result (`blobWritten`) passes
+  // through beside it at runtime (`repo-handler.ts`'s `RepoWriteResult` doc).
+  const result: { changeSetId: string; blobWritten?: unknown } = await handlerFor(fixture.deps).apply({
     entity: packedFrom(makeMediaRecord()),
     expectedVersion: undefined,
     principalId: OPERATOR_ID,
+    idempotencyKey: "media-apply-4",
   });
 
   assert.equal(result.blobWritten, false, "the reuse must be reported so a caller can tell a preserved row from a written one");
@@ -289,10 +295,13 @@ test("apply() attributes a BRAND-NEW asset_blobs row to the importing operator, 
   const fixture = await makeFixture();
   await stageBlobBytes(fixture.blobStore, PHOTO_SHA256, PHOTO_BYTES);
 
-  const result = await handlerFor(fixture.deps).apply({
+  // `apply()` declares only `changeSetId`; the handler's own write result (`blobWritten`) passes
+  // through beside it at runtime (`repo-handler.ts`'s `RepoWriteResult` doc).
+  const result: { changeSetId: string; blobWritten?: unknown } = await handlerFor(fixture.deps).apply({
     entity: packedFrom(makeMediaRecord()),
     expectedVersion: undefined,
     principalId: OPERATOR_ID,
+    idempotencyKey: "media-apply-5",
   });
 
   assert.equal(result.blobWritten, true);
@@ -312,7 +321,7 @@ test("apply() blocks with 'blocked:slug-taken' when the slug is held by a DIFFER
   await stageBlobBytes(fixture.blobStore, PHOTO_SHA256, PHOTO_BYTES);
 
   const thrown = await handlerFor(fixture.deps)
-    .apply({ entity: packedFrom(makeMediaRecord()), expectedVersion: undefined, principalId: OPERATOR_ID })
+    .apply({ entity: packedFrom(makeMediaRecord()), expectedVersion: undefined, principalId: OPERATOR_ID, idempotencyKey: "media-apply-6" })
     .then(
       () => null,
       (error: unknown) => error
@@ -349,6 +358,7 @@ test("apply() updates an existing row when expectedVersion matches, recording th
     entity: packedFrom(makeMediaRecord({ title: "New Title" })),
     expectedVersion: 3,
     principalId: OPERATOR_ID,
+    idempotencyKey: "media-apply-7",
   });
 
   const landed = await fixture.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: "source-system-asset-42" });
@@ -373,7 +383,7 @@ test("apply() refuses to overwrite a destination row that moved on from expected
   await stageBlobBytes(fixture.blobStore, PHOTO_SHA256, PHOTO_BYTES);
 
   const thrown = await handlerFor(fixture.deps)
-    .apply({ entity: packedFrom(makeMediaRecord({ title: "Incoming" })), expectedVersion: 3, principalId: OPERATOR_ID })
+    .apply({ entity: packedFrom(makeMediaRecord({ title: "Incoming" })), expectedVersion: 3, principalId: OPERATOR_ID, idempotencyKey: "media-apply-8" })
     .then(
       () => null,
       (error: unknown) => error
@@ -394,7 +404,7 @@ test("apply() refuses a 'created' row when the destination grew one between plan
   await stageBlobBytes(fixture.blobStore, PHOTO_SHA256, PHOTO_BYTES);
 
   const thrown = await handlerFor(fixture.deps)
-    .apply({ entity: packedFrom(makeMediaRecord()), expectedVersion: undefined, principalId: OPERATOR_ID })
+    .apply({ entity: packedFrom(makeMediaRecord()), expectedVersion: undefined, principalId: OPERATOR_ID, idempotencyKey: "media-apply-9" })
     .then(
       () => null,
       (error: unknown) => error
@@ -551,7 +561,7 @@ test("apply() throws a named error when changeSets/authorize/outbox are not wire
   const fixture = await makeFixture();
   const deps: PublishContentDeps = { ...fixture.deps, changeSets: undefined, authorize: undefined, outbox: undefined };
   await assert.rejects(
-    () => handlerFor(deps).apply({ entity: packedFrom(makeMediaRecord()), expectedVersion: undefined, principalId: OPERATOR_ID }),
+    () => handlerFor(deps).apply({ entity: packedFrom(makeMediaRecord()), expectedVersion: undefined, principalId: OPERATOR_ID, idempotencyKey: "media-apply-10" }),
     /media\.apply\(\) requires PublishContentDeps\.changeSets\/authorize\/outbox.*apply-loop\.ts/s
   );
 });
@@ -560,7 +570,7 @@ test("apply() throws a named error when ports.media is not wired", async () => {
   const fixture = await makeFixture();
   const deps: PublishContentDeps = { ...fixture.deps, ports: {} };
   await assert.rejects(
-    () => handlerFor(deps).apply({ entity: packedFrom(makeMediaRecord()), expectedVersion: undefined, principalId: OPERATOR_ID }),
+    () => handlerFor(deps).apply({ entity: packedFrom(makeMediaRecord()), expectedVersion: undefined, principalId: OPERATOR_ID, idempotencyKey: "media-apply-11" }),
     /media\.apply\(\) requires PublishContentDeps\.ports\.media.*apply-loop\.ts/s
   );
 });
@@ -572,6 +582,7 @@ test("apply() no longer throws Task 12's 'not wired yet' stub error", async () =
     entity: packedFrom(makeMediaRecord()),
     expectedVersion: undefined,
     principalId: OPERATOR_ID,
+    idempotencyKey: "media-apply-12",
   });
   assert.ok(result.changeSetId);
 });

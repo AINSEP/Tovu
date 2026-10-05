@@ -17,7 +17,7 @@ import { validateManifest, type PluginManifest } from "../../manifest.js";
  * "not implemented". These assertions describe the contract the Programmer stage must satisfy.
  */
 
-function validManifest(overrides: Partial<PluginManifest> = {}): unknown {
+function validManifest(overrides: Partial<PluginManifest> = {}): Record<string, unknown> {
   return {
     id: "word-count",
     name: "Word Count",

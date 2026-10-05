@@ -280,7 +280,7 @@ test("manifest: importFromEnv and retiredEnv parse; a malformed env name exclude
   assert.ok(good.ok);
   const server = good.ok ? good.config.servers.s : undefined;
   assert.ok(server && server.type !== "stdio");
-  assert.deepEqual(server.type !== "stdio" ? server.tovuTokenAuth : undefined, {
+  assert.deepEqual(server.tovuTokenAuth, {
     helpUrl: "https://example.com/t",
     probeUrl: "https://example.com/p",
     importFromEnv: "OLD_TOKEN",

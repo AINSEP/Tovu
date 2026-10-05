@@ -47,6 +47,7 @@ function makeDeps(): WidgetsToolDeps {
     entryRefsRepo: new InMemoryEntryRefsRepo(),
     widgetBindingRepo: new InMemoryWidgetRegionBindingRepo(),
     postRepo: new InMemoryPostRepo(),
+    forgetRemovedPost: async () => {},
     changeSets: new InMemoryChangeSetRepo(),
     pluginBeforeSaveHook: undefined as unknown as WidgetsToolDeps["pluginBeforeSaveHook"],
     authorize: PRE_AUTHORIZED,

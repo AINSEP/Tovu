@@ -274,8 +274,7 @@ test("the bundled ledger selects one upgrade's content on both real resolution s
     await recordBundledAgentPluginDigests({ workspaceRoot, seeded: [{ pluginId: "ui-ux-design", archiveDigest: published.archiveDigest }] });
 
     const resolved = await resolveAgentPluginRefs(["ui-ux-design"], resolveAgentPluginLayout().forWorkspace(WORKSPACE_ID));
-    assert.equal(resolved.ok, true, JSON.stringify(resolved));
-    if (!resolved.ok) throw new Error(resolved.reason);
+    if (!resolved.ok) assert.fail(JSON.stringify(resolved));
     assert.ok(resolved.promptPrefix.includes(newMarkdown));
     assert.equal(resolved.promptPrefix.includes(oldMarkdown), false);
 

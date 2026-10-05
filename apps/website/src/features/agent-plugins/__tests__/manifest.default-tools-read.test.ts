@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { parseAgentPluginMcpConfig } from "../mcp-metadata.js";
+import { parseAgentPluginMcpConfig, type McpServerConfig, type RemoteMcpServerConfig } from "../mcp-metadata.js";
+
+/** Every fixture here declares a remote server; the `tovu*` metadata only exists on that variant. */
+function remote(server: McpServerConfig | undefined): RemoteMcpServerConfig | undefined {
+  if (server?.type === "stdio") throw new Error("expected a remote MCP server");
+  return server;
+}
 
 function parseDefaults(tovuDefaultTools: unknown) {
   const result = parseAgentPluginMcpConfig({ value: {
@@ -9,9 +15,8 @@ function parseDefaults(tovuDefaultTools: unknown) {
     mcpServers: { remote: { type: "streamable-http", url: "https://mcp.example.com/mcp" } },
   } }, { pluginManifest: { $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: "fixture",
     extensions: { tovu: { mcpServers: { remote: { tovuDefaultTools } } } } } });
-  assert.equal(result.ok, true);
   if (!result.ok) throw new Error(result.errors.join("; "));
-  return result.config.servers.remote;
+  return remote(result.config.servers.remote);
 }
 
 test("read names survive parsing alongside independent write defaults", () => {
@@ -51,7 +56,7 @@ test("bundled Higgsfield declares only the two evidenced read tools and no sign-
   const parsed = parseAgentPluginMcpConfig({ value: raw }, { pluginManifest: manifest });
   assert.equal(parsed.ok, true);
   if (!parsed.ok) throw new Error("invalid bundle");
-  assert.equal(parsed.config.servers.higgsfield?.tovuAuthMode, "oauth");
+  assert.equal(remote(parsed.config.servers.higgsfield)?.tovuAuthMode, "oauth");
 });
 
 
@@ -60,7 +65,7 @@ test("legacy mcp.json fields cannot supply operator read trust", () => {
     mcpServers: { remote: { type: "streamable-http", url: "https://mcp.example.com/mcp", tovuDefaultTools: { allow: ["inspect"], read: ["inspect"] } } } } });
   assert.equal(parsed.ok, true);
   if (!parsed.ok) throw new Error("invalid fixture");
-  assert.deepEqual(parsed.config.servers.remote?.tovuDefaultTools?.read, []);
+  assert.deepEqual(remote(parsed.config.servers.remote)?.tovuDefaultTools?.read, []);
 });
 
 test("an invalid plugin manifest cannot supply read trust", () => {
@@ -68,5 +73,5 @@ test("an invalid plugin manifest cannot supply read trust", () => {
     mcpServers: { remote: { type: "streamable-http", url: "https://mcp.example.com/mcp" } } } }, { pluginManifest: { name: "fixture", extensions: { tovu: { mcpServers: { remote: { tovuDefaultTools: { read: ["inspect"] } } } } } } });
   assert.equal(parsed.ok, true);
   if (!parsed.ok) throw new Error("invalid fixture");
-  assert.equal(parsed.config.servers.remote?.tovuDefaultTools, undefined);
+  assert.equal(remote(parsed.config.servers.remote)?.tovuDefaultTools, undefined);
 });

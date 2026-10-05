@@ -297,7 +297,7 @@ test("t91 §7.1: a corrupt activations.json reaches the model through the real e
     const registry = createToolRegistry({});
     registry.register(buildPluginsUninstallRegistration(fakeDeps().deps, { surfaceExchanges: createSurfaceExchangeStore() }));
     const toolExecutor = createToolExecutor({ registry });
-    const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog() });
+    const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
     const { run } = await lifecycle.start({ contextRef: "ctx-1" });
     const internalErrors: unknown[] = [];
 
@@ -503,7 +503,7 @@ test("a run that ends while the dialog is open closes it, reports 'abandoned', a
     const controller = new AbortController();
     const recorder = surfaceRecorder();
 
-    const pending = findRegistration(deps).handler(fakeCtx({ pluginId: "operator-plugin" }, { emitSurface: recorder.emitSurface, signal: controller.signal }), { emitSurface: recorder.emitSurface, signal: controller.signal });
+    const pending = findRegistration(deps).handler(fakeCtx({ pluginId: "operator-plugin" }, { emitSurface: recorder.emitSurface, signal: controller.signal }), { emitSurface: recorder.emitSurface });
     await waitForDialog(recorder.first, pending);
     controller.abort();
     const out = (await pending) as UninstallToolOutput;

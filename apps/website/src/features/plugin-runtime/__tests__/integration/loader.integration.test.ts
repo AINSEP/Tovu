@@ -299,7 +299,8 @@ test("BR-01 (1): a SITE plugin whose integrity map does not cover its entry file
   const dir = await mkdtemp(path.join(tmpdir(), "tovu-loader-uncovered-"));
   try {
     const entryPath = await writeFixtureEntry(dir, "export default { setup() {} };\n");
-    for (const integrity of [{}, { "server/other.mjs": sha256("x") }]) {
+    const integrities: ReadonlyArray<Readonly<Record<string, string>>> = [{}, { "server/other.mjs": sha256("x") }];
+    for (const integrity of integrities) {
       let importCalls = 0;
       const result = await loadPlugin(
         { record: record(), manifest: manifest({ integrity }), entryPath, coreDeps: coreDeps() },

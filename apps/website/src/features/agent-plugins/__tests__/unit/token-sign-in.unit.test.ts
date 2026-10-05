@@ -3,7 +3,8 @@ import test from "node:test";
 
 import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/http/index";
 
-import type { McpServerConfig } from "../../mcp-metadata.js";
+import type { InstalledAgentPluginServers } from "../../import-access-token.js";
+import type { McpServerConfig, RemoteMcpServerConfig } from "../../mcp-metadata.js";
 import { checkAgentPluginAccessToken, listTokenSignInPlugins } from "../../token-sign-in.js";
 
 /**
@@ -14,7 +15,7 @@ import { checkAgentPluginAccessToken, listTokenSignInPlugins } from "../../token
 const TOKEN = "sbp_check_token_never_echoed";
 const PROBE_URL = "https://api.supabase.com/v1/projects";
 
-const tokenServer = (probeUrl = PROBE_URL): McpServerConfig => ({
+const tokenServer = (probeUrl = PROBE_URL): RemoteMcpServerConfig => ({
   type: "streamable-http",
   url: "https://mcp.supabase.com/mcp",
   tovuTokenAuth: { helpUrl: "https://supabase.com/dashboard/account/tokens", probeUrl },
@@ -64,7 +65,8 @@ test("401 and 403 are invalid; any other failure or an unreachable vendor is una
 });
 
 test("unsupported, with no network call: not installed, lookup throws, no token-auth server, or more than one", async () => {
-  for (const servers of [null, "throws", { plain: plainServer }, { a: tokenServer(), b: tokenServer("https://other.example/p") }] as const) {
+  const cases: ReadonlyArray<Readonly<Record<string, McpServerConfig>> | "throws" | null> = [null, "throws", { plain: plainServer }, { a: tokenServer(), b: tokenServer("https://other.example/p") }];
+  for (const servers of cases) {
     const http = new FakeVendorApi(status(200));
     assert.equal(await check(http, servers), "unsupported", JSON.stringify(servers));
     assert.equal(http.requests.length, 0);
@@ -78,7 +80,7 @@ test("a stdio server never counts as the token-auth server", async () => {
 });
 
 test("the sign-in list names each token plugin once, sorted by id, with its tokens page", async () => {
-  const listed = await listTokenSignInPlugins("ws-list", async (workspaceId) => {
+  const listed = await listTokenSignInPlugins("ws-list", async (workspaceId): Promise<readonly InstalledAgentPluginServers[]> => {
     assert.equal(workspaceId, "ws-list");
     return [
       { pluginId: "zeta-db", servers: { z: { ...tokenServer(), tovuTokenAuth: { helpUrl: "https://zeta.example/t", probeUrl: "https://zeta.example/p" } } } },

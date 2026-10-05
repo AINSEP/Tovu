@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createMenuResolver } from "../../resolvers/menu.js";
 import type { NavMenuEntry, NavMenuReadModel } from "#src/features/navigation/index";
+import type { WidgetInstanceView } from "../../types.js";
 
 // F2.6/F3.6: the actual navigation resolver runs; only the lower read/routing ports are faked.
 test("an injected target resolver supplies hrefs for non-URL items in the configured menu", async () => {
@@ -30,7 +31,7 @@ test("an injected target resolver supplies hrefs for non-URL items in the config
 test("menu read failures propagate and a later call uses recovered data", async () => {
   let fail = true;
   const resolver = createMenuResolver({ navMenuReadModel: { getMenu: async (p) => { assert.deepEqual(p, { workspaceId: "ws-menu", menuId: "missing" }); if (fail) throw new Error("menu storage failed"); return null; } } as NavMenuReadModel });
-  const instances = [{ id: "w", widgetType: "menu", config: { menuRef: "missing" } }];
+  const instances: WidgetInstanceView[] = [{ id: "w", widgetType: "menu", config: { menuRef: "missing" } }];
   const context = { workspaceId: "ws-menu", preview: false };
   await assert.rejects(resolver.resolveMany(instances, context), { message: "menu storage failed" });
   fail = false;

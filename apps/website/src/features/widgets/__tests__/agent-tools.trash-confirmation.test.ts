@@ -37,6 +37,7 @@ function makeDeps(options: { allow?: boolean; entryRepo?: TrashAwareInMemoryEntr
     entryRefsRepo: new InMemoryEntryRefsRepo(),
     widgetBindingRepo: new InMemoryWidgetRegionBindingRepo(),
     postRepo: { marker: "not needed by this suite" } as unknown as WidgetsToolDeps["postRepo"],
+    forgetRemovedPost: async () => {},
     changeSets: { marker: "not needed by this suite" } as unknown as WidgetsToolDeps["changeSets"],
     pluginBeforeSaveHook: undefined as unknown as WidgetsToolDeps["pluginBeforeSaveHook"],
     authorize,

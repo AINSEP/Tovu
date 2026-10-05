@@ -64,7 +64,9 @@ test("mcp.json declares exactly one streamable-http OAuth server at Supabase's a
   // the confirm-before-destructive-SQL step (plan S-G3) exists.
   const defaults = server.tovuDefaultTools;
   assert.ok(defaults);
-  assert.ok(defaults.write.every((name) => defaults.allow.includes(name)));
+  const allow = defaults.allow;
+  assert.ok(allow);
+  assert.ok(defaults.write.every((name) => allow.includes(name)));
   assert.deepEqual(defaults.write, ["confirm_cost", "create_project", "pause_project", "restore_project"]);
   assert.deepEqual(defaults.allow, ["list_organizations", "get_organization", "list_projects", "get_project", "get_cost", "confirm_cost", "create_project", "pause_project", "restore_project", "list_tables", "list_extensions", "list_migrations", "apply_migration", "execute_sql", "get_advisors", "query_logs", "get_project_url", "get_publishable_keys", "generate_typescript_types", "search_docs"]);
   for (const needed of ["list_organizations", "list_projects", "get_project", "get_cost", "confirm_cost", "create_project", "pause_project", "restore_project"]) {
@@ -108,8 +110,8 @@ test("mcp.json carries saved selections across Supabase's get_logs -> query_logs
   const server = parsed.config.servers.supabase;
   assert.ok(server && server.type !== "stdio");
   assert.deepEqual(server.tovuRenamedTools, { get_logs: "query_logs" });
-  assert.ok(server.tovuDefaultTools?.allow.includes("query_logs"));
-  assert.equal(server.tovuDefaultTools?.allow.includes("get_logs"), false);
+  assert.ok(server.tovuDefaultTools?.allow?.includes("query_logs"));
+  assert.equal(server.tovuDefaultTools?.allow?.includes("get_logs"), false);
 });
 
 test("plugin.json's keywords reach someone who just says they need a database", async () => {

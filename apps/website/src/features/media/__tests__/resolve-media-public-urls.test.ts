@@ -25,6 +25,8 @@ function fakeAsset(overrides: Partial<MediaRecord> = {}): MediaRecord {
     id: `media-${randomUUID()}`,
     workspaceId: WORKSPACE_ID,
     title: "",
+    // A pre-backfill row with no slug, so URLs key by id; slug cases override it explicitly.
+    slug: "",
     alt: "",
     caption: "",
     credit: "",
@@ -36,6 +38,7 @@ function fakeAsset(overrides: Partial<MediaRecord> = {}): MediaRecord {
     width: null,
     height: null,
     cssClass: null,
+    htmlAttributes: null,
     ...overrides,
   };
 }
@@ -209,13 +212,16 @@ test("resolveMediaPublicUrls: is scoped to the caller's own workspace — a tran
  * ext-fallback `??` branch in `resolveOneAssetPublicUrl` gets covered at all (brief §6: cover a
  * genuinely-unreachable-via-the-public-API branch by direct invocation rather than deleting it).
  */
-class FakeSingleFormatTransformRepo implements Pick<TransformDefinitionRepoPort, "listByName" | "findByNameVersion"> {
+class FakeSingleFormatTransformRepo implements TransformDefinitionRepoPort {
   constructor(private readonly record: TransformDefinitionRecord) {}
   async listByName(): Promise<TransformDefinitionRecord[]> {
     return [this.record];
   }
   async findByNameVersion(): Promise<TransformDefinitionRecord | null> {
     return this.record;
+  }
+  async insert(): Promise<void> {
+    throw new Error("FakeSingleFormatTransformRepo is read-only: resolving a URL never registers a transform");
   }
 }
 
@@ -241,7 +247,7 @@ test("resolveMediaPublicUrls: a transform format outside EXT_BY_TRANSFORM_FORMAT
   const asset = fakeAsset();
 
   const result = await resolveMediaPublicUrls(
-    { workspaceId: WORKSPACE_ID, mediaContentTypeStore, transformDefinitionRepo: transformDefinitionRepo as TransformDefinitionRepoPort },
+    { workspaceId: WORKSPACE_ID, mediaContentTypeStore, transformDefinitionRepo },
     [asset]
   );
   assert.equal(result.get(asset.id), `/m/${asset.id}/${CORE_PUBLIC_TRANSFORM_NAME}.v1/image.avif`);

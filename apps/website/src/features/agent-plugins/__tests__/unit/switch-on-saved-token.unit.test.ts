@@ -114,8 +114,8 @@ test("the production fallback enables an untouched saved-token row with the inst
     assert.deepEqual(await switchOnSavedTokenConnection({ workspaceId: WORKSPACE, externalMcpServerRepo: repo, clock }, { pluginId: "supabase", connectionId: "supabase" }), { state: "on" });
     const row = (await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "supabase" }))!;
     assert.equal(row.enabled, true);
-    assert.ok(JSON.parse(row.allowedToolNames).includes("list_projects"));
-    assert.deepEqual(JSON.parse(row.writeAllowedToolNames), ["confirm_cost", "create_project", "pause_project", "restore_project"]);
+    assert.ok(JSON.parse(row.allowedToolNames ?? "[]").includes("list_projects"));
+    assert.deepEqual(JSON.parse(row.writeAllowedToolNames ?? "[]"), ["confirm_cost", "create_project", "pause_project", "restore_project"]);
     assert.equal(row.writeGrantsUpdatedByPrincipalId, "system:connect-defaults");
     assert.deepEqual(row.sealedOAuth, before.sealedOAuth);
     assert.equal((await readAgentPluginActivations({ workspaceRoot: workspaceRoot })).plugins.supabase?.enabled, true);

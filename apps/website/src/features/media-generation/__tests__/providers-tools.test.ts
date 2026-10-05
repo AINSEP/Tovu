@@ -1,7 +1,10 @@
 /** t10: human credential setup; real exchange/store/sealer, no HTTP listener or provider API. */
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { ToolInputError, type SurfaceEmission, type ToolExecutionContext } from '@jini-ai/core';
+import { ToolInputError, type SurfaceEmission, type SurfaceEmitter, type ToolExecutionContext } from '@jini-ai/core';
+
+/** Context overrides a call may pass; `emitSurface` travels as a handler option, not on the context. */
+type CallExtra = Partial<ToolExecutionContext> & { emitSurface?: SurfaceEmitter };
 import { createSurfaceExchangeStore, SURFACE_DISMISSED_PARAM } from '../../../contracts/core/tool-surface-exchanges.js';
 import { InMemoryMediaProviderCredentialRepo } from '../../media/provider-credential-store.memory.js';
 import { resolveMediaProviderCredential, saveMediaProviderCredentials } from '../../media/provider-credential-store.js';
@@ -72,14 +75,14 @@ function fixture(allowed = true, exchangeOptions: Parameters<typeof createSurfac
   const surfaces = createSurfaceExchangeStore({ ...exchangeOptions, newExchangeId: () => 'exchange-t10' });
   const registrations = buildMediaProviderRegistrations(deps, { surfaceExchanges: surfaces });
   function tool(id: string) { const found = registrations.find(r => r.descriptor.id === id); assert.ok(found, `expected '${id}' to be wired`); return found; }
-  function call(id: string, input: unknown, extra: Partial<ToolExecutionContext> = {}) {
+  function call(id: string, input: unknown, extra: CallExtra = {}) {
     return invokeFixtureHandler(tool(id), { executionId: 'exec', principal: { id: 'person' }, run: { id: 'run' }, input,
       signal: new AbortController().signal, ...extra });
   }
   const writeDeps = { repo, sealer, keyring, clock: deps.clock };
   return { deps, repo, sealer, auth, surfaces, tool, call, writeDeps };
 }
-async function form(f: ReturnType<typeof fixture>, extra: Partial<ToolExecutionContext> = {}) {
+async function form(f: ReturnType<typeof fixture>, extra: CallExtra = {}) {
   const emitted: SurfaceEmission[] = [];
   let raised!: () => void;
   const ready = new Promise<void>(resolve => { raised = resolve; });

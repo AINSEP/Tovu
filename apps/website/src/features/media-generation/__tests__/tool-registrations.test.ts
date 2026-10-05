@@ -1,5 +1,6 @@
 import type { HttpClientPort } from "@jini-ai/core/primitives";
 import { createHttpClient, EgressRefusedError } from "@jini-ai/platform/http/guarded";
+import type { HttpResponse } from "#src/platform/http/index";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
@@ -547,7 +548,7 @@ for (const scenario of ["private", "redirect", "public"] as const) {
         maxRedirects: 0, connectTimeoutMs: 600_000,
         maxResponseBytes: 96 * 1024 * 1024, maxDecompressedBytes: 96 * 1024 * 1024,
       },
-      transport: { requestPinned: async ({ request }) => {
+      transport: { requestPinned: async ({ request }): Promise<HttpResponse> => {
         transported.push(request.url);
         if (request.method === "POST") {
           return { status: 200, headers: { "content-type": "application/json" },

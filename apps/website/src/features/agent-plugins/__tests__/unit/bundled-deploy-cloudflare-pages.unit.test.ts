@@ -30,11 +30,11 @@ const MODULE_PATH = path.resolve(import.meta.dirname, "../../../../../../../cont
 interface CloudflarePagesBinding {
   CloudflarePagesDeployTarget: new (config: { token: string; accountId: string }) => {
     publish(input: HostDeployPublishInput & { metadata?: Record<string, unknown> }): Promise<import("@jini-ai/devops/deploy").DeployPublishResult>;
-    checkReachability(url: string): Promise<unknown>;
+    checkReachability(url: string): Promise<import("@jini-ai/devops/deploy").DeploymentUrlCheck>;
   };
   cloudflarePagesAssetHash(file: { file: string; data: string | Buffer }): string;
-  chunkCloudflarePagesAssetUploads(files: Array<{ hash: string; data: string | Buffer; contentType?: string }>, options?: { maxFiles?: number; maxBytes?: number }): Array<Array<{ hash: string; data: string | Buffer; contentType?: string }>>;
-  listCloudflarePagesZones(config: { token: string; accountId: string }): Promise<{ zones: unknown[] }>;
+  chunkCloudflarePagesAssetUploads(files: Array<{ hash: string; data: string | Uint8Array; contentType?: string }>, options?: { maxFiles?: number; maxBytes?: number }): Array<Array<{ hash: string; data: string | Uint8Array; contentType?: string }>>;
+  listCloudflarePagesZones(config: { token: string; accountId: string }): Promise<{ zones: Array<{ id: string; name: string; status: string; type: string }> }>;
 }
 
 const loaded = (await import(pathToFileURL(MODULE_PATH).href)) as {
@@ -2631,7 +2631,7 @@ describe('CloudflarePagesDeployTarget.publish — aggregate status: pages.dev no
     vi.useRealTimers();
   });
 
-  it('reports the aggregate status/message from the not-ready pages.dev link, not the custom-domain failure message', async () => {
+  it('reports the aggregate status/message from the not-ready pages.dev link, not the custom-domain failure message', { timeout: 20_000 }, async () => {
     // aggregateCloudflarePagesStatus's else-branch (customDomain.status is 'conflict'/'failed', not
     // 'ready'/'pending') has its own `pagesDev.status === 'ready' ? ... : pagesDev.statusMessage ||
     // customFailureMessage` ternary — this drives it down the `false` side, which is only
@@ -2686,7 +2686,7 @@ describe('CloudflarePagesDeployTarget.publish — aggregate status: pages.dev no
     // silently swallowing it.
     expect(result.status).toBe('link-delayed');
     expect(result.statusMessage).not.toContain('domain create exploded');
-  }, 20_000);
+  });
 });
 
 describe('CloudflarePagesDeployTarget.publish — custom domain ready before pages.dev itself', () => {
@@ -2695,7 +2695,7 @@ describe('CloudflarePagesDeployTarget.publish — custom domain ready before pag
     vi.useRealTimers();
   });
 
-  it('reflects a not-yet-reachable pages.dev link even once the custom domain is ready (aggregate stays link-delayed)', async () => {
+  it('reflects a not-yet-reachable pages.dev link even once the custom domain is ready (aggregate stays link-delayed)', { timeout: 20_000 }, async () => {
     // waitForReachableDeploymentUrl's pages.dev poll has no caller-exposed
     // timeout override from CloudflarePagesDeployTarget.publish(), so
     // forcing pages.dev to never become reachable means riding out its real
@@ -2750,7 +2750,7 @@ describe('CloudflarePagesDeployTarget.publish — custom domain ready before pag
     expect(result.status).toBe('link-delayed');
     expect(result.providerMetadata?.pagesDev).toMatchObject({ status: 'link-delayed' });
     expect(result.providerMetadata?.customDomain).toMatchObject({ status: 'ready', domainStatus: 'active' });
-  }, 20_000);
+  });
 });
 
 describe('CloudflarePagesDeployTarget.publish — _headers/_redirects config files', () => {

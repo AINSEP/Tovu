@@ -81,6 +81,7 @@ async function makeHarness(row: { allowedToolNames?: string; provisionedByPlugin
       args: "",
       allowedToolNames: row.allowedToolNames ?? "",
       writeAllowedToolNames: "",
+      principalId: "operator-1",
       oauth: { providerId: PROVIDER.providerId, grant: "authorization_code", clientId: "tovu-client" },
       ...(row.provisionedByPluginId === undefined ? {} : { provisionedByPluginId: row.provisionedByPluginId }),
     },

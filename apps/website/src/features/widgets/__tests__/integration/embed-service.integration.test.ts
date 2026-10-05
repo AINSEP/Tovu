@@ -38,7 +38,7 @@ import { InMemoryOutbox } from "#src/contracts/core/events/index";
  */
 
 const WORKSPACE_ID = "ws-1";
-const ACTOR = { principalId: "user-1" };
+const ACTOR = { principalId: "user-1", kind: "user" };
 const HOST_CONTENT_TYPE = "article";
 
 function nestedEmbedDoc({ leaf, depth }: { leaf: unknown; depth: number }, _optional = {}): unknown {
@@ -142,6 +142,8 @@ let idCounter = 0;
 function makeDeps(repos: ReturnType<typeof makeSharedRepos>, overrides: Partial<EmbedServiceDeps> = {}): EmbedServiceDeps {
   return {
     ...repos,
+    // Required by `rollback`'s `restorePostForward`; nothing here trashes a post, so it never fires.
+    forgetRemovedPost: async () => {},
     clock: { nowMs: () => Date.parse("2026-07-21T00:00:00.000Z") },
     ids: { newId: () => `id-${++idCounter}` },
     authorize: async () => ({ allowed: true, reason: "test: always allow" }),

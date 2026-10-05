@@ -71,7 +71,7 @@ function logHits(query: string, hits: readonly SearchHit[]): void {
 }
 
 test("the surface under test is the real, fully-installed catalog — not a skeleton that would pass every ranking assertion for free", () => {
-  const size = surface().registry.list().length;
+  const size = surface().registry.list({}).length;
   assert.ok(
     size >= MIN_EXPECTED_TOOL_COUNT,
     `expected the full installed catalog (>= ${MIN_EXPECTED_TOOL_COUNT} tools); got ${size} — installFirstPartyToolContributors() did not take effect`,

@@ -141,14 +141,15 @@ function matchers(actual: unknown): Record<string, (...args: unknown[]) => Match
 type Matchers = Record<string, (...args: unknown[]) => void>;
 type AsyncMatchers = Record<string, (...args: unknown[]) => Promise<void>>;
 
-function bindMatchers(actual: unknown, negate: boolean): Matchers {
+function bindMatchers(actual: unknown, negate: boolean, label?: string): Matchers {
   return new Proxy({} as Matchers, {
     get(_target, name: string) {
       const matcher = matchers(actual)[name];
       if (!matcher) throw new TypeError(`vitest-compat: unsupported matcher '${name}'`);
       return (...args: unknown[]) => {
         const [pass, message] = matcher(...args);
-        if (pass === negate) assert.fail(negate ? `NOT: ${message}` : message);
+        const described = label === undefined ? message : `${label}: ${message}`;
+        if (pass === negate) assert.fail(negate ? `NOT: ${described}` : described);
       };
     },
   });
@@ -183,11 +184,12 @@ export type Expectation = Matchers & {
   readonly rejects: AsyncMatchers;
 };
 
-export function expect(actual: unknown): Expectation {
-  const positive = bindMatchers(actual, false);
+/** `message`, like vitest's, prefixes the failure message of the matcher it guards. */
+export function expect(actual: unknown, message?: string): Expectation {
+  const positive = bindMatchers(actual, false, message);
   return new Proxy(positive as Expectation, {
     get(target, name: string) {
-      if (name === "not") return bindMatchers(actual, true);
+      if (name === "not") return bindMatchers(actual, true, message);
       if (name === "rejects") return bindRejects(actual, false);
       return target[name];
     },

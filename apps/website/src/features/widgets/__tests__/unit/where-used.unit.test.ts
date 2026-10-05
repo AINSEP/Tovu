@@ -18,7 +18,7 @@ function makeRef(overrides: Partial<EntryRefRow>): EntryRefRow {
     sourceEntryId: "entry-1",
     sourceKind: "widget-area-placement",
     fieldPath: "doc.placements[0]",
-    targetKind: "widget",
+    targetKind: "entry",
     targetId: "widget-1",
     ...overrides,
   };

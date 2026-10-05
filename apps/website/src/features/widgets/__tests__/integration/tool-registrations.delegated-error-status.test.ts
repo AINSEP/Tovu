@@ -8,12 +8,12 @@ import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
-import { InMemoryEntryRepo } from "#src/features/entries/index";
 import { InMemoryPostRepo, type PostRecord } from "#src/features/post/index";
 import { PRE_AUTHORIZED } from "../../authorize-helper.js";
 import { parseWidgetAreaPayload } from "../../entry-payload.js";
 import { InMemoryWidgetRegionBindingRepo } from "../../repo.memory.js";
 import { buildWidgetsRegistrations, type WidgetsToolDeps } from "../../tool-registrations.js";
+import { memoryWidgetTrash } from "../support/memory-widget-trash.js";
 
 /**
  * @file RED regression suite (`2026-09-15-widgets-insert-embed-PLAN.md` T2): drives the REAL
@@ -38,16 +38,19 @@ const NOW = "2026-09-15T00:00:00.000Z";
 
 function makeRouteDeps(): WidgetsToolDeps {
   let counter = 0;
+  const widgetTrash = memoryWidgetTrash();
   return {
     workspaceId: WORKSPACE_ID,
     clock: { nowMs: () => Date.parse(NOW) },
     idGen: { newId: () => `id-${++counter}` },
     outbox: { enqueue: async () => undefined } as unknown as WidgetsToolDeps["outbox"],
-    entryRepo: new InMemoryEntryRepo(),
+    entryRepo: widgetTrash.entryRepo,
+    removeWidget: widgetTrash.remove,
     contentTypeRepo: new InMemoryContentTypeRepo(),
     entryRefsRepo: new InMemoryEntryRefsRepo(),
     widgetBindingRepo: new InMemoryWidgetRegionBindingRepo(),
     postRepo: new InMemoryPostRepo(),
+    forgetRemovedPost: async () => {},
     changeSets: new InMemoryChangeSetRepo(),
     pluginBeforeSaveHook: undefined as unknown as WidgetsToolDeps["pluginBeforeSaveHook"],
     authorize: PRE_AUTHORIZED,
@@ -77,7 +80,7 @@ async function buildHarness(routeDeps: WidgetsToolDeps) {
   const registry = createToolRegistry({});
   for (const registration of buildWidgetsRegistrations(routeDeps)) registry.register(registration);
   const toolExecutor = createToolExecutor({ registry });
-  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog() });
+  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   const { run } = await lifecycle.start({ contextRef: "ctx-1" });
   return { run, lifecycle, toolExecutor, resolvePrincipal: () => ({ id: "principal-1" }) };
 }

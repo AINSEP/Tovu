@@ -6,11 +6,11 @@ import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from
 import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
-import { InMemoryEntryRepo } from "#src/features/entries/index";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { PRE_AUTHORIZED } from "../../authorize-helper.js";
 import { InMemoryWidgetRegionBindingRepo } from "../../repo.memory.js";
 import { buildWidgetsRegistrations, type WidgetsToolDeps } from "../../tool-registrations.js";
+import { memoryWidgetTrash } from "../support/memory-widget-trash.js";
 
 /**
  * @file RED->GREEN for the 500-redact defect on two Widgets validators:
@@ -34,16 +34,19 @@ const NOW = "2026-09-09T00:00:00.000Z";
 
 function makeDeps(): WidgetsToolDeps {
   let counter = 0;
+  const widgetTrash = memoryWidgetTrash();
   return {
     workspaceId: WORKSPACE_ID,
     clock: { nowMs: () => Date.parse(NOW) },
     idGen: { newId: () => `id-${++counter}` },
     outbox: { enqueue: async () => undefined } as unknown as WidgetsToolDeps["outbox"],
-    entryRepo: new InMemoryEntryRepo(),
+    entryRepo: widgetTrash.entryRepo,
+    removeWidget: widgetTrash.remove,
     contentTypeRepo: new InMemoryContentTypeRepo(),
     entryRefsRepo: new InMemoryEntryRefsRepo(),
     widgetBindingRepo: new InMemoryWidgetRegionBindingRepo(),
     postRepo: new InMemoryPostRepo(),
+    forgetRemovedPost: async () => {},
     changeSets: new InMemoryChangeSetRepo(),
     pluginBeforeSaveHook: undefined as unknown as WidgetsToolDeps["pluginBeforeSaveHook"],
     authorize: PRE_AUTHORIZED,

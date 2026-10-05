@@ -569,7 +569,7 @@ describe('GitHubPagesDeployTarget.publish', () => {
     await expect(target.publish({ files: [], projectName: 'demo' })).rejects.toThrow('GitHub Pages build errored.');
   });
 
-  it('proceeds to the reachability wait using whatever Pages URL it already has when the build poll exhausts its 30-attempt budget', async () => {
+  it('proceeds to the reachability wait using whatever Pages URL it already has when the build poll exhausts its 30-attempt budget', { timeout: 20_000 }, async () => {
     vi.useFakeTimers();
     try {
       let pollCount = 0;
@@ -601,7 +601,7 @@ describe('GitHubPagesDeployTarget.publish', () => {
     } finally {
       vi.useRealTimers();
     }
-  }, 20_000);
+  });
 
   it('throws DeployError with the message field when blob creation fails', async () => {
     const fetchSpy = vi.fn(async (input: string, init?: RequestInit) => {

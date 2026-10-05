@@ -49,7 +49,6 @@ test("approved dev.tovu.memory namespace retains package guidance while each sit
   try {
     const installed = await firstSite.install("example", "1.0.0", "Vendor account claim");
     const parsed = parseAgentPluginManifest({ value: JSON.parse(await fs.readFile(path.join(installed.packageRoot, "plugin.json"), "utf8")) });
-    assert.equal(parsed.ok, true);
     if (!parsed.ok) assert.fail(parsed.errors.join("; "));
     assert.deepEqual(parsed.manifest.extensions?.["dev.tovu.memory"], { usesMemory: true });
     assert.deepEqual(parsed.warnings, []);
@@ -126,7 +125,6 @@ test("notes autoload in pinned skill guidance; learned knowledge does not; packa
     await f.memory().writeNote({ entryPath: "project.md", text: "USER-NOTE-CONTEXT" });
     await f.memory().learned.write({ entryPath: "account.md", text: "LEARNED-ON-DEMAND" });
     const result = await resolveAgentPluginRefs(["example"], f.workspace, "inject");
-    assert.equal(result.ok, true);
     if (!result.ok) assert.fail(result.reason);
     assert.match(result.promptPrefix, /USER-NOTE-CONTEXT/);
     assert.doesNotMatch(result.promptPrefix, /LEARNED-ON-DEMAND/);

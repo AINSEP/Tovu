@@ -577,7 +577,7 @@ describe('VercelDeployTarget.publish', () => {
     expect(result.status).toBe('ready');
   });
 
-  it('returns the last known deployment state once polling exhausts its 30-attempt budget without a terminal readyState', async () => {
+  it('returns the last known deployment state once polling exhausts its 30-attempt budget without a terminal readyState', { timeout: 20_000 }, async () => {
     // pollVercelDeployment's attempt budget/backoff are fixed constants (~1s
     // for the first 5 attempts, 2s thereafter — ~55s total) with no
     // caller-facing override, so driving it to exhaustion for real would
@@ -611,7 +611,7 @@ describe('VercelDeployTarget.publish', () => {
     } finally {
       vi.useRealTimers();
     }
-  }, 20_000);
+  });
 
   it('checkReachability probes the URL with the Vercel-protected-response detector wired in', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('', { status: 200 })));

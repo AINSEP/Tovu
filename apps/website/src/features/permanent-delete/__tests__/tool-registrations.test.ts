@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { ToolInputError, type ToolExecutionOptions, type ToolExecutionContext } from "@jini-ai/core";
+import { ToolInputError, type SurfaceEmitter, type ToolExecutionContext } from "@jini-ai/core";
 import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
 import { buildPermanentDeleteRegistrations, permanentDeleteDerivedRisk, type PermanentDeleteToolDeps } from "../tool-registrations.js";
 
@@ -37,7 +37,8 @@ function harness(id: string, input: unknown, permission: string) {
   const registration = buildPermanentDeleteRegistrations(deps, { surfaceExchanges: store }).find(r => r.descriptor.id === id)!;
   const controller = new AbortController();
   const ctx: ToolExecutionContext = { executionId: "e-1", principal: { id: "owner" }, run: { id: "r-1" }, input, signal: controller.signal };
-  const options: ToolExecutionOptions = {};
+  // Mutable here so each case can install its own emitter; `ToolExecutionOptions` itself is readonly.
+  const options: { emitSurface?: SurfaceEmitter } = {};
   return { options, store, writes, permissions, permission, registration, ctx, controller, setAllowed: (v: boolean) => { allowed = v; }, setExists: (v: boolean) => { exists = v; } };
 }
 

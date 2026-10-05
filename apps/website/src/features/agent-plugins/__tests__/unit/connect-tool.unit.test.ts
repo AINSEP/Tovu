@@ -57,6 +57,17 @@ function fakeOAuth(repo: InMemoryExternalMcpServerRepo, authorizationUrl: string
     async pollDeviceAuthorization() {
       throw new Error("not used by this test");
     },
+    async disconnect() {
+      throw new Error("not used by this test");
+    },
+    async reportAuthFailure() {
+      throw new Error("not used by this test");
+    },
+    tokenResolver: {
+      async resolveAccessToken() {
+        throw new Error("not used by this test");
+      },
+    },
   };
 }
 
@@ -79,7 +90,7 @@ function fakeCtx(emissions: SurfaceEmission[], signal: AbortSignal = new AbortCo
 }
 
 function htmlOf(emission: SurfaceEmission): string {
-  return (emission as { payload: { resource: { resource: { text: string } } } }).payload.resource.resource.text;
+  return (emission.payload.resource as { resource: { text: string } }).resource.text;
 }
 
 test("agent_plugin_connect: a bundled plugin with one OAuth server shows exactly one https sign-in link and no token", async (t) => {
@@ -262,13 +273,12 @@ for (const guard of ["unknown-plugin", "two-servers", "no-oauth", "no-surface"] 
     const emissions: SurfaceEmission[] = [];
     let beginCalls = 0;
     const oauth = fakeOAuth(store.repo, "https://mcp.example.com/authorize");
+    const servers: Readonly<Record<string, McpServerConfig>> = guard === "two-servers" ? { widget: OAUTH_SERVER, other: OAUTH_SERVER } : { widget: OAUTH_SERVER };
     const deps = baseDeps(store, {
       externalMcpOAuth: guard === "no-oauth" ? undefined : {
         ...oauth, beginConnect: async (input) => { beginCalls += 1; return oauth.beginConnect(input); },
       },
-      resolveInstalledPlugin: async () => guard === "unknown-plugin" ? null : {
-        servers: guard === "two-servers" ? { widget: OAUTH_SERVER, other: OAUTH_SERVER } : { widget: OAUTH_SERVER },
-      },
+      resolveInstalledPlugin: async () => guard === "unknown-plugin" ? null : { servers },
     });
     const ctx = guard === "no-surface"
       ? { ...fakeCtx(emissions), emitSurface: undefined } as unknown as ToolExecutionContext
@@ -324,7 +334,7 @@ test("agent_plugin_connect: denied permission provisions no row and emits no car
 for (const credential of ["oauth", "static-token"] as const) {
   test(`agent_plugin_connect: an already saved ${credential} starts no sign-in and preserves the row`, async () => {
     const store = makeStoreDeps();
-    const server: McpServerConfig = { ...OAUTH_SERVER, tovuTokenAuth: { helpUrl: "https://mcp.example.com/tokens" } };
+    const server: McpServerConfig = { ...OAUTH_SERVER, tovuTokenAuth: { helpUrl: "https://mcp.example.com/tokens", probeUrl: "https://mcp.example.com/probe" } };
     await provisionAgentPluginMcpServers(store, { workspaceId: WORKSPACE_ID, pluginId: "widget-store", servers: { widget: server }, principalId: PRINCIPAL_ID });
     const row = (await store.repo.findByServerId({ workspaceId: WORKSPACE_ID, serverId: "widget" }))!;
     if (credential === "oauth") {

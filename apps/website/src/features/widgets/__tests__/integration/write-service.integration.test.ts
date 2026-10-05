@@ -42,7 +42,7 @@ function makeDeps(): WidgetTrashDeps {
     remove: trash.remove,
     contentTypeRepo: new InMemoryContentTypeRepo(),
     entryRefsRepo: new InMemoryEntryRefsRepo(),
-    clock: { nowIso: () => "2026-07-21T00:00:00.000Z", nowMs: () => Date.parse("2026-07-21T00:00:00.000Z") },
+    clock: { nowMs: () => Date.parse("2026-07-21T00:00:00.000Z") },
     ids: { newId: () => `id-${++counter}` },
     authorize: async () => ({ allowed: true, reason: "test: always allow" }),
     outbox: new InMemoryOutbox(),
@@ -335,7 +335,13 @@ for (const permission of ["widgets.create", "widgets.update", "widgets.place"] a
       calls.push(input);
       return { allowed: input.permission !== permission, reason: "test denial" };
     };
-    const deniedDeps = { ...deps, authorize: deny, outbox: { enqueue: async (input: unknown) => { outboxWrites.push(input); } } };
+    const recordingOutbox = new (class extends InMemoryOutbox {
+      override async enqueue(event: Parameters<InMemoryOutbox["enqueue"]>[0]): Promise<void> {
+        outboxWrites.push(event);
+        await super.enqueue(event);
+      }
+    })();
+    const deniedDeps = { ...deps, authorize: deny, outbox: recordingOutbox };
     const deniedRegionDeps = { ...regionDeps, authorize: deny, outbox: deniedDeps.outbox };
     const operation = permission === "widgets.create"
       ? createWidgetInstance({ deps: deniedDeps, input: { workspaceId: WORKSPACE_ID, actor: ACTOR, widgetType: "text", title: "Unauthorized", config: { body: "new" } } })

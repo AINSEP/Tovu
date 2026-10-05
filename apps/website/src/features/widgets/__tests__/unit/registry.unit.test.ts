@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { WIDGET_TYPE_REGISTRATIONS, getWidgetTypeRegistration, findWidgetTypeRegistration } from "../../registry.js";
+import type { WidgetTypeRegistration } from "../../types.js";
 
 /**
  * @file C-002 the v1 widget-type registry — SPEC-043 REQ-07/08/09/10.
@@ -17,8 +18,9 @@ test("REQ-09: registers exactly the five v1 widget types", () => {
 });
 
 test("REQ-10: static-capability types (text, social-links) declare no resolverId", () => {
-  const text = getWidgetTypeRegistration("text");
-  const socialLinks = getWidgetTypeRegistration("social-links");
+  // Widened to the shared interface: the literal entry types of static widgets have no `resolverId` key at all.
+  const text: WidgetTypeRegistration = getWidgetTypeRegistration("text");
+  const socialLinks: WidgetTypeRegistration = getWidgetTypeRegistration("social-links");
   assert.equal(text?.capability, "static");
   assert.equal(text?.resolverId, undefined);
   assert.equal(socialLinks?.capability, "static");

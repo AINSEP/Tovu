@@ -242,13 +242,12 @@ test("ADR-024 §3: each filter receives a deeply isolated snapshot", async () =>
     "a-mutator",
     "site",
     async (entry) => {
-      const mutable = entry as {
-        bodyJson: { content: Array<{ text: string }> };
-        ext: { existing: { nested: { value: string }; items: string[] } };
-      };
-      mutable.bodyJson.content[0]!.text = "mutated";
-      mutable.ext.existing.nested.value = "mutated";
-      mutable.ext.existing.items.push("mutated");
+      // Deliberately ignores the draft's readonly typing: the point is a filter that mutates anyway.
+      const body = entry.bodyJson as { content: Array<{ text: string }> };
+      const existing = entry.ext.existing as { nested: { value: string }; items: string[] };
+      body.content[0]!.text = "mutated";
+      existing.nested.value = "mutated";
+      existing.items.push("mutated");
       return {};
     },
     []
@@ -368,7 +367,7 @@ test("auto-quarantine: counters are scoped by workspace as well as plugin", asyn
 
   await assert.rejects(() => registry.runBeforeSave(draft({ workspaceId: "ws-a" })), PluginHookFailedError);
   await assert.rejects(() => registry.runBeforeSave(draft({ workspaceId: "ws-b" })), PluginHookFailedError);
-  assert.deepEqual(quarantines, [], "one failure in each workspace is not two consecutive failures in either workspace");
+  assert.equal(quarantines.length, 0, "one failure in each workspace is not two consecutive failures in either workspace");
 
   await assert.rejects(() => registry.runBeforeSave(draft({ workspaceId: "ws-a" })), PluginHookFailedError);
   assert.deepEqual(quarantines.map((event) => event.workspaceId), ["ws-a"]);
