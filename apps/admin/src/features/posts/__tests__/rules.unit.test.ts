@@ -682,6 +682,18 @@ describe("resolvePostPreviewBranches", () => {
     });
   });
 
+  // A published post still waiting for its go-live time has no live URL yet (it 404s), so it previews
+  // exactly like a draft: the saved/unsaved content through the real template.
+  it.each([
+    { dirty: false, contentDirty: false },
+    { dirty: true, contentDirty: false },
+    { dirty: true, contentDirty: true },
+  ])("a scheduled published post previews like a draft (dirty=$dirty contentDirty=$contentDirty)", ({ dirty, contentDirty }) => {
+    expect(resolvePostPreviewBranches({ status: "published", scheduled: true, dirty, contentDirty })).toEqual(
+      resolvePostPreviewBranches({ status: "draft", dirty, contentDirty })
+    );
+  });
+
   it("selects exactly one branch for every status x dirty x contentDirty combination, including the impossible ones", () => {
     for (const status of ["draft", "published"] as const) {
       for (const dirty of [false, true]) {

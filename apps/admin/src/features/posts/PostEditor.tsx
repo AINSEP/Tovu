@@ -1627,6 +1627,7 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
           bodyJson={bodyJson}
           slug={slug}
           status={status}
+          scheduled={scheduled}
           dirty={dirty}
           contentDirty={contentDirty}
           templatePreviewUrl={templatePreviewUrl}
@@ -1751,6 +1752,7 @@ function PostPreview({
   bodyJson,
   slug,
   status,
+  scheduled,
   dirty,
   contentDirty,
   templatePreviewUrl,
@@ -1770,6 +1772,8 @@ function PostPreview({
   bodyJson: unknown;
   slug: string;
   status: "draft" | "published";
+  /** `usePostEditor`'s `scheduled`: a scheduled published post previews like a draft (no live URL yet). */
+  scheduled: boolean;
   dirty: boolean;
   contentDirty: boolean;
   /** Pre-built by `usePostEditor` — see this function's own doc, branch 2. Used as both the branch-2
@@ -1795,7 +1799,7 @@ function PostPreview({
   // The same decision `usePostEditor` gates its auto-submit on — one shared copy in `rules.ts`, see
   // `resolvePostPreviewBranches`. `PostPreviewFrame` needs only the first two flags: the
   // pending-content surface is its unconditional final case.
-  const { canShowLiveSite, canShowTemplatePreview } = resolvePostPreviewBranches({ status, dirty, contentDirty });
+  const { canShowLiveSite, canShowTemplatePreview } = resolvePostPreviewBranches({ status, scheduled, dirty, contentDirty });
   // Component-scoped like `ThemeExplorePreview`'s: the frame mounts/unmounts with this tab.
   const { frameRef, paneWidth } = usePreviewPaneWidth();
 

@@ -1117,6 +1117,16 @@ describe("Edit/Preview toolbar", () => {
     expect(screen.getByText(/previewing your unsaved edits through the live template/i)).toBeInTheDocument();
   });
 
+  // A published post scheduled for later has no public URL until its go-live time (it 404s), so
+  // its preview must take the draft's pending-content branch, not iframe the live URL.
+  it("preview of a SCHEDULED published post renders like a draft, not the live URL that 404s until go-live", () => {
+    renderPostEditor({ view: "preview", status: "published", scheduled: true, dirty: false, contentDirty: false, slug: "hello-world" });
+    const preview = screen.getByTitle("Post preview");
+    expect(preview).not.toHaveAttribute("src");
+    expect(document.querySelector("form[method='post']")).toHaveAttribute("action", expect.stringContaining("/p1/template-preview"));
+    expect(screen.getByText(/previewing your unsaved edits through the live template/i)).toBeInTheDocument();
+  });
+
   // Template-preview fix (2026-08-11) — the reported bug's exact repro: picking a DIFFERENT template
   // on an otherwise-untouched published post. `dirty` is correctly `true` (an unsaved `templateChoice`
   // change), but `contentDirty` stays `false` — this must show a real templated render, not the

@@ -603,6 +603,9 @@ export interface PostPreviewBranches {
  * dirty, previews through the real template — there is no raw editor-buffer fallback any more.
  *
  * @param input.status - The post's saved status.
+ * @param input.scheduled - A published row still waiting for its go-live time
+ *   ({@link isScheduledPost}). It has no public URL yet (it 404s until then), so it previews exactly
+ *   like a draft.
  * @param input.dirty - Any unsaved change, a pending template choice included.
  * @param input.contentDirty - An unsaved change to what renders (a strict subset of `dirty`).
  * @returns Exactly one `true` flag, for every combination of inputs.
@@ -610,11 +613,13 @@ export interface PostPreviewBranches {
  */
 export function resolvePostPreviewBranches(input: {
   status: "draft" | "published";
+  scheduled?: boolean;
   dirty: boolean;
   contentDirty: boolean;
 }): PostPreviewBranches {
-  const canShowLiveSite = input.status === "published" && !input.dirty;
-  const canShowTemplatePreview = input.status === "published" && !input.contentDirty && !canShowLiveSite;
+  const live = input.status === "published" && !input.scheduled;
+  const canShowLiveSite = live && !input.dirty;
+  const canShowTemplatePreview = live && !input.contentDirty && !canShowLiveSite;
   return { canShowLiveSite, canShowTemplatePreview, canShowPendingContentPreview: !canShowLiveSite && !canShowTemplatePreview };
 }
 

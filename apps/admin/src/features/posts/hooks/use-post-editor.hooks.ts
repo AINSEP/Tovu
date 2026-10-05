@@ -959,7 +959,8 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   // branch 3). Gates whether the debounced effect below submits the hidden form at all, so it must
   // agree with what `PostPreview` draws. Both read `resolvePostPreviewBranches` (`../rules.ts`):
   // their old hand-copied conditions drifted once and left a clean draft's iframe at `about:blank`.
-  const { canShowPendingContentPreview } = resolvePostPreviewBranches({ status, dirty: isDirty, contentDirty });
+  const scheduled = post !== null && isScheduledPost({ status: post.status, publishAt: post.publishAt ?? null }, Date.now());
+  const { canShowPendingContentPreview } = resolvePostPreviewBranches({ status, scheduled, dirty: isDirty, contentDirty });
   useEffect(
     () =>
       schedulePendingContentPreviewSubmit({
@@ -1177,7 +1178,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
     setOverridesThemePage,
     publishAtInput,
     setPublishAtInput,
-    scheduled: post !== null && isScheduledPost({ status: post.status, publishAt: post.publishAt ?? null }, Date.now()),
+    scheduled,
     featuredMediaId,
     setFeaturedMediaId,
     hasSlugCollision,
