@@ -245,16 +245,18 @@ export interface UserManagePanelProps {
   principalId: string;
   manage: UserManageController;
   t: (key: string) => string;
+  /** The table's column count, so the panel row spans it exactly (fewer without Roles/Policies). */
+  colSpan?: number;
 }
 
 /** The expanded "Manage" row's contents (email edit, role/policy grant forms).
  *
  *  Exported so a test can drive it with a hand-built {@link UserManageController} — the seam only
  *  counts as one if something other than `Users` can supply it. */
-export function UserManagePanel({ principalId, manage, t }: UserManagePanelProps) {
+export function UserManagePanel({ principalId, manage, t, colSpan = 6 }: UserManagePanelProps) {
   return (
     <tr>
-      <td colSpan={6}>
+      <td colSpan={colSpan}>
         <div className="notice integrations-form">
           {manage.error ? <span className="save-error">{manage.error}</span> : null}
           <label>
@@ -327,6 +329,8 @@ export interface UserRowProps {
   user: AdminIdentityUser;
   roleById: ReadonlyMap<string, AdminRole>;
   policyById: ReadonlyMap<string, AdminPolicy>;
+  /** Whether the Roles/Policies cells render — see {@link UsersTableProps.showGrants}. */
+  showGrants: boolean;
   actions: UserRowActionsController;
   manage: UserManageController;
   /** This row's own distinct handle base — computed once, across every rendered row, by
@@ -339,7 +343,7 @@ export interface UserRowProps {
 
 /** One user's row plus its optional expanded "Manage" row. `key` lives on the `<UserRow>` element at
  *  the call site, not inside here, since this is no longer the array-mapping callback itself. */
-function UserRow({ user, roleById, policyById, actions, manage, agentBase, t, locale }: UserRowProps) {
+function UserRow({ user, roleById, policyById, showGrants, actions, manage, agentBase, t, locale }: UserRowProps) {
   const roleLabel = formatGrantLabel(user.roleIds, roleById);
   const policyLabel = formatGrantLabel(user.policyIds, policyById);
   return (
@@ -372,8 +376,12 @@ function UserRow({ user, roleById, policyById, actions, manage, agentBase, t, lo
         <td>
           <span className={`status status-${user.status}`}><ServerLabel value={user.status} /></span>
         </td>
-        <td>{roleLabel !== null ? <ServerLabel value={roleLabel} /> : <span className="muted-cell">{t("none")}</span>}</td>
-        <td>{policyLabel !== null ? policyLabel : <span className="muted-cell">{t("none")}</span>}</td>
+        {showGrants ? (
+          <>
+            <td>{roleLabel !== null ? <ServerLabel value={roleLabel} /> : <span className="muted-cell">{t("none")}</span>}</td>
+            <td>{policyLabel !== null ? policyLabel : <span className="muted-cell">{t("none")}</span>}</td>
+          </>
+        ) : null}
         <td>
           {/* Matches Posts.tsx/Pages.tsx's three-dot RowMenu shape — Disable/Enable,
               Manage, and Reset password all live in the menu; there is no standalone
@@ -399,7 +407,7 @@ function UserRow({ user, roleById, policyById, actions, manage, agentBase, t, lo
         </td>
       </tr>
       {actions.expandedId === user.principalId ? (
-        <UserManagePanel principalId={user.principalId} manage={manage} t={t} />
+        <UserManagePanel principalId={user.principalId} manage={manage} t={t} colSpan={showGrants ? 6 : 4} />
       ) : null}
     </>
   );
@@ -411,6 +419,9 @@ export interface UsersTableProps {
    *  `options` through `manage`, so neither consumer has to reach into the other's props. */
   roles: AdminRole[];
   policies: AdminPolicy[];
+  /** `UsersController.canGrant`: without `role.manage` there are no names to resolve grant ids
+   *  against, so the Roles/Policies columns are left out rather than showing raw ids. */
+  showGrants: boolean;
   actions: UserRowActionsController;
   manage: UserManageController;
   t: (key: string) => string;
@@ -419,7 +430,7 @@ export interface UsersTableProps {
 
 /** The users table, or the empty state. Builds the role/policy lookup maps once per render rather
  *  than once per row. */
-function UsersTable({ users, roles, policies, actions, manage, t, locale }: UsersTableProps) {
+function UsersTable({ users, roles, policies, showGrants, actions, manage, t, locale }: UsersTableProps) {
   if (users.length === 0) {
     return (
       <div className="card">
@@ -453,8 +464,12 @@ function UsersTable({ users, roles, policies, actions, manage, t, locale }: User
             <th>{t("Username")}</th>
             <th>{t("Email")}</th>
             <th>{t("Status")}</th>
-            <th>{t("Roles")}</th>
-            <th>{t("Policies")}</th>
+            {showGrants ? (
+              <>
+                <th>{t("Roles")}</th>
+                <th>{t("Policies")}</th>
+              </>
+            ) : null}
             <th>{t("More")}</th>
           </tr>
         </thead>
@@ -465,6 +480,7 @@ function UsersTable({ users, roles, policies, actions, manage, t, locale }: User
                 user={user}
                 roleById={roleById}
                 policyById={policyById}
+                showGrants={showGrants}
                 actions={actions}
                 manage={manage}
                 agentBase={rowHandles[index]!}
@@ -920,6 +936,7 @@ export function Users({ useUsersHook = useWiredUsers, openOwnPasswordReset }: Us
         users={users}
         roles={roles}
         policies={policies}
+        showGrants={canGrant}
         actions={{
           expandedId,
           toggleExpanded,

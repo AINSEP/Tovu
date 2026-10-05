@@ -197,6 +197,53 @@ describe("Username link — a second affordance for the same Manage behavior", (
   });
 });
 
+// A `member.manage`/`user.manage` holder without `role.manage`: the roster loads, `/roles` and
+// `/policies` answer 403. With no names to resolve, the Roles/Policies cells would show raw grant
+// ids, so those columns (and the grant controls) are left out instead.
+describe("Caller without role.manage", () => {
+  function routeFetch(roles: Response | (() => Response), policies: Response | (() => Response)) {
+    const answer = (r: Response | (() => Response)) => (typeof r === "function" ? r() : r);
+    fetchMock.mockImplementation(async (url: string) => {
+      if (String(url).endsWith("/roles")) return answer(roles);
+      if (String(url).endsWith("/policies")) return answer(policies);
+      return jsonResponse({ users: [{ ...ACTIVE_USER, roleIds: ["role-raw-id"], policyIds: ["policy-raw-id"] }] });
+    });
+  }
+  const forbidden = () => jsonResponse({ error: "not authorized for 'role.manage'", code: "FORBIDDEN" }, 403);
+
+  it("shows the roster without the Roles/Policies columns, raw grant ids, or grant controls", async () => {
+    const user = userEvent.setup();
+    routeFetch(forbidden, forbidden);
+    render(<FetchQueryProvider><Users /></FetchQueryProvider>);
+
+    await screen.findByText("alice");
+    const headers = screen.getAllByRole("columnheader").map((th) => th.textContent);
+    expect(headers).toEqual(["Username", "Email", "Status", "More"]);
+    expect(screen.queryByText(/role-raw-id|policy-raw-id/)).not.toBeInTheDocument();
+    expect(screen.queryByText("You do not have permission to do that.")).not.toBeInTheDocument();
+
+    await user.click(within(await openMenu(user, "alice")).getByRole("menuitem", { name: "Manage" }));
+    const saveEmail = screen.getByRole("button", { name: "Save email" });
+    expect(saveEmail.closest("td")).toHaveAttribute("colspan", "4");
+    expect(screen.queryByText("Assign role")).not.toBeInTheDocument();
+    expect(screen.queryByText("Attach policy")).not.toBeInTheDocument();
+  });
+
+  it("keeps the Roles/Policies columns with resolved names when roles and policies load", async () => {
+    routeFetch(
+      jsonResponse({ roles: [{ id: "role-raw-id", name: "Editor" }] }),
+      jsonResponse({ policies: [{ id: "policy-raw-id", name: "Publishing" }] }),
+    );
+    render(<FetchQueryProvider><Users /></FetchQueryProvider>);
+
+    await screen.findByText("alice");
+    const headers = screen.getAllByRole("columnheader").map((th) => th.textContent);
+    expect(headers).toEqual(["Username", "Email", "Status", "Roles", "Policies", "More"]);
+    expect(screen.getByText("Editor")).toBeInTheDocument();
+    expect(screen.getByText("Publishing")).toBeInTheDocument();
+  });
+});
+
 describe("Disable — via RowMenu, still confirm-gated", () => {
   it("opens a ConfirmDialog instead of acting immediately, and only disables on confirm", async () => {
     const user = userEvent.setup();
