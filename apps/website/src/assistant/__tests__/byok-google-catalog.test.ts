@@ -30,9 +30,9 @@ import type { ToolDescriptor } from "@jini-ai/core";
 import { META_TOOL_DESCRIPTORS } from "../byok-tool-surface.js";
 import { googleParametersOf } from "@jini-ai/agent-runtime/providers/tool-turn";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
+import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
-import type { RouteDeps } from "../../server/routes/types.js";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -54,7 +54,7 @@ const FORBIDDEN_KEYS = ["additionalProperties", "$schema", "$ref", "$defs", "con
  * this file only reads each registration's published `descriptor.inputSchema`, so the handlers'
  * dependencies never run. Mirrors `tool-registrations.contracts.test.ts`'s own `fakeRouteDeps`.
  */
-function fakeRouteDeps(): RouteDeps {
+function fakeRouteDeps(): RegistryDepsWithoutLimiter {
   const deps = {
     workspaceId: "ws-google-catalog",
     clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => "2026-08-05T00:00:00.000Z" },
@@ -74,7 +74,7 @@ function fakeRouteDeps(): RouteDeps {
     },
     outbox: { enqueue: async () => {} },
   };
-  return deps as unknown as RouteDeps;
+  return deps as unknown as RegistryDepsWithoutLimiter;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -140,7 +140,7 @@ function assertGeminiValid(descriptor: ToolDescriptor): number {
 }
 
 test("EVERY wired tool's outbound Gemini schema is structurally valid — the whole catalog, not a sample", () => {
-  const descriptors = buildAssistantToolRegistrations(fakeRouteDeps(), undefined, { contributions }).map((registration) => registration.descriptor);
+  const descriptors = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: fakeRouteDeps() }), undefined, { contributions }).map((registration) => registration.descriptor);
 
   // A guard on the guard: if the registry ever comes back empty (a deps-shape change silently
   // breaking the build above, say), every assertion below would vacuously pass and this file would
@@ -183,7 +183,7 @@ test("the meta-tool set is the payload reduction it claims to be, measured again
       "utf8",
     );
 
-  const full = wire(buildAssistantToolRegistrations(fakeRouteDeps(), undefined, { contributions }).map((r) => r.descriptor));
+  const full = wire(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: fakeRouteDeps() }), undefined, { contributions }).map((r) => r.descriptor));
   const meta = wire(META_TOOL_DESCRIPTORS);
 
   // The claim this change was approved on was a ~134x reduction. Asserted as a floor with real

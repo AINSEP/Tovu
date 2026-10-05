@@ -36,6 +36,7 @@ import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
 import { saveExternalMcpServer } from "../external-mcp-store.js";
 import { InMemoryMcpSession } from "../mcp-federation/adapter.memory.js";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -776,7 +777,7 @@ const FEDERATION_WORKSPACE = "ws-federation-surface";
  *  not a hand-built `ResolvedFederatedConnection`. */
 async function saveEchoServerRow(repo: InMemoryExternalMcpServerRepo, sealer: AesGcmSecretSealer, keyring: InMemoryKeyring, allowedToolNames = "echo"): Promise<void> {
   await saveExternalMcpServer(
-    { repo, sealer, keyring, clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => "2026-09-24T00:00:00.000Z" } },
+    { repo, sealer, keyring, clock: createFakeClock({ startIso: "2026-09-24T00:00:00.000Z" }) },
     {
       workspaceId: FEDERATION_WORKSPACE,
       serverId: "echo-server",

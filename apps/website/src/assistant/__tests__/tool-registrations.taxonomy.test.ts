@@ -20,8 +20,8 @@ import {
   InMemoryTermRepo,
   noopStampWatermark,
 } from "../../features/taxonomy/index.js";
-import type { RouteDeps } from "../../server/routes/types.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
+import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeTaxonomyTools, taxonomyDerivedRisk } from "../../features/taxonomy/tool-registrations.js";
 
@@ -94,11 +94,11 @@ function fakeRouteDeps(options: { allow?: boolean; deny?: string[] } = {}) {
     gatedMutations: { gatewayDeps: { clock, idGen, authorize, tokens: new InMemoryTokenStore() } },
   };
 
-  return { deps: deps as unknown as RouteDeps, taxonomyRepo, termRepo, entryTermRepo, taxonomyRevisionRepo, postRepo, contentTypeRepo, authorizeCalls };
+  return { deps: deps as unknown as RegistryDepsWithoutLimiter, taxonomyRepo, termRepo, entryTermRepo, taxonomyRevisionRepo, postRepo, contentTypeRepo, authorizeCalls };
 }
 
 /** Seeds one real 'post' row through the real chokepoint, for assign-terms/merge-overlap tests. */
-async function seedPost(deps: RouteDeps, title = "My Post"): Promise<string> {
+async function seedPost(deps: RegistryDepsWithoutLimiter, title = "My Post"): Promise<string> {
   const routeDeps = deps as unknown as { postRepo: InMemoryPostRepo; clock: { nowIso: () => string }; idGen: { newId: () => string } };
   const id = routeDeps.idGen.newId();
   const { post } = await createPost({
@@ -118,11 +118,11 @@ function catalogEntry(toolId: string): TaxonomyAgentToolDefinition {
   return entry;
 }
 
-function taxonomyRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(deps, undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("taxonomy_") || r.descriptor.id === "content_read.taxonomy").map((r) => [r.descriptor.id, r]));
+function taxonomyRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
+  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("taxonomy_") || r.descriptor.id === "content_read.taxonomy").map((r) => [r.descriptor.id, r]));
 }
 
-function wired(toolId: string, deps: RouteDeps): ToolRegistration {
+function wired(toolId: string, deps: RegistryDepsWithoutLimiter): ToolRegistration {
   const found = taxonomyRegistrations(deps).get(toolId);
   assert.ok(found, `expected '${toolId}' to be wired`);
   return found;
@@ -329,7 +329,7 @@ test("taxonomy_unassign_terms: calls authorize() with admin.taxonomy.manage (una
 });
 
 /** A live `recipe` collection holding one entry, plus a taxonomy with two terms made through the tools. */
-async function seedTaggableEntry(deps: RouteDeps, contentTypeRepo: InMemoryContentTypeRepo) {
+async function seedTaggableEntry(deps: RegistryDepsWithoutLimiter, contentTypeRepo: InMemoryContentTypeRepo) {
   const entryRepo = (deps as unknown as { entryRepo: InMemoryEntryRepo }).entryRepo;
   await contentTypeRepo.save({ workspaceId: WORKSPACE_ID, key: "recipe", label: "Recipes", fields: [], status: "active", version: 1, tombstonedAt: null });
   await entryRepo.save({
@@ -523,7 +523,7 @@ test("workflow: create a taxonomy, create two terms, assign both to a post, plan
 const MERGE_TOOL = "taxonomy_execute_merge_term";
 
 /** Two terms, a post tagged with the first — the state a merge acts on. */
-async function seedMergeableTerms(deps: RouteDeps): Promise<{ taxonomyId: string; fromTermId: string; intoTermId: string; postId: string }> {
+async function seedMergeableTerms(deps: RegistryDepsWithoutLimiter): Promise<{ taxonomyId: string; fromTermId: string; intoTermId: string; postId: string }> {
   const created = (await wired("taxonomy_create_taxonomy", deps).handler(executionContext({ name: "Topic", hierarchical: false }))) as { taxonomy: { id: string } };
   const taxonomyId = created.taxonomy.id;
   const from = (await wired("taxonomy_create_term", deps).handler(executionContext({ taxonomyId, name: "Alpha" }))) as { term: { id: string } };
@@ -537,9 +537,9 @@ async function seedMergeableTerms(deps: RouteDeps): Promise<{ taxonomyId: string
  * Starts the merge against one exchange store, waits for its dialog, and hands back the answer seam.
  * `answer(principalId, decision)` posts a click the way `mcp-ui-tool-calls-route.ts` does.
  */
-async function startMerge(deps: RouteDeps, input: Record<string, unknown>) {
+async function startMerge(deps: RegistryDepsWithoutLimiter, input: Record<string, unknown>) {
   const surfaceExchanges = createSurfaceExchangeStore();
-  const tool = buildAssistantToolRegistrations(deps, { surfaceExchanges }, { contributions }).find((r) => r.descriptor.id === MERGE_TOOL);
+  const tool = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaceExchanges }, { contributions }).find((r) => r.descriptor.id === MERGE_TOOL);
   assert.ok(tool, `expected '${MERGE_TOOL}' to be wired`);
   const emitted: unknown[] = [];
   const pending = tool.handler(executionContext(input), { emitSurface: async (s) => void emitted.push(s) });
@@ -602,7 +602,7 @@ test(`${MERGE_TOOL}: nothing in the model's input can stand in for the click —
   const { deps } = fakeRouteDeps();
   const { fromTermId, intoTermId } = await seedMergeableTerms(deps);
   const surfaceExchanges = createSurfaceExchangeStore();
-  const tool = buildAssistantToolRegistrations(deps, { surfaceExchanges }, { contributions }).find((r) => r.descriptor.id === MERGE_TOOL);
+  const tool = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaceExchanges }, { contributions }).find((r) => r.descriptor.id === MERGE_TOOL);
   assert.ok(tool);
 
   for (const key of ["confirm", "confirmationToken"]) {

@@ -10,6 +10,7 @@ import { TRASH_PERMISSION_BY_ENTITY_TYPE } from "../permissions.js";
 import { buildTrashRegistry } from "../registry.js";
 import { buildTrashRegistrations } from "../tool-registrations.js";
 import type { PurgeReport, RestoreOutcome, TrashActor, TrashItem, TrashPort } from "@jini-ai/cms/trash";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /** The real `form` entry (registry-derived permission), same source `deps.ts` composes from —
  *  needed because "form" -> "admin.forms.manage" is one of this file's pinned pairings, and that
@@ -126,7 +127,7 @@ function harness(
 
   const registrations = buildTrashRegistrations({
     workspaceId: WS,
-    clock: { nowIso: () => NOW, nowMs: () => Date.parse(NOW) },
+    clock: createFakeClock({ startIso: NOW }),
     trash,
     userRepo: {
       ...fakeUserRepo(optional.users ?? [{ principalId: "principal-1", username: "alice" }]),

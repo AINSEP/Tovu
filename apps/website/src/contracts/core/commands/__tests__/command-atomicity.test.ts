@@ -12,6 +12,7 @@ import {
   type DomainEvent,
 } from "@jini-ai/cms/core";
 import { InMemoryChangeSetRepo } from "../repo.memory.js";
+import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
 /**
  * @file SPEC-001 REQ-01 / BR-04 / EC-08 / AC-17 — gateway atomicity.
@@ -34,7 +35,7 @@ function counterIdGen() {
 }
 
 function seededPost(): PostRecord {
-  return {
+  return buildPostRecord({
     id: POST_ID,
     workspaceId: WORKSPACE,
     title: "Original title",
@@ -43,7 +44,7 @@ function seededPost(): PostRecord {
     status: "draft",
     updatedAt: "2026-07-01T00:00:00.000Z",
     version: 1,
-  };
+  });
 }
 
 /** A no-op stand-in for `updatePost`'s own required `outbox` dep (SPEC-008/ADR-PIPE-008 Decision §5) — this

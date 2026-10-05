@@ -9,6 +9,7 @@ import test from "node:test";
 
 
 import { buildAssistantToolRegistrations } from "#src/assistant/tool-registrations";
+import { toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 import {
   listDuplicateResourceHandlers,
   resetDuplicateResourceHandlersForTests,
@@ -180,7 +181,7 @@ function buildBaseRole(routeDeps: NewsletterRouteDeps): RoleSnapshot {
   resetPublishContentContributorsForTests();
   resetDuplicateResourceHandlersForTests();
   installFirstPartyToolContributors({ contributions });
-  const ids = new Set(buildAssistantToolRegistrations(routeDeps, undefined, { contributions }).map((r) => r.descriptor.id));
+  const ids = new Set(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps }), undefined, { contributions }).map((r) => r.descriptor.id));
   return { ids, publishContentTypes: currentPublishContentTypes(), duplicateResources: currentDuplicateResources() };
 }
 

@@ -13,6 +13,7 @@ import type { PackedEntity } from "#src/features/publish-content/type-registry";
 import { contentHash } from "#src/features/publish-content/content-hash";
 import { createFileBlobIndex } from "#src/features/publish-content/file-blob-index";
 import { contributeThemeFilesPublish, packThemeFilesEntities } from "../publish-content.js";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 function makeThemesDir(): string {
   return mkdtempSync(path.join(tmpdir(), "theme-publish-content-"));
@@ -97,7 +98,7 @@ test("a theme.json name labels the row without touching the packed state or its 
     // …and the destination half, re-hashing the same tree, agrees: the row can never look changed.
     const handler = contributeThemeFilesPublish().build({
       workspaceId: "ws1",
-      clock: { nowIso: () => "2026-09-25T00:00:00.000Z" },
+      clock: createFakeClock({ startIso: "2026-09-25T00:00:00.000Z" }),
       idGen: { newId: () => "id1" },
       ports: { "theme-files": { themesDir } },
     });
@@ -195,7 +196,7 @@ test("fills the file blob index as it packs, keyed by each file's real sha256", 
 
     const fileBlobIndex = createFileBlobIndex();
     const handler = contributeThemeFilesPublish().build({
-      workspaceId: "ws1", clock: { nowIso: () => "2026-09-25T00:00:00.000Z" },
+      workspaceId: "ws1", clock: createFakeClock({ startIso: "2026-09-25T00:00:00.000Z" }),
       idGen: { newId: () => "id1" }, ports: { "theme-files": { themesDir, fileBlobIndex } },
     });
     const entities: PackedEntity[] = [];
@@ -236,7 +237,7 @@ test("the handler's listSkipped() reports a whole-tree refusal by its exact Skip
 
     const handler = contributeThemeFilesPublish().build({
       workspaceId: "ws1",
-      clock: { nowIso: () => "2026-09-25T00:00:00.000Z" },
+      clock: createFakeClock({ startIso: "2026-09-25T00:00:00.000Z" }),
       idGen: { newId: () => "id1" },
       ports: { "theme-files": { themesDir } },
     });
@@ -264,7 +265,7 @@ test("the handler's listSkipped() names a refused tree by its theme.json name wh
 
     const handler = contributeThemeFilesPublish().build({
       workspaceId: "ws1",
-      clock: { nowIso: () => "2026-09-25T00:00:00.000Z" },
+      clock: createFakeClock({ startIso: "2026-09-25T00:00:00.000Z" }),
       idGen: { newId: () => "id1" },
       ports: { "theme-files": { themesDir } },
     });
@@ -278,7 +279,7 @@ test("the handler's listSkipped() names a refused tree by its theme.json name wh
 test("the handler's listSkipped() is empty when there is no themesDir configured", async () => {
   const handler = contributeThemeFilesPublish().build({
     workspaceId: "ws1",
-    clock: { nowIso: () => "2026-09-25T00:00:00.000Z" },
+    clock: createFakeClock({ startIso: "2026-09-25T00:00:00.000Z" }),
     idGen: { newId: () => "id1" },
     ports: {},
   });

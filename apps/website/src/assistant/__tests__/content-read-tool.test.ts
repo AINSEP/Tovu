@@ -30,6 +30,7 @@ import { installFirstPartyToolContributors } from "../../server/runtime/composit
 import { RETIRED_READ_TOOL_TO_CARD, currentToolIdFor } from "../content-read-tool.js";
 import { TOOL_SEARCH_KEYWORDS } from "../tool-search-keywords.js";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
+import { toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -112,7 +113,7 @@ const EXPECTED_CARD_IDS: readonly string[] = [
 ];
 
 function idsOf(options?: { readonly includeContentReadCollapse?: boolean }): Set<string> {
-  return new Set(buildAssistantToolRegistrations(createRouteDeps(), undefined, { contributions, ...options }).map((r) => r.descriptor.id));
+  return new Set(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, { contributions, ...options }).map((r) => r.descriptor.id));
 }
 
 test("the real composition publishes exactly the 28 content_read cards", () => {
@@ -162,7 +163,7 @@ test("every retired member's SEARCH VOCABULARY survives into its card's indexed 
   // own vocabulary into the card's indexed text through that key. Those keys look like stranded
   // references to a retired id — they are the opposite, and re-keying them onto the card ids would
   // silently drop every one of these words from the FTS index with no error anywhere.
-  const byId = new Map(buildAssistantToolRegistrations(createRouteDeps(), undefined, { contributions }).map((r) => [r.descriptor.id, r]));
+  const byId = new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, { contributions }).map((r) => [r.descriptor.id, r]));
 
   const checked: string[] = [];
   for (const [memberId, cardId] of RETIRED_READ_TOOL_TO_CARD) {

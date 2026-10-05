@@ -7,6 +7,7 @@ import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { installFirstPartyToolContributors } from "#src/server/runtime/composition/tool-catalog-manifest";
 
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
+import { toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 import { buildToolCatalogQuery } from "../tool-catalog-query.js";
 
 const contributions = {
@@ -33,7 +34,7 @@ test("permanent deletes rank in the top three for owner vocabulary", async () =>
   const deps = createRouteDeps();
   await deps.identityReady;
   const registry = createToolRegistry({});
-  for (const r of buildAssistantToolRegistrations(deps, undefined, { contributions })) registry.register(r);
+  for (const r of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions })) registry.register(r);
   const catalog = buildToolCatalogQuery(registry);
   const misses: string[] = [];
   for (const [id, queries] of Object.entries(QUERIES)) {

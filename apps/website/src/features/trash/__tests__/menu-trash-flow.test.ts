@@ -18,6 +18,7 @@ import { withFollowUps } from "@jini-ai/cms/trash";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
 import { createTrashService } from "@jini-ai/cms/trash";
 import type { TrashAdapter, TrashPort } from "@jini-ai/cms/trash";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**
  * @file A `menu` moved to the Trash through the generic path (`moveToTrash`), seen from every
@@ -130,7 +131,7 @@ async function trashMenu(h: Harness, id: string, expectedVersion = 1): Promise<v
       trash: h.trash,
       db: createSqliteTrashDb({ db: h.db }),
       authorize: async () => ({ allowed: true, reason: "matched" }),
-      clock: { nowMs: () => Date.parse(AT2), nowIso: () => AT2 },
+      clock: createFakeClock({ startIso: AT2 }),
     }
   );
   assert.deepEqual(outcome, { ok: true, version: expectedVersion + 1 });

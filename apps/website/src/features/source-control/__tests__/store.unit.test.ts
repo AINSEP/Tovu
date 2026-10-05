@@ -21,6 +21,7 @@ import {
   updateSourceControlCredential,
   type SourceControlCredentialWriteDeps,
 } from "../store.js";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /** Always fails — simulates a missing `TOVU_SITE_KEY` without touching real env state.
  *  Mirrors `store.resolve.unit.test.ts`'s own local `BrokenKeyring` (kept local to each test file, not
@@ -79,7 +80,7 @@ function makeDeps(overrides: Partial<SourceControlCredentialWriteDeps> = {}): So
     repo: new InMemorySourceControlCredentialSetRepo(),
     sealer: new AesGcmSecretSealer(keyring),
     keyring,
-    clock: { nowMs: () => Date.parse(NOW), nowIso: () => NOW },
+    clock: createFakeClock({ startIso: NOW }),
     idGen: { newId: () => `cred-${(counter += 1)}` },
     fetchFn: neverCallRealNetwork(),
     loadSourceControlProviders: githubFromSource,

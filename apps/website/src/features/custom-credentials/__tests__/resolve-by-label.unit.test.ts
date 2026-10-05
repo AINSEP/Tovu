@@ -11,6 +11,7 @@ import {
   resolveCustomCredentialByLabel,
   type CustomCredentialWriteDeps,
 } from "../store.js";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**
  * @file `resolveCustomCredentialByLabel` — the first real decrypting reader for
@@ -42,7 +43,7 @@ function makeWriteDeps(overrides: Partial<CustomCredentialWriteDeps> = {}): Cust
     repo: new InMemoryCustomCredentialSetRepo(),
     sealer: new AesGcmSecretSealer(keyring),
     keyring,
-    clock: { nowMs: () => Date.parse("2026-08-31T00:00:00.000Z"), nowIso: () => "2026-08-31T00:00:00.000Z" },
+    clock: createFakeClock({ startIso: "2026-08-31T00:00:00.000Z" }),
     idGen: (() => {
       let n = 0;
       return { newId: () => `cred-${++n}` };

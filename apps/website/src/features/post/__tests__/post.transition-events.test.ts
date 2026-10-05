@@ -4,6 +4,7 @@ import test from "node:test";
 import type { DomainEvent, OutboxPort } from "@jini-ai/cms/core";
 import { updatePost } from "../post.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
+import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
 /**
  * @file T004 — failing-first certification of `updatePost`'s 4-row
@@ -29,7 +30,7 @@ class RecordingOutbox implements OutboxPort {
 const clock = { nowMs: () => Date.parse("2026-07-13T00:00:00.000Z") };
 
 function seedPost(overrides: Partial<Parameters<InMemoryPostRepo["save"]>[0]> = {}) {
-  return {
+  return buildPostRecord({
     id: "post-1",
     workspaceId: "workspace-1",
     title: "Hello World",
@@ -40,7 +41,7 @@ function seedPost(overrides: Partial<Parameters<InMemoryPostRepo["save"]>[0]> = 
     updatedAt: "2026-07-12T00:00:00.000Z",
     version: 1,
     ...overrides,
-  };
+  });
 }
 
 test("updatePost transition table: not-published -> published emits exactly one entry.published event", async () => {

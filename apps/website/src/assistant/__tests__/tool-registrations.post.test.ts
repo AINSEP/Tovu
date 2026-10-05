@@ -12,10 +12,11 @@ import { InMemoryEventBus, InMemoryOutbox } from "../../contracts/core/events/in
 import { InMemoryPostRepo, InMemoryPostSearchIndex } from "../../features/post/index.js";
 import { type AgentToolDefinition as PostAgentToolDefinition } from "@jini-ai/core";
 import { postAgentToolCatalog } from "../../features/post/agent-tools.js";
-import type { RouteDeps } from "../../server/routes/types.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
+import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributePostTools } from "../../features/post/tool-registrations.js";
+import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -79,7 +80,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
     },
   };
 
-  return { deps: deps as unknown as RouteDeps, postRepo, changeSets, outbox, bus, authorizeCalls };
+  return { deps: deps as unknown as RegistryDepsWithoutLimiter, postRepo, changeSets, outbox, bus, authorizeCalls };
 }
 
 function executionContext(input: Record<string, unknown> | undefined): ToolExecutionContext {
@@ -92,19 +93,19 @@ function catalogEntry(toolId: string): PostAgentToolDefinition {
   return entry;
 }
 
-function postRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
+function postRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
   // `content_read.content_post` (2026-09-08) is the collapsed replacement for content_post_get/
   // content_post_list — see assistant/content-read-tool.ts. Captured here alongside every other
   // "content_post_"-prefixed id so `wired(...)` keeps working for callers that ask for either the
   // old ids (still true for create/delete/search/update, never collapsed) or the new merged one.
   return new Map(
-    buildAssistantToolRegistrations(deps, undefined, { contributions })
+    buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions })
       .filter((r) => r.descriptor.id.startsWith("content_post_") || r.descriptor.id === "content_read.content_post")
       .map((r) => [r.descriptor.id, r]),
   );
 }
 
-function wired(toolId: string, deps: RouteDeps): ToolRegistration {
+function wired(toolId: string, deps: RegistryDepsWithoutLimiter): ToolRegistration {
   const found = postRegistrations(deps).get(toolId);
   assert.ok(found, `expected '${toolId}' to be wired`);
   return found;
@@ -379,7 +380,7 @@ test("content_post_list: a denied principal is rejected", async () => {
 
 test("content_post_get: calls authorize() with content.read, inline", async () => {
   const { deps, postRepo, authorizeCalls } = fakeRouteDeps();
-  await postRepo.save({ id: "p1", workspaceId: WORKSPACE_ID, title: "T", slug: "t", bodyJson: EMPTY_DOC, status: "draft", kind: "post", updatedAt: NOW, version: 1 });
+  await postRepo.save(buildPostRecord({ id: "p1", workspaceId: WORKSPACE_ID, title: "T", slug: "t", bodyJson: EMPTY_DOC, status: "draft", kind: "post", updatedAt: NOW, version: 1 }));
   authorizeCalls.length = 0;
 
   await wired("content_read.content_post", deps).handler(executionContext({ id: "p1", kind: "post" }));
@@ -415,7 +416,7 @@ test("content_post_create: a denied principal is rejected and nothing is written
 
 test("content_post_update: a denied principal is rejected and nothing is written", async () => {
   const { deps, postRepo } = fakeRouteDeps({ allow: false });
-  await postRepo.save({ id: "p1", workspaceId: WORKSPACE_ID, title: "T", slug: "t", bodyJson: EMPTY_DOC, status: "draft", kind: "post", updatedAt: NOW, version: 1 });
+  await postRepo.save(buildPostRecord({ id: "p1", workspaceId: WORKSPACE_ID, title: "T", slug: "t", bodyJson: EMPTY_DOC, status: "draft", kind: "post", updatedAt: NOW, version: 1 }));
 
   await assert.rejects(
     () => wired("content_post_update", deps).handler(executionContext({ id: "p1", kind: "post", title: "T2", slug: "t", bodyJson: EMPTY_DOC, status: "draft" })),
@@ -449,7 +450,7 @@ test("content_post_create rejects a malformed slug, with the schema attached for
 
 test("content_post_update rejects a non-JSON-object bodyJson", async () => {
   const { deps, postRepo } = fakeRouteDeps();
-  await postRepo.save({ id: "p1", workspaceId: WORKSPACE_ID, title: "T", slug: "t", bodyJson: EMPTY_DOC, status: "draft", kind: "post", updatedAt: NOW, version: 1 });
+  await postRepo.save(buildPostRecord({ id: "p1", workspaceId: WORKSPACE_ID, title: "T", slug: "t", bodyJson: EMPTY_DOC, status: "draft", kind: "post", updatedAt: NOW, version: 1 }));
 
   await assert.rejects(
     () => wired("content_post_update", deps).handler(executionContext({ id: "p1", kind: "post", title: "T", slug: "t", bodyJson: "not an object", status: "draft" })),
@@ -459,14 +460,14 @@ test("content_post_update rejects a non-JSON-object bodyJson", async () => {
 
 test("content_post_get: kind:'page' rejects a row whose actual kind is 'post' (the guarded, pages/get-by-id.ts-mirroring branch)", async () => {
   const { deps, postRepo } = fakeRouteDeps();
-  await postRepo.save({ id: "p1", workspaceId: WORKSPACE_ID, title: "T", slug: "t", bodyJson: EMPTY_DOC, status: "draft", kind: "post", updatedAt: NOW, version: 1 });
+  await postRepo.save(buildPostRecord({ id: "p1", workspaceId: WORKSPACE_ID, title: "T", slug: "t", bodyJson: EMPTY_DOC, status: "draft", kind: "post", updatedAt: NOW, version: 1 }));
 
   await assert.rejects(() => wired("content_read.content_post", deps).handler(executionContext({ id: "p1", kind: "page" })), /page 'p1' was not found/);
 });
 
 test("content_post_get: kind:'post' still returns a row whose actual kind is 'page' (the disclosed, posts/get-by-id.ts-mirroring legacy laxity)", async () => {
   const { deps, postRepo } = fakeRouteDeps();
-  await postRepo.save({ id: "pg1", workspaceId: WORKSPACE_ID, title: "T", slug: "t", bodyJson: EMPTY_DOC, status: "draft", kind: "page", updatedAt: NOW, version: 1 });
+  await postRepo.save(buildPostRecord({ id: "pg1", workspaceId: WORKSPACE_ID, title: "T", slug: "t", bodyJson: EMPTY_DOC, status: "draft", kind: "page", updatedAt: NOW, version: 1 }));
 
   const out = (await wired("content_read.content_post", deps).handler(executionContext({ id: "pg1", kind: "post" }))) as { post: { id: string; kind: string } };
   assert.equal(out.post.id, "pg1");
@@ -584,7 +585,7 @@ test("workflow (page): create a page, give it a real TipTap body, publish it, th
 
 /** Seeds three findable rows through the real create/update tools, so what is searched is what the
  * write path actually persisted rather than a record hand-built past it. */
-async function seedSearchCorpus(deps: RouteDeps): Promise<Record<string, string>> {
+async function seedSearchCorpus(deps: RegistryDepsWithoutLimiter): Promise<Record<string, string>> {
   const body = (text: string) => ({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text }] }] });
   const ids: Record<string, string> = {};
 
@@ -606,7 +607,7 @@ interface SearchResult {
   hits: Array<{ id: string; kind: string; title: string; slug: string; status: string; updatedAt: string; snippet: string; score: number }>;
 }
 
-async function search(deps: RouteDeps, input: Record<string, unknown>): Promise<SearchResult> {
+async function search(deps: RegistryDepsWithoutLimiter, input: Record<string, unknown>): Promise<SearchResult> {
   return (await wired("content_post_search", deps).handler(executionContext(input))) as SearchResult;
 }
 

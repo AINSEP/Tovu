@@ -5,6 +5,7 @@ import { InMemoryPostRepo, type PostRecord, type PostRepoPort } from "../../post
 import { EntityNotLiveError } from "@jini-ai/cms/core";
 import { SeoConcurrentWriteError } from "../errors.js";
 import { setEntrySeoOverrides } from "../write-service.js";
+import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
 /**
  * @file SEO-01 (fable bugs audit, 2026-09-06) — `setEntrySeoOverrides` is the third compare-less
@@ -34,7 +35,7 @@ const noopInvalidate = () => {};
 const clock = { nowMs: () => Date.parse("2026-09-18T00:00:00.000Z") };
 
 function seedPost(): PostRecord {
-  return {
+  return buildPostRecord({
     id: ENTRY_ID,
     workspaceId: WORKSPACE,
     title: "Hello World",
@@ -45,7 +46,7 @@ function seedPost(): PostRecord {
     updatedAt: "2026-09-07T00:00:00.000Z",
     version: 1,
     seoExtJson: null,
-  };
+  });
 }
 
 const CONCURRENT_BODY = {

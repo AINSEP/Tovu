@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { buildAssistantToolRegistrations } from "#src/assistant/tool-registrations";
+import { toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 import { isMcpUiToolCallPermitted } from "#src/assistant/mcp-ui-tool-calls";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { installFirstPartyToolContributors } from "#src/server/runtime/composition/tool-catalog-manifest";
@@ -25,7 +26,7 @@ for (const id of IDS) {
   test(`${id} is registered as a durable mutation and its card can answer only an open exchange`, () => {
     contributions.contributors.clear({});
     installFirstPartyToolContributors({ contributions });
-    const registration = buildAssistantToolRegistrations(createRouteDeps(), undefined, { contributions }).find(r => r.descriptor.id === id);
+    const registration = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, { contributions }).find(r => r.descriptor.id === id);
     assert.ok(registration, `Missing confirmed permanent-delete tool: ${id}`);
     assert.equal(registration.descriptor.readOnly, false);
     assert.equal(isMcpUiToolCallPermitted(id, true), true);
@@ -64,7 +65,7 @@ for (const [id, input] of [
         return { purged: 1, results: [{ id: "row-1", outcome: "purged" as const }] };
       } },
     };
-    const registration = buildAssistantToolRegistrations(routeDeps, { surfaceExchanges: store }, { contributions }).find(r => r.descriptor.id === id)!;
+    const registration = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps }), { surfaceExchanges: store }, { contributions }).find(r => r.descriptor.id === id)!;
     const ctx = { executionId: "e", principal: { id: "owner" }, run: { id: "r" }, input, signal: new AbortController().signal };
     await assert.rejects(registration.handler(ctx), { message: `PERMANENT_DELETE_NO_CONFIRMATION_CHANNEL: ${id}: this execution context has no interactive confirmation channel (no emitSurface), so a human cannot approve this action here. Nothing was changed.` });
     assert.equal(purges, 0);
@@ -84,7 +85,7 @@ for (const [id, input] of [
 }
 
 test("new purge capabilities cannot enter the catalog outside the reviewed confirmed-delete set", () => {
-  const registrations = buildAssistantToolRegistrations(createRouteDeps(), undefined, { contributions });
+  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, { contributions });
   const unreviewed = registrations.map(r => r.descriptor.id)
     .filter(id => /purge|hard_?delete|permanently/i.test(id) && !IDS.includes(id));
   assert.deepEqual(unreviewed, [], "A new permanent-purge capability must join the confirmed-call contract tests.");

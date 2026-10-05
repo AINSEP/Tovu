@@ -25,8 +25,8 @@ import {
   InMemoryBlobStore,
   InMemoryTransformDefinitionRepo,
 } from "../index.js";
-import type { RouteDeps } from "../../../server/routes/types.js";
 import { buildAssistantToolRegistrations } from "../../../assistant/tool-registrations.js";
+import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeMediaTools } from "../tool-registrations.js";
 
@@ -100,13 +100,13 @@ function fakeRouteDeps() {
     mediaContentTypeStore,
     transformDefinitionRepo,
   };
-  return { deps: deps as unknown as RouteDeps, mediaContentTypeStore, mediaRepo, assetBlobRepo, blobStore };
+  return { deps: deps as unknown as RegistryDepsWithoutLimiter, mediaContentTypeStore, mediaRepo, assetBlobRepo, blobStore };
 }
 
 /** Finds the real, already-wired `media_upload_asset` registration — the same handler this bridge
  *  must delegate to, never a second implementation of it. */
-function wiredMediaUploadAsset(deps: RouteDeps): ToolRegistration {
-  const found = buildAssistantToolRegistrations(deps, undefined, { contributions }).find((r) => r.descriptor.id === "media_upload_asset");
+function wiredMediaUploadAsset(deps: RegistryDepsWithoutLimiter): ToolRegistration {
+  const found = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).find((r) => r.descriptor.id === "media_upload_asset");
   assert.ok(found, "expected 'media_upload_asset' to be wired");
   return found;
 }

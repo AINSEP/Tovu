@@ -11,6 +11,7 @@ import {
   SourceControlCredentialSecretStoreUnconfiguredError,
   type SourceControlCredentialWriteDeps,
 } from "../store.js";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**
  * @file `resolveDefaultForSourceControl` — the first decrypting read this feature has ever had (see
@@ -47,7 +48,7 @@ function makeDeps(overrides: Partial<SourceControlCredentialWriteDeps> = {}): So
     repo: new InMemorySourceControlCredentialSetRepo(),
     sealer: new AesGcmSecretSealer(keyring),
     keyring,
-    clock: { nowMs: () => Date.parse(NOW), nowIso: () => NOW },
+    clock: createFakeClock({ startIso: NOW }),
     idGen: { newId: () => `src-cred-${(counter += 1)}` },
     ...overrides,
   };

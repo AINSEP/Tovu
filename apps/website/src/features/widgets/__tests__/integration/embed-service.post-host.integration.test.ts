@@ -12,6 +12,7 @@ import { WidgetInstanceNotFoundError } from "../../errors.js";
 import { createWidgetInstance, type WidgetWriteServiceDeps } from "../../write-service.js";
 import { buildWidgetAreaFieldsJson, emptyWidgetAreaDoc, ensureWidgetContentTypesRegistered } from "../../entry-payload.js";
 import { WIDGET_AREA_CONTENT_TYPE } from "../../types.js";
+import { InMemoryOutbox } from "#src/contracts/core/events/index";
 
 /**
  * @file RED regression suite for the bug captured in
@@ -55,7 +56,7 @@ function makeDeps(repos: ReturnType<typeof makeSharedRepos>, overrides: Partial<
     clock: { nowMs: () => Date.parse(NOW) },
     ids: { newId: () => `id-${++idCounter}` },
     authorize: async () => ({ allowed: true, reason: "test: always allow" }),
-    outbox: { enqueue: async () => undefined },
+    outbox: new InMemoryOutbox(),
     ...overrides,
   } as EmbedServiceDeps;
 }
@@ -68,7 +69,7 @@ function widgetWriteDeps(repos: ReturnType<typeof makeSharedRepos>): WidgetWrite
     clock: { nowMs: () => Date.parse(NOW) },
     ids: { newId: () => `id-${++idCounter}` },
     authorize: async () => ({ allowed: true, reason: "test: always allow" }),
-    outbox: { enqueue: async () => undefined },
+    outbox: new InMemoryOutbox(),
   };
 }
 
@@ -111,11 +112,11 @@ function embedsIn(bodyJson: unknown): Array<{ placementId: string; widgetEntryId
 
 async function makeWidgetAreaHost(repos: ReturnType<typeof makeSharedRepos>): Promise<string> {
   await ensureWidgetContentTypesRegistered({
-    deps: { contentTypeRepo: repos.contentTypeRepo, clock: { nowMs: () => Date.parse(NOW) }, ids: { newId: () => `ct-${++idCounter}` }, outbox: { enqueue: async () => undefined } },
+    deps: { contentTypeRepo: repos.contentTypeRepo, clock: { nowMs: () => Date.parse(NOW) }, ids: { newId: () => `ct-${++idCounter}` }, outbox: new InMemoryOutbox() },
     workspaceId: WORKSPACE_ID,
   });
   const areaCreated = await createEntry({
-    deps: { entryRepo: repos.entryRepo, contentTypeRepo: repos.contentTypeRepo, clock: { nowMs: () => Date.parse(NOW) }, ids: { newId: () => `area-${++idCounter}` }, authorize: PRE_AUTHORIZED, outbox: { enqueue: async () => undefined } },
+    deps: { entryRepo: repos.entryRepo, contentTypeRepo: repos.contentTypeRepo, clock: { nowMs: () => Date.parse(NOW) }, ids: { newId: () => `area-${++idCounter}` }, authorize: PRE_AUTHORIZED, outbox: new InMemoryOutbox() },
     input: {
       actorId: ACTOR.principalId,
       workspaceId: WORKSPACE_ID,

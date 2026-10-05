@@ -12,6 +12,7 @@ import {
 } from "#src/features/post/index";
 import type { OutboxPort, ChangeSetItemRecord } from "@jini-ai/cms/core";
 import { removeVia } from "#src/features/post/__tests__/remove-post-double";
+import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
 /**
  * @file Certification of the post `delete` reverter (`features/post/reverters.ts`) — the restore
@@ -49,7 +50,7 @@ function recordingOutbox(): { outbox: OutboxPort; events: CapturedEvent[] } {
 }
 
 function seed(overrides: Partial<PostRecord> = {}): PostRecord {
-  return {
+  return buildPostRecord({
     id: "post-1",
     workspaceId: WS,
     title: "Hello World",
@@ -60,7 +61,7 @@ function seed(overrides: Partial<PostRecord> = {}): PostRecord {
     updatedAt: "2026-04-06T00:00:00.000Z",
     version: 3,
     ...overrides,
-  };
+  });
 }
 
 /**

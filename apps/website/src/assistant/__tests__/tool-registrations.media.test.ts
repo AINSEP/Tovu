@@ -29,11 +29,11 @@ import {
   InMemoryTransformDefinitionRepo,
   registerTransform,
 } from "../../features/media/index.js";
-import type { RouteDeps } from "../../server/routes/types.js";
 import {
   assertRiskMetadataIsWirable,
   buildAssistantToolRegistrations,
 } from "../tool-registrations.js";
+import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeMediaTools } from "../../features/media/tool-registrations.js";
 
@@ -71,7 +71,7 @@ const ONE_PIXEL_PNG_BASE64 =
  * upload/list call whose result they assert on; every other test in this file is unaffected and
  * keeps calling `fakeRouteDeps` unchanged.
  */
-async function seedPublicTransform(deps: RouteDeps): Promise<void> {
+async function seedPublicTransform(deps: RegistryDepsWithoutLimiter): Promise<void> {
   await registerTransform({
     deps: {
       transformRepo: (deps as unknown as { transformDefinitionRepo: InMemoryTransformDefinitionRepo }).transformDefinitionRepo,
@@ -110,7 +110,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
     },
   };
 
-  return { deps: deps as unknown as RouteDeps, mediaRepo, mediaContentTypeStore, authorizeCalls };
+  return { deps: deps as unknown as RegistryDepsWithoutLimiter, mediaRepo, mediaContentTypeStore, authorizeCalls };
 }
 
 function executionContext(input: Record<string, unknown>): ToolExecutionContext {
@@ -123,15 +123,15 @@ function catalogEntry(toolId: string): AgentToolDefinition {
   return entry;
 }
 
-function mediaRegistrations(deps: RouteDeps, surfaces?: AssistantSurfaceDeps): Map<string, ToolRegistration> {
+function mediaRegistrations(deps: RegistryDepsWithoutLimiter, surfaces?: AssistantSurfaceDeps): Map<string, ToolRegistration> {
   return new Map(
-    buildAssistantToolRegistrations(deps, surfaces, { contributions })
+    buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), surfaces, { contributions })
       .filter((r) => r.descriptor.id.startsWith("media_") || r.descriptor.id === "content_read.media_asset")
       .map((r) => [r.descriptor.id, r]),
   );
 }
 
-function wired(toolId: string, deps: RouteDeps): ToolRegistration {
+function wired(toolId: string, deps: RegistryDepsWithoutLimiter): ToolRegistration {
   const found = mediaRegistrations(deps).get(toolId);
   assert.ok(found, `expected '${toolId}' to be wired`);
   return found;
@@ -145,12 +145,12 @@ function wired(toolId: string, deps: RouteDeps): ToolRegistration {
  * moving to Trash is reversible, so only permanent deletes still confirm. The tool now completes in
  * one plain call, which is all this helper ever needed (it was never certifying the gate).
  */
-async function trashAsset(deps: RouteDeps, mediaId: string): Promise<unknown> {
+async function trashAsset(deps: RegistryDepsWithoutLimiter, mediaId: string): Promise<unknown> {
   return wired("media_trash_asset", deps).handler(executionContext({ mediaId }));
 }
 
 /** Seeds an asset through the real upload tool, so tests operate on genuine domain output. */
-async function seedAsset(deps: RouteDeps): Promise<{ id: string }> {
+async function seedAsset(deps: RegistryDepsWithoutLimiter): Promise<{ id: string }> {
   const out = (await wired("media_upload_asset", deps).handler(
     executionContext({ filename: "logo.png", contentType: "image/png", dataBase64: ONE_PIXEL_PNG_BASE64 }),
   )) as { media: { id: string } };

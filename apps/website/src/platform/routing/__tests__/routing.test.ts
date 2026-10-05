@@ -16,8 +16,9 @@ import {
   RouteResolutionError,
   urlFor,
 } from "../routing.js";
+import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
-const seedPost = {
+const seedPost = buildPostRecord({
   id: "post-1",
   workspaceId: "workspace-1",
   title: "Hello World",
@@ -26,7 +27,7 @@ const seedPost = {
   status: "published" as const,
   updatedAt: "2026-04-06T00:00:00.000Z",
   version: 1,
-};
+});
 
 const ctx: RouteResolveContext = { workspaceId: "workspace-1" };
 

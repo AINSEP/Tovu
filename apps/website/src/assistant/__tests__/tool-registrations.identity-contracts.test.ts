@@ -14,11 +14,11 @@ import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "#src/cont
 import { type IdentityRepos } from "@jini-ai/user-management";
 import { identityAgentToolCatalog, type IdentityAgentToolDefinition as AgentToolDefinition, InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPolicyRepo, InMemoryPrincipalRepo, InMemoryPrincipalRoleRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo, InMemorySessionRepo, InMemoryUserRepo, seedIdentity } from "@jini-ai/user-management/server";
 import { Argon2PasswordHasher, loadArgon2Binding, createTransactionalInMemoryIdentityRepos, NodeSessionTokens } from "@jini-ai/user-management/server";
-import type { RouteDeps } from "../../server/routes/types.js";
 import {
   assertRiskMetadataIsWirable,
   buildAssistantToolRegistrations,
 } from "../tool-registrations.js";
+import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeIdentityTools } from "../../features/identity/tool-registrations.js";
 
@@ -61,7 +61,7 @@ function counterIdGen() {
 }
 
 interface Harness {
-  deps: RouteDeps;
+  deps: RegistryDepsWithoutLimiter;
   repos: IdentityRepos;
   ownerPrincipalId: string;
 }
@@ -103,7 +103,7 @@ async function buildHarness(): Promise<Harness> {
     rolePolicyRepo: repos.rolePolicies,
     principalRoleRepo: repos.principalRoles,
     principalPolicyRepo: repos.principalPolicies,
-  } as unknown as RouteDeps;
+  } as unknown as RegistryDepsWithoutLimiter;
 
   return { deps, repos, ownerPrincipalId };
 }
@@ -121,15 +121,15 @@ const COLLAPSED_IDENTITY_CONTENT_READ_IDS: ReadonlySet<string> = new Set([
   "content_read.identity_policy",
 ]);
 
-function identityRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
+function identityRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
   return new Map(
-    buildAssistantToolRegistrations(deps, { surfaceExchanges: SURFACE_EXCHANGES }, { contributions })
+    buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaceExchanges: SURFACE_EXCHANGES }, { contributions })
       .filter((registration) => IDENTITY_TOOL_IDS.has(registration.descriptor.id) || COLLAPSED_IDENTITY_CONTENT_READ_IDS.has(registration.descriptor.id))
       .map((registration) => [registration.descriptor.id, registration]),
   );
 }
 
-function wired(deps: RouteDeps, toolId: string): ToolRegistration {
+function wired(deps: RegistryDepsWithoutLimiter, toolId: string): ToolRegistration {
   const found = identityRegistrations(deps).get(toolId);
   assert.ok(found, `expected '${toolId}' to be wired`);
   return found;

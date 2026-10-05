@@ -11,6 +11,7 @@ import { requestSignInLink } from "#src/features/members/write-service";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { wrapMailerWithPurposeGate } from "../../purpose-scoped-mailer.js";
 import type { MailerPort, MailerSendOptions, MailerSendResult } from "../../ports.js";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**
  * @file SPEC-022 W-003/W-004 — real call-site characterization (INV-06, AC-16/17).
@@ -90,7 +91,7 @@ test("real call sites use distinct lanes through the production gate and sign-in
   let completed = false;
   let id = 0;
   const signIn = requestSignInLink({ deps: {
-    clock: { nowMs: () => Date.parse(now), nowIso: () => now }, ids: { newId: () => `id-${++id}` },
+    clock: createFakeClock({ startIso: now }), ids: { newId: () => `id-${++id}` },
     members: new InMemoryMemberRepo(), tiers: new InMemoryMemberTierRepo(),
     subscriptions: new InMemoryMemberSubscriptionRepo(), sessions: new InMemoryMemberSessionRepo(),
     magicLinks: new InMemoryMagicLinkTokenRepo(), mailer, principals: new InMemoryPrincipalRepo({}),

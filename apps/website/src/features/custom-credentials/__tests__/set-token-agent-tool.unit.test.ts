@@ -19,6 +19,7 @@ import { customCredentialsAgentToolCatalog } from "../agent-tools.js";
 import { createCustomCredential, resolveCustomCredentialByLabel, type CustomCredentialWriteDeps } from "../store.js";
 import { buildCustomCredentialsRegistrations, customCredentialsDerivedRisk, type CustomCredentialsToolDeps } from "../tool-registrations.js";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platform/http/index.js";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**
  * @file Certification of `custom_credential_set_token` (2026-09-01) — the MCP-UI surface that lets an
@@ -73,7 +74,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
 
   const deps: CustomCredentialsToolDeps = {
     workspaceId: WORKSPACE_ID,
-    clock: { nowMs: () => Date.parse(NOW), nowIso: () => NOW },
+    clock: createFakeClock({ startIso: NOW }),
     customCredentialSetRepo: repo,
     siteAssistantSecretSealer: sealer,
     siteAssistantSecretKeyring: keyring,
@@ -92,7 +93,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
     repo,
     sealer,
     keyring,
-    clock: { nowMs: () => Date.parse(NOW), nowIso: () => NOW },
+    clock: createFakeClock({ startIso: NOW }),
     idGen: (() => {
       let n = 0;
       return { newId: () => `cred-${++n}` };

@@ -6,6 +6,7 @@ import type { ContentTypeFieldDef } from "#src/features/content-types/index";
 import { createEntry, publishEntry, EntrySlugConflictError } from "../../index.js";
 import type { EntryRecord } from "../../index.js";
 import { TrashAwareInMemoryEntryRepo } from "../../trash-aware-memory-repo.js";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**
  * @file Memory-twin parity suite for C2's `listPublishedForDisplay` (plan lines 149-167,
@@ -202,7 +203,7 @@ test("listPublishedForDisplay (memory twin): excludes drafts, trashed rows, and 
     deps: {
       entryRepo: repo,
       contentTypeRepo: fixedContentTypeLookup("ws-1", "recipe", RECIPE_FIELDS),
-      clock: { nowIso: () => "2026-09-23T00:00:00.000Z", nowMs: () => Date.parse("2026-09-23T00:00:00.000Z") },
+      clock: createFakeClock({ startIso: "2026-09-23T00:00:00.000Z" }),
       ids: { newId: () => "recipe-draft" },
       authorize: async () => ({ allowed: true, reason: "ok" }),
       outbox: { enqueue: async () => {} },

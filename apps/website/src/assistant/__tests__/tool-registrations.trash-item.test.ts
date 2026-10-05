@@ -7,6 +7,7 @@ import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@ji
 
 
 import { buildAssistantToolRegistrations } from "#src/assistant/tool-registrations";
+import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 import {
   SURFACE_EXCHANGE_ID_PARAM,
   createSurfaceExchangeStore,
@@ -17,7 +18,6 @@ import { postAgentToolCatalog } from "#src/features/post/agent-tools";
 import { getRedirectsAgentToolCatalog } from "#src/features/redirects/agent-tools";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { installFirstPartyToolContributors } from "#src/server/runtime/composition/tool-catalog-manifest";
-import type { RouteDeps } from "#src/server/routes/types";
 import { buildTrashRegistry } from "#src/features/trash/registry";
 import type { TrashEntityType } from "@jini-ai/cms/trash";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
@@ -55,7 +55,7 @@ type Grants = ReadonlySet<string>;
 
 /** Real hermetic composition, with `authorize` replaced by an explicit grant set. */
 function harness(grants: Grants) {
-  const base = createRouteDeps() as unknown as RouteDeps;
+  const base = createRouteDeps() as unknown as RegistryDepsWithoutLimiter;
   const authorizeCalls: string[] = [];
   const routeDeps = {
     ...base,
@@ -65,9 +65,9 @@ function harness(grants: Grants) {
         ? { allowed: true, reason: "matched" }
         : { allowed: false, reason: "insufficient_permission" };
     },
-  } as RouteDeps;
+  } as RegistryDepsWithoutLimiter;
   const surfaceExchanges = createSurfaceExchangeStore();
-  const registrations = buildAssistantToolRegistrations(routeDeps, { surfaceExchanges }, { contributions });
+  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps }), { surfaceExchanges }, { contributions });
   return { routeDeps, surfaceExchanges, registrations, authorizeCalls };
 }
 
@@ -76,7 +76,7 @@ function harness(grants: Grants) {
 // registry lets tests reach the remaining generic kinds too.
 const REAL_REGISTRY = buildTrashRegistry();
 
-function withRealTrashRegistry(routeDeps: RouteDeps): RouteDeps {
+function withRealTrashRegistry(routeDeps: RegistryDepsWithoutLimiter): RegistryDepsWithoutLimiter {
   return {
     ...routeDeps,
     registry: REAL_REGISTRY,
@@ -85,7 +85,7 @@ function withRealTrashRegistry(routeDeps: RouteDeps): RouteDeps {
     // the registry) — `||` keeps this hermetic root's existing delegate-backed kinds (post, comment,
     // media, redirect, widget, all wired via hand-built in-memory adapters) true too.
     isTrashableEntityType: (entityType: TrashEntityType) => routeDeps.isTrashableEntityType(entityType) || REAL_REGISTRY.has(entityType),
-  } as RouteDeps;
+  } as RegistryDepsWithoutLimiter;
 }
 
 /** The generic (no-delegate) kinds `withRealTrashRegistry` makes reachable, in registry insertion
@@ -184,7 +184,7 @@ function call(registration: ToolRegistration, input: unknown, emitSurface?: Surf
   return registration.handler(ctx);
 }
 
-async function seedPost(routeDeps: RouteDeps, overrides: Record<string, unknown> = {}) {
+async function seedPost(routeDeps: RegistryDepsWithoutLimiter, overrides: Record<string, unknown> = {}) {
   const row = {
     id: "post-1",
     workspaceId: routeDeps.workspaceId,
@@ -202,7 +202,7 @@ async function seedPost(routeDeps: RouteDeps, overrides: Record<string, unknown>
   return row;
 }
 
-async function seedMedia(routeDeps: RouteDeps, overrides: Record<string, unknown> = {}) {
+async function seedMedia(routeDeps: RegistryDepsWithoutLimiter, overrides: Record<string, unknown> = {}) {
   const record = {
     id: "media-1",
     workspaceId: routeDeps.workspaceId,
@@ -226,7 +226,7 @@ async function seedMedia(routeDeps: RouteDeps, overrides: Record<string, unknown
   return record;
 }
 
-async function seedRedirect(routeDeps: RouteDeps, overrides: Record<string, unknown> = {}) {
+async function seedRedirect(routeDeps: RegistryDepsWithoutLimiter, overrides: Record<string, unknown> = {}) {
   const { record } = await createRedirect({
     deps: routeDeps.redirectsWriteDeps,
     input: {
@@ -242,7 +242,7 @@ async function seedRedirect(routeDeps: RouteDeps, overrides: Record<string, unkn
   return record;
 }
 
-async function seedComment(routeDeps: RouteDeps, overrides: Record<string, unknown> = {}) {
+async function seedComment(routeDeps: RegistryDepsWithoutLimiter, overrides: Record<string, unknown> = {}) {
   const row = {
     id: "comment-1",
     workspaceId: routeDeps.workspaceId,
@@ -281,7 +281,7 @@ function answer(store: SurfaceExchangeStore, spec: { exchangeId: string; toolId:
   assert.deepEqual(delivered, { ok: true });
 }
 
-async function trashRows(routeDeps: RouteDeps) {
+async function trashRows(routeDeps: RegistryDepsWithoutLimiter) {
   return (await routeDeps.trash.list({ workspaceId: routeDeps.workspaceId, now: NOW, limit: 50 })).items;
 }
 
@@ -424,7 +424,7 @@ test("the entityType check reads the live adapter map at CALL time, not a list c
   let postAdapterRegistered = true;
   const probed = { ...routeDeps, isTrashableEntityType: (entityType: string) => entityType !== "post" || postAdapterRegistered };
   const surfaceExchanges = createSurfaceExchangeStore();
-  const trashItem = tool(buildAssistantToolRegistrations(probed as RouteDeps, { surfaceExchanges }, { contributions }), TRASH_ITEM_TOOL_ID);
+  const trashItem = tool(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: probed as RegistryDepsWithoutLimiter }), { surfaceExchanges }, { contributions }), TRASH_ITEM_TOOL_ID);
   void registrations;
 
   postAdapterRegistered = false;
@@ -579,8 +579,8 @@ test("trash_item never reaches TrashPort.purgeSelected, on any input shape a mod
         throw new PurgeWasReachedError("trash_item reached purgeSelected");
       },
     },
-  } as RouteDeps;
-  const trashItem = tool(buildAssistantToolRegistrations(guarded, { surfaceExchanges }, { contributions }), TRASH_ITEM_TOOL_ID);
+  } as RegistryDepsWithoutLimiter;
+  const trashItem = tool(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: guarded }), { surfaceExchanges }, { contributions }), TRASH_ITEM_TOOL_ID);
 
   for (const input of [{}, { entityType: "post", entityId: "missing-post" }, { entityType: "comment", entityId: "c" }, { ids: ["row-1"] }]) {
     try {

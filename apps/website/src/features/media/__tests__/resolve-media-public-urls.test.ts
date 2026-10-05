@@ -5,6 +5,7 @@ import test from "node:test";
 import type { MediaRecord, TransformDefinitionRecord, TransformDefinitionRepoPort, TransformParams } from "../index.js";
 import { InMemoryMediaContentTypeStore, InMemoryTransformDefinitionRepo, registerTransform, CORE_PUBLIC_TRANSFORM_NAME } from "../index.js";
 import { resolveMediaPublicUrls } from "../tool-registrations.js";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**
  * @file Direct unit coverage for `resolveMediaPublicUrls` — until this suite, the function was only
@@ -191,7 +192,7 @@ test("resolveMediaPublicUrls: is scoped to the caller's own workspace — a tran
   const transformDefinitionRepo = new InMemoryTransformDefinitionRepo({});
   let counter = 0;
   await registerTransform({
-    deps: { clock: { nowIso: () => NOW, nowMs() { return Date.parse(this.nowIso()); } }, idGen: { newId: () => `transform-${++counter}` }, transformRepo: transformDefinitionRepo },
+    deps: { clock: createFakeClock({ startIso: NOW }), idGen: { newId: () => `transform-${++counter}` }, transformRepo: transformDefinitionRepo },
     input: { workspaceId: OTHER_WORKSPACE_ID, name: CORE_PUBLIC_TRANSFORM_NAME, params: { format: "png" }, owner: "core" },
   });
   const asset = fakeAsset();

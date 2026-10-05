@@ -9,6 +9,7 @@ import { OriginNotVerifiedError, type OriginRegistryPort } from "../../origin/in
 import { ensureSeoSettingDefinitions } from "../settings.js";
 import { buildSitemap, createSeoEventSubscriptions, invalidateSitemapCache } from "../sitemap.js";
 import { setEntrySeoOverrides } from "../write-service.js";
+import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
 /**
  * @file T036 — failing-first integration certification: publish ->
@@ -25,7 +26,7 @@ const ids = { newId: () => `invalidation-test-id-${++idCounter}` };
 const alwaysAllow = async () => ({ allowed: true, reason: "matched" });
 
 function seedPost(overrides: Partial<PostRecord> = {}): PostRecord {
-  return {
+  return buildPostRecord({
     id: "post-1",
     workspaceId: WORKSPACE,
     title: "Hello",
@@ -37,7 +38,7 @@ function seedPost(overrides: Partial<PostRecord> = {}): PostRecord {
     version: 1,
     seoExtJson: null,
     ...overrides,
-  };
+  });
 }
 
 /** No verified origin registered — mirrors `seo.test.ts`'s own copy of this fake. */

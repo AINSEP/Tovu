@@ -12,6 +12,7 @@ import { createFileProvisioning, COMMITTED_JSON_CODEC } from "../../publish-trus
 import { describePublishReadiness, siteLabelFor } from "../publish-readiness.js";
 import { buildPublishContentRegistrations, plainSentence, type PublishContentToolDeps } from "../tool-registrations.js";
 import { registerPublishContentContributor, resetPublishContentContributorsForTests } from "../type-registry.js";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -63,7 +64,7 @@ function toolDeps(overrides: Partial<PublishContentToolDeps> = {}): PublishConte
   return {
     workspaceId: WORKSPACE_ID,
     authorize: async () => ({ allowed: true }),
-    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => "2026-09-19T00:00:00.000Z" },
+    clock: createFakeClock({ startIso: "2026-09-19T00:00:00.000Z" }),
     idGen: { newId: () => "id-1" },
     pluginBeforeSaveHook: undefined as never,
     outbox: null as never,

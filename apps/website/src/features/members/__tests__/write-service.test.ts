@@ -9,7 +9,7 @@ import type {
   MailerSendResult,
   OutboundEmail,
 } from "#src/platform/mail/index";
-import type { Clock as ClockPort, IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
+import type { IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
 import { OriginNotVerifiedError, type OriginRegistryPort, type VerifiedOrigin } from "#src/features/origin/index";
 import {
   InMemoryMagicLinkTokenRepo,
@@ -35,6 +35,7 @@ import {
 import { DefaultMemberAccessResolver } from "../access-resolver.js";
 import type { MembersWriteServiceDeps } from "../ports.js";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
+import { createFakeClock, type FakeClock } from "#src/__tests__/support/fake-clock";
 
 const WORKSPACE_ID = "ws-1";
 
@@ -43,14 +44,8 @@ function hashToken(rawToken: string): string {
 }
 
 /** A controllable clock: tests advance it explicitly to exercise TTL expiry. */
-function makeClock(initialIso: string): ClockPort & { set(iso: string): void } {
-  let current = initialIso;
-  return {
-    nowMs: () => Date.parse(current), nowIso: () => current,
-    set: (iso: string) => {
-      current = iso;
-    },
-  };
+function makeClock(initialIso: string): FakeClock {
+  return createFakeClock({ startIso: initialIso });
 }
 
 function makeIds(prefix: string): IdGeneratorPort {

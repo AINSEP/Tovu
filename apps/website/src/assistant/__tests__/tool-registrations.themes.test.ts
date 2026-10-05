@@ -12,8 +12,8 @@ import { type AgentToolDefinition } from "@jini-ai/core";
 import { getThemesAgentToolCatalog } from "../../features/theme/agent-tools.js";
 import { discoverAllBuiltInThemes } from "../../features/theme/index.js";
 import { THEME_CATALOG_DIR } from "../../features/theme/theme.js";
-import type { RouteDeps } from "../../server/routes/types.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
+import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeThemesTools } from "../../features/theme/tool-registrations.js";
 
@@ -87,18 +87,18 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
     authorize,
   };
 
-  return { deps: deps as unknown as RouteDeps, authorizeCalls, themesDir };
+  return { deps: deps as unknown as RegistryDepsWithoutLimiter, authorizeCalls, themesDir };
 }
 
 function executionContext(input: Record<string, unknown> | undefined): ToolExecutionContext {
   return { executionId: "exec-1", principal: { id: PRINCIPAL_ID }, run: { id: "run-1" }, input, signal: new AbortController().signal };
 }
 
-function themesRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(deps, undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("theme_") || r.descriptor.id === "content_read.theme").map((r) => [r.descriptor.id, r]));
+function themesRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
+  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("theme_") || r.descriptor.id === "content_read.theme").map((r) => [r.descriptor.id, r]));
 }
 
-function wired(deps: RouteDeps, toolId: string): ToolRegistration {
+function wired(deps: RegistryDepsWithoutLimiter, toolId: string): ToolRegistration {
   const found = themesRegistrations(deps).get(toolId);
   assert.ok(found, `expected '${toolId}' to be wired`);
   return found;
@@ -169,7 +169,7 @@ test("exactly the 11 themes entries are registered — nothing else", () => {
 // `agent-tools.ts`'s header for the full reasoning).
 test("no whole-theme or file-delete operation is agent-callable anywhere in the whole assistant tool set", () => {
   const { deps } = fakeRouteDeps();
-  const ids = buildAssistantToolRegistrations(deps, undefined, { contributions }).map((r) => r.descriptor.id);
+  const ids = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).map((r) => r.descriptor.id);
   for (const excluded of ["theme_delete_file", "theme_delete", "theme_create", "theme_rename_folder", "theme_rename"]) {
     assert.equal(ids.includes(excluded), false, `'${excluded}' must not be wired — see agent-tools.ts's exclusions`);
   }
@@ -260,7 +260,7 @@ test("every themes tool refuses when authorize() denies, and performs no work", 
 test("each themes tool checks exactly the permission its catalog entry declares", async () => {
   const { deps, authorizeCalls, themesDir } = fakeRouteDeps();
   fs.cpSync(path.join(themesDir, "plain"), path.join(themesDir, THEME_CATALOG_DIR, "declarative", "plain"), { recursive: true });
-  const registrations = new Map(buildAssistantToolRegistrations(deps, undefined, { contributions }).map((r) => [r.descriptor.id, r]));
+  const registrations = new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).map((r) => [r.descriptor.id, r]));
 
   async function checkPermission(toolId: string, input: Record<string, unknown>) {
     authorizeCalls.length = 0;

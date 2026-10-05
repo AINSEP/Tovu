@@ -29,8 +29,8 @@ import { isNeverInTrash, removeVia, restoreVia } from "../../features/redirects/
 import type { RedirectsWriteDeps } from "../../features/redirects/redirects.js";
 import type { RedirectHitStats } from "../../features/redirects/types.js";
 import type { RedirectHitSink } from "../../features/redirects/ports.js";
-import type { RouteDeps } from "../../server/routes/types.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
+import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeRedirectsTools } from "../../features/redirects/tool-registrations.js";
 
@@ -107,18 +107,18 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
     authorize,
   };
 
-  return { deps: deps as unknown as RouteDeps, authorizeCalls, redirectRepo };
+  return { deps: deps as unknown as RegistryDepsWithoutLimiter, authorizeCalls, redirectRepo };
 }
 
 function executionContext(input: Record<string, unknown> | undefined): ToolExecutionContext {
   return { executionId: "exec-1", principal: { id: PRINCIPAL_ID }, run: { id: "run-1" }, input, signal: new AbortController().signal };
 }
 
-function redirectsRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(deps, undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("redirects_") || r.descriptor.id === "content_read.redirect").map((r) => [r.descriptor.id, r]));
+function redirectsRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
+  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("redirects_") || r.descriptor.id === "content_read.redirect").map((r) => [r.descriptor.id, r]));
 }
 
-function wired(deps: RouteDeps, toolId: string): ToolRegistration {
+function wired(deps: RegistryDepsWithoutLimiter, toolId: string): ToolRegistration {
   const found = redirectsRegistrations(deps).get(toolId);
   assert.ok(found, `expected '${toolId}' to be wired`);
   return found;
@@ -132,7 +132,7 @@ function wired(deps: RouteDeps, toolId: string): ToolRegistration {
  * moving to Trash is reversible, so only permanent deletes still confirm. The tool now completes in
  * one plain call, which is all this helper ever needed (it was never certifying the gate).
  */
-async function tombstoneRule(deps: RouteDeps, id: string): Promise<{ rule: { status: string; version: number } }> {
+async function tombstoneRule(deps: RegistryDepsWithoutLimiter, id: string): Promise<{ rule: { status: string; version: number } }> {
   return wired(deps, "redirects_tombstone").handler(executionContext({ id })) as Promise<{ rule: { status: string; version: number } }>;
 }
 
@@ -166,7 +166,7 @@ test("exactly the 6 wireable redirects entries plus redirects_import are registe
 
 test("redirects_import is agent-callable across the whole assistant tool set", () => {
   const { deps } = fakeRouteDeps();
-  const ids = buildAssistantToolRegistrations(deps, undefined, { contributions }).map((r) => r.descriptor.id);
+  const ids = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).map((r) => r.descriptor.id);
   assert.ok(ids.includes("redirects_import"));
 });
 

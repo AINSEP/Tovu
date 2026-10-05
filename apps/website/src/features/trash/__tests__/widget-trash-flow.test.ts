@@ -25,6 +25,7 @@ import { withFollowUps, type UnhideFollowUp } from "@jini-ai/cms/trash";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
 import { createTrashService } from "@jini-ai/cms/trash";
 import type { TrashAdapter, TrashPort } from "@jini-ai/cms/trash";
+import { InMemoryOutbox } from "#src/contracts/core/events/index";
 
 /**
  * @file A `widget` moved to the Trash through the widgets domain's own delete (`trashWidgetInstance`,
@@ -85,7 +86,7 @@ function harness(options: { widgetRestoreFollowUp?: UnhideFollowUp } = {}): Harn
     clock: { nowMs: () => Date.parse(AT), nowIso: () => AT },
     ids: { newId: () => randomUUID() },
     authorize: async () => ({ allowed: true, reason: "test: always allow" }),
-    outbox: { enqueue: async () => undefined },
+    outbox: new InMemoryOutbox(),
     remove: bindWidgetRemoval({ trash }),
   };
   return { db, registry, trash, entries, deps: widgetDeps };

@@ -6,6 +6,7 @@ import type { PostRecord } from "#src/features/post/index";
 
 import { createRecordStoreTrashAdapter } from "@jini-ai/cms/trash";
 import { POST_ENTITY_TYPE } from "../adapters/post.js";
+import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
 /**
  * @file `createRecordStoreTrashAdapter`'s purge rung, for the post configuration the hermetic
@@ -24,7 +25,7 @@ const WS = "workspace-1";
 const AT = "2026-09-20T12:00:00.000Z";
 
 function seed(): PostRecord {
-  return {
+  return buildPostRecord({
     id: "post-1",
     workspaceId: WS,
     title: "Hello World",
@@ -34,7 +35,7 @@ function seed(): PostRecord {
     kind: "post",
     updatedAt: "2026-04-06T00:00:00.000Z",
     version: 3,
-  };
+  });
 }
 
 /** The exact post configuration `app.ts` builds, with `hardDelete` supplied or withheld. */

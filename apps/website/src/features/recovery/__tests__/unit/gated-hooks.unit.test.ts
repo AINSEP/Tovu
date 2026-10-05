@@ -3,6 +3,7 @@ import test from "node:test";
 import { buildRestoreHooks, RestorePointNotFoundError, toRecoveryResult, type BuildRestoreHooksInput } from "../../gated-hooks.js";
 import { ForbiddenError, PlanStaleError } from "../../../../contracts/core/gated-mutations/gateway.js";
 import { TokenAlreadyRedeemedError, TokenExpiredError } from "../../../../contracts/core/gated-mutations/token.js";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 for (const [error, expected] of [
   [new ForbiddenError({ message: "no restore grant", reasonCode: "NO_GRANT" }), { code: "NO_GRANT", message: "no restore grant" }],
@@ -26,7 +27,7 @@ function harness(options: { missing?: boolean; failRestore?: boolean; restartReq
   const trace: unknown[] = [];
   let seq = 0;
   const input: BuildRestoreHooksInput = {
-    workspaceId: "ws", actorId: "operator", restorePointId: "chosen", clock: { nowIso: () => "2026-10-01T12:00:00.000Z", nowMs() { return Date.parse(this.nowIso()); } }, idGen: { newId: () => `id-${++seq}` },
+    workspaceId: "ws", actorId: "operator", restorePointId: "chosen", clock: createFakeClock({ startIso: "2026-10-01T12:00:00.000Z" }), idGen: { newId: () => `id-${++seq}` },
     restorePointsRepo: { list: async () => options.missing ? [] : [
       { id: "decoy", createdAt: "newer", artifactRef: "/snapshots/decoy.db" },
       { id: "chosen", createdAt: "older", artifactRef: "/snapshots/chosen.db" },

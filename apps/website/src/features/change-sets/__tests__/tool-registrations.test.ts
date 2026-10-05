@@ -7,6 +7,7 @@ import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from
 import { ForbiddenError, type AuthorizeFn } from "@jini-ai/cms/core";
 
 import { buildAssistantToolRegistrations } from "#src/assistant/tool-registrations";
+import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
@@ -15,7 +16,7 @@ import { contributePostTools } from "#src/features/post/tool-registrations";
 import { contributeChangeSetsTools } from "#src/features/change-sets/tool-registrations";
 import { getChangeSetsAgentToolCatalog } from "#src/features/change-sets/agent-tools";
 import type { PostRecord } from "#src/features/post/post";
-import type { RouteDeps } from "#src/server/routes/types";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -83,7 +84,7 @@ function fakeRouteDeps(options: { allow?: boolean; allowedPermissions?: string[]
     postSearch: new InMemoryPostSearchIndex(postRepo),
     revertRegistry: createPostRevertRegistry({
       postRepo,
-      clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
+      clock: createFakeClock({ startIso: NOW }),
       outbox,
       forgetRemoved: async () => {},
     }),
@@ -94,7 +95,7 @@ function fakeRouteDeps(options: { allow?: boolean; allowedPermissions?: string[]
     },
   };
 
-  return { deps: deps as unknown as RouteDeps, postRepo, changeSets, authorizationCalls };
+  return { deps: deps as unknown as RegistryDepsWithoutLimiter, postRepo, changeSets, authorizationCalls };
 }
 
 function executionContext(input: Record<string, unknown> | undefined): ToolExecutionContext {
@@ -107,11 +108,11 @@ function executionContext(input: Record<string, unknown> | undefined): ToolExecu
   };
 }
 
-function registrationsFor(deps: RouteDeps): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(deps, undefined, { contributions }).map((r) => [r.descriptor.id, r]));
+function registrationsFor(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
+  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).map((r) => [r.descriptor.id, r]));
 }
 
-function wired(toolId: string, deps: RouteDeps): ToolRegistration {
+function wired(toolId: string, deps: RegistryDepsWithoutLimiter): ToolRegistration {
   const found = registrationsFor(deps).get(toolId);
   assert.ok(found, `expected '${toolId}' to be wired`);
   return found;

@@ -13,8 +13,8 @@ import {
   InMemoryBlobStore,
   InMemoryTransformDefinitionRepo,
 } from "../index.js";
-import type { RouteDeps } from "../../../server/routes/types.js";
 import { buildAssistantToolRegistrations } from "../../../assistant/tool-registrations.js";
+import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeMediaTools } from "../tool-registrations.js";
 
@@ -68,11 +68,11 @@ function fakeRouteDeps() {
     mediaContentTypeStore,
     transformDefinitionRepo,
   };
-  return { deps: deps as unknown as RouteDeps, mediaRepo };
+  return { deps: deps as unknown as RegistryDepsWithoutLimiter, mediaRepo };
 }
 
-function wired(toolId: string, deps: RouteDeps): ToolRegistration {
-  const found = new Map(buildAssistantToolRegistrations(deps, undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("media_")).map((r) => [r.descriptor.id, r])).get(toolId);
+function wired(toolId: string, deps: RegistryDepsWithoutLimiter): ToolRegistration {
+  const found = new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("media_")).map((r) => [r.descriptor.id, r])).get(toolId);
   assert.ok(found, `expected '${toolId}' to be wired`);
   return found;
 }

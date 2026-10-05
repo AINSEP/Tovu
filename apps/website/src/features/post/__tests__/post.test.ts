@@ -17,6 +17,7 @@ import {
   updatePost,
 } from "../post.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
+import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
 /**
  * `updatePost`'s `deps` gained a required `outbox` (ADR-PIPE-008 Decision §5,
@@ -32,7 +33,7 @@ const noopOutbox: OutboxPort = {
   markFailed: async () => {},
 };
 
-const seedPost = {
+const seedPost = buildPostRecord({
   id: "post-1",
   workspaceId: "workspace-1",
   title: "Hello World",
@@ -42,7 +43,7 @@ const seedPost = {
   kind: "post" as const,
   updatedAt: "2026-04-06T00:00:00.000Z",
   version: 1,
-};
+});
 
 test("updatePost stores edits and increments version", async () => {
   const repo = new InMemoryPostRepo([seedPost]);
@@ -69,11 +70,11 @@ test("updatePost stores edits and increments version", async () => {
 test("updatePost rejects duplicate slug", async () => {
   const repo = new InMemoryPostRepo([
     seedPost,
-    {
+    buildPostRecord({
       ...seedPost,
       id: "post-2",
       slug: "another-post",
-    },
+    }),
   ]);
   const clock = { nowMs: () => Date.parse("2026-04-06T01:00:00.000Z") };
 

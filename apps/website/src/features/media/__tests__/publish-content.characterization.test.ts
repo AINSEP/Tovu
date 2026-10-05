@@ -8,6 +8,7 @@ import { PublishContentApplyRowError } from "#src/features/publish-content/apply
 import type { PackedEntity, PublishContentDeps } from "#src/features/publish-content/type-registry";
 
 import { contributeMediaPublish } from "../publish-content.js";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**
  * @file Characterization pin for M-MED (`plan-publish-all-types-2026-09-25.md` §5, §7): the live site
@@ -67,7 +68,7 @@ async function deps(opts: { wired?: boolean; staged?: boolean } = {}): Promise<P
   let n = 0;
   return {
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => "2026-09-18T12:00:00.000Z", nowMs() { return Date.parse(this.nowIso()); } },
+    clock: createFakeClock({ startIso: "2026-09-18T12:00:00.000Z" }),
     idGen: { newId: () => `generated-${++n}` },
     outbox,
     changeSets: new InMemoryChangeSetRepo([], [], outbox),

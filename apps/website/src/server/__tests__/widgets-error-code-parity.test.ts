@@ -22,6 +22,7 @@ import {
 import { InMemoryWidgetRegionBindingRepo } from "../../features/widgets/repo.memory.js";
 import { buildWidgetsRegistrations, type WidgetsToolDeps } from "../../features/widgets/tool-registrations.js";
 import { widgetErrorToResponse } from "../inbound/admin-http/http/widgets.js";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**
  * @file RED regression test (`2026-09-15-widgets-insert-embed-PLAN.md` T4): pins that the
@@ -47,7 +48,7 @@ function makeRouteDeps(entryRepo: WidgetsToolDeps["entryRepo"]): WidgetsToolDeps
   let counter = 0;
   return {
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => NOW },
+    clock: createFakeClock({ startIso: NOW }),
     idGen: { newId: () => `id-${++counter}` },
     outbox: { enqueue: async () => undefined } as unknown as WidgetsToolDeps["outbox"],
     entryRepo,

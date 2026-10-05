@@ -26,6 +26,7 @@ import {
   type SiteProduct,
   type SiteRenderContext,
 } from "../render.js";
+import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
 // A saturated machine, not a slow template, is what makes these fire. On 2026-08-19 a 7-agent run
 // drove this 8-core box to load average 135 and the sandboxed renders below failed with
@@ -406,7 +407,7 @@ test("hardBreak composes with surrounding marked text and can appear more than o
 // ---------------------------------------------------------------------------
 
 function fakePost(overrides: Partial<PostRecord> = {}): PostRecord {
-  return {
+  return buildPostRecord({
     id: "11111111-1111-1111-1111-111111111111",
     workspaceId: "workspace-1",
     title: "<Hello> & Welcome",
@@ -416,7 +417,7 @@ function fakePost(overrides: Partial<PostRecord> = {}): PostRecord {
     updatedAt: "2026-07-01T00:00:00.000Z",
     version: 1,
     ...overrides,
-  };
+  });
 }
 
 test("renderSite renders the live themes/dispatch home page: header/footer components, entry grid, escaped titles, no leftover Liquid tags", async () => {

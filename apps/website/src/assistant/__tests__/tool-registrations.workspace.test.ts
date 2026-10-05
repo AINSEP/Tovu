@@ -9,8 +9,8 @@ import { type AgentToolDefinition as WorkspaceAgentToolDefinition } from "@jini-
 import { getWorkspaceAgentToolCatalog, InMemoryWorkspaceRepo } from "../../features/workspace/index.js";
 import { contributeWorkspaceTools } from "../../features/workspace/tool-registrations.js";
 
-import type { RouteDeps } from "../../server/routes/types.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
+import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -58,18 +58,18 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
     },
   };
 
-  return { deps: deps as unknown as RouteDeps, authorizeCalls, workspaceRepo };
+  return { deps: deps as unknown as RegistryDepsWithoutLimiter, authorizeCalls, workspaceRepo };
 }
 
 function executionContext(input: Record<string, unknown> | undefined): ToolExecutionContext {
   return { executionId: "exec-1", principal: { id: PRINCIPAL_ID }, run: { id: "run-1" }, input, signal: new AbortController().signal };
 }
 
-function workspaceRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(deps, undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("workspace_") || r.descriptor.id === "content_read.workspace").map((r) => [r.descriptor.id, r]));
+function workspaceRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
+  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("workspace_") || r.descriptor.id === "content_read.workspace").map((r) => [r.descriptor.id, r]));
 }
 
-function wired(deps: RouteDeps, toolId: string): ToolRegistration {
+function wired(deps: RegistryDepsWithoutLimiter, toolId: string): ToolRegistration {
   const found = workspaceRegistrations(deps).get(toolId);
   assert.ok(found, `expected '${toolId}' to be wired`);
   return found;
@@ -105,7 +105,7 @@ test("workspace_delete is never registered — refused for lack of a DERIVED_RIS
 
 test("no tool name across the whole assistant tool set implies a workspace can be created or deleted by an agent", () => {
   const { deps } = fakeRouteDeps();
-  const ids = buildAssistantToolRegistrations(deps, undefined, { contributions }).map((r) => r.descriptor.id);
+  const ids = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).map((r) => r.descriptor.id);
   assert.equal(ids.includes("workspace_create"), false);
   assert.equal(ids.includes("workspace_delete"), false);
 });

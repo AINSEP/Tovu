@@ -25,6 +25,7 @@ import {
   buildAssistantToolRegistrations,
   type AssistantSurfaceDeps,
 } from "../../apps/website/src/assistant/tool-registrations.js";
+import { toAssistantRegistryDeps } from "../../apps/website/src/assistant/__tests__/fixtures/registry-deps.js";
 import type { DerivedToolContributor, ToolContributor } from "../../apps/website/src/assistant/tool-contribution-registry.js";
 import { installFirstPartyToolContributors } from "../../apps/website/src/server/runtime/composition/tool-catalog-manifest.js";
 import type { RouteDeps } from "../../apps/website/src/server/routes/types.js";
@@ -96,7 +97,7 @@ export function buildEvalToolRegistry(
   };
   installFirstPartyToolContributors({ contributions });
   const registry = createToolRegistry({});
-  const registrations: readonly ToolRegistration[] = buildAssistantToolRegistrations(routeDeps, surfaces, { ...options, contributions });
+  const registrations: readonly ToolRegistration[] = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps }), surfaces, { ...options, contributions });
   for (const registration of registrations) registry.register(registration);
 
   const size = registry.list({}).length;

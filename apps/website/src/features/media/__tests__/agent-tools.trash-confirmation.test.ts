@@ -13,6 +13,7 @@ import {
   type MediaToolDeps,
   type MediaTrashToolDeps,
 } from "../tool-registrations.js";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /** Owner policy: reversible removal runs immediately; authorization and data integrity remain enforced. */
 
@@ -35,7 +36,7 @@ function makeDeps(options: { allow?: boolean; allowedPermissions?: string[]; med
   const { removeMedia, removed } = makeRemoveMediaDouble(mediaRepo);
   return {
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => NOW, nowMs() { return Date.parse(this.nowIso()); } },
+    clock: createFakeClock({ startIso: NOW }),
     idGen: { newId: () => `id-${++counter}` },
     mediaRepo,
     removeMedia,

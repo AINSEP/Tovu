@@ -51,6 +51,7 @@ import {
 } from "#src/features/publish-content/type-registry";
 
 import { installFirstPartyPublishContentTypes } from "../publish-content-manifest.js";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 test.beforeEach(() => {
   resetPublishContentContributorsForTests();
@@ -237,7 +238,7 @@ test("the registered media contributor's apply() is a real write path, not a thr
   let n = 0;
   const deps: PublishContentDeps = {
     workspaceId,
-    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => "2026-09-18T12:00:00.000Z" },
+    clock: createFakeClock({ startIso: "2026-09-18T12:00:00.000Z" }),
     idGen: { newId: () => `generated-id-${++n}` },
     outbox,
     changeSets: new InMemoryChangeSetRepo([], [], outbox),
@@ -295,14 +296,14 @@ test("the registered redirect contributor's apply() is a real write path, not a 
     transaction: async (fn) => fn(),
     matcher: redirectMatcher,
     originRegistry: new OriginRegistry({ repo: originRepo }),
-    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => "2026-09-24T00:00:00.000Z" },
+    clock: createFakeClock({ startIso: "2026-09-24T00:00:00.000Z" }),
     idGen: { newId: () => "generated-redirect-id-1" },
     outbox: new InMemoryOutbox(),
   };
 
   const deps: PublishContentDeps = {
     workspaceId,
-    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => "2026-09-24T00:00:00.000Z" },
+    clock: createFakeClock({ startIso: "2026-09-24T00:00:00.000Z" }),
     idGen: { newId: () => "unused" },
     ports: { redirect: redirectsWriteDeps },
   };
@@ -347,7 +348,7 @@ test("the registered menu contributor's apply() is a real write path, not a thro
   const outbox = new InMemoryOutbox();
   const deps: PublishContentDeps = {
     workspaceId,
-    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => "2026-09-24T12:00:00.000Z" },
+    clock: createFakeClock({ startIso: "2026-09-24T12:00:00.000Z" }),
     idGen: { newId: () => "generated-menu-event-1" },
     outbox,
     ports: { menu: { repo: menuRepo, bindingRepo: navLocationBindingRepo } },
@@ -406,7 +407,7 @@ test("the registered theme-files contributor's apply() is a real write path, not
     let n = 0;
     const deps: PublishContentDeps = {
       workspaceId,
-      clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => "2026-09-24T12:00:00.000Z" },
+      clock: createFakeClock({ startIso: "2026-09-24T12:00:00.000Z" }),
       idGen: { newId: () => `generated-id-${++n}` },
       outbox,
       changeSets: new InMemoryChangeSetRepo([], [], outbox),

@@ -31,8 +31,8 @@ import {
   pluginsDerivedRisk,
   type PluginsToolDeps,
 } from "../../features/plugin-runtime/tool-registrations.js";
-import type { RouteDeps } from "../../server/routes/types.js";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
+import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { MCP_UI_REDEEMABLE_TOOL_IDS } from "../mcp-ui-tool-calls.js";
 
@@ -253,7 +253,7 @@ test("plugins_set_enabled is present in the BUILT registration list, reached thr
   contributions.contributors.clear({});
   contributions.contributors.register({ contribution: contributePluginsTools() });
   const { deps } = fakeRouteDeps();
-  const ids = buildAssistantToolRegistrations(deps as unknown as RouteDeps, undefined, { contributions }).map((r) => r.descriptor.id);
+  const ids = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps as unknown as RegistryDepsWithoutLimiter }), undefined, { contributions }).map((r) => r.descriptor.id);
   assert.ok(ids.includes(SET_ENABLED), `built catalog is missing '${SET_ENABLED}' — it would be silently uncallable`);
 });
 

@@ -11,6 +11,7 @@ import { backfillPostSearchIndex, postSearchIndexFor } from "../search-index.js"
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { SqlitePostSearchIndex } from "../search-index.sqlite.js";
 import { removeVia } from "./remove-post-double.js";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**
  * @file Certification of the DURABLE search adapter: the FTS5 index migration 0022 installs, the
@@ -30,7 +31,7 @@ import { removeVia } from "./remove-post-double.js";
 const WS = "ws-search";
 const OTHER_WS = "ws-other";
 
-const clock: ClockPort & { nowMs(): number } = { nowIso: () => "2026-07-30T00:00:00.000Z", nowMs() { return Date.parse(this.nowIso()); } };
+const clock: ClockPort & { nowMs(): number } = createFakeClock({ startIso: "2026-07-30T00:00:00.000Z" });
 
 const noopOutbox: OutboxPort = {
   enqueue: async () => {},

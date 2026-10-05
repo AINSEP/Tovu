@@ -27,8 +27,8 @@ import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "..
 import type { WebhookDeliveryRecord } from "../../features/webhooks/types.js";
 import { contributeWebhooksTools } from "../../features/webhooks/tool-registrations.js";
 
-import type { RouteDeps } from "../../server/routes/types.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
+import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -77,18 +77,18 @@ function fakeRouteDeps(options: { allow?: boolean; allowedTarget?: boolean } = {
     authorize,
   };
 
-  return { deps: deps as unknown as RouteDeps, authorizeCalls, webhookSubscriptionRepo, webhookDeliveryRepo };
+  return { deps: deps as unknown as RegistryDepsWithoutLimiter, authorizeCalls, webhookSubscriptionRepo, webhookDeliveryRepo };
 }
 
 function executionContext(input: Record<string, unknown> | undefined): ToolExecutionContext {
   return { executionId: "exec-1", principal: { id: PRINCIPAL_ID }, run: { id: "run-1" }, input, signal: new AbortController().signal };
 }
 
-function webhooksRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(deps, undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("webhooks_") || r.descriptor.id === "content_read.webhook_subscription").map((r) => [r.descriptor.id, r]));
+function webhooksRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
+  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("webhooks_") || r.descriptor.id === "content_read.webhook_subscription").map((r) => [r.descriptor.id, r]));
 }
 
-function wired(deps: RouteDeps, toolId: string): ToolRegistration {
+function wired(deps: RegistryDepsWithoutLimiter, toolId: string): ToolRegistration {
   const found = webhooksRegistrations(deps).get(toolId);
   assert.ok(found, `expected '${toolId}' to be wired`);
   return found;
@@ -103,9 +103,9 @@ function wired(deps: RouteDeps, toolId: string): ToolRegistration {
  * this workflow test (the confirmation gate itself is certified by
  * `webhooks/__tests__/agent-tools.delete-confirmation.test.ts`).
  */
-async function deleteSubscriptionConfirmed(deps: RouteDeps, subscriptionId: string): Promise<{ subscription: { status: string; disabledAt: string | null } }> {
+async function deleteSubscriptionConfirmed(deps: RegistryDepsWithoutLimiter, subscriptionId: string): Promise<{ subscription: { status: string; disabledAt: string | null } }> {
   const surfaceExchanges = createSurfaceExchangeStore();
-  const deleteTool = buildAssistantToolRegistrations(deps, { surfaceExchanges }, { contributions }).find((r) => r.descriptor.id === "webhooks_delete_subscription");
+  const deleteTool = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaceExchanges }, { contributions }).find((r) => r.descriptor.id === "webhooks_delete_subscription");
   assert.ok(deleteTool, "expected 'webhooks_delete_subscription' to be wired");
   const emitted: unknown[] = [];
   const pending = invokeFixtureHandler(deleteTool, { ...executionContext({ subscriptionId }), emitSurface: async (s) => void emitted.push(s) });
@@ -143,7 +143,7 @@ test("exactly the 5 webhooks catalog entries are registered — nothing withheld
 
 test("no tool id across the whole assistant tool set implies a subscription can be updated or a signing secret rotated/revealed by an agent", () => {
   const { deps } = fakeRouteDeps();
-  const ids = buildAssistantToolRegistrations(deps, undefined, { contributions }).map((r) => r.descriptor.id);
+  const ids = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).map((r) => r.descriptor.id);
   assert.equal(ids.includes("webhooks_update_subscription"), false);
   assert.equal(ids.some((id) => id.includes("rotate") || id.includes("reveal") || id.includes("keyring")), false);
 });

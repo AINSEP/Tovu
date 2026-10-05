@@ -11,6 +11,7 @@ import {
   CustomCredentialValidationError,
   type CustomCredentialWriteDeps,
 } from "../store.js";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**
  * @file `updateCustomCredential`'s top-level `username` field (2026-09-01) — lets an operator fix a
@@ -29,7 +30,7 @@ function makeWriteDeps(): CustomCredentialWriteDeps {
     repo: new InMemoryCustomCredentialSetRepo(),
     sealer: new AesGcmSecretSealer(keyring),
     keyring,
-    clock: { nowMs: () => Date.parse("2026-09-01T00:00:00.000Z"), nowIso: () => "2026-09-01T00:00:00.000Z" },
+    clock: createFakeClock({ startIso: "2026-09-01T00:00:00.000Z" }),
     idGen: (() => {
       let n = 0;
       return { newId: () => `cred-${++n}` };

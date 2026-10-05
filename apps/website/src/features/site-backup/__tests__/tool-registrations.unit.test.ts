@@ -21,6 +21,7 @@ import type { SiteBackupSources } from "../sources.js";
 import { buildSiteBackupRegistrations, siteBackupAgentToolCatalog, type SiteBackupToolDeps } from "../tool-registrations.js";
 import { githubFromSource } from "../../source-control/__tests__/fixtures/github-from-source.js";
 import { FakeGitHub } from "./fixtures/fake-github.js";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**
  * @file `site_backup_plan` / `site_backup_push`'s proof, driven through the real registrations: a
@@ -183,7 +184,7 @@ function harness(t: TestContext, options: HarnessOptions = {}) {
     repo,
     sealer,
     keyring,
-    clock: { nowMs: () => Date.parse(NOW), nowIso: () => NOW },
+    clock: createFakeClock({ startIso: NOW }),
     idGen: (() => {
       let n = 0;
       return { newId: () => `cred-${++n}` };

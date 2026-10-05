@@ -4,6 +4,7 @@ import test from "node:test";
 import type { PostRecord } from "#src/features/post/index";
 import { renderHandlebarsInSandbox } from "../handlebars-sandbox.js";
 import type { SiteRenderContext } from "../render.js";
+import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
 /**
  * @file ADR-020 §3 (C6), Handlebars tier — certifies `renderHandlebarsInSandbox`'s isolation
@@ -19,7 +20,7 @@ import type { SiteRenderContext } from "../render.js";
  */
 
 function posts(count: number): PostRecord[] {
-  return Array.from({ length: count }, (_, i) => ({
+  return Array.from({ length: count }, (_, i) => buildPostRecord({
     id: `p${i}`,
     workspaceId: "w1",
     title: `Post ${i}`,

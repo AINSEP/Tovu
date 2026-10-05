@@ -22,6 +22,7 @@ import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "..
 
 import { contributeExternalMcpTools } from "../../features/external-mcp/tool-registrations.js";
 import { onExternalMcpRosterChanged, resetExternalMcpRosterChangeListenersForTests } from "../external-mcp-roster-change.js";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -64,7 +65,7 @@ function fakeDeps(options: { allow?: boolean; externalMcpOAuth?: ExternalMcpOAut
       authorizeCalls.push(params);
       return allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };
     },
-    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
+    clock: createFakeClock({ startIso: NOW }),
     externalMcpServerRepo: repo,
     siteAssistantSecretSealer: sealer,
     siteAssistantSecretKeyring: keyring,

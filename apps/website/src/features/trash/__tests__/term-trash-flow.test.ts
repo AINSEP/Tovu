@@ -26,6 +26,7 @@ import { createTableTrashAdapter } from "../table-adapter.js";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
 import { createTrashService } from "@jini-ai/cms/trash";
 import type { TrashAdapter, TrashEntityType, TrashPort } from "@jini-ai/cms/trash";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**
  * @file A tag/category (`term`) and its owning taxonomy moved to the Trash through the generic path
@@ -200,7 +201,7 @@ async function trashItem(h: Harness, entityType: TrashEntityType, entityId: stri
       trash: h.trash,
       db: createSqliteTrashDb({ db: h.db }),
       authorize: async () => ({ allowed: true, reason: "matched" }),
-      clock: { nowMs: () => Date.parse(AT), nowIso: () => AT },
+      clock: createFakeClock({ startIso: AT }),
     }
   );
 }
@@ -239,7 +240,7 @@ test("a trashed tag disappears from the taxonomy's term list and from a post's a
   // The regression this test exists to catch: `updatePost` must never touch `entry_terms`, so saving
   // the post while one of its terms is trashed must not drop that assignment.
   await updatePost({
-    deps: { repo: h.posts, clock: { nowMs: () => Date.parse("2026-09-21T13:00:00.000Z"), nowIso: () => "2026-09-21T13:00:00.000Z" }, outbox: noopOutbox },
+    deps: { repo: h.posts, clock: createFakeClock({ startIso: "2026-09-21T13:00:00.000Z" }), outbox: noopOutbox },
     input: { workspaceId: WS, id: "post-1", title: "Post 1 (edited)", slug: "slug-post-1", bodyJson: { type: "doc", content: [] }, status: "draft" },
   });
   assert.equal(entryTermCount(h, "red", "post-1"), 1, "saving the post must not drop the trashed term's assignment");

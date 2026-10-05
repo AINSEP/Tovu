@@ -14,6 +14,7 @@ import {
 import { FS_ROOT_IDS } from "../../fs-files/layout.js";
 import { mediaImportAgentToolCatalog } from "../agent-tools.js";
 import type { MediaImportToolDeps } from "../tool-registrations.js";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /** t06: real local reads, validator, upload service and in-memory storage; no ports or network. */
 const TOOL = "media_import_local_file";
@@ -33,7 +34,7 @@ async function setup(t: test.TestContext, options: { allow?: boolean; maxBytes?:
   let resolutions = 0;
   let ids = 0;
   const deps: MediaImportToolDeps = {
-    workspaceId: "ws-local", clock: { nowIso: () => "2026-10-01T00:00:00.000Z", nowMs() { return Date.parse(this.nowIso()); } }, idGen: { newId: () => `local-${++ids}` },
+    workspaceId: "ws-local", clock: createFakeClock({ startIso: "2026-10-01T00:00:00.000Z" }), idGen: { newId: () => `local-${++ids}` },
     mediaRepo: new InMemoryMediaRepo({}), assetBlobRepo: new InMemoryAssetBlobRepo({}), assetRenditionRepo: new InMemoryAssetRenditionRepo({}),
     blobStore: new InMemoryBlobStore(), mediaContentTypeStore: new InMemoryMediaContentTypeStore(), transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}),
     mediaImportHttpClient: { send: async () => { assert.fail("local import must not use HTTP"); } },

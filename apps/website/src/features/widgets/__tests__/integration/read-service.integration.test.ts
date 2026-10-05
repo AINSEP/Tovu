@@ -8,6 +8,7 @@ import { memoryWidgetTrash } from "../support/memory-widget-trash.js";
 import { getWidgetInstance, listWidgetInstances, type WidgetReadServiceDeps } from "../../read-service.js";
 import { WidgetForbiddenError, WidgetInstanceNotFoundError } from "../../errors.js";
 import { createWidgetInstance, trashWidgetInstance, type WidgetTrashDeps, type WidgetWriteServiceDeps } from "../../write-service.js";
+import { InMemoryOutbox } from "#src/contracts/core/events/index";
 
 /**
  * @file C-005-adjacent widget-instance READ accessors (SPEC-043 REQ-04). External /audit-work
@@ -33,7 +34,7 @@ function writeDeps(repos: ReturnType<typeof makeRepos>, authorize?: WidgetWriteS
     clock: { nowMs: () => Date.parse("2026-07-21T00:00:00.000Z") },
     ids: { newId: () => `id-${++counter}` },
     authorize: authorize ?? (async () => ({ allowed: true, reason: "test: always allow" })),
-    outbox: { enqueue: async () => undefined },
+    outbox: new InMemoryOutbox(),
   };
 }
 

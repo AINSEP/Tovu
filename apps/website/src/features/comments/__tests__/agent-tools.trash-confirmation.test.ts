@@ -12,6 +12,7 @@ import { createCommentWriteService } from "../write-service.js";
 import type { CommentRecord } from "../types.js";
 import { buildCommentsRegistrations, type CommentsToolDeps } from "../tool-registrations.js";
 import { commentTrashDoubles } from "./comment-trash-doubles.js";
+import { InMemoryOutbox } from "#src/contracts/core/events/index";
 
 /** Owner policy: reversible removal runs immediately; authorization and data integrity remain enforced. */
 
@@ -39,7 +40,7 @@ async function fakeRouteDeps(options: { allow?: boolean } = {}) {
   };
   const commentWriteService = createCommentWriteService({
     repo: commentRepo,
-    outbox: { enqueue: async () => {} },
+    outbox: new InMemoryOutbox(),
     hooks: createCommentHookRegistry(),
     clock,
     idGen,

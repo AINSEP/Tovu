@@ -34,11 +34,12 @@ import { ensureSeoSettingDefinitions, getSeoSettings } from "../../features/seo/
 import { buildSitemap, invalidateSitemapCache } from "../../features/seo/sitemap.js";
 import { contributeSeoTools } from "../../features/seo/tool-registrations.js";
 
-import type { RouteDeps } from "../../server/routes/types.js";
 import {
   assertRiskMetadataIsWirable,
   buildAssistantToolRegistrations,
 } from "../tool-registrations.js";
+import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
+import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -60,7 +61,7 @@ const PRINCIPAL_ID = "principal-under-test";
 const NOW = "2026-07-29T00:00:00.000Z";
 
 function seedPost(overrides: Partial<PostRecord> = {}): PostRecord {
-  return {
+  return buildPostRecord({
     id: "post-1",
     workspaceId: WORKSPACE_ID,
     title: "Hello World",
@@ -72,7 +73,7 @@ function seedPost(overrides: Partial<PostRecord> = {}): PostRecord {
     version: 1,
     seoExtJson: null,
     ...overrides,
-  };
+  });
 }
 
 async function fakeRouteDeps(options: { allow?: boolean; posts?: PostRecord[] } = {}) {
@@ -114,18 +115,18 @@ async function fakeRouteDeps(options: { allow?: boolean; posts?: PostRecord[] } 
     originRegistry,
   };
 
-  return { deps: deps as unknown as RouteDeps, authorizeCalls, postRepo, settingsRepo };
+  return { deps: deps as unknown as RegistryDepsWithoutLimiter, authorizeCalls, postRepo, settingsRepo };
 }
 
 function executionContext(input: Record<string, unknown> | undefined): ToolExecutionContext {
   return { executionId: "exec-1", principal: { id: PRINCIPAL_ID }, run: { id: "run-1" }, input, signal: new AbortController().signal };
 }
 
-function seoRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(deps, undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("seo_") || r.descriptor.id === "content_read.seo_entry_meta").map((r) => [r.descriptor.id, r]));
+function seoRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
+  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("seo_") || r.descriptor.id === "content_read.seo_entry_meta").map((r) => [r.descriptor.id, r]));
 }
 
-function wired(deps: RouteDeps, toolId: string): ToolRegistration {
+function wired(deps: RegistryDepsWithoutLimiter, toolId: string): ToolRegistration {
   const found = seoRegistrations(deps).get(toolId);
   assert.ok(found, `expected '${toolId}' to be wired`);
   return found;

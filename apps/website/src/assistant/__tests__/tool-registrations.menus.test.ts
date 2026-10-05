@@ -19,11 +19,11 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import { ToolInputError } from "@jini-ai/core";
 import { type AgentToolDefinition as NavigationAgentToolDefinition } from "@jini-ai/core";
 import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, menusAgentToolCatalog } from "../../features/navigation/index.js";
-import type { RouteDeps } from "../../server/routes/types.js";
 import {
   assertRiskMetadataIsWirable,
   buildAssistantToolRegistrations,
 } from "../tool-registrations.js";
+import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeMenusTools } from "../../features/navigation/tool-registrations.js";
 
@@ -65,7 +65,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
     },
   };
 
-  return { deps: deps as unknown as RouteDeps, menuRepo, navLocationBindingRepo, authorizeCalls };
+  return { deps: deps as unknown as RegistryDepsWithoutLimiter, menuRepo, navLocationBindingRepo, authorizeCalls };
 }
 
 function executionContext(input: Record<string, unknown>): ToolExecutionContext {
@@ -78,22 +78,22 @@ function catalogEntry(toolId: string): NavigationAgentToolDefinition {
   return entry;
 }
 
-function menusRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
+function menusRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
   return new Map(
-    buildAssistantToolRegistrations(deps, undefined, { contributions })
+    buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions })
       .filter((r) => r.descriptor.id.startsWith("menus_") || r.descriptor.id === "content_read.menu")
       .map((r) => [r.descriptor.id, r]),
   );
 }
 
-function wired(toolId: string, deps: RouteDeps): ToolRegistration {
+function wired(toolId: string, deps: RegistryDepsWithoutLimiter): ToolRegistration {
   const found = menusRegistrations(deps).get(toolId);
   assert.ok(found, `expected '${toolId}' to be wired`);
   return found;
 }
 
 /** Seeds a menu through the real create tool, so tests operate on genuine domain output. */
-async function seedMenu(deps: RouteDeps): Promise<{ id: string }> {
+async function seedMenu(deps: RegistryDepsWithoutLimiter): Promise<{ id: string }> {
   const out = (await wired("menus_create_menu", deps).handler(executionContext({ title: "Primary", slug: "primary" }))) as {
     menu: { id: string };
   };
@@ -378,7 +378,7 @@ test("a stale menu update and unknown menu mutations refuse without changing men
 for (const toolId of ["menus_update_menu_tree", "menus_assign_location"]) {
   test(`${toolId}: denial preserves an existing menu and its location binding`, async () => {
     const { deps, menuRepo, navLocationBindingRepo } = fakeRouteDeps({ allow: false });
-    const seedDeps = { ...deps, authorize: async () => ({ allowed: true, reason: "matched" }) } as RouteDeps;
+    const seedDeps = { ...deps, authorize: async () => ({ allowed: true, reason: "matched" }) } as RegistryDepsWithoutLimiter;
     const { id } = await seedMenu(seedDeps);
     await wired("menus_update_menu_tree", seedDeps).handler(executionContext({
       menuId: id, expectedVersion: 1, items: [{ id: "home", label: "Home", target: { kind: "url", href: "/" } }],

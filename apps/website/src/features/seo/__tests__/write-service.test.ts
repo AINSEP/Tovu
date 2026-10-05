@@ -9,6 +9,7 @@ import {
   SeoInvalidCanonicalUrlError,
 } from "../errors.js";
 import { setEntrySeoOverrides } from "../write-service.js";
+import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
 /**
  * @file T014 — failing-first unit certification of `setEntrySeoOverrides`
@@ -20,7 +21,7 @@ const WORKSPACE = "workspace-1";
 const ENTRY_ID = "post-1";
 
 function seedPost(overrides: Partial<PostRecord> = {}): PostRecord {
-  return {
+  return buildPostRecord({
     id: ENTRY_ID,
     workspaceId: WORKSPACE,
     title: "Hello World",
@@ -32,7 +33,7 @@ function seedPost(overrides: Partial<PostRecord> = {}): PostRecord {
     version: 1,
     seoExtJson: null,
     ...overrides,
-  };
+  });
 }
 
 const alwaysAllow = async () => ({ allowed: true, reason: "matched" });

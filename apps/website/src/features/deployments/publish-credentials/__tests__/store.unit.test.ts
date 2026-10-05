@@ -27,6 +27,7 @@ import { buildPublishCredentialAad } from "../aad.js";
 import { InMemoryPublishCredentialSetRepo } from "../repo.memory.js";
 import { copyPublishCredentialsToVendorTable } from "../vendor-table-backfill.js";
 import type { DeployTargetRegistry, LoadedDeployTarget } from "#src/features/deployments/deploy-targets/types";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /** Always fails — simulates a missing `TOVU_SITE_KEY` without touching real env state.
  *  Same double used by `server/__tests__/admin-media-provider-routes.test.ts`'s own `BrokenKeyring`
@@ -64,7 +65,7 @@ function makeDeps(overrides: Partial<PublishCredentialWriteDeps> = {}): PublishC
     repo: new InMemoryVendorCredentialSetRepo(),
     sealer: new AesGcmSecretSealer(keyring),
     keyring,
-    clock: { nowMs: () => Date.parse(NOW), nowIso: () => NOW },
+    clock: createFakeClock({ startIso: NOW }),
     idGen: { newId: () => `cred-${(counter += 1)}` },
     loadDeployTargets: loadBundledDeployTargets,
     ...overrides,

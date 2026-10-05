@@ -31,10 +31,11 @@ import { type AgentToolDefinition } from "@jini-ai/core";
 import { widgetsAgentToolCatalog } from "../../features/widgets/agent-tools.js";
 import { InMemoryWidgetRegionBindingRepo } from "../../features/widgets/repo.memory.js";
 import { memoryWidgetTrash } from "../../features/widgets/__tests__/support/memory-widget-trash.js";
-import type { RouteDeps } from "../../server/routes/types.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
+import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeWidgetsTools } from "../../features/widgets/tool-registrations.js";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -81,7 +82,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
     },
   };
 
-  return { deps: deps as unknown as RouteDeps, entryRepo, contentTypeRepo, entryRefsRepo, widgetBindingRepo, authorizeCalls };
+  return { deps: deps as unknown as RegistryDepsWithoutLimiter, entryRepo, contentTypeRepo, entryRefsRepo, widgetBindingRepo, authorizeCalls };
 }
 
 function executionContext(input: Record<string, unknown>): ToolExecutionContext {
@@ -100,15 +101,15 @@ function catalogEntry(toolId: string): AgentToolDefinition {
 // here explicitly rather than by prefix.
 const WIDGETS_COLLAPSED_CONTENT_READ_IDS: ReadonlySet<string> = new Set(["content_read.widget_instance", "content_read.widget_region"]);
 
-function widgetsRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
+function widgetsRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
   return new Map(
-    buildAssistantToolRegistrations(deps, undefined, { contributions })
+    buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions })
       .filter((r) => r.descriptor.id.startsWith("widgets_") || WIDGETS_COLLAPSED_CONTENT_READ_IDS.has(r.descriptor.id))
       .map((r) => [r.descriptor.id, r]),
   );
 }
 
-function wired(toolId: string, deps: RouteDeps): ToolRegistration {
+function wired(toolId: string, deps: RegistryDepsWithoutLimiter): ToolRegistration {
   const found = widgetsRegistrations(deps).get(toolId);
   assert.ok(found, `expected '${toolId}' to be wired`);
   return found;
@@ -122,7 +123,7 @@ function wired(toolId: string, deps: RouteDeps): ToolRegistration {
  * moving to Trash is reversible, so only permanent deletes still confirm. The tool now completes in
  * one plain call, which is all this helper ever needed (it was never certifying the gate).
  */
-async function trashInstance(deps: RouteDeps, widgetInstanceId: string): Promise<{ trashed: boolean; cancelled: boolean }> {
+async function trashInstance(deps: RegistryDepsWithoutLimiter, widgetInstanceId: string): Promise<{ trashed: boolean; cancelled: boolean }> {
   // `{trashed, cancelled, widgetInstanceId, title, slug, version?}` (2026-09-21) — the confirmed
   // return shape dropped `instance: toWidgetInstanceToolView(...)` so a corrupt payload can still be
   // reported as trashed without parsing it. See `features/widgets/tool-registrations.ts`'s
@@ -131,7 +132,7 @@ async function trashInstance(deps: RouteDeps, widgetInstanceId: string): Promise
 }
 
 /** Seeds a 'text' widget instance through the real create tool, so tests operate on genuine domain output. */
-async function seedInstance(deps: RouteDeps, title = "Footer Note"): Promise<{ id: string; version: number }> {
+async function seedInstance(deps: RegistryDepsWithoutLimiter, title = "Footer Note"): Promise<{ id: string; version: number }> {
   const out = (await wired("widgets_create_instance", deps).handler(
     executionContext({ widgetType: "text", title, config: { body: "hello" } }),
   )) as { instance: { id: string; version: number } };
@@ -139,7 +140,7 @@ async function seedInstance(deps: RouteDeps, title = "Footer Note"): Promise<{ i
 }
 
 /** Registers a non-widget host content type + creates one entry of it — the target for embed tests. Bypasses the tool layer deliberately: this is test SETUP for a capability (authoring an ordinary page/article entry) outside this task's scope, not a widgets tool under test. */
-async function makeHostEntry(deps: RouteDeps): Promise<{ id: string; version: number }> {
+async function makeHostEntry(deps: RegistryDepsWithoutLimiter): Promise<{ id: string; version: number }> {
   const routeDeps = deps as unknown as { contentTypeRepo: InMemoryContentTypeRepo; entryRepo: TrashAwareInMemoryEntryRepo };
   const ctDeps = {
     repo: routeDeps.contentTypeRepo,
@@ -154,7 +155,7 @@ async function makeHostEntry(deps: RouteDeps): Promise<{ id: string; version: nu
     await registerContentType({ deps: ctDeps, input: { actorId: PRINCIPAL_ID, workspaceId: WORKSPACE_ID, key: HOST_CONTENT_TYPE, label: "Article", fields: [] } });
   }
   const created = await createEntry({
-    deps: { entryRepo: routeDeps.entryRepo, contentTypeRepo: routeDeps.contentTypeRepo, clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW }, ids: { newId: () => `entry-${Math.random()}` }, authorize: PRE_AUTHORIZED, outbox: { enqueue: async () => undefined } },
+    deps: { entryRepo: routeDeps.entryRepo, contentTypeRepo: routeDeps.contentTypeRepo, clock: createFakeClock({ startIso: NOW }), ids: { newId: () => `entry-${Math.random()}` }, authorize: PRE_AUTHORIZED, outbox: { enqueue: async () => undefined } },
     input: {
       actorId: PRINCIPAL_ID,
       workspaceId: WORKSPACE_ID,

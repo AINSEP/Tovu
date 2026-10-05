@@ -19,6 +19,7 @@ import { InMemoryMcpSession } from "../mcp-federation/adapter.memory.js";
 import { attachFederatedMcpTools } from "../mcp-federation/bootstrap.js";
 import type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 import type { FederatedMcpConnectionConfig, RemoteToolDescriptor } from "../mcp-federation/ports.js";
+import { createFakeClock, type FakeClock } from "#src/__tests__/support/fake-clock";
 
 /**
  * @file End-to-end proof that a roster connection revoked AFTER admission — turned off, deleted,
@@ -45,17 +46,11 @@ const REMOTE_TOOLS: RemoteToolDescriptor[] = [
   { name: "write_thing", description: "Writes a thing.", inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: false } },
 ];
 
-function makeClock(startIso = "2026-09-16T00:00:00.000Z") {
-  let nowMs = Date.parse(startIso);
-  return {
-    nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => new Date(nowMs).toISOString(),
-    advance: (ms: number) => {
-      nowMs += ms;
-    },
-  };
+function makeClock(): FakeClock {
+  return createFakeClock({ startIso: "2026-09-16T00:00:00.000Z" });
 }
 
-function makeStoreDeps(clock: { nowIso(): string }) {
+function makeStoreDeps(clock: FakeClock) {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer(keyring);
@@ -217,7 +212,7 @@ test("T1-5: a connection deleted and re-created under the same id refuses as cha
   // `createdAt`'s own contribution to the admission revision from the url difference the case above
   // already covers, so a mutant that drops `createdAt` from the hash cannot pass by accident.
   await deleteExternalMcpServer({ repo }, { workspaceId: WORKSPACE, serverId: SERVER_ID });
-  clock.advance(1000);
+  clock.advanceMs(1000);
   await saveExternalMcpServer(deps, baseSaveInput());
   const sameUrlLater = await callReadThing(toolExecutor);
   assert.equal(sameUrlLater.status, "failed");

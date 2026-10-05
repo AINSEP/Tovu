@@ -9,6 +9,7 @@ import { buildToolCatalogQuery } from "../tool-catalog-query.js";
 import { createRouteDeps } from "../../server/runtime/composition/app.js";
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
+import { toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -62,7 +63,7 @@ function top3Ids(catalog: ReturnType<typeof buildToolCatalogQuery>, query: strin
 
 test('credential queries discover executable ids in the full production catalog after the read collapse', () => {
   installFirstPartyToolContributors({ contributions });
-  const registrations = buildAssistantToolRegistrations(createRouteDeps(), undefined, { contributions });
+  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, { contributions });
   const byId = new Map(registrations.map((registration) => [registration.descriptor.id, registration]));
   assert.equal(byId.has('custom_credential_list'), false, 'the retired list id must not be published');
   const catalog = buildToolCatalogQuery({ list: () => registrations.map((registration) => registration.descriptor) });

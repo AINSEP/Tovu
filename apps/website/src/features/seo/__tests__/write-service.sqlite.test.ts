@@ -5,6 +5,7 @@ import { SqlitePostRepo } from "../../post/index.js";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SeoEntryNotFoundError } from "../errors.js";
 import { setEntrySeoOverrides } from "../write-service.js";
+import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
 /**
  * @file T015 — failing-first integration certification of
@@ -25,7 +26,7 @@ function openTestDb() {
 test("setEntrySeoOverrides: PUT-then-GET round trip persists into posts.seo_ext_json via the real SQLite adapter", async () => {
   const db = openTestDb();
   const repo = new SqlitePostRepo(db);
-  await repo.save({
+  await repo.save(buildPostRecord({
     id: "post-1",
     workspaceId: "workspace-local",
     title: "Fixture Post",
@@ -35,7 +36,7 @@ test("setEntrySeoOverrides: PUT-then-GET round trip persists into posts.seo_ext_
     kind: "post",
     updatedAt: "2026-01-01T00:00:00.000Z",
     version: 1,
-  });
+  }));
   const entry = await repo.findById({ workspaceId: "workspace-local", id: "post-1" });
   assert.ok(entry, "fixture post was inserted");
 
@@ -79,8 +80,8 @@ test("setEntrySeoOverrides: entry-not-found against the real SQLite adapter reje
 
 test("setEntrySeoOverrides: SQLite retries a stale read and preserves the competing content and SEO save", async () => {
   const repo = new SqlitePostRepo(openTestDb());
-  await repo.save({ id: "post-race", workspaceId: "workspace-local", title: "Original", slug: "race",
-    bodyJson: { type: "doc", content: [] }, status: "published", kind: "post", updatedAt: "2026-01-01T00:00:00.000Z", version: 1 });
+  await repo.save(buildPostRecord({ id: "post-race", workspaceId: "workspace-local", title: "Original", slug: "race",
+    bodyJson: { type: "doc", content: [] }, status: "published", kind: "post", updatedAt: "2026-01-01T00:00:00.000Z", version: 1 }));
   const read = repo.findById.bind(repo);
   let raced = false;
   repo.findById = async (input) => {

@@ -9,6 +9,7 @@ import { SeoEntryNotFoundError } from "../errors.js";
 import { ensureSeoSettingDefinitions, setSeoSettings } from "../settings.js";
 import { analyzeEntry, getEntryMeta } from "../seo.js";
 import { setEntrySeoOverrides } from "../write-service.js";
+import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
 /**
  * @file T024 — failing-first unit certification of `getEntryMeta`
@@ -27,7 +28,7 @@ const ids = { newId: () => `seo-test-id-${++idCounter}` };
 const alwaysAllow = async () => ({ allowed: true, reason: "matched" });
 
 function seedPost(overrides: Partial<PostRecord> = {}): PostRecord {
-  return {
+  return buildPostRecord({
     id: "post-1",
     workspaceId: WORKSPACE,
     title: "Hello World",
@@ -39,7 +40,7 @@ function seedPost(overrides: Partial<PostRecord> = {}): PostRecord {
     version: 1,
     seoExtJson: null,
     ...overrides,
-  };
+  });
 }
 
 /** Fake `OriginRegistryPort` (mirrors `site-evidence/__tests__/unit/collect-page-evidence.unit.test.ts`'s

@@ -25,6 +25,7 @@ import { createRouteDeps } from "../../server/runtime/composition/app.js";
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
 import { type ToolContributor } from "../tool-contribution-registry.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
+import { toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 import { commentsAgentToolCatalog } from "../../features/comments/agent-tools.js";
 import { DEMO_CHOICES_TOOL_ID } from "../demo-choices-tool.js";
 
@@ -318,7 +319,7 @@ test("two registry contributors claiming the same tool id fail buildAssistantToo
   contributions.contributors.register({ contribution: fakeContributor("dup-b", ["shared_tool_id"]) });
 
   assert.throws(
-    () => buildAssistantToolRegistrations(createRouteDeps(), undefined, { contributions }),
+    () => buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, { contributions }),
     /'shared_tool_id' is registered by both the dup-a and dup-b domains/,
   );
 });
@@ -344,7 +345,7 @@ test("a registry contributor colliding with a legacy DOMAIN_SLICES id fails the 
   // ceases to exist — at which point DELETE this test rather than contriving a fixture for it. A
   // test that proves a seam still behaves correctly is worthless once there is no seam.
   contributions.contributors.register({ contribution: fakeContributor("impersonator", [DEMO_CHOICES_TOOL_ID]) });
-  assert.throws(() => buildAssistantToolRegistrations(createRouteDeps(), undefined, { contributions }), /'assistant_demo_choices' is registered by both the demo-choices and impersonator domains/);
+  assert.throws(() => buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, { contributions }), /'assistant_demo_choices' is registered by both the demo-choices and impersonator domains/);
 });
 
 // ---------------------------------------------------------------------------
@@ -388,7 +389,7 @@ test("core registers no Supabase-specific connect tool — the generic agent_plu
   installFirstPartyToolContributors({ contributions });
   const deps = createRouteDeps();
   await deps.identityReady;
-  const ids = buildAssistantToolRegistrations(deps, undefined, { contributions }).map((r) => r.descriptor.id);
+  const ids = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).map((r) => r.descriptor.id);
 
   assert.ok(ids.includes("agent_plugin_connect"), "the generic Agent Plugin Connect tool must stay registered");
   assert.ok(!ids.includes("supabase_get_database"), "supabase_get_database must not be registered");

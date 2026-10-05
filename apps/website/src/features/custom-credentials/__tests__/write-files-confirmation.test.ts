@@ -14,6 +14,7 @@ import { buildCustomCredentialsRegistrations, buildWriteFilesConfirmationFileSpe
 import { buildWriteFilesConfirmationResource } from "../write-files-confirmation-ui.js";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platform/http/index.js";
 import { githubFromSource } from "../../source-control/__tests__/fixtures/github-from-source.js";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**
  * @file Certification of `custom_credential_write_files`'s confirmation gate
@@ -89,7 +90,7 @@ function fakeRouteDeps(options: { allow?: boolean; httpSteps?: { match: RegExp; 
 
   const deps: CustomCredentialsToolDeps = {
     workspaceId: WORKSPACE_ID,
-    clock: { nowMs: () => Date.parse(NOW), nowIso: () => NOW },
+    clock: createFakeClock({ startIso: NOW }),
     customCredentialSetRepo: repo,
     siteAssistantSecretSealer: sealer,
     siteAssistantSecretKeyring: keyring,
@@ -106,7 +107,7 @@ function fakeRouteDeps(options: { allow?: boolean; httpSteps?: { match: RegExp; 
     repo,
     sealer,
     keyring,
-    clock: { nowMs: () => Date.parse(NOW), nowIso: () => NOW },
+    clock: createFakeClock({ startIso: NOW }),
     idGen: (() => {
       let n = 0;
       return { newId: () => `cred-${++n}` };

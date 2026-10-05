@@ -8,6 +8,7 @@ import { InMemoryVendorCredentialSetRepo } from "#src/features/vendor-credential
 import { composePublishCredentialSource, createDbPublishCredentialSource, createEnvPublishCredentialSource } from "../credentials.js";
 import { loadBundledDeployTargets } from "#src/features/deployments/deploy-targets/__tests__/bundled-deploy-targets.fixture";
 import type { DeployTargetRegistry, LoadedDeployTarget } from "#src/features/deployments/deploy-targets/types";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**
  * @file `createEnvPublishCredentialSource` (bound to one workspace, refuses any other — Terra's
@@ -29,7 +30,7 @@ function makeWriteDeps(): PublishCredentialWriteDeps {
     repo: new InMemoryVendorCredentialSetRepo(),
     sealer: new AesGcmSecretSealer(keyring),
     keyring,
-    clock: { nowMs: () => Date.parse(NOW), nowIso: () => NOW },
+    clock: createFakeClock({ startIso: NOW }),
     idGen: { newId: () => `cred-${(counter += 1)}` },
     loadDeployTargets: loadBundledDeployTargets,
   };

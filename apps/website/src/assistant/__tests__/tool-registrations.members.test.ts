@@ -27,11 +27,11 @@ import {
 } from "../../features/members/index.js";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
-import type { RouteDeps } from "../../server/routes/types.js";
 import {
   assertRiskMetadataIsWirable,
   buildAssistantToolRegistrations,
 } from "../tool-registrations.js";
+import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeMembersTools } from "../../features/members/tool-registrations.js";
 
@@ -112,7 +112,7 @@ function fakeRouteDeps(options: { allow?: boolean; seed?: MemberRecord[] } = {})
     magicLinkPerEmailLimiter,
   };
 
-  return { deps: deps as unknown as RouteDeps, memberRepo, memberSessionRepo, magicLinkRepo, principalRepo, authorizeCalls, sentMail };
+  return { deps: deps as unknown as RegistryDepsWithoutLimiter, memberRepo, memberSessionRepo, magicLinkRepo, principalRepo, authorizeCalls, sentMail };
 }
 
 function executionContext(input: Record<string, unknown>): ToolExecutionContext {
@@ -125,15 +125,15 @@ function catalogEntry(toolId: string): AgentToolDefinition {
   return entry;
 }
 
-function membersRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
+function membersRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
   return new Map(
-    buildAssistantToolRegistrations(deps, undefined, { contributions })
+    buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions })
       .filter((r) => r.descriptor.id.startsWith("members_") || r.descriptor.id === "content_read.member")
       .map((r) => [r.descriptor.id, r]),
   );
 }
 
-function wired(toolId: string, deps: RouteDeps): ToolRegistration {
+function wired(toolId: string, deps: RegistryDepsWithoutLimiter): ToolRegistration {
   const found = membersRegistrations(deps).get(toolId);
   assert.ok(found, `expected '${toolId}' to be wired`);
   return found;
@@ -334,7 +334,7 @@ test("members_request_magic_link: authorize() is checked strictly BEFORE the rat
   // that directly against a spy limiter.
   const denials: string[] = [];
   const spyLimiter = { check: async ({ key }: { key: string }) => { denials.push(key); return { allowed: true } as const; } };
-  const deps2 = { ...deniedDeps, magicLinkPerEmailLimiter: spyLimiter } as unknown as RouteDeps;
+  const deps2 = { ...deniedDeps, magicLinkPerEmailLimiter: spyLimiter } as unknown as RegistryDepsWithoutLimiter;
   await wired("members_request_magic_link", deps2).handler(executionContext({ email: "target@example.test" })).catch(() => undefined);
   assert.equal(denials.length, 0, "a denied caller must never reach the rate limiter");
 });

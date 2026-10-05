@@ -12,6 +12,7 @@ import { createCustomCredential, type CustomCredentialWriteDeps } from "../store
 import { customCredentialsAgentToolCatalog } from "../agent-tools.js";
 import { buildCustomCredentialsRegistrations, type CustomCredentialsToolDeps } from "../tool-registrations.js";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platform/http/index.js";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**
  * @file Certification of `custom_credential_list` — the read-back tool for
@@ -70,7 +71,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
 
   const deps: CustomCredentialsToolDeps = {
     workspaceId: WORKSPACE_ID,
-    clock: { nowMs: () => Date.parse(NOW), nowIso: () => NOW },
+    clock: createFakeClock({ startIso: NOW }),
     customCredentialSetRepo: repo,
     siteAssistantSecretSealer: sealer,
     siteAssistantSecretKeyring: keyring,
@@ -89,7 +90,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
     repo,
     sealer,
     keyring,
-    clock: { nowMs: () => Date.parse(NOW), nowIso: () => NOW },
+    clock: createFakeClock({ startIso: NOW }),
     idGen: (() => {
       let n = 0;
       return { newId: () => `cred-${++n}` };

@@ -28,10 +28,11 @@ import { InMemoryEntryRepo } from "../../features/entries/index.js";
 import { type AgentToolDefinition } from "@jini-ai/core";
 import { widgetsAgentToolCatalog } from "../../features/widgets/agent-tools.js";
 import { InMemoryWidgetRegionBindingRepo } from "../../features/widgets/repo.memory.js";
-import type { RouteDeps } from "../../server/routes/types.js";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
+import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeWidgetsTools } from "../../features/widgets/tool-registrations.js";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -75,7 +76,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
     },
   };
 
-  return { deps: deps as unknown as RouteDeps, entryRepo, entryRefsRepo, widgetBindingRepo, authorizeCalls };
+  return { deps: deps as unknown as RegistryDepsWithoutLimiter, entryRepo, entryRefsRepo, widgetBindingRepo, authorizeCalls };
 }
 
 function executionContext(input: Record<string, unknown>): ToolExecutionContext {
@@ -100,15 +101,15 @@ function widgetsWiredId(toolId: string): string {
   return WIDGETS_COLLAPSED_ID[toolId] ?? toolId;
 }
 
-function widgetsRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
+function widgetsRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
   return new Map(
-    buildAssistantToolRegistrations(deps, undefined, { contributions })
+    buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions })
       .filter((r) => WIDGETS_TOOL_IDS.has(r.descriptor.id) || Object.values(WIDGETS_COLLAPSED_ID).includes(r.descriptor.id))
       .map((r) => [r.descriptor.id, r]),
   );
 }
 
-function wired(toolId: string, deps: RouteDeps): ToolRegistration {
+function wired(toolId: string, deps: RegistryDepsWithoutLimiter): ToolRegistration {
   const resolvedId = widgetsWiredId(toolId);
   const found = widgetsRegistrations(deps).get(resolvedId);
   assert.ok(found, `expected '${toolId}' to be wired`);
@@ -122,7 +123,7 @@ function catalogEntry(toolId: string): AgentToolDefinition {
 }
 
 /** Seed a full workspace fixture (a widget instance, a bound region containing it, and an inline embed) so every tool's happy-path input has real state to act on before the gate. */
-async function seedFixture(deps: RouteDeps): Promise<{ widgetInstanceId: string; regionKey: string; areaVersion: number; hostEntryId: string; hostVersion: number; placementId: string }> {
+async function seedFixture(deps: RegistryDepsWithoutLimiter): Promise<{ widgetInstanceId: string; regionKey: string; areaVersion: number; hostEntryId: string; hostVersion: number; placementId: string }> {
   const created = (await wired("widgets_create_instance", deps).handler(executionContext({ widgetType: "text", title: "Seed", config: { body: "x" } }))) as {
     instance: { id: string };
   };
@@ -140,11 +141,11 @@ async function seedFixture(deps: RouteDeps): Promise<{ widgetInstanceId: string;
   const { NoopContentTypeIndexProvisioner } = await import("../../features/content-types/repo.memory.js");
   const { PRE_AUTHORIZED } = await import("../../features/widgets/authorize-helper.js");
   await registerContentType({
-    deps: { repo: contentTypeRepo, clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW }, ids: { newId: () => "ct-seed" }, authorize: PRE_AUTHORIZED, indexProvisioner: new NoopContentTypeIndexProvisioner(), outbox: { enqueue: async () => undefined } },
+    deps: { repo: contentTypeRepo, clock: createFakeClock({ startIso: NOW }), ids: { newId: () => "ct-seed" }, authorize: PRE_AUTHORIZED, indexProvisioner: new NoopContentTypeIndexProvisioner(), outbox: { enqueue: async () => undefined } },
     input: { actorId: PRINCIPAL_ID, workspaceId: WORKSPACE_ID, key: "article", label: "Article", fields: [] },
   });
   const hostCreated = await createEntry({
-    deps: { entryRepo, contentTypeRepo, clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW }, ids: { newId: () => "entry-seed" }, authorize: PRE_AUTHORIZED, outbox: { enqueue: async () => undefined } },
+    deps: { entryRepo, contentTypeRepo, clock: createFakeClock({ startIso: NOW }), ids: { newId: () => "entry-seed" }, authorize: PRE_AUTHORIZED, outbox: { enqueue: async () => undefined } },
     input: { actorId: PRINCIPAL_ID, workspaceId: WORKSPACE_ID, type: "article", slug: "host-seed", title: "Host", fieldsJson: { ext: { site: {} } }, bodyJson: { type: "doc", content: [] } },
   });
   if (!hostCreated.ok) throw hostCreated.error;

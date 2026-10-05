@@ -8,6 +8,7 @@ import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm"
 import { applyAgentPluginToolRenames, renameToolNames } from "../../apply-tool-renames.js";
 import type { InstalledAgentPluginServers } from "../../import-access-token.js";
 import type { McpServerConfig } from "../../mcp-metadata.js";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**
  * @file `apply-tool-renames.ts` — a plugin's declared `tovuRenamedTools` rewrite the saved tool lists
@@ -40,7 +41,7 @@ async function makeHarness(row: {
   const sealer = new AesGcmSecretSealer(keyring);
   const clock = { nowMs: () => Date.parse(NOW), nowIso: () => NOW };
   await saveExternalMcpServer(
-    { repo, sealer, keyring, clock: { nowMs: () => Date.parse("2026-09-01T00:00:00.000Z"), nowIso: () => "2026-09-01T00:00:00.000Z" } },
+    { repo, sealer, keyring, clock: createFakeClock({ startIso: "2026-09-01T00:00:00.000Z" }) },
     {
       workspaceId: WORKSPACE,
       serverId: SERVER,
@@ -172,7 +173,7 @@ test("a plugin listing that throws is a warning, never a boot failure", async ()
     {
       workspaceId: WORKSPACE,
       externalMcpServerRepo: new InMemoryExternalMcpServerRepo(),
-      clock: { nowMs: () => Date.parse(NOW), nowIso: () => NOW },
+      clock: createFakeClock({ startIso: NOW }),
       listPlugins: async () => {
         throw new Error("package store unreadable");
       },

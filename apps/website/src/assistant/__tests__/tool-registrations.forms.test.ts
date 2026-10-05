@@ -23,8 +23,8 @@ import { type AgentToolDefinition } from "@jini-ai/core";
 import { formsAgentToolCatalog } from "../../features/forms/agent-tools.js";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "../../features/forms/repo.memory.js";
 import type { FormDefinitionRecord, FormSubmissionRecord } from "@jini-ai/cms-forms";
-import type { RouteDeps } from "../../server/routes/types.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
+import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeFormsTools } from "../../features/forms/tool-registrations.js";
 
@@ -86,7 +86,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
     },
   };
 
-  return { deps: deps as unknown as RouteDeps, repo, submissionRepo, authorizeCalls, order };
+  return { deps: deps as unknown as RegistryDepsWithoutLimiter, repo, submissionRepo, authorizeCalls, order };
 }
 
 /** Seeds one submission directly through the repo — there is no forms_submit tool (submission is a site-visitor action, not an admin one). */
@@ -113,22 +113,22 @@ function catalogEntry(toolId: string): AgentToolDefinition {
   return entry;
 }
 
-function formsRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
+function formsRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
   return new Map(
-    buildAssistantToolRegistrations(deps, undefined, { contributions })
+    buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions })
       .filter((r) => r.descriptor.id.startsWith("forms_") || r.descriptor.id === "content_read.form_definition")
       .map((r) => [r.descriptor.id, r]),
   );
 }
 
-function wired(toolId: string, deps: RouteDeps): ToolRegistration {
+function wired(toolId: string, deps: RegistryDepsWithoutLimiter): ToolRegistration {
   const found = formsRegistrations(deps).get(toolId);
   assert.ok(found, `expected '${toolId}' to be wired`);
   return found;
 }
 
 /** Seeds a definition through the real create tool, so tests operate on genuine domain output. */
-async function seedDefinition(deps: RouteDeps): Promise<{ id: string }> {
+async function seedDefinition(deps: RegistryDepsWithoutLimiter): Promise<{ id: string }> {
   const out = (await wired("forms_create_definition", deps).handler(
     executionContext({ name: "Contact", slug: "contact", fields: VALID_FIELDS }),
   )) as { definition: { id: string } };

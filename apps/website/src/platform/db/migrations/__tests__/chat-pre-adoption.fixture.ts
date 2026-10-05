@@ -1,7 +1,6 @@
 /** Frozen C3 starting implementation: rollback reader only, never production-imported. */
 import type {
   ChatConversation,
-  ChatHistoryStore,
   ChatMessage,
   ChatOwnerScope,
   ChatTitleSource,
@@ -30,6 +29,23 @@ import type { ChatDatabase, ChatKernel } from "#src/platform/db/chat-kernel";
  * stays the backstop. Called inside another kernel transaction (the run ledger's `unlessSettled`),
  * the append joins it.
  */
+
+/**
+ * The positional store shape this frozen reader was written against, before `@jini-ai/chat/core`'s
+ * `ChatHistoryStore` moved every method to `(required, optional)` objects. Declared here rather than
+ * typed as the live port so the rollback reader stays frozen: `chat-package-adoption.test.ts` reads
+ * it through exactly these signatures and compares the results with the adopted store's.
+ */
+export interface PreAdoptionChatHistoryStore {
+  list(): Promise<ChatConversation[]>;
+  get(id: string): Promise<ChatConversation | null>;
+  create(input: CreateChatConversationInput): Promise<ChatConversation>;
+  rename(id: string, title: string, source?: ChatTitleSource): Promise<ChatConversation | null>;
+  touch(id: string, options?: { readonly expiresAt?: number }): Promise<void>;
+  delete(id: string): Promise<void>;
+  messages(conversationId: string): Promise<ChatMessage[]>;
+  appendMessage(conversationId: string, message: ChatMessage): Promise<ChatMessage | null>;
+}
 
 /** The lock every position-assigning append to one conversation takes. */
 export function conversationLockKey(conversationId: string): string {
@@ -103,7 +119,7 @@ function toMessage(row: MessageRow): ChatMessage {
 }
 
 /**
- * Returns a {@link ChatHistoryStore} that can only ever see `scope`'s own conversations.
+ * Returns a {@link PreAdoptionChatHistoryStore} that can only ever see `scope`'s own conversations.
  *
  * @param kernel the chat kernel. Nothing here opens, closes or configures a database; SQLite's
  *   `ON DELETE CASCADE` needs `foreign_keys = ON`, which `openChatDb` sets.
@@ -117,7 +133,7 @@ export function createChatHistoryStore(
   kernel: ChatKernel,
   scope: ChatOwnerScope,
   now: () => number = Date.now
-): ChatHistoryStore {
+): PreAdoptionChatHistoryStore {
   const { scopeId, ownerKind, ownerId } = scope;
 
   /** This scope's conversations, projected as {@link ConversationRow}s with their message count. */

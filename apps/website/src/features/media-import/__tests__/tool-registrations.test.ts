@@ -17,13 +17,14 @@ import {
   registerTransform,
   type BlobStorePort,
 } from "../../media/index.js";
-import type { RouteDeps } from "../../../server/routes/types.js";
 import { EgressRefusedError, type HttpClientPort, type HttpRequest, type HttpResponse } from "../../../platform/http/index.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../../../assistant/tool-registrations.js";
+import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeMediaImportTools } from "../tool-registrations.js";
 import { type AgentToolDefinition } from "@jini-ai/core";
 import { mediaImportAgentToolCatalog } from "../agent-tools.js";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -155,12 +156,12 @@ function fakeRouteDeps(options: { allow?: boolean; responses?: (HttpResponse | E
     },
   };
 
-  return { deps: deps as unknown as RouteDeps, mediaRepo, assetBlobRepo, blobStore, mediaContentTypeStore, transformDefinitionRepo, mediaImportHttpClient, authorizeCalls };
+  return { deps: deps as unknown as RegistryDepsWithoutLimiter, mediaRepo, assetBlobRepo, blobStore, mediaContentTypeStore, transformDefinitionRepo, mediaImportHttpClient, authorizeCalls };
 }
 
 async function seedPublicTransform(transformDefinitionRepo: InMemoryTransformDefinitionRepo): Promise<void> {
   await registerTransform({
-    deps: { transformRepo: transformDefinitionRepo, idGen: { newId: () => "transform-public-v1" }, clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW } },
+    deps: { transformRepo: transformDefinitionRepo, idGen: { newId: () => "transform-public-v1" }, clock: createFakeClock({ startIso: NOW }) },
     input: { workspaceId: WORKSPACE_ID, name: "public", params: { format: "webp" }, owner: "core" },
   });
 }
@@ -190,11 +191,11 @@ function catalogEntry(toolId: string): AgentToolDefinition {
   return entry;
 }
 
-function mediaImportRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(deps, undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("media_import")).map((r) => [r.descriptor.id, r]));
+function mediaImportRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
+  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("media_import")).map((r) => [r.descriptor.id, r]));
 }
 
-function wired(toolId: string, deps: RouteDeps): ToolRegistration {
+function wired(toolId: string, deps: RegistryDepsWithoutLimiter): ToolRegistration {
   const found = mediaImportRegistrations(deps).get(toolId);
   assert.ok(found, `expected '${toolId}' to be wired`);
   return found;

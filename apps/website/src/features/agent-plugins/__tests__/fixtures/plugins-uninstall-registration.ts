@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 
 import type { ToolRegistration } from "@jini-ai/core";
 
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import type { AssistantSurfaceDeps } from "#src/contracts/core/tool-surface-exchanges";
 import { InMemoryExternalMcpServerRepo } from "#src/assistant/external-mcp-store.memory";
@@ -29,7 +30,7 @@ export function buildPluginsUninstallRegistration(deps: AgentPluginUninstallTool
     workspaceId: deps.workspaceId,
     // The operator's admin language for the dialog copy (`operator-locale.ts`), when the test supplies a ledger.
     ...(deps.settingsRepo ? { settingsRepo: deps.settingsRepo } : {}),
-    clock: { nowIso: () => new Date().toISOString() },
+    clock: createFakeClock({ startIso: new Date().toISOString() }),
     idGen: { newId: () => "id-1" },
     changeSets: new InMemoryChangeSetRepo(),
     outbox: { enqueue: async () => undefined, claimPending: async () => [], markDelivered: async () => {}, markFailed: async () => {} },

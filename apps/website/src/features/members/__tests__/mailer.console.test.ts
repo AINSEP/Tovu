@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { ConsoleMailerAdapter } from "../mailer.console.js";
 import type { MailerSendOptions, OutboundEmail } from "#src/platform/mail/index";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 const SEND_OPTIONS: MailerSendOptions = {
   idempotencyKey: "idem-1",
@@ -23,7 +24,7 @@ test("capabilities reports the console driver shape", () => {
 
 test("send logs the message and returns an ok result with a generated id + injected clock time", async () => {
   const adapter = new ConsoleMailerAdapter({
-    clock: { nowMs: () => Date.parse("2026-07-10T12:00:00.000Z"), nowIso: () => "2026-07-10T12:00:00.000Z" },
+    clock: createFakeClock({ startIso: "2026-07-10T12:00:00.000Z" }),
     ids: { newId: () => "generated-id-1" },
   });
   const message: OutboundEmail = {
@@ -144,7 +145,7 @@ test("send fails closed with ATTACHMENTS_UNSUPPORTED instead of silently droppin
 
 test("send succeeds normally when attachments is present but empty", async () => {
   const adapter = new ConsoleMailerAdapter({
-    clock: { nowMs: () => Date.parse("2026-07-10T12:00:00.000Z"), nowIso: () => "2026-07-10T12:00:00.000Z" },
+    clock: createFakeClock({ startIso: "2026-07-10T12:00:00.000Z" }),
     ids: { newId: () => "generated-id-1" },
   });
   const message: OutboundEmail = {

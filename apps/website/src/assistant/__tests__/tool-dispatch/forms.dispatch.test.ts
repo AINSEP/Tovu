@@ -8,6 +8,7 @@ import { createToolExecutor } from "@jini-ai/daemon";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { buildAssistantToolRegistrations } from "../../tool-registrations.js";
+import { toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 import { installFirstPartyToolContributors } from "../../../server/runtime/composition/tool-catalog-manifest.js";
 import type { FieldDescriptor } from "@jini-ai/cms-forms";
 
@@ -39,7 +40,7 @@ async function buildRealExecutor() {
   await routeDeps.identityReady;
 
   const registry = createToolRegistry({});
-  for (const registration of buildAssistantToolRegistrations(routeDeps, undefined, { contributions })) {
+  for (const registration of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps }), undefined, { contributions })) {
     registry.register(registration);
   }
   const toolExecutor = createToolExecutor({ registry });

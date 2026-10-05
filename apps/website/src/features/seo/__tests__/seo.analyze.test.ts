@@ -7,6 +7,7 @@ import { InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryTransformDefinit
 import { OriginNotVerifiedError, type OriginRegistryPort } from "../../origin/index.js";
 import { ensureSeoSettingDefinitions } from "../settings.js";
 import { analyzeEntry } from "../seo.js";
+import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
 /**
  * @file T025 — failing-first unit certification of `analyzeEntry`
@@ -21,7 +22,7 @@ const ids = { newId: () => `seo-analyze-id-${++idCounter}` };
 const alwaysAllow = async () => ({ allowed: true, reason: "matched" });
 
 function seedPost(overrides: Partial<PostRecord> = {}): PostRecord {
-  return {
+  return buildPostRecord({
     id: "post-1",
     workspaceId: WORKSPACE,
     title: "Hello World",
@@ -33,7 +34,7 @@ function seedPost(overrides: Partial<PostRecord> = {}): PostRecord {
     version: 1,
     seoExtJson: null,
     ...overrides,
-  };
+  });
 }
 
 /** No verified origin registered — mirrors `seo.test.ts`'s own copy; see that file for the

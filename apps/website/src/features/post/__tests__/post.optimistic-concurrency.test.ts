@@ -10,6 +10,7 @@ import {
   type UpdatePostInput,
 } from "../post.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
+import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
 /**
  * @file Optimistic-concurrency guard for `updatePost` (worklist item 10, 2026-09-06).
@@ -36,7 +37,7 @@ const noopOutbox: OutboxPort = {
   markFailed: async () => {},
 };
 
-const seedPost = {
+const seedPost = buildPostRecord({
   id: "post-1",
   workspaceId: "workspace-1",
   title: "Hello World",
@@ -46,7 +47,7 @@ const seedPost = {
   kind: "post" as const,
   updatedAt: "2026-09-06T00:00:00.000Z",
   version: 1,
-};
+});
 
 const clock = { nowMs: () => Date.parse("2026-09-06T01:00:00.000Z") };
 

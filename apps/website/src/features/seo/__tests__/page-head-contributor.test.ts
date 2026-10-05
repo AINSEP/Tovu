@@ -10,6 +10,7 @@ import type { HeadElement, PageHeadContext } from "../types.js";
 import { SeoEntryNotFoundError } from "../errors.js";
 import { ensureSeoSettingDefinitions, setSeoSettings } from "../settings.js";
 import { createSeoPageHeadHook } from "../page-head-contributor.js";
+import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
 /**
  * @file T030 — failing-first unit certification of `seoPageHeadHook`
@@ -26,7 +27,7 @@ const ids = { newId: () => `head-contrib-id-${++idCounter}` };
 const alwaysAllow = async () => ({ allowed: true, reason: "matched" });
 
 function seedPost(overrides: Partial<PostRecord> = {}): PostRecord {
-  return {
+  return buildPostRecord({
     id: "post-1",
     workspaceId: WORKSPACE,
     title: "Hello World",
@@ -38,7 +39,7 @@ function seedPost(overrides: Partial<PostRecord> = {}): PostRecord {
     version: 1,
     seoExtJson: null,
     ...overrides,
-  };
+  });
 }
 
 /** No verified origin registered — mirrors `seo.test.ts`'s own copy of this fake. Keeps every

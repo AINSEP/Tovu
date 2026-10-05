@@ -12,6 +12,7 @@ import {
 } from "../post.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { removeVia } from "./remove-post-double.js";
+import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
 /**
  * @file Certification of `retirePostForReplacement` — publish's "overwrite on live, address clash"
@@ -31,7 +32,7 @@ const clock = { nowMs: () => Date.parse("2026-09-24T12:00:00.000Z") };
 const WS = "workspace-1";
 
 function seed(overrides: Partial<PostRecord> = {}): PostRecord {
-  return {
+  return buildPostRecord({
     id: "post-1",
     workspaceId: WS,
     title: "About Tovu",
@@ -42,7 +43,7 @@ function seed(overrides: Partial<PostRecord> = {}): PostRecord {
     updatedAt: "2026-04-06T00:00:00.000Z",
     version: 3,
     ...overrides,
-  };
+  });
 }
 
 test("retirePostForReplacement frees the slug and trashes the row under a renamed slug", async () => {

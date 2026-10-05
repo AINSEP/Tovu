@@ -29,11 +29,11 @@ import {
   InMemoryNewsletterSubscriptionRepo,
 } from "../../features/newsletter/repo.memory.js";
 import type { CampaignRecord, NewsletterListRow, SubscriptionRow } from "../../features/newsletter/types.js";
-import type { RouteDeps } from "../../server/routes/types.js";
 import {
   assertRiskMetadataIsWirable,
   buildAssistantToolRegistrations,
 } from "../tool-registrations.js";
+import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeNewsletterTools } from "../../features/newsletter/tool-registrations.js";
 
@@ -174,7 +174,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
   };
 
   return {
-    deps: deps as unknown as RouteDeps,
+    deps: deps as unknown as RegistryDepsWithoutLimiter,
     newsletterCampaignRepo,
     newsletterListRepo,
     newsletterSubscriptionRepo,
@@ -195,9 +195,9 @@ function executionContext(input: Record<string, unknown>): ToolExecutionContext 
  * (the tool stays on the MCP-UI allowlist; see features/newsletter/delivery-confirmation.ts), so a
  * headless call refuses with NEWSLETTER_NO_CONFIRMATION_CHANNEL and these tests go through the card.
  */
-async function resendThroughCard(deps: RouteDeps, subscriptionId: string): Promise<unknown> {
+async function resendThroughCard(deps: RegistryDepsWithoutLimiter, subscriptionId: string): Promise<unknown> {
   const store = createSurfaceExchangeStore();
-  const tool = buildAssistantToolRegistrations(deps, { surfaceExchanges: store }, { contributions })
+  const tool = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaceExchanges: store }, { contributions })
     .find((r) => r.descriptor.id === "newsletter_resend_confirmation");
   assert.ok(tool, "expected 'newsletter_resend_confirmation' to be wired");
   let emitted!: (value: unknown) => void;
@@ -229,15 +229,15 @@ function newsletterWiredId(toolId: string): string {
   return NEWSLETTER_COLLAPSED_ID[toolId] ?? toolId;
 }
 
-function newsletterRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
+function newsletterRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
   return new Map(
-    buildAssistantToolRegistrations(deps, undefined, { contributions })
+    buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions })
       .filter((r) => r.descriptor.id.startsWith("newsletter_") || Object.values(NEWSLETTER_COLLAPSED_ID).includes(r.descriptor.id))
       .map((r) => [r.descriptor.id, r]),
   );
 }
 
-function wired(toolId: string, deps: RouteDeps): ToolRegistration {
+function wired(toolId: string, deps: RegistryDepsWithoutLimiter): ToolRegistration {
   const resolvedId = newsletterWiredId(toolId);
   const found = newsletterRegistrations(deps).get(resolvedId);
   assert.ok(found, `expected '${toolId}' to be wired`);

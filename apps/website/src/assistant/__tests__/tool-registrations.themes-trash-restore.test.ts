@@ -11,8 +11,8 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import { discoverAllBuiltInThemes } from "../../features/theme/index.js";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type SurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
 import type { UIResource } from "../index.js";
-import type { RouteDeps } from "../../server/routes/types.js";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
+import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeThemesTools } from "../../features/theme/tool-registrations.js";
 
@@ -73,15 +73,15 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
     themesDir,
     authorize,
   };
-  return { deps: deps as unknown as RouteDeps, themesDir };
+  return { deps: deps as unknown as RegistryDepsWithoutLimiter, themesDir };
 }
 
 function executionContext(input: Record<string, unknown> | undefined): ToolExecutionContext {
   return { executionId: "exec-1", principal: { id: PRINCIPAL_ID }, run: { id: "run-1" }, input, signal: new AbortController().signal };
 }
 
-function wired(deps: RouteDeps, toolId: string): ToolRegistration {
-  const found = buildAssistantToolRegistrations(deps, undefined, { contributions }).find((r) => r.descriptor.id === toolId);
+function wired(deps: RegistryDepsWithoutLimiter, toolId: string): ToolRegistration {
+  const found = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).find((r) => r.descriptor.id === toolId);
   assert.ok(found, `expected '${toolId}' to be wired`);
   return found;
 }
@@ -95,8 +95,8 @@ function wired(deps: RouteDeps, toolId: string): ToolRegistration {
  * itself open — this helper builds against one store passed in (or a fresh one) so the raise-then-
  * confirm round trip lands on the same exchange.
  */
-async function trashFile(deps: RouteDeps, input: Record<string, unknown>, surfaceExchanges: SurfaceExchangeStore = createSurfaceExchangeStore()): Promise<unknown> {
-  const trashTool = buildAssistantToolRegistrations(deps, { surfaceExchanges }, { contributions }).find((r) => r.descriptor.id === "theme_trash_file");
+async function trashFile(deps: RegistryDepsWithoutLimiter, input: Record<string, unknown>, surfaceExchanges: SurfaceExchangeStore = createSurfaceExchangeStore()): Promise<unknown> {
+  const trashTool = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaceExchanges }, { contributions }).find((r) => r.descriptor.id === "theme_trash_file");
   assert.ok(trashTool, "expected 'theme_trash_file' to be wired");
   return trashTool.handler(executionContext(input));
 }
@@ -105,7 +105,7 @@ function existsInTheme(themesDir: string, relativePath: string): boolean {
   return fs.existsSync(path.join(themesDir, "plain", relativePath));
 }
 
-async function listFiles(deps: RouteDeps, options: { includeTrash?: boolean } = {}): Promise<string[]> {
+async function listFiles(deps: RegistryDepsWithoutLimiter, options: { includeTrash?: boolean } = {}): Promise<string[]> {
   const result = (await wired(deps, "theme_list_files").handler(
     executionContext({ themeId: "plain", ...(options.includeTrash ? { includeTrash: true } : {}) })
   )) as { files: string[] };

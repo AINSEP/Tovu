@@ -4,6 +4,7 @@ import test from "node:test";
 import type { OutboxPort } from "@jini-ai/cms/core";
 import { PostNotFoundError, PostVersionConflictError, updatePost, type PostRecord, type UpdatePostInput } from "../post.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
+import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
 /**
  * @file C01 (fable bugs audit, 2026-09-06) — `updatePost`'s `expectedVersion` compare must be
@@ -38,7 +39,7 @@ const noopOutbox: OutboxPort = {
   markFailed: async () => {},
 };
 
-const seedPost: PostRecord = {
+const seedPost: PostRecord = buildPostRecord({
   id: "post-1",
   workspaceId: "workspace-1",
   title: "Hello World",
@@ -48,7 +49,7 @@ const seedPost: PostRecord = {
   kind: "post",
   updatedAt: "2026-09-06T00:00:00.000Z",
   version: 1,
-};
+});
 
 const clock = { nowMs: () => Date.parse("2026-09-07T01:00:00.000Z") };
 

@@ -8,6 +8,7 @@ import { NO_THEME_ID, type DiscoveredTheme } from "#src/features/theme/index";
 import { InMemoryRedirectRepo } from "#src/features/redirects/index";
 import type { RedirectRecord } from "#src/features/redirects/index";
 import { buildRouteManifest, createRouteManifestReader, type RouteManifestDeps } from "../route-manifest.js";
+import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
 /** Minimal hand-built {@link DiscoveredTheme} fixture — every field `buildThemePageRoutes` /
  *  `resolveActiveTheme` actually reads, with `overrides.manifest` merged shallowly over a valid
@@ -77,8 +78,8 @@ function baseDeps(overrides: Partial<RouteManifestDeps> = {}): RouteManifestDeps
 
 test("buildRouteManifest: includes home and every seeded published post/page, and does not depend on sitemap.ts", async () => {
   const deps = baseDeps();
-  await deps.postRepo.save({ id: "unpublished-fixture", workspaceId: deps.workspaceId, title: "Private draft", slug: "private-draft",
-    bodyJson: { type: "doc", content: [] }, status: "draft", kind: "post", updatedAt: "2026-09-01T00:00:00.000Z", version: 1 });
+  await deps.postRepo.save(buildPostRecord({ id: "unpublished-fixture", workspaceId: deps.workspaceId, title: "Private draft", slug: "private-draft",
+    bodyJson: { type: "doc", content: [] }, status: "draft", kind: "post", updatedAt: "2026-09-01T00:00:00.000Z", version: 1 }));
   const manifest = await buildRouteManifest(deps);
   assert.equal(manifest.routes.some((route) => route.path === "/private-draft"), false);
 

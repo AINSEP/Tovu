@@ -17,6 +17,7 @@ import { createTrashSweep } from "@jini-ai/cms/trash";
 import { computePurgeAfter, createTrashService } from "@jini-ai/cms/trash";
 import type { TrashAdapter, TrashPort } from "@jini-ai/cms/trash";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**
  * @file RED-first coverage for the user `TrashAdapter` (delete-user plan v2 Slice 1) — hide/unhide
@@ -281,7 +282,7 @@ test("sweeper: purges a user past its retention window and records identity.user
   // produced an "id-1" event, and the sweep's purge-time event must not collide with it.
   let sweepSeq = 0;
   const sweepIdGen = { next: () => `sweep-id-${++sweepSeq}` };
-  const adapters = new Map<string, TrashAdapter>([[USER_ENTITY_TYPE, createUserTrashAdapter({ db: f.db, purge: new SqliteUserPurge(f.db), idGen: sweepIdGen, clock: { nowIso: () => purgeAfter, nowMs: () => Date.parse(purgeAfter) } })]]);
+  const adapters = new Map<string, TrashAdapter>([[USER_ENTITY_TYPE, createUserTrashAdapter({ db: f.db, purge: new SqliteUserPurge(f.db), idGen: sweepIdGen, clock: createFakeClock({ startIso: purgeAfter }) })]]);
   const sweep = createTrashSweep({
     repo: new SqliteTrashRepo(f.db.$client),
     adapters,
@@ -400,7 +401,7 @@ test("hide: a status change committed between the read and the write reports ver
     db: kernelWithWriterAfterFirstRead(f.db, () => f.db.$client.prepare(`UPDATE principals SET status = 'disabled' WHERE id = ?`).run(targetId)),
     purge: new SqliteUserPurge(f.db),
     idGen: counterIdGen(),
-    clock: { nowIso: () => AT, nowMs: () => Date.parse(AT) },
+    clock: createFakeClock({ startIso: AT }),
   });
 
   const outcome = await adapter.hide({ workspaceId: WS, entityId: targetId, at: AT, expectedVersion: null });
@@ -419,7 +420,7 @@ test("unhide: a re-enable committed between the read and the write is not overwr
     ),
     purge: new SqliteUserPurge(f.db),
     idGen: counterIdGen(),
-    clock: { nowIso: () => AT, nowMs: () => Date.parse(AT) },
+    clock: createFakeClock({ startIso: AT }),
   });
 
   const outcome = await adapter.unhide({ workspaceId: WS, entityId: targetId, at: AT, expectedVersion: null}, { priorMarker: "disabled"});

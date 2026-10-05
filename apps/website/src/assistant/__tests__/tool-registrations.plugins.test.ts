@@ -16,8 +16,8 @@ import type { PluginDiscoveryRecord } from "../../features/plugin-runtime/discov
 import { type AgentToolDefinition as PluginsAgentToolDefinition } from "@jini-ai/core";
 import { pluginAgentToolCatalog } from "../../features/plugin-runtime/agent-tools.js";
 import { InMemoryPluginActivationRepo } from "../../features/plugin-runtime/repo.memory.js";
-import type { RouteDeps } from "../../server/routes/types.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
+import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { buildPluginsRegistrations, contributePluginsTools, type PluginsToolDeps } from "../../features/plugin-runtime/tool-registrations.js";
 
@@ -101,22 +101,22 @@ function fakeRouteDeps(options: { allow?: boolean; discovery?: PluginDiscoveryRe
     },
   };
 
-  return { deps: deps as unknown as RouteDeps, authorizeCalls, order, pluginActivationRepo };
+  return { deps: deps as unknown as RegistryDepsWithoutLimiter, authorizeCalls, order, pluginActivationRepo };
 }
 
 function executionContext(input: Record<string, unknown> | undefined): ToolExecutionContext {
   return { executionId: "exec-1", principal: { id: PRINCIPAL_ID }, run: { id: "run-1" }, input, signal: new AbortController().signal };
 }
 
-function pluginsRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
+function pluginsRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
   return new Map(
-    buildAssistantToolRegistrations(deps, undefined, { contributions })
+    buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions })
       .filter((r) => r.descriptor.id.startsWith("plugins_") || r.descriptor.id === "content_read.plugin")
       .map((r) => [r.descriptor.id, r]),
   );
 }
 
-function wired(deps: RouteDeps, toolId: string): ToolRegistration {
+function wired(deps: RegistryDepsWithoutLimiter, toolId: string): ToolRegistration {
   const found = pluginsRegistrations(deps).get(toolId);
   assert.ok(found, `expected '${toolId}' to be wired`);
   return found;
@@ -279,7 +279,7 @@ for (const toolId of Object.keys(TOOL_INPUTS)) {
  * owns its own store internally. The registration is otherwise identical — same builder, same deps.
  */
 async function enableWithDecision(
-  deps: RouteDeps,
+  deps: RegistryDepsWithoutLimiter,
   input: Record<string, unknown>,
   decision: "confirm" | "cancel",
 ): Promise<unknown> {

@@ -26,11 +26,11 @@ import {
 } from "../../features/recovery/repo.memory.js";
 import { buildGatewayDeps } from "../../contracts/core/gated-mutations/composition.js";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type DeliverResult } from "../../contracts/core/tool-surface-exchanges.js";
-import type { RouteDeps } from "../../server/routes/types.js";
 import {
   assertRiskMetadataIsWirable,
   buildAssistantToolRegistrations,
 } from "../tool-registrations.js";
+import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeRecoveryTools } from "../../features/recovery/tool-registrations.js";
 import { contributeDatabaseTools } from "../../features/database/tool-registrations.js";
@@ -153,7 +153,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
   };
 
   return {
-    deps: deps as unknown as RouteDeps,
+    deps: deps as unknown as RegistryDepsWithoutLimiter,
     authorizeCalls,
     order,
     repos: { restorePointsRepo: realRestorePointsRepo, dbOps: realDbOps, databaseLedgerRepo, siteStatusRepo, migrationRunsRepo, databaseIntrospection },
@@ -193,19 +193,19 @@ const RECOVERY_READ_CARD_IDS = ["content_read.backup_restore_point"];
 const DATABASE_TOOL_IDS: ReadonlySet<string> = new Set([...getDatabaseAgentToolCatalog().map((tool) => tool.name), ...DATABASE_READ_CARD_IDS]);
 const RECOVERY_TOOL_IDS: ReadonlySet<string> = new Set([...recoveryAgentToolCatalog.map((tool) => tool.name), ...RECOVERY_READ_CARD_IDS]);
 
-function allRegistrations(deps: RouteDeps): ToolRegistration[] {
-  return buildAssistantToolRegistrations(deps, undefined, { contributions });
+function allRegistrations(deps: RegistryDepsWithoutLimiter): ToolRegistration[] {
+  return buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions });
 }
 
-function databaseRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
+function databaseRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
   return new Map(allRegistrations(deps).filter((r) => DATABASE_TOOL_IDS.has(r.descriptor.id)).map((r) => [r.descriptor.id, r]));
 }
 
-function recoveryRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
+function recoveryRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
   return new Map(allRegistrations(deps).filter((r) => RECOVERY_TOOL_IDS.has(r.descriptor.id)).map((r) => [r.descriptor.id, r]));
 }
 
-function combinedRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
+function combinedRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
   return new Map([...databaseRegistrations(deps), ...recoveryRegistrations(deps)]);
 }
 
@@ -695,9 +695,9 @@ test("workflow (Database create -> Recovery list -> Recovery plan): a restore po
  * Starts an execute tool against one exchange store, waits for its dialog, and hands back the
  * answer seam. `answer(principalId, decision)` posts a click the way `mcp-ui-tool-calls-route.ts` does.
  */
-async function startExecute(deps: RouteDeps, toolId: string, input: Record<string, unknown>) {
+async function startExecute(deps: RegistryDepsWithoutLimiter, toolId: string, input: Record<string, unknown>) {
   const surfaceExchanges = createSurfaceExchangeStore();
-  const tool = buildAssistantToolRegistrations(deps, { surfaceExchanges }, { contributions }).find((r) => r.descriptor.id === toolId);
+  const tool = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaceExchanges }, { contributions }).find((r) => r.descriptor.id === toolId);
   assert.ok(tool, `expected '${toolId}' to be wired`);
   const emitted: unknown[] = [];
   const pending = tool.handler(executionContext(input), { emitSurface: async (s) => void emitted.push(s) });
@@ -805,7 +805,7 @@ for (const { toolId, flag, errorCode, dialogText } of EXECUTE_CASES) {
     const { deps, repos } = fakeRouteDeps();
     const seededId = await seedRestorePoint(repos);
     const surfaceExchanges = createSurfaceExchangeStore();
-    const tool = buildAssistantToolRegistrations(deps, { surfaceExchanges }, { contributions }).find((r) => r.descriptor.id === toolId);
+    const tool = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaceExchanges }, { contributions }).find((r) => r.descriptor.id === toolId);
     assert.ok(tool);
 
     for (const key of ["confirm", "confirmationToken"]) {
@@ -841,7 +841,7 @@ for (const { toolId, flag, errorCode, dialogText } of EXECUTE_CASES) {
     const { deps, repos } = fakeRouteDeps({ allow: false });
     const seededId = await seedRestorePoint(repos);
     const surfaceExchanges = createSurfaceExchangeStore();
-    const tool = buildAssistantToolRegistrations(deps, { surfaceExchanges }, { contributions }).find((r) => r.descriptor.id === toolId);
+    const tool = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaceExchanges }, { contributions }).find((r) => r.descriptor.id === toolId);
     assert.ok(tool);
 
     await assert.rejects(

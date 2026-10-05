@@ -23,6 +23,7 @@ import {
 } from "../../publish-content/__tests__/round-trip-harness.js";
 import { clear, set, type SettingDefinitionRecord, type SettingValueSchema } from "../index.js";
 import { contributeSiteSettingPublish } from "../publish-content.js";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**
  * @file `site-setting` and `active-theme` round-tripped on real SQLite on both sides, plus the
@@ -79,7 +80,7 @@ async function write(site: Site, id: string, value: JsonValue): Promise<void> {
   await set({
     deps: {
       repo: site.settings,
-      clock: { nowIso: () => "2026-09-02T00:00:00.000Z", nowMs() { return Date.parse(this.nowIso()); } },
+      clock: createFakeClock({ startIso: "2026-09-02T00:00:00.000Z" }),
       ids: { newId: () => `rev-${Math.random()}` },
       authorize: async () => ({ allowed: true, reason: "test" }),
       principals: {} as never,
@@ -93,7 +94,7 @@ async function clearValue(site: Site, id: string): Promise<void> {
   await clear({
     deps: {
       repo: site.settings,
-      clock: { nowIso: () => "2026-09-03T00:00:00.000Z", nowMs() { return Date.parse(this.nowIso()); } },
+      clock: createFakeClock({ startIso: "2026-09-03T00:00:00.000Z" }),
       ids: { newId: () => `rev-${Math.random()}` },
       authorize: async () => ({ allowed: true, reason: "test" }),
       principals: {} as never,

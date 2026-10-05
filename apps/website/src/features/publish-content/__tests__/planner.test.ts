@@ -41,6 +41,7 @@ import {
   type RetireTarget,
   type ReferenceHolder,
 } from "../planner.js";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 test.beforeEach(() => {
   resetPublishContentContributorsForTests();
@@ -975,7 +976,7 @@ test("real post contributor: created + byte-identical destination", async () => 
     state: newPostState,
   };
   const deps: PlanImportDeps = {
-    publishContentDeps: { workspaceId, clock: { nowIso: () => "2026-09-18T00:00:00.000Z" }, idGen: { newId: () => "unused" }, ports: { post: { repo } } },
+    publishContentDeps: { workspaceId, clock: createFakeClock({ startIso: "2026-09-18T00:00:00.000Z" }), idGen: { newId: () => "unused" }, ports: { post: { repo } } },
     getBaseline: async () => null,
     hasBlob: async () => true,
   };
@@ -1023,7 +1024,7 @@ test("real post contributor: blocked on a genuine slug collision against a DIFFE
     state: incomingState,
   };
   const deps: PlanImportDeps = {
-    publishContentDeps: { workspaceId, clock: { nowIso: () => "2026-09-18T00:00:00.000Z" }, idGen: { newId: () => "unused" }, ports: { post: { repo } } },
+    publishContentDeps: { workspaceId, clock: createFakeClock({ startIso: "2026-09-18T00:00:00.000Z" }), idGen: { newId: () => "unused" }, ports: { post: { repo } } },
     getBaseline: async () => null,
     hasBlob: async () => true,
   };

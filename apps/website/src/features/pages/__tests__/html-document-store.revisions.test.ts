@@ -5,6 +5,7 @@ import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 import { type ContentKernel, describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { postRepoFor, type SqlPostRepo } from "#src/features/post/repo";
 import { PageConcurrentEditError, SqlPagesHtmlDocumentStore } from "../html-document-store.js";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**
  * @file S1 (fix plan 2026-09-24 row 14) — certification that `PagesHtmlDocumentStore.write`/
@@ -19,7 +20,7 @@ import { PageConcurrentEditError, SqlPagesHtmlDocumentStore } from "../html-docu
  */
 
 const WS = "ws-pages-rev";
-const clock: ClockPort & { nowMs(): number } = { nowIso: () => "2026-09-24T00:00:00.000Z", nowMs() { return Date.parse(this.nowIso()); } };
+const clock: ClockPort & { nowMs(): number } = createFakeClock({ startIso: "2026-09-24T00:00:00.000Z" });
 
 
 const ORIGINAL_DOC = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Hello" }] }] };

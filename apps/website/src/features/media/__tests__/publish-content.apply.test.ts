@@ -44,6 +44,7 @@ import type { PublishContentDeps } from "#src/features/publish-content/type-regi
 import { renderDocNode, type MediaAssetRenderMeta } from "#src/server/inbound/public-http/http/site/render";
 
 import { contributeMediaPublish, MediaApplyBlockedError, MediaApplyConflictError } from "../publish-content.js";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 const WORKSPACE_ID = "11111111-1111-1111-1111-111111111111";
 const OPERATOR_ID = "operator-principal-1";
@@ -120,7 +121,7 @@ async function makeFixture(
   let n = 0;
   const deps: PublishContentDeps = {
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => "2026-09-18T12:00:00.000Z", nowMs() { return Date.parse(this.nowIso()); } },
+    clock: createFakeClock({ startIso: "2026-09-18T12:00:00.000Z" }),
     idGen: { newId: () => `generated-id-${++n}` },
     outbox,
     changeSets,

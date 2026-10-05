@@ -11,6 +11,7 @@ import { HeuristicSpamCheck } from "../spam.heuristic.js";
 import type { CommentSubmission, SpamVerdict } from "../types.js";
 import type { SpamCheckPort } from "../ports.js";
 import { commentTrashDoubles } from "./comment-trash-doubles.js";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**
  * @file Regression test for the composition seam that used to hardcode `HeuristicSpamCheck`
@@ -62,7 +63,7 @@ test("createCommentsModule uses the injected spamCheck, not a hardcoded Heuristi
     // published for THIS test to still be exercising spamCheck injection, not the open-gate.
     entryRepo: { findById: async () => ({ id: "entry-1", status: "published", publishedAt: null }) },
     outbox: new InMemoryOutbox(),
-    clock: { nowIso: () => "2026-08-29T00:00:00.000Z", nowMs: () => Date.parse("2026-08-29T00:00:00.000Z") },
+    clock: createFakeClock({ startIso: "2026-08-29T00:00:00.000Z" }),
     idGen: { newId: () => "comment-1" },
     spamCheck: spyingSpamCheck,
     ...commentTrashDoubles(),
@@ -82,7 +83,7 @@ test("BUG REGRESSION: a draft entry (never published) rejects a public comment a
     commentRepo: new InMemoryCommentRepo(),
     entryRepo: { findById: async () => makeEntry("draft", null) },
     outbox: new InMemoryOutbox(),
-    clock: { nowIso: () => "2026-08-29T00:00:00.000Z", nowMs: () => Date.parse("2026-08-29T00:00:00.000Z") },
+    clock: createFakeClock({ startIso: "2026-08-29T00:00:00.000Z" }),
     idGen: { newId: () => "comment-1" },
     spamCheck: new HeuristicSpamCheck(),
     ...commentTrashDoubles(),
@@ -101,7 +102,7 @@ test("BUG REGRESSION: an unpublished (retracted) entry rejects a public comment 
     // alone, not `publishedAt`, must decide this.
     entryRepo: { findById: async () => makeEntry("unpublished", "2020-01-01T00:00:00.000Z") },
     outbox: new InMemoryOutbox(),
-    clock: { nowIso: () => "2026-08-29T00:00:00.000Z", nowMs: () => Date.parse("2026-08-29T00:00:00.000Z") },
+    clock: createFakeClock({ startIso: "2026-08-29T00:00:00.000Z" }),
     idGen: { newId: () => "comment-1" },
     spamCheck: new HeuristicSpamCheck(),
     ...commentTrashDoubles(),
@@ -117,7 +118,7 @@ test("a published entry with no closeAfterDays cap still accepts a public commen
     commentRepo: new InMemoryCommentRepo(),
     entryRepo: { findById: async () => makeEntry("published", "2026-01-01T00:00:00.000Z") },
     outbox: new InMemoryOutbox(),
-    clock: { nowIso: () => "2026-08-29T00:00:00.000Z", nowMs: () => Date.parse("2026-08-29T00:00:00.000Z") },
+    clock: createFakeClock({ startIso: "2026-08-29T00:00:00.000Z" }),
     idGen: { newId: () => "comment-1" },
     spamCheck: new HeuristicSpamCheck(),
     ...commentTrashDoubles(),
@@ -136,7 +137,7 @@ for (const ageDays of [6, 7, 7 + 1 / 86400, 8]) {
       commentRepo,
       entryRepo: { findById: async () => makeEntry("published", publishedAt) },
       outbox: new InMemoryOutbox(),
-      clock: { nowIso: () => nowIso, nowMs: () => Date.parse(nowIso) },
+      clock: createFakeClock({ startIso: nowIso }),
       idGen: { newId: () => "comment-1" },
       spamCheck: new HeuristicSpamCheck(),
       settings: { ...DEFAULT_COMMENTS_SETTINGS, closeAfterDays: 7 },
@@ -188,7 +189,7 @@ test("the composed writeService forwards removal, restore, and transaction depen
     commentRepo,
     entryRepo: { findById: async () => makeEntry("published", null) },
     outbox: new InMemoryOutbox(),
-    clock: { nowIso: () => "2026-08-29T00:00:00.000Z", nowMs: () => Date.parse("2026-08-29T00:00:00.000Z") },
+    clock: createFakeClock({ startIso: "2026-08-29T00:00:00.000Z" }),
     idGen: { newId: () => `composed-comment-${++sequence}` },
     spamCheck: new HeuristicSpamCheck(),
     ...trash,

@@ -9,8 +9,8 @@ import { contentTypesAgentToolCatalog } from "../../features/content-types/index
 import { ForbiddenError } from "../../features/content-types/index.js";
 import type { ContentTypeRecord } from "../../features/content-types/index.js";
 import { ToolInputError } from "@jini-ai/core";
-import type { RouteDeps } from "../../server/routes/types.js";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
+import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeContentTypesTools } from "../../features/content-types/tool-registrations.js";
 
@@ -116,7 +116,7 @@ function fakeRouteDeps(options: { allow: boolean; existing?: ContentTypeRecord }
     },
   };
 
-  return { deps: deps as unknown as RouteDeps, authorizeCalls, order, writes };
+  return { deps: deps as unknown as RegistryDepsWithoutLimiter, authorizeCalls, order, writes };
 }
 
 /** Minimal but valid input for each wired tool — enough to get past argument parsing into the domain call. */
@@ -168,7 +168,7 @@ function permissionFor(toolId: string): string {
 
 function registrationsById(): Map<string, ToolRegistration> {
   const { deps } = fakeRouteDeps({ allow: true });
-  return new Map(buildAssistantToolRegistrations(deps, undefined, { contributions }).map((registration) => [registration.descriptor.id, registration]));
+  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).map((registration) => [registration.descriptor.id, registration]));
 }
 
 test("every wired CONTENT-TYPES tool has a known input fixture — a newly wired tool must be added here, not silently skipped", () => {
@@ -209,7 +209,7 @@ for (const toolId of Object.keys(TOOL_INPUTS)) {
   test(`${toolId}: calls authorize() with its catalog's declared permission and the run's principal`, async () => {
     const expectedPermission = permissionFor(toolId);
     const { deps, authorizeCalls } = fakeRouteDeps({ allow: true, existing: existingFor(toolId) });
-    const wired = buildAssistantToolRegistrations(deps, undefined, { contributions }).find((r) => r.descriptor.id === toolId);
+    const wired = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).find((r) => r.descriptor.id === toolId);
     assert.ok(wired);
     await wired.handler(executionContext(TOOL_INPUTS[toolId]));
 
@@ -229,7 +229,7 @@ for (const toolId of Object.keys(TOOL_INPUTS)) {
 
   test(`${toolId}: a denied principal is rejected and NOTHING is written`, async () => {
     const { deps, writes } = fakeRouteDeps({ allow: false, existing: existingFor(toolId) });
-    const wired = buildAssistantToolRegistrations(deps, undefined, { contributions }).find((r) => r.descriptor.id === toolId);
+    const wired = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).find((r) => r.descriptor.id === toolId);
     assert.ok(wired);
 
     await assert.rejects(
@@ -246,7 +246,7 @@ for (const toolId of Object.keys(TOOL_INPUTS)) {
 
   test(`${toolId}: authorize() runs before the repo is even read`, async () => {
     const { deps, order } = fakeRouteDeps({ allow: true, existing: existingFor(toolId) });
-    const wired = buildAssistantToolRegistrations(deps, undefined, { contributions }).find((r) => r.descriptor.id === toolId);
+    const wired = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).find((r) => r.descriptor.id === toolId);
     assert.ok(wired);
 
     await wired.handler(executionContext(TOOL_INPUTS[toolId]));
@@ -289,7 +289,7 @@ test("collections_content_type_list declares admin.collections.read — the read
 
 test("content_read.collection_content_type: calls authorize() with 'admin.collections.read' and the run's principal, before touching the repo", async () => {
   const { deps, authorizeCalls, order } = fakeRouteDeps({ allow: true });
-  const wired = buildAssistantToolRegistrations(deps, undefined, { contributions }).find((r) => r.descriptor.id === "content_read.collection_content_type");
+  const wired = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).find((r) => r.descriptor.id === "content_read.collection_content_type");
   assert.ok(wired);
 
   await wired.handler(executionContext({}));
@@ -303,7 +303,7 @@ test("content_read.collection_content_type: calls authorize() with 'admin.collec
 
 test("content_read.collection_content_type: a denied principal is rejected and the repo is never read", async () => {
   const { deps, order } = fakeRouteDeps({ allow: false });
-  const wired = buildAssistantToolRegistrations(deps, undefined, { contributions }).find((r) => r.descriptor.id === "content_read.collection_content_type");
+  const wired = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).find((r) => r.descriptor.id === "content_read.collection_content_type");
   assert.ok(wired);
 
   await assert.rejects(
@@ -324,7 +324,7 @@ test("content_read.collection_content_type: a denied principal is rejected and t
 
 test("content_read.collection_content_type: a populated input is refused — this tool accepts no arguments", async () => {
   const { deps } = fakeRouteDeps({ allow: true });
-  const wired = buildAssistantToolRegistrations(deps, undefined, { contributions }).find((r) => r.descriptor.id === "content_read.collection_content_type");
+  const wired = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).find((r) => r.descriptor.id === "content_read.collection_content_type");
   assert.ok(wired);
 
   await assert.rejects(() => wired.handler(executionContext({ unexpected: true })), /accepts no input/);

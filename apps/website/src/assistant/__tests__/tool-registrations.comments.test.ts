@@ -28,15 +28,16 @@ import { createCommentWriteService } from "../../features/comments/write-service
 import { ensureCommentsSettingDefinitions } from "../../features/comments/settings.js";
 import type { CommentRecord } from "../../features/comments/types.js";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
-import type { RouteDeps } from "../../server/routes/types.js";
 import {
   assertRiskMetadataIsWirable,
   buildAssistantToolRegistrations,
 } from "../tool-registrations.js";
+import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeCommentsTools } from "../../features/comments/tool-registrations.js";
 
 import { commentTrashDoubles } from "../../features/comments/__tests__/comment-trash-doubles.js";
+import { InMemoryOutbox } from "#src/contracts/core/events/index";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -85,7 +86,7 @@ async function fakeRouteDeps(options: { allow?: boolean } = {}) {
 
   const commentWriteService = createCommentWriteService({
     repo: commentRepo,
-    outbox: { enqueue: async () => {} },
+    outbox: new InMemoryOutbox(),
     hooks: createCommentHookRegistry(),
     clock,
     idGen,
@@ -105,7 +106,7 @@ async function fakeRouteDeps(options: { allow?: boolean } = {}) {
     principalRepo,
   };
 
-  return { deps: deps as unknown as RouteDeps, commentRepo, settingsRepo, authorizeCalls };
+  return { deps: deps as unknown as RegistryDepsWithoutLimiter, commentRepo, settingsRepo, authorizeCalls };
 }
 
 function executionContext(input: Record<string, unknown>): ToolExecutionContext {
@@ -118,15 +119,15 @@ function catalogEntry(toolId: string): AgentToolDefinition {
   return entry;
 }
 
-function commentsRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
+function commentsRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
   return new Map(
-    buildAssistantToolRegistrations(deps, undefined, { contributions })
+    buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions })
       .filter((r) => r.descriptor.id.startsWith("comments_") || r.descriptor.id === "content_read.comment_moderation_queue")
       .map((r) => [r.descriptor.id, r]),
   );
 }
 
-function wired(toolId: string, deps: RouteDeps): ToolRegistration {
+function wired(toolId: string, deps: RegistryDepsWithoutLimiter): ToolRegistration {
   const found = commentsRegistrations(deps).get(toolId);
   assert.ok(found, `expected '${toolId}' to be wired`);
   return found;
@@ -378,7 +379,7 @@ test("comments_update_settings: self-enforces via setCommentsSettings's internal
     { message: /^COMMENTS_FORBIDDEN: / },
   );
   // Re-read through a freshly-allowed handle over the SAME repo instance — proves no value row was written.
-  const stillDefault = (await wired("comments_get_settings", { ...deps, authorize: async () => ({ allowed: true, reason: "matched" }) } as unknown as RouteDeps).handler(
+  const stillDefault = (await wired("comments_get_settings", { ...deps, authorize: async () => ({ allowed: true, reason: "matched" }) } as unknown as RegistryDepsWithoutLimiter).handler(
     executionContext({}),
   )) as { settings: { maxDepth: number } };
   assert.equal(stillDefault.settings.maxDepth, 5, "the default, unwritten value — the denied write must not have persisted");

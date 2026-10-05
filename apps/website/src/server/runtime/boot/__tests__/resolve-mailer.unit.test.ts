@@ -14,6 +14,7 @@ import type { SmtpMailPayload, SmtpTransport } from "#src/platform/mail/index";
 import type { CustomCredentialSetRecord, CustomCredentialSetRepoPort } from "#src/features/custom-credentials/index";
 import { loadMailAdapterRegistryFromSource, type MailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
 import { createResolvedMailer, parseSmtpEndpoint, MAIL_SMTP_CREDENTIAL_LABEL, type ResolveMailerDeps } from "../resolve-mailer.js";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**
  * @file `createResolvedMailer` — the plugin-adapter -> SMTP -> console resolution chain and its
@@ -86,7 +87,7 @@ function makeCredentialWriteDeps(): CustomCredentialWriteDeps {
     repo: new InMemoryCustomCredentialSetRepo(),
     sealer: new AesGcmSecretSealer(keyring),
     keyring,
-    clock: { nowMs: () => Date.parse("2026-08-31T00:00:00.000Z"), nowIso: () => "2026-08-31T00:00:00.000Z" },
+    clock: createFakeClock({ startIso: "2026-08-31T00:00:00.000Z" }),
     idGen: (() => {
       let n = 0;
       return { newId: () => `cred-${++n}` };

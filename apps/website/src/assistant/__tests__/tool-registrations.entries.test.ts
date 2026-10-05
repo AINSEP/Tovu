@@ -9,8 +9,8 @@ import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "../../
 import { registerContentType } from "../../features/content-types/index.js";
 import { entriesAgentToolCatalog, type AgentToolDefinition as EntriesAgentToolDefinition } from "../../features/entries/index.js";
 import { InMemoryEntryRepo } from "../../features/entries/index.js";
-import type { RouteDeps } from "../../server/routes/types.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
+import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeEntriesTools } from "../../features/entries/tool-registrations.js";
 
@@ -65,12 +65,12 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
     },
   };
 
-  return { deps: deps as unknown as RouteDeps, entryRepo, contentTypeRepo, authorizeCalls };
+  return { deps: deps as unknown as RegistryDepsWithoutLimiter, entryRepo, contentTypeRepo, authorizeCalls };
 }
 
 /** Registers a real, active content type with one required 'summary' text field, through the real
  * chokepoint — so field-validation tests exercise genuine domain rejection, not a fixture stub. */
-async function seedContentType(deps: RouteDeps): Promise<void> {
+async function seedContentType(deps: RegistryDepsWithoutLimiter): Promise<void> {
   const routeDeps = deps as unknown as { contentTypeRepo: InMemoryContentTypeRepo };
   const ctDeps = {
     repo: routeDeps.contentTypeRepo,
@@ -103,11 +103,11 @@ function catalogEntry(toolId: string): EntriesAgentToolDefinition {
   return entry;
 }
 
-function entriesRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(deps, undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("collections_entry_") || r.descriptor.id === "content_read.collection_entry").map((r) => [r.descriptor.id, r]));
+function entriesRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
+  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("collections_entry_") || r.descriptor.id === "content_read.collection_entry").map((r) => [r.descriptor.id, r]));
 }
 
-function wired(toolId: string, deps: RouteDeps): ToolRegistration {
+function wired(toolId: string, deps: RegistryDepsWithoutLimiter): ToolRegistration {
   const found = entriesRegistrations(deps).get(toolId);
   assert.ok(found, `expected '${toolId}' to be wired`);
   return found;

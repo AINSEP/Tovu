@@ -7,6 +7,7 @@ import { InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryTransformDefinit
 import { OriginNotVerifiedError, type OriginRegistryPort } from "../../origin/index.js";
 import { ensureSeoSettingDefinitions } from "../settings.js";
 import { buildSitemap, invalidateSitemapCache, regenerateSitemapCache } from "../sitemap.js";
+import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
 /**
  * @file T035 — failing-first unit certification of `regenerateSitemapCache`/
@@ -24,7 +25,7 @@ const ids = { newId: () => `cache-test-id-${++idCounter}` };
 const alwaysAllow = async () => ({ allowed: true, reason: "matched" });
 
 function post(workspaceId: string, overrides: Partial<PostRecord> = {}): PostRecord {
-  return {
+  return buildPostRecord({
     id: "a",
     workspaceId,
     title: "Post",
@@ -36,7 +37,7 @@ function post(workspaceId: string, overrides: Partial<PostRecord> = {}): PostRec
     version: 1,
     seoExtJson: null,
     ...overrides,
-  };
+  });
 }
 
 /** No verified origin registered — mirrors `seo.test.ts`'s own copy of this fake. */

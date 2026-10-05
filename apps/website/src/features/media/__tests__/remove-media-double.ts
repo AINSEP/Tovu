@@ -63,12 +63,18 @@ export function makeRemoveMediaDouble(mediaRepo: MinimalMediaStore): {
     removed,
     removeMedia: async (required) => {
       removed.push({ id: required.id, display: required.display, expectedVersion: required.expectedVersion });
-      return adapter.hide({
+      const result = await adapter.hide({
         workspaceId: required.workspaceId,
         entityId: required.id,
         at: required.at,
         expectedVersion: required.expectedVersion,
       });
+      // Same narrowing as the composition root's `removeEntityWithoutBlocker`: this adapter is built
+      // with no blocker, so a `blocked` reply is a wiring bug, never an outcome to hand the tool.
+      if (!result.ok && result.reason === "blocked") {
+        throw new Error(`remove-media-double: '${required.id}' reported 'blocked' from an adapter with no blocker`);
+      }
+      return result;
     },
   };
 }

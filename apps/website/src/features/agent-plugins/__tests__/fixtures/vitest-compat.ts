@@ -176,10 +176,12 @@ function bindRejects(promise: unknown, negate: boolean): AsyncMatchers {
   });
 }
 
-export interface Expectation extends Matchers {
+// An intersection, not `interface extends Matchers`: `not`/`rejects` are not matcher functions, so
+// they cannot sit beside `Matchers`' string index signature in one interface (TS2411).
+export type Expectation = Matchers & {
   readonly not: Matchers;
   readonly rejects: AsyncMatchers;
-}
+};
 
 export function expect(actual: unknown): Expectation {
   const positive = bindMatchers(actual, false);

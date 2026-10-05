@@ -6,6 +6,7 @@ import type { PostRecord } from "#src/features/post/index";
 import { loadTheme } from "#src/features/theme/index";
 import type { ResolvePageWidgetsResult } from "#src/features/widgets/resolver-service";
 import { renderSite } from "../render.js";
+import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
 // A saturated machine, not a slow template, is what makes these fire. On 2026-08-19 a 7-agent run
 // drove this 8-core box to load average 135 and the sandboxed renders below failed with
@@ -38,7 +39,7 @@ function ledgerTheme() {
 }
 
 function fakePost(overrides: Partial<PostRecord> = {}): PostRecord {
-  return {
+  return buildPostRecord({
     id: "11111111-1111-1111-1111-111111111111",
     workspaceId: "workspace-1",
     title: "<Hello> & Welcome",
@@ -48,7 +49,7 @@ function fakePost(overrides: Partial<PostRecord> = {}): PostRecord {
     updatedAt: "2026-07-01T00:00:00.000Z",
     version: 1,
     ...overrides,
-  };
+  });
 }
 
 function widgetsResult(overrides: Partial<ResolvePageWidgetsResult> = {}): ResolvePageWidgetsResult {

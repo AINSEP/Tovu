@@ -8,6 +8,7 @@ import type { PublishContentDeps } from "#src/features/publish-content/type-regi
 import { InMemoryMenuRepo, type MenuRepoPort, type NavLocationBindingRepoPort, type NavMenuEntry } from "../index.js";
 import { contributeMenusPublish } from "../publish-content.js";
 import { createMenuReverters, registerMenuReverters } from "../reverters.js";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**
  * @file R4 (`ADS-memory/.local-artifacts/plan-publish-repoint-menus-2026-09-24.md` §2.4/§3) —
@@ -50,7 +51,7 @@ function makeRepointDeps(menuRepo: MenuRepoPort): PublishContentDeps & { changeS
   const outbox = new InMemoryOutbox();
   return {
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => "2026-09-24T00:00:00.000Z", nowMs() { return Date.parse(this.nowIso()); } },
+    clock: createFakeClock({ startIso: "2026-09-24T00:00:00.000Z" }),
     idGen: (() => {
       let n = 0;
       return { newId: () => `generated-${++n}` };

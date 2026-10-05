@@ -10,8 +10,8 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { discoverAllBuiltInThemes } from "../../features/theme/index.js";
 import type { DiscoveredTheme } from "../../features/theme/theme.js";
-import type { RouteDeps } from "../../server/routes/types.js";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
+import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import {
   contributeThemesTools,
@@ -77,15 +77,15 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
     themesDir,
     authorize,
   };
-  return { deps: deps as unknown as RouteDeps, themesDir };
+  return { deps: deps as unknown as RegistryDepsWithoutLimiter, themesDir };
 }
 
 function executionContext(input: Record<string, unknown> | undefined): ToolExecutionContext {
   return { executionId: "exec-1", principal: { id: PRINCIPAL_ID }, run: { id: "run-1" }, input, signal: new AbortController().signal };
 }
 
-function wired(deps: RouteDeps, toolId: string): ToolRegistration {
-  const found = buildAssistantToolRegistrations(deps, undefined, { contributions }).find((r) => r.descriptor.id === toolId);
+function wired(deps: RegistryDepsWithoutLimiter, toolId: string): ToolRegistration {
+  const found = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).find((r) => r.descriptor.id === toolId);
   assert.ok(found, `expected '${toolId}' to be wired`);
   return found;
 }

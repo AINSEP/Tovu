@@ -13,8 +13,8 @@ import {
   type SettingDefinitionRecord,
   type SettingValueRecord,
 } from "../../features/settings/index.js";
-import type { RouteDeps } from "../../server/routes/types.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
+import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeSettingsTools } from "../../features/settings/tool-registrations.js";
 
@@ -113,18 +113,18 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
     },
   };
 
-  return { deps: deps as unknown as RouteDeps, authorizeCalls, settingsRepo };
+  return { deps: deps as unknown as RegistryDepsWithoutLimiter, authorizeCalls, settingsRepo };
 }
 
 function executionContext(input: Record<string, unknown> | undefined, principalId: string = PRINCIPAL_ID): ToolExecutionContext {
   return { executionId: "exec-1", principal: { id: principalId }, run: { id: "run-1" }, input, signal: new AbortController().signal };
 }
 
-function settingsRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(deps, undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("settings_") || r.descriptor.id === "content_read.setting_definition").map((r) => [r.descriptor.id, r]));
+function settingsRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
+  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("settings_") || r.descriptor.id === "content_read.setting_definition").map((r) => [r.descriptor.id, r]));
 }
 
-function wired(deps: RouteDeps, toolId: string): ToolRegistration {
+function wired(deps: RegistryDepsWithoutLimiter, toolId: string): ToolRegistration {
   const found = settingsRegistrations(deps).get(toolId);
   assert.ok(found, `expected '${toolId}' to be wired`);
   return found;
@@ -159,7 +159,7 @@ for (const excludedId of ["settings_reset", "settings_register_definitions"]) {
 
 test("bulk and schema writes stay unreachable; old generic names are replaced", () => {
   const { deps } = fakeRouteDeps();
-  const ids = buildAssistantToolRegistrations(deps, undefined, { contributions }).map((r) => r.descriptor.id);
+  const ids = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).map((r) => r.descriptor.id);
   assert.equal(ids.includes("settings_set_value"), true);
   assert.equal(ids.includes("settings_clear_value"), true);
   assert.equal(ids.includes("settings_set"), false);
@@ -376,7 +376,7 @@ for (const toolId of ["settings_get_effective", "settings_get_raw"]) {
         call += 1;
         return params.permission === PERMISSION_OF[toolId] ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };
       },
-    } as unknown as RouteDeps;
+    } as unknown as RegistryDepsWithoutLimiter;
 
     await assert.rejects(
       () => wired(deps, toolId).handler(executionContext({ namespace: "core.presentation", key: "site_title", principalId: OTHER_PRINCIPAL_ID })),

@@ -14,6 +14,7 @@ import {
   reconcileWidgetRegionBindings,
   type RegionAreaServiceDeps,
 } from "../../region-area-service.js";
+import { InMemoryOutbox } from "#src/contracts/core/events/index";
 
 /**
  * @file C-006 `widget_area` region composition — SPEC-043 REQ-11..17, AC-06..11, INV-02/03.
@@ -42,7 +43,7 @@ function makeDeps(): RegionAreaServiceDeps & WidgetWriteServiceDeps {
     clock: { nowMs: () => Date.parse("2026-07-21T00:00:00.000Z") },
     ids: { newId: () => `id-${++counter}` },
     authorize: async () => ({ allowed: true, reason: "test: always allow" }),
-    outbox: { enqueue: async () => undefined },
+    outbox: new InMemoryOutbox(),
   };
 }
 

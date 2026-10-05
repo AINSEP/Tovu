@@ -22,6 +22,7 @@ import { InMemoryPostRepo } from "../repo.memory.js";
 import { SqlitePostRepo } from "../repo.sqlite.js";
 import { makePglitePostRepo } from "./pglite-repo.fixture.js";
 import { removeVia } from "./remove-post-double.js";
+import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
 /**
  * @file Certification of the soft delete: the `deletePost` domain function, the trash-awareness it
@@ -66,7 +67,7 @@ const clock = { nowMs: () => Date.parse("2026-07-30T12:00:00.000Z") };
 const WS = "workspace-1";
 
 function seed(overrides: Partial<PostRecord> = {}): PostRecord {
-  return {
+  return buildPostRecord({
     id: "post-1",
     workspaceId: WS,
     title: "Hello World",
@@ -77,7 +78,7 @@ function seed(overrides: Partial<PostRecord> = {}): PostRecord {
     updatedAt: "2026-04-06T00:00:00.000Z",
     version: 3,
     ...overrides,
-  };
+  });
 }
 
 // ---------------------------------------------------------------------------

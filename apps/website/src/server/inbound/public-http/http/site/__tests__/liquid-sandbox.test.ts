@@ -7,6 +7,7 @@ import { Liquid } from "liquidjs";
 import type { PostRecord } from "#src/features/post/index";
 import { renderLiquidInSandbox } from "../liquid-sandbox.js";
 import type { SiteRenderContext } from "../render.js";
+import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
 /**
  * @file ADR-020 §3 (C6) — certifies `renderLiquidInSandbox`'s isolation
@@ -20,7 +21,7 @@ import type { SiteRenderContext } from "../render.js";
 
 function baseCtx(overrides: Partial<SiteRenderContext> = {}): SiteRenderContext {
   const posts: PostRecord[] = [
-    { id: "p1", workspaceId: "w1", title: "First", slug: "first", bodyJson: { type: "doc", content: [] }, status: "published", updatedAt: "2026-01-01T00:00:00.000Z", version: 1 },
+    buildPostRecord({ id: "p1", workspaceId: "w1", title: "First", slug: "first", bodyJson: { type: "doc", content: [] }, status: "published", updatedAt: "2026-01-01T00:00:00.000Z", version: 1 }),
   ];
   return {
     siteTitle: "Test Site",

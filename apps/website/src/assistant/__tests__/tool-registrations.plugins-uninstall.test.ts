@@ -28,6 +28,7 @@ import { buildPluginsRegistrations, type PluginsToolDeps } from "../../features/
 import { forceRemove } from "../../features/agent-plugins/__tests__/fixtures/force-remove.js";
 import { installAgentPlugin, type AgentPluginArchiveEntry } from "../../features/agent-plugins/install.js";
 import { resolveAgentPluginLayout } from "../../features/agent-plugins/layout.js";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**
  * @file `plugins_uninstall` — the RED/GREEN proof for `ADS-memory/reports/2026-09-07-
@@ -85,7 +86,7 @@ function fakeRouteDeps(options: { allow?: boolean; discovery?: PluginDiscoveryRe
       return allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };
     },
     workspaceId: WORKSPACE_ID,
-    clock: { nowMs: () => Date.parse(NOW), nowIso: () => NOW },
+    clock: createFakeClock({ startIso: NOW }),
     idGen: { newId: () => "id-1" },
     changeSets: new InMemoryChangeSetRepo(),
     // The delivery half is never exercised here (`plugins_uninstall` enqueues nothing) but is

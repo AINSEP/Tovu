@@ -16,6 +16,7 @@ import {
 import { WidgetForbiddenError, WidgetVersionConflictError } from "../../errors.js";
 import { WIDGET_CONTENT_TYPE } from "../../types.js";
 import { memoryWidgetTrash } from "../support/memory-widget-trash.js";
+import { InMemoryOutbox } from "#src/contracts/core/events/index";
 
 /**
  * @file C-005 widget-instance CRUD — SPEC-043 REQ-01..06/42/43, AC-01..04/29, INV-01/09.
@@ -44,7 +45,7 @@ function makeDeps(): WidgetTrashDeps {
     clock: { nowIso: () => "2026-07-21T00:00:00.000Z", nowMs: () => Date.parse("2026-07-21T00:00:00.000Z") },
     ids: { newId: () => `id-${++counter}` },
     authorize: async () => ({ allowed: true, reason: "test: always allow" }),
-    outbox: { enqueue: async () => undefined },
+    outbox: new InMemoryOutbox(),
   };
 }
 

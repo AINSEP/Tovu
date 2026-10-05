@@ -24,13 +24,14 @@ import { InMemoryMediaProviderCredentialRepo } from "../../media/provider-creden
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import type { KeyringPort } from "../../webhooks/index.js";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
-import type { RouteDeps } from "../../../server/routes/types.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../../../assistant/tool-registrations.js";
+import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeMediaGenerationTools } from "../tool-registrations.js";
 import { type AgentToolDefinition } from "@jini-ai/core";
 import { mediaGenerationAgentToolCatalog } from "../agent-tools.js";
 import type { MediaGenerationRequest, MediaGenerationResult, ProviderCredentials } from "@jini-ai/integrations/media-providers";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -87,7 +88,7 @@ function fakeGenerateMedia(
 
 async function seedPublicTransform(transformDefinitionRepo: InMemoryTransformDefinitionRepo): Promise<void> {
   await registerTransform({
-    deps: { transformRepo: transformDefinitionRepo, idGen: { newId: () => "transform-public-v1" }, clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW } },
+    deps: { transformRepo: transformDefinitionRepo, idGen: { newId: () => "transform-public-v1" }, clock: createFakeClock({ startIso: NOW }) },
     input: { workspaceId: WORKSPACE_ID, name: "public", params: { format: "webp" }, owner: "core" },
   });
 }
@@ -148,7 +149,7 @@ function fakeRouteDeps(
     },
   };
 
-  return { deps: deps as unknown as RouteDeps, blobStore, assetBlobRepo, mediaContentTypeStore, mediaRepo, transformDefinitionRepo, mediaProviderCredentialRepo, siteAssistantSecretSealer, keyring, authorizeCalls, generateCalls };
+  return { deps: deps as unknown as RegistryDepsWithoutLimiter, blobStore, assetBlobRepo, mediaContentTypeStore, mediaRepo, transformDefinitionRepo, mediaProviderCredentialRepo, siteAssistantSecretSealer, keyring, authorizeCalls, generateCalls };
 }
 
 /** Seeds a real, decryptable "openai" credential row through the actual write path
@@ -159,7 +160,7 @@ function fakeRouteDeps(
  *  test's own seeding needs one. */
 async function seedOpenAiCredential(fixture: Pick<ReturnType<typeof fakeRouteDeps>, "mediaProviderCredentialRepo" | "siteAssistantSecretSealer" | "keyring">): Promise<void> {
   await saveMediaProviderCredentials(
-    { repo: fixture.mediaProviderCredentialRepo, sealer: fixture.siteAssistantSecretSealer, keyring: fixture.keyring, clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW } },
+    { repo: fixture.mediaProviderCredentialRepo, sealer: fixture.siteAssistantSecretSealer, keyring: fixture.keyring, clock: createFakeClock({ startIso: NOW }) },
     { workspaceId: WORKSPACE_ID, providers: { openai: { apiKey: "sk-real-test-key-7777", baseUrl: "https://api.openai.com/v1" } } }
   );
 }
@@ -187,11 +188,11 @@ function catalogEntry(toolId: string): AgentToolDefinition {
   return entry;
 }
 
-function mediaGenerationRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(deps, undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("media_generate")).map((r) => [r.descriptor.id, r]));
+function mediaGenerationRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
+  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("media_generate")).map((r) => [r.descriptor.id, r]));
 }
 
-function wired(toolId: string, deps: RouteDeps): ToolRegistration {
+function wired(toolId: string, deps: RegistryDepsWithoutLimiter): ToolRegistration {
   const found = mediaGenerationRegistrations(deps).get(toolId);
   assert.ok(found, `expected '${toolId}' to be wired`);
   return found;
@@ -248,7 +249,7 @@ test("no OpenAI credential configured: rejects with a clear message naming Media
 test("a credential saved with baseUrl/model but no key yet is treated the same as no credential at all", async () => {
   const { deps, mediaProviderCredentialRepo, siteAssistantSecretSealer, keyring, generateCalls } = fakeRouteDeps();
   await saveMediaProviderCredentials(
-    { repo: mediaProviderCredentialRepo, sealer: siteAssistantSecretSealer, keyring, clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW } },
+    { repo: mediaProviderCredentialRepo, sealer: siteAssistantSecretSealer, keyring, clock: createFakeClock({ startIso: NOW }) },
     { workspaceId: WORKSPACE_ID, providers: { openai: { baseUrl: "https://api.openai.com/v1" } } }
   );
 

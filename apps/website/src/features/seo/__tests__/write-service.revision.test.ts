@@ -4,6 +4,7 @@ import test from "node:test";
 import { InMemoryPostRepo, SqlitePostRepo, type PostRecord } from "../../post/index.js";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { setEntrySeoOverrides } from "../write-service.js";
+import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
 /**
  * @file Round-4 dispatch, Task 2 — `setEntrySeoOverrides` (`mergeOverridesOntoCurrentRow`) writes
@@ -27,7 +28,7 @@ const noopInvalidate = () => {};
 const clock = { nowMs: () => Date.parse(NOW) };
 
 function seedPost(overrides: Partial<PostRecord> = {}): PostRecord {
-  return {
+  return buildPostRecord({
     id: ENTRY_ID,
     workspaceId: WORKSPACE,
     title: "Hello World",
@@ -39,7 +40,7 @@ function seedPost(overrides: Partial<PostRecord> = {}): PostRecord {
     version: 1,
     seoExtJson: null,
     ...overrides,
-  };
+  });
 }
 
 test("setEntrySeoOverrides appends a post_revisions row, attributed to the real caller — SEO edits must not escape the ledger", async () => {

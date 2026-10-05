@@ -17,6 +17,7 @@ import {
   setActiveThemeDerivedRisk,
   type SetActiveThemeToolDeps,
 } from "#src/features/theme/set-active-theme-tool";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -75,7 +76,7 @@ function fakeDeps(options: FakeDepsOptions = {}): SetActiveThemeToolDeps {
     workspaceId: WORKSPACE_ID,
     authorize: async () =>
       options.allow === false ? { allowed: false, reason: "insufficient_permission" } : { allowed: true, reason: "matched" },
-    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => "2026-09-24T01:00:00.000Z" },
+    clock: createFakeClock({ startIso: "2026-09-24T01:00:00.000Z" }),
     themes,
     presentationRepo,
   };

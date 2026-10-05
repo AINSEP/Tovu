@@ -9,6 +9,7 @@ import { createRouteDeps } from "../../../../server/runtime/composition/app.js";
 import { installFirstPartyToolContributors } from "../../../../server/runtime/composition/tool-catalog-manifest.js";
 
 import { buildAssistantToolRegistrations } from "../../../../assistant/tool-registrations.js";
+import { toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 import { buildToolCatalogQuery } from "../../../../assistant/tool-catalog-query.js";
 import { DOC2QUERY } from "../../../../assistant/tool-search-doc2query.js";
 
@@ -20,7 +21,7 @@ test("deploy ops owner phrasings rank in the top three of the real full catalog"
   contributions.contributors.clear({}); installFirstPartyToolContributors({ contributions });
   const deps = createRouteDeps(); await deps.identityReady;
   const registry = createToolRegistry({});
-  const registrations = buildAssistantToolRegistrations(deps, undefined, { contributions });
+  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions });
   for (const registration of registrations) registry.register(registration);
   const catalog = buildToolCatalogQuery(registry);
   for (const id of ["deployment_ops_status", "deployment_ops_logs", "deployment_ops_wait", "deployment_ops_list_targets"]) {

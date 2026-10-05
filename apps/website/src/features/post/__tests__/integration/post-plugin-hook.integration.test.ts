@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryPostRepo, createPost, updatePost, type PostRecord, type PostRepoPort } from "#src/features/post/index";
+import { InMemoryOutbox } from "#src/contracts/core/events/index";
 
 /**
  * @file `post.ts`'s `BeforeSaveHookPort` integration seam — SPEC-005 REQ-05/06/11, C-014, W-003.
@@ -40,7 +41,7 @@ function makeCounterRepo(inner: PostRepoPort) {
 }
 
 const clock = { nowMs: () => Date.parse("2026-07-28T00:00:00.000Z") };
-const outbox = { enqueue: async () => {} };
+const outbox = new InMemoryOutbox();
 
 async function seedPost(repo: PostRepoPort, overrides: Partial<PostRecord> = {}): Promise<PostRecord> {
   const post: PostRecord = {

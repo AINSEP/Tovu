@@ -15,6 +15,7 @@ import {
 } from "../../features/media/index.js";
 import { buildMediaImportRegistrations, type MediaImportToolDeps } from "../../features/media-import/tool-registrations.js";
 import { EgressRefusedError, type HttpClientPort, type HttpRequest, type HttpResponse } from "../../platform/http/index.js";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**
  * @file Regression test for SEC-05 (2026-09-07): an SSRF / egress-policy refusal raised while
@@ -60,7 +61,7 @@ function buildDelegatedToolDeps(clientError: Error, log: (line: string) => void 
   const routeDeps: MediaImportToolDeps = {
     authorize: async () => ({ allowed: true, reason: "matched" }),
     workspaceId: WORKSPACE_ID,
-    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => "2026-09-07T00:00:00.000Z" },
+    clock: createFakeClock({ startIso: "2026-09-07T00:00:00.000Z" }),
     idGen: { newId: () => "id-1" },
     mediaRepo: new InMemoryMediaRepo({}),
     assetBlobRepo: new InMemoryAssetBlobRepo({}),

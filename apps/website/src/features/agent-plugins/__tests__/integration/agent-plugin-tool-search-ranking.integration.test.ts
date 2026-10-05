@@ -15,6 +15,7 @@ import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchi
 import { registerInstalledAgentPluginTools } from "../../tool-registrations.js";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { buildAssistantToolRegistrations } from "#src/assistant/tool-registrations";
+import { toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 import { buildToolCatalogQuery } from "#src/assistant/tool-catalog-query";
 
 import { installFirstPartyToolContributors } from "#src/server/runtime/composition/tool-catalog-manifest";
@@ -158,7 +159,7 @@ async function buildRealNativeOnlySurface() {
   await routeDeps.identityReady;
 
   const registry = createToolRegistry({});
-  for (const registration of buildAssistantToolRegistrations(routeDeps, undefined, { contributions })) registry.register(registration);
+  for (const registration of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps }), undefined, { contributions })) registry.register(registration);
 
   const catalog = buildToolCatalogQuery(registry);
   return { registry, catalog };
@@ -173,7 +174,7 @@ async function buildRealSurfaceWithPluginTool() {
   await installRealUiUxDesignPlugin(routeDeps.workspaceId);
 
   const registry = createToolRegistry({});
-  for (const registration of buildAssistantToolRegistrations(routeDeps, undefined, { contributions })) registry.register(registration);
+  for (const registration of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps }), undefined, { contributions })) registry.register(registration);
   await registerInstalledAgentPluginTools(registry, { workspaceId: routeDeps.workspaceId });
 
   const catalog = buildToolCatalogQuery(registry);

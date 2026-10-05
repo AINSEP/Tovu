@@ -3,11 +3,12 @@ import test from "node:test";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteMemberConsentRepo } from "../repo.sqlite.js";
 
-import type { Clock as ClockPort, IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
+import type { IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
 import { InMemoryMemberConsentRepo, InMemoryMemberRepo } from "../repo.memory.js";
 import { checkConsent, confirmConsent, requestConsent, revokeConsent } from "../consent-service.js";
 import { MemberNotFoundError } from "../types.js";
 import type { ConsentServiceDeps } from "../consent-service.js";
+import { createFakeClock, type FakeClock } from "#src/__tests__/support/fake-clock";
 
 /**
  * @file FEAT-013 Phase 3 (ADR-PIPE-013 Decision §4, D1c) — the consent
@@ -20,14 +21,8 @@ const WORKSPACE_ID = "ws-1";
 const MEMBER_ID = "member-1";
 const PURPOSE = "newsletter:list-1";
 
-function makeClock(initialIso: string): ClockPort & { nowMs(): number; set(iso: string): void } {
-  let current = initialIso;
-  return {
-    nowIso: () => current, nowMs() { return Date.parse(this.nowIso()); },
-    set: (iso: string) => {
-      current = iso;
-    },
-  };
+function makeClock(initialIso: string): FakeClock {
+  return createFakeClock({ startIso: initialIso });
 }
 
 function makeIds(prefix: string): IdGeneratorPort {

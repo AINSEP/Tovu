@@ -14,6 +14,7 @@ import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { registerConfiguredOrigin, SqliteOriginSettingRepo } from "#src/platform/db/sqlite/origin-repo.sqlite";
 import { ensureSeoSettingDefinitions } from "../settings.js";
 import { buildSitemap, invalidateSitemapCache, registerSitemapCollectHook, resetSitemapCollectHooksForTests } from "../sitemap.js";
+import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
 /**
  * @file T033 — failing-first unit certification of `buildSitemap`
@@ -29,7 +30,7 @@ const ids = { newId: () => `sitemap-test-id-${++idCounter}` };
 const alwaysAllow = async () => ({ allowed: true, reason: "matched" });
 
 function post(overrides: Partial<PostRecord>): PostRecord {
-  return {
+  return buildPostRecord({
     id: "a",
     workspaceId: WORKSPACE,
     title: "Post",
@@ -41,7 +42,7 @@ function post(overrides: Partial<PostRecord>): PostRecord {
     version: 1,
     seoExtJson: null,
     ...overrides,
-  };
+  });
 }
 
 /** Mirrors `seo.test.ts`'s own copy of this fake — `origin` undefined (the default, and every

@@ -7,6 +7,7 @@ import type { PackedEntity, PublishContentDeps } from "#src/features/publish-con
 
 import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, type NavMenuEntry } from "../index.js";
 import { contributeMenusPublish } from "../publish-content.js";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**
  * @file Characterization pin for M-MENU (`plan-publish-all-types-2026-09-25.md` §5, §7): the live site
@@ -48,7 +49,7 @@ const PINNED_HASHES: Record<string, string> = {
 function deps(wired = true): PublishContentDeps {
   return {
     workspaceId: WORKSPACE_ID,
-    clock: { nowIso: () => "2026-09-24T00:00:00.000Z", nowMs() { return Date.parse(this.nowIso()); } },
+    clock: createFakeClock({ startIso: "2026-09-24T00:00:00.000Z" }),
     idGen: { newId: () => "unused" },
     outbox: new InMemoryOutbox(),
     ports: wired ? { menu: { repo: new InMemoryMenuRepo({}, { initialRows: structuredClone(ROWS) }), bindingRepo: new InMemoryNavLocationBindingRepo({}) } } : {},

@@ -10,6 +10,7 @@ import { postRepoFor } from "#src/features/post/repo";
 import { buildPagesRegistrations } from "../tool-registrations.js";
 import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
 import { PageConcurrentEditError, PageKindMismatchError, PageNotFoundError, SqlPagesHtmlDocumentStore } from "../html-document-store.js";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**
  * @file SPEC-047/ADR-056 REQ-4 — certification of the Pages html document store, including CIC-1's
@@ -22,7 +23,7 @@ import { PageConcurrentEditError, PageKindMismatchError, PageNotFoundError, SqlP
 const WS = "ws-pages";
 const OTHER_WS = "ws-other";
 
-const clock: ClockPort & { nowMs(): number } = { nowIso: () => "2026-08-04T00:00:00.000Z", nowMs() { return Date.parse(this.nowIso()); } };
+const clock: ClockPort & { nowMs(): number } = createFakeClock({ startIso: "2026-08-04T00:00:00.000Z" });
 
 /** Inserts a `posts` row directly — `createPost`/`updatePost` can never produce an html row
  * (CIC-3), so every test here seeds through the kernel, matching how the store itself is the only

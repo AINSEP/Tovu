@@ -80,12 +80,12 @@ import { getSeoAgentToolCatalog } from "../../features/seo/agent-tools.js";
 import { widgetsAgentToolCatalog } from "../../features/widgets/agent-tools.js";
 import type { ContentTypeRecord } from "../../features/content-types/index.js";
 import { createRouteDeps } from "../../server/runtime/composition/app.js";
-import type { RouteDeps } from "../../server/routes/types.js";
 import { buildToolCatalogQuery } from "../tool-catalog-query.js";
 import {
   assertRiskMetadataIsWirable,
   buildAssistantToolRegistrations,
 } from "../tool-registrations.js";
+import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
 import { RETIRED_READ_TOOL_TO_CARD } from "../content-read-tool.js";
@@ -144,7 +144,7 @@ function fakeRouteDeps(existing?: ContentTypeRecord) {
     },
     outbox: { enqueue: async () => {} },
   };
-  return deps as unknown as RouteDeps;
+  return deps as unknown as RegistryDepsWithoutLimiter;
 }
 
 function executionContext(input: Record<string, unknown>): ToolExecutionContext {
@@ -152,7 +152,7 @@ function executionContext(input: Record<string, unknown>): ToolExecutionContext 
 }
 
 function registrationsById(existing?: ContentTypeRecord): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(fakeRouteDeps(existing), undefined, { contributions }).map((r) => [r.descriptor.id, r]));
+  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: fakeRouteDeps(existing) }), undefined, { contributions }).map((r) => [r.descriptor.id, r]));
 }
 
 /** The one registration under test, asserted present so no call site needs a non-null assertion. */
@@ -411,7 +411,7 @@ test("every wired registration publishes the inputSchema from its catalog entry 
 
 test("every content_read card preserves all member tools' published input properties", () => {
   const cards = registrationsById();
-  const members = new Map(buildAssistantToolRegistrations(fakeRouteDeps(), undefined, { ...( { includeContentReadCollapse: false }), contributions })
+  const members = new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: fakeRouteDeps() }), undefined, { ...( { includeContentReadCollapse: false }), contributions })
     .map((registration) => [registration.descriptor.id, registration]));
   for (const [memberId, cardId] of RETIRED_READ_TOOL_TO_CARD) {
     const member = members.get(memberId);
@@ -649,7 +649,7 @@ async function buildRealAssembledSurface() {
   const routeDeps = createRouteDeps();
   await routeDeps.identityReady;
   const registry = createToolRegistry({});
-  for (const registration of buildAssistantToolRegistrations(routeDeps, undefined, { contributions })) {
+  for (const registration of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps }), undefined, { contributions })) {
     registry.register(registration);
   }
   const toolExecutor = createToolExecutor({ registry });
