@@ -47,3 +47,12 @@ Scope: `apps/website/src` server routes and composition. Newsletter and browser-
   Running the full suite runs them. Run them scoped first.
 - Shared boot helper: `server/__tests__/helpers/unrun-site-boot.ts` (`initSite` → `bootSiteDir` → `createSiteRouteDeps` with
   `serve.ts`'s overrides → `createApp` → owner login), one body for `sqlite` and `pglite`. PGlite boots cost seconds each.
+
+## Possible product bugs
+
+Spotted while reading, not fixed, not reproduced.
+
+1. `apps/website/src/server/inbound/admin-http/dev-auth.ts:492` — `POST /api/admin/v1/auth/logout` has no try/catch. If `deps.identityReady` or the session store (`findByTokenHash` / `revoke`) rejects, Express 4 drops the rejected promise: the client gets no response and the request hangs until timeout, instead of a 500. Every sibling route in the file catches and returns 500.
+2. `apps/website/src/server/inbound/admin-http/routes/posts/update.ts:42` — `parsePostUpdateBody` turns a missing `slug` into `String(body.slug ?? "")`, i.e. `""`. A title-only `PUT .../posts/:id` (no `slug` in the body) hands `updatePost` an empty slug, so the post's slug may be wiped or regenerated from the new title. That silently breaks existing public URLs, unless `updatePost` treats `""` as "keep".
+3. `apps/website/src/server/runtime/composition/deps.ts:1515` — the disposer returned by `registerRedirectsPhaseHandlers(...)` is thrown away, and closing the site store never unregisters the handler. After a site composition closes (site switch, test teardown, failed boot), its redirect resolver stays registered on the process-wide resolve phase, bound to a closed repo. Until another composition registers and replaces it, every route that runs the resolve phases can 500. `features/redirects/phase-handler.ts` documents that exact failure for the replacement case only.
+4. `apps/website/src/server/__tests__/helpers/http-test-server.ts:102` (test helper, not product) — `BarePrincipalDeps.passwordHasher.hash` is typed `(password: string)` but is called with `{ password }`. This is a real TS2345 error that is never reported, because the root `tsconfig.json` excludes `__tests__`. It does not fail at runtime only because the real hasher takes an object.
