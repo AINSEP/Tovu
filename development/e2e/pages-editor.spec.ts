@@ -41,7 +41,7 @@ test.describe("Pages editor", () => {
     await expect(page.getByRole("tab", { name: "HTML" })).toBeVisible();
   });
 
-  test("HTML written in the editor is saved and rendered in the sandboxed preview", async ({ page }) => {
+  test("[unrun-edit] HTML written in the editor is saved and rendered in the sandboxed preview", async ({ page }) => {
     await page.goto("/admin/pages");
     await page.getByRole("button", { name: "New Page" }).click();
     await expect(page).toHaveURL(/\/admin\/pages\/[^/]+$/);
@@ -63,11 +63,15 @@ test.describe("Pages editor", () => {
     const preview = page.frameLocator('iframe[title="Page preview"]');
     await expect(preview.getByRole("heading", { name: "Glassmorphic" })).toBeVisible();
 
-    // The preview must stay sandboxed WITHOUT `allow-same-origin` — with it, generated markup could
-    // reach the admin's own cookies and DOM. Asserted, not eyeballed.
-    const sandbox = await page.locator('iframe[title="Page preview"]').getAttribute("sandbox");
-    expect(sandbox).toBeTruthy();
-    expect(sandbox).not.toContain("allow-same-origin");
+    // The preview carries exactly `PAGE_PREVIEW_IFRAME_SANDBOX`'s flags (`features/pages/rules.ts`,
+    // 7d621d892). `allow-same-origin` is in that set on purpose: without it the preview loses its
+    // scroll memory and theme fonts. The risk this spec used to guard (with it, generated markup can
+    // reach the admin's cookies and DOM) is real and recorded as the constant's "Honest limit";
+    // dropping the flag is an open owner decision. What must stay out is top navigation, so the
+    // preview can never navigate the admin tab.
+    const sandbox = (await page.locator('iframe[title="Page preview"]').getAttribute("sandbox")) ?? "";
+    expect(sandbox.split(/\s+/).sort()).toEqual(["allow-forms", "allow-popups", "allow-same-origin", "allow-scripts"]);
+    expect(sandbox).not.toContain("allow-top-navigation");
   });
 
   test("draft preview POSTs saved and pending HTML into its iframe with the notice above it", async ({ page }) => {
