@@ -571,7 +571,10 @@ button { font: inherit; color: inherit; }
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.5rem 0.875rem;
+  /* Right side matches `.tabstrip`'s 1.25rem side margin, so the expand button ends where the tab
+     strip's rule above it ends instead of jutting past it to sit jammed on the window edge (owner,
+     2026-10-05). */
+  padding: 0.5rem 1.25rem 0.5rem 0.875rem;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
 }
