@@ -1,7 +1,7 @@
 import type { PluginInstallPreview } from "./install.js";
 
-/** What installing does to this computer, in one sentence. The CLI prompt and the assistant's
- *  `plugins_install` dialog both show it, so a human approves the same words either way. */
+/** What installing does to this computer, in one sentence. The CLI prompt shows it before the human
+ *  approves; the assistant's `plugins_install` returns it as its result's `warning`. */
 export function pluginInstallRiskSentence(required: { preview: PluginInstallPreview }, _optional = {}): string {
   const p = required.preview;
   // A tier-1 package has nothing to run (install.ts refuses one that ships a code file), so the

@@ -13,7 +13,7 @@ export interface ManagedSkill { readonly toolId: string; readonly name: string; 
 export type SkillInstallInput = { readonly workspaceId: string } & ({ readonly githubUrl: string } | { readonly files: readonly SkillUploadFile[] } | { readonly archiveBase64: string });
 
 /** A fetched and fully validated skill package, not yet written. Holding the validated bytes (not the
- *  source) means a human approving it approves exactly what {@link commitSkillInstall} writes. */
+ *  source) means {@link commitSkillInstall} writes exactly what was validated, with no second fetch. */
 export interface PreparedSkillInstall {
   readonly toolId: string; readonly name: string; readonly description: string; readonly source: ManagedSkill["source"];
   readonly files: ReturnType<typeof validateSkillFiles>["files"];

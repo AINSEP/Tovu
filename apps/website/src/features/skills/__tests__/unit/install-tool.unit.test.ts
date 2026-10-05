@@ -6,7 +6,6 @@ import test from "node:test";
 
 import { ToolInputError, type SurfaceEmitter, type ToolRegistration } from "@jini-ai/core";
 
-import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "../../../../contracts/core/tool-surface-exchanges.js";
 import { installSkill, listManagedSkills } from "../../install-service.js";
 import { buildRegistrations, catalog, type SkillsInstallToolDeps } from "../../install-tool.js";
 
@@ -48,31 +47,21 @@ function deps(overrides: Partial<SkillsInstallToolDeps> = {}): SkillsInstallTool
 
 const ctx = (input: unknown) => ({ executionId: "e1", principal: { id: PRINCIPAL }, run: { id: "r1" }, input, signal: new AbortController().signal });
 
-/** Runs the tool and answers its dialog like a human click; returns early on a pre-dialog refusal. */
-async function runWithDecision(d: SkillsInstallToolDeps, input: unknown, decision: "confirm" | "cancel") {
-  const store = createSurfaceExchangeStore();
-  const [registration] = buildRegistrations(d, { surfaceExchanges: store }) as [ToolRegistration];
-  let shown!: (surface: unknown) => void;
-  const dialog = new Promise<unknown>((resolve) => { shown = resolve; });
-  const emitSurface: SurfaceEmitter = async (surface) => shown(surface);
-  const pending = registration.handler(ctx(input), { emitSurface });
-  const first = await Promise.race([dialog, pending.then(() => undefined, () => undefined)]);
-  if (first === undefined) return { result: await pending, html: "" };
-  const html = (first as { payload: { resource: { resource: { text?: string } } } }).payload.resource.resource.text ?? "";
-  const id = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`))?.[1];
-  assert.ok(id, "dialog must carry its exchange id");
-  store.deliver({ exchangeId: id, params: { decision }, principalId: PRINCIPAL, toolId: "skills_install" });
-  return { result: await pending, html };
+/** Runs the tool with a dialog channel available and records anything it tries to show on it.
+ *  Owner rule 2026-10-05: only permanent deletes ask first, so an install must never raise a card. */
+async function run(d: SkillsInstallToolDeps, input: unknown) {
+  const [registration] = buildRegistrations(d) as [ToolRegistration];
+  const surfaces: unknown[] = [];
+  const emitSurface: SurfaceEmitter = async (surface) => { surfaces.push(surface); throw new Error("skills_install must not raise a confirmation card"); };
+  const result = await registration.handler(ctx(input), { emitSurface });
+  assert.deepEqual(surfaces, [], "no confirmation card");
+  return result;
 }
 
-test("confirm installs the fetched skill through the shared install service, pinned to the shown commit", async (t) => {
+test("installs with no confirmation card, through the shared install service, writing the bytes it fetched once", async (t) => {
   const dir = await withSkillsDir(t);
   const github = fakeGitHub();
-  const { result, html } = await runWithDecision(deps({ skillFetch: github.fetchImpl }), { githubUrl: SKILL_URL }, "confirm");
-  assert.match(html, /Install the incident-response skill\?/);
-  assert.match(html, /Respond to outages\./);
-  assert.match(html, new RegExp(COMMIT));
-  assert.match(html, /Installation runs no code\./);
+  const result = await run(deps({ skillFetch: github.fetchImpl }), { githubUrl: SKILL_URL });
   const skill = { toolId: "skill_incident_response", name: "incident-response", description: "Respond to outages.", enabled: true, source: { githubUrl: SKILL_URL, commit: COMMIT } };
   assert.deepEqual(result, { installed: true, skill, note: "Installed the incident-response skill; it is on. Its tool skill_incident_response is picked up by the next search_tools call." });
   assert.deepEqual(await listManagedSkills({ workspaceId: WORKSPACE }), [skill]);
@@ -80,24 +69,25 @@ test("confirm installs the fetched skill through the shared install service, pin
   assert.equal(github.requests.length, 3, "fetched once; the write uses the validated bytes, not a second fetch");
 });
 
-test("cancel writes nothing and comes back as a result", async (t) => {
+test("installs with no dialog channel at all — nothing to approve, so nothing fails closed", async (t) => {
   await withSkillsDir(t);
-  const { result } = await runWithDecision(deps(), { githubUrl: SKILL_URL }, "cancel");
-  assert.deepEqual(result, { installed: false, name: "incident-response", cancelled: true, note: "The user declined. The incident-response skill was NOT installed." });
-  assert.deepEqual(await listManagedSkills({ workspaceId: WORKSPACE }), []);
+  const [registration] = buildRegistrations(deps()) as [ToolRegistration];
+  const result = await registration.handler(ctx({ githubUrl: SKILL_URL }), {});
+  assert.equal((result as { installed: boolean }).installed, true);
+  assert.equal((await listManagedSkills({ workspaceId: WORKSPACE })).length, 1);
 });
 
-test("an already-installed skill is refused before the human is asked", async (t) => {
+test("an already-installed skill is refused before anything is written", async (t) => {
   await withSkillsDir(t);
   await installSkill({ workspaceId: WORKSPACE, files: [{ path: "SKILL.md", contentBase64: Buffer.from(MD).toString("base64") }] });
-  await assert.rejects(() => runWithDecision(deps(), { githubUrl: SKILL_URL }, "confirm"),
+  await assert.rejects(() => run(deps(), { githubUrl: SKILL_URL }),
     (error: unknown) => error instanceof ToolInputError && error.message === "Skill 'incident-response' is already installed. Remove it from the Skills screen before installing another version.");
 });
 
 test("a non-GitHub URL is the service's own refusal, relayed as caller input, with no fetch", async (t) => {
   await withSkillsDir(t);
   const github = fakeGitHub();
-  await assert.rejects(() => runWithDecision(deps({ skillFetch: github.fetchImpl }), { githubUrl: "https://example.com/acme/skills" }, "confirm"),
+  await assert.rejects(() => run(deps({ skillFetch: github.fetchImpl }), { githubUrl: "https://example.com/acme/skills" }),
     (error: unknown) => error instanceof ToolInputError && error.message === "Use an HTTPS GitHub repository URL, optionally ending in /tree/ref/skill-folder.");
   assert.equal(github.requests.length, 0);
 });
@@ -105,22 +95,15 @@ test("a non-GitHub URL is the service's own refusal, relayed as caller input, wi
 test("a missing permission refuses before anything is fetched", async (t) => {
   await withSkillsDir(t);
   const github = fakeGitHub();
-  await assert.rejects(() => runWithDecision(deps({ skillFetch: github.fetchImpl, authorize: async () => ({ allowed: false, reason: "insufficient_permission" }) }), { githubUrl: SKILL_URL }, "confirm"));
+  await assert.rejects(() => run(deps({ skillFetch: github.fetchImpl, authorize: async () => ({ allowed: false, reason: "insufficient_permission" }) }), { githubUrl: SKILL_URL }));
   assert.equal(github.requests.length, 0);
 });
 
 test("extra or missing arguments are refused", async (t) => {
   await withSkillsDir(t);
   for (const input of [{}, { githubUrl: SKILL_URL, path: "/tmp/x" }, { githubUrl: "  " }]) {
-    await assert.rejects(() => runWithDecision(deps(), input, "confirm"), (error: unknown) => error instanceof ToolInputError && /githubUrl/.test(error.message));
+    await assert.rejects(() => run(deps(), input), (error: unknown) => error instanceof ToolInputError && /githubUrl/.test(error.message));
   }
-});
-
-test("without a dialog channel it fails closed and writes nothing", async (t) => {
-  await withSkillsDir(t);
-  const [registration] = buildRegistrations(deps(), { surfaceExchanges: createSurfaceExchangeStore() }) as [ToolRegistration];
-  await assert.rejects(() => registration.handler(ctx({ githubUrl: SKILL_URL }), {}), /no interactive confirmation channel/);
-  assert.deepEqual(await listManagedSkills({ workspaceId: WORKSPACE }), []);
 });
 
 test("description matches the schema: one required githubUrl, no local files", () => {
@@ -130,4 +113,5 @@ test("description matches the schema: one required githubUrl, no local files", (
   assert.equal(schema.additionalProperties, false);
   assert.match(catalog[0]!.description, /public GitHub URL/);
   assert.match(catalog[0]!.description, /does not take local files/);
+  assert.doesNotMatch(catalog[0]!.description, /confirm/i);
 });

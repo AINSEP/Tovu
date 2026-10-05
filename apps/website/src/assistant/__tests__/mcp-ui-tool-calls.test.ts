@@ -159,9 +159,8 @@ const EXPECTED_ALLOWLIST = [
   "identity_user_create",
   "plugins_set_enabled",
   "plugins_uninstall",
-  // 2026-10-05 — confirmed installs: a site plugin from a local folder/ZIP, a skill from GitHub.
-  "plugins_install",
-  "skills_install",
+  // `plugins_install` / `skills_install` were here 2026-10-05 behind a confirm card, then dropped the
+  // same day (owner: only permanent deletes confirm). They open no exchange, so they must stay OFF.
   // 2026-09-27 — database transfer: the Copy/Cancel card and the private destination-address form
   // (`features/database-transfer`).
   "database_transfer_run",
@@ -178,6 +177,8 @@ test("SECURITY-CRITICAL: the allowlist is exactly this set — widening it canno
 test("SECURITY-CRITICAL: isMcpUiToolCallAllowed admits a tool id if and ONLY if it is on that set", () => {
   const probes = [
     // Real production tool ids that are not allowlisted, several of them destructive.
+    "plugins_install",
+    "skills_install",
     "collections_execute_cleanup",
     "deployment_get_static_publish_capabilities",
     "deployment_generate_bucket_hosting_setup",

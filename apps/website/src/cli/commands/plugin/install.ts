@@ -21,7 +21,7 @@ async function openInstaller(required: { site: string }, _optional = {}) {
   } catch (e) { await closeSiteDirBoot(boot); throw e; }
 }
 
-/** Moved to the feature so the assistant's `plugins_install` dialog shows the same disclosure. */
+/** Moved to the feature so the assistant's `plugins_install` result carries the same risk sentence. */
 export { pluginInstallConsent };
 
 export async function runPluginInstallCommand(
