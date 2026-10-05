@@ -175,14 +175,20 @@ test("SKILL.md forbids inventing a cause for an absent or refused federated tool
   assert.match(skill, /invented/i, "the file must say this actually happened, not merely that it would be bad");
 });
 
-test("SKILL.md records the plan gate's exact string and the model that works", async () => {
+test("SKILL.md records the plan gate's exact string and defers model facts to the account; the reference keeps the observed table", async () => {
   const skill = await readSkill();
   assert.match(skill, /Requires basic plan or higher/);
   assert.match(skill, /z_image/);
-  assert.match(skill, /gpt_image_2/);
+  // Since Layout B (852d711e6) SKILL.md names no paywalled model as a rule: model outcomes are
+  // per-account facts, so it sends the agent to the account catalog and the reference instead.
+  assert.match(skill, /never assume a named model works on another\s+account/);
+  assert.match(skill, /references\/models-and-plan-gates\.md/);
 
   const models = await readReference("models-and-plan-gates.md");
   assert.match(models, /Requires basic plan or higher/);
+  // The observed 2026-09-09 table: the stated default is paywalled, z_image is the one that worked.
+  assert.match(models, /`gpt_image_2`[^\n]*\|[^\n]*Requires basic plan or higher/);
+  assert.match(models, /`z_image`[^\n]*Job submitted, image delivered/);
   // The free-trial allowance reads like an escape hatch and is not one.
   assert.match(models, /available:\s*false|available.{0,8}false/i);
   assert.match(models, /use_unlim/);
