@@ -10,7 +10,7 @@
  * (`server/__tests__/admin-media-routes.test.ts`, `features/trash/__tests__/`). Keeping the two
  * apart is what stops a drifting second Trash appearing in the media suites.
  */
-import { MEDIA_ENTITY_TYPE } from "#src/features/trash/index";
+import { MEDIA_ENTITY_TYPE, removeEntityWithoutBlocker } from "#src/features/trash/index";
 import { createRecordStoreTrashAdapter } from "@jini-ai/cms/trash";
 
 import type { MediaRecord } from "../index.js";
@@ -61,20 +61,18 @@ export function makeRemoveMediaDouble(mediaRepo: MinimalMediaStore): {
 
   return {
     removed,
-    removeMedia: async (required) => {
-      removed.push({ id: required.id, display: required.display, expectedVersion: required.expectedVersion });
-      const result = await adapter.hide({
-        workspaceId: required.workspaceId,
-        entityId: required.id,
-        at: required.at,
-        expectedVersion: required.expectedVersion,
-      });
-      // Same narrowing as the composition root's `removeEntityWithoutBlocker`: this adapter is built
-      // with no blocker, so a `blocked` reply is a wiring bug, never an outcome to hand the tool.
-      if (!result.ok && result.reason === "blocked") {
-        throw new Error(`remove-media-double: '${required.id}' reported 'blocked' from an adapter with no blocker`);
-      }
-      return result;
-    },
+    // The composition roots' own `removeEntityWithoutBlocker`: this adapter is built with no
+    // blocker, so a `blocked` reply is a wiring bug, never an outcome to hand the tool.
+    removeMedia: removeEntityWithoutBlocker({
+      remove: (required: Parameters<RemoveMediaFn>[0]) => {
+        removed.push({ id: required.id, display: required.display, expectedVersion: required.expectedVersion });
+        return adapter.hide({
+          workspaceId: required.workspaceId,
+          entityId: required.id,
+          at: required.at,
+          expectedVersion: required.expectedVersion,
+        });
+      },
+    }),
   };
 }

@@ -1,5 +1,5 @@
 import { bindWidgetRemoval } from "../widget-removal.js";
-import { removeEntityWithoutBlocker } from "./support/remove-without-blocker.js";
+import { removeEntityWithoutBlocker } from "../remove-without-blocker.js";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
@@ -88,7 +88,7 @@ function harness(options: { widgetRestoreFollowUp?: UnhideFollowUp } = {}): Harn
     ids: { newId: () => randomUUID() },
     authorize: async () => ({ allowed: true, reason: "test: always allow" }),
     outbox: new InMemoryOutbox(),
-    remove: removeEntityWithoutBlocker(bindWidgetRemoval({ trash })),
+    remove: removeEntityWithoutBlocker({ remove: bindWidgetRemoval({ trash }) }),
   };
   return { db, registry, trash, entries, deps: widgetDeps };
 }

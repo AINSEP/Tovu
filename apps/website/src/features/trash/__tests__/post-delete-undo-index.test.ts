@@ -17,7 +17,7 @@ import {
 import { createPostTrashAdapter, POST_ENTITY_TYPE } from "../adapters/post.js";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
 import { bindForgetRemovedEntity, bindRemoveEntity, createTrashService } from "@jini-ai/cms/trash";
-import { removeEntityWithoutBlocker } from "./support/remove-without-blocker.js";
+import { removeEntityWithoutBlocker } from "../remove-without-blocker.js";
 import type { TrashAdapter, TrashItem } from "@jini-ai/cms/trash";
 
 /**
@@ -88,10 +88,10 @@ function harness(): Harness {
     postRepo: new SqlitePostRepo(db),
     trashRepo,
     outbox: recordingOutbox(),
-    removePost: removeEntityWithoutBlocker(bindRemoveEntity({
+    removePost: removeEntityWithoutBlocker({ remove: bindRemoveEntity({
       trash: trash,
       entityType: POST_ENTITY_TYPE
-    })),
+    }) }),
     forgetRemovedPost: bindForgetRemovedEntity({
       repo: trashRepo,
       entityType: POST_ENTITY_TYPE

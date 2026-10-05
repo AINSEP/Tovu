@@ -8,7 +8,7 @@ import { SqliteRedirectRepo } from "../repo.sqlite.js";
 
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "#src/features/origin/index";
-import { REDIRECT_ENTITY_TYPE } from "#src/features/trash/index";
+import { REDIRECT_ENTITY_TYPE, removeEntityWithoutBlocker } from "#src/features/trash/index";
 import { createTrashService, InMemoryTrashRepo, createRecordStoreTrashAdapter } from "@jini-ai/cms/trash";
 import type { TrashAdapter } from "@jini-ai/cms/trash";
 import { redirectMatcher } from "../matcher.js";
@@ -767,8 +767,8 @@ function makeDepsWithRealTrash(): RedirectsWriteDeps {
   let idTick = 0;
   return {
     repo,
-    remove: async (required) => {
-      const result = await trash.trash({
+    remove: removeEntityWithoutBlocker({
+      remove: (required: Parameters<RedirectsWriteDeps["remove"]>[0]) => trash.trash({
         workspaceId: required.workspaceId,
         entityType: REDIRECT_ENTITY_TYPE,
         entityId: required.id,
@@ -776,12 +776,8 @@ function makeDepsWithRealTrash(): RedirectsWriteDeps {
         display: required.display,
         at: required.at,
         expectedVersion: required.expectedVersion,
-      });
-      if (!result.ok && result.reason === "blocked") {
-        throw new Error("redirects have no blocker — composition bug");
-      }
-      return result as { ok: true; version: number | null } | { ok: false; reason: "not-found" | "version-changed" };
-    },
+      }),
+    }),
     isInTrash: async (required) =>
       (await trashRepo.findByEntity({ workspaceId: required.workspaceId, entityType: REDIRECT_ENTITY_TYPE, entityId: required.id })) !== null,
     restore: (required) =>

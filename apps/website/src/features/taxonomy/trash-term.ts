@@ -33,7 +33,7 @@ export type RemoveTermFn = (required: {
 >;
 
 /** Same shape, NARROWED: the `taxonomy` registry entry declares no blocker, so this can never see
- *  `"blocked"` — mirrors `server/runtime/composition/deps.ts`'s `removeEntityWithoutBlocker`
+ *  `"blocked"` — mirrors `features/trash`'s `removeEntityWithoutBlocker`
  *  narrowing for `redirect`/`comment`/`form_submission`. */
 export type RemoveTaxonomyFn = (required: {
   workspaceId: string;

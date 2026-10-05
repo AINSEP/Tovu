@@ -9,7 +9,7 @@
  * Tests that care about the index half use the real service (`features/trash/__tests__/`) against
  * real SQLite. Keeping the two apart stops a second, drifting Trash implementation appearing here.
  */
-import { REDIRECT_ENTITY_TYPE } from "#src/features/trash/index";
+import { REDIRECT_ENTITY_TYPE, removeEntityWithoutBlocker } from "#src/features/trash/index";
 import { createRecordStoreTrashAdapter } from "@jini-ai/cms/trash";
 
 import type { RedirectsWriteDeps, RemoveRedirectFn } from "../redirects.js";
@@ -48,19 +48,15 @@ export function removeVia(repo: MinimalRedirectStore): RemoveRedirectFn {
     })
   });
   // Redirects register no Trash blocker, so the adapter can never answer "blocked"; narrow it away
-  // exactly as the composition root's `removeEntityWithoutBlocker` (app.ts) does for the real binding.
-  return async (required) => {
-    const result = await adapter.hide({
+  // with the same `removeEntityWithoutBlocker` the composition roots use for the real binding.
+  return removeEntityWithoutBlocker({
+    remove: (required: Parameters<RemoveRedirectFn>[0]) => adapter.hide({
       workspaceId: required.workspaceId,
       entityId: required.id,
       at: required.at,
       expectedVersion: required.expectedVersion,
-    });
-    if (!result.ok && result.reason === "blocked") {
-      throw new Error(`trash: redirect '${required.id}' reported 'blocked' with no blocker registered — test double bug`);
-    }
-    return result;
-  };
+    }),
+  });
 }
 
 /**

@@ -237,7 +237,7 @@ import {
   SqliteTrashRepo,
   USER_ENTITY_TYPE,
   createUserTrashAdapter,
-  type RemoveEntity,
+  removeEntityWithoutBlocker,
 } from "#src/features/trash/index";
 import {
   bindRemoveEntity,
@@ -1525,33 +1525,12 @@ async function composeSiteRouteDeps(
   const isInTrash = async (principalId: string): Promise<boolean> =>
     (await trashRepo.findByEntity({ workspaceId, entityType: USER_ENTITY_TYPE, entityId: principalId })) !== null;
 
-  /**
-   * Narrows `bindRemoveEntity`'s result for a type whose registry entry declares no `blocker`
-   * (redirect/comment/form_submission — none of `registry.ts`'s three entries for them sets one).
-   * `TrashMarkerResult` (T1) is generic over every registered kind, so TypeScript cannot see that on
-   * its own; this is the composition-root seam that carries the narrower promise those domains'
-   * OWN structural types (`RemoveRedirectFn`/`RemoveCommentFn`/`RemoveFormSubmissionFn`) still make.
-   * A `"blocked"` result here is a composition bug (a blocker was added to one of these three entries
-   * without updating this call site to match) — fail fast rather than silently drop it.
-   */
-  function removeEntityWithoutBlocker(remove: RemoveEntity): (
-    required: Parameters<RemoveEntity>[0]
-  ) => Promise<{ ok: true; version: number | null } | { ok: false; reason: "not-found" | "version-changed" }> {
-    return async (required) => {
-      const result = await remove(required);
-      if (!result.ok && result.reason === "blocked") {
-        throw new Error(`trash: '${required.id}' reported 'blocked' from a type registered with no blocker — composition bug`);
-      }
-      return result;
-    };
-  }
-
   const redirectsWriteDeps: RedirectsWriteDeps = {
     repo: redirectRepo,
-    remove: removeEntityWithoutBlocker(bindRemoveEntity({
+    remove: removeEntityWithoutBlocker({ remove: bindRemoveEntity({
       trash: trash,
       entityType: REDIRECT_ENTITY_TYPE
-    })),
+    }) }),
     // S7 (web-high fix plan 2026-09-24) — same identity `isInTrash` shape as above, pre-bound to
     // this domain's entity type. `trash.restore` is the real `TrashPort` method, not a bespoke one.
     isInTrash: async (required) =>
@@ -1664,10 +1643,10 @@ async function composeSiteRouteDeps(
     settingsRepo,
     // Local admin Trash. A comment's "deleted" marker is one value of its moderation status, so the
     // index has to follow both directions of that transition — see `syncRemovalIndex`.
-    remove: removeEntityWithoutBlocker(bindRemoveEntity({
+    remove: removeEntityWithoutBlocker({ remove: bindRemoveEntity({
       trash: trash,
       entityType: COMMENT_ENTITY_TYPE
-    })),
+    }) }),
     forgetRemoved: ({ workspaceId: ws, id }) =>
       trashRepo.deleteByEntity({ workspaceId: ws, entityType: COMMENT_ENTITY_TYPE, entityId: id }),
     runInTransaction: trashTransaction,
@@ -1910,10 +1889,10 @@ async function composeSiteRouteDeps(
           }),
           // S4 (publish-overwrite-live-plan-2026-09-24) — same binding `routeDeps.removePost` below
           // uses; the post handler's `retire()` needs it to wrap `retirePostForReplacement`.
-          remove: removeEntityWithoutBlocker(bindRemoveEntity({
+          remove: removeEntityWithoutBlocker({ remove: bindRemoveEntity({
             trash: trash,
             entityType: POST_ENTITY_TYPE
-          })),
+          }) }),
         },
         media: { repo: mediaRepo, assetBlobRepo, blobStore, contentTypeStore: mediaContentTypeStore },
         redirect: redirectsWriteDeps,
@@ -1970,23 +1949,23 @@ async function composeSiteRouteDeps(
     trash,
     // Pre-bound per domain. A delete path receives exactly one of these and therefore cannot reach
     // another domain's entities by passing the wrong string.
-    removePost: removeEntityWithoutBlocker(bindRemoveEntity({
+    removePost: removeEntityWithoutBlocker({ remove: bindRemoveEntity({
       trash: trash,
       entityType: POST_ENTITY_TYPE
-    })),
+    }) }),
     removeComment: bindRemoveEntity({
       trash: trash,
       entityType: COMMENT_ENTITY_TYPE
     }),
-    removeMedia: removeEntityWithoutBlocker(bindRemoveEntity({
+    removeMedia: removeEntityWithoutBlocker({ remove: bindRemoveEntity({
       trash: trash,
       entityType: MEDIA_ENTITY_TYPE
-    })),
+    }) }),
     removeRedirect: bindRemoveEntity({
       trash: trash,
       entityType: REDIRECT_ENTITY_TYPE
     }),
-    removeWidget: removeEntityWithoutBlocker(bindWidgetRemoval({ trash })),
+    removeWidget: removeEntityWithoutBlocker({ remove: bindWidgetRemoval({ trash }) }),
     forgetRemovedMedia: bindForgetRemovedEntity({
       repo: trashRepo,
       entityType: MEDIA_ENTITY_TYPE
@@ -2180,10 +2159,10 @@ async function composeSiteRouteDeps(
     settleMailer: resolvedMailer.settle,
     menuRepo,
     navLocationBindingRepo,
-    removeMenu: removeEntityWithoutBlocker(bindRemoveEntity({
+    removeMenu: removeEntityWithoutBlocker({ remove: bindRemoveEntity({
       trash: trash,
       entityType: "menu"
-    })),
+    }) }),
     // ADR-046 Phase 1 (2026-07-16): durable SQLite adapters, wired into a real composition root
     // for the first time. Delivery-worker activation itself stays gated (REQ-07/SPEC-022's
     // capabilityRouteGuard unconditionally contains "webhooks" in production mode regardless of
@@ -2249,10 +2228,10 @@ async function composeSiteRouteDeps(
     // `server/app.ts`'s hermetic-test composition's identical construction.
     formDefinitionRepo,
     formSubmissionRepo: new SqliteFormSubmissionRepo(kernel),
-    removeFormSubmission: removeEntityWithoutBlocker(bindRemoveEntity({
+    removeFormSubmission: removeEntityWithoutBlocker({ remove: bindRemoveEntity({
       trash: trash,
       entityType: "form_submission"
-    })),
+    }) }),
     executeCommand,
     formsRateLimiter: createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock }),
     // SPEC-046 REQ-7 — same one-process-lifetime-counter-store shape as `formsRateLimiter` above,
@@ -2277,10 +2256,10 @@ async function composeSiteRouteDeps(
       trash: trash,
       entityType: "term"
     }),
-    removeTaxonomy: removeEntityWithoutBlocker(bindRemoveEntity({
+    removeTaxonomy: removeEntityWithoutBlocker({ remove: bindRemoveEntity({
       trash: trash,
       entityType: "taxonomy"
-    })),
+    }) }),
     // Same instance backs both `entryTermRepo` (the certified write-service port, widened with the
     // Mergeable/AssignmentCount additive capabilities) and `entryTermReadRepo` (the new
     // `EntryTermReadPort` read path, `routes/types.ts`'s own doc explains why these are two

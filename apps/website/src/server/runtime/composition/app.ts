@@ -27,7 +27,7 @@ import {
   PLUGIN_ENTITY_TYPE,
   POST_ENTITY_TYPE,
   REDIRECT_ENTITY_TYPE,
-  type RemoveEntity,
+  removeEntityWithoutBlocker,
   type TrashDb,
 } from "#src/features/trash/index";
 import {
@@ -815,26 +815,12 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     entityType: PLUGIN_ENTITY_TYPE
   }));
 
-  // See `composition/deps.ts`'s identically-named/documented helper: narrows `bindRemoveEntity`'s
-  // result for a type whose registry entry declares no `blocker` (redirect/comment/form_submission).
-  function removeEntityWithoutBlocker(remove: RemoveEntity): (
-    required: Parameters<RemoveEntity>[0]
-  ) => Promise<{ ok: true; version: number | null } | { ok: false; reason: "not-found" | "version-changed" }> {
-    return async (required) => {
-      const result = await remove(required);
-      if (!result.ok && result.reason === "blocked") {
-        throw new Error(`trash: '${required.id}' reported 'blocked' from a type registered with no blocker — composition bug`);
-      }
-      return result;
-    };
-  }
-
   const redirectsWriteDeps: RedirectsWriteDeps = {
     repo: redirectRepo,
-    remove: removeEntityWithoutBlocker(bindRemoveEntity({
+    remove: removeEntityWithoutBlocker({ remove: bindRemoveEntity({
       trash: trash,
       entityType: REDIRECT_ENTITY_TYPE
-    })),
+    }) }),
     // S7 (web-high fix plan 2026-09-24) — see `composition/deps.ts`'s identically-documented fields.
     isInTrash: async (required) =>
       (await trashRepo.findByEntity({ workspaceId: required.workspaceId, entityType: REDIRECT_ENTITY_TYPE, entityId: required.id })) !== null,
@@ -899,10 +885,10 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     idGen,
     spamCheck: new HeuristicSpamCheck(),
     settingsRepo,
-    remove: removeEntityWithoutBlocker(bindRemoveEntity({
+    remove: removeEntityWithoutBlocker({ remove: bindRemoveEntity({
       trash: trash,
       entityType: COMMENT_ENTITY_TYPE
-    })),
+    }) }),
     forgetRemoved: ({ workspaceId: ws, id }) =>
       trashRepo.deleteByEntity({ workspaceId: ws, entityType: COMMENT_ENTITY_TYPE, entityId: id }),
     // Nothing in this composition opens a database transaction; see `createTrashService` above.
@@ -998,10 +984,10 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
           }),
           // S4 (publish-overwrite-live-plan-2026-09-24) — same binding `routeDeps.removePost` below
           // uses; the post handler's `retire()` needs it to wrap `retirePostForReplacement`.
-          remove: removeEntityWithoutBlocker(bindRemoveEntity({
+          remove: removeEntityWithoutBlocker({ remove: bindRemoveEntity({
             trash: trash,
             entityType: POST_ENTITY_TYPE
-          })),
+          }) }),
         },
         media: { repo: mediaRepo, assetBlobRepo, blobStore, contentTypeStore: mediaContentTypeStore },
         redirect: redirectsWriteDeps,
@@ -1060,36 +1046,36 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // The rest of this root stays hermetic; only term/taxonomy exercise the shared scratch database.
     registry: trashRegistry,
     db: sqliteTrashDb,
-    removePost: removeEntityWithoutBlocker(bindRemoveEntity({
+    removePost: removeEntityWithoutBlocker({ remove: bindRemoveEntity({
       trash: trash,
       entityType: POST_ENTITY_TYPE
-    })),
+    }) }),
     removeComment: bindRemoveEntity({
       trash: trash,
       entityType: COMMENT_ENTITY_TYPE
     }),
-    removeMedia: removeEntityWithoutBlocker(bindRemoveEntity({
+    removeMedia: removeEntityWithoutBlocker({ remove: bindRemoveEntity({
       trash: trash,
       entityType: MEDIA_ENTITY_TYPE
-    })),
+    }) }),
     removeRedirect: bindRemoveEntity({
       trash: trash,
       entityType: REDIRECT_ENTITY_TYPE
     }),
-    removeWidget: removeEntityWithoutBlocker(bindWidgetRemoval({ trash })),
-    removeMenu: removeEntityWithoutBlocker(bindRemoveEntity({
+    removeWidget: removeEntityWithoutBlocker({ remove: bindWidgetRemoval({ trash }) }),
+    removeMenu: removeEntityWithoutBlocker({ remove: bindRemoveEntity({
       trash: trash,
       entityType: "menu"
-    })),
+    }) }),
     // Bound the same way as `composition/deps.ts`; the matching adapters share `taxonomyDb`.
     removeTerm: bindRemoveEntity({
       trash: trash,
       entityType: "term"
     }),
-    removeTaxonomy: removeEntityWithoutBlocker(bindRemoveEntity({
+    removeTaxonomy: removeEntityWithoutBlocker({ remove: bindRemoveEntity({
       trash: trash,
       entityType: "taxonomy"
-    })),
+    }) }),
     forgetRemovedMedia: bindForgetRemovedEntity({
       repo: trashRepo,
       entityType: MEDIA_ENTITY_TYPE
@@ -1297,10 +1283,10 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // per-request) so its fixed-window counts persist across requests within one `createApp()`.
     formDefinitionRepo,
     formSubmissionRepo,
-    removeFormSubmission: removeEntityWithoutBlocker(bindRemoveEntity({
+    removeFormSubmission: removeEntityWithoutBlocker({ remove: bindRemoveEntity({
       trash: trash,
       entityType: "form_submission"
-    })),
+    }) }),
     executeCommand,
     formsRateLimiter: createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock }),
     // SPEC-046 REQ-7 — same one-process-lifetime-counter-store shape as `formsRateLimiter` above,

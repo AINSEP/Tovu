@@ -1448,8 +1448,8 @@ export interface TrashDeps {
   trash: TrashPort;
   // `RemovePostFn`, not the broad `RemoveEntity`: `deletePost` (`features/post/post.ts`) declares its
   // own narrower structural type with no `"blocked"` branch (post has no `TrashBlockerSpec`, T1). The
-  // composition root narrows `bindRemoveEntity`'s wider result to match (`removeEntityWithoutBlocker`
-  // in `deps.ts`/`app.ts`) so this field's promise is actually kept.
+  // composition root narrows `bindRemoveEntity`'s wider result to match (`features/trash`'s
+  // `removeEntityWithoutBlocker`, used by `deps.ts`/`app.ts`) so this field's promise is actually kept.
   removePost: RemovePostFn;
   removeComment: RemoveEntity;
   // `RemoveMediaFn`, not the broad `RemoveEntity` — same reasoning as `removePost` above:

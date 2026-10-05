@@ -9,6 +9,8 @@
 export { TRASH_RETENTION_DAYS } from "./ports.js";
 export type { RemoveEntity, TransactionRunner } from "./ports.js";
 export { bindWidgetRemoval } from "./widget-removal.js";
+export { removeEntityWithoutBlocker } from "./remove-without-blocker.js";
+export type { RemoveWithoutBlockerResult } from "./remove-without-blocker.js";
 // Shared trash forks were removed; @jini-ai/cms/trash owns their implementation.
 export type {
   ForgetRemovedEntity,
