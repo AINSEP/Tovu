@@ -569,6 +569,13 @@ function isPlausibleMediaRefId(value: string): boolean {
  *  types stay narrow at each import site). */
 type ResolvedMediaRecord = NonNullable<Awaited<ReturnType<MediaRepoPort["findById"]>>>;
 
+/** The IR's `slug` for a resolved asset: `null` means "has none" (`MediaAssetRenderMeta`'s own
+ *  contract), and a pre-backfill row stores that as `""`, so an empty slug is normalized to `null`
+ *  rather than passed through. Shared by every media IR builder in this file. */
+function mediaIrSlug(record: ResolvedMediaRecord): string | null {
+  return record.slug || null;
+}
+
 /** Shape-narrows a media ref into a usable `{assetId, transformName}` pair, or `undefined` when the
  *  ref's `id`/`variant` fails {@link isPlausibleMediaRefId}'s check — split out of
  *  {@link resolveOneMediaEmbed} so that function's own branch count stays proportional to "which
@@ -628,7 +635,7 @@ async function buildMediaImageIr(
       // `/m/...` URL via `mediaUrlKey` — `null`/absent falls back to `assetId`, same as every other
       // emitter. See the rewritten comment at this function's own caller for why emitting the slug
       // here is now safe (S2a/S2b's `media_slug_history` rename safety).
-      slug: record.slug ?? null,
+      slug: mediaIrSlug(record),
       transformName,
       version: definition.version,
       alt: record.alt,
@@ -691,7 +698,7 @@ async function resolveOneMediaEmbed(
         componentId: "media-image",
         props: {
           assetId: canonicalAssetId,
-          slug: record.slug ?? null,
+          slug: mediaIrSlug(record),
           contentType,
           alt: record.alt,
           width: record.width,
@@ -874,7 +881,7 @@ async function resolvePostContentMediaContext(
           height: record.height,
           cssClass: record.cssClass,
           htmlAttributes: record.htmlAttributes,
-          slug: record.slug ?? null,
+          slug: mediaIrSlug(record),
           contentType: contentTypes?.get(record.source.sha256) ?? null,
         },
       ])

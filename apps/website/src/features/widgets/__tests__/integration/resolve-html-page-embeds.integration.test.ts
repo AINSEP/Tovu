@@ -82,11 +82,15 @@ function seedContactFormWidget(entryRepo: InMemoryEntryRepo, id: string, formDef
   return seedWidget(entryRepo, id, { widgetType: "contact-form", config: { formDefinitionId } }, WORKSPACE_ID, slug);
 }
 
+/** Defaults to `slug: ""`, the value a pre-backfill row actually stores for "no slug": every
+ *  `slug: null` expectation below therefore also pins `resolver-service.ts`'s empty-to-null
+ *  normalization, not just an absent field. */
 function mediaRecord(overrides: Partial<MediaRecord> = {}): MediaRecord {
   return {
     id: "asset-1",
     workspaceId: WORKSPACE_ID,
     title: "A photo",
+    slug: "",
     alt: "A scenic photo",
     caption: "",
     credit: "",
@@ -127,6 +131,7 @@ function formDefinition(overrides: Partial<FormDefinitionRecord> = {}): FormDefi
     status: "active",
     createdAt: NOW,
     updatedAt: NOW,
+    version: 1,
     ...overrides,
   };
 }
@@ -755,6 +760,28 @@ test("resolveHtmlPageEmbeds: an unknown media slug degrades to no entry (placeho
   });
 
   assert.equal(resolved.get("media")?.has("does-not-exist"), false);
+});
+
+test('resolveHtmlPageEmbeds: an asset whose stored slug is EMPTY (a pre-backfill row) emits slug: null, the IR\'s documented "has no slug"; a real slug still passes through', async () => {
+  // Mutation `media-empty-slug-passthrough`: `record.slug ?? null` in resolver-service.ts lets the
+  // stored "" through as the IR's slug, and this test fails.
+  const entryRepo = new InMemoryEntryRepo();
+  const mediaRepo = new InMemoryMediaRepo({}, { initialRows: [
+    mediaRecord({ id: "asset-empty", slug: "" }),
+    mediaRecord({ id: "asset-named", slug: "named-photo" }),
+  ] });
+  const transformRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [transformDefinition()] });
+
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: { entryRepo, mediaRepo, transformRepo },
+    input: {
+      workspaceId: WORKSPACE_ID,
+      html: `<div data-embed-config='{"type":"media","id":"asset-empty"}'></div><div data-embed-config='{"type":"media","id":"asset-named"}'></div>`,
+    },
+  });
+
+  assert.equal(resolved.get("media")?.get("asset-empty")?.props.slug, null);
+  assert.equal(resolved.get("media")?.get("asset-named")?.props.slug, "named-photo");
 });
 
 // ---------------------------------------------------------------------------
