@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import Database from "better-sqlite3";
 
 import { createSiteRouteDeps, defaultDatabaseJournalDbPath } from "../../runtime/composition/deps.js";
 import { buildBootModules } from "../../runtime/boot/bootstrap.js";
@@ -242,7 +243,16 @@ test("round-5/6 re-audit (codex R5-F1 / Fable R5-F2-BLOCK-HAS-NO-EXIT, then code
     // content.db to an actual file (the real SqliteDbOpsAdapter, not the in-memory test double,
     // since this test boots through createSiteRouteDeps()); restoreFromArtifact() later does a
     // real fs.access() on that path.
+    // F1834: a distinctive value captured by the snapshot, then changed after it, so the reboot can
+    // prove the restore brought the captured CONTENT back, not just the recovery metadata.
+    const renameWorkspace = (name: string) => {
+      const writer = new Database(dbPath);
+      try { writer.prepare("UPDATE workspaces SET name = ? WHERE id = ?").run(name, deps.workspaceId); } finally { writer.close(); }
+    };
+    renameWorkspace("Captured before snapshot");
     const captured = await deps.dbOps.captureRestorePoint({ scopeId: deps.workspaceId });
+    renameWorkspace("Changed after snapshot");
+    assert.equal((await deps.workspaceRepo.findById({ id: deps.workspaceId }))?.name, "Changed after snapshot");
     await deps.restorePointsRepo.save({
       restorePointId: "rp-restart-safe-1",
       idempotencyKey: "rp-restart-safe-1-key",
@@ -300,6 +310,11 @@ test("round-5/6 re-audit (codex R5-F1 / Fable R5-F2-BLOCK-HAS-NO-EXIT, then code
     const rebootResult = await runBootLifecycle(buildBootModules(rebootDeps, { useMemory: false, defaultContentDbPath: () => dbPath }));
     assert.equal(rebootResult.ok, true);
     assert.equal(await rebootDeps.siteStatusRepo.get(rebootDeps.workspaceId), "SERVING", "the resolution must survive a reboot -- the exit is durable, not just an in-process flag flip");
+    assert.equal(
+      (await rebootDeps.workspaceRepo.findById({ id: rebootDeps.workspaceId }))?.name,
+      "Captured before snapshot",
+      "the rebooted process must serve the restored content, not the post-snapshot change",
+    );
 
     // Round-7 confirmation (codex, non-blocking note R7-N1): assert the actual HTTP-level
     // consequence too, not just the internal siteStatus field -- a real request against a fresh

@@ -21,6 +21,7 @@ import type { ExternalMcpToolDeps } from "../../features/external-mcp/deps.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
 
 import { contributeExternalMcpTools } from "../../features/external-mcp/tool-registrations.js";
+import { onExternalMcpRosterChanged, resetExternalMcpRosterChangeListenersForTests } from "../external-mcp-roster-change.js";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -813,6 +814,63 @@ test("external_mcp_save: re-saving with a blank OAuth client secret field keeps 
   assert.ok(record, "the row must exist");
   const payload = await openExternalMcpOAuthPayload(sealer, record!);
   assert.equal(payload.clientSecret, "s3cret", "a blank client-secret resubmission must not clear the stored secret");
+});
+
+// ---------------------------------------------------------------------------
+// 10. Run abort and device-flow roster fan-out (F0930)
+// ---------------------------------------------------------------------------
+
+test("external_mcp_save: aborting the run while the form is open closes the exchange, returns abandoned, and saves nothing", async () => {
+  const { deps } = fakeDeps();
+  const exchanges = createSurfaceExchangeStore();
+  const registrations = new Map(buildExternalMcpRegistrations(deps, { surfaceExchanges: exchanges }).map((r) => [r.descriptor.id, r]));
+  const run = new AbortController();
+  const emitted: unknown[] = [];
+  const pending = invokeFixtureHandler(registrations.get("external_mcp_save")!, {
+    executionId: "exec-abort", principal: { id: PRINCIPAL_ID }, run: { id: "run-abort" },
+    input: { id: "aborted-one", transport: "streamable_http" }, signal: run.signal,
+    emitSurface: async (surface: unknown) => void emitted.push(surface),
+  } as never);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(emitted.length, 1);
+  assert.equal(exchanges.size(), 1);
+  const exchangeId = exchangeIdFromSurface(emitted[0]);
+
+  run.abort();
+  // Without the abort listener the call stays parked on the form; bound the wait so that fails, not hangs.
+  const outcome = await Promise.race([pending, new Promise((resolve) => setTimeout(() => resolve("still-parked"), 2_000))]);
+  assert.deepEqual(outcome, {
+    saved: false, cancelled: false, reason: "abandoned", note: "The connection form was closed because the run ended. Nothing was saved.",
+  });
+  assert.equal(exchanges.size(), 0);
+  // A late submit reaches nothing and creates nothing.
+  assert.deepEqual(
+    exchanges.deliver({ exchangeId, toolId: "external_mcp_save", principalId: PRINCIPAL_ID, params: { id: "aborted-one", transport: "streamable_http", url: "https://late.example/mcp" } }),
+    { ok: false, reason: "unknown-or-closed" },
+  );
+  const listed = (await call(registrations.get("external_mcp_list")!, { input: {} })) as { servers: unknown[] };
+  assert.deepEqual(listed.servers, []);
+});
+
+test("external_mcp_oauth_poll_device: only the 'connected' transition notifies roster listeners, never a 'pending' poll", async (t) => {
+  resetExternalMcpRosterChangeListenersForTests();
+  t.after(() => resetExternalMcpRosterChangeListenersForTests());
+  let notified = 0;
+  onExternalMcpRosterChanged("test-runtime", () => { notified += 1; });
+  const statuses = ["pending", "connected"] as const;
+  let polls = 0;
+  const oauth: Pick<ExternalMcpOAuthService, "pollDeviceAuthorization"> = {
+    async pollDeviceAuthorization() {
+      return { status: statuses[Math.min(polls++, statuses.length - 1)]! } as never;
+    },
+  };
+  const { deps } = fakeDeps({ externalMcpOAuth: oauth as ExternalMcpOAuthService });
+  const poll = tool(externalMcpRegistrations(deps), "external_mcp_oauth_poll_device");
+
+  assert.deepEqual(await call(poll, { input: { id: "higgsfield" } }), { status: "pending" });
+  assert.equal(notified, 0, "a pending poll changes no roster");
+  assert.deepEqual(await call(poll, { input: { id: "higgsfield" } }), { status: "connected" });
+  assert.equal(notified, 1, "the connection becomes usable here, so every runtime must hear it once");
 });
 
 /** Supplies the fixture emitter through the canonical handler options, including headless calls. */
