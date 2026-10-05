@@ -15,6 +15,7 @@ import {
 import type { ChatMessage } from "@jini-ai/chat/core";
 
 import { createA2uiActionPoster } from "../../lib/a2ui-action-poster";
+import { createAdminTypedAnswerPoster } from "../../lib/typed-answer-poster";
 import { RoutedA2uiSurfaceCard } from "./RoutedA2uiSurfaceCard";
 import { OverflowAwareMcpUiSurfaceCard } from "./OverflowAwareMcpUiSurfaceCard";
 import { SlowRunNoticeCard } from "./SlowRunNoticeCard";
@@ -114,6 +115,12 @@ export { resolveComposerDiscoveryOutcome, type ResolveComposerDiscoveryOutcomeDe
  * PendingConfirmationStore (apps/website/src/assistant/pending-confirmations.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 const mcpUiToolCaller = createMcpUiToolCaller({ baseUrl: "", fetch }, { path: "/api/admin/v1/mcp-ui/tool-calls" });
+/**
+ * Typed answers to a pending `assistant_ask_choice` (jl A1a/A1b): `ChatPane` calls this instead of
+ * queueing when the operator types while the agent holds a question card open. Module scope for the
+ * same reason as `mcpUiToolCaller` — one stable instance, same route. See `typed-answer-poster.ts`.
+ */
+const typedAnswerPoster = createAdminTypedAnswerPoster({ fetch });
 /**
  * Computed once, module scope — same posture as `mcpUiToolCaller` above, and for the same reason:
  * `registerExtEventRenderer`'s render-function argument below is re-invoked by `@jini-ai/chat/react`
@@ -511,6 +518,7 @@ export function AssistantDock({
         // gets in — pushing new messages into a live pane would fight its own state.
         key={chats.paneKey}
         transport={transport}
+        deliverTypedAnswer={typedAnswerPoster}
         runtimeAccess={runtimeAccess}
         {...(agentsPlaceholder ? { agents: agentsPlaceholder } : {})}
         // Fully controlled (`selection`/`onSelectionChange`), not `initialSelection` — see

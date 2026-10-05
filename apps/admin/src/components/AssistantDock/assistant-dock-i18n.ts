@@ -250,6 +250,10 @@ export const t = createDictionaryTranslator(ASSISTANT_DOCK_DICT);
  * Extended 2026-10-04 with "Expires in {time}"/"This question expired" — `McpUiSurfaceCard`'s
  * countdown under a pending approval card and the line that replaces the card once its deadline
  * passes (both rendered by `@jini-ai/chat/react` through this adapter).
+ *
+ * Extended 2026-10-04 with the two typed-answer notices `ChatPane` shows when text typed while the
+ * agent waits on a question was NOT sent (`describeTypedAnswerNotice` in `@jini-ai/chat/react`): the
+ * question already closed, or the answer could not be delivered.
  */
 const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
   es: {
@@ -269,6 +273,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     'Delete "{title}"? This cannot be undone.': '¿Eliminar "{title}"? Esta acción no se puede deshacer.',
     "Expires in {time}": "Caduca en {time}",
     "This question expired": "Esta pregunta caducó",
+    "That question is no longer waiting for an answer, so your message was not sent.": "Esa pregunta ya no espera respuesta, así que tu mensaje no se envió.",
+    "Your answer could not be delivered. Try sending it again.": "No se pudo entregar tu respuesta. Intenta enviarla de nuevo.",
   },
   id: {
     Conversations: "Percakapan",
@@ -287,6 +293,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     'Delete "{title}"? This cannot be undone.': 'Hapus "{title}"? Tindakan ini tidak dapat dibatalkan.',
     "Expires in {time}": "Kedaluwarsa dalam {time}",
     "This question expired": "Pertanyaan ini sudah kedaluwarsa",
+    "That question is no longer waiting for an answer, so your message was not sent.": "Pertanyaan itu tidak lagi menunggu jawaban, jadi pesanmu tidak dikirim.",
+    "Your answer could not be delivered. Try sending it again.": "Jawabanmu tidak dapat dikirim. Coba kirim lagi.",
   },
   de: {
     Conversations: "Unterhaltungen",
@@ -305,6 +313,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     'Delete "{title}"? This cannot be undone.': '„{title}“ löschen? Dies kann nicht rückgängig gemacht werden.',
     "Expires in {time}": "Läuft ab in {time}",
     "This question expired": "Diese Frage ist abgelaufen",
+    "That question is no longer waiting for an answer, so your message was not sent.": "Diese Frage wartet nicht mehr auf eine Antwort, daher wurde deine Nachricht nicht gesendet.",
+    "Your answer could not be delivered. Try sending it again.": "Deine Antwort konnte nicht zugestellt werden. Versuche es erneut.",
   },
   "zh-CN": {
     Conversations: "对话",
@@ -323,6 +333,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     'Delete "{title}"? This cannot be undone.': '删除“{title}”？此操作无法撤销。',
     "Expires in {time}": "{time} 后过期",
     "This question expired": "此问题已过期",
+    "That question is no longer waiting for an answer, so your message was not sent.": "该问题已不再等待回答，因此你的消息未发送。",
+    "Your answer could not be delivered. Try sending it again.": "无法送达你的回答。请重新发送。",
   },
   "zh-TW": {
     Conversations: "對話",
@@ -341,6 +353,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     'Delete "{title}"? This cannot be undone.': '刪除「{title}」？此操作無法復原。',
     "Expires in {time}": "{time} 後過期",
     "This question expired": "此問題已過期",
+    "That question is no longer waiting for an answer, so your message was not sent.": "該問題已不再等待回答，因此你的訊息未送出。",
+    "Your answer could not be delivered. Try sending it again.": "無法送達你的回答。請重新送出。",
   },
   "pt-BR": {
     Conversations: "Conversas",
@@ -359,6 +373,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     'Delete "{title}"? This cannot be undone.': 'Excluir "{title}"? Isso não pode ser desfeito.',
     "Expires in {time}": "Expira em {time}",
     "This question expired": "Esta pergunta expirou",
+    "That question is no longer waiting for an answer, so your message was not sent.": "Essa pergunta não está mais aguardando resposta, então sua mensagem não foi enviada.",
+    "Your answer could not be delivered. Try sending it again.": "Não foi possível entregar sua resposta. Tente enviá-la novamente.",
   },
   ru: {
     Conversations: "Беседы",
@@ -377,6 +393,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     'Delete "{title}"? This cannot be undone.': 'Удалить «{title}»? Это действие нельзя отменить.',
     "Expires in {time}": "Истекает через {time}",
     "This question expired": "Срок ответа на этот вопрос истёк",
+    "That question is no longer waiting for an answer, so your message was not sent.": "Этот вопрос больше не ждёт ответа, поэтому ваше сообщение не отправлено.",
+    "Your answer could not be delivered. Try sending it again.": "Не удалось доставить ваш ответ. Попробуйте отправить его ещё раз.",
   },
   fa: {
     Conversations: "گفتگوها",
@@ -395,6 +413,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     'Delete "{title}"? This cannot be undone.': '«{title}» حذف شود؟ این کار قابل بازگشت نیست.',
     "Expires in {time}": "انقضا تا {time}",
     "This question expired": "مهلت این پرسش تمام شد",
+    "That question is no longer waiting for an answer, so your message was not sent.": "آن پرسش دیگر منتظر پاسخ نیست، بنابراین پیام شما ارسال نشد.",
+    "Your answer could not be delivered. Try sending it again.": "پاسخ شما تحویل داده نشد. دوباره ارسالش کنید.",
   },
   ar: {
     Conversations: "المحادثات",
@@ -413,6 +433,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     'Delete "{title}"? This cannot be undone.': 'هل تريد حذف "{title}"؟ لا يمكن التراجع عن هذا الإجراء.',
     "Expires in {time}": "تنتهي الصلاحية خلال {time}",
     "This question expired": "انتهت صلاحية هذا السؤال",
+    "That question is no longer waiting for an answer, so your message was not sent.": "لم يعد هذا السؤال بانتظار إجابة، لذا لم تُرسل رسالتك.",
+    "Your answer could not be delivered. Try sending it again.": "تعذّر تسليم إجابتك. حاول إرسالها مرة أخرى.",
   },
   ja: {
     Conversations: "会話",
@@ -431,6 +453,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     'Delete "{title}"? This cannot be undone.': '「{title}」を削除しますか？ この操作は元に戻せません。',
     "Expires in {time}": "残り {time} で期限切れ",
     "This question expired": "この質問は期限切れです",
+    "That question is no longer waiting for an answer, so your message was not sent.": "その質問はもう回答を待っていないため、メッセージは送信されませんでした。",
+    "Your answer could not be delivered. Try sending it again.": "回答を届けられませんでした。もう一度送信してください。",
   },
   ko: {
     Conversations: "대화",
@@ -449,6 +473,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     'Delete "{title}"? This cannot be undone.': '"{title}"을(를) 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.',
     "Expires in {time}": "{time} 후 만료",
     "This question expired": "이 질문은 만료되었습니다",
+    "That question is no longer waiting for an answer, so your message was not sent.": "해당 질문은 더 이상 답변을 기다리지 않으므로 메시지가 전송되지 않았습니다.",
+    "Your answer could not be delivered. Try sending it again.": "답변을 전달하지 못했습니다. 다시 보내 보세요.",
   },
   pl: {
     Conversations: "Rozmowy",
@@ -467,6 +493,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     'Delete "{title}"? This cannot be undone.': 'Usunąć „{title}”? Tej operacji nie można cofnąć.',
     "Expires in {time}": "Wygasa za {time}",
     "This question expired": "To pytanie wygasło",
+    "That question is no longer waiting for an answer, so your message was not sent.": "To pytanie nie czeka już na odpowiedź, więc Twoja wiadomość nie została wysłana.",
+    "Your answer could not be delivered. Try sending it again.": "Nie udało się dostarczyć Twojej odpowiedzi. Spróbuj wysłać ją ponownie.",
   },
   hu: {
     Conversations: "Beszélgetések",
@@ -485,6 +513,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     'Delete "{title}"? This cannot be undone.': '„{title}” törlése? Ez nem vonható vissza.',
     "Expires in {time}": "Lejár: {time}",
     "This question expired": "Ez a kérdés lejárt",
+    "That question is no longer waiting for an answer, so your message was not sent.": "Ez a kérdés már nem vár válaszra, ezért az üzenetedet nem küldtük el.",
+    "Your answer could not be delivered. Try sending it again.": "Nem sikerült kézbesíteni a válaszodat. Próbáld újra elküldeni.",
   },
   fr: {
     Conversations: "Conversations",
@@ -503,6 +533,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     'Delete "{title}"? This cannot be undone.': 'Supprimer « {title} » ? Cette action est irréversible.',
     "Expires in {time}": "Expire dans {time}",
     "This question expired": "Cette question a expiré",
+    "That question is no longer waiting for an answer, so your message was not sent.": "Cette question n'attend plus de réponse, votre message n'a donc pas été envoyé.",
+    "Your answer could not be delivered. Try sending it again.": "Votre réponse n'a pas pu être transmise. Réessayez de l'envoyer.",
   },
   uk: {
     Conversations: "Розмови",
@@ -521,6 +553,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     'Delete "{title}"? This cannot be undone.': 'Видалити «{title}»? Цю дію не можна скасувати.',
     "Expires in {time}": "Спливає через {time}",
     "This question expired": "Термін відповіді на це питання минув",
+    "That question is no longer waiting for an answer, so your message was not sent.": "Це питання більше не чекає на відповідь, тому ваше повідомлення не надіслано.",
+    "Your answer could not be delivered. Try sending it again.": "Не вдалося доставити вашу відповідь. Спробуйте надіслати її ще раз.",
   },
   tr: {
     Conversations: "Konuşmalar",
@@ -539,6 +573,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     'Delete "{title}"? This cannot be undone.': '"{title}" silinsin mi? Bu işlem geri alınamaz.',
     "Expires in {time}": "{time} içinde süresi doluyor",
     "This question expired": "Bu sorunun süresi doldu",
+    "That question is no longer waiting for an answer, so your message was not sent.": "Bu soru artık yanıt beklemiyor, bu yüzden mesajın gönderilmedi.",
+    "Your answer could not be delivered. Try sending it again.": "Yanıtın iletilemedi. Yeniden göndermeyi dene.",
   },
   th: {
     Conversations: "การสนทนา",
@@ -557,6 +593,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     'Delete "{title}"? This cannot be undone.': 'ลบ "{title}" ใช่หรือไม่ การดำเนินการนี้ไม่สามารถย้อนกลับได้',
     "Expires in {time}": "หมดเวลาใน {time}",
     "This question expired": "คำถามนี้หมดเวลาแล้ว",
+    "That question is no longer waiting for an answer, so your message was not sent.": "คำถามนั้นไม่ได้รอคำตอบแล้ว ข้อความของคุณจึงไม่ถูกส่ง",
+    "Your answer could not be delivered. Try sending it again.": "ไม่สามารถส่งคำตอบของคุณได้ ลองส่งอีกครั้ง",
   },
   it: {
     Conversations: "Conversazioni",
@@ -575,6 +613,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     'Delete "{title}"? This cannot be undone.': 'Eliminare "{title}"? Questa azione non può essere annullata.',
     "Expires in {time}": "Scade tra {time}",
     "This question expired": "Questa domanda è scaduta",
+    "That question is no longer waiting for an answer, so your message was not sent.": "Quella domanda non attende più una risposta, quindi il tuo messaggio non è stato inviato.",
+    "Your answer could not be delivered. Try sending it again.": "Impossibile recapitare la tua risposta. Prova a inviarla di nuovo.",
   },
   hi: {
     Conversations: "बातचीत",
@@ -593,6 +633,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     'Delete "{title}"? This cannot be undone.': '"{title}" हटाएं? इसे पूर्ववत नहीं किया जा सकता।',
     "Expires in {time}": "{time} में समाप्त",
     "This question expired": "इस प्रश्न की समय-सीमा समाप्त हो गई",
+    "That question is no longer waiting for an answer, so your message was not sent.": "वह प्रश्न अब उत्तर की प्रतीक्षा नहीं कर रहा है, इसलिए आपका संदेश नहीं भेजा गया।",
+    "Your answer could not be delivered. Try sending it again.": "आपका उत्तर पहुँचाया नहीं जा सका। इसे फिर से भेजकर देखें।",
   },
   ur: {
     Conversations: "گفتگو",
@@ -611,6 +653,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     'Delete "{title}"? This cannot be undone.': '"{title}" حذف کریں؟ اسے واپس نہیں لایا جا سکتا۔',
     "Expires in {time}": "{time} میں ختم",
     "This question expired": "اس سوال کی مدت ختم ہو گئی",
+    "That question is no longer waiting for an answer, so your message was not sent.": "وہ سوال اب جواب کا منتظر نہیں، اس لیے آپ کا پیغام نہیں بھیجا گیا۔",
+    "Your answer could not be delivered. Try sending it again.": "آپ کا جواب نہیں پہنچایا جا سکا۔ اسے دوبارہ بھیج کر دیکھیں۔",
   },
   bn: {
     Conversations: "কথোপকথন",
@@ -629,6 +673,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     'Delete "{title}"? This cannot be undone.': '"{title}" মুছবেন? এটি পূর্বাবস্থায় ফেরানো যাবে না।',
     "Expires in {time}": "{time} পরে মেয়াদ শেষ",
     "This question expired": "এই প্রশ্নের মেয়াদ শেষ হয়েছে",
+    "That question is no longer waiting for an answer, so your message was not sent.": "সেই প্রশ্নটি আর উত্তরের অপেক্ষায় নেই, তাই আপনার বার্তা পাঠানো হয়নি।",
+    "Your answer could not be delivered. Try sending it again.": "আপনার উত্তর পৌঁছানো যায়নি। আবার পাঠিয়ে দেখুন।",
   },
 };
 

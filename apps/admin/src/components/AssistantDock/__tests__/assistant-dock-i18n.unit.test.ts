@@ -53,3 +53,14 @@ describe("createChatI18nAdapter — the approval card's countdown and expired la
     expect(createChatI18nAdapter(locale).t("This question expired")).not.toBe("This question expired");
   });
 });
+
+describe("createChatI18nAdapter — the typed-answer notices", () => {
+  const NOTICES = [
+    "That question is no longer waiting for an answer, so your message was not sent.",
+    "Your answer could not be delivered. Try sending it again.",
+  ];
+
+  it.each(CHAT_LOCALES)("%s translates both notices", (locale) => {
+    for (const notice of NOTICES) expect(createChatI18nAdapter(locale).t(notice)).not.toBe(notice);
+  });
+});

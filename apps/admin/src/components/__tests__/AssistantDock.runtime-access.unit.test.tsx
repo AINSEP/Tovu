@@ -31,6 +31,7 @@ vi.mock("@jini-ai/chat/react", () => ({
   A2uiSurfaceCard: () => null,
   createDaemonAttachmentUploader: () => vi.fn(),
   createMcpUiToolCaller: () => vi.fn(),
+  createTypedAnswerPoster: () => vi.fn(),
   registerExtEventRenderer: vi.fn(),
   registerMcpUiSurfaceRenderer: vi.fn(),
   // `AssistantDock.tsx` imports this at module scope and calls

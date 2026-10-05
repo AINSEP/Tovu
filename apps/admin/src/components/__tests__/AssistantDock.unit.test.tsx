@@ -67,6 +67,9 @@ vi.mock("@jini-ai/chat/react", async (importOriginal) => {
   // while retaining the real package's request construction and response handling.
   createMcpUiToolCaller: (required: Parameters<typeof import("@jini-ai/chat/react").createMcpUiToolCaller>[0], optional: Parameters<typeof import("@jini-ai/chat/react").createMcpUiToolCaller>[1]) =>
     actual.createMcpUiToolCaller({ ...required, fetch: mcpUiFetch }, optional),
+  // Same injection for the typed-answer poster, which also binds its fetch at module scope.
+  createTypedAnswerPoster: (required: Parameters<typeof import("@jini-ai/chat/react").createTypedAnswerPoster>[0], optional: Parameters<typeof import("@jini-ai/chat/react").createTypedAnswerPoster>[1]) =>
+    actual.createTypedAnswerPoster({ ...required, fetch: mcpUiFetch }, optional),
   registerExtEventRenderer: vi.fn(),
   registerMcpUiSurfaceRenderer: vi.fn(),
   // Module-scope value, not a function: `AssistantDock.tsx` reads it at import time for its
@@ -268,6 +271,19 @@ describe("AssistantDock", () => {
    * set of extensions, which would just be tomorrow's version of the same bug for the next
    * extension nobody thought to add.
    */
+  it("hands ChatPane a typed-answer deliverer that answers the pending assistant_ask_choice through the admin route", async () => {
+    mcpUiFetch.mockResolvedValue(new Response(JSON.stringify({ delivered: true }), { status: 202 }));
+    render(<AssistantDock useChats={() => fakeChats()} />);
+    const deliver = chatPaneSpy.mock.calls.at(-1)?.[0].deliverTypedAnswer as (input: { text: string }) => Promise<string>;
+
+    await expect(deliver({ text: "deploy it" })).resolves.toBe("delivered");
+    expect(mcpUiFetch).toHaveBeenCalledWith("/api/admin/v1/mcp-ui/tool-calls", expect.objectContaining({
+      method: "POST",
+      credentials: "same-origin",
+      body: JSON.stringify({ toolName: "assistant_ask_choice", params: { __typedAnswer: "deploy it" } }),
+    }));
+  });
+
   it("applies no type filter to the composer's file picker, so no file type is excluded", () => {
     render(<AssistantDock useChats={() => fakeChats()} />);
 
