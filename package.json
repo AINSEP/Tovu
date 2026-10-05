@@ -71,6 +71,7 @@
     "check:jini-registry-drift": "node development/scripts/check-jini-registry-drift.mjs",
     "check:openapi-contract": "tsx development/scripts/check-openapi-contract.ts",
     "check:openapi-secret-leaks": "tsx development/scripts/check-openapi-secret-leaks.ts",
+    "check:route-tool-parity": "env -u TOVU_ADMIN_PASSWORD TOVU_DB=memory node --import tsx development/scripts/check-route-tool-parity.ts",
     "triage:coverage-gaps": "tsx development/scripts/classify-coverage-gaps.ts",
     "triage:churn-hotspots": "tsx development/scripts/report-churn-hotspots.ts",
     "lint": "biome lint .",

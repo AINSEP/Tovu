@@ -18,32 +18,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { createApp, createRouteDeps } from "../../apps/website/src/server/runtime/composition/app.js";
-
-interface Layer {
-  match(p: string): boolean;
-  path?: string;
-  route?: { methods: Record<string, boolean> };
-  handle: { stack?: Layer[] };
-}
-
-type Resolution = "ok" | "wrong-method" | "no-route";
-
-function resolve(stack: readonly Layer[], method: string, url: string): Resolution {
-  let pathSeen = false;
-  for (const layer of stack) {
-    if (!layer.match(url)) continue;
-    if (layer.route) {
-      if (layer.route.methods[method.toLowerCase()] || layer.route.methods._all) return "ok";
-      pathSeen = true;
-    } else if (layer.handle?.stack) {
-      const rest = url.slice((layer.path ?? "").length) || "/";
-      const inner = resolve(layer.handle.stack, method, rest.startsWith("/") ? rest : `/${rest}`);
-      if (inner === "ok") return "ok";
-      if (inner === "wrong-method") pathSeen = true;
-    }
-  }
-  return pathSeen ? "wrong-method" : "no-route";
-}
+import { resolveRoute, type RouterLayer } from "./lib/admin-route-walk.js";
 
 /** Reads a template/string literal starting at `start`, returning its raw body and end index. */
 function readLiteral(src: string, start: number): { body: string; end: number } {
@@ -107,7 +82,7 @@ const src = readFileSync(apiFile, "utf8");
 const helpers = new Map<string, string>();
 for (const m of src.matchAll(/function (\w+)\([^)]*\): string \{\s*return `([^`]*)`;/g)) helpers.set(m[1]!, m[2]!);
 
-const app = createApp(createRouteDeps()) as unknown as { _router: { stack: Layer[] } };
+const app = createApp(createRouteDeps()) as unknown as { _router: { stack: RouterLayer[] } };
 const misses: string[] = [];
 let checked = 0;
 for (const m of src.matchAll(/\brequest(?:<[^;]*?>)?\(\s*(?=[`"])/g)) {
@@ -118,7 +93,7 @@ for (const m of src.matchAll(/\brequest(?:<[^;]*?>)?\(\s*(?=[`"])/g)) {
   const method = /method:\s*"([A-Z]+)"/.exec(nextCall > 0 ? scope.slice(0, nextCall) : scope)?.[1] ?? "GET";
   const url = `/api/admin/v1${concretise(body, helpers).split("?")[0]}`;
   checked++;
-  const result = resolve(app._router.stack, method, url);
+  const result = resolveRoute(app._router.stack, method, url);
   if (result !== "ok") misses.push(`${result}\t${method} ${url}\tapi.ts:${src.slice(0, m.index).split("\n").length}`);
 }
 

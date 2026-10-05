@@ -1,0 +1,1778 @@
+{
+  "_about": "Route <-> chat-tool parity map, read by development/scripts/check-route-tool-parity.ts. Each admin route is {tools:[ids]} (covered), {chatless:'<reason>'} (auth-session | ui-only-asset | streaming-transport | internal-health | covered-by-generic:<tool> | intentional:<why>), {gap:'<note>'} (confirmed gap), or {tools:[]} (untriaged; `suggested` is a heuristic hint, not coverage).",
+  "routes": {
+    "POST /api/admin/v1/a2ui/actions": {
+      "tools": []
+    },
+    "POST /api/admin/v1/api-keys": {
+      "tools": []
+    },
+    "POST /api/admin/v1/api-keys/:id/revoke": {
+      "tools": []
+    },
+    "POST /api/admin/v1/api-keys/principals": {
+      "tools": []
+    },
+    "POST /api/admin/v1/assistant/ag-ui-run": {
+      "tools": []
+    },
+    "POST /api/admin/v1/assistant/byok-turn": {
+      "tools": []
+    },
+    "POST /api/admin/v1/auth/boot-session": {
+      "tools": [],
+      "suggestedChatless": "auth-session"
+    },
+    "POST /api/admin/v1/auth/login": {
+      "tools": [],
+      "suggestedChatless": "auth-session"
+    },
+    "POST /api/admin/v1/auth/logout": {
+      "tools": [],
+      "suggestedChatless": "auth-session"
+    },
+    "GET /api/admin/v1/auth/me": {
+      "tools": [],
+      "suggestedChatless": "auth-session"
+    },
+    "GET /api/admin/v1/auth/me/password-status": {
+      "tools": [],
+      "suggestedChatless": "auth-session"
+    },
+    "GET /api/admin/v1/content-types": {
+      "tools": [],
+      "suggested": [
+        "content_post_preview",
+        "content_post_search",
+        "content_read.backup_restore_point"
+      ]
+    },
+    "POST /api/admin/v1/content-types": {
+      "tools": [],
+      "suggested": [
+        "collections_content_type_define",
+        "content_post_create"
+      ]
+    },
+    "PUT /api/admin/v1/content-types/:key/fields": {
+      "tools": [],
+      "suggested": [
+        "collections_content_type_update_fields"
+      ]
+    },
+    "POST /api/admin/v1/content-types/:key/lifecycle": {
+      "tools": []
+    },
+    "POST /api/admin/v1/database/migrate-forward/confirm": {
+      "tools": [],
+      "suggested": [
+        "database_execute_migrate_forward"
+      ]
+    },
+    "POST /api/admin/v1/database/migrate-forward/execute": {
+      "tools": [],
+      "suggested": [
+        "database_execute_migrate_forward"
+      ]
+    },
+    "POST /api/admin/v1/database/migrate-forward/plan": {
+      "tools": [],
+      "suggested": [
+        "database_plan_migrate_forward",
+        "database_execute_migrate_forward",
+        "database_transfer_plan"
+      ]
+    },
+    "GET /api/admin/v1/database/restore-points": {
+      "tools": [],
+      "suggested": [
+        "content_read.database_restore_point"
+      ]
+    },
+    "POST /api/admin/v1/database/restore-points": {
+      "tools": [],
+      "suggested": [
+        "content_read.database_restore_point"
+      ]
+    },
+    "GET /api/admin/v1/database/schema-state": {
+      "tools": [],
+      "suggested": [
+        "database_get_schema_state"
+      ]
+    },
+    "GET /api/admin/v1/database/timeline": {
+      "tools": [],
+      "suggested": [
+        "database_query_timeline"
+      ]
+    },
+    "GET /api/admin/v1/entries": {
+      "tools": [],
+      "suggested": [
+        "content_read.collection_entry",
+        "content_read.seo_entry_meta",
+        "seo_analyze_entry"
+      ]
+    },
+    "POST /api/admin/v1/entries": {
+      "tools": [],
+      "suggested": [
+        "collections_entry_create"
+      ]
+    },
+    "PUT /api/admin/v1/entries/:id": {
+      "tools": [],
+      "suggested": [
+        "collections_entry_update",
+        "seo_set_entry_overrides"
+      ]
+    },
+    "POST /api/admin/v1/entries/:id/lifecycle": {
+      "tools": []
+    },
+    "POST /api/admin/v1/mcp-ui/tool-calls": {
+      "tools": []
+    },
+    "POST /api/admin/v1/recovery/deep-link": {
+      "tools": [],
+      "suggested": [
+        "recovery_resolve_deep_link"
+      ]
+    },
+    "POST /api/admin/v1/recovery/disclosure": {
+      "tools": []
+    },
+    "GET /api/admin/v1/recovery/restore-points": {
+      "tools": [],
+      "suggested": [
+        "content_read.backup_restore_point",
+        "backup_plan_restore",
+        "backup_create_restore_point"
+      ]
+    },
+    "POST /api/admin/v1/recovery/restore/confirm": {
+      "tools": [],
+      "suggested": [
+        "backup_create_restore_point",
+        "backup_execute_restore"
+      ]
+    },
+    "POST /api/admin/v1/recovery/restore/execute": {
+      "tools": [],
+      "suggested": [
+        "backup_execute_restore",
+        "backup_create_restore_point"
+      ]
+    },
+    "POST /api/admin/v1/recovery/restore/plan": {
+      "tools": [],
+      "suggested": [
+        "backup_create_restore_point",
+        "backup_plan_restore",
+        "backup_execute_restore"
+      ]
+    },
+    "GET /api/admin/v1/recovery/status": {
+      "tools": [],
+      "suggested": [
+        "recovery_get_status"
+      ]
+    },
+    "GET /api/admin/v1/taxonomy": {
+      "tools": [],
+      "suggested": [
+        "content_read.taxonomy",
+        "taxonomy_get_assigned_terms",
+        "taxonomy_plan_merge_term"
+      ]
+    },
+    "POST /api/admin/v1/taxonomy": {
+      "tools": [],
+      "suggested": [
+        "taxonomy_create_taxonomy",
+        "taxonomy_create_term"
+      ]
+    },
+    "DELETE /api/admin/v1/taxonomy/:id": {
+      "tools": []
+    },
+    "POST /api/admin/v1/taxonomy/:taxonomyId/terms": {
+      "tools": [],
+      "suggested": [
+        "taxonomy_create_term",
+        "taxonomy_assign_terms",
+        "taxonomy_execute_merge_term"
+      ]
+    },
+    "POST /api/admin/v1/taxonomy/assign-terms": {
+      "tools": [],
+      "suggested": [
+        "taxonomy_assign_terms",
+        "taxonomy_create_term",
+        "taxonomy_execute_merge_term"
+      ]
+    },
+    "GET /api/admin/v1/taxonomy/assigned-terms": {
+      "tools": [],
+      "suggested": [
+        "taxonomy_get_assigned_terms",
+        "taxonomy_plan_merge_term",
+        "taxonomy_assign_terms"
+      ]
+    },
+    "DELETE /api/admin/v1/taxonomy/terms/:id": {
+      "tools": []
+    },
+    "PUT /api/admin/v1/taxonomy/terms/:id": {
+      "tools": [],
+      "suggested": [
+        "taxonomy_rename_term",
+        "taxonomy_assign_terms",
+        "taxonomy_create_term"
+      ]
+    },
+    "POST /api/admin/v1/taxonomy/terms/:id/merge/confirm": {
+      "tools": [],
+      "suggested": [
+        "taxonomy_create_term",
+        "taxonomy_execute_merge_term",
+        "taxonomy_assign_terms"
+      ]
+    },
+    "POST /api/admin/v1/taxonomy/terms/:id/merge/execute": {
+      "tools": [],
+      "suggested": [
+        "taxonomy_execute_merge_term",
+        "taxonomy_create_term",
+        "taxonomy_assign_terms"
+      ]
+    },
+    "POST /api/admin/v1/taxonomy/terms/:id/merge/plan": {
+      "tools": [],
+      "suggested": [
+        "taxonomy_plan_merge_term",
+        "taxonomy_create_term",
+        "taxonomy_execute_merge_term"
+      ]
+    },
+    "POST /api/admin/v1/taxonomy/unassign-terms": {
+      "tools": [],
+      "suggested": [
+        "taxonomy_create_term",
+        "taxonomy_unassign_terms",
+        "taxonomy_assign_terms"
+      ]
+    },
+    "GET /api/admin/v1/workspaces": {
+      "tools": []
+    },
+    "POST /api/admin/v1/workspaces": {
+      "tools": []
+    },
+    "DELETE /api/admin/v1/workspaces/:workspaceId": {
+      "tools": []
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId": {
+      "tools": []
+    },
+    "PATCH /api/admin/v1/workspaces/:workspaceId": {
+      "tools": []
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/agent-plugins": {
+      "tools": [],
+      "suggested": [
+        "content_read.plugin",
+        "search_agent_plugin_local"
+      ]
+    },
+    "PATCH /api/admin/v1/workspaces/:workspaceId/agent-plugins/:pluginId": {
+      "tools": [],
+      "suggested": [
+        "agent_plugin_set_access_token",
+        "agent_plugin_write_note",
+        "plugins_set_enabled"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/agent-plugins/:pluginId/files": {
+      "tools": []
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/agent-plugins/:pluginId/memory": {
+      "tools": []
+    },
+    "PUT /api/admin/v1/workspaces/:workspaceId/agent-plugins/:pluginId/memory": {
+      "tools": []
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/analytics/recent-hits": {
+      "tools": [],
+      "suggested": [
+        "analytics_list_recent_hits"
+      ]
+    },
+    "DELETE /api/admin/v1/workspaces/:workspaceId/assistant/execution-credential": {
+      "tools": []
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/assistant/execution-credential": {
+      "tools": []
+    },
+    "PUT /api/admin/v1/workspaces/:workspaceId/assistant/execution-credential": {
+      "tools": []
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/assistant/execution/detect-agents": {
+      "tools": []
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/assistant/execution/models": {
+      "tools": []
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/assistant/execution/test-agent": {
+      "tools": []
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/assistant/execution/test-connection": {
+      "tools": []
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/assistant/settings": {
+      "tools": []
+    },
+    "PUT /api/admin/v1/workspaces/:workspaceId/assistant/settings": {
+      "tools": []
+    },
+    "DELETE /api/admin/v1/workspaces/:workspaceId/assistant/site-credential": {
+      "tools": []
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/assistant/site-credential": {
+      "tools": []
+    },
+    "PUT /api/admin/v1/workspaces/:workspaceId/assistant/site-credential": {
+      "tools": []
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/change-sets": {
+      "tools": [],
+      "suggested": [
+        "change_sets_list"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/change-sets/:changeSetId": {
+      "tools": [],
+      "suggested": [
+        "change_sets_list"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/change-sets/:changeSetId/revert": {
+      "tools": [],
+      "suggested": [
+        "change_sets_revert"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/comments/:commentId/approve": {
+      "tools": [],
+      "suggested": [
+        "comments_approve_comment"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/comments/:commentId/purge": {
+      "tools": [],
+      "suggested": [
+        "comments_purge_comment"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/comments/:commentId/restore": {
+      "tools": [],
+      "suggested": [
+        "comments_restore_comment"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/comments/:commentId/spam": {
+      "tools": [],
+      "suggested": [
+        "comments_mark_comment_spam"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/comments/:commentId/trash": {
+      "tools": [],
+      "suggested": [
+        "comments_trash_comment"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/comments/queue": {
+      "tools": [],
+      "suggested": [
+        "content_read.comment_moderation_queue"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/comments/settings": {
+      "tools": [],
+      "suggested": [
+        "comments_get_settings",
+        "comments_update_settings"
+      ]
+    },
+    "PUT /api/admin/v1/workspaces/:workspaceId/comments/settings": {
+      "tools": [],
+      "suggested": [
+        "comments_update_settings",
+        "comments_get_settings"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/commerce/status": {
+      "tools": [],
+      "suggested": [
+        "commerce_get_status"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/entries/:hostEntryId/widget-embeds": {
+      "tools": []
+    },
+    "PUT /api/admin/v1/workspaces/:workspaceId/entries/:hostEntryId/widget-embeds": {
+      "tools": []
+    },
+    "DELETE /api/admin/v1/workspaces/:workspaceId/entries/:hostEntryId/widget-embeds/:placementId": {
+      "tools": []
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/forms": {
+      "tools": [],
+      "suggested": [
+        "content_read.form_definition",
+        "forms_get_submission",
+        "forms_list_submissions"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/forms": {
+      "tools": [],
+      "suggested": [
+        "forms_create_definition"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/forms/:formId": {
+      "tools": [],
+      "suggested": [
+        "content_read.form_definition",
+        "forms_get_submission",
+        "forms_list_submissions"
+      ]
+    },
+    "PUT /api/admin/v1/workspaces/:workspaceId/forms/:formId": {
+      "tools": [],
+      "suggested": [
+        "forms_set_definition_status",
+        "forms_update_definition"
+      ]
+    },
+    "PUT /api/admin/v1/workspaces/:workspaceId/forms/:formId/authoring": {
+      "tools": []
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/forms/:formId/submissions": {
+      "tools": [],
+      "suggested": [
+        "forms_get_submission",
+        "forms_list_submissions"
+      ]
+    },
+    "DELETE /api/admin/v1/workspaces/:workspaceId/forms/:formId/submissions/:submissionId": {
+      "tools": []
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/forms/:formId/submissions/:submissionId": {
+      "tools": [],
+      "suggested": [
+        "forms_get_submission",
+        "forms_list_submissions"
+      ]
+    },
+    "DELETE /api/admin/v1/workspaces/:workspaceId/fs-files/custom-root": {
+      "tools": []
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/fs-files/custom-root": {
+      "tools": []
+    },
+    "PUT /api/admin/v1/workspaces/:workspaceId/fs-files/custom-root": {
+      "tools": [],
+      "suggested": [
+        "custom_credential_write_files"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/integrations/subscriptions": {
+      "tools": [],
+      "suggested": [
+        "content_read.webhook_subscription",
+        "webhooks_create_subscription",
+        "webhooks_delete_subscription"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/integrations/subscriptions": {
+      "tools": [],
+      "suggested": [
+        "webhooks_create_subscription",
+        "webhooks_delete_subscription",
+        "webhooks_pause_subscription"
+      ]
+    },
+    "DELETE /api/admin/v1/workspaces/:workspaceId/integrations/subscriptions/:subscriptionId": {
+      "tools": [],
+      "suggested": [
+        "webhooks_delete_subscription"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/integrations/subscriptions/:subscriptionId/deliveries": {
+      "tools": [],
+      "suggested": [
+        "webhooks_get_deliveries",
+        "content_read.webhook_subscription"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/integrations/subscriptions/:subscriptionId/pause": {
+      "tools": [],
+      "suggested": [
+        "webhooks_pause_subscription",
+        "webhooks_create_subscription",
+        "webhooks_delete_subscription"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/mcp-servers": {
+      "tools": [],
+      "suggested": [
+        "content_read.external_mcp",
+        "external_mcp_get_admissions",
+        "external_mcp_reauth_prompt"
+      ]
+    },
+    "DELETE /api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId": {
+      "tools": [],
+      "suggested": [
+        "external_mcp_delete"
+      ]
+    },
+    "PUT /api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId": {
+      "tools": []
+    },
+    "DELETE /api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId/oauth": {
+      "tools": [],
+      "suggested": [
+        "external_mcp_oauth_connect",
+        "external_mcp_oauth_poll_device"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId/oauth/connect": {
+      "tools": [],
+      "suggested": [
+        "external_mcp_oauth_connect",
+        "external_mcp_oauth_poll_device"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId/oauth/device/poll": {
+      "tools": [],
+      "suggested": [
+        "external_mcp_oauth_poll_device",
+        "external_mcp_oauth_connect"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId/probe": {
+      "tools": [],
+      "suggested": [
+        "external_mcp_probe_connection"
+      ]
+    },
+    "DELETE /api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId/tool-approvals/:toolName": {
+      "tools": []
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/mcp-servers/admissions": {
+      "tools": [],
+      "suggested": [
+        "external_mcp_get_admissions"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/mcp-servers/tool-approvals": {
+      "tools": []
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/media": {
+      "tools": [],
+      "suggested": [
+        "content_read.media_asset",
+        "media_list_providers",
+        "media_view_image"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/media": {
+      "tools": [],
+      "suggested": [
+        "media_import_from_url",
+        "media_import_local_file",
+        "media_upload_asset"
+      ]
+    },
+    "DELETE /api/admin/v1/workspaces/:workspaceId/media/:mediaId": {
+      "tools": [],
+      "suggested": [
+        "media_purge_asset",
+        "media_trash_asset"
+      ]
+    },
+    "PATCH /api/admin/v1/workspaces/:workspaceId/media/:mediaId": {
+      "tools": [],
+      "suggested": [
+        "media_update_metadata"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/media/:mediaId/original": {
+      "tools": []
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/media/:mediaId/replace": {
+      "tools": []
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/media/:mediaId/trash": {
+      "tools": [],
+      "suggested": [
+        "media_trash_asset"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/media/import-url": {
+      "tools": [],
+      "suggested": [
+        "media_import_from_url",
+        "media_import_local_file"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/media/providers": {
+      "tools": [],
+      "suggested": [
+        "media_list_providers",
+        "media_propose_provider_credential"
+      ]
+    },
+    "PUT /api/admin/v1/workspaces/:workspaceId/media/providers": {
+      "tools": [],
+      "suggested": [
+        "media_propose_provider_credential",
+        "media_list_providers"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/members": {
+      "tools": [],
+      "suggested": [
+        "content_read.member"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/members/:memberId": {
+      "tools": [],
+      "suggested": [
+        "content_read.member"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/members/:memberId/disable": {
+      "tools": [],
+      "suggested": [
+        "members_disable"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/members/request-magic-link": {
+      "tools": [],
+      "suggested": [
+        "members_request_magic_link"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/menus": {
+      "tools": [],
+      "suggested": [
+        "content_read.menu"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/menus": {
+      "tools": [],
+      "suggested": [
+        "menus_create_menu"
+      ]
+    },
+    "DELETE /api/admin/v1/workspaces/:workspaceId/menus/:menuId": {
+      "tools": []
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/menus/:menuId": {
+      "tools": [],
+      "suggested": [
+        "content_read.menu"
+      ]
+    },
+    "PUT /api/admin/v1/workspaces/:workspaceId/menus/:menuId": {
+      "tools": [],
+      "suggested": [
+        "menus_update_menu_tree"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/menus/:menuId/locations": {
+      "tools": [],
+      "suggested": [
+        "menus_assign_location"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/newsletter/campaigns": {
+      "tools": [],
+      "suggested": [
+        "content_read.newsletter_campaign",
+        "newsletter_cancel_campaign",
+        "newsletter_create_campaign"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/newsletter/campaigns": {
+      "tools": [],
+      "suggested": [
+        "newsletter_create_campaign",
+        "newsletter_cancel_campaign",
+        "newsletter_pause_campaign"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/newsletter/campaigns/:id": {
+      "tools": [],
+      "suggested": [
+        "content_read.newsletter_campaign"
+      ]
+    },
+    "PATCH /api/admin/v1/workspaces/:workspaceId/newsletter/campaigns/:id": {
+      "tools": [],
+      "suggested": [
+        "newsletter_update_campaign",
+        "newsletter_cancel_campaign",
+        "newsletter_create_campaign"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/newsletter/campaigns/:id/cancel": {
+      "tools": [],
+      "suggested": [
+        "newsletter_cancel_campaign",
+        "newsletter_create_campaign",
+        "newsletter_pause_campaign"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/newsletter/campaigns/:id/pause": {
+      "tools": [],
+      "suggested": [
+        "newsletter_pause_campaign",
+        "newsletter_create_campaign",
+        "newsletter_cancel_campaign"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/newsletter/campaigns/:id/resume": {
+      "tools": [],
+      "suggested": [
+        "newsletter_resume_campaign",
+        "newsletter_create_campaign",
+        "newsletter_cancel_campaign"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/newsletter/campaigns/:id/schedule": {
+      "tools": [],
+      "suggested": [
+        "newsletter_schedule_campaign",
+        "newsletter_create_campaign",
+        "newsletter_cancel_campaign"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/newsletter/campaigns/:id/send": {
+      "tools": [],
+      "suggested": [
+        "newsletter_send_campaign",
+        "newsletter_send_test",
+        "newsletter_create_campaign"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/newsletter/campaigns/:id/send-test": {
+      "tools": [],
+      "suggested": [
+        "newsletter_send_test",
+        "newsletter_create_campaign",
+        "newsletter_send_campaign"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/newsletter/campaigns/:id/sends": {
+      "tools": [],
+      "suggested": [
+        "newsletter_list_send_log",
+        "content_read.newsletter_campaign",
+        "newsletter_send_campaign"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/newsletter/lists": {
+      "tools": [],
+      "suggested": [
+        "content_read.newsletter_list",
+        "newsletter_list_send_log",
+        "newsletter_list_subscriptions"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/newsletter/lists": {
+      "tools": [],
+      "suggested": [
+        "newsletter_create_list",
+        "newsletter_archive_list",
+        "content_read.newsletter_list"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/newsletter/lists/:id/archive": {
+      "tools": [],
+      "suggested": [
+        "newsletter_archive_list"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/newsletter/lists/:listId/subscriptions": {
+      "tools": [],
+      "suggested": [
+        "newsletter_list_subscriptions",
+        "content_read.newsletter_list",
+        "newsletter_list_send_log"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/newsletter/lists/:listId/subscriptions": {
+      "tools": [],
+      "suggested": [
+        "newsletter_create_subscription",
+        "newsletter_remove_subscription",
+        "newsletter_create_list"
+      ]
+    },
+    "DELETE /api/admin/v1/workspaces/:workspaceId/newsletter/lists/:listId/subscriptions/:id": {
+      "tools": [],
+      "suggested": [
+        "newsletter_archive_list",
+        "newsletter_remove_subscription"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/newsletter/lists/:listId/subscriptions/import": {
+      "tools": [],
+      "suggested": [
+        "newsletter_create_list",
+        "newsletter_create_subscription",
+        "newsletter_archive_list"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/newsletter/subscriptions/:id/resend-confirmation": {
+      "tools": [],
+      "suggested": [
+        "newsletter_resend_confirmation",
+        "newsletter_create_subscription",
+        "newsletter_remove_subscription"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/pages": {
+      "tools": [],
+      "suggested": [
+        "fetch_published_page",
+        "pages_read_html",
+        "site_collect_page_evidence"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/pages": {
+      "tools": []
+    },
+    "DELETE /api/admin/v1/workspaces/:workspaceId/pages/:pageId": {
+      "tools": []
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/pages/:pageId": {
+      "tools": [],
+      "suggested": [
+        "fetch_published_page",
+        "pages_read_html",
+        "site_collect_page_evidence"
+      ]
+    },
+    "PUT /api/admin/v1/workspaces/:workspaceId/pages/:pageId": {
+      "tools": [],
+      "suggested": [
+        "pages_write_html",
+        "pages_write_region",
+        "theme_set_page_published"
+      ]
+    },
+    "PUT /api/admin/v1/workspaces/:workspaceId/pages/:pageId/html": {
+      "tools": [],
+      "suggested": [
+        "pages_write_html",
+        "pages_read_html"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/plugins": {
+      "tools": [],
+      "suggested": [
+        "content_read.plugin",
+        "search_agent_plugin_local"
+      ]
+    },
+    "DELETE /api/admin/v1/workspaces/:workspaceId/plugins/:pluginId": {
+      "tools": [],
+      "suggested": [
+        "plugins_uninstall"
+      ]
+    },
+    "PATCH /api/admin/v1/workspaces/:workspaceId/plugins/:pluginId": {
+      "tools": [],
+      "suggested": [
+        "agent_plugin_set_access_token",
+        "agent_plugin_write_note",
+        "plugins_set_enabled"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/plugins/:pluginId/files": {
+      "tools": []
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/plugins/:pluginId/preview": {
+      "tools": []
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/plugins/:pluginId/preview": {
+      "tools": []
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/plugins/install": {
+      "tools": [],
+      "suggested": [
+        "plugins_install"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/plugins/install/preview": {
+      "tools": [],
+      "suggested": [
+        "plugins_install"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/plugins/install/zip": {
+      "tools": [],
+      "suggested": [
+        "plugins_install"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/plugins/install/zip/preview": {
+      "tools": [],
+      "suggested": [
+        "plugins_install"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/policies": {
+      "tools": [],
+      "suggested": [
+        "content_read.identity_policy",
+        "identity_policy_list_permissions"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/policies": {
+      "tools": [],
+      "suggested": [
+        "identity_policy_create"
+      ]
+    },
+    "DELETE /api/admin/v1/workspaces/:workspaceId/policies/:policyId": {
+      "tools": [],
+      "suggested": [
+        "identity_policy_delete"
+      ]
+    },
+    "PATCH /api/admin/v1/workspaces/:workspaceId/policies/:policyId": {
+      "tools": [],
+      "suggested": [
+        "identity_policy_update"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/policies/:policyId/permissions": {
+      "tools": [],
+      "suggested": [
+        "identity_policy_list_permissions"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/policies/:policyId/permissions": {
+      "tools": [],
+      "suggested": [
+        "identity_policy_list_permissions"
+      ]
+    },
+    "DELETE /api/admin/v1/workspaces/:workspaceId/policies/:policyId/permissions/:policyPermissionId": {
+      "tools": []
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/posts": {
+      "tools": [],
+      "suggested": [
+        "content_post_preview",
+        "content_post_search",
+        "content_read.content_post"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/posts": {
+      "tools": [],
+      "suggested": [
+        "content_post_create"
+      ]
+    },
+    "DELETE /api/admin/v1/workspaces/:workspaceId/posts/:postId": {
+      "tools": [],
+      "suggested": [
+        "content_post_delete"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/posts/:postId": {
+      "tools": [],
+      "suggested": [
+        "content_post_preview",
+        "content_post_search",
+        "content_read.content_post"
+      ]
+    },
+    "PUT /api/admin/v1/workspaces/:workspaceId/posts/:postId": {
+      "tools": [],
+      "suggested": [
+        "content_post_update"
+      ]
+    },
+    "DELETE /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave": {
+      "tools": []
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave": {
+      "tools": []
+    },
+    "PUT /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave": {
+      "tools": []
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/posts/:postId/template-preview": {
+      "tools": [],
+      "suggested": [
+        "content_post_preview"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/posts/:postId/template-preview": {
+      "tools": [],
+      "suggested": [
+        "content_post_preview"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/presentation": {
+      "tools": []
+    },
+    "PATCH /api/admin/v1/workspaces/:workspaceId/presentation": {
+      "tools": []
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/publish-content/backstop": {
+      "tools": [],
+      "suggested": [
+        "publish_backstop_gaps"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/publish-content/backstop/gaps": {
+      "tools": [],
+      "suggested": [
+        "publish_backstop_gaps"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/publish-content/backstop/status": {
+      "tools": [],
+      "suggested": [
+        "publish_content_status",
+        "publish_backstop_gaps"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/publish-content/blobs/:sha": {
+      "tools": []
+    },
+    "PUT /api/admin/v1/workspaces/:workspaceId/publish-content/blobs/:sha": {
+      "tools": []
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/publish-content/blobs/probe": {
+      "tools": []
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/publish-content/bundles": {
+      "tools": []
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/publish-content/capabilities": {
+      "tools": [],
+      "suggested": [
+        "deployment_get_static_publish_capabilities"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/publish-content/destination": {
+      "tools": []
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/publish-content/destination/connect": {
+      "tools": [],
+      "suggested": [
+        "publish_content_connect"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/publish-content/destination/disconnect": {
+      "tools": [],
+      "suggested": [
+        "publish_content_disconnect"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/publish-content/export": {
+      "tools": []
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/publish-content/import/confirm": {
+      "tools": []
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/publish-content/import/execute": {
+      "tools": [],
+      "suggested": [
+        "deployment_execute_static_publish",
+        "publish_content_execute_pull"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/publish-content/import/plan": {
+      "tools": [],
+      "suggested": [
+        "publish_content_plan_pull"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/publish-content/peers": {
+      "tools": []
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/publish-content/peers": {
+      "tools": []
+    },
+    "DELETE /api/admin/v1/workspaces/:workspaceId/publish-content/peers/:peerId": {
+      "tools": []
+    },
+    "PATCH /api/admin/v1/workspaces/:workspaceId/publish-content/peers/:peerId": {
+      "tools": []
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/publish-content/peers/:peerId/pull": {
+      "tools": [],
+      "suggested": [
+        "publish_content_execute_pull",
+        "publish_content_plan_pull"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/publish-content/peers/:peerId/push/confirm": {
+      "tools": []
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/publish-content/peers/:peerId/push/execute": {
+      "tools": [],
+      "suggested": [
+        "deployment_execute_static_publish",
+        "publish_content_execute_pull"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/publish-content/peers/:peerId/push/plan": {
+      "tools": [],
+      "suggested": [
+        "publish_content_plan_pull"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/publish-content/runs/:runId": {
+      "tools": []
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/publish-content/runs/:runId/backstop": {
+      "tools": [],
+      "suggested": [
+        "publish_backstop_gaps"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/publish-content/runs/:runId/undo-backstop": {
+      "tools": [],
+      "suggested": [
+        "publish_backstop_gaps"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/redirects": {
+      "tools": [],
+      "suggested": [
+        "content_read.redirect",
+        "redirects_get_hits"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/redirects": {
+      "tools": [],
+      "suggested": [
+        "redirects_create",
+        "redirects_import"
+      ]
+    },
+    "DELETE /api/admin/v1/workspaces/:workspaceId/redirects/:id": {
+      "tools": [],
+      "suggested": [
+        "redirects_tombstone"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/redirects/:id": {
+      "tools": [],
+      "suggested": [
+        "content_read.redirect",
+        "redirects_get_hits"
+      ]
+    },
+    "PATCH /api/admin/v1/workspaces/:workspaceId/redirects/:id": {
+      "tools": [],
+      "suggested": [
+        "redirects_update"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/redirects/:id/hits": {
+      "tools": [],
+      "suggested": [
+        "redirects_get_hits"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/redirects/import": {
+      "tools": [],
+      "suggested": [
+        "redirects_import"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/roles": {
+      "tools": [],
+      "suggested": [
+        "content_read.identity_role"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/roles": {
+      "tools": [],
+      "suggested": [
+        "identity_role_create"
+      ]
+    },
+    "DELETE /api/admin/v1/workspaces/:workspaceId/roles/:roleId": {
+      "tools": [],
+      "suggested": [
+        "identity_role_delete"
+      ]
+    },
+    "PATCH /api/admin/v1/workspaces/:workspaceId/roles/:roleId": {
+      "tools": [],
+      "suggested": [
+        "identity_role_rename"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/seo/entries/:entryId": {
+      "tools": [],
+      "suggested": [
+        "content_read.seo_entry_meta",
+        "seo_analyze_entry"
+      ]
+    },
+    "PUT /api/admin/v1/workspaces/:workspaceId/seo/entries/:entryId": {
+      "tools": [],
+      "suggested": [
+        "seo_set_entry_overrides"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/seo/entries/:entryId/analyze": {
+      "tools": [],
+      "suggested": [
+        "seo_analyze_entry",
+        "content_read.seo_entry_meta"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/seo/settings": {
+      "tools": [],
+      "suggested": [
+        "seo_get_settings",
+        "seo_set_settings"
+      ]
+    },
+    "PUT /api/admin/v1/workspaces/:workspaceId/seo/settings": {
+      "tools": [],
+      "suggested": [
+        "seo_set_settings",
+        "seo_get_settings"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/seo/sitemap/regenerate": {
+      "tools": [],
+      "suggested": [
+        "seo_regenerate_sitemap"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/settings/definitions": {
+      "tools": [],
+      "suggested": [
+        "content_read.setting_definition"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/settings/definitions": {
+      "tools": [],
+      "suggested": [
+        "content_read.setting_definition"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/settings/effective": {
+      "tools": [],
+      "suggested": [
+        "settings_get_effective"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/settings/events": {
+      "tools": [],
+      "suggestedChatless": "streaming-transport"
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/settings/raw": {
+      "tools": [],
+      "suggested": [
+        "settings_get_raw"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/settings/reset": {
+      "tools": []
+    },
+    "DELETE /api/admin/v1/workspaces/:workspaceId/settings/value": {
+      "tools": [],
+      "suggested": [
+        "settings_clear_value",
+        "settings_set_value"
+      ]
+    },
+    "PUT /api/admin/v1/workspaces/:workspaceId/settings/value": {
+      "tools": [],
+      "suggested": [
+        "settings_set_value",
+        "settings_clear_value"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/site/profile": {
+      "tools": [],
+      "suggested": [
+        "site_get_profile"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/skills": {
+      "tools": []
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/skills": {
+      "tools": [],
+      "suggested": [
+        "skills_install"
+      ]
+    },
+    "DELETE /api/admin/v1/workspaces/:workspaceId/skills/:toolId": {
+      "tools": []
+    },
+    "PATCH /api/admin/v1/workspaces/:workspaceId/skills/:toolId": {
+      "tools": []
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/skills/:toolId/files": {
+      "tools": []
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/skills/:toolId/guidance": {
+      "tools": []
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/system/assistant-daemon/restart": {
+      "tools": []
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/system/custom/credentials": {
+      "tools": [],
+      "suggested": [
+        "content_read.custom_credential",
+        "custom_credential_verify",
+        "custom_credential_create"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/system/custom/credentials": {
+      "tools": [],
+      "suggested": [
+        "custom_credential_create",
+        "custom_credential_delete",
+        "custom_credential_make_request"
+      ]
+    },
+    "DELETE /api/admin/v1/workspaces/:workspaceId/system/custom/credentials/:id": {
+      "tools": [],
+      "suggested": [
+        "custom_credential_delete"
+      ]
+    },
+    "PUT /api/admin/v1/workspaces/:workspaceId/system/custom/credentials/:id": {
+      "tools": [],
+      "suggested": [
+        "custom_credential_set_token",
+        "custom_credential_set_username",
+        "custom_credential_write_files"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/system/deployment-overview": {
+      "tools": [],
+      "suggested": [
+        "deployment_generate_bucket_hosting_setup",
+        "deployment_get_dockerfile",
+        "deployment_get_export_status"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/system/dockerfile": {
+      "tools": [],
+      "suggested": [
+        "deployment_get_dockerfile"
+      ]
+    },
+    "PUT /api/admin/v1/workspaces/:workspaceId/system/dockerfile": {
+      "tools": [],
+      "suggested": [
+        "deployment_set_dockerfile"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/system/export": {
+      "tools": [],
+      "suggested": [
+        "deployment_get_export_status"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/system/export": {
+      "tools": []
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/system/mail-status": {
+      "tools": [],
+      "suggested": [
+        "commerce_get_status",
+        "database_transfer_status",
+        "deployment_get_export_status"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/system/module-status": {
+      "tools": [],
+      "suggested": [
+        "commerce_get_status",
+        "database_transfer_status",
+        "deployment_get_export_status"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/system/observability-status": {
+      "tools": [],
+      "suggested": [
+        "commerce_get_status",
+        "database_transfer_status",
+        "deployment_get_export_status"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/system/publish": {
+      "tools": [],
+      "suggested": [
+        "deployment_get_static_publish_capabilities",
+        "deployment_preview_static_publish",
+        "publish_backstop_gaps"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/system/publish": {
+      "tools": []
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/system/publish-targets": {
+      "tools": [],
+      "suggested": [
+        "deployment_get_static_publish_capabilities",
+        "deployment_ops_list_targets",
+        "deployment_preview_static_publish"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/system/publish/credentials": {
+      "tools": []
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/system/publish/credentials": {
+      "tools": []
+    },
+    "DELETE /api/admin/v1/workspaces/:workspaceId/system/publish/credentials/:id": {
+      "tools": []
+    },
+    "PUT /api/admin/v1/workspaces/:workspaceId/system/publish/credentials/:id": {
+      "tools": []
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/system/publish/credentials/:id/verify": {
+      "tools": []
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/system/publish/preview": {
+      "tools": [],
+      "suggested": [
+        "deployment_preview_static_publish"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/system/server-logs": {
+      "tools": [],
+      "suggested": [
+        "deployment_ops_logs",
+        "newsletter_list_send_log",
+        "system_read_server_logs"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/system/site-key": {
+      "tools": [],
+      "suggested": [
+        "site_backup_plan",
+        "site_collect_page_evidence",
+        "site_describe_capabilities"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/system/site-key/generate": {
+      "tools": []
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/system/site-key/import": {
+      "tools": []
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/system/site-key/reveal": {
+      "tools": []
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/system/site-key/start-fresh": {
+      "tools": []
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/system/site-key/start-fresh": {
+      "tools": []
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/system/sites": {
+      "tools": [],
+      "suggested": [
+        "site_backup_plan",
+        "site_collect_page_evidence",
+        "site_describe_capabilities"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/system/sites": {
+      "tools": [],
+      "suggested": [
+        "sites_create_site"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/system/sites/:name/activate": {
+      "tools": []
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/system/sites/token-sign-in-plugins": {
+      "tools": []
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/system/source-control/credentials": {
+      "tools": [],
+      "suggested": [
+        "source_control_delete_credential",
+        "source_control_propose_credential"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/system/source-control/credentials": {
+      "tools": [],
+      "suggested": [
+        "source_control_delete_credential",
+        "source_control_propose_credential"
+      ]
+    },
+    "DELETE /api/admin/v1/workspaces/:workspaceId/system/source-control/credentials/:id": {
+      "tools": [],
+      "suggested": [
+        "source_control_delete_credential"
+      ]
+    },
+    "PUT /api/admin/v1/workspaces/:workspaceId/system/source-control/credentials/:id": {
+      "tools": [],
+      "suggested": [
+        "source_control_delete_credential",
+        "source_control_propose_credential"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/system/source-control/providers": {
+      "tools": []
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/themes": {
+      "tools": [],
+      "suggested": [
+        "content_read.theme",
+        "theme_list_files",
+        "theme_read_file"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/themes/:themeId": {
+      "tools": [],
+      "suggested": [
+        "content_read.theme",
+        "theme_list_files",
+        "theme_read_file"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/themes/:themeId/file": {
+      "tools": [],
+      "suggested": [
+        "theme_list_files",
+        "theme_read_file",
+        "theme_copy_file"
+      ]
+    },
+    "PUT /api/admin/v1/workspaces/:workspaceId/themes/:themeId/file": {
+      "tools": [],
+      "suggested": [
+        "theme_edit_file",
+        "theme_rename_file",
+        "theme_write_file"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/themes/:themeId/file/copy": {
+      "tools": [],
+      "suggested": [
+        "theme_copy_file",
+        "theme_edit_file",
+        "theme_rename_file"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/themes/:themeId/file/delete": {
+      "tools": [],
+      "suggested": [
+        "theme_trash_file"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/themes/:themeId/file/rename": {
+      "tools": [],
+      "suggested": [
+        "theme_rename_file",
+        "theme_copy_file",
+        "theme_edit_file"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/themes/:themeId/file/reset": {
+      "tools": [],
+      "suggested": [
+        "theme_reset_file",
+        "theme_copy_file",
+        "theme_edit_file"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/themes/:themeId/page/publish": {
+      "tools": [],
+      "suggested": [
+        "theme_set_page_published"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/themes/rescan": {
+      "tools": [],
+      "suggested": [
+        "theme_rescan"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/trash": {
+      "tools": [],
+      "suggested": [
+        "trash_list_items"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/trash/items": {
+      "tools": [],
+      "suggested": [
+        "trash_item",
+        "trash_purge_item",
+        "trash_restore_item"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/trash/purge": {
+      "tools": [],
+      "suggested": [
+        "trash_purge_item"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/trash/restore": {
+      "tools": [],
+      "suggested": [
+        "trash_restore_item"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/users": {
+      "tools": [],
+      "suggested": [
+        "content_read.identity_user"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/users": {
+      "tools": [],
+      "suggested": [
+        "identity_user_create"
+      ]
+    },
+    "DELETE /api/admin/v1/workspaces/:workspaceId/users/:principalId": {
+      "tools": [],
+      "suggested": [
+        "identity_user_delete"
+      ]
+    },
+    "PATCH /api/admin/v1/workspaces/:workspaceId/users/:principalId": {
+      "tools": [],
+      "suggested": [
+        "identity_user_update_email"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/users/:principalId/disable": {
+      "tools": [],
+      "suggested": [
+        "identity_user_disable"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/users/:principalId/enable": {
+      "tools": [],
+      "suggested": [
+        "identity_user_enable"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/users/:principalId/policies": {
+      "tools": []
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/users/:principalId/reset-password": {
+      "tools": []
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/users/:principalId/roles": {
+      "tools": []
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/widgets": {
+      "tools": [],
+      "suggested": [
+        "content_read.widget_instance",
+        "content_read.widget_region"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/widgets": {
+      "tools": [],
+      "suggested": [
+        "widgets_create_instance"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/widgets/:id": {
+      "tools": [],
+      "suggested": [
+        "content_read.widget_instance",
+        "content_read.widget_region"
+      ]
+    },
+    "PUT /api/admin/v1/workspaces/:workspaceId/widgets/:id": {
+      "tools": [],
+      "suggested": [
+        "widgets_set_region_placements",
+        "widgets_update_instance"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/widgets/:id/trash": {
+      "tools": [],
+      "suggested": [
+        "widgets_trash_instance"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/widgets/regions": {
+      "tools": [],
+      "suggested": [
+        "content_read.widget_region",
+        "widgets_bind_region",
+        "widgets_set_region_placements"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/widgets/regions": {
+      "tools": [],
+      "suggested": [
+        "widgets_bind_region",
+        "widgets_set_region_placements",
+        "content_read.widget_region"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/widgets/regions/:regionKey": {
+      "tools": [],
+      "suggested": [
+        "content_read.widget_region"
+      ]
+    },
+    "PUT /api/admin/v1/workspaces/:workspaceId/widgets/regions/:regionKey": {
+      "tools": [],
+      "suggested": [
+        "widgets_set_region_placements",
+        "widgets_bind_region"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/widgets/tools/create": {
+      "tools": [],
+      "suggested": [
+        "widgets_create_instance"
+      ]
+    },
+    "GET /api/admin/v1/workspaces/:workspaceId/widgets/tools/diagnose/:widgetInstanceId": {
+      "tools": []
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/widgets/tools/place": {
+      "tools": []
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/widgets/tools/remove": {
+      "tools": [],
+      "suggested": [
+        "widgets_remove_embed"
+      ]
+    }
+  }
+}
