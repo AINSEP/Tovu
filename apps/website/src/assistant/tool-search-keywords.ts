@@ -424,6 +424,11 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
     "edit editing change changing update updating tweak adjust revise reword swap replace fix amend " +
     "without rewriting not the whole page leave the rest keep the rest surgical targeted in place " +
     "handle data-agent-element",
+  // 2026-10-05 — `pages_move_region` (9f246eeb6) shipped with no entry, so the only text indexed for it
+  // was its description, whose "one whole section ... without rewriting the page" overlaps the region
+  // editor's vocabulary: once 3be477f86 lengthened the writers' shared contract, "edit one section of a
+  // page without rewriting it" ranked the mover first. Order/position vocabulary only — no edit verbs.
+  pages_move_region: "move moving reorder reordering rearrange rearranging reposition order ordering sequence position swap places above below before after higher lower up down earlier later top bottom first last",
 
   // --- deployments / static publish -----------------------------------------------------------------------
   // 2026-10-03: "yet" and the host names below restore two backfill-ranking cases ("can I publish my

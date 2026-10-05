@@ -1352,6 +1352,15 @@ export const DOC2QUERY: Readonly<Record<string, readonly string[]>> = {
     "Update the pricing section of this page without touching anything else.",
     "Can you reword the call to action but keep the page as it is?",
     "Edit one section of a page instead of rewriting the whole thing.",
-    "I want to swap out the hero copy on this page and nothing more.",
+    "I want to edit just the hero copy on this page and nothing more.",
+  ],
+  // 2026-10-05 — `pages_move_region` (9f246eeb6) postdates the entries above. Same rule: questions
+  // about ORDER only, never about changing what a section says.
+  pages_move_region: [
+    "Swap the order of two sections on our landing page.",
+    "Move the testimonials above the pricing on this page.",
+    "Can you put the FAQ right after the hero instead of at the bottom?",
+    "Rearrange the blocks on this page into a different order.",
+    "Shift the contact block up so it comes first.",
   ],
 };
