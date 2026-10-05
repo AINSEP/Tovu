@@ -15,6 +15,9 @@ import { registerMcpUiToolCallsRoute, MCP_UI_TOOL_CALLS_PATH } from '../../../as
 import { RUN_PRINCIPAL_HEADER } from '../../../assistant/run-ownership.js';
 import { SURFACE_EXCHANGE_ID_PARAM } from '../../../contracts/core/tool-surface-exchanges.js';
 import type { ToolExecutor } from '@jini-ai/daemon';
+import { proposeSourceControlCredential, type SourceControlCredentialSetupDeps } from '../credential-setup.js';
+import type { LoadedSourceControlProvider, LoadSourceControlProviders, SourceControlProviderDescriptor } from '../provider-registry.js';
+import type { SourceControlProviderModule } from '../provider-module.js';
 
 const ID = 'source_control_propose_credential';
 const SECRET = 't10-source-secret-unique-982';
@@ -210,3 +213,58 @@ function invokeFixtureHandler(
   const { emitSurface, ...required } = context;
   return registration.handler(required, emitSurface ? { emitSurface } : {});
 }
+
+/** A hand-written registry serving one host whose form has no help text and a non-secret field, and
+ *  whose module learns the account label without any network call. */
+function bitbucketRegistry(onLoad: () => void = () => {}): LoadSourceControlProviders {
+  const descriptor: SourceControlProviderDescriptor = { id: 'bitbucket', label: 'Bitbucket', apiOrigin: 'https://api.bitbucket.org', module: './module.mjs',
+    credential: { tokenField: 'token', fields: [{ name: 'token', label: 'App password', required: true, secret: true }, { name: 'username', label: 'Username', required: true }] } };
+  const module = { create: () => ({ readAccountLabel: async () => 'bb-owner' }) } as unknown as SourceControlProviderModule;
+  const loaded: LoadedSourceControlProvider = { descriptor, pluginId: 'bitbucket-plugin', module };
+  return async () => { onLoad(); return { list: () => [loaded], get: id => (id === 'bitbucket' ? loaded : undefined), refusals: [] }; };
+}
+function directDeps(f: ReturnType<typeof fixture>, load: LoadSourceControlProviders): SourceControlCredentialSetupDeps {
+  const { fetchFn: _unused, ...rest } = f.deps;
+  return { ...rest, loadSourceControlProviders: load };
+}
+function directCall(f: ReturnType<typeof fixture>, deps: SourceControlCredentialSetupDeps, input: unknown, extra: Partial<ToolExecutionContext> = {}, emitSurface?: (s: SurfaceEmission) => Promise<void>) {
+  return proposeSourceControlCredential({ ctx: { executionId: 'exec', principal: { id: 'person' }, run: { id: 'run' }, input, signal: new AbortController().signal, ...extra }, deps, surfaces: { surfaceExchanges: f.surfaces } }, emitSurface ? { emitSurface } : {});
+}
+
+test('t10 source label over 200 characters is refused before any permission check or provider load', async () => {
+  const f = fixture(); const deps = directDeps(f, async () => assert.fail('no provider lookup for an invalid label'));
+  await assert.rejects(directCall(f, deps, { provider: 'github', label: 'x'.repeat(201) }), { message: 'Credential label must be at most 200 characters.' });
+  assert.deepEqual(f.auth, []);
+});
+
+test('t10 source pre-aborted call returns declined without loading providers or opening a form', async () => {
+  const f = fixture(); const controller = new AbortController(); controller.abort();
+  const deps = directDeps(f, async () => assert.fail('aborted call must not load providers'));
+  assert.deepEqual(await directCall(f, deps, { provider: 'github' }, { signal: controller.signal }, async () => assert.fail('aborted call must not open a form')),
+    { saved: false, credentialId: null, provider: 'github', label: 'default' });
+  assert.equal(f.surfaces.size(), 0);
+});
+
+test('t10 source call aborted while providers load returns declined and opens no form', async () => {
+  const f = fixture(); const controller = new AbortController();
+  const deps = directDeps(f, bitbucketRegistry(() => controller.abort()));
+  assert.deepEqual(await directCall(f, deps, { provider: 'bitbucket', label: 'Team' }, { signal: controller.signal }, async () => assert.fail('aborted call must not open a form')),
+    { saved: false, credentialId: null, provider: 'bitbucket', label: 'Team' });
+  assert.equal(f.surfaces.size(), 0);
+});
+
+test('t10 source form without provider help shows the default hint, renders non-secret fields as text, saves with no injected fetch', async () => {
+  const f = fixture(); const emitted: SurfaceEmission[] = []; let raised!: () => void;
+  const ready = new Promise<void>(resolve => { raised = resolve; });
+  const pending = directCall(f, directDeps(f, bitbucketRegistry()), { provider: 'bitbucket' }, {}, async s => { emitted.push(s); raised(); });
+  await ready;
+  const html = (emitted[0]!.payload as { resource: { resource: { text: string } } }).resource.resource.text;
+  assert.match(html, /Type the secret here\. The assistant never sees it\./);
+  assert.match(html, /name="token"[^>]*type="password"|type="password"[^>]*name="token"/);
+  assert.doesNotMatch(html, /name="username"[^>]*type="password"|type="password"[^>]*name="username"/);
+  assert.match(html, /name="username"/);
+  submit(f, { label: 'Team', token: SECRET, username: 'bb-user' });
+  assert.deepEqual(await pending, { saved: true, credentialId: 'credential-t10', provider: 'bitbucket', label: 'Team' });
+  const stored = await listSourceControlCredentials({ repo: f.repo }, { workspaceId: 'ws-t10' });
+  assert.equal(stored[0]!.accountLabel, 'bb-owner');
+});

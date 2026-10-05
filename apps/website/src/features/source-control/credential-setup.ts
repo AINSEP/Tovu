@@ -5,11 +5,13 @@ import { ToolInputError, type SurfaceEmission, type ToolExecutionOptions, type T
 import { buildFormSurface, buildOutcomeSurface, type UIResourceUri } from '@jini-ai/ui/mcp-ui/surfaces';
 import { askThenReport, SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, type AssistantSurfaceDeps, type SurfaceMessage } from '../../contracts/core/tool-surface-exchanges.js';
 import { createSourceControlCredential, isSourceControlProviderId, type SourceControlCredentialWriteDeps } from './store.js';
-import { loadInstalledSourceControlProviders, type SourceControlProviderDescriptor } from './provider-registry.js';
+import type { LoadSourceControlProviders, SourceControlProviderDescriptor } from './provider-registry.js';
 import type { SourceControlCredentialSummary } from './types.js';
 import type { AuthorizeFn } from '../../contracts/core/commands/index.js';
 
-/** Narrow save dependencies; independent of the registration module to avoid a type-import cycle. */
+/** Narrow save dependencies; independent of the registration module to avoid a type-import cycle.
+ * `loadSourceControlProviders` is required: the composition root (`tool-registrations.ts`) resolves the
+ * installed-plugins default, so this module never reads a workspace it was not handed. */
 export interface SourceControlCredentialSetupDeps {
   workspaceId: string;
   authorize: AuthorizeFn;
@@ -19,7 +21,7 @@ export interface SourceControlCredentialSetupDeps {
   clock: SourceControlCredentialWriteDeps['clock'];
   idGen: SourceControlCredentialWriteDeps['idGen'];
   fetchFn?: SourceControlCredentialWriteDeps['fetchFn'];
-  loadSourceControlProviders?: SourceControlCredentialWriteDeps['loadSourceControlProviders'];
+  loadSourceControlProviders: LoadSourceControlProviders;
 }
 
 /** Human-only credential setup; model inputs/results never carry connection fields or raw errors. */
@@ -51,7 +53,7 @@ async function handleSubmission(answer: SurfaceMessage, spec: SubmissionContext)
     credential = await createSourceControlCredential({
       repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer,
       keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen,
-      ...(deps.loadSourceControlProviders ? { loadSourceControlProviders: deps.loadSourceControlProviders } : {}),
+      loadSourceControlProviders: deps.loadSourceControlProviders,
       ...(deps.fetchFn ? { fetchFn: deps.fetchFn } : {}),
     }, { workspaceId: deps.workspaceId, label: answer.params.label, connection });
   } catch {
@@ -80,7 +82,7 @@ export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionC
   await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: 'source-control.credentials.write' }, { entityType: 'source-control' });
   const declined: ProposalResult = { saved: false, credentialId: null, provider, label };
   if (ctx.signal.aborted) return declined;
-  const registry = await (deps.loadSourceControlProviders ?? loadInstalledSourceControlProviders)(deps.workspaceId);
+  const registry = await deps.loadSourceControlProviders(deps.workspaceId);
   const descriptor = registry.get(provider)?.descriptor;
   if (!isSourceControlProviderId(provider) || !descriptor?.credential) {
     throw new ToolInputError({ message: 'No enabled source control provider declares this credential form. Call source_control_get_capabilities for available hosts.' });

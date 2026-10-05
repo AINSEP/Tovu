@@ -92,9 +92,10 @@ function reportedProviderIds(registry: SourceControlProviderRegistry, savedProvi
   return [...new Set(ids)];
 }
 
-/** The workspace's plugin-provided hosts ({@link SourceControlToolDeps.loadSourceControlProviders}). */
-function loadProviders(deps: SourceControlToolDeps): ReturnType<LoadSourceControlProviders> {
-  return (deps.loadSourceControlProviders ?? loadInstalledSourceControlProviders)(deps.workspaceId);
+/** The loader for the workspace's plugin-provided hosts ({@link SourceControlToolDeps.loadSourceControlProviders}),
+ *  resolved once here so `credential-setup.ts` takes it as a required port. */
+function providerLoader(deps: SourceControlToolDeps): LoadSourceControlProviders {
+  return deps.loadSourceControlProviders ?? loadInstalledSourceControlProviders;
 }
 
 /** The injected adapter, or the plugin provider's for `providerId`; a caller-safe refusal otherwise. */
@@ -114,7 +115,7 @@ async function resolveCommitAdapter(deps: SourceControlToolDeps, providerId: str
  * @complexity One registry load.
  */
 async function requireKnownHost(deps: SourceControlToolDeps, providerId: string): Promise<{ label: string; validateTarget?: RepositoryTargetValidator }> {
-  const registry = await loadProviders(deps);
+  const registry = await providerLoader(deps)(deps.workspaceId);
   const loaded = registry.get(providerId);
   if (loaded !== undefined) return { label: loaded.descriptor.label, ...(loaded.module.validateTarget ? { validateTarget: loaded.module.validateTarget } : {}) };
   if (registry.switchedOff?.has(providerId) || isSourceControlProviderId(providerId)) return { label: providerId };
@@ -347,13 +348,13 @@ function buildCapabilityGuidance(providerId: string, configured: boolean, commit
  */
 export function buildSourceControlRegistrations(deps: SourceControlToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
-    source_control_propose_credential: (ctx, optional = {}) => proposeSourceControlCredential({ ctx, deps, surfaces }, optional),
+    source_control_propose_credential: (ctx, optional = {}) => proposeSourceControlCredential({ ctx, deps: { ...deps, loadSourceControlProviders: providerLoader(deps) }, surfaces }, optional),
     source_control_get_capabilities: async (ctx) => {
       requireNoInput({ input: ctx.input });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "source-control.read" }, { entityType: "source-control" });
 
       const saved = await listSourceControlCredentials({ repo: deps.sourceControlCredentialSetRepo }, { workspaceId: deps.workspaceId });
-      const registry = await loadProviders(deps);
+      const registry = await providerLoader(deps)(deps.workspaceId);
 
       const providers = reportedProviderIds(registry, saved.map((credential) => credential.providerId)).map((providerId) => {
         const savedCredentials = saved
