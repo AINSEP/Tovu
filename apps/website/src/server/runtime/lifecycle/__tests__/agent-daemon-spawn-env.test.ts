@@ -56,7 +56,7 @@ test("an operator-set TOVU_SITE_DIR in the parent's own env is never shadowed by
 
 test("an independently-set TOVU_THEMES_DIR still wins over the injected TOVU_SITE_DIR in the child's resolution", () => {
   const overrides = buildDaemonSpawnEnvOverrides({ workspaceId: "workspace-1", siteDir: "/site/A", daemonPortOverride: undefined });
-  const childEnv = { ...process.env, TOVU_THEMES_DIR: "/custom/themes-elsewhere", ...overrides };
+  const childEnv: NodeJS.ProcessEnv = { ...process.env, TOVU_THEMES_DIR: "/custom/themes-elsewhere", ...overrides };
 
   const previous = { TOVU_SITE_DIR: process.env.TOVU_SITE_DIR, TOVU_THEMES_DIR: process.env.TOVU_THEMES_DIR };
   try {
