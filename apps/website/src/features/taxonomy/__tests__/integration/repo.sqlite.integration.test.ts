@@ -18,6 +18,7 @@ import {
   createPostBackedContentLookup,
   InMemoryContentLookup,
 } from "../../index.js";
+import type { DeletableTermRepoPort, TermListPort, TermRepoPort } from "../../index.js";
 import { openPreparedContentDb } from "../../../../platform/db/sqlite/__tests__/helpers/open-prepared-content-db.js";
 
 /**
@@ -395,8 +396,7 @@ test("atomicity: a mid-cascade failure in deleteTaxonomy is genuinely undone by 
     // named: a mid-cascade error after at least one real DELETE has already executed against the
     // live connection.
     let deleteCalls = 0;
-    const failingTerms: typeof deps.terms = {
-      ...deps.terms,
+    const failingTerms: TermRepoPort & TermListPort & DeletableTermRepoPort = {
       findById: deps.terms.findById.bind(deps.terms),
       insert: deps.terms.insert.bind(deps.terms),
       update: deps.terms.update.bind(deps.terms),

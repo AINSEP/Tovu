@@ -19,6 +19,9 @@ function makeAsset(overrides: Partial<MediaRecord> = {}): MediaRecord {
     id: "asset-1",
     workspaceId: WORKSPACE,
     title: "A photo",
+    // A pre-slug row, as `media-repo.ts` reads one back (`slug: row.slug ?? row.id`); the
+    // slug-keyed tests below override this with a real slug.
+    slug: "asset-1",
     alt: "",
     caption: "",
     credit: "",
@@ -27,6 +30,10 @@ function makeAsset(overrides: Partial<MediaRecord> = {}): MediaRecord {
     createdAt: "2026-07-13T00:00:00.000Z",
     updatedAt: "2026-07-13T00:00:00.000Z",
     version: 1,
+    width: null,
+    height: null,
+    cssClass: null,
+    htmlAttributes: null,
     ...overrides,
   };
 }

@@ -5,6 +5,7 @@ import { seedPrincipals } from "#src/platform/db/kernel/__tests__/content-seeds"
 import { type ContentKernel, eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { InMemoryUserPurge, UserDeleteUnsupportedError, type PurgeCounts, type UserPurgePort } from "../user-purge-types.js";
 import { SqlUserPurge } from "../user-purge.js";
+import type { ContentDatabase } from "#src/platform/db/content-database.generated";
 import type { DomainEvent } from "@jini-ai/cms/core";
 
 /**
@@ -29,7 +30,7 @@ const TABLES = [
   "admin_execution_credentials",
   "posts",
   "outbox_events",
-];
+] as const satisfies readonly (keyof ContentDatabase)[];
 
 /** Seeds one `kind='user'` principal plus one row in every identity table `SqlUserPurge`
  *  purges, plus one `posts` row it authored (the attribution-survives probe). */
@@ -118,7 +119,8 @@ async function countWhere(kernel: ContentKernel, table: (typeof TABLES)[number],
 async function snapshotTables(kernel: ContentKernel, principalId?: string) {
   const snapshot: Record<string, unknown[]> = {};
   for (const table of TABLES) {
-    const rows = await kernel.run((db) => db.selectFrom(table).selectAll().execute());
+    // Widened to a plain record: the filter below probes whichever id column each table has.
+    const rows: Record<string, unknown>[] = await kernel.run((db) => db.selectFrom(table).selectAll().execute());
     snapshot[table] = rows
       .filter((row) => principalId === undefined || ("principal_id" in row ? row.principal_id === principalId : "id" in row && row.id === principalId))
       .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));

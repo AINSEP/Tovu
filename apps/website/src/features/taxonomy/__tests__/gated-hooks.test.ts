@@ -15,13 +15,13 @@ test("merge recomputes overlap and persists deprecation, an advanced version and
   await assignments.upsert({ contentType: "post", contentId: "p-1", termId: "unrelated", addedAt: AT });
   const revisions: unknown[] = [];
   const hooks = buildMergeTermHooks({ workspaceId: "ws-merge", fromTermId: "from", intoTermId: "into", actorId: "actor-7", clock: { nowMs: () => Date.parse(AT) }, termRepo: terms, entryTermRepo: assignments, taxonomyRevisionRepo: { insert: async (row) => { revisions.push(row); return row; } } });
-  const first = await hooks.computePlan();
+  const first = await hooks.computePlan({});
   assert.deepEqual(first.details, { fromTermId: "from", intoTermId: "into", overlapLossDisclosed: false, overlappingContentCount: 0 });
   await assignments.upsert({ contentType: "post", contentId: "p-1", termId: "into", addedAt: AT });
-  const second = await hooks.computePlan();
+  const second = await hooks.computePlan({});
   assert.deepEqual(second.details, { fromTermId: "from", intoTermId: "into", overlapLossDisclosed: true, overlappingContentCount: 1 });
   assert.notEqual(second.planHash, first.planHash);
-  assert.deepEqual(await hooks.executeMutation(), { mergedCount: 1 });
+  assert.deepEqual(await hooks.executeMutation(second), { mergedCount: 1 });
   assert.equal(await assignments.countByTerm({ termId: "from" }), 0);
   assert.equal(await assignments.countByTerm({ termId: "into" }), 1);
   assert.equal(await assignments.countByTerm({ termId: "unrelated" }), 1);
@@ -35,10 +35,15 @@ test("a repoint failure propagates before term updates or audit writes", async (
   const seen: string[] = [];
   const hooks = buildMergeTermHooks({ workspaceId: "ws", fromTermId: "from", intoTermId: "into", actorId: "actor", clock: { nowMs: () => Date.parse(AT) },
     entryTermRepo: { countOverlap: async () => 0, repointTerm: async (p) => { assert.deepEqual(p, { fromTermId: "from", intoTermId: "into" }); seen.push("repoint"); throw new Error("storage failed"); } },
-    termRepo: { findById: async () => { seen.push("term-read"); return null; } } as InMemoryTermRepo,
+    termRepo: {
+      findById: async () => { seen.push("term-read"); return null; },
+      findByIdFull: async () => { seen.push("term-read"); return null; },
+      insert: async () => { seen.push("term-write"); },
+      update: async () => { seen.push("term-write"); },
+    },
     taxonomyRevisionRepo: { insert: async (row) => { seen.push("revision"); return row; } },
   });
-  await assert.rejects(hooks.executeMutation(), { message: "storage failed" });
+  await assert.rejects(hooks.executeMutation(await hooks.computePlan({})), { message: "storage failed" });
   assert.deepEqual(seen, ["repoint"]);
 });
 
@@ -48,7 +53,7 @@ test("an absent source term still returns the repointed count without inventing 
   await assignments.upsert({ contentType: "page", contentId: "p", termId: "from", addedAt: AT });
   const revisions: unknown[] = [];
   const hooks = buildMergeTermHooks({ workspaceId: "ws", fromTermId: "from", intoTermId: "into", actorId: "actor", clock: { nowMs: () => Date.parse(AT) }, termRepo: terms, entryTermRepo: assignments, taxonomyRevisionRepo: { insert: async (row) => { revisions.push(row); return row; } } });
-  assert.deepEqual(await hooks.executeMutation(), { mergedCount: 1 });
+  assert.deepEqual(await hooks.executeMutation(await hooks.computePlan({})), { mergedCount: 1 });
   assert.equal(await assignments.countByTerm({ termId: "from" }), 0);
   assert.equal(await assignments.countByTerm({ termId: "into" }), 1);
   assert.deepEqual(await terms.listByTaxonomy({ taxonomyId: "tx" }), []);

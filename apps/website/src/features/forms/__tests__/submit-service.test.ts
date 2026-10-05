@@ -194,7 +194,7 @@ test("submitForm: INV-07 — enqueues exactly one form.submission.received event
   const deps = makeDeps();
   await deps.definitionRepo.create(makeDefinition());
 
-  const received: DomainEvent[] = [];
+  const received: DomainEvent<unknown>[] = [];
   const enqueued: DomainEvent[] = [];
   const enqueue = deps.outbox.enqueue.bind(deps.outbox);
   t.mock.method(deps.outbox, "enqueue", async (event: DomainEvent) => { enqueued.push(structuredClone(event)); await enqueue(event); });
