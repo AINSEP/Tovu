@@ -22,6 +22,7 @@ test("form definition responses clone field objects and notification recipients"
   assert.deepEqual(single, { data: {
     id: "form-7", workspaceId: "ws-9", name: "Contact", slug: "contact",
     fields: [{ id: "email", label: "Email address", type: "email", required: true, maxLength: 123, className: "wide", attributes: { placeholder: "Your email" } }],
+    mode: "builder", html: undefined,
     notify: { enabled: true, recipients: ["ops@example.org", "audit@example.org"] }, status: "active",
     createdAt: "2026-09-01T00:00:00Z", updatedAt: "2026-09-02T00:00:00Z",
   } });
@@ -35,6 +36,31 @@ test("form definition responses clone field objects and notification recipients"
   assert.deepEqual(definition.notify, { enabled: true, recipients: ["ops@example.org", "audit@example.org"] });
   assert.deepEqual(toAdminFormDefinitionListResponse([]), { data: [] });
 });
+
+// F4.1/F4.3/F4.6: these are wire-contract literals, including the legacy builder default
+// above. Mutations rejected: hard-code mode to builder, or omit the authored HTML.
+// Author Checklist: pure projections, fresh fixtures, unconditional exact assertions;
+// no I/O, clocks, shared state, mocks, or persistence. Source mutations are prohibited by this batch.
+for (const mode of ["html", "builder"] as const) {
+  test(`form responses preserve explicit ${mode} authoring mode and markup`, () => {
+    const definition = {
+      id: "authored-8", workspaceId: "ws-9", name: "Feedback", slug: "feedback", mode,
+      html: '<input name="message" required>',
+      fields: [{ id: "message", label: "Message", type: "text" as const, required: true }],
+      notify: { enabled: false, recipients: [] }, status: "active" as const,
+      createdAt: "2026-10-01T02:03:04Z", updatedAt: "2026-10-02T03:04:05Z",
+    };
+    const expected = {
+      id: "authored-8", workspaceId: "ws-9", name: "Feedback", slug: "feedback", mode,
+      html: '<input name="message" required>',
+      fields: [{ id: "message", label: "Message", type: "text", required: true }],
+      notify: { enabled: false, recipients: [] }, status: "active",
+      createdAt: "2026-10-01T02:03:04Z", updatedAt: "2026-10-02T03:04:05Z",
+    };
+    assert.deepEqual(toAdminFormDefinitionResponse(definition), { data: expected });
+    assert.deepEqual(toAdminFormDefinitionListResponse([definition]), { data: [expected] });
+  });
+}
 
 test("submission envelopes preserve boolean data and pagination while copying the data bag", () => {
   const submission = {
@@ -55,6 +81,25 @@ test("submission envelopes preserve boolean data and pagination while copying th
   list.data[0].data.email = "replaced@example.org";
   assert.deepEqual(submission.data, { email: "ada@example.org", consent: false });
   assert.deepEqual(toAdminFormSubmissionListResponse({ items: [], nextCursor: null }), { data: [], nextCursor: null });
+});
+
+// F6.2/F4.3: sibling above asserts a retained IP. Removing `?? ""` must fail here.
+test("expired submission IPs serialize as an empty display string in detail and list responses", () => {
+  const submission = {
+    id: "expired-5", formDefinitionId: "form-7", workspaceId: "ws-9",
+    data: { message: "Retained content", consent: false }, sourceIp: null,
+    submittedAt: "2026-06-01T01:02:03Z",
+  };
+  const expected = {
+    id: "expired-5", formDefinitionId: "form-7", workspaceId: "ws-9",
+    data: { message: "Retained content", consent: false }, sourceIp: "",
+    submittedAt: "2026-06-01T01:02:03Z",
+  };
+  assert.deepEqual(toAdminFormSubmissionResponse(submission), { data: expected });
+  assert.deepEqual(toAdminFormSubmissionListResponse({ items: [submission], nextCursor: "older-6" }), {
+    data: [expected], nextCursor: "older-6",
+  });
+  assert.equal(submission.sourceIp, null);
 });
 
 // F4.4: one typed failure at a time. Mutation: drop details or map a not-found error to 500.

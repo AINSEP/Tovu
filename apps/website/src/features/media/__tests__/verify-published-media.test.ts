@@ -76,7 +76,7 @@ test("a recorded type skips blob reads while multiple missing attribute referenc
 });
 
 for (const fault of ["row-lookup", "blob-exists"] as const) {
-  test(`BUG: a per-item ${fault} failure must not abort diagnostics for later published media`, async (t) => {
+  test(`a per-item ${fault} failure reports the affected media and continues diagnostics for later media`, async (t) => {
     // F6.2: verifyPublishedMedia promises per-item faults never throw and items are independent.
     const p = ports([media()]);
     const requests: unknown[] = [];
@@ -93,10 +93,40 @@ for (const fault of ["row-lookup", "blob-exists"] as const) {
     }
     const missing = media({ id: "missing", slug: "lost-photo" });
     const problems = await verifyPublishedMedia(p, WS, [packed(media()), packed(missing)]);
-    assert.ok(problems.includes("Media 'lost-photo' was published but is not on the site."));
+    // F1.2/F6.2: swallowing the first item's failure while checking later items must fail.
+    assert.deepEqual(problems, [
+      "Media 'intro' could not be checked on the site, so it may not show.",
+      "Media 'lost-photo' was published but is not on the site.",
+    ]);
     assert.equal(failuresDelivered, 1, "the test must actually deliver the per-item fault");
     assert.deepEqual(requests, fault === "row-lookup"
       ? [{ workspaceId: "ws-b08", id: "video" }, { workspaceId: "ws-b08", id: "missing" }]
       : [{ storageKey: "ws/ws-b08/blobs/4c/4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6" }]);
   });
 }
+
+test("an active row without bytes reports the missing file before attempting type repair or attribute lookups", async (t) => {
+  // F4.4: the row is present and active; only the missing-byte guard can produce this result.
+  const record = media({ htmlAttributes: 'poster="/m/missing-poster/original"' });
+  const p = ports([record]);
+  const reads = t.mock.method(p.blobStore, "get");
+  const lookups = t.mock.method(p.repo, "findBySlug");
+  assert.deepEqual(await verifyPublishedMedia(p, WS, [packed(record)]), [
+    "Media 'intro' is on the site without its file, so it cannot be shown.",
+  ]);
+  assert.equal(reads.mock.callCount(), 0);
+  assert.equal(lookups.mock.callCount(), 0);
+  assert.deepEqual(await p.contentTypeStore.getMany({ workspaceId: WS, sha256s: [SHA] }), new Map());
+});
+
+test("missing media with an empty or absent slug is identified by its source id", async () => {
+  // F4.3: an absent slug must not become undefined or an empty label in the operator's report.
+  const p = ports();
+  const empty = packed(media({ id: "empty-slug", slug: "" }));
+  const absent = packed(media({ id: "absent-slug" }));
+  delete absent.state.slug;
+  assert.deepEqual(await verifyPublishedMedia(p, WS, [empty, absent]), [
+    "Media 'empty-slug' was published but is not on the site.",
+    "Media 'absent-slug' was published but is not on the site.",
+  ]);
+});

@@ -16,8 +16,12 @@ test("a versionless plugin still names the plugin and all packages, with exact c
   // F2.5/F4.1: the delivered actions, not an imported tool-id constant, are the oracle.
   assert.deepEqual(JSON.parse(match[1]), {
     confirm: { toolName: "plugins_uninstall", params: { __exchangeId: "exchange-b08", decision: "confirm" } },
+    "delete-memory": { toolName: "plugins_uninstall", params: { __exchangeId: "exchange-b08", decision: "confirm", choice: "delete-memory" } },
     cancel: { toolName: "plugins_uninstall", params: { __exchangeId: "exchange-b08", decision: "cancel" } },
   });
+  // F1.3/F2.5: removing the alternative or attaching its choice to ordinary confirm must fail.
+  assert.match(html, /<button[^>]*data-mcpui-action="delete-memory"[^>]*>Uninstall and delete memory<\/button>/);
+  assert.match(html, /<button[^>]*data-mcpui-action="confirm"[^>]*>Uninstall · keep memory<\/button>/);
 });
 
 test("all declared versions are displayed in the version detail", () => {
