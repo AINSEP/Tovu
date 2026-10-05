@@ -158,7 +158,11 @@ export async function planKeyOnlySiteMetaCompletion(required: { dir: string }): 
 }
 
 async function buildCompletedMeta(dir: string, keyOnly: KeyOnlySiteMeta): Promise<SiteMetaJson> {
-  const stamp = await deriveSchemaStamp(dir, parseSiteStorage(keyOnly.storage));
+  return assembleMeta(dir, keyOnly, await deriveSchemaStamp(dir, parseSiteStorage(keyOnly.storage)));
+}
+
+/** The full meta for `keyOnly`'s key fields and `stamp` — the one shape every writer here produces. */
+function assembleMeta(dir: string, keyOnly: KeyOnlySiteMeta, stamp: { schemaVersion: number; schemaTag: string }): SiteMetaJson {
   const { siteId, ...keyFields } = carriedKeyFields(keyOnly);
   return {
     siteId,
@@ -168,6 +172,29 @@ async function buildCompletedMeta(dir: string, keyOnly: KeyOnlySiteMeta): Promis
     createdAt: dirCreatedAt(dir),
     ...keyFields,
   };
+}
+
+/**
+ * The complete `.site-meta.json` a site with NO meta yet should be born with, for a freshly minted
+ * `siteKeyId` — what `site-key-ensure.ts`'s boot mint writes instead of the key-only shape whenever
+ * it can. Only a SQLite `content.db` with migrations applied (and a lineage this runtime knows) has
+ * a stamp to derive; anything else — no db yet (a brand-new dev site, whose db the composition
+ * creates later), a never-migrated or unreadable one — is `undefined`, and the caller writes the
+ * key-only shape, which the boot completes once the db is migrated.
+ *
+ * @complexity O(m) in the bundled journal's entry count — one read-only db open.
+ */
+export async function buildSiteMetaForNewKey(required: { dir: string; siteKeyId: string }): Promise<SiteMetaJson | undefined> {
+  const dbPath = path.join(required.dir, "content.db");
+  if (!fs.existsSync(dbPath)) return undefined;
+  let identity: Awaited<ReturnType<typeof readAppliedSchemaIdentityOfFile>>;
+  try {
+    identity = await readAppliedSchemaIdentityOfFile(dbPath);
+  } catch {
+    return undefined;
+  }
+  if (typeof identity === "string") return undefined;
+  return assembleMeta(required.dir, { siteKeyId: required.siteKeyId }, { schemaVersion: identity.idx, schemaTag: identity.tag });
 }
 
 /** How many times {@link completeKeyOnlySiteMeta} re-derives when the file changes under it. */

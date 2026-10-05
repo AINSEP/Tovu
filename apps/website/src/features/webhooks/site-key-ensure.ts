@@ -15,6 +15,7 @@ import {
 } from "./site-key-sources.js";
 import { resolveRuntimeMode, type RuntimeMode } from "#src/contracts/core/runtime-mode";
 import { writeJsonFileAtomic } from "#src/platform/site-dir/atomic-write";
+import { buildSiteMetaForNewKey } from "#src/platform/site-dir/key-only-site-meta";
 
 /**
  * @file Site-key plan (`ADS-memory/.local-artifacts/plan-site-key-2026-09-24.md`) §A.2 — the ONE
@@ -351,9 +352,10 @@ export interface EnsureSiteKeyForBootInput {
  * a `tovu init`/`tovu serve <dir>` install directory (`content-db-schema-guard.ts`'s own header).
  * Before this fix that meant exactly that site's key was silently never ensured — no error, no log
  * line, and every later admin request just quietly found no key. Local mode now closes that gap
- * itself: an ABSENT `.site-meta.json` gets a brand-new, minimal one ({@link
- * mintMinimalSiteMetaJson}) carrying nothing but a fresh `siteKeyId`, then boot proceeds exactly as
- * it would have for a site that already had one. Production never does this (A.1/A.3: production
+ * itself: an ABSENT `.site-meta.json` gets a brand-new one ({@link
+ * mintMinimalSiteMetaJson}) carrying a fresh `siteKeyId` — complete when the db already has
+ * migrations to derive a schema stamp from, key-only otherwise ({@link mintSiteMetaForBootIfAbsent})
+ * — then boot proceeds exactly as it would have for a site that already had one. Production never does this (A.1/A.3: production
  * never mints a site identity any more than it mints a key) — a `siteDir` with no meta file in
  * production keeps its pre-site-key env/legacy-file-only behavior, exactly as before this feature
  * existed. A `.site-meta.json` that EXISTS but cannot be parsed (corrupt, oversized, not an object)
@@ -404,7 +406,7 @@ export async function ensureSiteKeyForSite(input: EnsureSiteKeyForBootInput): Pr
   const env = input.env ?? process.env;
   if (resolveSiteKeyEnv({ env }).kind === "conflict") return { action: "refuse", reason: "env-conflict" };
   const mode = input.mode ?? resolveRuntimeMode({ env });
-  const siteKeyId = resolveSiteKeyId({ siteDir: input.siteDir }) ?? mintSiteKeyIdIfAbsent(input.siteDir, mode);
+  const siteKeyId = resolveSiteKeyId({ siteDir: input.siteDir }) ?? (await mintSiteMetaForBootIfAbsent(input.siteDir, mode));
   if (!siteKeyId) return undefined;
   return ensureSiteKey({
     siteDir: input.siteDir,
@@ -508,11 +510,32 @@ function stampFingerprint(siteDir: string, fingerprint: string): void {
  */
 function mintSiteKeyIdIfAbsent(siteDir: string, mode: RuntimeMode): string | undefined {
   if (mode === "production") return undefined;
-  return mintMinimalSiteMetaJson(siteDir);
+  const siteKeyId = randomUUID();
+  return mintMinimalSiteMetaJson(siteDir, siteKeyId, { siteKeyId });
 }
 
 /**
- * Creates `<siteDir>/.site-meta.json` with nothing but a fresh `siteKeyId`, EXCLUSIVELY (`flag:
+ * {@link mintSiteKeyIdIfAbsent} for the boot path, which can wait on a db read: when the site's
+ * `content.db` already has migrations applied, the minted file is a COMPLETE `.site-meta.json`
+ * (`buildSiteMetaForNewKey` — schema stamp derived from the db, `siteId` = the fresh `siteKeyId`), so
+ * `tovu serve`/the desktop accept the folder straight away. With no migrated db yet (a brand-new dev
+ * site: the composition creates it after this runs) it falls back to the key-only shape, because
+ * minting nothing would leave this boot without a site key; the dev boot completes that file once
+ * the db is migrated (`src/index.ts`).
+ *
+ * @complexity O(m) in the bundled journal's entry count (one read-only db open), plus one exclusive
+ *   file create.
+ */
+async function mintSiteMetaForBootIfAbsent(siteDir: string, mode: RuntimeMode): Promise<string | undefined> {
+  if (mode === "production") return undefined;
+  const siteKeyId = randomUUID();
+  const complete = await buildSiteMetaForNewKey({ dir: siteDir, siteKeyId });
+  return mintMinimalSiteMetaJson(siteDir, siteKeyId, complete ?? { siteKeyId });
+}
+
+/**
+ * Creates `<siteDir>/.site-meta.json` holding `content` — either just the fresh `siteKeyId`, or the
+ * complete meta {@link mintSiteMetaForBootIfAbsent} derived for it — EXCLUSIVELY (`flag:
  * "wx"` — fails atomically with `EEXIST` if anything is already there) — race-safe the same way
  * {@link atomicCreateSiteKeyFile} is, and for the identical reason (site-key plan §A.2's "no
  * single-instance lock": this owner runs many local instances of the same site at once). Never
@@ -542,11 +565,10 @@ function mintSiteKeyIdIfAbsent(siteDir: string, mode: RuntimeMode): string | und
  *   caller, {@link ensureSiteKeyForBoot}, is the boot-time safety net that catches it.
  * @complexity O(1) — one `randomUUID`, one attempted exclusive file write.
  */
-function mintMinimalSiteMetaJson(siteDir: string): string | undefined {
+function mintMinimalSiteMetaJson(siteDir: string, siteKeyId: string, content: { siteKeyId?: string }): string | undefined {
   const metaPath = join(siteDir, ".site-meta.json");
-  const siteKeyId = randomUUID();
   try {
-    writeFileSync(metaPath, JSON.stringify({ siteKeyId }, null, 2), { flag: "wx", mode: 0o600 });
+    writeFileSync(metaPath, JSON.stringify(content, null, 2), { flag: "wx", mode: 0o600 });
     return siteKeyId;
   } catch (err) {
     if (!isErrorCode(err, "EEXIST")) throw err;

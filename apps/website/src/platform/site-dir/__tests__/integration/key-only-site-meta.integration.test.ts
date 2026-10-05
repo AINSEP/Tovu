@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
+import { ensureSiteKeyForBoot } from "#src/features/webhooks/site-key-ensure";
 import { openContentDb } from "../../../db/sqlite/content-db.js";
 import { workspaces } from "../../../db/schema.sqlite.js";
 import { bootSiteDir, closeSiteDirBoot } from "../../boot-site-dir.js";
@@ -13,6 +14,7 @@ import { readAppliedSchemaIdentityOfFile } from "../../read-applied-schema-ident
 import { readSiteDir } from "../../read-site-dir.js";
 import { classifySiteMarkers, planRepairSite, repairSite, SiteRepairRefusedError } from "../../repair-site.js";
 import { runtimeSchemaVersion } from "../../schema-guard.js";
+import { findSiteKeyDependentData } from "../../site-key-dependent-data.js";
 
 /**
  * @file 2026-10-05 — a site whose `.site-meta.json` holds only the site-key fields (what `npm run
@@ -193,5 +195,50 @@ test("classifySiteMarkers: config.json + key-only meta is partial with keyOnlyMe
     await assert.rejects(() => planRepairSite({ dir }), (err: unknown) => err instanceof SiteRepairRefusedError && err.reason === "MARKER_ALREADY_EXISTS");
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+/** A dev-shaped site with NO `.site-meta.json` — what the dev boot finds before it ever minted one. */
+function buildMetalessDevSite(opts: { db?: boolean } = {}): string {
+  const dir = buildDevSite({ db: opts.db });
+  fs.rmSync(path.join(dir, ".site-meta.json"));
+  return dir;
+}
+
+test("ensureSiteKeyForBoot: a dev site with a migrated content.db and no meta is minted a COMPLETE meta that readSiteDir and bootSiteDir accept", async () => {
+  const dir = buildMetalessDevSite();
+  const home = mkTempDir();
+  try {
+    const result = await ensureSiteKeyForBoot({ siteDir: dir, mode: "local", env: {}, home, findSiteKeyDependentData });
+    assert.equal(result?.action, "mint");
+
+    const { meta } = readSiteDir({ dir });
+    assert.equal(meta.siteId, meta.siteKeyId);
+    assert.ok(fs.existsSync(path.join(home, ".tovu", "site-keys", `${meta.siteKeyId}.hex`)), "the key file is named by the minted siteKeyId");
+    const boot = await bootSiteDir({ dir });
+    await closeSiteDirBoot(boot);
+    assert.equal(readMeta(dir).siteKeyId, meta.siteKeyId, "booting kept the minted siteKeyId");
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+    fs.rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test("ensureSiteKeyForBoot: with no content.db yet it mints the key-only shape (so this boot still gets a key), which completes once the db exists", async () => {
+  const dir = buildMetalessDevSite({ db: false });
+  const home = mkTempDir();
+  try {
+    await ensureSiteKeyForBoot({ siteDir: dir, mode: "local", env: {}, home, findSiteKeyDependentData });
+    const keyOnly = readMeta(dir);
+    assert.deepEqual(Object.keys(keyOnly), ["siteKeyId", "siteKeyFingerprint"], "key-only: the minted id plus the fingerprint ensureSiteKey stamps");
+
+    const db = openContentDb(path.join(dir, "content.db"));
+    db.insert(workspaces).values({ id: "ws-dev", name: "Dev", slug: "dev", createdAt: "2026-01-01T00:00:00.000Z" }).run();
+    db.$client.close();
+    await completeKeyOnlySiteMeta({ dir });
+    assert.equal(readSiteDir({ dir }).meta.siteKeyId, keyOnly.siteKeyId);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+    fs.rmSync(home, { recursive: true, force: true });
   }
 });
