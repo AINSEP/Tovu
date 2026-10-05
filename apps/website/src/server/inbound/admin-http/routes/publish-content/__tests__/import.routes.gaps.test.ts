@@ -53,10 +53,11 @@ test("an overwriteEntityKeys list over 1000 keys is refused; exactly 1000 string
   assert.notEqual(atCap.status, 400);
 });
 
-test("a run-status read whose store fails answers 500 INTERNAL_ERROR with the store's message", async (t) => {
+test("a run-status read whose store fails answers 500 INTERNAL_ERROR with fixed text, never the store's message", async (t) => {
+  t.mock.method(console, "error", () => undefined);
   const failing = new Proxy({}, { get: () => async () => { throw new Error("run store unavailable"); } });
   const server = await startTestServer(routeApp({ jsonBody: true, deps: { publishContentRunRepo: failing } }), t);
   const res = await fetch(`${server}${BASE}/runs/run-1`);
   assert.equal(res.status, 500);
-  assert.deepEqual(await res.json(), { error: "run store unavailable", code: "INTERNAL_ERROR" });
+  assert.deepEqual(await res.json(), { error: "internal error", code: "INTERNAL_ERROR" });
 });

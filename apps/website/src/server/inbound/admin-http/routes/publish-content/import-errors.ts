@@ -19,8 +19,10 @@ export interface ImportErrorResponse {
 }
 
 /**
- * Maps a gateway/import error to its HTTP status and stable `code`; anything unrecognised is a 500
- * `INTERNAL_ERROR`. The message is the error's own, or `"internal error"` for a non-`Error` throw.
+ * Maps a gateway/import error to its HTTP status and stable `code`, keeping a recognised error's own
+ * message. Anything unrecognised is a 500 `INTERNAL_ERROR` with fixed text: its message can quote a
+ * path, SQL or a credential (the same reason a plugin refusal's is redacted, `pluginHookFailedBody`),
+ * so the full error goes to the server log instead.
  *
  * @complexity O(1).
  */
@@ -35,5 +37,7 @@ export function importErrorResponse(err: unknown): ImportErrorResponse {
   // Same envelope as the posts routes' `sendPluginHookFailedError`, so a client tells a plugin's
   // refusal apart from any other internal error — and the same fixed text, never the plugin's own.
   if (err instanceof PluginHookFailedError) return { status: 500, body: pluginHookFailedBody(err) };
-  return { status: 500, body: { error, code: "INTERNAL_ERROR" } };
+  // eslint-disable-next-line no-console
+  console.error("[publish-content] import failed:", err);
+  return { status: 500, body: { error: "internal error", code: "INTERNAL_ERROR" } };
 }

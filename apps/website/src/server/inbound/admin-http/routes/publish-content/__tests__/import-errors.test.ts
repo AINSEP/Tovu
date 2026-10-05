@@ -1,7 +1,7 @@
 /**
  * @file Coverage for `import-errors.ts`: each gateway/import error maps to its own HTTP status and
- * stable code with the error's own message; anything else is a 500 `INTERNAL_ERROR`, and a
- * non-`Error` throw carries the generic message rather than leaking a stringified value.
+ * stable code with the error's own message; anything else is a 500 `INTERNAL_ERROR` with fixed text
+ * (its message can carry a path, SQL or a credential) and the full error in the server log.
  */
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -21,7 +21,6 @@ test("each known import error maps to its status and code, keeping its message",
     [new TokenAlreadyRedeemedError({ message: "token used" }), 409, "TOKEN_ALREADY_REDEEMED"],
     [new RestorePointUnavailableError("no restore point"), 409, "RESTORE_POINT_UNAVAILABLE"],
     [new PublishContentBundleNotFoundError("bundle gone"), 404, "BUNDLE_NOT_FOUND"],
-    [new Error("disk full"), 500, "INTERNAL_ERROR"],
   ];
   for (const [err, status, code] of cases) {
     assert.deepEqual(importErrorResponse(err), { status, body: { error: err.message, code } }, code);
@@ -40,6 +39,15 @@ test("a plugin save-hook refusal mid-import is a 500 PLUGIN_HOOK_FAILED naming t
   });
 });
 
-test("a non-Error throw is a 500 with the generic message", () => {
+test("an unrecognised error is a 500 with fixed text; its own message goes only to the server log", (t) => {
+  const logged = t.mock.method(console, "error", () => undefined);
+  const err = new Error("SQLITE_CANTOPEN: unable to open /srv/tovu/site.db (password=hunter2)");
+  assert.deepEqual(importErrorResponse(err), { status: 500, body: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assert.deepEqual(logged.mock.calls.map((call) => call.arguments), [["[publish-content] import failed:", err]]);
+});
+
+test("a non-Error throw is a 500 with the generic message, logged the same way", (t) => {
+  const logged = t.mock.method(console, "error", () => undefined);
   assert.deepEqual(importErrorResponse("secret detail"), { status: 500, body: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assert.deepEqual(logged.mock.calls.map((call) => call.arguments), [["[publish-content] import failed:", "secret detail"]]);
 });
