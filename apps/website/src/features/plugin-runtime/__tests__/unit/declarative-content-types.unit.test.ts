@@ -14,6 +14,7 @@ import {
   validateDeclarativeManifest,
   type DeclaredContentTypePorts,
 } from "../../declarative-content-types.js";
+import { PluginInvalidError } from "../../activation.js";
 import type { PluginManifest } from "../../manifest.js";
 
 const FAQ = { key: "faq", label: "FAQ", fields: [{ name: "answer", kind: "text", required: true }, { name: "order", kind: "integer" }] };
@@ -237,10 +238,31 @@ test("apply: creates planned types as the plugin's system actor and reports each
   assert.deepEqual(registered.map((call) => [call.key, call.actorId]), [["faq", "plugin:testimonials-faq"]]);
 });
 
-test("apply: losing a concurrent create race counts as kept", async () => {
-  const { ports } = fakePorts([], (key) => ({ ok: false, error: new ContentTypeAlreadyExistsError({ key, tombstoned: false }) }));
+/** Planning sees no `faq`; a concurrent request then creates `winner` before this plugin's register. */
+async function raceAgainst(winner: ContentTypeRecord) {
+  const existing: ContentTypeRecord[] = [];
+  const { ports } = fakePorts(existing, (key) => ({ ok: false, error: new ContentTypeAlreadyExistsError({ key, tombstoned: winner.status === "tombstone" }) }));
   const plan = await planDeclaredContentTypes({ ports, workspaceId: "ws", decls: FAQ_DECL });
-  assert.deepEqual(await applyDeclaredContentTypes({ ports, workspaceId: "ws", pluginId: "p", plan }), { created: [], kept: ["faq"], skipped: [] });
+  existing.push(winner);
+  return applyDeclaredContentTypes({ ports, workspaceId: "ws", pluginId: "p", plan });
+}
+
+test("apply: losing a concurrent create race to a compatible type counts as kept", async () => {
+  const winner = record("faq", [{ name: "answer", kind: "text", required: true, queryable: false }, { name: "order", kind: "integer", required: false, queryable: false }]);
+  assert.deepEqual(await raceAgainst(winner), { created: [], kept: ["faq"], skipped: [] });
+});
+
+test("apply: losing the race to an incompatible type refuses the enable, as planning would have", async () => {
+  const winner = record("faq", [{ name: "answer", kind: "integer", required: false, queryable: false }, { name: "order", kind: "integer", required: false, queryable: false }]);
+  await assert.rejects(raceAgainst(winner), (error: unknown) => {
+    assert.ok(error instanceof PluginInvalidError);
+    assert.equal(error.message, "plugin 'p' cannot be turned on: content type 'faq' already exists with field 'answer' as 'integer', not 'text'");
+    return true;
+  });
+});
+
+test("apply: losing the race to a type that was then tombstoned counts as skipped", async () => {
+  assert.deepEqual(await raceAgainst(record("faq", [], "tombstone")), { created: [], kept: [], skipped: ["faq"] });
 });
 
 test("apply: any other register failure is thrown unchanged", async () => {
@@ -248,4 +270,11 @@ test("apply: any other register failure is thrown unchanged", async () => {
   const { ports } = fakePorts([], () => ({ ok: false, error: boom }));
   const plan = await planDeclaredContentTypes({ ports, workspaceId: "ws", decls: FAQ_DECL });
   await assert.rejects(applyDeclaredContentTypes({ ports, workspaceId: "ws", pluginId: "p", plan }), (error) => error === boom);
+});
+
+test("apply: a race whose winner cannot be read back rethrows the original duplicate error", async () => {
+  const lost = new ContentTypeAlreadyExistsError({ key: "faq", tombstoned: false });
+  const { ports } = fakePorts([], () => ({ ok: false, error: lost }));
+  const plan = await planDeclaredContentTypes({ ports, workspaceId: "ws", decls: FAQ_DECL });
+  await assert.rejects(applyDeclaredContentTypes({ ports, workspaceId: "ws", pluginId: "p", plan }), (error) => error === lost);
 });

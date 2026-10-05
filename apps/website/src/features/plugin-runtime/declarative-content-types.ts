@@ -37,6 +37,7 @@ import {
 } from "#src/features/content-types/index";
 import { SYSTEM_CONTENT_TYPES } from "#src/features/entries/public-list";
 
+import { PluginInvalidError } from "./activation.js";
 import type { PluginManifest, PluginValidationError } from "./manifest.js";
 
 /** ADR-024 §5 bound: how many content types one plugin may declare. */
@@ -297,9 +298,31 @@ export interface ApplyDeclaredContentTypesResult {
 }
 
 /**
+ * What losing a concurrent create race means: the planning-time compatibility check never saw the
+ * winning type, so it is re-read and judged the same way `planDeclaredContentTypes` would have —
+ * compatible ⇒ kept, tombstoned ⇒ skipped, anything else refuses the enable.
+ *
+ * @throws {PluginInvalidError} the winner disagrees with the declaration.
+ * @throws the original `lost` error when the winner cannot be read back.
+ * @complexity One port read plus O(f²) field comparison.
+ */
+async function judgeLostRace(
+  required: { ports: DeclaredContentTypePorts; workspaceId: string; pluginId: string; decl: DeclaredContentType; lost: Error }
+): Promise<"keep" | "skip-tombstoned"> {
+  const { ports, workspaceId, pluginId, decl, lost } = required;
+  const winner = await ports.findByKey({ workspaceId, key: decl.key });
+  if (!winner) throw lost;
+  if (winner.status === "tombstone") return "skip-tombstoned";
+  const reasons = incompatibilities(decl, winner);
+  if (reasons.length > 0) throw new PluginInvalidError(`plugin '${pluginId}' cannot be turned on: ${reasons.join("; ")}`);
+  return "keep";
+}
+
+/**
  * Carries out a conflict-free plan. Each create is recorded as `plugin:<id>` so the content-type
- * revision log says which plugin made the type; losing a concurrent create race to an identical
- * request counts as kept (the type exists, which is the goal). Any other failure is rethrown as-is.
+ * revision log says which plugin made the type; losing a concurrent create race is judged against
+ * the winning type ({@link judgeLostRace}) — kept only when it matches the declaration. Any other
+ * failure is rethrown as-is.
  */
 export async function applyDeclaredContentTypes(
   required: { ports: DeclaredContentTypePorts; workspaceId: string; pluginId: string; plan: DeclaredContentTypePlan },
@@ -315,8 +338,9 @@ export async function applyDeclaredContentTypes(
     else {
       const result = await ports.register({ workspaceId, key: decl.key, label: decl.label, fields: [...decl.fields], actorId: `plugin:${pluginId}` });
       if (result.ok) created.push(decl.key);
-      else if (result.error instanceof ContentTypeAlreadyExistsError) kept.push(decl.key);
-      else throw result.error;
+      else if (!(result.error instanceof ContentTypeAlreadyExistsError)) throw result.error;
+      else if ((await judgeLostRace({ ports, workspaceId, pluginId, decl, lost: result.error })) === "keep") kept.push(decl.key);
+      else skipped.push(decl.key);
     }
   }
   return { created, kept, skipped };
