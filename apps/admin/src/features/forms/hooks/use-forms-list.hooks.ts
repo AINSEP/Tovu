@@ -3,7 +3,7 @@ import type { AdminFormDefinition } from "@/lib/api";
 import { useFetchMutation, useFetchQuery, useInvalidate } from "@/lib/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
-import { FORMS_LIST_RESOURCE, KEYS, describeTrashError, formDatesLabel, formsListError, newestUpdatedForms } from "../rules";
+import { FORMS_LIST_RESOURCE, KEYS, describeTrashError, formDatesLines, formsListError, newestUpdatedForms, type FormDateLine } from "../rules";
 import { t as translate } from "../forms-i18n";
 import { defaultFormsPort } from "./forms-dependencies.hooks";
 import type { FormsPort } from "./forms-port.hooks";
@@ -50,7 +50,8 @@ import type { FormsPort } from "./forms-port.hooks";
 
 export interface FormsListController {
   forms: AdminFormDefinition[] | null;
-  formatFormDates: (form: AdminFormDefinition) => string;
+  /** The "Created / Updated" cell's one or two lines — see `rules.ts`'s `formDatesLines`. */
+  formatFormDates: (form: AdminFormDefinition) => FormDateLine[];
   error: string | null;
   /** In-flight row action (status toggle, or the confirmed delete) — one at a time, same
    *  `rowSavingId` convention `Posts.tsx`/`Pages.tsx` use for their own row actions. Shared between
@@ -147,7 +148,7 @@ export function useFormsList(
   }
 
   const forms = useMemo(() => list.data ? newestUpdatedForms({ forms: list.data.data }) : null, [list.data]);
-  const formatFormDates = (form: AdminFormDefinition) => formDatesLabel({ form, locale, t });
+  const formatFormDates = (form: AdminFormDefinition) => formDatesLines({ form, locale, t });
   const error = formsListError({
     toggleError: toggleMutation.error,
     deleteError: deleteMutation.error,

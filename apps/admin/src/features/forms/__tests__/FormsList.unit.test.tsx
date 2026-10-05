@@ -95,26 +95,52 @@ afterEach(() => {
   window.history.pushState(null, "", "/");
 });
 
+/** What a sighted operator reads in the dates cell: each line's short text, with the
+ *  screen-reader-only labels left out. */
+function visibleDateLines(cell: HTMLElement): string[] {
+  return Array.from(cell.querySelectorAll("time [aria-hidden='true']"), (line) => line.textContent ?? "");
+}
+
 describe("Created / Updated column", () => {
-  it("replaces Status with both human-readable dates and puts the newest update first", async () => {
+  it("shows created then updated as compact unlabeled lines and puts the newest update first", async () => {
     const recent = { ...DISABLED_FORM, updatedAt: "2026-10-04T16:52:00.000Z" };
     fetchMock.mockImplementation(routeFetch([{ match: "/forms", handler: () => Promise.resolve(jsonResponse({ data: [ACTIVE_FORM, recent] })) }]));
     renderScreen(<FormsList />);
 
     expect(await screen.findByRole("columnheader", { name: "Created / Updated" })).toBeInTheDocument();
     expect(screen.queryByRole("columnheader", { name: "Status" })).not.toBeInTheDocument();
-    const recentRow = await rowFor("Newsletter");
-    // Browser time zone varies across machines; use known calendar dates and require the time.
-    const dateCell = within(recentRow).getAllByRole("cell")[2];
-    expect(dateCell.textContent).toMatch(/^Created .*2026.* · Updated .*2026/);
-    expect(dateCell.textContent).toMatch(/\d{1,2}:\d{2}/);
-    expect(dateCell.textContent).not.toContain("T16:52");
+    const dateCell = within(await rowFor("Newsletter")).getAllByRole("cell")[2];
+    const times = dateCell.querySelectorAll("time");
+    expect(Array.from(times, (time) => time.getAttribute("datetime"))).toEqual(["2026-07-01T09:00:00.000Z", "2026-10-04T16:52:00.000Z"]);
+    // Browser time zone varies across machines; require a short date and a time, never the words.
+    const lines = visibleDateLines(dateCell);
+    expect(lines).toHaveLength(2);
+    for (const line of lines) {
+      expect(line).toMatch(/^\d{1,2}\/\d{1,2}\/26, \d{1,2}:\d{2}/);
+      expect(line).not.toMatch(/Created|Updated|T16:52/);
+    }
+    // The event words live only in the hover title and the screen-reader text.
+    expect(times[0].getAttribute("title")).toMatch(/^Created [A-Z][a-z]{2} \d{1,2}, 2026, /);
+    expect(times[1].getAttribute("title")).toMatch(/^Updated Oct \d{1,2}, 2026, /);
+    expect(within(dateCell).getByText(times[1].getAttribute("title")!)).toHaveClass("visually-hidden");
     const rows = screen.getAllByRole("row").slice(1);
     expect(within(rows[0]).getByRole("link", { name: "Newsletter" })).toBeInTheDocument();
     expect(within(rows[1]).getByRole("link", { name: "Contact" })).toBeInTheDocument();
   });
 
-  it("uses the stored admin locale for the header, event labels and date formatting", async () => {
+  it("shows one line when the form was never edited after it was created", async () => {
+    fetchMock.mockImplementation(routeFetch([{ match: "/forms", handler: () => Promise.resolve(jsonResponse({ data: [ACTIVE_FORM] })) }]));
+    renderScreen(<FormsList />);
+
+    const dateCell = within(await rowFor("Contact")).getAllByRole("cell")[2];
+    const times = dateCell.querySelectorAll("time");
+    expect(times).toHaveLength(1);
+    expect(times[0].getAttribute("datetime")).toBe("2026-07-01T09:00:00.000Z");
+    expect(times[0].getAttribute("title")).toMatch(/^Created .*2026.* · Updated .*2026/);
+    expect(visibleDateLines(dateCell)).toEqual([expect.stringMatching(/^\d{1,2}\/\d{1,2}\/26, \d{1,2}:\d{2}/)]);
+  });
+
+  it("uses the stored admin locale for the header, date order and hover labels", async () => {
     vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
       const url = typeof input === "string" ? input : input.toString();
       if (url.includes("/settings/effective")) {
@@ -127,9 +153,11 @@ describe("Created / Updated column", () => {
 
     expect(await screen.findByRole("columnheader", { name: "Erstellt / Aktualisiert" })).toBeInTheDocument();
     const dateCell = within(await rowFor("Contact")).getAllByRole("cell")[2];
-    expect(dateCell.textContent).toMatch(/^Erstellt .* · Aktualisiert /);
-    expect(dateCell.textContent).toMatch(/(?:Juni|Juli)/);
-    expect(dateCell.textContent).not.toContain("Jul ");
+    // German short order is day.month.year — "01.07.26, 11:00" in CEST.
+    expect(visibleDateLines(dateCell)).toEqual([expect.stringMatching(/^\d{2}\.0[67]\.26, \d{2}:\d{2}$/)]);
+    const title = dateCell.querySelector("time")!.getAttribute("title");
+    expect(title).toMatch(/^Erstellt .* · Aktualisiert /);
+    expect(title).toMatch(/(?:Juni|Juli)/);
   });
 });
 

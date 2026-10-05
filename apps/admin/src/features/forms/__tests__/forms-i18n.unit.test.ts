@@ -23,6 +23,11 @@ describe("FORMS_DICT: cross-locale key parity", () => {
       expect(template, locale).toContain("{created}");
       expect(template, locale).toContain("{updated}");
       expect(template, locale).not.toBe("Created {created} · Updated {updated}");
+      // Per-line hover/screen-reader labels when created and updated show on separate lines.
+      for (const key of ["Created {date}", "Updated {date}"]) {
+        expect(FORMS_DICT[locale][key], `${locale} ${key}`).toContain("{date}");
+        expect(FORMS_DICT[locale][key], `${locale} ${key}`).not.toBe(key);
+      }
     }
     expect(t("en", "Created / Updated")).toBe("Created / Updated");
   });

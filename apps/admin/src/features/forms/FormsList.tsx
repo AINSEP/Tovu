@@ -119,7 +119,19 @@ export function FormsList({ useFormsListHook = useWiredFormsList }: FormsListPro
           {
             key: "dates",
             header: t("Created / Updated"),
-            cell: (form) => formatFormDates(form),
+            // One `<time>` per line (created, then updated — or one line when never edited). The
+            // visible text is the bare short date; the event word lives in the hover title and the
+            // screen-reader text only, since the header already names both events.
+            cell: (form) => (
+              <span className="forms-dates">
+                {formatFormDates(form).map((line) => (
+                  <time key={line.kind} className="forms-dates-line" dateTime={line.dateTime} title={line.label}>
+                    <span aria-hidden="true">{line.text}</span>
+                    <span className="visually-hidden">{line.label}</span>
+                  </time>
+                ))}
+              </span>
+            ),
           },
           { key: "fields", header: t("Fields"), cell: (form) => form.fields.length },
           {

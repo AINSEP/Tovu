@@ -48,27 +48,60 @@ export function newestUpdatedForms(
     (Date.parse(b.updatedAt) || 0) - (Date.parse(a.updatedAt) || 0));
 }
 
+/** One line of the Forms list's "Created / Updated" cell. */
+export interface FormDateLine {
+  /** Which event the line shows; `"both"` when the form was never edited after creation. */
+  kind: "created" | "updated" | "both";
+  /** Compact locale date + time (`dateStyle`/`timeStyle` "short"), or "—" for an unparseable date. */
+  text: string;
+  /** ISO instant for `<time dateTime>`; `undefined` when the stored text does not parse. */
+  dateTime: string | undefined;
+  /** Translated event word(s) plus the full date — the hover title and screen-reader text, since
+   *  the visible line carries no "Created"/"Updated" word (the column header already says it). */
+  label: string;
+}
+
 /** Form-specific date copy. The shared admin timestamp helper intentionally slices ISO text
  * and its relative helper is English-only; these two events need the operator's locale and
- * browser time zone. Absolute dates remain accurate while the list stays open without a timer. */
-export function formDatesLabel(
+ * browser time zone. Absolute dates remain accurate while the list stays open without a timer.
+ *
+ * Owner 2026-10-05: line 1 created, line 2 updated, each a compact short date + time with no event
+ * word; one line when updated shows the same date and minute as created. The comparison is on the
+ * displayed short text, so edits within the same minute collapse and the rule follows the locale's
+ * own precision. Intl picks the date order — never a hand-built "M/D/YY".
+ *
+ * @complexity O(1) time and space — two dates, two formatters.
+ */
+export function formDatesLines(
   { form, locale, t }: {
     form: Pick<AdminFormDefinition, "createdAt" | "updatedAt">;
     locale: string;
     t: (key: string) => string;
   },
   { timeZone }: { timeZone?: string } = {},
-): string {
-  const formatter = new Intl.DateTimeFormat(locale, {
+): FormDateLine[] {
+  const shortFormatter = new Intl.DateTimeFormat(locale, { dateStyle: "short", timeStyle: "short", timeZone });
+  const fullFormatter = new Intl.DateTimeFormat(locale, {
     year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone,
   });
-  const dateLabel = (iso: string): string => {
+  const describe = (iso: string) => {
     const date = new Date(iso);
-    return Number.isNaN(date.getTime()) ? "—" : formatter.format(date);
+    return Number.isNaN(date.getTime())
+      ? { text: "—", full: "—", dateTime: undefined }
+      : { text: shortFormatter.format(date), full: fullFormatter.format(date), dateTime: date.toISOString() };
   };
-  return t("Created {created} · Updated {updated}")
-    .replace("{created}", dateLabel(form.createdAt))
-    .replace("{updated}", dateLabel(form.updatedAt));
+  const created = describe(form.createdAt);
+  const updated = describe(form.updatedAt);
+  if (created.text === updated.text) {
+    const label = t("Created {created} · Updated {updated}")
+      .replace("{created}", created.full)
+      .replace("{updated}", updated.full);
+    return [{ kind: "both", text: created.text, dateTime: created.dateTime, label }];
+  }
+  return [
+    { kind: "created", text: created.text, dateTime: created.dateTime, label: t("Created {date}").replace("{date}", created.full) },
+    { kind: "updated", text: updated.text, dateTime: updated.dateTime, label: t("Updated {date}").replace("{date}", updated.full) },
+  ];
 }
 
 export const KEYS = {

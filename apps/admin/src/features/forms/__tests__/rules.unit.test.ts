@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { ApiError, type AdminFormDefinition } from "@/lib/api";
-import { describeTrashError, formDatesLabel, formRowMenuItems, formsListError, newestUpdatedForms } from "../rules";
+import { describeTrashError, formDatesLines, formRowMenuItems, formsListError, newestUpdatedForms } from "../rules";
 import { t } from "../forms-i18n";
 
 /**
@@ -30,24 +30,50 @@ function form(overrides: Partial<AdminFormDefinition> = {}): AdminFormDefinition
 
 describe("forms list dates", () => {
   const datedForm = form({ createdAt: "2026-10-04T09:52:00Z", updatedAt: "2026-10-05T14:03:00Z" });
+  const english = { locale: "en-US", t: (key: string) => key };
 
-  it("formats both distinct events in English with a controllable time zone", () => {
-    expect(formDatesLabel({ form: datedForm, locale: "en-US", t: (key) => key }, { timeZone: "UTC" }))
-      .toBe("Created Oct 4, 2026, 9:52 AM · Updated Oct 5, 2026, 2:03 PM");
-    expect(formDatesLabel({ form: datedForm, locale: "en-US", t: (key) => key }, { timeZone: "America/Los_Angeles" }))
-      .toBe("Created Oct 4, 2026, 2:52 AM · Updated Oct 5, 2026, 7:03 AM");
+  it("shows created on line 1 and updated on line 2 as short locale date + time, full labels for hover", () => {
+    expect(formDatesLines({ form: datedForm, ...english }, { timeZone: "UTC" })).toEqual([
+      { kind: "created", text: "10/4/26, 9:52 AM", dateTime: "2026-10-04T09:52:00.000Z", label: "Created Oct 4, 2026, 9:52 AM" },
+      { kind: "updated", text: "10/5/26, 2:03 PM", dateTime: "2026-10-05T14:03:00.000Z", label: "Updated Oct 5, 2026, 2:03 PM" },
+    ]);
+    expect(formDatesLines({ form: datedForm, ...english }, { timeZone: "America/Los_Angeles" }).map((line) => line.text))
+      .toEqual(["10/4/26, 2:52 AM", "10/5/26, 7:03 AM"]);
   });
 
-  it("localizes event labels and calendar dates together", () => {
-    expect(formDatesLabel({ form: datedForm, locale: "de", t: (key) => t("de", key) }, { timeZone: "UTC" }))
-      .toBe("Erstellt 4. Okt. 2026, 9:52 · Aktualisiert 5. Okt. 2026, 14:03");
+  it("collapses to one line when updated shows the same date and minute as created", () => {
+    // 41 seconds apart: different instants, identical displayed minute.
+    const sameMinute = { createdAt: "2026-10-03T09:56:05Z", updatedAt: "2026-10-03T09:56:46Z" };
+    expect(formDatesLines({ form: sameMinute, ...english }, { timeZone: "UTC" })).toEqual([
+      {
+        kind: "both",
+        text: "10/3/26, 9:56 AM",
+        dateTime: "2026-10-03T09:56:05.000Z",
+        label: "Created Oct 3, 2026, 9:56 AM · Updated Oct 3, 2026, 9:56 AM",
+      },
+    ]);
+    // One minute later is a real edit: two lines again.
+    expect(formDatesLines({ form: { ...sameMinute, updatedAt: "2026-10-03T09:57:00Z" }, ...english }, { timeZone: "UTC" }))
+      .toHaveLength(2);
+  });
+
+  it("lets the admin locale pick the date order and translate the hover labels", () => {
+    expect(formDatesLines({ form: datedForm, locale: "de", t: (key) => t("de", key) }, { timeZone: "UTC" })).toEqual([
+      { kind: "created", text: "04.10.26, 09:52", dateTime: "2026-10-04T09:52:00.000Z", label: "Erstellt 4. Okt. 2026, 9:52" },
+      { kind: "updated", text: "05.10.26, 14:03", dateTime: "2026-10-05T14:03:00.000Z", label: "Aktualisiert 5. Okt. 2026, 14:03" },
+    ]);
+    expect(formDatesLines({ form: datedForm, locale: "en-GB", t: (key) => key }, { timeZone: "UTC" })[0].text)
+      .toBe("04/10/2026, 09:52");
   });
 
   it("tolerates missing or malformed dates without hiding the valid event", () => {
-    expect(formDatesLabel({ form: { createdAt: "", updatedAt: datedForm.updatedAt }, locale: "en-US", t: (key) => key }, { timeZone: "UTC" }))
-      .toBe("Created — · Updated Oct 5, 2026, 2:03 PM");
-    expect(formDatesLabel({ form: { createdAt: "invalid", updatedAt: "invalid" }, locale: "en-US", t: (key) => key }))
-      .toBe("Created — · Updated —");
+    expect(formDatesLines({ form: { createdAt: "", updatedAt: datedForm.updatedAt }, ...english }, { timeZone: "UTC" })).toEqual([
+      { kind: "created", text: "—", dateTime: undefined, label: "Created —" },
+      { kind: "updated", text: "10/5/26, 2:03 PM", dateTime: "2026-10-05T14:03:00.000Z", label: "Updated Oct 5, 2026, 2:03 PM" },
+    ]);
+    expect(formDatesLines({ form: { createdAt: "invalid", updatedAt: "invalid" }, ...english })).toEqual([
+      { kind: "both", text: "—", dateTime: undefined, label: "Created — · Updated —" },
+    ]);
   });
 
   it("sorts by update instant, preserves ties and never mutates the input", () => {
