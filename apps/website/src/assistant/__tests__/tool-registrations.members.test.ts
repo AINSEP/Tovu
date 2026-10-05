@@ -25,6 +25,7 @@ import {
   InMemoryMemberSessionRepo,
   type MemberRecord,
 } from "../../features/members/index.js";
+import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import type { RouteDeps } from "../../server/routes/types.js";
 import {
@@ -74,6 +75,7 @@ function fakeRouteDeps(options: { allow?: boolean; seed?: MemberRecord[] } = {})
   const memberRepo = new InMemoryMemberRepo(options.seed ?? []);
   const memberSessionRepo = new InMemoryMemberSessionRepo();
   const magicLinkRepo = new InMemoryMagicLinkTokenRepo();
+  const principalRepo = new InMemoryPrincipalRepo({});
   const clock = { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW };
   const idGen = counterIdGen();
   const sentMail: unknown[] = [];
@@ -105,11 +107,12 @@ function fakeRouteDeps(options: { allow?: boolean; seed?: MemberRecord[] } = {})
     memberSubscriptionRepo: { findById: async () => null, listByMember: async () => [], listActiveByMember: async () => [], save: async () => {} },
     memberSessionRepo,
     magicLinkRepo,
+    principalRepo,
     mailer,
     magicLinkPerEmailLimiter,
   };
 
-  return { deps: deps as unknown as RouteDeps, memberRepo, memberSessionRepo, magicLinkRepo, authorizeCalls, sentMail };
+  return { deps: deps as unknown as RouteDeps, memberRepo, memberSessionRepo, magicLinkRepo, principalRepo, authorizeCalls, sentMail };
 }
 
 function executionContext(input: Record<string, unknown>): ToolExecutionContext {
@@ -353,10 +356,19 @@ test("members_request_magic_link: delivers {delivered:true} for a valid email an
 
 for (const status of ["unknown", "disabled"] as const) {
   test(`members_request_magic_link: a ${status} email returns the same anti-enumeration result`, async () => {
-    const { deps, sentMail } = fakeRouteDeps({ seed: status === "disabled" ? [seedMember({ status: "disabled" })] : [] });
+    const { deps, sentMail, memberRepo, principalRepo } = fakeRouteDeps({ seed: status === "disabled" ? [seedMember({ status: "disabled" })] : [] });
     const result = await wired("members_request_magic_link", deps).handler(executionContext({ email: "member@example.test" }));
     assert.deepEqual(result, { delivered: true, mailDeliveryAvailable: true });
     assert.equal(sentMail.length, status === "disabled" ? 0 : 1);
+    if (status === "unknown") {
+      // Sign-up through the agent tool writes the new member's "member"-kind principal (F3144), the
+      // row that bars it from every operator permission -- the tool must hand the write service the
+      // composed principalRepo, not drop it.
+      const member = await memberRepo.findByEmail({ workspaceId: WORKSPACE_ID, email: "member@example.test" });
+      assert.ok(member, "an unknown email signs up a pending member");
+      const principal = await principalRepo.findById({ workspaceId: WORKSPACE_ID, id: member.id });
+      assert.equal(principal?.kind, "member");
+    }
   });
 }
 
