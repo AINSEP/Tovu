@@ -1,4 +1,4 @@
-import { assignLocation, MenuNotFoundError } from "#src/features/navigation/index";
+import { assignLocation, MenuConflictError, MenuNotFoundError, MenuVersionConflictError } from "#src/features/navigation/index";
 import { toAdminAssignLocationResponse, type MenuRouteRegistrar } from "#src/server/inbound/admin-http/http/menus";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { entityNotLiveResponse } from "#src/server/inbound/admin-http/http/entity-not-live";
@@ -78,6 +78,16 @@ export const registerAdminMenuAssignLocationRoute: MenuRouteRegistrar = (app, de
       }
       if (err instanceof MenuNotFoundError) {
         res.status(404).json({ error: err.message });
+        return;
+      }
+      // Either menu's save can lose its compare-and-set to another editor (the whole assignment rolled
+      // back); same `VERSION_CONFLICT` code as update-tree, so the admin shows its "reload" copy.
+      if (err instanceof MenuVersionConflictError) {
+        res.status(409).json({ error: err.message, code: "VERSION_CONFLICT" });
+        return;
+      }
+      if (err instanceof MenuConflictError) {
+        res.status(409).json({ error: err.message });
         return;
       }
       res.status(500).json({ error: "internal error" });

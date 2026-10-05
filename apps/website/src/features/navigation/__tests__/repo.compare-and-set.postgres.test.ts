@@ -3,7 +3,7 @@ import { after, before, test } from "node:test";
 
 import { sql } from "kysely";
 
-import { MenuConflictError, type NavMenuEntry } from "@jini-ai/cms/navigation";
+import { MenuConflictError, MenuVersionConflictError, type NavMenuEntry } from "@jini-ai/cms/navigation";
 import type { ContentDatabase } from "#src/platform/db/content-database.generated";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { openPostgresKernel, type StorageKernel } from "#src/platform/db/kernel/index";
@@ -15,8 +15,10 @@ import { SqlMenuRepo } from "../repo.js";
  * @file Menu compare-and-set (wm S4) on a REAL Postgres server, two pooled kernels = two
  * connections: writer A's conditional UPDATE holds the row lock inside an open transaction, writer B's
  * UPDATE on the same base version blocks on it, and once A commits, B re-checks its WHERE against A's
- * row and matches nothing — so B gets the version conflict instead of overwriting A. PGlite's single
- * connection cannot show this. Fails (never skips) when the local server is down.
+ * row and matches nothing — so B gets the version conflict instead of overwriting A. The same holds
+ * for two creates of one id (`expectedVersion: null`): B's INSERT waits on A's uncommitted one, then
+ * inserts nothing. PGlite's single connection cannot show this. Fails (never skips) when the local
+ * server is down.
  */
 
 const DATABASE = "tovu_menu_cas_pg_fixture";
@@ -93,4 +95,39 @@ test("postgres: two writers on the same base version, B blocked on A's row lock 
   );
   const stored = await repoB.findById({ workspaceId: "ws-1", id: "menu-1" });
   assert.deepEqual([stored?.title, stored?.version], ["Writer A", 2]);
+});
+
+test("postgres: two creates of one id, B blocked on A's uncommitted insert — A lands, B gets the version conflict", async () => {
+  const repoA = new SqlMenuRepo(first);
+  const repoB = new SqlMenuRepo(second);
+  const created = (title: string) => menu({ id: "created-1", slug: "created", title });
+
+  let releaseA!: () => void;
+  const aMayCommit = new Promise<void>((resolve) => (releaseA = resolve));
+  let aInserted!: () => void;
+  const aHoldsInsert = new Promise<void>((resolve) => (aInserted = resolve));
+  const writerA = first.transaction(async () => {
+    await repoA.save(created("Writer A"), { expectedVersion: null });
+    aInserted();
+    await aMayCommit;
+  });
+
+  await aHoldsInsert;
+  const writerB = repoB.save(created("Writer B"), { expectedVersion: null });
+  writerB.catch(() => {});
+  try {
+    await untilALockWaits(first);
+  } finally {
+    releaseA(); // a failed wait must not leave A's transaction (and the pool) open forever
+  }
+  await writerA;
+
+  await assert.rejects(
+    writerB,
+    (error: unknown) =>
+      error instanceof MenuVersionConflictError &&
+      error.message === "menu 'created-1' already exists (expected no menu, found version 1)"
+  );
+  const rows = await first.run((db) => db.selectFrom("menus").select(["title", "version"]).where("id", "=", "created-1").execute());
+  assert.deepEqual(rows, [{ title: "Writer A", version: 1 }]);
 });

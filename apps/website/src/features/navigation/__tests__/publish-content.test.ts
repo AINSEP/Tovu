@@ -347,12 +347,16 @@ class VersionRacingMenuRepo implements MenuRepoPort {
     return this.inner.list(required);
   }
 
-  save(record: NavMenuEntry, options?: { expectedVersion?: number | undefined }) {
+  save(record: NavMenuEntry, options?: { expectedVersion?: number | null | undefined }) {
     return this.inner.save(record, options);
   }
 
   remove(required: { workspaceId: string; id: string }) {
     return this.inner.remove(required);
+  }
+
+  transaction<T>(required: { fn: () => Promise<T> }) {
+    return this.inner.transaction(required);
   }
 }
 

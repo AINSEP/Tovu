@@ -5,6 +5,7 @@ import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from 
 
 import express from "express";
 
+import { menuVersionConflictError } from "@jini-ai/cms/navigation";
 import { ALLOWED_HREF_SHAPES_DESCRIPTION, InMemoryNavLocationBindingRepo } from "../../features/navigation/index.js";
 import type { MenuRepoPort } from "../../features/navigation/index.js";
 import type { MenuRouteDeps } from "../inbound/admin-http/http/menus.js";
@@ -771,6 +772,7 @@ test("update menu tree: sendUpdateMenuTreeError's default 500 branch, forced via
     list: async () => [],
     save: async () => {},
     remove: async () => {},
+    transaction: async ({ fn }) => fn(),
   };
   const deps: MenuRouteDeps = {
     ...createRouteDeps(),
@@ -837,6 +839,7 @@ test("update-tree: the catch-all 500 branch logs the unmapped error server-side 
     list: async () => [],
     save: async () => {},
     remove: async () => {},
+    transaction: async ({ fn }) => fn(),
   };
   const deps: MenuRouteDeps = {
     ...createRouteDeps(),
@@ -919,4 +922,35 @@ test("assigning an occupied location displaces only the former menu and persists
     assert.equal(read.status, 200);
     assert.deepEqual((await read.json() as { menu: { locations: string[] } }).menu.locations, locations);
   }
+});
+
+test("assign-location: a menu save that loses its compare-and-set is a 409 VERSION_CONFLICT, not a 500", async () => {
+  const stored = { id: "menu-1", workspaceId: "workspace-local", slug: "nav", title: "Nav", status: "published" as const, doc: { type: "menu", version: 1, items: [] }, locations: [], updatedAt: "2026-10-05T00:00:00.000Z", version: 1 };
+  const losingMenuRepo: MenuRepoPort = {
+    findById: async () => stored,
+    findBySlug: async () => null,
+    list: async () => [stored],
+    save: async (record) => {
+      throw menuVersionConflictError({ id: record.id, expectedVersion: 1, found: 2 });
+    },
+    remove: async () => {},
+    transaction: async ({ fn }) => fn(),
+  };
+  const deps: MenuRouteDeps = { ...createRouteDeps(), menuRepo: losingMenuRepo, navLocationBindingRepo: new InMemoryNavLocationBindingRepo({}) };
+  const app = express();
+  registerAdminMenuAssignLocationRoute(app, deps);
+
+  await deps.identityReady;
+  const ownerUser = await deps.userRepo.findByUsername({ workspaceId: deps.workspaceId, username: "admin" });
+  assert.ok(ownerUser, "expected the seeded admin user");
+  const ownerPrincipal = await deps.principalRepo.findById({ workspaceId: deps.workspaceId, id: ownerUser.principalId });
+  assert.ok(ownerPrincipal, "expected the seeded admin principal");
+
+  const handler = extractRouteHandler(app, "post", "/api/admin/v1/workspaces/:workspaceId/menus/:menuId/locations");
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = ownerPrincipal;
+  await handler({ params: { workspaceId: deps.workspaceId, menuId: "menu-1" }, body: { locationKey: "primary" } }, res);
+
+  assert.equal(capture.statusCode, 409);
+  assert.deepEqual(capture.jsonBody, { error: "menu 'menu-1' was modified concurrently (expected version 1, found 2)", code: "VERSION_CONFLICT" });
 });

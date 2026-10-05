@@ -116,7 +116,7 @@ async function rebindLocation(
         updatedAt: now,
         version: displaced.version + 1,
       };
-      await deps.repo.save(displacedMenu);
+      await deps.repo.save(displacedMenu, { expectedVersion: displaced.version });
       await deps.outbox.enqueue(
         buildEvent(deps, NAV_LOCATION_UNASSIGNED_EVENT, workspaceId, displacedMenu.id, {
           locationKey,
@@ -143,6 +143,12 @@ async function rebindLocation(
  * "caller's basis and destination reality must agree before anything is written" guard — and an
  * update whose `expectedVersion` no longer matches. Refuses (`MenuNotFoundError`) an update whose
  * basis has nothing to update. Refuses (`MenuConflictError`) a slug already held by a different menu.
+ *
+ * Those checks run on a read, so the writes enforce them again: the menu's own save is a
+ * compare-and-set on `expectedVersion` (insert-if-absent for a create) and each displaced menu's save
+ * is one on the version just read, so a writer landing after a read loses nothing
+ * (`MenuVersionConflictError`). Every write — the menu, displaced menus, bindings and events — runs in
+ * ONE `repo.transaction`, so a displaced menu's conflict also rolls back the menu's own save.
  *
  * @complexity O(n) in the incoming tree size for `validateAndCloneTree`, plus O(k) location repo
  * calls where k = `record.locations.length` plus however many locations this update DROPS relative
@@ -185,30 +191,32 @@ export async function importMenuEntity(required: {
     version: (existing?.version ?? 0) + 1,
   };
 
-  await deps.repo.save(menu);
-  await deps.outbox.enqueue(
-    buildEvent(deps, existing ? NAV_MENU_UPDATED_EVENT : NAV_MENU_CREATED_EVENT, workspaceId, menu.id, {
-      menuId: menu.id,
-      slug: menu.slug,
-    })
-  );
+  return deps.repo.transaction({ fn: async () => {
+    await deps.repo.save(menu, { expectedVersion: input.expectedVersion ?? null });
+    await deps.outbox.enqueue(
+      buildEvent(deps, existing ? NAV_MENU_UPDATED_EVENT : NAV_MENU_CREATED_EVENT, workspaceId, menu.id, {
+        menuId: menu.id,
+        slug: menu.slug,
+      })
+    );
 
-  const displacedMenus: NavMenuEntry[] = [];
-  for (const locationKey of menu.locations) {
-    const displaced = await rebindLocation(deps, workspaceId, menu, locationKey, now);
-    if (displaced) displacedMenus.push(displaced);
-  }
-
-  // Locations the destination previously had bound to this menu, but the incoming record no longer
-  // claims — unassign, but only if the binding still actually points at THIS menu (never clobber a
-  // location this run already reassigned elsewhere, or one another writer holds).
-  const droppedLocations = (existing?.locations ?? []).filter((key) => !menu.locations.includes(key));
-  for (const locationKey of droppedLocations) {
-    const binding = await deps.bindingRepo.findByLocation({ workspaceId, locationKey });
-    if (binding && binding.menuId === menu.id) {
-      await deps.bindingRepo.remove({ workspaceId, locationKey });
+    const displacedMenus: NavMenuEntry[] = [];
+    for (const locationKey of menu.locations) {
+      const displaced = await rebindLocation(deps, workspaceId, menu, locationKey, now);
+      if (displaced) displacedMenus.push(displaced);
     }
-  }
 
-  return { menu, displacedMenus };
+    // Locations the destination previously had bound to this menu, but the incoming record no longer
+    // claims — unassign, but only if the binding still actually points at THIS menu (never clobber a
+    // location this run already reassigned elsewhere, or one another writer holds).
+    const droppedLocations = (existing?.locations ?? []).filter((key) => !menu.locations.includes(key));
+    for (const locationKey of droppedLocations) {
+      const binding = await deps.bindingRepo.findByLocation({ workspaceId, locationKey });
+      if (binding && binding.menuId === menu.id) {
+        await deps.bindingRepo.remove({ workspaceId, locationKey });
+      }
+    }
+
+    return { menu, displacedMenus };
+  } });
 }

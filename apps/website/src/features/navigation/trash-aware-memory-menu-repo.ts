@@ -1,5 +1,5 @@
 import { InMemoryMenuRepo, MenuConflictError } from "@jini-ai/cms/navigation";
-import type { MenuRepoPort, MenuStatus, NavMenuEntry } from "@jini-ai/cms/navigation";
+import type { MenuRepoPort, MenuSaveOptions, MenuStatus, NavMenuEntry } from "@jini-ai/cms/navigation";
 
 import type { MenuTrashLookup } from "./menu-trash-follow-ups.js";
 import { MenuVersionConflictError } from "./menu-version-conflict-error.js";
@@ -59,14 +59,17 @@ export class TrashAwareInMemoryMenuRepo implements MenuRepoPort, MenuTrashLookup
    * no-op. `InMemoryMenuRepo.save` does a full-replace `Map`-style write (verified by reading
    * `repo.memory.ts`), so writing through it never silently drops `doc`/`locations`.
    * With `expectedVersion`, the inner repo's compare-and-set decides (a trashed row is a conflict,
-   * found none — the same as the SQL repo), so a trashed row is not silently skipped.
+   * found none — the same as the SQL repo), so a trashed row is not silently skipped. A create
+   * (`expectedVersion: null`) goes on to the inner repo, which still holds a trashed row and so
+   * refuses its id, as the SQL primary key does.
    * @throws MenuConflictError when a trashed row holds the slug (same text as the SQLite repo).
-   * @throws MenuVersionConflictError when the compare-and-set misses. The inner repo throws Jini's
-   *         plain `MenuConflictError` for that, and with `expectedVersion` it is the only conflict
-   *         its `save` can throw, so it is re-wrapped here with the same message.
+   * @throws MenuVersionConflictError when the compare-and-set misses or a create finds the id taken.
+   *         Jini's `InMemoryMenuRepo` throws it itself; an injected inner that throws a plain
+   *         `MenuConflictError` there (with `expectedVersion` it is the only conflict a `save` can
+   *         throw) is re-wrapped here with the same message.
    * @complexity O(n) over stored menus (one id lookup, one slug scan).
    */
-  async save(record: NavMenuEntry, options: { expectedVersion?: number | undefined } = {}): Promise<void> {
+  async save(record: NavMenuEntry, options: MenuSaveOptions = {}): Promise<void> {
     const existing = await this.inner.findById({ workspaceId: record.workspaceId, id: record.id });
     if (existing && existing.status === "trash" && options.expectedVersion === undefined) return;
 
@@ -82,6 +85,11 @@ export class TrashAwareInMemoryMenuRepo implements MenuRepoPort, MenuTrashLookup
       }
       throw error;
     }
+  }
+
+  /** The inner repo's (which just runs `fn`: nothing here rolls back). @complexity O(1) beyond `fn`. */
+  async transaction<T>(required: { fn: () => Promise<T> }): Promise<T> {
+    return this.inner.transaction(required);
   }
 
   /** Hard-remove a menu row (only called after the trash step). @complexity O(n). */

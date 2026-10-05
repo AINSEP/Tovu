@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, MenuConflictError, MenuNotFoundError, type NavMenuEntry } from "../index.js";
+import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, MenuConflictError, MenuNotFoundError, type MenuRepoPort, type NavMenuEntry } from "../index.js";
+import { MenuVersionConflictError } from "../menu-version-conflict-error.js";
 import { importMenuEntity } from "../import-menu.js";
 import type { DomainEvent, OutboxPort } from "@jini-ai/cms/core";
 
@@ -122,4 +123,60 @@ test("import returns every displaced menu with its new version and retained loca
     assert.deepEqual(await deps.bindingRepo.findByLocation({ workspaceId: "destination", locationKey }),
       { workspaceId: "destination", locationKey, menuId, boundAt: "old-time" });
   }
+});
+
+/** `repo` where another writer bumps `raceId` (title "Other writer") right after the import reads it. */
+function racing(repo: InMemoryMenuRepo, raceId: string): MenuRepoPort {
+  return {
+    findById: async (required) => {
+      const row = await repo.findById(required);
+      if (row && row.id === raceId) await repo.save({ ...row, title: "Other writer", version: row.version + 1 });
+      return row;
+    },
+    findBySlug: (required) => repo.findBySlug(required),
+    list: (required) => repo.list(required),
+    save: (record, options) => repo.save(record, options),
+    remove: (required) => repo.remove(required),
+    transaction: (required) => repo.transaction(required),
+  };
+}
+
+test("an import-as-update loses to a writer that lands between its read and its save: no overwrite, binding or event", async () => {
+  const { deps, events } = harness();
+  await deps.repo.save(menu());
+  await assert.rejects(
+    importMenuEntity({ deps: { ...deps, repo: racing(deps.repo, "incoming") }, input: { workspaceId: "destination", record: menu({ workspaceId: "source", title: "Published", locations: ["header"] }), expectedVersion: 4 } }),
+    (error: unknown) => error instanceof MenuVersionConflictError && error.message === "menu 'incoming' was modified concurrently (expected version 4, found 5)"
+  );
+  const stored = await deps.repo.findById({ workspaceId: "destination", id: "incoming" });
+  assert.deepEqual([stored?.title, stored?.version], ["Other writer", 5]);
+  assert.equal(await deps.bindingRepo.findByLocation({ workspaceId: "destination", locationKey: "header" }), null);
+  assert.deepEqual(events, []);
+});
+
+test("two concurrent import-as-creates of one id: exactly one lands, with one created event", async () => {
+  const { deps, events } = harness();
+  const create = (title: string) => importMenuEntity({ deps, input: { workspaceId: "destination", record: menu({ workspaceId: "source", title }) } });
+  const results = await Promise.allSettled([create("First"), create("Second")]);
+
+  assert.deepEqual(results.map((result) => result.status), ["fulfilled", "rejected"]);
+  const lost = results[1] as PromiseRejectedResult;
+  assert.ok(lost.reason instanceof MenuVersionConflictError);
+  assert.equal(lost.reason.message, "menu 'incoming' already exists (expected no menu, found version 1)");
+  const stored = await deps.repo.findById({ workspaceId: "destination", id: "incoming" });
+  assert.deepEqual([stored?.title, stored?.version], ["First", 1]);
+  assert.deepEqual(events.map((event) => event.name), ["navigation.menu.created"]);
+});
+
+test("a displaced menu's save loses to a writer that lands between its read and its save instead of overwriting it", async () => {
+  const { deps } = harness();
+  await deps.repo.save(menu({ id: "former-header", slug: "old-header", title: "Header", version: 7, locations: ["header"] }));
+  await deps.bindingRepo.upsert({ workspaceId: "destination", locationKey: "header", menuId: "former-header", boundAt: "old-time" });
+  await assert.rejects(
+    importMenuEntity({ deps: { ...deps, repo: racing(deps.repo, "former-header") }, input: { workspaceId: "destination", record: menu({ workspaceId: "source", locations: ["header"] }) } }),
+    (error: unknown) => error instanceof MenuVersionConflictError && error.message === "menu 'former-header' was modified concurrently (expected version 7, found 8)"
+  );
+  const displaced = await deps.repo.findById({ workspaceId: "destination", id: "former-header" });
+  assert.deepEqual([displaced?.title, displaced?.locations, displaced?.version], ["Other writer", ["header"], 8]);
+  assert.equal((await deps.bindingRepo.findByLocation({ workspaceId: "destination", locationKey: "header" }))?.menuId, "former-header");
 });
