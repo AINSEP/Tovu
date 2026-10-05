@@ -40,23 +40,16 @@
  */
 import type { JsonObject } from "@jini-ai/core/primitives";
 import type { BeforeSaveFilter, ContentEntryDraft, HookContext } from "@tovu/sdk";
+import { PluginHookFailedError } from "../../contracts/core/plugin-hook-failed-error.js";
 
 /** Who attached a given filter — extended by ADR-057 Decision 3 with `"glue"`, ranked after
  * `"site"` in {@link compareTb01}. Exported so `loader.ts`'s `attachLoadedPlugin()` and any other
  * caller share this one source of truth for the vocabulary rather than re-declaring the union. */
 export type AttachmentSource = "built-in" | "site" | "glue";
 
-/** Thrown (and caught by the caller, mapped to 500 `PLUGIN_HOOK_FAILED`) when a filter throws,
- * triggers `CapabilityDeniedError`, or returns an invalid `ext` write (BR-07/EC-10). */
-export class PluginHookFailedError extends Error {
-  readonly pluginId: string;
-
-  constructor(pluginId: string, message: string, options?: { cause?: unknown }) {
-    super(message, options);
-    this.name = "PluginHookFailedError";
-    this.pluginId = pluginId;
-  }
-}
+// The class lives in `contracts/core` so `features/post` can recognize it without importing this
+// feature (see that file's header); re-exported so this module's importers are unchanged.
+export { PluginHookFailedError };
 
 /** One field this plugin declared in its manifest (BR-06's validation target — the merge step
  * rejects a returned patch key/value that doesn't match a declared field). */

@@ -57,6 +57,7 @@ import { requireToolPermission, type EventBusPort, type OutboxPort } from "@jini
 import { ToolInputError } from "@jini-ai/core";
 import { type AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
 import { forbiddenRule } from "../../contracts/core/model-facing-tool-errors.js";
+import { withPluginHookRefusals } from "../../contracts/core/plugin-hook-failed-error.js";
 import { withModelFacingErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
 import { executeCommand, type AuthorizeFn, type ChangeSetRepoPort } from "../../contracts/core/commands/index.js";
 import { processOutbox } from "../../contracts/core/events/index.js";
@@ -1045,8 +1046,10 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
     // alone while its five siblings sent the same classes straight into the SEC-005 redactor.
     // Composes with the three handlers' inner `withSchemaOnRejection` rather than competing with it:
     // a shape rejection is already a `ToolInputError` by the time it arrives, and
-    // `reclassifyToolError` returns those untouched.
-    handlers: withModelFacingErrors({ handlers: handlers, rules: POST_MODEL_FACING_ERRORS }),
+    // `reclassifyToolError` returns those untouched. The inner `withPluginHookRefusals` turns a
+    // plugin save-hook refusal into a fixed `PLUGIN_HOOK_FAILED` message naming the plugin before
+    // the ladder sees it — that message needs the plugin id, which a fixed-message rule can't carry.
+    handlers: withModelFacingErrors({ handlers: withPluginHookRefusals(handlers), rules: POST_MODEL_FACING_ERRORS }),
     derivedRisk: postDerivedRisk,
   });
 }
