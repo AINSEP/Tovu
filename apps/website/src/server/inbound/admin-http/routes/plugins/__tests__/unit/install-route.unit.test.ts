@@ -14,7 +14,7 @@ const WS = "ws-1";
 const DIGEST = `sha256-${"a".repeat(64)}`;
 type Call = { method: "preview" | "install"; input: Record<string, unknown> };
 
-async function boot(t: TestContext, options: { installer?: "none" | ((call: Call) => unknown); env?: string; allowed?: boolean } = {}) {
+async function boot(t: TestContext, options: { installer?: "none" | ((call: Call) => unknown); env?: string; allowed?: boolean; jsonParser?: boolean } = {}) {
   const previous = process.env.TOVU_PLUGIN_LOCAL_INSTALL;
   if (options.env === undefined) process.env.TOVU_PLUGIN_LOCAL_INSTALL = "1"; else process.env.TOVU_PLUGIN_LOCAL_INSTALL = options.env;
   const calls: Call[] = [];
@@ -27,7 +27,7 @@ async function boot(t: TestContext, options: { installer?: "none" | ((call: Call
   } as unknown as PluginsRouteDeps;
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
-  app.use(express.json());
+  if (options.jsonParser !== false) app.use(express.json());
   registerPluginInstallRoutes(app, deps);
   const server = app.listen(0, "127.0.0.1");
   await new Promise(resolve => server.once("listening", resolve));
@@ -80,6 +80,12 @@ test("replace must be a boolean (JSON) or 'true'/'false' (query), and install ne
     assert.deepEqual(await read(await h.json("", { source, expectedDigest })), INVALID_OPTIONS, String(expectedDigest));
   }
   assert.deepEqual(await read(await h.zip("?expectedDigest=nope")), INVALID_OPTIONS);
+  assert.deepEqual(h.calls, []);
+});
+
+test("a folder route mounted without its JSON body parser refuses the request instead of crashing", async t => {
+  const h = await boot(t, { jsonParser: false });
+  assert.deepEqual(await read(await h.json("/preview", { source: { kind: "folder", path: "/srv/plugin" } })), INVALID_OPTIONS);
   assert.deepEqual(h.calls, []);
 });
 
