@@ -22,7 +22,7 @@
  */
 export type { ContentTypeFieldKind, ContentTypeFieldDef, ContentTypeStatus, ContentTypeRecord, ActorPrincipalKind, ActorIdentityInput } from "@jini-ai/cms/content-types";
 export type { Result } from "@jini-ai/core/primitives";
-export { CONTENT_TYPE_FIELD_KINDS, isContentTypeFieldKind } from "@jini-ai/cms/content-types";
+export { CONTENT_TYPE_FIELD_KINDS, isContentTypeFieldKind, isIndexableFieldKind } from "@jini-ai/cms/content-types";
 
 export type { ContentTypeListPort } from "@jini-ai/cms/content-types";
 export { listContentTypes } from "@jini-ai/cms/content-types";

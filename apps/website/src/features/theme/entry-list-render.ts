@@ -49,9 +49,21 @@ export interface EntryListItem {
 export interface EntryListRenderOptions {
   readonly template?: string;
   readonly columns: number;
-  readonly layout: "cards" | "list";
+  /** `accordion`/`carousel` (AW-7, 2026-10-04): an FAQ disclosure list and a horizontal scroll-snap
+   *  track of cards — what a zero-code FAQ/testimonials plugin needs without shipping its own markup. */
+  readonly layout: EntryListLayout;
   readonly typeKey: string;
+  /** Opt-in schema.org block emitted after the list, in every mode (template mode included). Only
+   *  `"faq-page"` exists: title = question, the item's displayed field values = answer. Opt-in
+   *  rather than implied by `accordion`, because an accordion of anything else marked up as an FAQ
+   *  would be false structured data. */
+  readonly structuredData?: EntryListStructuredData;
 }
+
+/** Every built-in collection-list presentation. */
+export type EntryListLayout = "cards" | "list" | "accordion" | "carousel";
+/** Every structured-data block {@link renderEntryList} can emit. */
+export type EntryListStructuredData = "faq-page";
 
 /**
  * Review fix 3a (`2026-09-23-review-E4-R1-report.md`): every selector below is scoped under the
@@ -81,6 +93,14 @@ export const ENTRY_LIST_DEFAULT_STYLE =
   ":where([data-tovu-entry-list] .entry-card__fields dt){color:var(--muted,#666);font-size:.85em}" +
   ":where([data-tovu-entry-list] .entry-card__fields dd){margin:0 0 .75rem}" +
   "@media (max-width:640px){:where([data-tovu-entry-list]){grid-template-columns:1fr}}" +
+  // AW-7 layouts. Carousel: CSS-only scroll-snap (no script ships with a Tier-1 plugin), each card
+  // most of the width on a phone so the next one peeks in and signals "scroll".
+  ":where([data-tovu-entry-list].entry-list--carousel){display:flex;grid-template-columns:none;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:.5rem}" +
+  ":where([data-tovu-entry-list].entry-list--carousel > .entry-card){flex:0 0 min(85%,22rem);scroll-snap-align:start}" +
+  ":where([data-tovu-entry-list].entry-list--accordion){display:block}" +
+  ":where([data-tovu-entry-list] .entry-accordion__item){border-bottom:1px solid var(--border,#ddd);padding:.75rem 0}" +
+  ":where([data-tovu-entry-list] .entry-accordion__question){cursor:pointer;font-weight:600}" +
+  ":where([data-tovu-entry-list] .entry-accordion__field){margin:.5rem 0 0}" +
   "</style>";
 
 /**
@@ -118,6 +138,39 @@ function renderCard(item: EntryListItem): string {
 function renderListItem(item: EntryListItem): string {
   const fields = item.fields.length === 0 ? "" : `<dl class="entry-card__fields">${item.fields.map(renderFieldRow).join("")}</dl>`;
   return `<li class="entry-list__item">${renderTitle(item, "h3")}${fields}</li>`;
+}
+
+/** An item's displayed field values that are not empty, formatted the way the visible list shows them. */
+function nonEmptyFieldValues(item: EntryListItem): Array<{ readonly field: EntryListFieldValue; readonly text: string }> {
+  return item.fields.map((field) => ({ field, text: formatFieldValue(field) })).filter((entry) => entry.text !== "");
+}
+
+/** One accordion entry: a native `<details>` (keyboard- and screen-reader-operable with no script),
+ * the title as its `<summary>` and each non-empty field value as an unlabeled paragraph — an FAQ
+ * answer reads as prose, not as a "Answer: ..." definition list. Titles are never linked here: the
+ * summary itself is the toggle. */
+function renderAccordionItem(item: EntryListItem): string {
+  const body = nonEmptyFieldValues(item)
+    .map(({ field, text }) => `<p class="entry-accordion__field entry-accordion__field--${escapeHtml(field.name)}">${escapeHtml(text)}</p>`)
+    .join("");
+  return `<details class="entry-accordion__item"><summary class="entry-accordion__question">${escapeHtml(item.title)}</summary><div class="entry-accordion__answer">${body}</div></details>`;
+}
+
+/**
+ * A schema.org `FAQPage` block for the items that have answer text (Google ignores a Question with no
+ * accepted answer, and an empty `mainEntity` is invalid), or `""` when none do. Serialized with
+ * `JSON.stringify` and `<` escaped — the same breakout guard as `page-head.ts`'s `serializeJsonLd`.
+ *
+ * @complexity O(n · f) over items and their displayed fields.
+ */
+function renderFaqPageJsonLd(items: readonly EntryListItem[]): string {
+  const mainEntity = items
+    .map((item) => ({ name: item.title, text: nonEmptyFieldValues(item).map((entry) => entry.text).join("\n") }))
+    .filter((question) => question.text !== "")
+    .map((question) => ({ "@type": "Question", name: question.name, acceptedAnswer: { "@type": "Answer", text: question.text } }));
+  if (mainEntity.length === 0) return "";
+  const data = { "@context": "https://schema.org", "@type": "FAQPage", mainEntity };
+  return `<script type="application/ld+json">${JSON.stringify(data).replace(/</g, "\\u003c")}</script>`;
 }
 
 /** Resolves one `{{...}}` template placeholder's RAW (unescaped) text for `item`. Unknown
@@ -249,12 +302,26 @@ function renderTemplateItem(template: string, item: EntryListItem): string {
  */
 export function renderEntryList(items: readonly EntryListItem[], options: EntryListRenderOptions): string | undefined {
   if (items.length === 0) return undefined;
+  const structured = options.structuredData === "faq-page" ? renderFaqPageJsonLd(items) : "";
+  return renderEntryListBody(items, options) + structured;
+}
+
+/** {@link renderEntryList}'s markup half, one branch per presentation. @complexity O(n · f). */
+function renderEntryListBody(items: readonly EntryListItem[], options: EntryListRenderOptions): string {
   if (options.template !== undefined) {
     return items.map((item) => renderTemplateItem(options.template as string, item)).join("");
   }
   const typeClass = escapeHtml(options.typeKey);
   if (options.layout === "list") {
     return `<ul class="entry-list entry-list--${typeClass} entry-list--list" data-tovu-entry-list>${items.map(renderListItem).join("")}</ul>`;
+  }
+  if (options.layout === "accordion") {
+    return `<div class="entry-list entry-list--${typeClass} entry-list--accordion" data-tovu-entry-list>${items.map(renderAccordionItem).join("")}</div>`;
+  }
+  if (options.layout === "carousel") {
+    // `tabindex="0"`: an overflowing scroll container must be focusable or keyboard users cannot
+    // scroll it (WCAG 2.1.1).
+    return `<div class="entry-list entry-list--${typeClass} entry-list--carousel" data-tovu-entry-list tabindex="0">${items.map(renderCard).join("")}</div>`;
   }
   return (
     `<div class="entry-list entry-list--${typeClass}" data-tovu-entry-list style="--entry-list-columns:${options.columns}">` +

@@ -7,7 +7,8 @@ import { lstat, realpath, readdir, open, mkdir, mkdtemp, writeFile, rename, rm }
 import path from "node:path";
 import { createHash } from "node:crypto";
 import * as semver from "semver";
-import { validateManifest, type PluginManifest } from "./manifest.js";
+import { validateManifest, type PluginManifest, type PluginTier } from "./manifest.js";
+import { validateDeclarativeManifest } from "./declarative-content-types.js";
 import type { PluginActivationRepoPort } from "./activation.js";
 import { readSitePluginArchive } from "./install-archive.js";
 
@@ -15,9 +16,12 @@ export class PluginInstallError extends Error {
   constructor(public readonly code: string, message: string) { super(message); this.name = "PluginInstallError"; }
 }
 export interface PluginInstallPreview {
-  id: string; name: string; version: string; tier: "tier-3";
+  id: string; name: string; version: string; tier: PluginTier;
   capabilities: readonly string[]; hooks: readonly string[];
+  /** `false` only for a tier-1 (manifest-only) package — the runtime never imports anything for it. */
   hasCode: boolean; digest: string; upgradeFrom?: string;
+  /** Content-type keys the manifest declares (AW-7 Tier 1); created when the plugin is turned on. */
+  contentTypes: readonly string[];
 }
 export type PluginInstallInput = ({ sourceDir: string; archive?: never } | { archive: Uint8Array; sourceDir?: never }) & { replace?: boolean };
 export interface PluginInstallDeps {
@@ -79,6 +83,30 @@ async function snapshot(sourceDir: string): Promise<Map<string, Buffer>> {
   await walk(sourceDir, ""); return files;
 }
 
+/** Files a manifest-only package may carry: documentation, data and images — nothing a browser or
+ *  Node would execute. An allowlist, so a new script-like extension is refused by default (SVG is
+ *  left out on purpose: it can carry script). */
+const DECLARATIVE_DATA_FILE = /(?:^|\/)(?:LICENSE|[^/]+\.(?:json|md|txt|png|jpe?g|gif|webp))$/;
+
+/**
+ * Tier rules for a sideloaded package. Tier-1 (AW-7, 2026-10-04) is the manifest-only tier ADR-024
+ * §1 defines — "zero executable code", so it is safe from any publisher: it may not ship a single
+ * code file, may not declare a code surface, and its `contentTypes` must parse. Anything else must
+ * still be tier-3 with `server/index.mjs`, because a sideloaded manifest cannot grant itself a
+ * verified publisher tier (tier-2 needs the sandbox, which does not exist yet).
+ */
+function checkTierAndCode(candidate: PluginManifest, files: Map<string, Buffer>): void {
+  const declarative = validateDeclarativeManifest({ manifest: candidate });
+  if (declarative.errors.length) fail("PLUGIN_MANIFEST_INVALID", declarative.errors.map((error) => error.message).join("; "));
+  if (candidate.tier === "tier-1") {
+    const code = [...files.keys()].filter((key) => key !== MANIFEST && !DECLARATIVE_DATA_FILE.test(key));
+    if (code.length) fail("PLUGIN_MANIFEST_INVALID", `A declarative (tier-1) plugin must not ship code: ${code.join(", ")}`);
+    return;
+  }
+  if (!files.has("server/index.mjs")) fail("PLUGIN_MANIFEST_INVALID", "server/index.mjs is required.");
+  if (candidate.tier !== "tier-3") fail("PLUGIN_MANIFEST_INVALID", "Local plugins must declare tier-3 (unverified publisher).");
+}
+
 function validatePackage(files: Map<string, Buffer>, builtInIds: readonly string[]): PluginManifest {
   let raw: unknown;
   try { raw = JSON.parse(files.get(MANIFEST)?.toString("utf8") ?? ""); }
@@ -88,9 +116,7 @@ function validatePackage(files: Map<string, Buffer>, builtInIds: readonly string
   if (builtInIds.some((builtin) => builtin.toLowerCase() === id.toLowerCase())) fail("PLUGIN_SHADOWS_BUILT_IN", "Package id belongs to a built-in plugin.");
   const result = validateManifest({ manifest: raw, folderName: id, builtInIds });
   if (result.errors.length || !candidate || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id) || typeof candidate.version !== "string" || !semver.valid(candidate.version) || !/^[0-9A-Za-z][0-9A-Za-z.+-]*$/.test(candidate.version)) fail("PLUGIN_MANIFEST_INVALID", "Package manifest, id or version is invalid.");
-  if (!files.has("server/index.mjs")) fail("PLUGIN_MANIFEST_INVALID", "server/index.mjs is required.");
-  // A sideloaded manifest cannot grant itself a verified publisher tier.
-  if (candidate.tier !== "tier-3") fail("PLUGIN_MANIFEST_INVALID", "Local plugins must declare tier-3 (unverified publisher).");
+  checkTierAndCode(candidate, files);
   if (typeof candidate.name !== "string" || !candidate.name.trim() || typeof candidate.sdkRange !== "string" || !semver.validRange(candidate.sdkRange)) fail("PLUGIN_MANIFEST_INVALID", "A name and valid SDK range are required.");
   if (!candidate.integrity || typeof candidate.integrity !== "object" || Array.isArray(candidate.integrity)) fail("PLUGIN_INTEGRITY_INVALID", "An integrity map is required.");
   const packaged = [...files.keys()].filter((key) => key !== MANIFEST).sort();
@@ -123,7 +149,7 @@ async function inspect(input: PluginInstallInput, deps: PluginInstallDeps) {
   const upgradeFrom = await checkDestination(manifest, input, deps);
   // Include manifest bytes: changed capabilities/name/version must invalidate human consent too.
   const digest = hash(Buffer.from(JSON.stringify([...files].map(([key, bytes]) => [key, hash(bytes)]).sort(([a], [b]) => a! < b! ? -1 : a! > b! ? 1 : 0))));
-  const preview: PluginInstallPreview = { id: manifest.id, name: manifest.name, version: manifest.version, tier: "tier-3", capabilities: manifest.capabilities, hooks: manifest.hooks, hasCode: true, digest, ...(upgradeFrom ? { upgradeFrom } : {}) };
+  const preview: PluginInstallPreview = { id: manifest.id, name: manifest.name, version: manifest.version, tier: manifest.tier, capabilities: manifest.capabilities, hooks: manifest.hooks, hasCode: manifest.tier !== "tier-1", contentTypes: validateDeclarativeManifest({ manifest }).decls.map((decl) => decl.key), digest, ...(upgradeFrom ? { upgradeFrom } : {}) };
   return { files, manifest, preview };
 }
 

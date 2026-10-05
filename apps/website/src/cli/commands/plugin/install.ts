@@ -24,7 +24,9 @@ export function pluginInstallConsent(required: { preview: PluginInstallPreview }
     `Capabilities: ${p.capabilities.join(", ") || "—"}`,
     `Hooks: ${p.hooks.join(", ") || "—"}`,
     ...(p.upgradeFrom ? [`Replaces installed version ${p.upgradeFrom}.`] : []),
-    "This plugin runs code with full access to this computer and every site on it.",
+    // A tier-1 package has nothing to run (install.ts refuses one that ships a code file), so the
+    // full-access warning would be false; say what it does instead.
+    p.hasCode ? "This plugin runs code with full access to this computer and every site on it." : `This plugin contains no code. It adds content types: ${p.contentTypes.join(", ") || "—"}.`,
     "It stays off in every workspace until you turn it on.", "",
   ].join("\n");
 }
