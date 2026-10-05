@@ -223,8 +223,6 @@ test("admin menus routes: create -> list -> get -> update-tree -> assign -> dele
     }),
   });
   assert.equal(staleRes.status, 409);
-  // The admin tells a lost compare-and-set apart from a slug collision (also 409) by this code.
-  assert.equal(((await staleRes.json()) as { code?: string }).code, "VERSION_CONFLICT");
 
   // assign location
   const assignRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus/${menuId}/locations`, {

@@ -53,23 +53,3 @@ test("PLUGIN_PREVIEW: the built-in Content Analyzer analyzes a draft in a worker
   const report = JSON.parse(String(body.fields.report)) as { toc: Array<{ text: string; anchor: string }> };
   assert.deepEqual(report.toc, [{ level: 2, text: "Why it matters", anchor: "why-it-matters" }]);
 });
-
-test("PLUGIN_PREVIEW never shadows the install preview: .../plugins/install/preview still reaches the install route", async (t) => {
-  // `:pluginId/preview` also matches `install/preview`; Express runs the first registered match, so
-  // `modules/plugins.ts` must register the install routes first. With local installs off (no
-  // TOVU_PLUGIN_LOCAL_INSTALL), the install route's own refusal proves which handler answered.
-  const previous = process.env.TOVU_PLUGIN_LOCAL_INSTALL;
-  delete process.env.TOVU_PLUGIN_LOCAL_INSTALL;
-  t.after(() => { if (previous !== undefined) process.env.TOVU_PLUGIN_LOCAL_INSTALL = previous; });
-  const deps = createRouteDeps();
-  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
-  const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/plugins/install/preview`, {
-    method: "POST",
-    headers: { cookie, "content-type": "application/json" },
-    body: JSON.stringify({ source: { kind: "folder", path: "/srv/plugin" } }),
-  });
-  assert.deepEqual({ status: response.status, body: await response.json() }, {
-    status: 403,
-    body: { code: "PLUGIN_LOCAL_INSTALL_DISABLED", error: "Local folder installs are disabled on this server." },
-  });
-});

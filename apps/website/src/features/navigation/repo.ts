@@ -4,7 +4,6 @@ import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import type { MenusTable, NavLocationBindingsTable } from "../../platform/db/content-database.generated.js";
 import { isUniqueViolation } from "../../platform/db/kernel/dialect.js";
 import { MenuConflictError } from "@jini-ai/cms/navigation";
-import { MenuVersionConflictError } from "./menu-version-conflict-error.js";
 import type {
   MenuRepoPort,
   MenuStatus,
@@ -134,7 +133,7 @@ export class SqlMenuRepo implements MenuRepoPort {
    * @throws MenuConflictError when a trashed row holds the slug: `findBySlug` above hides it, so the
    *         app-level slug check could not see it before the INSERT hit the real unique index (the
    *         only unique index left once the id conflict is absorbed by the upsert).
-   * @throws MenuVersionConflictError ``menu '<id>' was modified concurrently (expected version <n>, found <stored|none>)``
+   * @throws MenuConflictError ``menu '<id>' was modified concurrently (expected version <n>, found <stored|none>)``
    *         when the compare-and-set misses (stale version, trashed or missing row).
    * @complexity O(1).
    */
@@ -183,7 +182,7 @@ export class SqlMenuRepo implements MenuRepoPort {
     );
     if (Number(result.numUpdatedRows) > 0) return;
     const found = (await this.findById({ workspaceId: record.workspaceId, id: record.id }))?.version ?? "none";
-    throw new MenuVersionConflictError({ message: `menu '${record.id}' was modified concurrently (expected version ${expectedVersion}, found ${found})` });
+    throw new MenuConflictError({ message: `menu '${record.id}' was modified concurrently (expected version ${expectedVersion}, found ${found})` });
   }
 
   async remove(required: { workspaceId: string; id: string }): Promise<void> {

@@ -138,9 +138,6 @@ export {
  */
 export { trashMenu, type RemoveMenuFn, type TrashMenuInput, type TrashMenuDeps } from "./trash-menu.js";
 
-/** The compare-and-set loss, told apart from the other `MenuConflictError`s — see its own file. */
-export { MenuVersionConflictError } from "./menu-version-conflict-error.js";
-
 /**
  * R4 (`plan-publish-repoint-menus-2026-09-24.md` §2.4/§3): the menu-domain entity reverter(s), so a
  * repoint change set (`./publish-content.ts`'s `repointReferences`) is revertible from History —
