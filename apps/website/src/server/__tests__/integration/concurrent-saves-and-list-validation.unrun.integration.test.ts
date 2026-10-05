@@ -117,18 +117,43 @@ for (const dialect of SITE_DIALECTS) {
       );
     }
 
-    // Controls: a valid page, and the cursor it hands back, are both 200.
-    const first = await expectJson<{ items: Array<{ id: string }>; nextCursor: string | null }>(await timeline(site, "limit=1"), 200);
-    assert.ok(first.items.length <= 1);
-    if (first.nextCursor !== null) {
-      const next = await expectJson<{ items: Array<{ id: string }> }>(await timeline(site, `limit=1&cursor=${encodeURIComponent(first.nextCursor)}`), 200);
-      assert.notDeepEqual(next.items.map((row) => row.id), first.items.map((row) => row.id), "the cursor advances instead of restarting");
-    }
+    // Controls run over rows this test appends itself, filtered to its own `kind`: a fresh site's
+    // journal holds no (or boot-only) rows, so a page-walk or a date filter over it proved nothing.
+    // One row per edge of 2026-01-10: just before it, just after midnight, midday, the last second
+    // of the day, and the first instant of the next day. Newest first is the ledger's order.
+    const kind = "unrun.timeline-control";
+    const rows = [
+      { id: "ctl-day-before", createdAt: "2026-01-09T23:59:59.999Z" },
+      { id: "ctl-after-midnight", createdAt: "2026-01-10T00:00:01.000Z" },
+      { id: "ctl-midday", createdAt: "2026-01-10T12:00:00.000Z" },
+      { id: "ctl-last-second", createdAt: "2026-01-10T23:59:59.000Z" },
+      { id: "ctl-next-day", createdAt: "2026-01-11T00:00:00.000Z" },
+    ];
+    for (const row of rows) await site.deps.databaseLedgerRepo.append({ ...row, kind, outcome: "ok" });
+    const newestFirst = rows.map((row) => row.id).reverse();
 
-    // A date-only toDate covers the whole day (1c134a148): today's rows are all still listed.
-    const today = new Date().toISOString().slice(0, 10);
-    const all = await expectJson<{ items: Array<{ id: string }> }>(await timeline(site, `fromDate=${today}`), 200);
-    const throughToday = await expectJson<{ items: Array<{ id: string }> }>(await timeline(site, `fromDate=${today}&toDate=${today}`), 200);
-    assert.deepEqual(throughToday.items.map((row) => row.id), all.items.map((row) => row.id));
+    // A valid page, and the cursor it hands back, are both 200, and walking the cursor visits every
+    // row exactly once in order (it advances instead of restarting from the newest row).
+    const walked: string[] = [];
+    let cursor: string | null = null;
+    for (let page = 0; page < rows.length + 1; page++) {
+      const query: string = `kind=${encodeURIComponent(kind)}&limit=2${cursor === null ? "" : `&cursor=${encodeURIComponent(cursor)}`}`;
+      const body = await expectJson<{ items: Array<{ id: string }>; nextCursor: string | null }>(await timeline(site, query), 200);
+      assert.ok(body.items.length <= 2, `page ${page} respects limit=2`);
+      walked.push(...body.items.map((row) => row.id));
+      if (page === 0) assert.notEqual(body.nextCursor, null, "five rows at limit=2 must hand back a cursor");
+      cursor = body.nextCursor;
+      if (cursor === null) break;
+    }
+    assert.deepEqual(walked, newestFirst);
+
+    // A date-only toDate covers the whole day (1c134a148): with fromDate and toDate both 2026-01-10,
+    // every row of that day is listed (a bare `<= "2026-01-10"` string bound dropped all three), and
+    // neither neighbouring day leaks in.
+    const day = await expectJson<{ items: Array<{ id: string }> }>(await timeline(site, `kind=${encodeURIComponent(kind)}&fromDate=2026-01-10&toDate=2026-01-10`), 200);
+    assert.deepEqual(
+      day.items.map((row) => row.id),
+      ["ctl-last-second", "ctl-midday", "ctl-after-midnight"]
+    );
   });
 }
