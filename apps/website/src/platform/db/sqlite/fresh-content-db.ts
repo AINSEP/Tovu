@@ -98,6 +98,10 @@ export function bootstrapFreshContentDb(
       client.exec(`CREATE INDEX publish_backstop_log_workspace_at ON publish_backstop_log(workspace_id, at)`);
       client.exec(`CREATE INDEX publish_backstop_log_run ON publish_backstop_log(workspace_id, run_id)`);
     },
+    "0008_posts_publish_at_featured_media": () => {
+      client.exec("ALTER TABLE posts ADD COLUMN publish_at text");
+      client.exec("ALTER TABLE posts ADD COLUMN featured_media_id text");
+    },
   };
   if (migrations.length !== Object.keys(operations).length ||
       migrations.some(step => !Object.hasOwn(operations, step.id))) {

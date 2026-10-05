@@ -23,4 +23,5 @@ export const MIGRATION_CHECKSUMS: Readonly<Record<string, string>> = {
   "0005_media_createdby": "81cefae555b8d577076fcc3adb42ff50be82935d4e76ed13042f9475f3346c5a",
   "0006_submission_ip_retention": "46d094a528ef15a53db38f942c1984194e203afaae931da2c1e8ce61d07f89e7",
   "0007_publish_backstop": "2cb8d296d59a3b5c68cd66d995b8a36c6e5221cabe592e7ffb8a7fc4fabbfc5d",
+  "0008_posts_publish_at_featured_media": "8e8c5e9e817d50991eb5ec93bcaf6f947f6626b207774da00587c06efc4eb149",
 };

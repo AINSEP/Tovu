@@ -875,6 +875,8 @@ export const posts = pgTable("posts", {
   autosaveJson: jsonText("autosave_json"),
   createdByPrincipalId: text("created_by_principal_id"),
   createdAt: text("created_at"),
+  publishAt: text("publish_at"),
+  featuredMediaId: text("featured_media_id"),
 }, (t) => [
     check("posts_body_format_shape", sql`(body_format = 'doc' AND body_json IS NOT NULL AND body_html IS NULL) OR (body_format = 'html' AND body_html IS NOT NULL AND body_json IS NULL)`),
     uniqueIndex("posts_workspace_slug_unique").on(t.workspaceId, t.slug),

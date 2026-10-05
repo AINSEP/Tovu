@@ -10,6 +10,7 @@ import { sqliteChatTables } from "./chat/0001_sqlite_chat_tables.js";
 import { mediaCreatedBy } from "./0005_media_createdby.js";
 import { submissionIpRetentionMigration } from "./0006_submission_ip_retention.js";
 import { publishBackstop } from "./0007_publish_backstop.js";
+import { postsPublishAtFeaturedMedia } from "./0008_posts_publish_at_featured_media.js";
 import { MIGRATION_CHECKSUMS } from "./checksums.js";
 import { LEDGER_TABLE, type MigrationReport, runMigrations } from "./runner.js";
 import type { MigrationStep } from "./step.js";
@@ -41,6 +42,7 @@ export const CONTENT_MIGRATIONS: readonly MigrationStep[] = [
   mediaCreatedBy({ checksum: pinned("0005_media_createdby") }),
   submissionIpRetentionMigration({ checksum: pinned("0006_submission_ip_retention") }),
   publishBackstop({ checksum: pinned("0007_publish_backstop") }),
+  postsPublishAtFeaturedMedia({ checksum: pinned("0008_posts_publish_at_featured_media") }),
 ];
 
 export const CHAT_MIGRATIONS: readonly MigrationStep[] = [

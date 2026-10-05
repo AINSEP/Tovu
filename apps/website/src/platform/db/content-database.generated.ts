@@ -804,6 +804,8 @@ export interface PostsTable {
   autosave_json: string | null;
   created_by_principal_id: string | null;
   created_at: string | null;
+  publish_at: string | null;
+  featured_media_id: string | null;
 }
 
 export interface PresentationSettingsTable {

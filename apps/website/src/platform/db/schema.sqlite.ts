@@ -200,6 +200,16 @@ export const posts = sqliteTable(
      * {@link createdByPrincipalId} is.
      */
     createdAt: text("created_at"),
+    /**
+     * Scheduled publishing (2026-10-05, migration 0008) — ISO UTC instant a `published` row goes
+     * live, or `NULL` for "live as soon as published" (every pre-existing row). A `published` row
+     * whose `publish_at` is still in the future is SCHEDULED: stored as published, hidden from every
+     * public read until the instant passes (render-time check, `contracts/core/scheduled-publish.ts`).
+     */
+    publishAt: text("publish_at"),
+    /** Featured image (2026-10-05, migration 0008) — a `media.id`, or `NULL` for none. No FK: a
+     *  trashed/deleted asset simply resolves to "no image" at render time, like every other media ref. */
+    featuredMediaId: text("featured_media_id"),
   },
   (table) => [
     uniqueIndex("posts_workspace_slug_unique").on(table.workspaceId, table.slug),
