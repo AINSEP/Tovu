@@ -50,16 +50,22 @@ async function restoreLocalCli(page: Page): Promise<void> {
   expect(cleared.ok(), `credential delete: ${cleared.status()}`).toBe(true);
 }
 
-async function postsTitled(page: Page, title: string): Promise<Array<{ id: string; title: string; status: string }>> {
+type PostRow = { id: string; title: string; status: string };
+/** `GET .../posts` returns `{ posts: [{ post: … }] }` (`toAdminPostResponse` envelopes), not bare rows. */
+type PostListResponse = { posts: Array<{ post: PostRow }> };
+
+async function listPosts(page: Page): Promise<PostRow[]> {
   const res = await page.request.get(`${WS_API}/posts`);
   expect(res.status()).toBe(200);
-  return ((await res.json()).posts as Array<{ id: string; title: string; status: string }>).filter((p) => p.title === title);
+  return ((await res.json()) as PostListResponse).posts.map((envelope) => envelope.post);
+}
+
+async function postsTitled(page: Page, title: string): Promise<PostRow[]> {
+  return (await listPosts(page)).filter((p) => p.title === title);
 }
 
 async function postCount(page: Page): Promise<number> {
-  const res = await page.request.get(`${WS_API}/posts`);
-  expect(res.status()).toBe(200);
-  return ((await res.json()).posts as unknown[]).length;
+  return (await listPosts(page)).length;
 }
 
 async function openDockAndSend(page: Page, prompt: string, { doubleClick = false } = {}): Promise<ReturnType<Page["locator"]>> {
