@@ -4,6 +4,7 @@ import path from "node:path";
 
 import { InternalError } from "./errors.js";
 import { resolveSiteName } from "./init-site.js";
+import { carriedKeyFields, readKeyOnlySiteMeta, UNKNOWN_TEMPLATE_ID, UNKNOWN_TEMPLATE_VERSION } from "./key-only-site-meta.js";
 import { readAppliedSchemaIdentityOfFile } from "./read-applied-schema-identity.js";
 import { resolveInstallDirTarget } from "./resolve-install-dir-target.js";
 import { writeJsonFileAtomic } from "./atomic-write.js";
@@ -41,6 +42,13 @@ import type { ConfigJson, SiteMetaJson } from "./types.js";
  * UNKNOWN_TEMPLATE_VERSION} rather than guessed at `"starter"` — `boot-site-dir.ts`'s own EC-07
  * already treats any unrecognized `templateId` as provenance-only (a warning, never a block), which
  * is exactly the honest posture for a site this function did not create from a template at all.
+ * (Both constants live in `key-only-site-meta.ts` since 2026-10-05, which completes a dev site's
+ * key-only meta the same way.)
+ *
+ * A key-only `.site-meta.json` (only `siteKeyId`/`siteKeyFingerprint`, what `npm run dev` mints) is
+ * NOT a marker here: it carries no identity or schema stamp to protect, so it counts as "no meta
+ * yet", and the meta written carries its key fields forward unchanged (`siteId` = `siteKeyId`) —
+ * the key file is found by `siteKeyId`, so dropping it would orphan every sealed secret.
  *
  * Deliberately does NOT reuse `init-site.ts`'s `cleanupAndRethrow` (which `fs.rmSync`s the ENTIRE
  * `target` directory on failure): that helper is correct for `initSite`/`duplicateSite`, which only
@@ -57,12 +65,6 @@ import type { ConfigJson, SiteMetaJson } from "./types.js";
  * `content.db`: only ever reached via {@link readAppliedSchemaIdentityOfFile}, which opens it through
  * `openContentDbReadOnly` — this file never imports `openContentDb` (the migrating one) at all.
  */
-
-/** Stamped when a site's real template provenance cannot be known (it did not come through
- *  `initSite`'s `readTemplate` step) — see this file's header for why this is honest rather than a
- *  guessed `"starter"`. */
-const UNKNOWN_TEMPLATE_ID = "unknown";
-const UNKNOWN_TEMPLATE_VERSION = "0.0.0";
 
 const CONFIG_FILE_NAME = "config.json";
 const SITE_META_FILE_NAME = ".site-meta.json";
@@ -143,6 +145,9 @@ export interface SiteMarkerClassification {
   present: string[];
   /** Marker file names absent at the target, same order. */
   missing: string[];
+  /** True when `.site-meta.json` exists but holds only the site-key fields — counted as missing
+   *  above (it is not a marker), but a caller that completes it in place needs to know it is there. */
+  keyOnlyMeta: boolean;
 }
 
 /**
@@ -154,15 +159,18 @@ export interface SiteMarkerClassification {
  * errors would not be idempotent. Sharing this function rather than re-deriving the two file names
  * in the `cli` layer keeps one source of truth for what a marker pair even is.
  *
+ * A key-only `.site-meta.json` is not a marker (this file's header) and classifies as missing.
+ *
  * @param target - a resolved directory path; a non-existent path classifies as `"none"` (nothing is
  *   present), which is correct — its refusal is `NOT_A_DIRECTORY`, checked separately.
- * @complexity O(1) — two `existsSync` calls.
+ * @complexity O(1) — two `existsSync` calls and at most one small file read.
  */
 export function classifySiteMarkers(target: string): SiteMarkerClassification {
   const names = [CONFIG_FILE_NAME, SITE_META_FILE_NAME];
-  const present = names.filter((name) => fs.existsSync(path.join(target, name)));
+  const keyOnlyMeta = readKeyOnlySiteMeta(target) !== undefined;
+  const present = names.filter((name) => fs.existsSync(path.join(target, name)) && !(keyOnlyMeta && name === SITE_META_FILE_NAME));
   const missing = names.filter((name) => !present.includes(name));
-  return { state: markerState(present.length, names.length), present, missing };
+  return { state: markerState(present.length, names.length), present, missing, keyOnlyMeta };
 }
 
 /** `classifySiteMarkers`'s three-way state, split out so the classification reads as one expression
@@ -236,6 +244,7 @@ async function planSiteRepair(required: RepairSiteRequired): Promise<SiteRepairP
   }
 
   const config: ConfigJson = { name: resolvedName, domain: null, port: null };
+  const keyOnly = readKeyOnlySiteMeta(target);
   const meta: SiteMetaJson = {
     siteId: randomUUID(),
     templateId: UNKNOWN_TEMPLATE_ID,
@@ -243,6 +252,8 @@ async function planSiteRepair(required: RepairSiteRequired): Promise<SiteRepairP
     schemaVersion: identity.idx,
     schemaTag: identity.tag,
     createdAt: new Date().toISOString(),
+    // A key-only meta's key fields are carried forward unchanged (this file's header).
+    ...(keyOnly === undefined ? {} : carriedKeyFields(keyOnly)),
   };
   return { dir: target, config, meta };
 }

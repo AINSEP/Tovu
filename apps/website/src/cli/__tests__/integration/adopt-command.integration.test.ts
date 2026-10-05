@@ -344,6 +344,49 @@ test("a PARTIALLY adopted directory is refused by name, and neither completed no
   }
 });
 
+/** The key-only `.site-meta.json` `npm run dev` writes (2026-10-05): site-key fields and nothing else. */
+const KEY_ONLY_META_TEXT = `{\n  "siteKeyId": "ff81dabf-4800-4b46-8ec7-5939fc82f52e",\n  "siteKeyFingerprint": "03b2912a352b"\n}`;
+
+test("config.json beside a key-only .site-meta.json (a dev site) is adopted by completing the meta, keeping the key fields and config.json", () => {
+  const { parent, dir } = markerlessFixture();
+  try {
+    fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify({ name: "Dev Site", domain: null, port: null }));
+    fs.writeFileSync(path.join(dir, ".site-meta.json"), KEY_ONLY_META_TEXT);
+    const configBytes = fs.readFileSync(path.join(dir, "config.json"), "utf8");
+
+    const dryRun = runCli(["adopt", dir, "--dry-run"]);
+    assert.equal(dryRun.status, 0, `stderr: ${dryRun.stderr}`);
+    assert.equal(fs.readFileSync(path.join(dir, ".site-meta.json"), "utf8"), KEY_ONLY_META_TEXT, "--dry-run writes nothing");
+
+    const result = runCli(["adopt", dir]);
+    assert.equal(result.status, 0, `stderr: ${result.stderr}`);
+    assert.match(result.stdout, /completed its key-only \.site-meta\.json; config\.json kept/);
+    const meta = JSON.parse(fs.readFileSync(path.join(dir, ".site-meta.json"), "utf8")) as Record<string, unknown>;
+    assert.equal(meta.siteKeyId, "ff81dabf-4800-4b46-8ec7-5939fc82f52e");
+    assert.equal(meta.siteKeyFingerprint, "03b2912a352b");
+    assert.equal(meta.siteId, "ff81dabf-4800-4b46-8ec7-5939fc82f52e");
+    assert.equal(fs.readFileSync(path.join(dir, "config.json"), "utf8"), configBytes);
+    assert.equal(runCli(["adopt", dir]).stdout.startsWith("already adopted:"), true, "a re-run is the idempotent no-op");
+  } finally {
+    fs.rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test("a key-only .site-meta.json with no config.json is adopted like a marker-less dir, carrying the key fields forward", () => {
+  const { parent, dir } = markerlessFixture("Key Only");
+  try {
+    fs.writeFileSync(path.join(dir, ".site-meta.json"), KEY_ONLY_META_TEXT);
+    const result = runCli(["adopt", dir]);
+    assert.equal(result.status, 0, `stderr: ${result.stderr}`);
+    const meta = JSON.parse(fs.readFileSync(path.join(dir, ".site-meta.json"), "utf8")) as Record<string, unknown>;
+    assert.equal(meta.siteKeyId, "ff81dabf-4800-4b46-8ec7-5939fc82f52e");
+    assert.equal(meta.siteKeyFingerprint, "03b2912a352b");
+    assert.match(result.stdout, /siteId=ff81dabf-4800-4b46-8ec7-5939fc82f52e/);
+  } finally {
+    fs.rmSync(parent, { recursive: true, force: true });
+  }
+});
+
 test("a directory with no content.db is refused, and any other .db files present are named as candidates rather than silently adopted", () => {
   const parent = mkTempParent();
   const dir = path.join(parent, "not-a-site");

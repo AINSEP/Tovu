@@ -9,6 +9,7 @@ import { runProductionReadinessGateOrExit } from "./server/runtime/boot/boot-rea
 import { warnIfNoSiteKeyAtBoot } from "./server/runtime/boot/site-key-boot-notice.js";
 import { ensureSiteKeyForBoot } from "./features/webhooks/site-key-ensure.js";
 import { findSiteKeyDependentData } from "./platform/site-dir/site-key-dependent-data.js";
+import { completeKeyOnlySiteMeta } from "./platform/site-dir/key-only-site-meta.js";
 import { runBootLifecycle } from "./server/runtime/lifecycle/boot-lifecycle.js";
 import { buildBootModules, logCriticalBootFailures } from "./server/runtime/boot/bootstrap.js";
 import { agentDaemonWanted } from "./server/runtime/boot/agent-daemon-wanted.js";
@@ -241,6 +242,20 @@ async function guardContentDbSchemaOrExit(dbPath: string): Promise<void> {
   process.exit(1);
 }
 
+/**
+ * `ensureSiteKeyForBoot` mints a key-only `.site-meta.json` for a dev site (it runs before the db is
+ * opened, so it cannot know the schema stamp). Once the composition has migrated the db, complete it
+ * — the same completion `bootSiteDir` runs — so this folder also starts through `tovu serve` and the
+ * desktop. This boot never reads the meta, so a failure only warns.
+ */
+async function completeDevSiteMetaOrWarn(dir: string): Promise<void> {
+  try {
+    await completeKeyOnlySiteMeta({ dir });
+  } catch (err) {
+    console.warn(`[site-meta] could not complete the key-only .site-meta.json in ${dir}: ${(err as Error).message}`);
+  }
+}
+
 async function main(): Promise<void> {
   // Fixes a live-found crash (2026-08-16, `process-error-guards.ts`'s own header has the full
   // account): an unhandled async rejection anywhere beneath an Express 4 route handler used to take
@@ -332,6 +347,7 @@ async function main(): Promise<void> {
   const deps = useMemory
     ? createRouteDeps()
     : await createSiteRouteDeps(defaultContentDbPath(), { onStoreOpened: (store) => (siteStore = store) });
+  if (!useMemory) await completeDevSiteMetaOrWarn(siteDir());
   // Boot passes the composition starts and never awaits, which read the store: the legacy
   // publish-credential tail here, `createServingApp`'s BYOK pass below. The store close waits for
   // them (bounded), or a site stopped seconds after boot closes under them (see `await-boot-work.ts`).

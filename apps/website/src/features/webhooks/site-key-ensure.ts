@@ -530,6 +530,11 @@ function mintSiteKeyIdIfAbsent(siteDir: string, mode: RuntimeMode): string | und
  * a corrupt file) — this function reports that honestly as `undefined` rather than minting a SECOND
  * file the first write already made unnecessary.
  *
+ * The file is key-only because this runs before the db is opened, so no schema stamp can be
+ * derived yet. It does not stay that way: the boot completes it once the db is migrated
+ * (`platform/site-dir/key-only-site-meta.ts`, called from `src/index.ts` and `bootSiteDir`), keeping
+ * the `siteKeyId` minted here.
+ *
  * @returns the minted (or, on a lost race, the already-present) `siteKeyId`, or `undefined` when
  *   neither this call's own write nor a re-read of an existing file resolves to one.
  * @throws whatever `writeFileSync` throws other than `EEXIST` (permissions, a missing/non-directory

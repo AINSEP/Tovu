@@ -1,3 +1,4 @@
+import { fingerprintSiteKeyHex } from "#src/features/webhooks/keyring.env";
 import { LEGACY_SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
 import assert from "node:assert/strict";
 import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from "node:child_process";
@@ -218,6 +219,39 @@ test("site-key plan §A3a: a site with sealed key-dependent data and no key anyw
     await waitForHttpReady(port, child);
 
     assert.ok(!fs.existsSync(perSiteFilePath), `expected ${perSiteFilePath} to NOT exist — ensureSiteKeyForBoot must refuse to mint over pre-existing sealed data, never orphan it`);
+  } finally {
+    if (child.exitCode === null && !child.killed) {
+      await stopGracefully(child);
+    }
+    removeFixtureTree(parent);
+    fs.rmSync(tempHome, { recursive: true, force: true });
+  }
+});
+
+test("2026-10-05: a dev site whose .site-meta.json holds only the site-key fields boots via tovu serve, keeps its siteKeyId/fingerprint, and uses the same key file", async () => {
+  const parent = mkTempParent("tovu-serve-key-only-meta-");
+  const tempHome = mkTempParent("tovu-serve-key-only-meta-home-");
+  const dir = initFixture(parent);
+  const siteKeyId = "ff81dabf-4800-4b46-8ec7-5939fc82f52e";
+  const keyHex = "ab".repeat(32);
+  const keyDir = path.join(tempHome, ".tovu", "site-keys");
+  fs.mkdirSync(keyDir, { recursive: true, mode: 0o700 });
+  fs.writeFileSync(path.join(keyDir, `${siteKeyId}.hex`), keyHex, { mode: 0o600 });
+  const fingerprint = fingerprintSiteKeyHex(keyHex);
+  fs.writeFileSync(path.join(dir, ".site-meta.json"), JSON.stringify({ siteKeyId, siteKeyFingerprint: fingerprint }, null, 2));
+
+  const port = await getFreePort();
+  const child = spawnServe([dir, "--port", String(port)], isolatedEnv(tempHome));
+  try {
+    await waitForHttpReady(port, child);
+
+    const meta = JSON.parse(fs.readFileSync(path.join(dir, ".site-meta.json"), "utf8")) as Record<string, unknown>;
+    assert.equal(meta.siteKeyId, siteKeyId);
+    assert.equal(meta.siteKeyFingerprint, fingerprint);
+    assert.equal(meta.siteId, siteKeyId);
+    assert.equal(typeof meta.schemaTag, "string");
+    assert.deepEqual(fs.readdirSync(keyDir), [`${siteKeyId}.hex`], "no second key file may be minted under another id");
+    assert.equal(fs.readFileSync(path.join(keyDir, `${siteKeyId}.hex`), "utf8"), keyHex);
   } finally {
     if (child.exitCode === null && !child.killed) {
       await stopGracefully(child);

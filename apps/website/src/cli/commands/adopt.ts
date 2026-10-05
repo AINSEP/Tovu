@@ -2,7 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { SiteDirInvalidError } from "../../platform/site-dir/index.js";
-import { readSiteDir } from "../../platform/site-dir/read-site-dir.js";
+import { completeKeyOnlySiteMeta, planKeyOnlySiteMetaCompletion } from "../../platform/site-dir/key-only-site-meta.js";
+import { readSiteConfig, readSiteDir } from "../../platform/site-dir/read-site-dir.js";
 import {
   classifySiteMarkers,
   planRepairSite,
@@ -129,11 +130,34 @@ function printDryRun(plan: SiteRepairPlan): void {
 }
 
 /**
+ * A directory with a valid `config.json` and a key-only `.site-meta.json` (what `npm run dev` leaves
+ * behind): only the meta is completed, in place, by the same function `bootSiteDir` uses, so adopt
+ * and serve agree on it. `config.json` is kept as it is — `--name` does not rewrite it.
+ *
+ * @throws {SiteDirInvalidError} `config.json` is invalid, or the meta cannot be completed.
+ */
+async function adoptKeyOnlyMeta(target: string, dryRun: boolean): Promise<void> {
+  const { name } = readSiteConfig({ dir: target });
+  if (dryRun) {
+    const meta = await planKeyOnlySiteMetaCompletion({ dir: target });
+    process.stdout.write(`dry run — nothing was written\n`);
+    process.stdout.write(`would complete the key-only .site-meta.json of site '${name}' at ${target} (config.json kept)\n`);
+    if (meta !== undefined) process.stdout.write(markerLines(name, meta.schemaVersion, meta.schemaTag));
+    return;
+  }
+  const meta = await completeKeyOnlySiteMeta({ dir: target });
+  process.stdout.write(`adopted site '${name}' at ${target} (completed its key-only .site-meta.json; config.json kept)\n`);
+  if (meta !== undefined) process.stdout.write(markerLines(name, meta.schemaVersion, meta.schemaTag));
+  process.stdout.write(`next: tovu serve ${target}\n`);
+}
+
+/**
  * Run `tovu adopt <dir> [--name] [--dry-run]`.
  *
  * Three outcomes beyond the refusals: a directory with NEITHER marker is adopted (or previewed);
  * a directory with BOTH is an idempotent no-op that exits 0 without rewriting either file (so a
- * re-run never churns `siteId`/`createdAt`); a directory with exactly one is refused.
+ * re-run never churns `siteId`/`createdAt`); a directory with exactly one is refused — except
+ * `config.json` beside a key-only `.site-meta.json`, whose meta is completed ({@link adoptKeyOnlyMeta}).
  *
  * @throws {SiteDirInvalidError} the directory is partially adopted.
  * @throws {SiteRepairRefusedError} `site-dir` refused to derive a stamp — not a directory, no
@@ -148,6 +172,10 @@ export async function runAdoptCommand(input: RunAdoptCommandInput): Promise<void
 
   if (markers.state === "complete") {
     process.stdout.write(`already adopted: ${target} already has ${markers.present.join(" and ")} — nothing to do\n`);
+    return;
+  }
+  if (markers.state === "partial" && markers.keyOnlyMeta) {
+    await adoptKeyOnlyMeta(target, input.dryRun === true);
     return;
   }
   if (markers.state === "partial") {

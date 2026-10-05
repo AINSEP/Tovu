@@ -9,7 +9,8 @@ import type { SiteStorage } from "./types.js";
  * (R1 plan §0, ADR-067).
  *
  * Lenient on purpose: a site folder may carry a partial meta file (the dev site's holds only its
- * site-key fields, and the same-directory dev boot never runs `readSiteDir`), or none at all, and
+ * site-key fields until `key-only-site-meta.ts` completes it, and the same-directory dev boot never
+ * runs `readSiteDir`), or none at all, and
  * both mean SQLite, exactly as before this field existed. Only a `storage` value that is present
  * and wrong is refused, because guessing SQLite for a site that asked for Postgres would boot an
  * empty store in its place.

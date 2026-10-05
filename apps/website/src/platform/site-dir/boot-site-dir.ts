@@ -9,6 +9,7 @@ import { runBootDataRepairs } from "#src/server/runtime/composition/boot-data-re
 import { openSiteStore, type SiteStore } from "#src/server/runtime/composition/open-site-store";
 import { writeJsonFileAtomic } from "./atomic-write.js";
 import { SiteCorruptError, SiteDirInvalidError } from "./errors.js";
+import { completeKeyOnlySiteMeta } from "./key-only-site-meta.js";
 import { readSiteDir } from "./read-site-dir.js";
 import { resolveInstallDirTarget } from "./resolve-install-dir-target.js";
 import { resolveWorkspace } from "./resolve-workspace.js";
@@ -92,8 +93,9 @@ export async function closeSiteDirBoot(boot: BootSiteDirResult, composed?: Pick<
  *   (`.site-meta.json` `storage`) `store` is the one opened store (see {@link bootStoreSiteDir}).
  *   `cli/commands/serve.ts` passes either straight to `createSiteRouteDeps`'s `overrides` (no
  *   second db is ever opened for the same boot).
- * @throws {SiteDirInvalidError} `config.json`/`.site-meta.json` invalid (via `readSiteDir`), or
- *   `content.db` missing entirely.
+ * @throws {SiteDirInvalidError} `config.json`/`.site-meta.json` invalid (via `readSiteDir`), a
+ *   key-only `.site-meta.json` that cannot be completed (`key-only-site-meta.ts`), or `content.db`
+ *   missing entirely.
  * @throws {SiteNewerThanRuntimeError} the site's schema is newer than, or diverges from, this
  *   runtime's (BR-05 step 4) — thrown BEFORE the db is opened, so it is never written (AC-06).
  * @throws {SiteCorruptError} `content.db` is unreadable/locked/corrupt (EC-05, RT-002), or the
@@ -106,6 +108,11 @@ export async function closeSiteDirBoot(boot: BootSiteDirResult, composed?: Pick<
 export async function bootSiteDir(required: BootSiteDirRequired, options: BootSiteDirOptions = {}): Promise<BootSiteDirResult> {
   const { dir } = required;
   const target = resolveInstallDirTarget(dir);
+
+  // A dev site's `.site-meta.json` may hold only its site-key fields (`npm run dev` mints that
+  // shape); complete it from the db first, or `readSiteDir` refuses a site that serves fine in dev.
+  // Every folder boot (`serve`, `export`, `plugin install`, the desktop) comes through here.
+  await completeKeyOnlySiteMeta({ dir: target });
 
   // BR-05 steps 1-2: dir/config/meta validation (SiteDirInvalidError).
   const { config, meta } = readSiteDir({ dir: target });
