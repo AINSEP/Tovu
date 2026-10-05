@@ -4,6 +4,7 @@ import type { SurfaceEmission, ToolExecutionContext } from '@jini-ai/core';
 
 import { requireHumanConfirm, type HumanConfirmOutcome } from '../human-confirm.js';
 import { createSurfaceExchangeStore } from '../tool-surface-exchanges.js';
+import { MCP_UI_EXPIRES_AT_META_KEY, type UIResource } from '@jini-ai/ui/mcp-ui/surfaces';
 
 // Author Checklist: replacing the offered-choice guard with `true` must expose a forged
 // choice; dropping every choice must reject the positive case. The real exchange runs, and
@@ -41,3 +42,20 @@ for (const scenario of [
     assert.equal(store.size(), 0, 'the one-shot dialog must close after the answer');
   });
 }
+
+test('the card carries the exchange deadline, so the chat can count it down and close it on time', async (t) => {
+  const controller = new AbortController();
+  t.after(() => controller.abort());
+  const emitted: SurfaceEmission[] = [];
+  const store = createSurfaceExchangeStore({ newExchangeId: () => 'confirmation-8', nowMs: () => 1_000_000 });
+  const ctx = { executionId: 'execution-8', principal: { id: 'operator-8' }, signal: controller.signal } as ToolExecutionContext;
+  const pending = requireHumanConfirm({ ctx, surfaces: { surfaceExchanges: store }, spec: {
+    toolId: 'fixture_confirm', errorCode: 'FIXTURE', title: 'Approve this call?', details: [], confirmLabel: 'Allow',
+  } }, { emitSurface: async (surface: SurfaceEmission) => { emitted.push(surface); } });
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  const resource = emitted[0].payload['resource'] as UIResource;
+  // Default idle deadline (5 min) comes before the 5.5 min lifetime ceiling.
+  assert.equal(resource.resource._meta?.[MCP_UI_EXPIRES_AT_META_KEY], 1_000_000 + 5 * 60 * 1000);
+  store.deliver({ exchangeId: 'confirmation-8', toolId: 'fixture_confirm', principalId: 'operator-8', params: { decision: 'cancel' } });
+  assert.deepEqual(await pending, { confirmed: false, reason: 'declined' });
+});

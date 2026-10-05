@@ -108,6 +108,9 @@ export async function requireHumanConfirm(
     cancel: { label: "Cancel", ...action("cancel") },
     app: { appName: `tovu-${toolId.replaceAll("_", "-")}`, appVersion: "1" },
     preferredFrameSize: ["100%", "340px"],
+    // The chat counts this down and closes the card when it passes, so nobody answers a card the
+    // exchange has stopped waiting on.
+    expiresAtMs: exchange.expiresAtMs(),
   });
 
   const closeOnAbort = () => exchange.close();

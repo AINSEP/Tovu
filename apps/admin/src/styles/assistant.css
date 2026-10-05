@@ -426,6 +426,15 @@
   font-size: 0.9em;
 }
 
+/* The time left to answer a pending card, under its live frame (`McpUiSurfaceCard`'s countdown).
+   Quiet like the closed line it turns into when the deadline passes. */
+.mcpui-surface-expiry {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.85em;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Flattened from `--surface-2` to `--surface` (2026-08-31) now that the pane background is also
    `--surface` (see the header's "ChatPane background grey" note) -- `--surface-2` was the last grey
    left over from before that fix. With no colour difference from the pane left to lean on, the

@@ -200,6 +200,12 @@ export interface SurfaceExchange {
   receive(): Promise<SurfaceMessage>;
   /** Ends the exchange. Idempotent. Any waiting `receive()` resolves `"abandoned"`. */
   close(): void;
+  /**
+   * When the exchange expires if nothing more happens, in epoch ms: the earlier of the idle and
+   * lifetime deadlines. Activity moves the idle one, so read it right before rendering a deadline
+   * for the human; a card drawn just before its `send()` shows a deadline a few ms early, never late.
+   */
+  expiresAtMs(): number;
 }
 
 /**
@@ -431,6 +437,8 @@ interface Registered {
  * @param deps.idleTtlMs - Per-turn inactivity deadline. See {@link DEFAULT_SURFACE_IDLE_TTL_MS}.
  * @param deps.maxLifetimeMs - Total lifetime ceiling. See {@link DEFAULT_SURFACE_MAX_LIFETIME_MS}.
  * @param deps.newExchangeId - Id source, injected so a test can assert a known value.
+ * @param deps.nowMs - Wall clock for {@link SurfaceExchange.expiresAtMs}. The timers themselves stay
+ * on `setTimeout`; this only dates them.
  * @complexity O(1) per send/receive/deliver. Each exchange owns two `unref`'d timers.
  */
 export function createSurfaceExchangeStore(
@@ -438,11 +446,13 @@ export function createSurfaceExchangeStore(
     idleTtlMs?: number;
     maxLifetimeMs?: number;
     newExchangeId?: () => string;
+    nowMs?: () => number;
   } = {}
 ): SurfaceExchangeStore {
   const idleTtlMs = deps.idleTtlMs ?? DEFAULT_SURFACE_IDLE_TTL_MS;
   const maxLifetimeMs = deps.maxLifetimeMs ?? DEFAULT_SURFACE_MAX_LIFETIME_MS;
   const newExchangeId = deps.newExchangeId ?? (() => randomUUID());
+  const nowMs = deps.nowMs ?? (() => Date.now());
 
   const openExchanges = new Map<string, Registered>();
 
@@ -472,12 +482,15 @@ export function createSurfaceExchangeStore(
       // the same posture `@jini-ai/daemon`'s tool executor takes with its own timeout.
       const lifetimeTimer = setTimeout(() => end({ status: "expired" }), maxLifetimeMs);
       lifetimeTimer.unref?.();
+      const lifetimeDeadlineMs = nowMs() + maxLifetimeMs;
+      let idleDeadlineMs: number;
 
       function armIdle(): void {
         if (terminal) return;
         if (idleTimer) clearTimeout(idleTimer);
         idleTimer = setTimeout(() => end({ status: "expired" }), idleTtlMs);
         idleTimer.unref?.();
+        idleDeadlineMs = nowMs() + idleTtlMs;
       }
 
       armIdle();
@@ -514,6 +527,9 @@ export function createSurfaceExchangeStore(
         },
         close() {
           end({ status: "abandoned" });
+        },
+        expiresAtMs() {
+          return Math.min(idleDeadlineMs, lifetimeDeadlineMs);
         },
       };
     },

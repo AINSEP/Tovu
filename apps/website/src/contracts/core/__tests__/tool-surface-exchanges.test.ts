@@ -280,6 +280,26 @@ test("the total-lifetime ceiling ends an exchange that stays busy forever", asyn
   assert.equal(store.size(), 0);
 });
 
+test("expiresAtMs is the earlier of the idle and lifetime deadlines, and moves with activity", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  let now = 10_000;
+  const store = createSurfaceExchangeStore({ idleTtlMs: 300, maxLifetimeMs: 500, nowMs: () => now });
+  const exchange = store.open({ toolId: "t", principalId: "p" }, recordingEmitter().emit);
+  // Opening arms the idle deadline, which comes first.
+  assert.equal(exchange.expiresAtMs(), 10_300);
+  now += 200;
+  t.mock.timers.tick(200);
+  await exchange.send({ channel: "mcp-ui", payload: {} });
+  // Sending re-arms idle to 10_500; the lifetime ceiling is also 10_500.
+  assert.equal(exchange.expiresAtMs(), 10_500);
+  now += 100;
+  t.mock.timers.tick(100);
+  assert.deepEqual(store.deliver({ exchangeId: exchange.id, toolId: "t", principalId: "p", params: {} }), { ok: true });
+  // Idle moved to 10_600, but the lifetime ceiling still ends it at 10_500.
+  assert.equal(exchange.expiresAtMs(), 10_500);
+  exchange.close();
+});
+
 test("send() after the exchange ended is refused, matching the daemon emitter's own posture", async () => {
   const store = createSurfaceExchangeStore();
   const exchange = store.open({ toolId: "t", principalId: "p" }, recordingEmitter().emit);

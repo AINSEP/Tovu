@@ -91,7 +91,7 @@ Re-audited against code/git 2026-10-04 (evening): statuses below marked **PARTLY
 - **Theme Explore: agent-added/removed files and remaining rename/URL cases** (09-16, L1361–1362/L2110): flash + dirty-buffer guard done (`4939448bb`); external file mutations not.
 - **Deep admin translation sweep** (09-22, L2726–2745): many fixes landed (latest `f07a92dcb`); no whole-admin literal/call-site closure.
 - **3b-handoff small follow-ups** (09-14, L1323–1327): footer GET repeats, widget-paste visuals, remaining review comments.
-- **Approval card: expiry countdown + record hints at enable time** (09-28, L3626/L3686): neither built (the baseline needs a content.db record).
+- **Approval card: record hints at enable time** (09-28, L3686): not built. Needs a hints baseline per site + connection + tool in content.db (new table + migration, written when the tool is enabled in Settings → External MCP) and a Jini `@jini-ai/mcp/federation` check that asks again when a first call's hints differ from it. ~~Expiry countdown~~ (L3626) DONE 10-04 (EW4, Jini `d98c0b7e`): every confirm card counts down "Expires in m:ss" and closes as "This question expired" when the deadline passes.
 - **Public-file protection setting** (09-23, L2917/L2972): the published-referrer media gate exists; the owner's user-changeable setting (default protected), readable-slugs Q1, is not built.
 - **Migrate-forward never updates `.site-meta.json`** (09-21, L2612) — **STALE:** false claim; SQLite boot rewrites the stamp after a migration (`platform/site-dir/boot-site-dir.ts:137-141`, since `03cc71442`); Postgres/PGlite sites skip it by design.
 

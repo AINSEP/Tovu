@@ -246,6 +246,10 @@ export const t = createDictionaryTranslator(ASSISTANT_DOCK_DICT);
  * dictionary, the same way `ConversationList` does. Same "one admin copy string is its own i18n
  * key" rule as everywhere else in this app — adding the button without adding these entries would
  * have shown correct copy in English and the bare key literal everywhere else.
+ *
+ * Extended 2026-10-04 with "Expires in {time}"/"This question expired" — `McpUiSurfaceCard`'s
+ * countdown under a pending approval card and the line that replaces the card once its deadline
+ * passes (both rendered by `@jini-ai/chat/react` through this adapter).
  */
 const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
   es: {
@@ -263,6 +267,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     "That folder couldn't be found. Make sure it still exists and try again.": "No se encontró esa carpeta. Asegúrate de que todavía exista e inténtalo de nuevo.",
     "Couldn't set the working folder right now. Try again in a moment.": "No se pudo establecer la carpeta de trabajo ahora mismo. Inténtalo de nuevo en un momento.",
     'Delete "{title}"? This cannot be undone.': '¿Eliminar "{title}"? Esta acción no se puede deshacer.',
+    "Expires in {time}": "Caduca en {time}",
+    "This question expired": "Esta pregunta caducó",
   },
   id: {
     Conversations: "Percakapan",
@@ -279,6 +285,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     "That folder couldn't be found. Make sure it still exists and try again.": "Folder itu tidak ditemukan. Pastikan masih ada, lalu coba lagi.",
     "Couldn't set the working folder right now. Try again in a moment.": "Folder kerja tidak dapat diatur sekarang. Coba lagi sebentar lagi.",
     'Delete "{title}"? This cannot be undone.': 'Hapus "{title}"? Tindakan ini tidak dapat dibatalkan.',
+    "Expires in {time}": "Kedaluwarsa dalam {time}",
+    "This question expired": "Pertanyaan ini sudah kedaluwarsa",
   },
   de: {
     Conversations: "Unterhaltungen",
@@ -295,6 +303,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     "That folder couldn't be found. Make sure it still exists and try again.": "Dieser Ordner wurde nicht gefunden. Stellen Sie sicher, dass er noch vorhanden ist, und versuchen Sie es erneut.",
     "Couldn't set the working folder right now. Try again in a moment.": "Der Arbeitsordner konnte jetzt nicht festgelegt werden. Versuchen Sie es gleich noch einmal.",
     'Delete "{title}"? This cannot be undone.': '„{title}“ löschen? Dies kann nicht rückgängig gemacht werden.',
+    "Expires in {time}": "Läuft ab in {time}",
+    "This question expired": "Diese Frage ist abgelaufen",
   },
   "zh-CN": {
     Conversations: "对话",
@@ -311,6 +321,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     "That folder couldn't be found. Make sure it still exists and try again.": "找不到该文件夹。请确认它仍然存在，然后重试。",
     "Couldn't set the working folder right now. Try again in a moment.": "暂时无法设置工作文件夹。请稍后重试。",
     'Delete "{title}"? This cannot be undone.': '删除“{title}”？此操作无法撤销。',
+    "Expires in {time}": "{time} 后过期",
+    "This question expired": "此问题已过期",
   },
   "zh-TW": {
     Conversations: "對話",
@@ -327,6 +339,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     "That folder couldn't be found. Make sure it still exists and try again.": "找不到該資料夾。請確認它仍然存在，然後再試一次。",
     "Couldn't set the working folder right now. Try again in a moment.": "目前無法設定工作資料夾。請稍後再試。",
     'Delete "{title}"? This cannot be undone.': '刪除「{title}」？此操作無法復原。',
+    "Expires in {time}": "{time} 後過期",
+    "This question expired": "此問題已過期",
   },
   "pt-BR": {
     Conversations: "Conversas",
@@ -343,6 +357,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     "That folder couldn't be found. Make sure it still exists and try again.": "Essa pasta não foi encontrada. Verifique se ela ainda existe e tente novamente.",
     "Couldn't set the working folder right now. Try again in a moment.": "Não foi possível definir a pasta de trabalho agora. Tente novamente em instantes.",
     'Delete "{title}"? This cannot be undone.': 'Excluir "{title}"? Isso não pode ser desfeito.',
+    "Expires in {time}": "Expira em {time}",
+    "This question expired": "Esta pergunta expirou",
   },
   ru: {
     Conversations: "Беседы",
@@ -359,6 +375,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     "That folder couldn't be found. Make sure it still exists and try again.": "Эта папка не найдена. Убедитесь, что она всё ещё существует, и повторите попытку.",
     "Couldn't set the working folder right now. Try again in a moment.": "Не удалось назначить рабочую папку прямо сейчас. Повторите попытку через некоторое время.",
     'Delete "{title}"? This cannot be undone.': 'Удалить «{title}»? Это действие нельзя отменить.',
+    "Expires in {time}": "Истекает через {time}",
+    "This question expired": "Срок ответа на этот вопрос истёк",
   },
   fa: {
     Conversations: "گفتگوها",
@@ -375,6 +393,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     "That folder couldn't be found. Make sure it still exists and try again.": "این پوشه پیدا نشد. مطمئن شوید هنوز وجود دارد و دوباره تلاش کنید.",
     "Couldn't set the working folder right now. Try again in a moment.": "اکنون نمی‌توان پوشهٔ کاری را تنظیم کرد. کمی بعد دوباره تلاش کنید.",
     'Delete "{title}"? This cannot be undone.': '«{title}» حذف شود؟ این کار قابل بازگشت نیست.',
+    "Expires in {time}": "انقضا تا {time}",
+    "This question expired": "مهلت این پرسش تمام شد",
   },
   ar: {
     Conversations: "المحادثات",
@@ -391,6 +411,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     "That folder couldn't be found. Make sure it still exists and try again.": "تعذر العثور على هذا المجلد. تأكد من أنه لا يزال موجودًا وحاول مرة أخرى.",
     "Couldn't set the working folder right now. Try again in a moment.": "تعذر تعيين مجلد العمل الآن. حاول مرة أخرى بعد قليل.",
     'Delete "{title}"? This cannot be undone.': 'هل تريد حذف "{title}"؟ لا يمكن التراجع عن هذا الإجراء.',
+    "Expires in {time}": "تنتهي الصلاحية خلال {time}",
+    "This question expired": "انتهت صلاحية هذا السؤال",
   },
   ja: {
     Conversations: "会話",
@@ -407,6 +429,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     "That folder couldn't be found. Make sure it still exists and try again.": "そのフォルダーが見つかりません。まだ存在することを確認して、もう一度お試しください。",
     "Couldn't set the working folder right now. Try again in a moment.": "現在、作業フォルダーを設定できません。しばらくしてからもう一度お試しください。",
     'Delete "{title}"? This cannot be undone.': '「{title}」を削除しますか？ この操作は元に戻せません。',
+    "Expires in {time}": "残り {time} で期限切れ",
+    "This question expired": "この質問は期限切れです",
   },
   ko: {
     Conversations: "대화",
@@ -423,6 +447,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     "That folder couldn't be found. Make sure it still exists and try again.": "해당 폴더를 찾을 수 없습니다. 아직 존재하는지 확인한 후 다시 시도하세요.",
     "Couldn't set the working folder right now. Try again in a moment.": "지금은 작업 폴더를 설정할 수 없습니다. 잠시 후 다시 시도하세요.",
     'Delete "{title}"? This cannot be undone.': '"{title}"을(를) 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.',
+    "Expires in {time}": "{time} 후 만료",
+    "This question expired": "이 질문은 만료되었습니다",
   },
   pl: {
     Conversations: "Rozmowy",
@@ -439,6 +465,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     "That folder couldn't be found. Make sure it still exists and try again.": "Nie znaleziono tego folderu. Upewnij się, że nadal istnieje, i spróbuj ponownie.",
     "Couldn't set the working folder right now. Try again in a moment.": "Nie można teraz ustawić folderu roboczego. Spróbuj ponownie za chwilę.",
     'Delete "{title}"? This cannot be undone.': 'Usunąć „{title}”? Tej operacji nie można cofnąć.',
+    "Expires in {time}": "Wygasa za {time}",
+    "This question expired": "To pytanie wygasło",
   },
   hu: {
     Conversations: "Beszélgetések",
@@ -455,6 +483,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     "That folder couldn't be found. Make sure it still exists and try again.": "A mappa nem található. Ellenőrizze, hogy még létezik-e, majd próbálja újra.",
     "Couldn't set the working folder right now. Try again in a moment.": "A munkamappa most nem állítható be. Próbálja újra egy pillanat múlva.",
     'Delete "{title}"? This cannot be undone.': '„{title}” törlése? Ez nem vonható vissza.',
+    "Expires in {time}": "Lejár: {time}",
+    "This question expired": "Ez a kérdés lejárt",
   },
   fr: {
     Conversations: "Conversations",
@@ -471,6 +501,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     "That folder couldn't be found. Make sure it still exists and try again.": "Ce dossier est introuvable. Vérifiez qu’il existe toujours, puis réessayez.",
     "Couldn't set the working folder right now. Try again in a moment.": "Impossible de définir le dossier de travail pour le moment. Réessayez dans un instant.",
     'Delete "{title}"? This cannot be undone.': 'Supprimer « {title} » ? Cette action est irréversible.',
+    "Expires in {time}": "Expire dans {time}",
+    "This question expired": "Cette question a expiré",
   },
   uk: {
     Conversations: "Розмови",
@@ -487,6 +519,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     "That folder couldn't be found. Make sure it still exists and try again.": "Цю папку не знайдено. Переконайтеся, що вона ще існує, і спробуйте знову.",
     "Couldn't set the working folder right now. Try again in a moment.": "Зараз не вдалося встановити робочу папку. Спробуйте ще раз за мить.",
     'Delete "{title}"? This cannot be undone.': 'Видалити «{title}»? Цю дію не можна скасувати.',
+    "Expires in {time}": "Спливає через {time}",
+    "This question expired": "Термін відповіді на це питання минув",
   },
   tr: {
     Conversations: "Konuşmalar",
@@ -503,6 +537,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     "That folder couldn't be found. Make sure it still exists and try again.": "Bu klasör bulunamadı. Hâlâ mevcut olduğundan emin olun ve yeniden deneyin.",
     "Couldn't set the working folder right now. Try again in a moment.": "Çalışma klasörü şu anda ayarlanamadı. Biraz sonra yeniden deneyin.",
     'Delete "{title}"? This cannot be undone.': '"{title}" silinsin mi? Bu işlem geri alınamaz.',
+    "Expires in {time}": "{time} içinde süresi doluyor",
+    "This question expired": "Bu sorunun süresi doldu",
   },
   th: {
     Conversations: "การสนทนา",
@@ -519,6 +555,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     "That folder couldn't be found. Make sure it still exists and try again.": "ไม่พบโฟลเดอร์นั้น โปรดตรวจสอบว่ายังมีอยู่แล้วลองอีกครั้ง",
     "Couldn't set the working folder right now. Try again in a moment.": "ไม่สามารถตั้งค่าโฟลเดอร์ทำงานได้ในขณะนี้ โปรดลองอีกครั้งในอีกสักครู่",
     'Delete "{title}"? This cannot be undone.': 'ลบ "{title}" ใช่หรือไม่ การดำเนินการนี้ไม่สามารถย้อนกลับได้',
+    "Expires in {time}": "หมดเวลาใน {time}",
+    "This question expired": "คำถามนี้หมดเวลาแล้ว",
   },
   it: {
     Conversations: "Conversazioni",
@@ -535,6 +573,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     "That folder couldn't be found. Make sure it still exists and try again.": "Impossibile trovare quella cartella. Verifica che esista ancora e riprova.",
     "Couldn't set the working folder right now. Try again in a moment.": "Impossibile impostare la cartella di lavoro al momento. Riprova tra poco.",
     'Delete "{title}"? This cannot be undone.': 'Eliminare "{title}"? Questa azione non può essere annullata.',
+    "Expires in {time}": "Scade tra {time}",
+    "This question expired": "Questa domanda è scaduta",
   },
   hi: {
     Conversations: "बातचीत",
@@ -551,6 +591,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     "That folder couldn't be found. Make sure it still exists and try again.": "वह फ़ोल्डर नहीं मिला। सुनिश्चित करें कि वह अभी भी मौजूद है और फिर से प्रयास करें।",
     "Couldn't set the working folder right now. Try again in a moment.": "अभी कार्य फ़ोल्डर सेट नहीं किया जा सका। थोड़ी देर में फिर से प्रयास करें।",
     'Delete "{title}"? This cannot be undone.': '"{title}" हटाएं? इसे पूर्ववत नहीं किया जा सकता।',
+    "Expires in {time}": "{time} में समाप्त",
+    "This question expired": "इस प्रश्न की समय-सीमा समाप्त हो गई",
   },
   ur: {
     Conversations: "گفتگو",
@@ -567,6 +609,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     "That folder couldn't be found. Make sure it still exists and try again.": "وہ فولڈر نہیں ملا۔ یقینی بنائیں کہ وہ اب بھی موجود ہے اور دوبارہ کوشش کریں۔",
     "Couldn't set the working folder right now. Try again in a moment.": "اس وقت ورکنگ فولڈر سیٹ نہیں کیا جا سکا۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔",
     'Delete "{title}"? This cannot be undone.': '"{title}" حذف کریں؟ اسے واپس نہیں لایا جا سکتا۔',
+    "Expires in {time}": "{time} میں ختم",
+    "This question expired": "اس سوال کی مدت ختم ہو گئی",
   },
   bn: {
     Conversations: "কথোপকথন",
@@ -583,6 +627,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     "That folder couldn't be found. Make sure it still exists and try again.": "ফোল্ডারটি খুঁজে পাওয়া যায়নি। এটি এখনও আছে কিনা নিশ্চিত করে আবার চেষ্টা করুন।",
     "Couldn't set the working folder right now. Try again in a moment.": "এখন কাজের ফোল্ডার সেট করা যায়নি। একটু পরে আবার চেষ্টা করুন।",
     'Delete "{title}"? This cannot be undone.': '"{title}" মুছবেন? এটি পূর্বাবস্থায় ফেরানো যাবে না।',
+    "Expires in {time}": "{time} পরে মেয়াদ শেষ",
+    "This question expired": "এই প্রশ্নের মেয়াদ শেষ হয়েছে",
   },
 };
 

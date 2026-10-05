@@ -36,3 +36,20 @@ describe("createChatI18nAdapter — interpolation", () => {
     expect(t(DELETE_TEMPLATE, { title: "My Post" })).toBe('Delete "My Post"? This cannot be undone.');
   });
 });
+
+const CHAT_LOCALES = [
+  "ar", "bn", "de", "es", "fa", "fr", "hi", "hu", "id", "it",
+  "ja", "ko", "pl", "pt-BR", "ru", "th", "tr", "uk", "ur", "zh-CN", "zh-TW",
+];
+
+describe("createChatI18nAdapter — the approval card's countdown and expired label", () => {
+  it.each(CHAT_LOCALES)("%s translates the countdown and keeps the time in it", (locale) => {
+    const text = createChatI18nAdapter(locale).t("Expires in {time}", { time: "4:59" });
+    expect(text).not.toBe("Expires in 4:59");
+    expect(text).toContain("4:59");
+  });
+
+  it.each(CHAT_LOCALES)("%s translates the expired label", (locale) => {
+    expect(createChatI18nAdapter(locale).t("This question expired")).not.toBe("This question expired");
+  });
+});
