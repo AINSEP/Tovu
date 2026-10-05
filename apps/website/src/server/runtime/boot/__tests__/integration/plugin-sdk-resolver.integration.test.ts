@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { pathToFileURL } from "node:url";
 
-import { PluginSdkResolverAlreadyRegisteredError, registerPluginSdkResolver } from "../../plugin-sdk-resolver.js";
+import { registerPluginSdkResolver } from "../../plugin-sdk-resolver.js";
 
 /**
  * @file C-015 `registerPluginSdkResolver()` — SPEC-005 ADR "SDK Resolution Mechanism". **CIC U-002
@@ -76,10 +77,14 @@ test("CIC U-002-B1/ORD1 (ESCALATE_SECURITY): after registration, a plugin's bare
 });
 
 test("CIC U-002: calling registerPluginSdkResolver() a second time in the same process throws PluginSdkResolverAlreadyRegisteredError specifically, not just any error", () => {
-  // NOTE: the first call in this file (above) already registered the hook for this process. A
-  // second call here must fail loudly with the SPECIFIC typed error (Contract Map: "should no-op
-  // or throw clearly, not double-register") — asserting the specific class (not just "throws
-  // something") keeps this test from being vacuously green against the pre-implementation stub,
-  // which currently throws a plain Error for an unrelated reason ("not implemented").
-  assert.throws(() => registerPluginSdkResolver(), PluginSdkResolverAlreadyRegisteredError);
+  // A fresh process owns both registrations, so this test also works with --test-name-pattern.
+  const moduleUrl = new URL("../../plugin-sdk-resolver.ts", import.meta.url).href;
+  const child = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", `
+    import assert from "node:assert/strict";
+    import { registerPluginSdkResolver, PluginSdkResolverAlreadyRegisteredError } from ${JSON.stringify(moduleUrl)};
+    registerPluginSdkResolver({ sdkModulePath: ${JSON.stringify(new URL(import.meta.url).pathname)} });
+    assert.throws(() => registerPluginSdkResolver(), PluginSdkResolverAlreadyRegisteredError);
+  `], { encoding: "utf8", timeout: 20_000 });
+  assert.equal(child.error, undefined);
+  assert.equal(child.status, 0, child.stderr);
 });

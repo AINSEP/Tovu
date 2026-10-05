@@ -824,10 +824,15 @@ test("SPEC-006 REQ-05: presentation routes are gated by theme.set — a principa
   assert.equal(getDeniedBody.details.permission, "theme.set");
   assert.equal(getDeniedBody.details.reason, "no_grant");
 
+  const beforeResponse = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/presentation`, { headers: { cookie: ownerCookie } });
+  assert.equal(beforeResponse.status, 200);
+  const before = (await beforeResponse.json()).settings.activeThemeId;
+  const target = deps.themes.find((theme) => theme.status === "valid" && theme.manifest.id !== before);
+  assert.ok(target, "use a valid, different theme so only authorization can reject this write");
   const patchDenied = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/presentation`, {
     method: "PATCH",
     headers: { "content-type": "application/json", cookie: bareCookie },
-    body: JSON.stringify({ activeThemeId: "column" }),
+    body: JSON.stringify({ activeThemeId: target.manifest.id }),
   });
   assert.equal(patchDenied.status, 403);
 
@@ -835,6 +840,7 @@ test("SPEC-006 REQ-05: presentation routes are gated by theme.set — a principa
     headers: { cookie: ownerCookie },
   });
   assert.equal(getAllowed.status, 200);
+  assert.equal((await getAllowed.json()).settings.activeThemeId, before);
 });
 
 test("SPEC-006 REQ-05: change-set routes are gated by changeset.read/changeset.revert — a principal without them is denied 403, the owner still succeeds", async (t) => {

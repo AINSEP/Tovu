@@ -101,13 +101,19 @@ const SELECT_OPTIONS: SelectOption[] = [
 describe("Select agentHandle", () => {
   it("omits data-agent-* everywhere (trigger, search, options) when agentHandle is not passed", async () => {
     const user = userEvent.setup();
-    render(<Select value="" onChange={() => {}} options={SELECT_OPTIONS} aria-label="Pick one" />);
+    const searchableOptions = Array.from({ length: 8 }, (_, i) => ({ value: `option-${i}`, label: `Option ${i}` }));
+    render(<Select value="" onChange={() => {}} options={searchableOptions} aria-label="Pick one" />);
     const trigger = screen.getByRole("combobox", { name: "Pick one" });
     expect(trigger).not.toHaveAttribute(AGENT_ELEMENT);
 
     await user.click(trigger);
+    expect(screen.getByPlaceholderText("Search…")).toBeInTheDocument();
+    expect(screen.getAllByRole("option")).toHaveLength(8);
     for (const option of screen.getAllByRole("option")) {
       expect(option).not.toHaveAttribute(AGENT_ELEMENT);
+    }
+    for (const element of document.body.querySelectorAll("*")) {
+      expect(element.getAttributeNames().filter((name) => name.startsWith("data-agent-"))).toEqual([]);
     }
   });
 

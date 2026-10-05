@@ -32,6 +32,12 @@ test("each malformed shape is refused with its exact reason", () => {
   assert.equal(parseDescriptorI18n({ es: { ["a".repeat(501)]: "x" } }, "i18n"), "i18n.es keys must be non-empty English text of at most 500 characters");
 });
 
+test("translation length accepts 2000 characters and refuses 2001", () => {
+  const atLimit = { es: { Owner: "x".repeat(2000) } };
+  assert.deepEqual(parseDescriptorI18n(atLimit, "i18n"), atLimit);
+  assert.equal(parseDescriptorI18n({ es: { Owner: "x".repeat(2001) } }, "i18n"), "i18n.es translations must be non-empty strings of at most 2000 characters");
+});
+
 test("the caps on locales and strings per locale hold", () => {
   const tooManyLocales = Object.fromEntries(Array.from({ length: 65 }, (_, i) => [`x${String.fromCharCode(97 + (i % 26))}${String.fromCharCode(97 + Math.floor(i / 26))}`, {}]));
   assert.equal(parseDescriptorI18n(tooManyLocales, "i18n"), "i18n must declare at most 64 locales");

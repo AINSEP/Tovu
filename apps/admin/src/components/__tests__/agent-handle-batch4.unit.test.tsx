@@ -36,6 +36,10 @@ describe("EmbedInsertControl agentHandle", () => {
 
     await openMenu(user);
     expect(screen.getByRole("menuitem", { name: "Media" })).not.toHaveAttribute(AGENT_ELEMENT);
+    expect(screen.getAllByRole("menuitem")).toHaveLength(4);
+    for (const element of document.body.querySelectorAll("*")) {
+      expect(element.getAttributeNames().filter((name) => name.startsWith("data-agent-"))).toEqual([]);
+    }
   });
 
   it("publishes the trigger directly under the base, and each menu item under a literal action name", async () => {

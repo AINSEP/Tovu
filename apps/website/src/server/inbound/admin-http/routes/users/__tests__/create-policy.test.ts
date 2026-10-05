@@ -79,7 +79,7 @@ test("CREATE_POLICY route: direct invoke fallback for nullish params.workspaceId
 });
 
 test("CREATE_POLICY route: 201 on success without description", async (t) => {
-  const { app } = await buildApp();
+  const { app, deps } = await buildApp();
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}${URL_BASE}`, {
@@ -91,10 +91,16 @@ test("CREATE_POLICY route: 201 on success without description", async (t) => {
   const body = (await res.json()) as { policy: { name: string; description?: string } };
   assert.equal(body.policy.name, "test-policy-1");
   assert.equal(body.policy.description, undefined);
+  const stored = await deps.policyRepo.findByName({ workspaceId: WORKSPACE_ID, name: "test-policy-1" });
+  assert.ok(stored);
+  assert.equal(stored.name, "test-policy-1");
+  assert.equal(stored.description, undefined);
+  assert.equal(stored.isBuiltin, false);
+  assert.equal(stored.isFrozen, false);
 });
 
 test("CREATE_POLICY route: 201 on success with description", async (t) => {
-  const { app } = await buildApp();
+  const { app, deps } = await buildApp();
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}${URL_BASE}`, {
@@ -106,6 +112,12 @@ test("CREATE_POLICY route: 201 on success with description", async (t) => {
   const body = (await res.json()) as { policy: { name: string; description?: string } };
   assert.equal(body.policy.name, "test-policy-2");
   assert.equal(body.policy.description, "custom description");
+  const stored = await deps.policyRepo.findByName({ workspaceId: WORKSPACE_ID, name: "test-policy-2" });
+  assert.ok(stored);
+  assert.equal(stored.name, "test-policy-2");
+  assert.equal(stored.description, "custom description");
+  assert.equal(stored.isBuiltin, false);
+  assert.equal(stored.isFrozen, false);
 });
 
 test("CREATE_POLICY route: 400 VALIDATION_ERROR when name is invalid", async (t) => {

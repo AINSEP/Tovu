@@ -80,10 +80,10 @@ test("checkContentDbSchema(): a db whose latest applied migration matches no ent
 
   const result = await checkContentDbSchema(dbPath);
   assert.equal(result.status, "refuse");
-  assert.ok(
-    result.status === "refuse" && result.message.length > 0,
-    "a 'refuse' result must carry an explanatory message a developer can act on"
-  );
+  if (result.status !== "refuse") assert.fail("expected refusal");
+  assert.ok(result.message.includes(dbPath));
+  assert.match(result.message, /applied migration.*bundled/s);
+  assert.match(result.message, /divergent schema lineage/);
 });
 
 test("checkContentDbSchema(): divergent migration lineage returns a refusal without throwing", async () => {
@@ -99,4 +99,17 @@ test("checkContentDbSchema(): divergent migration lineage returns a refusal with
 
   await assert.doesNotReject(() => checkContentDbSchema(dbPath));
   assert.equal((await checkContentDbSchema(dbPath)).status, "refuse");
+});
+
+test("checkContentDbSchema(): an older real migration is safe to migrate forward", async (t) => {
+  const dbPath = mkTempDbPath();
+  t.after(() => fs.rmSync(path.dirname(dbPath), { recursive: true, force: true }));
+  const journal = JSON.parse(fs.readFileSync(new URL("../../../../platform/db/drizzle/meta/_journal.json", import.meta.url), "utf8"));
+  assert.ok(journal.entries.length >= 2);
+  const older = journal.entries.at(-2);
+  const sqlite = new Database(dbPath);
+  sqlite.exec("CREATE TABLE __drizzle_migrations (id INTEGER PRIMARY KEY, hash text NOT NULL, created_at numeric)");
+  sqlite.prepare("INSERT INTO __drizzle_migrations (hash, created_at) VALUES (?, ?)").run("older-migration", older.when);
+  sqlite.close();
+  assert.deepEqual(await checkContentDbSchema(dbPath), { status: "ok" });
 });

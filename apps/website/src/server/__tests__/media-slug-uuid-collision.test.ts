@@ -5,7 +5,7 @@ import type { AddressInfo } from "node:net";
 import test from "node:test";
 
 import { createApp, createRouteDeps } from "../runtime/composition/app.js";
-import { updateMediaMetadata, uploadMedia } from "../../features/media/index.js";
+import { MediaValidationError, updateMediaMetadata, uploadMedia } from "../../features/media/index.js";
 
 /**
  * @file A media SLUG that spells another asset's UUID (2026-09-07 audit, claim #3).
@@ -70,7 +70,11 @@ test("media slug: a slug spelling ANOTHER asset's id is rejected at the write pa
         deps: { clock: deps.clock, mediaRepo: deps.mediaRepo },
         input: { workspaceId: deps.workspaceId, id: attacker.id, slug: victim.id },
       }),
-    /slug/i,
+    (error: unknown) => {
+      assert.ok(error instanceof MediaValidationError);
+      assert.equal(error.message, "slug must use lowercase letters, numbers, and dashes, and must not be shaped like a UUID");
+      return true;
+    },
     "a UUID-shaped slug must be refused — it can only ever shadow an id"
   );
 });

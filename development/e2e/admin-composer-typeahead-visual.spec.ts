@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page, type Locator } from "@playwright/test";
 import { loginAsAdmin } from "./auth-fixtures.js";
 
 /**
@@ -26,6 +26,16 @@ import { loginAsAdmin } from "./auth-fixtures.js";
  */
 async function prepareForScreenshot(page: Page): Promise<void> {
   await page.emulateMedia({ reducedMotion: "reduce" });
+}
+
+async function expectInsideViewport(page: Page, popover: Locator): Promise<void> {
+  const viewport = page.viewportSize();
+  expect(viewport).not.toBeNull();
+  await expect.poll(async () => {
+    const box = await popover.boundingBox();
+    return !!box && box.width > 0 && box.height > 0 && box.x >= 0 && box.y >= 0
+      && box.x + box.width <= viewport!.width && box.y + box.height <= viewport!.height;
+  }).toBe(true);
 }
 
 async function openDock(page: Page) {
@@ -57,6 +67,7 @@ test.describe("admin composer type-ahead menu visual regression", () => {
 
     const palette = page.locator("#jini-composer-slash-menu");
     await expect(palette).toBeVisible();
+    await expectInsideViewport(page, palette);
 
     await expect(dock).toHaveScreenshot("composer-dock-slash-menu-open.png", { animations: "disabled" });
   });
@@ -67,6 +78,7 @@ test.describe("admin composer type-ahead menu visual regression", () => {
     await page.locator('button[aria-label="Add context"]').click();
     const menu = page.locator(".jini-composer-discovery-menu");
     await expect(menu).toBeVisible();
+    await expectInsideViewport(page, menu);
 
     await expect(dock).toHaveScreenshot("composer-dock-discovery-menu-open.png", { animations: "disabled" });
   });

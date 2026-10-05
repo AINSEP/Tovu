@@ -236,3 +236,12 @@ test("recent-entries schema: maxItems is still required even when collection key
     fieldErrors: [{ field: "config.maxItems", reason: "required field is missing" }],
   });
 });
+
+test("recent-entries schema: where, sort and columns reject wrong types", () => {
+  const schema = getWidgetTypeRegistration("recent-entries").configSchema;
+  for (const [field, value, reason] of [["where", "cuisine", "expected an object"], ["sort", 42, "expected a string"], ["columns", "2", "expected an integer"]] as const) {
+    assert.deepEqual(validateWidgetConfig({ schema, config: { maxItems: 5, [field]: value } }), {
+      valid: false, fieldErrors: [{ field: `config.${field}`, reason }],
+    });
+  }
+});

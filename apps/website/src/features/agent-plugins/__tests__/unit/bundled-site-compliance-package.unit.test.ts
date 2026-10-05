@@ -93,7 +93,9 @@ test("SKILL.md's output contract requires citations, forbids verdicts, and manda
   assert.ok(contract.includes("Write the citation inline with the finding."));
   assert.ok(contract.includes("If the evidence tool\n  returned `unavailable`, you observed nothing — say `cannot-determine`."));
   assert.ok(contract.includes('### 4. "Cannot determine" is a required output, not a fallback'));
-  assert.ok(contract.includes("Never emit, in any wording:"));
+  assert.ok(contract.includes("### 3. Banned outputs\n\nNever emit, in any wording:"));
+  assert.ok(contract.includes('- "This site is GDPR compliant" / "non-compliant" / "compliant" / "in violation" / "passes" /\n  "fails" — for any regulation or standard, with or without hedging adverbs.'));
+  assert.ok(contract.includes("- A score, a grade, a percentage, or a pass/fail count that reads as a verdict."));
   const skill = markdown.toLowerCase();
 
   assert.ok(skill.includes("cannot-determine") || skill.includes("cannot determine"));

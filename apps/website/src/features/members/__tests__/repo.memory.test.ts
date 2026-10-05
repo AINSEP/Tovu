@@ -11,9 +11,9 @@ const WORKSPACE_ID = "ws-1";
 
 test("InMemoryMemberRepo.list paginates by id cursor within a workspace", async () => {
   const repo = new InMemoryMemberRepo([
+    { id: "m-3", workspaceId: WORKSPACE_ID, email: "c@example.com", status: "active", createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z", version: 1 },
     { id: "m-1", workspaceId: WORKSPACE_ID, email: "a@example.com", status: "active", createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z", version: 1 },
     { id: "m-2", workspaceId: WORKSPACE_ID, email: "b@example.com", status: "active", createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z", version: 1 },
-    { id: "m-3", workspaceId: WORKSPACE_ID, email: "c@example.com", status: "active", createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z", version: 1 },
     { id: "m-1-other-ws", workspaceId: "ws-2", email: "d@example.com", status: "active", createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z", version: 1 },
   ]);
 

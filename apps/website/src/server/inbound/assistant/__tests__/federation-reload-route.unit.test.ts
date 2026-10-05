@@ -31,14 +31,19 @@ function postReload(baseUrl: string, headers: Record<string, string> = {}) {
 }
 
 test("rejects a request with no bearer token — 401, same daemon-wide gate as every other route", async (t) => {
+  let reloadCalls = 0;
   const baseUrl = await startTestServer(
-    buildApp(async () => ({ newlyAdmittedConnectionIds: [] })),
+    buildApp(async () => {
+      reloadCalls += 1;
+      return { newlyAdmittedConnectionIds: [] };
+    }),
     t,
   );
 
   const res = await postReload(baseUrl);
 
   assert.equal(res.status, 401);
+  assert.equal(reloadCalls, 0);
 });
 
 test("with the correct bearer token, relays a successful reload's newlyAdmittedConnectionIds verbatim", async (t) => {

@@ -173,7 +173,7 @@ test("owner boot: PGlite data dir in the site folder, no SQLite store, routes re
   const listed = await json<{ posts: Array<{ post: { id: string; title: string } }> }>(await send(baseUrl, cookie, "GET", `${ws}/posts`), 200);
   assert.ok(listed.posts.some((p) => p.post.title === "Written by the owner"));
   const { post: doomed } = await json<{ post: { id: string } }>(await send(baseUrl, cookie, "POST", `${ws}/posts`, { title: "To the Trash", status: "draft" }), 201);
-  assert.ok([200, 204].includes((await send(baseUrl, cookie, "DELETE", `${ws}/posts/${doomed.id}`)).status), "post delete");
+  assert.equal((await send(baseUrl, cookie, "DELETE", `${ws}/posts/${doomed.id}`)).status, 200, "post delete");
   const trash = await json<{ items: Array<{ entityId: string }> }>(await send(baseUrl, cookie, "GET", `${ws}/trash`), 200);
   assert.ok(trash.items.some((i) => i.entityId === doomed.id), "the deleted post is in the Trash");
 
@@ -204,7 +204,9 @@ test("owner boot: PGlite data dir in the site folder, no SQLite store, routes re
 
   // Restore points: reported unavailable, minting refused without a crash.
   assert.equal((await deps.dbOps.getCapabilities()).restorePoint.costClass, "unavailable");
-  assert.notEqual((await send(baseUrl, cookie, "POST", "/api/admin/v1/database/restore-points", { trigger: "manual" })).status, 201);
+  const refused = await send(baseUrl, cookie, "POST", "/api/admin/v1/database/restore-points", { trigger: "manual" });
+  assert.equal(refused.status, 409);
+  assert.equal((await refused.json()).code, "RESTORE_POINT_UNAVAILABLE");
 
   // AI chat: lands in ai_chat.
   const { conversation } = await json<{ conversation: { id: string } }>(

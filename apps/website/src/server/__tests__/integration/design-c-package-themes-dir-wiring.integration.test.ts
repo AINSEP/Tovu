@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
+import { resolveThemeOriginalSource } from "#src/features/theme/theme-files";
 import { builtInThemesDir, createSiteRouteDeps } from "../../runtime/composition/deps.js";
 import { createAgentDaemonRouteDeps } from "../../runtime/composition/agent-daemon-deps.js";
 
@@ -80,6 +81,12 @@ test("admin HTTP routes path: createSiteRouteDeps wires packageThemesDir to the 
       "packageThemesDir must be the shipped package catalog root — it must contain __original-themes__"
     );
 
+    const original = resolveThemeOriginalSource({ manifest: { tier: "static", id: "tovu-theme" }, siteThemesRoot: deps.themesDir, packageThemesRoot: deps.packageThemesDir });
+    assert.ok(original);
+    assert.equal(original.source, "package");
+    const manifest = JSON.parse(fs.readFileSync(path.join(original.originalDir, "theme.json"), "utf8"));
+    assert.equal(manifest.id, "tovu-theme");
+    assert.equal(manifest.tier, "static");
     await settle(deps);
   } finally {
     fs.rmSync(path.dirname(dbPath), { recursive: true, force: true });
@@ -116,6 +123,12 @@ test("agent daemon path (theme_reset_file's own composition): createAgentDaemonR
       "packageThemesDir must be the shipped package catalog root — it must contain __original-themes__"
     );
 
+    const original = resolveThemeOriginalSource({ manifest: { tier: "static", id: "tovu-theme" }, siteThemesRoot: deps.themesDir, packageThemesRoot: deps.packageThemesDir });
+    assert.ok(original);
+    assert.equal(original.source, "package");
+    const manifest = JSON.parse(fs.readFileSync(path.join(original.originalDir, "theme.json"), "utf8"));
+    assert.equal(manifest.id, "tovu-theme");
+    assert.equal(manifest.tier, "static");
     await settle(deps);
   } finally {
     if (originalThemesDirEnv === undefined) delete process.env.TOVU_THEMES_DIR;

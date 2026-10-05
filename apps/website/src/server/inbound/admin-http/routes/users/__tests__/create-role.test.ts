@@ -79,7 +79,7 @@ test("CREATE_ROLE route: direct invoke fallback for nullish params.workspaceId",
 });
 
 test("CREATE_ROLE route: 201 on success", async (t) => {
-  const { app } = await buildApp();
+  const { app, deps } = await buildApp();
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}${URL_BASE}`, {
@@ -91,6 +91,10 @@ test("CREATE_ROLE route: 201 on success", async (t) => {
   const body = (await res.json()) as { role: { name: string; isBuiltin: boolean } };
   assert.equal(body.role.name, "editor-role");
   assert.equal(body.role.isBuiltin, false);
+  const stored = await deps.roleRepo.findByName({ workspaceId: WORKSPACE_ID, name: "editor-role" });
+  assert.ok(stored);
+  assert.equal(stored.name, "editor-role");
+  assert.equal(stored.isBuiltin, false);
 });
 
 test("CREATE_ROLE route: 400 VALIDATION_ERROR when name is invalid or empty", async (t) => {

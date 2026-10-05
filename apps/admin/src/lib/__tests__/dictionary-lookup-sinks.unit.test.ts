@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
+import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 /**
@@ -30,10 +31,6 @@ const ALLOWED: Record<string, string> = {
 
 const DECLARATION = /\bconst\s+([A-Z][A-Z0-9_]*_(?:DICT|I18N|DICTIONARY))\s*:\s*Record<\s*string\s*,\s*Record<\s*string\s*,\s*string\s*>\s*>/g;
 
-function stripComments(source: string): string {
-  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:"'`\\])\/\/.*$/gm, "$1");
-}
-
 function sourceFiles(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
     const full = path.join(dir, name);
@@ -47,24 +44,99 @@ function sourceFiles(dir: string, out: string[] = []): string[] {
 }
 
 /**
- * Every place in `files` that indexes a declared dictionary constant (`NAME[`) or imports one,
+ * Every consumer reference to a declared dictionary constant, including namespace/alias access,
  * minus {@link ALLOWED}. Pure over its input so the detector itself is testable on a fixture.
  */
 function findInlineDictionaryLookups(files: ReadonlyArray<{ path: string; source: string }>): string[] {
-  const stripped = files.map((f) => ({ path: f.path, code: stripComments(f.source) }));
+  const parsed = files.map((f) => ({ ...f, ast: ts.createSourceFile(f.path, f.source, ts.ScriptTarget.Latest, true, f.path.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS) }));
   const names = new Set<string>();
-  for (const f of stripped) for (const m of f.code.matchAll(DECLARATION)) names.add(m[1]);
-  const hits: string[] = [];
-  for (const f of stripped) {
-    for (const name of names) {
-      if (ALLOWED[`${f.path}:${name}`]) continue;
-      if (new RegExp(`\\b${name}\\s*\\[`).test(f.code)) hits.push(`${f.path}: indexes ${name}`);
-      if (new RegExp(`import\\s*(?:type\\s*)?\\{[^}]*\\b${name}\\b[^}]*\\}\\s*from`).test(f.code)) {
-        hits.push(`${f.path}: imports ${name}`);
+  const owners = new Map<string, Set<string>>();
+  for (const f of parsed) {
+    const own = new Set<string>();
+    function declarations(node: ts.Node): void {
+      if (ts.isVariableDeclaration(node)) {
+        for (const match of `const ${node.getText(f.ast)}`.matchAll(DECLARATION)) own.add(match[1]);
+      }
+      ts.forEachChild(node, declarations);
+    }
+    declarations(f.ast);
+    // Exported aliases still expose the same raw dictionary to consumers.
+    for (const statement of f.ast.statements) {
+      if (!ts.isVariableStatement(statement)) continue;
+      for (const declaration of statement.declarationList.declarations) {
+        if (ts.isIdentifier(declaration.name) && declaration.initializer && ts.isIdentifier(declaration.initializer) && own.has(declaration.initializer.text)) own.add(declaration.name.text);
       }
     }
+    owners.set(f.path.replace(/\.tsx?$/, ""), own);
+    for (const name of own) names.add(name);
   }
-  return hits.sort();
+  const hits = new Set<string>();
+  for (const f of parsed) {
+    const own = owners.get(f.path.replace(/\.tsx?$/, ""))!;
+    const namespaces = new Map<string, Set<string>>();
+    for (const statement of f.ast.statements) {
+      if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) continue;
+      const bindings = statement.importClause?.namedBindings;
+      if (bindings && ts.isNamespaceImport(bindings)) {
+        const target = path.posix.normalize(path.posix.join(path.posix.dirname(f.path), statement.moduleSpecifier.text)).replace(/\.tsx?$/, "");
+        namespaces.set(bindings.name.text, owners.get(target) ?? new Set());
+      }
+    }
+    function report(name: string, kind: string): void {
+      if (!ALLOWED[`${f.path}:${name}`]) hits.add(`${f.path}: ${kind} ${name}`);
+    }
+    function isConstruction(node: ts.Identifier): boolean {
+      if (!own.has(node.text)) return false;
+      let statement: ts.Node = node;
+      while (statement.parent && statement.parent !== f.ast) statement = statement.parent;
+      const parent = node.parent;
+      if (ts.isVariableDeclaration(parent) && parent.initializer === node && ts.isIdentifier(parent.name) && own.has(parent.name.text)) return true;
+      if (ts.isCallExpression(parent) && parent.expression.getText(f.ast) === "mergeDictionaryTranslations" && ts.isExpressionStatement(statement)) return true;
+      // Owner-local augmentation is allowed only in module initialization, never in a translator body.
+      if (ts.isVariableStatement(statement)) {
+        const declaration = statement.declarationList.declarations.find((decl) => node.pos >= decl.pos && node.end <= decl.end);
+        if (!declaration?.initializer || ts.isArrowFunction(declaration.initializer) || ts.isFunctionExpression(declaration.initializer)) return false;
+        const access = ts.isPropertyAccessExpression(parent) ? parent.parent : parent;
+        if (ts.isCallExpression(access) && /^Object\.(entries|values|keys)$/.test(access.expression.getText(f.ast))) return true;
+      }
+      if (ts.isForOfStatement(statement) || ts.isExpressionStatement(statement)) {
+        if (ts.isCallExpression(parent) && /^Object\.(entries|values)$/.test(parent.expression.getText(f.ast))) return true;
+        if (ts.isCallExpression(parent) && parent.expression.getText(f.ast) === "Object.assign" && parent.arguments[0] === node) return true;
+        const access = ts.isElementAccessExpression(parent) ? parent.parent : parent;
+        if (ts.isCallExpression(access) && access.expression.getText(f.ast) === "Object.assign" && access.arguments[0] === parent) return true;
+        if (ts.isCallExpression(parent) && parent.expression.getText(f.ast) === "Reflect.get" && ts.isCallExpression(parent.parent)) {
+          return parent.parent.expression.getText(f.ast) === "Object.assign" && parent.parent.arguments[0] === parent;
+        }
+        if (ts.isCallExpression(parent) && parent.expression.getText(f.ast) === "mergeDictionaryTranslations") return true;
+      }
+      return false;
+    }
+    function visit(node: ts.Node): void {
+      if (ts.isImportSpecifier(node) && names.has((node.propertyName ?? node.name).text)) {
+        report((node.propertyName ?? node.name).text, "imports");
+      }
+      if (ts.isIdentifier(node) && names.has(node.text)) {
+        const parent = node.parent;
+        const declaration = ts.isVariableDeclaration(parent) && parent.name === node;
+        const syntaxName = ts.isImportSpecifier(parent) || ts.isExportSpecifier(parent) ||
+          (ts.isPropertyAccessExpression(parent) && parent.name === node) ||
+          (ts.isPropertyAssignment(parent) && parent.name === node);
+        const translator = ts.isCallExpression(parent) && ts.isIdentifier(parent.expression) &&
+          parent.expression.text === "createDictionaryTranslator" && parent.arguments[0] === node;
+        if (!declaration && !syntaxName && !translator && !isConstruction(node)) {
+          report(node.text, ts.isElementAccessExpression(parent) && parent.expression === node ? "indexes" : "references");
+        }
+      }
+      if ((ts.isPropertyAccessExpression(node) || ts.isElementAccessExpression(node)) && ts.isIdentifier(node.expression)) {
+        const name = ts.isPropertyAccessExpression(node) ? node.name.text :
+          node.argumentExpression && ts.isStringLiteral(node.argumentExpression) ? node.argumentExpression.text : undefined;
+        if (name && namespaces.get(node.expression.text)?.has(name)) report(name, "references");
+      }
+      ts.forEachChild(node, visit);
+    }
+    visit(f.ast);
+  }
+  return [...hits].sort();
 }
 
 describe("findInlineDictionaryLookups: the detector", () => {
@@ -113,6 +185,40 @@ describe("findInlineDictionaryLookups: the detector", () => {
       source: "export const WIDGETS_DICT: Record<string, Record<string, string>> = {};\n/** was `WIDGETS_DICT[locale]?.[key] ?? key` */\n// WIDGETS_DICT[locale]",
     };
     expect(findInlineDictionaryLookups([commented])).toEqual([]);
+  });
+
+  it.each([
+    "WIDGETS_DICT.es?.[key] ?? key",
+    "Object.entries(WIDGETS_DICT)",
+    "const d = WIDGETS_DICT; d[locale]?.[key] ?? key",
+  ])("flags a consumer bypass: %s", (expression) => {
+    const declaration = { path: DICT_FILE.path, source: "export const WIDGETS_DICT: Record<string, Record<string, string>> = {};" };
+    expect(findInlineDictionaryLookups([declaration, { path: HOOK_FILE.path, source: expression }]))
+      .toEqual([`${HOOK_FILE.path}: references WIDGETS_DICT`]);
+  });
+
+  it.each(["m.WIDGETS_DICT", 'm["WIDGETS_DICT"]'])("flags namespace dictionary access: %s", (access) => {
+    const declaration = { path: DICT_FILE.path, source: "export const WIDGETS_DICT: Record<string, Record<string, string>> = {};" };
+    expect(findInlineDictionaryLookups([declaration, { path: HOOK_FILE.path, source: `import * as m from "../widgets-i18n"; const d = ${access}; d[locale];` }]))
+      .toEqual([`${HOOK_FILE.path}: references WIDGETS_DICT`]);
+  });
+
+  it("allows dictionary construction in its owner while rejecting consumer enumeration", () => {
+    const declaration = { path: DICT_FILE.path, source: [
+      "export const WIDGETS_DICT: Record<string, Record<string, string>> = {};",
+      "const DETAIL_DICT: Record<string, Record<string, string>> = {};",
+      "for (const [locale, detail] of Object.entries(DETAIL_DICT)) { Object.assign(Reflect.get(WIDGETS_DICT, locale), detail); }",
+      "export const t = createDictionaryTranslator(WIDGETS_DICT);",
+    ].join("\n") };
+    expect(findInlineDictionaryLookups([declaration])).toEqual([]);
+    expect(findInlineDictionaryLookups([declaration, { path: HOOK_FILE.path, source: "Object.entries(WIDGETS_DICT)" }]))
+      .toEqual([`${HOOK_FILE.path}: references WIDGETS_DICT`]);
+  });
+
+  it("still flags an owner translator that aliases the raw dictionary", () => {
+    const source = "export const WIDGETS_DICT: Record<string, Record<string, string>> = {}; export const t = (locale, key) => { const d = WIDGETS_DICT; return d[locale]?.[key] ?? key; };";
+    expect(findInlineDictionaryLookups([{ path: DICT_FILE.path, source }]))
+      .toEqual([`${DICT_FILE.path}: references WIDGETS_DICT`]);
   });
 });
 

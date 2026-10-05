@@ -1,7 +1,45 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 import { COMMON_I18N } from "@/lib/i18n-common";
 import { MENUS_DICT, t } from "../menus-i18n";
+
+// F4.2/F5.6: read actual call sites, including conditional keys; comments are not calls.
+function translationKeys(source: string): string[] {
+  const file = ts.createSourceFile("screen.tsx", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const keys = new Set<string>();
+  function collectKey(node: ts.Expression): void {
+    if (ts.isStringLiteralLike(node)) keys.add(node.text);
+    else if (ts.isConditionalExpression(node)) {
+      collectKey(node.whenTrue);
+      collectKey(node.whenFalse);
+    } else {
+      throw new Error(`Unresolved translation key: ${node.getText(file)}`);
+    }
+  }
+  function visit(node: ts.Node): void {
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === "t") {
+      if (!node.arguments[0]) throw new Error("Translation call has no key");
+      collectKey(node.arguments[0]);
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(file);
+  return [...keys];
+}
+
+describe("translationKeys", () => {
+  it("collects quoted, multiline, template and conditional keys without reading comments", () => {
+    expect(translationKeys('/* t("comment") */ t("Loading menus…"); t(\n\'Menu title\'); t(`Save`); t(isNew ? "New menu" : "Edit menu");'))
+      .toEqual(["Loading menus…", "Menu title", "Save", "New menu", "Edit menu"]);
+  });
+
+  it("fails closed on keys it cannot resolve", () => {
+    expect(() => translationKeys("t(runtimeKey)")).toThrow("Unresolved translation key");
+  });
+});
 
 /**
  * @file `MENUS_DICT` cross-locale coverage — same idiom as
@@ -172,11 +210,18 @@ describe("MENUS_DICT: copy the menus screens actually render", () => {
 
   // Presence, not `t(locale, key) !== key`: fr "Description" is legitimately the same word.
   it.each(LOCALES)("carries every rendered key in %s", (locale) => {
-    const untranslated = RENDERED_KEYS.filter(
+    const screenKeys = ["Menus.tsx", "MenuEditor.tsx"].flatMap((name) => {
+      const keys = translationKeys(readFileSync(path.resolve(__dirname, "..", name), "utf8"));
+      expect(keys, `${name}: scanner must see the loading branch`).toContain(name === "Menus.tsx" ? "Loading menus…" : "Loading menu…");
+      return keys;
+    });
+    // Retain the existing regression keys as well as every current screen call site.
+    const checkedKeys = [...new Set([...RENDERED_KEYS, ...screenKeys])];
+    const untranslated = checkedKeys.filter(
       (key) => MENUS_DICT[locale]?.[key] === undefined && COMMON_I18N[locale]?.[key] === undefined,
     );
     expect(untranslated).toEqual([]);
-    for (const key of RENDERED_KEYS) {
+    for (const key of checkedKeys) {
       const value = MENUS_DICT[locale]?.[key] ?? COMMON_I18N[locale]?.[key];
       expect(value?.trim().length, `${locale}: ${key}`).toBeGreaterThan(0);
     }

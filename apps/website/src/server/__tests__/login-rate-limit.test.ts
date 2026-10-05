@@ -4,7 +4,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
 
-import { createApp } from "../runtime/composition/app.js";
+import { createApp, createRouteDeps } from "../runtime/composition/app.js";
 
 /**
  * @file Route-level proof of REQ-14/AC-18: the `LOGIN_STRICT` profile (10
@@ -15,21 +15,23 @@ import { createApp } from "../runtime/composition/app.js";
  * under-limit requests are unaffected) against a real HTTP server.
  */
 
-async function bootServer() {
-  const server = createServer(createApp());
+async function bootServer(deps = createRouteDeps()) {
+  const app = createApp(deps);
+  app.set("trust proxy", true);
+  const server = createServer(app);
   server.listen(0);
   await once(server, "listening");
   const address = server.address() as AddressInfo;
   return { server, baseUrl: `http://127.0.0.1:${address.port}` };
 }
 
-function attemptLogin(baseUrl: string) {
+function attemptLogin(baseUrl: string, ip?: string) {
   // Deliberately wrong credentials: the limiter must count every attempt
   // (401s included) since it guards against credential brute-forcing, not
   // just successful logins.
   return fetch(`${baseUrl}/api/admin/v1/auth/login`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...(ip ? { "x-forwarded-for": ip } : {}) },
     body: JSON.stringify({ username: "admin", password: "wrong-password" }),
   });
 }
@@ -78,4 +80,19 @@ test("AC-18: a rate-limited response never reaches credential checking, even wit
   });
   assert.equal(res.status, 429);
   assert.equal(res.headers.get("set-cookie"), null);
+});
+
+test("AC-18: login budgets are per client IP and reset at the window boundary", async (t) => {
+  let now = Date.parse("2026-01-01T00:00:00.000Z");
+  const deps = createRouteDeps();
+  deps.clock = { nowIso: () => new Date(now).toISOString(), nowMs: () => now };
+  const { server, baseUrl } = await bootServer(deps);
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  for (let i = 0; i < 10; i++) assert.equal((await attemptLogin(baseUrl, "203.0.113.1")).status, 401);
+  assert.equal((await attemptLogin(baseUrl, "203.0.113.1")).status, 429);
+  assert.equal((await attemptLogin(baseUrl, "203.0.113.2")).status, 401);
+  now += 59_999;
+  assert.equal((await attemptLogin(baseUrl, "203.0.113.1")).status, 429);
+  now += 1;
+  assert.equal((await attemptLogin(baseUrl, "203.0.113.1")).status, 401);
 });

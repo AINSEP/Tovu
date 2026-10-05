@@ -81,11 +81,18 @@ describe("MediaPickerDialog agentHandle", () => {
 });
 
 describe("WidgetPickerDialog agentHandle", () => {
-  it("omits data-agent-* on the new-title field, config field, and both dialogs' actions when not passed", () => {
+  it("omits data-agent-* on the new-title field, config field, and both dialogs' actions when not passed", async () => {
+    vi.spyOn(api, "listWidgets").mockResolvedValue({ widgets: [EXISTING_WIDGET] });
     render(<WidgetPickerDialog widgetType="text" onUseExisting={vi.fn()} onCreateNew={vi.fn()} onCancel={vi.fn()} />);
     expect(screen.getByLabelText("Title")).not.toHaveAttribute(AGENT_ELEMENT);
     expect(screen.getByLabelText("Text")).not.toHaveAttribute(AGENT_ELEMENT);
     expect(screen.getByRole("button", { name: "Cancel" })).not.toHaveAttribute(AGENT_ELEMENT);
+    expect(screen.getByRole("button", { name: "Create and place" })).not.toHaveAttribute(AGENT_ELEMENT);
+    expect(await screen.findByRole("combobox", { name: /existing text widgets/i })).not.toHaveAttribute(AGENT_ELEMENT);
+    expect(screen.getByRole("button", { name: "Use this widget" })).not.toHaveAttribute(AGENT_ELEMENT);
+    for (const element of document.body.querySelectorAll("*")) {
+      expect(element.getAttributeNames().filter((name) => name.startsWith("data-agent-"))).toEqual([]);
+    }
   });
 
   it("publishes the new-title field, the composed WidgetConfigFields field, and the submit/cancel actions", () => {

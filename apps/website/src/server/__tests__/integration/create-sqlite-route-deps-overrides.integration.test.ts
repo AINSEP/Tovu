@@ -97,8 +97,20 @@ test("overrides.themesDir is honored verbatim — the install-dir-relative theme
   const dbPath = mkTempDbPath();
   const themesDir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-deps-themes-override-"));
   try {
+    const themeDir = path.join(themesDir, "templated", "override-only");
+    fs.mkdirSync(path.join(themeDir, "templates"), { recursive: true });
+    fs.writeFileSync(path.join(themeDir, "theme.json"), JSON.stringify({ id: "override-only", name: "Override Only", version: "1.0.0", tier: "templated", engine: 1 }));
+    fs.writeFileSync(path.join(themeDir, "tokens.json"), "{}");
+    fs.writeFileSync(path.join(themeDir, "templates/home.liquid"), "Override home");
+    fs.writeFileSync(path.join(themeDir, "templates/entry.liquid"), "Override entry");
     const deps = await createSiteRouteDeps(dbPath, { themesDir });
     assert.equal(deps.themesDir, themesDir, "overrides.themesDir must be honored verbatim, not the process.cwd()-relative siteThemesDir() default");
+    const discovered = deps.themes.find((theme) => theme.manifest.id === "override-only");
+    assert.ok(discovered, "the override directory must be scanned");
+    assert.equal(discovered.status, "valid");
+    assert.equal(discovered.liquidTemplates.home, "Override home");
+    assert.equal(discovered.liquidTemplates.entry, "Override entry");
+    await Promise.all(Object.entries(deps).filter(([key, value]) => key.endsWith("Ready") && value instanceof Promise).map(([, value]) => value));
   } finally {
     fs.rmSync(path.dirname(dbPath), { recursive: true, force: true });
     fs.rmSync(themesDir, { recursive: true, force: true });

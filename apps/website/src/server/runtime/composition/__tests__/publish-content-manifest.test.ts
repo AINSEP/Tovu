@@ -19,6 +19,7 @@
  * entry fails CI instead of shipping a type that plans but can never actually publish.
  */
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -27,6 +28,15 @@ import { fileURLToPath } from "node:url";
 
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
+import { SqliteFormDefinitionRepo } from "#src/features/forms/repo.sqlite";
+import { SqliteEntryRefsRepo } from "#src/platform/db/sqlite/entry-refs-repo.sqlite";
+import { SqliteWidgetRegionBindingRepo } from "#src/features/widgets/repo.sqlite";
+import type { DiscoveredTheme } from "#src/features/theme/theme";
+import { makeSite, sqliteContentSite, WORKSPACE_ID } from "#src/features/publish-content/__tests__/round-trip-harness";
+import { createFileBlobIndex } from "#src/features/publish-content/file-blob-index";
+import { contentKernel } from "#src/platform/db/content-kernel";
+import { createRawRowSqlitePort } from "#src/platform/db/sqlite/publish-backstop-row.sqlite";
+import { createRawFileSitePort } from "#src/platform/site-dir/publish-backstop-file";
 import { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryMediaContentTypeStore, InMemoryVersionedMediaRepo, type MediaRecord } from "#src/features/media/index";
 import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, type NavMenuEntry } from "#src/features/navigation/index";
 import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "#src/features/origin/index";
@@ -77,6 +87,120 @@ test("installFirstPartyPublishContentTypes is idempotent — calling it twice le
   installFirstPartyPublishContentTypes();
   const twice = listPublishContentContributors().map((c) => c.entityType);
   assert.deepEqual(twice, once);
+});
+
+// F2.4/F6.3: apply through the installed registry, then read through its real export path.
+// A registered stub or no-op must fail even when the domain factory's own tests still pass.
+const APPLY_FIXTURES: Array<{ entityType: string; id: string; state: Record<string, unknown> }> = [
+  ...["post", "page"].map(kind => ({ entityType: kind, id: `registry-${kind}`, state: {
+    kind, title: `Published ${kind}`, slug: `published-${kind}`, status: "published", bodyFormat: "html",
+    bodyJson: { type: "doc", content: [] }, bodyHtml: `<p>Registry ${kind} body</p>`,
+  } })),
+  { entityType: "form", id: "registry-contact", state: { name: "Registry contact", slug: "registry-contact", status: "active", fields: [{ id: "message", type: "textarea", label: "Message", required: true }], notify: { enabled: false, recipients: [] } } },
+  { entityType: "content-type", id: "registry_recipe", state: { key: "registry_recipe", label: "Registry recipes", fields: [], status: "active" } },
+  { entityType: "taxonomy", id: "registry-taxonomy", state: { name: "Registry categories", hierarchical: true } },
+  { entityType: "term", id: "registry-term", state: { taxonomyId: "fixture-taxonomy", parentId: null, name: "Registry term" } },
+  { entityType: "collection-entry", id: "registry-entry", state: { type: "fixture_recipe", slug: "registry-entry", title: "Registry recipe", status: "published", fieldsJson: { ext: { site: {} } }, bodyJson: null } },
+  { entityType: "widget", id: "registry-widget", state: { slug: "registry-widget", title: "Registry introduction", widgetType: "text", config: { body: "Registry widget content" } } },
+  { entityType: "widget-area", id: "sidebar", state: { regionKey: "sidebar", placements: [], schemaVersion: 1 } },
+  { entityType: "site-setting", id: "core.site:title", state: { value: "Registry site title" } },
+  { entityType: "active-theme", id: "site", state: { themeId: "registry-theme" } },
+];
+
+for (const fixture of APPLY_FIXTURES) {
+  test(`the registered ${fixture.entityType} contributor applies an entity that reads back from real ports`, async () => {
+    installFirstPartyPublishContentTypes();
+    const site = sqliteContentSite();
+    try {
+      const at = "2026-09-01T00:00:00.000Z";
+      site.db.$client.prepare("INSERT INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)").run(WORKSPACE_ID, "Registry fixture", "registry-fixture", at);
+      await site.contentTypes.save({ workspaceId: WORKSPACE_ID, key: "fixture_recipe", label: "Fixture recipes", fields: [], status: "active", version: 1, tombstonedAt: null });
+      await site.taxonomies.insert({ id: "fixture-taxonomy", name: "Fixture categories", hierarchical: true, status: "active", version: 1, updatedAt: at });
+      await site.settings.saveDefinition({ settingId: "core.site.title", version: 1, workspaceId: null,
+        namespace: "core.site", key: "title", ownerKind: "core", ownerId: null, schema: { type: "string", nullable: true },
+        defaultValue: null, scopes: 2, secret: false, status: "active", aliasOfNamespace: null, aliasOfKey: null, coercionTag: null,
+        createdAt: at, updatedAt: at,
+      });
+      await site.presentation.save({ workspaceId: WORKSPACE_ID, activeThemeId: "paper", updatedAt: at });
+      site.themes.push({ status: "valid", manifest: { id: "registry-theme", tier: "static" }, dir: "/themes/static/registry-theme" } as DiscoveredTheme);
+      const forms = new SqliteFormDefinitionRepo(site.db);
+      const widget = { entries: site.entries, contentTypes: site.contentTypes, forms,
+        entryRefs: new SqliteEntryRefsRepo(site.db), bindings: new SqliteWidgetRegionBindingRepo(site.db) };
+      const deps = makeSite({ ...site.ports, form: { repo: forms }, widget, "widget-area": widget }, "registry");
+      const handler = buildPublishContentCatalog(deps).handlerByType.get(fixture.entityType);
+      assert.ok(handler, `${fixture.entityType} must be installed`);
+      const before = [];
+      for await (const entity of handler.pack()) before.push(entity);
+      const prior = before.find(entity => entity.id === fixture.id);
+      if (fixture.entityType === "active-theme") assert.equal(prior?.state.themeId, "paper");
+      else assert.equal(prior, undefined, "the target must not already exist");
+
+      await handler.apply({ entity: { entityType: fixture.entityType, id: fixture.id, state: fixture.state,
+        schemaVersion: handler.schemaVersion, contentHash: contentHash(fixture.entityType, fixture.state), hashVersion: CONTENT_HASH_VERSION, requiredBlobs: [],
+      }, expectedVersion: (await handler.inspect(fixture.id))?.version, principalId: "registry-operator", idempotencyKey: `registry-${fixture.entityType}` });
+
+      const after = [];
+      for await (const entity of handler.pack()) after.push(entity);
+      const landed = after.find(entity => entity.id === fixture.id);
+      assert.ok(landed, `${fixture.entityType}:${fixture.id} must be exportable after apply`);
+      assert.deepEqual(Object.fromEntries(Object.keys(fixture.state).map(key => [key, landed.state[key]])), fixture.state);
+      // Direct SQLite read-back independently pins the widget-area binding, whose packed
+      // placements are intentionally empty in this smallest registration fixture.
+      if (fixture.entityType === "widget-area") {
+        assert.equal((site.db.$client.prepare("SELECT count(*) AS n FROM widget_region_bindings WHERE workspace_id = ? AND region_key = ?").get(WORKSPACE_ID, "sidebar") as { n: number }).n, 1);
+      }
+    } finally {
+      site.db.$client.close();
+    }
+  });
+}
+
+test("the registered raw-row contributor creates a row readable through an independent SQLite query", async () => {
+  installFirstPartyPublishContentTypes();
+  const site = sqliteContentSite();
+  try {
+    site.db.$client.exec("CREATE TABLE p_registry_article (id TEXT PRIMARY KEY, title TEXT)");
+    const deps: PublishContentDeps = { ...makeSite({}, "raw-row-registry"),
+      backstop: { rows: createRawRowSqlitePort({ kernel: contentKernel(site.db) }), coveredTables: [], coveredRoots: [] } };
+    const handler = buildPublishContentCatalog(deps).handlerByType.get("raw-row");
+    assert.ok(handler);
+    const id = 'p_registry_article:{"id":"article-1"}';
+    const state = { table: "p_registry_article", pk: { id: "article-1" },
+      columns: [{ name: "id", type: "TEXT", pk: 1, notnull: 0 }, { name: "title", type: "TEXT", pk: 0, notnull: 0 }],
+      values: { id: "article-1", title: "Registry raw article" } };
+    assert.equal((site.db.$client.prepare("SELECT count(*) AS n FROM p_registry_article").get() as { n: number }).n, 0);
+    await handler.apply({ entity: { entityType: "raw-row", id, state, schemaVersion: 1,
+      hashVersion: CONTENT_HASH_VERSION, contentHash: contentHash("raw-row", state), requiredBlobs: [],
+    }, principalId: "registry-operator", expectedVersion: undefined, idempotencyKey: "registry-raw-row" });
+    assert.deepEqual(site.db.$client.prepare("SELECT id, title FROM p_registry_article").all(), [{ id: "article-1", title: "Registry raw article" }]);
+  } finally {
+    site.db.$client.close();
+  }
+});
+
+test("the registered raw-file contributor creates the exact bytes on disk", async () => {
+  installFirstPartyPublishContentTypes();
+  const root = await mkdtemp(path.join(tmpdir(), "registry-raw-file-"));
+  try {
+    const bytes = Buffer.from("<p>Registry raw footer</p>");
+    const sha256 = createHash("sha256").update(bytes).digest("hex");
+    const blobs = new InMemoryBlobStore();
+    await blobs.putIfAbsent({ workspaceId: WORKSPACE_ID, sha256, bytes });
+    const deps: PublishContentDeps = { ...makeSite({}, "raw-file-registry"),
+      backstop: { files: createRawFileSitePort({ siteDir: root }), blobs, fileBlobIndex: createFileBlobIndex(),
+        fileRollbacks: [], coveredTables: [], coveredRoots: [] } };
+    const handler = buildPublishContentCatalog(deps).handlerByType.get("raw-file");
+    assert.ok(handler);
+    const id = "snippets/footer.html";
+    const state = { path: id, size: bytes.byteLength, sha256, mode: 0o644 };
+    await assert.rejects(readFile(path.join(root, id)), { code: "ENOENT" });
+    await handler.apply({ entity: { entityType: "raw-file", id, state, schemaVersion: 1,
+      hashVersion: CONTENT_HASH_VERSION, contentHash: contentHash("raw-file", state), requiredBlobs: [sha256],
+    }, principalId: "registry-operator", expectedVersion: undefined, idempotencyKey: "registry-raw-file" });
+    assert.deepEqual(await readFile(path.join(root, id)), bytes);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 test("the registered media contributor's apply() is a real write path, not a throwing stub", async () => {

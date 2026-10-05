@@ -154,6 +154,7 @@ test("DELETE_ROLE route: 409 RESOURCE_CONFLICT when the role is still assigned t
   const body = (await res.json()) as { code: string; details: { field: string } };
   assert.equal(body.code, "RESOURCE_CONFLICT");
   assert.equal(body.details.field, "roleId");
+  assert.deepEqual(await deps.roleRepo.findById({ workspaceId: WORKSPACE_ID, id: role.id }), role);
 });
 
 test("DELETE_ROLE route: 500 internal error when an unexpected error is thrown", async (t) => {

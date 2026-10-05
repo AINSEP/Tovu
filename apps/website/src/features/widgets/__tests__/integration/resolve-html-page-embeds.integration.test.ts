@@ -270,8 +270,9 @@ test("resolveHtmlPageEmbeds: a page with more than MAX_HTML_EMBEDS_PER_PAGE dist
   );
 });
 
-test("resolveHtmlPageEmbeds: no embeds in the html resolves to an empty result, no repo calls beyond what an empty referencedIds set needs", async () => {
+test("resolveHtmlPageEmbeds: no embeds in the html resolves to an empty result, no repo calls beyond what an empty referencedIds set needs", async (t) => {
   const entryRepo = new InMemoryEntryRepo();
+  const reads = (["listByWorkspace", "findById", "findBySlug"] as const).map((method) => t.mock.method(entryRepo, method));
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { entryRepo },
@@ -279,6 +280,7 @@ test("resolveHtmlPageEmbeds: no embeds in the html resolves to an empty result, 
   });
 
   assert.equal(resolved.size, 0);
+  for (const read of reads) assert.equal(read.mock.callCount(), 0);
 });
 
 test("resolveHtmlPageEmbeds: an unregistered/future embed type produces no entry in the result at all — HTML_EMBED_RESOLVERS has no arm for it, so the caller (render.ts) leaves every occurrence as authored", async () => {
@@ -1282,6 +1284,10 @@ test('resolveHtmlPageEmbeds: CONTROL for the test above — the same "content" D
   assert.ok(ir);
   const html = renderWidgetIr(ir!);
   assert.match(html, /<img[\s>]/, "an image/* asset must still render <img> through this path");
+  const image = html.match(/<img\b[^>]*>/)?.[0];
+  assert.ok(image);
+  assert.match(image, /src="\/m\/asset-1\/public\.v1\/image\.jpg"/);
+  assert.match(image, /alt="media probe"/);
   assert.doesNotMatch(html, /<video[\s>]/);
 });
 

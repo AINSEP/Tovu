@@ -60,6 +60,14 @@ test("createApp(createRouteDeps()) — the in-memory composition root src/index.
   assert.equal(calls.length, 1);
   assert.equal(calls[0].input.method, "GET");
   assert.equal(calls[0].outcome.statusCode, 200);
+  assert.equal(calls[0].input.path, "/healthz");
+  assert.equal(calls[0].outcome.routePattern, "/healthz");
+  const denied = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/presentation`);
+  assert.equal(denied.status, 401);
+  assert.equal(calls.length, 2);
+  assert.equal(calls[1].input.method, "GET");
+  assert.equal(calls[1].input.path, `/api/admin/v1/workspaces/${deps.workspaceId}/presentation`);
+  assert.equal(calls[1].outcome.statusCode, 401);
 });
 
 test("createApp(createSiteRouteDeps()) — the REAL SQLite composition root both src/index.ts's non-memory branch AND cli/commands/serve.ts's `tovu serve` build RouteDeps from — records inbound requests through RouteDeps.observability", async (t) => {
@@ -85,6 +93,14 @@ test("createApp(createSiteRouteDeps()) — the REAL SQLite composition root both
   assert.equal(calls.length, 1);
   assert.equal(calls[0].input.method, "GET");
   assert.equal(calls[0].outcome.statusCode, 200);
+  assert.equal(calls[0].input.path, "/healthz");
+  assert.equal(calls[0].outcome.routePattern, "/healthz");
+  const denied = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/presentation`);
+  assert.equal(denied.status, 401);
+  assert.equal(calls.length, 2);
+  assert.equal(calls[1].input.method, "GET");
+  assert.equal(calls[1].input.path, `/api/admin/v1/workspaces/${deps.workspaceId}/presentation`);
+  assert.equal(calls[1].outcome.statusCode, 401);
 });
 
 test("createSiteRouteDeps() defaults RouteDeps.observability to the no-op port (Constitution Article VIII coverage does not silently require an operator to configure OTEL_EXPORTER_OTLP_ENDPOINT just to boot) when OTEL_EXPORTER_OTLP_ENDPOINT is unset", async () => {

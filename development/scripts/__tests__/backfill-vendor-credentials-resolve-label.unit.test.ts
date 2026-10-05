@@ -34,9 +34,8 @@ test("tier 3 — even the origin-suffixed label is already taken: falls back to 
   assert.equal(resolveLabel("default", s, "source-control", "abcdef1234567890"), "default (Source Control) abcdef12");
 });
 
-test("resolution is deterministic — the same inputs always produce the same output", () => {
-  const s = state(["default"]);
-  const a = resolveLabel("default", s, "source-control", "row-x");
-  const b = resolveLabel("default", s, "source-control", "row-x");
-  assert.equal(a, b);
+test("resolution is deterministic across taken-label insertion orders", () => {
+  for (const labels of [["default", "default (Source Control)", "unrelated"], ["unrelated", "default (Source Control)", "default"]]) {
+    assert.equal(resolveLabel("default", state(labels), "source-control", "abcdef1234567890"), "default (Source Control) abcdef12");
+  }
 });

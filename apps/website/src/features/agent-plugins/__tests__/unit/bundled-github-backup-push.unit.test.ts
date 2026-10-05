@@ -40,7 +40,7 @@ const commitBackupTree = (deps: { httpClient: HttpClientPort }, input: Omit<Comm
  * here ever reaches GitHub.
  */
 
-type Step = { match: RegExp; method?: string; status: number; json?: unknown };
+type Step = { match: RegExp; method?: string; status: number; json?: unknown; bodyText?: string };
 
 class SequentialFakeHttpClient implements HttpClientPort {
   readonly calls: HttpRequest[] = [];
@@ -54,7 +54,7 @@ class SequentialFakeHttpClient implements HttpClientPort {
     if (!step) throw new Error(`unexpected send(): ${request.method} ${request.url}`);
     if (!step.match.test(request.url)) throw new Error(`send() ${request.method} ${request.url} did not match ${step.match}`);
     if (step.method !== undefined && step.method !== request.method) throw new Error(`send() ${request.url} expected ${step.method}, got ${request.method}`);
-    return { status: step.status, headers: {}, bodyText: JSON.stringify(step.json ?? {}) };
+    return { status: step.status, headers: {}, bodyText: step.bodyText ?? JSON.stringify(step.json ?? {}) };
   }
   remainingCount(): number {
     return this.remaining.length;
@@ -86,6 +86,10 @@ test("a private repo: resolves the default branch, its tip and tree, and whether
   });
   assert.equal(client.remainingCount(), 0);
   assert.ok(client.calls.every((c) => c.method === "GET"), "inspection is read-only");
+  for (const call of client.calls) {
+    assert.equal(call.headers.Authorization, "Bearer ghp_fake_never_real");
+    assert.equal((call.body ?? "").includes(TARGET.connection.token), false);
+  }
 });
 
 test("a PUBLIC repo is refused before any branch lookup, and the message says why (user data would be exposed)", async () => {
@@ -175,7 +179,8 @@ test("binary bytes (NUL, 0xFF, invalid UTF-8) are sent base64-encoded byte-for-b
   assert.equal(result.blob.bytes, 7);
   assert.match(result.blob.sha256, /^[0-9a-f]{64}$/);
   assert.equal(result.blob.sha256, createHash("sha256").update(bytes).digest("hex"));
-  assert.equal(client.calls[0]!.headers.Authorization?.includes("ghp_fake_never_real"), true, "the token goes only in the header");
+  assert.equal(client.calls[0]!.headers.Authorization, "Bearer ghp_fake_never_real", "the token goes only in the header");
+  assert.equal(JSON.stringify(body).includes(TARGET.connection.token), false);
 });
 
 // ---------------------------------------------------------------------------
@@ -229,6 +234,10 @@ test("the folder becomes a fresh tree (stale files inside it disappear) grafted 
   const ref = bodyOf(client.calls[3]!);
   assert.deepEqual(ref, { sha: "new-commit" });
   assert.equal("force" in ref, false, "never a force push");
+  for (const call of client.calls) {
+    assert.equal(call.headers.Authorization, "Bearer ghp_fake_never_real");
+    assert.equal((call.body ?? "").includes(TARGET.connection.token), false);
+  }
 });
 
 test("a branch that moved since the plan (GitHub 422 on the ref update) is a clear divergence error, never overwritten", async () => {
@@ -239,4 +248,26 @@ test("a branch that moved since the plan (GitHub 422 on the ref update) is a cle
   assert.equal(result.code, "diverged");
   assert.match(result.message, /moved/);
   assert.equal(client.calls.filter((c) => c.method === "PATCH").length, 1, "exactly one attempt — no retry with force");
+});
+
+for (const status of [401, 422]) {
+  test(`blob upload: GitHub ${status} is a provider-error with the provider message`, async () => {
+    const client = new SequentialFakeHttpClient([{ match: /\/repos\/octo\/backups\/git\/blobs$/, method: "POST", status, json: { message: "Blob upload refused" } }]);
+    const result = await uploadBackupBlob({ httpClient: client }, TARGET, { path: "database/content.db", content: new Uint8Array([1, 2]) });
+    assert.equal(result.ok, false);
+    if (result.ok) assert.fail("blob upload must fail");
+    assert.equal(result.code, "provider-error");
+    assert.match(result.message, /Blob upload refused/);
+    assert.equal(client.calls.length, 1);
+    assert.equal(client.remainingCount(), 0);
+  });
+}
+
+
+test("blob upload: a non-JSON success response is a provider-error, never a recorded blob", async () => {
+  const client = new SequentialFakeHttpClient([{ match: /\/repos\/octo\/backups\/git\/blobs$/, method: "POST", status: 201, bodyText: "<html>upstream failure</html>" }]);
+  const result = await uploadBackupBlob({ httpClient: client }, TARGET, { path: "database/content.db", content: new Uint8Array([0, 255]) });
+  assert.deepEqual(result, { ok: false, code: "provider-error", message: "GitHub returned a non-JSON response." });
+  assert.equal(client.calls.length, 1);
+  assert.equal(client.remainingCount(), 0);
 });

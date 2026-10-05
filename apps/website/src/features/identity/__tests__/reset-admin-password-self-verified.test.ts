@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 
 import { login, type AuthServiceDeps } from "@jini-ai/user-management/server";
 import { AuthInvalidCredentialsError, type IdentityRepos } from "@jini-ai/user-management";
@@ -31,6 +31,18 @@ import { openPreparedContentDb } from "../../../platform/db/sqlite/__tests__/hel
 const WORKSPACE = "workspace-reset-admin-pw-test";
 const fixedClock = { nowIso: () => "2026-09-03T00:00:00.000Z", nowMs: () => Date.parse("2026-09-03T00:00:00.000Z") };
 
+function pinOwnerEnvironment(t: TestContext) {
+  const before = { TOVU_ADMIN_USER: process.env.TOVU_ADMIN_USER, TOVU_ADMIN_PASSWORD: process.env.TOVU_ADMIN_PASSWORD };
+  process.env.TOVU_ADMIN_USER = "admin";
+  process.env.TOVU_ADMIN_PASSWORD = "tovu-dev";
+  t.after(() => {
+    for (const [key, value] of Object.entries(before)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  });
+}
+
 function counterIdGen() {
   let n = 0;
   return { newId: () => `id-${++n}` };
@@ -41,7 +53,8 @@ function tmpDbPath(prefix: string): { dir: string; dbPath: string } {
   return { dir, dbPath: join(dir, "content.db") };
 }
 
-test("resetAdminPasswordSelfVerified: resets the seeded owner's password, self-verifies, and the new password (not the old) logs in through the real hasher", async () => {
+test("resetAdminPasswordSelfVerified: resets the seeded owner's password, self-verifies, and the new password (not the old) logs in through the real hasher", async (t) => {
+  pinOwnerEnvironment(t);
   const { dir, dbPath } = tmpDbPath("reset-admin-pw-happy-");
   try {
     const db = await openPreparedContentDb(dbPath);
@@ -88,7 +101,8 @@ test("resetAdminPasswordSelfVerified: resets the seeded owner's password, self-v
   }
 });
 
-test("resetAdminPasswordSelfVerified: a write that does not verify is caught before reporting success, and content.db is restored to its pre-reset state", async () => {
+test("resetAdminPasswordSelfVerified: a write that does not verify is caught before reporting success, and content.db is restored to its pre-reset state", async (t) => {
+  pinOwnerEnvironment(t);
   const { dir, dbPath } = tmpDbPath("reset-admin-pw-corrupt-");
   try {
     const db = await openPreparedContentDb(dbPath);

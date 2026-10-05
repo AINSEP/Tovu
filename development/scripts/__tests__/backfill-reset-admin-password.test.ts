@@ -1,6 +1,6 @@
 import { NodeSessionTokens } from "@jini-ai/user-management/server";
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -19,11 +19,9 @@ import { missingDbPathMessage } from "../backfill-db-path.js";
  * @file The CLI-level proof for `backfill-reset-admin-password.ts` — dry run touches nothing,
  * `--apply` with no password refuses to write, and a real `--apply` resets the seeded owner's
  * password such that the NEW password (not the old) authenticates through the real `login()` path
- * afterward. The self-verification-catches-a-corrupted-write proof itself lives at the unit level
- * in `apps/website/src/features/identity/__tests__/reset-admin-password-self-verified.test.ts`
- * (the module this script's core logic is factored into) — reproducing it here would mean adding a
- * test-only hook to the production script just to inject a broken hasher, which this file
- * deliberately does not do.
+ * afterward. Failed self-verification is also exercised through the real CLI: a trigger in an
+ * isolated fixture database substitutes a different valid hash, then a fresh connection proves
+ * the original credential was restored. No production injection hook is needed.
  *
  * Runs the real script as a child process (`execFileSync`), same reason every sibling
  * `backfill-*.test.ts` gives: `main()` runs unconditionally at import time.
@@ -250,6 +248,84 @@ test("backfill-reset-admin-password: --apply resets the seeded owner's password 
   db.$client.close();
 
   fs.rmSync(scratch, { recursive: true, force: true });
+});
+
+test("backfill-reset-admin-password: failed fresh verification exits nonzero and restores the owner's credential", async (t) => {
+  const scratch = tmpDir("backfill-reset-admin-password-verify-failure-");
+  t.after(() => fs.rmSync(scratch, { recursive: true, force: true }));
+  const dbPath = path.join(scratch, "content.db");
+  await seedWorkspaceAndIdentity(dbPath);
+
+  const prepared = openContentDb(dbPath);
+  let wrongHash: string;
+  try {
+    const identity = createSqliteIdentityRouteDeps({ db: prepared, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
+    await identity.identityReady;
+    wrongHash = await identity.passwordHasher.hash({ password: "fixture-substituted-password" });
+  } finally {
+    prepared.$client.close();
+  }
+  const fixture = new Database(dbPath);
+  let originalHash: string;
+  try {
+    originalHash = (fixture.prepare("SELECT password_hash FROM identity_users WHERE username = 'admin'").get() as { password_hash: string }).password_hash;
+    assert.notEqual(wrongHash, originalHash);
+    fixture.exec("CREATE TABLE failed_reset_fixture (password_hash TEXT NOT NULL)");
+    fixture.prepare("INSERT INTO failed_reset_fixture VALUES (?)").run(wrongHash);
+    fixture.exec(`CREATE TRIGGER substitute_reset_hash AFTER UPDATE OF password_hash ON identity_users
+      WHEN NEW.password_hash <> (SELECT password_hash FROM failed_reset_fixture)
+      BEGIN
+        UPDATE identity_users SET password_hash = (SELECT password_hash FROM failed_reset_fixture)
+        WHERE principal_id = NEW.principal_id;
+      END;`);
+    // F4.4/F4.5: prove this fixture actually changes a write, then roll the probe back.
+    fixture.exec("BEGIN");
+    fixture.prepare("UPDATE identity_users SET password_hash = ? WHERE username = 'admin'").run("probe-write");
+    assert.equal((fixture.prepare("SELECT password_hash FROM identity_users WHERE username = 'admin'").get() as { password_hash: string }).password_hash, wrongHash);
+    fixture.exec("ROLLBACK");
+    assert.equal((fixture.prepare("SELECT password_hash FROM identity_users WHERE username = 'admin'").get() as { password_hash: string }).password_hash, originalHash);
+  } finally {
+    fixture.close();
+  }
+
+  const newPassword = "reset-that-must-be-restored";
+  const result = spawnSync(process.execPath, ["--import", "tsx", SCRIPT, "--db", dbPath, "--apply"], {
+    cwd: REPO_ROOT, encoding: "utf8", timeout: 60_000,
+    env: { ...process.env, TOVU_ADMIN_RESET_PASSWORD: newPassword },
+  });
+  assert.equal(result.error, undefined, result.error?.message);
+  assert.equal(result.signal, null);
+  assert.equal(result.status, 1, result.stderr);
+  assert.match(result.stdout, /RESTORE POINT CAPTURED/);
+  assert.match(result.stdout, /resetUserPassword\(\) returned/);
+  assert.match(result.stdout, /SELF-VERIFICATION FAILED/);
+  assert.match(result.stderr, /FAILED \(self-verification\):.*restored content\.db/);
+  assert.doesNotMatch(result.stdout, /VERIFIED:|Done:/);
+
+  const fresh = new Database(dbPath, { readonly: true, fileMustExist: true });
+  try {
+    assert.equal((fresh.prepare("SELECT password_hash FROM identity_users WHERE username = 'admin'").get() as { password_hash: string }).password_hash,
+      originalHash, "a new connection must see the original hash, not the trigger's substituted hash");
+  } finally {
+    fresh.close();
+  }
+  const db = openContentDb(dbPath);
+  try {
+    const identity = createSqliteIdentityRouteDeps({ db, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
+    await identity.identityReady;
+    const repos: IdentityRepos = {
+      transactions: identity.transactions, principals: identity.principalRepo, users: identity.userRepo,
+      sessions: identity.sessionRepo, roles: identity.roleRepo, policies: identity.policyRepo,
+      policyPermissions: identity.policyPermissionRepo, rolePolicies: identity.rolePolicyRepo,
+      principalRoles: identity.principalRoleRepo, principalPolicies: identity.principalPolicyRepo,
+    };
+    const auth: AuthServiceDeps = { tokens: new NodeSessionTokens({}), repos, hasher: identity.passwordHasher, clock: fixedClock, idGen: counterIdGen() };
+    const { principal } = await login({ deps: auth, input: { workspaceId: WORKSPACE, username: "admin", password: process.env.TOVU_ADMIN_PASSWORD ?? DEFAULT_OWNER_PASSWORD } }, { sessionTtlMs: 60_000 });
+    assert.ok(principal.id, "the restored password must still authenticate");
+    await assert.rejects(() => login({ deps: auth, input: { workspaceId: WORKSPACE, username: "admin", password: newPassword } }, { sessionTtlMs: 60_000 }), AuthInvalidCredentialsError);
+  } finally {
+    db.$client.close();
+  }
 });
 
 test("backfill-reset-admin-password: an unknown username fails loudly (non-zero exit) instead of silently doing nothing", async () => {

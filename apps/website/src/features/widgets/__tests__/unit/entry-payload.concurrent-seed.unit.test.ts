@@ -52,6 +52,12 @@ test("ensureWidgetContentTypesRegistered: losing the first-create race to a live
   await seedWinner("widget_area");
 
   await ensureWidgetContentTypesRegistered({ deps: seedDeps(repo), workspaceId: "ws-1" });
+  for (const key of ["widget", "widget_area"]) {
+    const row = await repo.findByKey({ workspaceId: "ws-1", key });
+    assert.ok(row);
+    assert.equal(row.status, "active");
+    assert.equal(row.key, key);
+  }
 });
 
 test("ensureWidgetContentTypesRegistered: a tombstoned key is still a failure", async () => {

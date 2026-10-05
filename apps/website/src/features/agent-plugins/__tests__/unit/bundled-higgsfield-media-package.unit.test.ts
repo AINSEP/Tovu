@@ -138,7 +138,8 @@ test("SKILL.md says EARLY and plainly that generate_image returns a job id, not 
 
 test("SKILL.md forbids sync:true AND carries the two numbers that make it unarguable", async () => {
   const skill = await readSkill();
-  assert.match(skill, /sync/);
+  assert.ok(skill.includes("### ⚠️ Never pass `sync: true`"));
+  assert.ok(skill.includes("**Do not pass `sync: true` to `job_status`.** It cannot complete."));
   assert.match(skill, /15,?000\s*ms|15\s*s\b/i, "the 15s Tovu-side abort must be stated");
   assert.match(skill, /~?25\s*second|~?25\s*s\b/i, "the ~25s Higgsfield-side internal poll must be stated");
 
@@ -154,7 +155,8 @@ test("SKILL.md documents the TWO-list write grant and quotes the exact refusal l
   assert.match(skill, /may write/i);
 
   // The two-ticks-not-one framing is the part operators get wrong; keep it explicit.
-  assert.match(skill, /both/i);
+  assert.ok(skill.includes("Each requested generator needs to be in **both** lists."));
+  assert.ok(skill.includes("**also** named it in a second list, `writeAllowedToolNames`."));
 });
 
 test("SKILL.md states that federation config is read at daemon start, so a saved grant needs a restart", async () => {

@@ -6,7 +6,7 @@ import test from "node:test";
 
 import Database from "better-sqlite3";
 
-import { isInMemoryDbPath, snapshotDb } from "../snapshot.js";
+import { discardCommittedSnapshot, isInMemoryDbPath, snapshotDb } from "../snapshot.js";
 
 /**
  * @file ADR-023 §4 — whole-file snapshot, isolated from the rest of the engine.
@@ -76,4 +76,21 @@ test("snapshotDb: a real file-backed dbPath is unaffected — still snapshots to
 
   db.close();
   fs.rmSync(dir, { recursive: true, force: true });
+});
+
+
+test("discardCommittedSnapshot: failed removal resolves and preserves unrelated files", async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-discard-snapshot-"));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const snapshotPath = path.join(dir, "snapshot-directory");
+  fs.mkdirSync(snapshotPath);
+  fs.writeFileSync(path.join(snapshotPath, "keep.txt"), "snapshot contents");
+  const unrelated = path.join(dir, "content.db");
+  fs.writeFileSync(unrelated, "unrelated database");
+
+  // fs.rm without recursive must reject this path, exercising the best-effort catch.
+  await assert.rejects(fs.promises.rm(snapshotPath, { force: true }), { code: "ERR_FS_EISDIR" });
+  await assert.doesNotReject(() => discardCommittedSnapshot(snapshotPath));
+  assert.equal(fs.readFileSync(unrelated, "utf8"), "unrelated database");
+  assert.equal(fs.readFileSync(path.join(snapshotPath, "keep.txt"), "utf8"), "snapshot contents");
 });

@@ -139,7 +139,7 @@ describe("useWidgetEmbedNodeView — stale responses are dropped", () => {
     expect(result.current.isBroken).toBe(false);
   });
 
-  it("a response settling after unmount is ignored without throwing", async () => {
+  it("a pending response settles after unmount without throwing", async () => {
     const pending = deferredGetWidget();
     const { unmount } = renderView(fakeProps({ widgetEntryId: "w1" }));
     unmount();

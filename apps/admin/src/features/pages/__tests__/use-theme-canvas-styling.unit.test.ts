@@ -159,9 +159,18 @@ describe("useThemeCanvasStyling", () => {
   // the SAME URL in parallel with its own token fetches, ahead of `InteractiveHtmlEditor` linking it.
   it("warms the theme's stylesheet URL in parallel with the token fetches (Bug B, Slice B1)", async () => {
     const port = createFakeThemeCanvasPort({ tokensByUrl: { "/theme-assets/basic/tokens.json": DARK } });
+    let release!: (tokens: typeof DARK) => void;
+    const tokens = new Promise<typeof DARK>((resolve) => { release = resolve; });
+    vi.spyOn(port, "fetchThemeTokens").mockReturnValue(tokens);
     const warmSpy = vi.spyOn(port, "warmStylesheet");
     const { result } = renderHook(() => useThemeCanvasStyling("basic", 2, port));
 
+    try {
+      expect(result.current.status).toBe("pending");
+      expect(warmSpy).toHaveBeenCalledWith("/theme-assets/basic/css/theme.css");
+    } finally {
+      await act(async () => { release(DARK); });
+    }
     await waitFor(() => expect(result.current.status).toBe("ready"));
     expect(warmSpy).toHaveBeenCalledWith("/theme-assets/basic/css/theme.css");
   });

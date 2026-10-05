@@ -41,6 +41,11 @@ describe("social-links", () => {
     render(<WidgetConfigFields widgetType="social-links" config={TWO_LINKS} onChange={vi.fn()} />);
     expect(screen.getByDisplayValue("GitHub")).not.toHaveAttribute(AGENT_ELEMENT);
     expect(screen.getByText("Add link")).not.toHaveAttribute(AGENT_ELEMENT);
+    expect(screen.getAllByRole("textbox")).toHaveLength(4);
+    expect(screen.getAllByText("Remove")).toHaveLength(2);
+    for (const element of document.body.querySelectorAll("*")) {
+      expect(element.getAttributeNames().filter((name) => name.startsWith("data-agent-"))).toEqual([]);
+    }
   });
 
   it("keys each row by its array index — <base>-link-<i>-platform/-url/-remove, plus <base>-add", () => {
@@ -59,6 +64,10 @@ describe("recent-entries", () => {
   it("omits data-agent-* on both fields when agentHandle is not passed", () => {
     render(<WidgetConfigFields widgetType="recent-entries" config={{}} onChange={vi.fn()} />);
     expect(screen.getByLabelText("Max items")).not.toHaveAttribute(AGENT_ELEMENT);
+    expect(screen.getByLabelText("Category term id (optional)")).toBeInTheDocument();
+    for (const element of document.body.querySelectorAll("*")) {
+      expect(element.getAttributeNames().filter((name) => name.startsWith("data-agent-"))).toEqual([]);
+    }
   });
 
   it("publishes <base>-max-items and <base>-category-term-id", () => {

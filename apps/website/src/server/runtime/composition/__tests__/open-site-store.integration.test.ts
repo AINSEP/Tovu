@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -161,7 +162,30 @@ test("the agent daemon's composition (client) leaves the sweep to the API proces
     seedGuestChats(chatDbPath);
     const deps = await createSiteRouteDeps(path.join(dir, "content.db"), { storeRole: "client" });
     await deps.commentsReady;
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    // Observe the boot collaborator in a fresh module graph, independent of sweep scheduling.
+    fs.mkdirSync(path.join(dir, "probe"));
+    const child = spawnSync(process.execPath, ["--import", "tsx", "--experimental-test-module-mocks", "--input-type=module", "-e", `
+      import assert from "node:assert/strict";
+      import { mock } from "node:test";
+      process.argv[1] = ${JSON.stringify(new URL(import.meta.url).pathname)};
+      let starts = 0;
+      mock.module("#src/assistant/persistence/chat-expiry-sweep", {
+        namedExports: { startChatExpirySweep() { starts++; return async () => {}; } },
+      });
+      const { createSiteRouteDeps } = await import(${JSON.stringify(new URL("../deps.ts", import.meta.url).href)});
+      for (const [role, expected] of [["client", 0], ["owner", 1]]) {
+        let store;
+        try {
+          const deps = await createSiteRouteDeps(${JSON.stringify(path.join(dir, "probe", "content.db"))}, {
+            storeRole: role, onStoreOpened: opened => { store = opened; },
+          });
+          await Promise.all(Object.entries(deps).filter(([key]) => key.endsWith("Ready")).map(([, value]) => value));
+          assert.equal(starts, expected, role + " sweep starts");
+        } finally { await store?.close(); }
+      }
+    `], { encoding: "utf8", timeout: 30_000 });
+    assert.equal(child.error, undefined);
+    assert.equal(child.status, 0, child.stderr || child.stdout);
     assert.deepEqual(chatIds(chatDbPath), ["expired", "fresh"]);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });

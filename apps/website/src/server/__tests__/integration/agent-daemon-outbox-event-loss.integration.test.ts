@@ -7,6 +7,7 @@ import test, { type TestContext } from "node:test";
 import { eq } from "drizzle-orm";
 import type { DomainEvent } from "@jini-ai/cms/core";
 
+import { InMemoryOutbox } from "#src/contracts/core/events/memory-bus";
 import { processOutbox } from "#src/contracts/core/events/index";
 import { outboxEvents } from "#src/platform/db/schema.sqlite";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
@@ -114,11 +115,18 @@ test("an outbox drain in the agent daemon no longer swallows events: both the da
   }
 });
 
-test("memory mode (TOVU_DB=memory): the daemon's composition is enqueue-only as well", async () => {
+test("memory mode (TOVU_DB=memory): the daemon's composition is enqueue-only as well", async (t) => {
   const daemon = await createAgentDaemonRouteDeps({ env: { TOVU_DB: "memory" } });
-  await daemon.outbox.enqueue(makeEvent("evt-daemon-memory-1", "entry.updated", daemon.workspaceId, daemon.clock.nowIso()));
+  await settle(daemon);
+  const enqueue = t.mock.method(InMemoryOutbox.prototype, "enqueue");
+  const event = makeEvent("evt-daemon-memory-1", "entry.updated", daemon.workspaceId, daemon.clock.nowIso());
+  await daemon.outbox.enqueue(event);
 
   const claimed = await processOutbox({ outbox: daemon.outbox, bus: daemon.bus, clock: daemon.clock });
 
   assert.equal(claimed, 0, "a drain through the daemon's deps must claim nothing in memory mode too");
+  assert.equal(enqueue.mock.callCount(), 1);
+  const backing = enqueue.mock.calls[0]!.this as InMemoryOutbox;
+  const pending = await backing.claimPending({ batchSize: 10, nowIso: event.occurredAt });
+  assert.deepEqual(pending.map((row) => ({ event: row.event, attempts: row.attempts })), [{ event, attempts: 1 }]);
 });

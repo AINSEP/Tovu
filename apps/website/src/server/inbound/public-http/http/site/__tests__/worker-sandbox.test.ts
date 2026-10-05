@@ -1,13 +1,56 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { mkdtempSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { Worker } from "node:worker_threads";
 import { createRequire } from "node:module";
+import { pathToFileURL } from "node:url";
+import { build } from "esbuild";
 
 import type { SiteRenderContext } from "../render.js";
 import { renderInWorkerSandbox } from "../worker-sandbox.js";
+
+test("compiled JavaScript runs both real template workers and reports missing-entry and silent-exit failures without a TS loader", async () => {
+  const root = mkdtempSync(path.join(tmpdir(), "tovu-compiled-sandbox-"));
+  const siteDir = path.resolve(import.meta.dirname, "..");
+  const repoRoot = path.resolve(siteDir, "../../../../../../../..");
+  try {
+    writeFileSync(path.join(root, "package.json"), '{"type":"module"}');
+    symlinkSync(path.join(repoRoot, "node_modules"), path.join(root, "node_modules"), "dir");
+    // Targeted compilation of the exercised graph only. No full build, source mutation or
+    // existing dist dependency; Node workers execute emitted .js with execArgv: [].
+    await build({
+      entryPoints: ["worker-sandbox.ts", "handlebars-worker.ts", "liquid-worker.ts", "__tests__/fixtures/exit-worker.ts"].map((file) => path.join(siteDir, file)),
+      outdir: root, outbase: siteDir, bundle: true, platform: "node", format: "esm", packages: "external",
+      plugins: [{ name: "tovu-source-imports", setup(build) {
+        build.onResolve({ filter: /^#src\// }, (args) => ({ path: path.join(repoRoot, "apps/website/src", `${args.path.slice(5)}.ts`) }));
+      } }],
+    });
+    const script = `
+      import assert from "node:assert/strict";
+      import { renderInWorkerSandbox } from ${JSON.stringify(pathToFileURL(path.join(root, "worker-sandbox.js")).href)};
+      const ctx = { siteTitle: "Compiled fixture", route: "home", posts: [], products: [], themeName: "test", widgetRegions: {}, widgetInlineResolved: new Map() };
+      for (const [worker, label] of [["handlebars-worker", "Handlebars"], ["liquid-worker", "Liquid"]]) {
+        assert.equal(await renderInWorkerSandbox(worker, label, { source: "<h1>{{site.title}}</h1>", ctx }, { timeoutMs: 15000 }), "<h1>Compiled fixture</h1>");
+        await assert.rejects(renderInWorkerSandbox("__tests__/fixtures/exit-worker", label, { source: "", ctx }, { timeoutMs: 15000 }), { message: label + " render worker exited with code 7" });
+      }
+      await assert.rejects(renderInWorkerSandbox("missing-worker", "Handlebars", { source: "", ctx }, { timeoutMs: 15000 }), (error) => {
+        assert.equal(error.code, "MODULE_NOT_FOUND");
+        assert.ok(error.message.includes("missing-worker.js"));
+        return true;
+      });
+      console.log("compiled workers: 2 renders, 2 exits, missing JS entry checked");
+    `;
+    const result = spawnSync(process.execPath, ["--input-type=module", "--eval", script], { cwd: root, encoding: "utf8", timeout: 60_000 });
+    assert.equal(result.error, undefined);
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /compiled workers: 2 renders, 2 exits, missing JS entry checked/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
 
 /**
  * @file Exercises `renderInWorkerSandbox`'s `worker.once("exit", ...)` branch directly, via a

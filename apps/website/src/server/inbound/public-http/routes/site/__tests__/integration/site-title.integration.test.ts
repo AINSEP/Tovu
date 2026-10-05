@@ -194,7 +194,8 @@ test("AC-15 (REQ-01): core.site/title accepts a workspace-scope write and reject
 
   for (const scope of ["global", "user"] as const) {
     const res = await putSiteTitle(site, OWNER_TITLE, scope);
-    assert.notEqual(res.status, 200, `a ${scope}-scope write must be rejected`);
+    assert.equal(res.status, 400, `a ${scope}-scope write must be rejected as validation`);
+    assert.equal((await res.json()).code, "SCOPE_NOT_ALLOWED");
   }
   assert.equal(await revisionCount(), before, "a rejected write must append no revision");
 });

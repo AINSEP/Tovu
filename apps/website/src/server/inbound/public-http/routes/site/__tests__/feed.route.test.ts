@@ -15,8 +15,10 @@ import { registerFeedRoute } from "../feed.js";
  * (never pages, drafts, trashed or gated posts), absolute links, XML-escaped text.
  */
 
-function buildFeedOnlyApp(depsOverrides: Partial<SeoRouteDeps>): express.Express {
-  const deps: SeoRouteDeps = { ...createRouteDeps(), ...depsOverrides };
+async function buildFeedOnlyApp(depsOverrides: Partial<SeoRouteDeps>): Promise<express.Express> {
+  const base = createRouteDeps();
+  await base.siteTitleReady;
+  const deps: SeoRouteDeps = { ...base, siteDisplayName: { read: () => "Field & Notes" }, ...depsOverrides };
   const app = express();
   registerFeedRoute(app, deps);
   return app;
@@ -42,7 +44,7 @@ function post(overrides: Partial<PostRecord>): PostRecord {
 }
 
 async function fetchFeed(t: test.TestContext, posts: PostRecord[]): Promise<{ res: Response; body: string }> {
-  const app = buildFeedOnlyApp({ postRepo: new InMemoryPostRepo(posts) });
+  const app = await buildFeedOnlyApp({ postRepo: new InMemoryPostRepo(posts) });
   const baseUrl = await startTestServer(app, t);
   const res = await fetch(`${baseUrl}/feed.xml`);
   return { res, body: await res.text() };
@@ -55,7 +57,7 @@ test("GET /feed.xml: RSS 2.0 with the sitemap's cache header, an absolute item l
   assert.equal(res.headers.get("cache-control"), "public, max-age=60, stale-while-revalidate=300");
   assert.match(body, /^<\?xml version="1\.0" encoding="UTF-8"\?>\n<rss version="2\.0" xmlns:atom="http:\/\/www\.w3\.org\/2005\/Atom">/);
   assert.match(body, /<atom:link href="http:\/\/localhost:3000\/feed\.xml" rel="self" type="application\/rss\+xml"\/>/);
-  assert.match(body, /<channel>\n {4}<title>[^<]+<\/title>\n {4}<link>http:\/\/localhost:3000\/<\/link>/);
+  assert.match(body, /<channel>\n {4}<title>Field &amp; Notes<\/title>\n {4}<link>http:\/\/localhost:3000\/<\/link>/);
   assert.match(
     body,
     /<item>\n {6}<title>A post<\/title>\n {6}<link>http:\/\/localhost:3000\/a-post<\/link>\n {6}<guid isPermaLink="true">http:\/\/localhost:3000\/a-post<\/guid>\n {6}<pubDate>Tue, 01 Sep 2026 10:00:00 GMT<\/pubDate>\n {6}<description>First paragraph text\.<\/description>\n {4}<\/item>/
@@ -95,7 +97,7 @@ test("GET /feed.xml: a post-read failure is a plain-text 500", async (t) => {
   postRepo.list = async () => {
     throw new Error("post store unavailable");
   };
-  const app = buildFeedOnlyApp({ postRepo });
+  const app = await buildFeedOnlyApp({ postRepo });
   const baseUrl = await startTestServer(app, t);
   const res = await fetch(`${baseUrl}/feed.xml`);
   assert.equal(res.status, 500);

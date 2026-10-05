@@ -43,6 +43,9 @@ test("packs and unpacks every file losslessly, including nested and non-ASCII co
     "skills/x/SKILL.md": "# X\n\nBody — with an em dash and an emoji 🧭\n",
     "skills/x/references/deep/nested.md": "nested\n",
     "empty.txt": "",
+    // Sorted directory traversal visits a/z.txt before a.txt; archive paths sort the other way.
+    "a/z.txt": "nested sort discriminator",
+    "a.txt": "sibling sort discriminator",
   };
   const dir = await fixtureDir(files);
   try {

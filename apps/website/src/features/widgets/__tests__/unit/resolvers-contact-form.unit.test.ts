@@ -37,14 +37,18 @@ function definition(overrides: Partial<FormDefinitionRecord> = {}): FormDefiniti
   };
 }
 
-test("REQ-38: a config with no formDefinitionId resolves invalid-config, never calls the repo", async () => {
+test("REQ-38: a config with no formDefinitionId resolves invalid-config, never calls the repo", async (t) => {
   const repo = new InMemoryFormDefinitionRepo();
+  const byId = t.mock.method(repo, "findById");
+  const bySlug = t.mock.method(repo, "findBySlug");
   const resolver = createContactFormResolver({ formDefinitionRepo: repo });
 
   const results = await resolver.resolveMany([instance({ id: "w-1", config: {} })], CTX);
 
   const result = results.get("w-1");
   assert.deepEqual(result, { ok: false, reason: "invalid-config" });
+  assert.equal(byId.mock.callCount(), 0);
+  assert.equal(bySlug.mock.callCount(), 0);
 });
 
 test("REQ-38: a non-string formDefinitionId resolves invalid-config", async () => {
@@ -112,4 +116,12 @@ test("REQ-37: an active definition with no successMessage config resolves succes
   assert.ok(result?.ok);
   if (!result.ok) return;
   assert.equal(result.ir.props.successMessage, null);
+});
+
+test("REQ-38: a form id in another workspace degrades to target-disabled", async () => {
+  const repo = new InMemoryFormDefinitionRepo();
+  await repo.create(definition({ workspaceId: "other-workspace" }));
+  const resolver = createContactFormResolver({ formDefinitionRepo: repo });
+  const results = await resolver.resolveMany([instance({ id: "w-1", config: { formDefinitionId: "form-1" } })], CTX);
+  assert.deepEqual(results.get("w-1"), { ok: false, reason: "target-disabled" });
 });
