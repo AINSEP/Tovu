@@ -37,11 +37,12 @@ Owner directive 2026-10-04: author journeys, never run them. Every journey liste
 | AW-7 T1 | Testimonials carousel keyboard-scrollable, no sideways page scroll at 390 px | authored | plugins |
 | AW-7 | Plugin name conflict in the install preview AND on the Plugins row; enabling the clash is refused (409), holder untouched, readable reason | authored | plugins |
 | W11 / W12 | Seeded public routes 200 + phone width; every `ADMIN_PANELS` route loads | authored | smoke |
-| W5 | Theme activate -> public home reflects it -> revert | NOT authored | - |
-| W8 | Users: create editor -> log in as editor -> restricted nav (needs its own storageState; mind the login limiter) | NOT authored | - |
-| W9 | Real tool call through a layer-2 fake model creates a Post row | NOT authored (needs the fake model server) | - |
+| W5 | Theme activate -> public home reflects it -> revert; double-click Activate = 1 PATCH | authored | themes |
+| W8 | Users: create editor -> log in as editor -> server 403 on users; restricted nav (asserts INTENDED; likely fails); disabled user refused | authored | users |
+| W9 | Real tool call through a layer-2 fake model creates a Post row | NOT authored: no reusable fake-model helper exists (only the inline Gemini deputy in `byok-google-tool-schema.spec.ts`); needs `development/e2e/harness/fake-model-server.ts` (scripted SSE turn queue + request capture) and a BYOK provider configured in globalSetup | - |
 | W10 | Public site-chat smoke on the shared harness | NOT authored (existing `site-assistant-*` cover it) | - |
-| D1-D7 | Desktop journeys (`.desktop.ts`) | NOT authored: need the H2 Electron config | - |
+| D1-D3 | Desktop: sites home smoke, add/create site, site webview guest (`.desktop.ts`, H2 config `playwright.desktop-journeys.config.ts`) | authored | desktop/smoke, add-site, site-webview |
+| D4-D7 | Desktop: guest assistant reply via CDP Fetch stub; lifecycle (power, rename, remove, locate); zoom + window bounds persist; two instances side by side | NOT authored (agent rotated at context cap; see handoff 2026-10-04-e2e-unrun-part3-handoff.md) | - |
 
 ### Further stress ideas, not yet authored
 - Trash: restore an item whose slug was reused meanwhile (post, menu, form); purge while another tab has it open.
