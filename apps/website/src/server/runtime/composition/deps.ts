@@ -762,11 +762,15 @@ function createSiteDisplayNameSource(dbPath: string): SiteDisplayNameSource {
  * stops the sweep (waiting for a pass in flight) before closing the underlying store, so no pass
  * ever queries a closed store. `release` is what {@link createSiteRouteDeps} runs when the rest of
  * the composition fails: close what this call opened, or only stop the sweep on a supplied store.
+ *
+ * `onClose` collects the composition's process-wide registrations (a resolve-phase handler bound to
+ * this store's repos) so both `close()` and `release` remove them first. Without it, a closed site's
+ * handler stays on every request's path, querying a database that is no longer open.
  */
 async function openCompositionStore(
   dbPath: string,
   overrides?: Partial<CreateSiteRouteDepsOverrides>
-): Promise<{ store: SiteStore; release: () => Promise<void> }> {
+): Promise<{ store: SiteStore; release: () => Promise<void>; onClose: (dispose: () => void) => void }> {
   const storage = resolveSiteStorage(isInMemoryDbPath(dbPath) ? ":memory:" : dirname(dbPath));
   hydrateContentDbIfNeeded(dbPath, storage, overrides);
   const role = overrides?.storeRole ?? "owner";
@@ -781,16 +785,24 @@ async function openCompositionStore(
   const stopSubmissionIpSweep = role === "owner"
     ? startSubmissionIpExpirySweep({ kernel: opened.content })
     : async () => {};
-  const stopSweep = async (): Promise<void> => { await Promise.all([stopChatSweep(), stopSubmissionIpSweep()]); };
+  const disposers: Array<() => void> = [];
+  const stopStoreUsers = async (): Promise<void> => {
+    for (const dispose of disposers.splice(0)) dispose();
+    await Promise.all([stopChatSweep(), stopSubmissionIpSweep()]);
+  };
   const store: SiteStore = {
     ...opened,
     close: async () => {
-      await stopSweep();
+      await stopStoreUsers();
       await opened.close();
     },
   };
   overrides?.onStoreOpened?.(store);
-  return { store, release: supplied === undefined ? store.close : stopSweep };
+  return {
+    store,
+    release: supplied === undefined ? store.close : stopStoreUsers,
+    onClose: (dispose) => { disposers.push(dispose); },
+  };
 }
 
 /** The guest-chat expiry sweep, on the owner only; its stop function (a no-op on a client). */
@@ -909,7 +921,7 @@ export async function createSiteRouteDeps(
   assertOverridesPairedOrAbsent(overrides);
   const opened = await openCompositionStore(dbPath, overrides);
   try {
-    return await composeSiteRouteDeps(dbPath, opened.store, overrides);
+    return await composeSiteRouteDeps(dbPath, { store: opened.store, onStoreClose: opened.onClose }, overrides);
   } catch (err) {
     await opened.release();
     throw err;
@@ -923,9 +935,10 @@ export async function createSiteRouteDeps(
  */
 async function composeSiteRouteDeps(
   dbPath: string,
-  store: SiteStore,
+  opened: { store: SiteStore; onStoreClose: (dispose: () => void) => void },
   overrides?: Partial<CreateSiteRouteDepsOverrides>
 ): Promise<NewsletterRouteDeps & ByokToolSurfaceDeps> {
+  const { store, onStoreClose } = opened;
 
   // Resolved ONCE and threaded down, the same discipline `exportOutputRootDir`/`themesDir` already
   // follow (see `routes/types.ts`). Seeded before anything discovers themes off it: on a site's
@@ -1512,14 +1525,16 @@ async function composeSiteRouteDeps(
     idGen,
     outbox,
   };
-  registerRedirectsPhaseHandlers({
+  // Disposed with the store: the resolver closes over this site's `redirectRepo`, and the phase
+  // registry is process-wide, so it must not outlive the database it queries.
+  onStoreClose(registerRedirectsPhaseHandlers({
     resolver: new RedirectPhaseHandlerResolver({
       repo: redirectRepo,
       matcher: redirectMatcher,
       originRegistry,
       hits: { outbox, clock, idGen },
     }),
-  });
+  }));
   registerSlugChangeCapture(
     new RedirectSlugChangeCapture({ repo: redirectRepo, db: redirectRepo, clock, idGen })
   );
