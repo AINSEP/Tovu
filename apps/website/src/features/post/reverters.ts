@@ -5,6 +5,7 @@ import { createRevertRegistry, type EntityReverter, type RevertRegistry } from "
 import {
   classifyStatusTransition,
   isTrashed,
+  presentScheduleFields,
   type ForgetRemovedPostFn,
   type PostRecord,
   type PostRepoPort,
@@ -100,6 +101,8 @@ function createPostUpdateReverter(deps: PostReverterDeps): EntityReverter {
             bodyJson: Record<string, unknown>;
             status: PostStatus;
             ext?: Record<string, unknown>;
+            publishAt?: string | null;
+            featuredMediaId?: string | null;
           }
         | undefined;
       if (!inverse) {
@@ -113,9 +116,16 @@ function createPostUpdateReverter(deps: PostReverterDeps): EntityReverter {
 
       // `ext` is destructured off the current record so the conditional spread below is the single
       // source of truth: a pre-image without `ext` restores to an entry without `ext` (AC-17).
-      const { ext: _currentExt, ...carriedOver } = existing;
+      const { ext: _currentExt, publishAt: currentPublishAt, featuredMediaId: currentFeatured, ...carriedOver } = existing;
       const restored: PostRecord = {
         ...carriedOver,
+        // Scheduled publishing / featured image (2026-10-05): restored from the pre-image when it
+        // carries them; a pre-image recorded before these fields existed has no key at all, and
+        // then the current values stay (there is nothing older to restore them to).
+        ...presentScheduleFields({
+          publishAt: inverse.publishAt === undefined ? currentPublishAt : inverse.publishAt,
+          featuredMediaId: inverse.featuredMediaId === undefined ? currentFeatured : inverse.featuredMediaId,
+        }),
         title: inverse.title,
         slug: inverse.slug,
         bodyJson: inverse.bodyJson as JsonObject,

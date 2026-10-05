@@ -2841,7 +2841,9 @@ export function buildTemplateRenderData(ctx: SiteRenderContext): Record<string, 
     // helper (and deliberately exposes no way for a theme to register one), so any formatting a
     // theme cannot express must be precomputed server-side. Purely additive: every existing Liquid
     // theme's `{{ post.date | date: … }}` keeps reading the same unchanged `date` field.
-    posts: ctx.posts.map((p) => ({ title: p.title, slug: p.slug, date: p.updatedAt, dateShort: shortDate(p.updatedAt) })),
+    // `featuredImage` (2026-10-05) is `{ url, alt, width, height }` or `null` — a theme renders it
+    // with `{% if post.featuredImage %}<img src="{{ post.featuredImage.url }}" …>{% endif %}`.
+    posts: ctx.posts.map((p) => ({ title: p.title, slug: p.slug, date: p.updatedAt, dateShort: shortDate(p.updatedAt), featuredImage: featuredImageView(ctx, p) })),
     post: ctx.post
       ? {
           title: ctx.post.title,
@@ -2849,12 +2851,39 @@ export function buildTemplateRenderData(ctx: SiteRenderContext): Record<string, 
           date: ctx.post.updatedAt,
           dateShort: shortDate(ctx.post.updatedAt),
           content: renderPostBody(ctx),
+          featuredImage: featuredImageView(ctx, ctx.post),
         }
       : null,
     // `price` stays in cents — themes format it themselves; `priceFormatted`/`compareAtPriceFormatted`
     // are precomputed here so a theme can just read one field.
     products: ctx.products.map(siteProductRenderShape),
     product: ctx.product ? siteProductRenderShape(ctx.product) : null,
+  };
+}
+
+/**
+ * Featured image (2026-10-05) as template data: the core "public" transform URL — the same `/m/`
+ * URL a body image of the same asset gets — or `null` when the post has none, the asset did not
+ * resolve (trashed, deleted, not in `mediaAssetMetadata`), or the transform is not registered yet.
+ * Alt text is the post title: `MediaAssetRenderMeta` carries no alt, and the image illustrates it.
+ *
+ * @complexity O(1) — two map lookups.
+ */
+/** `CORE_PUBLIC_TRANSFORM_NAME` (`features/media/bootstrap.ts`), restated rather than imported: that
+ *  module pulls in the whole media feature barrel, which this I/O-free render module never needed. */
+const FEATURED_IMAGE_TRANSFORM = "public";
+
+function featuredImageView(ctx: SiteRenderContext, post: PostRecord): { url: string; alt: string; width: number | null; height: number | null } | null {
+  if (!post.featuredMediaId) return null;
+  const meta = ctx.mediaAssetMetadata.get(post.featuredMediaId);
+  const version = ctx.mediaTransformVersions.get(FEATURED_IMAGE_TRANSFORM);
+  if (!meta || version === undefined) return null;
+  const urlKey = mediaUrlKey({ id: post.featuredMediaId, slug: meta.slug });
+  return {
+    url: mediaPublicPath(urlKey, { kind: "transform", name: FEATURED_IMAGE_TRANSFORM, version, ext: "jpg" }),
+    alt: post.title,
+    width: meta.width,
+    height: meta.height,
   };
 }
 

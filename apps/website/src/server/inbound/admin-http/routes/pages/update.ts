@@ -26,13 +26,16 @@ import type { ContentRouteRegistrar } from "../content/deps.js";
  *  @complexity O(1). */
 function parsePageUpdateBody(
   rawBody: unknown
-): Pick<UpdatePostInput, "title" | "slug" | "bodyJson" | "status" | "expectedVersion"> {
+): Pick<UpdatePostInput, "title" | "slug" | "bodyJson" | "status" | "expectedVersion" | "publishAt" | "featuredMediaId"> {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   return {
     title: String(body.title ?? ""),
     slug: String(body.slug ?? ""),
     bodyJson: body.bodyJson as UpdatePostInput["bodyJson"],
     status: body.status as UpdatePostInput["status"],
+    // Omitted ⇒ unchanged, `null` ⇒ cleared; validated by `updatePost` (2026-10-05).
+    publishAt: body.publishAt as UpdatePostInput["publishAt"],
+    featuredMediaId: body.featuredMediaId as UpdatePostInput["featuredMediaId"],
     // Validated, not cast — `features/post/expected-version.ts` owns this rule for every arm that
     // accepts a basis, so a mistyped `"3"` is a 400 here exactly as it is on `posts/update.ts`
     // rather than coercing to "no basis sent" and becoming an unguarded save by a client that
@@ -176,6 +179,9 @@ export const registerAdminPageUpdateRoute: ContentRouteRegistrar = (app, deps) =
                 slug: priorPost.slug,
                 bodyJson: priorPost.bodyJson,
                 status: priorPost.status,
+                // Scheduled publishing / featured image (2026-10-05) — `null` restores "none".
+                publishAt: priorPost.publishAt ?? null,
+                featuredMediaId: priorPost.featuredMediaId ?? null,
               };
             },
             execute: () =>

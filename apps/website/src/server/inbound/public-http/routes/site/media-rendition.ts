@@ -213,6 +213,8 @@ function scanEntryAssets(entry: PostRecord): EntryAssetScan {
   const ids = new Set<string>();
   collectMediaRefAssetIds(entry.bodyJson, ids);
   if (entry.bodyHtml !== null) addHtmlEmbedAssetIds(entry.bodyHtml, ids);
+  // Featured image (2026-10-05): a gated post's header image is gated with it, same as a body image.
+  if (entry.featuredMediaId) ids.add(entry.featuredMediaId);
   return { ids, readable: READABLE_BODY_FORMATS.has(entry.bodyFormat) };
 }
 

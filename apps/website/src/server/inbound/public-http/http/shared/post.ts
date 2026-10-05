@@ -33,6 +33,9 @@ export function toHeadlessPost(post: PostRecord): AdminPost {
     // "theme page wins" decision no author ever made. See `PostRecord.overridesThemePage`'s own doc.
     overridesThemePage: post.overridesThemePage ?? null,
     ...(post.ext !== undefined ? { ext: post.ext as Record<string, Record<string, unknown>> } : {}),
+    // Present only when set, like `ext` — every pre-existing response stays byte-identical.
+    ...(post.publishAt ? { publishAt: post.publishAt } : {}),
+    ...(post.featuredMediaId ? { featuredMediaId: post.featuredMediaId } : {}),
   };
 
   if (post.bodyFormat === "html") {

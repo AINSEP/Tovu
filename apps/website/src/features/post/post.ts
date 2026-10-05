@@ -3,6 +3,7 @@ import type { Clock as ClockPort, JsonObject, UUID } from "@jini-ai/core/primiti
 import type { OutboxPort } from "@jini-ai/cms/core";
 
 import { isTrashed } from "../../contracts/core/soft-delete.js";
+import { currentIso, isLiveAt } from "../../contracts/core/scheduled-publish.js";
 import { toSlug } from "#src/platform/html/slug";
 import { postPublicPath, type SlugChangeCapture } from "#src/platform/routing/index";
 
@@ -144,6 +145,16 @@ export interface PostRecord {
    * Same write-once contract as {@link createdByPrincipalId} — never set by `updatePost`.
    */
   createdAt?: string | null;
+  /**
+   * Scheduled publishing (2026-10-05, `posts.publish_at`) — the ISO UTC instant a `published` row
+   * goes live, or `null`/absent for "live as soon as published". A published row whose `publishAt`
+   * is still ahead is SCHEDULED: every public read hides it until then (`isLiveAt`,
+   * `contracts/core/scheduled-publish.ts`, which explains why this is not a third status).
+   */
+  publishAt?: string | null;
+  /** Featured image (2026-10-05, `posts.featured_media_id`) — a media asset id, or `null`/absent.
+   *  Resolved to a URL only at render time; a trashed/missing asset renders as "no image". */
+  featuredMediaId?: string | null;
 }
 
 /**
@@ -265,8 +276,11 @@ export interface PostRepoPort {
    * Deliberately NOT reused by {@link list}/`listPublishedPosts`/`listAdminPosts`/`listAdminPages`
    * above — those stay unbounded and unchanged; this is an ADDITIVE method for the one caller that
    * needs a bounded query, not a widening of the existing unbounded ones.
+   *
+   * Scheduled rows (`publishAt` after `nowIso`, default now) are excluded in the same query, for
+   * the same "never fewer than `limit` real posts" reason.
    */
-  listPublishedPreviews(required: { workspaceId: UUID; limit: number }): Promise<PostRecord[]>;
+  listPublishedPreviews(required: { workspaceId: UUID; limit: number; nowIso?: string }): Promise<PostRecord[]>;
   /**
    * Unconditional upsert of one whole row — last write wins, by design.
    *
@@ -445,6 +459,11 @@ export interface CreatePostInput {
   bodyJson?: JsonObject;
   /** Optional caller-supplied status. Defaults to `"draft"` when absent. */
   status?: PostStatus;
+  /** Optional go-live instant (any `Date.parse`-able string; stored normalized to ISO UTC). See
+   *  {@link PostRecord.publishAt}. Absent/`null` ⇒ not scheduled. */
+  publishAt?: string | null;
+  /** Optional featured image media id. See {@link PostRecord.featuredMediaId}. */
+  featuredMediaId?: string | null;
   /** Attribution for the revision this write appends to `post_revisions` (2026-09-18). Optional —
    *  an omitted value defaults to {@link SYSTEM_ACTOR_ID} rather than being required, so this
    *  repo's own ~9 direct-unit-test call sites (documented on {@link CreatePostDeps}) keep
@@ -511,6 +530,12 @@ export interface UpdatePostInput {
    * explicit choice. See {@link PostRecord.overridesThemePage} for the full tri-state contract.
    */
   overridesThemePage?: boolean | null;
+  /** Same "omit to leave unchanged" contract as {@link UpdatePostInput.templateChoice}: `undefined`
+   *  keeps the stored go-live time, `null` clears it (live as soon as published), a date string sets
+   *  it. See {@link PostRecord.publishAt}. */
+  publishAt?: string | null;
+  /** Same tri-state as {@link UpdatePostInput.publishAt}, for {@link PostRecord.featuredMediaId}. */
+  featuredMediaId?: string | null;
   /**
    * Optimistic-concurrency basis (2026-09-06) — the {@link PostRecord.version} the caller believes
    * it is editing, captured when it read the row.
@@ -887,7 +912,10 @@ export interface GetPostByIdOrSlugRequired {
   input: { workspaceId: UUID; idOrSlug: string };
 }
 
-export interface GetPostOptional {}
+export interface GetPostOptional {
+  /** The instant scheduled rows are judged against (ISO UTC). Defaults to now; tests pin it. */
+  nowIso?: string;
+}
 
 export class PostNotFoundError extends Error {}
 export class PostValidationError extends Error {}
@@ -1034,6 +1062,53 @@ function isValidSlugFormat(slug: string): boolean {
 /** Shared status-enum rule (`updatePost` and `createPost`'s explicit-status path both apply it). */
 function isValidPostStatus(status: unknown): status is PostStatus {
   return status === "draft" || status === "published";
+}
+
+/** An ISO 8601 date-time WITH an explicit offset (`Z` or `±hh:mm`). Required, not merely parseable:
+ *  a bare `2026-10-12T09:00` would be read in the server's own timezone, which is rarely the
+ *  author's — the browser editor converts its local picker value to an offset form before sending. */
+export const PUBLISH_AT_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,9})?)?(?:Z|[+-]\d{2}:\d{2})$/;
+
+/** Upper bound on a featured-image media id (UUIDs are 36 chars; slugs are resolved to ids first). */
+export const MAX_FEATURED_MEDIA_ID_LENGTH = 200;
+
+/**
+ * Scheduled publishing (2026-10-05) — validates a caller's go-live time and normalizes it to the
+ * ISO UTC form `isLiveAt` string-compares against. Tri-state like every optional update field:
+ * `undefined` passes through ("unchanged"), `null`/`""` clears it.
+ *
+ * @throws {PostValidationError} When the value is not an offset-qualified ISO 8601 date-time.
+ * @complexity O(1).
+ */
+export function normalizePublishAt(value: unknown): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null || value === "") return null;
+  if (typeof value !== "string" || !PUBLISH_AT_PATTERN.test(value) || Number.isNaN(Date.parse(value))) {
+    throw new PostValidationError("publishAt must be an ISO 8601 date-time with a timezone offset (e.g. 2026-10-12T09:00:00-07:00 or 2026-10-12T16:00:00Z), or null");
+  }
+  return new Date(value).toISOString();
+}
+
+/** Featured image (2026-10-05) — same tri-state as {@link normalizePublishAt}. Shape only: whether
+ *  the asset exists is checked by the caller that resolved it (the agent tool / media picker).
+ *  @throws {PostValidationError} When the value is not a short non-empty string. @complexity O(1). */
+export function normalizeFeaturedMediaId(value: unknown): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null || value === "") return null;
+  if (typeof value !== "string" || value.trim() === "" || value.length > MAX_FEATURED_MEDIA_ID_LENGTH) {
+    throw new PostValidationError(`featuredMediaId must be a media asset id (1-${MAX_FEATURED_MEDIA_ID_LENGTH} characters) or null`);
+  }
+  return value.trim();
+}
+
+/** The schedule/featured-image keys a record carries — present only when set, so a row that has
+ *  neither keeps the exact record shape it had before these fields existed (the same "absent, not
+ *  empty" convention `ext` follows). @complexity O(1). */
+export function presentScheduleFields(fields: { publishAt?: string | null; featuredMediaId?: string | null }): Pick<PostRecord, "publishAt" | "featuredMediaId"> {
+  return {
+    ...(fields.publishAt ? { publishAt: fields.publishAt } : {}),
+    ...(fields.featuredMediaId ? { featuredMediaId: fields.featuredMediaId } : {}),
+  };
 }
 
 /**
@@ -1258,6 +1333,10 @@ export async function createPost(
 ): Promise<{ post: PostRecord; revisionId: string; previousRevisionId: string | null }> {
   const { deps, input } = required;
   const { title, explicitSlug, bodyJson, status, bodyFormat, bodyHtml } = resolveCreateFields(input);
+  const scheduleFields = presentScheduleFields({
+    publishAt: normalizePublishAt(input.publishAt),
+    featuredMediaId: normalizeFeaturedMediaId(input.featuredMediaId),
+  });
 
   let slug: string;
   if (explicitSlug !== undefined) {
@@ -1311,6 +1390,7 @@ export async function createPost(
     // value. See `PostRecord.createdByPrincipalId`'s own doc for the full contract.
     createdByPrincipalId: input.actorId ?? null,
     createdAt: now,
+    ...scheduleFields,
     ...(ext !== undefined ? { ext } : {}),
   };
 
@@ -1483,9 +1563,14 @@ function buildUpdatedPost(
   ext: JsonObject | undefined,
   now: string
 ): PostRecord {
-  const { ext: _priorExt, ...carriedOver } = existing;
+  const { ext: _priorExt, publishAt: _priorPublishAt, featuredMediaId: _priorFeatured, ...carriedOver } = existing;
   return {
     ...carriedOver,
+    // `undefined` keeps the stored value, `null` clears it — the same tri-state as `templateChoice`.
+    ...presentScheduleFields({
+      publishAt: input.publishAt === undefined ? existing.publishAt : normalizePublishAt(input.publishAt),
+      featuredMediaId: input.featuredMediaId === undefined ? existing.featuredMediaId : normalizeFeaturedMediaId(input.featuredMediaId),
+    }),
     title: fields.title,
     slug: fields.slug,
     // SPEC-047/ADR-056 CIC-3 — forced explicitly rather than left to `...carriedOver`, for the same
@@ -1549,6 +1634,10 @@ export async function updatePost(
   assertExpectedVersion(existing, input.expectedVersion);
 
   const { title, slug } = validateUpdatePostInput(input, existing);
+  // Validated here, before any further repo access, so a bad date writes nothing; normalized again
+  // (idempotently) where the record is built.
+  normalizePublishAt(input.publishAt);
+  normalizeFeaturedMediaId(input.featuredMediaId);
   await assertSlugAvailableForUpdate(deps.repo, input.workspaceId, slug, input.id);
 
   // CIC U-004: the hook resolves (or throws) BEFORE the record is built and BEFORE the single
@@ -1839,10 +1928,11 @@ export async function listAdminPosts(
 /** List published posts for the public site. */
 export async function listPublishedPosts(
   required: ListPostsRequired,
-  _optional: GetPostOptional = {}
+  optional: GetPostOptional = {}
 ): Promise<{ posts: PostRecord[] }> {
   const posts = await required.deps.repo.list({ workspaceId: required.input.workspaceId });
-  return { posts: posts.filter((post) => post.status === "published" && !isTrashed(post)) };
+  const nowIso = optional.nowIso ?? currentIso();
+  return { posts: posts.filter((post) => isLiveAt(post, nowIso)) };
 }
 
 export interface ListPublishedPostPreviewsRequired {
@@ -1865,6 +1955,7 @@ export async function listPublishedPostPreviews(
   const posts = await required.deps.repo.listPublishedPreviews({
     workspaceId: required.input.workspaceId,
     limit: required.input.limit,
+    nowIso: _optional.nowIso ?? currentIso(),
   });
   return { posts };
 }
@@ -1897,7 +1988,8 @@ export async function getPublishedPostBySlug(
   const { workspaceId } = required.input;
   const slug = required.input.slug.trim().toLowerCase();
   const post = await required.deps.repo.findBySlug({ workspaceId, slug });
-  if (!post || isTrashed(post) || post.status !== "published") {
+  // A scheduled row 404s exactly like a draft until its time passes — no existence leak.
+  if (!post || !isLiveAt(post, _optional.nowIso ?? currentIso())) {
     throw new PostNotFoundError(`post '${slug}' was not found`);
   }
   return { post };
@@ -1928,7 +2020,7 @@ export async function findPublishedPostById(
 ): Promise<PostRecord | null> {
   const { workspaceId, id } = required.input;
   const post = await required.deps.repo.findById({ workspaceId, id });
-  if (!post || isTrashed(post) || post.status !== "published") return null;
+  if (!post || !isLiveAt(post, _optional.nowIso ?? currentIso())) return null;
   return post;
 }
 
@@ -1949,7 +2041,7 @@ export async function findPublishedPostBySlug(
 ): Promise<PostRecord | null> {
   const { workspaceId, slug } = required.input;
   const post = await required.deps.repo.findBySlug({ workspaceId, slug });
-  if (!post || isTrashed(post) || post.status !== "published") return null;
+  if (!post || !isLiveAt(post, _optional.nowIso ?? currentIso())) return null;
   return post;
 }
 

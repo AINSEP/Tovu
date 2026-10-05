@@ -11,6 +11,7 @@ import type {
 } from "./post.js";
 import { toRecord, toRevisionRecord, toRevisionRow, toRow, updatableColumns } from "./repo.rows.js";
 import { toPostSearchDocument, type PostSearchDocument } from "./search.js";
+import { currentIso } from "../../contracts/core/scheduled-publish.js";
 import { postSearchFor } from "./search-index.js";
 
 /**
@@ -78,7 +79,8 @@ export class SqlPostRepo implements PostRepoPort {
   /** See `PostRepoPort.listPublishedPreviews`'s own doc for the exact contract. Every filter
    *  (workspace, `status`, `kind`, non-trashed) and the `LIMIT` are pushed into the ONE query — no
    *  in-JS filter or slice after the fact, the discipline that method's doc requires. */
-  async listPublishedPreviews(required: { workspaceId: string; limit: number }): Promise<PostRecord[]> {
+  async listPublishedPreviews(required: { workspaceId: string; limit: number; nowIso?: string }): Promise<PostRecord[]> {
+    const nowIso = required.nowIso ?? currentIso();
     const rows = await this.kernel.run((db) =>
       db
         .selectFrom("posts")
@@ -87,6 +89,8 @@ export class SqlPostRepo implements PostRepoPort {
         .where("status", "=", "published")
         .where("kind", "=", "post")
         .where("deleted_at", "is", null)
+        // Scheduled publishing: same rule as `isLiveAt` — ISO UTC strings compare in time order.
+        .where((eb) => eb.or([eb("publish_at", "is", null), eb("publish_at", "<=", nowIso)]))
         .orderBy("updated_at", "desc")
         .limit(required.limit)
         .execute()

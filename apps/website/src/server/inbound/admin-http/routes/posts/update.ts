@@ -34,7 +34,7 @@ function parsePostUpdateBody(
   rawBody: unknown
 ): Pick<
   UpdatePostInput,
-  "title" | "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage" | "expectedVersion"
+  "title" | "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage" | "expectedVersion" | "publishAt" | "featuredMediaId"
 > {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   return {
@@ -44,6 +44,10 @@ function parsePostUpdateBody(
     status: body.status as UpdatePostInput["status"],
     templateChoice: body.templateChoice as UpdatePostInput["templateChoice"],
     overridesThemePage: body.overridesThemePage as UpdatePostInput["overridesThemePage"],
+    // Omitted ⇒ unchanged, `null` ⇒ cleared; `updatePost` validates both (scheduled publishing /
+    // featured image, 2026-10-05).
+    publishAt: body.publishAt as UpdatePostInput["publishAt"],
+    featuredMediaId: body.featuredMediaId as UpdatePostInput["featuredMediaId"],
     // Validated, not cast — see `features/post/expected-version.ts`, which owns this rule for BOTH
     // arms that accept a basis (this route and the `content_post_update` agent tool). Every other
     // field above is either coerced (`title`/`slug`) or handed to `updatePost`'s own validation;
@@ -188,6 +192,9 @@ export const registerAdminPostUpdateRoute: ContentRouteRegistrar = (app, deps) =
                 // chose. Coalescing to `false` here would be the exact same coercion bug this whole
                 // change removes, just relocated to the one path that only runs on failure.
                 overridesThemePage: priorPost.overridesThemePage ?? null,
+                // Scheduled publishing / featured image (2026-10-05) — `null` restores "none".
+                publishAt: priorPost.publishAt ?? null,
+                featuredMediaId: priorPost.featuredMediaId ?? null,
                 // SPEC-005 BR-08 (T024) — the pre-edit plugin `ext` bag travels in the pre-image
                 // alongside the core fields, so one revert restores both together. Spread
                 // conditionally: an entry with no `ext` yet must produce an inverse payload with

@@ -1565,11 +1565,17 @@ type PendingMediaAssetMeta = Omit<MediaAssetRenderMeta, "contentType"> & { reado
  */
 export async function resolveMediaAssetMetadataForRender(
   deps: RenderContextResolutionDeps,
-  post: PostRecord | undefined
+  post: PostRecord | undefined,
+  /** Featured image (2026-10-05): listed posts whose featured image a theme's post cards may show
+   *  (`buildTemplateRenderData`'s `posts[].featuredImage`). Only their featured ids are resolved —
+   *  never their bodies. */
+  optional: { listed?: readonly PostRecord[] } = {}
 ): Promise<ReadonlyMap<string, MediaAssetRenderMeta>> {
-  if (!post) return new Map();
   const assetIds = new Set<string>();
-  collectMediaRefAssetIds(post.bodyJson, assetIds);
+  if (post) collectMediaRefAssetIds(post.bodyJson, assetIds);
+  for (const entry of [...(post ? [post] : []), ...(optional.listed ?? [])]) {
+    if (entry.featuredMediaId) assetIds.add(entry.featuredMediaId);
+  }
   if (assetIds.size === 0) return new Map();
 
   const entries = await Promise.all(
@@ -1936,7 +1942,7 @@ export async function renderGenericPostPage(
     resolveWidgetsForRender(deps, theme, post),
     resolveHtmlEmbedsForRender(deps, post),
     resolveMediaTransformVersionsForRender(deps),
-    resolveMediaAssetMetadataForRender(deps, post),
+    resolveMediaAssetMetadataForRender(deps, post, { listed: posts }),
     buildExtraHead(deps, "post", siteTitle, post),
     // Taxonomy render-surface gap fix (2026-09-03) — this is the generic (non-template) render path;
     // `renderTemplateBranchIfEligible`/`renderViaTemplate` above already resolves this same input for
@@ -2406,6 +2412,8 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
         posts: visiblePosts,
         widgets,
         mediaTransformVersions,
+        // Featured image (2026-10-05): resolves only the listed posts' featured ids for post cards.
+        mediaAssetMetadata: await resolveMediaAssetMetadataForRender(deps, undefined, { listed: visiblePosts }),
         extraHead,
         siteAssistantEnabled,
         staticMenus,

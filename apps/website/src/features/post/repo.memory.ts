@@ -1,7 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 
 import {
-  isTrashed,
   type PostAutosaveSnapshot,
   type PostRecord,
   type PostRepoPort,
@@ -9,6 +8,7 @@ import {
   type PostRevisionInput,
   type PostRevisionRecord,
 } from "./post.js";
+import { currentIso, isLiveAt } from "../../contracts/core/scheduled-publish.js";
 
 /**
  * SPEC-005 (T021): `ext` needs no special handling here. Unlike `repo.sqlite.ts` — which has to
@@ -58,14 +58,14 @@ export class InMemoryPostRepo implements PostRepoPort {
    *  `kind: "post"`-filtered, newest `updatedAt` first). Filter-sort-slice here is this in-memory
    *  adapter's own stand-in for a real bounded query — `repo.sqlite.ts`'s adapter is the one that
    *  must push the equivalent `WHERE`/`ORDER BY`/`LIMIT` down to SQLite itself. */
-  async listPublishedPreviews(required: { workspaceId: string; limit: number }): Promise<PostRecord[]> {
+  async listPublishedPreviews(required: { workspaceId: string; limit: number; nowIso?: string }): Promise<PostRecord[]> {
+    const nowIso = required.nowIso ?? currentIso();
     return this.rows
       .filter(
         (row) =>
           row.workspaceId === required.workspaceId &&
-          row.status === "published" &&
           row.kind === "post" &&
-          !isTrashed(row)
+          isLiveAt(row, nowIso)
       )
       .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : 0))
       .slice(0, required.limit);

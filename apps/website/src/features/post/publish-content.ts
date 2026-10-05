@@ -129,6 +129,13 @@ const POST_FIELD_DISPOSITIONS: Record<keyof PostRecord, "transferred" | "provena
   // instead delete on production. This is the safe reading — it never resurrects trash as live
   // content and never deletes production content — until that is answered.
   deletedAt: "local",
+
+  // Scheduled publishing / featured image (2026-10-05) — NOT carried yet. KNOWN GAP (follow-up):
+  // a scheduled post published to production arrives as plain `published` and is live at once.
+  // Classifying these "transferred" (packed only when set) changed every pinned content hash in
+  // `publish-content.characterization.test.ts` even for rows without them — cause not yet found.
+  publishAt: "local",
+  featuredMediaId: "local",
 };
 
 /** The keys {@link toPublishableState} puts on the wire: `"transferred"` plus `"provenance"`.

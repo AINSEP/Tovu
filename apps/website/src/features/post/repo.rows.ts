@@ -73,6 +73,9 @@ export function toRecord(row: PostRow): PostRecord {
     memberAccessJson: row.member_access_json ?? null,
     createdByPrincipalId: row.created_by_principal_id ?? null,
     createdAt: row.created_at ?? null,
+    // Present only when set — see `presentScheduleFields` in `post.ts` for why absent, not `null`.
+    ...(row.publish_at ? { publishAt: row.publish_at } : {}),
+    ...(row.featured_media_id ? { featuredMediaId: row.featured_media_id } : {}),
     ...(ext !== undefined ? { ext } : {}),
   };
 }
@@ -130,6 +133,8 @@ export function toRow(record: PostRecord) {
     // makes them write-once. See `posts.createdByPrincipalId`'s schema doc for the full contract.
     created_by_principal_id: record.createdByPrincipalId ?? null,
     created_at: record.createdAt ?? null,
+    publish_at: record.publishAt ?? null,
+    featured_media_id: record.featuredMediaId ?? null,
     ext: JSON.stringify(record.ext ?? {}),
   } satisfies Insertable<ContentDatabase["posts"]>;
 }
@@ -169,6 +174,8 @@ export function updatableColumns(row: ReturnType<typeof toRow>) {
     template_choice: row.template_choice,
     overrides_theme_page: row.overrides_theme_page,
     member_access_json: row.member_access_json,
+    publish_at: row.publish_at,
+    featured_media_id: row.featured_media_id,
     ext: row.ext,
   };
 }

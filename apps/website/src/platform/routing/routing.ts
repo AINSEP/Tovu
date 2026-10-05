@@ -19,7 +19,7 @@
  * wiring live here (that is out of scope for this v0 build) — this file is
  * pure resolution logic over injected ports and in-module registries.
  */
-import { isTrashed } from "../../contracts/core/soft-delete.js";
+import { currentIso, isLiveAt } from "../../contracts/core/scheduled-publish.js";
 import type { PostRecord } from "../../features/post/index.js";
 
 import type { RouteResolverDeps } from "./ports.js";
@@ -153,7 +153,9 @@ function composeCanonicalUrl(path: string, ctx: RouteResolveContext): string {
  * gating).
  */
 function isPublished(post: PostRecord): boolean {
-  return post.status === "published" && !isTrashed(post);
+  // Scheduled publishing (2026-10-05): a published row whose `publishAt` is still ahead gets no
+  // live link yet either — `isLiveAt` is `status === "published" && !isTrashed` plus that check.
+  return isLiveAt(post, currentIso());
 }
 
 /**

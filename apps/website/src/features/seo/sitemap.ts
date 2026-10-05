@@ -3,6 +3,7 @@ import { processOutbox } from "../../contracts/core/events/index.js";
 import type { UUID } from "@jini-ai/core/primitives";
 import { resolvePostMemberAccess } from "../members/index.js";
 import { isTrashed, type PostRecord, type PostRepoPort } from "../post/index.js";
+import { currentIso, isScheduledAt } from "../../contracts/core/scheduled-publish.js";
 import type { SettingsRepoPort } from "../settings/index.js";
 import type { OriginRegistryPort } from "../origin/index.js";
 import { resolveWorkspaceOrigin, toAbsoluteUrl } from "./absolute-url.js";
@@ -31,6 +32,40 @@ function cacheKey(workspaceId: UUID): string {
 const sitemapCache = new Map<string, string>();
 /** Only the most recently started build may publish into a workspace cache. */
 const sitemapBuilds = new Map<string, symbol>();
+/**
+ * Scheduled publishing (2026-10-05): the earliest future `publishAt` seen when a workspace's entry
+ * was built. Nothing emits an event when a scheduled post goes live (there is no job — see
+ * `contracts/core/scheduled-publish.ts`), so the cached sitemap simply stops being trusted at that
+ * instant and the next read rebuilds it.
+ */
+const sitemapExpiry = new Map<string, string>();
+
+/** The earliest go-live instant still ahead of `nowIso`, or `undefined` when nothing is scheduled.
+ *  @complexity O(n) in the workspace's post count. */
+function nextScheduledGoLive(posts: readonly PostRecord[], nowIso: string): string | undefined {
+  let next: string | undefined;
+  for (const post of posts) {
+    if (isTrashed(post) || !isScheduledAt(post, nowIso)) continue;
+    if (next === undefined || post.publishAt! < next) next = post.publishAt!;
+  }
+  return next;
+}
+
+/** Builds and (when still the latest build) caches one workspace's sitemap, with its expiry. */
+async function rebuildSitemapCache(deps: SeoSitemapDeps, workspaceId: UUID): Promise<SitemapEntry[]> {
+  const key = cacheKey(workspaceId);
+  const build = Symbol();
+  sitemapBuilds.set(key, build);
+  const nowIso = currentIso();
+  const entries = await computeSitemapEntries(deps, workspaceId, nowIso);
+  const expiry = nextScheduledGoLive(await deps.postRepo.list({ workspaceId }), nowIso);
+  if (sitemapBuilds.get(key) === build) {
+    sitemapCache.set(key, JSON.stringify(entries));
+    if (expiry === undefined) sitemapExpiry.delete(key);
+    else sitemapExpiry.set(key, expiry);
+  }
+  return entries;
+}
 
 // ---------------------------------------------------------------------------
 // `seo.sitemap.collect` (OQ-01) — a real, empty, in-module ordered registry.
@@ -91,12 +126,14 @@ export interface IndexableEntry {
  * @complexity O(n) in the workspace's post count, each with one bounded `getEntryMeta` resolution
  *   (see that function's own complexity note).
  */
-export async function computeIndexableEntries(deps: SeoSitemapDeps, workspaceId: UUID): Promise<IndexableEntry[]> {
+export async function computeIndexableEntries(deps: SeoSitemapDeps, workspaceId: UUID, nowIso: string = currentIso()): Promise<IndexableEntry[]> {
   const posts = [...(await deps.postRepo.list({ workspaceId }))].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 
   const entries: IndexableEntry[] = [];
   for (const post of posts) {
     if (post.status !== "published") continue;
+    // Scheduled publishing (2026-10-05): not in sitemap/feed/llms.txt until its go-live time.
+    if (isScheduledAt(post, nowIso)) continue;
     // 2026-09-04 fix: `softDelete` (post.ts) stamps only `deletedAt`/`updatedAt`/`version` — it
     // never clears `status`, so a post that was `published` when trashed stays `status:
     // "published"` forever and the guard above alone can't catch it. `PostRepoPort.list()` is
@@ -117,13 +154,13 @@ export async function computeIndexableEntries(deps: SeoSitemapDeps, workspaceId:
   return entries;
 }
 
-async function computeSitemapEntries(deps: SeoSitemapDeps, workspaceId: UUID): Promise<SitemapEntry[]> {
+async function computeSitemapEntries(deps: SeoSitemapDeps, workspaceId: UUID, nowIso: string): Promise<SitemapEntry[]> {
   // `meta.canonical` is absolute when the workspace has a verified origin (2026-09-03 fix,
   // `getEntryMeta`'s own `resolveCanonical`) — sitemap `loc` entries are required to be absolute
   // by the sitemap protocol, same requirement `og:url` has. Falls back to the bare relative path
   // for the same disclosed no-origin degradation `getEntryMeta` documents; unchanged from before
   // this fix for a workspace with no verified origin yet.
-  const entries: SitemapEntry[] = (await computeIndexableEntries(deps, workspaceId)).map(({ post, meta }) => ({
+  const entries: SitemapEntry[] = (await computeIndexableEntries(deps, workspaceId, nowIso)).map(({ post, meta }) => ({
     loc: meta.canonical,
     lastmod: post.updatedAt,
   }));
@@ -144,13 +181,10 @@ async function computeSitemapEntries(deps: SeoSitemapDeps, workspaceId: UUID): P
 export async function buildSitemap(deps: SeoSitemapDeps, input: { workspaceId: UUID }): Promise<SitemapEntry[]> {
   const key = cacheKey(input.workspaceId);
   const cached = sitemapCache.get(key);
-  if (cached !== undefined) return JSON.parse(cached) as SitemapEntry[];
-
-  const build = Symbol();
-  sitemapBuilds.set(key, build);
-  const entries = await computeSitemapEntries(deps, input.workspaceId);
-  if (sitemapBuilds.get(key) === build) sitemapCache.set(key, JSON.stringify(entries));
-  return entries;
+  const expiry = sitemapExpiry.get(key);
+  const expired = expiry !== undefined && currentIso() >= expiry;
+  if (cached !== undefined && !expired) return JSON.parse(cached) as SitemapEntry[];
+  return rebuildSitemapCache(deps, input.workspaceId);
 }
 
 /**
@@ -183,17 +217,14 @@ export async function buildRobots(
 
 /** REQ-13 — force-rebuilds the cache entry now, bypassing the cache-hit path. */
 export async function regenerateSitemapCache(deps: SeoSitemapDeps, input: { workspaceId: UUID }): Promise<void> {
-  const key = cacheKey(input.workspaceId);
-  const build = Symbol();
-  sitemapBuilds.set(key, build);
-  const entries = await computeSitemapEntries(deps, input.workspaceId);
-  if (sitemapBuilds.get(key) === build) sitemapCache.set(key, JSON.stringify(entries));
+  await rebuildSitemapCache(deps, input.workspaceId);
 }
 
 /** REQ-10/INV-08 — clears the workspace's cache entry. Idempotent: a repeat call on an already-clear key is a no-op. */
 export function invalidateSitemapCache(input: { workspaceId: UUID }): void {
   sitemapCache.delete(cacheKey(input.workspaceId));
   sitemapBuilds.delete(cacheKey(input.workspaceId));
+  sitemapExpiry.delete(cacheKey(input.workspaceId));
 }
 
 /**

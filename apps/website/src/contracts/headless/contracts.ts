@@ -67,6 +67,11 @@ interface AdminPostFields {
    * every live response; `undefined` only appears in a pre-feature test fixture.
    */
   overridesThemePage?: boolean | null;
+  /** Scheduled publishing (2026-10-05) — ISO UTC go-live instant; absent when not scheduled. A
+   *  `published` post whose `publishAt` is in the future is not yet visible on the public site. */
+  publishAt?: string;
+  /** Featured image (2026-10-05) — media asset id; absent when the post has none. */
+  featuredMediaId?: string;
 }
 
 /**

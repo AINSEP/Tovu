@@ -8,6 +8,13 @@ import { resolveWorkspaceOrigin, toAbsoluteUrl } from "./absolute-url.js";
 import { SeoEntryNotFoundError } from "./errors.js";
 import { getSeoSettings, type GetSeoSettingsDeps } from "./settings.js";
 import { resolveSeoImageRef, type ResolveSeoImageRefDeps } from "./media.js";
+import { currentIso, isScheduledAt } from "../../contracts/core/scheduled-publish.js";
+
+/** Featured image (2026-10-05) as a share-image ref: the core "public" transform every `/m/` URL
+ *  already serves (`deps.ts`'s ADR-027 §4 registration). */
+function featuredImageRef(post: PostRecord): string | undefined {
+  return post.featuredMediaId ? `${post.featuredMediaId}:public` : undefined;
+}
 import type { OpenGraphType, SeoAnalysis, SeoExtFields, SeoIssue, SeoMeta } from "./types.js";
 
 /**
@@ -150,7 +157,8 @@ async function resolveRobots(
     // render, and `analyzeEntry` alike (this file's header) — a trashed entry must resolve
     // noindex:true through every one of those consumers, not just the ones that happen to gate
     // trash upstream before calling in.
-    noindex = post.status !== "published" || isTrashed(post);
+    // Scheduled publishing (2026-10-05): a not-yet-live scheduled row is noindex like a draft.
+    noindex = post.status !== "published" || isTrashed(post) || isScheduledAt(post, currentIso());
   }
   const nofollow = overrides.nofollow ?? settings.defaultRobots.nofollow ?? false;
   return { noindex, nofollow };
@@ -163,14 +171,17 @@ async function resolveRobots(
  *  require `og:image` to be absolute, same as `og:url`. */
 async function resolveShareImages(
   deps: GetEntryMetaDeps,
+  post: PostRecord,
   overrides: SeoExtFields,
   settings: ResolvedSeoSettings,
   workspaceId: string,
   origin: VerifiedOrigin | undefined
 ): Promise<{ ogImage: string | undefined; twitterImage: string | undefined }> {
-  const ogImageRef = overrides.ogImage ?? settings.defaultOgImage;
+  // Precedence: explicit per-entry override > the entry's featured image > the site default.
+  const featured = featuredImageRef(post);
+  const ogImageRef = overrides.ogImage ?? featured ?? settings.defaultOgImage;
   const ogImageResolved = ogImageRef ? await resolveSeoImageRef(deps.media, { workspaceId, ref: ogImageRef }) : undefined;
-  const twitterImageRef = overrides.twitterImage ?? settings.defaultOgImage;
+  const twitterImageRef = overrides.twitterImage ?? featured ?? settings.defaultOgImage;
   const twitterImageResolved = twitterImageRef ? await resolveSeoImageRef(deps.media, { workspaceId, ref: twitterImageRef }) : undefined;
   return {
     ogImage: ogImageResolved ? toAbsoluteUrl(origin, ogImageResolved) : undefined,
@@ -271,7 +282,7 @@ export async function getEntryMeta(deps: GetEntryMetaDeps, input: GetEntryMetaIn
   const title = overrides.title ?? input.homeTitle ?? entryTitle;
   const canonical = await resolveCanonical(deps, post, overrides, input.workspaceId, origin);
   const { noindex, nofollow } = await resolveRobots(deps, post, overrides, settings, input.workspaceId);
-  const { ogImage, twitterImage } = await resolveShareImages(deps, overrides, settings, input.workspaceId, origin);
+  const { ogImage, twitterImage } = await resolveShareImages(deps, post, overrides, settings, input.workspaceId, origin);
   const { ogType, schemaType } = resolveContentTypeFields(post, overrides);
 
   return {
