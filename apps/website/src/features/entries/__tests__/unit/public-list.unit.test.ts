@@ -93,12 +93,23 @@ test("parseCollectionListConfig: columns clamps into [1, 6], non-number falls ba
   assert.equal(notANumber.ok && notANumber.display.columns, 3);
 });
 
-test("parseCollectionListConfig: layout accepts only 'cards'/'list', else falls back to 'cards'", () => {
-  const list = parseCollectionListConfig({ layout: "list" }, RECIPE_CONTENT_TYPE);
+test("parseCollectionListConfig: layout accepts only 'cards'/'list'/'accordion'/'carousel' (AW-7), else falls back to 'cards'", () => {
+  for (const layout of ["list", "accordion", "carousel"]) {
+    const parsed = parseCollectionListConfig({ layout }, RECIPE_CONTENT_TYPE);
+    assert.equal(parsed.ok && parsed.display.layout, layout);
+  }
   const unknown = parseCollectionListConfig({ layout: "grid-of-doom" }, RECIPE_CONTENT_TYPE);
-
-  assert.equal(list.ok && list.display.layout, "list");
   assert.equal(unknown.ok && unknown.display.layout, "cards");
+});
+
+test("parseCollectionListConfig: structuredData passes only 'faq-page' (AW-7); anything else is absent, never a guess", () => {
+  const faq = parseCollectionListConfig({ layout: "accordion", structuredData: "faq-page" }, RECIPE_CONTENT_TYPE);
+  assert.equal(faq.ok && faq.display.structuredData, "faq-page");
+  for (const structuredData of [undefined, "howto", 1]) {
+    const parsed = parseCollectionListConfig({ structuredData }, RECIPE_CONTENT_TYPE);
+    assert.ok(parsed.ok);
+    if (parsed.ok) assert.equal("structuredData" in parsed.display, false);
+  }
 });
 
 // --- sort grammar ---------------------------------------------------------

@@ -6,6 +6,8 @@ import {
   SYSTEM_CONTENT_TYPES,
   type EntryDisplayListPort,
   type EntryListExcludingTypesPort,
+  isCollectionListLayout,
+  type CollectionListLayout,
 } from "#src/features/entries/public-list";
 import type { EntryListPort, EntryRecord } from "../../entries/index.js";
 import { getWidgetTypeRegistration } from "../registry.js";
@@ -151,8 +153,8 @@ const LEGACY_DEFAULT_COLUMNS = 3;
  *  paths: the widget's layout default is "list" even with `collection` set (D7), unlike the
  *  collection marker's own "cards" default that `parseCollectionListConfig` applies.
  *  @complexity O(1). */
-function widgetLayout(config: WidgetInstanceView["config"]): "list" | "cards" {
-  return config.layout === "cards" ? "cards" : LEGACY_DEFAULT_LAYOUT;
+function widgetLayout(config: WidgetInstanceView["config"]): CollectionListLayout {
+  return isCollectionListLayout(config.layout) ? config.layout : LEGACY_DEFAULT_LAYOUT;
 }
 function legacyColumns(config: WidgetInstanceView["config"]): number {
   const raw = config.columns;
@@ -242,7 +244,14 @@ async function resolveCollectionInstance(
       componentId: "recent-entries",
       // D7: the widget's own layout default is "list" — `parsed.display.layout` carries the
       // collection MARKER's "cards" default for an absent key, so it is not used here.
-      props: { layout: widgetLayout(instance.config), columns: parsed.display.columns, typeKey },
+      // `structuredData` only here, never on the legacy path: that one lists mixed types, so it can
+      // never truthfully claim to be an FAQ (AW-7).
+      props: {
+        layout: widgetLayout(instance.config),
+        columns: parsed.display.columns,
+        typeKey,
+        ...(parsed.display.structuredData === undefined ? {} : { structuredData: parsed.display.structuredData }),
+      },
       children: rows.map((row) => toItemIr(toCollectionItemProps(row, parsed.display.fields))),
     },
     dependencyKeys: rows.map((row) => row.id),

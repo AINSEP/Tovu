@@ -11,6 +11,7 @@ import {
   type EntryListFieldValue,
 } from "#src/features/theme/entry-list-render";
 import type { ResolveHtmlPageEmbedsResult, ResolvePageWidgetsResult } from "#src/features/widgets/resolver-service";
+import { COLLECTION_LIST_FAQ_PAGE, isCollectionListLayout } from "#src/features/entries/public-list";
 import { isPageEmbedType } from "#src/features/widgets/page-embed-types";
 import { renderHtmlTaxonomy } from "#src/features/taxonomy/html-render";
 import type { AssignedTermView } from "#src/features/taxonomy/repo.sqlite";
@@ -2200,8 +2201,10 @@ function toEntryListItem(props: JsonObject): EntryListItem {
 /**
  * `recent-entries` widget renderer — extended by collections plan R1 into "Collection list".
  *
- * `"cards"` layout (the one genuinely new display mode this plan adds) delegates entirely to C3's
- * `renderEntryList`, so field display (`<dl>`) and the shared `.entry-list`/`.entry-card` styling
+ * `"cards"` layout (the one genuinely new display mode this plan adds) — and AW-7's `accordion` /
+ * `carousel` with their opt-in `structuredData: "faq-page"` (2026-10-04): every known layout except
+ * `list` — delegates entirely to C3's `renderEntryList`, so field display (`<dl>`) and the shared
+ * `.entry-list`/`.entry-card` styling
  * work identically to the `{"type":"collection"}` marker — no second implementation. Review fix 3a
  * (2026-09-23): `withEntryListStyleOnce` is called from ONE place per tier — `static-render.ts`'s
  * `renderStaticPage` (used by `finishStaticTierDocument`) for a static theme, and this file's own
@@ -2225,10 +2228,12 @@ function renderWidgetRecentEntries(ir: WidgetRenderIR): string {
   const items = (ir.children ?? []).map((child) => toEntryListItem(child.props));
   if (items.length === 0) return RECENT_ENTRIES_EMPTY_HTML;
 
-  if (ir.props.layout === "cards") {
+  const layout = ir.props.layout;
+  if (layout !== "list" && isCollectionListLayout(layout)) {
     const columns = typeof ir.props.columns === "number" ? ir.props.columns : 3;
     const typeKey = str(ir.props.typeKey, "recent-entries");
-    return renderEntryList(items, { columns, layout: "cards", typeKey }) ?? RECENT_ENTRIES_EMPTY_HTML;
+    const structuredData = ir.props.structuredData === COLLECTION_LIST_FAQ_PAGE ? { structuredData: COLLECTION_LIST_FAQ_PAGE } : {};
+    return renderEntryList(items, { columns, layout, typeKey, ...structuredData }) ?? RECENT_ENTRIES_EMPTY_HTML;
   }
 
   const lis = items

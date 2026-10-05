@@ -61,13 +61,30 @@ export interface CollectionListQuery {
   readonly limit: number;
 }
 
+/** Every collection-list presentation `theme/entry-list-render.ts` renders. `accordion` (an FAQ
+ *  disclosure list) and `carousel` (a scroll-snap track of cards) were added for AW-7's zero-code
+ *  Testimonials + FAQ plugin (2026-10-04). */
+export const COLLECTION_LIST_LAYOUTS = ["cards", "list", "accordion", "carousel"] as const;
+export type CollectionListLayout = (typeof COLLECTION_LIST_LAYOUTS)[number];
+
+/** Whether `value` names a {@link COLLECTION_LIST_LAYOUTS} member. @complexity O(1) */
+export function isCollectionListLayout(value: unknown): value is CollectionListLayout {
+  return (COLLECTION_LIST_LAYOUTS as readonly unknown[]).includes(value);
+}
+
+/** The only structured-data block a collection list can opt into: schema.org `FAQPage`. */
+export const COLLECTION_LIST_FAQ_PAGE = "faq-page";
+export type CollectionListStructuredData = typeof COLLECTION_LIST_FAQ_PAGE;
+
 /** Presentation-only knobs, kept separate from {@link CollectionListQuery} because they never
- * reach the query layer: `columns`/`layout` only affect markup, and `fields` only affects which
- * already-fetched entry fields a card/list item shows. */
+ * reach the query layer: `columns`/`layout`/`structuredData` only affect markup, and `fields` only
+ * affects which already-fetched entry fields a card/list item shows. */
 export interface CollectionListDisplay {
   readonly columns: number;
-  readonly layout: "cards" | "list";
+  readonly layout: CollectionListLayout;
   readonly fields: readonly ContentTypeFieldDef[];
+  /** Present only when authored as `"faq-page"` — opt-in, never implied by `accordion`. */
+  readonly structuredData?: CollectionListStructuredData;
 }
 
 /**
@@ -149,13 +166,13 @@ function clampConfigNumber(
   return Math.min(Math.max(Math.floor(raw), bounds.min), bounds.max);
 }
 
-/** `"cards"`/`"list"` pass through; anything else (including absence) falls back to
- * {@link DEFAULT_COLLECTION_LIST_LAYOUT}. There is no rejection case for layout — an unrecognized
- * value is an authoring mistake, not a filtering-safety concern, so it degrades to the default
- * rather than failing the whole marker.
+/** A {@link COLLECTION_LIST_LAYOUTS} member passes through; anything else (including absence) falls
+ * back to {@link DEFAULT_COLLECTION_LIST_LAYOUT}. There is no rejection case for layout — an
+ * unrecognized value is an authoring mistake, not a filtering-safety concern, so it degrades to the
+ * default rather than failing the whole marker.
  * @complexity O(1) */
-function parseLayout(raw: unknown): "cards" | "list" {
-  return raw === "cards" || raw === "list" ? raw : DEFAULT_COLLECTION_LIST_LAYOUT;
+function parseLayout(raw: unknown): CollectionListLayout {
+  return isCollectionListLayout(raw) ? raw : DEFAULT_COLLECTION_LIST_LAYOUT;
 }
 
 /** Validates and converts the raw `where` config (an authored `{field: value}` map, the natural
@@ -313,6 +330,8 @@ export function parseCollectionListConfig(
   });
 
   const layout = parseLayout(raw.layout);
+  // Same degrade-not-reject rule as layout: an unknown value just emits no structured data.
+  const structuredData = raw.structuredData === COLLECTION_LIST_FAQ_PAGE ? { structuredData: COLLECTION_LIST_FAQ_PAGE } : {};
 
   return {
     ok: true,
@@ -322,7 +341,7 @@ export function parseCollectionListConfig(
       sort: sortResult.value,
       limit,
     },
-    display: { columns, layout, fields: fieldsResult.value },
+    display: { columns, layout, fields: fieldsResult.value, ...structuredData },
   };
 }
 

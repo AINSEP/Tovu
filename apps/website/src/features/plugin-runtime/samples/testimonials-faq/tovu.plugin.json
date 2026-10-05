@@ -1,0 +1,33 @@
+{
+  "id": "testimonials-faq",
+  "name": "Testimonials + FAQ",
+  "version": "1.0.0",
+  "sdkRange": "^0.1.0",
+  "engine": 1,
+  "tier": "tier-1",
+  "capabilities": [],
+  "hooks": [],
+  "fields": [],
+  "integrity": { "README.md": "sha256-511298b73a0ab2d5eaf5b684b6f604c65cd28e0cdbac8651faf9b700bd2388ba" },
+  "contentTypes": [
+    {
+      "key": "testimonial",
+      "label": "Testimonials",
+      "fields": [
+        { "name": "quote", "kind": "text", "required": true },
+        { "name": "role", "kind": "text" },
+        { "name": "rating", "kind": "integer", "queryable": true },
+        { "name": "order", "kind": "integer", "queryable": true }
+      ]
+    },
+    {
+      "key": "faq",
+      "label": "FAQ",
+      "fields": [
+        { "name": "answer", "kind": "text", "required": true },
+        { "name": "category", "kind": "text", "queryable": true },
+        { "name": "order", "kind": "integer", "queryable": true }
+      ]
+    }
+  ]
+}

@@ -1372,6 +1372,21 @@ test("recent-entries (cards layout): delegates to C3's renderEntryList — entry
   assert.doesNotMatch(html, /<a /, `title has no href, must not be a link, got: ${html}`);
 });
 
+test("recent-entries (AW-7 accordion/carousel): every non-list layout goes through renderEntryList, with opt-in FAQPage JSON-LD", () => {
+  const child = {
+    componentId: "entry-list-item",
+    props: { title: "Can I freeze it?", href: null, dateIso: "2026-01-01T00:00:00.000Z", dateLabel: "Jan 1, 2026", fields: [{ name: "answer", label: "Answer", kind: "text", value: "Yes" }] },
+  };
+  const faq = renderWidgetIr({ componentId: "recent-entries", props: { layout: "accordion", columns: 3, typeKey: "faq", structuredData: "faq-page" }, children: [child] });
+  assert.match(faq, /<details class="entry-accordion__item"><summary class="entry-accordion__question">Can I freeze it\?<\/summary>/);
+  assert.match(faq, /<script type="application\/ld\+json">\{"@context":"https:\/\/schema.org","@type":"FAQPage"/);
+  const carousel = renderWidgetIr({ componentId: "recent-entries", props: { layout: "carousel", columns: 3, typeKey: "testimonial", structuredData: "bogus" }, children: [child] });
+  assert.match(carousel, /class="entry-list entry-list--testimonial entry-list--carousel" data-tovu-entry-list tabindex="0"/);
+  assert.doesNotMatch(carousel, /application\/ld\+json/, "only faq-page is ever emitted");
+  const unknown = renderWidgetIr({ componentId: "recent-entries", props: { layout: "grid-of-doom", typeKey: "faq" }, children: [child] });
+  assert.match(unknown, /<ul class="widget widget-recent-entries">/, "an unknown layout keeps the legacy list markup");
+});
+
 test("recent-entries: zero items renders the same 'No entries yet.' fallback regardless of layout", () => {
   const listEmpty = renderWidgetIr({ componentId: "recent-entries", props: { layout: "list", columns: 3, typeKey: "recent-entries" }, children: [] });
   const cardsEmpty = renderWidgetIr({ componentId: "recent-entries", props: { layout: "cards", columns: 3, typeKey: "recent-entries" }, children: [] });

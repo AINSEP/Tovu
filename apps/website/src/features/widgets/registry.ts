@@ -108,6 +108,8 @@ const RECENT_ENTRIES_REGISTRATION = {
       fields: { type: "array", maxItems: 20, items: { type: "string" } },
       layout: { type: "string" },
       columns: { type: "integer", minimum: 1, maximum: 6 },
+      // AW-7: opt-in schema.org block ("faq-page"); shape-only like `layout`, parsed in public-list.ts.
+      structuredData: { type: "string" },
     },
     required: ["maxItems"],
     additionalProperties: false,

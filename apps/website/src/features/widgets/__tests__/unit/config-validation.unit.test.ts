@@ -213,6 +213,12 @@ test("recent-entries schema: the new collection/where/sort/fields/layout/columns
   assert.deepEqual(result, { valid: true, fieldErrors: [] });
 });
 
+test("recent-entries schema (AW-7): an FAQ accordion config with structuredData validates", () => {
+  const schema = getWidgetTypeRegistration("recent-entries").configSchema;
+  const result = validateWidgetConfig({ schema, config: { maxItems: 10, collection: "faq", layout: "accordion", structuredData: "faq-page", sort: "order" } });
+  assert.deepEqual(result, { valid: true, fieldErrors: [] });
+});
+
 test("recent-entries schema: an old maxItems-only config (no collection keys at all) still validates unchanged", () => {
   const schema = getWidgetTypeRegistration("recent-entries").configSchema;
   const result = validateWidgetConfig({ schema, config: { maxItems: 5 } });

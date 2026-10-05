@@ -366,3 +366,29 @@ test("D7: a collection-configured instance with no `layout` key defaults to the 
   assert.equal(defaulted.ir.props.layout, "list", "D7: absent layout means the widget's historical list layout");
   assert.equal(cards.ir.props.layout, "cards", "an explicit cards layout is still honoured");
 });
+
+test("AW-7: a collection instance carries any known layout and opt-in faq-page structured data; an unknown layout is the widget's list", async () => {
+  const repo = new TrashAwareInMemoryEntryRepo();
+  await repo.save(entryRow({ id: "q-1", type: "recipe", slug: "q-1", title: "Can I freeze it?" }));
+  const contentTypes = fixedContentTypeLookup({ recipe: [field("cuisine")] });
+  const resolver = createRecentEntriesResolver({ entryList: repo, contentTypes });
+  const results = await resolver.resolveMany(
+    [
+      instance("w-faq", { maxItems: 5, collection: "recipe", layout: "accordion", structuredData: "faq-page" }),
+      instance("w-carousel", { maxItems: 5, collection: "recipe", layout: "carousel" }),
+      instance("w-odd", { maxItems: 5, collection: "recipe", layout: "grid-of-doom" }),
+      instance("w-legacy", { maxItems: 5, layout: "accordion", structuredData: "faq-page" }),
+    ],
+    CTX
+  );
+  const props = (id: string) => {
+    const result = results.get(id);
+    assert.ok(result?.ok);
+    return result.ok ? result.ir.props : {};
+  };
+  assert.deepEqual(props("w-faq"), { layout: "accordion", columns: 3, typeKey: "recipe", structuredData: "faq-page" });
+  assert.deepEqual(props("w-carousel"), { layout: "carousel", columns: 3, typeKey: "recipe" });
+  assert.equal(props("w-odd").layout, "list");
+  // The legacy (no `collection`) path lists mixed types, so it never claims to be an FAQ.
+  assert.deepEqual(props("w-legacy"), { layout: "accordion", columns: 3, typeKey: "recent-entries" });
+});

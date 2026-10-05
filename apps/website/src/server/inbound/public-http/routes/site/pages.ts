@@ -919,7 +919,8 @@ async function resolveOneCollectionMarker(
   const rows = await deps.entryRepo.listPublishedForDisplay({ workspaceId: deps.workspaceId, query: parsed.query });
   const items = rows.map((row) => toCollectionEntryListItem(row, parsed.display.fields));
   const { template } = splitCollectionMarkerInner(marker.inner);
-  return renderEntryList(items, { template, columns: parsed.display.columns, layout: parsed.display.layout, typeKey });
+  const { columns, layout, structuredData } = parsed.display;
+  return renderEntryList(items, { template, columns, layout, typeKey, ...(structuredData === undefined ? {} : { structuredData }) });
 }
 
 /**
