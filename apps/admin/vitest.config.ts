@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, realpathSync } from "node:fs";
 import path from "node:path";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
@@ -39,6 +39,17 @@ export default defineConfig({
     __TOVU_ADMIN_DEV_PORT__: JSON.stringify(String(adminDevPort)),
   },
   plugins: [react()],
+  server: {
+    fs: {
+      /**
+       * `src/main.tsx` imports `@jini-ai/ui/remixicon.css?inline`. That package is a `file:` link
+       * into the sibling Jini checkout, outside this repo, and Vite refuses `?inline`/`?raw` reads
+       * outside `server.fs.allow` ("Denied ID"), so the entry module could not load under test.
+       * Allow exactly this repo plus that one package's real directory.
+       */
+      allow: [path.resolve(__dirname, "../.."), realpathSync(path.resolve(__dirname, "node_modules/@jini-ai/ui"))],
+    },
+  },
   resolve: {
     /**
      * One React, one react-dom, no matter who imports them.
