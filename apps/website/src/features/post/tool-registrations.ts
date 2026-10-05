@@ -72,6 +72,7 @@ import {
   isTrashed,
   listAdminPages,
   listAdminPosts,
+  normalizePublishAt,
   updatePost,
   DEFAULT_POST_LIST_LIMIT,
   MAX_POST_LIST_LIMIT,
@@ -98,6 +99,8 @@ import { extractPostPlainText, searchAdminPosts, type PostSearchPort } from "./s
 // Keep the standalone read tool on the existing registration seam, outside the content barrel.
 export { contributeContentStatsTools, type ContentStatsToolDeps } from "./content-stats-tool.js";
 import { copyBodyJsonWithFreshEmbedPlacements } from "./duplicate-embeds.js";
+import { resolveFeaturedImageRef, type FeaturedImageDeps } from "./featured-image.js";
+import { currentIso, isScheduledAt } from "../../contracts/core/scheduled-publish.js";
 import { deriveDuplicateName } from "../content-duplication/derive-available-name.js";
 
 const CATALOG_BY_ID = indexCatalogById({ catalog: postAgentToolCatalog });
@@ -169,6 +172,14 @@ export interface PostToolDeps {
    * with an explicit, actionable error rather than silently dropping the page's body.
    */
   pagesHtmlStore?: DuplicatePagesHtmlStoreFactory;
+  /**
+   * OPTIONAL — only `content_post_create`/`content_post_update`'s `featuredImage` field reads these,
+   * to resolve a media id or slug to the asset id the post stores (`featured-image.ts`). Optional for
+   * the same reason as {@link pagesHtmlStore}: older test doubles keep compiling, and a production
+   * `RouteDeps` always has both. When absent, a sent `featuredImage` is refused, never guessed at.
+   */
+  mediaRepo?: FeaturedImageDeps["mediaRepo"];
+  mediaContentTypeStore?: FeaturedImageDeps["mediaContentTypeStore"];
 }
 
 /**
@@ -344,6 +355,45 @@ function optionalNonEmptyString(input: Record<string, unknown>, key: string): st
   return requireString({ input: input, key: key });
 }
 
+/** `publishAt` for create/update: omitted ⇒ `undefined` (unchanged), `null` ⇒ clear, otherwise
+ *  validated and normalized to UTC by the domain's own `normalizePublishAt` — the same function
+ *  `createPost`/`updatePost` apply, called here only so the reply can say when the post goes live
+ *  before the write even starts. A malformed value throws `PostValidationError`, which
+ *  `withSchemaOnRejection` decorates with the schema. */
+function optionalPublishAt(input: Record<string, unknown>): string | null | undefined {
+  return normalizePublishAt(input.publishAt);
+}
+
+const FEATURED_IMAGE_REFUSALS: Record<"missing" | "trashed" | "not-image", (ref: string, contentType?: string) => string> = {
+  missing: (ref) => `featuredImage: no media asset has the id or slug '${ref}'. Find one with content_read.media_asset, or upload one first.`,
+  trashed: (ref) => `featuredImage: media asset '${ref}' is in Trash. Restore it first, or pick another image.`,
+  "not-image": (ref, contentType) => `featuredImage: media asset '${ref}' is ${contentType ?? "not an image"}, not an image. A featured image must be an image.`,
+};
+
+/**
+ * `featuredImage` for create/update: omitted ⇒ `undefined`, `null` ⇒ clear, a string ⇒ resolved by
+ * id or slug to the asset id the post stores (see `featured-image.ts` for why the id). Refusals are
+ * `ToolInputError`s naming the reference and the next step.
+ *
+ * @complexity O(1) — one resolver call.
+ */
+async function resolveFeaturedImageInput(routeDeps: PostToolDeps, input: Record<string, unknown>): Promise<string | null | undefined> {
+  const value = input.featuredImage;
+  if (value === undefined || value === null) return value;
+  if (typeof value !== "string" || value.trim() === "") {
+    throw new ToolInputError({ message: "featuredImage must be a media asset id or slug, or null to remove the featured image." });
+  }
+  if (!routeDeps.mediaRepo) {
+    throw new ToolInputError({ message: "featuredImage: the media library is not available to this assistant session, so a featured image cannot be set here. Set it in the post editor instead." });
+  }
+  const resolution = await resolveFeaturedImageRef({
+    deps: { mediaRepo: routeDeps.mediaRepo, mediaContentTypeStore: routeDeps.mediaContentTypeStore },
+    input: { workspaceId: routeDeps.workspaceId, ref: value },
+  });
+  if (!resolution.ok) throw new ToolInputError({ message: FEATURED_IMAGE_REFUSALS[resolution.reason](value.trim(), resolution.contentType) });
+  return resolution.id;
+}
+
 /** Shared dependency bag for `core/commands`'s `executeCommand` — identical shape to the one
  * `posts/create.ts`/`posts/update.ts`/`pages/create.ts`/`pages/update.ts` each build inline. */
 /** See `trash/trash-item-tool.ts`'s identical constant's doc — duplicated here rather than
@@ -371,6 +421,27 @@ interface PostToolView {
   status: PostStatus;
   updatedAt: string;
   version: number;
+  /** Present only when set, like on the record — see {@link scheduleView}. */
+  publishAt?: string;
+  featuredMediaId?: string;
+  /** Present (always `true`) only while a published row waits for `publishAt`. */
+  scheduled?: true;
+}
+
+/**
+ * The schedule/featured-image keys of the tool view. Each is present only when set, so a row with
+ * neither keeps the exact view shape it had before these fields existed. `scheduled` is computed
+ * against the same wall clock routing's `isPublished` uses for `publicUrl`, so the model is told
+ * the two facts together: `publicUrl` is null BECAUSE the post is waiting for `publishAt`.
+ *
+ * @complexity O(1).
+ */
+function scheduleView(post: PostRecord): Pick<PostToolView, "publishAt" | "featuredMediaId" | "scheduled"> {
+  return {
+    ...(post.publishAt ? { publishAt: post.publishAt } : {}),
+    ...(post.featuredMediaId ? { featuredMediaId: post.featuredMediaId } : {}),
+    ...(isScheduledAt(post, currentIso()) ? { scheduled: true as const } : {}),
+  };
 }
 
 /** Projects a `PostRecord` into the explicit model-facing shape — `workspaceId` is dropped (the
@@ -387,6 +458,7 @@ function toPostToolView(post: PostRecord): PostToolView {
     status: post.status,
     updatedAt: post.updatedAt,
     version: post.version,
+    ...scheduleView(post),
   };
 }
 
@@ -563,6 +635,7 @@ function toPostListRow(routeDeps: PostToolDeps, post: PostRecord, excerptChars: 
     adminUrl: resolveAdminUrl(post),
     excerpt: toExcerpt(text, excerptChars),
     bodyChars: text.length,
+    ...scheduleView(post),
   };
 }
 
@@ -723,6 +796,8 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
         const slug = optionalString({ input: input, key: "slug" });
         const bodyJson = input.bodyJson !== undefined ? requireBodyJson(input, "bodyJson") : undefined;
         const status = optionalPostStatus(input);
+        const publishAt = optionalPublishAt(input);
+        const featuredMediaId = await resolveFeaturedImageInput(routeDeps, input);
         const postId = routeDeps.idGen.newId();
 
         const { result } = await executeCommand<{ post: PostRecord }>({
@@ -754,6 +829,8 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
                   slug,
                   bodyJson,
                   status,
+                  publishAt,
+                  featuredMediaId,
                   actorId: ctx.principal.id,
                   // Every `tool-registrations.ts` handler is, by definition, reached only via
                   // `@jini-ai/daemon`'s agent-run path (see `AGENT_TOOL_PRINCIPAL_KIND`'s own doc
@@ -797,8 +874,12 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
         const slug = optionalNonEmptyString(input, "slug");
         const bodyJson = optionalBodyJson(input, "bodyJson");
         const status = optionalPostStatus(input);
-        if (title === undefined && slug === undefined && bodyJson === undefined && status === undefined) {
-          throw new ToolInputError({ message: "content_post_update: send at least one of title, slug, bodyJson or status. Nothing was changed." });
+        // Tri-state, forwarded as-is: `updatePost` itself keeps the stored value for `undefined`
+        // and clears on `null`, so these need no fill-in from `existing` the way the four above do.
+        const publishAt = optionalPublishAt(input);
+        const featuredMediaId = await resolveFeaturedImageInput(routeDeps, input);
+        if (title === undefined && slug === undefined && bodyJson === undefined && status === undefined && publishAt === undefined && featuredMediaId === undefined) {
+          throw new ToolInputError({ message: "content_post_update: send at least one of title, slug, bodyJson, status, publishAt or featuredImage. Nothing was changed." });
         }
         // Validated, not cast — see `expected-version.ts`. `expectedVersion` is optional on
         // `UpdatePostInput`, so anything this handler failed to recognize would coerce to "no basis
@@ -879,7 +960,17 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
                     `To change the body, use pages_write_html or pages_write_region.` });
               }
               priorPost = existing;
-              return { title: existing.title, slug: existing.slug, bodyJson: existing.bodyJson, status: existing.status };
+              // `publishAt`/`featuredMediaId` ride in the pre-image as `null` for "none", the same
+              // shape `posts/update.ts`'s inverse records, so an undo through `reverters.ts` puts a
+              // cleared schedule or image back too.
+              return {
+                title: existing.title,
+                slug: existing.slug,
+                bodyJson: existing.bodyJson,
+                status: existing.status,
+                publishAt: existing.publishAt ?? null,
+                featuredMediaId: existing.featuredMediaId ?? null,
+              };
             },
             execute: () => {
               // `captureInverse` above always runs first (per `core/commands`'s own contract) and
@@ -909,6 +1000,8 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
                   slug: merged.slug,
                   bodyJson: merged.bodyJson,
                   status: merged.status,
+                  publishAt,
+                  featuredMediaId,
                   expectedVersion: basisVersion,
                   actorId: ctx.principal.id,
                   // See content_post_create's identical delegatedBy* comment just above.

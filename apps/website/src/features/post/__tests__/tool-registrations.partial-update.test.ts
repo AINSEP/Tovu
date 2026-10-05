@@ -154,7 +154,7 @@ test("content_post_update: {id, kind} alone is REJECTED — nothing to change", 
     () => call(tool(registrations, "content_post_update"), { id: "p1", kind: "post" }),
     (err: unknown) =>
       err instanceof Error &&
-      err.message === "content_post_update: send at least one of title, slug, bodyJson or status. Nothing was changed."
+      err.message === "content_post_update: send at least one of title, slug, bodyJson, status, publishAt or featuredImage. Nothing was changed."
   );
 
   const after = await storedPost(postRepo);

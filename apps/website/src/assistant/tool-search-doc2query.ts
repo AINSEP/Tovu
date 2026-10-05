@@ -429,6 +429,7 @@ export const DOC2QUERY: Readonly<Record<string, readonly string[]>> = {
     "Can you make a new post that's published right away?",
     "I need a new page with this title, and can the URL be auto-generated?",
     "How do I add a brand-new post to the site?",
+    "Write a post and schedule it to publish on Friday morning.",
   ],
   content_post_update: [
     "Can you change the title of this page?",
@@ -437,6 +438,7 @@ export const DOC2QUERY: Readonly<Record<string, readonly string[]>> = {
     "Can you rewrite this page's body and slug at the same time?",
     "How do I take a live post back to draft?",
     "Can you unpublish this page for now and put it back in draft?",
+    "Can you schedule this post to go live next Monday at 9am?",
   ],
   content_post_delete: [
     "Can you delete this blog post?",

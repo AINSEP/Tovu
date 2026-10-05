@@ -166,9 +166,35 @@ const POST_KIND_SCHEMA = {
     "is fixed at creation and cannot be changed afterward.",
 } as const;
 
+/**
+ * Scheduled publishing (2026-10-05). The pattern is the one `normalizePublishAt` (`post.ts`)
+ * enforces, restated as text because the domain's own regex is not exported; an offset is required
+ * so "9am" is never silently read in the server's timezone.
+ */
+const PUBLISH_AT_SCHEMA = {
+  type: ["string", "null"],
+  description:
+    "When the post/page goes live, as an ISO 8601 date-time WITH a timezone offset, e.g. '2026-10-12T09:00:00-07:00' or " +
+    "'2026-10-12T16:00:00Z' (a time without an offset is rejected). Takes effect only together with status 'published': a " +
+    "published post whose publishAt is in the future is SCHEDULED: hidden from the public site, feeds, sitemap and search " +
+    "until that time, then live with no further action. A draft keeps its publishAt but stays hidden until published. A past " +
+    "time means live at once. null (or omitted) means no schedule: live as soon as it is published. Stored in UTC.",
+} as const;
+
+/** Featured image (2026-10-05) — resolved by `featured-image.ts`. */
+const FEATURED_IMAGE_SCHEMA = {
+  type: ["string", "null"],
+  description:
+    "The post/page's featured image: the id or slug of an EXISTING image in the media library (from content_read.media_asset, " +
+    "media_upload_asset, media_generate_asset or media_import_from_url). Stored as the asset's id. Themes show it as the post's " +
+    "lead image and it becomes the og:image/twitter:image social preview unless the SEO settings override it. Rejected if no " +
+    "asset has that id or slug, if the asset is in Trash, or if it is a video or other non-image. null removes it.",
+} as const;
+
 /** Supported compact listing keys, shared with the handler's projection validator. */
 export const POST_LIST_FIELDS = [
   "id", "kind", "title", "slug", "status", "updatedAt", "version", "publicUrl", "adminUrl", "excerpt", "bodyChars",
+  "publishAt", "featuredMediaId", "scheduled",
 ] as const;
 
 const POST_ID_SCHEMA = {
@@ -766,7 +792,8 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
     name: "content_post_list",
     description:
       "Lists posts or pages in the workspace (id, kind, title, slug, status, updatedAt, version, publicUrl, adminUrl, excerpt, " +
-      "bodyChars) — drafts included. excerpt is the body's plain text: whole for a short list, cut shorter the more rows " +
+      "bodyChars, plus publishAt/featuredMediaId/scheduled only on rows that have them) — drafts included. scheduled:true marks a " +
+      "published row still waiting for its publishAt (publicUrl is null until then). excerpt is the body's plain text: whole for a short list, cut shorter the more rows " +
       "are returned (at least 300 characters, ending in '…' when cut); " +
       "bodyChars is the full plain-text length. Pass includeBody:true to get every row's full bodyJson instead of excerpt/" +
       "bodyChars, or read one post WITH its id for its bodyJson. publicUrl is the row's resolved public path (e.g. '/about'), ready to pass straight to fetch_published_page — " +
@@ -818,7 +845,8 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "content_post_get",
     description:
-      "Reads one post or page by id (id, kind, title, slug, status, bodyJson, updatedAt, version, publicUrl). publicUrl is the " +
+      "Reads one post or page by id (id, kind, title, slug, status, bodyJson, updatedAt, version, publicUrl, plus publishAt, " +
+      "featuredMediaId and scheduled only when set; scheduled:true means published but waiting for publishAt). publicUrl is the " +
       "row's resolved public path (e.g. '/about'), ready to pass straight to fetch_published_page to verify it renders — or " +
       "null for a draft/unpublished row, since it has no live link yet. " +
       "Disclosed asymmetry inherited from the two real admin routes this mirrors: with kind:'page', a row whose actual kind is " +
@@ -842,7 +870,9 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
       "when omitted. Rejected if an explicitly-supplied slug is malformed, reserved ('admin'/'api'), or already taken in this workspace. " +
       "The returned post includes publicUrl — its resolved public path when created with status 'published', or null for the " +
       "default 'draft' (nothing to link to yet until it is published via content_post_update). " +
-      "When publicUrl is present, link to it first in your reply. adminUrl is an optional secondary edit link; never make a UUID admin URL the main published-content link.",
+      "When publicUrl is present, link to it first in your reply. adminUrl is an optional secondary edit link; never make a UUID admin URL the main published-content link. " +
+      "Optional publishAt schedules it; featuredImage sets its lead image. A scheduled result has scheduled:true and publicUrl " +
+      "null: tell the user when it goes live.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "content.write" },
     inputSchema: {
@@ -860,17 +890,20 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
         },
         bodyJson: { ...TIPTAP_DOC_SCHEMA, description: `${TIPTAP_DOC_SCHEMA.description} Omit for an empty document.` },
         status: { type: "string", enum: ["draft", "published"], description: "Omit to default to 'draft'." },
+        publishAt: PUBLISH_AT_SCHEMA,
+        featuredImage: FEATURED_IMAGE_SCHEMA,
       },
     },
   },
   {
     name: "content_post_update",
     description:
-      "Patches an existing post/page — send only the fields that change; any of title, slug, bodyJson and status you omit keeps " +
-      "its current stored value (the underlying updatePost function still has no partial-update path, so this tool fills the gap " +
-      "from the stored row before calling it). Send at least one of the four, or the call is rejected. This is also how a " +
+      "Patches an existing post/page — send only the fields that change; any of title, slug, bodyJson, status, publishAt and " +
+      "featuredImage you omit keeps its current stored value (the underlying updatePost function still has no partial-update path, so this tool fills the gap " +
+      "from the stored row before calling it). Send at least one of the six, or the call is rejected. This is also how a " +
       "post/page is published or unpublished: {id, kind, status:'published'} (or 'draft') alone is enough — there is no separate " +
-      "set-status tool. Rejected if the row does not exist, if kind:'page' is given for an actual kind:'post' row (see " +
+      "set-status tool. Schedule with status:'published' plus a future publishAt; a scheduled result has scheduled:true and " +
+      "publicUrl null: tell the user when it goes live. Rejected if the row does not exist, if kind:'page' is given for an actual kind:'post' row (see " +
       "content_read.content_post's identical disclosed asymmetry — not rejected the other way around), if a sent slug is " +
       "malformed/reserved/taken by another row, or if a sent bodyJson is not a JSON object. " +
       "SEND expectedVersion whenever you are editing content you read earlier: it is how you avoid silently erasing a change a " +
@@ -899,6 +932,8 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
         },
         bodyJson: { ...TIPTAP_DOC_SCHEMA, description: `Optional — omit to leave the body unchanged. The COMPLETE replacement body when sent, not a diff. ${TIPTAP_DOC_SCHEMA.description}` },
         status: { type: "string", enum: ["draft", "published"], description: "Optional — omit to leave the status unchanged. Setting this to 'published' from 'draft' is how a post/page is published; back to 'draft' is how it is unpublished." },
+        publishAt: { ...PUBLISH_AT_SCHEMA, description: `Optional — omit to leave the schedule unchanged; null clears it. ${PUBLISH_AT_SCHEMA.description}` },
+        featuredImage: { ...FEATURED_IMAGE_SCHEMA, description: `Optional — omit to leave the featured image unchanged. ${FEATURED_IMAGE_SCHEMA.description}` },
         // OPTIONAL, and it must stay optional: making it required would break every caller that
         // predates it, and the domain guard itself is opt-in (`updatePost` treats an absent basis as
         // "no basis sent" and keeps its original last-write-wins behavior).

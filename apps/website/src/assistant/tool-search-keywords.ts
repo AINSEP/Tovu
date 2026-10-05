@@ -322,7 +322,7 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   // --- content / collections --------------------------------------------------------------------------
   content_post_search: "post posts blog article articles find search title lookup copy duplicate clone",
   content_post_list: "post posts blog articles list all recent copy duplicate clone",
-  content_post_create: "post blog article write new create draft copy duplicate clone",
+  content_post_create: "post blog article write new create draft copy duplicate clone schedule featured image",
   content_post_update: "post page pages blog article edit change update publish draft unpublish unpublished take down offline hide draft status publish fix typo latest title",
   content_post_delete: "post blog article delete remove trash",
   content_post_get: "post page article lookup find fetch read single one by id details specific copy duplicate clone",
