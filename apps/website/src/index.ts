@@ -332,8 +332,15 @@ async function main(): Promise<void> {
   const deps = useMemory
     ? createRouteDeps()
     : await createSiteRouteDeps(defaultContentDbPath(), { onStoreOpened: (store) => (siteStore = store) });
+  // Boot passes the composition starts and never awaits, which read the store: the legacy
+  // publish-credential tail here, `createServingApp`'s BYOK pass below. The store close waits for
+  // them (bounded), or a site stopped seconds after boot closes under them (see `await-boot-work.ts`).
+  const bootWork: Promise<unknown>[] = [];
+  if (deps.legacyPublishCredentialsReady) bootWork.push(deps.legacyPublishCredentialsReady);
   // PGlite/Postgres: close the store on shutdown (releases the PGlite lock and socket); SQLite: no-op.
-  const storeOwnsShutdown = siteStore !== undefined && closeStoreOnShutdown({ store: siteStore, onShutdown: shutdownAssistantDaemon });
+  const storeOwnsShutdown =
+    siteStore !== undefined &&
+    closeStoreOnShutdown({ store: siteStore, onShutdown: shutdownAssistantDaemon }, { bootWork: () => bootWork });
 
   // ADR-046 Phase 3 (SPEC-031): the boot-module composition itself now lives in
   // `server/runtime/boot/bootstrap.ts` (unit-testable, unlike this file — see the note above on why
@@ -355,7 +362,8 @@ async function main(): Promise<void> {
   // `createServingApp`, not bare `createApp`: it also starts the background outbox drainer, after
   // `createApp` has attached every subscriber. The drainer's timer is unref'd, so it never holds this
   // process open.
-  const { app } = createServingApp(deps);
+  const { app, bootWork: servingBootWork } = createServingApp(deps);
+  bootWork.push(...servingBootWork);
   // TLS-gated the same way `apps/admin/vite.config.ts` gates Vite's own dev server: cert pair
   // present -> HTTPS, absent -> plain HTTP/1.1 (`devTls`/`devScheme`, computed above at module
   // load). Express 4 has no native HTTP/2 support (no `spdy`/`http2` compat shim added here), so

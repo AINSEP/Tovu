@@ -103,3 +103,18 @@ test("cli/commands/serve.ts stops the trash sweeper on shutdown", () => {
 test("createTrashModule is mounted by exactly one composition, and it is app.ts", () => {
   assert.deepEqual(filesCalling(/(?<!function )\bcreateTrashModule\(/), ["server/runtime/composition/app.ts"]);
 });
+
+/**
+ * The default boot's store close waits for the boot work the composition started and never
+ * awaited (2026-10-05), as `tovu serve`'s does: the legacy publish-credential tail and
+ * `createServingApp`'s `bootWork` (the BYOK pass). Without it a site stopped seconds after boot
+ * closed the store under them. `closeStoreOnShutdown`'s own suite proves the wait
+ * (`close-store-on-shutdown-boot-work.test.ts`); this pins that index.ts feeds it both passes.
+ */
+test("index.ts hands the legacy tail and createServingApp's bootWork to the store close", () => {
+  const source = readCodeLines("index.ts").join("\n");
+  assert.match(source, /closeStoreOnShutdown\([^;]*\bbootWork: \(\) => bootWork\b/, "the store close must read the boot work list");
+  assert.match(source, /bootWork\.push\(deps\.legacyPublishCredentialsReady\)/, "the legacy publish-credential tail must be awaited");
+  assert.match(source, /const \{ app, bootWork: servingBootWork \} = createServingApp\(deps\);/);
+  assert.match(source, /bootWork\.push\(\.\.\.servingBootWork\)/, "createApp's BYOK pass must be awaited");
+});

@@ -1,5 +1,7 @@
 import type { SiteStore } from "#src/server/runtime/composition/open-site-store";
 
+import { awaitBootWorkWithinBound } from "./await-boot-work.js";
+
 /**
  * @file The default boot's (`index.ts`) store teardown for PGlite and Postgres sites.
  *
@@ -59,22 +61,40 @@ export function closeWithinBound(
  * runs first on a signal and again, synchronously, on `exit`, which covers an explicit
  * `process.exit()` elsewhere. A store that fails or hangs on close is logged; the exit still happens.
  *
+ * `optional.bootWork` returns the boot passes still reading the store (the legacy publish-credential
+ * tail, `createServingApp`'s `bootWork`); the close waits for them first, for half the bound, so a
+ * site stopped seconds after boot does not close under them (see `await-boot-work.ts`). It is read
+ * when the close starts, not here: `index.ts` registers these handlers before `createServingApp`
+ * returns its passes.
+ *
  * @returns `true` when the handlers were registered (the caller must then start the daemon with
  *   `registerProcessSignalHandlers: false`); `false` on SQLite, where nothing is registered.
  */
 export function closeStoreOnShutdown(
   required: { store: Pick<SiteStore, "storage" | "close">; onShutdown: () => void },
-  optional: { proc?: ShutdownProcess; timeoutMs?: number; log?: (message: string) => void } = {}
+  optional: {
+    proc?: ShutdownProcess;
+    timeoutMs?: number;
+    log?: (message: string) => void;
+    bootWork?: () => readonly Promise<unknown>[];
+  } = {}
 ): boolean {
   const { store, onShutdown } = required;
   if (store.storage.kind === "sqlite") return false;
   const proc = optional.proc ?? process;
   const timeoutMs = optional.timeoutMs ?? DEFAULT_CLOSE_TIMEOUT_MS;
   const log = optional.log ?? ((message: string) => console.error(message));
+  const bootWork = optional.bootWork ?? (() => []);
 
   let closing: Promise<void> | undefined;
   const closeBounded = (): Promise<void> => {
-    closing ??= closeWithinBound(() => store.close(), { label: `the ${store.storage.kind} store`, timeoutMs, log });
+    closing ??= closeWithinBound(
+      async () => {
+        await awaitBootWorkWithinBound({ work: bootWork() }, { timeoutMs: timeoutMs / 2, log });
+        await store.close();
+      },
+      { label: `the ${store.storage.kind} store`, timeoutMs, log }
+    );
     return closing;
   };
 
