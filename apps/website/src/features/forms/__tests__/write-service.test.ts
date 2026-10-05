@@ -10,7 +10,7 @@ import {
   FormDefinitionNotFoundError,
 } from "@jini-ai/cms-forms";
 import { InMemoryFormDefinitionRepo } from "../repo.memory.js";
-import type { NotifyConfig } from "@jini-ai/cms-forms";
+import type { FormDefinitionRepoPort, NotifyConfig } from "@jini-ai/cms-forms";
 import {
   createFormDefinition,
   setFormDefinitionStatus,
@@ -465,6 +465,40 @@ test("updateFormDefinition: FormDefinitionNotFoundError for an unknown formId", 
       }),
     FormDefinitionNotFoundError
   );
+});
+
+test("updateFormDefinition: authorizes once, before any repo read — a denied caller learns nothing about the form's existence", async () => {
+  const deps = makeDeps();
+  const { definition } = await createFormDefinition({
+    deps,
+    input: { workspaceId: WORKSPACE_ID, actor: ACTOR, name: "Contact", slug: "contact", fields: [{ id: "name", label: "Name", type: "text", required: true }] },
+  });
+  const order: string[] = [];
+  const memoryRepo = deps.repo;
+  const repo: FormDefinitionRepoPort = {
+    findById: (target) => { order.push("repo.findById"); return memoryRepo.findById(target); },
+    findBySlug: (target) => memoryRepo.findBySlug(target),
+    list: (target) => memoryRepo.list(target),
+    isSlugTaken: (target) => memoryRepo.isSlugTaken(target),
+    create: (record) => memoryRepo.create(record),
+    update: (record) => memoryRepo.update(record),
+  };
+  let allowed = true;
+  const authorize: AuthorizeFn = async () => { order.push("authorize"); return { allowed, reason: "test-grant" }; };
+  const recorded = { ...deps, repo, authorize };
+
+  await updateFormDefinition({ deps: recorded, input: { workspaceId: WORKSPACE_ID, actor: ACTOR, formId: definition.id, patch: { name: "Renamed" } } });
+  assert.equal(order[0], "authorize", "the gate precedes the authoring pre-read");
+  assert.equal(order.filter((effect) => effect === "authorize").length, 1, "the gateway replays the one decision (ADR-021 §2)");
+
+  order.length = 0;
+  allowed = false;
+  // An unknown id must still be refused as Forbidden, never NotFound: that difference is the leak.
+  await assert.rejects(
+    () => updateFormDefinition({ deps: recorded, input: { workspaceId: WORKSPACE_ID, actor: ACTOR, formId: "no-such-form", patch: { name: "X", mode: "html", html: "<input name=a>" } } }),
+    CommandForbiddenError,
+  );
+  assert.deepEqual(order, ["authorize"], "a denied caller reaches no repo read and no second evaluation");
 });
 
 test("setFormDefinitionStatus: AC-05 — flips status to disabled without deleting the row (INV-08)", async () => {

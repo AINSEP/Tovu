@@ -535,6 +535,32 @@ test("forms_get_submission: calls authorize() with admin.forms.submissions.read 
   assert.deepEqual(result.submission.data, { email: "a@b.test" });
 });
 
+test("forms_get_submission: authorize() runs before the submission repo is even read", async () => {
+  const { deps, submissionRepo, order } = fakeRouteDeps();
+  const { id: formId } = await seedDefinition(deps);
+  await seedSubmission(submissionRepo, formId, { id: "s-only" });
+  order.length = 0;
+
+  await wired("forms_get_submission", deps).handler(executionContext({ formId, submissionId: "s-only" }));
+
+  assert.equal(order[0], "authorize", `first observable effect was '${order[0]}', not the authorization check`);
+  assert.ok(order.includes("submissionRepo.findById"), "the submission read must be observed");
+});
+
+test("forms_get_submission: a denied principal is rejected and the submission repo is never read", async () => {
+  const { deps, order } = fakeRouteDeps({ allow: false });
+  await assert.rejects(
+    () => wired("forms_get_submission", deps).handler(executionContext({ formId: "some-form", submissionId: "some-submission" })),
+    (error: unknown) => {
+      assert.ok(error instanceof ToolInputError, `expected ToolInputError (ForbiddenError wrapped), got ${String(error)}`);
+      assert.match((error as Error).message, /^FORMS_FORBIDDEN: /);
+      assert.match((error as Error).message, /admin\.forms\.submissions\.read/);
+      return true;
+    },
+  );
+  assert.deepEqual(order, ["authorize"], "the gate must run ahead of every read, not alongside it");
+});
+
 test("END TO END: forms_list_submissions -> forms_get_submission by the listed id returns the SAME data", async () => {
   const { deps, submissionRepo } = fakeRouteDeps();
   const { id: formId } = await seedDefinition(deps);

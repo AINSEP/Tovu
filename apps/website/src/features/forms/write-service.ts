@@ -41,6 +41,8 @@ export interface FormWriteServiceDeps extends Omit<PackageWriteDeps, "permission
 // Slugs are immutable after creation; updates retain the existing slug rather than choose a new one.
 const RESERVED_SLUGS = new Set(["new"]);
 
+const FORMS_PERMISSION = "admin.forms.manage";
+
 export interface CreateFormDefinitionRequired {
   deps: FormWriteServiceDeps;
   input: PackageCreateRequired["input"] & FormAuthoring & { notify?: NotifyConfig; idempotencyKey?: string };
@@ -63,7 +65,7 @@ function packageDeps(deps: FormWriteServiceDeps): PackageWriteDeps {
     idGen: deps.idGen,
     changeSets: deps.changeSets,
     authorize: deps.authorize,
-    permission: "admin.forms.manage",
+    permission: FORMS_PERMISSION,
     reservedSlugs: RESERVED_SLUGS,
   };
 }
@@ -111,17 +113,31 @@ export async function updateFormDefinition(
   _optional: Record<string, never> = {},
 ): Promise<{ definition: FormDefinitionRecord }> {
   const { idempotencyKey, patch, ...target } = input;
+  const { mode, html, ...builderPatch } = patch;
+  // Authorize BEFORE the authoring pre-read below, so a denied caller is refused before any
+  // lookup and the refusal never discloses whether the form exists (5e9f338f6 put the read
+  // first). The gateway then replays this one decision instead of evaluating a second time —
+  // ADR-021 §2 "one evaluator". Its only authorize() caller is executeCommand's single gate,
+  // pinned to FORMS_PERMISSION by packageDeps; prepareFormAuthoring keeps the real authorize.
+  const decision = await deps.authorize({
+    principalId: input.actor.id,
+    permission: FORMS_PERMISSION,
+    workspaceId: input.workspaceId,
+    entityType: "form_definition",
+    entityId: input.formId,
+  });
+  const gatewayDeps: FormWriteServiceDeps = { ...deps, authorize: async () => decision };
+  const submit = (writeDeps: FormWriteServiceDeps, writePatch: PackageUpdateRequired["input"]["patch"]) =>
+    updatePackageFormDefinition({ deps: packageDeps(writeDeps), input: { ...target, patch: writePatch } }, { idempotencyKey, outbox: deps.outbox });
+  // Denied: skip the pre-read entirely; the gateway throws its own ForbiddenError.
+  if (!decision.allowed) return submit(gatewayDeps, builderPatch);
   const existing = await deps.repo.findById({ workspaceId: input.workspaceId, id: input.formId }) as HtmlFormDefinitionRecord | null;
   const authoring = await prepareFormAuthoring({ deps, input: { ...target, ...patch }, existing: existing ?? undefined });
   const boundDeps = authoring ? {
-    ...deps,
+    ...gatewayDeps,
     repo: withFormAuthoring({ repo: deps.repo, authoring }, { replaceFields: authoring.mode === "html" || (existing?.mode === "html" && patch.fields !== undefined) }),
-  } : deps;
-  const { mode, html, ...builderPatch } = patch;
-  return updatePackageFormDefinition(
-    { deps: packageDeps(boundDeps), input: { ...target, patch: { ...builderPatch, ...(authoring?.fields ? { fields: authoring.fields } : {}) } } },
-    { idempotencyKey, outbox: deps.outbox },
-  );
+  } : gatewayDeps;
+  return submit(boundDeps, { ...builderPatch, ...(authoring?.fields ? { fields: authoring.fields } : {}) });
 }
 
 /** Changes active/disabled status through the audited command gateway; never deletes a definition.
