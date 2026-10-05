@@ -1,8 +1,9 @@
-import { buildDomainRegistrations, indexCatalogById, isRecord, requireInputRecord, requireString, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
+import { buildDomainRegistrations, indexCatalogById, isRecord, requireInputRecord, requireString, ToolInputError, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import type { PluginActivationRepoPort } from "./activation.js";
 import type { PluginDiscoveryRecord } from "./discovery.js";
+import type { HookRegistry } from "./hook-registry.js";
 import type { PluginManifest, PluginManifestFieldDecl } from "./manifest.js";
 import { capabilityToolIdFor } from "./plugin-claims.js";
 // Disclosed cross-domain read, same shape `agent-tools.ts`'s header already accepts for this
@@ -86,6 +87,21 @@ import { PostNotFoundError, type PostRecord, type PostRepoPort } from "../post/i
  * `isPluginEnabledInWorkspace`, so they cannot drift. The tool stays LISTED until restart; enabling a
  * plugin that was disabled at boot still needs a restart, because there is no registration to re-admit.
  *
+ * ---------------------------------------------------------------------------
+ * Fresh results for Tier-2 plugins (AW-7 Tier 2, 2026-10-04)
+ * ---------------------------------------------------------------------------
+ * A stored `ext` value is only as fresh as the post's last save, so "analyze this page" used to answer
+ * with whatever the plugin computed then. A tier-2 plugin with a `content.entry.beforeSave` filter
+ * ({@link PluginCapabilityToolSource.runsFresh}) now runs again on the post as stored, through the
+ * optional `previewPluginBeforeSave` port: the same hook-registry preview the admin editor's
+ * "Analyze now" uses, so the code runs in a fresh worker and nothing is saved or counted toward
+ * quarantine. Still ONE tool per plugin (no second "analyze" tool competing in `search_tools`).
+ * Without the port, or when this process has not attached the plugin, it reads the stored values as
+ * before. Tier-3 plugins keep reading stored values: their filter runs in-process, and this change
+ * was scoped to the worker-isolated tier. `ExtPatch` is scalar-only, so a plugin stores structured
+ * output (content-analyzer's `report`) as a JSON string; {@link decodeFieldValue} hands it back
+ * parsed instead of as JSON inside JSON.
+ *
  * Architectural role:
  * `features/plugin-runtime` domain declaration, alongside (not replacing) `agent-tools.ts`/
  * `tool-registrations.ts`'s static `plugins_list`/`plugins_set_enabled` pair — this file's tool ids
@@ -133,6 +149,16 @@ export interface PluginCapabilityToolSource {
   readonly pluginName: string;
   readonly description: string;
   readonly fields: readonly PluginCapabilityFieldSource[];
+  /** A tier-2 plugin with a `content.entry.beforeSave` filter: each call runs that filter on the
+   *  stored post through `PluginCapabilityToolDeps.previewPluginBeforeSave` — see this file's header,
+   *  "Fresh results for Tier-2 plugins". */
+  readonly runsFresh: boolean;
+}
+
+/** Whether this plugin's tool computes a fresh result instead of reading the stored one — see this
+ *  file's header, "Fresh results for Tier-2 plugins". */
+function runsFreshFor(manifest: PluginManifest): boolean {
+  return manifest.tier === "tier-2" && manifest.hooks.includes("content.entry.beforeSave");
 }
 
 /** Fallback for a field whose manifest declares no `description` (see this file's header,
@@ -171,6 +197,13 @@ function buildFieldSources(manifest: PluginManifest): readonly PluginCapabilityF
  */
 function buildCapabilityToolDescription(manifest: PluginManifest, fields: readonly PluginCapabilityFieldSource[]): string {
   const fieldText = fields.map((field) => field.description).join(" ");
+  if (runsFreshFor(manifest)) {
+    return (
+      `Runs the installed '${manifest.name}' plugin on one existing post or page right now and returns its fresh result ` +
+      `(nothing is saved). ${fieldText} Requires an existing postId — call content_post_search, content_post_list, or ` +
+      `content_post_get first if you do not already have one. JSON-valued fields (such as a report) come back already parsed.`
+    );
+  }
   return (
     `Reads content metrics and other data the installed '${manifest.name}' plugin has already computed and stored ` +
     `for one existing post or page. ${fieldText} Requires an existing postId — call content_post_search, ` +
@@ -211,6 +244,7 @@ export async function loadEnabledPluginCapabilityToolSources(deps: {
       pluginName: record.manifest.name,
       description: buildCapabilityToolDescription(record.manifest, fields),
       fields,
+      runsFresh: runsFreshFor(record.manifest),
     });
   }
 
@@ -241,26 +275,48 @@ function buildCapabilityInputSchema(): Record<string, unknown> {
   };
 }
 
-/** Reads one plugin's stored fields back off an already-loaded post, defensively — `post.ext` is
+/** Reads one plugin's stored field bag off an already-loaded post, defensively — `post.ext` is
  *  typed as a generic `JsonObject` (see `post.ts`'s own field doc), so this narrows with `isRecord`
  *  at each level rather than casting, and treats any unexpected shape the same as "not yet written"
- *  (`null` + note) rather than throwing on data this handler does not own the shape of. */
-function buildCapabilityToolResult(source: PluginCapabilityToolSource, post: PostRecord): Record<string, unknown> {
+ *  (`undefined`, then `null` + note) rather than throwing on data this handler does not own the shape of. */
+function readStoredFieldBag(source: PluginCapabilityToolSource, post: PostRecord): Record<string, unknown> | undefined {
   const extension = { value: post.ext };
   const candidate = { value: isRecord(extension) ? extension.value[source.pluginId] : undefined };
-  const pluginBag = isRecord(candidate) ? candidate.value : undefined;
+  return isRecord(candidate) ? candidate.value : undefined;
+}
 
+/** A string field holding a JSON object or array comes back parsed (see this file's header, "Fresh
+ *  results for Tier-2 plugins"); every other value, including a string that only looks like JSON,
+ *  is returned exactly as written. @complexity O(value length). */
+function decodeFieldValue(value: unknown): unknown {
+  if (typeof value !== "string" || !/^\s*[[{]/.test(value)) return value;
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return value;
+  }
+}
+
+/** Projects one plugin's field bag — stored, or fresh from the preview port (`computedNow`) — onto
+ *  its declared fields, adding the "not computed yet" note when none of them has a value. */
+function buildCapabilityToolResult(
+  source: PluginCapabilityToolSource,
+  post: PostRecord,
+  bag: { values: Record<string, unknown> | undefined; computedNow: boolean },
+): Record<string, unknown> {
+  const pluginBag = bag.values;
   const fields: Record<string, unknown> = {};
   let anyComputed = false;
   for (const field of source.fields) {
     const value = pluginBag ? pluginBag[field.fieldKey] : undefined;
-    fields[field.fieldKey] = value ?? null;
+    fields[field.fieldKey] = value === undefined ? null : decodeFieldValue(value);
     if (value !== undefined) anyComputed = true;
   }
 
   return {
     postId: post.id,
     pluginId: source.pluginId,
+    computedNow: bag.computedNow,
     fields,
     ...(anyComputed
       ? {}
@@ -278,6 +334,42 @@ export interface PluginCapabilityToolDeps {
   readonly postRepo: PostRepoPort;
   /** Re-read on EVERY call by each registration's policy — see this file's header, "Revocation". */
   readonly pluginActivationRepo: PluginActivationRepoPort;
+  /** Runs ONE attached plugin's beforeSave filter on a draft without saving — the composition
+   *  root's `previewPluginBeforeSave` binding (`HookRegistry.previewBeforeSave`). Omitted ⇒ every
+   *  tool reads stored values. See this file's header, "Fresh results for Tier-2 plugins". */
+  readonly previewPluginBeforeSave?: HookRegistry["previewBeforeSave"];
+}
+
+/** The field bag one call answers with: a fresh preview for a {@link PluginCapabilityToolSource.runsFresh}
+ *  source when the port is injected and this process has the plugin attached, otherwise the stored one.
+ *  The draft is the post exactly as stored — the same fields `post.ts` hands the filter on an update.
+ *  @throws {ToolInputError} the fresh run failed; the cause stays on the error, the model sees fixed text.
+ *  @complexity one post-draft preview (a worker round trip for tier-2) or none. */
+async function resolveFieldBag(
+  source: PluginCapabilityToolSource,
+  post: PostRecord,
+  deps: PluginCapabilityToolDeps,
+): Promise<{ values: Record<string, unknown> | undefined; computedNow: boolean }> {
+  const preview = source.runsFresh ? deps.previewPluginBeforeSave : undefined;
+  const fresh = preview
+    ? await preview(source.pluginId, {
+        id: post.id,
+        workspaceId: post.workspaceId,
+        title: post.title,
+        slug: post.slug,
+        status: post.status,
+        bodyJson: post.bodyJson,
+        ext: (post.ext ?? {}) as Readonly<Record<string, Readonly<Record<string, unknown>>>>,
+      }).catch((error: unknown) => {
+        throw new ToolInputError(
+          {
+            message: `PLUGIN_HOOK_FAILED: '${source.pluginName}' could not run on post '${post.id}' just now, so there is no fresh result. Nothing was saved; its stored values are unchanged.`,
+          },
+          { cause: error },
+        );
+      })
+    : null;
+  return fresh ? { values: fresh, computedNow: true } : { values: readStoredFieldBag(source, post), computedNow: false };
 }
 
 /** One source's catalog entry. `content.read`, like `content_post_get` — see `buildPluginCapabilityToolRegistrations`. */
@@ -291,7 +383,7 @@ function capabilityCatalogEntry(source: PluginCapabilityToolSource): AgentToolDe
   };
 }
 
-/** One source's handler — today's handler body, moved verbatim. @complexity one permission check plus one post read. */
+/** One source's handler. @complexity one permission check, one post read, and at most one fresh preview. */
 function capabilityToolHandler(source: PluginCapabilityToolSource, deps: PluginCapabilityToolDeps): ToolHandler {
   return async (ctx) => {
     const input = requireInputRecord({ input: ctx.input });
@@ -302,7 +394,7 @@ function capabilityToolHandler(source: PluginCapabilityToolSource, deps: PluginC
     if (!post) {
       throw new PostNotFoundError(`post '${postId}' was not found`);
     }
-    return buildCapabilityToolResult(source, post);
+    return buildCapabilityToolResult(source, post, await resolveFieldBag(source, post, deps));
   };
 }
 

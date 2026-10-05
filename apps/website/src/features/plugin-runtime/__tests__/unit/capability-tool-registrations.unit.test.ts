@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createToolRegistry } from "@jini-ai/core";
+import { createToolRegistry, ToolInputError } from "@jini-ai/core";
 
+import { CONTENT_ANALYZER_MANIFEST } from "../../built-ins/content-analyzer/index.js";
 import { WORD_COUNT_MANIFEST } from "../../built-ins/word-count/index.js";
 import type { PluginActivationRecord } from "../../activation.js";
 import { InMemoryPluginActivationRepo } from "../../repo.memory.js";
@@ -186,6 +187,7 @@ const WORD_COUNT_SOURCE: PluginCapabilityToolSource = {
     "This post's word count and estimated reading time — computed and stored automatically every time the post is saved while this plugin is enabled. " +
     "Requires an existing postId — call content_post_search, content_post_list, or content_post_get first if you do not already have one.",
   fields: [{ path: "ext.word-count.count", fieldKey: "count", type: "integer", description: "word count and reading time" }],
+  runsFresh: false,
 };
 
 test("the built registration is read-only, content.read-gated, and requires a postId", async () => {
@@ -356,4 +358,192 @@ test("a tool id that collides with an already-registered tool fails LOUDLY at re
     (error: unknown) =>
       error instanceof Error && error.message === 'ToolRegistry: tool "plugin_capability_word_count" is already registered',
   );
+});
+
+// ---------------------------------------------------------------------------
+// AW-7 Tier 2 — a fresh result for a tier-2 plugin, through the injected preview port
+// ---------------------------------------------------------------------------
+
+const CONTENT_ANALYZER_REPORT = { v: 1, score: 84, checks: [{ id: "title-length", status: "pass", params: { length: 42 } }] };
+
+async function contentAnalyzerSource(): Promise<PluginCapabilityToolSource> {
+  const [source] = await loadEnabledPluginCapabilityToolSources({
+    workspaceId: WORKSPACE,
+    discoverPlugins: async () => [discoveryRecord(CONTENT_ANALYZER_MANIFEST)],
+    pluginActivationRepo: activationRepoWith([enabledActivation("content-analyzer")]),
+  });
+  assert.ok(source);
+  return source;
+}
+
+test("a tier-2 beforeSave plugin's source runs fresh and says so; a tier-3 plugin's reads what was stored", async () => {
+  const sources = await loadEnabledPluginCapabilityToolSources({
+    workspaceId: WORKSPACE,
+    discoverPlugins: async () => [discoveryRecord(CONTENT_ANALYZER_MANIFEST), discoveryRecord(WORD_COUNT_MANIFEST)],
+    pluginActivationRepo: activationRepoWith([enabledActivation("content-analyzer"), enabledActivation("word-count")]),
+  });
+  const [analyzer, wordCount] = sources;
+  assert.equal(analyzer?.runsFresh, true);
+  assert.equal(wordCount?.runsFresh, false);
+  assert.ok(
+    analyzer?.description.startsWith(
+      "Runs the installed 'Content Analyzer' plugin on one existing post or page right now and returns its fresh result (nothing is saved). ",
+    ),
+    analyzer?.description,
+  );
+  assert.ok(analyzer?.description.endsWith("JSON-valued fields (such as a report) come back already parsed."), analyzer?.description);
+  assert.ok(wordCount?.description.startsWith("Reads content metrics and other data the installed 'Word Count' plugin has already computed and stored"));
+});
+
+test("a tier-2 plugin with no beforeSave hook does not claim to run fresh", async () => {
+  const [source] = await loadEnabledPluginCapabilityToolSources({
+    workspaceId: WORKSPACE,
+    discoverPlugins: async () => [discoveryRecord({ ...CONTENT_ANALYZER_MANIFEST, hooks: [] })],
+    pluginActivationRepo: activationRepoWith([enabledActivation("content-analyzer")]),
+  });
+  assert.equal(source?.runsFresh, false);
+});
+
+test("a fresh tier-2 call previews the stored post through the port and returns the parsed report and the summary", async () => {
+  const stored = post({ ext: { "content-analyzer": { score: 10, summary: "stale" }, "word-count": { count: 3 } } });
+  const calls: Array<{ pluginId: string; entry: unknown }> = [];
+  const [registration] = buildPluginCapabilityToolRegistrations([await contentAnalyzerSource()], deps({
+    postRepo: new InMemoryPostRepo([stored]),
+    pluginActivationRepo: activationRepoWith([enabledActivation("content-analyzer")]),
+    previewPluginBeforeSave: async (pluginId, entry) => {
+      calls.push({ pluginId, entry });
+      return { score: 84, wordCount: 120, readingTimeMinutes: 1, readability: 71.5, summary: "Score 84/100.", report: JSON.stringify(CONTENT_ANALYZER_REPORT) };
+    },
+  }));
+  assert.ok(registration);
+
+  const result = (await registration.handler(toolContext({ postId: "post-1" }))) as Record<string, unknown>;
+
+  assert.deepEqual(calls, [{
+    pluginId: "content-analyzer",
+    entry: { id: "post-1", workspaceId: WORKSPACE, title: "Hello", slug: "hello", status: "published", bodyJson: { type: "doc", content: [] }, ext: stored.ext },
+  }]);
+  assert.deepEqual(result, {
+    postId: "post-1",
+    pluginId: "content-analyzer",
+    computedNow: true,
+    fields: { score: 84, wordCount: 120, readingTimeMinutes: 1, readability: 71.5, summary: "Score 84/100.", report: CONTENT_ANALYZER_REPORT },
+  });
+});
+
+test("a fresh call on a post with no ext hands the plugin an empty ext", async () => {
+  const entries: unknown[] = [];
+  const [registration] = buildPluginCapabilityToolRegistrations([await contentAnalyzerSource()], deps({
+    postRepo: new InMemoryPostRepo([post()]),
+    previewPluginBeforeSave: async (_pluginId, entry) => {
+      entries.push(entry.ext);
+      return { score: 1 };
+    },
+  }));
+  assert.ok(registration);
+  await registration.handler(toolContext({ postId: "post-1" }));
+  assert.deepEqual(entries, [{}]);
+});
+
+test("a tier-2 plugin this process has not attached falls back to its stored values, still parsed", async () => {
+  const postRepo = new InMemoryPostRepo([post({ ext: { "content-analyzer": { score: 70, report: JSON.stringify(CONTENT_ANALYZER_REPORT) } } })]);
+  const [registration] = buildPluginCapabilityToolRegistrations([await contentAnalyzerSource()], deps({
+    postRepo,
+    previewPluginBeforeSave: async () => null,
+  }));
+  assert.ok(registration);
+
+  const result = (await registration.handler(toolContext({ postId: "post-1" }))) as Record<string, unknown>;
+  assert.equal(result.computedNow, false);
+  assert.deepEqual(result.fields, { score: 70, wordCount: null, readingTimeMinutes: null, readability: null, summary: null, report: CONTENT_ANALYZER_REPORT });
+});
+
+test("without a preview port a tier-2 plugin reads its stored values", async () => {
+  const [registration] = buildPluginCapabilityToolRegistrations([await contentAnalyzerSource()], deps({
+    postRepo: new InMemoryPostRepo([post({ ext: { "content-analyzer": { score: 70 } } })]),
+  }));
+  assert.ok(registration);
+  const result = (await registration.handler(toolContext({ postId: "post-1" }))) as Record<string, unknown>;
+  assert.equal(result.computedNow, false);
+  assert.equal((result.fields as Record<string, unknown>).score, 70);
+});
+
+test("a tier-3 plugin never calls the preview port", async () => {
+  let previews = 0;
+  const [registration] = buildPluginCapabilityToolRegistrations([{ ...WORD_COUNT_SOURCE, runsFresh: false }], deps({
+    postRepo: new InMemoryPostRepo([post({ ext: { "word-count": { count: 42 } } })]),
+    previewPluginBeforeSave: async () => {
+      previews += 1;
+      return { count: 1 };
+    },
+  }));
+  assert.ok(registration);
+  const result = (await registration.handler(toolContext({ postId: "post-1" }))) as Record<string, unknown>;
+  assert.equal(previews, 0);
+  assert.deepEqual(result.fields, { count: 42 });
+  assert.equal(result.computedNow, false);
+});
+
+test("a fresh run that fails reaches the model as a ToolInputError naming the plugin, not a redacted crash", async () => {
+  const [registration] = buildPluginCapabilityToolRegistrations([await contentAnalyzerSource()], deps({
+    postRepo: new InMemoryPostRepo([post()]),
+    previewPluginBeforeSave: async () => {
+      throw new Error("plugin 'content-analyzer' beforeSave hook failed");
+    },
+  }));
+  assert.ok(registration);
+  await assert.rejects(() => registration.handler(toolContext({ postId: "post-1" })), (error: unknown) => {
+    assert.ok(error instanceof ToolInputError);
+    assert.equal(
+      error.message,
+      "PLUGIN_HOOK_FAILED: 'Content Analyzer' could not run on post 'post-1' just now, so there is no fresh result. Nothing was saved; its stored values are unchanged.",
+    );
+    return true;
+  });
+});
+
+test("only a string holding a JSON object or array is parsed; other strings are returned as written", async () => {
+  const source: PluginCapabilityToolSource = {
+    ...WORD_COUNT_SOURCE,
+    fields: ["list", "broken", "plain", "numeric"].map((key) => ({ path: `ext.word-count.${key}`, fieldKey: key, type: "string" as const, description: key })),
+  };
+  const [registration] = buildPluginCapabilityToolRegistrations([source], deps({
+    postRepo: new InMemoryPostRepo([post({ ext: { "word-count": { list: "[1,2]", broken: "{not json", plain: "hello", numeric: "42" } } })]),
+  }));
+  assert.ok(registration);
+  const result = (await registration.handler(toolContext({ postId: "post-1" }))) as Record<string, unknown>;
+  assert.deepEqual(result.fields, { list: [1, 2], broken: "{not json", plain: "hello", numeric: "42" });
+});
+
+// ---------------------------------------------------------------------------
+// Defensive paths of the loader and the per-call gate
+// ---------------------------------------------------------------------------
+
+test("an enabled plugin that declares no fields, or none in its own namespace, produces no tool source", async () => {
+  const sources = await loadEnabledPluginCapabilityToolSources({
+    workspaceId: WORKSPACE,
+    discoverPlugins: async () => [
+      discoveryRecord({ ...NO_DESCRIPTION_MANIFEST, fields: [] }),
+      discoveryRecord({ ...WORD_COUNT_MANIFEST, fields: [{ path: "ext.other-plugin.count", type: "integer", queryable: false }] }),
+    ],
+    pluginActivationRepo: activationRepoWith([enabledActivation("read-time"), enabledActivation("word-count")]),
+  });
+  assert.deepEqual(sources, []);
+});
+
+test("an activation read that throws a non-Error denies the call and logs the thrown value", async (t) => {
+  const warn = t.mock.method(console, "warn", () => undefined);
+  const [registration] = buildPluginCapabilityToolRegistrations([WORD_COUNT_SOURCE], deps({
+    pluginActivationRepo: Object.assign(activationRepoWith([]), {
+      getActivation: async (): Promise<never> => {
+        throw "locked";
+      },
+    }),
+  }));
+  assert.ok(registration);
+  const decision = await registration.policy.authorize(toolContext({ postId: "post-1" }));
+  assert.equal(decision, "deny");
+  assert.deepEqual(warn.mock.calls.map((call) => call.arguments[0]), [
+    "[plugin-runtime] 'word-count': capability tool call denied — its activation record could not be read (locked)",
+  ]);
 });

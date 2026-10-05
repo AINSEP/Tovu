@@ -61,6 +61,8 @@ export const registerInstalledExtensionTools: InstalledExtensionRegistrar = asyn
       postRepo: deps.postRepo,
       discoverPlugins: deps.discoverPlugins,
       pluginActivationRepo: deps.pluginActivationRepo,
+      // AW-7 Tier 2: a tier-2 plugin's tool computes a fresh result through this process's registry.
+      ...(deps.previewPluginBeforeSave ? { previewPluginBeforeSave: deps.previewPluginBeforeSave } : {}),
     });
   } catch (error) {
     console.warn(
