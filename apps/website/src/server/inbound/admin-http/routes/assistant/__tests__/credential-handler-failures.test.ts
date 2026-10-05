@@ -15,14 +15,15 @@ import { registerAdminAssistantDeleteSiteCredentialRoute } from "../delete-site-
 import { registerAdminAssistantGetSettingsRoute } from "../get-settings.js";
 import { registerAdminAssistantPutSettingsRoute } from "../put-settings.js";
 
-const NOW = "2026-09-15T01:02:03Z";
+// Canonical Jini clocks read `nowMs`; `nowIso` formats it with toISOString(), so NOW keeps millis.
+const NOW = "2026-09-15T01:02:03.000Z";
 const BASE = "/api/admin/v1/workspaces/:workspaceId/assistant";
 
 function depsForHandler(): AssistantSettingsRouteDeps {
   // These tests start after authentication and do not claim middleware/permission coverage.
   // Credential services and memory repositories remain real; only explicit I/O faults are mocked.
   return {
-    workspaceId: "ws-7", clock: { nowIso: () => NOW }, idGen: { newId: () => "setting-9" },
+    workspaceId: "ws-7", clock: { nowMs: () => Date.parse(NOW), nowIso: () => NOW }, idGen: { newId: () => "setting-9" },
     authorize: async () => ({ allowed: true, reason: "test_grant" }),
     assistantSettingsReady: Promise.resolve(), adminAssistantEnabled: false,
     adminExecutionCredentialRepo: new InMemoryAdminExecutionCredentialRepo(),
@@ -143,7 +144,7 @@ for (const { method, register, expectedBody } of [
 }
 
 // F4.4: each fixture violates only one shape requirement. No secret/keyring needed, so a
-// validation omission cannot hide behind a missing master key. F6.3: read back the real repo.
+// validation omission cannot hide behind a missing site key. F6.3: read back the real repo.
 for (const [field, value, message] of [
   ["apiKey", 123, "apiKey must be a string"],
   ["protocol", false, "protocol must be a string"],
