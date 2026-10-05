@@ -47,7 +47,7 @@ function mediaRecord(overrides: Partial<MediaRecord>): MediaRecord {
 
 async function fakeRouteDeps(options: { withMedia?: boolean } = {}) {
   const postRepo = new InMemoryPostRepo();
-  const mediaRepo = new InMemoryMediaRepo();
+  const mediaRepo = new InMemoryMediaRepo({});
   const contentTypes = new InMemoryMediaContentTypeStore();
   await mediaRepo.save(mediaRecord({}));
   await mediaRepo.save(mediaRecord({ id: "m-vid", slug: "clip", source: { sha256: "sha-vid" } }));
