@@ -77,15 +77,15 @@ function run(): void {
   console.log(`  ${descriptors.length} tools grouped into ${byDomain.size} domains\n`);
 
   const db = new Database(":memory:");
-  ensureToolCatalogTables(db);
-  reseedToolCatalog(
+  ensureToolCatalogTables({ db });
+  reseedToolCatalog({
     db,
-    [...byDomain.entries()].map(([domain, texts]) => ({
+    entries: [...byDomain.entries()].map(([domain, texts]) => ({
       id: domain,
       description: texts.join(" "),
       source: "domain",
     })),
-  );
+  });
 
   const results = HELD_OUT_CASES.map((c) => {
     // Domain buckets below are built from the LIVE registry ids (`domainOf(d.id)`), and every retired
@@ -96,7 +96,7 @@ function run(): void {
       domainOf(currentToolIdFor(c.expect)),
       ...(c.alsoAcceptable ?? []).map((id) => domainOf(currentToolIdFor(id))),
     ]);
-    const hits = searchToolCatalog(db, c.query, byDomain.size);
+    const hits = searchToolCatalog({ db, query: c.query }, { limit: byDomain.size });
     const index = hits.findIndex((h) => wantedDomains.has(h.id));
     return {
       query: c.query,

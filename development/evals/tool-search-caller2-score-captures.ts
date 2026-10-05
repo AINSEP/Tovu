@@ -24,9 +24,9 @@
  * harness's own `CASES` list predates the collapse and was never rewritten for it) is exactly the live-
  * fixture maintenance pattern the other 11 suites already use, not a retroactive reinterpretation.
  */
-import { buildToolCatalogQuery } from "../../apps/website/src/assistant/tool-catalog-query";
-import { currentToolIdFor } from "../../apps/website/src/assistant/content-read-tool";
-import { buildEvalToolRegistry, fakeEvalRouteDeps } from "./tool-search-eval-registry";
+import { buildToolCatalogQuery } from "../../apps/website/src/assistant/tool-catalog-query.js";
+import { currentToolIdFor } from "../../apps/website/src/assistant/content-read-tool.js";
+import { buildEvalToolRegistry, fakeEvalRouteDeps } from "./tool-search-eval-registry.js";
 import { CALLER2_COMPLIANCE_CAPTURES_20260908 } from "./tool-search-caller2-compliance-captures-2026-09-08.js";
 import { HELD_OUT_V2 } from "./tool-search-heldout-v2.js";
 import type { RegistryDepsWithoutLimiter } from "../../apps/website/src/assistant/__tests__/fixtures/registry-deps.js";
@@ -51,7 +51,7 @@ for (const capture of CALLER2_COMPLIANCE_CAPTURES_20260908) {
     [capture.expectedToolId, ...(heldOutCase?.alsoAcceptable ?? [])].map(currentToolIdFor),
   );
   const queryToScore = capture.capturedQueries[0];
-  const ranks = queryToScore ? catalog.search(queryToScore, 10).map((h) => h.id) : [];
+  const ranks = queryToScore ? catalog.search({ query: queryToScore }, { limit: 10 }).map((h) => h.id) : [];
   const rank1 = acceptable.has(ranks[0] ?? "__none__");
   for (const k of CUTOFFS) {
     const hit = ranks.slice(0, k).some((id) => acceptable.has(id));

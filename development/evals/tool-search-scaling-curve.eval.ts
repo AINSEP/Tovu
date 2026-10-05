@@ -130,8 +130,8 @@ function buildCombinedIndex(
   includeSearchKeywords: boolean,
 ): { search(query: string, limit?: number): Array<{ id: string; description: string }> } {
   const db = new Database(":memory:");
-  ensureToolCatalogTables(db);
-  reseedToolCatalog(db, [
+  ensureToolCatalogTables({ db });
+  reseedToolCatalog({ db, entries: [
     ...real.map((d) => ({
       id: d.id,
       description: includeSearchKeywords ? indexedDescriptionFor(d.id, d.description ?? "") : (d.description ?? ""),
@@ -144,10 +144,10 @@ function buildCombinedIndex(
       inputSchema: { type: "object" as const },
       source: sourceForToolId(d.id),
     })),
-  ]);
+  ] });
   return {
     search(query, limit = 10) {
-      return searchToolCatalog(db, query, limit).map((hit) => ({ ...hit, description: stripSearchKeywords(hit.description) }));
+      return searchToolCatalog({ db, query }, { limit }).map((hit) => ({ ...hit, description: stripSearchKeywords(hit.description) }));
     },
   };
 }
@@ -158,8 +158,8 @@ function buildDoc2QueryIndex(
   distractorQuestions: Readonly<Record<string, readonly string[]>>,
 ): { search(query: string, limit?: number): Array<{ id: string; description: string }> } {
   const db = new Database(":memory:");
-  ensureToolCatalogTables(db);
-  reseedToolCatalog(db, [
+  ensureToolCatalogTables({ db });
+  reseedToolCatalog({ db, entries: [
     ...real.map((d) => {
       const qs = DOC2QUERY[d.id];
       return {
@@ -178,8 +178,8 @@ function buildDoc2QueryIndex(
         source: sourceForToolId(d.id),
       };
     }),
-  ]);
-  return { search: (query, limit = 10) => searchToolCatalog(db, query, limit) };
+  ] });
+  return { search: (query, limit = 10) => [...searchToolCatalog({ db, query }, { limit })] };
 }
 
 function run(): void {

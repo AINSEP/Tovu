@@ -141,10 +141,10 @@ function run(): void {
   const production = buildToolCatalogQuery(registry);
 
   const doc2Db = new Database(":memory:");
-  ensureToolCatalogTables(doc2Db);
-  reseedToolCatalog(
-    doc2Db,
-    descriptors.map((d) => {
+  ensureToolCatalogTables({ db: doc2Db });
+  reseedToolCatalog({
+    db: doc2Db,
+    entries: descriptors.map((d) => {
       const qs = DOC2QUERY[d.id];
       return {
         id: d.id,
@@ -153,13 +153,13 @@ function run(): void {
         source: sourceForToolId(d.id),
       };
     }),
-  );
+  });
 
-  const hydeAlone = hitVectors((c) => withKeywords.search(HYDE_PROMPT_EXPANSIONS_V2[c.query]!, 10).map((h) => h.id));
-  const stacked = hitVectors((c) => searchToolCatalog(doc2Db, HYDE_PROMPT_EXPANSIONS_V2[c.query]!, 10).map((h) => h.id));
-  const prodVecs = hitVectors((c) => production.search(HYDE_PROMPT_EXPANSIONS_V2[c.query]!, 10).map((h) => h.id));
-  const keywordsRaw = hitVectors((c) => withKeywords.search(c.query, 10).map((h) => h.id));
-  const doc2Raw = hitVectors((c) => searchToolCatalog(doc2Db, c.query, 10).map((h) => h.id));
+  const hydeAlone = hitVectors((c) => withKeywords.search({ query: HYDE_PROMPT_EXPANSIONS_V2[c.query]! }, { limit: 10 }).map((h) => h.id));
+  const stacked = hitVectors((c) => searchToolCatalog({ db: doc2Db, query: HYDE_PROMPT_EXPANSIONS_V2[c.query]! }, { limit: 10 }).map((h) => h.id));
+  const prodVecs = hitVectors((c) => production.search({ query: HYDE_PROMPT_EXPANSIONS_V2[c.query]! }, { limit: 10 }).map((h) => h.id));
+  const keywordsRaw = hitVectors((c) => withKeywords.search({ query: c.query }, { limit: 10 }).map((h) => h.id));
+  const doc2Raw = hitVectors((c) => searchToolCatalog({ db: doc2Db, query: c.query }, { limit: 10 }).map((h) => h.id));
 
   console.log(`\ndoc2query ADOPTION DECISION — paired against what actually ships, n=${n} blind set`);
   console.log(`Catalog: ${descriptors.length} tools. doc2query covers ${Object.keys(DOC2QUERY).length} of them.\n`);
@@ -182,13 +182,13 @@ function run(): void {
   console.log(`  WON by adopting doc2query (${armA.candOnly.length}):`);
   for (const i of armA.candOnly) {
     const c = HELD_OUT_V2[i]!;
-    const was = withKeywords.search(HYDE_PROMPT_EXPANSIONS_V2[c.query]!, 10)[0]?.id ?? "(nothing)";
+    const was = withKeywords.search({ query: HYDE_PROMPT_EXPANSIONS_V2[c.query]! }, { limit: 10 })[0]?.id ?? "(nothing)";
     console.log(`    "${c.query}"\n       want ${c.expect} | HyDE-alone gave ${was}`);
   }
   console.log(`\n  LOST by adopting doc2query (${armA.refOnly.length}):`);
   for (const i of armA.refOnly) {
     const c = HELD_OUT_V2[i]!;
-    const now = searchToolCatalog(doc2Db, HYDE_PROMPT_EXPANSIONS_V2[c.query]!, 10)[0]?.id ?? "(nothing)";
+    const now = searchToolCatalog({ db: doc2Db, query: HYDE_PROMPT_EXPANSIONS_V2[c.query]! }, { limit: 10 })[0]?.id ?? "(nothing)";
     console.log(`    "${c.query}"\n       want ${c.expect} | stacked gave ${now}`);
   }
 
@@ -205,8 +205,8 @@ function run(): void {
     }
     return hits;
   };
-  const hydeRank25 = (c: EvalCase) => withKeywords.search(HYDE_PROMPT_EXPANSIONS_V2[c.query]!, 25).map((h) => h.id);
-  const stackedRank25 = (c: EvalCase) => searchToolCatalog(doc2Db, HYDE_PROMPT_EXPANSIONS_V2[c.query]!, 25).map((h) => h.id);
+  const hydeRank25 = (c: EvalCase) => withKeywords.search({ query: HYDE_PROMPT_EXPANSIONS_V2[c.query]! }, { limit: 25 }).map((h) => h.id);
+  const stackedRank25 = (c: EvalCase) => searchToolCatalog({ db: doc2Db, query: HYDE_PROMPT_EXPANSIONS_V2[c.query]! }, { limit: 25 }).map((h) => h.id);
   const KS = [1, 3, 5, 10, 15, 20, 25] as const;
   console.log(`\n  RECALL@k SWEEP — is the shipped limit of 10 leaving anything on the table?\n`);
   console.log(`  ${"config".padEnd(26)}${KS.map((k) => `@${k}`.padEnd(11)).join("")}`);
@@ -226,11 +226,11 @@ function run(): void {
   for (const k of [3, 5, 10, 20, 25] as const) {
     let total = 0;
     for (const c of HELD_OUT_V2) {
-      const hits = production.search(HYDE_PROMPT_EXPANSIONS_V2[c.query]!, k);
+      const hits = production.search({ query: HYDE_PROMPT_EXPANSIONS_V2[c.query]! }, { limit: k });
       total += JSON.stringify(hits.map((h) => ({ id: h.id, description: h.description, source: h.source, score: h.score }))).length;
     }
     const avg = total / n;
-    const rec = recallAt((c) => production.search(HYDE_PROMPT_EXPANSIONS_V2[c.query]!, 25).map((h) => h.id), k);
+    const rec = recallAt((c) => production.search({ query: HYDE_PROMPT_EXPANSIONS_V2[c.query]! }, { limit: 25 }).map((h) => h.id), k);
     console.log(
       `  ${String(k).padEnd(10)}${avg.toFixed(0).padEnd(14)}${`~${Math.round(avg / 4)}`.padEnd(12)}${`~${Math.round(avg / 4) * 4}`.padEnd(14)}${((rec / n) * 100).toFixed(0)}% (${rec})`,
     );
@@ -252,8 +252,8 @@ function run(): void {
       console.log(`       got     ${got.join(", ")}`);
     }
   };
-  diagnose("HyDE alone (SHIPPED)", hydeAlone, (c) => withKeywords.search(HYDE_PROMPT_EXPANSIONS_V2[c.query]!, 10).map((h) => h.id));
-  diagnose("doc2query + HyDE", stacked, (c) => searchToolCatalog(doc2Db, HYDE_PROMPT_EXPANSIONS_V2[c.query]!, 10).map((h) => h.id));
+  diagnose("HyDE alone (SHIPPED)", hydeAlone, (c) => withKeywords.search({ query: HYDE_PROMPT_EXPANSIONS_V2[c.query]! }, { limit: 10 }).map((h) => h.id));
+  diagnose("doc2query + HyDE", stacked, (c) => searchToolCatalog({ db: doc2Db, query: HYDE_PROMPT_EXPANSIONS_V2[c.query]! }, { limit: 10 }).map((h) => h.id));
   console.log();
 }
 

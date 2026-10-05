@@ -78,10 +78,10 @@ function run(): void {
 
   // --- Approach 1: doc2query. Blind-generated questions appended to each tool's indexed description.
   const doc2Db = new Database(":memory:");
-  ensureToolCatalogTables(doc2Db);
-  reseedToolCatalog(
-    doc2Db,
-    descriptors.map((d) => {
+  ensureToolCatalogTables({ db: doc2Db });
+  reseedToolCatalog({
+    db: doc2Db,
+    entries: descriptors.map((d) => {
       const qs = DOC2QUERY[d.id];
       return {
         id: d.id,
@@ -90,16 +90,16 @@ function run(): void {
         source: sourceForToolId(d.id),
       };
     }),
-  );
+  });
 
   const configs = [
-    { name: "no keywords (pre-fix)", vecs: hitVectors((c) => noKeywords.search(c.query, 10).map((h) => h.id)) },
-    { name: "shipped keywords", vecs: hitVectors((c) => withKeywords.search(c.query, 10).map((h) => h.id)) },
-    { name: "doc2query (blind)", vecs: hitVectors((c) => searchToolCatalog(doc2Db, c.query, 10).map((h) => h.id)) },
-    { name: "HyDE via prompt (free)", vecs: hitVectors((c) => withKeywords.search(HYDE_PROMPT_EXPANSIONS_V2[c.query]!, 10).map((h) => h.id)) },
+    { name: "no keywords (pre-fix)", vecs: hitVectors((c) => noKeywords.search({ query: c.query }, { limit: 10 }).map((h) => h.id)) },
+    { name: "shipped keywords", vecs: hitVectors((c) => withKeywords.search({ query: c.query }, { limit: 10 }).map((h) => h.id)) },
+    { name: "doc2query (blind)", vecs: hitVectors((c) => searchToolCatalog({ db: doc2Db, query: c.query }, { limit: 10 }).map((h) => h.id)) },
+    { name: "HyDE via prompt (free)", vecs: hitVectors((c) => withKeywords.search({ query: HYDE_PROMPT_EXPANSIONS_V2[c.query]! }, { limit: 10 }).map((h) => h.id)) },
     {
       name: "doc2query + HyDE prompt",
-      vecs: hitVectors((c) => searchToolCatalog(doc2Db, HYDE_PROMPT_EXPANSIONS_V2[c.query]!, 10).map((h) => h.id)),
+      vecs: hitVectors((c) => searchToolCatalog({ db: doc2Db, query: HYDE_PROMPT_EXPANSIONS_V2[c.query]! }, { limit: 10 }).map((h) => h.id)),
     },
   ] as const;
 
@@ -123,16 +123,16 @@ function run(): void {
     byDomain.get(dom)!.push(d.description ?? "");
   }
   const domDb = new Database(":memory:");
-  ensureToolCatalogTables(domDb);
-  reseedToolCatalog(
-    domDb,
-    [...byDomain.entries()].map(([dom, texts]) => ({
+  ensureToolCatalogTables({ db: domDb });
+  reseedToolCatalog({
+    db: domDb,
+    entries: [...byDomain.entries()].map(([dom, texts]) => ({
       id: dom,
       description: texts.join(" "),
       inputSchema: { type: "object" as const },
       source: dom,
     })),
-  );
+  });
   let domTop1 = 0;
   for (const c of HELD_OUT_V2) {
     // Resolve through the collapse first: the domain index below is built from the LIVE registry ids
@@ -140,7 +140,7 @@ function run(): void {
     // prefix rather than its old domain — resolving `want` from the raw retired id would compare
     // against a domain bucket that no longer exists.
     const want = sourceForToolId(currentToolIdFor(c.expect));
-    if (searchToolCatalog(domDb, c.query, 5)[0]?.id === want) domTop1++;
+    if (searchToolCatalog({ db: domDb, query: c.query }, { limit: 5 })[0]?.id === want) domTop1++;
   }
   console.log(`\n  Hierarchical domain routing (different unit — DOMAIN top-1, over ${byDomain.size} domains)`);
   console.log(`     domain top-1 ${domTop1}/${n} (${((domTop1 / n) * 100).toFixed(0)}%)   vs flat tool top-1 of ${((configs[1]!.vecs[1].filter(Boolean).length / n) * 100).toFixed(0)}% on the same cases`);

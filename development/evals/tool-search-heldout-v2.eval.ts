@@ -148,9 +148,9 @@ function run(): void {
   const noKeywords = buildToolCatalogQuery(registry, { includeSearchKeywords: false });
 
   const configs = [
-    { name: "no keywords (pre-fix index)", vecs: hitVectors((c) => noKeywords.search(c.query, 10).map((h) => h.id)) },
-    { name: "shipped keywords (raw query)", vecs: hitVectors((c) => withKeywords.search(c.query, 10).map((h) => h.id)) },
-    { name: "+ HyDE via prompt (free)", vecs: hitVectors((c) => withKeywords.search(HYDE_PROMPT_EXPANSIONS_V2[c.query]!, 10).map((h) => h.id)) },
+    { name: "no keywords (pre-fix index)", vecs: hitVectors((c) => noKeywords.search({ query: c.query }, { limit: 10 }).map((h) => h.id)) },
+    { name: "shipped keywords (raw query)", vecs: hitVectors((c) => withKeywords.search({ query: c.query }, { limit: 10 }).map((h) => h.id)) },
+    { name: "+ HyDE via prompt (free)", vecs: hitVectors((c) => withKeywords.search({ query: HYDE_PROMPT_EXPANSIONS_V2[c.query]! }, { limit: 10 }).map((h) => h.id)) },
   ] as const;
 
   console.log(`\n  Retrieval, n=${n}   (± is the 95% CI half-width on that proportion)\n`);

@@ -88,6 +88,7 @@ import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "../../apps/website/src/
 import { createSurfaceExchangeStore } from "../../apps/website/src/contracts/core/tool-surface-exchanges.js";
 import { buildToolCatalogQuery } from "../../apps/website/src/assistant/tool-catalog-query.js";
 import { resolveMcpJsonInjection } from "../../apps/website/src/assistant/mcp-injection.js";
+import { createRunScopedCredentials } from "../../apps/website/src/assistant/run-scoped-credential.js";
 
 /** CHANGE THIS before each run — confirm free first. See module doc's Safety section. */
 const PORT = 48731;
@@ -212,27 +213,33 @@ async function main(): Promise<void> {
     next();
   });
 
-  const eventLog = createInMemoryEventLog();
+  const eventLog = createInMemoryEventLog({});
   const lifecycle = createRunLifecycle({ eventLog });
-  await lifecycle.rehydrate();
+  await lifecycle.rehydrate({});
 
   const promptAugmenter: PromptAugmenter = {
     contextKinds: () => [],
     augmentUserRequest: ({ basePrompt }) => basePrompt,
     systemOverlay: () => REAL_SYSTEM_OVERLAY,
   };
-  const agentExecutor = createAgentExecutor({
-    lifecycle,
-    mcpJsonInjection: resolveMcpJsonInjection(DAEMON_URL),
-    promptAugmenter,
-  });
+  // The bridge's per-run credential (`run-scoped-credential.ts`), minted the way
+  // agent-daemon-server.ts mints it. `resolveMcpJsonInjection` now requires one; this scratch daemon
+  // never checks it (no `requireAgentDaemonToken` gate), but minting refuses a run with no live
+  // principal, so the run's principal is tracked for exactly that.
+  const principalByRunId = new Map<string, string>();
+  const runCredentials = createRunScopedCredentials({ principalOfLiveRun: (runId) => principalByRunId.get(runId) });
+  const agentExecutor = createAgentExecutor(
+    { lifecycle },
+    { mcpJsonInjection: resolveMcpJsonInjection(DAEMON_URL, (runId) => runCredentials.mint(runId)), promptAugmenter },
+  );
 
   // Trimmed copy of agent-daemon-server.ts's onStarted — same contract, minus attachment/frontend-
   // control handling this harness doesn't need (including the real server's `principalByRunId` map:
   // that exists there to authorize later per-run requests against the principal that started the
   // run, but this harness registers no such route, so tracking one here was dead weight — the
   // principalId shape check below stays, since it still validates the dispatched contextRef payload).
-  // Same <<SUBAGENT_DISPATCH>> prefix, same contextRef decode shape.
+  // Same <<SUBAGENT_DISPATCH>> prefix, same contextRef decode shape. (2026-10-05: a `principalByRunId`
+  // map is back above, but only so the bridge credential can be minted — still no per-run route.)
   const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) => {
     let prompt: string;
     try {
@@ -240,6 +247,7 @@ async function main(): Promise<void> {
       if (typeof parsed.prompt !== "string" || parsed.prompt.length === 0) throw new Error("bad prompt");
       if (typeof parsed.principalId !== "string" || parsed.principalId.length === 0) throw new Error("bad principalId");
       prompt = `<<SUBAGENT_DISPATCH>>\n\n${parsed.prompt}`;
+      principalByRunId.set(run.id, parsed.principalId);
     } catch (error) {
       void runLifecycle.finish({ runId: run.id, status: "failed", code: null, signal: null, resumable: false });
       console.error(`[harness] run ${run.id}: malformed contextRef`, error);
@@ -248,20 +256,14 @@ async function main(): Promise<void> {
 
     const cwd = mkdtempSync(join(tmpdir(), "tool-search-caller2-"));
     void agentExecutor
-      .run({
-        runId: run.id,
-        agentId: "claude",
-        prompt,
-        cwd,
-        permissionMode: "bypass",
-      })
+      .run({ runId: run.id, agentId: "claude", prompt, cwd }, { permissionMode: "bypass" })
       .catch((error: unknown) => {
         console.error(`[harness] run ${run.id} failed to start`, error);
       });
   };
 
   registerRunRoutes({ app, deps: { lifecycle, onStarted }, adapter: { resolvedPortRef: { current: PORT } } as AdapterContext });
-  registerToolCatalogRoutes(app, { catalog }, { resolvedPortRef: { current: PORT } } as AdapterContext);
+  registerToolCatalogRoutes({ app, deps: { catalog }, adapter: { resolvedPortRef: { current: PORT } } as AdapterContext });
 
   const server = app.listen(PORT, "127.0.0.1");
   await new Promise<void>((resolve, reject) => {
@@ -310,7 +312,7 @@ async function main(): Promise<void> {
     let status = "timed-out";
     try {
       const terminal = await Promise.race([
-        lifecycle.waitForTerminal(runId).then((s) => ({ ok: true as const, s })),
+        lifecycle.waitForTerminal({ runId }).then((s) => ({ ok: true as const, s })),
         new Promise<{ ok: false }>((resolve) => setTimeout(() => resolve({ ok: false }), RUN_TIMEOUT_MS)),
       ]);
       if (terminal.ok) {

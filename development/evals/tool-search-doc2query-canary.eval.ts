@@ -70,7 +70,7 @@ function score(db: Database.Database, cases: readonly EvalCase[]) {
     // See `ADS-memory/reports/2026-09-08-parent-tool-read-eval.md` §8 — retired Tier-1 read ids
     // re-key onto their `content_read.<resource>` card.
     const acceptable = new Set<string>([c.expect, ...(c.alsoAcceptable ?? [])].map(currentToolIdFor));
-    const hits = searchToolCatalog(db, c.query, 10);
+    const hits = searchToolCatalog({ db, query: c.query }, { limit: 10 });
     const index = hits.findIndex((h) => acceptable.has(h.id));
     return { query: c.query, expect: c.expect, rank: index === -1 ? null : index + 1, topHit: hits[0]?.id ?? "(no hits)" };
   });
@@ -90,15 +90,15 @@ function run(): void {
   const descriptors = registry.list({});
 
   const db = new Database(":memory:");
-  ensureToolCatalogTables(db);
-  reseedToolCatalog(
+  ensureToolCatalogTables({ db });
+  reseedToolCatalog({
     db,
-    descriptors.map((d) => {
+    entries: descriptors.map((d) => {
       const questions = DOC2QUERY[d.id];
       const description = questions ? `${d.description ?? ""} — ${questions.join(" ")}` : (d.description ?? "");
       return { id: d.id, description, inputSchema: d.inputSchema, source: sourceForToolId(d.id) };
     }),
-  );
+  });
 
   const coverage = descriptors.filter((d) => DOC2QUERY[d.id]).length;
   console.log(`\nCanary 1 — doc2query synthetic questions (BLIND, subagent-generated) vs. hand-written keywords`);

@@ -112,24 +112,24 @@ function run(): void {
   const registry = buildEvalToolRegistry(fakeEvalRouteDeps());
 
   const shipped = buildToolCatalogQuery(registry); // keywords baseline, raw query
-  const baselineVec = top1Vector((c) => shipped.search(c.query, 10)[0]?.id ?? null);
+  const baselineVec = top1Vector((c) => shipped.search({ query: c.query }, { limit: 10 })[0]?.id ?? null);
 
   // doc2query index
   const descriptors = registry.list({});
   const doc2Db = new Database(":memory:");
-  ensureToolCatalogTables(doc2Db);
-  reseedToolCatalog(
-    doc2Db,
-    descriptors.map((d) => {
+  ensureToolCatalogTables({ db: doc2Db });
+  reseedToolCatalog({
+    db: doc2Db,
+    entries: descriptors.map((d) => {
       const qs = DOC2QUERY[d.id];
       const description = qs ? `${d.description ?? ""} — ${qs.join(" ")}` : (d.description ?? "");
       return { id: d.id, description, inputSchema: d.inputSchema, source: sourceForToolId(d.id) };
     }),
-  );
-  const doc2Vec = top1Vector((c) => searchToolCatalog(doc2Db, c.query, 10)[0]?.id ?? null);
+  });
+  const doc2Vec = top1Vector((c) => searchToolCatalog({ db: doc2Db, query: c.query }, { limit: 10 })[0]?.id ?? null);
 
   // HyDE on shipped index
-  const hydeVec = top1Vector((c) => shipped.search(HYDE_EXPANSIONS[c.query] ?? c.query, 10)[0]?.id ?? null);
+  const hydeVec = top1Vector((c) => shipped.search({ query: HYDE_EXPANSIONS[c.query] ?? c.query }, { limit: 10 })[0]?.id ?? null);
 
   // HyDE via the PROMPT-CHANGE form (zero added LLM calls — the calling model writes the richer query
   // itself, per the revised `search_tools` query description). Fails loudly rather than silently
@@ -138,7 +138,7 @@ function run(): void {
   for (const c of HELD_OUT_CASES) {
     if (!(c.query in HYDE_PROMPT_EXPANSIONS)) throw new Error(`HYDE_PROMPT_EXPANSIONS missing case: "${c.query}"`);
   }
-  const promptVec = top1Vector((c) => shipped.search(HYDE_PROMPT_EXPANSIONS[c.query]!, 10)[0]?.id ?? null);
+  const promptVec = top1Vector((c) => shipped.search({ query: HYDE_PROMPT_EXPANSIONS[c.query]! }, { limit: 10 })[0]?.id ?? null);
 
   const n = HELD_OUT_CASES.length;
   const pBase = baselineVec.filter(Boolean).length / n;
@@ -170,10 +170,10 @@ function run(): void {
   }
 
   // --- found@10 (recall@10): the dimension the first significance pass never tested ---
-  const baselineFound = foundVector((c) => shipped.search(c.query, 10).map((r) => r.id));
-  const doc2Found = foundVector((c) => searchToolCatalog(doc2Db, c.query, 10).map((r) => r.id));
-  const hydeFound = foundVector((c) => shipped.search(HYDE_EXPANSIONS[c.query] ?? c.query, 10).map((r) => r.id));
-  const promptFound = foundVector((c) => shipped.search(HYDE_PROMPT_EXPANSIONS[c.query]!, 10).map((r) => r.id));
+  const baselineFound = foundVector((c) => shipped.search({ query: c.query }, { limit: 10 }).map((r) => r.id));
+  const doc2Found = foundVector((c) => searchToolCatalog({ db: doc2Db, query: c.query }, { limit: 10 }).map((r) => r.id));
+  const hydeFound = foundVector((c) => shipped.search({ query: HYDE_EXPANSIONS[c.query] ?? c.query }, { limit: 10 }).map((r) => r.id));
+  const promptFound = foundVector((c) => shipped.search({ query: HYDE_PROMPT_EXPANSIONS[c.query]! }, { limit: 10 }).map((r) => r.id));
 
   console.log(`\n  3. PAIRED McNemar exact test on found@10 (recall@10) — the reranker's hard ceiling:`);
   console.log(`     keywords baseline    found@10 ${baselineFound.filter(Boolean).length}/${n}`);

@@ -325,7 +325,7 @@ function main(): void {
   const lexMisses: KeyCase[] = [];
   for (const c of key.cases) {
     if (c.acceptableResources.length === 0) continue;
-    const ranked = resourceOnlyIndex.search(c.query, 3).map((h) => h.id);
+    const ranked = resourceOnlyIndex.search({ query: c.query }, { limit: 3 }).map((h) => h.id);
     if (ranked.length > 0 && c.acceptableResources.includes(ranked[0]!)) lexTop1++;
     else lexMisses.push(c);
     if (ranked.some((r) => c.acceptableResources.includes(r))) lexTop3++;

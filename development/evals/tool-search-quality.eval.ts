@@ -31,7 +31,7 @@ import { buildToolCatalogQuery } from "../../apps/website/src/assistant/tool-cat
 import { buildAssistantToolRegistrations } from "../../apps/website/src/assistant/tool-registrations.js";
 import { installFirstPartyToolContributors } from "../../apps/website/src/server/runtime/composition/tool-catalog-manifest.js";
 import { currentToolIdFor } from "../../apps/website/src/assistant/content-read-tool.js";
-import { fakeEvalRouteDeps } from "./tool-search-eval-registry.js";
+import { createEvalToolContributions, fakeEvalRouteDeps } from "./tool-search-eval-registry.js";
 import { toAssistantRegistryDeps } from "../../apps/website/src/assistant/__tests__/fixtures/registry-deps.js";
 
 interface EvalCase {
@@ -148,7 +148,7 @@ function score(catalog: ReturnType<typeof buildToolCatalogQuery>, cases: readonl
     // See `ADS-memory/reports/2026-09-08-parent-tool-read-eval.md` §8 — retired Tier-1 read ids
     // re-key onto their `content_read.<resource>` card.
     const acceptable = new Set<string>([testCase.expect, ...(testCase.alsoAcceptable ?? [])].map(currentToolIdFor));
-    const hits = catalog.search(testCase.query, SEARCH_LIMIT);
+    const hits = catalog.search({ query: testCase.query }, { limit: SEARCH_LIMIT });
     const index = hits.findIndex((hit) => acceptable.has(hit.id));
     return { query: testCase.query, expect: testCase.expect, rank: index === -1 ? null : index + 1, topHit: hits[0]?.id ?? "(no hits)" };
   });
@@ -170,9 +170,11 @@ function run(): void {
   // `tool-contribution-registry.ts`'s header: that function reads whatever is currently registered,
   // so skipping this leaves `DOMAIN_SLICES` (now empty of first-party domains; see
   // `tool-registrations.ts`'s own header) as the only source, and the catalog comes back empty.
-  installFirstPartyToolContributors();
+  // The registries are a composition-owned pair now, so the install and the build must share one.
+  const contributions = createEvalToolContributions();
+  installFirstPartyToolContributors({ contributions });
   const registry = createToolRegistry({});
-  for (const registration of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: fakeEvalRouteDeps() }))) registry.register(registration);
+  for (const registration of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: fakeEvalRouteDeps() }), undefined, { contributions })) registry.register(registration);
   const catalog = buildToolCatalogQuery(registry);
   const baseline = buildToolCatalogQuery(registry, { includeSearchKeywords: false });
   const catalogSize = registry.list({}).length;
@@ -181,7 +183,7 @@ function run(): void {
 
   const results: CaseResult[] = CASES.map((testCase) => {
     const acceptable = new Set<string>([testCase.expect, ...(testCase.alsoAcceptable ?? [])].map(currentToolIdFor));
-    const hits = catalog.search(testCase.query, SEARCH_LIMIT);
+    const hits = catalog.search({ query: testCase.query }, { limit: SEARCH_LIMIT });
     const index = hits.findIndex((hit) => acceptable.has(hit.id));
     return {
       query: testCase.query,

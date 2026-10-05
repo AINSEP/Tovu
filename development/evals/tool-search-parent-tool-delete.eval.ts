@@ -46,11 +46,10 @@ import { createToolRegistry } from "@jini-ai/core";
 import { buildToolCatalogQuery } from "../../apps/website/src/assistant/tool-catalog-query.js";
 import { resetDuplicateResourceHandlersForTests } from "../../apps/website/src/assistant/duplicate-resource-registry.js";
 import { indexedDescriptionFor } from "../../apps/website/src/assistant/tool-search-keywords.js";
-import { resetToolContributorsForTests } from "../../apps/website/src/assistant/tool-contribution-registry.js";
 import { buildAssistantToolRegistrations } from "../../apps/website/src/assistant/tool-registrations.js";
 import { installFirstPartyToolContributors } from "../../apps/website/src/server/runtime/composition/tool-catalog-manifest.js";
 import { HELD_OUT_V2 } from "./tool-search-heldout-v2.js";
-import { fakeEvalRouteDeps } from "./tool-search-eval-registry.js";
+import { createEvalToolContributions, fakeEvalRouteDeps } from "./tool-search-eval-registry.js";
 import { toAssistantRegistryDeps, type RegistryDepsWithoutLimiter } from "../../apps/website/src/assistant/__tests__/fixtures/registry-deps.js";
 
 type EvalCase = (typeof HELD_OUT_V2)[number];
@@ -205,13 +204,15 @@ function deleteResourceKeyOf(toolId: string): string {
 }
 
 function run(): void {
-  resetToolContributorsForTests();
+  // A fresh contribution pair is the clean slate `resetToolContributorsForTests()` used to provide;
+  // the install and the build must share it.
+  const contributions = createEvalToolContributions();
   resetDuplicateResourceHandlersForTests();
-  installFirstPartyToolContributors();
+  installFirstPartyToolContributors({ contributions });
   const registry = createToolRegistry({});
   // Default options: the REAL current catalog, content_read collapse included — what both production
   // composition roots build today. Not `includeContentReadCollapse: false`.
-  for (const r of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: fakeRouteDeps() }))) registry.register(r);
+  for (const r of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: fakeRouteDeps() }), undefined, { contributions })) registry.register(r);
   const all = registry.list({}) as readonly Descriptor[];
   const realIds = new Set(all.map((d) => d.id));
   const n = HELD_OUT_V2.length;
@@ -241,7 +242,7 @@ function run(): void {
   const survivors = all.filter((d) => !collapsed.has(d.id));
 
   const baseline = buildToolCatalogQuery(registry);
-  const baseVecs = hitVectors((q, l) => baseline.search(q, l), baselineAcceptable);
+  const baseVecs = hitVectors((q, l) => baseline.search({ query: q }, { limit: l }), baselineAcceptable);
 
   console.log(`\n  Retrieval, n=${n}   (± is the 95% CI half-width; read-collapse-redirected ground truth)\n`);
   console.log(`  ${"configuration".padEnd(34)}${CUTOFFS.map((k) => `top-${k}`.padEnd(19)).join("")}`);
@@ -257,7 +258,7 @@ function run(): void {
   {
     const list = [...survivors, { id: "content_delete", description: THIN_DESCRIPTION, inputSchema: { type: "object" } }];
     const catalog = buildToolCatalogQuery({ list: () => list as never });
-    const vecs = hitVectors((q, l) => catalog.search(q, l), collapsedAcceptable(collapsed));
+    const vecs = hitVectors((q, l) => catalog.search({ query: q }, { limit: l }), collapsedAcceptable(collapsed));
     results.push({ name: "A-thin: one card, generic desc", vecs });
   }
 
@@ -267,7 +268,7 @@ function run(): void {
     const description = DELETE_FAMILY.map(memberDescription).join(" ");
     const list = [...survivors, { id: "content_delete", description, inputSchema: { type: "object" } }];
     const catalog = buildToolCatalogQuery({ list: () => list as never });
-    const vecs = hitVectors((q, l) => catalog.search(q, l), collapsedAcceptable(collapsed));
+    const vecs = hitVectors((q, l) => catalog.search({ query: q }, { limit: l }), collapsedAcceptable(collapsed));
     results.push({ name: "A-concat: one card, real text concat", vecs });
   }
 
@@ -296,7 +297,7 @@ function run(): void {
   }));
   const listB = [...survivors, ...cardListDescriptors];
   const catalogB = buildToolCatalogQuery({ list: () => listB as never });
-  const vecsB = hitVectors((q, l) => catalogB.search(q, l), acceptableCardsFor);
+  const vecsB = hitVectors((q, l) => catalogB.search({ query: q }, { limit: l }), acceptableCardsFor);
   results.push({ name: `B: ${cardList.length} resource-keyed cards`, vecs: vecsB });
 
   // ---- B-LENIENT: any content_delete.* card counts, not just the correct resource's own — mirrors
@@ -311,7 +312,7 @@ function run(): void {
     if (ids.some((id) => collapsed.has(id))) for (const cardId of allCardIds) out.add(cardId);
     return out;
   }
-  const vecsBLenient = hitVectors((q, l) => catalogB.search(q, l), acceptableCardsForLenient);
+  const vecsBLenient = hitVectors((q, l) => catalogB.search({ query: q }, { limit: l }), acceptableCardsForLenient);
   results.push({ name: `B-LENIENT: any of ${cardList.length} cards counts`, vecs: vecsBLenient });
 
   for (const r of results) console.log(`  ${r.name.padEnd(34)}${CUTOFFS.map((k) => pct(r.vecs[k].filter(Boolean).length, n)).join("")}`);

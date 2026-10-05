@@ -26,7 +26,7 @@ import {
   type AssistantSurfaceDeps,
 } from "../../apps/website/src/assistant/tool-registrations.js";
 import { toAssistantRegistryDeps, type RegistryDepsWithoutLimiter } from "../../apps/website/src/assistant/__tests__/fixtures/registry-deps.js";
-import type { DerivedToolContributor, ToolContributor } from "../../apps/website/src/assistant/tool-contribution-registry.js";
+import type { AssistantToolContributions, DerivedToolContributor, ToolContributor } from "../../apps/website/src/assistant/tool-contribution-registry.js";
 import { installFirstPartyToolContributors } from "../../apps/website/src/server/runtime/composition/tool-catalog-manifest.js";
 
 /**
@@ -70,6 +70,21 @@ export function fakeEvalRouteDeps(): RegistryDepsWithoutLimiter {
 }
 
 /**
+ * A fresh, empty pair of contribution registries — what `installFirstPartyToolContributors` fills and
+ * `buildAssistantToolRegistrations` reads. The registries are composition-owned instances now, not
+ * module state, so a fresh pair is also what replaced the removed `resetToolContributorsForTests()`:
+ * a suite that needs a clean catalog makes a new pair instead of clearing a shared one.
+ *
+ * @complexity O(1).
+ */
+export function createEvalToolContributions(): AssistantToolContributions {
+  return {
+    contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: ToolContributor }) => contribution.domain }),
+    derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor }) => contribution.domain }),
+  };
+}
+
+/**
  * Builds the real, fully-wired tool registry the shipped composition roots build — the one and only
  * seam this file exists to fix. Installs first-party contributors, builds every domain's
  * registrations, registers them, then asserts the result is not suspiciously small before handing it
@@ -92,10 +107,7 @@ export function buildEvalToolRegistry(
   // A fresh pair of contribution registries per build, the same way `createAssistantByokModule`
   // makes its own: the core registries start empty, so the install must fill THIS pair and the
   // build must read the same pair.
-  const contributions = {
-    contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: ToolContributor }) => contribution.domain }),
-    derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor }) => contribution.domain }),
-  };
+  const contributions = createEvalToolContributions();
   installFirstPartyToolContributors({ contributions });
   const registry = createToolRegistry({});
   const registrations: readonly ToolRegistration[] = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps }), surfaces, { ...options, contributions });

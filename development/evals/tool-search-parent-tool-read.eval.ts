@@ -35,11 +35,10 @@ import { createToolRegistry } from "@jini-ai/core";
 import { buildToolCatalogQuery } from "../../apps/website/src/assistant/tool-catalog-query.js";
 import { resetDuplicateResourceHandlersForTests } from "../../apps/website/src/assistant/duplicate-resource-registry.js";
 import { indexedDescriptionFor } from "../../apps/website/src/assistant/tool-search-keywords.js";
-import { resetToolContributorsForTests } from "../../apps/website/src/assistant/tool-contribution-registry.js";
 import { buildAssistantToolRegistrations } from "../../apps/website/src/assistant/tool-registrations.js";
 import { installFirstPartyToolContributors } from "../../apps/website/src/server/runtime/composition/tool-catalog-manifest.js";
 import { HELD_OUT_V2 } from "./tool-search-heldout-v2.js";
-import { fakeEvalRouteDeps } from "./tool-search-eval-registry.js";
+import { createEvalToolContributions, fakeEvalRouteDeps } from "./tool-search-eval-registry.js";
 import { toAssistantRegistryDeps, type RegistryDepsWithoutLimiter } from "../../apps/website/src/assistant/__tests__/fixtures/registry-deps.js";
 
 type EvalCase = (typeof HELD_OUT_V2)[number];
@@ -223,9 +222,12 @@ function pct(hits: number, n: number): string {
 }
 
 function run(): void {
-  installFirstPartyToolContributors();
+  // The contribution registries are a composition-owned pair now, not module state: the install and
+  // the build must share one.
+  const contributions = createEvalToolContributions();
+  installFirstPartyToolContributors({ contributions });
   const registry = createToolRegistry({});
-  for (const r of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: fakeRouteDeps() }), undefined, { includeContentReadCollapse: false })) registry.register(r);
+  for (const r of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: fakeRouteDeps() }), undefined, { includeContentReadCollapse: false, contributions })) registry.register(r);
   const all = registry.list({}) as readonly Descriptor[];
   const realIds = new Set(all.map((d) => d.id));
   const n = HELD_OUT_V2.length;
@@ -253,7 +255,7 @@ function run(): void {
   ] as const;
 
   const baseline = buildToolCatalogQuery(registry);
-  const baseVecs = hitVectors((q, l) => baseline.search(q, l), baselineAcceptable);
+  const baseVecs = hitVectors((q, l) => baseline.search({ query: q }, { limit: l }), baselineAcceptable);
 
   console.log(`\n  Retrieval, n=${n}   (± is the 95% CI half-width on that proportion)\n`);
   console.log(`  ${"configuration".padEnd(34)}${CUTOFFS.map((k) => `top-${k}`.padEnd(19)).join("")}`);
@@ -269,7 +271,7 @@ function run(): void {
     ] as const) {
       const list = [...survivors, { id: "content_read", description, inputSchema: { type: "object" } }];
       const catalog = buildToolCatalogQuery({ list: () => list as never });
-      const vecs = hitVectors((q, l) => catalog.search(q, l), collapsedAcceptable(collapsed));
+      const vecs = hitVectors((q, l) => catalog.search({ query: q }, { limit: l }), collapsedAcceptable(collapsed));
       const name = `${arm.name} / ${variantName}`;
       results.push({ name, vecs });
       console.log(`  ${name.padEnd(34)}${CUTOFFS.map((k) => pct(vecs[k].filter(Boolean).length, n)).join("")}`);
@@ -371,8 +373,12 @@ const RESOURCE_KEY_ARTIFACTS =
   `exactly the tuning this arm exists to avoid.`;
 
 function runAddendum(): void {
+  // This used to reuse whatever `run()` had installed into the module-level contributor registry;
+  // that registry is a per-composition pair now, so this section installs its own.
+  const contributions = createEvalToolContributions();
+  installFirstPartyToolContributors({ contributions });
   const registry = createToolRegistry({});
-  for (const r of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: fakeRouteDeps() }), undefined, { includeContentReadCollapse: false })) registry.register(r);
+  for (const r of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: fakeRouteDeps() }), undefined, { includeContentReadCollapse: false, contributions })) registry.register(r);
   const all = registry.list({}) as readonly Descriptor[];
   const n = HELD_OUT_V2.length;
 
@@ -424,7 +430,7 @@ function runAddendum(): void {
   ] as const;
 
   const baseline = buildToolCatalogQuery(registry);
-  const baseVecs = hitVectors((q, l) => baseline.search(q, l), baselineAcceptable);
+  const baseVecs = hitVectors((q, l) => baseline.search({ query: q }, { limit: l }), baselineAcceptable);
 
   const armResults: { name: string; note: string; vecs: Record<Cutoff, boolean[]> }[] = [];
   for (const arm of armDefs) {
@@ -434,14 +440,14 @@ function runAddendum(): void {
       ...cardList.map(([key, ids]) => ({ id: arm.id(key), description: cardDescription(ids), inputSchema: { type: "object" } })),
     ];
     const catalog = buildToolCatalogQuery({ list: () => list as never });
-    armResults.push({ name: arm.name, note: arm.note, vecs: hitVectors((q, l) => catalog.search(q, l), acceptableCardsFor) });
+    armResults.push({ name: arm.name, note: arm.note, vecs: hitVectors((q, l) => catalog.search({ query: q }, { limit: l }), acceptableCardsFor) });
   }
 
   // ---- Re-derive the two reference arms so every number in the addendum comes from one run.
   cardIdFor = (k) => k;
   const richList = [...survivors, { id: "content_read", description: RICH_DESCRIPTION, inputSchema: { type: "object" } }];
   const richVecs = hitVectors(
-    (q, l) => buildToolCatalogQuery({ list: () => richList as never }).search(q, l),
+    (q, l) => buildToolCatalogQuery({ list: () => richList as never }).search({ query: q }, { limit: l }),
     collapsedAcceptable(collapsed),
   );
 
@@ -519,11 +525,12 @@ function realCatalogAcceptable(c: EvalCase): ReadonlySet<string> {
 }
 
 function runRealCatalog(): void {
-  resetToolContributorsForTests();
+  // A fresh contribution pair is the clean slate `resetToolContributorsForTests()` used to provide.
+  const contributions = createEvalToolContributions();
   resetDuplicateResourceHandlersForTests();
-  installFirstPartyToolContributors();
+  installFirstPartyToolContributors({ contributions });
   const registry = createToolRegistry({});
-  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: fakeRouteDeps() }));
+  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: fakeRouteDeps() }), undefined, { contributions });
   for (const r of registrations) registry.register(r);
   const n = HELD_OUT_V2.length;
 
@@ -536,7 +543,7 @@ function runRealCatalog(): void {
   console.log(`  Tier-1 ids still present (should be 0) ${stillPresent.length}${stillPresent.length ? " -> " + stillPresent.join(", ") : ""}`);
 
   const realQuery = buildToolCatalogQuery(registry);
-  const realVecs = hitVectors((q, l) => realQuery.search(q, l), realCatalogAcceptable);
+  const realVecs = hitVectors((q, l) => realQuery.search({ query: q }, { limit: l }), realCatalogAcceptable);
 
   console.log(`\n  Retrieval on the REAL shipped catalog, n=${n}   (± is the 95% CI half-width)\n`);
   console.log(`  ${"configuration".padEnd(34)}${CUTOFFS.map((k) => `top-${k}`.padEnd(19)).join("")}`);

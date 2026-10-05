@@ -145,7 +145,7 @@ function run(): void {
 
   /** The REAL shipped catalog, collapsed for real, as a fourth arm alongside the synthetic ones. */
   const shippedRegistry = buildEvalToolRegistry(fakeEvalRouteDeps());
-  const shippedIds = new Set(shippedRegistry.list().map((d) => d.id));
+  const shippedIds = new Set(shippedRegistry.list({}).map((d) => d.id));
   const realIds = new Set(all.map((d) => d.id));
   const n = HELD_OUT_V2.length;
 
@@ -200,7 +200,7 @@ function run(): void {
     },
     {
       name: "D1-SHIPPED (real catalog)",
-      list: shippedRegistry.list() as readonly Descriptor[],
+      list: shippedRegistry.list({}) as readonly Descriptor[],
       acceptable: (c: EvalCase): ReadonlySet<string> => {
         const ids = [c.expect, ...(c.alsoAcceptable ?? [])];
         const out = new Set<string>(ids.filter((id) => !collapsed.has(id)));
@@ -245,7 +245,7 @@ function run(): void {
 
   const baseline = buildToolCatalogQuery(registry);
   const baseVecs = hitVectors(
-    (q, l) => baseline.search(q, l),
+    (q, l) => baseline.search({ query: q }, { limit: l }),
     (c) => new Set<string>([c.expect, ...(c.alsoAcceptable ?? [])]),
   );
 
@@ -272,7 +272,7 @@ function run(): void {
   const rows: { name: string; vecs: Record<Cutoff, boolean[]> }[] = [{ name: "BASELINE (uncollapsed)", vecs: baseVecs }];
   for (const arm of arms) {
     const catalog = buildToolCatalogQuery({ list: () => arm.list as never });
-    rows.push({ name: arm.name, vecs: hitVectors((q, l) => catalog.search(q, l), arm.acceptable) });
+    rows.push({ name: arm.name, vecs: hitVectors((q, l) => catalog.search({ query: q }, { limit: l }), arm.acceptable) });
   }
 
   const affectedIdx = HELD_OUT_V2.map((c, i) => [c, i] as const)

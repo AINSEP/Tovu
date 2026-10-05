@@ -68,7 +68,7 @@ function main() {
   const deep = process.argv.includes("--deep");
 
   for (const query of QUERIES) {
-    const hits = catalog.search(query, DEEP_SCAN_LIMIT);
+    const hits = catalog.search({ query }, { limit: DEEP_SCAN_LIMIT });
     const rank = hits.findIndex((h) => h.id === TARGET);
     const rankStr = rank === -1 ? "MISS" : `#${rank + 1}`;
     const atDefault = rank !== -1 && rank < SEARCH_LIMIT_DEFAULT ? `#${rank + 1}@10` : `MISS@10`;

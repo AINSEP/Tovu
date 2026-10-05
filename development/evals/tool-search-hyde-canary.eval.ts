@@ -62,7 +62,7 @@ function score(catalog: ReturnType<typeof buildToolCatalogQuery>, cases: readonl
     // re-key onto their `content_read.<resource>` card.
     const acceptable = new Set<string>([c.expect, ...(c.alsoAcceptable ?? [])].map(currentToolIdFor));
     const searchText = useHyde ? (HYDE_EXPANSIONS[c.query] ?? c.query) : c.query;
-    const hits = catalog.search(searchText, SEARCH_LIMIT);
+    const hits = catalog.search({ query: searchText }, { limit: SEARCH_LIMIT });
     const index = hits.findIndex((h) => acceptable.has(h.id));
     return { query: c.query, expect: c.expect, rank: index === -1 ? null : index + 1, topHit: hits[0]?.id ?? "(no hits)" };
   });
