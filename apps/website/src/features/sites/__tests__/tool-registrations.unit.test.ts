@@ -81,13 +81,11 @@ function fakeDeps(options: FakeDepsOptions = {}): FakeDeps {
       duplicateSiteCalls.push(required);
       return options.duplicateSiteResult ?? { siteId: "new-site-id-1234", dir: required.targetDir };
     },
-    cwd: "/tmp/fake-cwd",
-    // Omitted entirely unless a test explicitly opts into the install-dir (not-switcher-compatible)
-    // case below — `resolveSitesDeps` defaults `switcherCompatible` to `true` when `siteBinding` is
-    // absent, matching every other test in this file that never touches this field.
-    ...(options.switcherCompatible === false
-      ? { siteBinding: { dir: "/some/site", name: "some-site", dirOverridden: true, switcherCompatible: false } }
-      : {}),
+    // The served binding is the ONLY source of the `sites/` root (`/tmp/fake-cwd/sites`) — there is
+    // no `cwd` dep. A test opts into the install-dir (not-switcher-compatible) case explicitly.
+    siteBinding: options.switcherCompatible === false
+      ? { dir: "/some/site", name: "some-site", dirOverridden: true, switcherCompatible: false }
+      : { dir: "/tmp/fake-cwd/sites/served", name: "served", dirOverridden: false, switcherCompatible: true },
   };
 
   return { routeDeps, duplicateSiteCalls };

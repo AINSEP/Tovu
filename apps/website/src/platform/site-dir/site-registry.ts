@@ -272,9 +272,10 @@ export interface SiteBinding {
    * `<cwd>/sites/<name>` convention.
    *
    * `listSites`/`createSite`/`persistActiveSite`/`sites_duplicate_site` all resolve their OWN
-   * `sites/` root independently from `process.cwd()` (or an injected `cwd`) — a DIFFERENT
-   * computation from whatever `dir` this binding names. `false` tells those write paths to refuse
-   * rather than silently write under an unrelated `<cwd>/sites`.
+   * `sites/` root from a `cwd` — `process.cwd()` by default, which is a DIFFERENT computation from
+   * whatever `dir` this binding names. The Sites routes and tools therefore never let it default:
+   * they pass {@link switcherBaseForBinding}'s base, which exists only when this is `true`. `false`
+   * tells those write paths to refuse rather than silently write under an unrelated `<cwd>/sites`.
    *
    * `describeSiteBinding` used to hardcode this `true`, on the stated reasoning that its own
    * `{cwd, env}` resolution always agrees with the switcher's. That reasoning did not cover
@@ -337,4 +338,61 @@ export function describeSiteBinding(optional: ListSitesOptional = {}): SiteBindi
     switcherCompatible:
       env[SITE_BINDING_NOT_SWITCHABLE_ENV] === undefined && isUnderSwitcherSitesRoot(dir, optional),
   };
+}
+
+/**
+ * The base directory the Sites-switcher's `sites/` root and `.env` live under, read off the boot
+ * binding — `null` when the binding is not switchable (an install-dir boot has no `sites/` tree).
+ *
+ * WHY THIS AND NOT `process.cwd()`: `listSites`/`createSite`/`persistActiveSite`/
+ * `readPersistedActiveSite` all default their base to `process.cwd()`. A request handler that let
+ * them default listed, created and activated in whatever tree the process happened to be standing
+ * in, while `siteBinding` named another one (development/todos.md, "The sites route and
+ * `sites_duplicate_site` re-derive the site binding from `process.cwd()`"). A switchable binding's
+ * `dir` is, by {@link describeSiteBinding}'s own definition, a direct child of `<base>/sites`, so
+ * the base is recoverable from the binding alone — every Sites route and tool passes this instead.
+ *
+ * @complexity O(1) — path arithmetic only.
+ */
+export function switcherBaseForBinding(binding: SiteBinding): string | null {
+  return binding.switcherCompatible ? path.dirname(path.dirname(binding.dir)) : null;
+}
+
+/** The served install dir as a one-row listing when `tovu serve` would accept it, else nothing.
+ *  @complexity O(1) — one `readSiteDir`. */
+function listServedSiteOnly(binding: SiteBinding): SiteListEntry[] {
+  try {
+    const { config, meta } = readSiteDir({ dir: binding.dir });
+    return [{ name: binding.name, dir: binding.dir, displayName: config.name, createdAt: meta.createdAt, active: true }];
+  } catch {
+    return [];
+  }
+}
+
+export interface ListSitesForBindingRequired {
+  binding: SiteBinding;
+}
+
+export interface ListSitesForBindingOptional {
+  /** Defaults to {@link listSites}. Called with the binding's own base, never left to default. */
+  listSites?: (optional?: ListSitesOptional) => readonly SiteListEntry[];
+}
+
+/**
+ * {@link listSites} for the tree the process is BOUND to, not the one it is standing in.
+ *
+ * - Switchable binding: `listSites` over `<base>/sites` ({@link switcherBaseForBinding}), with
+ *   `active` re-read against `binding.dir` — `listSites`'s own `active` re-derives the served dir
+ *   from `{cwd, env}`, which is exactly the re-derivation this function exists to avoid.
+ * - Install-dir binding (`tovu serve <dir>`): there is no related `sites/` tree, so the only site is
+ *   the served one, listed when `tovu serve` would accept it. Listing `<cwd>/sites` here reported an
+ *   unrelated checkout's sites as this server's.
+ *
+ * @complexity O(n) in the entries under the bound `sites/`, or one `readSiteDir` for an install dir.
+ */
+export function listSitesForBinding(required: ListSitesForBindingRequired, optional: ListSitesForBindingOptional = {}): SiteListEntry[] {
+  const { binding } = required;
+  const base = switcherBaseForBinding(binding);
+  if (base === null) return listServedSiteOnly(binding);
+  return (optional.listSites ?? listSites)({ cwd: base }).map((site) => ({ ...site, active: site.dir === binding.dir }));
 }

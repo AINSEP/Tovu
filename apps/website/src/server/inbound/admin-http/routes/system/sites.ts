@@ -4,6 +4,8 @@ import {
   createSite as createSiteReal,
   includeServingSite,
   listSites as listSitesReal,
+  listSitesForBinding,
+  switcherBaseForBinding,
   persistActiveSite as persistActiveSiteReal,
   readPersistedActiveSite as readPersistedActiveSiteReal,
   InitDirNotEmptyError,
@@ -66,6 +68,12 @@ import type { RouteDeps } from "#src/server/routes/types";
  * - `persistedSiteName` — the pending `TOVU_SITE` choice a previous activate left in `.env`
  *   (`readPersistedActiveSite`), so "serving A, B queued for the next restart" survives a page
  *   reload rather than living only in the activate response the reload threw away.
+ *
+ * Every read and write here (List's `sites[]`/`persistedSiteName`, Create's target, Activate's
+ * lookup and `.env` write) is rooted at `deps.siteBinding` through `switcherBaseForBinding` — never
+ * at `process.cwd()`, which once listed, created and activated in whatever tree the process was
+ * standing in. An install-dir boot has no switcher tree: List shows only the served site and
+ * `persistedSiteName: null`.
  *
  * `sites[]` is therefore `includeServingSite`'s composition, not `listSites`'s raw output: the
  * served directory always has a row, and every row carries `registration`. `registration:
@@ -237,15 +245,19 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
       });
       if (!authorized) return;
 
-      const registered: readonly SiteListEntry[] = listSites();
+      // Every read below is rooted at the SERVED binding, never `process.cwd()` — see
+      // `switcherBaseForBinding`'s own doc for the wrong-tree bug the cwd default caused.
       const binding = deps.siteBinding;
+      const registered: readonly SiteListEntry[] = listSitesForBinding({ binding }, { listSites });
+      const switcherBase = switcherBaseForBinding(binding);
       const sites: ServingSiteListEntry[] = includeServingSite({ sites: registered, binding });
       const serving = sites.find((site) => site.dir === binding.dir);
       res.status(200).json({
         switchingEnabled: isSiteSwitcherEnabled(),
         sites,
         currentSite: { ...binding, listed: serving?.registration === "registered" },
-        persistedSiteName: readPersistedActiveSite(),
+        // An install-dir boot has no switcher `.env`: whatever sits in the cwd's belongs to another tree.
+        persistedSiteName: switcherBase === null ? null : readPersistedActiveSite({ cwd: switcherBase }),
       });
     } catch (err) {
       console.error("[system/sites] unexpected error listing sites", err);
@@ -286,8 +298,11 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
     }
     // Same ordering rationale as the flag check immediately above: a per-boot structural fact,
     // independent of the caller's own permissions, so it is checked before spending an authorize()
-    // call on an operation this boot cannot fulfill regardless of who is asking.
-    if (!deps.siteBinding.switcherCompatible) {
+    // call on an operation this boot cannot fulfill regardless of who is asking. `null` exactly
+    // when `siteBinding.switcherCompatible` is false; otherwise the served tree's own base, which
+    // the create below is rooted at instead of `process.cwd()`.
+    const switcherBase = switcherBaseForBinding(deps.siteBinding);
+    if (switcherBase === null) {
       sendSiteBindingNotSwitchable(res);
       return;
     }
@@ -319,7 +334,7 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
         return;
       }
 
-      const result = await createSite({ name: parsed.name });
+      const result = await createSite({ name: parsed.name }, { cwd: switcherBase });
       const agentPluginTokens = await storeTokensForNewSite(deps, result, parsedTokens.tokens);
       res.status(201).json({ site: { name: result.name, dir: result.dir, siteId: result.siteId }, agentPluginTokens });
     } catch (err) {
@@ -342,7 +357,9 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
       sendSiteSwitchingDisabled(res);
       return;
     }
-    if (!deps.siteBinding.switcherCompatible) {
+    // See the Create route's identical check: the served tree's base, never `process.cwd()`.
+    const switcherBase = switcherBaseForBinding(deps.siteBinding);
+    if (switcherBase === null) {
       sendSiteBindingNotSwitchable(res);
       return;
     }
@@ -358,13 +375,13 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
       if (!authorized) return;
 
       const name = String(req.params.name ?? "");
-      const match = listSites().find((site) => site.name === name);
+      const match = listSites({ cwd: switcherBase }).find((site) => site.name === name);
       if (!match) {
         res.status(404).json({ error: `site '${name}' was not found`, code: "SITE_NOT_FOUND" });
         return;
       }
 
-      persistActiveSite({ name });
+      persistActiveSite({ name }, { cwd: switcherBase });
       res.status(200).json({
         ok: true,
         activeSiteName: name,

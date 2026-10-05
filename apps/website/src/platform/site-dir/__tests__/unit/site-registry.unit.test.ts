@@ -7,7 +7,7 @@ import test from "node:test";
 import { openContentDbReadOnly } from "../../../db/sqlite/content-db.js";
 import { posts as postsTable } from "../../../db/schema.sqlite.js";
 import { ValidationError } from "../../errors.js";
-import { createSite, describeSiteBinding, includeServingSite, listSites, SITE_BINDING_NOT_SWITCHABLE_ENV, SITE_NAME_PATTERN } from "../../site-registry.js";
+import { createSite, describeSiteBinding, includeServingSite, listSites, listSitesForBinding, SITE_BINDING_NOT_SWITCHABLE_ENV, SITE_NAME_PATTERN, switcherBaseForBinding } from "../../site-registry.js";
 
 /**
  * @file 2026-09-04 sites-switcher decision — TDD for `site-registry.ts`'s list/create half.
@@ -326,5 +326,47 @@ test("includeServingSite: does NOT loosen readSiteDir — a half-written site is
     );
   } finally {
     fs.rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// The Sites routes/tools are rooted at the SERVED binding, never `process.cwd()`
+// (development/todos.md, "The sites route and `sites_duplicate_site` re-derive the site binding
+// from `process.cwd()`"). The route/tool-level wrong-cwd proofs live in
+// `server/__tests__/routes/sites-route-served-site-binding.test.ts` and
+// `features/sites/__tests__/served-site-binding.unit.test.ts`; these pin the two helpers' edges.
+// ---------------------------------------------------------------------------
+
+test("switcherBaseForBinding: the base above <base>/sites for a switchable binding, null for an install dir", () => {
+  assert.equal(switcherBaseForBinding({ dir: "/repo/sites/alpha", name: "alpha", dirOverridden: false, switcherCompatible: true }), "/repo");
+  assert.equal(switcherBaseForBinding({ dir: "/anywhere/my-site", name: "my-site", dirOverridden: false, switcherCompatible: false }), null);
+});
+
+test("listSitesForBinding: a switchable binding lists its own base, with `active` read against the binding, not the env", () => {
+  const seen: Array<string | undefined> = [];
+  const binding = { dir: "/repo/sites/beta", name: "beta", dirOverridden: false, switcherCompatible: true };
+  const listed = listSitesForBinding({ binding }, {
+    listSites: (optional) => {
+      seen.push(optional?.cwd);
+      return [
+        { name: "alpha", dir: "/repo/sites/alpha", displayName: "Alpha", createdAt: "t", active: true },
+        { name: "beta", dir: "/repo/sites/beta", displayName: "Beta", createdAt: "t", active: false },
+      ];
+    },
+  });
+  assert.deepEqual(seen, ["/repo"]);
+  assert.deepEqual(listed.map((site) => [site.name, site.active]), [["alpha", false], ["beta", true]]);
+});
+
+test("listSitesForBinding: an install-dir binding without init markers lists nothing, and never scans a sites/ root", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-site-registry-install-"));
+  try {
+    const listed = listSitesForBinding(
+      { binding: { dir, name: path.basename(dir), dirOverridden: false, switcherCompatible: false } },
+      { listSites: () => assert.fail("an install-dir boot has no sites/ root to scan") },
+    );
+    assert.deepEqual(listed, []);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
   }
 });

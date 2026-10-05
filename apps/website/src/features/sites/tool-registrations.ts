@@ -126,7 +126,6 @@ function requireSiteFolderName(input: Record<string, unknown>, field: string): s
 }
 
 export function buildSitesRegistrations(routeDeps: SitesToolDeps): ToolRegistration[] {
-  const resolved = resolveSitesDeps(routeDeps);
   // Falls back to `false` (disabled) rather than assuming enabled — matches
   // `isSiteSwitcherEnabled`'s own documented default-OFF safety posture. See `deps.ts`'s own
   // header for why this field is read directly off `routeDeps` rather than resolved in `deps.ts`.
@@ -145,19 +144,25 @@ export function buildSitesRegistrations(routeDeps: SitesToolDeps): ToolRegistrat
       // Same "deployment-wide, independent of the caller's own permissions" ordering the flag check
       // immediately above already follows — checked before spending a requireToolPermission call on
       // an operation this boot cannot fulfill regardless of who is asking.
-      if (!resolved.switcherCompatible) {
+      // Resolved per call, not at build time: `siteBinding` is read only when the tool actually runs,
+      // the same way `list-tool.ts` reads it, so assembling the catalog never depends on it.
+      const resolved = resolveSitesDeps(routeDeps);
+      const switcherBase = resolved.switcherBase;
+      if (switcherBase === null) {
         throw new SiteBindingNotSwitchableError();
       }
 
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: SITES_WRITE_PERMISSION }, { entityType: "site-registry" });
 
       return withSchemaOnRejection({ toolId: "sites_duplicate_site", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => {
-        const source = resolved.listSites({ cwd: resolved.cwd }).find((site) => site.name === sourceName);
+        // Both the source lookup and the target are rooted at the SERVED tree (`switcherBase`), never
+        // `process.cwd()` — see `deps.ts`'s header for the wrong-tree copy the cwd default caused.
+        const source = resolved.listSites({ cwd: switcherBase }).find((site) => site.name === sourceName);
         if (!source) {
           throw new SourceSiteNotFoundError(sourceName);
         }
 
-        const targetDir = path.join(resolved.cwd, "sites", targetName);
+        const targetDir = path.join(switcherBase, "sites", targetName);
         const result = await resolved.duplicateSite({ sourceDir: source.dir, targetDir, name: displayName });
         return { name: targetName, dir: result.dir, siteId: result.siteId, sourceName };
       } });

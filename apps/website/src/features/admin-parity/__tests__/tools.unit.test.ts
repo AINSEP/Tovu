@@ -96,11 +96,13 @@ test("sites list: reports served site even when unregistered and switching is di
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "n07-sites-"));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const binding = { dir, name: "served", dirOverridden: true, switcherCompatible: false };
-  const r = await registration("sites_list", { ...auth().deps, siteBinding: binding, listSites: () => [], isSiteSwitcherEnabled: () => false, readPersistedActiveSite: () => "queued" });
+  // An install-dir binding has no switcher `.env`: the cwd's `.env` belongs to another tree, so it is
+  // never read (development/todos.md, sites route/duplicate re-deriving from `process.cwd()`).
+  const r = await registration("sites_list", { ...auth().deps, siteBinding: binding, listSites: () => [], isSiteSwitcherEnabled: () => false, readPersistedActiveSite: () => assert.fail("no .env to read for an install-dir boot") });
   const result = await call(r) as any;
   assert.deepEqual(Object.keys(result).sort(), ["currentSite", "persistedSiteName", "sites", "switchingEnabled"]);
   assert.deepEqual(result.currentSite, { ...binding, listed: false });
-  assert.equal(result.persistedSiteName, "queued");
+  assert.equal(result.persistedSiteName, null);
   assert.equal(result.switchingEnabled, false);
   assert.equal(result.sites.length, 1);
   assert.deepEqual({ name: result.sites[0].name, active: result.sites[0].active, registration: result.sites[0].registration }, { name: "served", active: true, registration: "unregistered" });

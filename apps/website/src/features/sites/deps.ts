@@ -4,6 +4,7 @@ import {
   duplicateSite as duplicateSiteReal,
   listSites as listSitesReal,
   type DuplicateSiteResult,
+  switcherBaseForBinding,
   type SiteBinding,
   type SiteListEntry,
 } from "#src/platform/site-dir/index";
@@ -30,13 +31,20 @@ import {
  * `tool-registrations.ts`'s handler falls back to `false` (disabled) if it is ever still absent,
  * matching the flag's own documented default-OFF safety posture rather than assuming enabled.
  *
- * Every field is OPTIONAL, mirroring `server/inbound/admin-http/routes/system/sites.ts`'s own
- * `AdminSitesDeps` exactly (that route's `listSites?`/`createSite?`/`isSiteSwitcherEnabled?`
+ * Every service field is OPTIONAL, mirroring `server/inbound/admin-http/routes/system/sites.ts`'s
+ * own `AdminSitesDeps` exactly (that route's `listSites?`/`createSite?`/`isSiteSwitcherEnabled?`
  * fields): a real `RouteDeps` object already satisfies this interface as-is (it already carries
- * `workspaceId`/`authorize`; it simply has no `duplicateSite`/`listSites`/`isSiteSwitcherEnabled`/
- * `cwd` keys at all, which is exactly what an optional field allows) — so wiring this domain into
- * the assistant's tool catalog needs no change to how a real `RouteDeps` is constructed. A test
- * supplies fakes for the optional fields instead of touching a real filesystem or `sites/`.
+ * `workspaceId`/`authorize`/`siteBinding`; it simply has no `duplicateSite`/`listSites`/
+ * `isSiteSwitcherEnabled` keys at all, which is exactly what an optional field allows) — so wiring
+ * this domain into the assistant's tool catalog needs no change to how a real `RouteDeps` is
+ * constructed. A test supplies fakes for the optional fields instead of touching a real filesystem
+ * or `sites/`.
+ *
+ * `siteBinding` is REQUIRED, and there is no `cwd` field: the `sites/` root the tool reads and
+ * writes is derived from the served binding alone (`switcherBaseForBinding`), never from
+ * `process.cwd()`. A `cwd` default here once made `sites_duplicate_site` look up its source and
+ * write its copy in whatever tree the process happened to be standing in (development/todos.md,
+ * "The sites route and `sites_duplicate_site` re-derive the site binding from `process.cwd()`").
  */
 export interface SitesToolDeps {
   workspaceId: string;
@@ -49,17 +57,13 @@ export interface SitesToolDeps {
   /** Filled in by `assistant/tool-registrations.ts`'s `enrichedRouteDeps` — see this file's own
    *  header. Falls back to `false` (disabled) if ever absent by the time the handler runs. */
   isSiteSwitcherEnabled?: () => boolean;
-  /** Defaults to `process.cwd()` — the base `sites/` is resolved under, matching every other
-   *  `site-dir` caller's own default. */
-  cwd?: string;
   /**
-   * A real `RouteDeps` object already carries this (2026-09-06 composition-root fix — see
-   * `RouteDeps.siteBinding`'s own doc), so no extra wiring is needed for it to reach here the same
-   * way `workspaceId`/`authorize` already do. `resolveSitesDeps` reads only
-   * `siteBinding.switcherCompatible` off it — see `ResolvedSitesDeps.switcherCompatible`'s own doc
-   * for why `duplicateSite` cannot simply be handed a corrected `cwd` instead.
+   * The site this process serves. A real `RouteDeps` object already carries this (2026-09-06
+   * composition-root fix — see `RouteDeps.siteBinding`'s own doc), so no extra wiring is needed for
+   * it to reach here the same way `workspaceId`/`authorize` already do. It is the ONLY source of the
+   * `sites/` root this domain acts on — see {@link ResolvedSitesDeps.switcherBase}.
    */
-  siteBinding?: SiteBinding;
+  siteBinding: SiteBinding;
 }
 
 /** The three `site-dir`-local implementations, bundled once so `tool-registrations.ts` reads one
@@ -69,15 +73,16 @@ export interface SitesToolDeps {
 export interface ResolvedSitesDeps {
   listSites: (optional?: { cwd?: string }) => readonly SiteListEntry[];
   duplicateSite: (required: { sourceDir: string; targetDir: string; name?: string }) => Promise<DuplicateSiteResult>;
-  cwd: string;
   /**
-   * `false` only for an install-dir boot (`tovu serve <dir>`, `SiteBinding.switcherCompatible`
-   * false) — `cwd` above stays `process.cwd()` in that case too (there is no principled `sites/`
-   * root to correct it TO: `target` bears no `{cwd, env}`-relative relationship to any `sites/`
-   * folder), so `tool-registrations.ts`'s handler must refuse rather than silently duplicate under
-   * whatever `process.cwd()/sites` happens to be. Defaults to `true` when `siteBinding` is absent
-   * (every existing caller/test that never supplies one keeps today's unrestricted behavior).
+   * The base the served tree's `sites/` lives under (`<switcherBase>/sites/<name>`), read off
+   * `siteBinding` by `switcherBaseForBinding` — never `process.cwd()`. `null` for an install-dir
+   * boot (`tovu serve <dir>`): there is no principled `sites/` root to use at all (`target` bears no
+   * `{cwd, env}`-relative relationship to any `sites/` folder), so `tool-registrations.ts`'s handler
+   * must refuse rather than duplicate under whatever `process.cwd()/sites` happens to be.
    */
+  switcherBase: string | null;
+  /** `switcherBase !== null` — `siteBinding.switcherCompatible`, kept as its own named fact for the
+   *  callers that only ask "may this boot switch at all?". */
   switcherCompatible: boolean;
 }
 
@@ -85,13 +90,14 @@ export interface ResolvedSitesDeps {
  * Resolves `deps`'s `site-dir`-backed optional fields to their real implementations, falling back
  * exactly the way `AdminSitesDeps`'s own `deps.listSites ?? listSitesReal` pattern does.
  *
- * @complexity O(1) — three nullish-coalescing reads, no I/O of its own.
+ * @complexity O(1) — two nullish-coalescing reads and path arithmetic, no I/O of its own.
  */
 export function resolveSitesDeps(deps: SitesToolDeps): ResolvedSitesDeps {
+  const switcherBase = switcherBaseForBinding(deps.siteBinding);
   return {
     listSites: deps.listSites ?? listSitesReal,
     duplicateSite: deps.duplicateSite ?? duplicateSiteReal,
-    cwd: deps.cwd ?? process.cwd(),
-    switcherCompatible: deps.siteBinding?.switcherCompatible ?? true,
+    switcherBase,
+    switcherCompatible: switcherBase !== null,
   };
 }

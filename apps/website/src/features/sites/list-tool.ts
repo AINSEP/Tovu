@@ -1,10 +1,10 @@
 import { buildDomainRegistrations, indexCatalogById, type DerivedRiskByToolId, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
 import type { ToolContributor } from "#src/assistant/index";
-import { includeServingSite, listSites, readPersistedActiveSite, isSiteSwitcherEnabled, type SiteBinding, type SiteListEntry } from "#src/platform/site-dir/index";
+import { includeServingSite, listSitesForBinding, readPersistedActiveSite, isSiteSwitcherEnabled, switcherBaseForBinding, type ListSitesOptional, type SiteBinding, type SiteListEntry } from "#src/platform/site-dir/index";
 
 /** The boot binding is supplied by composition, never re-derived from current environment. */
-export interface Deps { workspaceId: string; authorize: AuthorizeFn; siteBinding: SiteBinding; listSites?: () => readonly SiteListEntry[]; readPersistedActiveSite?: () => string | null; isSiteSwitcherEnabled?: () => boolean; }
+export interface Deps { workspaceId: string; authorize: AuthorizeFn; siteBinding: SiteBinding; listSites?: (optional?: ListSitesOptional) => readonly SiteListEntry[]; readPersistedActiveSite?: (optional?: { cwd?: string }) => string | null; isSiteSwitcherEnabled?: () => boolean; }
 
 /** Catalog for the admin service exposed through this standalone contributor. */
 export const catalog: AgentToolDefinition[] = [{
@@ -32,12 +32,14 @@ export function buildRegistrations(deps: Deps): ToolRegistration[] {
     catalog: indexCatalogById({ catalog }), derivedRisk,
     handlers: { sites_list: async ctx => {
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "system.read" }, { entityType: "site-registry" });
+      // Rooted at the served binding, never `process.cwd()` — see `switcherBaseForBinding`'s doc.
       const binding = deps.siteBinding;
-      const sites = includeServingSite({ sites: (deps.listSites ?? listSites)(), binding });
+      const switcherBase = switcherBaseForBinding(binding);
+      const sites = includeServingSite({ sites: listSitesForBinding({ binding }, { listSites: deps.listSites }), binding });
       const serving = sites.find(site => site.dir === binding.dir);
       return { switchingEnabled: (deps.isSiteSwitcherEnabled ?? isSiteSwitcherEnabled)(), sites,
         currentSite: { ...binding, listed: serving?.registration === "registered" },
-        persistedSiteName: (deps.readPersistedActiveSite ?? readPersistedActiveSite)() };
+        persistedSiteName: switcherBase === null ? null : (deps.readPersistedActiveSite ?? readPersistedActiveSite)({ cwd: switcherBase }) };
     } },
   });
 }

@@ -957,7 +957,7 @@ Three Fable reviewers (architecture/DI, excess-and-dead-code, bugs) ran twice: *
 
 ### Confirmed defects, found and NOT fixed — website / architecture
 
-- [ ] **PARTLY:** `sites/list-tool.ts` takes `siteBinding`; route + duplicate unverified. **The sites route and `sites_duplicate_site` re-derive the site binding from `process.cwd()` /
+- [x] DONE `fix(sites): sites route and duplicate use the served site, not process.cwd()` (List/Create/Activate, `sites_list`, `sites_duplicate_site` all rooted at `siteBinding` via `switcherBaseForBinding`; wrong-cwd tests). **The sites route and `sites_duplicate_site` re-derive the site binding from `process.cwd()` /
       `process.env`.** `npx tovu serve /some/site` from the repo root reports `<repo>/sites/tovu-com`
       as the active site and writes Create/Activate/duplicate under `<cwd>/sites` and `<cwd>/.env`.
       The desktop arm is masked only by `tovu-server.cjs` setting `TOVU_SITE_DIR`. Proposed fix: a
