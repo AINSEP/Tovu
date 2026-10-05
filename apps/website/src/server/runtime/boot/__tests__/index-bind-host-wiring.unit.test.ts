@@ -47,20 +47,45 @@ test("index.ts resolves TOVU_HOST via resolveBindHost(process.env.TOVU_HOST, und
   assert.deepEqual(initializer.arguments.map((argument) => argument.getText(ast)), ["process.env.TOVU_HOST", "undefined"]);
 });
 
-test("index.ts's HTTPS listen path passes the resolved bind host through", () => {
-  const source = readSource();
-  assert.ok(
-    source.includes("createHttpsServer(devTls.credentials, app).listen(port, bindHost, onListening)"),
-    "index.ts's dev-TLS branch no longer passes bindHost to .listen() -- a TOVU_HOST override would " +
-      "silently stop applying whenever the dev cert pair is active."
+function parseIndex(): ts.SourceFile {
+  return ts.createSourceFile(INDEX_TS_PATH, readSource(), ts.ScriptTarget.Latest, true);
+}
+
+function callsMatching(ast: ts.SourceFile, matches: (call: ts.CallExpression) => boolean): ts.CallExpression[] {
+  const found: ts.CallExpression[] = [];
+  function visit(node: ts.Node): void {
+    if (ts.isCallExpression(node) && matches(node)) found.push(node);
+    ts.forEachChild(node, visit);
+  }
+  visit(ast);
+  return found;
+}
+
+// bebc5736f replaced the two `.listen(port, bindHost, onListening)` calls (one per TLS branch) with
+// ONE `server` (HTTPS or HTTP) bound once; the bind itself is `reserveBootListener`, tested against a
+// real socket in `boot-listener.unit.test.ts`. What only index.ts's source can show is that it hands
+// that ONE server the resolved `bindHost`, and that no other `.listen()` bypasses it.
+test("index.ts binds its one boot server through reserveBootListener with the resolved bindHost", () => {
+  const ast = parseIndex();
+  const reserves = callsMatching(ast, (call) => call.expression.getText(ast) === "reserveBootListener");
+  assert.equal(reserves.length, 1);
+  const [required] = reserves[0].arguments;
+  assert.ok(required && ts.isObjectLiteralExpression(required));
+  const properties = Object.fromEntries(
+    required.properties.map((property) => {
+      assert.ok(ts.isShorthandPropertyAssignment(property) || ts.isPropertyAssignment(property));
+      const value = ts.isShorthandPropertyAssignment(property) ? property.name : property.initializer;
+      return [property.name.getText(ast), value.getText(ast)];
+    }),
   );
+  assert.deepEqual(properties, { server: "server", port: "port", bindHost: "bindHost" });
 });
 
-test("index.ts's plain HTTP listen path passes the resolved bind host through", () => {
-  const source = readSource();
-  assert.ok(
-    source.includes("app.listen(port, bindHost, onListening)"),
-    "index.ts's non-TLS branch no longer passes bindHost to .listen() -- a TOVU_HOST override would " +
-      "silently stop applying whenever the dev cert pair is absent (the common case)."
+test("index.ts calls no .listen() of its own -- neither TLS branch can bind around reserveBootListener", () => {
+  const ast = parseIndex();
+  const listens = callsMatching(
+    ast,
+    (call) => ts.isPropertyAccessExpression(call.expression) && call.expression.name.text === "listen",
   );
+  assert.deepEqual(listens.map((call) => call.getText(ast)), []);
 });

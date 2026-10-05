@@ -1,5 +1,4 @@
 import { createServer as createHttpServer } from "node:http";
-import { listenServer } from "@jini-ai/devops/local-dev";
 import { createServer as createHttpsServer } from "node:https";
 import { createRouteDeps } from "./server/runtime/composition/app.js";
 import { createServingApp } from "./server/runtime/composition/serving-app.js";
@@ -24,6 +23,7 @@ import { ensureAgentDaemonPortResolved } from "./server/runtime/lifecycle/agent-
 import { ensureAgentDaemonToken } from "./assistant/index.js";
 import { registerAdminDevProxyUpgrade } from "./server/inbound/admin-http/admin-dev-proxy.js";
 import { resolveBindHost } from "./server/runtime/boot/bind-host.js";
+import { reserveBootListener } from "./server/runtime/boot/boot-listener.js";
 import { resolveCheckoutRoot } from "./platform/site-dir/product-root.js";
 
 /**
@@ -309,7 +309,7 @@ async function main(): Promise<void> {
   // `dev.mjs` already preflights ports and names the holder; `dev:server` alone does not, which is
   // exactly the path this was hit on. Only npm start opts into direct-bind retries.
   try {
-    port = await listenServer({ server, port }, { ...(bindHost === undefined ? {} : { host: bindHost }), attempts: autoStartPort ? 20 : 1 });
+    port = await reserveBootListener({ server, port, bindHost }, { autoStartPort });
     process.env.PORT = String(port);
   } catch (caught) {
     const error = caught as NodeJS.ErrnoException;
