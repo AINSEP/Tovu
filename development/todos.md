@@ -51,6 +51,55 @@ Product calls that govern future work. Dates are when the owner said it. Archive
 
 ---
 
+## Open owner decisions + leftovers from the 2026-10-05 review/fix pass (NOT now — owner, 2026-10-05)
+
+Source: Codex 6.1-sol review of the 10-04 night commits, fixed by Opus 5.5 lanes A–F. Reports:
+`ADS-memory/.local-artifacts/codex-review-2026-10-05/out/`, follow-ups: `.../FOLLOW-UPS.md`, lane handoffs:
+`ADS-memory/.local-artifacts/handoffs/2026-10-05-fix-*.md`.
+
+**Decisions owed by the owner**
+1. **Form dedupe without a per-page token.** Public forms now carry a hidden `_attempt` token, so a double click
+   stores one row and two visitors store two (Tovu 8d2e9da6a, Jini c2c48cce). Without a token (static exports,
+   pages replayed from a shared/CDN cache, API callers) dedupe falls back to same IP + same body within 60 s, which
+   can merge two real people behind one IP sending identical answers. Options: keep (current) / shorten the window /
+   no dedupe when there is no token.
+2. **Real sandbox for Tier-2 plugin workers.** Fixed: site-folder Tier-2 packages are refused; workers no longer get
+   the server env (only NODE_ENV, TZ, TSX_TSCONFIG_PATH, NODE_V8_COVERAGE) (3528cbf85). Still open: a built-in Tier-2
+   worker can import `node:fs` and network modules — a Node worker is not a sandbox. Needs a real one (separate
+   process with Node's permission model, or an isolate) before third-party Tier-2 plugins are allowed.
+3. **Form styling.** (a) Submit button: gold accent (current, same as Builder forms) or the theme's dark "Get started"
+   style — one line in tovu-theme `theme.css`. (b) Keep an author's own `<form class="…">` in HTML mode? Today
+   `deriveHtmlForm` strips the outer `<form>` and its attributes at save; render already supports a `className`.
+4. **Import errors operators need.** f2f1d26f9 stopped leaking raw error text from publish-content import routes,
+   so some operator-facing messages ("Send by hand needs its audit storage installed…", the undo failure "…restore it
+   from Trash") now show "internal error" over HTTP and survive only in the server log. Fix: give them their own error
+   classes so their text reaches the UI. Also check `routes/publish-content/backstop.ts`, `bundle-create.ts`,
+   `destination.ts`, which still return `error.message` directly.
+
+**Leftovers (none block a release)**
+- **Tombstone event (Jini cms, `packages/cms/src/content-types/lifecycle.ts:239`).** Deleting a content type
+  "tombstones" it (a permanent marker that the type is gone, so its key can't be reused). The tombstone row commits
+  first, then the type's indexes are torn down, then the "content type deleted" event is queued. If teardown throws,
+  the event is never queued, and a retry is refused because the type is already tombstoned — so listeners never hear
+  about the delete. Harmless in Tovu today (its index provisioner does nothing); matters for Jini hosts whose
+  provisioner can fail. Fix: queue the event in the same transaction as the tombstone, or make teardown retryable.
+- **Memory-DB images:** `createRouteDeps` (apps/website/src/server/runtime/composition/app.ts:1258) never calls
+  `ensureCoreMediaTransform`, so under `TOVU_DB=memory` no image gets a `publicUrl` and `/m/` 404s. Blocks the
+  public-media E2E journey.
+- **E2E screenshot baselines** still pick up random rows from earlier journeys: collections list/entries, forms list,
+  widgets library, menus list, media library, dashboard-ar-rtl. Each needs a GET stub like `stubPostsListForBaseline`.
+- **Theme page preview CSP:** `middleware/theme-page-preview.ts` likely needs the same
+  `Content-Security-Policy: sandbox …` header template-preview got (e188fc56e).
+- **Preview sandbox not yet looked at in a browser** (f65fb186a, dev server was down). Side effects: previews lose
+  per-tab scroll memory and Esc-to-collapse inside the frame; theme scripts using storage/site APIs fail in previews.
+- **DR-001 doc** still says `role.manage` is owner-only; the owner gave built-in admin full Roles access on 10-05
+  (Jini fe16e8a1, Tovu 52e366148).
+- **Admin RTL** (queued by the owner 10-04/10-05): convert the 78 left/right rules in admin `styles.css` to logical
+  properties, then turn on `dir` sync (`syncDocumentAttributes` in 8 providers).
+- Tier-2 import seam's `resolveWorkerEntry` option has no production caller (kept, tested).
+
+---
+
 ## Moved from owner-worklist (2026-10-04)
 
 The owner worklist (`ADS-memory/.local-artifacts/owner-worklist.md`) was retired 2026-10-04; new items go here.
