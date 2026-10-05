@@ -13,6 +13,7 @@ import { findSiteKeyDependentData } from "./platform/site-dir/site-key-dependent
 import { runBootLifecycle } from "./server/runtime/lifecycle/boot-lifecycle.js";
 import { buildBootModules, logCriticalBootFailures } from "./server/runtime/boot/bootstrap.js";
 import { agentDaemonWanted } from "./server/runtime/boot/agent-daemon-wanted.js";
+import { awaitSiteBootReadiness } from "./server/runtime/boot/site-boot-readiness.js";
 import { checkContentDbSchema } from "./server/runtime/boot/content-db-schema-guard.js";
 import { setReadinessSnapshot } from "./server/runtime/lifecycle/readiness-state.js";
 import { registerPluginSdkResolver } from "./server/runtime/boot/plugin-sdk-resolver.js";
@@ -407,35 +408,11 @@ async function main(): Promise<void> {
     const store = useMemory ? "in-memory" : `sqlite (${defaultContentDbPath()})`;
     console.log(`tovu server running on ${devScheme}://localhost:${port} — store: ${store}`);
 
-    // `runBootLifecycle` above does not cover these: `identityReady`/`settingsReady`/etc. are
-    // fired directly by `createSiteRouteDeps()` as independent, un-awaited side effects (see
-    // each field's own doc in `server/routes/types.ts`), not part of `buildBootModules`'s set.
-    // `app.listen()`'s callback firing says nothing about whether they've settled — reproduced
-    // directly: spawning the daemon here unconditionally raced this process's own first-boot
-    // identity seed and crashed both processes on a `UNIQUE constraint failed` (two concurrent
-    // `createSiteRouteDeps()` calls, one per process, both trying to seed the same row).
-    // Awaiting them first, then spawning, closes that window.
-    // `executionSettingsReady`/`settingsUiTabsReady`/`analyticsSettingsReady` belong in this list
-    // for exactly the reason the paragraph above describes, and their absence was not theoretical —
-    // it shipped a real defect. `content.db` currently holds TWO `status='active'` rows for
-    // `core.execution.mode`, distinct `setting_id`s, both `version=1`, created 12ms apart, which
-    // violates the one-active-row-per-slot invariant. Mechanism: the daemon was spawned while this
-    // process's `ensureExecutionSettingDefinitions` was still mid-flight, so both processes ran the
-    // same check-then-act (`resolveDefinitionRaw` -> absent -> register) against the same slot. Only
-    // `mode` duplicated because it is the FIRST entry in `EXECUTION_DEFINITIONS` — by key 2 the
-    // loser could already see the winner's rows. Awaiting all three closes the window for every
-    // boot-time settings registrar, including the newer `ensureAnalyticsSettingDefinitions`.
-    Promise.all([
-      deps.identityReady,
-      deps.settingsReady,
-      deps.seoReady,
-      deps.commentsReady,
-      deps.commentsSettingsReady,
-      deps.executionSettingsReady,
-      deps.settingsUiTabsReady,
-      deps.analyticsSettingsReady,
-      deps.siteTitleReady,
-    ])
+    // Readiness before spawn: `app.listen()`'s callback firing says nothing about whether the
+    // boot-time seeders have settled, and spawning the daemon early raced them (duplicate identity
+    // and `core.execution.mode` rows). The list and the full why live in
+    // `server/runtime/boot/site-boot-readiness.ts`, shared with `cli/commands/serve.ts`.
+    awaitSiteBootReadiness({ deps })
       .then(async () => {
         if (!(await agentDaemonWanted(deps))) return;
         startAssistantDaemon(

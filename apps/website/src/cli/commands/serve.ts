@@ -23,6 +23,7 @@ import { findSiteKeyDependentData } from "../../platform/site-dir/site-key-depen
 import { runBootLifecycle } from "../../server/runtime/lifecycle/boot-lifecycle.js";
 import { buildBootModules, logCriticalBootFailures } from "../../server/runtime/boot/bootstrap.js";
 import { agentDaemonWanted } from "../../server/runtime/boot/agent-daemon-wanted.js";
+import { awaitSiteBootReadiness } from "../../server/runtime/boot/site-boot-readiness.js";
 import { resolveBindHost, isLoopbackHost, DEFAULT_LOCAL_BIND_HOST } from "../../server/runtime/boot/bind-host.js";
 import { setReadinessSnapshot } from "../../server/runtime/lifecycle/readiness-state.js";
 import { registerAdminDevProxyUpgrade } from "../../server/inbound/admin-http/admin-dev-proxy.js";
@@ -475,22 +476,12 @@ async function serveBootedSite(input: RunServeCommandInput, target: string, owne
       resolve();
 
       // Same readiness-await-then-spawn ordering as `index.ts`'s own `app.listen()` callback, and
-      // for the identical reason (see that file's comment on the call site this mirrors): spawning
-      // before these settle raced this process's own first-boot identity/settings seeding and
+      // for the identical reason (see `server/runtime/boot/site-boot-readiness.ts`, the list both
+      // boot paths now share): spawning before these settle raced this process's own first-boot identity/settings seeding and
       // shipped a real duplicate-`core.execution.mode`-row defect. `registerProcessSignalHandlers:
       // false` because this command already owns SIGINT/SIGTERM below (BR-07) — see
       // `startAssistantDaemon`'s own option doc for why a second listener here would race it.
-      Promise.all([
-        deps.identityReady,
-        deps.settingsReady,
-        deps.seoReady,
-        deps.commentsReady,
-        deps.commentsSettingsReady,
-        deps.executionSettingsReady,
-        deps.settingsUiTabsReady,
-        deps.analyticsSettingsReady,
-        deps.siteTitleReady,
-      ])
+      awaitSiteBootReadiness({ deps })
         .then(async () => {
           if (!(await agentDaemonWanted(deps))) return;
           startAssistantDaemon(
