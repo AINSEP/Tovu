@@ -13,7 +13,7 @@ interface BarePrincipalDeps {
   identityReady: Promise<unknown>;
   workspaceId: string;
   clock: { nowIso(): string };
-  passwordHasher: { hash(password: string): Promise<string> };
+  passwordHasher: { hash(required: { password: string }): Promise<string> };
   principalRepo: {
     save(record: {
       id: string;
