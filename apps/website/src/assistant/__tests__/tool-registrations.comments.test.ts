@@ -15,11 +15,9 @@ import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
+import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
-import { ForbiddenError } from "@jini-ai/cms/core";
 import {
-  ForbiddenError as SettingsForbiddenError,
   InMemorySettingsRepo,
 } from "../../features/settings/index.js";
 import { type AgentToolDefinition } from "@jini-ai/core";
@@ -284,14 +282,16 @@ for (const [toolId, spec] of Object.entries(MODERATION_TOOLS)) {
     assert.ok(order.every((entry, index) => entry !== 'read' || order.indexOf('authorize') < index));
   });
 
-  test(`${toolId}: a denied principal is refused with ForbiddenError and the comment is left unchanged`, async () => {
+  test(`${toolId}: a denied principal is refused with COMMENTS_FORBIDDEN and the comment is left unchanged`, async () => {
     const { deps, commentRepo } = await fakeRouteDeps({ allow: false });
     await commentRepo.create(seedComment());
 
     await assert.rejects(
       () => wired(toolId, deps).handler(executionContext({ commentId: "comment-1", expectedVersion: 1 })),
       (error: unknown) => {
-        assert.ok(error instanceof ForbiddenError, `expected ForbiddenError, got ${String(error)}`);
+        // Classified for the model (wm S16), not left for the transport to redact as INTERNAL_ERROR.
+        assert.ok(error instanceof ToolInputError, `expected ToolInputError, got ${String(error)}`);
+        assert.match((error as Error).message, /^COMMENTS_FORBIDDEN: /);
         assert.match((error as Error).message, new RegExp(PRINCIPAL_ID));
         assert.match((error as Error).message, new RegExp(spec.permission.replace(".", "\\.")));
         return true;
@@ -347,7 +347,7 @@ test("comments_list_moderation_queue: calls authorize() with 'comments.read' and
 
 test("comments_list_moderation_queue: a denied principal is refused and gets no data back", async () => {
   const { deps } = await fakeRouteDeps({ allow: false });
-  await assert.rejects(() => wired("content_read.comment_moderation_queue", deps).handler(executionContext({})), ForbiddenError);
+  await assert.rejects(() => wired("content_read.comment_moderation_queue", deps).handler(executionContext({})), { message: /^COMMENTS_FORBIDDEN: / });
 });
 
 test("comments_get_settings: calls authorize() with 'comments.configure' (explicit pre-check, since getCommentsSettings does not self-enforce)", async () => {
@@ -363,7 +363,7 @@ test("comments_get_settings: calls authorize() with 'comments.configure' (explic
 
 test("comments_get_settings: a denied principal is refused", async () => {
   const { deps } = await fakeRouteDeps({ allow: false });
-  await assert.rejects(() => wired("comments_get_settings", deps).handler(executionContext({})), ForbiddenError);
+  await assert.rejects(() => wired("comments_get_settings", deps).handler(executionContext({})), { message: /^COMMENTS_FORBIDDEN: / });
 });
 
 test("comments_update_settings: an empty patch is refused rather than accepted as a no-op", async () => {
@@ -375,7 +375,7 @@ test("comments_update_settings: self-enforces via setCommentsSettings's internal
   const { deps, settingsRepo } = await fakeRouteDeps({ allow: false });
   await assert.rejects(
     () => wired("comments_update_settings", deps).handler(executionContext({ maxDepth: 3 })),
-    SettingsForbiddenError,
+    { message: /^COMMENTS_FORBIDDEN: / },
   );
   // Re-read through a freshly-allowed handle over the SAME repo instance — proves no value row was written.
   const stillDefault = (await wired("comments_get_settings", { ...deps, authorize: async () => ({ allowed: true, reason: "matched" }) } as unknown as RouteDeps).handler(

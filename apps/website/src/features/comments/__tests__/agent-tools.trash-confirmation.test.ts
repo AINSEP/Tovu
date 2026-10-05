@@ -1,9 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
+import { ToolInputError, type SurfaceEmitter, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
-import { ForbiddenError } from "@jini-ai/cms/core";
 import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { InMemorySettingsRepo } from "../../settings/index.js";
@@ -129,7 +128,9 @@ test("comments.delete is checked before any dialog is raised, and a denied princ
   const trashTool = tool(buildRegistrations(deps, surfaceExchanges), TRASH_TOOL_ID);
 
   await assert.rejects(() => call(trashTool), (error: unknown) => {
-    assert.ok(error instanceof ForbiddenError);
+    // The denial reaches the model as a classified refusal (wm S16), not a redacted internal error.
+    assert.ok(error instanceof ToolInputError);
+    assert.match(error.message, /^COMMENTS_FORBIDDEN: /);
     return true;
   });
   assert.equal(authorizeCalls[0]?.permission, "comments.delete");
@@ -159,6 +160,6 @@ test("n06: reversible removal runs without a confirmation channel", async () => 
 test("a stale expectedVersion still refuses the trash", async () => {
   const {deps, commentRepo} = await fakeRouteDeps();
   await commentRepo.save(seedComment({version: 2}));
-  await assert.rejects(call(tool(buildRegistrations(deps, createSurfaceExchangeStore()), TRASH_TOOL_ID)), { message: "comment was modified concurrently (current version is 2) — re-read with comments_list_moderation_queue and retry with the fresh version" });
+  await assert.rejects(call(tool(buildRegistrations(deps, createSurfaceExchangeStore()), TRASH_TOOL_ID)), { message: "COMMENTS_VERSION_CONFLICT: comment 'comment-1' was modified concurrently (current version is 2). Re-read it with comments_list_moderation_queue and retry with the fresh version" });
   assert.equal((await commentRepo.findById({workspaceId: WORKSPACE_ID, id: "comment-1"}))?.status, "pending");
 });

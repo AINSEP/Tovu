@@ -13,18 +13,19 @@
  * documented at its own handler.
  */
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireNumber, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
-import { adaptLegacyAuthorize, type AuthorizeFn, requireToolPermission } from "@jini-ai/cms/core";
+import { adaptLegacyAuthorize, type AuthorizeFn, ForbiddenError, requireToolPermission } from "@jini-ai/cms/core";
+import { forbiddenRule, withModelFacingErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
 // `ToolInputError` specifically — see `features/post/tool-registrations.ts`'s identical import
 // for why: the marker `@jini-ai/daemon`'s `ToolExecutor` reads to classify a rejection 400 rather
 // than redacting it into a message-stripped 500.
 import { ToolInputError } from "@jini-ai/core";
-import type { SettingsRepoPort } from "../settings/index.js";
+import { ForbiddenError as SettingsForbiddenError, type SettingsRepoPort } from "../settings/index.js";
 import type { PrincipalRepoPort } from "@jini-ai/user-management";
 import type { ToolContributor } from "#src/assistant/index";
 import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
 import { commentsAgentToolCatalog } from "./agent-tools.js";
 import type { CommentRepoPort } from "./ports.js";
-import { CommentsSettingsValidationError } from "./errors.js";
+import { CommentNotFoundError, CommentsSettingsValidationError, CommentVersionConflictError } from "./errors.js";
 import { getCommentsSettings, setCommentsSettings } from "./settings.js";
 import type {
   CommentsSettings,
@@ -107,6 +108,34 @@ function toModerationQueueToolView(page: ModerationQueuePage): { items: ReturnTy
 }
 
 /**
+ * The Comments refusals safe to show the model verbatim (wm S16). Without this list every one of
+ * them — a permission denial, a stale `expectedVersion`, an unknown id — reached the model as the
+ * transport's redacted INTERNAL_ERROR, so it could not tell "retry with the fresh version" from a
+ * crash. The messages carry only ids/versions the caller itself supplied or must resend; comment
+ * bodies and author data never appear in them.
+ */
+const COMMENTS_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
+  forbiddenRule({ domainPrefix: "COMMENTS", error: ForbiddenError }),
+  // `comments_update_settings` is refused by the settings kit's own ForbiddenError (a separate
+  // class, not a subclass of the cms one) — see that handler's note on self-enforcement.
+  forbiddenRule({ domainPrefix: "COMMENTS", error: SettingsForbiddenError }),
+  { error: CommentNotFoundError, code: "COMMENTS_NOT_FOUND" },
+  {
+    error: CommentVersionConflictError,
+    code: "COMMENTS_VERSION_CONFLICT",
+    guidance: "Re-read it with comments_list_moderation_queue and retry with the fresh version",
+  },
+];
+
+/** Maps `applyModeration`'s returned failure to the typed domain error the handlers throw. */
+function moderationFailureError(required: { commentId: string; result: { reason: "not-found" | "conflict"; currentVersion?: number } }): Error {
+  const { commentId, result } = required;
+  return result.reason === "conflict"
+    ? new CommentVersionConflictError({ commentId, ...(result.currentVersion !== undefined ? { currentVersion: result.currentVersion } : {}) })
+    : new CommentNotFoundError({ commentId });
+}
+
+/**
  * Builds one moderation-action tool handler — shared by approve/mark_spam/trash/restore, which
  * differ only in the permission gated on and the `action`/`toStatus` pair passed to
  * `commentWriteService.applyModeration`. Factored out rather than four near-duplicate handlers.
@@ -141,9 +170,7 @@ function buildCommentsModerationHandler(
       note: typeof input.note === "string" ? input.note : null,
     });
     if (!result.ok) {
-      throw result.reason === "conflict"
-        ? new Error(`comment was modified concurrently (current version is ${result.currentVersion}) — re-read with comments_list_moderation_queue and retry with the fresh version`)
-        : new Error(`comment '${commentId}' was not found`);
+      throw moderationFailureError({ commentId, result });
     }
 
     return { moderated: { commentId, toStatus: spec.toStatus } };
@@ -240,7 +267,7 @@ export function buildCommentsRegistrations(
 
       await routeDeps.commentsReady;
       const existing = await routeDeps.commentRepo.findById({ workspaceId: routeDeps.workspaceId, id: commentId });
-      if (!existing) throw new Error(`comment '${commentId}' was not found`);
+      if (!existing) throw new CommentNotFoundError({ commentId });
 
       // Re-check authorization immediately before the service write.
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "comments.delete" }, { entityType: "comment", entityId: commentId });
@@ -255,9 +282,7 @@ export function buildCommentsRegistrations(
         note: typeof input.note === "string" ? input.note : null,
       });
       if (!result.ok) {
-        throw result.reason === "conflict"
-          ? new Error(`comment was modified concurrently (current version is ${result.currentVersion}) — re-read with comments_list_moderation_queue and retry with the fresh version`)
-          : new Error(`comment '${commentId}' was not found`);
+        throw moderationFailureError({ commentId, result });
       }
 
       return { trashed: true, cancelled: false, moderated: { commentId, toStatus: "trash" } };
@@ -272,7 +297,8 @@ export function buildCommentsRegistrations(
     domain: "comments",
     catalogModule: "comments/agent-tools.ts",
     catalog: CATALOG_BY_ID,
-    handlers,
+    // Wrapped once over the whole map, never per handler — see `withModelFacingErrors`' own doc.
+    handlers: withModelFacingErrors({ handlers, rules: COMMENTS_MODEL_FACING_ERRORS }),
     derivedRisk: commentsDerivedRisk,
   });
 }
