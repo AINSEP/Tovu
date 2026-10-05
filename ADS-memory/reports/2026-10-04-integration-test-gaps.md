@@ -103,3 +103,52 @@ Round 5 observations (read, not reproduced):
 10. `resolveExportOutputRootDir()` (`deps.ts:483`) defaults to `siteDir()`, i.e. `TOVU_SITE_DIR` or `<cwd>/sites/<name>`,
     not the booted site folder. `serve.ts` pins `TOVU_SITE_DIR`, but any composition that does not (tests, the unrun
     helper) would write an admin-triggered export under the process cwd. An export test must set `TOVU_EXPORT_DIR` first.
+
+## Round 6 (2026-10-05) — the last two groups, authored NOT RUN
+
+| Group | File (`server/__tests__/integration/`) | Tests |
+|---|---|---|
+| Site static export: HTTP-written page/post/draft/redirect -> `POST .../system/export` 202 -> poll -> bundle files (page/post bodies, no draft, meta-refresh redirect stub, robots/sitemap/llms/feed/404), `clean` 400, non-empty dir errored (exact message), `clean: true` wipe | `site-export-real-composition.unrun.integration.test.ts` | 4 |
+| PGlite boot alone (gap #12): live FOREIGN-pid lock refused (`PgliteOwnerLockedError`, exact message, lock left alone), then boots once freed; `runningPgliteOwner` + 0700 socket dir / 0600 socket + `runExclusive` while serving, unregistered after `closeSiteDirBoot`; serve's boot modules (reconciliation, settings, seo, comments, store-plugin) ready on Postgres, idempotent second run | `pglite-boot-owner.unrun.integration.test.ts` | 3 |
+
+The export test asserts the INTENDED output root: `<booted siteDir>/out/export` (observation #10; `export-dir-fix` is
+changing `resolveExportOutputRootDir` to take the booted `siteBinding.dir`). It unsets `TOVU_EXPORT_DIR`/`TOVU_SITE_DIR`/
+`TOVU_SITE` and `chdir`s into a temp dir before booting, so a run against the OLD resolver writes into
+`<temp>/sites/tovu-dev/out/export` (and fails the path assertions) instead of the repo checkout.
+
+Round 6 observations (read, not reproduced):
+
+11. `CommerceCatalogDeps.store` (`routes/types.ts`) says "only the SQLite runtime wires it", but `buildBootModules` adds
+    `store-plugin` whenever `useMemory` is false, so `tovu serve` declares and seeds the plugin tables on PGlite/Postgres
+    too. Either the doc is stale or that path was never meant to run there; the PGlite test asserts it works (integer
+    columns returned as numbers, seed once).
+12. Typecheck snapshot 2026-10-05: the working tree has 7 TS2554 errors in `composition/app.ts` / `composition/deps.ts`
+    (callers of the new `resolveExportOutputRootDir({ siteDir })` signature not updated yet). In-flight work by
+    `export-dir-fix`, not in the new test files.
+
+## Final summary — real-composition integration coverage, rounds 1-6 (all authored, NONE run)
+
+26 `*.unrun.integration.test.ts` files, 192 tests, every one on SQLite + PGlite through `initSite` -> `bootSiteDir` ->
+`createSiteRouteDeps` -> `createApp` (except the PGlite-only boot file). Registry: `development/UNRUN-TESTS.md`.
+
+| Gap | Status | Files |
+|---|---|---|
+| 1 Trash purge/restore | authored | trash-purge |
+| 2 Change-set revert + Idempotency-Key | authored | change-set-revert |
+| 3 `POST /auth/logout` | authored | admin-logout-session |
+| 4 Admin CRUD on PGlite | authored | redirects, collections-entries, menus, forms, users-admin, pages, media, taxonomy-terms, comments-moderation, settings, themes-activation, widgets-regions |
+| 5 Gated-mutation token flows | authored | gated-mutations, publish-content-import |
+| 6 Zero-reference routes | logout authored; newsletter excluded by owner | admin-logout-session |
+| 7 Member magic link | authored | member-magic-link |
+| 8 Plugin install -> enable -> render | authored | plugins |
+| 9 RBAC grants | authored | rbac-grants |
+| 10 Recovery restore | authored | recovery-restore |
+| 11 Execution/site credentials | authored | credentials |
+| 12 Boot lifecycle on PGlite | authored (round 6) | pglite-boot-owner |
+| — Reboot persistence, concurrent saves | authored | site-reboot-persistence, concurrent-saves-and-list-validation |
+| — Static export bundle | authored (round 6) | site-export-real-composition |
+
+Nothing in the gap list is left unauthored. Still out of scope: newsletter (owner), browser-side timing. Next step is
+the owner-gated RUN: scoped, one file at a time through `run-gated.sh`, expecting the INTENDED-behaviour failures listed
+in rounds 4-6 (slug-change 301 capture, reserved-slug rename, export output root before the fix, widget/theme seeding
+assumptions).
