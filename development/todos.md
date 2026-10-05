@@ -1169,7 +1169,7 @@ surfaced real seams. Each sample is genuinely wanted *and* stress-tests a differ
   **widget resolver** under ADR-047/SPEC-043, a thin adapter over `src/forms/` + `MailerPort` — not
   the plugin/`dataModule` system AW-7 is about, so it does not yield the written list of missing
   core-mediated primitives this item exists to produce.
-- **Tier 2 — not started.** No content-analyzer/SEO plugin exists (`readability` /
+- **Tier 2 — BUILT 2026-10-04** (see build order below). Earlier: no content-analyzer/SEO plugin existed (`readability` /
   `content.analyzer` under `apps/website/src/features/plugins/`: zero hits, while the same pattern
   matches freely elsewhere in `apps/website/src`).
 
@@ -1182,8 +1182,13 @@ surfaced real seams. Each sample is genuinely wanted *and* stress-tests a differ
 
 **Remaining build order:** (1) finish Tier-3 live verification; (2) ~~Tier-1 Testimonials + FAQ as a
 real plugin~~ built 2026-10-04 — visual checks only;
-(3) **Tier-2 content analyzer** over the ABI via worker/RPC, no sandbox, with a written note on any
-DX pain.
+(3) ~~**Tier-2 content analyzer** over the ABI via worker/RPC~~ **built 2026-10-04**: built-in
+`content-analyzer` (off by default) runs only in a fresh worker per call; admin post-editor card with
+"Analyze now" (`PLUGIN_PREVIEW` route); the agent's `plugin_capability_content_analyzer` computes a
+fresh result. Commits 7630f822e, 09615d90b, cef9e6f17, bb5d2fefa, d63e7c8bf, a64162856. DX note:
+`ADS-memory/reports/2026-10-04-aw7-tier2-dx-pain.md`. **Still open:** visual checks (editor card in
+all states/locales, Plugins-screen enable toggle); the real process sandbox (ADR-024 §4) before any
+sideloaded tier-2; meta description in `ContentEntryDraft`; a plugin admin-UI surface (ADR-025).
 
 ## Completed — historical record (pointers only)
 
