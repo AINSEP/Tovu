@@ -1,7 +1,8 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api, type AdminMenu } from "@/lib/api";
+import { api, ApiError, type AdminMenu } from "@/lib/api";
+import { VERSION_CONFLICT_MESSAGE } from "@/lib/version-conflict";
 import { createFakeMenusPort } from "../hooks/menus-dependencies.hooks";
 import { useMenuEditor } from "../hooks/use-menu-editor.hooks";
 
@@ -84,6 +85,37 @@ describe("useMenuEditor — injected port (no fetch stub, no api spy)", () => {
     expect(result.current.menu?.version).toBe(1);
     expect(result.current.confirmLeave()).toBe(false);
     expect(confirm).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows the translated conflict copy, not the raw server message, when a save loses the compare-and-set", async () => {
+    const port = createFakeMenusPort({ menus: [MENU] });
+    port.updateMenuTree = vi.fn().mockRejectedValue(
+      new ApiError("menu 'm1' was modified concurrently (expected version 1, found 2)", 409, "VERSION_CONFLICT")
+    );
+    const t = (key: string) => (key === VERSION_CONFLICT_MESSAGE ? "TRANSLATED CONFLICT" : key);
+    const { result } = renderHook(() => useMenuEditor("m1", { port, navigate: vi.fn(), t }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    await act(async () => { await result.current.save(); });
+    expect(result.current.error).toBe("TRANSLATED CONFLICT");
+    expect(result.current.menu?.version).toBe(1);
+  });
+
+  it("keeps the server message for a code-less 409 (slug already taken)", async () => {
+    const port = createFakeMenusPort({ menus: [MENU] });
+    port.updateMenuTree = vi.fn().mockRejectedValue(new ApiError("slug 'main' already exists", 409));
+    const { result } = renderHook(() => useMenuEditor("m1", { port, navigate: vi.fn(), t: () => "TRANSLATED" }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    await act(async () => { await result.current.save(); });
+    expect(result.current.error).toBe("slug 'main' already exists");
+  });
+
+  it("falls back to 'save failed' when the save rejects with a non-Error value", async () => {
+    const port = createFakeMenusPort({ menus: [MENU] });
+    port.updateMenuTree = vi.fn().mockRejectedValue("boom");
+    const { result } = renderHook(() => useMenuEditor("m1", { port, navigate: vi.fn(), t: (k) => k }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    await act(async () => { await result.current.save(); });
+    expect(result.current.error).toBe("save failed");
   });
 
   it("saves the edited metadata and tree with the loaded version, then re-baselines the dirty guard", async () => {

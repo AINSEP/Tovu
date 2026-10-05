@@ -20,6 +20,7 @@ import {
   validateFieldName,
   validateKey,
   validateNewContentTypeDraft,
+  visibleEntryEditorError,
   type DraftField,
 } from "../rules";
 import { ApiError, type AdminContentType, type ContentTypeFieldDef } from "@/lib/api";
@@ -367,5 +368,40 @@ describe("contentTypeMenuItems", () => {
     expect(items.map((i) => i.label)).toEqual(["Editar campos", "Marcar obsoleto", "Eliminar definitivamente"]);
     const deprecated = contentTypeMenuItems(contentType({ status: "deprecated" }), handlers, "es");
     expect(deprecated.find((i) => i.key === "reactivate")?.label).toBe("Reactivar");
+  });
+});
+
+describe("visibleEntryEditorError — version conflicts", () => {
+  const base = {
+    updateError: null,
+    createError: null,
+    lifecycleError: null,
+    saveFallback: "save failed",
+    lifecycleFallback: "Failed to publish entry",
+    versionConflictMessage: "CONFLICT COPY",
+  };
+  const conflict = new ApiError("expected version 2 for entry 'e1', found 3", 409, "VERSION_CONFLICT");
+
+  it("shows the conflict copy, not the server message, when a save loses the compare-and-set", () => {
+    expect(visibleEntryEditorError({ ...base, updateError: conflict })).toBe("CONFLICT COPY");
+  });
+
+  it("shows the conflict copy when a publish/unpublish loses the compare-and-set", () => {
+    expect(visibleEntryEditorError({ ...base, lifecycleError: conflict })).toBe("CONFLICT COPY");
+  });
+
+  it("keeps the server message for a code-less 409", () => {
+    const slugTaken = new ApiError("slug 'x' already exists", 409);
+    expect(visibleEntryEditorError({ ...base, updateError: slugTaken })).toBe("slug 'x' already exists");
+    expect(visibleEntryEditorError({ ...base, lifecycleError: slugTaken })).toBe("slug 'x' already exists");
+  });
+
+  it("describes a create failure with the save fallback", () => {
+    expect(visibleEntryEditorError({ ...base, createError: new ApiError("", 500) })).toBe("save failed");
+  });
+
+  it("shows nothing for a lifecycle error with no attempted op, or when nothing failed", () => {
+    expect(visibleEntryEditorError({ ...base, lifecycleError: conflict, lifecycleFallback: null })).toBeNull();
+    expect(visibleEntryEditorError(base)).toBeNull();
   });
 });

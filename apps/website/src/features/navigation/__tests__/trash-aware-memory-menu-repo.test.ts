@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { MenuConflictError, type NavMenuEntry } from "../index.js";
+import { InMemoryMenuRepo, MenuConflictError, MenuVersionConflictError, type NavMenuEntry } from "../index.js";
 import { TrashAwareInMemoryMenuRepo } from "../trash-aware-memory-menu-repo.js";
 
 function menu(overrides: Partial<NavMenuEntry> = {}): NavMenuEntry {
@@ -80,4 +80,22 @@ test("BUG: removing a trashed menu clears its restore marker when the same id is
   assert.deepEqual(await repo.findById(lookup), menu({ title: "Republished menu", status: "published", version: 1 }));
   assert.deepEqual(await repo.findAnyById(lookup),
     { ...menu({ title: "Republished menu", status: "published", version: 1 }), priorStatus: null });
+});
+
+test("save re-wraps only a compare-and-set conflict as MenuVersionConflictError; anything else passes through untouched", async () => {
+  const failing = (error: Error) => {
+    const inner = new InMemoryMenuRepo({});
+    inner.save = async () => { throw error; };
+    return new TrashAwareInMemoryMenuRepo({}, { inner });
+  };
+  const lost = new MenuConflictError({ message: "menu 'm1' was modified concurrently (expected version 1, found 2)" });
+  await assert.rejects(failing(lost).save(menu(), { expectedVersion: 1 }), (error: unknown) =>
+    error instanceof MenuVersionConflictError && error.message === lost.message && error.cause === lost);
+
+  // Without `expectedVersion` there is no compare-and-set, so a conflict is not a version conflict.
+  const other = new MenuConflictError({ message: "other conflict" });
+  await assert.rejects(failing(other).save(menu()), (error: unknown) => error === other);
+
+  const disk = new Error("disk full");
+  await assert.rejects(failing(disk).save(menu(), { expectedVersion: 1 }), (error: unknown) => error === disk);
 });

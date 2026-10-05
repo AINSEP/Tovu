@@ -2,7 +2,8 @@ import type { DataTableSortDirection, DataTableSortState } from "@jini-ai/admin/
 import type { RowMenuItem } from "@jini-ai/admin/react";
 import type { EditorView } from "@tiptap/pm/view";
 
-import { ApiError, type AdminPost } from "../../lib/api";
+import { type AdminPost } from "../../lib/api";
+import { isVersionConflict, VERSION_CONFLICT_CODE } from "../../lib/version-conflict";
 import type { Translate } from "../../lib/dictionary-translator";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import type {
@@ -141,7 +142,7 @@ export function postAutosaveBannerMessage(savedAt: string, nowMs: number, stale:
  * (do NOT resend — resending is what erases the other operator's work). Only this one carries a
  * `code`, which is exactly what makes them tellable apart.
  */
-export const POST_VERSION_CONFLICT_CODE = "VERSION_CONFLICT";
+export const POST_VERSION_CONFLICT_CODE = VERSION_CONFLICT_CODE;
 
 /** A rejected save whose basis version had already been superseded — {@link readPostVersionConflict}'s
  *  output, and the editor's own conflict state. */
@@ -172,7 +173,7 @@ export function readPostVersionConflict(
   e: unknown,
   attemptedStatus: "draft" | "published" | undefined
 ): PostSaveConflict | null {
-  if (!(e instanceof ApiError) || e.status !== 409 || e.code !== POST_VERSION_CONFLICT_CODE) return null;
+  if (!isVersionConflict(e)) return null;
   const details = (e.body?.details ?? {}) as Record<string, unknown>;
   return {
     expectedVersion: typeof details.expectedVersion === "number" ? details.expectedVersion : null,

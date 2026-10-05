@@ -4,6 +4,7 @@ import { embedMarkerSnippet } from "@tovu/embed-marker";
 import { ApiError, describeApiError, type AdminContentType, type ContentTypeFieldDef } from "../../lib/api";
 import type { Translate } from "../../lib/dictionary-translator";
 import type { QueryKey } from "../../lib/fetch-query";
+import { isVersionConflict } from "../../lib/version-conflict";
 import { t as translate } from "./collections-i18n";
 
 /**
@@ -89,6 +90,10 @@ export function collectionEmbedSnippet(key: string): string {
  * (nothing has been attempted yet), which this treats as "no lifecycle error to show" even if
  * `lifecycleError` is somehow set.
  *
+ * A write that lost the compare-and-set (`409 VERSION_CONFLICT`, real since entry saves became
+ * compare-and-set, wm S3) shows `versionConflictMessage` instead of the server's
+ * "expected version N for entry '<id>'…" text, which named a UUID and no next step.
+ *
  * @complexity Time/space: O(1) — three fixed checks, no iteration.
  */
 export function visibleEntryEditorError(params: {
@@ -97,11 +102,15 @@ export function visibleEntryEditorError(params: {
   lifecycleError: Error | null;
   saveFallback: string;
   lifecycleFallback: string | null;
+  /** Translated `VERSION_CONFLICT_MESSAGE` (`lib/version-conflict.ts`). */
+  versionConflictMessage: string;
 }): string | null {
-  if (params.updateError) return describeApiError(params.updateError, params.saveFallback);
-  if (params.createError) return describeApiError(params.createError, params.saveFallback);
+  const describe = (error: Error, fallback: string) =>
+    isVersionConflict(error) ? params.versionConflictMessage : describeApiError(error, fallback);
+  if (params.updateError) return describe(params.updateError, params.saveFallback);
+  if (params.createError) return describe(params.createError, params.saveFallback);
   if (params.lifecycleError && params.lifecycleFallback) {
-    return describeApiError(params.lifecycleError, params.lifecycleFallback);
+    return describe(params.lifecycleError, params.lifecycleFallback);
   }
   return null;
 }

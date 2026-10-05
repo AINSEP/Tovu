@@ -8,6 +8,7 @@ import {
 } from "@/lib/api";
 import { useFetchMutation, useFetchQuery } from "@/lib/fetch-query";
 import { KEYS, visibleEntryEditorError } from "../rules";
+import { VERSION_CONFLICT_MESSAGE } from "@/lib/version-conflict";
 import { WidgetEmbed } from "@/lib/widget-embed-extension";
 import { navigate as defaultNavigate } from "@/lib/router";
 import { slugRedirectPath } from "@/lib/slug-redirect-path";
@@ -339,6 +340,7 @@ export function useCollectionEntryEditor(
     lifecycleError: lifecycleMutation.error,
     saveFallback: translate(locale, "save failed"),
     lifecycleFallback: lastLifecycleOp ? entryLifecycleFailureMessage(locale, lastLifecycleOp) : null,
+    versionConflictMessage: translate(locale, VERSION_CONFLICT_MESSAGE),
   });
 
   return {

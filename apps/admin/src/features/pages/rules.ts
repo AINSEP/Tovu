@@ -4,13 +4,14 @@ import type { RowMenuItem } from "@jini-ai/admin/react";
 import type { CanvasStyling } from "@jini-ai/ui/html-editor";
 
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
-import { ApiError, type AdminPost } from "../../lib/api";
+import { type AdminPost } from "../../lib/api";
 import type { Translate } from "../../lib/dictionary-translator";
 import type {
   StandingDraftAutosaveInput,
   StandingDraftStaleBasis,
 } from "../../hooks/use-standing-draft-autosave.hooks";
 import { formatRelativeMinutesAgo } from "../../lib/format-timestamp";
+import { isVersionConflict, VERSION_CONFLICT_CODE } from "../../lib/version-conflict";
 import { t as translate } from "./pages-i18n";
 import type { ThemePageRow } from "./hooks/use-theme-pages.hooks";
 import type { PageEditorView } from "./hooks/use-page-editor.hooks";
@@ -451,12 +452,13 @@ export function pageAutosaveStaleBasisMessage(t: Translate, staleBasis: Standing
  * (do NOT resend — resending is what erases the other operator's work). Only this one carries a
  * `code`, which is exactly what makes them tellable apart.
  *
- * Feature-local and character-identical to `features/posts/rules.ts`'s `POST_VERSION_CONFLICT_CODE`
- * — the same no-cross-feature-import boundary {@link isAutosaveDraftStale} already documents. Pages
- * and Posts share one server route (`PUT /posts/:id`, kind-blind), so the two constants describe the
- * same wire value on purpose.
+ * A feature-local name for `lib/version-conflict.ts`'s shared `VERSION_CONFLICT_CODE`, which
+ * `features/posts/rules.ts`'s `POST_VERSION_CONFLICT_CODE` aliases too. The shared one lives in
+ * `lib/`, so the no-cross-feature-import boundary {@link isAutosaveDraftStale} documents still holds.
+ * Pages and Posts share one server route (`PUT /posts/:id`, kind-blind), so the two names describe
+ * the same wire value on purpose.
  */
-export const PAGE_VERSION_CONFLICT_CODE = "VERSION_CONFLICT";
+export const PAGE_VERSION_CONFLICT_CODE = VERSION_CONFLICT_CODE;
 
 /** A rejected save whose basis version had already been superseded — {@link readPageVersionConflict}'s
  *  output, and the editor's own conflict state. Mirrors `posts/rules.ts`'s `PostSaveConflict`. */
@@ -487,7 +489,7 @@ export function readPageVersionConflict(
   e: unknown,
   attemptedStatus: "draft" | "published" | undefined
 ): PageSaveConflict | null {
-  if (!(e instanceof ApiError) || e.status !== 409 || e.code !== PAGE_VERSION_CONFLICT_CODE) return null;
+  if (!isVersionConflict(e)) return null;
   const details = (e.body?.details ?? {}) as Record<string, unknown>;
   return {
     expectedVersion: typeof details.expectedVersion === "number" ? details.expectedVersion : null,

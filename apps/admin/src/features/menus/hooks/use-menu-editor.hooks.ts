@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { type AdminMenu, type AdminMenuItem } from "@/lib/api";
+import { isVersionConflict, VERSION_CONFLICT_MESSAGE } from "@/lib/version-conflict";
 import { navigate as realNavigate } from "@/lib/router";
 import { slugRedirectPath } from "@/lib/slug-redirect-path";
 import { useDirtyGuard } from "@/hooks/use-dirty-guard.hooks";
@@ -325,7 +326,11 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t, clipbo
       setMessage(`Saved · version ${saved.version}`);
     } catch (e) {
       if (activeMenuIdRef.current !== savingForMenuId) return;
-      setError(e instanceof Error ? e.message : "save failed");
+      // A lost compare-and-set (`409 VERSION_CONFLICT`, real since menu saves became
+      // compare-and-set, wm S4) gets translated "someone else changed this" copy instead of the
+      // server's "menu '<id>' was modified concurrently…" text. Other errors (a slug already taken
+      // is also a 409, without the code) keep the server message.
+      setError(isVersionConflict(e) ? t(VERSION_CONFLICT_MESSAGE) : e instanceof Error ? e.message : "save failed");
     } finally {
       // Unconditional, unlike the `activeMenuIdRef` checks above: this flag tracks whether THIS
       // save cycle is still on the wire, not whether its result still belongs to the menu on

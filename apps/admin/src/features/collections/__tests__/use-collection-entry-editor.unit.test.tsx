@@ -1,7 +1,9 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminContentType, AdminEntry } from "@/lib/api";
+import { ApiError, type AdminContentType, type AdminEntry } from "@/lib/api";
+import { COMMON_I18N } from "@/lib/i18n-common";
+import { VERSION_CONFLICT_MESSAGE } from "@/lib/version-conflict";
 import { FetchQueryProvider } from "@/lib/fetch-query";
 import { navigate } from "@/lib/router";
 import { createFakeCollectionEntryEditorPort } from "../hooks/collection-entry-editor-dependencies.hooks";
@@ -530,6 +532,22 @@ describe("injected port (useWiredX conversion coverage)", () => {
     });
 
     expect(result.current.error).toBe("save exploded");
+  });
+
+  it("shows the translated conflict copy, not the raw server message, when a save loses the compare-and-set", async () => {
+    const saveError = new ApiError("expected version 2 for entry 'e1', found 3", 409, "VERSION_CONFLICT");
+    const port = createFakeCollectionEntryEditorPort({ types: [RECIPE_TYPE], entries: [ENTRY], saveError });
+    const { result } = renderHook(() =>
+      useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }, { port, navigate: vi.fn(), locale: "es", t: (k) => k })
+    , { wrapper });
+    await waitFor(() => expect(result.current.entry).toEqual(ENTRY));
+    await waitFor(() => expect(result.current.editor).not.toBeNull());
+
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(result.current.error).toBe(COMMON_I18N.es![VERSION_CONFLICT_MESSAGE]);
   });
 
   it("toggleLifecycle publishes through the injected port and sets entry + message", async () => {
