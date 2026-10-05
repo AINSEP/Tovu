@@ -1624,7 +1624,7 @@ pipeline — `.github/workflows/ci.yml` (508 lines) runs `typecheck`, `test:ci`,
 - [ ] Plugin dependency + compatibility checks — ADR-019 covers theme→plugin declared deps only; general plugin-to-plugin checks not built
 - [ ] Hook/filter-like extension model — ADR-024 decided the hook-priority model conceptually; no general-purpose registry beyond feature-specific hooks
 - [ ] Plugin settings registration and UI mounting — ADR-025 decided the iframe/`postMessage` mechanism; not built yet
-- [ ] **PARTLY:** safe disable/quarantine built (`plugin-runtime/quarantine.ts`). Plugin conflict detection and safe disable/quarantine
+- [ ] **PARTLY:** safe disable/quarantine built (`plugin-runtime/quarantine.ts`); conflict detection backend built 2026-10-04 (`plugin-runtime/claim-conflicts.ts` + `plugin-claims.ts`, `36b97dfdb`): enable refuses (409 `PLUGIN_CONFLICT` / agent `PLUGINS_CONFLICT`), boot quarantines the newer plugin, `PLUGINS_LIST` rows carry `conflicts[]`. REMAINING: admin Plugins row rendering of `conflicts[]` + i18n (18 locales), spec note `specs/005-plugin-system/conflicts.spec.md`. Plugin conflict detection and safe disable/quarantine
 
 #### Admin + operations
 - [ ] Update center and update history
