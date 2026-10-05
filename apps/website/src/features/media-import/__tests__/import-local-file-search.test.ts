@@ -48,11 +48,13 @@ test("local file owner requests rank media_import_local_file in the top 3 of the
 });
 
 
-test("adding the local importer introduces no misses in the 127 operator requests", async (t) => {
+test("adding the local importer introduces no misses in the 126 operator requests", async (t) => {
   const { registry, catalog } = await realCatalog();
   const before = buildToolCatalogQuery({ list: () => registry.list({}).filter((descriptor) => descriptor.id !== "media_import_local_file") });
   const requests = JSON.parse(readFileSync(new URL("../../../assistant/__tests__/fixtures/tool-search-operator-requests.json", import.meta.url), "utf8")) as { id: string; query: string; expect: string[] }[];
-  assert.equal(requests.length, 127);
+  // 126, not the original 127: th-06 ("install a new theme from the marketplace") went with the
+  // deleted theme marketplace and its tool (723700948, owner decision 2026-10-04).
+  assert.equal(requests.length, 126);
   const regressions: string[] = [];
   const existingMisses: string[] = [];
   let compared = 0;
