@@ -5,6 +5,7 @@ import type { MediaPickerPort } from "@jini-ai/admin/contracts/media-picker";
 import { useJiniMediaPicker } from "../MediaPickerDialog/JiniMediaPicker.hooks";
 import { AdminModulesContext } from "../../integrations/jini-admin/modules.hooks";
 import type { AdminMedia } from "../../lib/api";
+import type { MediaPickerDialogProps } from "../MediaPickerDialog/MediaPickerDialog";
 
 /**
  * The bridge from the Jini picker service to the legacy dialog contract: the service picks an id,
@@ -138,27 +139,29 @@ describe("useJiniMediaPicker", () => {
     let release!: () => void;
     const fetchMock = stubMediaList([media("m1")], { gate: new Promise<void>((resolve) => { release = resolve; }) });
     const onSelect = vi.fn();
-    const { result, unmount } = renderHook(() => useJiniMediaPicker({ onSelect, onCancel: vi.fn() }), { wrapper: scope(picker) });
+    const { unmount } = renderHook(() => useJiniMediaPicker({ onSelect, onCancel: vi.fn() }), { wrapper: scope(picker) });
     await act(async () => { calls[0]!.resolve({ id: "m1" }); });
     await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
-    const errorBefore = result.current.error;
     unmount();
     // The stub ignores the abort signal, so the response still arrives: the hook must drop it.
     await act(async () => { release(); await new Promise((resolve) => setTimeout(resolve, 0)); });
     expect(onSelect).not.toHaveBeenCalled();
-    expect(errorBefore).toBeNull();
   });
 
-  it("drops a failure that arrives after unmount", async () => {
+  it("drops a failure that arrives after the pick was abandoned", async () => {
     const { picker, calls } = deferredPicker();
     let release!: () => void;
-    stubMediaList(new Error("late"), { gate: new Promise<void>((resolve) => { release = resolve; }) });
-    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
-    const { unmount } = renderHook(() => useJiniMediaPicker({ onSelect: vi.fn(), onCancel: vi.fn() }), { wrapper: scope(picker) });
+    const fetchMock = stubMediaList(new Error("late"), { gate: new Promise<void>((resolve) => { release = resolve; }) });
+    // Stay mounted: React silently discards an unmounted update, so only a live hook can show
+    // whether the abandoned request's failure still reaches `error`.
+    let useDialog: MediaPickerDialogProps["useDialog"];
+    const { result, rerender } = renderHook(() => useJiniMediaPicker({ onSelect: vi.fn(), onCancel: vi.fn(), useDialog }), { wrapper: scope(picker) });
     await act(async () => { calls[0]!.resolve({ id: "m1" }); });
-    unmount();
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    useDialog = vi.fn() as never;
+    rerender();
+    expect(calls[0]!.signal!.aborted).toBe(true);
     await act(async () => { release(); await new Promise((resolve) => setTimeout(resolve, 0)); });
-    expect(consoleError).not.toHaveBeenCalled();
-    consoleError.mockRestore();
+    expect(result.current).toMatchObject({ enabled: false, error: null });
   });
 });
