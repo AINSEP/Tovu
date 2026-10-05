@@ -53,9 +53,10 @@ describe("POSTS_DICT: cross-locale key parity", () => {
 });
 
 /**
- * The parity check above cannot see a locale left in English: `posts-i18n.ts` backfills any key
- * missing from a locale with the English key itself. That is how "Template" — the template select's
- * accessible name — shipped translated only in Spanish. The template picker's copy must be real.
+ * The parity check above could not see a locale left in English: `posts-i18n.ts` used to backfill
+ * any key missing from a locale with the English key itself. That is how "Template" — the template
+ * select's accessible name — shipped translated only in Spanish. The template picker's copy must be
+ * real. (The backfill is gone; `lib/__tests__/untranslated-copy.unit.test.ts` now checks every key.)
  */
 describe("POSTS_DICT: template picker copy", () => {
   it.each(["Template", "View Template", "No template chosen", "No templates for this theme"])(

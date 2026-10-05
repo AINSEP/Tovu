@@ -93,7 +93,7 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
   },
   id: {
     Operations: "Operasi",
-    Deployment: "Deployment",
+    Deployment: "Penerapan",
     "Choose how this site gets published, and see what self-hosting it involves.":
       "Pilih bagaimana situs ini dipublikasikan, dan lihat apa yang terlibat dalam hosting mandiri.",
     Overview: "Ringkasan",
@@ -314,6 +314,12 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "What survives the export": "导出后保留的内容",
     "Where it runs": "运行位置",
     "The output is a plain folder of files — any static host will serve it.": "输出是一个普通文件夹——任何静态托管服务都可以提供它。",
+    // Dockerfile editor copy previously translated only in es/id/de/pt-BR/fr/it
+    "Unsaved changes": "未保存的更改",
+    "Saved": "已保存",
+    "Dockerfile contents": "Dockerfile 内容",
+    "Saving here only replaces the file's contents — it does not build or deploy anything.": "在此保存只会替换该文件的内容——不会构建或部署任何内容。",
+    "No Dockerfile exists yet. Write one below, then save to create it.": "还没有 Dockerfile。请在下方编写一个，然后保存以创建它。",
   },
   "zh-TW": {
     Operations: "維運",
@@ -384,6 +390,12 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "What survives the export": "匯出後保留的內容",
     "Where it runs": "執行位置",
     "The output is a plain folder of files — any static host will serve it.": "輸出是一個普通檔案資料夾——任何靜態主機都能提供它。",
+    // Dockerfile editor copy previously translated only in es/id/de/pt-BR/fr/it
+    "Unsaved changes": "未儲存的變更",
+    "Saved": "已儲存",
+    "Dockerfile contents": "Dockerfile 內容",
+    "Saving here only replaces the file's contents — it does not build or deploy anything.": "在此儲存只會取代該檔案的內容——不會建置或部署任何東西。",
+    "No Dockerfile exists yet. Write one below, then save to create it.": "尚無 Dockerfile。請在下方撰寫一個，然後儲存以建立它。",
   },
   "pt-BR": {
     Operations: "Operações",
@@ -531,6 +543,12 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "What survives the export": "Что сохраняется при экспорте",
     "Where it runs": "Где это работает",
     "The output is a plain folder of files — any static host will serve it.": "Результат — обычная папка с файлами; её может обслуживать любой статический хостинг.",
+    // Dockerfile editor copy previously translated only in es/id/de/pt-BR/fr/it
+    "Unsaved changes": "Несохранённые изменения",
+    "Saved": "Сохранено",
+    "Dockerfile contents": "Содержимое Dockerfile",
+    "Saving here only replaces the file's contents — it does not build or deploy anything.": "Сохранение здесь только заменяет содержимое файла — ничего не собирается и не развёртывается.",
+    "No Dockerfile exists yet. Write one below, then save to create it.": "Dockerfile пока нет. Напишите его ниже и сохраните, чтобы создать.",
   },
   fa: {
     Operations: "عملیات",
@@ -601,6 +619,12 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "What survives the export": "آنچه پس از خروجی باقی می‌ماند",
     "Where it runs": "محل اجرا",
     "The output is a plain folder of files — any static host will serve it.": "خروجی یک پوشه ساده از فایل‌ها است — هر میزبان ایستا می‌تواند آن را ارائه کند.",
+    // Dockerfile editor copy previously translated only in es/id/de/pt-BR/fr/it
+    "Unsaved changes": "تغییرات ذخیره‌نشده",
+    "Saved": "ذخیره شد",
+    "Dockerfile contents": "محتوای Dockerfile",
+    "Saving here only replaces the file's contents — it does not build or deploy anything.": "ذخیره در اینجا فقط محتوای فایل را جایگزین می‌کند — چیزی را بیلد یا مستقر نمی‌کند.",
+    "No Dockerfile exists yet. Write one below, then save to create it.": "هنوز Dockerfile‌ای وجود ندارد. یکی را در پایین بنویسید و سپس برای ایجاد آن ذخیره کنید.",
   },
   ar: {
     Operations: "العمليات",
@@ -671,6 +695,12 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "What survives the export": "ما يبقى بعد التصدير",
     "Where it runs": "مكان التشغيل",
     "The output is a plain folder of files — any static host will serve it.": "المخرجات مجلد عادي من الملفات — يمكن لأي استضافة ثابتة تقديمه.",
+    // Dockerfile editor copy previously translated only in es/id/de/pt-BR/fr/it
+    "Unsaved changes": "تغييرات غير محفوظة",
+    "Saved": "تم الحفظ",
+    "Dockerfile contents": "محتوى Dockerfile",
+    "Saving here only replaces the file's contents — it does not build or deploy anything.": "الحفظ هنا يستبدل محتوى الملف فقط — ولا يبني أو ينشر أي شيء.",
+    "No Dockerfile exists yet. Write one below, then save to create it.": "لا يوجد Dockerfile بعد. اكتب واحدًا أدناه، ثم احفظه لإنشائه.",
   },
   ja: {
     Operations: "運用",
@@ -741,6 +771,12 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "What survives the export": "エクスポート後に残るもの",
     "Where it runs": "実行場所",
     "The output is a plain folder of files — any static host will serve it.": "出力は通常のファイルフォルダーです。どの静的ホストでも配信できます。",
+    // Dockerfile editor copy previously translated only in es/id/de/pt-BR/fr/it
+    "Unsaved changes": "未保存の変更",
+    "Saved": "保存済み",
+    "Dockerfile contents": "Dockerfileの内容",
+    "Saving here only replaces the file's contents — it does not build or deploy anything.": "ここで保存してもファイルの内容が置き換わるだけで、ビルドやデプロイは行われません。",
+    "No Dockerfile exists yet. Write one below, then save to create it.": "Dockerfileはまだありません。下に記述してから保存すると作成されます。",
   },
   ko: {
     Operations: "운영",
@@ -811,6 +847,12 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "What survives the export": "내보낸 뒤에도 유지되는 항목",
     "Where it runs": "실행 위치",
     "The output is a plain folder of files — any static host will serve it.": "출력은 일반 파일 폴더이며 어떤 정적 호스트에서도 제공할 수 있습니다.",
+    // Dockerfile editor copy previously translated only in es/id/de/pt-BR/fr/it
+    "Unsaved changes": "저장되지 않은 변경 사항",
+    "Saved": "저장됨",
+    "Dockerfile contents": "Dockerfile 내용",
+    "Saving here only replaces the file's contents — it does not build or deploy anything.": "여기에서 저장하면 파일 내용만 바뀌며, 빌드나 배포는 하지 않습니다.",
+    "No Dockerfile exists yet. Write one below, then save to create it.": "아직 Dockerfile이 없습니다. 아래에 작성한 다음 저장하여 만드세요.",
   },
   pl: {
     Operations: "Operacje",
@@ -881,6 +923,12 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "What survives the export": "Co pozostaje po eksporcie",
     "Where it runs": "Gdzie działa",
     "The output is a plain folder of files — any static host will serve it.": "Wynik to zwykły folder plików — każdy hosting statyczny może go obsłużyć.",
+    // Dockerfile editor copy previously translated only in es/id/de/pt-BR/fr/it
+    "Unsaved changes": "Niezapisane zmiany",
+    "Saved": "Zapisano",
+    "Dockerfile contents": "Zawartość Dockerfile",
+    "Saving here only replaces the file's contents — it does not build or deploy anything.": "Zapisanie tutaj tylko zastępuje zawartość pliku — niczego nie buduje ani nie wdraża.",
+    "No Dockerfile exists yet. Write one below, then save to create it.": "Dockerfile jeszcze nie istnieje. Napisz go poniżej, a następnie zapisz, aby go utworzyć.",
   },
   hu: {
     Operations: "Üzemeltetés",
@@ -951,6 +999,12 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "What survives the export": "Mi marad meg az exportban",
     "Where it runs": "Hol fut",
     "The output is a plain folder of files — any static host will serve it.": "A kimenet egy egyszerű fájlmappa — bármely statikus tárhely kiszolgálhatja.",
+    // Dockerfile editor copy previously translated only in es/id/de/pt-BR/fr/it
+    "Unsaved changes": "Nem mentett módosítások",
+    "Saved": "Mentve",
+    "Dockerfile contents": "A Dockerfile tartalma",
+    "Saving here only replaces the file's contents — it does not build or deploy anything.": "Az itteni mentés csak a fájl tartalmát cseréli le — semmit sem épít és nem telepít.",
+    "No Dockerfile exists yet. Write one below, then save to create it.": "Még nincs Dockerfile. Írj egyet alább, majd mentsd a létrehozásához.",
   },
   fr: {
     Operations: "Opérations",
@@ -1098,6 +1152,12 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "What survives the export": "Що зберігається після експорту",
     "Where it runs": "Де це працює",
     "The output is a plain folder of files — any static host will serve it.": "Результат — звичайна папка з файлами; її може обслуговувати будь-який статичний хостинг.",
+    // Dockerfile editor copy previously translated only in es/id/de/pt-BR/fr/it
+    "Unsaved changes": "Незбережені зміни",
+    "Saved": "Збережено",
+    "Dockerfile contents": "Вміст Dockerfile",
+    "Saving here only replaces the file's contents — it does not build or deploy anything.": "Збереження тут лише замінює вміст файлу — нічого не збирається і не розгортається.",
+    "No Dockerfile exists yet. Write one below, then save to create it.": "Dockerfile поки немає. Напишіть його нижче й збережіть, щоб створити.",
   },
   tr: {
     Operations: "Operasyonlar",
@@ -1168,6 +1228,12 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "What survives the export": "Dışa aktarmada kalanlar",
     "Where it runs": "Çalıştığı yer",
     "The output is a plain folder of files — any static host will serve it.": "Çıktı düz bir dosya klasörüdür — herhangi bir statik barındırma bunu sunabilir.",
+    // Dockerfile editor copy previously translated only in es/id/de/pt-BR/fr/it
+    "Unsaved changes": "Kaydedilmemiş değişiklikler",
+    "Saved": "Kaydedildi",
+    "Dockerfile contents": "Dockerfile içeriği",
+    "Saving here only replaces the file's contents — it does not build or deploy anything.": "Burada kaydetmek yalnızca dosyanın içeriğini değiştirir — hiçbir şey derlemez veya dağıtmaz.",
+    "No Dockerfile exists yet. Write one below, then save to create it.": "Henüz bir Dockerfile yok. Aşağıya bir tane yazın, ardından oluşturmak için kaydedin.",
   },
   th: {
     Operations: "ปฏิบัติการ",
@@ -1238,6 +1304,12 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "What survives the export": "สิ่งที่ยังคงอยู่หลังการส่งออก",
     "Where it runs": "ตำแหน่งที่ทำงาน",
     "The output is a plain folder of files — any static host will serve it.": "ผลลัพธ์คือโฟลเดอร์ไฟล์ธรรมดา — โฮสต์แบบคงที่ใดก็ให้บริการได้",
+    // Dockerfile editor copy previously translated only in es/id/de/pt-BR/fr/it
+    "Unsaved changes": "การเปลี่ยนแปลงที่ยังไม่ได้บันทึก",
+    "Saved": "บันทึกแล้ว",
+    "Dockerfile contents": "เนื้อหา Dockerfile",
+    "Saving here only replaces the file's contents — it does not build or deploy anything.": "การบันทึกที่นี่เป็นเพียงการแทนที่เนื้อหาของไฟล์ — ไม่ได้บิลด์หรือปรับใช้สิ่งใด",
+    "No Dockerfile exists yet. Write one below, then save to create it.": "ยังไม่มี Dockerfile เขียนไว้ด้านล่าง แล้วบันทึกเพื่อสร้างไฟล์",
   },
   it: {
     Operations: "Operazioni",
@@ -1385,6 +1457,12 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "What survives the export": "एक्सपोर्ट के बाद क्या रहता है",
     "Where it runs": "जहाँ यह चलता है",
     "The output is a plain folder of files — any static host will serve it.": "आउटपुट फ़ाइलों का एक साधारण फ़ोल्डर है — कोई भी स्थिर होस्ट इसे उपलब्ध करा सकता है।",
+    // Dockerfile editor copy previously translated only in es/id/de/pt-BR/fr/it
+    "Unsaved changes": "बिना सहेजे गए बदलाव",
+    "Saved": "सहेजा गया",
+    "Dockerfile contents": "Dockerfile की सामग्री",
+    "Saving here only replaces the file's contents — it does not build or deploy anything.": "यहाँ सहेजने से केवल फ़ाइल की सामग्री बदलती है — यह कुछ भी बिल्ड या डिप्लॉय नहीं करता।",
+    "No Dockerfile exists yet. Write one below, then save to create it.": "अभी कोई Dockerfile मौजूद नहीं है। नीचे एक लिखें, फिर उसे बनाने के लिए सहेजें।",
   },
   ur: {
     Operations: "کارروائیاں",
@@ -1455,6 +1533,12 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "What survives the export": "ایکسپورٹ کے بعد کیا باقی رہتا ہے",
     "Where it runs": "جہاں یہ چلتا ہے",
     "The output is a plain folder of files — any static host will serve it.": "آؤٹ پٹ فائلوں کا ایک سادہ فولڈر ہے — کوئی بھی جامد ہوسٹ اسے پیش کر سکتا ہے۔",
+    // Dockerfile editor copy previously translated only in es/id/de/pt-BR/fr/it
+    "Unsaved changes": "غیر محفوظ تبدیلیاں",
+    "Saved": "محفوظ ہو گیا",
+    "Dockerfile contents": "Dockerfile کا مواد",
+    "Saving here only replaces the file's contents — it does not build or deploy anything.": "یہاں محفوظ کرنے سے صرف فائل کا مواد بدلتا ہے — یہ کچھ بھی بلڈ یا ڈیپلائے نہیں کرتا۔",
+    "No Dockerfile exists yet. Write one below, then save to create it.": "ابھی تک کوئی Dockerfile موجود نہیں۔ نیچے ایک لکھیں، پھر اسے بنانے کے لیے محفوظ کریں۔",
   },
   bn: {
     Operations: "কার্যক্রম",
@@ -1525,6 +1609,12 @@ const DEPLOYMENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     "What survives the export": "এক্সপোর্টের পর যা থাকে",
     "Where it runs": "যেখানে এটি চলে",
     "The output is a plain folder of files — any static host will serve it.": "আউটপুট হলো ফাইলের একটি সাধারণ ফোল্ডার — যেকোনো স্ট্যাটিক হোস্ট এটি পরিবেশন করতে পারে।",
+    // Dockerfile editor copy previously translated only in es/id/de/pt-BR/fr/it
+    "Unsaved changes": "অসংরক্ষিত পরিবর্তন",
+    "Saved": "সংরক্ষিত",
+    "Dockerfile contents": "Dockerfile-এর বিষয়বস্তু",
+    "Saving here only replaces the file's contents — it does not build or deploy anything.": "এখানে সংরক্ষণ করলে শুধু ফাইলের বিষয়বস্তু বদলায় — কিছুই বিল্ড বা ডিপ্লয় করে না।",
+    "No Dockerfile exists yet. Write one below, then save to create it.": "এখনও কোনো Dockerfile নেই। নিচে একটি লিখুন, তারপর তৈরি করতে সংরক্ষণ করুন।",
   },
 };
 

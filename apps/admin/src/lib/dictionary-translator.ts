@@ -32,7 +32,12 @@ export type DictionaryTranslator = (locale: string, key: string) => string;
  *  Feature dictionaries stay small and feature-specific; this is what lets a feature file skip
  *  redefining Save/Cancel/Delete/etc. — it inherits them from `COMMON_I18N` for free.
  */
-export function createDictionaryTranslator(featureDict: LocaleDictionary): DictionaryTranslator {
+export function createDictionaryTranslator(featureDict: LocaleDictionary): BoundDictionaryTranslator {
   const translate = createPackageTranslator({ featureDictionary: featureDict }, { commonDictionary: COMMON_I18N });
-  return (locale, key) => translate({ locale, key });
+  return Object.assign((locale: string, key: string) => translate({ locale, key }), { dictionary: featureDict });
 }
+
+/** A translator that also exposes the feature dictionary it reads. The lookup's English fallback
+ *  hides a locale left untranslated, so `untranslated-copy.unit.test.ts` reads every module's
+ *  dictionary through this property — most feature dictionaries are module-private. */
+export type BoundDictionaryTranslator = DictionaryTranslator & { readonly dictionary: LocaleDictionary };

@@ -989,7 +989,7 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     "Not sorted by updated date. Activate to sort newest first.": "ไม่ได้เรียงตามวันที่อัปเดต เปิดใช้งานเพื่อเรียงจากใหม่สุดก่อน",
     "Sorted by updated date, newest first. Activate to sort oldest first.": "เรียงตามวันที่อัปเดต ใหม่สุดก่อน เปิดใช้งานเพื่อเรียงจากเก่าสุดก่อน",
     "Sorted by updated date, oldest first. Activate to sort newest first.": "เรียงตามวันที่อัปเดต เก่าสุดก่อน เปิดใช้งานเพื่อเรียงจากใหม่สุดก่อน",
-    "Slug": "Slug",
+    "Slug": "ชื่อ URL",
     "Actions for \"{title}\"": "การดำเนินการสำหรับ \"{title}\"",
   },
   it: {

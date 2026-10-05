@@ -586,7 +586,7 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "Sends your widgets and widget regions to the live site.": "Envia seus widgets e regiões de widgets para o site ao vivo.",
     // Plan G1 — the Publish dialog's type column (`PUBLISH_SECTIONS` typeLabelKeys).
     Page: "Página",
-    Post: "Post",
+    Post: "Publicação",
     Menu: "Menu",
     Redirect: "Redirecionamento",
     Theme: "Tema",

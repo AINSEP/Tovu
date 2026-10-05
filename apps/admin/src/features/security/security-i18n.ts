@@ -606,7 +606,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Media provider keys": "Kunci penyedia media",
 
 
-    "AI Assistant": "AI Assistant",
+    "AI Assistant": "Asisten AI",
     "Settings · Execution mode": "Pengaturan · Mode eksekusi",
     "Providers · Media": "Penyedia · Media",
 
