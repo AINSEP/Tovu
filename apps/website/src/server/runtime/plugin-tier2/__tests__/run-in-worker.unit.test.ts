@@ -5,7 +5,7 @@ import test from "node:test";
 import type { WorkerFactory, WorkerScheduler, WorkerSubscription } from "@jini-ai/sandbox/node-worker";
 
 import type { Tier2Request } from "#src/features/plugin-runtime/tier2/protocol";
-import { createTier2WorkerRunner, resolveTier2TimeoutMs } from "../run-in-worker.js";
+import { createTier2WorkerRunner, resolveTier2TimeoutMs, tier2WorkerEnv } from "../run-in-worker.js";
 
 /**
  * @file `createTier2WorkerRunner()` — the host side of a Tier-2 call: one fresh bounded worker per
@@ -19,6 +19,7 @@ import { createTier2WorkerRunner, resolveTier2TimeoutMs } from "../run-in-worker
  * - a timeout or crash rejects (hook-registry then fails closed) -> the timeout test.
  * - timeout env parsing is strict -> the resolveTier2TimeoutMs table.
  * - a compiled build spawns `worker.js` without the TS bootstrap -> the .js test.
+ * - the worker env is an allowlist, never the server env -> the tier2WorkerEnv test.
  */
 
 const request: Tier2Request = {
@@ -120,4 +121,12 @@ test("a compiled build (.js) spawns worker.js with the real factory and no TypeS
     assert.match(error.message, /plugin-tier2\/worker\.js/);
     return true;
   });
+});
+
+test("tier2WorkerEnv keeps only the runtime/tooling allowlist, never server secrets", () => {
+  assert.deepEqual(
+    tier2WorkerEnv({ env: { NODE_ENV: "production", TZ: "UTC", TSX_TSCONFIG_PATH: "t.json", NODE_V8_COVERAGE: "/cov", TOVU_INTEGRATIONS_ROOT_KEY: "root", DATABASE_URL: "postgres://u:p@h/db", PATH: "/bin" } }),
+    { NODE_ENV: "production", TZ: "UTC", TSX_TSCONFIG_PATH: "t.json", NODE_V8_COVERAGE: "/cov" },
+  );
+  assert.deepEqual(tier2WorkerEnv({ env: {} }), {});
 });

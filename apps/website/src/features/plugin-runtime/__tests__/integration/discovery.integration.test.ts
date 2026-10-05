@@ -186,3 +186,32 @@ test("DUP-01: a site plugin id equal to a built-in id marks the site record SHAD
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("a site package declaring tier-2 is invalid (the installer's trust rule), so enable and boot never load it; a built-in tier-2 stays valid", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "tovu-plugin-tier2-site-"));
+  const versionDir = path.join(root, "plugins", "sideloaded-t2", "1.0.0");
+  const manifest = {
+    id: "sideloaded-t2", name: "Sideloaded Tier 2", version: "1.0.0", sdkRange: "^0.1.0 || ^0.2.0", engine: 1,
+    tier: "tier-2", capabilities: ["hooks.attach"], hooks: [], fields: [], integrity: {},
+  };
+  try {
+    await mkdir(path.join(versionDir, "server"), { recursive: true });
+    await writeFile(path.join(versionDir, "tovu.plugin.json"), JSON.stringify(manifest), "utf8");
+    await writeFile(path.join(versionDir, "server", "index.mjs"), "export default {};\n", "utf8");
+    const builtInTier2 = { manifest: { ...manifest, id: "built-in-t2", name: "Built-in Tier 2" } } as const;
+
+    const records = await discoverPlugins({ installDir: path.join(root, "plugins"), builtIns: [builtInTier2] });
+    const site = records.find((r) => r.id === "sideloaded-t2");
+
+    assert.equal(site?.status, "invalid");
+    assert.equal(site?.manifest, undefined, "an invalid record carries no manifest for the loader");
+    assert.deepEqual(site?.errors, [{
+      code: "TIER_NOT_ALLOWED",
+      file: "tovu.plugin.json",
+      message: "A site-installed plugin cannot declare tier-2: tier-2 is for verified publishers and needs a sandbox that does not exist yet. Declare tier-3 (unverified publisher).",
+    }]);
+    assert.equal(records.find((r) => r.id === "built-in-t2")?.status, "valid");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

@@ -28,8 +28,9 @@ import { createTier2WorkerRunner } from "../run-in-worker.js";
  * - a throwing plugin fails the save closed and quarantines at the threshold -> the throw test.
  * - a looping plugin is stopped by the timeout, fails closed, quarantines; a preview of it fails
  *   without counting -> the loop test.
- * - a SITE tier-2 plugin outside every node_modules tree loads from its module snapshot and
- *   resolves `@tovu/sdk` inside the worker -> the site test.
+ * - the worker never sees the server's environment (secrets) -> the env test.
+ * - a SITE tier-2 package is refused at enable and never attached at boot (only built-ins may be
+ *   tier-2 until a real sandbox exists) -> the site test.
  */
 
 const WORKSPACE = "ws-tier2";
@@ -140,7 +141,17 @@ test("built-in tier-2: a looping filter is stopped by the timeout; previews fail
   assert.equal(activation?.quarantineFailureCount, 2);
 });
 
-test("site tier-2: loads from its integrity-checked snapshot and resolves @tovu/sdk inside the worker", async () => {
+test("built-in tier-2: the worker gets an explicit minimal env, never the server's env vars", async () => {
+  process.env.TIER2_ENV_PROBE = "sk-live-leaked";
+  try {
+    const { runtime } = await enabledRuntime(builtInSource("tier2-env", []), SUCCESS_TIMEOUT_MS);
+    assert.deepEqual(await runtime.previewPluginBeforeSave("tier2-env", draft("env")), { seenSlug: "absent" });
+  } finally {
+    delete process.env.TIER2_ENV_PROBE;
+  }
+});
+
+test("site tier-2: refused at enable and never attached at boot, even integrity-pinned", async () => {
   const root = await mkdtemp(path.join(tmpdir(), "tovu-tier2-site-"));
   try {
     const installDir = path.join(root, "plugins");
@@ -155,7 +166,7 @@ test("site tier-2: loads from its integrity-checked snapshot and resolves @tovu/
     await writeFile(path.join(versionDir, "tovu.plugin.json"), JSON.stringify({ ...manifest, integrity }));
 
     const repo = new InMemoryPluginActivationRepo();
-    const runtime = composePluginRuntime({
+    const compose = () => composePluginRuntime({
       workspaceId: WORKSPACE,
       clock: clock(),
       activationRepo: repo,
@@ -163,11 +174,20 @@ test("site tier-2: loads from its integrity-checked snapshot and resolves @tovu/
       installDir,
       tier2CallRunner: createTier2WorkerRunner({}, { timeoutMs: SUCCESS_TIMEOUT_MS }),
     });
-    await setPluginEnabled({
-      deps: { clock: clock(), repo, discovery: await runtime.discoverPlugins(), onEnabled: runtime.onPluginEnabled, onDisabled: runtime.onPluginDisabled },
-      input: { workspaceId: WORKSPACE, pluginId: manifest.id, enabled: true },
-    });
-    assert.deepEqual(await runtime.beforeSaveHook(draft("Site")), { "tier2-site": { titleLength: 4 } });
+    const runtime = compose();
+    await assert.rejects(
+      setPluginEnabled({
+        deps: { clock: clock(), repo, discovery: await runtime.discoverPlugins(), onEnabled: runtime.onPluginEnabled, onDisabled: runtime.onPluginDisabled },
+        input: { workspaceId: WORKSPACE, pluginId: manifest.id, enabled: true },
+      }),
+      { name: "Error", message: "plugin 'tier2-site' failed validation and cannot be enabled" },
+    );
+
+    // A row left enabled from before this rule (or written directly) is skipped at boot.
+    await repo.save({ workspaceId: WORKSPACE, pluginId: manifest.id, version: manifest.version, enabled: true, updatedAt: "2026-10-04T12:00:00.000Z" });
+    const booted = compose();
+    await booted.attachEnabledPluginsAtBoot();
+    assert.deepEqual(await booted.beforeSaveHook(draft("Site")), {});
   } finally {
     await rm(root, { recursive: true, force: true });
   }

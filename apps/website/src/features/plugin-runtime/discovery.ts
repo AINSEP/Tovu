@@ -201,6 +201,24 @@ async function pickLatestVersionFolder(idFolderPath: string): Promise<string | n
   return sorted[0] ?? null;
 }
 
+/**
+ * The installer refuses a sideloaded tier-2 package (`install.ts`'s `checkTierAndCode`): a package
+ * cannot grant itself the verified-publisher tier, and a tier-2 worker is not a security sandbox
+ * (it can still import `node:fs`). A package placed straight into `installDir` skips the installer,
+ * so discovery applies the same rule — enable and boot load only `valid` records, so neither ever
+ * runs one.
+ *
+ * @complexity O(1).
+ */
+function siteTierErrors(manifestValue: unknown): PluginValidationError[] {
+  if (readStringField(manifestValue, "tier") !== "tier-2") return [];
+  return [{
+    code: "TIER_NOT_ALLOWED",
+    file: "tovu.plugin.json",
+    message: "A site-installed plugin cannot declare tier-2: tier-2 is for verified publishers and needs a sandbox that does not exist yet. Declare tier-3 (unverified publisher).",
+  }];
+}
+
 async function discoverOneSiteCandidate(
   installDir: string,
   idFolderName: string,
@@ -225,7 +243,7 @@ async function discoverOneSiteCandidate(
 
   const errors: PluginValidationError[] = missing
     ? [{ code: "MANIFEST_MISSING", file: "tovu.plugin.json", message: "tovu.plugin.json was not found" }]
-    : [...validateManifest({ manifest: manifestValue, folderName: idFolderName, builtInIds }).errors];
+    : [...validateManifest({ manifest: manifestValue, folderName: idFolderName, builtInIds }).errors, ...siteTierErrors(manifestValue)];
 
   const id = readStringField(manifestValue, "id") ?? idFolderName;
   const name = readStringField(manifestValue, "name") ?? idFolderName;

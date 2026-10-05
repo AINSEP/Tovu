@@ -1,6 +1,5 @@
 import { lstat } from "node:fs/promises";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
 import { assertPluginInstallIdle, installSitePlugin, previewSitePluginInstall, type PluginInstallerPort } from "#src/features/plugin-runtime/install";
 
 import type { Clock as ClockPort } from "@jini-ai/core/primitives";
@@ -31,7 +30,6 @@ import {
   PluginLoadError,
 } from "#src/features/plugin-runtime/loader";
 import { createPluginInvocationCoreDeps } from "#src/features/plugin-runtime/invocation-core-deps";
-import { snapshotPluginModuleGraph } from "#src/features/plugin-runtime/module-snapshot";
 import { createTier2ImportSeam } from "#src/features/plugin-runtime/tier2/import-seam";
 import type { Tier2CallRunner } from "#src/features/plugin-runtime/tier2/protocol";
 import { createTier2WorkerRunner } from "#src/server/runtime/plugin-tier2/run-in-worker";
@@ -312,22 +310,12 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired): Pl
     // Tier 2 (ADR-024 §3/§4): the plugin's code must never be imported into this process. Its
     // import seam probes it in a fresh worker and hands `loadPlugin()` a proxy whose filter is an
     // RPC; injected through `loadPlugin()`'s own `importModule` option, so integrity + sdkRange
-    // still run first (CIC U-001). A site plugin's worker imports the integrity-checked module
-    // snapshot, which `loadPlugin()` itself skips once a seam is injected.
+    // still run first (CIC U-001). Only a built-in reaches here as tier-2: discovery marks a site
+    // tier-2 package invalid (the worker is no sandbox yet). Were site tier-2 ever allowed, its worker
+    // would need the seam's `resolveWorkerEntry` pointed at the integrity-checked module snapshot,
+    // since `loadPlugin()` skips its own snapshot once a seam is injected.
     const importModule =
-      manifest.tier === "tier-2"
-        ? createTier2ImportSeam(
-            { manifest, runCall: tier2CallRunner },
-            record.source === "site"
-              ? {
-                  resolveWorkerEntry: async (siteEntry: string) =>
-                    pathToFileURL(
-                      await snapshotPluginModuleGraph({ pluginRoot: path.dirname(path.dirname(siteEntry)), manifest })
-                    ).href,
-                }
-              : {}
-          )
-        : target.importModule;
+      manifest.tier === "tier-2" ? createTier2ImportSeam({ manifest, runCall: tier2CallRunner }) : target.importModule;
 
     // The SDK backing (content.read/extend bound to the running filter, single declared beforeSave
     // filter) is shared with the Tier-2 worker — see `invocation-core-deps.ts`.

@@ -39,6 +39,27 @@ const DEFAULT_RESOURCE_LIMITS: ResourceLimits = {
   codeRangeSizeMb: 16,
 };
 
+/** The only environment variables a Tier-2 worker receives. A plugin's code runs in that worker, so
+ * the server's environment (API keys, database URLs, the root key) must never be copied in: these
+ * are runtime/tooling settings only — `TSX_TSCONFIG_PATH` for the dev/test tsx bootstrap,
+ * `NODE_V8_COVERAGE` so a compiled worker still reports coverage. */
+const TIER2_WORKER_ENV_KEYS = ["NODE_ENV", "TZ", "TSX_TSCONFIG_PATH", "NODE_V8_COVERAGE"] as const;
+
+/**
+ * The explicit minimal environment for one Tier-2 worker: {@link TIER2_WORKER_ENV_KEYS} that are
+ * set in `env`, nothing else.
+ *
+ * @complexity O(k) for the k allowlisted keys.
+ */
+export function tier2WorkerEnv(required: { readonly env: NodeJS.ProcessEnv }): NodeJS.ProcessEnv {
+  const workerEnv: NodeJS.ProcessEnv = {};
+  for (const key of TIER2_WORKER_ENV_KEYS) {
+    const value = required.env[key];
+    if (value !== undefined) workerEnv[key] = value;
+  }
+  return workerEnv;
+}
+
 /**
  * Reads `TOVU_PLUGIN_TIER2_TIMEOUT_MS` strictly (no `parseInt`: "5e3" must not become 5ms).
  *
@@ -59,7 +80,8 @@ export interface CreateTier2WorkerRunnerOptional {
   /** Per-call wall-clock budget. Omitted ⇒ {@link resolveTier2TimeoutMs} at call time. */
   readonly timeoutMs?: number;
   readonly resourceLimits?: ResourceLimits;
-  /** Environment copied into each worker and read for the timeout. Omitted ⇒ `process.env`. */
+  /** Read for the timeout; only its {@link tier2WorkerEnv} subset reaches the worker. Omitted ⇒
+   * `process.env`. */
   readonly env?: NodeJS.ProcessEnv;
   /** Test seams over the Jini worker/timer ports. */
   readonly workerFactory?: WorkerFactory;
@@ -72,7 +94,8 @@ export interface CreateTier2WorkerRunnerOptional {
  * Builds the runner `tier2/import-seam.ts` calls once per probe and once per filter invocation.
  *
  * @returns A runner that rejects on timeout, worker error, exit without reply, or invalid reply.
- * @complexity O(e) environment copying per call, excluding worker startup and plugin work.
+ * @complexity O(1) own work per call (a fixed-size env allowlist), excluding worker startup and
+ * plugin work.
  */
 export function createTier2WorkerRunner(
   _required: CreateTier2WorkerRunnerRequired,
@@ -83,7 +106,7 @@ export function createTier2WorkerRunner(
     const extension = optional.moduleExtension ?? path.extname(import.meta.filename);
     const workerFactory =
       optional.workerFactory ??
-      createNodeWorkerFactory({ env: { ...env } }, {
+      createNodeWorkerFactory({ env: tier2WorkerEnv({ env }) }, {
         // See `typescript-bootstrap.cjs`: tsx's CJS hook alone cannot load a `.ts` plugin through
         // the worker's dynamic `import()`.
         ...(extension === ".ts"
