@@ -40,7 +40,8 @@ export interface CommentRepoPort {
     includeStatuses?: readonly CommentStatus[];
   }): Promise<CommentThreadNode[]>;
 
-  /** The moderation queue: filter by status, keyset-paginated (ADR-022 §3). */
+  /** The moderation queue: filter by status, keyset-paginated (ADR-022 §3).
+   *  @throws {ToolInputError} `invalid cursor` when `cursor` names no comment in the workspace. */
   listModerationQueue(required: {
     workspaceId: UUID;
     status: CommentStatus;

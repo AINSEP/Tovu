@@ -1,3 +1,5 @@
+import { ToolInputError } from "@jini-ai/core";
+
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import type { CommentRepoPort } from "./ports.js";
 import { type CommentTables, toLogEntry, toLogRow, toRecord, toRow } from "./repo.rows.js";
@@ -55,7 +57,11 @@ export class SqlCommentRepo implements CommentRepoPort {
     return buildThread(rows.map(toRecord), null);
   }
 
-  /** Keyset page over `(created_at, id)`, fetching `limit + 1` rows to learn whether more follow. */
+  /** Keyset page over `(created_at, id)`, fetching `limit + 1` rows to learn whether more follow.
+   *  The cursor's comment is looked up in the whole workspace, not the status, so a comment that was
+   *  moderated out of the queue since the last page still resumes after it.
+   *  @throws {ToolInputError} `invalid cursor` when the cursor names no comment in the workspace: it
+   *  used to read as "no cursor" and silently restart at page 1. */
   async listModerationQueue(required: {
     workspaceId: string;
     status: CommentStatus;
@@ -72,6 +78,7 @@ export class SqlCommentRepo implements CommentRepoPort {
             .where("id", "=", required.cursor)
             .executeTakeFirst()
         : undefined;
+      if (required.cursor && !marker) throw new ToolInputError({ message: "invalid cursor" });
       let query = tables
         .selectFrom("p_comments__comments")
         .selectAll()

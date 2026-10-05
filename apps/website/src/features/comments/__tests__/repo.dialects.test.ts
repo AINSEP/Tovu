@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import { ToolInputError } from "@jini-ai/core";
 import { sql } from "kysely";
 
 import type { ContentKernel } from "#src/platform/db/content-kernel";
@@ -112,6 +113,19 @@ describeEachDialect<CommentRepoPort>(
         ["c0", "c1", "c2", "c3", "c4", "same-time", "same-time-2", "same-time-3"]);
       assert.equal(await repo.countByStatus({ workspaceId: WS, status: "pending" }), 8);
       assert.equal(await repo.countByStatus({ workspaceId: WS, status: "pending", entryId: "e1" }), 3);
+    });
+
+    test("a moderation-queue cursor naming no comment is refused, not read as page 1", async () => {
+      const repo = makeRepo();
+      await repo.create(comment("c1"));
+      await repo.create(comment("other-ws", { workspaceId: "other" }));
+      // An unknown id, a non-uuid string (no 500 on Postgres), and a real id from another workspace.
+      for (const cursor of ["no-such-comment", "not a uuid ' --", "other-ws"]) {
+        await assert.rejects(
+          repo.listModerationQueue({ workspaceId: WS, status: "pending", limit: 2, cursor }),
+          (err: unknown) => err instanceof ToolInputError && err.message === "invalid cursor"
+        );
+      }
     });
 
     test("listThreadForEntry nests replies and an empty status list yields nothing", async () => {

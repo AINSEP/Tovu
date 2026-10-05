@@ -211,7 +211,7 @@ export function createCommentsModule(deps: CommentsModuleDeps): CommentsModule {
 export type { CommentRepoPort, CommentIngressPolicy, SpamCheckPort } from "./ports.js";
 export { HeuristicSpamCheck } from "./spam.heuristic.js";
 export type { CommentRecord, CommentStatus, CommentsSettings, CommentSubmission, ModerationAction, ModerationLogEntry } from "./types.js";
-export { COMMENTS_DATA_MODULE, COMMENTS_INGRESS_SYSTEM_PRINCIPAL_ID, COMMENTS_PLUGIN_ID } from "./types.js";
+export { COMMENT_STATUSES, COMMENTS_DATA_MODULE, COMMENTS_INGRESS_SYSTEM_PRINCIPAL_ID, COMMENTS_PLUGIN_ID } from "./types.js";
 export type {
   CommentTransactionRunner,
   CommentWriteService,

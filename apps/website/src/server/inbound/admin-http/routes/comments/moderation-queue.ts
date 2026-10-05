@@ -1,6 +1,7 @@
+import { optionalOneOf, readToolLimit, ToolInputError } from "@jini-ai/core";
 import type { Express } from "express";
 
-import type { CommentRepoPort, CommentStatus } from "#src/features/comments/index";
+import { COMMENT_STATUSES, type CommentRepoPort, type CommentStatus } from "#src/features/comments/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 
@@ -13,15 +14,18 @@ export type AdminCommentsModerationQueueDeps = Pick<RouteDeps, "workspaceId" | "
   commentRepo: CommentRepoPort;
 };
 
-const VALID_STATUSES: readonly CommentStatus[] = ["pending", "approved", "spam", "trash"];
-
-function parseStatus(raw: unknown): CommentStatus {
-  return typeof raw === "string" && (VALID_STATUSES as readonly string[]).includes(raw) ? (raw as CommentStatus) : "pending";
-}
-
-function parseLimit(raw: unknown): number {
-  const n = typeof raw === "string" ? Number(raw) : NaN;
-  return Number.isFinite(n) ? Math.min(Math.max(Math.trunc(n), 1), 100) : 20;
+/** Reads the query string through the same Jini checks the `comments_list_moderation_queue` tool
+ *  uses, so an off-enum `status` or a malformed `limit` is a 400 rather than a silent `pending` page
+ *  or a clamped one. A `limit` above 100 is still capped, as the tool schema promises.
+ *  @throws {ToolInputError} naming the bad field.
+ *  @complexity O(1). */
+function parseQueueQuery(query: Record<string, unknown>): { status: CommentStatus; limit: number; cursor: string | null } {
+  const input = { status: query.status, limit: query.limit === undefined ? undefined : Number(query.limit) };
+  return {
+    status: optionalOneOf({ input, key: "status", values: COMMENT_STATUSES }) ?? "pending",
+    limit: readToolLimit({ input, max: 100, fallback: 20 }),
+    cursor: typeof query.cursor === "string" ? query.cursor : null,
+  };
 }
 
 export function registerAdminCommentsModerationQueueRoute(app: Express, deps: AdminCommentsModerationQueueDeps): void {
@@ -48,13 +52,15 @@ export function registerAdminCommentsModerationQueueRoute(app: Express, deps: Ad
         return;
       }
 
-      const status = parseStatus(req.query.status);
-      const limit = parseLimit(req.query.limit);
-      const cursor = typeof req.query.cursor === "string" ? req.query.cursor : null;
-
+      const { status, limit, cursor } = parseQueueQuery(req.query);
       const page = await deps.commentRepo.listModerationQueue({ workspaceId: deps.workspaceId, status, limit, cursor });
       res.json(page);
     } catch (err) {
+      // A bad query value, or a cursor naming no comment (the repo's `invalid cursor`).
+      if (err instanceof ToolInputError) {
+        res.status(400).json({ error: err.message, code: "VALIDATION_ERROR" });
+        return;
+      }
       console.error("[comments/moderation-queue] unexpected error", err);
       res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
     }

@@ -16,9 +16,9 @@ import { registerAdminCommentsModerationQueueRoute, type AdminCommentsModeration
  * @file Unit-tier branch coverage for `GET .../comments/queue` (ADR-031 §6, SPEC-033). The
  * "unexpected error -> 500" branch is already covered by `server/__tests__/route-async-guards.
  * test.ts`'s `deps.authorize` throwing probe; this file covers everything else: the workspace-
- * mismatch 404, the 403-on-denial branch, and every `parseStatus`/`parseLimit`/cursor branch in
- * the success path (status omitted vs invalid vs valid; limit omitted vs non-numeric vs in-range;
- * cursor omitted vs present) — none of which any existing test exercises over real HTTP
+ * mismatch 404, the 403-on-denial branch, and every status/limit/cursor branch (status omitted vs
+ * off-enum 400 vs valid; limit omitted vs malformed 400 vs in-range vs capped; cursor omitted vs
+ * resuming vs unknown 400) — none of which any existing test exercises over real HTTP
  * (`comments-e2e.test.ts` calls `commentRepo.listModerationQueue` directly, never through this
  * route).
  */
@@ -111,15 +111,14 @@ test("moderation-queue: status omitted defaults to 'pending' (typeof raw !== 'st
   assert.deepEqual(body.items.map((c) => c.id), ["p-1"]);
 });
 
-test("moderation-queue: an invalid status string also defaults to 'pending' (string but not in VALID_STATUSES)", async (t) => {
+test("moderation-queue: an off-enum status is a 400 naming the values, not a silent 'pending' page", async (t) => {
   const { app, commentRepo } = buildApp();
   await commentRepo.create(makeComment({ id: "p-1", status: "pending" }));
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}${PATH}?status=not-a-real-status`);
-  assert.equal(res.status, 200);
-  const body = (await res.json()) as { items: CommentRecord[] };
-  assert.deepEqual(body.items.map((c) => c.id), ["p-1"]);
+  assert.equal(res.status, 400);
+  assert.deepEqual(await res.json(), { error: "'status' must be one of: pending, approved, spam, trash", code: "VALIDATION_ERROR" });
 });
 
 test("moderation-queue: a valid status string is honored (spam)", async (t) => {
@@ -134,7 +133,7 @@ test("moderation-queue: a valid status string is honored (spam)", async (t) => {
   assert.deepEqual(body.items.map((c) => c.id), ["s-1"]);
 });
 
-test("moderation-queue: limit omitted or non-numeric both default to 20; a valid limit is honored and clamped to [1,100]", async (t) => {
+test("moderation-queue: limit omitted defaults to 20; a valid limit is honored and capped at 100", async (t) => {
   const { app, commentRepo } = buildApp();
   const orderedIds = Array.from({ length: 105 }, (_, i) => `p-${i}`);
   for (const [i, id] of orderedIds.entries()) {
@@ -146,14 +145,6 @@ test("moderation-queue: limit omitted or non-numeric both default to 20; a valid
   const omitted = await fetch(`${baseUrl}${PATH}`);
   assert.equal(omitted.status, 200);
   assert.deepEqual(((await omitted.json()) as { items: CommentRecord[] }).items.map(row => row.id), orderedIds.slice(0, 20));
-
-  const nonNumeric = await fetch(`${baseUrl}${PATH}?limit=not-a-number`);
-  assert.equal(nonNumeric.status, 200);
-  assert.deepEqual(((await nonNumeric.json()) as { items: CommentRecord[] }).items.map(row => row.id), orderedIds.slice(0, 20));
-
-  const clampedLow = await fetch(`${baseUrl}${PATH}?limit=0`);
-  assert.equal(clampedLow.status, 200);
-  assert.deepEqual(((await clampedLow.json()) as { items: CommentRecord[] }).items.map(row => row.id), ["p-0"]);
 
   const clampedHigh = await fetch(`${baseUrl}${PATH}?limit=500`);
   assert.equal(clampedHigh.status, 200);
@@ -190,4 +181,24 @@ test("moderation-queue: cursor omitted starts from the beginning; a real cursor 
   const page2Body = (await page2.json()) as { items: CommentRecord[]; nextCursor: string | null };
   assert.deepEqual(page2Body.items.map((c) => c.id), ["p-2"]);
   assert.equal(page2Body.nextCursor, null);
+});
+
+test("moderation-queue: a limit that is not an integer >= 1 is a 400, not a silently clamped page", async (t) => {
+  const { app } = buildApp();
+  const baseUrl = await startTestServer(app, t);
+  for (const limit of ["not-a-number", "0", "-5", "2.5", ""]) {
+    const res = await fetch(`${baseUrl}${PATH}?limit=${limit}`);
+    assert.equal(res.status, 400, `limit=${limit}`);
+    assert.deepEqual(await res.json(), { error: "'limit' must be an integer between 1 and 100", code: "VALIDATION_ERROR" });
+  }
+});
+
+test("moderation-queue: a cursor naming no comment is a 400 VALIDATION_ERROR, not a silent page 1", async (t) => {
+  const { app, commentRepo } = buildApp();
+  await commentRepo.create(makeComment({ id: "p-0" }));
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await fetch(`${baseUrl}${PATH}?cursor=no-such-comment`);
+  assert.equal(res.status, 400);
+  assert.deepEqual(await res.json(), { error: "invalid cursor", code: "VALIDATION_ERROR" });
 });

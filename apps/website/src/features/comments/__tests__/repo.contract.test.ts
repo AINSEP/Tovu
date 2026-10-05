@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
+import { ToolInputError } from "@jini-ai/core";
 import Database from "better-sqlite3";
 
 import { writeDuringOthersRollback } from "#src/platform/db/sqlite/__tests__/concurrent-rollback";
@@ -130,6 +131,27 @@ function runSuite(label: string, makeRepo: () => CommentRepoPort | Promise<Comme
     const page3 = await repo.listModerationQueue({ workspaceId: WORKSPACE_ID, status: "pending", limit: 2, cursor: page2.nextCursor });
     assert.deepEqual(page3.items.map((c) => c.id), ["c-4"]);
     assert.equal(page3.nextCursor, null);
+  });
+
+  test(`[${label}] listModerationQueue refuses a cursor naming no comment instead of restarting at page 1`, async () => {
+    const repo = await makeRepo();
+    await repo.create(makeComment({ id: "c-0" }));
+    await assert.rejects(
+      repo.listModerationQueue({ workspaceId: WORKSPACE_ID, status: "pending", limit: 2, cursor: "no-such-comment" }),
+      (err: unknown) => err instanceof ToolInputError && err.message === "invalid cursor"
+    );
+  });
+
+  test(`[${label}] listModerationQueue resumes after a cursor comment that has since left the queue`, async () => {
+    const repo = await makeRepo();
+    for (let i = 0; i < 4; i += 1) {
+      await repo.create(makeComment({ id: `c-${i}`, createdAt: `2026-07-16T00:0${i}:00.000Z`, updatedAt: `2026-07-16T00:0${i}:00.000Z` }));
+    }
+    const page1 = await repo.listModerationQueue({ workspaceId: WORKSPACE_ID, status: "pending", limit: 2 });
+    assert.equal(page1.nextCursor, "c-1");
+    await repo.applyModeration({ workspaceId: WORKSPACE_ID, id: "c-1", expectedVersion: 0, action: "approve", toStatus: "approved", actorPrincipalId: "admin", note: null, at: "2026-07-16T01:00:00.000Z" });
+    const page2 = await repo.listModerationQueue({ workspaceId: WORKSPACE_ID, status: "pending", limit: 2, cursor: page1.nextCursor });
+    assert.deepEqual(page2.items.map((c) => c.id), ["c-2", "c-3"]);
   });
 
   test(`[${label}] countByStatus scopes by workspace, status, and optionally entryId`, async () => {
