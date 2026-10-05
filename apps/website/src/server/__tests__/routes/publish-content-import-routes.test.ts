@@ -8,6 +8,7 @@ import { createApp, createRouteDeps } from "#src/server/runtime/composition/app"
 import { confirm as gatewayConfirm, ForbiddenError } from "#src/contracts/core/gated-mutations/gateway";
 import { buildGatewayDeps, buildConfirmOnlyHooks } from "#src/contracts/core/gated-mutations/composition";
 import { entityKey } from "#src/features/publish-content/planner";
+import type { PublishContentApplyPort } from "#src/features/publish-content/gated-hooks";
 import { loginAsBarePrincipal } from "../helpers/http-test-server.js";
 
 /**
@@ -23,6 +24,12 @@ import { loginAsBarePrincipal } from "../helpers/http-test-server.js";
  */
 
 const WORKSPACE = "workspace-local";
+
+/** A complete `PublishContentApplyPort.applyReport` result for a fake apply seam: these tests only
+ *  care about the run/change-set ids, so every repoint/verification list is empty. */
+function fakeApplyResult(runId: string, changeSetIds: readonly string[] = []): Awaited<ReturnType<PublishContentApplyPort["applyReport"]>> {
+  return { runId, changeSetIds, retiredChangeSetIds: [], repointChangeSetIds: [], menuLinksUpdated: 0, menuLinksNotUpdated: [], verificationProblems: [] };
+}
 
 async function startServer(deps: ReturnType<typeof createRouteDeps> = createRouteDeps()) {
   const server = createServer(createApp(deps));
@@ -127,7 +134,7 @@ test("publish-content import: plan -> confirm -> execute reaches the Task 8 seam
       assert.equal(row.outcome, "unchanged");
       assert.equal(row.writes, false);
       appliedReportRows = report.rows.length;
-      return { runId: "fake-run-1", changeSetIds: ["fake-change-set-1"] };
+      return fakeApplyResult("fake-run-1", ["fake-change-set-1"]);
     },
   };
 
@@ -162,7 +169,7 @@ test("publish-content import: a destination edit between confirm and execute is 
   const { deps, server, baseUrl } = await startServer();
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
   const cookie = await loginAsOwner(baseUrl);
-  deps.publishContentApplyPort = { applyReport: async () => ({ runId: "fake-run-2", changeSetIds: [] }) };
+  deps.publishContentApplyPort = { applyReport: async () => fakeApplyResult("fake-run-2") };
 
   const { bundleId, postId } = await stagePostBundle(baseUrl, cookie, "Stale plan post");
   const confirmationToken = await planAndConfirm(baseUrl, cookie, bundleId);
@@ -191,7 +198,7 @@ test("publish-content import: replaying an already-redeemed confirmation token i
   const { deps, server, baseUrl } = await startServer();
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
   const cookie = await loginAsOwner(baseUrl);
-  deps.publishContentApplyPort = { applyReport: async () => ({ runId: "fake-run-3", changeSetIds: [] }) };
+  deps.publishContentApplyPort = { applyReport: async () => fakeApplyResult("fake-run-3") };
 
   const { bundleId } = await stagePostBundle(baseUrl, cookie, "Replay token post");
   const confirmationToken = await planAndConfirm(baseUrl, cookie, bundleId);
@@ -253,7 +260,7 @@ test("publish-content import: overwriteEntityKeys forces a no-baseline conflict 
   deps.publishContentApplyPort = {
     applyReport: async () => {
       applyCalls += 1;
-      return { runId: "fake-run-overwrite", changeSetIds: ["fake-change-set-overwrite"] };
+      return fakeApplyResult("fake-run-overwrite", ["fake-change-set-overwrite"]);
     },
   };
 
@@ -338,7 +345,7 @@ test("publish-content import: a malformed overwriteEntityKeys is rejected with t
   const { deps, server, baseUrl } = await startServer();
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
   const cookie = await loginAsOwner(baseUrl);
-  deps.publishContentApplyPort = { applyReport: async () => ({ runId: "fake-run-malformed", changeSetIds: [] }) };
+  deps.publishContentApplyPort = { applyReport: async () => fakeApplyResult("fake-run-malformed") };
 
   const { bundleId } = await stagePostBundle(baseUrl, cookie, "Malformed overwrite keys post");
 
@@ -366,7 +373,7 @@ test("publish-content import: a malformed overwriteEntityKeys is rejected with t
 
 test("gated-mutations gateway: an agent principal can never confirm a publish-content import plan", async () => {
   const deps = buildGatewayDeps({
-    clock: { nowIso: () => new Date().toISOString() },
+    clock: { nowMs: () => Date.now() },
     idGen: { newId: () => "plan-1" },
     authorize: async () => ({ allowed: true, reason: "test-always-allow" }),
   });
@@ -403,7 +410,7 @@ test("publish-content import: grantless sessions cannot plan and read-only sessi
   }), 200);
   const confirmationToken = await planAndConfirm(baseUrl, ownerCookie, bundleId);
   let applyCalls = 0;
-  deps.publishContentApplyPort = { applyReport: async () => { applyCalls++; return { runId: "denied-run", changeSetIds: [] }; } };
+  deps.publishContentApplyPort = { applyReport: async () => { applyCalls++; return fakeApplyResult("denied-run"); } };
   for (const username of ["no-import-grants", "read-only-import"]) {
     const cookie = await loginAsBarePrincipal(deps, baseUrl, { username });
     if (username === "read-only-import") {

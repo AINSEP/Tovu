@@ -405,7 +405,8 @@ test("publish-site: a concurrent call through the ASSISTANT TOOL while the HTTP 
   const executeTool = registrations.get("deployment_execute_static_publish");
   assert.ok(executeTool, "expected 'deployment_execute_static_publish' to be wired");
 
-  const emitted: { payload: { resource: { resource: { text: string } } } }[] = [];
+  // Only the count is asserted (a refused publish emits no card), so the emissions stay untyped.
+  const emitted: unknown[] = [];
   const pending = executeTool.handler({
     executionId: "exec-cross-path",
     principal: { id: "principal-cross-path" },
@@ -413,7 +414,7 @@ test("publish-site: a concurrent call through the ASSISTANT TOOL while the HTTP 
     input: { target: "vercel", projectName: "demo-from-tool" },
     signal: new AbortController().signal,
   }, {
-    emitSurface: async (s) => void emitted.push(s as { payload: { resource: { resource: { text: string } } } }),
+    emitSurface: async (s) => void emitted.push(s),
   });
   // 6eac86229 ("confirm destructive and protected actions only") removed this tool's confirmation
   // card: it now publishes immediately, so there is no dialog to answer. A call that lands while the

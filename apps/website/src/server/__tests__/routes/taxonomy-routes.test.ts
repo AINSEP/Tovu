@@ -138,6 +138,8 @@ test("taxonomy routes: purging a trashed term removes its entry-term assignments
     title: "Purge Term Post",
     slug: "purge-term-post",
     bodyJson: {},
+    bodyFormat: "doc",
+    bodyHtml: null,
     status: "published",
     kind: "post",
     updatedAt: deps.clock.nowIso(),
@@ -171,9 +173,8 @@ test("taxonomy routes: purging a trashed term removes its entry-term assignments
   const page = await deps.trash.list({
     workspaceId: deps.workspaceId,
     now: deps.clock.nowIso(),
-    entityTypes: ["term"],
     limit: 100,
-  });
+  }, { entityTypes: ["term"] });
   const trashItem = page.items.find((item) => item.entityId === term.term.id);
   assert.ok(trashItem);
   await deps.trash.purgeSelected({
@@ -296,6 +297,8 @@ test("taxonomy routes: assign-terms is idempotent per call and returns 204 (AC-1
     title: "Test Post",
     slug: "test-post-assign-terms",
     bodyJson: {},
+    bodyFormat: "doc",
+    bodyHtml: null,
     status: "published",
     kind: "post",
     updatedAt: deps.clock.nowIso(),
@@ -372,6 +375,8 @@ test("taxonomy routes: assign-terms rejects a nonexistent termId (Finding 1 fix)
     title: "Test Post 2",
     slug: "test-post-assign-terms-2",
     bodyJson: {},
+    bodyFormat: "doc",
+    bodyHtml: null,
     status: "published",
     kind: "post",
     updatedAt: deps.clock.nowIso(),
@@ -507,6 +512,8 @@ async function seedPostAndPage(deps: RouteDeps) {
       title: `Test ${kind}`,
       slug: `test-${kind}-tagging`,
       bodyJson: {},
+      bodyFormat: "doc",
+      bodyHtml: null,
       status: "draft",
       kind,
       updatedAt: deps.clock.nowIso(),

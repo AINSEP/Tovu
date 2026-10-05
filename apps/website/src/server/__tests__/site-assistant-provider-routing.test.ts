@@ -175,7 +175,7 @@ async function bootProviderStub(
 
   const app = express();
   app.use(express.json());
-  createSiteAssistantModule(deps, testEnv).registerRoutes(app);
+  createSiteAssistantModule(deps, testEnv).registerRoutes?.(app);
   const siteUrl = await startTestServer(app, t);
   return { siteUrl, baseUrl: providerUrl, requests };
 }
@@ -417,7 +417,7 @@ test("site assistant: a keyless stored GOOGLE row's stored baseUrl never receive
   const testEnv: NodeJS.ProcessEnv = { ...process.env, GEMINI_API_KEY: FAKE_KEY, TOVU_SITE_ASSISTANT_BASE_URL: envEndpoint.baseUrl };
   const app = express();
   app.use(express.json());
-  createSiteAssistantModule(deps, testEnv).registerRoutes(app);
+  createSiteAssistantModule(deps, testEnv).registerRoutes?.(app);
   const siteUrl = await startTestServer(app, t);
 
   const raw = await drainedBody(await postChat(siteUrl));
@@ -439,7 +439,7 @@ test("site assistant: a stored GOOGLE key saved then DELETED leaves the stored b
   const testEnv: NodeJS.ProcessEnv = { ...process.env, GEMINI_API_KEY: FAKE_KEY, TOVU_SITE_ASSISTANT_BASE_URL: envEndpoint.baseUrl };
   const app = express();
   app.use(express.json());
-  createSiteAssistantModule(deps, testEnv).registerRoutes(app);
+  createSiteAssistantModule(deps, testEnv).registerRoutes?.(app);
   const siteUrl = await startTestServer(app, t);
 
   const raw = await drainedBody(await postChat(siteUrl));
@@ -460,7 +460,7 @@ test("site assistant CONTROL: a stored key WITH a stored baseUrl still dials the
   const testEnv: NodeJS.ProcessEnv = { ...process.env, GEMINI_API_KEY: "operator-env-key", TOVU_SITE_ASSISTANT_BASE_URL: envEndpoint.baseUrl };
   const app = express();
   app.use(express.json());
-  createSiteAssistantModule(deps, testEnv).registerRoutes(app);
+  createSiteAssistantModule(deps, testEnv).registerRoutes?.(app);
   const siteUrl = await startTestServer(app, t);
 
   const raw = await drainedBody(await postChat(siteUrl));
@@ -480,7 +480,7 @@ test("site assistant CONTROL: an env key with an env baseUrl and no stored row a
   const testEnv: NodeJS.ProcessEnv = { ...process.env, GEMINI_API_KEY: FAKE_KEY, TOVU_SITE_ASSISTANT_BASE_URL: envEndpoint.baseUrl };
   const app = express();
   app.use(express.json());
-  createSiteAssistantModule(deps, testEnv).registerRoutes(app);
+  createSiteAssistantModule(deps, testEnv).registerRoutes?.(app);
   const siteUrl = await startTestServer(app, t);
 
   const raw = await drainedBody(await postChat(siteUrl));

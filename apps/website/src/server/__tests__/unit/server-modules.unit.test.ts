@@ -38,7 +38,7 @@ test("createIntegrationsModule().start() enqueues a webhook delivery when a form
   const webhookSubscriptionRepo = new InMemoryWebhookSubscriptionRepo();
   const webhookDeliveryRepo = new InMemoryWebhookDeliveryRepo();
   const nowIso = "2026-07-16T00:00:00.000Z";
-  const clock = { nowIso: () => nowIso };
+  const clock = { nowMs: () => Date.parse(nowIso), nowIso: () => nowIso };
   const idGen = { newId: () => "delivery-1" };
 
   await webhookSubscriptionRepo.save({
@@ -80,8 +80,8 @@ test("createFormsModule().start() registers the C-009 notify subscriber without 
   const handle = createFormsModule({
     bus,
     mailer: new ConsoleMailerAdapter(),
-    formDefinitionRepo: new InMemoryFormDefinitionRepo([]),
-    formSubmissionRepo: new InMemoryFormSubmissionRepo([]),
+    formDefinitionRepo: new InMemoryFormDefinitionRepo(),
+    formSubmissionRepo: new InMemoryFormSubmissionRepo(),
   });
   assert.equal(handle.name, "forms");
   assert.doesNotThrow(() => handle.start?.());

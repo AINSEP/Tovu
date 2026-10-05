@@ -705,7 +705,9 @@ test("publish-credentials: rejectUnlessAuthorized's `req.params.workspaceId ?? \
   const handler = extractRouteHandler(app, "get", "/api/admin/v1/workspaces/:workspaceId/system/publish/credentials");
   const { res } = createCapturingResponse();
 
-  await assert.rejects(() => handler({ params: {} }, res), /no principal on res\.locals/);
+  // `extractRouteHandler` types the raw Express handle as returning `unknown`; awaiting it inside an
+  // async wrapper hands `assert.rejects` the Promise it requires.
+  await assert.rejects(async () => { await handler({ params: {} }, res); }, /no principal on res\.locals/);
 });
 
 /**

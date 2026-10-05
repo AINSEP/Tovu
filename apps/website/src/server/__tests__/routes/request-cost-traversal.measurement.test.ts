@@ -3,6 +3,7 @@ import { performance } from "node:perf_hooks";
 import test from "node:test";
 
 import express from "express";
+import type { JsonObject } from "@jini-ai/core/primitives";
 
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { renderDocNode } from "../../inbound/public-http/http/site/render.js";
@@ -29,8 +30,8 @@ import { startTestServer } from "../helpers/http-test-server.js";
  *  the shape a real editor could produce by indenting a list item repeatedly, not an artificial
  *  malformed doc. Recursion depth in `renderDocNode` is exactly proportional to this document's own
  *  nesting depth, since each level's `content` array holds exactly one child. */
-function deepDoc(depth: number) {
-  let node: unknown = { type: "paragraph", content: [{ type: "text", text: "leaf" }] };
+function deepDoc(depth: number): JsonObject {
+  let node: JsonObject = { type: "paragraph", content: [{ type: "text", text: "leaf" }] };
   for (let i = 0; i < depth; i++) {
     node = { type: "bulletList", content: [{ type: "listItem", content: [node] }] };
   }

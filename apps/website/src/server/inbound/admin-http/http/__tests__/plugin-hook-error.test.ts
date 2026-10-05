@@ -13,10 +13,16 @@ import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-serve
  * `{error:"internal error"}` 500 with no `code`, indistinguishable from any other server bug.
  */
 
-function capturingResponse(): { res: { status(code: number): unknown; json(body: unknown): unknown }; statusCode: () => number | undefined; jsonBody: () => unknown } {
+/** Records `status().json()` calls; structurally a `PluginHookErrorResponse`, so no Express cast. */
+interface CapturingRes {
+  status(code: number): CapturingRes;
+  json(body: unknown): CapturingRes;
+}
+
+function capturingResponse(): { res: CapturingRes; statusCode: () => number | undefined; jsonBody: () => unknown } {
   let statusCode: number | undefined;
   let jsonBody: unknown;
-  const res = {
+  const res: CapturingRes = {
     status(code: number) {
       statusCode = code;
       return res;

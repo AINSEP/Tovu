@@ -1,4 +1,3 @@
-import type { Response } from "express";
 import { PluginHookFailedError } from "#src/features/plugin-runtime/hook-registry";
 
 /**
@@ -11,13 +10,19 @@ import { PluginHookFailedError } from "#src/features/plugin-runtime/hook-registr
  * gets the SAME shape instead of re-typing it (and risking a drift) at each call site.
  */
 
+/** The only part of Express's `Response` this function writes through (`status().json()`). Narrow
+ *  so a caller's real `Response` fits as-is and a unit test can pass a two-method capturing fake. */
+export interface PluginHookErrorResponse {
+  status(code: number): { json(body: unknown): unknown };
+}
+
 /**
  * If `err` is a `PluginHookFailedError`, writes the 500 `PLUGIN_HOOK_FAILED` envelope and returns
  * `true`. Returns `false` (writes nothing) for any other error, so a route's own error mapper can
  * call this first and fall through to its remaining branches unchanged.
  * @complexity O(1).
  */
-export function sendPluginHookFailedError(res: Response, err: unknown): boolean {
+export function sendPluginHookFailedError(res: PluginHookErrorResponse, err: unknown): boolean {
   if (!(err instanceof PluginHookFailedError)) return false;
   res.status(500).json({ error: err.message, code: "PLUGIN_HOOK_FAILED", pluginId: err.pluginId });
   return true;

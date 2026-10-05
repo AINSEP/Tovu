@@ -28,6 +28,9 @@ function fakeThemeWithRegions(regions: string[]): DiscoveredTheme {
   return {
     manifest: { id: "tovu-official", name: "Widgets Test Theme", version: "1.0.0", tier: "declarative", engine: 1, regions },
     tokens: {},
+    tokensLight: {},
+    pages: {},
+    partials: {},
     templates: {
       home: { type: "doc", content: [{ type: "region", key: "footer" }] },
       entry: { type: "doc", content: [{ type: "slot", name: "content" }] },
@@ -56,7 +59,7 @@ function buildTestApp(theme: DiscoveredTheme): { app: express.Express; deps: Rou
   app.use(express.json());
   registerAuthRoutes(app, deps);
   app.use("/api/admin", requireAdminSession(deps));
-  createWidgetsModule(deps).registerRoutes(app);
+  createWidgetsModule(deps).registerRoutes?.(app);
   registerSiteRoutes(app, deps);
   return { app, deps };
 }

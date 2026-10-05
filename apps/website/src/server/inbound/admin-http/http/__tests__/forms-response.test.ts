@@ -47,7 +47,7 @@ for (const mode of ["html", "builder"] as const) {
       id: "authored-8", workspaceId: "ws-9", name: "Feedback", slug: "feedback", mode,
       html: '<input name="message" required>',
       fields: [{ id: "message", label: "Message", type: "text" as const, required: true }],
-      notify: { enabled: false, recipients: [] }, status: "active" as const,
+      notify: { enabled: false, recipients: [] }, status: "active" as const, version: 1,
       createdAt: "2026-10-01T02:03:04Z", updatedAt: "2026-10-02T03:04:05Z",
     };
     const expected = {

@@ -341,7 +341,7 @@ test("admin redirects import route: workspace mismatch, batch-size validation, a
   assert.equal(partialRes.status, 207);
   const partialBody = (await partialRes.json()) as {
     created: Array<{ fromPattern: string }>;
-    failed: Array<{ index: number; code: string }>;
+    failed: Array<{ index: number; code: string; message: string }>;
   };
   assert.equal(partialBody.created.length, 1);
   assert.equal(partialBody.created[0]?.fromPattern, "/import-dup");

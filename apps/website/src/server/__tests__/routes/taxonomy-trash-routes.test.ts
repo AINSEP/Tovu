@@ -47,7 +47,7 @@ async function buildTestApp(): Promise<{ app: express.Express; deps: RouteDeps }
 }
 
 async function restoreFromTrash(deps: RouteDeps, baseUrl: string, cookie: string, entityType: "term" | "taxonomy", entityId: string) {
-  const page = await deps.trash.list({ workspaceId: deps.workspaceId, now: deps.clock.nowIso(), entityTypes: [entityType], limit: 100 });
+  const page = await deps.trash.list({ workspaceId: deps.workspaceId, now: deps.clock.nowIso(), limit: 100 }, { entityTypes: [entityType] });
   assert.deepEqual(page.items.map((item) => ({ entityType: item.entityType, entityId: item.entityId })), [{ entityType, entityId }]);
   const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/trash/restore`, {
     method: "POST", headers: { "content-type": "application/json", cookie },
@@ -55,7 +55,7 @@ async function restoreFromTrash(deps: RouteDeps, baseUrl: string, cookie: string
   });
   assert.equal(response.status, 200, await response.clone().text());
   assert.deepEqual(await response.json(), { restored: 1, results: [{ entityType, entityId, outcome: "restored" }] });
-  const remaining = await deps.trash.list({ workspaceId: deps.workspaceId, now: deps.clock.nowIso(), entityTypes: [entityType], limit: 100 });
+  const remaining = await deps.trash.list({ workspaceId: deps.workspaceId, now: deps.clock.nowIso(), limit: 100 }, { entityTypes: [entityType] });
   assert.deepEqual(remaining.items, []);
 }
 
@@ -101,6 +101,8 @@ test("taxonomy trash routes: delete-term now trashes a term that is still assign
     title: "Test Post",
     slug: "test-post-delete-term",
     bodyJson: {},
+    bodyFormat: "doc",
+    bodyHtml: null,
     status: "published",
     kind: "post",
     updatedAt: deps.clock.nowIso(),
@@ -227,6 +229,8 @@ test("taxonomy trash routes: delete-taxonomy now trashes a taxonomy whose member
     title: "Test Post",
     slug: "test-post-delete-taxonomy",
     bodyJson: {},
+    bodyFormat: "doc",
+    bodyHtml: null,
     status: "published",
     kind: "post",
     updatedAt: deps.clock.nowIso(),

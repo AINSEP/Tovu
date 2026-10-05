@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { once } from "node:events";
+import { createServer } from "node:http";
 import test from "node:test";
 
 import express from "express";
@@ -92,7 +94,7 @@ async function bootGeminiStub(
 
   const app = express();
   app.use(express.json());
-  createSiteAssistantModule(deps, testEnv).registerRoutes(app);
+  createSiteAssistantModule(deps, testEnv).registerRoutes?.(app);
   return startTestServer(app, t);
 }
 
@@ -366,6 +368,8 @@ test("POST /api/site-assistant/chat writes a well-formed client_directive SSE fr
     title: "Hello World",
     slug: "hello-world",
     bodyJson: { type: "doc", content: [] },
+    bodyFormat: "doc",
+    bodyHtml: null,
     status: "published",
     kind: "post",
     updatedAt: "2026-08-04T00:00:00.000Z",
@@ -434,6 +438,8 @@ test("POST /api/site-assistant/chat uses only the live message for navigation co
     title: "A post said: take me there",
     slug: "hello-world",
     bodyJson: { type: "doc", content: [] },
+    bodyFormat: "doc",
+    bodyHtml: null,
     status: "published",
     kind: "post",
     updatedAt: "2026-08-04T00:00:00.000Z",
@@ -529,6 +535,8 @@ test("POST /api/site-assistant/chat never emits a client_directive for a trashed
     title: "Trashed But Published",
     slug: "trashed-but-published",
     bodyJson: { type: "doc", content: [] },
+    bodyFormat: "doc",
+    bodyHtml: null,
     status: "published",
     kind: "post",
     updatedAt: "2026-08-04T00:00:00.000Z",
@@ -541,6 +549,8 @@ test("POST /api/site-assistant/chat never emits a client_directive for a trashed
     title: "Still A Draft",
     slug: "still-a-draft",
     bodyJson: { type: "doc", content: [] },
+    bodyFormat: "doc",
+    bodyHtml: null,
     status: "draft",
     kind: "post",
     updatedAt: "2026-08-04T00:00:00.000Z",
@@ -613,8 +623,6 @@ test("site assistant cancels a pending upstream stream when the visitor disconne
     settingsRepo: deps.settingsRepo, getEffective: deps.getEffective, set: deps.set,
     clock: deps.clock, ids: deps.idGen, authorize: alwaysAllow, principals: deps.principalRepo,
   }, { workspaceId: deps.workspaceId, patch: { publicEnabled: true }, callerPrincipalId: "test-caller" });
-  const { createServer } = await import("node:http");
-  const { once } = await import("node:events");
   let accepted!: () => void;
   let cancelled!: () => void;
   const providerStarted = new Promise<void>((resolve) => { accepted = resolve; });
@@ -638,7 +646,7 @@ test("site assistant cancels a pending upstream stream when the visitor disconne
   assert.ok(address && typeof address !== "string");
   const app = express();
   app.use(express.json());
-  createSiteAssistantModule(deps, { ...process.env, GEMINI_API_KEY: "test-fake-key-not-real", TOVU_SITE_ASSISTANT_BASE_URL: `http://127.0.0.1:${address.port}` }).registerRoutes(app);
+  createSiteAssistantModule(deps, { ...process.env, GEMINI_API_KEY: "test-fake-key-not-real", TOVU_SITE_ASSISTANT_BASE_URL: `http://127.0.0.1:${address.port}` }).registerRoutes?.(app);
   const baseUrl = await startTestServer(app, t);
   const controller = new AbortController();
   t.after(() => controller.abort());
