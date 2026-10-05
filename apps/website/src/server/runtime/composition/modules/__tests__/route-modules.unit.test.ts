@@ -164,6 +164,7 @@ const CASES: readonly ModuleCase[] = [
       // Must stay after `install/preview`: `:pluginId/preview` also matches that URL (pluginId =
       // "install"), and Express runs the first registered match, so registering it earlier sends the
       // install dialog's consent preview to the plugin-preview handler instead.
+      `GET ${W}/plugins/:pluginId/preview`,
       `POST ${W}/plugins/:pluginId/preview`,
     ],
   },

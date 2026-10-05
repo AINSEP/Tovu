@@ -9,7 +9,7 @@ import {
   buildContentAnalysisView,
   currentAnalysis,
   describeAnalysisError,
-  isContentAnalyzerEnabled,
+  isContentAnalysisHidden,
   previewAnalysis,
   previewRequestBody,
   type ContentAnalysisView,
@@ -23,9 +23,11 @@ import type { ContentAnalysisPort } from "./content-analysis-port.hooks";
  * @file `ContentAnalysisCard`'s state and its one action — the post editor's Content analysis card
  * for the `content-analyzer` plugin (AW-7 Tier 2).
  *
- * - The card shows only while the plugin is enabled. The plugin list is read with `staleTime: 0`:
- *   the Plugins screen toggles plugins without going through this cache, so a cached "disabled"
- *   must not outlive a trip there and back.
+ * - The card shows only while the plugin is enabled, read from the preview route's own status
+ *   (`content.write`, the gate the preview itself uses — not the admin plugin list). Read with
+ *   `staleTime: 0`: the Plugins screen toggles plugins without going through this cache, so a
+ *   cached "disabled" must not outlive a trip there and back. A refused or failed read shows the
+ *   card with the error instead of hiding it (`rules.ts`'s `isContentAnalysisHidden`).
  * - On load it shows the analysis the plugin stored on the post's last save
  *   (`ext["content-analyzer"].report`). "Analyze now" runs the plugin's preview over the editor's
  *   CURRENT title and body — unsaved edits included — and shows that instead, until the next save
@@ -49,7 +51,7 @@ export interface ContentAnalysisDependencies {
 }
 
 export interface ContentAnalysisController {
-  /** The plugin is off, or the plugin list has not loaded (or failed) — the card renders nothing. */
+  /** The plugin is off or not installed, or its status has not loaded — the card renders nothing. */
   hidden: boolean;
   view: ContentAnalysisView;
   analyzing: boolean;
@@ -59,13 +61,13 @@ export interface ContentAnalysisController {
   t: Translate;
 }
 
-const PLUGINS_KEY = ["content-analysis", "plugins"] as const;
+const STATUS_KEY = ["content-analysis", "preview-status"] as const;
 
 export function useContentAnalysis(props: ContentAnalysisTarget, deps: ContentAnalysisDependencies): ContentAnalysisController {
   const { port, locale } = deps;
   const { post } = props;
   const t: Translate = (key) => translate(locale, key);
-  const pluginsQuery = useFetchQuery({ key: PLUGINS_KEY, fetch: () => port.listPlugins(), staleTime: 0 });
+  const statusQuery = useFetchQuery({ key: STATUS_KEY, fetch: () => port.previewStatus({ pluginId: CONTENT_ANALYZER_PLUGIN_ID }), staleTime: 0 });
   const previewMutation = useFetchMutation({
     run: (body: PluginPreviewRequest) => port.previewPlugin({ pluginId: CONTENT_ANALYZER_PLUGIN_ID }, body),
   });
@@ -83,17 +85,22 @@ export function useContentAnalysis(props: ContentAnalysisTarget, deps: ContentAn
   }
 
   return {
-    hidden: !isContentAnalyzerEnabled(pluginsQuery.data?.plugins ?? []),
+    hidden: isContentAnalysisHidden(statusQuery),
     view: buildContentAnalysisView(currentAnalysis(post, fresh), t),
     analyzing: previewMutation.status === "pending",
-    error: previewMutation.error ? describeAnalysisError(previewMutation.error, t) : null,
+    error: describeCardError(previewMutation.error ?? statusQuery.error, t),
     analyze,
     t,
   };
 }
 
+/** The card's error line: the latest Analyze-now failure, else a failed status read. @complexity O(1). */
+function describeCardError(error: unknown, t: Translate): string | null {
+  return error ? describeAnalysisError(error, t) : null;
+}
+
 /**
- * Binds the real plugin list and preview route and the resolved `useAdminLocale()` value — the
+ * Binds the real preview status and preview route and the resolved `useAdminLocale()` value — the
  * zero-dependency half of the pair, so `ContentAnalysisCard.tsx` composes this and a test composes
  * {@link useContentAnalysis} with `createFakeContentAnalysisPort`.
  */

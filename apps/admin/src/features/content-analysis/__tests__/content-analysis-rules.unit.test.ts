@@ -7,7 +7,7 @@ import {
   contentAnalysisCopyKeys,
   currentAnalysis,
   describeAnalysisError,
-  isContentAnalyzerEnabled,
+  isContentAnalysisHidden,
   parseContentAnalysisReport,
   previewAnalysis,
   previewRequestBody,
@@ -127,11 +127,20 @@ describe("currentAnalysis", () => {
   });
 });
 
-describe("isContentAnalyzerEnabled", () => {
-  it("is true only when the content-analyzer plugin is listed and enabled", () => {
-    expect(isContentAnalyzerEnabled([{ id: "word-count", enabled: true }, { id: CONTENT_ANALYZER_PLUGIN_ID, enabled: true }])).toBe(true);
-    expect(isContentAnalyzerEnabled([{ id: CONTENT_ANALYZER_PLUGIN_ID, enabled: false }])).toBe(false);
-    expect(isContentAnalyzerEnabled([{ id: "word-count", enabled: true }])).toBe(false);
+describe("isContentAnalysisHidden", () => {
+  it("hides while the status read is loading, and when the plugin is off or not installed", () => {
+    expect(isContentAnalysisHidden({ data: undefined, error: null })).toBe(true);
+    expect(isContentAnalysisHidden({ data: { enabled: false }, error: null })).toBe(true);
+    expect(isContentAnalysisHidden({ data: undefined, error: new ApiError("plugin was not found", 404, "PLUGIN_NOT_FOUND") })).toBe(true);
+  });
+
+  it("shows when the plugin is enabled", () => {
+    expect(isContentAnalysisHidden({ data: { enabled: true }, error: null })).toBe(false);
+  });
+
+  it("shows (to carry the error) when the status read was refused or failed — never a silent 'off'", () => {
+    expect(isContentAnalysisHidden({ data: undefined, error: new ApiError("forbidden", 403, "FORBIDDEN") })).toBe(false);
+    expect(isContentAnalysisHidden({ data: undefined, error: new Error("offline") })).toBe(false);
   });
 });
 

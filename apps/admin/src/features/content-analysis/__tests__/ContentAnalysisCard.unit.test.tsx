@@ -120,12 +120,13 @@ describe("ContentAnalysisCard", () => {
       vi.unstubAllGlobals();
     });
 
-    it("renders nothing when the live plugin list has content-analyzer disabled", async () => {
+    it("renders nothing when the live preview status has content-analyzer disabled", async () => {
       let listed = false;
       vi.stubGlobal("fetch", async (input: RequestInfo | URL) => {
         const url = String(input);
-        const body = url.endsWith("/plugins") ? { plugins: [{ id: CONTENT_ANALYZER_PLUGIN_ID, enabled: false }] } : { data: [] };
-        if (url.endsWith("/plugins")) listed = true;
+        const isStatus = url.endsWith(`/plugins/${CONTENT_ANALYZER_PLUGIN_ID}/preview`);
+        const body = isStatus ? { pluginId: CONTENT_ANALYZER_PLUGIN_ID, enabled: false } : { data: [] };
+        if (isStatus) listed = true;
         return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
       });
       const { container } = render(

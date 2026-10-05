@@ -163,9 +163,14 @@ export function currentAnalysis(
   return storedAnalysis(post.ext);
 }
 
-/** Whether the plugin list says `content-analyzer` is installed and enabled — the card's only gate. */
-export function isContentAnalyzerEnabled(plugins: ReadonlyArray<{ id: string; enabled: boolean }>): boolean {
-  return plugins.some((plugin) => plugin.id === CONTENT_ANALYZER_PLUGIN_ID && plugin.enabled);
+/** Whether the card hides, from the plugin's preview-status read — the card's only gate. Hidden
+ *  while loading, when the plugin is off, and when it is not installed (`PLUGIN_NOT_FOUND`). Any
+ *  other failed read (refused, offline) SHOWS the card so it can carry the error: hiding it would
+ *  look exactly like "plugin disabled". @complexity O(1). */
+export function isContentAnalysisHidden(status: { data: { enabled: boolean } | undefined; error: unknown }): boolean {
+  if (status.data) return !status.data.enabled;
+  if (!status.error) return true;
+  return status.error instanceof ApiError && status.error.code === "PLUGIN_NOT_FOUND";
 }
 
 export interface PluginPreviewRequest {

@@ -5,9 +5,9 @@ import type { PluginPreviewRequest } from "../rules";
  * than a direct `lib/api` import — the `useX(dependencies)` / `useWiredX()` pair documented in
  * `development/docs/architecture/wired-hooks-convention.md`.
  *
- * `listPlugins` is the Plugins screen's own read (`PluginsPort.listPlugins`), narrowed to the two
- * fields the card's enabled gate reads; the live binding delegates to that port rather than fetching
- * the list a second way.
+ * `previewStatus` is the preview route's own `GET` (`PLUGIN_PREVIEW_STATUS`, gated on
+ * `content.write` like the preview itself) — not the Plugins screen's list, which needs
+ * `admin.plugins.read` and so hid the card from built-in editors the preview admits.
  */
 
 /** The generic plugin preview route's reply: ONE plugin's ext patch for an unsaved draft, validated
@@ -18,7 +18,9 @@ export interface PluginPreviewResponse {
 }
 
 export interface ContentAnalysisPort {
-  listPlugins(): Promise<{ plugins: Array<{ id: string; enabled: boolean }> }>;
+  /** `GET /plugins/:pluginId/preview` — whether that plugin is enabled; rejects with an `ApiError`
+   *  carrying `PLUGIN_NOT_FOUND` (404) when it is not installed. */
+  previewStatus(target: { pluginId: string }): Promise<{ pluginId: string; enabled: boolean }>;
   /** `POST /plugins/:pluginId/preview` — rejects with an `ApiError` carrying `PLUGIN_NOT_FOUND`
    *  (404), `PLUGIN_NOT_ENABLED` (409) or `PLUGIN_HOOK_FAILED` (422). */
   previewPlugin(target: { pluginId: string }, body: PluginPreviewRequest): Promise<PluginPreviewResponse>;

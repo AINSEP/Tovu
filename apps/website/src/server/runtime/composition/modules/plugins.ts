@@ -20,7 +20,7 @@ import type { ServerModuleHandle } from "./types.js";
  * (Milestone 2, 2026-08-20 — no SPEC-005 spec package covers it; see `uninstall.ts`'s own header)
  * and `PLUGIN_FILES` (2026-09-13 — the read-only package-files viewer; see `files.ts`'s header),
  * and `PLUGIN_PREVIEW` (AW-7 Tier 2, 2026-10-04 — one plugin's beforeSave on an unsaved draft; see
- * `preview.ts`'s header).
+ * `preview.ts`'s header) with its `GET` sibling `PLUGIN_PREVIEW_STATUS` (2026-10-05).
  * The admin UI screen (REQ-12..18) consumes the Phase 1 contract as a black box; the `word-count`
  * dogfood plugin (Phase 2) and the `post.ts` hook-wiring (Phase 3) were later, gated phases that
  * added no new routes to this module. Local folder install/update now use the owner-approved

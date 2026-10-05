@@ -40,7 +40,7 @@ function mount(port: ContentAnalysisPort, initial: ContentAnalysisTarget = targe
 }
 
 describe("showing the card", () => {
-  it("is hidden until the plugin list loads, then shows the stored analysis", async () => {
+  it("is hidden until the plugin's preview status loads, then shows the stored analysis", async () => {
     const port = createFakeContentAnalysisPort();
     const { result } = mount(port);
     expect(result.current.hidden).toBe(true);
@@ -54,17 +54,25 @@ describe("showing the card", () => {
   it("stays hidden when the content-analyzer plugin is disabled", async () => {
     const port = createFakeContentAnalysisPort({ enabled: false });
     const { result } = mount(port);
-    await waitFor(() => expect(port.listCalls).toBe(1));
+    await waitFor(() => expect(port.statusCalls).toBe(1));
     await act(async () => {});
     expect(result.current.hidden).toBe(true);
   });
 
-  it("stays hidden when the plugin list cannot be read", async () => {
-    const port = createFakeContentAnalysisPort({ listError: new Error("offline") });
+  it("stays hidden when the content-analyzer plugin is not installed", async () => {
+    const port = createFakeContentAnalysisPort({ statusError: new ApiError("plugin was not found", 404, "PLUGIN_NOT_FOUND") });
     const { result } = mount(port);
-    await waitFor(() => expect(port.listCalls).toBe(1));
+    await waitFor(() => expect(port.statusCalls).toBe(1));
     await act(async () => {});
     expect(result.current.hidden).toBe(true);
+  });
+
+  it("shows the card with the reason when the status read is refused or fails, instead of looking switched off", async () => {
+    const port = createFakeContentAnalysisPort({ statusError: new ApiError("You do not have permission to do that.", 403, "FORBIDDEN") });
+    const { result } = mount(port);
+    await waitFor(() => expect(result.current.hidden).toBe(false));
+    expect(result.current.error).toBe("You do not have permission to do that.");
+    expect(port.statusCalls).toBe(1);
   });
 
   it("says the post is not analyzed yet when it carries no stored report", async () => {
@@ -175,14 +183,14 @@ describe("useWiredContentAnalysis (real routes, stubbed fetch)", () => {
     return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
   }
 
-  it("reads the plugin list and POSTs the draft to the workspace-scoped /plugins/content-analyzer/preview route", async () => {
+  it("GETs the plugin's preview status (not the admin plugin list) and POSTs the draft to the workspace-scoped /plugins/content-analyzer/preview route", async () => {
     const requests: Array<{ url: string; method: string; body: unknown }> = [];
     vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       const method = init?.method ?? "GET";
       requests.push({ url, method, body: init?.body ? JSON.parse(String(init.body)) : undefined });
       if (url.includes("/settings/effective")) return jsonResponse({ data: [] });
-      if (url.endsWith("/plugins") && method === "GET") return jsonResponse({ plugins: [{ id: CONTENT_ANALYZER_PLUGIN_ID, enabled: true }] });
+      if (url.endsWith("/plugins/content-analyzer/preview") && method === "GET") return jsonResponse({ pluginId: CONTENT_ANALYZER_PLUGIN_ID, enabled: true });
       if (url.endsWith("/plugins/content-analyzer/preview")) {
         return jsonResponse({ pluginId: CONTENT_ANALYZER_PLUGIN_ID, fields: { report: reportJson({ score: 55 }) } });
       }
@@ -194,7 +202,10 @@ describe("useWiredContentAnalysis (real routes, stubbed fetch)", () => {
     await act(() => result.current.analyze());
 
     expect(result.current.view.report?.stats[0]?.value).toBe("55");
-    const preview = requests.find((request) => request.url.endsWith("/preview"));
+    // The admin plugin list needs admin.plugins.read, which a built-in editor lacks.
+    expect(requests.some((request) => request.url.endsWith("/plugins"))).toBe(false);
+    expect(requests.filter((request) => request.url.endsWith("/preview")).map((request) => request.method)).toEqual(["GET", "POST"]);
+    const preview = requests.find((request) => request.url.endsWith("/preview") && request.method === "POST");
     expect(preview).toEqual({
       url: `/api/admin/v1/workspaces/${WORKSPACE_ID}/plugins/content-analyzer/preview`,
       method: "POST",

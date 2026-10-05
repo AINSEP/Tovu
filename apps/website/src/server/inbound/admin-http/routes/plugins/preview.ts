@@ -60,8 +60,44 @@ function sendPluginPreviewError(res: Response, err: unknown): void {
  * and declared-field validation as a save, but a failure never counts toward quarantine, so an
  * editor trying drafts cannot switch a plugin off. A tier-2 plugin's filter runs in a fresh worker.
  * Workspace-scoped like every sibling route (the original design brief named an unscoped path).
+ *
+ * `PLUGIN_PREVIEW_STATUS` — `GET` on the same path (2026-10-05) — answers `{ pluginId, enabled }`
+ * under the same `content.write` gate, so the editor can decide whether to show "Analyze now"
+ * without the admin plugin list (`admin.plugins.read`, which a built-in editor lacks). `enabled` is
+ * the activation row's, exactly as `PLUGINS_LIST` projects it.
  */
 export const registerPluginPreviewRoute: PluginsRouteRegistrar = (app, deps) => {
+  app.get("/api/admin/v1/workspaces/:workspaceId/plugins/:pluginId/preview", async (req, res) => {
+    if (req.params.workspaceId !== deps.workspaceId) {
+      res.status(404).json({ error: "workspace was not found" });
+      return;
+    }
+
+    const pluginId = req.params.pluginId;
+
+    try {
+      const principal = getAuthedPrincipal(res);
+      if (
+        !(await authorizeOrRespond(res, deps.authorize, {
+          principalId: principal.id,
+          permission: "content.write",
+          workspaceId: deps.workspaceId,
+        }))
+      )
+        return;
+
+      if (!(await deps.discoverPlugins()).some((candidate) => candidate.id === pluginId)) {
+        res.status(404).json({ error: "plugin was not found", code: "PLUGIN_NOT_FOUND" });
+        return;
+      }
+
+      const activation = await deps.pluginActivationRepo.getActivation({ workspaceId: deps.workspaceId, pluginId });
+      res.json({ pluginId, enabled: activation?.enabled ?? false });
+    } catch (err) {
+      sendPluginPreviewError(res, err);
+    }
+  });
+
   app.post("/api/admin/v1/workspaces/:workspaceId/plugins/:pluginId/preview", async (req, res) => {
     if (req.params.workspaceId !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
