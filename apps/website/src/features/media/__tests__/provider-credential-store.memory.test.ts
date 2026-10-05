@@ -29,6 +29,7 @@ function makeRecord(overrides: Partial<MediaProviderCredentialRecord> = {}): Med
     model: null,
     sealed: null,
     keyTail: null,
+    aadVersion: 0,
     createdAt: "2026-08-20T00:00:00.000Z",
     updatedAt: "2026-08-20T00:00:00.000Z",
     ...overrides,

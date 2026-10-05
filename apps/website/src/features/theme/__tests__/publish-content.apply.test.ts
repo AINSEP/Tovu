@@ -8,6 +8,7 @@
  */
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import type { PathLike } from "node:fs";
 import fsPromises, { chmod, stat, mkdir, mkdtemp, readdir, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
@@ -294,7 +295,7 @@ test("a mid-write failure (a missing blob) leaves the old tree serving and no st
   const originalExists = fixture.blobStore.exists.bind(fixture.blobStore);
   let missingChecks = 0;
   let stagedBeforeFailure: Record<string, string> | undefined;
-  t.mock.method(fixture.blobStore, "exists", async required => {
+  t.mock.method(fixture.blobStore, "exists", async (required: { storageKey: string }) => {
     if (required.storageKey.includes(missingSha) && ++missingChecks === 2) {
       const key = createHash("sha256").update("key-missing").digest("hex").slice(0, 32);
       stagedBeforeFailure = await readTree(path.join(fixture.destThemes, ".publish-staging", key));
@@ -483,7 +484,7 @@ for (const kind of ["checksum", "tree hash"] as const) {
     if (kind === "checksum") {
       const sha = (packed.state.files as Array<{ path: string; sha256: string }>).find(file => file.path === "css/theme.css")!.sha256;
       const get = fixture.blobStore.get.bind(fixture.blobStore);
-      t.mock.method(fixture.blobStore, "get", async required => required.storageKey.includes(sha)
+      t.mock.method(fixture.blobStore, "get", async (required: { storageKey: string }) => required.storageKey.includes(sha)
         ? new TextEncoder().encode("corrupt bytes") : get(required));
     }
     const entity = kind === "tree hash" ? { ...packed, contentHash: "0".repeat(64) } : packed;
@@ -505,7 +506,7 @@ test("a failed staging-to-live rename restores the tree moved by the first renam
   const originalRename = fsPromises.rename;
   const moves: Array<[string, string]> = [];
   let previousAtFailure: Record<string, string> | undefined;
-  const mock = t.mock.method(fsPromises, "rename", async (from, to) => {
+  const mock = t.mock.method(fsPromises, "rename", async (from: PathLike, to: PathLike) => {
     moves.push([String(from), String(to)]);
     if (String(from).includes("/.publish-staging/") && String(to) === target) {
       previousAtFailure = await readTree(moves[0][1]);

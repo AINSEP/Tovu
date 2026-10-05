@@ -11,11 +11,13 @@ import {
   restorePostForward,
   SqlitePostRepo,
   type PostRecord,
+  type RemovePostFn,
 } from "#src/features/post/index";
 
 import { createPostTrashAdapter, POST_ENTITY_TYPE } from "../adapters/post.js";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
 import { bindForgetRemovedEntity, bindRemoveEntity, createTrashService } from "@jini-ai/cms/trash";
+import { removeEntityWithoutBlocker } from "./support/remove-without-blocker.js";
 import type { TrashAdapter, TrashItem } from "@jini-ai/cms/trash";
 
 /**
@@ -59,7 +61,7 @@ interface Harness {
   postRepo: SqlitePostRepo;
   trashRepo: SqliteTrashRepo;
   outbox: OutboxPort & { events: DomainEvent[] };
-  removePost: ReturnType<typeof bindRemoveEntity>;
+  removePost: RemovePostFn;
   forgetRemovedPost: ReturnType<typeof bindForgetRemovedEntity>;
 }
 
@@ -86,10 +88,10 @@ function harness(): Harness {
     postRepo: new SqlitePostRepo(db),
     trashRepo,
     outbox: recordingOutbox(),
-    removePost: bindRemoveEntity({
+    removePost: removeEntityWithoutBlocker(bindRemoveEntity({
       trash: trash,
       entityType: POST_ENTITY_TYPE
-    }),
+    })),
     forgetRemovedPost: bindForgetRemovedEntity({
       repo: trashRepo,
       entityType: POST_ENTITY_TYPE
@@ -180,8 +182,8 @@ test("reverting the recorded delete change set drops the Trash index row too", a
   });
   await deleteReverter.applyInverse({
     workspaceId: WS,
-    item: { entityId: prior.id, entityType: "post", operation: "delete", inversePayload: { deletedAt: null } },
-  } as Parameters<typeof deleteReverter.applyInverse>[0]);
+    item: { id: "item-1", changeSetId: "change-set-1", position: 0, entityId: prior.id, entityType: "post", operation: "delete", inversePayload: { deletedAt: null } },
+  });
 
   const current = await h.postRepo.findById({ workspaceId: WS, id: prior.id });
   assert.equal(current?.deletedAt, null, "the revert must have cleared the marker");

@@ -1,4 +1,5 @@
 import { bindWidgetRemoval } from "../widget-removal.js";
+import { removeEntityWithoutBlocker } from "./support/remove-without-blocker.js";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
@@ -83,11 +84,11 @@ function harness(options: { widgetRestoreFollowUp?: UnhideFollowUp } = {}): Harn
     entryRepo: entries,
     contentTypeRepo: new SqliteContentTypeRepo(db),
     entryRefsRepo: new SqliteEntryRefsRepo(db),
-    clock: { nowMs: () => Date.parse(AT), nowIso: () => AT },
+    clock: { nowMs: () => Date.parse(AT) },
     ids: { newId: () => randomUUID() },
     authorize: async () => ({ allowed: true, reason: "test: always allow" }),
     outbox: new InMemoryOutbox(),
-    remove: bindWidgetRemoval({ trash }),
+    remove: removeEntityWithoutBlocker(bindWidgetRemoval({ trash })),
   };
   return { db, registry, trash, entries, deps: widgetDeps };
 }
@@ -128,7 +129,7 @@ test("a trashed widget is gone from findById, findBySlug and listByWorkspace, an
 
   assert.equal(await h.entries.findById({ workspaceId: WS, id: gone.id }), null);
   assert.equal(await h.entries.findBySlug({ workspaceId: WS, type: "widget", slug: gone.slug }), null);
-  const listed = await h.entries.listByWorkspace({ workspaceId: WS, type: "widget" });
+  const listed = await h.entries.listByWorkspace({ workspaceId: WS }, { type: "widget" });
   assert.deepEqual(listed.map((row) => row.id), [kept.id]);
   assert.equal(rawRow(h, gone.id)!.fields_json, fieldsBefore, "trashing never rewrites the payload");
 
@@ -212,7 +213,7 @@ test("the widget entry's scope: moveToTrash on a non-widget entries row reads no
       trash: h.trash,
       db: createSqliteTrashDb({ db: h.db }),
       authorize: async () => ({ allowed: true, reason: "matched" }),
-      clock: { nowMs: () => Date.parse(AT), nowIso: () => AT },
+      clock: { nowIso: () => AT },
     }
   );
   assert.deepEqual(outcome, { ok: false, reason: "not-found" });

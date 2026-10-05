@@ -199,7 +199,7 @@ test("planV2Migration (static) flags an unrecognized root-level entry rather tha
   fs.writeFileSync(path.join(dir, "build-preview.mjs"), "// build script", "utf8");
 
   const plan = planV2Migration({ themeDir: dir, tier: "static" });
-  assert.deepEqual(plan.unrecognized.sort(), ["build-preview.mjs", "preview"]);
+  assert.deepEqual([...plan.unrecognized].sort(), ["build-preview.mjs", "preview"]);
 });
 
 test("planV2Migration (static) flags a non-.html file inside pages/ as unrecognized", () => {

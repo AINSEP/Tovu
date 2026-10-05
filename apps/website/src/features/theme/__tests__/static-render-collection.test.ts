@@ -4,7 +4,7 @@ import { ENTRY_LIST_DEFAULT_STYLE } from "../entry-list-render.js";
 
 import { collectionMarkerKey, renderStaticPage, splitCollectionMarkerInner } from "../static-render.js";
 import { markersOfType, COLLECTION_MARKER_TYPE } from "#src/contracts/core/embeds/marker";
-import type { DiscoveredTheme } from "../static-render.js";
+import type { DiscoveredTheme } from "../theme.js";
 
 /**
  * @file Certifies the collection marker (2026-09-23) — `renderStaticPage`'s own

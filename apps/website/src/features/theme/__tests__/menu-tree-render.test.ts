@@ -415,7 +415,8 @@ test("a marker with syntactically invalid data-embed-config degrades to its auth
   const theme = makeTheme(
     `<html><body><nav data-embed-config='{"type":"menu","id":"${HEADER_ID}"'>FALLBACK</nav></body></html>`
   );
-  let html: string | null = null;
+  // Widened on purpose: a plain `= null` narrows `html` to `null`, since TS ignores the closure's assignment.
+  let html = null as string | null;
   assert.doesNotThrow(() => {
     html = renderStaticPage({ theme, pageId: "index", menus: { [HEADER_ID]: items({ label: "X", href: "/x" }) } });
   });

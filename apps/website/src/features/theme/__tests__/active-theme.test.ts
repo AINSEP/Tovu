@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { DEFAULT_THEME_ID, DEFAULT_THEME_IDS, NO_THEME_ID, resolveActiveTheme } from "../active-theme.js";
+import { DEFAULT_THEME_ID, DEFAULT_THEME_IDS, NO_THEME_ID, resolveActiveTheme, type ActiveThemeResolution } from "../active-theme.js";
 import type { DiscoveredTheme } from "../theme.js";
 
 /**
@@ -39,6 +39,12 @@ function makeTheme(id: string, status: DiscoveredTheme["status"] = "valid"): Dis
   } as unknown as DiscoveredTheme;
 }
 
+/** The resolved theme's id, failing the test if resolution returned the no-theme sentinel instead. */
+function themeIdOf(resolution: ActiveThemeResolution): string | undefined {
+  if (resolution === NO_THEME_ID) assert.fail("expected a discovered theme, got the no-theme sentinel");
+  return resolution?.manifest.id;
+}
+
 /** Discovery order: `aurora` sorts before `basic`, exactly as `localeCompare` would place it. */
 function sortedThemes(...ids: string[]): DiscoveredTheme[] {
   return [...ids].sort((a, b) => a.localeCompare(b)).map((id) => makeTheme(id));
@@ -50,48 +56,48 @@ test("the constant is a name, and it is the id the starter theme actually ships 
 
 test("prefers tovu-starter when both defaults exist", () => {
   const themes = sortedThemes("aurora", "tovu-starter", "tovu-theme");
-  assert.equal(resolveActiveTheme({ themes }, "deleted-theme")?.manifest.id, "tovu-starter");
+  assert.equal(themeIdOf(resolveActiveTheme({ themes }, "deleted-theme")), "tovu-starter");
 });
 
 test("falls back to tovu-theme when tovu-starter is absent — a site seeded before the starter existed", () => {
   const themes = sortedThemes("aurora", "tovu-theme");
-  assert.equal(resolveActiveTheme({ themes }, "deleted-theme")?.manifest.id, "tovu-theme");
+  assert.equal(themeIdOf(resolveActiveTheme({ themes }, "deleted-theme")), "tovu-theme");
   assert.deepEqual([...DEFAULT_THEME_IDS], ["tovu-starter", "tovu-theme"]);
 });
 
 test("step 1: a configured, valid theme wins over the named default", () => {
   const themes = sortedThemes("aurora", "tovu-theme", "storefront");
-  assert.equal(resolveActiveTheme({ themes }, "storefront")?.manifest.id, "storefront");
+  assert.equal(themeIdOf(resolveActiveTheme({ themes }, "storefront")), "storefront");
 });
 
 test("step 2: an unresolvable configured id falls back to the NAMED default, not the first valid theme", () => {
   // `aurora` is valid AND sorts first — the old resolver returned it here.
   const themes = sortedThemes("aurora", "tovu-starter", "tovu-theme", "storefront");
-  assert.equal(resolveActiveTheme({ themes }, "deleted-theme")?.manifest.id, DEFAULT_THEME_ID);
+  assert.equal(themeIdOf(resolveActiveTheme({ themes }, "deleted-theme")), DEFAULT_THEME_ID);
 });
 
 test("step 2: a configured theme that discovery marked invalid also falls back to the named default", () => {
   const themes = [makeTheme("aurora"), makeTheme("tovu-starter"), makeTheme("tovu-theme"), makeTheme("broken", "invalid")].sort((a, b) =>
     a.manifest.id.localeCompare(b.manifest.id)
   );
-  assert.equal(resolveActiveTheme({ themes }, "broken")?.manifest.id, DEFAULT_THEME_ID);
+  assert.equal(themeIdOf(resolveActiveTheme({ themes }, "broken")), DEFAULT_THEME_ID);
 });
 
 test("step 2 does not fire for an INVALID default: an unloadable `basic` is not rendered", () => {
   // The named default must clear the same `status === "valid"` bar the configured theme does,
   // otherwise this change would make a site render a theme the old code correctly refused.
   const themes = [makeTheme("aurora"), makeTheme("tovu-theme", "invalid")];
-  assert.equal(resolveActiveTheme({ themes }, "deleted-theme")?.manifest.id, "aurora");
+  assert.equal(themeIdOf(resolveActiveTheme({ themes }, "deleted-theme")), "aurora");
 });
 
 test("step 3 (unchanged): no default installed at all still falls through to the first valid theme", () => {
   const themes = sortedThemes("aurora", "storefront");
-  assert.equal(resolveActiveTheme({ themes }, "deleted-theme")?.manifest.id, "aurora");
+  assert.equal(themeIdOf(resolveActiveTheme({ themes }, "deleted-theme")), "aurora");
 });
 
 test("step 3 (unchanged): with no valid theme anywhere, the first discovered theme is still returned", () => {
   const themes = [makeTheme("aurora", "invalid"), makeTheme("storefront", "invalid")];
-  assert.equal(resolveActiveTheme({ themes }, "deleted-theme")?.manifest.id, "aurora");
+  assert.equal(themeIdOf(resolveActiveTheme({ themes }, "deleted-theme")), "aurora");
 });
 
 test("step 3 (unchanged): an empty discovery list is still `null`", () => {

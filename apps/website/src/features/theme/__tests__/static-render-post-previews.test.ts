@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { renderStaticPage, scanPostPreviewsLimit, DEFAULT_POST_PREVIEWS_LIMIT, MAX_POST_PREVIEWS_LIMIT } from "../static-render.js";
-import type { DiscoveredTheme, StaticPostPreview } from "../static-render.js";
+import type { StaticPostPreview } from "../static-render.js";
+import type { DiscoveredTheme } from "../theme.js";
 
 /**
  * @file Certifies the post-previews marker (2026-09-03) — `scanPostPreviewsLimit` (the route layer's

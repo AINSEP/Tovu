@@ -130,7 +130,7 @@ test("webhook: a missing or malformed signature header is rejected", async () =>
   await pendingPayment(harness);
   const signed = delivery({ id: "evt_1", type: "charge.succeeded", createdSeconds: 1, charge: { id: "ch_1" } });
 
-  for (const headers of [
+  const badSignatureHeaders: ReadonlyArray<Record<string, string>> = [
     {},
     { "x-lipay-signature": "garbage" },
     { "x-lipay-signature": "t=abc,v1=zz" },
@@ -138,7 +138,8 @@ test("webhook: a missing or malformed signature header is rejected", async () =>
     // (no `=` at all) and from `t=abc`/`v1=zz` (recognized key, malformed value): this exercises
     // parseSignaturePart's final "names neither" fallback.
     { "x-lipay-signature": "foo=bar" },
-  ]) {
+  ];
+  for (const headers of badSignatureHeaders) {
     const ack = await harness.api.handleWebhook({ providerId: "lipay", rawBody: signed.rawBody, headers });
     assert.equal(ack.error?.code, "SIGNATURE_INVALID");
   }

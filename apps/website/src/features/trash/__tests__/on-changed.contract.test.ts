@@ -71,7 +71,7 @@ function harness(options: HarnessOptions = {}): { trash: TrashPort; repo: Sqlite
 
 test("trash() fires onChanged once, with change:'trash', after a successful hide", async () => {
   const events: TrashChangeEvent[] = [];
-  const { trash } = harness({ onChanged: (event) => events.push(event) });
+  const { trash } = harness({ onChanged: (event) => { events.push(event); } });
 
   await trash.trash({
     workspaceId: WS,
@@ -88,7 +88,7 @@ test("trash() fires onChanged once, with change:'trash', after a successful hide
 
 test("trash() does not fire onChanged when the adapter refuses (version-changed)", async () => {
   const events: TrashChangeEvent[] = [];
-  const { trash } = harness({ hide: { ok: false, reason: "version-changed" }, onChanged: (event) => events.push(event) });
+  const { trash } = harness({ hide: { ok: false, reason: "version-changed" }, onChanged: (event) => { events.push(event); } });
 
   const result = await trash.trash({
     workspaceId: WS,
@@ -132,7 +132,7 @@ test("a failure inside onChanged does not undo the committed trash, and is not r
 
 test("restore() fires onChanged once, with change:'restore', after a successful unhide", async () => {
   const events: TrashChangeEvent[] = [];
-  const { trash } = harness({ onChanged: (event) => events.push(event) });
+  const { trash } = harness({ onChanged: (event) => { events.push(event); } });
 
   await trash.trash({
     workspaceId: WS,
@@ -153,7 +153,7 @@ test("restore() fires onChanged once, with change:'restore', after a successful 
 
 test("restore() does not fire onChanged when there is no trashed_items row for the entity", async () => {
   const events: TrashChangeEvent[] = [];
-  const { trash } = harness({ onChanged: (event) => events.push(event) });
+  const { trash } = harness({ onChanged: (event) => { events.push(event); } });
 
   const outcome = await trash.restore({ workspaceId: WS, entityType: STUB_ENTITY_TYPE, entityId: "never-trashed", at: AT });
 
@@ -165,7 +165,7 @@ test("restore() does not fire onChanged when the adapter refuses (version-change
   const events: TrashChangeEvent[] = [];
   // The adapter's `unhide` result is fixed per harness, so a case that needs `hide` to succeed and
   // `unhide` to fail needs its own harness rather than reconfiguring the one above mid-test.
-  const { trash } = harness({ unhide: { ok: false, reason: "version-changed" }, onChanged: (event) => events.push(event) });
+  const { trash } = harness({ unhide: { ok: false, reason: "version-changed" }, onChanged: (event) => { events.push(event); } });
 
   await trash.trash({
     workspaceId: WS,
@@ -189,7 +189,7 @@ test("restore() does not fire onChanged when the adapter refuses (version-change
 
 test("purgeSelected fires onChanged once per purged item, with change:'purge'", async () => {
   const events: TrashChangeEvent[] = [];
-  const { trash } = harness({ purge: "purged", onChanged: (event) => events.push(event) });
+  const { trash } = harness({ purge: "purged", onChanged: (event) => { events.push(event); } });
 
   for (const entityId of ["e-1", "e-2"]) {
     await trash.trash({
@@ -218,7 +218,7 @@ test("purgeSelected fires onChanged once per purged item, with change:'purge'", 
 
 test("purgeSelected does not fire onChanged for already-gone, not-found or forbidden — nothing changed", async () => {
   const events: TrashChangeEvent[] = [];
-  const { trash, client } = harness({ purge: "already-gone", onChanged: (event) => events.push(event) });
+  const { trash, client } = harness({ purge: "already-gone", onChanged: (event) => { events.push(event); } });
 
   await trash.trash({
     workspaceId: WS,
@@ -249,7 +249,7 @@ test("purgeSelected does not fire onChanged for already-gone, not-found or forbi
 
 test("purgeSelected does not fire onChanged when a version-changed race stands the purge down", async () => {
   const events: TrashChangeEvent[] = [];
-  const { trash } = harness({ purge: "version-changed", onChanged: (event) => events.push(event) });
+  const { trash } = harness({ purge: "version-changed", onChanged: (event) => { events.push(event); } });
 
   await trash.trash({
     workspaceId: WS,

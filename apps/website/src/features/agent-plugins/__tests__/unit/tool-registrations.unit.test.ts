@@ -493,6 +493,7 @@ test("the registered connect handler resolves a real installed plugin and recogn
     const registrations = buildAgentPluginConnectRegistrations({
       workspaceId: WORKSPACE_A, externalMcpServerRepo: repo, siteAssistantSecretSealer: sealer, siteAssistantSecretKeyring: keyring, clock,
       authorize: async () => ({ allowed: true, reason: "test" }),
+      customCredentialsHttpClient: { send: async () => assert.fail("an MCP plugin connect never probes a token") },
       externalMcpOAuth: { beginConnect: async () => assert.fail("a saved sign-in must not start another"), completeAuthorizationCallback: async () => assert.fail("no callback"), pollDeviceAuthorization: async () => assert.fail("no device flow"), disconnect: async () => assert.fail("no disconnect"), reportAuthFailure: async () => assert.fail("no auth failure"), tokenResolver: { resolveAccessToken: async () => assert.fail("no token resolve") } },
     }, { surfaceExchanges: createSurfaceExchangeStore() });
     const connect = registrations.find(registration => registration.descriptor.id === "agent_plugin_connect");

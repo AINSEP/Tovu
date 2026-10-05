@@ -94,7 +94,10 @@ test("hide rolls back the first directory when moving the second directory fails
       },
     },
   });
-  const { createDirectoryTrashAdapter: createAdapter } = await import("../adapters/directory.js?second-move-failure");
+  // The query string loads a fresh `directory.js` that sees the mocked `node:fs/promises`; a computed
+  // specifier keeps TS from resolving it as a file, and the annotation types it as the real module.
+  const freshDirectoryAdapter: string = "../adapters/directory.js?second-move-failure";
+  const { createDirectoryTrashAdapter: createAdapter }: typeof import("../adapters/directory.js") = await import(freshDirectoryAdapter);
   const adapter = createAdapter({
     entityType: ENTITY,
     locate: () => ({ liveParent, liveNames: ["first", "second"], parkedDir }),

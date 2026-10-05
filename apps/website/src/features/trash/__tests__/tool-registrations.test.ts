@@ -41,6 +41,7 @@ function item(overrides: Partial<TrashItem> & Pick<TrashItem, "id" | "entityType
     displayTitle: `title of ${overrides.entityId}`,
     displaySubtitle: null,
     entityVersion: 2,
+    priorMarker: null,
     ...overrides,
   };
 }
@@ -206,7 +207,8 @@ test("list refuses a non-positive or fractional limit before reading, and caps o
       return true;
     });
   }
-  assert.deepEqual(h.listCalls, []);
+  // `.length`, not `deepEqual(h.listCalls, [])`: that assertion narrows `listCalls` to `never[]` below.
+  assert.equal(h.listCalls.length, 0);
   await list(h, { limit: 500 });
   await list(h);
   assert.deepEqual(h.listCalls.map((call) => call.limit), [100, 25]);

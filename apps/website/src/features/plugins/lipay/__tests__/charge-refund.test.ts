@@ -10,6 +10,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import type { HttpRequest } from "#src/platform/http/index";
 import { InMemoryPaymentCredentials } from "../credentials.js";
 import { activateLipay } from "../lipay-plugin.js";
 import type { PaymentProvider } from "../ports.js";
@@ -1351,7 +1352,7 @@ for (const [firstAmount, secondAmount, accepted] of [[700, 700, 1], [400, 300, 2
     const firstInFlight = new Promise<void>(resolve => { firstEntered = resolve; });
     let secondEntered!: () => void;
     const secondInFlight = new Promise<void>(resolve => { secondEntered = resolve; });
-    const send = t.mock.method(http, "send", async (request) => {
+    const send = t.mock.method(http, "send", async (request: HttpRequest) => {
       const key = request.headers["idempotency-key"];
       if (key === "in-flight-1") firstEntered();
       else secondEntered();

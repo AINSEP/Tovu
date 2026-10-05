@@ -20,7 +20,7 @@ function fixture(t: test.TestContext, allowed = true) {
   t.after(() => rmSync(root, { recursive: true, force: true }));
   addTheme(root, "old");
   const calls: unknown[] = [];
-  const deps: ThemeToolDeps = { themesDir: root, themes: discoverAllBuiltInThemes({ dir: root }), workspaceId: "ws-t11", authorize: async (input) => {
+  const deps: ThemeToolDeps = { themesDir: root, themes: discoverAllBuiltInThemes({ dir: root, source: "built-in" }), workspaceId: "ws-t11", authorize: async (input) => {
     calls.push(input);
     return { allowed, reason: allowed ? "matched" : "no_grant" };
   } };
