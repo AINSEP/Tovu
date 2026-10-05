@@ -242,14 +242,6 @@ export interface UsersDependencies {
 }
 
 /**
- * Everything the Users screen does — full state, effects, and every server write, as one hook so
- * `Users.tsx` stays a pure render of whatever this returns. See this file's header for the
- * `useFetchQuery`/`useFetchMutation` migration and the `port` injection it now also carries.
- *
- * @param deps - Injected collaborators; production callers get these from {@link useWiredUsers}.
- * @returns The full `UsersController` the view renders from — see that interface for every field.
- */
-/**
  * Roles and policies for the grant controls, or `null` when the server refuses them with 403 (the
  * caller lacks `role.manage`). Any other failure still rejects, so a real outage keeps surfacing as
  * the screen's load error.
@@ -266,6 +258,14 @@ async function loadGrantOptions(port: UsersPort): Promise<{ roles: AdminRole[]; 
   }
 }
 
+/**
+ * Everything the Users screen does — full state, effects, and every server write, as one hook so
+ * `Users.tsx` stays a pure render of whatever this returns. See this file's header for the
+ * `useFetchQuery`/`useFetchMutation` migration and the `port` injection it now also carries.
+ *
+ * @param deps - Injected collaborators; production callers get these from {@link useWiredUsers}.
+ * @returns The full `UsersController` the view renders from — see that interface for every field.
+ */
 export function useUsers(deps: UsersDependencies): UsersController {
   const { port, openOwnPasswordReset = false, navigate } = deps;
   const locale = useAdminLocale();

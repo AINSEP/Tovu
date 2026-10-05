@@ -245,11 +245,11 @@ describe("UserManagePanel — the same shared GrantSelect rendered twice", () =>
     expect(handles).toContain("user-manage-policy-submit");
 
     await executePageCapability({ driver, capabilityId: "page.select_option", input: { handle: "user-manage-role-select", option: "Editor" } });
-    expect(manage.roleGrant.setPendingId).toHaveBeenCalledWith("r-1");
+    expect(manage.roleGrant?.setPendingId).toHaveBeenCalledWith("r-1");
 
     await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "user-manage-role-submit" } });
-    expect(manage.roleGrant.submit).toHaveBeenCalled();
-    expect(manage.policyGrant.submit).not.toHaveBeenCalled();
+    expect(manage.roleGrant?.submit).toHaveBeenCalled();
+    expect(manage.policyGrant?.submit).not.toHaveBeenCalled();
   });
 
   it("page.fill on the email field calls the injected setter", async () => {
