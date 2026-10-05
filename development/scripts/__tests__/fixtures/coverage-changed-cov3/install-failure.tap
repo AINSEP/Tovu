@@ -1,0 +1,42 @@
+TAP version 13
+# Subtest: install -> parse mcp.json -> read installed files through the containment guarantee, end to end, for a plugin with both a skill and an MCP server
+not ok 1 - install -> parse mcp.json -> read installed files through the containment guarantee, end to end, for a plugin with both a skill and an MCP server
+  ---
+  duration_ms: 142.219841
+  type: 'test'
+  location: '/Users/la/Programming/Tovu/apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-pipeline.integration.test.ts:1:909'
+  failureType: 'testCodeFailure'
+  error: 'the archive does not contain a plugin.json at its root'
+  code: 'MANIFEST_MISSING'
+  name: 'AgentPluginInstallError'
+  stack: |-
+    indexInstalledRoot (/Users/la/Programming/Tovu/apps/website/src/features/agent-plugins/install.ts:467:13)
+    async installAgentPlugin (/Users/la/Programming/Tovu/apps/website/src/features/agent-plugins/install.ts:254:21)
+    async TestContext.<anonymous> (/Users/la/Programming/Tovu/apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-pipeline.integration.test.ts:96:27)
+    async Test.run (node:internal/test_runner/test:1069:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:332:3)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 8841.292623
+# start of coverage report
+# ---------------------------------------------------------------------------------------------------------------------
+# file               | line % | branch % | funcs % | uncovered lines
+# ---------------------------------------------------------------------------------------------------------------------
+# apps               |        |          |         | 
+#  website           |        |          |         | 
+#   src              |        |          |         | 
+#    features        |        |          |         | 
+#     agent-plugins  |        |          |         | 
+#      install.ts    |  95.06 |    59.70 |   85.71 | 21 42-44 47 51 56 59-60 64-65 68-69 82-85 101-104 107-108 158-163
+# ---------------------------------------------------------------------------------------------------------------------
+# all files          |  95.06 |    59.70 |   85.71 | 
+# ---------------------------------------------------------------------------------------------------------------------
+# end of coverage report
+rc=1

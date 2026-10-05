@@ -1,0 +1,80 @@
+TAP version 13
+# Subtest: the host uses Jini's canonical upload service without a release adapter
+ok 1 - the host uses Jini's canonical upload service without a release adapter
+  ---
+  duration_ms: 2.723833
+  type: 'test'
+  ...
+# Subtest: canonical upload attributes separate assets sharing bytes to their own actors
+ok 2 - canonical upload attributes separate assets sharing bytes to their own actors
+  ---
+  duration_ms: 8.762173
+  type: 'test'
+  ...
+# Subtest: media copies attribute the new library entry to the copier while retaining one shared blob
+ok 3 - media copies attribute the new library entry to the copier while retaining one shared blob
+  ---
+  duration_ms: 3.701749
+  type: 'test'
+  ...
+# Subtest: versioned memory writes preserve the original creator, including unknown legacy attribution
+ok 4 - versioned memory writes preserve the original creator, including unknown legacy attribution
+  ---
+  duration_ms: 3.83716
+  type: 'test'
+  ...
+# Subtest: one registered upload handler isolates attribution between concurrent actor calls
+ok 5 - one registered upload handler isolates attribution between concurrent actor calls
+  ---
+  duration_ms: 5.324959
+  type: 'test'
+  ...
+# Subtest: [sqlite] media works before migration and detects installation without recreating repo
+ok 6 - [sqlite] media works before migration and detects installation without recreating repo
+  ---
+  duration_ms: 250.363593
+  type: 'test'
+  ...
+# Subtest: [pglite] media works before migration and detects installation without recreating repo
+ok 7 - [pglite] media works before migration and detects installation without recreating repo
+  ---
+  duration_ms: 9431.946569
+  type: 'test'
+  ...
+# Subtest: admin DTO exposes known creator and unknown legacy values without reading credit
+ok 8 - admin DTO exposes known creator and unknown legacy values without reading credit
+  ---
+  duration_ms: 0.569235
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 14978.168365
+# start of coverage report
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# file                          | line % | branch % | funcs % | uncovered lines
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# apps                          |        |          |         | 
+#  website                      |        |          |         | 
+#   src                         |        |          |         | 
+#    features                   |        |          |         | 
+#     media                     |        |          |         | 
+#      duplicate-asset.ts       |  95.93 |    47.06 |   87.50 | 15-16 21 32-35 40-41 45 67
+#      index.ts                 | 100.00 |   100.00 |  100.00 | 
+#      tool-registrations.ts    |  85.77 |    78.57 |   66.67 | 10-15 20-25 33-56 68-69
+#      versioned-media-repo.ts  |  95.31 |    78.57 |   69.57 | 15 21 29-32 34 42-43
+#    platform                   |        |          |         | 
+#     db                        |        |          |         | 
+#      repos                    |        |          |         | 
+#       media-repo.ts           |  89.81 |    76.19 |   63.24 | 26-27 34-35 37-39 92-93 152-158 171-176 178-180 182-186 194-195 206 212-215 217-218 220 224-225 227-229 231-237 239-243 247 249-253 255-260
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# all files                     |  91.84 |    73.61 |   66.67 | 
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# end of coverage report
+rc=0
