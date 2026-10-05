@@ -848,6 +848,56 @@ test("resume preserves its transition and reports a failed requeue without claim
   assert.equal((await rig.campaignRepo.findById({ workspaceId: WS, id: "camp-1" }))?.status, "sending");
 });
 
+test("resume requeues every pending row of the frozen snapshot across ledger pages of 1000, each exactly once", async () => {
+  const rig = makeRig({ campaigns: [makeCampaign({ status: "paused", audienceSnapshotId: "snap-1" })] });
+  const pendingIds = Array.from({ length: 1001 }, (_, i) => `send-${String(i).padStart(4, "0")}`);
+  for (const id of pendingIds) await rig.sendRepo.save(makeSendRow({ id, idempotencyKey: `key-${id}` }));
+  // Excluded on the second page: already delivered, and pending but from an older snapshot.
+  await rig.sendRepo.save(makeSendRow({ id: "send-9998", status: "delivered", idempotencyKey: "key-delivered" }));
+  await rig.sendRepo.save(makeSendRow({ id: "send-9999", audienceSnapshotId: "snap-old", idempotencyKey: "key-old" }));
+  const pages: Array<string | undefined> = [];
+  const listByCampaign = rig.sendRepo.listByCampaign.bind(rig.sendRepo);
+  rig.sendRepo.listByCampaign = async (input) => { pages.push(input.afterId); return listByCampaign(input); };
+  const enqueued: SendBatchJob[] = [];
+  rig.deps.outbox.enqueue = async (event) => { enqueued.push(event.payload as unknown as SendBatchJob); };
+
+  const result = await resumeCampaign({ deps: rig.deps, input: { workspaceId: WS, campaignId: "camp-1" } });
+
+  assert.deepEqual(result, { campaign: makeCampaign({ status: "sending", audienceSnapshotId: "snap-1" }) });
+  assert.deepEqual(pages, [undefined, "send-0999"]);
+  assert.equal(enqueued.length, 51, "50 full batches of 20 from page one, then the single remaining pending row");
+  assert.deepEqual(enqueued.flatMap((job) => job.sendIds), pendingIds);
+  assert.ok(enqueued.every((job) => job.audienceSnapshotId === "snap-1" && job.campaignId === "camp-1"));
+});
+
+test("freezeAudience: a campaign deleted during contact lookup fails not-found and enqueues no batch", async () => {
+  const rig = makeRig({
+    campaigns: [makeCampaign()],
+    subscriptions: [{ id: "s1", workspaceId: WS, listId: "list-1", subscriberId: "sub-1", status: "subscribed", source: "signup_form", consentRevisionIdAtSubscribe: "r1", subscribedAt: clock.nowIso(), unsubscribedAt: null, createdAt: clock.nowIso(), updatedAt: clock.nowIso() }],
+  });
+  rig.deps.subscriberDirectory.getContacts = async () => {
+    rig.campaignRepo.findById = async () => null;
+    return [{ subscriberId: "sub-1", workspaceId: WS, email: "one@test.com", emailDeliverable: true }];
+  };
+  const enqueued: unknown[] = [];
+  rig.deps.outbox.enqueue = async (event) => { enqueued.push(event); };
+  await assert.rejects(
+    freezeAudience({ deps: rig.deps, input: { workspaceId: WS, campaignId: "camp-1", listId: "list-1" } }),
+    (err: unknown) => err instanceof NewsletterCampaignNotFoundError && err.message === "campaign camp-1 was not found"
+  );
+  assert.deepEqual(enqueued, []);
+});
+
+test("completeIfDrained: a paused campaign returns null without reading the ledger or writing", async () => {
+  const rig = makeRig({ campaigns: [makeCampaign({ status: "paused" })] });
+  let ledgerReads = 0;
+  rig.sendRepo.countPendingByCampaign = async () => { ledgerReads += 1; return 0; };
+  const result = await completeIfDrained({ deps: rig.deps, input: { workspaceId: WS, campaignId: "camp-1" } });
+  assert.equal(result.campaign, null);
+  assert.equal(ledgerReads, 0);
+  assert.equal((await rig.campaignRepo.findById({ workspaceId: WS, id: "camp-1" }))?.status, "paused");
+});
+
 test("audience freezing preserves a pause committed during contact lookup", async () => {
   const rig = makeRig({ campaigns: [makeCampaign({ status: "sending" })] });
   rig.deps.subscriberDirectory.getContacts = async () => {

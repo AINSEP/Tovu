@@ -297,13 +297,15 @@ export async function completeIfDrained(required: {
 }): Promise<{ campaign: CampaignRecord | null }> {
   const { deps, input } = required;
   const campaign = await deps.campaignRepo.findById({ workspaceId: input.workspaceId, id: input.campaignId });
-  if (!campaign || campaign.status !== "sending") return { campaign: null };
+  if (!campaign) return { campaign: null };
+
+  // The state machine is the single guard: for the pipeline tier, `-> sent` is allowed only from
+  // `sending`, so a draft/paused/already-sent campaign returns null here before any ledger read.
+  const decision = transitionCampaignStatus({ from: campaign.status, to: "sent", actorTier: "pipeline" });
+  if (!decision.allowed) return { campaign: null };
 
   const pending = await deps.sendRepo.countPendingByCampaign({ workspaceId: input.workspaceId, campaignId: input.campaignId });
   if (pending > 0) return { campaign: null };
-
-  const decision = transitionCampaignStatus({ from: campaign.status, to: "sent", actorTier: "pipeline" });
-  if (!decision.allowed) return { campaign: null };
 
   const now = deps.clock.nowIso();
   const updated: CampaignRecord = { ...campaign, status: "sent", updatedAt: now };

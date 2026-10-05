@@ -9,7 +9,7 @@ import test from "node:test";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { newsletterCampaignRevisions, newsletterCampaigns } from "#src/platform/db/schema.sqlite";
 import { cancelCampaign, saveCampaign, scheduleCampaign, type CampaignWriteServiceDeps } from "../campaign-write-service.js";
-import { NewsletterCampaignNotEditableError, NewsletterConflictError, NewsletterListNotFoundError, NewsletterValidationError } from "../errors.js";
+import { NewsletterCampaignNotEditableError, NewsletterCampaignNotFoundError, NewsletterConflictError, NewsletterListNotFoundError, NewsletterValidationError } from "../errors.js";
 import { InMemoryNewsletterCampaignRepo, InMemoryNewsletterListRepo } from "../repo.memory.js";
 import { SqliteNewsletterCampaignRepo } from "../repo.sqlite.js";
 import type { NewsletterCampaignRepoPort } from "../ports.js";
@@ -276,7 +276,9 @@ test("saveCampaign: at the REAL SQLite adapter, a successful save writes exactly
 });
 
 
-for (const scheduledAt of ["tomorrow", "not-a-date", "2030-02-30T00:00:00.000Z"]) {
+// "2030-13-01..." passes the shape check but Date.parse rejects month 13; "2030-02-30..." parses
+// (V8 normalizes it) and only the calendar round-trip rejects it.
+for (const scheduledAt of ["tomorrow", "not-a-date", "2030-13-01T00:00:00.000Z", "2030-02-30T00:00:00.000Z"]) {
   test(`scheduleCampaign: invalid timestamp ${scheduledAt} is rejected without changing campaign or revisions`, async () => {
     const deps = makeMemoryDeps();
     const { campaign } = await saveCampaign({ deps, input: { workspaceId: WS, actorId: "actor-1", fields: validFields } });
@@ -285,7 +287,9 @@ for (const scheduledAt of ["tomorrow", "not-a-date", "2030-02-30T00:00:00.000Z"]
     await assert.rejects(
       scheduleCampaign({ deps, input: { workspaceId: WS, id: campaign.id, actorId: "actor-1", scheduledAt } }),
       (error: unknown) => {
-        assert.ok(error instanceof NewsletterValidationError);
+        // An explicit message: without one, a failing assert.ok makes node re-parse the transpiled
+        // source to build its message, which can spin for minutes under tsx.
+        assert.ok(error instanceof NewsletterValidationError, `expected NewsletterValidationError, got ${String(error)}`);
         assert.equal(error.message, "scheduledAt must be a valid ISO date-time string");
         assert.equal(error.field, "scheduledAt");
         assert.equal(error.reason, "format");
@@ -308,3 +312,18 @@ for (const scheduledAt of ["2028-02-29T23:59:59.123Z", "2030-01-01T03:04:05+02:3
     assert.equal(stored?.scheduledAt, scheduledAt);
   });
 }
+
+
+test("saveCampaign / cancelCampaign / scheduleCampaign: an unknown campaign id is not-found, and nothing is written", async () => {
+  const deps = makeMemoryDeps();
+  const notFound = (error: unknown) =>
+    error instanceof NewsletterCampaignNotFoundError && error.message === "campaign missing-1 was not found";
+  await assert.rejects(saveCampaign({ deps, input: { workspaceId: WS, id: "missing-1", actorId: "actor-1", fields: validFields } }), notFound);
+  await assert.rejects(cancelCampaign({ deps, input: { workspaceId: WS, id: "missing-1", actorId: "actor-1" } }), notFound);
+  await assert.rejects(
+    scheduleCampaign({ deps, input: { workspaceId: WS, id: "missing-1", actorId: "actor-1", scheduledAt: "2030-01-01T00:00:00.000Z" } }),
+    notFound
+  );
+  assert.equal(await deps.campaignRepo.findById({ workspaceId: WS, id: "missing-1" }), null);
+  assert.deepEqual(await deps.campaignRepo.listRevisions({ workspaceId: WS, campaignId: "missing-1" }), []);
+});
