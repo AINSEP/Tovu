@@ -73,7 +73,7 @@ Re-audited against code/git 2026-10-04 (evening): statuses below marked **PARTLY
 - **Agent Plugins page redesign** (owner-decided 09-14, L696–708/L958): one list, On/Off for every plugin; Tovu-shipped = "Built in", switch-off only; user-added get Uninstall + confirm; drop the Downloaded tab. Needs an uninstall HTTP route + `origin` in the list response; Jini `AgentPluginRow` still disables Uninstall.
 - **Plugin hooks S2–S6** (09-23, L2984–2987): S1 catalog landed `068402eaf`; rest in `ADS-memory/.local-artifacts/handoffs/2026-09-23-hooks-lane.md`. Before the SDK 0.2.0 bump fix plugin ranges (`^0.1.0` excludes 0.2.0).
 - **Plugin-published namespaced hooks** (owner YES 09-23, L2981): runtime publication on top of the typed catalog, after hooks S2–S6.
-- **Installed SKILL.md copies refresh on plugin upgrade?** (09-14, L1371): unverified; add a test.
+- ~~**Installed SKILL.md copies refresh on plugin upgrade?**~~ **DONE 2026-10-04 (`554ec80cd`):** verified, no bug — a SKILL.md-only edit (no version bump) refreshes the installed copy and run-start injection; version-bump upgrades were already covered (`678b4f7b0`).
 
 ### Publish
 - **Publish installed skills, site plugins and agent-plugin files** (09-24, L3093–3098): only the theme-files handler exists in the publish type registry.
@@ -81,12 +81,12 @@ Re-audited against code/git 2026-10-04 (evening): statuses below marked **PARTLY
 ### Persistence & CAS (web-medium `wm` plan: `ADS-memory/.local-artifacts/fix-plan-web-medium-2026-09-24.md`; owner ordered these run 09-24, L3256)
 - **wm S3 entries** (L3314): Jini `entries/write-service` checks version before the transaction and saves with no persistence `expectedVersion` guard.
 - **wm S4 menus** (L3314): Jini `navigation/menu-service:updateMenuTree` same pattern.
-- **wm S5 content types** (L3314): Jini `content-types/lifecycle.ts:220` tears down indexes before the transactional save.
-- **wm S16 tool failures** (L3314) — **PARTLY:** taxonomy tools are wrapped and S18 unassign landed (`bebc5736f`). Left: comments still throw plain `Error` (`features/comments/tool-registrations.ts:145-146,243`). Redirects DONE (wm S16 redirects commit): handlers wrapped (`REDIRECTS_*` codes incl. FORBIDDEN), import `failed[]` redacts unlisted errors.
+- ~~**wm S5 content types**~~ **DONE 2026-10-04 (Jini `6e754d04`, needs a cms release + Tovu adoption):** `tombstoneContentType` tears down indexes after the save commits.
+- ~~**wm S16 tool failures**~~ **DONE 2026-10-04 (`7fa926257`):** comments handlers wrapped (`COMMENTS_FORBIDDEN`/`_NOT_FOUND`/`_VERSION_CONFLICT`, typed errors). Earlier state — **PARTLY:** taxonomy tools are wrapped and S18 unassign landed (`bebc5736f`). Left: comments still throw plain `Error` (`features/comments/tool-registrations.ts:145-146,243`). Redirects DONE (wm S16 redirects commit): handlers wrapped (`REDIRECTS_*` codes incl. FORBIDDEN), import `failed[]` redacts unlisted errors.
 
 ### Chat & admin
 - **Typed answers to a pending ask_choice, jl A1a/A1b** (09-24, L3318): typing produces no request; on a consumed answer the client must DROP the text or it starts a second PAID run (L2243). No `deliverTypedAnswer` producer in admin or Jini chat.
-- **Chat auto-scroll still sticks** (09-15/09-21, L2054/L2670): Jini `de436905` (08-31) predates the complaints; lead: Jini `MessageList.tsx:116` re-sticks only when the user scrolls back to the bottom; sending a message never re-sticks (file unchanged since 09-01). (Composer draft + attachment persistence is done: Jini `8d4a0ca2`, `aebdfc59`.)
+- ~~**Chat auto-scroll still sticks**~~ **DONE 2026-10-04 (Jini `8cb764ca`, needs a chat release + Tovu adoption; live look in the admin chat still owed):** a user send or retry re-sticks to the bottom. Was (09-15/09-21, L2054/L2670): Jini `de436905` (08-31) predates the complaints; lead: Jini `MessageList.tsx:116` re-sticks only when the user scrolls back to the bottom; sending a message never re-sticks (file unchanged since 09-01). (Composer draft + attachment persistence is done: Jini `8d4a0ca2`, `aebdfc59`.)
 - **Posts editor ignores assistant edits / stale slug in address bar** (09-24, L3110, also L2099): no fix commit after the report.
 - **Theme Explore: agent-added/removed files and remaining rename/URL cases** (09-16, L1361–1362/L2110): flash + dirty-buffer guard done (`4939448bb`); external file mutations not.
 - **Deep admin translation sweep** (09-22, L2726–2745): many fixes landed (latest `f07a92dcb`); no whole-admin literal/call-site closure.
@@ -974,7 +974,7 @@ Three Fable reviewers (architecture/DI, excess-and-dead-code, bugs) ran twice: *
 - [x] DONE `4c6a07979` (uses Jini's minter). **`dev-auth.ts:297-312` re-implements `@jini-ai/cms/identity`'s private session hashing**
       because the library exposes only `login()`. The seam belongs in Jini as
       `createSessionForPrincipal`, not copied here.
-- [ ] **PARTLY:** `d1eea4b2f` shared the helpers; the readiness `Promise.all` is still duplicated (`index.ts:428`, `serve.ts:483`). **Boot orchestration is hand-copied three times** between `serve.ts` and `index.ts`
+- [x] **DONE 2026-10-04 (`87191c162`):** readiness list shared via `server/runtime/boot/site-boot-readiness.ts`. Was **PARTLY:** `d1eea4b2f` shared the helpers; the readiness `Promise.all` is still duplicated (`index.ts:428`, `serve.ts:483`). **Boot orchestration is hand-copied three times** between `serve.ts` and `index.ts`
       (`agentDaemonWanted`, `logCriticalBootFailures`, the 8-promise readiness list), under a comment
       claiming boot logic is "never shared via import" — contradicted the same day by `4dfbfe80`.
       `export.ts` has none of it yet still boots the real `createApp`, so **the
@@ -1028,7 +1028,7 @@ identity model), Comments (ADR-031 — the `soon` badge is a **deliberate** owne
 | Database / Storage | 🟡 | The `PENDING_MIGRATION` boot banner and the Tier-3 browser still have no route (`apps/admin/src/features/database/Database.tsx:40`). The drift banner IS built (`SchemaStateWarningBanner`, tested). |
 | Categories & Tags | 🟡 | Reparent, deprecate, and term-slug controls. |
 | Roles & Permissions | ✅ | DONE: one permission can be removed (`0cec83bf9`). |
-| Forms | ✅ | SPEC-010 / ADR-PIPE-010 still have no row in `ADR-INDEX.md` (zero hits; the ids do appear in `ADS-memory/specs/043-widgets/feature.spec.md:464`). |
+| Forms | ✅ | DONE 2026-10-04 (`16ee76855`): row added to `ADS-memory/reports/architecture/ADR-INDEX.md`. Was: SPEC-010 / ADR-PIPE-010 still have no row in `ADR-INDEX.md` (zero hits; the ids do appear in `ADS-memory/specs/043-widgets/feature.spec.md:464`). |
 | Media | 🟡 | `accept` widened to video — DONE `c55da3e1c`. The Images/Videos tabs are real filters now (`rules.ts`'s `filterMediaByTab`). Remaining: this screen's own file-input `accept` still lists image types only while the server accepts `video/mp4`/`video/webm` — a pending **owner decision**, not an oversight (`Media.tsx:900-907`); plus origin-isolation, where-used protection, ingress, and GC behavior now owned by Jini. |
 | Menus | ✅ | Drag-and-drop deferred (no `draggable`/dnd code under `apps/admin/src/features/menus/`); reorder controls exist. |
 | Members | ✅ | Pagination and billing deferred. |
@@ -1242,7 +1242,7 @@ themes/plugins**, instantiated from a versioned template (ADR-012).
 ## Accomplish (What We Need to Build)
 
 ### Foundation (active)
-- [ ] Add structured logging + request IDs. Neither exists: there is no logging port, and
+- [ ] Add structured logging + request IDs. **Request IDs DONE 2026-10-04 (`6def979c8`):** `x-request-id` reused-or-minted, echoed, passed to `trackRequest`; structured logging still open. Before: neither existed: there is no logging port, and
       `requestId` appears only in `apps/website/src/server/__specs__/00-foundation/` specs plus one
       AG-UI module. Note this is NOT the same as the observability work — `platform/observability/`
       ships a real `ObservabilityPort` with `noop`/`otel` adapters (see Master Build Inventory §1),
@@ -1559,7 +1559,7 @@ pipeline — `.github/workflows/ci.yml` (508 lines) runs `typecheck`, `test:ci`,
 - [ ] Add codegen strategy for typed clients if needed
 
 ### 16) Reliability / Ops / Security
-- [ ] Add structured logging + correlation IDs — no logging port or correlation/request-id
+- [ ] Add structured logging + correlation IDs (request IDs DONE `6def979c8`; logging port still open) — no logging port or correlation/request-id
       propagation exists (`observability-middleware.ts` tracks requests but carries no correlation id)
 - [ ] Finish metrics and tracing — the `ObservabilityPort` + `noop`/`otel` adapters are built and
       wired for inbound HTTP (see §1); DB queries, outbound calls and agent runs are not instrumented
