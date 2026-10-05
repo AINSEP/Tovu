@@ -21,7 +21,7 @@ const LINE_ICON = {
 
 /** The Access Tokens tab's own icon — a key, i.e. the shape a credential is. Added for the Security
  *  page's tab row (owner request, the same pass that added Deployment's five and Source Control's
- *  Providers tab their own icons); this page's two real tabs are this one and {@link SiteTokenIcon}. */
+ *  Providers tab their own icons); this page's two real tabs are this one and {@link SiteKeyIcon}. */
 export function AccessTokensIcon({ size = 16 }: { size?: number }) {
   return (
     <svg {...LINE_ICON} width={size} height={size}>
@@ -33,7 +33,7 @@ export function AccessTokensIcon({ size = 16 }: { size?: number }) {
 
 /** The Site Token tab's own icon — a shield, distinct from {@link AccessTokensIcon}'s plain key:
  *  this tab is about the ONE key that protects every OTHER credential, not a credential itself. */
-export function SiteTokenIcon({ size = 16 }: { size?: number }) {
+export function SiteKeyIcon({ size = 16 }: { size?: number }) {
   return (
     <svg {...LINE_ICON} width={size} height={size}>
       <path d="M12 3.5 4.5 6.2v5.3c0 4.4 3.1 7.4 7.5 8.9 4.4-1.5 7.5-4.5 7.5-8.9V6.2L12 3.5Z" />

@@ -521,7 +521,7 @@ export interface AdminCreatedSite {
 
 /** What happened to the create request's `agentPluginTokens`: `saved` = sealed into the new site,
  *  connected on its first start; `failed` = the site exists but the tokens were not kept. */
-export interface AdminCreatedSiteTokens {
+export interface AdminCreatedSiteAgentPluginTokens {
   status: "none" | "saved" | "failed";
   pluginIds: string[];
 }
@@ -775,7 +775,7 @@ export interface AdminPublishCredentialsSnapshot {
 /** Mirrors `resolveRuntimeMode()`'s own closed union (`contracts/core/runtime-mode.ts`) — the
  *  Site Token tab's own copy of "is this a production deployment" (the fact that decides whether
  *  the generate action can matter at all — see `AdminSiteTokenStatus`'s doc). */
-export type AdminSiteTokenRuntimeMode = "production" | "local";
+export type AdminSiteKeyRuntimeMode = "production" | "local";
 
 /**
  * Mirrors `SiteTokenState` (`apps/website/src/contracts/core/site-token-state.ts`) — the site-key
@@ -787,15 +787,15 @@ export type AdminSiteTokenRuntimeMode = "production" | "local";
  * file's own union text off disk and checks it against this list, so the two can never silently
  * drift apart. Keep both edited together.
  */
-export const ADMIN_SITE_TOKEN_STATES = ["active", "missing", "missing-with-data", "mismatch", "invalid", "env-conflict"] as const;
-export type AdminSiteTokenState = (typeof ADMIN_SITE_TOKEN_STATES)[number];
+export const ADMIN_SITE_KEY_STATES = ["active", "missing", "missing-with-data", "mismatch", "invalid", "env-conflict"] as const;
+export type AdminSiteKeyState = (typeof ADMIN_SITE_KEY_STATES)[number];
 
 /** Mirrors `GET .../system/site-token`'s response shape (`inspectRootKeyMaterial`, server-side).
  *  NEVER carries the key value itself — only whether one is active, which of the two possible
  *  sources it came from, and a one-way `fingerprint` a human can use to recognize "same key as
  *  before" across a reload without revealing it. Call `api.revealSiteToken()` for the actual
  *  value, behind its own explicit action. */
-export interface AdminSiteTokenStatus {
+export interface AdminSiteKeyStatus {
   envVarName?: string;
   reason?: "empty" | "not-hex" | "odd-length" | "too-short" | "env-conflict";
   active: boolean;
@@ -807,15 +807,15 @@ export interface AdminSiteTokenStatus {
    *  Always present, even when `source` isn't `"file"`, so a `"none"` status can still say where
    *  Generate would write. */
   keyFilePath: string;
-  runtimeMode: AdminSiteTokenRuntimeMode;
-  /** Site-key plan §A.6 — see {@link AdminSiteTokenState}'s own doc for what each value means. */
-  state: AdminSiteTokenState;
+  runtimeMode: AdminSiteKeyRuntimeMode;
+  /** Site-key plan §A.6 — see {@link AdminSiteKeyState}'s own doc for what each value means. */
+  state: AdminSiteKeyState;
 }
 
 /** `POST .../system/site-token/generate`'s success outcomes: `already-active` (200, a key matching
  *  the site's stamp was already in place, nothing written), `recovered` (200, the stamped key was
  *  found in another source and adopted), `created` (201, no sealed data, a new key minted). */
-export type AdminSiteTokenGenerateOutcome = "already-active" | "recovered" | "created";
+export type AdminSiteKeyGenerateOutcome = "already-active" | "recovered" | "created";
 
 /** Mirrors `POST .../system/site-token/generate`'s `200`/`201` response shape. Deliberately has NO
  *  `hex` field (sol finding 3-2, 2026-09-16 fix): `useSiteToken`'s `generate()` only ever reads
@@ -823,54 +823,54 @@ export type AdminSiteTokenGenerateOutcome = "already-active" | "recovered" | "cr
  *  raw key value here — it had no consumer and was pure exposure. `api.revealSiteToken()` (below)
  *  stays the one, explicit, on-purpose call that returns the value; `AdminSiteTokenStatus` (the
  *  plain `GET`) never carries it either. */
-export interface AdminGeneratedSiteToken {
-  outcome: AdminSiteTokenGenerateOutcome;
+export interface AdminGeneratedSiteKey {
+  outcome: AdminSiteKeyGenerateOutcome;
   fingerprint: string;
   keyFilePath: string;
-  runtimeMode: AdminSiteTokenRuntimeMode;
+  runtimeMode: AdminSiteKeyRuntimeMode;
 }
 
 /** `POST .../system/site-token/import`'s 200: the pasted token is now this site's key. `resealed`
  *  counts credentials saved under the key that was in place and moved onto the token. */
-export interface AdminImportedSiteToken {
+export interface AdminImportedSiteKey {
   outcome: "unlocked";
   fingerprint: string;
   keyFilePath: string;
   resealed: number;
   restorePointId?: string;
-  runtimeMode: AdminSiteTokenRuntimeMode;
+  runtimeMode: AdminSiteKeyRuntimeMode;
 }
 
 /** A webhook whose signing secret changes when the site starts fresh. */
-export interface AdminSiteTokenAffectedWebhook {
+export interface AdminSiteKeyAffectedWebhook {
   label: string;
   targetUrl: string;
 }
 
 /** `GET .../system/site-token/start-fresh`: what confirming would do, in one plain sentence. */
-export interface AdminSiteTokenStartFreshPreview {
+export interface AdminSiteKeyStartFreshPreview {
   removes: number;
-  affectedWebhooks: AdminSiteTokenAffectedWebhook[];
+  affectedWebhooks: AdminSiteKeyAffectedWebhook[];
   detail: string;
-  runtimeMode: AdminSiteTokenRuntimeMode;
+  runtimeMode: AdminSiteKeyRuntimeMode;
 }
 
 /** `POST .../system/site-token/start-fresh`'s 200. The new key is never in the body. */
-export interface AdminStartedFreshSiteToken {
+export interface AdminStartedFreshSiteKey {
   outcome: "started-fresh";
   fingerprint: string;
   keyFilePath: string;
   discarded: number;
   kept: number;
   restorePointId: string;
-  affectedWebhooks: AdminSiteTokenAffectedWebhook[];
-  runtimeMode: AdminSiteTokenRuntimeMode;
+  affectedWebhooks: AdminSiteKeyAffectedWebhook[];
+  runtimeMode: AdminSiteKeyRuntimeMode;
 }
 
-/** Mirrors `POST .../system/site-token/reveal`'s response shape — {@link AdminSiteTokenStatus}
+/** Mirrors `POST .../system/site-token/reveal`'s response shape — {@link AdminSiteKeyStatus}
  *  plus the raw value when one is active. `hex` is absent when `active` is `false` (nothing to
  *  reveal). */
-export interface AdminRevealedSiteToken extends AdminSiteTokenStatus {
+export interface AdminRevealedSiteKey extends AdminSiteKeyStatus {
   hex?: string;
 }
 
@@ -3857,7 +3857,7 @@ export const api = {
    *  `SITE_ALREADY_EXISTS` when the directory is occupied, `400` `VALIDATION_ERROR` for a name
    *  outside `[a-z0-9-]{1,100}`. */
   createSite: (input: { name: string; agentPluginTokens?: Record<string, string> }) =>
-    request<{ site: AdminCreatedSite; agentPluginTokens?: AdminCreatedSiteTokens }>(`/workspaces/${WORKSPACE_ID}/system/sites`, {
+    request<{ site: AdminCreatedSite; agentPluginTokens?: AdminCreatedSiteAgentPluginTokens }>(`/workspaces/${WORKSPACE_ID}/system/sites`, {
       method: "POST",
       body: JSON.stringify(input),
     }),
@@ -4022,38 +4022,38 @@ export const api = {
   // database it protects.
   /** Never throws for "no key active" — that is `{active: false, source: "none"}`, a normal 200,
    *  not an error. Never carries the key value — see `revealSiteToken` for that. */
-  getSiteTokenStatus: () => request<AdminSiteTokenStatus>(`/workspaces/${WORKSPACE_ID}/system/site-token`),
+  getSiteKeyStatus: () => request<AdminSiteKeyStatus>(`/workspaces/${WORKSPACE_ID}/system/site-key`),
   /** Returns the raw key value (whichever source is active) when one is set — a deliberate,
    *  explicit, separately-clickable action, never fired on page load. Superseded an earlier
    *  fingerprint-only brief (owner: "i want that token to be visible to admins or else when it
    *  breaks they have no idea whats going on"). No audit trail — this codebase has no
    *  general-purpose sensitive-read audit mechanism to hook into (checked; not built here). */
-  revealSiteToken: () =>
-    request<AdminRevealedSiteToken>(`/workspaces/${WORKSPACE_ID}/system/site-token/reveal`, { method: "POST" }),
+  revealSiteKey: () =>
+    request<AdminRevealedSiteKey>(`/workspaces/${WORKSPACE_ID}/system/site-key/reveal`, { method: "POST" }),
   /** Makes sure this site has the RIGHT key, never a second one (2026-09-29): resolves `200`
-   *  `already-active`/`recovered` or `201` `created` ({@link AdminSiteTokenGenerateOutcome}).
+   *  `already-active`/`recovered` or `201` `created` ({@link AdminSiteKeyGenerateOutcome}).
    *  Refusals are `409 {error, detail}`, nothing written, thrown as an `ApiError` whose `.message`
    *  is the code and whose `.body.detail` is a plain-words sentence: `KEY_DEPENDENT_DATA` (saved
    *  credentials need a key that is not here), `KEY_MISMATCH` (the key here is not the one they
    *  were locked with), `KEY_INVALID` (a key is set but malformed), `SITE_META_UNREADABLE`, and in
    *  production `ALREADY_EXISTS` (a key file appeared mid-request). See `use-site-token.hooks.ts`'s
    *  `classifySiteTokenGenerateError`. Never overwrites or rotates a key. */
-  generateSiteToken: () =>
-    request<AdminGeneratedSiteToken>(`/workspaces/${WORKSPACE_ID}/system/site-token/generate`, { method: "POST" }),
+  generateSiteKey: () =>
+    request<AdminGeneratedSiteKey>(`/workspaces/${WORKSPACE_ID}/system/site-key/generate`, { method: "POST" }),
   /** "Paste your old token": installs `token` only once it opens this site's saved credentials,
    *  moving anything saved under the key in place onto it first. Refusals throw an `ApiError` with
    *  a plain `.body.detail`: `TOKEN_INVALID` (400), `TOKEN_DOES_NOT_OPEN`, `ENV_KEY_SET`,
    *  `RESTORE_POINT_UNAVAILABLE`, `SITE_META_UNREADABLE` (409). */
-  importSiteToken: (token: string) =>
-    request<AdminImportedSiteToken>(`/workspaces/${WORKSPACE_ID}/system/site-token/import`, { method: "POST", body: JSON.stringify({ token }) }),
+  importSiteKey: (input: { siteKey: string }, _optional = {}) =>
+    request<AdminImportedSiteKey>(`/workspaces/${WORKSPACE_ID}/system/site-key/import`, { method: "POST", body: JSON.stringify(input) }),
   /** What "Start fresh" would remove and which webhooks get a new signing secret. Changes nothing. */
-  previewSiteTokenStartFresh: () =>
-    request<AdminSiteTokenStartFreshPreview>(`/workspaces/${WORKSPACE_ID}/system/site-token/start-fresh`),
+  previewSiteKeyStartFresh: () =>
+    request<AdminSiteKeyStartFreshPreview>(`/workspaces/${WORKSPACE_ID}/system/site-key/start-fresh`),
   /** "Start fresh": restore point, remove what can't be unlocked, install the key. `confirm` must be
    *  `START FRESH` (else 400 `CONFIRMATION_REQUIRED`); other refusals as {@link importSiteToken}'s
    *  plus `STORAGE_SECRET_LOCKED`. */
-  startFreshSiteToken: (confirm: string) =>
-    request<AdminStartedFreshSiteToken>(`/workspaces/${WORKSPACE_ID}/system/site-token/start-fresh`, { method: "POST", body: JSON.stringify({ confirm }) }),
+  startFreshSiteKey: (confirm: string) =>
+    request<AdminStartedFreshSiteKey>(`/workspaces/${WORKSPACE_ID}/system/site-key/start-fresh`, { method: "POST", body: JSON.stringify({ confirm }) }),
 
   // Source Control page → credential management (`src/server/routes/admin/system/
   // source-control-credentials.ts`) — one saved GitHub/GitLab/Bitbucket identity connection per

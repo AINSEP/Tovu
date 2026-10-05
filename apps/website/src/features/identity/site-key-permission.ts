@@ -3,25 +3,25 @@ import { registerPermissionMigration } from "@jini-ai/user-management/server";
 import { registerBuiltinRoleGrant } from "./builtin-role-grants.js";
 
 /**
- * @file The `admin.security.tokens.manage` permission, and the grants that make it real —
- * gates the admin Security page's "Site Token" tab (view/generate the
- * `TOVU_INTEGRATIONS_ROOT_KEY` root key, `features/webhooks/keyring.env.ts`'s
- * `inspectRootKeyMaterial`/`generateFileRootKey`).
+ * @file The `admin.security.site-key.manage` permission, and the grants that make it real —
+ * gates the admin Security page's "Site key" tab (view/generate the
+ * `TOVU_SITE_KEY` site key, `features/webhooks/keyring.env.ts`'s
+ * `inspectSiteKeyMaterial`/`generateFileSiteKey`).
  *
  * ## Why its own permission, not an identity check
  *
  * The owner explicitly rejected gating this on "is the workspace creator" — identity checks do
- * not compose with roles (a second admin the owner adds could never manage the root key, and
+ * not compose with roles (a second admin the owner adds could never manage the site key, and
  * there is no way to delegate it short of sharing the owner's own login). A permission composes
  * the normal way: any role — built-in or custom — can be granted it.
  *
  * ## Why its own string, not reusing `admin.integrations.manage`
  *
  * `admin.integrations.manage` gates a saved CONNECTION's config (OAuth connector settings,
- * webhooks). The root key is a different order of sensitivity — it is the one thing that
+ * webhooks). The site key is a different order of sensitivity — it is the one thing that
  * DECRYPTS every sealed credential this install holds, including everything
  * `admin.integrations.manage` already protects. Collapsing the two would mean any future,
- * narrower grant of connector-config access silently also grants root-key control, which is not
+ * narrower grant of connector-config access silently also grants site-key control, which is not
  * a decision this file gets to make on that permission's behalf.
  *
  * ## The two grants below, same shape as `features/pages/permissions.ts`'s
@@ -43,17 +43,17 @@ import { registerBuiltinRoleGrant } from "./builtin-role-grants.js";
  *
  * Both registrations below are module-evaluation side effects and must run before
  * `migrateDeprecatedPermissionGrants`/`applyBuiltinRoleGrants` do. They do, by ES module
- * semantics: {@link SITE_TOKEN_MANAGE_PERMISSION} is imported by `server/inbound/admin-http/
- * routes/system/site-token.ts`, which is in the static import graph of `composition/app.ts` (the
+ * semantics: {@link SITE_KEY_MANAGE_PERMISSION} is imported by `server/inbound/admin-http/
+ * routes/system/site-key.ts`, which is in the static import graph of `composition/app.ts` (the
  * route registration call site) — the same "reached via its own consumer" mechanism
  * `pages/permissions.ts` documents for itself.
  */
 
 /**
- * The permission required to read root-key status or generate a key file, at every sink that can
+ * The permission required to read site-key status or generate a key file, at every sink that can
  * do either. Named once and imported by the route so the gate and the 403 body cannot drift apart.
  */
-export const SITE_TOKEN_MANAGE_PERMISSION = "admin.security.tokens.manage";
+export const SITE_KEY_MANAGE_PERMISSION = "admin.security.site-key.manage";
 
 /** See this file's header — the anchor an already-seeded workspace's `admin` policy is most
  *  likely to already hold. Spelled as a literal, not imported: it is a `policy_permissions` row
@@ -61,9 +61,17 @@ export const SITE_TOKEN_MANAGE_PERMISSION = "admin.security.tokens.manage";
  *  permissions.ts`'s own `DERIVED_FROM_PERMISSION` gives). */
 const DERIVED_FROM_PERMISSION = "admin.integrations.manage";
 
+// Existing custom policies keep their site-key capability on every boot. This is additive:
+// retaining the former grant preserves audit history and does not grant integration management.
+registerPermissionMigration({
+  from: "admin.security.tokens.manage",
+  to: [SITE_KEY_MANAGE_PERMISSION],
+  reason: "Rename site key management without removing access from existing policies.",
+});
+
 registerPermissionMigration({
   from: DERIVED_FROM_PERMISSION,
-  to: [SITE_TOKEN_MANAGE_PERMISSION],
+  to: [SITE_KEY_MANAGE_PERMISSION],
   reason:
     "The admin Security page's Site key tab reads/generates the TOVU_SITE_KEY " +
     "site key — the key that decrypts every sealed credential this install holds, including " +
@@ -73,7 +81,7 @@ registerPermissionMigration({
 
 registerBuiltinRoleGrant({
   role: "admin",
-  permission: SITE_TOKEN_MANAGE_PERMISSION,
+  permission: SITE_KEY_MANAGE_PERMISSION,
   reason:
     "The built-in admin role manages the site key that decrypts every sealed credential this " +
     "install holds; editor and viewer do not. Stated directly against the role, not only via the " +

@@ -1,9 +1,9 @@
-import type { AdminSiteTokenStatus } from "@/lib/api";
+import type { AdminSiteKeyStatus } from "@/lib/api";
 import type { Translate } from "@/lib/dictionary-translator";
 
 /** Keep environment provenance in the status rules so rendering has no source policy. */
-export function siteTokenStatusBadgeLabel(
-  input: { status: Pick<AdminSiteTokenStatus, "active" | "source" | "envVarName">; t: Translate },
+export function siteKeyStatusBadgeLabel(
+  input: { status: Pick<AdminSiteKeyStatus, "active" | "source" | "envVarName">; t: Translate },
   _optional = {},
 ): string {
   const { status, t } = input;

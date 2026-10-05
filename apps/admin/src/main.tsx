@@ -14,7 +14,7 @@ import "./styles/media.css";
 import "./integrations/jini-admin/jini-media.css";
 import "./styles/source-control.css";
 import "./styles/access-tokens.css";
-import "./styles/site-token.css";
+import "./styles/site-key.css";
 import "./styles/settings.css";
 import "./styles/external-mcp-tool-picker.css";
 import "./styles/seo.css";

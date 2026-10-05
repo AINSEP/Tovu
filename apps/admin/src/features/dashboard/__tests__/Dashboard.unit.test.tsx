@@ -103,7 +103,7 @@ function successRoutes(): Record<string, () => Promise<Response>> {
     "/auth/me": () => Promise.resolve(jsonResponse({ user: { id: "dash-test-user" } })),
     // Default "active" (the normal, no-banner case) so every pre-existing test in this file (none
     // of which are about the site-key plan) keeps rendering with no site-key banner, unchanged.
-    "system/site-token": () =>
+    "system/site-key": () =>
       Promise.resolve(jsonResponse({ active: true, source: "file", keyFilePath: "/x", runtimeMode: "local", state: "active" })),
   };
 }
@@ -425,7 +425,7 @@ describe("site key banner (site-key plan §A.6)", () => {
   it.each([undefined, "missing", "active"])("renders no site-key banner after the %s state settles", async (state) => {
     let resolveStatus!: (response: Response) => void;
     const statusResponse = new Promise<Response>((resolve) => { resolveStatus = resolve; });
-    fetchMock.mockImplementation(routeFetch({ ...successRoutes(), "system/site-token": () => statusResponse }));
+    fetchMock.mockImplementation(routeFetch({ ...successRoutes(), "system/site-key": () => statusResponse }));
     const { container } = render(<Dashboard />);
     await screen.findByText("editorial");
 
@@ -441,7 +441,7 @@ describe("site key banner (site-key plan §A.6)", () => {
     fetchMock.mockImplementation(
       routeFetch({
         ...successRoutes(),
-        "system/site-token": () =>
+        "system/site-key": () =>
           Promise.resolve(jsonResponse({ active: true, source: "file", keyFilePath: "/x", runtimeMode: "local", state: "mismatch" })),
       }),
     );

@@ -1256,7 +1256,7 @@ export function removeDialogLastRowNote(locale: string, provider: string): strin
 
 /** Site Token tab's load-error banner — same `{error}`-interpolated shape as
  *  {@link accessTokensLoadErrorMessage}. */
-const SITE_TOKEN_LOAD_ERROR_TEMPLATE: Record<string, string> = {
+const SITE_KEY_LOAD_ERROR_TEMPLATE: Record<string, string> = {
   "en": "Couldn't load the site key's status: {error}",
   "es": "No se pudo cargar el estado de la clave del sitio: {error}",
   "de": "Der Status des Website-Schlüssels konnte nicht geladen werden: {error}",
@@ -1280,14 +1280,14 @@ const SITE_TOKEN_LOAD_ERROR_TEMPLATE: Record<string, string> = {
   "zh-CN": "无法加载站点密钥状态：{error}",
   "zh-TW": "無法載入網站金鑰狀態：{error}",
 };
-export function siteTokenLoadErrorMessage(locale: string, error: string): string {
-  return interpolate(localeEntry({ table: SITE_TOKEN_LOAD_ERROR_TEMPLATE, locale }), { error });
+export function siteKeyLoadErrorMessage(locale: string, error: string): string {
+  return interpolate(localeEntry({ table: SITE_KEY_LOAD_ERROR_TEMPLATE, locale }), { error });
 }
 
 /** Site Token tab's generic generate-error banner — used only for a `"generic"` failure; a known
  *  409 (`KEY_DEPENDENT_DATA`/`KEY_MISMATCH`/`KEY_INVALID`/`SITE_META_UNREADABLE`/`ALREADY_EXISTS`)
  *  is shown with its own words in `SiteTokenTab.tsx`, not wrapped in this template. */
-const SITE_TOKEN_GENERATE_ERROR_TEMPLATE: Record<string, string> = {
+const SITE_KEY_GENERATE_ERROR_TEMPLATE: Record<string, string> = {
   "en": "Couldn't generate a site key: {error}",
   "es": "No se pudo generar una clave del sitio: {error}",
   "de": "Ein Website-Schlüssel konnte nicht erzeugt werden: {error}",
@@ -1311,14 +1311,14 @@ const SITE_TOKEN_GENERATE_ERROR_TEMPLATE: Record<string, string> = {
   "zh-CN": "无法生成站点密钥：{error}",
   "zh-TW": "無法產生網站金鑰：{error}",
 };
-export function siteTokenGenerateErrorMessage(locale: string, error: string): string {
-  return interpolate(localeEntry({ table: SITE_TOKEN_GENERATE_ERROR_TEMPLATE, locale }), { error });
+export function siteKeyGenerateErrorMessage(locale: string, error: string): string {
+  return interpolate(localeEntry({ table: SITE_KEY_GENERATE_ERROR_TEMPLATE, locale }), { error });
 }
 
 /** Site Token tab's reveal-error banner — same `{error}`-interpolated shape. Unlike generate,
  *  reveal has no known-marker cases to special-case (a reveal either works or fails outright), so
  *  this is the only error template that call site needs. */
-const SITE_TOKEN_REVEAL_ERROR_TEMPLATE: Record<string, string> = {
+const SITE_KEY_REVEAL_ERROR_TEMPLATE: Record<string, string> = {
   "en": "Couldn't reveal the site key: {error}",
   "es": "No se pudo revelar la clave del sitio: {error}",
   "de": "Der Website-Schlüssel konnte nicht angezeigt werden: {error}",
@@ -1342,6 +1342,6 @@ const SITE_TOKEN_REVEAL_ERROR_TEMPLATE: Record<string, string> = {
   "zh-CN": "无法显示站点密钥：{error}",
   "zh-TW": "無法顯示網站金鑰：{error}",
 };
-export function siteTokenRevealErrorMessage(locale: string, error: string): string {
-  return interpolate(localeEntry({ table: SITE_TOKEN_REVEAL_ERROR_TEMPLATE, locale }), { error });
+export function siteKeyRevealErrorMessage(locale: string, error: string): string {
+  return interpolate(localeEntry({ table: SITE_KEY_REVEAL_ERROR_TEMPLATE, locale }), { error });
 }

@@ -1,4 +1,4 @@
-import { api, type AdminPost, type AdminSiteTokenState } from "@/lib/api";
+import { api, type AdminPost, type AdminSiteKeyState } from "@/lib/api";
 import type { DashboardPort } from "./dashboard-port.hooks";
 
 /**
@@ -20,8 +20,8 @@ export const defaultDashboardPort: DashboardPort = {
     const [status, me] = await Promise.all([api.getPasswordStatus(), api.me()]);
     return { usesDefaultPassword: status.usesDefaultPassword, principalId: me.user.id };
   },
-  getSiteTokenState: async () => {
-    const status = await api.getSiteTokenStatus();
+  getSiteKeyState: async () => {
+    const status = await api.getSiteKeyStatus();
     return { state: status.state };
   },
 };
@@ -47,14 +47,14 @@ export interface FakeDashboardPortOptions {
   principalId?: string;
   /** Site-key plan §A.6. Defaults to `"active"` (the normal, no-banner case) — a test seeds
    *  `"missing-with-data"`/`"mismatch"`/`"invalid"` to exercise the site-key warning banner. */
-  siteKeyState?: AdminSiteTokenState;
+  siteKeyState?: AdminSiteKeyState;
   listPostsError?: Error;
   listPagesError?: Error;
   listMediaError?: Error;
   listCommentsQueueError?: Error;
   getPresentationError?: Error;
   getPasswordStatusError?: Error;
-  getSiteTokenStateError?: Error;
+  getSiteKeyStateError?: Error;
 }
 
 /**
@@ -91,8 +91,8 @@ export function createFakeDashboardPort(options: FakeDashboardPortOptions = {}):
       if (options.getPasswordStatusError) throw options.getPasswordStatusError;
       return { usesDefaultPassword: options.usesDefaultPassword ?? false, principalId: options.principalId ?? "fake-user-1" };
     },
-    async getSiteTokenState() {
-      if (options.getSiteTokenStateError) throw options.getSiteTokenStateError;
+    async getSiteKeyState() {
+      if (options.getSiteKeyStateError) throw options.getSiteKeyStateError;
       return { state: options.siteKeyState ?? "active" };
     },
   };

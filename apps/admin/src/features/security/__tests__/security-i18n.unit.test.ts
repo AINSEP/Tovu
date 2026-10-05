@@ -4,7 +4,7 @@ import {
   accessTokensLoadErrorMessage,
   otherCredentialRemoveDialogBody,
   removeDialogTitle,
-  siteTokenRevealErrorMessage,
+  siteKeyRevealErrorMessage,
   t,
 } from "../security-i18n";
 
@@ -67,7 +67,7 @@ describe.each(["constructor", "toString", "__proto__"])("templated copy for inhe
       accessTokenDuplicateNameMessage("en", "Main", "GitHub"),
     );
     expect(removeDialogTitle(locale, "Main")).toBe(removeDialogTitle("en", "Main"));
-    expect(siteTokenRevealErrorMessage(locale, "boom")).toBe(siteTokenRevealErrorMessage("en", "boom"));
+    expect(siteKeyRevealErrorMessage(locale, "boom")).toBe(siteKeyRevealErrorMessage("en", "boom"));
     expect(otherCredentialRemoveDialogBody(locale, { id: "external-mcp", purposeLabel: "MCP" })).toBe(
       otherCredentialRemoveDialogBody("en", { id: "external-mcp", purposeLabel: "MCP" }),
     );

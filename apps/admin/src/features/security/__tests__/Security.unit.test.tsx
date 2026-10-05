@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { Security } from "../Security";
 import type { AccessTokensController } from "../hooks/use-access-tokens.hooks";
 import type { SecurityPermissionsController } from "../hooks/use-security-permissions.hooks";
-import type { SiteTokenController } from "../hooks/use-site-token.hooks";
+import type { SiteKeyController } from "../hooks/use-site-key.hooks";
 
 /**
  * @file `Security` — the page shell around `AccessTokensTab`/`SiteTokenTab` (`resolveActiveTabId`,
@@ -52,7 +52,7 @@ function makeAccessTokens(overrides: Partial<AccessTokensController> = {}): Acce
   };
 }
 
-function makeSiteToken(overrides: Partial<SiteTokenController> = {}): SiteTokenController {
+function makeSiteKey(overrides: Partial<SiteKeyController> = {}): SiteKeyController {
   return {
     status: undefined,
     loadError: null,
@@ -70,17 +70,17 @@ function makeSiteToken(overrides: Partial<SiteTokenController> = {}): SiteTokenC
   };
 }
 
-function makePermissions(canManageSiteToken: boolean): SecurityPermissionsController {
-  return { canManageSiteToken };
+function makePermissions(canManageSiteKey: boolean): SecurityPermissionsController {
+  return { canManageSiteKey };
 }
 
-function renderPage(options: { tabId?: string | null; canManageSiteToken: boolean }) {
+function renderPage(options: { tabId?: string | null; canManageSiteKey: boolean }) {
   return render(
     <Security
       tabId={options.tabId}
       useAccessTokensHook={() => makeAccessTokens()}
-      useSiteTokenHook={() => makeSiteToken()}
-      useSecurityPermissionsHook={() => makePermissions(options.canManageSiteToken)}
+      useSiteKeyHook={() => makeSiteKey()}
+      useSecurityPermissionsHook={() => makePermissions(options.canManageSiteKey)}
     />
   );
 }
@@ -93,13 +93,13 @@ afterEach(() => {
 
 describe("Security — page shell", () => {
   it("renders a page header (Operations kicker, Secrets title) above a TabBar", () => {
-    renderPage({ canManageSiteToken: false });
+    renderPage({ canManageSiteKey: false });
     expect(screen.getByText("Operations")).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 1, name: "Secrets" })).toBeInTheDocument();
   });
 
   it("renders the AccessTokensTab body underneath, not just the tab bar", () => {
-    renderPage({ canManageSiteToken: false });
+    renderPage({ canManageSiteKey: false });
     // `useOtherCredentialsHook` is left at its real default here (unmocked lib/api, degrades to an
     // empty/loading state in a test environment) — this only proves `Security` mounts
     // `AccessTokensTab` at all, which `AccessTokensTab.unit.test.tsx` covers in full.
@@ -108,7 +108,7 @@ describe("Security — page shell", () => {
 
   it("handleTabChange navigates to the clicked tab's own URL, replacing history", async () => {
     const user = userEvent.setup();
-    renderPage({ canManageSiteToken: true });
+    renderPage({ canManageSiteKey: true });
     const historyLength = window.history.length;
     await user.click(screen.getByRole("tab", { name: /Access Tokens/ }));
     expect(window.history.length).toBe(historyLength);
@@ -116,20 +116,37 @@ describe("Security — page shell", () => {
     expect(window.location.search).toBe("?tab=access-tokens");
   });
 
-  describe("Site key tab — gated on admin.security.tokens.manage (2026-09-10)", () => {
+  describe("Site key tab — gated on admin.security.site-key.manage (2026-09-10)", () => {
+    it("C3: publishes the site-key handle and navigates to the site-key tab URL", async () => {
+      const user = userEvent.setup();
+      renderPage({ tabId: "access-tokens", canManageSiteKey: true });
+      const tab = screen.getByRole("tab", { name: /Site key/ });
+      expect(tab).toHaveAttribute("data-agent-element", "security-tab-site-key");
+      await user.click(tab);
+      expect(window.location.pathname).toBe("/admin/access-tokens");
+      expect(window.location.search).toBe("?tab=site-key");
+    });
+
+    it("C3: a retired bookmark falls back to Access Tokens even for a site-key manager", () => {
+      const retiredTabId = ["site", "token"].join("-");
+      const { container } = renderPage({ tabId: retiredTabId, canManageSiteKey: true });
+      expect(screen.getByRole("tab", { name: /Access Tokens/ })).toHaveAttribute("aria-selected", "true");
+      expect(container.querySelector('[data-agent-element="security-site-key"]')).not.toBeInTheDocument();
+    });
+
     it("shows the Site key tab and its panel for a principal WITH the permission", () => {
-      const { container } = renderPage({ tabId: "site-token", canManageSiteToken: true });
+      const { container } = renderPage({ tabId: "site-key", canManageSiteKey: true });
       const tablist = screen.getByRole("tablist");
       expect(within(tablist).getAllByRole("tab")).toHaveLength(2);
       const tab = within(tablist).getByRole("tab", { name: /Site key/ });
       expect(tab).toHaveAttribute("aria-selected", "true");
-      const panel = container.querySelector<HTMLElement>('[data-agent-element="security-site-token"]')!;
+      const panel = container.querySelector<HTMLElement>('[data-agent-element="security-site-key"]')!;
       expect(panel).toBeInTheDocument();
       expect(within(panel).getByText("Loading…")).toBeInTheDocument();
     });
 
-    it("publishes the Site key tab's agent label describing the corrected site-token wording", () => {
-      renderPage({ tabId: "site-token", canManageSiteToken: true });
+    it("publishes the Site key tab's agent label describing the corrected site-key wording", () => {
+      renderPage({ tabId: "site-key", canManageSiteKey: true });
       expect(screen.getByRole("tab", { name: /Site key/ })).toHaveAttribute(
         "data-agent-label",
         "Switch to the Site key tab — view and generate the Site key that decrypts every credential this install has saved (BYOK/AI keys, publish, source-control, media-provider, and MCP credentials), plus webhook signing and newsletter tokens on a local install"
@@ -137,24 +154,24 @@ describe("Security — page shell", () => {
     });
 
     it("hides the Site key tab entirely for a principal WITHOUT the permission", () => {
-      renderPage({ canManageSiteToken: false });
+      renderPage({ canManageSiteKey: false });
       const tablist = screen.getByRole("tablist");
       expect(within(tablist).queryByRole("tab", { name: /Site key/ })).not.toBeInTheDocument();
       expect(within(tablist).getAllByRole("tab")).toHaveLength(1);
     });
 
-    it("resolves a direct ?tab=site-token link to Access Tokens for a principal WITHOUT the permission, rendering neither the tab nor its panel", () => {
-      const { container } = renderPage({ tabId: "site-token", canManageSiteToken: false });
+    it("resolves a direct ?tab=site-key link to Access Tokens for a principal WITHOUT the permission, rendering neither the tab nor its panel", () => {
+      const { container } = renderPage({ tabId: "site-key", canManageSiteKey: false });
       expect(screen.getByRole("tab", { name: /Access Tokens/ })).toHaveAttribute("aria-selected", "true");
       expect(screen.queryByRole("tab", { name: /Site key/ })).not.toBeInTheDocument();
       // `SiteTokenTab.tsx`'s own root `<div>` carries `data-agent-element="security-site-token"`
       // (`agentHandle` — a plain data attribute, NOT a real ARIA role/label). Its absence proves the
       // panel itself never mounted, not just that its tab button is hidden.
-      expect(container.querySelector('[data-agent-element="security-site-token"]')).not.toBeInTheDocument();
+      expect(container.querySelector('[data-agent-element="security-site-key"]')).not.toBeInTheDocument();
     });
 
     it("still resolves an absent or unrecognized ?tab= value to Access Tokens regardless of permission", () => {
-      renderPage({ tabId: "not-a-real-tab", canManageSiteToken: true });
+      renderPage({ tabId: "not-a-real-tab", canManageSiteKey: true });
       expect(screen.getByRole("tab", { name: /Access Tokens/ })).toHaveAttribute("aria-selected", "true");
     });
   });

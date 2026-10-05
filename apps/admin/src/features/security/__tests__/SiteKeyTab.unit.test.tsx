@@ -3,22 +3,22 @@ import { describe, expect, it, vi } from "vitest";
 
 import userEvent from "@testing-library/user-event";
 
-import { SiteTokenTab } from "../SiteTokenTab";
-import type { SiteTokenController } from "../hooks/use-site-token.hooks";
-import type { SiteTokenRecoveryController } from "../hooks/use-site-token-recovery.hooks";
+import { SiteKeyTab } from "../SiteKeyTab";
+import type { SiteKeyController } from "../hooks/use-site-key.hooks";
+import type { SiteKeyRecoveryController } from "../hooks/use-site-key-recovery.hooks";
 import { AGENT_PRIVATE_ATTRIBUTE } from "@jini-ai/agentic";
-import type { AdminSiteTokenStatus } from "@/lib/api";
+import type { AdminSiteKeyStatus } from "@/lib/api";
 
 /**
- * @file First dedicated test file for `SiteTokenTab.tsx`. It exists because the 2026-09-09 copy
- * pass (`27e16a1e` — "Site Token" as the canonical label, plus the added "Fingerprint" label and the
+ * @file First dedicated test file for `SiteKeyTab.tsx`. It exists because the 2026-09-09 copy
+ * pass (`27e16a1e` — "Site key" as the canonical label, plus the added "Fingerprint" label and the
  * rewritten scope notice) shipped with no assertion that would fail if any of that wording
  * regressed; until now `Security.unit.test.tsx` only mounted this tab's shell, and its own header
  * noted there was no `*.unit.test.tsx` here. Each test below pins one of the strings that pass
  * introduced, because they are the user-facing names an operator reads, not incidental markup.
  */
 
-const ACTIVE_FILE_STATUS: AdminSiteTokenStatus = {
+const ACTIVE_FILE_STATUS: AdminSiteKeyStatus = {
   active: true,
   source: "file",
   fingerprint: "a1b2c3d4e5f6",
@@ -27,9 +27,9 @@ const ACTIVE_FILE_STATUS: AdminSiteTokenStatus = {
   state: "active",
 };
 
-/** Minimal `SiteTokenController` fake — same shape `Security.unit.test.tsx` uses, with the
+/** Minimal `SiteKeyController` fake — same shape `Security.unit.test.tsx` uses, with the
  *  `status` override being the only thing any test here varies. */
-function makeSiteToken(overrides: Partial<SiteTokenController> = {}): SiteTokenController {
+function makeSiteKey(overrides: Partial<SiteKeyController> = {}): SiteKeyController {
   return {
     status: undefined,
     loadError: null,
@@ -47,11 +47,11 @@ function makeSiteToken(overrides: Partial<SiteTokenController> = {}): SiteTokenC
   };
 }
 
-function renderTab(status: AdminSiteTokenStatus = ACTIVE_FILE_STATUS) {
-  return render(<SiteTokenTab useSiteTokenHook={() => makeSiteToken({ status })} />);
+function renderTab(status: AdminSiteKeyStatus = ACTIVE_FILE_STATUS) {
+  return render(<SiteKeyTab useSiteKeyHook={() => makeSiteKey({ status })} />);
 }
 
-describe("SiteTokenTab — status card copy", () => {
+describe("SiteKeyTab — status card copy", () => {
   it('labels the section "Site key" with the canonical terminology', () => {
     renderTab();
 
@@ -80,8 +80,8 @@ describe("SiteTokenTab — status card copy", () => {
  *  Generate would create and save the key file — stale ever since Generate was hidden by default
  *  (§A.6) in favor of automatic creation at boot (`ensureSiteKeyForBoot`). The copy must say what
  *  actually happens now, not describe a control that isn't on the page. */
-describe("SiteTokenTab — 'no key yet' copy is terse and true (site-key plan item 3)", () => {
-  const NO_KEY_STATUS: AdminSiteTokenStatus = {
+describe("SiteKeyTab — 'no key yet' copy is terse and true (site-key plan item 3)", () => {
+  const NO_KEY_STATUS: AdminSiteKeyStatus = {
     active: false,
     source: "none",
     keyFilePath: "/data/tovu/site-keys/abc123.hex",
@@ -102,8 +102,8 @@ describe("SiteTokenTab — 'no key yet' copy is terse and true (site-key plan it
  *  includes an existing-but-invalid key file — a state where the server always 409s
  *  `ALREADY_EXISTS` (it only ever creates, never overwrites). Generate must be offered only for
  *  the genuinely decidable case: no key at all. */
-describe("SiteTokenTab — Generate gating (sol finding 3-1)", () => {
-  const NO_KEY_STATUS: AdminSiteTokenStatus = {
+describe("SiteKeyTab — Generate gating (sol finding 3-1)", () => {
+  const NO_KEY_STATUS: AdminSiteKeyStatus = {
     active: false,
     source: "none",
     keyFilePath: `/data/tovu/site-key.hex`,
@@ -111,7 +111,7 @@ describe("SiteTokenTab — Generate gating (sol finding 3-1)", () => {
     state: "missing",
   };
 
-  const INVALID_FILE_STATUS: AdminSiteTokenStatus = {
+  const INVALID_FILE_STATUS: AdminSiteKeyStatus = {
     active: false,
     source: "file",
     invalid: true,
@@ -120,7 +120,7 @@ describe("SiteTokenTab — Generate gating (sol finding 3-1)", () => {
     state: "invalid",
   };
 
-  const INVALID_ENV_STATUS: AdminSiteTokenStatus = {
+  const INVALID_ENV_STATUS: AdminSiteKeyStatus = {
     active: false,
     source: "env",
     invalid: true,
@@ -157,9 +157,9 @@ describe("SiteTokenTab — Generate gating (sol finding 3-1)", () => {
 });
 
 /** The locked site's recovery card (design 2026-09-14 §4.3/§4.6): two actions, terse copy, one
- *  typed confirmation for Start fresh. The card only renders; `useSiteTokenRecovery` owns state. */
-describe("SiteTokenTab — recovery card for a locked site", () => {
-  const MISMATCH_STATUS: AdminSiteTokenStatus = {
+ *  typed confirmation for Start fresh. The card only renders; `useSiteKeyRecovery` owns state. */
+describe("SiteKeyTab — recovery card for a locked site", () => {
+  const MISMATCH_STATUS: AdminSiteKeyStatus = {
     active: true,
     source: "file",
     fingerprint: "ffff00001111",
@@ -168,10 +168,10 @@ describe("SiteTokenTab — recovery card for a locked site", () => {
     state: "mismatch",
   };
 
-  function makeRecovery(overrides: Partial<SiteTokenRecoveryController> = {}): SiteTokenRecoveryController {
+  function makeRecovery(overrides: Partial<SiteKeyRecoveryController> = {}): SiteKeyRecoveryController {
     return {
-      token: "",
-      setToken: () => {},
+      siteKey: "",
+      setSiteKey: () => {},
       unlocking: false,
       unlockError: null,
       unlock: async () => {},
@@ -191,9 +191,9 @@ describe("SiteTokenTab — recovery card for a locked site", () => {
     };
   }
 
-  function renderLocked(status: AdminSiteTokenStatus, recovery: Partial<SiteTokenRecoveryController> = {}) {
+  function renderLocked(status: AdminSiteKeyStatus, recovery: Partial<SiteKeyRecoveryController> = {}) {
     return render(
-      <SiteTokenTab useSiteTokenHook={() => makeSiteToken({ status })} useSiteTokenRecoveryHook={() => makeRecovery(recovery)} />
+      <SiteKeyTab useSiteKeyHook={() => makeSiteKey({ status })} useSiteKeyRecoveryHook={() => makeRecovery(recovery)} />
     );
   }
 
@@ -228,12 +228,12 @@ describe("SiteTokenTab — recovery card for a locked site", () => {
 
   it("forwards the typed token and Unlock and Start fresh actions", async () => {
     const user = userEvent.setup();
-    const setToken = vi.fn();
+    const setSiteKey = vi.fn();
     const unlock = vi.fn(async () => {});
     const openStartFresh = vi.fn(async () => {});
-    renderLocked(MISMATCH_STATUS, { token: "old-token", setToken, unlock, openStartFresh });
+    renderLocked(MISMATCH_STATUS, { siteKey: "old-token", setSiteKey, unlock, openStartFresh });
     await user.type(screen.getByLabelText("Paste your old site key"), "x");
-    expect(setToken).toHaveBeenCalledWith("old-tokenx");
+    expect(setSiteKey).toHaveBeenCalledWith("old-tokenx");
     await user.click(screen.getByRole("button", { name: "Unlock" }));
     expect(unlock).toHaveBeenCalledTimes(1);
     await user.click(screen.getByRole("button", { name: "Start fresh…" }));
@@ -259,7 +259,7 @@ describe("SiteTokenTab — recovery card for a locked site", () => {
   });
 
   it("the pasted token field is a password field hidden from the assistant", () => {
-    renderLocked(MISMATCH_STATUS, { token: "abc" });
+    renderLocked(MISMATCH_STATUS, { siteKey: "abc" });
 
     const input = screen.getByLabelText("Paste your old site key");
     expect(input).toHaveAttribute("type", "password");
@@ -276,7 +276,7 @@ describe("SiteTokenTab — recovery card for a locked site", () => {
 
 /** A locked site's status card must not promise a key will be made at startup — boot refuses to
  *  mint over saved credentials. It points at the recovery card instead. */
-describe("SiteTokenTab — status note for a locked site", () => {
+describe("SiteKeyTab — status note for a locked site", () => {
   const LOCKED_NOTE = "Your credentials need their original site key — use the card above.";
 
   it("missing-with-data: says the credentials need their original site key, not that a key is created at startup", () => {

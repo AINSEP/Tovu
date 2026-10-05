@@ -291,8 +291,8 @@ import { registerAdminExportSiteRoutes } from "../../inbound/admin-http/routes/s
 import { registerAdminCustomCredentialsRoutes } from "../../inbound/admin-http/routes/system/custom-credentials.js";
 import { registerAdminPublishCredentialsRoutes } from "../../inbound/admin-http/routes/system/publish-credentials.js";
 import { registerAdminSourceControlCredentialsRoutes } from "../../inbound/admin-http/routes/system/source-control-credentials.js";
-import { registerAdminSiteTokenRoutes } from "../../inbound/admin-http/routes/system/site-token.js";
-import { siteTokenRecovery } from "./site-token-recovery.js";
+import { registerAdminSiteKeyRoutes } from "../../inbound/admin-http/routes/system/site-key.js";
+import { siteKeyRecovery } from "./site-key-recovery.js";
 import { registerAdminFsFilesCustomRootRoutes } from "../../inbound/admin-http/routes/fs-files/custom-root.js";
 import { registerAdminPublishSiteRoutes } from "../../inbound/admin-http/routes/system/publish-site.js";
 import { createFormsAdminModule } from "./modules/forms-admin.js";
@@ -1841,7 +1841,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // tokens still need the env var). Generate runs the one site-key writer boot runs
   // (`ensureSiteKeyForSite`), handed in here because the route itself may not import it; the
   // recovery verbs (import, start fresh) get `siteTokenRecovery` the same way.
-  registerAdminSiteTokenRoutes(app, routeDeps, { ensureSiteKeyForSite, ...siteTokenRecovery });
+  registerAdminSiteKeyRoutes(app, routeDeps, { ensureSiteKeyForSite, ...siteKeyRecovery });
   // Chat composer's folder control: GET/PUT/DELETE the fs-files `custom` root — the operator-set
   // folder `fs_list_files`/`fs_read_file` may reach outside `repo`/`site`. `content.read`-gated, the
   // same permission that gates those two tools themselves — see that route file's own header.

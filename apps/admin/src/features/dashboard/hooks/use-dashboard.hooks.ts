@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { describeApiError, type AdminPost, type AdminSiteTokenState } from "@/lib/api";
+import { describeApiError, type AdminPost, type AdminSiteKeyState } from "@/lib/api";
 import { activeThemeName, mergeRecent, shouldShowDefaultPasswordBanner, shouldShowSiteKeyBanner, siteKeyBannerCopy } from "../rules";
 import { useWiredAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as translate } from "../dashboard-i18n";
@@ -157,7 +157,7 @@ export function useDashboard({ port, locale, t }: DashboardDependencies): Dashbo
   const [dismissedBy, setDismissedBy] = useState<string | null>(readDefaultPasswordBannerDismissedBy);
   // `undefined` until the site-key status fetch settles (or forever, if it fails — swallowed below,
   // same as `passwordStatus` above). `shouldShowSiteKeyBanner` treats `undefined` as "don't show".
-  const [siteKeyState, setSiteKeyState] = useState<AdminSiteTokenState | undefined>(undefined);
+  const [siteKeyState, setSiteKeyState] = useState<AdminSiteKeyState | undefined>(undefined);
 
   // Deliberately `[]`, not `[port, locale]` — preserved from the pre-port version, which had no
   // dependency to list either. A caller changing `port`/`locale` after mount does not re-fetch;
@@ -212,7 +212,7 @@ export function useDashboard({ port, locale, t }: DashboardDependencies): Dashbo
     // Site-key plan §A.6 — same advisory, swallowed-on-failure shape as the password status read
     // just above: a failed fetch means no banner, not an error card.
     port
-      .getSiteTokenState()
+      .getSiteKeyState()
       .then((result) => setSiteKeyState(result.state))
       .catch(() => {});
   }, []);

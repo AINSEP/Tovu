@@ -6,38 +6,38 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { syncBuiltinESMExports } from "node:module";
 
-import { registerAdminSiteTokenRoutes, siteTokenState } from "../site-token.js";
+import { registerAdminSiteKeyRoutes, siteKeyState } from "../site-key.js";
 
 /**
- * @file Site-key plan §A.6 — `siteTokenState` is the admin Site Token route's pure decision table:
- * given an already-computed `RootKeyStatus` plus the two site-key-plan-specific inputs
+ * @file Site-key plan §A.6 — `siteKeyState` is the admin Site key route's pure decision table:
+ * given an already-computed `SiteKeyStatus` plus the two site-key-plan-specific inputs
  * (`.site-meta.json`'s stamped fingerprint, and whether this site's `content.db` holds
- * key-dependent data), it derives the `SiteTokenState` the `GET` response's `state` field carries.
+ * key-dependent data), it derives the `SiteKeyState` the `GET` response's `state` field carries.
  * Tested directly here (no HTTP, no filesystem) for exhaustive branch coverage;
- * `admin-site-token-routes.test.ts` covers the route's own I/O wiring end to end.
+ * `admin-site-key-routes.test.ts` covers the route's own I/O wiring end to end.
  */
 
-test("siteTokenState: invalid always wins, regardless of active/fingerprint/hasKeyDependentData", () => {
+test("siteKeyState: invalid always wins, regardless of active/fingerprint/hasKeyDependentData", () => {
   assert.equal(
-    siteTokenState({ active: false, invalid: true, hasKeyDependentData: true }),
+    siteKeyState({ active: false, invalid: true, hasKeyDependentData: true }),
     "invalid"
   );
   assert.equal(
-    siteTokenState({ active: true, invalid: true, fingerprint: "abc123abc123", hasKeyDependentData: false }),
+    siteKeyState({ active: true, invalid: true, fingerprint: "abc123abc123", hasKeyDependentData: false }),
     "invalid"
   );
 });
 
-test("siteTokenState: active with no .site-meta.json fingerprint stamped yet → 'active'", () => {
+test("siteKeyState: active with no .site-meta.json fingerprint stamped yet → 'active'", () => {
   assert.equal(
-    siteTokenState({ active: true, fingerprint: "abc123abc123", metaFingerprint: undefined, hasKeyDependentData: false }),
+    siteKeyState({ active: true, fingerprint: "abc123abc123", metaFingerprint: undefined, hasKeyDependentData: false }),
     "active"
   );
 });
 
-test("siteTokenState: active with a stamped fingerprint that matches the resolved key → 'active'", () => {
+test("siteKeyState: active with a stamped fingerprint that matches the resolved key → 'active'", () => {
   assert.equal(
-    siteTokenState({
+    siteKeyState({
       active: true,
       fingerprint: "abc123abc123",
       metaFingerprint: "abc123abc123",
@@ -47,9 +47,9 @@ test("siteTokenState: active with a stamped fingerprint that matches the resolve
   );
 });
 
-test("siteTokenState: active with a stamped fingerprint that differs from the resolved key → 'mismatch'", () => {
+test("siteKeyState: active with a stamped fingerprint that differs from the resolved key → 'mismatch'", () => {
   assert.equal(
-    siteTokenState({
+    siteKeyState({
       active: true,
       fingerprint: "abc123abc123",
       metaFingerprint: "def456def456",
@@ -59,12 +59,12 @@ test("siteTokenState: active with a stamped fingerprint that differs from the re
   );
 });
 
-test("siteTokenState: not active, this site's content.db has no key-dependent data → 'missing'", () => {
-  assert.equal(siteTokenState({ active: false, hasKeyDependentData: false }), "missing");
+test("siteKeyState: not active, this site's content.db has no key-dependent data → 'missing'", () => {
+  assert.equal(siteKeyState({ active: false, hasKeyDependentData: false }), "missing");
 });
 
-test("siteTokenState: not active, this site's content.db holds key-dependent data → 'missing-with-data'", () => {
-  assert.equal(siteTokenState({ active: false, hasKeyDependentData: true }), "missing-with-data");
+test("siteKeyState: not active, this site's content.db holds key-dependent data → 'missing-with-data'", () => {
+  assert.equal(siteKeyState({ active: false, hasKeyDependentData: true }), "missing-with-data");
 });
 
 
@@ -92,7 +92,7 @@ test("GET status treats a failed open-store scan as missing-with-data rather tha
     authorize: async () => ({ allowed: true, reason: "matched" }),
     contentKernel: { dialect: "sqlite", query: async () => { scans++; if (failScan) throw new Error("catalog unavailable"); return []; } },
   };
-  registerAdminSiteTokenRoutes({ get: (_path: string, h: any) => { if (!handler) handler = h; }, post: () => {} } as any, deps as any, {} as any);
+  registerAdminSiteKeyRoutes({ get: (_path: string, h: any) => { if (!handler) handler = h; }, post: () => {} } as any, deps as any, {} as any);
   async function status() {
     let code = 0;
     let body: any;

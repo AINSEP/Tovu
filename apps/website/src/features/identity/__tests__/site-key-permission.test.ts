@@ -15,10 +15,10 @@ import { applyBuiltinRoleGrants } from "../builtin-role-grants.js";
 // `registerBuiltinRoleGrant` calls) — same reasoning `edit-html-permission.test.ts` documents for
 // its own equivalent import: a test file that never imports the module under test would pass
 // vacuously if that module were ever deleted, since nothing would register anything.
-import "../site-token-permission.js";
+import "../site-key-permission.js";
 
 /**
- * @file `admin.security.tokens.manage` is a REAL permission, and `editor`/`viewer` do not hold it.
+ * @file `admin.security.site-key.manage` is a REAL permission, and `editor`/`viewer` do not hold it.
  *
  * Same shape as `features/pages/__tests__/edit-html-permission.test.ts` (see that file's own
  * header for the full "why the whole chain is real" reasoning this mirrors) — the interesting
@@ -30,13 +30,13 @@ import "../site-token-permission.js";
  * Two vintages, same reasoning as `edit-html-permission.test.ts`'s `Vintage`: `"fresh"` is a
  * workspace whose admin policy holds `admin.integrations.manage` (current
  * `BUILTIN_ADMIN_PERMISSIONS`); `"pre-integrations-manage"` simulates a workspace seeded before
- * that permission existed, where the `admin.integrations.manage -> admin.security.tokens.manage`
+ * that permission existed, where the `admin.integrations.manage -> admin.security.site-key.manage`
  * migration's `from` row is absent and only the direct `registerBuiltinRoleGrant` reaches admin.
  */
 
-const SITE_TOKEN_MANAGE = "admin.security.tokens.manage";
+const SITE_KEY_MANAGE = "admin.security.site-key.manage";
 const INTEGRATIONS_MANAGE = "admin.integrations.manage";
-const WORKSPACE = "ws-site-token-privilege";
+const WORKSPACE = "ws-site-key-privilege";
 const clock = { nowIso: () => "2026-09-09T00:00:00.000Z", nowMs: () => Date.parse("2026-09-09T00:00:00.000Z") };
 
 function counterIdGen(prefix: string) {
@@ -110,7 +110,7 @@ async function buildChain(vintage: Vintage = "fresh"): Promise<Chain> {
         rolePolicies: repos.rolePolicies,
         principalPolicies: repos.principalPolicies,
         policyPermissions: repos.policyPermissions,
-      }, principalId, permission, context: { workspaceId: WORKSPACE } }, { entityType: "site-token" });
+      }, principalId, permission, context: { workspaceId: WORKSPACE } }, { entityType: "site-key" });
 
   return { repos, principals, can };
 }
@@ -132,16 +132,16 @@ async function dropAdminIntegrationsManage(repos: IdentityRepos): Promise<void> 
 // The refusal — the primary certification.
 // ---------------------------------------------------------------------------
 
-test("an 'editor' principal does NOT hold admin.security.tokens.manage", async () => {
+test("an 'editor' principal does NOT hold admin.security.site-key.manage", async () => {
   const { principals, can } = await buildChain();
-  const decision = await can(principals.editor, SITE_TOKEN_MANAGE);
+  const decision = await can(principals.editor, SITE_KEY_MANAGE);
   assert.equal(decision.allowed, false, "editor must not be able to view/generate the site key");
   assert.equal(decision.reason, "no_grant");
 });
 
-test("a 'viewer' principal does NOT hold admin.security.tokens.manage", async () => {
+test("a 'viewer' principal does NOT hold admin.security.site-key.manage", async () => {
   const { principals, can } = await buildChain();
-  const decision = await can(principals.viewer, SITE_TOKEN_MANAGE);
+  const decision = await can(principals.viewer, SITE_KEY_MANAGE);
   assert.equal(decision.allowed, false);
   assert.equal(decision.reason, "no_grant");
 });
@@ -150,16 +150,16 @@ test("a 'viewer' principal does NOT hold admin.security.tokens.manage", async ()
 // The grant — present to prove the gate is a gate and not a wall.
 // ---------------------------------------------------------------------------
 
-test("an 'admin' principal in a freshly-seeded workspace holds admin.security.tokens.manage", async () => {
+test("an 'admin' principal in a freshly-seeded workspace holds admin.security.site-key.manage", async () => {
   const { principals, can } = await buildChain();
-  const decision = await can(principals.admin, SITE_TOKEN_MANAGE);
+  const decision = await can(principals.admin, SITE_KEY_MANAGE);
   assert.equal(decision.allowed, true, "gating on a permission no role holds would break the feature instead of securing it");
   assert.equal(decision.reason, "matched");
 });
 
 test("the 'owner' principal is unaffected — it clears the gate on its '*' wildcard, not on a granted row", async () => {
   const { principals, can } = await buildChain();
-  const decision = await can(principals.owner, SITE_TOKEN_MANAGE);
+  const decision = await can(principals.owner, SITE_KEY_MANAGE);
   assert.equal(decision.allowed, true);
   assert.equal(decision.reason, "owner_wildcard");
 });
@@ -170,9 +170,9 @@ test("the 'owner' principal is unaffected — it clears the gate on its '*' wild
 // there, so ONLY the direct registerBuiltinRoleGrant can reach admin.
 // ---------------------------------------------------------------------------
 
-test("an 'admin' principal in a pre-integrations-manage workspace ALSO holds admin.security.tokens.manage — the grant cannot depend on a seed row that workspace never got", async () => {
+test("an 'admin' principal in a pre-integrations-manage workspace ALSO holds admin.security.site-key.manage — the grant cannot depend on a seed row that workspace never got", async () => {
   const { principals, can } = await buildChain("pre-integrations-manage");
-  const decision = await can(principals.admin, SITE_TOKEN_MANAGE);
+  const decision = await can(principals.admin, SITE_KEY_MANAGE);
   assert.equal(decision.allowed, true, "admin must hold this permission even in an already-seeded workspace missing the migration's anchor row");
   assert.equal(decision.reason, "matched");
 });
@@ -180,11 +180,11 @@ test("an 'admin' principal in a pre-integrations-manage workspace ALSO holds adm
 test("that pre-integrations-manage backfill reaches ONLY admin — editor and viewer are still refused", async () => {
   const { principals, can } = await buildChain("pre-integrations-manage");
 
-  const editorDecision = await can(principals.editor, SITE_TOKEN_MANAGE);
+  const editorDecision = await can(principals.editor, SITE_KEY_MANAGE);
   assert.equal(editorDecision.allowed, false);
   assert.equal(editorDecision.reason, "no_grant");
 
-  const viewerDecision = await can(principals.viewer, SITE_TOKEN_MANAGE);
+  const viewerDecision = await can(principals.viewer, SITE_KEY_MANAGE);
   assert.equal(viewerDecision.allowed, false);
   assert.equal(viewerDecision.reason, "no_grant");
 });
@@ -196,7 +196,7 @@ test("the pre-integrations-manage backfill is additive — it never invents an a
   assert.ok(policy);
   const held = (await repos.policyPermissions.listByPolicyId({ workspaceId: WORKSPACE, policyId: policy.id })).map((row) => row.permission);
 
-  assert.ok(held.includes(SITE_TOKEN_MANAGE), "the one capability under discussion is granted");
+  assert.ok(held.includes(SITE_KEY_MANAGE), "the one capability under discussion is granted");
   assert.ok(!held.includes(INTEGRATIONS_MANAGE), "restoring site key management must not also silently restore integration-connection management");
 });
 
@@ -206,13 +206,31 @@ test("a custom policy holding only the integrations anchor inherits token manage
   await repos.policies.save({ id: "custom-policy", workspaceId: WORKSPACE, name: "custom-policy", isBuiltin: false, isFrozen: false });
   await repos.principalPolicies.save({ id: "custom-link", workspaceId: WORKSPACE, principalId: "custom-user", policyId: "custom-policy" });
   await repos.policyPermissions.save({ id: "custom-anchor", workspaceId: WORKSPACE, policyId: "custom-policy", permission: "admin.integrations.manage" });
-  assert.equal((await can("custom-user", SITE_TOKEN_MANAGE)).allowed, false);
+  assert.equal((await can("custom-user", SITE_KEY_MANAGE)).allowed, false);
   await migrateDeprecatedPermissionGrants({ transactions: repos.transactions, policyPermissions: repos.policyPermissions, policies: repos.policies, idGen: counterIdGen("custom-mig"), workspaceId: WORKSPACE });
-  assert.deepEqual(await can("custom-user", SITE_TOKEN_MANAGE), { allowed: true, reason: "matched" });
+  assert.deepEqual(await can("custom-user", SITE_KEY_MANAGE), { allowed: true, reason: "matched" });
+});
+
+test("C2: a custom policy holding only the former site-key permission keeps access after migration, without broader grants", async () => {
+  const { repos, can } = await buildChain();
+  const oldPermission = "admin.security.tokens.manage";
+  const newPermission = "admin.security.site-key.manage";
+  await repos.principals.save({ id: "legacy-key-user", workspaceId: WORKSPACE, kind: "user", displayName: "Key manager", status: "active", createdAt: clock.nowIso() });
+  await repos.policies.save({ id: "legacy-key-policy", workspaceId: WORKSPACE, name: "legacy-key-policy", isBuiltin: false, isFrozen: false });
+  await repos.principalPolicies.save({ id: "legacy-key-link", workspaceId: WORKSPACE, principalId: "legacy-key-user", policyId: "legacy-key-policy" });
+  await repos.policyPermissions.save({ id: "legacy-key-grant", workspaceId: WORKSPACE, policyId: "legacy-key-policy", permission: oldPermission });
+  assert.deepEqual(await can("legacy-key-user", newPermission), { allowed: false, reason: "no_grant" });
+  const migrate = () => migrateDeprecatedPermissionGrants({ transactions: repos.transactions, policyPermissions: repos.policyPermissions, policies: repos.policies, idGen: counterIdGen("legacy-key-mig"), workspaceId: WORKSPACE });
+  await migrate();
+  await migrate(); // Every boot is additive and idempotent.
+  assert.deepEqual(await can("legacy-key-user", newPermission), { allowed: true, reason: "matched" });
+  const grants = await repos.policyPermissions.listByPolicyId({ workspaceId: WORKSPACE, policyId: "legacy-key-policy" });
+  assert.deepEqual(grants.map(row => row.permission).sort(), [oldPermission, newPermission].sort());
+  assert.equal((await can("legacy-key-user", INTEGRATIONS_MANAGE)).allowed, false);
 });
 
 test("real identityReady boot restores token-management access in a workspace lacking the integrations anchor", async (t) => {
-  const dir = mkdtempSync(join(tmpdir(), "site-token-boot-"));
+  const dir = mkdtempSync(join(tmpdir(), "site-key-boot-"));
   const db = openContentDb(join(dir, "content.db"));
   t.after(() => { db.$client.close(); rmSync(dir, { recursive: true, force: true }); });
   const idGen = counterIdGen("boot");
@@ -223,13 +241,13 @@ test("real identityReady boot restores token-management access in a workspace la
   assert.ok(policy);
   assert.ok(role);
   for (const row of await setup.policyPermissionRepo.listByPolicyId({ workspaceId: WORKSPACE, policyId: policy.id })) {
-    if (row.permission === INTEGRATIONS_MANAGE || row.permission === SITE_TOKEN_MANAGE) {
+    if (row.permission === INTEGRATIONS_MANAGE || row.permission === SITE_KEY_MANAGE) {
       await setup.policyPermissionRepo.delete({ workspaceId: WORKSPACE, id: row.id });
     }
   }
   await setup.principalRepo.save({ id: "vintage-admin", workspaceId: WORKSPACE, kind: "user", displayName: "Vintage admin", status: "active", createdAt: clock.nowIso() });
   await setup.principalRoleRepo.save({ id: "vintage-role", workspaceId: WORKSPACE, principalId: "vintage-admin", roleId: role.id });
-  const request = { workspaceId: WORKSPACE, principalId: "vintage-admin", permission: "admin.security.tokens.manage" };
+  const request = { workspaceId: WORKSPACE, principalId: "vintage-admin", permission: "admin.security.site-key.manage" };
   assert.deepEqual(await setup.authorize(request), { allowed: false, reason: "no_grant" });
   const boot = createSqliteIdentityRouteDeps({ db, workspaceId: WORKSPACE, clock, idGen });
   await boot.identityReady;

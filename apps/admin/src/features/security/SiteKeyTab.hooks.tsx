@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 /**
- * @file `SiteTokenTab.tsx`'s reveal panel's own copy-to-clipboard state — split out per the
+ * @file `SiteKeyTab.tsx`'s reveal panel's own copy-to-clipboard state — split out per the
  * `<Name>.tsx`/`<Name>.hooks.tsx` extraction pattern (`AccessTokensTab.hooks.tsx`'s header). Mirrors
  * `use-dockerfile-source.hooks.ts`'s `copy`/`copied` shape (`setTimeout(..., 1500)` reset), scoped
  * to just this one value rather than that hook's whole load/save/copy controller.

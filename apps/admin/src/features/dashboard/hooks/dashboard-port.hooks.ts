@@ -1,4 +1,4 @@
-import type { AdminPost, AdminSiteTokenState } from "@/lib/api";
+import type { AdminPost, AdminSiteKeyState } from "@/lib/api";
 
 /**
  * @file What `use-dashboard.hooks.ts` needs from the outside world, as an interface rather than a
@@ -36,5 +36,5 @@ export interface DashboardPort {
    *  to just `state` (`GET .../system/site-token`'s full response also carries `active`/`source`/
    *  `fingerprint`/`keyFilePath`, none of which the dashboard's own warning banner needs — the
    *  Security → Site Token tab is the one place that reads the rest). */
-  getSiteTokenState(): Promise<{ state: AdminSiteTokenState }>;
+  getSiteKeyState(): Promise<{ state: AdminSiteKeyState }>;
 }

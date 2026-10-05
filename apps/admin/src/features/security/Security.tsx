@@ -6,10 +6,10 @@ import { resolveActiveTabId } from "../../lib/resolve-active-tab-id";
 import { TabBar, type TabBarTab } from "../../components/TabBar";
 import { t } from "./security-i18n";
 import { AccessTokensTab } from "./AccessTokensTab";
-import { SiteTokenTab } from "./SiteTokenTab";
-import { AccessTokensIcon, SiteTokenIcon } from "./security-visuals";
+import { SiteKeyTab } from "./SiteKeyTab";
+import { AccessTokensIcon, SiteKeyIcon } from "./security-visuals";
 import { useWiredAccessTokens } from "./hooks/use-access-tokens.hooks";
-import { useWiredSiteToken } from "./hooks/use-site-token.hooks";
+import { useWiredSiteKey } from "./hooks/use-site-key.hooks";
 import { useWiredSecurityPermissions } from "./hooks/use-security-permissions.hooks";
 
 /**
@@ -90,7 +90,7 @@ import { useWiredSecurityPermissions } from "./hooks/use-security-permissions.ho
  * empty/absent permissions), so the tab never flashes into view before disappearing.
  */
 
-const SECURITY_TAB_IDS = ["access-tokens", "site-token"] as const;
+const SECURITY_TAB_IDS = ["access-tokens", "site-key"] as const;
 type SecurityTabId = (typeof SECURITY_TAB_IDS)[number];
 
 /** The tab-id list for a principal WITHOUT `admin.security.tokens.manage` — see this file's header
@@ -104,8 +104,8 @@ const ACCESS_TOKENS_ONLY_TAB_IDS: readonly SecurityTabId[] = ["access-tokens"];
  *  followed by a principal who does not hold `admin.security.tokens.manage`: `validIds` narrows to
  *  {@link ACCESS_TOKENS_ONLY_TAB_IDS} for them, so `site-token` reads as just as "unrecognized" as a
  *  typo would, and they land on Access Tokens instead of an empty panel. */
-function resolveSecurityTabId(tabId: string | null | undefined, canManageSiteToken: boolean): SecurityTabId {
-  const validIds: readonly SecurityTabId[] = canManageSiteToken ? SECURITY_TAB_IDS : ACCESS_TOKENS_ONLY_TAB_IDS;
+function resolveSecurityTabId(tabId: string | null | undefined, canManageSiteKey: boolean): SecurityTabId {
+  const validIds: readonly SecurityTabId[] = canManageSiteKey ? SECURITY_TAB_IDS : ACCESS_TOKENS_ONLY_TAB_IDS;
   return resolveActiveTabId(tabId, validIds, "access-tokens");
 }
 
@@ -115,8 +115,8 @@ export interface SecurityProps {
   /** DI seam for tests, threaded through to {@link AccessTokensTab} — same convention
    *  `SourceControlProps.useSourceControlCredentialsHook` follows. */
   useAccessTokensHook?: typeof useWiredAccessTokens;
-  /** DI seam for tests, threaded through to {@link SiteTokenTab} — same convention. */
-  useSiteTokenHook?: typeof useWiredSiteToken;
+  /** DI seam for tests, threaded through to {@link SiteKeyTab} — same convention. */
+  useSiteKeyHook?: typeof useWiredSiteKey;
   /** DI seam for tests — decides whether the Site Token tab is even offered. See this file's
    *  header ("The Site Token tab is affordance-hidden"). */
   useSecurityPermissionsHook?: typeof useWiredSecurityPermissions;
@@ -131,8 +131,8 @@ function resolveSecurityPermissionsHook(
 export function Security(props: SecurityProps) {
   const locale = useAdminLocale();
   const useSecurityPermissionsHook = resolveSecurityPermissionsHook(props.useSecurityPermissionsHook);
-  const { canManageSiteToken } = useSecurityPermissionsHook();
-  const activeTabId = resolveSecurityTabId(props.tabId, canManageSiteToken);
+  const { canManageSiteKey } = useSecurityPermissionsHook();
+  const activeTabId = resolveSecurityTabId(props.tabId, canManageSiteKey);
 
   const tabs: TabBarTab[] = [
     {
@@ -142,13 +142,13 @@ export function Security(props: SecurityProps) {
       handle: "security-tab-access-tokens",
       handleLabel: "Switch to the Access Tokens tab — every access token and other saved credential this install holds, in one place",
     },
-    ...(canManageSiteToken
+    ...(canManageSiteKey
       ? [
           {
-            id: "site-token",
+            id: "site-key",
             label: t(locale, "Site key"),
-            icon: <SiteTokenIcon size={16} />,
-            handle: "security-tab-site-token",
+            icon: <SiteKeyIcon size={16} />,
+            handle: "security-tab-site-key",
             handleLabel: "Switch to the Site key tab — view and generate the Site key that decrypts every credential this install has saved (BYOK/AI keys, publish, source-control, media-provider, and MCP credentials), plus webhook signing and newsletter tokens on a local install",
           } satisfies TabBarTab,
         ]
@@ -187,7 +187,7 @@ export function Security(props: SecurityProps) {
         containerHandle="security-tab-bar"
       />
       {activeTabId === "access-tokens" ? <AccessTokensTab useAccessTokensHook={props.useAccessTokensHook} /> : null}
-      {activeTabId === "site-token" ? <SiteTokenTab useSiteTokenHook={props.useSiteTokenHook} /> : null}
+      {activeTabId === "site-key" ? <SiteKeyTab useSiteKeyHook={props.useSiteKeyHook} /> : null}
     </div>
   );
 }

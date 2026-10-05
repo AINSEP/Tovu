@@ -1,28 +1,28 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError, type AdminSiteTokenStatus } from "@/lib/api";
-import { useSiteToken } from "../hooks/use-site-token.hooks";
-import type { SiteTokenPort } from "../hooks/site-token-port.hooks";
-import { useRevealedKeyCopy } from "../SiteTokenTab.hooks";
+import { ApiError, type AdminSiteKeyStatus } from "@/lib/api";
+import { useSiteKey } from "../hooks/use-site-key.hooks";
+import type { SiteKeyPort } from "../hooks/site-key-port.hooks";
+import { useRevealedKeyCopy } from "../SiteKeyTab.hooks";
 
 const t = (key: string) => key;
 const HEX = "ab".repeat(32);
-const ACTIVE: AdminSiteTokenStatus = { active: true, source: "file", fingerprint: "fp", keyFilePath: "/key", runtimeMode: "local", state: "active" };
-const MISSING: AdminSiteTokenStatus = { active: false, source: "none", keyFilePath: "/key", runtimeMode: "local", state: "missing" };
+const ACTIVE: AdminSiteKeyStatus = { active: true, source: "file", fingerprint: "fp", keyFilePath: "/key", runtimeMode: "local", state: "active" };
+const MISSING: AdminSiteKeyStatus = { active: false, source: "none", keyFilePath: "/key", runtimeMode: "local", state: "missing" };
 
-function makePort(overrides: Partial<SiteTokenPort> = {}): SiteTokenPort {
+function makePort(overrides: Partial<SiteKeyPort> = {}): SiteKeyPort {
   return {
     status: vi.fn(async () => ACTIVE),
     reveal: vi.fn(async () => ({ ...ACTIVE, hex: HEX })),
     generate: vi.fn(async () => ({ outcome: "created" as const, fingerprint: "new-fp", keyFilePath: "/new-key", runtimeMode: "production" as const })),
-    importToken: vi.fn(), previewStartFresh: vi.fn(), startFresh: vi.fn(),
+    importSiteKey: vi.fn(), previewStartFresh: vi.fn(), startFresh: vi.fn(),
     ...overrides,
   };
 }
 
-async function mount(port: SiteTokenPort, status = ACTIVE) {
-  const hook = renderHook(() => useSiteToken(port, t, "en"));
+async function mount(port: SiteKeyPort, status = ACTIVE) {
+  const hook = renderHook(() => useSiteKey(port, t, "en"));
   await waitFor(() => expect(hook.result.current.status).toEqual(status));
   return hook;
 }
@@ -33,7 +33,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe("useSiteToken", () => {
+describe("useSiteKey", () => {
   it("loads status once on mount and reveals the exact hex only on request; hide clears it", async () => {
     const port = makePort();
     const { result, rerender } = await mount(port);
@@ -52,7 +52,7 @@ describe("useSiteToken", () => {
 
   it("does not reveal before status loads or when no key is active", async () => {
     const port = makePort({ status: vi.fn(async () => MISSING) });
-    const { result } = renderHook(() => useSiteToken(port, t, "en"));
+    const { result } = renderHook(() => useSiteKey(port, t, "en"));
     await act(async () => result.current.reveal());
     await waitFor(() => expect(result.current.status).toEqual(MISSING));
     await act(async () => result.current.reveal());
@@ -62,7 +62,7 @@ describe("useSiteToken", () => {
 
   it("reports status and reveal failures without staying busy or exposing a key", async () => {
     const failedPort = makePort({ status: vi.fn(async () => { throw new Error("status unavailable"); }) });
-    const failed = renderHook(() => useSiteToken(failedPort, t, "en"));
+    const failed = renderHook(() => useSiteKey(failedPort, t, "en"));
     await waitFor(() => expect(failed.result.current.loadError).toContain("status unavailable"));
     failed.unmount();
     const { result } = await mount(makePort({ reveal: vi.fn(async () => { throw new Error("reveal denied"); }) }));

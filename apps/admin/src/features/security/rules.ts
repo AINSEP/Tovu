@@ -82,7 +82,7 @@ export const ACCESS_TOKENS_RESOURCE = "access-tokens";
  *  literal. Duplicated as a plain string rather than imported: this app cannot import server code,
  *  the same reason `use-external-mcp-admissions.hooks.ts` duplicates `"system.write"` rather than
  *  importing it. */
-export const SITE_TOKEN_MANAGE_PERMISSION = "admin.security.tokens.manage";
+export const SITE_KEY_MANAGE_PERMISSION = "admin.security.site-key.manage";
 
 /** Which credential store a row belongs to. `"custom"` (2026-08-17) is the odd one out — see
  *  {@link AccessTokenRow.category}'s own doc: it has no fixed provider catalog behind it at all, an

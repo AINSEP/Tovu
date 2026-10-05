@@ -182,7 +182,7 @@ describe("useDashboard — site key banner (site-key plan §A.6)", () => {
   });
 
   it("hides when the status fetch rejects — advisory, swallowed, same fail-closed default as the password banner", async () => {
-    const port = createFakeDashboardPort({ getSiteTokenStateError: new Error("boom") });
+    const port = createFakeDashboardPort({ getSiteKeyStateError: new Error("boom") });
     const { result } = renderHook(() => useDashboard({ port, locale: "en", t: (key) => key }));
 
     await waitFor(() => expect(result.current.themeId).not.toBeNull());

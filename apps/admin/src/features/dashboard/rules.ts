@@ -1,4 +1,4 @@
-import type { AdminPost, AdminSiteTokenState } from "../../lib/api";
+import type { AdminPost, AdminSiteKeyState } from "../../lib/api";
 import type { Translate } from "../../lib/dictionary-translator";
 
 /**
@@ -92,7 +92,7 @@ export function shouldShowDefaultPasswordBanner(usesDefault: boolean | null, dis
 
 /**
  * Site-key plan (2026-09-24) §A.6. Whether the dashboard should show the site-key warning banner.
- * Only 3 of the 5 {@link AdminSiteTokenState} values are urgent enough to interrupt the landing
+ * Only 3 of the 5 {@link AdminSiteKeyState} values are urgent enough to interrupt the landing
  * screen: `"missing-with-data"` (saved credentials exist but nothing can open them),
  * `"mismatch"` (the active key doesn't match what the data was sealed under), and `"invalid"` (a
  * source was found but fails hex validation). Plain `"missing"` is the ordinary state of a brand
@@ -104,7 +104,7 @@ export function shouldShowDefaultPasswordBanner(usesDefault: boolean | null, dis
  *
  * @complexity O(1).
  */
-export function shouldShowSiteKeyBanner(state: AdminSiteTokenState | undefined): boolean {
+export function shouldShowSiteKeyBanner(state: AdminSiteKeyState | undefined): boolean {
   return state === "missing-with-data" || state === "mismatch" || state === "invalid";
 }
 
@@ -117,7 +117,7 @@ export function shouldShowSiteKeyBanner(state: AdminSiteTokenState | undefined):
  *
  * @complexity O(1).
  */
-export function siteKeyBannerCopy(state: AdminSiteTokenState | undefined, t: Translate): string {
+export function siteKeyBannerCopy(state: AdminSiteKeyState | undefined, t: Translate): string {
   switch (state) {
     case "missing-with-data":
       return t("This site has saved credentials, but no site key was found to open them.");

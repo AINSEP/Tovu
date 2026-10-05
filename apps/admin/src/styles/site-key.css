@@ -1,0 +1,42 @@
+/**
+ * Secrets page / Site key tab (`apps/admin/src/features/security/SiteKeyTab.tsx`) — draws on
+ * `styles.css`'s existing tokens (`.card`, `.status*`, `.notice*`, `.btn-primary`/`.btn-secondary`/
+ * `.btn-ghost`), redefines nothing. Own file, not appended to `access-tokens.css` — same "own file
+ * per feature, imported once from `main.tsx`" convention that file's own header documents; this
+ * tab is a visually distinct concern (one status card, not a searchable row list) even though it
+ * shares this page with Access Tokens.
+ */
+
+.site-key-tab { display: flex; flex-direction: column; gap: var(--space-4); }
+
+.site-key-loading { color: var(--muted); }
+
+.site-key-status-card { display: flex; flex-direction: column; gap: var(--space-3); }
+.site-key-status-heading { margin: 0; }
+
+.site-key-status-badge-row { display: flex; align-items: center; gap: var(--space-2); margin: 0; }
+.site-key-fingerprint-group { display: flex; align-items: center; gap: var(--space-1); }
+.site-key-fingerprint-label { font-size: var(--text-sm); color: var(--muted); }
+.site-key-fingerprint { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--fg-2); }
+
+.site-key-status-note { margin: 0; color: var(--muted); font-size: var(--text-sm); }
+.site-key-status-note code { font-family: var(--font-mono); font-size: 0.85em; }
+
+.site-key-reveal-action, .site-key-generate-action { display: flex; flex-direction: column; gap: var(--space-2); align-items: flex-start; }
+
+.site-key-revealed-value {
+  display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3);
+  background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: var(--r-md);
+}
+.site-key-revealed-value code {
+  font-family: var(--font-mono); font-size: var(--text-sm); word-break: break-all; user-select: all;
+}
+.site-key-revealed-actions { display: flex; gap: var(--space-2); }
+
+/* Recovery card for a locked site (`SiteKeyRecoveryCard.tsx`). */
+.site-key-recovery-card { display: flex; flex-direction: column; gap: var(--space-3); border-color: var(--warning, var(--border-strong)); }
+.site-key-recovery-unlock, .site-key-recovery-start-fresh { display: flex; flex-direction: column; gap: var(--space-2); align-items: flex-start; margin: 0; }
+.site-key-recovery-unlock label, .site-key-recovery-confirm label { font-weight: 600; font-size: var(--text-sm); }
+.site-key-recovery-row { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; width: 100%; }
+.site-key-recovery-row input { flex: 1 1 18rem; min-width: 0; font-family: var(--font-mono); }
+.site-key-recovery-start-fresh p { margin: 0; font-size: var(--text-sm); }

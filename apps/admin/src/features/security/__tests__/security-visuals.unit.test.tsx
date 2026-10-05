@@ -1,9 +1,9 @@
 import { render } from "@testing-library/react";
 import { expect, it } from "vitest";
-import { AccessTokensIcon, ConnectedMarkIcon, DisclosureChevronIcon, SearchIcon, SiteTokenIcon } from "../security-visuals";
+import { AccessTokensIcon, ConnectedMarkIcon, DisclosureChevronIcon, SearchIcon, SiteKeyIcon } from "../security-visuals";
 
 it.each([
-  [AccessTokensIcon, 16], [SiteTokenIcon, 16], [SearchIcon, 16], [ConnectedMarkIcon, 12], [DisclosureChevronIcon, 14],
+  [AccessTokensIcon, 16], [SiteKeyIcon, 16], [SearchIcon, 16], [ConnectedMarkIcon, 12], [DisclosureChevronIcon, 14],
 ] as const)("keeps %s decorative and respects default and explicit dimensions", (Icon, defaultSize) => {
   // Author Checklist F6.1/F4.3: SVG attributes are the contract, no claim of browser layout.
   // Reject: drop aria-hidden, hardcode dimensions or replace the small default with 16.

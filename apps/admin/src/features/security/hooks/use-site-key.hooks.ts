@@ -1,15 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 
-import { ApiError, describeApiError, type AdminSiteTokenStatus } from "@/lib/api";
+import { ApiError, describeApiError, type AdminSiteKeyStatus } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import type { Translate } from "@/lib/dictionary-translator";
-import { t as defaultT, siteTokenGenerateErrorMessage, siteTokenLoadErrorMessage, siteTokenRevealErrorMessage } from "../security-i18n";
-import { defaultSiteTokenPort } from "./site-token-dependencies.hooks";
-import type { SiteTokenPort } from "./site-token-port.hooks";
+import { t as defaultT, siteKeyGenerateErrorMessage, siteKeyLoadErrorMessage, siteKeyRevealErrorMessage } from "../security-i18n";
+import { defaultSiteKeyPort } from "./site-key-dependencies.hooks";
+import type { SiteKeyPort } from "./site-key-port.hooks";
 
 /**
- * @file The Site Token tab's controller — status + reveal + generate, no update/delete/rotate
- * (see `SiteTokenTab.tsx`'s own header for why a rotate/replace flow is deliberately not built).
+ * @file The Site key tab's controller — status + reveal + generate, no update/delete/rotate
+ * (see `SiteKeyTab.tsx`'s own header for why a rotate/replace flow is deliberately not built).
  *
  * ## Reveal is ONE mechanism, not two
  *
@@ -23,13 +23,13 @@ import type { SiteTokenPort } from "./site-token-port.hooks";
  * behind an explicit action" applying uniformly rather than making creation a special case).
  *
  * `revealedHex` is local state, not derived from `status`: the value exists nowhere else in this
- * controller (`AdminSiteTokenStatus` never carries it — see that type's own doc), and clearing it
+ * controller (`AdminSiteKeyStatus` never carries it — see that type's own doc), and clearing it
  * (`hideRevealed`) only ever removes it from THIS state, never from the server.
  */
 
-export interface SiteTokenController {
+export interface SiteKeyController {
   /** `undefined` until the first status read settles (success or failure). */
-  status: AdminSiteTokenStatus | undefined;
+  status: AdminSiteKeyStatus | undefined;
   loadError: string | null;
   revealing: boolean;
   revealError: string | null;
@@ -39,11 +39,11 @@ export interface SiteTokenController {
   reveal: () => Promise<void>;
   hideRevealed: () => void;
   generating: boolean;
-  /** The classified failure (see {@link SiteTokenGenerateFailure}) — `SiteTokenTab.tsx` renders the
+  /** The classified failure (see {@link SiteKeyGenerateFailure}) — `SiteKeyTab.tsx` renders the
    *  server's own sentence for `"locked"`/`"refused"`, fixed copy for `"already-exists"`, and wraps
    *  `detail` in "Couldn't generate a key: …" only for `"generic"`. Kept as the classification
    *  itself, not a pre-rendered string, so a known refusal never reads as a genuine failure. */
-  generateError: SiteTokenGenerateFailure | null;
+  generateError: SiteKeyGenerateFailure | null;
   /** No-op (and leaves `generateError` alone) unless `status.source === "none"` — the tab's own
    *  Generate control is hidden outside that state (sol packet-3 finding 3-1), this is a second,
    *  defensive guard against a stale click. */
@@ -54,7 +54,7 @@ export interface SiteTokenController {
 }
 
 /** Classifies a rejected generate call against the 409 codes `POST .../generate` sends
- *  (`lib/api.ts`'s `generateSiteToken` doc) — same "check `e.code ?? e.message`" shape
+ *  (`lib/api.ts`'s `generateSiteKey` doc) — same "check `e.code ?? e.message`" shape
  *  `rules.ts`'s `classifyAccessTokenSubmitError` documents for Tier 1, reimplemented locally
  *  rather than imported: this tab has no other reason to depend on that file's provider-catalog
  *  tables.
@@ -63,13 +63,13 @@ export interface SiteTokenController {
  *  - `refused`: nothing was changed for another reason (`KEY_INVALID`, `SITE_META_UNREADABLE`).
  *  - `already-exists`: production only, a key file appeared mid-request.
  *  `detail` is the server's own plain-words sentence (`body.detail`). @complexity O(1). */
-export type SiteTokenGenerateFailure =
+export type SiteKeyGenerateFailure =
   | { kind: "locked"; code: "KEY_DEPENDENT_DATA" | "KEY_MISMATCH"; detail: string }
   | { kind: "refused"; code: "KEY_INVALID" | "SITE_META_UNREADABLE"; detail: string }
   | { kind: "already-exists" }
   | { kind: "generic"; detail: string };
 
-export function classifySiteTokenGenerateError(e: unknown, t: Translate): SiteTokenGenerateFailure {
+export function classifySiteKeyGenerateError(e: unknown, t: Translate): SiteKeyGenerateFailure {
   if (!(e instanceof ApiError)) return { kind: "generic", detail: describeApiError(e, t("unknown error")) };
   const marker = e.code ?? e.message;
   const detail = typeof e.body?.detail === "string" ? e.body.detail : describeApiError(e, t("unknown error"));
@@ -79,24 +79,24 @@ export function classifySiteTokenGenerateError(e: unknown, t: Translate): SiteTo
   return { kind: "generic", detail: describeApiError(e, t("unknown error")) };
 }
 
-export function useSiteToken(port: SiteTokenPort, t: Translate, locale: string): SiteTokenController {
-  const [status, setStatus] = useState<AdminSiteTokenStatus | undefined>(undefined);
+export function useSiteKey(port: SiteKeyPort, t: Translate, locale: string): SiteKeyController {
+  const [status, setStatus] = useState<AdminSiteKeyStatus | undefined>(undefined);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [revealing, setRevealing] = useState(false);
   const [revealError, setRevealError] = useState<string | null>(null);
   const [revealedHex, setRevealedHex] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
-  const [generateError, setGenerateError] = useState<SiteTokenGenerateFailure | null>(null);
+  const [generateError, setGenerateError] = useState<SiteKeyGenerateFailure | null>(null);
 
   const fetchedRef = useRef(false);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: port/t/locale stable for the mounted controller's lifetime (bound once in useWiredSiteToken); mount guard above prevents double-fetch.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: port/t/locale stable for the mounted controller's lifetime (bound once in useWiredSiteKey); mount guard above prevents double-fetch.
   useEffect(() => {
     if (fetchedRef.current) return;
     fetchedRef.current = true;
     port
       .status()
       .then((result) => setStatus(result))
-      .catch((err: unknown) => setLoadError(siteTokenLoadErrorMessage(locale, describeApiError(err, t("unknown error")))));
+      .catch((err: unknown) => setLoadError(siteKeyLoadErrorMessage(locale, describeApiError(err, t("unknown error")))));
   }, []);
 
   async function reveal(): Promise<void> {
@@ -107,7 +107,7 @@ export function useSiteToken(port: SiteTokenPort, t: Translate, locale: string):
       const result = await port.reveal();
       if (result.hex) setRevealedHex(result.hex);
     } catch (err) {
-      setRevealError(siteTokenRevealErrorMessage(locale, describeApiError(err, t("unknown error"))));
+      setRevealError(siteKeyRevealErrorMessage(locale, describeApiError(err, t("unknown error"))));
     } finally {
       setRevealing(false);
     }
@@ -127,7 +127,7 @@ export function useSiteToken(port: SiteTokenPort, t: Translate, locale: string):
       // `.site-meta.json` stamp — the server refuses with a 409 rather than leave a mismatch.
       setStatus({ active: true, source: "file", fingerprint: result.fingerprint, keyFilePath: result.keyFilePath, runtimeMode: result.runtimeMode, state: "active" });
     } catch (err) {
-      setGenerateError(classifySiteTokenGenerateError(err, t));
+      setGenerateError(classifySiteKeyGenerateError(err, t));
     } finally {
       setGenerating(false);
     }
@@ -139,7 +139,7 @@ export function useSiteToken(port: SiteTokenPort, t: Translate, locale: string):
       setGenerateError(null);
       setRevealedHex(null);
     } catch (err) {
-      setLoadError(siteTokenLoadErrorMessage(locale, describeApiError(err, t("unknown error"))));
+      setLoadError(siteKeyLoadErrorMessage(locale, describeApiError(err, t("unknown error"))));
     }
   }
 
@@ -150,8 +150,8 @@ export function useSiteToken(port: SiteTokenPort, t: Translate, locale: string):
  * Binds the real port, and a `t` bound to the real resolved locale — the zero-argument
  * `useX(dependencies)` / `useWiredX()` pair, same shape `useWiredOtherCredentials` documents.
  */
-export function useWiredSiteToken(): SiteTokenController {
+export function useWiredSiteKey(): SiteKeyController {
   const locale = useAdminLocale();
   const boundT = (key: string): string => defaultT(locale, key);
-  return useSiteToken(defaultSiteTokenPort, boundT, locale);
+  return useSiteKey(defaultSiteKeyPort, boundT, locale);
 }

@@ -1,8 +1,8 @@
 /**
  * @file Site-key plan (`ADS-memory/.local-artifacts/plan-site-key-2026-09-24.md`) §A.6 — the admin
- * Site Token status banner's state union. Lives in `contracts/core/`, not in `features/webhooks/`
+ * Site key status banner's state union. Lives in `contracts/core/`, not in `features/webhooks/`
  * or `server/inbound/**` where the value is actually computed
- * (`routes/system/site-token.ts`'s `siteTokenState`): this file is a plain string-literal union with
+ * (`routes/system/site-key.ts`'s `siteKeyState`): this file is a plain string-literal union with
  * no imports and no I/O, the same "client-safe contract" shape `runtime-mode.ts` (right next to this
  * file) already establishes for `resolveRuntimeMode`'s own union — the one layer both
  * `server/inbound/**` and the admin app may depend on (`apps/admin/tsconfig.json`'s `@tovu/headless`/
@@ -10,15 +10,15 @@
  * `contracts/core/**` file directly; this module is not yet wired into that alias list — a later
  * admin-side slice does that, this one only publishes a stable value to import).
  *
- * `apps/admin/src/lib/api.ts`'s `AdminSiteTokenStatus` is today a hand-mirrored DTO (see that
- * file's own `AdminSiteTokenRuntimeMode` comment: "the Site Token tab's own copy" of a server union)
+ * `apps/admin/src/lib/api.ts`'s `AdminSiteKeyStatus` is today a hand-mirrored DTO (see that
+ * file's own `AdminSiteKeyRuntimeMode` comment: "the Site key tab's own copy" of a server union)
  * rather than an import of a shared type — the admin UI slice that adds a `state` field to that DTO
- * should import {@link SiteTokenState} from here instead of hand-mirroring a sixth string literal
+ * should import {@link SiteKeyState} from here instead of hand-mirroring a sixth string literal
  * union, now that one exists.
  */
 
 /**
- * `GET .../system/site-token`'s `state` field (`routes/system/site-token.ts`'s `siteTokenState`).
+ * `GET .../system/site-key`'s `state` field (`routes/system/site-key.ts`'s `siteKeyState`).
  *
  * - `"active"` — a valid key resolves, and either nothing is stamped in `.site-meta.json` yet or the
  *   stamped `siteKeyFingerprint` matches the resolved key's own fingerprint.
@@ -35,4 +35,4 @@
  * - `"invalid"` — a source was found (env var set, or a key file present) but its content fails hex
  *   validation.
  */
-export type SiteTokenState = "active" | "missing" | "missing-with-data" | "mismatch" | "invalid" | "env-conflict";
+export type SiteKeyState = "active" | "missing" | "missing-with-data" | "mismatch" | "invalid" | "env-conflict";

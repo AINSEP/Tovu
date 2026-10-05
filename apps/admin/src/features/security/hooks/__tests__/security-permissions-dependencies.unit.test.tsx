@@ -8,7 +8,7 @@ import { useWiredSecurityPermissions } from "../use-security-permissions.hooks";
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 const wrapper = ({ children }: { children: ReactNode }) => <FetchQueryProvider>{children}</FetchQueryProvider>;
 
-it("keeps site-token management unavailable until the wired auth request returns its permission", async () => {
+it("keeps site-key management unavailable until the wired auth request returns its permission", async () => {
   // Author Checklist F2.3/F2.6/F3.6/F7.1: real wired consumer, held load and exact route.
   // Reject: default port points to a settings route or omits effectivePermissions.
   let resolve!: (response: Response) => void;
@@ -21,9 +21,9 @@ it("keeps site-token management unavailable until the wired auth request returns
   vi.stubGlobal("fetch", fetch);
   const { result } = renderHook(() => useWiredSecurityPermissions(), { wrapper });
   await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
-  expect(result.current.canManageSiteToken).toBe(false);
-  await act(async () => { resolve(Response.json({ user: { id: "owner-17" }, effectivePermissions: ["admin.security.tokens.manage"] })); });
-  await waitFor(() => expect(result.current.canManageSiteToken).toBe(true));
+  expect(result.current.canManageSiteKey).toBe(false);
+  await act(async () => { resolve(Response.json({ user: { id: "owner-17" }, effectivePermissions: ["admin.security.site-key.manage"] })); });
+  await waitFor(() => expect(result.current.canManageSiteKey).toBe(true));
   expect(fetch).toHaveBeenCalledTimes(1);
 });
 

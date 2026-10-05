@@ -1,17 +1,17 @@
 import { useState } from "react";
 
-import { ApiError, describeApiError, type AdminSiteTokenAffectedWebhook, type AdminSiteTokenStartFreshPreview, type AdminSiteTokenStatus } from "@/lib/api";
+import { ApiError, describeApiError, type AdminSiteKeyAffectedWebhook, type AdminSiteKeyStartFreshPreview, type AdminSiteKeyStatus } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import type { Translate } from "@/lib/dictionary-translator";
 import { t as defaultT } from "../security-i18n";
-import { defaultSiteTokenPort } from "./site-token-dependencies.hooks";
-import type { SiteTokenPort } from "./site-token-port.hooks";
-import type { SiteTokenGenerateFailure } from "./use-site-token.hooks";
+import { defaultSiteKeyPort } from "./site-key-dependencies.hooks";
+import type { SiteKeyPort } from "./site-key-port.hooks";
+import type { SiteKeyGenerateFailure } from "./use-site-key.hooks";
 
 /**
- * @file The Site Token tab's last-resort recovery for a locked site (server:
- * `routes/system/site-token.ts`'s `import` / `start-fresh`): "Paste your old token" and "Start
- * fresh" with one typed confirmation. All state and copy live here; `SiteTokenTab.tsx` only renders.
+ * @file The Site key tab's last-resort recovery for a locked site (server:
+ * `routes/system/site-key.ts`'s `import` / `start-fresh`): "Paste your old site key" and "Start
+ * fresh" with one typed confirmation. All state and copy live here; `SiteKeyTab.tsx` only renders.
  *
  * The pasted token is cleared from state as soon as it is accepted. Refusals show the server's own
  * plain sentence (`body.detail`), which always says whether anything changed.
@@ -20,18 +20,18 @@ import type { SiteTokenGenerateFailure } from "./use-site-token.hooks";
 /** The exact phrase "Start fresh" needs typed — the server checks the same string. */
 export const START_FRESH_CONFIRMATION = "START FRESH";
 
-export type SiteTokenRecoveryPort = Pick<SiteTokenPort, "importToken" | "previewStartFresh" | "startFresh">;
+export type SiteKeyRecoveryPort = Pick<SiteKeyPort, "importSiteKey" | "previewStartFresh" | "startFresh">;
 
-export interface SiteTokenRecoveryController {
-  token: string;
-  setToken: (value: string) => void;
+export interface SiteKeyRecoveryController {
+  siteKey: string;
+  setSiteKey: (value: string) => void;
   unlocking: boolean;
   unlockError: string | null;
   /** No-op for an empty paste or while a request is in flight. */
   unlock: () => Promise<void>;
   /** `loading` while the preview is fetched; `confirm` once it is shown. */
   startFreshStep: "closed" | "loading" | "confirm";
-  preview: AdminSiteTokenStartFreshPreview | null;
+  preview: AdminSiteKeyStartFreshPreview | null;
   openStartFresh: () => Promise<void>;
   cancelStartFresh: () => void;
   confirmText: string;
@@ -48,7 +48,7 @@ export interface SiteTokenRecoveryController {
 
 /** Whether the tab should offer recovery: saved credentials need a key that is not in place.
  *  @complexity O(1). */
-export function isSiteTokenLocked(status: AdminSiteTokenStatus | undefined, generateError: SiteTokenGenerateFailure | null): boolean {
+export function isSiteKeyLocked(status: AdminSiteKeyStatus | undefined, generateError: SiteKeyGenerateFailure | null): boolean {
   if (generateError?.kind === "locked") return true;
   return status?.state === "missing-with-data" || status?.state === "mismatch";
 }
@@ -56,9 +56,9 @@ export function isSiteTokenLocked(status: AdminSiteTokenStatus | undefined, gene
 /** The status card's note for a locked site — replaces "A key is created automatically…", which
  *  is not true there (boot refuses to mint over saved credentials). `null` when not locked.
  *  @complexity O(1). */
-export function siteTokenLockedNote(status: AdminSiteTokenStatus | undefined, generateError: SiteTokenGenerateFailure | null, t: Translate): string | null {
+export function siteKeyLockedNote(status: AdminSiteKeyStatus | undefined, generateError: SiteKeyGenerateFailure | null, t: Translate): string | null {
   if (status?.state === "env-conflict") return t("Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.");
-  return isSiteTokenLocked(status, generateError) ? t("Your credentials need their original site key — use the card above.") : null;
+  return isSiteKeyLocked(status, generateError) ? t("Your credentials need their original site key — use the card above.") : null;
 }
 
 /** The server's own sentence for a refusal, else the shared fallback. @complexity O(1). */
@@ -72,7 +72,7 @@ function unlockedMessage(resealed: number, t: Translate): string {
   return resealed > 0 ? `${base} ${t("{count} saved since were moved over.").replace("{count}", String(resealed))}` : base;
 }
 
-function startedFreshMessage(affectedWebhooks: readonly AdminSiteTokenAffectedWebhook[], t: Translate): string {
+function startedFreshMessage(affectedWebhooks: readonly AdminSiteKeyAffectedWebhook[], t: Translate): string {
   const base = t("Done. Re-enter any credentials that were removed.");
   if (affectedWebhooks.length === 0) return base;
   const names = affectedWebhooks.map((webhook) => `${webhook.label} (${webhook.targetUrl})`).join(", ");
@@ -82,12 +82,12 @@ function startedFreshMessage(affectedWebhooks: readonly AdminSiteTokenAffectedWe
 /**
  * @param onRecovered - re-reads the tab's status after a successful recovery.
  */
-export function useSiteTokenRecovery(port: SiteTokenRecoveryPort, t: Translate, onRecovered: (() => Promise<void> | void) | undefined): SiteTokenRecoveryController {
-  const [token, setToken] = useState("");
+export function useSiteKeyRecovery(port: SiteKeyRecoveryPort, t: Translate, onRecovered: (() => Promise<void> | void) | undefined): SiteKeyRecoveryController {
+  const [siteKey, setSiteKey] = useState("");
   const [unlocking, setUnlocking] = useState(false);
   const [unlockError, setUnlockError] = useState<string | null>(null);
   const [startFreshStep, setStartFreshStep] = useState<"closed" | "loading" | "confirm">("closed");
-  const [preview, setPreview] = useState<AdminSiteTokenStartFreshPreview | null>(null);
+  const [preview, setPreview] = useState<AdminSiteKeyStartFreshPreview | null>(null);
   const [confirmText, setConfirmText] = useState("");
   const [startingFresh, setStartingFresh] = useState(false);
   const [startFreshError, setStartFreshError] = useState<string | null>(null);
@@ -95,13 +95,13 @@ export function useSiteTokenRecovery(port: SiteTokenRecoveryPort, t: Translate, 
   const canConfirmStartFresh = confirmText === START_FRESH_CONFIRMATION && !startingFresh;
 
   async function unlock(): Promise<void> {
-    const pasted = token.trim();
+    const pasted = siteKey.trim();
     if (pasted === "" || unlocking) return;
     setUnlocking(true);
     setUnlockError(null);
     try {
-      const result = await port.importToken(pasted);
-      setToken("");
+      const result = await port.importSiteKey(pasted);
+      setSiteKey("");
       setResultMessage(unlockedMessage(result.resealed, t));
       await onRecovered?.();
     } catch (err) {
@@ -147,15 +147,15 @@ export function useSiteTokenRecovery(port: SiteTokenRecoveryPort, t: Translate, 
   }
 
   return {
-    token, setToken, unlocking, unlockError, unlock,
+    siteKey, setSiteKey, unlocking, unlockError, unlock,
     startFreshStep, preview, openStartFresh, cancelStartFresh, confirmText, setConfirmText, canConfirmStartFresh,
     startingFresh, startFreshError, startFresh, resultMessage, t,
   };
 }
 
-/** Binds the real port and the resolved locale — same `useWired*` shape as `useWiredSiteToken`. */
-export function useWiredSiteTokenRecovery(onRecovered: (() => Promise<void> | void) | undefined): SiteTokenRecoveryController {
+/** Binds the real port and the resolved locale — same `useWired*` shape as `useWiredSiteKey`. */
+export function useWiredSiteKeyRecovery(onRecovered: (() => Promise<void> | void) | undefined): SiteKeyRecoveryController {
   const locale = useAdminLocale();
   const boundT = (key: string): string => defaultT(locale, key);
-  return useSiteTokenRecovery(defaultSiteTokenPort, boundT, onRecovered);
+  return useSiteKeyRecovery(defaultSiteKeyPort, boundT, onRecovered);
 }
