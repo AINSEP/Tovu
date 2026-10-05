@@ -184,6 +184,7 @@ export function registerAdminDatabaseRestorePointsCreateRoute(app: Express, deps
 
       const summary = await createRestorePoint({
         costClass: capabilities.restorePoint.costClass,
+        kind: capabilities.restorePoint.kind,
         costAck,
         capture: async () => {
           captured = await deps.dbOps.captureRestorePoint({ scopeId: deps.workspaceId });

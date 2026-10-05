@@ -217,8 +217,12 @@ test("database restore-points routes: POST 400s (ValidationError) for an 'expens
     body: JSON.stringify({ trigger: "manual", costAck: true }),
   });
   assert.equal(acked.status, 201);
-  const body = (await acked.json()) as { restorePoint: { costClass: string } };
+  const body = (await acked.json()) as { restorePoint: { id: string; costClass: string; kind: string } };
   assert.equal(body.restorePoint.costClass, "expensive");
+  // The capability's real kind, not a hardcoded "file-snapshot" — returned AND persisted.
+  assert.equal(body.restorePoint.kind, "logical-dump");
+  const [persisted] = await deps.restorePointsRepo.list();
+  assert.deepEqual([persisted?.id, persisted?.kind], [body.restorePoint.id, "logical-dump"]);
 });
 
 test("database restore-points routes: POST 409s (RestorePointUnavailableError) when the site's dbOps reports 'unavailable'", async (t) => {
