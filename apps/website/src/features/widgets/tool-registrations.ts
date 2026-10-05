@@ -23,6 +23,7 @@ import { AGENT_TOOL_PRINCIPAL_KIND, buildDomainRegistrations, indexCatalogById, 
 import { ToolInputError } from "@jini-ai/core";
 import type { ToolContributor } from "#src/assistant/index";
 import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
+import { withPluginHookRefusals } from "../../contracts/core/plugin-hook-failed-error.js";
 import { toWhereUsedResponse } from "./where-used.js";
 import { widgetsAgentToolCatalog } from "./agent-tools.js";
 import { requireWidgetPermission } from "./authorize-helper.js";
@@ -472,9 +473,12 @@ export function buildWidgetsRegistrations(
   };
 
   // Every handler above gets `toModelFacingWidgetsError` — see that function's doc comment for why
-  // this wraps the whole map once here rather than per call site.
+  // this wraps the whole map once here rather than per call site. The inner `withPluginHookRefusals`
+  // covers the 3 embed tools on a post/page host (`updatePost` runs the plugin save hook): a plugin
+  // refusal becomes the fixed `PLUGIN_HOOK_FAILED` message naming the plugin, which
+  // `toModelFacingWidgetsError` then passes through as the `ToolInputError` it already is.
   const modelFacingHandlers: Record<string, ToolHandler> = Object.fromEntries(
-    Object.entries(handlers).map(([toolId, handler]) => [
+    Object.entries(withPluginHookRefusals(handlers)).map(([toolId, handler]) => [
       toolId,
       async (ctx) => {
         try {
