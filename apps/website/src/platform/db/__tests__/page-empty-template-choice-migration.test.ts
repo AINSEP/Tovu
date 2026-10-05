@@ -43,6 +43,15 @@ function templateChoiceRows(db: ContentDb): RawPostRow[] {
     .all() as RawPostRow[];
 }
 
+function completeRows(db: ContentDb): Array<RawPostRow & Record<string, unknown>> {
+  return db.$client.prepare("SELECT * FROM posts ORDER BY id").all() as Array<RawPostRow & Record<string, unknown>>;
+}
+
+function migrationSql(): string {
+  const entry = emptyTemplateChoiceMigrationEntry();
+  return fs.readFileSync(path.resolve(import.meta.dirname, "../drizzle", `${entry.tag}.sql`), "utf8");
+}
+
 function insertPost(
   db: ContentDb,
   overrides: {
@@ -77,6 +86,7 @@ function insertPost(
 function insertFullMatrix(db: ContentDb): void {
   insertPost(db, { id: "html-page-empty", kind: "page", bodyFormat: "html", templateChoice: "" });
   insertPost(db, { id: "doc-page-empty", kind: "page", bodyFormat: "doc", templateChoice: "" });
+  insertPost(db, { id: "html-post-empty", kind: "post", bodyFormat: "html", templateChoice: "" });
   insertPost(db, { id: "post-empty", kind: "post", bodyFormat: "doc", templateChoice: "" });
   insertPost(db, { id: "html-page-null", kind: "page", bodyFormat: "html", templateChoice: null });
   insertPost(db, { id: "html-page-named", kind: "page", bodyFormat: "html", templateChoice: "pages-default.html" });
@@ -93,6 +103,7 @@ test("data migration: a pre-existing html Page with template_choice = '' becomes
       { id: "html-page-empty", kind: "page", body_format: "html", template_choice: null },
       { id: "html-page-named", kind: "page", body_format: "html", template_choice: "pages-default.html" },
       { id: "html-page-null", kind: "page", body_format: "html", template_choice: null },
+      { id: "html-post-empty", kind: "post", body_format: "html", template_choice: "" },
       { id: "post-empty", kind: "post", body_format: "doc", template_choice: "" },
     ]);
   } finally {
@@ -100,17 +111,29 @@ test("data migration: a pre-existing html Page with template_choice = '' becomes
   }
 });
 
+test("the actual data migration changes only template_choice and preserves complete row payloads", (t) => {
+  migrateToBeforeEmptyTemplateChoiceMigration(tempDbPath(t), (db) => {
+    insertFullMatrix(db);
+    const before = completeRows(db);
+    assert.equal(before.find((row) => row.id === "html-page-empty")?.template_choice, "");
+    db.$client.exec(migrationSql());
+    assert.deepEqual(completeRows(db), before.map((row) => row.id === "html-page-empty" ? { ...row, template_choice: null } : row));
+  });
+});
+
 test("data migration: running it twice (idempotent WHERE clause) leaves the already-migrated rows unchanged", (t) => {
   const dbPath = tempDbPath(t);
   migrateToBeforeEmptyTemplateChoiceMigration(dbPath, insertFullMatrix);
 
   const first = openContentDb(dbPath);
-  const afterFirst = templateChoiceRows(first);
+  const afterFirst = completeRows(first);
   first.$client.close();
 
   const second = openContentDb(dbPath);
   try {
-    assert.deepEqual(templateChoiceRows(second), afterFirst, "re-opening (no pending migrations left) must not change any row again");
+    assert.deepEqual(completeRows(second), afterFirst, "re-opening (no pending migrations left) must not change any row again");
+    second.$client.exec(migrationSql());
+    assert.deepEqual(completeRows(second), afterFirst, "executing the actual SQL again must leave every column unchanged");
   } finally {
     second.$client.close();
   }

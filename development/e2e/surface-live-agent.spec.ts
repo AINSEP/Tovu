@@ -263,3 +263,54 @@ test("LIVE AGENT: content_post_delete's real positive path — escaping, the nev
   // live agent process attached to a server this test is about to tear down.
   await request.post(`${RUNS_PATH}/${runId}/cancel`, { data: {} }).catch(() => undefined);
 });
+
+test("LIVE AGENT: the production surface renders a hostile title safely and Confirm deletes that post", async ({ page }) => {
+  test.setTimeout(6 * 60_000);
+  await waitForAgentDaemon();
+  await login(page.request);
+  const dialogs: string[] = [];
+  page.on("dialog", async dialog => {
+    dialogs.push(dialog.message());
+    await dialog.dismiss();
+  });
+  await page.goto("/admin/");
+  await expect(page.locator(".admin-layout")).toBeVisible();
+  const created = await page.request.post(POSTS_PATH, { data: { title: HOSTILE_TITLE } });
+  expect(created.status()).toBe(201);
+  const postId: string = (await created.json()).post.id;
+  expect((await page.request.get(`${POSTS_PATH}/${postId}`)).status()).toBe(200);
+
+  const dock = page.locator(".admin-chat-dock");
+  if (await dock.getAttribute("hidden") !== null) await page.locator("button.chat-fab").click();
+  await expect(dock).not.toHaveAttribute("hidden", "");
+  const composer = page.getByPlaceholder(/ask the assistant to do something/i);
+  await composer.fill(`Call content_post_delete with id="${postId}" and kind="post". Do not call any other tool; wait for the human's confirmation.`);
+  const runStarted = page.waitForResponse(response => new URL(response.url()).pathname === RUNS_PATH && response.request().method() === "POST");
+  await composer.press("Enter");
+  const runResponse = await runStarted;
+  expect(runResponse.status()).toBe(201);
+  const runId: string = (await runResponse.json()).run.id;
+  try {
+    // F2.4/F3.1: the real chat renderer, sandbox handshake and browser message bridge all run.
+    const frame = page.frameLocator(`iframe[title^="ui://tovu/content-post-delete/${postId}/"]`);
+    const confirm = frame.locator('[data-mcpui-action="confirm"]');
+    await expect(confirm).toBeVisible({ timeout: 300_000 });
+    await expect(frame.getByText(HOSTILE_TITLE, { exact: true })).toBeVisible();
+    // Sandbox policy can suppress alert dialogs even when injected code runs; inspect the real DOM too.
+    await expect(frame.locator("script").filter({ hasText: "alert(document.cookie)" })).toHaveCount(0);
+    expect(dialogs, "the hostile title must render as text without executing its alert").toEqual([]);
+    expect((await page.request.get(`${POSTS_PATH}/${postId}`)).status()).toBe(200);
+    const delivery = page.waitForResponse(response => {
+      if (new URL(response.url()).pathname !== MCP_UI_PATH || response.request().method() !== "POST") return false;
+      const body = response.request().postDataJSON();
+      return body.toolName === "content_post_delete" && body.params?.decision === "confirm";
+    });
+    await confirm.click();
+    expect((await delivery).status()).toBe(202);
+    // F6.3/F4.5: read back through the production API, before cleanup can produce the result.
+    await expect.poll(async () => (await page.request.get(`${POSTS_PATH}/${postId}`)).status(), { timeout: 30_000 }).toBe(404);
+    expect(dialogs).toEqual([]);
+  } finally {
+    await page.request.post(`${RUNS_PATH}/${runId}/cancel`, { data: {} }).catch(() => undefined);
+  }
+});

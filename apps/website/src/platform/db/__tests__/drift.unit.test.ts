@@ -62,4 +62,10 @@ test("U-002-B1 (property): tag mismatch is decisive across every version-index r
 
 test("getDriftStatus never throws, even for unusual (e.g. negative or zero) version values", () => {
   assert.doesNotThrow(() => getDriftStatus({ siteMeta: { version: 0, tag: "a" }, runtime: { version: 0, tag: "a" } }));
+  for (const [site, runtime, expected] of [
+    [0, 0, "in-sync"], [-1, -1, "in-sync"], [-1, 0, "behind"], [0, -1, "ahead"], [-2, -1, "behind"],
+  ] as const) {
+    assert.equal(getDriftStatus({ siteMeta: { version: site, tag: "a" }, runtime: { version: runtime, tag: "a" } }), expected);
+    assert.equal(getDriftStatus({ siteMeta: { version: site, tag: "a" }, runtime: { version: runtime, tag: "b" } }), "diverged");
+  }
 });

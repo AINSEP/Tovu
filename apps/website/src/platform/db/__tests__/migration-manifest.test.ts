@@ -13,13 +13,14 @@ import test from "node:test";
 
 import ts from "typescript";
 
-import { getTableConfig } from "drizzle-orm/sqlite-core";
+import { getTableConfig, integer, real, sqliteTable } from "drizzle-orm/sqlite-core";
 import { getTableConfig as getPgTableConfig } from "drizzle-orm/pg-core";
 
 import type { ColumnDecl } from "#src/features/plugins/data-module";
 import {
   assertIdentifierFits,
   classifyAllCoreColumns,
+  classifyCoreColumn,
   classifyPluginColumn,
   collectCoreTables,
   collectForeignKeyEdges,
@@ -248,17 +249,16 @@ test("json-text classification matches an independent textual scan of schema.sql
   const declaredByConvention = new Set([...SCHEMA_SOURCE.matchAll(/text\("([a-z0-9_]*_json)"\)/g)].map((m) => m[1]));
   // Distinct NAMES, not occurrences — "state_json"/"value_json"/"before_json" etc. each repeat
   // across several tables, so this is well under the 37 total json-text columns classifyAllCoreColumns()
-  // finds; the deepEqual below is what actually proves per-occurrence agreement via classifyAllCoreColumns.
+  // finds; the comparison below retains qualified identities and multiplicities.
   assert.ok(declaredByConvention.size > 20, `sanity: expected 20+ distinct *_json column names, got ${declaredByConvention.size}`);
 
-  // REVIEWED_JSON_COLUMNS entries are keyed "table.column"; this test compares bare SQL column names
-  // (matching declaredByConvention's shape), so take just the column half of each key.
-  const declaredByReview = new Set(Object.keys(REVIEWED_JSON_COLUMNS).map((key) => key.split(".")[1]));
-  const declared = new Set([...declaredByConvention, ...declaredByReview]);
-
-  const all = classifyAllCoreColumns();
-  const classified = new Set(all.filter((c) => c.columnClass.kind === "json-text").map((c) => c.sqlColumnName));
-  assert.deepEqual(classified, declared);
+  const declared = [
+    ...textColumnDeclarations().filter((column) => column.sqlColumnName.endsWith("_json")).map((column) => column.qualifiedName),
+    ...Object.keys(REVIEWED_JSON_COLUMNS),
+  ].sort();
+  const classified = classifyAllCoreColumns().filter((column) => column.columnClass.kind === "json-text")
+    .map((column) => `${column.sqlTableName}.${column.sqlColumnName}`).sort();
+  assert.deepEqual(classified, declared, "JSON classifications must match every table-qualified occurrence");
 });
 
 test("json-text classification agrees with a GENUINELY independent oracle: schema.sqlite.ts's camelCase TS property names ('*Json' convention) vs its snake_case SQL names ('_json' convention) never disagree on a single column", () => {
@@ -733,9 +733,11 @@ test("utc-timestamp-text classification matches an independent textual scan of s
   // test cannot pass by accident if isTimestampColumnName's own exclusion regressed.
   assert.ok(!declared.has("from_path_at_capture") && !declared.has("to_path_at_capture"));
 
-  const all = classifyAllCoreColumns();
-  const classified = new Set(all.filter((c) => c.columnClass.kind === "utc-timestamp-text").map((c) => c.sqlColumnName));
-  assert.deepEqual(classified, declared);
+  const qualifiedDeclared = textColumnDeclarations().filter((column) => column.sqlColumnName === "at" || column.sqlColumnName.endsWith("_at"))
+    .map((column) => column.qualifiedName).sort();
+  const classified = classifyAllCoreColumns().filter((column) => column.columnClass.kind === "utc-timestamp-text")
+    .map((column) => `${column.sqlTableName}.${column.sqlColumnName}`).sort();
+  assert.deepEqual(classified, qualifiedDeclared, "timestamp classifications must match every table-qualified occurrence");
 });
 
 test("utc-timestamp-text classification agrees with a GENUINELY independent oracle: schema.sqlite.ts's camelCase TS property names ('*At' convention) vs its snake_case SQL names ('_at' convention) never disagree on a single column", () => {
@@ -961,4 +963,19 @@ test("classifyPluginColumn: TEXT columns follow the same *_json / *_at naming co
 test("classifyPluginColumn: REAL and BLOB pass through as their own kinds", () => {
   assert.equal(classifyPluginColumn({ name: "score", type: "REAL" }).kind, "real");
   assert.equal(classifyPluginColumn({ name: "payload", type: "BLOB" }).kind, "blob");
+});
+
+
+test("classifyCoreColumn rejects an unreviewed autoincrement key and an unsupported core kind", () => {
+  const fixture = sqliteTable("unreviewed_probe", { id: integer("id").primaryKey({ autoIncrement: true }), amount: real("amount") });
+  const columns = getTableConfig(fixture).columns;
+  assert.throws(() => classifyCoreColumn("unreviewed_probe", columns.find((column) => column.name === "id")!), /autoincrement primary key "unreviewed_probe.id" has no entry in REVIEWED_INTEGER_ID_COLUMNS/);
+  assert.throws(() => classifyCoreColumn("unreviewed_probe", columns.find((column) => column.name === "amount")!), /unmapped column kind "SQLiteReal" on "unreviewed_probe.amount"/);
+});
+
+test("topologicalTableCopyOrder rejects either unnamed edge endpoint", () => {
+  for (const [from, to] of [["missing", "named"], ["named", "missing"]]) {
+    const edge = { fromExportName: from, fromSqlTableName: from, toExportName: to, toSqlTableName: to, selfReferencing: false };
+    assert.throws(() => topologicalTableCopyOrder(["named"], [edge]), { message: `edge references "${from}" -> "${to}", but allExportNames does not list both — topologicalTableCopyOrder() requires every edge endpoint to be one of the named tables.` });
+  }
 });

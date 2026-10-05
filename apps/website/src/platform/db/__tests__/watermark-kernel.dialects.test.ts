@@ -53,6 +53,16 @@ for (const dialect of ["sqlite", "pglite"] as const) {
         await kernel.execute(sql`UPDATE database_write_watermark SET last_stamped_at = 'sibling' WHERE id = 1`);
       });
       assert.equal(await readKernelWatermark(kernel), 1);
+      const row = await kernel.run((db) => db.selectFrom("database_write_watermark").select("last_stamped_at").where("id", "=", 1).executeTakeFirstOrThrow());
+      assert.equal(row.last_stamped_at, "sibling");
+    });
+
+    test("an ordinary stamp records the current timestamp", async (t) => {
+      const kernel = await preparedKernel(dialect);
+      t.mock.timers.enable({ apis: ["Date"], now: Date.parse("2026-10-04T12:34:56.789Z") });
+      await kernelStampWatermark(kernel)();
+      const row = await kernel.run((db) => db.selectFrom("database_write_watermark").select("last_stamped_at").where("id", "=", 1).executeTakeFirstOrThrow());
+      assert.equal(row.last_stamped_at, "2026-10-04T12:34:56.789Z");
     });
 
     test("INV-01: a transaction that fails rolls its stamp back", async () => {

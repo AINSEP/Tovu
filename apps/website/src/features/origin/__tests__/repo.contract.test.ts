@@ -135,6 +135,43 @@ describeEachDialect("OriginSettingRepoPort (SQL)", { tables: ["origin_settings"]
     assert.deepEqual(await new SqlOriginSettingRepo(kernel).findByWorkspaceId(WORKSPACE_ID), configuredOrigin());
   });
 
+  test("registerConfiguredOrigin persists, changes and removes port/basePath independently", async () => {
+    const kernel = makeKernel();
+    const repo = new SqlOriginSettingRepo(kernel);
+    let expected = createVerifiedOrigin({ ...configuredOrigin(), port: 8443, basePath: "/site" });
+    assert.equal(await registerConfiguredOriginOn(kernel, WORKSPACE_ID, expected), "inserted");
+    assert.deepEqual(await repo.findByWorkspaceId(WORKSPACE_ID), expected);
+    for (const origin of [
+      { ...configuredOrigin(), port: 8443, basePath: "/nested/site" },
+      { ...configuredOrigin(), port: 9443, basePath: "/nested/site" },
+      { ...configuredOrigin(), basePath: "/nested/site" },
+      { ...configuredOrigin(), port: 9443, basePath: "/nested/site" },
+      { ...configuredOrigin(), port: 9443 },
+      configuredOrigin(),
+    ]) {
+      expected = createVerifiedOrigin(origin);
+      assert.equal(await registerConfiguredOriginOn(kernel, WORKSPACE_ID, expected), "updated");
+      assert.deepEqual(await repo.findByWorkspaceId(WORKSPACE_ID), expected);
+    }
+  });
+
+  test("all origin reads isolate two populated workspaces and a missing workspace", async () => {
+    const kernel = makeKernel();
+    const other = configuredOrigin("other.example");
+    await seedDevCapabilityOriginOn(kernel, { workspaceId: WORKSPACE_ID, origin: seedOrigin(), redirectAllowlist: ["allowed.example"], egressAllowlist: ["api.example.com"] });
+    await seedDevCapabilityOriginOn(kernel, { workspaceId: "workspace-2", origin: other, redirectAllowlist: ["redirect.other.example"], egressAllowlist: ["api.other.example"] });
+    const repo = new SqlOriginSettingRepo(kernel);
+    for (const [workspaceId, origin, redirects, egress] of [
+      [WORKSPACE_ID, seedOrigin(), ["allowed.example"], ["api.example.com"]],
+      ["workspace-2", other, ["redirect.other.example"], ["api.other.example"]],
+      ["workspace-missing", null, [], []],
+    ] as const) {
+      assert.deepEqual(await repo.findByWorkspaceId(workspaceId), origin);
+      assert.deepEqual(await repo.findRedirectAllowlist(workspaceId), redirects);
+      assert.deepEqual(await repo.findEgressAllowlist(workspaceId), egress);
+    }
+  });
+
   // THE production bug this whole change exists to fix: Fly's first boot durably persisted
   // `http://localhost:3000` (dev-capability) into prod's content.db, and `seedDevCapabilityOrigin`'s
   // find-or-create contract means that row can never self-correct. Configuring the real public origin

@@ -80,6 +80,15 @@ function runMediaSuite(label: string, makeRepo: () => MediaRepoPort) {
     assert.equal(await repo.findById({ workspaceId: "workspace-2", id: "media-1" }), null);
   });
 
+  test(`[${label}] save() preserves populated nullable metadata and can clear it`, async () => {
+    const repo = makeRepo();
+    const record = makeMedia({ width: 1280, height: 720, cssClass: "video-cover", htmlAttributes: 'poster="/m/poster/original" controls' });
+    await repo.save(record);
+    assert.deepEqual(await repo.findById({ workspaceId: WORKSPACE_ID, id: record.id }), record);
+    await repo.save(makeMedia({ version: 2 }));
+    assert.deepEqual(await repo.findById({ workspaceId: WORKSPACE_ID, id: record.id }), makeMedia({ version: 2 }));
+  });
+
   test(`[${label}] save() upserts (an update replaces the prior state)`, async () => {
     const repo = makeRepo();
     await repo.save(makeMedia());
@@ -157,6 +166,16 @@ function runVersionedMediaSuite(label: string, makeRepo: () => VersionedMediaRep
     const found = await repo.findById({ workspaceId: WORKSPACE_ID, id: "media-1" });
     assert.equal(found?.title, "Updated");
     assert.equal(found?.version, 4);
+  });
+
+  test(`[${label}] insertIfAbsent() and saveIfVersion() preserve authored nullable metadata`, async () => {
+    const repo = makeRepo();
+    const original = makeMedia({ width: 640, height: 360, cssClass: "original", htmlAttributes: 'poster="/m/first/original"' });
+    assert.deepEqual(await repo.insertIfAbsent(original), { applied: true });
+    assert.deepEqual(await repo.findById({ workspaceId: WORKSPACE_ID, id: original.id }), original);
+    const updated = { ...original, width: 1280, height: 720, cssClass: "updated", htmlAttributes: 'poster="/m/second/original" controls', version: 2 };
+    assert.deepEqual(await repo.saveIfVersion({ record: updated, ifVersion: 1 }), { applied: true });
+    assert.deepEqual(await repo.findById({ workspaceId: WORKSPACE_ID, id: original.id }), updated);
   });
 
   test(`[${label}] saveIfVersion() refuses a stale version and leaves the row untouched`, async () => {
@@ -629,7 +648,8 @@ test("ADR-046 Phase 1: media + asset_blobs + asset_renditions + transform_regist
   const dbPath = join(dir, "content.db");
   try {
     const db1 = openContentDb(dbPath);
-    await new SqliteMediaRepo(db1).save(makeMedia());
+    const media = makeMedia({ width: 1280, height: 720, cssClass: "restart-video", htmlAttributes: 'poster="/m/poster/original"' });
+    await new SqliteMediaRepo(db1).save(media);
     await new SqliteAssetBlobRepo(db1).save(makeAssetBlob());
     await new SqliteAssetRenditionRepo(db1).save(makeRendition());
     await new SqliteTransformDefinitionRepo(db1).insert(makeTransformDef());
@@ -638,7 +658,7 @@ test("ADR-046 Phase 1: media + asset_blobs + asset_renditions + transform_regist
     // "Restart": brand-new content.db handles against the SAME on-disk file — the in-memory
     // adapters this replaces would have lost all four rows entirely.
     const db2 = openContentDb(dbPath);
-    assert.deepEqual(await new SqliteMediaRepo(db2).findById({ workspaceId: WORKSPACE_ID, id: "media-1" }), makeMedia());
+    assert.deepEqual(await new SqliteMediaRepo(db2).findById({ workspaceId: WORKSPACE_ID, id: "media-1" }), media);
     assert.deepEqual(await new SqliteAssetBlobRepo(db2).findByHash({ workspaceId: WORKSPACE_ID, sha256: "b".repeat(64) }), makeAssetBlob());
     assert.deepEqual(await new SqliteAssetRenditionRepo(db2).findOne({ workspaceId: WORKSPACE_ID, assetId: "blob-1", transformName: "thumb", version: 1 }), makeRendition());
     assert.deepEqual(await new SqliteTransformDefinitionRepo(db2).findByNameVersion({ workspaceId: WORKSPACE_ID, name: "thumb", version: 1 }), makeTransformDef());

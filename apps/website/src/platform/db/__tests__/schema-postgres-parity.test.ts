@@ -50,11 +50,12 @@ import path from "node:path";
 import test from "node:test";
 
 import { SQL, is } from "drizzle-orm";
-import { getTableConfig, type SQLiteColumn } from "drizzle-orm/sqlite-core";
-import { getTableConfig as getPgTableConfig } from "drizzle-orm/pg-core";
+import { getTableConfig, SQLiteSyncDialect, type SQLiteColumn } from "drizzle-orm/sqlite-core";
+import { getTableConfig as getPgTableConfig, PgDialect } from "drizzle-orm/pg-core";
 
 import * as sqliteSchema from "../schema.sqlite.js";
 import * as pgSchema from "../schema.postgres.js";
+import { REVIEWED_JSON_COLUMNS } from "../migration/manifest.js";
 
 import { tsPropertyNames } from "../../../../../../development/scripts/generate-postgres-schema.js";
 
@@ -418,4 +419,82 @@ test("publish backstop direction CHECK retains the exact source/destination allo
   const expected = "direction IN ('source','destination')";
   assert.ok(GENERATED.includes('check("publish_backstop_log_direction_check", sql`' + expected + '`)'));
   assert.deepEqual(getPgTableConfig(pgSchema.publishBackstopLog).checks.map(check => check.name), ["publish_backstop_log_direction_check"]);
+});
+
+
+test("primary key column identities and per-column uniqueness match between dialects", () => {
+  const pgTables = new Map(tablesOf(pgSchema).map((entry) => [entry.exportName, entry.table]));
+  for (const { exportName, table } of sourceTables()) {
+    const source = getTableConfig(table);
+    const target = pgTables.get(exportName);
+    assert.ok(target, exportName);
+    const generated = getPgTableConfig(target);
+    const keys = (config: { primaryKeys: Array<{ columns: Array<{ name: string }> }> }) => config.primaryKeys.map((key) => key.columns.map((column) => column.name)).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+    assert.deepEqual(keys(generated), keys(source), `${exportName}: composite key columns/order`);
+    for (const column of source.columns) {
+      const other = generated.columns.find((candidate) => candidate.name === column.name);
+      assert.ok(other, `${exportName}.${column.name}`);
+      assert.equal(other.primary, column.primary, `${exportName}.${column.name}: primary key`);
+      assert.equal(other.isUnique, column.isUnique, `${exportName}.${column.name}: uniqueness`);
+    }
+  }
+});
+
+test("all column nullability, defaults and mapped SQL types survive generation", () => {
+  const pgTables = new Map(tablesOf(pgSchema).map((entry) => [entry.exportName, entry.table]));
+  for (const { exportName, table } of sourceTables()) {
+    const source = getTableConfig(table);
+    const target = pgTables.get(exportName);
+    assert.ok(target, exportName);
+    const generated = getPgTableConfig(target);
+    for (const column of source.columns) {
+      const other = generated.columns.find((candidate) => candidate.name === column.name);
+      const label = `${source.name}.${column.name}`;
+      assert.ok(other, label);
+      assert.equal(other.notNull, column.notNull, `${label}: nullability`);
+      assert.deepEqual(other.default, column.default, `${label}: default value`);
+      const identity = Boolean(column.primary && (column as unknown as { autoIncrement?: boolean }).autoIncrement);
+      // SQLite marks every INTEGER PRIMARY KEY as having an implicit rowid default. The
+      // generator maps only AUTOINCREMENT keys to PG identity; compare explicit defaults here.
+      assert.equal(other.hasDefault, column.default !== undefined || identity, `${label}: default availability`);
+      const expected = column.columnType === "SQLiteInteger" ? "bigint" : column.columnType === "SQLiteBoolean" ? "boolean" :
+        column.name.endsWith("_json") || Object.hasOwn(REVIEWED_JSON_COLUMNS, label) ? "jsonb" : "text";
+      assert.equal(other.getSQLType(), expected, `${label}: mapped type`);
+    }
+  }
+});
+
+test("every CHECK keeps its name and full SQL semantics", () => {
+  const sourceDialect = new SQLiteSyncDialect();
+  const targetDialect = new PgDialect();
+  const pgTables = new Map(tablesOf(pgSchema).map((entry) => [entry.exportName, entry.table]));
+  const normalize = (text: string) => text.replace(/"[^" ]+"\."([^" ]+)"/g, "$1").replace(/"([^" ]+)"/g, "$1").replace(/\s+/g, " ").trim();
+  for (const { exportName, table } of sourceTables()) {
+    const source = getTableConfig(table);
+    const target = pgTables.get(exportName);
+    assert.ok(target, exportName);
+    const generated = getPgTableConfig(target);
+    assert.deepEqual(generated.checks.map((check) => check.name).sort(), source.checks.map((check) => check.name).sort(), exportName);
+    for (const check of source.checks) {
+      const other = generated.checks.find((candidate) => candidate.name === check.name)!;
+      const expected = sourceDialect.sqlToQuery(check.value);
+      const actual = targetDialect.sqlToQuery(other.value);
+      assert.deepEqual(actual.params, expected.params, `${check.name}: parameters`);
+      assert.equal(normalize(actual.sql), normalize(expected.sql), `${check.name}: SQL`);
+    }
+  }
+});
+
+test("generated JSON column callbacks preserve serialized writes and parsed/string reads", () => {
+  const columns = tablesOf(pgSchema).flatMap(({ table }) => getPgTableConfig(table).columns).filter((column) => column.getSQLType() === "jsonb");
+  assert.ok(columns.length > 20, "exercise the actual generated JSON columns");
+  const object = { title: "O'Brien", items: [1, true, null], nested: { language: "en" } };
+  const encoded = JSON.stringify(object);
+  for (const column of columns) {
+    assert.equal(column.mapToDriverValue(encoded), encoded, `${column.name}: no double encoding`);
+    assert.equal(column.mapFromDriverValue(encoded), encoded, `${column.name}: string driver input`);
+    assert.equal(column.mapFromDriverValue(object), encoded, `${column.name}: parsed driver input`);
+    assert.equal(column.mapToDriverValue("null"), "null");
+    assert.equal(column.mapFromDriverValue(null), "null");
+  }
 });

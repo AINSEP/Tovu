@@ -77,7 +77,8 @@ test("bodyText for that SAME body is lossy — this contrast is the entire reaso
   const viaText = Array.from(Buffer.from(response.bodyText, "utf8"));
   assert.notDeepStrictEqual(viaText, Array.from(INVALID_UTF8_BODY), "if bodyText were lossless here, the added field would be unnecessary");
   assert.ok(response.bodyText.includes("�"), `expected replacement characters in the lossy decode, got ${JSON.stringify(response.bodyText)}`);
-  assert.ok(viaText.length !== INVALID_UTF8_BODY.length || !viaText.every((b, i) => b === INVALID_UTF8_BODY[i]));
+  assert.equal(response.bodyText, "\uFFFDPNG\uFFFD\uFFFD\0", "each invalid lead byte becomes exactly one replacement character");
+  assert.deepStrictEqual(viaText, [0xef, 0xbf, 0xbd, 0x50, 0x4e, 0x47, 0xef, 0xbf, 0xbd, 0xef, 0xbf, 0xbd, 0x00]);
 });
 
 test("an untruncated response reports bodyTruncated:false — the flag is a real answer, not merely absent", async () => {

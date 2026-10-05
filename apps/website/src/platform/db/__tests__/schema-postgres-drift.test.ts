@@ -13,8 +13,8 @@
  * file, and both are the same instruction to the developer — run the generator and commit it.
  */
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { execFileSync, spawnSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test, { after } from "node:test";
@@ -44,4 +44,40 @@ test("schema.postgres.ts is up to date with schema.sqlite.ts (run the generator 
   // failure a developer actually reads.
   assert.doesNotThrow(run, "src/platform/db/schema.postgres.ts has drifted from src/platform/db/schema.sqlite.ts");
   assert.match(run(), /up to date/);
+});
+
+
+test("generator --check rejects isolated stale output without modifying it", () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), "tovu-stale-postgres-output-"));
+  const fixture = path.join(dir, "schema.postgres.ts");
+  const stale = "// deliberately stale generated output\n";
+  writeFileSync(fixture, stale);
+  try {
+    const output = path.join(REPO_ROOT, "apps/website/src/platform/db/schema.postgres.ts");
+    const generator = path.join(REPO_ROOT, GENERATOR);
+    // Redirect only the output file boundary. The real entry guard, argv parsing, generation,
+    // drift comparison, diagnostic and process.exit run in the child unchanged.
+    const script = `
+      import fs from "node:fs";
+      import { pathToFileURL } from "node:url";
+      const output = ${JSON.stringify(output)};
+      const fixture = ${JSON.stringify(fixture)};
+      for (const method of ["readFileSync", "writeFileSync", "existsSync"]) {
+        const original = fs[method].bind(fs);
+        fs[method] = (file, ...args) => original(file === output ? fixture : file, ...args);
+      }
+      process.argv = [process.execPath, ${JSON.stringify(generator)}, "--check"];
+      await import(pathToFileURL(process.argv[1]).href);
+    `;
+    const result = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "--eval", script], {
+      cwd: REPO_ROOT, encoding: "utf8", timeout: 30_000, env: childProcessCoverageEnv(WORKER_COVERAGE_DIR),
+    });
+    assert.equal(result.error, undefined);
+    assert.equal(result.status, 1, result.stderr);
+    assert.match(result.stderr, /^DRIFT: src\/platform\/db\/schema\.postgres\.ts does not match/m);
+    assert.doesNotMatch(result.stdout, /up to date|wrote/);
+    assert.equal(readFileSync(fixture, "utf8"), stale, "check mode must leave stale output untouched");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

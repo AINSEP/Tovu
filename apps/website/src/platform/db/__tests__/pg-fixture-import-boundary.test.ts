@@ -39,10 +39,10 @@ const SKIP_DIR_NAMES = new Set(["node_modules", "dist", "build", "coverage", ".t
 
 const SOURCE_EXTENSIONS = new Set([".ts", ".tsx"]);
 
-// Matches `pg-fixture` as an import specifier's final path segment (quoted, with or without a `.ts`
+// Matches `pg-fixture` as an import specifier's final path segment (quoted, with or without a `.ts`/`.js`
 // extension) — e.g. `from "../migration/pg-fixture.js"` or `require("./pg-fixture.ts")` — without
 // requiring a specific import syntax, so it catches `import`, `import type`, and `require()` alike.
-const IMPORT_SPECIFIER_PATTERN = /pg-fixture(?:\.ts)?["']/;
+const IMPORT_SPECIFIER_PATTERN = /pg-fixture(?:\.[cm]?[jt]sx?)?["']/;
 
 function collectSourceFiles(dir: string, out: string[]): void {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -74,4 +74,16 @@ test("pg-fixture is imported only from src/platform/db/__tests__/ (it shells out
     [],
     `pg-fixture.ts must only be imported from src/platform/db/__tests__/, but found an import in: ${offenders.join(", ")}`
   );
+});
+
+
+test("the boundary scanner detects supported import, require and re-export specifiers", () => {
+  for (const extension of ["", ".ts", ".js", ".mts", ".mjs", ".cts", ".cjs", ".tsx", ".jsx"]) {
+    for (const source of [
+      `import { psql } from "../migration/pg-fixture${extension}";`,
+      `export { psql } from '../migration/pg-fixture${extension}';`,
+      `const fixture = require("../migration/pg-fixture${extension}");`,
+      `const fixture = import('../migration/pg-fixture${extension}');`,
+    ]) assert.equal(IMPORT_SPECIFIER_PATTERN.test(source), true, source);
+  }
 });

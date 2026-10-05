@@ -2,8 +2,8 @@ import { test, expect, _electron as electron, type ElectronApplication } from "@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { createRequire } from "node:module";
-import { execFileSync } from "node:child_process";
+import { createRequire, syncBuiltinESMExports } from "node:module";
+import childProcess, { execFileSync } from "node:child_process";
 import { initSiteDir } from "../../apps/desktop/src/site-dir-store.ts";
 import { sitesFilePath, trackSite, SITE_ORIGIN } from "../../apps/desktop/src/tracked-sites.ts";
 
@@ -81,12 +81,12 @@ type MenuItemLike = {
  * silently: if a future change breaks the override, this fails loud and immediately (and closes
  * the app before returning) instead of quietly writing into `REAL_USER_DATA_DIR` again.
  */
-async function launchShell(env: Record<string, string>): Promise<ElectronApplication> {
+async function launchShell(env: Record<string, string>, options: { preload?: string } = {}): Promise<ElectronApplication> {
   const userDataDir =
     env.TOVU_DESKTOP_USER_DATA_DIR ?? fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-e2e-userdata-"));
   const app = await electron.launch({
     executablePath: ELECTRON_BIN,
-    args: ["."],
+    args: [...(options.preload ? ["-r", options.preload] : []), "."],
     cwd: DESKTOP_DIR,
     env: { ...process.env, ...env, TOVU_DESKTOP_USER_DATA_DIR: userDataDir } as Record<string, string>,
     timeout: 150_000,
@@ -218,6 +218,69 @@ test.describe("apps/desktop shell", () => {
         guest.focus();
       });
       await checkNativeFind("guestfindtoken");
+    } finally {
+      await app.close();
+    }
+  });
+
+  test("macOS spellcheck suggestion replaces text in the real guest editor", async () => {
+    test.skip(process.platform !== "darwin", "uses the native macOS spelling dictionary");
+    const userDataDir = scratchHome("spellcheck-profile");
+    trackSite(sitesFilePath(userDataDir), path.join(fixtureRoot, "site-alpha"), SITE_ORIGIN.adopted);
+    const app = await launchShell({
+      TOVU_DESKTOP_USER_DATA_DIR: userDataDir, TOVU_DESKTOP_UI: "runner",
+      TOVU_DESKTOP_SITE_DIR: "", TOVU_DESKTOP_SITE_DIRS: "", TOVU_DESKTOP_URL: "",
+    });
+    try {
+      const win = await app.firstWindow({ timeout: 150_000 });
+      const card = win.locator(".card").filter({ has: win.locator(".card__name", { hasText: /^site-alpha$/ }) });
+      await card.getByRole("button", { name: "Start", exact: true }).click();
+      await expect(card.locator(".state")).toHaveText("Running", { timeout: 150_000 });
+      await card.locator(".card__name").click();
+      await expect(win.locator("webview")).toBeVisible();
+      await expect.poll(() => app.evaluate(({ webContents }) => webContents.getAllWebContents().some((contents: { getType(): string; getURL(): string }) => contents.getType() === "webview" && /\/admin\//.test(contents.getURL())))).toBe(true);
+      const guestId = await app.evaluate(async ({ webContents, Menu }) => {
+        const guest = webContents.getAllWebContents().find((contents: { getType(): string; getURL(): string }) => contents.getType() === "webview" && /\/admin\//.test(contents.getURL()));
+        if (!guest) throw new Error("admin guest not found");
+        // Observe the actual native menu; preserve its construction, popup and replacement calls.
+        const state = globalThis as typeof globalThis & { __spellMenu?: { items: MenuItemLike[]; closePopup(): void }; __misspelledWord?: string };
+        const build = Menu.buildFromTemplate.bind(Menu);
+        Menu.buildFromTemplate = (template: unknown[]) => {
+          const menu = build(template);
+          state.__spellMenu = menu;
+          return menu;
+        };
+        guest.on("context-menu", (_event: unknown, params: { misspelledWord: string }) => { state.__misspelledWord = params.misspelledWord; });
+        await guest.executeJavaScript(`(() => {
+          const editor = document.createElement('textarea');
+          editor.id = 'e2e-spelling-editor'; editor.lang = 'en-US'; editor.spellcheck = true;
+          editor.style.cssText = 'position:fixed;left:20px;top:20px;width:300px;height:100px;z-index:999999';
+          document.body.append(editor); editor.focus();
+        })()`);
+        guest.focus();
+        await guest.insertText("teh ");
+        return guest.id;
+      });
+      await expect.poll(() => app.evaluate(({ webContents }, id) => webContents.fromId(id).executeJavaScript("document.querySelector('#e2e-spelling-editor').value"), guestId)).toBe("teh ");
+      await expect.poll(() => app.evaluate(({ webContents }, id) => webContents.fromId(id).session.isWordMisspelled("teh"), guestId)).toBe(true);
+      await app.evaluate(({ webContents }, id) => {
+        const guest = webContents.fromId(id);
+        guest.sendInputEvent({ type: "mouseDown", button: "right", x: 28, y: 28, clickCount: 1 });
+        guest.sendInputEvent({ type: "mouseUp", button: "right", x: 28, y: 28, clickCount: 1 });
+      }, guestId);
+      await expect.poll(() => app.evaluate(() => {
+        const state = globalThis as typeof globalThis & { __misspelledWord?: string; __spellMenu?: { items: MenuItemLike[] } };
+        return { word: state.__misspelledWord, offersThe: state.__spellMenu?.items.some(item => item.label === "the") ?? false };
+      })).toEqual({ word: "teh", offersThe: true });
+      await app.evaluate(() => {
+        const menu = (globalThis as typeof globalThis & { __spellMenu?: { items: MenuItemLike[]; closePopup(): void } }).__spellMenu;
+        const suggestion = menu?.items.find(item => item.label === "the");
+        if (!suggestion) throw new Error("native spelling menu omitted 'the'");
+        suggestion.click();
+        menu!.closePopup();
+      });
+      // F2.1: the native replacement must change the focused editor, not merely call a port.
+      await expect.poll(() => app.evaluate(({ webContents }, id) => webContents.fromId(id).executeJavaScript("document.querySelector('#e2e-spelling-editor').value"), guestId)).toBe("the ");
     } finally {
       await app.close();
     }
@@ -390,33 +453,95 @@ test.describe("apps/desktop shell", () => {
     }
   });
 
-  test("the boot token never appears in anything the shell echoes", async () => {
-    /**
-     * The token is a live credential for one redemption. It must reach the parent only through the
-     * child's stdout pipe and go no further — not to the shell's own stdout, not into a log, not
-     * into an error message. This suite captures child output, so a leak here would also mean the
-     * token sits in CI artifacts.
-     *
-     * Asserted against everything Playwright captured from the launch, which is exactly the surface
-     * a leak would show up on.
-     */
-    const siteDir = path.join(fixtureRoot, "site-alpha");
-
-    const captured: string[] = [];
-    const app = await launchShell({
-      HOME: scratchHome("token-leak"),
-      TOVU_DESKTOP_SITE_DIR: siteDir,
+  for (const refuseRedemption of [false, true]) {
+    test(`the boot token never appears in anything the shell echoes (${refuseRedemption ? "failed redemption" : "healthy launch"})`, async () => {
+      const captureDir = scratchHome("token-capture");
+      const tokensPath = path.join(captureDir, "private-tokens.json");
+      const channelsPath = path.join(captureDir, "renderer-output.txt");
+      const blockedPath = path.join(captureDir, "redemption-blocked");
+      const preload = path.join(captureDir, "observe.cjs");
+      // F2.6/F5.2: observe the REAL child's private pipe, without replacing its output or token.
+      // This preload runs before main, so renderer console/navigation capture includes startup too.
+      fs.writeFileSync(preload, `
+        const fs = require('node:fs');
+        const cp = require('node:child_process');
+        const originalSpawn = cp.spawn;
+        const tokens = new Set();
+        cp.spawn = function (...args) {
+          const child = originalSpawn.apply(this, args);
+          if (Array.isArray(args[1]) && args[1].includes('serve') && args[1].includes('--emit-boot-token')) {
+            let output = '';
+            child.stdout.on('data', chunk => {
+              output += chunk.toString();
+              for (const match of output.matchAll(/^tovu serve: bootToken=(\\S+)\\r?\\n/gm)) tokens.add(match[1]);
+              fs.writeFileSync(${JSON.stringify(tokensPath)}, JSON.stringify([...tokens]));
+            });
+          }
+          return child;
+        };
+        require('node:module').syncBuiltinESMExports();
+        const { app } = require('electron');
+        const record = text => fs.appendFileSync(${JSON.stringify(channelsPath)}, String(text) + '\\n');
+        app.on('web-contents-created', (_event, contents) => {
+          contents.on('console-message', details => record(details.message));
+          contents.on('did-start-navigation', details => record(details.url));
+        });
+        if (${refuseRedemption}) app.on('session-created', session => {
+          session.webRequest.onBeforeRequest({ urls: ['http://127.0.0.1/*'] }, (details, callback) => {
+            const block = new URL(details.url).pathname === '/api/admin/v1/auth/boot-session';
+            if (block) fs.writeFileSync(${JSON.stringify(blockedPath)}, 'blocked');
+            callback({ cancel: block });
+          });
+        });
+      `);
+      const captured: string[] = [];
+      const originalSpawn = childProcess.spawn;
+      let observedShell = false;
+      // Attach synchronously at process creation, before electron.launch can consume startup output.
+      childProcess.spawn = function (...args: Parameters<typeof childProcess.spawn>) {
+        const child = Reflect.apply(originalSpawn, childProcess, args) as ReturnType<typeof childProcess.spawn>;
+        if (args[0] === ELECTRON_BIN) {
+          observedShell = true;
+          child.stdout?.on("data", (chunk: Buffer) => captured.push(chunk.toString()));
+          child.stderr?.on("data", (chunk: Buffer) => captured.push(chunk.toString()));
+        }
+        return child;
+      } as typeof childProcess.spawn;
+      syncBuiltinESMExports();
+      let app: ElectronApplication | undefined;
+      try {
+        app = await launchShell({
+          HOME: scratchHome("token-leak"),
+          TOVU_DESKTOP_SITE_DIR: path.join(fixtureRoot, "site-alpha"),
+        }, { preload });
+        const win = await app.firstWindow({ timeout: 150_000 });
+        await win.waitForLoadState("domcontentloaded");
+        const me = await win.evaluate(async () => (await fetch("/api/admin/v1/auth/me")).status);
+        expect(me).toBe(refuseRedemption ? 401 : 200);
+        if (refuseRedemption) expect(fs.existsSync(blockedPath)).toBe(true);
+      } catch (error) {
+        captured.push(String(error));
+        throw error;
+      } finally {
+        try {
+          await app?.close();
+          expect(observedShell, "startup capture must observe the actual Electron process").toBe(true);
+          expect(captured.length, "the capture must receive real process output").toBeGreaterThan(0);
+          expect(fs.existsSync(channelsPath), "startup navigation must reach the renderer-channel observer").toBe(true);
+          const tokens: string[] = JSON.parse(fs.readFileSync(tokensPath, "utf8"));
+          expect(tokens.length, "the real serve child must mint a token before the absence check").toBeGreaterThan(0);
+          const output = captured.join("") + (fs.existsSync(channelsPath) ? fs.readFileSync(channelsPath, "utf8") : "");
+          // Use a boolean so a failing assertion never writes credential bytes into the test report.
+          expect(tokens.some(token => output.includes(token)), "credential bytes leaked into shell output, renderer console, navigation or an error").toBe(false);
+          expect(output).not.toContain("bootToken");
+        } finally {
+          childProcess.spawn = originalSpawn;
+          syncBuiltinESMExports();
+          fs.rmSync(captureDir, { recursive: true, force: true });
+        }
+      }
     });
-    app.process().stdout?.on("data", (chunk: Buffer) => captured.push(chunk.toString()));
-    app.process().stderr?.on("data", (chunk: Buffer) => captured.push(chunk.toString()));
-    try {
-      const win = await app.firstWindow({ timeout: 150_000 });
-      await win.waitForLoadState("domcontentloaded");
-      expect(captured.join("")).not.toContain("bootToken");
-    } finally {
-      await app.close();
-    }
-  });
+  }
 
   test("card body keeps text beside actions and stacks menu above power", async () => {
     const userDataDir = scratchHome("card-layout-profile");

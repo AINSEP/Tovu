@@ -32,7 +32,7 @@ import test from "node:test";
 
 import { sql, desc } from "drizzle-orm";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { getTableConfig as getPgTableConfig } from "drizzle-orm/pg-core";
+import { getTableConfig as getPgTableConfig, PgDialect } from "drizzle-orm/pg-core";
 import * as pg from "drizzle-orm/pg-core";
 
 import { renderTable } from "../../../../../../development/scripts/generate-postgres-schema.js";
@@ -131,4 +131,37 @@ test("a CHECK column belonging to a different table is rejected rather than sile
   ]);
 
   assert.throws(() => renderTable("fxCrossTableCheck", fixture as never), /from a different table/);
+});
+
+
+test("expression-index text round-trips backticks, backslashes and interpolation syntax", () => {
+  const expression = "coalesce(email, '`\\${literal}')";
+  const fixture = sqliteTable("fx_escaped_index", { email: text("email") }, () => [index("fx_escaped_index_value").on(sql.raw(expression))]);
+  const generated = evaluateGeneratedTable(renderTable("fxEscapedIndex", fixture as never));
+  const entry = getPgTableConfig(generated as never).indexes[0].config.columns[0];
+  assert.equal(new PgDialect().sqlToQuery(entry as never).sql, expression);
+});
+
+test("JSON columns cannot become a primary key, unique column or index", () => {
+  const fixtures = [
+    sqliteTable("fx_json_pk", { payloadJson: text("payload_json").primaryKey() }),
+    sqliteTable("fx_json_unique", { payloadJson: text("payload_json").unique() }),
+    sqliteTable("fx_json_index", { payloadJson: text("payload_json") }, (t) => [index("fx_json_index_payload").on(t.payloadJson)]),
+  ];
+  for (const fixture of fixtures) assert.throws(() => renderTable("fxKeyedJson", fixture as never), /keys or indexes JSON column "payload_json"/);
+});
+
+test("unsupported column modifiers and SQL defaults fail closed", () => {
+  for (const [column, property] of [
+    [text("value", { length: 12 }), "length"],
+    [text("value", { enum: ["one", "two"] }), "enumValues"],
+    [text("value").$defaultFn(() => "one"), "defaultFn"],
+    [text("value").$onUpdateFn(() => "two"), "onUpdateFn"],
+    [text("value").generatedAlwaysAs(sql.raw("'one'")), "generated"],
+  ] as const) {
+    const fixture = sqliteTable("fx_unsupported_column", { value: column });
+    assert.throws(() => renderTable("fxUnsupportedColumn", fixture as never), new RegExp(`column "value" sets "${property}"`));
+  }
+  const fixture = sqliteTable("fx_sql_default", { value: text("value").default(sql.raw("CURRENT_TIMESTAMP")) });
+  assert.throws(() => renderTable("fxSqlDefault", fixture as never), /column "value" has a non-literal default/);
 });
