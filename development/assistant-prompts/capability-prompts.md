@@ -299,8 +299,8 @@ owner's OK. Leave out the 4 test pages/forms (owner decision 2026-10-04).
 | A-04 | Show me recent server errors. | **NONE** (admin Observability screen has no chat tool) | Errors listed | RO | GAP (EXPECTED, no tool found) |
 | A-05 | What sites do I have on this computer? | `sites_list` | Matches Sites → All sites | RO | OK |
 | A-06 | Make a copy of this site called "staging". | `sites_duplicate_site` | "staging" listed and boots | LOCAL | OK |
-| A-07 | Create a brand-new empty site called "bakery". | **NONE** (admin Create Site onboarding only) | New site listed | LOCAL | GAP (EXPECTED, no tool found) |
-| A-08 | Switch to my "staging" site. | **NONE** (`sites_list` says it doesn't switch) | Admin now serves staging | LOCAL | GAP (EXPECTED, no tool found) |
+| A-07 | Create a brand-new empty site called "bakery". | `sites_create_site` (same `createSiteForOwner` as the admin Create route; local dev only, switcher flag ON) | New site listed | LOCAL | BUILT 2026-10-05 (S1) |
+| A-08 | Switch to my "staging" site. | `sites_switch_site` (same `activateSite` as the admin Activate route; persists TOVU_SITE, restart needed) | Admin now serves staging | LOCAL | BUILT 2026-10-05 (S1: persist + restart words) |
 | A-09 | Is checkout set up? | `commerce_get_status` | Matches Payments screen | RO | OK |
 | A-10 | Connect Stripe and add a product. | **NONE** | Product sellable | EXT | GAP (EXPECTED, no tool found) |
 
@@ -388,8 +388,8 @@ K-02, then K-04 (unknown). LOCAL. Status: ?.
 18. Y-04: can't delete a tag/term.
 19. A-02: analytics is only the recent buffer, no longer history.
 20. A-04: no server-errors/logs tool for the local site.
-21. A-07: can't create a new site.
-22. A-08: can't switch sites.
+21. A-07: can't create a new site. (BUILT 2026-10-05: `sites_create_site`)
+22. A-08: can't switch sites. (BUILT 2026-10-05: `sites_switch_site`)
 23. A-10: no commerce setup (Stripe/products).
 
 **In progress (WIP):** L-03/04/05 publish live, O-09 chat title, O-10 live links in replies.

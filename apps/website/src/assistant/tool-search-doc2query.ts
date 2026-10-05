@@ -138,6 +138,19 @@ export const DOC2QUERY: Readonly<Record<string, readonly string[]>> = {
     "Which site is currently serving and which is queued for restart?",
     "Can I see the site registry when switching is disabled?",
   ],
+  // 2026-10-05: create / switch sites from chat (admin Sites screen's Create / Activate).
+  sites_create_site: [
+    "Make a new site for another client.",
+    "Create a blank website next to this one.",
+    "Start a fresh empty site called acme.",
+    "Add a new site to my sites folder.",
+  ],
+  sites_switch_site: [
+    "Switch to my other site.",
+    "Work on the acme site instead of this one.",
+    "Change which site the dev server is serving.",
+    "Activate a different site and restart.",
+  ],
   publish_content_disconnect: [
     "Disconnect this computer from the live publish destination.",
     "Stop publishing content to the connected site.",

@@ -5,7 +5,10 @@
  * catalog already declare for itself rather than sharing one from the kit).
  *
  * Purpose:
- * One tool, `sites_duplicate_site` — the assistant half of the "a designer/developer wants one site
+ * `sites_create_site` and `sites_switch_site` (2026-10-05) call `site-admin.ts`'s `createSiteForOwner` /
+ * `activateSite`, the same functions the admin Sites screen's Create/Activate routes call.
+ *
+ * `sites_duplicate_site` — the assistant half of the "a designer/developer wants one site
  * per client" workflow `platform/site-dir/site-registry.ts`'s own `listSites`/`createSite` already
  * serve for the admin Sites screen (2026-09-04 sites-switcher decision). It maps 1:1 onto
  * `platform/site-dir/duplicate-site.ts`'s `duplicateSite`, the same function a future admin-HTTP
@@ -67,6 +70,36 @@ const DUPLICATE_SITE_INPUT_SCHEMA = {
   },
 } as const;
 
+const CREATE_SITE_INPUT_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["name"],
+  properties: {
+    name: {
+      type: "string",
+      minLength: 1,
+      maxLength: 100,
+      pattern: "^[a-z0-9-]+$",
+      description: "The NEW site's folder name under sites/. Must not already exist. Lowercase letters, digits, and dashes only.",
+    },
+  },
+} as const;
+
+const SWITCH_SITE_INPUT_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["name"],
+  properties: {
+    name: {
+      type: "string",
+      minLength: 1,
+      maxLength: 100,
+      pattern: "^[a-z0-9-]+$",
+      description: "The folder name of an EXISTING registered site under sites/ (as returned by sites_list).",
+    },
+  },
+} as const;
+
 /**
  * Every agent-callable tool this domain exposes. Wired 1-for-1 by `buildSitesRegistrations` — there
  * is no `unwiredToolIds` set here, which means any future catalog entry added without a handler is
@@ -85,5 +118,28 @@ export const sitesAgentToolCatalog: readonly AgentToolDefinition[] = [
     sideEffects: "mutates-durable-state",
     authorization: { permission: SITES_WRITE_PERMISSION },
     inputSchema: DUPLICATE_SITE_INPUT_SCHEMA,
+  },
+  {
+    name: "sites_create_site",
+    description: [
+      "Creates a brand-new, empty site under sites/<name>/ from the starter template — the same thing the admin Sites screen's Create button and `tovu init` do.",
+      "Does NOT switch to it: call sites_switch_site afterwards to serve it. To start from a copy of an existing site instead, use sites_duplicate_site.",
+      "Refuses if name already names a site directory. Returns {name, dir, siteId}.",
+      "A real, disk-affecting write. Disabled where site switching is off (the desktop app, where each site is its own window, and hosted sites).",
+    ].join(" "),
+    sideEffects: "mutates-durable-state",
+    authorization: { permission: SITES_WRITE_PERMISSION },
+    inputSchema: CREATE_SITE_INPUT_SCHEMA,
+  },
+  {
+    name: "sites_switch_site",
+    description: [
+      "Makes another existing site the one this local dev server serves — the same thing the admin Sites screen's Activate button does.",
+      "Saves the choice (TOVU_SITE in the repo's .env); it takes effect when the dev server restarts. Returns {activeSiteName, restartRequired, restartInstructions} — tell the person the restartInstructions.",
+      "Refuses if name is not a registered site (call sites_list first). Disabled where site switching is off (the desktop app, where each site is its own window, and hosted sites).",
+    ].join(" "),
+    sideEffects: "mutates-durable-state",
+    authorization: { permission: SITES_WRITE_PERMISSION },
+    inputSchema: SWITCH_SITE_INPUT_SCHEMA,
   },
 ];

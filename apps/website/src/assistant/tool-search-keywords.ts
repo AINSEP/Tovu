@@ -313,6 +313,10 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   sites_duplicate_site:
     "site sites copy duplicate clone new client starting point template sample landing based on existing existing site " +
     "spin up stand up set up create from a copy of same content",
+  // 2026-10-05 — create and switch (admin Sites screen's Create / Activate, from chat).
+  sites_create_site: "new site create site make site add site new website start blank empty another client folder init",
+  sites_switch_site:
+    "switch site change site activate site serve served serving which site use open work on another different client website restart dev server go to",
 
   // --- content / collections --------------------------------------------------------------------------
   content_post_search: "post posts blog article articles find search title lookup copy duplicate clone",

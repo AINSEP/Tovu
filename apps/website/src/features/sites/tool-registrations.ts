@@ -13,9 +13,11 @@ import {
 
 import { SITES_WRITE_PERMISSION, sitesAgentToolCatalog } from "./agent-tools.js";
 import { resolveSitesDeps, type SitesToolDeps } from "./deps.js";
+import { activateSite, createSiteForOwner, resolveSiteSwitchBase, type SiteAdminRefusal, type SiteAdminRefusalCode } from "./site-admin.js";
 
 /**
- * @file Maps the Sites catalog onto `duplicateSite()`, as a `ToolRegistration`. The entire catalog
+ * @file Maps the Sites catalog onto `duplicateSite()` and `site-admin.ts`'s `createSiteForOwner` /
+ * `activateSite`, as `ToolRegistration`s. The entire catalog
  * is wired — there is no `unwiredToolIds` set here, which means any future catalog entry added
  * without a handler is a build failure.
  *
@@ -50,6 +52,10 @@ export const sitesDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSi
   // -> duplicateSite(): creates a new sites/<targetName>/ directory, copies uploads/themes/etc.,
   //    and writes a new content.db + config.json + .site-meta.json. A real, disk-affecting write.
   ["sites_duplicate_site", "mutates-durable-state"],
+  // -> createSiteForOwner(): initSite writes a new sites/<name>/ directory, database and config.
+  ["sites_create_site", "mutates-durable-state"],
+  // -> activateSite(): rewrites TOVU_SITE in the switcher tree's .env (the next boot's site).
+  ["sites_switch_site", "mutates-durable-state"],
 ]);
 
 /** Raised for a bad `sourceName`/`targetName`/`displayName` shape, so `isShapeRejection` can
@@ -99,6 +105,19 @@ class SiteBindingNotSwitchableError extends Error {
   }
 }
 
+/** A refusal from `site-admin.ts`, carried to the model with its machine-readable `code`. */
+class SiteAdminRefusalError extends Error {
+  readonly code: SiteAdminRefusalCode;
+  constructor(refusal: SiteAdminRefusal) {
+    super(refusal.error);
+    this.name = "SiteAdminRefusalError";
+    this.code = refusal.code;
+  }
+}
+
+/** The `site-admin.ts` refusals a different `name` would fix — worth publishing the schema back. */
+const SHAPE_REFUSAL_CODES: ReadonlySet<SiteAdminRefusalCode> = new Set(["VALIDATION_ERROR", "SITE_ALREADY_EXISTS", "SITE_NOT_FOUND"]);
+
 /** Every error class a DIFFERENT input would fix — the three domain errors `duplicateSite()`
  *  itself can throw for a bad name or an occupied target all name exactly the argument a retry
  *  should change, same as this file's own two local input errors. */
@@ -112,7 +131,23 @@ const SHAPE_REJECTION_CLASSES = [
 
 /** Worth publishing the tool's schema back with — see {@link SHAPE_REJECTION_CLASSES}'s own doc. */
 function isShapeRejection(error: unknown): boolean {
+  if (error instanceof SiteAdminRefusalError) return SHAPE_REFUSAL_CODES.has(error.code);
   return SHAPE_REJECTION_CLASSES.some((errorClass) => error instanceof errorClass);
+}
+
+/** Runs the shared flag + binding gate, then the permission check — the same order the admin
+ *  routes use — and returns the served tree's base. Throws the gate's refusal as-is. */
+async function gateSiteSwitchWrite(routeDeps: SitesToolDeps, switcherEnabled: boolean, principalId: string): Promise<string> {
+  const gate = resolveSiteSwitchBase({ binding: routeDeps.siteBinding, switchingEnabled: switcherEnabled });
+  if (!gate.ok) throw new SiteAdminRefusalError(gate);
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId, permission: SITES_WRITE_PERMISSION }, { entityType: "site-registry" });
+  return gate.switcherBase;
+}
+
+/** Unwraps a `site-admin.ts` outcome: the success value, or its refusal thrown. */
+function orThrowRefusal<T extends { ok: true }>(outcome: T | SiteAdminRefusal): T {
+  if (!outcome.ok) throw new SiteAdminRefusalError(outcome);
+  return outcome;
 }
 
 /** Validates one folder-name argument against `SITE_NAME_PATTERN` — the one check that makes it
@@ -165,6 +200,24 @@ export function buildSitesRegistrations(routeDeps: SitesToolDeps): ToolRegistrat
         const targetDir = path.join(switcherBase, "sites", targetName);
         const result = await resolved.duplicateSite({ sourceDir: source.dir, targetDir, name: displayName });
         return { name: targetName, dir: result.dir, siteId: result.siteId, sourceName };
+      } });
+    },
+    sites_create_site: async (ctx) => {
+      const name = requireSiteFolderName(requireInputRecord({ input: ctx.input }), "name");
+      const switcherBase = await gateSiteSwitchWrite(routeDeps, switcherEnabled, ctx.principal.id);
+      return withSchemaOnRejection({ toolId: "sites_create_site", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => {
+        // No access tokens from chat: a pasted token would sit in the transcript. The admin Create form takes them.
+        const created = orThrowRefusal(await createSiteForOwner({ workspaceId: routeDeps.workspaceId, switcherBase, name }, { createSite: routeDeps.createSite }));
+        return created.site;
+      } });
+    },
+
+    sites_switch_site: async (ctx) => {
+      const name = requireSiteFolderName(requireInputRecord({ input: ctx.input }), "name");
+      const switcherBase = await gateSiteSwitchWrite(routeDeps, switcherEnabled, ctx.principal.id);
+      return withSchemaOnRejection({ toolId: "sites_switch_site", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => {
+        const { ok: _ok, ...activated } = orThrowRefusal(activateSite({ switcherBase, name }, { listSites: routeDeps.listSites, persistActiveSite: routeDeps.persistActiveSite }));
+        return activated;
       } });
     },
   };

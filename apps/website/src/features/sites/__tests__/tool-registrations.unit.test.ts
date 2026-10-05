@@ -97,7 +97,7 @@ test("sites: the catalog wires in full, with a published schema and a cross-chec
 
   assert.deepEqual(
     registrations.map((registration) => registration.descriptor.id).sort(),
-    ["sites_duplicate_site"]
+    ["sites_create_site", "sites_duplicate_site", "sites_switch_site"]
   );
   assert.equal(registrations.length, sitesAgentToolCatalog.length, "every catalog entry must be wired");
 

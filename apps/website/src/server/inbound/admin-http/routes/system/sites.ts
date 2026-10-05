@@ -1,27 +1,26 @@
 import type { Express, Response } from "express";
 
 import {
-  createSite as createSiteReal,
+  type createSite as createSiteReal,
   includeServingSite,
   listSites as listSitesReal,
   listSitesForBinding,
   switcherBaseForBinding,
-  persistActiveSite as persistActiveSiteReal,
+  type persistActiveSite as persistActiveSiteReal,
   readPersistedActiveSite as readPersistedActiveSiteReal,
-  InitDirNotEmptyError,
-  ValidationError,
   type ServingSiteListEntry,
   type SiteListEntry,
   isSiteSwitcherEnabled as isSiteSwitcherEnabledReal,
 } from "#src/platform/site-dir/index";
+import { listNewSiteAgentPluginTokenSignInPlugins } from "#src/features/agent-plugins/new-site-agent-plugin-tokens";
 import {
-  bundledAgentPluginsSourceRoot,
-  firstNewSiteAgentPluginTokenRefusal,
-  listNewSiteAgentPluginTokenSignInPlugins,
-  parseNewSiteAgentPluginTokens,
-  resolveBundledAgentPlugin,
-} from "#src/features/agent-plugins/new-site-agent-plugin-tokens";
-import {
+  activateSite,
+  createSiteForOwner,
+  resolveSiteSwitchBase,
+  type SiteAdminRefusal,
+  type SiteAdminRefusalCode,
+} from "#src/features/sites/index";
+import type {
   checkAgentPluginAccessToken as checkAgentPluginAccessTokenReal,
   listTokenSignInPlugins as listTokenSignInPluginsReal,
 } from "#src/features/agent-plugins/token-sign-in";
@@ -84,6 +83,11 @@ import type { RouteDeps } from "#src/server/routes/types";
  * (a row is `registered` exactly when `listSites` produced it) but stays correct now that presence
  * alone no longer implies it.
  *
+ * Create and Activate are thin callers (2026-10-05): the logic lives in `features/sites/site-admin.ts`
+ * (`resolveSiteSwitchBase`, `createSiteForOwner`, `activateSite`), the SAME functions the assistant's
+ * `sites_create_site` / `sites_switch_site` tools call. This file only authorizes and maps refusals to
+ * HTTP statuses.
+ *
  * `POST .../system/sites` — Create. Refuses `SITE_SWITCHING_DISABLED` when the flag is off,
  * checked BEFORE `authorize()` (a deployment-wide gate, independent of the caller's own
  * permissions — no reason to spend an authorize() call on an operation that will be refused
@@ -120,112 +124,41 @@ export type AdminSitesDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "site
   readPersistedActiveSite?: typeof readPersistedActiveSiteReal;
 };
 
-/** The exact prose the UI should render after a successful Activate — one source of truth so a
- *  future wording change lands in one place, not wherever a caller happened to hardcode it. */
-const RESTART_INSTRUCTIONS =
-  "Restart the dev server for this to take effect: stop `npm run dev` (Ctrl-C, or SIGTERM the " +
-  "dev.mjs process — never a child PID) and start it again.";
+/** HTTP status for each refusal code the shared feature functions return. 403 for the
+ *  deployment-wide flag; 409 for the per-boot binding fact and an occupied name (see
+ *  `features/sites/site-admin.ts` for why the binding is 409, not 403). */
+const REFUSAL_STATUS: Record<SiteAdminRefusalCode, number> = {
+  SITE_SWITCHING_DISABLED: 403,
+  SITE_BINDING_NOT_SWITCHABLE: 409,
+  VALIDATION_ERROR: 400,
+  SITE_ALREADY_EXISTS: 409,
+  SITE_NOT_FOUND: 404,
+  AGENT_PLUGIN_TOKEN_INVALID: 400,
+  AGENT_PLUGIN_TOKEN_UNSUPPORTED: 400,
+};
 
-/** Standard `{error, code}` body for the one refusal every mutating route below shares. */
-function sendSiteSwitchingDisabled(res: Response): void {
-  res.status(403).json({
-    error: "site switching is disabled on this deployment",
-    code: "SITE_SWITCHING_DISABLED",
-  });
+/** Sends a refusal as the `{error, code}` body every mutating route below shares (plus `pluginId`
+ *  for a refused access token). */
+function sendRefusal(res: Response, refusal: SiteAdminRefusal): void {
+  const { ok: _ok, ...body } = refusal;
+  res.status(REFUSAL_STATUS[refusal.code]).json(body);
 }
-
-/**
- * The refusal for a boot whose `siteBinding.switcherCompatible` is `false` (2026-09-06,
- * composition-root fix) — an install-dir boot (`tovu serve <dir>`) has no `{cwd, env}`-relative
- * `sites/` tree to Create into or Activate against; `process.cwd()` could be any directory an
- * operator happened to be standing in. 409, not 403: this is a per-boot structural fact about which
- * `sites/` root exists, not a permissions or deployment-flag refusal (those two already use 403).
- */
-function sendSiteBindingNotSwitchable(res: Response): void {
-  res.status(409).json({
-    error:
-      "this server was started against a specific site directory (tovu serve <dir>) with no related sites/ folder to manage — Create/Activate are unavailable",
-    code: "SITE_BINDING_NOT_SWITCHABLE",
-  });
-}
-
-/** Shape of the 400 body every "bad request" refusal below returns. */
-type ValidationErrorBody = { error: string; code: "VALIDATION_ERROR" };
 
 /** Extracts and validates the create-site request's `name` field. Returns the string on success,
- *  or the exact 400 body the route should send verbatim, so the create handler's own branching
- *  stays at "is this valid or not" rather than re-deriving the wire format inline.
+ *  or the refusal the route should send verbatim, so the create handler's own branching stays at
+ *  "is this valid or not" rather than re-deriving the wire format inline.
  *  @complexity O(1) time/space; cyclomatic 3, cognitive 2. */
-function parseCreateSiteName(
-  body: unknown,
-): { ok: true; name: string } | { ok: false; body: ValidationErrorBody } {
+function parseCreateSiteName(body: unknown): { ok: true; name: string } | SiteAdminRefusal {
   const record = body as Record<string, unknown> | null | undefined;
   const name = typeof record?.name === "string" ? record.name : undefined;
   if (name === undefined) {
-    return { ok: false, body: { error: "'name' (string) is required", code: "VALIDATION_ERROR" } };
+    return { ok: false, error: "'name' (string) is required", code: "VALIDATION_ERROR" };
   }
   return { ok: true, name };
 }
 
-/** The create body's optional `agentPluginTokens` (`new-site-agent-plugin-tokens.ts`, shared with `tovu init`). */
-function parseAgentPluginTokens(body: unknown): { ok: true; tokens: Record<string, string> } | { ok: false; body: ValidationErrorBody } {
-  const parsed = parseNewSiteAgentPluginTokens((body as Record<string, unknown> | null | undefined)?.agentPluginTokens);
-  return parsed.ok ? parsed : { ok: false, body: { error: parsed.error, code: "VALIDATION_ERROR" } };
-}
-
-/** The refusal for a token that failed its check, or `null` when every token may be stored. No
- *  guarded HTTP client in these deps means no check can run: every token is then `unsupported`. */
-async function checkTokensBeforeCreate(
-  deps: AdminSitesDeps,
-  tokens: Readonly<Record<string, string>>,
-): Promise<{ status: number; body: Record<string, unknown> } | null> {
-  const check = deps.checkAgentPluginAccessToken ?? checkAgentPluginAccessTokenReal;
-  const httpClient = deps.customCredentialsHttpClient;
-  const resolveInstalledPlugin = resolveBundledAgentPlugin(bundledAgentPluginsSourceRoot());
-  const refusal = await firstNewSiteAgentPluginTokenRefusal(
-    // Checked against the bundled plugin the NEW site's first boot seeds, not this site's install.
-    async (input) => (httpClient ? check({ workspaceId: deps.workspaceId, httpClient, resolveInstalledPlugin }, input) : "unsupported"),
-    tokens,
-  );
-  return refusal ? { status: 400, body: refusal } : null;
-}
-
-/** Seals the checked tokens into the new site. The site already exists, so a failure here is
- *  reported, not thrown: the person connects from chat instead. */
-async function storeTokensForNewSite(
-  deps: AdminSitesDeps,
-  site: { dir: string; siteId: string },
-  tokens: Readonly<Record<string, string>>,
-): Promise<{ status: "none" | "saved" | "failed"; pluginIds: string[] }> {
-  const pluginIds = Object.keys(tokens);
-  if (pluginIds.length === 0) return { status: "none", pluginIds };
-  try {
-    await (deps.sealPendingAgentPluginTokens ?? sealPendingAgentPluginTokensReal)({ siteDir: site.dir, siteKeyId: site.siteId, tokens });
-    return { status: "saved", pluginIds };
-  } catch (err) {
-    console.error(`[system/sites] the new site's access tokens could not be stored: ${err instanceof Error ? err.message : String(err)}`);
-    return { status: "failed", pluginIds };
-  }
-}
-
-/** Classifies a thrown `createSite()` error into its HTTP status + body, or `null` for anything
- *  unclassified that should fall through to a generic 500. Keeps the error-to-status-code mapping
- *  in one place so a future site-registry error type has exactly one spot to be taught about.
- *  @complexity O(1) time/space; cyclomatic 3, cognitive 2. */
-function classifyCreateSiteError(err: unknown): { status: number; body: Record<string, unknown> } | null {
-  if (err instanceof ValidationError) {
-    return { status: 400, body: { error: err.message, code: "VALIDATION_ERROR" } };
-  }
-  if (err instanceof InitDirNotEmptyError) {
-    return { status: 409, body: { error: err.message, code: "SITE_ALREADY_EXISTS" } };
-  }
-  return null;
-}
-
 export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): void {
   const listSites = deps.listSites ?? listSitesReal;
-  const createSite = deps.createSite ?? createSiteReal;
-  const persistActiveSite = deps.persistActiveSite ?? persistActiveSiteReal;
   const isSiteSwitcherEnabled = deps.isSiteSwitcherEnabled ?? isSiteSwitcherEnabledReal;
   const readPersistedActiveSite = deps.readPersistedActiveSite ?? readPersistedActiveSiteReal;
 
@@ -292,18 +225,11 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
       res.status(404).json({ error: "workspace was not found" });
       return;
     }
-    if (!isSiteSwitcherEnabled()) {
-      sendSiteSwitchingDisabled(res);
-      return;
-    }
-    // Same ordering rationale as the flag check immediately above: a per-boot structural fact,
-    // independent of the caller's own permissions, so it is checked before spending an authorize()
-    // call on an operation this boot cannot fulfill regardless of who is asking. `null` exactly
-    // when `siteBinding.switcherCompatible` is false; otherwise the served tree's own base, which
-    // the create below is rooted at instead of `process.cwd()`.
-    const switcherBase = switcherBaseForBinding(deps.siteBinding);
-    if (switcherBase === null) {
-      sendSiteBindingNotSwitchable(res);
+    // The flag, then the binding — both checked before spending an authorize() call on an
+    // operation this boot cannot fulfill regardless of who is asking (see `resolveSiteSwitchBase`).
+    const gate = resolveSiteSwitchBase({ binding: deps.siteBinding, switchingEnabled: isSiteSwitcherEnabled() });
+    if (!gate.ok) {
+      sendRefusal(res, gate);
       return;
     }
 
@@ -319,30 +245,30 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
 
       const parsed = parseCreateSiteName(req.body);
       if (!parsed.ok) {
-        res.status(400).json(parsed.body);
+        sendRefusal(res, parsed);
         return;
       }
 
-      const parsedTokens = parseAgentPluginTokens(req.body);
-      if (!parsedTokens.ok) {
-        res.status(400).json(parsedTokens.body);
+      const created = await createSiteForOwner(
+        {
+          workspaceId: deps.workspaceId,
+          switcherBase: gate.switcherBase,
+          name: parsed.name,
+          agentPluginTokens: (req.body as Record<string, unknown> | null | undefined)?.agentPluginTokens,
+        },
+        {
+          createSite: deps.createSite,
+          customCredentialsHttpClient: deps.customCredentialsHttpClient,
+          checkAgentPluginAccessToken: deps.checkAgentPluginAccessToken,
+          sealPendingAgentPluginTokens: deps.sealPendingAgentPluginTokens ?? sealPendingAgentPluginTokensReal,
+        },
+      );
+      if (!created.ok) {
+        sendRefusal(res, created);
         return;
       }
-      const refusal = await checkTokensBeforeCreate(deps, parsedTokens.tokens);
-      if (refusal) {
-        res.status(refusal.status).json(refusal.body);
-        return;
-      }
-
-      const result = await createSite({ name: parsed.name }, { cwd: switcherBase });
-      const agentPluginTokens = await storeTokensForNewSite(deps, result, parsedTokens.tokens);
-      res.status(201).json({ site: { name: result.name, dir: result.dir, siteId: result.siteId }, agentPluginTokens });
+      res.status(201).json({ site: created.site, agentPluginTokens: created.agentPluginTokens });
     } catch (err) {
-      const classified = classifyCreateSiteError(err);
-      if (classified) {
-        res.status(classified.status).json(classified.body);
-        return;
-      }
       console.error("[system/sites] unexpected error creating a site", err);
       res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
     }
@@ -353,14 +279,10 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
       res.status(404).json({ error: "workspace was not found" });
       return;
     }
-    if (!isSiteSwitcherEnabled()) {
-      sendSiteSwitchingDisabled(res);
-      return;
-    }
-    // See the Create route's identical check: the served tree's base, never `process.cwd()`.
-    const switcherBase = switcherBaseForBinding(deps.siteBinding);
-    if (switcherBase === null) {
-      sendSiteBindingNotSwitchable(res);
+    // See the Create route's identical gate: the served tree's base, never `process.cwd()`.
+    const gate = resolveSiteSwitchBase({ binding: deps.siteBinding, switchingEnabled: isSiteSwitcherEnabled() });
+    if (!gate.ok) {
+      sendRefusal(res, gate);
       return;
     }
 
@@ -374,20 +296,15 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
       });
       if (!authorized) return;
 
-      const name = String(req.params.name ?? "");
-      const match = listSites({ cwd: switcherBase }).find((site) => site.name === name);
-      if (!match) {
-        res.status(404).json({ error: `site '${name}' was not found`, code: "SITE_NOT_FOUND" });
+      const activated = activateSite(
+        { switcherBase: gate.switcherBase, name: String(req.params.name ?? "") },
+        { listSites, persistActiveSite: deps.persistActiveSite },
+      );
+      if (!activated.ok) {
+        sendRefusal(res, activated);
         return;
       }
-
-      persistActiveSite({ name }, { cwd: switcherBase });
-      res.status(200).json({
-        ok: true,
-        activeSiteName: name,
-        restartRequired: true,
-        restartInstructions: RESTART_INSTRUCTIONS,
-      });
+      res.status(200).json(activated);
     } catch (err) {
       console.error("[system/sites] unexpected error activating a site", err);
       res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });

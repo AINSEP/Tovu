@@ -9,6 +9,8 @@ import {
   type SiteListEntry,
 } from "#src/platform/site-dir/index";
 
+import type { ActivateSitePorts, CreateSiteForOwnerPorts } from "./site-admin.js";
+
 /**
  * @file The exact slice of a composition root's deps bag `sites_duplicate_site`'s handler reads —
  * declared STRUCTURALLY (not `Pick<RouteDeps, ...>`), the same discipline
@@ -54,6 +56,10 @@ export interface SitesToolDeps {
   listSites?: (optional?: { cwd?: string }) => readonly SiteListEntry[];
   /** Defaults to the real `duplicateSite`. Injectable for the same reason as `listSites`. */
   duplicateSite?: (required: { sourceDir: string; targetDir: string; name?: string }) => Promise<DuplicateSiteResult>;
+  /** Defaults to the real `createSite` (via `site-admin.ts`). Injectable for `sites_create_site` tests. */
+  createSite?: CreateSiteForOwnerPorts["createSite"];
+  /** Defaults to the real `persistActiveSite` (via `site-admin.ts`). Injectable for `sites_switch_site` tests. */
+  persistActiveSite?: ActivateSitePorts["persistActiveSite"];
   /** Filled in by `assistant/tool-registrations.ts`'s `enrichedRouteDeps` — see this file's own
    *  header. Falls back to `false` (disabled) if ever absent by the time the handler runs. */
   isSiteSwitcherEnabled?: () => boolean;

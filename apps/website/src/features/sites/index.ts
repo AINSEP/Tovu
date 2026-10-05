@@ -8,3 +8,14 @@ export { SITES_WRITE_PERMISSION, sitesAgentToolCatalog, type AgentToolDefinition
 export { resolveSitesDeps, type ResolvedSitesDeps, type SitesToolDeps } from "./deps.js";
 
 export { buildSitesRegistrations, contributeSitesTools, sitesDerivedRisk } from "./tool-registrations.js";
+
+export {
+  activateSite,
+  createSiteForOwner,
+  resolveSiteSwitchBase,
+  SITE_SWITCH_RESTART_INSTRUCTIONS,
+  type ActivateSiteResult,
+  type CreateSiteForOwnerResult,
+  type SiteAdminRefusal,
+  type SiteAdminRefusalCode,
+} from "./site-admin.js";
