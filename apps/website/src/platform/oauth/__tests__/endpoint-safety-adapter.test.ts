@@ -82,12 +82,12 @@ test("host copy preserves success and untouched errors, and retains retry metada
     await assert.rejects(withTovuOAuthCopy({ call: async () => { throw error; } }), (caught) => caught === error);
   }
   const cause = new Error("fixture upstream");
-  const error = new OAuthError({ code: "OAUTH_RATE_LIMITED", message: "slow down", operatorAction: "Open the connection settings." }, {
+  const error = new OAuthError({ code: "OAUTH_SLOW_DOWN", message: "slow down", operatorAction: "Open the connection settings." }, {
     cause, providerErrorCode: "slow_down", retryAfterSeconds: 17,
   });
   await assert.rejects(withTovuOAuthCopy({ call: async () => { throw error; } }), (caught) => {
     assert.ok(caught instanceof OAuthError);
-    assert.equal(caught.code, "OAUTH_RATE_LIMITED");
+    assert.equal(caught.code, "OAUTH_SLOW_DOWN");
     assert.equal(caught.message, "slow down");
     assert.equal(caught.operatorAction, "Open Settings → External MCP.");
     assert.equal(caught.cause, cause);

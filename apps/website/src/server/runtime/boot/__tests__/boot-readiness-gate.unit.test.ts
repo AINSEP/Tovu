@@ -48,7 +48,7 @@ test("the production boot adapter refuses missing or invalid site keys and accep
   t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
   const gateUrl = pathToFileURL(path.join(import.meta.dirname, "..", "boot-readiness-gate.ts")).href;
   const script = `process.chdir(process.env.TEST_GATE_CWD); const { runProductionReadinessGateOrExit } = await import(${JSON.stringify(gateUrl)}); await runProductionReadinessGateOrExit(); console.log("gate-passed");`;
-  const env = { ...process.env, TEST_GATE_CWD: cwd, TOVU_RUNTIME_MODE: "production", TOVU_ADMIN_PASSWORD: "nondefault-test-password", ANALYTICS_ROOT_KEY_SEED: "test-analytics-seed" };
+  const env: NodeJS.ProcessEnv = { ...process.env, TEST_GATE_CWD: cwd, TOVU_RUNTIME_MODE: "production", TOVU_ADMIN_PASSWORD: "nondefault-test-password", ANALYTICS_ROOT_KEY_SEED: "test-analytics-seed" };
   delete env[LEGACY_SITE_KEY_ENV_VAR_NAME];
   delete env.TOVU_SITE_KEY;
   const run = () => spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script], { env, encoding: "utf8", timeout: 30000 });

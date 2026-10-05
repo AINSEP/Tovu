@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import type { RouteDeps } from "../../../../../routes/types.js";
+import type { RouteDeps } from "#src/server/routes/types";
 import { WidgetInstanceNotFoundError } from "#src/features/widgets/errors";
 
 test("registerAdminWidgetUpdateRoute", async (t) => {

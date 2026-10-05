@@ -69,7 +69,7 @@ async function readBoth(db: Database.Database) {
     assert.deepEqual(await adopted.get({ id }), await original.get(id));
     assert.deepEqual(await adopted.messages({ conversationId: id }), await original.messages(id));
     assert.deepEqual((await adopted.pageMessages({ conversationId: id })).items, await original.messages(id));
-    assert.deepEqual((await adopted.pageConversations()).items, await original.list());
+    assert.deepEqual((await adopted.pageConversations({})).items, await original.list());
     assert.equal((await adopted.get({ id }))?.createdAt, T0);
     assert.equal((await adopted.messages({ conversationId: id }))[0]?.content, "é é 中 😀\u0000\n\\text");
     assert.equal(await adopted.get({ id: id === "user-chat" ? "guest-chat" : "user-chat" }), null);
@@ -115,7 +115,7 @@ test("constructing and reading the package adapter alone leaves checkpointed mai
     const history = createSqliteChatStore({ kernel: sqliteKernel<ChatDatabase>(db), scope: USER });
     assert.equal((await history.list())[0]?.id, "user-chat");
     assert.equal((await history.messages({ conversationId: "user-chat" }))[0]?.createdAt, T0 + 1);
-    await history.pageConversations(); await history.pageMessages({ conversationId: "user-chat" });
+    await history.pageConversations({}); await history.pageMessages({ conversationId: "user-chat" });
     db.close(); db = undefined;
     assert.deepEqual(readFileSync(file), initial, "read-only adoption must not write SQLite pages");
   } finally { db?.close(); rmSync(dir, { recursive: true, force: true }); }

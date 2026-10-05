@@ -46,6 +46,9 @@ function baseCtx(overrides: Partial<SiteRenderContext> = {}): SiteRenderContext 
     products: [],
     widgetRegions: {},
     widgetInlineResolved: new Map(),
+    mediaTransformVersions: new Map(),
+    mediaAssetMetadata: new Map(),
+    assignedTerms: [],
     ...overrides,
   };
 }

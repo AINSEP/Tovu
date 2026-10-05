@@ -108,7 +108,8 @@ test("publish types: nav, an override redirect and a doc->html page land on a ne
   await writeSeedContent(sourceDeps);
   await sourceDeps.menuRepo.save({ ...headerNav("Docs", "/docs"), version: 2 });
   await sourceDeps.postRepo.save(
-    page({ id: "page-about", slug: "e2e-about", title: "About", bodyFormat: "html", bodyJson: null, bodyHtml: "<p>new about</p>", version: 2 } as Partial<PostRecord> & { id: string; slug: string })
+    // A real html-format row keeps its prior `bodyJson` (`ensureHtmlFormat` spreads the row), so it stays non-null here too.
+    page({ id: "page-about", slug: "e2e-about", title: "About", bodyFormat: "html", bodyHtml: "<p>new about</p>", version: 2 })
   );
   await sourceDeps.postRepo.save(page({ id: "page-faq", slug: "e2e-faq", title: "FAQ from local", version: 2 }));
   await createRedirect({

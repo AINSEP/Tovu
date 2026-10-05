@@ -291,7 +291,7 @@ test("with no injected probe, the REAL inspectSiteKeyMaterial is what decides", 
     // Throwaway synthetic material, never written to disk — only its presence is asserted on.
     process.env[SITE_KEY_ENV_VAR_NAME] = "a".repeat(64);
     warnIfNoSiteKeyAtBoot({ mode: () => "local", log: (l) => lines.push(l) });
-    assert.deepEqual(lines, [], "a real, usable key must silence this — a false alarm trains it away");
+    assert.deepEqual<string[]>(lines, [], "a real, usable key must silence this — a false alarm trains it away");
 
     process.env[SITE_KEY_ENV_VAR_NAME] = "nope";
     lines.length = 0;

@@ -14,6 +14,7 @@ import type { SiteRenderContext } from "../render.js";
 const ctx: SiteRenderContext = {
   siteTitle: "Render Site", route: "home", posts: [], products: [], themeName: "test",
   widgetRegions: {}, widgetInlineResolved: new Map(),
+  mediaTransformVersions: new Map(), mediaAssetMetadata: new Map(), assignedTerms: [],
 };
 
 test("a well-formed payload renders with the shared data contract, HTML-escaped", () => {

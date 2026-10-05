@@ -243,7 +243,7 @@ async function sessionFixture() {
   const { createInMemoryAgentSessionStore } = await import("@jini-ai/daemon/store/agent-sessions");
   const { createLiveRunTracker, waitForStoppingRuns, STOPPING_RUN_WAIT_MS, failRunBeforeStart, CONCURRENT_RUN_REFUSAL_MESSAGE } = await import("../agent-run-concurrency.js");
   const { extractSessionRefFromEndEvent, shouldClearSessionOnFailedResume } = await import("../agent-session-resume.js");
-  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog() });
+  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   await lifecycle.rehydrate({});
   await lifecycle.start({ contextRef: "session-regression" }, { runId: "daemon-test-run" });
   const agentSessions = createInMemoryAgentSessionStore({});

@@ -2,6 +2,8 @@ import type { MediaRecord } from "#src/features/media/index";
 import type { MediaRouteDeps } from "./deps.js";
 
 type ByteSizeDeps = Pick<MediaRouteDeps, "workspaceId" | "assetBlobRepo" | "blobStore">;
+/** The one field this reads from each `MediaRecord`: its source blob's content hash. */
+type ByteSizeMedia = { readonly source: Pick<MediaRecord["source"], "sha256"> };
 
 /** Only the returned media batch is visited; original keys come from the blob repo port.
  * LocalFsBlobStore memoizes successful stat results by content-addressed key. Older built Jini
@@ -9,7 +11,7 @@ type ByteSizeDeps = Pick<MediaRouteDeps, "workspaceId" | "assetBlobRepo" | "blob
  * One missing/unreadable blob must not prevent the operator from seeing the rest of the library.
  */
 export async function resolveMediaByteSizes(
-  { deps, media }: { deps: ByteSizeDeps; media: readonly MediaRecord[] },
+  { deps, media }: { deps: ByteSizeDeps; media: readonly ByteSizeMedia[] },
   _optional: Record<string, never> = {},
 ): Promise<Map<string, number | null>> {
   const sha256s = [...new Set(media.map((item) => item.source.sha256))];

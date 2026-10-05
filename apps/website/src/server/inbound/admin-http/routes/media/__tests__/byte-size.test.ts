@@ -34,7 +34,7 @@ test("media sizes visit only returned distinct hashes and keep eight original-bl
       get: async () => { throw new Error("sizes must never download payloads"); },
     },
   } as unknown as Required["deps"];
-  const media = [...hashes, hashes[0]!].map((sha256) => ({ source: { sha256 } })) as Required["media"];
+  const media = [...hashes, hashes[0]!].map((sha256) => ({ source: { sha256 } }));
   const result = await resolveMediaByteSizes({ deps, media });
   assert.equal(peak, 8);
   assert.equal(active, 0);
@@ -62,7 +62,7 @@ test("media sizes preserve zero and isolate missing rows, missing files, and sto
       },
     },
   } as unknown as Required["deps"];
-  const media = hashes.map((sha256) => ({ source: { sha256 } })) as Required["media"];
+  const media = hashes.map((sha256) => ({ source: { sha256 } }));
   const sizes = await resolveMediaByteSizes({ deps, media });
   assert.deepEqual(hashes.map((hash) => sizes.get(hash)), [0, null, null, null, null, 13]);
 });
@@ -75,7 +75,7 @@ test("older blob adapters report null without payload or repository I/O; empty p
     assetBlobRepo: { findByHash: async () => { lookups++; throw new Error("unnecessary repo I/O"); } },
     blobStore: { get: async () => { downloads++; throw new Error("unnecessary payload I/O"); } },
   } as unknown as Required["deps"];
-  const media = [{ source: { sha256: "unknown" } }] as Required["media"];
+  const media = [{ source: { sha256: "unknown" } }];
   assert.deepEqual([...await resolveMediaByteSizes({ deps, media })], [["unknown", null]]);
   assert.deepEqual([...await resolveMediaByteSizes({ deps, media: [] })], []);
   assert.equal(lookups, 0);

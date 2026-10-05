@@ -1,14 +1,16 @@
 import assert from "node:assert/strict";
 import test, { mock } from "node:test";
-import * as dns from "node:dns";
-import type { Express, Request, Response, RequestHandler } from "express";
+import dnsDefault, * as dns from "node:dns";
+import type { Express } from "express";
 import type { AssistantExecutionRouteDeps } from "../execution-deps.js";
 
 // Mock only DNS answers. The route, credential selection, runtime validators and outbound
 // transports remain real; private-address tests must never open an external connection.
 let addresses = [{ address: "10.0.0.5", family: 4 }];
 const lookups: string[] = [];
-const { default: dnsDefault, ...dnsExports } = dns;
+// The namespace carries a runtime `default` key its type omits; it is passed separately below.
+const dnsExports: Record<string, unknown> = { ...dns };
+delete dnsExports.default;
 mock.module("node:dns", {
   defaultExport: dnsDefault,
   namedExports: {
@@ -28,12 +30,40 @@ const { registerAdminAssistantTestConnectionRoute } = await import("../test-conn
 
 const registrars = [registerAdminAssistantListModelsRoute, registerAdminAssistantTestConnectionRoute];
 
+// Both routes read only `workspaceId`/`authorize`; the credential members throw so a contract
+// change fails loudly instead of silently reaching a stub.
+const unusedByThisRoute = (member: string) => (): never => {
+  throw new Error(`the connection probe routes are not expected to call ${member}`);
+};
+const deps: AssistantExecutionRouteDeps = {
+  workspaceId: "workspace-local",
+  authorize: async () => ({ allowed: true, reason: "allowed" }),
+  siteAssistantCredentialRepo: {
+    findByWorkspaceId: unusedByThisRoute("siteAssistantCredentialRepo.findByWorkspaceId"),
+    upsert: unusedByThisRoute("siteAssistantCredentialRepo.upsert"),
+    clearKey: unusedByThisRoute("siteAssistantCredentialRepo.clearKey"),
+  },
+  siteAssistantSecretSealer: {
+    seal: unusedByThisRoute("siteAssistantSecretSealer.seal"),
+    open: unusedByThisRoute("siteAssistantSecretSealer.open"),
+  },
+  adminExecutionCredentialRepo: {
+    findByWorkspaceAndPrincipal: unusedByThisRoute("adminExecutionCredentialRepo.findByWorkspaceAndPrincipal"),
+    upsert: unusedByThisRoute("adminExecutionCredentialRepo.upsert"),
+    clearKey: unusedByThisRoute("adminExecutionCredentialRepo.clearKey"),
+  },
+};
+
 async function probe(registrar: (typeof registrars)[number], baseUrl: string) {
-  let handler: RequestHandler | undefined;
-  registrar({ post: (_path: string, registered: RequestHandler) => { handler = registered; } } as unknown as Express, {
-    workspaceId: "workspace-local",
-    authorize: async () => ({ allowed: true, reason: "allowed" }),
-  } as AssistantExecutionRouteDeps);
+  // Only the members the handler actually reads are modelled; the registrar's `app` stub captures it
+  // under this narrow signature so no partial Request/Response needs a cast.
+  type ProbeHandler = (
+    req: { params: { workspaceId: string }; body: Record<string, string> },
+    res: unknown,
+    next: (error?: unknown) => void,
+  ) => unknown;
+  let handler: ProbeHandler | undefined;
+  registrar({ post: (_path: string, registered: ProbeHandler) => { handler = registered; } } as unknown as Express, deps);
   let status = 200;
   let body: { ok: boolean; message: string; models?: string[] } | undefined;
   const response = {
@@ -45,7 +75,7 @@ async function probe(registrar: (typeof registrars)[number], baseUrl: string) {
   await handler({
     params: { workspaceId: "workspace-local" },
     body: { protocol: "openai", baseUrl, apiKey: "sk-fake", model: "guard-model" },
-  } as Request, response as unknown as Response, (error) => { throw error; });
+  }, response, (error) => { throw error; });
   assert.equal(status, 200);
   assert.ok(body);
   return body;

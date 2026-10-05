@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import type { JsonObject } from "@jini-ai/core/primitives";
 import { updatePost, InMemoryPostRepo, type PostRecord } from "#src/features/post/index";
 import {
   executeCommand,
@@ -55,7 +56,7 @@ const postTransitionOutbox = { enqueue: async () => {} } as never;
 /** Mirrors the post-update route's mutation, including the rollback seam. */
 function postUpdateMutation(
   repo: InMemoryPostRepo,
-  next: { title: string; slug: string; bodyJson: Record<string, unknown>; status: "draft" | "published" }
+  next: { title: string; slug: string; bodyJson: JsonObject; status: "draft" | "published" }
 ): CommandMutation<Awaited<ReturnType<typeof updatePost>>> {
   let priorPost: PostRecord | null = null;
   return {

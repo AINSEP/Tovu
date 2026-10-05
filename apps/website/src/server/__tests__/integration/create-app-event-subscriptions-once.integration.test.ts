@@ -107,6 +107,7 @@ test("one form submission event sends one notify email after the site app was re
     fields: [],
     notify: { enabled: true, recipients: ["owner@example.com"] },
     status: "active",
+    version: 1,
     createdAt: now,
     updatedAt: now,
   });

@@ -520,7 +520,7 @@ test("sendBatch waits for pending resolution and delivers each distinct message 
   const pending = mailer.sendBatch(messages, { workspaceId: WORKSPACE, idempotencyKey: "pending-batch", timeoutMs: 4321, sourceContext: { module: "test" } }).then((result) => { settled = true; return result; });
   await new Promise<void>((resolve) => setImmediate(resolve));
   assert.equal(settled, false, "a configured batch cannot report console success while resolution is pending");
-  assert.deepEqual(httpClient.calls, []);
+  assert.deepEqual<HttpRequest[]>(httpClient.calls, []);
   release(await loadBundledMailAdapters());
   const pendingResults = await pending;
   await ready;

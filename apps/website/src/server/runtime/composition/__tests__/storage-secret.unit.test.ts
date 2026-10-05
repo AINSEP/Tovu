@@ -47,7 +47,7 @@ test("new-site sealing prepares its identified key file and the default reader r
     fs.writeFileSync(${JSON.stringify(path.join(dir, ".site-meta.json"))}, JSON.stringify({ siteKeyId: ${JSON.stringify(siteKeyId)} }));
     assert.equal(await readSealedConnectionString({ siteDir: ${JSON.stringify(dir)} }), ${JSON.stringify(URL)});
   `;
-  const env = { ...process.env, TOVU_RUNTIME_MODE: "local" };
+  const env: NodeJS.ProcessEnv = { ...process.env, TOVU_RUNTIME_MODE: "local" };
   delete env.TOVU_SITE_KEY;
   delete env[LEGACY_SITE_KEY_ENV_VAR_NAME];
   const child = spawnSync(process.execPath, ["--import", "tsx", "--experimental-test-module-mocks", "--input-type=module", "--eval", script],

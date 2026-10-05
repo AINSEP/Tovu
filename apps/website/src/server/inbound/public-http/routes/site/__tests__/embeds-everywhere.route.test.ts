@@ -4,7 +4,6 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
 
-import { InMemoryEntryRepo } from "#src/features/entries/index";
 import type { EntryRecord } from "#src/features/entries/index";
 import type { PostRecord } from "#src/features/post/index";
 import { InMemoryPostRepo } from "#src/features/post/index";
@@ -102,7 +101,7 @@ function templatedPost(overrides: Partial<PostRecord> = {}): PostRecord {
 // `WIDGET_PAYLOAD_FIELD`). Inlined rather than imported: those constants live in `features/widgets/`
 // internals with no barrel re-export, and this route-level test must not deep-import across the
 // feature boundary just to seed a fixture.
-function seedTextWidget(entryRepo: InMemoryEntryRepo, slug: string, body: string): Promise<void> {
+function seedTextWidget(entryRepo: TrashAwareInMemoryEntryRepo, slug: string, body: string): Promise<void> {
   return entryRepo.save({
     id: `widget-${slug}`,
     workspaceId: WORKSPACE_ID,
@@ -192,7 +191,7 @@ test("GET /:slug (template branch): a post-previews marker in a Post's OWN body_
 });
 
 test("GET /pricing (marketing page): a {\"type\":\"widget\",\"slug\":...} text widget renders the widget's real body", async (t) => {
-  const entryRepo = new InMemoryEntryRepo();
+  const entryRepo = new TrashAwareInMemoryEntryRepo();
   await seedTextWidget(entryRepo, WIDGET_SLUG, "Real widget body text");
   const { server, baseUrl } = await startServer({
     themes: [themeWithEmbedsEverywhere()],
@@ -209,7 +208,7 @@ test("GET /pricing (marketing page): a {\"type\":\"widget\",\"slug\":...} text w
 });
 
 test("a widget marker inside a theme partial (nav) resolves on BOTH the marketing page and the template-rendered post", async (t) => {
-  const entryRepo = new InMemoryEntryRepo();
+  const entryRepo = new TrashAwareInMemoryEntryRepo();
   await seedTextWidget(entryRepo, WIDGET_SLUG, "Nav widget body text");
   const post = templatedPost();
   const { server, baseUrl } = await startServer({
@@ -322,8 +321,8 @@ async function seededContentTypeRepo(rows: readonly ContentTypeRecord[]): Promis
   return repo;
 }
 
-/** `InMemoryEntryRepo` (used by `seedTextWidget` above, for the pre-existing widget tests) has no
- *  `listPublishedForDisplay` -- only this host-side wrapper implements `EntryDisplayListPort`,
+/** `InMemoryEntryRepo` (`@jini-ai/cms/entries`) has no `listPublishedForDisplay` -- only this
+ *  host-side wrapper implements `EntryDisplayListPort` (so `seedTextWidget` above takes it too),
  *  matching the composition root's own default (`app.ts`'s `createRouteDeps`). */
 async function seededEntryRepo(rows: readonly EntryRecord[]): Promise<TrashAwareInMemoryEntryRepo> {
   const repo = new TrashAwareInMemoryEntryRepo();
@@ -623,7 +622,7 @@ function themeWithHomeAndNotFoundMarkers(): DiscoveredTheme {
 }
 
 test("GET / (no Page claims `/`): the static theme's own index.html widget and post-previews markers resolve, and its id-less content marker stays as written", async (t) => {
-  const entryRepo = new InMemoryEntryRepo();
+  const entryRepo = new TrashAwareInMemoryEntryRepo();
   await seedTextWidget(entryRepo, WIDGET_SLUG, "Home widget body text");
   const postA = templatedPost({ id: "home-post-a", slug: "home-post-a", title: "Home Post A" });
   const postB = templatedPost({ id: "home-post-b", slug: "home-post-b", title: "Home Post B" });
@@ -653,7 +652,7 @@ test("GET / (no Page claims `/`): the static theme's own index.html widget and p
 });
 
 test("themed 404: still returns 404, its menu marker still renders (regression), and it now also resolves a widget marker", async (t) => {
-  const entryRepo = new InMemoryEntryRepo();
+  const entryRepo = new TrashAwareInMemoryEntryRepo();
   await seedTextWidget(entryRepo, WIDGET_SLUG, "404 widget body text");
   const { server, baseUrl } = await startServer({
     themes: [themeWithHomeAndNotFoundMarkers()],

@@ -27,7 +27,7 @@ test("TLS diagnostic uses the real guarded transport with HEAD, pinned peer and 
     }) as ClientRequest["end"];
     return request;
   } } });
-  t.mock.module("node:dns/promises", { namedExports: { lookup: async (hostname, options) => {
+  t.mock.module("node:dns/promises", { namedExports: { lookup: async (hostname: string, options: unknown) => {
     assert.equal(hostname, "example.com");
     assert.deepEqual(options, { all: true, verbatim: true });
     return [{ address: "8.8.8.8", family: 4 }];

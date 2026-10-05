@@ -68,7 +68,7 @@ test("U-001-B1/EC-04: an unrecognized lane-discriminator value resolves to notif
         sourceContext: { module: "future-feature" },
         // @ts-expect-error — deliberately an unrecognized value to prove fail-closed behavior
         lane: "some-brand-new-value-nobody-mapped",
-      } as MailerSendOptions),
+      }),
     /MAILER_SEND_REFUSED_NO_DURABLE_PATH/,
     "an unrecognized lane value must be refused in production, same as an explicit notification-lane send with no durable path"
   );
@@ -81,7 +81,7 @@ test("U-001-B1/EC-04: an unrecognized lane-discriminator value resolves to notif
     sourceContext: { module: "future-feature" },
     // @ts-expect-error — same unrecognized value, now with a durable path registered
     lane: "some-brand-new-value-nobody-mapped",
-  } as MailerSendOptions);
+  });
   assert.equal(sends.length, 1, "once a durable path is ready, the same (still-unrecognized) lane value proceeds — proving the gate discriminates on readiness, not just on recognizing the value");
 });
 
@@ -224,7 +224,8 @@ test("permitted sends forward the complete message, options and successful or fa
   };
   const failure: MailerSendResult = { ok: false, retryable: true, errorCode: "UNAVAILABLE", message: "try later" };
   for (const mode of ["production", "local"] as const) {
-    for (const result of [SUCCESS, failure]) {
+    const results: MailerSendResult[] = [SUCCESS, failure];
+    for (const result of results) {
       const { mailer, sends, messages } = fakeInnerMailer(result);
       const gated = wrapMailerWithPurposeGate({ inner: mailer, mode, durableOutboxReady: () => false });
       const options: MailerSendOptions = {
@@ -234,7 +235,7 @@ test("permitted sends forward the complete message, options and successful or fa
       };
       const expectedMessage = structuredClone(message);
       const expectedOptions = structuredClone(options);
-      const expectedResult = structuredClone(result);
+      const expectedResult: MailerSendResult = structuredClone(result);
       assert.deepEqual(await gated.send(message, options), expectedResult);
       assert.deepEqual(messages, [expectedMessage]);
       assert.deepEqual(sends, [expectedOptions]);

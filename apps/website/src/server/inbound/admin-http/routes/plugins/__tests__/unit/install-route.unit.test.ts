@@ -37,7 +37,7 @@ async function boot(t: TestContext, options: { installer?: "none" | ((call: Call
   });
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}/api/admin/v1/workspaces/${WS}/plugins/install`;
   const json = (suffix: string, body: unknown) => fetch(base + suffix, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
-  const zip = (suffix: string, body: Uint8Array = new Uint8Array([80, 75, 3, 4]), type = "application/zip", extra: Record<string, string> = {}) => fetch(base + suffix, { method: "POST", headers: { "content-type": type, ...extra }, body });
+  const zip = (suffix: string, body: Uint8Array<ArrayBuffer> = new Uint8Array([80, 75, 3, 4]), type = "application/zip", extra: Record<string, string> = {}) => fetch(base + suffix, { method: "POST", headers: { "content-type": type, ...extra }, body });
   return { calls, json, zip, base };
 }
 const read = async (response: Response) => ({ status: response.status, body: await response.json() });

@@ -648,7 +648,8 @@ test("the shipped basic-2 nav CTA reaches its real page after publication and st
   assert.match(target.pathname, /^\/signup(?:\.html)?$/);
   assert.equal((await fetch(target)).status, 404, "generic signup is off until explicitly published");
 
-  const published = await startServer({ themes: [{ ...theme, manifest: { ...theme.manifest, publishedPages: ["signup"] } }], postRepo: new InMemoryPostRepo([]) });
+  const publishedTheme: DiscoveredTheme = { ...theme, manifest: { ...theme.manifest, publishedPages: ["signup"] } };
+  const published = await startServer({ themes: [publishedTheme], postRepo: new InMemoryPostRepo([]) });
   t.after(() => closeServer(published.server));
   const response = await fetch(new URL(target.pathname, published.baseUrl));
   assert.equal(response.status, 200, "publishing the shipped CTA destination must make that same URL reachable");

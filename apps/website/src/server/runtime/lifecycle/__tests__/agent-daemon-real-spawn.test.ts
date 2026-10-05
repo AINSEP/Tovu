@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn as realSpawn, type ChildProcess } from "node:child_process";
-import * as childProcess from "node:child_process";
+import childProcessDefault, * as childProcess from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -10,7 +10,9 @@ import * as daemonPort from "../agent-daemon-port.js";
 let stubPath: string;
 let child: ChildProcess | undefined;
 let report: Promise<Record<string, unknown>>;
-const { default: childProcessDefault, ...childProcessExports } = childProcess;
+// The namespace carries a runtime `default` key its type omits; it is passed separately below.
+const childProcessExports: Record<string, unknown> = { ...childProcess };
+delete childProcessExports.default;
 // Represent an already-resolved proxy port independently of inherited env. An omitted
 // daemonPortOverride must fail, even though the child still inherits a different port.
 mock.module(new URL("../agent-daemon-port.ts", import.meta.url).href, {

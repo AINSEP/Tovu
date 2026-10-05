@@ -13,6 +13,9 @@ const SOURCE_HOME = "/tmp/tovu-token-source-home";
 const SOURCE_CWD = "/tmp/tovu-token-source-cwd";
 
 beforeEach((t) => {
+  // A file-level beforeEach runs once per test, so `t` is always a TestContext at runtime; the
+  // hook's declared type also admits SuiteContext (no `mock`/`after`), which this narrows away.
+  assert.ok("mock" in t, "file-level beforeEach must receive a TestContext");
   const mode = process.env.TOVU_RUNTIME_MODE;
   process.env.TOVU_RUNTIME_MODE = "local";
   t.mock.method(os, "homedir", () => SOURCE_HOME);

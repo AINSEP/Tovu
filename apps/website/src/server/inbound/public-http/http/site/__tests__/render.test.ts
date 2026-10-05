@@ -23,6 +23,7 @@ import {
   mergeFormFlashIntoResult,
   type FormSubmissionRedirectResult,
   type FormFlashPayload,
+  type MediaAssetRenderMeta,
   type SiteProduct,
   type SiteRenderContext,
 } from "../render.js";
@@ -38,6 +39,11 @@ process.env.TOVU_THEME_RENDER_TIMEOUT_MS ??= "60000";
 
 function textDoc(...content: JsonObject[]): JsonObject {
   return { type: "doc", content: [{ type: "paragraph", content }] };
+}
+
+/** A full `MediaAssetRenderMeta` with every field "not set" (`null`), overridden by `fields`. */
+function assetMeta(fields: Partial<MediaAssetRenderMeta>): MediaAssetRenderMeta {
+  return { width: null, height: null, cssClass: null, htmlAttributes: null, contentType: null, slug: null, ...fields };
 }
 
 test("renderDocNode: bold/italic/code marks still render (regression)", () => {
@@ -338,7 +344,7 @@ test("renderDocNode: a table renders table/tr/td structure", () => {
 });
 
 test("a table cell's colspan/rowspan render only when not the HTML default of 1, bounds-checked", () => {
-  const cell = (attrs: Record<string, unknown>) => ({
+  const cell = (attrs: JsonObject) => ({
     type: "tableCell",
     attrs,
     content: [{ type: "paragraph", content: [{ type: "text", text: "x" }] }],
@@ -351,7 +357,7 @@ test("a table cell's colspan/rowspan render only when not the HTML default of 1,
 });
 
 test("a table cell's align attr only accepts left/center/right — never justify, never an unsafe value", () => {
-  const cell = (align: unknown) => ({
+  const cell = (align: string) => ({
     type: "tableCell",
     attrs: { align },
     content: [{ type: "paragraph", content: [{ type: "text", text: "x" }] }],
@@ -541,7 +547,10 @@ function declarativeTheme(home: JsonObject): DiscoveredTheme {
   return {
     manifest: { id: "t", name: "T", version: "1.0.0", tier: "declarative", engine: 1, regions: ["footer"] },
     tokens: {},
+    tokensLight: {},
     templates: { home, entry: { type: "doc", content: [] } },
+    pages: {},
+    partials: {},
     liquidTemplates: {},
     handlebarsTemplates: {},
     dir: "/nonexistent/test-theme",
@@ -1045,7 +1054,7 @@ test("renderDocNode: a ref-based image node with a resolved mediaAssetMetadata e
     doc,
     undefined,
     new Map([["public", 3]]),
-    new Map([["asset-1", { width: 800, height: 600, cssClass: "rounded" }]])
+    new Map([["asset-1", assetMeta({ width: 800, height: 600, cssClass: "rounded" })]])
   );
   assert.match(html, /<img src="\/m\/asset-1\/public\.v3\/image\.jpg" alt="x" width="800" height="600" class="rounded" loading="lazy">/);
 });
@@ -1059,7 +1068,7 @@ test("renderDocNode: a resolved image with only width set omits height/class ent
     doc,
     undefined,
     new Map([["public", 3]]),
-    new Map([["asset-1", { width: 800, height: null, cssClass: null }]])
+    new Map([["asset-1", assetMeta({ width: 800, height: null, cssClass: null })]])
   );
   assert.match(html, /<img src="\/m\/asset-1\/public\.v3\/image\.jpg" alt="x" width="800" loading="lazy">/);
   assert.doesNotMatch(html, /height=/);
@@ -1084,7 +1093,7 @@ test("renderDocNode: a hostile stored cssClass is HTML-escaped, same as alt — 
     doc,
     undefined,
     new Map([["public", 3]]),
-    new Map([["asset-1", { width: null, height: null, cssClass: '"><script>alert(1)</script>' }]])
+    new Map([["asset-1", assetMeta({ width: null, height: null, cssClass: '"><script>alert(1)</script>' })]])
   );
   assert.doesNotMatch(html, /<script>/);
   assert.match(html, /class="&quot;&gt;&lt;script&gt;alert\(1\)&lt;\/script&gt;"/);
@@ -1104,7 +1113,7 @@ test("renderDocNode: a resolved htmlAttributes value emits the extra allowlisted
     doc,
     undefined,
     new Map([["public", 3]]),
-    new Map([["asset-1", { width: null, height: null, cssClass: null, htmlAttributes: 'data-motion="fade-in"' }]])
+    new Map([["asset-1", assetMeta({ width: null, height: null, cssClass: null, htmlAttributes: 'data-motion="fade-in"' })]])
   );
   assert.match(html, /<img src="\/m\/asset-1\/public\.v3\/image\.jpg" alt="x" data-motion="fade-in" loading="lazy">/);
 });
@@ -1118,7 +1127,7 @@ test("renderDocNode: an operator's own htmlAttributes loading value OVERRIDES th
     doc,
     undefined,
     new Map([["public", 3]]),
-    new Map([["asset-1", { width: null, height: null, cssClass: null, htmlAttributes: 'loading="eager"' }]])
+    new Map([["asset-1", assetMeta({ width: null, height: null, cssClass: null, htmlAttributes: 'loading="eager"' })]])
   );
   assert.match(html, /loading="eager"/);
   const loadingCount = (html.match(/loading=/g) ?? []).length;
@@ -1134,7 +1143,7 @@ test("renderDocNode: a stored htmlAttributes value that would now fail validatio
     doc,
     undefined,
     new Map([["public", 3]]),
-    new Map([["asset-1", { width: null, height: null, cssClass: null, htmlAttributes: 'onerror="alert(1)"' }]])
+    new Map([["asset-1", assetMeta({ width: null, height: null, cssClass: null, htmlAttributes: 'onerror="alert(1)"' })]])
   );
   assert.doesNotMatch(html, /onerror/, "an invalid stored value must never reach the emitted tag, defense-in-depth");
   assert.match(html, /<img src="\/m\/asset-1\/public\.v3\/image\.jpg" alt="x" loading="lazy">/);
@@ -1149,7 +1158,7 @@ test("renderDocNode: an asset with no htmlAttributes set renders exactly as befo
     doc,
     undefined,
     new Map([["public", 3]]),
-    new Map([["asset-1", { width: null, height: null, cssClass: null, htmlAttributes: null }]])
+    new Map([["asset-1", assetMeta({ width: null, height: null, cssClass: null, htmlAttributes: null })]])
   );
   assert.equal(html, '<img src="/m/asset-1/public.v3/image.jpg" alt="x" loading="lazy">');
 });
@@ -1165,7 +1174,7 @@ test("renderDocNode: a resolved mediaAssetMetadata entry carrying a slug renders
     doc,
     undefined,
     new Map([["public", 3]]),
-    new Map([["asset-1", { width: null, height: null, cssClass: null, htmlAttributes: null, slug: "fox" }]])
+    new Map([["asset-1", assetMeta({ width: null, height: null, cssClass: null, htmlAttributes: null, slug: "fox" })]])
   );
   assert.equal(html, '<img src="/m/fox/public.v3/image.jpg" alt="x" loading="lazy">');
 });
@@ -1179,7 +1188,7 @@ test("renderDocNode: an INVALID slug (fails isValidMediaSlugFormat — e.g. cont
     doc,
     undefined,
     new Map([["public", 3]]),
-    new Map([["asset-1", { width: null, height: null, cssClass: null, htmlAttributes: null, slug: "../etc" }]])
+    new Map([["asset-1", assetMeta({ width: null, height: null, cssClass: null, htmlAttributes: null, slug: "../etc" })]])
   );
   assert.equal(html, '<img src="/m/asset-1/public.v3/image.jpg" alt="x" loading="lazy">');
 });
@@ -1193,7 +1202,7 @@ test("renderDocNode: no slug on the mediaAssetMetadata entry (absent field, or a
     doc,
     undefined,
     new Map([["public", 3]]),
-    new Map([["asset-1", { width: null, height: null, cssClass: null, htmlAttributes: null, slug: null }]])
+    new Map([["asset-1", assetMeta({ width: null, height: null, cssClass: null, htmlAttributes: null, slug: null })]])
   );
   assert.equal(html, '<img src="/m/asset-1/public.v3/image.jpg" alt="x" loading="lazy">');
 });
@@ -2923,7 +2932,7 @@ test("renderDocNode: worklist #5 regression — content above the bound still re
     type: "doc",
     content: [
       { type: "paragraph", content: [{ type: "text", text: "this paragraph is fine" }] },
-      deepBulletChain(600).content![0] as JsonObject,
+      (deepBulletChain(600).content as JsonObject[])[0]!,
     ],
   };
   const html = renderDocNode(doc);
@@ -3177,7 +3186,7 @@ test("renderDocNode: an htmlAttributes name carrying '>' cannot break out of the
     doc,
     undefined,
     new Map([["public", 3]]),
-    new Map([["asset-1", { width: null, height: null, cssClass: null, htmlAttributes: "data-x><svg/onload=alert(1)" }]])
+    new Map([["asset-1", assetMeta({ width: null, height: null, cssClass: null, htmlAttributes: "data-x><svg/onload=alert(1)" })]])
   );
   assert.doesNotMatch(html, /<svg/i, "an attribute name must never be able to terminate the tag and start a new element");
   assert.doesNotMatch(html, /onload/i, "no event handler may reach the emitted markup");
@@ -3194,7 +3203,7 @@ test("renderDocNode: an htmlAttributes name outside the [a-z][a-z0-9-]* shape is
       doc,
       undefined,
       new Map([["public", 3]]),
-      new Map([["asset-1", { width: null, height: null, cssClass: null, htmlAttributes: payload }]])
+      new Map([["asset-1", assetMeta({ width: null, height: null, cssClass: null, htmlAttributes: payload })]])
     );
     assert.equal(
       html,

@@ -14,6 +14,7 @@ import type { SiteRenderContext } from "../render.js";
 const ctx: SiteRenderContext = {
   siteTitle: "Render Site", route: "home", posts: [], products: [], themeName: "test",
   widgetRegions: {}, widgetInlineResolved: new Map(),
+  mediaTransformVersions: new Map(), mediaAssetMetadata: new Map(), assignedTerms: [],
 };
 const noLint = () => [];
 const errorOf = (result: ReturnType<typeof runHandlebarsRender>) => (assert.equal(result.ok, false), (result as { error: string }).error);

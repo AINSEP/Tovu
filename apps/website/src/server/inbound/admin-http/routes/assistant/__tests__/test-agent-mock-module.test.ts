@@ -87,7 +87,7 @@ test("test-agent: an authenticated CLI offering the requested model reports ok:t
   });
   // `test-agent.ts` never reads `siteAssistantCredentialRepo`/`siteAssistantSecretSealer` (confirmed
   // by reading the route -- only `workspaceId`/`authorize` are touched), but `AssistantExecutionRouteDeps`
-  // requires all four. Throwing stubs keep this test type-correct without depending on the tsc
+  // requires every credential member too. Throwing stubs keep this test type-correct without depending on the tsc
   // exclusion for `__tests__`, and turn "the route's contract changed" into a loud test failure
   // instead of a silent gap.
   const unusedByThisRoute = (member: string) => (): never => {
@@ -104,6 +104,11 @@ test("test-agent: an authenticated CLI offering the requested model reports ok:t
     siteAssistantSecretSealer: {
       seal: unusedByThisRoute("siteAssistantSecretSealer.seal"),
       open: unusedByThisRoute("siteAssistantSecretSealer.open"),
+    },
+    adminExecutionCredentialRepo: {
+      findByWorkspaceAndPrincipal: unusedByThisRoute("adminExecutionCredentialRepo.findByWorkspaceAndPrincipal"),
+      upsert: unusedByThisRoute("adminExecutionCredentialRepo.upsert"),
+      clearKey: unusedByThisRoute("adminExecutionCredentialRepo.clearKey"),
     },
   };
   registerAdminAssistantTestAgentRoute(app, deps);

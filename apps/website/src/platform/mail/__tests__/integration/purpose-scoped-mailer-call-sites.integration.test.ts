@@ -111,7 +111,7 @@ test("real call sites use distinct lanes through the production gate and sign-in
   const formSubmissionRepo = new InMemoryFormSubmissionRepo();
   await formDefinitionRepo.create({
     id: "form-1", workspaceId: "ws-1", name: "Contact", slug: "contact", fields: [],
-    notify: { enabled: true, recipients: ["ops@example.com"] }, status: "active", createdAt: now, updatedAt: now,
+    notify: { enabled: true, recipients: ["ops@example.com"] }, status: "active", version: 1, createdAt: now, updatedAt: now,
   });
   await formSubmissionRepo.create({ id: "submission-1", workspaceId: "ws-1", formDefinitionId: "form-1", data: { name: "Ada" }, sourceIp: "127.0.0.1", submittedAt: now });
   await registerFormNotifySubscriber({ bus, mailer, formDefinitionRepo, formSubmissionRepo });

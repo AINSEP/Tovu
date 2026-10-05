@@ -7,6 +7,10 @@ import { openPgliteKernel } from "../../kernel/drivers/pglite.js";
 import { openMemorySqliteKernel } from "../../kernel/drivers/sqlite.js";
 import { chatBaseline } from "../chat/0000_chat_baseline.js";
 import { sqliteChatTables } from "../chat/0001_sqlite_chat_tables.js";
+import type { MigrationContext } from "../step.js";
+
+/** These steps take no backup and report nothing, so the runner's context is inert here. */
+const migrationContext: MigrationContext = { note: () => {} };
 
 const cases = [
   { name: "SQLite", prefix: "", open: () => openMemorySqliteKernel<unknown>(), step: sqliteChatTables("sqlite-literal") },
@@ -23,7 +27,7 @@ for (const fixture of cases) {
     const unique = fixture.name === "SQLite" ? { code: "SQLITE_CONSTRAINT_UNIQUE" } : { code: "23505" };
     const foreignKey = fixture.name === "SQLite" ? { code: "SQLITE_CONSTRAINT_FOREIGNKEY" } : { code: "23503" };
     try {
-      await fixture.step.up(kernel);
+      await fixture.step.up(kernel, migrationContext);
       const addChat = (id: string, owner: string, titleSource?: string) => kernel.execute(sql`
         INSERT INTO ${t("ai_chats")} (id, scope_id, owner_kind, owner_id, title, title_source, created_at, updated_at, expires_at)
         VALUES (${id}, 'workspace-a', ${owner}, 'owner-a', 'café chat', ${titleSource ?? "manual"}, 1790000000123, 1790000000456, 1790000000789)`);
@@ -88,7 +92,7 @@ for (const fixture of cases) {
       assert.deepEqual(await kernel.query(sql`SELECT conversation_id, principal_id, connection_id, tool_name FROM ${t("assistant_conversation_tool_approvals")}`),
         [{ conversation_id: "sibling", principal_id: "principal-a", connection_id: "connection-a", tool_name: "read" }]);
       if (fixture.name === "SQLite") {
-        await fixture.step.up(kernel);
+        await fixture.step.up(kernel, migrationContext);
         assert.deepEqual(await kernel.query(sql`SELECT id FROM ai_chats ORDER BY id`), [{ id: "generated" }, { id: "sibling" }]);
       }
     } finally {
@@ -100,9 +104,9 @@ for (const fixture of cases) {
 test("Postgres chat baseline performs no work on SQLite", async () => {
   const kernel = openMemorySqliteKernel<unknown>();
   try {
-    await chatBaseline("ignored-pg").up(kernel);
+    await chatBaseline("ignored-pg").up(kernel, migrationContext);
     assert.deepEqual(await kernel.query(sql`SELECT name FROM sqlite_master WHERE type = 'table'`), []);
-    await sqliteChatTables("sqlite-checksum").up(kernel);
+    await sqliteChatTables("sqlite-checksum").up(kernel, migrationContext);
     assert.deepEqual(await kernel.query(sql`SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name`), [
       { name: "ai_chat_messages" }, { name: "ai_chats" }, { name: "assistant_agent_sessions" }, { name: "assistant_conversation_tool_approvals" },
     ]);
@@ -114,12 +118,12 @@ test("Postgres chat baseline performs no work on SQLite", async () => {
 test("SQLite chat step performs no work on Postgres and baseline failure preserves pre-existing tables", async () => {
   const kernel = openPgliteKernel<unknown>();
   try {
-    await sqliteChatTables("ignored-sqlite").up(kernel);
+    await sqliteChatTables("ignored-sqlite").up(kernel, migrationContext);
     assert.deepEqual(await kernel.query(sql`SELECT tablename FROM pg_tables WHERE schemaname = 'public'`), []);
     await kernel.execute(sql`CREATE SCHEMA ai_chat`);
     await kernel.execute(sql`CREATE TABLE ai_chat.ai_chat_messages (payload text)`);
     await kernel.execute(sql`INSERT INTO ai_chat.ai_chat_messages VALUES ('pre-existing message')`);
-    await assert.rejects(kernel.transaction(() => chatBaseline("conflict").up(kernel)), { code: "42P07" });
+    await assert.rejects(kernel.transaction(() => chatBaseline("conflict").up(kernel, migrationContext)), { code: "42P07" });
     assert.deepEqual(await kernel.query(sql`SELECT tablename FROM pg_tables WHERE schemaname = 'ai_chat' ORDER BY tablename`),
       [{ tablename: "ai_chat_messages" }]);
     assert.deepEqual(await kernel.query(sql`SELECT * FROM ai_chat.ai_chat_messages`), [{ payload: "pre-existing message" }]);
@@ -134,7 +138,7 @@ test("SQLite chat migration propagates an incompatible existing table error with
   try {
     await kernel.execute(sql`CREATE TABLE ai_chats (id text PRIMARY KEY, payload text)`);
     await kernel.execute(sql`INSERT INTO ai_chats VALUES ('legacy', 'retain this row')`);
-    await assert.rejects(kernel.transaction(() => sqliteChatTables("conflict").up(kernel)), /no such column: scope_id/);
+    await assert.rejects(kernel.transaction(() => sqliteChatTables("conflict").up(kernel, migrationContext)), /no such column: scope_id/);
     assert.deepEqual(await kernel.query(sql`SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name`), [{ name: "ai_chats" }]);
     assert.deepEqual(await kernel.query(sql`SELECT * FROM ai_chats`), [{ id: "legacy", payload: "retain this row" }]);
   } finally {

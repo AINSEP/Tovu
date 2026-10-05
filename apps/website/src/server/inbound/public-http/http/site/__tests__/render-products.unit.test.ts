@@ -21,6 +21,7 @@ function minimalContext(overrides: Partial<SiteRenderContext> = {}): SiteRenderC
     widgetInlineResolved: new Map(),
     mediaAssetMetadata: new Map(),
     mediaTransformVersions: new Map(),
+    assignedTerms: [],
     ...overrides,
   };
 }

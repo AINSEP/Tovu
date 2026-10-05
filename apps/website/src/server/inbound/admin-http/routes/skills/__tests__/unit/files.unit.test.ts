@@ -27,13 +27,15 @@ async function harness(work: (call: (toolId?: string, workspaceId?: string, over
     const handlers = new Map<string, Function>();
     for (const method of ["get", "post", "patch", "delete"] as const) app[method] = ((url: string, handler: Function) => { handlers.set(`${method} ${url}`, handler); return app; }) as typeof app[typeof method];
     let authorizations = 0;
-    createSkillsModule({ workspaceId: "workspace-local", authorize: async input => {
+    const skillsModule = createSkillsModule({ workspaceId: "workspace-local", authorize: async input => {
       authorizations++;
       assert.equal(input.principalId, "owner");
       assert.equal(input.permission, "admin.assistant.use");
       assert.equal(input.workspaceId, "workspace-local");
       return { allowed, reason: "test" };
-    } } as RouteDeps).registerRoutes(app);
+    } } as RouteDeps);
+    assert.ok(skillsModule.registerRoutes, "the skills module registers routes");
+    skillsModule.registerRoutes(app);
     await work(async (toolId = "skill_example", workspaceId = "workspace-local", overrides = {}) => {
       const handler = handlers.get(`get ${route}`);
       assert.equal(typeof handler, "function", "files route is composed into the skills module");

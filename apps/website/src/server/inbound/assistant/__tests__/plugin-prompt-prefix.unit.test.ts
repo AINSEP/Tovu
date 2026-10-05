@@ -27,7 +27,7 @@ import { assemblePromptWithPluginPrefix, resolveAgentPluginPromptPrefix } from "
  * the daemon runs, not a reimplementation of them.
  *
  * `RunLifecycle` is the REAL `@jini-ai/daemon` in-memory implementation, not a hand-rolled fake —
- * `createRunLifecycle({ eventLog: createInMemoryEventLog() })` is exactly what
+ * `createRunLifecycle({ eventLog: createInMemoryEventLog({}) })` is exactly what
  * `agent-daemon-server.ts` itself constructs at module scope. Using the real thing means the
  * failure-path assertions below prove the run genuinely transitions to `'failed'` via a real
  * `finish()` call, not that a mock recorded being called.
@@ -53,8 +53,8 @@ async function isolatedPluginRoot(t: TestContext): Promise<string> {
 }
 
 async function newRealLifecycleWithRun() {
-  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog() });
-  await lifecycle.rehydrate();
+  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
+  await lifecycle.rehydrate({});
   const { run } = await lifecycle.start({ contextRef: "plugin-prompt-prefix.unit.test" });
   return { lifecycle, run };
 }

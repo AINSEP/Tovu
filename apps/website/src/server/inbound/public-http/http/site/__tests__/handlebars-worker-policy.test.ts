@@ -45,6 +45,7 @@ const { renderHandlebarsInSandbox } = await import("../handlebars-sandbox.js");
 const ctx: SiteRenderContext = {
   siteTitle: "Policy fixture", route: "home", posts: [], products: [], themeName: "test",
   widgetRegions: {}, widgetInlineResolved: new Map(),
+  mediaTransformVersions: new Map(), mediaAssetMetadata: new Map(), assignedTerms: [],
 };
 
 test("Handlebars forwards explicit resource limits to the real worker, including an effective stack limit", async () => {
@@ -56,7 +57,7 @@ test("Handlebars forwards explicit resource limits to the real worker, including
   assert.deepEqual(spawned[before].requested, resourceLimits);
   // The gate's --max-old-space-size overrides old-generation limits. Stack size is still
   // enforced by Node and distinguishes these options from the defaults without an OOM.
-  assert.equal(spawned[before].worker.resourceLimits.stackSizeMb, 5);
+  assert.equal(spawned[before]?.worker.resourceLimits?.stackSizeMb, 5);
 });
 
 test("knownHelpersOnly prevents invocation of a real registered helper outside the allowlist", async () => {

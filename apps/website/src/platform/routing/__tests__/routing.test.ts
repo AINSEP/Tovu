@@ -474,7 +474,7 @@ test("registerSlugChangeCapture binds the implementation getSlugChangeCapture re
   await capture.onSlugChange(input);
 
   assert.equal(calls.length, 1);
-  assert.deepEqual(calls, [input]);
+  assert.deepEqual<unknown[]>(calls, [input]);
   const replacement: SlugChangeCapture = { onSlugChange: async (next) => { calls.push(next); } };
   registerSlugChangeCapture(replacement);
   assert.equal(getSlugChangeCapture(), replacement);

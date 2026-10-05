@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryEntryRepo } from "#src/features/entries/index";
+import { TrashAwareInMemoryEntryRepo } from "#src/features/entries/trash-aware-memory-repo";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import type { PostRecord } from "#src/features/post/index";
-import { InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "#src/features/media/index";
+import { InMemoryMediaContentTypeStore, InMemoryTransformDefinitionRepo } from "#src/features/media/index";
+import { InMemoryVersionedMediaRepo } from "#src/features/media/versioned-media-repo";
 import {
   MAX_CONTENT_EMBED_DEPTH,
   MAX_CONTENT_EMBED_FETCHES,
@@ -67,8 +68,9 @@ function deps(postRepo: InMemoryPostRepo): ContentMarkerResolutionDeps {
   return {
     workspaceId: WORKSPACE_ID,
     postRepo,
-    entryRepo: new InMemoryEntryRepo(),
-    mediaRepo: new InMemoryMediaRepo({}, { initialRows: [] }),
+    entryRepo: new TrashAwareInMemoryEntryRepo(),
+    mediaRepo: new InMemoryVersionedMediaRepo(),
+    mediaContentTypeStore: new InMemoryMediaContentTypeStore(),
     transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}, { initialRows: [] }),
   };
 }

@@ -88,7 +88,8 @@ test("a real render without explicit options uses the live environment timeout",
   const ctx = {
     siteTitle: "Timeout probe", route: "home", posts: [], products: [], themeName: "test",
     widgetRegions: {}, widgetInlineResolved: new Map(),
-  } as SiteRenderContext;
+    mediaTransformVersions: new Map(), mediaAssetMetadata: new Map(), assignedTerms: [],
+  } satisfies SiteRenderContext;
   await assert.rejects(renderLiquidInSandbox({
     source: "{% for i in (1..10000) %}{% for j in (1..10000) %}{{ i }}{% endfor %}{% endfor %}", ctx,
   }), (err: Error) => {

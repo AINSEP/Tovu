@@ -6,11 +6,17 @@ import type { AddressInfo } from "node:net";
 import express from "express";
 import { executeCommand, InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
+import type { RemoveFormSubmissionFn } from "#src/features/forms/index";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "#src/features/forms/repo.memory";
 import { registerAdminFormsCreateRoute } from "../../inbound/admin-http/routes/forms/create.js";
 import { registerAdminFormsAuthoringRoute } from "../../inbound/admin-http/routes/forms/authoring.js";
 import { registerFormsSubmitRoute } from "../../inbound/public-http/routes/site/forms-submit.js";
 import { createFormsAdminModule } from "../../runtime/composition/modules/forms-admin.js";
+
+/** No route this file drives deletes a submission; reaching this is a contract change, not a pass. */
+const neverRemovesSubmissions: RemoveFormSubmissionFn = async () => {
+  throw new Error("html-form-authoring routes are not expected to remove submissions");
+};
 
 /** HTTP acceptance: the admin writes markup and a browser POST saves it without authored endpoints. */
 test("HTML create/edit route, native urlencoded POST, confirmation redirect and honeypot discard", async (t) => {
@@ -22,6 +28,7 @@ test("HTML create/edit route, native urlencoded POST, confirmation redirect and 
     clock: { nowMs: () => Date.parse("2026-10-04T12:00:00Z") }, idGen: { newId: () => `id-${++id}` },
     executeCommand, changeSets: new InMemoryChangeSetRepo(), outbox: new InMemoryOutbox(), bus: new InMemoryEventBus(),
     authorize: async () => ({ allowed: true, reason: "owner" }),
+    removeFormSubmission: neverRemovesSubmissions,
   };
   const app = express();
   app.use(express.json());
@@ -69,7 +76,7 @@ test("authoring PUT requires admin.forms.manage before any lookup, for existing 
   const formDefinitionRepo = new InMemoryFormDefinitionRepo();
   const now = "2026-10-04T12:00:00Z";
   const stored = {
-    id: "form-1", workspaceId: "ws", name: "Contact", slug: "contact", status: "active" as const,
+    id: "form-1", workspaceId: "ws", name: "Contact", slug: "contact", status: "active" as const, version: 1,
     createdAt: now, updatedAt: now, notify: { enabled: false, recipients: [] },
     fields: [{ id: "email", label: "Email", type: "email" as const, required: true }],
   };

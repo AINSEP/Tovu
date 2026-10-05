@@ -184,7 +184,7 @@ test("renderBareEntryDocument: doc-format widgets and ref images receive the cal
     siteTitle: "Acme",
     widgetInlineResolved: new Map([["p1", { componentId: "text", props: { body: "Resolved widget" } }]]),
     mediaTransformVersions: new Map([["public", 3]]),
-    mediaAssetMetadata: new Map([["asset-1", { width: 800, height: 600, cssClass: "rounded" }]]),
+    mediaAssetMetadata: new Map([["asset-1", { width: 800, height: 600, cssClass: "rounded", htmlAttributes: null, contentType: null, slug: null }]]),
   });
 
   assert.ok(html.includes('<div class="widget widget-text">Resolved widget</div>'));

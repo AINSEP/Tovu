@@ -683,7 +683,7 @@ test("T034/C-010e: delete.ts — admin.menus.delete alone succeeds; a second del
   });
   assert.equal(trashRes.status, 200);
   assert.deepEqual((await trashRes.json() as { trashed: boolean; id: string }).trashed, true);
-  const trash = await deps.trash.list({ workspaceId: deps.workspaceId, now: deps.clock.nowIso(), entityTypes: ["menu"], limit: 20 });
+  const trash = await deps.trash.list({ workspaceId: deps.workspaceId, now: deps.clock.nowIso(), limit: 20 }, { entityTypes: ["menu"] });
   assert.deepEqual(trash.items.map((item) => item.entityId), [menu.id], "force query must still leave a recoverable menu");
   assert.equal((await deps.navLocationBindingRepo.findByLocation({ workspaceId: deps.workspaceId, locationKey: "primary" }))?.menuId, menu.id, "trash preserves bindings until purge");
 

@@ -85,8 +85,10 @@ test("OTLP endpoint set: the content and chat kernels are decorated, and their q
 
   assert.equal(isNoopObservabilityPort(deps.observability), false);
   const probe = probePort();
-  instrumentStorageKernel({ kernel: deps.contentKernel, observability: probe.port });
-  await deps.contentKernel.run((db) => db.selectFrom("posts").select("id").limit(1).execute());
+  const kernel = deps.contentKernel;
+  assert.ok(kernel, "site deps carry a content kernel");
+  instrumentStorageKernel({ kernel, observability: probe.port });
+  await kernel.run((db) => db.selectFrom("posts").select("id").limit(1).execute());
   assert.equal(probe.queries(), 0, "the content kernel was already decorated by the composition root");
   await deps.chatRunLedger.unlessSettled({ conversationId: "conv-otel", messageId: "msg-otel", runId: "run-otel" }, async () => undefined);
 
@@ -107,7 +109,9 @@ test("no OTLP endpoint: the port is the no-op one and the content kernel is left
 
   assert.equal(isNoopObservabilityPort(deps.observability), true);
   const probe = probePort();
-  instrumentStorageKernel({ kernel: deps.contentKernel, observability: probe.port });
-  await deps.contentKernel.run((db) => db.selectFrom("posts").select("id").limit(1).execute());
+  const kernel = deps.contentKernel;
+  assert.ok(kernel, "site deps carry a content kernel");
+  instrumentStorageKernel({ kernel, observability: probe.port });
+  await kernel.run((db) => db.selectFrom("posts").select("id").limit(1).execute());
   assert.equal(probe.queries(), 1, "only the probe decorated the content kernel");
 });

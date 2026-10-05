@@ -5,6 +5,10 @@ import { sql } from "kysely";
 import { openPgliteKernel } from "../../kernel/drivers/pglite.js";
 import { openMemorySqliteKernel } from "../../kernel/drivers/sqlite.js";
 import { postSearch } from "../0001_post_search.js";
+import type { MigrationContext } from "../step.js";
+
+/** These steps take no backup and report nothing, so the runner's context is inert here. */
+const migrationContext: MigrationContext = { note: () => {} };
 
 // F1.5/F2.6: configuration presence alone misses using English's stop list or simple's no-stemming.
 test("search migration stems English words, retains stop words, and builds a GIN projection with cascading ownership", async () => {
@@ -14,7 +18,7 @@ test("search migration stems English words, retains stop words, and builds a GIN
     const step = postSearch("independent-checksum");
     assert.equal(step.id, "0001_post_search");
     assert.equal(step.checksum, "independent-checksum");
-    await step.up(kernel);
+    await step.up(kernel, migrationContext);
     assert.deepEqual(await kernel.query(sql`SELECT to_tsvector('tovu_search', 'Cats running the')::text AS tokens`),
       [{ tokens: "'cat':1 'run':2 'the':3" }]);
     assert.deepEqual(await kernel.query(sql`SELECT am.amname AS method, pg_get_indexdef(i.indexrelid, 1, true) AS column
@@ -44,7 +48,7 @@ test("search step leaves SQLite schema and existing values unchanged", async () 
   try {
     await kernel.execute(sql`CREATE TABLE marker (payload text NOT NULL)`);
     await kernel.execute(sql`INSERT INTO marker VALUES ('keep SQLite search')`);
-    await postSearch("sqlite-checksum").up(kernel);
+    await postSearch("sqlite-checksum").up(kernel, migrationContext);
     assert.deepEqual(await kernel.query(sql`SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name`), [{ name: "marker" }]);
     assert.deepEqual(await kernel.query(sql`SELECT * FROM marker`), [{ payload: "keep SQLite search" }]);
   } finally {
@@ -56,10 +60,10 @@ test("search step leaves SQLite schema and existing values unchanged", async () 
 test("search migration propagates missing-posts DDL failure and rolls back in its caller's transaction", async () => {
   const kernel = openPgliteKernel<unknown>();
   try {
-    await assert.rejects(kernel.transaction(() => postSearch("failed-checksum").up(kernel)), { code: "42P01" });
+    await assert.rejects(kernel.transaction(() => postSearch("failed-checksum").up(kernel, migrationContext)), { code: "42P01" });
     assert.deepEqual(await kernel.query(sql`SELECT cfgname FROM pg_ts_config WHERE cfgname = 'tovu_search'`), []);
     await kernel.execute(sql`CREATE TABLE posts (id text PRIMARY KEY)`);
-    await kernel.transaction(() => postSearch("retry-checksum").up(kernel));
+    await kernel.transaction(() => postSearch("retry-checksum").up(kernel, migrationContext));
     assert.deepEqual(await kernel.query(sql`SELECT to_tsvector('tovu_search', 'running the')::text AS tokens`),
       [{ tokens: "'run':1 'the':2" }]);
   } finally {

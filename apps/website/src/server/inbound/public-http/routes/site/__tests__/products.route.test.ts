@@ -182,8 +182,8 @@ test("GET /products falls back to the sample store plugin when Commerce has no a
     commerceProductRepo: fakeProductRepo([]),
     commercePriceRepo: fakePriceRepo({}),
     store: {
-      listProducts: () => [{ id: "store-prod-1", slug: "store-prod-1", title: "Sample Teacup", price: 2800, stock: 5, version: 0 }],
-      checkout: () => ({ ok: false, reason: "not-found", retries: 0 }),
+      listProducts: async () => [{ id: "store-prod-1", slug: "store-prod-1", title: "Sample Teacup", price: 2800, stock: 5, version: 0 }],
+      checkout: async () => ({ ok: false, reason: "not-found", retries: 0 }),
     },
   });
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
@@ -198,8 +198,8 @@ test("GET /products falls back to the sample store plugin when NEITHER Commerce 
     commerceProductRepo: undefined,
     commercePriceRepo: undefined,
     store: {
-      listProducts: () => [{ id: "store-prod-2", slug: "store-prod-2", title: "No Commerce Wired", price: 1200, stock: 3, version: 0 }],
-      checkout: () => ({ ok: false, reason: "not-found", retries: 0 }),
+      listProducts: async () => [{ id: "store-prod-2", slug: "store-prod-2", title: "No Commerce Wired", price: 1200, stock: 3, version: 0 }],
+      checkout: async () => ({ ok: false, reason: "not-found", retries: 0 }),
     },
   });
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
@@ -233,7 +233,7 @@ test("GET /products/:id returns 404 for an id that doesn't match any product", a
   const { server, baseUrl } = await startServer({
     commerceProductRepo: fakeProductRepo([]),
     commercePriceRepo: fakePriceRepo({}),
-    store: { listProducts: () => [], checkout: () => ({ ok: false, reason: "not-found", retries: 0 }) },
+    store: { listProducts: async () => [], checkout: async () => ({ ok: false, reason: "not-found", retries: 0 }) },
   });
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
 
@@ -246,7 +246,7 @@ test("GET /products 500s with 'No themes installed' when resolveActiveTheme find
   const { server, baseUrl } = await startServer({
     commerceProductRepo: fakeProductRepo([]),
     commercePriceRepo: fakePriceRepo({}),
-    store: { listProducts: () => [], checkout: () => ({ ok: false, reason: "not-found", retries: 0 }) },
+    store: { listProducts: async () => [], checkout: async () => ({ ok: false, reason: "not-found", retries: 0 }) },
     themes: [],
   });
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));

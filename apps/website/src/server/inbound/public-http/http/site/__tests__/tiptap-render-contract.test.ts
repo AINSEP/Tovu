@@ -695,7 +695,7 @@ const CONTRACT_TABLE: readonly ContractRow[] = [
     types: ["media"],
     doc: { type: "doc", content: [{ type: "media", attrs: { assetId: "asset-vid", transformName: "public", alt: "A clip" } }] },
     mediaAssetMetadata: new Map<string, MediaAssetRenderMeta>([
-      ["asset-vid", { width: null, height: null, cssClass: null, htmlAttributes: null, contentType: "video/mp4" }],
+      ["asset-vid", { width: null, height: null, cssClass: null, htmlAttributes: null, contentType: "video/mp4", slug: null }],
     ]),
     html: '<video src="/m/asset-vid/original" controls>A clip</video>',
   },
@@ -705,7 +705,7 @@ const CONTRACT_TABLE: readonly ContractRow[] = [
     doc: { type: "doc", content: [{ type: "media", attrs: { assetId: "asset-img", transformName: "public", alt: "A cat" } }] },
     mediaTransformVersions: new Map([["public", 3]]),
     mediaAssetMetadata: new Map<string, MediaAssetRenderMeta>([
-      ["asset-img", { width: null, height: null, cssClass: null, htmlAttributes: null, contentType: "image/png" }],
+      ["asset-img", { width: null, height: null, cssClass: null, htmlAttributes: null, contentType: "image/png", slug: null }],
     ]),
     html: '<img src="/m/asset-img/public.v3/image.jpg" alt="A cat" loading="lazy">',
   },
@@ -715,7 +715,7 @@ const CONTRACT_TABLE: readonly ContractRow[] = [
     doc: { type: "doc", content: [{ type: "media", attrs: { assetId: "asset-unsniffed", transformName: "public" } }] },
     mediaTransformVersions: new Map([["public", 2]]),
     mediaAssetMetadata: new Map<string, MediaAssetRenderMeta>([
-      ["asset-unsniffed", { width: null, height: null, cssClass: null, htmlAttributes: null, contentType: null }],
+      ["asset-unsniffed", { width: null, height: null, cssClass: null, htmlAttributes: null, contentType: null, slug: null }],
     ]),
     html: '<img src="/m/asset-unsniffed/public.v2/image.jpg" alt="" loading="lazy">',
   },
@@ -739,7 +739,7 @@ const CONTRACT_TABLE: readonly ContractRow[] = [
     doc: { type: "doc", content: [{ type: "media", attrs: { assetId: "asset-both", transformName: "public", cssClass: "post-specific", alt: "x" } }] },
     mediaTransformVersions: new Map([["public", 2]]),
     mediaAssetMetadata: new Map<string, MediaAssetRenderMeta>([
-      ["asset-both", { width: 100, height: 50, cssClass: "asset-default", htmlAttributes: null, contentType: "image/png" }],
+      ["asset-both", { width: 100, height: 50, cssClass: "asset-default", htmlAttributes: null, contentType: "image/png", slug: null }],
     ]),
     html: '<img src="/m/asset-both/public.v2/image.jpg" alt="x" width="100" height="50" class="post-specific" loading="lazy">',
   },
@@ -749,7 +749,7 @@ const CONTRACT_TABLE: readonly ContractRow[] = [
     doc: { type: "doc", content: [{ type: "media", attrs: { assetId: "asset-fallback", transformName: "public", alt: "x" } }] },
     mediaTransformVersions: new Map([["public", 1]]),
     mediaAssetMetadata: new Map<string, MediaAssetRenderMeta>([
-      ["asset-fallback", { width: null, height: null, cssClass: "asset-class", htmlAttributes: null, contentType: "image/png" }],
+      ["asset-fallback", { width: null, height: null, cssClass: "asset-class", htmlAttributes: null, contentType: "image/png", slug: null }],
     ]),
     html: '<img src="/m/asset-fallback/public.v1/image.jpg" alt="x" class="asset-class" loading="lazy">',
   },
@@ -759,7 +759,7 @@ const CONTRACT_TABLE: readonly ContractRow[] = [
     doc: { type: "doc", content: [{ type: "media", attrs: { assetId: "asset-merge", transformName: "public", htmlAttributes: 'data-kui="hero"' } }] },
     mediaTransformVersions: new Map([["public", 5]]),
     mediaAssetMetadata: new Map<string, MediaAssetRenderMeta>([
-      ["asset-merge", { width: null, height: null, cssClass: "asset-class", htmlAttributes: null, contentType: "image/png" }],
+      ["asset-merge", { width: null, height: null, cssClass: "asset-class", htmlAttributes: null, contentType: "image/png", slug: null }],
     ]),
     html: '<img src="/m/asset-merge/public.v5/image.jpg" alt="" class="asset-class" data-kui="hero" loading="lazy">',
   },
@@ -769,7 +769,7 @@ const CONTRACT_TABLE: readonly ContractRow[] = [
     doc: { type: "doc", content: [{ type: "media", attrs: { assetId: "asset-xss", transformName: "public", htmlAttributes: 'onerror="alert(1)"' } }] },
     mediaTransformVersions: new Map([["public", 1]]),
     mediaAssetMetadata: new Map<string, MediaAssetRenderMeta>([
-      ["asset-xss", { width: null, height: null, cssClass: null, htmlAttributes: null, contentType: "image/png" }],
+      ["asset-xss", { width: null, height: null, cssClass: null, htmlAttributes: null, contentType: "image/png", slug: null }],
     ]),
     html: '<img src="/m/asset-xss/public.v1/image.jpg" alt="" loading="lazy">',
   },
@@ -778,7 +778,7 @@ const CONTRACT_TABLE: readonly ContractRow[] = [
     types: ["media"],
     doc: { type: "doc", content: [{ type: "media", attrs: { assetId: "asset-vid-style", transformName: "public", cssClass: "wide-video", alt: "clip" } }] },
     mediaAssetMetadata: new Map<string, MediaAssetRenderMeta>([
-      ["asset-vid-style", { width: null, height: null, cssClass: "asset-video-class", htmlAttributes: null, contentType: "video/mp4" }],
+      ["asset-vid-style", { width: null, height: null, cssClass: "asset-video-class", htmlAttributes: null, contentType: "video/mp4", slug: null }],
     ]),
     html: '<video src="/m/asset-vid-style/original" controls class="wide-video">clip</video>',
   },
@@ -886,7 +886,7 @@ const CONTRACT_TABLE: readonly ContractRow[] = [
     doc: { type: "doc", content: [{ type: "media", attrs: { assetId: "asset-style-guard", transformName: "public", htmlAttributes: 'style="border:0" onerror="x"' } }] },
     mediaTransformVersions: new Map([["public", 1]]),
     mediaAssetMetadata: new Map<string, MediaAssetRenderMeta>([
-      ["asset-style-guard", { width: null, height: null, cssClass: null, htmlAttributes: null, contentType: "image/png" }],
+      ["asset-style-guard", { width: null, height: null, cssClass: null, htmlAttributes: null, contentType: "image/png", slug: null }],
     ]),
     html: '<img src="/m/asset-style-guard/public.v1/image.jpg" alt="" style="border:0" loading="lazy">',
   },

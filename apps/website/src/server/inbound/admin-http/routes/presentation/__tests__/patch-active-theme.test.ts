@@ -61,6 +61,7 @@ function buildApp(depsOverrides: Partial<ContentRouteDeps> = {}): express.Expres
     siteTitlePreservationStore: base.siteTitlePreservationStore,
     workspaceRepo: base.workspaceRepo,
     siteDisplayName: base.siteDisplayName,
+    slugChangeCapture: base.slugChangeCapture,
     ...depsOverrides,
   };
   const app = express();

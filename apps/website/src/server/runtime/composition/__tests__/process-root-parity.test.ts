@@ -287,7 +287,9 @@ test("BYOK's search_tools catalog finds an installed skill's tool once ready res
       );
 
       assert.notEqual(result.isError, true, `search_tools itself failed: ${result.content}`);
-      const { hits } = JSON.parse(result.content) as { hits: ReadonlyArray<{ id: string }> };
+      const { content } = result;
+      assert.ok(typeof content === "string", "search_tools answers with text content, not result blocks");
+      const { hits } = JSON.parse(content) as { hits: ReadonlyArray<{ id: string }> };
       assert.ok(
         hits.some((hit) => hit.id === "skill_incident_response"),
         `expected "skill_incident_response" among search_tools hits, got: ${hits.map((hit) => hit.id).join(", ") || "(none)"}`,

@@ -43,7 +43,10 @@ test('real transport pins the validated IP, preserves cookies, caps reads and fo
 
 test('a DNS deadline expires without dialing or dialing later when DNS eventually completes', async t => {
   let resolveDns: ((value: unknown) => void) | undefined; let connects = 0;
-  const { createHttpClient } = await import('../client.js?dns-timeout');
+  // A query-suffixed specifier loads a fresh module instance; held in a variable because TS cannot
+  // resolve a query suffix, so the module's own type is restated from the plain specifier.
+  const freshClientSpecifier = '../client.js?dns-timeout';
+  const { createHttpClient } = (await import(freshClientSpecifier)) as typeof import('../client.js');
   const client = createHttpClient({ policy: LIVE_PAGE_EGRESS_POLICY, transport: { requestPinned: async () => { connects++; return { status: 200, headers: {}, bodyText: '' }; } } }, { dns: { resolve: async () => new Promise<string[]>(resolve => { resolveDns = resolve as (value: unknown) => void; }) } });
   const controller = new AbortController();
   const work = client.send({ method: 'GET', url: 'https://site.example/', headers: {}, timeoutMs: 15000, signal: controller.signal });

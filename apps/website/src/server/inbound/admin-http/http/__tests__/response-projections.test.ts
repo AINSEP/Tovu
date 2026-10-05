@@ -22,8 +22,8 @@ test("API-key principal projection sends only the five public fields", () => {
 
 test("issued key takes the one-time secret separately and preserves an explicit expiry", () => {
   const apiKey = {
-    id: "key-9", principalId: "machine-9", label: "Export", expiresAt: "2027-01-02T03:04:05Z",
-    keyHash: "DO-NOT-EXPOSE", rawKey: "stale-record-value",
+    id: "key-9", workspaceId: "ws-7", principalId: "machine-9", label: "Export", expiresAt: "2027-01-02T03:04:05Z",
+    keyHash: "DO-NOT-EXPOSE", prefix: "tovu_k9", createdAt: "2026-09-11T00:00:00Z", rawKey: "stale-record-value",
   } as Parameters<typeof toApiKeyIssueResponse>[0]["apiKey"];
   assert.deepEqual(toApiKeyIssueResponse({ apiKey, rawKey: "one-time-new-secret" }), {
     id: "key-9", principalId: "machine-9", label: "Export", expiresAt: "2027-01-02T03:04:05Z", rawKey: "one-time-new-secret",
@@ -35,7 +35,7 @@ test("issued key takes the one-time secret separately and preserves an explicit 
 
 function delivery() {
   return {
-    id: "delivery-9", subscriptionId: "subscription-4", eventId: "event-6", topic: "post.updated",
+    id: "delivery-9", workspaceId: "ws-7", subscriptionId: "subscription-4", eventId: "event-6", topic: "post.updated",
     status: "failed" as const, attempts: 3, nextAttemptAt: "2026-09-12T04:00:00Z",
     lastResponseStatus: 502, lastError: "gateway unavailable", signedWithVersion: 2,
     createdAt: "2026-09-11T00:00:00Z", deliveredAt: "2026-09-11T01:00:00Z", deadAt: "2026-09-12T02:00:00Z",
@@ -61,7 +61,8 @@ test("subscription projection sends the delivery summary, clones topics, and rep
     id: "subscription-4", label: "Audit", targetUrl: "https://example.org/audit", topics: ["post.updated", "post.created"],
     status: "paused" as const, secretVersion: 4, previousSecretVersion: 3,
     createdAt: "2026-09-10T00:00:00Z", updatedAt: "2026-09-11T00:00:00Z", disabledAt: null,
-    workspaceId: "ws-7", secret: "never-send-this",
+    workspaceId: "ws-7", ownerPrincipalId: "owner-1", createdByPrincipalId: "owner-1", createdByPluginId: "plugin-2",
+    secret: "never-send-this",
   } as Parameters<typeof toAdminSubscriptionResponse>[0]["subscription"];
   const result = toAdminSubscriptionResponse({ subscription, lastDelivery: delivery() });
   assert.deepEqual(result, {

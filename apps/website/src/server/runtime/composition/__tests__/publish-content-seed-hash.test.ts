@@ -10,6 +10,7 @@ import { buildPublishContentCatalog, resetPublishContentContributorsForTests } f
 import type { PublishContentDeps } from "#src/features/publish-content/type-registry";
 import type { RedirectsWriteDeps } from "#src/features/redirects/index";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 import { installFirstPartyPublishContentTypes } from "../publish-content-manifest.js";
 import { createSqlitePublishContentSeedHash } from "../publish-content-seed-hash.js";
@@ -24,7 +25,7 @@ import { createSqlitePublishContentSeedHash } from "../publish-content-seed-hash
 
 const SEED = join(process.cwd(), "sites/tovu-dev/content.seed.db");
 const WORKSPACE = "workspace-local";
-const clock = { nowIso: () => "2026-09-24T00:00:00.000Z" };
+const clock = createFakeClock({ startIso: "2026-09-24T00:00:00.000Z" });
 const idGen = { newId: () => "id-1" };
 
 function hydrateLive(t: { after(fn: () => void): void }) {

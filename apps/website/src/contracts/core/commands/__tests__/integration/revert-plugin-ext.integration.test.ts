@@ -34,6 +34,11 @@ import { InMemoryOutbox } from "#src/contracts/core/events/index";
 
 const WORKSPACE = "ws-1";
 
+/** Reverting an update never forgets a trashed post; reaching this would be a contract change. */
+const forgetNothing: PostReverterDeps["forgetRemoved"] = async () => {
+  throw new Error("an update revert is not expected to forget a removed post");
+};
+
 function findBySlugSpy(inner: PostRepoPort): { repo: PostRepoPort; findBySlugCalls: number[]; otherReadCalls: string[] } {
   const calls: number[] = [];
   const otherReadCalls: string[] = [];
@@ -101,6 +106,7 @@ test("CIC U-005-B1 (Binding): reverting a post-update change set must NOT call p
     postRepo,
     clock: { nowMs: () => Date.parse("2026-07-28T03:00:00.000Z") },
     outbox: new InMemoryOutbox(),
+    forgetRemoved: forgetNothing,
   };
 
   await revertChangeSet({
@@ -147,6 +153,7 @@ for (const inverseExt of [undefined, { "word-count": { words: 17, computedAt: "h
       postRepo,
       clock: { nowMs: () => Date.parse("2026-07-28T03:00:00.000Z") },
       outbox: new InMemoryOutbox(),
+      forgetRemoved: forgetNothing,
     };
 
     await revertChangeSet({

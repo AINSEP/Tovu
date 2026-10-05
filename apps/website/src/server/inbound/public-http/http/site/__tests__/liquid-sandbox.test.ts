@@ -41,6 +41,9 @@ function baseCtx(overrides: Partial<SiteRenderContext> = {}): SiteRenderContext 
     // object-literal completeness check, so omitting it type-checked while leaving `ctx.products`
     // genuinely `undefined`, which threw inside the worker's render-data shaping on every call.
     products: [],
+    mediaTransformVersions: new Map(),
+    mediaAssetMetadata: new Map(),
+    assignedTerms: [],
     ...overrides,
   };
 }

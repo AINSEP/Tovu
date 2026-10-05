@@ -25,7 +25,7 @@ test("AC-01: every inventory entry has all required fields populated (no blank/u
   assert.ok(CAPABILITY_INVENTORY.length > 0, "inventory must not be empty");
   for (const entry of CAPABILITY_INVENTORY) {
     for (const field of REQUIRED_FIELDS) {
-      const value = (entry as Record<string, unknown>)[field];
+      const value: unknown = entry[field];
       assert.notEqual(value, undefined, `${entry.name}.${field} must not be undefined`);
       if (typeof value === "string") {
         assert.notEqual(value.trim(), "", `${entry.name}.${field} must not be blank`);

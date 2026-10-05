@@ -169,7 +169,7 @@ const FIXTURES: Record<string, (s: Site) => Promise<void>> = {
   },
   "site-setting": async (s) => {
     const settingId = "core.site.title";
-    if (!(await s.settingsRepo.findDefinition?.({ settingId } as never))) await s.settingsRepo.saveDefinition(titleDefinition());
+    if (!(await s.settingsRepo.findDefinitionBySettingId({ settingId }))) await s.settingsRepo.saveDefinition(titleDefinition());
     await set({
       deps: { repo: s.settingsRepo, clock: s.clock, ids: s.idGen, authorize: allow, principals: {} as never },
       input: { namespace: "core.site", key: "title", scope: "workspace", value: "Coverage", workspaceId: s.workspaceId, callerPrincipalId: "owner", authWorkspaceId: s.workspaceId },
@@ -244,10 +244,10 @@ function asPublisher(s: Site, grantTypes: readonly string[], calls: Call[]): Pub
     },
   };
   // RBAC knows no `pub:` principal, so anything the attenuation does not answer is refused.
-  const rbac = { authorize: async () => ({ allowed: false, reason: "principal_disabled" }) };
+  const rbac = { authorize: async (_params: { permission: string; publishType?: string }) => ({ allowed: false, reason: "principal_disabled" }) };
   const trusted = withPublishTrustContentAuthorize(res as never, rbac, registeredPublishTypePermissions(base)).authorize!;
   const authorize = (async (params: { permission: string; publishType?: string }) => {
-    const out = await trusted(params as never);
+    const out = await trusted(params);
     calls.push({ publishType: params.publishType, permission: params.permission, ...out });
     return out;
   }) as PublishContentDeps["authorize"];

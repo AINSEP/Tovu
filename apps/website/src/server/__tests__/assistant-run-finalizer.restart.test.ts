@@ -12,7 +12,7 @@ import { createAssistantRunFinalizer } from "../runtime/composition/modules/assi
 const principal = { kind: "user" as const, workspaceId: "ws", userId: "owner" };
 const stub = { id: "a1", role: "assistant" as const, content: "", events: [], runId: "run-1", runStatus: "running" as const };
 const notice = {
-  kind: "status",
+  kind: "status" as const,
   label: "The assistant restarted while this answer was running, so it stopped.",
   detail: "Anything it wrote before the restart is kept above. Send your message again to retry.",
 };
@@ -196,7 +196,7 @@ test("a browser's genuine failure with a different status notice remains failed"
   const store = createChatStoreFactory(db)(principal);
   try {
     await store.create({ id: "c1" });
-    const events = [{ kind: "status", label: notice.label, detail: "The CLI reported a real error." }];
+    const events = [{ kind: "status" as const, label: notice.label, detail: "The CLI reported a real error." }];
     await store.appendMessage({ conversationId: "c1", message: { ...stub, runStatus: "failed", events } });
     const saved = (await store.messages({ conversationId: "c1" }))[0]!;
     assert.equal(saved.runStatus, "failed");

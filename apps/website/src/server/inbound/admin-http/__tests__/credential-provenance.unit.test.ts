@@ -30,7 +30,9 @@ function makeGatewayDeps(allowed: boolean): { deps: GatewayDeps; saved: Confirma
       saved.push(token);
     },
     findByToken: async () => null,
-    tryRedeem: async () => false,
+    tryRedeem: async () => ({ redeemed: false, record: null }),
+    count: async () => saved.length,
+    expire: async () => {},
   };
   return {
     saved,

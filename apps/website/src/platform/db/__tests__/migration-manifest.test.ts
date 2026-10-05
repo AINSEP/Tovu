@@ -81,7 +81,7 @@ const DRIZZLE_IS_TABLE = Symbol.for("drizzle:IsDrizzleTable");
 function pgTablesByExportName(): Map<string, object> {
   return new Map(
     Object.entries(pgSchema)
-      .filter(([, v]) => Boolean(v && typeof v === "object" && (v as Record<symbol, unknown>)[DRIZZLE_IS_TABLE]))
+      .filter(([, v]) => Boolean(v && typeof v === "object" && DRIZZLE_IS_TABLE in v && v[DRIZZLE_IS_TABLE]))
       .map(([exportName, table]) => [exportName, table as object])
   );
 }

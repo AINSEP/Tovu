@@ -59,6 +59,9 @@ function makeRouteDeps(entryRepo: WidgetsToolDeps["entryRepo"]): WidgetsToolDeps
     changeSets: new InMemoryChangeSetRepo(),
     pluginBeforeSaveHook: undefined as unknown as WidgetsToolDeps["pluginBeforeSaveHook"],
     authorize: PRE_AUTHORIZED,
+    // Only the read path (`widgets_get_instance`) is driven here; a trash call would be a contract change.
+    removeWidget: async () => { throw new Error("widgets_get_instance is not expected to remove a widget"); },
+    forgetRemovedPost: async () => { throw new Error("widgets_get_instance is not expected to forget a removed post"); },
   };
 }
 

@@ -244,7 +244,7 @@ test("SqliteMigrationRunsRepo: markResolved terminalizes a run as RESTORED, the 
     });
     assert.deepEqual(await runs.findNonTerminalForSite("site-1"), { id: "run-1", status: "QUIESCING" });
 
-    const [before] = await db.query(sql`SELECT * FROM migration_runs WHERE id = 'run-1'`);
+    const [before] = await db.query(sql<Record<string, unknown>>`SELECT * FROM migration_runs WHERE id = 'run-1'`);
 
     await runs.markResolved({ id: "run-1" });
 

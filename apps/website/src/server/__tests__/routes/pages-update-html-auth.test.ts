@@ -97,6 +97,8 @@ async function harness(t: { after: (fn: () => Promise<void>) => void }, options:
       storeCalls.push("write");
       if (options.concurrentEdit) throw new PageConcurrentEditError("page changed since read");
     },
+    // No request here states an `expectedVersion`, so the route never compares against this.
+    capturedVersion: () => null,
   };
 
   const deps = {
@@ -343,6 +345,7 @@ async function realIdentityHarness(
     write: async () => {
       storeCalls.push("write");
     },
+    capturedVersion: () => null,
   };
 
   const deps = {

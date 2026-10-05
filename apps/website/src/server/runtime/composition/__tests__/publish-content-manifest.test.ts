@@ -258,6 +258,7 @@ test("the registered media contributor's apply() is a real write path, not a thr
     },
     expectedVersion: undefined,
     principalId: "operator-principal-1",
+    idempotencyKey: "idem-media-1",
   });
 
   assert.ok(changeSetId);

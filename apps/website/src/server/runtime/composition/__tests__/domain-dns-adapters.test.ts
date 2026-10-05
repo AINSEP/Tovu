@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { ToolInputError } from "@jini-ai/core";
 import { EgressRefusedError, type HttpRequest } from "#src/platform/http/index";
+import type { PublishHistoryEntry } from "#src/features/deployments/static-publish/publish-history";
+import type { PublishContentPeerRecord } from "#src/features/publish-content/peers";
 
 let resolvedAddress = "8.8.8.8";
 let dnsLookups = 0;
@@ -91,11 +93,21 @@ test("production policy blocks all non-public addresses before transport and rec
   }
   resolvedAddress = "8.8.8.8";
 });
+/** A complete saved peer; `listSavedHostingHosts` reads only its `baseUrl`. */
+function savedPeer(baseUrl: string): PublishContentPeerRecord {
+  return { workspaceId: "ws", id: `peer-${baseUrl}`, label: "Peer", baseUrl, remoteWorkspaceId: "remote-ws", sealed: null, masked: null, aadVersion: 1, createdAt: "2026-10-01T00:00:00.000Z", updatedAt: "2026-10-01T00:00:00.000Z" };
+}
+
+/** A complete publish-history row; `listSavedHostingHosts` reads only `target`/`url`/`reachable`. */
+function publishRow(target: string, url: string, reachable: boolean): PublishHistoryEntry {
+  return { target, url, reachable, status: reachable ? "ready" : "unverified", projectName: "site", publishedAt: "2026-10-01T00:00:00.000Z", triggeredBy: "admin_ui" };
+}
+
 test("known hosting addresses are workspace scoped, credential-free HTTPS URLs from current peers and latest successful target publishes", async () => {
   const calls: unknown[] = [];
   const deps = {
-    workspaceId: "ws", publishContentPeerRepo: { listByWorkspace: async input => { calls.push(input); return [{ baseUrl: "https://app.fly.dev" }, { baseUrl: "http://private.local" }, { baseUrl: "https://user:secret@leak.com" }]; } },
-    publishHistoryStore: { list: async input => { calls.push(input); return [{ target: "netlify", url: "https://new.netlify.app", reachable: true }, { target: "netlify", url: "https://old.netlify.app", reachable: true }, { target: "s3", url: "https://unverified.com", reachable: false }]; } },
+    workspaceId: "ws", publishContentPeerRepo: { listByWorkspace: async (input: unknown) => { calls.push(input); return [savedPeer("https://app.fly.dev"), savedPeer("http://private.local"), savedPeer("https://user:secret@leak.com")]; } },
+    publishHistoryStore: { list: async (input: unknown) => { calls.push(input); return [publishRow("netlify", "https://new.netlify.app", true), publishRow("netlify", "https://old.netlify.app", true), publishRow("s3", "https://unverified.com", false)]; } },
   };
   assert.deepEqual(await listSavedHostingHosts(deps), ["app.fly.dev", "new.netlify.app"]);
   assert.deepEqual(calls, [{ workspaceId: "ws" }, { workspaceId: "ws", limit: 100 }]);
@@ -104,9 +116,9 @@ test("an unconfirmed upload cannot erase the last confirmed hosting address", as
   const deps = {
     workspaceId: "ws", publishContentPeerRepo: { listByWorkspace: async () => [] },
     publishHistoryStore: { list: async () => [
-      { target: "s3", url: "https://unconfirmed.host.com", reachable: false },
-      { target: "s3", url: "https://confirmed.host.com", reachable: true },
-      { target: "s3", url: "https://older.host.com", reachable: true },
+      publishRow("s3", "https://unconfirmed.host.com", false),
+      publishRow("s3", "https://confirmed.host.com", true),
+      publishRow("s3", "https://older.host.com", true),
     ] },
   };
   assert.deepEqual(await listSavedHostingHosts(deps), ["confirmed.host.com"]);

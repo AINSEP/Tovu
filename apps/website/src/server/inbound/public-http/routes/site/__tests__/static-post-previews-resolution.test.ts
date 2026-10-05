@@ -126,6 +126,21 @@ class CountingPostRepo implements PostRepoPort {
   clearAutosave(required: { workspaceId: string; id: string }) {
     return this.inner.clearAutosave(required);
   }
+  saveIfVersion(required: Parameters<PostRepoPort["saveIfVersion"]>[0]) {
+    return this.inner.saveIfVersion(required);
+  }
+  hardDelete(required: Parameters<PostRepoPort["hardDelete"]>[0]) {
+    return this.inner.hardDelete(required);
+  }
+  appendRevision(input: Parameters<PostRepoPort["appendRevision"]>[0]) {
+    return this.inner.appendRevision(input);
+  }
+  listRevisions(required: Parameters<PostRepoPort["listRevisions"]>[0]) {
+    return this.inner.listRevisions(required);
+  }
+  transaction<T>(fn: () => Promise<T>) {
+    return this.inner.transaction(fn);
+  }
 }
 
 async function startServer(overrides: Partial<ReturnType<typeof createRouteDeps>>) {

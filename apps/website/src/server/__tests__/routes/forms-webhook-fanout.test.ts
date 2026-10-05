@@ -34,6 +34,7 @@ function makeDefinition(overrides: Partial<FormDefinitionRecord> = {}): FormDefi
     fields: [{ id: "name", label: "Name", type: "text", required: true }],
     notify: { enabled: false, recipients: [] },
     status: "active",
+    version: 1,
     createdAt: NOW,
     updatedAt: NOW,
     ...overrides,
@@ -71,7 +72,7 @@ function makeHarness() {
           name: event.name,
           workspaceId: event.workspaceId,
           occurredAt: event.occurredAt,
-          payload: event.payload as Record<string, unknown> as import("@jini-ai/cms/core").JsonObject,
+          payload: event.payload as Record<string, unknown> as import("@jini-ai/core/primitives").JsonObject,
         },
       },
     });

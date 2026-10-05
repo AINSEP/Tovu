@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import type { PathLike } from "node:fs";
 import os from "node:os";
 import { syncBuiltinESMExports } from "node:module";
 import path from "node:path";
@@ -34,8 +35,8 @@ for (const hasCerts of [true, false]) {
     const exists = fs.existsSync;
     const read = fs.readFileSync;
     const isTlsFile = (file: unknown) => /\/\.certs\/localhost(?:-key)?\.pem$/.test(String(file));
-    const existsMock = t.mock.method(fs, "existsSync", (file) => isTlsFile(file) ? hasCerts : exists(file));
-    const readMock = t.mock.method(fs, "readFileSync", (file, ...args) => isTlsFile(file) ? Buffer.from("fixture PEM; no listener is started") : read(file, ...args));
+    const existsMock = t.mock.method(fs, "existsSync", (file: PathLike) => isTlsFile(file) ? hasCerts : exists(file));
+    const readMock = t.mock.method(fs, "readFileSync", (...args: Parameters<typeof fs.readFileSync>) => isTlsFile(args[0]) ? Buffer.from("fixture PEM; no listener is started") : read(...args));
     syncBuiltinESMExports();
     delete process.env.TOVU_DISABLE_DEV_TLS;
     delete process.env.TOVU_PUBLIC_URL;
