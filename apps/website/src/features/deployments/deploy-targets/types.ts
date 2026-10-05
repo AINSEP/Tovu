@@ -55,9 +55,12 @@ export type DeployCredentialCheckContext = Omit<DevopsCheckContext, "kit"> & { r
  *  The static-publish boundary adapts devops' separate options object to this installed ABI. */
 export type HostDeployPublishInput = DeployPublishInput & DeployPublishOptions;
 
-/** The installed plugin ABI; the host adapts its publish method to the current devops port. */
-export interface HostDeployTarget extends Omit<DeployTarget, "publish"> {
+/** The installed plugin ABI; the host adapts its publish and checkReachability methods to the
+ *  current devops port. `checkReachability` stays positional (`url`) because every installed,
+ *  content-addressed module on disk was written that way; devops' port takes `{ url }`. */
+export interface HostDeployTarget extends Omit<DeployTarget, "publish" | "checkReachability"> {
   publish(input: HostDeployPublishInput): Promise<DeployPublishResult>;
+  checkReachability(url: string): ReturnType<DeployTarget["checkReachability"]>;
 }
 
 /**

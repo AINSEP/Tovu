@@ -20,7 +20,7 @@ import type {
 import { renderHeadersFile } from "#src/features/site-export/static-security-headers";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 
-import { publishStaticSite, type StaticPublishDeps } from "../adapter.js";
+import { adaptInstalledTarget, publishStaticSite, type StaticPublishDeps } from "../adapter.js";
 import type { PublishCredentialSource, StaticPublishConfig } from "../types.js";
 
 /**
@@ -333,3 +333,32 @@ test("a supplied buildTarget (the target-construction test seam) still wins over
   assert.equal(built, true);
   assert.equal(result.ok, true);
 });
+
+const S3_COMPATIBLE_MODULE_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/deploy/targets/s3-compatible.mjs");
+
+for (const [id, modulePath] of [
+  ["netlify", NETLIFY_MODULE_PATH],
+  ["cloudflare-pages", CLOUDFLARE_MODULE_PATH],
+  ["vercel", VERCEL_MODULE_PATH],
+  ["github-pages", GITHUB_PAGES_MODULE_PATH],
+  ["s3-compatible", S3_COMPATIBLE_MODULE_PATH],
+] as const) {
+  test(`adaptInstalledTarget: the port's checkReachability({ url }) reaches the installed ${id} module as the bare URL string`, async () => {
+    const module = ((await import(pathToFileURL(modulePath).href)) as { default: DeployTargetModule }).default;
+    const probed: unknown[] = [];
+    const kit: DeployHostKit = {
+      ...createDeployHostKit(),
+      async checkDeploymentUrl(url) {
+        probed.push(url);
+        return { reachable: true, status: "ready" };
+      },
+    };
+    const credential = { token: "tok", accessKeyId: "AKID", bucket: "b", region: "auto", publicUrl: "https://pub.test/", accountId: "acct" };
+    const target = adaptInstalledTarget(module.create({ credential, config: {}, kit }));
+
+    const result = await target.checkReachability({ url: "https://demo.example.test/" });
+
+    assert.deepEqual(probed, ["https://demo.example.test/"]);
+    assert.deepEqual(result, { reachable: true, status: "ready" });
+  });
+}

@@ -7,7 +7,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit";
-import type { DeployHostKit, DeployTargetModule } from "#src/features/deployments/deploy-targets/types";
+import type { DeployHostKit, DeployTargetModule, HostDeployTarget } from "#src/features/deployments/deploy-targets/types";
 
 import { installNetworkGuard } from "../fixtures/vitest-compat.js";
 
@@ -28,7 +28,7 @@ installNetworkGuard();
 const MODULE_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/deploy/targets/s3-compatible.mjs");
 
 interface S3CompatibleBinding {
-  S3CompatibleDeployTarget: new (config: typeof CONFIG & { endpoint?: string }) => import("@jini-ai/devops/deploy").DeployTarget;
+  S3CompatibleDeployTarget: new (config: typeof CONFIG & { endpoint?: string }) => HostDeployTarget;
   toDeployLinkStatus(check: DeploymentUrlCheck): import("@jini-ai/devops/deploy").DeployLinkStatus;
 }
 

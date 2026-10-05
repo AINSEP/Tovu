@@ -6,7 +6,7 @@ import { DeployError, type DeployFile, type DeployPublishInput, type DeployPubli
 import { PUBLIC_PAGE_SECURITY_HEADERS } from "#src/contracts/core/public-page-security-headers";
 import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit";
 import type { ObservabilityPort } from "#src/platform/observability/index";
-import type { DeployHostKit, DeployTargetCredential, DeployTargetRegistry, LoadedDeployTarget } from "#src/features/deployments/deploy-targets/types";
+import type { DeployHostKit, DeployTargetCredential, DeployTargetRegistry, HostDeployTarget, LoadedDeployTarget } from "#src/features/deployments/deploy-targets/types";
 
 import type { ExportReport } from "#src/features/site-export/index";
 /**
@@ -503,6 +503,22 @@ async function resolvePublishPlan(deps: StaticPublishDeps, input: StaticPublishI
 }
 
 /**
+ * Adapts an installed module's target to devops' {@link DeployTarget} port. Installed
+ * content-addressed modules keep their ABI: security headers still reach the first object, and
+ * `checkReachability` takes the bare URL string, so the port's `{ url }` is unwrapped here.
+ * @param installedTarget What the plugin module's `create` returned.
+ * @returns The same target behind the devops port.
+ * @complexity O(1); each call forwards once.
+ */
+export function adaptInstalledTarget(installedTarget: HostDeployTarget): DeployTarget {
+  return {
+    id: installedTarget.id,
+    publish: (required, optional) => installedTarget.publish({ ...required, ...optional }),
+    checkReachability: ({ url }) => installedTarget.checkReachability(url),
+  };
+}
+
+/**
  * Constructs the `DeployTarget` `publishAndMapOutcome` will call `publish()` on, translating a throw
  * (typically a credential missing a field the host requires) into {@link publishStaticSite}'s own
  * `{ok:false, code}` channel — the message, never the raw error object, since it crosses an
@@ -518,13 +534,7 @@ function constructTargetForPublish(
   try {
     if (deps.buildTarget !== undefined) return { ok: true, target: deps.buildTarget(config, credential) };
     const kit = deps.hostKit ?? createDeployHostKit({ observability: deps.observability });
-    const installedTarget = pluginTarget.module.create({ credential, config: config as unknown as UnknownRecord, kit });
-    // Installed content-addressed modules keep their ABI: security headers still reach the first object.
-    return { ok: true, target: {
-      id: installedTarget.id,
-      publish: (required, optional) => installedTarget.publish({ ...required, ...optional }),
-      checkReachability: (required) => installedTarget.checkReachability(required),
-    } };
+    return { ok: true, target: adaptInstalledTarget(pluginTarget.module.create({ credential, config: config as unknown as UnknownRecord, kit })) };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return { ok: false, outcome: { ok: false, code: "NO_CREDENTIALS_CONFIGURED", message: `credential is not usable for ${config.target}: ${message}` } };
