@@ -8,7 +8,7 @@ import path from "node:path";
 import { createHash } from "node:crypto";
 import * as semver from "semver";
 import { validateManifest, type PluginManifest, type PluginTier } from "./manifest.js";
-import { validateDeclarativeManifest } from "./declarative-content-types.js";
+import { parseDeclaredContentTypes } from "./declarative-content-types.js";
 import type { PluginActivationRepoPort } from "./activation.js";
 import { readSitePluginArchive } from "./install-archive.js";
 
@@ -91,13 +91,12 @@ const DECLARATIVE_DATA_FILE = /(?:^|\/)(?:LICENSE|[^/]+\.(?:json|md|txt|png|jpe?
 /**
  * Tier rules for a sideloaded package. Tier-1 (AW-7, 2026-10-04) is the manifest-only tier ADR-024
  * §1 defines — "zero executable code", so it is safe from any publisher: it may not ship a single
- * code file, may not declare a code surface, and its `contentTypes` must parse. Anything else must
+ * code file (its declarations — no code surface, parseable `contentTypes` — are already checked by
+ * `validateManifest`). Anything else must
  * still be tier-3 with `server/index.mjs`, because a sideloaded manifest cannot grant itself a
  * verified publisher tier (tier-2 needs the sandbox, which does not exist yet).
  */
 function checkTierAndCode(candidate: PluginManifest, files: Map<string, Buffer>): void {
-  const declarative = validateDeclarativeManifest({ manifest: candidate });
-  if (declarative.errors.length) fail("PLUGIN_MANIFEST_INVALID", declarative.errors.map((error) => error.message).join("; "));
   if (candidate.tier === "tier-1") {
     const code = [...files.keys()].filter((key) => key !== MANIFEST && !DECLARATIVE_DATA_FILE.test(key));
     if (code.length) fail("PLUGIN_MANIFEST_INVALID", `A declarative (tier-1) plugin must not ship code: ${code.join(", ")}`);
@@ -115,7 +114,9 @@ function validatePackage(files: Map<string, Buffer>, builtInIds: readonly string
   const id = typeof candidate?.id === "string" ? candidate.id : "";
   if (builtInIds.some((builtin) => builtin.toLowerCase() === id.toLowerCase())) fail("PLUGIN_SHADOWS_BUILT_IN", "Package id belongs to a built-in plugin.");
   const result = validateManifest({ manifest: raw, folderName: id, builtInIds });
-  if (result.errors.length || !candidate || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id) || typeof candidate.version !== "string" || !semver.valid(candidate.version) || !/^[0-9A-Za-z][0-9A-Za-z.+-]*$/.test(candidate.version)) fail("PLUGIN_MANIFEST_INVALID", "Package manifest, id or version is invalid.");
+  // The manifest's own messages, so a refused declaration says what is wrong with it.
+  if (result.errors.length) fail("PLUGIN_MANIFEST_INVALID", result.errors.map((error) => error.message).join("; "));
+  if (!candidate || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id) || typeof candidate.version !== "string" || !semver.valid(candidate.version) || !/^[0-9A-Za-z][0-9A-Za-z.+-]*$/.test(candidate.version)) fail("PLUGIN_MANIFEST_INVALID", "Package manifest, id or version is invalid.");
   checkTierAndCode(candidate, files);
   if (typeof candidate.name !== "string" || !candidate.name.trim() || typeof candidate.sdkRange !== "string" || !semver.validRange(candidate.sdkRange)) fail("PLUGIN_MANIFEST_INVALID", "A name and valid SDK range are required.");
   if (!candidate.integrity || typeof candidate.integrity !== "object" || Array.isArray(candidate.integrity)) fail("PLUGIN_INTEGRITY_INVALID", "An integrity map is required.");
@@ -149,7 +150,7 @@ async function inspect(input: PluginInstallInput, deps: PluginInstallDeps) {
   const upgradeFrom = await checkDestination(manifest, input, deps);
   // Include manifest bytes: changed capabilities/name/version must invalidate human consent too.
   const digest = hash(Buffer.from(JSON.stringify([...files].map(([key, bytes]) => [key, hash(bytes)]).sort(([a], [b]) => a! < b! ? -1 : a! > b! ? 1 : 0))));
-  const preview: PluginInstallPreview = { id: manifest.id, name: manifest.name, version: manifest.version, tier: manifest.tier, capabilities: manifest.capabilities, hooks: manifest.hooks, hasCode: manifest.tier !== "tier-1", contentTypes: validateDeclarativeManifest({ manifest }).decls.map((decl) => decl.key), digest, ...(upgradeFrom ? { upgradeFrom } : {}) };
+  const preview: PluginInstallPreview = { id: manifest.id, name: manifest.name, version: manifest.version, tier: manifest.tier, capabilities: manifest.capabilities, hooks: manifest.hooks, hasCode: manifest.tier !== "tier-1", contentTypes: parseDeclaredContentTypes({ value: manifest.contentTypes }).decls.map((decl) => decl.key), digest, ...(upgradeFrom ? { upgradeFrom } : {}) };
   return { files, manifest, preview };
 }
 

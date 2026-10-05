@@ -187,22 +187,33 @@ export function parseDeclaredContentTypes(required: { value: unknown }, _optiona
 /** The manifest arrays only executable code can use — a Tier-1 plugin has none to use them with. */
 const CODE_SURFACES = ["capabilities", "hooks", "fields"] as const;
 
+/** The manifest keys the declarative rules read. Values are `unknown` so `validateManifest` can pass
+ *  its raw, not-yet-validated object, and a parsed `PluginManifest` fits too. */
+export interface DeclarativeManifestView {
+  readonly tier?: unknown;
+  readonly contentTypes?: unknown;
+  readonly capabilities?: unknown;
+  readonly hooks?: unknown;
+  readonly fields?: unknown;
+}
+
 /**
  * The declarative half of a manifest's validation: its `contentTypes`, plus — for a `tier-1`
  * plugin — the rule that it declares no code surface. Hooks, capability grants and `ext` fields
  * all exist to be used by plugin code, and a Tier-1 plugin is never imported (ADR-024 §1: "zero
  * executable code"), so declaring one is either a mistake or an attempt to look like something it
- * is not.
- *
- * Kept out of `manifest.ts` on purpose for now: that file is being changed by the in-flight
- * conflict-detection work (2026-10-04). Folding this call into `validateManifest()` — so discovery
- * lists a bad declaration as `invalid` instead of failing at enable — is the follow-up.
+ * is not. `validateManifest()` calls this, so discovery lists a bad declaration as `invalid`
+ * instead of it failing only at enable. A surface that is not an array is left to
+ * `validateManifest`'s own malformed check (reported once, not twice).
  */
-export function validateDeclarativeManifest(required: { manifest: PluginManifest }, _optional: Record<string, never> = {}): ParseDeclaredContentTypesResult {
+export function validateDeclarativeManifest(required: { manifest: DeclarativeManifestView }, _optional: Record<string, never> = {}): ParseDeclaredContentTypesResult {
   const { manifest } = required;
   const parsed = parseDeclaredContentTypes({ value: manifest.contentTypes });
   if (manifest.tier !== "tier-1") return parsed;
-  const surfaceErrors = CODE_SURFACES.filter((surface) => manifest[surface].length > 0).map((surface) => ({
+  const surfaceErrors = CODE_SURFACES.filter((surface) => {
+    const declared = manifest[surface];
+    return Array.isArray(declared) && declared.length > 0;
+  }).map((surface) => ({
     code: "TIER1_DECLARES_CODE_SURFACE",
     file: null,
     message: `a declarative (tier-1) plugin cannot declare '${surface}' — only code can use them`,

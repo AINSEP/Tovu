@@ -29,6 +29,8 @@ import * as semver from "semver";
 
 import { SHARED_EXTENSION_CAPABILITIES, type SharedExtensionCapability } from "../../contracts/core/extension-capability-vocabulary.js";
 
+import { validateDeclarativeManifest } from "./declarative-content-types.js";
+
 /** ADR-024 §1 trust-tier vocabulary (1.1.1 REQ-01 fix). Literal encoding reused verbatim from the
  * existing, approved SPEC-032/ADR-023 precedent (`DataModuleDecl.pluginTier`). */
 export type PluginTier = "tier-1" | "tier-2" | "tier-3";
@@ -76,6 +78,8 @@ export interface PluginManifest {
   readonly integrity: Readonly<Record<string, string>>;
   /** Parsed-and-stored, UNUSED in v1 (forward-compat, no behavior — state.spec.md §2). */
   readonly adminSurfaces?: readonly unknown[] | null;
+  /** Content types the plugin declares (AW-7 Tier 1, 2026-10-04) — no longer unused: validated by
+   *  `declarative-content-types.ts`, claimed by key (`plugin-claims.ts`), created at enable. */
   readonly contentTypes?: readonly unknown[] | null;
   readonly provenance?: { readonly sourceUrl?: string; readonly signature?: string } | null;
   readonly dependencies?: Readonly<Record<string, string>> | null;
@@ -531,6 +535,8 @@ export function validateManifest(
     ...validateHooks(raw),
     ...validateFields(raw, id),
     ...validateContributes(raw, id),
+    // AW-7 Tier 1: `contentTypes` grammar and the tier-1 "no code surface" rule.
+    ...validateDeclarativeManifest({ manifest: raw }).errors,
   ];
 
   return { errors };

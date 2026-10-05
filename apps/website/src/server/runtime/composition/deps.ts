@@ -190,6 +190,7 @@ import { adoptLegacyTrashedWidgets, restoreWidgetPriorStatus } from "#src/featur
 import { SqliteEntryRefsRepo } from "#src/platform/db/sqlite/entry-refs-repo.sqlite";
 import { SqlitePluginActivationRepo } from "#src/features/plugin-runtime/repo.sqlite";
 import { WORD_COUNT_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/word-count/index";
+import { createDeclaredContentTypePorts, deferDeclaredContentTypePorts } from "#src/features/plugin-runtime/declarative-enable";
 import { forgetPluginActivations, type RemovePluginFn } from "#src/features/plugin-runtime/uninstall";
 import { composePluginRuntime } from "./plugin-runtime.js";
 import { TOVU_CORE_EXTENSION_CLAIMS } from "./core-extension-claims.js";
@@ -1017,6 +1018,12 @@ async function composeSiteRouteDeps(
     // invisible to every real boot of this composition root, no matter how it got there.
     installDir: pluginsInstallDir(),
     coreClaims: TOVU_CORE_EXTENSION_CLAIMS,
+    // AW-7 Tier 1: plugins' declared content types go through core's own `registerContentType`.
+    // Deferred: `contentTypeRepo`/`outbox` are declared further down, and enable never runs during
+    // composition.
+    declaredContentTypes: deferDeclaredContentTypePorts({
+      build: () => createDeclaredContentTypePorts({ repo: contentTypeRepo, clock, ids: idGen, outbox }),
+    }),
     ...pluginFailureThresholdOverride(overrides),
   });
   // P0a fix (2026-09-23) — fire-and-forget at boot, mirrors `commentsReady`/`newsletterReady`: a

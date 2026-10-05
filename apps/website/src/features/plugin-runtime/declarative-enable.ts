@@ -1,16 +1,12 @@
 /**
- * @file The enable path for a plugin's DECLARED contributions (AW-7 Tier 1, 2026-10-04) — wraps the
- * runtime's code-loading `onPluginEnabled` so a `tier-1` (manifest-only) plugin is applied from its
- * manifest and never imported, and a code plugin that also declares content types gets them.
+ * @file The enable path for a plugin's DECLARED contributions (AW-7 Tier 1, 2026-10-04): a `tier-1`
+ * (manifest-only) plugin is applied from its manifest and never imported, and a code plugin that
+ * also declares content types gets them.
  *
- * Why a wrapper and not a branch inside `composePluginRuntime().onPluginEnabled`: that function (and
- * `manifest.ts`) are being reworked by the in-flight conflict-detection change on the same day, and
- * the declarative path needs nothing from the loader. The composition roots wrap the runtime's
- * `onPluginEnabled` with {@link createDeclarativeAwareEnable} where they hand it to the routes. The
- * follow-ups (recorded in the AW-7 report): run this inside the runtime after its conflict gate, so
- * a tier-1 plugin is checked against other plugins' claims too, and make boot re-attach skip tier-1
- * records (today the boot pass tries to load one, fails to find `server/index.mjs`, and logs a
- * warning — harmless, since declared types are already persisted, but noisy).
+ * Runs inside `composePluginRuntime().onPluginEnabled` (`server/runtime/composition/plugin-runtime.ts`),
+ * AFTER its conflict gate, so a declared content-type key is checked against every other plugin's
+ * claims first (`plugin-claims.ts`, kind `content-type`). Boot re-attach skips tier-1 plugins: their
+ * types were stored when they were turned on, and there is no code to load.
  *
  * Order for a code plugin with content types: plan (read-only) → load code → create types. A
  * conflict refuses the enable before the plugin's code is imported, and a failed load leaves no
@@ -26,43 +22,47 @@ import {
 } from "#src/features/content-types/index";
 
 import { PluginInvalidError } from "./activation.js";
-import { applyDeclaredContentTypes, planDeclaredContentTypes, validateDeclarativeManifest, type DeclaredContentTypePorts } from "./declarative-content-types.js";
-import type { PluginDiscoveryRecord } from "./discovery.js";
+import { applyDeclaredContentTypes, parseDeclaredContentTypes, planDeclaredContentTypes, type DeclaredContentTypePorts } from "./declarative-content-types.js";
+import type { PluginManifest } from "./manifest.js";
 
-export interface CreateDeclarativeAwareEnableRequired {
+export interface EnableDeclaredPluginRequired {
+  readonly pluginId: string;
   readonly workspaceId: string;
-  /** The same discovery the runtime uses — the declared manifest is read from its record. */
-  readonly discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>;
-  /** The runtime's own code-loading enable (`composePluginRuntime().onPluginEnabled`). */
-  readonly enableCode: (pluginId: string) => Promise<void>;
-  readonly contentTypes: DeclaredContentTypePorts;
+  /** The discovery record's manifest — already through `validateManifest`, declarations included. */
+  readonly manifest: PluginManifest;
+  /** Loads and attaches the plugin's code (the runtime's own load path). Never called for tier-1. */
+  readonly loadCode: () => Promise<void>;
+}
+
+export interface EnableDeclaredPluginOptional {
+  /** Where declared content types are created. Omitted (a composition with no content-type store)
+   *  ⇒ a plugin that declares any is refused rather than enabled without them. */
+  readonly contentTypes?: DeclaredContentTypePorts;
 }
 
 /**
- * Returns an `onPluginEnabled` that applies declared contributions around the code loader.
- * A record that is missing or not `valid` goes straight to `enableCode`, whose own fail-closed path
- * already reports it (no second error vocabulary). Declaration problems and content-type conflicts
- * throw `PluginInvalidError`, which the enable route maps to 422 and `setPluginEnabled` compensates.
+ * Turns one plugin on around its declarations. A plugin that declares no content types is just
+ * `loadCode()` (tier-1 with none: nothing at all). Content-type conflicts with what the site
+ * already has throw `PluginInvalidError` (the enable route maps it to 422; `setPluginEnabled`
+ * restores the prior activation row).
+ *
+ * @complexity O(t) port reads/writes over the manifest's declared types (bounded, ≤ 20).
  */
-export function createDeclarativeAwareEnable(required: CreateDeclarativeAwareEnableRequired, _optional: Record<string, never> = {}): (pluginId: string) => Promise<void> {
-  const { workspaceId, discoverPlugins, enableCode, contentTypes: ports } = required;
-  return async function onPluginEnabled(pluginId: string): Promise<void> {
-    const manifest = (await discoverPlugins()).find((candidate) => candidate.id === pluginId)?.manifest;
-    // Nothing declared and code to load: byte-for-byte the runtime's own path.
-    if (!manifest || (manifest.tier !== "tier-1" && manifest.contentTypes == null)) return enableCode(pluginId);
+export async function enableDeclaredPlugin(required: EnableDeclaredPluginRequired, optional: EnableDeclaredPluginOptional = {}): Promise<void> {
+  const { pluginId, workspaceId, manifest, loadCode } = required;
+  // ADR-024 §1: a Tier-1 plugin is zero executable code — the runtime never imports anything for it.
+  const load = manifest.tier === "tier-1" ? async () => {} : loadCode;
+  const { decls } = parseDeclaredContentTypes({ value: manifest.contentTypes });
+  if (decls.length === 0) return load();
+  const ports = optional.contentTypes;
+  if (!ports) throw new PluginInvalidError(`plugin '${pluginId}' declares content types, but this site cannot create them`);
 
-    const { decls, errors } = validateDeclarativeManifest({ manifest });
-    if (errors.length > 0) {
-      throw new PluginInvalidError(`plugin '${pluginId}' declares something it cannot: ${errors.map((error) => error.message).join("; ")}`);
-    }
-    const plan = await planDeclaredContentTypes({ ports, workspaceId, decls });
-    if (plan.conflicts.length > 0) {
-      throw new PluginInvalidError(`plugin '${pluginId}' cannot be turned on: ${plan.conflicts.join("; ")}`);
-    }
-    // ADR-024 §1: a Tier-1 plugin is zero executable code — the runtime never imports anything for it.
-    if (manifest.tier !== "tier-1") await enableCode(pluginId);
-    await applyDeclaredContentTypes({ ports, workspaceId, pluginId, plan });
-  };
+  const plan = await planDeclaredContentTypes({ ports, workspaceId, decls });
+  if (plan.conflicts.length > 0) {
+    throw new PluginInvalidError(`plugin '${pluginId}' cannot be turned on: ${plan.conflicts.join("; ")}`);
+  }
+  await load();
+  await applyDeclaredContentTypes({ ports, workspaceId, pluginId, plan });
 }
 
 export interface CreateDeclaredContentTypePortsRequired {
@@ -108,5 +108,19 @@ export function createDeclaredContentTypePorts(
       });
       return result.ok ? { ok: true } : { ok: false, error: result.error };
     },
+  };
+}
+
+/**
+ * Ports built on first use. Both composition roots compose the plugin runtime before their
+ * content-type repo and outbox exist (top-level composition is synchronous and enable never runs
+ * during it), so they hand the runtime this and bind the real ports where those are declared.
+ */
+export function deferDeclaredContentTypePorts(required: { build: () => DeclaredContentTypePorts }, _optional: Record<string, never> = {}): DeclaredContentTypePorts {
+  let ports: DeclaredContentTypePorts | undefined;
+  const resolve = () => (ports ??= required.build());
+  return {
+    findByKey: (params) => resolve().findByKey(params),
+    register: (input) => resolve().register(input),
   };
 }

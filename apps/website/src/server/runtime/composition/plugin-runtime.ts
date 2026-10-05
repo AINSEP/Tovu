@@ -6,6 +6,8 @@ import { assertPluginInstallIdle, installSitePlugin, previewSitePluginInstall, t
 import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 
 import type { PluginActivationRepoPort } from "#src/features/plugin-runtime/activation";
+import type { DeclaredContentTypePorts } from "#src/features/plugin-runtime/declarative-content-types";
+import { enableDeclaredPlugin } from "#src/features/plugin-runtime/declarative-enable";
 import type { BuiltInPluginSource, PluginDiscoveryRecord } from "#src/features/plugin-runtime/discovery";
 import { discoverPlugins as discoverPluginRuntimePlugins, siteEntryPath } from "#src/features/plugin-runtime/discovery";
 import { createHookRegistry, type AttachmentSource, type HookRegistry } from "#src/features/plugin-runtime/hook-registry";
@@ -186,6 +188,10 @@ export interface ComposePluginRuntimeRequired {
    * Omitted ⇒ no core claims: plugin-vs-plugin conflicts are still detected. The real roots pass
    * `TOVU_CORE_EXTENSION_CLAIMS` (`core-extension-claims.ts`). */
   readonly coreClaims?: readonly ExtensionClaim[];
+  /** Where plugins' declared content types are created (AW-7 Tier 1) — the roots bind
+   * `createDeclaredContentTypePorts` over their content-type repo. Omitted ⇒ a plugin that declares
+   * content types is refused at enable (see `declarative-enable.ts`). */
+  readonly declaredContentTypes?: DeclaredContentTypePorts;
 }
 
 export interface PluginRuntimeBindings {
@@ -270,7 +276,14 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired): Pl
       throw new PluginLoadError(pluginId, "PLUGIN_EXPORT_INVALID");
     }
     await assertNoConflicts(pluginId, discovery);
-    await attachPlugin(pluginId, record);
+    // No manifest ⇒ an invalid record: `attachPlugin`'s own fail-closed path reports it.
+    if (!record.manifest) return attachPlugin(pluginId, record);
+    // Declared contributions (AW-7 Tier 1) are applied only now, after the conflict gate; a tier-1
+    // plugin's `loadCode` is never called.
+    await enableDeclaredPlugin(
+      { pluginId, workspaceId: required.workspaceId, manifest: record.manifest, loadCode: () => attachPlugin(pluginId, record) },
+      required.declaredContentTypes ? { contentTypes: required.declaredContentTypes } : {},
+    );
   }
 
   /** Load + attach one already-cleared plugin — `onPluginEnabled`'s body after its gates, shared
@@ -402,6 +415,8 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired): Pl
         if (installDir !== undefined) await assertPluginInstallIdle({ installDir });
         const discovered = discovery.find((candidate) => candidate.id === record.pluginId);
         if (!discovered) throw new PluginLoadError(record.pluginId, "PLUGIN_EXPORT_INVALID");
+        // A tier-1 plugin has no code to re-attach; its declared types were stored at enable.
+        if (discovered.manifest?.tier === "tier-1") continue;
         await attachPlugin(record.pluginId, discovered);
       } catch (error) {
         // eslint-disable-next-line no-console

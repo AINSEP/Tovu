@@ -339,3 +339,21 @@ test("contributes: an unknown list name and a non-object block are refused", () 
   assert.deepEqual(codesOf(validateManifest(required(validManifest({ contributes: { hooks: ["x"] } as unknown as PluginManifest["contributes"] })))), ["CONTRIBUTES_INVALID"]);
   assert.deepEqual(codesOf(validateManifest(required(validManifest({ contributes: ["routes"] as unknown as PluginManifest["contributes"] })))), ["CONTRIBUTES_INVALID"]);
 });
+
+test("AW-7 Tier 1: validateManifest reports a bad contentTypes declaration, so discovery lists it invalid", () => {
+  const result = validateManifest(required(validManifest({ contentTypes: [{ key: "post", label: "P", fields: [{ name: "a", kind: "text" }] }] })));
+  assert.deepEqual(result.errors, [{ code: "CONTENT_TYPE_DECL_INVALID", file: null, message: "content type key 'post' is reserved by core" }]);
+});
+
+test("AW-7 Tier 1: a tier-1 manifest may declare content types but no code surface", () => {
+  const declarative = { tier: "tier-1" as const, capabilities: [], hooks: [], fields: [], integrity: {} };
+  const faq = [{ key: "faq", label: "FAQ", fields: [{ name: "answer", kind: "text" }] }];
+  assert.deepEqual(validateManifest(required(validManifest({ ...declarative, contentTypes: faq }))).errors, []);
+  const withHooks = validateManifest(required(validManifest({ ...declarative, hooks: ["content.entry.beforeSave"] })));
+  assert.deepEqual(codesOf(withHooks), ["TIER1_DECLARES_CODE_SURFACE"]);
+});
+
+test("AW-7 Tier 1: a tier-1 manifest whose code-surface lists are malformed reports them once, as malformed", () => {
+  const result = validateManifest(required(validManifest({ tier: "tier-1", capabilities: "all" as never, hooks: [], fields: [], integrity: {} })));
+  assert.deepEqual(codesOf(result), ["MANIFEST_MALFORMED"]);
+});

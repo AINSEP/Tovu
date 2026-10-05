@@ -193,6 +193,7 @@ import { InMemoryWidgetRegionBindingRepo } from "#src/features/widgets/repo.memo
 import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
 import { InMemoryPluginActivationRepo } from "#src/features/plugin-runtime/repo.memory";
 import { WORD_COUNT_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/word-count/index";
+import { createDeclaredContentTypePorts, deferDeclaredContentTypePorts } from "#src/features/plugin-runtime/declarative-enable";
 import { forgetPluginActivations, type RemovePluginFn } from "#src/features/plugin-runtime/uninstall";
 import { createApplyConnectDefaults } from "#src/features/agent-plugins/apply-connect-defaults";
 import { createAgentPluginsModule } from "./modules/agent-plugins.js";
@@ -384,6 +385,12 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     activationRepo: pluginActivationRepo,
     sources: [WORD_COUNT_RUNTIME_SOURCE],
     coreClaims: TOVU_CORE_EXTENSION_CLAIMS,
+    // AW-7 Tier 1: plugins' declared content types go through core's own `registerContentType`.
+    // Deferred: `contentTypeRepo`/`outbox` are declared further down, and enable never runs during
+    // composition.
+    declaredContentTypes: deferDeclaredContentTypePorts({
+      build: () => createDeclaredContentTypePorts({ repo: contentTypeRepo, clock, ids: idGen, outbox }),
+    }),
     ...(options.installDir === undefined ? {} : { installDir: options.installDir }),
     ...(options.pluginFailureThreshold === undefined
       ? {}

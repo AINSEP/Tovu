@@ -63,6 +63,20 @@ test("pluginClaimsFromManifest: a plugin with declared fields claims its generat
   assert.deepEqual(claims, [{ kind: "tool", key: "plugin_capability_word_count", mode: "exclusive" }]);
 });
 
+test("pluginClaimsFromManifest: every declared content type claims its key, so two plugins cannot both declare 'faq'", () => {
+  const faq = { key: "faq", label: "FAQ", fields: [{ name: "answer", kind: "text" }] };
+  const claims = pluginClaimsFromManifest({ manifest: manifest("faq-a", {}, { tier: "tier-1", capabilities: [], contentTypes: [faq, { ...faq, key: "testimonial" }] }) });
+  assert.deepEqual(claims, [
+    { kind: "content-type", key: "faq", mode: "exclusive" },
+    { kind: "content-type", key: "testimonial", mode: "exclusive" },
+  ]);
+  const conflicts = resolvePluginConflicts(
+    { workspaceId: WORKSPACE, discovery: [record(manifest("faq-a", {}, { contentTypes: [faq] })), record(manifest("faq-b", {}, { contentTypes: [faq] }))], activations: [enabledAt("faq-a", "2026-09-01T00:00:00.000Z")], coreClaims: [] },
+    { candidateId: "faq-b" },
+  );
+  assert.deepEqual(conflicts.get("faq-b")?.map((c) => `${c.kind}:${c.key}<-${c.heldBy}`), ["content-type:faq<-faq-a"]);
+});
+
 test("resolvePluginConflicts (boot order): the plugin enabled LATER is refused, whatever its id", () => {
   const older = manifest("zeta", { tools: ["shop_list"] });
   const newer = manifest("alpha", { tools: ["shop_list"] });

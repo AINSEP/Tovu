@@ -13,7 +13,10 @@
  *   clash. A hook this table does not know is treated as EXCLUSIVE: a newly added hook point that
  *   nobody classified must fail safe (refuse the second plugin) rather than silently stack;
  * - its generated capability tool (`plugin_capability_<id>`) when it declares `fields`, because
- *   that tool is registered in the same agent tool registry as everything else.
+ *   that tool is registered in the same agent tool registry as everything else;
+ * - every content type it declares (`contentTypes[].key`, kind `content-type`, AW-7 Tier 1) — one
+ *   key is one Collection, so the second plugin to declare `faq` is refused here instead of
+ *   silently sharing (or schema-clashing on) the first one's type.
  * Field paths are NOT claims: `validateManifest` already forces them under `ext.{id}.`, and ids are
  * unique (ID_DUPLICATE / SHADOWS_BUILT_IN), so two plugins can never name the same field.
  *
@@ -37,6 +40,7 @@ import { HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "@tovu/sdk";
 
 import type { PluginActivationRecord } from "./activation.js";
 import { resolveClaimConflicts, type ClaimConflict, type ClaimMode, type ClaimOwner, type ExtensionClaim } from "./claim-conflicts.js";
+import { parseDeclaredContentTypes } from "./declarative-content-types.js";
 import type { PluginDiscoveryRecord } from "./discovery.js";
 import type { PluginContributions, PluginManifest } from "./manifest.js";
 
@@ -79,7 +83,7 @@ export interface PluginConflict {
   readonly heldKey: string;
 }
 
-/** Every claim one manifest makes (see this file's header for the three sources). */
+/** Every claim one manifest makes (see this file's header for the four sources). */
 export function pluginClaimsFromManifest(
   required: { readonly manifest: PluginManifest },
   optional: { readonly hookSemantics?: Readonly<Record<string, ClaimMode>> } = {},
@@ -93,7 +97,10 @@ export function pluginClaimsFromManifest(
   const hooks = manifest.hooks.map((key): ExtensionClaim => ({ kind: "hook", key, mode: hookSemantics[key] ?? "exclusive" }));
   const generated: ExtensionClaim[] =
     manifest.fields.length > 0 ? [{ kind: "tool", key: capabilityToolIdFor(manifest.id), mode: "exclusive" }] : [];
-  return [...declared, ...hooks, ...generated];
+  const contentTypes = parseDeclaredContentTypes({ value: manifest.contentTypes }).decls.map(
+    (decl): ExtensionClaim => ({ kind: "content-type", key: decl.key, mode: "exclusive" }),
+  );
+  return [...declared, ...hooks, ...generated, ...contentTypes];
 }
 
 export interface ResolvePluginConflictsRequired {
