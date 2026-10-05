@@ -395,6 +395,9 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   plugins_uninstall:
     "plugin plugins uninstall remove delete trash extension get rid of agent plugin agent-plugin agent-plugins " +
     "skill skills package packages permanently",
+  // 2026-10-05: new tools, no prior entries.
+  plugins_install: "plugin plugins install add new upload folder zip local package site plugin tovu-plugin extension addon add-on",
+  skills_install: "skill skills install add new github repo repository url agent skill SKILL.md from github",
 
   // --- agent plugins (agent-plugins.org packages — a DIFFERENT system from .tovu-plugin above) -----------
   // 2026-09-09: search_agent_plugin_local is a new tool with no prior entry. Phrased from how an
@@ -507,6 +510,8 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   // it on those requests: its id carries "publish", which alone outranked collections_entry_publish
   // for "publish the Blue Mug product" (co-04, 2026-10-04).
   publish_backstop_gaps: "manual send by hand backstop gaps sent manually not covered unsupported uncovered missing type history counts reasons",
+  // 2026-10-05: new tool. No "push"/"site", for the same netlify-ranking reason as the two below.
+  publish_content_publish: "publish pending changes live posts pages publish selected items exclude leave out overwrite replace live content",
   // The report's strings for these two also had "push"; dropped, because it outranked
   // deployment_execute_static_publish for "push my site live to netlify" (backfill-ranking test).
   publish_content_status: "push changes live is my site set up to publish publishing setup readiness changes live go live update live site not updating",

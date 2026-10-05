@@ -883,6 +883,7 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
 
       await saveSnapshot("applied", clockNowIso({ clock: input.clock }));
       return {
+        report: currentReport(),
         runId,
         changeSetIds: currentChangeSetIds(),
         retiredChangeSetIds: currentRetiredChangeSetIds(),

@@ -41,6 +41,8 @@ export type PublishRowDisposition = "publish" | "unchanged" | "skipped";
  *  is byte-identical to `planner.ts`'s own `entityKey(type, id)` — the string a selection is sent
  *  back to the server as. */
 export interface PublishReportRow {
+  /** Source titles/slugs used by server-side named selection, when available. */
+  readonly names?: readonly string[];
   readonly key: string;
   readonly entityType: string;
   /** What the TYPE column reads — a short plain word for every registered handler

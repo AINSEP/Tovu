@@ -664,6 +664,30 @@ describe("PublishContentDialog — a deselected row never reaches the destinatio
     expect(headerCheckbox().disabled).toBe(true);
   });
 
+  it("shows the narrowed plan with a sentence, not a confirm, when live changed under the selection", async () => {
+    const port = createFakePublishContentPort({ peers: ONE_PEER, report: SELECTION_REPORT });
+    const plan = port.planPublish;
+    // A live edit lands between the first plan and the narrowing re-plan: hello-world, still checked,
+    // now conflicts. Confirming would publish a different set from the one the operator reviewed.
+    port.planPublish = async (input) => {
+      const base = await plan(input);
+      if (input.selectedEntityKeys === undefined) return base;
+      const rows = base.details.rows.map((row) =>
+        row.entityId === HELLO_WORLD ? { ...row, outcome: "conflict" as const, writes: false, reason: CONFLICT_REASON } : row
+      );
+      return { ...base, details: { ...base.details, rows } };
+    };
+    const user = await planFrom(port);
+
+    await user.click(rowCheckbox(ABOUT_US)!);
+    await user.click(primaryButton());
+
+    await screen.findByText("tovu.com (production) changed while you were deciding. Check the list again.");
+    expect(reportRow(HELLO_WORLD).getAttribute("data-publish-disposition")).toBe("skipped");
+    expect(port.calls.confirmPublish).toEqual([]);
+    expect(port.calls.executePublish).toEqual([]);
+  });
+
   it("re-plans nothing when the operator left every row checked", async () => {
     const port = createFakePublishContentPort({ peers: ONE_PEER, report: SELECTION_REPORT });
     const user = await planFrom(port);
@@ -1798,13 +1822,22 @@ describe("PublishContentDialog — a carried-along media conflict", () => {
     ],
   };
 
-  /** The fake port has no carry-along rule of its own; this adds the one tag `push/plan` would. */
+  /** The fake port has no carry-along rule of its own; this adds the one tag `push/plan` would, and
+   *  re-carries the media into a narrowed re-plan while the page using it is selected — the real
+   *  route re-derives carried rows after selection (`includeReferencedEntities`), so the shared
+   *  confirm-time consistency check (`ui/replan.ts`) sees the same write set it was shown. */
   function carryingPort() {
     const port = createFakePublishContentPort({ peers: ONE_PEER, report: CARRIED_CONFLICT_REPORT });
     const plan = port.planPublish;
     port.planPublish = async (input) => {
       const base = await plan(input);
-      const rows = base.details.rows.map((row) =>
+      const forced = new Set(input.overwriteEntityKeys ?? []);
+      const media = CARRIED_CONFLICT_REPORT.rows[0]!;
+      const recarried =
+        input.selectedEntityKeys?.includes("page:pg-home") && !base.details.rows.some((row) => row.entityId === "m-hero")
+          ? [forced.has("media:m-hero") ? { ...media, outcome: "forced" as const, writes: true } : media]
+          : [];
+      const rows = [...recarried, ...base.details.rows].map((row) =>
         row.entityId === "m-hero" && row.outcome === "forced" ? { ...row, includedFor: ["page:pg-home"] } : row
       );
       return { ...base, details: { ...base.details, rows } };

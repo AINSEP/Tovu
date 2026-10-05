@@ -110,6 +110,8 @@ export interface PublishContentConfirmResult {
  *  `restorePointId` is what an operator needs to undo a whole bad run; `changeSetIds` is what they
  *  need to undo one entity. */
 export interface PublishContentExecuteResult {
+  /** Actual per-row outcomes after apply, including race-time skips. Older peers omit it. */
+  readonly report?: PublishContentReport;
   readonly restorePointId: string;
   readonly runId: string;
   readonly changeSetIds: readonly string[];

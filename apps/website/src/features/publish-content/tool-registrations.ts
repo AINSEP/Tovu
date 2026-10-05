@@ -39,13 +39,9 @@ import {
 import { nodeProvisioningFileIo, resolveCommittedConfigRoot } from "../publish-trust/provisioning.node-io.js";
 
 import { type AgentToolDefinition } from "@jini-ai/core";
-import { publishContentAgentToolCatalog, PUBLISH_CONTENT_CONNECT_TOOL_ID, PUBLISH_CONTENT_PLAN_PULL_TOOL_ID, PUBLISH_CONTENT_EXECUTE_PULL_TOOL_ID, PUBLISH_CONTENT_STATUS_TOOL_ID, PUBLISH_BACKSTOP_GAPS_TOOL_ID } from "./agent-tools.js";
+import { publishContentAgentToolCatalog, PUBLISH_CONTENT_PUBLISH_TOOL_ID, PUBLISH_CONTENT_CONNECT_TOOL_ID, PUBLISH_CONTENT_PLAN_PULL_TOOL_ID, PUBLISH_CONTENT_EXECUTE_PULL_TOOL_ID, PUBLISH_CONTENT_STATUS_TOOL_ID, PUBLISH_BACKSTOP_GAPS_TOOL_ID } from "./agent-tools.js";
 import { connectAndRecordDestination } from "./connect-destination.js";
-// Kept for its TYPE only — `PublishContentToolDeps.publishContentPeerHttpClient`/
-// `siteAssistantSecretSealer`/`siteAssistantSecretKeyring` are still declared against
-// `resolvePublishDestinationCredential`'s own parameter shape, even though S4 deleted the one runtime
-// caller (`openDestination`, with `publish_content_publish`). Pruning the deps interface itself is out
-// of this slice's scope.
+// Both pulls and autonomous publishes resolve the same saved destination credential.
 import { resolvePublishDestinationCredential } from "./destination-credential.js";
 import { normalizePeerBaseUrl } from "./peer-url.js";
 import { selectConnectedDestination, type PublishContentPeerRecord, type PublishContentPeerRepoPort } from "./peers.js";
@@ -54,26 +50,26 @@ import { describePublishReadiness, siteLabelFor, type PublishReadiness } from ".
 import type { BeforeSaveHookPort } from "#src/features/post/index";
 import type { OutboxPort } from "@jini-ai/cms/core";
 
+import { publishContentFromTool } from "./publish-tool.js";
+import type { CompositeBlobStoreRead } from "./composite-blob-source.js";
+
 import { listPublishContentContributors } from "./type-registry.js";
 import type { PublishContentPorts, PublishContentDeps, EntryPublishPorts, WidgetPublishPorts } from "./type-registry.js";
 
 /**
- * @file Wires publishing readiness, connection, and live-content pulls into the assistant catalog.
+ * @file Wires readiness, connection, autonomous publishing and live-content pulls into the assistant catalog.
  * Pulls share the HTTP import hooks and the taxonomy tool's human confirmation transport.
  *
  * The catalog and the per-tool reasoning live in `agent-tools.ts`. This file is the wiring: the
  * permission each tool checks and the ports each handler reaches through.
  *
- * ## There is no `publish_content_publish` here
+ * ## Autonomous publishing through the shared dialog path
  *
- * `ADS-memory/.local-artifacts/publish-criteria-tool-webmcp-plan-2026-09-24.md` §0 deleted the chat
- * tool that used to hold its own call open for a human's Publish/Not now click through an MCP-UI
- * exchange. Publishing a bundle to a live site now happens exclusively through the admin **Publish
- * dialog** — the only surface that can also be reached by WebMCP, and the only one that already has
- * per-row selection, the re-plan consistency check and the session-only overwrite rule. The chat
- * assistant reaches that same dialog through the `admin.publish_content` capability
- * (`ui/criteria.ts`), which only opens it — it holds no reference to the dialog's confirm/execute
- * path, so nothing here (or in that capability) can cause a write without a person's own click.
+ * Owner decision 2026-10-05: the assistant must publish on its own. The 2026-09-24 removal avoided
+ * a second safety implementation and an MCP-UI confirmation surface. The restored tool has no
+ * card: shared feature-side push planning and re-plan checks feed the SAME destination gateway
+ * as the Publish dialog. Explicit overwrite input replaces the human tick for this tool only;
+ * HTTP overwrite requests keep their existing session gate. The dialog remains available.
  *
  * ## Why the provisioning port is built here
  *
@@ -86,6 +82,10 @@ import type { PublishContentPorts, PublishContentDeps, EntryPublishPorts, Widget
  */
 
 const publishContentDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
+  // External write: uploads/stages on live and confirms/executes its gateway, applying durable
+  // remote content. The registry's write classification is mutates-durable-state (no separate
+  // external-write enum); this must never be marked read-only or token-only.
+  [PUBLISH_CONTENT_PUBLISH_TOOL_ID, "mutates-durable-state"],
   // -> a read-only projection of source audit events; no bundle, confirmation or writes.
   [PUBLISH_BACKSTOP_GAPS_TOOL_ID, "none"],
   // -> one peer-table read, one repo-config read. Writes nothing, contacts nothing.
@@ -126,6 +126,7 @@ interface PublishContentToolSources {
 }
 
 export interface PublishContentToolDeps extends PublishContentPullDeps, PublishContentToolSources {
+  blobStore: PublishContentPullDeps["blobStore"] & CompositeBlobStoreRead;
   gatedMutations: { gatewayDeps: GatewayDeps };
   publishContentBaselineRepo: BuildPublishContentImportHooksInput["baselineRepo"];
   publishContentRunRepo: PublishContentRunRepoPort;
@@ -238,7 +239,7 @@ async function readReadiness(
 }
 
 /**
- * Wires readiness, connection and pull tools using explicit domain ports and human-bound surfaces.
+ * Wires publish/readiness/connection tools using explicit ports; pulls retain human-bound surfaces.
  * Pull planning stores an expiring bundle; execution reaches the import gateway only after a click.
  * @returns Catalog registrations with independently derived write risk.
  * @example buildPublishContentRegistrations(deps, { surfaceExchanges });
@@ -252,6 +253,13 @@ export function buildPublishContentRegistrations(
   const provisioning = routeDeps.publishTrustProvisioning ?? defaultProvisioning();
 
   const handlers: Record<string, ToolHandler> = {
+    [PUBLISH_CONTENT_PUBLISH_TOOL_ID]: ctx => pullToolBoundary(async () => {
+      const input = requireInputRecord({ input: ctx.input ?? {} });
+      refuseUnexpectedKeys(input, ["peerId", "types", "items", "excludeItems", "overwrite"]);
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
+        workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: PUBLISH_CONTENT_APPLY_PERMISSION });
+      return publishContentFromTool({ deps: routeDeps, principalId: ctx.principal.id }, input);
+    }),
     [PUBLISH_BACKSTOP_GAPS_TOOL_ID]: async (ctx) => {
       refuseUnexpectedKeys(requireInputRecord({ input: ctx.input ?? {} }), []);
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),

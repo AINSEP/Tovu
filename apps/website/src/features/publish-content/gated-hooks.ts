@@ -132,6 +132,8 @@ export interface PublishContentApplyPort {
     authorize?: PublishContentDeps["authorize"];
     backstop?: PublishContentDeps["backstop"];
   }): Promise<{
+    /** Actual outcomes after apply, including race-time conflict downgrades. */
+    report?: PublishContentReport;
     runId: string;
     changeSetIds: readonly string[];
     /** publish-overwrite-live-plan §4 — the change sets that retired a live address holder, one per
@@ -212,6 +214,8 @@ export function buildPublishContentImportHooks(
   PublishContentReport,
   {
     restorePointId: string;
+    /** Actual outcomes after apply, including race-time conflict downgrades. */
+    report?: PublishContentReport;
     runId: string;
     changeSetIds: readonly string[];
     retiredChangeSetIds: readonly string[];
@@ -311,6 +315,7 @@ export function buildPublishContentImportHooks(
       // and be applied unseen: the operator authorises one write set and gets another.
       const report = verified.details;
       const {
+        report: appliedReport,
         runId,
         changeSetIds,
         retiredChangeSetIds,
@@ -330,6 +335,7 @@ export function buildPublishContentImportHooks(
         ...(input.publishContentDeps.backstop === undefined ? {} : { backstop: input.publishContentDeps.backstop }),
       });
       return {
+        ...(appliedReport ? { report: appliedReport } : {}),
         restorePointId,
         runId,
         changeSetIds,

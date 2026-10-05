@@ -1,29 +1,14 @@
+import { planPublishToPeer } from "#src/features/publish-content/push-plan";
 import type { Response } from "express";
-import { computeBlobStorageKey } from "@jini-ai/cms/media";
 
 import { pullAndStageFromPeer } from "#src/features/publish-content/pull";
 // Pull ordering/identity rationale: features/publish-content/pull.ts; this route stops at staging.
-import {
-  applyPublishScope,
-  buildExportBundle,
-  includeReferencedEntities,
-  selectBundleEntities,
-} from "#src/features/publish-content/export-bundle";
-import { buildPublishContentCatalog } from "#src/features/publish-content/type-registry";
 import type { PublishScope } from "#src/features/publish-content/ui/contract";
 import {
   confirmPeerImport,
   executePeerImport,
-  pushBundleToPeer,
   PublishContentPeerTransportError,
 } from "#src/features/publish-content/peer-transport";
-import { createCompositePeerBlobSource } from "#src/features/publish-content/composite-blob-source";
-import {
-  appendSkippedRowsToPeerPlan,
-  keepChangingIncludedEntities,
-  labelPeerPlanRows,
-  tagTrashingRows,
-} from "#src/features/publish-content/report-labels";
 import { resolvePublishDestinationCredential } from "#src/features/publish-content/destination-credential";
 import {
   PublishContentPeerCredentialMissingError,
@@ -300,105 +285,11 @@ export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegis
       if (!mayOverwrite(res, overwriteEntityKeys)) return;
 
       const peer = await openPeer(deps, String(req.params.peerId ?? ""));
-      const workspace = await deps.workspaceRepo.findById({ id: deps.workspaceId });
-      const publishContentDeps = toPublishContentDeps(deps);
-      const fullBundle = await buildExportBundle({
-        workspaceId: deps.workspaceId,
+      res.json(await planPublishToPeer({
+        deps: { ...deps, publishContentDeps: toPublishContentDeps(deps) },
+        peer,
         principalId,
-        authorize: deps.authorize,
-        publishContentDeps,
-        sourceLabel: workspace?.name ?? deps.workspaceId,
-      });
-      // `scope` narrows first (`plan-publish-sections-2026-09-25.md` §1 — "Publish pages" never even
-      // uploads a media blob), THEN `selectedEntityKeys` narrows that result further, so an operator's
-      // row selection inside a scoped dialog can only ever shrink what the scope already allowed.
-      // `skipped` is narrowed by `scope` alone: a skipped unit was never selectable in the first place
-      // (`export-bundle.ts`'s own `selectBundleEntities` doc), so a row selection has nothing to add.
-      const scoped = scopeResult.scope === null ? fullBundle : applyPublishScope(fullBundle, scopeResult.scope);
-      // A selection narrows what is STAGED, before the peer plans it — so a deselected entity is
-      // never uploaded, never planned and never applied, rather than being filtered out by some
-      // later step that could forget. See `export-bundle.ts`'s `selectBundleEntities`.
-      const selected = selectedEntityKeys === null ? scoped : selectBundleEntities(scoped, new Set(selectedEntityKeys));
-      // Owner decision 2026-09-25 (plan G3): a SCOPED run carries along what its (still-selected)
-      // rows use — a page's images and widgets, a widget's form, an entry's collection — drawn from
-      // the full bundle, derived after the selection, so a deselected page brings nothing and a
-      // narrowed re-plan re-derives the same rule. An unscoped run already holds every row as an
-      // ordinary one. See `includeReferencedEntities`.
-      const { envelope: bundle, includedFor } =
-        scopeResult.scope === null
-          ? { envelope: selected, includedFor: new Map<string, readonly string[]>() }
-          : includeReferencedEntities(selected, fullBundle, buildPublishContentCatalog(publishContentDeps).handlerByType);
-
-      const result = await pushBundleToPeer(
-        {
-          ...peer,
-          // S18 (S-F3) — sources a blob from the media blob store FIRST, falling back to
-          // `RouteDeps.fileBlobIndex` (a file-tree type's `pack()` fill) so a blob that was never
-          // copied into the blob store can still be pushed. See `composite-blob-source.ts`'s header.
-          blobSource: createCompositePeerBlobSource({ blobStore: deps.blobStore, fileBlobIndex: deps.fileBlobIndex }),
-          computeStorageKey: (sha256) => computeBlobStorageKey({ workspaceId: deps.workspaceId, sha256 }),
-        },
-        { bundle, ...(overwriteEntityKeys === null ? {} : { overwriteEntityKeys }) }
-      );
-
-      // S-F1: `pushBundleToPeer` probes the peer's own capabilities and trims the bundle to what it
-      // accepts BEFORE staging anything, so `bundle.entities.length` (the selection this route built)
-      // can be larger than what was actually sent. `entityCount` reports what was actually sent;
-      // `notSupportedByLive` names what was not, and why — see `peer-transport.ts`'s (feature)
-      // `PushBundleResult.notSupportedByLive` doc.
-      const heldBackCount = result.notSupportedByLive.reduce((sum, entry) => sum + entry.count, 0);
-
-      // The peer's gated plan is SPREAD at the top level, not nested under a `plan` key: this route
-      // answers with the same `{domain, planId, planHash, details}` shape the LOCAL `/import/plan`
-      // route does, so a client renders one plan shape regardless of direction (Task 11 binds
-      // `details` as its `PublishContentReport`). The push-only fields sit alongside it.
-      //
-      // `bundleId` is load-bearing, not informational: the peer's `/import/execute` requires the
-      // same bundle it planned, so a client MUST carry this value from here into `push/execute`.
-      // Holding it server-side instead would mean remembering per-operator state between two
-      // requests, which is exactly the kind of implicit session the gated ceremony avoids.
-      res.json({
-        peerId: peer.credential.id,
-        peerLabel: peer.credential.label,
-        bundleId: result.bundleId,
-        entityCount: bundle.entities.length - heldBackCount,
-        blobsUploaded: result.blobsUploaded,
-        blobsUnavailable: result.blobsUnavailable,
-        notSupportedByLive: result.notSupportedByLive,
-        // publish-overwrite-live-plan §4/S7 — whether the peer just probed can honour a forced
-        // overwrite at all. The admin dialog and the chat tool (S8/S9) read this before ever
-        // offering an "Overwrite on live" tick.
-        liveCanOverwrite: result.liveCanOverwrite,
-        // Echoed back exactly as received — never defaulted to `[]` — so a client can carry the SAME
-        // set from this plan into `push/execute` (`ui/contract.ts`'s `PublishContentPlanResult`)
-        // without keeping its own parallel copy in sync. Omitted entirely when nothing was ticked,
-        // the same "absent, not an empty real answer" contract `selectedEntityKeys` itself reads by
-        // (this file's own `readSelectedEntityKeys` doc).
-        ...(overwriteEntityKeys === null ? {} : { overwriteEntityKeys }),
-        // The peer's plan, with each row named from the bundle we just sent it — a live site
-        // deployed before `entityLabel` existed answers rows with no label, and this side can name
-        // its own content regardless. See `features/publish-content/report-labels.ts`.
-        //
-        // Then: every whole unit THIS instance refused to pack (`scoped.skipped` — e.g. a theme
-        // tree `file-tree-policy.ts` blocked) appended as its own non-selectable row. It never
-        // reached the peer's bundle at all, so the peer's own plan has no way to report it — this is
-        // the one place a caller holds both reports at once. Read off `scoped`, not the
-        // (possibly selection-narrowed) `bundle`: a skipped unit was never selectable, so an
-        // operator's row selection has nothing to say about whether it is still shown, but `scope`
-        // itself still applies — a refused theme tree only belongs in a theme-files-scoped plan.
-        //
-        // Last, a carried-along row that live would write is tagged with the rows that use it, an
-        // unchanged one is dropped, and a conflicting/blocked one stays as an ordinary row so the
-        // operator sees it — `report-labels.ts`'s `keepChangingIncludedEntities`. An update whose local
-        // item is trashed is tagged `trashes` so the dialog says it trashes on live (`tagTrashingRows`).
-        ...appendSkippedRowsToPeerPlan(
-          keepChangingIncludedEntities(
-            tagTrashingRows(labelPeerPlanRows(result.plan, bundle.entities), bundle.entities),
-            includedFor
-          ),
-          scoped.skipped
-        ),
-      });
+      }, { scope: scopeResult.scope, selectedEntityKeys, overwriteEntityKeys }));
     } catch (err) {
       respondWithError(res, err);
     }

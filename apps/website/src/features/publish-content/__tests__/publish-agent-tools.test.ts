@@ -32,10 +32,11 @@ const contributions = {
  *    no machine token can reach a person. Asserted over every reachable string rather than
  *    spot-checked, mirroring `publish-trust/__tests__/provisioning.test.ts`'s identical guard.
  *
- * A publish tool and its confirmation dialog used to be certified here too. Both were deleted —
+ * The old publish tool and its MCP-UI confirmation dialog were deleted —
  * `ADS-memory/.local-artifacts/publish-criteria-tool-webmcp-plan-2026-09-24.md` §4 S4 — in favour of
  * the admin Publish dialog, the one surface that can also be reached by WebMCP. See
- * `tool-registrations.ts`'s header for the full reasoning.
+ * `tool-registrations.ts`'s header for the full reasoning. Owner decision 2026-10-05 restored
+ * autonomous publish through the shared feature path; `publish-tool.test.ts` certifies it.
  */
 
 const WORKSPACE_ID = "ws-publish-tools";
@@ -127,7 +128,7 @@ test("the two tools reach the catalog the daemon serves, via the real compositio
   assert.ok(contributor, "installFirstPartyToolContributors() did not install publish-content");
 
   const ids = contributor.build(toolDeps() as never, NO_SURFACES).map((r) => r.descriptor.id);
-  assert.deepEqual([...ids].sort(), [PUBLISH_CONTENT_CONNECT_TOOL_ID, PUBLISH_CONTENT_STATUS_TOOL_ID, "publish_content_plan_pull", "publish_content_execute_pull", "publish_backstop_gaps"].sort());
+  assert.deepEqual([...ids].sort(), [PUBLISH_CONTENT_CONNECT_TOOL_ID, PUBLISH_CONTENT_STATUS_TOOL_ID, "publish_content_publish", "publish_content_plan_pull", "publish_content_execute_pull", "publish_backstop_gaps"].sort());
 
   // Every wired tool must carry a risk classification, or `assertRiskMetadataIsWirable` refuses the
   // whole catalog at boot — the gate that turns a missing entry into a dead assistant, not a quiet gap.

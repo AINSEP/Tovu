@@ -11,6 +11,7 @@
  * writeup. This file is the honest redo. Scored by `tool-search-doc2query-canary.eval.ts`.
  */
 export const DOC2QUERY: Readonly<Record<string, readonly string[]>> = {
+  publish_content_publish: ["Publish my changes to the live site.", "Publish only the About page.", "Publish everything except the contact page.", "Overwrite the live blog post."],
   publish_content_status: [
     "Is my site set up to publish?",
     "Before pushing changes live, is publishing connected?",

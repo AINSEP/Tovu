@@ -73,6 +73,7 @@ function normalizeType(type: string): string {
 function matchesItem(row: PublishReportRow, item: string): boolean {
   const trimmed = item.trim();
   if (trimmed.length === 0) return false;
+  if (row.names?.some(name => name.toLowerCase() === trimmed.toLowerCase())) return true;
   if (row.entityLabel.toLowerCase() === trimmed.toLowerCase()) return true;
   if (row.entityId === trimmed) return true;
   if (row.key === trimmed) return true;
@@ -89,7 +90,7 @@ function matchesItem(row: PublishReportRow, item: string): boolean {
  * @complexity O(rows × items) — an `items` list is a handful of named things per request, so this
  * stays well under a millisecond for any plan size the dialog renders.
  */
-export function applyPublishCriteria(rows: readonly PublishReportRow[], criteria: PublishCriteria): CriteriaSelection {
+export function applyPublishCriteria(rows: readonly PublishReportRow[], criteria: PublishCriteria & { readonly excludeItems?: readonly string[] }): CriteriaSelection {
   const types = criteria.types ?? [];
   const items = criteria.items ?? [];
   const normalizedTypes = new Set(types.map(normalizeType));
@@ -99,7 +100,7 @@ export function applyPublishCriteria(rows: readonly PublishReportRow[], criteria
   const matches = (row: PublishReportRow): boolean => {
     const typeOk = !hasTypes || normalizedTypes.has(row.entityType);
     const itemOk = !hasItems || items.some((item) => matchesItem(row, item));
-    return typeOk && itemOk;
+    return typeOk && itemOk && !(criteria.excludeItems ?? []).some(item => matchesItem(row, item));
   };
 
   const deselectedKeys = new Set<string>();

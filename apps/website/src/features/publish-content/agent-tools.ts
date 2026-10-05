@@ -9,12 +9,12 @@
  * answer to a person asking "is my site set up?" would be a failed attempt. So the read comes first
  * and stands alone, and the repair is its own verb.
  *
- * ## Why there is no `publish_content_publish` here
+ * ## Why autonomous publishing returned
  *
- * `ADS-memory/.local-artifacts/publish-criteria-tool-webmcp-plan-2026-09-24.md` §0 deleted it. There
- * is now exactly one publish surface, the admin **Publish dialog**, and the chat assistant reaches it
- * through the `admin.publish_content` capability (`ui/criteria.ts`) rather than through a chat tool
- * of its own — see that plan and `tool-registrations.ts`'s header for why.
+ * The 2026-09-24 design removed the tool to avoid a second confirmation surface with duplicated
+ * safety rules. Owner decision 2026-10-05: the assistant must publish on its own. The restored tool
+ * shares the dialog's feature-side planning, selection and re-plan checks and the destination's
+ * existing import gateway. It runs without an MCP-UI card; overwrite still requires explicit input.
  *
  * ## The vocabulary rule
  *
@@ -38,6 +38,7 @@ export interface AgentToolDefinition {
   inputSchema?: Readonly<Record<string, unknown>>;
 }
 
+export const PUBLISH_CONTENT_PUBLISH_TOOL_ID = "publish_content_publish";
 export const PUBLISH_CONTENT_STATUS_TOOL_ID = "publish_content_status";
 export const PUBLISH_BACKSTOP_GAPS_TOOL_ID = "publish_backstop_gaps";
 export const PUBLISH_CONTENT_CONNECT_TOOL_ID = "publish_content_connect";
@@ -48,6 +49,24 @@ export const PUBLISH_CONTENT_EXECUTE_PULL_TOOL_ID = "publish_content_execute_pul
 const NO_ARGUMENTS_SCHEMA = { type: "object", additionalProperties: false, properties: {} } as const;
 
 export const publishContentAgentToolCatalog: AgentToolDefinition[] = [
+  {
+    name: PUBLISH_CONTENT_PUBLISH_TOOL_ID,
+    description: "Publishes pending local content to the connected live site immediately, through the same plan/confirm/execute gateway as the Publish dialog. " +
+      "Omit peerId for the connected destination; several destinations require choosing a saved peerId. " +
+      "Omit filters to publish everything pending. Use types and items (exact title, slug, id or type:id) to select only named items; excludeItems removes named items. " +
+      "Set overwrite:true ONLY when the user explicitly asks to replace conflicting live content; defaults to skipping conflicts and reporting why. " +
+      "No human confirmation card. Returns published items with live publicUrl, skipped items with reasons, unchanged items, and verification problems. " +
+      "Give the live publicUrl first in your reply; an admin edit link is secondary. Never invent a live link or claim unverified items landed.",
+    sideEffects: "mutates-durable-state",
+    authorization: { permission: "publish_content.apply" },
+    inputSchema: { type: "object", additionalProperties: false, properties: {
+      peerId: { type: "string", minLength: 1 },
+      types: { type: "array", maxItems: 1000, items: { type: "string", minLength: 1 } },
+      items: { type: "array", maxItems: 1000, items: { type: "string", minLength: 1 } },
+      excludeItems: { type: "array", maxItems: 1000, items: { type: "string", minLength: 1 } },
+      overwrite: { type: "boolean", description: "Only true when the user explicitly requested overwriting live conflicts." },
+    } },
+  },
   { name: PUBLISH_BACKSTOP_GAPS_TOOL_ID,
     description: "Read which kinds of site items people have sent by hand because normal publishing does not cover them yet. Returns gap labels, send counts and the last reason. Use this to suggest new normal publish types. The assistant can only read this history. A person must confirm every manual send; never fill their live-address confirmation.",
     sideEffects: "none", authorization: { permission: "publish_content.read" }, inputSchema: NO_ARGUMENTS_SCHEMA },
@@ -57,7 +76,7 @@ export const publishContentAgentToolCatalog: AgentToolDefinition[] = [
       "Call to pull, download or sync live content back to this computer. Omit peerId for the connected destination; " +
       "several destinations require choosing a saved peerId. Returns bundleId, expiresAt, peerLabel, create/update/unchanged/blocked counts, " +
       "up to 50 conflicts with entityKey/title/reason, and unavailable/deferred blobs. Stages an expiring bundle and stores verified blob bytes. " +
-      "Use publish_content_execute_pull to apply it. Push is NOT a tool: use the Publish dialog via admin.publish_content.",
+      "Use publish_content_execute_pull to apply it. To push local changes live, use publish_content_publish.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "publish_content.apply" },
     inputSchema: { type: "object", additionalProperties: false, properties: { peerId: { type: "string", minLength: 1 } } },
@@ -68,7 +87,7 @@ export const publishContentAgentToolCatalog: AgentToolDefinition[] = [
       "Call after publish_content_plan_pull, with its bundleId and optional overwriteEntityKeys chosen from its conflicts. " +
       "Shows a fresh summary and overwritten titles; an expired plan, changed local content or unavailable backup refuses apply. " +
       "Nothing in tool input confirms. Decline or no answer returns executed:false; success returns executed:true, counts and per-entity outcomes. " +
-      "Push is NOT a tool: use the Publish dialog via admin.publish_content.",
+      "To push local changes live, use publish_content_publish.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "publish_content.apply" },
     actorClassRule: "confirmer-must-equal-own-delegatedBy",
