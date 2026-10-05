@@ -925,7 +925,7 @@ test("assigning an occupied location displaces only the former menu and persists
 });
 
 test("assign-location: a menu save that loses its compare-and-set is a 409 VERSION_CONFLICT, not a 500", async () => {
-  const stored = { id: "menu-1", workspaceId: "workspace-local", slug: "nav", title: "Nav", status: "published" as const, doc: { type: "menu", version: 1, items: [] }, locations: [], updatedAt: "2026-10-05T00:00:00.000Z", version: 1 };
+  const stored = { id: "menu-1", workspaceId: "workspace-local", slug: "nav", title: "Nav", status: "published" as const, doc: { type: "menu" as const, version: 1, items: [] }, locations: [], updatedAt: "2026-10-05T00:00:00.000Z", version: 1 };
   const losingMenuRepo: MenuRepoPort = {
     findById: async () => stored,
     findBySlug: async () => null,
