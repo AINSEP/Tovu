@@ -4,18 +4,12 @@ import {
   authorizeForHooks,
   confirm,
   execute,
-  ForbiddenError,
   plan,
-  PlanStaleError,
   type GatedMutationHooks,
 } from "#src/contracts/core/gated-mutations/gateway";
-import { TokenAlreadyRedeemedError, TokenExpiredError } from "#src/contracts/core/gated-mutations/token";
 import { buildConfirmOnlyHooks } from "#src/contracts/core/gated-mutations/composition";
-import {
-  buildPublishContentImportHooks,
-  PublishContentBundleNotFoundError,
-} from "#src/features/publish-content/gated-hooks";
-import { executePublishContentImport, RestorePointUnavailableError } from "#src/features/publish-content/execute-import";
+import { buildPublishContentImportHooks } from "#src/features/publish-content/gated-hooks";
+import { executePublishContentImport } from "#src/features/publish-content/execute-import";
 import { getPublishContentRunStatus } from "#src/features/publish-content/run-repo";
 import type { PublishContentReport } from "#src/features/publish-content/planner";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
@@ -23,6 +17,8 @@ import { gatedPrincipalKindFor, getAuthedCredentialKind, getAuthedPrincipal, typ
 import { withPublishTrustAuthorize, withPublishTrustContentAuthorize } from "#src/server/inbound/admin-http/publish-trust-auth";
 import { registeredPublishTypePermissions } from "#src/features/publish-content/type-registry";
 import { toPublishContentDeps, type PublishContentRouteRegistrar } from "./deps.js";
+import { readBackstopApplyReport } from "./apply-report.js";
+import { importErrorResponse } from "./import-errors.js";
 import { toPublishContentReportDto } from "./report-dto.js";
 import { buildBackstopPreview } from "#src/features/publish-content/backstop-preview";
 import type { PackedEntity } from "#src/features/publish-content/type-registry";
@@ -55,13 +51,12 @@ const INVALID_OVERWRITE_KEYS = Symbol("invalid-overwrite-keys");
  *  Absent/`null` means "force nothing", the pre-S6 default every existing caller keeps getting.
  *  Bounded at 1000 entries, matching the plan's own cap — this ceremony never has a legitimate use
  *  for more than that in one bundle. */
-function readOverwriteEntityKeys(body: unknown): readonly string[] | null | typeof INVALID_OVERWRITE_KEYS {
-  const raw = (body ?? {}) as Record<string, unknown>;
-  if (raw.overwriteEntityKeys === undefined || raw.overwriteEntityKeys === null) return null;
-  if (!Array.isArray(raw.overwriteEntityKeys)) return INVALID_OVERWRITE_KEYS;
-  if (raw.overwriteEntityKeys.length > 1000) return INVALID_OVERWRITE_KEYS;
-  if (!raw.overwriteEntityKeys.every((key): key is string => typeof key === "string")) return INVALID_OVERWRITE_KEYS;
-  return raw.overwriteEntityKeys;
+function readOverwriteEntityKeys(overwriteEntityKeys: unknown): readonly string[] | null | typeof INVALID_OVERWRITE_KEYS {
+  if (overwriteEntityKeys === undefined || overwriteEntityKeys === null) return null;
+  if (!Array.isArray(overwriteEntityKeys)) return INVALID_OVERWRITE_KEYS;
+  if (overwriteEntityKeys.length > 1000) return INVALID_OVERWRITE_KEYS;
+  if (!overwriteEntityKeys.every((key): key is string => typeof key === "string")) return INVALID_OVERWRITE_KEYS;
+  return overwriteEntityKeys;
 }
 
 /**
@@ -83,16 +78,6 @@ function mayOverwrite(res: Response, overwriteEntityKeys: readonly string[] | nu
   };
   res.status(403).json(body);
   return false;
-}
-
-function statusFor(err: unknown): { status: number; code: string } {
-  if (err instanceof ForbiddenError) return { status: 403, code: err.reasonCode };
-  if (err instanceof PlanStaleError) return { status: 409, code: "PLAN_STALE" };
-  if (err instanceof TokenExpiredError) return { status: 409, code: "TOKEN_EXPIRED" };
-  if (err instanceof TokenAlreadyRedeemedError) return { status: 409, code: "TOKEN_ALREADY_REDEEMED" };
-  if (err instanceof RestorePointUnavailableError) return { status: 409, code: "RESTORE_POINT_UNAVAILABLE" };
-  if (err instanceof PublishContentBundleNotFoundError) return { status: 404, code: "BUNDLE_NOT_FOUND" };
-  return { status: 500, code: "INTERNAL_ERROR" };
 }
 
 export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = (app: Express, deps) => {
@@ -124,7 +109,7 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
   }
 
   app.post("/api/admin/v1/workspaces/:workspaceId/publish-content/import/plan", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
+    if (req.params.workspaceId !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
       return;
     }
@@ -135,7 +120,7 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
         res.status(400).json({ error: "'bundleId' (string) is required", code: "VALIDATION_ERROR" });
         return;
       }
-      const overwriteEntityKeys = readOverwriteEntityKeys(req.body);
+      const overwriteEntityKeys = readOverwriteEntityKeys(req.body.overwriteEntityKeys);
       if (overwriteEntityKeys === INVALID_OVERWRITE_KEYS) {
         res.status(400).json({ error: "'overwriteEntityKeys' must be an array of strings", code: "VALIDATION_ERROR" });
         return;
@@ -177,13 +162,13 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
         ...(backstopPreview === undefined ? {} : { backstopPreview }),
       });
     } catch (err) {
-      const { status, code } = statusFor(err);
-      res.status(status).json({ error: err instanceof Error ? err.message : "internal error", code });
+      const { status, body } = importErrorResponse(err);
+      res.status(status).json(body);
     }
   });
 
   app.post("/api/admin/v1/workspaces/:workspaceId/publish-content/import/confirm", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
+    if (req.params.workspaceId !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
       return;
     }
@@ -219,13 +204,13 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
 
       res.json({ confirmationToken: record.confirmationToken });
     } catch (err) {
-      const { status, code } = statusFor(err);
-      res.status(status).json({ error: err instanceof Error ? err.message : "internal error", code });
+      const { status, body } = importErrorResponse(err);
+      res.status(status).json(body);
     }
   });
 
   app.post("/api/admin/v1/workspaces/:workspaceId/publish-content/import/execute", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
+    if (req.params.workspaceId !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
       return;
     }
@@ -236,7 +221,7 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
         res.status(400).json({ error: "'bundleId' and 'confirmationToken' (strings) are required", code: "VALIDATION_ERROR" });
         return;
       }
-      const overwriteEntityKeys = readOverwriteEntityKeys(req.body);
+      const overwriteEntityKeys = readOverwriteEntityKeys(req.body.overwriteEntityKeys);
       if (overwriteEntityKeys === INVALID_OVERWRITE_KEYS) {
         res.status(400).json({ error: "'overwriteEntityKeys' must be an array of strings", code: "VALIDATION_ERROR" });
         return;
@@ -293,26 +278,18 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
           }),
       });
 
-      // The manual result must name apply-time skips rather than repeat the dry-run prediction.
-      // Reading the audit after a successful mutation is advisory: a read failure must never
-      // turn an already applied send into an apparent failure and invite a duplicate retry.
-      let backstopReport;
-      try {
-        const audit = toPublishContentDeps(deps).backstop?.audit;
-        if (audit && await audit.ready()) {
-          const log = await audit.get({ workspaceId: deps.workspaceId, id: result.runId });
-          if (log?.direction === "destination" && log.details.report) backstopReport = toPublishContentReportDto(log.details.report as PublishContentReport);
-        }
-      } catch { /* The normal run and its persisted audit remain authoritative. */ }
-      res.json({ ...result, ...(backstopReport === undefined ? {} : { report: backstopReport }) });
+      // The manual result must name apply-time skips rather than repeat the dry-run prediction;
+      // `readBackstopApplyReport` keeps that audit read advisory (its own doc).
+      const applyReport = await readBackstopApplyReport({ audit: toPublishContentDeps(deps).backstop?.audit, workspaceId: deps.workspaceId, runId: result.runId });
+      res.json({ ...result, ...applyReport });
     } catch (err) {
-      const { status, code } = statusFor(err);
-      res.status(status).json({ error: err instanceof Error ? err.message : "internal error", code });
+      const { status, body } = importErrorResponse(err);
+      res.status(status).json(body);
     }
   });
 
   app.get("/api/admin/v1/workspaces/:workspaceId/publish-content/runs/:runId", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
+    if (req.params.workspaceId !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
       return;
     }
@@ -327,7 +304,7 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
       )
         return;
 
-      const runId = String(req.params.runId ?? "");
+      const runId = req.params.runId;
       const status = await getPublishContentRunStatus(deps.publishContentRunRepo, {
         workspaceId: deps.workspaceId,
         runId,
@@ -338,8 +315,8 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
       }
       res.json(status);
     } catch (err) {
-      const { status, code } = statusFor(err);
-      res.status(status).json({ error: err instanceof Error ? err.message : "internal error", code });
+      const { status, body } = importErrorResponse(err);
+      res.status(status).json(body);
     }
   });
 };
