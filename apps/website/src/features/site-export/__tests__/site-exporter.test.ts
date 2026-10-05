@@ -397,7 +397,7 @@ test("exportSite: reports theme files present on disk but never rendered or craw
   t.after(() => rmSync(outputDir, { recursive: true, force: true }));
 
   // Pinned to "tovu-theme" rather than the seeded default: every assertion below is about that
-  // theme's OWN page set (its `page-shell.html` template shell, its shadowed `about`/`pricing`
+  // theme's OWN page set (its `pages-default.html` template shell, its shadowed `about`/`pricing`
   // pages) — `tovu-starter` ships neither page, having dropped them in its own de-branding pass.
   const routeDeps = createRouteDeps();
   const currentPresentation = await routeDeps.presentationRepo.findByWorkspaceId({ workspaceId: routeDeps.workspaceId });
@@ -412,9 +412,11 @@ test("exportSite: reports theme files present on disk but never rendered or craw
   // A content-embedding template shell (route-manifest.ts's own file header): never its own route,
   // never linked from any rendered page — genuinely unreferenced, not a false positive. `basic` is
   // schema v2 (2026-08-18 migration), so its pages live under `render/pages/`, not a theme-root
-  // `pages/` — see `findUnreferencedThemeFiles`'s own v1/v2 detection.
+  // `pages/` — see `findUnreferencedThemeFiles`'s own v1/v2 detection. The shell is
+  // `pages-default.html` since 948706418 synced the shipped catalog to the posts-*/pages-* names
+  // (38e022fc7); it was `page-shell.html` before.
   assert.ok(
-    report.unreferencedThemeFiles.includes("render/pages/page-shell.html"),
+    report.unreferencedThemeFiles.includes("render/pages/pages-default.html"),
     "a template shell is neither a rendered route nor a crawled asset — must be named, not silently absent"
   );
   assert.ok(report.unreferencedThemeFiles.includes("theme.json"), "the manifest file itself is never independently fetched");

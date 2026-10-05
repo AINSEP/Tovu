@@ -189,14 +189,15 @@ test("buildRouteManifest: resolves and returns the active theme's id + on-disk d
 test("buildRouteManifest: enumerates the active theme's own static pages, excluding index/404 and template shells", async () => {
   // seeded active theme used to be "basic" (server/seed.ts's seededPresentation); this test targets
   // Tovu Theme's own page content specifically (its theme.json declares "pricing" as a real page
-  // and "page-shell"/"blog-post" as template shells (theme.manifest.templates) a post picks via
+  // and "pages-default"/"posts-default" (formerly "page-shell"/"blog-post") as template shells (theme.manifest.templates) a post picks via
   // templateChoice, never their own route), so it is pinned to "tovu-theme" rather than following
   // the seeded default. Its real theme.json ships no `publishedPages`, so "pricing" is unpublished
   // by default — published here, for this test only, via `withPublishedPages` (see that helper's
   // own doc) so the index/404/template-shell exclusion this test targets can still be proven
-  // against the theme's real page content.
+  // against the theme's real page content. The two shells are "published" too, so the template
+  // exclusion — not the publish gate — is what must keep them out.
   const publishedBasicThemes = createRouteDeps().themes.map((t) =>
-    t.manifest.id === "tovu-theme" ? withPublishedPages(t, ["pricing"]) : t
+    t.manifest.id === "tovu-theme" ? withPublishedPages(t, ["pricing", "pages-default", "posts-default"]) : t
   );
   const manifest = await buildRouteManifest(
     baseDeps({ themes: publishedBasicThemes, resolveActiveThemeId: async () => "tovu-theme" })
@@ -207,7 +208,7 @@ test("buildRouteManifest: enumerates the active theme's own static pages, exclud
   assert.equal(pricing?.kind, "theme-page");
 
   assert.equal(
-    manifest.routes.some((r) => r.path === "/page-shell" || r.path === "/blog-post"),
+    manifest.routes.some((r) => r.path === "/pages-default" || r.path === "/posts-default"),
     false,
     "a template shell (theme.manifest.templates) must never be enumerated as its own route"
   );
