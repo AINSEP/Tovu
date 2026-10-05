@@ -80,7 +80,7 @@ export default defineConfig({
         TOVU_PLUGINS_DIR: path.join(siteDir, "plugins"),
         TOVU_MEDIA_UPLOADS_DIR: path.join(siteDir, "uploads"),
         TOVU_PLUGIN_LOCAL_INSTALL: "1",
-        TOVU_INTEGRATIONS_ROOT_KEY: "a".repeat(64),
+        TOVU_SITE_KEY: "a".repeat(64),
         TOVU_DISABLE_DEV_TLS: "1",
         JINI_AGENT_DAEMON_PORT: String(DAEMON_PORT),
         ANTHROPIC_API_KEY: "",

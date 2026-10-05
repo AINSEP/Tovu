@@ -35,4 +35,4 @@
  * - `"invalid"` — a source was found (env var set, or a key file present) but its content fails hex
  *   validation.
  */
-export type SiteKeyState = "active" | "missing" | "missing-with-data" | "mismatch" | "invalid" | "env-conflict";
+export type SiteKeyState = "active" | "missing" | "missing-with-data" | "mismatch" | "invalid";

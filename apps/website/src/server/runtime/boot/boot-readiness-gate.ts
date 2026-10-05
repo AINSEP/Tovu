@@ -73,7 +73,6 @@ export async function runProductionReadinessGateOrExit(): Promise<void> {
       // its own failure code (`missing-site-key` either way); both are equally unsafe
       // to boot on, so the coarser signal is still correct, just not maximally specific.
       hasMissingSiteKey: !siteKeyStatus.active,
-      hasSiteKeyEnvConflict: siteKeyStatus.reason === "env-conflict",
     },
   });
 

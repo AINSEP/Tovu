@@ -9,7 +9,7 @@ import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 
 import type { KeyringPort } from "./ports.js";
-import { SITE_KEY_ENV_VAR_NAME, resolveSiteKeyEnv, readSiteKeySourceMaterial, siteKeyFilePathFrom, type SiteKeySource } from "./site-key-sources.js";
+import { SITE_KEY_ENV_VAR_NAME, readSiteKeySourceMaterial, siteKeyFilePathFrom, type SiteKeySource } from "./site-key-sources.js";
 
 // Validation/derivation rationale: Jini packages/platform/src/secrets/keyring.env.ts.
 /**
@@ -23,8 +23,8 @@ import { SITE_KEY_ENV_VAR_NAME, resolveSiteKeyEnv, readSiteKeySourceMaterial, si
  *
  * ## Site key sources and durability
  *
- * This is the one site key the Security page manages. The source-policy module owns the
- * temporary environment alias, so reader defaults can never disagree with the boot gate or UI.
+ * This is the one site key the Security page manages. The source-policy module owns how the
+ * `TOVU_SITE_KEY` env source is read, so reader defaults can never disagree with the boot gate or UI.
  * Ordered sources are required and read-only; `ensureSiteKey` owns unattended local creation.
  * A credential reader must never silently mint a key for a paid third-party credential, and an
  * anonymous newsletter request must never choose the key the credential store adopts.
@@ -145,11 +145,9 @@ export class EnvOrFileKeyring implements KeyringPort {
     // Present-but-invalid wins and throws: falling through could seal data under a different
     // key than the operator configured. Ordered sources are readers only; ensureSiteKey owns minting.
     const env = this.env();
-    if (resolveSiteKeyEnv({ env }).kind === "conflict") throw siteKeyEnvConflictError();
     for (const source of this.sources) {
       const material = readSiteKeySourceMaterial(source, env);
       if (material === undefined) continue;
-      if ("conflict" in material) throw siteKeyEnvConflictError();
       const parsed = parseSiteKeyHex(material.raw);
       if (parsed.ok) return new JiniFixedSiteKeyKeyring({ hex: parsed.hex, hkdfSalt: HKDF_EXTRACTION_SALT }, { keyId: this.keyId });
       throw new UnusableSiteKeyError({
@@ -266,9 +264,9 @@ function unusableSiteKeyMessage(input: { subject: string; detail: string; sealed
  */
 export class UnusableSiteKeyError extends Error {
   readonly source: "env" | "file";
-  readonly reason: SiteKeyRejection | "env-conflict";
+  readonly reason: SiteKeyRejection;
 
-  constructor(input: { source: "env" | "file"; reason: SiteKeyRejection | "env-conflict"; message: string }) {
+  constructor(input: { source: "env" | "file"; reason: SiteKeyRejection; message: string }) {
     super(input.message);
     this.name = "UnusableSiteKeyError";
     this.source = input.source;
@@ -299,14 +297,13 @@ export interface SiteKeyStatus {
   /** Present iff `active` — see {@link fingerprintSiteKeyHex}. */
   readonly fingerprint?: string;
   readonly envVarName?: string;
-  readonly deprecated?: boolean;
   /** `true` when a source was found (env var set, or file present) but its content fails
    *  {@link parseSiteKeyHex} — `active` is `false` in this case too; surfaced separately so a caller
    *  can tell "nothing is configured" apart from "something is configured but broken". */
   readonly invalid?: boolean;
   /** Present iff `invalid` — the same {@link SiteKeyRejection} {@link EnvOrFileKeyring} would throw
    *  with for this material. */
-  readonly reason?: SiteKeyRejection | "env-conflict";
+  readonly reason?: SiteKeyRejection;
   /** The path a generated file lives (or would live) at — not secret, just a filesystem
    *  convention. Empty when no safe per-site/new-volume target exists; legacy files are read-only. */
   readonly keyFilePath: string;
@@ -318,19 +315,17 @@ export interface InspectSiteKeyMaterialOptions {
 
 type ActiveSiteKeyMaterial = {
   source: "env" | "file" | "none"; hex?: string; invalid?: boolean;
-  reason?: SiteKeyRejection | "env-conflict"; envVarName?: string; deprecated?: boolean;
+  reason?: SiteKeyRejection; envVarName?: string;
 };
 
 /** Status/reveal share the first-present rule with derivation. Never mint, never cache, never
  * silently skip a broken source: that could select a key the operator did not intend. */
 function readActiveSiteKeyMaterialFromSources(sources: readonly SiteKeySource[], env: Record<string, string | undefined>): ActiveSiteKeyMaterial {
-  if (resolveSiteKeyEnv({ env }).kind === "conflict") return { source: "env", invalid: true, reason: "env-conflict" };
   for (const source of sources) {
     const material = readSiteKeySourceMaterial(source, env);
     if (material === undefined) continue;
-    if ("conflict" in material) return { source: "env", invalid: true, reason: "env-conflict" };
     const parsed = parseSiteKeyHex(material.raw);
-    const provenance = source.kind === "env" ? { envVarName: material.envVarName, deprecated: material.deprecated } : {};
+    const provenance = source.kind === "env" ? { envVarName: material.envVarName } : {};
     return parsed.ok
       ? { source: source.kind === "env" ? "env" : "file", hex: parsed.hex, ...provenance }
       : { source: source.kind === "env" ? "env" : "file", invalid: true, reason: parsed.reason, ...provenance };
@@ -343,11 +338,6 @@ function resolveReportedKeyFilePath(options: InspectSiteKeyMaterialOptions): str
   return siteKeyFilePathFrom(options.sources) ?? "";
 }
 
-function siteKeyEnvConflictError(): UnusableSiteKeyError {
-  return new UnusableSiteKeyError({ source: "env", reason: "env-conflict",
-    message: `Site key environment variables conflict. Set ${SITE_KEY_ENV_VAR_NAME} to the existing site key and remove the deprecated variable; nothing was changed.` });
-}
-
 /**
  * Read-only snapshot over the same explicit sources derivation uses. Re-read on every call so
  * status and recovery never report cached material. A present invalid source refuses resolution;
@@ -356,7 +346,7 @@ function siteKeyEnvConflictError(): UnusableSiteKeyError {
 export function inspectSiteKeyMaterial(options: InspectSiteKeyMaterialOptions, deps: SiteKeyReaderDeps = {}): SiteKeyStatus {
   const keyFilePath = resolveReportedKeyFilePath(options);
   const raw = readActiveSiteKeyMaterialFromSources(options.sources, (deps.env ?? (() => process.env))());
-  const provenance = raw.source === "env" ? { envVarName: raw.envVarName, deprecated: raw.deprecated } : {};
+  const provenance = raw.source === "env" ? { envVarName: raw.envVarName } : {};
 
   if (raw.hex) return { active: true, source: raw.source, fingerprint: fingerprintSiteKeyHex(raw.hex), keyFilePath, ...provenance };
   return { active: false, source: raw.source, ...invalidFields(raw), keyFilePath, ...provenance };
@@ -364,7 +354,7 @@ export function inspectSiteKeyMaterial(options: InspectSiteKeyMaterialOptions, d
 
 /** The `invalid`/`reason` pair both status functions spread onto an inactive result — present
  *  together or not at all. */
-function invalidFields(raw: ActiveSiteKeyMaterial): { invalid?: true; reason?: SiteKeyRejection | "env-conflict" } {
+function invalidFields(raw: ActiveSiteKeyMaterial): { invalid?: true; reason?: SiteKeyRejection } {
   return raw.invalid ? { invalid: true, reason: raw.reason } : {};
 }
 
@@ -391,7 +381,7 @@ export interface SiteKeyReveal extends SiteKeyStatus {
 export function revealSiteKeyMaterial(options: InspectSiteKeyMaterialOptions, deps: SiteKeyReaderDeps = {}): SiteKeyReveal {
   const keyFilePath = resolveReportedKeyFilePath(options);
   const raw = readActiveSiteKeyMaterialFromSources(options.sources, (deps.env ?? (() => process.env))());
-  const provenance = raw.source === "env" ? { envVarName: raw.envVarName, deprecated: raw.deprecated } : {};
+  const provenance = raw.source === "env" ? { envVarName: raw.envVarName } : {};
 
   if (raw.hex) return { active: true, source: raw.source, hex: raw.hex, fingerprint: fingerprintSiteKeyHex(raw.hex), keyFilePath, ...provenance };
   return { active: false, source: raw.source, ...invalidFields(raw), keyFilePath, ...provenance };

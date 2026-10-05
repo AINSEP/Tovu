@@ -38,8 +38,7 @@ describe("AdminSiteKeyState parity with the server's SiteKeyState union", () => 
   });
 
   it("is a real, non-trivial list — proves the regex above actually matched something", () => {
-    expect(ADMIN_SITE_KEY_STATES.length).toBeGreaterThanOrEqual(6);
+    expect(ADMIN_SITE_KEY_STATES.length).toBeGreaterThanOrEqual(5);
   });
 });
 
-it("includes env-conflict independently of the parity check", () => { expect(ADMIN_SITE_KEY_STATES).toContain("env-conflict"); });

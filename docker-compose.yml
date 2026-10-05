@@ -52,12 +52,8 @@ services:
 
       # Required, no default (owner decision 2026-10-04): `docker compose up` refuses to start
       # without it rather than passing an empty key, which would hide a missing-key bug until the
-      # first sealed credential failed. The production gate additionally refuses an unusable key
-      # or a conflict between the two env names. Keep the existing key bytes when changing the
-      # variable name; never rotate by renaming.
+      # first sealed credential failed. The production gate additionally refuses an unusable key.
       TOVU_SITE_KEY: ${TOVU_SITE_KEY:?set TOVU_SITE_KEY — see .env.example}
-      # Optional, read-only fallback for installs that still export the old name.
-      TOVU_INTEGRATIONS_ROOT_KEY: ${TOVU_INTEGRATIONS_ROOT_KEY:-} # site-key-legacy: remove on/after 2026-11-01 (D3)
 
       PORT: 3000
 

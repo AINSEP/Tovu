@@ -1,4 +1,4 @@
-import { LEGACY_SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
+import { SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import { createServer } from "node:http";
@@ -295,11 +295,11 @@ test("GET .../publish-content/export never leaks a row from any sensitive table,
   // machine's own key (or write `~/.tovu/site-key.hex`), so it sets a throwaway
   // synthetic one for its own process only — the same pattern
   // `site-key-boot-notice.unit.test.ts` uses — and restores whatever was there before.
-  const siteKeyBefore = process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
-  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = "a".repeat(64);
+  const siteKeyBefore = process.env[SITE_KEY_ENV_VAR_NAME];
+  process.env[SITE_KEY_ENV_VAR_NAME] = "a".repeat(64);
   t.after(() => {
-    if (siteKeyBefore === undefined) delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
-    else process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = siteKeyBefore;
+    if (siteKeyBefore === undefined) delete process.env[SITE_KEY_ENV_VAR_NAME];
+    else process.env[SITE_KEY_ENV_VAR_NAME] = siteKeyBefore;
   });
 
   const db = openContentDb(":memory:");

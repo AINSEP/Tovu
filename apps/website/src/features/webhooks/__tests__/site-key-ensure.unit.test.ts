@@ -1,5 +1,5 @@
 import { LEGACY_SITE_KEY_FILENAME } from "#src/features/webhooks/site-key-sources";
-import { LEGACY_SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
+import { SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
 import assert from "node:assert/strict";
 import fsNative from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
@@ -96,7 +96,6 @@ function perSiteFilePathIn(homeDir: string, siteKeyId: string): string {
 function bareEnv(): NodeJS.ProcessEnv {
   const env = { ...process.env };
   delete env.TOVU_SITE_KEY;
-  delete env[LEGACY_SITE_KEY_ENV_VAR_NAME];
   delete env.TOVU_RUNTIME_MODE;
   return env;
 }
@@ -148,7 +147,7 @@ test("ensureSiteKey: an existing but malformed per-site file is 'invalid' — re
 
 test("ensureSiteKey: per-site absent, env var active → 'adopt' — the per-site file gets the SAME bytes", async () => {
   const hex = validHex();
-  const env = { ...bareEnv(), [LEGACY_SITE_KEY_ENV_VAR_NAME]: hex };
+  const env = { ...bareEnv(), [SITE_KEY_ENV_VAR_NAME]: hex };
 
   const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home, findSiteKeyDependentData });
 
@@ -175,7 +174,7 @@ test("ensureSiteKey: per-site absent, legacy shared file active → 'adopt' from
 });
 
 test("ensureSiteKey: per-site absent, env var present but malformed → 'invalid' — nothing is written", async () => {
-  const env = { ...bareEnv(), [LEGACY_SITE_KEY_ENV_VAR_NAME]: "not-hex-at-all" };
+  const env = { ...bareEnv(), [SITE_KEY_ENV_VAR_NAME]: "not-hex-at-all" };
 
   const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home, findSiteKeyDependentData });
 
@@ -185,7 +184,7 @@ test("ensureSiteKey: per-site absent, env var present but malformed → 'invalid
 });
 
 test("ensureSiteKey: env var present but blank → treated as ABSENT, not invalid — falls through to mint when nothing else exists", async () => {
-  const env = { ...bareEnv(), [LEGACY_SITE_KEY_ENV_VAR_NAME]: "" };
+  const env = { ...bareEnv(), [SITE_KEY_ENV_VAR_NAME]: "" };
 
   const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home, findSiteKeyDependentData });
 
@@ -199,7 +198,7 @@ test("ensureSiteKey: env var present but whitespace-only, legacy shared file act
   const legacySharedFilePath = path.join(home, ".tovu", LEGACY_SITE_KEY_FILENAME);
   mkdirSync(path.dirname(legacySharedFilePath), { recursive: true });
   writeFileSync(legacySharedFilePath, hex, { mode: 0o600 });
-  const env = { ...bareEnv(), [LEGACY_SITE_KEY_ENV_VAR_NAME]: "   " };
+  const env = { ...bareEnv(), [SITE_KEY_ENV_VAR_NAME]: "   " };
 
   const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home, findSiteKeyDependentData });
 
@@ -412,7 +411,7 @@ test("ensureSiteKey: noop with a TAMPERED (mismatched) stamped fingerprint → '
 
 test("ensureSiteKey: adopt into a fresh per-site file also stamps the fingerprint (not just mint)", async () => {
   const hex = validHex();
-  const env = { ...bareEnv(), [LEGACY_SITE_KEY_ENV_VAR_NAME]: hex };
+  const env = { ...bareEnv(), [SITE_KEY_ENV_VAR_NAME]: hex };
   writeSiteMeta(siteDir, { siteId: "meta-site-1" });
 
   const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home, findSiteKeyDependentData });
@@ -435,7 +434,7 @@ test("ensureSiteKey: adopt of a key whose fingerprint differs from the stamp, on
   const wrongHex = validHex();
   writeSiteMeta(siteDir, { siteId: "meta-site-1", siteKeyFingerprint: stampedFingerprint });
   buildSealedCiphertextDb(path.join(siteDir, "content.db"));
-  const env = { ...bareEnv(), [LEGACY_SITE_KEY_ENV_VAR_NAME]: wrongHex };
+  const env = { ...bareEnv(), [SITE_KEY_ENV_VAR_NAME]: wrongHex };
 
   const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home, findSiteKeyDependentData });
 
@@ -448,7 +447,7 @@ test("ensureSiteKey: adopt of a key whose fingerprint differs from the stamp, on
 test("ensureSiteKey: adopt with a stale stamp on a site with NO key-dependent data → 'adopt', and the stamp is updated to the adopted key", async () => {
   const hex = validHex();
   writeSiteMeta(siteDir, { siteId: "meta-site-1", siteKeyFingerprint: fingerprintSiteKeyHex(validHex()) });
-  const env = { ...bareEnv(), [LEGACY_SITE_KEY_ENV_VAR_NAME]: hex };
+  const env = { ...bareEnv(), [SITE_KEY_ENV_VAR_NAME]: hex };
 
   const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home, findSiteKeyDependentData });
 
@@ -468,23 +467,13 @@ test("ensureSiteKey: mint on a site carrying a stale stamp (moved/copied site, n
 
 test("ensureSiteKeyForBoot: a traversal siteKeyId in .site-meta.json writes nothing anywhere (the id is rejected before any path is built)", async () => {
   writeSiteMeta(siteDir, { siteId: "ok", siteKeyId: "../../escaped" });
-  const env = { ...bareEnv(), [LEGACY_SITE_KEY_ENV_VAR_NAME]: validHex() };
+  const env = { ...bareEnv(), [SITE_KEY_ENV_VAR_NAME]: validHex() };
 
   const result = await ensureSiteKeyForBoot({ siteDir, mode: "local", env, home, findSiteKeyDependentData });
 
   assert.equal(result, undefined);
   assert.equal(existsSync(path.join(home, "escaped.hex")), false);
   assert.equal(existsSync(path.join(home, ".tovu")), false);
-});
-
-test("ensureSiteKey: TOVU_SITE_KEY set but blank does not hide a valid TOVU_SITE_KEY — the legacy value is adopted", async () => {
-  const hex = validHex();
-  const env = { ...bareEnv(), TOVU_SITE_KEY: "", [LEGACY_SITE_KEY_ENV_VAR_NAME]: hex };
-
-  const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home, findSiteKeyDependentData });
-
-  assert.equal(result.action, "adopt");
-  assert.equal(readFileSync(perSiteFilePathIn(home, "site-1"), "utf8"), hex);
 });
 
 // ---------------------------------------------------------------------------
@@ -516,7 +505,7 @@ test("ensureSiteKey: a PGlite site holding sealed rows and no key anywhere → '
 
 test("ensureSiteKey: a PGlite site holding sealed rows, a different env key and a stamp → 'mismatch', never adopted", async () => {
   await buildPgliteSiteWithSealedRow(siteDir);
-  const env = { ...bareEnv(), [LEGACY_SITE_KEY_ENV_VAR_NAME]: validHex() };
+  const env = { ...bareEnv(), [SITE_KEY_ENV_VAR_NAME]: validHex() };
 
   const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home, findSiteKeyDependentData });
 
@@ -551,7 +540,7 @@ test("ensureSiteKey: a different env key comes first but the legacy file holds t
   writeSiteMeta(siteDir, { siteId: "meta-site-1", siteKeyFingerprint: fingerprintSiteKeyHex(rightHex) });
   buildSealedCiphertextDb(path.join(siteDir, "content.db"));
   writeLegacySharedKey(home, rightHex);
-  const env = { ...bareEnv(), [LEGACY_SITE_KEY_ENV_VAR_NAME]: validHex() };
+  const env = { ...bareEnv(), [SITE_KEY_ENV_VAR_NAME]: validHex() };
 
   const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home, findSiteKeyDependentData });
 
@@ -566,7 +555,7 @@ test("ensureSiteKey: a malformed env key comes first but the legacy file holds t
   writeSiteMeta(siteDir, { siteId: "meta-site-1", siteKeyFingerprint: fingerprintSiteKeyHex(rightHex) });
   buildSealedCiphertextDb(path.join(siteDir, "content.db"));
   writeLegacySharedKey(home, rightHex);
-  const env = { ...bareEnv(), [LEGACY_SITE_KEY_ENV_VAR_NAME]: "not-a-key" };
+  const env = { ...bareEnv(), [SITE_KEY_ENV_VAR_NAME]: "not-a-key" };
 
   const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home, findSiteKeyDependentData });
 
@@ -613,7 +602,7 @@ test("ensureSiteKey: a malformed per-site key, with the stamped key in the env v
   const rightHex = validHex();
   writeSiteMeta(siteDir, { siteId: "meta-site-1", siteKeyFingerprint: fingerprintSiteKeyHex(rightHex) });
   writePerSiteKey(home, "site-1", "not-a-key");
-  const env = { ...bareEnv(), [LEGACY_SITE_KEY_ENV_VAR_NAME]: rightHex };
+  const env = { ...bareEnv(), [SITE_KEY_ENV_VAR_NAME]: rightHex };
 
   const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home, findSiteKeyDependentData });
 
@@ -673,7 +662,7 @@ test("installSiteKey (local): the same key already in place → nothing backed u
 
 test("installSiteKey (production): an env key set to a different value → 'env-key-set', nothing written", async () => {
   writeSiteMeta(siteDir, { siteKeyId: "site-1" });
-  const env = { ...bareEnv(), [LEGACY_SITE_KEY_ENV_VAR_NAME]: validHex() };
+  const env = { ...bareEnv(), [SITE_KEY_ENV_VAR_NAME]: validHex() };
 
   const result = installSiteKey({ siteDir, hex: validHex(), mode: "production", env, home, cwd: siteDir });
 

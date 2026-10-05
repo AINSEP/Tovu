@@ -1,5 +1,5 @@
 import { LEGACY_SITE_KEY_FILENAME } from "#src/features/webhooks/site-key-sources";
-import { LEGACY_SITE_KEY_ENV_VAR_NAME, SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
+import { SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -116,7 +116,7 @@ test("C4: the retired notice switch does not silence the site-key notice", () =>
   assert.notEqual(lines.length, 0, "the renamed notice switch has no compatibility alias");
 });
 
-test("TOVU_SITE_KEY_NOTICE=off still probes for conflict and deprecation", () => {
+test("TOVU_SITE_KEY_NOTICE=off skips the probe entirely", () => {
   let probed = false;
   run({
     env: { TOVU_SITE_KEY_NOTICE: "off" },
@@ -125,7 +125,7 @@ test("TOVU_SITE_KEY_NOTICE=off still probes for conflict and deprecation", () =>
       return status();
     },
   });
-  assert.equal(probed, true);
+  assert.equal(probed, false);
 });
 
 test("any other TOVU_SITE_KEY_NOTICE value leaves the wall unchanged", () => {
@@ -135,7 +135,7 @@ test("any other TOVU_SITE_KEY_NOTICE value leaves the wall unchanged", () => {
   }
 });
 
-test("production still probes for deprecation", () => {
+test("production skips the probe entirely — the readiness gate owns that case", () => {
   let probed = false;
   run({
     mode: () => "production",
@@ -144,7 +144,7 @@ test("production still probes for deprecation", () => {
       return status();
     },
   });
-  assert.equal(probed, true);
+  assert.equal(probed, false);
 });
 
 test("a probe that throws is reported, never propagated onto the boot path", () => {
@@ -281,13 +281,10 @@ test("with no injected mode, production is read from the REAL runtime mode", () 
 
 test("with no injected probe, the REAL inspectSiteKeyMaterial is what decides", () => {
   const before = process.env[SITE_KEY_ENV_VAR_NAME];
-  const beforeLegacy = process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
   const beforeNotice = process.env.TOVU_SITE_KEY_NOTICE;
   const lines: string[] = [];
   try {
     delete process.env.TOVU_SITE_KEY_NOTICE;
-    // Use the preferred name alone: legacy material intentionally emits a deprecation notice.
-    delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
     // Throwaway synthetic material, never written to disk — only its presence is asserted on.
     process.env[SITE_KEY_ENV_VAR_NAME] = "a".repeat(64);
     warnIfNoSiteKeyAtBoot({ mode: () => "local", log: (l) => lines.push(l) });
@@ -302,26 +299,7 @@ test("with no injected probe, the REAL inspectSiteKeyMaterial is what decides", 
     else process.env.TOVU_SITE_KEY_NOTICE = beforeNotice;
     if (before === undefined) delete process.env[SITE_KEY_ENV_VAR_NAME];
     else process.env[SITE_KEY_ENV_VAR_NAME] = before;
-    if (beforeLegacy === undefined) delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
-    else process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = beforeLegacy;
   }
-});
-
-test("legacy site-key env emits exactly one deprecation line, including quiet startup", () => {
-  const lines: string[] = [];
-  warnIfNoSiteKeyAtBoot({ mode: () => "local", env: { TOVU_SITE_KEY_NOTICE: "off" },
-    inspect: () => ({ active: true, source: "env", keyFilePath: "", envVarName: "legacy", deprecated: true }),
-    log: line => lines.push(line) });
-  assert.equal(lines.length, 1);
-  assert.match(lines[0]!, /deprecated.*TOVU_SITE_KEY/);
-});
-test("conflicting site-key env warns locally even when quiet startup is enabled", () => {
-  const lines: string[] = [];
-  warnIfNoSiteKeyAtBoot({ mode: () => "local", env: { TOVU_SITE_KEY_NOTICE: "off" },
-    inspect: () => ({ active: false, source: "env", keyFilePath: "", invalid: true, reason: "env-conflict" }),
-    log: line => lines.push(line) });
-  assert.equal(lines.length, 1);
-  assert.match(lines[0]!, /conflict/);
 });
 
 // F3588: every test above injects `log` (or the AST pins only the call site), so nothing proved the

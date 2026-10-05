@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 
-import { clearBlankSiteKeyEnv, LEGACY_SITE_KEY_ENV_VAR_NAME, planStart, probePortFree, resolveStartHost, startQuietEnvDefaults } from "../start.mjs";
+import { clearBlankSiteKeyEnv, planStart, probePortFree, resolveStartHost, startQuietEnvDefaults } from "../start.mjs";
 
 /**
  * @file `planStart` — the pure port/env decision `development/scripts/start.mjs`'s `main()` makes
@@ -236,7 +236,7 @@ test("main supplies the imported server with loopback binding and the final env 
           lifecycleLog: process.env.TOVU_DAEMON_LIFECYCLE_LOG,
         }));
     `);
-    const env = { ...process.env, TOVU_SITE_KEY: "", [LEGACY_SITE_KEY_ENV_VAR_NAME]: "" };
+    const env = { ...process.env, TOVU_SITE_KEY: "" };
     for (const key of ["TOVU_HOST", "PORT", "TOVU_PUBLIC_URL", "TOVU_SITE_KEY_NOTICE", "TOVU_DAEMON_LIFECYCLE_LOG", "TOVU_START_AUTO_PORT"]) delete env[key];
     if (env.NODE_V8_COVERAGE) env.NODE_V8_COVERAGE = path.join(fixture, "coverage");
     const child = spawnSync(process.execPath, ["--experimental-test-module-mocks", "runner.mjs"], {
@@ -278,15 +278,13 @@ test("unparsable TOVU_PUBLIC_URL → refuses auto-pick without probing or changi
   assert.deepEqual(result, { port: 3000, envOverrides: {}, envRemovals: [], refuse: "unparsable-public-url" });
 });
 
-for (const name of ["TOVU_SITE_KEY", LEGACY_SITE_KEY_ENV_VAR_NAME]) {
-  test(`clearBlankSiteKeyEnv clears whitespace under ${name} and preserves set keys`, () => {
-    for (const blank of ["", " ", "\t\n"]) {
-      const env = { [name]: blank };
-      clearBlankSiteKeyEnv(env);
-      assert.equal(name in env, false);
-    }
-    const env = { [name]: "ab".repeat(32) };
+test("clearBlankSiteKeyEnv clears whitespace under TOVU_SITE_KEY and preserves a set key", () => {
+  for (const blank of ["", " ", "\t\n"]) {
+    const env = { TOVU_SITE_KEY: blank };
     clearBlankSiteKeyEnv(env);
-    assert.equal(env[name], "ab".repeat(32));
-  });
-}
+    assert.equal("TOVU_SITE_KEY" in env, false);
+  }
+  const env = { TOVU_SITE_KEY: "ab".repeat(32) };
+  clearBlankSiteKeyEnv(env);
+  assert.equal(env.TOVU_SITE_KEY, "ab".repeat(32));
+});

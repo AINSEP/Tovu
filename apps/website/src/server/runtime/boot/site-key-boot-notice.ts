@@ -72,24 +72,19 @@ export function warnIfNoSiteKeyAtBoot(deps: SiteKeyBootNoticeDeps = {}): void {
   const quiet = env.TOVU_SITE_KEY_NOTICE === "off";
 
   const mode = (deps.mode ?? resolveRuntimeMode)();
+  if (quiet || mode === "production") return;
 
   const log = deps.log ?? ((line: string) => console.warn(line));
   let status: SiteKeyStatus;
   try {
     status = deps.inspect ? deps.inspect() : inspectSiteKeyMaterial({ sources: siteKeySources({ mode, env, home: homedir(), cwd: process.cwd() }) }, { env: () => env });
   } catch {
-    if (quiet || mode === "production") return;
     // Reported rather than rethrown: this runs on the boot path, and "I could not check" is still
     // worth saying out loud — it is the same class of surprise as "there is no key".
     safely(log, ["[site-key] could not determine whether this server has usable site key material."]);
     return;
   }
-  if (status.reason === "env-conflict") {
-    safely(log, ["[site-key] environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed."]);
-    return;
-  }
-  if (status.deprecated) safely(log, ["[site-key] the legacy site key environment variable is deprecated. Set TOVU_SITE_KEY to the same value, then remove the legacy variable."]);
-  if (status.active || quiet || mode === "production") return;
+  if (status.active) return;
 
   safely(log, siteKeyBootNoticeLines(status));
 }

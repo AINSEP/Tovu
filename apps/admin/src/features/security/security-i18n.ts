@@ -22,7 +22,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "A key is created automatically when this site starts.": "A key is created automatically when this site starts.",
 
     "Active: environment variable {name}": "Active: environment variable {name}",
-    "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.": "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.",
 
     "Paste your old site key": "Paste your old site key",
     "They were locked with a site key that isn't on this computer.": "They were locked with a site key that isn't on this computer.",
@@ -62,7 +61,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Its plugin is off or missing. You can still remove saved tokens.": "Su plugin está desactivado o no existe. Aún puedes quitar los tokens guardados.",
 
     "Active: environment variable {name}": "Activa: variable de entorno {name}",
-    "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.": "Las variables de entorno de la clave del sitio no coinciden. Configura TOVU_SITE_KEY con la clave existente y elimina la variable obsoleta; no se cambió nada.",
 
     "Paste your old site key": "Pega tu antigua clave del sitio",
     "They were locked with a site key that isn't on this computer.": "Se protegieron con una clave del sitio que no está en este equipo.",
@@ -102,7 +100,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Its plugin is off or missing. You can still remove saved tokens.": "Sein Plugin ist ausgeschaltet oder fehlt. Gespeicherte Token können Sie weiterhin entfernen.",
 
     "Active: environment variable {name}": "Aktiv: Umgebungsvariable {name}",
-    "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.": "Die Umgebungsvariablen für den Website-Schlüssel widersprechen sich. Setzen Sie TOVU_SITE_KEY auf den vorhandenen Schlüssel und entfernen Sie die veraltete Variable; nichts wurde geändert.",
 
     "Paste your old site key": "Fügen Sie Ihren bisherigen Website-Schlüssel ein",
     "They were locked with a site key that isn't on this computer.": "Sie wurden mit einem Website-Schlüssel geschützt, der auf diesem Computer fehlt.",
@@ -142,7 +139,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Its plugin is off or missing. You can still remove saved tokens.": "Son plugin est désactivé ou absent. Vous pouvez toujours supprimer les jetons enregistrés.",
 
     "Active: environment variable {name}": "Active : variable d'environnement {name}",
-    "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.": "Les variables d'environnement de la clé du site sont en conflit. Définissez TOVU_SITE_KEY avec la clé existante et supprimez la variable obsolète ; rien n'a été modifié.",
 
     "Paste your old site key": "Collez votre ancienne clé du site",
     "They were locked with a site key that isn't on this computer.": "Elles ont été protégées avec une clé du site absente de cet ordinateur.",
@@ -182,7 +178,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Its plugin is off or missing. You can still remove saved tokens.": "Il suo plugin è disattivato o mancante. Puoi comunque rimuovere i token salvati.",
 
     "Active: environment variable {name}": "Attiva: variabile d'ambiente {name}",
-    "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.": "Le variabili d'ambiente della chiave del sito sono in conflitto. Imposta TOVU_SITE_KEY sulla chiave esistente e rimuovi la variabile obsoleta; nulla è stato modificato.",
 
     "Paste your old site key": "Incolla la tua vecchia chiave del sito",
     "They were locked with a site key that isn't on this computer.": "Sono state protette con una chiave del sito che non è su questo computer.",
@@ -222,7 +217,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Its plugin is off or missing. You can still remove saved tokens.": "O plugin dele está desativado ou ausente. Você ainda pode remover os tokens salvos.",
 
     "Active: environment variable {name}": "Ativa: variável de ambiente {name}",
-    "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.": "As variáveis de ambiente da chave do site estão em conflito. Defina TOVU_SITE_KEY com a chave existente e remova a variável obsoleta; nada foi alterado.",
 
     "Paste your old site key": "Cole sua antiga chave do site",
     "They were locked with a site key that isn't on this computer.": "Foram protegidas com uma chave do site que não está neste computador.",
@@ -262,7 +256,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Its plugin is off or missing. You can still remove saved tokens.": "Jego wtyczka jest wyłączona lub jej brak. Nadal możesz usunąć zapisane tokeny.",
 
     "Active: environment variable {name}": "Aktywny: zmienna środowiskowa {name}",
-    "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.": "Zmienne środowiskowe klucza witryny są sprzeczne. Ustaw TOVU_SITE_KEY na istniejący klucz i usuń przestarzałą zmienną; niczego nie zmieniono.",
 
     "Paste your old site key": "Wklej poprzedni klucz witryny",
     "They were locked with a site key that isn't on this computer.": "Zostały zabezpieczone kluczem witryny, którego nie ma na tym komputerze.",
@@ -302,7 +295,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Its plugin is off or missing. You can still remove saved tokens.": "A bővítménye ki van kapcsolva vagy hiányzik. A mentett tokeneket továbbra is eltávolíthatja.",
 
     "Active: environment variable {name}": "Aktív: {name} környezeti változó",
-    "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.": "A webhelykulcs környezeti változói ütköznek. Állítsa a TOVU_SITE_KEY értékét a meglévő kulcsra, és távolítsa el az elavult változót; semmi sem változott.",
 
     "Paste your old site key": "Illessze be a régi webhelykulcsát",
     "They were locked with a site key that isn't on this computer.": "Olyan webhelykulccsal védték őket, amely nincs ezen a számítógépen.",
@@ -380,7 +372,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Its plugin is off or missing. You can still remove saved tokens.": "Eklentisi kapalı veya eksik. Kayıtlı belirteçleri yine de kaldırabilirsiniz.",
 
     "Active: environment variable {name}": "Etkin: {name} ortam değişkeni",
-    "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.": "Site anahtarı ortam değişkenleri çakışıyor. TOVU_SITE_KEY değerini mevcut anahtara ayarlayın ve kullanımdan kaldırılan değişkeni silin; hiçbir şey değiştirilmedi.",
 
     "Paste your old site key": "Eski site anahtarınızı yapıştırın",
     "They were locked with a site key that isn't on this computer.": "Bu bilgisayarda olmayan bir site anahtarıyla korundular.",
@@ -458,7 +449,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Its plugin is off or missing. You can still remove saved tokens.": "Его плагин отключён или отсутствует. Сохранённые токены по-прежнему можно удалить.",
 
     "Active: environment variable {name}": "Активен: переменная окружения {name}",
-    "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.": "Переменные окружения ключа сайта конфликтуют. Задайте TOVU_SITE_KEY существующий ключ и удалите устаревшую переменную; ничего не изменено.",
 
     "Paste your old site key": "Вставьте прежний ключ сайта",
     "They were locked with a site key that isn't on this computer.": "Они защищены ключом сайта, которого нет на этом компьютере.",
@@ -536,7 +526,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Its plugin is off or missing. You can still remove saved tokens.": "Його плагін вимкнено або він відсутній. Збережені токени все одно можна видалити.",
 
     "Active: environment variable {name}": "Активний: змінна середовища {name}",
-    "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.": "Змінні середовища ключа сайту конфліктують. Задайте TOVU_SITE_KEY наявний ключ і видаліть застарілу змінну; нічого не змінено.",
 
     "Paste your old site key": "Вставте попередній ключ сайту",
     "They were locked with a site key that isn't on this computer.": "Їх захищено ключем сайту, якого немає на цьому комп’ютері.",
@@ -614,7 +603,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Its plugin is off or missing. You can still remove saved tokens.": "Pluginnya nonaktif atau tidak ada. Anda tetap dapat menghapus token yang tersimpan.",
 
     "Active: environment variable {name}": "Aktif: variabel lingkungan {name}",
-    "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.": "Variabel lingkungan kunci situs bertentangan. Atur TOVU_SITE_KEY ke kunci yang ada dan hapus variabel lama; tidak ada yang diubah.",
 
     "Paste your old site key": "Tempel kunci situs lama Anda",
     "They were locked with a site key that isn't on this computer.": "Kredensial dilindungi dengan kunci situs yang tidak ada di komputer ini.",
@@ -692,7 +680,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Its plugin is off or missing. You can still remove saved tokens.": "المكوّن الإضافي الخاص به متوقف أو مفقود. لا يزال بإمكانك إزالة الرموز المحفوظة.",
 
     "Active: environment variable {name}": "نشط: متغير البيئة {name}",
-    "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.": "متغيرات البيئة لمفتاح الموقع متعارضة. اضبط TOVU_SITE_KEY على المفتاح الحالي واحذف المتغير المهمل؛ لم يتغير شيء.",
 
     "Paste your old site key": "الصق مفتاح الموقع القديم",
     "They were locked with a site key that isn't on this computer.": "تمت حمايتها بمفتاح موقع غير موجود على هذا الكمبيوتر.",
@@ -770,7 +757,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Its plugin is off or missing. You can still remove saved tokens.": "افزونهٔ آن خاموش است یا وجود ندارد. همچنان می‌توانید توکن‌های ذخیره‌شده را حذف کنید.",
 
     "Active: environment variable {name}": "فعال: متغیر محیطی {name}",
-    "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.": "متغیرهای محیطی کلید سایت با هم تعارض دارند. TOVU_SITE_KEY را روی کلید موجود تنظیم کنید و متغیر منسوخ را حذف کنید؛ چیزی تغییر نکرد.",
 
     "Paste your old site key": "کلید قبلی سایت را جای‌گذاری کنید",
     "They were locked with a site key that isn't on this computer.": "آن‌ها با کلید سایتی محافظت شده‌اند که روی این رایانه نیست.",
@@ -848,7 +834,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Its plugin is off or missing. You can still remove saved tokens.": "इसका प्लगइन बंद है या मौजूद नहीं है। आप सहेजे गए टोकन अब भी हटा सकते हैं।",
 
     "Active: environment variable {name}": "सक्रिय: परिवेश चर {name}",
-    "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.": "साइट कुंजी के परिवेश चरों में विरोध है। TOVU_SITE_KEY को मौजूदा कुंजी पर सेट करें और पुराने चर को हटा दें; कुछ भी नहीं बदला गया।",
 
     "Paste your old site key": "अपनी पुरानी साइट कुंजी पेस्ट करें",
     "They were locked with a site key that isn't on this computer.": "वे ऐसी साइट कुंजी से सुरक्षित हैं जो इस कंप्यूटर पर नहीं है।",
@@ -926,7 +911,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Its plugin is off or missing. You can still remove saved tokens.": "এর প্লাগইন বন্ধ বা অনুপস্থিত। আপনি এখনও সংরক্ষিত টোকেন সরাতে পারেন।",
 
     "Active: environment variable {name}": "সক্রিয়: পরিবেশ ভেরিয়েবল {name}",
-    "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.": "সাইট কী-এর পরিবেশ ভেরিয়েবলগুলোতে দ্বন্দ্ব আছে। TOVU_SITE_KEY-তে বিদ্যমান কী সেট করুন এবং পুরোনো ভেরিয়েবল সরান; কিছুই পরিবর্তন হয়নি।",
 
     "Paste your old site key": "আপনার পুরোনো সাইট কী পেস্ট করুন",
     "They were locked with a site key that isn't on this computer.": "এগুলো এমন একটি সাইট কী দিয়ে সুরক্ষিত যা এই কম্পিউটারে নেই।",
@@ -1004,7 +988,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Its plugin is off or missing. You can still remove saved tokens.": "اس کا پلگ ان بند ہے یا موجود نہیں۔ آپ اب بھی محفوظ کردہ ٹوکن ہٹا سکتے ہیں۔",
 
     "Active: environment variable {name}": "فعال: ماحول متغیر {name}",
-    "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.": "سائٹ کی کلید کے ماحول متغیرات میں تضاد ہے۔ TOVU_SITE_KEY کو موجودہ کلید پر مقرر کریں اور متروک متغیر ہٹا دیں؛ کچھ تبدیل نہیں ہوا۔",
 
     "Paste your old site key": "اپنی پرانی سائٹ کی کلید پیسٹ کریں",
     "They were locked with a site key that isn't on this computer.": "انہیں سائٹ کی ایسی کلید سے محفوظ کیا گیا جو اس کمپیوٹر پر نہیں ہے۔",
@@ -1082,7 +1065,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Its plugin is off or missing. You can still remove saved tokens.": "このプラグインはオフか、見つかりません。保存済みのトークンは引き続き削除できます。",
 
     "Active: environment variable {name}": "有効: 環境変数 {name}",
-    "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.": "サイトキーの環境変数が競合しています。TOVU_SITE_KEY に既存のキーを設定し、旧変数を削除してください。何も変更されていません。",
 
     "Paste your old site key": "以前のサイトキーを貼り付けてください",
     "They were locked with a site key that isn't on this computer.": "このコンピューターにないサイトキーで保護されています。",
@@ -1160,7 +1142,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Its plugin is off or missing. You can still remove saved tokens.": "플러그인이 꺼져 있거나 없습니다. 저장된 토큰은 계속 제거할 수 있습니다.",
 
     "Active: environment variable {name}": "활성: 환경 변수 {name}",
-    "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.": "사이트 키 환경 변수가 충돌합니다. TOVU_SITE_KEY를 기존 키로 설정하고 이전 변수를 제거하세요. 아무것도 변경되지 않았습니다.",
 
     "Paste your old site key": "기존 사이트 키를 붙여넣으세요",
     "They were locked with a site key that isn't on this computer.": "이 컴퓨터에 없는 사이트 키로 보호되었습니다.",
@@ -1238,7 +1219,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Its plugin is off or missing. You can still remove saved tokens.": "ปลั๊กอินของผู้ให้บริการนี้ปิดอยู่หรือไม่มีอยู่ คุณยังคงลบโทเค็นที่บันทึกไว้ได้",
 
     "Active: environment variable {name}": "ใช้งานอยู่: ตัวแปรสภาพแวดล้อม {name}",
-    "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.": "ตัวแปรสภาพแวดล้อมของคีย์เว็บไซต์ขัดแย้งกัน ตั้งค่า TOVU_SITE_KEY เป็นคีย์ที่มีอยู่และลบตัวแปรเก่า ไม่มีการเปลี่ยนแปลงใด ๆ",
 
     "Paste your old site key": "วางคีย์เว็บไซต์เดิมของคุณ",
     "They were locked with a site key that isn't on this computer.": "ข้อมูลเหล่านี้ถูกป้องกันด้วยคีย์เว็บไซต์ที่ไม่มีในคอมพิวเตอร์นี้",
@@ -1316,7 +1296,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Its plugin is off or missing. You can still remove saved tokens.": "其插件已关闭或缺失。你仍可移除已保存的令牌。",
 
     "Active: environment variable {name}": "已启用：环境变量 {name}",
-    "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.": "站点密钥环境变量冲突。请将 TOVU_SITE_KEY 设置为现有密钥并删除旧变量；未做任何更改。",
 
     "Paste your old site key": "粘贴原来的站点密钥",
     "They were locked with a site key that isn't on this computer.": "它们由此计算机上没有的站点密钥保护。",
@@ -1394,7 +1373,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Its plugin is off or missing. You can still remove saved tokens.": "其外掛已關閉或不存在。你仍可移除已儲存的權杖。",
 
     "Active: environment variable {name}": "已啟用：環境變數 {name}",
-    "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.": "網站金鑰環境變數衝突。請將 TOVU_SITE_KEY 設為現有金鑰並刪除舊變數；未做任何變更。",
 
     "Paste your old site key": "貼上原本的網站金鑰",
     "They were locked with a site key that isn't on this computer.": "它們由這台電腦上沒有的網站金鑰保護。",

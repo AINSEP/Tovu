@@ -185,7 +185,6 @@ export interface SiteKeyStateInput {
  * @complexity O(1) — a fixed sequence of comparisons over already-computed inputs; no I/O.
  */
 export function siteKeyState(input: SiteKeyStateInput): SiteKeyState {
-  if (input.reason === "env-conflict") return "env-conflict";
   if (input.invalid) return "invalid";
   if (input.active) {
     return input.metaFingerprint !== undefined && input.metaFingerprint !== input.fingerprint
@@ -361,8 +360,7 @@ export interface SiteKeyStoreInput {
 /** `site-key-ensure.ts`'s `installSiteKey` result, restated structurally (see {@link SiteKeyEnsureOutcome}). */
 export type SiteKeyInstallOutcome =
   | { readonly outcome: "installed"; readonly keyFilePath: string; readonly fingerprint: string }
-  | { readonly outcome: "env-key-set" }
-  | { readonly outcome: "env-conflict" };
+  | { readonly outcome: "env-key-set" };
 
 /** What the key verbs need from the composition root: `site-key-ensure.ts`'s writers (boot's
  *  `ensureSiteKeyForSite`, recovery's `installSiteKey`/`mintSiteKeyHex`) and the sealed-value checks
@@ -395,7 +393,6 @@ const REFUSALS = {
     "This site has saved credentials locked with a site key that is not on this computer. A new site key could not open them, so none was created. Put the original site key back to unlock them.",
   KEY_MISMATCH:
     "The site key on this computer is not the one this site's saved credentials were locked with, so nothing was changed. Put the original site key back to unlock them.",
-  ENV_CONFLICT: "Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.",
   KEY_INVALID: "A site key is set on this computer but is not a valid key, so nothing was changed. Fix or remove it, then try again.",
   SITE_META_UNREADABLE: "This site's .site-meta.json cannot be read. Repair this site first; no site key was written.",
   SITE_KEY_INVALID: "That is not a site key. A site key is 64 characters of 0-9 and a-f.",
@@ -431,8 +428,6 @@ function success(outcome: GenerateOutcome, fingerprint: string, keyFilePath: str
  * @complexity O(1) file reads plus at most one key-dependent-data scan.
  */
 async function generateSiteKey(deps: AdminSiteKeyDeps, siteKey: SiteKeyKeyWriter): Promise<GenerateResult> {
-  const initialStatus = inspectSiteKeyMaterial({ sources: resolveSiteKeySources(deps).sources });
-  if (initialStatus.reason === "env-conflict") return refusal("ENV_CONFLICT");
   const hasData = (): Promise<boolean> => siteHasKeyDependentData(deps);
   const mode = resolveRuntimeMode();
   const ensured = await siteKey.ensureSiteKeyForSite({ siteDir: deps.siteBinding.dir, findSiteKeyDependentData: hasData });
@@ -505,7 +500,6 @@ async function importSiteKey(deps: AdminSiteKeyDeps, siteKey: SiteKeyKeyWriter, 
   const siteDir = deps.siteBinding.dir;
   const fingerprint = fingerprintSiteKeyHex(parsed.hex);
   const current = revealSiteKeyMaterial({ sources: resolveSiteKeySources(deps).sources });
-  if (current.reason === "env-conflict") return refusal("ENV_CONFLICT");
   if (current.source === "env" && current.fingerprint !== fingerprint) return refusal("ENV_KEY_SET");
   const store = { siteDir, contentKernel: deps.contentKernel, hex: parsed.hex };
   const check = await siteKey.checkKey(store);
@@ -521,7 +515,6 @@ async function importSiteKey(deps: AdminSiteKeyDeps, siteKey: SiteKeyKeyWriter, 
   }
   const installed = siteKey.installSiteKey({ siteDir, hex: parsed.hex });
   if (installed === undefined) return refusal("SITE_META_UNREADABLE");
-  if (installed.outcome === "env-conflict") return refusal("ENV_CONFLICT");
   if (installed.outcome === "env-key-set") return refusal("ENV_KEY_SET");
   return { status: 200, body: { outcome: "unlocked", fingerprint, keyFilePath: installed.keyFilePath, resealed, restorePointId } };
 }
@@ -543,7 +536,6 @@ interface StartFreshPlan {
  *  @complexity one sealed-value scan plus one webhook list. */
 async function planStartFresh(deps: AdminSiteKeyDeps, siteKey: SiteKeyKeyWriter): Promise<StartFreshPlan | RouteResult> {
   const current = revealSiteKeyMaterial({ sources: resolveSiteKeySources(deps).sources });
-  if (current.reason === "env-conflict") return refusal("ENV_CONFLICT");
   if (current.source === "env" && current.hex === undefined) return refusal("ENV_KEY_SET");
   const hex = current.hex ?? siteKey.mintSiteKeyHex();
   const check = await siteKey.checkKey({ siteDir: deps.siteBinding.dir, contentKernel: deps.contentKernel, hex });
@@ -593,7 +585,6 @@ async function startFresh(deps: AdminSiteKeyDeps, siteKey: SiteKeyKeyWriter, inp
   const { discarded, kept } = await siteKey.discardNotOpening({ siteDir: deps.siteBinding.dir, contentKernel: deps.contentKernel, hex: plan.hex });
   const installed = siteKey.installSiteKey({ siteDir: deps.siteBinding.dir, hex: plan.hex });
   if (installed === undefined) return refusal("SITE_META_UNREADABLE");
-  if (installed.outcome === "env-conflict") return refusal("ENV_CONFLICT");
   if (installed.outcome === "env-key-set") return refusal("ENV_KEY_SET");
   return {
     status: 200,

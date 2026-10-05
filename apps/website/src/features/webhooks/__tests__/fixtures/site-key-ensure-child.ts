@@ -1,4 +1,3 @@
-import { LEGACY_SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
 import { existsSync, writeFileSync } from "node:fs";
 import { setTimeout as delay } from "node:timers/promises";
 
@@ -24,7 +23,6 @@ if (!home || !siteDir || !siteKeyId || !outputFilePath || !releaseFilePath) {
 
 const env = { ...process.env };
 delete env.TOVU_SITE_KEY;
-delete env[LEGACY_SITE_KEY_ENV_VAR_NAME];
 delete env.TOVU_RUNTIME_MODE;
 
 const result = await ensureSiteKey({ siteDir, siteKeyId, mode: "local", env, home,

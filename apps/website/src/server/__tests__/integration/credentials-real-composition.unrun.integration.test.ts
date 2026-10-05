@@ -25,7 +25,7 @@ import { bootSite, expectJson, send, SITE_DIALECTS, type BootedSite } from "../h
  */
 
 const SITE_KEY_HEX = "a1".repeat(32);
-const SITE_KEY_VARS = ["TOVU_SITE_KEY", "TOVU_INTEGRATIONS_ROOT_KEY"] as const;
+const SITE_KEY_VARS = ["TOVU_SITE_KEY"] as const;
 
 function useSiteKey(t: TestContext): void {
   const saved = SITE_KEY_VARS.map((name) => [name, process.env[name]] as const);

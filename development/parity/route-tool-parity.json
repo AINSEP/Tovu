@@ -1203,22 +1203,22 @@
       "gap": "in progress: system_read_server_logs"
     },
     "GET /api/admin/v1/workspaces/:workspaceId/system/site-key": {
-      "chatless": "intentional:site root key ceremony: secret key material, owner-only, never through the model"
+      "chatless": "intentional:site key ceremony: secret key material, owner-only, never through the model"
     },
     "POST /api/admin/v1/workspaces/:workspaceId/system/site-key/generate": {
-      "chatless": "intentional:site root key ceremony: secret key material, owner-only, never through the model"
+      "chatless": "intentional:site key ceremony: secret key material, owner-only, never through the model"
     },
     "POST /api/admin/v1/workspaces/:workspaceId/system/site-key/import": {
-      "chatless": "intentional:site root key ceremony: secret key material, owner-only, never through the model"
+      "chatless": "intentional:site key ceremony: secret key material, owner-only, never through the model"
     },
     "POST /api/admin/v1/workspaces/:workspaceId/system/site-key/reveal": {
-      "chatless": "intentional:site root key ceremony: secret key material, owner-only, never through the model"
+      "chatless": "intentional:site key ceremony: secret key material, owner-only, never through the model"
     },
     "GET /api/admin/v1/workspaces/:workspaceId/system/site-key/start-fresh": {
-      "chatless": "intentional:site root key ceremony: secret key material, owner-only, never through the model"
+      "chatless": "intentional:site key ceremony: secret key material, owner-only, never through the model"
     },
     "POST /api/admin/v1/workspaces/:workspaceId/system/site-key/start-fresh": {
-      "chatless": "intentional:site root key ceremony: secret key material, owner-only, never through the model"
+      "chatless": "intentional:site key ceremony: secret key material, owner-only, never through the model"
     },
     "GET /api/admin/v1/workspaces/:workspaceId/system/sites": {
       "tools": [

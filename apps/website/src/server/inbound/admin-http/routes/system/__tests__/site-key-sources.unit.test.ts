@@ -1,5 +1,4 @@
 import { LEGACY_SITE_KEY_FILENAME } from "#src/features/webhooks/site-key-sources";
-import { LEGACY_SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os, { homedir, tmpdir } from "node:os";
@@ -119,12 +118,12 @@ test("resolveSiteKeySources: production mode never has a per-site candidate, eve
 });
 
 
-test("resolveSiteKeySources: the new env name wins only when nonblank", (t) => {
+test("resolveSiteKeySources: the env candidate keeps its place whether TOVU_SITE_KEY is set or blank", (t) => {
   const dir = mkdtempSync(join(tmpdir(), "tovu-site-key-sources-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   writeFileSync(join(dir, ".site-meta.json"), JSON.stringify({ siteId: "site-abc" }));
-  for (const [value, envVarName] of [["new-key", "TOVU_SITE_KEY"], [" \t ", "TOVU_SITE_KEY"]]) {
-    assert.deepEqual(resolveSiteKeySources(depsFor(dir), { TOVU_RUNTIME_MODE: "local", TOVU_SITE_KEY: value, [LEGACY_SITE_KEY_ENV_VAR_NAME]: "old-key" }).sources, [
+  for (const value of ["new-key", " \t "]) {
+    assert.deepEqual(resolveSiteKeySources(depsFor(dir), { TOVU_RUNTIME_MODE: "local", TOVU_SITE_KEY: value }).sources, [
       { kind: "per-site-file", path: `${SOURCE_HOME}/.tovu/site-keys/site-abc.hex` },
       { kind: "env" },
       { kind: "legacy-shared-file", path: `${SOURCE_HOME}/.tovu/${LEGACY_SITE_KEY_FILENAME}` },

@@ -21,6 +21,6 @@ count_marker() { grep_ok -hIc "$1" | paste -sd+ - | bc; }
 # keyring.env.test.ts known-answer doc line, and the sealing-wire-format pinned test's independent
 # derivation). The plan said 3; the pinned test needs the literal to stay an independent check.
 F=$(count_marker 'site-key-''frozen:'); echo "frozen: $F"; [ "$F" -eq 4 ] || { echo "frozen=$F want 4"; exit 1; }
-L=$(count_marker 'site-key-''legacy:'); echo "legacy: $L"; [ "$L" -eq "${SITE_KEY_LEGACY_EXPECTED:-16}" ] || { echo "legacy=$L"; exit 1; }
+L=$(count_marker 'site-key-''legacy:'); echo "legacy: $L"; [ "$L" -eq "${SITE_KEY_LEGACY_EXPECTED:-13}" ] || { echo "legacy=$L"; exit 1; }
 P=$(grep_ok -lI "TOVU_SITE_KEY" | wc -l | tr -d ' '); [ "$P" -gt 0 ] || { echo "positive control failed"; exit 1; }
 echo OK

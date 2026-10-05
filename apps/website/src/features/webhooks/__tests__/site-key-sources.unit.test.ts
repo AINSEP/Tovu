@@ -4,17 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import {
-  SITE_KEY_ENV_VAR_NAME,
-  LEGACY_SITE_KEY_ENV_VAR_NAME,
-  LEGACY_SITE_KEY_FILENAME,
-  resolveSiteKeyEnv,
-  resolveSiteKeyFingerprint,
-  resolveSiteKeyId,
-  siteKeyFilePathFrom,
-  siteKeySources,
-  siteKeySourcesForSiteDir,
-} from "../site-key-sources.js";
+import { SITE_KEY_ENV_VAR_NAME, LEGACY_SITE_KEY_FILENAME, resolveSiteKeyEnv, resolveSiteKeyFingerprint, resolveSiteKeyId, siteKeyFilePathFrom, siteKeySources, siteKeySourcesForSiteDir } from "../site-key-sources.js";
 
 /**
  * @file Site-key plan §A.1 slice 1 — `siteKeySources` is a pure ordering function: given a mode,
@@ -86,7 +76,7 @@ test("an empty-string siteKeyId is treated the same as missing — no per-site c
   );
 });
 
-test("the env candidate prefers TOVU_SITE_KEY over the legacy name when it is already set", () => {
+test("the env candidate resolves TOVU_SITE_KEY", () => {
   const sources = siteKeySources({
     mode: "local",
     env: { [SITE_KEY_ENV_VAR_NAME]: "aa".repeat(32) },
@@ -97,18 +87,14 @@ test("the env candidate prefers TOVU_SITE_KEY over the legacy name when it is al
 
   const envSource = sources.find((s) => s.kind === "env");
   assert.deepEqual(envSource, { kind: "env" });
+  assert.deepEqual(resolveSiteKeyEnv({ env: { [SITE_KEY_ENV_VAR_NAME]: "aa".repeat(32) } }), { kind: "ok", value: "aa".repeat(32), varName: "TOVU_SITE_KEY" });
 });
 
-test("the env candidate names the legacy var when only it is set — an unmodified install still resolves", () => {
-  const sources = siteKeySources({
-    mode: "production",
-    env: { [LEGACY_SITE_KEY_ENV_VAR_NAME]: "bb".repeat(32) },
-    home: HOME,
-    cwd: CWD,
-  });
-
-  const envSource = sources.find((s) => s.kind === "env");
-  assert.deepEqual(envSource, { kind: "env" });
+test("the pre-rename env name is no longer read at all — only TOVU_SITE_KEY resolves", () => {
+  // Built from parts so the site-key naming guard does not flag this regression check itself.
+  const removedName = ["TOVU", "INTEGRATIONS", "ROOT", "KEY"].join("_");
+  assert.deepEqual(resolveSiteKeyEnv({ env: { [removedName]: "bb".repeat(32) } }), { kind: "absent" });
+  assert.deepEqual(resolveSiteKeyEnv({ env: { [removedName]: "bb".repeat(32), [SITE_KEY_ENV_VAR_NAME]: "aa".repeat(32) } }), { kind: "ok", value: "aa".repeat(32), varName: "TOVU_SITE_KEY" });
 });
 
 test("every non-env source carries a path and no envVarName; the env source carries envVarName and no path", () => {
@@ -265,16 +251,8 @@ test("siteKeySources: a separator-bearing siteKeyId drops the per-site candidate
   );
 });
 
-test("the env candidate falls back to the legacy name when TOVU_SITE_KEY is set but BLANK — blank means absent, it must not shadow a real legacy value", () => {
+test("a BLANK TOVU_SITE_KEY resolves as absent, not as a present-but-invalid key", () => {
   for (const blank of ["", "   "]) {
-    const sources = siteKeySources({
-      mode: "local",
-      env: { [SITE_KEY_ENV_VAR_NAME]: blank, [LEGACY_SITE_KEY_ENV_VAR_NAME]: "a".repeat(64) },
-      home: "/home/u",
-      cwd: "/w",
-      siteKeyId: "site-1",
-    });
-    const envSource = sources.find((source) => source.kind === "env");
-    assert.deepEqual(resolveSiteKeyEnv({ env: { [SITE_KEY_ENV_VAR_NAME]: blank, [LEGACY_SITE_KEY_ENV_VAR_NAME]: "aa".repeat(32) } }), { kind: "ok", value: "aa".repeat(32), varName: LEGACY_SITE_KEY_ENV_VAR_NAME, deprecated: true });
+    assert.deepEqual(resolveSiteKeyEnv({ env: { [SITE_KEY_ENV_VAR_NAME]: blank } }), { kind: "absent" });
   }
 });

@@ -1,4 +1,4 @@
-import { LEGACY_SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
+import { SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -25,14 +25,14 @@ import { bootAuthenticated } from "../helpers/http-test-server.js";
 function isolateHomeDir(t: import("node:test").TestContext): string {
   const dir = mkdtempSync(path.join(tmpdir(), "tovu-deployment-overview-test-home-"));
   const originalHome = process.env.HOME;
-  const originalSiteKey = process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
+  const originalSiteKey = process.env[SITE_KEY_ENV_VAR_NAME];
   process.env.HOME = dir;
-  delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
+  delete process.env[SITE_KEY_ENV_VAR_NAME];
   t.after(() => {
     if (originalHome === undefined) delete process.env.HOME;
     else process.env.HOME = originalHome;
-    if (originalSiteKey === undefined) delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
-    else process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = originalSiteKey;
+    if (originalSiteKey === undefined) delete process.env[SITE_KEY_ENV_VAR_NAME];
+    else process.env[SITE_KEY_ENV_VAR_NAME] = originalSiteKey;
     rmSync(dir, { recursive: true, force: true });
   });
   return dir;

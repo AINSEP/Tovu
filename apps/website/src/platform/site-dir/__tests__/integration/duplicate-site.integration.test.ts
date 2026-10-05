@@ -1,4 +1,3 @@
-import { LEGACY_SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -158,7 +157,6 @@ function mkTempHome(): string {
 function bareKeyEnv(): NodeJS.ProcessEnv {
   const env = { ...process.env };
   delete env.TOVU_SITE_KEY;
-  delete env[LEGACY_SITE_KEY_ENV_VAR_NAME];
   delete env.TOVU_RUNTIME_MODE;
   return env;
 }

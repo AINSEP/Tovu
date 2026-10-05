@@ -1,5 +1,4 @@
 import { fingerprintSiteKeyHex } from "#src/features/webhooks/keyring.env";
-import { LEGACY_SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
 import assert from "node:assert/strict";
 import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from "node:child_process";
 import fs from "node:fs";
@@ -178,7 +177,7 @@ function buildSealedCiphertextDb(dbPath: string): void {
  * covers both the value read and the `TOVU_SITE_KEY`-vs-legacy name choice), but this test wants
  * the nothing-configured case without depending on that rule. */
 function isolatedEnv(tempHome: string): NodeJS.ProcessEnv {
-  return { HOME: tempHome, [LEGACY_SITE_KEY_ENV_VAR_NAME]: undefined, TOVU_SITE_KEY: undefined };
+  return { HOME: tempHome, TOVU_SITE_KEY: undefined };
 }
 
 test("site-key plan §A3a: a fresh tovu serve boot, with no key anywhere, mints this site's own per-site key file under HOME/.tovu/site-keys/<siteId>.hex", async () => {

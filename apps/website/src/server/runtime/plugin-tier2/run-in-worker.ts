@@ -40,7 +40,7 @@ const DEFAULT_RESOURCE_LIMITS: ResourceLimits = {
 };
 
 /** The only environment variables a Tier-2 worker receives. A plugin's code runs in that worker, so
- * the server's environment (API keys, database URLs, the root key) must never be copied in: these
+ * the server's environment (API keys, database URLs, the site key) must never be copied in: these
  * are runtime/tooling settings only — `TSX_TSCONFIG_PATH` for the dev/test tsx bootstrap,
  * `NODE_V8_COVERAGE` so a compiled worker still reports coverage. */
 const TIER2_WORKER_ENV_KEYS = ["NODE_ENV", "TZ", "TSX_TSCONFIG_PATH", "NODE_V8_COVERAGE"] as const;

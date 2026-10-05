@@ -29,11 +29,11 @@ function fixture(t) {
 }
 
 test("repository passes the canonical site key name guard", () => {
-  const result = run(repo, "16");
+  const result = run(repo, "13");
   assert.equal(result.status, 0, result.stdout + result.stderr);
   assert.match(result.stdout, /old-name hits: 0/);
   assert.match(result.stdout, /frozen: 4/);
-  assert.match(result.stdout, /legacy: 16/);
+  assert.match(result.stdout, /legacy: 13/);
 });
 
 test("accepts precisely documented markers and the two unrelated-token exclusions", t => {

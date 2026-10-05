@@ -6,7 +6,6 @@ import { basename, dirname, join } from "node:path";
 import { fingerprintSiteKeyHex, parseSiteKeyHex, type SiteKeyRejection } from "./keyring.env.js";
 import {
   readSiteKeySourceMaterial,
-  resolveSiteKeyEnv,
   readSiteMetaJson,
   resolveSiteKeyFingerprint,
   resolveSiteKeyId,
@@ -164,7 +163,7 @@ export interface EnsureSiteKeyResult {
    *  sitting in `.site-meta.json` — see {@link reconcileSiteKeyFingerprint}. */
   readonly fingerprint?: string;
   /** Present for `"invalid"` — which {@link SiteKeyRejection} the offending material failed. */
-  readonly reason?: SiteKeyRejection | "env-conflict";
+  readonly reason?: SiteKeyRejection;
 }
 
 /**
@@ -182,7 +181,6 @@ export interface EnsureSiteKeyResult {
 export async function ensureSiteKey(input: EnsureSiteKeyInput): Promise<EnsureSiteKeyResult> {
   const env = input.env ?? process.env;
   const mode = input.mode ?? resolveRuntimeMode({ env });
-  if (resolveSiteKeyEnv({ env }).kind === "conflict") return { action: "refuse", reason: "env-conflict" };
 
   if (mode === "production") {
     return { action: "production-noop" };
@@ -404,7 +402,6 @@ export async function ensureSiteKeyForBoot(input: EnsureSiteKeyForBootInput): Pr
  */
 export async function ensureSiteKeyForSite(input: EnsureSiteKeyForBootInput): Promise<EnsureSiteKeyResult | undefined> {
   const env = input.env ?? process.env;
-  if (resolveSiteKeyEnv({ env }).kind === "conflict") return { action: "refuse", reason: "env-conflict" };
   const mode = input.mode ?? resolveRuntimeMode({ env });
   const siteKeyId = resolveSiteKeyId({ siteDir: input.siteDir }) ?? (await mintSiteMetaForBootIfAbsent(input.siteDir, mode));
   if (!siteKeyId) return undefined;
@@ -441,8 +438,7 @@ export interface InstallSiteKeyInput {
  *  holding a DIFFERENT key outranks every file (production), so nothing was written. */
 export type InstallSiteKeyResult =
   | { readonly outcome: "installed"; readonly keyFilePath: string; readonly fingerprint: string }
-  | { readonly outcome: "env-key-set" }
-  | { readonly outcome: "env-conflict" };
+  | { readonly outcome: "env-key-set" };
 
 /**
  * Makes `hex` this site's key — the site key tab's recovery writer (design §4.3/§4.6: "Unlock
@@ -464,7 +460,6 @@ export function installSiteKey(input: InstallSiteKeyInput): InstallSiteKeyResult
   const parsed = parseSiteKeyHex(input.hex);
   if (!parsed.ok) throw new Error(`installSiteKey: not a valid site key (${parsed.reason})`);
   const env = input.env ?? process.env;
-  if (resolveSiteKeyEnv({ env }).kind === "conflict") return { outcome: "env-conflict" };
   const mode = input.mode ?? resolveRuntimeMode({ env });
   const siteKeyId = resolveSiteKeyId({ siteDir: input.siteDir }) ?? mintSiteKeyIdIfAbsent(input.siteDir, mode);
   if (mode !== "production" && !siteKeyId) return undefined;
@@ -475,7 +470,6 @@ export function installSiteKey(input: InstallSiteKeyInput): InstallSiteKeyResult
     if (source.kind === "env") {
       const material = readSiteKeySourceMaterial(source, env);
       if (material === undefined) continue;
-      if ("conflict" in material) return { outcome: "env-conflict" };
       if (!matchesFingerprint(parseSiteKeyHex(material.raw), fingerprint)) return { outcome: "env-key-set" };
       stampFingerprint(input.siteDir, fingerprint);
       return { outcome: "installed", keyFilePath: `env:${material.envVarName}`, fingerprint };
@@ -702,10 +696,6 @@ function isErrorCode(err: unknown, code: "EEXIST" | "ENOENT"): boolean {
   return (err as { code?: unknown }).code === code;
 }
 
-/** Conflict is checked before every writer can mutate; never adopt a key across a conflict. */
 function readRawSiteKeyMaterial(source: SiteKeySource, env: NodeJS.ProcessEnv): string | undefined {
-  const material = readSiteKeySourceMaterial(source, env);
-  if (material === undefined) return undefined;
-  if ("conflict" in material) throw new Error("Site key environment variables conflict; nothing was changed.");
-  return material.raw;
+  return readSiteKeySourceMaterial(source, env)?.raw;
 }

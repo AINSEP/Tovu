@@ -1,5 +1,5 @@
 import { LEGACY_SITE_KEY_FILENAME } from "#src/features/webhooks/site-key-sources";
-import { LEGACY_SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
+import { SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -22,7 +22,7 @@ async function withComposedSite(
 ): Promise<void> {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-production-composition-"));
   const cwd = process.cwd();
-  const names = ["TOVU_RUNTIME_MODE", "TOVU_ADMIN_PASSWORD", "ANALYTICS_ROOT_KEY_SEED", "TOVU_SITE_KEY", LEGACY_SITE_KEY_ENV_VAR_NAME];
+  const names = ["TOVU_RUNTIME_MODE", "TOVU_ADMIN_PASSWORD", "ANALYTICS_ROOT_KEY_SEED", "TOVU_SITE_KEY"];
   const original = new Map(names.map((name) => [name, process.env[name]]));
   const home = t.mock.method(os, "homedir", () => root);
   syncBuiltinESMExports();
@@ -37,7 +37,7 @@ async function withComposedSite(
     process.env.TOVU_RUNTIME_MODE = mode;
     process.env.TOVU_ADMIN_PASSWORD = "composition-test-password";
     process.env.ANALYTICS_ROOT_KEY_SEED = "12".repeat(32);
-    process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = "34".repeat(32);
+    process.env[SITE_KEY_ENV_VAR_NAME] = "34".repeat(32);
     delete process.env.TOVU_SITE_KEY;
     const dbPath = path.join(root, "site", "content.db");
     fs.mkdirSync(path.dirname(dbPath));
@@ -75,7 +75,7 @@ for (const mode of ["local", "production"] as const) {
   test(`composed public unsubscribe in ${mode} refuses a missing key without minting one`, async (t) => {
     await withComposedSite(t, mode, async ({ root, open }) => {
       const deps = await open();
-      delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
+      delete process.env[SITE_KEY_ENV_VAR_NAME];
       const localKey = path.join(root, ".tovu", LEGACY_SITE_KEY_FILENAME);
       const productionKey = path.join(root, "sites", ".tovu", "site-key.hex");
       await assert.rejects(processUnsubscribe({ deps: toPublicUnsubscribeDeps(deps), input: { rawToken: "e30.x" } }), /no site key/);

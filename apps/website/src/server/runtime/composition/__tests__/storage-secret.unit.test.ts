@@ -1,4 +1,3 @@
-import { LEGACY_SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -49,7 +48,6 @@ test("new-site sealing prepares its identified key file and the default reader r
   `;
   const env: NodeJS.ProcessEnv = { ...process.env, TOVU_RUNTIME_MODE: "local" };
   delete env.TOVU_SITE_KEY;
-  delete env[LEGACY_SITE_KEY_ENV_VAR_NAME];
   const child = spawnSync(process.execPath, ["--import", "tsx", "--experimental-test-module-mocks", "--input-type=module", "--eval", script],
     { env, encoding: "utf8", timeout: 15_000 });
   assert.equal(child.status, 0, child.stderr || child.error?.message);

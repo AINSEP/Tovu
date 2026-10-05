@@ -1,5 +1,5 @@
 import { LEGACY_SITE_KEY_FILENAME } from "#src/features/webhooks/site-key-sources";
-import { LEGACY_SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
+import { SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -49,7 +49,6 @@ test("the production boot adapter refuses missing or invalid site keys and accep
   const gateUrl = pathToFileURL(path.join(import.meta.dirname, "..", "boot-readiness-gate.ts")).href;
   const script = `process.chdir(process.env.TEST_GATE_CWD); const { runProductionReadinessGateOrExit } = await import(${JSON.stringify(gateUrl)}); await runProductionReadinessGateOrExit(); console.log("gate-passed");`;
   const env: NodeJS.ProcessEnv = { ...process.env, TEST_GATE_CWD: cwd, TOVU_RUNTIME_MODE: "production", TOVU_ADMIN_PASSWORD: "nondefault-test-password", ANALYTICS_ROOT_KEY_SEED: "test-analytics-seed" };
-  delete env[LEGACY_SITE_KEY_ENV_VAR_NAME];
   delete env.TOVU_SITE_KEY;
   const run = () => spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script], { env, encoding: "utf8", timeout: 30000 });
   const missing = run();
@@ -75,30 +74,25 @@ test("the production boot adapter refuses missing or invalid site keys and accep
   assert.doesNotMatch(valid.stderr, /Refusing to boot/);
 });
 
-test("production boot accepts either env name and equal aliases but refuses conflicting aliases even with a valid volume file", (t) => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "boot-dual-env-"));
+test("production boot reads only TOVU_SITE_KEY: the removed pre-rename env name alone is a missing key", (t) => {
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "boot-site-key-env-"));
   t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
-  const dir = path.join(cwd, "sites", ".tovu");
-  fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(path.join(dir, "site-key.hex"), "7a".repeat(32));
   const gateUrl = pathToFileURL(path.join(import.meta.dirname, "..", "boot-readiness-gate.ts")).href;
   const script = `process.chdir(process.env.TEST_GATE_CWD); const { runProductionReadinessGateOrExit } = await import(${JSON.stringify(gateUrl)}); await runProductionReadinessGateOrExit(); console.log("gate-passed");`;
-  for (const [preferred, legacy, exit] of [
-    ["7a".repeat(32), undefined, 0], [undefined, "7a".repeat(32), 0],
-    ["7a".repeat(32), "7a".repeat(32), 0], ["7a".repeat(32), "8b".repeat(32), 1],
-  ] as const) {
+  // Built from parts so the site-key naming guard does not flag this regression check itself.
+  const removedName = ["TOVU", "INTEGRATIONS", "ROOT", "KEY"].join("_");
+  for (const [name, exit] of [[SITE_KEY_ENV_VAR_NAME, 0], [removedName, 1]] as const) {
     const env: NodeJS.ProcessEnv = { ...process.env, TEST_GATE_CWD: cwd, HOME: cwd, TOVU_RUNTIME_MODE: "production", TOVU_ADMIN_PASSWORD: "nondefault-test-password", ANALYTICS_ROOT_KEY_SEED: "test-analytics-seed" };
     delete env.TOVU_SITE_KEY;
-    delete env[LEGACY_SITE_KEY_ENV_VAR_NAME];
-    if (preferred) env.TOVU_SITE_KEY = preferred;
-    if (legacy) env[LEGACY_SITE_KEY_ENV_VAR_NAME] = legacy;
+    delete env[removedName];
+    env[name] = "7a".repeat(32);
     const child = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script], { env, encoding: "utf8", timeout: 30000 });
     assert.equal(child.error, undefined);
     assert.equal(child.status, exit, child.stderr);
     if (exit) {
-      assert.match(child.stderr, /site-key-env-conflict/);
+      assert.match(child.stderr, /missing-site-key/);
       assert.doesNotMatch(child.stdout, /gate-passed/);
-      assert.doesNotMatch(child.stderr, /7a7a7a|8b8b8b/);
+      assert.doesNotMatch(child.stderr, /7a7a7a/);
     } else assert.match(child.stdout, /gate-passed/);
   }
 });

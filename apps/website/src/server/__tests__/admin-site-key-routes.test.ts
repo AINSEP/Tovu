@@ -1,5 +1,4 @@
 import { LEGACY_SITE_KEY_FILENAME } from "#src/features/webhooks/site-key-sources";
-import { LEGACY_SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -52,7 +51,7 @@ test.beforeEach((t) => {
   // A per-test hook always receives that test's own TestContext; @types/node types every hook
   // argument as `TestContext | SuiteContext`, so narrow before using `t.after`/`t.mock`.
   if (!("mock" in t)) throw new Error("beforeEach expected a TestContext");
-  for (const name of ["TOVU_SITE_KEY", LEGACY_SITE_KEY_ENV_VAR_NAME, "TOVU_RUNTIME_MODE"]) {
+  for (const name of ["TOVU_SITE_KEY", "TOVU_RUNTIME_MODE"]) {
     const original = process.env[name];
     delete process.env[name];
     t.after(() => {
@@ -1007,38 +1006,3 @@ for (const failure of ["unavailable", "capture-failed"] as const) {
     assert.deepEqual(await deps.restorePointsRepo.list(), []);
   });
 }
-
-test("conflicting env aliases expose env-conflict and refuse every key writer without touching site metadata", async (t) => {
-  isolateHomeDir(t);
-  isolateSiteDir(t);
-  const deps = createRouteDeps();
-  assertSiteDirIsolated(deps);
-  const siteDir = deps.siteBinding.dir;
-  const metaPath = path.join(siteDir, ".site-meta.json");
-  const meta = JSON.stringify({ siteId: "conflict-site", siteKeyFingerprint: "old-stamp" });
-  writeFileSync(metaPath, meta);
-  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
-  process.env.TOVU_SITE_KEY = "ab".repeat(32);
-  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = "cd".repeat(32);
-  const status = await fetch(`${baseUrl}${BASE}`, { headers: { cookie } });
-  assert.equal(status.status, 200);
-  const statusBody = await status.json() as { state: string; reason: string; active: boolean };
-  assert.equal(statusBody.state, "env-conflict");
-  assert.equal(statusBody.reason, "env-conflict");
-  assert.equal(statusBody.active, false);
-  const reveal = await fetch(`${baseUrl}${BASE}/reveal`, { method: "POST", headers: { cookie } });
-  assert.equal(reveal.status, 200);
-  assert.equal((await reveal.json() as { hex?: string }).hex, undefined);
-  for (const [suffix, method, body] of [
-    ["generate", "POST", {}], ["import", "POST", { siteKey: "ab".repeat(32) }],
-    ["start-fresh", "GET", undefined], ["start-fresh", "POST", { confirm: "START FRESH" }],
-  ] as const) {
-    const res = await fetch(`${baseUrl}${BASE}/${suffix}`, { method, headers: { cookie, "content-type": "application/json" }, ...(body ? { body: JSON.stringify(body) } : {}) });
-    assert.equal(res.status, 409);
-    const response = await res.text();
-    assert.match(response, /ENV_CONFLICT/);
-    assert.doesNotMatch(response, /abababab|cdcdcdcd/);
-    assert.equal(readFileSync(metaPath, "utf8"), meta);
-    assert.deepEqual(readdirSync(siteDir), [".site-meta.json"]);
-  }
-});

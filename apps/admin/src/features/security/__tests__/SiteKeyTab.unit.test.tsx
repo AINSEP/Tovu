@@ -299,9 +299,3 @@ describe("SiteKeyTab — status note for a locked site", () => {
   });
 });
 
-it("shows the env-conflict note without offering key recovery or Generate", () => {
-  renderTab({ active: false, source: "env", reason: "env-conflict", invalid: true, keyFilePath: "", runtimeMode: "production", state: "env-conflict" });
-  expect(screen.getByText("Site key environment variables conflict. Set TOVU_SITE_KEY to the existing site key and remove the deprecated variable; nothing was changed.")).toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "Generate a key" })).not.toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "Unlock" })).not.toBeInTheDocument();
-});

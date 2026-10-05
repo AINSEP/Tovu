@@ -10,16 +10,15 @@ Never change their cryptographic bytes. The extraction salt declaration in `feat
 
 The plan (section 0.4) counted three. The pinned wire-format test is the fourth: it spells the salt as a literal on purpose, so it checks the stored bytes independently of `HKDF_EXTRACTION_SALT`. Importing the constant, or splitting the string to dodge this guard, would let a change to the salt pass unnoticed.
 
-## Compatibility lines: 16
+## Compatibility lines: 13
+
+The legacy environment name is no longer read at all (removed 2026-10-05, owner: single-user install); only `TOVU_SITE_KEY` is read.
 
 All paths below are repo-relative. Each listed line is annotated with its removal date **2026-11-01**. Package compatibility lines require the corresponding release to be installed before removal; the date alone is insufficient.
 
 | Path | Counted line / reason | Retirement |
 |---|---|---|
 | `apps/website/src/features/webhooks/site-key-sources.ts` | Legacy file-name constant | D3 after owner migration confirmation, on/after 2026-11-01 |
-| `apps/website/src/features/webhooks/site-key-sources.ts` | Legacy environment-name constant | D3 after owner migration confirmation, on/after 2026-11-01 |
-| `development/scripts/start.mjs` | Plain-JS legacy environment-name constant | D3 after owner migration confirmation, on/after 2026-11-01 |
-| `docker-compose.yml` | Legacy environment forwarding | D3 after owner migration confirmation, on/after 2026-11-01 |
 | `apps/website/src/features/webhooks/keyring.env.ts` | Import for `JiniFixedSiteKeyKeyring` | Install platform release with canonical exports, on/after 2026-11-01 |
 | `apps/website/src/features/webhooks/keyring.env.ts` | Import for `JiniUnusableSiteKeyError` | Install platform release with canonical exports, on/after 2026-11-01 |
 | `apps/website/src/features/webhooks/keyring.env.ts` | Import for `parseKeyHex` | Install platform release with canonical exports, on/after 2026-11-01 |

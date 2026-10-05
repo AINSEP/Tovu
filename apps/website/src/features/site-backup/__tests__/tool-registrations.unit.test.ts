@@ -1,4 +1,3 @@
-import { LEGACY_SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -95,12 +94,10 @@ function isolateHomeDir(t: TestContext): string {
   const dir = mkdtempSync(path.join(tmpdir(), "tovu-site-backup-test-home-"));
   const saved = {
     HOME: process.env.HOME,
-    [LEGACY_SITE_KEY_ENV_VAR_NAME]: process.env[LEGACY_SITE_KEY_ENV_VAR_NAME],
     TOVU_SITE_KEY: process.env.TOVU_SITE_KEY,
     TOVU_RUNTIME_MODE: process.env.TOVU_RUNTIME_MODE,
   };
   process.env.HOME = dir;
-  delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
   delete process.env.TOVU_SITE_KEY;
   delete process.env.TOVU_RUNTIME_MODE;
   t.after(() => {

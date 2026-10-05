@@ -14,8 +14,7 @@ import type { RuntimeMode } from "#src/contracts/core/runtime-mode";
  * durable-volume files — it never has (or wants) a per-site file; see A.1's "why per-site
  * rather than one key per OS user" and A.3's "production never mints".
  *
- * Both environment names resolve through `resolveSiteKeyEnv`: blank values are absent, the
- * preferred name wins for equal key bytes, and different values refuse every reader and writer.
+ * The env source is `TOVU_SITE_KEY` only (`resolveSiteKeyEnv`); a blank value is absent.
  * Production checks the env source, then the new durable-volume file, then the legacy file.
  * Legacy files remain read-only adoption sources; only the per-site/new-volume paths are targets.
  *
@@ -24,21 +23,20 @@ import type { RuntimeMode } from "#src/contracts/core/runtime-mode";
  * `site-key-ensure.ts` (whose one writer consumes the same ordering).
  */
 
-/** The site key's forward-looking env var name (site-key plan §B.1: the eventual rename target).
- *  Preferred over the legacy alias whenever set; conflicting aliases refuse resolution. */
+/** The site key's one env var name (site-key plan §B.1). The pre-rename legacy name is no longer
+ *  read at all (removed 2026-10-05, owner: single-user install, no back-compat needed). */
 export const SITE_KEY_ENV_VAR_NAME = "TOVU_SITE_KEY";
 
 /** The legacy shared-file name every pre-per-site-key install still carries — reused verbatim (not
  *  duplicated) via {@link legacySharedFilePath}/{@link legacyVolumeFilePath}, so this module and
  *  all site-key readers can never drift on the same literal. */
 export const LEGACY_SITE_KEY_FILENAME = "integrations-root-key.hex"; // site-key-legacy: remove on/after 2026-11-01 (D3)
-export const LEGACY_SITE_KEY_ENV_VAR_NAME = "TOVU_INTEGRATIONS_ROOT_KEY"; // site-key-legacy: remove on/after 2026-11-01 (D3)
 
 export type SiteKeySourceKind = "per-site-file" | "env" | "legacy-shared-file" | "volume-file" | "legacy-volume-file";
 
-/** One candidate place to look for the site key, in the order a caller should try them. Exactly
- *  file source carries `path`; an env source has no fixed variable name because the shared
- *  dual-name resolver decides which alias is active at read time. */
+/** One candidate place to look for the site key, in the order a caller should try them. Every
+ *  file source carries `path`; an env source reads {@link SITE_KEY_ENV_VAR_NAME} via
+ *  {@link resolveSiteKeyEnv}. */
 export interface SiteKeySource {
   readonly kind: SiteKeySourceKind;
   readonly path?: string;
@@ -78,21 +76,14 @@ export function siteKeySources(input: SiteKeySourcesInput): SiteKeySource[] {
   return sources;
 }
 
-/** Both names are read-only inputs. Blank values are absent; different values fail closed.
- * Trimming and hex case normalization match the validator, so equal key bytes do not conflict.
- * No secret material is included in a conflict result. */
+/** {@link SITE_KEY_ENV_VAR_NAME} is a read-only input; a blank or whitespace-only value is absent. */
 export type SiteKeyEnvResolution =
   | { readonly kind: "absent" }
-  | { readonly kind: "ok"; readonly value: string; readonly varName: string; readonly deprecated: boolean }
-  | { readonly kind: "conflict" };
+  | { readonly kind: "ok"; readonly value: string; readonly varName: string };
 
 export function resolveSiteKeyEnv(input: { readonly env: Record<string, string | undefined> }, _optional = {}): SiteKeyEnvResolution {
   const value = input.env[SITE_KEY_ENV_VAR_NAME]?.trim();
-  const legacy = input.env[LEGACY_SITE_KEY_ENV_VAR_NAME]?.trim();
-  if (value && legacy && value.toLowerCase() !== legacy.toLowerCase()) return { kind: "conflict" };
-  if (value) return { kind: "ok", value, varName: SITE_KEY_ENV_VAR_NAME, deprecated: Boolean(legacy) };
-  if (legacy) return { kind: "ok", value: legacy, varName: LEGACY_SITE_KEY_ENV_VAR_NAME, deprecated: true };
-  return { kind: "absent" };
+  return value ? { kind: "ok", value, varName: SITE_KEY_ENV_VAR_NAME } : { kind: "absent" };
 }
 
 /** Newsletter signing and maintenance backfills require an env key, with no file fallback. */
@@ -261,9 +252,10 @@ export function siteKeyFilePathFrom(sources: readonly SiteKeySource[]): string |
  *
  * @complexity O(1) env read, or one `existsSync` plus a file read for a file-kind source.
  */
-export type SiteKeySourceMaterial =
-  | { readonly raw: string; readonly envVarName?: string; readonly deprecated?: boolean }
-  | { readonly conflict: true };
+export interface SiteKeySourceMaterial {
+  readonly raw: string;
+  readonly envVarName?: string;
+}
 
 export function readSiteKeySourceMaterial(
   source: SiteKeySource,
@@ -271,8 +263,7 @@ export function readSiteKeySourceMaterial(
 ): SiteKeySourceMaterial | undefined {
   if (source.kind === "env") {
     const resolved = resolveSiteKeyEnv({ env });
-    if (resolved.kind === "conflict") return { conflict: true };
-    return resolved.kind === "ok" ? { raw: resolved.value, envVarName: resolved.varName, deprecated: resolved.deprecated } : undefined;
+    return resolved.kind === "ok" ? { raw: resolved.value, envVarName: resolved.varName } : undefined;
   }
   return source.path !== undefined && existsSync(source.path) ? { raw: readFileSync(source.path, "utf8") } : undefined;
 }

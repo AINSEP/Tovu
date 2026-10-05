@@ -817,7 +817,7 @@ export type AdminSiteKeyRuntimeMode = "production" | "local";
  * file's own union text off disk and checks it against this list, so the two can never silently
  * drift apart. Keep both edited together.
  */
-export const ADMIN_SITE_KEY_STATES = ["active", "missing", "missing-with-data", "mismatch", "invalid", "env-conflict"] as const;
+export const ADMIN_SITE_KEY_STATES = ["active", "missing", "missing-with-data", "mismatch", "invalid"] as const;
 export type AdminSiteKeyState = (typeof ADMIN_SITE_KEY_STATES)[number];
 
 /** Mirrors `GET .../system/site-key`'s response shape (`inspectSiteKeyMaterial`, server-side).
@@ -827,7 +827,7 @@ export type AdminSiteKeyState = (typeof ADMIN_SITE_KEY_STATES)[number];
  *  value, behind its own explicit action. */
 export interface AdminSiteKeyStatus {
   envVarName?: string;
-  reason?: "empty" | "not-hex" | "odd-length" | "too-short" | "env-conflict";
+  reason?: "empty" | "not-hex" | "odd-length" | "too-short";
   active: boolean;
   source: "env" | "file" | "none";
   fingerprint?: string;

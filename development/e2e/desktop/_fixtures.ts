@@ -15,8 +15,8 @@ import { SITE_ORIGIN, sitesFilePath, trackSite } from "../../../apps/desktop/src
  * Electron path, the scratch `TOVU_DESKTOP_USER_DATA_DIR` per launch and the guard that refuses to
  * run against the operator's real userData. Added here:
  *  - a SCRUBBED env built from an allowlist, not `...process.env`, so the operator's `.env` values
- *    (real root key, vendor keys, `TOVU_ADMIN_PASSWORD`, `NODE_OPTIONS`) never reach the app or the
- *    `tovu serve` children it spawns. The root key is a fixed fake (`"a".repeat(64)`, the
+ *    (real site key, vendor keys, `TOVU_ADMIN_PASSWORD`, `NODE_OPTIONS`) never reach the app or the
+ *    `tovu serve` children it spawns. The site key is a fixed fake (`"a".repeat(64)`, the
  *    `playwright.media-providers.config.ts` precedent). `TOVU_ADMIN_PASSWORD` is left UNSET on
  *    purpose: the desktop signs in with the per-launch boot token, and a set password changes how a
  *    site seeds its owner.
@@ -41,7 +41,7 @@ export const ELECTRON_BIN: string = desktopRequire("electron");
 /** The one real userData directory no journey may touch. */
 export const REAL_USER_DATA_DIR = path.join(os.homedir(), "Library", "Application Support", "tovu-desktop");
 
-const FAKE_ROOT_KEY = "a".repeat(64);
+const FAKE_SITE_KEY = "a".repeat(64);
 
 /** Env keys copied from the runner; everything else is dropped. */
 const ENV_ALLOWLIST = ["PATH", "TMPDIR", "LANG", "LC_ALL", "USER", "LOGNAME", "SHELL", "TERM"];
@@ -112,7 +112,7 @@ export async function launchDesktop(options: LaunchOptions = {}): Promise<Deskto
       TOVU_DESKTOP_SITE_DIRS: "",
       TOVU_DESKTOP_URL: "",
       TOVU_DESKTOP_DISABLE_UPDATER: "1",
-      TOVU_INTEGRATIONS_ROOT_KEY: FAKE_ROOT_KEY,
+      TOVU_SITE_KEY: FAKE_SITE_KEY,
       TOVU_DISABLE_DEV_TLS: "1",
       TOVU_ADMIN_DEV_PORT: "0",
       ANTHROPIC_API_KEY: "",

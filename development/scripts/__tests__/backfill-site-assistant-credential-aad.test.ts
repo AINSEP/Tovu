@@ -1,4 +1,4 @@
-import { LEGACY_SITE_KEY_ENV_VAR_NAME } from "../../../apps/website/src/features/webhooks/site-key-sources.js";
+import { SITE_KEY_ENV_VAR_NAME } from "../../../apps/website/src/features/webhooks/site-key-sources.js";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
@@ -30,8 +30,8 @@ function tmpDir(prefix: string): string {
 }
 
 function runScript(dbPath: string, siteKeyHex: string | undefined, extraArgs: string[] = []): string {
-  const env = { ...process.env, ...(siteKeyHex !== undefined ? { [LEGACY_SITE_KEY_ENV_VAR_NAME]: siteKeyHex } : {}) };
-  if (siteKeyHex === undefined) delete env[LEGACY_SITE_KEY_ENV_VAR_NAME];
+  const env = { ...process.env, ...(siteKeyHex !== undefined ? { [SITE_KEY_ENV_VAR_NAME]: siteKeyHex } : {}) };
+  if (siteKeyHex === undefined) delete env[SITE_KEY_ENV_VAR_NAME];
   return execFileSync("node", ["--import", "tsx", SCRIPT, "--db", dbPath, ...extraArgs], {
     cwd: REPO_ROOT,
     encoding: "utf8",
@@ -44,7 +44,7 @@ test("backfill-site-assistant-credential-aad: seals OLD (no aad), migrates in pl
   const dbPath = path.join(scratch, "content.db");
   const siteKeyHex = randomBytes(32).toString("hex");
 
-  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = siteKeyHex;
+  process.env[SITE_KEY_ENV_VAR_NAME] = siteKeyHex;
   const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] });
   const sealer = new AesGcmSecretSealer(keyring);
   const activeKey = await keyring.activeKey();
@@ -95,7 +95,7 @@ test("backfill-site-assistant-credential-aad: seals OLD (no aad), migrates in pl
     ])
     .run();
   seedDb.$client.close();
-  delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
+  delete process.env[SITE_KEY_ENV_VAR_NAME];
 
   const dryRunOutput = runScript(dbPath, undefined);
   assert.match(dryRunOutput, /DRY RUN: 1 row\(s\) would be migrated, 1 total pending/);
@@ -115,7 +115,7 @@ test("backfill-site-assistant-credential-aad: seals OLD (no aad), migrates in pl
   assert.equal(rowOne.masked, "••••1111", "masked must survive untouched");
   assert.equal(rowTwo.aadVersion, 0, "a row with no key must be left untouched");
 
-  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = siteKeyHex;
+  process.env[SITE_KEY_ENV_VAR_NAME] = siteKeyHex;
   const openSealer = new AesGcmSecretSealer(new EnvOrFileKeyring({ sources: [{ kind: "env" }] }));
   const reopened = await openSealer.open({
     sealed: { keyId: rowOne.sealedKeyId!, ciphertext: rowOne.sealedCiphertext!, nonce: rowOne.sealedNonce!, alg: rowOne.sealedAlg! },
@@ -129,7 +129,7 @@ test("backfill-site-assistant-credential-aad: seals OLD (no aad), migrates in pl
     })
   );
 
-  delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
+  delete process.env[SITE_KEY_ENV_VAR_NAME];
   db.$client.close();
 
   const secondApplyOutput = runScript(dbPath, siteKeyHex, ["--apply"]);

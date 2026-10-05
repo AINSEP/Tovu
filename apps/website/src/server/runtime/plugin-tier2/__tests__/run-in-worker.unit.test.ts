@@ -125,7 +125,7 @@ test("a compiled build (.js) spawns worker.js with the real factory and no TypeS
 
 test("tier2WorkerEnv keeps only the runtime/tooling allowlist, never server secrets", () => {
   assert.deepEqual(
-    tier2WorkerEnv({ env: { NODE_ENV: "production", TZ: "UTC", TSX_TSCONFIG_PATH: "t.json", NODE_V8_COVERAGE: "/cov", TOVU_INTEGRATIONS_ROOT_KEY: "root", DATABASE_URL: "postgres://u:p@h/db", PATH: "/bin" } }),
+    tier2WorkerEnv({ env: { NODE_ENV: "production", TZ: "UTC", TSX_TSCONFIG_PATH: "t.json", NODE_V8_COVERAGE: "/cov", TOVU_SITE_KEY: "site-key", DATABASE_URL: "postgres://u:p@h/db", PATH: "/bin" } }),
     { NODE_ENV: "production", TZ: "UTC", TSX_TSCONFIG_PATH: "t.json", NODE_V8_COVERAGE: "/cov" },
   );
   assert.deepEqual(tier2WorkerEnv({ env: {} }), {});

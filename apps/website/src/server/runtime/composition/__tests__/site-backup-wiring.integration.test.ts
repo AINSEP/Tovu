@@ -22,7 +22,7 @@ import { collectSiteBackupFiles } from "#src/features/site-backup/sources";
 import { FakeGitHub } from "#src/features/site-backup/__tests__/fixtures/fake-github";
 import { githubFromSource } from "#src/features/source-control/__tests__/fixtures/github-from-source";
 import { createCustomCredential } from "#src/features/custom-credentials/store";
-import { LEGACY_SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
+import { SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
 import { describeSiteBinding } from "#src/platform/site-dir/site-registry";
 import { createRouteDeps } from "../app.js";
 import { createSiteRouteDeps, mediaUploadsDir } from "../deps.js";
@@ -142,9 +142,9 @@ test("caller-supplied site, uploads and themes directories are the exact folders
 /** Points `homedir()`-based site-key lookup at a throwaway folder and gives the composed keyring a
  *  fresh `TOVU_SITE_KEY`, so sealing a credential never reads or writes the operator's `~/.tovu`. */
 function isolateSiteKey(t: TestContext, home: string): void {
-  const saved = { HOME: process.env.HOME, [LEGACY_SITE_KEY_ENV_VAR_NAME]: process.env[LEGACY_SITE_KEY_ENV_VAR_NAME], TOVU_SITE_KEY: process.env.TOVU_SITE_KEY, TOVU_RUNTIME_MODE: process.env.TOVU_RUNTIME_MODE };
+  const saved = { HOME: process.env.HOME, TOVU_SITE_KEY: process.env.TOVU_SITE_KEY, TOVU_RUNTIME_MODE: process.env.TOVU_RUNTIME_MODE };
   process.env.HOME = home;
-  delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
+  delete process.env[SITE_KEY_ENV_VAR_NAME];
   delete process.env.TOVU_RUNTIME_MODE;
   process.env.TOVU_SITE_KEY = randomBytes(32).toString("hex");
   t.after(() => {
