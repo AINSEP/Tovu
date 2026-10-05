@@ -38,8 +38,6 @@ import { fetchDaemonAdmissions } from "#src/server/runtime/services/external-mcp
 import { contributeFsFilesTools } from "#src/features/fs-files/tool-registrations";
 import { contributePagesTools } from "#src/features/pages/tool-registrations";
 import { contributePluginsTools } from "#src/features/plugin-runtime/tool-registrations";
-import { contributePluginsInstallTools } from "#src/features/plugin-runtime/install-tool";
-import { contributeSkillsInstallTools } from "#src/features/skills/install-tool";
 import { toPublishContentDeps } from "../../inbound/admin-http/routes/publish-content/deps.js";
 import { contributePublishContentTools } from "#src/features/publish-content/tool-registrations";
 import { installFirstPartyPublishContentTypes } from "./publish-content-manifest.js";
@@ -371,8 +369,6 @@ export function installFirstPartyToolContributors(
   contributions.contributors.register({ contribution: contributeNewsletterDeliveryTools() });
   contributions.contributors.register({ contribution: contributePagesTools() });
   contributions.contributors.register({ contribution: contributePluginsTools() });
-  contributions.contributors.register({ contribution: contributePluginsInstallTools() });
-  contributions.contributors.register({ contribution: contributeSkillsInstallTools() });
   contributions.contributors.register({ contribution: contributePostTools() });
   contributions.contributors.register({ contribution: contributePostPreviewTools({ renderPostPreview: async (deps, input) => {
     try { return await renderPostPreview(deps as Parameters<typeof renderPostPreview>[0], input); }
