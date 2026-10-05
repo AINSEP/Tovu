@@ -679,26 +679,43 @@ ${body}
 `;
 }
 
-function main(): void {
+/** The file boundary {@link runGenerator} reads and writes through; `node:fs` in production. */
+export type GeneratorFiles = Pick<typeof fs, "existsSync" | "readFileSync" | "writeFileSync">;
+interface Writable { write(text: string): unknown }
+
+/**
+ * Generate (or, with `check`, drift-check) the PostgreSQL schema. Returns the process exit code;
+ * check mode never writes. Ports are injectable so the stale-output branch is provable against an
+ * isolated file with no process exit and no patched `fs` (test-rigor F1598).
+ */
+export function runGenerator(
+  required: { check: boolean },
+  optional: { outPath?: string; files?: GeneratorFiles; stdout?: Writable; stderr?: Writable } = {},
+): number {
+  const { outPath = OUT_PATH, files = fs, stdout = process.stdout, stderr = process.stderr } = optional;
   const generated = generate();
-  const check = process.argv.includes("--check");
 
-  if (!check) {
-    fs.writeFileSync(OUT_PATH, generated, "utf8");
-    process.stdout.write(`wrote ${path.relative(process.cwd(), OUT_PATH)}\n`);
-    return;
+  if (!required.check) {
+    files.writeFileSync(outPath, generated, "utf8");
+    stdout.write(`wrote ${path.relative(process.cwd(), outPath)}\n`);
+    return 0;
   }
 
-  const current = fs.existsSync(OUT_PATH) ? fs.readFileSync(OUT_PATH, "utf8") : "";
+  const current = files.existsSync(outPath) ? files.readFileSync(outPath, "utf8") : "";
   if (current === generated) {
-    process.stdout.write("schema.postgres.ts is up to date with schema.sqlite.ts\n");
-    return;
+    stdout.write("schema.postgres.ts is up to date with schema.sqlite.ts\n");
+    return 0;
   }
-  process.stderr.write(
+  stderr.write(
     "DRIFT: src/platform/db/schema.postgres.ts does not match what schema.sqlite.ts generates.\n" +
       "Run `npx tsx development/scripts/generate-postgres-schema.ts` and commit the result.\n"
   );
-  process.exit(1);
+  return 1;
+}
+
+function main(): void {
+  const code = runGenerator({ check: process.argv.includes("--check") });
+  if (code !== 0) process.exit(code);
 }
 
 // Only run when invoked directly (`npx tsx generate-postgres-schema.ts[, --check]`), never as a side

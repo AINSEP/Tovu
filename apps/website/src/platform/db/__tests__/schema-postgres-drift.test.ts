@@ -13,13 +13,15 @@
  * file, and both are the same instruction to the developer — run the generator and commit it.
  */
 import assert from "node:assert/strict";
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test, { after } from "node:test";
 
 import { childProcessCoverageEnv } from "#src/contracts/core/child-process-coverage-env";
+
+import { runGenerator } from "../../../../../../development/scripts/generate-postgres-schema.js";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "../../../../../..");
 const GENERATOR = path.join("development", "scripts", "generate-postgres-schema.ts");
@@ -47,37 +49,42 @@ test("schema.postgres.ts is up to date with schema.sqlite.ts (run the generator 
 });
 
 
-test("generator --check rejects isolated stale output without modifying it", () => {
+test("generator --check rejects isolated stale output without modifying it (F1598)", () => {
   const dir = mkdtempSync(path.join(os.tmpdir(), "tovu-stale-postgres-output-"));
   const fixture = path.join(dir, "schema.postgres.ts");
   const stale = "// deliberately stale generated output\n";
   writeFileSync(fixture, stale);
   try {
-    const output = path.join(REPO_ROOT, "apps/website/src/platform/db/schema.postgres.ts");
-    const generator = path.join(REPO_ROOT, GENERATOR);
-    // Redirect only the output file boundary. The real entry guard, argv parsing, generation,
-    // drift comparison, diagnostic and process.exit run in the child unchanged.
-    const script = `
-      import fs from "node:fs";
-      import { pathToFileURL } from "node:url";
-      const output = ${JSON.stringify(output)};
-      const fixture = ${JSON.stringify(fixture)};
-      for (const method of ["readFileSync", "writeFileSync", "existsSync"]) {
-        const original = fs[method].bind(fs);
-        fs[method] = (file, ...args) => original(file === output ? fixture : file, ...args);
-      }
-      process.argv = [process.execPath, ${JSON.stringify(generator)}, "--check"];
-      await import(pathToFileURL(process.argv[1]).href);
-    `;
-    const result = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "--eval", script], {
-      cwd: REPO_ROOT, encoding: "utf8", timeout: 30_000, env: childProcessCoverageEnv(WORKER_COVERAGE_DIR),
-    });
-    assert.equal(result.error, undefined);
-    assert.equal(result.status, 1, result.stderr);
-    assert.match(result.stderr, /^DRIFT: src\/platform\/db\/schema\.postgres\.ts does not match/m);
-    assert.doesNotMatch(result.stdout, /up to date|wrote/);
+    const stdout = recorder();
+    const stderr = recorder();
+    // The real generator, real fs, an isolated output file: only the path and the two streams are injected.
+    const code = runGenerator({ check: true }, { outPath: fixture, stdout, stderr });
+    assert.equal(code, 1);
+    assert.match(stderr.text(), /^DRIFT: src\/platform\/db\/schema\.postgres\.ts does not match/m);
+    assert.equal(stdout.text(), "");
     assert.equal(readFileSync(fixture, "utf8"), stale, "check mode must leave stale output untouched");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("generate mode writes exactly the checked-in schema to an isolated path, and --check then accepts it", () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), "tovu-fresh-postgres-output-"));
+  const fixture = path.join(dir, "schema.postgres.ts");
+  try {
+    const stdout = recorder();
+    assert.equal(runGenerator({ check: false }, { outPath: fixture, stdout, stderr: recorder() }), 0);
+    assert.match(stdout.text(), /^wrote /);
+    assert.equal(readFileSync(fixture, "utf8"), readFileSync(path.join(REPO_ROOT, "apps/website/src/platform/db/schema.postgres.ts"), "utf8"));
+    const checkOut = recorder();
+    assert.equal(runGenerator({ check: true }, { outPath: fixture, stdout: checkOut, stderr: recorder() }), 0);
+    assert.match(checkOut.text(), /up to date/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+function recorder(): { write(text: string): void; text(): string } {
+  const chunks: string[] = [];
+  return { write: (text) => void chunks.push(text), text: () => chunks.join("") };
+}
