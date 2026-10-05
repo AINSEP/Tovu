@@ -15,9 +15,9 @@
   },
   "dependencies": {
     "@jini-ai/agentic": "^0.4.1",
-    "@jini-ai/chat": "^0.5.1",
+    "@jini-ai/chat": "^0.5.2",
     "@jini-ai/protocol": "^0.4.0",
-    "@jini-ai/ui": "^0.4.2",
+    "@jini-ai/ui": "^0.4.3",
     "@mcp-ui/client": "7.1.1",
     "@radix-ui/react-checkbox": "^1.3.11",
     "@radix-ui/react-label": "^2.1.15",
@@ -38,6 +38,7 @@
     "vite": "^7.2.4"
   },
   "overrides": {
-    "@jini-ai/ui": "$@jini-ai/ui"
+    "@jini-ai/ui": "$@jini-ai/ui",
+    "@jini-ai/core": "^0.4.1"
   }
 }
