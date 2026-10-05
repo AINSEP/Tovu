@@ -190,7 +190,8 @@ export class SqlMenuRepo implements MenuRepoPort {
    */
   private async insertIfAbsent(record: NavMenuEntry, values: Omit<Insertable<MenusTable>, "id">): Promise<void> {
     const inserted = await this.kernel.run((db) => db.insertInto("menus").values({ id: record.id, ...values }).onConflict((oc) => oc.doNothing()).executeTakeFirst());
-    // A driver that reported no count reads as inserted, as in the forms repo's `createOnce`.
+    // A driver that reported no count reads as inserted: read as a miss, the holder lookup below would
+    // find this very row and turn a create that succeeded into a false version conflict.
     if (Number(inserted.numInsertedOrUpdatedRows) !== 0) return;
     const holder = await this.kernel.run((db) => db.selectFrom("menus").select("version").where("id", "=", record.id).executeTakeFirst());
     if (!holder) throw trashedSlugConflict(record.slug);

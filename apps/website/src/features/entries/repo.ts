@@ -140,7 +140,8 @@ export class SqlEntryRepo implements EntryRepoPort, EntryListPort, EntryDisplayL
    */
   private async insertIfAbsent(record: EntryRecord, values: ReturnType<typeof toRow>): Promise<void> {
     const inserted = await this.kernel.run((db) => db.insertInto("entries").values(values).onConflict((oc) => oc.doNothing()).executeTakeFirst());
-    // A driver that reported no count reads as inserted, as in the forms repo's `createOnce`.
+    // A driver that reported no count reads as inserted: read as a miss, the holder lookup below would
+    // find this very row and turn a create that succeeded into a false version conflict.
     if (Number(inserted.numInsertedOrUpdatedRows) !== 0) return;
     const holder = await this.kernel.run((db) => db.selectFrom("entries").select("version").where("id", "=", record.id).executeTakeFirst());
     if (!holder) throw trashedSlugConflict(record.slug);
