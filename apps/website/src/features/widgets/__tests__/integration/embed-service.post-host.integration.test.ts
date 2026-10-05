@@ -11,7 +11,7 @@ import { insertWidgetEmbed, removeWidgetEmbed, reorderWidgetEmbeds, type EmbedSe
 import { WidgetInstanceNotFoundError } from "../../errors.js";
 import { createWidgetInstance, type WidgetWriteServiceDeps } from "../../write-service.js";
 import { buildWidgetAreaFieldsJson, emptyWidgetAreaDoc, ensureWidgetContentTypesRegistered } from "../../entry-payload.js";
-import { WIDGET_AREA_CONTENT_TYPE, WIDGET_AREA_FIELD_NAMESPACE } from "../../types.js";
+import { WIDGET_AREA_CONTENT_TYPE } from "../../types.js";
 
 /**
  * @file RED regression suite for the bug captured in
@@ -123,7 +123,6 @@ async function makeWidgetAreaHost(repos: ReturnType<typeof makeSharedRepos>): Pr
       slug: `widget-area-${idCounter}`,
       title: "Footer area",
       fieldsJson: buildWidgetAreaFieldsJson({ regionKey: `footer-${idCounter}`, doc: emptyWidgetAreaDoc() }),
-      owner: WIDGET_AREA_FIELD_NAMESPACE,
     },
   });
   if (!areaCreated.ok) throw areaCreated.error;

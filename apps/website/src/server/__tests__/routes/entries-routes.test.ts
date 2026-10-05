@@ -13,6 +13,7 @@ import { registerAdminEntryCreateRoute } from "../../inbound/admin-http/routes/e
 import { registerAdminEntryUpdateRoute } from "../../inbound/admin-http/routes/entries/update.js";
 import { registerAdminEntryLifecycleRoute } from "../../inbound/admin-http/routes/entries/lifecycle.js";
 import type { RouteDeps } from "../../routes/types.js";
+import { ensureWidgetContentTypesRegistered } from "../../../features/widgets/entry-payload.js";
 
 /**
  * @file design-spec.md §1.9 backend-gap closure — route-level tests for the Collections entries
@@ -472,6 +473,56 @@ test("entries routes: updating with an un-enveloped fieldsJson is rejected 400 V
   assert.equal(res.status, 400);
   const body = (await res.json()) as { code: string };
   assert.equal(body.code, "VALIDATION_ERROR");
+});
+
+/** Seeds the `widget`/`widget_area` content types exactly the way the widgets feature does on its first write. */
+async function seedWidgetTypes(deps: RouteDeps): Promise<void> {
+  await ensureWidgetContentTypesRegistered({
+    deps: { contentTypeRepo: deps.contentTypeRepo, clock: deps.clock, ids: deps.idGen, outbox: deps.outbox },
+    workspaceId: deps.workspaceId,
+  });
+}
+
+test("entries routes: a widget-type entry with its payload under ext.site is rejected 400 VALIDATION_ERROR (the 2026-08-03 probe rows)", async (t) => {
+  // The generic route passes no envelope owner. Before 2026-10-04 the chokepoint defaulted that to
+  // "site", so this exact request validated against the `widget` type, returned 201, and wrote a
+  // row the widgets reader can never parse — how two probe rows reached production. The owner now
+  // comes from the content type itself.
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await seedWidgetTypes(deps);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/entries`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ type: "widget", slug: "probe", title: "Probe", fieldsJson: { ext: { site: { payload: "probe" } } } }),
+  });
+  assert.equal(res.status, 400);
+  const body = (await res.json()) as { code: string };
+  assert.equal(body.code, "VALIDATION_ERROR");
+});
+
+test("entries routes: the generic create and update routes write a widget envelope under ext.widget", async (t) => {
+  // The other half of the same defect: with a caller-chosen owner defaulting to "site", the generic
+  // `PUT /entries/:id` could never write a widget envelope at all.
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await seedWidgetTypes(deps);
+
+  const createRes = await fetch(`${baseUrl}/api/admin/v1/entries`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ type: "widget", slug: "real", title: "Real", fieldsJson: { ext: { widget: { payload: "{}" } } } }),
+  });
+  assert.equal(createRes.status, 201);
+  const { entry } = (await createRes.json()) as { entry: { id: string; version: number } };
+
+  const updateRes = await fetch(`${baseUrl}/api/admin/v1/entries/${entry.id}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ fieldsJson: { ext: { widget: { payload: "{\"a\":1}" } } }, expectedVersion: entry.version }),
+  });
+  assert.equal(updateRes.status, 200);
 });
 
 test("entries routes: update's write-service chokepoint re-check no longer diverges from the route's own pre-check (2026-09-03 RBAC audit fix)", async (t) => {

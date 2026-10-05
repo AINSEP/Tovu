@@ -175,7 +175,6 @@ export async function createWidgetInstance(required: CreateWidgetInstanceRequire
       slug,
       title: input.title,
       fieldsJson: buildWidgetInstanceFieldsJson({ widgetType: input.widgetType, config: input.config, status: "active" }),
-      owner: WIDGET_FIELD_NAMESPACE,
     },
   });
   if (!created.ok) throw created.error;
@@ -247,7 +246,6 @@ export async function updateWidgetInstance(required: UpdateWidgetInstanceRequire
         title: input.title,
         fieldsJson: buildWidgetInstanceFieldsJson({ widgetType: currentPayload.widgetType, config: input.config, status: currentPayload.status }),
         expectedVersion: input.baseVersion,
-        owner: WIDGET_FIELD_NAMESPACE,
       },
     });
 
@@ -326,7 +324,6 @@ export async function importWidgetInstance(required: ImportWidgetInstanceRequire
         fieldsJson: buildWidgetInstanceFieldsJson({ widgetType: input.widgetType, config: input.config, status: "active" }),
         publishedAt: current?.publishedAt ?? null,
         expectedVersion: input.expectedVersion,
-        owner: WIDGET_FIELD_NAMESPACE,
       },
     });
     if (!result.ok) throw result.error;
@@ -518,7 +515,6 @@ export async function restoreWidgetPriorStatus(required: RestoreWidgetPriorStatu
       id: widget.id,
       fieldsJson: buildWidgetInstanceFieldsJson({ ...payload, status: ADOPTED_WIDGET_PRIOR_STATUS }),
       expectedVersion: widget.version,
-      owner: WIDGET_FIELD_NAMESPACE,
     },
   });
   if (!updated.ok) throw updated.error;

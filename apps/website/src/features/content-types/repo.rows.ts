@@ -7,6 +7,7 @@ import type {
   ContentTypeRevisionInput,
   ContentTypeStatus,
 } from "./index.js";
+import { DECLARED_CONTENT_TYPE_OWNERS, declaredOwnerFor } from "./declared-owners.js";
 
 /**
  * @file Row mapping for `content_types` / `content_type_revisions`, shared by every dialect: the
@@ -21,8 +22,13 @@ export function syntheticId(workspaceId: string, key: string): string {
   return `${workspaceId}::${key}`;
 }
 
-/** One `content_types` row as a {@link ContentTypeRecord}. */
+/**
+ * One `content_types` row as a {@link ContentTypeRecord}. The envelope `owner` has no column: it is
+ * restored from `declared-owners.ts` (a code fact for code-registered types), and left off entirely
+ * for every other type so those records stay byte-identical to before `owner` existed.
+ */
 export function toRecord(row: ContentTypeRow): ContentTypeRecord {
+  const owner = declaredOwnerFor({ key: row.key });
   return {
     workspaceId: row.workspace_id,
     key: row.key,
@@ -31,11 +37,21 @@ export function toRecord(row: ContentTypeRow): ContentTypeRecord {
     status: row.status as ContentTypeStatus,
     version: row.version,
     tombstonedAt: row.tombstoned_at,
+    ...(owner !== undefined ? { owner } : {}),
   };
 }
 
-/** `toRecord`'s inverse: the exact column values one whole-row save persists (compact JSON text). */
+/**
+ * `toRecord`'s inverse: the exact column values one whole-row save persists (compact JSON text).
+ * Throws for an `owner` that `declared-owners.ts` would not restore on read: with no column to hold
+ * it, saving would drop it silently and the next read would validate that type's entries under the
+ * wrong namespace.
+ */
 export function toRow(record: ContentTypeRecord): Insertable<ContentDatabase["content_types"]> {
+  if (record.owner !== undefined && record.owner !== declaredOwnerFor({ key: record.key })) {
+    const declared = Object.entries(DECLARED_CONTENT_TYPE_OWNERS).map(([key, owner]) => `${key}=${owner}`).join(", ");
+    throw new Error(`content type '${record.key}' declares owner '${record.owner}', but only these code-declared owners can be stored: ${declared}`);
+  }
   return {
     id: syntheticId(record.workspaceId, record.key),
     workspace_id: record.workspaceId,

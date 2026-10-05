@@ -50,6 +50,9 @@ export const contributeContentTypePublish = (): PublishContentContributor =>
       workspaceId: "local",
       version: "local",
       tombstonedAt: "local",
+      // Only the seeded widget types carry an owner, and they never travel (SEEDED_KEYS); each
+      // instance restores it from `declared-owners.ts`.
+      owner: "local",
     },
     validate: async ({ entity, existing }) =>
       seededKeyRefusal(entity.id) ?? (existing?.status === "tombstone" ? tombstonedAtDestination("content-type", entity.id) : null),

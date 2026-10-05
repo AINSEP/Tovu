@@ -153,7 +153,6 @@ export async function bindWidgetArea(required: BindWidgetAreaRequired): Promise<
           slug,
           title: `Region: ${input.regionKey}`,
           fieldsJson: buildWidgetAreaFieldsJson({ regionKey: input.regionKey, doc: emptyWidgetAreaDoc() }),
-          owner: WIDGET_AREA_FIELD_NAMESPACE,
         },
       });
       if (!created.ok) throw created.error;
@@ -254,7 +253,6 @@ export async function mutateWidgetAreaPlacements(
         id: input.areaEntryId,
         fieldsJson: buildWidgetAreaFieldsJson({ regionKey: currentPayload.regionKey, doc: nextDoc }),
         expectedVersion: input.baseVersion,
-        owner: WIDGET_AREA_FIELD_NAMESPACE,
       },
     });
 

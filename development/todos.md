@@ -246,7 +246,7 @@ Open question (owner): how much of this belongs in Jini at all.
 
 ## Entries envelope owner is a per-caller parameter, not a property of the content type (found 2026-09-19)
 
-**PARTLY (re-audit 10-04):** UX half done (`be7c233d6`, skipped ids named). Core fix open: Jini `content-types/types.ts` has no `owner`; `entries/write-service.ts` still takes `input.owner` from the caller.
+**DONE 10-04** — UX half `be7c233d6`; core fix Jini `72ca0548` (`ContentTypeRecord.owner`, entry writers read it off the type, `input.owner` removed) + Tovu (the commit that marked this done; widgets register with owner; `content-types/declared-owners.ts` restores it on SQL reads, no column/migration). Needs a `@jini-ai/cms` release. The two existing production probe rows are still not cleaned.
 
 **The defect.** `createEntry` takes `input.owner` (`@jini-ai/cms` `entries/write-service.ts:125`) and feeds it to
 `validateFieldsAgainstSchema` at `:156`, defaulting to `"site"`. The widgets feature passes `owner: "widget"`. The

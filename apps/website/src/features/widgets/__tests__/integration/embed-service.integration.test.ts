@@ -23,7 +23,7 @@ import {
 import { WidgetEmbedGuardrailError, WidgetEmbedPlacementNotFoundError, WidgetInstanceNotFoundError, WidgetVersionConflictError } from "../../errors.js";
 import { createWidgetInstance, trashWidgetInstance, type WidgetTrashDeps } from "../../write-service.js";
 import { buildWidgetInstanceFieldsJson, buildWidgetAreaFieldsJson, ensureWidgetContentTypesRegistered, emptyWidgetAreaDoc } from "../../entry-payload.js";
-import { WIDGET_AREA_CONTENT_TYPE, WIDGET_AREA_FIELD_NAMESPACE } from "../../types.js";
+import { WIDGET_AREA_CONTENT_TYPE } from "../../types.js";
 
 /**
  * @file C-007 `embed-service.ts` — SPEC-043 REQ-44/45, ADR-047 Debate Fold-In Amendment 6.
@@ -266,7 +266,6 @@ test("Fable adversarial-review fix (2026-07-21, Finding E/REQ-17): a widget_area
       slug: `widget-area-footer-${idCounter}`,
       title: "Footer area",
       fieldsJson: buildWidgetAreaFieldsJson({ regionKey: "footer", doc: emptyWidgetAreaDoc() }),
-      owner: WIDGET_AREA_FIELD_NAMESPACE,
     },
   });
   if (!areaCreated.ok) throw areaCreated.error;
@@ -507,7 +506,6 @@ test("Round-2 external-audit fix (2026-07-21, codex blocker WIDGETS-R2-001): reo
       slug: `widget-area-reorder-${idCounter}`,
       title: "Footer area",
       fieldsJson: buildWidgetAreaFieldsJson({ regionKey: "footer", doc: emptyWidgetAreaDoc() }),
-      owner: WIDGET_AREA_FIELD_NAMESPACE,
     },
   });
   if (!areaCreated.ok) throw areaCreated.error;

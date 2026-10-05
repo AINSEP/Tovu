@@ -42,6 +42,10 @@ import type {
  * report). Widget instances write under `fields.ext.widget.*` (`WIDGET_FIELD_NAMESPACE`) and
  * `widget_area` entries under `fields.ext.widgets.*` (`WIDGET_AREA_FIELD_NAMESPACE`), matching
  * REQ-01/REQ-11's literal namespacing — not a shared `site` bag.
+ * Since 2026-10-04 that namespace is a property of the registered content type (`owner` below), not
+ * a per-call `owner` argument: the entries chokepoint reads it off the type, so the generic entries
+ * routes can no longer validate a widget payload under `ext.site` (how two unreadable probe rows
+ * reached production on 2026-08-03).
  *
  * A widget instance's `config` shape is still polymorphic per `widgetType` (declared in
  * `registry.ts`'s per-type `configSchema`, a JSON-Schema-like validator, not the generic entries
@@ -190,15 +194,16 @@ export async function ensureWidgetContentTypesRegistered(
   _optional: Record<string, never> = {}
 ): Promise<void> {
   const { deps, workspaceId } = required;
-  await ensureOneContentTypeRegistered(deps, workspaceId, WIDGET_CONTENT_TYPE, "Widget");
-  await ensureOneContentTypeRegistered(deps, workspaceId, WIDGET_AREA_CONTENT_TYPE, "Widget Area");
+  await ensureOneContentTypeRegistered(deps, workspaceId, WIDGET_CONTENT_TYPE, "Widget", WIDGET_FIELD_NAMESPACE);
+  await ensureOneContentTypeRegistered(deps, workspaceId, WIDGET_AREA_CONTENT_TYPE, "Widget Area", WIDGET_AREA_FIELD_NAMESPACE);
 }
 
 async function ensureOneContentTypeRegistered(
   deps: { contentTypeRepo: ContentTypeRepoPort; clock: ClockPort; ids: { newId: () => string }; outbox: OutboxPort },
   workspaceId: string,
   key: string,
-  label: string
+  label: string,
+  owner: string
 ): Promise<void> {
   const existing = await deps.contentTypeRepo.findByKey({ workspaceId, key });
   if (existing) return;
@@ -222,6 +227,10 @@ async function ensureOneContentTypeRegistered(
       key,
       label,
       fields: [{ name: WIDGET_PAYLOAD_FIELD, kind: "text", required: true, queryable: false }],
+      // The envelope namespace belongs to the type (2026-10-04): every entry write, including the
+      // generic entries routes, now validates this type's payload under `ext.<owner>` with no
+      // caller passing it. `content-types/declared-owners.ts` restores it on SQL reads.
+      owner,
     },
   });
   if (!result.ok) {

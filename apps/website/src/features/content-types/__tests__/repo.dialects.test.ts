@@ -91,6 +91,31 @@ describeEachDialect<{ repo: Repo; kernel: ContentKernel }>(
       })), [revision, changed]);
     });
 
+    test("the widget types read back carrying their envelope owner; every other type carries none", async () => {
+      // `content_types` has no owner column: the owner of a code-registered type is a code fact
+      // (`declared-owners.ts`), so the repo restores it on every read. Without it the entries
+      // chokepoint would validate widget payloads under `ext.site` again.
+      const { repo } = makeRepo();
+      await repo.save(contentType("widget", { owner: "widget" }));
+      await repo.save(contentType("widget_area", { owner: "widgets" }));
+      await repo.save(contentType("recipe"));
+      assert.equal((await repo.findByKey({ workspaceId: WS, key: "widget" }))?.owner, "widget");
+      assert.equal((await repo.findByKey({ workspaceId: WS, key: "widget_area" }))?.owner, "widgets");
+      const recipe = await repo.findByKey({ workspaceId: WS, key: "recipe" });
+      assert.deepEqual(recipe, contentType("recipe"), "a type with no declared owner reads back with no owner key at all");
+      const listed = await repo.listByWorkspace({ workspaceId: WS });
+      assert.equal(listed.find((row) => row.key === "widget")?.owner, "widget");
+    });
+
+    test("saving an owner the schema cannot hold is refused, never silently dropped", async () => {
+      const { repo } = makeRepo();
+      await assert.rejects(
+        repo.save(contentType("recipe", { owner: "widget" })),
+        { message: "content type 'recipe' declares owner 'widget', but only these code-declared owners can be stored: widget=widget, widget_area=widgets" }
+      );
+      assert.equal(await repo.findByKey({ workspaceId: WS, key: "recipe" }), null);
+    });
+
     test("a transaction's save + appendRevision roll back together; a nested one joins", async () => {
       const { repo, kernel } = makeRepo();
       await assert.rejects(
