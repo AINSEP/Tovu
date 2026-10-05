@@ -80,3 +80,26 @@ Spotted while reading, not fixed, not reproduced.
 2. `apps/website/src/server/inbound/admin-http/routes/posts/update.ts:42` — `parsePostUpdateBody` turns a missing `slug` into `String(body.slug ?? "")`, i.e. `""`. A title-only `PUT .../posts/:id` (no `slug` in the body) hands `updatePost` an empty slug, so the post's slug may be wiped or regenerated from the new title. That silently breaks existing public URLs, unless `updatePost` treats `""` as "keep".
 3. `apps/website/src/server/runtime/composition/deps.ts:1515` — the disposer returned by `registerRedirectsPhaseHandlers(...)` is thrown away, and closing the site store never unregisters the handler. After a site composition closes (site switch, test teardown, failed boot), its redirect resolver stays registered on the process-wide resolve phase, bound to a closed repo. Until another composition registers and replaces it, every route that runs the resolve phases can 500. `features/redirects/phase-handler.ts` documents that exact failure for the replacement case only.
 4. `apps/website/src/server/__tests__/helpers/http-test-server.ts:102` (test helper, not product) — `BarePrincipalDeps.passwordHasher.hash` is typed `(password: string)` but is called with `{ password }`. This is a real TS2345 error that is never reported, because the root `tsconfig.json` excludes `__tests__`. It does not fail at runtime only because the real hasher takes an object.
+
+## Round 5 (2026-10-05) — real-DB route groups, authored NOT RUN
+
+| Route group | File (`server/__tests__/integration/`) | Tests |
+|---|---|---|
+| Settings: `core.site.title` write -> public `/feed.xml`, clear fallback, refusals; `core.language.locale` per-user layer; `site/profile` | `settings-real-composition.unrun.integration.test.ts` | 8 |
+| Themes: activate -> persisted -> public home asset marker -> revert; 400s | `themes-activation-real-composition.unrun.integration.test.ts` | 4 |
+| Widgets/regions: widget CRUD, region bind/placements/reorder/409, public region render via a copied declarative theme with `regions`, html Page inline embed | `widgets-regions-real-composition.unrun.integration.test.ts` | 10 |
+| Users admin (beyond round 1 RBAC): create/conflict/PATCH, role change on a live session, enable, reset-password, DELETE -> Trash -> restore, SELF_DELETE | `users-admin-real-composition.unrun.integration.test.ts` | 12 |
+
+Still NOT authored (agent stopped at the context ceiling): site static export bundle contents
+(`system/export-site.ts`), PGlite boot on its own (live foreign owner lock refused, lifecycle modules on PGlite, gap #12).
+See the round 5 handoff in `.local-artifacts/handoffs/`.
+
+Round 5 observations (read, not reproduced):
+
+8. No stock theme declares `regions` (`content/themes/*/*/theme.json`), so widget regions cannot render on any shipped
+   theme; the region test has to copy a theme and add `regions` itself. Regions are only reachable for theme authors.
+9. Static-tier home pages (`renderStaticTierHomePage`) never read `siteTitle`, so `core.site.title` only reaches a
+   static site's home through the SEO head contributor and `/feed.xml`; the tests use the feed.
+10. `resolveExportOutputRootDir()` (`deps.ts:483`) defaults to `siteDir()`, i.e. `TOVU_SITE_DIR` or `<cwd>/sites/<name>`,
+    not the booted site folder. `serve.ts` pins `TOVU_SITE_DIR`, but any composition that does not (tests, the unrun
+    helper) would write an admin-triggered export under the process cwd. An export test must set `TOVU_EXPORT_DIR` first.
