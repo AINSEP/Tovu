@@ -42,10 +42,10 @@ import type { PluginActivationRecord } from "./activation.js";
 import { resolveClaimConflicts, type ClaimConflict, type ClaimMode, type ClaimOwner, type ExtensionClaim } from "./claim-conflicts.js";
 import { parseDeclaredContentTypes } from "./declarative-content-types.js";
 import type { PluginDiscoveryRecord } from "./discovery.js";
-import type { PluginContributions, PluginManifest } from "./manifest.js";
+import { CORE_OWNER_ID, type PluginContributions, type PluginManifest } from "./manifest.js";
 
 /** The owner id core's claims are filed under, and how messages name it. */
-export const CORE_OWNER_ID = "core";
+export { CORE_OWNER_ID };
 const CORE_OWNER_NAME = "Tovu core";
 
 /** How each host hook point arbitrates several plugins (see this file's header). */

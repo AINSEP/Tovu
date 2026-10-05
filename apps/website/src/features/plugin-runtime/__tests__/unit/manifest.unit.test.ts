@@ -118,6 +118,12 @@ test("DUP-01: a site plugin id equal to a built-in id is SHADOWS_BUILT_IN, and t
   assert.ok(codesOf(result).includes("SHADOWS_BUILT_IN"));
 });
 
+test("the id 'core' is reserved: it is the claim system's own owner id for Tovu core, so a plugin with it would never conflict with core", () => {
+  assert.deepEqual(validateManifest(required(validManifest({ id: "core", fields: [{ path: "ext.core.count", type: "integer", queryable: false }] }), "core")).errors, [{
+    code: "ID_RESERVED", file: null, message: "id 'core' is reserved for Tovu core",
+  }]);
+});
+
 test("REQ-01/BR-02 (collect-all, adversarial aggregate case): a manifest violating every rule at once reports ALL applicable codes, not just the first", () => {
   const kitchenSink = {
     id: "Bad_Id!",

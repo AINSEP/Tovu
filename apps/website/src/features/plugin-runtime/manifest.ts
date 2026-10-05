@@ -216,9 +216,17 @@ function validateIdFormat(id: string): PluginValidationError[] {
   return [];
 }
 
-/** id identity: folder match + built-in shadowing (BR-02 step 3, DUP-01). */
+/** The owner id the claim system gives Tovu core (`plugin-claims.ts` re-exports it). Conflict
+ * detection never compares an owner with itself, so a plugin with this id would never conflict with
+ * core's reserved routes, tools or permissions — it is refused as an id instead. */
+export const CORE_OWNER_ID = "core";
+
+/** id identity: reserved id + folder match + built-in shadowing (BR-02 step 3, DUP-01). */
 function validateIdIdentity(id: string, folderName: string, builtInIds: readonly string[]): PluginValidationError[] {
   const errors: PluginValidationError[] = [];
+  if (id === CORE_OWNER_ID) {
+    errors.push({ code: "ID_RESERVED", file: null, message: `id '${id}' is reserved for Tovu core` });
+  }
   if (id !== folderName) {
     errors.push({
       code: "ID_FOLDER_MISMATCH",
