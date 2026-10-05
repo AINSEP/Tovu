@@ -182,6 +182,12 @@ Re-audited against code/git 2026-10-04 (evening): statuses below marked **PARTLY
 
 ---
 
+## Jini "visibility" package: SEO + AEO + GEO + visitor analytics (owner idea, 2026-10-04; after the 10-04 queue)
+- Move Tovu's generic SEO code (`apps/website/src/features/seo`, sitemap/robots/`/llms.txt` routing) into Jini as one package, e.g. `@jini-ai/visibility`, with separate entry points `/seo` (SEO, AEO, GEO) and `/analytics` (today's `@jini-ai/analytics`, ~960 lines, retired into it). Tovu keeps thin adapters.
+- Separate entry points so an app can take one half without the other (analytics writes visitor data at runtime; SEO/AEO/GEO mostly renders output).
+- Observability (OpenTelemetry tracing, already in `@jini-ai/diagnostics/observability`, used by `apps/website/src/platform/observability`) stays out of it: operator-facing, not site-owner marketing. Datadog/Grafana need no adapters — both accept OTLP; set the endpoint env vars. Owner may still choose otherwise.
+- Analytics' `rootKeySeed` argument is the separate `ANALYTICS_ROOT_KEY_SEED` secret, not the site key — rename it to `analyticsSeed` as part of this move; until then `check-site-key-names.sh` tags its 2 Tovu lines as legacy.
+
 ## Raw-HTML embed mode for forms, menus and categories/tags (owner idea, 2026-10-03; NOT now, after the admin media swap is committed)
 
 **PARTLY DONE 10-04** (`5e9f338f6`, `c6d54038e`, `7ab1eadef`): `form` type + `mode:"html"`, menu and taxonomy HTML mode, Copy HTML embed. Left: renderers still in Tovu (`features/forms/html-render.ts`, `features/navigation/html-render.ts`), not Jini; optional client inline-validation script not built.
