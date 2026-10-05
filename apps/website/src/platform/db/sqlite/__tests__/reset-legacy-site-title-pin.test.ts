@@ -140,11 +140,19 @@ describeEachDialect("resetLegacySiteTitlePin", { tables: TABLES, make: (kernel) 
     await insertDefinition(kernel, { settingId: "def-title", namespace: "core.site", key: "title" });
     await insertWorkspaceValue(kernel, { settingId: "def-title", workspaceId: "ws-a", updatedBy: OWNER, value: "Acme Field Notes" });
     await insertWorkspaceValue(kernel, { settingId: "def-title", workspaceId: "ws-b", updatedBy: OWNER, value: null, state: "cleared" });
+    await kernel.run(db => db.updateTable("setting_values_workspace").set({ seq: 7 }).where("workspace_id", "=", "ws-a").execute());
+    await kernel.run(db => db.updateTable("setting_values_workspace").set({ seq: 11 }).where("workspace_id", "=", "ws-b").execute());
     await insertMarker(kernel, "ws-a", NOW);
     await insertMarker(kernel, "ws-b", NOW);
 
+    const before = await kernel.run(db => db.selectFrom("setting_values_workspace").selectAll().orderBy("workspace_id").execute());
+    assert.deepEqual(before.map(row => [row.workspace_id, row.value_json, row.def_version, row.seq]), [
+      ["ws-a", '"Acme Field Notes"', 1, 7], ["ws-b", null, 1, 11],
+    ]);
+
     assert.deepEqual(await resetLegacySiteTitlePin({ db: kernel }), { markerRowsDeleted: 2, pinRowsDeleted: 0 });
 
+    assert.deepEqual(await kernel.run(db => db.selectFrom("setting_values_workspace").selectAll().orderBy("workspace_id").execute()), before);
     assert.deepEqual(await workspaceValues(kernel), [`def-title|ws-a|${OWNER}|set`, `def-title|ws-b|${OWNER}|cleared`]);
     assert.deepEqual(await markerWorkspaceIds(kernel), []);
   });

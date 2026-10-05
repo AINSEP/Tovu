@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { sql } from "kysely";
 
 import { openDatabaseJournalDb } from "../database-journal-db.js";
 import { SqliteMigrationRunsRepo, SqliteRestorePointsRepo, SqliteDatabaseLedgerRepo } from "../database-journal-repo.js";
@@ -83,6 +84,11 @@ test("SqliteDatabaseLedgerRepo: append + query round-trips a row and filters by 
 
     const byOutcome = await ledger.query({ outcome: "failed", limit: 10 });
     assert.deepEqual(byOutcome.items.map((r) => r.id), ["led-3"]);
+    const middle = "2026-07-15T00:01:00.000Z";
+    assert.deepEqual((await ledger.query({ fromDate: middle, limit: 10 })).items.map(row => row.id), ["led-3", "led-2"]);
+    assert.deepEqual((await ledger.query({ toDate: middle, limit: 10 })).items.map(row => row.id), ["led-2", "led-1"]);
+    assert.deepEqual((await ledger.query({ fromDate: middle, toDate: middle, limit: 10 })).items.map(row => row.id), ["led-2"]);
+    assert.deepEqual((await ledger.query({ fromDate: "2026-07-16T00:00:00.000Z", limit: 10 })).items, []);
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
@@ -97,7 +103,7 @@ test("SqliteDatabaseLedgerRepo: query() paginates via a stable cursor, never a r
         id: `led-${i}`,
         kind: "core.migration",
         outcome: "success",
-        createdAt: `2026-07-15T00:0${i}:00.000Z`,
+        createdAt: "2026-07-15T00:00:00.000Z",
       });
     }
 
@@ -105,6 +111,8 @@ test("SqliteDatabaseLedgerRepo: query() paginates via a stable cursor, never a r
     assert.equal(page1.items.length, 2);
     assert.deepEqual(page1.items.map((r) => r.id), ["led-4", "led-3"]);
     assert.ok(page1.nextCursor);
+
+    await ledger.append({ id: "new-between-pages", kind: "core.migration", outcome: "success", createdAt: "2026-07-16T00:00:00.000Z" });
 
     const page2 = await ledger.query({ limit: 2, cursor: page1.nextCursor ?? undefined });
     assert.deepEqual(page2.items.map((r) => r.id), ["led-2", "led-1"]);
@@ -197,7 +205,8 @@ test("SqliteMigrationRunsRepo: findNonTerminalForSite is site-scoped", async () 
   }
 });
 
-test("SqliteMigrationRunsRepo: markResolved terminalizes a run as RESTORED, the recovery ceremony's only caller (gated-hooks.ts)", async () => {
+test("SqliteMigrationRunsRepo: markResolved terminalizes a run as RESTORED, the recovery ceremony's only caller (gated-hooks.ts)", async (t) => {
+  t.mock.timers.enable({ apis: ["Date"], now: Date.parse("2026-07-15T00:05:00.000Z") });
   const { db, tmpDir } = openTempJournal();
   try {
     const runs = new SqliteMigrationRunsRepo({ db, siteId: "site-1" });
@@ -211,7 +220,13 @@ test("SqliteMigrationRunsRepo: markResolved terminalizes a run as RESTORED, the 
     });
     assert.deepEqual(await runs.findNonTerminalForSite("site-1"), { id: "run-1", status: "QUIESCING" });
 
+    const [before] = await db.query(sql`SELECT * FROM migration_runs WHERE id = 'run-1'`);
+
     await runs.markResolved({ id: "run-1" });
+
+    assert.deepEqual(await db.query(sql`SELECT * FROM migration_runs WHERE id = 'run-1'`), [{
+      ...before, status: "RESTORED", updated_at: "2026-07-15T00:05:00.000Z",
+    }]);
 
     assert.equal(
       await runs.findNonTerminalForSite("site-1"),
@@ -243,7 +258,11 @@ test("SqliteMigrationRunsRepo: markResolved targets only the given run id, leavi
       updatedAt: "2026-07-15T00:01:00.000Z",
     });
 
+    const siblingBefore = await db.query(sql`SELECT * FROM migration_runs WHERE id = 'run-2'`);
+
     await runs.markResolved({ id: "run-1" });
+
+    assert.deepEqual(await db.query(sql`SELECT * FROM migration_runs WHERE id = 'run-2'`), siblingBefore);
 
     // run-2 must still be reported non-terminal (findNonTerminalForSite returns the first match it
     // finds; with run-1 now RESTORED, only run-2 remains eligible).

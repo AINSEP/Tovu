@@ -98,10 +98,14 @@ function runContractSuite(
   test(`${label}: a recorded type is scoped to its workspace`, async () => {
     const { store, seedBlob } = make();
     await seedBlob(makeAssetBlob());
+    await seedBlob(makeAssetBlob({ id: "other-workspace-blob", workspaceId: "workspace-2" }));
     await store.set({ workspaceId: WORKSPACE_ID, sha256: SHA, contentType: "image/png" });
 
     const found = await store.getMany({ workspaceId: "workspace-2", sha256s: [SHA] });
     assert.equal(found.has(SHA), false);
+    await store.set({ workspaceId: "workspace-2", sha256: SHA, contentType: "video/mp4" });
+    assert.deepEqual([...(await store.getMany({ workspaceId: WORKSPACE_ID, sha256s: [SHA] }))], [[SHA, "image/png"]]);
+    assert.deepEqual([...(await store.getMany({ workspaceId: "workspace-2", sha256s: [SHA] }))], [[SHA, "video/mp4"]]);
   });
 }
 

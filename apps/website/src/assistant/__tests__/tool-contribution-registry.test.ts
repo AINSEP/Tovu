@@ -399,19 +399,32 @@ test("core registers no Supabase-specific connect tool — the generic agent_plu
   );
 });
 
-test("two independent buildAssistantToolRegistrations calls after one installFirstPartyToolContributors() see the identical tool-id set — daemon and BYOK must never drift apart", async () => {
-  installFirstPartyToolContributors({ contributions });
-
-  // Two separately-constructed deps bags, mirroring `agent-daemon-server.ts` and
-  // `assistant-byok.ts`/`byok-tool-surface.ts` each building their own `routeDeps` independently
-  // rather than sharing one instance across processes.
-  const daemonLikeDeps = createRouteDeps();
-  await daemonLikeDeps.identityReady;
-  const byokLikeDeps = createRouteDeps();
-  await byokLikeDeps.identityReady;
-
-  const daemonIds = buildAssistantToolRegistrations(daemonLikeDeps, undefined, { contributions }).map((r) => r.descriptor.id).sort();
-  const byokIds = buildAssistantToolRegistrations(byokLikeDeps, undefined, { contributions }).map((r) => r.descriptor.id).sort();
+test("daemon construction statements and the real BYOK root independently build the identical tool-id set", async (t) => {
+  const { mkdtemp, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { createAssistantByokModule } = await import("../../server/runtime/composition/modules/assistant-byok.js");
+  const { buildDaemonToolSurface } = await import("../../server/inbound/assistant/__tests__/helpers/daemon-tool-surface.js");
+  const root = await mkdtemp(join(tmpdir(), "tovu-root-parity-"));
+  const previous = [process.env.TOVU_AGENT_PLUGINS_DIR, process.env.TOVU_SKILLS_DIR];
+  process.env.TOVU_AGENT_PLUGINS_DIR = join(root, "plugins");
+  process.env.TOVU_SKILLS_DIR = join(root, "skills");
+  t.after(async () => {
+    for (const [index, key] of ["TOVU_AGENT_PLUGINS_DIR", "TOVU_SKILLS_DIR"].entries()) {
+      if (previous[index] === undefined) delete process.env[key];
+      else process.env[key] = previous[index];
+    }
+    await rm(root, { recursive: true, force: true });
+  });
+  const daemonDeps = createRouteDeps();
+  await daemonDeps.identityReady;
+  const byokDeps = createRouteDeps();
+  await byokDeps.identityReady;
+  const daemonRegistry = await buildDaemonToolSurface(daemonDeps);
+  const byok = createAssistantByokModule(byokDeps);
+  await byok.toolSurface.ready;
+  const daemonIds = daemonRegistry.list({}).map(({ id }) => id).sort();
+  const byokIds = byok.toolSurface.registry.list({}).map(({ id }) => id).sort();
 
   assert.deepEqual(byokIds, daemonIds);
   // And specifically includes the registry-contributed domains, not just parity on whatever

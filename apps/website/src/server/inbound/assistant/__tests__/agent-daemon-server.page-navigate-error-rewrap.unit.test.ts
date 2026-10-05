@@ -72,3 +72,44 @@ describe("the toolRegistrations registration loop", () => {
     assert.match(DAEMON_ENTRY_SOURCE, /onBindError: \(context\) => \{\n[^\n]*\n\s*lostFrontendBindings\.noteBindError\(context\)/);
   });
 });
+
+// F1.4/F2.4: run the actual complete loop, then invoke tools from the resulting registry.
+test("the daemon loop registers every frontend tool and preserves navigation success, rewrap and lost-binding guidance", async () => {
+  const { default: ts } = await import("typescript");
+  const { daemonSource, evaluateDaemonStatements } = await import("./helpers/daemon-source.js");
+  const { createToolRegistry } = await import("@jini-ai/core");
+  const { createToolExecutor } = await import("@jini-ai/daemon");
+  const { withPageNavigateErrorRewrap } = await import("#src/assistant/rewrap-page-navigate-error");
+  const { withReadOnlyFrontendCapabilities } = await import("#src/assistant/frontend-control-capabilities");
+  const { createLostFrontendBindings } = await import("#src/assistant/lost-frontend-binding");
+  const loop = daemonSource.statements.find((statement) => ts.isForOfStatement(statement) && statement.expression.getText(daemonSource).includes("frontendControl.toolRegistrations"));
+  assert.ok(loop, "the module-level frontend registration loop must exist");
+  const registry = createToolRegistry({});
+  const lostFrontendBindings = createLostFrontendBindings();
+  lostFrontendBindings.noteBindError({ runId: "lost-run", error: new Error("unknown or expired bind token") });
+  const registrations: import("@jini-ai/core").ToolRegistration[] = [
+    { descriptor: { id: "page.navigate" }, policy: { authorize: () => "allow" }, handler: async (ctx) => {
+      const page = (ctx.input as { page: string }).page;
+      if (page !== "posts") throw new Error(`"${page}" is not a published page. Available: posts, settings`);
+      return { navigatedTo: "posts" };
+    } },
+    { descriptor: { id: "chat.send_message" }, policy: { authorize: () => "allow" }, handler: async () => ({ sent: true }) },
+    { descriptor: { id: "admin.capture_screenshot" }, policy: { authorize: () => "allow" }, handler: async (ctx) => { throw new Error(`no frontend is bound to run "${ctx.run.id}"`); } },
+  ];
+  await evaluateDaemonStatements([loop], { registry, lostFrontendBindings, withPageNavigateErrorRewrap, withReadOnlyFrontendCapabilities, frontendControl: { toolRegistrations: registrations } });
+  assert.deepEqual(registry.list({}).map(({ id }) => id).sort(), ["admin.capture_screenshot", "chat.send_message", "page.navigate"]);
+  const executor = createToolExecutor({ registry });
+  const request = { principal: { id: "principal" }, run: { id: "bound-run" }, toolId: "page.navigate", input: { page: "posts" } };
+  const success = await executor.execute(request);
+  assert.equal(success.status, "completed");
+  assert.deepEqual(success.output, { navigatedTo: "posts" });
+  const failure = await executor.execute({ ...request, input: { page: "pricing" } });
+  assert.equal(failure.status, "failed");
+  assert.equal(failure.error, '"pricing" is not a registered ADMIN SCREEN id (page.navigate moves the operator\'s admin UI between a fixed set of screens — it does not open site content). Available screens: posts, settings. Looking for a post or page instead? Use content_post_search / content_read.content_post (or content_duplicate to copy one), not page.navigate.');
+  const sent = await executor.execute({ ...request, toolId: "chat.send_message", input: {} });
+  assert.equal(sent.status, "completed");
+  assert.deepEqual(sent.output, { sent: true });
+  const lost = await executor.execute({ ...request, run: { id: "lost-run" }, toolId: "admin.capture_screenshot", input: {} });
+  assert.equal(lost.status, "failed");
+  assert.equal(lost.error, "The admin tab lost its connection to the assistant after a server restart, so it cannot run this tool. Reload the admin page and try again.");
+});

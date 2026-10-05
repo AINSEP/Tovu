@@ -19,7 +19,9 @@ import { createDiskAttachmentStore, detectAttachmentKind } from "@jini-ai/daemon
  * - the first `describe` pins the exact shape of the `imagePaths:` field inside
  *   `resolveAttachmentRunFields` in the real source file, so a future edit that reintroduces a
  *   `kind`-based filter there fails this test immediately;
- * - the second `describe` proves the fix is safe for a genuinely binary, non-text, non-image
+ * - the second `describe` executes the production resolver and complete onStarted callback,
+ *   asserting the executor receives both PDF and image paths. It also proves the fix is safe
+ *   for a genuinely binary, non-text, non-image
  *   attachment — not just a `.md`, which a naive "reads as UTF-8 text" runtime could pass by
  *   accident — using the real `@jini-ai/http-kit` disk-backed `AttachmentStore` end to end
  *   (register -> claim), so the claimed path and bytes are real, not fabricated.
@@ -71,8 +73,9 @@ describe("resolveAttachmentRunFields — imagePaths must not drop non-image atta
 });
 
 describe("real AttachmentStore + a genuine binary non-image fixture", () => {
-  test("a claimed non-image binary attachment (a real PDF, kind 'file') is included by the fixed imagePaths mapping — and would have been silently dropped by the old kind === \"image\" filter", async () => {
+  test("the production resolver delivers a real PDF and image to the daemon executor", async (t) => {
     const uploadDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-attachment-kind-filter-"));
+    t.after(() => fs.rmSync(uploadDirectory, { recursive: true, force: true }));
     const store = await createDiskAttachmentStore({ uploadDirectory });
     const batchId = "batch-kind-filter-test";
     const batchDirectory = await store.createBatchDirectory({ batchId });
@@ -118,5 +121,28 @@ describe("real AttachmentStore + a genuine binary non-image fixture", () => {
 
     assert.deepEqual(fixedImagePaths, [filePath], "the fixed mapping (no kind filter) must include the real, claimed PDF path");
     assert.deepEqual(oldFilteredImagePaths, [], "the removed kind === \"image\" filter would have silently dropped this exact real attachment — the bug this fix closes");
+
+    const { daemonFunction, evaluateDaemonExpression, captureDaemonRun } = await import("./helpers/daemon-source.js");
+    const secondPath = path.join(batchDirectory, "second-report.pdf");
+    fs.writeFileSync(secondPath, pdfBytes, { mode: 0o600 });
+    const second = await store.register({ input: { batchId, path: secondPath, name: "second-report.pdf", kind: "file", size: pdfBytes.length } });
+    const imagePath = path.join(batchDirectory, "screenshot.png");
+    const imageBytes = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jZioAAAAASUVORK5CYII=", "base64");
+    assert.equal(detectAttachmentKind({ body: imageBytes }), "image");
+    fs.writeFileSync(imagePath, imageBytes);
+    const image = await store.register({ input: { batchId, path: imagePath, name: "screenshot.png", kind: "image", size: imageBytes.length } });
+    const resolve = evaluateDaemonExpression<(run: { id: string }, ids: readonly string[], lifecycle: unknown) => Promise<Record<string, unknown> | null>>(daemonFunction("resolveAttachmentRunFields"), {
+      attachmentStore: store,
+      failRunBeforeStart: async () => { throw new Error("unexpected attachment failure"); },
+      console,
+    });
+    // F2.3/F2.4: both the production resolver and its caller run; dropping the spread fails here.
+    const input = await captureDaemonRun({ prompt: "Read both attachments", attachmentIds: [second.path, image.path] }, {
+      bindings: { resolveAttachmentRunFields: resolve },
+    });
+    assert.deepEqual(input.imagePaths, [secondPath, imagePath]);
+    assert.deepEqual(input.extraAllowedDirs, [batchDirectory]);
+    assert.equal(input.uploadRoot, batchDirectory);
+    assert.deepEqual(fs.readFileSync(secondPath), pdfBytes);
   });
 });

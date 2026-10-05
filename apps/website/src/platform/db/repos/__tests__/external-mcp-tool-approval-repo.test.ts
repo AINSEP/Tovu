@@ -22,7 +22,7 @@ function seededRepo(kernel: ContentKernel): SqlExternalMcpToolApprovalRepo {
     await kernel.run((db) =>
       db
         .insertInto("external_mcp_servers")
-        .values(["ws-1", "ws-2"].map((id) => ({ workspace_id: id, server_id: "github", transport: "http", enabled: true, created_at: at, updated_at: at })))
+        .values(["ws-1", "ws-2"].flatMap((id) => ["github", "gitlab"].map((serverId) => ({ workspace_id: id, server_id: serverId, transport: "http", enabled: true, created_at: at, updated_at: at }))))
         .execute()
     );
   });
@@ -35,6 +35,24 @@ describeEachDialect("ExternalMcpToolApprovalRepoPort", { tables: ["workspaces", 
     assert.equal(await repo.find(KEY), null);
     await repo.upsert(GRANT);
     assert.deepEqual(await repo.find(KEY), GRANT);
+  });
+
+  test("find, upsert and delete isolate the same tool on two connections", async () => {
+    const repo = makeRepo();
+    const otherKey = { ...KEY, serverId: "gitlab" };
+    const otherGrant = { ...GRANT, ...otherKey, fingerprint: "gitlab-fingerprint", grantedByPrincipalId: "user-2" };
+    await repo.upsert(GRANT);
+    assert.equal(await repo.find(otherKey), null);
+    await repo.upsert(otherGrant);
+    const regrant = { ...GRANT, fingerprint: "github-regranted" };
+    await repo.upsert(regrant);
+    assert.deepEqual(await repo.find(KEY), regrant);
+    assert.deepEqual(await repo.find(otherKey), otherGrant);
+    assert.equal(await repo.delete(KEY), true);
+    assert.equal(await repo.delete(KEY), false);
+    assert.equal(await repo.find(KEY), null);
+    assert.deepEqual(await repo.find(otherKey), otherGrant);
+    assert.deepEqual(await repo.listByWorkspaceId(WS), [otherGrant]);
   });
 
   test("upsert replaces the fingerprint and grant of the one row for site + connection + tool", async () => {

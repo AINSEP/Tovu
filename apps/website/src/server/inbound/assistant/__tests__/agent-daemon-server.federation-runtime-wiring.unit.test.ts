@@ -87,3 +87,108 @@ describe("agent-daemon-server.ts — federation runtime wiring (S3)", () => {
     );
   });
 });
+
+// F1.4/F2.4: execute the prompt caller against changing runtime state, not matching its spelling.
+test("onStarted reads the federation refusal prefix afresh for each run", async () => {
+  const { captureDaemonRun } = await import("./helpers/daemon-source.js");
+  let prefix = "boot refusal";
+  const toolExtensions = { federation: { refusalPrefix: () => prefix } };
+  const first = await captureDaemonRun({ prompt: "Inspect tools" }, { bindings: { toolExtensions } });
+  assert.equal(first.prompt, "boot refusal\n\n<<SUBAGENT_DISPATCH>>\n\nInspect tools");
+  prefix = "reload refusal";
+  const second = await captureDaemonRun({ prompt: "Inspect tools" }, { bindings: { toolExtensions } });
+  assert.equal(second.prompt, "reload refusal\n\n<<SUBAGENT_DISPATCH>>\n\nInspect tools");
+});
+
+test("the daemon's composed executor diagnoses a refusal introduced after construction", async () => {
+  const { daemonInitializer, evaluateDaemonExpression } = await import("./helpers/daemon-source.js");
+  const { createToolRegistry } = await import("@jini-ai/core");
+  const { createSurfaceExchangeStore } = await import("#src/contracts/core/tool-surface-exchanges");
+  const { createAssistantToolExecutor } = await import("#src/assistant/tool-executor-stack");
+  const { withFederatedRefusalDiagnosis } = await import("#src/assistant/federated-refusal-diagnosis");
+  const { createInMemoryToolAttemptAuditSink } = await import("#src/features/tool-audit/repo.memory");
+  let reports: import("@jini-ai/mcp/federation").FederationAdmissionSnapshotEntry[] = [];
+  const executor = evaluateDaemonExpression<import("@jini-ai/daemon").ToolExecutor>(daemonInitializer("toolExecutor"), {
+    createAssistantToolExecutor, withFederatedRefusalDiagnosis,
+    registry: createToolRegistry({}), surfaceExchanges: createSurfaceExchangeStore(),
+    auditSink: createInMemoryToolAttemptAuditSink(), routeDeps: { workspaceId: "ws-live-refusal" },
+    toolExtensions: { federation: { reports: () => reports } },
+  });
+  const request = { principal: { id: "principal" }, run: { id: "run" }, toolId: "mcp__probe__lookup", input: {} };
+  await assert.rejects(executor.execute(request), /unknown tool/);
+  reports = [{ connectionId: "probe", report: { admitted: [], refused: [{ remoteName: "lookup", reason: "not-in-operator-allowlist" }], allowlistedButAbsent: [], writeAllowedButNotAllowlisted: [] } }];
+  const result = await executor.execute(request);
+  assert.equal(result.status, "failed");
+  assert.equal(result.errorKind, "validation");
+  assert.equal(result.error, 'tool "lookup" on external server "probe" was refused: the administrator has not allowed this tool for this connection. Fix: in Settings → External MCP, add it to "Allowed tools", then restart the assistant.');
+});
+
+test("the daemon-mounted admissions handler reads live reports and both failure channels", async () => {
+  const { default: ts } = await import("typescript");
+  const { daemonFunction, daemonSource, evaluateDaemonStatements } = await import("./helpers/daemon-source.js");
+  const { registerFederationAdmissionsRoute } = await import("../federation-admissions-route.js");
+  const statement = daemonFunction("start").body!.statements.find((entry) => ts.isExpressionStatement(entry) && ts.isCallExpression(entry.expression) && entry.expression.expression.getText(daemonSource) === "registerFederationAdmissionsRoute");
+  assert.ok(statement);
+  let reports: unknown[] = [];
+  let configFailures: unknown[] = [];
+  let connectFailures: unknown[] = [];
+  const handlers = new Map<string, (req: unknown, res: unknown) => void>();
+  await evaluateDaemonStatements([statement], {
+    registerFederationAdmissionsRoute,
+    app: { get: (path: string, handler: (req: unknown, res: unknown) => void) => { assert.equal(handlers.has(path), false); handlers.set(path, handler); } },
+    extensions: { federation: { reports: () => reports, connectFailures: () => connectFailures } },
+    source: { failures: () => configFailures },
+  });
+  const handler = handlers.get("/api/federation/admissions");
+  assert.ok(handler);
+  function read() {
+    let status: number | undefined;
+    let body: unknown;
+    handler!({}, { status(value: number) { status = value; return this; }, json(value: unknown) { body = value; } });
+    assert.equal(status, 200);
+    return body;
+  }
+  assert.deepEqual(read(), { connections: [], configFailures: [] });
+  reports = [{ connectionId: "admitted-probe", isPreset: false, report: { admitted: ["lookup"], refused: [], allowlistedButAbsent: [], writeAllowedButNotAllowlisted: [] } }];
+  configFailures = [{ connectionId: "sealed-probe", reason: "cannot decrypt" }];
+  connectFailures = [{ connectionId: "offline-probe", reason: "connection refused" }];
+  assert.deepEqual(read(), { connections: [{ connectionId: "admitted-probe", isPreset: false, report: { admitted: ["lookup"], refused: [], allowlistedButAbsent: [], writeAllowedButNotAllowlisted: [] } }], configFailures: [{ connectionId: "sealed-probe", reason: "cannot decrypt" }, { connectionId: "offline-probe", reason: "connection refused" }] });
+});
+
+test("a real federation reload makes native and newly admitted tools searchable and describable through existing daemon routes", async () => {
+  const { createToolRegistry } = await import("@jini-ai/core");
+  const { FEDERATED_CONNECTION_DEFAULTS } = await import("@jini-ai/mcp/federation");
+  const { createFederationRuntime } = await import("#src/assistant/external-mcp-federation-runtime");
+  const { InMemoryMcpSession } = await import("#src/assistant/mcp-federation/adapter.memory");
+  const { createInMemoryToolAttemptAuditSink } = await import("#src/features/tool-audit/repo.memory");
+  const { mountDaemonCatalog } = await import("./helpers/daemon-catalog.js");
+  const registry = createToolRegistry({});
+  registry.register({ descriptor: { id: "native_probe", description: "orbitarium lookup" }, handler: async () => "ok", policy: { authorize: () => "allow" } });
+  const sink = createInMemoryToolAttemptAuditSink();
+  const mounted = await mountDaemonCatalog(registry, sink);
+  const roster: import("@jini-ai/mcp/federation").ResolvedFederatedConnection[] = [];
+  const runtime = createFederationRuntime({
+    registry, deps: { authorize: async () => ({ allowed: true, reason: "fixture" }), workspaceId: "ws-daemon-catalog" },
+    resolveConnections: async () => [...roster], onAdmitted: mounted.onAdmitted, log: "[reload-test]",
+    connect: async (connection) => {
+      assert.equal(connection.config.connectionId, "probe");
+      return new InMemoryMcpSession({ tools: [{ name: "lookup", description: "orbitarium lookup", inputSchema: { type: "object" }, annotations: { readOnlyHint: true } }] });
+    },
+  });
+  await runtime.start();
+  assert.equal((await mounted.request("/api/tools/:id", {}, { id: "mcp__probe__lookup" })).status, 404);
+  roster.push({ config: { connectionId: "probe", label: "Probe", allowedToolNames: ["lookup"], writeAllowedToolNames: [], ...FEDERATED_CONNECTION_DEFAULTS }, launch: { url: "https://example.invalid/probe", headers: {} } });
+  const result = await runtime.reload();
+  assert.deepEqual(result.newlyAdmittedConnectionIds, ["probe"]);
+  const search = await mounted.request("/api/tools/search", { q: "orbitarium" });
+  assert.equal(search.status, 200);
+  assert.deepEqual(search.body.hits.map((hit: { id: string }) => hit.id).sort(), ["mcp__probe__lookup", "native_probe"]);
+  for (const id of ["native_probe", "mcp__probe__lookup"]) {
+    const described = await mounted.request("/api/tools/:id", {}, { id });
+    assert.equal(described.status, 200);
+    assert.equal(described.body.id, id);
+  }
+  const searchRow = sink.events.findLast((event) => event.toolId === "search_tools");
+  assert.ok(searchRow, "reload must retain the audit wrapper");
+  assert.deepEqual(JSON.parse(String(searchRow.detail)).resultIds.slice().sort(), ["mcp__probe__lookup", "native_probe"]);
+});

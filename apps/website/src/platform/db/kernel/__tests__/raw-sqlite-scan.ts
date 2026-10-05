@@ -51,7 +51,7 @@ const RULES: ReadonlyArray<{ id: string; pattern: RegExp }> = [
 ];
 
 /** Cheap pre-filter: a file with no raw match cannot have one after comments are removed. */
-const ANY_RULE = new RegExp(RULES.map((rule) => rule.pattern.source).join("|"), "i");
+const ANY_RULE = new RegExp([...RULES.map((rule) => rule.pattern.source), "prepare"].join("|"), "i");
 
 export type Counts = Record<string, Record<string, number>>;
 
@@ -105,6 +105,19 @@ export function countRawSqlite(text: string): Record<string, number> {
     const hits = text.match(rule.pattern)?.length ?? 0;
     if (hits > 0) counts[rule.id] = hits;
   }
+  // Literal computed access is the same call as `.prepare(sql)`; parse it so
+  // comments, quote styles and optional calls cannot hide the statement.
+  const source = ts.createSourceFile("probe.ts", text, ts.ScriptTarget.Latest, true);
+  const visit = (node: ts.Node) => {
+    if (ts.isCallExpression(node) && node.arguments.length > 0 && ts.isElementAccessExpression(node.expression)) {
+      const key = node.expression.argumentExpression;
+      if ((ts.isStringLiteral(key) || ts.isNoSubstitutionTemplateLiteral(key)) && key.text === "prepare") {
+        counts.prepare = (counts.prepare ?? 0) + 1;
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
   return counts;
 }
 

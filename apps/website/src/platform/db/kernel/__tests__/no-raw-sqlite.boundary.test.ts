@@ -38,6 +38,18 @@ test("a bare `.prepare()` (a lifecycle hook, no SQL) is not a prepared statement
   assert.deepEqual(countRawSqlite("await module.prepare();\nconst s = db.prepare(\n  `SELECT 1`\n);"), { prepare: 1 });
 });
 
+test("literal computed prepare calls cannot bypass the SQLite ratchet", () => {
+  const source = [
+    "db['prepare']('SELECT 1');",
+    'db["prepare"]?.("SELECT 2");',
+    "db[`prepare`]('SELECT 3');",
+    "module['prepare']();",
+    "// db['prepare']('SELECT 4');",
+    'const prose = "db[\'prepare\'](sql)";',
+  ].join("\n");
+  assert.deepEqual(countRawSqlite(stripComments("probe.ts", source)), { prepare: 3 });
+});
+
 test("no new raw SQLite outside the storage kernel (ratchet: the baseline only shrinks)", () => {
   const baseline = JSON.parse(fs.readFileSync(BASELINE_PATH, "utf8")) as Counts;
   const current = scan();

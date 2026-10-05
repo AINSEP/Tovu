@@ -7,10 +7,14 @@ import test from "node:test";
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
+import { sql } from "kysely";
 
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 import { runtimeSchemaVersion } from "#src/platform/site-dir/schema-guard";
 import { SqliteDatabaseIntrospectionAdapter } from "../database-introspection-adapter.sqlite.js";
+import { openPgliteKernel } from "../../kernel/drivers/pglite.js";
+import type { ContentDatabase } from "../../content-database.generated.js";
+import { CONTENT_MIGRATIONS } from "../../migrations/index.js";
 
 /**
  * @file ADR-041 §3 — integration tests for `SqliteDatabaseIntrospectionAdapter`, the real backing
@@ -309,6 +313,64 @@ test("a database with no __drizzle_migrations table at all (never migrated) repo
   } finally {
     fs.rmSync(migrationsDir, { recursive: true, force: true });
     sqlite.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+for (const history of ["empty", "unmatched"] as const) {
+  test(`${history} SQLite history has unknown identity and leaves every unmatched journal entry pending`, async () => {
+    const entries = [{ idx: 0, when: 1000, tag: "known-first" }];
+    const { dir, dbPath, db } = migrateRealDb(entries);
+    const { migrationsDir, journalPath } = buildSyntheticMigrationsFixture(entries);
+    try {
+      writeSiteMeta(dir, { schemaVersion: 0, schemaTag: "known-first" });
+      if (history === "empty") db.$client.exec("DELETE FROM __drizzle_migrations");
+      else db.$client.exec("UPDATE __drizzle_migrations SET created_at = 9000");
+      const adapter = new SqliteDatabaseIntrospectionAdapter({ db, dbPath, journalPath });
+      assert.deepEqual(await adapter.getSchemaState(), { status: "unknown", siteMeta: { version: 0, tag: "known-first" }, runtime: null });
+      assert.deepEqual(await adapter.getHealth(), { canOpenDb: true, migrationsTableReadable: true, driftStatus: "unknown" });
+      assert.deepEqual(await adapter.listPendingMigrations(), { items: [{ index: 0, tag: "known-first" }] });
+    } finally {
+      db.$client.close();
+      fs.rmSync(dir, { recursive: true, force: true });
+      fs.rmSync(migrationsDir, { recursive: true, force: true });
+    }
+  });
+}
+
+for (const failure of ["missing", "invalid-json"] as const) {
+  test(`a ${failure} journal never fabricates SQLite schema identity or pending entries`, async () => {
+    const { dir, dbPath, db } = migrateRealDb([{ idx: 0, when: 1000, tag: "known-first" }]);
+    try {
+      writeSiteMeta(dir, { schemaVersion: 0, schemaTag: "known-first" });
+      const journalPath = path.join(dir, "fixture-journal.json");
+      if (failure === "invalid-json") fs.writeFileSync(journalPath, "{broken");
+      const adapter = new SqliteDatabaseIntrospectionAdapter({ db, dbPath, journalPath });
+      assert.deepEqual(await adapter.getSchemaState(), { status: "unknown", siteMeta: { version: 0, tag: "known-first" }, runtime: null });
+      assert.deepEqual(await adapter.listPendingMigrations(), { items: [] });
+    } finally {
+      db.$client.close();
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+}
+
+test("an existing PGlite ledger without the baseline has unknown identity and reports the baseline pending", async () => {
+  const dir = tmpDir("database-adapter-no-baseline-");
+  const kernel = openPgliteKernel<ContentDatabase>();
+  try {
+    const journalPath = path.join(dir, "journal.json");
+    fs.writeFileSync(journalPath, JSON.stringify({ entries: [{ idx: 0, when: 1000, tag: "baseline-head" }] }));
+    writeSiteMeta(dir, { schemaVersion: 0, schemaTag: "baseline-head" });
+    await kernel.execute(sql`CREATE TABLE tovu_migrations (id text PRIMARY KEY)`);
+    await kernel.execute(sql`INSERT INTO tovu_migrations VALUES ('0001_post_search')`);
+    const adapter = new SqliteDatabaseIntrospectionAdapter({ db: kernel, dbPath: path.join(dir, "content.db"), journalPath });
+    assert.deepEqual(await adapter.getHealth(), { canOpenDb: true, migrationsTableReadable: true, driftStatus: "unknown" });
+    assert.deepEqual(await adapter.getSchemaState(), { status: "unknown", siteMeta: { version: 0, tag: "baseline-head" }, runtime: null });
+    assert.deepEqual(await adapter.listPendingMigrations(), { items: CONTENT_MIGRATIONS
+      .map((step, index) => ({ index, tag: step.id })).filter(item => item.tag !== "0001_post_search") });
+  } finally {
+    await kernel.close();
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });

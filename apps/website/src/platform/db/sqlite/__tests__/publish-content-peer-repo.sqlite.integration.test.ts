@@ -13,6 +13,10 @@ import {
   PublishContentPeerDuplicateLabelError,
   resolvePeerCredential,
   updatePublishContentPeer,
+  getPublishContentPeerSummary,
+  selectConnectedDestination,
+  saveConnectedDestination,
+  removeConnectedDestination,
 } from "#src/features/publish-content/peers";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqlitePublishContentPeerRepo } from "#src/platform/db/sqlite/publish-content-peer-repo.sqlite";
@@ -164,6 +168,50 @@ test("update and delete hit the real table by (workspace_id, id)", async () => {
     // Idempotent: deleting again is a success, matching the DELETE route contract.
     await deletePublishContentPeer({ repo: deps.repo }, { workspaceId: WORKSPACE_ID, id: "peer-1" });
   } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("credential rotation and moving or removing a connected destination preserve the unrelated outgoing peer", async () => {
+  const { dir, dbPath } = createFreshContentDbInTempDir();
+  const db = openContentDb(dbPath);
+  let nextId = 0;
+  const keyring = new InMemoryKeyring();
+  const deps = {
+    repo: new SqlitePublishContentPeerRepo(db),
+    sealer: new AesGcmSecretSealer(keyring),
+    keyring,
+    clock: { nowMs: () => Date.parse("2026-09-18T00:00:00.000Z") },
+    idGen: { newId: () => `peer-${++nextId}` },
+  };
+  try {
+    await createPublishContentPeer(deps, { workspaceId: WORKSPACE_ID, label: "manual", baseUrl: "https://manual.example.com",
+      remoteWorkspaceId: "remote-manual", apiKey: API_KEY });
+    assert.equal((await resolvePeerCredential(deps, { workspaceId: WORKSPACE_ID, id: "peer-1" })).apiKey, API_KEY);
+    await updatePublishContentPeer(deps, { workspaceId: WORKSPACE_ID, id: "peer-1", apiKey: "replacement-key-9999" });
+    assert.equal((await resolvePeerCredential(deps, { workspaceId: WORKSPACE_ID, id: "peer-1" })).apiKey, "replacement-key-9999");
+    assert.deepEqual(await getPublishContentPeerSummary(deps, { workspaceId: WORKSPACE_ID, id: "peer-1" }), {
+      id: "peer-1", label: "manual", baseUrl: "https://manual.example.com", remoteWorkspaceId: "remote-manual", masked: "••••9999", hasCredential: true,
+    });
+    const manual = await deps.repo.findById({ workspaceId: WORKSPACE_ID, id: "peer-1" });
+    assert.ok(manual?.sealed);
+    await saveConnectedDestination(deps, { workspaceId: WORKSPACE_ID, label: "first", baseUrl: "https://first.example.com", remoteWorkspaceId: "remote-first" });
+    const reconnected = await saveConnectedDestination(deps, { workspaceId: WORKSPACE_ID, label: "first rebuilt", baseUrl: "https://first.example.com", remoteWorkspaceId: "remote-first-new" });
+    assert.equal(reconnected.id, "peer-2");
+    assert.equal(reconnected.remoteWorkspaceId, "remote-first-new");
+    await saveConnectedDestination(deps, { workspaceId: WORKSPACE_ID, label: "second", baseUrl: "https://second.example.com", remoteWorkspaceId: "remote-second" });
+    const rows = await deps.repo.listByWorkspace({ workspaceId: WORKSPACE_ID });
+    assert.deepEqual(rows.map(row => row.id).sort(), ["peer-1", "peer-3"]);
+    assert.equal(selectConnectedDestination(rows)?.baseUrl, "https://second.example.com");
+    assert.deepEqual(await deps.repo.findById({ workspaceId: WORKSPACE_ID, id: "peer-1" }), manual);
+    assert.equal(await removeConnectedDestination(deps, { workspaceId: WORKSPACE_ID, baseUrl: "https://manual.example.com" }), false);
+    assert.equal(await removeConnectedDestination(deps, { workspaceId: "foreign-workspace", baseUrl: "https://second.example.com" }), false);
+    assert.equal(await removeConnectedDestination(deps, { workspaceId: WORKSPACE_ID, baseUrl: "https://second.example.com" }), true);
+    assert.equal(await removeConnectedDestination(deps, { workspaceId: WORKSPACE_ID, baseUrl: "https://second.example.com" }), false);
+    assert.deepEqual(await deps.repo.listByWorkspace({ workspaceId: WORKSPACE_ID }), [manual]);
+    assert.equal((await resolvePeerCredential(deps, { workspaceId: WORKSPACE_ID, id: "peer-1" })).apiKey, "replacement-key-9999");
+  } finally {
+    db.$client.close();
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });

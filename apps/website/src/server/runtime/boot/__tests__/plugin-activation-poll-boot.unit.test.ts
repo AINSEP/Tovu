@@ -20,12 +20,12 @@ function row(pluginId: string, enabled: boolean): PluginActivationRecord {
 async function waitFor(check: () => boolean, timeoutMs = 2000): Promise<void> {
   const started = Date.now();
   while (!check()) {
-    if (Date.now() - started > timeoutMs) return;
+    if (Date.now() - started > timeoutMs) throw new Error(`plugin reconciliation timed out after ${timeoutMs}ms`);
     await new Promise((resolve) => setTimeout(resolve, 10));
   }
 }
 
-test("plugin-runtime-attach: once started, a plugin disabled by ANOTHER process is detached from this process's hook registry, and an enabled one attached; stop() ends polling", async () => {
+test("plugin-runtime-attach: once started, a plugin disabled by ANOTHER process is detached from this process's hook registry, and an enabled one attached; stop() ends polling", async (t) => {
   let rows: PluginActivationRecord[] = [row("word-count", true)];
   const enabledCalls: string[] = [];
   const disabledCalls: string[] = [];
@@ -44,6 +44,7 @@ test("plugin-runtime-attach: once started, a plugin disabled by ANOTHER process 
   const modules = buildBootModules(deps, { useMemory: true, defaultContentDbPath: () => ":memory:", pluginActivationPollIntervalMs: 10 });
   const attach = modules.find((module) => module.name === "plugin-runtime-attach");
   assert.ok(attach);
+  t.after(() => attach.stop());
   await attach.prepare();
   await attach.start();
 
@@ -93,3 +94,45 @@ for (const heldStep of ["readiness", "activation read"] as const) {
     assert.deepEqual(changes, [], "settling work queued before stop must not change the registry");
   });
 }
+
+// F1.4/F2.3: run the daemon's actual module-level start call with the real timer/reconciler.
+test("the daemon polling call reconciles external activation changes and stop halts it", async (t) => {
+  const { default: ts } = await import("typescript");
+  const { daemonSource, evaluateDaemonExpression } = await import("../../../inbound/assistant/__tests__/helpers/daemon-source.js");
+  const { startPluginActivationPolling } = await import("../../composition/agent-daemon-deps.js");
+  const statement = daemonSource.statements.find((entry) => ts.isExpressionStatement(entry) && ts.isCallExpression(entry.expression) && entry.expression.expression.getText(daemonSource) === "startPluginActivationPolling");
+  assert.ok(statement && ts.isExpressionStatement(statement));
+  t.mock.timers.enable({ apis: ["setInterval"] });
+  let rows = [row("word-count", true)];
+  let reads = 0;
+  const activeHooks = new Set(["word-count"]);
+  const poller = evaluateDaemonExpression<{ stop(): void }>(statement.expression, {
+    startPluginActivationPolling,
+    routeDeps: { workspaceId: WORKSPACE_ID, pluginRuntimeReady: Promise.resolve(),
+      pluginActivationRepo: { listAll: async () => { reads += 1; return rows; } },
+      onPluginEnabled: async (id: string) => { activeHooks.add(id); },
+      onPluginDisabled: (id: string) => { activeHooks.delete(id); },
+    },
+  });
+  t.after(() => poller.stop());
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(reads, 1, "the initial enabled snapshot must seed the poller");
+  rows = [row("word-count", false), row("reading-time", true)];
+  t.mock.timers.tick(5000);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.deepEqual([...activeHooks], ["reading-time"]);
+  poller.stop();
+  const stoppedReads = reads;
+  rows = [row("word-count", true)];
+  t.mock.timers.tick(10000);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(reads, stoppedReads);
+  assert.deepEqual([...activeHooks], ["reading-time"]);
+});
+
+test("waitFor rejects at its deadline instead of silently accepting missing reconciliation", async (t) => {
+  t.mock.timers.enable({ apis: ["Date", "setTimeout"], now: 1000 });
+  const checked = assert.rejects(waitFor(() => false, 20), /plugin reconciliation timed out after 20ms/);
+  t.mock.timers.tick(21);
+  await checked;
+});

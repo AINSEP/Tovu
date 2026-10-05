@@ -6,7 +6,6 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { createToolRegistry } from "@jini-ai/core";
 
 
 import { buildAssistantToolRegistrations } from "#src/assistant/tool-registrations";
@@ -18,9 +17,6 @@ import {
   listPublishContentContributors,
   resetPublishContentContributorsForTests,
 } from "#src/features/publish-content/type-registry";
-import { attachAssistantToolExtensions } from "#src/assistant/installed-extension-tools";
-import { registerInstalledExtensionTools } from "../installed-extension-tools.js";
-import { buildExternalMcpFederationDeps } from "#src/assistant/external-mcp-connection-source";
 
 import type { NewsletterRouteDeps } from "#src/server/inbound/admin-http/routes/newsletter/deps";
 
@@ -52,7 +48,7 @@ const contributions = {
  * the duplicate-resource-handler set through (a) the shared `installFirstPartyToolContributors()` +
  * `buildAssistantToolRegistrations()` base every root calls, (b) `createAssistantByokModule`'s real
  * surface (the exact object `createApp` builds at `app.ts:1724` and `assistant-byok.ts`'s own real
- * caller), and (c) a faithful replay of the agent daemon's own boot order
+ * caller), and (c) execution of the agent daemon's actual construction statements
  * (`agent-daemon-server.ts:395-444`), and asserts they are equal — modulo the ONE documented,
  * commented gap below. No production call site changes in this slice; this file only reads the
  * existing registration seams.
@@ -87,7 +83,7 @@ const KNOWN_DAEMON_ONLY_EXTRA_TOOL_IDS: ReadonlySet<string> = new Set([]);
  * `installed-extension-tools.ts`'s own header.
  *
  * `KNOWN_DAEMON_ONLY_EXTRA_TOOL_IDS` stays empty, but for a narrower reason than before: this file's
- * `buildByokRole`/`buildDaemonRole` replays never call `federation.start()` on either side (a real
+ * `buildByokRole`/`buildDaemonRole` seams never call `federation.start()` on either side (a real
  * admission needs a live MCP subprocess, out of scope for a unit test), so no `mcp__`-prefixed
  * federated id is ever contributed to either role's snapshot here today — there is no live gap left
  * to allow-list, only an untested one. If this file ever grows an in-memory federation fixture that
@@ -126,7 +122,7 @@ Use this for production outages, degraded services, rollback decisions, runbooks
  * this repo's dev checkout has real installed content for that workspace on disk
  * (`sites/tovu-com/skills/ws/workspace-local/incident-response/` — the SAME id this file's own
  * `withOneInstalledSkill` fixture uses, confirmed empirically, not assumed). Without this, the
- * "identical sets" test below would pick up that real skill (and the daemon-only replay's real
+ * "identical sets" test below would pick up that real skill (and the daemon construction seam's real
  * agent-plugins) as spurious BYOK-only ids that `buildBaseRole` never had, failing for a reason that
  * has nothing to do with this file's own fixtures.
  */
@@ -203,50 +199,15 @@ async function buildByokRole(routeDeps: NewsletterRouteDeps): Promise<RoleSnapsh
   return { ids, publishContentTypes: currentPublishContentTypes(), duplicateResources: currentDuplicateResources() };
 }
 
-/** (c) A faithful replay of the daemon's own boot order (`agent-daemon-server.ts`'s `start()`, the
- *  `attachAssistantToolExtensions` call around `:1227-1255`): the same base, PLUS the SAME shared
- *  registrar `buildByokRole` above awaits through `toolSurface.ready` — not a second, hand-copied
- *  call to the three families it wraps. That is the point of this change: before, this function
- *  called `registerInstalledAgentPluginTools`/`registerInstalledSkillTools`/
- *  `registerEnabledPluginCapabilityTools` directly, with its OWN fail-open try/catch around each,
- *  which could silently drift from the daemon's real call the moment that call's own
- *  ordering/fail-open behavior changed; now both sides call `attachAssistantToolExtensions`, whose
- *  `installed` promise (`registerInstalledExtensionTools`) owns that fail-open behavior once, for
- *  every caller. `federation` is built here (a required part of that call's deps) but deliberately
- *  never started — no `.start()` — so `resolveConnections` below is structurally required but never
- *  actually invoked: a real admission needs a live MCP subprocess, out of scope for a unit test, and
- *  is exactly the documented non-gap the rewritten TODO above explains. Real in-memory deps
- *  (`createRouteDeps()`'s `composePluginRuntime`), not disk-backed, for the plugin-capability family
- *  — no fixture needed, and no plugin-runtime plugin is enabled by default, so it contributes zero
- *  ids today; exercised anyway so a future enabled capability plugin is covered by this same replay. */
+/** (c) Execute the daemon's own construction statements and installed-extension attach seam.
+ * No boot order or argument bag is reimplemented here; the helper supplies only external ports.
+ * Federation is constructed without connecting, and full process readiness remains integration work. */
 async function buildDaemonRole(routeDeps: NewsletterRouteDeps): Promise<RoleSnapshot> {
   contributions.contributors.clear({});
   resetPublishContentContributorsForTests();
   resetDuplicateResourceHandlersForTests();
-  installFirstPartyToolContributors({ contributions });
-  const registry = createToolRegistry({});
-  for (const registration of buildAssistantToolRegistrations(routeDeps, undefined, { contributions })) registry.register(registration);
-
-  const extensions = attachAssistantToolExtensions(
-    registry,
-    {
-      ...routeDeps,
-      registerInstalled: registerInstalledExtensionTools,
-      federation: {
-        deps: buildExternalMcpFederationDeps({
-          authorize: routeDeps.authorize,
-          workspaceId: routeDeps.workspaceId,
-          repo: routeDeps.externalMcpServerRepo,
-        }),
-        // Never invoked: `federation.start()`/`.reload()` are the only callers, and neither is
-        // called in this replay — see this function's own doc.
-        resolveConnections: () => Promise.resolve([]),
-      },
-    },
-    "[agent-daemon]",
-  );
-  await extensions.installed;
-
+  const { buildDaemonToolSurface } = await import("../../../inbound/assistant/__tests__/helpers/daemon-tool-surface.js");
+  const registry = await buildDaemonToolSurface(routeDeps);
   const ids = new Set(registry.list({}).map((d) => d.id));
   return { ids, publishContentTypes: currentPublishContentTypes(), duplicateResources: currentDuplicateResources() };
 }
@@ -258,7 +219,7 @@ test("the shared base (installFirstPartyToolContributors + buildAssistantToolReg
   const base = buildBaseRole(routeDeps);
   // `base` never calls the installed-extension-tools registrars, so it can never see this dev
   // checkout's own real installed agent-plugins/skills for `routeDeps.workspaceId` — `byok` now does
-  // (S1's fix), so it needs the same "nothing installed" isolation the daemon-replay tests below
+  // (S1's fix), so it needs the same "nothing installed" isolation the daemon construction tests below
   // already use, or this comparison would fail on THIS repo's own real dev-site fixtures rather than
   // on anything this test is actually meant to catch.
   const byok = await withEmptyAgentPluginsDir(() => withEmptySkillsDir(() => buildByokRole(routeDeps)));
@@ -269,7 +230,7 @@ test("the shared base (installFirstPartyToolContributors + buildAssistantToolReg
   assert.deepEqual(byok.duplicateResources, base.duplicateResources);
 });
 
-test("the daemon's replayed registry is a strict superset of the real BYOK module's — the only extra ids are the documented, owner-flagged gap (KNOWN_DAEMON_ONLY_EXTRA_TOOL_IDS)", async () => {
+test("the daemon construction seam and real BYOK root expose identical installed-skill, native-tool and resource sets", async () => {
   const routeDeps = createRouteDeps();
   await routeDeps.identityReady;
 
@@ -284,6 +245,10 @@ test("the daemon's replayed registry is a strict superset of the real BYOK modul
       daemon: await buildDaemonRole(routeDeps),
     }))
   );
+
+  assert.ok(daemon.ids.has("skill_incident_response"), "daemon's actual registerInstalled port must install the fixture skill");
+  assert.ok(byok.ids.has("skill_incident_response"), "the real BYOK root must install the same fixture skill");
+  assert.ok(daemon.publishContentTypes.includes("post"), "daemon boot must install first-party publish content types");
 
   const missingFromDaemon = [...byok.ids].filter((id) => !daemon.ids.has(id));
   assert.deepEqual(missingFromDaemon, [], "BYOK must never expose a tool id the daemon does not also carry — that would mean the daemon is missing something BYOK has, the opposite of the documented gap");

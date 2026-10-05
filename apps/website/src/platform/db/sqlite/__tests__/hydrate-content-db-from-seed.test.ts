@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -67,16 +69,43 @@ test("REGRESSION: a second boot never touches an existing content.db -- redeploy
 });
 
 test("reports no-seed-source instead of throwing when no stock seed ships for this site", () => {
-  const dbPath = join(makeEmptySiteRoot(), "content.db");
+  const siteRoot = makeEmptySiteRoot();
+  const dbPath = join(siteRoot, "content.db");
 
   const result = hydrateContentDbFromSeed({
-    seedDbPath: join(tmpdir(), "tovu-seed-that-does-not-exist.db"),
+    seedDbPath: join(siteRoot, "absent-content.seed.db"),
     dbPath,
   });
 
   assert.equal(result.status, "no-seed-source");
   assert.equal(existsSync(dbPath), false);
 });
+
+for (const operation of ["copyFileSync", "renameSync"] as const) {
+  test(`a failed ${operation} leaves no live file and the next boot copies the complete seed`, (t) => {
+    const seedDbPath = makeSeedDb("COMPLETE-SEED-CONTENTS");
+    const dbPath = join(makeEmptySiteRoot(), "content.db");
+    const error = new Error(`${operation} failed`);
+    let attempted = false;
+    const injected = t.mock.method(fs, operation, (...args: unknown[]) => {
+      attempted = true;
+      if (operation === "copyFileSync") writeFileSync(String(args[1]), "PARTIAL-COPY");
+      throw error;
+    });
+    syncBuiltinESMExports();
+    try {
+      assert.throws(() => hydrateContentDbFromSeed({ seedDbPath, dbPath }), actual => actual === error);
+      assert.equal(attempted, true);
+      assert.equal(existsSync(dbPath), false);
+    } finally {
+      injected.mock.restore();
+      syncBuiltinESMExports();
+    }
+    assert.equal(hydrateContentDbFromSeed({ seedDbPath, dbPath }).status, "seeded");
+    assert.equal(readFileSync(dbPath, "utf8"), "COMPLETE-SEED-CONTENTS");
+    assert.equal(existsSync(`${dbPath}.hydrate-seed-staging`), false);
+  });
+}
 
 test("is idempotent across many boots: seeds once, then leaves every later boot's edits untouched", () => {
   const seedDbPath = makeSeedDb("SEED-BYTES");

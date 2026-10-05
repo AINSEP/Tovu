@@ -236,3 +236,104 @@ describe("Send right after Stop — wait for the stopped run, and say why when r
     );
   });
 });
+
+/** Complete onStarted + real lifecycle/store; fake only the process executor and unrelated I/O. */
+async function sessionFixture() {
+  const { createInMemoryEventLog, createRunLifecycle } = await import("@jini-ai/daemon");
+  const { createInMemoryAgentSessionStore } = await import("@jini-ai/daemon/store/agent-sessions");
+  const { createLiveRunTracker, waitForStoppingRuns, STOPPING_RUN_WAIT_MS, failRunBeforeStart, CONCURRENT_RUN_REFUSAL_MESSAGE } = await import("../agent-run-concurrency.js");
+  const { extractSessionRefFromEndEvent, shouldClearSessionOnFailedResume } = await import("../agent-session-resume.js");
+  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog() });
+  await lifecycle.rehydrate({});
+  await lifecycle.start({ contextRef: "session-regression" }, { runId: "daemon-test-run" });
+  const agentSessions = createInMemoryAgentSessionStore({});
+  const liveRunTracker = createLiveRunTracker();
+  const bindings = {
+    routeDeps: { workspaceId: "ws-session-regression", agentSessions }, liveRunTracker,
+    extractSessionRefFromEndEvent, shouldClearSessionOnFailedResume,
+    waitForStoppingRuns, STOPPING_RUN_WAIT_MS, failRunBeforeStart, CONCURRENT_RUN_REFUSAL_MESSAGE,
+    runCredentials: { revoke() {} }, runOwners: { record() {}, forget() {} },
+    RUN_OWNER_RETENTION_MS: 0, attachmentStore: undefined,
+  };
+  return { lifecycle, agentSessions, liveRunTracker, bindings };
+}
+
+// F1.4/F6.3: dead-code clearSessionId and clearing by run.id both leave this seeded binding alive.
+for (const terminal of ["failed-unconfirmed", "succeeded-reconfirmed"] as const) {
+  test(`onStarted's real stream ${terminal === "failed-unconfirmed" ? "clears only the resumed conversation-agent binding" : "persists the CLI's reconfirmed session"}`, async () => {
+    const { captureDaemonRun } = await import("./helpers/daemon-source.js");
+    const fixture = await sessionFixture();
+    const key = { conversationId: "conversation-original", agentId: "claude" };
+    await fixture.agentSessions.setSessionId({ ...key, sessionId: "dead-resume-id" });
+    await fixture.agentSessions.setSessionId({ conversationId: "conversation-other", agentId: "claude", sessionId: "other-conversation-id" });
+    await fixture.agentSessions.setSessionId({ conversationId: key.conversationId, agentId: "codex", sessionId: "other-agent-id" });
+    const input = await captureDaemonRun({ prompt: "Continue", conversationId: key.conversationId }, { lifecycle: fixture.lifecycle, bindings: fixture.bindings, request: { agentId: "claude" } });
+    assert.equal(input.resumeSessionId, "dead-resume-id");
+    assert.equal(Object.hasOwn(input, "newSessionId"), false);
+    await fixture.lifecycle.finish({ runId: "daemon-test-run", status: terminal === "failed-unconfirmed" ? "failed" : "succeeded", code: terminal === "failed-unconfirmed" ? 1 : 0, signal: null, resumable: false }, terminal === "succeeded-reconfirmed" ? { sessionRef: "reconfirmed-cli-id" } : {});
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(await fixture.agentSessions.getSessionId(key), terminal === "failed-unconfirmed" ? null : "reconfirmed-cli-id");
+    assert.equal(await fixture.agentSessions.getSessionId({ conversationId: "conversation-other", agentId: "claude" }), "other-conversation-id");
+    assert.equal(await fixture.agentSessions.getSessionId({ conversationId: key.conversationId, agentId: "codex" }), "other-agent-id");
+    assert.equal(fixture.liveRunTracker.conversationIdForRun("daemon-test-run"), undefined);
+    if (terminal === "failed-unconfirmed") {
+      const next = await sessionFixture();
+      const nextInput = await captureDaemonRun({ prompt: "Retry after recovery", conversationId: key.conversationId }, {
+        lifecycle: next.lifecycle, request: { agentId: "claude" },
+        bindings: { ...next.bindings, routeDeps: { workspaceId: "ws-session-regression", agentSessions: fixture.agentSessions } },
+      });
+      assert.equal(Object.hasOwn(nextInput, "resumeSessionId"), false, "the next turn must not retry the dead id");
+      assert.equal(nextInput.newSessionId, "unused-session-id");
+      assert.equal(await fixture.agentSessions.getSessionId(key), "unused-session-id");
+      await next.lifecycle.finish({ runId: "daemon-test-run", status: "succeeded", code: 0, signal: null, resumable: false }, { sessionRef: "unused-session-id" });
+      await new Promise<void>((resolve) => setImmediate(resolve));
+    }
+  });
+}
+
+test("onStarted refuses a concurrent memory-carrying run and never dispatches a cold executor call", async () => {
+  const { captureDaemonRun } = await import("./helpers/daemon-source.js");
+  const fixture = await sessionFixture();
+  const key = { conversationId: "conversation-contended", agentId: "claude" };
+  await fixture.agentSessions.setSessionId({ ...key, sessionId: "existing-history-id" });
+  fixture.liveRunTracker.register(key.conversationId, "already-answering-run");
+  const dispatched: unknown[] = [];
+  const events: { kind: string; payload: unknown }[] = [];
+  await fixture.lifecycle.stream({ runId: "daemon-test-run", onEvent: (event) => { events.push(event); } });
+  await assert.rejects(captureDaemonRun({ prompt: "Only the latest message", conversationId: key.conversationId }, {
+    lifecycle: fixture.lifecycle, terminalFailure: true, request: { agentId: "claude" },
+    bindings: { ...fixture.bindings, agentExecutor: { run: async (...args: unknown[]) => { dispatched.push(args); } } },
+  }), /onStarted failed the run before executor dispatch/);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.deepEqual(dispatched, []);
+  assert.equal((await fixture.lifecycle.get({ runId: "daemon-test-run" }))?.state, "failed");
+  const error = events.find((event) => event.kind === "error");
+  assert.ok(error);
+  assert.deepEqual(error.payload, { message: "The assistant could not start: another answer in this chat is still running. Wait for it to finish, or stop it, then send again." });
+  assert.equal(await fixture.agentSessions.getSessionId(key), "existing-history-id");
+});
+
+test("onStarted registers the conversation synchronously while instruction refresh is held", async () => {
+  const { captureDaemonRun } = await import("./helpers/daemon-source.js");
+  const fixture = await sessionFixture();
+  const key = { conversationId: "conversation-before-refresh", agentId: "claude" };
+  await fixture.agentSessions.setSessionId({ ...key, sessionId: "session-before-refresh" });
+  let release!: () => void;
+  const refresh = new Promise<void>((resolve) => { release = resolve; });
+  let dispatched = false;
+  const started = captureDaemonRun({ prompt: "Continue", conversationId: key.conversationId }, {
+    lifecycle: fixture.lifecycle, request: { agentId: "claude" },
+    bindings: { ...fixture.bindings, customInstructionsCache: { refresh: () => refresh } },
+  }).then((input) => { dispatched = true; return input; });
+  try {
+    assert.equal(fixture.liveRunTracker.conversationIdForRun("daemon-test-run"), key.conversationId);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(dispatched, false, "no executor dispatch until refresh settles");
+  } finally {
+    release();
+    const input = await started;
+    assert.equal(input.resumeSessionId, "session-before-refresh");
+    await fixture.lifecycle.finish({ runId: "daemon-test-run", status: "succeeded", code: 0, signal: null, resumable: false }, { sessionRef: "session-before-refresh" });
+    await new Promise<void>((resolve) => setImmediate(resolve));
+  }
+});

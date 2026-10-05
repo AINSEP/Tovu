@@ -166,3 +166,28 @@ test("appendToolCatalogAttempt appends exactly the fields it is given, plus a mi
     detail: "d",
   });
 });
+
+// F2.4: removing the audit wrapper at the daemon mount must lose these rows and fail.
+test("the daemon-mounted search and describe handlers append audit rows", async () => {
+  const { createToolRegistry } = await import("@jini-ai/core");
+  const { mountDaemonCatalog } = await import("../../server/inbound/assistant/__tests__/helpers/daemon-catalog.js");
+  const registry = createToolRegistry({});
+  registry.register({ descriptor: { id: "forms_create_definition", description: "Creates a form definition" }, handler: async () => "ok", policy: { authorize: () => "allow" } });
+  const sink = createInMemoryToolAttemptAuditSink();
+  const mounted = await mountDaemonCatalog(registry, sink);
+  const search = await mounted.request("/api/tools/search", { q: "form definition", limit: "3" });
+  assert.equal(search.status, 200);
+  assert.deepEqual(search.body.hits.map((hit: { id: string }) => hit.id), ["forms_create_definition"]);
+  const describe = await mounted.request("/api/tools/:id", {}, { id: "forms_create_definition" });
+  assert.equal(describe.status, 200);
+  assert.equal(describe.body.id, "forms_create_definition");
+  await Promise.resolve();
+  assert.equal(sink.events.length, 2);
+  const searchEvent = sink.events.find((event) => event.toolId === SEARCH_TOOLS_TOOL_ID);
+  const describeEvent = sink.events.find((event) => event.toolId === DESCRIBE_TOOL_TOOL_ID);
+  assert.ok(searchEvent);
+  assert.ok(describeEvent);
+  assert.equal(searchEvent.workspaceId, "ws-daemon-catalog");
+  assert.deepEqual(JSON.parse(String(searchEvent.detail)), { queryLength: 15, limit: 3, resultIds: ["forms_create_definition"], resultCount: 1 });
+  assert.deepEqual(JSON.parse(String(describeEvent.detail)), { id: "forms_create_definition", found: true });
+});

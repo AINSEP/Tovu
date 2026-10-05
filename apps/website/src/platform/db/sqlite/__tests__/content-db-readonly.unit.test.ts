@@ -8,7 +8,8 @@ import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 
-import { openContentDb, openContentDbReadOnly } from "../content-db.js";
+import { migrateSqliteContentFile, MIGRATION_BACKUP_PREFIX, openContentDb, openContentDbReadOnly, openSqliteContentConnection } from "../content-db.js";
+import { LegacyHistoryError } from "../../migrations/step.js";
 import * as schema from "../../schema.sqlite.js";
 
 /**
@@ -145,4 +146,34 @@ test("openContentDbReadOnly: throws rather than creating a new file when the pat
   assert.equal(fs.existsSync(missingPath), false, "a read-only open must never create the file it was asked to read");
 
   fs.rmSync(scratch, { recursive: true, force: true });
+});
+
+test("a refused file migration preserves the database and keeps both the pre-change copy and earlier backups", async () => {
+  const scratch = tmpDir("content-db-migration-failure-");
+  const dbPath = buildOneMigrationBehindDb(scratch);
+  const db = openSqliteContentConnection(dbPath);
+  const ops = path.join(scratch, "ops");
+  fs.mkdirSync(ops);
+  const oldName = `${MIGRATION_BACKUP_PREFIX}2000-01-01T00-00-00-000Z.db`;
+  for (const name of [oldName, `${oldName}-wal`, `${oldName}-shm`]) fs.writeFileSync(path.join(ops, name), "KEEP-OLDER-BACKUP");
+  try {
+    db.$client.prepare("UPDATE __drizzle_migrations SET hash = 'foreign-history' WHERE rowid = (SELECT min(rowid) FROM __drizzle_migrations)").run();
+    const historyBefore = db.$client.prepare("SELECT * FROM __drizzle_migrations ORDER BY rowid").all();
+    const schemaBefore = db.$client.prepare("SELECT type, name, sql FROM sqlite_master ORDER BY type, name").all();
+    assert.equal(hasColumn(dbPath, NEWEST_MIGRATION_ADDS.table, NEWEST_MIGRATION_ADDS.column), false);
+    await assert.rejects(migrateSqliteContentFile(db, dbPath), LegacyHistoryError);
+    assert.deepEqual(db.$client.prepare("SELECT * FROM __drizzle_migrations ORDER BY rowid").all(), historyBefore);
+    assert.deepEqual(db.$client.prepare("SELECT type, name, sql FROM sqlite_master ORDER BY type, name").all(), schemaBefore);
+    const copies = fs.readdirSync(ops).filter(name => name.endsWith(".db") && name !== oldName);
+    assert.equal(copies.length, 1);
+    const copy = new Database(path.join(ops, copies[0]!), { readonly: true });
+    try {
+      assert.deepEqual(copy.prepare("SELECT * FROM __drizzle_migrations ORDER BY rowid").all(), historyBefore);
+      assert.deepEqual(copy.prepare("SELECT type, name, sql FROM sqlite_master ORDER BY type, name").all(), schemaBefore);
+    } finally { copy.close(); }
+    for (const name of [oldName, `${oldName}-wal`, `${oldName}-shm`]) assert.equal(fs.readFileSync(path.join(ops, name), "utf8"), "KEEP-OLDER-BACKUP");
+  } finally {
+    db.$client.close();
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
 });

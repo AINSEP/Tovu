@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import ts from "typescript";
-import type { AgentExecutorRunInput } from "@jini-ai/daemon";
+import type { AgentExecutorRunInput, RunLifecycle } from "@jini-ai/daemon";
 
 import { parseRunStartContextRef } from "#src/assistant/run-start-context";
 import { buildPageContextPromptBlock } from "#src/assistant/run-page-context";
@@ -31,7 +31,7 @@ export function daemonInitializer(name: string): ts.Expression {
 /** Execute the actual source expression, with its external dependencies supplied by the test.
  * AST boundaries exclude comments and nested lookalikes. This avoids booting the entry script's
  * database, listeners, federation and agent processes, without duplicating its run assembly. */
-export function evaluateDaemonExpression<T>(expression: ts.Expression, bindings: Record<string, unknown>): T {
+export function evaluateDaemonExpression<T>(expression: ts.Node, bindings: Record<string, unknown>): T {
   const code = ts.transpileModule(`return (${expression.getText(daemonSource)});`, {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None },
   }).outputText;
@@ -43,7 +43,7 @@ export function evaluateDaemonExpression<T>(expression: ts.Expression, bindings:
  * decisions and hook-settings generation are real. No daemon/server/CLI is started. */
 export async function captureDaemonRun(
   context: Record<string, unknown>,
-  options: { hookPresent?: boolean; runActiveContexts?: RunActiveContextStore } = {},
+  options: { hookPresent?: boolean; runActiveContexts?: RunActiveContextStore; bindings?: Record<string, unknown>; lifecycle?: unknown; terminalFailure?: boolean; request?: Record<string, unknown> } = {},
 ): Promise<AgentExecutorRunInput> {
   let resolve!: (input: AgentExecutorRunInput) => void;
   let reject!: (error: Error) => void;
@@ -73,21 +73,48 @@ export async function captureDaemonRun(
     homedir: () => "/home/daemon-test",
     existsSync: (file: string) => options.hookPresent === true && file === "/home/daemon-test/.claude/hooks/no-system-search",
     failRunBeforeStart: async (_lifecycle: unknown, _id: string, message: string) => { reject(new Error(message)); },
-    console: { error: (...args: unknown[]) => reject(new Error(args.map(String).join(" "))) },
+    console: { error: (...args: unknown[]) => { if (!options.terminalFailure) reject(new Error(args.map(String).join(" "))); }, log() {} },
     // `run()` takes Jini's (required, optional) pair; the executor reassembles one
     // AgentExecutorRunInput from them, so the capture does the same.
     agentExecutor: { run: async (required: AgentExecutorRunInput, optional: Partial<AgentExecutorRunInput> = {}) => resolve({ ...required, ...optional }) },
+    ...options.bindings,
   };
   try {
-    assert.equal(context.conversationId, undefined, "this harness covers runs without session I/O");
+    if (!options.bindings?.routeDeps) assert.equal(context.conversationId, undefined, "session I/O requires explicit fixture ports");
+    if (options.terminalFailure) {
+      assert.ok(options.lifecycle, "terminal failure capture requires a real lifecycle");
+      void (options.lifecycle as Pick<RunLifecycle, "waitForTerminal">).waitForTerminal({ runId: "daemon-test-run" }).then((status) => {
+        if (status.state === "failed") reject(new Error("onStarted failed the run before executor dispatch"));
+      });
+    }
     const onStarted = evaluateDaemonExpression<(input: unknown) => void>(daemonInitializer("onStarted"), bindings);
     onStarted({
-      request: { contextRef: JSON.stringify({ principalId: "daemon-test-principal", ...context }) },
+      request: { contextRef: JSON.stringify({ principalId: "daemon-test-principal", ...context }), ...options.request },
       run: { id: "daemon-test-run" },
-      lifecycle: { waitForTerminal: () => new Promise(() => {}) },
+      lifecycle: options.lifecycle ?? { waitForTerminal: () => new Promise(() => {}) },
     });
     return await captured;
   } finally {
     clearTimeout(timer);
   }
+}
+
+/** Select only direct statements: a commented-out or unreachable lookalike cannot satisfy a seam. */
+export function daemonFunction(name: string): ts.FunctionDeclaration {
+  const declaration = daemonSource.statements.find((statement) => ts.isFunctionDeclaration(statement) && statement.name?.text === name);
+  assert.ok(declaration && ts.isFunctionDeclaration(declaration), `No module-level function ${name}`);
+  return declaration;
+}
+
+export function daemonVariableStatement(statements: readonly ts.Statement[], name: string): ts.VariableStatement {
+  const statement = statements.find((entry) => ts.isVariableStatement(entry) && entry.declarationList.declarations.some((declaration) => declaration.name.getText(daemonSource) === name));
+  assert.ok(statement && ts.isVariableStatement(statement), `No direct variable statement ${name}`);
+  return statement;
+}
+
+export function evaluateDaemonStatements<T>(statements: readonly ts.Statement[], bindings: Record<string, unknown>, result = "undefined"): Promise<T> {
+  const code = ts.transpileModule(`return (async () => { ${statements.map((statement) => statement.getText(daemonSource)).join("\n")} return (${result}); })();`, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None },
+  }).outputText;
+  return new Function(...Object.keys(bindings), code)(...Object.values(bindings)) as Promise<T>;
 }

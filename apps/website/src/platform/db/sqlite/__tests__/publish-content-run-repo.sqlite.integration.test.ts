@@ -3,31 +3,24 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
 
 import { getPublishContentRunStatus, type PublishContentRunRecord } from "#src/features/publish-content/run-repo";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqlitePublishContentRunRepo } from "#src/platform/db/sqlite/publish-content-run-repo.sqlite";
+import { workspaces } from "#src/platform/db/schema.sqlite";
 
-const REAL_CONTENT_DB_PATH = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "../../../../../../../sites/tovu-dev/content.db"
-);
-
-function copyRealContentDbToTempDir(): { readonly dir: string; readonly dbPath: string } {
-  assert.ok(fs.existsSync(REAL_CONTENT_DB_PATH), `expected the real content.db at ${REAL_CONTENT_DB_PATH}`);
+function createFreshContentDbInTempDir(): { readonly dir: string; readonly dbPath: string } {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "publish-content-run-repo-test-"));
   const dbPath = path.join(dir, "content.db");
-  fs.copyFileSync(REAL_CONTENT_DB_PATH, dbPath);
-  for (const sidecar of ["-wal", "-shm"]) {
-    const source = `${REAL_CONTENT_DB_PATH}${sidecar}`;
-    if (fs.existsSync(source)) fs.copyFileSync(source, `${dbPath}${sidecar}`);
-  }
+  const db = openContentDb(dbPath);
+  try {
+    db.insert(workspaces).values({ id: "workspace-local", name: "Run test workspace", slug: "run-test", createdAt: "2026-09-18T00:00:00.000Z" }).run();
+  } finally { db.$client.close(); }
   return { dir, dbPath };
 }
 
 test("SQLite run snapshots upsert durable per-item progress and remain workspace scoped", async () => {
-  const { dir, dbPath } = copyRealContentDbToTempDir();
+  const { dir, dbPath } = createFreshContentDbInTempDir();
   const db = openContentDb(dbPath);
   try {
     const repo = new SqlitePublishContentRunRepo(db);

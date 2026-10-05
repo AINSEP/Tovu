@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import ts from "typescript";
 
 /**
  * @file Boundary regression guard for `origin-repo.ts`'s import (the one query body; the file was
@@ -29,30 +30,59 @@ const ORIGIN_REPO_SOURCE = fs.readFileSync(
   "utf8"
 );
 
-/** Finds the module specifier of the `import { ... } from "...";` block that names `binding`
- * among its imported symbols. `[^}]*` deliberately spans newlines (unlike `.`, a negated
- * character class is unaffected by the lack of a `dotAll` flag) so this matches the real
- * multi-line named-import block this file actually uses. */
-function findImportSpecifierFor(source: string, binding: string): string | undefined {
-  const importBlockPattern = /import\s*\{([^}]*)\}\s*from\s*["']([^"']+)["'];/g;
-  for (const match of source.matchAll(importBlockPattern)) {
-    const [, namedBindings, specifier] = match;
-    if (new RegExp(`\\b${binding}\\b`).test(namedBindings)) return specifier;
+/** Every value import of the original exported binding, including aliases. */
+function findImportSpecifiersFor(source: string, binding: string): string[] {
+  const parsed = ts.createSourceFile("origin-repo.ts", source, ts.ScriptTarget.Latest, true);
+  const found: string[] = [];
+  for (const statement of parsed.statements) {
+    if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) continue;
+    const clause = statement.importClause;
+    if (!clause || clause.isTypeOnly || !clause.namedBindings || !ts.isNamedImports(clause.namedBindings)) continue;
+    if (clause.namedBindings.elements.some((element) => !element.isTypeOnly && (element.propertyName ?? element.name).text === binding)) {
+      found.push(statement.moduleSpecifier.text);
+    }
   }
-  return undefined;
+  return found;
 }
 
+function privateOriginValueImports(source: string): string[] {
+  const parsed = ts.createSourceFile("origin-repo.ts", source, ts.ScriptTarget.Latest, true);
+  return parsed.statements.flatMap(statement => {
+    if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) return [];
+    const specifier = statement.moduleSpecifier.text;
+    if (!/^(?:#src\/features\/origin|(?:\.\.\/)+features\/origin)\/(?!index(?:\.js)?$)/.test(specifier)) return [];
+    const clause = statement.importClause;
+    if (clause?.isTypeOnly) return [];
+    const bindings = clause?.namedBindings;
+    const hasValue = !clause || !!clause.name || !bindings || ts.isNamespaceImport(bindings) || bindings.elements.some(element => !element.isTypeOnly);
+    return hasValue ? [specifier] : [];
+  });
+}
+
+test("the import scanner sees aliased private values even after a public import", () => {
+  const fixture = `import { createVerifiedOrigin } from '#src/features/origin';
+    import { createVerifiedOrigin as internalOrigin } from '#src/features/origin/types';
+    import type { createVerifiedOrigin as OriginType } from '#src/features/origin/types';
+    import { type createVerifiedOrigin as OtherType } from '#src/features/origin/types';`;
+  assert.deepEqual(findImportSpecifiersFor(fixture, "createVerifiedOrigin"), ["#src/features/origin", "#src/features/origin/types"]);
+  assert.deepEqual(privateOriginValueImports(fixture), ["#src/features/origin/types"]);
+  assert.deepEqual(privateOriginValueImports("import * as privateOrigin from '#src/features/origin/types';"), ["#src/features/origin/types"]);
+});
+
 test("origin-repo.ts imports the createVerifiedOrigin VALUE through origin's public door (index.ts), not the internal types.ts module directly", () => {
-  const specifier = findImportSpecifierFor(ORIGIN_REPO_SOURCE, "createVerifiedOrigin");
-  assert.ok(specifier, "expected to find an import of createVerifiedOrigin in origin-repo.ts");
-  assert.notEqual(
-    specifier,
-    "../../../features/origin/types",
-    "createVerifiedOrigin must not be imported directly from the internal origin/types.ts module -- import it through origin's public door instead"
-  );
-  assert.match(
-    specifier!,
-    /^(\.\.\/\.\.\/\.\.\/features\/origin|#src\/features\/origin)(\/index(\.js)?)?$/,
-    `createVerifiedOrigin must be imported through origin's public door (\"../../../features/origin\", \"../../../features/origin/index\", \"../../../features/origin/index.js\", or the \"#src/features/origin\" alias form), got \"${specifier}\"`
-  );
+  const specifiers = findImportSpecifiersFor(ORIGIN_REPO_SOURCE, "createVerifiedOrigin");
+  assert.ok(specifiers.length > 0, "expected to find an import of createVerifiedOrigin in origin-repo.ts");
+  assert.deepEqual(privateOriginValueImports(ORIGIN_REPO_SOURCE), [], "every origin value import must use the public door");
+  for (const specifier of specifiers) {
+    assert.notEqual(
+      specifier,
+      "../../../features/origin/types",
+      "createVerifiedOrigin must not be imported directly from the internal origin/types.ts module -- import it through origin's public door instead"
+    );
+    assert.match(
+      specifier!,
+      /^(\.\.\/\.\.\/\.\.\/features\/origin|#src\/features\/origin)(\/index(\.js)?)?$/,
+      `createVerifiedOrigin must be imported through origin's public door (\"../../../features/origin\", \"../../../features/origin/index\", \"../../../features/origin/index.js\", or the \"#src/features/origin\" alias form), got \"${specifier}\"`
+    );
+  }
 });
