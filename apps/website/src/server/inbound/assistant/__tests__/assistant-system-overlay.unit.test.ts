@@ -185,3 +185,10 @@ test("resolveAssistantRunSettings: only the no-system-search PreToolUse hook, sa
 test("resolveAssistantRunSettings: no hook file on this machine -> no settings (the run still works)", () => {
   assert.equal(resolveAssistantRunSettings("/home/op", () => false), undefined);
 });
+
+test("published content guidance prioritizes the live URL and requires explicit overwrite", () => {
+  const overlay = buildBaseSystemOverlay(false);
+  assert.match(overlay, /publicUrl first/);
+  assert.match(overlay, /adminUrl is only a secondary edit link/);
+  assert.match(overlay, /overwrite:true only when the user explicitly asked/);
+});

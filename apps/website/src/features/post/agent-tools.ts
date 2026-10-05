@@ -841,7 +841,8 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
       "title when omitted (disambiguated on collision); bodyJson defaults to an empty TipTap document ({ type: 'doc', content: [] }) " +
       "when omitted. Rejected if an explicitly-supplied slug is malformed, reserved ('admin'/'api'), or already taken in this workspace. " +
       "The returned post includes publicUrl — its resolved public path when created with status 'published', or null for the " +
-      "default 'draft' (nothing to link to yet until it is published via content_post_update).",
+      "default 'draft' (nothing to link to yet until it is published via content_post_update). " +
+      "When publicUrl is present, link to it first in your reply. adminUrl is an optional secondary edit link; never make a UUID admin URL the main published-content link.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "content.write" },
     inputSchema: {
@@ -878,7 +879,8 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
       "NOTHING is written — re-read the row, reapply your change to the body you get back, and resend with the new version. Even " +
       "without expectedVersion, a partial patch (any field omitted) is still checked against the row's current version at write " +
       "time, so a human's save landing between your read and this call still rejects with VERSION_CONFLICT rather than silently " +
-      "merging over it — only a FULL four-field call with no expectedVersion keeps the old unguarded last-write-wins behavior.",
+      "merging over it — only a FULL four-field call with no expectedVersion keeps the old unguarded last-write-wins behavior. " +
+      "Returns post.publicUrl when published, null for drafts. Link to publicUrl first; adminUrl is only a secondary edit link, never the main published-content link.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "content.write" },
     inputSchema: {

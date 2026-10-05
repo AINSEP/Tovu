@@ -946,7 +946,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
         // delivers instead (`server/runtime/composition/agent-daemon-deps.ts`).
         await processOutbox({ outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock });
 
-        return { post: toPostToolView(result.post) };
+        return { post: toPostToolViewWithPublicUrl(routeDeps, result.post) };
       } });
     },
 

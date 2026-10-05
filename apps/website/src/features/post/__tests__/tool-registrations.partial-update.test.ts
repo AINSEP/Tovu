@@ -99,10 +99,12 @@ test("content_post_update: a title-only patch changes ONLY title — slug/bodyJs
     id: "p1",
     kind: "post",
     title: "New Title",
-  })) as { post: { title: string; slug: string; bodyJson: unknown; status: string } };
+  })) as { post: { title: string; slug: string; bodyJson: unknown; status: string; publicUrl: string | null; adminUrl: string } };
 
   assert.equal(result.post.title, "New Title");
   assert.equal(result.post.slug, "original-slug");
+  assert.equal(result.post.publicUrl, "/original-slug");
+  assert.equal(result.post.adminUrl, "/admin/posts/p1");
   assert.deepEqual(result.post.bodyJson, bodyJson);
   assert.equal(result.post.status, "published");
 
@@ -127,11 +129,13 @@ test("content_post_update: {id, kind, status:'published'} alone publishes the ro
     id: "p1",
     kind: "post",
     status: "published",
-  })) as { post: { status: string; title: string; slug: string } };
+  })) as { post: { status: string; title: string; slug: string; publicUrl: string | null; adminUrl: string } };
 
   assert.equal(result.post.status, "published");
   assert.equal(result.post.title, "Original Title");
   assert.equal(result.post.slug, "original-slug");
+  assert.equal(result.post.publicUrl, "/original-slug");
+  assert.equal(result.post.adminUrl, "/admin/posts/p1");
 
   const after = await storedPost(postRepo);
   assert.equal(after.status, "published");
@@ -310,4 +314,18 @@ test("content_post_update: a FULL four-field call with no expectedVersion is NOT
 
   const real = await inner.findById({ workspaceId: WORKSPACE_ID, id: "p1" });
   assert.equal(real?.title, "Agent's title");
+});
+
+test("create results link to the public slug when published, and update removes that link when drafted", async () => {
+  const { deps } = fakeRouteDeps();
+  const registrations = registrationsFor(deps);
+  const created = await call(tool(registrations, "content_post_create"), {
+    kind: "post", title: "How Tovu Saves You Time", status: "published",
+  }) as { post: { id: string; publicUrl: string | null; adminUrl: string } };
+  assert.equal(created.post.publicUrl, "/how-tovu-saves-you-time");
+  assert.equal(created.post.adminUrl, `/admin/posts/${created.post.id}`);
+  const drafted = await call(tool(registrations, "content_post_update"), {
+    kind: "post", id: created.post.id, status: "draft",
+  }) as { post: { publicUrl: string | null } };
+  assert.equal(drafted.post.publicUrl, null);
 });
