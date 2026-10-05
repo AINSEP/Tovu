@@ -35,7 +35,7 @@ for (const kind of ["cancel", "yes", "changed"] as const) {
     let closed = 0; let asked = 0; const messages: string[] = [];
     const repo = new InMemoryPluginActivationRepo();
     const task = runPluginInstallCommand({ dir: sourceDir, yes: kind === "yes" }, {
-      open: async () => ({ deps: { installDir, builtInIds: [], repo }, close: async () => { closed++; } }),
+      open: async () => ({ deps: { installDir, builtInIds: [], repo, conflicts: async () => [] }, close: async () => { closed++; } }),
       write: (message) => { messages.push(message); },
       confirm: async () => {
         asked++;

@@ -1,8 +1,9 @@
-import { ApiError, describeApiError as describeApiErrorDefault, type AdminAgentPlugin, type AdminPlugin, type AdminPluginFiles, type AdminPluginPackageFile } from "../../lib/api";
+import { ApiError, describeApiError as describeApiErrorDefault, type AdminAgentPlugin, type AdminPlugin, type AdminPluginConflict, type AdminPluginFiles, type AdminPluginPackageFile } from "../../lib/api";
 import { t } from "./plugins-i18n";
 import type { Translate } from "@/lib/dictionary-translator";
 import type { AgentPluginGlyphKind } from "./agent-plugins-visuals";
 import { buildPackageFileTree, firstPackageFilePath } from "./package-file-tree";
+import type { PluginInstallPreview } from "./hooks/plugin-install-port.hooks";
 
 /**
  * @file Pure logic for the `plugins` feature — everything that computes a value rather than
@@ -58,7 +59,7 @@ function fillTemplate(template: string, values: Readonly<Record<string, string>>
 }
 
 /** Display label (an i18n key) per conflict `kind` the server sends — `plugin-claims.ts`'s six
- *  `contributes` kinds plus `hook`. A `Map` for the same prototype-key reason as
+ *  `contributes` kinds, `hook`, and `content-type` (AW-7 Tier 1's declared types). A `Map` for the same prototype-key reason as
  *  {@link PLUGIN_ERROR_MESSAGES}; a kind not listed is shown verbatim (the server's `kind` is free
  *  text by design, so a new one must still render). */
 const CONFLICT_KIND_LABELS: ReadonlyMap<string, string> = new Map([
@@ -69,6 +70,7 @@ const CONFLICT_KIND_LABELS: ReadonlyMap<string, string> = new Map([
   ["widget", "Widget"],
   ["permission", "Permission"],
   ["hook", "Hook"],
+  ["content-type", "Content type"],
 ]);
 
 /** The owner id `plugin-claims.ts` files core's own claims under (`CORE_OWNER_ID`). */
@@ -83,7 +85,7 @@ const CORE_CONFLICT_HOLDER = "core";
  *
  * @complexity O(c) in the row's conflict count.
  */
-export function pluginConflictLines(plugin: AdminPlugin, translate: Translate): string[] {
+export function pluginConflictLines(plugin: { readonly conflicts?: readonly AdminPluginConflict[] }, translate: Translate): string[] {
   const lines = (plugin.conflicts ?? []).map((conflict) => {
     const kindLabel = CONFLICT_KIND_LABELS.get(conflict.kind);
     const values = { kind: kindLabel === undefined ? conflict.kind : translate(kindLabel), key: conflict.key };
@@ -132,6 +134,43 @@ export function pluginRowDetailView(plugin: AdminPlugin, translate: Translate): 
       : null,
     conflicts: lines.length > 0 ? { heading: translate("Names already in use — turn the other plugin off first:"), lines } : null,
     errors: plugin.errors,
+  };
+}
+
+/** What the install dialog shows for a reviewed package — see {@link pluginInstallPreviewDisplay}. */
+export interface PluginInstallPreviewDisplay {
+  readonly title: string;
+  readonly version: string;
+  readonly tier: string;
+  readonly capabilities: string;
+  readonly hooks: string;
+  readonly contentTypes: string;
+  /** The trust sentence: full access for a package with code, "no code" for a tier-1 one. */
+  readonly codeNotice: string;
+  readonly conflicts: { readonly heading: string; readonly lines: readonly string[] } | null;
+}
+
+/**
+ * The install dialog's preview. A manifest-only (tier-1) package has nothing to run — the server
+ * refuses one that ships a code file — so the full-access warning would be false for it (AW-7
+ * Tier 1). Conflicts are the CURRENT workspace's: install is site-wide but turning a plugin on is per
+ * workspace, so the heading says so (owner question open: whether to check every workspace).
+ *
+ * @complexity O(c + n) in the conflict count and the listed names.
+ */
+export function pluginInstallPreviewDisplay(preview: PluginInstallPreview, translate: Translate): PluginInstallPreviewDisplay {
+  const lines = pluginConflictLines(preview, translate);
+  return {
+    title: `${preview.name} (${preview.id})`,
+    version: preview.upgradeFrom ? `${preview.upgradeFrom} → ${preview.version}` : preview.version,
+    tier: preview.tier,
+    capabilities: preview.capabilities.join(", ") || "—",
+    hooks: preview.hooks.join(", ") || "—",
+    contentTypes: preview.contentTypes.join(", ") || "—",
+    codeNotice: translate(preview.hasCode
+      ? "This plugin runs code with full access to this computer and every site on it."
+      : "This plugin has no code; nothing in it runs on this computer. Turning it on only adds what it declares."),
+    conflicts: lines.length > 0 ? { heading: translate("Already in use in this workspace (other workspaces are checked when you turn it on there):"), lines } : null,
   };
 }
 

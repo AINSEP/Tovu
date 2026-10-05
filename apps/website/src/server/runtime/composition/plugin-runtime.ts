@@ -261,6 +261,16 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired): Pl
     return resolvePluginConflicts({ workspaceId: required.workspaceId, discovery: records, activations, coreClaims }, optional);
   }
 
+  /** Install preview (2026-10-04): what the staged package would clash with if turned on in THIS
+   * workspace now. A synthetic valid record stands in for it and REPLACES an installed version of the
+   * same id, so an upgrade is judged by its new manifest only. */
+  async function installPreviewConflicts(required: { manifest: PluginManifest }): Promise<readonly PluginConflict[]> {
+    const { manifest } = required;
+    const staged: PluginDiscoveryRecord = { id: manifest.id, name: manifest.name, version: manifest.version, source: "site", tier: manifest.tier, status: "valid", errors: [], manifest };
+    const discovery = [...(await discoverPlugins()).filter((record) => record.id !== manifest.id), staged];
+    return (await listPluginConflicts(discovery, { candidateId: manifest.id })).get(manifest.id) ?? [];
+  }
+
   /** Enable-time conflict gate (2026-10-04): runs before `loadPlugin()`, so a plugin that would
    * take a name core or an enabled plugin holds never has its code imported. The candidate is
    * ordered after every enabled plugin — it is the newer one by definition. */
@@ -461,8 +471,8 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired): Pl
 
   return {
     ...(installDir === undefined ? {} : { pluginInstaller: {
-      preview: (input) => previewSitePluginInstall({ ...input, deps: { installDir, builtInIds: sources.map((source) => source.manifest.id), repo: activationRepo } }),
-      install: (input) => installSitePlugin({ ...input, deps: { installDir, builtInIds: sources.map((source) => source.manifest.id), repo: activationRepo } }),
+      preview: (input) => previewSitePluginInstall({ ...input, deps: { installDir, builtInIds: sources.map((source) => source.manifest.id), repo: activationRepo, conflicts: installPreviewConflicts } }),
+      install: (input) => installSitePlugin({ ...input, deps: { installDir, builtInIds: sources.map((source) => source.manifest.id), repo: activationRepo, conflicts: installPreviewConflicts } }),
     } satisfies PluginInstallerPort }),
     hookRegistry,
     discoverPlugins,

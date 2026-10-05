@@ -51,7 +51,7 @@ describe("pluginConflictLines", () => {
   });
 
   it("labels every kind the server sends, and passes an unknown kind through verbatim", () => {
-    const kinds = ["table", "setting", "widget", "hook", "custom-kind"];
+    const kinds = ["table", "setting", "widget", "hook", "content-type", "custom-kind"];
     const plugin = makePlugin({
       conflicts: kinds.map((kind) => ({ kind, key: "x", heldBy: "other", heldByName: "Other", heldKey: "x" })),
     });
@@ -60,6 +60,7 @@ describe("pluginConflictLines", () => {
       'Setting "x" is already used by Other.',
       'Widget "x" is already used by Other.',
       'Hook "x" is already used by Other.',
+      'Content type "x" is already used by Other.',
       'custom-kind "x" is already used by Other.',
     ]);
   });

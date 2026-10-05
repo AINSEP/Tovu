@@ -42,7 +42,7 @@ async function fixture(files: Record<string, string> = { "README.md": "# Testimo
     await writeFile(path.join(sourceDir, "tovu.plugin.json"), JSON.stringify({ ...manifest, integrity }));
   };
   await writeAll();
-  const deps = { installDir, builtInIds: ["word-count"], repo: new InMemoryPluginActivationRepo() };
+  const deps = { installDir, builtInIds: ["word-count"], repo: new InMemoryPluginActivationRepo(), conflicts: async () => [] };
   return { root, sourceDir, installDir, manifest, files, writeAll, deps };
 }
 
@@ -56,6 +56,16 @@ test("a tier-1 package previews as code-free with its content types, installs, a
   const [listed] = await discoverPlugins({ builtIns: [], installDir: f.installDir });
   assert.equal(listed?.status, "valid");
   assert.equal(listed?.tier, "tier-1");
+});
+
+test("preview carries the conflicts port's answer for the staged manifest (the plugin-conflicts install preview)", async (t) => {
+  const f = await fixture(); t.after(() => rm(f.root, { recursive: true, force: true }));
+  const held = { kind: "content-type", key: "faq", heldBy: "other", heldByName: "Other", heldKey: "faq" };
+  const asked: unknown[] = [];
+  const conflicts = async (required: { manifest: { id: string; contentTypes?: unknown } }) => { asked.push([required.manifest.id, required.manifest.contentTypes]); return [held]; };
+  const preview = await previewSitePluginInstall({ sourceDir: f.sourceDir, deps: { ...f.deps, conflicts } });
+  assert.deepEqual(preview.conflicts, [held]);
+  assert.deepEqual(asked, [["decl-test", f.manifest.contentTypes]]);
 });
 
 test("a tier-3 preview still reports code and lists its declared content types (none here)", async (t) => {
@@ -101,7 +111,7 @@ test("tier-2 is still refused for a local package", async (t) => {
 });
 
 test("CLI consent: a code-free plugin says so and names its content types instead of the full-access warning", () => {
-  const base = { id: "decl-test", name: "Declarative test", version: "1.0.0", capabilities: [], hooks: [], digest: "d" };
+  const base = { id: "decl-test", name: "Declarative test", version: "1.0.0", capabilities: [], hooks: [], digest: "d", conflicts: [] };
   const declarative = pluginInstallConsent({ preview: { ...base, tier: "tier-1", hasCode: false, contentTypes: ["faq", "testimonial"] } });
   assert.match(declarative, /This plugin contains no code\. It adds content types: faq, testimonial\./);
   assert.doesNotMatch(declarative, /full access/);

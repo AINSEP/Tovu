@@ -8,7 +8,7 @@ import { InstallPluginDialog } from "../InstallPluginDialog";
 import { t } from "../plugins-i18n";
 
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
-const preview = { id: "zip", name: "ZIP", version: "1.0.0", tier: "tier-3" as const, capabilities: [], hooks: [], hasCode: true, digest: "sha256-" + "a".repeat(64) };
+const preview = { id: "zip", name: "ZIP", version: "1.0.0", tier: "tier-3" as const, capabilities: [], hooks: [], hasCode: true, contentTypes: [], conflicts: [], digest: "sha256-" + "a".repeat(64) };
 
 it("reviews uploaded bytes and only installs them with reviewed consent", async () => {
   const port = createFakePluginInstallPort({ preview });

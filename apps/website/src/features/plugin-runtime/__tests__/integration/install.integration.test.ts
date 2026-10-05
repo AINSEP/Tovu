@@ -23,7 +23,7 @@ async function fixture() {
   manifest.integrity["server/index.mjs"] = `sha256-${createHash("sha256").update(code).digest("hex")}`;
   const save = () => writeFile(path.join(sourceDir, "tovu.plugin.json"), JSON.stringify(manifest));
   await save();
-  const deps = { installDir, builtInIds: ["word-count"], repo };
+  const deps = { installDir, builtInIds: ["word-count"], repo, conflicts: async () => [] };
   return { root, sourceDir, installDir, manifest, save, deps, repo };
 }
 

@@ -6,7 +6,7 @@ import { usePluginInstall } from "../hooks/use-plugin-install.hooks";
 import { createFakePluginInstallPort } from "../hooks/plugin-install-dependencies.hooks";
 import type { PluginInstallPreview } from "../hooks/plugin-install-port.hooks";
 
-const preview: PluginInstallPreview = { id: "fixture", name: "Fixture", version: "1.0.0", tier: "tier-3", capabilities: [], hooks: [], hasCode: true, digest: "sha256-" + "a".repeat(64) };
+const preview: PluginInstallPreview = { id: "fixture", name: "Fixture", version: "1.0.0", tier: "tier-3", capabilities: [], hooks: [], hasCode: true, contentTypes: [], conflicts: [], digest: "sha256-" + "a".repeat(64) };
 
 describe("folder install hook", () => {
   it("only installs reviewed digest after confirm, then reloads and closes", async () => {
@@ -17,6 +17,7 @@ describe("folder install hook", () => {
     expect(port.installed).toHaveLength(0);
     await act(async () => { await result.current.review(); });
     expect(port.installed).toHaveLength(0); expect(result.current.preview?.digest).toBe(preview.digest);
+    expect(result.current.previewDisplay).toMatchObject({ title: "Fixture (fixture)", codeNotice: "This plugin runs code with full access to this computer and every site on it.", conflicts: null });
     await act(async () => { await result.current.install(); });
     expect(port.installed).toHaveLength(1); expect(onInstalled).toHaveBeenCalledOnce(); expect(result.current.isOpen).toBe(false);
   });

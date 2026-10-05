@@ -3,6 +3,7 @@ import { ApiError } from "@/lib/api";
 import { useFocusTrap } from "@/hooks/use-focus-trap.hooks";
 import type { Translate } from "@/lib/dictionary-translator";
 import type { PluginInstallPort, PluginInstallPreview, PluginInstallSource } from "./plugin-install-port.hooks";
+import { pluginInstallPreviewDisplay } from "../rules";
 
 function errorKey(error: unknown, fallback: string): string {
   if (!(error instanceof ApiError)) return fallback;
@@ -64,12 +65,7 @@ export function usePluginInstall(required: { port: PluginInstallPort; t: Transla
   return {
     isOpen, folder, zipFile, zipInputRef, replace, preview, busy, error, dialogRef, t: required.t,
     reviewDisabled: busy || (!folder.trim() && !zipFile),
-    previewDisplay: preview ? {
-      title: `${preview.name} (${preview.id})`,
-      version: preview.upgradeFrom ? `${preview.upgradeFrom} → ${preview.version}` : preview.version,
-      capabilities: preview.capabilities.join(", ") || "—",
-      hooks: preview.hooks.join(", ") || "—",
-    } : null,
+    previewDisplay: preview ? pluginInstallPreviewDisplay(preview, required.t) : null,
     open: () => { if (locked.current) return; returnFocus.current = document.activeElement as HTMLElement | null; invalidate(); setFolder(""); setZipFile(null); setReplace(false); setOpen(true); }, close,
     setFolder: (value: string) => { invalidate(); setFolder(value); setZipFile(null); if (zipInputRef.current) zipInputRef.current.value = ""; },
     setZipFile: (file: File | null) => {

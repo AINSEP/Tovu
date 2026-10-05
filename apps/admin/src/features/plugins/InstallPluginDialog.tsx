@@ -15,15 +15,26 @@ export function InstallPluginDialog({ controller: c }: { controller: PluginInsta
           <input type="checkbox" checked={c.replace} disabled={c.busy} onChange={(e) => c.setReplace(e.target.checked)} />
           {c.t("Replace existing version")}
         </label>
-        {c.preview ? (
+        {c.previewDisplay ? (
           <div>
-            <h3>{c.previewDisplay?.title}</h3>
-            <p>{c.t("Version")}: {c.previewDisplay?.version}</p>
-            <p>{c.t("Tier")}: {c.preview.tier} · {c.t("Local plugin · unverified publisher")}</p>
-            <p>{c.t("Capabilities")}: {c.previewDisplay?.capabilities}</p>
-            <p>{c.t("Hooks")}: {c.previewDisplay?.hooks}</p>
-            <p>{c.t("This plugin runs code with full access to this computer and every site on it.")}</p>
+            <h3>{c.previewDisplay.title}</h3>
+            <p>{c.t("Version")}: {c.previewDisplay.version}</p>
+            <p>{c.t("Tier")}: {c.previewDisplay.tier} · {c.t("Local plugin · unverified publisher")}</p>
+            <p>{c.t("Capabilities")}: {c.previewDisplay.capabilities}</p>
+            <p>{c.t("Hooks")}: {c.previewDisplay.hooks}</p>
+            <p>{c.t("Content types")}: {c.previewDisplay.contentTypes}</p>
+            <p>{c.previewDisplay.codeNotice}</p>
             <p>{c.t("It stays off in every workspace until you turn it on.")}</p>
+            {c.previewDisplay.conflicts ? (
+              <div className="plugin-errors">
+                <span className="save-error">{c.previewDisplay.conflicts.heading}</span>
+                <ul>
+                  {c.previewDisplay.conflicts.lines.map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </div>
         ) : null}
         {c.error ? <p role="alert">{c.error}</p> : null}

@@ -6,13 +6,17 @@ import { resolveSiteRoot } from "#src/platform/site-dir/site-root";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { SqlPluginActivationRepo } from "#src/features/plugin-runtime/repo";
 
+/** The CLI names no workspace, and conflicts are per workspace: it reports none here, and turning
+ *  the plugin on in a workspace still refuses a clash (the enable-time conflict gate). */
+const noWorkspaceConflicts: PluginInstallDeps["conflicts"] = async () => [];
+
 /** Opens only the site store: never constructs the runtime or attaches enabled plugin code. */
 async function openInstaller(required: { site: string }, _optional = {}) {
   const target = path.resolve(required.site);
   const boot = await bootSiteDir({ dir: target });
   try {
     const repo = new SqlPluginActivationRepo(boot.store?.content ?? contentKernel(boot.db!));
-    return { deps: { installDir: process.env.TOVU_PLUGINS_DIR !== undefined ? path.resolve(process.env.TOVU_PLUGINS_DIR) : path.join(target, "plugins"), builtInIds: ["word-count"], repo }, close: () => closeSiteDirBoot(boot) };
+    return { deps: { installDir: process.env.TOVU_PLUGINS_DIR !== undefined ? path.resolve(process.env.TOVU_PLUGINS_DIR) : path.join(target, "plugins"), builtInIds: ["word-count"], repo, conflicts: noWorkspaceConflicts }, close: () => closeSiteDirBoot(boot) };
   } catch (e) { await closeSiteDirBoot(boot); throw e; }
 }
 

@@ -29,8 +29,10 @@ test("admin preview -> install disabled -> enable -> disable -> Trash -> reinsta
   const headers = { cookie, "content-type": "application/json" };
   const previewResponse = await fetch(`${base}/install/preview`, { method: "POST", headers, body: JSON.stringify({ source }) });
   assert.equal(previewResponse.status, 200, await previewResponse.clone().text());
-  const { plugin: preview } = await previewResponse.json() as { plugin: { digest: string; tier: string; hasCode: boolean } };
+  const { plugin: preview } = await previewResponse.json() as { plugin: { digest: string; tier: string; hasCode: boolean; conflicts: unknown[] } };
   assert.equal(preview.tier, "tier-3"); assert.equal(preview.hasCode, true);
+  // The composed runtime's conflicts port is wired (plugin-conflicts install preview): none here.
+  assert.deepEqual(preview.conflicts, []);
   const installResponse = await fetch(`${base}/install`, { method: "POST", headers, body: JSON.stringify({ source, expectedDigest: preview.digest }) });
   assert.equal(installResponse.status, 201, await installResponse.clone().text());
   assert.deepEqual(await deps.pluginActivationRepo.listAll(), []);

@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import test from "node:test";
 
 import { definePlugin, HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "@tovu/sdk";
@@ -87,4 +90,54 @@ test("listPluginConflicts: a plugin that is off is reported with the clash it wo
   const conflicts = await runtime.listPluginConflicts();
   assert.deepEqual([...conflicts.keys()], ["waiting"]);
   assert.equal(conflicts.get("waiting")?.[0]?.heldBy, "running");
+});
+
+/** A manifest-only (tier-1) package on disk declaring `contentTypes` keys — nothing else to ship. */
+async function tier1Package(root: string, required: { id: string; version: string; keys: readonly string[] }): Promise<string> {
+  const dir = path.join(root, `src-${required.id}-${required.version}`);
+  await mkdir(dir, { recursive: true });
+  const contentTypes = required.keys.map((key) => ({ key, label: key, fields: [{ name: "body", kind: "text" }] }));
+  await writeFile(path.join(dir, "tovu.plugin.json"), JSON.stringify({
+    id: required.id, name: `Package ${required.id}`, version: required.version, sdkRange: "*", engine: 1, tier: "tier-1",
+    capabilities: [], hooks: [], fields: [], integrity: {}, contentTypes,
+  }));
+  return dir;
+}
+
+function faqHolder(id: string): PluginRuntimeSource {
+  const holder = source(id, {});
+  return { ...holder, manifest: { ...holder.manifest, contentTypes: [{ key: "faq", label: "FAQ", fields: [{ name: "answer", kind: "text" }] }] } };
+}
+
+async function installRuntime(t: { after: (fn: () => Promise<void>) => void }) {
+  const root = await mkdtemp(path.join(tmpdir(), "plugin-install-conflicts-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const repo = new InMemoryPluginActivationRepo();
+  const runtime = composePluginRuntime({ workspaceId: WORKSPACE, clock: clock(), activationRepo: repo, sources: [faqHolder("faq-holder")], installDir: path.join(root, "plugins") });
+  assert.ok(runtime.pluginInstaller);
+  return { root, repo, installer: runtime.pluginInstaller };
+}
+
+test("install preview: names what the staged package would clash with in THIS workspace", async (t) => {
+  const { root, repo, installer } = await installRuntime(t);
+  await repo.save({ workspaceId: WORKSPACE, pluginId: "faq-holder", version: "1.0.0", enabled: true, updatedAt: "2026-09-01T00:00:00.000Z" });
+  const preview = await installer.preview({ sourceDir: await tier1Package(root, { id: "faq-pack", version: "1.0.0", keys: ["faq", "testimonial"] }) });
+  assert.deepEqual(preview.conflicts, [{ kind: "content-type", key: "faq", heldBy: "faq-holder", heldByName: "Plugin faq-holder", heldKey: "faq" }]);
+});
+
+test("install preview: a holder enabled only in another workspace is not a conflict here", async (t) => {
+  const { root, repo, installer } = await installRuntime(t);
+  await repo.save({ workspaceId: "ws-other", pluginId: "faq-holder", version: "1.0.0", enabled: true, updatedAt: "2026-09-01T00:00:00.000Z" });
+  const preview = await installer.preview({ sourceDir: await tier1Package(root, { id: "faq-pack", version: "1.0.0", keys: ["faq"] }) });
+  assert.deepEqual(preview.conflicts, []);
+});
+
+test("install preview: an upgrade is judged by the staged manifest, not the installed version's", async (t) => {
+  const { root, repo, installer } = await installRuntime(t);
+  await repo.save({ workspaceId: WORKSPACE, pluginId: "faq-holder", version: "1.0.0", enabled: true, updatedAt: "2026-09-01T00:00:00.000Z" });
+  const v1 = await tier1Package(root, { id: "faq-pack", version: "1.0.0", keys: ["faq"] });
+  await installer.install({ sourceDir: v1, expectedDigest: (await installer.preview({ sourceDir: v1 })).digest });
+  const preview = await installer.preview({ sourceDir: await tier1Package(root, { id: "faq-pack", version: "2.0.0", keys: ["testimonial"] }) });
+  assert.equal(preview.upgradeFrom, "1.0.0");
+  assert.deepEqual(preview.conflicts, [], "the installed 1.0.0 still claims faq, but 2.0.0 does not");
 });

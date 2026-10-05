@@ -10,6 +10,7 @@ import * as semver from "semver";
 import { validateManifest, type PluginManifest, type PluginTier } from "./manifest.js";
 import { parseDeclaredContentTypes } from "./declarative-content-types.js";
 import type { PluginActivationRepoPort } from "./activation.js";
+import type { PluginConflict } from "./plugin-claims.js";
 import { readSitePluginArchive } from "./install-archive.js";
 
 export class PluginInstallError extends Error {
@@ -22,11 +23,18 @@ export interface PluginInstallPreview {
   hasCode: boolean; digest: string; upgradeFrom?: string;
   /** Content-type keys the manifest declares (AW-7 Tier 1); created when the plugin is turned on. */
   contentTypes: readonly string[];
+  /** What turning it on would clash with — see {@link PluginInstallDeps.conflicts}. Informational
+   *  only: not part of the consent digest, and enable re-checks (the enable-time conflict gate). */
+  conflicts: readonly PluginConflict[];
 }
 export type PluginInstallInput = ({ sourceDir: string; archive?: never } | { archive: Uint8Array; sourceDir?: never }) & { replace?: boolean };
 export interface PluginInstallDeps {
   installDir: string; builtInIds: readonly string[];
   repo: Pick<PluginActivationRepoPort, "listAll">;
+  /** Names the staged manifest would take that core or an enabled plugin already holds. Install is
+   *  site-wide but activation is per workspace: the admin root answers for the workspace it serves
+   *  (`composePluginRuntime`); the CLI, which names no workspace, answers none. */
+  conflicts: (required: { manifest: PluginManifest }, optional?: Record<string, never>) => Promise<readonly PluginConflict[]>;
 }
 export interface PluginInstallerPort {
   preview(required: PluginInstallInput, optional?: Record<string, never>): Promise<PluginInstallPreview>;
@@ -150,7 +158,7 @@ async function inspect(input: PluginInstallInput, deps: PluginInstallDeps) {
   const upgradeFrom = await checkDestination(manifest, input, deps);
   // Include manifest bytes: changed capabilities/name/version must invalidate human consent too.
   const digest = hash(Buffer.from(JSON.stringify([...files].map(([key, bytes]) => [key, hash(bytes)]).sort(([a], [b]) => a! < b! ? -1 : a! > b! ? 1 : 0))));
-  const preview: PluginInstallPreview = { id: manifest.id, name: manifest.name, version: manifest.version, tier: manifest.tier, capabilities: manifest.capabilities, hooks: manifest.hooks, hasCode: manifest.tier !== "tier-1", contentTypes: parseDeclaredContentTypes({ value: manifest.contentTypes }).decls.map((decl) => decl.key), digest, ...(upgradeFrom ? { upgradeFrom } : {}) };
+  const preview: PluginInstallPreview = { id: manifest.id, name: manifest.name, version: manifest.version, tier: manifest.tier, capabilities: manifest.capabilities, hooks: manifest.hooks, hasCode: manifest.tier !== "tier-1", contentTypes: parseDeclaredContentTypes({ value: manifest.contentTypes }).decls.map((decl) => decl.key), conflicts: await deps.conflicts({ manifest }), digest, ...(upgradeFrom ? { upgradeFrom } : {}) };
   return { files, manifest, preview };
 }
 

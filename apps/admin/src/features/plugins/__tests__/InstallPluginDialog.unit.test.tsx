@@ -10,7 +10,7 @@ import { Plugins } from "../Plugins";
 import { t } from "../plugins-i18n";
 
 afterEach(cleanup);
-const preview = { id: "fixture", name: "Fixture", version: "1.0.0", tier: "tier-3" as const, capabilities: ["content.read"], hooks: [], hasCode: true, digest: "sha256-" + "a".repeat(64) };
+const preview = { id: "fixture", name: "Fixture", version: "1.0.0", tier: "tier-3", capabilities: ["content.read"], hooks: [], hasCode: true, contentTypes: [], conflicts: [], digest: "sha256-" + "a".repeat(64) };
 
 it("shows the trust warning and stays-off promise before install, with keyboard cancellation", async () => {
   const port = createFakePluginInstallPort({ preview }); const onInstalled = vi.fn(async () => {});
@@ -34,6 +34,42 @@ it("shows the trust warning and stays-off promise before install, with keyboard 
   expect(port.installed).toHaveLength(1); expect(onInstalled).toHaveBeenCalledOnce();
   await user.click(screen.getByRole("button", { name: "Open" })); await user.keyboard("{Escape}");
   expect(screen.queryByRole("dialog")).toBeNull(); expect(screen.getByRole("button", { name: "Open" })).toBe(document.activeElement);
+});
+
+it("a code-free (tier-1) package reads as code-free, lists its content types, and shows this workspace's conflicts", async () => {
+  const declarative = {
+    ...preview, tier: "tier-1", hasCode: false, contentTypes: ["faq", "testimonial"],
+    conflicts: [{ kind: "content-type", key: "faq", heldBy: "faq-holder", heldByName: "FAQ Holder", heldKey: "faq" }],
+  };
+  const port = createFakePluginInstallPort({ preview: declarative });
+  function Harness() {
+    const controller = usePluginInstall({ port, t: (key) => key, onInstalled: async () => {} });
+    return <><button onClick={controller.open}>Open</button>{controller.isOpen ? <InstallPluginDialog controller={controller} /> : null}</>;
+  }
+  render(<Harness />); const user = userEvent.setup();
+  await user.click(screen.getByRole("button", { name: "Open" }));
+  await user.type(screen.getByRole("textbox"), "/server/package");
+  await user.click(screen.getByRole("button", { name: "Preview plugin" }));
+  expect(await screen.findByText("This plugin has no code; nothing in it runs on this computer. Turning it on only adds what it declares.")).toBeTruthy();
+  expect(screen.queryByText("This plugin runs code with full access to this computer and every site on it.")).toBeNull();
+  expect(screen.getByText("Content types: faq, testimonial")).toBeTruthy();
+  expect(screen.getByText("Tier: tier-1 · Local plugin · unverified publisher")).toBeTruthy();
+  expect(screen.getByText("Already in use in this workspace (other workspaces are checked when you turn it on there):")).toBeTruthy();
+  expect(screen.getByText('Content type "faq" is already used by FAQ Holder.')).toBeTruthy();
+});
+
+it("no conflicts: no conflict heading", async () => {
+  const port = createFakePluginInstallPort({ preview });
+  function Harness() {
+    const controller = usePluginInstall({ port, t: (key) => key, onInstalled: async () => {} });
+    return <><button onClick={controller.open}>Open</button>{controller.isOpen ? <InstallPluginDialog controller={controller} /> : null}</>;
+  }
+  render(<Harness />); const user = userEvent.setup();
+  await user.click(screen.getByRole("button", { name: "Open" }));
+  await user.type(screen.getByRole("textbox"), "/server/package");
+  await user.click(screen.getByRole("button", { name: "Preview plugin" }));
+  await screen.findByText("Content types: —");
+  expect(screen.queryByText(/Already in use in this workspace/)).toBeNull();
 });
 
 it("Plugins advertises install only when server supplies folder capability", async () => {
