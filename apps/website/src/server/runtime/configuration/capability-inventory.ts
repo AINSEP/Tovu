@@ -52,7 +52,7 @@ export const CAPABILITY_INVENTORY: readonly CapabilityInventoryEntry[] = [
     securityDependencies: ["identity authorize() gate"],
     restartTestOwner: "features/workspace test suite",
     hasDurableAdapter: true,
-    sourceHints: ["WorkspaceRepo"],
+    sourceHints: ["SqliteWorkspaceRepo"],
   },
   {
     name: "posts",
@@ -64,7 +64,7 @@ export const CAPABILITY_INVENTORY: readonly CapabilityInventoryEntry[] = [
     securityDependencies: ["identity authorize() gate"],
     restartTestOwner: "features/post test suite",
     hasDurableAdapter: true,
-    sourceHints: ["PostRepo"],
+    sourceHints: ["SqlitePostRepo"],
   },
   {
     name: "presentation",
@@ -76,7 +76,7 @@ export const CAPABILITY_INVENTORY: readonly CapabilityInventoryEntry[] = [
     securityDependencies: ["identity authorize() gate"],
     restartTestOwner: "features/presentation test suite",
     hasDurableAdapter: true,
-    sourceHints: ["PresentationSettingsRepo"],
+    sourceHints: ["SqlitePresentationSettingsRepo"],
   },
   {
     name: "settings",
@@ -88,7 +88,7 @@ export const CAPABILITY_INVENTORY: readonly CapabilityInventoryEntry[] = [
     securityDependencies: ["identity authorize() gate"],
     restartTestOwner: "features/settings test suite",
     hasDurableAdapter: true,
-    sourceHints: ["SettingsRepo"],
+    sourceHints: ["SqliteSettingsRepo"],
   },
   {
     name: "identity",

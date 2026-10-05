@@ -6,6 +6,7 @@ import os from "node:os";
 import { syncBuiltinESMExports } from "node:module";
 import path from "node:path";
 import test from "node:test";
+import ts from "typescript";
 
 import { CAPABILITY_INVENTORY } from "../../runtime/configuration/capability-inventory.js";
 import { runProductionReadinessGate } from "../../runtime/boot/production-readiness-gate.js";
@@ -128,13 +129,83 @@ test("the real production gateway keeps a pending confirmation token after closi
  */
 
 const COMPOSITION_DIR = path.join(import.meta.dirname, "..", "..", "runtime", "composition");
-const DEPS_SOURCE = fs.readFileSync(path.join(COMPOSITION_DIR, "deps.ts"), "utf8");
-const APP_SOURCE = fs.readFileSync(path.join(COMPOSITION_DIR, "app.ts"), "utf8");
+/**
+ * F3431: what the two composition roots actually reference in CODE, from the TypeScript AST — so a
+ * comment (not an AST node) can never count, and a word inside a longer identifier never counts.
+ * Imports are kept apart: an import only counts when one of its bindings is used in the code.
+ */
+function compositionReferences(...files: string[]): { identifiers: Set<string>; strings: string[]; imports: Array<{ specifier: string; bindings: string[] }> } {
+  const identifiers = new Set<string>();
+  const strings: string[] = [];
+  const imports: Array<{ specifier: string; bindings: string[] }> = [];
+  for (const file of files) {
+    const source = ts.createSourceFile(file, fs.readFileSync(file, "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+    const visit = (node: ts.Node): void => {
+      if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) {
+        const specifier = node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier) ? node.moduleSpecifier.text : "";
+        const bindings: string[] = [];
+        const collect = (child: ts.Node): void => {
+          if (ts.isImportSpecifier(child) || ts.isNamespaceImport(child) || ts.isExportSpecifier(child)) bindings.push(child.name.text);
+          else if (ts.isImportClause(child) && child.name) bindings.push(child.name.text);
+          ts.forEachChild(child, collect);
+        };
+        collect(node);
+        imports.push({ specifier, bindings });
+        return;
+      }
+      if (ts.isIdentifier(node) || ts.isPrivateIdentifier(node)) identifiers.add(node.text);
+      else if (ts.isStringLiteralLike(node) || ts.isTemplateHead(node) || ts.isTemplateMiddle(node) || ts.isTemplateTail(node)) strings.push(node.text);
+      ts.forEachChild(node, visit);
+    };
+    visit(source);
+  }
+  return { identifiers, strings, imports };
+}
 
-test("AC-23/24/REQ-12: every capability named in the inventory corresponds to something real in deps.ts or app.ts", () => {
+const COMPOSITION = compositionReferences(path.join(COMPOSITION_DIR, "deps.ts"), path.join(COMPOSITION_DIR, "app.ts"));
+
+/** A hint is wired when code uses it: an identifier, text inside a code string (SQL, dynamic
+ * import), or an import path whose imported bindings the code then uses. */
+function hintIsWired(hint: string): boolean {
+  if (COMPOSITION.identifiers.has(hint)) return true;
+  if (COMPOSITION.strings.some((text) => text.includes(hint))) return true;
+  return COMPOSITION.imports.some(({ specifier, bindings }) => specifier.includes(hint) && bindings.some((name) => COMPOSITION.identifiers.has(name)));
+}
+
+test("AC-23/24/REQ-12: every capability in the inventory is referenced by real code (not a comment) in deps.ts or app.ts", () => {
   for (const cap of CAPABILITY_INVENTORY) {
-    const mentioned = DEPS_SOURCE.includes(cap.name) || APP_SOURCE.includes(cap.name) || (cap.sourceHints ?? []).some((h) => DEPS_SOURCE.includes(h) || APP_SOURCE.includes(h));
-    assert.ok(mentioned, `inventory entry "${cap.name}" (or one of its sourceHints) was not found anywhere in deps.ts/app.ts — likely stale (REQ-12)`);
+    // The capability's bare name ("seo", "store", "forms") is a common word that matched comments
+    // and unrelated identifiers; the sourceHints name the actual wiring, so they are what counts.
+    assert.ok((cap.sourceHints ?? []).length > 0, `inventory entry "${cap.name}" names no sourceHints, so nothing can prove it is wired`);
+    const wired = (cap.sourceHints ?? []).filter(hintIsWired);
+    assert.ok(wired.length > 0, `inventory entry "${cap.name}": none of its sourceHints (${(cap.sourceHints ?? []).join(", ")}) is used by code in deps.ts/app.ts — likely stale (REQ-12)`);
+  }
+});
+
+test("F3431: the wiring scan ignores comments and partial identifiers", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-capability-scan-"));
+  try {
+    const file = path.join(dir, "probe.ts");
+    fs.writeFileSync(file, [
+      "// SqliteCommentOnlyRepo wires nothing",
+      "/** featureOnlyInDocs */",
+      'import { usedBinding } from "./features/used-path.js";',
+      'import { unusedBinding } from "./features/unused-path.js";',
+      "const longerSqliteThingRepoName = usedBinding();",
+      'const sql = "SELECT * FROM table_in_sql";',
+    ].join("\n"));
+    const refs = compositionReferences(file);
+    assert.equal(refs.identifiers.has("SqliteCommentOnlyRepo"), false);
+    assert.equal(refs.identifiers.has("featureOnlyInDocs"), false);
+    assert.equal(refs.identifiers.has("SqliteThingRepo"), false);
+    assert.equal(refs.identifiers.has("usedBinding"), true);
+    assert.ok(refs.strings.some((text) => text.includes("table_in_sql")));
+    const used = refs.imports.find((entry) => entry.specifier.includes("features/used-path"));
+    const unused = refs.imports.find((entry) => entry.specifier.includes("features/unused-path"));
+    assert.equal(used?.bindings.some((name) => refs.identifiers.has(name)), true);
+    assert.equal(unused?.bindings.some((name) => refs.identifiers.has(name)), false, "an import whose binding is never used is not wiring");
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
   }
 });
 

@@ -12,6 +12,17 @@ import { registerPaymentsWebhookRoute } from "../inbound/public-http/routes/site
 import type { LipayApi } from "#src/features/plugins/lipay/lipay-plugin";
 
 /**
+ * F3437: a 500 must be opaque. Every failure this file injects carries the word "simulated" (and the
+ * repo stub names the method), so a catch that forwards `err.message` (a connection string, a file
+ * path, a SQL fragment in production) shows up here as that text in the body.
+ */
+async function assertOpaqueInternalError(res: Response): Promise<void> {
+  const body = await res.text();
+  assert.equal(JSON.parse(body).code, "INTERNAL_ERROR");
+  assert.equal(/simulated|stack|at \S+ \(/i.test(body), false, `a 500 body leaked the raw error: ${body}`);
+}
+
+/**
  * @file Regression coverage for the "unguarded async Express handler" bug class — an async
  * `app.<verb>()` handler with no `try`/`catch` anywhere in its body. Express 4.22.2 (this repo's
  * version) does not catch an async handler's own rejection, so an unguarded handler that throws
@@ -83,7 +94,7 @@ test("publish-credentials: GET responds 500 (not a hang) when the repo throws an
     signal: AbortSignal.timeout(3000),
   });
   assert.equal(res.status, 500);
-  assert.equal((await res.json()).code, "INTERNAL_ERROR");
+  await assertOpaqueInternalError(res);
 });
 
 test("publish-credentials: DELETE responds 500 (not a hang) when the repo throws an untyped error", async (t) => {
@@ -98,7 +109,7 @@ test("publish-credentials: DELETE responds 500 (not a hang) when the repo throws
     signal: AbortSignal.timeout(3000),
   });
   assert.equal(res.status, 500);
-  assert.equal((await res.json()).code, "INTERNAL_ERROR");
+  await assertOpaqueInternalError(res);
 });
 
 /**
@@ -122,7 +133,7 @@ test("publish-credentials: POST responds 500 (not a hang) when the store throws 
     signal: AbortSignal.timeout(3000),
   });
   assert.equal(res.status, 500);
-  assert.equal((await res.json()).code, "INTERNAL_ERROR");
+  await assertOpaqueInternalError(res);
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -142,7 +153,7 @@ test("source-control-credentials: GET responds 500 (not a hang) when the repo th
     signal: AbortSignal.timeout(3000),
   });
   assert.equal(res.status, 500);
-  assert.equal((await res.json()).code, "INTERNAL_ERROR");
+  await assertOpaqueInternalError(res);
 });
 
 test("source-control-credentials: DELETE responds 500 (not a hang) when the repo throws an untyped error", async (t) => {
@@ -157,7 +168,7 @@ test("source-control-credentials: DELETE responds 500 (not a hang) when the repo
     signal: AbortSignal.timeout(3000),
   });
   assert.equal(res.status, 500);
-  assert.equal((await res.json()).code, "INTERNAL_ERROR");
+  await assertOpaqueInternalError(res);
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -185,7 +196,7 @@ test("publish-site: POST (trigger) responds 500 (not a hang) when deps.authorize
     signal: AbortSignal.timeout(3000),
   });
   assert.equal(res.status, 500);
-  assert.equal((await res.json()).code, "INTERNAL_ERROR");
+  await assertOpaqueInternalError(res);
 });
 
 test("publish-site: GET (status poll) responds 500 (not a hang) when deps.authorize throws", async (t) => {
@@ -198,7 +209,7 @@ test("publish-site: GET (status poll) responds 500 (not a hang) when deps.author
     signal: AbortSignal.timeout(3000),
   });
   assert.equal(res.status, 500);
-  assert.equal((await res.json()).code, "INTERNAL_ERROR");
+  await assertOpaqueInternalError(res);
 });
 
 test("publish-site: GET .../preview responds 500 (not a hang) when deps.authorize throws", async (t) => {
@@ -211,7 +222,7 @@ test("publish-site: GET .../preview responds 500 (not a hang) when deps.authoriz
     signal: AbortSignal.timeout(3000),
   });
   assert.equal(res.status, 500);
-  assert.equal((await res.json()).code, "INTERNAL_ERROR");
+  await assertOpaqueInternalError(res);
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -231,7 +242,7 @@ test("export-site: POST (trigger) responds 500 (not a hang) when deps.authorize 
     signal: AbortSignal.timeout(3000),
   });
   assert.equal(res.status, 500);
-  assert.equal((await res.json()).code, "INTERNAL_ERROR");
+  await assertOpaqueInternalError(res);
 });
 
 test("export-site: GET (status poll) responds 500 (not a hang) when deps.authorize throws", async (t) => {
@@ -244,7 +255,7 @@ test("export-site: GET (status poll) responds 500 (not a hang) when deps.authori
     signal: AbortSignal.timeout(3000),
   });
   assert.equal(res.status, 500);
-  assert.equal((await res.json()).code, "INTERNAL_ERROR");
+  await assertOpaqueInternalError(res);
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -263,7 +274,7 @@ test("dockerfile-source: GET responds 500 (not a hang) when deps.authorize throw
     signal: AbortSignal.timeout(3000),
   });
   assert.equal(res.status, 500);
-  assert.equal((await res.json()).code, "INTERNAL_ERROR");
+  await assertOpaqueInternalError(res);
 });
 
 test("dockerfile-source: PUT responds 500 (not a hang) when deps.authorize throws", async (t) => {
@@ -278,7 +289,7 @@ test("dockerfile-source: PUT responds 500 (not a hang) when deps.authorize throw
     signal: AbortSignal.timeout(3000),
   });
   assert.equal(res.status, 500);
-  assert.equal((await res.json()).code, "INTERNAL_ERROR");
+  await assertOpaqueInternalError(res);
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -312,7 +323,7 @@ test("comments/moderate: POST .../approve (the shared loop registrar) responds 5
     signal: AbortSignal.timeout(3000),
   });
   assert.equal(res.status, 500);
-  assert.equal((await res.json()).code, "INTERNAL_ERROR");
+  await assertOpaqueInternalError(res);
 });
 
 test("comments/moderate: POST .../purge responds 500 (not a hang) when commentWriteService.purge throws", async (t) => {
@@ -327,7 +338,7 @@ test("comments/moderate: POST .../purge responds 500 (not a hang) when commentWr
     signal: AbortSignal.timeout(3000),
   });
   assert.equal(res.status, 500);
-  assert.equal((await res.json()).code, "INTERNAL_ERROR");
+  await assertOpaqueInternalError(res);
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -358,7 +369,7 @@ test("payments-webhook: POST responds 500 (not a hang) when lipay.handleWebhook 
     signal: AbortSignal.timeout(3000),
   });
   assert.equal(res.status, 500);
-  assert.equal((await res.json()).code, "INTERNAL_ERROR");
+  await assertOpaqueInternalError(res);
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -378,7 +389,7 @@ test("analytics/recent-hits: GET responds 500 (not a hang) when deps.authorize t
     signal: AbortSignal.timeout(3000),
   });
   assert.equal(res.status, 500);
-  assert.equal((await res.json()).code, "INTERNAL_ERROR");
+  await assertOpaqueInternalError(res);
 });
 
 test("comments/moderation-queue: GET responds 500 (not a hang) when deps.authorize throws", async (t) => {
@@ -391,7 +402,7 @@ test("comments/moderation-queue: GET responds 500 (not a hang) when deps.authori
     signal: AbortSignal.timeout(3000),
   });
   assert.equal(res.status, 500);
-  assert.equal((await res.json()).code, "INTERNAL_ERROR");
+  await assertOpaqueInternalError(res);
 });
 
 test("commerce/status: GET responds 500 (not a hang) when deps.authorize throws", async (t) => {
@@ -404,7 +415,7 @@ test("commerce/status: GET responds 500 (not a hang) when deps.authorize throws"
     signal: AbortSignal.timeout(3000),
   });
   assert.equal(res.status, 500);
-  assert.equal((await res.json()).code, "INTERNAL_ERROR");
+  await assertOpaqueInternalError(res);
 });
 
 test("system/deployment-overview: GET responds 500 (not a hang) when deps.authorize throws", async (t) => {
@@ -417,7 +428,7 @@ test("system/deployment-overview: GET responds 500 (not a hang) when deps.author
     signal: AbortSignal.timeout(3000),
   });
   assert.equal(res.status, 500);
-  assert.equal((await res.json()).code, "INTERNAL_ERROR");
+  await assertOpaqueInternalError(res);
 });
 
 test("system/module-status: GET responds 500 (not a hang) when deps.authorize throws", async (t) => {
@@ -430,7 +441,7 @@ test("system/module-status: GET responds 500 (not a hang) when deps.authorize th
     signal: AbortSignal.timeout(3000),
   });
   assert.equal(res.status, 500);
-  assert.equal((await res.json()).code, "INTERNAL_ERROR");
+  await assertOpaqueInternalError(res);
 });
 
 test("site/comments-submit: POST responds 500 (not a hang) when commentIngressPolicy.submit throws — the one PUBLIC route in this file", async (t) => {
@@ -452,5 +463,5 @@ test("site/comments-submit: POST responds 500 (not a hang) when commentIngressPo
     signal: AbortSignal.timeout(3000),
   });
   assert.equal(res.status, 500);
-  assert.equal((await res.json()).code, "INTERNAL_ERROR");
+  await assertOpaqueInternalError(res);
 });

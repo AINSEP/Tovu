@@ -163,7 +163,7 @@ async function freshFixture(kernel: ContentKernel): Promise<Fixture> {
   return { kernel, keyring, sealer, secrets };
 }
 
-function depsFor(fixture: Pick<Fixture, "kernel">, overrides: Partial<SealedCredentialInventoryDeps> & { sealer: Sealer; keyring: InMemoryKeyring }): SealedCredentialInventoryDeps {
+function depsFor(fixture: Pick<Fixture, "kernel">, overrides: Partial<SealedCredentialInventoryDeps> & { sealer: Sealer; keyring: SealedCredentialInventoryDeps["keyring"] }): SealedCredentialInventoryDeps {
   return { kernel: fixture.kernel, hasSiteKeySource: () => true, descriptors: SEALED_COLUMN_DESCRIPTORS, ...overrides };
 }
 
@@ -271,11 +271,73 @@ for (const each of eachDialect({ tables: TABLES, make: (kernel) => kernel })) {
   test(`undeterminable: with no site key source present, every row is unknown/no-site-key and the sealer is never called [${each.name}]`, async () => {
     const fixture = await freshFixture(each.make());
     const sealer = countingSealer(fixture.sealer);
-    const inventory = await listSealedCredentials(depsFor(fixture, { sealer, keyring: fixture.keyring, hasSiteKeySource: () => false }));
+    // F1604: activeKey() is a derivation too (an auto-generating keyring mints its file on that
+    // first read), so the keyring itself must stay untouched — counting sealer calls alone misses it.
+    let activeKeyReads = 0;
+    const keyring: SealedCredentialInventoryDeps["keyring"] = {
+      activeKey: async () => {
+        activeKeyReads += 1;
+        throw new Error(`${LEAK}activeKey read with no key source`);
+      },
+    };
+    const inventory = await listSealedCredentials(depsFor(fixture, { sealer, keyring, hasSiteKeySource: () => false }));
 
+    assert.equal(activeKeyReads, 0, "no key source: the keyring's activeKey() must never be read");
     assert.equal(sealer.calls, 0, "no derivation may run when no key source exists — a keyring could mint one");
+    assert.equal(inventory.activeKeyId, null);
     assert.deepEqual(inventory.totals, { sealed: 13, opens: 0, doesNotOpen: 0, unknown: 13 });
     assert.ok(inventory.entries.every((entry) => entry.unknownReason === "no-site-key"));
+    assertNoSecretIn(inventory, fixture.secrets);
+  });
+
+  test(`undeterminable: a keyring whose activeKey() rejects makes every row unknown, attempts no seal/open, and leaks no error text [${each.name}]`, async () => {
+    const fixture = await freshFixture(each.make());
+    const sealer = countingSealer(fixture.sealer);
+    const keyring: SealedCredentialInventoryDeps["keyring"] = {
+      activeKey: async () => { throw new Error(`${LEAK}key file unreadable`); },
+    };
+    const inventory = await listSealedCredentials(depsFor(fixture, { sealer, keyring }));
+
+    assert.equal(sealer.calls, 0, "with no readable key there is nothing to probe or open with");
+    assert.equal(inventory.activeKeyId, null);
+    assert.deepEqual(inventory.totals, { sealed: 13, opens: 0, doesNotOpen: 0, unknown: 13 });
+    assert.ok(inventory.entries.every((entry) => entry.opensUnderActiveKey === "unknown" && entry.unknownReason === "active-key-unavailable"));
+    assertNoSecretIn(inventory, fixture.secrets);
+  });
+
+  test(`undeterminable: a probe that round-trips the WRONG plaintext without throwing makes every row unknown, never true or false [${each.name}]`, async () => {
+    const fixture = await freshFixture(each.make());
+    const opened: Array<string | undefined> = [];
+    const lying: Sealer = {
+      seal: (input) => fixture.sealer.seal(input),
+      open: async (input) => {
+        opened.push(input.aad);
+        await fixture.sealer.open(input);
+        return `${LEAK}not the probe plaintext`;
+      },
+    };
+    const inventory = await listSealedCredentials(depsFor(fixture, { sealer: lying, keyring: fixture.keyring }));
+
+    assert.deepEqual(opened, ["sealed-credential-inventory-probe:v1"], "only the probe is opened; no row is tried with an unproven key");
+    assert.equal(inventory.activeKeyId, (await fixture.keyring.activeKey()).keyId);
+    assert.deepEqual(inventory.totals, { sealed: 13, opens: 0, doesNotOpen: 0, unknown: 13 });
+    assert.ok(inventory.entries.every((entry) => entry.opensUnderActiveKey === "unknown" && entry.unknownReason === "active-key-unavailable"));
+    assertNoSecretIn(inventory, fixture.secrets);
+  });
+
+  test(`a descriptor whose aadFor throws turns only its own rows unknown/descriptor-error, with no leaked error text [${each.name}]`, async () => {
+    const fixture = await freshFixture(each.make());
+    const descriptors = SEALED_COLUMN_DESCRIPTORS.map((descriptor) =>
+      descriptor.table === "vendor_credential_sets"
+        ? { ...descriptor, aadFor: () => { throw new Error(`${LEAK}aad callback failure`); } }
+        : descriptor);
+    const inventory = await listSealedCredentials(depsFor(fixture, { sealer: fixture.sealer, keyring: fixture.keyring, descriptors }));
+
+    assert.deepEqual(inventory.totals, { sealed: 13, opens: 12, doesNotOpen: 0, unknown: 1 });
+    const vendor = inventory.entries.filter((entry) => entry.table === "vendor_credential_sets");
+    assert.deepEqual(vendor.map((entry) => [entry.opensUnderActiveKey, entry.unknownReason, entry.workspaceId, entry.rowId]), [["unknown", "descriptor-error", null, null]]);
+    assert.ok(inventory.entries.filter((entry) => entry.table !== "vendor_credential_sets").every((entry) => entry.opensUnderActiveKey === true));
+    assertNoSecretIn(inventory, fixture.secrets);
   });
 
   test(`undeterminable: a key source that cannot round-trip a probe makes every row unknown — never false — and no error text leaks [${each.name}]`, async () => {

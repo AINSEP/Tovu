@@ -1,7 +1,9 @@
 import { LEGACY_SITE_KEY_FILENAME } from "#src/features/webhooks/site-key-sources";
 import { LEGACY_SITE_KEY_ENV_VAR_NAME, SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import ts from "typescript";
@@ -320,4 +322,29 @@ test("conflicting site-key env warns locally even when quiet startup is enabled"
     log: line => lines.push(line) });
   assert.equal(lines.length, 1);
   assert.match(lines[0]!, /conflict/);
+});
+
+// F3588: every test above injects `log` (or the AST pins only the call site), so nothing proved the
+// DEFAULT sink actually reaches the operator's terminal. A child process with no key anywhere — no
+// env names, an empty HOME, an empty cwd — calls the real export with no injected dependency at all
+// and must print the wall on stderr (stdout stays clean for anything that parses it).
+test("F3588: a real no-key local boot call prints the notice on stderr, from the default sink", () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-site-key-notice-"));
+  try {
+    // cwd is the empty HOME, so every path handed to the child is absolute.
+    const tsconfig = process.env.TSX_TSCONFIG_PATH;
+    const env: NodeJS.ProcessEnv = { PATH: process.env.PATH, HOME: home, ...(tsconfig ? { TSX_TSCONFIG_PATH: path.resolve(tsconfig) } : {}) };
+    const moduleUrl = new URL("../site-key-boot-notice.ts", import.meta.url).href;
+    const child = spawnSync(
+      process.execPath,
+      ["--import", import.meta.resolve("tsx"), "--input-type=module", "-e", `const m = await import(${JSON.stringify(moduleUrl)}); m.warnIfNoSiteKeyAtBoot();`],
+      { cwd: home, env, encoding: "utf8", timeout: 60_000 },
+    );
+    assert.equal(child.status, 0, `child failed: ${child.stderr}`);
+    assert.equal(child.stdout, "", "the notice belongs on stderr, never stdout");
+    assert.match(child.stderr, new RegExp(SITE_KEY_ENV_VAR_NAME), "the no-key notice must reach stderr and name the env var");
+    assert.deepEqual(fs.readdirSync(home), [], "warning about a missing key must never create one");
+  } finally {
+    fs.rmSync(home, { recursive: true, force: true });
+  }
 });

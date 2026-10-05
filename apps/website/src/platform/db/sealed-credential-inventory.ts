@@ -379,8 +379,11 @@ async function readActiveKey(keyring: SealedCredentialInventoryDeps["keyring"]):
 }
 
 /** Decides once, up front, whether opens can be attempted at all — and never derives with no key source. */
-async function createActiveKeyCheck(deps: SealedCredentialInventoryDeps, key: SiteKeyHandle | null): Promise<ActiveKeyCheck> {
-  if (!deps.hasSiteKeySource()) return { attemptOpen: async () => unknownVerdict("no-site-key") };
+async function createActiveKeyCheck(
+  deps: SealedCredentialInventoryDeps,
+  { keySourcePresent, key }: { keySourcePresent: boolean; key: SiteKeyHandle | null },
+): Promise<ActiveKeyCheck> {
+  if (!keySourcePresent) return { attemptOpen: async () => unknownVerdict("no-site-key") };
   const probeAlg = key === null ? null : await probeSealer(deps.sealer, key);
   if (key === null || probeAlg === null) return { attemptOpen: async () => unknownVerdict("active-key-unavailable") };
   return {
@@ -468,8 +471,11 @@ function tally(entries: readonly SealedCredentialEntry[]): SealedCredentialInven
  */
 export async function listSealedCredentials(deps: SealedCredentialInventoryDeps, options: SealedCredentialInventoryOptions = {}): Promise<SealedCredentialInventory> {
   const snapshots = await takeSnapshot(deps, options.maxEntries ?? DEFAULT_MAX_ENTRIES);
-  const activeKey = await readActiveKey(deps.keyring);
-  const keyCheck = await createActiveKeyCheck(deps, activeKey);
+  // Checked once, before the keyring is touched at all: `activeKey()` is itself a derivation, and a
+  // keyring allowed to auto-generate would MINT a key file on that first read (F1604).
+  const keySourcePresent = deps.hasSiteKeySource();
+  const activeKey = keySourcePresent ? await readActiveKey(deps.keyring) : null;
+  const keyCheck = await createActiveKeyCheck(deps, { keySourcePresent, key: activeKey });
   const entries: SealedCredentialEntry[] = [];
   const columns: SealedColumnSummary[] = [];
   for (const snapshot of snapshots) {

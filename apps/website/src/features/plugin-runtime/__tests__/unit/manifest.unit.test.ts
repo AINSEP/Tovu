@@ -28,7 +28,7 @@ function validManifest(overrides: Partial<PluginManifest> = {}): unknown {
     capabilities: ["content.read", "content.extend", "hooks.attach"],
     hooks: ["content.entry.beforeSave"],
     fields: [{ path: "ext.word-count.count", type: "integer", queryable: false }],
-    integrity: { "server/index.mjs": "sha256-deadbeef" },
+    integrity: { "server/index.mjs": `sha256-${"ab".repeat(32)}` },
     ...overrides,
   };
 }
@@ -131,7 +131,7 @@ test("REQ-01/BR-02 (collect-all, adversarial aggregate case): a manifest violati
     fields: [
       { path: "ext.someone-else.x", type: "string", queryable: true },
     ],
-    integrity: { "server/index.mjs": "sha256-deadbeef" },
+    integrity: { "server/index.mjs": `sha256-${"ab".repeat(32)}` },
   };
 
   const result = validateManifest(required(kitchenSink, "totally-different-folder"));
@@ -272,4 +272,40 @@ test("unsupported field types and non-object declarations return structured diag
     code: "MANIFEST_MALFORMED", file: null,
     message: "field 'ext.word-count.count' has an unrecognized type 'date'",
   }]);
+});
+
+// F3193: REQ-01 requires `name`, a semver `version`, and SHA-256 `integrity` hashes. Before this,
+// any present value passed (the old fixture's own 'sha256-deadbeef' was accepted).
+test("REQ-01: an empty or non-string name is MANIFEST_MALFORMED", () => {
+  for (const name of ["", "   ", 7, null]) {
+    assert.deepEqual(validateManifest(required(validManifest({ name } as never))).errors, [{
+      code: "MANIFEST_MALFORMED", file: null, message: "'name' must be a non-empty string",
+    }], JSON.stringify(name));
+  }
+});
+
+test("REQ-01: a version that is not exact semver is MANIFEST_MALFORMED", () => {
+  for (const version of ["1.0", "v1.0.0", "latest", "1.0.0 ", "", 1]) {
+    assert.deepEqual(validateManifest(required(validManifest({ version } as never))).errors, [{
+      code: "MANIFEST_MALFORMED", file: null, message: `version '${String(version)}' must be a semver version (e.g. 1.0.0)`,
+    }], JSON.stringify(version));
+  }
+  for (const version of ["0.1.0", "2.10.3", "1.0.0-beta.1"]) {
+    assert.deepEqual(validateManifest(required(validManifest({ version } as never))).errors, [], version);
+  }
+});
+
+test("REQ-01: integrity must map files to 'sha256-' + 64 lowercase hex; anything else is MANIFEST_MALFORMED", () => {
+  for (const hash of ["sha256-deadbeef", `sha256-${"AB".repeat(32)}`, `sha512-${"ab".repeat(32)}`, `${"ab".repeat(32)}`, 42]) {
+    assert.deepEqual(validateManifest(required(validManifest({ integrity: { "server/index.mjs": hash } } as never))).errors, [{
+      code: "MANIFEST_MALFORMED", file: null,
+      message: "integrity entry 'server/index.mjs' must be 'sha256-' followed by 64 lowercase hex characters",
+    }], String(hash));
+  }
+  for (const integrity of [[], "sha256-x", null]) {
+    assert.deepEqual(validateManifest(required(validManifest({ integrity } as never))).errors, [{
+      code: "MANIFEST_MALFORMED", file: null, message: "'integrity' must be an object mapping packaged file paths to sha256 hashes",
+    }], JSON.stringify(integrity));
+  }
+  assert.deepEqual(validateManifest(required(validManifest({ integrity: {} }))).errors, [], "a built-in has no packaged files to hash");
 });

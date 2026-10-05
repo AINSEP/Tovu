@@ -117,3 +117,38 @@ test("resolveDefaultForSourceControl round-trips a bitbucket connection's paired
   const resolved = await resolveDefaultForSourceControl(deps, { workspaceId: WORKSPACE, providerId: "bitbucket" });
   assert.deepEqual(resolved?.connection, { providerId: "bitbucket", token: "bb_app_password", username: "octocat" });
 });
+
+/**
+ * F3309: the wrong-KEY case above is not the AAD case. Under the SAME key, a sealed blob copied onto
+ * another row (another id, another workspace, or another provider) must not open as that row — the
+ * AAD binds workspace, provider and id, and each swap below isolates one of the three.
+ */
+test("resolveDefaultForSourceControl refuses a same-key ciphertext transplanted from another id, workspace or provider", async () => {
+  const deps = makeDeps();
+  const create = (workspaceId: string, providerId: "github" | "gitlab", token: string) =>
+    createSourceControlCredential(deps, { workspaceId, label: token, connection: { providerId, token }, isDefault: true });
+  const source = await create(WORKSPACE, "github", "ghp_source_secret");
+  const sameScopeOtherId = await create(WORKSPACE, "github", "ghp_other_id_secret");
+  const otherWorkspace = await create("ws-other", "github", "ghp_other_ws_secret");
+  const otherProvider = await create(WORKSPACE, "gitlab", "glpat_other_provider_secret");
+  const sourceRecord = await deps.repo.findById({ workspaceId: WORKSPACE, id: source.id });
+  assert.ok(sourceRecord);
+
+  for (const [label, target, providerId] of [
+    ["another id, same workspace and provider", { workspaceId: WORKSPACE, id: sameScopeOtherId.id }, "github"],
+    ["another workspace", { workspaceId: "ws-other", id: otherWorkspace.id }, "github"],
+    ["another provider", { workspaceId: WORKSPACE, id: otherProvider.id }, "gitlab"],
+  ] as const) {
+    const record = await deps.repo.findById(target);
+    assert.ok(record, label);
+    // Positive control: the target opens with its own blob before the swap.
+    assert.ok(await resolveDefaultForSourceControl(deps, { workspaceId: target.workspaceId, providerId }), label);
+    await deps.repo.update({ ...record, sealed: sourceRecord.sealed });
+    await assert.rejects(
+      () => resolveDefaultForSourceControl(deps, { workspaceId: target.workspaceId, providerId }),
+      SourceControlCredentialSecretStoreUnconfiguredError,
+      `${label}: a transplanted blob must not open as this row`
+    );
+    await deps.repo.update(record);
+  }
+});

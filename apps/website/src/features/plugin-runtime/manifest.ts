@@ -25,6 +25,8 @@
  * `errors[]` — it never throws. Verified against `__tests__/unit/manifest.unit.test.ts`.
  */
 
+import * as semver from "semver";
+
 import { SHARED_EXTENSION_CAPABILITIES, type SharedExtensionCapability } from "../../contracts/core/extension-capability-vocabulary.js";
 
 /** ADR-024 §1 trust-tier vocabulary (1.1.1 REQ-01 fix). Literal encoding reused verbatim from the
@@ -220,6 +222,37 @@ function validateId(
   return { errors: [...validateIdFormat(id), ...validateIdIdentity(id, folderName, builtInIds)], id };
 }
 
+/** The one hash format `loader.ts` computes and compares (`sha256-` + 64 lowercase hex). */
+const INTEGRITY_HASH_PATTERN = /^sha256-[0-9a-f]{64}$/;
+
+/**
+ * name, version and integrity shapes (REQ-01: `name`, `version` (semver), `integrity` (SHA-256 per
+ * packaged file)). Presence is `validateKeys`' job; a present-but-wrong value is caught here so it
+ * fails at discovery rather than later: a non-semver version cannot take part in latest-by-semver
+ * selection (AC-09), and a malformed hash can never match, so it would only surface at load time
+ * as a misleading INTEGRITY_FAILED (F3193).
+ */
+function validateIdentityFields(raw: Readonly<Record<string, unknown>>): PluginValidationError[] {
+  const errors: PluginValidationError[] = [];
+  if (raw.name !== undefined && (typeof raw.name !== "string" || raw.name.trim() === "")) {
+    errors.push(malformed("'name' must be a non-empty string"));
+  }
+  if (raw.version !== undefined && (typeof raw.version !== "string" || semver.valid(raw.version) !== raw.version)) {
+    errors.push(malformed(`version '${String(raw.version)}' must be a semver version (e.g. 1.0.0)`));
+  }
+  if (raw.integrity === undefined) return errors;
+  if (typeof raw.integrity !== "object" || raw.integrity === null || Array.isArray(raw.integrity)) {
+    errors.push(malformed("'integrity' must be an object mapping packaged file paths to sha256 hashes"));
+    return errors;
+  }
+  for (const [file, hash] of Object.entries(raw.integrity)) {
+    if (file === "" || typeof hash !== "string" || !INTEGRITY_HASH_PATTERN.test(hash)) {
+      errors.push(malformed(`integrity entry '${file}' must be 'sha256-' followed by 64 lowercase hex characters`));
+    }
+  }
+  return errors;
+}
+
 /** engine (BR-02 step 2). */
 function validateEngine(raw: Readonly<Record<string, unknown>>): PluginValidationError[] {
   if (raw.engine === undefined) {
@@ -406,6 +439,7 @@ export function validateManifest(
   const errors: PluginValidationError[] = [
     ...validateKeys(raw),
     ...idErrors,
+    ...validateIdentityFields(raw),
     ...validateEngine(raw),
     ...validateTier(raw),
     ...validateCapabilities(raw),
