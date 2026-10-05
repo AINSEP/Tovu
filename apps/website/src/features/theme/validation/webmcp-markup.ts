@@ -8,6 +8,10 @@ const FORM_NAMES = new Set(['toolname', 'tooldescription', 'toolautosubmit']);
 const PARAM_NAMES = new Set(['toolparamtitle', 'toolparamdescription']);
 const ACTION_NAMES = new Set(['data-toolname', 'data-tooldescription']);
 const NON_ELEMENTS = new Set(['script', 'style', 'template', 'noscript']);
+// The WebMCP namespace is tool{name,desc*,auto*,param*}, bare or data-prefixed (typos included). A bare
+// "tool"/"data-tool" prefix also matched ordinary theme attributes (data-tooltip, data-toolbar)
+// and refused those themes as "unsupported WebMCP annotation".
+const WEBMCP_LIKE = /^(?:data-)?tool(?:name|desc|auto|param)/;
 const isLocal = (value: string) => value.length > 0 && !/^(?:[a-z][a-z0-9+.-]*:|[\\/]{2})/i.test(value) && !/[\\\u0000-\u0020]/.test(value);
 const attr = (element: Element, name: string) => element.attrs.find(attribute => attribute.name === name)?.value;
 
@@ -92,7 +96,7 @@ export function checkWebMcpMarkup(
       }
     }
     for (const attribute of element.attrs) {
-      if ((attribute.name.startsWith('tool') && !FORM_NAMES.has(attribute.name) && !PARAM_NAMES.has(attribute.name)) || (attribute.name.startsWith('data-tool') && !ACTION_NAMES.has(attribute.name))) {
+      if (WEBMCP_LIKE.test(attribute.name) && !FORM_NAMES.has(attribute.name) && !PARAM_NAMES.has(attribute.name) && !ACTION_NAMES.has(attribute.name)) {
         issue('markup-webmcp-attribute', `unsupported WebMCP annotation '${attribute.name}'`);
       }
     }
