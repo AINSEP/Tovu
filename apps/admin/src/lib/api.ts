@@ -2013,14 +2013,6 @@ export interface AdminPlugin {
     consecutiveFailures: number;
   };
   errors: Array<{ code: string; file: string | null; message: string }>;
-}
-
-/** Mirrors `server/inbound/admin-http/routes/plugins/files.ts`'s `PLUGIN_FILES` entry (2026-09-13) —
- *  one file in a plugin's own directory. `content` is `null` exactly when `omitted` is set. */
-export interface AdminPluginPackageFile {
-  relativePath: string;
-  sizeBytes: number;
-  content: string | null;
   /** (2026-10-04) Mirrors `AdminPluginEnvelope.conflicts`: names this plugin claims that core or an
    * earlier-enabled plugin already holds. Optional so a row from a server predating the field still
    * types; the current server always sends it (empty when clear). */
@@ -2036,6 +2028,14 @@ export interface AdminPluginConflict {
   heldBy: string;
   heldByName: string;
   heldKey: string;
+}
+
+/** Mirrors `server/inbound/admin-http/routes/plugins/files.ts`'s `PLUGIN_FILES` entry (2026-09-13) —
+ *  one file in a plugin's own directory. `content` is `null` exactly when `omitted` is set. */
+export interface AdminPluginPackageFile {
+  relativePath: string;
+  sizeBytes: number;
+  content: string | null;
   omitted: null | "binary" | "too-large" | "symlink" | "unreadable";
 }
 
