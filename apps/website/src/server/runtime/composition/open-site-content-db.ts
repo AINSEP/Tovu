@@ -8,12 +8,13 @@ import {
   openSqliteContentConnection,
 } from "#src/platform/db/sqlite/content-db";
 import { seededPosts, seededPresentation, seededWorkspace } from "../configuration/seed.js";
-import { migrateFooterPageLinks } from "#src/features/navigation/migrate-footer-page-links";
+import { runBootDataRepairs } from "./boot-data-repairs.js";
 
 /**
  * @file The site's content.db, opened the way every boot path of the composition root needs it:
  * open → crash recovery → migrate (the runner; a pre-change copy in `<site>/ops/` when a step is
- * pending, `migrateSqliteContentFile`) → watermark row + first-run demo seed.
+ * pending, `migrateSqliteContentFile`) → watermark row + first-run demo seed → stored-data repairs
+ * (`boot-data-repairs.ts`).
  *
  * ADR-023 §2 recovery is mandatory and blocking, and runs on the freshly opened connection BEFORE
  * the migrations touch the schema: an interrupted dataModule attempt is undone from its snapshot
@@ -49,7 +50,7 @@ export async function openSiteContentDb(dbPath: string): Promise<ContentDb> {
     await prepareContentStore(contentKernel(db), {
       seed: { workspace: seededWorkspace, posts: seededPosts, presentation: seededPresentation },
     });
-    await migrateFooterPageLinks({ kernel: contentKernel(db) });
+    await runBootDataRepairs({ kernel: contentKernel(db) });
     return db;
   } catch (error) {
     // A failed boot must not hold the file open: a retry or a file replacement follows.

@@ -16,7 +16,7 @@ import { PGLITE_DATA_DIR_NAME } from "#src/platform/site-dir/layout";
 import type { SiteStorage } from "#src/platform/site-dir/types";
 import { seededPosts, seededPresentation, seededWorkspace } from "../configuration/seed.js";
 import { openSiteContentDb } from "./open-site-content-db.js";
-import { migrateFooterPageLinks } from "#src/features/navigation/migrate-footer-page-links";
+import { runBootDataRepairs } from "./boot-data-repairs.js";
 import { resolvePostgresConnectionString } from "./storage-secret.js";
 
 /**
@@ -200,7 +200,8 @@ async function waitForPgliteSocket(socketPath: string, waitMs: number): Promise<
 
 /**
  * Postgres and PGlite alike: content history to head → chat history to head (`ai_chat`) → watermark
- * row + first-run demo seed, over one kernel. `close` runs when any step fails.
+ * row + first-run demo seed → stored-data repairs (`boot-data-repairs.ts`), over one kernel. `close`
+ * runs when any step fails.
  */
 async function preparePgStore(required: {
   storage: Exclude<SiteStorage, { kind: "sqlite" }>;
@@ -216,7 +217,7 @@ async function preparePgStore(required: {
     await migrateContentDatabase(base);
     await migrateChatDatabase(base);
     await prepareContentStore(content, { seed });
-    await migrateFooterPageLinks({ kernel: content });
+    await runBootDataRepairs({ kernel: content });
   } catch (err) {
     await close();
     throw err;

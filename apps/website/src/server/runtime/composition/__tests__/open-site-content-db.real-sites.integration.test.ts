@@ -160,7 +160,10 @@ describe("site boot on copies of real SQLite sites (R1h)", () => {
           }
           if (atHead) assert.equal(afterFirst.columns[table], columns, `${table} columns`);
           if (table === "__drizzle_migrations" || before.rows[table] === 0) continue;
-          assert.equal(afterFirst.rows[table], before.rows[table], `${table} rows`);
+          // The one row a boot adds to a table that already had rows: the unreadable-owner repair's
+          // marker (`boot-data-repairs.ts`), written once per site in `setting_values_global`.
+          const added = table === "setting_values_global" ? 1 : 0;
+          assert.equal(afterFirst.rows[table], before.rows[table]! + added, `${table} rows`);
           if (rewritten.has(table)) continue;
           const common = before.content[table]!.columns.filter((column) => afterFirst.content[table]!.columns.includes(column));
           assert.deepEqual(missingRows(contentOver(original, table, common), contentOver(migrated, table, common)), [], `${table}: rows rewritten or lost`);
