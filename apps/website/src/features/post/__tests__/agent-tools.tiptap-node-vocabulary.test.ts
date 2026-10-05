@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import Ajv from "ajv";
+import type { JsonObject } from "@jini-ai/core/primitives";
 
 import { DOC_NODE_HANDLERS, MARK_RENDERERS, renderDocNode, type MediaAssetRenderMeta } from "#src/server/inbound/public-http/http/site/render";
 import { postAgentToolCatalog, TIPTAP_DOC_SCHEMA } from "../agent-tools.js";
@@ -38,7 +39,7 @@ import { postAgentToolCatalog, TIPTAP_DOC_SCHEMA } from "../agent-tools.js";
  * this — no behavior change, see their own doc comments) directly, not a hand-copied checklist.
  */
 
-const validateDoc = new Ajv({ strict: false }).compile(TIPTAP_DOC_SCHEMA);
+const validateDoc = new Ajv().compile(TIPTAP_DOC_SCHEMA);
 function assertValidDoc(doc: unknown): void {
   assert.equal(validateDoc(doc), true, JSON.stringify(validateDoc.errors));
 }
@@ -87,7 +88,7 @@ test("schema structure: content_post_create's published bodyJson schema is the s
 // ---------------------------------------------------------------------------
 
 test("hardBreak: minimal required-only node ({type}) inside a paragraph's inline content renders a real <br/>, not an empty/dropped node", () => {
-  const doc = {
+  const doc: JsonObject = {
     type: "doc",
     content: [
       {
@@ -211,7 +212,7 @@ test('tableCell attrs.align "justify" is NOT in the schema\'s enum, and a value 
 test("media, schema-required assetId+transformName only, resolved asset is a VIDEO: renders a real <video>, not a broken <img>", () => {
   const doc = { type: "doc", content: [{ type: "media", attrs: { assetId: "asset-clip", transformName: "public" } }] };
   const mediaAssetMetadata: ReadonlyMap<string, MediaAssetRenderMeta> = new Map([
-    ["asset-clip", { width: null, height: null, cssClass: null, htmlAttributes: null, contentType: "video/mp4" }],
+    ["asset-clip", { width: null, height: null, cssClass: null, htmlAttributes: null, contentType: "video/mp4", slug: null }],
   ]);
   assertValidDoc(doc);
   const html = renderDocNode(doc, undefined, undefined, mediaAssetMetadata);
@@ -221,7 +222,7 @@ test("media, schema-required assetId+transformName only, resolved asset is a VID
 test("media, schema-required assetId+transformName only, resolved asset is an IMAGE: renders a real <img> through the shared tryRenderRefImage resolution (the same path the now-retired 'image' node used)", () => {
   const doc = { type: "doc", content: [{ type: "media", attrs: { assetId: "asset-photo", transformName: "public" } }] };
   const mediaAssetMetadata: ReadonlyMap<string, MediaAssetRenderMeta> = new Map([
-    ["asset-photo", { width: null, height: null, cssClass: null, htmlAttributes: null, contentType: "image/png" }],
+    ["asset-photo", { width: null, height: null, cssClass: null, htmlAttributes: null, contentType: "image/png", slug: null }],
   ]);
   assertValidDoc(doc);
   const html = renderDocNode(doc, undefined, new Map([["public", 7]]), mediaAssetMetadata);
@@ -239,14 +240,17 @@ test("schema structure: media's attrs publish cssClass/htmlAttributes as OPTIONA
   const schema = JSON.parse(JSON.stringify(TIPTAP_DOC_SCHEMA)) as {
     $defs: {
       blockNode: {
-        oneOf: { properties: { type: { const: string } }; required: string[]; properties: Record<string, { type: string }> }[];
+        oneOf: {
+          properties: { type: { const: string }; attrs?: { required: string[]; properties: Record<string, { type: string }> } };
+          required: string[];
+        }[];
       };
     };
   };
   const mediaEntry = schema.$defs.blockNode.oneOf.find((entry) => entry.properties.type.const === "media");
   assert.ok(mediaEntry, "media must exist in blockNode.oneOf");
-  const attrsSchema = (mediaEntry as unknown as { properties: { attrs: { required: string[]; properties: Record<string, { type: string }> } } })
-    .properties.attrs;
+  const attrsSchema = mediaEntry.properties.attrs;
+  assert.ok(attrsSchema, "media must publish an attrs schema");
   assert.equal(attrsSchema.properties.cssClass?.type, "string");
   assert.equal(attrsSchema.properties.htmlAttributes?.type, "string");
   assert.deepEqual(attrsSchema.required, ["assetId", "transformName"]);
@@ -263,7 +267,7 @@ test("media, schema-optional cssClass+htmlAttributes: a per-post node style roun
     ],
   };
   const mediaAssetMetadata: ReadonlyMap<string, MediaAssetRenderMeta> = new Map([
-    ["asset-styled", { width: null, height: null, cssClass: "asset-default", htmlAttributes: null, contentType: "image/png" }],
+    ["asset-styled", { width: null, height: null, cssClass: "asset-default", htmlAttributes: null, contentType: "image/png", slug: null }],
   ]);
   assertValidDoc(doc);
   const html = renderDocNode(doc, undefined, new Map([["public", 1]]), mediaAssetMetadata);
@@ -292,8 +296,8 @@ test("mention: minimal required-only node (attrs.id+label) renders a real link, 
 // ground-truth coverage in tiptap-render-contract.test.ts; not duplicated here.
 // ---------------------------------------------------------------------------
 
-function textNodeWithMark(mark: unknown) {
-  const doc = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "x", marks: [mark] }] }] };
+function textNodeWithMark(mark: JsonObject): JsonObject {
+  const doc: JsonObject = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "x", marks: [mark] }] }] };
   assertValidDoc(doc);
   return doc;
 }
@@ -456,13 +460,21 @@ for (const toolName of ["content_post_create", "content_post_update"]) {
   });
 }
 
+type BlockNodeSchema = (typeof TIPTAP_DOC_SCHEMA.$defs.blockNode.oneOf)[number];
+type BlockNodeSchemaOf<K extends string> = Extract<BlockNodeSchema, { properties: { type: { const: K } } }>;
+
+/** The `blockNode.oneOf` entry for `type`, typed as that exact entry rather than the union. */
+function blockNodeSchema<K extends BlockNodeSchema["properties"]["type"]["const"]>(type: K): BlockNodeSchemaOf<K> | undefined {
+  return TIPTAP_DOC_SCHEMA.$defs.blockNode.oneOf.find((node): node is BlockNodeSchemaOf<K> => node.properties.type.const === type);
+}
+
 test("schema-required YouTube fields and table/media constraints match the renderer fixtures", () => {
-  const youtube = TIPTAP_DOC_SCHEMA.$defs.blockNode.oneOf.find((node) => node.properties.type.const === "youtube");
+  const youtube = blockNodeSchema("youtube");
   assert.ok(youtube);
   assert.deepEqual(youtube.required, ["type", "attrs"]);
   assert.deepEqual(youtube.properties.attrs.required, ["src"]);
   assert.deepEqual(TIPTAP_DOC_SCHEMA.$defs.tableCellAttrs.properties.align.enum, ["left", "center", "right"]);
-  const media = TIPTAP_DOC_SCHEMA.$defs.blockNode.oneOf.find((node) => node.properties.type.const === "media");
+  const media = blockNodeSchema("media");
   assert.ok(media);
   assert.equal(media.properties.attrs.properties.transformName.const, "public");
 });

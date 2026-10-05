@@ -15,6 +15,7 @@ export {
   type EnsureSeoSettingDefinitionsInput,
   type GetSeoSettingsDeps,
   type SeoSettingsWriteDeps,
+  type SeoSettingsPatch,
   type SetSeoSettingsInput,
 } from "./settings.js";
 export {

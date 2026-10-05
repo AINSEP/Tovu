@@ -38,7 +38,7 @@ function harness(afterRead?: (repo: InMemoryPostRepo) => Promise<void>) {
   const repo = new InMemoryPostRepo([]);
   const registrations = buildPagesRegistrations({
     workspaceId: WS,
-    authorize: async () => ({ allowed: true }),
+    authorize: async () => ({ allowed: true, reason: "matched" }),
     postRepo: repo,
     pagesHtmlStore: (scope) => {
       const store = new InMemoryPagesHtmlDocumentStore(scope, { repo, clock });

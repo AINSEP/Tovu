@@ -194,9 +194,20 @@ export interface SeoSettingsWriteDeps extends GetSeoSettingsDeps {
   principals: PrincipalRepoPort;
 }
 
+/**
+ * `setSeoSettings`' patch: any subset of `SeoSettings`. The three optional strings are
+ * nullable-on-write (see `SEO_DEFINITIONS`' doc comment): `null` clears the field, stored as the
+ * `""` sentinel, so the type admits the `null` a JSON caller sends.
+ */
+export type SeoSettingsPatch = Partial<Omit<SeoSettings, "defaultDescription" | "defaultOgImage" | "twitterSite">> & {
+  defaultDescription?: string | null;
+  defaultOgImage?: string | null;
+  twitterSite?: string | null;
+};
+
 export interface SetSeoSettingsInput {
   workspaceId: UUID;
-  patch: Partial<SeoSettings>;
+  patch: SeoSettingsPatch;
   callerPrincipalId: UUID;
 }
 
@@ -228,7 +239,7 @@ const KNOWN_PATCH_KEYS: ReadonlySet<string> = new Set([
  * "unrecognized input must be rejected, not dropped" reasoning `write-service.ts`'s
  * `validateRegisteredKeys` already applies to `setEntrySeoOverrides`.
  */
-function validatePatchKeys(patch: Partial<SeoSettings>): void {
+function validatePatchKeys(patch: SeoSettingsPatch): void {
   const keys = Object.keys(patch);
   if (keys.length === 0) {
     throw new SeoSettingsValidationError("patch must include at least one field");
@@ -251,7 +262,7 @@ function validateTitleTemplate(titleTemplate: string | undefined): void {
 }
 
 /** Shared shape of `defaultDescription`/`defaultOgImage`: nullable-on-write (see `SEO_DEFINITIONS`' doc comment), bounded when a string is given. */
-function validateBoundedNullableString(value: string | undefined, fieldLabel: string, maxLength: number): void {
+function validateBoundedNullableString(value: string | null | undefined, fieldLabel: string, maxLength: number): void {
   if (value === undefined || value === null) return;
   if (typeof value !== "string") {
     throw new SeoSettingsValidationError(`${fieldLabel} must be a string`);
@@ -308,7 +319,7 @@ function validateRobotsRules(robotsRules: RobotsRule[] | undefined): void {
   }
 }
 
-function validateSeoSettingsPatch(patch: Partial<SeoSettings>): void {
+function validateSeoSettingsPatch(patch: SeoSettingsPatch): void {
   validatePatchKeys(patch);
   validateTitleTemplate(patch.titleTemplate);
   validateBoundedNullableString(patch.defaultDescription, "defaultDescription", DEFAULT_DESCRIPTION_MAX_LENGTH);
@@ -329,7 +340,7 @@ type SeoSettingWrite = { key: SeoSettingKey; value: JsonValue };
 const SCALAR_FIELD_WRITERS: ReadonlyArray<{
   patchKey: "titleTemplate" | "defaultDescription" | "defaultOgImage" | "twitterSite";
   settingKey: SeoSettingKey;
-  normalize?: (value: string | undefined) => JsonValue;
+  normalize?: (value: string | null | undefined) => JsonValue;
 }> = [
   { patchKey: "titleTemplate", settingKey: "title_template" },
   { patchKey: "defaultDescription", settingKey: "default_description", normalize: (value) => value ?? "" },
@@ -337,7 +348,7 @@ const SCALAR_FIELD_WRITERS: ReadonlyArray<{
   { patchKey: "twitterSite", settingKey: "twitter_site", normalize: (value) => value ?? "" },
 ];
 
-function buildScalarWrites(patch: Partial<SeoSettings>): SeoSettingWrite[] {
+function buildScalarWrites(patch: SeoSettingsPatch): SeoSettingWrite[] {
   const writes: SeoSettingWrite[] = [];
   for (const field of SCALAR_FIELD_WRITERS) {
     const raw = patch[field.patchKey];

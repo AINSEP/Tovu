@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { describeEachDialect, type ContentKernel } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import type { ContentTypeListPort, ContentTypeRecord, ContentTypeRepoPort } from "../index.js";
+import type { ContentTypeListPort, ContentTypeRecord, ContentTypeRepoPort, ContentTypeRevisionInput } from "../index.js";
 import { contentTypeRepoFor } from "../repo.js";
 
 /**
@@ -63,19 +63,19 @@ describeEachDialect<{ repo: Repo; kernel: ContentKernel }>(
 
     test("appendRevision persists both complete payloads", async () => {
       const { repo, kernel } = makeRepo();
-      const revision = {
+      const revision: ContentTypeRevisionInput = {
         contentTypeKey: "recipe",
         workspaceId: WS,
-        op: "create",
+        op: "register",
         stateJson: contentType("recipe"),
         actorId: "a",
         principalKind: null,
         delegatedByWorkspaceId: null,
         delegatedById: null,
         recordedAt: "2026-09-28T00:00:00.000Z",
-      } as unknown as Parameters<Repo["appendRevision"]>[0];
+      };
       await repo.appendRevision(revision);
-      const changed = { ...revision, op: "update", stateJson: contentType("recipe", { fields: [], version: 2 }), actorId: "b", principalKind: "agent" as const, delegatedByWorkspaceId: "delegate-ws", delegatedById: "delegate-actor", recordedAt: "2026-09-29T00:00:00.000Z" };
+      const changed: ContentTypeRevisionInput = { ...revision, op: "field-change", stateJson: contentType("recipe", { fields: [], version: 2 }), actorId: "b", principalKind: "agent" as const, delegatedByWorkspaceId: "delegate-ws", delegatedById: "delegate-actor", recordedAt: "2026-09-29T00:00:00.000Z" };
       await repo.appendRevision(changed);
       const rows = await kernel.run((db) => db.selectFrom("content_type_revisions").selectAll().orderBy("seq").execute());
       assert.deepEqual(rows.map((row) => ({

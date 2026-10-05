@@ -41,10 +41,23 @@ function makeSubmission(overrides: Partial<CommentSubmission> = {}): CommentSubm
   };
 }
 
-/** Only the fields `entryLookup`/`isEntryOpenForComments` (`index.ts`) actually read — matches
- *  this file's existing minimal-fixture convention rather than constructing a full `EntryRecord`. */
-function makeEntry(status: EntryStatus, publishedAt: string | null): Pick<EntryRecord, "id" | "status" | "publishedAt"> {
-  return { id: "entry-1", status, publishedAt };
+/** `entryLookup`/`isEntryOpenForComments` (`index.ts`) only read `id`/`status`/`publishedAt`; the
+ *  rest is filler so the fixture satisfies the real `EntryRepoPort.findById` return type. */
+function makeEntry(status: EntryStatus, publishedAt: string | null): EntryRecord {
+  return {
+    id: "entry-1",
+    workspaceId: WORKSPACE_ID,
+    type: "post",
+    slug: "entry-1",
+    status,
+    title: "Entry 1",
+    bodyJson: { type: "doc", content: [] },
+    fieldsJson: {},
+    publishedAt,
+    createdAt: "2026-08-29T00:00:00.000Z",
+    updatedAt: "2026-08-29T00:00:00.000Z",
+    version: 1,
+  };
 }
 
 test("createCommentsModule uses the injected spamCheck, not a hardcoded HeuristicSpamCheck", async () => {
@@ -52,7 +65,7 @@ test("createCommentsModule uses the injected spamCheck, not a hardcoded Heuristi
   const spyingSpamCheck: SpamCheckPort = {
     check: async (): Promise<SpamVerdict> => {
       checked = true;
-      return { isSpam: true, score: 1, reasons: ["forced-by-test-spy"] };
+      return { isSpam: true, score: 1, provider: "forced-by-test-spy" };
     },
   };
 
@@ -61,7 +74,7 @@ test("createCommentsModule uses the injected spamCheck, not a hardcoded Heuristi
     // status: "published" is required — a bug fix in `index.ts` (see its header) now rejects a
     // non-published entry before this spamCheck is ever consulted; this fixture's entry must be
     // published for THIS test to still be exercising spamCheck injection, not the open-gate.
-    entryRepo: { findById: async () => ({ id: "entry-1", status: "published", publishedAt: null }) },
+    entryRepo: { findById: async () => makeEntry("published", null) },
     outbox: new InMemoryOutbox(),
     clock: createFakeClock({ startIso: "2026-08-29T00:00:00.000Z" }),
     idGen: { newId: () => "comment-1" },

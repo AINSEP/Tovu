@@ -116,8 +116,9 @@ describeEachDialect("SqlPagesHtmlDocumentStore revisions", {
         listRevisions: repo.listRevisions.bind(repo),
         transaction: repo.transaction.bind(repo),
         appendRevision: async (input: Parameters<typeof repo.appendRevision>[0]) => {
-          await append(input);
+          const appended = await append(input);
           if (input.seq === 2) throw failure; // after the UPDATE and a real ledger insert
+          return appended;
         },
       };
       const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: id }, { kernel: db, clock, revisions });

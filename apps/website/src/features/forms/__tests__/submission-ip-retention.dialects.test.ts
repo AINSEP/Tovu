@@ -5,6 +5,7 @@ import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-m
 import { createSubmissionIpRetentionRepo } from "../submission-ip-retention-repo.js";
 import { toSubmissionRecord } from "../repo.rows.js";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
+import type { StorageKernel } from "#src/platform/db/kernel/port";
 import { submissionIpRetentionMigration } from "#src/platform/db/migrations/0006_submission_ip_retention";
 
 /** Owner retention decision 2026-10-04 / DR-002: prove real SQL writes on SQLite and PGlite. */
@@ -14,7 +15,8 @@ const CUTOFF = new Date(NOW - 90 * DAY).toISOString();
 
 async function install(kernel: ContentKernel): Promise<void> {
   const step = submissionIpRetentionMigration({ checksum: "test-only" });
-  await kernel.transaction(() => step.up(kernel, { note() {} }));
+  // Migration steps take the untyped kernel, as the runner hands them (`dialect-matrix.ts` widens the same way).
+  await kernel.transaction(() => step.up(kernel as StorageKernel<unknown>, { note() {} }));
 }
 
 async function seed(kernel: ContentKernel, rows: { id: string; age: number; workspaceId?: string; trashed?: boolean }[]) {

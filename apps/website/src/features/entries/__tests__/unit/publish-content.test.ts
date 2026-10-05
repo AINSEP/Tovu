@@ -5,7 +5,10 @@ import type Database from "better-sqlite3";
 
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
 import { applyReport, makeSite, packAll, plan, registerOnly, roundTrip, sqliteContentSite, WORKSPACE_ID } from "#src/features/publish-content/__tests__/round-trip-harness";
+import { InMemoryContentLookup } from "#src/features/taxonomy/index";
 import { contributeTaxonomyPublish, contributeTermPublish } from "#src/features/taxonomy/publish-content";
+import { SqliteEntryTermRepo, SqliteTaxonomyRepo, SqliteTaxonomyRevisionRepo, SqliteTermRepo } from "#src/features/taxonomy/repo.sqlite";
+import type { TaxonomyPublishPorts } from "#src/features/publish-content/type-registry";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import type { EntryRecord } from "../../index.js";
 import { contributeCollectionEntryPublish } from "../../publish-content.js";
@@ -45,7 +48,17 @@ async function instance() {
   });
   const trash = (id: string) =>
     (db as unknown as { $client: Database.Database }).$client.prepare("UPDATE entries SET deleted_at = ? WHERE id = ?").run(at, id);
-  return { entries, contentTypes, trash };
+  // No entry here carries terms; the bag is the real SQLite one so `termIds` reads stay real.
+  const terms: TaxonomyPublishPorts = {
+    taxonomies: new SqliteTaxonomyRepo({ db, workspaceId: WORKSPACE_ID }),
+    terms: new SqliteTermRepo({ db, workspaceId: WORKSPACE_ID }),
+    entryTerms: new SqliteEntryTermRepo({ db, workspaceId: WORKSPACE_ID }),
+    revisions: new SqliteTaxonomyRevisionRepo({ db, workspaceId: WORKSPACE_ID }),
+    stampWatermark: () => {},
+    contentLookup: new InMemoryContentLookup({}),
+    contentTypeTaxonomyPolicy: { taxonomiesFor: async () => null },
+  };
+  return { entries, contentTypes, terms, trash };
 }
 
 async function sites() {
@@ -57,7 +70,7 @@ async function sites() {
   await src.entries.save(entry({ id: "e-gone", slug: "gone" }));
   src.trash("e-gone");
   await src.entries.save(entry({ id: "w-1", slug: "hero", type: "widget", fieldsJson: { ext: { site: {} } } }));
-  const site = (i: typeof src, name: string) => makeSite({ "collection-entry": { entries: i.entries, contentTypes: i.contentTypes } }, name);
+  const site = (i: typeof src, name: string) => makeSite({ "collection-entry": { entries: i.entries, contentTypes: i.contentTypes, terms: i.terms } }, name);
   return { src, dst, source: site(src, "src"), dest: site(dst, "dst") };
 }
 
@@ -189,7 +202,7 @@ async function widgetSmuggle() {
   registerOnly([contributeCollectionEntryPublish()]);
   const dst = await instance();
   await dst.contentTypes.save({ workspaceId: WORKSPACE_ID, key: "widget", label: "Widgets", fields: [], status: "active", version: 1, tombstonedAt: null });
-  const dest = makeSite({ "collection-entry": { entries: dst.entries, contentTypes: dst.contentTypes } }, "dst");
+  const dest = makeSite({ "collection-entry": { entries: dst.entries, contentTypes: dst.contentTypes, terms: dst.terms } }, "dst");
   const handler = contributeCollectionEntryPublish().build(dest);
   const state = { type: "widget", slug: "evil", title: "Evil", status: "published", bodyJson: null, fieldsJson: { ext: { site: {} } } };
   const entity = { entityType: "collection-entry", id: "w-evil", schemaVersion: 2, contentHash: "x", hashVersion: 1, requiredBlobs: [], state };
@@ -206,7 +219,7 @@ test("collection-entry: an entity of a widget type is refused at precheck", asyn
 
 test("collection-entry: an entity of a widget type is refused at apply and writes nothing", async () => {
   const { dst, handler, entity } = await widgetSmuggle();
-  await assert.rejects(handler.apply({ entity, expectedVersion: undefined, principalId: "operator-1" }), {
+  await assert.rejects(handler.apply({ entity, expectedVersion: undefined, principalId: "operator-1", idempotencyKey: "idem-widget" }), {
     message: "collection-entry 'w-evil' has type 'widget', which is a widget type and publishes on its own, not as a collection entry",
   });
   assert.equal(await dst.entries.findById({ workspaceId: WORKSPACE_ID, id: "w-evil" }), null);

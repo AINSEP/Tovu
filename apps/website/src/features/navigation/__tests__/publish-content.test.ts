@@ -10,8 +10,10 @@ import {
   InMemoryNavLocationBindingRepo,
   type MenuRepoPort,
   type NavLocationBindingRepoPort,
+  type NavMenuDoc,
   type NavMenuEntry,
 } from "../index.js";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { contributeMenusPublish } from "../publish-content.js";
 
 /**
@@ -37,7 +39,7 @@ function makePublishDeps(input: {
 }): PublishContentDeps {
   return {
     workspaceId: WORKSPACE_ID,
-    clock: input.clock ?? { nowIso: () => "2026-09-24T00:00:00.000Z", nowMs() { return Date.parse(this.nowIso()); } },
+    clock: input.clock ?? createFakeClock({ startIso: "2026-09-24T00:00:00.000Z" }),
     idGen: input.idGen ?? { newId: () => "unused-in-these-tests" },
     outbox: input.outbox ?? new InMemoryOutbox(),
     ports: {
@@ -56,7 +58,9 @@ function packedEntity(id: string, state: Record<string, unknown>): PackedEntity 
   return { entityType: "menu", id, schemaVersion: 1, contentHash: "unused-in-these-tests", hashVersion: 1, requiredBlobs: [], state };
 }
 
-function menuState(overrides: Partial<Pick<NavMenuEntry, "slug" | "title" | "status" | "doc" | "locations">> = {}) {
+type MenuState = Pick<NavMenuEntry, "slug" | "title" | "status" | "doc" | "locations">;
+
+function menuState(overrides: Partial<MenuState> = {}): MenuState {
   return {
     slug: "primary-nav",
     title: "Primary Nav",
@@ -207,7 +211,7 @@ test("apply() accepts a doc item whose entryRef target does not exist at the des
   const bindingRepo = new InMemoryNavLocationBindingRepo({});
   const handler = contributeMenusPublish().build(makePublishDeps({ menuRepo, navLocationBindingRepo: bindingRepo }));
 
-  const doc = {
+  const doc: NavMenuDoc = {
     type: "menu",
     version: 1,
     items: [{ id: "item-1", label: "Missing Page", target: { kind: "entryRef", entryId: "page-does-not-exist" } }],
@@ -276,7 +280,7 @@ test("precheck() reports the tree validator's own message for an invalid doc", a
   const menuRepo = new InMemoryMenuRepo({});
   const handler = contributeMenusPublish().build(makePublishDeps({ menuRepo }));
 
-  const badDoc = { type: "menu", version: 1, items: [{ id: "", label: "Bad", target: { kind: "url", href: "/ok" } }] };
+  const badDoc: NavMenuDoc = { type: "menu", version: 1, items: [{ id: "", label: "Bad", target: { kind: "url", href: "/ok" } }] };
   const reason = await handler.precheck(packedEntity("menu-bad", menuState({ doc: badDoc })));
   assert.equal(reason, "every menu item requires a non-empty id");
 });

@@ -331,15 +331,18 @@ test("active theme: a destination with no presentation row is refused cleanly", 
 
 
 test("active theme: a denied theme.set cannot switch an installed theme", async () => {
-  const { source, destination, sourceDeps, destinationDeps } = await sites();
+  const { source, destination, sourceDeps, destinationDeps: grantedDeps } = await sites();
   source.themes.push(theme("static", "paper"));
   await source.presentation.save({ workspaceId: WORKSPACE_ID, activeThemeId: "paper", updatedAt: at });
   destination.themes.push(theme("static", "paper"), theme("static", "basic"));
   const original = { workspaceId: WORKSPACE_ID, activeThemeId: "basic", updatedAt: at };
   await destination.presentation.save(original);
-  destinationDeps.authorize = async ({ permission }) => {
-    assert.equal(permission, "theme.set");
-    return { allowed: false, reason: "no_grant" };
+  const destinationDeps: typeof grantedDeps = {
+    ...grantedDeps,
+    authorize: async ({ permission }) => {
+      assert.equal(permission, "theme.set");
+      return { allowed: false, reason: "no_grant" };
+    },
   };
   const entities = await packAll(sourceDeps);
   const report = await plan(entities, destinationDeps, ["active-theme:site"]);

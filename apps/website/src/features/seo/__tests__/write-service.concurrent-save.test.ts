@@ -86,6 +86,7 @@ function racingRepo(inner: InMemoryPostRepo): { repo: PostRepoPort; writeCalls: 
       return inner.saveIfVersion(required);
     },
     softDelete: (r) => inner.softDelete(r),
+    hardDelete: (r) => inner.hardDelete(r),
     readAutosave: (r) => inner.readAutosave(r),
     writeAutosave: (r) => inner.writeAutosave(r),
     clearAutosave: (r) => inner.clearAutosave(r),
@@ -159,6 +160,7 @@ test("SEO-01: the uncontended path is unchanged — one predicated write, versio
       return inner.saveIfVersion(required);
     },
     softDelete: (r) => inner.softDelete(r),
+    hardDelete: (r) => inner.hardDelete(r),
     readAutosave: (r) => inner.readAutosave(r),
     writeAutosave: (r) => inner.writeAutosave(r),
     clearAutosave: (r) => inner.clearAutosave(r),
@@ -190,7 +192,7 @@ for (const outcome of ["exhausted", "trashed"] as const) {
     const repo = new InMemoryPostRepo([original]);
     const attempts: number[] = [];
     const invalidations: unknown[] = [];
-    t.mock.method(repo, "saveIfVersion", async (required) => {
+    t.mock.method(repo, "saveIfVersion", async (required: Parameters<typeof repo.saveIfVersion>[0]) => {
       attempts.push(required.ifVersion);
       if (outcome === "trashed") {
         await repo.softDelete({ workspaceId: WORKSPACE, id: ENTRY_ID,

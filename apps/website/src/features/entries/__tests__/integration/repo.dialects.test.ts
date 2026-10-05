@@ -193,9 +193,9 @@ describeEachDialect<Fixture>(
       await createPublished({ repo, idSeed: "r-2", slug: "two", siteFields: {} });
       const early = await repo.findById({ workspaceId: "ws-1", id: "r-1" });
       await repo.save({ ...early!, updatedAt: "2026-09-24T00:00:00.000Z" });
-      assert.deepEqual(slugs(await repo.listByWorkspace({ workspaceId: "ws-1", orderBy: "updatedAt", orderDirection: "desc" })), ["one", "two"]);
-      assert.deepEqual(slugs(await repo.listByWorkspace({ workspaceId: "ws-1", orderBy: "updatedAt", orderDirection: "asc", limit: 1 })), ["two"]);
-      assert.deepEqual(await repo.listByWorkspace({ workspaceId: "ws-1", status: "draft" }), []);
+      assert.deepEqual(slugs(await repo.listByWorkspace({ workspaceId: "ws-1" }, { orderBy: "updatedAt", orderDirection: "desc" })), ["one", "two"]);
+      assert.deepEqual(slugs(await repo.listByWorkspace({ workspaceId: "ws-1" }, { orderBy: "updatedAt", orderDirection: "asc", limit: 1 })), ["two"]);
+      assert.deepEqual(await repo.listByWorkspace({ workspaceId: "ws-1" }, { status: "draft" }), []);
     });
 
     test("listPublishedForDisplay: where equality matches string, number and boolean field values", async () => {

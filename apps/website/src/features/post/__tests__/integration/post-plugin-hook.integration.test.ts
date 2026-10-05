@@ -26,10 +26,17 @@ function makeCounterRepo(inner: PostRepoPort) {
     findById: (r) => inner.findById(r),
     findBySlug: (r) => inner.findBySlug(r),
     list: (r) => inner.list(r),
+    listPublishedPreviews: (r) => inner.listPublishedPreviews(r),
     save: async (record) => {
       counter.saveCalls += 1;
       await inner.save(record);
     },
+    saveIfVersion: (r) => inner.saveIfVersion(r),
+    softDelete: (r) => inner.softDelete(r),
+    hardDelete: (r) => inner.hardDelete(r),
+    readAutosave: (r) => inner.readAutosave(r),
+    writeAutosave: (r) => inner.writeAutosave(r),
+    clearAutosave: (r) => inner.clearAutosave(r),
     // `updatePost` now wraps its save in `deps.repo.transaction(...)` and always calls
     // `appendRevision` after — both delegate untouched so this fixture keeps testing only what it
     // names (the beforeSaveHook throw-before-save guarantee), not the revision ledger.

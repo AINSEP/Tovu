@@ -22,7 +22,7 @@ import { InMemoryChangeSetRepo, revertChangeSet } from "#src/contracts/core/comm
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 
 import { InMemoryPostRepo } from "../repo.memory.js";
-import { createPost, isTrashed, ROOT_SLUG, type PostRecord } from "../post.js";
+import { createPost, isTrashed, ROOT_SLUG, type ForgetRemovedPostFn, type PostRecord } from "../post.js";
 import { createPostRevertRegistry } from "../reverters.js";
 import { removeVia } from "./remove-post-double.js";
 import { PublishContentApplyRowError } from "#src/features/publish-content/apply-errors";
@@ -78,7 +78,7 @@ function makeApplyDeps(rows: PostRecord[]) {
   // Required by `apply()`'s guard: its rollback restores through `restorePostForward`, which
   // needs the Trash-index forget. Nothing in `apply()`'s own tests below trashes a post, so it
   // never fires there — `retire()`'s tests (S4) are what actually exercise it.
-  const forgetRemovedPost = async () => {};
+  const forgetRemovedPost: ForgetRemovedPostFn = async () => {};
   // S4 — `retire()`'s guard requires this too, bound to the SAME repo instance `apply()`'s tests
   // already read/write through (mirrors `retire-post.test.ts`'s own `removeVia(repo)` double).
   const removePost = removeVia(base.postRepo);
@@ -316,6 +316,7 @@ test("apply() throws when changeSets/authorize/outbox are not wired — never si
         entity: { entityType: "post", id: "x", schemaVersion: 1, contentHash: "h", hashVersion: 1, requiredBlobs: [], state: {} },
         expectedVersion: undefined,
         principalId: "p1",
+        idempotencyKey: "apply-unwired",
       }),
     /requires PublishContentDeps.changeSets\/authorize\/outbox/
   );
@@ -330,6 +331,7 @@ test("apply() 'created' path: writes through createPost and copies the SOURCE au
     entity: packedFrom("post", source),
     expectedVersion: undefined,
     principalId: "operator-1",
+    idempotencyKey: "apply-created",
   });
 
   assert.ok(changeSetId);
@@ -342,7 +344,7 @@ test("apply() 'created' path: a null source author imports as null, not the oper
   const handler = contributePostPublish().build(deps);
   const source = makePost({ id: "post-new-2", slug: "imported-2", createdByPrincipalId: null });
 
-  await handler.apply({ entity: packedFrom("post", source), expectedVersion: undefined, principalId: "operator-1" });
+  await handler.apply({ entity: packedFrom("post", source), expectedVersion: undefined, principalId: "operator-1", idempotencyKey: "apply-1" });
 
   const saved = await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: "post-new-2" });
   assert.equal(saved?.createdByPrincipalId, null);
@@ -359,7 +361,7 @@ test("apply() 'created' path: a change-set failure removes the row outright — 
   const source = makePost({ id: "post-orphan", title: "Orphan", slug: "orphan" });
 
   await assert.rejects(
-    () => handler.apply({ entity: packedFrom("post", source), expectedVersion: undefined, principalId: "operator-1" }),
+    () => handler.apply({ entity: packedFrom("post", source), expectedVersion: undefined, principalId: "operator-1", idempotencyKey: "apply-2" }),
     /change-set store is down/
   );
 
@@ -386,7 +388,7 @@ test("apply() 'applied' path: writes through updatePost with expectedVersion, ac
   const handler = contributePostPublish().build(deps);
   const source = makePost({ ...existing, title: "New title from peer" });
 
-  await handler.apply({ entity: packedFrom("post", source), expectedVersion: 3, principalId: "operator-1" });
+  await handler.apply({ entity: packedFrom("post", source), expectedVersion: 3, principalId: "operator-1", idempotencyKey: "apply-3" });
 
   const saved = await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: "post-1" });
   assert.equal(saved?.title, "New title from peer");
@@ -408,7 +410,7 @@ test("apply() restores an existing destination forward when change-set recording
   deps.changeSets.insert = async () => { throw failure; };
   const handler = contributePostPublish().build(deps);
   const source = makePost({ ...prior, title: "Failed import", status: "draft", bodyJson: { type: "doc", content: [{ type: "paragraph" }] } });
-  await assert.rejects(() => handler.apply({ entity: packedFrom("post", source), expectedVersion: prior.version, principalId: "operator-1" }), error => error === failure);
+  await assert.rejects(() => handler.apply({ entity: packedFrom("post", source), expectedVersion: prior.version, principalId: "operator-1", idempotencyKey: "apply-4" }), error => error === failure);
   const restored = await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: prior.id });
   assert.deepEqual(restored, { ...prior, updatedAt: new Date(deps.clock.nowMs()).toISOString(), version: 3 });
   const revisions = await deps.postRepo.listRevisions({ workspaceId: WORKSPACE_ID, postId: prior.id });
@@ -427,7 +429,7 @@ test("apply() 'applied' path: a stale expectedVersion rejects with a typed apply
   const source = makePost({ ...existing, title: "Stale import" });
 
   await assert.rejects(
-    () => handler.apply({ entity: packedFrom("post", source), expectedVersion: 3, principalId: "operator-1" }),
+    () => handler.apply({ entity: packedFrom("post", source), expectedVersion: 3, principalId: "operator-1", idempotencyKey: "apply-5" }),
     (error: unknown) => error instanceof PublishContentApplyRowError && error.rowOutcome === "conflict" && error.message === "post 'post-1' changed on the destination during apply: expected version 3, found version 5"
   );
   const saved = await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: "post-1" });
@@ -660,7 +662,7 @@ test("apply() refuses a page entity whose packed kind is 'post' and writes nothi
   const handler = contributePagePublish().build(deps);
   const smuggled = makePost({ id: "smuggled", slug: "smuggled", kind: "post" });
   await assert.rejects(
-    handler.apply({ entity: packedFrom("page", smuggled), expectedVersion: undefined, principalId: "operator-1" }),
+    handler.apply({ entity: packedFrom("page", smuggled), expectedVersion: undefined, principalId: "operator-1", idempotencyKey: "apply-6" }),
     (err: unknown) =>
       err instanceof Error &&
       (err as { rowOutcome?: string }).rowOutcome === "blocked" &&
@@ -674,7 +676,7 @@ test("apply() refuses a post entity whose packed kind is 'page'", async () => {
   const handler = contributePostPublish().build(deps);
   const smuggled = makePost({ id: "smuggled", slug: "smuggled", kind: "page" });
   await assert.rejects(
-    handler.apply({ entity: packedFrom("post", smuggled), expectedVersion: undefined, principalId: "operator-1" }),
+    handler.apply({ entity: packedFrom("post", smuggled), expectedVersion: undefined, principalId: "operator-1", idempotencyKey: "apply-7" }),
     { message: "post entity 'smuggled' is packed as a 'page' — a post publish writes only posts" }
   );
   assert.equal(await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: "smuggled" }), null);

@@ -318,7 +318,7 @@ test("apply() preserves a concurrent natural-key redirect edit and rejects a rep
   const handler = contributeRedirectPublish().build(makePublishDeps(writeDeps));
   const planned = await handler.inspect("exact:/old-docs");
   await updateRedirect({ deps: writeDeps, input: {
-    workspaceId: WORKSPACE_ID, id: seed.id, expectedVersion: seed.version,
+    workspaceId: WORKSPACE_ID, id: seed.id,
     toTarget: "/operator-edit", statusCode: 307, actorId: ACTOR_ID,
   } });
   const before = await writeDeps.repo.findById({ workspaceId: WORKSPACE_ID, id: seed.id });

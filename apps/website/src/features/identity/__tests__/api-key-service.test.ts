@@ -8,18 +8,19 @@ import { InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPoli
 import { authenticateApiKey, createApiKeyPrincipal, issueApiKey, revokeApiKey, type ApiKeyServiceDeps } from "../api-key-service.js";
 import type { ApiKeyRecord } from "../api-key-types.js";
 import { InMemoryApiKeyRepo } from "../repo.memory.js";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 const WS = "ws-b08";
 const NOW = "2026-10-01T12:00:00.000Z";
 
 async function harness() {
   let id = 0;
-  let now = NOW;
+  const clock = createFakeClock({ startIso: NOW });
   const verified: Array<[string, string]> = [];
   const deps: ApiKeyServiceDeps = {
     tokens: new NodeSessionTokens({}),
     repos: createTransactionalInMemoryIdentityRepos({ repos: { principals: new InMemoryPrincipalRepo({}), users: new InMemoryUserRepo({}), sessions: new InMemorySessionRepo({}), roles: new InMemoryRoleRepo({}), policies: new InMemoryPolicyRepo({}), policyPermissions: new InMemoryPolicyPermissionRepo({}), principalPolicies: new InMemoryPrincipalPolicyRepo({}), principalRoles: new InMemoryPrincipalRoleRepo({}), rolePolicies: new InMemoryRolePolicyRepo({}) } }),
-    apiKeys: new InMemoryApiKeyRepo(), clock: { nowIso: () => now, nowMs: () => Date.parse(now) }, idGen: { newId: () => `b08-${++id}` },
+    apiKeys: new InMemoryApiKeyRepo(), clock, idGen: { newId: () => `b08-${++id}` },
     hasher: { hash: async ({ password }) => `password:${password}`, verify: async ({ hash, password }) => hash === `password:${password}` },
     secretHasher: { hash: async (secret) => `digest:${secret}`, verify: async (hash, secret) => { verified.push([hash, secret]); return hash === `digest:${secret}`; } },
   };
@@ -30,7 +31,7 @@ async function harness() {
   await deps.repos.policies.save({ id: "source", workspaceId: WS, name: "source", isBuiltin: false, isFrozen: false });
   await deps.repos.policyPermissions.save({ id: "source-read", workspaceId: WS, policyId: "source", permission: "content.read", resourceType: "entry", constraintJson: '{"type":"recipe"}' });
   const { principal } = await createApiKeyPrincipal({ deps, input: { workspaceId: WS, callerPrincipalId: "issuer", displayName: "  Runner  " } });
-  return { deps, principal, verified, setNow: (value: string) => { now = value; }, input: { workspaceId: WS, callerPrincipalId: "issuer", principalId: principal.id, label: "  Build key  ", policyIds: ["source"] } };
+  return { deps, principal, verified, setNow: (value: string) => clock.set(value), input: { workspaceId: WS, callerPrincipalId: "issuer", principalId: principal.id, label: "  Build key  ", policyIds: ["source"] } };
 }
 
 test("issuance freezes exact constrained permissions, canonicalizes expiry and survives source-policy widening", async () => {

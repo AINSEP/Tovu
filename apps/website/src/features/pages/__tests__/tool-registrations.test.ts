@@ -26,7 +26,7 @@ function harness() {
     workspaceId: WS,
     // Permission checks are exercised by the domain's own route tests; this harness grants, so the
     // assertions below are about the tools' behavior rather than about authz plumbing.
-    authorize: async () => ({ allowed: true }),
+    authorize: async () => ({ allowed: true, reason: "matched" }),
     postRepo: repo,
     pagesHtmlStore: (scope) => new InMemoryPagesHtmlDocumentStore(scope, { repo, clock }),
   });

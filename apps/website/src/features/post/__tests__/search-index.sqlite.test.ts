@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { Clock as ClockPort, JsonObject } from "@jini-ai/core/primitives";
+import type { JsonObject } from "@jini-ai/core/primitives";
 import type { OutboxPort } from "@jini-ai/cms/core";
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 import { createPost, deletePost, updatePost, type PostRecord } from "../post.js";
@@ -31,7 +31,7 @@ import { createFakeClock } from "#src/__tests__/support/fake-clock";
 const WS = "ws-search";
 const OTHER_WS = "ws-other";
 
-const clock: ClockPort & { nowMs(): number } = createFakeClock({ startIso: "2026-07-30T00:00:00.000Z" });
+const clock = createFakeClock({ startIso: "2026-07-30T00:00:00.000Z" });
 
 const noopOutbox: OutboxPort = {
   enqueue: async () => {},
@@ -237,7 +237,7 @@ test("an update replaces the indexed text — the old wording stops matching", a
   const post = await h.add({ id: "p1", title: "Pricing and plans", text: "Ten dollars a month." });
 
   await updatePost({
-    deps: { repo: h.repo, clock, outbox: noopOutbox, remove: removeVia(h.repo) },
+    deps: { repo: h.repo, clock, outbox: noopOutbox },
     input: { workspaceId: WS, id: post.id, title: "Sponsorship tiers", slug: "sponsorship", bodyJson: body("Bronze, silver, gold."), status: "published" },
   });
 

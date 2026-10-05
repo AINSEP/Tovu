@@ -84,6 +84,7 @@ function makeDefinition(overrides: Partial<FormDefinitionRecord> = {}): FormDefi
     status: "active",
     createdAt: NOW,
     updatedAt: NOW,
+    version: 1,
     ...overrides,
   };
 }
@@ -133,6 +134,7 @@ test("EC-05: a definition disabled after submitForm's status check still accepts
     list: (input) => realRepo.list(input),
     create: (record) => realRepo.create(record),
     update: (record) => realRepo.update(record),
+    isSlugTaken: (target) => realRepo.isSlugTaken(target),
     findBySlug: async (input) => {
       const found = await realRepo.findBySlug(input);
       // Simulate an admin's disable committing right after this read returns.

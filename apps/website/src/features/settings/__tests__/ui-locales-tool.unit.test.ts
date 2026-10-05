@@ -75,6 +75,8 @@ test("registration is read-only with derived risk none and an empty closed schem
   assert.equal(tool.descriptor.readOnly, true);
   assert.equal(risk.get("settings_list_ui_locales"), "none");
   assert.deepEqual(tool.descriptor.inputSchema, { type: "object", properties: {}, additionalProperties: false });
-  assert.match(tool.descriptor.description, /public.*content/i);
-  assert.match(tool.descriptor.description, /coverage/i);
+  const { description } = tool.descriptor;
+  assert.ok(description, "the tool must describe itself");
+  assert.match(description, /public.*content/i);
+  assert.match(description, /coverage/i);
 });

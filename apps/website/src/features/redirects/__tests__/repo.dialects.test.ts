@@ -58,7 +58,7 @@ describeEachDialect<SqlRedirectRepo>(
       const full = rule("full", {
         override: true,
         priority: 5,
-        source: "capture",
+        source: "auto_slug_change",
         sourceEntryId: "e1",
         fromPathAtCapture: "/a",
         toPathAtCapture: "/b",
@@ -153,14 +153,14 @@ describeEachDialect<SqlRedirectRepo>(
     test("list filters by status, source and matchType and stays inside the workspace", async () => {
       const repo = makeRepo();
       await saveRule(repo, rule("m", { source: "manual" }));
-      await saveRule(repo, rule("c", { source: "capture", matchType: "prefix" }));
+      await saveRule(repo, rule("c", { source: "auto_slug_change", matchType: "prefix" }));
       await saveRule(repo, rule("t", { status: "disabled" }));
       await saveRule(repo, rule("o", { workspaceId: OTHER }));
       const ids = async (filter: object) =>
         (await repo.list({ workspaceId: WS, ...filter })).map((r) => r.id).sort();
       assert.deepEqual(await ids({}), ["c", "m", "t"]);
       assert.deepEqual(await ids({ status: "disabled" }), ["t"]);
-      assert.deepEqual(await ids({ source: "capture" }), ["c"]);
+      assert.deepEqual(await ids({ source: "auto_slug_change" }), ["c"]);
       assert.deepEqual(await ids({ matchType: "prefix" }), ["c"]);
       assert.deepEqual(await repo.list({ workspaceId: "empty" }), []);
     });

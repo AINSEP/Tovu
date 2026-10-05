@@ -138,7 +138,7 @@ test("a concurrent edit is refused by the existing version guard", async (t) => 
   await seedPost(postRepo);
   const find = postRepo.findById.bind(postRepo);
   let reads = 0;
-  t.mock.method(postRepo, "findById", async (input) => {
+  t.mock.method(postRepo, "findById", async (input: Parameters<typeof find>[0]) => {
     const row = await find(input);
     if (++reads === 2 && row) return {...row, version: row.version + 1};
     return row;

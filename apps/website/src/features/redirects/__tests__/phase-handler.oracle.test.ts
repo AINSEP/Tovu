@@ -199,7 +199,7 @@ for (const pending of [false, true]) {
       repo: new InMemoryRedirectRepo([rule({ id: "hit-rule", fromPattern: "/old", toTarget: "/new" })]),
       matcher: redirectMatcher, originRegistry: makeOriginRegistry(),
       hits: { clock: { nowMs: () => Date.parse("2026-07-13T00:00:00.000Z") }, idGen: { newId: () => "hit-1" },
-        outbox: { enqueue: async event => { events.push(event); if (pending) await held; else throw new Error("hit sink unavailable"); } } as never },
+        outbox: { enqueue: async (event: unknown) => { events.push(event); if (pending) await held; else throw new Error("hit sink unavailable"); } } as never },
     });
     const resolution = resolver.resolve({ workspaceId: WORKSPACE_ID, path: "/old", phase: "post_content" });
     try {

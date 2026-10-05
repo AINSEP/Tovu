@@ -71,7 +71,7 @@ function subscription(id: string, overrides: Partial<MemberSubscriptionRecord> =
     memberId: "m1",
     tierId: "t1",
     status: "active",
-    source: "manual",
+    source: "comp",
     externalRef: "ext-1",
     startedAt: T0,
     currentPeriodEnd: "2027-01-01T00:00:00.000Z",

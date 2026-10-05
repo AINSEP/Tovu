@@ -210,7 +210,7 @@ async function delegatedHarness(overrides: Partial<PostToolDeps> = {}) {
     registry.register(registration);
   }
   const toolExecutor = createToolExecutor({ registry });
-  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog() });
+  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   const { run } = await lifecycle.start({ contextRef: "ctx-1" });
   return { postRepo, routeDeps: { lifecycle, toolExecutor, resolvePrincipal: () => ({ id: PRINCIPAL_ID }) }, run };
 }

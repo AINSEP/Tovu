@@ -353,6 +353,7 @@ function withThrowingAppendRevision(inner: PostRepoPort): PostRepoPort {
     save: (r) => inner.save(r),
     saveIfVersion: (r) => inner.saveIfVersion(r),
     softDelete: (r) => inner.softDelete(r),
+    hardDelete: (r) => inner.hardDelete(r),
     readAutosave: (r) => inner.readAutosave(r),
     writeAutosave: (r) => inner.writeAutosave(r),
     clearAutosave: (r) => inner.clearAutosave(r),

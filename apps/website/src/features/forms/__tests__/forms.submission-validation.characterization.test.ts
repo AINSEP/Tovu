@@ -37,6 +37,7 @@ function definition(overrides: Partial<FormDefinitionRecord> = {}): FormDefiniti
     status: "active",
     createdAt: NOW,
     updatedAt: NOW,
+    version: 1,
     ...overrides,
   };
 }

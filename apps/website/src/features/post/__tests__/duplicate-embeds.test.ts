@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import type { JsonObject } from "@jini-ai/core/primitives";
+
 import { copyBodyJsonWithFreshEmbedPlacements } from "../duplicate-embeds.js";
 
 /**
@@ -43,7 +45,7 @@ test("a widgetEmbed node's widgetEntryId is carried over UNCHANGED — reusing t
 });
 
 test("multiple embeds each get their OWN distinct fresh placementId, in document order", () => {
-  const doc = {
+  const doc: JsonObject = {
     type: "doc",
     content: [
       { type: "widgetEmbed", attrs: { placementId: "p1", widgetEntryId: "widget-a" } },
@@ -82,7 +84,7 @@ test("a widgetEmbed nested inside a blockquote is still found and regenerated (r
 });
 
 test("a malformed widgetEmbed node (non-string placementId, or missing attrs) is left completely untouched, not crashed on", () => {
-  const doc = {
+  const doc: JsonObject = {
     type: "doc",
     content: [
       { type: "widgetEmbed", attrs: { placementId: 42, widgetEntryId: "widget-a" } },
@@ -95,7 +97,7 @@ test("a malformed widgetEmbed node (non-string placementId, or missing attrs) is
 
 test("a 5000-deep document is copied with fresh placementIds minted in document order instead of overflowing the call stack", () => {
   const depth = 5000;
-  let deep: Record<string, unknown> = { type: "widgetEmbed", attrs: { placementId: "old-deep", widgetEntryId: "w-deep" } };
+  let deep: JsonObject = { type: "widgetEmbed", attrs: { placementId: "old-deep", widgetEntryId: "w-deep" } };
   for (let i = 0; i < depth; i++) deep = { type: "blockquote", content: [deep] };
   const doc = {
     type: "doc",
@@ -122,12 +124,16 @@ test("a 5000-deep document is copied with fresh placementIds minted in document 
 });
 
 test("the copied document isolates nested text, marks and attributes from the source", () => {
-  const doc = { type: "doc", content: [{ type: "paragraph", attrs: { textAlign: "center" }, content: [{ type: "text", text: "original", marks: [{ type: "link", attrs: { href: "/original" } }] }] }, { type: "widgetEmbed", attrs: { placementId: "source", widgetEntryId: "w", metadata: { label: "original" } } }] };
+  type Mark = { type: string; attrs: { href: string } };
+  type Paragraph = { type: string; attrs: { textAlign: string }; content: [{ type: string; text: string; marks: [Mark] }] };
+  type Embed = { type: string; attrs: { placementId: string; widgetEntryId: string; metadata: { label: string } } };
+  type IsolationDoc = { type: string; content: [Paragraph, Embed] };
+  const doc: IsolationDoc = { type: "doc", content: [{ type: "paragraph", attrs: { textAlign: "center" }, content: [{ type: "text", text: "original", marks: [{ type: "link", attrs: { href: "/original" } }] }] }, { type: "widgetEmbed", attrs: { placementId: "source", widgetEntryId: "w", metadata: { label: "original" } } }] };
   const original = structuredClone(doc);
-  const copy = copyBodyJsonWithFreshEmbedPlacements(doc, () => "fresh") as typeof doc;
-  copy.content[0].attrs!.textAlign = "right";
-  copy.content[0].content![0].text = "changed";
-  copy.content[0].content![0].marks[0].attrs.href = "/changed";
-  copy.content[1].attrs!.metadata!.label = "changed";
+  const copy = copyBodyJsonWithFreshEmbedPlacements(doc, () => "fresh") as IsolationDoc;
+  copy.content[0].attrs.textAlign = "right";
+  copy.content[0].content[0].text = "changed";
+  copy.content[0].content[0].marks[0].attrs.href = "/changed";
+  copy.content[1].attrs.metadata.label = "changed";
   assert.deepEqual(doc, original);
 });

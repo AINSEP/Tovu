@@ -20,7 +20,9 @@ import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 const WORKSPACE_ID = "workspace-1";
 
-function menuState(overrides: Partial<Pick<NavMenuEntry, "slug" | "title" | "status" | "doc" | "locations">> = {}) {
+type MenuState = Pick<NavMenuEntry, "slug" | "title" | "status" | "doc" | "locations">;
+
+function menuState(overrides: Partial<MenuState> = {}): MenuState {
   return {
     slug: "primary-nav",
     title: "Header",

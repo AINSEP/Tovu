@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { HeuristicSpamCheck } from "../spam.heuristic.js";
 import type { CommentSubmission } from "../types.js";
+import type { SpamCheckPort } from "../ports.js";
 
 function submission(overrides: Partial<CommentSubmission> = {}): CommentSubmission {
   return {
@@ -51,7 +52,8 @@ test("a short body with a link scores higher than the same short body without on
 });
 
 test("report() is a documented no-op that does not throw", async () => {
-  const check = new HeuristicSpamCheck();
+  // Typed as the port: callers reach report() through SpamCheckPort, whose signature takes the input.
+  const check: SpamCheckPort = new HeuristicSpamCheck();
   await assert.doesNotReject(() =>
     check.report!({
       workspaceId: "workspace-1",

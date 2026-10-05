@@ -407,7 +407,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
     await insertHtmlPage(db, { id: "sql-tool", html: '<section data-agent-element="hero" data-agent-role="region"><p>old</p></section>', version: 5 });
     const registrations = buildPagesRegistrations({
       workspaceId: WS,
-      authorize: async () => ({ allowed: true }),
+      authorize: async () => ({ allowed: true, reason: "matched" }),
       postRepo: postRepoFor(db),
       pagesHtmlStore: (scope) => new SqlPagesHtmlDocumentStore(scope, { kernel: db, clock }),
     });

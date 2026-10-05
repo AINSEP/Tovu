@@ -116,6 +116,6 @@ test("content-type: an inbound entity for a seeded widget key is refused at prec
   const reason = "content-type 'widget' is seeded on every instance and is never published";
 
   assert.equal(await handler.precheck(entity), reason);
-  await assert.rejects(handler.apply({ entity, expectedVersion: 3, principalId: "operator-1" }), { message: reason });
+  await assert.rejects(handler.apply({ entity, expectedVersion: 3, principalId: "operator-1", idempotencyKey: "idem-widget" }), { message: reason });
   assert.equal((await destRepo.findByKey({ workspaceId: WORKSPACE_ID, key: "widget" }))?.status, "active");
 });

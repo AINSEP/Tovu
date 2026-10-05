@@ -34,7 +34,7 @@ test("one search index can alternate workspaces and handle concurrent calls with
   const holdFirst = new Promise<void>((resolve) => { release = resolve; });
   let calls = 0;
   // F7.1: keep the first real query's transaction open while a second workspace requests search.
-  t.mock.method(sqlitePostSearch, "search", async (kernel, request) => {
+  t.mock.method(sqlitePostSearch, "search", async (kernel: Parameters<typeof original>[0], request: Parameters<typeof original>[1]) => {
     const call = ++calls;
     const hits = await original(kernel, request);
     if (call === 1) { entered(); await holdFirst; }

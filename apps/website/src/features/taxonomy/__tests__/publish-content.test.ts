@@ -4,19 +4,20 @@ import test from "node:test";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import type { TaxonomyPublishPorts } from "#src/features/publish-content/type-registry";
 import { applyReport, makeSite, packAll, plan, registerOnly, roundTrip, WORKSPACE_ID } from "#src/features/publish-content/__tests__/round-trip-harness";
-import { InMemoryContentLookup, InMemoryEntryTermRepo } from "../index.js";
+import { InMemoryContentLookup } from "../index.js";
 import { contributeTaxonomyPublish, contributeTermPublish } from "../publish-content.js";
-import { SqliteTaxonomyRepo, SqliteTaxonomyRevisionRepo, SqliteTermRepo } from "../repo.sqlite.js";
+import { SqliteEntryTermRepo, SqliteTaxonomyRepo, SqliteTaxonomyRevisionRepo, SqliteTermRepo } from "../repo.sqlite.js";
 
 function ports(): TaxonomyPublishPorts & { taxonomies: SqliteTaxonomyRepo; terms: SqliteTermRepo } {
   const db = openContentDb(":memory:");
   return {
     taxonomies: new SqliteTaxonomyRepo({ db, workspaceId: WORKSPACE_ID }),
     terms: new SqliteTermRepo({ db, workspaceId: WORKSPACE_ID }),
-    entryTerms: new InMemoryEntryTermRepo(),
+    entryTerms: new SqliteEntryTermRepo({ db, workspaceId: WORKSPACE_ID }),
     revisions: new SqliteTaxonomyRevisionRepo({ db, workspaceId: WORKSPACE_ID }),
     stampWatermark: () => {},
     contentLookup: new InMemoryContentLookup({}),
+    contentTypeTaxonomyPolicy: { taxonomiesFor: async () => null },
   };
 }
 

@@ -117,6 +117,7 @@ async function roundTrip(
     entity: sourceEntity,
     expectedVersion: existing ? existing.version : undefined,
     principalId: IMPORTING_OPERATOR,
+    idempotencyKey: "rt-round-trip",
   });
 
   const repackedAll: PackedEntity[] = [];
@@ -183,7 +184,7 @@ test("a members-only post does NOT publish to the destination as publicly readab
   const [sourceEntity] = await packAll("post", [source]);
   assert.ok(sourceEntity);
 
-  await handler.apply({ entity: sourceEntity, expectedVersion: undefined, principalId: IMPORTING_OPERATOR });
+  await handler.apply({ entity: sourceEntity, expectedVersion: undefined, principalId: IMPORTING_OPERATOR, idempotencyKey: "rt-1" });
 
   const landed = await destinationDeps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: source.id });
   assert.ok(landed, "the post must exist at the destination");
@@ -202,7 +203,7 @@ test("publishing over an existing PUBLIC destination row still applies the sourc
   const [sourceEntity] = await packAll("post", [source]);
   assert.ok(sourceEntity);
 
-  await handler.apply({ entity: sourceEntity, expectedVersion: 2, principalId: IMPORTING_OPERATOR });
+  await handler.apply({ entity: sourceEntity, expectedVersion: 2, principalId: IMPORTING_OPERATOR, idempotencyKey: "rt-2" });
 
   const landed = await destinationDeps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: source.id });
   assert.equal(
@@ -223,7 +224,7 @@ test("seoExtJson survives publish onto an empty destination", async () => {
   const [sourceEntity] = await packAll("post", [source]);
   assert.ok(sourceEntity);
 
-  await handler.apply({ entity: sourceEntity, expectedVersion: undefined, principalId: IMPORTING_OPERATOR });
+  await handler.apply({ entity: sourceEntity, expectedVersion: undefined, principalId: IMPORTING_OPERATOR, idempotencyKey: "rt-3" });
 
   const landed = await destinationDeps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: source.id });
   assert.equal(landed?.seoExtJson, source.seoExtJson, "per-entry SEO overrides were dropped on publish");
@@ -236,7 +237,7 @@ test("templateChoice and overridesThemePage survive publish onto an empty destin
   const [sourceEntity] = await packAll("post", [source]);
   assert.ok(sourceEntity);
 
-  await handler.apply({ entity: sourceEntity, expectedVersion: undefined, principalId: IMPORTING_OPERATOR });
+  await handler.apply({ entity: sourceEntity, expectedVersion: undefined, principalId: IMPORTING_OPERATOR, idempotencyKey: "rt-4" });
 
   const landed = await destinationDeps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: source.id });
   assert.equal(landed?.templateChoice, "blog-post.html", "the chosen template was dropped on publish");
@@ -255,7 +256,7 @@ test("an html-format Page keeps its bodyHtml and its format through a publish", 
   const [sourceEntity] = await packAll("page", [source]);
   assert.ok(sourceEntity);
 
-  await handler.apply({ entity: sourceEntity, expectedVersion: undefined, principalId: IMPORTING_OPERATOR });
+  await handler.apply({ entity: sourceEntity, expectedVersion: undefined, principalId: IMPORTING_OPERATOR, idempotencyKey: "rt-5" });
 
   const landed = await destinationDeps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: source.id });
   assert.equal(landed?.bodyFormat, "html", "the Page's bespoke-HTML format was flattened to 'doc' on publish");
@@ -277,7 +278,7 @@ test("D2: publishing replaces an existing doc-format destination row with the so
   const [sourceEntity] = await packAll("page", [source]);
   assert.ok(sourceEntity);
 
-  await handler.apply({ entity: sourceEntity, expectedVersion: 3, principalId: IMPORTING_OPERATOR });
+  await handler.apply({ entity: sourceEntity, expectedVersion: 3, principalId: IMPORTING_OPERATOR, idempotencyKey: "rt-6" });
 
   const landed = await destinationDeps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: source.id });
   assert.equal(landed?.bodyFormat, "html", "publishing must convert the destination to the source's format, not refuse");
@@ -292,7 +293,7 @@ test("D2: publishing replaces an existing html-format destination row with the s
   const [sourceEntity] = await packAll("page", [source]);
   assert.ok(sourceEntity);
 
-  await handler.apply({ entity: sourceEntity, expectedVersion: 3, principalId: IMPORTING_OPERATOR });
+  await handler.apply({ entity: sourceEntity, expectedVersion: 3, principalId: IMPORTING_OPERATOR, idempotencyKey: "rt-7" });
 
   const landed = await destinationDeps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: source.id });
   assert.equal(landed?.bodyFormat, "doc", "publishing must convert the destination to the source's format, not refuse");
@@ -311,7 +312,7 @@ test("create preserves the SOURCE author and never re-stamps it with the importi
   const [sourceEntity] = await packAll("post", [source]);
   assert.ok(sourceEntity);
 
-  await handler.apply({ entity: sourceEntity, expectedVersion: undefined, principalId: IMPORTING_OPERATOR });
+  await handler.apply({ entity: sourceEntity, expectedVersion: undefined, principalId: IMPORTING_OPERATOR, idempotencyKey: "rt-8" });
 
   const landed = await destinationDeps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: source.id });
   assert.equal(landed?.createdByPrincipalId, "original-author-on-the-source");
@@ -330,7 +331,7 @@ test("update never overwrites the destination row's write-once authorship", asyn
   const [sourceEntity] = await packAll("post", [source]);
   assert.ok(sourceEntity);
 
-  await handler.apply({ entity: sourceEntity, expectedVersion: 2, principalId: IMPORTING_OPERATOR });
+  await handler.apply({ entity: sourceEntity, expectedVersion: 2, principalId: IMPORTING_OPERATOR, idempotencyKey: "rt-9" });
 
   const landed = await destinationDeps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: source.id });
   assert.equal(landed?.createdByPrincipalId, "destination-original-author");

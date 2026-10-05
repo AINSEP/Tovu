@@ -344,7 +344,15 @@ for (const adapter of ADAPTERS) {
     await repo.writeAutosave({
       workspaceId: WS,
       id: "post-1",
-      snapshot: { baseVersion: 3, savedAt: "2026-04-06T00:00:00.000Z", bodyJson: { type: "doc", content: [] } },
+      snapshot: {
+        bodyFormat: "doc",
+        title: "Hello World",
+        slug: "hello-world",
+        baseVersion: 3,
+        savedAt: "2026-04-06T00:00:00.000Z",
+        bodyJson: { type: "doc", content: [] },
+        savedByPrincipalId: "principal-1",
+      },
     });
 
     await repo.hardDelete({ workspaceId: WS, id: "post-1" });

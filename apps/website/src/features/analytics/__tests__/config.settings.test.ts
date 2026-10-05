@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { UUID } from "@jini-ai/core/primitives";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
-import { InMemorySettingsRepo } from "../../settings/index.js";
+import { createSettingsPrincipalLookup, InMemorySettingsRepo } from "../../settings/index.js";
 import type { SettingValueRecord } from "../../settings/index.js";
 import { ANALYTICS_NAMESPACE, createSettingsAnalyticsConfig, ensureAnalyticsSettingDefinitions } from "../config.settings.js";
 
@@ -23,7 +23,7 @@ let idCounter = 0;
 const ids = { newId: () => `analytics-def-id-${++idCounter}` };
 
 function makeRegistrarDeps(settingsRepo: InMemorySettingsRepo) {
-  return { settingsRepo, clock, ids, principals: new InMemoryPrincipalRepo({}, { initialRows: [] }) };
+  return { settingsRepo, clock, ids, principals: createSettingsPrincipalLookup({ repo: new InMemoryPrincipalRepo({}, { initialRows: [] }) }) };
 }
 
 /** Writes a value directly at the repo layer, bypassing `write-service.ts`'s schema validation —

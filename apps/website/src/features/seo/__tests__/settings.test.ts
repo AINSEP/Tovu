@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { InMemorySettingsRepo, ForbiddenError } from "../../settings/index.js";
-import { ensureSeoSettingDefinitions, getSeoSettings, setSeoSettings } from "../settings.js";
+import { ensureSeoSettingDefinitions, getSeoSettings, setSeoSettings, type SeoSettingsPatch } from "../settings.js";
 import { SeoSettingsValidationError } from "../errors.js";
 
 /**
@@ -422,7 +422,7 @@ test("setSeoSettings: a non-array robotsRules is rejected", async () => {
     setSeoSettings(deps, {
       workspaceId: WORKSPACE,
       callerPrincipalId: CALLER,
-      patch: { robotsRules: "not-an-array" } as unknown as { robotsRules: unknown[] },
+      patch: { robotsRules: "not-an-array" } as unknown as SeoSettingsPatch,
     }),
     "robotsRules must be an array"
   );

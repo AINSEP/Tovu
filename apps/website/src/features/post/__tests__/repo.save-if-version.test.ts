@@ -147,10 +147,14 @@ function runSaveIfVersionContract(
     const { repo, teardown } = await withRepo();
     try {
       const snapshot: PostAutosaveSnapshot = {
+        bodyFormat: "doc",
+        title: "Parked",
+        slug: "parked",
         baseVersion: 1,
         bodyJson: { type: "doc", content: [] },
         savedAt: "2026-09-07T01:00:00.000Z",
-      } as PostAutosaveSnapshot;
+        savedByPrincipalId: "principal-1",
+      };
       assert.deepEqual(await repo.writeAutosave({ workspaceId: WS, id: ID, snapshot }), { applied: true });
 
       await repo.saveIfVersion({ record: nextRecord(baseRecord(), "winner"), ifVersion: 1 });

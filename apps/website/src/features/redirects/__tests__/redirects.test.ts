@@ -859,10 +859,11 @@ for (const [label, overrides] of [
 ] as const) {
   test(`createRedirect rejects ${label} before persisting anything`, async () => {
     const deps = makeDeps();
-    await assert.rejects(() => createRedirect({ deps, input: {
+    const valid: CreateRedirectInput = {
       workspaceId: WORKSPACE_ID, matchType: "exact", fromPattern: "/invalid", toTarget: "/target",
-      statusCode: 301, actorId: ACTOR_ID, ...overrides,
-    } as CreateRedirectInput }), RedirectValidationError);
+      statusCode: 301, actorId: ACTOR_ID,
+    };
+    await assert.rejects(() => createRedirect({ deps, input: { ...valid, ...overrides } as CreateRedirectInput }), RedirectValidationError);
     assert.deepEqual(await deps.repo.list({ workspaceId: WORKSPACE_ID }), []);
     assert.deepEqual(await deps.outbox.claimPending({ batchSize: 10, nowIso: "2099-01-01T00:00:00.000Z" }), []);
   });

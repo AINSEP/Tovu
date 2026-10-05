@@ -517,7 +517,7 @@ test("updateProfile: a note-only update (name omitted) trims the note and leaves
 });
 
 test("compSubscription rejects an archived tier and a duplicate active subscription", async () => {
-  const { deps } = makeDeps();
+  const { deps, clock } = makeDeps();
   const member = {
     id: "member-3",
     workspaceId: WORKSPACE_ID,
@@ -574,11 +574,11 @@ test("compSubscription rejects an archived tier and a duplicate active subscript
   await setSubscriptionStatus({ deps, input: { workspaceId: WORKSPACE_ID, subscriptionId: result.subscription.id, status: "canceled" } });
   const recomp = await compSubscription({ deps, input: { workspaceId: WORKSPACE_ID, memberId: member.id, tierId: activeTier.id } });
   assert.notEqual(recomp.subscription.id, result.subscription.id);
-  assert.deepEqual(await deps.subscriptions.listActiveByMember({ workspaceId: WORKSPACE_ID, memberId: member.id, nowIso: deps.clock.nowIso() }), [recomp.subscription]);
+  assert.deepEqual(await deps.subscriptions.listActiveByMember({ workspaceId: WORKSPACE_ID, memberId: member.id, nowIso: clock.nowIso() }), [recomp.subscription]);
 });
 
 test("setSubscriptionStatus updates status, stamps canceledAt on cancel, and rejects unknown ids/values", async () => {
-  const { deps } = makeDeps();
+  const { deps, clock } = makeDeps();
   const subscription = {
     id: "sub-1",
     workspaceId: WORKSPACE_ID,
@@ -599,9 +599,9 @@ test("setSubscriptionStatus updates status, stamps canceledAt on cancel, and rej
   });
   assert.equal(result.subscription.status, "canceled");
   assert.ok(result.subscription.canceledAt);
-  assert.equal(result.subscription.canceledAt, deps.clock.nowIso());
+  assert.equal(result.subscription.canceledAt, clock.nowIso());
   assert.deepEqual(await deps.subscriptions.findById({ workspaceId: WORKSPACE_ID, id: subscription.id }), result.subscription);
-  assert.deepEqual(await deps.subscriptions.listActiveByMember({ workspaceId: WORKSPACE_ID, memberId: subscription.memberId, nowIso: deps.clock.nowIso() }), []);
+  assert.deepEqual(await deps.subscriptions.listActiveByMember({ workspaceId: WORKSPACE_ID, memberId: subscription.memberId, nowIso: clock.nowIso() }), []);
 
   await assert.rejects(
     () =>
@@ -628,7 +628,7 @@ test("setSubscriptionStatus updates status, stamps canceledAt on cancel, and rej
 });
 
 test("setSubscriptionStatus: a non-'canceled' transition leaves canceledAt untouched and stores a provided externalRef", async () => {
-  const { deps } = makeDeps();
+  const { deps, clock } = makeDeps();
   const subscription = {
     id: "sub-2",
     workspaceId: WORKSPACE_ID,
@@ -651,5 +651,5 @@ test("setSubscriptionStatus: a non-'canceled' transition leaves canceledAt untou
   assert.equal(result.subscription.externalRef, "ext-ref-1");
   assert.equal(result.subscription.canceledAt, undefined, "canceledAt must stay untouched for a non-'canceled' transition");
   assert.deepEqual(await deps.subscriptions.findById({ workspaceId: WORKSPACE_ID, id: subscription.id }), result.subscription);
-  assert.deepEqual(await deps.subscriptions.listActiveByMember({ workspaceId: WORKSPACE_ID, memberId: subscription.memberId, nowIso: deps.clock.nowIso() }), []);
+  assert.deepEqual(await deps.subscriptions.listActiveByMember({ workspaceId: WORKSPACE_ID, memberId: subscription.memberId, nowIso: clock.nowIso() }), []);
 });

@@ -101,7 +101,7 @@ async function raise(h: Harness, toolId: string, input: unknown, signal = new Ab
     clearTimeout(timer);
   }
   assert.equal(emitted.length, 1, `${toolId}: the dialog must be emitted before the call parks`);
-  const html = (emitted[0] as { payload: { resource: UIResource } }).payload.resource.resource.text;
+  const html = (emitted[0]!.payload as { resource: UIResource }).resource.resource.text;
   const exchangeId = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`))![1]!;
   const answer = (params: Record<string, unknown>) => h.store.deliver({ exchangeId, toolId, principalId: h.ownerPrincipalId, params });
   return { pending, html, answer, emitted, exchangeId };

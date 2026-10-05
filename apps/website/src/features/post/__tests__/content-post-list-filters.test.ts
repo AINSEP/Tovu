@@ -3,7 +3,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { ToolInputError, type ToolExecutionContext } from "@jini-ai/core";
 import { createSurfaceExchangeStore } from "../../../contracts/core/tool-surface-exchanges.js";
+import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
+import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { InMemoryPostRepo } from "../repo.memory.js";
+import { InMemoryPostSearchIndex } from "../search-index.memory.js";
+import { removeVia } from "./remove-post-double.js";
 import type { PostRecord } from "../post.js";
 import { buildPostRegistrations, type PostToolDeps } from "../tool-registrations.js";
 
@@ -31,11 +36,23 @@ function record(overrides: Partial<PostRecord> = {}): PostRecord {
 }
 
 function fixture(rows: PostRecord[] = [record()]) {
-  const deps = {
+  const postRepo = new InMemoryPostRepo(rows);
+  // `content_post_list` reads only `postRepo`/`authorize`; the rest are real in-memory ports.
+  const deps: PostToolDeps = {
     workspaceId: "ws",
-    postRepo: new InMemoryPostRepo(rows),
+    clock: createFakeClock({ startIso: NOW }),
+    idGen: { newId: () => "unused-by-list" },
+    changeSets: new InMemoryChangeSetRepo(),
+    outbox: new InMemoryOutbox(),
+    bus: new InMemoryEventBus(),
+    postRepo,
+    postSearch: new InMemoryPostSearchIndex(postRepo),
+    pluginBeforeSaveHook: async () => ({}),
+    slugChangeCapture: () => undefined,
+    removePost: removeVia(postRepo),
+    forgetRemovedPost: async () => {},
     authorize: async () => ({ allowed: true, reason: "matched" }),
-  } as PostToolDeps;
+  };
   const registration = buildPostRegistrations(deps, { surfaceExchanges: createSurfaceExchangeStore() }).find(
     (r) => r.descriptor.id === "content_post_list",
   );

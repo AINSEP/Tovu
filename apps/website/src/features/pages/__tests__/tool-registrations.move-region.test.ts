@@ -24,7 +24,7 @@ function harness() {
   const repo = new InMemoryPostRepo([]);
   const registrations = buildPagesRegistrations({
     workspaceId: WS,
-    authorize: async () => ({ allowed: true }),
+    authorize: async () => ({ allowed: true, reason: "matched" }),
     postRepo: repo,
     pagesHtmlStore: (scope) => new InMemoryPagesHtmlDocumentStore(scope, { repo, clock }),
   });

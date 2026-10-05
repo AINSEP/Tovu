@@ -8,6 +8,11 @@ import { InMemorySettingsRepo } from "../../settings/index.js";
 import { ensureCommentsSettingDefinitions, getCommentsSettings } from "../settings.js";
 import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
 import { buildCommentsRegistrations, type CommentsToolDeps } from "../tool-registrations.js";
+import { createCommentHookRegistry } from "../hooks.js";
+import { InMemoryCommentRepo } from "../repo.memory.js";
+import { createCommentWriteService } from "../write-service.js";
+import { InMemoryOutbox } from "#src/contracts/core/events/index";
+import { commentTrashDoubles } from "./comment-trash-doubles.js";
 
 /**
  * @file RED->GREEN for the 500-redact defect: `comments_update_settings`'s `requireCommentsSettingsPatch`
@@ -29,11 +34,23 @@ async function makeDeps(): Promise<CommentsToolDeps> {
   const clock = { nowIso: () => "2026-07-16T00:00:00.000Z", nowMs: () => Date.parse("2026-07-16T00:00:00.000Z") };
   const idGen = { newId: () => `settings-test-${++id}` };
   await ensureCommentsSettingDefinitions({ settingsRepo, principals: principalRepo, clock, ids: idGen }, { workspaceId: "ws-settings", systemPrincipalId: "system" });
+  const commentRepo = new InMemoryCommentRepo();
+  const commentWriteService = createCommentWriteService({
+    repo: commentRepo,
+    outbox: new InMemoryOutbox(),
+    hooks: createCommentHookRegistry(),
+    clock,
+    idGen,
+    ...commentTrashDoubles(),
+  });
   return {
     workspaceId: "ws-settings", settingsRepo, principalRepo, clock, idGen,
     authorize: async () => ({ allowed: true, reason: "matched" }),
+    commentsReady: Promise.resolve(),
     commentsSettingsReady: Promise.resolve(),
-  } as CommentsToolDeps;
+    commentRepo,
+    commentWriteService,
+  };
 }
 
 test("comments_update_settings: an empty patch is a ToolInputError (400), not a bare Error (redacted 500)", async () => {

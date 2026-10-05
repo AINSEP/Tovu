@@ -59,11 +59,12 @@ test("import drops only its own old bindings, retaining another menu's reassigne
 test("import repairs an orphan binding and clones the incoming tree before saving", async () => {
   const { deps, events } = harness();
   await deps.bindingRepo.upsert({ workspaceId: "destination", locationKey: "header", menuId: "missing", boundAt: NOW });
-  const record = menu({ workspaceId: "source", locations: ["header"], doc: { type: "menu", version: 1,
-    items: [{ id: "home", label: "Home", target: { kind: "url", href: "https://example.test/" } }] } });
+  // The doc's items are readonly; this local handle is what the test mutates after the import.
+  const home = { id: "home", label: "Home", target: { kind: "url" as const, href: "https://example.test/" } };
+  const record = menu({ workspaceId: "source", locations: ["header"], doc: { type: "menu", version: 1, items: [home] } });
   const result = await importMenuEntity({ deps, input: { workspaceId: "destination", record } });
   assert.deepEqual(result.displacedMenus, []);
-  record.doc.items[0].label = "Source changed";
+  home.label = "Source changed";
   assert.equal(result.menu.doc.items[0].label, "Home");
   const stored = await deps.repo.findById({ workspaceId: "destination", id: "incoming" });
   assert.equal(stored?.doc.items[0].label, "Home");
