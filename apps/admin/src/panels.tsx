@@ -1,6 +1,7 @@
 import { Skills } from "./features/skills/Skills";
 import type { ReactNode } from "react";
 import type { AdminPanel } from "@jini-ai/admin/core";
+import type { PanelAccessDeclaration } from "./lib/panel-access";
 import { Themes, ThemeExplore } from "./features/themes";
 import { Dashboard } from "./features/dashboard";
 import { Placeholder } from "./components/Placeholder";
@@ -93,11 +94,19 @@ export interface PanelRouteContext {
 export type PanelRenderer = (ctx: PanelRouteContext) => ReactNode;
 
 /**
+ * A Tovu panel: Jini's `AdminPanel` plus `anyOfPermissions`, the permission ids its landing server
+ * route checks. `lib/panel-access.ts` reads it to hide the nav row and gate a direct URL for an
+ * operator who holds none of them (UX only — the server still re-checks every request).
+ * `lib/__tests__/panel-access.unit.test.ts` pins each declared id against the server route file.
+ */
+export type TovuAdminPanel = AdminPanel<PanelRenderer> & PanelAccessDeclaration;
+
+/**
  * Every admin section, in the order the sidebar groups them (see `nav.ts`'s `getNav()`, which
  * derives the nav model from this array via `buildNav` — group and item order both come from
  * here, not a second list).
  */
-export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
+export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
   // --- Ungrouped top row ---
   {
     id: "dashboard",
@@ -110,6 +119,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   },
   {
     id: "sites",
+    anyOfPermissions: ["system.read"],
     // `?tab=<id>` picks the initially-active tab (All sites / New site) and stays in sync as the
     // operator switches tabs (see `Sites`'s `tabId` prop) — same `?tab=` deep-linking convention as
     // `deployment`'s and `database`'s own entries elsewhere in this file (ADR-063).
@@ -160,6 +170,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   // --- Content ---
   {
     id: "pages",
+    anyOfPermissions: ["content.read"],
     render: (ctx) => {
       switch (ctx.view) {
         case "page-editor":
@@ -181,6 +192,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   },
   {
     id: "posts",
+    anyOfPermissions: ["content.read"],
     render: (ctx) => {
       switch (ctx.view) {
         case "post-editor":
@@ -212,6 +224,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   },
   {
     id: "media",
+    anyOfPermissions: ["media.read"],
     render: renderMediaPanel,
     routes: [
       // TEMPORARY (2026-10-03): side-by-side visual parity with legacy; the Jini page takes over /admin/media after owner sign-off
@@ -227,6 +240,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   },
   {
     id: "collections",
+    anyOfPermissions: ["admin.collections.read"],
     render: (ctx) => {
       // Guaranteed present on both routes below: both patterns start with `/:contentTypeKey`.
       const contentTypeKey = ctx.params.contentTypeKey;
@@ -258,6 +272,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   },
   {
     id: "menus",
+    anyOfPermissions: ["admin.menus.read"],
     render: (ctx) => {
       switch (ctx.view) {
         case "menu-editor":
@@ -322,6 +337,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   },
   {
     id: "taxonomy",
+    anyOfPermissions: ["admin.taxonomy.manage"],
     render: () => <Taxonomy />,
     nav: {
       label: "Categories & Tags",
@@ -336,6 +352,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   },
   {
     id: "forms",
+    anyOfPermissions: ["admin.forms.manage"],
     render: (ctx) => {
       switch (ctx.view) {
         case "form-editor":
@@ -378,6 +395,9 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   // --- People ---
   {
     id: "users",
+    // Any-of, matching `routes/users/list.ts`: the built-in admin role holds `member.manage` but not
+    // `user.manage`, and still reads this roster. See `lib/panel-access.ts` for why this is any-of.
+    anyOfPermissions: ["user.manage", "member.manage"],
     // `/change-password` (password-banner plan, 2026-09-24 Slice 3): the dashboard nag's "Change
     // password" link (`adminHref("/users/change-password")`) lands here — same `ctx.view` switch
     // shape as `pages`'s `page-editor` route above, just a boolean flag instead of a component swap,
@@ -423,6 +443,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   },
   {
     id: "roles",
+    anyOfPermissions: ["role.manage"],
     // Two tabs (Roles, Policies) as of 2026-09-06 — same `?tab=` deep-linking convention
     // `deployment`/`settings`/`sites`/`seo` use, so the query value is threaded in here and
     // guarded by `resolveRolesTabId` inside the screen.
@@ -436,6 +457,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   },
   {
     id: "members",
+    anyOfPermissions: ["member.manage"],
     render: () => <Members />,
     nav: {
       label: "Members",
@@ -446,6 +468,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   },
   {
     id: "comments",
+    anyOfPermissions: ["comments.read"],
     // `soon: true` on a panel that DOES render a real screen — deliberately, and the only entry in
     // this file shaped that way. Every other `soon` row is a `Placeholder`; here the owner's call is
     // that the Comments surface is genuinely unfinished, so the badge sets expectations while the
@@ -466,6 +489,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   // --- Studio ---
   {
     id: "themes",
+    anyOfPermissions: ["theme.set"],
     // `themes` and `appearance` below both render `Themes`: two accepted spellings, one screen,
     // kept as two panel ids (rather than one panel with two routes) because they are two
     // independently agent-reachable pages at two independent URLs, exactly as `SECTIONS` and
@@ -617,6 +641,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   // explains what it is — an operator who doesn't know the acronym can still find the screen.
   {
     id: "plugins",
+    anyOfPermissions: ["admin.plugins.read"],
     render: (ctx) => <Plugins tabId={ctx.query.get("tab")} />,
     nav: {
       // SPEC-005 REQ-17/AC-25: the plugin system now ships (SPEC-045's Option A — finish SPEC-005,
@@ -635,6 +660,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   },
   {
     id: "agent-plugins",
+    anyOfPermissions: ["admin.plugins.read"],
     render: () => <AgentPlugins />,
     nav: {
       // Sibling row alongside Plugins: surfaces the Agent Plugins open standard
@@ -653,6 +679,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   },
   {
     id: "skills",
+    anyOfPermissions: ["admin.assistant.use"],
     render: () => <Skills />,
     nav: { label: "Skills", group: "Add-Ons", icon: '<path d="M9 2.5l1.9 4 4.4.6-3.2 3.1.8 4.3L9 12.5l-3.9 2 .8-4.3L2.7 7.1l4.4-.6z"/>' },
     agentReachable: true,
@@ -839,6 +866,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   // --- Operations ---
   {
     id: "database",
+    anyOfPermissions: ["database.read"],
     // `?tab=<id>` picks the initially-active tab and stays in sync as the operator switches tabs
     // (see `Database`'s `tabId` prop) — same `?tab=` deep-linking convention as `deployment`'s and
     // `settings`'s own entries elsewhere in this file.
@@ -856,6 +884,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   },
   {
     id: "recovery",
+    anyOfPermissions: ["backup.read"],
     // `?tab=<id>` picks the initially-active tab and stays in sync as the operator switches tabs
     // (see `Recovery`'s `tabId` prop) — same `?tab=` deep-linking convention as `database`'s own
     // entry above. Recovery's inline SettingsDialogShell keeps this URL-owned navigation;
@@ -872,6 +901,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   },
   {
     id: "deployment",
+    anyOfPermissions: ["system.read"],
     // Five real tabs (Overview, Static Site, Full Site, Dockerfile, History) replaced the
     // `PlaceholderTabs` stub (Home/GitHub/AWS) this pass. `soon: true` is dropped: that flag means
     // "announced but not yet built" (see `PlaceholderTabs.tsx`'s own doc), and this screen no
@@ -978,6 +1008,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     // nobody can use yet" reasoning `deployment`'s own comment gives for its position relative to
     // Recovery.
     id: "observability",
+    anyOfPermissions: ["system.read"],
     render: () => <Observability />,
     nav: {
       label: "Observability",
@@ -1025,6 +1056,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   // --- Administration ---
   {
     id: "settings",
+    anyOfPermissions: ["settings.read"],
     // `?tab=<id>` picks the initially-active tab and stays in sync as the operator switches tabs
     // (see `SettingsUi`'s `tabId` prop) — same "URL names the sub-state" shape as `widgets`' own
     // `?type=` below, so `/admin/settings?tab=privacy` is both bookmarkable and a page an agent's
@@ -1087,6 +1119,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   },
   {
     id: "trash",
+    anyOfPermissions: ["content.read"],
     // Administration rather than Content: the trash spans domains — `media_trash_asset`,
     // `comments_trash_comment`, and `redirects_tombstone` all exist today and each currently
     // strands its deletions inside its own section. A single cross-cutting recycle bin belongs
@@ -1107,6 +1140,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   // --- Marketing ---
   {
     id: "seo",
+    anyOfPermissions: ["admin.seo.manage"],
     // Three tabs (Site defaults, Sitemap, Pages & posts) as of 2026-09-06 — same `?tab=`
     // deep-linking convention `deployment`/`settings`/`sites` above already use, so the query
     // value is threaded in here and guarded by `resolveSeoTabId` inside the screen.
@@ -1120,6 +1154,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   },
   {
     id: "redirects",
+    anyOfPermissions: ["admin.redirects.manage"],
     render: () => <Redirects />,
     nav: {
       label: "Redirects",
@@ -1146,6 +1181,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   },
   {
     id: "analytics",
+    anyOfPermissions: ["analytics.read"],
     render: () => <Analytics />,
     nav: {
       label: "Analytics",
@@ -1158,6 +1194,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   // --- Routable, no sidebar row (deliberate opt-out — see INFO.md "Adding a new admin section") ---
   {
     id: "appearance",
+    anyOfPermissions: ["theme.set"],
     // Same `?tab=` threading as the `themes` entry above (ADR-063) — `basePath="/appearance"` so a
     // tab click on THIS alias URL navigates within `/appearance`, not away to `/themes`. Without an
     // explicit base, `Themes`' tab-switch `navigate()` would default to `/themes?tab=...` and silently

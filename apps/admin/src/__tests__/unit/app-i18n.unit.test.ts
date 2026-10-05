@@ -12,6 +12,8 @@ describe("app shell translations", () => {
     ["Open navigation", "Abrir navegación"],
     ["Log out?", "¿Cerrar sesión?"],
     ["Are you sure you want to log out?", "¿Seguro que quieres cerrar sesión?"],
+    ["You don't have access to this", "No tienes acceso a esto"],
+    ["Ask the site owner if you need this section.", "Pide acceso al propietario del sitio si necesitas esta sección."],
   ])("translates Spanish shell copy %s", (key, expected) => {
     expect(t("es", key)).toBe(expected);
   });

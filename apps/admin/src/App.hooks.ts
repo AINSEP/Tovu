@@ -68,6 +68,8 @@ export interface UseAdminSession {
   user: AdminUser | null;
   /** `true` until the initial `api.me()` round trip settles (resolved or rejected). */
   checking: boolean;
+  /** `undefined` until `/auth/me` has answered (or when it omits the field) — "not known yet",
+   *  which `lib/panel-access.ts` treats as "show every section" rather than "hold none". */
   effectivePermissions?: readonly string[];
   /** `Login`'s `onLogin` — also publishes an unscoped settings refresh, since signing in changes
    *  what this tab is allowed to read, not just who it is (see this function's own inline comment
@@ -88,7 +90,7 @@ export interface UseAdminSession {
 export function useAdminSession(): UseAdminSession {
   const [user, setUser] = useState<AdminUser | null>(null);
   const [checking, setChecking] = useState(true);
-  const [effectivePermissions, setEffectivePermissions] = useState<readonly string[]>([]);
+  const [effectivePermissions, setEffectivePermissions] = useState<readonly string[] | undefined>(undefined);
   // Ignore a previous session read after logout/relogin; grants must never cross identities.
   const sessionEpoch = useRef(0);
 
@@ -107,7 +109,9 @@ export function useAdminSession(): UseAdminSession {
         if (sessionEpoch.current !== readEpoch) return;
         setPublishToLiveAvailable(readPublishToLiveAvailability(r));
         setUser(r.user);
-        setEffectivePermissions(r.effectivePermissions ?? []);
+        // No `?? []`: an absent field stays "not known", so the nav filter shows everything instead
+        // of hiding every gated section (see `UseAdminSession.effectivePermissions`).
+        setEffectivePermissions(r.effectivePermissions);
       })
       .catch(() => { if (sessionEpoch.current === readEpoch) { setUser(null); setEffectivePermissions([]); } })
       .finally(() => setChecking(false));
@@ -159,13 +163,15 @@ export function useAdminSession(): UseAdminSession {
   function handleLogin(next: AdminUser) {
     const readEpoch = ++sessionEpoch.current;
     setUser(next);
-    setEffectivePermissions([]);
+    // "Not known yet" rather than `[]` until the `/auth/me` below answers, so a fresh sign-in does
+    // not flash an emptied nav or a no-access screen at an operator who has access.
+    setEffectivePermissions(undefined);
     publishSettingsRefresh();
     // A fresh sign-in skipped the boot effect's `/auth/me`, which is what says whether this is the
     // live site (`publish-availability.store.ts`); a failed read leaves the default in place.
     api
       .me()
-      .then((r) => { if (sessionEpoch.current !== readEpoch) return; setPublishToLiveAvailable(readPublishToLiveAvailability(r)); setEffectivePermissions(r.effectivePermissions ?? []); })
+      .then((r) => { if (sessionEpoch.current !== readEpoch) return; setPublishToLiveAvailable(readPublishToLiveAvailability(r)); setEffectivePermissions(r.effectivePermissions); })
       .catch(() => undefined);
   }
 

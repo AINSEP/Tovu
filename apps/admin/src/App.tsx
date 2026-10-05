@@ -9,6 +9,7 @@ import { getNav } from "./nav";
 import { Login } from "./features/auth";
 import { Placeholder } from "./components/Placeholder";
 import { ADMIN_PANELS } from "./panels";
+import { resolvePanelAccessGate, withoutInaccessiblePanels } from "./lib/panel-access";
 import { translateAdminNavGroups, translateAdminNavLabel } from "./lib/admin-nav-i18n";
 import { t as tApp } from "./app-i18n";
 import { useWiredAdminLocale } from "./hooks/use-admin-locale.hooks";
@@ -65,6 +66,9 @@ const PANELS_BY_ID = new Map(ADMIN_PANELS.map((panel) => [panel.id, panel] as co
  * rail back open on the next deploy. Passed straight through to `Sidebar` below.
  */
 const SIDEBAR_RAIL_STORAGE_KEY = "tovu-admin-sidebar-rail-collapsed";
+
+/** `AdminModulesProvider`'s input while the session's permissions are not known yet. */
+const NO_PERMISSIONS: readonly string[] = [];
 
 /**
  * Parses a *route path* (base already stripped by `router.ts`) into a `Route`.
@@ -135,13 +139,20 @@ export function agentPageId(route: Route): string {
   return resolveAgentPageId({ panels: ADMIN_PANELS, panelId: route.panelId ?? "dashboard", view: route.view }) ?? "dashboard";
 }
 
+/** What {@link renderRoute} needs to decide whether the operator may see the routed panel. */
+interface RouteAccess {
+  /** The session's `effectivePermissions`; `undefined` while not known (see `lib/panel-access.ts`). */
+  readonly permissions: readonly string[] | undefined;
+  readonly locale: string;
+}
+
 /**
  * The screen for this route: `Placeholder` for a legacy `/section/:id` naming an id that no longer
  * exists (see `Route.unknownSectionId`), otherwise the matched panel's own render — each panel does
  * its own small `view` switch (see `panels.tsx`), which is what lets a panel own its URL space
  * without a shared dispatch to edit.
  */
-function renderRoute(route: Route, siteSection: SiteSectionAvailability): ReactNode {
+function renderRoute(route: Route, siteSection: SiteSectionAvailability, access: RouteAccess): ReactNode {
   if (route.unknownSectionId !== undefined) {
     return <Placeholder sectionId={route.unknownSectionId} />;
   }
@@ -152,8 +163,31 @@ function renderRoute(route: Route, siteSection: SiteSectionAvailability): ReactN
   const gate = resolveSiteSectionRouteGate(route.panelId, siteSection);
   if (gate === "redirect") return <UnavailableSectionRedirect />;
   if (gate === "hold") return null;
+  // A panel the operator holds none of the permissions for: say so, rather than mount a screen
+  // whose first read the server answers 403. Same "routing owns visibility" placement as the
+  // Sites gate above; the decision itself lives in `lib/panel-access.ts`.
+  if (resolvePanelAccessGate({ panelId: route.panelId, panels: ADMIN_PANELS, permissions: access.permissions }) === "denied") {
+    return <NoAccess locale={access.locale} />;
+  }
   const panel = PANELS_BY_ID.get(route.panelId ?? "dashboard");
   return panel ? panel.render({ view: route.view, params: route.params, query: route.query }) : null;
+}
+
+/**
+ * The screen for a section the operator has no permission to use (direct URL or a stale link — the
+ * nav no longer lists it). Presentational only; `renderRoute` decides when it shows.
+ */
+function NoAccess(props: { locale: string }) {
+  return (
+    <div className="page">
+      <div className="page-header">
+        <div className="page-header-text">
+          <h1 className="page-title">{tApp(props.locale, "You don't have access to this")}</h1>
+          <p className="page-description">{tApp(props.locale, "Ask the site owner if you need this section.")}</p>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 /**
@@ -455,7 +489,9 @@ export function App(props: AppProps) {
   const useChatDock = resolveChatDockHook(props.useChatDock);
   const useAgentBridge = resolveAgentBridgeHook(props.useAgentBridge);
 
-  const { user, checking, handleLogin, logout, effectivePermissions = [] } = useSession();
+  // `effectivePermissions` stays `undefined` until known — the nav filter and route gate below read
+  // that as "show everything"; `AdminModulesProvider` gets `[]` for it, as before.
+  const { user, checking, handleLogin, logout, effectivePermissions } = useSession();
   // Confirmation-modal state around `logout` above — see `useLogoutConfirm`'s own doc comment
   // (`App.hooks.tsx`) for why this is its own hook rather than a `useSession()` field. Called
   // unconditionally here, ahead of the `checking`/`!user` early returns below (rules of hooks),
@@ -520,8 +556,16 @@ export function App(props: AppProps) {
    * `nav.ts` itself is left alone: `getNav()` is a cached, synchronous module-level derivation of
    * `ADMIN_PANELS` that `components/Placeholder.tsx` also reads for its own label lookup, and it has
    * no access to a value that only arrives from the server.
+   *
+   * `withoutInaccessiblePanels` then drops the rows the operator holds no permission for, on the
+   * same shared read for the same reason. It CAN drop a whole labelled group, but never group 0:
+   * Overview declares no permission, so the `slice(0, 1)` boundary still holds.
    */
-  const rawNavGroups = withoutSiteSection(getNav(), siteSection);
+  const rawNavGroups = withoutInaccessiblePanels({
+    groups: withoutSiteSection(getNav(), siteSection),
+    panels: ADMIN_PANELS,
+    permissions: effectivePermissions,
+  });
 
   /**
    * Sidebar nav translation — outside `SettingsUi.tsx`'s `I18nProvider` entirely, since this nav
@@ -551,7 +595,7 @@ export function App(props: AppProps) {
   if (checking) return <div className="boot-screen">{tApp(navLocale, "Loading Tovu…")}</div>;
   if (!user) return <Login onLogin={handleLogin} />;
 
-  const content: ReactNode = renderRoute(route, siteSection);
+  const content: ReactNode = renderRoute(route, siteSection, { permissions: effectivePermissions, locale: navLocale });
 
   return (
     // Sets the translated "Cancel" once for every `ConfirmDialog` mounted anywhere beneath this
@@ -563,7 +607,7 @@ export function App(props: AppProps) {
     // `COMMON_I18N` (`lib/i18n-common.ts`, `"Cancel"` already covers all 21 locales) since
     // `app-i18n.ts`'s own `APP_DICT` defines no `"Cancel"` key of its own — see
     // `createDictionaryTranslator`'s doc comment in `lib/dictionary-translator.ts`.
-    <AdminModulesProvider permissions={effectivePermissions}>
+    <AdminModulesProvider permissions={effectivePermissions ?? NO_PERMISSIONS}>
     <ConfirmDialogDefaultsProvider cancelLabel={tApp(navLocale, "Cancel")}>
       <div className="admin-layout">
         {/* First focusable element in the app, deliberately before `<Sidebar>` — the auditor
