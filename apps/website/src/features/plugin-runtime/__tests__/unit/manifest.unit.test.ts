@@ -291,12 +291,12 @@ test("REQ-01: an empty or non-string name is MANIFEST_MALFORMED", () => {
 });
 
 test("REQ-01: a version that is not exact semver is MANIFEST_MALFORMED", () => {
-  for (const version of ["1.0", "v1.0.0", "latest", "1.0.0 ", "", 1]) {
+  for (const version of ["1.0", "v1.0.0", "latest", "1.0.0 ", "", 1, "1.0.0+", "=1.0.0+build"]) {
     assert.deepEqual(validateManifest(required(validManifest({ version } as never))).errors, [{
       code: "MANIFEST_MALFORMED", file: null, message: `version '${String(version)}' must be a semver version (e.g. 1.0.0)`,
     }], JSON.stringify(version));
   }
-  for (const version of ["0.1.0", "2.10.3", "1.0.0-beta.1"]) {
+  for (const version of ["0.1.0", "2.10.3", "1.0.0-beta.1", "1.0.0+build.42", "1.0.0-beta.1+sha.abc"]) {
     assert.deepEqual(validateManifest(required(validManifest({ version } as never))).errors, [], version);
   }
 });

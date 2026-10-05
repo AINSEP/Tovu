@@ -264,6 +264,20 @@ function validateId(
 const INTEGRITY_HASH_PATTERN = /^sha256-[0-9a-f]{64}$/;
 
 /**
+ * `value` is a strict SemVer string written in canonical form. `semver.valid()` alone is not enough:
+ * it also accepts `v1.0.0` or padded text, and the canonical string it returns drops build metadata,
+ * so comparing against it would refuse a valid `1.0.0+build.42`. The build suffix is re-appended.
+ *
+ * @complexity O(n) for n characters.
+ */
+function isExactSemver(value: string): boolean {
+  const parsed = semver.parse(value);
+  if (parsed === null) return false;
+  const build = parsed.build.length > 0 ? `+${parsed.build.join(".")}` : "";
+  return `${parsed.version}${build}` === value;
+}
+
+/**
  * name, version and integrity shapes (REQ-01: `name`, `version` (semver), `integrity` (SHA-256 per
  * packaged file)). Presence is `validateKeys`' job; a present-but-wrong value is caught here so it
  * fails at discovery rather than later: a non-semver version cannot take part in latest-by-semver
@@ -275,7 +289,7 @@ function validateIdentityFields(raw: Readonly<Record<string, unknown>>): PluginV
   if (raw.name !== undefined && (typeof raw.name !== "string" || raw.name.trim() === "")) {
     errors.push(malformed("'name' must be a non-empty string"));
   }
-  if (raw.version !== undefined && (typeof raw.version !== "string" || semver.valid(raw.version) !== raw.version)) {
+  if (raw.version !== undefined && (typeof raw.version !== "string" || !isExactSemver(raw.version))) {
     errors.push(malformed(`version '${String(raw.version)}' must be a semver version (e.g. 1.0.0)`));
   }
   if (raw.integrity === undefined) return errors;
