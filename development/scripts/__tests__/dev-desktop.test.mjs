@@ -196,7 +196,7 @@ test("waitForAdminVite: an already-aborted signal resolves false without probing
 });
 
 test("probeAdminVite: a junk TOVU_ADMIN_DEV_PORT is a miss, not an unhandled rejection in the launcher", async () => {
-  // `ADMIN_VITE_PORT` is `Number(process.env.TOVU_ADMIN_DEV_PORT ?? 5173)`, so a non-numeric value
+  // `resolveDesktopAdminVitePort` takes an explicit `TOVU_ADMIN_DEV_PORT` as `Number(...)`, so a non-numeric value
   // arrives here as NaN and `new URL("https://localhost:NaN")` throws. Same verdict
   // `apps/desktop/src/admin-dev-proxy.ts` reaches for the same input: no candidate.
   assert.equal(await probeAdminVite(Number("not-a-port"), { host: "127.0.0.1" }), false);

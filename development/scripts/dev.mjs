@@ -145,8 +145,10 @@ function preflight() {
     "\nThis is usually an orphaned process from an earlier run. Inspect it first, then:\n" +
       `  kill ${conflicts.map((c) => c.match(/PID (\d+)/)?.[1]).filter(Boolean).join(" ")}\n\n` +
       "If it is a daemon holding infra/content.db, killing it also releases the database.\n" +
-      `\`npm run desktop\` now starts an admin Vite on port ${VITE_PORT} too; if that is what is holding it,\n` +
-      "stop the desktop or re-run it with TOVU_DESKTOP_DISABLE_ADMIN_VITE=1.\n"
+      "`npm run desktop` puts its admin Vite on 5273+ now, never 5173; a desktop holding 5173 was launched\n" +
+      "before that change and frees it on its next restart.\n" +
+      "To run alongside whatever holds them instead, pick other ports (each one threads through on its own):\n" +
+      "  PORT=3001 TOVU_ADMIN_DEV_PORT=5174 JINI_AGENT_DAEMON_PORT=4320 npm run dev\n"
   );
   process.exit(1);
 }

@@ -30,9 +30,14 @@
  * ever started one — so `npm run desktop` silently served whatever `apps/admin/dist` last held,
  * with no signal that it was days old. Specifics:
  *
- * - **Reused, not restarted, when one is already up.** A Vite that answers the HTTP probe is
- *   somebody else's child (usually `npm run dev`'s) and is deliberately NOT adopted into `children`,
- *   so Ctrl-C here never kills a browser developer's stack.
+ * - **Its own port, not :5173.** `npm run dev` owns 5173; this launcher takes the first free port
+ *   from {@link DESKTOP_ADMIN_VITE_BASE_PORT} (5273) upward and threads it to Vite and Electron via
+ *   `TOVU_ADMIN_DEV_PORT` — see {@link resolveDesktopAdminVitePort}. Sharing 5173 meant a running
+ *   desktop blocked the web stack from starting at all.
+ * - **Reused, not restarted, when one is already up** on that port (an explicit
+ *   `TOVU_ADMIN_DEV_PORT`, or a race lost to a second `npm run desktop`). A Vite that answers the
+ *   HTTP probe is somebody else's child and is deliberately NOT adopted into `children`, so Ctrl-C
+ *   here never kills another stack's Vite.
  * - **Non-fatal.** Unlike the renderer watch, a dead or unstartable admin Vite does not tear the
  *   stack down: the desktop app is fully functional without it, falling back to the built bundle. A
  *   missing `apps/admin/node_modules` must not turn into "the desktop won't launch". When it goes
@@ -78,6 +83,7 @@ import { request as httpsRequest } from "node:https";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { pickFreePort } from "./free-port.mjs";
 import { loadRepoRootEnvFile } from "./load-repo-root-env.mjs";
 import { listenersOn } from "./port-listeners.mjs";
 
@@ -93,11 +99,41 @@ if (loadRepoRootEnvFile(REPO_ROOT)) {
 }
 
 /**
- * The port the admin Vite binds. Same expression `development/scripts/dev.mjs`,
- * `apps/admin/vite.config.ts` and `apps/desktop/src/admin-dev-proxy.ts` each use for their own copy
- * of this decision, so all four agree on which port the desktop's probe will look at.
+ * Where the desktop's own admin Vite port search starts. Deliberately NOT `npm run dev`'s :5173:
+ * when both defaulted to 5173, a running `npm run desktop` held the port and the web stack's
+ * preflight (`dev.mjs`) refused to start, so the owner could not open the web admin at all. The
+ * web stack keeps 5173 (and the API keeps 3000); the desktop takes the first free port from here.
  */
-const ADMIN_VITE_PORT = Number(process.env.TOVU_ADMIN_DEV_PORT ?? 5173);
+export const DESKTOP_ADMIN_VITE_BASE_PORT = 5273;
+
+/** How many ports above {@link DESKTOP_ADMIN_VITE_BASE_PORT} the search may try — one per running desktop. */
+const DESKTOP_ADMIN_VITE_PORT_SPAN = 100;
+
+/**
+ * The port this launch's admin Vite binds, and where that came from.
+ *
+ * An explicit `TOVU_ADMIN_DEV_PORT` wins verbatim and is not probed: whoever set it means that port,
+ * including pointing the desktop at an already-running `npm run dev` Vite on 5173 (the reuse path
+ * in {@link planAdminVite} still applies to it). Otherwise the first free port from
+ * {@link DESKTOP_ADMIN_VITE_BASE_PORT} upward, so a second `npm run desktop` gets the next port
+ * instead of colliding with the first (no single-instance lock — several desktops may run at once).
+ *
+ * The chosen port is then handed to every process that has to agree on it: the Vite child
+ * (`apps/admin/vite.config.ts`'s `server.port`) and Electron (`apps/desktop/src/admin-dev-proxy.ts`'s
+ * probe), both through `TOVU_ADMIN_DEV_PORT`. The admin bundle learns it from Vite's resolved port
+ * (`__TOVU_ADMIN_DEV_PORT__`), so nothing else needs it.
+ *
+ * @param {{env: Record<string, string | undefined>}} input
+ * @param {{isPortFree?: (port: number) => Promise<boolean>}} [deps]
+ * @returns {Promise<{port: number, source: "env" | "picked"} | null>} `null` when the whole range is taken.
+ * @complexity O(1) with an explicit port; otherwise O({@link DESKTOP_ADMIN_VITE_PORT_SPAN}) checks worst case.
+ */
+export async function resolveDesktopAdminVitePort({ env }, deps = {}) {
+  const explicit = env.TOVU_ADMIN_DEV_PORT?.trim();
+  if (explicit) return { port: Number(explicit), source: "env" };
+  const port = await pickFreePort({ start: DESKTOP_ADMIN_VITE_BASE_PORT, span: DESKTOP_ADMIN_VITE_PORT_SPAN }, deps);
+  return port === null ? null : { port, source: "picked" };
+}
 
 /** How long one probe request may take before it counts as "nothing there". */
 const ADMIN_PROBE_TIMEOUT_MS = 1_500;
@@ -425,14 +461,17 @@ function start(name, args, { cwd = DESKTOP_DIR, fatal = true, env, onExit } = {}
  * guaranteed to fail (`strictPort: true` in `apps/admin/vite.config.ts`) and the owner would
  * otherwise be left on the stale bundle with no explanation.
  *
- * @param {number} port
- * @returns {Promise<"disabled" | "reuse" | "blocked" | "start">}
+ * @param {number | null} port - `null` when {@link resolveDesktopAdminVitePort} found no free port.
+ * @returns {Promise<"reuse" | "blocked" | "start">}
  * @complexity O(1) — at most two probe requests and one `lsof`.
  */
 async function planAdminVite(port) {
-  if (isFlagEnabled(process.env.TOVU_DESKTOP_DISABLE_ADMIN_VITE)) {
-    console.log("tovu desktop: TOVU_DESKTOP_DISABLE_ADMIN_VITE is set — not starting an admin Vite.");
-    return "disabled";
+  if (port === null) {
+    console.error(
+      `\ntovu desktop: no free port in ${DESKTOP_ADMIN_VITE_BASE_PORT}-${DESKTOP_ADMIN_VITE_BASE_PORT + DESKTOP_ADMIN_VITE_PORT_SPAN - 1} ` +
+        "for the admin Vite — not starting one. Set TOVU_ADMIN_DEV_PORT to pick one by hand.\n"
+    );
+    return "blocked";
   }
   if (await probeAdminVite(port)) {
     console.log(`tovu desktop: an admin Vite is already answering on :${port} — reusing it, and leaving it running on exit.`);
@@ -455,13 +494,56 @@ async function planAdminVite(port) {
  * cause is losing a `strictPort` race to a second `npm run desktop` — in which case the port is now
  * served by somebody else's Vite and everything still works.
  */
-async function reportAdminViteGone(code, signal) {
+async function reportAdminViteGone(port, code, signal) {
   console.error(`\ntovu desktop: admin vite exited (code ${code ?? "none"}, signal ${signal ?? "none"}).`);
-  if (await probeAdminVite(ADMIN_VITE_PORT)) {
-    console.log(`tovu desktop: another admin Vite already owns :${ADMIN_VITE_PORT} — using it.\n`);
+  if (await probeAdminVite(port)) {
+    console.log(`tovu desktop: another admin Vite already owns :${port} — using it.\n`);
     return;
   }
   warnStaleAdminDist();
+}
+
+/**
+ * Decides this launch's admin Vite port and what to do about it. `port` is `null` only when the
+ * admin Vite is opted out or no free port exists; Electron then gets no `TOVU_ADMIN_DEV_PORT` from
+ * here, exactly as before this launcher picked ports.
+ *
+ * @returns {Promise<{port: number | null, plan: "disabled" | "reuse" | "blocked" | "start"}>}
+ */
+async function resolveAdminVite() {
+  if (isFlagEnabled(process.env.TOVU_DESKTOP_DISABLE_ADMIN_VITE)) {
+    console.log("tovu desktop: TOVU_DESKTOP_DISABLE_ADMIN_VITE is set — not starting an admin Vite.");
+    return { port: null, plan: "disabled" };
+  }
+  const resolved = await resolveDesktopAdminVitePort({ env: process.env });
+  const port = resolved?.port ?? null;
+  return { port, plan: await planAdminVite(port) };
+}
+
+/**
+ * Spawns this launch's own admin Vite on `port` (non-fatal; see {@link start}).
+ *
+ * The port explicitly, for the same reason `dev.mjs`'s `buildAdminViteEnv` passes it: the child
+ * must bind the port THIS script chose and preflighted, not re-derive a default.
+ *
+ * Deliberately NOT `TOVU_API_URL`. Vite's `server.proxy` is never exercised on the desktop path: the
+ * browser is on the SITE server's origin, which proxies only `/admin/*` here and answers relative
+ * `/api/...`, `/agent-icons`, `/theme-assets`, `/readyz` and `/mcp-ui` requests itself. That is
+ * precisely why one Vite serves any number of desktop sites on any number of dynamic ports. Known
+ * consequence, accepted: under a bare `npm run desktop`, opening this Vite's `/admin/` DIRECTLY in a
+ * browser is unsupported, because Vite's `/api` proxy still points at `localhost:3000` and there is
+ * no API there (or, with `npm run dev` also up, it is the WEB stack's API, not a desktop site's).
+ */
+function startDesktopAdminVite(port, adminViteGone) {
+  start("admin vite", ["--prefix", "apps/admin", "run", "dev"], {
+    cwd: REPO_ROOT,
+    fatal: false,
+    env: { TOVU_ADMIN_DEV_PORT: String(port) },
+    onExit: (code, signal) => {
+      adminViteGone.abort();
+      void reportAdminViteGone(port, code, signal);
+    },
+  });
 }
 
 async function main() {
@@ -475,7 +557,7 @@ async function main() {
   );
   // Cheap (0-3s worst case) and BEFORE the renderer watch, so a decision to start our own Vite
   // overlaps the renderer's ~2.7s first build instead of adding to it.
-  const adminVitePlan = await planAdminVite(ADMIN_VITE_PORT);
+  const { port: adminVitePort, plan: adminVitePlan } = await resolveAdminVite();
 
   // Captured BEFORE the watcher spawns, so any pre-existing `index.html` from a previous run —
   // already on disk, already stable — reads as older than this run and cannot short-circuit the
@@ -486,25 +568,7 @@ async function main() {
   // is never going to answer (e.g. a missing `apps/admin/node_modules`).
   const adminViteGone = new AbortController();
   if (adminVitePlan === "start") {
-    start("admin vite", ["--prefix", "apps/admin", "run", "dev"], {
-      cwd: REPO_ROOT,
-      fatal: false,
-      // The port explicitly, for the same reason `dev.mjs`'s `buildAdminViteEnv` passes it: the child
-      // must bind the port THIS script preflighted, not re-derive a default.
-      //
-      // Deliberately NOT `TOVU_API_URL`. Vite's `server.proxy` is never exercised on the desktop
-      // path: the browser is on the SITE server's origin, which proxies only `/admin/*` here and
-      // answers relative `/api/...`, `/agent-icons`, `/theme-assets`, `/readyz` and `/mcp-ui`
-      // requests itself. That is precisely why one Vite serves any number of desktop sites on any
-      // number of dynamic ports. Known consequence, accepted: under a bare `npm run desktop`,
-      // opening `localhost:5173/admin/` DIRECTLY in a browser is unsupported, because Vite's `/api`
-      // proxy still points at `localhost:3000` and there is no API there.
-      env: { TOVU_ADMIN_DEV_PORT: String(ADMIN_VITE_PORT) },
-      onExit: (code, signal) => {
-        adminViteGone.abort();
-        void reportAdminViteGone(code, signal);
-      },
-    });
+    startDesktopAdminVite(adminVitePort, adminViteGone);
   } else if (adminVitePlan !== "reuse") {
     warnStaleAdminDist();
   }
@@ -526,16 +590,19 @@ async function main() {
     // the probe in `apps/desktop/main.ts` and settle onto the static bundle for its whole lifetime.
     // In the common case this costs ~0s: Vite booted alongside the renderer build above.
     if (adminVitePlan === "start" && !shuttingDown) {
-      const up = await waitForAdminVite(ADMIN_VITE_PORT, { signal: adminViteGone.signal });
+      const up = await waitForAdminVite(adminVitePort, { signal: adminViteGone.signal });
       // An abort means the child died and `reportAdminViteGone` has already said so, loudly.
       if (!up && !adminViteGone.signal.aborted) {
         console.warn(
-          `\ntovu desktop: the admin Vite has not answered on :${ADMIN_VITE_PORT} within 30s — starting Electron anyway.\n` +
+          `\ntovu desktop: the admin Vite has not answered on :${adminVitePort} within 30s — starting Electron anyway.\n` +
             "tovu desktop: any site window opened before it does will serve /admin from apps/admin/dist.\n"
         );
       }
     }
-    if (!shuttingDown) start("electron", deriveElectronRunArgs(process.argv.slice(2)));
+    // Electron's `admin-dev-proxy.ts` probes `TOVU_ADMIN_DEV_PORT` (default 5173) — it must look at
+    // the port THIS launch chose, or the desktop would proxy into the web stack's Vite instead.
+    const electronEnv = adminVitePort === null ? undefined : { TOVU_ADMIN_DEV_PORT: String(adminVitePort) };
+    if (!shuttingDown) start("electron", deriveElectronRunArgs(process.argv.slice(2)), { env: electronEnv });
   }
 }
 
