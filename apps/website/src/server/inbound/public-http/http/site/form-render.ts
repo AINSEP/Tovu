@@ -42,6 +42,11 @@ export { FORM_CLASS, FORM_SLUG_ATTR };
  * hooks (verified by grep across every theme's `css/` directory), so the widget ships usable
  * out of the box rather than requiring theme-author work.
  *
+ * HTML-mode forms carry it too (2026-10-05, owner: HTML mode is the theme's form look plus author
+ * refinements, not "no styling"); their rules key on `data-tovu-form`, see the inline note below.
+ * A theme that styles `.tovu-form` itself (tovu-theme's `theme.css` "forms" section) wins over all of
+ * this, so this block is the fallback for themes with no form rules, not the source of truth.
+ *
  * Every selector is wrapped in `:where(...)`, which contributes ZERO specificity, so a theme's own
  * (non-`:where`) rule targeting the SAME class always wins regardless of cascade order — this is
  * also why the CSS below only ever needs the GENERIC class names: a widget that also renders a
@@ -106,10 +111,21 @@ export const FORM_BASELINE_STYLE =
   `:where(.${FORM_CLASS} button[type=submit]){align-self:flex-start;padding:8px 16px;` +
   "border:1px solid transparent;border-radius:6px;background:var(--accent,#111827);" +
   "color:var(--accent-fg,#fff);font-weight:600;cursor:pointer;}" +
-  `:where(.${FORM_SUCCESS_CLASS}){padding:12px 14px;border-radius:6px;` +
+  // HTML-mode forms (`html-render.ts`, keyed by `data-tovu-form`, which Builder forms never carry):
+  // author markup wraps controls in `<label>`s and has no `.widget-form-field`, so the same look is
+  // restated over plain descendants. Builder output is untouched by these rules.
+  ":where([data-tovu-form] label:not([hidden])){display:flex;flex-direction:column;gap:6px;font-weight:600;font-size:0.9rem;}" +
+  ":where([data-tovu-form] label:has(> input[type=checkbox],> input[type=radio])){flex-direction:row;align-items:center;gap:8px;font-weight:400;}" +
+  ":where([data-tovu-form] :is(input:not([type=checkbox],[type=radio],[type=hidden],[type=submit],[type=button],[type=reset]),textarea,select))" +
+  "{font:inherit;padding:8px 10px;border:1px solid var(--border,#d1d5db);border-radius:6px;background:var(--surface,#fff);color:inherit;}" +
+  ":where([data-tovu-form] textarea){min-height:100px;resize:vertical;}" +
+  ":where([data-tovu-form] button:not([type=button],[type=reset])){align-self:flex-start;padding:8px 16px;" +
+  "border:1px solid transparent;border-radius:6px;background:var(--accent,#111827);" +
+  "color:var(--accent-fg,#fff);font-weight:600;cursor:pointer;}" +
+  `:where(.${FORM_SUCCESS_CLASS},[data-tovu-form-success]){padding:12px 14px;border-radius:6px;` +
   "background:var(--surface,#fff);border:1px solid var(--border,#d1d5db);" +
   "border-left:4px solid var(--success,var(--tovu-form-success-fallback));color:var(--success,var(--tovu-form-success-fallback));}" +
-  `:where(.${FORM_ERROR_CLASS}){padding:10px 12px;border-radius:6px;` +
+  `:where(.${FORM_ERROR_CLASS},[data-tovu-form-error]){padding:10px 12px;border-radius:6px;` +
   "background:var(--surface-2,#f3f4f6);border:1px solid var(--border-strong,#9ca3af);" +
   "border-left:4px solid var(--danger,var(--tovu-form-danger-fallback));color:var(--danger,var(--tovu-form-danger-fallback));font-size:0.9rem;font-weight:600;}" +
   "</style>";

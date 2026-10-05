@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { InMemoryEntryRepo } from "#src/features/entries/index";
 import { InMemoryFormDefinitionRepo } from "#src/features/forms/repo.memory";
-import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render";
-import { injectFormSubmissionResultIntoHtml } from "#src/server/inbound/public-http/http/site/form-render";
+import { renderHtmlPageBody, renderWidgetIr } from "#src/server/inbound/public-http/http/site/render";
+import { FORM_BASELINE_STYLE, injectFormSubmissionResultIntoHtml } from "#src/server/inbound/public-http/http/site/form-render";
+import { renderHtmlForm } from "#src/features/forms/html-render";
 import { checkMarkupFile } from "#src/features/theme/validation/markup";
 import { resolveHtmlPageEmbeds } from "../../resolver-service.js";
 import { registerCoreResolver, createContactFormResolver } from "../../resolvers/index.js";
@@ -41,7 +42,10 @@ test("form slug, form id and widget spellings resolve identically and fill plain
   // `toolparam*` since 98ccfc6e0: published forms are WebMCP tools, one param per field.
   assert.match(rendered, /<label>Email<input type="email" name="email" data-tovu-field="email" toolparamtitle="Email" toolparamdescription="Email" required>/);
   assert.match(rendered, /name="_hp"/);
-  assert.doesNotMatch(rendered, /class=|style=|<style|data-embed-config/);
+  // The form itself carries the theme hook (2026-10-05); generated field markup stays class-free.
+  assert.equal((rendered.match(/<form class="tovu-form" data-tovu-form="contact"/g) ?? []).length, 3);
+  assert.equal((rendered.match(/class=/g) ?? []).length, 3);
+  assert.doesNotMatch(rendered, /style=|data-embed-config/);
 });
 
 test("HTML mode is per occurrence, and native POST results reveal plain confirmation/error slots", async () => {
@@ -50,16 +54,34 @@ test("HTML mode is per occurrence, and native POST results reveal plain confirma
   const resolved = await resolveHtmlPageEmbeds({ deps, input: { workspaceId: "ws", html } });
   const rendered = renderHtmlPageBody(html, resolved);
   assert.match(rendered, /class="widget tovu-form widget-contact-form"/);
-  assert.match(rendered, /<form data-tovu-form="contact"/);
+  assert.match(rendered, /<form class="tovu-form" data-tovu-form="contact"/);
   assert.equal(resolved.get("widget")?.get("widget-1")?.props.mode, undefined);
   const plainHtml = `<div data-embed-config='{"type":"form","id":"contact","mode":"html"}'></div>`;
   const plain = renderHtmlPageBody(plainHtml, await resolveHtmlPageEmbeds({ deps, input: { workspaceId: "ws", html: plainHtml } }));
   const success = injectFormSubmissionResultIntoHtml(plain, { kind: "success", slug: "contact" });
   assert.match(success, /data-tovu-form-success data-form-slug="contact" role="status">Thanks — your message has been sent\.<\/div>/);
-  assert.match(success, /<form hidden data-tovu-form/);
+  assert.match(success, /<form hidden class="tovu-form" data-tovu-form/);
   const failure = injectFormSubmissionResultIntoHtml(plain, { kind: "validation", slug: "contact", fieldErrors: [{ field: "email", reason: "invalid" }] });
   // A sentence from the field's label since 2e733c6a5 (friendly form errors), not "email: invalid".
   assert.match(failure, /role="alert">Please check your email\.<\/div>/);
+});
+
+test("HTML-mode forms carry the tovu-form hook and baseline style so they inherit the theme's form look", () => {
+  const authored = '<label class="mine">Email<input class="author-input" name="email" type="email"></label>';
+  const html = renderWidgetIr({ componentId: "contact-form", props: { slug: "contact", mode: "html", html: authored, fields: [] } });
+  assert.equal(html.startsWith(FORM_BASELINE_STYLE), true);
+  assert.match(html, /<form class="tovu-form" data-tovu-form="contact" data-form-slug="contact" /);
+  // Author markup is never re-classed: the theme reaches it through `.tovu-form` descendant selectors.
+  assert.match(html, /<label class="mine">Email<input class="author-input" name="email" type="email"><\/label>/);
+  // Success/error slots keep the exact prefix the result-reveal regexes in form-render.ts match on.
+  assert.match(html, /<div data-tovu-form-success data-form-slug="contact" role="status" hidden>/);
+  assert.match(html, /<div data-tovu-form-error data-form-slug="contact" role="alert" hidden><\/div>/);
+});
+
+test("renderHtmlForm merges a host class with any extra classes instead of replacing them", () => {
+  const html = renderHtmlForm({ slug: "contact", action: "/forms/contact/submit", fields: [] }, { className: "tovu-form  author-form " });
+  assert.match(html, /<form class="tovu-form author-form" data-tovu-form="contact"/);
+  assert.match(renderHtmlForm({ slug: "contact", action: "/forms/contact/submit", fields: [] }), /<form data-tovu-form="contact"/);
 });
 
 test("theme validator accepts restored form vocabulary and mode key", () => {

@@ -685,6 +685,50 @@ pre.has-copy-btn > code { display: block; overflow-x: auto; }
 .divider { display: flex; align-items: center; gap: 12px; margin: 24px 0; color: var(--muted); font-size: 12px; }
 .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 
+/* ---------- forms ----------
+   2026-10-05 (owner): every Tovu form, Builder or HTML mode, wears this theme's form look; HTML mode
+   only lets the author add markup and CSS on top. The renderer gives each `<form>` the `tovu-form`
+   class (HTML-mode forms also carry `data-tovu-form`) plus a zero-specificity baseline `<style>`
+   (`form-render.ts`'s FORM_BASELINE_STYLE), which is only the fallback for themes with no form rules.
+   Every rule here is ONE type selector with the rest inside `:where()`, specificity (0,0,1): enough
+   to beat that baseline, low enough that a page author's own class rule, or an equal element rule
+   in a later `<style>`, still wins. Values mirror `.field` (auth) and `.btn` above; the submit keeps
+   the accent fill Builder forms already had. Rules that set `display` exclude `[hidden]`: an author-
+   origin `display` beats the UA `[hidden]` rule and would keep a submitted form visible under its
+   success message. Fields are styled through descendants, never classes injected into author markup. */
+form:where(.tovu-form:not([hidden])) { display: flex; flex-direction: column; gap: 18px; max-width: 520px; }
+/* An HTML-mode form sits in page prose, whose paragraphs carry no bottom margin; Builder forms sit in
+   their own widget container and keep its spacing. The success message replaces the form in place. */
+form:where([data-tovu-form]:not([hidden])), div:where([data-tovu-form-success]:not([hidden])) { margin-block: 24px; }
+div:where(.tovu-form .widget-form-field:not([hidden])) { display: flex; flex-direction: column; gap: 8px; }
+:where(.tovu-form) label { font-size: 13px; font-weight: 500; color: var(--fg); }
+/* HTML mode wraps each control in its `<label>`; stack the text above the control like Builder does. */
+:where([data-tovu-form]) label:where(:not([hidden])) { display: flex; flex-direction: column; gap: 8px; }
+:where([data-tovu-form]) label:where(:has(> input[type="checkbox"], > input[type="radio"])) { flex-direction: row; align-items: center; gap: 10px; }
+/* Builder renders a checkbox after its label; put the box first, on the label's line. */
+div:where(.tovu-form .widget-form-field:has(> input[type="checkbox"])) { flex-direction: row-reverse; justify-content: flex-end; align-items: center; gap: 10px; }
+:where(.tovu-form) :is(input, textarea, select):where(:not([type="checkbox"], [type="radio"], [type="hidden"], [type="submit"], [type="button"], [type="reset"])) {
+  box-sizing: border-box; width: 100%; min-height: 42px; padding: 10px 14px;
+  border: 1px solid var(--border-strong); border-radius: 10px;
+  background: var(--surface); color: var(--fg); font: 14px/1.4 var(--font-body);
+}
+:where(.tovu-form) textarea { min-height: 120px; resize: vertical; }
+:where(.tovu-form) :is(input, textarea, select):where(:focus-visible) {
+  outline: none; border-color: var(--accent-text);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--accent) 25%, transparent);
+}
+:where(.tovu-form) :is(input, textarea)::placeholder { color: var(--muted); }
+:where(.tovu-form) input:where([type="checkbox"], [type="radio"]) { width: 16px; height: 16px; margin: 0; padding: 0; accent-color: var(--accent); }
+:where(.tovu-form) button:where(:not([type="button"], [type="reset"], [hidden])) {
+  align-self: flex-start; display: inline-flex; align-items: center; justify-content: center;
+  height: 40px; padding: 0 22px; border: 1px solid transparent; border-radius: 20px;
+  background: var(--accent); color: var(--accent-fg); font: 500 14px/1 var(--font-body);
+  cursor: pointer; transition: opacity 0.15s;
+}
+:where(.tovu-form) button:where(:not([type="button"], [type="reset"]):hover) { opacity: 0.88; }
+/* Colours stay with the baseline (`--danger`/`--success` fallbacks); only the shape follows the theme. */
+div:where(.tovu-form-success, [data-tovu-form-success], .tovu-form-error, [data-tovu-form-error]) { max-width: 520px; padding: 12px 16px; border-radius: 10px; font-size: 14px; }
+
 /* ---------- responsive ---------- */
 @media (max-width: 860px) {
   .feature-grid { grid-template-columns: 1fr; }

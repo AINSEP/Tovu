@@ -2407,12 +2407,15 @@ const DEFAULT_CONTACT_FORM_SUCCESS_MESSAGE = "Thanks — your message has been s
 function renderWidgetContactForm(props: JsonObject): string {
   const slug = str(props.slug);
   if (!slug) return renderWidgetPlaceholder();
-  if (props.mode === "html") return renderHtmlForm({
+  // HTML mode is Builder's look plus author refinements, not "unstyled": the same baseline and
+  // `tovu-form` hook let the active theme's form rules apply, and author CSS still wins over both.
+  if (props.mode === "html") return FORM_BASELINE_STYLE + renderHtmlForm({
     slug, action: `/forms/${encodeURIComponent(slug)}/submit`,
     fields: arr(props.fields) as unknown as import("@jini-ai/cms-forms").FieldDescriptor[],
   }, {
     ...(typeof props.html === "string" ? { html: props.html } : {}),
     successMessage: str(props.successMessage) || DEFAULT_CONTACT_FORM_SUCCESS_MESSAGE,
+    className: FORM_CLASS,
   });
   const escapedSlug = escapeHtml(slug);
   const fields = arr(props.fields).map(renderContactFormField).join("");
