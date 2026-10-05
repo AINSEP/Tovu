@@ -58,9 +58,10 @@ describe("createChatI18nAdapter — the typed-answer notices", () => {
   const NOTICES = [
     "That question is no longer waiting for an answer, so your message was not sent.",
     "Your answer could not be delivered. Try sending it again.",
+    "Send as a new message",
   ];
 
-  it.each(CHAT_LOCALES)("%s translates both notices", (locale) => {
+  it.each(CHAT_LOCALES)("%s translates both notices and the closed-question button", (locale) => {
     for (const notice of NOTICES) expect(createChatI18nAdapter(locale).t(notice)).not.toBe(notice);
   });
 });
