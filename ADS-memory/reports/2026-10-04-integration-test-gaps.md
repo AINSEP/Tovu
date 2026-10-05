@@ -39,6 +39,30 @@ Scope: `apps/website/src` server routes and composition. Newsletter and browser-
 | 11 | Assistant execution credential / site credential PUT→GET→DELETE on a real store (sealed credential repos) | Repos are dialect-tested; the route→sealing→repo seam is not. | NOT authored |
 | 12 | Boot wiring on PGlite: `runBootLifecycle` modules (reconciliation, settings/seo critical failures) | `boot-lifecycle-real-deps.integration.test.ts` is SQLite only. | NOT authored |
 
+## Round 4 (2026-10-04) — real-DB route groups, authored NOT RUN
+
+| Route group | File (`server/__tests__/integration/`) | Tests |
+|---|---|---|
+| Pages: draft/publish visibility on `/<slug>`, slug change → 301 capture, version CAS, kind guard, reserved slug, delete → Trash | `pages-real-composition.unrun.integration.test.ts` | 12 |
+| Media: upload → public `/m/` URL, metadata PATCH + slug 409, delete ladder (409 live → trash → 410 → purge), Trash restore, content sniff | `media-real-composition.unrun.integration.test.ts` | 10 |
+| Taxonomy/terms: hierarchy CRUD + parent refusals, `TERM_HAS_CHILDREN`, trashed-term assignment hide/restore, taxonomy trash/restore | `taxonomy-terms-real-composition.unrun.integration.test.ts` | 10 |
+| Comments: anonymous submit → queue → approve/spam/trash/restore/purge, version 409, keyset paging, unknown cursor 400 (intended), live settings | `comments-moderation-real-composition.unrun.integration.test.ts` | 10 |
+| Forms (gap #4 forms half): definition CRUD + slug 409, anonymous submit stored + listed, duplicate collapse, validation/honeypot, disable/enable, submission delete | `forms-real-composition.unrun.integration.test.ts` | 8 |
+
+Still without a real-DB HTTP test: settings (site profile, locale), widgets/regions (assign, reorder, render), users admin
+(create, role change, disable — partly covered by round 1's RBAC file), themes (activate/revert + public render), site export
+bundle contents, boot lifecycle on PGlite (gap #12).
+
+Round 4 suspected product bugs (read, not reproduced):
+
+5. Slug-change redirect capture is never invoked. `deps.ts:1546` binds `RedirectSlugChangeCapture` via
+   `registerSlugChangeCapture`, but nothing in `apps/website/src` calls `getSlugChangeCapture()` (`platform/routing/routing.ts:587`
+   has no callers). A published page/post whose slug changes leaves its old URL 404 instead of 301 (SPEC-009 REQ-15).
+6. `features/post/post.ts:1284` `validateUpdatePostInput` checks slug format but not `isReservedSlug`; create refuses `admin`/`api`
+   (`post.ts:1122`), so a page can be RENAMED to a reserved slug that create would refuse.
+7. Gap-map bug #2 (posts title-only PUT wipes slug) is likely NOT reachable: `""` fails `SLUG_FORMAT_PATTERN` in
+   `validateUpdatePostInput`, so it 400s rather than wiping. Downgrade to "PUT requires full body".
+
 ## Notes for whoever runs these
 
 - All authored files are named `*.unrun.integration.test.ts`, start with the `@unrun` header and prefix every title `[unrun] `.
