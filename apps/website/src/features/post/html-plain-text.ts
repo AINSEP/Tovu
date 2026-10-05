@@ -18,16 +18,24 @@ const HTML_NAMED_ENTITIES: Record<string, string> = {
 /** Decodes `&amp;`/`&#39;`/`&#x27;`-style entities left over after tag-stripping. Unknown or
  *  malformed entities pass through unchanged rather than being dropped. */
 function decodeHtmlEntities(text: string): string {
-  return text.replace(/&(#x[0-9a-fA-F]+|#\d+|[a-zA-Z]+);/g, (match, entity: string) => {
-    if (entity[0] !== "#") return HTML_NAMED_ENTITIES[entity.toLowerCase()] ?? match;
+  return text.replace(/&(#[xX][0-9a-fA-F]+|#\d+|[a-zA-Z]+);/g, (match, entity: string) => {
+    if (entity[0] !== "#") {
+      const name = entity.toLowerCase();
+      return Object.hasOwn(HTML_NAMED_ENTITIES, name) ? HTML_NAMED_ENTITIES[name] : match;
+    }
     const codePoint = entity[1] === "x" || entity[1] === "X" ? parseInt(entity.slice(2), 16) : parseInt(entity.slice(1), 10);
-    return Number.isNaN(codePoint) ? match : String.fromCodePoint(codePoint);
+    // Stored prose may contain an invalid reference. Preserve it instead of throwing or creating
+    // an unpaired surrogate that cannot represent a Unicode scalar value.
+    return !Number.isInteger(codePoint) || codePoint < 0 || codePoint > 0x10ffff || (codePoint >= 0xd800 && codePoint <= 0xdfff)
+      ? match : String.fromCodePoint(codePoint);
   });
 }
 
 /** Opening tag of any element carrying the `post-detail-header` class (any attribute order/quoting,
- *  extra class names alongside it); group 1 is the tag name used to find its matching close. */
-const POST_DETAIL_HEADER_OPEN = /<([a-z][a-z0-9]*)\b[^>]*\bclass\s*=\s*(["'])(?:(?!\2)[\s\S])*\bpost-detail-header\b(?:(?!\2)[\s\S])*\2[^>]*>/i;
+ *  extra class names alongside it); group 1 is the tag name used to find its matching close.
+ *  Capture the class value in group 3 so its whitespace-delimited tokens can be checked exactly;
+ *  a word boundary also matches hyphenated prefixes/suffixes belonging to unrelated prose. */
+const POST_DETAIL_HEADER_OPEN = /<([a-z][a-z0-9]*)\b[^>]*\sclass\s*=\s*(["'])((?:(?!\2)[\s\S])*)\2[^>]*>/i;
 
 /** Index just past the close tag that balances an already-open `tag` starting at `from`, counting
  *  same-name opens/closes so a nested `<div class="post-meta">` inside a `<div>` header does not end
@@ -50,12 +58,17 @@ function findBalancedCloseEnd(html: string, tag: string, from: number): number {
  *  prose. Without this, the derived excerpt doubled the title (`/media`'s description started "Media
  *  Media is…"). The close is found by depth-counting same-name tags, not a lazy `</\1>` match, since
  *  the real header nests a `<div>`. An unclosed header is left in place (same as before).
- *  @complexity O(n·h) for h headers; h is 0-1 in practice. */
+ *  @complexity O(n·h) for h class-bearing elements scanned. */
 function stripPostDetailHeader(html: string): string {
   let kept = "";
   let rest = html;
   for (let open = POST_DETAIL_HEADER_OPEN.exec(rest); open; open = POST_DETAIL_HEADER_OPEN.exec(rest)) {
     const contentStart = open.index + open[0].length;
+    if (!open[3].split(/[\t\n\f\r ]+/).includes("post-detail-header")) {
+      kept += rest.slice(0, contentStart);
+      rest = rest.slice(contentStart);
+      continue;
+    }
     const end = findBalancedCloseEnd(rest, open[1], contentStart);
     kept += end === -1 ? rest.slice(0, contentStart) : `${rest.slice(0, open.index)} `;
     rest = rest.slice(end === -1 ? contentStart : end);

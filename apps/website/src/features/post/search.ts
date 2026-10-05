@@ -1,9 +1,10 @@
 import type { UUID } from "@jini-ai/core/primitives";
 import { PostValidationError, type PostKind, type PostStatus } from "./post.js";
+import { extractPlainTextFromHtml } from "./html-plain-text.js";
 
 /**
  * @file Ranked full-text search over Posts + Pages — the domain half (contract, input rules, and
- * the pure `body_json` -> plain text projection). The two adapters that actually rank live in
+ * the pure body -> plain text projection). The two adapters that actually rank live in
  * `search-index.sqlite.ts` (durable, the production one) and `search-index.memory.ts` (the
  * rule-of-two partner for the hermetic composition root).
  *
@@ -190,16 +191,22 @@ export interface PostSearchDocument {
  * document, so both adapters (and the backfill) index identical text for identical input.
  *
  * @param post - Any post-shaped record. Deliberately structural rather than `PostRecord`: the
- * backfill reads four columns straight out of SQLite and has no reason to inflate a whole record.
- * @complexity O(n) in the body's node count.
+ * backfill reads body columns straight out of the database and has no reason to inflate a whole record.
+ * HTML records carry an empty doc placeholder, so their prose must come from bodyHtml instead.
+ * @complexity O(n) in the body's node count or HTML length (plus the header scan).
  * @overallScore 100
  */
-export function toPostSearchDocument(post: { id: UUID; title: string; slug: string; bodyJson: unknown }): PostSearchDocument {
+export function toPostSearchDocument(post: {
+  id: UUID; title: string; slug: string; bodyJson: unknown;
+  bodyFormat?: "doc" | "html"; bodyHtml?: string | null;
+}): PostSearchDocument {
   return {
     postId: post.id,
     title: post.title,
     slug: post.slug,
-    bodyText: extractPostPlainText(post.bodyJson),
+    bodyText: post.bodyFormat === "html"
+      ? extractPlainTextFromHtml(post.bodyHtml ?? "").replace(/\s+/g, " ").trim().slice(0, MAX_INDEXED_BODY_CHARS)
+      : extractPostPlainText(post.bodyJson),
   };
 }
 

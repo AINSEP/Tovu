@@ -68,6 +68,8 @@ export class TrashAwareInMemoryMenuRepo implements MenuRepoPort, MenuTrashLookup
   /** Hard-remove a menu row (only called after the trash step). @complexity O(n). */
   async remove(required: { workspaceId: string; id: string }): Promise<void> {
     await this.inner.remove(required);
+    // A recreated id is a new menu; it must not inherit the deleted menu's restore status.
+    this.priorStatus.delete(priorStatusKey(required));
   }
 
   /** Trash seam: the row whether or not it is trashed, plus its restore marker. @complexity O(n). */

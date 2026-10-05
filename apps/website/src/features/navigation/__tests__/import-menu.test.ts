@@ -88,3 +88,37 @@ test("import rejects an invalid tree before saving rows or changing bindings and
     { workspaceId: "destination", locationKey: "header", menuId: "neighbor", boundAt: NOW });
   assert.deepEqual(events, []);
 });
+
+// F1.2/F6.3: returning displacedMenus: [] (or only the last displacement) must fail,
+// even when the existing integration tests still observe correct binding changes.
+test("import returns every displaced menu with its new version and retained locations", async () => {
+  const { deps } = harness();
+  const header = menu({ id: "former-header", slug: "old-header", title: "Header", version: 7, locations: ["header", "sidebar"] });
+  const footer = menu({ id: "former-footer", slug: "old-footer", title: "Footer", version: 11, locations: ["footer", "utility"] });
+  await deps.repo.save(header);
+  await deps.repo.save(footer);
+  for (const [locationKey, menuId] of [["header", "former-header"], ["sidebar", "former-header"], ["footer", "former-footer"], ["utility", "former-footer"]]) {
+    await deps.bindingRepo.upsert({ workspaceId: "destination", locationKey, menuId, boundAt: "old-time" });
+  }
+
+  const result = await importMenuEntity({ deps, input: {
+    workspaceId: "destination", record: menu({ workspaceId: "source", locations: ["header", "footer"] }),
+  } });
+
+  assert.deepEqual(result.displacedMenus, [
+    menu({ id: "former-header", slug: "old-header", title: "Header", version: 8, updatedAt: NOW, locations: ["sidebar"] }),
+    menu({ id: "former-footer", slug: "old-footer", title: "Footer", version: 12, updatedAt: NOW, locations: ["utility"] }),
+  ]);
+  assert.deepEqual(await deps.repo.findById({ workspaceId: "destination", id: "former-header" }),
+    menu({ id: "former-header", slug: "old-header", title: "Header", version: 8, updatedAt: NOW, locations: ["sidebar"] }));
+  assert.deepEqual(await deps.repo.findById({ workspaceId: "destination", id: "former-footer" }),
+    menu({ id: "former-footer", slug: "old-footer", title: "Footer", version: 12, updatedAt: NOW, locations: ["utility"] }));
+  for (const locationKey of ["header", "footer"]) {
+    assert.deepEqual(await deps.bindingRepo.findByLocation({ workspaceId: "destination", locationKey }),
+      { workspaceId: "destination", locationKey, menuId: "incoming", boundAt: NOW });
+  }
+  for (const [locationKey, menuId] of [["sidebar", "former-header"], ["utility", "former-footer"]]) {
+    assert.deepEqual(await deps.bindingRepo.findByLocation({ workspaceId: "destination", locationKey }),
+      { workspaceId: "destination", locationKey, menuId, boundAt: "old-time" });
+  }
+});

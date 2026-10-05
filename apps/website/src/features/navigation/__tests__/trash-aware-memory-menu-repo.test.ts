@@ -61,3 +61,23 @@ test("BUG: restoring a same-id menu in another workspace does not clear this wor
   assert.deepEqual(await repo.findAnyById({ workspaceId: "ws", id: "m1" }),
     { ...menu({ status: "trash" }), priorStatus: "draft" });
 });
+
+// F4.5/F6.3/F6.5: permanently deleting a trashed row must clear its restore metadata.
+// A later id-preserving publish can recreate that id; it must be a fresh live menu.
+test("BUG: removing a trashed menu clears its restore marker when the same id is recreated", async () => {
+  const repo = new TrashAwareInMemoryMenuRepo();
+  const lookup = { workspaceId: "ws", id: "m1" };
+  await repo.saveAny({ ...menu({ status: "trash" }), priorStatus: "draft" });
+  await repo.saveAny({ ...menu({ workspaceId: "other", status: "trash" }), priorStatus: "published" });
+  assert.deepEqual(await repo.findAnyById(lookup), { ...menu({ status: "trash" }), priorStatus: "draft" });
+
+  await repo.remove(lookup);
+  assert.equal(await repo.findAnyById(lookup), null);
+  await repo.save(menu({ title: "Republished menu", status: "published", version: 1 }));
+
+  assert.deepEqual(await repo.findAnyById({ workspaceId: "other", id: "m1" }),
+    { ...menu({ workspaceId: "other", status: "trash" }), priorStatus: "published" });
+  assert.deepEqual(await repo.findById(lookup), menu({ title: "Republished menu", status: "published", version: 1 }));
+  assert.deepEqual(await repo.findAnyById(lookup),
+    { ...menu({ title: "Republished menu", status: "published", version: 1 }), priorStatus: null });
+});

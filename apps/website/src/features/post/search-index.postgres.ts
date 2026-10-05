@@ -19,8 +19,8 @@ import { type PostSearchDialect, type PostSearchRow, toPostSearchHit } from "./s
  *    list.
  *  - Accents and punctuation. `unicode61` folds diacritics and splits on every non-alphanumeric
  *    character. Postgres does neither by default (and `unaccent` is an extension), so the indexed
- *    text is folded in JS first ({@link foldForIndex}); query terms are already ASCII alphanumeric
- *    (`toSearchTerms`).
+ *    text and query terms are folded in JS ({@link foldForIndex}). `toSearchTerms` preserves
+ *    Unicode letters, so the query needs the same folding as the stored vector.
  *  - OR of terms, no prefix matching (FTS5 gets bare terms too), title > slug > body weighting
  *    (8:4:1, as BM25's column weights).
  *
@@ -45,7 +45,7 @@ const HEADLINE_OPTIONS = 'StartSel="", StopSel="", MaxWords=20, MinWords=10';
 
 /**
  * Folds text the way FTS5's `unicode61` tokenizer sees it: diacritics removed, every run of
- * non-letter/non-digit characters a single space. Applied to the indexed text only.
+ * non-letter/non-digit characters a single space. Applied symmetrically to indexed text and queries.
  */
 export function foldForIndex(text: string): string {
   return text
@@ -80,8 +80,12 @@ export const pgPostSearch: PostSearchDialect = {
    * `ts_headline` runs only on the `LIMIT`ed page (the outer select).
    */
   async search(kernel: ContentKernel, query: PostSearchQuery) {
-    // Terms are ASCII alphanumeric (`toSearchTerms`), so ` | ` is the only operator in the string.
-    const tsquery = sql`to_tsquery(${sql.lit(SEARCH_CONFIG)}::regconfig, ${query.terms.join(" | ")})`;
+    // Fold with the same function used on writes. Compatibility decomposition can introduce
+    // separators (e.g. a fraction), so split again before inserting the sole operator, ` | `.
+    // This works on Postgres and PGlite without loading unaccent or changing text collations.
+    const terms = query.terms.flatMap((term) => foldForIndex(term).split(" ")).filter(Boolean);
+    if (terms.length === 0) return [];
+    const tsquery = sql`to_tsquery(${sql.lit(SEARCH_CONFIG)}::regconfig, ${terms.join(" | ")})`;
     const filters = [sql`d.search @@ q.query`, sql`p.workspace_id = ${query.workspaceId}`, sql`p.deleted_at IS NULL`];
     if (query.kind !== undefined) filters.push(sql`p.kind = ${query.kind}`);
     if (query.status !== undefined) filters.push(sql`p.status = ${query.status}`);

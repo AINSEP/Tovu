@@ -139,7 +139,7 @@ export async function backfillPostSearchIndex(store: ContentKernel | ContentDb, 
         db
           .withTables<SearchProjectionTables>()
           .selectFrom("posts as p")
-          .select(["p.id", "p.title", "p.slug", "p.body_json"])
+          .select(["p.id", "p.title", "p.slug", "p.body_json", "p.body_format", "p.body_html"])
           .where(({ not, exists, selectFrom }) =>
             not(exists(selectFrom("post_search_document as d").select("d.post_id").whereRef("d.post_id", "=", "p.id")))
           )
@@ -150,7 +150,10 @@ export async function backfillPostSearchIndex(store: ContentKernel | ContentDb, 
       for (const row of missing) {
         await search.upsert(
           kernel,
-          toPostSearchDocument({ id: row.id as UUID, title: row.title, slug: row.slug, bodyJson: parseBodyJson(row.body_json) })
+          toPostSearchDocument({
+            id: row.id as UUID, title: row.title, slug: row.slug, bodyJson: parseBodyJson(row.body_json),
+            bodyFormat: row.body_format === "html" ? "html" : "doc", bodyHtml: row.body_html,
+          })
         );
       }
       return missing.length;

@@ -274,8 +274,9 @@ export interface SurfaceExchangeStore {
  * and drives the exchange directly, with no change to the store, the route, or the transport.
  */
 export async function askOnce(exchange: SurfaceExchange, emission: SurfaceEmission): Promise<SurfaceMessage> {
-  await exchange.send(emission);
   try {
+    // Delivery can reject before receive starts; that still ends this one-shot exchange.
+    await exchange.send(emission);
     return await exchange.receive();
   } finally {
     exchange.close();

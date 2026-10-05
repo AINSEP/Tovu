@@ -82,6 +82,9 @@ export async function requireHumanConfirm(
     throw new ToolInputError({ message: `${spec.errorCode}_NO_CONFIRMATION_CHANNEL: ${spec.toolId}: this execution context has no interactive ` +
         "confirmation channel (no emitSurface), so a human cannot approve this action here. Nothing was changed." });
   }
+  // An abort listener cannot observe an event that already fired. Refuse before opening an
+  // exchange so a completed run never creates a new card or waits for its idle deadline.
+  if (ctx.signal.aborted) return { confirmed: false, reason: "abandoned" };
   // Shorthand `{ toolId }` on purpose: the allowlist completeness scan resolves the `toolId` of
   // each `requireHumanConfirm` CALL instead, and skips this parameterised open.
   const { toolId } = spec;
