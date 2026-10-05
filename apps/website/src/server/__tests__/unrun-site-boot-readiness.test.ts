@@ -5,7 +5,10 @@ import { drainBootReadiness, type BootReadiness } from "./helpers/unrun-site-boo
 
 /**
  * @file `drainBootReadiness` must hold teardown until every boot promise has settled. It used to skip
- * `pluginRuntimeReady`, so a site closed before its plugins attached could race the attach's writes.
+ * `pluginRuntimeReady`, so a site closed before its plugins attached could race the attach's writes,
+ * and `legacyPublishCredentialsReady`, so every teardown closed the store under the boot copy of
+ * legacy publish credentials ("copyPublishCredentialsToVendorTable failed at boot: The database
+ * connection is not open").
  */
 
 const READINESS_KEYS = [
@@ -19,6 +22,7 @@ const READINESS_KEYS = [
   "analyticsSettingsReady",
   "siteTitleReady",
   "pluginRuntimeReady",
+  "legacyPublishCredentialsReady",
 ] as const satisfies readonly (keyof BootReadiness)[];
 
 for (const held of READINESS_KEYS) {

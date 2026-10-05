@@ -52,10 +52,14 @@ export type BootReadiness = Pick<
   | "analyticsSettingsReady"
   | "siteTitleReady"
   | "pluginRuntimeReady"
+  | "legacyPublishCredentialsReady"
 >;
 
 /** Every fire-and-forget readiness promise the composition starts, so teardown never races a boot write.
- *  `pluginRuntimeReady` included: closing the site before the boot plugin attach finished raced its writes. */
+ *  `pluginRuntimeReady` included: closing the site before the boot plugin attach finished raced its writes.
+ *  `legacyPublishCredentialsReady` included: it is the composition's detached boot tail (widget
+ *  adoption, then the legacy publish-credential copy), and closing under it logged "The database
+ *  connection is not open" on every teardown. */
 export async function drainBootReadiness(deps: BootReadiness): Promise<void> {
   await Promise.all([
     deps.identityReady,
@@ -68,6 +72,7 @@ export async function drainBootReadiness(deps: BootReadiness): Promise<void> {
     deps.analyticsSettingsReady,
     deps.siteTitleReady,
     deps.pluginRuntimeReady,
+    deps.legacyPublishCredentialsReady,
   ]);
 }
 
@@ -82,6 +87,9 @@ export async function bootSite(t: TestContext, dialect: SiteDialect): Promise<Bo
   await initSite({ dir: siteDir, name: `Unrun ${dialect} site`, storage: { kind: dialect } });
   const boot = await bootSiteDir({ dir: siteDir });
   let composed: SiteStore | undefined;
+  // Background passes `createApp` starts and returns before they finish (`onBootWork`); teardown
+  // awaits them so the store does not close under their reads.
+  const appBootWork: Promise<void>[] = [];
   const deps = await createSiteRouteDeps(path.join(siteDir, "content.db"), {
     db: boot.db,
     store: boot.store,
@@ -93,6 +101,7 @@ export async function bootSite(t: TestContext, dialect: SiteDialect): Promise<Bo
   });
   t.after(async () => {
     await drainBootReadiness(deps).catch(() => undefined);
+    await Promise.all(appBootWork);
     await closeSiteDirBoot(boot, composed).catch(() => undefined);
     if (savedSocketEnv === undefined) delete process.env[PG_SOCKET_ENV];
     else process.env[PG_SOCKET_ENV] = savedSocketEnv;
@@ -101,7 +110,7 @@ export async function bootSite(t: TestContext, dialect: SiteDialect): Promise<Bo
   });
   await drainBootReadiness(deps);
 
-  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps, { onBootWork: (work) => appBootWork.push(work) }), t);
   return { deps, baseUrl, cookie, ws: `/api/admin/v1/workspaces/${deps.workspaceId}`, siteDir };
 }
 

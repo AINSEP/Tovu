@@ -1659,7 +1659,18 @@ function subscribeSiteEventHandlersOnce(routeDeps: NewsletterRouteDeps): void {
   );
 }
 
-export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = createRouteDeps()) {
+/** Optional {@link createApp} hooks. */
+export interface CreateAppOptions {
+  /**
+   * Receives each background pass `createApp` starts and returns before it finishes — today the BYOK
+   * tool surface's installed-extension pass, which reads the plugin catalog and plugin activations
+   * from the store. Whoever closes the store soon after composing an app awaits these first, so the
+   * close does not land under those reads. Never rejects (the pass is fail-open).
+   */
+  onBootWork?: (work: Promise<void>) => void;
+}
+
+export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = createRouteDeps(), options: CreateAppOptions = {}) {
   // `page-head.ts`'s `contributors` registry is a process-wide singleton, but `createApp()` still
   // runs more than once per process: every test that calls it directly, and every
   // `routeDeps.createSiteApp()` the exporter and site-inspection make. Resetting here — before this
@@ -1972,6 +1983,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // module THROUGH `createAssistantByokModule`, so reading the value off its return object is free.
   // See `AssistantByokModuleHandle`'s own doc for the full trace.
   const byokAssistantModule = createAssistantByokModule(routeDeps);
+  options.onBootWork?.(byokAssistantModule.toolSurface.ready);
 
   // Roster-change fan-out (S6, 2026-09-24): this web-server process holds two federation runtimes
   // — the agent daemon (a separate process, reached over HTTP) and BYOK's own in-process
