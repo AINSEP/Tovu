@@ -145,7 +145,7 @@ const EXECUTE_COMMIT_SCHEMA = {
     branch: {
       type: "string",
       description:
-        "Branch to commit to. Optional; when omitted, the repository's own default branch is used. If the named branch does not exist yet, it is created from this commit. If it exists, this commit is added on top of its current history. NEVER force-pushed: if the branch has moved since this call read its head (someone else pushed to it), the commit is refused rather than overwriting that history — see the DIVERGED_BRANCH result below.",
+        "Branch to commit to. Optional; when omitted, the repository's own default branch is used. If the named branch does not exist yet, it is created from this commit. If it exists, this commit is added on top of its current history. NEVER force-pushed: if the branch has moved since this call read its head (someone else pushed to it), the commit is refused rather than overwriting that history, and the result is {committed:false, code:'DIVERGED_BRANCH'}.",
     },
     commitMessage: { type: "string", description: "The git commit message. 1-500 characters." },
     dryRun: {
@@ -183,7 +183,7 @@ export const sourceControlAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "source_control_execute_commit",
     description:
-      "Commits a fresh site export to a source control repository using its saved credential. Runs immediately with {provider, owner, repo, commitMessage, branch?}; provider must be listed by source_control_get_capabilities with commitSupported:true. Pass dryRun:true to preview files and bytes without contacting the host. Returns {committed:true, owner, repo, branch, branchCreated, commitSha, commitUrl, filesChanged, filesDeleted, divergedPaths}. Reports deleted and diverged paths; only previously exported paths whose live content still matches the export may be removed. Other files and human edits are preserved. Git history retains prior content. Returns {committed:false, reason, message} for unavailable credentials/providers or a failed commit. Never accepts or exposes a token. Requires source-control.commit.",
+      "Commits a fresh site export to a source control repository using its saved credential. Runs immediately with {provider, owner, repo, commitMessage, branch?}; provider must be listed by source_control_get_capabilities with commitSupported:true. Pass dryRun:true to preview files and bytes without contacting the host. Returns {committed:true, owner, repo, branch, branchCreated, commitSha, commitUrl, filesChanged, filesDeleted, divergedPaths}. Reports deleted and diverged paths; only previously exported paths whose live content still matches the export may be removed. Other files and human edits are preserved. Git history retains prior content. Returns {committed:false, reason, message} when the credential or provider is unavailable, and {committed:false, cancelled:false, code, message} when the commit itself fails. Never accepts or exposes a token. Requires source-control.commit.",
     // Genuinely consequential (pushes a real commit into someone's actual git history using a
     // write-scoped external credential) — classified accordingly, cross-checked against
     // `sourceControlDerivedRisk` below at build time. Deliberately carries NO `actorClassRule` — see
@@ -261,13 +261,17 @@ interface ParsedCommitCommand {
 }
 
 /** Reads `source_control_execute_commit`'s raw input; {@link requireValidTarget} checks it once the
- *  host is known. @throws {ToolInputError} on a missing or non-string required field. */
+ *  host is known. @throws {ToolInputError} on a missing or non-string required field, or a present
+ *  non-string `branch` (dropping it would commit to the default branch the model did not name). */
 function parseCommitCommand(raw: Record<string, unknown>): ParsedCommitCommand {
   const provider = requireString({ input: raw, key: "provider" });
   const owner = requireString({ input: raw, key: "owner" });
   const repo = requireString({ input: raw, key: "repo" });
   const commitMessage = requireString({ input: raw, key: "commitMessage" });
-  const branch = typeof raw.branch === "string" ? raw.branch : undefined;
+  if (raw.branch !== undefined && typeof raw.branch !== "string") {
+    throw new ToolInputError({ message: `${EXECUTE_COMMIT_TOOL_ID}: 'branch' must be a string when provided` });
+  }
+  const branch = raw.branch;
   const dryRun = optionalBoolean({ input: raw, key: "dryRun" }) ?? false;
   return { provider, owner, repo, commitMessage, branch, dryRun };
 }

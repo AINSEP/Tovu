@@ -354,6 +354,38 @@ test("an invalid target (bad owner) throws before any dialog is raised", async (
   assert.equal(surfaceExchanges.size(), 0);
 });
 
+// REGRESSION (fix-plan C6c): a non-string `branch` (123) was silently dropped, so the commit went to
+// the repository's DEFAULT branch instead of the one the model named.
+test("a present non-string branch is a ToolInputError naming the field, before any dialog or adapter call", async () => {
+  const { deps } = fakeDeps({ gitAdapter: neverCalledGitAdapter() });
+  await seedGithubCredential(deps);
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "source_control_execute_commit");
+
+  await assert.rejects(
+    () => call(executeTool, { input: { provider: "github", owner: "octo", repo: "demo", commitMessage: "x", branch: 123 }, emitSurface: async () => {} }),
+    (err: unknown) => {
+      assert.ok(err instanceof ToolInputError, `expected ToolInputError, got ${(err as Error)?.constructor?.name}`);
+      assert.equal((err as Error).message, "source_control_execute_commit: 'branch' must be a string when provided");
+      return true;
+    },
+  );
+  assert.equal(surfaceExchanges.size(), 0);
+});
+
+// The descriptions gave a failed commit the `reason` shape (it returns `code`; only an unavailable
+// credential/provider returns `reason`) and pointed at a "DIVERGED_BRANCH result below" that nothing
+// below described.
+test("source_control_execute_commit's copy names the failure shape the handler actually returns", () => {
+  const { deps } = fakeDeps();
+  const descriptor = tool(buildRegistrations(deps, createSurfaceExchangeStore()), "source_control_execute_commit").descriptor;
+  const branch = (descriptor.inputSchema as { properties: { branch: { description: string } } }).properties.branch.description;
+  assert.match(descriptor.description, /\{committed:false, reason, message\} when the credential or provider is unavailable/);
+  assert.match(descriptor.description, /\{committed:false, cancelled:false, code, message\} when the commit itself fails/);
+  assert.match(branch, /\{committed:false, code:'DIVERGED_BRANCH'\}/);
+  assert.doesNotMatch(branch, /result below/);
+});
+
 test("no saved github credential: refused with reason 'no-credential', WITHOUT ever opening a dialog", async () => {
   const { deps } = fakeDeps({ gitAdapter: neverCalledGitAdapter() });
   const surfaceExchanges = createSurfaceExchangeStore();
