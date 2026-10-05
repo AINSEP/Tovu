@@ -127,7 +127,7 @@ export function resolveCanvasTemplateChoice(templateChoice: string | null, bodyF
  *  could terminate the declaration, the rule, or — the one that actually escalates — the `<style>`
  *  element itself. GrapesJS injects this CSS by string-concatenating it into `<style>…</style>` and
  *  parsing that as HTML (`FrameView.renderBody`), so a `</style>` inside a token value would escape
- *  into markup. Themes are downloadable from a marketplace, so their token files are not fully
+ *  into markup. Themes may come from third parties, so their token files are not fully
  *  trusted input; an offending token is dropped rather than escaped, since no legitimate token value
  *  contains these at all. */
 const SAFE_TOKEN_NAME = /^--[A-Za-z0-9_-]+$/;

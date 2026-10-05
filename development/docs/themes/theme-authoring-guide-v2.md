@@ -14,9 +14,9 @@
 >
 > - **Milestone 2** (`a69632b5`) — a real validator, `validateThemePackage`
 >   (`apps/website/src/features/theme/validation/validate-theme-package.ts`), wired to both
->   `tovu theme validate <dir> --profile author|publish|install` (`cli/commands/theme/validate.ts`)
->   **and** the marketplace install path (`marketplace.ts:265`, `profile: "install"`) — a downloaded
->   theme is validated before it is ever copied onto disk.
+>   `tovu theme validate <dir> --profile author|publish|install` (`cli/commands/theme/validate.ts`).
+>   (The local theme marketplace's install path also ran it at `profile: "install"`; that marketplace
+>   was deleted 2026-10-04.)
 > - **Milestone 3** — the `render/`-nested v2 folder layout (`render/pages/`, `render/partials/`,
 >   `css/theme.css`, `scripts/`) is real, `apiVersion`-driven, and load-bearing — see §11 — and
 >   `tovu theme migrate` (`26f19bf6`, `migration/migrate-theme.ts`) is a real, wired CLI that has
@@ -292,7 +292,7 @@ before assuming anything here is aspirational.
   (`src/features/theme/theme.ts:653`, inside the `build.source === "compiled"` manifest check): a
   `sourceDir` that names, nests inside, or is an ancestor of a reserved generated directory (e.g.
   `"preview"`) now fails the manifest at load, before any write-time gate is even reached. The
-  per-write `isGeneratedThemePath` refusal (`explore.ts`, `marketplace.ts`) stays as a second,
+  per-write `isGeneratedThemePath` refusal (`explore.ts`) stays as a second,
   independent layer — see that function's own doc for why both exist. An earlier version of this
   document (and `explore.ts`'s own comment, since corrected) described this as still open; it
   was closed the same day, later in the session.
@@ -572,8 +572,8 @@ unimplemented finding via a generic top-level-key sweep rather than a dedicated 
 
 **A real validator exists.** `validateThemePackage` (`apps/website/src/features/theme/validation/validate-theme-package.ts`,
 Milestone 2, `a69632b5`, 2026-08-18) is wired to `tovu theme validate <dir> --profile author|publish|install`
-(`cli/commands/theme/validate.ts`) **and** to the marketplace install path (`marketplace.ts:265`, always
-run at `profile: "install"` before a downloaded theme is copied onto disk). For a manifest with
+(`cli/commands/theme/validate.ts`). (The local theme marketplace's install path also ran it at
+`profile: "install"`; that marketplace was deleted 2026-10-04.) For a manifest with
 `apiVersion: 2` it runs a v2-strict path (`validation/manifest-v2.ts`'s `validateManifestV2`,
 `validation/structure.ts`'s `checkApprovedRoots`/`checkSourceDirContainment`,
 `validation/references.ts`'s `checkDeclaredReferences`); for any other manifest it defers to
@@ -732,7 +732,7 @@ for this tier at all (v1 §2.5). Do not build against it.
 1. ~~Fix the `build.sourceDir`-collides-with-a-reserved-directory-name gap~~ — **DONE, 2026-08-17.**
    `isSourceDirGeneratedConflict`, enforced in `loadTheme()`. See §6.
 2. ~~Write the validator.~~ — **DONE, 2026-08-18 (Milestone 2, `a69632b5`).** `validateThemePackage`,
-   wired to `tovu theme validate` and the marketplace install path. See §16.
+   wired to `tovu theme validate`. See §16.
 3. ~~Write `tovu theme migrate`~~ — **DONE, 2026-08-18 (Milestone 3, `26f19bf6`).** Not just built but
    already run: every built-in `static` theme plus `basic-declarative` is migrated, verified on disk.
    See §11.
@@ -755,7 +755,6 @@ for this tier at all (v1 §2.5). Do not build against it.
 - `apps/website/src/features/theme/theme.ts`, `apps/website/src/features/theme/theme-layout.ts`,
   `apps/website/src/features/theme/build-conformance.ts`, `apps/website/src/features/theme/theme-files.ts`,
   `apps/website/src/features/theme/code-tier-asset-normalizer.ts`,
-  `apps/website/src/features/theme/marketplace.ts`,
   `apps/website/src/features/theme/validation/{validate-theme-package,manifest-v2,structure,markup,references,profiles}.ts`,
   `apps/website/src/features/theme/migration/{migrate-theme,theme-migration-plan}.ts`,
   `apps/website/src/cli/commands/theme/{validate,migrate,normalize-build}.ts`,

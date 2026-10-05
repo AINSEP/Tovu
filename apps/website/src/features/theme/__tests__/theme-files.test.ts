@@ -330,7 +330,7 @@ test("an oversized write is refused", () => {
 
 /**
  * `isGeneratedThemePath` — the single shared "is this build-preview.mjs output" check `explore.ts`'s
- * file list and `marketplace.ts`'s download-copy filter both delegate to (2026-08-11, replacing two
+ * file list delegates to (2026-08-11, replacing two
  * independent copies of this exact predicate). The one edge case worth pinning directly: a sibling
  * merely PREFIXED with the generated dir's own name (`preview-notes/`) must NOT match — only the exact
  * `preview` segment or a path nested under it.

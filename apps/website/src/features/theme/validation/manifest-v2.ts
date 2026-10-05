@@ -446,7 +446,7 @@ export function validateManifestV2(
   }
 
   // `lineage`/`skipLiquidAllowlist` are the two 2026-08-18 schema decisions: neither is a v2 field at
-  // all (see `theme-lineage.ts` and `ThemeManifest.skipLiquidAllowlist`'s own doc comments) — the
+  // all (see `structure.ts`'s `INSTALL_LOCAL_FILES` and `ThemeManifest.skipLiquidAllowlist`'s own doc comments) — the
   // generic unknown-field loop above already rejects either if present; called out explicitly here so
   // a future reader sees WHY, rather than assuming the omission from `V2_TOP_LEVEL_KEYS` is a gap.
 

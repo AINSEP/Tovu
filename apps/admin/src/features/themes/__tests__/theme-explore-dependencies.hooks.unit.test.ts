@@ -28,7 +28,6 @@ describe("defaultThemeExplorePort — real api wiring", () => {
       errors: [],
       pages: [],
       partials: [],
-      lineage: null,
       hasOriginal: true,
       files: [],
     };

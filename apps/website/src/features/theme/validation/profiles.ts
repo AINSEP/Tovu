@@ -17,7 +17,8 @@
  * - `publish` — the gate before a theme is listed for others to install. Everything `author` warns
  *   about here becomes a hard failure — an unlicensed or thumbnail-less theme should never reach a
  *   marketplace listing.
- * - `install` — what `marketplace.ts` runs against a fixture before copying it onto a user's disk.
+ * - `install` — the gate to run against a package before copying it onto a user's disk (`tovu theme
+ *   validate --profile install`; the theme marketplace that ran it was deleted 2026-10-04).
  *   Trusts nothing about the package's own claims about itself; at least as strict as `author`, since
  *   an install-time refusal is the last chance to reject a broken or malicious package before it
  *   becomes local files Tovu will read, render, and hand an AI agent write access to.

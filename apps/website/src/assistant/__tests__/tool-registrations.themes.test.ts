@@ -95,7 +95,7 @@ function executionContext(input: Record<string, unknown> | undefined): ToolExecu
 }
 
 function themesRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(deps, undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("theme_") || r.descriptor.id === "content_read.theme" || r.descriptor.id === "marketplace_list_themes").map((r) => [r.descriptor.id, r]));
+  return new Map(buildAssistantToolRegistrations(deps, undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("theme_") || r.descriptor.id === "content_read.theme").map((r) => [r.descriptor.id, r]));
 }
 
 function wired(deps: RouteDeps, toolId: string): ToolRegistration {
@@ -112,8 +112,6 @@ function catalogEntry(toolId: string): AgentToolDefinition {
 
 const WIRED_THEMES_TOOL_IDS = [
   "content_read.theme",
-  "marketplace_list_themes",
-  "theme_install_from_marketplace",
   "theme_rescan",
   "theme_copy_file",
   "theme_edit_file",
@@ -136,7 +134,6 @@ const CATALOGUED_THEMES_TOOL_IDS = WIRED_THEMES_TOOL_IDS.map((id) => (id === "co
 
 // Tools that mutate durable state — everything else in `WIRED_THEMES_TOOL_IDS` is read-only.
 const DESTRUCTIVE_WRITE_TOOL_IDS = [
-  "theme_install_from_marketplace",
   "theme_rescan",
   "theme_write_file",
   "theme_edit_file",
@@ -156,11 +153,12 @@ const DESTRUCTIVE_WRITE_TOOL_IDS = [
 // grows. Updated 2026-09-12: 8 -> 10 (added theme_copy_file then theme_reset_file, the last two
 // gaps a read-only survey found against the human Explore screen's own per-file operations — see
 // `ADS-memory/reports/2026-09-12-theme-agent-tools-survey.md`).
-// t11 adds marketplace browse/install and theme rescan: 10 -> 13.
-test("exactly the 13 themes entries are registered — nothing else", () => {
+// t11 adds marketplace browse/install and theme rescan: 10 -> 13. 2026-10-04: the dead theme marketplace
+// (browse/install) is deleted: 13 -> 11.
+test("exactly the 11 themes entries are registered — nothing else", () => {
   const { deps } = fakeRouteDeps();
   assert.deepEqual([...themesRegistrations(deps).keys()].sort(), [...WIRED_THEMES_TOOL_IDS].sort());
-  assert.equal(getThemesAgentToolCatalog().length, 13, "sanity: the full themes catalog is 13 entries");
+  assert.equal(getThemesAgentToolCatalog().length, 11, "sanity: the full themes catalog is 11 entries");
 });
 
 // `theme_delete_file` stays excluded (2026-08-30 re-examination pending an explicit owner call —
@@ -214,21 +212,21 @@ test("each catalog entry's declared risk matches what this layer derives from it
   }
 });
 
-test("file writes, installation and rescan declare durable effects; browse and file reads declare none", () => {
+test("file writes and rescan declare durable effects; theme and file reads declare none", () => {
   for (const id of DESTRUCTIVE_WRITE_TOOL_IDS) {
     assert.equal(catalogEntry(id).sideEffects, "mutates-durable-state", `${id} should be durable`);
   }
-  for (const id of ["marketplace_list_themes", "theme_list", "theme_list_files", "theme_read_file"]) {
+  for (const id of ["theme_list", "theme_list_files", "theme_read_file"]) {
     assert.equal(catalogEntry(id).sideEffects, "none");
   }
 });
 
 test("reads and theme lifecycle tools require theme.set; file writes require theme.edit", () => {
-  for (const id of ["marketplace_list_themes", "theme_list", "theme_list_files", "theme_read_file"]) {
+  for (const id of ["theme_list", "theme_list_files", "theme_read_file"]) {
     assert.equal(catalogEntry(id).authorization.permission, "theme.set");
   }
   for (const id of DESTRUCTIVE_WRITE_TOOL_IDS) {
-    const permission = ["theme_install_from_marketplace", "theme_rescan"].includes(id) ? "theme.set" : "theme.edit";
+    const permission = id === "theme_rescan" ? "theme.set" : "theme.edit";
     assert.equal(catalogEntry(id).authorization.permission, permission, `${id} should require ${permission}`);
   }
 });

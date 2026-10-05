@@ -15,7 +15,6 @@ export {
   isPublishableThemePageCandidate,
   ENGINE_SUBFOLDERS,
   THEME_CATALOG_DIR,
-  MARKETPLACE_CATALOG_DIR,
   type ThemeManifest,
   type ThemeBuildInfo,
   type ThemeTier,
@@ -28,20 +27,6 @@ export {
 // pass. Re-exported so a consumer checking `theme.manifest.build` can also reach the exact gate
 // `loadTheme()` itself runs, without a second import path into `build-conformance.ts` directly.
 export { checkBuiltThemeConformance, type ConformanceIssue } from "./build-conformance.js";
-
-export {
-  listMarketplaceThemes,
-  downloadMarketplaceTheme,
-  MarketplaceThemeError,
-  type MarketplaceListItem,
-  type ThemeLineage,
-  type DownloadMarketplaceThemeResult,
-} from "./marketplace.js";
-
-// Install-local provenance metadata's own sidecar file (2026-08-18 schema v2 decision) — re-exported
-// so `explore.ts`'s GET route can read a copy's lineage without a deep import into this feature's
-// internals, matching every other cross-feature surface in this barrel.
-export { readThemeLineageFile, writeThemeLineageFile, THEME_LINEAGE_FILENAME } from "./theme-lineage.js";
 
 // Milestone 2 (2026-08-18) — the theme v2 package validator's public entry point, re-exported so
 // `cli/commands/theme/validate.ts` (and any future caller) reaches it through this barrel rather than

@@ -83,7 +83,7 @@ export interface ThemeBuildInfo {
    */
   source: "authored" | "compiled";
   /** `compiled` only — which framework produced the source. Purely descriptive: nothing in Tovu's
-   * request-time branches reads this field; it exists for the editor/marketplace UI and support. */
+   * request-time branches reads this field; it exists for the editor UI and support. */
   framework?: "react" | "vue" | "angular";
   /**
    * `compiled` only, REQUIRED — the authored source tree's root, relative to the theme folder (e.g.
@@ -127,7 +127,7 @@ export interface ThemeManifest {
    * sentinel/folder names at request/install time. As of the 2026-08-18 Milestone 3 migration, all
    * seven built-in static themes (`content/themes/static/*`) declare `2` — this is the live, common case,
    * not a forward-looking one. Absent (or any value other than `2` — still fully supported for a
-   * site-authored or marketplace theme) means v1's flat `css/styles.css`/`js/` shape, preserved
+   * site-authored or third-party theme) means v1's flat `css/styles.css`/`js/` shape, preserved
    * exactly, the only behavior this field had before Milestone 3 introduced `2`.
    */
   apiVersion?: 2;
@@ -831,7 +831,7 @@ function validateCompiledBuildManifest(build: ThemeBuildInfo, tier: ThemeTier): 
   } else if (isSourceDirGeneratedConflict(build.sourceDir)) {
     // The deeper fix promised in `explore.ts`'s PUT handler comment (2026-08-13): a manifest is
     // refused HERE, at install time, rather than relying only on each write route's own
-    // `isGeneratedThemePath` call-site refusal. That refusal (explore.ts, marketplace.ts) stays —
+    // `isGeneratedThemePath` call-site refusal. That refusal (explore.ts) stays —
     // this is an earlier, independent layer, not a replacement for it. See
     // `isSourceDirGeneratedConflict`'s own doc for the three conflicting shapes (exact, nested
     // inside, or ancestor-of a generated dir) and why `"preview-notes"` is not one of them.
@@ -1227,28 +1227,25 @@ export const ENGINE_SUBFOLDERS = ["declarative", "templated", "handlebars", "sta
 export const THEME_CATALOG_DIR = "__original-themes__";
 
 /**
- * The local marketplace fixture root under a themes root — a stand-in for a remote theme
- * marketplace (see `content/themes/__marketplace__/README.md` for what a real one would still need:
- * network, search, versioning). Same shape as {@link THEME_CATALOG_DIR}: `<tier>/<id>/` per
- * {@link ENGINE_SUBFOLDERS}, and the same NOT-a-tier/NOT-a-theme status, for the same reason —
- * discovery skips it outright. A marketplace entry becomes a real, runnable theme only via
- * `downloadMarketplaceTheme` (`marketplace.ts`), which copies it into both {@link THEME_CATALOG_DIR}
- * and a live tier folder under a freshly assigned id ({@link nextAvailableThemeId}).
- */
-export const MARKETPLACE_CATALOG_DIR = "__marketplace__";
-
-/**
  * Prefix of the scratch directory `migrate-theme.ts`'s `createStagingDir` creates as a sibling of the
  * real theme folder it's migrating (`.tovu-migrate-staging-<id>-<random-hex>`), and deliberately
  * LEAVES ON DISK after a dry run or a failed migration for inspection (see that module's own header).
- * Not a tier and not a theme — same status as {@link THEME_CATALOG_DIR}/{@link MARKETPLACE_CATALOG_DIR}
- * — but unlike those two fixed names, discovery can't skip it by exact-name `exclude` because the
+ * Not a tier and not a theme — same status as {@link THEME_CATALOG_DIR}
+ * — but unlike that fixed name, discovery can't skip it by exact-name `exclude` because the
  * random suffix makes every occurrence's name unique; {@link discoverThemes} matches on this prefix
  * instead. ARCH-001 (2026-08-19): two such directories were swept into a commit by a broad `git add`
  * and discovered as three "basic"-id themes (the real one plus both scratch copies, which retain the
  * migrated manifest's `id`) before this constant existed to filter them out.
  */
 export const MIGRATION_STAGING_DIR_PREFIX = ".tovu-migrate-staging-";
+
+/**
+ * The deleted theme marketplace's fixture folder name. The marketplace (and the fixture, gone since
+ * `8fb1f2fea`) was removed 2026-10-04, but a site whose `themes/` was seeded before then still has a
+ * copy of this folder under its own themes root. Discovery keeps skipping it so that leftover never
+ * surfaces as an invalid "__marketplace__" theme, with no manual cleanup needed.
+ */
+const LEGACY_MARKETPLACE_DIR = "__marketplace__";
 
 /**
  * Publish's own scratch folders at the themes ROOT (`publish-files-plan-2026-09-24.md` §3):
@@ -1273,7 +1270,7 @@ export function discoverAllBuiltInThemes(
   const topLevel = discoverThemes({
     dir,
     source,
-    exclude: [...ENGINE_SUBFOLDERS, THEME_CATALOG_DIR, MARKETPLACE_CATALOG_DIR],
+    exclude: [...ENGINE_SUBFOLDERS, THEME_CATALOG_DIR, LEGACY_MARKETPLACE_DIR],
   });
   const engineThemes = ENGINE_SUBFOLDERS.flatMap((sub) => discoverThemes({ dir: join(dir, sub), source }));
   return [...topLevel, ...engineThemes].sort((a, b) => a.manifest.id.localeCompare(b.manifest.id));
@@ -1283,11 +1280,11 @@ export function discoverAllBuiltInThemes(
  * Assign a folder-safe id for a NEW theme being installed under `themesRoot`, guaranteeing it does
  * not collide with anything already there. Theme ids are unique per FOLDER, not globally (see
  * {@link duplicateThemeIds}) — the fix is to never create a second folder claiming an id already in
- * use, which is what this makes possible at the one call site that creates theme folders today
- * (`downloadMarketplaceTheme`, `marketplace.ts`).
+ * use, which is what this makes possible at the call site that creates theme folders today
+ * (`development/scripts/theme-tool.ts`'s `copy` command).
  *
  * Checks BOTH the installed tier folder (`<themesRoot>/<tier>/<id>`) and the catalog
- * (`<themesRoot>/{@link THEME_CATALOG_DIR}/<tier>/<id>`) — a download writes to both in lockstep, so
+ * (`<themesRoot>/{@link THEME_CATALOG_DIR}/<tier>/<id>`) — the two are kept in step, so
  * a folder existing in only one of them (e.g. a previous run left the pair out of sync) still counts
  * as taken. Picking an id free in one and not the other would recreate the exact desync this exists
  * to prevent.
@@ -1296,7 +1293,7 @@ export function discoverAllBuiltInThemes(
  * `basic9`) gets `basic9-1` on collision, not `basic10` — the suffix always unambiguously means "the
  * Nth copy of this id", never a digit that could be mistaken for part of the original id.
  *
- * @param required.desiredId - The id to try first (typically a marketplace fixture's own `theme.json` id).
+ * @param required.desiredId - The id to try first (typically the source theme's own `theme.json` id).
  * @param required.themesRoot - The themes root both the tier folder and the catalog live under.
  * @param required.tier - Which {@link ENGINE_SUBFOLDERS} tier's folder to check.
  * @returns `desiredId` if free, else `desiredId-1`, `desiredId-2`, … — the first free suffix.
@@ -1323,7 +1320,7 @@ export function nextAvailableThemeId(
  *
  * Discovery is otherwise a boot-time snapshot: the composition root calls {@link
  * discoverAllBuiltInThemes} once and freezes the array into `RouteDeps.themes`, so a theme that
- * appears on disk afterwards — downloaded from the marketplace, copied from the originals catalog,
+ * appears on disk afterwards — copied from the originals catalog,
  * dropped in by hand, pulled in by git — is invisible until the process restarts. That is fine for a
  * server whose themes only ever ship with it, and wrong for one where copying a theme is a normal
  * thing a user does in the admin UI.

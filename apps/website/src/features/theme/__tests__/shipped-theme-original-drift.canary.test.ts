@@ -16,7 +16,7 @@ import { ENGINE_SUBFOLDERS, THEME_CATALOG_DIR } from "../theme.js";
  * ---------------------------------------------------------------------------
  * `content/themes/__original-themes__/<tier>/<id>/` is the pristine copy the product restores from.
  * `theme-files.ts`'s `restoreBuiltThemeGeneratedTree` and `explore.ts`'s per-file reset both read it,
- * and `marketplace.ts` reports a theme as resettable purely on that folder existing. For a theme that
+ * and the Explore detail route reports a theme as resettable (`hasOriginal`) on that folder existing. For a theme that
  * SHIPS IN THE PACKAGE, the original and the live copy are the same artifact — nobody edits a stock
  * theme through the admin UI, `content/themes/` is the read-only seed source (`deps.ts`'s
  * `builtInThemesDir()`), so any difference between the two is drift, not customization.

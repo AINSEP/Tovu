@@ -25,7 +25,7 @@ after(() => {
   for (const dir of tempRoots) rmSync(dir, { recursive: true, force: true });
 });
 
-/** A throwaway stock themes tree shaped like the real one: tiers, catalog, marketplace. */
+/** A throwaway stock themes tree shaped like the real one: tiers and catalog. */
 function makeStockTree(): string {
   const root = mkdtempSync(join(tmpdir(), "tovu-stock-themes-"));
   tempRoots.push(root);
@@ -35,8 +35,6 @@ function makeStockTree(): string {
   writeFileSync(join(root, "templated", "storefront", "theme.json"), "{}");
   mkdirSync(join(root, "__original-themes__", "static", "basic", "css"), { recursive: true });
   writeFileSync(join(root, "__original-themes__", "static", "basic", "css", "theme.css"), "body{color:stock}");
-  mkdirSync(join(root, "__marketplace__", "static", "basic"), { recursive: true });
-  writeFileSync(join(root, "__marketplace__", "static", "basic", "theme.json"), "{}");
   return root;
 }
 
@@ -69,17 +67,6 @@ test("copies __original-themes__ — without it the site loses every theme's 're
     readFileSync(join(siteThemesDir, "__original-themes__", "static", "basic", "css", "theme.css"), "utf8"),
     "body{color:stock}"
   );
-});
-
-test("copies __marketplace__ — `listMarketplaceThemes` resolves it under the site's own themes root", () => {
-  // `marketplace.ts` computes `join(themesRoot, MARKETPLACE_CATALOG_DIR)` off `RouteDeps.themesDir`,
-  // which is now the SITE's themes root. Omit it here and the admin Marketplace screen goes empty.
-  const stockDir = makeStockTree();
-  const siteThemesDir = join(makeEmptySiteRoot(), "themes");
-
-  seedSiteThemes({ stockDir, siteThemesDir });
-
-  assert.ok(existsSync(join(siteThemesDir, "__marketplace__", "static", "basic", "theme.json")));
 });
 
 test("never overwrites an existing site themes dir — the owner's edits survive the next boot", () => {

@@ -60,8 +60,6 @@ import {
   type ThemeOriginalSource,
 } from "./theme-files.js";
 import { loadTheme, rescanThemes, type DiscoveredTheme } from "./theme.js";
-import { listMarketplaceThemes, downloadMarketplaceTheme, MarketplaceThemeError } from "./marketplace.js";
-import { readThemeLineageFile } from "./theme-lineage.js";
 // The shared "can this file's identity (name/existence) change" gate — same-module sibling import
 // (this file lives inside `features/theme`, so a direct import is the module's own internal wiring,
 // not a deep-import-from-outside the `no-deep-imports:features/theme` rule polices). `explore.ts`'s
@@ -461,10 +459,6 @@ const THEME_TRASH_TOOL_ID = "theme_trash_file";
  * declaration.
  */
 export const themesDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
-  // -> listMarketplaceThemes() + readThemeLineageFile(): local catalog/provenance reads, no writes.
-  ["marketplace_list_themes", "none"],
-  // -> downloadMarketplaceTheme(): validates, copies originals and working files, then rescans.
-  ["theme_install_from_marketplace", "mutates-durable-state"],
   // -> rescanThemes(): replaces the live discovered-theme registry in place.
   ["theme_rescan", "mutates-durable-state"],
   // -> routeDeps.themes.map(): reads already-discovered in-memory state, no I/O at all.
@@ -595,66 +589,6 @@ export function buildThemesRegistrations(
   surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore() },
 ): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
-    /**
-     * Browses bundled entries with installed ids/lineage, optionally filtered by query.
-     * @param ctx - Principal and optional query; dependencies supply the local theme root/registry.
-     * @returns { themes } with install identities; reads local metadata without changing files.
-     * @throws ToolInputError for malformed input; permission and filesystem failures propagate.
-     * @complexity O(i + m log m + b) time, O(i + m + b) space for installed/catalog counts and bytes read.
-     */
-    marketplace_list_themes: async (ctx) => {
-      const input = requireInputRecord({ input: ctx.input ?? {} });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: THEME_READ_PERMISSION }, { entityType: "presentation" });
-      const query = optionalString({ input: input, key: "query" })?.toLowerCase();
-      const installedById = new Map(routeDeps.themes.map((theme) => [theme.manifest.id, theme]));
-      const installedByMarketplaceId = new Map<string, DiscoveredTheme>();
-      for (const theme of routeDeps.themes) {
-        const lineage = readThemeLineageFile({ themeDir: theme.dir });
-        if (lineage?.marketplaceId && !installedByMarketplaceId.has(lineage.marketplaceId)) {
-          installedByMarketplaceId.set(lineage.marketplaceId, theme);
-        }
-      }
-      const themes = listMarketplaceThemes({ themesRoot: routeDeps.themesDir }).map((entry) => {
-        const installedTheme = installedById.get(entry.id) ?? installedByMarketplaceId.get(entry.id);
-        return {
-          id: entry.id,
-          name: entry.name,
-          description: entry.description ?? "",
-          tier: entry.tier,
-          ...(entry.tags === undefined ? {} : { tags: entry.tags }),
-          installed: Boolean(installedTheme),
-          ...(installedTheme ? { installedAs: installedTheme.manifest.id } : {}),
-        };
-      }).filter((entry) => !query || [entry.name, entry.description, ...(entry.tags ?? [])]
-        .some((text) => text.toLowerCase().includes(query)));
-      return { themes };
-    },
-
-    /**
-     * Installs through the admin route's domain service and reads status from the refreshed registry.
-     * @param ctx - Principal and marketplaceId; dependencies supply the local theme root/registry.
-     * @returns Assigned themeId, collision suffix flag, tier and post-rescan validation status.
-     * @throws ToolInputError for malformed ids or refused packages; permission/I/O failures propagate.
-     * @complexity Delegates validation/copy plus discovery; O(b + t log t) time/space in bytes and theme count.
-     * @remarks Copies files and refreshes the registry; presentation settings are never written.
-     */
-    theme_install_from_marketplace: async (ctx) => {
-      const input = requireInputRecord({ input: ctx.input });
-      const marketplaceId = requireString({ input: input, key: "marketplaceId" });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: THEME_READ_PERMISSION }, { entityType: "presentation" });
-      try {
-        const result = downloadMarketplaceTheme({ themesRoot: routeDeps.themesDir, themes: routeDeps.themes, marketplaceId });
-        const theme = findThemeOrThrow(routeDeps, result.assignedId);
-        return {
-          themeId: result.assignedId, suffixed: result.suffixed, tier: result.tier,
-          status: { status: theme.status, errors: theme.errors },
-        };
-      } catch (error) {
-        if (error instanceof MarketplaceThemeError) throw new ToolInputError({ message: error.message });
-        throw error;
-      }
-    },
-
     /**
      * Refreshes the rendering registry in place after folders arrive or disappear.
      * @param ctx - Principal and empty input; dependencies supply the local theme root/registry.

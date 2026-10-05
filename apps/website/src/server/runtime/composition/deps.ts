@@ -393,7 +393,7 @@ export function builtInThemesDir(): string {
 /**
  * `TOVU_THEMES_DIR` env, then `<site>/themes` — the site's OWN themes root, and the only theme tree
  * anything reads or writes at runtime (`RouteDeps.themesDir`: the Theme Studio's file editor, the
- * agent theme tools, marketplace downloads, `__original-themes__/` resets, and both static-asset
+ * agent theme tools, `__original-themes__/` resets, and both static-asset
  * mounts in `server/app.ts`).
  *
  * Seeded from {@link builtInThemesDir} on a site's first boot — see `seedSiteThemes()`'s own header
@@ -2347,8 +2347,13 @@ async function composeSiteRouteDeps(
     });
   void widgetAdoptionReady;
 
-  // After the boot writers above settle (same shared-connection transaction hazard).
-  if ((overrides?.storeRole ?? "owner") === "owner") void widgetAdoptionReady.then(() => copyLegacyPublishCredentialsAtBoot(routeDeps, kernel));
+  // After the boot writers above settle (same shared-connection transaction hazard). Exposed as
+  // `legacyPublishCredentialsReady` (still fire-and-forget for boot) so whoever owns the store's
+  // lifetime can await the tail instead of racing it (F1833).
+  routeDeps.legacyPublishCredentialsReady =
+    (overrides?.storeRole ?? "owner") === "owner"
+      ? widgetAdoptionReady.then(() => copyLegacyPublishCredentialsAtBoot(routeDeps, kernel))
+      : widgetAdoptionReady;
 
   return routeDeps;
 }

@@ -7,7 +7,7 @@ import type { ContentRouteRegistrar } from "../content/deps.js";
  *
  * Exists because discovery is otherwise a boot-time snapshot (see `rescanThemes`), so a theme that
  * arrives on disk after startup is invisible until the process restarts. Two different things put
- * one there: an in-app action (download from the marketplace, copy an original), which should rescan
+ * one there: an in-app action (copy an original), which should rescan
  * on its own without anyone asking, and an out-of-band change (git pull, our own CLI, a folder
  * dropped in by hand), which nothing can hook — that second case is what this route is for, and why
  * the admin needs a visible control rather than only an implicit refresh.

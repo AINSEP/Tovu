@@ -173,7 +173,7 @@ export function createProgram(): Command {
   themeProgram
     .command("sync-originals")
     .description(
-      "(re)generate every shipped theme's '__original-themes__' entry from its live folder, filtered the same way a marketplace download is — removes the need to hand-maintain the 'reset to original' catalog"
+      "(re)generate every shipped theme's '__original-themes__' entry from its live folder, filtered the same way the Explore file list is (no generated preview output) — removes the need to hand-maintain the 'reset to original' catalog"
     )
     .argument("<themesRoot>", "themes root directory (e.g. content/themes) — NOT a single theme's own folder")
     .option("--json", "print the full machine-readable result instead of a human-readable summary")

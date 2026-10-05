@@ -120,7 +120,6 @@ export interface ThemeExploreDetail {
   apiVersion: 2 | undefined;
   status: string;
   errors: string[];
-  lineage: { from?: string; tier?: string; version?: string; catalog?: string } | null;
   hasOriginal: boolean;
 }
 
@@ -728,7 +727,6 @@ async function fetchThemeExploreState(
       apiVersion: r.apiVersion,
       status: r.status,
       errors: r.errors,
-      lineage: r.lineage,
       hasOriginal: r.hasOriginal,
     },
     files: mapDetailFiles(r.files),

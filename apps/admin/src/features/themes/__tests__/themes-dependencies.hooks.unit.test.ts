@@ -9,7 +9,7 @@ import { createFakeThemesPort, defaultThemesPort } from "../hooks/themes-depende
  * `features/themes` uses instead of it. Every existing suite drives `useThemes` through the fake,
  * so `defaultThemesPort` itself (only reachable via `useWiredThemes`, which no test calls either)
  * has never executed. This suite covers both directly: `defaultThemesPort`'s delegation to `api`,
- * and the fake's own branches (`onRescan`/`onDownload` present vs. absent) that no caller happens
+ * and the fake's own branches (`onRescan` present vs. absent) that no caller happens
  * to take both sides of.
  */
 
@@ -53,26 +53,6 @@ describe("defaultThemesPort — real api wiring", () => {
     expect(spy).toHaveBeenCalledWith("quartz");
   });
 
-  it("listMarketplaceThemes delegates to api.listMarketplaceThemes", async () => {
-    const spy = vi.spyOn(api, "listMarketplaceThemes").mockResolvedValue({
-      themes: [{ id: "alpha", name: "Alpha", tier: "declarative", idTaken: false }],
-    });
-    await expect(defaultThemesPort.listMarketplaceThemes()).resolves.toMatchObject({
-      themes: [{ id: "alpha" }],
-    });
-    expect(spy).toHaveBeenCalledTimes(1);
-  });
-
-  it("downloadMarketplaceTheme delegates to api.downloadMarketplaceTheme with the given id", async () => {
-    const spy = vi.spyOn(api, "downloadMarketplaceTheme").mockResolvedValue({
-      id: "alpha",
-      suffixed: false,
-      tier: "declarative",
-      rescan: { added: ["alpha"], removed: [], total: 2 },
-    });
-    await expect(defaultThemesPort.downloadMarketplaceTheme("alpha")).resolves.toMatchObject({ id: "alpha" });
-    expect(spy).toHaveBeenCalledWith("alpha");
-  });
 });
 
 describe("createFakeThemesPort — rescanThemes", () => {
@@ -103,51 +83,6 @@ describe("createFakeThemesPort — rescanThemes", () => {
       total: 2,
       availableThemeIds: ["basic", "quartz"],
       duplicateIds: [],
-    });
-  });
-});
-
-describe("createFakeThemesPort — listMarketplaceThemes", () => {
-  it("defaults to an empty listing when no marketplace option is supplied", async () => {
-    const port = createFakeThemesPort();
-    await expect(port.listMarketplaceThemes()).resolves.toEqual({ themes: [] });
-  });
-
-  it("returns the scripted marketplace listing when supplied", async () => {
-    const port = createFakeThemesPort({
-      marketplace: [{ id: "alpha", name: "Alpha", tier: "declarative", idTaken: false }],
-    });
-    await expect(port.listMarketplaceThemes()).resolves.toEqual({
-      themes: [{ id: "alpha", name: "Alpha", tier: "declarative", idTaken: false }],
-    });
-  });
-});
-
-describe("createFakeThemesPort — downloadMarketplaceTheme", () => {
-  it("returns the scripted onDownload result when supplied", async () => {
-    const onDownload = vi.fn((themeId: string) => ({
-      id: `${themeId}-1`,
-      suffixed: true,
-      tier: "declarative",
-      rescan: { added: [`${themeId}-1`], removed: [], total: 2 },
-    }));
-    const port = createFakeThemesPort({ onDownload });
-    await expect(port.downloadMarketplaceTheme("alpha")).resolves.toEqual({
-      id: "alpha-1",
-      suffixed: true,
-      tier: "declarative",
-      rescan: { added: ["alpha-1"], removed: [], total: 2 },
-    });
-    expect(onDownload).toHaveBeenCalledWith("alpha");
-  });
-
-  it("falls back to a not-suffixed install result reflecting current availableThemeIds when onDownload is absent", async () => {
-    const port = createFakeThemesPort({ availableThemeIds: ["basic"] });
-    await expect(port.downloadMarketplaceTheme("alpha")).resolves.toEqual({
-      id: "alpha",
-      suffixed: false,
-      tier: "declarative",
-      rescan: { added: ["alpha"], removed: [], total: 2 },
     });
   });
 });

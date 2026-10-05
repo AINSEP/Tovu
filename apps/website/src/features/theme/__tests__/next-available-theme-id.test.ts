@@ -7,8 +7,8 @@ import test from "node:test";
 import { nextAvailableThemeId, THEME_CATALOG_DIR } from "../theme.js";
 
 /**
- * @file `nextAvailableThemeId` — the collision-suffixing rule behind the marketplace download flow
- * (`marketplace.ts`'s `downloadMarketplaceTheme`). Theme ids are unique per FOLDER, not globally
+ * @file `nextAvailableThemeId` — the collision-suffixing rule behind creating a new theme folder
+ * (`development/scripts/theme-tool.ts`'s `copy`). Theme ids are unique per FOLDER, not globally
  * (`duplicateThemeIds`'s doc comment), so this is the one place that decides what id a NEW folder gets.
  */
 

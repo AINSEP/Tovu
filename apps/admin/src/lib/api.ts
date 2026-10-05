@@ -2642,27 +2642,6 @@ export const api = {
       activeThemeTemplates: string[];
       activeThemeStaticPageIds: string[];
     }>(`/workspaces/${WORKSPACE_ID}/presentation`),
-  /** What's installable from the marketplace. `idTaken` means a download will get a `-N` suffix. */
-  listMarketplaceThemes: () =>
-    request<{
-      themes: Array<{ id: string; name: string; tier: string; description?: string; idTaken: boolean }>;
-    }>(`/workspaces/${WORKSPACE_ID}/marketplace/themes`),
-  /**
-   * Download a marketplace theme: writes the pristine original into the catalog AND an editable
-   * copy alongside it, then rescans so the new theme is usable without a server restart.
-   *
-   * `id` in the response is the id actually ASSIGNED, which is not necessarily the one requested —
-   * a collision makes it `basic-1`. Callers must show what they got rather than what they asked for.
-   */
-  downloadMarketplaceTheme: (themeId: string) =>
-    request<{
-      id: string;
-      suffixed: boolean;
-      tier: string;
-      rescan: { added: string[]; removed: string[]; total: number };
-    }>(`/workspaces/${WORKSPACE_ID}/marketplace/themes/${encodeURIComponent(themeId)}/download`, {
-      method: "POST",
-    }),
   /**
    * One theme's editable surface: which pages it ships, which root partials, and where it was
    * copied from. Drives the Explore screen's file list and its "you are editing a copy" banner.
@@ -2710,7 +2689,6 @@ export const api = {
          *  contract: a page can read `published: true` and still not be what a visitor gets. */
         collidingContent?: { id: string; slug: string; title: string; kind: "post" | "page" } | null;
       }>;
-      lineage: { from?: string; tier?: string; version?: string; catalog?: string } | null;
       /** True when an untouched original of this theme exists in the catalog to reset back to. */
       hasOriginal: boolean;
     }>(`/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}`),

@@ -68,7 +68,6 @@ function controller(overrides: Partial<ThemeExploreController> = {}): ThemeExplo
       apiVersion: undefined,
       status: "valid",
       errors: [],
-      lineage: null,
       hasOriginal: true,
     },
     files: FILES,
@@ -1214,7 +1213,6 @@ describe("ThemeExploreDirectionsNotice — no stored original", () => {
         apiVersion: undefined,
         status: "valid",
         errors: [],
-        lineage: null,
         hasOriginal: false,
       },
     });
@@ -1237,7 +1235,6 @@ describe("ThemeExploreStatusNotice — theme failing to load", () => {
         apiVersion: undefined,
         status: "error",
         errors: ["theme.json is not valid JSON", "missing pages/index.html"],
-        lineage: null,
         hasOriginal: true,
       },
     });

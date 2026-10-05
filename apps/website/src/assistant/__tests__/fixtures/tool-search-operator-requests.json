@@ -56,7 +56,6 @@
   {"id":"th-03","area":"themes","query":"change the primary color to navy","expect":["theme_edit_file","theme_write_file"]},
   {"id":"th-04","area":"themes","query":"what themes are installed","expect":["content_read.theme"]},
   {"id":"th-05","area":"themes","query":"undo my changes to the header template","expect":["theme_reset_file"]},
-  {"id":"th-06","area":"themes","query":"install a new theme from the marketplace","expect":["theme_install_from_marketplace"]},
   {"id":"th-07","area":"themes","query":"edit the footer copyright text in the theme","expect":["theme_edit_file"]},
   {"id":"se-01","area":"seo-redirects","query":"how is my seo on the homepage","expect":["seo_analyze_entry"]},
   {"id":"se-02","area":"seo-redirects","query":"set the meta description for the about page","expect":["seo_set_entry_overrides"]},

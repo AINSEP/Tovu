@@ -7,7 +7,7 @@
  * canonical reference): this file declares, `theme-explore-dependencies.hooks.ts` binds the real
  * `api` client, and nothing else under `features/themes` imports `lib/api` for these six routes.
  * NOT shared with `themes-port.hooks.ts` — that hook manages the theme REGISTRY (available themes,
- * active theme, marketplace); this one edits a single theme's FILES, a different resource.
+ * active theme); this one edits a single theme's FILES, a different resource.
  *
  * Return shapes are narrowed to what `use-theme-explore.hooks.ts` actually reads, matching
  * `assistant-chats-port.hooks.ts`'s own minimalism (see that file's doc comment): `getThemeDetail`
@@ -73,7 +73,6 @@ export interface ThemeExplorePort {
     apiVersion?: 2;
     status: string;
     errors: string[];
-    lineage: { from?: string; tier?: string; version?: string; catalog?: string } | null;
     hasOriginal: boolean;
     files: ThemeExploreFileEntry[];
   }>;

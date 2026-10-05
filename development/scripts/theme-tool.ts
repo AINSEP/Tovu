@@ -136,10 +136,11 @@ function insertMarker(
 function cmdCopy(catalogId: string, requestedId: string, tier: string): void {
   const from = catalogThemeDir(catalogId, tier);
 
-  // Suffix on collision (`basic` → `basic-1`) rather than refusing. Sharing `nextAvailableThemeId`
-  // with the marketplace download path is the point: both create a theme, so both must assign ids
-  // the same way, or the CLI and the admin disagree about what "taken" means. It checks the catalog
-  // as well as the tier folder, since a download writes to both and they have to stay in step.
+  // Suffix on collision (`basic` → `basic-1`) rather than refusing. `nextAvailableThemeId` is the one
+  // shared rule for "what id does a NEW theme folder get" (the theme marketplace's download path used
+  // it too until that was deleted 2026-10-04), so any future in-app create path assigns ids the same
+  // way and the CLI and the admin never disagree about what "taken" means. It checks the catalog as
+  // well as the tier folder, since a copy and its original have to stay in step.
   const assignedId = nextAvailableThemeId({ desiredId: requestedId, themesRoot: THEMES_ROOT, tier: tier as ThemeTier });
   const to = join(THEMES_ROOT, tier, assignedId);
 

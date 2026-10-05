@@ -28,10 +28,9 @@ import { dirname, join } from "node:path";
  * product today — discovery of `themesDir` IS the site's theme list (`discoverAllBuiltInThemes`),
  * so a theme that is not on disk under the site simply does not exist to the admin UI. Copying
  * lazily would therefore require inventing an install flow nobody asked for. `__original-themes__/`
- * and `__marketplace__/` come along for the same reason: `theme-files.ts` resolves "reset to
- * original" at `join(themesRoot, THEME_CATALOG_DIR, ...)` and `marketplace.ts` resolves the
- * marketplace at `join(themesRoot, MARKETPLACE_CATALOG_DIR)`, both off the SITE's themes root —
- * omit either and the corresponding admin screen silently goes empty.
+ * comes along for the same reason: `theme-files.ts` resolves "reset to original" at
+ * `join(themesRoot, THEME_CATALOG_DIR, ...)` off the SITE's themes root — omit it and "reset to
+ * original" silently has nothing to restore from.
  *
  * Cost is paid once per site, and only on a boot where `<site>/themes/` is absent.
  *

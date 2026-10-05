@@ -6,7 +6,7 @@ made it look like source code and made an upgrade look like a code change.
 
 | Directory        | What it is                                     | Read by                                              |
 | ---------------- | ---------------------------------------------- | ---------------------------------------------------- |
-| `themes/`        | The stock theme catalog, plus `__marketplace__` (a local fixture standing in for a remote marketplace) and `__original-themes__` (pristine copies for "reset to original") | `builtInThemesDir()` — `src/server/deps.ts` |
+| `themes/`        | The stock theme catalog, plus `__original-themes__` (pristine copies for "reset to original") | `builtInThemesDir()` — `src/server/deps.ts` |
 | `templates/`     | Site templates (`starter/`), the seed content a brand-new site is built from | `readTemplate()` — `src/platform/site-dir/read-template.ts` |
 | `agent-plugins/` | Agent Plugins bundled with the product         | `bundledAgentPluginsDir()` — `src/server/deps.ts`    |
 | `public/`        | Static assets served at the site root (`/agent-icons/*`) | `src/server/app.ts`                          |
@@ -22,7 +22,7 @@ prevent:
 
 `seedSiteThemes()` (`src/features/theme/seed-site-themes.ts`) is the one bridge: on a site's first
 boot it copies `content/themes/` into `<site>/themes/`. From then on the site reads and writes only
-its own copy — the Theme Studio's file editor, the agent theme tools, marketplace downloads and the
+its own copy — the Theme Studio's file editor, the agent theme tools and the
 `__original-themes__/` resets all target `siteThemesDir()`, never this tree. That is why a site's
 edited themes and their own backups survive an upgrade: they were never inside the package.
 

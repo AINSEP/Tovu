@@ -28,8 +28,6 @@ import {
   registerAdminThemeFileResetRoute,
   registerAdminThemePagePublishRoute,
 } from "#src/server/inbound/admin-http/routes/themes/explore";
-import { registerAdminMarketplaceThemesListRoute } from "#src/server/inbound/admin-http/routes/marketplace/list";
-import { registerAdminMarketplaceThemeDownloadRoute } from "#src/server/inbound/admin-http/routes/marketplace/download";
 import type { ContentRouteDeps } from "#src/server/inbound/admin-http/routes/content/deps";
 import type { ServerModuleHandle } from "./types.js";
 
@@ -60,7 +58,8 @@ import type { ServerModuleHandle } from "./types.js";
  * `registerAdminMarketplaceThemesListRoute`/`registerAdminMarketplaceThemeDownloadRoute`. Same
  * `deps.themes`/`deps.themesDir` the theme-rescan/list registrations already read, and the download
  * route ends by calling the same `rescanThemes` `rescan-themes.ts` already exposes as its own route —
- * now 16 registrations total.
+ * now 16 registrations total. Both removed 2026-10-04 with the dead theme marketplace (its fixture
+ * was deleted in `8fb1f2fea`) — back to 14.
  *
  * Template-preview fix (2026-08-11, `ADS-memory/reports/implementation/
  * 2026-08-11-template-preview-render-bug.md`): added `registerAdminPostTemplatePreviewRoute` — reuses
@@ -103,8 +102,6 @@ export function createContentModule(deps: ContentRouteDeps): ServerModuleHandle 
       registerAdminPresentationPatchRoute(app, deps);
       registerAdminThemeRescanRoute(app, deps);
       registerAdminThemesListRoute(app, deps);
-      registerAdminMarketplaceThemesListRoute(app, deps);
-      registerAdminMarketplaceThemeDownloadRoute(app, deps);
       // Explore screen. `/themes/:themeId/file` is registered BEFORE `/themes/:themeId` would
       // shadow it — Express matches in registration order, and while `/themes/:themeId` has no
       // trailing segment today, the ordering is the guarantee rather than the current path shapes

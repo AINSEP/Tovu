@@ -45,7 +45,7 @@ describe("useThemeExplore — injected port (no fetch stub, no api spy)", () => 
   it("loads detail/files from the injected port and never touches the real api client", async () => {
     const getDetailSpy = vi.spyOn(api, "getThemeDetail");
     const port = createFakeThemeExplorePort({
-      detail: { id: "basic", name: "Basic", tier: "declarative", status: "active", errors: [], lineage: null, hasOriginal: true },
+      detail: { id: "basic", name: "Basic", tier: "declarative", status: "active", errors: [], hasOriginal: true },
       files: [{ path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true }],
       contents: { "pages/index.html": "<h1>Home</h1>" },
     });
@@ -277,7 +277,7 @@ describe("useThemeExplore — default selection resolves the v2 index page regar
 
   it("opens the index page, not the alphabetically-first page, for a v2 theme with no page/file param", async () => {
     const port = createFakeThemeExplorePort({
-      detail: { id: "basic", name: "Basic", tier: "static", status: "valid", errors: [], lineage: null, hasOriginal: true, apiVersion: 2 },
+      detail: { id: "basic", name: "Basic", tier: "static", status: "valid", errors: [], hasOriginal: true, apiVersion: 2 },
       files: FILES,
       contents: CONTENTS,
     });
@@ -657,7 +657,7 @@ describe("useThemeExplore — modified mapping", () => {
 describe("useThemeExplore — startRename's client-side lock mirrors the server's apiVersion-aware required files", () => {
   it("v1 (apiVersion undefined): locks pages/index.html, allows an ordinary page", async () => {
     const port = createFakeThemeExplorePort({
-      detail: { id: "t", name: "T", tier: "static", status: "valid", errors: [], lineage: null, hasOriginal: true },
+      detail: { id: "t", name: "T", tier: "static", status: "valid", errors: [], hasOriginal: true },
       files: [
         { path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true },
         { path: "pages/about.html", group: "page", readable: true, editable: true, resettable: true },
@@ -688,7 +688,6 @@ describe("useThemeExplore — startRename's client-side lock mirrors the server'
         tier: "static",
         status: "valid",
         errors: [],
-        lineage: null,
         hasOriginal: true,
         apiVersion: 2,
       },
@@ -1067,7 +1066,6 @@ type DeferredThemeDetail = {
   errors: string[];
   pages: string[];
   partials: string[];
-  lineage: null;
   hasOriginal: boolean;
   files: never[];
 };
@@ -1098,7 +1096,6 @@ describe("useThemeExplore — initial load effect cleanup (cancelled)", () => {
         errors: [],
         pages: [],
         partials: [],
-        lineage: null,
         hasOriginal: true,
         files: [],
       });
@@ -1128,7 +1125,7 @@ describe("useThemeExplore — initial load effect cleanup (cancelled)", () => {
     let rejectStale!: (reason: unknown) => void;
     const stale = new Promise<never>((_resolve, reject) => { rejectStale = reject; });
     const port = createFakeThemeExplorePort({
-      detail: { id: "b", name: "Theme B", tier: "static", status: "valid", errors: [], lineage: null, hasOriginal: true },
+      detail: { id: "b", name: "Theme B", tier: "static", status: "valid", errors: [], hasOriginal: true },
       files: [],
     });
     const getDetail = port.getThemeDetail.bind(port);
@@ -1158,7 +1155,7 @@ describe("useThemeExplore — initial load effect cleanup (cancelled)", () => {
   it("a stale successful response for an OLD themeId does not overwrite state the NEW themeId already loaded", async () => {
     let resolveStale!: (value: DeferredThemeDetail) => void;
     const port = createFakeThemeExplorePort({
-      detail: { id: "b", name: "Theme B", tier: "static", status: "valid", errors: [], lineage: null, hasOriginal: true },
+      detail: { id: "b", name: "Theme B", tier: "static", status: "valid", errors: [], hasOriginal: true },
       files: [],
     });
     const realGetThemeDetail = port.getThemeDetail.bind(port);
@@ -1188,7 +1185,6 @@ describe("useThemeExplore — initial load effect cleanup (cancelled)", () => {
         errors: [],
         pages: [],
         partials: [],
-        lineage: null,
         hasOriginal: true,
         files: [],
       });
@@ -1658,7 +1654,6 @@ describe("useThemeExplore — modified state after Save and Reset", () => {
       tier: "static",
       status: "active",
       errors: [],
-      lineage: null,
       hasOriginal: true,
       files: [{ path: PATH, group: "page", readable: true, editable: true, resettable: true, modified: current !== ORIGINAL }],
     });
@@ -2684,7 +2679,6 @@ describe("useWiredThemeExplore", () => {
       errors: [],
       pages: [],
       partials: [],
-      lineage: null,
       hasOriginal: true,
       files: [],
     } as never);
@@ -3572,7 +3566,6 @@ describe("useThemeExplore — content refresh bus (agent writes while Explore is
       apiVersion: 2,
       status: "active",
       errors: [],
-      lineage: null,
       hasOriginal: true,
       files: [
         { path: PATH, group: "style", readable: true, editable: true, resettable: true, modified: state.live !== ORIGINAL },
@@ -3762,7 +3755,7 @@ describe("useThemeExplore — toasts go through t()", () => {
 
   function toastPort() {
     return createFakeThemeExplorePort({
-      detail: { id: "basic", name: "Basic", tier: "static", apiVersion: 2, status: "active", errors: [], lineage: null, hasOriginal: true },
+      detail: { id: "basic", name: "Basic", tier: "static", apiVersion: 2, status: "active", errors: [], hasOriginal: true },
       files: [
         { path: ABOUT, group: "page", readable: true, editable: true, resettable: true, modified: true, published: true },
         { path: CSS, group: "style", readable: true, editable: true, resettable: true, modified: true },
@@ -3824,7 +3817,6 @@ describe("useThemeExplore — toasts go through t()", () => {
       apiVersion: 2,
       status: "active",
       errors: [],
-      lineage: null,
       hasOriginal: true,
       files: [{ path: "css/$&.css", group: "style", readable: true, editable: true, resettable: true, modified: false }],
     });

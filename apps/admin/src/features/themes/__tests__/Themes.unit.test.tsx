@@ -195,7 +195,7 @@ describe("Publish section button (plan-publish-sections-2026-09-25.md §2 S3)", 
 });
 
 describe("tier tabs", () => {
-  it("renders four tab-group tabs (not five raw tiers) plus a disabled Marketplace placeholder, each carrying its theme count", () => {
+  it("renders exactly four tab-group tabs (not five raw tiers, and no Marketplace tab), each carrying its theme count", () => {
     render(
       <Themes
         useThemesHook={() =>
@@ -204,7 +204,7 @@ describe("tier tabs", () => {
       />,
     );
     const tabs = screen.getAllByRole("tab");
-    // Order is Declarative | Static | Templated | Code | Marketplace, per `THEME_TAB_GROUPS`
+    // Order is Declarative | Static | Templated | Code, per `THEME_TAB_GROUPS`
     // in rules.ts (commit fd81d10, 2026-08-11 owner feedback: Static reads before Templated
     // since Tovu ships a working static theme today and no templated one yet). Do not
     // "fix" this back to alphabetical/original order — that commit deliberately reordered it.
@@ -213,10 +213,6 @@ describe("tier tabs", () => {
       "Static2",
       "Templated0",
       "Code0",
-      // No count suffix: this controller's `marketplace` is empty, and the tab passes `undefined`
-      // rather than 0 so an unopened Marketplace does not advertise "0 available" before it has
-      // been asked. The tiers above always show their count because it is already known.
-      "Marketplace",
     ]);
   });
 
@@ -283,98 +279,24 @@ describe("tier tabs", () => {
     expect(screen.getByText("signal")).toBeInTheDocument();
   });
 
+  // The theme Marketplace tab was deleted 2026-10-04 with the dead marketplace it listed; an old
+  // `?tab=marketplace` deep link must land on the themes grid, not an empty screen.
+  it("treats a stale ?tab=marketplace link like any unrecognized tab: the active theme's own tab group", () => {
+    render(
+      <Themes
+        tabId="marketplace"
+        useThemesHook={() => baseController({ themeTiers: { signal: "static" } })}
+      />,
+    );
+    expect(screen.getByRole("tab", { name: /^Static/ })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByText("signal")).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: /^Marketplace/ })).not.toBeInTheDocument();
+  });
+
   it("shows a sensible empty state, not an error, for a tier with zero themes", () => {
     render(<Themes tabId="code" useThemesHook={() => baseController()} />);
     expect(screen.getByText("No themes in this tier yet.")).toBeInTheDocument();
     expect(screen.queryByText("failed")).not.toBeInTheDocument();
-  });
-});
-
-// The Marketplace tab was a `disabled` placeholder until the local `__marketplace__` fixture and
-// its list/download routes landed. These assertions changed because the BEHAVIOR changed — the tab
-// is now selectable and lists real installable themes — not because the old ones were inconvenient.
-describe("Marketplace tab", () => {
-  it("clicking Marketplace loads the listing, once, and navigates to ?tab=marketplace", async () => {
-    const user = userEvent.setup();
-    const loadMarketplace = vi.fn(async () => {});
-    render(<Themes useThemesHook={() => baseController({ loadMarketplace })} />);
-
-    const marketplaceTab = screen.getByRole("tab", { name: /^Marketplace/ });
-    expect(marketplaceTab).not.toBeDisabled();
-
-    await user.click(marketplaceTab);
-    // Loading is a side effect of the click itself (`onChange`), independent of whether THIS
-    // render goes on to show the tab as active — see the `tabId="marketplace"` test below for that
-    // half, split for the same reason `Deployment.unit.test.tsx` splits its own click-vs-content
-    // assertions (ADR-063: a tab click now drives real `navigate()`, not local state).
-    expect(loadMarketplace).toHaveBeenCalledTimes(1);
-    expect(window.location.search).toBe("?tab=marketplace");
-  });
-
-  it("opens directly on Marketplace via tabId, listing installable themes rather than installed ones", () => {
-    render(<Themes tabId="marketplace" useThemesHook={() => baseController()} />);
-
-    expect(screen.getByRole("tab", { name: /^Marketplace/ })).toHaveAttribute("aria-selected", "true");
-    // Installed-theme cards are gone; this tab lists what is installable, not what is installed.
-    expect(screen.queryByText("signal")).not.toBeInTheDocument();
-  });
-
-  it("warns BEFORE download that a colliding id will be renamed, and downloads under the requested id", async () => {
-    const user = userEvent.setup();
-    const download = vi.fn(async () => {});
-    render(
-      <Themes
-        tabId="marketplace"
-        useThemesHook={() =>
-          baseController({
-            download,
-            marketplace: [
-              { id: "basic", name: "Basic", tier: "static", description: "A fixture", idTaken: true },
-            ],
-          })
-        }
-      />
-    );
-
-    // The rename is announced up front. A download that silently lands as `basic-1` after the
-    // operator asked for `basic` reads as something having gone wrong.
-    expect(screen.getByText(/already have a theme called/i)).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "Download Basic" }));
-    // Called with the MARKETPLACE id — the server assigns the suffixed local id, not this caller.
-    expect(download).toHaveBeenCalledWith("basic");
-  });
-
-  it("shows Downloading… and disables the button while a download is in flight for that item", () => {
-    render(
-      <Themes
-        tabId="marketplace"
-        useThemesHook={() =>
-          baseController({
-            downloading: "basic",
-            marketplace: [{ id: "basic", name: "Basic", tier: "static", description: "A fixture", idTaken: false }],
-          })
-        }
-      />,
-    );
-    const button = screen.getByRole("button", { name: "Downloading… Basic" });
-    expect(button).toBeDisabled();
-  });
-
-  it("shows no rename warning when the id is free", () => {
-    render(
-      <Themes
-        tabId="marketplace"
-        useThemesHook={() =>
-          baseController({
-            marketplace: [
-              { id: "nordic", name: "Nordic", tier: "static", description: "A fixture", idTaken: false },
-            ],
-          })
-        }
-      />
-    );
-    expect(screen.queryByText(/already have a theme called/i)).not.toBeInTheDocument();
   });
 });
 
@@ -500,15 +422,6 @@ describe("rescan toast", () => {
   it("enables Rescan when rescan() exists and nothing is in flight", () => {
     render(<Themes useThemesHook={() => baseController({ rescan: vi.fn(async () => {}), rescanning: false })} />);
     expect(screen.getByRole("button", { name: "Rescan themes" })).toBeEnabled();
-  });
-});
-
-describe("Marketplace tab — loading state", () => {
-  it("shows a loading message while the listing is in flight", () => {
-    render(
-      <Themes tabId="marketplace" useThemesHook={() => baseController({ marketplaceLoading: true, marketplace: [] })} />,
-    );
-    expect(screen.getByText("Loading the marketplace…")).toBeInTheDocument();
   });
 });
 

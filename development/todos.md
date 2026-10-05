@@ -119,7 +119,7 @@ Re-audited against code/git 2026-10-04 (evening): statuses below marked **PARTLY
 - **List/cursor/branch validation, jl C6a–C6c** (09-24, L3318): plan `ADS-memory/.local-artifacts/fix-plan-jini-leftovers-2026-09-24.md`.
 - **Regenerate a leaked site key from the UI** (09-12, L88): must re-encrypt every sealed credential; an env-set key cannot change from the UI. Recovery routes exist (`82444fec4`), no regenerate flow.
 - **Finish the site-key rename** (09-19/09-24, L2412/L3240): jobs 1–2 (2026-10-04) committed dual env reads, conflict refusal, site-key copy, identifiers, files, routes, and permission migration. Job 3 swept prose, added the name guard and missing tab translations, and prepared Jini canonical exports; two schema comments await the staged comment-only patch. Coordinator verification, the Jini release/import update, owner secret-name migration, and legacy retirement remain. Keep the existing key bytes; do not rotate during the rename.
-- **Legal: controller name + desktop AI report link** (09-24, L3042/L3303): the rest landed 10-04 (`a0336c0dc`, see Done below). Still open: the pages say `[[OWNER NAME]]` where the owner's name goes, and the desktop Help menu has no "Report AI content" link. Form-IP cleanup (`2a41f672e`) stays off until a `@jini-ai/cms-forms` release with `sweepExpiredSubmissionIps` is installed.
+- **Legal: controller name + desktop AI report link** (09-24, L3042/L3303): the rest landed 10-04 (`a0336c0dc`, see Done below). Still open: the pages say `[[OWNER NAME]]` where the owner's name goes, and the desktop Help menu has no "Report AI content" link (owner-declined for now, 10-04). Form-IP cleanup (`2a41f672e`) stays off until a `@jini-ai/cms-forms` release with `sweepExpiredSubmissionIps` is installed.
 
 ### Owner-only actions and calls
 - **Codex GitHub app can see the 4 AINSEP repos?** (10-02, L3727): external app permission, check in GitHub.
@@ -1942,14 +1942,13 @@ Note the symmetry with the public theme work: site themes carry `tokens.json` + 
 and swap by writing `data-theme`. Admin skins are the same shape. Worth keeping the two token
 vocabularies deliberately similar rather than letting them drift into two unrelated systems.
 
-## Theme marketplace — local fixture only
+## Theme marketplace — DELETED 2026-10-04
 
-**STALE text (re-audit 10-04):** the `__marketplace__` fixture was deleted in `8fb1f2fea` (08-31), but `MARKETPLACE_CATALOG_DIR` (`features/theme/theme.ts:1238`), `features/theme/marketplace.ts` and `routes/marketplace/{list,download}.ts` still point at it. Owner: delete the dead code or restore a fixture. A real marketplace is unbuilt.
-
-`content/themes/__marketplace__/` stands in for a remote marketplace so the download flow can be
-exercised end to end. No network, no search, no publisher identity, no versioning or update
-checks, no signing. A real one needs all of those, plus a stable upstream identity on `lineage`
-(local folder ids are per-install and mean nothing on another machine).
+Owner: delete the dead code rather than restore a fixture. Removed (`8c1780077` + the follow-up commit): `features/theme/marketplace.ts`,
+`theme-lineage.ts`, `routes/marketplace/{list,download}.ts`, the `marketplace_list_themes`/`theme_install_from_marketplace` agent
+tools, the admin Themes Marketplace tab/API/port, the Explore "Copied from" lineage tooltip, and their tests/i18n. Discovery still
+skips a leftover `__marketplace__` folder in old sites, and `.tovu-lineage.json` stays an allowed install-local file. A real
+marketplace (network, search, publisher identity, versioning, signing, stable upstream ids) is unbuilt.
 
 ## Tailwind + shadcn/ui — owner wants both, deferred (2026-08-11)
 

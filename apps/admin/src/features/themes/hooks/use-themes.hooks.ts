@@ -72,25 +72,8 @@ export interface ThemesController {
   rescan?: () => Promise<void>;
   /** Clears `rescanNotice`. The toast auto-dismisses on a timer and calls this when it does. */
   dismissRescanNotice?: () => void;
-  /** What the marketplace offers. Empty until the Marketplace tab is first opened. */
-  marketplace?: MarketplaceItem[];
-  marketplaceLoading?: boolean;
-  /** Loads the marketplace listing. Called lazily so the Themes screen costs nothing extra. */
-  loadMarketplace?: () => Promise<void>;
-  /** Marketplace id currently downloading, or `null`. */
-  downloading?: string | null;
-  download?: (themeId: string) => Promise<void>;
   /** Bound translator — `Themes.tsx`'s only source of UI copy; see this file's own header. */
   t: Translate;
-}
-
-export interface MarketplaceItem {
-  id: string;
-  name: string;
-  tier: string;
-  description?: string;
-  /** True when this id is already used locally, so downloading assigns a `-N` suffix instead. */
-  idTaken: boolean;
 }
 
 /**
@@ -105,28 +88,19 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
   const [busyTheme, setBusyTheme] = useState<string | null>(null);
   const [rescanning, setRescanning] = useState(false);
   const [rescanNotice, setRescanNotice] = useState<string | null>(null);
-  const [marketplace, setMarketplace] = useState<MarketplaceItem[]>([]);
-  const [marketplaceLoading, setMarketplaceLoading] = useState(false);
-  const [downloading, setDownloading] = useState<string | null>(null);
 
   // Monotonic per-call ids (extracted into `useSettlementGeneration` 2026-09-06, same shape as
-  // `use-sites.hooks.ts`'s own `activateSettlement`): `activate`/`download` each take a theme id and
-  // race an independent request per call, and network completion order does not have to match click
-  // order. A stale settlement (checked before every state write below, not just the success path,
-  // since an out-of-order FAILURE would otherwise resurrect a stale error over a newer call's real
-  // outcome) is dropped instead of overwriting whatever the latest call already produced. Two
-  // separate instances, not one shared counter — `activate` and `download` are independent actions
-  // with their own busy flags (`busyTheme`/`downloading`), so a rename racing a download must not
-  // supersede an unrelated activate still in flight, or vice versa.
+  // `use-sites.hooks.ts`'s own `activateSettlement`): `activate` takes a theme id and races an
+  // independent request per call, and network completion order does not have to match click order.
+  // A stale settlement (checked before every state write below, not just the success path, since an
+  // out-of-order FAILURE would otherwise resurrect a stale error over a newer call's real outcome) is
+  // dropped instead of overwriting whatever the latest call already produced.
   const activateSettlement = useSettlementGeneration();
-  const downloadSettlement = useSettlementGeneration();
 
   // Serializes `activate` calls onto one lane (2026-09-20, same shape `use-sites.hooks.ts`'s
   // `activate` adopted first): the server persists whichever activation it processes LAST, so two
   // activations in flight at once could leave the server on an earlier choice than the one this
-  // screen reports. `download` deliberately stays off this lane — it is a separate action with its
-  // own busy flag (`downloading`), and queuing it behind `activate` would make a download wait
-  // behind an unrelated theme switch with no bug behind it.
+  // screen reports.
   const activateWrites = useSerialWrites();
 
   useEffect(() => {
@@ -193,60 +167,6 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
     });
   }
 
-  async function loadMarketplace() {
-    setMarketplaceLoading(true);
-    try {
-      const r = await port.listMarketplaceThemes();
-      setMarketplace(r.themes);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to load the marketplace");
-    } finally {
-      setMarketplaceLoading(false);
-    }
-  }
-
-  /**
-   * Download, then reload both the installed list and the marketplace listing.
-   *
-   * The marketplace has to be re-fetched too, not just the theme grid: every item's `idTaken` flag
-   * is a statement about local state, and downloading is exactly what changes it. Skipping that
-   * refresh would leave a freshly-taken id still advertising itself as free.
-   */
-  async function download(themeId: string) {
-    const generation = downloadSettlement.next();
-    setDownloading(themeId);
-    setError(null);
-    setRescanNotice(null);
-    try {
-      const r = await port.downloadMarketplaceTheme(themeId);
-      const refreshed = await refetchPresentation(port, t);
-      // Same stale-settlement guard as `activate` above — see `activateSettlement`'s doc comment
-      // for why every branch (not just this success path) has to check before writing state.
-      if (!downloadSettlement.isCurrent(generation)) return;
-      // The theme is installed whatever the re-read says — calling that a failure invited a retry
-      // that installs a second, suffixed copy. Report the install, and the read as its own error.
-      if (!refreshed.ok) {
-        setRescanNotice(installedNotice(r, themeId));
-        setError(refreshed.message);
-        return;
-      }
-      const { fresh } = refreshed;
-      setSettings(fresh.settings);
-      setThemes(fresh.availableThemeIds);
-      setThemeTiers(Object.fromEntries(fresh.availableThemes.map((t) => [t.id, t.tier])));
-      setThemeNames(themeNamesById(fresh.availableThemes));
-      await loadMarketplace();
-      if (!downloadSettlement.isCurrent(generation)) return;
-      setRescanNotice(installedNotice(r, themeId));
-    } catch (e) {
-      if (!downloadSettlement.isCurrent(generation)) return;
-      setError(e instanceof Error ? e.message : "failed to download theme");
-    } finally {
-      if (!downloadSettlement.isCurrent(generation)) return;
-      setDownloading(null);
-    }
-  }
-
   return {
     settings,
     themes,
@@ -259,17 +179,12 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
     rescanNotice,
     rescan,
     dismissRescanNotice: () => setRescanNotice(null),
-    marketplace,
-    marketplaceLoading,
-    loadMarketplace,
-    downloading,
-    download,
     t,
   };
 }
 
 /**
- * Binds the real `/api/.../presentation` + `/marketplace` client and a `themes-i18n.ts`-bound
+ * Binds the real `/api/.../presentation` client and a `themes-i18n.ts`-bound
  * translator — see `themes-dependencies.hooks.ts`.
  *
  * The zero-argument half of the `useX(dependencies)` / `useWiredX()` pair, so `Themes.tsx` composes
@@ -289,31 +204,6 @@ export function useWiredThemes(): ThemesController {
  * looking at. "No changes" is stated explicitly rather than left blank — silence after pressing a
  * button reads as a broken button.
  */
-/**
- * {@link ThemesPort.getPresentation} for the re-read after a download that already SUCCEEDED — a
- * failed read comes back as its own message instead of throwing into the download's own catch.
- *
- * @complexity Time/space: O(n) in the installed theme count (the one read it wraps).
- */
-async function refetchPresentation(
-  port: ThemesPort,
-  t: Translate
-): Promise<{ ok: true; fresh: Awaited<ReturnType<ThemesPort["getPresentation"]>> } | { ok: false; message: string }> {
-  try {
-    return { ok: true, fresh: await port.getPresentation() };
-  } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : t("failed to refresh the theme list") };
-  }
-}
-
-/** The download notice — which id the theme was installed under, and why when it is not the one asked for.
- *  @complexity Time/space: O(1). */
-function installedNotice(result: { id: string; suffixed: boolean }, requestedId: string): string {
-  return result.suffixed
-    ? `Installed as “${result.id}” — “${requestedId}” was already taken, so it was renamed.`
-    : `Installed “${result.id}”.`;
-}
-
 function describeRescan(result: {
   added: string[];
   removed: string[];

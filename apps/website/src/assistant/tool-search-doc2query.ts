@@ -1108,20 +1108,6 @@ export const DOC2QUERY: Readonly<Record<string, readonly string[]>> = {
     "Can this tool actually perform the merge, or just show me what would happen?",
     "What content would lose its duplicate tag assignment if I merge these terms?",
   ],
-  marketplace_list_themes: [
-    "Browse the theme marketplace.",
-    "Find a new theme for my site.",
-    "Show available theme templates and designs.",
-    "What themes are in the marketplace gallery?",
-    "Search marketplace themes by name or tags.",
-  ],
-  theme_install_from_marketplace: [
-    "Install a new theme from the marketplace.",
-    "Download this theme into my site.",
-    "Add a marketplace theme without activating it.",
-    "Get a new theme for my site.",
-    "I want to use a different design; install a theme first.",
-  ],
   theme_rescan: [
     "Rescan themes after I added a folder.",
     "Refresh themes; my new theme folder is not showing.",

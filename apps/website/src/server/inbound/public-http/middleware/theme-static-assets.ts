@@ -100,8 +100,8 @@ export function registerThemeStaticAssets(app: Express, required: { themeRoots: 
  * - `..`/separators/absolute paths, rejected by `core/path-containment.ts`'s shared
  *   `resolvePathWithin` — kept even though Express decodes `:themeId` as a single segment, because
  *   that is a property of the routing layer rather than of this function.
- * - the `__original-themes__`/`__marketplace__` catalogs, whose whole purpose is to be a pristine
- *   copy nothing serves or runs; neither is a theme and must not be reachable as one.
+ * - the `__original-themes__` catalog, whose whole purpose is to be a pristine
+ *   copy nothing serves or runs; it is not a theme and must not be reachable as one.
  * - ANY dot-prefixed directory name. `.tovu-migrate-staging-*` scratch output (ARCH-001,
  *   2026-08-19) is the case that forced this: `migrate-theme.ts` deliberately leaves that on disk
  *   for dry-run/failure inspection as a direct sibling of real theme folders, and without a

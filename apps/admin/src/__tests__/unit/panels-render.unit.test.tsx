@@ -300,7 +300,7 @@ describe("panel 'themes'", () => {
     expect((panel("themes").render(ctx()) as ReactElement).type).toBe(Themes);
   });
 
-  // ADR-063: the tier tabs (Declarative/Static/Templated/Code/Marketplace) get `?tab=`, matching
+  // ADR-063: the tier tabs (Declarative/Static/Templated/Code) get `?tab=`, matching
   // `TAB_THREADED_PANELS` above — but `themes`' own `render` isn't in that generic table because,
   // unlike those panels, it ALSO dispatches on `ctx.view` for `theme-explore` below.
   it("index route threads ?tab= into tabId, and tabId is null when the query param is absent", () => {

@@ -39,17 +39,15 @@
  *     compound descendant selector scoped to one specific wrapper class, not a general `iframe`
  *     rule. It protects iframes an author places inside that one wrapper and nothing else.
  *
- * ## Scope: `src/themes/static/` only — NOT `__original-themes__`, `__marketplace__`,
+ * ## Scope: `src/themes/static/` only — NOT `__original-themes__`,
  * `declarative/`, `templated/`, or `handlebars/`
  *
  * Real theme discovery (`discoverAllBuiltInThemes`, `src/features/theme/theme.ts:1196`) scans
  * `ENGINE_SUBFOLDERS` (`declarative`, `templated`, `handlebars`, `static`) and explicitly excludes
- * `THEME_CATALOG_DIR` (`__original-themes__`) and `MARKETPLACE_CATALOG_DIR` (`__marketplace__`) —
- * that file's own doc comments spell out why: both are "NOT a tier and NOT a theme", never
- * runnable, never listed, never the active theme. `__original-themes__` is a pristine-copy catalog
- * kept for diffing/reset; `__marketplace__` is a local marketplace fixture (one entry deliberately
- * id-collides with `basic` to exercise the download de-dupe path). Scanning either would check
- * files nothing ever serves.
+ * `THEME_CATALOG_DIR` (`__original-themes__`) — that file's own doc comments spell out why: it is
+ * "NOT a tier and NOT a theme", never runnable, never listed, never the active theme. It is a
+ * pristine-copy catalog kept for diffing/reset. Scanning it would check files nothing ever serves.
+ * (The old `__marketplace__` fixture is gone; the marketplace was deleted 2026-10-04.)
  *
  * This check goes narrower than `discoverAllBuiltInThemes` and scans `static/` ONLY, not the other
  * three real engine subfolders, for a different reason than the catalog exclusion above: the

@@ -7,15 +7,7 @@ import test from "node:test";
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
-// Barrel, not `#src/features/theme/theme-lineage` — the `no-deep-imports:features/theme`
-// dependency-cruiser rule is severity `error` and a deep import fails `npm run check:boundaries`.
-// The barrel already re-exports both of these, so the deep path bought nothing.
-import {
-  discoverAllBuiltInThemes,
-  THEME_CATALOG_DIR,
-  THEME_LINEAGE_FILENAME,
-  type ThemeLineage,
-} from "#src/features/theme/index";
+import { discoverAllBuiltInThemes, THEME_CATALOG_DIR } from "#src/features/theme/index";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminThemeDetailRoute } from "../explore.js";
 import type { ContentRouteDeps } from "../../content/deps.js";
@@ -25,10 +17,9 @@ import { InMemoryPostRepo } from "#src/features/post/index";
 /**
  * @file Branch coverage for `registerAdminThemeDetailRoute`'s own logic, once the shared
  * access/not-found gates (`explore-access-and-not-found.test.ts`) and the built-theme write-scope
- * gates (`explore-built-theme-gate.test.ts`) are out of the way: the `lineage` read's own try/catch
- * (present, absent-key, and malformed-JSON outcomes), `hasOriginal` true/false, and the route's
- * outer catch-all 500 (nothing else in this file's existing coverage ever throws past the inner
- * `lineage` try/catch, so it has never actually fired).
+ * gates (`explore-built-theme-gate.test.ts`) are out of the way: `hasOriginal` true/false, a
+ * malformed `theme.json`, and the route's outer catch-all 500. (The `lineage` field and its
+ * `.tovu-lineage.json` read went 2026-10-04 with the dead theme marketplace that wrote it.)
  */
 
 const WORKSPACE_ID = "ws-detail-branches";
@@ -60,31 +51,18 @@ function buildTestApp(deps: ContentRouteDeps): express.Express {
 
 const BASE = (themeId: string) => `/api/admin/v1/workspaces/${WORKSPACE_ID}/themes/${themeId}`;
 
-/** A theme with a catalog original present (so `hasOriginal` is true) and a `lineage` field on its
- *  manifest, so the "present, non-nullish" side of `raw.lineage ?? null` is real. */
-function makeThemeWithLineageAndCatalog(): string {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-detail-lineage-"));
+/** A theme with a catalog original present (so `hasOriginal` is true). */
+function makeThemeWithCatalog(): string {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-detail-catalog-"));
   const manifest = JSON.stringify({
-    id: "lineaged",
-    name: "Lineaged",
+    id: "cataloged",
+    name: "Cataloged",
     version: "1.0.0",
     tier: "static",
     engine: 1,
   });
-  // Lineage lives in its own install-local sidecar (THEME_LINEAGE_FILENAME), NOT on the manifest --
-  // 2026-08-18 schema decision, see registerAdminThemeDetailRoute's own comment and
-  // theme-lineage.ts. A v2 manifest is additionalProperties:false, so a `lineage` key on
-  // theme.json would not merely be ignored here, it would be schema-invalid.
-  const lineage: ThemeLineage = {
-    from: "marketplace",
-    tier: "static",
-    version: "1.0.0",
-    catalog: `${THEME_CATALOG_DIR}/static/lineaged`,
-    marketplaceId: "lineaged",
-    name: "Lineaged",
-  };
-  const installDir = path.join(root, "static", "lineaged");
-  for (const base of [installDir, path.join(root, THEME_CATALOG_DIR, "static", "lineaged")]) {
+  const installDir = path.join(root, "static", "cataloged");
+  for (const base of [installDir, path.join(root, THEME_CATALOG_DIR, "static", "cataloged")]) {
     fs.mkdirSync(path.join(base, "pages"), { recursive: true });
     fs.mkdirSync(path.join(base, "css"), { recursive: true });
     fs.writeFileSync(path.join(base, "pages", "index.html"), "<html><body>x</body></html>", "utf8");
@@ -92,15 +70,12 @@ function makeThemeWithLineageAndCatalog(): string {
     fs.writeFileSync(path.join(base, "tokens.json"), "{}", "utf8");
     fs.writeFileSync(path.join(base, "theme.json"), manifest, "utf8");
   }
-  // Install-local only: the catalog original is the pristine copy and carries no lineage of its own.
-  fs.writeFileSync(path.join(installDir, THEME_LINEAGE_FILENAME), JSON.stringify(lineage), "utf8");
   return root;
 }
 
-/** A theme with NO catalog original at all (so `hasOriginal` is false) and a manifest with no
- *  `lineage` key (so `raw.lineage` is `undefined` and the `?? null` fallback is real). */
-function makeThemeNoLineageNoCatalog(): string {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-detail-no-lineage-"));
+/** A theme with NO catalog original at all (so `hasOriginal` is false). */
+function makeThemeNoCatalog(): string {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-detail-no-catalog-"));
   const dir = path.join(root, "static", "fresh");
   fs.mkdirSync(path.join(dir, "pages"), { recursive: true });
   fs.mkdirSync(path.join(dir, "css"), { recursive: true });
@@ -114,38 +89,29 @@ function makeThemeNoLineageNoCatalog(): string {
   return root;
 }
 
-test("lineage sidecar present: the .tovu-lineage.json object is echoed back verbatim", async (t) => {
-  const themesDir = makeThemeWithLineageAndCatalog();
+test("hasOriginal is true when a catalog original exists", async (t) => {
+  const themesDir = makeThemeWithCatalog();
   const app = buildTestApp(baseDeps(themesDir));
   const baseUrl = await startTestServer(app, t);
 
-  const res = await fetch(`${baseUrl}${BASE("lineaged")}`);
+  const res = await fetch(`${baseUrl}${BASE("cataloged")}`);
   assert.equal(res.status, 200);
-  const body = (await res.json()) as { lineage: unknown; hasOriginal: boolean };
-  assert.deepEqual(body.lineage, {
-    from: "marketplace",
-    tier: "static",
-    version: "1.0.0",
-    catalog: `${THEME_CATALOG_DIR}/static/lineaged`,
-    marketplaceId: "lineaged",
-    name: "Lineaged",
-  });
+  const body = (await res.json()) as { hasOriginal: boolean };
   assert.equal(body.hasOriginal, true, "a catalog original exists for this fixture");
 });
 
-test("lineage sidecar absent: readThemeLineageFile returns null, and hasOriginal is false with no catalog", async (t) => {
-  const themesDir = makeThemeNoLineageNoCatalog();
+test("hasOriginal is false with no catalog", async (t) => {
+  const themesDir = makeThemeNoCatalog();
   const app = buildTestApp(baseDeps(themesDir));
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}${BASE("fresh")}`);
   assert.equal(res.status, 200);
-  const body = (await res.json()) as { lineage: unknown; hasOriginal: boolean };
-  assert.equal(body.lineage, null);
+  const body = (await res.json()) as { hasOriginal: boolean };
   assert.equal(body.hasOriginal, false, "no catalog folder was created for this fixture");
 });
 
-test("malformed theme.json: the route still 200s on a theme loadTheme marked invalid, and lineage reports null (no sidecar written)", async (t) => {
+test("malformed theme.json: the route still 200s on a theme loadTheme marked invalid", async (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-detail-malformed-"));
   const dir = path.join(root, "static", "broken");
   fs.mkdirSync(path.join(dir, "pages"), { recursive: true });
@@ -172,8 +138,7 @@ test("malformed theme.json: the route still 200s on a theme loadTheme marked inv
 
   const res = await fetch(`${baseUrl}${BASE(theme!.manifest.id)}`);
   assert.equal(res.status, 200, "the broken theme.json must not crash the detail route");
-  const body = (await res.json()) as { lineage: unknown; status: string };
-  assert.equal(body.lineage, null);
+  const body = (await res.json()) as { status: string };
   assert.equal(body.status, "invalid");
 });
 
@@ -184,7 +149,7 @@ test("an unrecognized theme root triggers the route's outer catch-all 500", asyn
   // itself. Simulated here by discovering normally, then pointing `dir` at an unrelated folder, to
   // reach the one code path in this route that is otherwise unreachable through any real request:
   // the bare `catch { res.status(500)... }` wrapping the whole handler.
-  const themesDir = makeThemeNoLineageNoCatalog();
+  const themesDir = makeThemeNoCatalog();
   const themes = discoverAllBuiltInThemes({ dir: themesDir, source: "site" });
   const theme = themes.find((t) => t.manifest.id === "fresh") as DiscoveredTheme;
   const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-outside-"));

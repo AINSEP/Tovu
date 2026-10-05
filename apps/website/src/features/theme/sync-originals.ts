@@ -21,7 +21,7 @@ import { isGeneratedThemePath } from "./theme-files.js";
  * seven of the eight shipped themes had no original at all — not drifted, never created.
  *
  * This module removes the cause: `syncThemeOriginals()` DERIVES `__original-themes__` from the live
- * shipped tree, filtering out the same generated-output paths `downloadMarketplaceTheme` already
+ * shipped tree, filtering out the generated-output paths the Explore file list already
  * excludes ({@link isGeneratedThemePath} — `preview/`, a static theme's generated root `index.html`).
  * Run it (`tovu theme sync-originals`) and every shipped theme's original is, by construction, an
  * exact filtered copy of what shipped — nobody maintains it by hand again, and the exclusion cannot
@@ -115,8 +115,8 @@ export function writeGeneratedThemeOriginal(
  *
  * Discovery reuses {@link discoverAllBuiltInThemes} (`source: "built-in"`) — the same call every
  * composition root uses — rather than re-walking `themesRoot`'s tiers by hand, so this can never
- * disagree with the product about which folders are real themes (`__original-themes__` and
- * `__marketplace__` are already excluded by that function, and a migration staging leftover is
+ * disagree with the product about which folders are real themes (`__original-themes__` is
+ * already excluded by that function, and a migration staging leftover is
  * already excluded by name prefix).
  *
  * @param required.themesRoot - A themes root (`content/themes` for the package catalog; a throwaway

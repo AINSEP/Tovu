@@ -60,8 +60,16 @@ const V2_APPROVED_ROOTS: ReadonlySet<string> = new Set([
 
 /** Install-local metadata files a strict v2 structure check must NOT flag as unrecognized — they are
  * never part of the manifest/package a publisher authors, only what installing a copy adds alongside
- * it. See `theme-lineage.ts`'s own file header for `.tovu-lineage.json`. Matched by exact name, not
- * "any dotfile", so a real unexpected dotfile a package happens to ship still gets flagged. */
+ * it. Matched by exact name, not "any dotfile", so a real unexpected dotfile a package happens to ship
+ * still gets flagged.
+ *
+ * `.tovu-lineage.json` was the theme marketplace's provenance sidecar (where a downloaded copy came
+ * from). The marketplace and its `theme-lineage.ts` writer were deleted 2026-10-04 (fixture gone since
+ * `8fb1f2fea`), but copies installed before then still carry the file, so it stays allowed here. Why it
+ * was a sidecar and never a `theme.json` key (2026-08-18 schema decision): a strict v2 manifest schema
+ * (`additionalProperties: false`) validates the RAW `theme.json`, so an unknown `lineage` key there
+ * would fail validation even though `loadTheme()` never parsed it; a sibling file keeps install-local
+ * metadata out of the publisher-facing manifest by construction. */
 const INSTALL_LOCAL_FILES: ReadonlySet<string> = new Set([".tovu-lineage.json"]);
 
 /** `tokens.<mode>.json` (e.g. `tokens.light.json`) — the one approved-root shape that isn't a fixed

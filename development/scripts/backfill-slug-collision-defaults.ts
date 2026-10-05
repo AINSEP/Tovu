@@ -37,7 +37,7 @@
  *
  * The theme catalog this script resolves is GLOBAL — `discoverAllBuiltInThemes` scans one directory
  * (`builtInThemesDir()`) with no per-workspace theme root anywhere in this codebase (grep-confirmed:
- * `discoverThemes` is only ever called against `builtInThemesDir()` or the marketplace root, never a
+ * `discoverThemes` is only ever called against `builtInThemesDir()` or a site's own themes root, never a
  * workspace-scoped path). So "every theme that workspace has" reduces to the same set for every
  * workspace, and this script queries `posts` across every `workspace_id` in one pass rather than
  * looping the `workspaces` table — looping would recompute the identical theme set on every

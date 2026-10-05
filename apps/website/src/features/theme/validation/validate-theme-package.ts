@@ -19,7 +19,7 @@ export type { ThemeValidationProfile, ThemeValidationIssue, ThemeValidationSever
  * @file The one public entry point for theme package validation — orchestrates the sibling check
  * modules (`manifest-v2.ts`, `structure.ts`, `references.ts`, `markup.ts`) behind a single call,
  * per-`profile` severity (`profiles.ts`). Callers: `tovu theme validate` (`src/cli/commands/theme/`),
- * `marketplace.ts`'s install path, and (future) a CI sweep over `content/themes/`.
+ * and (future) an install path and a CI sweep over `content/themes/`.
  *
  * ## Schema-version branching — why this exists at all
  *

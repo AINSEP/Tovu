@@ -19,9 +19,7 @@ import type { ContentRouteDeps } from "../../content/deps.js";
 
 /**
  * @file Unit-tier branch/line coverage for `POST .../themes/rescan` (`registerAdminThemeRescanRoute`).
- * No existing test exercises this route at all: `marketplace-download-route.integration.test.ts`
- * calls `rescanThemes()` (the imported helper) directly from a DIFFERENT route, never through this
- * HTTP handler. Same bare-app + stubbed-principal pattern as this directory's own
+ * Nothing else exercises this route through its HTTP handler. Same bare-app + stubbed-principal pattern as this directory's own
  * `patch-active-theme.test.ts`.
  */
 

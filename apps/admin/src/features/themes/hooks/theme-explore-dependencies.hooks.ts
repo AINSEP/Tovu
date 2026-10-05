@@ -29,7 +29,6 @@ export interface FakeThemeExplorePortOptions {
     apiVersion?: 2;
     status: string;
     errors: string[];
-    lineage: { from?: string; tier?: string; version?: string; catalog?: string } | null;
     hasOriginal: boolean;
   };
   files?: ThemeExploreFileEntry[];
@@ -44,7 +43,7 @@ export interface FakeThemeExplorePortOptions {
  * fake" rule.
  */
 export function createFakeThemeExplorePort(options: FakeThemeExplorePortOptions = {}): ThemeExplorePort {
-  const detail = options.detail ?? { id: "basic", name: "Basic", tier: "declarative", status: "active", errors: [], lineage: null, hasOriginal: true };
+  const detail = options.detail ?? { id: "basic", name: "Basic", tier: "declarative", status: "active", errors: [], hasOriginal: true };
   let files = [...(options.files ?? [{ path: "pages/index.html", group: "page" as const, readable: true, editable: true, resettable: true }])];
   const contents = new Map(Object.entries(options.contents ?? { "pages/index.html": "<html></html>" }));
 

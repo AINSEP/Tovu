@@ -3,8 +3,8 @@ import { afterEach, expect, test, vi } from "vitest";
 import { ApiError, api } from "../api";
 
 /**
- * @file First direct coverage pass for `api.ts`'s theme/marketplace-theme endpoints (0% before this
- * pass — `listMarketplaceThemes`, `downloadMarketplaceTheme`, `getThemeDetail`, `resetThemeFile`,
+ * @file First direct coverage pass for `api.ts`'s theme endpoints (0% before this
+ * pass — `getThemeDetail`, `resetThemeFile`,
  * `getThemeFile`, `putThemeFile`, `copyThemeFile`, `renameThemeFile`, `deleteThemeFile`,
  * `setThemePagePublished`, `rescanThemes` had no test anywhere in this suite).
  *
@@ -51,37 +51,6 @@ function stubFetchCapturing(response: Response = okJson({})): {
 
 const BASE = "/api/admin/v1/workspaces/workspace-local";
 
-// --- listMarketplaceThemes ---------------------------------------------------------------
-
-test("listMarketplaceThemes GETs the marketplace catalog and resolves the parsed list", async () => {
-  const themes = [{ id: "basic", name: "Basic", tier: "declarative", idTaken: false }];
-  const { calls } = stubFetchCapturing(okJson({ themes }));
-  await expect(api.listMarketplaceThemes()).resolves.toEqual({ themes });
-  expect(calls[0].url).toBe(`${BASE}/marketplace/themes`);
-  expect(calls[0].init?.method).toBeUndefined();
-});
-
-// --- downloadMarketplaceTheme ---------------------------------------------------------------
-
-test("downloadMarketplaceTheme POSTs to the theme's /download route and resolves the assigned id", async () => {
-  const { calls } = stubFetchCapturing(
-    okJson({ id: "basic-1", suffixed: true, tier: "declarative", rescan: { added: ["basic-1"], removed: [], total: 3 } })
-  );
-  const result = await api.downloadMarketplaceTheme("basic");
-  expect(calls[0].url).toBe(`${BASE}/marketplace/themes/basic/download`);
-  expect(calls[0].init?.method).toBe("POST");
-  expect(calls[0].init?.body).toBeUndefined();
-  expect(result).toEqual({ id: "basic-1", suffixed: true, tier: "declarative", rescan: { added: ["basic-1"], removed: [], total: 3 } });
-});
-
-test("downloadMarketplaceTheme encodes a themeId containing reserved characters into the URL", async () => {
-  const { calls } = stubFetchCapturing();
-  await api.downloadMarketplaceTheme("theme/with slash");
-  expect(calls[0].url).toBe(`${BASE}/marketplace/themes/${encodeURIComponent("theme/with slash")}/download`);
-});
-
-// --- getThemeDetail ---------------------------------------------------------------
-
 test("getThemeDetail GETs one theme's explore surface by id", async () => {
   const detail = {
     id: "basic",
@@ -92,7 +61,6 @@ test("getThemeDetail GETs one theme's explore surface by id", async () => {
     pages: ["index"],
     partials: [],
     files: [],
-    lineage: null,
     hasOriginal: true,
   };
   const { calls } = stubFetchCapturing(okJson(detail));

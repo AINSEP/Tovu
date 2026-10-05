@@ -17,10 +17,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "¿Seguro que quieres eliminar {file}? Esto elimina el archivo de forma permanente. No hay forma de recuperarlo.",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "Esto reemplaza {file} con la versión del tema original. Se perderán los cambios que hayas hecho en este archivo y esto no se puede deshacer.",
-    "You already have a theme called {id}.": "Ya tienes un tema llamado {id}.",
     "← All themes": "← Todos los temas",
-    Download: "Descargar",
-    "Downloading…": "Descargando…",
     Declarative: "Declarativo",
     Templated: "Basado en plantillas",
     Static: "Estático",
@@ -60,7 +57,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     Assets: "Recursos",
     "Close fullscreen preview": "Cerrar vista previa a pantalla completa",
     Config: "Configuración",
-    "Copied from": "Copiado de",
     Copy: "Copiar",
     "Copying…": "Copiando…",
     Delete: "Eliminar",
@@ -71,9 +67,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "Edita este tema y compruébalo renderizado. Nada de esto cambia tu sitio en vivo hasta que lo actives.",
     "Editor view": "Vista del editor",
     HTML: "HTML",
-    "Loading the marketplace…": "Cargando el mercado…",
     "Loading theme…": "Cargando tema…",
-    Marketplace: "Mercado",
     Mobile: "Móvil",
     "More actions for {file}": "Más acciones para {file}",
     "New name for {file}": "Nuevo nombre para {file}",
@@ -82,7 +76,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "No theme is active. Your site renders unstyled so you can supply your own CSS; posts, pages and products still publish normally. Activate a theme below to switch back at any time — nothing was deleted.":
       "No hay ningún tema activo. Tu sitio se muestra sin estilos para que puedas aportar tu propio CSS; las entradas, páginas y productos se siguen publicando con normalidad. Activa un tema a continuación para volver atrás cuando quieras — no se eliminó nada.",
     "No themes in this tier yet.": "Todavía no hay temas en esta categoría.",
-    "Nothing available to download right now.": "No hay nada disponible para descargar en este momento.",
     Other: "Otro",
     Pages: "Páginas",
     Partials: "Parciales",
@@ -115,7 +108,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This file type is read-only in Explore.": "Este tipo de archivo es de solo lectura en Explorar.",
     "This is a binary file, so it has no editable source. Use the Preview tab to view it.":
       "Este es un archivo binario, así que no tiene código fuente editable. Usa la pestaña Vista previa para verlo.",
-    "This one will be installed under a new name.": "Este se instalará con un nombre nuevo.",
     "This theme is not loading:": "Este tema no está cargando:",
     "Turn the theme off": "Desactivar el tema",
     "Turning off…": "Desactivando…",
@@ -159,7 +151,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "{file} no está en el original de este tema, así que no hay nada a lo que restablecerlo.",
     "This theme has no stored original, so nothing can be reset.":
       "Este tema no tiene un original guardado, así que no se puede restablecer nada.",
-    "failed to refresh the theme list": "No se pudo actualizar la lista de temas",
     "failed to switch theme": "No se pudo cambiar de tema",
   },
   id: {
@@ -171,10 +162,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "Anda yakin ingin menghapus {file}? Ini menghapus file secara permanen. Tidak ada cara untuk mendapatkannya kembali.",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "Ini akan menggantikan {file} dengan versi dari tema asli. Semua perubahan yang telah Anda buat pada file ini akan hilang, dan ini tidak dapat dibatalkan.",
-    "You already have a theme called {id}.": "Anda sudah memiliki tema bernama {id}.",
     "← All themes": "← Semua tema",
-    Download: "Unduh",
-    "Downloading…": "Mengunduh…",
     Declarative: "Deklaratif",
     Templated: "Berbasis templat",
     Static: "Statis",
@@ -214,7 +202,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     Assets: "Aset",
     "Close fullscreen preview": "Tutup pratinjau layar penuh",
     Config: "Konfigurasi",
-    "Copied from": "Disalin dari",
     Copy: "Salin",
     "Copying…": "Menyalin…",
     Delete: "Hapus",
@@ -225,9 +212,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "Edit tema ini dan lihat hasilnya. Tidak ada yang mengubah situs langsung Anda sampai Anda mengaktifkannya.",
     "Editor view": "Tampilan editor",
     HTML: "HTML",
-    "Loading the marketplace…": "Memuat marketplace…",
     "Loading theme…": "Memuat tema…",
-    Marketplace: "Marketplace",
     Mobile: "Seluler",
     "More actions for {file}": "Tindakan lain untuk {file}",
     "New name for {file}": "Nama baru untuk {file}",
@@ -236,7 +221,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "No theme is active. Your site renders unstyled so you can supply your own CSS; posts, pages and products still publish normally. Activate a theme below to switch back at any time — nothing was deleted.":
       "Tidak ada tema yang aktif. Situs Anda ditampilkan tanpa gaya agar Anda dapat memakai CSS sendiri; entri, halaman, dan produk tetap dipublikasikan seperti biasa. Aktifkan tema di bawah untuk kembali kapan saja — tidak ada yang dihapus.",
     "No themes in this tier yet.": "Belum ada tema di tingkat ini.",
-    "Nothing available to download right now.": "Belum ada yang tersedia untuk diunduh saat ini.",
     Other: "Lainnya",
     Pages: "Halaman",
     Partials: "Parsial",
@@ -269,7 +253,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This file type is read-only in Explore.": "Jenis file ini hanya-baca di Explore.",
     "This is a binary file, so it has no editable source. Use the Preview tab to view it.":
       "Ini adalah file biner, jadi tidak memiliki kode sumber yang dapat diedit. Gunakan tab Pratinjau untuk melihatnya.",
-    "This one will be installed under a new name.": "Tema ini akan dipasang dengan nama baru.",
     "This theme is not loading:": "Tema ini tidak dapat dimuat:",
     "Turn the theme off": "Matikan tema",
     "Turning off…": "Mematikan…",
@@ -313,7 +296,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "{file} tidak ada di versi asli tema ini, jadi tidak ada yang bisa dijadikan acuan untuk mengatur ulang.",
     "This theme has no stored original, so nothing can be reset.":
       "Tema ini tidak memiliki salinan asli yang tersimpan, jadi tidak ada yang dapat diatur ulang.",
-    "failed to refresh the theme list": "Gagal menyegarkan daftar tema",
     "failed to switch theme": "Gagal mengganti tema",
   },
   de: {
@@ -325,10 +307,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "Möchtest du {file} wirklich löschen? Dadurch wird die Datei dauerhaft entfernt. Es gibt keine Möglichkeit, sie wiederherzustellen.",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "Dies ersetzt {file} mit der Version aus dem Original-Design. Alle Änderungen, die du an dieser Datei vorgenommen hast, gehen verloren, und das kann nicht rückgängig gemacht werden.",
-    "You already have a theme called {id}.": "Du hast bereits ein Design namens {id}.",
     "← All themes": "← Alle Designs",
-    Download: "Herunterladen",
-    "Downloading…": "Wird heruntergeladen…",
     Declarative: "Deklarativ",
     Templated: "Vorlagenbasiert",
     Static: "Statisch",
@@ -368,7 +347,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     Assets: "Assets",
     "Close fullscreen preview": "Vollbildvorschau schließen",
     Config: "Konfiguration",
-    "Copied from": "Kopiert von",
     Copy: "Kopieren",
     "Copying…": "Wird kopiert…",
     Delete: "Löschen",
@@ -379,9 +357,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "Bearbeite dieses Design und sieh dir das Ergebnis an. Nichts davon ändert deine Live-Website, bis du es aktivierst.",
     "Editor view": "Editoransicht",
     HTML: "HTML",
-    "Loading the marketplace…": "Marktplatz wird geladen…",
     "Loading theme…": "Design wird geladen…",
-    Marketplace: "Marktplatz",
     Mobile: "Mobil",
     "More actions for {file}": "Weitere Aktionen für {file}",
     "New name for {file}": "Neuer Name für {file}",
@@ -390,7 +366,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "No theme is active. Your site renders unstyled so you can supply your own CSS; posts, pages and products still publish normally. Activate a theme below to switch back at any time — nothing was deleted.":
       "Es ist kein Design aktiv. Deine Website wird ohne Formatierung dargestellt, sodass du eigenes CSS einbinden kannst; Beiträge, Seiten und Produkte werden weiterhin normal veröffentlicht. Aktiviere unten jederzeit wieder ein Design — es wurde nichts gelöscht.",
     "No themes in this tier yet.": "In dieser Kategorie gibt es noch keine Designs.",
-    "Nothing available to download right now.": "Derzeit steht nichts zum Herunterladen zur Verfügung.",
     Other: "Sonstiges",
     Pages: "Seiten",
     Partials: "Partials",
@@ -423,7 +398,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This file type is read-only in Explore.": "Dieser Dateityp ist in Explore schreibgeschützt.",
     "This is a binary file, so it has no editable source. Use the Preview tab to view it.":
       "Dies ist eine Binärdatei und hat daher keinen bearbeitbaren Quellcode. Verwende den Tab „Vorschau“, um sie anzusehen.",
-    "This one will be installed under a new name.": "Es wird unter einem neuen Namen installiert.",
     "This theme is not loading:": "Dieses Design wird nicht geladen:",
     "Turn the theme off": "Design deaktivieren",
     "Turning off…": "Wird deaktiviert…",
@@ -467,7 +441,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "{file} ist nicht im Original dieses Designs enthalten, daher gibt es nichts, worauf es zurückgesetzt werden könnte.",
     "This theme has no stored original, so nothing can be reset.":
       "Dieses Design hat kein gespeichertes Original, daher kann nichts zurückgesetzt werden.",
-    "failed to refresh the theme list": "Designliste konnte nicht aktualisiert werden",
     "failed to switch theme": "Design konnte nicht gewechselt werden",
   },
   "zh-CN": {
@@ -479,10 +452,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "确定要删除 {file} 吗？这将永久删除该文件，无法恢复。",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "这将把 {file} 替换为原始主题的版本。你对此文件所做的任何改动都将丢失，且此操作无法撤销。",
-    "You already have a theme called {id}.": "你已经有一个名为 {id} 的主题。",
     "← All themes": "← 所有主题",
-    Download: "下载",
-    "Downloading…": "正在下载…",
     Declarative: "声明式",
     Templated: "模板式",
     Static: "静态",
@@ -521,7 +491,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     Assets: "资源",
     "Close fullscreen preview": "关闭全屏预览",
     Config: "配置",
-    "Copied from": "复制自",
     Copy: "复制",
     "Copying…": "正在复制…",
     Delete: "删除",
@@ -532,9 +501,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "编辑此主题并查看渲染效果。在你启用它之前，这里的任何改动都不会影响你的正式网站。",
     "Editor view": "编辑器视图",
     HTML: "HTML",
-    "Loading the marketplace…": "正在加载应用市场…",
     "Loading theme…": "正在加载主题…",
-    Marketplace: "应用市场",
     Mobile: "移动端",
     "More actions for {file}": "{file} 的更多操作",
     "New name for {file}": "{file} 的新名称",
@@ -543,7 +510,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "No theme is active. Your site renders unstyled so you can supply your own CSS; posts, pages and products still publish normally. Activate a theme below to switch back at any time — nothing was deleted.":
       "当前没有启用任何主题。你的网站会以无样式的形式呈现，方便你自行提供 CSS；文章、页面和产品仍会照常发布。随时可以在下方启用某个主题恢复正常显示——没有任何内容被删除。",
     "No themes in this tier yet.": "此分类下暂时还没有主题。",
-    "Nothing available to download right now.": "目前没有可供下载的内容。",
     Other: "其他",
     Pages: "页面",
     Partials: "局部文件",
@@ -576,7 +542,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This file type is read-only in Explore.": "此文件类型在浏览模式下为只读。",
     "This is a binary file, so it has no editable source. Use the Preview tab to view it.":
       "这是一个二进制文件，没有可编辑的源代码。请使用“预览”标签页查看。",
-    "This one will be installed under a new name.": "它将以新名称安装。",
     "This theme is not loading:": "此主题无法加载：",
     "Turn the theme off": "关闭该主题",
     "Turning off…": "正在关闭…",
@@ -614,7 +579,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "此主题保存的原始版本与其当前结构不一致，因此无法重置其文件。",
     "{file} isn't in this theme's original, so there's nothing to reset it to.": "{file} 不在此主题的原始版本中，因此没有可重置到的内容。",
     "This theme has no stored original, so nothing can be reset.": "此主题没有保存的原始版本，因此无法重置任何内容。",
-    "failed to refresh the theme list": "刷新主题列表失败",
     "failed to switch theme": "切换主题失败",
   },
   "zh-TW": {
@@ -626,10 +590,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "確定要刪除 {file} 嗎？這將永久刪除該檔案，無法復原。",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "這將把 {file} 取代為原始佈景主題的版本。你對此檔案所做的任何改動都將遺失，且此操作無法復原。",
-    "You already have a theme called {id}.": "你已經有一個名為 {id} 的佈景主題。",
     "← All themes": "← 所有佈景主題",
-    Download: "下載",
-    "Downloading…": "正在下載…",
     Declarative: "宣告式",
     Templated: "範本式",
     Static: "靜態",
@@ -668,7 +629,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     Assets: "資源",
     "Close fullscreen preview": "關閉全螢幕預覽",
     Config: "設定",
-    "Copied from": "複製自",
     Copy: "複製",
     "Copying…": "正在複製…",
     Delete: "刪除",
@@ -679,9 +639,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "編輯此佈景主題並查看渲染效果。在你啟用它之前，這裡的任何改動都不會影響你的正式網站。",
     "Editor view": "編輯器檢視",
     HTML: "HTML",
-    "Loading the marketplace…": "正在載入市集…",
     "Loading theme…": "正在載入佈景主題…",
-    Marketplace: "市集",
     Mobile: "行動裝置",
     "More actions for {file}": "{file} 的更多操作",
     "New name for {file}": "{file} 的新名稱",
@@ -690,7 +648,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "No theme is active. Your site renders unstyled so you can supply your own CSS; posts, pages and products still publish normally. Activate a theme below to switch back at any time — nothing was deleted.":
       "目前沒有啟用任何佈景主題。你的網站會以無樣式的形式呈現，方便你自行提供 CSS；文章、頁面和產品仍會照常發布。隨時可以在下方啟用某個佈景主題恢復正常顯示——沒有任何內容被刪除。",
     "No themes in this tier yet.": "此分類下暫時還沒有佈景主題。",
-    "Nothing available to download right now.": "目前沒有可供下載的內容。",
     Other: "其他",
     Pages: "頁面",
     Partials: "局部檔案",
@@ -723,7 +680,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This file type is read-only in Explore.": "此檔案類型在瀏覽模式下為唯讀。",
     "This is a binary file, so it has no editable source. Use the Preview tab to view it.":
       "這是一個二進位檔案，沒有可編輯的原始碼。請使用“預覽”分頁查看。",
-    "This one will be installed under a new name.": "它將以新名稱安裝。",
     "This theme is not loading:": "此佈景主題無法載入：",
     "Turn the theme off": "關閉該佈景主題",
     "Turning off…": "正在關閉…",
@@ -765,7 +721,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "此佈景主題儲存的原始版本與目前的結構不一致，因此無法重設其檔案。",
     "{file} isn't in this theme's original, so there's nothing to reset it to.": "{file} 不在此佈景主題的原始版本中，因此沒有可重設的內容。",
     "This theme has no stored original, so nothing can be reset.": "此佈景主題沒有儲存的原始版本，因此無法重設任何內容。",
-    "failed to refresh the theme list": "重新整理佈景主題清單失敗",
     "failed to switch theme": "切換佈景主題失敗",
   },
   "pt-BR": {
@@ -777,10 +732,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "Tem certeza de que deseja excluir {file}? Isso remove o arquivo permanentemente. Não há como recuperá-lo.",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "Isso substitui {file} pela versão do tema original. Todas as alterações feitas neste arquivo serão perdidas, e isso não pode ser desfeito.",
-    "You already have a theme called {id}.": "Você já tem um tema chamado {id}.",
     "← All themes": "← Todos os temas",
-    Download: "Baixar",
-    "Downloading…": "Baixando…",
     Declarative: "Declarativo",
     Templated: "Baseado em modelo",
     Static: "Estático",
@@ -820,7 +772,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     Assets: "Recursos",
     "Close fullscreen preview": "Fechar visualização em tela cheia",
     Config: "Configuração",
-    "Copied from": "Copiado de",
     Copy: "Copiar",
     "Copying…": "Copiando…",
     Delete: "Excluir",
@@ -831,9 +782,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "Edite este tema e veja o resultado renderizado. Nada aqui muda seu site em produção até você ativá-lo.",
     "Editor view": "Visualização do editor",
     HTML: "HTML",
-    "Loading the marketplace…": "Carregando o marketplace…",
     "Loading theme…": "Carregando tema…",
-    Marketplace: "Marketplace",
     Mobile: "Celular",
     "More actions for {file}": "Mais ações para {file}",
     "New name for {file}": "Novo nome para {file}",
@@ -842,7 +791,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "No theme is active. Your site renders unstyled so you can supply your own CSS; posts, pages and products still publish normally. Activate a theme below to switch back at any time — nothing was deleted.":
       "Nenhum tema está ativo. Seu site é exibido sem estilo para que você possa fornecer seu próprio CSS; posts, páginas e produtos continuam sendo publicados normalmente. Ative um tema abaixo para voltar quando quiser — nada foi excluído.",
     "No themes in this tier yet.": "Ainda não há temas nesta categoria.",
-    "Nothing available to download right now.": "No momento não há nada disponível para baixar.",
     Other: "Outro",
     Pages: "Páginas",
     Partials: "Parciais",
@@ -875,7 +823,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This file type is read-only in Explore.": "Este tipo de arquivo é somente leitura no Explorar.",
     "This is a binary file, so it has no editable source. Use the Preview tab to view it.":
       "Este é um arquivo binário, então não tem código-fonte editável. Use a aba Visualização para vê-lo.",
-    "This one will be installed under a new name.": "Ele será instalado com um novo nome.",
     "This theme is not loading:": "Este tema não está carregando:",
     "Turn the theme off": "Desativar o tema",
     "Turning off…": "Desativando…",
@@ -919,7 +866,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "{file} não está no original deste tema, então não há nada para o qual redefini-lo.",
     "This theme has no stored original, so nothing can be reset.":
       "Este tema não tem um original salvo, então nada pode ser redefinido.",
-    "failed to refresh the theme list": "Não foi possível atualizar a lista de temas",
     "failed to switch theme": "Não foi possível trocar de tema",
   },
   ru: {
@@ -931,10 +877,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "Вы уверены, что хотите удалить {file}? Это безвозвратно удалит файл. Восстановить его будет невозможно.",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "Это заменит {file} версией из исходной темы. Все изменения, внесённые в этот файл, будут потеряны, и это нельзя отменить.",
-    "You already have a theme called {id}.": "У вас уже есть тема с именем {id}.",
     "← All themes": "← Все темы",
-    Download: "Скачать",
-    "Downloading…": "Скачивание…",
     Declarative: "Декларативный",
     Templated: "На основе шаблонов",
     Static: "Статический",
@@ -974,7 +917,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     Assets: "Ресурсы",
     "Close fullscreen preview": "Закрыть полноэкранный просмотр",
     Config: "Конфигурация",
-    "Copied from": "Скопировано из",
     Copy: "Копировать",
     "Copying…": "Копирование…",
     Delete: "Удалить",
@@ -985,9 +927,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "Отредактируйте эту тему и посмотрите, как она отображается. Ничего из этого не изменит ваш опубликованный сайт, пока вы её не активируете.",
     "Editor view": "Вид редактора",
     HTML: "HTML",
-    "Loading the marketplace…": "Загрузка маркета…",
     "Loading theme…": "Загрузка темы…",
-    Marketplace: "Маркет",
     Mobile: "Мобильный",
     "More actions for {file}": "Другие действия для {file}",
     "New name for {file}": "Новое имя для {file}",
@@ -996,7 +936,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "No theme is active. Your site renders unstyled so you can supply your own CSS; posts, pages and products still publish normally. Activate a theme below to switch back at any time — nothing was deleted.":
       "Ни одна тема не активна. Ваш сайт отображается без оформления, чтобы вы могли подключить собственный CSS; записи, страницы и товары по-прежнему публикуются как обычно. Активируйте тему ниже, чтобы вернуться в любой момент — ничего не было удалено.",
     "No themes in this tier yet.": "В этой категории пока нет тем.",
-    "Nothing available to download right now.": "Сейчас нет ничего доступного для скачивания.",
     Other: "Другое",
     Pages: "Страницы",
     Partials: "Частичные шаблоны",
@@ -1029,7 +968,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This file type is read-only in Explore.": "Этот тип файла доступен только для чтения в режиме обзора.",
     "This is a binary file, so it has no editable source. Use the Preview tab to view it.":
       "Это бинарный файл, поэтому у него нет редактируемого исходного кода. Используйте вкладку «Просмотр», чтобы увидеть его.",
-    "This one will be installed under a new name.": "Она будет установлена под новым именем.",
     "This theme is not loading:": "Эта тема не загружается:",
     "Turn the theme off": "Отключить тему",
     "Turning off…": "Отключение…",
@@ -1073,7 +1011,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "Файла {file} нет в оригинале этой темы, поэтому сбрасывать его не к чему.",
     "This theme has no stored original, so nothing can be reset.":
       "У этой темы нет сохранённого оригинала, поэтому сбросить ничего нельзя.",
-    "failed to refresh the theme list": "Не удалось обновить список тем",
     "failed to switch theme": "Не удалось переключить тему",
   },
   fa: {
@@ -1085,10 +1022,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "آیا مطمئن هستید که می‌خواهید {file} را حذف کنید؟ این کار فایل را برای همیشه حذف می‌کند. هیچ راهی برای بازیابی آن وجود ندارد.",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "این {file} را با نسخه پوسته اصلی جایگزین می‌کند. هر تغییری که در این فایل داده‌اید از بین خواهد رفت و این کار قابل بازگشت نیست.",
-    "You already have a theme called {id}.": "شما از قبل پوسته‌ای با نام {id} دارید.",
     "← All themes": "← همه پوسته‌ها",
-    Download: "دانلود",
-    "Downloading…": "در حال دانلود…",
     Declarative: "اعلانی",
     Templated: "مبتنی بر قالب",
     Static: "ایستا",
@@ -1128,7 +1062,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     Assets: "دارایی‌ها",
     "Close fullscreen preview": "بستن پیش‌نمایش تمام‌صفحه",
     Config: "پیکربندی",
-    "Copied from": "کپی‌شده از",
     Copy: "کپی",
     "Copying…": "در حال کپی‌کردن…",
     Delete: "حذف",
@@ -1139,9 +1072,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "این پوسته را ویرایش کنید و نتیجه را ببینید. تا زمانی که آن را فعال نکنید، هیچ‌کدام از این تغییرات روی سایت زنده شما اعمال نمی‌شود.",
     "Editor view": "نمای ویرایشگر",
     HTML: "HTML",
-    "Loading the marketplace…": "در حال بارگذاری بازار…",
     "Loading theme…": "در حال بارگذاری پوسته…",
-    Marketplace: "بازار",
     Mobile: "موبایل",
     "More actions for {file}": "اقدامات بیشتر برای {file}",
     "New name for {file}": "نام جدید برای {file}",
@@ -1150,7 +1081,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "No theme is active. Your site renders unstyled so you can supply your own CSS; posts, pages and products still publish normally. Activate a theme below to switch back at any time — nothing was deleted.":
       "هیچ پوسته‌ای فعال نیست. سایت شما بدون استایل نمایش داده می‌شود تا بتوانید CSS خودتان را ارائه دهید؛ نوشته‌ها، صفحات و محصولات همچنان به‌طور عادی منتشر می‌شوند. هر زمان خواستید یک پوسته را از پایین فعال کنید تا برگردید — چیزی حذف نشده است.",
     "No themes in this tier yet.": "هنوز پوسته‌ای در این رده وجود ندارد.",
-    "Nothing available to download right now.": "در حال حاضر چیزی برای دانلود موجود نیست.",
     Other: "سایر",
     Pages: "صفحات",
     Partials: "بخش‌های جزئی",
@@ -1183,7 +1113,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This file type is read-only in Explore.": "این نوع فایل در کاوش فقط‌خواندنی است.",
     "This is a binary file, so it has no editable source. Use the Preview tab to view it.":
       "این یک فایل باینری است، بنابراین کد منبع قابل‌ویرایشی ندارد. برای مشاهده آن از تب پیش‌نمایش استفاده کنید.",
-    "This one will be installed under a new name.": "این با نام جدیدی نصب خواهد شد.",
     "This theme is not loading:": "این پوسته بارگذاری نمی‌شود:",
     "Turn the theme off": "غیرفعال‌کردن پوسته",
     "Turning off…": "در حال غیرفعال‌کردن…",
@@ -1227,7 +1156,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "{file} در نسخه اصلی این پوسته وجود ندارد، بنابراین چیزی برای بازنشانی آن نیست.",
     "This theme has no stored original, so nothing can be reset.":
       "این پوسته نسخه اصلی ذخیره‌شده‌ای ندارد، بنابراین چیزی قابل بازنشانی نیست.",
-    "failed to refresh the theme list": "به‌روزرسانی فهرست پوسته‌ها ناموفق بود",
     "failed to switch theme": "تغییر پوسته ناموفق بود",
   },
   ar: {
@@ -1239,10 +1167,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "هل أنت متأكد أنك تريد حذف {file}؟ سيؤدي هذا إلى حذف الملف نهائيًا. لا توجد طريقة لاستعادته.",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "سيستبدل هذا {file} بالنسخة من القالب الأصلي. ستُفقد أي تعديلات أجريتها على هذا الملف، ولا يمكن التراجع عن ذلك.",
-    "You already have a theme called {id}.": "لديك بالفعل قالب باسم {id}.",
     "← All themes": "← جميع القوالب",
-    Download: "تنزيل",
-    "Downloading…": "جارٍ التنزيل…",
     Declarative: "تصريحي",
     Templated: "قائم على القوالب",
     Static: "ثابت",
@@ -1282,7 +1207,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     Assets: "الأصول",
     "Close fullscreen preview": "إغلاق المعاينة بملء الشاشة",
     Config: "الإعدادات",
-    "Copied from": "نُسخ من",
     Copy: "نسخ",
     "Copying…": "جارٍ النسخ…",
     Delete: "حذف",
@@ -1293,9 +1217,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "عدّل هذا القالب وشاهد كيف يظهر. لا شيء هنا يغيّر موقعك المباشر إلى أن تفعّله.",
     "Editor view": "طريقة عرض المحرر",
     HTML: "HTML",
-    "Loading the marketplace…": "جارٍ تحميل السوق…",
     "Loading theme…": "جارٍ تحميل القالب…",
-    Marketplace: "السوق",
     Mobile: "الجوال",
     "More actions for {file}": "إجراءات إضافية لـ {file}",
     "New name for {file}": "اسم جديد لـ {file}",
@@ -1304,7 +1226,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "No theme is active. Your site renders unstyled so you can supply your own CSS; posts, pages and products still publish normally. Activate a theme below to switch back at any time — nothing was deleted.":
       "لا يوجد قالب مفعّل. يظهر موقعك بلا تنسيق حتى تتمكن من إضافة CSS خاص بك؛ تستمر المقالات والصفحات والمنتجات في النشر بشكل طبيعي. فعّل قالبًا أدناه للعودة في أي وقت — لم يُحذف أي شيء.",
     "No themes in this tier yet.": "لا توجد قوالب في هذه الفئة بعد.",
-    "Nothing available to download right now.": "لا يوجد شيء متاح للتنزيل الآن.",
     Other: "أخرى",
     Pages: "الصفحات",
     Partials: "الأجزاء الجزئية",
@@ -1337,7 +1258,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This file type is read-only in Explore.": "نوع الملف هذا للقراءة فقط في الاستكشاف.",
     "This is a binary file, so it has no editable source. Use the Preview tab to view it.":
       "هذا ملف ثنائي، لذا لا يحتوي على مصدر قابل للتعديل. استخدم تبويب المعاينة لعرضه.",
-    "This one will be installed under a new name.": "سيتم تثبيته باسم جديد.",
     "This theme is not loading:": "هذا القالب لا يتم تحميله:",
     "Turn the theme off": "إيقاف القالب",
     "Turning off…": "جارٍ الإيقاف…",
@@ -1381,7 +1301,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "{file} غير موجود في النسخة الأصلية لهذا القالب، لذا لا يوجد ما يمكن إعادة تعيينه إليه.",
     "This theme has no stored original, so nothing can be reset.":
       "لا توجد نسخة أصلية محفوظة لهذا القالب، لذا لا يمكن إعادة تعيين أي شيء.",
-    "failed to refresh the theme list": "تعذّر تحديث قائمة القوالب",
     "failed to switch theme": "تعذّر تبديل القالب",
   },
   ja: {
@@ -1393,10 +1312,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "{file} を本当に削除しますか？ この操作でファイルは完全に削除されます。元に戻す方法はありません。",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "{file} は元のテーマのバージョンに置き換えられます。このファイルに加えた変更は失われ、元に戻すことはできません。",
-    "You already have a theme called {id}.": "{id} という名前のテーマは既にあります。",
     "← All themes": "← すべてのテーマ",
-    Download: "ダウンロード",
-    "Downloading…": "ダウンロード中…",
     Explore: "閲覧",
     Modified: "変更済み",
     "Modified from the original": "元のファイルから変更されています",
@@ -1436,7 +1352,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     Assets: "アセット",
     "Close fullscreen preview": "フルスクリーンプレビューを閉じる",
     Config: "設定",
-    "Copied from": "コピー元",
     Copy: "コピー",
     "Copying…": "コピー中…",
     Delete: "削除",
@@ -1447,9 +1362,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "このテーマを編集して表示を確認できます。有効化するまで、ここでの変更は公開中のサイトに影響しません。",
     "Editor view": "エディタ表示",
     HTML: "HTML",
-    "Loading the marketplace…": "マーケットプレイスを読み込み中…",
     "Loading theme…": "テーマを読み込み中…",
-    Marketplace: "マーケットプレイス",
     Mobile: "モバイル",
     "More actions for {file}": "{file} のその他の操作",
     "New name for {file}": "{file} の新しい名前",
@@ -1458,7 +1371,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "No theme is active. Your site renders unstyled so you can supply your own CSS; posts, pages and products still publish normally. Activate a theme below to switch back at any time — nothing was deleted.":
       "有効なテーマがありません。サイトはスタイルなしで表示され、独自のCSSを指定できます。投稿・固定ページ・商品は通常どおり公開され続けます。下から好きなときにテーマを有効化して戻せます — 何も削除されていません。",
     "No themes in this tier yet.": "このカテゴリにはまだテーマがありません。",
-    "Nothing available to download right now.": "現在ダウンロードできるものはありません。",
     Other: "その他",
     Pages: "ページ",
     Partials: "パーシャル",
@@ -1491,7 +1403,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This file type is read-only in Explore.": "このファイル形式はExploreでは読み取り専用です。",
     "This is a binary file, so it has no editable source. Use the Preview tab to view it.":
       "これはバイナリファイルのため、編集可能なソースがありません。表示するには「プレビュー」タブを使用してください。",
-    "This one will be installed under a new name.": "これは新しい名前でインストールされます。",
     "This theme is not loading:": "このテーマを読み込めません：",
     "Turn the theme off": "テーマをオフにする",
     "Turning off…": "オフにしています…",
@@ -1534,7 +1445,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "{file} isn't in this theme's original, so there's nothing to reset it to.":
       "{file} はこのテーマのオリジナルに含まれていないため、リセットできません。",
     "This theme has no stored original, so nothing can be reset.": "このテーマには保存されたオリジナルがないため、リセットできるものはありません。",
-    "failed to refresh the theme list": "テーマ一覧を更新できませんでした",
     "failed to switch theme": "テーマを切り替えられませんでした",
   },
   ko: {
@@ -1546,10 +1456,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "{file}을 정말 삭제하시겠습니까? 이 작업은 파일을 영구적으로 삭제합니다. 다시 되돌릴 방법이 없습니다.",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "이 작업은 {file}을 원본 테마의 버전으로 대체합니다. 이 파일에 적용한 변경 사항은 모두 사라지며 되돌릴 수 없습니다.",
-    "You already have a theme called {id}.": "이미 {id}라는 이름의 테마가 있습니다.",
     "← All themes": "← 모든 테마",
-    Download: "다운로드",
-    "Downloading…": "다운로드 중…",
     Explore: "둘러보기",
     Modified: "수정됨",
     "Modified from the original": "원본에서 수정됨",
@@ -1589,7 +1496,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     Assets: "에셋",
     "Close fullscreen preview": "전체 화면 미리보기 닫기",
     Config: "설정",
-    "Copied from": "복사 원본",
     Copy: "복사",
     "Copying…": "복사 중…",
     Delete: "삭제",
@@ -1600,9 +1506,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "이 테마를 편집하고 렌더링된 모습을 확인하세요. 활성화하기 전까지는 실제 사이트가 전혀 변경되지 않습니다.",
     "Editor view": "편집기 보기",
     HTML: "HTML",
-    "Loading the marketplace…": "마켓플레이스를 불러오는 중…",
     "Loading theme…": "테마를 불러오는 중…",
-    Marketplace: "마켓플레이스",
     Mobile: "모바일",
     "More actions for {file}": "{file}에 대한 추가 작업",
     "New name for {file}": "{file}의 새 이름",
@@ -1611,7 +1515,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "No theme is active. Your site renders unstyled so you can supply your own CSS; posts, pages and products still publish normally. Activate a theme below to switch back at any time — nothing was deleted.":
       "활성화된 테마가 없습니다. 직접 CSS를 적용할 수 있도록 사이트가 스타일 없이 표시됩니다. 게시물, 페이지, 상품은 계속 정상적으로 게시됩니다. 언제든 아래에서 테마를 활성화하면 다시 전환할 수 있습니다 — 삭제된 것은 없습니다.",
     "No themes in this tier yet.": "이 등급에는 아직 테마가 없습니다.",
-    "Nothing available to download right now.": "지금은 다운로드할 수 있는 항목이 없습니다.",
     Other: "기타",
     Pages: "페이지",
     Partials: "부분 템플릿",
@@ -1644,7 +1547,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This file type is read-only in Explore.": "이 파일 형식은 Explore에서 읽기 전용입니다.",
     "This is a binary file, so it has no editable source. Use the Preview tab to view it.":
       "이것은 바이너리 파일이므로 편집 가능한 소스가 없습니다. 보려면 미리보기 탭을 사용하세요.",
-    "This one will be installed under a new name.": "이 항목은 새 이름으로 설치됩니다.",
     "This theme is not loading:": "이 테마를 불러올 수 없습니다:",
     "Turn the theme off": "테마 끄기",
     "Turning off…": "끄는 중…",
@@ -1687,7 +1589,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "{file} isn't in this theme's original, so there's nothing to reset it to.":
       "{file}은(는) 이 테마의 원본에 없어 초기화할 대상이 없습니다.",
     "This theme has no stored original, so nothing can be reset.": "이 테마에는 저장된 원본이 없어 초기화할 수 있는 항목이 없습니다.",
-    "failed to refresh the theme list": "테마 목록을 새로 고치지 못했습니다",
     "failed to switch theme": "테마를 전환하지 못했습니다",
   },
   pl: {
@@ -1699,10 +1600,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "Czy na pewno chcesz usunąć {file}? Spowoduje to trwałe usunięcie pliku. Nie ma możliwości jego odzyskania.",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "To zastąpi {file} wersją z oryginalnego motywu. Wszystkie zmiany wprowadzone w tym pliku zostaną utracone, a tej operacji nie można cofnąć.",
-    "You already have a theme called {id}.": "Masz już motyw o nazwie {id}.",
     "← All themes": "← Wszystkie motywy",
-    Download: "Pobierz",
-    "Downloading…": "Pobieranie…",
     Explore: "Przeglądaj",
     Modified: "Zmodyfikowany",
     "Modified from the original": "Zmodyfikowany względem oryginału",
@@ -1742,7 +1640,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     Assets: "Zasoby",
     "Close fullscreen preview": "Zamknij podgląd pełnoekranowy",
     Config: "Konfiguracja",
-    "Copied from": "Skopiowano z",
     Copy: "Kopiuj",
     "Copying…": "Kopiowanie…",
     Delete: "Usuń",
@@ -1753,9 +1650,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "Edytuj ten motyw i zobacz jego wygląd. Nic tutaj nie zmienia Twojej aktywnej witryny, dopóki go nie aktywujesz.",
     "Editor view": "Widok edytora",
     HTML: "HTML",
-    "Loading the marketplace…": "Wczytywanie sklepu…",
     "Loading theme…": "Wczytywanie motywu…",
-    Marketplace: "Sklep",
     Mobile: "Mobilny",
     "More actions for {file}": "Więcej działań dla {file}",
     "New name for {file}": "Nowa nazwa dla {file}",
@@ -1764,7 +1659,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "No theme is active. Your site renders unstyled so you can supply your own CSS; posts, pages and products still publish normally. Activate a theme below to switch back at any time — nothing was deleted.":
       "Żaden motyw nie jest aktywny. Twoja witryna wyświetla się bez stylów, dzięki czemu możesz dodać własny CSS; wpisy, strony i produkty nadal publikują się normalnie. Aktywuj motyw poniżej, aby w dowolnej chwili wrócić — nic nie zostało usunięte.",
     "No themes in this tier yet.": "W tej kategorii nie ma jeszcze motywów.",
-    "Nothing available to download right now.": "Obecnie nie ma nic dostępnego do pobrania.",
     Other: "Inne",
     Pages: "Strony",
     Partials: "Częściowe",
@@ -1797,7 +1691,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This file type is read-only in Explore.": "Ten typ pliku jest tylko do odczytu w Eksploracji.",
     "This is a binary file, so it has no editable source. Use the Preview tab to view it.":
       "To plik binarny, więc nie ma edytowalnego źródła. Użyj karty Podgląd, aby go zobaczyć.",
-    "This one will be installed under a new name.": "Zostanie zainstalowany pod nową nazwą.",
     "This theme is not loading:": "Ten motyw się nie wczytuje:",
     "Turn the theme off": "Wyłącz motyw",
     "Turning off…": "Wyłączanie…",
@@ -1841,7 +1734,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "{file} nie ma w oryginale tego motywu, więc nie ma do czego go zresetować.",
     "This theme has no stored original, so nothing can be reset.":
       "Ten motyw nie ma zapisanego oryginału, więc nie można niczego zresetować.",
-    "failed to refresh the theme list": "Nie udało się odświeżyć listy motywów",
     "failed to switch theme": "Nie udało się przełączyć motywu",
   },
   hu: {
@@ -1853,10 +1745,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "Biztosan törölni szeretnéd a {file} fájlt? Ez véglegesen eltávolítja a fájlt. Nincs mód a visszaszerzésére.",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "Ez lecseréli a {file} fájlt az eredeti sablon verziójára. Az ezen a fájlon végzett módosítások elvesznek, és ez nem vonható vissza.",
-    "You already have a theme called {id}.": "Már van egy sablonod, amelynek neve {id}.",
     "← All themes": "← Összes téma",
-    Download: "Letöltés",
-    "Downloading…": "Letöltés…",
     Explore: "Böngészés",
     Modified: "Módosítva",
     "Modified from the original": "Az eredetihez képest módosítva",
@@ -1896,7 +1785,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     Assets: "Erőforrások",
     "Close fullscreen preview": "Teljes képernyős előnézet bezárása",
     Config: "Konfiguráció",
-    "Copied from": "Másolva innen",
     Copy: "Másolás",
     "Copying…": "Másolás…",
     Delete: "Törlés",
@@ -1907,9 +1795,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "Szerkeszd ezt a sablont, és nézd meg, hogyan jelenik meg. Ez semmit nem változtat az élő webhelyeden, amíg nem aktiválod.",
     "Editor view": "Szerkesztő nézet",
     HTML: "HTML",
-    "Loading the marketplace…": "Piactér betöltése…",
     "Loading theme…": "Sablon betöltése…",
-    Marketplace: "Piactér",
     Mobile: "Mobil",
     "More actions for {file}": "További műveletek: {file}",
     "New name for {file}": "Új név ehhez: {file}",
@@ -1918,7 +1804,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "No theme is active. Your site renders unstyled so you can supply your own CSS; posts, pages and products still publish normally. Activate a theme below to switch back at any time — nothing was deleted.":
       "Nincs aktív sablon. A webhelyed stílus nélkül jelenik meg, hogy saját CSS-t adhass hozzá; a bejegyzések, oldalak és termékek továbbra is a szokásos módon jelennek meg. Aktiválj alább egy sablont, hogy bármikor visszaválthass — semmi nem törlődött.",
     "No themes in this tier yet.": "Ebben a kategóriában még nincsenek sablonok.",
-    "Nothing available to download right now.": "Jelenleg nincs semmi letölthető.",
     Other: "Egyéb",
     Pages: "Oldalak",
     Partials: "Részleges sablonok",
@@ -1951,7 +1836,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This file type is read-only in Explore.": "Ez a fájltípus csak olvasható az Exploreban.",
     "This is a binary file, so it has no editable source. Use the Preview tab to view it.":
       "Ez egy bináris fájl, így nincs szerkeszthető forrása. Az Előnézet fülön tekintheted meg.",
-    "This one will be installed under a new name.": "Ez új néven kerül telepítésre.",
     "This theme is not loading:": "Ez a sablon nem töltődik be:",
     "Turn the theme off": "Sablon kikapcsolása",
     "Turning off…": "Kikapcsolás…",
@@ -1995,7 +1879,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "{file} nincs benne a sablon eredetijében, így nincs mire visszaállítani.",
     "This theme has no stored original, so nothing can be reset.":
       "Ennek a sablonnak nincs mentett eredetije, ezért semmi sem állítható vissza.",
-    "failed to refresh the theme list": "Nem sikerült frissíteni a témák listáját",
     "failed to switch theme": "Nem sikerült témát váltani",
   },
   fr: {
@@ -2007,10 +1890,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "Voulez-vous vraiment supprimer {file} ? Ceci supprime définitivement le fichier. Il n'y a aucun moyen de le récupérer.",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "Ceci remplace {file} par la version du thème d'origine. Toutes les modifications que vous avez apportées à ce fichier seront perdues, et cette action est irréversible.",
-    "You already have a theme called {id}.": "Vous avez déjà un thème appelé {id}.",
     "← All themes": "← Tous les thèmes",
-    Download: "Télécharger",
-    "Downloading…": "Téléchargement…",
     Explore: "Explorer",
     Modified: "Modifié",
     "Modified from the original": "Modifié par rapport à l'original",
@@ -2050,7 +1930,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     Assets: "Ressources",
     "Close fullscreen preview": "Fermer l'aperçu plein écran",
     Config: "Configuration",
-    "Copied from": "Copié depuis",
     Copy: "Copier",
     "Copying…": "Copie en cours…",
     Delete: "Supprimer",
@@ -2061,9 +1940,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "Modifiez ce thème et voyez son rendu. Rien ici ne change votre site en ligne tant que vous ne l'avez pas activé.",
     "Editor view": "Vue de l'éditeur",
     HTML: "HTML",
-    "Loading the marketplace…": "Chargement de la marketplace…",
     "Loading theme…": "Chargement du thème…",
-    Marketplace: "Place de marché",
     Mobile: "Mobile",
     "More actions for {file}": "Autres actions pour {file}",
     "New name for {file}": "Nouveau nom pour {file}",
@@ -2072,7 +1949,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "No theme is active. Your site renders unstyled so you can supply your own CSS; posts, pages and products still publish normally. Activate a theme below to switch back at any time — nothing was deleted.":
       "Aucun thème n'est actif. Votre site s'affiche sans style afin que vous puissiez fournir votre propre CSS ; les articles, pages et produits continuent d'être publiés normalement. Activez un thème ci-dessous pour revenir en arrière à tout moment — rien n'a été supprimé.",
     "No themes in this tier yet.": "Il n'y a pas encore de thèmes dans cette catégorie.",
-    "Nothing available to download right now.": "Rien n'est disponible au téléchargement pour le moment.",
     Other: "Autre",
     Pages: "Pages",
     Partials: "Partiels",
@@ -2105,7 +1981,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This file type is read-only in Explore.": "Ce type de fichier est en lecture seule dans Explorer.",
     "This is a binary file, so it has no editable source. Use the Preview tab to view it.":
       "Il s'agit d'un fichier binaire, il n'a donc pas de source modifiable. Utilisez l'onglet Aperçu pour le consulter.",
-    "This one will be installed under a new name.": "Celui-ci sera installé sous un nouveau nom.",
     "This theme is not loading:": "Ce thème ne se charge pas :",
     "Turn the theme off": "Désactiver le thème",
     "Turning off…": "Désactivation…",
@@ -2149,7 +2024,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "{file} ne fait pas partie de l'original de ce thème, il n'y a donc rien vers quoi le réinitialiser.",
     "This theme has no stored original, so nothing can be reset.":
       "Ce thème n'a pas d'original enregistré, rien ne peut donc être réinitialisé.",
-    "failed to refresh the theme list": "Impossible d'actualiser la liste des thèmes",
     "failed to switch theme": "Impossible de changer de thème",
   },
   uk: {
@@ -2161,10 +2035,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "Ви впевнені, що хочете видалити {file}? Це остаточно видалить файл. Відновити його буде неможливо.",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "Це замінить {file} версією з початкової теми. Усі зміни, внесені до цього файлу, буде втрачено, і це неможливо скасувати.",
-    "You already have a theme called {id}.": "У вас уже є тема з назвою {id}.",
     "← All themes": "← Усі теми",
-    Download: "Завантажити",
-    "Downloading…": "Завантаження…",
     Explore: "Огляд",
     Modified: "Змінено",
     "Modified from the original": "Змінено порівняно з оригіналом",
@@ -2204,7 +2075,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     Assets: "Ресурси",
     "Close fullscreen preview": "Закрити повноекранний перегляд",
     Config: "Конфігурація",
-    "Copied from": "Скопійовано з",
     Copy: "Копіювати",
     "Copying…": "Копіювання…",
     Delete: "Видалити",
@@ -2215,9 +2085,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "Відредагуйте цю тему та подивіться, як вона відображається. Ніщо тут не змінює ваш опублікований сайт, доки ви її не активуєте.",
     "Editor view": "Вигляд редактора",
     HTML: "HTML",
-    "Loading the marketplace…": "Завантаження маркету…",
     "Loading theme…": "Завантаження теми…",
-    Marketplace: "Маркет",
     Mobile: "Мобільний",
     "More actions for {file}": "Інші дії для {file}",
     "New name for {file}": "Нова назва для {file}",
@@ -2226,7 +2094,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "No theme is active. Your site renders unstyled so you can supply your own CSS; posts, pages and products still publish normally. Activate a theme below to switch back at any time — nothing was deleted.":
       "Жодна тема не активна. Ваш сайт відображається без оформлення, щоб ви могли підключити власний CSS; записи, сторінки та товари, як і раніше, публікуються звично. Активуйте тему нижче, щоб повернутися в будь-який момент — нічого не було видалено.",
     "No themes in this tier yet.": "У цій категорії поки немає тем.",
-    "Nothing available to download right now.": "Наразі немає нічого доступного для завантаження.",
     Other: "Інше",
     Pages: "Сторінки",
     Partials: "Часткові шаблони",
@@ -2259,7 +2126,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This file type is read-only in Explore.": "Цей тип файлу доступний лише для читання в режимі огляду.",
     "This is a binary file, so it has no editable source. Use the Preview tab to view it.":
       "Це бінарний файл, тому в нього немає редагованого вихідного коду. Скористайтеся вкладкою «Перегляд», щоб побачити його.",
-    "This one will be installed under a new name.": "Її буде встановлено під новою назвою.",
     "This theme is not loading:": "Ця тема не завантажується:",
     "Turn the theme off": "Вимкнути тему",
     "Turning off…": "Вимкнення…",
@@ -2303,7 +2169,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "Файлу {file} немає в оригіналі цієї теми, тому скидати його нема до чого.",
     "This theme has no stored original, so nothing can be reset.":
       "Ця тема не має збереженого оригіналу, тому нічого не можна скинути.",
-    "failed to refresh the theme list": "Не вдалося оновити список тем",
     "failed to switch theme": "Не вдалося змінити тему",
   },
   tr: {
@@ -2315,10 +2180,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "{file} dosyasını silmek istediğinizden emin misiniz? Bu, dosyayı kalıcı olarak kaldırır. Geri alma yöntemi yoktur.",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "Bu, {file} dosyasının yerini orijinal temanın sürümüyle değiştirir. Bu dosyada yaptığınız tüm değişiklikler kaybolacak ve bu geri alınamaz.",
-    "You already have a theme called {id}.": "Zaten {id} adında bir temanız var.",
     "← All themes": "← Tüm temalar",
-    Download: "İndir",
-    "Downloading…": "İndiriliyor…",
     Explore: "Keşfet",
     Modified: "Değiştirildi",
     "Modified from the original": "Orijinalinden değiştirildi",
@@ -2358,7 +2220,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     Assets: "Varlıklar",
     "Close fullscreen preview": "Tam ekran önizlemeyi kapat",
     Config: "Yapılandırma",
-    "Copied from": "Şuradan kopyalandı",
     Copy: "Kopyala",
     "Copying…": "Kopyalanıyor…",
     Delete: "Sil",
@@ -2369,9 +2230,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "Bu temayı düzenleyin ve nasıl göründüğünü izleyin. Etkinleştirene kadar burada hiçbir şey canlı sitenizi değiştirmez.",
     "Editor view": "Düzenleyici görünümü",
     HTML: "HTML",
-    "Loading the marketplace…": "Pazar yeri yükleniyor…",
     "Loading theme…": "Tema yükleniyor…",
-    Marketplace: "Pazar yeri",
     Mobile: "Mobil",
     "More actions for {file}": "{file} için diğer eylemler",
     "New name for {file}": "{file} için yeni ad",
@@ -2380,7 +2239,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "No theme is active. Your site renders unstyled so you can supply your own CSS; posts, pages and products still publish normally. Activate a theme below to switch back at any time — nothing was deleted.":
       "Etkin bir tema yok. Kendi CSS'inizi sağlayabilmeniz için siteniz stilsiz görüntüleniyor; gönderiler, sayfalar ve ürünler normal şekilde yayınlanmaya devam ediyor. İstediğiniz zaman geri dönmek için aşağıdan bir tema etkinleştirin — hiçbir şey silinmedi.",
     "No themes in this tier yet.": "Bu katmanda henüz tema yok.",
-    "Nothing available to download right now.": "Şu anda indirilebilecek bir şey yok.",
     Other: "Diğer",
     Pages: "Sayfalar",
     Partials: "Kısmi şablonlar",
@@ -2413,7 +2271,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This file type is read-only in Explore.": "Bu dosya türü Explore'da salt okunurdur.",
     "This is a binary file, so it has no editable source. Use the Preview tab to view it.":
       "Bu bir ikili dosyadır, bu yüzden düzenlenebilir bir kaynağı yoktur. Görüntülemek için Önizleme sekmesini kullanın.",
-    "This one will be installed under a new name.": "Bu, yeni bir adla yüklenecek.",
     "This theme is not loading:": "Bu tema yüklenmiyor:",
     "Turn the theme off": "Temayı kapat",
     "Turning off…": "Kapatılıyor…",
@@ -2457,7 +2314,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "{file} bu temanın orijinalinde yok, bu yüzden sıfırlanacak bir şey yok.",
     "This theme has no stored original, so nothing can be reset.":
       "Bu temanın kaydedilmiş bir orijinali yok, bu yüzden hiçbir şey sıfırlanamaz.",
-    "failed to refresh the theme list": "Tema listesi yenilenemedi",
     "failed to switch theme": "Tema değiştirilemedi",
   },
   th: {
@@ -2469,10 +2325,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "แน่ใจหรือไม่ว่าต้องการลบ {file}? การดำเนินการนี้จะลบไฟล์อย่างถาวร ไม่มีทางกู้คืนได้",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "การดำเนินการนี้จะแทนที่ {file} ด้วยเวอร์ชันจากธีมต้นฉบับ การเปลี่ยนแปลงใด ๆ ที่คุณทำกับไฟล์นี้จะสูญหาย และไม่สามารถยกเลิกได้",
-    "You already have a theme called {id}.": "คุณมีธีมที่ชื่อว่า {id} อยู่แล้ว",
     "← All themes": "← ธีมทั้งหมด",
-    Download: "ดาวน์โหลด",
-    "Downloading…": "กำลังดาวน์โหลด…",
     Explore: "สำรวจ",
     Modified: "แก้ไขแล้ว",
     "Modified from the original": "แก้ไขแล้วจากต้นฉบับ",
@@ -2512,7 +2365,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     Assets: "แอสเซท",
     "Close fullscreen preview": "ปิดการแสดงตัวอย่างแบบเต็มหน้าจอ",
     Config: "การกำหนดค่า",
-    "Copied from": "คัดลอกจาก",
     Copy: "คัดลอก",
     "Copying…": "กำลังคัดลอก…",
     Delete: "ลบ",
@@ -2523,9 +2375,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "แก้ไขธีมนี้และดูผลลัพธ์ที่แสดง การเปลี่ยนแปลงในที่นี้จะไม่ส่งผลต่อเว็บไซต์จริงของคุณจนกว่าคุณจะเปิดใช้งาน",
     "Editor view": "มุมมองตัวแก้ไข",
     HTML: "HTML",
-    "Loading the marketplace…": "กำลังโหลดมาร์เก็ตเพลส…",
     "Loading theme…": "กำลังโหลดธีม…",
-    Marketplace: "มาร์เก็ตเพลส",
     Mobile: "มือถือ",
     "More actions for {file}": "การดำเนินการอื่นสำหรับ {file}",
     "New name for {file}": "ชื่อใหม่สำหรับ {file}",
@@ -2534,7 +2384,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "No theme is active. Your site renders unstyled so you can supply your own CSS; posts, pages and products still publish normally. Activate a theme below to switch back at any time — nothing was deleted.":
       "ไม่มีธีมที่เปิดใช้งานอยู่ เว็บไซต์ของคุณจะแสดงโดยไม่มีสไตล์ เพื่อให้คุณใส่ CSS ของตัวเองได้ โพสต์ หน้า และสินค้ายังคงเผยแพร่ตามปกติ เปิดใช้งานธีมด้านล่างเพื่อกลับมาได้ทุกเมื่อ — ไม่มีอะไรถูกลบ",
     "No themes in this tier yet.": "ยังไม่มีธีมในหมวดหมู่นี้",
-    "Nothing available to download right now.": "ขณะนี้ไม่มีอะไรให้ดาวน์โหลด",
     Other: "อื่น ๆ",
     Pages: "หน้า",
     Partials: "ไฟล์บางส่วน",
@@ -2567,7 +2416,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This file type is read-only in Explore.": "ไฟล์ประเภทนี้เป็นแบบอ่านอย่างเดียวใน Explore",
     "This is a binary file, so it has no editable source. Use the Preview tab to view it.":
       "นี่คือไฟล์ไบนารี จึงไม่มีซอร์สที่แก้ไขได้ ใช้แท็บตัวอย่างเพื่อดูไฟล์นี้",
-    "This one will be installed under a new name.": "ไฟล์นี้จะถูกติดตั้งภายใต้ชื่อใหม่",
     "This theme is not loading:": "ธีมนี้ไม่โหลด:",
     "Turn the theme off": "ปิดใช้งานธีม",
     "Turning off…": "กำลังปิดใช้งาน…",
@@ -2610,7 +2458,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "{file} isn't in this theme's original, so there's nothing to reset it to.":
       "{file} ไม่มีอยู่ในต้นฉบับของธีมนี้ จึงไม่มีอะไรให้รีเซ็ตกลับไป",
     "This theme has no stored original, so nothing can be reset.": "ธีมนี้ไม่มีต้นฉบับที่บันทึกไว้ จึงรีเซ็ตอะไรไม่ได้",
-    "failed to refresh the theme list": "รีเฟรชรายการธีมไม่สำเร็จ",
     "failed to switch theme": "เปลี่ยนธีมไม่สำเร็จ",
   },
   it: {
@@ -2622,10 +2469,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "Sei sicuro di voler eliminare {file}? Questa operazione rimuove definitivamente il file. Non c'è modo di recuperarlo.",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "Questo sostituisce {file} con la versione del tema originale. Tutte le modifiche apportate a questo file andranno perse e non sarà possibile annullarle.",
-    "You already have a theme called {id}.": "Hai già un tema chiamato {id}.",
     "← All themes": "← Tutti i temi",
-    Download: "Scarica",
-    "Downloading…": "Download in corso…",
     Explore: "Esplora",
     Modified: "Modificato",
     "Modified from the original": "Modificato rispetto all'originale",
@@ -2665,7 +2509,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     Assets: "Risorse",
     "Close fullscreen preview": "Chiudi anteprima a schermo intero",
     Config: "Configurazione",
-    "Copied from": "Copiato da",
     Copy: "Copia",
     "Copying…": "Copia in corso…",
     Delete: "Elimina",
@@ -2676,9 +2519,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "Modifica questo tema e guardalo renderizzato. Niente qui cambia il tuo sito live finché non lo attivi.",
     "Editor view": "Vista editor",
     HTML: "HTML",
-    "Loading the marketplace…": "Caricamento del marketplace…",
     "Loading theme…": "Caricamento del tema…",
-    Marketplace: "Marketplace",
     Mobile: "Cellulare",
     "More actions for {file}": "Altre azioni per {file}",
     "New name for {file}": "Nuovo nome per {file}",
@@ -2687,7 +2528,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "No theme is active. Your site renders unstyled so you can supply your own CSS; posts, pages and products still publish normally. Activate a theme below to switch back at any time — nothing was deleted.":
       "Nessun tema è attivo. Il tuo sito viene mostrato senza stile, così puoi fornire il tuo CSS; articoli, pagine e prodotti continuano a essere pubblicati normalmente. Attiva un tema qui sotto per tornare indietro in qualsiasi momento — non è stato eliminato nulla.",
     "No themes in this tier yet.": "Non ci sono ancora temi in questa categoria.",
-    "Nothing available to download right now.": "Al momento non c'è nulla di disponibile da scaricare.",
     Other: "Altro",
     Pages: "Pagine",
     Partials: "Parziali",
@@ -2720,7 +2560,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This file type is read-only in Explore.": "Questo tipo di file è di sola lettura in Explore.",
     "This is a binary file, so it has no editable source. Use the Preview tab to view it.":
       "Questo è un file binario, quindi non ha un sorgente modificabile. Usa la scheda Anteprima per visualizzarlo.",
-    "This one will be installed under a new name.": "Verrà installato con un nuovo nome.",
     "This theme is not loading:": "Questo tema non si carica:",
     "Turn the theme off": "Disattiva il tema",
     "Turning off…": "Disattivazione…",
@@ -2764,7 +2603,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "{file} non è nell'originale di questo tema, quindi non c'è nulla a cui ripristinarlo.",
     "This theme has no stored original, so nothing can be reset.":
       "Questo tema non ha un originale salvato, quindi non è possibile ripristinare nulla.",
-    "failed to refresh the theme list": "Impossibile aggiornare l'elenco dei temi",
     "failed to switch theme": "Impossibile cambiare tema",
   },
   hi: {
@@ -2776,10 +2614,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "क्या आप वाकई {file} को हटाना चाहते हैं? यह फ़ाइल को स्थायी रूप से हटा देगा। इसे वापस पाने का कोई तरीका नहीं है।",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "यह {file} को मूल थीम के संस्करण से बदल देगा। इस फ़ाइल में आपके द्वारा किए गए किसी भी बदलाव को खो दिया जाएगा, और इसे पूर्ववत नहीं किया जा सकता।",
-    "You already have a theme called {id}.": "आपके पास पहले से ही {id} नाम की एक थीम है।",
     "← All themes": "← सभी थीम",
-    Download: "डाउनलोड करें",
-    "Downloading…": "डाउनलोड हो रहा है…",
     Explore: "एक्सप्लोर करें",
     Modified: "संशोधित",
     "Modified from the original": "मूल से संशोधित",
@@ -2819,7 +2654,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     Assets: "एसेट्स",
     "Close fullscreen preview": "फ़ुलस्क्रीन पूर्वावलोकन बंद करें",
     Config: "कॉन्फ़िगरेशन",
-    "Copied from": "इससे कॉपी किया गया",
     Copy: "कॉपी करें",
     "Copying…": "कॉपी हो रहा है…",
     Delete: "हटाएं",
@@ -2830,9 +2664,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "इस थीम को संपादित करें और देखें कि यह कैसी दिखती है। जब तक आप इसे सक्रिय नहीं करते, यहाँ कुछ भी आपकी लाइव साइट को नहीं बदलता।",
     "Editor view": "एडिटर दृश्य",
     HTML: "HTML",
-    "Loading the marketplace…": "मार्केटप्लेस लोड हो रहा है…",
     "Loading theme…": "थीम लोड हो रही है…",
-    Marketplace: "मार्केटप्लेस",
     Mobile: "मोबाइल",
     "More actions for {file}": "{file} के लिए अन्य कार्य",
     "New name for {file}": "{file} के लिए नया नाम",
@@ -2841,7 +2673,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "No theme is active. Your site renders unstyled so you can supply your own CSS; posts, pages and products still publish normally. Activate a theme below to switch back at any time — nothing was deleted.":
       "कोई थीम सक्रिय नहीं है। आपकी साइट बिना स्टाइल के दिखाई देती है ताकि आप अपना खुद का CSS दे सकें; पोस्ट, पेज और उत्पाद हमेशा की तरह प्रकाशित होते रहते हैं। वापस लौटने के लिए नीचे से किसी भी समय कोई थीम सक्रिय करें — कुछ भी हटाया नहीं गया।",
     "No themes in this tier yet.": "इस श्रेणी में अभी तक कोई थीम नहीं है।",
-    "Nothing available to download right now.": "अभी डाउनलोड करने के लिए कुछ भी उपलब्ध नहीं है।",
     Other: "अन्य",
     Pages: "पेज",
     Partials: "आंशिक फ़ाइलें",
@@ -2874,7 +2705,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This file type is read-only in Explore.": "यह फ़ाइल प्रकार Explore में केवल पढ़ने के लिए है।",
     "This is a binary file, so it has no editable source. Use the Preview tab to view it.":
       "यह एक बाइनरी फ़ाइल है, इसलिए इसका कोई संपादन योग्य स्रोत नहीं है। इसे देखने के लिए पूर्वावलोकन टैब का उपयोग करें।",
-    "This one will be installed under a new name.": "इसे एक नए नाम से इंस्टॉल किया जाएगा।",
     "This theme is not loading:": "यह थीम लोड नहीं हो रही है:",
     "Turn the theme off": "थीम बंद करें",
     "Turning off…": "बंद हो रहा है…",
@@ -2918,7 +2748,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "{file} इस थीम के मूल संस्करण में नहीं है, इसलिए इसे रीसेट करने के लिए कुछ नहीं है।",
     "This theme has no stored original, so nothing can be reset.":
       "इस थीम का कोई सहेजा हुआ मूल संस्करण नहीं है, इसलिए कुछ भी रीसेट नहीं किया जा सकता।",
-    "failed to refresh the theme list": "थीम सूची रीफ़्रेश नहीं हो सकी",
     "failed to switch theme": "थीम बदली नहीं जा सकी",
   },
   ur: {
@@ -2930,10 +2759,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "کیا آپ واقعی {file} کو حذف کرنا چاہتے ہیں؟ یہ فائل کو مستقل طور پر حذف کر دے گا۔ اسے واپس حاصل کرنے کا کوئی طریقہ نہیں ہے۔",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "یہ {file} کو اصل تھیم کے ورژن سے بدل دے گا۔ اس فائل میں آپ کی کی گئی کوئی بھی تبدیلی ضائع ہو جائے گی، اور اسے واپس نہیں لیا جا سکتا۔",
-    "You already have a theme called {id}.": "آپ کے پاس پہلے سے ہی {id} نام کی ایک تھیم ہے۔",
     "← All themes": "← تمام تھیمز",
-    Download: "ڈاؤن لوڈ کریں",
-    "Downloading…": "ڈاؤن لوڈ ہو رہا ہے…",
     Explore: "دریافت کریں",
     Modified: "ترمیم شدہ",
     "Modified from the original": "اصل سے ترمیم شدہ",
@@ -2973,7 +2799,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     Assets: "اثاثے",
     "Close fullscreen preview": "فل اسکرین پیش منظر بند کریں",
     Config: "ترتیب",
-    "Copied from": "سے کاپی کیا گیا",
     Copy: "کاپی کریں",
     "Copying…": "کاپی ہو رہا ہے…",
     Delete: "حذف کریں",
@@ -2984,9 +2809,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "اس تھیم میں ترمیم کریں اور دیکھیں کہ یہ کیسی نظر آتی ہے۔ جب تک آپ اسے فعال نہیں کرتے، یہاں کچھ بھی آپ کی لائیو سائٹ کو تبدیل نہیں کرتا۔",
     "Editor view": "ایڈیٹر ویو",
     HTML: "HTML",
-    "Loading the marketplace…": "مارکیٹ پلیس لوڈ ہو رہا ہے…",
     "Loading theme…": "تھیم لوڈ ہو رہی ہے…",
-    Marketplace: "مارکیٹ پلیس",
     Mobile: "موبائل",
     "More actions for {file}": "{file} کے لیے مزید اقدامات",
     "New name for {file}": "{file} کے لیے نیا نام",
@@ -2995,7 +2818,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "No theme is active. Your site renders unstyled so you can supply your own CSS; posts, pages and products still publish normally. Activate a theme below to switch back at any time — nothing was deleted.":
       "کوئی تھیم فعال نہیں ہے۔ آپ کی سائٹ بغیر اسٹائل کے دکھائی دیتی ہے تاکہ آپ اپنا CSS فراہم کر سکیں؛ پوسٹس، صفحات اور پروڈکٹس معمول کے مطابق شائع ہوتے رہتے ہیں۔ واپس جانے کے لیے نیچے سے کسی بھی وقت کوئی تھیم فعال کریں — کچھ بھی حذف نہیں کیا گیا۔",
     "No themes in this tier yet.": "اس زمرے میں ابھی تک کوئی تھیم نہیں ہے۔",
-    "Nothing available to download right now.": "اس وقت ڈاؤن لوڈ کے لیے کچھ بھی دستیاب نہیں ہے۔",
     Other: "دیگر",
     Pages: "صفحات",
     Partials: "جزوی فائلیں",
@@ -3028,7 +2850,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This file type is read-only in Explore.": "یہ فائل کی قسم Explore میں صرف پڑھنے کے لیے ہے۔",
     "This is a binary file, so it has no editable source. Use the Preview tab to view it.":
       "یہ ایک بائنری فائل ہے، اس لیے اس کا کوئی قابلِ ترمیم سورس نہیں ہے۔ اسے دیکھنے کے لیے پیش منظر ٹیب استعمال کریں۔",
-    "This one will be installed under a new name.": "یہ ایک نئے نام کے تحت انسٹال کیا جائے گا۔",
     "This theme is not loading:": "یہ تھیم لوڈ نہیں ہو رہی:",
     "Turn the theme off": "تھیم بند کریں",
     "Turning off…": "بند ہو رہا ہے…",
@@ -3072,7 +2893,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "{file} اس تھیم کے اصل نسخے میں موجود نہیں ہے، اس لیے اسے ری سیٹ کرنے کے لیے کچھ نہیں ہے۔",
     "This theme has no stored original, so nothing can be reset.":
       "اس تھیم کا کوئی محفوظ شدہ اصل نسخہ نہیں ہے، اس لیے کچھ بھی ری سیٹ نہیں کیا جا سکتا۔",
-    "failed to refresh the theme list": "تھیمز کی فہرست ریفریش نہیں ہو سکی",
     "failed to switch theme": "تھیم تبدیل نہیں ہو سکی",
   },
   bn: {
@@ -3084,10 +2904,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "আপনি কি নিশ্চিতভাবে {file} মুছে ফেলতে চান? এটি স্থায়ীভাবে ফাইলটি মুছে ফেলবে। এটি ফিরে পাওয়ার কোনো উপায় নেই।",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "এটি {file}-কে মূল থিমের সংস্করণ দিয়ে প্রতিস্থাপন করবে। এই ফাইলে আপনার করা যেকোনো পরিবর্তন হারিয়ে যাবে, এবং এটি পূর্বাবস্থায় ফেরানো যাবে না।",
-    "You already have a theme called {id}.": "আপনার কাছে ইতিমধ্যেই {id} নামে একটি থিম আছে।",
     "← All themes": "← সব থিম",
-    Download: "ডাউনলোড করুন",
-    "Downloading…": "ডাউনলোড হচ্ছে…",
     Explore: "অন্বেষণ করুন",
     Modified: "পরিবর্তিত",
     "Modified from the original": "মূল থেকে পরিবর্তিত",
@@ -3127,7 +2944,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     Assets: "অ্যাসেট",
     "Close fullscreen preview": "ফুলস্ক্রিন প্রিভিউ বন্ধ করুন",
     Config: "কনফিগারেশন",
-    "Copied from": "থেকে কপি করা হয়েছে",
     Copy: "কপি করুন",
     "Copying…": "কপি হচ্ছে…",
     Delete: "মুছুন",
@@ -3138,9 +2954,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "এই থিমটি সম্পাদনা করুন এবং এটি কেমন দেখায় তা দেখুন। আপনি এটি সক্রিয় না করা পর্যন্ত এখানে কিছুই আপনার লাইভ সাইট পরিবর্তন করে না।",
     "Editor view": "এডিটর ভিউ",
     HTML: "HTML",
-    "Loading the marketplace…": "মার্কেটপ্লেস লোড হচ্ছে…",
     "Loading theme…": "থিম লোড হচ্ছে…",
-    Marketplace: "মার্কেটপ্লেস",
     Mobile: "মোবাইল",
     "More actions for {file}": "{file} এর জন্য আরও কার্যক্রম",
     "New name for {file}": "{file} এর জন্য নতুন নাম",
@@ -3149,7 +2963,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "No theme is active. Your site renders unstyled so you can supply your own CSS; posts, pages and products still publish normally. Activate a theme below to switch back at any time — nothing was deleted.":
       "কোনো থিম সক্রিয় নেই। আপনার সাইট স্টাইল ছাড়াই প্রদর্শিত হয় যাতে আপনি নিজের CSS সরবরাহ করতে পারেন; পোস্ট, পৃষ্ঠা এবং পণ্য যথারীতি প্রকাশিত হতে থাকে। ফিরে যেতে নিচে থেকে যেকোনো সময় একটি থিম সক্রিয় করুন — কিছুই মুছে ফেলা হয়নি।",
     "No themes in this tier yet.": "এই স্তরে এখনো কোনো থিম নেই।",
-    "Nothing available to download right now.": "এই মুহূর্তে ডাউনলোডের জন্য কিছুই উপলব্ধ নেই।",
     Other: "অন্যান্য",
     Pages: "পৃষ্ঠাসমূহ",
     Partials: "আংশিক ফাইল",
@@ -3182,7 +2995,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This file type is read-only in Explore.": "এই ফাইলের ধরনটি Explore-এ শুধুমাত্র পঠনযোগ্য।",
     "This is a binary file, so it has no editable source. Use the Preview tab to view it.":
       "এটি একটি বাইনারি ফাইল, তাই এর কোনো সম্পাদনাযোগ্য সোর্স নেই। এটি দেখতে প্রিভিউ ট্যাব ব্যবহার করুন।",
-    "This one will be installed under a new name.": "এটি একটি নতুন নামে ইনস্টল করা হবে।",
     "This theme is not loading:": "এই থিমটি লোড হচ্ছে না:",
     "Turn the theme off": "থিম বন্ধ করুন",
     "Turning off…": "বন্ধ হচ্ছে…",
@@ -3226,7 +3038,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "{file} এই থিমের মূল সংস্করণে নেই, তাই এটিকে রিসেট করার মতো কিছু নেই।",
     "This theme has no stored original, so nothing can be reset.":
       "এই থিমের কোনো সংরক্ষিত মূল সংস্করণ নেই, তাই কিছুই রিসেট করা যাবে না।",
-    "failed to refresh the theme list": "থিমের তালিকা রিফ্রেশ করা যায়নি",
     "failed to switch theme": "থিম পরিবর্তন করা যায়নি",
   },
 };

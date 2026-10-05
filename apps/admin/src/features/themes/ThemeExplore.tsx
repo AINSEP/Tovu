@@ -598,9 +598,8 @@ function ThemeExploreDirectionsNotice({
  * actual accessibility bar here: the native `title` attribute was rejected for this exact component
  * already (see `InfoTip`'s own doc), and touch devices can't hover at all.
  *
- * The copy-lineage sentence ("Copied from X vY.") folds into the SAME tooltip rather than staying
- * its own visible clause — it's supporting detail for the same reassurance, not a fact the operator
- * needs at a glance, so it doesn't earn a place on the one visible line.
+ * (The tooltip used to append a "Copied from X vY." lineage sentence; that metadata only ever came
+ * from the theme marketplace, deleted 2026-10-04.)
  *
  * @complexity O(1).
  */
@@ -612,16 +611,13 @@ function ThemeExploreCopyTip({
   t: Translate;
 }) {
   if (!detail.hasOriginal) return null;
-  const lineage = detail.lineage?.from
-    ? ` ${t("Copied from")} ${detail.lineage.from}${detail.lineage.version ? ` v${detail.lineage.version}` : ""}.`
-    : "";
   return (
     <p className="theme-explore-copy-tip">
       {t("You're editing your own copy.")}
       <InfoTip
-        label={`${t(
+        label={t(
           "An untouched original is kept separately, so you can change anything here without losing what you started from."
-        )}${lineage}`}
+        )}
       />
     </p>
   );

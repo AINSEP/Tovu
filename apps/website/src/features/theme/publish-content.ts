@@ -47,8 +47,8 @@ import { isGeneratedThemePath } from "./theme-files.js";
  * A theme tree is `<themesDir>/<tier>/<id>/**` for `tier` in {@link THEME_FILE_TREE_TIERS} — a
  * deliberate narrowing to 3 of `theme.ts`'s 4 `ENGINE_SUBFOLDERS` (never `handlebars`, per the plan's
  * own inventory table; flagged, not silently overridden, by the S17 handoff this file continues from).
- * `__original-themes__`/`__marketplace__`/a bare root `README.md` never need an explicit exclusion
- * here at all: both catalog dirs and the themes-root `README.md` are SIBLINGS of `static/`/
+ * `__original-themes__`/a bare root `README.md` never need an explicit exclusion
+ * here at all: the catalog dir and the themes-root `README.md` are SIBLINGS of `static/`/
  * `templated/`/`declarative/` (`theme.ts`'s own `discoverAllBuiltInThemes` scans them at the themes
  * ROOT, separately from each engine subfolder) — walking `themesDir/<tier>/*` for theme ids never
  * reaches any of them. What DOES land inside a tier folder is `MIGRATION_STAGING_DIR_PREFIX` scratch

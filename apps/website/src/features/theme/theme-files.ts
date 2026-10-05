@@ -94,18 +94,18 @@ const MAX_WALK_DEPTH = 12;
  *
  * `screenshots/` is deliberately NOT in this list: those are real marketing assets an author may want
  * to look at or replace, not a copy of the theme's own source — excluding them from the Explore list
- * would hide something real, and excluding them from a marketplace download's catalog copy would make
- * them permanently non-resettable once a user's working copy changed or deleted theirs (that copy is
- * what "reset to original" restores from).
+ * would hide something real, and excluding them from a theme's catalog copy (`__original-themes__`)
+ * would make them permanently non-resettable once a user's working copy changed or deleted theirs
+ * (that copy is what "reset to original" restores from).
  *
  * The single canonical list — 2026-08-11: this used to be two independent copies, `explore.ts`'s own
  * `GENERATED_DIRS`/`isGenerated` (filtering the Explore file list, given a theme-relative path already
- * in POSIX form) and `marketplace.ts`'s `isGeneratedPreviewPath` (a `cpSync` filter callback, given two
- * ABSOLUTE filesystem paths to relativize itself). Both were answering the identical question —
+ * in POSIX form) and the theme marketplace's `isGeneratedPreviewPath` (a `cpSync` filter callback,
+ * given two ABSOLUTE filesystem paths to relativize itself; deleted 2026-10-04 with the marketplace). Both were answering the identical question —
  * "is this generated preview output" — against the identical directory name, so a third caller would
  * have had to remember to update two places or silently miss one. {@link isGeneratedThemePath} is now
- * that one definition; each caller normalizes its own path shape (already-relative-POSIX for `explore.ts`,
- * `path.relative(fixtureDir, candidate)` for `marketplace.ts`) into the relative string this expects.
+ * that one definition; each caller normalizes its own path shape (already-relative-POSIX for
+ * `explore.ts`, `path.relative(root, candidate)` for a `cpSync` filter) into the relative string this expects.
  */
 export const GENERATED_THEME_DIRS: readonly string[] = ["preview"];
 
@@ -1086,8 +1086,7 @@ export function resolveThemeFileWriteScope(
  *
  * "One operation" here means indivisible from the CALLER's perspective — enumerate both sides fully
  * before mutating anything — not an OS-level transaction; a crash mid-restore can still leave a
- * partial tree, the same caveat every other multi-file write in this codebase already accepts
- * (`downloadMarketplaceTheme`'s own two `cpSync` calls carry the identical caveat, undocumented there).
+ * partial tree, the same caveat every other multi-file write in this codebase already accepts.
  *
  * Reuses {@link listThemeFiles}'s walk for both sides (live and catalog) rather than a second directory
  * walker: `THEME_CATALOG_DIR`'s own layout mirrors a real themes root's `<tier>/<id>/` shape (see that

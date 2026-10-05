@@ -3,7 +3,7 @@ import type { CanvasContentWrapperNode } from "@jini-ai/ui/html-editor";
 /**
  * @file Derives the Interactive tab's canvas wrapper from a theme TEMPLATE's own raw markup — the
  * real ancestor chain a static theme wraps its `{"type":"content"}` marker in — instead of a
- * hardcoded class list. Themes are copied per-site and marketplace-downloadable (see
+ * hardcoded class list. Themes are copied per-site and may come from third parties (see
  * `use-theme-canvas-styling.hooks.ts`'s own file header for the same "not fully trusted input"
  * framing), so a fixed `"post-detail wrap"` string would silently rot the moment a different theme,
  * or a future edit to this one, used a different wrapper.

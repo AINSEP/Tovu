@@ -16,7 +16,7 @@
  * Sites -> all, new; AI Assistant -> visitor, admin, roadmap.
  * Pages -> mine, theme (URL: ?tab=themes); Media -> all, images, videos, external-providers.
  * Roles -> roles, policies; SEO -> defaults, sitemap, entries.
- * Themes AND Appearance alias -> declarative, static, templated, code, marketplace.
+ * Themes AND Appearance alias -> declarative, static, templated, code.
  * Plugins AND Agent Plugins -> installed, downloaded, marketplace.
  * Skills -> skills, add (URL: ?tab=skills, ?tab=add).
  * Providers -> external-mcp, always-allow, mcp-server, webhooks.
@@ -145,7 +145,7 @@ function tabValues(file: string, name: string, field?: string): string[] {
 }
 
 interface TabPage { route: string; ids: string[]; shell?: boolean; clickOnly?: boolean }
-const themeTabIds = [...tabValues("themes/rules.ts", "THEME_TAB_GROUPS"), "marketplace"];
+const themeTabIds = tabValues("themes/rules.ts", "THEME_TAB_GROUPS");
 const tabPages: TabPage[] = [
   { route: "sites", ids: tabValues("sites/Sites.hooks.tsx", "SITES_TAB_IDS") },
   { route: "ai-assistant", ids: tabValues("ai-assistant/hooks/use-ai-assistant.hooks.ts", "AI_ASSISTANT_TAB_IDS"), shell: true },
@@ -475,9 +475,6 @@ test.describe("every admin page tab", () => {
         else {
           const tab = page.locator("#main-content .tab-bar").first().getByRole("tab").nth(index);
           await expect(tab).toHaveAttribute("aria-selected", "true");
-          // The current Themes UI loads its real marketplace only from onChange, even for
-          // a deep link. Re-select it to trigger that existing lazy read, without downloading.
-          if ((tabPage.route === "themes" || tabPage.route === "appearance") && id === "marketplace") await tab.click();
         }
         await capture(page, `admin-${tabPage.route}-tab-${id}.png`);
       });

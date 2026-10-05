@@ -262,8 +262,6 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   theme_read_file: "theme stylesheet css template view read design code file",
   theme_list_files: "theme files templates stylesheets css list design",
   theme_list: "theme themes design appearance skin installed",
-  marketplace_list_themes: "theme themes marketplace browse new theme find a theme gallery templates designs available",
-  theme_install_from_marketplace: "install theme download theme add theme get new theme use a different design",
   theme_rescan: "rescan themes refresh themes new theme folder not showing reload themes",
   // "fs_list_files"/"fs_read_file" added 2026-09-14 (SPEC-053): the owner dropped a folder and asked
   // "whats in this folder?", and the model said it had no filesystem tool — neither had an entry here.

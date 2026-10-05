@@ -24,7 +24,6 @@ import {
   themeOriginalResetRefusal,
   writeThemeFile,
   ThemePathError,
-  readThemeLineageFile,
   type ThemeFileWriteScope,
   type ThemeOriginalSource,
   // The shared "can this file's identity/content change" gate pieces — extracted (2026-08-30) into
@@ -493,13 +492,6 @@ export const registerAdminThemeDetailRoute: ContentRouteRegistrar = (app, deps) 
       const theme = findThemeOrRespond(deps, req, res);
       if (!theme) return;
 
-      // `lineage` is written by the copy/download flows into its own install-local sidecar file
-      // (`theme-lineage.ts`), never into `theme.json`/`ThemeManifest` — it is metadata about where a
-      // copy came from, never anything the renderer resolves, and putting it on the manifest would
-      // both invite exactly the runtime-inheritance reading the copy model exists to remove AND fail
-      // a strict v2 manifest schema's `additionalProperties: false` check (2026-08-18 schema decision).
-      const lineage = readThemeLineageFile({ themeDir: theme.dir });
-
       // An untouched original to reset back to — the site's own catalog copy, or (Design C,
       // 2026-09-16) the package's own read-only catalog when the site has none at all. The banner's
       // promise ("you can always get back to what you started from") now also covers the seven
@@ -546,7 +538,6 @@ export const registerAdminThemeDetailRoute: ContentRouteRegistrar = (app, deps) 
         pages: Object.keys(theme.pages).sort(),
         partials: Object.keys(theme.partials).sort(),
         files,
-        lineage,
         hasOriginal,
       });
     } catch {
@@ -625,8 +616,8 @@ function isPutWritable(theme: DiscoveredTheme, path: string, writeScope: ThemeFi
 /**
  * PUT one file inside a theme.
  *
- * Reachable only for themes DISCOVERY returned — which structurally excludes the originals catalog
- * and the marketplace fixture, since neither is discovered. That is the invariant the whole copy
+ * Reachable only for themes DISCOVERY returned — which structurally excludes the originals catalog,
+ * since it is never discovered. That is the invariant the whole copy
  * model rests on: an original cannot be edited, so a copy always has something intact to reset to,
  * and it holds here because of where the theme list comes from rather than because of a check
  * somebody has to remember to write.

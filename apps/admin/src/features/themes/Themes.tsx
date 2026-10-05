@@ -11,8 +11,8 @@ import { ImagePreviewModal } from "../../components/ImagePreviewModal";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { PublishSectionButton } from "../publish-content/PublishSectionButton";
 import type { Translate } from "../../lib/dictionary-translator";
-import { interpolate, splitOnPlaceholders } from "../../lib/template-i18n";
-import { useWiredThemes, type ThemesController, type MarketplaceItem } from "./hooks/use-themes.hooks";
+import { interpolate } from "../../lib/template-i18n";
+import { useWiredThemes, type ThemesController } from "./hooks/use-themes.hooks";
 import {
   isActiveTheme,
   isStrandedActiveTheme,
@@ -38,14 +38,10 @@ const THEME_BLURBS: Record<string, string> = {
   signal: "A bright product-blog — cobalt masthead and a rounded card grid.",
 };
 
-/** A stable id for the Marketplace placeholder tab — deliberately not a {@link ThemeTabGroup}
- *  value, since it has no themes to bucket and never becomes the active/default tab. */
-const MARKETPLACE_TAB_ID = "marketplace";
-
 /**
  * An `aria-label` naming which card a repeated action button acts on.
  *
- * "Activate"/"Download" read identically on every card in their own grid — a screen reader or a
+ * "Activate" reads identically on every card in the grid — a screen reader or a
  * generic browser agent reading the accessibility tree (roles + accessible names, not this repo's
  * own `data-agent-label` — `agentHandle()`'s `label` option is a private `data-agent-*` attribute,
  * invisible to both) has no way to tell one card's button from another's without this. Busy and
@@ -59,7 +55,7 @@ function actionButtonAriaLabel(idleVerb: string, busyVerb: string, busy: boolean
 
 /** `group` capitalized for a tab label — honest rather than inventing marketing names for tiers
  *  (`code`) that have no shipped theme and no established product name yet. Routed through `t()`
- *  (same pattern as the "Marketplace (soon)" label right next to it) so these translate instead of
+ *  so these translate instead of
  *  always rendering the raw English capitalization — the capitalized form is also the dictionary
  *  key, so an untranslated locale still falls back to the correct English label. */
 function tabGroupLabel(t: Translate, group: ThemeTabGroup): string {
@@ -175,28 +171,27 @@ export interface ThemesProps {
  * one caller with a dynamic (not fixed-constant) default, computed here via
  * `defaultThemeTabGroup(settings, themeTiers)` before being handed in, so a stale link or typo
  * opens on a sensible tab instead of a blank grid (an unrecognized id would otherwise flow into
- * `grouped[activeTab]`, which is `undefined` for anything but a real {@link ThemeTabGroup} or
- * {@link MARKETPLACE_TAB_ID}).
+ * `grouped[activeTab]`, which is `undefined` for anything but a real {@link ThemeTabGroup}). A
+ * `?tab=marketplace` link from before the theme marketplace was deleted (2026-10-04) falls back the
+ * same way.
  *
- * @complexity Time/space: O(1) — fixed-size id list (four tab groups + Marketplace), not
- * caller-controlled.
+ * @complexity Time/space: O(1) — fixed-size id list (four tab groups), not caller-controlled.
  */
 function resolveThemesActiveTabId(
   tabId: string | null | undefined,
   settings: PresentationSettings,
   themeTiers: Record<string, ThemeTier>,
 ): string {
-  const validTabIds: readonly string[] = [...THEME_TAB_GROUPS, MARKETPLACE_TAB_ID];
+  const validTabIds: readonly string[] = THEME_TAB_GROUPS;
   return resolveActiveTabId(tabId, validTabIds, defaultThemeTabGroup(settings, themeTiers));
 }
 
 /**
  * Fills in every optional {@link ThemesController} field with the same default the destructuring at
  * `Themes`'s own call site used to carry inline (complexity-ceiling pass, 2026-08-11) — split out to a
- * top-level function so these six `??` fallbacks score against this function instead of `Themes`
+ * top-level function so these `??` fallbacks score against this function instead of `Themes`
  * itself. Existing test doubles built against the earlier, smaller controller shape
- * (`themeTiers`/`rescanning`/`rescanNotice`/`marketplace`/`marketplaceLoading`/`downloading` were all
- * added later) keep type-checking without being rewritten — see those fields' own doc on
+ * (`themeTiers`/`themeNames`/`rescanning`/`rescanNotice` were all added later) keep type-checking without being rewritten — see those fields' own doc on
  * `ThemesController` for why they're optional in the first place.
  */
 function withThemeDefaults(controller: ThemesController) {
@@ -206,29 +201,16 @@ function withThemeDefaults(controller: ThemesController) {
     themeNames: controller.themeNames ?? {},
     rescanning: controller.rescanning ?? false,
     rescanNotice: controller.rescanNotice ?? null,
-    marketplace: controller.marketplace ?? [],
-    marketplaceLoading: controller.marketplaceLoading ?? false,
-    downloading: controller.downloading ?? null,
   };
 }
 
-/** The tab list for `TabBar` — every configured {@link ThemeTabGroup} plus the Marketplace
- *  placeholder. Extracted to a top-level function (complexity-ceiling pass) so the marketplace tab's
- *  `||` fallback scores independently of `Themes`'s own complexity. */
-function buildThemeTabs(
-  t: Translate,
-  grouped: Record<ThemeTabGroup, string[]>,
-  marketplace: MarketplaceItem[],
-): TabBarTab[] {
-  return [
-    ...THEME_TAB_GROUPS.map(
-      (group): TabBarTab => ({ id: group, label: tabGroupLabel(t, group), count: grouped[group].length }),
-    ),
-    // Live as of the local fixture (`src/themes/__marketplace__/`): a real listing served by a real
-    // route, downloading real theme folders. Still not a real marketplace — no network, no search,
-    // no publisher identity, no versioning (see development/todos.md).
-    { id: MARKETPLACE_TAB_ID, label: t("Marketplace"), count: marketplace.length || undefined },
-  ];
+/** The tab list for `TabBar` — one tab per configured {@link ThemeTabGroup}, each with its theme
+ *  count. (The theme Marketplace tab that used to follow these was deleted 2026-10-04 with the dead
+ *  marketplace it listed.) */
+function buildThemeTabs(t: Translate, grouped: Record<ThemeTabGroup, string[]>): TabBarTab[] {
+  return THEME_TAB_GROUPS.map(
+    (group): TabBarTab => ({ id: group, label: tabGroupLabel(t, group), count: grouped[group].length }),
+  );
 }
 
 /** The rescan-outcome toast. Transient, not a persistent banner: the rescan outcome confirms
@@ -298,93 +280,6 @@ function ThemesBanners({
         </div>
       ) : null}
     </>
-  );
-}
-
-/**
- * A marketplace card's "you already have this id" note — one whole sentence with an `{id}`
- * placeholder rather than two fragments concatenated around a `<code>` element (that shape can't
- * be reordered for a locale whose grammar doesn't put the clause in English order around the id).
- * `splitOnPlaceholders` keeps `<code>` as a real React node while the key stays a full,
- * per-locale-reorderable sentence. The trailing "installed under a new name" note is its own
- * separate sentence already — nothing to defragment there.
- *
- * @complexity O(1).
- */
-function MarketplaceIdTakenNote({ id, t }: { id: string; t: Translate }) {
-  const [before, after] = splitOnPlaceholders(t("You already have a theme called {id}."), ["{id}"]);
-  return (
-    <>
-      {before}
-      <code>{id}</code>
-      {after}
-    </>
-  );
-}
-
-/** The Marketplace tab's own content — loading / empty / grid, plus each card's per-item
- *  "already have this id" note. Extracted to a top-level component (complexity-ceiling pass) so this
- *  branching scores independently of `Themes`'s own complexity. */
-function MarketplaceGrid({
-  marketplaceLoading,
-  marketplace,
-  downloading,
-  download,
-  t,
-}: {
-  marketplaceLoading: boolean;
-  marketplace: MarketplaceItem[];
-  downloading: string | null;
-  download: ((themeId: string) => Promise<void>) | undefined;
-  t: Translate;
-}) {
-  if (marketplaceLoading) {
-    return <div className="notice">{t("Loading the marketplace…")}</div>;
-  }
-  if (marketplace.length === 0) {
-    return (
-      <div className="card">
-        <div className="empty-state">
-          <p>{t("Nothing available to download right now.")}</p>
-        </div>
-      </div>
-    );
-  }
-  // Marketplace item ids are stable and unique, same per-row-handle derivation every other list on
-  // this workstream uses (`buildAgentListHandles`).
-  const cardHandles = buildAgentListHandles(
-    "themes-marketplace-card",
-    marketplace.map((item) => item.id),
-  );
-  return (
-    <div className="theme-grid" role="group" aria-label={t("Marketplace")}>
-      {marketplace.map((item, index) => (
-        <div key={item.id} className="theme-card">
-          <h3>{item.name}</h3>
-          <p>{item.description}</p>
-          {/* Says up front what the name will actually be. A download that silently lands as
-              `basic-1` after the operator asked for `basic` is the kind of surprise that makes
-              people think something went wrong — so the rename is announced before it happens, not
-              just reported after. */}
-          {item.idTaken ? (
-            <p className="theme-card-note">
-              <MarketplaceIdTakenNote id={item.id} t={t} /> {t("This one will be installed under a new name.")}
-            </p>
-          ) : null}
-          <div className="theme-card-actions">
-            <button
-              className="btn-primary"
-              disabled={downloading !== null}
-              onClick={() => void download?.(item.id)}
-              aria-label={actionButtonAriaLabel(t("Download"), t("Downloading…"), downloading === item.id, item.name)}
-              {...agentHandle({ handle: `${cardHandles[index]}-download` }, { role: "button", label: `Download the "${item.name}" theme` })}
-            >
-              {downloading === item.id ? t("Downloading…") : t("Download")}
-            </button>
-          </div>
-        </div>
-      ))}
-    </div>
   );
 }
 
@@ -470,8 +365,8 @@ function ThemeGrid({
 }
 
 /** "View site" and the rescan control share one row, the rescan pushed to the far right. The server
- *  discovers themes once at boot, so anything that reaches the themes folder afterwards — a
- *  marketplace download, a copy of an original, a `git pull`, the `npm run theme` CLI — is invisible
+ *  discovers themes once at boot, so anything that reaches the themes folder afterwards —
+ *  a copy of an original, a `git pull`, the `npm run theme` CLI — is invisible
  *  here until someone asks it to look again. In-app actions will rescan on their own; this is the
  *  control for every change the app never saw happen. Extracted to a top-level component
  *  (complexity-ceiling pass) so its disabled/label ternaries score independently of `Themes`'s own
@@ -551,11 +446,6 @@ export function Themes({ useThemesHook = useWiredThemes, tabId, basePath = "/the
     rescanNotice,
     rescan,
     dismissRescanNotice,
-    marketplace,
-    marketplaceLoading,
-    loadMarketplace,
-    downloading,
-    download,
     t,
   } = withThemeDefaults(useThemesHook());
 
@@ -573,10 +463,8 @@ export function Themes({ useThemesHook = useWiredThemes, tabId, basePath = "/the
   // default `manualTab ?? defaultThemeTabGroup(...)` used before this prop existed, and
   // additionally guards against an unrecognized/stale query value (see that function's own doc).
   const activeTab = resolveThemesActiveTabId(tabId, settings, themeTiers);
-  // `?? []` is load-bearing now. It used to be safe to index directly because the Marketplace tab
-  // was `disabled`, so `activeTab` provably named a real `ThemeTabGroup`. Enabling that tab made
-  // `MARKETPLACE_TAB_ID` reachable here, and `grouped["marketplace"]` is `undefined` — the branch
-  // below renders the marketplace instead, but this line still evaluates first.
+  // `?? []` is a guard, not a live branch: `resolveThemesActiveTabId` only returns a real
+  // `ThemeTabGroup` now that the theme Marketplace tab is gone (2026-10-04).
   // Active theme first, then A-Z by display name (`sortThemesForDisplay`).
   const visibleThemes = sortThemesForDisplay(
     grouped[activeTab as ThemeTabGroup] ?? [],
@@ -613,7 +501,7 @@ export function Themes({ useThemesHook = useWiredThemes, tabId, basePath = "/the
       <ThemesBanners error={error} settings={settings} themes={themes} t={t} />
       <TabBar
         ariaLabel={t("Themes")}
-        tabs={buildThemeTabs(t, grouped, marketplace)}
+        tabs={buildThemeTabs(t, grouped)}
         activeId={activeTab}
         containerHandle="themes-tab-bar"
         onChange={(id) => {
@@ -621,22 +509,9 @@ export function Themes({ useThemesHook = useWiredThemes, tabId, basePath = "/the
           // strips use: `replace: true` so switching tabs updates the deep link without growing
           // back-button history one entry per click.
           navigate(`${basePath}?tab=${id}`, { replace: true });
-          // Fetched on first open rather than on mount: the Themes screen is the common case and
-          // should not pay for a listing most visits never look at.
-          if (id === MARKETPLACE_TAB_ID && marketplace.length === 0) void loadMarketplace?.();
         }}
       />
-      {activeTab === MARKETPLACE_TAB_ID ? (
-        <MarketplaceGrid
-          marketplaceLoading={marketplaceLoading}
-          marketplace={marketplace}
-          downloading={downloading}
-          download={download}
-          t={t}
-        />
-      ) : (
-        <ThemeGrid visibleThemes={visibleThemes} themeNames={themeNames} settings={settings} busyTheme={busyTheme} activate={activate} t={t} />
-      )}
+      <ThemeGrid visibleThemes={visibleThemes} themeNames={themeNames} settings={settings} busyTheme={busyTheme} activate={activate} t={t} />
     </div>
   );
 }

@@ -497,8 +497,8 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
             />
           );
         default:
-          // `?tab=` picks the initially-active tier tab (Declarative/Static/Templated/Code/
-          // Marketplace) and stays in sync as the operator switches — same `?tab=` convention as
+          // `?tab=` picks the initially-active tier tab (Declarative/Static/Templated/Code)
+          // and stays in sync as the operator switches — same `?tab=` convention as
           // `deployment`'s/`database`'s own entries elsewhere in this file (ADR-063).
           return <Themes tabId={ctx.query.get("tab")} />;
       }

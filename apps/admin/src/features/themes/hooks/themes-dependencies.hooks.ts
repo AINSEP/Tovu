@@ -2,7 +2,7 @@ import { api, type PresentationSettings, type ThemeTier } from "@/lib/api";
 import type { ThemesPort } from "./themes-port.hooks";
 
 /**
- * @file The only place under `features/themes` that reaches `lib/api` for the five `ThemesPort`
+ * @file The only place under `features/themes` that reaches `lib/api` for the three `ThemesPort`
  * routes — see `themes-port.hooks.ts` for why the split exists.
  */
 
@@ -12,8 +12,6 @@ export const defaultThemesPort: ThemesPort = {
   getPresentation: () => api.getPresentation(),
   rescanThemes: () => api.rescanThemes(),
   setActiveTheme: (activeThemeId) => api.setActiveTheme(activeThemeId),
-  listMarketplaceThemes: () => api.listMarketplaceThemes(),
-  downloadMarketplaceTheme: (themeId) => api.downloadMarketplaceTheme(themeId),
 };
 
 /** Seed state for {@link createFakeThemesPort}. */
@@ -21,11 +19,9 @@ export interface FakeThemesPortOptions {
   settings?: PresentationSettings;
   availableThemeIds?: string[];
   availableThemes?: Array<{ id: string; name?: string; tier: ThemeTier }>;
-  marketplace?: Array<{ id: string; name: string; tier: string; description?: string; idTaken: boolean }>;
-  /** Lets a test script what a rescan/download reports without the fake reimplementing the
+  /** Lets a test script what a rescan reports without the fake reimplementing the
    *  server's own theme-directory scan. */
   onRescan?: () => { added: string[]; removed: string[]; total: number; availableThemeIds: string[]; duplicateIds: string[] };
-  onDownload?: (themeId: string) => { id: string; suffixed: boolean; tier: string; rescan: { added: string[]; removed: string[]; total: number } };
 }
 
 /**
@@ -51,15 +47,6 @@ export function createFakeThemesPort(options: FakeThemesPortOptions = {}): Theme
     async setActiveTheme(activeThemeId) {
       settings = { ...settings, activeThemeId };
       return { settings, availableThemeIds: [...availableThemeIds] };
-    },
-
-    async listMarketplaceThemes() {
-      return { themes: [...(options.marketplace ?? [])] };
-    },
-
-    async downloadMarketplaceTheme(themeId) {
-      if (options.onDownload) return options.onDownload(themeId);
-      return { id: themeId, suffixed: false, tier: "declarative", rescan: { added: [themeId], removed: [], total: availableThemeIds.length + 1 } };
     },
   };
 }
