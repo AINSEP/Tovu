@@ -255,6 +255,7 @@ test("a tool result is an explicit model-facing view: workspaceId/timestamps dro
   assert.deepEqual(Object.keys(found).sort(), [
     "alt",
     "caption",
+    "createdBy",
     "credit",
     "cssClass",
     "htmlAttributes",
@@ -270,6 +271,8 @@ test("a tool result is an explicit model-facing view: workspaceId/timestamps dro
   assert.equal("createdAt" in found, false);
   assert.equal("updatedAt" in found, false);
   assert.equal(found.status, "active");
+  // c321cd0ca / @jini-ai/cms 0.4.2: every media tool view names the principal that created the asset.
+  assert.equal(found.createdBy, PRINCIPAL_ID);
   // No "public" transform was registered for this fixture (see `seedPublicTransform`'s own doc) —
   // `publicUrl` must degrade to `null`, never throw or silently omit the field.
   assert.equal(found.publicUrl, null);
