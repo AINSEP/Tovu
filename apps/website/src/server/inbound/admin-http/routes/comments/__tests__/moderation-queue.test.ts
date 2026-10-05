@@ -193,7 +193,24 @@ test("moderation-queue: a limit that is not an integer >= 1 is a 400, not a sile
   }
 });
 
-test("moderation-queue: a cursor naming no comment is a 400 VALIDATION_ERROR, not a silent page 1", async (t) => {
+test("moderation-queue: Load more still works after another moderator purged the comment the cursor ended on", async (t) => {
+  const { app, commentRepo } = buildApp();
+  for (let i = 0; i < 3; i += 1) {
+    await commentRepo.create(makeComment({ id: `p-${i}`, createdAt: `2026-07-16T00:0${i}:00.000Z`, updatedAt: `2026-07-16T00:0${i}:00.000Z` }));
+  }
+  const baseUrl = await startTestServer(app, t);
+
+  const page1Body = (await (await fetch(`${baseUrl}${PATH}?limit=2`)).json()) as { items: CommentRecord[]; nextCursor: string };
+  assert.deepEqual(page1Body.items.map((c) => c.id), ["p-0", "p-1"]);
+  assert.equal((await commentRepo.purge({ workspaceId: WORKSPACE_ID, id: "p-1", actorPrincipalId: "other-moderator", note: null, at: "2026-07-16T01:00:00.000Z" })).ok, true);
+
+  const page2 = await fetch(`${baseUrl}${PATH}?limit=2&cursor=${encodeURIComponent(page1Body.nextCursor)}`);
+  assert.equal(page2.status, 200);
+  assert.deepEqual(((await page2.json()) as { items: CommentRecord[] }).items.map((c) => c.id), ["p-2"]);
+});
+
+// A bare comment id was the cursor format before 2026-10-05; it is malformed now.
+test("moderation-queue: a malformed cursor is a 400 VALIDATION_ERROR, not a silent page 1", async (t) => {
   const { app, commentRepo } = buildApp();
   await commentRepo.create(makeComment({ id: "p-0" }));
   const baseUrl = await startTestServer(app, t);

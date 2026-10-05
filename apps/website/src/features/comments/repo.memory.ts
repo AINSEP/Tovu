@@ -2,7 +2,7 @@
  * @file In-memory `CommentRepoPort` adapter (ADR-006 rule-of-two "test/dev" half;
  * `repo.sqlite.ts` is the durable half).
  */
-import { ToolInputError } from "@jini-ai/core";
+import { decodeKeysetCursor, encodeKeysetCursor } from "../../platform/db/keyset-cursor.js";
 
 import type { CommentRepoPort } from "./ports.js";
 import type { CommentRecord, CommentStatus, CommentThreadNode, ModerationLogEntry, ModerationQueuePage } from "./types.js";
@@ -63,15 +63,16 @@ export class InMemoryCommentRepo implements CommentRepoPort {
       .filter((c) => c.workspaceId === required.workspaceId && c.status === required.status)
       .sort((a, b) => (a.createdAt === b.createdAt ? a.id.localeCompare(b.id) : a.createdAt.localeCompare(b.createdAt)));
 
-    // Same keyset contract as `repo.ts`: the marker is any comment in the workspace (it may have
-    // left this status since the last page), and one that does not exist is refused.
-    const marker = required.cursor ? this.comments.find((c) => c.workspaceId === required.workspaceId && c.id === required.cursor) : undefined;
-    if (required.cursor && !marker) throw new ToolInputError({ message: "invalid cursor" });
+    // Same keyset contract as `repo.ts`: the cursor carries the last row's position itself, so the
+    // page resumes after it even if that comment has since left this status or been purged, and a
+    // malformed cursor is refused.
+    const marker = required.cursor ? decodeKeysetCursor({ cursor: required.cursor }) : undefined;
     const startIndex = marker
       ? scoped.filter((c) => c.createdAt < marker.createdAt || (c.createdAt === marker.createdAt && c.id.localeCompare(marker.id) <= 0)).length
       : 0;
     const page = scoped.slice(startIndex, startIndex + required.limit);
-    const nextCursor = startIndex + required.limit < scoped.length ? page[page.length - 1]?.id ?? null : null;
+    const last = page[page.length - 1];
+    const nextCursor = startIndex + required.limit < scoped.length && last ? encodeKeysetCursor(last) : null;
     return { items: page, nextCursor };
   }
 

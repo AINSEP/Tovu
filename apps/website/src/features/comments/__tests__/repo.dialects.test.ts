@@ -105,7 +105,6 @@ describeEachDialect<CommentRepoPort>(
       assert.deepEqual(page2.items.map((c) => c.id), ["c2", "c3"]);
       const page3 = await repo.listModerationQueue({ workspaceId: WS, status: "pending", limit: 2, cursor: page2.nextCursor });
       assert.deepEqual(page3.items.map((c) => c.id), ["c4", "same-time"]);
-      assert.equal(page3.nextCursor, "same-time");
       const page4 = await repo.listModerationQueue({ workspaceId: WS, status: "pending", limit: 2, cursor: page3.nextCursor });
       assert.deepEqual(page4.items.map((c) => c.id), ["same-time-2", "same-time-3"]);
       assert.equal(page4.nextCursor, null);
@@ -115,12 +114,26 @@ describeEachDialect<CommentRepoPort>(
       assert.equal(await repo.countByStatus({ workspaceId: WS, status: "pending", entryId: "e1" }), 3);
     });
 
-    test("a moderation-queue cursor naming no comment is refused, not read as page 1", async () => {
+    test("a moderation-queue page resumes after its cursor comment was purged by another moderator", async () => {
+      const repo = makeRepo();
+      for (let i = 0; i < 4; i += 1) await repo.create(comment(`c${i}`, { createdAt: `2026-09-28T00:0${i}:00.000Z` }));
+      const page1 = await repo.listModerationQueue({ workspaceId: WS, status: "pending", limit: 2 });
+      assert.deepEqual(page1.items.map((c) => c.id), ["c0", "c1"]);
+      assert.equal((await repo.purge({ workspaceId: WS, id: "c1", actorPrincipalId: "admin", note: null, at: "2026-09-28T01:00:00.000Z" })).ok, true);
+      const page2 = await repo.listModerationQueue({ workspaceId: WS, status: "pending", limit: 2, cursor: page1.nextCursor });
+      assert.deepEqual(page2.items.map((c) => c.id), ["c2", "c3"]);
+      assert.equal(page2.nextCursor, null);
+    });
+
+    test("a malformed moderation-queue cursor is refused, not read as page 1", async () => {
       const repo = makeRepo();
       await repo.create(comment("c1"));
       await repo.create(comment("other-ws", { workspaceId: "other" }));
-      // An unknown id, a non-uuid string (no 500 on Postgres), and a real id from another workspace.
-      for (const cursor of ["no-such-comment", "not a uuid ' --", "other-ws"]) {
+      // A real comment id (the pre-2026-10-05 cursor format), an unknown id, a non-uuid string (no 500
+      // on Postgres), a real id from another workspace, then `createdAt::id` with no id, no createdAt,
+      // and a createdAt that is no date.
+      const malformed = ["c1", "no-such-comment", "not a uuid ' --", "other-ws", "2026-09-28T00:00:00.000Z::", "::c1", "yesterday::c1"];
+      for (const cursor of malformed) {
         await assert.rejects(
           repo.listModerationQueue({ workspaceId: WS, status: "pending", limit: 2, cursor }),
           (err: unknown) => err instanceof ToolInputError && err.message === "invalid cursor"

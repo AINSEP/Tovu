@@ -1,6 +1,5 @@
-import { ToolInputError } from "@jini-ai/core";
-
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
+import { decodeKeysetCursor, encodeKeysetCursor } from "../../platform/db/keyset-cursor.js";
 import type { CommentRepoPort } from "./ports.js";
 import { type CommentTables, toLogEntry, toLogRow, toRecord, toRow } from "./repo.rows.js";
 import type { CommentRecord, CommentStatus, CommentThreadNode, ModerationAction, ModerationLogEntry, ModerationQueuePage } from "./types.js";
@@ -58,28 +57,20 @@ export class SqlCommentRepo implements CommentRepoPort {
   }
 
   /** Keyset page over `(created_at, id)`, fetching `limit + 1` rows to learn whether more follow.
-   *  The cursor's comment is looked up in the whole workspace, not the status, so a comment that was
-   *  moderated out of the queue since the last page still resumes after it.
-   *  @throws {ToolInputError} `invalid cursor` when the cursor names no comment in the workspace: it
-   *  used to read as "no cursor" and silently restart at page 1. */
+   *  The cursor carries the last row's `(createdAt, id)` itself (`platform/db/keyset-cursor.ts`), so
+   *  a page resumes after that row even when it has since been moderated out of the queue or purged.
+   *  @throws {ToolInputError} `invalid cursor` when the cursor is malformed: it used to read as
+   *  "no cursor" and silently restart at page 1. */
   async listModerationQueue(required: {
     workspaceId: string;
     status: CommentStatus;
     limit: number;
     cursor?: string | null;
   }): Promise<ModerationQueuePage> {
+    const marker = required.cursor ? decodeKeysetCursor({ cursor: required.cursor }) : undefined;
     const rows = await this.kernel.run(async (db) => {
-      const tables = db.withTables<CommentTables>();
-      const marker = required.cursor
-        ? await tables
-            .selectFrom("p_comments__comments")
-            .select(["created_at", "id"])
-            .where("workspace_id", "=", required.workspaceId)
-            .where("id", "=", required.cursor)
-            .executeTakeFirst()
-        : undefined;
-      if (required.cursor && !marker) throw new ToolInputError({ message: "invalid cursor" });
-      let query = tables
+      let query = db
+        .withTables<CommentTables>()
         .selectFrom("p_comments__comments")
         .selectAll()
         .where("workspace_id", "=", required.workspaceId)
@@ -88,8 +79,8 @@ export class SqlCommentRepo implements CommentRepoPort {
         // `(created_at, id) > (?, ?)` spelled out, so no dialect's row-value support is assumed.
         query = query.where((eb) =>
           eb.or([
-            eb("created_at", ">", marker.created_at),
-            eb.and([eb("created_at", "=", marker.created_at), eb("id", ">", marker.id)]),
+            eb("created_at", ">", marker.createdAt),
+            eb.and([eb("created_at", "=", marker.createdAt), eb("id", ">", marker.id)]),
           ])
         );
       }
@@ -98,7 +89,8 @@ export class SqlCommentRepo implements CommentRepoPort {
 
     const hasMore = rows.length > required.limit;
     const page = rows.slice(0, required.limit).map(toRecord);
-    return { items: page, nextCursor: hasMore ? page[page.length - 1]?.id ?? null : null };
+    const last = page[page.length - 1];
+    return { items: page, nextCursor: hasMore && last ? encodeKeysetCursor(last) : null };
   }
 
   async countByStatus(required: { workspaceId: string; entryId?: string; status: CommentStatus }): Promise<number> {

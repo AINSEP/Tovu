@@ -1,9 +1,9 @@
-import { ToolInputError } from "@jini-ai/core";
 import type { Updateable } from "kysely";
 
 import type { LedgerReadPort, LedgerRow } from "#src/features/database/timeline";
 import type { BootLedgerPort, MigrationRunsRepoPort } from "#src/features/database/boot/reconcile-interrupted-migration";
 import type { CreateRestorePointRepoPort } from "#src/features/recovery/restore-points";
+import { decodeKeysetCursor, encodeKeysetCursor } from "../keyset-cursor.js";
 import { MIGRATION_RUN_TERMINAL_STATUSES } from "./database-journal-schema.js";
 import type { DatabaseJournalDb } from "./database-journal-db.js";
 import type { JournalDatabase } from "../journal-kernel.js";
@@ -28,24 +28,6 @@ import type { JournalDatabase } from "../journal-kernel.js";
  * Infrastructure adapters. The journal is SQLite on every content dialect, so these keep their
  * `Sqlite*` names.
  */
-
-function encodeCursor(row: { createdAt: string; id: string }): string {
-  return `${row.createdAt}::${row.id}`;
-}
-
-/** Splits a cursor {@link encodeCursor} built. A cursor it could not have built used to decode to
- *  `null` and read as "no cursor", silently restarting the scan from the newest row.
- *  @throws {ToolInputError} `invalid cursor` (a 400 to the tool and admin transports alike).
- *  @complexity O(cursor length). */
-function decodeCursor(cursor: string): { createdAt: string; id: string } {
-  const separatorIndex = cursor.indexOf("::");
-  const createdAt = cursor.slice(0, separatorIndex);
-  const id = cursor.slice(separatorIndex + 2);
-  if (separatorIndex < 0 || id.length === 0 || Number.isNaN(Date.parse(createdAt))) {
-    throw new ToolInputError({ message: "invalid cursor" });
-  }
-  return { createdAt, id };
-}
 
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -78,7 +60,7 @@ export class SqliteDatabaseLedgerRepo implements LedgerReadPort, BootLedgerPort 
     cursor?: string | null;
     limit: number;
   }): Promise<{ items: LedgerRow[]; nextCursor: string | null }> {
-    const decoded = filter.cursor ? decodeCursor(filter.cursor) : null;
+    const decoded = filter.cursor ? decodeKeysetCursor({ cursor: filter.cursor }) : null;
     const rows = await this.deps.db.run((db) => {
       let query = db
         .selectFrom("database_ledger")
@@ -109,7 +91,7 @@ export class SqliteDatabaseLedgerRepo implements LedgerReadPort, BootLedgerPort 
     }));
 
     const last = page[page.length - 1];
-    const nextCursor = rows.length > filter.limit && last ? encodeCursor({ createdAt: last.created_at, id: last.id }) : null;
+    const nextCursor = rows.length > filter.limit && last ? encodeKeysetCursor({ createdAt: last.created_at, id: last.id }) : null;
     return { items, nextCursor };
   }
 

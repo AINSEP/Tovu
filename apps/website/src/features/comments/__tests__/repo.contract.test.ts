@@ -133,13 +133,33 @@ function runSuite(label: string, makeRepo: () => CommentRepoPort | Promise<Comme
     assert.equal(page3.nextCursor, null);
   });
 
-  test(`[${label}] listModerationQueue refuses a cursor naming no comment instead of restarting at page 1`, async () => {
+  test(`[${label}] listModerationQueue refuses a malformed cursor instead of restarting at page 1`, async () => {
     const repo = await makeRepo();
     await repo.create(makeComment({ id: "c-0" }));
-    await assert.rejects(
-      repo.listModerationQueue({ workspaceId: WORKSPACE_ID, status: "pending", limit: 2, cursor: "no-such-comment" }),
-      (err: unknown) => err instanceof ToolInputError && err.message === "invalid cursor"
-    );
+    for (const cursor of ["c-0", "no-such-comment", Buffer.from("not json").toString("base64url")]) {
+      await assert.rejects(
+        repo.listModerationQueue({ workspaceId: WORKSPACE_ID, status: "pending", limit: 2, cursor }),
+        (err: unknown) => err instanceof ToolInputError && err.message === "invalid cursor"
+      );
+    }
+  });
+
+  test(`[${label}] listModerationQueue with limit 0 returns no rows and no cursor, even when rows exist`, async () => {
+    const repo = await makeRepo();
+    await repo.create(makeComment({ id: "c-0" }));
+    assert.deepEqual(await repo.listModerationQueue({ workspaceId: WORKSPACE_ID, status: "pending", limit: 0 }), { items: [], nextCursor: null });
+  });
+
+  test(`[${label}] listModerationQueue resumes after a cursor comment that was purged since the last page`, async () => {
+    const repo = await makeRepo();
+    for (let i = 0; i < 4; i += 1) {
+      await repo.create(makeComment({ id: `c-${i}`, createdAt: `2026-07-16T00:0${i}:00.000Z`, updatedAt: `2026-07-16T00:0${i}:00.000Z` }));
+    }
+    const page1 = await repo.listModerationQueue({ workspaceId: WORKSPACE_ID, status: "pending", limit: 2 });
+    assert.equal((await repo.purge({ workspaceId: WORKSPACE_ID, id: "c-1", actorPrincipalId: "admin", note: null, at: "2026-07-16T01:00:00.000Z" })).ok, true);
+    const page2 = await repo.listModerationQueue({ workspaceId: WORKSPACE_ID, status: "pending", limit: 2, cursor: page1.nextCursor });
+    assert.deepEqual(page2.items.map((c) => c.id), ["c-2", "c-3"]);
+    assert.equal(page2.nextCursor, null);
   });
 
   test(`[${label}] listModerationQueue resumes after a cursor comment that has since left the queue`, async () => {
@@ -148,7 +168,6 @@ function runSuite(label: string, makeRepo: () => CommentRepoPort | Promise<Comme
       await repo.create(makeComment({ id: `c-${i}`, createdAt: `2026-07-16T00:0${i}:00.000Z`, updatedAt: `2026-07-16T00:0${i}:00.000Z` }));
     }
     const page1 = await repo.listModerationQueue({ workspaceId: WORKSPACE_ID, status: "pending", limit: 2 });
-    assert.equal(page1.nextCursor, "c-1");
     await repo.applyModeration({ workspaceId: WORKSPACE_ID, id: "c-1", expectedVersion: 0, action: "approve", toStatus: "approved", actorPrincipalId: "admin", note: null, at: "2026-07-16T01:00:00.000Z" });
     const page2 = await repo.listModerationQueue({ workspaceId: WORKSPACE_ID, status: "pending", limit: 2, cursor: page1.nextCursor });
     assert.deepEqual(page2.items.map((c) => c.id), ["c-2", "c-3"]);
