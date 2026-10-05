@@ -215,6 +215,7 @@ function PageEditorActions({
       {error ? <span className="save-error">{error}</span> : null}
       <select
         value={status}
+        aria-label={t("Status")}
         onChange={(e) => setStatus(e.target.value as "draft" | "published")}
         {...agentHandle({ handle: "page-status" }, {
           role: "field",

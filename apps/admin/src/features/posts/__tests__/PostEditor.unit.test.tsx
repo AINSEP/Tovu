@@ -1503,6 +1503,12 @@ describe("Header — back-link confirmLeave guard and status select", () => {
 
     expect(ctrl.setStatus).toHaveBeenCalledWith("published");
   });
+
+  it("gives the status select a translated accessible name", () => {
+    renderPostEditor({ t: (key: string) => (key === "Status" ? "Estado" : key) });
+
+    expect(screen.getByRole("combobox", { name: "Estado" })).toHaveAttribute("data-agent-element", "post-status");
+  });
 });
 
 describe("Title and slug fields — typing calls setTitle/setSlug", () => {

@@ -530,6 +530,11 @@ describe("status, publish, save", () => {
     await user.selectOptions(screen.getByDisplayValue("Draft"), "published");
     expect(ctrl.setStatus).toHaveBeenCalledWith("published");
   });
+
+  it("gives the status select a translated accessible name", () => {
+    renderEditor({ t: (key: string) => (key === "Status" ? "Estado" : key) });
+    expect(screen.getByRole("combobox", { name: "Estado" })).toHaveAttribute("data-agent-element", "page-status");
+  });
 });
 
 describe("delete confirmation", () => {
