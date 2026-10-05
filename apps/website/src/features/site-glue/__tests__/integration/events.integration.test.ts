@@ -4,6 +4,7 @@ import test from "node:test";
 import { subscribeGlueEvent } from "../../attachment-points/events.js";
 import type { GlueHostPort } from "../../ports.js";
 import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "#src/contracts/core/events/index";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**
  * @file Events attachment point, exercised against a REAL outbox + event bus — SPEC-048 REQ-5/
@@ -24,7 +25,7 @@ function makeRealHostPort(bus: InMemoryEventBus): Pick<GlueHostPort, "subscribeE
       // Fire-and-forget: InMemoryEventBus.subscribe() registers its handler synchronously (no
       // `await` precedes the registration inside it), so the subscription is live before this
       // call returns even though `subscribeEvent`'s own contract is `void`, not `Promise<void>`.
-      void bus.subscribe(eventName, handler);
+      void bus.subscribe({ eventName, handler: async (event) => { await handler(event); } });
     },
   };
 }
@@ -33,7 +34,7 @@ test("ADR-057 Decision 2: a glue module's handler receives a REAL outbox event, 
   const outbox = new InMemoryOutbox();
   const bus = new InMemoryEventBus();
   const hostPort = makeRealHostPort(bus);
-  const clock = { nowIso: () => new Date().toISOString() };
+  const clock = createFakeClock({ startIso: new Date().toISOString() });
 
   const received: unknown[] = [];
   subscribeGlueEvent({
@@ -64,7 +65,7 @@ test("ADR-057 Decision 4/REQ-8: a glue module subscribed to a DIFFERENT event na
   const outbox = new InMemoryOutbox();
   const bus = new InMemoryEventBus();
   const hostPort = makeRealHostPort(bus);
-  const clock = { nowIso: () => new Date().toISOString() };
+  const clock = createFakeClock({ startIso: new Date().toISOString() });
 
   let calls = 0;
   subscribeGlueEvent({
@@ -93,7 +94,7 @@ test("REQ-8: a throwing glue handler is contained by the outbox's existing retry
   const outbox = new InMemoryOutbox();
   const bus = new InMemoryEventBus();
   const hostPort = makeRealHostPort(bus);
-  const clock = { nowIso: () => new Date().toISOString() };
+  const clock = createFakeClock({ startIso: new Date().toISOString() });
 
   subscribeGlueEvent({
     moduleId: "broken-glue-module",
@@ -119,6 +120,6 @@ test("REQ-8: a throwing glue handler is contained by the outbox's existing retry
   // computed backoff elapses (at most 30 minutes with the current constants). +1h is comfortably
   // past that, so this still proves the row is retryable, not silently dropped or "delivered".
   const oneHourLater = new Date(Date.parse(clock.nowIso()) + 60 * 60 * 1000).toISOString();
-  const pending = await outbox.claimPending(10, oneHourLater);
+  const pending = await outbox.claimPending({ batchSize: 10, nowIso: oneHourLater });
   assert.equal(pending.length, 1, "a failed delivery must remain pending for retry, per the outbox's existing dead-letter/retry semantics");
 });

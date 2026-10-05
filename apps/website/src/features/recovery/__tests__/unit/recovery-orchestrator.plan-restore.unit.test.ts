@@ -23,7 +23,7 @@ function fakeGateway(planResult: unknown = { planId: "plan-1", planHash: "sha256
     calls,
     plan: async (input: unknown) => {
       calls.push(input);
-      return { ok: true, value: planResult };
+      return { ok: true as const, value: planResult };
     },
   };
 }

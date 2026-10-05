@@ -221,7 +221,7 @@ test("fetchPublishedPage: a 404 is a RESULT, not a thrown error", async () => {
   const result = await fetchPublishedPage(DEPS, { path: "/nope" });
   assert.equal(result.status, 404);
   assert.equal(result.ok, false);
-  assert.match(result.body, /not found/);
+  assert.match(result.body ?? "", /not found/);
 });
 
 test("fetchPublishedPage: a redirect is reported, never followed", async () => {

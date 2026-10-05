@@ -93,7 +93,6 @@ async function mediaSite(records: MediaRecord[], blobs: readonly Uint8Array[], t
       createdByPrincipal: "owner",
       createdAt: "2026-09-26T00:00:00.000Z",
       status: "active",
-      tombstonedAt: null,
     });
     if (typed) await contentTypeStore.set({ workspaceId: WORKSPACE_ID, sha256, contentType: bytes === VIDEO_BYTES ? "video/mp4" : "image/jpeg" });
   }

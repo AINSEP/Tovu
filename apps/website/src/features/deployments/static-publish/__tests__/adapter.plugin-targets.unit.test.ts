@@ -219,6 +219,7 @@ test("the REAL plugin Vercel module, fed through the adapter, posts exactly one 
   assert.equal(result.ok, true, JSON.stringify(result));
   assert.equal(posted.filter((file) => file === "vercel.json").length, 1);
   const rule = { source: "/(.*)", headers: Object.entries(PUBLIC_PAGE_SECURITY_HEADERS).map(([key, value]) => ({ key, value })) };
+  assert.ok(vercelJson !== undefined, "the publish must have posted a vercel.json");
   assert.deepEqual(JSON.parse(vercelJson), { headers: [rule] }, "vercel.json carries the live server's public-page header set on every path");
 });
 

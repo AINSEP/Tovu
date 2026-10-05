@@ -77,7 +77,7 @@ test("saving again replaces the destination, and a new destination forgets the o
   await store.save("ws-1", next);
   assert.deepEqual(await open().get("ws-1"), next);
   assert.equal(await open().lastRun("ws-1"), null);
-  assert.equal(db.$client.prepare("SELECT count(*) AS n FROM database_transfer_destinations").get().n, 1);
+  assert.equal(db.$client.prepare<[], { n: number }>("SELECT count(*) AS n FROM database_transfer_destinations").get()?.n, 1);
 });
 
 test("a sealed address copied onto another workspace's row does not open, and says to save it again", async (t) => {

@@ -486,7 +486,7 @@ test("updatePublishCredential with isDefault:false on the CURRENT default is a n
 
 test("deleting the default promotes the group's most-recently-updated remaining row", async () => {
   let now = NOW;
-  const deps = makeDeps({ clock: { nowMs: () => Date.parse(now), nowIso: () => now } });
+  const deps = makeDeps({ clock: { nowMs: () => Date.parse(now) } });
   const first = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "One", connection: { providerId: "vercel", token: "a" } });
   now = "2026-08-16T00:00:00.000Z";
   const second = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "Two", connection: { providerId: "vercel", token: "b" } });
@@ -717,7 +717,7 @@ test("healAccountLabel persists a real value, readable back through listPublishC
 
 test("healAccountLabel never disturbs the sealed connection, isDefault, or updatedAt — a verify is not a credential change", async () => {
   let now = NOW;
-  const deps = makeDeps({ clock: { nowMs: () => Date.parse(now), nowIso: () => now } });
+  const deps = makeDeps({ clock: { nowMs: () => Date.parse(now) } });
   const created = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "x", connection: { providerId: "github-pages", token: "t" } });
   const before = await deps.repo.findById({ workspaceId: WORKSPACE, id: created.id });
 

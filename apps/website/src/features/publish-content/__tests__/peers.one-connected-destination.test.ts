@@ -18,6 +18,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import type { SealedSecret } from "#src/features/webhooks/index";
+
 import { PUBLISH_CONTENT_PEER_AAD_VERSION } from "../peer-aad.js";
 import {
   InMemoryPublishContentPeerRepo,
@@ -29,6 +31,8 @@ import {
 const WORKSPACE = "ws-1";
 const SITE_A = "https://site-a.example";
 const SITE_B = "https://site-b.example";
+/** A hand-configured peer's stored credential; these tests only check that it is non-null. */
+const SEALED_BLOB: SealedSecret = { keyId: "k1", ciphertext: "c2VhbGVk", nonce: "bm9uY2U=", alg: "aes-256-gcm" };
 
 function fixedClock(iso: string) {
   return { nowMs: () => Date.parse(iso) };
@@ -92,7 +96,7 @@ test("moving the connection leaves a hand-configured destination and its credent
     label: "hand-configured",
     baseUrl: "https://hand.example",
     remoteWorkspaceId: "remote-hand",
-    sealed: "sealed-blob",
+    sealed: SEALED_BLOB,
     masked: "tovu_live_…cdef",
     aadVersion: PUBLISH_CONTENT_PEER_AAD_VERSION,
     createdAt: "2026-09-01T00:00:00.000Z",
@@ -153,7 +157,7 @@ test("selectConnectedDestination answers only for CONNECTED rows — a hand-conf
     createdAt: "2026-09-20T10:00:00.000Z",
     updatedAt: "2026-09-20T10:00:00.000Z",
   };
-  const sealed: PublishContentPeerRecord = { ...connected, id: "peer-sealed", baseUrl: "https://hand.example", sealed: "sealed-blob", masked: "tovu_live_…cdef" };
+  const sealed: PublishContentPeerRecord = { ...connected, id: "peer-sealed", baseUrl: "https://hand.example", sealed: SEALED_BLOB, masked: "tovu_live_…cdef" };
 
   assert.equal(selectConnectedDestination([sealed, connected])?.id, "peer-connected");
   assert.equal(

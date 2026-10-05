@@ -13,6 +13,7 @@ import { describePublishReadiness, siteLabelFor } from "../publish-readiness.js"
 import { buildPublishContentRegistrations, plainSentence, type PublishContentToolDeps } from "../tool-registrations.js";
 import { registerPublishContentContributor, resetPublishContentContributorsForTests } from "../type-registry.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
+import { createRouteDeps } from "#src/server/runtime/composition/app";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -57,13 +58,15 @@ function assertReadableByAPerson(sentence: string, where: string): void {
   }
 }
 
-/** A deps bag with only what the read paths touch. The write path is exercised through its own
- *  ports elsewhere; what is certified here is the decision, the wording and the refusals. */
+/** The hermetic composition's deps, with what the read paths touch replaced. The write path is
+ *  exercised through its own ports elsewhere; what is certified here is the decision, the wording
+ *  and the refusals. */
 function toolDeps(overrides: Partial<PublishContentToolDeps> = {}): PublishContentToolDeps {
   const rows: PublishContentPeerRecord[] = [];
   return {
+    ...createRouteDeps(),
     workspaceId: WORKSPACE_ID,
-    authorize: async () => ({ allowed: true }),
+    authorize: async () => ({ allowed: true, reason: "test-always-allow" }),
     clock: createFakeClock({ startIso: "2026-09-19T00:00:00.000Z" }),
     idGen: { newId: () => "id-1" },
     pluginBeforeSaveHook: undefined as never,
@@ -111,7 +114,6 @@ function execContext(input: unknown, extra: Partial<ToolExecutionContext> = {}):
 // ---------------------------------------------------------------------------
 
 test("the two tools reach the catalog the daemon serves, via the real composition manifest", async () => {
-  const { resetToolContributorsForTests, listToolContributors } = await import("../../../assistant/tool-contribution-registry.js");
   const { installFirstPartyToolContributors } = await import("../../../server/runtime/composition/tool-catalog-manifest.js");
 
   contributions.contributors.clear({});

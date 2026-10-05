@@ -106,12 +106,12 @@ test("row 2: getCapabilities() is read fresh inside executeMutation(), not reuse
     },
   });
 
-  const initialPlan = await hooks.computePlan();
+  const initialPlan = await hooks.computePlan({});
   await hooks.executeMutation({ planHash: "hash-1", details: { costClass: "cheap", siteId: "ws-1" } });
 
   assert.equal(capabilityCallCount, 2, "computePlan() and executeMutation() must each call getCapabilities() fresh");
   assert.equal(saved[0]?.costClass, "expensive", "executeMutation() must save the value IT read, not the stale computePlan() value");
-  const changedPlan = await hooks.computePlan();
+  const changedPlan = await hooks.computePlan({});
   assert.deepEqual(initialPlan.details, { costClass: "cheap", siteId: "ws-1" });
   assert.deepEqual(changedPlan.details, { costClass: "expensive", siteId: "ws-1" });
   assert.notEqual(initialPlan.planHash, changedPlan.planHash, "a changed cost class must invalidate the confirmed plan");

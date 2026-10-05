@@ -95,7 +95,7 @@ function harness(t: test.TestContext) {
 /** The human pastes `address` into the private form `database_transfer_set_destination` raises. */
 async function typeDestination(h: ReturnType<typeof harness>, params: Record<string, unknown>) {
   const emitted: { payload: { resource: UIResource } }[] = [];
-  const pending = call(h.destinationTool, {}, async (s) => void emitted.push(s as { payload: { resource: UIResource } }));
+  const pending = call(h.destinationTool, {}, async (s) => void emitted.push({ payload: s.payload as { resource: UIResource } }));
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(emitted.length, 1, "the tool must raise exactly one form before it waits");
   const form = emitted[0]!.payload.resource.resource.text;

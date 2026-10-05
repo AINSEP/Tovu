@@ -9,7 +9,7 @@ import { SpanKind, SpanStatusCode } from "@opentelemetry/api";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { assertSpanOmits, createInMemoryOtel } from "#src/platform/observability/__tests__/fixtures/in-memory-otel";
-import { exportSite } from "../site-exporter.js";
+import { exportSite, type ExportSiteRouteDeps } from "../site-exporter.js";
 
 /**
  * @file Every loopback fetch `exportSite` makes (routes, the 404 probe, assets) is one outbound
@@ -30,9 +30,7 @@ function makeOutputDir(t: TestContext): string {
 /** The seeded demo workspace, traced into a fresh in-memory exporter, rendered by `render`. */
 function tracedDeps(render: RequestListener) {
   const { exporter, port } = createInMemoryOtel();
-  const deps = createRouteDeps();
-  deps.observability = port;
-  deps.createSiteApp = () => render;
+  const deps: ExportSiteRouteDeps = { ...createRouteDeps(), observability: port, createSiteApp: () => render };
   return { deps, exporter };
 }
 

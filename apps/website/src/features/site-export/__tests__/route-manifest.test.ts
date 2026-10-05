@@ -14,7 +14,7 @@ import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixtur
  *  `resolveActiveTheme` actually reads, with `overrides.manifest` merged shallowly over a valid
  *  base manifest rather than replaced wholesale, so a test only names the manifest fields it cares
  *  about (e.g. just `tier`). */
-function makeTheme(overrides: Partial<DiscoveredTheme> & { manifest?: Partial<DiscoveredTheme["manifest"]> } = {}): DiscoveredTheme {
+function makeTheme(overrides: Partial<Omit<DiscoveredTheme, "manifest">> & { manifest?: Partial<DiscoveredTheme["manifest"]> } = {}): DiscoveredTheme {
   const { manifest: manifestOverrides, ...rest } = overrides;
   return {
     manifest: {
@@ -71,7 +71,7 @@ function withPublishedPages(theme: DiscoveredTheme, pages: string[]): Discovered
  *  have failed any assertion here today — but it would have been silently inert for a future
  *  override that DID matter, which is the exact failure mode worth refusing on principle rather than
  *  by luck. */
-function baseDeps(overrides: Partial<RouteManifestDeps> = {}): RouteManifestDeps {
+function baseDeps(overrides: Partial<RouteManifestDeps> = {}): ReturnType<typeof createRouteDeps> {
   const deps = createRouteDeps();
   return Object.assign(deps, overrides);
 }
@@ -313,8 +313,8 @@ test("buildRouteManifest: enumerates products only when the storefront actually 
   );
 
   const store = {
-    listProducts: () => [{ id: "mug-01", slug: "mug-01", title: "Mug", price: 1200, stock: 5, version: 1 }],
-    checkout: () => ({ ok: false as const, reason: "not-found" as const, retries: 0 }),
+    listProducts: async () => [{ id: "mug-01", slug: "mug-01", title: "Mug", price: 1200, stock: 5, version: 1 }],
+    checkout: async () => ({ ok: false as const, reason: "not-found" as const, retries: 0 }),
   };
   // `store` is read only by `resolveStorefrontProducts`'s own real implementation
   // (`server/routes/site/products.ts`), never by `buildRouteManifest` directly — correctly absent

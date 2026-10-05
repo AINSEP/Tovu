@@ -66,7 +66,11 @@ test("openPublishSession signs the challenge and returns the minted session", as
   const sourceId = Buffer.from(seed.slice(0, 16)).toString("base64url");
   const keyRequests: unknown[] = [];
   const result = await openPublishSession({
-    keyring: { derive: async input => { keyRequests.push(input); return seed; } } as never,
+    keyring: {
+      activeKey: async () => assert.fail("the handshake never reads the active key"),
+      deriveSigningSecret: async () => assert.fail("the handshake never derives a webhook signing secret"),
+      derive: async input => { keyRequests.push(input); return seed; },
+    },
     httpClient: { send: async request => {
       requests.push(request as typeof requests[number]);
       const response = requests.length === 1 ? identity : requests.length === 2

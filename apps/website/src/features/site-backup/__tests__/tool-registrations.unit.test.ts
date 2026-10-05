@@ -571,7 +571,7 @@ test("the push raises the dialog and touches GitHub not at all while it waits; c
   const planned = await plan(h);
   const callsAfterPlan = h.github.calls.length;
 
-  const { pending, ui, exchangeId } = await beginCall(h, planned.planId as string);
+  const { pending } = await beginCall(h, planned.planId as string);
 
   const result = await pending;
 

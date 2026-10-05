@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { executeMigrateForward, RestorePointUnavailableError, type OperationLockPort } from "../../migrate-forward/execute.js";
+import { executeMigrateForward, RestorePointUnavailableError, type OperationLockAcquireFailure, type OperationLockAcquireResult, type OperationLockPort } from "../../migrate-forward/execute.js";
 
 /**
  * @file SPEC-017 C-105 / CIC U-003 (binding reference to SPEC-019 CIC U-001) / REQ-08 / AC-09 /
@@ -43,7 +43,7 @@ import { executeMigrateForward, RestorePointUnavailableError, type OperationLock
 
 const clock = { nowIso: () => "2026-07-15T00:00:00.000Z" };
 
-function fakeLockPort(acquireResult: { ok: true; value: unknown } | { ok: false; error: { code: string } }) {
+function fakeLockPort(acquireResult: OperationLockAcquireResult | OperationLockAcquireFailure) {
   const calls: string[] = [];
   return {
     calls,
@@ -82,7 +82,7 @@ test("U-003-ORD1 (binding on this domain, per SPEC-019 CIC U-001-ORD1): the shar
   const lock = fakeLockPort({ ok: true, value: { siteId: "site-1", operationKind: "migration", acquiredAt: clock.nowIso() } });
   const order: string[] = [];
   const handle = { siteId: "site-1", operationKind: "migration", acquiredAt: clock.nowIso() };
-  let acquireClock;
+  let acquireClock: Parameters<OperationLockPort["acquireOperationLock"]>[0]["deps"]["clock"] | undefined;
 
   await executeMigrateForward({
     siteId: "site-1",

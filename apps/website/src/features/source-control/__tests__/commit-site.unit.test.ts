@@ -55,7 +55,7 @@ test.after(() => rmSync(exportDir, { recursive: true, force: true }));
  *  override of a field the real `exportSite` reads internally (e.g. `createSiteApp`, see the
  *  "an asset that fails to export" test below) would silently never apply. See
  *  `routes/types.ts`'s `exportSiteBound` doc for this same gotcha, generalized. */
-function testRouteDeps(): RouteDeps {
+function testRouteDeps(): ReturnType<typeof createRouteDeps> {
   const deps = createRouteDeps();
   deps.sourceControlExportRootDir = exportDir;
   return deps;
@@ -73,7 +73,7 @@ function testRouteDeps(): RouteDeps {
  *  Express`, closed over its own `routeDeps` at composition-root construction time — see that
  *  field's doc in `server/routes/types.ts`), so the fake assigned to `deps.createSiteApp` below must
  *  match that same nullary shape. */
-function createSiteAppWithFailingAsset(failingPath: string, routeDeps: RouteDeps): () => ReturnType<typeof createApp> {
+function createSiteAppWithFailingAsset(failingPath: string, routeDeps: ReturnType<typeof createRouteDeps>): () => ReturnType<typeof createApp> {
   return () => {
     const wrapper = express();
     wrapper.get(failingPath, (_req, res) => {
@@ -102,7 +102,7 @@ function fakeGitAdapter(result: SourceControlCommitResult, captured: { files: re
   };
 }
 
-async function withGithubCredential(deps: RouteDeps, token = "ghp_fake_token_never_real"): Promise<RouteDeps> {
+async function withGithubCredential<TDeps extends RouteDeps>(deps: TDeps, token = "ghp_fake_token_never_real"): Promise<TDeps> {
   await createSourceControlCredential(
     { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen },
     { workspaceId: deps.workspaceId, label: "Test", connection: { providerId: "github", token } }
@@ -410,7 +410,7 @@ test("commitSiteToSourceControl: branch omitted is forwarded to the git adapter 
   assert.equal("branch" in passedInput, false, "commitSiteToSourceControl must not invent a branch — that decision belongs to the git adapter");
 });
 
-const ADAPTER_FAILURE_CASES: { adapterCode: SourceControlCommitResult extends { ok: false; code: infer C } ? C : never; expected: string }[] = [
+const ADAPTER_FAILURE_CASES: { adapterCode: Extract<SourceControlCommitResult, { ok: false }>["code"]; expected: string }[] = [
   { adapterCode: "repository-not-found", expected: "REPOSITORY_NOT_FOUND" },
   { adapterCode: "no-changes", expected: "NO_CHANGES" },
   { adapterCode: "diverged", expected: "DIVERGED_BRANCH" },
@@ -565,11 +565,11 @@ test("commitSiteToSourceControl: two concurrent commits both still succeed with 
 
   const [resultA, resultB] = await Promise.all([
     commitSiteToSourceControl(
-      { providerId: "github", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: fakeGitAdapter({ ok: true, branch: "main", branchCreated: false, commitSha: "sha-a", commitUrl: "https://github.com/octo/demo/commit/sha-a", filesChanged: 1 }, capturedA) },
+      { providerId: "github", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: fakeGitAdapter({ ok: true, branch: "main", branchCreated: false, commitSha: "sha-a", commitUrl: "https://github.com/octo/demo/commit/sha-a", filesChanged: 1, filesDeleted: 0 }, capturedA) },
       { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "run a" }
     ),
     commitSiteToSourceControl(
-      { providerId: "github", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: fakeGitAdapter({ ok: true, branch: "main", branchCreated: false, commitSha: "sha-b", commitUrl: "https://github.com/octo/demo/commit/sha-b", filesChanged: 1 }, capturedB) },
+      { providerId: "github", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: fakeGitAdapter({ ok: true, branch: "main", branchCreated: false, commitSha: "sha-b", commitUrl: "https://github.com/octo/demo/commit/sha-b", filesChanged: 1, filesDeleted: 0 }, capturedB) },
       { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "run b" }
     ),
   ]);

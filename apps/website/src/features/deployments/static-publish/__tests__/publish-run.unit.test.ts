@@ -42,7 +42,7 @@ function testRouteDeps(): ReturnType<typeof createRouteDeps> {
   return deps;
 }
 
-function fakeDeployTarget(url = "https://example.test/published", status = "ready", deploymentId?: string, providerMetadata?: Record<string, unknown>): DeployTarget {
+function fakeDeployTarget(url = "https://example.test/published", status: DeployPublishResult["status"] = "ready", deploymentId?: string, providerMetadata?: Record<string, unknown>): DeployTarget {
   return {
     id: "fake",
     async publish(_input: DeployPublishInput): Promise<DeployPublishResult> {
@@ -206,14 +206,13 @@ test("runPublishAndAwait: a failed outcome is never recorded — no history for 
 test("runPublishAndAwait: a history-store failure never changes the reported outcome — best-effort only", async () => {
   const routeDeps = testRouteDeps();
   const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), loadDeployTargets: routeDeps.loadDeployTargets, buildTarget: () => fakeDeployTarget() };
-  const brokenHistory = {
-    async getLast() {
-      return null;
-    },
-    async recordSuccess() {
+  /** The real in-memory store, except every write fails. */
+  class BrokenHistoryStore extends InMemoryPublishHistoryStore {
+    override async recordSuccess(): Promise<never> {
       throw new Error("disk full");
-    },
-  };
+    }
+  }
+  const brokenHistory = new BrokenHistoryStore();
   const input = githubInput(routeDeps);
 
   const outcome = await runPublishAndAwait(deps, input, clock, brokenHistory);

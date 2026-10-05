@@ -32,14 +32,14 @@ function fakeGateway() {
       const planId = `plan-${mintedPlanIds.size + 1}`;
       const planHash = "sha256:" + "c".repeat(64);
       mintedPlanIds.set(planId, planHash);
-      return { ok: true, value: { planId, planHash } };
+      return { ok: true as const, value: { planId, planHash } };
     },
     confirm: async (input: { planId: string; planHash: string }) => {
       confirmCalls.push(input);
       if (!mintedPlanIds.has(input.planId) || mintedPlanIds.get(input.planId) !== input.planHash) {
-        return { ok: false, error: { code: "PLAN_STALE" } };
+        return { ok: false as const, error: { code: "PLAN_STALE" } };
       }
-      return { ok: true, value: { confirmationToken: "token-1" } };
+      return { ok: true as const, value: { confirmationToken: "token-1" } };
     },
   };
 }

@@ -6,8 +6,9 @@ import type { PackedEntity } from "../type-registry.js";
 
 const row: RawRowSnapshot = { table: "p_banner", pk: { id: "one" }, columns: [{ name: "id", type: "TEXT", pk: 1, notnull: 1 }, { name: "title", type: "TEXT", pk: 0, notnull: 1 }], values: { id: "one", title: "Old footer" } };
 const entity = { entityType: "raw-row", id: 'p_banner:{"id":"one"}', state: { ...row, values: { id: "one", title: "New footer" } } } as unknown as PackedEntity;
+const unused = async (): Promise<never> => { throw new Error("preview never calls this port method"); };
 function ports(live: RawRowSnapshot | null): BackstopPorts {
-  return { coveredTables: [], coveredRoots: [], rows: { read: async () => live } as BackstopPorts["rows"] };
+  return { coveredTables: [], coveredRoots: [], rows: { columns: unused, read: async () => live, upsert: unused, removeCreated: unused, transaction: unused } };
 }
 test("preview exposes actual live and local values for an allowed raw row", async () => {
   const result = await buildBackstopPreview({ entities: [entity], backstop: ports(row), workspaceId: "ws" });
@@ -37,7 +38,8 @@ test("file review returns changed byte checksums and sizes without leaking conte
   const entity = { entityType: "raw-file", id: "extras/banner.html", state: { path: "extras/banner.html", sha256: "after-sha", size: 20, mode: 0o644 } } as unknown as PackedEntity;
   const backstop: BackstopPorts = { coveredTables: [], coveredRoots: [], files: {
     check: async () => null, read: async () => ({ bytes: Buffer.from("live footer"), mode: 0o644, absPath: "/private/site/extras/banner.html" }),
-  } as BackstopPorts["files"] };
+    capture: unused, replace: unused, restore: unused,
+  } };
   const result = await buildBackstopPreview({ entities: [entity], backstop, workspaceId: "ws" });
   assert.equal((result[0].before as { size: number }).size, 11);
   assert.deepEqual(result[0].after, entity.state);

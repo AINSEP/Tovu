@@ -1,7 +1,10 @@
 /** t10: real human exchange and credential persistence; fake only the provider network boundary. */
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { SurfaceEmission, ToolExecutionContext } from '@jini-ai/core';
+import type { SurfaceEmission, SurfaceEmitter, ToolExecutionContext } from '@jini-ai/core';
+
+/** Context fields a test call may override, plus the surface channel the handler receives separately. */
+type CallExtra = Partial<ToolExecutionContext> & { emitSurface?: SurfaceEmitter };
 import { createSurfaceExchangeStore, SURFACE_DISMISSED_PARAM } from '../../../contracts/core/tool-surface-exchanges.js';
 import { AesGcmSecretSealer } from '../../webhooks/secret-sealer.aesgcm.js';
 import { InMemoryKeyring } from '../../webhooks/keyring.memory.js';
@@ -80,10 +83,10 @@ function fixture(allowed = true, exchangeOptions: Parameters<typeof createSurfac
   const surfaces = createSurfaceExchangeStore({ ...exchangeOptions, newExchangeId: () => 'source-exchange-t10' });
   const registrations = buildSourceControlRegistrations(deps, { surfaceExchanges: surfaces });
   function tool() { const found = registrations.find(r => r.descriptor.id === ID); assert.ok(found, `expected '${ID}' to be wired`); return found; }
-  function call(input: unknown, extra: Partial<ToolExecutionContext> = {}) { return invokeFixtureHandler(tool(), { executionId: 'exec', principal: { id: 'person' }, run: { id: 'run' }, input, signal: new AbortController().signal, ...extra }); }
+  function call(input: unknown, extra: CallExtra = {}) { return invokeFixtureHandler(tool(), { executionId: 'exec', principal: { id: 'person' }, run: { id: 'run' }, input, signal: new AbortController().signal, ...extra }); }
   return { repo, sealer, deps, surfaces, call, auth, tool };
 }
-async function form(f: ReturnType<typeof fixture>, extra: Partial<ToolExecutionContext> = {}) {
+async function form(f: ReturnType<typeof fixture>, extra: CallExtra = {}) {
   const emitted: SurfaceEmission[] = []; let raised!: () => void;
   const ready = new Promise<void>(resolve => { raised = resolve; });
   const pending = f.call({ provider: 'github', label: 'My backup connection' }, { emitSurface: async s => { emitted.push(s); raised(); }, ...extra });

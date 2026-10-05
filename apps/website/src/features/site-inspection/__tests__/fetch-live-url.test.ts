@@ -12,7 +12,7 @@ function fake(urls = [origin], responses: HttpResponse[] = [{ status: 200, heade
   const deps: FetchLiveUrlDeps = { listKnownOrigins: async () => urls, httpClient: { send: async req => {
     calls.push(req);
     assert.equal(req.method, 'GET'); assert.deepEqual(req.headers, {}); assert.equal(req.body, undefined);
-    assert.equal(req.timeoutMs <= 15000 && req.timeoutMs > 0, true);
+    const timeoutMs = req.timeoutMs ?? 0; assert.equal(timeoutMs <= 15000 && timeoutMs > 0, true);
     const response = responses.shift(); assert.notEqual(response, undefined, 'unexpected extra request'); return response!;
   } } };
   return { deps, calls };
@@ -165,7 +165,10 @@ test("deadline expiry between redirect hops is also a model-visible timeout", as
 });
 test("the REAL guarded client refuses non-public DNS answers and a rebound redirect before connect", async t => {
   let addresses = ['8.8.8.8'];
-  const { createHttpClient } = await import('../../../platform/http/client.js?live-url-dns');
+  // The query string loads a fresh `client.js` instance; a computed specifier keeps TS from resolving
+  // it as a file, and the annotation types it as the real module.
+  const freshClient: string = '../../../platform/http/client.js?live-url-dns';
+  const { createHttpClient }: typeof import('../../../platform/http/client.js') = await import(freshClient);
   const connected: string[] = [];
   const client = createHttpClient({ policy: LIVE_PAGE_EGRESS_POLICY, transport: { requestPinned: async (req, peer) => {
     connected.push(peer.ip); addresses = ['10.0.0.1']; return { status: 302, headers: { location: '/next' }, bodyText: '' };

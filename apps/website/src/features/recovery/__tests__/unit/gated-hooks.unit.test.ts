@@ -49,15 +49,15 @@ function harness(options: { missing?: boolean; failRestore?: boolean; restartReq
     siteStatus: { get: async () => "BLOCKED_PENDING_RECOVERY", set: async (workspaceId, status) => { trace.push(["status", workspaceId, status]); } },
   };
   const hooks = buildRestoreHooks(input);
-  return { trace, hooks, execute: async () => hooks.executeMutation(await hooks.computePlan()) };
+  return { trace, hooks, execute: async () => hooks.executeMutation(await hooks.computePlan({})) };
 }
 test("plan refuses an unknown restore point instead of letting it reach confirm and execute", async () => {
   const h = harness({ missing: true });
-  await assert.rejects(h.hooks.computePlan(), { name: "RestorePointNotFoundError", message: "restore point 'chosen' was not found" });
+  await assert.rejects(h.hooks.computePlan({}), { name: "RestorePointNotFoundError", message: "restore point 'chosen' was not found" });
 });
 test("plan for an existing restore point hashes only the chosen id", async () => {
   const h = harness();
-  const plan = await h.hooks.computePlan();
+  const plan = await h.hooks.computePlan({});
   assert.deepEqual(plan.details, { restorePointId: "chosen" });
   assert.equal(typeof plan.planHash, "string");
   assert.deepEqual(h.trace, []);

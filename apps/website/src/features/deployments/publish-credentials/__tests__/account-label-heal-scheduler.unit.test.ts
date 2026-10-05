@@ -30,7 +30,9 @@ import type { PublishCredentialSummary } from "../types.js";
 
 function summary(overrides: Partial<PublishCredentialSummary> & Pick<PublishCredentialSummary, "id" | "providerId" | "accountLabel">): PublishCredentialSummary {
   return {
+    vendorId: overrides.providerId,
     label: "a token",
+    tokenTail: "1234",
     configured: true,
     isDefault: false,
     createdAt: "2026-08-16T00:00:00.000Z",

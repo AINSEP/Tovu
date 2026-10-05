@@ -24,19 +24,19 @@ function fakeGateway() {
       calls.push("plan");
       const planId = "plan-ceremony-1";
       mintedPlanIds.add(planId);
-      return { ok: true, value: { planId, planHash: "sha256:" + "f".repeat(64) } };
+      return { ok: true as const, value: { planId, planHash: "sha256:" + "f".repeat(64) } };
     },
     confirm: async (input: { planId: string }) => {
       calls.push("confirm");
-      if (!mintedPlanIds.has(input.planId)) return { ok: false, error: { code: "PLAN_STALE" } };
+      if (!mintedPlanIds.has(input.planId)) return { ok: false as const, error: { code: "PLAN_STALE" } };
       tokens.add("token-ceremony-1");
-      return { ok: true, value: { confirmationToken: "token-ceremony-1" } };
+      return { ok: true as const, value: { confirmationToken: "token-ceremony-1" } };
     },
     execute: async (input: { confirmationToken: string; confirmerPrincipalId?: string }) => {
       calls.push("execute");
       if (!tokens.delete(input.confirmationToken) || input.confirmerPrincipalId !== "user-1")
-        return { ok: false, error: { code: "FORBIDDEN" } };
-      return { ok: true, value: { restoreRunId: "run-ceremony-1", state: "RESTORING" } };
+        return { ok: false as const, error: { code: "FORBIDDEN" } };
+      return { ok: true as const, value: { restoreRunId: "run-ceremony-1", state: "RESTORING" } };
     },
   };
 }

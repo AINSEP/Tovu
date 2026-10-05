@@ -39,12 +39,16 @@ export interface GlueFieldDecl {
 }
 
 /** A content-lifecycle filter's signature — structurally identical to the sibling mechanism's own
- * before-save filter contract (same entry/patch shape), declared independently here so this port
- * has no import from that mechanism. */
+ * before-save filter contract (same entry/patch shape: a patch of scalar values, which is all a
+ * {@link GlueFieldDecl} can declare), declared independently here so this port has no import from
+ * that mechanism. */
 export type GlueContentLifecycleFilter = (
   entry: Readonly<Record<string, unknown>>,
   ctx: { readonly moduleId: string; readonly workspaceId: string }
-) => Readonly<Record<string, unknown>> | Promise<Readonly<Record<string, unknown>>>;
+) => GlueContentPatch | Promise<GlueContentPatch>;
+
+/** What a {@link GlueContentLifecycleFilter} returns: field values keyed by declared path. */
+export type GlueContentPatch = Readonly<Record<string, string | number | boolean>>;
 
 /** One tool registration a glue module contributes, merged in after the host's own core tool list
  * is fully assembled (ADR-057 Decision 4 — fail-isolated, never inside the host's own fail-fast

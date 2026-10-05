@@ -7,6 +7,7 @@ import type { ToolExecutionContext } from "@jini-ai/core";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { assertSpanOmits, createInMemoryOtel } from "#src/platform/observability/__tests__/fixtures/in-memory-otel";
+import type { SiteInspectionToolDeps } from "../deps.js";
 import { fetchPublishedPage } from "../published-page.js";
 import { buildSiteInspectionRegistrations } from "../tool-registrations.js";
 
@@ -74,14 +75,13 @@ test("fetchPublishedPage: with no port the render is untraced and unchanged", as
 
 test("fetch_published_page: the tool's render is traced through its RouteDeps.observability", async () => {
   const { exporter, port } = createInMemoryOtel();
-  const deps = createRouteDeps();
-  await deps.identityReady;
-  deps.observability = port;
-  deps.createSiteApp = () => renderer(200);
+  const base = createRouteDeps();
+  await base.identityReady;
+  const deps: SiteInspectionToolDeps = { ...base, observability: port, createSiteApp: () => renderer(200) };
   const handler = buildSiteInspectionRegistrations(deps).find((registration) => registration.descriptor.id === "fetch_published_page")!.handler;
   const ctx = {
     executionId: "exec-otel",
-    principal: { id: await deps.ownerPrincipalId },
+    principal: { id: await base.ownerPrincipalId },
     run: { id: "run-otel" },
     input: { path: PAGE },
     signal: new AbortController().signal,

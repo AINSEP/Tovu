@@ -37,7 +37,7 @@ async function harness(t: test.TestContext, options: { replaces?: string; allowe
         const sql = [...chunks].join("");
         scripts.push(sql);
         if (options.targetExists) return {ok: false, error: 'schema "tovu" already exists'};
-        return {ok: true};
+        return {ok: true, value: null};
       },
     }),
   };

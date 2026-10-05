@@ -159,7 +159,7 @@ test("publish-content applies the report the gateway verified, not one re-derive
         createdBy: ACTOR_ID, artifactRef: "artifact-1", watermarkAtCapture: 1,
       }, "the recovery artifact must already be stored before apply");
       applied = report;
-      return { runId: "run-1", changeSetIds: [] };
+      return { runId: "run-1", changeSetIds: [], retiredChangeSetIds: [], repointChangeSetIds: [], menuLinksUpdated: 0, menuLinksNotUpdated: [], verificationProblems: [] };
     },
   };
 

@@ -19,7 +19,7 @@ const OK_REPORT: PublishContentReport = {
   rows: [{ entityType: "post", entityId: "p1", outcome: "created", writes: true, reason: null }],
 };
 
-const PLAN: PublishContentPlanResult = { planId: "plan-1", planHash: "hash-1", details: OK_REPORT };
+const PLAN: PublishContentPlanResult = { planId: "plan-1", planHash: "hash-1", bundleId: "bundle-1", details: OK_REPORT, liveCanOverwrite: false };
 
 const EVERY_PHASE: readonly PublishContentPhase[] = [
   { kind: "idle" },
@@ -28,7 +28,7 @@ const EVERY_PHASE: readonly PublishContentPhase[] = [
   { kind: "confirming", plan: PLAN },
   { kind: "confirmed", plan: PLAN, confirmationToken: "tok-1" },
   { kind: "executing", plan: PLAN, confirmationToken: "tok-1" },
-  { kind: "done", result: { restorePointId: "rp-1", changeSetIds: ["cs-1"] } },
+  { kind: "done", result: { restorePointId: "rp-1", runId: "run-1", changeSetIds: ["cs-1"] } },
   { kind: "failed", message: "boom", code: null },
 ];
 
@@ -49,6 +49,8 @@ test("a refused plan can never be confirmed", () => {
   const refused: PublishContentPlanResult = {
     planId: "plan-2",
     planHash: "hash-2",
+    bundleId: "bundle-2",
+    liveCanOverwrite: false,
     details: { refused: true, refusalReason: "different content-hash versions", applyOrder: [], rows: [] },
   };
   assert.equal(canConfirmPlan({ kind: "planned", plan: refused }), false);
@@ -58,6 +60,8 @@ test("a plan whose every row is a conflict can never be confirmed — there is n
   const allConflicts: PublishContentPlanResult = {
     planId: "plan-3",
     planHash: "hash-3",
+    bundleId: "bundle-3",
+    liveCanOverwrite: false,
     details: {
       refused: false,
       refusalReason: null,

@@ -6,7 +6,8 @@ import { signPayload, verifySignature } from "../signing.js";
 const secret = Buffer.from("test-signing-secret");
 const rawBody = JSON.stringify({ topic: "post.published", data: { id: "post-1" } });
 const timestampSeconds = 1720000000;
-beforeEach((t) => { t.mock.method(Date, "now", () => timestampSeconds * 1000); });
+// `beforeEach` hands a `TestContext` per test; the `in` check narrows away its `SuiteContext` arm.
+beforeEach((t) => { assert.ok("mock" in t); t.mock.method(Date, "now", () => timestampSeconds * 1000); });
 
 // F4.1: independently calculated with Python hmac/sha256 over the literal UTF-8 wire bytes.
 test("signPayload matches the published timestamp-dot-body HMAC-SHA256 wire format", () => {

@@ -195,8 +195,8 @@ test("origin pinning: every outbound call stays under https://api.github.com eve
   const provider = createGitHubDeploymentProvider();
 
   const target = makeTarget({ owner: "../../hostile-owner", repo: "../../app/installations/1" });
-  const ctx = makeContext(http);
-  ctx.credentials = { ...ctx.credentials, installationId: "../../hostile-installation" };
+  const base = makeContext(http);
+  const ctx: DeploymentProviderContext = { ...base, credentials: { ...base.credentials, installationId: "../../hostile-installation" } };
   await provider.startRun({ target, release: makeRelease() }, ctx);
   assert.equal(http.calls.length, 2);
   assert.equal(http.calls[0]!.url, "https://api.github.com/app/installations/..%2F..%2Fhostile-installation/access_tokens");

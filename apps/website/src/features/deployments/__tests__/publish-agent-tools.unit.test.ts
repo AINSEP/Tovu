@@ -45,18 +45,22 @@ test.after(() => rmSync(publishOutputDir, { recursive: true, force: true }));
  *  reads that `RouteDeps` field instead of `process.env.TOVU_PUBLISH_DIR` (adapter.ts no longer
  *  reads env vars at all), so overriding it keeps exporter artifacts off the checked-out repo.
  *  Normal handler tests use an injected export; the explicitly enabled port test uses the real one. */
+/** This file's own deps object, which its tests re-point field by field before building registrations
+ *  (the interface's `readonly` only binds the handlers that read it). `loadDeployTargets` is always set. */
+type FakeStaticPublishToolDeps = { -readonly [K in keyof StaticPublishToolDeps]: StaticPublishToolDeps[K] } & Required<Pick<StaticPublishToolDeps, "loadDeployTargets">>;
+
 function fakeDeps(
   options: {
     allow?: boolean;
     credentialSource?: PublishCredentialSource;
     buildTarget?: StaticPublishToolDeps["buildTarget"];
   } = {}
-): { deps: StaticPublishToolDeps; authorizeCalls: Record<string, unknown>[]; setAllow: (value: boolean) => void } {
+): { deps: FakeStaticPublishToolDeps; authorizeCalls: Record<string, unknown>[]; setAllow: (value: boolean) => void } {
   let allow = options.allow ?? true;
   const authorizeCalls: Record<string, unknown>[] = [];
   const base = createRouteDeps();
 
-  const deps: StaticPublishToolDeps = {
+  const deps: FakeStaticPublishToolDeps = {
     ...base,
     exportSiteBound: async ({outputDir}) => ({outputDir, routes: {succeeded: [{path: "/", kind: "home", outputFile: "index.html", data: "<html>export fixture</html>"}], failed: []}, assets: {succeeded: [], failed: []}, skippedManifestEntries: [], unreferencedThemeFiles: []}),
     publishOutputRootDir: publishOutputDir,
@@ -606,7 +610,7 @@ test("deployment_get_static_publish_capabilities: a recorded lastPublish is surf
   const history = new InMemoryPublishHistoryStore();
   await history.recordSuccess({
     workspaceId: WORKSPACE_ID_FALLBACK,
-    entry: { target: "github-pages", url: "https://leonaburime-ucla.github.io/tovu-demo/", reachable: true, status: "ready", projectName: "tovu-demo", publishedAt: NOW, owner: "leonaburime-ucla", repo: "tovu-demo", basePath: "/tovu-demo" },
+    entry: { target: "github-pages", url: "https://leonaburime-ucla.github.io/tovu-demo/", reachable: true, status: "ready", projectName: "tovu-demo", publishedAt: NOW, owner: "leonaburime-ucla", repo: "tovu-demo", basePath: "/tovu-demo", triggeredBy: "agent_tool" },
   });
   deps.historyStore = history;
 

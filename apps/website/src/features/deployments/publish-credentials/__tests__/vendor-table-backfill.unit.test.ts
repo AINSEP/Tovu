@@ -175,7 +175,7 @@ for (const failure of ["seal", "mismatch"] as const) {
       t.mock.method(deps.sealer, "seal", async () => { throw new Error("fixture reseal failed"); });
     } else {
       const open = deps.sealer.open.bind(deps.sealer);
-      t.mock.method(deps.sealer, "open", async (args) => args.aad === buildVendorCredentialAad({ workspaceId: WORKSPACE, vendorId: "vercel", id: "c-1" }) ? "different plaintext" : open(args));
+      t.mock.method(deps.sealer, "open", async (args: Parameters<typeof open>[0]) => args.aad === buildVendorCredentialAad({ workspaceId: WORKSPACE, vendorId: "vercel", id: "c-1" }) ? "different plaintext" : open(args));
     }
     const report = await copyPublishCredentialsToVendorTable(deps, { workspaceId: WORKSPACE });
     assert.deepEqual(report, { copied: [], alreadyCopied: [], skipped: [{ id: "c-1", reason: failure === "seal" ? "the credential could not be re-sealed: fixture reseal failed" : "the re-sealed credential did not open to the same value" }] });

@@ -236,7 +236,7 @@ async function stage(
  *  the same shape a real `plan()`/`execute()` request would produce. */
 async function plan(
   publishContentDeps: PublishContentDeps,
-  baselineRepo: InstanceType<typeof InMemoryPublishContentBaselineRepo>,
+  baselineRepo: PublishContentBaselineRepoPort,
   sourcePrincipalId: string,
   entities: readonly PackedEntity[]
 ): Promise<PublishContentReport> {
@@ -669,9 +669,11 @@ for (const outcome of ["applied", "forced"] as const) {
     };
     await baselineRepo.upsert(baseline);
     const entities = [packedFrom({ ...original, title: "Incoming update" })];
-    const report = await plan(publishContentDeps, baselineRepo, SOURCE_PRINCIPAL_ID, entities);
-    assert.equal(report.rows[0]?.outcome, "applied");
-    if (outcome === "forced") report.rows[0] = { ...report.rows[0]!, outcome: "forced" };
+    const planned = await plan(publishContentDeps, baselineRepo, SOURCE_PRINCIPAL_ID, entities);
+    assert.equal(planned.rows[0]?.outcome, "applied");
+    const report: PublishContentReport = outcome === "forced"
+      ? { ...planned, rows: [{ ...planned.rows[0]!, outcome: "forced" }, ...planned.rows.slice(1)] }
+      : planned;
     const bundleId = await stage(bundleRepo, clock, entities);
     await postRepo.hardDelete({ workspaceId: WORKSPACE_ID, id: original.id });
 
@@ -680,7 +682,7 @@ for (const outcome of ["applied", "forced"] as const) {
     assert.deepEqual(result.changeSetIds, []);
     assert.equal(await postRepo.findById({ workspaceId: WORKSPACE_ID, id: original.id }), null);
     const run = await runRepo.findById({ workspaceId: WORKSPACE_ID, id: "run-1" });
-    assert.equal((JSON.parse(run!.reportJson) as PublishContentReport).rows[0]?.outcome, "conflict");
+    assert.equal((JSON.parse(run!.reportJson!) as PublishContentReport).rows[0]?.outcome, "conflict");
     assert.deepEqual(await baselineRepo.findOne(baseline), baseline);
   });
 }
@@ -727,12 +729,12 @@ test("baselines are upserted for created/unchanged/applied/forced and NEVER for 
     refusalReason: null,
     applyOrder: ["post"],
     rows: [
-      { entityType: "post", entityId: "p-created", outcome: "created", writes: true, reason: null },
-      { entityType: "post", entityId: "p-unchanged", outcome: "unchanged", writes: false, reason: null },
-      { entityType: "post", entityId: "p-applied", outcome: "applied", writes: true, reason: null },
-      { entityType: "post", entityId: "p-forced", outcome: "forced", writes: true, reason: "was a conflict, operator forced it" },
-      { entityType: "post", entityId: "p-conflict", outcome: "conflict", writes: false, reason: "edited on destination" },
-      { entityType: "post", entityId: "p-blocked", outcome: "blocked", writes: false, reason: "slug taken" },
+      { entityType: "post", entityId: "p-created", entityLabel: null, outcome: "created", writes: true, reason: null, canOverwrite: false, retires: null },
+      { entityType: "post", entityId: "p-unchanged", entityLabel: null, outcome: "unchanged", writes: false, reason: null, canOverwrite: false, retires: null },
+      { entityType: "post", entityId: "p-applied", entityLabel: null, outcome: "applied", writes: true, reason: null, canOverwrite: false, retires: null },
+      { entityType: "post", entityId: "p-forced", entityLabel: null, outcome: "forced", writes: true, reason: "was a conflict, operator forced it", canOverwrite: false, retires: null },
+      { entityType: "post", entityId: "p-conflict", entityLabel: null, outcome: "conflict", writes: false, reason: "edited on destination", canOverwrite: true, retires: null },
+      { entityType: "post", entityId: "p-blocked", entityLabel: null, outcome: "blocked", writes: false, reason: "slug taken", canOverwrite: false, retires: null },
     ],
   };
 
@@ -1035,7 +1037,7 @@ test("a media row blocked at apply time downgrades that ONE row and the rest of 
 
   const run = await runRepo.findById({ workspaceId: WORKSPACE_ID, id: "run-1" });
   assert.equal(run?.phase, "applied", "the run must COMPLETE — one bad row is not a failed run");
-  const finalRows = (JSON.parse(run!.reportJson) as PublishContentReport).rows;
+  const finalRows = (JSON.parse(run!.reportJson!) as PublishContentReport).rows;
 
   const mediaRow = finalRows.find((row) => row.entityType === "media");
   assert.equal(mediaRow?.outcome, "blocked", "a missing blob is `blocked`, never `conflict` — nobody edited anything");
@@ -1241,7 +1243,7 @@ test("a write refused permission blocks that ONE row with the refusal as its rea
 
   const run = await runRepo.findById({ workspaceId: WORKSPACE_ID, id: "run-1" });
   assert.equal(run?.phase, "applied");
-  const rows = (JSON.parse(run!.reportJson) as PublishContentReport).rows;
+  const rows = (JSON.parse(run!.reportJson!) as PublishContentReport).rows;
   assert.deepEqual(
     rows.map((row) => [row.entityType, row.outcome, row.reason]),
     [

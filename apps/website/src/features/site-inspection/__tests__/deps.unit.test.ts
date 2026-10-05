@@ -67,11 +67,12 @@ test("settings preserve namespace and false, zero and empty string values, disti
 test("capabilities keep an unwired tool reader absent and pass a wired live reader through", async () => {
   const h = source();
   assert.equal(toSiteCapabilitiesDeps(h.deps).listCatalogTools, undefined);
-  const reader = () => [{ id: "read_recipe" }];
-  const p = toSiteCapabilitiesDeps({ ...h.deps, listCatalogTools: reader } as SiteInspectionToolDeps);
+  const reader = () => [{ id: "read_recipe", source: "recipes", description: "Reads one recipe." }];
+  const deps: SiteInspectionToolDeps = { ...h.deps, listCatalogTools: reader };
+  const p = toSiteCapabilitiesDeps(deps);
   assert.deepEqual(h.calls, []);
   assert.equal(p.listCatalogTools, reader);
-  assert.deepEqual(p.listCatalogTools?.(), [{ id: "read_recipe" }]);
+  assert.deepEqual(p.listCatalogTools?.(), [{ id: "read_recipe", source: "recipes", description: "Reads one recipe." }]);
   assert.deepEqual(await p.listContentTypes(), [{ key: "recipe" }]);
   assert.deepEqual(h.calls, ["types"]);
 });

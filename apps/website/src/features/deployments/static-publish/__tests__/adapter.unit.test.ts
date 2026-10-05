@@ -51,7 +51,7 @@ test.after(() => rmSync(publishOutputDir, { recursive: true, force: true }));
  *  and base path for every publish below (a test's `buildTarget` replaces only the module's `create`). */
 const hermeticDeployTargets = createRouteDeps().loadDeployTargets;
 
-function testRouteDeps(): RouteDeps {
+function testRouteDeps(): ReturnType<typeof createRouteDeps> {
   const deps = createRouteDeps();
   deps.publishOutputRootDir = publishOutputDir;
   return deps;
@@ -84,7 +84,7 @@ function fakeDeployTarget(capturedFiles: { value: DeployFile[] | null }): Deploy
  *  Express`, closed over its own `routeDeps` at composition-root construction time — see that
  *  field's doc in `server/routes/types.ts`), so the fake assigned to `deps.createSiteApp` below must
  *  match that same nullary shape. */
-function createSiteAppWithFailingAsset(failingPath: string, routeDeps: RouteDeps): () => ReturnType<typeof createApp> {
+function createSiteAppWithFailingAsset(failingPath: string, routeDeps: ReturnType<typeof createRouteDeps>): () => ReturnType<typeof createApp> {
   return () => {
     const wrapper = express();
     wrapper.get(failingPath, (_req, res) => {
@@ -459,7 +459,8 @@ test("publishStaticSite: a resolved credential for vercel/github-pages/netlify n
     { workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, config: { target: "vercel" }, projectName: "demo" }
   );
 
-  assert.equal("accountId" in (observedCredential as object), false);
+  assert.notEqual(observedCredential, null, "buildTarget must have received a credential");
+  assert.equal(Object.hasOwn(observedCredential ?? {}, "accountId"), false);
 });
 
 // ---- credential fields + StaticPublishOutcome's "partial" branch (spec §3a/§4/§10) ----
@@ -525,7 +526,8 @@ test("publishStaticSite: an omitted endpoint is never forwarded to buildTarget a
     { workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, config: { target: "s3-compatible" }, projectName: "demo" }
   );
 
-  assert.equal("endpoint" in (observedCredential as object), false);
+  assert.notEqual(observedCredential, null, "buildTarget must have received a credential");
+  assert.equal(Object.hasOwn(observedCredential ?? {}, "endpoint"), false);
 });
 
 test("publishStaticSite: a target's terminal status of 'ready' is a full ok:true success", async () => {

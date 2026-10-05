@@ -16,16 +16,16 @@ import { executeRestore } from "../../recovery-orchestrator.js";
  * (restore doesn't clear PENDING_MIGRATION), EC-04 (actor-class redemption rejection).
  */
 
-function fakeGateway(executeResult: unknown = { restoreRunId: "run-1", state: "QUIESCING" }, tokenOwner = "user-1") {
+function fakeGateway(executeResult: { restoreRunId: string; state: string } = { restoreRunId: "run-1", state: "QUIESCING" }, tokenOwner = "user-1") {
   const executeCalls: unknown[] = [];
   return {
     executeCalls,
     execute: async (input: { confirmationToken: string; confirmerPrincipalId?: string }) => {
       executeCalls.push(input);
       if (input.confirmerPrincipalId !== tokenOwner) {
-        return { ok: false, error: { code: "FORBIDDEN" } };
+        return { ok: false as const, error: { code: "FORBIDDEN" } };
       }
-      return { ok: true, value: executeResult };
+      return { ok: true as const, value: executeResult };
     },
   };
 }

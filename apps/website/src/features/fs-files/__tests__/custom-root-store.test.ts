@@ -35,6 +35,8 @@ function freshSiteDir(): string {
 
 test.beforeEach((t) => {
   const siteDir = freshSiteDir();
+  // `beforeEach` hands a `TestContext` per test; the `in` check narrows away its `SuiteContext` arm.
+  assert.ok("diagnostic" in t);
   t.diagnostic(`siteDir=${siteDir}`);
   resetCustomFsRootForTests({ siteDir });
 });

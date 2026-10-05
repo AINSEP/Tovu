@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ApplyProviderEventInput, ApplyProviderEventResult, CommerceWebhookEventRepoPort } from "../../ports.js";
+import type { ApplyProviderEventResult, CommerceWebhookEventRepoPort } from "../../ports.js";
 import { ingestProviderEvent, type InboundProviderEvent, type OrderProjection } from "../../webhook-inbox.js";
+
+type ApplyProviderEventInput = Parameters<CommerceWebhookEventRepoPort["applyProviderEvent"]>[0];
 
 test("ingestProviderEvent: delegates correctly to CommerceWebhookEventRepoPort with mapped fields and timestamps", async () => {
   let capturedInput: ApplyProviderEventInput | undefined;
@@ -10,12 +12,6 @@ test("ingestProviderEvent: delegates correctly to CommerceWebhookEventRepoPort w
     async applyProviderEvent(input: ApplyProviderEventInput): Promise<ApplyProviderEventResult> {
       capturedInput = input;
       return "applied";
-    },
-    async listEvents() {
-      return [];
-    },
-    async getEvent() {
-      return null;
     },
   };
 
@@ -77,12 +73,6 @@ test("ingestProviderEvent: passes through duplicate and stale results", async ()
       async applyProviderEvent(): Promise<ApplyProviderEventResult> {
         return outcome;
       },
-      async listEvents() {
-        return [];
-      },
-      async getEvent() {
-        return null;
-      },
     };
 
     const result = await ingestProviderEvent({
@@ -99,7 +89,7 @@ test("ingestProviderEvent: passes through duplicate and stale results", async ()
         eventOccurredAt: "2026-08-12T12:00:00.000Z",
         payload: "{}",
       },
-      projection: { orderId: "order-1", status: "fulfilled" },
+      projection: { orderId: "order-1", status: "paid" },
     });
 
     assert.equal(result, outcome);

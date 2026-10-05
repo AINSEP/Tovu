@@ -534,7 +534,7 @@ test("verifyPublishCredentialById handles removed hosts and changed token fields
       const cache = new InMemoryPublishCredentialVerificationCache();
       const stale = { status: "valid" as const, message: "cached default", checkedAt: NOW };
       cache.set({ workspaceId: WORKSPACE, target: "github-pages" }, stale);
-      const bundled = await loadBundledDeployTargets(WORKSPACE);
+      const bundled = await loadBundledDeployTargets();
       const hosts = bundled.list().filter((host) => mode !== "removed" || host.descriptor.id !== "github-pages").map((host) => host.descriptor.id !== "github-pages" ? host : {
         ...host, descriptor: { ...host.descriptor, credential: { ...host.descriptor.credential!, tokenField: "newToken" } },
       });

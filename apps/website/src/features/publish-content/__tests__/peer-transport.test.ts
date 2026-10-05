@@ -80,6 +80,7 @@ function bundle(overrides: Partial<PublishContentExportEnvelope> = {}): PublishC
     sourceLabel: "Local Site",
     entities: [],
     blobManifest: [],
+    skipped: [],
     ...overrides,
   };
 }

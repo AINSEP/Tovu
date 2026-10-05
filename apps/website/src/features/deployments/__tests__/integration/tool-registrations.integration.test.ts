@@ -66,7 +66,7 @@ function ctx(input: unknown) {
  *  file's own throwaway temp dir — `startExportRun` reads that `RouteDeps` field instead of
  *  `process.env.TOVU_EXPORT_DIR` (export-run.ts no longer reads env vars at all). */
 function grantingDeps(): DeploymentsToolDeps {
-  return { ...createRouteDeps(), exportOutputRootDir: exportOutputDir, authorize: async () => ({ allowed: true }) };
+  return { ...createRouteDeps(), exportOutputRootDir: exportOutputDir, authorize: async () => ({ allowed: true, reason: "test-always-allow" }) };
 }
 
 test("all 4 deployments tools are registered with input schemas the model needs", () => {

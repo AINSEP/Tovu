@@ -43,7 +43,7 @@ const githubFromSource: LoadSourceControlProviders = () => loadSourceControlProv
 /** A workspace where no plugin provides a git host (the github plugin turned off). */
 const noProviders: LoadSourceControlProviders = async () => ({ list: () => [], get: () => undefined, refusals: [] });
 
-function fakeDeps(options: { allow?: boolean; gitAdapter?: SourceControlCommitAdapter; loadSourceControlProviders?: LoadSourceControlProviders } = {}): {
+function fakeDeps(options: { allow?: boolean; gitAdapter?: SourceControlCommitAdapter; loadSourceControlProviders?: LoadSourceControlProviders; exportSiteBound?: SourceControlToolDeps["exportSiteBound"] } = {}): {
   deps: SourceControlToolDeps;
   authorizeCalls: Record<string, unknown>[];
   setAllow: (value: boolean) => void;
@@ -54,7 +54,7 @@ function fakeDeps(options: { allow?: boolean; gitAdapter?: SourceControlCommitAd
 
   const deps: SourceControlToolDeps = {
     ...base,
-    exportSiteBound: async ({outputDir}) => ({outputDir, routes: {succeeded: [{path: "/", kind: "home", outputFile: "index.html", data: "<html>export fixture</html>"}], failed: []}, assets: {succeeded: [], failed: []}, skippedManifestEntries: [], unreferencedThemeFiles: []}),
+    exportSiteBound: options.exportSiteBound ?? (async ({outputDir}) => ({outputDir, routes: {succeeded: [{path: "/", kind: "home", outputFile: "index.html", data: "<html>export fixture</html>"}], failed: []}, assets: {succeeded: [], failed: []}, skippedManifestEntries: [], unreferencedThemeFiles: []})),
     sourceControlExportRootDir: exportDir,
     authorize: async (params: Record<string, unknown>) => {
       authorizeCalls.push(params);
@@ -380,8 +380,10 @@ test("source_control_execute_commit's copy names the failure shape the handler a
   const { deps } = fakeDeps();
   const descriptor = tool(buildRegistrations(deps, createSurfaceExchangeStore()), "source_control_execute_commit").descriptor;
   const branch = (descriptor.inputSchema as { properties: { branch: { description: string } } }).properties.branch.description;
-  assert.match(descriptor.description, /\{committed:false, reason, message\} when the credential or provider is unavailable/);
-  assert.match(descriptor.description, /\{committed:false, cancelled:false, code, message\} when the commit itself fails/);
+  const description = descriptor.description;
+  assert.ok(description, "source_control_execute_commit must carry a description");
+  assert.match(description, /\{committed:false, reason, message\} when the credential or provider is unavailable/);
+  assert.match(description, /\{committed:false, cancelled:false, code, message\} when the commit itself fails/);
   assert.match(branch, /\{committed:false, code:'DIVERGED_BRANCH'\}/);
   assert.doesNotMatch(branch, /result below/);
 });
@@ -407,11 +409,13 @@ test("no saved github credential: refused with reason 'no-credential', WITHOUT e
 test("confirm: a successful commit reports committed:true with every field from the adapter's result", async () => {
   const success = { ...FAKE_SUCCESS, branch: "release/2", branchCreated: true, filesDeleted: 3, divergedPaths: ["kept-custom.html"] };
   const requests: unknown[] = [];
-  const { deps } = fakeDeps({ gitAdapter: { commit: async (input) => { requests.push(input); return success; } } });
-  deps.exportSiteBound = async ({ outputDir }) => ({ outputDir,
-    routes: { succeeded: [{ path: "/", kind: "home", outputFile: "index.html", data: "<html>commit canary</html>" }], failed: [] },
-    assets: { succeeded: [{ url: "/image.png", outputFile: "image.png", data: Buffer.from([0, 128, 255]) }], failed: [] },
-    skippedManifestEntries: [], unreferencedThemeFiles: [],
+  const { deps } = fakeDeps({
+    gitAdapter: { commit: async (input) => { requests.push(input); return success; } },
+    exportSiteBound: async ({ outputDir }) => ({ outputDir,
+      routes: { succeeded: [{ path: "/", kind: "home", outputFile: "index.html", data: "<html>commit canary</html>" }], failed: [] },
+      assets: { succeeded: [{ url: "/image.png", outputFile: "image.png", data: Buffer.from([0, 128, 255]) }], failed: [] },
+      skippedManifestEntries: [], unreferencedThemeFiles: [],
+    }),
   });
   await seedGithubCredential(deps);
   const surfaceExchanges = createSurfaceExchangeStore();
