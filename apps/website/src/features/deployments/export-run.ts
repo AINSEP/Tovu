@@ -178,7 +178,7 @@ export function getExportRunSnapshot(): ExportRunSnapshot {
  * @param required.routeDeps - The same full composition-root deps object the injected `runExportSite` needs
  * to boot an in-process copy of the app. Opaque to this function beyond `.clock.nowMs()` and
  * `.exportOutputRootDir` — passed straight through to `runExportSite`. `exportOutputRootDir` is
- * `RouteDeps.exportOutputRootDir` (`TOVU_EXPORT_DIR` env, then `<cwd>/infra/export`), resolved ONCE
+ * `RouteDeps.exportOutputRootDir` (`TOVU_EXPORT_DIR` env, then the served site's `out/export`), resolved ONCE
  * by the composition root (`server/app.ts`/`server/deps.ts`) — this function never reads
  * `process.env` itself, and a test overrides the directory by setting this field on the fake
  * `routeDeps` it constructs, not by mutating real process env vars.

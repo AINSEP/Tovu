@@ -153,3 +153,30 @@ test("tovu export: TOVU_EXPORT_DIR env var sets the default output directory whe
   assert.equal(result.status, 0, `stderr: ${result.stderr}`);
   assert.ok(fs.existsSync(path.join(envOutDir, "index.html")), "export must land under TOVU_EXPORT_DIR");
 });
+
+test("tovu export <dir>: with neither --out nor TOVU_EXPORT_DIR, the export lands under <dir>/out/export even when run from another directory", (t) => {
+  const parent = mkTempParent();
+  t.after(() => fs.rmSync(parent, { recursive: true, force: true }));
+  const installDir = path.join(parent, "site");
+  // The operator's shell: not the install dir, and not its parent. The old default resolved the
+  // export root from here (`<cwd>/sites/<name>/out/export`).
+  const elsewhere = path.join(parent, "elsewhere");
+  fs.mkdirSync(elsewhere);
+
+  assert.equal(runCli(["init", installDir]).status, 0);
+
+  const env: NodeJS.ProcessEnv = { ...childProcessCoverageEnv(WORKER_COVERAGE_DIR) };
+  for (const key of ["TOVU_EXPORT_DIR", "TOVU_SITE_DIR", "TOVU_SITE"]) delete env[key];
+  // A relative tsconfig path would resolve against `elsewhere`.
+  if (env.TSX_TSCONFIG_PATH !== undefined) env.TSX_TSCONFIG_PATH = path.resolve(env.TSX_TSCONFIG_PATH);
+  const result = spawnSync(process.execPath, ["--import", TSX_LOADER, CLI_MAIN, "export", installDir], {
+    encoding: "utf8",
+    timeout: 120000, // see runCli's own doc above: safety net, not an expectation
+    cwd: elsewhere,
+    env,
+  });
+  assert.equal(result.status, 0, `stderr: ${result.stderr}`);
+  assert.ok(fs.existsSync(path.join(installDir, "out", "export", "index.html")), "export must land under the exported site's own out/export");
+  const strayExports = (fs.readdirSync(elsewhere, { recursive: true }) as string[]).filter((entry) => entry.endsWith(path.join("out", "export")));
+  assert.deepEqual(strayExports, [], "nothing may be exported under the working directory");
+});

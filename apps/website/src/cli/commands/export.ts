@@ -63,12 +63,13 @@ export interface RunExportCommandInput {
 }
 
 /**
- * BR-EXPORT-01: `--out` flag, then `TOVU_EXPORT_DIR` env, then `<cwd>/infra/export` — first
+ * BR-EXPORT-01: `--out` flag, then `TOVU_EXPORT_DIR` env, then `<dir>/out/export` — first
  * PRESENT value wins, same precedence shape `serve.ts`'s `resolveServePort` already uses for
- * `--port`. Deliberately NOT `<installDir>/infra/export`: the default mirrors `server/deps.ts`'s
- * `mediaUploadsDir()` (`<cwd>/infra/uploads`) because both anchor to the SAME `infra/` Docker
- * volume (`development/docs/deployment/deployment-constraints.md` — `infra/` survives a container
- * restart and is what an operator copies out), not to wherever the install dir happens to live.
+ * `--port`. The default is under the install dir this command was given, because the composition
+ * below is handed that dir as its `siteBinding`. It used to be `<cwd>/infra/export`, kept beside
+ * `mediaUploadsDir()`'s `<cwd>/infra/uploads` on one shared `infra/` Docker volume; `infra/` became
+ * `sites/<name>/` (2026-08-27) and this command passes `<dir>/uploads` explicitly, so a cwd-relative
+ * default only ever wrote into whatever site the operator's shell happened to name.
  *
  * `exportOutputRootDir` is `RouteDeps.exportOutputRootDir` — this command's own composition root
  * (`createSiteRouteDeps`, below) resolves the `TOVU_EXPORT_DIR`-env-then-default half of this
@@ -148,6 +149,11 @@ export async function runExportCommand(input: RunExportCommandInput): Promise<vo
       // root is `process.cwd()`-relative, so without this a `<dir>` run would seed and serve a
       // `sites/tovu-dev/themes` beside the operator's shell instead of the site it was given.
       themesDir: path.join(target, "themes"),
+      // The site this command exports. Without it the binding falls back to `describeSiteBinding()`,
+      // `<cwd>/sites/<name>`, and every `<site>/...` default the composition derives from it (the
+      // export root above all) lands in that unrelated site. Same values as `serve.ts`'s binding,
+      // for the same reasons; this command does not pin `TOVU_SITE_DIR` the way `serve` does.
+      siteBinding: { dir: target, name: path.basename(target), dirOverridden: true, switcherCompatible: false },
       onStoreOpened: (store) => (composedStore = store),
     });
     const outputDir = resolveExportOutputDir(input, routeDeps.exportOutputRootDir);

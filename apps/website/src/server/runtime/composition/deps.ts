@@ -8,7 +8,7 @@ import { executeCommand } from "@jini-ai/cms/core";
 import { randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
-import { basename, dirname, join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 
 import { InMemoryEventBus } from "#src/contracts/core/events/index";
 import { resolveObservabilityConfig, createObservabilityPort, instrumentStorageKernel, type ObservabilityPort } from "#src/platform/observability/index";
@@ -307,16 +307,33 @@ export function siteDir(): string {
 }
 
 /**
+ * The optional inputs every `<site>/...` path resolver below shares. `env` defaults to
+ * `process.env`; injectable so the `TOVU_*_DIR` precedence is testable without mutating the test
+ * runner's own environment. Each resolver's `siteDir` input is the site the caller is serving: the
+ * composition root passes its booted `siteBinding.dir`, never {@link siteDir}, because the two
+ * differ for any composition that does not also pin `TOVU_SITE_DIR` (see
+ * {@link resolveExportOutputRootDir}).
+ */
+export interface SitePathResolverOptional {
+  readonly env?: NodeJS.ProcessEnv;
+}
+
+/**
  * Root directory `LocalFsBlobStore` writes blob bytes under (ADR-012 `uploads/` convention,
  * mirroring `defaultContentDbPath()` below).
+ *
+ * `optional.siteDir` defaults to {@link siteDir} — this process's env/cwd site — for the callers
+ * outside a composition root that have no booted site in hand (`deployment-overview.ts`). The
+ * composition root passes its booted `siteBinding.dir`.
  */
-export function mediaUploadsDir(): string {
+export function mediaUploadsDir(optional: SitePathResolverOptional & { siteDir?: string } = {}): string {
   // Sibling of `defaultContentDbPath()`'s `<site>/content.db` — both now derive from the same
   // {@link siteDir}. Note this one is NOT derived from `dirname(contentDbPath)`, so a deployment
   // that overrides `TOVU_CONTENT_DB` alone still leaves uploads here; that independence is why
   // `uploads/` was historically the one runtime directory that did not follow the database
   // automatically, and it is preserved deliberately.
-  return process.env.TOVU_MEDIA_UPLOADS_DIR ?? join(siteDir(), "uploads");
+  const env = optional.env ?? process.env;
+  return env.TOVU_MEDIA_UPLOADS_DIR ?? join(optional.siteDir ?? siteDir(), "uploads");
 }
 
 /**
@@ -404,9 +421,12 @@ export function builtInThemesDir(): string {
  *
  * Seeded from {@link builtInThemesDir} on a site's first boot — see `seedSiteThemes()`'s own header
  * for why that copies the whole ~19MB tree rather than filling in on demand.
+ *
+ * `optional.siteDir` defaults to {@link siteDir}, same split as {@link mediaUploadsDir}.
  */
-export function siteThemesDir(): string {
-  return process.env.TOVU_THEMES_DIR ?? join(siteDir(), "themes");
+export function siteThemesDir(optional: SitePathResolverOptional & { siteDir?: string } = {}): string {
+  const env = optional.env ?? process.env;
+  return env.TOVU_THEMES_DIR ?? join(optional.siteDir ?? siteDir(), "themes");
 }
 
 /**
@@ -426,11 +446,12 @@ export function siteThemesDir(): string {
  * shipped there for a fresh volume to read would be invisible the moment the mount takes effect.
  *
  * The env var is `TOVU_STOCK_CONTENT_SEED_DIR`, mirroring `TOVU_STOCK_THEMES_DIR`'s own escape
- * hatch. `siteName` defaults to this process's own site (`basename(siteDir())`) — decoupled from
+ * hatch. `siteName` is the served site's (`siteBinding.name`) — decoupled from
  * `TOVU_CONTENT_DB`, which can relocate `content.db` itself without changing which site's stock
- * seed applies.
+ * seed applies. It used to default to `basename(siteDir())`, the env/cwd site, which is a different
+ * one for any composition that does not pin `TOVU_SITE_DIR` (see {@link resolveExportOutputRootDir}).
  */
-export function builtInContentSeedDbPath(siteName: string = basename(siteDir())): string {
+export function builtInContentSeedDbPath(siteName: string): string {
   const stockRoot = process.env.TOVU_STOCK_CONTENT_SEED_DIR ?? join(resolveProductRoot(), "content", "seed-sites");
   return join(stockRoot, siteName, "content.seed.db");
 }
@@ -446,7 +467,7 @@ export function builtInContentSeedDbPath(siteName: string = basename(siteDir()))
  * tops up the live `blobStore` one content-addressed key at a time rather than copying this
  * directory wholesale the way {@link builtInThemesDir}/`seedSiteThemes()` copy `themes/`.
  */
-export function builtInSeedUploadsDir(siteName: string = basename(siteDir())): string {
+export function builtInSeedUploadsDir(siteName: string): string {
   const stockRoot = process.env.TOVU_STOCK_CONTENT_SEED_DIR ?? join(resolveProductRoot(), "content", "seed-sites");
   return join(stockRoot, siteName, "uploads");
 }
@@ -479,9 +500,16 @@ export function bundledAgentPluginsDir(): string {
  * composition roots (`server/app.ts`'s `createRouteDeps()` and this file's
  * `createSiteRouteDeps()`). See `routes/types.ts`'s `exportOutputRootDir` doc for the full
  * reasoning.
+ *
+ * `required.siteDir` is the site being served, not {@link siteDir}: `createSiteRouteDeps` passes
+ * its booted `siteBinding.dir`. It used to call `siteDir()` here, the `TOVU_SITE_DIR` env var or
+ * `<cwd>/sites/<name>`, which only `tovu serve` pins. Any other composition (`tovu export <dir>`,
+ * a programmatic `createSiteRouteDeps` with an explicit `siteBinding`) wrote an admin-triggered
+ * export under whatever site the working directory named, possibly another site's folder.
  */
-export function resolveExportOutputRootDir(): string {
-  return process.env.TOVU_EXPORT_DIR !== undefined ? resolve(process.env.TOVU_EXPORT_DIR) : join(siteDir(), "out", "export");
+export function resolveExportOutputRootDir(required: { siteDir: string }, optional: SitePathResolverOptional = {}): string {
+  const env = optional.env ?? process.env;
+  return env.TOVU_EXPORT_DIR !== undefined ? resolve(env.TOVU_EXPORT_DIR) : join(required.siteDir, "out", "export");
 }
 
 /**
@@ -489,22 +517,25 @@ export function resolveExportOutputRootDir(): string {
  * `source-control` domain's own export scratch directory, deliberately separate from
  * {@link resolveExportOutputRootDir} above so a static-site export and a source-control commit
  * export never race over the same on-disk output (see `features/source-control/commit-site.ts`'s
- * header). Read ONCE here, same reasoning as {@link resolveExportOutputRootDir}.
+ * header). Read ONCE here, same reasoning (and same served-site `required.siteDir`) as
+ * {@link resolveExportOutputRootDir}.
  */
-export function resolveSourceControlExportRootDir(): string {
-  return process.env.TOVU_SOURCE_CONTROL_EXPORT_DIR !== undefined
-    ? resolve(process.env.TOVU_SOURCE_CONTROL_EXPORT_DIR)
-    : join(siteDir(), "out", "source-control-export");
+export function resolveSourceControlExportRootDir(required: { siteDir: string }, optional: SitePathResolverOptional = {}): string {
+  const env = optional.env ?? process.env;
+  return env.TOVU_SOURCE_CONTROL_EXPORT_DIR !== undefined
+    ? resolve(env.TOVU_SOURCE_CONTROL_EXPORT_DIR)
+    : join(required.siteDir, "out", "source-control-export");
 }
 
 /**
  * `TOVU_PUBLISH_DIR` env, then `<site>/out/publish` — the static-publish flow's parent output
  * directory; each target gets its own subdirectory under it (see
  * `features/deployments/static-publish/adapter.ts`'s `publishOutputDir`). Read ONCE here, same
- * reasoning as {@link resolveExportOutputRootDir}.
+ * reasoning (and same served-site `required.siteDir`) as {@link resolveExportOutputRootDir}.
  */
-export function resolvePublishOutputRootDir(): string {
-  return process.env.TOVU_PUBLISH_DIR !== undefined ? resolve(process.env.TOVU_PUBLISH_DIR) : join(siteDir(), "out", "publish");
+export function resolvePublishOutputRootDir(required: { siteDir: string }, optional: SitePathResolverOptional = {}): string {
+  const env = optional.env ?? process.env;
+  return env.TOVU_PUBLISH_DIR !== undefined ? resolve(env.TOVU_PUBLISH_DIR) : join(required.siteDir, "out", "publish");
 }
 
 /**
@@ -519,10 +550,12 @@ export function resolvePublishOutputRootDir(): string {
  * decision): SPEC-005's `plugin_activations` table is already the per-workspace boundary (REQ-07,
  * `workspaceId`+`pluginId` primary key) — an installed plugin ARTIFACT is shared across every
  * workspace on this instance, same as `siteThemesDir()`'s themes; only its enabled/disabled
- * state is workspace-scoped. Read ONCE here, same reasoning as {@link resolveExportOutputRootDir}.
+ * state is workspace-scoped. Read ONCE here, same reasoning (and same served-site
+ * `required.siteDir`) as {@link resolveExportOutputRootDir}.
  */
-export function pluginsInstallDir(): string {
-  return process.env.TOVU_PLUGINS_DIR !== undefined ? resolve(process.env.TOVU_PLUGINS_DIR) : join(siteDir(), "plugins");
+export function pluginsInstallDir(required: { siteDir: string }, optional: SitePathResolverOptional = {}): string {
+  const env = optional.env ?? process.env;
+  return env.TOVU_PLUGINS_DIR !== undefined ? resolve(env.TOVU_PLUGINS_DIR) : join(required.siteDir, "plugins");
 }
 
 /**
@@ -685,16 +718,19 @@ function pluginFailureThresholdOverride(
  */
 function hydrateContentDbIfNeeded(dbPath: string, storage: SiteStorage, overrides?: Partial<CreateSiteRouteDepsOverrides>): void {
   if (overrides?.db !== undefined || storage.kind !== "sqlite") return;
-  hydrateContentDbFromSeed({ seedDbPath: builtInContentSeedDbPath(), dbPath });
+  // The served site's stock seed, by its binding's name, not `basename(siteDir())`: see
+  // {@link resolveExportOutputRootDir}'s doc for why the env/cwd site can be a different one.
+  hydrateContentDbFromSeed({ seedDbPath: builtInContentSeedDbPath(resolveSiteBindingOverride(overrides).name), dbPath });
 }
 
 /**
- * 2026-09-03 (complexity pass) — `overrides.themesDir ?? siteThemesDir()`, hoisted out of
+ * 2026-09-03 (complexity pass) — `overrides.themesDir ?? siteThemesDir(...)`, hoisted out of
  * `createSiteRouteDeps` for the same reason {@link assertOverridesPairedOrAbsent} is: one `??`
- * counted once here, not inline in the composition root.
+ * counted once here, not inline in the composition root. The default is under the served
+ * `siteBinding`'s directory, not {@link siteDir}'s.
  */
-function resolveThemesDirOverride(overrides?: Partial<CreateSiteRouteDepsOverrides>): string {
-  return overrides?.themesDir ?? siteThemesDir();
+function resolveThemesDirOverride(siteBinding: SiteBinding, overrides?: Partial<CreateSiteRouteDepsOverrides>): string {
+  return overrides?.themesDir ?? siteThemesDir({ siteDir: siteBinding.dir });
 }
 
 /**
@@ -953,9 +989,12 @@ async function composeSiteRouteDeps(
   // otherwise hand the admin an empty theme list. Deliberately NOT done in `server/app.ts`'s
   // in-memory `createRouteDeps()` — that is the hermetic/test path, and seeding there would copy
   // the whole ~19MB stock tree per test run.
-  const resolvedThemesDir = resolveThemesDirOverride(overrides);
-  seedSiteThemes({ stockDir: builtInThemesDir(), siteThemesDir: resolvedThemesDir });
+  // The served site. Every `<site>/...` default below is rooted at its `dir`, never at `siteDir()`
+  // (`TOVU_SITE_DIR` or `<cwd>/sites/<name>`), which only `tovu serve` pins to the same place — see
+  // `resolveExportOutputRootDir`'s doc.
   const resolvedSiteBinding = resolveSiteBindingOverride(overrides);
+  const resolvedThemesDir = resolveThemesDirOverride(resolvedSiteBinding, overrides);
+  seedSiteThemes({ stockDir: builtInThemesDir(), siteThemesDir: resolvedThemesDir });
   // The one content kernel (SQLite: over `content.db`, one per connection; Postgres: the site's
   // database), read by the prelude below and handed to boot modules as `deps.contentKernel`.
   const kernel = store.content;
@@ -973,7 +1012,7 @@ async function composeSiteRouteDeps(
   // an unknown TOVU_MEDIA_BLOB_STORE or an incomplete S3 config, and a throw after those promises
   // start leaves them running against the store `createSiteRouteDeps` then closes — each one rejects
   // unhandled ("The database connection is not open") on top of the operator's real config error.
-  const resolvedUploadsDir = overrides?.uploadsDir ?? mediaUploadsDir();
+  const resolvedUploadsDir = overrides?.uploadsDir ?? mediaUploadsDir({ siteDir: resolvedSiteBinding.dir });
   const blobStore = resolveBlobStore(resolvedUploadsDir, { observability });
   // Everything below is built from `kernel` / `chat` (the chat kernel) except these, which depend on
   // the storage engine (`store-bound-services.ts`: `sqliteOnlyServices` or `pgOnlyServices`).
@@ -1040,7 +1079,7 @@ async function composeSiteRouteDeps(
     // Reachability fix: previously omitted entirely, so `discoverPlugins()` only ever scanned the
     // compiled-in built-in registry — a plugin placed on disk (REQ-02's install layout) was
     // invisible to every real boot of this composition root, no matter how it got there.
-    installDir: pluginsInstallDir(),
+    installDir: pluginsInstallDir({ siteDir: resolvedSiteBinding.dir }),
     coreClaims: TOVU_CORE_EXTENSION_CLAIMS,
     // AW-7 Tier 1: plugins' declared content types go through core's own `registerContentType`.
     // Deferred: `contentTypeRepo`/`outbox` are declared further down, and enable never runs during
@@ -1274,7 +1313,7 @@ async function composeSiteRouteDeps(
   // `resolvedUploadsDir`/`blobStore` are resolved in the prelude above (a bad
   // TOVU_MEDIA_BLOB_STORE config must throw before any fire-and-forget boot promise starts).
   const blobHydrationReady = hydrateBlobStoreFromSeed({
-    seedUploadsDir: builtInSeedUploadsDir(),
+    seedUploadsDir: builtInSeedUploadsDir(resolvedSiteBinding.name),
     blobStore,
   }).catch((err) => {
     // eslint-disable-next-line no-console
@@ -1840,7 +1879,7 @@ async function composeSiteRouteDeps(
   // D1 — ONE seed lookup for both the import route's planner and the apply loop's re-verification
   // (`RouteDeps.publishContentSeedHash`), so the two can never disagree on "untouched since seed".
   const publishContentSeedHash = createSqlitePublishContentSeedHash({
-    seedDbPath: builtInContentSeedDbPath(),
+    seedDbPath: builtInContentSeedDbPath(resolvedSiteBinding.name),
     workspaceId,
     clock,
     idGen,
@@ -2335,7 +2374,7 @@ async function composeSiteRouteDeps(
     // Read ONCE here rather than deep in `export-run.ts`/`cli/commands/export.ts` — see
     // `resolveExportOutputRootDir`'s own doc immediately above and `routes/types.ts`'s
     // `exportOutputRootDir` doc.
-    exportOutputRootDir: resolveExportOutputRootDir(),
+    exportOutputRootDir: resolveExportOutputRootDir({ siteDir: resolvedSiteBinding.dir }),
     // 2026-08-20 (RouteDeps-narrowing pass 2) — nullary, closed over the `const routeDeps` binding
     // below rather than taking it per call; same self-referencing-closure shape `exportSiteBound`
     // below already uses, same TEST GOTCHA (`routes/types.ts`'s `exportSiteBound` doc, generalized:
@@ -2358,7 +2397,7 @@ async function composeSiteRouteDeps(
     // Read ONCE here rather than deep in `static-publish/adapter.ts` — see
     // `resolvePublishOutputRootDir`'s own doc above and `routes/types.ts`'s `publishOutputRootDir`
     // doc.
-    publishOutputRootDir: resolvePublishOutputRootDir(),
+    publishOutputRootDir: resolvePublishOutputRootDir({ siteDir: resolvedSiteBinding.dir }),
     // See `routes/types.ts`'s `loadDeployTargets` doc: the installed, activated deploy Agent Plugin.
     loadDeployTargets: (workspaceId) => loadDeployTargetRegistry({ workspaceId }),
     // 2026-08-16 — see `routes/types.ts`'s `publishCredentialVerificationCache` doc. Deliberately
@@ -2373,7 +2412,7 @@ async function composeSiteRouteDeps(
     // Read ONCE here rather than deep in `source-control/commit-site.ts` — see
     // `resolveSourceControlExportRootDir`'s own doc above and `routes/types.ts`'s
     // `sourceControlExportRootDir` doc.
-    sourceControlExportRootDir: resolveSourceControlExportRootDir(),
+    sourceControlExportRootDir: resolveSourceControlExportRootDir({ siteDir: resolvedSiteBinding.dir }),
     // 2026-08-16 (Phase 3) — see `routes/types.ts`'s `vendorCredentialSetRepo` doc. Sealed via the
     // same shared sealer/keyring the two legacy credential repos above already reuse (no third
     // `EnvOrFileKeyring` instance).

@@ -1661,7 +1661,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    */
   runExportSite: ExportEngine<RouteDeps>;
   /**
-   * `TOVU_EXPORT_DIR` env, then `<cwd>/infra/export` — the export engine's default output directory
+   * `TOVU_EXPORT_DIR` env, then the served site's `<site>/out/export` — the export engine's default output directory
    * root, read ONCE at boot by `server/app.ts`'s `createRouteDeps()`/`server/deps.ts`'s
    * `resolveExportOutputRootDir()` (via `createSiteRouteDeps()`) rather than re-read deep inside
    * `features/deployments/export-run.ts`'s `startExportRun` or `cli/commands/export.ts`'s
@@ -1816,7 +1816,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    */
   publishExecutionMode: PublishExecutionMode;
   /**
-   * `TOVU_PUBLISH_DIR` env, then `<cwd>/infra/publish` — the static-publish flow's parent output
+   * `TOVU_PUBLISH_DIR` env, then the served site's `<site>/out/publish` — the static-publish flow's parent output
    * directory, read ONCE at boot by `server/app.ts`'s `createRouteDeps()`/`server/deps.ts`'s
    * `resolvePublishOutputRootDir()` (via `createSiteRouteDeps()`), same "read once at the root"
    * discipline `exportOutputRootDir` above establishes. `static-publish/adapter.ts`'s
@@ -1859,7 +1859,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    */
   publishCredentialVerificationCache: PublishCredentialVerificationCache;
   /**
-   * `TOVU_SOURCE_CONTROL_EXPORT_DIR` env, then `<cwd>/infra/source-control-export` — the
+   * `TOVU_SOURCE_CONTROL_EXPORT_DIR` env, then the served site's `<site>/out/source-control-export` — the
    * `source-control` domain's own export scratch directory (deliberately separate from
    * `exportOutputRootDir`/`publishOutputRootDir` above so no two of these features ever race over
    * the same on-disk output — see `features/source-control/commit-site.ts`'s header), read ONCE at

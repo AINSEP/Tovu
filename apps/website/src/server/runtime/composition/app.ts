@@ -1404,8 +1404,9 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     runExportSite,
     // Read ONCE here rather than deep in `export-run.ts`/`cli/commands/export.ts` — see
     // `server/deps.ts`'s `resolveExportOutputRootDir` doc and `routes/types.ts`'s
-    // `exportOutputRootDir` doc.
-    exportOutputRootDir: resolveExportOutputRootDir(),
+    // `exportOutputRootDir` doc. Rooted at the same `describeSiteBinding()` this root reports as
+    // `siteBinding`, as are the publish and source-control roots below.
+    exportOutputRootDir: resolveExportOutputRootDir({ siteDir: describeSiteBinding().dir }),
     // Read ONCE here — see `routes/types.ts`'s `adminAssistantEnabled` doc. This module's own
     // mount-gating code below reads THIS field rather than calling `isAdminAssistantEnabled()` a
     // second time, so the value never disagrees with which admin-assistant routes are actually live.
@@ -1447,7 +1448,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     publishExecutionMode: executionModeFromEnv(),
     // Read ONCE here rather than deep in `static-publish/adapter.ts` — see `server/deps.ts`'s
     // `resolvePublishOutputRootDir` doc and `routes/types.ts`'s `publishOutputRootDir` doc.
-    publishOutputRootDir: resolvePublishOutputRootDir(),
+    publishOutputRootDir: resolvePublishOutputRootDir({ siteDir: describeSiteBinding().dir }),
     // Hermetic: the bundled deploy plugin's own source directory, no install or activation step —
     // see `routes/types.ts`'s `loadDeployTargets` doc.
     loadDeployTargets: () =>
@@ -1470,7 +1471,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // Read ONCE here rather than deep in `source-control/commit-site.ts` — see `server/deps.ts`'s
     // `resolveSourceControlExportRootDir` doc and `routes/types.ts`'s `sourceControlExportRootDir`
     // doc.
-    sourceControlExportRootDir: resolveSourceControlExportRootDir(),
+    sourceControlExportRootDir: resolveSourceControlExportRootDir({ siteDir: describeSiteBinding().dir }),
     // 2026-08-16 (Phase 3) — hermetic double for `server/deps.ts`'s real
     // `SqliteVendorCredentialSetRepo`; see `routes/types.ts`'s `vendorCredentialSetRepo` doc.
     vendorCredentialSetRepo: new InMemoryVendorCredentialSetRepo(),
