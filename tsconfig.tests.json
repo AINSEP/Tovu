@@ -1,17 +1,10 @@
 {
+  "extends": "./tsconfig.json",
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "nodenext",
-    "moduleResolution": "nodenext",
-    "strict": true,
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-    "skipLibCheck": true,
-    "outDir": "dist",
-    "rootDir": ".",
     "noEmit": true,
-    "types": ["node"]
+    "rootDir": ".",
+    "lib": ["ES2024", "DOM", "DOM.Iterable", "DOM.AsyncIterable"]
   },
-  "include": ["src/**/*.ts"],
-  "exclude": ["node_modules", "dist", "apps"]
+  "include": ["apps/website/src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
 }

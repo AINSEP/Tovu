@@ -119,7 +119,7 @@ test("two concurrent in-flight requests are tracked independently — one reques
   await Promise.race([firstStarted.promise, first.then(() => assert.fail("first handler must hold its response"))]);
   const second = fetch(`${baseUrl}/error`, { method: "POST", signal });
   await Promise.race([secondStarted.promise, second.then(() => assert.fail("second handler must hold its response"))]);
-  assert.deepEqual(calls, [], "both spans must remain open before either response finishes");
+  assert.equal(calls.length, 0, "both spans must remain open before either response finishes");
   errorResponse!.status(500).json({ ok: false });
   const errorRes = await second;
   await errorRes.text();

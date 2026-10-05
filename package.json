@@ -31,6 +31,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit && npm run typecheck:e2e",
     "typecheck:e2e": "tsc -p development/tsconfig.e2e.json --noEmit",
     "typecheck:scripts": "tsc -p development/tsconfig.scripts.json --noEmit",
+    "typecheck:tests": "NODE_OPTIONS=--max-old-space-size=6144 tsc -p tsconfig.tests.json --noEmit",
     "generate:seed-content": "tsx development/scripts/generate-seed-content.ts",
     "test": "TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --test --experimental-test-module-mocks ${TEST_CONCURRENCY:+--test-concurrency=$TEST_CONCURRENCY} \"apps/website/src/**/*.test.ts\" \"packages/*/src/**/*.test.ts\" \"apps/site-chat/src/**/*.test.ts\" \"development/scripts/**/*.test.ts\"",
     "test:ci": "mkdir -p development/coverage && rm -f development/coverage/test-results-all.tap && TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --test --experimental-test-module-mocks ${TEST_CONCURRENCY:+--test-concurrency=$TEST_CONCURRENCY} --test-reporter=tap --test-reporter-destination=development/coverage/test-results-all.tap --test-reporter=dot --test-reporter-destination=stdout \"apps/website/src/**/*.test.ts\" \"packages/*/src/**/*.test.ts\" \"apps/site-chat/src/**/*.test.ts\" \"development/scripts/**/*.test.ts\"",

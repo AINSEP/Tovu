@@ -17,6 +17,7 @@ import { initSite } from "#src/platform/site-dir/init-site";
 import { registerResolvePhase, runPreContentPhase } from "#src/platform/routing/routing";
 import type { RedirectRecord, RedirectRevision } from "#src/features/redirects/types";
 import type { NewsletterRouteDeps } from "#src/server/inbound/admin-http/routes/newsletter/deps";
+import type { OutboundEmail } from "#src/platform/mail/index";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { createSubscription } from "#src/features/webhooks/subscriptions";
 
@@ -173,14 +174,14 @@ test("createSiteApp() on a SQLite composition adds no second copy of the serving
   );
 
   const sentTo: string[] = [];
-  t.mock.method(deps.mailer, "send", async (message) => {
+  t.mock.method(deps.mailer, "send", async (message: OutboundEmail) => {
     sentTo.push(message.to.email);
     return { ok: true, providerMessageId: "module-identity-mail" };
   });
   const now = deps.clock.nowIso();
   await deps.formDefinitionRepo.create({ id: "module-identity-form", workspaceId: deps.workspaceId,
     name: "Module Identity Contact", slug: "module-identity-contact", fields: [],
-    notify: { enabled: true, recipients: ["module-owner@example.test"] }, status: "active", createdAt: now, updatedAt: now });
+    notify: { enabled: true, recipients: ["module-owner@example.test"] }, status: "active", createdAt: now, updatedAt: now, version: 1 });
   await deps.formSubmissionRepo.create({ id: "module-identity-submission", workspaceId: deps.workspaceId,
     formDefinitionId: "module-identity-form", data: { message: "One composed delivery" }, sourceIp: "127.0.0.1", submittedAt: now });
   const owner = await deps.ownerPrincipalId;

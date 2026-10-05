@@ -6,7 +6,7 @@ import express from "express";
 import { applyRequestTracking } from "../observability-middleware.js";
 import { REQUEST_ID_HEADER, resolveRequestId } from "../request-id.js";
 import { startTestServer } from "../../../__tests__/helpers/http-test-server.js";
-import type { ObservabilityPort, RequestTrackingOptions } from "#src/platform/observability/index";
+import { createNoopObservabilityPort, type ObservabilityPort, type RequestTrackingOptions } from "#src/platform/observability/index";
 
 /**
  * @file Request IDs (Reliability: structured logging + request IDs): every response carries an
@@ -18,6 +18,8 @@ import type { ObservabilityPort, RequestTrackingOptions } from "#src/platform/ob
 function spyPort(): { port: ObservabilityPort; options: RequestTrackingOptions[] } {
   const options: RequestTrackingOptions[] = [];
   const port: ObservabilityPort = {
+    // The non-request signals are not under test here; the shared no-op keeps the spy a full port.
+    ...createNoopObservabilityPort({}),
     trackRequest(_input, opts = {}) {
       options.push(opts);
       return { end() {} };

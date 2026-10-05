@@ -68,7 +68,9 @@ function buildApp(deps = buildDeps()): express.Express {
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  createPublishContentModule(deps).registerRoutes(app);
+  const { registerRoutes } = createPublishContentModule(deps);
+  assert.ok(registerRoutes, "publish-content must register its admin routes");
+  registerRoutes(app);
   return app;
 }
 

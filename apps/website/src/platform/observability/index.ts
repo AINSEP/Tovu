@@ -5,7 +5,7 @@ export { instrumentStorageKernel, isNoopObservabilityPort, trackFetch, trackHttp
 
 // Retained host adapter surface: consumers must continue to resolve these names while r15
 // rewires the shared roots to the package and explicit configuration arguments.
-export type { AgentRunStatus, ObservabilityConfig, ObservabilityConfigDisabled, ObservabilityConfigEnabled, ObservabilityPort, RequestTracker, RequestTrackingInput, RequestTrackingOutcome } from "@jini-ai/diagnostics/observability";
+export type { AgentRunStatus, ObservabilityConfig, ObservabilityConfigDisabled, ObservabilityConfigEnabled, ObservabilityPort, RequestTracker, RequestTrackingInput, RequestTrackingOptions, RequestTrackingOutcome } from "@jini-ai/diagnostics/observability";
 export { createNoopObservabilityPort };
 export { resolveObservabilityConfig } from "./config.js";
 
