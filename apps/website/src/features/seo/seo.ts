@@ -164,6 +164,15 @@ async function resolveRobots(
   return { noindex, nofollow };
 }
 
+/** The first of `refs` that resolves through media, or `undefined`. @complexity O(r) resolves. */
+async function firstResolvedImage(deps: GetEntryMetaDeps, workspaceId: string, refs: ReadonlyArray<string | undefined>): Promise<string | undefined> {
+  for (const ref of refs) {
+    const resolved = ref ? await resolveSeoImageRef(deps.media, { workspaceId, ref }) : undefined;
+    if (resolved) return resolved;
+  }
+  return undefined;
+}
+
 /** openGraph/twitter image refs resolve through media (fail-soft, EC-07), then joined onto the
  *  workspace's verified origin ({@link toAbsoluteUrl}) — `resolveSeoImageRef` returns either an
  *  already-absolute ref (passed through unchanged) or the site-relative `/m/{assetId}/...` URL
@@ -177,12 +186,12 @@ async function resolveShareImages(
   workspaceId: string,
   origin: VerifiedOrigin | undefined
 ): Promise<{ ogImage: string | undefined; twitterImage: string | undefined }> {
-  // Precedence: explicit per-entry override > the entry's featured image > the site default.
-  const featured = featuredImageRef(post);
-  const ogImageRef = overrides.ogImage ?? featured ?? settings.defaultOgImage;
-  const ogImageResolved = ogImageRef ? await resolveSeoImageRef(deps.media, { workspaceId, ref: ogImageRef }) : undefined;
-  const twitterImageRef = overrides.twitterImage ?? featured ?? settings.defaultOgImage;
-  const twitterImageResolved = twitterImageRef ? await resolveSeoImageRef(deps.media, { workspaceId, ref: twitterImageRef }) : undefined;
+  // Precedence: explicit per-entry override > the entry's featured image > the site default. An
+  // override is final (unresolved means no image, as before); a featured image that no longer
+  // resolves (trashed, deleted) falls through to the site default rather than leaving none.
+  const fallbacks = [featuredImageRef(post), settings.defaultOgImage];
+  const ogImageResolved = await firstResolvedImage(deps, workspaceId, overrides.ogImage ? [overrides.ogImage] : fallbacks);
+  const twitterImageResolved = await firstResolvedImage(deps, workspaceId, overrides.twitterImage ? [overrides.twitterImage] : fallbacks);
   return {
     ogImage: ogImageResolved ? toAbsoluteUrl(origin, ogImageResolved) : undefined,
     twitterImage: twitterImageResolved ? toAbsoluteUrl(origin, twitterImageResolved) : undefined,
