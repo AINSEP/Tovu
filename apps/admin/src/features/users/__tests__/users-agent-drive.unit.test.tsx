@@ -37,6 +37,7 @@ function usersController(overrides: Partial<UsersController> = {}): UsersControl
     users: [],
     roles: [],
     policies: [],
+    canGrant: true,
     error: null,
     formOpen: false,
     setFormOpen: vi.fn(),

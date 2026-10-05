@@ -186,8 +186,9 @@ export interface UserManageController {
     saving: boolean;
     save: (principalId: string) => Promise<void>;
   };
-  roleGrant: GrantSelectController;
-  policyGrant: GrantSelectController;
+  /** `null` when the caller may not read roles/policies (`UsersController.canGrant`): no grant controls. */
+  roleGrant: GrantSelectController | null;
+  policyGrant: GrantSelectController | null;
 }
 
 interface GrantSelectProps {
@@ -276,26 +277,30 @@ export function UserManagePanel({ principalId, manage, t }: UserManagePanelProps
               </button>
             </span>
           </label>
-          <GrantSelect
-            principalId={principalId}
-            label={t("Assign role")}
-            placeholder={t("Select a role…")}
-            submitLabel={t("Assign")}
-            grant={manage.roleGrant}
-            saving={manage.saving}
-            agentBase="user-manage-role"
-            t={t}
-          />
-          <GrantSelect
-            principalId={principalId}
-            label={t("Attach policy")}
-            placeholder={t("Select a policy…")}
-            submitLabel={t("Attach")}
-            grant={manage.policyGrant}
-            saving={manage.saving}
-            agentBase="user-manage-policy"
-            t={t}
-          />
+          {manage.roleGrant ? (
+            <GrantSelect
+              principalId={principalId}
+              label={t("Assign role")}
+              placeholder={t("Select a role…")}
+              submitLabel={t("Assign")}
+              grant={manage.roleGrant}
+              saving={manage.saving}
+              agentBase="user-manage-role"
+              t={t}
+            />
+          ) : null}
+          {manage.policyGrant ? (
+            <GrantSelect
+              principalId={principalId}
+              label={t("Attach policy")}
+              placeholder={t("Select a policy…")}
+              submitLabel={t("Attach")}
+              grant={manage.policyGrant}
+              saving={manage.saving}
+              agentBase="user-manage-policy"
+              t={t}
+            />
+          ) : null}
         </div>
       </td>
     </tr>
@@ -825,6 +830,7 @@ export function Users({ useUsersHook = useWiredUsers, openOwnPasswordReset }: Us
     users,
     roles,
     policies,
+    canGrant,
     error,
 
     formOpen,
@@ -928,18 +934,12 @@ export function Users({ useUsersHook = useWiredUsers, openOwnPasswordReset }: Us
           error: grantError,
           saving: grantSaving,
           email: { value: editEmail, set: setEditEmail, saving: emailSaving, save: onSaveEmail },
-          roleGrant: {
-            options: roles,
-            pendingId: pendingRoleId,
-            setPendingId: setPendingRoleId,
-            submit: onAssignRole,
-          },
-          policyGrant: {
-            options: policies,
-            pendingId: pendingPolicyId,
-            setPendingId: setPendingPolicyId,
-            submit: onAttachPolicy,
-          },
+          roleGrant: canGrant
+            ? { options: roles, pendingId: pendingRoleId, setPendingId: setPendingRoleId, submit: onAssignRole }
+            : null,
+          policyGrant: canGrant
+            ? { options: policies, pendingId: pendingPolicyId, setPendingId: setPendingPolicyId, submit: onAttachPolicy }
+            : null,
         }}
         t={t}
         locale={locale}

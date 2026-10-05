@@ -534,6 +534,13 @@ describe("UserManagePanel controller seam", () => {
     );
   }
 
+  it("shows no grant controls when the caller may not read roles and policies, but keeps the email edit", () => {
+    renderPanel(manageController({ roleGrant: null, policyGrant: null }));
+    expect(screen.queryByRole("button", { name: "Assign" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Attach" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Save email" })).toBeInTheDocument();
+  });
+
   it("renders and submits both grants from one controller, with no hook or API behind it", async () => {
     const manage = manageController({
       roleGrant: {
@@ -552,10 +559,10 @@ describe("UserManagePanel controller seam", () => {
     renderPanel(manage);
 
     await userEvent.click(screen.getByRole("button", { name: "Assign" }));
-    expect(manage.roleGrant.submit).toHaveBeenCalledWith("p-1");
+    expect(manage.roleGrant?.submit).toHaveBeenCalledWith("p-1");
 
     await userEvent.click(screen.getByRole("button", { name: "Attach" }));
-    expect(manage.policyGrant.submit).toHaveBeenCalledWith("p-1");
+    expect(manage.policyGrant?.submit).toHaveBeenCalledWith("p-1");
 
     // The built-in marker comes from the option's own flag, not from a full `AdminPolicy` record —
     // the shared `GrantSelect` only ever sees `GrantOption`.

@@ -122,6 +122,41 @@ describe("initial load", () => {
     expect(result.current.error).toBe("You do not have permission to do that.");
     expect(result.current.users).toBeNull();
   });
+
+  // A `member.manage`/`user.manage` holder without `role.manage` may read the roster, but `/roles`
+  // and `/policies` answer 403. Before, that rejection discarded the roster and the screen showed
+  // only a permission error.
+  it("keeps the roster and turns grant controls off when roles and policies are forbidden", async () => {
+    const forbidden = () => jsonResponse({ error: "not authorized for 'role.manage'", code: "FORBIDDEN" }, 403);
+    fetchMock.mockImplementation(async (url: string) => {
+      if (String(url).endsWith("/roles") || String(url).endsWith("/policies")) return forbidden();
+      return jsonResponse({ users: [USER_A] });
+    });
+    const { result } = renderHook(() => useWiredUsers(), { wrapper });
+    await waitFor(() => expect(result.current.users).not.toBeNull());
+    expect(result.current.users).toEqual([USER_A]);
+    expect(result.current.roles).toEqual([]);
+    expect(result.current.policies).toEqual([]);
+    expect(result.current.canGrant).toBe(false);
+    expect(result.current.error).toBeNull();
+  });
+
+  it("still fails the load when roles break for a reason other than permission", async () => {
+    fetchMock.mockImplementation(async (url: string) => {
+      if (String(url).endsWith("/roles")) return jsonResponse({ error: "boom" }, 500);
+      if (String(url).endsWith("/policies")) return jsonResponse({ policies: [POLICY] });
+      return jsonResponse({ users: [USER_A] });
+    });
+    const { result } = renderHook(() => useWiredUsers(), { wrapper });
+    await waitFor(() => expect(result.current.error).not.toBeNull());
+    expect(result.current.users).toBeNull();
+    expect(result.current.canGrant).toBe(false);
+  });
+
+  it("reports canGrant once roles and policies load", async () => {
+    const { result } = await renderLoaded();
+    expect(result.current.canGrant).toBe(true);
+  });
 });
 
 describe("onCreate", () => {

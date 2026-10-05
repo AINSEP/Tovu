@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
 
-import { type AdminIdentityUser, type AdminPolicy, type AdminRole } from "@/lib/api";
+import { ApiError, type AdminIdentityUser, type AdminPolicy, type AdminRole } from "@/lib/api";
 import { useFetchMutation, useFetchQuery } from "@/lib/fetch-query";
 import { useAsyncAction } from "@/hooks/use-async-action.hooks";
 import { describeApiError, KEYS } from "../rules";
@@ -72,8 +72,16 @@ export interface UsersController {
   /** `null` until the initial load settles — the caller renders a loading state. Loaded together
    *  with `roles`/`policies` via `Promise.all`, so all three settle on the same render. */
   users: AdminIdentityUser[] | null;
+  /** `[]` (with `canGrant` false) when the caller may not read roles/policies — see {@link canGrant}. */
   roles: AdminRole[] | null;
   policies: AdminPolicy[] | null;
+  /**
+   * Whether the caller may read (and so grant) roles and policies. The roster route admits
+   * `user.manage` OR `member.manage`, but `/roles` and `/policies` require `role.manage`; a 403 from
+   * those two hides the grant controls instead of failing the whole screen, so the roster the
+   * operator CAN read still shows.
+   */
+  canGrant: boolean;
   error: string | null;
 
   /** Whether the "New user" form is expanded. */
@@ -241,6 +249,23 @@ export interface UsersDependencies {
  * @param deps - Injected collaborators; production callers get these from {@link useWiredUsers}.
  * @returns The full `UsersController` the view renders from — see that interface for every field.
  */
+/**
+ * Roles and policies for the grant controls, or `null` when the server refuses them with 403 (the
+ * caller lacks `role.manage`). Any other failure still rejects, so a real outage keeps surfacing as
+ * the screen's load error.
+ *
+ * @complexity O(1) requests (two, concurrent).
+ */
+async function loadGrantOptions(port: UsersPort): Promise<{ roles: AdminRole[]; policies: AdminPolicy[] } | null> {
+  try {
+    const [r, p] = await Promise.all([port.listRoles(), port.listPolicies()]);
+    return { roles: r.roles, policies: p.policies };
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 403) return null;
+    throw e;
+  }
+}
+
 export function useUsers(deps: UsersDependencies): UsersController {
   const { port, openOwnPasswordReset = false, navigate } = deps;
   const locale = useAdminLocale();
@@ -258,13 +283,14 @@ export function useUsers(deps: UsersDependencies): UsersController {
   const list = useFetchQuery({
     key: KEYS.list,
     fetch: async () => {
-      const [u, r, p] = await Promise.all([port.listUsers(), port.listRoles(), port.listPolicies()]);
-      return { users: u.users, roles: r.roles, policies: p.policies };
+      const [u, grantOptions] = await Promise.all([port.listUsers(), loadGrantOptions(port)]);
+      return { users: u.users, grantOptions };
     },
   });
   const users = list.data?.users ?? null;
-  const roles = list.data?.roles ?? null;
-  const policies = list.data?.policies ?? null;
+  const roles = list.data ? (list.data.grantOptions?.roles ?? []) : null;
+  const policies = list.data ? (list.data.grantOptions?.policies ?? []) : null;
+  const canGrant = list.data?.grantOptions != null;
   const error = list.error ? describeApiError(list.error, t(locale, "failed to load users"), locale) : null;
 
   const [formOpen, setFormOpen] = useState(false);
@@ -568,6 +594,7 @@ export function useUsers(deps: UsersDependencies): UsersController {
     users,
     roles,
     policies,
+    canGrant,
     error,
 
     formOpen,
