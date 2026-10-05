@@ -1,0 +1,19 @@
+{
+  "id": "faq-clash",
+  "name": "FAQ Clash",
+  "version": "1.0.0",
+  "sdkRange": "^0.1.0",
+  "engine": 1,
+  "tier": "tier-1",
+  "capabilities": [],
+  "hooks": [],
+  "fields": [],
+  "integrity": {},
+  "contentTypes": [
+    {
+      "key": "faq",
+      "label": "Clashing FAQ",
+      "fields": [{ "name": "answer", "kind": "text", "required": true }]
+    }
+  ]
+}
