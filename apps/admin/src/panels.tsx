@@ -693,6 +693,10 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
     // "route ids are independent of nav labels" rule this file applies everywhere else (`id:
     // "access-tokens"` labelled "Secrets" is the same call, made for the same reason).
     id: "providers",
+    // Every tab that reads anything — External MCP (the landing tab), Always allow, Webhooks — checks
+    // `admin.integrations.manage` (`routes/external-mcp/guard.ts`, `routes/integrations/*.ts`); MCP
+    // Server is a coming-soon placeholder. Without this an editor saw the row and landed on a 403.
+    anyOfPermissions: ["admin.integrations.manage"],
     // `?tab=<id>` picks the initially-active tab and stays in sync as the operator switches tabs —
     // same `?tab=` deep-linking convention as `deployment`'s and `settings`'s own entries elsewhere
     // in this file (ADR-063), guarded by `resolveProvidersTabId` inside the screen. Three tabs
@@ -742,6 +746,8 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
     // `DeveloperApi.tsx`, the page shell that used to render here, is DELETED — its two tabs moved
     // into `providers`/`Providers.tsx` verbatim; see that file's own header for the full move.
     id: "integrations",
+    // The `/:subscriptionId` deliveries drill-down reads `routes/integrations/deliveries.ts`.
+    anyOfPermissions: ["admin.integrations.manage"],
     render: (ctx) => {
       switch (ctx.view) {
         case "integration-deliveries":

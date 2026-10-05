@@ -57,6 +57,9 @@ describe("withoutInaccessiblePanels over the real nav", () => {
     expect(ids).toEqual(expect.arrayContaining(["dashboard", "pages", "posts", "media", "themes", "trash"]));
     expect(ids).not.toContain("users");
     expect(ids).not.toContain("roles");
+    // Every Integrations tab with a read (External MCP, Always allow, Webhooks) checks
+    // admin.integrations.manage, which the editor lacks.
+    expect(ids).not.toContain("providers");
   });
 
   it("shows the owner every row, unchanged", () => {
@@ -141,6 +144,10 @@ const SERVER_EVIDENCE: Record<string, string> = {
   seo: `${ROUTES}/seo/get-settings.ts`,
   redirects: `${ROUTES}/redirects/list.ts`,
   analytics: `${ROUTES}/analytics/recent-hits.ts`,
+  // The landing External MCP tab (and Always allow) go through this guard; Webhooks checks the same id.
+  providers: `${ROUTES}/external-mcp/guard.ts`,
+  // The routable-only webhook deliveries drill-down (`/admin/integrations/:subscriptionId`).
+  integrations: `${ROUTES}/integrations/deliveries.ts`,
 };
 
 const here = dirname(fileURLToPath(import.meta.url));
