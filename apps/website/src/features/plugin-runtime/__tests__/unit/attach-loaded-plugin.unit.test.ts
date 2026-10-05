@@ -23,6 +23,7 @@ function fakeHookRegistry(): { registry: HookRegistry; calls: unknown[][] } {
     },
     detach: () => {},
     runBeforeSave: async () => ({}),
+    previewBeforeSave: async () => null,
   };
   return { registry, calls };
 }
@@ -62,6 +63,7 @@ test("attachLoadedPlugin propagates whatever hookRegistry.attach() itself throws
     },
     detach: () => {},
     runBeforeSave: async () => ({}),
+    previewBeforeSave: async () => null,
   };
   assert.throws(
     () =>

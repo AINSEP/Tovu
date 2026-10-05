@@ -51,7 +51,8 @@ import { buildCapabilityScopedSdk, type CapabilityScopedSdkCoreDeps } from "./ca
 import type { PluginDiscoveryRecord } from "./discovery.js";
 import type { AttachmentSource, HookRegistry, HookRegistryFieldDecl } from "./hook-registry.js";
 import type { PluginManifest } from "./manifest.js";
-import type { BeforeSaveFilter, Plugin } from "@tovu/sdk";
+import { readDefinedPlugin } from "./plugin-export.js";
+import type { BeforeSaveFilter } from "@tovu/sdk";
 
 /**
  * The runtime's own installed `@tovu/sdk` version, used for the sdkRange check (step 2) when a
@@ -164,17 +165,6 @@ export type LoadPluginResult =
       readonly loaded: false;
       readonly reason: PluginLoadFailureReason;
     };
-
-/** `definePlugin()`'s runtime return shape. A plain `{ setup() {} }` export is deliberately not
- * accepted: only the SDK helper's opaque `{ definition }` wrapper is a valid plugin ABI value. */
-function readDefinedPlugin(moduleValue: unknown): Plugin | null {
-  if (typeof moduleValue !== "object" || moduleValue === null) return null;
-  const candidate = (moduleValue as { default?: unknown }).default;
-  if (typeof candidate !== "object" || candidate === null) return null;
-  const definition = (candidate as { definition?: unknown }).definition;
-  if (typeof definition !== "object" || definition === null) return null;
-  return typeof (definition as { setup?: unknown }).setup === "function" ? (candidate as Plugin) : null;
-}
 
 /**
  * Executes BR-01's 5-step ordered pipeline for one plugin. See CIC U-001 above for the binding

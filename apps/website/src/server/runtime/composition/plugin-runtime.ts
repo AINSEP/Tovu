@@ -1,6 +1,6 @@
-import { AsyncLocalStorage } from "node:async_hooks";
 import { lstat } from "node:fs/promises";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { assertPluginInstallIdle, installSitePlugin, previewSitePluginInstall, type PluginInstallerPort } from "#src/features/plugin-runtime/install";
 
 import type { Clock as ClockPort } from "@jini-ai/core/primitives";
@@ -30,11 +30,12 @@ import {
   loadPlugin,
   PluginLoadError,
 } from "#src/features/plugin-runtime/loader";
-import {
-  HOOK_CONTENT_ENTRY_BEFORE_SAVE,
-  type BeforeSaveFilter,
-  type ContentEntryDraft,
-} from "@tovu/sdk";
+import { createPluginInvocationCoreDeps } from "#src/features/plugin-runtime/invocation-core-deps";
+import { snapshotPluginModuleGraph } from "#src/features/plugin-runtime/module-snapshot";
+import { createTier2ImportSeam } from "#src/features/plugin-runtime/tier2/import-seam";
+import type { Tier2CallRunner } from "#src/features/plugin-runtime/tier2/protocol";
+import { createTier2WorkerRunner } from "#src/server/runtime/plugin-tier2/run-in-worker";
+import { HOOK_CONTENT_ENTRY_BEFORE_SAVE, type BeforeSaveFilter } from "@tovu/sdk";
 
 /** Executable metadata for one compiled-in plugin. Discovery consumes only `manifest`; the enable
  * callback consumes the import seam after integrity/sdkRange checks. Site-artifact sources can use
@@ -46,11 +47,6 @@ export interface PluginRuntimeSource extends BuiltInPluginSource {
   /** The built-in's own source folder, shown read-only by the admin Plugins screen's
    * package-files viewer (`routes/plugins/files.ts`). Omitted ⇒ that viewer lists no files. */
   readonly sourceDir?: string;
-}
-
-interface InvocationState {
-  readonly entry: Readonly<ContentEntryDraft>;
-  readonly writes: Record<string, string | number | boolean>;
 }
 
 /** What `loadPlugin()` and `attachLoadedPlugin()` need for one enable attempt, resolved by
@@ -178,6 +174,9 @@ export interface ComposePluginRuntimeRequired {
   readonly sources: readonly PluginRuntimeSource[];
   /** Consecutive hook failures before quarantine. Omitted uses the registry default. */
   readonly failureThreshold?: number;
+  /** Runs one Tier-2 (`tier: "tier-2"`) plugin call in isolation. Omitted ⇒ a fresh Node worker
+   * per call (`server/runtime/plugin-tier2/run-in-worker.ts`); tests inject a shorter timeout. */
+  readonly tier2CallRunner?: Tier2CallRunner;
   /** Site-installed plugin scan root, forwarded verbatim to `discoverPlugins({ installDir })`
    * (REQ-02). Omitted ⇒ legacy mode: built-ins only, identical to today's behavior (discovery.ts's
    * own EC-09/AC-16 contract) — this parameter only ADDS reachability for site-installed plugins,
@@ -211,6 +210,9 @@ export interface PluginRuntimeBindings {
    * unsafe id/version or a directory that resolves outside its container. */
   readonly readPluginPackageFiles: (record: PluginDiscoveryRecord) => Promise<PluginPackageFiles>;
   readonly beforeSaveHook: HookRegistry["runBeforeSave"];
+  /** Admin preview (AW-7): one attached plugin's beforeSave patch for a draft, nothing saved or
+   * counted toward quarantine. `null` ⇒ not attached. See `HookRegistry.previewBeforeSave`. */
+  readonly previewPluginBeforeSave: HookRegistry["previewBeforeSave"];
   /**
    * P0a fix (2026-09-23): re-runs `onPluginEnabled` for every plugin `activationRepo` durably
    * marks `enabled` for THIS composition's `workspaceId`. Before this existed, nothing replayed
@@ -236,6 +238,7 @@ export interface PluginRuntimeBindings {
  */
 export function composePluginRuntime(required: ComposePluginRuntimeRequired): PluginRuntimeBindings {
   const { activationRepo, clock, sources, installDir } = required;
+  const tier2CallRunner = required.tier2CallRunner ?? createTier2WorkerRunner({});
   const hookRegistry = createHookRegistry({
     ...(required.failureThreshold === undefined ? {} : { failureThreshold: required.failureThreshold }),
     onQuarantine: async (input) => {
@@ -295,41 +298,31 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired): Pl
     if (!target) {
       throw new PluginLoadError(pluginId, "PLUGIN_EXPORT_INVALID");
     }
-    const { manifest, entryPath, attachmentSource, importModule } = target;
+    const { manifest, entryPath, attachmentSource } = target;
+    // Tier 2 (ADR-024 §3/§4): the plugin's code must never be imported into this process. Its
+    // import seam probes it in a fresh worker and hands `loadPlugin()` a proxy whose filter is an
+    // RPC; injected through `loadPlugin()`'s own `importModule` option, so integrity + sdkRange
+    // still run first (CIC U-001). A site plugin's worker imports the integrity-checked module
+    // snapshot, which `loadPlugin()` itself skips once a seam is injected.
+    const importModule =
+      manifest.tier === "tier-2"
+        ? createTier2ImportSeam(
+            { manifest, runCall: tier2CallRunner },
+            record.source === "site"
+              ? {
+                  resolveWorkerEntry: async (siteEntry: string) =>
+                    pathToFileURL(
+                      await snapshotPluginModuleGraph({ pluginRoot: path.dirname(path.dirname(siteEntry)), manifest })
+                    ).href,
+                }
+              : {}
+          )
+        : target.importModule;
 
-    const invocation = new AsyncLocalStorage<InvocationState>();
-    let capturedFilter: BeforeSaveFilter | null = null;
-
-    const coreDeps = {
-      getCurrentEntry(): Readonly<ContentEntryDraft> {
-        const state = invocation.getStore();
-        if (!state) throw new Error(`plugin '${pluginId}' called content.read outside a beforeSave hook`);
-        return state.entry;
-      },
-      writeExtField(field: string, value: string | number | boolean): void {
-        const state = invocation.getStore();
-        if (!state) throw new Error(`plugin '${pluginId}' called content.extend outside a beforeSave hook`);
-        state.writes[field] = value;
-      },
-      attachFilter(hookName: typeof HOOK_CONTENT_ENTRY_BEFORE_SAVE, filter: BeforeSaveFilter): void {
-        if (hookName !== HOOK_CONTENT_ENTRY_BEFORE_SAVE || !manifest.hooks.includes(hookName)) {
-          throw new Error(`plugin '${pluginId}' attempted to attach undeclared hook '${String(hookName)}'`);
-        }
-        if (capturedFilter) {
-          throw new Error(`plugin '${pluginId}' attempted to attach more than one beforeSave filter`);
-        }
-
-        capturedFilter = async (entry, ctx) => {
-          const state: InvocationState = { entry, writes: {} };
-          return invocation.run(state, async () => {
-            const returned = await filter(entry, ctx);
-            if (Object.keys(state.writes).length === 0) return returned;
-            if (typeof returned !== "object" || returned === null || Array.isArray(returned)) return returned;
-            return { ...state.writes, ...returned };
-          });
-        };
-      },
-    };
+    // The SDK backing (content.read/extend bound to the running filter, single declared beforeSave
+    // filter) is shared with the Tier-2 worker — see `invocation-core-deps.ts`.
+    const invocation = createPluginInvocationCoreDeps({ pluginId, declaredHooks: manifest.hooks });
+    const coreDeps = invocation.coreDeps;
 
     // CIC U-001: `importModule` is omitted here (not passed as `undefined`) for a site target, so
     // `loadPlugin()`'s OWN default parameter (real `import()`) is what's used — this call site
@@ -344,7 +337,7 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired): Pl
       throw new PluginLoadError(pluginId, result.reason);
     }
 
-    const filter = capturedFilter as BeforeSaveFilter | null;
+    const filter: BeforeSaveFilter | null = invocation.capturedFilter();
     if (manifest.hooks.includes(HOOK_CONTENT_ENTRY_BEFORE_SAVE) && filter === null) {
       throw new PluginLoadError(pluginId, "PLUGIN_HOOK_NOT_ATTACHED");
     }
@@ -478,6 +471,7 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired): Pl
     locatePluginPackageDirs,
     readPluginPackageFiles,
     beforeSaveHook: (entry) => hookRegistry.runBeforeSave(entry),
+    previewPluginBeforeSave: (pluginId, entry) => hookRegistry.previewBeforeSave(pluginId, entry),
     attachEnabledPluginsAtBoot,
     listPluginConflicts: () => listPluginConflicts(),
   };

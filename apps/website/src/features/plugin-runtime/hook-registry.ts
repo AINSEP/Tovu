@@ -98,6 +98,12 @@ export interface HookRegistry {
   detach(pluginId: string): void;
   /** Implements `BeforeSaveHookPort` — the sole surface `post.ts` depends on. */
   runBeforeSave(entry: Readonly<ContentEntryDraft>): Promise<JsonObject>;
+  /** Admin preview (AW-7): runs ONE attached plugin's filter on a draft with the same snapshot and
+   * declared-field validation as a save, but merges, saves and counts nothing — a preview failure
+   * throws `PluginHookFailedError` without touching the quarantine counter or the attachment, so
+   * an editor trying drafts can never quarantine a plugin. Resolves `null` when `pluginId` is not
+   * attached (disabled, quarantined, or never loaded). */
+  previewBeforeSave(pluginId: string, entry: Readonly<ContentEntryDraft>): Promise<JsonObject | null>;
 }
 
 /** One plugin's currently-attached registration. */
@@ -323,5 +329,17 @@ export function createHookRegistry(options: CreateHookRegistryOptions = {}): Hoo
     return merged;
   }
 
-  return { attach, detach, runBeforeSave };
+  async function previewBeforeSave(pluginId: string, entry: Readonly<ContentEntryDraft>): Promise<JsonObject | null> {
+    const attachment = attachments.get(pluginId);
+    if (!attachment) return null;
+    try {
+      return await applyPluginFilter(pluginId, attachment, entry, {});
+    } catch (error) {
+      throw error instanceof PluginHookFailedError
+        ? error
+        : new PluginHookFailedError(pluginId, `plugin '${pluginId}' beforeSave hook failed`, { cause: error });
+    }
+  }
+
+  return { attach, detach, runBeforeSave, previewBeforeSave };
 }
