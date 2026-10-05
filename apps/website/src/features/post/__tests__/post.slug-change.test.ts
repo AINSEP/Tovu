@@ -13,8 +13,9 @@ import { InMemoryPostRepo } from "../repo.memory.js";
  *    inside the same transaction as the write, so its old URL keeps resolving (301) instead of
  *    404ing. SPEC-009 shipped the capture and its registration slot but explicitly deferred this
  *    call ("Known accepted gap", 6df050720); nothing ever made it.
- * 2. SPEC-002 REQ-04 — a caller may not rename an entry onto a reserved slug (`admin`, `api`); the
- *    update path only checked the slug's format, so create refused `admin` and update accepted it.
+ * 2. SPEC-002 REQ-04 — a caller may not rename an entry onto a reserved slug (`admin`, `api`), or
+ *    onto one longer than create's 120-character bound; the update path only checked the slug's
+ *    format, so create refused both and update accepted them.
  */
 
 const WORKSPACE_ID = "workspace-1";
@@ -198,3 +199,32 @@ for (const reserved of ["admin", "api"]) {
     assert.deepEqual(capture.calls, []);
   });
 }
+
+// SPEC-002 api.spec.md §4 maxLength — the update path skipped create's slug length bound, so a
+// rename could store a slug create would have refused.
+test("updatePost refuses a 121-character slug with create's message, writing nothing", async () => {
+  const record = seed();
+  const repo = new InMemoryPostRepo([record]);
+  const capture = recordingCapture();
+
+  await assert.rejects(
+    () => updatePost({ deps: deps(repo, capture), input: rename(record, "a".repeat(121)) }),
+    (err: unknown) => {
+      assert.ok(err instanceof PostValidationError);
+      assert.equal((err as Error).message, "slug must be 120 characters or fewer");
+      return true;
+    }
+  );
+
+  assert.equal((await repo.findById({ workspaceId: WORKSPACE_ID, id: "post-1" }))?.slug, "hello-world");
+  assert.deepEqual(capture.calls, []);
+});
+
+test("updatePost accepts a slug of exactly 120 characters", async () => {
+  const record = seed();
+  const repo = new InMemoryPostRepo([record]);
+
+  const { post } = await updatePost({ deps: deps(repo, undefined), input: rename(record, "a".repeat(120)) });
+
+  assert.equal(post.slug, "a".repeat(120));
+});

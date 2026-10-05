@@ -12,7 +12,8 @@ import { bootSite, expectJson, send, SITE_DIALECTS, type BootedSite } from "../h
  * @file SPEC-009 REQ-15 end to end, through the real `tovu serve` composition on both dialects: a
  * published page or post whose slug changes leaves a 301 from its old URL, whichever surface made
  * the change (the Pages route, the Posts route, or the `content_post_update` agent tool). Also the
- * update half of SPEC-002 REQ-04 (a reserved slug is refused on update with create's message).
+ * update half of SPEC-002 REQ-04 (a reserved or over-120-character slug is refused on update with
+ * create's message).
  *
  * `deps.ts` binds `RedirectSlugChangeCapture` into routing's slot; until `updatePost` called it,
  * the old URL 404ed. The same expectations are drafted in
@@ -144,5 +145,23 @@ for (const dialect of SITE_DIALECTS) {
     assert.deepEqual(updated, created);
     const stored = await expectJson<{ post: AdminPost }>(await send(site, "GET", `${site.ws}/pages/${page.id}`), 200);
     assert.equal(stored.post.slug, "rename-me");
+  });
+
+  test(`slug length [${dialect}]: a 121-character rename is 400 with create's message on PUT and the agent tool; 120 passes`, async (t) => {
+    const site = await bootSite(t, dialect);
+    const tooLong = "a".repeat(121);
+    const created = await expectJson<{ error: string }>(await send(site, "POST", `${site.ws}/pages`, { title: "Long", slug: tooLong }), 400);
+    const page = await create(site, "pages", { title: "Rename", slug: "rename-me" });
+    const updateTool = await agentUpdateTool(site);
+
+    const updated = await expectJson<{ error: string }>(await put(site, "pages", page, { slug: tooLong }), 400);
+    await assert.rejects(() => updateTool({ id: page.id, kind: "page", slug: tooLong }), /slug must be 120 characters or fewer/);
+
+    assert.equal(created.error, "slug must be 120 characters or fewer");
+    assert.deepEqual(updated, created);
+    const stored = await expectJson<{ post: AdminPost }>(await send(site, "GET", `${site.ws}/pages/${page.id}`), 200);
+    assert.equal(stored.post.slug, "rename-me");
+    const atLimit = (await expectJson<{ post: AdminPost }>(await put(site, "pages", stored.post, { slug: "a".repeat(120) }), 200)).post;
+    assert.equal(atLimit.slug, "a".repeat(120));
   });
 }

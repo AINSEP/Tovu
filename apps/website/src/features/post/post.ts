@@ -987,8 +987,8 @@ export const SLUG_FORMAT_PATTERN = /^[a-z0-9-]+$/;
  * (`server/inbound/public-http/routes/site/pages.ts`) renders it instead of always falling back to
  * the active theme's own `index.html`. Deliberately NOT folded into {@link SLUG_FORMAT_PATTERN}
  * itself — that would loosen the regex to accept a slash generally, which is not the intended shape.
- * This is a single exact-string exception, checked ahead of the regex by {@link resolveExplicitSlug}
- * and `validateUpdatePostInput`, and it is gated on `kind`: a `kind: "post"` row requesting it is
+ * This is a single exact-string exception, checked ahead of the regex by `assertValidExplicitSlug`
+ * (which both `resolveExplicitSlug` and `validateUpdatePostInput` call), and it is gated on `kind`: a `kind: "post"` row requesting it is
  * rejected with the SAME "slug must use lowercase letters, numbers, and dashes" message the format
  * check already raises for any other malformed slug — a Post's claim on `/` is simply never a valid
  * slug for a Post, not a distinct error case needing its own message. The fallback-to-theme behavior
@@ -1028,6 +1028,32 @@ function assertSlugNotReserved(slug: string): void {
   if (RESERVED_SLUGS.has(slug)) {
     throw new PostValidationError(`slug '${slug}' is reserved`);
   }
+}
+
+/**
+ * The whole caller-supplied slug rule, in behavior.spec.md BR-03's documented order (format, then
+ * length, then reserved-word) — one validator for `createPost`'s explicit slug and `updatePost`'s
+ * rename. The update path used to run its own partial copy (format, later reserved) and skipped the
+ * {@link MAX_SLUG_LENGTH} bound, so a rename could store a slug create would have refused.
+ *
+ * `kind` gates the {@link ROOT_SLUG} exception: only a `"page"` may claim `/`; a `"post"` asking
+ * for it gets the same format message as any other malformed slug (see `ROOT_SLUG`'s doc).
+ *
+ * @throws PostValidationError on the first failing rule, with create's exact message.
+ * @complexity O(n) in the slug's length (one regex test).
+ */
+function assertValidExplicitSlug(slug: string, kind: PostKind): void {
+  const validFormat = slug === ROOT_SLUG ? kind === "page" : isValidSlugFormat(slug);
+  if (!validFormat) {
+    throw new PostValidationError("slug must use lowercase letters, numbers, and dashes");
+  }
+  if (slug.length > MAX_SLUG_LENGTH) {
+    throw new PostValidationError(`slug must be ${MAX_SLUG_LENGTH} characters or fewer`);
+  }
+  // SPEC-002 REQ-04/AC-04 — a PROVIDED slug equal to a reserved word is a hard failure (BR-03
+  // step 3); a DERIVED slug landing on a reserved word is a different, not-yet-implemented rule
+  // (BR-02 suffixing) — see `RESERVED_SLUGS`'s doc.
+  assertSlugNotReserved(slug);
 }
 
 /** Pure, pre-repo-access fields `resolveCreateFields` computes from a `createPost` input, once validated. */
@@ -1131,18 +1157,7 @@ function resolveExplicitSlug(input: CreatePostInput): string | undefined {
   // `input.kind` defaults to `"post"` the same way `createPost`'s own record construction does
   // (see this file's `kind: input.kind ?? "post"`) — a create request that omits `kind` entirely
   // must be gated exactly like an explicit `kind: "post"` one, not treated as unopinionated.
-  const kind: PostKind = input.kind ?? "post";
-  const validFormat = explicitSlug === ROOT_SLUG ? kind === "page" : isValidSlugFormat(explicitSlug);
-  if (!validFormat) {
-    throw new PostValidationError("slug must use lowercase letters, numbers, and dashes");
-  }
-  if (explicitSlug.length > MAX_SLUG_LENGTH) {
-    throw new PostValidationError(`slug must be ${MAX_SLUG_LENGTH} characters or fewer`);
-  }
-  // SPEC-002 REQ-04/AC-04 — a PROVIDED slug equal to a reserved word is a hard failure (BR-03
-  // step 3); a DERIVED slug landing on a reserved word is a different, not-yet-implemented rule
-  // (BR-02 suffixing) — see `RESERVED_SLUGS`'s doc.
-  assertSlugNotReserved(explicitSlug);
+  assertValidExplicitSlug(explicitSlug, input.kind ?? "post");
   return explicitSlug;
 }
 
@@ -1299,7 +1314,7 @@ export async function createPost(
 /**
  * Validates and normalizes `updatePost`'s caller-supplied `title`/`slug`, and validates
  * `bodyJson`/`status` in place, in behavior.spec.md's documented order (first failure wins):
- * title, then slug format, then reserved slug, then `bodyJson` shape, then `status` enum — the same ordering
+ * title, then slug format/length/reserved-word, then `bodyJson` shape, then `status` enum — the same ordering
  * discipline `resolveCreateFields`'s per-field validators follow for `createPost`.
  */
 function validateUpdatePostInput(
@@ -1313,11 +1328,7 @@ function validateUpdatePostInput(
   // `existing.kind` is immutable (PostKind's own doc: "Fixed at creation; v1 has no post<->page
   // conversion path"), so the row's real kind — not any caller-supplied value, `UpdatePostInput`
   // carries none — is what gates the same root-slug exception `resolveExplicitSlug` applies on create.
-  const validFormat = slug === ROOT_SLUG ? existing.kind === "page" : isValidSlugFormat(slug);
-  if (!validFormat) {
-    throw new PostValidationError("slug must use lowercase letters, numbers, and dashes");
-  }
-  assertSlugNotReserved(slug);
+  assertValidExplicitSlug(slug, existing.kind);
   // Required for a `"doc"` row, meaningless for an `"html"` one. A bespoke-HTML Page has no Tiptap
   // document at all, so demanding one here would make its title, slug and status permanently
   // un-editable — the only way to change them is this function, and the caller has no Tiptap body
