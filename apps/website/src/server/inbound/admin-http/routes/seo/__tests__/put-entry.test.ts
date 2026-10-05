@@ -39,6 +39,9 @@ function buildApp(depsOverrides: Partial<SeoRouteDeps> = {}): express.Express {
     assetRenditionRepo: base.assetRenditionRepo,
     transformDefinitionRepo: base.transformDefinitionRepo,
     originRegistry: base.originRegistry,
+    siteTitlePreservationStore: base.siteTitlePreservationStore,
+    workspaceRepo: base.workspaceRepo,
+    siteDisplayName: base.siteDisplayName,
     ...depsOverrides,
   };
   const app = express();

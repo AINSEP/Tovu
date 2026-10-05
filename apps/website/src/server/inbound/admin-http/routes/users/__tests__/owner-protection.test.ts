@@ -11,6 +11,7 @@ import { registerAdminUserEnableRoute } from "../enable.js";
 import { registerAdminUserAssignRoleRoute } from "../assign-role.js";
 import { registerAdminUserAttachPolicyRoute } from "../attach-policy.js";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
+import { createSettingsPrincipalLookup } from "#src/features/settings/index";
 
 /** Owner-email follow-up: real identity services and transactions, with direct route invocation
  * to verify response mapping in environments that cannot open HTTP listeners. Existing HTTP
@@ -21,11 +22,14 @@ const routeBase = "/api/admin/v1/workspaces/:workspaceId/users";
 async function setup() {
   let n = 0;
   const idGen = { newId: () => `guard-${++n}` };
-  const clock = { nowIso: () => "2026-10-03T00:00:00.000Z" };
+  const clock = { nowIso: () => "2026-10-03T00:00:00.000Z", nowMs: () => Date.parse("2026-10-03T00:00:00.000Z") };
   const wiring = createInMemoryIdentityRouteDeps({ permissionGrants: createAppPermissionGrants({}), workspaceId, clock, idGen });
   await wiring.identityReady;
   const ownerId = await wiring.ownerPrincipalId;
-  const deps: UsersRouteDeps = { ...wiring, workspaceId, clock, idGen };
+  // `RouteDeps.principalRepo` also carries the active/workspace-scoped settings lookup, composed the
+  // same way production `deps.ts` does.
+  const principalRepo = Object.assign(wiring.principalRepo, createSettingsPrincipalLookup({ repo: wiring.principalRepo }));
+  const deps: UsersRouteDeps = { ...wiring, principalRepo, workspaceId, clock, idGen };
   const service = identityServiceDepsFrom(deps);
   const create = async (username: string) => (await createUser({
     deps: service, input: { workspaceId, callerPrincipalId: ownerId, username, password: "correct-horse-battery" },

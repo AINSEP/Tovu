@@ -29,6 +29,7 @@ import { assignRole, createUser, createSessionForPrincipal, validateSession, res
 import { OwnerRequiredError } from "@jini-ai/user-management";
 import { trashUser } from "#src/features/identity/delete-user-service";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
+import { createSettingsPrincipalLookup } from "#src/features/settings/index";
 
 /**
  * @file RED-first coverage for the `DELETE_USER` HTTP route (delete-user plan v2 Slice 2/3, and the
@@ -98,7 +99,9 @@ async function buildApp(
     authorize: wiring.authorize,
     clock,
     idGen: counterIdGen(),
-    principalRepo: wiring.principalRepo,
+    // Same composition as production `deps.ts`: the identity repo plus the active/workspace-scoped
+    // settings lookup `RouteDeps.principalRepo` also carries.
+    principalRepo: Object.assign(wiring.principalRepo, createSettingsPrincipalLookup({ repo: wiring.principalRepo })),
     userRepo: wiring.userRepo,
     sessionRepo: wiring.sessionRepo,
     roleRepo: wiring.roleRepo,

@@ -160,7 +160,7 @@ test("CREATE_USER route: 201 on success, with email provided", async (t) => {
   const updatedExpected = { ...expected, email: "updated@example.com" };
   assertPublicUser((await updated.json() as { user: unknown }).user, updatedExpected);
   for (const [action, status] of [["disable", "disabled"], ["enable", "active"]]) {
-    const response = await fetch(`${baseUrl}${URL_BASE}/${principal.id}/${action}`, { method: "POST" });
+    const response: globalThis.Response = await fetch(`${baseUrl}${URL_BASE}/${principal.id}/${action}`, { method: "POST" });
     assert.equal(response.status, 200, action);
     assertPublicUser((await response.json() as { user: unknown }).user, { ...updatedExpected, status });
   }

@@ -15,6 +15,7 @@ import {
 } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminSeoPostSitemapRegenerateRoute } from "../post-sitemap-regenerate.js";
 import type { SeoRouteDeps } from "../deps.js";
+import { InMemorySettingsRepo } from "#src/features/settings/index";
 
 /**
  * @file Unit-tier coverage for `POST .../seo/sitemap/regenerate` (`registerAdminSeoPostSitemapRegenerateRoute`).
@@ -38,6 +39,9 @@ function buildApp(depsOverrides: Partial<SeoRouteDeps> = {}): express.Express {
     assetRenditionRepo: base.assetRenditionRepo,
     transformDefinitionRepo: base.transformDefinitionRepo,
     originRegistry: base.originRegistry,
+    siteTitlePreservationStore: base.siteTitlePreservationStore,
+    workspaceRepo: base.workspaceRepo,
+    siteDisplayName: base.siteDisplayName,
     ...depsOverrides,
   };
   const app = express();
@@ -55,6 +59,22 @@ async function post(t: import("node:test").TestContext, app: express.Express, pa
   const res = await fetch(`${baseUrl}${path}`, { method: "POST" });
   const json = await res.json().catch(() => ({}));
   return { status: res.status, json };
+}
+
+
+/** Fault-injecting settings repo: a real `InMemorySettingsRepo` whose `findActiveDefinition` (the first
+ *  read every `getEffective`/`set` makes) throws, counting calls so the test can prove the 500 came from
+ *  this injected failure. (A `{ ...base.settingsRepo, <method> }` spread would drop the class's prototype
+ *  methods, so the route would 500 on a `TypeError` instead and the override would never run.) */
+class ThrowingSettingsRepo extends InMemorySettingsRepo {
+  calls = 0;
+  constructor(private readonly message: string) {
+    super();
+  }
+  override async findActiveDefinition(): Promise<never> {
+    this.calls += 1;
+    throw new Error(this.message);
+  }
 }
 
 test("post-sitemap-regenerate: mismatched workspaceId 404s", async (t) => {
@@ -83,7 +103,7 @@ test("post-sitemap-regenerate: returns 202 on successful regeneration", async (t
   t.after(() => invalidateSitemapCache({ workspaceId: WORKSPACE_ID }));
   const original = {
     id: "sitemap-canary", workspaceId: WORKSPACE_ID, title: "Canary", slug: "before-regeneration",
-    kind: "post" as const, status: "published" as const, bodyJson: { type: "doc", content: [] },
+    kind: "post" as const, status: "published" as const, bodyJson: { type: "doc", content: [] }, bodyFormat: "doc" as const, bodyHtml: null,
     version: 1, updatedAt: "2026-09-01T00:00:00.000Z", seoExtJson: null,
   };
   const postRepo = new InMemoryPostRepo([original]);
@@ -114,18 +134,12 @@ test("post-sitemap-regenerate: unexpected authorization error returns 500", asyn
 });
 
 test("post-sitemap-regenerate: error when regenerateSitemapCache rejects returns 500", async (t) => {
-  const base = createRouteDeps();
-  const app = buildApp({
-    settingsRepo: {
-      ...base.settingsRepo,
-      find: async () => {
-        throw new Error("settings lookup failed");
-      },
-    },
-  });
+  const settingsRepo = new ThrowingSettingsRepo("settings lookup failed");
+  const app = buildApp({ settingsRepo });
   const { status, json } = await post(t, app);
   assert.equal(status, 500);
   assert.deepEqual(json, { error: "internal error", code: "INTERNAL_ERROR" });
+  assert.ok(settingsRepo.calls > 0, "the 500 must come from the injected settings failure");
 });
 
 test("post-sitemap-regenerate: workspaceId undefined fallback via direct handler execution", async () => {

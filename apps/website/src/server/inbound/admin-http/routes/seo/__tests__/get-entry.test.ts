@@ -42,6 +42,9 @@ function buildApp(depsOverrides: Partial<SeoRouteDeps> = {}): express.Express {
     assetRenditionRepo: base.assetRenditionRepo,
     transformDefinitionRepo: base.transformDefinitionRepo,
     originRegistry: base.originRegistry,
+    siteTitlePreservationStore: base.siteTitlePreservationStore,
+    workspaceRepo: base.workspaceRepo,
+    siteDisplayName: base.siteDisplayName,
     ...depsOverrides,
   };
   const app = express();
@@ -89,7 +92,7 @@ test("get-entry: valid entry returns effective SEO meta (200)", async (t) => {
   await base.siteTitleReady; // Finish all boot-time settings writes before seeding this fixture.
   const postRepo = new InMemoryPostRepo([{
     id: ENTRY_ID, workspaceId: WORKSPACE_ID, title: "Canary entry", slug: "seo-canary",
-    kind: "post", status: "published", bodyJson: { type: "doc", content: [] },
+    kind: "post", status: "published", bodyJson: { type: "doc", content: [] }, bodyFormat: "doc", bodyHtml: null,
     updatedAt: "2026-09-30T00:00:00.000Z", version: 1, seoExtJson: null,
   }]);
   await setSeoSettings({ settingsRepo: base.settingsRepo, clock: base.clock, ids: base.idGen,

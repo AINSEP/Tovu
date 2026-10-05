@@ -13,6 +13,7 @@ import {
 } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminSeoGetSettingsRoute } from "../get-settings.js";
 import type { SeoRouteDeps } from "../deps.js";
+import { InMemorySettingsRepo } from "#src/features/settings/index";
 
 /**
  * @file Unit-tier coverage for `GET .../seo/settings` (`registerAdminSeoGetSettingsRoute`).
@@ -36,6 +37,9 @@ function buildApp(depsOverrides: Partial<SeoRouteDeps> = {}): express.Express {
     assetRenditionRepo: base.assetRenditionRepo,
     transformDefinitionRepo: base.transformDefinitionRepo,
     originRegistry: base.originRegistry,
+    siteTitlePreservationStore: base.siteTitlePreservationStore,
+    workspaceRepo: base.workspaceRepo,
+    siteDisplayName: base.siteDisplayName,
     ...depsOverrides,
   };
   const app = express();
@@ -53,6 +57,22 @@ async function get(t: import("node:test").TestContext, app: express.Express, pat
   const res = await fetch(`${baseUrl}${path}`);
   const json = await res.json().catch(() => ({}));
   return { status: res.status, json };
+}
+
+
+/** Fault-injecting settings repo: a real `InMemorySettingsRepo` whose `findActiveDefinition` (the first
+ *  read every `getEffective`/`set` makes) throws, counting calls so the test can prove the 500 came from
+ *  this injected failure. (A `{ ...base.settingsRepo, <method> }` spread would drop the class's prototype
+ *  methods, so the route would 500 on a `TypeError` instead and the override would never run.) */
+class ThrowingSettingsRepo extends InMemorySettingsRepo {
+  calls = 0;
+  constructor(private readonly message: string) {
+    super();
+  }
+  override async findActiveDefinition(): Promise<never> {
+    this.calls += 1;
+    throw new Error(this.message);
+  }
 }
 
 test("get-settings: mismatched workspaceId 404s", async (t) => {
@@ -93,18 +113,12 @@ test("get-settings: returns workspace seo settings (200)", async (t) => {
 });
 
 test("get-settings: unexpected error returns 500 (INTERNAL_ERROR)", async (t) => {
-  const base = createRouteDeps();
-  const app = buildApp({
-    settingsRepo: {
-      ...base.settingsRepo,
-      find: async () => {
-        throw new Error("read error");
-      },
-    },
-  });
+  const settingsRepo = new ThrowingSettingsRepo("read error");
+  const app = buildApp({ settingsRepo });
   const { status, json } = await get(t, app);
   assert.equal(status, 500);
   assert.deepEqual(json, { error: "internal error", code: "INTERNAL_ERROR" });
+  assert.ok(settingsRepo.calls > 0, "the 500 must come from the injected settings failure");
 });
 
 test("get-settings: workspaceId undefined fallback via direct handler execution", async () => {

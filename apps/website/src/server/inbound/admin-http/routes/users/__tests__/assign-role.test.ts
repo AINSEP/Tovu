@@ -65,6 +65,8 @@ async function buildApp(
     transactions: base.transactions,
     tokens: base.tokens,
     ownerPrincipalId: base.ownerPrincipalId,
+    removeUser: base.removeUser,
+    isInTrash: base.isInTrash,
     ...depsOverrides,
   };
   const app = express();

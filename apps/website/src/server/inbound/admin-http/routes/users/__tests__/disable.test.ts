@@ -58,6 +58,8 @@ async function buildApp(
     transactions: base.transactions,
     tokens: base.tokens,
     ownerPrincipalId: base.ownerPrincipalId,
+    removeUser: base.removeUser,
+    isInTrash: base.isInTrash,
     ...depsOverrides,
   };
   const app = express();
@@ -247,6 +249,8 @@ test("INV-08: DISABLE_PRINCIPAL route: 409 OWNER_REQUIRED when disabling the tar
     // Overridden: does not match `lastOwnerId`, so `target.id === seededOwnerPrincipalId` is
     // false and execution reaches the INV-08 count check instead of short-circuiting on it.
     ownerPrincipalId: Promise.resolve("unrelated-owner-id-for-inv08-test"),
+    removeUser: base.removeUser,
+    isInTrash: base.isInTrash,
   };
   await attachSinglePermissionPolicy(deps, lastOwnerId, "*");
 

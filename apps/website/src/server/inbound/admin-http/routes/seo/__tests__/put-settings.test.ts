@@ -14,6 +14,7 @@ import {
 } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminSeoPutSettingsRoute } from "../put-settings.js";
 import type { SeoRouteDeps } from "../deps.js";
+import { InMemorySettingsRepo } from "#src/features/settings/index";
 
 /**
  * @file Unit-tier coverage for `PUT .../seo/settings` (`registerAdminSeoPutSettingsRoute`).
@@ -37,6 +38,9 @@ function buildApp(depsOverrides: Partial<SeoRouteDeps> = {}): express.Express {
     assetRenditionRepo: base.assetRenditionRepo,
     transformDefinitionRepo: base.transformDefinitionRepo,
     originRegistry: base.originRegistry,
+    siteTitlePreservationStore: base.siteTitlePreservationStore,
+    workspaceRepo: base.workspaceRepo,
+    siteDisplayName: base.siteDisplayName,
     ...depsOverrides,
   };
   const app = express();
@@ -59,6 +63,22 @@ async function put(t: import("node:test").TestContext, app: express.Express, bod
   });
   const json = await res.json().catch(() => ({}));
   return { status: res.status, json };
+}
+
+
+/** Fault-injecting settings repo: a real `InMemorySettingsRepo` whose `findActiveDefinition` (the first
+ *  read every `getEffective`/`set` makes) throws, counting calls so the test can prove the 500 came from
+ *  this injected failure. (A `{ ...base.settingsRepo, <method> }` spread would drop the class's prototype
+ *  methods, so the route would 500 on a `TypeError` instead and the override would never run.) */
+class ThrowingSettingsRepo extends InMemorySettingsRepo {
+  calls = 0;
+  constructor(private readonly message: string) {
+    super();
+  }
+  override async findActiveDefinition(): Promise<never> {
+    this.calls += 1;
+    throw new Error(this.message);
+  }
 }
 
 test("put-settings: mismatched workspaceId 404s", async (t) => {
@@ -126,18 +146,12 @@ test("put-settings: valid patch returns updated settings (200)", async (t) => {
 });
 
 test("put-settings: unexpected error returns 500 (INTERNAL_ERROR)", async (t) => {
-  const base = createRouteDeps();
-  const app = buildApp({
-    settingsRepo: {
-      ...base.settingsRepo,
-      set: async () => {
-        throw new Error("storage failure");
-      },
-    },
-  });
+  const settingsRepo = new ThrowingSettingsRepo("storage failure");
+  const app = buildApp({ settingsRepo });
   const { status, json } = await put(t, app, { sitemapEnabled: true });
   assert.equal(status, 500);
   assert.deepEqual(json, { error: "internal error", code: "INTERNAL_ERROR" });
+  assert.ok(settingsRepo.calls > 0, "the 500 must come from the injected settings failure");
 });
 
 test("put-settings: workspaceId undefined and req.body undefined fallbacks via direct handler execution", async () => {
