@@ -18,10 +18,9 @@
  * See that file's header for full provenance. This is the one canary in this set that did NOT need
  * a redo — it was built blind from the start, unlike canary 1.
  */
-import { buildEvalToolRegistry } from "./tool-search-eval-registry.js";
+import { buildEvalToolRegistry, fakeEvalRouteDeps } from "./tool-search-eval-registry.js";
 import { buildToolCatalogQuery } from "../../apps/website/src/assistant/tool-catalog-query.js";
 import { currentToolIdFor } from "../../apps/website/src/assistant/content-read-tool.js";
-import type { RouteDeps } from "../../apps/website/src/server/routes/types.js";
 import { HYDE_EXPANSIONS } from "./tool-search-hyde-blind-expansions.js";
 
 interface EvalCase {
@@ -56,28 +55,6 @@ const HELD_OUT_CASES: readonly EvalCase[] = [
 
 const SEARCH_LIMIT = 10;
 
-function fakeRouteDeps(): RouteDeps {
-  const deps = {
-    workspaceId: "ws-eval",
-    clock: { nowIso: () => "2026-08-05T00:00:00.000Z" },
-    idGen: { newId: () => "id-1" },
-    authorize: async () => ({ allowed: true, reason: "matched" }),
-    contentTypeRepo: {
-      save: async () => {},
-      appendRevision: async () => {},
-      findByKey: async () => null,
-      listByWorkspace: async () => [],
-      transaction: async <T>(fn: () => Promise<T>) => fn(),
-    },
-    contentTypeIndexProvisioner: {
-      provisionIndexesForNewContentType: async () => {},
-      applyFieldIndexTransitions: async () => {},
-      tearDownAllIndexesForContentType: async () => {},
-    },
-    outbox: { enqueue: async () => {} },
-  };
-  return deps as unknown as RouteDeps;
-}
 
 function score(catalog: ReturnType<typeof buildToolCatalogQuery>, cases: readonly EvalCase[], useHyde: boolean) {
   return cases.map((c) => {
@@ -101,7 +78,7 @@ function summarize(label: string, results: ReturnType<typeof score>) {
 }
 
 function run(): void {
-  const registry = buildEvalToolRegistry(fakeRouteDeps());
+  const registry = buildEvalToolRegistry(fakeEvalRouteDeps());
   const catalogWithKeywords = buildToolCatalogQuery(registry);
   const catalogNoKeywords = buildToolCatalogQuery(registry, { includeSearchKeywords: false });
 

@@ -49,8 +49,9 @@ import { indexedDescriptionFor } from "../../apps/website/src/assistant/tool-sea
 import { resetToolContributorsForTests } from "../../apps/website/src/assistant/tool-contribution-registry.js";
 import { buildAssistantToolRegistrations } from "../../apps/website/src/assistant/tool-registrations.js";
 import { installFirstPartyToolContributors } from "../../apps/website/src/server/runtime/composition/tool-catalog-manifest.js";
-import type { RouteDeps } from "../../apps/website/src/server/routes/types.js";
 import { HELD_OUT_V2 } from "./tool-search-heldout-v2.js";
+import { fakeEvalRouteDeps } from "./tool-search-eval-registry.js";
+import { toAssistantRegistryDeps, type RegistryDepsWithoutLimiter } from "../../apps/website/src/assistant/__tests__/fixtures/registry-deps.js";
 
 type EvalCase = (typeof HELD_OUT_V2)[number];
 
@@ -120,27 +121,10 @@ const THIN_DESCRIPTION =
   "Delete (or soft-delete/trash/tombstone) one of this site's resources by id. Pass `resource` to say " +
   "which kind, and `id` to name the one to remove. Replaces the per-resource delete/trash/tombstone tools.";
 
-function fakeRouteDeps(): RouteDeps {
-  const deps = {
-    workspaceId: "ws-eval",
-    clock: { nowIso: () => "2026-09-08T00:00:00.000Z" },
-    idGen: { newId: () => "id-1" },
-    authorize: async () => ({ allowed: true, reason: "matched" }),
-    contentTypeRepo: {
-      save: async () => {},
-      appendRevision: async () => {},
-      findByKey: async () => null,
-      listByWorkspace: async () => [],
-      transaction: async <T>(fn: () => Promise<T>) => fn(),
-    },
-    contentTypeIndexProvisioner: {
-      provisionIndexesForNewContentType: async () => {},
-      applyFieldIndexTransitions: async () => {},
-      tearDownAllIndexesForContentType: async () => {},
-    },
-    outbox: { enqueue: async () => {} },
-  };
-  return deps as unknown as RouteDeps;
+/** The shared eval fake, pinned to the 2026-09-08 capture date this suite was scored at. */
+function fakeRouteDeps(): RegistryDepsWithoutLimiter {
+  const at = "2026-09-08T00:00:00.000Z";
+  return { ...fakeEvalRouteDeps(), clock: { nowMs: () => Date.parse(at), nowIso: () => at } };
 }
 
 function ciHalfwidth(p: number, n: number): number {
@@ -227,7 +211,7 @@ function run(): void {
   const registry = createToolRegistry({});
   // Default options: the REAL current catalog, content_read collapse included — what both production
   // composition roots build today. Not `includeContentReadCollapse: false`.
-  for (const r of buildAssistantToolRegistrations(fakeRouteDeps())) registry.register(r);
+  for (const r of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: fakeRouteDeps() }))) registry.register(r);
   const all = registry.list({}) as readonly Descriptor[];
   const realIds = new Set(all.map((d) => d.id));
   const n = HELD_OUT_V2.length;

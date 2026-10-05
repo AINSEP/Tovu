@@ -18,11 +18,10 @@
  * (`tool-catalog-query.ts`'s `sourceForToolId`): the prefix before the first `_`.
  */
 import Database from "better-sqlite3";
-import { buildEvalToolRegistry } from "./tool-search-eval-registry.js";
+import { buildEvalToolRegistry, fakeEvalRouteDeps } from "./tool-search-eval-registry.js";
 import { ensureToolCatalogTables, reseedToolCatalog, searchToolCatalog } from "@jini-ai/registry/tool-catalog/sqlite";
 import { indexedDescriptionFor } from "../../apps/website/src/assistant/tool-search-keywords.js";
 import { currentToolIdFor } from "../../apps/website/src/assistant/content-read-tool.js";
-import type { RouteDeps } from "../../apps/website/src/server/routes/types.js";
 
 interface EvalCase {
   readonly query: string;
@@ -60,31 +59,9 @@ function domainOf(toolId: string): string {
   return prefix && prefix.length > 0 ? prefix : "tovu";
 }
 
-function fakeRouteDeps(): RouteDeps {
-  const deps = {
-    workspaceId: "ws-eval",
-    clock: { nowIso: () => "2026-08-05T00:00:00.000Z" },
-    idGen: { newId: () => "id-1" },
-    authorize: async () => ({ allowed: true, reason: "matched" }),
-    contentTypeRepo: {
-      save: async () => {},
-      appendRevision: async () => {},
-      findByKey: async () => null,
-      listByWorkspace: async () => [],
-      transaction: async <T>(fn: () => Promise<T>) => fn(),
-    },
-    contentTypeIndexProvisioner: {
-      provisionIndexesForNewContentType: async () => {},
-      applyFieldIndexTransitions: async () => {},
-      tearDownAllIndexesForContentType: async () => {},
-    },
-    outbox: { enqueue: async () => {} },
-  };
-  return deps as unknown as RouteDeps;
-}
 
 function run(): void {
-  const registry = buildEvalToolRegistry(fakeRouteDeps());
+  const registry = buildEvalToolRegistry(fakeEvalRouteDeps());
   const descriptors = registry.list({});
 
   // Group by domain, concatenating each tool's ALREADY-INDEXED text (keywords folded in) — the

@@ -26,32 +26,15 @@
  */
 import { buildToolCatalogQuery } from "../../apps/website/src/assistant/tool-catalog-query";
 import { currentToolIdFor } from "../../apps/website/src/assistant/content-read-tool";
-import type { RouteDeps } from "../../apps/website/src/server/routes/types";
-import { buildEvalToolRegistry } from "./tool-search-eval-registry";
+import { buildEvalToolRegistry, fakeEvalRouteDeps } from "./tool-search-eval-registry";
 import { CALLER2_COMPLIANCE_CAPTURES_20260908 } from "./tool-search-caller2-compliance-captures-2026-09-08.js";
 import { HELD_OUT_V2 } from "./tool-search-heldout-v2.js";
+import type { RegistryDepsWithoutLimiter } from "../../apps/website/src/assistant/__tests__/fixtures/registry-deps.js";
 
-function fakeRouteDeps(): RouteDeps {
-  const deps = {
-    workspaceId: "ws-eval",
-    clock: { nowIso: () => "2026-09-08T00:00:00.000Z" },
-    idGen: { newId: () => "id-1" },
-    authorize: async () => ({ allowed: true, reason: "matched" }),
-    contentTypeRepo: {
-      save: async () => {},
-      appendRevision: async () => {},
-      findByKey: async () => null,
-      listByWorkspace: async () => [],
-      transaction: async <T>(fn: () => Promise<T>) => fn(),
-    },
-    contentTypeIndexProvisioner: {
-      provisionIndexesForNewContentType: async () => {},
-      applyFieldIndexTransitions: async () => {},
-      tearDownAllIndexesForContentType: async () => {},
-    },
-    outbox: { enqueue: async () => {} },
-  };
-  return deps as unknown as RouteDeps;
+/** The shared eval fake, pinned to the 2026-09-08 capture date this suite was scored at. */
+function fakeRouteDeps(): RegistryDepsWithoutLimiter {
+  const at = "2026-09-08T00:00:00.000Z";
+  return { ...fakeEvalRouteDeps(), clock: { nowMs: () => Date.parse(at), nowIso: () => at } };
 }
 
 const registry = buildEvalToolRegistry(fakeRouteDeps());

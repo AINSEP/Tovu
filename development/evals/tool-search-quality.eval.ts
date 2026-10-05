@@ -31,7 +31,8 @@ import { buildToolCatalogQuery } from "../../apps/website/src/assistant/tool-cat
 import { buildAssistantToolRegistrations } from "../../apps/website/src/assistant/tool-registrations.js";
 import { installFirstPartyToolContributors } from "../../apps/website/src/server/runtime/composition/tool-catalog-manifest.js";
 import { currentToolIdFor } from "../../apps/website/src/assistant/content-read-tool.js";
-import type { RouteDeps } from "../../apps/website/src/server/routes/types.js";
+import { fakeEvalRouteDeps } from "./tool-search-eval-registry.js";
+import { toAssistantRegistryDeps } from "../../apps/website/src/assistant/__tests__/fixtures/registry-deps.js";
 
 interface EvalCase {
   /** How a human actually asks. */
@@ -133,28 +134,6 @@ const HELD_OUT_CASES: readonly EvalCase[] = [
 
 const SEARCH_LIMIT = 10;
 
-function fakeRouteDeps(): RouteDeps {
-  const deps = {
-    workspaceId: "ws-eval",
-    clock: { nowIso: () => "2026-08-05T00:00:00.000Z" },
-    idGen: { newId: () => "id-1" },
-    authorize: async () => ({ allowed: true, reason: "matched" }),
-    contentTypeRepo: {
-      save: async () => {},
-      appendRevision: async () => {},
-      findByKey: async () => null,
-      listByWorkspace: async () => [],
-      transaction: async <T>(fn: () => Promise<T>) => fn(),
-    },
-    contentTypeIndexProvisioner: {
-      provisionIndexesForNewContentType: async () => {},
-      applyFieldIndexTransitions: async () => {},
-      tearDownAllIndexesForContentType: async () => {},
-    },
-    outbox: { enqueue: async () => {} },
-  };
-  return deps as unknown as RouteDeps;
-}
 
 interface CaseResult {
   readonly query: string;
@@ -193,7 +172,7 @@ function run(): void {
   // `tool-registrations.ts`'s own header) as the only source, and the catalog comes back empty.
   installFirstPartyToolContributors();
   const registry = createToolRegistry({});
-  for (const registration of buildAssistantToolRegistrations(fakeRouteDeps())) registry.register(registration);
+  for (const registration of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: fakeEvalRouteDeps() }))) registry.register(registration);
   const catalog = buildToolCatalogQuery(registry);
   const baseline = buildToolCatalogQuery(registry, { includeSearchKeywords: false });
   const catalogSize = registry.list({}).length;

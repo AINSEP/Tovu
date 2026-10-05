@@ -38,8 +38,9 @@ import { indexedDescriptionFor } from "../../apps/website/src/assistant/tool-sea
 import { resetToolContributorsForTests } from "../../apps/website/src/assistant/tool-contribution-registry.js";
 import { buildAssistantToolRegistrations } from "../../apps/website/src/assistant/tool-registrations.js";
 import { installFirstPartyToolContributors } from "../../apps/website/src/server/runtime/composition/tool-catalog-manifest.js";
-import type { RouteDeps } from "../../apps/website/src/server/routes/types.js";
 import { HELD_OUT_V2 } from "./tool-search-heldout-v2.js";
+import { fakeEvalRouteDeps } from "./tool-search-eval-registry.js";
+import { toAssistantRegistryDeps, type RegistryDepsWithoutLimiter } from "../../apps/website/src/assistant/__tests__/fixtures/registry-deps.js";
 
 type EvalCase = (typeof HELD_OUT_V2)[number];
 
@@ -154,27 +155,10 @@ const RICH_DESCRIPTION =
   " workspace site name url slug. Use it to show, list, view, see, pull up, look up, find, fetch," +
   " display, browse, check, count, or read anything the site stores.";
 
-function fakeRouteDeps(): RouteDeps {
-  const deps = {
-    workspaceId: "ws-eval",
-    clock: { nowIso: () => "2026-09-08T00:00:00.000Z" },
-    idGen: { newId: () => "id-1" },
-    authorize: async () => ({ allowed: true, reason: "matched" }),
-    contentTypeRepo: {
-      save: async () => {},
-      appendRevision: async () => {},
-      findByKey: async () => null,
-      listByWorkspace: async () => [],
-      transaction: async <T>(fn: () => Promise<T>) => fn(),
-    },
-    contentTypeIndexProvisioner: {
-      provisionIndexesForNewContentType: async () => {},
-      applyFieldIndexTransitions: async () => {},
-      tearDownAllIndexesForContentType: async () => {},
-    },
-    outbox: { enqueue: async () => {} },
-  };
-  return deps as unknown as RouteDeps;
+/** The shared eval fake, pinned to the 2026-09-08 capture date this suite was scored at. */
+function fakeRouteDeps(): RegistryDepsWithoutLimiter {
+  const at = "2026-09-08T00:00:00.000Z";
+  return { ...fakeEvalRouteDeps(), clock: { nowMs: () => Date.parse(at), nowIso: () => at } };
 }
 
 /** Normal-approx 95% CI half-width for a proportion. */
@@ -241,7 +225,7 @@ function pct(hits: number, n: number): string {
 function run(): void {
   installFirstPartyToolContributors();
   const registry = createToolRegistry({});
-  for (const r of buildAssistantToolRegistrations(fakeRouteDeps(), undefined, { includeContentReadCollapse: false })) registry.register(r);
+  for (const r of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: fakeRouteDeps() }), undefined, { includeContentReadCollapse: false })) registry.register(r);
   const all = registry.list({}) as readonly Descriptor[];
   const realIds = new Set(all.map((d) => d.id));
   const n = HELD_OUT_V2.length;
@@ -388,7 +372,7 @@ const RESOURCE_KEY_ARTIFACTS =
 
 function runAddendum(): void {
   const registry = createToolRegistry({});
-  for (const r of buildAssistantToolRegistrations(fakeRouteDeps(), undefined, { includeContentReadCollapse: false })) registry.register(r);
+  for (const r of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: fakeRouteDeps() }), undefined, { includeContentReadCollapse: false })) registry.register(r);
   const all = registry.list({}) as readonly Descriptor[];
   const n = HELD_OUT_V2.length;
 
@@ -539,7 +523,7 @@ function runRealCatalog(): void {
   resetDuplicateResourceHandlersForTests();
   installFirstPartyToolContributors();
   const registry = createToolRegistry({});
-  const registrations = buildAssistantToolRegistrations(fakeRouteDeps());
+  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: fakeRouteDeps() }));
   for (const r of registrations) registry.register(r);
   const n = HELD_OUT_V2.length;
 

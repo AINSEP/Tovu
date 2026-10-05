@@ -17,10 +17,9 @@
  *
  * Run: `npx tsx development/evals/tool-search-canary-significance.eval.ts`
  */
-import { buildEvalToolRegistry } from "./tool-search-eval-registry.js";
+import { buildEvalToolRegistry, fakeEvalRouteDeps } from "./tool-search-eval-registry.js";
 import { buildToolCatalogQuery } from "../../apps/website/src/assistant/tool-catalog-query.js";
 import { currentToolIdFor } from "../../apps/website/src/assistant/content-read-tool.js";
-import type { RouteDeps } from "../../apps/website/src/server/routes/types.js";
 import { DOC2QUERY } from "../../apps/website/src/assistant/tool-search-doc2query.js";
 import { HYDE_EXPANSIONS } from "./tool-search-hyde-blind-expansions.js";
 import { HYDE_PROMPT_EXPANSIONS } from "./tool-search-hyde-prompt-expansions.js";
@@ -56,28 +55,6 @@ const HELD_OUT_CASES: readonly EvalCase[] = [
   { query: "show everyone on our email list", expect: "newsletter_list_subscriptions", alsoAcceptable: ["members_list"] },
 ];
 
-function fakeRouteDeps(): RouteDeps {
-  const deps = {
-    workspaceId: "ws-eval",
-    clock: { nowIso: () => "2026-08-05T00:00:00.000Z" },
-    idGen: { newId: () => "id-1" },
-    authorize: async () => ({ allowed: true, reason: "matched" }),
-    contentTypeRepo: {
-      save: async () => {},
-      appendRevision: async () => {},
-      findByKey: async () => null,
-      listByWorkspace: async () => [],
-      transaction: async <T>(fn: () => Promise<T>) => fn(),
-    },
-    contentTypeIndexProvisioner: {
-      provisionIndexesForNewContentType: async () => {},
-      applyFieldIndexTransitions: async () => {},
-      tearDownAllIndexesForContentType: async () => {},
-    },
-    outbox: { enqueue: async () => {} },
-  };
-  return deps as unknown as RouteDeps;
-}
 function sourceForToolId(id: string): string {
   const [prefix] = id.split("_");
   return prefix && prefix.length > 0 ? prefix : "tovu";
@@ -132,7 +109,7 @@ function mcnemarExactP(b: number, c: number): number {
 }
 
 function run(): void {
-  const registry = buildEvalToolRegistry(fakeRouteDeps());
+  const registry = buildEvalToolRegistry(fakeEvalRouteDeps());
 
   const shipped = buildToolCatalogQuery(registry); // keywords baseline, raw query
   const baselineVec = top1Vector((c) => shipped.search(c.query, 10)[0]?.id ?? null);

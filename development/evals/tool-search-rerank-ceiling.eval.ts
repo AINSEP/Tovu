@@ -15,10 +15,9 @@
  * that eval's own "found" column, isolated and framed as an upper bound rather than a headline
  * number, per the brief's request to measure this BEFORE any reranker gets built.
  */
-import { buildEvalToolRegistry } from "./tool-search-eval-registry.js";
+import { buildEvalToolRegistry, fakeEvalRouteDeps } from "./tool-search-eval-registry.js";
 import { buildToolCatalogQuery } from "../../apps/website/src/assistant/tool-catalog-query.js";
 import { currentToolIdFor } from "../../apps/website/src/assistant/content-read-tool.js";
-import type { RouteDeps } from "../../apps/website/src/server/routes/types.js";
 
 interface EvalCase {
   readonly query: string;
@@ -55,31 +54,9 @@ const HELD_OUT_CASES: readonly EvalCase[] = [
 
 const SEARCH_LIMIT = 10;
 
-function fakeRouteDeps(): RouteDeps {
-  const deps = {
-    workspaceId: "ws-eval",
-    clock: { nowIso: () => "2026-08-05T00:00:00.000Z" },
-    idGen: { newId: () => "id-1" },
-    authorize: async () => ({ allowed: true, reason: "matched" }),
-    contentTypeRepo: {
-      save: async () => {},
-      appendRevision: async () => {},
-      findByKey: async () => null,
-      listByWorkspace: async () => [],
-      transaction: async <T>(fn: () => Promise<T>) => fn(),
-    },
-    contentTypeIndexProvisioner: {
-      provisionIndexesForNewContentType: async () => {},
-      applyFieldIndexTransitions: async () => {},
-      tearDownAllIndexesForContentType: async () => {},
-    },
-    outbox: { enqueue: async () => {} },
-  };
-  return deps as unknown as RouteDeps;
-}
 
 function run(): void {
-  const registry = buildEvalToolRegistry(fakeRouteDeps());
+  const registry = buildEvalToolRegistry(fakeEvalRouteDeps());
   const catalog = buildToolCatalogQuery(registry);
 
   const results = HELD_OUT_CASES.map((c) => {

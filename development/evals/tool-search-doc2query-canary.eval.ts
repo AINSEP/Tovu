@@ -24,9 +24,8 @@
  * a blind subagent pass costs the same either way.
  */
 import Database from "better-sqlite3";
-import { buildEvalToolRegistry } from "./tool-search-eval-registry.js";
+import { buildEvalToolRegistry, fakeEvalRouteDeps } from "./tool-search-eval-registry.js";
 import { ensureToolCatalogTables, reseedToolCatalog, searchToolCatalog } from "@jini-ai/registry/tool-catalog/sqlite";
-import type { RouteDeps } from "../../apps/website/src/server/routes/types.js";
 import { DOC2QUERY } from "../../apps/website/src/assistant/tool-search-doc2query.js";
 import { currentToolIdFor } from "../../apps/website/src/assistant/content-read-tool.js";
 
@@ -60,28 +59,6 @@ const HELD_OUT_CASES: readonly EvalCase[] = [
   { query: "show everyone on our email list", expect: "newsletter_list_subscriptions", alsoAcceptable: ["members_list"] },
 ];
 
-function fakeRouteDeps(): RouteDeps {
-  const deps = {
-    workspaceId: "ws-eval",
-    clock: { nowIso: () => "2026-08-05T00:00:00.000Z" },
-    idGen: { newId: () => "id-1" },
-    authorize: async () => ({ allowed: true, reason: "matched" }),
-    contentTypeRepo: {
-      save: async () => {},
-      appendRevision: async () => {},
-      findByKey: async () => null,
-      listByWorkspace: async () => [],
-      transaction: async <T>(fn: () => Promise<T>) => fn(),
-    },
-    contentTypeIndexProvisioner: {
-      provisionIndexesForNewContentType: async () => {},
-      applyFieldIndexTransitions: async () => {},
-      tearDownAllIndexesForContentType: async () => {},
-    },
-    outbox: { enqueue: async () => {} },
-  };
-  return deps as unknown as RouteDeps;
-}
 
 function sourceForToolId(id: string): string {
   const [prefix] = id.split("_");
@@ -109,7 +86,7 @@ function summarize(label: string, results: ReturnType<typeof score>) {
 }
 
 function run(): void {
-  const registry = buildEvalToolRegistry(fakeRouteDeps());
+  const registry = buildEvalToolRegistry(fakeEvalRouteDeps());
   const descriptors = registry.list({});
 
   const db = new Database(":memory:");
