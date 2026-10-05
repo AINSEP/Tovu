@@ -1305,6 +1305,11 @@ export interface AdminPost {
    * types allow, so readers must validate before use.
    */
   ext?: Record<string, Record<string, unknown>>;
+  /** Scheduled publishing (2026-10-05) — ISO UTC go-live time. A published row whose `publishAt`
+   *  is still in the future is hidden from the public site until then. Sent only when set. */
+  publishAt?: string | null;
+  /** Featured image (2026-10-05) — a media asset id; themes and og:image use it. Sent only when set. */
+  featuredMediaId?: string | null;
 }
 
 export interface PresentationSettings {
@@ -2597,7 +2602,7 @@ export const api = {
   // gets exactly the last-write-wins behavior this method has always had.
   updatePost: (
     { id }: { id: string },
-    options: Partial<Pick<AdminPost, "title" | "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage">> & {
+    options: Partial<Pick<AdminPost, "title" | "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage" | "publishAt" | "featuredMediaId">> & {
       expectedVersion?: number;
     } = {}
   ) =>

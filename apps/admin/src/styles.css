@@ -1078,8 +1078,27 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
 .page > .editor-action-row + .page-preview-frame,
 .page > .editor-action-row + .page-html-source,
 .page > .editor-action-row + .interactive-html-editor,
-.page > .editor-action-row + .post-editor-pane {
+.page > .editor-action-row + .post-editor-pane,
+.page > .editor-publishing-fields + .post-editor-pane {
   margin-top: calc(-1 * var(--space-3));
+}
+
+/* Scheduled publishing + featured image (2026-10-05) — one compact row right under the action row it
+   qualifies, pulled up by the same 12px idiom so the two read as one publishing block. */
+.page > .editor-publishing-fields {
+  display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap;
+  gap: var(--space-4);
+  margin-top: calc(-1 * var(--space-3));
+}
+.editor-publishing-field { display: flex; align-items: center; gap: var(--space-2); }
+.editor-publishing-field .field-label { margin: 0; }
+.editor-featured-preview {
+  width: 2.25rem; height: 2.25rem; object-fit: cover;
+  border: 1px solid var(--border); border-radius: var(--r-sm);
+}
+.editor-scheduled-badge {
+  font-size: 0.75rem; padding: 0.1rem 0.5rem; border-radius: 999px;
+  background: var(--surface-3); color: var(--muted);
 }
 
 /* Card — content sits inside a bordered surface with real padding, the quality Settings has and

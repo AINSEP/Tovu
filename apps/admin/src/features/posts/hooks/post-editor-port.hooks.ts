@@ -52,7 +52,7 @@ export interface PostEditorPort extends StandingDraftAutosavePort {
    */
   updatePost(
     target: { id: string },
-    patch: Partial<Pick<AdminPost, "title" | "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage">> & {
+    patch: Partial<Pick<AdminPost, "title" | "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage" | "publishAt" | "featuredMediaId">> & {
       expectedVersion?: number;
     }
   ): Promise<{ post: AdminPost }>;

@@ -36,6 +36,9 @@ import {
 } from "@/hooks/use-standing-draft-autosave.hooks";
 import {
   buildPostAutosaveDraft,
+  isoToLocalDateTimeInput,
+  isScheduledPost,
+  localDateTimeInputToIso,
   handleImageDrop,
   readFileAsDataUrl,
   readPostVersionConflict,
@@ -95,6 +98,10 @@ export interface PostFormState {
   templateChoice: string | null;
   /** Tri-state (2026-08-15) — see {@link PostEditorController.overridesThemePage}'s own doc. */
   overridesThemePage: boolean | null;
+  /** Scheduled publishing (2026-10-05) — ISO UTC, or `null` for "live as soon as published". */
+  publishAt: string | null;
+  /** Featured image (2026-10-05) — media asset id, or `null`. */
+  featuredMediaId: string | null;
 }
 
 /** The two things the editor's main pane can show — the rich-text editor, or a rendered preview
@@ -158,6 +165,19 @@ export interface PostEditorController extends PostEditorUiController {
    */
   overridesThemePage: boolean | null;
   setOverridesThemePage: (overridesThemePage: boolean | null) => void;
+  /**
+   * Scheduled publishing (2026-10-05) — the go-live time as the `datetime-local` input value, in the
+   * browser's timezone (`""` = no schedule). Converted to ISO UTC only at save time
+   * (`localDateTimeInputToIso`, `rules.ts`), so a half-typed value never round-trips through UTC.
+   */
+  publishAtInput: string;
+  setPublishAtInput: (value: string) => void;
+  /** `true` while the SAVED row is published but its go-live time is still ahead — the caller says
+   *  "Scheduled" instead of implying it is live. */
+  scheduled: boolean;
+  /** Featured image (2026-10-05) — the chosen media asset id, or `null`. */
+  featuredMediaId: string | null;
+  setFeaturedMediaId: (id: string | null) => void;
   /** `true` when this post's own `slug` matches one of the active theme's own page ids — the caller
    *  shows the collision warning + override checkbox only then. */
   hasSlugCollision: boolean;
@@ -343,6 +363,23 @@ function computeContentDirty(
 }
 
 /**
+ * Scheduled publishing / featured image (2026-10-05) — only the fields the operator actually changed
+ * since load or the last save go into the PUT, so a save that never touched them sends neither key
+ * (the server keeps the stored values for an absent key). `null` is sent explicitly to clear one.
+ *
+ * @complexity O(1).
+ */
+function scheduleFieldsPatch(
+  original: PostFormState | null,
+  current: { publishAt: string | null; featuredMediaId: string | null },
+): { publishAt?: string | null; featuredMediaId?: string | null } {
+  return {
+    ...(current.publishAt !== (original?.publishAt ?? null) ? { publishAt: current.publishAt } : {}),
+    ...(current.featuredMediaId !== (original?.featuredMediaId ?? null) ? { featuredMediaId: current.featuredMediaId } : {}),
+  };
+}
+
+/**
  * Pending-content preview's debounced auto-submit (moved from `PostPreview`, 2026-08-14 —
  * `PostEditorController.previewFormRef`'s own doc has the "why here, not the view" reasoning). A
  * form submit is a full iframe navigation, so firing one per keystroke would thrash the iframe;
@@ -524,6 +561,8 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   // Tri-state (2026-08-15) — `null` (not `false`) is the correct "nothing loaded yet"/"never
   // decided" initial value; see `PostEditorController.overridesThemePage`'s own doc.
   const [overridesThemePage, setOverridesThemePage] = useState<boolean | null>(null);
+  const [publishAtInput, setPublishAtInput] = useState("");
+  const [featuredMediaId, setFeaturedMediaId] = useState<string | null>(null);
   // Same fetch-once-independent-of-postId shape as `availableTemplates` — the active theme's own
   // page ids don't change when switching between posts.
   const [staticPageIds, setStaticPageIds] = useState<string[]>([]);
@@ -786,6 +825,8 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
         // normalize the one remaining `undefined` case: a pre-feature test fixture that predates
         // this field entirely.
         setOverridesThemePage(post.overridesThemePage ?? null);
+        setPublishAtInput(isoToLocalDateTimeInput(post.publishAt));
+        setFeaturedMediaId(post.featuredMediaId ?? null);
         if (editor) {
           // `withTitleNode` (post-title-in-document feature, 2026-08-11) is the back-compat seam:
           // every post saved before this feature has a `bodyJson` with no `title` node, which the
@@ -809,6 +850,10 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
             bodyJson: editor.getJSON(),
             templateChoice: defaultedTemplateChoice,
             overridesThemePage: post.overridesThemePage ?? null,
+            // Through the same input round-trip the field itself uses, so the minute-precision
+            // `datetime-local` value never reads as a change against a seconds-precision stored time.
+            publishAt: localDateTimeInputToIso(isoToLocalDateTimeInput(post.publishAt)),
+            featuredMediaId: post.featuredMediaId ?? null,
           });
         }
         // readable-slugs S6a: an old id-based bookmark quietly catches up to the slug URL, same
@@ -877,8 +922,9 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   // same as `usePageEditor`.
   useAgentScreenEntry(post === null ? null : { kind: post.kind, id: post.id, title: post.title, slug: post.slug, status: post.status });
 
+  const publishAt = localDateTimeInputToIso(publishAtInput);
   const { isDirty, confirmLeave } = useDirtyGuard<PostFormState>(
-    { title, slug, status, bodyJson, templateChoice, overridesThemePage },
+    { title, slug, status, bodyJson, templateChoice, overridesThemePage, publishAt, featuredMediaId },
     original,
   );
 
@@ -957,7 +1003,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
         // `expectedVersion` is the optimistic-concurrency basis, not content — see
         // `post-editor-port.hooks.ts`. `undefined` (only reachable before `post` has loaded, when
         // there is no basis to claim) sends an unguarded save, exactly the pre-2026-09-06 behavior.
-        { title, slug, status: nextStatus, bodyJson, templateChoice, overridesThemePage, expectedVersion },
+        { title, slug, status: nextStatus, bodyJson, templateChoice, overridesThemePage, expectedVersion, ...scheduleFieldsPatch(original, { publishAt, featuredMediaId }) },
       );
       // A newer save/publish was issued after this one — that later call owns the outcome now, so
       // this stale response must not paint over it (root cause 1, 2026-09-05 stale-settlement sweep:
@@ -966,7 +1012,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
       setPost(saved);
       setStatus(nextStatus);
       setMessage(formatSaveSuccessMessage(statusOverride, saved.version));
-      setOriginal({ title, slug, status: nextStatus, bodyJson, templateChoice, overridesThemePage });
+      setOriginal({ title, slug, status: nextStatus, bodyJson, templateChoice, overridesThemePage, publishAt, featuredMediaId });
       // The real content just landed — any parked standing draft is now obsolete. Not awaited: this
       // is best-effort background bookkeeping (errors are already caught inside the hook), not part
       // of what "Save succeeded" means to the operator.
@@ -1129,6 +1175,11 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
     activeThemeApiVersion,
     overridesThemePage,
     setOverridesThemePage,
+    publishAtInput,
+    setPublishAtInput,
+    scheduled: post !== null && isScheduledPost({ status: post.status, publishAt: post.publishAt ?? null }, Date.now()),
+    featuredMediaId,
+    setFeaturedMediaId,
     hasSlugCollision,
     view,
     setView,

@@ -617,3 +617,37 @@ export function resolvePostPreviewBranches(input: {
   const canShowTemplatePreview = input.status === "published" && !input.contentDirty && !canShowLiveSite;
   return { canShowLiveSite, canShowTemplatePreview, canShowPendingContentPreview: !canShowLiveSite && !canShowTemplatePreview };
 }
+
+/**
+ * Scheduled publishing (2026-10-05) — the stored `publishAt` (ISO UTC, `AdminPost.publishAt`) as the
+ * `YYYY-MM-DDTHH:mm` value a `<input type="datetime-local">` shows, in the BROWSER's timezone (the
+ * operator thinks in their own clock; the server only ever sees UTC). `""` for none or unparseable.
+ *
+ * @complexity O(1).
+ */
+export function isoToLocalDateTimeInput(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+/**
+ * The inverse of {@link isoToLocalDateTimeInput}: a `datetime-local` value (no offset, browser-local
+ * by definition) to the offset-qualified ISO string the server's `normalizePublishAt` requires, or
+ * `null` ("no schedule") for an empty or unparseable value.
+ *
+ * @complexity O(1).
+ */
+export function localDateTimeInputToIso(value: string): string | null {
+  if (value.trim() === "") return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+/** Whether a published row is still waiting for its go-live time — the admin mirror of the server's
+ *  `isScheduledAt` (`contracts/core/scheduled-publish.ts`). @complexity O(1). */
+export function isScheduledPost(input: { status: "draft" | "published"; publishAt: string | null }, nowMs: number): boolean {
+  return input.status === "published" && input.publishAt !== null && Date.parse(input.publishAt) > nowMs;
+}

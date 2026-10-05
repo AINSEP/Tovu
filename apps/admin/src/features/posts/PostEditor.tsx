@@ -23,6 +23,7 @@ import { ViewTemplateButton } from "../../components/TemplateSource/ViewTemplate
 import { TermPicker } from "../taxonomy/TermPicker";
 import { PAGE_PREVIEW_IFRAME_SANDBOX } from "../pages/rules";
 import { ContentAnalysisCard } from "../content-analysis/ContentAnalysisCard";
+import { PostPublishingFields } from "./PostPublishingFields";
 import {
   toolbarBtnClass,
   hexOrDefault,
@@ -1420,6 +1421,11 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
     activeThemeApiVersion,
     overridesThemePage,
     setOverridesThemePage,
+    publishAtInput,
+    setPublishAtInput,
+    scheduled,
+    featuredMediaId,
+    setFeaturedMediaId,
     hasSlugCollision,
     view,
     setView,
@@ -1592,6 +1598,15 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
         onPublish={onPublish}
         onSave={onSave}
         onDeleteClick={onDeleteClick}
+        t={t}
+      />
+      {/* Scheduled publishing + featured image (2026-10-05) — under the publish row they qualify. */}
+      <PostPublishingFields
+        publishAtInput={publishAtInput}
+        setPublishAtInput={setPublishAtInput}
+        scheduled={scheduled}
+        featuredMediaId={featuredMediaId}
+        setFeaturedMediaId={setFeaturedMediaId}
         t={t}
       />
       {/* Slug-collision override — see `PostEditorSlugCollisionWarning`'s own doc for the tri-state
