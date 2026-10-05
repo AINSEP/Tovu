@@ -31,14 +31,17 @@ import { createApp } from "./app.js";
  *   drainer, and its pre-bound `sweepTrash` feeds the sweeper.
  * @param optional.outboxDrainIntervalMs idle wait between drains (default: the drainer's own).
  * @param optional.trashSweepIntervalMs idle wait between sweeps (default: the sweeper's own hour).
- * @returns the Express app and both loop handles; call the returned handles at shutdown (`trashSweeper.stop({})`).
+ * @returns the Express app, both loop handles (call them at shutdown: `trashSweeper.stop({})`), and
+ *   `bootWork`: the background passes `createApp` started and returned before they finished
+ *   (`CreateAppOptions.onBootWork`). A caller that closes the store awaits these first.
  * @complexity O(1) beyond `createApp`.
  */
 export function createServingApp(
   routeDeps: NonNullable<Parameters<typeof createApp>[0]>,
   optional: { outboxDrainIntervalMs?: number; trashSweepIntervalMs?: number } = {}
-): { app: Express; outboxDrainer: OutboxDrainer; trashSweeper: TrashSweeper } {
-  const app = createApp(routeDeps);
+): { app: Express; outboxDrainer: OutboxDrainer; trashSweeper: TrashSweeper; bootWork: Promise<void>[] } {
+  const bootWork: Promise<void>[] = [];
+  const app = createApp(routeDeps, { onBootWork: (work) => bootWork.push(work) });
   const outboxDrainer = startOutboxDrainer(
     { outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock },
     { intervalMs: optional.outboxDrainIntervalMs }
@@ -58,5 +61,5 @@ export function createServingApp(
       onError: ({ error }) => console.error("[trash-sweeper] sweep failed; retrying after the idle interval", error)
     }
   );
-  return { app, outboxDrainer, trashSweeper };
+  return { app, outboxDrainer, trashSweeper, bootWork };
 }

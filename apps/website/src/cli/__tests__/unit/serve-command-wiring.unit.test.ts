@@ -136,7 +136,7 @@ test("the BR-07 shutdown awaits the bounded store close before process.exit(0)",
   const close = finish.indexOf("await closeWithinBound(");
   const exit = finish.indexOf("process.exit(0)");
   assert.ok(close !== -1 && exit !== -1 && close < exit, "finish must await closeWithinBound(...) before process.exit(0), or PGlite's flush and lock release are cut short");
-  assert.ok(finish.slice(close, exit).includes("closeSiteDirBoot(bootResult, owned.composedStore)"), "the bounded close must close the composition's store");
+  assert.ok(finish.slice(close, exit).includes("closeOwnedStore(owned)"), "the bounded close must close the composition's store, after its boot work");
 });
 
 test("runServeCommand pins the site before boot, forwards the resolved bind host, and awaits storage closure before exiting", async (t) => {
@@ -151,7 +151,16 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
   let exitCode: number | undefined;
   const stopped: string[] = [];
   const bootResult = { config: { port: 3456 }, workspaceId: "wiring-workspace", db: {} };
-  const deps = { workspaceId: bootResult.workspaceId };
+  const deps: { workspaceId: string; legacyPublishCredentialsReady?: Promise<void> } = { workspaceId: bootResult.workspaceId };
+  // Boot work the composition starts and returns before it finishes: the detached legacy
+  // publish-credential tail (on `deps`) and `createApp`'s BYOK pass (`createServingApp`'s `bootWork`).
+  // The store close must wait for both, or they log "The database connection is not open".
+  function deferred(): { promise: Promise<void>; resolve: () => void } {
+    let resolve: () => void = () => {};
+    return { promise: new Promise<void>((res) => (resolve = res)), resolve };
+  }
+  let legacyWork = deferred();
+  let byokWork = deferred();
   const moduleStubs = new Map<string, Record<string, unknown>>();
   function module(relative: string, namedExports: Record<string, unknown>): void {
     moduleStubs.set(new URL(relative, import.meta.url).href, namedExports);
@@ -187,6 +196,7 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
       } },
       outboxDrainer: { stop: async () => { stopped.push("outbox"); } },
       trashSweeper: { stop: async () => { stopped.push("trash"); } },
+      bootWork: [byokWork.promise],
     }),
   });
   module("../../../server/runtime/boot/plugin-sdk-resolver.ts", { registerPluginSdkResolver: () => {} });
@@ -226,6 +236,9 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
       closeStarted = false;
       exitCode = undefined;
       stopped.length = 0;
+      legacyWork = deferred();
+      byokWork = deferred();
+      deps.legacyPublishCredentialsReady = legacyWork.promise;
       await runServeCommand({ dir: target, port: "4567", host: scenario.host });
       assert.deepEqual(listens.at(-1), [4567, scenario.expected]);
       assert.equal(process.env.TOVU_SITE_DIR, target);
@@ -234,6 +247,12 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
       signals.get(scenario.host ? "SIGINT" : "SIGTERM")!();
       await new Promise(resolve => setImmediate(resolve));
       assert.deepEqual(stopped, ["outbox", "trash"], "shutdown must stop both workers before closing storage");
+      assert.equal(closeStarted, false, "the store close must wait for the boot work still running");
+      legacyWork.resolve();
+      await new Promise(resolve => setImmediate(resolve));
+      assert.equal(closeStarted, false, "the BYOK tool-registration pass is still running");
+      byokWork.resolve();
+      await new Promise(resolve => setImmediate(resolve));
       assert.equal(closeStarted, true);
       assert.equal(exitCode, undefined, "storage close is still pending; exit must wait");
       releaseClose();

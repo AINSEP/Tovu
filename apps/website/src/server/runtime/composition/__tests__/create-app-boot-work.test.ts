@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { createApp, createRouteDeps } from "../app.js";
+import { createServingApp } from "../serving-app.js";
 
 /**
  * @file `createApp()` starts the BYOK tool surface's installed-extension pass (Agent Plugins,
@@ -47,4 +48,31 @@ test("createApp hands onBootWork the installed-extension pass, which settles onl
 
 test("createApp without onBootWork still composes (every existing caller)", () => {
   assert.equal(typeof createApp(createRouteDeps()), "function");
+});
+
+test("createServingApp returns that same pass as bootWork, so a serving process can await it before closing the store", async () => {
+  const deps = createRouteDeps();
+  let releaseDiscovery!: () => void;
+  const discoveryGate = new Promise<void>((resolve) => (releaseDiscovery = resolve));
+  deps.discoverPlugins = async () => {
+    await discoveryGate;
+    return [];
+  };
+
+  const { bootWork, outboxDrainer, trashSweeper } = createServingApp(deps);
+  try {
+    assert.equal(bootWork.length, 1);
+    let settled = false;
+    const settling = bootWork[0]!.then(() => (settled = true));
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(settled, false, "bootWork settled before the plugin catalog was read");
+
+    releaseDiscovery();
+    await settling;
+    assert.equal(settled, true);
+  } finally {
+    releaseDiscovery();
+    await outboxDrainer.stop();
+    await trashSweeper.stop({});
+  }
 });

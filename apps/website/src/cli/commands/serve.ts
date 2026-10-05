@@ -7,6 +7,7 @@ import { SITE_BINDING_NOT_SWITCHABLE_ENV } from "../../platform/site-dir/site-re
 import { mintBootSessionToken } from "#src/features/identity/boot-session-token";
 import { bootSiteDir, closeSiteDirBoot, type BootSiteDirResult } from "../../platform/site-dir/boot-site-dir.js";
 import type { SiteStore } from "../../server/runtime/composition/open-site-store.js";
+import { awaitBootWorkWithinBound } from "../../server/runtime/lifecycle/await-boot-work.js";
 import { closeWithinBound } from "../../server/runtime/lifecycle/close-store-on-shutdown.js";
 import { resolveInstallDirTarget } from "../../platform/site-dir/resolve-install-dir-target.js";
 import { runtimeSchemaVersion } from "../../platform/site-dir/schema-guard.js";
@@ -299,7 +300,7 @@ export async function runServeCommand(input: RunServeCommandInput): Promise<void
   // bound (bad port/host, a composition or lifecycle failure, the daemon port, `EADDRINUSE`) stops
   // the workers already started and closes the store before the error reaches `cli/main.ts`, so a
   // refused boot never leaves a PGlite owner lock/socket or a Postgres pool behind.
-  const owned: ServeOwnership = { bootResult, composedStore: undefined, workers: [] };
+  const owned: ServeOwnership = { bootResult, composedStore: undefined, workers: [], bootWork: [] };
   try {
     await serveBootedSite(input, target, owned);
   } catch (err) {
@@ -315,11 +316,21 @@ interface ServeOwnership {
   composedStore: SiteStore | undefined;
   /** Background loops started by `createServingApp`. */
   readonly workers: Array<{ stop(): Promise<void> }>;
+  /** Boot passes the composition started and never awaited, which read the store: the legacy
+   *  publish-credential tail and `createApp`'s BYOK pass. See `await-boot-work.ts`. */
+  readonly bootWork: Array<Promise<unknown>>;
 }
 
 /** Stops every started worker, then closes the store (the composition's, or `bootSiteDir`'s). */
 async function releaseServeOwnership(owned: ServeOwnership): Promise<void> {
   await Promise.allSettled(owned.workers.map((worker) => worker.stop()));
+  await closeOwnedStore(owned);
+}
+
+/** Closes the store once the boot work still reading it has settled (bounded, see
+ *  `awaitBootWorkWithinBound`), so a site stopped seconds after boot does not close under it. */
+async function closeOwnedStore(owned: ServeOwnership): Promise<void> {
+  await awaitBootWorkWithinBound({ work: owned.bootWork });
   await closeSiteDirBoot(owned.bootResult, owned.composedStore);
 }
 
@@ -374,6 +385,7 @@ async function serveBootedSite(input: RunServeCommandInput, target: string, owne
       switcherCompatible: false,
     },
   });
+  if (deps.legacyPublishCredentialsReady) owned.bootWork.push(deps.legacyPublishCredentialsReady);
 
   // 2026-09-05 dispatch (boot-path parity): this command never ran `runBootLifecycle` at all —
   // only `src/index.ts`'s `main()` did (ADR-046 Phase 3/SPEC-031). Two concrete gaps that opened:
@@ -410,8 +422,9 @@ async function serveBootedSite(input: RunServeCommandInput, target: string, owne
   // `createServingApp`, not bare `createApp`: it also starts the background outbox drainer (after
   // `createApp` has attached every subscriber) and the Trash auto-purge sweeper. Both are stopped
   // in `shutdown` below.
-  const { app, outboxDrainer, trashSweeper } = createServingApp(deps);
+  const { app, outboxDrainer, trashSweeper, bootWork } = createServingApp(deps);
   owned.workers.push(outboxDrainer, { stop: () => trashSweeper.stop({}) });
+  owned.bootWork.push(...bootWork);
 
   await new Promise<void>((resolve, reject) => {
     // Express's own `.listen()` overloads type `hostname` as a required `string`, not
@@ -503,6 +516,7 @@ async function serveBootedSite(input: RunServeCommandInput, target: string, owne
         let exited = false;
         // Awaits the store close (PGlite flushes, removes its socket and releases its owner lock),
         // bounded like the default boot's (`closeWithinBound`, 4 s) so a hung close still exits.
+        // The close itself first waits (2 s of that) for boot work still reading the store.
         const finish = async (): Promise<void> => {
           if (exited) return;
           exited = true;
@@ -510,7 +524,7 @@ async function serveBootedSite(input: RunServeCommandInput, target: string, owne
           await closeWithinBound(
             async () => {
               await workersStopped;
-              await closeSiteDirBoot(bootResult, owned.composedStore);
+              await closeOwnedStore(owned);
             },
             { label: "the site store" }
           );
