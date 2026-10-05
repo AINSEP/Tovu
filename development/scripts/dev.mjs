@@ -38,6 +38,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseEnv } from "node:util";
 
 import { loadRepoRootEnvFile } from "./load-repo-root-env.mjs";
+import { localDevPluginInstallEnv } from "./local-dev-plugin-install.mjs";
 import { listenersOn } from "./port-listeners.mjs";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -427,6 +428,45 @@ export function buildAdminViteEnv({ apiPort, vitePort, apiScheme = "http" }) {
   };
 }
 
+/**
+ * Env for the API child, layered over this process's own `process.env` by `start(...)`. Extracted
+ * (like {@link buildAdminViteEnv}) so a test can assert on it without spawning anything.
+ *
+ * @param {{scheme: "https" | "http", apiPort: number, vitePort: number, supervisorPid: number}} required
+ * @param {{env?: Readonly<Record<string, string | undefined>>}} [optional] - defaults to `process.env`;
+ *   read for the "explicit always wins" flags below.
+ * @returns {Record<string, string>}
+ */
+export function buildApiEnv({ scheme, apiPort, vitePort, supervisorPid }, { env = process.env } = {}) {
+  return {
+    // Makes the API's own /admin/ proxy to Vite instead of serving the built dist, so :3000/admin/
+    // and :5173/admin/ agree in dev. Scheme-matched to `scheme`: this is a browser 302 redirect
+    // (`admin-static.ts`), not a server-side fetch, but a redirect to the wrong scheme still breaks
+    // — a plain-HTTP redirect at an origin now speaking TLS-only fails the same way a browser
+    // hitting any other TLS port with a raw HTTP request would.
+    TOVU_ADMIN_DEV_PROXY_URL: `${scheme}://localhost:${vitePort}`,
+    PORT: String(apiPort),
+    // Backs `apps/website/src/index.ts`'s own parent watchdog (see that file's `startOwnParentWatchdog()` for the
+    // full rationale). Deliberately this process's own pid, not left for the child to infer via its
+    // OS `ppid`: `tsx watch` is a Node-based wrapper that does not exec-replace, so the API's real
+    // ppid resolves to the `tsx watch` supervisor two hops below THIS process, and that supervisor
+    // survives even if this process dies — confirmed live (`ADS-memory/reports/analysis/
+    // 2026-08-05-symmetric-watchdog.md`): killing only this process left the API and its own spawned
+    // agent daemon fully alive and bound, unchanged, 2s later. This env var closes that gap the same
+    // way `TOVU_PARENT_PID` already closes the analogous one for the agent daemon.
+    TOVU_DEV_SUPERVISOR_PID: String(supervisorPid),
+    // Admin "Sites" switcher capability flag (2026-09-04 sites-switcher decision) — default ON for
+    // every local `npm run dev` boot, same "explicit always wins" precedence this file's other env
+    // overrides already follow: an operator's own `TOVU_ENABLE_SITE_SWITCHER` (exported in the
+    // shell, or set in `.env`) is never overridden. `apps/website/src/server/runtime/composition/
+    // site-switcher-enabled.ts` owns the flag's own default-OFF-elsewhere polarity and full
+    // rationale (Tovu-Runner/hosted never set this var, so both stay OFF without this file's help).
+    TOVU_ENABLE_SITE_SWITCHER: env.TOVU_ENABLE_SITE_SWITCHER ?? "1",
+    // Local plugin installs, on for local dev the same way — see `local-dev-plugin-install.mjs`.
+    ...localDevPluginInstallEnv(env),
+  };
+}
+
 /** Starts the admin child with the ports and scheme this stack has already checked. */
 export function startAdminVite({ apiPort, vitePort, apiScheme, extraCaCerts }, startChild = start) {
   const env = buildAdminViteEnv({ apiPort, vitePort, apiScheme });
@@ -494,31 +534,7 @@ async function main() {
       `tovu dev: Ctrl-C stops everything.\n`
   );
 
-  const apiEnv = {
-    // Makes the API's own /admin/ proxy to Vite instead of serving the built dist, so :3000/admin/
-    // and :5173/admin/ agree in dev. Scheme-matched to `scheme`: this is a browser 302 redirect
-    // (`admin-static.ts`), not a server-side fetch, but a redirect to the wrong scheme still breaks
-    // — a plain-HTTP redirect at an origin now speaking TLS-only fails the same way a browser
-    // hitting any other TLS port with a raw HTTP request would.
-    TOVU_ADMIN_DEV_PROXY_URL: `${scheme}://localhost:${VITE_PORT}`,
-    PORT: String(API_PORT),
-    // Backs `apps/website/src/index.ts`'s own parent watchdog (see that file's `startOwnParentWatchdog()` for the
-    // full rationale). Deliberately this process's own pid, not left for the child to infer via its
-    // OS `ppid`: `tsx watch` is a Node-based wrapper that does not exec-replace, so the API's real
-    // ppid resolves to the `tsx watch` supervisor two hops below THIS process, and that supervisor
-    // survives even if this process dies — confirmed live (`ADS-memory/reports/analysis/
-    // 2026-08-05-symmetric-watchdog.md`): killing only this process left the API and its own spawned
-    // agent daemon fully alive and bound, unchanged, 2s later. This env var closes that gap the same
-    // way `TOVU_PARENT_PID` already closes the analogous one for the agent daemon.
-    TOVU_DEV_SUPERVISOR_PID: String(process.pid),
-    // Admin "Sites" switcher capability flag (2026-09-04 sites-switcher decision) — default ON for
-    // every local `npm run dev` boot, same "explicit always wins" precedence this file's other env
-    // overrides already follow: an operator's own `TOVU_ENABLE_SITE_SWITCHER` (exported in the
-    // shell, or set in `.env`) is never overridden. `apps/website/src/server/runtime/composition/
-    // site-switcher-enabled.ts` owns the flag's own default-OFF-elsewhere polarity and full
-    // rationale (Tovu-Runner/hosted never set this var, so both stay OFF without this file's help).
-    TOVU_ENABLE_SITE_SWITCHER: process.env.TOVU_ENABLE_SITE_SWITCHER ?? "1",
-  };
+  const apiEnv = buildApiEnv({ scheme, apiPort: API_PORT, vitePort: VITE_PORT, supervisorPid: process.pid });
   if (extraCaCerts) apiEnv.NODE_EXTRA_CA_CERTS = extraCaCerts;
   // Per-supervisor request file (OD-S1): two `npm run dev`s on different ports never cross.
   const restartRequestFile = path.join(os.tmpdir(), `tovu-dev-restart-${process.pid}.json`);

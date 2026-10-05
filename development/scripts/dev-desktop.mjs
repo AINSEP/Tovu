@@ -85,6 +85,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { pickFreePort } from "./free-port.mjs";
 import { loadRepoRootEnvFile } from "./load-repo-root-env.mjs";
+import { localDevPluginInstallEnv } from "./local-dev-plugin-install.mjs";
 import { listenersOn } from "./port-listeners.mjs";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -599,11 +600,27 @@ async function main() {
         );
       }
     }
+    if (!shuttingDown) start("electron", deriveElectronRunArgs(process.argv.slice(2)), { env: buildElectronEnv({ adminVitePort }) });
+  }
+}
+
+/**
+ * Env for the Electron child, layered over this process's own `process.env` by `start(...)`. Electron
+ * hands its env on to the site server it spawns (`apps/desktop/src/tovu-server.ts`'s `buildCliEnv`
+ * copies `process.env`), so this is also how a flag reaches the server.
+ *
+ * @param {{adminVitePort: number | null}} required - the admin Vite port THIS launch chose, or null.
+ * @param {{env?: Readonly<Record<string, string | undefined>>}} [optional] - defaults to `process.env`.
+ * @returns {Record<string, string>}
+ */
+export function buildElectronEnv({ adminVitePort }, { env = process.env } = {}) {
+  return {
     // Electron's `admin-dev-proxy.ts` probes `TOVU_ADMIN_DEV_PORT` (default 5173) — it must look at
     // the port THIS launch chose, or the desktop would proxy into the web stack's Vite instead.
-    const electronEnv = adminVitePort === null ? undefined : { TOVU_ADMIN_DEV_PORT: String(adminVitePort) };
-    if (!shuttingDown) start("electron", deriveElectronRunArgs(process.argv.slice(2)), { env: electronEnv });
-  }
+    ...(adminVitePort === null ? {} : { TOVU_ADMIN_DEV_PORT: String(adminVitePort) }),
+    // Local plugin installs on for `npm run desktop` only — the packaged app never runs this script.
+    ...localDevPluginInstallEnv(env),
+  };
 }
 
 // Guarded like `development/scripts/dev.mjs`'s own entrypoint check: importing this module (e.g.

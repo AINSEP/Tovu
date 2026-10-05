@@ -202,8 +202,8 @@ owner's OK. Leave out the 4 test pages/forms (owner decision 2026-10-04).
 | X-04 | Uninstall the X plugin. | `plugins_uninstall` | Gone from the list | LOCAL | OK |
 | X-05 | Connect my Higgsfield account. | `agent_plugin_connect` (`agent_plugin_set_access_token` fallback) | Plugin shows connected. Its MCP tools are admitted after a daemon restart | LOCAL (OAuth with vendor) | ? |
 | X-06 | Remember for the GitHub plugin that my backup repo is `<owner>/<repo>`. | `agent_plugin_write_note` (confirm) | Note shows in the plugin's memory panel | LOCAL | OK |
-| X-07 | Install the plugin in this folder / zip (absolute path). | `plugins_install` (confirm card; needs `TOVU_PLUGIN_LOCAL_INSTALL=1`, like the admin dialog) | Plugin listed, off | LOCAL | ? |
-| X-08 | Install the skill at `https://github.com/<owner>/<repo>`. | `skills_install` (confirm card; GitHub URL only) | Skill listed, on | LOCAL (GitHub fetch) | ? |
+| X-07 | Install the plugin in this folder / zip (absolute path). | `plugins_install` (no confirm card; needs `TOVU_PLUGIN_LOCAL_INSTALL=1`, like the admin dialog — on by default under `npm run dev` / `npm run desktop`) | Plugin listed, off | LOCAL | ? |
+| X-08 | Install the skill at `https://github.com/<owner>/<repo>`. | `skills_install` (no confirm card; GitHub URL only) | Skill listed, on | LOCAL (GitHub fetch) | ? |
 
 ## 12. SEO and redirects
 
