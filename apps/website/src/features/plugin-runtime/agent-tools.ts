@@ -24,6 +24,10 @@
  *   being updated for it — a confidently wrong claim the audit confirmed is exactly what stopped
  *   `plugins_uninstall` from being built. `plugins_uninstall` (below) closes that gap; install/upload
  *   remain genuinely absent at every layer, unlike uninstall.
+ *   CORRECTED 2026-10-05: install is no longer absent. The admin folder/ZIP install routes
+ *   (`routes/plugins/install.ts`, plugin-install-plan M1a) shipped, and `plugins_install` wraps the
+ *   same installer. It lives in its own module and domain (`install-tool.ts`), not this catalog —
+ *   see the "install stays separate" reasoning below.
  * - `plugins_uninstall` mirrors the route it wires (`uninstall.ts`) exactly: same
  *   `admin.plugins.enable` permission (no new grant introduced), same two hard preconditions
  *   (`uninstallPlugin()`'s own — the plugin must be a site-installed, non-built-in record, and must

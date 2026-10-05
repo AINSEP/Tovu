@@ -159,6 +159,9 @@ const EXPECTED_ALLOWLIST = [
   "identity_user_create",
   "plugins_set_enabled",
   "plugins_uninstall",
+  // 2026-10-05 — confirmed installs: a site plugin from a local folder/ZIP, a skill from GitHub.
+  "plugins_install",
+  "skills_install",
   // 2026-09-27 — database transfer: the Copy/Cancel card and the private destination-address form
   // (`features/database-transfer`).
   "database_transfer_run",

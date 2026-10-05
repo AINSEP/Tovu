@@ -1,6 +1,7 @@
 import path from "node:path";
 import { createInterface } from "node:readline/promises";
-import { installSitePlugin, previewSitePluginInstall, PluginInstallError, type PluginInstallDeps, type PluginInstallPreview } from "#src/features/plugin-runtime/install";
+import { installSitePlugin, previewSitePluginInstall, PluginInstallError, type PluginInstallDeps } from "#src/features/plugin-runtime/install";
+import { pluginInstallConsent } from "#src/features/plugin-runtime/install-consent";
 import { bootSiteDir, closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
 import { resolveSiteRoot } from "#src/platform/site-dir/site-root";
 import { contentKernel } from "#src/platform/db/content-kernel";
@@ -20,20 +21,8 @@ async function openInstaller(required: { site: string }, _optional = {}) {
   } catch (e) { await closeSiteDirBoot(boot); throw e; }
 }
 
-export function pluginInstallConsent(required: { preview: PluginInstallPreview }, _optional = {}): string {
-  const p = required.preview;
-  return [
-    `${p.name} (${p.id}) ${p.version}`,
-    `Trust: ${p.tier} (local / unverified publisher)`,
-    `Capabilities: ${p.capabilities.join(", ") || "—"}`,
-    `Hooks: ${p.hooks.join(", ") || "—"}`,
-    ...(p.upgradeFrom ? [`Replaces installed version ${p.upgradeFrom}.`] : []),
-    // A tier-1 package has nothing to run (install.ts refuses one that ships a code file), so the
-    // full-access warning would be false; say what it does instead.
-    p.hasCode ? "This plugin runs code with full access to this computer and every site on it." : `This plugin contains no code. It adds content types: ${p.contentTypes.join(", ") || "—"}.`,
-    "It stays off in every workspace until you turn it on.", "",
-  ].join("\n");
-}
+/** Moved to the feature so the assistant's `plugins_install` dialog shows the same disclosure. */
+export { pluginInstallConsent };
 
 export async function runPluginInstallCommand(
   required: { dir: string; site?: string; replace?: boolean; yes?: boolean },

@@ -1,4 +1,5 @@
 import { toAdminPluginResponse } from "#src/server/inbound/admin-http/http/plugins";
+import { sitePluginLocalInstallEnabled } from "#src/features/plugin-runtime/install";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { PluginsRouteRegistrar } from "./deps.js";
@@ -50,7 +51,7 @@ export const registerPluginsListRoute: PluginsRouteRegistrar = (app, deps) => {
         })
       );
 
-      res.json({ plugins, installSources: process.env.TOVU_PLUGIN_LOCAL_INSTALL === "1" && deps.pluginInstaller ? ["folder", "zip"] : [] });
+      res.json({ plugins, installSources: sitePluginLocalInstallEnabled({ env: process.env }) && deps.pluginInstaller ? ["folder", "zip"] : [] });
     } catch {
       res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
     }

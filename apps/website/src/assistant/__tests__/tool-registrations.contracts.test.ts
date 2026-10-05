@@ -45,6 +45,8 @@ import { staticPublishAgentToolCatalog } from "../../features/deployments/publis
 import { entriesAgentToolCatalog } from "../../features/entries/index.js";
 import { pagesAgentToolCatalog } from "../../features/pages/agent-tools.js";
 import { pluginAgentToolCatalog } from "../../features/plugin-runtime/agent-tools.js";
+import { catalog as pluginsInstallCatalog } from "../../features/plugin-runtime/install-tool.js";
+import { catalog as skillsInstallCatalog } from "../../features/skills/install-tool.js";
 import { postAgentToolCatalog } from "../../features/post/agent-tools.js";
 import { recoveryAgentToolCatalog } from "../../features/recovery/agent-tools.js";
 import { getSettingsAgentToolCatalog } from "../../features/settings/index.js";
@@ -223,6 +225,8 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   database: getDatabaseAgentToolCatalog() as unknown as AgentToolDefinition[],
   recovery: recoveryAgentToolCatalog as unknown as AgentToolDefinition[],
   plugins: pluginAgentToolCatalog as unknown as AgentToolDefinition[],
+  "plugins-install": pluginsInstallCatalog,
+  "skills-install": skillsInstallCatalog,
   workspace: getWorkspaceAgentToolCatalog() as unknown as AgentToolDefinition[],
   settings: getSettingsAgentToolCatalog() as unknown as AgentToolDefinition[],
   "settings-ui-locales": uiLocalesAgentToolCatalog as unknown as AgentToolDefinition[],

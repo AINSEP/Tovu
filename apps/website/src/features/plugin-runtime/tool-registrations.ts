@@ -134,6 +134,7 @@ import { buildUninstallConfirmationResource, PLUGINS_UNINSTALL_TOOL_ID } from ".
 // (a separate workstream's file; not touched here, same reasoning as the `set-enabled.js` import
 // above). See that file's header for the merge.
 import { runAgentPluginUninstall } from "../agent-plugins/uninstall-tool.js";
+import type { PluginInstallerPort } from "./install.js";
 import type { OperatorLocaleDeps } from "../agent-plugins/operator-locale.js";
 
 const CATALOG_BY_ID = indexCatalogById({ catalog: pluginAgentToolCatalog });
@@ -186,6 +187,9 @@ export interface PluginsToolDeps extends OperatorLocaleDeps {
   /** 2026-10-04 — see `routes/types.ts`'s `PluginRuntimeDeps.listPluginConflicts`. */
   listPluginConflicts?: () => Promise<ReadonlyMap<string, readonly PluginConflict[]>>;
   removePlugin: RemovePluginFn;
+  /** The admin Install Plugin routes' installer; absent when the site has no plugin install dir.
+   *  Read by `install-tool.ts`'s `plugins_install`, not by this file's tools. */
+  pluginInstaller?: PluginInstallerPort;
   /** The external-MCP store slice `provisionAgentPluginMcpServers` writes into. Enabling an Agent
    *  Plugin from chat must provision its auto-admitted MCP servers exactly as the admin toggle does
    *  (`server/inbound/admin-http/routes/agent-plugins/set-enabled.ts`); these are the same fields

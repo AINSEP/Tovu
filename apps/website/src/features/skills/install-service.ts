@@ -12,38 +12,59 @@ export { SkillInputError } from "./validation.js";
 export interface ManagedSkill { readonly toolId: string; readonly name: string; readonly description: string; readonly enabled: boolean; readonly source: "uploaded" | GitHubSkillSource }
 export type SkillInstallInput = { readonly workspaceId: string } & ({ readonly githubUrl: string } | { readonly files: readonly SkillUploadFile[] } | { readonly archiveBase64: string });
 
-/** All entry points feed this service. Validate completely, then atomically publish a data-only tree.
+/** A fetched and fully validated skill package, not yet written. Holding the validated bytes (not the
+ *  source) means a human approving it approves exactly what {@link commitSkillInstall} writes. */
+export interface PreparedSkillInstall {
+  readonly toolId: string; readonly name: string; readonly description: string; readonly source: ManagedSkill["source"];
+  readonly files: ReturnType<typeof validateSkillFiles>["files"];
+}
+
+/** Fetches (GitHub) or decodes (upload/ZIP) one source and validates the whole package. Writes nothing.
  * @complexity O(total files + bytes), bounded by the package validator.
  */
-export async function installSkill(input: SkillInstallInput, options: { fetchImpl?: typeof fetch } = {}): Promise<ManagedSkill> {
+export async function prepareSkillInstall(input: SkillInstallInput, options: { fetchImpl?: typeof fetch } = {}): Promise<PreparedSkillInstall> {
   let upload: readonly SkillUploadFile[];
   let source: ManagedSkill["source"] = "uploaded";
   if ("githubUrl" in input) ({ files: upload, source } = await fetchGitHubSkill(input.githubUrl, options.fetchImpl ?? fetch));
   else if ("archiveBase64" in input) upload = await readSkillArchive(input.archiveBase64);
   else upload = input.files;
   const validated = validateSkillFiles(upload);
-  const toolId = `skill_${validated.name.replace(/-/g, "_")}`;
+  return { toolId: `skill_${validated.name.replace(/-/g, "_")}`, name: validated.name, description: validated.description, source, files: validated.files };
+}
+
+/** Atomically publishes a prepared, data-only tree; refuses a name that is already installed.
+ * @complexity O(total files + bytes) writes.
+ */
+export async function commitSkillInstall(input: { readonly workspaceId: string; readonly prepared: PreparedSkillInstall }): Promise<ManagedSkill> {
+  const { toolId, name, description, source, files } = input.prepared;
   const layout = resolveSkillLayout();
   const workspace = layout.forWorkspace(input.workspaceId).root;
   return withWorkspaceLock(input.workspaceId, async () => {
     const installed = await listManagedSkills({ workspaceId: input.workspaceId });
-    if (installed.some(s => s.toolId === toolId)) throw new SkillInputError(`Skill '${validated.name}' is already installed. Remove it before installing another version.`);
+    if (installed.some(s => s.toolId === toolId)) throw new SkillInputError(`Skill '${name}' is already installed. Remove it before installing another version.`);
     await mkdir(workspace, { recursive: true });
     const stagingRoot = path.join(layout.root, ".staging");
     await mkdir(stagingRoot, { recursive: true });
     const staging = await mkdtemp(path.join(stagingRoot, "skill-"));
     try {
-      for (const [relative, bytes] of validated.files) {
+      for (const [relative, bytes] of files) {
         const target = path.join(staging, relative);
         await mkdir(path.dirname(target), { recursive: true });
         await writeFile(target, bytes, { flag: "wx", mode: 0o600 });
       }
       await writeFile(path.join(staging, SKILL_STATE_FILE), JSON.stringify({ enabled: true, source }), { flag: "wx", mode: 0o600 });
-      await rename(staging, path.join(workspace, validated.name));
+      await rename(staging, path.join(workspace, name));
       console.info("[skills] installed", { workspaceId: input.workspaceId, toolId });
-      return { toolId, name: validated.name, description: validated.description, enabled: true, source };
+      return { toolId, name, description, enabled: true, source };
     } finally { await rm(staging, { recursive: true, force: true }); }
   });
+}
+
+/** All entry points feed this service. Validate completely, then atomically publish a data-only tree.
+ * @complexity O(total files + bytes), bounded by the package validator.
+ */
+export async function installSkill(input: SkillInstallInput, options: { fetchImpl?: typeof fetch } = {}): Promise<ManagedSkill> {
+  return commitSkillInstall({ workspaceId: input.workspaceId, prepared: await prepareSkillInstall(input, options) });
 }
 
 export async function listManagedSkills(input: { workspaceId: string }): Promise<ManagedSkill[]> {

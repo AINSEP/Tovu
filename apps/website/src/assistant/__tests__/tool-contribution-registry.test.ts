@@ -218,6 +218,9 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
     "newsletter-delivery",
     "pages",
     "plugins",
+    // 2026-10-05: confirmed installs, each its own domain beside the tools they feed.
+    "plugins-install",
+    "skills-install",
     "post",
     // 2026-10-03 (landed in 5ec1a964d): post preview rendering, own key beside `post`.
     "post-preview",

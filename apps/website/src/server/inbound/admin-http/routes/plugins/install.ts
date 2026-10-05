@@ -1,4 +1,4 @@
-import { PluginInstallError } from "#src/features/plugin-runtime/install";
+import { PluginInstallError, sitePluginLocalInstallEnabled } from "#src/features/plugin-runtime/install";
 import { MAX_PLUGIN_ARCHIVE_BYTES } from "#src/features/plugin-runtime/install-archive";
 import { raw } from "express";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
@@ -16,7 +16,7 @@ export const registerPluginInstallRoutes: PluginsRouteRegistrar = (app, deps) =>
       try {
         const principal = getAuthedPrincipal(res);
         if (!(await authorizeOrRespond(res, deps.authorize, { principalId: principal.id, permission: "admin.plugins.enable", workspaceId: deps.workspaceId }))) return;
-        if (process.env.TOVU_PLUGIN_LOCAL_INSTALL !== "1" || !deps.pluginInstaller) {
+        if (!sitePluginLocalInstallEnabled({ env: process.env }) || !deps.pluginInstaller) {
           res.status(403).json({ code: "PLUGIN_LOCAL_INSTALL_DISABLED", error: "Local folder installs are disabled on this server." }); return;
         }
         // ZIP options ride the query string; folder options are the JSON body. `!options` below is a

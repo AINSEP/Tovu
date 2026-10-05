@@ -108,6 +108,11 @@ export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
   // `mcp-ui-tool-calls-route.agent-plugins-uninstall.integration.test.ts` — deleted along with that
   // tool: both families' confirm/cancel clicks redeem through this ONE id now.
   "plugins_uninstall",
+  // 2026-10-05 — `plugins_install` (`features/plugin-runtime/install-tool.ts`) and `skills_install`
+  // (`features/skills/install-tool.ts`) hold up the same shape: each opens a `SurfaceExchangeStore`
+  // exchange and parks on the human's Install/Cancel click before writing a package to disk.
+  "plugins_install",
+  "skills_install",
   // The `/search` composer capability's real execution path (`apps/admin/src/features/plugins/
   // composer-capabilities.ts`'s `allowlisted-tool-call` binding) — a direct, immediate browser call
   // with no agent turn in between, exactly what that binding kind exists for.
