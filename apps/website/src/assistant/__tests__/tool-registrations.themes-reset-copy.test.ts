@@ -299,6 +299,32 @@ test("theme_reset_file: a theme with no stored original at all is refused, and n
   assert.equal(readFile(themesDir, "no-original", "tokens.json"), before);
 });
 
+test("theme_reset_file: a theme with no site original resets from the package's read-only catalog via packageThemesDir, byte for byte", async () => {
+  // Design C: a site whose own `__original-themes__` lacks this theme falls back to the package's
+  // catalog. The fixture's site root has NO `no-original` original, so only `packageThemesDir` can
+  // supply one; its bytes differ from the live file, and the live file must end up with them.
+  const { deps, themesDir } = fakeRouteDeps();
+  const packageThemesDir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-themes-reset-package-"));
+  const packageOriginal = path.join(packageThemesDir, THEME_CATALOG_DIR, "static", "no-original");
+  fs.mkdirSync(path.join(packageOriginal, "pages"), { recursive: true });
+  fs.writeFileSync(path.join(packageOriginal, "theme.json"), NO_ORIGINAL_MANIFEST, "utf8");
+  fs.writeFileSync(path.join(packageOriginal, "tokens.json"), '{"--package":"#abcdef"}', "utf8");
+  fs.writeFileSync(path.join(packageOriginal, "pages", "index.html"), "<html><body>x</body></html>", "utf8");
+  (deps as unknown as { packageThemesDir: string }).packageThemesDir = packageThemesDir;
+  assert.equal(fs.existsSync(path.join(themesDir, THEME_CATALOG_DIR, "static", "no-original")), false, "precondition: the site has no original of its own");
+  assert.equal(readFile(themesDir, "no-original", "tokens.json"), "{}");
+
+  const result = (await wired(deps, "theme_reset_file").handler(
+    executionContext({ themeId: "no-original", path: "tokens.json" })
+  )) as { path: string; content: string; bytesWritten: number; wasModified: boolean };
+
+  assert.equal(result.wasModified, true);
+  assert.equal(result.content, '{"--package":"#abcdef"}');
+  assert.equal(result.bytesWritten, '{"--package":"#abcdef"}'.length);
+  assert.equal(readFile(themesDir, "no-original", "tokens.json"), '{"--package":"#abcdef"}');
+  assert.equal(fs.readFileSync(path.join(packageOriginal, "tokens.json"), "utf8"), '{"--package":"#abcdef"}', "the package catalog is read-only and stays as it was");
+});
+
 test("theme_reset_file: a file the author added after install has no catalog counterpart and is refused", async () => {
   const { deps, themesDir } = fakeRouteDeps();
   const before = readFile(themesDir, "plain", "author-added.txt");
