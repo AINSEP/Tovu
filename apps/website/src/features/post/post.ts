@@ -977,6 +977,25 @@ export const MAX_TITLE_LENGTH = 200;
  * reason as {@link MAX_TITLE_LENGTH}. */
 export const MAX_SLUG_LENGTH = 120;
 
+/**
+ * Room a derived slug keeps under {@link MAX_SLUG_LENGTH} for `createPost`'s collision suffix
+ * (`-2` … `-999`, BR-02's bound): a derived slug must itself pass the rule every `updatePost`
+ * applies, or the post it names can never be saved again.
+ */
+const DERIVED_SLUG_SUFFIX_ROOM = "-999".length;
+
+/**
+ * The base `createPost` derives from a title when the caller sent no slug: {@link toSlug}, cut to
+ * leave {@link DERIVED_SLUG_SUFFIX_ROOM}, with any dash the cut leaves at the end dropped, or
+ * `"untitled"` when nothing usable remains.
+ *
+ * @complexity O(n) in the title's length.
+ */
+function deriveSlugBase(title: string): string {
+  const cut = toSlug(title).slice(0, MAX_SLUG_LENGTH - DERIVED_SLUG_SUFFIX_ROOM).replace(/-+$/, "");
+  return cut || "untitled";
+}
+
 /** Shared slug-format rule, exported so `agent-tools.ts` can publish the identical pattern rather
  * than a hand-copied regex literal that could silently drift from what `updatePost`/`createPost`
  * actually enforce. */
@@ -1248,7 +1267,7 @@ export async function createPost(
     }
     slug = explicitSlug;
   } else {
-    const base = toSlug(title) || "untitled";
+    const base = deriveSlugBase(title);
     slug = base;
     let suffix = 1;
     while (await deps.repo.findBySlug({ workspaceId: input.workspaceId, slug })) {
@@ -1336,11 +1355,14 @@ function validateUpdatePostInput(
   const slug = input.slug.trim().toLowerCase();
 
   if (!title) throw new PostValidationError("title is required");
-  assertTitleWithinLimit(title);
+  // An UNCHANGED title or slug is not re-validated: a row stored before these bounds existed (or a
+  // slug derived before `deriveSlugBase` bounded it) would otherwise refuse every unrelated edit —
+  // a body-only save, and in the Page editor the HTML save that follows its metadata write.
+  if (title !== existing.title) assertTitleWithinLimit(title);
   // `existing.kind` is immutable (PostKind's own doc: "Fixed at creation; v1 has no post<->page
   // conversion path"), so the row's real kind — not any caller-supplied value, `UpdatePostInput`
   // carries none — is what gates the same root-slug exception `resolveExplicitSlug` applies on create.
-  assertValidExplicitSlug(slug, existing.kind);
+  if (slug !== existing.slug) assertValidExplicitSlug(slug, existing.kind);
   // Required for a `"doc"` row, meaningless for an `"html"` one. A bespoke-HTML Page has no Tiptap
   // document at all, so demanding one here would make its title, slug and status permanently
   // un-editable — the only way to change them is this function, and the caller has no Tiptap body
