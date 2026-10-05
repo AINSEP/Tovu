@@ -34,6 +34,7 @@ import {
   noopStampWatermark,
   renameTerm,
   toTaxonomyOutbox,
+  type RenameTermRequired,
   type WriteServiceDeps as TaxonomyWriteServiceDeps,
 } from "@jini-ai/cms/taxonomy";
 
@@ -186,7 +187,7 @@ test("taxonomy chokepoint: createTaxonomy through toTaxonomyOutbox persists work
     taxonomies: new InMemoryTaxonomyRepo(),
     terms: new InMemoryTermRepo(),
     entryTerms: new InMemoryEntryTermRepo(),
-    revisions: new InMemoryTaxonomyRevisionRepo({}),
+    revisions: new InMemoryTaxonomyRevisionRepo(),
     stampWatermark: noopStampWatermark,
     outbox: toTaxonomyOutbox({ outbox, clock: CLOCK, idGen: ids, workspaceId }),
     workspaceId,
@@ -235,7 +236,7 @@ test("taxonomy chokepoint: createTerm through toTaxonomyOutbox persists workspac
     taxonomies,
     terms: new InMemoryTermRepo(),
     entryTerms: new InMemoryEntryTermRepo(),
-    revisions: new InMemoryTaxonomyRevisionRepo({}),
+    revisions: new InMemoryTaxonomyRevisionRepo(),
     stampWatermark: noopStampWatermark,
     outbox: toTaxonomyOutbox({ outbox, clock: CLOCK, idGen: ids, workspaceId }),
     workspaceId,
@@ -264,7 +265,7 @@ test("taxonomy chokepoint: renameTerm through toTaxonomyOutbox persists workspac
   const terms = new InMemoryTermRepo();
   await terms.insert({ id: "term-seed-1", taxonomyId: "tax-seed-1", parentId: null, name: "Old name", status: "active", updatedAt: CLOCK.nowIso(), version: 1 });
 
-  const deps: TaxonomyWriteServiceDeps = {
+  const deps: RenameTermRequired["deps"] = {
     // This success-path fixture uses memory repositories; rollback behavior has separate contracts.
     transaction: async <T>({ fn }: { fn: () => Promise<T> }): Promise<T> => fn(),
     authorize: ALWAYS_ALLOW,
@@ -273,7 +274,7 @@ test("taxonomy chokepoint: renameTerm through toTaxonomyOutbox persists workspac
     taxonomies: new InMemoryTaxonomyRepo(),
     terms,
     entryTerms: new InMemoryEntryTermRepo(),
-    revisions: new InMemoryTaxonomyRevisionRepo({}),
+    revisions: new InMemoryTaxonomyRevisionRepo(),
     stampWatermark: noopStampWatermark,
     outbox: toTaxonomyOutbox({ outbox, clock: CLOCK, idGen: ids, workspaceId }),
     workspaceId,
@@ -315,7 +316,7 @@ test("taxonomy chokepoint: assignTerms through toTaxonomyOutbox persists workspa
     taxonomies: new InMemoryTaxonomyRepo(),
     terms,
     entryTerms: new InMemoryEntryTermRepo(),
-    revisions: new InMemoryTaxonomyRevisionRepo({}),
+    revisions: new InMemoryTaxonomyRevisionRepo(),
     stampWatermark: noopStampWatermark,
     outbox: toTaxonomyOutbox({ outbox, clock: CLOCK, idGen: ids, workspaceId }),
     workspaceId,

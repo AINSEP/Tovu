@@ -5,6 +5,8 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
+import express from "express";
+
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { exportSite } from "#src/features/site-export/index";
 
@@ -32,7 +34,7 @@ for (const basePath of ["/my-repo", ""]) {
       return new Response(html, { status: url.pathname.includes("tovu-export-404-check") ? 404 : 200, headers: { "content-type": "text/html" } });
     });
     const deps = createRouteDeps();
-    deps.createSiteApp = () => (_req, res) => res.end();
+    deps.createSiteApp = () => express().use((_req, res) => { res.end(); });
     const report = await exportSite({ routeDeps: deps, outputDir, basePath });
     assert.deepEqual(report.routes.failed, []);
     assert.deepEqual(report.assets.failed, []);

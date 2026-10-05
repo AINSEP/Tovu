@@ -76,7 +76,7 @@ test("tovu serve <dir>: the API and the daemon it spawns resolve the SAME chat-a
   pinServedSiteDirIntoEnv(TARGET, apiEnv);
   const apiDirectory = withProcessEnv(apiEnv, resolveChatAttachmentUploadDirectory);
 
-  const childEnv = { ...apiEnv, ...buildDaemonSpawnEnvOverrides({ workspaceId: "ws-1", siteDir: TARGET }) };
+  const childEnv = { ...apiEnv, ...buildDaemonSpawnEnvOverrides({ workspaceId: "ws-1", siteDir: TARGET, daemonPortOverride: undefined }) };
   const daemonDirectory = withProcessEnv(childEnv, resolveChatAttachmentUploadDirectory);
 
   assert.equal(
@@ -91,7 +91,7 @@ test("the pinned value is what the daemon child inherits — buildDaemonSpawnEnv
   const apiEnv = bareServeEnv();
   pinServedSiteDirIntoEnv(TARGET, apiEnv);
 
-  const overrides = withProcessEnv(apiEnv, () => buildDaemonSpawnEnvOverrides({ workspaceId: "ws-1", siteDir: TARGET }));
+  const overrides = withProcessEnv(apiEnv, () => buildDaemonSpawnEnvOverrides({ workspaceId: "ws-1", siteDir: TARGET, daemonPortOverride: undefined }));
   assert.equal(overrides.TOVU_SITE_DIR, undefined, "the parent already carries it, so the child override is a no-op");
   assert.equal({ ...apiEnv, ...overrides }.TOVU_SITE_DIR, TARGET);
 });
@@ -107,7 +107,7 @@ test("the pinned value is what the daemon child inherits — buildDaemonSpawnEnv
 test("tovu serve <dir>: the daemon reconstructs a NON-switchable binding, matching the API's own refusal", () => {
   const apiEnv = bareServeEnv();
   pinServedSiteDirIntoEnv(TARGET, apiEnv);
-  const childEnv = { ...apiEnv, ...buildDaemonSpawnEnvOverrides({ workspaceId: "ws-1", siteDir: TARGET }) };
+  const childEnv = { ...apiEnv, ...buildDaemonSpawnEnvOverrides({ workspaceId: "ws-1", siteDir: TARGET, daemonPortOverride: undefined }) };
 
   const daemonBinding = describeSiteBinding({ env: childEnv, cwd: process.cwd() });
   assert.equal(daemonBinding.dir, TARGET);
@@ -121,9 +121,13 @@ test("tovu serve <dir>: the daemon reconstructs a NON-switchable binding, matchi
 test("tovu serve <dir>: the sites agent-tool deps built from the daemon's own binding are non-switchable", () => {
   const apiEnv = bareServeEnv();
   pinServedSiteDirIntoEnv(TARGET, apiEnv);
-  const childEnv = { ...apiEnv, ...buildDaemonSpawnEnvOverrides({ workspaceId: "ws-1", siteDir: TARGET }) };
+  const childEnv = { ...apiEnv, ...buildDaemonSpawnEnvOverrides({ workspaceId: "ws-1", siteDir: TARGET, daemonPortOverride: undefined }) };
 
-  const resolved = resolveSitesDeps({ siteBinding: describeSiteBinding({ env: childEnv, cwd: process.cwd() }) });
+  const resolved = resolveSitesDeps({
+    workspaceId: "ws-1",
+    authorize: async () => ({ allowed: true, reason: "test" }),
+    siteBinding: describeSiteBinding({ env: childEnv, cwd: process.cwd() }),
+  });
   assert.equal(resolved.switcherCompatible, false, "this is the flag sites_duplicate_site's handler refuses on");
 });
 

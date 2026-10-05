@@ -178,7 +178,7 @@ test("buildConfirmOnlyHooks's computePlan throws a tripwire error if gateway.ts 
     scopeId: "ws-1",
   });
 
-  await assert.rejects(() => hooks.computePlan(), {
+  await assert.rejects(() => hooks.computePlan({}), {
     message: "computePlan is not invoked by gateway.ts's confirm() — this hooks object is confirm-only",
   });
 });
@@ -191,7 +191,7 @@ test("buildConfirmOnlyHooks's executeMutation throws a tripwire error if gateway
     scopeId: "ws-1",
   });
 
-  await assert.rejects(() => hooks.executeMutation(), {
+  await assert.rejects(() => hooks.executeMutation({ planHash: "plan-hash", details: null }), {
     message: "executeMutation is not invoked by gateway.ts's confirm() — this hooks object is confirm-only",
   });
 });

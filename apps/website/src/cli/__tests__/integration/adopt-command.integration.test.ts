@@ -192,9 +192,10 @@ test("the whole point: a marker-less but working site directory is REFUSED by se
     assert.equal(res.status, 200, "the adopted directory must actually serve its public site, not merely pass validation");
   } finally {
     if (child) {
+      const running = child;
       await new Promise<void>((resolve) => {
-        child.on("exit", () => resolve());
-        child.kill("SIGTERM");
+        running.on("exit", () => resolve());
+        running.kill("SIGTERM");
       });
     }
     // The served site's background writers can outlive the child's `exit` — see the helper.
@@ -239,7 +240,7 @@ test("--dry-run prints the exact stamp it would write and writes NOTHING", () =>
     assert.notEqual(target.idx, newest.idx, "fixture must be behind runtime");
     const sqlite = new Database(path.join(dir, "content.db"));
     sqlite.prepare("DELETE FROM __drizzle_migrations WHERE created_at >= ?").run(newest.when);
-    assert.equal(sqlite.prepare("SELECT MAX(created_at) AS applied FROM __drizzle_migrations").get().applied, target.when);
+    assert.equal(sqlite.prepare<[], { applied: number }>("SELECT MAX(created_at) AS applied FROM __drizzle_migrations").get()?.applied, target.when);
     sqlite.close();
     const treeBefore = treeIgnoringSqliteSidecars(dir);
     const result = runCli(["adopt", dir, "--dry-run"]);

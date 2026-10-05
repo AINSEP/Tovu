@@ -13,7 +13,7 @@ test('the serving owner receives the complete event after an enqueue-only daemon
   const inner = new InMemoryOutbox();
   const view = toEnqueueOnlyOutbox(inner);
   const bus = new InMemoryEventBus();
-  const delivered: DomainEvent[] = [];
+  const delivered: DomainEvent<unknown>[] = [];
   await bus.subscribe({ eventName: 'entry.updated', handler: async (event) => { delivered.push(event); } });
   await view.enqueue({
     id: 'event-42', name: 'entry.updated', occurredAt: '2026-10-01T00:00:00.000Z', workspaceId: 'workspace-a',

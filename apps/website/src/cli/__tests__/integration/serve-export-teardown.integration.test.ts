@@ -32,7 +32,7 @@ mock.module(new URL("../../../server/runtime/composition/serving-app.ts", import
         const witness = { name, stopped: false };
         workerStops.push(witness);
         mock.method(worker, "stop", async () => {
-          await stop();
+          await stop({});
           witness.stopped = true;
         });
       }
