@@ -14,9 +14,10 @@ import { bootSite, expectJson, send, SITE_DIALECTS, type BootedSite } from "../h
  * public URL (and, per SPEC-009 REQ-15, leaving a 301 behind), the `kind` guard and the
  * `expectedVersion` compare-and-set over SQLite/Postgres, and delete → Trash → 404.
  *
- * The slug-change test asserts the INTENDED behavior: `deps.ts` binds `RedirectSlugChangeCapture`
- * into the routing slot (`registerSlugChangeCapture`), but no code calls `getSlugChangeCapture()`, so
- * `updatePost` never captures. Expected to fail until the content write chokepoint is wired.
+ * The slug-change (301) and reserved-rename tests were drafted against then-missing behavior;
+ * 2bc2c50fb wired `updatePost` to the routing slot's `getSlugChangeCapture()` and gave update
+ * create's reserved-slug rule, so both are now expected to pass. Their executed counterparts live in
+ * `slug-change-redirect-real-composition.integration.test.ts`.
  */
 
 function doc(text: string): Record<string, unknown> {
@@ -154,8 +155,7 @@ for (const dialect of SITE_DIALECTS) {
       error: "slug 'admin' is reserved",
       code: "VALIDATION_ERROR",
     });
-    // Intended parity with create (BR-03 step 3). `validateUpdatePostInput` checks format only, so
-    // a rename onto a reserved word is expected to fail here until update applies the same rule.
+    // Parity with create (BR-03 step 3): update applies create's reserved-slug rule since 2bc2c50fb.
     const page = await createPage(site, { title: "Unrun Rename", slug: "unrun-rename" });
     assert.deepEqual(await expectJson(await putPage(site, page, { slug: "admin" }), 400), {
       error: "slug 'admin' is reserved",
