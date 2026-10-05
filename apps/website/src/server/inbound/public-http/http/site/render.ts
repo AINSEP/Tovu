@@ -2380,7 +2380,10 @@ function renderContactFormField(f: JsonValue): string {
   const errorId = `widget-contact-${id}-error`;
   const inputEl = renderContactFormInput(kind, id, required, `${extraAttrs} toolparamtitle="${label}" toolparamdescription="${label}"`, ` aria-describedby="${errorId}"`, o.maxLength);
   const errorSlot = `<div class="widget-form-field-error" data-field="${id}" id="${errorId}" hidden></div>`;
-  return `<div class="widget-form-field"><label for="widget-contact-${id}">${label}${required ? " *" : ""}</label>${inputEl}${errorSlot}</div>`;
+  // The checkbox modifier lets the baseline put the box before its label on one line (owner report
+  // 2026-10-05: stacked and stretched like a text input, its glyph drew centred under the label).
+  const fieldClass = kind === "checkbox" ? "widget-form-field widget-form-field-checkbox" : "widget-form-field";
+  return `<div class="${fieldClass}"><label for="widget-contact-${id}">${label}${required ? " *" : ""}</label>${inputEl}${errorSlot}</div>`;
 }
 
 const DEFAULT_CONTACT_FORM_SUCCESS_MESSAGE = "Thanks — your message has been sent.";

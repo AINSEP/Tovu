@@ -50,3 +50,33 @@ test("contact form fallback error and success colors apply in both modes without
     await browser.close();
   }
 });
+
+// Owner report 2026-10-05 (/healthy-futures): a Builder checkbox stacked under its label, centred in
+// the column, because the baseline treated it like a text input. It must sit at the left, on the
+// label's line, with no theme CSS at all, in Builder and HTML mode alike.
+test("checkbox fields render inline before their label with only the emitted stylesheet", async () => {
+  const builder = renderWidgetIr({ componentId: "contact-form", props: {
+    slug: "builder", fields: [{ id: "email", label: "Email", type: "email" }, { id: "updates", label: "Send me updates", type: "checkbox" }],
+  } });
+  const html = renderWidgetIr({ componentId: "contact-form", props: {
+    slug: "authored", mode: "html", fields: [], html: '<label>Email <input type="email" name="email"></label><label><input type="checkbox" name="updates"> Send me updates</label>',
+  } });
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+    for (const [name, markup, labelSelector] of [["builder", builder, "label[for=widget-contact-updates]"], ["html", html, "label:has(input[type=checkbox])"]] as const) {
+      await page.setContent(`<body style="width:600px">${markup}</body>`);
+      const box = await page.locator('form input[type="checkbox"]').boundingBox();
+      const label = await page.locator(labelSelector).boundingBox();
+      const form = await page.locator("form").boundingBox();
+      assert.ok(box && label && form);
+      // A stretched checkbox box draws its glyph centred, so the box must also stay glyph-sized.
+      assert.ok(box.width <= 24, `${name}: checkbox is not stretched across the column (width ${box.width})`);
+      assert.ok(box.x - form.x <= 4, `${name}: checkbox starts at the form's left edge (offset ${box.x - form.x})`);
+      assert.ok(Math.abs((box.y + box.height / 2) - (label.y + label.height / 2)) < 6, `${name}: checkbox shares the label's line`);
+      if (name === "builder") assert.ok(label.x > box.x, "builder: the label text follows the box");
+    }
+  } finally {
+    await browser.close();
+  }
+});

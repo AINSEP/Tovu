@@ -107,6 +107,12 @@ export const FORM_BASELINE_STYLE =
   ":where(.widget-form-field input),:where(.widget-form-field textarea){font:inherit;padding:8px 10px;" +
   "border:1px solid var(--border,#d1d5db);border-radius:6px;background:var(--surface,#fff);color:inherit;}" +
   ":where(.widget-form-field textarea){min-height:100px;resize:vertical;}" +
+  // Builder checkbox: box first, on the label's line, glyph-sized (must follow the input rule above,
+  // equal zero specificity); a revealed field error wraps onto its own line below.
+  ":where(.widget-form-field-checkbox){flex-direction:row;flex-wrap:wrap;align-items:center;gap:8px;}" +
+  ":where(.widget-form-field-checkbox input){order:-1;margin:0;padding:0;}" +
+  ":where(.widget-form-field-checkbox label){font-weight:400;}" +
+  ":where(.widget-form-field-checkbox .widget-form-field-error){flex-basis:100%;}" +
   ":where(.widget-form-field-error){color:var(--danger,var(--tovu-form-danger-fallback));font-size:0.85rem;font-weight:700;}" +
   `:where(.${FORM_CLASS} button[type=submit]){align-self:flex-start;padding:8px 16px;` +
   "border:1px solid transparent;border-radius:6px;background:var(--accent,#111827);" +

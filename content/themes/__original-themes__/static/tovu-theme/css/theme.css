@@ -705,8 +705,9 @@ div:where(.tovu-form .widget-form-field:not([hidden])) { display: flex; flex-dir
 /* HTML mode wraps each control in its `<label>`; stack the text above the control like Builder does. */
 :where([data-tovu-form]) label:where(:not([hidden])) { display: flex; flex-direction: column; gap: 8px; }
 :where([data-tovu-form]) label:where(:has(> input[type="checkbox"], > input[type="radio"])) { flex-direction: row; align-items: center; gap: 10px; }
-/* Builder renders a checkbox after its label; put the box first, on the label's line. */
-div:where(.tovu-form .widget-form-field:has(> input[type="checkbox"])) { flex-direction: row-reverse; justify-content: flex-end; align-items: center; gap: 10px; }
+/* Builder renders a checkbox after its label; the baseline moves the box first (`order`), and this
+   restores the row the column rule above would otherwise override. */
+div:where(.tovu-form .widget-form-field-checkbox) { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 10px; }
 :where(.tovu-form) :is(input, textarea, select):where(:not([type="checkbox"], [type="radio"], [type="hidden"], [type="submit"], [type="button"], [type="reset"])) {
   box-sizing: border-box; width: 100%; min-height: 42px; padding: 10px 14px;
   border: 1px solid var(--border-strong); border-radius: 10px;
