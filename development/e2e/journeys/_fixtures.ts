@@ -58,6 +58,29 @@ export async function fetchPublic(request: APIRequestContext, pathname: string):
   return { status: res.status(), html: await res.text(), contentType: res.headers()["content-type"] ?? "" };
 }
 
+/**
+ * Fixed rows for posts-list screenshot baselines. Every journey shares one memory DB, so the real
+ * list holds whatever random `uniq(...)` posts earlier journeys left behind, and its "Updated"
+ * column is an ordinary formatted cell (not a `<time>`), so masking `time` never hid it. A baseline
+ * must compare UI, not leftover data: the list GET is answered with these rows (fixed titles,
+ * slugs and `updatedAt`), and writes still reach the real server.
+ */
+const BASELINE_POSTS = [
+  { id: "baseline-post-1", title: "Baseline published post", slug: "baseline-published-post", status: "published" as const, updatedAt: "2026-01-15T09:30:00.000Z" },
+  { id: "baseline-post-2", title: "Baseline draft post", slug: "baseline-draft-post", status: "draft" as const, updatedAt: "2026-01-14T16:05:00.000Z" },
+];
+
+/** Answers `GET .../posts` with {@link BASELINE_POSTS} (the real `{ posts: [{ post }] }` envelope shape). */
+export async function stubPostsListForBaseline(page: Page): Promise<void> {
+  const posts = BASELINE_POSTS.map((row) => ({
+    post: { ...row, workspaceId: WS, kind: "post", bodyJson: { type: "doc", content: [] }, version: 1 },
+  }));
+  await page.route(
+    (url) => url.pathname === `${WS_API}/posts`,
+    (route) => (route.request().method() === "GET" ? route.fulfill({ json: { posts } }) : route.fallback()),
+  );
+}
+
 /** True when the document is wider than the viewport, i.e. the page scrolls sideways. */
 export async function hasHorizontalScroll(page: Page): Promise<boolean> {
   return page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);

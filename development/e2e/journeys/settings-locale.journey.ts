@@ -1,7 +1,7 @@
 // @unrun: authored 2026-10-04 by an agent, NEVER EXECUTED; selectors and flows unverified.
 import type { Page } from "@playwright/test";
 
-import { WS_API, expect, hasHorizontalScroll, test } from "./_fixtures.js";
+import { WS_API, expect, hasHorizontalScroll, stubPostsListForBaseline, test } from "./_fixtures.js";
 
 /**
  * Settings, locale and layout journeys (SCOPE.md W8 slice + the 2026-10-04 stress list): long
@@ -72,8 +72,10 @@ for (const { locale, overview, longLabel } of [
     }
     await page.goto("/admin/settings?tab=language");
     await expect(page).toHaveScreenshot(`settings-language-${locale}.png`);
+    await stubPostsListForBaseline(page);
     await page.goto("/admin/posts");
-    await expect(page).toHaveScreenshot(`posts-list-${locale}.png`, { mask: [page.locator("time, [data-relative-time]")] });
+    await expect(page.getByRole("link", { name: "Baseline draft post", exact: true })).toBeVisible();
+    await expect(page).toHaveScreenshot(`posts-list-${locale}.png`);
   });
 }
 
@@ -129,9 +131,11 @@ test.describe("phone width (390 px)", () => {
   });
 
   test("phone-width baselines for the busiest screens", { tag: ["@unrun"] }, async ({ page }) => {
+    await stubPostsListForBaseline(page);
     await page.goto("/admin/posts");
     await expect(page.getByRole("button", { name: "New Post" })).toBeVisible();
-    await expect(page).toHaveScreenshot("phone-posts-list.png", { mask: [page.locator("time, [data-relative-time]")] });
+    await expect(page.getByRole("link", { name: "Baseline draft post", exact: true })).toBeVisible();
+    await expect(page).toHaveScreenshot("phone-posts-list.png");
     await page.getByRole("button", { name: "New Post" }).click();
     await expect(page.getByRole("textbox", { name: "Post title" })).toBeVisible();
     expect(await hasHorizontalScroll(page)).toBe(false);

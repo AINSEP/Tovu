@@ -2,7 +2,7 @@
 import type { Page } from "@playwright/test";
 
 import { attemptLoginAsAdmin } from "../auth-fixtures.js";
-import { API, JOURNEY_ADMIN_PASSWORD, JOURNEY_ADMIN_USER, PUBLIC_URL, WS_API, expect, fetchPublic, test, uniq, uniqSlug } from "./_fixtures.js";
+import { API, JOURNEY_ADMIN_PASSWORD, JOURNEY_ADMIN_USER, PUBLIC_URL, WS_API, expect, fetchPublic, stubPostsListForBaseline, test, uniq, uniqSlug } from "./_fixtures.js";
 
 /**
  * Posts journeys (SCOPE.md W2) plus the stress cases from the 2026-10-04 ideas report: two-tab
@@ -79,9 +79,11 @@ test.describe("W2 post lifecycle", () => {
   });
 
   test("posts list and editor baselines", { tag: ["@unrun"] }, async ({ page }) => {
+    await stubPostsListForBaseline(page);
     await page.goto("/admin/posts");
     await expect(page.getByRole("button", { name: "New Post" })).toBeVisible();
-    await expect(page).toHaveScreenshot("posts-list.png", { mask: [page.locator("time, [data-relative-time]")] });
+    await expect(page.getByRole("link", { name: "Baseline draft post", exact: true })).toBeVisible();
+    await expect(page).toHaveScreenshot("posts-list.png");
     await newPost(page);
     await expect(titleInput(page)).toBeVisible();
     await expect(page).toHaveScreenshot("post-editor-empty.png", { mask: [page.getByLabel("URL slug")] });
@@ -269,12 +271,17 @@ test.describe("session expiry mid-edit", () => {
 });
 
 test.describe.serial("Content analysis card (AW-7 Tier 2)", () => {
-  test("with the analyzer off, the card says so instead of showing stale numbers", { tag: ["@unrun"] }, async ({ page }) => {
+  test("with the analyzer off, the editor shows no Content analysis card", { tag: ["@unrun"] }, async ({ page }) => {
+    // `ContentAnalysisCard` returns null unless the plugin list says the analyzer is enabled, so
+    // "off" means no card and no Analyze now button (the server's refusal is only reachable from a
+    // card that was already open when the plugin went off — `plugins.journey.ts` covers that).
+    // Wait for the plugin list first: before it arrives the card is hidden too.
+    const pluginList = page.waitForResponse((r) => r.request().method() === "GET" && new URL(r.url()).pathname === `${WS_API}/plugins` && r.ok());
     await newPost(page);
-    const card = page.locator("section.content-analysis");
-    await expect(card.getByRole("heading", { name: "Content analysis" })).toBeVisible();
-    await page.getByRole("button", { name: "Analyze now" }).click();
-    await expect(card).toContainText(/The Content Analyzer plugin is not (enabled|installed)\./);
+    await pluginList;
+    await expect(titleInput(page)).toBeVisible();
+    await expect(page.locator("section.content-analysis")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Analyze now" })).toHaveCount(0);
   });
 
   test("enabled from Plugins, a saved post shows score, words, TOC and checks; Analyze now covers unsaved edits", { tag: ["@unrun"] }, async ({ page }) => {

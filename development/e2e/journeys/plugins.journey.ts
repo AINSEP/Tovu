@@ -172,7 +172,7 @@ test.describe.serial("AW-7 Tier 1: Testimonials + FAQ, code-free", () => {
 });
 
 test.describe.serial("AW-7 Tier 2: Content Analyzer", () => {
-  test("enable, Analyze now on an unsaved draft, then disable and the card says it is off again", { tag: ["@unrun"] }, async ({ page, request }) => {
+  test("enable, Analyze now on an unsaved draft; disabled under an open card, Analyze now is refused; reopened, the card is gone", { tag: ["@unrun"] }, async ({ page, request, context }) => {
     await page.goto("/admin/plugins?tab=downloaded");
     await page.getByRole("button", { name: "Enable Content Analyzer" }).click();
     await page.goto("/admin/plugins?tab=installed");
@@ -195,12 +195,26 @@ test.describe.serial("AW-7 Tier 2: Content Analyzer", () => {
     await expect(card).toContainText("out of 100");
     expect(analyzeCalls, "a double click on Analyze now sends one analysis").toBe(1);
 
-    await page.goto("/admin/plugins?tab=installed");
-    await page.getByRole("button", { name: "Disable Content Analyzer" }).click();
-    await expect.poll(async () => (await pluginState(request, "content-analyzer"))?.enabled ?? false).toBe(false);
-    await page.goto(editorUrl);
+    // Disable from a second tab so this editor's card stays mounted: `ContentAnalysisCard` returns
+    // null once its plugin list says the analyzer is off, and that list is only re-read on mount
+    // (`useFetchQuery`, no focus refetch). The open card is the one place the server's refusal shows.
+    const plugins = await context.newPage();
+    await plugins.goto("/admin/plugins?tab=installed");
+    await plugins.getByRole("button", { name: "Disable Content Analyzer" }).click();
+    await expect.poll(async () => (await pluginState(request, "content-analyzer"))?.enabled ?? true).toBe(false);
+    await plugins.close();
+
     await page.getByRole("button", { name: "Analyze now" }).click();
-    await expect(card).toContainText(/The Content Analyzer plugin is not (enabled|installed)\./);
-    await expect(card, "no stale score once the plugin is off").not.toContainText("out of 100");
+    // `previewPluginRoute` answers 409 PLUGIN_NOT_ENABLED; `describeAnalysisError` words it.
+    await expect(card).toContainText("The Content Analyzer plugin is not enabled.");
+
+    // Reopened, the editor reads the plugin list fresh and renders no card at all. Wait for that
+    // list first: before it arrives the card is hidden too, which would make this pass vacuously.
+    const pluginList = page.waitForResponse((r) => r.request().method() === "GET" && new URL(r.url()).pathname === `${WS_API}/plugins` && r.ok());
+    await page.goto(editorUrl);
+    await pluginList;
+    await expect(page.getByRole("textbox", { name: "Post title" })).toBeVisible();
+    await expect(card).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Analyze now" })).toHaveCount(0);
   });
 });
