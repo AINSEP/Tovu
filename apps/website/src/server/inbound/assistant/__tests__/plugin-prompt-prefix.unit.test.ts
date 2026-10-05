@@ -6,6 +6,7 @@ import test, { type TestContext } from "node:test";
 
 import { createInMemoryEventLog, createRunLifecycle } from "@jini-ai/daemon";
 
+import { resolveAgentPluginLayout } from "../../../../features/agent-plugins/layout.js";
 import { assemblePromptWithPluginPrefix, resolveAgentPluginPromptPrefix } from "../plugin-prompt-prefix.js";
 
 /**
@@ -87,14 +88,17 @@ test("resolveAgentPluginPromptPrefix resolves to an empty prefix and never touch
 test("resolveAgentPluginPromptPrefix resolves an isolated installed ui-ux-design SKILL.md and the daemon's own prepend puts it before the base prompt", async (t) => {
   const { lifecycle, run } = await newRealLifecycleWithRun();
 
-  const root = await isolatedPluginRoot(t);
-  const packageDir = path.join(root, "ws", WORKSPACE_ID, "packages", "sha256", "a".repeat(64));
+  await isolatedPluginRoot(t);
+  // Paths come from the product layout so the fixture installs where the resolver reads
+  // (Layout B moved packages to <workspace>/<pluginId>/package/sha256 in 852d711e6).
+  const workspaceLayout = resolveAgentPluginLayout().forWorkspace(WORKSPACE_ID);
+  const packageDir = path.join(workspaceLayout.pluginPackagesDir({ pluginId: PLUGIN_ID }), "a".repeat(64));
   const skillDir = path.join(packageDir, "skills", PLUGIN_ID);
   await mkdir(skillDir, { recursive: true });
   await writeFile(path.join(packageDir, "plugin.json"), JSON.stringify({
     $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: PLUGIN_ID, version: "1.0.0",
   }));
-  await writeFile(path.join(root, "ws", WORKSPACE_ID, "activations.json"), JSON.stringify({
+  await writeFile(path.join(workspaceLayout.root, "activations.json"), JSON.stringify({
     schemaVersion: 1, plugins: { [PLUGIN_ID]: { enabled: true, origin: "operator-installed", updatedAt: "2026-10-03T00:00:00.000Z", updatedBy: "fixture" } },
   }));
   const skillPath = path.join(skillDir, "SKILL.md");
