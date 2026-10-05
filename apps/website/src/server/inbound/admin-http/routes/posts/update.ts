@@ -64,8 +64,11 @@ function sendPostUpdateError(res: Response, err: unknown): void {
     res.status(409).json({ error: err.message, code: "DUPLICATE_COMMAND", changeSetId: err.changeSetId });
     return;
   }
+  // `code` added 2026-10-05, matching POST /posts and PUT /pages: this was the one post/page write
+  // whose validation 400 a client could only tell apart by parsing the message. Additive — `error`
+  // is unchanged. The slug-uniqueness 409 and the 404 below stay code-less (see the 409 note).
   if (err instanceof PostValidationError) {
-    res.status(400).json({ error: err.message });
+    res.status(400).json({ error: err.message, code: "VALIDATION_ERROR" });
     return;
   }
   // BEFORE the `PostConflictError` branch below, because `PostVersionConflictError` extends it and

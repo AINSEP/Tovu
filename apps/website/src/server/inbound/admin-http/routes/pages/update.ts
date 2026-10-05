@@ -90,11 +90,12 @@ function sendPageUpdateError(res: Response, err: unknown): void {
  * silently updating a post via the pages surface.
  *
  * Error `code` (disclosed deviation from `posts/update.ts`, its mirror-source):
- * `posts/update.ts` handles `PostValidationError`/`PostConflictError`/
- * `PostNotFoundError` as message-only (POST_UPDATE is a *modified*, legacy
- * endpoint — errors.spec.md §1 lets those keep `{error}` only). `PAGE_UPDATE`
- * is a *new* endpoint, so this route adds the required `code` on those same
- * three branches: `VALIDATION_ERROR`, `SLUG_CONFLICT`, `ENTRY_NOT_FOUND`.
+ * `posts/update.ts` handles `PostConflictError`/`PostNotFoundError` as
+ * message-only (POST_UPDATE is a *modified*, legacy endpoint — errors.spec.md
+ * §1 lets those keep `{error}` only); its `PostValidationError` branch has sent
+ * `VALIDATION_ERROR` too since 2026-10-05. `PAGE_UPDATE` is a *new* endpoint, so
+ * this route adds the required `code` on all three branches: `VALIDATION_ERROR`,
+ * `SLUG_CONFLICT`, `ENTRY_NOT_FOUND`.
  *
  * Optimistic concurrency (2026-09-07, fable bugs audit C02) — this route forwards an optional
  * `expectedVersion` into `updatePost`, and maps the resulting conflict, exactly as

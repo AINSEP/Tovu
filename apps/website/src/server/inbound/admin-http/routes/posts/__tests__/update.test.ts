@@ -167,8 +167,9 @@ test("PUT posts/:postId 400 PostValidationError for a blank title", async (t) =>
     body: JSON.stringify({ title: "   ", slug: "has-a-title", bodyJson: VALID_BODY_JSON, status: "draft" }),
   });
   assert.equal(res.status, 400);
-  const body = (await res.json()) as { error: string };
-  assert.match(body.error, /title is required/);
+  // The exact envelope: `code` matches POST /posts and PUT /pages, so a client branches on one
+  // machine-readable value for "your input was rejected" across every post/page write.
+  assert.deepEqual(await res.json(), { error: "title is required", code: "VALIDATION_ERROR" });
 });
 
 test("PUT posts/:postId 400 PostValidationError when 'title' is omitted from the body entirely (not just blank) — parsePostUpdateBody's own `body.title ?? \"\"` default", async (t) => {
@@ -530,7 +531,7 @@ for (const [label, value] of [
       expectedVersion: value,
     });
     assert.equal(res.status, 400, JSON.stringify(res.body));
-    assert.equal(res.body.error, "'expectedVersion' must be a non-negative integer when present");
+    assert.deepEqual(res.body, { error: "'expectedVersion' must be a non-negative integer when present", code: "VALIDATION_ERROR" });
 
     // The whole point of the 400: a malformed basis must not be quietly treated as "no basis sent"
     // and written through anyway.
