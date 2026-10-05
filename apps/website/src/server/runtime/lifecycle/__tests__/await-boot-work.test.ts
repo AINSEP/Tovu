@@ -76,3 +76,12 @@ test("a boot pass that never settles is abandoned after the bound, and logged", 
   assert.ok(Date.now() - startedAt >= 15, "the wait lasted roughly the bound");
   assert.deepEqual(logged, ["[shutdown] boot work did not settle within 20 ms; closing the store anyway"]);
 });
+
+test("without a log port the abandoned pass is reported on stderr", async (t) => {
+  const errors: unknown[] = [];
+  t.mock.method(console, "error", (message: unknown) => errors.push(message));
+
+  await awaitBootWorkWithinBound({ work: [new Promise<void>(() => {})] }, { timeoutMs: 5 });
+
+  assert.deepEqual(errors, ["[shutdown] boot work did not settle within 5 ms; closing the store anyway"]);
+});
