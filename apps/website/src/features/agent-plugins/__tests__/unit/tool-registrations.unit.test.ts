@@ -4,7 +4,7 @@ import { agentPluginActivations } from "../../activation-effects.js";
 const { setAgentPluginActivation } = agentPluginActivations;
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdtemp, realpath, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -199,15 +199,18 @@ test("each installed plugin produces exactly one stable, collision-free tool id 
   });
 });
 
-test("registerInstalledAgentPluginTools loads and registers one tool per plugin directly onto a real ToolRegistry, the same registration call agent-daemon-server.ts makes for every other domain", async () => {
+test("registerInstalledAgentPluginTools registers one guidance tool plus its scoped memory read/write pair per plugin directly onto a real ToolRegistry, the same registration call agent-daemon-server.ts makes for every other domain", async () => {
   await withAgentPluginsDir(async () => {
     await installRealPackage(WORKSPACE_A, "coffee-roastery", { "coffee-roastery": "# Coffee Roastery\n" }, "archive-direct");
 
     const registry = createToolRegistry({});
     await registerInstalledAgentPluginTools(registry, { workspaceId: WORKSPACE_A });
 
-    assert.equal(registry.has({ toolId: "agent_plugin_coffee_roastery" }), true);
-    assert.equal(registry.list({}).length, 1);
+    // Layout B (852d711e6) gives every plugin its own learned-memory read/write tools beside the
+    // guidance tool (`memory-tools.ts`), each closed over that one plugin.
+    assert.deepEqual(registry.list({}).map((d) => d.id).sort(), [
+      "agent_plugin_coffee_roastery", "agent_plugin_coffee_roastery__memory_read", "agent_plugin_coffee_roastery__memory_write",
+    ]);
   });
 });
 
@@ -371,9 +374,12 @@ test("SECURITY: no absolute host path appears in any registered tool's id, descr
     );
 
     // Sanity: the install really did land under the unpredictable temp dir this test created, and
-    // that dir is a real absolute path — otherwise this test would vacuously pass.
+    // that dir is a real absolute path — otherwise this test would vacuously pass. Layout B picks the
+    // package destination through `assertContainedOnDisk`, which resolves the root with `realpath`
+    // (macOS: /var -> /private/var), so compare against the canonical dir.
+    const canonicalDir = await realpath(agentPluginsDir);
     assert.ok(path.isAbsolute(agentPluginsDir));
-    assert.ok(installed.packageRoot.startsWith(agentPluginsDir));
+    assert.ok(installed.packageRoot.startsWith(canonicalDir));
 
     const sources = await loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE_A });
     const registrations = buildAgentPluginToolRegistrations(sources, gate());
