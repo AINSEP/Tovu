@@ -178,6 +178,7 @@ Re-audited against code/git 2026-10-04 (evening): statuses below marked **PARTLY
 - **kUInetic auto-upgrade vs pin** (L3519): owner reconfirmed `kuinetic@0` + local fallback, exact pin reverted — `5abcd90ba`. jsDelivr caches `@0` for a week, so freshness is not immediate.
 - **Stray public branch `codex/test-rigor-w01-postwave-20261001`** (L3726): gone from origin (`git ls-remote` 10-04).
 - **Plugin install from a local folder / .zip** — `fb6189fa6`, `2e42797c1`. **Raw-HTML mode for forms, menus, categories/tags** — `5e9f338f6`, `c6d54038e`. **Media `createdBy`** — `c321cd0ca` (adapter dropped `9b2923fee`).
+- **F3144: site members cannot use admin features** (owner decision 10-04, "for now"): sign-up writes a `kind: "member"` principal; Jini `authorize()` denies that kind every permission through one rule, `principalKindMayExercisePermission` (relax it there later); the admin credential gate refuses a member principal; owner counts skip it. Real test replaces the regex invariant — `c83018710` + Jini `a7cbd4d1`. **Owed:** `@jini-ai/user-management` release (registry installs and Fly builds lack the kind bar until then).
 - **Site-key rename jobs 1–2** — `d68afd264`, `86f65486d`, `0cabc9ddd`, `e446b7380`, `7aa95394d`, `5a49a92fd`; rest under Security.
 
 ---
