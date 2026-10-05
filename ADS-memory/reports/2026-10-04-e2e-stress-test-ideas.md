@@ -39,10 +39,10 @@ Owner directive 2026-10-04: author journeys, never run them. Every journey liste
 | W11 / W12 | Seeded public routes 200 + phone width; every `ADMIN_PANELS` route loads | authored | smoke |
 | W5 | Theme activate -> public home reflects it -> revert; double-click Activate = 1 PATCH | authored | themes |
 | W8 | Users: create editor -> log in as editor -> server 403 on users; restricted nav (asserts INTENDED; likely fails); disabled user refused | authored | users |
-| W9 | Real tool call through a layer-2 fake model creates a Post row | NOT authored: no reusable fake-model helper exists (only the inline Gemini deputy in `byok-google-tool-schema.spec.ts`); needs `development/e2e/harness/fake-model-server.ts` (scripted SSE turn queue + request capture) and a BYOK provider configured in globalSetup | - |
+| W9 | Real tool call through a layer-2 fake model creates a Post row; invalid tool input refused with no row; double-click Send = one turn | authored (helper `harness/fake-model-server.ts`; BYOK set per test via API, not globalSetup) | assistant-tool-call |
 | W10 | Public site-chat smoke on the shared harness | NOT authored (existing `site-assistant-*` cover it) | - |
 | D1-D3 | Desktop: sites home smoke, add/create site, site webview guest (`.desktop.ts`, H2 config `playwright.desktop-journeys.config.ts`) | authored | desktop/smoke, add-site, site-webview |
-| D4-D7 | Desktop: guest assistant reply via CDP Fetch stub; lifecycle (power, rename, remove, locate); zoom + window bounds persist; two instances side by side | NOT authored (agent rotated at context cap; see handoff 2026-10-04-e2e-unrun-part3-handoff.md) | - |
+| D4-D7 | Desktop: no host chat FAB + guest assistant reply via CDP Fetch stub; lifecycle (power, rename, remove, locate); zoom + window bounds persist; two instances side by side | authored (D4 narrowed: app-level chat not built) | desktop/global-chat, site-lifecycle, settings, multi-instance |
 
 ### Further stress ideas, not yet authored
 - Trash: restore an item whose slug was reused meanwhile (post, menu, form); purge while another tab has it open.
