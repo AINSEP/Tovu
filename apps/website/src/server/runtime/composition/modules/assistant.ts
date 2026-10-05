@@ -67,7 +67,7 @@ import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/adm
 import { registerAdminChatAttachmentReadRoute } from "#src/server/inbound/admin-http/routes/assistant/get-chat-attachment";
 import { resolveChatAttachmentUploadDirectory } from "#src/server/inbound/assistant/chat-attachment-directory";
 import type { RouteDeps } from "#src/server/routes/types";
-import { getAgentDaemonUrl, forwardToAgentDaemon, respondIfDaemonKnownFailed } from "./assistant-daemon-client.js";
+import { daemonFetch, getAgentDaemonUrl, forwardToAgentDaemon, respondIfDaemonKnownFailed, type DaemonCallOptions } from "./assistant-daemon-client.js";
 import type { ServerModuleHandle } from "./types.js";
 
 /** Streams `upstream`'s response back onto `res` as it arrives — required for the SSE run-events
@@ -121,7 +121,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
  * principal into `contextRef` so the daemon (no cookie of its own) can answer `resolveDelegatedPrincipal`
  * for this run later, and can record who owns it. Every other route is a transparent pass-through
  * — they carry the same principal in a header instead, since they have no body to stamp. */
-async function proxyRunStart(req: Request, res: Response): Promise<void> {
+async function proxyRunStart(req: Request, res: Response, daemon: DaemonCallOptions): Promise<void> {
   const principal = getAuthedPrincipal(res);
   const body = (req.body ?? {}) as { contextRef?: unknown; agentId?: unknown; idempotencyKey?: unknown };
 
@@ -136,13 +136,13 @@ async function proxyRunStart(req: Request, res: Response): Promise<void> {
   const upstream = await forwardToAgentDaemon(req, res, {
     ...body,
     contextRef: JSON.stringify({ ...decoded, principalId: principal.id }),
-  });
+  }, daemon);
   if (!upstream) return;
   await relayResponse(upstream, req, res);
 }
 
-async function proxyPassthrough(req: Request, res: Response): Promise<void> {
-  const upstream = await forwardToAgentDaemon(req, res, req.method === "GET" || req.method === "HEAD" ? undefined : req.body);
+async function proxyPassthrough(req: Request, res: Response, daemon: DaemonCallOptions): Promise<void> {
+  const upstream = await forwardToAgentDaemon(req, res, req.method === "GET" || req.method === "HEAD" ? undefined : req.body, daemon);
   if (!upstream) return;
   await relayResponse(upstream, req, res);
 }
@@ -209,7 +209,7 @@ async function enrichAgentWithLiveModels(agent: AgentSummary, routeDeps: RouteDe
 }
 
 async function respondWithEnrichedAgentList(req: Request, res: Response, routeDeps: RouteDeps): Promise<void> {
-  const upstream = await forwardToAgentDaemon(req, res, req.method === "GET" || req.method === "HEAD" ? undefined : req.body);
+  const upstream = await forwardToAgentDaemon(req, res, req.method === "GET" || req.method === "HEAD" ? undefined : req.body, { observability: routeDeps.observability });
   if (!upstream) return;
 
   const rawText = await upstream.text();
@@ -307,7 +307,7 @@ function tryLocalMcpUiDelivery(
  * same way whichever store would have held it. A `binding-mismatch` is final (the exchange is here,
  * just not this caller's, or not an A2UI one); only `unknown-or-closed` falls through to the daemon.
  */
-async function proxyA2uiAction(req: Request, res: Response, byokSurfaceExchanges: SurfaceExchangeStore): Promise<void> {
+async function proxyA2uiAction(req: Request, res: Response, byokSurfaceExchanges: SurfaceExchangeStore, daemon: DaemonCallOptions): Promise<void> {
   const action = readA2uiAction(req.body);
   if (!action.ok) {
     res.status(400).json(action.error);
@@ -323,10 +323,10 @@ async function proxyA2uiAction(req: Request, res: Response, byokSurfaceExchanges
     res.status(409).json(a2uiNotPendingBody(delivered.reason));
     return;
   }
-  await proxyPassthrough(req, res);
+  await proxyPassthrough(req, res, daemon);
 }
 
-async function proxyMcpUiToolCall(req: Request, res: Response, byokSurfaceExchanges: SurfaceExchangeStore): Promise<void> {
+async function proxyMcpUiToolCall(req: Request, res: Response, byokSurfaceExchanges: SurfaceExchangeStore, daemon: DaemonCallOptions): Promise<void> {
   const body = (req.body ?? {}) as { toolName?: unknown; params?: unknown; exchangeId?: unknown };
   const toolName = body.toolName;
   if (typeof toolName !== "string" || toolName.length === 0) {
@@ -363,7 +363,7 @@ async function proxyMcpUiToolCall(req: Request, res: Response, byokSurfaceExchan
   // for itself. Without the two lines below this route fetches the daemon's answer and then never
   // writes to `res`, so the fall-through above hangs the browser until it times out and the MCP-UI
   // confirmation dialog never resolves.
-  const upstream = await forwardToAgentDaemon(req, res, req.body);
+  const upstream = await forwardToAgentDaemon(req, res, req.body, daemon);
   if (!upstream) return;
   await relayResponse(upstream, req, res);
 }
@@ -399,7 +399,7 @@ async function proxyMcpUiToolCall(req: Request, res: Response, byokSurfaceExchan
  * function still attaches (proves the call came from Tovu's own proxy, not an arbitrary local
  * process) — see `daemon-auth.ts`.
  */
-async function forwardAttachmentUpload(req: Request, res: Response): Promise<void> {
+async function forwardAttachmentUpload(req: Request, res: Response, daemon: DaemonCallOptions): Promise<void> {
   if (respondIfDaemonKnownFailed(res)) return;
   const target = `${getAgentDaemonUrl()}${req.originalUrl}`;
   const headers: Record<string, string> = {
@@ -413,7 +413,7 @@ async function forwardAttachmentUpload(req: Request, res: Response): Promise<voi
 
   let upstream: globalThis.Response;
   try {
-    upstream = await fetch(target, {
+    upstream = await daemonFetch(daemon)(target, {
       method: "POST",
       headers,
       // `req` is a Node `Readable` (an `IncomingMessage`), which Node's `fetch` accepts directly as
@@ -438,12 +438,14 @@ async function forwardAttachmentUpload(req: Request, res: Response): Promise<voi
  * every confirmation would 404/409 against an exchange this store never opened.
  */
 export function createAssistantModule(routeDeps: RouteDeps, byokSurfaceExchanges: SurfaceExchangeStore): ServerModuleHandle {
+  // Every proxied daemon call is an outbound span under the admin request that caused it.
+  const daemon: DaemonCallOptions = { observability: routeDeps.observability };
   return {
     name: "assistant",
     registerRoutes: (app: Express) => {
       app.use("/api/runs", requireAdminSession(routeDeps));
       app.post("/api/runs", (req: Request, res: Response, next: NextFunction) => {
-        proxyRunStart(req, res).catch(next);
+        proxyRunStart(req, res, daemon).catch(next);
       });
       // `@jini-ai/http-kit`'s `registerRunRoutes` mounts `GET /api/runs` (list runs, optionally
       // filtered by `?contextRef=`) on the daemon alongside the `:runId` routes. It was missing
@@ -451,10 +453,10 @@ export function createAssistantModule(routeDeps: RouteDeps, byokSurfaceExchanges
       // Registered ahead of `GET /api/runs/:runId` to keep the exact-path match unambiguous.
       // The daemon answers it with the caller's own runs only — http-kit's version lists every
       // run on the box, which would hand one admin the ids of every other admin's runs.
-      app.get("/api/runs", (req, res, next) => proxyPassthrough(req, res).catch(next));
-      app.get("/api/runs/:runId", (req, res, next) => proxyPassthrough(req, res).catch(next));
-      app.get("/api/runs/:runId/events", (req, res, next) => proxyPassthrough(req, res).catch(next));
-      app.post("/api/runs/:runId/cancel", (req, res, next) => proxyPassthrough(req, res).catch(next));
+      app.get("/api/runs", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
+      app.get("/api/runs/:runId", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
+      app.get("/api/runs/:runId/events", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
+      app.post("/api/runs/:runId/cancel", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
 
       app.use("/api/agents", requireAdminSession(routeDeps));
       app.get("/api/agents", (req, res, next) => respondWithEnrichedAgentList(req, res, routeDeps).catch(next));
@@ -490,8 +492,8 @@ export function createAssistantModule(routeDeps: RouteDeps, byokSurfaceExchanges
       // error the former browser-side catalog source treated as "nothing to add", falling back
       // to the bundled composer catalog rather than breaking it.
       app.use("/api/tools", requireAdminSession(routeDeps));
-      app.get("/api/tools/search", (req, res, next) => proxyPassthrough(req, res).catch(next));
-      app.get("/api/tools/:id", (req, res, next) => proxyPassthrough(req, res).catch(next));
+      app.get("/api/tools/search", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
+      app.get("/api/tools/:id", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
 
       // Agent-driven control of the admin's own tab (`page.navigate`, `page.scroll_to`, …). The
       // stream carries invocations down to the browser and the response route carries answers
@@ -504,9 +506,9 @@ export function createAssistantModule(routeDeps: RouteDeps, byokSurfaceExchanges
       // `/api/runs/:runId/events`, and buffering it would mean the tab never receives an
       // invocation until the connection closed.
       app.use("/api/frontend-sessions", requireAdminSession(routeDeps));
-      app.get("/api/frontend-sessions/stream", (req, res, next) => proxyPassthrough(req, res).catch(next));
+      app.get("/api/frontend-sessions/stream", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
       app.post("/api/frontend-sessions/:sessionId/responses", (req, res, next) =>
-        proxyPassthrough(req, res).catch(next),
+        proxyPassthrough(req, res, daemon).catch(next),
       );
 
       // Composer image/file uploads (`@jini-ai/chat/react`'s `uploadAttachments` prop,
@@ -518,9 +520,9 @@ export function createAssistantModule(routeDeps: RouteDeps, byokSurfaceExchanges
       // the ordinary `proxyPassthrough` JSON path is correct for it unchanged.
       app.use("/api/attachments", requireAdminSession(routeDeps));
       app.post("/api/attachments", (req: Request, res: Response, next: NextFunction) => {
-        forwardAttachmentUpload(req, res).catch(next);
+        forwardAttachmentUpload(req, res, daemon).catch(next);
       });
-      app.delete("/api/attachments", (req, res, next) => proxyPassthrough(req, res).catch(next));
+      app.delete("/api/attachments", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
 
       // Reading a staged attachment's bytes BACK — the half `@jini-ai/http-kit`'s route pack never
       // had, so until now bytes could be uploaded and never fetched again and the admin's preview
@@ -549,7 +551,7 @@ export function createAssistantModule(routeDeps: RouteDeps, byokSurfaceExchanges
       // this file's header) and whose trust boundary this endpoint does not reuse or widen.
       app.use(MCP_UI_TOOL_CALLS_PATH, requireAdminSession(routeDeps));
       app.post(MCP_UI_TOOL_CALLS_PATH, (req: Request, res: Response, next: NextFunction) => {
-        proxyMcpUiToolCall(req, res, byokSurfaceExchanges).catch(next);
+        proxyMcpUiToolCall(req, res, byokSurfaceExchanges, daemon).catch(next);
       });
 
       // A2UI's own inbound endpoint (`a2ui-actions-route.ts`) — BYOK store first, then the daemon;
@@ -557,7 +559,7 @@ export function createAssistantModule(routeDeps: RouteDeps, byokSurfaceExchanges
       // daemon-side route has none either — A2UI has no execution surface to allowlist).
       app.use(A2UI_ACTIONS_PATH, requireAdminSession(routeDeps));
       app.post(A2UI_ACTIONS_PATH, (req: Request, res: Response, next: NextFunction) => {
-        proxyA2uiAction(req, res, byokSurfaceExchanges).catch(next);
+        proxyA2uiAction(req, res, byokSurfaceExchanges, daemon).catch(next);
       });
     },
   };

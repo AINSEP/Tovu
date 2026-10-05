@@ -67,6 +67,7 @@ import {
 import { formatCustomInstructionsOverlay, resolveCustomInstructions } from "#src/assistant/custom-instructions";
 import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
+import type { AgentRunStatus } from "#src/platform/observability/index";
 import { registerInstalledExtensionTools } from "../installed-extension-tools.js";
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
 import type { ServerModuleHandle } from "./types.js";
@@ -228,6 +229,22 @@ function resolveMessages(raw: unknown): ByokChatMessage[] {
  * @complexity O(1) — one `resolveCustomInstructions` read (itself O(1)) plus a trim/length check.
  * @overallScore 100
  */
+/**
+ * How a BYOK turn ended, for its agent-run span. An abort (the browser went away) is `canceled`
+ * whatever else happened; a throw is `failed` with that error. Provider adapters report their own
+ * failures (an HTTP error, a blocked prompt, a bad baseUrl) as an `error` event and still resolve, so
+ * a turn that resolved after reporting one is `failed` too: resolving alone is not success.
+ * @complexity O(1), pure.
+ */
+export function byokTurnOutcome(
+  { aborted, reportedError }: { aborted: boolean; reportedError: boolean },
+  { thrown }: { thrown?: { error: unknown } } = {},
+): { status: AgentRunStatus; error?: unknown } {
+  if (aborted) return { status: "canceled" };
+  if (thrown) return { status: "failed", error: thrown.error };
+  return { status: reportedError ? "failed" : "succeeded" };
+}
+
 async function resolveByokSystemPrompt(
   routeDeps: RouteDeps,
   federation: { readonly refusalPrefix: string; readonly stillConnecting: boolean },
@@ -456,9 +473,13 @@ export function createAssistantByokModule(
       return resolvedToolSurface.executeMetaTool(principal, run, call, abort.signal, emitSurface);
     };
 
+    // One agent-run span per turn (its own trace root); the turn runs inside it, so its tool calls'
+    // DB and outbound spans nest under the run rather than the long-lived request.
+    const runTracker = routeDeps.observability.trackAgentRun({ runId: run.id }, { agentName: credential.protocol });
+    let reportedError = false;
     let result: ByokProviderTurnResult;
     try {
-      result = await runByokProviderTurn({
+      result = await runTracker.run(() => runByokProviderTurn({
         protocol: credential.protocol,
         apiKey: credential.apiKey,
         ...(credential.baseUrl ? { baseUrl: credential.baseUrl } : {}),
@@ -478,15 +499,20 @@ export function createAssistantByokModule(
         // (`assistant-transport.ts`), which is what actually calls `handlers.onError` rather than
         // rendering an unrecognized `ext` event. Everything else rides `agent` unchanged, reusing
         // `translateRunAgentPayload`'s existing switch on the client with zero new cases.
-        onEvent: (event: ByokTurnEvent) => sse(res, event.type === "error" ? "error" : "agent", event),
-      });
+        onEvent: (event: ByokTurnEvent) => {
+          if (event.type === "error") reportedError = true;
+          sse(res, event.type === "error" ? "error" : "agent", event);
+        },
+      }));
     } catch (error) {
+      runTracker.end(byokTurnOutcome({ aborted: abort.signal.aborted, reportedError }, { thrown: { error } }));
       sse(res, "error", { type: "error", message: error instanceof Error ? error.message : String(error) });
       sse(res, "end", { reason: "error" });
       res.end();
       return;
     }
 
+    runTracker.end(byokTurnOutcome({ aborted: abort.signal.aborted, reportedError }));
     sse(res, "end", { reason: result.stopReason ?? "stop" });
     res.end();
   }

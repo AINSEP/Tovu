@@ -4,11 +4,14 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import type { AddressInfo } from "node:net";
 import test from "node:test";
 
+import { SpanKind, SpanStatusCode } from "@opentelemetry/api";
 import express from "express";
 
 import { AGENT_DAEMON_TOKEN_ENV_VAR, RUN_PRINCIPAL_HEADER } from "../../assistant/index.js";
 import { clearAssistantDaemonFailure, recordAssistantDaemonFailure } from "../runtime/lifecycle/readiness-state.js";
 import type { RouteDeps } from "../routes/types.js";
+import type { ObservabilityPort } from "../../platform/observability/index.js";
+import { assertSpanOmits, createInMemoryOtel } from "../../platform/observability/__tests__/fixtures/in-memory-otel.js";
 import { startTestServer, loginAsOwner } from "./helpers/http-test-server.js";
 
 /**
@@ -231,7 +234,7 @@ function parseAgUiResponseBody(text: string): Array<{ type: string; [key: string
     .map((frame) => JSON.parse(frame.replace(/^data:\s*/, "")) as { type: string; [key: string]: unknown });
 }
 
-let harnessPromise: Promise<{ buildApp: () => express.Express; daemon: Server }> | null = null;
+let harnessPromise: Promise<{ buildApp: (observability?: ObservabilityPort) => express.Express; daemon: Server }> | null = null;
 function harness() {
   harnessPromise ??= (async () => {
     const { origin, server } = await startStandInDaemon();
@@ -244,8 +247,9 @@ function harness() {
 
     return {
       daemon: server,
-      buildApp: () => {
+      buildApp: (observability?: ObservabilityPort) => {
         const deps: RouteDeps = createRouteDeps();
+        if (observability) deps.observability = observability;
         const app = express();
         app.use(express.json());
         registerAuthRoutes(app, deps);
@@ -261,12 +265,12 @@ function harness() {
   return harnessPromise;
 }
 
-async function bootAgUi(t: import("node:test").TestContext) {
+async function bootAgUi(t: import("node:test").TestContext, observability?: ObservabilityPort) {
   const { buildApp } = await harness();
   recorded = [];
   startRunBehavior = "ok";
   eventsBehavior = "normal";
-  const baseUrl = await startTestServer(buildApp(), t);
+  const baseUrl = await startTestServer(buildApp(observability), t);
   const cookie = await loginAsOwner(baseUrl);
   const me = (await (await fetch(`${baseUrl}/api/admin/v1/auth/me`, { headers: { cookie } })).json()) as { user: { id: string } };
   expectedPrincipalId = me.user.id;
@@ -821,4 +825,127 @@ test("a normal successful run never calls the daemon's /cancel endpoint", async 
 
   const cancelCall = await waitForRecordedCancelCall("daemon-run-1", 300);
   assert.equal(cancelCall, undefined, "a normal completion must not also fire a redundant cancel call");
+});
+
+// --- Spans: one root agent-run span per daemon run (ended once, with how the run ended), plus a
+// CLIENT span per loopback daemon call — none exporting the daemon token, run path or prompt.
+
+/** Polls for the run's `invoke_agent` span: the route ends it after the response, or on "close". */
+async function agentRunSpan(exporter: ReturnType<typeof createInMemoryOtel>["exporter"]) {
+  const find = () => exporter.getFinishedSpans().find((span) => span.name.startsWith("invoke_agent"));
+  for (let waited = 0; !find() && waited < 2_000; waited += 10) await new Promise((r) => setTimeout(r, 10));
+  const span = find();
+  assert.ok(span, `no agent-run span; finished: ${JSON.stringify(exporter.getFinishedSpans().map((s) => s.name))}`);
+  return span;
+}
+
+function postAgUiRun(baseUrl: string, cookie: string, init: { signal?: AbortSignal } = {}) {
+  return fetch(`${baseUrl}/api/admin/v1/assistant/ag-ui-run`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ threadId: "thread-otel", messages: [{ role: "user", content: "private prompt words" }], forwardedProps: { agentId: "writer" } }),
+    ...init,
+  });
+}
+
+test("spans: a completed run is one root invoke_agent span (succeeded) plus a CLIENT span per daemon call", async (t) => {
+  const { exporter, port } = createInMemoryOtel();
+  const { baseUrl, cookie } = await bootAgUi(t, port);
+
+  await (await postAgUiRun(baseUrl, cookie)).text();
+
+  const run = await agentRunSpan(exporter);
+  assert.equal(run.name, "invoke_agent writer");
+  assert.equal(run.kind, SpanKind.INTERNAL);
+  assert.equal(run.parentSpanContext, undefined, "a run is its own trace root");
+  assert.equal(run.attributes["agent.run.id"], "daemon-run-1");
+  assert.equal(run.attributes["gen_ai.conversation.id"], "thread-otel");
+  assert.equal(run.attributes["agent.run.status"], "succeeded");
+  assert.equal(run.status.code, SpanStatusCode.UNSET);
+  assertSpanOmits(run, [TOKEN, "private prompt words"]);
+
+  const calls = exporter.getFinishedSpans().filter((span) => span.kind === SpanKind.CLIENT);
+  assert.deepEqual(calls.map((span) => span.name), ["POST 127.0.0.1", "GET 127.0.0.1"]);
+  for (const call of calls) {
+    assert.equal(call.attributes["http.response.status_code"], 200);
+    assertSpanOmits(call, [TOKEN, "daemon-run-1", "/api/runs", "private prompt words", expectedPrincipalId]);
+  }
+});
+
+test("spans: a daemon 'error' frame ends the run span as failed", async (t) => {
+  const { exporter, port } = createInMemoryOtel();
+  const { baseUrl, cookie } = await bootAgUi(t, port);
+  eventsBehavior = "error-frame-no-message";
+
+  await (await postAgUiRun(baseUrl, cookie)).text();
+
+  const run = await agentRunSpan(exporter);
+  assert.equal(run.attributes["agent.run.status"], "failed");
+  assert.equal(run.status.code, SpanStatusCode.ERROR);
+});
+
+test("spans: a stream read error ends the run span as failed, with the error's type", async (t) => {
+  const { exporter, port } = createInMemoryOtel();
+  const { baseUrl, cookie } = await bootAgUi(t, port);
+  eventsBehavior = "socket-reset-mid-stream";
+
+  await (await postAgUiRun(baseUrl, cookie)).text();
+
+  const run = await agentRunSpan(exporter);
+  assert.equal(run.attributes["agent.run.status"], "failed");
+  assert.equal(run.status.code, SpanStatusCode.ERROR);
+  assert.notEqual(run.attributes["error.type"], "failed", "the read error's own type, not the bare status");
+});
+
+test("spans: a subscribe failure ends the run span as failed, not canceled", async (t) => {
+  const { exporter, port } = createInMemoryOtel();
+  const { baseUrl, cookie } = await bootAgUi(t, port);
+  eventsBehavior = "http-failure";
+
+  assert.equal((await postAgUiRun(baseUrl, cookie)).status, 502);
+
+  const run = await agentRunSpan(exporter);
+  assert.equal(run.attributes["agent.run.status"], "failed");
+  const subscribe = exporter.getFinishedSpans().find((span) => span.name === "GET 127.0.0.1");
+  assert.equal(subscribe?.attributes["http.response.status_code"], 500);
+  assert.equal(subscribe?.status.code, SpanStatusCode.ERROR);
+});
+
+test("spans: Stop mid-run ends the run span as canceled, and the cancel call is traced too", async (t) => {
+  const { exporter, port } = createInMemoryOtel();
+  const { baseUrl, cookie } = await bootAgUi(t, port);
+  eventsBehavior = "stays-open-until-aborted";
+  const controller = new AbortController();
+
+  const reader = (await postAgUiRun(baseUrl, cookie, { signal: controller.signal })).body!.getReader();
+  await reader.read();
+  controller.abort();
+  await reader.cancel().catch(() => undefined);
+
+  const run = await agentRunSpan(exporter);
+  assert.equal(run.attributes["agent.run.status"], "canceled");
+  assert.equal(run.status.code, SpanStatusCode.UNSET, "a canceled run is not a failure");
+  assert.ok(await waitForRecordedCancelCall("daemon-run-1"));
+  for (let waited = 0; exporter.getFinishedSpans().filter((s) => s.name === "POST 127.0.0.1").length < 2 && waited < 2_000; waited += 10) await new Promise((r) => setTimeout(r, 10));
+  assert.equal(exporter.getFinishedSpans().filter((s) => s.name === "POST 127.0.0.1").length, 2, "run start + cancel");
+});
+
+test("spans: an abort before the daemon run existed still ends its span as canceled once it does", { timeout: 5_000 }, async (t) => {
+  const { exporter, port } = createInMemoryOtel();
+  const { baseUrl, cookie } = await bootAgUi(t, port);
+  startRunBehavior = "delayed-ok";
+  startGate = requestGate();
+  clientCloseGate = requestGate();
+  t.after(() => startGate?.release());
+  const controller = new AbortController();
+
+  const fetchPromise = postAgUiRun(baseUrl, cookie, { signal: controller.signal });
+  await startGate.arrived;
+  controller.abort();
+  await assert.rejects(fetchPromise);
+  await clientCloseGate.arrived;
+  startGate.release();
+
+  const run = await agentRunSpan(exporter);
+  assert.equal(run.attributes["agent.run.status"], "canceled");
 });

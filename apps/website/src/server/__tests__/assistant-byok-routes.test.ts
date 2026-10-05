@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
+
+import { SpanKind, SpanStatusCode } from "@opentelemetry/api";
 import express from "express";
 import { createContributionRegistry } from "@jini-ai/core";
 
@@ -20,6 +24,7 @@ import { INSTRUCTIONS_NAMESPACE } from "../../features/settings/index.js";
 import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.js";
 import { startStubProviderServer, type StubProviderReply, type StubProviderRequest } from "./helpers/stub-provider-server.js";
 import type { RouteDeps } from "../routes/types.js";
+import { assertSpanOmits, createInMemoryOtel } from "../../platform/observability/__tests__/fixtures/in-memory-otel.js";
 
 /**
  * @file Route-level coverage for `POST /api/admin/v1/assistant/byok-turn` (`modules/assistant-byok.ts`)
@@ -1063,4 +1068,79 @@ test(`${BYOK_TURN_PATH}: an UNREDEEMED confirmation resolves via its own bounded
   assert.ok(endFrame, "expected a terminal end frame — the turn completed, it did not hang");
 
   assert.ok(await trashRowFor(deps, postId), "nothing was deleted — the confirmation never arrived");
+});
+
+// --- Spans: one root agent-run span per BYOK turn, named for the protocol, ended with how the turn
+// ended — never exporting the API key or the conversation.
+
+/** Boots the BYOK route with an in-memory OTel port injected as `RouteDeps.observability`. */
+async function bootTraced(t: import("node:test").TestContext) {
+  const { exporter, port } = createInMemoryOtel();
+  const deps = createRouteDeps();
+  deps.observability = port;
+  const { baseUrl } = await bootAuthenticated(createApp(deps), t);
+  const cookie = await loginWithPermissions(deps, baseUrl, ["workspace.manage"]);
+  const agentRunSpan = async () => {
+    const find = () => exporter.getFinishedSpans().find((span) => span.name.startsWith("invoke_agent"));
+    for (let waited = 0; !find() && waited < 2_000; waited += 10) await new Promise((r) => setTimeout(r, 10));
+    const span = find();
+    assert.ok(span, "expected one agent-run span");
+    return span;
+  };
+  return { baseUrl, cookie, agentRunSpan };
+}
+
+test(`${BYOK_TURN_PATH} spans: a completed turn is one root invoke_agent span named for the protocol, succeeded`, async (t) => {
+  const { baseUrl, cookie, agentRunSpan } = await bootTraced(t);
+  const providerUrl = await stubProvider(t, () => sseBody(messageStart(), textBlock(0, "Hi."), messageDelta("end_turn"), messageStop()));
+
+  await (await postByokTurn(baseUrl, cookie, { ...BYOK_BODY, byok: { ...BYOK_BODY.byok, baseUrl: providerUrl } })).text();
+
+  const run = await agentRunSpan();
+  assert.equal(run.name, "invoke_agent anthropic");
+  assert.equal(run.kind, SpanKind.INTERNAL);
+  assert.equal(run.parentSpanContext, undefined, "a turn is its own trace root");
+  assert.equal(run.attributes["agent.run.status"], "succeeded");
+  assert.equal(typeof run.attributes["agent.run.id"], "string");
+  assert.equal(run.status.code, SpanStatusCode.UNSET);
+  assertSpanOmits(run, [BYOK_BODY.byok.apiKey, "What is this workspace called"]);
+});
+
+test(`${BYOK_TURN_PATH} spans: a provider failure ends the turn's span as failed with an ERROR status`, async (t) => {
+  const { baseUrl, cookie, agentRunSpan } = await bootTraced(t);
+  const providerUrl = await stubProvider(t, () => ({ status: 401, body: JSON.stringify({ error: { message: "invalid x-api-key" } }) }));
+
+  await (await postByokTurn(baseUrl, cookie, { ...BYOK_BODY, byok: { ...BYOK_BODY.byok, baseUrl: providerUrl } })).text();
+
+  const run = await agentRunSpan();
+  assert.equal(run.attributes["agent.run.status"], "failed");
+  assert.equal(run.status.code, SpanStatusCode.ERROR);
+  assertSpanOmits(run, [BYOK_BODY.byok.apiKey, "invalid x-api-key"]);
+});
+
+test(`${BYOK_TURN_PATH} spans: the browser disconnecting mid-turn ends the span as canceled, not failed`, async (t) => {
+  const { baseUrl, cookie, agentRunSpan } = await bootTraced(t);
+  let arrived!: () => void;
+  const providerCalled = new Promise<void>((resolve) => { arrived = resolve; });
+  const silentProvider = createServer(() => arrived()); // never answers: the turn is mid-flight
+  await new Promise<void>((resolve) => silentProvider.listen(0, "127.0.0.1", resolve));
+  t.after(() => {
+    silentProvider.closeAllConnections();
+    return new Promise<void>((resolve) => silentProvider.close(() => resolve()));
+  });
+  const controller = new AbortController();
+
+  const pending = fetch(`${baseUrl}${BYOK_TURN_PATH}`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ ...BYOK_BODY, byok: { ...BYOK_BODY.byok, baseUrl: `http://127.0.0.1:${(silentProvider.address() as AddressInfo).port}` } }),
+    signal: controller.signal,
+  }).then((res) => res.text());
+  await providerCalled;
+  controller.abort();
+  await assert.rejects(pending);
+
+  const run = await agentRunSpan();
+  assert.equal(run.attributes["agent.run.status"], "canceled");
+  assert.equal(run.status.code, SpanStatusCode.UNSET);
 });

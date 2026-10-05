@@ -3,13 +3,17 @@ import http from "node:http";
 import net from "node:net";
 import test from "node:test";
 
+import { SpanKind, SpanStatusCode } from "@opentelemetry/api";
 import type { Request, Response } from "express";
 
 import {
   cancelDaemonRunBestEffort,
   fetchAgentDaemon,
+  fetchAgentDaemonEventStream,
+  forwardToAgentDaemon,
   triggerFederationReload,
 } from "../assistant-daemon-client.js";
+import { assertSpanOmits, createInMemoryOtel } from "#src/platform/observability/__tests__/fixtures/in-memory-otel";
 
 /**
  * @file Direct coverage for `assistant-daemon-client.ts` paths the proxy-route suites never reach.
@@ -262,4 +266,124 @@ test("cancelDaemonRunBestEffort: an unreachable daemon is swallowed — no throw
   assert.doesNotThrow(() => cancelDaemonRunBestEffort(fakeReq({ originalUrl: "/x", method: "GET" }), res, "r-1"));
   await new Promise((r) => setTimeout(r, 300));
   assert.deepEqual(unhandled, []);
+});
+
+// --- Loopback spans: every daemon call is one outbound CLIENT span when an observability port is
+// passed — method, host/port and status only; never the path (run ids), query, token or body.
+
+/** Polls until `exporter` holds `count` finished spans — fire-and-forget calls end theirs later. */
+async function finishedSpans(exporter: ReturnType<typeof createInMemoryOtel>["exporter"], count: number) {
+  for (let waited = 0; exporter.getFinishedSpans().length < count && waited < 2_000; waited += 10) await new Promise((r) => setTimeout(r, 10));
+  return exporter.getFinishedSpans();
+}
+
+test("fetchAgentDaemon traces the loopback call as one CLIENT span: host, port and status, never the path, token or body", async (t) => {
+  const daemon = await startDaemon(t, (_s, res) => { res.statusCode = 201; res.end("{}"); });
+  withEnv(t, { JINI_AGENT_DAEMON_URL: daemon.origin, [TOKEN_ENV]: "tok-otel-123" });
+  const { exporter, port } = createInMemoryOtel();
+
+  await fetchAgentDaemon(fakeReq({ originalUrl: "/x", method: "GET" }), fakeRes().res, { path: "/api/runs/secret-run-9/cancel?k=v", method: "POST", body: { prompt: "private words" }, observability: port });
+
+  const [span] = await finishedSpans(exporter, 1);
+  assert.equal(span.name, "POST 127.0.0.1");
+  assert.equal(span.kind, SpanKind.CLIENT);
+  assert.equal(span.attributes["server.port"], Number(new URL(daemon.origin).port));
+  assert.equal(span.attributes["http.response.status_code"], 201);
+  assert.equal(span.status.code, SpanStatusCode.UNSET);
+  assertSpanOmits(span, ["tok-otel-123", "secret-run-9", "/api", "k=v", "private words", "principal-7"]);
+});
+
+test("fetchAgentDaemon: each boot-window retry is its own span, so a refused attempt shows as the failure it was", async (t) => {
+  const portNumber = await freePort();
+  withEnv(t, { JINI_AGENT_DAEMON_URL: `http://127.0.0.1:${portNumber}` });
+  const { exporter, port } = createInMemoryOtel();
+
+  const pending = fetchAgentDaemon(fakeReq({ originalUrl: "/api/runs", method: "GET" }), fakeRes().res, { observability: port });
+  await new Promise((r) => setTimeout(r, 400));
+  await startDaemon(t, (_s, r) => r.end("{}"), portNumber);
+  assert.ok(await pending);
+
+  const spans = exporter.getFinishedSpans();
+  assert.ok(spans.length >= 2, `expected a refused attempt plus the answered one, got ${spans.length}`);
+  assert.equal(spans[0].status.code, SpanStatusCode.ERROR);
+  assert.equal(spans.at(-1)!.attributes["http.response.status_code"], 200);
+});
+
+test("forwardToAgentDaemon passes its observability port through to the call it makes", async (t) => {
+  const daemon = await startDaemon(t, (_s, res) => res.end("{}"));
+  withEnv(t, { JINI_AGENT_DAEMON_URL: daemon.origin });
+  const { exporter, port } = createInMemoryOtel();
+
+  await forwardToAgentDaemon(fakeReq({ originalUrl: "/api/runs", method: "GET" }), fakeRes().res, undefined, { observability: port });
+
+  assert.equal((await finishedSpans(exporter, 1))[0].name, "GET 127.0.0.1");
+});
+
+test("cancelDaemonRunBestEffort traces its fire-and-forget POST without the run id", async (t) => {
+  const daemon = await startDaemon(t, (_s, res) => res.end("{}"));
+  withEnv(t, { JINI_AGENT_DAEMON_URL: daemon.origin, [TOKEN_ENV]: "tok-otel-123" });
+  const { exporter, port } = createInMemoryOtel();
+
+  cancelDaemonRunBestEffort(fakeReq({ originalUrl: "/x", method: "GET" }), fakeRes().res, "run-secret-42", { observability: port });
+
+  const [span] = await finishedSpans(exporter, 1);
+  assert.equal(span.name, "POST 127.0.0.1");
+  assertSpanOmits(span, ["run-secret-42", "cancel", "tok-otel-123"]);
+});
+
+test("triggerFederationReload traces its POST; a daemon refusal is an ERROR span with the status, never the bearer token", async (t) => {
+  const daemon = await startDaemon(t, (_s, res) => { res.statusCode = 401; res.end("{}"); });
+  withEnv(t, { JINI_AGENT_DAEMON_URL: daemon.origin, [TOKEN_ENV]: "tok-otel-123" });
+  const { exporter, port } = createInMemoryOtel();
+
+  assert.deepEqual(await triggerFederationReload({ observability: port }), { ok: false });
+
+  const [span] = await finishedSpans(exporter, 1);
+  assert.equal(span.name, "POST 127.0.0.1");
+  assert.equal(span.status.code, SpanStatusCode.ERROR);
+  assert.equal(span.attributes["http.response.status_code"], 401);
+  assertSpanOmits(span, ["tok-otel-123", "federation"]);
+});
+
+test("fetchAgentDaemonEventStream: the span ends at the response headers with their status, not with the stream", async (t) => {
+  const daemon = await startDaemon(t, (seen, res) => {
+    res.writeHead(seen.url.includes("missing") ? 404 : 200, { "content-type": "text/event-stream" });
+    if (seen.url.includes("missing")) res.end();
+    else res.write("data: {}\n\n"); // stays open: the span must not wait for it
+  });
+  withEnv(t, { JINI_AGENT_DAEMON_URL: daemon.origin, [TOKEN_ENV]: "tok-otel-123" });
+  const { exporter, port } = createInMemoryOtel();
+  const req = fakeReq({ originalUrl: "/x", method: "GET" });
+
+  const open = await fetchAgentDaemonEventStream(req, fakeRes().res, "/api/runs/run-secret-42/events", { observability: port });
+  assert.equal(open?.statusCode, 200);
+  const [okSpan] = await finishedSpans(exporter, 1);
+  assert.equal(okSpan.name, "GET 127.0.0.1");
+  assert.equal(okSpan.attributes["http.response.status_code"], 200);
+  assertSpanOmits(okSpan, ["run-secret-42", "/events", "tok-otel-123"]);
+  await open?.body.cancel();
+
+  assert.equal((await fetchAgentDaemonEventStream(req, fakeRes().res, "/api/runs/missing/events", { observability: port }))?.statusCode, 404);
+  const notFound = (await finishedSpans(exporter, 2))[1];
+  assert.equal(notFound.status.code, SpanStatusCode.ERROR);
+  assert.equal(notFound.attributes["http.response.status_code"], 404);
+});
+
+test("fetchAgentDaemonEventStream: a transport failure ends its span as ERROR with the error type", async (t) => {
+  const sockets = new Set<net.Socket>();
+  const garbage = net.createServer((socket) => { sockets.add(socket); socket.end("not http at all\r\n\r\n"); });
+  await new Promise<void>((r) => garbage.listen(0, "127.0.0.1", () => r()));
+  t.after(() => {
+    for (const s of sockets) s.destroy();
+    return new Promise<void>((r) => garbage.close(() => r()));
+  });
+  withEnv(t, { JINI_AGENT_DAEMON_URL: `http://127.0.0.1:${(garbage.address() as net.AddressInfo).port}` });
+  const { exporter, port } = createInMemoryOtel();
+  const { res, sent } = fakeRes();
+
+  assert.equal(await fetchAgentDaemonEventStream(fakeReq({ originalUrl: "/x", method: "GET" }), res, "/api/runs/r/events", { observability: port }), null);
+  assert.equal(sent.status, 502);
+  const [span] = await finishedSpans(exporter, 1);
+  assert.equal(span.status.code, SpanStatusCode.ERROR);
+  assert.equal(typeof span.attributes["error.type"], "string");
 });

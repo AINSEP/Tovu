@@ -54,7 +54,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  */
 export type AdminSourceControlCredentialsDeps = Pick<
   RouteDeps,
-  "workspaceId" | "authorize" | "clock" | "idGen" | "sourceControlCredentialSetRepo" | "siteAssistantSecretSealer" | "siteAssistantSecretKeyring" | "loadSourceControlProviders"
+  "workspaceId" | "authorize" | "clock" | "idGen" | "sourceControlCredentialSetRepo" | "siteAssistantSecretSealer" | "siteAssistantSecretKeyring" | "loadSourceControlProviders" | "observability"
 >;
 
 const PERMISSION = "source-control.credentials.write";

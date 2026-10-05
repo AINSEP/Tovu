@@ -25,6 +25,20 @@ import { ensureAssistantDaemonStarted } from "../../lifecycle/daemon-supervisor.
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { getAssistantDaemonFailureReasonCode, isAssistantDaemonKnownFailed } from "../../lifecycle/readiness-state.js";
 import { getAgentDaemonUrl } from "../../lifecycle/agent-daemon-port.js";
+import { createNoopObservabilityPort, trackFetch, type ObservabilityPort } from "#src/platform/observability/index";
+
+/** Optional collaborators every daemon call accepts. `observability` records each loopback request
+ *  as one outbound span (method, host/port and status — never the run id, path or token); omitted,
+ *  the call is untraced. Composition passes `RouteDeps.observability`. */
+export interface DaemonCallOptions { readonly observability?: ObservabilityPort; }
+
+const UNTRACED = createNoopObservabilityPort({});
+
+/** The global `fetch` (read per call, so a test that swaps it is honored), traced through
+ *  `optional.observability`. Identity wrapper for the untraced case. */
+export function daemonFetch(optional: DaemonCallOptions = {}): typeof fetch {
+  return trackFetch({ fetch: (input, init) => fetch(input, init), observability: optional.observability ?? UNTRACED });
+}
 
 export { getAgentDaemonUrl } from "../../lifecycle/agent-daemon-port.js";
 
@@ -203,15 +217,17 @@ function respondDaemonUnreachable(res: Response, error: unknown): null {
 export async function fetchAgentDaemon(
   req: Request,
   res: Response,
-  options: { path?: string; method?: string; body?: unknown } = {},
+  options: { path?: string; method?: string; body?: unknown } & DaemonCallOptions = {},
 ): Promise<globalThis.Response | null> {
   if (respondIfDaemonKnownFailed(res)) return null;
   const { target, method } = resolveDaemonRequest(req, options);
   const deadline = Date.now() + DAEMON_CONNECT_RETRY_MS;
+  const send = daemonFetch(options);
 
   for (;;) {
     try {
-      const upstream = await fetch(target, buildDaemonFetchInit(req, res, method, options.body));
+      // Each attempt is its own span: a boot-window refusal shows up as the failed attempts it was.
+      const upstream = await send(target, buildDaemonFetchInit(req, res, method, options.body));
       markDaemonReachable();
       return upstream;
     } catch (error) {
@@ -224,8 +240,8 @@ export async function fetchAgentDaemon(
 
 /** Thin wrapper matching `assistant.ts`'s original call shape exactly: forward the SAME path/method
  *  this request arrived on, with an optional rewritten body. */
-export async function forwardToAgentDaemon(req: Request, res: Response, body?: unknown): Promise<globalThis.Response | null> {
-  return fetchAgentDaemon(req, res, { body });
+export async function forwardToAgentDaemon(req: Request, res: Response, body?: unknown, optional: DaemonCallOptions = {}): Promise<globalThis.Response | null> {
+  return fetchAgentDaemon(req, res, { body, observability: optional.observability });
 }
 
 /**
@@ -245,8 +261,8 @@ export async function forwardToAgentDaemon(req: Request, res: Response, body?: u
  *
  * @complexity O(1) — one fire-and-forget HTTP request, not awaited by the caller.
  */
-export function cancelDaemonRunBestEffort(req: Request, res: Response, daemonRunId: string): void {
-  fetch(`${getAgentDaemonUrl()}/api/runs/${encodeURIComponent(daemonRunId)}/cancel`, {
+export function cancelDaemonRunBestEffort(req: Request, res: Response, daemonRunId: string, optional: DaemonCallOptions = {}): void {
+  daemonFetch(optional)(`${getAgentDaemonUrl()}/api/runs/${encodeURIComponent(daemonRunId)}/cancel`, {
     method: "POST",
     headers: outboundHeaders(req, res),
   }).catch(() => undefined);
@@ -280,7 +296,7 @@ const FEDERATION_RELOAD_FETCH_TIMEOUT_MS = 5_000;
  * "it didn't work, somehow."
  * @complexity O(1) plus one bounded round trip.
  */
-export async function triggerFederationReload(): Promise<{ readonly ok: boolean; readonly newlyAdmittedConnectionIds?: readonly string[] }> {
+export async function triggerFederationReload(optional: DaemonCallOptions = {}): Promise<{ readonly ok: boolean; readonly newlyAdmittedConnectionIds?: readonly string[] }> {
   const token = process.env[AGENT_DAEMON_TOKEN_ENV_VAR];
   if (!token) {
     console.warn("[assistant] mcp-federation: reload skipped — the agent daemon token is not configured");
@@ -288,7 +304,7 @@ export async function triggerFederationReload(): Promise<{ readonly ok: boolean;
   }
 
   try {
-    const upstream = await fetch(`${getAgentDaemonUrl()}/api/federation/reload`, {
+    const upstream = await daemonFetch(optional)(`${getAgentDaemonUrl()}/api/federation/reload`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       signal: AbortSignal.timeout(FEDERATION_RELOAD_FETCH_TIMEOUT_MS),
@@ -355,14 +371,19 @@ export async function fetchAgentDaemonEventStream(
   req: Request,
   res: Response,
   path: string,
+  optional: DaemonCallOptions = {},
 ): Promise<{ statusCode: number; body: ReadableStream<Uint8Array> } | null> {
   if (respondIfDaemonKnownFailed(res)) return null;
   const target = `${getAgentDaemonUrl()}${path}`;
   const headers = outboundHeaders(req, res);
   const deadline = Date.now() + DAEMON_CONNECT_RETRY_MS;
+  const observability = optional.observability ?? UNTRACED;
 
   for (;;) {
+    // The span covers connect to response headers, not the (possibly hours-long) stream body.
+    const tracker = observability.trackOutboundCall({ method: "GET", url: target });
     const attempt = await requestDaemonEventStream(target, headers);
+    tracker.end("error" in attempt ? { error: attempt.error } : { statusCode: attempt.statusCode });
     if (!("error" in attempt)) {
       markDaemonReachable();
       return attempt;

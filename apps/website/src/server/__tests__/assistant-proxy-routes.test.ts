@@ -4,11 +4,14 @@ import { createServer, type IncomingHttpHeaders, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
 
+import { SpanKind } from "@opentelemetry/api";
 import express from "express";
 
 import { AGENT_DAEMON_TOKEN_ENV_VAR, MCP_UI_TOOL_CALLS_PATH, RUN_PRINCIPAL_HEADER } from "../../assistant/index.js";
 import { clearAssistantDaemonFailure, recordAssistantDaemonFailure } from "../runtime/lifecycle/readiness-state.js";
 import type { RouteDeps } from "../routes/types.js";
+import type { ObservabilityPort } from "../../platform/observability/index.js";
+import { assertSpanOmits, createInMemoryOtel } from "../../platform/observability/__tests__/fixtures/in-memory-otel.js";
 import { startTestServer, loginAsOwner } from "./helpers/http-test-server.js";
 
 /**
@@ -144,7 +147,7 @@ async function startStandInDaemon(): Promise<{ origin: string; server: Server }>
  * must be set BEFORE `server/modules/assistant.ts` is first evaluated, hence the dynamic imports
  * (`server/app.ts` imports the assistant module statically, so it has to be deferred too).
  */
-let harnessPromise: Promise<{ buildApp: () => express.Express; daemon: Server }> | null = null;
+let harnessPromise: Promise<{ buildApp: (observability?: ObservabilityPort) => express.Express; daemon: Server }> | null = null;
 function harness() {
   harnessPromise ??= (async () => {
     const { origin, server } = await startStandInDaemon();
@@ -158,8 +161,9 @@ function harness() {
 
     return {
       daemon: server,
-      buildApp: () => {
+      buildApp: (observability?: ObservabilityPort) => {
         const deps: RouteDeps = createRouteDeps();
+        if (observability) deps.observability = observability;
         const app = express();
         app.use(express.json());
         registerAuthRoutes(app, deps);
@@ -175,10 +179,10 @@ function harness() {
   return harnessPromise;
 }
 
-async function bootProxy(t: import("node:test").TestContext) {
+async function bootProxy(t: import("node:test").TestContext, observability?: ObservabilityPort) {
   const { buildApp } = await harness();
   recorded = [];
-  const baseUrl = await startTestServer(buildApp(), t);
+  const baseUrl = await startTestServer(buildApp(observability), t);
   const cookie = await loginAsOwner(baseUrl);
   return { baseUrl, cookie };
 }
@@ -721,4 +725,23 @@ test("a failed daemon spawn is reattempted by the proxy and later requests recov
   assert.deepEqual(await recovered.json(), { runs: [{ id: "run-1" }] });
   assert.equal(recorded.length, 1);
   assert.equal(children.length, 2, "a healthy subsequent request needs no additional spawn");
+});
+
+test("spans: every proxied daemon call is one CLIENT span, never its path, query, token, principal or body", async (t) => {
+  const { exporter, port } = createInMemoryOtel();
+  const { baseUrl, cookie } = await bootProxy(t, port);
+  const json = { cookie, "content-type": "application/json" };
+
+  await (await fetch(`${baseUrl}/api/runs`, { method: "POST", headers: json, body: JSON.stringify({ contextRef: "{}", agentId: "a" }) })).text();
+  await (await fetch(`${baseUrl}/api/runs?contextRef=chat-secret-42`, { headers: { cookie } })).text();
+  await (await fetch(`${baseUrl}/api/attachments?batch=batch-secret&name=a.txt`, { method: "POST", headers: { cookie, "content-type": "application/octet-stream" }, body: Buffer.from("file bytes") })).text();
+  await (await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, { method: "POST", headers: json, body: JSON.stringify({ toolName: "webhooks_delete_subscription", exchangeId: "exchange-secret", params: {} }) })).text();
+
+  const calls = exporter.getFinishedSpans();
+  assert.deepEqual(calls.map((span) => span.name), ["POST 127.0.0.1", "GET 127.0.0.1", "POST 127.0.0.1", "POST 127.0.0.1"]);
+  for (const call of calls) {
+    assert.equal(call.kind, SpanKind.CLIENT);
+    assert.equal(call.attributes["http.response.status_code"], 200);
+    assertSpanOmits(call, [TOKEN, "/api", "chat-secret-42", "batch-secret", "exchange-secret", "file bytes", "webhooks"]);
+  }
 });

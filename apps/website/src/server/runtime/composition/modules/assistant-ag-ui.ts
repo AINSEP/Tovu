@@ -52,7 +52,8 @@ import type { AgentEvent } from "@jini-ai/chat/core";
 
 import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
-import { cancelDaemonRunBestEffort, fetchAgentDaemon, fetchAgentDaemonEventStream } from "./assistant-daemon-client.js";
+import { cancelDaemonRunBestEffort, fetchAgentDaemon, fetchAgentDaemonEventStream, type DaemonCallOptions } from "./assistant-daemon-client.js";
+import { createNoopObservabilityPort, type AgentRunStatus, type ObservabilityPort } from "#src/platform/observability/index";
 import type { ServerModuleHandle } from "./types.js";
 
 export const AG_UI_RUN_PATH = "/api/admin/v1/assistant/ag-ui-run";
@@ -539,27 +540,27 @@ function handleEndDaemonFrame(data: string, ctx: AgUiFrameContext): void {
  * cyclomatic 15 / cognitive 20 (every frame kind's internal loops and ifs counted against the same
  * function).
  *
- * @returns `true` once an `"end"` (or `"error"`) frame has closed the run — the caller stops
- *   reading further frames and ends the response.
+ * @returns the run's final status once an `"end"` (`succeeded`) or `"error"` (`failed`) frame has
+ *   closed it — the caller stops reading further frames and ends the response — else `null`.
  */
-function handleDaemonFrame(frame: DaemonFrame, ctx: AgUiFrameContext): boolean {
+function handleDaemonFrame(frame: DaemonFrame, ctx: AgUiFrameContext): AgentRunStatus | null {
   if (frame.event === "agent") {
     handleAgentDaemonFrame(frame.data, ctx);
-    return false;
+    return null;
   }
   if (frame.event === "stdout") {
     handleStdoutDaemonFrame(frame.data, ctx);
-    return false;
+    return null;
   }
   if (frame.event === "error") {
     handleErrorDaemonFrame(frame.data, ctx);
-    return true;
+    return "failed";
   }
   if (frame.event === "end") {
     handleEndDaemonFrame(frame.data, ctx);
-    return true;
+    return "succeeded";
   }
-  return false;
+  return null;
 }
 
 interface AgUiRunRequest {
@@ -615,12 +616,14 @@ async function startDaemonRun(
   res: Response,
   run: AgUiRunRequest,
   principalId: string,
+  daemon: DaemonCallOptions,
 ): Promise<{ ok: true; daemonRunId: string } | { ok: false }> {
   const prompt = flattenMessagesToPrompt(run.messages);
   const startUpstream = await fetchAgentDaemon(req, res, {
     path: "/api/runs",
     method: "POST",
     body: { contextRef: JSON.stringify({ prompt, principalId }), agentId: run.agentId },
+    observability: daemon.observability,
   });
   if (!startUpstream) return { ok: false }; // fetchAgentDaemon already wrote a 503/502.
 
@@ -641,8 +644,8 @@ async function startDaemonRun(
  * own doc for why this specific stream needs `node:http`'s no-default-timeout transport: a parked
  * tool call can leave the daemon silent well past `fetch`'s default idle-body timeout, which is not a
  * stall on this endpoint, it's the normal shape of a human-in-the-loop wait. */
-async function subscribeToDaemonEvents(req: Request, res: Response, daemonRunId: string): Promise<ReadableStreamDefaultReader<Uint8Array> | null> {
-  const eventsUpstream = await fetchAgentDaemonEventStream(req, res, `/api/runs/${encodeURIComponent(daemonRunId)}/events`);
+async function subscribeToDaemonEvents(req: Request, res: Response, daemonRunId: string, daemon: DaemonCallOptions): Promise<ReadableStreamDefaultReader<Uint8Array> | null> {
+  const eventsUpstream = await fetchAgentDaemonEventStream(req, res, `/api/runs/${encodeURIComponent(daemonRunId)}/events`, daemon);
   if (!eventsUpstream) return null; // fetchAgentDaemonEventStream already wrote a 503/502.
   if (eventsUpstream.statusCode < 200 || eventsUpstream.statusCode >= 300) {
     res.status(502).json({ error: "assistant is unavailable", code: "BAD_GATEWAY" });
@@ -655,27 +658,35 @@ async function subscribeToDaemonEvents(req: Request, res: Response, daemonRunId:
  *  `ctx.res` and ending the response either on an explicit terminal frame, on the stream simply
  *  closing (same dual-completion posture `consumeByokStream` uses for the identical case), or on a
  *  read error. Split out of `handleAgUiRun` so the try/catch and its loop don't add to that
- *  function's own branch count. */
-async function drainAgUiStream(reader: ReadableStreamDefaultReader<Uint8Array>, ctx: AgUiFrameContext): Promise<void> {
+ *  function's own branch count.
+ *  @returns How the run ended, for its agent-run span: a natural close counts as `succeeded`, like
+ *  the `RUN_FINISHED` it writes; a read error is `failed` with that error. */
+async function drainAgUiStream(reader: ReadableStreamDefaultReader<Uint8Array>, ctx: AgUiFrameContext): Promise<{ status: AgentRunStatus; error?: unknown }> {
   try {
     for await (const frame of readDaemonSseFrames(reader)) {
-      const done = handleDaemonFrame(frame, ctx);
-      if (done) {
+      const status = handleDaemonFrame(frame, ctx);
+      if (status) {
         ctx.res.end();
-        return;
+        return { status };
       }
     }
     writeAllAgUiEvents(ctx.res, closeAgUiRun(ctx.state));
     writeAgUiEvent(ctx.res, { type: EventType.RUN_FINISHED, threadId: ctx.threadId, runId: ctx.runId, result: { reason: "stop" } });
     ctx.res.end();
+    return { status: "succeeded" };
   } catch (error) {
     writeAllAgUiEvents(ctx.res, closeAgUiRun(ctx.state));
     writeAgUiEvent(ctx.res, { type: EventType.RUN_ERROR, message: error instanceof Error ? error.message : String(error) });
     ctx.res.end();
+    return { status: "failed", error };
   }
 }
 
-async function handleAgUiRun(req: Request, res: Response): Promise<void> {
+/** Stands in for the run's tracker until the daemon run exists, so `runTracker` is never null. Never
+ *  ended: the close handler only ends a tracker once a daemon run exists. */
+const UNSTARTED_RUN = createNoopObservabilityPort({}).trackAgentRun({ runId: "" });
+
+async function handleAgUiRun(req: Request, res: Response, observability: ObservabilityPort): Promise<void> {
   const body = (req.body ?? {}) as { threadId?: unknown; runId?: unknown; messages?: unknown; forwardedProps?: unknown };
   const run = resolveAgUiRunRequest(body);
   if (!run) {
@@ -706,39 +717,51 @@ async function handleAgUiRun(req: Request, res: Response): Promise<void> {
   // frame, natural stream close, or a read error that already unwound the daemon side), synchronously
   // before this function returns and therefore strictly before the async `"close"` event can fire —
   // so an ordinary successful run still issues zero cancel calls, per this fix's own regression test.
+  const daemon: DaemonCallOptions = { observability };
   let daemonRunId: string | null = null;
+  // One agent-run span per daemon run (its own trace root, like the finalizer's), ended exactly once:
+  // canceled by the close handler, failed if the subscribe fails, else the drain's own outcome.
+  let runTracker = UNSTARTED_RUN;
   let runFinished = false;
   let closedEarly = false;
   let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
   res.on("close", () => {
     reader?.cancel().catch(() => undefined);
     if (runFinished) return;
-    if (daemonRunId) cancelDaemonRunBestEffort(req, res, daemonRunId);
-    else closedEarly = true;
+    if (daemonRunId) {
+      runTracker.end({ status: "canceled" });
+      cancelDaemonRunBestEffort(req, res, daemonRunId, daemon);
+    } else closedEarly = true;
   });
 
   // Start the real daemon run BEFORE switching this response into SSE mode — a daemon failure at
   // this point can still answer with an ordinary JSON error status, which is no longer possible
   // once headers have been flushed for the event stream below.
   const principal = getAuthedPrincipal(res);
-  const started = await startDaemonRun(req, res, run, principal.id);
+  const started = await startDaemonRun(req, res, run, principal.id, daemon);
   if (!started.ok) return;
   daemonRunId = started.daemonRunId;
+  runTracker = observability.trackAgentRun({ runId: daemonRunId }, { conversationId: run.threadId, agentName: run.agentId });
   if (closedEarly) {
-    cancelDaemonRunBestEffort(req, res, daemonRunId);
+    runTracker.end({ status: "canceled" });
+    cancelDaemonRunBestEffort(req, res, daemonRunId, daemon);
     return;
   }
 
-  const subscribedReader = await subscribeToDaemonEvents(req, res, started.daemonRunId);
-  if (!subscribedReader) return;
+  const subscribedReader = await subscribeToDaemonEvents(req, res, started.daemonRunId, daemon);
+  if (!subscribedReader) {
+    runTracker.end({ status: "failed" });
+    return;
+  }
   reader = subscribedReader;
 
   beginAgUiStream(req, res, run.requestId);
   writeAgUiEvent(res, { type: EventType.RUN_STARTED, threadId: run.threadId, runId: run.runId });
 
   const state = createAgUiTranslationState();
-  await drainAgUiStream(subscribedReader, { res, threadId: run.threadId, runId: run.runId, state });
+  const outcome = await drainAgUiStream(subscribedReader, { res, threadId: run.threadId, runId: run.runId, state });
   runFinished = true;
+  runTracker.end(outcome);
 }
 
 export function createAssistantAgUiModule(routeDeps: RouteDeps): ServerModuleHandle {
@@ -747,7 +770,7 @@ export function createAssistantAgUiModule(routeDeps: RouteDeps): ServerModuleHan
     registerRoutes: (app: Express) => {
       app.use(AG_UI_RUN_PATH, requireAdminSession(routeDeps));
       app.post(AG_UI_RUN_PATH, (req: Request, res: Response, next: NextFunction) => {
-        void handleAgUiRun(req, res).catch((error: unknown) => {
+        void handleAgUiRun(req, res, routeDeps.observability).catch((error: unknown) => {
           console.error("[assistant-ag-ui] unhandled error", error);
           if (res.headersSent) {
             writeAgUiEvent(res, { type: EventType.RUN_ERROR, message: "assistant failed" });
