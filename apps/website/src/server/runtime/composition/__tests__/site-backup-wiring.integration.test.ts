@@ -1,10 +1,13 @@
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
+import { randomBytes } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
+
+import Database from "better-sqlite3";
 
 import { createToolRegistry, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
@@ -16,6 +19,10 @@ import { MCP_UI_REDEEMABLE_TOOL_IDS } from "#src/assistant/mcp-ui-tool-calls";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { resolveSkillLayout } from "#src/features/skills/layout";
 import { collectSiteBackupFiles } from "#src/features/site-backup/sources";
+import { FakeGitHub } from "#src/features/site-backup/__tests__/fixtures/fake-github";
+import { githubFromSource } from "#src/features/source-control/__tests__/fixtures/github-from-source";
+import { createCustomCredential } from "#src/features/custom-credentials/store";
+import { LEGACY_SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
 import { describeSiteBinding } from "#src/platform/site-dir/site-registry";
 import { createRouteDeps } from "../app.js";
 import { createSiteRouteDeps, mediaUploadsDir } from "../deps.js";
@@ -46,15 +53,19 @@ function registrationsOver(routeDeps: Omit<RegistryDeps, "magicLinkPerEmailLimit
   return new Map(registrations.map((r) => [r.descriptor.id, r]));
 }
 
-function callPlan(registration: ToolRegistration): Promise<unknown> {
+function call(registration: ToolRegistration, input: unknown): Promise<unknown> {
   const ctx: ToolExecutionContext = {
     executionId: "exec-wiring",
     principal: { id: "principal-wiring" },
     run: { id: "run-wiring" },
-    input: { owner: "octo", repo: "backups" },
+    input,
     signal: new AbortController().signal,
   };
   return Promise.resolve(registration.handler(ctx));
+}
+
+function callPlan(registration: ToolRegistration): Promise<unknown> {
+  return call(registration, { owner: "octo", repo: "backups" });
 }
 
 test("createSiteRouteDeps gives site backup the directories the site is served from, and the real registry wires both tools to them", async (t) => {
@@ -125,6 +136,91 @@ test("caller-supplied site, uploads and themes directories are the exact folders
   // Every collected settings/themes/media file comes from the override folders and nowhere else.
   for (const file of collected.files) {
     assert.ok([siteDir, themesDir, uploadsDir].some((dir) => file.absPath.startsWith(dir + path.sep)), `${file.path} was collected from ${file.absPath}, outside the override folders`);
+  }
+});
+
+/** Points `homedir()`-based site-key lookup at a throwaway folder and gives the composed keyring a
+ *  fresh `TOVU_SITE_KEY`, so sealing a credential never reads or writes the operator's `~/.tovu`. */
+function isolateSiteKey(t: TestContext, home: string): void {
+  const saved = { HOME: process.env.HOME, [LEGACY_SITE_KEY_ENV_VAR_NAME]: process.env[LEGACY_SITE_KEY_ENV_VAR_NAME], TOVU_SITE_KEY: process.env.TOVU_SITE_KEY, TOVU_RUNTIME_MODE: process.env.TOVU_RUNTIME_MODE };
+  process.env.HOME = home;
+  delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
+  delete process.env.TOVU_RUNTIME_MODE;
+  process.env.TOVU_SITE_KEY = randomBytes(32).toString("hex");
+  t.after(() => {
+    for (const [key, value] of Object.entries(saved)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  });
+}
+
+test("the composed plan and push back up THIS site: a credential sealed by the composed sealer, the real database snapshot, and the site's own files land in one commit", async (t) => {
+  // Only the git host is faked (and the plugin is read from source, not the developer's workspace).
+  // The credential store, sealer, keyring, dbOps, sources and both handlers are the composition's own,
+  // so a push handler wired to the wrong store, sealer or database fails here, not just in the unit suite.
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-site-backup-push-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  isolateSiteKey(t, path.join(root, "home"));
+  const siteDir = path.join(root, "demo-site");
+  const themesDir = path.join(root, "themes");
+  const uploadsDir = path.join(root, "uploads");
+  fs.mkdirSync(path.join(themesDir, "static", "wired"), { recursive: true });
+  fs.mkdirSync(siteDir, { recursive: true });
+  fs.writeFileSync(path.join(siteDir, "config.json"), '{"name":"Wiring Site"}', "utf8");
+  fs.writeFileSync(path.join(themesDir, "static", "wired", "theme.css"), "/* wired theme */", "utf8");
+
+  const deps = await createSiteRouteDeps(path.join(siteDir, "content.db"), {
+    uploadsDir,
+    themesDir,
+    siteBinding: { dir: siteDir, name: "demo-site", dirOverridden: true, switcherCompatible: false },
+  });
+  await deps.identityReady;
+
+  await createCustomCredential(
+    { repo: deps.customCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen },
+    { workspaceId: deps.workspaceId, label: "github", category: "source-control", baseUrl: "https://api.github.com", additionalHosts: [], connection: { token: "ghp_wiring_test_token_never_real" } },
+  );
+
+  const github = new FakeGitHub();
+  const tools = registrationsOver({ ...deps, customCredentialsHttpClient: github, loadSourceControlProviders: githubFromSource } as Parameters<typeof registrationsOver>[0]);
+  const planTool = tools.get("site_backup_plan");
+  const pushTool = tools.get("site_backup_push");
+  assert.ok(planTool && pushTool);
+
+  const planned = (await call(planTool, { owner: "octo", repo: "backups", include: { plugins: false } })) as { planned: boolean; planId: string; folder: string; files: { path: string }[] };
+  assert.equal(planned.planned, true, `the composed plan must succeed: ${JSON.stringify(planned)}`);
+  assert.equal(planned.folder, "demo-site");
+  assert.ok(github.calls.every((c) => c.method === "GET"), "the plan writes nothing");
+
+  const pushed = (await call(pushTool, { planId: planned.planId })) as { pushed: boolean; commitSha: string };
+  assert.equal(pushed.pushed, true, `the composed push must succeed: ${JSON.stringify(pushed)}`);
+  assert.equal(pushed.commitSha, "new-commit");
+  assert.deepEqual(github.unexpected, []);
+  const authorizations = github.calls.map((c) => Object.entries((c.headers ?? {}) as Record<string, string>).find(([name]) => name.toLowerCase() === "authorization")?.[1] ?? "");
+  assert.ok(authorizations.every((value) => value.includes("ghp_wiring_test_token_never_real")), "every GitHub call carries the token the composed sealer opened");
+
+  const committed = [...github.files.keys()].sort();
+  assert.deepEqual(committed, ["README.md", "demo-site/database/content.db", "demo-site/settings/config.json", "demo-site/themes/static/wired/theme.css", "demo-site/tovu-backup.json"]);
+  assert.equal(github.files.get("demo-site/settings/config.json")?.toString("utf8"), '{"name":"Wiring Site"}');
+  assert.equal(github.files.get("demo-site/themes/static/wired/theme.css")?.toString("utf8"), "/* wired theme */");
+  const manifest = JSON.parse(github.files.get("demo-site/tovu-backup.json")!.toString("utf8")) as { format: string; files: { path: string }[] };
+  assert.equal(manifest.format, "tovu-site-backup");
+  assert.deepEqual(manifest.files.map((f) => f.path).sort(), ["database/content.db", "settings/config.json", "themes/static/wired/theme.css"]);
+
+  // The committed database is a real SQLite snapshot of THIS site's content.db: it holds the very
+  // credential row the composed repo just wrote (sealed — the token itself is not in the bytes).
+  const dbBytes = github.files.get("demo-site/database/content.db")!;
+  assert.equal(dbBytes.subarray(0, 16).toString("latin1"), "SQLite format 3\0");
+  assert.ok(!dbBytes.includes(Buffer.from("ghp_wiring_test_token_never_real")), "the snapshot holds the token sealed, never in clear");
+  const copy = path.join(root, "pushed.db");
+  fs.writeFileSync(copy, dbBytes);
+  const snapshot = new Database(copy, { readonly: true });
+  try {
+    const labels = (snapshot.prepare("SELECT label FROM custom_credential_sets").all() as { label: string }[]).map((r) => r.label);
+    assert.deepEqual(labels, ["github"]);
+  } finally {
+    snapshot.close();
   }
 });
 
