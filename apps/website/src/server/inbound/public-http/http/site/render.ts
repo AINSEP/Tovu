@@ -9,6 +9,7 @@ import {
   withEntryListStyleOnce,
   type EntryListItem,
   type EntryListFieldValue,
+  type EntryListRenderOptions,
 } from "#src/features/theme/entry-list-render";
 import type { ResolveHtmlPageEmbedsResult, ResolvePageWidgetsResult } from "#src/features/widgets/resolver-service";
 import { COLLECTION_LIST_FAQ_PAGE, isCollectionListLayout } from "#src/features/entries/public-list";
@@ -2232,7 +2233,7 @@ function renderWidgetRecentEntries(ir: WidgetRenderIR): string {
   if (layout !== "list" && isCollectionListLayout(layout)) {
     const columns = typeof ir.props.columns === "number" ? ir.props.columns : 3;
     const typeKey = str(ir.props.typeKey, "recent-entries");
-    const structuredData = ir.props.structuredData === COLLECTION_LIST_FAQ_PAGE ? { structuredData: COLLECTION_LIST_FAQ_PAGE } : {};
+    const structuredData: Pick<EntryListRenderOptions, "structuredData"> = ir.props.structuredData === COLLECTION_LIST_FAQ_PAGE ? { structuredData: COLLECTION_LIST_FAQ_PAGE } : {};
     return renderEntryList(items, { columns, layout, typeKey, ...structuredData }) ?? RECENT_ENTRIES_EMPTY_HTML;
   }
 

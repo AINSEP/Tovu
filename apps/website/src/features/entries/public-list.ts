@@ -331,7 +331,7 @@ export function parseCollectionListConfig(
 
   const layout = parseLayout(raw.layout);
   // Same degrade-not-reject rule as layout: an unknown value just emits no structured data.
-  const structuredData = raw.structuredData === COLLECTION_LIST_FAQ_PAGE ? { structuredData: COLLECTION_LIST_FAQ_PAGE } : {};
+  const structuredData: Pick<CollectionListDisplay, "structuredData"> = raw.structuredData === COLLECTION_LIST_FAQ_PAGE ? { structuredData: COLLECTION_LIST_FAQ_PAGE } : {};
 
   return {
     ok: true,
