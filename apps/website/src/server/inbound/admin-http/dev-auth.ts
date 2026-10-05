@@ -490,16 +490,22 @@ export function registerAuthRoutes(app: Express, deps: RouteDeps): void {
   });
 
   app.post("/api/admin/v1/auth/logout", async (req, res) => {
-    await deps.identityReady;
-    const rawToken = readSessionToken(req);
-    if (rawToken) {
-      await logout({
-        deps: authServiceDepsFrom(deps),
-        input: { workspaceId: deps.workspaceId, rawToken },
-      });
+    // Express 4 drops a rejected async handler, so without this a failing identity bootstrap or
+    // session store leaves the request hanging instead of answering like the login route does.
+    try {
+      await deps.identityReady;
+      const rawToken = readSessionToken(req);
+      if (rawToken) {
+        await logout({
+          deps: authServiceDepsFrom(deps),
+          input: { workspaceId: deps.workspaceId, rawToken },
+        });
+      }
+      clearSessionCookie(res);
+      res.json({ ok: true });
+    } catch {
+      res.status(500).json({ error: "internal error" });
     }
-    clearSessionCookie(res);
-    res.json({ ok: true });
   });
 
   /**
