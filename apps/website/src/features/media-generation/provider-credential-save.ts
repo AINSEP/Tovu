@@ -12,10 +12,8 @@ import { saveMediaProviderCredentials, type MediaProviderCredentialRepoPort, typ
  */
 export async function saveMediaProviderKey(input: { deps: MediaProviderCredentialWriteDeps; workspaceId: string; provider: string; apiKey: string }): Promise<{ configured: boolean }> {
   const { deps, workspaceId, provider, apiKey } = input;
-  const repo: MediaProviderCredentialRepoPort = {
-    listByWorkspaceId: id => deps.repo.listByWorkspaceId(id),
-    upsert: row => deps.repo.upsert(row),
-    deleteByProviderIds: spec => deps.repo.deleteByProviderIds(spec),
+  // Only `replaceWorkspace`: the store's save writes through nothing else.
+  const repo: Pick<MediaProviderCredentialRepoPort, 'replaceWorkspace'> = {
     replaceWorkspace: spec => deps.repo.replaceWorkspace({
       workspaceId: spec.workspaceId,
       // Pure synchronous merge runs on CURRENT rows, after sealing, with no stale pre-read map.

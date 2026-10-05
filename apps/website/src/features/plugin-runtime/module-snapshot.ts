@@ -10,9 +10,19 @@ import type { PluginManifest } from "./manifest.js";
 
 export class PluginSnapshotIntegrityError extends Error {}
 
+/**
+ * Copies a site plugin's verified package into a fresh, read-only runtime snapshot and returns the
+ * snapshot's server entry. Every file must match the manifest's integrity map, and every listed file
+ * must exist; a failed copy removes the half-written snapshot.
+ * @param required.pluginRoot The installed package directory.
+ * @param required.manifest The installed manifest whose `integrity` map is enforced.
+ * @param optional.writeSnapshotFile File writer for the snapshot; defaults to `fs.writeFile`.
+ * @throws {PluginSnapshotIntegrityError} On a changed/missing file or a linked runtime root.
+ * @complexity O(total package bytes).
+ */
 export async function snapshotPluginModuleGraph(
   required: { pluginRoot: string; manifest: PluginManifest },
-  _optional = {},
+  { writeSnapshotFile = writeFile }: { writeSnapshotFile?: typeof writeFile } = {},
 ): Promise<string> {
   const files = await snapshotSitePluginPackage({ sourceDir: required.pluginRoot });
   for (const [key, bytes] of files) {
@@ -32,7 +42,7 @@ export async function snapshotPluginModuleGraph(
     for (const [key, bytes] of files) {
       const destination = path.join(snapshotRoot, key);
       await mkdir(path.dirname(destination), { recursive: true });
-      await writeFile(destination, bytes, { flag: "wx", mode: 0o400 });
+      await writeSnapshotFile(destination, bytes, { flag: "wx", mode: 0o400 });
     }
     return path.join(snapshotRoot, "server/index.mjs");
   } catch (error) {

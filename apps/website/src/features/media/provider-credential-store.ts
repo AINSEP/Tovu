@@ -215,6 +215,12 @@ export interface MediaProviderCredentialWriteDeps extends MediaProviderCredentia
   clock: ClockPort;
 }
 
+/** What {@link saveMediaProviderCredentials} needs: it writes only through `replaceWorkspace`, so a
+ *  caller adapting the repo (the agent tool's single-provider save) supplies just that method. */
+export type MediaProviderCredentialSaveDeps = Omit<MediaProviderCredentialWriteDeps, "repo"> & {
+  repo: Pick<MediaProviderCredentialRepoPort, "replaceWorkspace">;
+};
+
 function trimmedOrNull(value: string | undefined): string | null {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
@@ -258,7 +264,7 @@ interface FreshlySealedProviderKey {
  *  `aad.ts`'s `buildMediaProviderCredentialAad`. Runs before any write opens — see
  *  {@link saveMediaProviderCredentials}'s own doc for why the ordering matters. */
 async function sealNewProviderKeys(
-  deps: MediaProviderCredentialWriteDeps,
+  deps: Pick<MediaProviderCredentialWriteDeps, "sealer" | "keyring">,
   workspaceId: UUID,
   entries: ReadonlyArray<[string, MediaProviderCredentialInput]>
 ): Promise<Map<string, FreshlySealedProviderKey>> {
@@ -351,7 +357,7 @@ function buildProviderUpsertRow(
  * @overallScore 100
  */
 export async function saveMediaProviderCredentials(
-  deps: MediaProviderCredentialWriteDeps,
+  deps: MediaProviderCredentialSaveDeps,
   input: SaveMediaProviderCredentialsInput
 ): Promise<MediaProviderCredentialMap> {
   const { providers } = input;
