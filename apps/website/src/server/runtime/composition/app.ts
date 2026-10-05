@@ -199,6 +199,7 @@ import { createAgentPluginsModule } from "./modules/agent-plugins.js";
 import { createPluginsModule } from "./modules/plugins.js";
 import { createSkillsModule } from "./modules/skills.js";
 import { composePluginRuntime } from "./plugin-runtime.js";
+import { TOVU_CORE_EXTENSION_CLAIMS } from "./core-extension-claims.js";
 import { wireCoreResolvers } from "#src/features/widgets/resolvers/index";
 import { createMenuPageTargetResolver } from "#src/features/navigation/page-target-resolver";
 import { createNavMenuReadModel } from "#src/features/navigation/index";
@@ -382,6 +383,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     clock,
     activationRepo: pluginActivationRepo,
     sources: [WORD_COUNT_RUNTIME_SOURCE],
+    coreClaims: TOVU_CORE_EXTENSION_CLAIMS,
     ...(options.installDir === undefined ? {} : { installDir: options.installDir }),
     ...(options.pluginFailureThreshold === undefined
       ? {}
@@ -1346,6 +1348,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     discoverPlugins: pluginRuntime.discoverPlugins,
     onPluginEnabled: pluginRuntime.onPluginEnabled,
     onPluginDisabled: pluginRuntime.onPluginDisabled,
+    listPluginConflicts: pluginRuntime.listPluginConflicts,
     removePlugin,
     readPluginPackageFiles: pluginRuntime.readPluginPackageFiles,
     pluginInstaller: pluginRuntime.pluginInstaller,
