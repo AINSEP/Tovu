@@ -12,11 +12,12 @@ import type { RouteDeps } from "#src/server/routes/types";
  * the narrowing would cost more than it documents.
  *
  * The sealer and keyring are ADR-058's shared instances, reused rather than re-derived, the same
- * call the media-provider credential routes make.
+ * call the media-provider credential routes make. `observability` traces the admissions route's
+ * read of the agent daemon.
  */
 export type ExternalMcpRouteDeps = Pick<
   RouteDeps,
-  "workspaceId" | "authorize" | "clock" | "externalMcpServerRepo" | "externalMcpToolApprovalRepo" | "siteAssistantSecretSealer" | "siteAssistantSecretKeyring"
+  "workspaceId" | "authorize" | "clock" | "externalMcpServerRepo" | "externalMcpToolApprovalRepo" | "siteAssistantSecretSealer" | "siteAssistantSecretKeyring" | "observability"
 >;
 
 export type ExternalMcpRouteRegistrar = (app: Express, deps: ExternalMcpRouteDeps) => void;

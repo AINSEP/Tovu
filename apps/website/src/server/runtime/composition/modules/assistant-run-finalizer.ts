@@ -46,7 +46,7 @@ import {
 } from "#src/contracts/core/assistant-run-events";
 import { isTerminalRunStatus, type AgentEvent } from "@jini-ai/chat/core";
 
-import { createNoopObservabilityPort, type AgentRunStatus, type ObservabilityPort } from "#src/platform/observability/index";
+import { createNoopObservabilityPort, trackFetch, type AgentRunStatus, type ObservabilityPort } from "#src/platform/observability/index";
 
 import { getAgentDaemonUrl } from "../../lifecycle/agent-daemon-port.js";
 
@@ -71,9 +71,10 @@ export interface AssistantRunFinalizerOptions {
   /**
    * Records each watched run as one agent run (`RouteDeps.observability`). This is the API-side
    * point that learns every daemon run's terminal outcome, so it is where that signal belongs; the
-   * daemon cannot report its own death. Default: the no-op port.
+   * daemon cannot report its own death. Also traces the default daemon client's loopback requests.
+   * Default: the no-op port.
    */
-  readonly observability?: Pick<ObservabilityPort, "trackAgentRun">;
+  readonly observability?: ObservabilityPort;
 }
 
 export interface AssistantRunFinalizer {
@@ -95,22 +96,28 @@ function daemonHeaders(principalId: string): Record<string, string> {
   return headers;
 }
 
-/** The real daemon, over loopback HTTP — the same URL, token and principal header the proxy uses. */
-export const httpRunDaemonClient: RunDaemonClient = {
-  openEvents: (runId, principalId) =>
-    fetch(`${getAgentDaemonUrl()}/api/runs/${encodeURIComponent(runId)}/events`, { headers: daemonHeaders(principalId) }),
-  async runStatus(runId, principalId) {
-    try {
-      const response = await fetch(`${getAgentDaemonUrl()}/api/runs/${encodeURIComponent(runId)}`, {
-        headers: daemonHeaders(principalId),
-      });
-      await response.body?.cancel().catch(() => undefined);
-      return response.status;
-    } catch {
-      return null;
-    }
-  },
-};
+/** The real daemon, over loopback HTTP — the same URL, token and principal header the proxy uses.
+ *  Each request is one outbound span through `observability` (host/port and status, never the run id
+ *  or token); the events request's span ends at the response headers, not with the stream. */
+export function createHttpRunDaemonClient({ observability }: { observability: ObservabilityPort }): RunDaemonClient {
+  // The global `fetch` read per call, so a test that swaps it is still honored.
+  const send = trackFetch({ fetch: (url: string, init?: RequestInit) => fetch(url, init), observability });
+  return {
+    openEvents: (runId, principalId) =>
+      send(`${getAgentDaemonUrl()}/api/runs/${encodeURIComponent(runId)}/events`, { headers: daemonHeaders(principalId) }),
+    async runStatus(runId, principalId) {
+      try {
+        const response = await send(`${getAgentDaemonUrl()}/api/runs/${encodeURIComponent(runId)}`, {
+          headers: daemonHeaders(principalId),
+        });
+        await response.body?.cancel().catch(() => undefined);
+        return response.status;
+      } catch {
+        return null;
+      }
+    },
+  };
+}
 
 /** One run being watched: the events received on the current connection, and whether it failed. */
 interface Watch {
@@ -140,12 +147,12 @@ const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve,
  *   with one open daemon connection and at most one pending checkpoint per in-flight run.
  */
 export function createAssistantRunFinalizer(options: AssistantRunFinalizerOptions): AssistantRunFinalizer {
-  const daemon = options.daemon ?? httpRunDaemonClient;
+  const observability = options.observability ?? createNoopObservabilityPort({});
+  const daemon = options.daemon ?? createHttpRunDaemonClient({ observability });
   const now = options.now ?? Date.now;
   const reconnectDelayMs = options.reconnectDelayMs ?? 2_000;
   const maxReconnects = options.maxReconnects ?? 30;
   const checkpointIntervalMs = options.checkpointIntervalMs ?? 1_000;
-  const observability = options.observability ?? createNoopObservabilityPort({});
   const active = new Map<string, { watch: Watch; done: Promise<void> }>();
 
   /** Stop progress scheduling and await the ledger's atomic terminal write; persistence errors propagate. */

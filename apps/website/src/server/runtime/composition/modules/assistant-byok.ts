@@ -351,7 +351,7 @@ export function createAssistantByokModule(
     contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: ToolContributor }) => contribution.domain }),
     derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor }) => contribution.domain }),
   };
-  installFirstPartyToolContributors({ contributions });
+  installFirstPartyToolContributors({ contributions }, { observability: routeDeps.observability });
   // Historical rationale for the pre-extraction cast (retained to explain the old failure):
   // `routeDeps`'s declared type here was `RouteDeps` (the old parameter), which is
   // honestly narrower than what `createByokToolSurface` needs (`ByokToolSurfaceDeps` — every

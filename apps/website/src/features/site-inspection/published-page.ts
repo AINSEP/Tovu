@@ -3,6 +3,7 @@ import { createServer, type RequestListener, type Server } from "node:http";
 import { once } from "node:events";
 import type { AddressInfo } from "node:net";
 
+import { createNoopObservabilityPort, trackFetch, type ObservabilityPort } from "#src/platform/observability/index";
 import { checkSitePathname, hasControlCharacter } from "#src/platform/routing/index";
 import type { SitePathCheck } from "#src/platform/routing/index";
 
@@ -121,7 +122,12 @@ export interface FetchPublishedPageDeps {
    * exactly why `createServer(app)` type-checked before this change and still does.
    */
   createSiteApp(routeDeps: unknown): RequestListener;
+  /** Traces the loopback render as one outbound span (method, host/port, status — never the path).
+   *  `RouteDeps.observability` in production; omitted, the render is untraced. */
+  readonly observability?: ObservabilityPort;
 }
+
+const UNTRACED = createNoopObservabilityPort({});
 
 export interface FetchPublishedPageOptions extends PageBodyOptions {
   /** Body bytes to keep, clamped to `[1, MAX_MAX_BODY_BYTES]`. */
@@ -445,7 +451,9 @@ export async function fetchPublishedPage(
 
     let response: Response;
     try {
-      response = await fetch(`${baseUrl}${path}`, {
+      // The global `fetch` read per call, so a test that swaps it is still honored.
+      const send = trackFetch({ fetch: (url, init) => fetch(url, init), observability: deps.observability ?? UNTRACED });
+      response = await send(`${baseUrl}${path}`, {
         redirect: "manual",
         signal: AbortSignal.timeout(timeoutMs),
       });

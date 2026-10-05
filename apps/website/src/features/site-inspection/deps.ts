@@ -1,5 +1,6 @@
 import type { RequestListener } from "node:http";
 import type { AuthorizeFn } from "@jini-ai/cms/core";
+import type { ObservabilityPort } from "#src/platform/observability/index";
 import type { SettingsRepoPort, getEffective } from "@jini-ai/cms/settings";
 
 import type { LiveOriginSourceDeps } from "./live-url.js";
@@ -77,6 +78,8 @@ export interface SiteInspectionToolDeps extends SiteProfileSourceDeps, LiveOrigi
    * `published-page.ts`'s `FetchPublishedPageDeps` for the full note on both points.
    */
   createSiteApp(routeDeps: unknown): RequestListener;
+  /** Passed through to `fetchPublishedPage` to trace its loopback render (`RouteDeps.observability`). */
+  readonly observability?: ObservabilityPort;
   /**
    * Reads the composition root's live `ToolRegistry` as catalog entries: `assistant/
    * tool-catalog-query.ts`'s `listToolCatalogEntries(registry)`, bound to the SAME registry that

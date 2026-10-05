@@ -427,7 +427,7 @@ const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: ToolContributor }) => contribution.domain }),
   derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor }) => contribution.domain }),
 };
-installFirstPartyToolContributors({ contributions }, { deployOpsRegistry: await loadDeployOpsRegistry({ workspaceId: routeDeps.workspaceId }) });
+installFirstPartyToolContributors({ contributions }, { deployOpsRegistry: await loadDeployOpsRegistry({ workspaceId: routeDeps.workspaceId }), observability: routeDeps.observability });
 
 const registry = createToolRegistry({});
 let refreshSkillsCatalog = () => {};

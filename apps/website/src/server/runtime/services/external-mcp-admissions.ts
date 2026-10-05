@@ -1,11 +1,14 @@
 import { FEDERATION_ADMISSIONS_PATH } from "#src/server/inbound/assistant/federation-admissions-route";
 import { AGENT_DAEMON_TOKEN_ENV_VAR } from "#src/assistant/index";
 import { getAgentDaemonUrl } from "#src/server/runtime/lifecycle/agent-daemon-port";
+import { createNoopObservabilityPort, trackFetch, type ObservabilityPort } from "#src/platform/observability/index";
 
 /** Bounds one admin click, not a boot race — unlike `assistant-daemon-client.ts`'s connect-retry
  *  window, this route never retries: an operator who lands on 503 can just click again, and a route
  *  that retried silently would make "is the daemon actually down" take longer to find out. */
 const ADMISSIONS_FETCH_TIMEOUT_MS = 5_000;
+
+const UNTRACED = createNoopObservabilityPort({});
 
 /** What this route reports when it cannot relay the daemon's real answer — the ONE shape every
  *  failure branch below collapses to, so the route handler has exactly one place to turn it into a
@@ -27,6 +30,8 @@ export async function fetchDaemonAdmissions(options: {
   readonly token?: string;
   readonly daemonUrl?: string;
   readonly fetch?: typeof globalThis.fetch;
+  /** Traces the request as one outbound span (host/port, status — never the token). Omitted: untraced. */
+  readonly observability?: ObservabilityPort;
 } = {}): Promise<
   { readonly ok: true; readonly connections: unknown; readonly configFailures?: unknown } | AdmissionsUnavailable
 > {
@@ -36,7 +41,8 @@ export async function fetchDaemonAdmissions(options: {
   }
 
   try {
-    const upstream = await (options.fetch ?? globalThis.fetch)(`${options.daemonUrl ?? getAgentDaemonUrl()}${FEDERATION_ADMISSIONS_PATH}`, {
+    const send = trackFetch({ fetch: options.fetch ?? globalThis.fetch, observability: options.observability ?? UNTRACED });
+    const upstream = await send(`${options.daemonUrl ?? getAgentDaemonUrl()}${FEDERATION_ADMISSIONS_PATH}`, {
       headers: { Authorization: `Bearer ${token}` },
       signal: AbortSignal.timeout(ADMISSIONS_FETCH_TIMEOUT_MS),
     });

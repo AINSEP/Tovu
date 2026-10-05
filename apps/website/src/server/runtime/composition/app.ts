@@ -1974,7 +1974,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // one this file used to reach directly. See `external-mcp-roster-change.ts`'s own header. `"byok"`
   // is a no-op when BYOK has no federated connections configured (`federation` is `undefined` in that
   // case — same optionality `byok-tool-surface.ts` documents on that field).
-  onExternalMcpRosterChanged("agent-daemon", () => triggerFederationReload());
+  onExternalMcpRosterChanged("agent-daemon", () => triggerFederationReload({ observability: routeDeps.observability }));
   onExternalMcpRosterChanged("byok", () => byokAssistantModule.toolSurface.federation?.reload());
 
   // `TOVU_ADMIN_ASSISTANT=off` — a real disable: the four admin-assistant route modules below are

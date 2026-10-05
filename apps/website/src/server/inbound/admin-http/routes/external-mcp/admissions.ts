@@ -46,7 +46,7 @@ export const registerAdminExternalMcpAdmissionsRoute: ExternalMcpRouteRegistrar 
     try {
       if (!(await guardExternalMcpRequest(deps, req.params.workspaceId, res))) return;
 
-      const result = await fetchDaemonAdmissions();
+      const result = await fetchDaemonAdmissions({ observability: deps.observability });
       if (!result.ok) {
         res.status(503).json(result.body);
         return;

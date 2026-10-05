@@ -23,6 +23,7 @@ import { contributeDatabaseTools } from "#src/features/database/tool-registratio
 import { contributeDatabaseTransferTools } from "#src/features/database-transfer/tool-registrations";
 import { contributeDomainDnsTools } from "#src/features/domain-dns/index";
 import { createDefaultHttpClient } from "#src/platform/http/client";
+import type { ObservabilityPort } from "#src/platform/observability/index";
 import { LIVE_PAGE_EGRESS_POLICY } from "#src/platform/http/egress-policies";
 import { DOMAIN_DNS_EGRESS_POLICY, createPublicDnsResolver, createTlsProbe, listSavedHostingHosts } from "./domain-dns-adapters.js";
 import { contributeDeployOpsTools } from "#src/features/deployments/deploy-ops/tool-registrations";
@@ -280,10 +281,25 @@ import { contributeWidgetsTools } from "#src/features/widgets/tool-registrations
  * own header for why it is a separate seam from `ToolContributor`. Those three resources resolve to
  * THREE different permissions (`content.write` / `admin.forms.manage` / `media.upload`), which is
  * what makes the tool's per-resource permission resolution load-bearing rather than decorative.
+ *
+ * `options.observability` (the composition root's `RouteDeps.observability`) traces the tools' own
+ * egress built here: the domain-DNS and live-page guarded HTTP clients and the daemon admissions
+ * read. `createHttpClient`/`fetchAdmissions` are those collaborators, injectable so that wiring is
+ * provable without a public network or a running daemon.
  */
 export function installFirstPartyToolContributors(
   { contributions }: { contributions: AssistantToolContributions },
-  options: { deployOpsRegistry?: DeployOpsRegistry } = {},
+  {
+    deployOpsRegistry,
+    observability,
+    createHttpClient = createDefaultHttpClient,
+    fetchAdmissions = fetchDaemonAdmissions,
+  }: {
+    deployOpsRegistry?: DeployOpsRegistry;
+    observability?: ObservabilityPort;
+    createHttpClient?: typeof createDefaultHttpClient;
+    fetchAdmissions?: typeof fetchDaemonAdmissions;
+  } = {},
 ): void {
   contributions.contributors.register({ contribution: contributeContentStatsTools() });
   contributions.contributors.register({ contribution: contributeAnalyticsTools() });
@@ -324,8 +340,8 @@ export function installFirstPartyToolContributors(
   // database's private `tovu` area. The site keeps running on SQLite.
   contributions.contributors.register({ contribution: contributeDatabaseTransferTools() });
   contributions.contributors.register({ contribution: contributeDeploymentsTools() });
-  contributions.contributors.register({ contribution: contributeDeployOpsTools({ registry: options.deployOpsRegistry }) });
-  const domainDnsHttpClient = createDefaultHttpClient(DOMAIN_DNS_EGRESS_POLICY);
+  contributions.contributors.register({ contribution: contributeDeployOpsTools({ registry: deployOpsRegistry }) });
+  const domainDnsHttpClient = createHttpClient(DOMAIN_DNS_EGRESS_POLICY, { observability });
   const domainDnsDiagnostics = { observe: ({ operation, outcome }: { operation: "dns" | "tls"; outcome: string }) => console.info(`[domain-dns] ${operation}: ${outcome}`) };
   contributions.contributors.register({ contribution: contributeDomainDnsTools({ createDeps: routeDeps => ({
     workspaceId: routeDeps.workspaceId,
@@ -336,7 +352,7 @@ export function installFirstPartyToolContributors(
   }) }) });
   contributions.contributors.register({ contribution: contributeEntriesTools() });
   contributions.contributors.register({ contribution: contributeExternalMcpTools() });
-  contributions.contributors.register({ contribution: contributeExternalMcpOperationsTools({ probe: probeExternalMcpServer, admissions: fetchDaemonAdmissions }) });
+  contributions.contributors.register({ contribution: contributeExternalMcpOperationsTools({ probe: probeExternalMcpServer, admissions: () => fetchAdmissions({ observability }) }) });
   contributions.contributors.register({ contribution: contributeFsFilesTools() });
   contributions.contributors.register({ contribution: contributeFormsTools() });
   contributions.contributors.register({ contribution: contributeIdentityTools() });
@@ -381,7 +397,7 @@ export function installFirstPartyToolContributors(
   // own call open for the human's confirm before one commit lands in a private GitHub repository.
   contributions.contributors.register({ contribution: contributeSiteBackupTools() });
   contributions.contributors.register({ contribution: contributeSiteEvidenceTools() });
-  contributions.contributors.register({ contribution: contributeSiteInspectionTools(createDefaultHttpClient(LIVE_PAGE_EGRESS_POLICY)) });
+  contributions.contributors.register({ contribution: contributeSiteInspectionTools(createHttpClient(LIVE_PAGE_EGRESS_POLICY, { observability })) });
   contributions.contributors.register({ contribution: contributeSitesTools() });
   contributions.contributors.register({ contribution: contributeSourceControlTools() });
   contributions.contributors.register({ contribution: contributeStaticPublishTools() });

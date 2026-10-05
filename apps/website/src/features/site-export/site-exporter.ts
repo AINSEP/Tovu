@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:
 import path from "node:path";
 
 import { resolvePathWithin } from "#src/contracts/core/index";
+import { trackFetch, type ObservabilityPort } from "#src/platform/observability/index";
 import { resolveThemeLayout } from "#src/features/theme/index";
 
 // No import of `server/app.ts` here, static OR lazy (2026-08-16 rework). This used to be the single
@@ -230,6 +231,9 @@ export { firstExportFailure, type ExportFailureSummary } from "./export-failure-
  */
 export interface ExportSiteRouteDeps extends RouteManifestDeps {
   readonly createSiteApp: () => RequestListener;
+  /** Traces each loopback render/asset fetch as one outbound span (method, host/port, status —
+   *  never the route path). `RouteDeps.observability`; the no-op port in hermetic roots. */
+  readonly observability: ObservabilityPort;
 }
 
 export interface ExportSiteOptions {
@@ -595,6 +599,12 @@ function withStaticExportMarker(headers: HeadersInit | undefined): Headers {
   return merged;
 }
 
+/** The export's own loopback listener and the (traced) fetch every request to it goes through. */
+interface ExportOrigin {
+  readonly baseUrl: string;
+  readonly fetch: typeof fetch;
+}
+
 /** The one place every fetch below goes through — adds the timeout, the {@link
  *  STATIC_EXPORT_REQUEST_HEADER} marker, and turns a thrown network or timeout failure into the
  *  same typed, non-throwing outcome `writeContentRoute` / `writeRedirectRoute` /
@@ -602,9 +612,10 @@ function withStaticExportMarker(headers: HeadersInit | undefined): Headers {
  *  `exportSite`'s documented "never throws for an individual route or asset failure" contract
  *  (this file's own header) holds for a hung/refused fetch too, not only for a
  *  received-but-wrong-status response. */
-async function exportFetch(url: string, init?: RequestInit): Promise<{ ok: true; response: Response } | { ok: false; reason: string }> {
+async function exportFetch(origin: ExportOrigin, path: string, init?: RequestInit): Promise<{ ok: true; response: Response } | { ok: false; reason: string }> {
+  const url = `${origin.baseUrl}${path}`;
   try {
-    const response = await fetch(url, {
+    const response = await origin.fetch(url, {
       ...init,
       headers: withStaticExportMarker(init?.headers),
       signal: AbortSignal.timeout(EXPORT_FETCH_TIMEOUT_MS),
@@ -618,8 +629,8 @@ async function exportFetch(url: string, init?: RequestInit): Promise<{ ok: true;
   }
 }
 
-async function writeContentRoute(route: ManifestRoute, baseUrl: string, outputDir: string, basePath: string): Promise<RouteWriteOutcome> {
-  const fetched = await exportFetch(`${baseUrl}${route.path}`);
+async function writeContentRoute(route: ManifestRoute, origin: ExportOrigin, outputDir: string, basePath: string): Promise<RouteWriteOutcome> {
+  const fetched = await exportFetch(origin, route.path);
   if (!fetched.ok) {
     return { failed: { path: route.path, kind: route.kind, reason: fetched.reason } };
   }
@@ -676,8 +687,8 @@ export function redirectOutcomeFor(status: number, locationHeader: string | null
 /** Writes a `kind: "redirect"` manifest route by re-requesting it and applying
  *  {@link redirectOutcomeFor} to the real response — never the manifest's own `redirectTarget`
  *  alone, so the written stub always reflects what the live server actually answered with. */
-async function writeRedirectRoute(route: ManifestRoute, baseUrl: string, outputDir: string, basePath: string): Promise<RouteWriteOutcome> {
-  const fetched = await exportFetch(`${baseUrl}${route.path}`, { redirect: "manual" });
+async function writeRedirectRoute(route: ManifestRoute, origin: ExportOrigin, outputDir: string, basePath: string): Promise<RouteWriteOutcome> {
+  const fetched = await exportFetch(origin, route.path, { redirect: "manual" });
   if (!fetched.ok) {
     return { failed: { path: route.path, kind: route.kind, reason: fetched.reason } };
   }
@@ -700,8 +711,8 @@ async function writeRedirectRoute(route: ManifestRoute, baseUrl: string, outputD
 /** The 404 probe is written to `<outputDir>/404.html` — not to its own sentinel path — matching
  *  the convention static hosts (Netlify, GitHub Pages, S3+CloudFront) already look for at the
  *  output root. */
-async function writeNotFoundRoute(route: ManifestRoute, baseUrl: string, outputDir: string, basePath: string): Promise<RouteWriteOutcome> {
-  const fetched = await exportFetch(`${baseUrl}${route.path}`);
+async function writeNotFoundRoute(route: ManifestRoute, origin: ExportOrigin, outputDir: string, basePath: string): Promise<RouteWriteOutcome> {
+  const fetched = await exportFetch(origin, route.path);
   if (!fetched.ok) {
     return { failed: { path: route.path, kind: route.kind, reason: fetched.reason } };
   }
@@ -737,10 +748,10 @@ async function writeNotFoundRoute(route: ManifestRoute, baseUrl: string, outputD
 async function fetchOneAsset(
   url: string,
   outFile: string,
-  baseUrl: string,
+  origin: ExportOrigin,
   outputDir: string
 ): Promise<{ ok: true; asset: ExportedAsset; cssRefs: string[] } | { ok: false; failure: FailedAsset }> {
-  const fetched = await exportFetch(`${baseUrl}${url}`);
+  const fetched = await exportFetch(origin, url);
   if (!fetched.ok) {
     return { ok: false, failure: { url, reason: fetched.reason } };
   }
@@ -775,7 +786,7 @@ async function fetchOneAsset(
  *   a CSS file's own referenced fonts/images are never themselves re-scanned for further `url(...)`
  *   references).
  */
-async function fetchAssets(initialUrls: readonly string[], baseUrl: string, outputDir: string): Promise<{ succeeded: ExportedAsset[]; failed: FailedAsset[] }> {
+async function fetchAssets(initialUrls: readonly string[], origin: ExportOrigin, outputDir: string): Promise<{ succeeded: ExportedAsset[]; failed: FailedAsset[] }> {
   const succeeded: ExportedAsset[] = [];
   const failed: FailedAsset[] = [];
   const seen = new Set<string>();
@@ -792,7 +803,7 @@ async function fetchAssets(initialUrls: readonly string[], baseUrl: string, outp
       continue;
     }
 
-    const outcome = await fetchOneAsset(url, outFile, baseUrl, outputDir).catch((error: unknown) => ({
+    const outcome = await fetchOneAsset(url, outFile, origin, outputDir).catch((error: unknown) => ({
       ok: false as const,
       failure: { url, reason: `GET ${url} failed: ${error instanceof Error ? error.message : String(error)}` },
     }));
@@ -886,16 +897,16 @@ const BASE_PATH_REWRITE_WARNING =
   "base-path rewriting is a best-effort TEXT rewrite over already-rendered responses — it cannot rewrite a path a theme's own JavaScript constructs at runtime from a string (same category of gap as the unreferenced-theme-file warning, just invisible to this rewrite instead of to the asset crawl).";
 
 /** Dispatches one manifest route to the writer matching its kind. */
-async function writeRoute(route: ManifestRoute, baseUrl: string, outputDir: string, basePath: string): Promise<RouteWriteOutcome> {
-  if (route.kind === "redirect") return writeRedirectRoute(route, baseUrl, outputDir, basePath);
-  if (route.kind === "not-found") return writeNotFoundRoute(route, baseUrl, outputDir, basePath);
-  return writeContentRoute(route, baseUrl, outputDir, basePath);
+async function writeRoute(route: ManifestRoute, origin: ExportOrigin, outputDir: string, basePath: string): Promise<RouteWriteOutcome> {
+  if (route.kind === "redirect") return writeRedirectRoute(route, origin, outputDir, basePath);
+  if (route.kind === "not-found") return writeNotFoundRoute(route, origin, outputDir, basePath);
+  return writeContentRoute(route, origin, outputDir, basePath);
 }
 
 /** Writes every manifest route to disk, collecting succeeded/failed routes plus every asset URL discovered in their HTML. */
 async function writeAllRoutes(
   routes: readonly ManifestRoute[],
-  baseUrl: string,
+  origin: ExportOrigin,
   outputDir: string,
   basePath: string
 ): Promise<{ succeeded: ExportedRoute[]; failed: FailedRoute[]; assetUrls: Set<string> }> {
@@ -904,8 +915,8 @@ async function writeAllRoutes(
   const assetUrls = new Set<string>();
 
   for (const route of routes) {
-    const outcome: RouteWriteOutcome = await writeRoute(route, baseUrl, outputDir, basePath).catch((error: unknown) => ({
-      failed: { path: route.path, kind: route.kind, reason: `GET ${baseUrl}${route.path} failed: ${error instanceof Error ? error.message : String(error)}` },
+    const outcome: RouteWriteOutcome = await writeRoute(route, origin, outputDir, basePath).catch((error: unknown) => ({
+      failed: { path: route.path, kind: route.kind, reason: `GET ${origin.baseUrl}${route.path} failed: ${error instanceof Error ? error.message : String(error)}` },
     }));
     if (outcome.succeeded) succeeded.push(outcome.succeeded);
     if (outcome.failed) failed.push(outcome.failed);
@@ -947,14 +958,18 @@ export async function exportSite(options: ExportSiteOptions): Promise<ExportRepo
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
   const address = server.address() as AddressInfo;
-  const baseUrl = `http://127.0.0.1:${address.port}`;
+  const origin: ExportOrigin = {
+    baseUrl: `http://127.0.0.1:${address.port}`,
+    // The global `fetch` read per call, so a test that swaps it is still honored.
+    fetch: trackFetch({ fetch: (input, init) => fetch(input, init), observability: routeDeps.observability }),
+  };
 
   try {
-    const { succeeded: routesSucceeded, failed: routesFailed, assetUrls } = await writeAllRoutes(manifest.routes, baseUrl, outputDir, basePath);
+    const { succeeded: routesSucceeded, failed: routesFailed, assetUrls } = await writeAllRoutes(manifest.routes, origin, outputDir, basePath);
 
     // Asset discovery/fetch/output-layout is entirely basePath-agnostic (see writeContentRoute's own
     // comment) — no rewrite is applied here, by design, not by omission.
-    const { succeeded: assetsSucceeded, failed: assetsFailed } = await fetchAssets([...assetUrls], baseUrl, outputDir);
+    const { succeeded: assetsSucceeded, failed: assetsFailed } = await fetchAssets([...assetUrls], origin, outputDir);
     const unreferencedThemeFiles = resolveUnreferencedThemeFiles(manifest, assetsSucceeded);
 
     return {
