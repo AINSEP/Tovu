@@ -166,3 +166,25 @@ test("redirects_import: a listed domain failure still reports its own actionable
     { index: 0, code: "REDIRECT_TARGET_NOT_ALLOWED", message: "toTarget 'https://evil.example/y' is not an allowed redirect destination" },
   ]);
 });
+
+// REGRESSION (fix-plan C6b): `redirects_list` cast each filter straight to its union type, so
+// `status:"enabled"` (not a status) matched no rule and the model read "no redirects" instead of the
+// reason. Same for `source` and `matchType`, which share the handler and the bug.
+test("redirects_list refuses an off-enum status, source or matchType naming the allowed values, before reading", async () => {
+  const { deps, redirectRepo } = makeDeps();
+  let listed = 0;
+  redirectRepo.list = async () => {
+    listed += 1;
+    return [];
+  };
+  for (const [input, message] of [
+    [{ status: "enabled" }, "'status' must be one of: active, disabled"],
+    [{ source: "manual-ish" }, "'source' must be one of: manual, auto_slug_change, import"],
+    [{ matchType: "glob" }, "'matchType' must be one of: exact, prefix, wildcard, regex"],
+  ] as const) {
+    assert.equal(await rejectionMessage(handler(deps, "redirects_list")(ctx(input))), message);
+  }
+  assert.equal(listed, 0);
+  await handler(deps, "redirects_list")(ctx({ status: "disabled", source: "import", matchType: "regex" }));
+  assert.equal(listed, 1);
+});

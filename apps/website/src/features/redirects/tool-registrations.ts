@@ -12,7 +12,7 @@ import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
  * mirroring those routes' identical check (ADR-021 §2's single evaluator, located at the handler
  * here rather than inside the domain function).
  */
-import { buildDomainRegistrations, indexCatalogById, isRecord, optionalBoolean, optionalNumber, optionalString, requireInputRecord, requireNumber, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { buildDomainRegistrations, indexCatalogById, isRecord, optionalBoolean, optionalNumber, optionalOneOf, optionalString, requireInputRecord, requireNumber, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { type AuthorizeFn, requireToolPermission } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
 import { withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
@@ -30,6 +30,9 @@ import {
   type RedirectsWriteDeps,
 } from "./redirects.js";
 import {
+  REDIRECT_MATCH_TYPES,
+  REDIRECT_SOURCES,
+  REDIRECT_STATUSES,
   RedirectConflictError,
   RedirectLoopError,
   RedirectNotFoundError,
@@ -40,7 +43,6 @@ import type {
   CreateRedirectInput,
   RedirectMatchType,
   RedirectRecord,
-  RedirectSource,
   RedirectStatus,
   RedirectStatusCode,
 } from "./types.js";
@@ -147,9 +149,9 @@ export function buildRedirectsRegistrations(
 
       const rules = await routeDeps.redirectRepo.list({
         workspaceId: routeDeps.workspaceId,
-        status: optionalString({ input: input, key: "status" }) as RedirectStatus | undefined,
-        source: optionalString({ input: input, key: "source" }) as RedirectSource | undefined,
-        matchType: optionalString({ input: input, key: "matchType" }) as RedirectMatchType | undefined,
+        status: optionalOneOf({ input, key: "status", values: REDIRECT_STATUSES }),
+        source: optionalOneOf({ input, key: "source", values: REDIRECT_SOURCES }),
+        matchType: optionalOneOf({ input, key: "matchType", values: REDIRECT_MATCH_TYPES }),
       });
       return { rules: rules.map(toRedirectToolView) };
     },

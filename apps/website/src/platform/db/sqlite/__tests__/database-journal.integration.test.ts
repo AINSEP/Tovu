@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { sql } from "kysely";
+import { ToolInputError } from "@jini-ai/core";
 
 import { openDatabaseJournalDb } from "../database-journal-db.js";
 import { SqliteMigrationRunsRepo, SqliteRestorePointsRepo, SqliteDatabaseLedgerRepo } from "../database-journal-repo.js";
@@ -121,6 +122,29 @@ test("SqliteDatabaseLedgerRepo: query() paginates via a stable cursor, never a r
     const page3 = await ledger.query({ limit: 2, cursor: page2.nextCursor ?? undefined });
     assert.deepEqual(page3.items.map((r) => r.id), ["led-0"]);
     assert.equal(page3.nextCursor, null, "the final page must report no further cursor");
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+// REGRESSION (fix-plan C6a): a date-only `toDate` compared as a string against full timestamps, so
+// "2026-09-24" excluded every row from that day; an undecodable cursor (no `::`) was treated as "no
+// cursor" and silently restarted from the newest row.
+test("SqliteDatabaseLedgerRepo: a date-only toDate includes that whole day; an undecodable cursor is refused", async () => {
+  const { db, tmpDir } = openTempJournal();
+  try {
+    const ledger = new SqliteDatabaseLedgerRepo({ db, siteId: "site-1" });
+    await ledger.append({ id: "on-the-day", kind: "core.migration", outcome: "success", createdAt: "2026-09-24T10:00:00.000Z" });
+    await ledger.append({ id: "next-day", kind: "core.migration", outcome: "success", createdAt: "2026-09-25T00:00:00.000Z" });
+
+    assert.deepEqual((await ledger.query({ toDate: "2026-09-24", limit: 10 })).items.map((row) => row.id), ["on-the-day"]);
+    for (const cursor of ["garbage", "2026-09-24T10:00:00.000Z", "::led-1", "2026-09-24T10:00:00.000Z::", "not-a-date::led-1"]) {
+      await assert.rejects(ledger.query({ cursor, limit: 10 }), (err: unknown) => {
+        assert.ok(err instanceof ToolInputError, `expected ToolInputError for ${cursor}`);
+        assert.equal((err as Error).message, "invalid cursor");
+        return true;
+      });
+    }
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }

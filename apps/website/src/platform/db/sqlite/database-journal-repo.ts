@@ -1,3 +1,4 @@
+import { ToolInputError } from "@jini-ai/core";
 import type { Updateable } from "kysely";
 
 import type { LedgerReadPort, LedgerRow } from "#src/features/database/timeline";
@@ -32,10 +33,27 @@ function encodeCursor(row: { createdAt: string; id: string }): string {
   return `${row.createdAt}::${row.id}`;
 }
 
-function decodeCursor(cursor: string): { createdAt: string; id: string } | null {
+/** Splits a cursor {@link encodeCursor} built. A cursor it could not have built used to decode to
+ *  `null` and read as "no cursor", silently restarting the scan from the newest row.
+ *  @throws {ToolInputError} `invalid cursor` (a 400 to the tool and admin transports alike).
+ *  @complexity O(cursor length). */
+function decodeCursor(cursor: string): { createdAt: string; id: string } {
   const separatorIndex = cursor.indexOf("::");
-  if (separatorIndex < 0) return null;
-  return { createdAt: cursor.slice(0, separatorIndex), id: cursor.slice(separatorIndex + 2) };
+  const createdAt = cursor.slice(0, separatorIndex);
+  const id = cursor.slice(separatorIndex + 2);
+  if (separatorIndex < 0 || id.length === 0 || Number.isNaN(Date.parse(createdAt))) {
+    throw new ToolInputError({ message: "invalid cursor" });
+  }
+  return { createdAt, id };
+}
+
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
+/** `created_at` is a full ISO timestamp compared as a string, so a bare `2026-09-24` upper bound sorted
+ *  before every row of that day and excluded it. A date-only bound means "through the end of that day".
+ *  @complexity O(1). */
+function inclusiveUpperBound(toDate: string): string {
+  return DATE_ONLY.test(toDate) ? `${toDate}T23:59:59.999Z` : toDate;
 }
 
 /** `database_ledger` adapter — implements both the Timeline's read port and the boot
@@ -69,7 +87,7 @@ export class SqliteDatabaseLedgerRepo implements LedgerReadPort, BootLedgerPort 
       if (filter.kind) query = query.where("kind", "=", filter.kind);
       if (filter.outcome) query = query.where("outcome", "=", filter.outcome);
       if (filter.fromDate) query = query.where("created_at", ">=", filter.fromDate);
-      if (filter.toDate) query = query.where("created_at", "<=", filter.toDate);
+      if (filter.toDate) query = query.where("created_at", "<=", inclusiveUpperBound(filter.toDate));
       if (decoded) {
         query = query.where((eb) =>
           eb.or([

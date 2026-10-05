@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import express from "express";
+import { ToolInputError } from "@jini-ai/core";
 
 import { bootAuthenticated } from "./helpers/http-test-server.js";
 import { InMemoryDatabaseLedgerRepo } from "../../features/database/repo.memory.js";
@@ -128,4 +129,27 @@ test("database timeline route: a limit above the server's 200-row cap is rejecte
   assert.equal(res.status, 400);
   const body = (await res.json()) as { code: string };
   assert.equal(body.code, "VALIDATION_ERROR");
+});
+
+// REGRESSION (fix-plan C6a): `?limit=0` reached the ledger as an empty page and `?limit=abc` as NaN;
+// the SQLite ledger's "invalid cursor" ToolInputError fell through to a 500 INTERNAL_ERROR.
+test("database timeline route: a non-positive or non-numeric limit and an invalid cursor are 400 VALIDATION_ERROR", async (t) => {
+  class InvalidCursorLedger extends InMemoryDatabaseLedgerRepo {
+    override async query(filter: Parameters<InMemoryDatabaseLedgerRepo["query"]>[0]) {
+      if (filter.cursor === "garbage") throw new ToolInputError({ message: "invalid cursor" });
+      return super.query(filter);
+    }
+  }
+  const { app } = buildTestApp(new InvalidCursorLedger());
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  for (const [query, error] of [
+    ["limit=0", "'limit' must be an integer between 1 and 200"],
+    ["limit=abc", "'limit' must be an integer between 1 and 200"],
+    ["cursor=garbage", "invalid cursor"],
+  ] as const) {
+    const res = await fetch(`${baseUrl}/api/admin/v1/database/timeline?${query}`, { headers: { cookie } });
+    assert.equal(res.status, 400, query);
+    assert.deepEqual(await res.json(), { error, code: "VALIDATION_ERROR" }, query);
+  }
 });

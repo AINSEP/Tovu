@@ -52,3 +52,26 @@ test("backup_create_restore_point: a non-object input is a ToolInputError (400),
     },
   );
 });
+
+// REGRESSION (fix-plan C6a): `limit` went straight to the ledger — 0 read an empty page and 300 hit
+// getTimeline's cap as a plain Error, redacted to INTERNAL. Through Tovu's own wiring.
+test("database_query_timeline: limit 300 is capped to 200 rows, limit 0 is refused before any read", async () => {
+  const queriedLimits: number[] = [];
+  const base = createRouteDeps() as unknown as DatabaseToolDeps;
+  const rows = Array.from({ length: 250 }, (_, i) => ({ id: `row-${i}`, kind: "core.migration", createdAt: "2026-09-24T00:00:00.000Z", restorePointId: null, outcome: "success" }));
+  const deps: DatabaseToolDeps = {
+    ...base,
+    authorize: async () => ({ allowed: true, reason: "test" }),
+    databaseLedgerRepo: { ...base.databaseLedgerRepo, query: async (filter) => { queriedLimits.push(filter.limit); return { items: rows.slice(0, filter.limit), nextCursor: null }; } },
+  };
+  const registration = buildDatabaseRegistrations(deps).find((r) => r.descriptor.id === "database_query_timeline")!;
+
+  const page = (await registration.handler(ctxWithInput({ limit: 300 }))) as { items: unknown[] };
+  assert.equal(page.items.length, 200);
+  await assert.rejects(registration.handler(ctxWithInput({ limit: 0 })), (err: unknown) => {
+    assert.ok(err instanceof ToolInputError);
+    assert.equal((err as Error).message, "'limit' must be an integer between 1 and 200");
+    return true;
+  });
+  assert.deepEqual(queriedLimits, [200]);
+});

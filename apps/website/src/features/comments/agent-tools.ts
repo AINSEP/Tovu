@@ -44,6 +44,7 @@
  */
 
 import { MAX_DEPTH_CEILING, MAX_PER_IP_PER_HOUR_CEILING } from "./settings.js";
+import { COMMENT_STATUSES } from "./types.js";
 
 export type AgentToolSideEffect = "none" | "mutates-durable-state" | "mints-token";
 
@@ -117,7 +118,7 @@ export const commentsAgentToolCatalog: AgentToolDefinition[] = [
       properties: {
         status: {
           type: "string",
-          enum: ["pending", "approved", "spam", "trash"],
+          enum: [...COMMENT_STATUSES],
           description: "Filter by moderation status. Defaults to 'pending' if omitted.",
         },
         limit: { type: "integer", minimum: 1, maximum: 100, description: "Max rows to return (1-100). Defaults to 20." },

@@ -243,3 +243,25 @@ test("a repository conflict is model-facing while an unexpected auth error remai
     assert.deepEqual({ code: result.error.code, message: result.error.message }, expected);
   }
 });
+
+// REGRESSION (fix-plan C6b): `limit` went to the repo unchecked (-5 read as an empty page) and an
+// `afterId` naming no member silently restarted from the first page.
+test("members_list refuses a bad limit and an unknown afterId with the real reason; a valid afterId pages", async () => {
+  const deps = makeRouteDeps();
+  await seedMember(deps);
+  const harness = await buildHarness(deps);
+
+  for (const limit of [-5, 0, 1.5]) {
+    const result = await call(harness, "members_list", { limit });
+    assert.equal(result.ok, false);
+    if (result.ok) return;
+    assert.deepEqual(result.error, { code: "BAD_REQUEST", message: "'limit' must be an integer between 1 and 100" });
+  }
+  const unknown = await call(harness, "members_list", { afterId: "ghost" });
+  assert.equal(unknown.ok, false);
+  if (unknown.ok) return;
+  assert.deepEqual(unknown.error, { code: "BAD_REQUEST", message: "unknown afterId 'ghost'" });
+
+  assert.deepEqual(output(await call(harness, "members_list", { afterId: "m-1" })), { members: [] });
+  assert.deepEqual(output(await call(harness, "members_list", { limit: 500 })), { members: [MEMBER_VIEW] });
+});

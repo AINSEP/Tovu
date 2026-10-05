@@ -10,7 +10,7 @@ import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
  * handler here therefore performs that same check itself via the kit's `requireToolPermission`,
  * which is ADR-021 §2's single evaluation for these tools, located where the real route locates it.
  */
-import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { buildDomainRegistrations, indexCatalogById, optionalString, readToolLimit, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { type AuthorizeFn, requireToolPermission } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
 
@@ -168,6 +168,9 @@ const MEMBERS_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
   { error: MemberConflictError, code: "MEMBERS_CONFLICT" },
 ];
 
+/** `members_list`'s schema cap (`agent-tools.ts`), which is also the repo's own page size. */
+const MEMBERS_LIST_MAX_LIMIT = 100;
+
 export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     members_list: async (ctx) => {
@@ -175,8 +178,13 @@ export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistrati
 
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "member.manage" }, { entityType: "member" });
 
-      const afterId = typeof input.afterId === "string" ? input.afterId : undefined;
-      const limit = typeof input.limit === "number" ? input.limit : undefined;
+      const afterId = optionalString({ input, key: "afterId" });
+      const limit = readToolLimit({ input, max: MEMBERS_LIST_MAX_LIMIT, fallback: MEMBERS_LIST_MAX_LIMIT });
+      // The repo treats an afterId it cannot find as "first page" (the admin list relies on that);
+      // a model that passed one meant a real member, so a miss is its mistake to hear about.
+      if (afterId !== undefined && !(await deps.memberRepo.findById({ workspaceId: deps.workspaceId, id: afterId }))) {
+        throw new ToolInputError({ message: `unknown afterId '${afterId}'` });
+      }
       const members = await deps.memberRepo.list({ workspaceId: deps.workspaceId, afterId, limit });
       return { members: members.map(toMemberToolView) };
     },

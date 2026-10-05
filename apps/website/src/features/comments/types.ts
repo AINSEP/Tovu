@@ -26,7 +26,8 @@ import type { ColumnType, DataModuleDecl } from "../plugins/index.js";
  * plus `trash` — a soft-delete tier so deletion is recoverable (never-brick; purge is a
  * separate, explicit, `comments.delete.force`-gated act, mirroring ADR-027's trash→purge ladder).
  */
-export type CommentStatus = "pending" | "approved" | "spam" | "trash";
+export const COMMENT_STATUSES = ["pending", "approved", "spam", "trash"] as const;
+export type CommentStatus = (typeof COMMENT_STATUSES)[number];
 
 /** The moderation transitions recorded, append-only, in the moderation log. */
 export type ModerationAction =

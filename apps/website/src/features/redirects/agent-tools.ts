@@ -1,4 +1,5 @@
 import { MAX_IMPORT_BATCH_SIZE, MAX_PRIORITY, MAX_TARGET_LENGTH, MIN_PRIORITY, MIN_TARGET_LENGTH, VALID_STATUS_CODES } from "./redirects.js";
+import { REDIRECT_MATCH_TYPES, REDIRECT_SOURCES, REDIRECT_STATUSES } from "./types.js";
 
 /**
  * @file The Redirects domain's agent-tool catalog, instantiating SPEC-016 REQ-22's
@@ -109,13 +110,13 @@ const LIST_SCHEMA = {
   additionalProperties: false,
   required: [],
   properties: {
-    status: { type: "string", enum: ["active", "disabled"], description: "Filter to rules in exactly this status. Omit to list every status." },
+    status: { type: "string", enum: [...REDIRECT_STATUSES], description: "Filter to rules in exactly this status. Omit to list every status." },
     source: {
       type: "string",
-      enum: ["manual", "auto_slug_change", "import"],
+      enum: [...REDIRECT_SOURCES],
       description: "Filter to rules with exactly this provenance. Omit to list every source.",
     },
-    matchType: { type: "string", enum: ["exact", "prefix", "wildcard", "regex"], description: "Filter to rules of exactly this match type. Omit to list every match type." },
+    matchType: { type: "string", enum: [...REDIRECT_MATCH_TYPES], description: "Filter to rules of exactly this match type. Omit to list every match type." },
   },
 } as const;
 

@@ -13,8 +13,8 @@
 import {
   buildDomainRegistrations,
   indexCatalogById,
-  optionalNumber,
   optionalString,
+  readToolLimit,
   requireInputRecord,
   requireString,
   type AgentToolSideEffect,
@@ -149,7 +149,7 @@ export function buildTrashRegistrations(routeDeps: TrashToolDeps): ToolRegistrat
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: TRASH_READ_PERMISSION });
 
       const requested = readEntityTypes(input);
-      const limit = Math.min(optionalNumber({ input, key: "limit" }) ?? DEFAULT_LIST_LIMIT, MAX_LIST_LIMIT);
+      const limit = readToolLimit({ input, max: MAX_LIST_LIMIT, fallback: DEFAULT_LIST_LIMIT });
       const now = routeDeps.clock.nowIso();
 
       const page = await routeDeps.trash.list({

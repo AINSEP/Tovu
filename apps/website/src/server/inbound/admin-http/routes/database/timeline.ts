@@ -1,3 +1,4 @@
+import { ToolInputError } from "@jini-ai/core";
 import type { Express, Response } from "express";
 
 import { getTimeline } from "#src/features/database/timeline";
@@ -24,10 +25,11 @@ function parseTimelineFilter(query: Record<string, unknown>) {
 }
 
 /** Maps `getTimeline`'s thrown errors onto the admin error envelope — a `TimelineValidationError`
- *  (matched by `name` since it isn't an exported class here) is a 400, everything else a 500.
+ *  (matched by `name` since it isn't an exported class here) or the ledger's `ToolInputError` (an
+ *  undecodable cursor) is a 400, everything else a 500.
  *  @complexity O(1). */
 function sendTimelineError(res: Response, err: unknown): void {
-  const isValidationError = err instanceof Error && err.name === "TimelineValidationError";
+  const isValidationError = err instanceof ToolInputError || (err instanceof Error && err.name === "TimelineValidationError");
   const message = err instanceof Error ? err.message : "internal error";
   res.status(isValidationError ? 400 : 500).json({
     error: message,

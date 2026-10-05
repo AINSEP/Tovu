@@ -12,7 +12,7 @@
  * real admin route performs it. The seventh, `comments_update_settings`, is the exception and is
  * documented at its own handler.
  */
-import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireNumber, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { buildDomainRegistrations, indexCatalogById, optionalOneOf, readToolLimit, requireInputRecord, requireNumber, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, type AuthorizeFn, ForbiddenError, requireToolPermission } from "@jini-ai/cms/core";
 import { forbiddenRule, withModelFacingErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
 // `ToolInputError` specifically — see `features/post/tool-registrations.ts`'s identical import
@@ -27,6 +27,7 @@ import { commentsAgentToolCatalog } from "./agent-tools.js";
 import type { CommentRepoPort } from "./ports.js";
 import { CommentNotFoundError, CommentsSettingsValidationError, CommentVersionConflictError } from "./errors.js";
 import { getCommentsSettings, setCommentsSettings } from "./settings.js";
+import { COMMENT_STATUSES } from "./types.js";
 import type {
   CommentsSettings,
   CommentStatus,
@@ -210,8 +211,8 @@ export function buildCommentsRegistrations(
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "comments.read" }, { entityType: "comment" });
 
       await routeDeps.commentsReady;
-      const status: CommentStatus = typeof input.status === "string" ? (input.status as CommentStatus) : "pending";
-      const limit = typeof input.limit === "number" ? input.limit : 20;
+      const status: CommentStatus = optionalOneOf({ input, key: "status", values: COMMENT_STATUSES }) ?? "pending";
+      const limit = readToolLimit({ input, max: 100, fallback: 20 });
       const cursor = typeof input.cursor === "string" ? input.cursor : null;
       const page = await routeDeps.commentRepo.listModerationQueue({ workspaceId: routeDeps.workspaceId, status, limit, cursor });
       return toModerationQueueToolView(page);

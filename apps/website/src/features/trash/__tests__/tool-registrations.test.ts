@@ -194,6 +194,23 @@ test("list forwards the workspace, clock, cursor, limit and requested kind filte
   assert.deepEqual(h.listCalls, [{ workspaceId: WS, now: NOW, cursor: "after-row-17", limit: 7, entityTypes: ["post", "media"] }]);
 });
 
+// REGRESSION (fix-plan C6a): `limit` was only capped from above, so -1 or 0 reached the store and 2.5
+// a fractional page; the model got an empty page instead of the reason.
+test("list refuses a non-positive or fractional limit before reading, and caps one above 100", async () => {
+  const h = harness();
+  for (const limit of [-1, 0, 2.5]) {
+    await assert.rejects(() => list(h, { limit }), (err: unknown) => {
+      assert.ok(err instanceof ToolInputError, `expected a ToolInputError, got ${(err as Error)?.constructor?.name}`);
+      assert.equal((err as Error).message, "'limit' must be an integer between 1 and 100");
+      return true;
+    });
+  }
+  assert.deepEqual(h.listCalls, []);
+  await list(h, { limit: 500 });
+  await list(h);
+  assert.deepEqual(h.listCalls.map((call) => call.limit), [100, 25]);
+});
+
 test("content.write without content.read cannot list deleted titles or reach either repository", async () => {
   const h = harness({ granted: ["content.write"] });
   await assert.rejects(() => list(h), /content\.read/);

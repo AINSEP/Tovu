@@ -44,17 +44,20 @@ export type RedirectStatusCode = 301 | 302 | 307 | 308;
  *                arbitrary regex is exactly the unbounded-expression trust hazard
  *                ADR-022's amendment forbids, so it stays a named, gated seam.
  */
-export type RedirectMatchType = "exact" | "prefix" | "wildcard" | "regex";
+export const REDIRECT_MATCH_TYPES = ["exact", "prefix", "wildcard", "regex"] as const;
+export type RedirectMatchType = (typeof REDIRECT_MATCH_TYPES)[number];
 
 /**
  * Provenance of a rule. `auto_slug_change` rows are minted by core inside the
  * content write transaction (never-break-links, ADR-033 §5) and carry the entry
  * lineage below; `manual` and `import` come from operators/AI/migration.
  */
-export type RedirectSource = "manual" | "auto_slug_change" | "import";
+export const REDIRECT_SOURCES = ["manual", "auto_slug_change", "import"] as const;
+export type RedirectSource = (typeof REDIRECT_SOURCES)[number];
 
 /** Lifecycle of a rule. Disabled rules are retained (audit) but never matched. */
-export type RedirectStatus = "active" | "disabled";
+export const REDIRECT_STATUSES = ["active", "disabled"] as const;
+export type RedirectStatus = (typeof REDIRECT_STATUSES)[number];
 
 /**
  * A single redirect rule — a row in the core-owned `redirects` table.
