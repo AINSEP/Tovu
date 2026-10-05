@@ -38,8 +38,25 @@ export interface BootedSite {
   siteDir: string;
 }
 
-/** Every fire-and-forget readiness promise the composition starts, so teardown never races a boot write. */
-export async function drainBootReadiness(deps: SiteDeps): Promise<void> {
+/** The boot readiness promises {@link drainBootReadiness} settles — a narrow slice so a unit test can
+ *  hand it fakes instead of a booted site. */
+export type BootReadiness = Pick<
+  SiteDeps,
+  | "identityReady"
+  | "settingsReady"
+  | "seoReady"
+  | "commentsReady"
+  | "commentsSettingsReady"
+  | "executionSettingsReady"
+  | "settingsUiTabsReady"
+  | "analyticsSettingsReady"
+  | "siteTitleReady"
+  | "pluginRuntimeReady"
+>;
+
+/** Every fire-and-forget readiness promise the composition starts, so teardown never races a boot write.
+ *  `pluginRuntimeReady` included: closing the site before the boot plugin attach finished raced its writes. */
+export async function drainBootReadiness(deps: BootReadiness): Promise<void> {
   await Promise.all([
     deps.identityReady,
     deps.settingsReady,
@@ -50,6 +67,7 @@ export async function drainBootReadiness(deps: SiteDeps): Promise<void> {
     deps.settingsUiTabsReady,
     deps.analyticsSettingsReady,
     deps.siteTitleReady,
+    deps.pluginRuntimeReady,
   ]);
 }
 
