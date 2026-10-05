@@ -2,6 +2,8 @@ import type { Express, NextFunction, Request, Response } from "express";
 
 import type { ObservabilityPort } from "@jini-ai/diagnostics/observability";
 
+import { REQUEST_ID_HEADER, resolveRequestId } from "./request-id.js";
+
 /**
  * @file Records inbound HTTP requests through the injected diagnostics observability port
  * (Constitution Article VIII). Express owns routing and response completion; Jini owns tracking.
@@ -31,11 +33,19 @@ import type { ObservabilityPort } from "@jini-ai/diagnostics/observability";
  * `"unmatched"` rather than the raw path — see diagnostics' `RequestTrackingOutcome.routePattern`
  * doc for why unbounded, attacker-controlled path cardinality must never reach this signal.
  *
+ * Also owns the request id: a safe inbound `x-request-id` is reused, otherwise one is minted (see
+ * `request-id.ts`); either way it is set on the response BEFORE `next()` — so a gate rejection or a
+ * 404 carries it too — exposed on `res.locals.requestId` for handlers, and handed to
+ * `trackRequest` so the id a user reports matches the tracked request.
+ *
  * @complexity O(1) per request beyond Express's own routing cost.
  */
 export function applyRequestTracking(app: Express, deps: { observability: ObservabilityPort }): void {
   app.use((req: Request, res: Response, next: NextFunction) => {
-    const tracker = deps.observability.trackRequest({ method: req.method, path: req.path });
+    const requestId = resolveRequestId({ header: req.headers[REQUEST_ID_HEADER] });
+    res.setHeader(REQUEST_ID_HEADER, requestId);
+    res.locals.requestId = requestId;
+    const tracker = deps.observability.trackRequest({ method: req.method, path: req.path }, { requestId });
 
     res.on("finish", () => {
       const routePattern = req.route ? `${req.baseUrl}${req.route.path}` : "unmatched";

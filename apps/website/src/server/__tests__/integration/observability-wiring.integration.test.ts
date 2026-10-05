@@ -70,6 +70,20 @@ test("createApp(createRouteDeps()) — the in-memory composition root src/index.
   assert.equal(calls[1].outcome.statusCode, 401);
 });
 
+test("createApp() round-trips x-request-id on a real route, including an auth-rejected one", async (t) => {
+  const deps = createRouteDeps();
+  const app = createApp(deps);
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await fetch(`${baseUrl}/healthz`, { headers: { "x-request-id": "support-ticket-42" } });
+  assert.equal(res.status, 200);
+  assert.equal(res.headers.get("x-request-id"), "support-ticket-42");
+
+  const denied = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/presentation`);
+  assert.equal(denied.status, 401);
+  assert.match(denied.headers.get("x-request-id") ?? "", /^[0-9a-f-]{36}$/);
+});
+
 test("createApp(createSiteRouteDeps()) — the REAL SQLite composition root both src/index.ts's non-memory branch AND cli/commands/serve.ts's `tovu serve` build RouteDeps from — records inbound requests through RouteDeps.observability", async (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-observability-wiring-"));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
