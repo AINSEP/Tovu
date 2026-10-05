@@ -2,6 +2,11 @@ import type { ProxyOptions } from "vite";
 
 type ConfigureProxy = NonNullable<ProxyOptions["configure"]>;
 
+/** Mirrors `src/lib/server-reconnect.ts`'s constants — this leaf module must not import from `src/`
+ *  (it is loaded by `vite.config.ts`'s own config loader, not the app bundle). */
+export const UPSTREAM_REFUSED_HEADER = "x-tovu-dev-proxy";
+export const UPSTREAM_REFUSED_VALUE = "upstream-refused";
+
 /**
  * @file Dev-proxy `configure` hook for `vite.config.ts`'s `/api` entry: when the upstream response
  * closes before it ended, tear down the browser's response too.
@@ -33,9 +38,20 @@ export const destroyClientWhenUpstreamCloses: ConfigureProxy = (proxy) => {
   // API is back. Dropping the connection instead is what an unreachable server looks like, and
   // `EventSource` keeps retrying that. Registered before Vite's own `error` listener, which then
   // finds the response destroyed and writes nothing. Other requests keep Vite's 500.
-  proxy.on("error", (_err, req, res) => {
+  proxy.on("error", (err, req, res) => {
     // A `Socket` here is a WebSocket upgrade, which has no headers to check.
     if (!("headersSent" in res) || res.headersSent) return;
-    if (String(req.headers.accept ?? "").includes("text/event-stream")) res.destroy();
+    if (String(req.headers.accept ?? "").includes("text/event-stream")) {
+      res.destroy();
+      return;
+    }
+    // 2026-10-05: a refused connection means the request never reached the API (it is restarting),
+    // so even a write is safe to send again. Say so with a header the admin's `request()` reads
+    // (`src/lib/server-reconnect.ts`); it then waits for `/readyz` and retries instead of failing.
+    // Any other proxy error (a reset mid-request) keeps Vite's plain 500: that request may have run.
+    if ((err as NodeJS.ErrnoException).code === "ECONNREFUSED") {
+      res.writeHead(503, { "content-type": "text/plain", [UPSTREAM_REFUSED_HEADER]: UPSTREAM_REFUSED_VALUE });
+      res.end("The Tovu server is restarting.");
+    }
   });
 };

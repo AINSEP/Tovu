@@ -1,0 +1,15 @@
+.server-restarting-banner {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10000;
+  margin-top: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  background: var(--warning-bg);
+  color: var(--warning);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.12);
+  max-width: calc(100vw - 32px);
+}

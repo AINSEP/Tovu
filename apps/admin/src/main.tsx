@@ -3,6 +3,7 @@ import { KitProvider } from "@jini-ai/ui-kit/react";
 import { tovuKit } from "./integrations/jini-admin/kit";
 import ReactDOM from "react-dom/client";
 import { App } from "./App";
+import { ServerRestartingBanner } from "./components/ServerRestartingBanner/ServerRestartingBanner";
 import { FetchQueryProvider } from "./lib/fetch-query";
 import { redirectLegacyHashUrl } from "./lib/router";
 import remixiconCss from "@jini-ai/ui/remixicon.css?inline";
@@ -48,6 +49,8 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
         directly, and the two styles coexist without interfering. */}
     <KitProvider kit={tovuKit}>
     <FetchQueryProvider>
+      {/* Outside `App` so it also shows on the login and boot screens while the API restarts. */}
+      <ServerRestartingBanner />
       <App />
     </FetchQueryProvider>
     </KitProvider>

@@ -8,6 +8,7 @@ import type {
 
 import { isPageUnloading } from "./page-lifecycle";
 import { siteUrl } from "./site-url";
+import { serverReconnect, shouldRetryAfterReconnect, UPSTREAM_REFUSED_HEADER, UPSTREAM_REFUSED_VALUE, type ServerReconnect } from "./server-reconnect";
 
 export const WORKSPACE_ID = "workspace-local";
 
@@ -2390,15 +2391,46 @@ function buildRequestFailedError({
  * @complexity O(1) plus the request and body parse.
  * @overallScore 100
  */
-async function request<T>(path: string, init?: RequestInit, onOk?: (res: Response) => void): Promise<T> {
+/** One send through the fetch seam, no restart retry. Exported for `server-reconnect` tests only. */
+export async function requestOnce<T>(path: string, init?: RequestInit, onOk?: (res: Response) => void): Promise<T> {
   const res = await fetchOrThrowUnreachable(`${BASE}${path}`, buildFetchInit(init));
   const { body, wasUnparseable } = await parseJsonBody(res);
   if (!res.ok) {
     notifyIfUnauthenticated({ status: res.status, body });
-    throw buildRequestFailedError({ status: res.status, body, wasUnparseable });
+    const error = buildRequestFailedError({ status: res.status, body, wasUnparseable });
+    // The dev proxy's mark for "the API refused the connection": this request never reached it.
+    if (res.headers.get(UPSTREAM_REFUSED_HEADER) === UPSTREAM_REFUSED_VALUE) upstreamRefusedErrors.add(error);
+    throw error;
   }
   onOk?.(res);
   return body as T;
+}
+
+/** Errors the dev proxy proved never reached the server (see {@link requestOnce}). */
+const upstreamRefusedErrors = new WeakSet<object>();
+
+/**
+ * Sends once; if the server was unreachable (a restart), waits for `/readyz` to answer and sends
+ * once more — reads always, writes only when provably undelivered or `retryWrites` (2026-10-05,
+ * `server-reconnect.ts`). Exported for its test; every caller uses {@link request}.
+ */
+export async function requestRidingOutRestart<T>(
+  { send, method }: { send: () => Promise<T>; method: string | undefined },
+  { retryWrites = false, reconnect = serverReconnect }: { retryWrites?: boolean; reconnect?: ServerReconnect } = {},
+): Promise<T> {
+  try {
+    return await send();
+  } catch (error) {
+    const retry = error instanceof ApiError && shouldRetryAfterReconnect({
+      code: error.code, unreachableCode: API_UNREACHABLE_CODE, method, upstreamRefused: upstreamRefusedErrors.has(error), retryWrites,
+    });
+    if (!retry || !(await reconnect.waitUntilReachable())) throw error;
+    return send();
+  }
+}
+
+async function request<T>(path: string, init?: RequestInit, onOk?: (res: Response) => void, options: { retryWrites?: boolean } = {}): Promise<T> {
+  return requestRidingOutRestart({ send: () => requestOnce<T>(path, init, onOk), method: init?.method }, options);
 }
 
 /** Authenticated package adapters share cookies, bounded requests and session invalidation
@@ -2459,7 +2491,8 @@ export const api = {
     request<{ user: AdminUser }>("/auth/login", {
       method: "POST",
       body: JSON.stringify({ username, password }),
-    }),
+      // Signing in twice is harmless, so a login sent while the dev server restarts waits and retries.
+    }, undefined, { retryWrites: true }),
   logout: () => request<{ ok: boolean }>("/auth/logout", { method: "POST" }),
   /**
    * Exchanges a single-use loopback boot token (the zip launcher's `#boot=<token>` sign-in link,

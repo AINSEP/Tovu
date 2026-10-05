@@ -95,7 +95,8 @@ function outcomeOf(port: number, urlPath: string, headers: Record<string, string
   return new Promise((resolve) => {
     const req = get({ host: "127.0.0.1", port, path: urlPath, headers }, (res) => {
       res.resume();
-      resolve(`status ${res.statusCode}`);
+      const marked = res.headers["x-tovu-dev-proxy"] === "upstream-refused" ? " upstream-refused" : "";
+      resolve(`status ${res.statusCode}${marked}`);
     });
     req.on("error", () => resolve("connection dropped"));
     cleanups.push(() => req.destroy());
@@ -109,13 +110,15 @@ test("an SSE reconnect while the upstream is down drops the connection, so Event
 
   expect(await outcomeOf(proxyPort, "/api/stream", { Accept: "text/event-stream" })).toBe("connection dropped");
   // The drop came from the hook, not from the proxy process dying under Vite's own error handler.
-  expect(await outcomeOf(proxyPort, "/api/plain", { Accept: "application/json" })).toBe("status 500");
+  expect(await outcomeOf(proxyPort, "/api/plain", { Accept: "application/json" })).toBe("status 503 upstream-refused");
 }, 20_000);
 
-test("a non-SSE request to a down upstream still gets Vite's 500", async () => {
+// 2026-10-05: was "still gets Vite's 500". A refused upstream never saw the request, so the hook now
+// says so (503 + marker header) and the admin's `request()` waits for the restart and retries it.
+test("a non-SSE request to a refusing upstream gets a 503 marked upstream-refused", async () => {
   const proxyPort = await startProxy(await deadPort());
 
-  expect(await outcomeOf(proxyPort, "/api/plain", { Accept: "application/json" })).toBe("status 500");
+  expect(await outcomeOf(proxyPort, "/api/plain", { Accept: "application/json" })).toBe("status 503 upstream-refused");
 }, 20_000);
 
 test("a normal response still arrives whole", async () => {
