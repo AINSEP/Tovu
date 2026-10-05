@@ -9,3 +9,5 @@ export type {
   HeadlessThemeSummary,
   HeadlessThemeTier,
 } from "./contracts.js";
+
+export { deriveContentConversationTitle } from "./content-chat-title.js";

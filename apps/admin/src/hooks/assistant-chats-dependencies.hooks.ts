@@ -1,3 +1,4 @@
+import { deriveContentConversationTitle } from "@tovu/headless";
 import { deriveConversationTitle, type ChatMessage } from "@jini-ai/chat/core";
 
 import {
@@ -66,14 +67,14 @@ export function upsertMessage(list: readonly ChatMessage[], message: ChatMessage
  * exact mechanism a previous round had to fix a real bug in.
  *
  * Same guard as the route: first USER message only, and only while the title is still empty, so a
- * manual rename is never clobbered. `deriveConversationTitle` is the real thing rather than an
+ * manual rename is never clobbered. `deriveContentConversationTitle` is the real thing rather than an
  * approximation, so the fake cannot disagree with production about what a title is. Pulled out of
  * `saveMessage` (2026-08-06, complexity pass, third pass) — its two nested conditions collapse into
  * one unconditional call at the site below.
  */
 export function withDerivedTitle(conversation: AssistantConversation, message: ChatMessage): AssistantConversation {
   if (message.role !== "user" || conversation.title) return conversation;
-  const derived = deriveConversationTitle({ prompt: typeof message.content === "string" ? message.content : "" });
+  const derived = deriveContentConversationTitle({ prompt: typeof message.content === "string" ? message.content : "", deriveFallback: deriveConversationTitle });
   return derived ? { ...conversation, title: derived, titleSource: "fallback" } : conversation;
 }
 
@@ -138,7 +139,7 @@ export function createFakeAssistantChatsPort(options: FakeAssistantChatsPortOpti
         // about what counts as a title. Note this path is unused by the hook: both `create()` and
         // lazy adoption call with no `firstMessage`, which is exactly why append-time naming
         // (in `saveMessage` below) is the mechanism that actually matters here.
-        title: firstMessage ? deriveConversationTitle({ prompt: firstMessage }) || null : null,
+        title: firstMessage ? deriveContentConversationTitle({ prompt: firstMessage, deriveFallback: deriveConversationTitle }) || null : null,
         titleSource: "fallback",
         messageCount: 0,
         createdAt: created,

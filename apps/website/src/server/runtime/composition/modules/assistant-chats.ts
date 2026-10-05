@@ -21,6 +21,7 @@
  */
 import type { Express, Request, Response } from "express";
 
+import { deriveContentConversationTitle } from "#src/contracts/headless/content-chat-title";
 import { deriveConversationTitle } from "@jini-ai/chat/core";
 import type { ChatHistoryStore, ChatMessage } from "@jini-ai/chat/core";
 
@@ -33,8 +34,7 @@ import { createAssistantRunFinalizer, type AssistantRunFinalizer } from "./assis
 /** Preserve a standalone resource name (including skill slugs) verbatim. Prose still follows
  * the shared heuristic; injected guidance never enters the stored user message. */
 function deriveAssistantConversationTitle(text: string): string {
-  const trimmed = text.trim();
-  return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(trimmed) && trimmed.length <= 64 ? trimmed : deriveConversationTitle({ prompt: text });
+  return deriveContentConversationTitle({ prompt: text, deriveFallback: deriveConversationTitle });
 }
 
 /** Rejects a body that is not a plain object, so `req.body.title` can never be an array or null. */
