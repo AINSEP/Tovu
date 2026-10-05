@@ -1174,13 +1174,14 @@ surfaced real seams. Each sample is genuinely wanted *and* stress-tests a differ
   matches freely elsewhere in `apps/website/src`).
 
 - **Tier 1 — RE-SCOPED 2026-10-04 (owner): Testimonials + FAQ, zero code** (contact forms are core
-  now). Core half built (manifest `contentTypes` grammar + enable provisioner + tier-1 install with
-  no code + accordion/carousel/FAQPage JSON-LD renderer); wiring, config reachability, the package
-  itself and admin install copy remain. Full "dead without X" list:
-  `ADS-memory/reports/2026-10-04-aw7-tier1-declarative-plugin-missing-primitives.md`.
+  now). **BUILT 2026-10-04:** manifest `contentTypes` grammar + enable provisioner inside the runtime
+  after the conflict gate, `content-type` claim kind, tier-1 install with no code, accordion/carousel/
+  FAQPage JSON-LD reachable from config, the package (`plugin-runtime/samples/testimonials-faq/`),
+  and the admin install dialog's code-free wording + current-workspace conflicts. Visual checks still
+  owed. Missing primitives #4–11 remain: `ADS-memory/reports/2026-10-04-aw7-tier1-declarative-plugin-missing-primitives.md`.
 
-**Remaining build order:** (1) finish Tier-3 live verification; (2) **Tier-1 Testimonials + FAQ as a
-real plugin** (was: contact form) — finish the 4 remaining steps in the report above;
+**Remaining build order:** (1) finish Tier-3 live verification; (2) ~~Tier-1 Testimonials + FAQ as a
+real plugin~~ built 2026-10-04 — visual checks only;
 (3) **Tier-2 content analyzer** over the ABI via worker/RPC, no sandbox, with a written note on any
 DX pain.
 
