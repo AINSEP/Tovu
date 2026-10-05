@@ -18,7 +18,7 @@ import { checkContentDbSchema } from "./server/runtime/boot/content-db-schema-gu
 import { setReadinessSnapshot } from "./server/runtime/lifecycle/readiness-state.js";
 import { registerPluginSdkResolver } from "./server/runtime/boot/plugin-sdk-resolver.js";
 import { installUnhandledRejectionGuard } from "./server/runtime/boot/process-error-guards.js";
-import { installServerLogCapture } from "./platform/server-logs/index.js";
+import { attachServerLogFile, installServerLogCapture, serverLogFilePaths } from "./platform/server-logs/index.js";
 import { shutdownAssistantDaemon, startAssistantDaemon } from "./server/inbound/assistant/index.js";
 import { closeStoreOnShutdown, stopServingWithinGrace } from "./server/runtime/lifecycle/close-store-on-shutdown.js";
 import { ensureAgentDaemonPortResolved } from "./server/runtime/lifecycle/agent-daemon-port.js";
@@ -268,6 +268,12 @@ async function main(): Promise<void> {
   // server-logs route and the `system_read_server_logs` chat tool can show recent errors. Installed
   // right after the rejection guard so boot-time failures are captured too.
   installServerLogCapture();
+  // Persist it to `<site>/ops/logs/server.log` (L2) so errors survive a restart, and read the agent
+  // daemon's `daemon.log` alongside it. A memory-DB run has no site of its own to write into.
+  if (!useMemory) {
+    const logFiles = serverLogFilePaths({ siteDir: siteDir() });
+    attachServerLogFile({ filePath: logFiles.server }, { alsoRead: [logFiles.daemon] });
+  }
 
   // Mints `TOVU_AGENT_DAEMON_TOKEN` (unless the operator already set one) into this process's env
   // so `startAssistantDaemon()` — called much later, from inside `app.listen()`'s callback — hands

@@ -122,6 +122,8 @@ import { registerFederationReloadRoute } from "./federation-reload-route.js";
 import { createAgentDaemonRouteDeps, startPluginActivationPolling } from "../../runtime/composition/agent-daemon-deps.js";
 import { resolveChatAttachmentUploadDirectory } from "./chat-attachment-directory.js";
 import { installUnhandledRejectionGuard } from "../../runtime/boot/process-error-guards.js";
+import { attachServerLogFile, installServerLogCapture, serverLogFilePaths } from "../../../platform/server-logs/index.js";
+import { siteDir } from "../../runtime/composition/deps.js";
 import { registerInstalledExtensionTools } from "../../runtime/composition/installed-extension-tools.js";
 import { installFirstPartyToolContributors } from "../../runtime/composition/tool-catalog-manifest.js";
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
@@ -309,6 +311,16 @@ startParentWatchdog();
 // rule or type check that would catch the NEXT unguarded decrypt/async call in some future
 // tool-registration handler.
 installUnhandledRejectionGuard();
+
+// Server log capture (gap A-04, L2): this process keeps its own console output (true levels — its
+// piped stderr cannot tell its `console.error` breadcrumbs from real errors) in
+// `<site>/ops/logs/daemon.log`, and `system_read_server_logs`, which runs HERE on the daemon chat
+// path, reads it merged with the main server's `server.log`. Terminal output is unchanged.
+installServerLogCapture({ source: "daemon" });
+if (process.env.TOVU_DB !== "memory") {
+  const logFiles = serverLogFilePaths({ siteDir: siteDir() });
+  attachServerLogFile({ filePath: logFiles.daemon }, { alsoRead: [logFiles.server] });
+}
 
 /**
  * Root directory the chat composer's staged image/file uploads land in before a run claims them

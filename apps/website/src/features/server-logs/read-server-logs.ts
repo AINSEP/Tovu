@@ -16,9 +16,8 @@ const SEVERITY: Record<ServerLogLevel, number> = { debug: 0, info: 1, warn: 2, e
 
 /** What a reader needs from wherever the lines live (the in-memory buffer, or a log file). */
 export interface ServerLogSourcePort {
-  entries(): readonly ServerLogEntry[];
-  /** False when nothing is capturing in this process, so an empty result is not "no errors". */
-  isCapturing(): boolean;
+  /** `capturing` is false when nothing records lines, so an empty result is not "no errors". */
+  read(): { entries: readonly ServerLogEntry[]; capturing: boolean };
 }
 
 export interface ServerLogFilters {
@@ -99,7 +98,7 @@ function matches(entry: ServerLogEntry, filters: ServerLogFilters, sinceMs: numb
  * @example readServerLogs({ logs }, { level: "error", limit: 20 });
  */
 export function readServerLogs(required: { logs: ServerLogSourcePort }, optional: ServerLogFilters = {}): ServerLogsResult {
-  const all = required.logs.entries();
+  const { entries: all, capturing } = required.logs.read();
   const sinceMs = optional.sinceIso ? Date.parse(optional.sinceIso) : null;
   const needle = optional.contains ? optional.contains.toLowerCase() : null;
   const matching = all.filter(entry => matches(entry, optional, sinceMs, needle));
@@ -109,6 +108,6 @@ export function readServerLogs(required: { logs: ServerLogSourcePort }, optional
     matched: matching.length,
     buffered: all.length,
     truncated: matching.length > limit,
-    capturing: required.logs.isCapturing(),
+    capturing,
   };
 }

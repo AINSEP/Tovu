@@ -2,8 +2,10 @@ import { I18nProvider, SETTINGS_DIALOG_DICTIONARIES, SettingsDialogShell, type S
 import "@jini-ai/ui/settings-dialog.css";
 import { agentHandle } from "@jini-ai/agentic";
 
-import { GaugeIcon, PulseIcon } from "./observability-visuals";
+import { AlertIcon, GaugeIcon, PulseIcon } from "./observability-visuals";
 import { useWiredObservabilityStatus, type ObservabilityStatusController } from "./hooks/use-observability-status.hooks";
+import { useWiredRecentServerErrors } from "./hooks/use-recent-server-errors.hooks";
+import { RecentErrorsPanel } from "./recent-errors-panel";
 import type { Translate } from "@/lib/dictionary-translator";
 
 const OTEL_DOCS_URL = "https://opentelemetry.io/docs/";
@@ -120,11 +122,14 @@ export interface ObservabilityProps {
    *  uses. Defaulted to the real hook, so production callers pass nothing and behave exactly as
    *  before. */
   useObservabilityStatusHook?: typeof useWiredObservabilityStatus;
+  /** Same seam for the Recent errors tab; called only when that tab is open. */
+  useRecentServerErrorsHook?: typeof useWiredRecentServerErrors;
 }
 
 /**
- * Operations > Observability. A `SettingsDialogShell`-shaped page with two tabs: Overview (real,
- * API-backed OpenTelemetry status) and Providers (an honest not-yet-built placeholder) — see
+ * Operations > Observability. A `SettingsDialogShell`-shaped page with three tabs: Overview (real,
+ * API-backed OpenTelemetry status), Recent errors (captured server error lines, gap A-04) and
+ * Providers (an honest not-yet-built placeholder) — see
  * `development/todos.md`'s "Observability admin page" entry (owner, 2026-09-09) for the scope this
  * first pass deliberately stops at.
  *
@@ -147,7 +152,7 @@ export interface ObservabilityProps {
  * them is now hidden: `AiAssistant.tsx`'s identical tabs still carry theirs, since the shell
  * contract still reads them for the tab panel's accessible name.
  */
-export function Observability({ useObservabilityStatusHook = useWiredObservabilityStatus }: ObservabilityProps = {}) {
+export function Observability({ useObservabilityStatusHook = useWiredObservabilityStatus, useRecentServerErrorsHook = useWiredRecentServerErrors }: ObservabilityProps = {}) {
   const controller = useObservabilityStatusHook();
   const { t, locale } = controller;
 
@@ -159,6 +164,14 @@ export function Observability({ useObservabilityStatusHook = useWiredObservabili
       title: t("Observability"),
       subtitle: t("What OpenTelemetry is, and whether it's on right now."),
       panel: <OverviewPanel controller={controller} />,
+    },
+    {
+      id: "recent-errors",
+      label: t("Recent errors"),
+      icon: <AlertIcon />,
+      title: t("Observability"),
+      subtitle: t("The newest errors this site's server logged."),
+      panel: <RecentErrorsPanel useRecentServerErrorsHook={useRecentServerErrorsHook} />,
     },
     {
       id: "providers",

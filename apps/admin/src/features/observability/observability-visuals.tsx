@@ -41,3 +41,14 @@ export function GaugeIcon({ size = 16 }: IconProps) {
     </svg>
   );
 }
+
+/** Recent errors tab — a warning triangle. */
+export function AlertIcon({ size = 16 }: IconProps) {
+  return (
+    <svg {...LINE_ICON} width={size} height={size}>
+      <path d="M12 4 21 19.5H3Z" />
+      <path d="M12 10v4.2" />
+      <circle cx="12" cy="17" r="0.6" />
+    </svg>
+  );
+}

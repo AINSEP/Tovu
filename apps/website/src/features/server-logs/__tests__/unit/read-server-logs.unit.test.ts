@@ -8,7 +8,7 @@ function entry(seq: number, level: ServerLogEntry["level"], message: string, at 
   return { seq, at, level, source: "server", message };
 }
 const ENTRIES = [entry(1, "debug", "tick"), entry(2, "info", "listening on 3000"), entry(3, "warn", "slow query"), entry(4, "error", "Route POST /x failed"), entry(5, "error", "DB locked")];
-const source = (entries: readonly ServerLogEntry[] = ENTRIES, capturing = true): ServerLogSourcePort => ({ entries: () => entries, isCapturing: () => capturing });
+const source = (entries: readonly ServerLogEntry[] = ENTRIES, capturing = true): ServerLogSourcePort => ({ read: () => ({ entries, capturing }) });
 
 test("no filters returns everything oldest first with counts", () => {
   assert.deepEqual(readServerLogs({ logs: source() }), { entries: ENTRIES, matched: 5, buffered: 5, truncated: false, capturing: true });

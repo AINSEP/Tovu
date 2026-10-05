@@ -466,6 +466,35 @@ export interface AdminObservabilityStatus {
   serviceName: string | null;
 }
 
+/** One captured server log line — mirrors `ServerLogEntry` in
+ *  `apps/website/src/platform/server-logs/log-buffer.ts`. `message` is already secret-redacted. */
+export interface AdminServerLogEntry {
+  seq: number;
+  at: string;
+  level: "debug" | "info" | "warn" | "error";
+  source: "server" | "daemon";
+  message: string;
+}
+
+/** `GET /system/server-logs` — mirrors `ServerLogsResult` in
+ *  `apps/website/src/features/server-logs/read-server-logs.ts`. `capturing: false` means nothing is
+ *  recording lines, so an empty list is not proof of no errors. */
+export interface AdminServerLogs {
+  entries: AdminServerLogEntry[];
+  matched: number;
+  buffered: number;
+  truncated: boolean;
+  capturing: boolean;
+}
+
+/** Filters for {@link AdminServerLogs}; the same ones the `system_read_server_logs` chat tool takes. */
+export interface AdminServerLogsQuery {
+  level?: AdminServerLogEntry["level"];
+  sinceIso?: string;
+  contains?: string;
+  limit?: number;
+}
+
 /** `GET /system/mail-status` (`apps/website/src/server/inbound/admin-http/routes/system/mail-status.ts`)
  *  — `false` while the site only logs outbound mail (the console fallback, no mail credential). */
 export interface AdminMailStatus {
@@ -3877,6 +3906,13 @@ export const api = {
    *  name — never the OTLP endpoint value itself. See {@link AdminObservabilityStatus}. */
   getObservabilityStatus: () =>
     request<AdminObservabilityStatus>(`/workspaces/${WORKSPACE_ID}/system/observability-status`),
+  /** Recent captured server log lines (`routes/system/server-logs.ts`, `system.read`-gated) — the
+   *  Observability "Recent errors" tab. */
+  getServerLogs: (query: AdminServerLogsQuery = {}) => {
+    const params = new URLSearchParams(Object.entries(query).filter(([, value]) => value !== undefined).map(([key, value]) => [key, String(value)]));
+    const qs = params.toString();
+    return request<AdminServerLogs>(`/workspaces/${WORKSPACE_ID}/system/server-logs${qs ? `?${qs}` : ""}`);
+  },
   /** Whether outbound email really sends — the form editor greys out its notify settings when not. */
   getMailStatus: () => request<AdminMailStatus>(`/workspaces/${WORKSPACE_ID}/system/mail-status`),
 

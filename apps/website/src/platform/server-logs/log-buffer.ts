@@ -17,7 +17,7 @@
 
 export type ServerLogLevel = "debug" | "info" | "warn" | "error";
 
-/** Where a line came from: this process (`server`) or a supervised child whose output is piped through it. */
+/** Which process logged the line: the main server, or the agent daemon it supervises. */
 export type ServerLogSource = "server" | "daemon";
 
 export interface ServerLogEntry {
@@ -43,6 +43,8 @@ export interface ServerLogBuffer {
   entries(): readonly ServerLogEntry[];
   /** Total lines ever appended, including ones already dropped by the caps. */
   appendedCount(): number;
+  /** Called with each stored (redacted) entry; returns unsubscribe. A throwing listener is ignored. */
+  subscribe(listener: (entry: ServerLogEntry) => void): () => void;
 }
 
 export const DEFAULT_MAX_ENTRIES = 2_000;
@@ -86,6 +88,7 @@ export function createLogBuffer(required: CreateLogBufferRequired, optional: Cre
   let head = 0;
   let bytes = 0;
   let seq = 0;
+  const listeners = new Set<(entry: ServerLogEntry) => void>();
 
   function dropOldest(): void {
     bytes -= items[head].message.length;
@@ -110,9 +113,16 @@ export function createLogBuffer(required: CreateLogBufferRequired, optional: Cre
       items.push(entry);
       bytes += entry.message.length;
       while (items.length - head > maxEntries || (bytes > maxBytes && items.length - head > 1)) dropOldest();
+      for (const listener of listeners) {
+        try { listener(entry); } catch { /* a broken sink must not break the append */ }
+      }
       return entry;
     },
     entries: () => items.slice(head),
     appendedCount: () => seq,
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => { listeners.delete(listener); };
+    },
   };
 }

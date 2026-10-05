@@ -89,3 +89,14 @@ test("redaction runs before truncation, so a key cut at the cap cannot leak its 
   const stored = buffer.append({ level: "error", source: "server", message: `key=${secret}` }).message;
   assert.ok(!stored.includes(secret.slice(0, 20)), stored);
 });
+
+test("subscribers get each stored, redacted entry; a throwing subscriber does not break append", () => {
+  const buffer = createLogBuffer({ redact: tovuRedact }, { now: fixedClock });
+  const seen: string[] = [];
+  buffer.subscribe(() => { throw new Error("broken sink"); });
+  const unsubscribe = buffer.subscribe(entry => seen.push(entry.message));
+  buffer.append({ level: "error", source: "server", message: `key ${FAKE_SECRETS.githubPat}` });
+  unsubscribe();
+  buffer.append({ level: "error", source: "server", message: "after unsubscribe" });
+  assert.deepEqual(seen, ["key [REDACTED:credential]"]);
+});

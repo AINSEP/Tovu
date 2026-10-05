@@ -11,7 +11,7 @@ const ENTRIES: ServerLogEntry[] = [
   { seq: 1, at: "2026-10-05T12:00:01.000Z", level: "info", source: "server", message: "listening" },
   { seq: 2, at: "2026-10-05T12:00:02.000Z", level: "error", source: "daemon", message: "[agent-daemon] crashed" },
 ];
-const logs: ServerLogSourcePort = { entries: () => ENTRIES, isCapturing: () => true };
+const logs: ServerLogSourcePort = { read: () => ({ entries: ENTRIES, capturing: true }) };
 const ctx = (input: unknown): ToolExecutionContext => ({ executionId: "e", principal: { id: "owner" }, run: { id: "r" }, input, signal: new AbortController().signal });
 
 function tool(allow = true, serverLogs: ServerLogSourcePort = logs) {
@@ -34,7 +34,7 @@ test("an unusable filter is a ToolInputError naming the field", async () => {
 });
 
 test("permission denial precedes reading any log line", async () => {
-  const unread: ServerLogSourcePort = { entries: () => assert.fail("denied read"), isCapturing: () => assert.fail("denied read") };
+  const unread: ServerLogSourcePort = { read: () => assert.fail("denied read") };
   await assert.rejects(() => tool(false, unread).handler(ctx({})), { name: "ToolInputError", message: "SERVER_LOGS_FORBIDDEN: principal 'owner' is not authorized for 'system.read' (fixture grant)" });
 });
 

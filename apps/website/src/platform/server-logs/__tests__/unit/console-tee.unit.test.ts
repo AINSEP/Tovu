@@ -1,9 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { Writable } from "node:stream";
 
 import { redactSecretShapes } from "#src/contracts/core/secret-redaction";
-import { createLineCaptureStream, installConsoleTee, type TeeableConsole } from "../../console-tee.js";
+import { installConsoleTee, type TeeableConsole } from "../../console-tee.js";
 import { createLogBuffer } from "../../log-buffer.js";
 
 function fakeConsole() {
@@ -57,32 +56,8 @@ test("uninstall restores exactly the original methods", () => {
 
 test("a throwing buffer never breaks the console call", () => {
   const { target, calls } = fakeConsole();
-  const broken = { append: () => { throw new Error("full"); }, entries: () => [], appendedCount: () => 0 };
+  const broken = { append: () => { throw new Error("full"); }, entries: () => [], appendedCount: () => 0, subscribe: () => () => {} };
   installConsoleTee({ buffer: broken }, { target });
   assert.doesNotThrow(() => target.error("still printed"));
   assert.deepEqual(calls, [["error", ["still printed"]]]);
-});
-
-function sink() {
-  const chunks: string[] = [];
-  return { chunks, stream: new Writable({ write(chunk, _enc, cb) { chunks.push(chunk.toString()); cb(); } }) };
-}
-
-test("line capture forwards bytes unchanged and captures each complete line, joining split chunks", async () => {
-  const out = sink();
-  const logs = buffer();
-  const stream = createLineCaptureStream({ buffer: logs, passThrough: out.stream, level: "error", source: "daemon" });
-  stream.write("first li");
-  stream.write("ne\nsecond\r\n\nthi");
-  await new Promise<void>(resolve => stream.end("rd", resolve));
-  assert.equal(out.chunks.join(""), "first line\nsecond\r\n\nthird");
-  assert.deepEqual(logs.entries().map(e => [e.level, e.source, e.message]), [["error", "daemon", "first line"], ["error", "daemon", "second"], ["error", "daemon", "third"]]);
-});
-
-test("line capture flushes an over-long unterminated line instead of growing without bound", () => {
-  const out = sink();
-  const logs = buffer();
-  const stream = createLineCaptureStream({ buffer: logs, passThrough: out.stream, level: "info", source: "daemon" });
-  stream.write("z".repeat(70_000));
-  assert.equal(logs.entries().length, 1);
 });

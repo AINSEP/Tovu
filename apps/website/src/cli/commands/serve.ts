@@ -15,7 +15,7 @@ import { PortInUseError } from "../errors.js";
 import { startAssistantDaemon, shutdownAssistantDaemon } from "../../server/inbound/assistant/index.js";
 import { ensureAgentDaemonPortResolved } from "../../server/runtime/lifecycle/agent-daemon-port.js";
 import { installUnhandledRejectionGuard } from "../../server/runtime/boot/process-error-guards.js";
-import { installServerLogCapture } from "../../platform/server-logs/index.js";
+import { attachServerLogFile, installServerLogCapture, serverLogFilePaths } from "../../platform/server-logs/index.js";
 import { registerPluginSdkResolver } from "../../server/runtime/boot/plugin-sdk-resolver.js";
 import { ensureAgentDaemonToken } from "../../assistant/index.js";
 import { runProductionReadinessGateOrExit } from "../../server/runtime/boot/boot-readiness-gate.js";
@@ -299,6 +299,10 @@ export async function runServeCommand(input: RunServeCommandInput): Promise<void
   // Must precede EVERY `siteDir()`-derived read below (and the daemon spawn much further down) —
   // see {@link pinServedSiteDirIntoEnv} for the divergence this closes.
   pinServedSiteDirIntoEnv(target);
+  // Persist captured log lines to `<site>/ops/logs/server.log` (L2), including those buffered since
+  // `installServerLogCapture()` above, so errors survive a restart; reads merge the daemon's log too.
+  const logFiles = serverLogFilePaths({ siteDir: target });
+  attachServerLogFile({ filePath: logFiles.server }, { alsoRead: [logFiles.daemon] });
   pinPlainHttpIntoEnv();
   const bootResult = await bootSiteDir({ dir: target }, { workspaceId: input.workspaceId });
   // From here on this command owns what `bootSiteDir` opened: any failure before the listener is

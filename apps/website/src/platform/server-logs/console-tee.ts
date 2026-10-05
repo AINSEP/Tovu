@@ -1,11 +1,9 @@
 import { format } from "node:util";
-import { Writable } from "node:stream";
 
 import type { ServerLogBuffer, ServerLogLevel, ServerLogSource } from "./log-buffer.js";
 
 /**
- * @file Copies console output and piped child output into a `ServerLogBuffer` without changing what
- * the terminal sees. Generic (no Tovu concepts) — moves to `@jini-ai/diagnostics` with the buffer.
+ * @file Copies console output into a `ServerLogBuffer` without changing what the terminal sees. Generic (no Tovu concepts) — moves to `@jini-ai/diagnostics` with the buffer.
  *
  * Capture must never break logging: every buffer write is wrapped so a failing redactor or a full
  * buffer can only lose the captured copy, never the original console call or the child's output.
@@ -62,49 +60,4 @@ export function installConsoleTee(required: InstallConsoleTeeRequired, optional:
   return () => {
     for (const [method, original] of originals) target[method] = original;
   };
-}
-
-const MAX_PENDING_LINE = 64_000;
-
-export interface CreateLineCaptureStreamRequired {
-  readonly buffer: ServerLogBuffer;
-  /** Where the bytes still go (the parent's own stdout/stderr). */
-  readonly passThrough: NodeJS.WritableStream;
-  readonly level: ServerLogLevel;
-  readonly source: ServerLogSource;
-}
-
-/**
- * A Writable that forwards every chunk unchanged and appends each complete line to the buffer.
- * Used for a supervised child's piped stdout/stderr, which never passes through this process's
- * console. A partial trailing line is held until its newline (or flushed on end).
- * @param required Buffer, pass-through sink, and the level/source to tag lines with.
- * @returns The stream to hand to the child's `pipe()`.
- * @complexity O(chunk length) per write.
- */
-export function createLineCaptureStream(required: CreateLineCaptureStreamRequired): Writable {
-  let pending = "";
-  const capture = (line: string) => {
-    if (line.trim() !== "") safeAppend(required.buffer, required.level, required.source, line);
-  };
-  return new Writable({
-    write(chunk: Buffer | string, _encoding, callback) {
-      required.passThrough.write(chunk);
-      try {
-        const lines = (pending + chunk.toString()).split(/\r?\n/);
-        pending = lines.pop() ?? "";
-        lines.forEach(capture);
-        // A child that never writes a newline must not grow this without bound.
-        if (pending.length > MAX_PENDING_LINE) { capture(pending); pending = ""; }
-      } catch {
-        pending = "";
-      }
-      callback();
-    },
-    final(callback) {
-      capture(pending);
-      pending = "";
-      callback();
-    },
-  });
 }
