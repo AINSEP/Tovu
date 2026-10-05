@@ -12,7 +12,7 @@ import { rescanThemes } from "#src/features/theme/index";
 import { createRedirect } from "#src/features/redirects/redirects";
 import { bindWidgetArea, mutateWidgetAreaPlacements } from "#src/features/widgets/region-area-service";
 import { createWidgetInstance } from "#src/features/widgets/write-service";
-import { set, type SettingDefinitionRecord } from "#src/features/settings/index";
+import { resolveDefinitionRaw, set, type SettingDefinitionRecord } from "#src/features/settings/index";
 import { applyReport, packAll, plan } from "#src/features/publish-content/__tests__/round-trip-harness";
 import {
   listPublishContentContributors,
@@ -371,7 +371,11 @@ test("a publishing grant naming every type applies one entity of each, with no p
   assert.deepEqual(JSON.parse((area.fieldsJson as { ext: { widgets: { payload: string } } }).ext.widgets.payload), {
     regionKey: "sidebar", doc: { schemaVersion: 1, placements: [{ placementId: "p-1", widgetEntryId: widget.id, enabled: true }] },
   });
-  assert.equal((await destination.settingsRepo.getWorkspaceValue({ workspaceId: ws, settingId: "core.site.title" }))?.valueJson, "Coverage");
+  // Setting ids are local to each installation (the destination's boot seed mints its own), and
+  // publishing identifies a setting by namespace:key, so read through the destination's definition.
+  const titleDef = await resolveDefinitionRaw({ repo: destination.settingsRepo }, { namespace: "core.site", key: "title", workspaceId: ws });
+  assert.ok(titleDef);
+  assert.equal((await destination.settingsRepo.getWorkspaceValue({ workspaceId: ws, settingId: titleDef.settingId }))?.valueJson, "Coverage");
   assert.equal((await destination.presentationRepo.findByWorkspaceId({ workspaceId: ws }))?.activeThemeId, "cov-theme");
   const landedTheme = destination.themes.find((theme) => theme.manifest.id === "cov-theme");
   const originalTheme = source.themes.find((theme) => theme.manifest.id === "cov-theme");

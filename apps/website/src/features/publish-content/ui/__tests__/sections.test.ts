@@ -11,6 +11,7 @@ import {
   listPublishContentContributors,
   resetPublishContentContributorsForTests,
 } from "#src/features/publish-content/type-registry";
+import { isBackstopEntityType } from "#src/features/publish-trust/grant";
 
 import {
   PUBLISH_SECTIONS,
@@ -20,10 +21,16 @@ import {
   publishSectionForEntityTypes,
 } from "../sections.js";
 
-test("every registered publish-content contributor sits in exactly one section", () => {
+test("every registered publish-content contributor sits in exactly one section", (t) => {
   resetPublishContentContributorsForTests();
+  t.after(() => resetPublishContentContributorsForTests());
   installFirstPartyPublishContentTypes();
-  const registered = listPublishContentContributors().map((c) => c.entityType);
+  const all = listPublishContentContributors().map((c) => c.entityType);
+  // The raw "send by hand" backstop types pack only from an explicit row/file selection (never a
+  // section scope), so no section names them and they get no Publish button.
+  const backstop = all.filter((entityType) => isBackstopEntityType({ entityType }));
+  assert.deepEqual([...backstop].sort(), ["raw-file", "raw-row"]);
+  const registered = all.filter((entityType) => !isBackstopEntityType({ entityType }));
   assert.ok(registered.length > 0);
   for (const entityType of registered) {
     const owners = PUBLISH_SECTIONS.filter((s) => (s.entityTypes as readonly string[]).includes(entityType));
