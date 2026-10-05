@@ -151,7 +151,7 @@ export function usePlugins({ port, locale, t, installPort = defaultPluginInstall
       })
       .catch((e) => {
         if (!settlement.isCurrent(generation)) return;
-        setError(describeApiError(e, translate(locale, "failed to load plugins")));
+        setError(describeApiError(e, translate(locale, "failed to load plugins"), { translate: t }));
       });
   }
 
@@ -169,7 +169,7 @@ export function usePlugins({ port, locale, t, installPort = defaultPluginInstall
       await port.setPluginEnabled(plugin.id, { enabled: !plugin.enabled });
       await reload();
     } catch (e) {
-      setRowError(describeApiError(e, translate(locale, "failed to update plugin")));
+      setRowError(describeApiError(e, translate(locale, "failed to update plugin"), { translate: t }));
     } finally {
       // Only clear THIS row's lock — `rowSavingId` is shared with `onRemovePlugin`, and the EC-11
       // guard above is per-row, so a second row's action starts freely while this one is still
@@ -190,7 +190,7 @@ export function usePlugins({ port, locale, t, installPort = defaultPluginInstall
       await port.uninstallPlugin(plugin.id);
       await reload();
     } catch (e) {
-      setRowError(describeApiError(e, translate(locale, "failed to remove plugin")));
+      setRowError(describeApiError(e, translate(locale, "failed to remove plugin"), { translate: t }));
     } finally {
       // Symmetric guard to `onToggleEnabled`'s — see its comment. Keeps this correct regardless of
       // which of the two in-flight actions settles first.

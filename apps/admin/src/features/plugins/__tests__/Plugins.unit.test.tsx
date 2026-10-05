@@ -321,6 +321,49 @@ describe("automatic plugin quarantine", () => {
   });
 });
 
+describe("plugin name conflicts (2026-10-04): conflicts[] and the boot quarantine inside the row's expander", () => {
+  it("lists what turning a plugin on would clash with, and says a boot-quarantined plugin was turned off automatically", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        plugins: AC11_PLUGINS_RESPONSE.plugins.map((plugin) =>
+          plugin.id === "valid-site-plugin"
+            ? {
+                ...plugin,
+                quarantine: {
+                  at: "2026-10-04T12:00:00.000Z",
+                  reason: "Turned off at startup because it claims things already in use: tool 'seo_audit' is provided by plugin 'word-count' (Word Count).",
+                  consecutiveFailures: 0,
+                },
+                conflicts: [
+                  { kind: "tool", key: "seo_audit", heldBy: "word-count", heldByName: "Word Count", heldKey: "seo_audit" },
+                  { kind: "route", key: "GET /api/seo", heldBy: "core", heldByName: "Tovu core", heldKey: "/api/*" },
+                ],
+              }
+            : { ...plugin, conflicts: [], errors: plugin.errors.map((error) => ({ ...error, file: null })) },
+        ),
+      }),
+    );
+
+    render(<Plugins tabId="downloaded" />);
+    const row = await screen.findByRole("listitem", { name: "Valid Site Plugin" });
+    // An error with no file still renders (its React key falls back to an empty file part).
+    expect(within(screen.getByRole("listitem", { name: "Invalid Site Plugin" })).getByText("HOOK_UNKNOWN")).toBeInTheDocument();
+    expect(within(row).getByText('Tool "seo_audit" is already used by Word Count.')).not.toBeVisible();
+
+    await user.click(within(row).getByRole("button", { name: /^Valid Site Plugin/ }));
+    expect(within(row).getByText("Turned off automatically")).toBeVisible();
+    expect(within(row).queryByText(/Quarantined after 0/)).not.toBeInTheDocument();
+    expect(within(row).getByText("Names already in use — turn the other plugin off first:")).toBeVisible();
+    expect(within(row).getByText('Tool "seo_audit" is already used by Word Count.')).toBeVisible();
+    expect(within(row).getByText('Route "GET /api/seo" is reserved by Tovu ("/api/*").')).toBeVisible();
+
+    // An empty conflicts[] renders nothing — no heading asserting a check found none.
+    const clearRow = screen.getByRole("listitem", { name: "Word Count" });
+    expect(within(clearRow).queryByText(/Names already in use/)).not.toBeInTheDocument();
+  });
+});
+
 describe("REQ-18/AC-26: row subline shows source · tier · status verbatim, not hardcoded", () => {
   it("each row's subline reflects that record's own source/tier/status", async () => {
     const response = {

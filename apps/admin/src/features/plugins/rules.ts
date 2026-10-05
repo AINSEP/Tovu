@@ -30,20 +30,109 @@ const PLUGIN_ERROR_MESSAGES: ReadonlyMap<string, string> = new Map([
   ["PLUGIN_ENABLED", "This plugin is enabled and must be disabled everywhere before it can be removed."],
   ["PLUGIN_IN_TRASH", "This plugin is already in the Trash. Restore or delete it there first."],
   ["PLUGIN_ID_INVALID", "This plugin's id is invalid."],
+  // 2026-10-04: `PLUGIN_SET_ENABLED`'s 409 when the plugin claims a name core or an earlier-enabled
+  // plugin holds. The server's own message names each clash in English; the row's detail panel
+  // already lists them translated (`pluginConflictLines`), so this points there instead.
+  ["PLUGIN_CONFLICT", "This plugin uses names that core or another plugin already has. Open its details to see which, and turn the other plugin off first."],
 ]);
 
 /** Maps this screen's two calls' error codes to `errors.spec.md`'s operator-facing guidance text
- * (ui.spec.md §8), falling back to the server's own message.
+ * (ui.spec.md §8), falling back to the server's own message. `optional.translate` translates an
+ * override (the English text is the dictionary key); the server's own message is never translated.
  *
  * @complexity O(1).
  * @overallScore 100
  */
-export function describeApiError(e: unknown, fallback: string): string {
+export function describeApiError(e: unknown, fallback: string, optional: { translate?: Translate } = {}): string {
   if (e instanceof ApiError && e.code !== undefined) {
     const override = PLUGIN_ERROR_MESSAGES.get(e.code);
-    if (override !== undefined) return override;
+    if (override !== undefined) return optional.translate ? optional.translate(override) : override;
   }
   return describeApiErrorDefault(e, fallback);
+}
+
+/** Replaces each `{name}` in `template` with its value, literally — a function replacer, so a `$&`
+ *  or `$'` inside a plugin name or key is not read as a replacement pattern. */
+function fillTemplate(template: string, values: Readonly<Record<string, string>>): string {
+  return Object.entries(values).reduce((text, [name, value]) => text.replace(`{${name}}`, () => value), template);
+}
+
+/** Display label (an i18n key) per conflict `kind` the server sends — `plugin-claims.ts`'s six
+ *  `contributes` kinds plus `hook`. A `Map` for the same prototype-key reason as
+ *  {@link PLUGIN_ERROR_MESSAGES}; a kind not listed is shown verbatim (the server's `kind` is free
+ *  text by design, so a new one must still render). */
+const CONFLICT_KIND_LABELS: ReadonlyMap<string, string> = new Map([
+  ["route", "Route"],
+  ["tool", "Tool"],
+  ["table", "Table"],
+  ["setting", "Setting"],
+  ["widget", "Widget"],
+  ["permission", "Permission"],
+  ["hook", "Hook"],
+]);
+
+/** The owner id `plugin-claims.ts` files core's own claims under (`CORE_OWNER_ID`). */
+const CORE_CONFLICT_HOLDER = "core";
+
+/**
+ * One sentence per name this plugin claims that core or an earlier-enabled plugin already holds
+ * (`PLUGINS_LIST`'s `conflicts[]`, 2026-10-04): for a plugin that is off, what turning it on would
+ * hit; for a quarantined one, why boot turned it off. A core holder shows its reserved pattern only
+ * when it differs from the claimed key (a `/api/*` prefix matched `/api/seo`). Duplicate lines are
+ * dropped — a manifest that names the same thing twice reports it twice.
+ *
+ * @complexity O(c) in the row's conflict count.
+ */
+export function pluginConflictLines(plugin: AdminPlugin, translate: Translate): string[] {
+  const lines = (plugin.conflicts ?? []).map((conflict) => {
+    const kindLabel = CONFLICT_KIND_LABELS.get(conflict.kind);
+    const values = { kind: kindLabel === undefined ? conflict.kind : translate(kindLabel), key: conflict.key };
+    if (conflict.heldBy !== CORE_CONFLICT_HOLDER) {
+      return fillTemplate(translate('{kind} "{key}" is already used by {plugin}.'), { ...values, plugin: conflict.heldByName });
+    }
+    return conflict.heldKey === conflict.key
+      ? fillTemplate(translate('{kind} "{key}" is reserved by Tovu.'), values)
+      : fillTemplate(translate('{kind} "{key}" is reserved by Tovu ("{reserved}").'), { ...values, reserved: conflict.heldKey });
+  });
+  return [...new Set(lines)];
+}
+
+/**
+ * The quarantine headline. Boot's conflict pass quarantines with `consecutiveFailures: 0` (no hook
+ * ever failed), where "Quarantined after 0 consecutive failures" would read as a bug; that case says
+ * what happened instead, and the reason below it says why.
+ *
+ * @complexity O(1).
+ */
+export function pluginQuarantineHeadline(quarantine: NonNullable<AdminPlugin["quarantine"]>, translate: Translate): string {
+  if (quarantine.consecutiveFailures === 0) return translate("Turned off automatically");
+  return fillTemplate(translate("Quarantined after {count} consecutive failures"), { count: String(quarantine.consecutiveFailures) });
+}
+
+/** What the row's detail panel shows — see {@link pluginRowDetailView}. */
+export interface PluginRowDetailView {
+  readonly quarantine: { readonly headline: string; readonly reason: string } | null;
+  readonly conflicts: { readonly heading: string; readonly lines: readonly string[] } | null;
+  readonly errors: AdminPlugin["errors"];
+}
+
+/**
+ * The row's detail panel: quarantine, name conflicts, validation errors — each `null`/empty when
+ * absent, and the whole view `null` when all three are, so the panel never asserts a question was
+ * asked and answered none (`AgentPluginRow`'s `DetailChips` rule).
+ *
+ * @complexity O(c) in the row's conflict count.
+ */
+export function pluginRowDetailView(plugin: AdminPlugin, translate: Translate): PluginRowDetailView | null {
+  const lines = pluginConflictLines(plugin, translate);
+  if (!plugin.quarantine && lines.length === 0 && plugin.errors.length === 0) return null;
+  return {
+    quarantine: plugin.quarantine
+      ? { headline: pluginQuarantineHeadline(plugin.quarantine, translate), reason: plugin.quarantine.reason }
+      : null,
+    conflicts: lines.length > 0 ? { heading: translate("Names already in use — turn the other plugin off first:"), lines } : null,
+    errors: plugin.errors,
+  };
 }
 
 /** What the "Enabled" cell should show for one row — `visible: false` for AC-21 (enabling this row

@@ -54,6 +54,28 @@ describe("usePlugins — injected port (no fetch stub, no api spy)", () => {
    * .plugins` never settles and `waitFor` times out) — confirmed live, then reverted. Recorded here
    * rather than left as a silent claim.
    */
+  it("surfaces an enable refused for a name conflict as rowError, through the injected translator, and the row stays off", async () => {
+    const port = createFakePluginsPort({
+      plugins: [
+        {
+          id: "seo-boost", name: "SEO Boost", version: "1.0.0", source: "site", tier: "tier-3", status: "valid", enabled: false, quarantine: null, errors: [],
+          conflicts: [{ kind: "tool", key: "seo_audit", heldBy: "seo-pro", heldByName: "SEO Pro", heldKey: "seo_audit" }],
+        },
+      ],
+    });
+    const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => `T:${key}` }));
+    await waitFor(() => expect(result.current.plugins).toHaveLength(1));
+
+    await act(async () => {
+      await result.current.onToggleEnabled(result.current.plugins![0]!);
+    });
+
+    expect(result.current.rowError).toBe(
+      "T:This plugin uses names that core or another plugin already has. Open its details to see which, and turn the other plugin off first.",
+    );
+    expect(result.current.plugins?.[0]?.enabled).toBe(false);
+  });
+
   it("does not resolve `plugins` while the injected port's list call is still pending", () => {
     const port = createFakePluginsPort();
     port.listPlugins = () => new Promise(() => {});

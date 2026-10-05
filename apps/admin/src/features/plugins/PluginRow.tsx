@@ -6,6 +6,7 @@ import { PluginChevronIcon, PluginPackageIcon } from "./plugins-visuals";
 import { EyeIcon } from "./agent-plugins-visuals";
 import { PluginMetadataLabel } from "@/components/status-labels";
 import type { Translate } from "@/lib/dictionary-translator";
+import { pluginRowDetailView } from "./rules";
 
 /**
  * @file One `.tovu-plugin` plugin, as a ROW — the shared shell both the Installed and Downloaded
@@ -50,25 +51,36 @@ export interface PluginRowProps {
   readonly onInspect: () => void;
 }
 
-/** Quarantine + per-plugin `errors[]` — genuine operational signal, moved here from the pre-split
- *  table's own always-visible columns (`Plugins.tsx`'s prior `quarantine`/`errors` `DataTable`
- *  columns). Rendered only when the plugin actually has one or the other, same "don't assert a
- *  question was asked and answered none" rule `AgentPluginRow`'s own `DetailChips` documents. */
+/** Quarantine, name conflicts (2026-10-04) + per-plugin `errors[]` — genuine operational signal,
+ *  moved here from the pre-split table's own always-visible columns (`Plugins.tsx`'s prior
+ *  `quarantine`/`errors` `DataTable` columns). Rendered only when the plugin actually has one of
+ *  them, same "don't assert a question was asked and answered none" rule `AgentPluginRow`'s own
+ *  `DetailChips` documents — that decision, and every string, comes from `rules.ts`'s
+ *  `pluginRowDetailView`. */
 function PluginRowDetail({ plugin, t }: { plugin: AdminPlugin; t: Translate }) {
-  if (!plugin.quarantine && plugin.errors.length === 0) return null;
+  const view = pluginRowDetailView(plugin, t);
+  if (!view) return null;
   return (
     <>
-      {plugin.quarantine ? (
+      {view.quarantine ? (
         <div className="plugin-errors">
-          <span className="save-error">
-            {t("Quarantined after")} {plugin.quarantine.consecutiveFailures} {t("consecutive failures")}
-          </span>
-          <div>{plugin.quarantine.reason}</div>
+          <span className="save-error">{view.quarantine.headline}</span>
+          <div>{view.quarantine.reason}</div>
         </div>
       ) : null}
-      {plugin.errors.length > 0 ? (
+      {view.conflicts ? (
+        <div className="plugin-errors">
+          <span className="save-error">{view.conflicts.heading}</span>
+          <ul>
+            {view.conflicts.lines.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      {view.errors.length > 0 ? (
         <ul className="plugin-errors">
-          {plugin.errors.map((e) => (
+          {view.errors.map((e) => (
             <li key={`${e.code}:${e.file ?? ""}:${e.message}`}>
               <span className="save-error">{e.code}</span> <span>{e.message}</span>
             </li>

@@ -2021,6 +2021,21 @@ export interface AdminPluginPackageFile {
   relativePath: string;
   sizeBytes: number;
   content: string | null;
+  /** (2026-10-04) Mirrors `AdminPluginEnvelope.conflicts`: names this plugin claims that core or an
+   * earlier-enabled plugin already holds. Optional so a row from a server predating the field still
+   * types; the current server always sends it (empty when clear). */
+  conflicts?: AdminPluginConflict[];
+}
+
+/** One entry of {@link AdminPlugin.conflicts} — `features/plugin-runtime/plugin-claims.ts`'s
+ *  `PluginConflict`. `heldBy` is `"core"` for a name Tovu itself reserves; `heldKey` is the holder's
+ *  own spelling (a reserved prefix such as `/api/*` when that is what matched). */
+export interface AdminPluginConflict {
+  kind: string;
+  key: string;
+  heldBy: string;
+  heldByName: string;
+  heldKey: string;
   omitted: null | "binary" | "too-large" | "symlink" | "unreadable";
 }
 

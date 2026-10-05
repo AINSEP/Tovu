@@ -53,6 +53,11 @@ export function createFakePluginsPort(options: FakePluginsPortOptions = {}): Plu
     async setPluginEnabled(id, patch) {
       const index = plugins.findIndex((p) => p.id === id);
       if (index < 0) throw new Error(`fake plugin not found: ${id}`);
+      // The real enable gate (`onPluginEnabled`, 2026-10-04): a plugin whose row lists conflicts is
+      // refused with 409 PLUGIN_CONFLICT and stays off. Turning a plugin OFF is never refused.
+      if (patch.enabled && (plugins[index]!.conflicts ?? []).length > 0) {
+        throw new ApiError(`Plugin '${id}' was not turned on because it claims things already in use.`, 409, "PLUGIN_CONFLICT");
+      }
       const updated = { ...plugins[index]!, enabled: patch.enabled };
       plugins[index] = updated;
       // Matches the real route's own narrow echo shape — see `PluginsPort.setPluginEnabled`'s doc.
