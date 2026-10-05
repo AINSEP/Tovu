@@ -22,6 +22,7 @@ import { usePostPreviewIframeEscape } from "./hooks/use-post-editor-ui.hooks";
 import { TemplateSourceModal } from "../../components/TemplateSource/TemplateSourceModal";
 import { ViewTemplateButton } from "../../components/TemplateSource/ViewTemplateButton";
 import { TermPicker } from "../taxonomy/TermPicker";
+import { ContentAnalysisCard } from "../content-analysis/ContentAnalysisCard";
 import {
   toolbarBtnClass,
   hexOrDefault,
@@ -1624,6 +1625,10 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
       ) : (
         <PostEditorBody editor={editor} mentionablePosts={mentionablePosts} currentPostId={post.id} t={t} />
       )}
+      {/* Content analysis (AW-7 Tier 2) — renders nothing unless the `content-analyzer` plugin is
+          enabled. Gets the live `title`/`bodyJson` so "Analyze now" covers unsaved edits, and `post`
+          so a save's freshly stored analysis replaces it. */}
+      <ContentAnalysisCard post={post} title={title} bodyJson={bodyJson} />
       {/* Categories & Tags — the same box the collection-entry editor mounts; it saves on its own
           button, separately from the post's Save/Publish. */}
       <TermPicker contentType={post.kind} contentId={post.id} />

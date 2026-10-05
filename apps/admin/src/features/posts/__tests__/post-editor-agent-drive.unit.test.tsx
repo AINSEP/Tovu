@@ -16,6 +16,11 @@ vi.mock("../../taxonomy/TermPicker", () => ({
     <div data-testid="term-picker">{`${props.contentType}/${props.contentId}`}</div>
   ),
 }));
+// The Content analysis card reads the plugin list itself; its own branches live in
+// `features/content-analysis/__tests__/`. Stubbed for the same fetch-queue reason as TermPicker.
+vi.mock("../../content-analysis/ContentAnalysisCard", () => ({
+  ContentAnalysisCard: (props: { post: { id: string } }) => <div data-testid="content-analysis">{props.post.id}</div>,
+}));
 
 /**
  * @file Proves §3 of `ADS-memory/.local-artifacts/handoffs/2026-09-15-preview-fullscreen-PLAN.md`

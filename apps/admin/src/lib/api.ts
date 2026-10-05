@@ -1267,6 +1267,14 @@ export interface AdminPost {
    * Optional, same migration-safety precedent as `templateChoice` just above.
    */
   overridesThemePage?: boolean | null;
+  /**
+   * SPEC-005 REQ-11 plugin extension-field bag, keyed by plugin id then field name — already on the
+   * wire (`toHeadlessPost` spreads it in only when a plugin wrote something), just never declared
+   * here until the Content analysis card (AW-7 Tier 2) needed `ext["content-analyzer"].report`.
+   * Absent, not `{}`, when no plugin contributed. Values are whatever the plugin's declared field
+   * types allow, so readers must validate before use.
+   */
+  ext?: Record<string, Record<string, unknown>>;
 }
 
 export interface PresentationSettings {

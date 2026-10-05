@@ -1,0 +1,25 @@
+import type { PluginPreviewRequest } from "../rules";
+
+/**
+ * @file What `use-content-analysis.hooks.ts` needs from the outside world, as an interface rather
+ * than a direct `lib/api` import — the `useX(dependencies)` / `useWiredX()` pair documented in
+ * `development/docs/architecture/wired-hooks-convention.md`.
+ *
+ * `listPlugins` is the Plugins screen's own read (`PluginsPort.listPlugins`), narrowed to the two
+ * fields the card's enabled gate reads; the live binding delegates to that port rather than fetching
+ * the list a second way.
+ */
+
+/** The generic plugin preview route's reply: ONE plugin's ext patch for an unsaved draft, validated
+ *  against the plugin's declared fields and never saved (AW-7 Tier-2 brief). */
+export interface PluginPreviewResponse {
+  pluginId: string;
+  fields: Record<string, string | number | boolean>;
+}
+
+export interface ContentAnalysisPort {
+  listPlugins(): Promise<{ plugins: Array<{ id: string; enabled: boolean }> }>;
+  /** `POST /plugins/:pluginId/preview` — rejects with an `ApiError` carrying `PLUGIN_NOT_FOUND`
+   *  (404), `PLUGIN_NOT_ENABLED` (409) or `PLUGIN_HOOK_FAILED` (422). */
+  previewPlugin(target: { pluginId: string }, body: PluginPreviewRequest): Promise<PluginPreviewResponse>;
+}

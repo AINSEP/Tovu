@@ -160,3 +160,21 @@
    expanded, where the panel is flush against its own box and there is no toolbar above it. */
 .post-preview-surface { margin-top: 1rem; }
 .post-preview-expanded .post-preview-surface { margin-top: 0; }
+
+/* Content analysis card (`features/content-analysis/ContentAnalysisCard.tsx`, AW-7 Tier 2) — sits
+   above the Categories & Tags box in the post editor. Reuses `.card`, `.dash-stat-*` type styles
+   and the `.status` pills; only the layout below is its own. The stats are NOT `.dash-stat` boxes:
+   those are link cards with a hover lift, and nothing here is clickable. */
+.content-analysis { margin-top: var(--space-4); }
+.content-analysis-stats {
+  list-style: none; margin: var(--space-4) 0; padding: 0;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: var(--space-3);
+}
+.content-analysis-stat { display: flex; flex-direction: column; gap: var(--space-1); }
+.content-analysis-stat .dash-stat-value { font-size: 1.5rem; }
+.content-analysis-list {
+  list-style: none; margin: var(--space-2) 0 var(--space-4); padding: 0;
+  display: flex; flex-direction: column; gap: var(--space-2);
+}
+.content-analysis-toc-level { margin-inline-end: var(--space-2); font-size: var(--text-2xs); font-weight: 600; color: var(--muted); }
+.content-analysis-check { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); }

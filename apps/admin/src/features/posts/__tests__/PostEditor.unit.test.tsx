@@ -14,6 +14,13 @@ vi.mock("../../taxonomy/TermPicker", () => ({
     <div data-testid="term-picker">{`${props.contentType}/${props.contentId}`}</div>
   ),
 }));
+// The Content analysis card reads the plugin list itself; its own branches live in
+// `features/content-analysis/__tests__/`. Stubbed for the same fetch-queue reason as TermPicker.
+vi.mock("../../content-analysis/ContentAnalysisCard", () => ({
+  ContentAnalysisCard: (props: { post: { id: string; version: number }; title: string; bodyJson: unknown }) => (
+    <div data-testid="content-analysis">{`${props.post.id}@${props.post.version}:${props.title}:${JSON.stringify(props.bodyJson)}`}</div>
+  ),
+}));
 
 /**
  * jsdom omits `Range.getClientRects`/`Range.getBoundingClientRect` entirely (confirmed against the
@@ -1561,6 +1568,18 @@ describe("standing-draft autosave stale-basis notice", () => {
     const region = document.querySelector('[data-agent-element="post-autosave-stale"]');
     expect(region).not.toBeNull();
     expect(region!.querySelectorAll("button")).toHaveLength(0);
+  });
+});
+
+describe("Content analysis", () => {
+  it("mounts the card with the loaded post and the editor's live title and body", () => {
+    renderPostEditor({ title: "Unsaved title", bodyJson: { type: "doc", content: [] } });
+    expect(screen.getByTestId("content-analysis")).toHaveTextContent('p1@1:Unsaved title:{"type":"doc","content":[]}');
+  });
+
+  it("is not mounted before the post loads", () => {
+    renderPostEditor({ post: null });
+    expect(screen.queryByTestId("content-analysis")).not.toBeInTheDocument();
   });
 });
 
