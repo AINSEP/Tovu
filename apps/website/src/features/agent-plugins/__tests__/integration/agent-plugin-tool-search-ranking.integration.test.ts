@@ -187,16 +187,21 @@ function logHits(query: string, hits: readonly { id: string; score: number }[]):
   hits.forEach((hit, index) => console.log(`  ${index + 1}. ${hit.id}  (score ${hit.score.toFixed(3)})`));
 }
 
-test("the plugin tool IS present in registry.list({}) and describable by exact id — the registration mechanism itself works, and collapsing 7 tools into 1 shows up as exactly +1 in the real catalog size", async () => {
+test("the plugin tool IS present in registry.list({}) and describable by exact id — the registration mechanism itself works, and collapsing 7 skills into 1 guidance tool (plus the Layout B memory pair) shows up as exactly +3 in the real catalog", async () => {
   await withAgentPluginsDir(async () => {
     const { registry: nativeOnly } = await buildRealNativeOnlySurface();
     const { registry, catalog } = await buildRealSurfaceWithPluginTool();
 
     assert.equal(registry.has({ toolId: "agent_plugin_ui_ux_design" }), true);
-    assert.equal(
-      registry.list({}).length,
-      nativeOnly.list().length + 1,
-      "one installed plugin must add exactly ONE tool to the real catalog, not seven",
+    // Layout B (spec 2026-09-10-agent-plugin-memory.md, "Access"): each installed plugin also gets its
+    // own scoped learned-memory read/write pair, so one plugin adds exactly THREE ids — one guidance
+    // tool (its 7 skills still collapse into it, never one tool per skill) plus the memory pair.
+    const nativeIds = new Set(nativeOnly.list({}).map((tool) => tool.id));
+    const added = registry.list({}).map((tool) => tool.id).filter((id) => !nativeIds.has(id)).sort();
+    assert.deepEqual(
+      added,
+      ["agent_plugin_ui_ux_design", "agent_plugin_ui_ux_design__memory_read", "agent_plugin_ui_ux_design__memory_write"],
+      "one installed plugin adds its ONE collapsed guidance tool plus its memory pair — not one tool per skill",
     );
 
     const described = catalog.describe({ id: "agent_plugin_ui_ux_design" });

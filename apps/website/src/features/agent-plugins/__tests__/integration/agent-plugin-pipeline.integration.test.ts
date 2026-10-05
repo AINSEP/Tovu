@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdtemp } from "node:fs/promises";
+import { mkdtemp, realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -90,17 +90,30 @@ test("install -> parse mcp.json -> read installed files through the containment 
     const readBackSkill = await readInstalledSkillMarkdown(installed.packageRoot, "skills/ui-ux-design/SKILL.md");
     assert.equal(readBackSkill, skillMarkdown);
 
-    // Re-installing the SAME archive bytes (as a second workspace "installing" the same plugin@version
-    // would) must not re-extract — the content-addressed dedup property holds across the pipeline,
-    // not just inside install.ts's own unit tests.
+    // Re-installing the SAME archive bytes into the same workspace dedups onto the already-published
+    // package — the content-addressed property holds across the pipeline, not just inside install.ts's
+    // own unit tests. Layout B (spec 2026-09-10-agent-plugin-memory.md, "Install-time impact"): the
+    // destination is `<pluginId>/package/sha256/<digest>`, and `pluginId` is only known from the
+    // manifest, so a repeat install now always pays ONE bounded staging extraction before the dedup
+    // check. The reader therefore carries the real archive entries; the old "never read on a repeat
+    // install" probe described the pre-Layout-B fast path, which the spec retired on purpose.
     const secondInstall = await installAgentPlugin({
       archive,
       expectedSha256: digest,
-      archiveReader: reader([fileEntry("SHOULD_NOT_BE_READ", "x")]),
+      archiveReader: reader([
+        fileEntry("plugin.json", manifest),
+        fileEntry("mcp.json", mcpConfig),
+        fileEntry("skills/ui-ux-design/SKILL.md", skillMarkdown),
+      ]),
       layout: instanceLayout,
       workspaceId,
     });
-    assert.equal(secondInstall.packageRoot, installed.packageRoot);
+    assert.deepEqual(secondInstall, installed, "a byte-identical repeat install returns the first install's result, at the same packageRoot");
+    assert.equal(
+      installed.packageRoot,
+      path.join(await realpath(instanceLayout.forWorkspace(workspaceId).pluginPackagesDir({ pluginId: "ui-ux-design" })), digest),
+      "Layout B: the package lives under <pluginId>/package/sha256/<digest>",
+    );
   } finally {
     await forceRemove(cwd);
   }

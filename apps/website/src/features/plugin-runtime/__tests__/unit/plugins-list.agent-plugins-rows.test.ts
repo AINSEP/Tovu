@@ -92,7 +92,10 @@ test("an installed Agent Plugin's row is exactly pluginId/version/archiveDigest/
     ];
   };
   const result = await callPluginsList(runtimeDeps());
-  assert.deepEqual(directories, [path.join(resolveAgentPluginLayout().root, "ws", "ws-tools", "packages", "sha256")]);
+  // Layout B: listInstalledPlugins walks the WORKSPACE root (<ws>/<pluginId>/package/sha256/*), not
+  // the retired flat <ws>/packages/sha256 store (spec 2026-09-10-agent-plugin-memory.md).
+  assert.deepEqual(directories, [resolveAgentPluginLayout().forWorkspace("ws-tools").root]);
+  assert.equal(directories[0], path.join(resolveAgentPluginLayout().root, "ws", "ws-tools"));
   assert.deepEqual(result.plugins, [RUNTIME_ROW]);
   assert.deepEqual(result.agentPlugins, [
     { pluginId: "ui-ux-design", version: null, archiveDigest: "a".repeat(64), skills: ["web-compliance"] },

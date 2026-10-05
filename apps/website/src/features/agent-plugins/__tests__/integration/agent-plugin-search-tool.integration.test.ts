@@ -4,7 +4,7 @@ import { agentPluginActivations } from "../../activation-effects.js";
 const { setAgentPluginActivation } = agentPluginActivations;
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { chmod, mkdtemp } from "node:fs/promises";
+import { chmod, mkdtemp, realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -337,11 +337,16 @@ test("SECURITY: no absolute host path leaks into the response, even for a matche
       { "plugin.json": manifestJson("site-compliance", { description: "compliance screening" }), "skills/site-compliance/SKILL.md": SITE_COMPLIANCE_SKILL },
       "archive-security",
     );
-    assert.ok(installed.packageRoot.startsWith(agentPluginsDir));
+    // install returns the filesystem-resolved root (its containment check realpaths it), so on macOS
+    // a tmpdir under /var/folders comes back as /private/var/folders. Check against both spellings.
+    const realAgentPluginsDir = await realpath(agentPluginsDir);
+    assert.ok(installed.packageRoot.startsWith(realAgentPluginsDir));
 
     const result = await search(WORKSPACE_A, { query: "compliance" });
+    assert.deepEqual(result.matches.map((match) => match.pluginId), ["site-compliance"], "the probe must cover a MATCHED plugin");
     const serialized = JSON.stringify(result);
     assert.doesNotMatch(serialized, new RegExp(escapeRegExp(agentPluginsDir)));
+    assert.doesNotMatch(serialized, new RegExp(escapeRegExp(realAgentPluginsDir)));
     assert.doesNotMatch(serialized, new RegExp(escapeRegExp(installed.packageRoot)));
   });
 });

@@ -157,8 +157,13 @@ async function waitForDialog(first: Promise<unknown>, pending: Promise<unknown>)
   return winner.surface;
 }
 
-function timeoutBehavior(pid: number): typeof behavior {
-  return async (lockPath) => {
+/** Times out ONLY the lock whose path ends with `lockBasename`; every other lock is the real one.
+ *  Layout B (2026-10-04) put a per-plugin state lock (`staging/.plugin-state-<id>.lock`) in front of
+ *  the activations one, so "every lock is busy" no longer reaches the activations lock at all — each
+ *  test names the one lock it means. */
+function timeoutBehavior(pid: number, lockBasename = "activations.json.lock"): typeof behavior {
+  return async (lockPath, run, options) => {
+    if (path.basename(lockPath) !== lockBasename) return real.withFileLock({ lockPath, run }, options);
     const holder = { pid, hostname: "otherhost", token: "t", acquiredAt: new Date().toISOString() };
     throw new real.FileLockTimeoutError({ lockPath, holder, waitedMs: 15_000 });
   };
@@ -222,7 +227,8 @@ test("t91 R2: a lock that goes busy while the dialog is open removes nothing on 
     const packageBefore = await snapshotTree(installed.packageRoot);
     const activationsPath = path.join(workspaceLayout.root, "activations.json");
     const activationBefore = await readFile(activationsPath);
-    assert.deepEqual(await readdir(workspaceLayout.packages), [installed.archiveDigest]);
+    const pluginPackagesDir = workspaceLayout.pluginPackagesDir({ pluginId: "operator-plugin" });
+    assert.deepEqual(await readdir(pluginPackagesDir), [installed.archiveDigest]);
     try {
       const { deps } = fakeDeps();
       const surfaceExchanges = createSurfaceExchangeStore();
@@ -244,7 +250,48 @@ test("t91 R2: a lock that goes busy while the dialog is open removes nothing on 
       assert.equal((await stat(installed.packageRoot)).isDirectory(), true, "a busy delete must leave the package installed, with no staged/quarantined leftovers");
       assert.deepEqual(await snapshotTree(installed.packageRoot), packageBefore, "all package bytes, entries and permissions must survive rollback");
       assert.deepEqual(await readFile(activationsPath), activationBefore, "refusal must preserve the activation record byte for byte");
-      assert.deepEqual(await readdir(workspaceLayout.packages), [installed.archiveDigest], "no .uninstalling-* tree may remain");
+      assert.deepEqual(await readdir(pluginPackagesDir), [installed.archiveDigest], "no .uninstalling-* tree may remain");
+    } finally {
+      behavior = (lockPath, run, options) => real.withFileLock({ lockPath, run }, options);
+    }
+  });
+});
+
+test("Layout B: a busy per-plugin state lock on confirm is a not-removed RESULT (plugin-busy), never an opaque thrown error, and the package survives", async () => {
+  await withAgentPluginsDir(async () => {
+    const installed = await installReal(WORKSPACE_A, "operator-plugin", "archive-busy-state-lock");
+    const workspaceLayout = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A);
+    const pluginPackagesDir = workspaceLayout.pluginPackagesDir({ pluginId: "operator-plugin" });
+    const packageBefore = await snapshotTree(installed.packageRoot);
+    try {
+      const { deps } = fakeDeps();
+      const surfaceExchanges = createSurfaceExchangeStore();
+      const recorder = surfaceRecorder();
+
+      const pending = findRegistration(deps, surfaceExchanges).handler(fakeCtx({ pluginId: "operator-plugin" }, { emitSurface: recorder.emitSurface }), { emitSurface: recorder.emitSurface });
+      const surface = await waitForDialog(recorder.first, pending);
+      behavior = timeoutBehavior(9303, ".plugin-state-operator-plugin.lock");
+      const delivery = surfaceExchanges.deliver({
+        exchangeId: exchangeIdFromSurface(surface),
+        params: { decision: "confirm" },
+        principalId: PRINCIPAL_ID,
+        toolId: TOOL_ID,
+      });
+      assert.equal(delivery.ok, true);
+
+      assert.deepEqual(await pending, {
+        uninstalled: false,
+        cancelled: false,
+        pluginId: "operator-plugin",
+        restartRequired: false,
+        reason: "plugin-busy",
+        note:
+          "Nothing was removed: another Tovu process was installing, updating or writing memory for 'operator-plugin' at the " +
+          "same moment, so it was NOT uninstalled. Tell the user nothing was changed and to try again in a moment; if it " +
+          "keeps happening, the server log names the lock file.",
+      });
+      assert.deepEqual(await snapshotTree(installed.packageRoot), packageBefore, "a busy state lock must leave every package byte in place");
+      assert.deepEqual(await readdir(pluginPackagesDir), [installed.archiveDigest]);
     } finally {
       behavior = (lockPath, run, options) => real.withFileLock({ lockPath, run }, options);
     }

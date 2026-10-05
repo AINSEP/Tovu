@@ -10,6 +10,7 @@ import {
 } from "../../contracts/core/tool-surface-exchanges.js";
 
 import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError } from "@jini-ai/agent-plugins/lifecycle";
+import { FileLockTimeoutError } from "@jini-ai/platform/fs/file-lock";
 import { resolveAgentPluginLayout } from "./layout.js";
 import {
   AgentPluginChangedSincePreviewError,
@@ -103,6 +104,26 @@ function uninstallRefusedResult(pluginId: string, error: unknown): unknown {
         `Nothing was removed: another Tovu process was writing this workspace's Agent Plugin activation record at the ` +
         `same moment, so '${pluginId}' was NOT uninstalled. Tell the user nothing was changed and to try again in a ` +
         "moment; if it keeps happening, the server log names the lock file.",
+    };
+  }
+  if (error instanceof FileLockTimeoutError) {
+    // Layout B (2026-10-04) added a second lock in front of the activations one: the per-plugin state
+    // lock (`staging/.plugin-state-<id>.lock`) every install/update/uninstall/memory write of this
+    // plugin takes. A timeout means the lock was never acquired, so the uninstall body never ran — or,
+    // for an inner lock, `uninstall.ts` already put every staged tree back (a failed put-back throws a
+    // different error). Same ADR-055 Decision 6 not-removed RESULT as a busy activations record; the
+    // message names the lock path, so it goes to the server log only.
+    console.warn(`[agent-plugins] '${pluginId}': plugins_uninstall (family agent-plugin) refused — ${error.message}`);
+    return {
+      uninstalled: false,
+      cancelled: false,
+      pluginId,
+      restartRequired: false,
+      reason: "plugin-busy",
+      note:
+        `Nothing was removed: another Tovu process was installing, updating or writing memory for '${pluginId}' at the ` +
+        "same moment, so it was NOT uninstalled. Tell the user nothing was changed and to try again in a moment; if it " +
+        "keeps happening, the server log names the lock file.",
     };
   }
   if (!(error instanceof AgentPluginActivationsUnreadableError)) throw toModelFacingUninstallError(error);
