@@ -9,7 +9,6 @@ import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@ji
 import { buildAssistantToolRegistrations } from "#src/assistant/tool-registrations";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 import {
-  SURFACE_EXCHANGE_ID_PARAM,
   createSurfaceExchangeStore,
   type SurfaceExchangeStore,
 } from "#src/contracts/core/tool-surface-exchanges";
@@ -266,19 +265,9 @@ async function seedComment(routeDeps: RegistryDepsWithoutLimiter, overrides: Rec
   return row;
 }
 
-/** Starts a call, waits for its dialog, and returns the pending result plus the dialog's exchange id. */
+/** Starts a call and returns its pending result. */
 async function beginCall(registration: ToolRegistration, input: unknown) {
   return {pending: call(registration, input)};
-}
-
-function answer(store: SurfaceExchangeStore, spec: { exchangeId: string; toolId: string; decision: "confirm" | "cancel" }) {
-  const delivered = store.deliver({
-    exchangeId: spec.exchangeId,
-    toolId: spec.toolId,
-    principalId: PRINCIPAL_ID,
-    params: { [SURFACE_EXCHANGE_ID_PARAM]: spec.exchangeId, decision: spec.decision },
-  });
-  assert.deepEqual(delivered, { ok: true });
 }
 
 async function trashRows(routeDeps: RegistryDepsWithoutLimiter) {
@@ -309,7 +298,7 @@ test("trash_item is registered in the real assistant catalog, and declares itsel
 });
 
 test("a post trashed through trash_item uses content_post_delete's permission checks, and lands in the Trash index", async () => {
-  const { routeDeps, surfaceExchanges, registrations } = harness(EVERYTHING);
+  const { routeDeps, registrations } = harness(EVERYTHING);
   await seedPost(routeDeps);
 
   const { pending } = await beginCall(tool(registrations, TRASH_ITEM_TOOL_ID), {
@@ -342,7 +331,7 @@ test("a post trashed through trash_item uses content_post_delete's permission ch
 });
 
 test("a comment trashed through trash_item resolves its version server-side and goes through comments_trash_comment", async () => {
-  const { routeDeps, surfaceExchanges, registrations } = harness(EVERYTHING);
+  const { routeDeps, registrations } = harness(EVERYTHING);
   await seedComment(routeDeps);
 
   const { pending } = await beginCall(tool(registrations, TRASH_ITEM_TOOL_ID), {
@@ -366,7 +355,7 @@ test("a comment trashed through trash_item resolves its version server-side and 
 });
 
 test("a media asset trashed through trash_item is tagged with the human principal AND a non-null AI marker", async () => {
-  const { routeDeps, surfaceExchanges, registrations } = harness(EVERYTHING);
+  const { routeDeps, registrations } = harness(EVERYTHING);
   await seedMedia(routeDeps);
 
   const { pending } = await beginCall(tool(registrations, TRASH_ITEM_TOOL_ID), {
@@ -384,7 +373,7 @@ test("a media asset trashed through trash_item is tagged with the human principa
 });
 
 test("a redirect tombstoned through trash_item is tagged with the human principal AND a non-null AI marker", async () => {
-  const { routeDeps, surfaceExchanges, registrations } = harness(EVERYTHING);
+  const { routeDeps, registrations } = harness(EVERYTHING);
   const rule = await seedRedirect(routeDeps);
 
   const { pending } = await beginCall(tool(registrations, TRASH_ITEM_TOOL_ID), {
@@ -655,7 +644,7 @@ test("trash_item's GENERIC path never reaches TrashPort.purgeSelected either", a
 });
 
 test("a widget with a corrupt payload can still be trashed, through widgets_trash_instance directly AND through trash_item, both tagged with the AI marker", async () => {
-  const { routeDeps, surfaceExchanges, registrations } = harness(EVERYTHING);
+  const { routeDeps, registrations } = harness(EVERYTHING);
   const entryRepo = (routeDeps as unknown as { entryRepo: TrashAwareInMemoryEntryRepo }).entryRepo;
 
   async function createCorruptWidget(title: string): Promise<string> {
