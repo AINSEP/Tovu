@@ -37,3 +37,9 @@ export {
   toBool,
   toBytes,
 } from "./dialect.js";
+export {
+  type SqliteForeignKeyViolation,
+  sqliteForeignKeyCheckedTransaction,
+  type SqliteTableColumn,
+  sqliteTableInfo,
+} from "./sqlite-only.js";

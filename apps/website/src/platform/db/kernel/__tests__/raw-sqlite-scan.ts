@@ -40,7 +40,10 @@ const RULES: ReadonlyArray<{ id: string; pattern: RegExp }> = [
   // better-sqlite3's transaction takes a SYNC callback: `db.transaction((tx) => …)`.
   { id: "sync-transaction", pattern: /\.transaction\(\s*(?:\(\s*\w*\s*\)|\w+)\s*=>/g },
   { id: "$client", pattern: /\$client\b/g },
-  { id: "in-transaction", pattern: /\.inTransaction\b/g },
+  // better-sqlite3's `inTransaction` is a property; the storage kernel's port method of the same
+  // name (`kernel.inTransaction()`, `@jini-ai/db/kernel` port.ts) is the portable replacement, so a
+  // CALL is not raw SQLite.
+  { id: "in-transaction", pattern: /\.inTransaction\b(?!\s*\()/g },
   { id: "pragma", pattern: /\bPRAGMA\s|\bpragma_[a-z_]+\s*\(|\.pragma\s*\(/gi },
   { id: "sqlite-catalog", pattern: /\bsqlite_(?:master|schema|sequence|temp_master)\b/g },
   {

@@ -1,5 +1,6 @@
 import { sql } from "kysely";
 import type { ContentKernel } from "../content-kernel.js";
+import { sqliteForeignKeyCheckedTransaction, sqliteTableInfo } from "../kernel/sqlite-only.js";
 import type { RawColumn, RawRowPort, RawValue } from "#src/features/publish-content/backstop-ports";
 import { checkRawTable } from "#src/features/publish-content/backstop-policy";
 
@@ -28,9 +29,10 @@ export function createRawRowSqlitePort({ kernel }: { kernel: ContentKernel }, _o
   if (kernel.dialect !== "sqlite") throw new Error("Send by hand currently requires a SQLite content database.");
   async function columns({ table }: { table: string }): Promise<readonly RawColumn[] | null> {
     allowed(table, []);
-    const found = await kernel.query<{ name: string }>(sql`SELECT name FROM sqlite_schema WHERE type='table' AND name=${table}`);
-    if (found.length === 0) return null;
-    const info = await kernel.query<RawColumn>(sql.raw(`PRAGMA table_info(${identifier(table)})`));
+    // SQLite's own table_info shape, not listColumns': both peers compare and hash it (see sqlite-only.ts).
+    const info = await sqliteTableInfo({ kernel, table });
+    if (!info) return null;
+    identifier(table); // a live table whose name later SQL could not quote is refused here, as before
     allowed(table, info.map((c) => c.name));
     return info.map(({ name, type, pk, notnull }) => ({ name, type, pk, notnull })).sort((a, b) => a.name.localeCompare(b.name));
   }
@@ -72,14 +74,8 @@ export function createRawRowSqlitePort({ kernel }: { kernel: ContentKernel }, _o
     transaction: async ({ work }) => {
       // A per-row gateway may join the push's outer transaction; only that outer call checks FKs.
       if (kernel.inTransaction()) return work();
-      return kernel.transaction(async () => {
-        await kernel.execute(sql`PRAGMA defer_foreign_keys = ON`);
-        const result = await work();
-        const violations = await kernel.query<{ table: string; rowid: number; parent: string }>(sql`PRAGMA foreign_key_check`);
-        const first = violations[0];
-        if (first) throw new Error(`Foreign key check failed: '${first.table}' row '${first.rowid}' points at a missing '${first.parent}' row; this send was rolled back.`);
-        return result;
-      });
+      return sqliteForeignKeyCheckedTransaction({ kernel, work, onViolation: (first) =>
+        new Error(`Foreign key check failed: '${first.table}' row '${first.rowid}' points at a missing '${first.parent}' row; this send was rolled back.`) });
     },
   };
 }

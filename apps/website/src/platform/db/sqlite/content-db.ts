@@ -6,7 +6,7 @@ import Database from "better-sqlite3";
 import { drizzle, type BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 
-import { sqliteKernel } from "../kernel/drivers/sqlite.js";
+import { closeSqliteConnection, sqliteKernel } from "../kernel/drivers/sqlite.js";
 import { migrateContentDatabase, type MigrationReport } from "../migrations/index.js";
 import * as schema from "../schema.sqlite.js";
 import { bootstrapFreshContentDb } from "./fresh-content-db.js";
@@ -134,7 +134,7 @@ export function openContentDb(filePath: string): ContentDb {
     if (!bootstrapFreshContentDb({ db })) migrate(db, { migrationsFolder: MIGRATIONS_DIR });
     return db;
   } catch (error) {
-    db.$client.close();
+    closeSqliteConnection(db);
     throw error;
   }
 }

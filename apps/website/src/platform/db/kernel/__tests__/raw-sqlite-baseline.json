@@ -38,5 +38,13 @@
   },
   "apps/website/src/platform/db/sqlite/db-ops.ts": {
     "$client": 1
+  },
+  "apps/website/src/platform/db/sqlite/fresh-content-db.ts": {
+    "$client": 1,
+    "prepare": 4,
+    "sqlite-catalog": 2,
+    "sqlite-json": 2,
+    "sync-terminal": 2,
+    "sync-transaction": 1
   }
 }

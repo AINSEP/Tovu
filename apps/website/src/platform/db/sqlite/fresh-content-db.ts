@@ -14,6 +14,14 @@ import type { ContentDb } from "./content-db.js";
  * Keep these fresh-only operations checked against the real TS runner by
  * __tests__/integration/content-db-fresh.integration.test.ts. A new step must be handled here
  * explicitly before any fresh schema is written. Do not extend the frozen Drizzle chain.
+ *
+ * Raw SQLite by necessity, so this file is in the no-raw-SQLite ratchet's baseline
+ * (`kernel/__tests__/raw-sqlite-baseline.json`) rather than on the storage kernel: openContentDb's
+ * contract is a synchronous return, and every kernel call is async, so it drives better-sqlite3
+ * directly (prepare/get/all, a sync `.immediate()` transaction, `sqlite_schema`). Its json_* calls
+ * are the fresh-only copy of 0003's SQLite branch. It is not a driver and cannot move under
+ * `kernel/drivers/`: it depends on the content migration list, which the kernel must not. A new
+ * fresh-only step that adds raw SQLite raises this file's baseline counts in the same commit.
  */
 export function bootstrapFreshContentDb(
   { db }: { db: ContentDb },
