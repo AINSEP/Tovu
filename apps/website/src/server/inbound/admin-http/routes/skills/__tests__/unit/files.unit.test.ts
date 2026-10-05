@@ -10,7 +10,7 @@ import type { RouteDeps } from "#src/server/routes/types";
 
 const route = "/api/admin/v1/workspaces/:workspaceId/skills/:toolId/files";
 const markdown = "---\nname: example\ndescription: Example skill.\n---\nRead the reference.\n";
-async function harness(work: (call: (toolId?: string, workspaceId?: string) => Promise<{ code: number; body: any }>, directory: string, outside: string) => Promise<void>, allowed = true) {
+async function harness(work: (call: (toolId?: string, workspaceId?: string, overrides?: { locals?: object }) => Promise<{ code: number; body: any }>, directory: string, outside: string) => Promise<void>, allowed = true, expectedAuthorizations = 1) {
   const root = await mkdtemp(path.join(tmpdir(), "skill-files-"));
   const previous = process.env.TOVU_SKILLS_DIR;
   process.env.TOVU_SKILLS_DIR = root;
@@ -34,13 +34,13 @@ async function harness(work: (call: (toolId?: string, workspaceId?: string) => P
       assert.equal(input.workspaceId, "workspace-local");
       return { allowed, reason: "test" };
     } } as RouteDeps).registerRoutes(app);
-    await work(async (toolId = "skill_example", workspaceId = "workspace-local") => {
+    await work(async (toolId = "skill_example", workspaceId = "workspace-local", overrides = {}) => {
       const handler = handlers.get(`get ${route}`);
       assert.equal(typeof handler, "function", "files route is composed into the skills module");
-      const res = { locals: { principal: { id: "owner" } }, code: 200, body: undefined as any, status(code: number) { this.code = code; return this; }, json(body: unknown) { this.body = body; return this; } };
+      const res = { locals: { principal: { id: "owner" } }, ...overrides, code: 200, body: undefined as any, status(code: number) { this.code = code; return this; }, json(body: unknown) { this.body = body; return this; } };
       const before = authorizations;
       await handler!({ params: { workspaceId, toolId } }, res);
-      assert.equal(authorizations - before, workspaceId === "workspace-local" ? 1 : 0);
+      assert.equal(authorizations - before, workspaceId === "workspace-local" ? expectedAuthorizations : 0);
       return res;
     }, directory, outside);
   } finally {
@@ -108,3 +108,10 @@ test("workspace mismatch returns the same workspace 404 without authorizing", ()
   assert.equal(res.code, 404);
   assert.deepEqual(res.body, { error: "workspace was not found" });
 }));
+test("an unexpected failure returns the generic 500 without its internal message", () => harness(async call => {
+  // Mounted without the admin session middleware: the principal lookup throws inside the guarded
+  // block, and the response must carry only the fixed refusal.
+  const res = await call("skill_example", "workspace-local", { locals: {} });
+  assert.equal(res.code, 500);
+  assert.deepEqual(res.body, { error: "internal error", code: "INTERNAL_ERROR" });
+}, true, 0));

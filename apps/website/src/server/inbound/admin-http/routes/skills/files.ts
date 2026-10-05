@@ -9,11 +9,11 @@ import type { SkillsRouteRegistrar } from "./deps.js";
 /** Read-only sibling of plugin files: resolve an installed id before joining any path. */
 export const registerSkillFilesRoute: SkillsRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/skills/:toolId/files", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
+    if (req.params.workspaceId !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
       return;
     }
-    const toolId = String(req.params.toolId ?? "");
+    const { toolId } = req.params;
     try {
       const principal = getAuthedPrincipal(res);
       if (!await authorizeOrRespond(res, deps.authorize, {
