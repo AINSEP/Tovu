@@ -100,7 +100,7 @@ function controller(overrides: Partial<PostEditorController> = {}): PostEditorCo
     bodyJson: null,
     showTemplateModal: false,
     setShowTemplateModal,
-    previewFormRef: { current: null },
+    previewFormRef: vi.fn(),
     previewFormTarget: `post-preview-pending-${post.id}`,
     save,
     recoverableDraft: null,

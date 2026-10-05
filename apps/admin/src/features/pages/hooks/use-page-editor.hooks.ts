@@ -220,8 +220,15 @@ export interface PageEditorController {
    *  `PagePreview`, so the debounced auto-submit effect below can reach it. Same "hook owns the ref,
    *  view attaches it" shape `frameRef` above already uses, and the same shape
    *  `use-post-editor.hooks.ts`'s own `previewFormRef` uses for Posts — see that field's own doc for
-   *  the "why here, not the view" reasoning this mirrors. */
-  previewFormRef: RefObject<HTMLFormElement | null>;
+   *  the "why here, not the view" reasoning this mirrors.
+   *
+   *  A CALLBACK ref, not a `RefObject` (2026-10-05 owner bug: a draft's preview went blank after a
+   *  full-screen toggle). The form is a hidden POST into a named iframe, so a freshly mounted pair is
+   *  an EMPTY `about:blank` frame until something submits into it. With a `RefObject` the debounced
+   *  effect only re-armed on editor-state changes, so any remount that changed no state (the
+   *  expand/collapse tree swap did exactly that) left the new iframe empty for good. Holding the node
+   *  in state puts the form itself in the effect's dependency list: every mount re-submits. */
+  previewFormRef: (node: HTMLFormElement | null) => void;
   /** Stable name shared by the hidden form's `target` and the iframe it submits into. `""` before
    *  `page` loads — `PagePreview` never renders that early. */
   previewFormTarget: string;
@@ -434,15 +441,17 @@ function computeContentDirty(
  *
  * No `=== null`/`bodyJson`-shaped guard is needed here unlike the Posts version: `html` is a plain
  * string, always defined once `page` has loaded — the only state `PagePreview` ever mounts in (see
- * `PageEditor.tsx`'s own `if (!page) return <div className="notice">...` guard) — so `active` alone
- * decides whether to schedule at all.
+ * `PageEditor.tsx`'s own `if (!page) return <div className="notice">...` guard) — so `active` and
+ * whether a form is mounted at all (2026-10-05, see `PageEditorController.previewFormRef`) decide
+ * whether to schedule.
  *
  * @complexity Time/space: O(1) — one timer, no data copying.
  */
-function schedulePendingHtmlPreviewSubmit(input: { active: boolean; formRef: RefObject<HTMLFormElement | null> }): () => void {
-  if (!input.active) return () => {};
+function schedulePendingHtmlPreviewSubmit(input: { active: boolean; form: HTMLFormElement | null }): () => void {
+  const { form } = input;
+  if (!input.active || form === null) return () => {};
   const timer = setTimeout(() => {
-    input.formRef.current?.submit();
+    form.submit();
   }, 500);
   return () => clearTimeout(timer);
 }
@@ -978,7 +987,8 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   // hidden form's DOM node; `PagePreview` attaches it via `ref`. `previewFormTarget` is `""` before
   // `page` loads for the same reason `templatePreviewUrl` below is — `PagePreview` never renders
   // that early.
-  const previewFormRef = useRef<HTMLFormElement>(null);
+  // Node in state, not a `RefObject` — see `PageEditorController.previewFormRef`'s own doc.
+  const [previewForm, previewFormRef] = useState<HTMLFormElement | null>(null);
   const previewFormTarget = pagePreviewFormTarget(page);
 
   // Per-tab scroll memory, Preview half — see `PageEditorController.onPreviewFrameLoad`'s own doc.
@@ -1078,7 +1088,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     () =>
       schedulePendingHtmlPreviewSubmit({
         active: view === "preview" && page !== null && !(status === "published" && !contentDirty && templateChoice === savedTemplateChoice),
-        formRef: previewFormRef,
+        form: previewForm,
       }),
     // `page?.id`, not `page` — same reasoning `use-post-editor.hooks.ts`'s identical effect gives:
     // a `setPage(updated)` after a successful save (a new object reference, same id) must not by
@@ -1086,7 +1096,9 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     // silent external apply changes `html`/`title`/etc. without ever changing `view`/`status`/
     // `templateChoice`, so without this the pending preview would sit on the pre-write body until
     // some unrelated field also happened to change.
-    [view, page?.id, status, contentDirty, templateChoice, savedTemplateChoice, html, contentRevision]
+    // `previewForm` (2026-10-05): a newly mounted form + iframe pair is empty until submitted into,
+    // so a remount alone must re-arm — see `PageEditorController.previewFormRef`'s own doc.
+    [view, page?.id, status, contentDirty, templateChoice, savedTemplateChoice, html, contentRevision, previewForm]
   );
 
   const restoreRecoveredDraft = useCallback(() => {

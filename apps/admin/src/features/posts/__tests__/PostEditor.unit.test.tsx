@@ -929,7 +929,7 @@ function postController(overrides: Partial<PostEditorController> = {}): PostEdit
     bodyJson: null,
     showTemplateModal: false,
     setShowTemplateModal,
-    previewFormRef: { current: null },
+    previewFormRef: vi.fn(),
     previewFormTarget: post ? `post-preview-pending-${post.id}` : "",
     save,
     // Standing-draft autosave (2026-09-06). Present because `PostEditorController` requires them,

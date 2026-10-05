@@ -1012,7 +1012,7 @@ function PageEditorPane({
   dirty: boolean;
   contentDirty: boolean;
   templatePreviewUrl: string;
-  previewFormRef: RefObject<HTMLFormElement | null>;
+  previewFormRef: (node: HTMLFormElement | null) => void;
   previewFormTarget: string;
   frameRef: (node: HTMLDivElement | null) => void;
   paneWidth: number;
@@ -1203,7 +1203,7 @@ function PagePreview({
   templatePreviewUrl: string;
   /** Owned by `usePageEditor` — see `PageEditorController.previewFormRef`'s own doc for why the
    *  debounced auto-submit effect that reaches through this ref lives there, not here. */
-  previewFormRef: RefObject<HTMLFormElement | null>;
+  previewFormRef: (node: HTMLFormElement | null) => void;
   /** The hidden form's `target` and the iframe's `name` it submits into — must match at submit time. */
   previewFormTarget: string;
   /** Frame element to measure and its live-measured width — both owned by `usePageEditor`
@@ -1354,7 +1354,7 @@ function PagePreviewFrame({
   html: string;
   /** Pre-built by `usePageEditor` — see `PagePreview`'s own doc, branch 2. */
   templatePreviewUrl: string;
-  previewFormRef: RefObject<HTMLFormElement | null>;
+  previewFormRef: (node: HTMLFormElement | null) => void;
   previewFormTarget: string;
   /** Per-tab scroll memory — see `PageEditorController.onPreviewFrameLoad`'s own doc. Wired to both
    *  branches' `onLoad` below: cross-origin (the live-site branch) it silently does nothing. */

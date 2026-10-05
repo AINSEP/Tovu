@@ -130,7 +130,7 @@ function controller(overrides: Partial<PageEditorController> = {}): PageEditorCo
     // restating that logic. A test proving the seam itself overrides this with a value the real `api`
     // could never produce (see "the preview iframe's src comes from the injected controller" below).
     templatePreviewUrl: page ? api.templatePreviewUrl(page.id, templateChoice) : "",
-    previewFormRef: { current: null },
+    previewFormRef: vi.fn(),
     previewFormTarget: page ? `page-preview-pending-${page.id}` : "",
     // Settled-with-no-styling by default: the Interactive tab then mounts a real GrapesJS editor
     // exactly as it did before canvas styling existed, so no test here has to wait on a theme fetch.

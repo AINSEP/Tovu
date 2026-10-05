@@ -1,4 +1,3 @@
-import type { RefObject } from "react";
 import { EditorContent, useEditorState, type Editor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import DragHandle from "@tiptap/extension-drag-handle-react";
@@ -1763,7 +1762,7 @@ function PostPreview({
   templatePreviewUrl: string;
   /** Owned by `usePostEditor` — see `PostEditorController.previewFormRef`'s own doc for why the
    *  debounced auto-submit effect that reaches through this ref lives there, not here. */
-  previewFormRef: RefObject<HTMLFormElement | null>;
+  previewFormRef: (node: HTMLFormElement | null) => void;
   /** The hidden form's `target` and the iframe's `name` it submits into — must match at submit time. */
   previewFormTarget: string;
   /** The selected device's viewport width (`DEVICE_PREVIEW_WIDTHS`) the iframe renders at. */
@@ -1900,7 +1899,7 @@ function PostPreviewFrame({
   slug: string;
   /** Pre-built by `usePostEditor` — see `PostPreview`'s own doc, branch 2. */
   templatePreviewUrl: string;
-  previewFormRef: RefObject<HTMLFormElement | null>;
+  previewFormRef: (node: HTMLFormElement | null) => void;
   previewFormTarget: string;
   expanded: boolean;
   onCollapse: () => void;

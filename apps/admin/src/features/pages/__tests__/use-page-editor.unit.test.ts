@@ -1866,11 +1866,12 @@ describe("usePageEditor — pending-html preview debounce (2026-09-09)", () => {
   });
 
   /** Stands in for the `<form ref={previewFormRef}>` DOM node `PagePreviewFrame` would attach — these
-   *  tests drive the hook in isolation with no view rendered. Cast through `unknown` because
-   *  `.current` is `readonly` at the `RefObject` type level by design. */
+   *  tests drive the hook in isolation with no view rendered. `previewFormRef` is a callback ref
+   *  (2026-10-05), so attaching is a state change: call it inside `act`, and AFTER the fake clock is
+   *  installed, because attaching a form to a draft on Preview arms the debounce by itself. */
   function attachFakeForm(ref: PageEditorController["previewFormRef"]): { submit: ReturnType<typeof vi.fn<(...args: any[]) => any>> } {
     const fakeForm = { submit: vi.fn() };
-    (ref as unknown as { current: typeof fakeForm | null }).current = fakeForm;
+    act(() => ref(fakeForm as unknown as HTMLFormElement));
     return fakeForm;
   }
 
@@ -1910,9 +1911,8 @@ describe("usePageEditor — pending-html preview debounce (2026-09-09)", () => {
     const deps = draftDeps();
     const { result } = renderHook(() => usePageEditor("landing", deps));
     await waitFor(() => expect(result.current.page).not.toBeNull());
-    const form = attachFakeForm(result.current.previewFormRef);
-
     vi.useFakeTimers();
+    const form = attachFakeForm(result.current.previewFormRef);
     // Nothing edited and nothing re-templated: before the widening this state showed the raw
     // unstyled fallback instead, so a clean draft never POSTed anything at all.
     expect(result.current.contentDirty).toBe(false);
@@ -1928,9 +1928,8 @@ describe("usePageEditor — pending-html preview debounce (2026-09-09)", () => {
     const deps = draftDeps();
     const { result } = renderHook(() => usePageEditor("landing", deps));
     await waitFor(() => expect(result.current.page).not.toBeNull());
-    const form = attachFakeForm(result.current.previewFormRef);
-
     vi.useFakeTimers();
+    const form = attachFakeForm(result.current.previewFormRef);
     // The operator picks a different template from the dropdown and touches nothing else — no
     // keystroke, no tab change, no save. `templateChoice` is in the effect's dependency list for
     // exactly this: the preview must re-render through the newly picked template rather than sit on
@@ -1958,9 +1957,8 @@ describe("usePageEditor — pending-html preview debounce (2026-09-09)", () => {
     const deps = draftDeps();
     const { result } = renderHook(() => usePageEditor("landing", deps));
     await waitFor(() => expect(result.current.page).not.toBeNull());
-    const form = attachFakeForm(result.current.previewFormRef);
-
     vi.useFakeTimers();
+    const form = attachFakeForm(result.current.previewFormRef);
     act(() => result.current.setTemplateChoice("page-shell.html"));
     vi.advanceTimersByTime(300);
     act(() => result.current.setView("html"));
@@ -1969,13 +1967,33 @@ describe("usePageEditor — pending-html preview debounce (2026-09-09)", () => {
     expect(form.submit).not.toHaveBeenCalled();
   });
 
+  // 2026-10-05 owner bug: toggling full screen remounted the form + iframe pair without changing any
+  // editor state, so the new, empty iframe was never submitted into and the draft preview went blank.
+  it("re-submits into a NEWLY attached form when nothing else changed — a remounted iframe starts empty", async () => {
+    const deps = draftDeps();
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+
+    vi.useFakeTimers();
+    const first = attachFakeForm(result.current.previewFormRef);
+    vi.advanceTimersByTime(500);
+    expect(first.submit).toHaveBeenCalledTimes(1);
+
+    act(() => result.current.previewFormRef(null));
+    const second = attachFakeForm(result.current.previewFormRef);
+    vi.advanceTimersByTime(499);
+    expect(second.submit).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(second.submit).toHaveBeenCalledTimes(1);
+    expect(first.submit).toHaveBeenCalledTimes(1);
+  });
+
   it("leaves a CLEAN PUBLISHED page alone — that branch shows the real live site, not a POSTed preview", async () => {
     const deps = { ...draftDeps(), port: createFakePageEditorPort({ page: HTML_PAGE as Parameters<typeof createFakePageEditorPort>[0]["page"] }) };
     const { result } = renderHook(() => usePageEditor("landing", deps));
     await waitFor(() => expect(result.current.page).not.toBeNull());
-    const form = attachFakeForm(result.current.previewFormRef);
-
     vi.useFakeTimers();
+    const form = attachFakeForm(result.current.previewFormRef);
     returnToPreviewTab(result.current);
     vi.advanceTimersByTime(1000);
 

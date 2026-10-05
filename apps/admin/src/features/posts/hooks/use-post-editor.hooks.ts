@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useState } from "react";
 import { useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import TextAlign from "@tiptap/extension-text-align";
@@ -231,8 +231,13 @@ export interface PostEditorController extends PostEditorUiController {
   setShowTemplateModal: (open: boolean) => void;
   /** DOM ref for the pending-content-preview's hidden `<form>` — owned here, not local to
    *  `PostPreview`, so the debounced auto-submit effect below can reach it. Same "hook owns the ref,
-   *  view attaches it" shape `use-page-editor.hooks.ts`'s `frameRef` already uses. */
-  previewFormRef: RefObject<HTMLFormElement | null>;
+   *  view attaches it" shape `use-page-editor.hooks.ts`'s `frameRef` already uses.
+   *
+   *  A CALLBACK ref holding the node in state (2026-10-05), the same fix and reasoning as
+   *  `PageEditorController.previewFormRef`: a freshly mounted form + iframe pair is an empty
+   *  `about:blank` frame until submitted into, and the expand/collapse tree swap remounts it without
+   *  changing any editor state, so the form node itself must be one of the effect's dependencies. */
+  previewFormRef: (node: HTMLFormElement | null) => void;
   /** Stable name shared by the hidden form's `target` and the iframe it submits into. `""` before
    *  `post` loads — `PostPreview` never renders that early. */
   previewFormTarget: string;
@@ -352,11 +357,12 @@ function computeContentDirty(
 function schedulePendingContentPreviewSubmit(input: {
   active: boolean;
   bodyJson: unknown;
-  formRef: RefObject<HTMLFormElement | null>;
+  form: HTMLFormElement | null;
 }): () => void {
-  if (!input.active || input.bodyJson === null) return () => {};
+  const { form } = input;
+  if (!input.active || input.bodyJson === null || form === null) return () => {};
   const timer = setTimeout(() => {
-    input.formRef.current?.submit();
+    form.submit();
   }, 500);
   return () => clearTimeout(timer);
 }
@@ -568,7 +574,8 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   // Pending-content preview (2026-08-12, moved from `PostPreview` — see `PostEditorController
   // .previewFormRef`'s own doc). The hidden form's DOM node; `PostPreview` attaches it via `ref`.
-  const previewFormRef = useRef<HTMLFormElement>(null);
+  // Node in state, not a `RefObject` — see `PostEditorController.previewFormRef`'s own doc.
+  const [previewForm, previewFormRef] = useState<HTMLFormElement | null>(null);
   // Stale-settlement guard for `save()` (2026-09-05 sweep, extracted into `useSettlementGeneration`
   // 2026-09-06) — neither Save nor Publish disables while a request is in flight (`PostEditorHeader`,
   // `PostEditor.tsx`), so an operator can click Save then Publish (or double-click either) before
@@ -912,14 +919,15 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
       schedulePendingContentPreviewSubmit({
         active: view === "preview" && post !== null && canShowPendingContentPreview,
         bodyJson,
-        formRef: previewFormRef,
+        form: previewForm,
       }),
     // `post?.id`, not `post` — the original (`PostPreview`'s own effect, before this moved) keyed on
     // the primitive `id` prop, not the whole post object, so a `setPost(saved)` after a successful
     // save (a new object reference, same id) does not by itself restart the debounce timer. `post`
     // itself is still read fresh via closure for the `active`/`null` check above, same as `postId`
     // is elsewhere in this hook — only the DEPENDENCY entry is narrowed.
-    [view, post?.id, canShowPendingContentPreview, bodyJson, templateChoice]
+    // `previewForm` (2026-10-05): a remounted form + iframe pair must be re-submitted into.
+    [view, post?.id, canShowPendingContentPreview, bodyJson, templateChoice, previewForm]
   );
 
   /**

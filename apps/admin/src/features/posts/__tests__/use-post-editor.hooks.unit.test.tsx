@@ -326,14 +326,12 @@ describe("usePostEditor — pending-content-preview debounce (2026-08-14, moved 
   });
 
   /** Stands in for the `<form ref={previewFormRef}>` DOM node `PostPreview` would normally attach —
-   *  this test drives `usePostEditor` in isolation, with no `PostPreview` rendered, so it wires the
-   *  ref directly the same way a real mount would populate `.current`. Cast through `unknown`
-   *  because `previewFormRef.current` is `readonly` at the `RefObject` type level (by design — see
-   *  `PostEditorController.previewFormRef`'s own doc); only a real DOM attach or a test double is
-   *  meant to set it. */
+   *  this test drives `usePostEditor` in isolation, with no `PostPreview` rendered, so it calls the
+   *  callback ref directly the same way a real mount would (2026-10-05: a callback ref, so the form
+   *  node is an effect dependency — see `PostEditorController.previewFormRef`'s own doc). */
   function attachFakeForm(ref: PostEditorController["previewFormRef"]): { submit: ReturnType<typeof vi.fn<(...args: any[]) => any>> } {
     const fakeForm = { submit: vi.fn() };
-    (ref as unknown as { current: typeof fakeForm | null }).current = fakeForm;
+    act(() => ref(fakeForm as unknown as HTMLFormElement));
     return fakeForm;
   }
 
@@ -408,6 +406,26 @@ describe("usePostEditor — pending-content-preview debounce (2026-08-14, moved 
     vi.advanceTimersByTime(500);
 
     expect(form.submit, "a clean draft's Preview tab must still POST its bodyJson through the real template — not silently do nothing").toHaveBeenCalledTimes(1);
+  });
+
+  // 2026-10-05 owner bug: toggling full screen remounted the form + iframe pair without changing any
+  // editor state, so the new, empty iframe was never submitted into and the draft preview went blank.
+  it("re-submits into a NEWLY attached form when nothing else changed — a remounted iframe starts empty", async () => {
+    const port = createFakePostEditorPort({ post: { ...POST, status: "draft" } });
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+    await waitFor(() => expect(result.current.editor).not.toBeNull());
+
+    vi.useFakeTimers();
+    act(() => result.current.setView("preview"));
+    const first = attachFakeForm(result.current.previewFormRef);
+    vi.advanceTimersByTime(500);
+    expect(first.submit).toHaveBeenCalledTimes(1);
+
+    act(() => result.current.previewFormRef(null));
+    const second = attachFakeForm(result.current.previewFormRef);
+    vi.advanceTimersByTime(500);
+    expect(second.submit).toHaveBeenCalledTimes(1);
+    expect(first.submit).toHaveBeenCalledTimes(1);
   });
 });
 

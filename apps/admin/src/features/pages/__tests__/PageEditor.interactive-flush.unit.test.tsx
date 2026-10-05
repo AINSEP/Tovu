@@ -102,7 +102,7 @@ function controller(overrides: Partial<PageEditorController> = {}): PageEditorCo
     dirty: false,
     contentDirty: false,
     templatePreviewUrl: page ? api.templatePreviewUrl(page.id, templateChoice) : "",
-    previewFormRef: { current: null },
+    previewFormRef: vi.fn(),
     previewFormTarget: page ? `page-preview-pending-${page.id}` : "",
     // "ready" — the interactive surface, not "interactive-pending" — see `rules.ts`'s
     // `pageEditorSurface`.
