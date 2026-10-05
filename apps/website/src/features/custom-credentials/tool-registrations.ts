@@ -24,6 +24,7 @@ import { ToolInputError } from "@jini-ai/core";
 // anything; see {@link isCredentialedRequestShapeRejection}. Same pattern
 // `features/media-import/tool-registrations.ts`'s own identical import uses.
 import { EgressRefusedError, type HttpClientPort } from "../../platform/http/index.js";
+import type { ObservabilityPort } from "../../platform/observability/index.js";
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 import type { ToolContributor } from "#src/assistant/index";
 import { customCredentialsAgentToolCatalog } from "./agent-tools.js";
@@ -247,6 +248,8 @@ export interface CustomCredentialsToolDeps {
   /** The git-host providers `custom_credential_write_files` writes through (the installed, enabled
    *  Agent Plugins when omitted — the bundled `github` one today). */
   readonly loadSourceControlProviders?: LoadSourceControlProviders;
+  /** `RouteDeps.observability`: a write's raw git-host calls are outbound spans. */
+  readonly observability?: ObservabilityPort;
   /** The self-describing token scheme rules `custom_credential_make_request`/`_verify` apply
    *  (`CredentialedRequestDeps.loadAuthSchemes`): the installed plugins' when omitted; the hermetic
    *  root and tests pass the bundled `deploy` plugin's source rules. */
@@ -1356,6 +1359,7 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
         workspaceId: routeDeps.workspaceId,
         baseUrl: summary.baseUrl,
         httpClient: routeDeps.customCredentialsHttpClient,
+        observability: routeDeps.observability,
       });
       if (!built.ok) throw new Error(`custom_credential_write_files: ${built.message}`);
       const provider = built.provider;

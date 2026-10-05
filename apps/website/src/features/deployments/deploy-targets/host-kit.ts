@@ -13,7 +13,9 @@ import {
   waitForReachableDeploymentUrl,
 } from "@jini-ai/devops/deploy";
 
-import type { DeployFetchTimeouts, DeployHostKit } from "./types.js";
+import { trackFetch, type ObservabilityPort } from "#src/platform/observability/index";
+
+import type { DeployFetchTimeouts, DeployHostKit, SigV4Client } from "./types.js";
 
 /**
  * @file Builds the {@link DeployHostKit} this app injects into every plugin deploy module. Generic:
@@ -45,6 +47,17 @@ async function fetchWithTimeout(fetchFn: typeof fetch, url: string, init: Reques
   }
 }
 
+function traced<F extends typeof fetch>(fetchFn: F, { observability }: { readonly observability?: ObservabilityPort }): F {
+  return observability ? trackFetch({ fetch: fetchFn, observability }) : fetchFn;
+}
+
+/** The SigV4 client sends through the global `fetch` itself (with its own 5xx retries), so its
+ *  `fetch` is traced as one call; `sign` makes no request. */
+function tracedSigV4Client(client: SigV4Client, { observability }: { readonly observability?: ObservabilityPort }): SigV4Client {
+  if (!observability) return client;
+  return { fetch: trackFetch({ fetch: (input: string, init?: RequestInit) => client.fetch(input, init), observability }), sign: (input, init) => client.sign(input, init) };
+}
+
 /** Preserve the installed plugin constructor ABI, including status/details and instanceof. */
 class PluginDeployError extends DevopsDeployError {
   // Shared helpers throw the library class; plugins must recognize those refusals too.
@@ -65,12 +78,14 @@ function reachabilityOptions(options: NonNullable<Parameters<DeployHostKit["wait
  *
  * @param options.fetchFn - What `kit.fetch` sends through (default: global `fetch`); tests inject one.
  * @param options.timeouts - Overrides the timeout classes, e.g. a shorter `QUICK` while a person waits.
+ * @param options.observability - Records every kit egress (`fetch`, reachability probes, the SigV4
+ *   client) as one outbound span; host/status only. Omitted or no-op: nothing is wrapped.
  * @complexity O(1).
  */
-export function createDeployHostKit(options: { readonly fetchFn?: typeof fetch; readonly timeouts?: DeployFetchTimeouts; readonly lookupImpl?: typeof lookup } = {}): DeployHostKit {
+export function createDeployHostKit(options: { readonly fetchFn?: typeof fetch; readonly timeouts?: DeployFetchTimeouts; readonly lookupImpl?: typeof lookup; readonly observability?: ObservabilityPort } = {}): DeployHostKit {
   // The global is read per call, not captured here, so a test that swaps `globalThis.fetch` after
   // building a kit is still the one called.
-  const fetchFn: typeof fetch = options.fetchFn ?? ((input, init) => fetch(input, init));
+  const fetchFn: typeof fetch = traced(options.fetchFn ?? ((input, init) => fetch(input, init)), options);
   const reachability = createNodeReachabilityPorts({}, { fetch: fetchFn, lookupImpl: options.lookupImpl });
   return {
     fetch: (url, init, fetchOptions) => fetchWithTimeout(fetchFn, url, init, fetchOptions),
@@ -88,7 +103,7 @@ export function createDeployHostKit(options: { readonly fetchFn?: typeof fetch; 
     safeProjectLabel: (raw, maxLength) => safeProjectLabel({ raw, maxLength }),
     redirectGuardInit: (init) => redirectGuardInit({ init }),
     assertNotRedirected: (resp, providerLabel) => assertNotRedirected({ resp, providerLabel }),
-    createSigV4Client: (options) => new AwsClient(options),
+    createSigV4Client: (clientOptions) => tracedSigV4Client(new AwsClient(clientOptions), options),
     DeployError: PluginDeployError,
   };
 }

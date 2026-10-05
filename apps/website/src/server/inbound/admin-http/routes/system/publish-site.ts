@@ -234,7 +234,7 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
       // settles, so a poller can never observe a stale "running" snapshot after the promise has
       // actually settled.
       const snapshot = startPublishRun(
-        { credentialSource, loadDeployTargets: deps.loadDeployTargets },
+        { credentialSource, loadDeployTargets: deps.loadDeployTargets, observability: deps.observability },
         {
           workspaceId: deps.workspaceId,
           publishOutputRootDir: deps.publishOutputRootDir,

@@ -1,4 +1,5 @@
 import type { UUID } from "@jini-ai/core/primitives";
+import type { ObservabilityPort } from "#src/platform/observability/index";
 
 import type { SecretSealerPort } from "../../webhooks/index.js";
 import { createDeployHostKit, DEPLOY_FETCH_TIMEOUTS } from "../deploy-targets/host-kit.js";
@@ -148,9 +149,13 @@ interface VerificationContext {
   readonly clock: { nowIso(): string };
 }
 
-/** The kit a check runs with: `fetchFn` (tests) and a `QUICK` timeout sized for a waiting human. */
-function verificationKit(deps: { readonly fetchFn?: typeof fetch; readonly hostKit?: DeployHostKit }): DeployHostKit {
-  return deps.hostKit ?? createDeployHostKit({ ...(deps.fetchFn !== undefined ? { fetchFn: deps.fetchFn } : {}), timeouts: { ...DEPLOY_FETCH_TIMEOUTS, QUICK: VERIFY_TIMEOUT_MS } });
+/** The kit a check runs with: `fetchFn` (tests), the observability port, and a `QUICK` timeout sized for a waiting human. */
+function verificationKit(deps: { readonly fetchFn?: typeof fetch; readonly hostKit?: DeployHostKit; readonly observability?: ObservabilityPort }): DeployHostKit {
+  return deps.hostKit ?? createDeployHostKit({
+    ...(deps.fetchFn !== undefined ? { fetchFn: deps.fetchFn } : {}),
+    observability: deps.observability,
+    timeouts: { ...DEPLOY_FETCH_TIMEOUTS, QUICK: VERIFY_TIMEOUT_MS },
+  });
 }
 
 function noCheckReason(target: StaticPublishTargetId): string {
@@ -207,6 +212,8 @@ export interface VerifyPublishCredentialDeps {
   readonly fetchFn?: typeof fetch;
   /** Replaces the whole kit (tests); `fetchFn` is ignored when set. */
   readonly hostKit?: DeployHostKit;
+  /** `RouteDeps.observability`: the check's request is one outbound span. */
+  readonly observability?: ObservabilityPort;
 }
 
 /**
@@ -251,6 +258,7 @@ export interface VerifyPublishCredentialByIdDeps {
   loadDeployTargets(workspaceId: string): Promise<DeployTargetRegistry>;
   readonly fetchFn?: typeof fetch;
   readonly hostKit?: DeployHostKit;
+  readonly observability?: ObservabilityPort;
 }
 
 /**

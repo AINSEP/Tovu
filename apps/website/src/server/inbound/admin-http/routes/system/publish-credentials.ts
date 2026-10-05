@@ -195,6 +195,7 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
         cache: deps.publishCredentialVerificationCache,
         clock: deps.clock,
         loadDeployTargets: deps.loadDeployTargets,
+        observability: deps.observability,
       },
       { workspaceId: deps.workspaceId, id }
     );

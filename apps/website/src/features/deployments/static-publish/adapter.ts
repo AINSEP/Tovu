@@ -5,6 +5,7 @@ import { DeployError, type DeployFile, type DeployPublishInput, type DeployPubli
 
 import { PUBLIC_PAGE_SECURITY_HEADERS } from "#src/contracts/core/public-page-security-headers";
 import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit";
+import type { ObservabilityPort } from "#src/platform/observability/index";
 import type { DeployHostKit, DeployTargetCredential, DeployTargetRegistry, LoadedDeployTarget } from "#src/features/deployments/deploy-targets/types";
 
 import type { ExportReport } from "#src/features/site-export/index";
@@ -217,6 +218,8 @@ export interface StaticPublishDeps {
   readonly buildTarget?: (config: StaticPublishConfig, credential: ResolvedPublishCredential) => DeployTarget;
   /** The kit handed to a plugin module. Defaults to {@link createDeployHostKit}; tests inject one. */
   readonly hostKit?: DeployHostKit;
+  /** `RouteDeps.observability`: the default kit traces the plugin's egress through it. */
+  readonly observability?: ObservabilityPort;
 }
 
 /**
@@ -514,7 +517,7 @@ function constructTargetForPublish(
 ): { ok: true; target: DeployTarget } | { ok: false; outcome: StaticPublishOutcome } {
   try {
     if (deps.buildTarget !== undefined) return { ok: true, target: deps.buildTarget(config, credential) };
-    const kit = deps.hostKit ?? createDeployHostKit();
+    const kit = deps.hostKit ?? createDeployHostKit({ observability: deps.observability });
     const installedTarget = pluginTarget.module.create({ credential, config: config as unknown as UnknownRecord, kit });
     // Installed content-addressed modules keep their ABI: security headers still reach the first object.
     return { ok: true, target: {

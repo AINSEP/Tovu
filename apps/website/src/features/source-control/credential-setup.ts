@@ -21,6 +21,7 @@ export interface SourceControlCredentialSetupDeps {
   clock: SourceControlCredentialWriteDeps['clock'];
   idGen: SourceControlCredentialWriteDeps['idGen'];
   fetchFn?: SourceControlCredentialWriteDeps['fetchFn'];
+  observability?: SourceControlCredentialWriteDeps['observability'];
   loadSourceControlProviders: LoadSourceControlProviders;
 }
 
@@ -55,6 +56,7 @@ async function handleSubmission(answer: SurfaceMessage, spec: SubmissionContext)
       keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen,
       loadSourceControlProviders: deps.loadSourceControlProviders,
       ...(deps.fetchFn ? { fetchFn: deps.fetchFn } : {}),
+      observability: deps.observability,
     }, { workspaceId: deps.workspaceId, label: answer.params.label, connection });
   } catch {
     // Fixed metadata only: neither an exception's text nor a submitted value is safe to log.

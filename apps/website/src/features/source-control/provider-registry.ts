@@ -4,6 +4,7 @@ import { parseDescriptorI18n, type DescriptorI18n } from "#src/features/agent-pl
 import { findTrustedPluginPackages, importContainedModule, readTrustedPluginFile, type TrustedPluginPackage } from "#src/features/agent-plugins/trusted-plugin-files";
 
 import type { HttpClientPort } from "#src/platform/http/index";
+import type { ObservabilityPort } from "#src/platform/observability/index";
 
 import { parseSourceControlCredentialForm, type SourceControlCredentialForm } from "./credential-form.js";
 import { createSourceControlProviderKit } from "./provider-kit.js";
@@ -297,12 +298,13 @@ export async function buildSourceControlProvider(
     readonly providerId: string;
     readonly httpClient?: HttpClientPort;
     readonly fetchFn?: typeof fetch;
+    readonly observability?: ObservabilityPort;
   },
 ): Promise<BuildSourceControlProviderResult> {
   const registry = await (input.load ?? loadInstalledSourceControlProviders)(input.workspaceId);
   const loaded = registry.get(input.providerId);
   if (!loaded) return { ok: false, message: noSourceControlProviderMessage(registry, input.providerId), refusals: registry.refusals };
-  const kit = createSourceControlProviderKit({ ...(input.httpClient ? { httpClient: input.httpClient } : {}), ...(input.fetchFn ? { fetchFn: input.fetchFn } : {}) });
+  const kit = createSourceControlProviderKit({ ...(input.httpClient ? { httpClient: input.httpClient } : {}), ...(input.fetchFn ? { fetchFn: input.fetchFn } : {}), observability: input.observability });
   return { ok: true, provider: buildLoadedSourceControlProvider(loaded, kit) };
 }
 
@@ -315,9 +317,10 @@ export async function buildSourceControlProviders(input: {
   readonly load?: LoadSourceControlProviders;
   readonly workspaceId: string;
   readonly httpClient: HttpClientPort;
+  readonly observability?: ObservabilityPort;
 }): Promise<{ readonly providers: readonly SourceControlProvider[]; readonly refusals: readonly string[]; readonly noProviderMessage: string }> {
   const registry = await (input.load ?? loadInstalledSourceControlProviders)(input.workspaceId);
-  const kit = createSourceControlProviderKit({ httpClient: input.httpClient });
+  const kit = createSourceControlProviderKit({ httpClient: input.httpClient, observability: input.observability });
   return { providers: registry.list().map((loaded) => buildLoadedSourceControlProvider(loaded, kit)), refusals: registry.refusals, noProviderMessage: noSourceControlProviderMessage(registry) };
 }
 
@@ -374,6 +377,7 @@ export async function buildSourceControlProviderForApi(input: {
   readonly workspaceId: string;
   readonly baseUrl: string;
   readonly httpClient: HttpClientPort;
+  readonly observability?: ObservabilityPort;
 }): Promise<BuildSourceControlProviderResult> {
   const built = await buildSourceControlProviders(input);
   const picked = pickSourceControlProviderForApi(built.providers, input.baseUrl, built.noProviderMessage);

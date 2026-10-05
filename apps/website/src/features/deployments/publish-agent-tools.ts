@@ -78,6 +78,7 @@ import { ToolInputError, type SurfaceEmission } from "@jini-ai/core";
 import { listPublishCredentials, type PublishCredentialReadDeps } from "./publish-credentials/index.js";
 import { loadDeployTargetRegistry } from "./deploy-targets/registry.js";
 import type { DeployTargetCredentialSpec, DeployTargetDescriptor, DeployTargetRegistry, LoadedDeployTarget } from "./deploy-targets/types.js";
+import type { ObservabilityPort } from "#src/platform/observability/index";
 // Credential saves go through `publish-credentials/store.ts`, the same store the admin's Static Site
 // tab writes, so a row saved from chat is the row a publish resolves.
 import { createPublishCredential, updatePublishCredential, type PublishCredentialWriteDeps } from "./publish-credentials/index.js";
@@ -376,6 +377,8 @@ export interface StaticPublishToolDeps {
    *  `deps.publishHistoryStore`, so a real publish's history is visible to this tool with no wiring
    *  change outside this domain (see `publish-run.ts`'s header, "Publish history"). */
   historyStore?: PublishHistoryStore;
+  /** `RouteDeps.observability`, forwarded so a confirmed publish's deploy egress is traced. */
+  readonly observability?: ObservabilityPort;
 }
 
 /** {@link StaticPublishToolDeps.loadDeployTargets}, or the installed deploy Agent Plugin. */
@@ -977,7 +980,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
         return { published: false, cancelled: false, code: "ALREADY_RUNNING", message: "A publish is already running. Wait for it to finish before publishing again." };
       }
       const outcome = await runPublishAndAwait(
-        { credentialSource, loadDeployTargets: deployTargetsLoader(deps), ...(deps.buildTarget !== undefined ? { buildTarget: deps.buildTarget } : {}) },
+        { credentialSource, loadDeployTargets: deployTargetsLoader(deps), ...(deps.buildTarget !== undefined ? { buildTarget: deps.buildTarget } : {}), observability: deps.observability },
         { workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, config, projectName },
         { nowIso: () => clockNowIso({ clock: deps.clock }) },
         historyStore,

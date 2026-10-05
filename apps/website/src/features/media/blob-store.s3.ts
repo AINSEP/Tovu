@@ -2,6 +2,8 @@ import { AwsClient } from "aws4fetch";
 
 import { computeBlobStorageKey, type BlobStorePort, type PutBlobInput } from "@jini-ai/cms/media";
 
+import { trackFetch, type ObservabilityPort } from "../../platform/observability/index.js";
+
 /**
  * @file S3-compatible `BlobStorePort` adapter — the adapter `blob-store.fs.ts`'s own file header
  * names as "deliberately NOT built: the S3 adapter (deferred)". `LocalFsBlobStore` (real) and
@@ -101,22 +103,29 @@ async function safeErrorBody(resp: Response): Promise<string> {
  * handles are single-file media uploads, not the large multi-GB objects multipart exists for).
  */
 export class S3BlobStore implements BlobStorePort {
-  private readonly client: AwsClient;
+  /** The signing client's `fetch`, traced as one outbound span per object call when a port is given. */
+  private readonly send: (url: string, init: RequestInit) => Promise<Response>;
 
-  constructor(private readonly config: S3BlobStoreConfig) {
-    this.client = new AwsClient({
+  /**
+   * @param options.observability - Records each object request (host/status only — never the bucket,
+   *   key or signature). Omitted or no-op: requests go straight through the signing client.
+   */
+  constructor(private readonly config: S3BlobStoreConfig, options: { readonly observability?: ObservabilityPort } = {}) {
+    const client = new AwsClient({
       accessKeyId: config.accessKeyId,
       secretAccessKey: config.secretAccessKey,
       region: config.region,
       service: "s3",
     });
+    const send = (url: string, init: RequestInit) => client.fetch(url, init);
+    this.send = options.observability ? trackFetch({ fetch: send, observability: options.observability }) : send;
   }
 
   async put(input: PutBlobInput): Promise<{ storageKey: string }> {
     const storageKey = computeBlobStorageKey(input);
     let resp: Response;
     try {
-      resp = await this.client.fetch(objectUrl(this.config, storageKey), {
+      resp = await this.send(objectUrl(this.config, storageKey), {
         method: "PUT",
         body: input.bytes as BodyInit,
       });
@@ -151,7 +160,7 @@ export class S3BlobStore implements BlobStorePort {
     const storageKey = computeBlobStorageKey(input);
     let resp: Response;
     try {
-      resp = await this.client.fetch(objectUrl(this.config, storageKey), {
+      resp = await this.send(objectUrl(this.config, storageKey), {
         method: "PUT",
         headers: { "If-None-Match": "*" },
         body: input.bytes as BodyInit,
@@ -176,7 +185,7 @@ export class S3BlobStore implements BlobStorePort {
   async get(input: { storageKey: string }): Promise<Uint8Array> {
     let resp: Response;
     try {
-      resp = await this.client.fetch(objectUrl(this.config, input.storageKey), { method: "GET" });
+      resp = await this.send(objectUrl(this.config, input.storageKey), { method: "GET" });
     } catch (err) {
       throw new Error(`S3BlobStore.get: request failed for '${input.storageKey}' — ${err instanceof Error ? err.message : String(err)}`);
     }
@@ -200,7 +209,7 @@ export class S3BlobStore implements BlobStorePort {
   async exists(input: { storageKey: string }): Promise<boolean> {
     let resp: Response;
     try {
-      resp = await this.client.fetch(objectUrl(this.config, input.storageKey), { method: "HEAD" });
+      resp = await this.send(objectUrl(this.config, input.storageKey), { method: "HEAD" });
     } catch (err) {
       throw new Error(`S3BlobStore.exists: request failed for '${input.storageKey}' — ${err instanceof Error ? err.message : String(err)}`);
     }
@@ -219,7 +228,7 @@ export class S3BlobStore implements BlobStorePort {
   async remove(input: { storageKey: string }): Promise<void> {
     let resp: Response;
     try {
-      resp = await this.client.fetch(objectUrl(this.config, input.storageKey), { method: "DELETE" });
+      resp = await this.send(objectUrl(this.config, input.storageKey), { method: "DELETE" });
     } catch (err) {
       throw new Error(`S3BlobStore.remove: request failed for '${input.storageKey}' — ${err instanceof Error ? err.message : String(err)}`);
     }

@@ -5,8 +5,11 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import type { AddressInfo } from "node:net";
 import test from "node:test";
 import sharp from "sharp";
+import { SpanKind, SpanStatusCode } from "@opentelemetry/api";
 
 import { computeBlobStorageKey } from "@jini-ai/cms/media";
+
+import { assertSpanOmits, createInMemoryOtel } from "#src/platform/observability/__tests__/fixtures/in-memory-otel";
 
 import { createApp, createRouteDeps } from "../../../server/runtime/composition/app.js";
 import { S3BlobStore } from "../blob-store.s3.js";
@@ -524,4 +527,38 @@ test("S3BlobStore end to end: uploadMedia() writes to S3-compatible storage, and
   } finally {
     await fakeS3.close();
   }
+});
+
+test("S3BlobStore with an observability port exports one CLIENT span per object call: status, never bucket, key or signature", async () => {
+  const fakeS3 = await startFakeS3();
+  try {
+    const { exporter, port } = createInMemoryOtel();
+    const store = new S3BlobStore({ bucket: "tovu-media-test", region: "us-east-1", accessKeyId: "test-access-key-id", secretAccessKey: "test-secret-access-key", endpoint: fakeS3.baseUrl }, { observability: port });
+    const bytes = new TextEncoder().encode("traced");
+    const sha256 = createHash("sha256").update(bytes).digest("hex");
+    const { storageKey } = await store.put({ workspaceId: "ws-otel", sha256, bytes });
+    fakeS3.setForcedStatus("HEAD", storageKey, 403);
+    await assert.rejects(store.exists({ storageKey }));
+    const spans = exporter.getFinishedSpans();
+    assert.deepEqual(spans.map((span) => [span.name, span.kind, span.attributes["http.response.status_code"], span.status.code]), [
+      ["PUT 127.0.0.1", SpanKind.CLIENT, 200, SpanStatusCode.UNSET],
+      ["HEAD 127.0.0.1", SpanKind.CLIENT, 403, SpanStatusCode.ERROR],
+    ]);
+    for (const span of spans) assertSpanOmits(span, ["tovu-media-test", "ws-otel", sha256, "test-access-key-id", "test-secret-access-key", "AWS4"]);
+  } finally {
+    await fakeS3.close();
+  }
+});
+
+test("S3BlobStore with an observability port records a transport failure by error type", async () => {
+  const fakeS3 = await startFakeS3();
+  const baseUrl = fakeS3.baseUrl;
+  await fakeS3.close();
+  const { exporter, port } = createInMemoryOtel();
+  const store = new S3BlobStore({ bucket: "tovu-media-test", region: "us-east-1", accessKeyId: "k", secretAccessKey: "s", endpoint: baseUrl }, { observability: port });
+  await assert.rejects(store.remove({ storageKey: "ws/x/blobs/ab/abc" }), /request failed/);
+  const [span] = exporter.getFinishedSpans();
+  assert.equal(span.name, "DELETE 127.0.0.1");
+  assert.equal(span.status.code, SpanStatusCode.ERROR);
+  assert.equal(typeof span.attributes["error.type"], "string");
 });

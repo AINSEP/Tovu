@@ -34,6 +34,7 @@ import { proposeSourceControlCredential } from "./credential-setup.js";
 import { isSourceControlProviderId } from "./store.js";
 import { listSourceControlCredentials } from "./store.js";
 import type { SourceControlCredentialSetRepoPort } from "./types.js";
+import type { ObservabilityPort } from "../../platform/observability/index.js";
 
 /**
  * @file This domain's agent-tool catalog + wiring — mirrors `features/deployments/
@@ -101,7 +102,7 @@ function providerLoader(deps: SourceControlToolDeps): LoadSourceControlProviders
 /** The injected adapter, or the plugin provider's for `providerId`; a caller-safe refusal otherwise. */
 async function resolveCommitAdapter(deps: SourceControlToolDeps, providerId: string): Promise<{ ok: true; adapter: SourceControlCommitAdapter } | { ok: false; message: string }> {
   if (deps.gitAdapter) return { ok: true, adapter: deps.gitAdapter };
-  const built = await buildSourceControlProvider({ ...(deps.loadSourceControlProviders ? { load: deps.loadSourceControlProviders } : {}), workspaceId: deps.workspaceId, providerId });
+  const built = await buildSourceControlProvider({ ...(deps.loadSourceControlProviders ? { load: deps.loadSourceControlProviders } : {}), observability: deps.observability, workspaceId: deps.workspaceId, providerId });
   return built.ok ? { ok: true, adapter: { commit: built.provider.commitSite } } : { ok: false, message: built.message };
 }
 
@@ -236,6 +237,8 @@ export interface SourceControlToolDeps {
   readonly clock: Clock;
   /** Overrides only the existing save-time provider identity probe in tests. */
   readonly fetchFn?: typeof fetch;
+  /** `RouteDeps.observability`: a commit's git-host calls are outbound spans. */
+  readonly observability?: ObservabilityPort;
   readonly sourceControlExportRootDir: string;
   readonly idGen: { newId(): string };
   /** See `commit-site.ts`'s `ExportSiteBoundFn` doc for what this is and why it replaces the

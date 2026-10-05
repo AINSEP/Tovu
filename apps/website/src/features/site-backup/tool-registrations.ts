@@ -16,6 +16,7 @@ import { withModelFacingErrors, type ModelFacingErrorRule } from "@jini-ai/core/
 import { type AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
 import type { ToolContributor } from "#src/assistant/index";
 import type { HttpClientPort } from "../../platform/http/index.js";
+import type { ObservabilityPort } from "../../platform/observability/index.js";
 import { runtimeSchemaVersion } from "../../platform/site-dir/index.js";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import {
@@ -185,6 +186,8 @@ export interface SiteBackupToolDeps {
   /** The git-host providers a backup pushes through (the installed, enabled Agent Plugins when
    *  omitted — the bundled `github` one today). */
   readonly loadSourceControlProviders?: LoadSourceControlProviders;
+  /** `RouteDeps.observability`: a backup's raw git-host calls are outbound spans. */
+  readonly observability?: ObservabilityPort;
   readonly dbOps: DbOpsPort;
   /** Where this site's files live. Absent in the in-memory `app.ts` runtime, which has no site
    *  folder — both tools then answer `UNAVAILABLE`. */
@@ -239,6 +242,7 @@ async function loadBackupProviders(deps: SiteBackupToolDeps): Promise<{ ok: true
     ...(deps.loadSourceControlProviders ? { load: deps.loadSourceControlProviders } : {}),
     workspaceId: deps.workspaceId,
     httpClient: deps.customCredentialsHttpClient,
+    observability: deps.observability,
   });
   for (const refusal of built.refusals) failureLog(deps)(`[site-backup] ${refusal}`);
   if (built.providers.length === 0) {

@@ -11,7 +11,7 @@ import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 
 import { InMemoryEventBus } from "#src/contracts/core/events/index";
-import { resolveObservabilityConfig, createObservabilityPort, instrumentStorageKernel } from "#src/platform/observability/index";
+import { resolveObservabilityConfig, createObservabilityPort, instrumentStorageKernel, type ObservabilityPort } from "#src/platform/observability/index";
 import { resolveProductRoot } from "#src/platform/site-dir/product-root";
 // A plain static import, unlike `createApp`/`exportSite` below: `resolveStorefrontProducts` has no
 // eager top-level side effect (`routes/site/products.ts`'s module body only declares functions/a
@@ -331,9 +331,11 @@ export function mediaUploadsDir(): string {
  * startup error, not have their install quietly fall back to writing local files nobody expected
  * (which would then look like "media works" until the next deploy wipes the ephemeral disk).
  *
+ * `observability` traces the S3 store's object requests (identity for the no-op port).
+ *
  * @complexity O(1) — a handful of env reads and a branch.
  */
-function resolveBlobStore(uploadsDir: string): BlobStorePort {
+function resolveBlobStore(uploadsDir: string, { observability }: { observability: ObservabilityPort }): BlobStorePort {
   const backend = process.env.TOVU_MEDIA_BLOB_STORE ?? "local";
   if (backend === "local") {
     return new LocalFsBlobStore({ rootDir: uploadsDir });
@@ -364,7 +366,7 @@ function resolveBlobStore(uploadsDir: string): BlobStorePort {
     secretAccessKey: secretAccessKey as string,
     endpoint: process.env.TOVU_S3_ENDPOINT,
     keyPrefix: process.env.TOVU_S3_KEY_PREFIX,
-  });
+  }, { observability });
 }
 
 /**
@@ -933,13 +935,6 @@ async function composeSiteRouteDeps(
   const resolvedThemesDir = resolveThemesDirOverride(overrides);
   seedSiteThemes({ stockDir: builtInThemesDir(), siteThemesDir: resolvedThemesDir });
   const resolvedSiteBinding = resolveSiteBindingOverride(overrides);
-  // Resolved here, before the first fire-and-forget boot promise below: `resolveBlobStore` throws on
-  // an unknown TOVU_MEDIA_BLOB_STORE or an incomplete S3 config, and a throw after those promises
-  // start leaves them running against the store `createSiteRouteDeps` then closes — each one rejects
-  // unhandled ("The database connection is not open") on top of the operator's real config error.
-  const resolvedUploadsDir = overrides?.uploadsDir ?? mediaUploadsDir();
-  const blobStore = resolveBlobStore(resolvedUploadsDir);
-
   // The one content kernel (SQLite: over `content.db`, one per connection; Postgres: the site's
   // database), read by the prelude below and handed to boot modules as `deps.contentKernel`.
   const kernel = store.content;
@@ -953,6 +948,12 @@ async function composeSiteRouteDeps(
   // (identity for the no-op port, so a default boot keeps its exact objects).
   const observability = createObservabilityPort({ config: resolveObservabilityConfig({ env: process.env }) });
   instrumentStorageKernel({ kernel, observability });
+  // Resolved here, before the first fire-and-forget boot promise below: `resolveBlobStore` throws on
+  // an unknown TOVU_MEDIA_BLOB_STORE or an incomplete S3 config, and a throw after those promises
+  // start leaves them running against the store `createSiteRouteDeps` then closes — each one rejects
+  // unhandled ("The database connection is not open") on top of the operator's real config error.
+  const resolvedUploadsDir = overrides?.uploadsDir ?? mediaUploadsDir();
+  const blobStore = resolveBlobStore(resolvedUploadsDir, { observability });
   // Everything below is built from `kernel` / `chat` (the chat kernel) except these, which depend on
   // the storage engine (`store-bound-services.ts`: `sqliteOnlyServices` or `pgOnlyServices`).
   const storeBound = storeBoundServicesFor(store, dbPath);

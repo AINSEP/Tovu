@@ -100,6 +100,7 @@ export function registerAdminSourceControlCredentialsRoutes(app: Express, deps: 
     keyring: deps.siteAssistantSecretKeyring,
     clock: deps.clock,
     idGen: deps.idGen,
+    observability: deps.observability,
     ...(deps.loadSourceControlProviders ? { loadSourceControlProviders: deps.loadSourceControlProviders } : {}),
   };
 

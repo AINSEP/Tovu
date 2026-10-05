@@ -12,6 +12,7 @@ import type {
   SourceControlCredentialSummary,
   SourceControlProviderId,
 } from "./types.js";
+import type { ObservabilityPort } from "../../platform/observability/index.js";
 
 /**
  * @file Validate-then-seal-then-write CRUD over `source_control_credential_sets`, structurally
@@ -100,6 +101,7 @@ async function probeAccountLabel(deps: SourceControlCredentialWriteDeps, workspa
     const built = await buildSourceControlProvider({
       ...(deps.loadSourceControlProviders ? { load: deps.loadSourceControlProviders } : {}),
       ...(deps.fetchFn ? { fetchFn: deps.fetchFn } : {}),
+      observability: deps.observability,
       workspaceId,
       providerId,
     });
@@ -151,6 +153,8 @@ export interface SourceControlCredentialWriteDeps extends SourceControlCredentia
   idGen: { newId(): string };
   /** Injected by tests; defaults to global `fetch`. Used only by {@link probeAccountLabel}. */
   fetchFn?: typeof fetch;
+  /** `RouteDeps.observability`: the identity probe is one outbound span. */
+  observability?: ObservabilityPort;
   /** This workspace's git-host providers; the installed, enabled Agent Plugins when omitted. */
   loadSourceControlProviders?: LoadSourceControlProviders;
 }

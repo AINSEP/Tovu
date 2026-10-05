@@ -1,7 +1,7 @@
 import { createRequire } from "node:module";
 import { createObservabilityPort as createDiagnosticObservabilityPort, createNoopObservabilityPort, type ObservabilityConfig, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
-// Decorators for the DB kernel and the guarded HTTP client; both are identity for the no-op port.
-export { instrumentStorageKernel, isNoopObservabilityPort, trackHttpClient } from "@jini-ai/diagnostics/observability";
+// Decorators for the DB kernel, the guarded HTTP client and raw fetch; all are identity for the no-op port.
+export { instrumentStorageKernel, isNoopObservabilityPort, trackFetch, trackHttpClient } from "@jini-ai/diagnostics/observability";
 
 // Retained host adapter surface: consumers must continue to resolve these names while r15
 // rewires the shared roots to the package and explicit configuration arguments.
