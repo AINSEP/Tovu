@@ -14,7 +14,7 @@ import { START_FRESH_CONFIRMATION, type SiteKeyRecoveryController } from "./hook
 export function SiteKeyRecoveryCard({ recovery }: { recovery: SiteKeyRecoveryController }) {
   const translate = recovery.t;
   return (
-    <section className="card site-key-recovery-card" {...agentHandle({ handle: "security-site-key-recovery" }, { role: "region", label: "Unlock saved credentials locked with a different Site key" })}>
+    <section className="card site-key-recovery-card" {...agentHandle({ handle: "security-site-key-recovery" }, { role: "region", label: "Unlock saved credentials locked with a different site key" })}>
       <h3 className="site-key-status-heading">{translate("Your saved credentials are locked")}</h3>
       {recovery.resultMessage ? (
         <p className="notice" role="status">{recovery.resultMessage}</p>

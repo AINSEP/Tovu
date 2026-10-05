@@ -31,7 +31,7 @@ export function AccessTokensIcon({ size = 16 }: { size?: number }) {
   );
 }
 
-/** The Site Token tab's own icon — a shield, distinct from {@link AccessTokensIcon}'s plain key:
+/** The site key tab's own icon — a shield, distinct from {@link AccessTokensIcon}'s plain key:
  *  this tab is about the ONE key that protects every OTHER credential, not a credential itself. */
 export function SiteKeyIcon({ size = 16 }: { size?: number }) {
   return (

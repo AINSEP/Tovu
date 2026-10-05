@@ -55,13 +55,13 @@ import { useWiredSecurityPermissions } from "./hooks/use-security-permissions.ho
  * show once every store is read.
  *
  * Page shell mirrors `SourceControl.tsx`/`Deployment.tsx` exactly: `page-header` + `TabBar`. Two
- * real tabs as of 2026-09-09 — "Access Tokens" (above) and "Site Token" (`SiteTokenTab.tsx`) — not
+ * real tabs as of 2026-09-09 — "Access Tokens" (above) and "site key" (`SiteKeyTab.tsx`) — not
  * padded with a disabled placeholder for a THIRD tab nothing here asks for yet (Activity Log and
  * Roles & Permissions already have their own top-level Operations/People nav entries, not sibling
  * tabs of this page).
  *
  * Page renamed "Security" -> "Secrets" the same day (owner naming decision, not this agent's
- * call): the most accurate label for what's actually here — access tokens, the Site Token,
+ * call): the most accurate label for what's actually here — access tokens, the site key,
  * credentials — matching what Fly/GitHub already call the same thing. The rename is cosmetic
  * (nav label + `<h1>` only, per `translateAdminNavLabel`'s "copy string is its own i18n key"
  * convention — `panels.tsx`'s nav entry and this file's own `t(locale, "Secrets")` calls are the
@@ -70,21 +70,21 @@ import { useWiredSecurityPermissions } from "./hooks/use-security-permissions.ho
  * internal identifier below (`SECURITY_TAB_IDS`, `security-i18n.ts`, `SecurityProps`, …) are
  * UNCHANGED — renaming those is a bigger, separate move this pass does not make.
  *
- * "Site Token" joined the same day: not another saved credential this page reads, but the ONE key
- * that (partially — see `SiteTokenTab.tsx`'s own header) protects every credential Access Tokens
- * lists. `admin.security.tokens.manage`-gated separately from every verb above (`features/
- * identity/site-token-permission.ts`) — a narrower trust boundary than ordinary content admin,
+ * "site key" joined the same day: not another saved credential this page reads, but the ONE key
+ * that (partially — see `SiteKeyTab.tsx`'s own header) protects every credential Access Tokens
+ * lists. `admin.security.site-key.manage`-gated separately from every verb above (`features/
+ * identity/site-key-permission.ts`) — a narrower trust boundary than ordinary content admin,
  * deliberately not reusing this page's existing permission checks.
  *
- * ## The Site Token tab is affordance-hidden, not just protected server-side (2026-09-10)
+ * ## The site key tab is affordance-hidden, not just protected server-side (2026-09-10)
  *
- * Every site-token route already re-checks `admin.security.tokens.manage` server-side
- * (`site-token-permission.ts`'s own header) — that gate was never the gap. Until this pass, the
+ * Every site-key route already re-checks `admin.security.site-key.manage` server-side
+ * (`site-key-permission.ts`'s own header) — that gate was never the gap. Until this pass, the
  * TAB itself rendered for every logged-in admin-panel user regardless of role, so an editor/viewer
  * saw a tab that would 403 on every action inside it. `useWiredSecurityPermissions` (`hooks/
  * use-security-permissions.hooks.ts`) reads the same permission client-side, UX-only
  * (`lib/permissions.ts`'s `hasPermission` — its own header states plainly this is not the security
- * boundary): the tab entry, the rendered `<SiteTokenTab />`, and a direct `?tab=site-token` link all
+ * boundary): the tab entry, the rendered `<SiteKeyTab />`, and a direct `?tab=site-key` link all
  * fall back to Access Tokens for a principal who does not hold it. `resolveSecurityTabId` treats a
  * still-loading permission read as "not permitted" (`hasPermission` naturally returns `false` for
  * empty/absent permissions), so the tab never flashes into view before disappearing.
@@ -93,16 +93,16 @@ import { useWiredSecurityPermissions } from "./hooks/use-security-permissions.ho
 const SECURITY_TAB_IDS = ["access-tokens", "site-key"] as const;
 type SecurityTabId = (typeof SECURITY_TAB_IDS)[number];
 
-/** The tab-id list for a principal WITHOUT `admin.security.tokens.manage` — see this file's header
- *  ("The Site Token tab is affordance-hidden") for why {@link resolveSecurityTabId} needs a second,
+/** The tab-id list for a principal WITHOUT `admin.security.site-key.manage` — see this file's header
+ *  ("The site key tab is affordance-hidden") for why {@link resolveSecurityTabId} needs a second,
  *  narrower list rather than only ever validating against {@link SECURITY_TAB_IDS}. */
 const ACCESS_TOKENS_ONLY_TAB_IDS: readonly SecurityTabId[] = ["access-tokens"];
 
 /** Falls back to the Access Tokens tab for an absent or unrecognized `?tab=` value, delegating to
  *  the shared `../../lib/resolve-active-tab-id` guard `Deployment.tsx`/`SourceControl.tsx`/
- *  `Database.tsx`/`Themes.tsx` all use — AND, since 2026-09-10, for a `?tab=site-token` link
- *  followed by a principal who does not hold `admin.security.tokens.manage`: `validIds` narrows to
- *  {@link ACCESS_TOKENS_ONLY_TAB_IDS} for them, so `site-token` reads as just as "unrecognized" as a
+ *  `Database.tsx`/`Themes.tsx` all use — AND, since 2026-09-10, for a `?tab=site-key` link
+ *  followed by a principal who does not hold `admin.security.site-key.manage`: `validIds` narrows to
+ *  {@link ACCESS_TOKENS_ONLY_TAB_IDS} for them, so `site-key` reads as just as "unrecognized" as a
  *  typo would, and they land on Access Tokens instead of an empty panel. */
 function resolveSecurityTabId(tabId: string | null | undefined, canManageSiteKey: boolean): SecurityTabId {
   const validIds: readonly SecurityTabId[] = canManageSiteKey ? SECURITY_TAB_IDS : ACCESS_TOKENS_ONLY_TAB_IDS;
@@ -117,8 +117,8 @@ export interface SecurityProps {
   useAccessTokensHook?: typeof useWiredAccessTokens;
   /** DI seam for tests, threaded through to {@link SiteKeyTab} — same convention. */
   useSiteKeyHook?: typeof useWiredSiteKey;
-  /** DI seam for tests — decides whether the Site Token tab is even offered. See this file's
-   *  header ("The Site Token tab is affordance-hidden"). */
+  /** DI seam for tests — decides whether the site key tab is even offered. See this file's
+   *  header ("The site key tab is affordance-hidden"). */
   useSecurityPermissionsHook?: typeof useWiredSecurityPermissions;
 }
 
@@ -149,7 +149,7 @@ export function Security(props: SecurityProps) {
             label: t(locale, "Site key"),
             icon: <SiteKeyIcon size={16} />,
             handle: "security-tab-site-key",
-            handleLabel: "Switch to the Site key tab — view and generate the Site key that decrypts every credential this install has saved (BYOK/AI keys, publish, source-control, media-provider, and MCP credentials), plus webhook signing and newsletter tokens on a local install",
+            handleLabel: t(locale, "Switch to the site key tab"),
           } satisfies TabBarTab,
         ]
       : []),
@@ -165,7 +165,7 @@ export function Security(props: SecurityProps) {
         className="page-header"
         {...agentHandle({ handle: "security-header" }, {
           role: "region",
-          label: "Secrets panel header — every saved access token and the Site key that protects them, in one place",
+          label: "Secrets panel header — every saved access token and the site key that protects them, in one place",
         })}
       >
         <div className="page-header-text">

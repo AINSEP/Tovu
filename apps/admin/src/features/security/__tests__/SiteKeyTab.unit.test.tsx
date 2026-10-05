@@ -22,7 +22,7 @@ const ACTIVE_FILE_STATUS: AdminSiteKeyStatus = {
   active: true,
   source: "file",
   fingerprint: "a1b2c3d4e5f6",
-  keyFilePath: "/data/tovu/integrations-root-key",
+  keyFilePath: "/data/tovu/site-key",
   runtimeMode: "production",
   state: "active",
 };

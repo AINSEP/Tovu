@@ -77,8 +77,8 @@ import type { Translate } from "../../lib/dictionary-translator";
  */
 export const ACCESS_TOKENS_RESOURCE = "access-tokens";
 
-/** The permission that gates the Site Token tab's very visibility, not just its actions — mirrors
- *  `apps/website/src/features/identity/site-token-permission.ts`'s `SITE_TOKEN_MANAGE_PERMISSION`
+/** The permission that gates the site key tab's very visibility, not just its actions — mirrors
+ *  `apps/website/src/features/identity/site-key-permission.ts`'s `SITE_KEY_MANAGE_PERMISSION`
  *  literal. Duplicated as a plain string rather than imported: this app cannot import server code,
  *  the same reason `use-external-mcp-admissions.hooks.ts` duplicates `"system.write"` rather than
  *  importing it. */

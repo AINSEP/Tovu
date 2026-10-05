@@ -10,7 +10,7 @@ import {
 
 /**
  * @file `security-i18n.ts` — scoped to the one key the site-key plan (2026-09-24) item 3 added (the
- * SiteTokenTab "no key yet" note), not a full cross-locale sweep of `SECURITY_DICT` (pre-existing
+ * SiteKeyTab "no key yet" note), not a full cross-locale sweep of `SECURITY_DICT` (pre-existing
  * dictionary drift elsewhere is out of scope for this fix — same reasoning `roles-i18n.unit.test.ts`
  * gives for its own narrow scope).
  */

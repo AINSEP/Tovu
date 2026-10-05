@@ -12,7 +12,7 @@ import type { Translate } from "../../lib/dictionary-translator";
 
 /**
  * @file The Secrets page's Site key tab — view/reveal/generate the file half of
- * `TOVU_INTEGRATIONS_ROOT_KEY`'s resolution (`features/webhooks/keyring.env.ts`, server-side).
+ * `TOVU_SITE_KEY`'s resolution (`features/webhooks/keyring.env.ts`, server-side).
  *
  * ## What this tab covers, as of the 2026-09-09 durability fix
  *
@@ -67,7 +67,7 @@ export function SiteKeyTab(props: SiteKeyTabProps) {
       className="site-key-tab"
       {...agentHandle({ handle: "security-site-key" }, {
         role: "region",
-        label: "View, reveal, and generate the Site key that protects every credential this install holds",
+        label: controller.t("View and reveal the site key"),
       })}
     >
       <SiteKeyBody controller={controller} recovery={recovery} />
@@ -81,7 +81,7 @@ function SiteKeyBody({ controller, recovery }: { controller: SiteKeyController; 
   const translate = controller.t;
   if (controller.loadError) {
     return (
-      <p className="notice error" role="status" {...agentHandle({ handle: "security-site-key-load-error" }, { role: "status", label: "Shows the error when the Site key's status could not be loaded" })}>
+      <p className="notice error" role="status" {...agentHandle({ handle: "security-site-key-load-error" }, { role: "status", label: "Shows the error when the site key's status could not be loaded" })}>
         {controller.loadError}
       </p>
     );
@@ -111,13 +111,13 @@ function SiteKeyBody({ controller, recovery }: { controller: SiteKeyController; 
  *  a real but secondary caveat, not something a first-time reader needs to parse up front. */
 function SiteKeyScopeNotice({ runtimeMode, t: translate }: { runtimeMode: "production" | "local"; t: Translate }) {
   return (
-    <div className="notice warning site-key-scope-notice" {...agentHandle({ handle: "security-site-key-scope-notice" }, { role: "status", label: "What this Site key does and does not cover" })}>
+    <div className="notice warning site-key-scope-notice" {...agentHandle({ handle: "security-site-key-scope-notice" }, { role: "status", label: "What this site key does and does not cover" })}>
       <p>{translate("This key protects the passwords, API keys, and other credentials you've saved in Tovu — including on your live site.")}</p>
       {runtimeMode === "production" ? (
         <p>{translate("On a live site, this key is stored right next to your database. Anyone who gets a full backup of your server would get both your data and the key that unlocks it.")}</p>
       ) : null}
       <p className="jini-field-hint site-key-scope-detail">
-        {translate("One exception: webhook signing and newsletter unsubscribe links stay protected separately on your live site, whether or not you generate a key here.")}
+        {translate("One exception: webhook signing and newsletter unsubscribe links use a separate key on your live site.")}
       </p>
     </div>
   );
@@ -130,7 +130,7 @@ function SiteKeyStatusCard({ controller }: { controller: SiteKeyController }) {
   const status = controller.status;
   if (!status) return null;
   return (
-    <section className="card site-key-status-card" {...agentHandle({ handle: "security-site-key-status" }, { role: "region", label: "The active Site key's source, fingerprint, and reveal control" })}>
+    <section className="card site-key-status-card" {...agentHandle({ handle: "security-site-key-status" }, { role: "region", label: "The active site key's source, fingerprint, and reveal control" })}>
       <h3 className="site-key-status-heading">{translate("Site key")}</h3>
       <p className="site-key-status-badge-row">
         <span className={`status ${siteKeyStatusBadgeClass(status.active, status.invalid)}`}>{siteKeyStatusBadgeLabel({ status, t: translate })}</span>
@@ -163,7 +163,7 @@ function siteKeyStatusBadgeClass(active: boolean, invalid: boolean | undefined):
  *  prose). Reworded 2026-09-09 alongside {@link SiteKeyScopeNotice} so the badge's
  *  "environment variable" vs. "key file" distinction is explained in plain terms here rather than
  *  assumed — the badge itself stays terse, this line carries the plain-language context. The
- *  `TOVU_INTEGRATIONS_ROOT_KEY` variable name stays in the invalid-env case since fixing it requires
+ *  `TOVU_SITE_KEY` variable name stays in the invalid-env case since fixing it requires
  *  that exact name. The `"none"` case was reworded again for the site-key plan (2026-09-24) item 3:
  *  it used to promise that clicking Generate would save a key to `status.keyFilePath` — stale ever
  *  since Generate was hidden by default (§A.6) in favor of `ensureSiteKeyForBoot` minting one
@@ -214,7 +214,7 @@ function SiteKeyRevealAction({ controller }: { controller: SiteKeyController }) 
         {controller.revealing ? translate("Revealing…") : translate("Reveal")}
       </button>
       {controller.revealError ? (
-        <p className="notice error" role="status" {...agentHandle({ handle: "security-site-key-reveal-error" }, { role: "status", label: "Shows the error when revealing the Site key failed" })}>
+        <p className="notice error" role="status" {...agentHandle({ handle: "security-site-key-reveal-error" }, { role: "status", label: "Shows the error when revealing the site key failed" })}>
           {controller.revealError}
         </p>
       ) : null}
@@ -234,7 +234,7 @@ function SiteKeyRevealedValue({ hex, onHide, t: translate }: { hex: string; onHi
         <button type="button" className="btn-secondary" onClick={() => void copy()}>
           {copied ? translate("Copied!") : translate("Copy")}
         </button>
-        <button type="button" className="btn-ghost" onClick={onHide} {...agentHandle({ handle: "security-site-key-hide" }, { role: "button", label: "Hide the revealed Site key" })}>
+        <button type="button" className="btn-ghost" onClick={onHide} {...agentHandle({ handle: "security-site-key-hide" }, { role: "button", label: "Hide the revealed site key" })}>
           {translate("Hide")}
         </button>
       </div>
@@ -261,7 +261,7 @@ function SiteKeyGenerateAction({ controller }: { controller: SiteKeyController }
         className="btn-primary"
         disabled={controller.generating}
         onClick={() => void controller.generate()}
-        {...agentHandle({ handle: "security-site-key-generate" }, { role: "button", label: "Generate a Site key file for this install" })}
+        {...agentHandle({ handle: "security-site-key-generate" }, { role: "button", label: "Generate a site key file for this install" })}
       >
         {controller.generating ? translate("Generating…") : translate("Generate a key")}
       </button>
@@ -279,7 +279,7 @@ function SiteKeyGenerateErrorNote({ failure, t: translate }: { failure: SiteKeyG
         ? siteKeyGenerateErrorMessage(locale, failure.detail)
         : failure.detail;
   return (
-    <p className="notice error" role="status" {...agentHandle({ handle: "security-site-key-generate-error" }, { role: "status", label: "Shows the error when generating a Site key file failed" })}>
+    <p className="notice error" role="status" {...agentHandle({ handle: "security-site-key-generate-error" }, { role: "status", label: "Shows the error when generating a site key file failed" })}>
       {text}
     </p>
   );

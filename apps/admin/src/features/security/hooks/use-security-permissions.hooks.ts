@@ -6,11 +6,11 @@ import type { SecurityPermissionsPort } from "./security-permissions-port.hooks"
 
 /**
  * @file `Security.tsx`'s own affordance-hiding controller: whether the current principal holds
- * `admin.security.tokens.manage` (`SITE_TOKEN_MANAGE_PERMISSION`), which decides whether the Site
+ * `admin.security.site-key.manage` (`SITE_KEY_MANAGE_PERMISSION`), which decides whether the Site
  * Token tab is even offered. This is UX-only — `hasPermission`'s own header says so, and every
- * site-token route re-checks server-side regardless (`site-token-permission.ts`).
+ * site-key route re-checks server-side regardless (`site-key-permission.ts`).
  *
- * `canManageSiteToken` is a plain `boolean`, never a tri-state: `hasPermission(undefined ?? [],
+ * `canManageSiteKey` is a plain `boolean`, never a tri-state: `hasPermission(undefined ?? [],
  * ...)` is `false` while the `/auth/me` read is still in flight, which is exactly the "treat
  * unknown as not-permitted" behavior the tab needs — there is no separate `loading` flag to
  * thread through `Security.tsx`'s render because the false-while-loading value already IS the

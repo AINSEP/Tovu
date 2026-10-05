@@ -8,19 +8,19 @@ import type { SecurityPermissionsController } from "../hooks/use-security-permis
 import type { SiteKeyController } from "../hooks/use-site-key.hooks";
 
 /**
- * @file `Security` — the page shell around `AccessTokensTab`/`SiteTokenTab` (`resolveActiveTabId`,
+ * @file `Security` — the page shell around `AccessTokensTab`/`SiteKeyTab` (`resolveActiveTabId`,
  * the page header, and the `TabBar`). Mirrors `SourceControl.unit.test.tsx`'s page-shell block;
  * `AccessTokensTab`'s own body is `AccessTokensTab.unit.test.tsx`'s job, not this file's, so its
  * fixture only needs to satisfy `useAccessTokensHook`'s type — its own `useOtherCredentialsHook`
  * default (real `useWiredOtherCredentials`, unmocked `lib/api`) degrades harmlessly the same way
  * `use-admin-execution-credential`'s own doc describes: a failed fetch in a test environment
- * settles to an empty/unset state rather than throwing. `useSiteTokenHook` is given an explicit
- * fixture instead of relying on that same degrade-harmlessly behavior — `SiteTokenTab`'s own body
- * is covered by `SiteTokenTab.unit.test.tsx`, so this file passes an explicit fixture rather than
+ * settles to an empty/unset state rather than throwing. `useSiteKeyHook` is given an explicit
+ * fixture instead of relying on that same degrade-harmlessly behavior — `SiteKeyTab`'s own body
+ * is covered by `SiteKeyTab.unit.test.tsx`, so this file passes an explicit fixture rather than
  * depending on that suite's real `lib/api` degrade behavior.
  *
  * `useSecurityPermissionsHook` is ALWAYS supplied explicitly below (never left at its real
- * `useWiredSecurityPermissions` default) — the whole point of these tests is the Site Token tab's
+ * `useWiredSecurityPermissions` default) — the whole point of these tests is the site key tab's
  * permission gate (2026-09-10), so each test states which principal it is exercising rather than
  * relying on however an unmocked `/auth/me` happens to degrade in jsdom.
  */
@@ -145,11 +145,11 @@ describe("Security — page shell", () => {
       expect(within(panel).getByText("Loading…")).toBeInTheDocument();
     });
 
-    it("publishes the Site key tab's agent label describing the corrected site-key wording", () => {
+    it("publishes the localized site-key tab label without the hidden Generate action", () => {
       renderPage({ tabId: "site-key", canManageSiteKey: true });
       expect(screen.getByRole("tab", { name: /Site key/ })).toHaveAttribute(
         "data-agent-label",
-        "Switch to the Site key tab — view and generate the Site key that decrypts every credential this install has saved (BYOK/AI keys, publish, source-control, media-provider, and MCP credentials), plus webhook signing and newsletter tokens on a local install"
+        "Switch to the site key tab"
       );
     });
 
@@ -164,7 +164,7 @@ describe("Security — page shell", () => {
       const { container } = renderPage({ tabId: "site-key", canManageSiteKey: false });
       expect(screen.getByRole("tab", { name: /Access Tokens/ })).toHaveAttribute("aria-selected", "true");
       expect(screen.queryByRole("tab", { name: /Site key/ })).not.toBeInTheDocument();
-      // `SiteTokenTab.tsx`'s own root `<div>` carries `data-agent-element="security-site-token"`
+      // `SiteKeyTab.tsx`'s own root `<div>` carries `data-agent-element="security-site-key"`
       // (`agentHandle` — a plain data attribute, NOT a real ARIA role/label). Its absence proves the
       // panel itself never mounted, not just that its tab button is hidden.
       expect(container.querySelector('[data-agent-element="security-site-key"]')).not.toBeInTheDocument();

@@ -8,7 +8,7 @@ import type { SiteKeyController } from "../hooks/use-site-key.hooks";
 import type { AdminSiteKeyStatus } from "@/lib/api";
 
 /**
- * @file The Site key is the root key. The assistant drives this page through the real page
+ * @file The Site key is the site key. The assistant drives this page through the real page
  * driver, so it must neither be able to click Reveal nor read the value once a human has revealed
  * it — not through a handle on the value, and not through the text of any published ancestor.
  */
@@ -19,7 +19,7 @@ const ACTIVE_FILE_STATUS: AdminSiteKeyStatus = {
   active: true,
   source: "file",
   fingerprint: "a1b2c3d4e5f6",
-  keyFilePath: "/data/tovu/integrations-root-key",
+  keyFilePath: "/data/tovu/site-key",
   runtimeMode: "production",
   state: "active",
 };
