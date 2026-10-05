@@ -14,10 +14,10 @@
  * both a performance and an attack-surface mistake reserved for test infrastructure only.
  *
  * Method: scan every `.ts`/`.tsx` file under this repo's actual source roots for an import specifier
- * naming `pg-fixture`, and assert every match lives in this directory (`src/platform/db/__tests__/`), which is
- * where `pg-fixture.ts` itself and its one legitimate importer
- * (`migration-manifest-postgres.test.ts`) both live. Deliberately a plain substring/regex scan, not an
- * AST import parser — a look-alike false positive would just need adding to `ALLOWED_DIRS`, whereas a
+ * naming `pg-fixture`, and assert every match lives in a storage-layer test directory
+ * (`platform/db/<any depth>/__tests__/`; see `isAllowedImporter` for why it is not only this
+ * directory). Deliberately a plain substring/regex scan, not an AST import parser — a look-alike
+ * false positive would just need excluding in `isAllowedImporter`, whereas a
  * parser bug that silently stopped matching a real import would defeat the whole guard. Conservative
  * (over-inclusive) is the correct failure direction here, matching this suite's fail-closed posture
  * (see `migration-manifest-postgres.test.ts`'s own header on why it never skips).
@@ -28,7 +28,17 @@ import path from "node:path";
 import test from "node:test";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "../../../../../..");
-const ALLOWED_DIRS = new Set([import.meta.dirname]);
+// The storage layer's own test directories, at any depth (`platform/db/__tests__/`,
+// `platform/db/kernel/__tests__/`, `platform/db/migrations/__tests__/`, ...). Widened 2026-10-04
+// (F1591): the kernel and migration-runner Postgres suites drop their scratch databases through
+// `dropDatabase`, and the harm this guard exists for (a psql spawn on a request path) is product
+// code, which never lives under `__tests__/`. Test code outside the storage layer stays fenced
+// out; it uses its own psql target (features/database-transfer/__tests__/pg-test-db.ts).
+const DB_LAYER_DIR = path.resolve(import.meta.dirname, "..");
+function isAllowedImporter(file: string): boolean {
+  const relative = path.relative(DB_LAYER_DIR, path.dirname(file)).split(path.sep);
+  return !relative.includes("..") && relative.includes("__tests__");
+}
 
 // Only these hold product/test TypeScript source — the roots a relative import from anywhere in the
 // codebase could plausibly resolve through. Excludes gitignored toolkit/report trees (AI-Dev-Shop/,
@@ -56,7 +66,7 @@ function collectSourceFiles(dir: string, out: string[]): void {
   }
 }
 
-test("pg-fixture is imported only from src/platform/db/__tests__/ (it shells out to psql and must never reach product code)", () => {
+test("pg-fixture is imported only from platform/db/**/__tests__/ (it shells out to psql and must never reach product code)", () => {
   const files: string[] = [];
   for (const root of SOURCE_ROOTS) {
     const abs = path.join(REPO_ROOT, root);
@@ -65,14 +75,14 @@ test("pg-fixture is imported only from src/platform/db/__tests__/ (it shells out
   assert.ok(files.length > 100, `sanity check: expected hundreds of source files under ${SOURCE_ROOTS.join(", ")}, found ${files.length}`);
 
   const offenders = files.filter((file) => {
-    if (ALLOWED_DIRS.has(path.dirname(file))) return false;
+    if (isAllowedImporter(file)) return false;
     return IMPORT_SPECIFIER_PATTERN.test(fs.readFileSync(file, "utf8"));
   });
 
   assert.deepEqual(
     offenders,
     [],
-    `pg-fixture.ts must only be imported from src/platform/db/__tests__/, but found an import in: ${offenders.join(", ")}`
+    `pg-fixture.ts must only be imported from platform/db/**/__tests__/, but found an import in: ${offenders.join(", ")}`
   );
 });
 
@@ -85,5 +95,22 @@ test("the boundary scanner detects supported import, require and re-export speci
       `const fixture = require("../migration/pg-fixture${extension}");`,
       `const fixture = import('../migration/pg-fixture${extension}');`,
     ]) assert.equal(IMPORT_SPECIFIER_PATTERN.test(source), true, source);
+  }
+});
+
+test("the importer fence admits storage-layer test directories only", () => {
+  const db = DB_LAYER_DIR;
+  for (const allowed of ["__tests__/a.test.ts", "kernel/__tests__/ops.postgres.test.ts", "migrations/__tests__/runner.postgres.test.ts"]) {
+    assert.equal(isAllowedImporter(path.join(db, allowed)), true, allowed);
+  }
+  for (const refused of [
+    "kernel/ops.ts",
+    "migrations/runner.ts",
+    "migration/manifest.ts",
+    "../site-dir/__tests__/x.test.ts",
+    "../../features/database-transfer/__tests__/pg-test-db.ts",
+    "../../server/__tests__/route.test.ts",
+  ]) {
+    assert.equal(isAllowedImporter(path.join(db, refused)), false, refused);
   }
 });

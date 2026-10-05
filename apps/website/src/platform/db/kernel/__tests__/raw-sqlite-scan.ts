@@ -15,6 +15,15 @@ export const BASELINE_PATH = path.join(import.meta.dirname, "raw-sqlite-baseline
 /** Where raw SQLite belongs, with the reason. Directory entries end in `/`. */
 const ALLOWED: ReadonlyMap<string, string> = new Map([
   ["apps/website/src/platform/db/kernel/", "the storage kernel: drivers and dialect helpers are the one place a dialect is spelled"],
+  // Shipped 2026-10-04 and auto-applied: its checksum is pinned in migrations/checksums.ts, and the
+  // runner refuses to boot any database that recorded the old checksum (MigrationChecksumError).
+  // Moving its PRAGMA/sqlite_master calls into kernel helpers would change those bytes, so the file
+  // is frozen history, not code the ratchet can drive. Its runtime twin (forms'
+  // submission-ip-retention-repo.ts) does use the kernel's listColumns helper.
+  [
+    "apps/website/src/platform/db/migrations/0006_submission_ip_retention.ts",
+    "checksum-pinned shipped migration step (SQLite NOT NULL drop needs a table rebuild); its bytes can never change",
+  ],
 ]);
 
 const RULES: ReadonlyArray<{ id: string; pattern: RegExp }> = [

@@ -1,5 +1,6 @@
 import { sql } from "kysely";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
+import { listColumns } from "../../platform/db/kernel/dialect.js";
 import type { SubmissionIpRetentionPort } from "./submission-ip-retention-port.js";
 
 /** Site-owned schema adapter; no retention policy or timer lives here. */
@@ -14,16 +15,10 @@ export function createSubmissionIpRetentionRepo(
       if (!nullableConfirmed) {
         // A database not yet at migration 0006 still has NOT NULL source_ip. Fail before
         // writing while that old schema is present; a failed probe is retried on the next pass.
-        if (kernel.dialect === "sqlite") {
-          const columns = await kernel.query<{ name: string; notnull: number }>(sql`PRAGMA table_info(form_submissions)`);
-          nullableConfirmed = columns.some(column => column.name === "source_ip" && column.notnull === 0);
-        } else {
-          const columns = await kernel.query<{ is_nullable: string }>(sql`
-            SELECT is_nullable FROM information_schema.columns
-            WHERE table_schema = current_schema() AND table_name = 'form_submissions' AND column_name = 'source_ip'
-          `);
-          nullableConfirmed = columns.some(column => column.is_nullable === "YES");
-        }
+        // The kernel's catalog helper spells the dialect-specific lookup (SQLite table_info,
+        // Postgres information_schema), so this adapter stays dialect-neutral.
+        const columns = await listColumns(kernel, "form_submissions");
+        nullableConfirmed = columns.some(column => column.name === "source_ip" && !column.notNull);
         if (!nullableConfirmed) throw new Error("submission IP retention requires the nullable source_ip migration (0006)");
       }
       // Single statement, with the predicate repeated on the write: another process may have
