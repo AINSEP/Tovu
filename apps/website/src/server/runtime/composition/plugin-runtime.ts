@@ -11,6 +11,13 @@ import { discoverPlugins as discoverPluginRuntimePlugins, siteEntryPath } from "
 import { createHookRegistry, type AttachmentSource, type HookRegistry } from "#src/features/plugin-runtime/hook-registry";
 import type { PluginManifest } from "#src/features/plugin-runtime/manifest";
 import { quarantinePlugin } from "#src/features/plugin-runtime/quarantine";
+import type { ExtensionClaim } from "#src/features/plugin-runtime/claim-conflicts";
+import {
+  describeBootConflictQuarantine,
+  PluginConflictError,
+  resolvePluginConflicts,
+  type PluginConflict,
+} from "#src/features/plugin-runtime/plugin-claims";
 import {
   PluginPackagePathError,
   readPluginPackageFiles as readPluginPackageDirectory,
@@ -174,6 +181,11 @@ export interface ComposePluginRuntimeRequired {
    * own EC-09/AC-16 contract) — this parameter only ADDS reachability for site-installed plugins,
    * it never changes what a caller who omits it observes. */
   readonly installDir?: string;
+  /** Names core itself holds (routes, tools, permissions, tables, … — `claim-conflicts.ts` claims,
+   * prefix claims allowed). A plugin claiming one is refused at enable and quarantined at boot.
+   * Omitted ⇒ no core claims: plugin-vs-plugin conflicts are still detected. The real roots pass
+   * `TOVU_CORE_EXTENSION_CLAIMS` (`core-extension-claims.ts`). */
+  readonly coreClaims?: readonly ExtensionClaim[];
 }
 
 export interface PluginRuntimeBindings {
@@ -204,6 +216,10 @@ export interface PluginRuntimeBindings {
    * per-package isolation).
    */
   readonly attachEnabledPluginsAtBoot: () => Promise<void>;
+  /** Every discovered plugin that has a name conflict right now — an enabled loser, or a plugin that
+   * is off and WOULD be refused if turned on — for the admin screen and `plugins_list`. See
+   * `features/plugin-runtime/plugin-claims.ts`'s `resolvePluginConflicts`. */
+  readonly listPluginConflicts: () => Promise<ReadonlyMap<string, readonly PluginConflict[]>>;
 }
 
 /**
@@ -226,14 +242,42 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired): Pl
   const discoverPlugins = () =>
     discoverPluginRuntimePlugins({ builtIns: sources, ...(installDir === undefined ? {} : { installDir }) });
 
+  const coreClaims = required.coreClaims ?? [];
+
+  async function listPluginConflicts(
+    discovery?: readonly PluginDiscoveryRecord[],
+    optional: { candidateId?: string } = {},
+  ): Promise<ReadonlyMap<string, readonly PluginConflict[]>> {
+    const [records, activations] = await Promise.all([discovery ?? discoverPlugins(), activationRepo.listAll()]);
+    return resolvePluginConflicts({ workspaceId: required.workspaceId, discovery: records, activations, coreClaims }, optional);
+  }
+
+  /** Enable-time conflict gate (2026-10-04): runs before `loadPlugin()`, so a plugin that would
+   * take a name core or an enabled plugin holds never has its code imported. The candidate is
+   * ordered after every enabled plugin — it is the newer one by definition. */
+  async function assertNoConflicts(pluginId: string, discovery: readonly PluginDiscoveryRecord[]): Promise<void> {
+    const conflicts = (await listPluginConflicts(discovery, { candidateId: pluginId })).get(pluginId);
+    if (conflicts) throw new PluginConflictError({ pluginId, conflicts });
+  }
+
   async function onPluginEnabled(pluginId: string): Promise<void> {
     // A package replacement and an enable cannot race: save-before-callback activation is
     // compensated if install owns the directory lock, while installs refuse an enabled row.
     if (installDir !== undefined) await assertPluginInstallIdle({ installDir });
-    const record = (await discoverPlugins()).find((candidate) => candidate.id === pluginId);
+    const discovery = await discoverPlugins();
+    const record = discovery.find((candidate) => candidate.id === pluginId);
     if (!record) {
       throw new PluginLoadError(pluginId, "PLUGIN_EXPORT_INVALID");
     }
+    await assertNoConflicts(pluginId, discovery);
+    await attachPlugin(pluginId, record);
+  }
+
+  /** Load + attach one already-cleared plugin — `onPluginEnabled`'s body after its gates, shared
+   * with boot, which clears every enabled plugin in ONE pass instead (see
+   * `attachEnabledPluginsAtBoot`: per-plugin "candidate last" ordering would refuse the older
+   * winner of a boot-time pair as well as the newer one). */
+  async function attachPlugin(pluginId: string, record: PluginDiscoveryRecord): Promise<void> {
     const target = resolveLoadTarget({ pluginId, sources, record, installDir });
     if (!target) {
       throw new PluginLoadError(pluginId, "PLUGIN_EXPORT_INVALID");
@@ -311,14 +355,54 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired): Pl
     hookRegistry.detach(pluginId);
   }
 
+  /** Boot-time conflict pass (2026-10-04): the newer plugin of every conflicting pair is turned off
+   * through the same durable quarantine record hook failures use, with the clash as its reason, so
+   * it shows on the admin row and stays off on the next boot instead of racing the older one. */
+  async function quarantineConflictingAtBoot(
+    conflicts: ReadonlyMap<string, readonly PluginConflict[]>,
+    enabledIds: ReadonlySet<string>,
+  ): Promise<ReadonlySet<string>> {
+    const quarantined = new Set<string>();
+    for (const [pluginId, pluginConflicts] of conflicts) {
+      if (!enabledIds.has(pluginId)) continue;
+      const reason = describeBootConflictQuarantine(pluginConflicts);
+      await quarantinePlugin({ deps: { clock, repo: activationRepo }, input: { pluginId, workspaceId: required.workspaceId, consecutiveFailures: 0, reason } });
+      // eslint-disable-next-line no-console
+      console.warn(`[plugin-runtime] '${pluginId}' quarantined at boot: ${reason}`);
+      quarantined.add(pluginId);
+    }
+    return quarantined;
+  }
+
   async function attachEnabledPluginsAtBoot(): Promise<void> {
     const records = await activationRepo.listAll();
     const enabledHere = records.filter(
       (record) => record.workspaceId === required.workspaceId && record.enabled
     );
+    if (enabledHere.length === 0) return;
+    let discovery: readonly PluginDiscoveryRecord[];
+    let quarantined: ReadonlySet<string>;
+    try {
+      discovery = await discoverPlugins();
+      quarantined = await quarantineConflictingAtBoot(
+        await listPluginConflicts(discovery),
+        new Set(enabledHere.map((record) => record.pluginId)),
+      );
+    } catch (error) {
+      // Fail closed: without a finished conflict pass there is no telling which of two clashing
+      // plugins should run, so none is attached this boot (each would previously have failed its
+      // own discovery read here anyway). Logged, not thrown — same isolation as a per-plugin failure.
+      // eslint-disable-next-line no-console
+      console.warn(`[plugin-runtime] boot conflict check failed, no plugin attached: ${error instanceof Error ? error.message : String(error)}`);
+      return;
+    }
     for (const record of enabledHere) {
+      if (quarantined.has(record.pluginId)) continue;
       try {
-        await onPluginEnabled(record.pluginId);
+        if (installDir !== undefined) await assertPluginInstallIdle({ installDir });
+        const discovered = discovery.find((candidate) => candidate.id === record.pluginId);
+        if (!discovered) throw new PluginLoadError(record.pluginId, "PLUGIN_EXPORT_INVALID");
+        await attachPlugin(record.pluginId, discovered);
       } catch (error) {
         // eslint-disable-next-line no-console
         console.warn(
@@ -380,5 +464,6 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired): Pl
     readPluginPackageFiles,
     beforeSaveHook: (entry) => hookRegistry.runBeforeSave(entry),
     attachEnabledPluginsAtBoot,
+    listPluginConflicts: () => listPluginConflicts(),
   };
 }

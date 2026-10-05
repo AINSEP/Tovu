@@ -5,6 +5,7 @@ import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, UUID } from "@
 import type { OutboxPort } from "@jini-ai/cms/core";
 import type { PluginActivationRepoPort } from "#src/features/plugin-runtime/activation";
 import type { PluginDiscoveryRecord } from "#src/features/plugin-runtime/discovery";
+import type { PluginConflict } from "#src/features/plugin-runtime/plugin-claims";
 import type { PluginPackageFiles } from "#src/features/plugin-runtime/package-files";
 import type { RemovePluginFn } from "#src/features/plugin-runtime/uninstall";
 
@@ -36,6 +37,8 @@ export interface PluginsRouteDeps {
   discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>;
   onPluginEnabled: (pluginId: string) => Promise<void>;
   onPluginDisabled: (pluginId: string) => void;
+  /** 2026-10-04 — see `routes/types.ts`'s `PluginRuntimeDeps.listPluginConflicts`. */
+  listPluginConflicts?: () => Promise<ReadonlyMap<string, readonly PluginConflict[]>>;
   removePlugin: RemovePluginFn;
   /** 2026-09-13 — pre-bound package-files listing (`installDir`/built-in sources already
    * captured). See `routes/types.ts`'s `PluginRuntimeDeps.readPluginPackageFiles` doc. */

@@ -79,6 +79,32 @@ export interface PluginManifest {
   readonly contentTypes?: readonly unknown[] | null;
   readonly provenance?: { readonly sourceUrl?: string; readonly signature?: string } | null;
   readonly dependencies?: Readonly<Record<string, string>> | null;
+  /**
+   * What this plugin says it provides, by name (2026-10-04, conflict detection — see
+   * `plugin-claims.ts` and `ADS-memory/specs/005-plugin-system/conflicts.spec.md`). Optional and
+   * additive: a manifest without it claims only what its other fields already imply (its hooks and,
+   * when it declares `fields`, its generated capability tool). Each entry is a CLAIM: two enabled
+   * plugins, or a plugin and core, naming the same thing is refused at enable time and quarantined
+   * at boot rather than silently letting one overwrite the other. Declaring a surface the runtime
+   * does not mount yet (settings, widgets, routes — ADR-025/`adminSurfaces` are still unwired) is
+   * still binding for conflicts, so a plugin cannot squat a name today that a future mount would
+   * then have to arbitrate.
+   */
+  readonly contributes?: PluginContributions | null;
+}
+
+/** `tovu.plugin.json`'s `contributes` block — every list optional, every entry a plain name. */
+export interface PluginContributions {
+  /** `"METHOD /path"` or `"/path"` (every method). Parameter names do not distinguish routes. */
+  readonly routes?: readonly string[];
+  /** Agent tool ids. The generated prefixes `plugin_capability_`/`agent_plugin_` are reserved. */
+  readonly tools?: readonly string[];
+  /** Data-module tables — must sit in this plugin's own `p_{id}__` namespace (ADR-023 §5). */
+  readonly tables?: readonly string[];
+  readonly settings?: readonly string[];
+  readonly widgets?: readonly string[];
+  /** Permission ids this plugin DEFINES (not ones it merely requires). */
+  readonly permissions?: readonly string[];
 }
 
 /** One validation-vocabulary entry (errors.spec.md §3). `file` names the offending packaged file
@@ -136,7 +162,7 @@ const REQUIRED_KEYS = [
 ] as const;
 
 /** REQ-01's "parsed-and-stored but unused in v1" forward-compat keys — allowed, never validated. */
-const OPTIONAL_KEYS = ["adminSurfaces", "contentTypes", "provenance", "dependencies"] as const;
+const OPTIONAL_KEYS = ["adminSurfaces", "contentTypes", "provenance", "dependencies", "contributes"] as const;
 
 const ALLOWED_KEYS = new Set<string>([...REQUIRED_KEYS, ...OPTIONAL_KEYS]);
 const VALID_CAPABILITIES = new Set<PluginCapability>(SHARED_EXTENSION_CAPABILITIES);
@@ -411,6 +437,65 @@ function validateFields(raw: Readonly<Record<string, unknown>>, id: string | und
   return errors;
 }
 
+/** The `contributes` lists `validateContributes` accepts, in the order claims are derived. */
+export const CONTRIBUTION_KEYS = ["routes", "tools", "tables", "settings", "widgets", "permissions"] as const;
+const CONTRIBUTION_KEY_SET = new Set<string>(CONTRIBUTION_KEYS);
+/** Tool-id prefixes the runtime generates itself (`capability-tool-registrations.ts`,
+ *  `agent-plugins/tool-registrations.ts`) — a plugin declaring one could impersonate another
+ *  plugin's generated tool, so they are refused here, before conflict detection ever runs. */
+const RESERVED_TOOL_PREFIXES = ["plugin_capability_", "agent_plugin_"] as const;
+const ROUTE_PATTERN = /^(?:(?:GET|HEAD|POST|PUT|PATCH|DELETE|OPTIONS|ANY|\*) )?\/\S*$/i;
+
+function contributesInvalid(message: string): PluginValidationError {
+  return { code: "CONTRIBUTES_INVALID", file: null, message };
+}
+
+/** Kind-specific shape checks, one per `contributes` list that has more than the shared rule —
+ *  each returns the problem in words, or `undefined`. */
+const CONTRIBUTION_CHECKS: Readonly<Record<string, (entry: string, id: string | undefined) => string | undefined>> = {
+  routes: (entry) => (ROUTE_PATTERN.test(entry) ? undefined : "must be '/path' or 'METHOD /path'"),
+  tools: (entry) =>
+    RESERVED_TOOL_PREFIXES.some((prefix) => entry.startsWith(prefix)) ? "uses a prefix reserved for generated tools" : undefined,
+  tables: (entry, id) => {
+    const prefix = `p_${(id ?? "").replace(/-/g, "_")}__`;
+    return entry.startsWith(prefix) && entry.length > prefix.length ? undefined : `must be namespaced to this plugin ('${prefix}*')`;
+  },
+};
+
+/** One entry: the shared no-pattern rule, then its kind's own check. Plugins never claim a `*`
+ *  prefix — reserving a whole namespace is core's privilege (see `claim-conflicts.ts` rule 6); a
+ *  plugin doing it would squat every future name in it. */
+function validateContribution(key: string, entry: string, id: string | undefined): PluginValidationError | undefined {
+  // A route's leading `* ` is its METHOD ("every method"), not a name pattern.
+  const name = key === "routes" ? entry.replace(/^\* /, "") : entry;
+  const problem = name.includes("*") ? "must name one thing, not a '*' pattern" : CONTRIBUTION_CHECKS[key]?.(entry, id);
+  return problem === undefined ? undefined : contributesInvalid(`contributes.${key} entry '${entry}' ${problem}`);
+}
+
+/** `contributes` (2026-10-04): an object of known string lists — see `PluginManifest.contributes`. */
+function validateContributes(raw: Readonly<Record<string, unknown>>, id: string | undefined): PluginValidationError[] {
+  if (raw.contributes === undefined || raw.contributes === null) return [];
+  if (typeof raw.contributes !== "object" || Array.isArray(raw.contributes)) {
+    return [contributesInvalid("'contributes' must be an object of string lists")];
+  }
+  const errors: PluginValidationError[] = [];
+  for (const [key, list] of Object.entries(raw.contributes)) {
+    if (!CONTRIBUTION_KEY_SET.has(key)) {
+      errors.push(contributesInvalid(`unknown contributes key '${key}' (expected one of ${CONTRIBUTION_KEYS.join(", ")})`));
+      continue;
+    }
+    if (!Array.isArray(list) || list.some((entry) => typeof entry !== "string" || entry.trim() === "")) {
+      errors.push(contributesInvalid(`contributes.${key} must be a list of non-empty strings`));
+      continue;
+    }
+    for (const entry of list as string[]) {
+      const error = validateContribution(key, entry, id);
+      if (error) errors.push(error);
+    }
+  }
+  return errors;
+}
+
 /**
  * Validates one already-parsed manifest against BR-02 steps (2)-(6), collecting every applicable
  * error rather than stopping at the first (BR-02: "collect ALL statically-determinable errors").
@@ -445,6 +530,7 @@ export function validateManifest(
     ...validateCapabilities(raw),
     ...validateHooks(raw),
     ...validateFields(raw, id),
+    ...validateContributes(raw, id),
   ];
 
   return { errors };

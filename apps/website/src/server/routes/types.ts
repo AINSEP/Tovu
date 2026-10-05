@@ -139,6 +139,7 @@ import type { WidgetRegionBindingRepoPort, RemoveWidgetFn } from "../../features
 import type { EntryRefsRepoPort } from "../../contracts/core/entry-refs/ports.js";
 import type { PluginActivationRepoPort } from "../../features/plugin-runtime/activation.js";
 import type { PluginDiscoveryRecord } from "../../features/plugin-runtime/discovery.js";
+import type { PluginConflict } from "../../features/plugin-runtime/plugin-claims.js";
 import type { PluginPackageFiles } from "../../features/plugin-runtime/package-files.js";
 import type { RemovePluginFn } from "../../features/plugin-runtime/uninstall.js";
 import type { ExportEngine } from "../../features/deployments/index.js";
@@ -1392,6 +1393,10 @@ export interface PluginRuntimeDeps {
    * and agent-tool enable paths. Failures reject the enable operation. */
   onPluginEnabled: (pluginId: string) => Promise<void>;
   onPluginDisabled: (pluginId: string) => void;
+  /** 2026-10-04 — every discovered plugin with a name conflict (see `features/plugin-runtime/
+   * plugin-claims.ts`), for `PLUGINS_LIST`/`plugins_list`. Optional so hand-built test deps need not
+   * supply it; absent ⇒ every plugin is listed with `conflicts: []`. */
+  listPluginConflicts?: () => Promise<ReadonlyMap<string, readonly PluginConflict[]>>;
   removePlugin: RemovePluginFn;
   /** 2026-09-13 — pre-bound, read-only, bounded listing of one discovered plugin's own files
    * (`PLUGIN_FILES`). Path safety lives in the binding (`plugin-runtime.ts`) and

@@ -87,6 +87,8 @@ import {
 } from "./activation.js";
 import { pluginAgentToolCatalog } from "./agent-tools.js";
 import type { PluginDiscoveryRecord } from "./discovery.js";
+import { PluginConflictError, type PluginConflict } from "./plugin-claims.js";
+import { withModelFacingErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
 // `plugins_uninstall` — mirrors `routes/admin/plugins/uninstall.ts`'s own composition exactly (same
 // business-rule module, same deps shape). See `agent-tools.ts`'s header for why this is NOT wrapped
 // in `executeCommand`, matching that route's own deliberate choice. `uninstallPlugin`'s own thrown
@@ -180,6 +182,8 @@ export interface PluginsToolDeps {
   discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>;
   onPluginEnabled: (pluginId: string) => Promise<void>;
   onPluginDisabled: (pluginId: string) => void;
+  /** 2026-10-04 — see `routes/types.ts`'s `PluginRuntimeDeps.listPluginConflicts`. */
+  listPluginConflicts?: () => Promise<ReadonlyMap<string, readonly PluginConflict[]>>;
   removePlugin: RemovePluginFn;
   /** The external-MCP store slice `provisionAgentPluginMcpServers` writes into. Enabling an Agent
    *  Plugin from chat must provision its auto-admitted MCP servers exactly as the admin toggle does
@@ -721,6 +725,22 @@ async function applySiteRuntimeDecision(routeDeps: PluginsToolDeps, principalId:
   };
 }
 
+/**
+ * This domain's model-facing allowlist (`contracts/core/model-facing-tool-errors.ts`). Only the
+ * conflict refusal is listed (2026-10-04): its message names plugin ids/names and the manifest's own
+ * declared names — nothing internal — and it is the one refusal an agent can act on by itself
+ * ("turn the other plugin off first"). Without the rule it reached the model as a redacted
+ * INTERNAL_ERROR, indistinguishable from a crash. Every other error here keeps its existing
+ * classification, unchanged.
+ */
+const PLUGINS_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
+  {
+    error: PluginConflictError,
+    code: "PLUGINS_CONFLICT",
+    guidance: "Tell the user which plugin holds the name; disabling that plugin first is their call",
+  },
+];
+
 export function buildPluginsRegistrations(routeDeps: PluginsToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     plugins_list: async (ctx) => {
@@ -728,10 +748,11 @@ export function buildPluginsRegistrations(routeDeps: PluginsToolDeps, surfaces: 
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.plugins.read" });
 
       const discovery = await routeDeps.discoverPlugins();
+      const conflicts = (await routeDeps.listPluginConflicts?.()) ?? new Map<string, readonly PluginConflict[]>();
       const plugins = await Promise.all(
         discovery.map(async (record) => {
           const activation = await routeDeps.pluginActivationRepo.getActivation({ workspaceId: routeDeps.workspaceId, pluginId: record.id });
-          return toAdminPluginResponse(record, activation);
+          return toAdminPluginResponse(record, activation, { conflicts: conflicts.get(record.id) ?? [] });
         }),
       );
       const agentPlugins = await listAgentPluginsForResponse(routeDeps.workspaceId);
@@ -815,7 +836,7 @@ export function buildPluginsRegistrations(routeDeps: PluginsToolDeps, surfaces: 
     domain: "plugins",
     catalogModule: "features/plugin-runtime/agent-tools.ts",
     catalog: CATALOG_BY_ID,
-    handlers,
+    handlers: withModelFacingErrors({ handlers, rules: PLUGINS_MODEL_FACING_ERRORS }),
     derivedRisk: pluginsDerivedRisk,
   });
 }

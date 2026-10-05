@@ -9,6 +9,7 @@ import {
   type PluginActivationRecord,
 } from "#src/features/plugin-runtime/activation";
 import { PluginLoadError } from "#src/features/plugin-runtime/loader";
+import { PluginConflictError } from "#src/features/plugin-runtime/plugin-claims";
 import { PluginInstallError } from "#src/features/plugin-runtime/install";
 import { toAdminPluginResponse } from "#src/server/inbound/admin-http/http/plugins";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -66,6 +67,12 @@ function sendSetPluginEnabledError(res: Response, err: unknown): void {
   }
   if (err instanceof PluginInvalidError) {
     res.status(422).json({ error: err.message, code: "PLUGIN_INVALID" });
+    return;
+  }
+  // 2026-10-04: a name another plugin or core already holds — the operator's fix is to turn the
+  // other plugin off, so this is a 409 with the structured clash, never a 500.
+  if (err instanceof PluginConflictError) {
+    res.status(409).json({ error: err.message, code: "PLUGIN_CONFLICT", details: { pluginId: err.pluginId, conflicts: err.conflicts } });
     return;
   }
   if (err instanceof PluginLoadError) {

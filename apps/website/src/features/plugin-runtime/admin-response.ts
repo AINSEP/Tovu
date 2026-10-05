@@ -25,6 +25,7 @@
  */
 import type { PluginActivationRecord } from "./activation.js";
 import type { PluginDiscoveryRecord } from "./discovery.js";
+import type { PluginConflict } from "./plugin-claims.js";
 
 /** api.spec.md §5 `PLUGINS_LIST`/`PLUGIN_SET_ENABLED` per-plugin wire shape. */
 export interface AdminPluginEnvelope {
@@ -46,6 +47,10 @@ export interface AdminPluginEnvelope {
     readonly consecutiveFailures: number;
   };
   readonly errors: readonly { code: string; file: string | null; message: string }[];
+  /** (2026-10-04) Names this plugin claims that core or an earlier-enabled plugin already holds —
+   * for an enabled plugin, why it was refused; for one that is off, what turning it on would hit.
+   * Always present (empty when clear), so the admin row and `plugins_list` need no absent case. */
+  readonly conflicts: readonly PluginConflict[];
 }
 
 /**
@@ -55,10 +60,12 @@ export interface AdminPluginEnvelope {
  * @param discovery - One plugin's discovery-time record (source/status/errors).
  * @param activation - That plugin's persisted activation row, or `null` when it has never been
  * enabled (treated as disabled — `enabled: false`, not an error).
+ * @param optional.conflicts - This plugin's entry from `listPluginConflicts()`, if any.
  */
 export function toAdminPluginResponse(
   discovery: PluginDiscoveryRecord,
-  activation: PluginActivationRecord | null
+  activation: PluginActivationRecord | null,
+  optional: { readonly conflicts?: readonly PluginConflict[] } = {}
 ): AdminPluginEnvelope {
   return {
     id: discovery.id,
@@ -79,5 +86,6 @@ export function toAdminPluginResponse(
           }
         : null,
     errors: discovery.errors,
+    conflicts: optional.conflicts ?? [],
   };
 }

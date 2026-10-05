@@ -192,6 +192,7 @@ import { SqlitePluginActivationRepo } from "#src/features/plugin-runtime/repo.sq
 import { WORD_COUNT_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/word-count/index";
 import { forgetPluginActivations, type RemovePluginFn } from "#src/features/plugin-runtime/uninstall";
 import { composePluginRuntime } from "./plugin-runtime.js";
+import { TOVU_CORE_EXTENSION_CLAIMS } from "./core-extension-claims.js";
 import { isAdminAssistantEnabled } from "./admin-assistant-enabled.js";
 import { wireCoreResolvers } from "#src/features/widgets/resolvers/index";
 import { createMenuPageTargetResolver } from "#src/features/navigation/page-target-resolver";
@@ -994,6 +995,7 @@ async function composeSiteRouteDeps(
     // compiled-in built-in registry — a plugin placed on disk (REQ-02's install layout) was
     // invisible to every real boot of this composition root, no matter how it got there.
     installDir: pluginsInstallDir(),
+    coreClaims: TOVU_CORE_EXTENSION_CLAIMS,
     ...pluginFailureThresholdOverride(overrides),
   });
   // P0a fix (2026-09-23) — fire-and-forget at boot, mirrors `commentsReady`/`newsletterReady`: a
@@ -2241,6 +2243,7 @@ async function composeSiteRouteDeps(
     discoverPlugins: pluginRuntime.discoverPlugins,
     onPluginEnabled: pluginRuntime.onPluginEnabled,
     onPluginDisabled: pluginRuntime.onPluginDisabled,
+    listPluginConflicts: pluginRuntime.listPluginConflicts,
     removePlugin,
     readPluginPackageFiles: pluginRuntime.readPluginPackageFiles,
     pluginInstaller: pluginRuntime.pluginInstaller,

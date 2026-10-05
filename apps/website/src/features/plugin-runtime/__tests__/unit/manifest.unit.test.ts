@@ -309,3 +309,33 @@ test("REQ-01: integrity must map files to 'sha256-' + 64 lowercase hex; anything
   }
   assert.deepEqual(validateManifest(required(validManifest({ integrity: {} }))).errors, [], "a built-in has no packaged files to hash");
 });
+
+// --- `contributes` (2026-10-04, conflict detection — see `plugin-claims.ts`) ---
+
+test("contributes: a well-formed block is valid, and omitting it stays valid", () => {
+  const result = validateManifest(required(validManifest({
+    contributes: {
+      routes: ["GET /word-count/stats", "/word-count", "* /word-count/any"], tools: ["word_count_stats"], tables: ["p_word_count__totals"],
+      settings: ["word-count.mode"], widgets: ["word-count-badge"], permissions: ["word-count.manage"],
+    },
+  })));
+  assert.deepEqual(result.errors, []);
+  assert.deepEqual(validateManifest(required(validManifest())).errors, []);
+});
+
+test("contributes: every malformed entry is CONTRIBUTES_INVALID, collected, not first-failure", () => {
+  const result = validateManifest(required(validManifest({
+    contributes: {
+      routes: ["word-count"], tools: ["plugin_capability_other", "agent_plugin_x"], tables: ["p_other__items", "p_word_count__"],
+      settings: ["word-count.*"], widgets: [""], permissions: "word-count.manage",
+    } as unknown as PluginManifest["contributes"],
+  })));
+  assert.deepEqual(codesOf(result), Array(8).fill("CONTRIBUTES_INVALID"));
+  assert.ok(result.errors.some((error) => error.message.includes("'p_other__items' must be namespaced to this plugin ('p_word_count__*')")));
+  assert.ok(result.errors.some((error) => error.message.includes("'word-count.*' must name one thing")));
+});
+
+test("contributes: an unknown list name and a non-object block are refused", () => {
+  assert.deepEqual(codesOf(validateManifest(required(validManifest({ contributes: { hooks: ["x"] } as unknown as PluginManifest["contributes"] })))), ["CONTRIBUTES_INVALID"]);
+  assert.deepEqual(codesOf(validateManifest(required(validManifest({ contributes: ["routes"] as unknown as PluginManifest["contributes"] })))), ["CONTRIBUTES_INVALID"]);
+});

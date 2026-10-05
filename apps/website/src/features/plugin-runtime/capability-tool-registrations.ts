@@ -4,6 +4,7 @@ import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import type { PluginActivationRepoPort } from "./activation.js";
 import type { PluginDiscoveryRecord } from "./discovery.js";
 import type { PluginManifest, PluginManifestFieldDecl } from "./manifest.js";
+import { capabilityToolIdFor } from "./plugin-claims.js";
 // Disclosed cross-domain read, same shape `agent-tools.ts`'s header already accepts for this
 // package: `ext.{pluginId}.*` is written ONLY on a `posts` row (see `post.ts`'s own `ext` field
 // doc — "content.entry.beforeSave hook-merge step... immediately before the single
@@ -95,10 +96,9 @@ import { PostNotFoundError, type PostRecord, type PostRepoPort } from "../post/i
  * (not before) makes a registered-late tool invisible to `search_tools`.
  */
 
-/** `plugin_capability_<pluginId>` — see this file's header, "Tool id scheme". */
-function toCapabilityToolId(pluginId: string): string {
-  return `plugin_capability_${pluginId.replace(/-/g, "_")}`;
-}
+/** `plugin_capability_<pluginId>` — see this file's header, "Tool id scheme". The derivation lives in
+ *  `plugin-claims.ts` (2026-10-04) so the conflict detector claims exactly the id registered here. */
+const toCapabilityToolId = capabilityToolIdFor;
 
 /** The ONE definition of "this plugin's capability tool may exist / may run": this workspace's activation
  *  row says `enabled: true`. Absent, disabled, quarantined (saved `enabled: false`) and uninstalled (every

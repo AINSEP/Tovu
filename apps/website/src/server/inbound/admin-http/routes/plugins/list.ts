@@ -38,13 +38,15 @@ export const registerPluginsListRoute: PluginsRouteRegistrar = (app, deps) => {
         return;
 
       const discovery = await deps.discoverPlugins();
+      // 2026-10-04: each row carries its name conflicts (refused, or would be if turned on).
+      const conflicts = (await deps.listPluginConflicts?.()) ?? new Map();
       const plugins = await Promise.all(
         discovery.map(async (record) => {
           const activation = await deps.pluginActivationRepo.getActivation({
             workspaceId: deps.workspaceId,
             pluginId: record.id,
           });
-          return toAdminPluginResponse(record, activation);
+          return toAdminPluginResponse(record, activation, { conflicts: conflicts.get(record.id) ?? [] });
         })
       );
 
