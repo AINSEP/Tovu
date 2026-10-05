@@ -209,6 +209,14 @@ export interface IdentityDeps {
    * `identity/wiring.ts`'s `IdentityRouteDepsSlice.ownerPrincipalId` doc for the full rationale. */
   ownerPrincipalId: Promise<UUID>;
   /**
+   * Resolves once the opt-in boot password reset (`TOVU_ADMIN_RESET_PASSWORD`) has finished — or
+   * at once when it is not configured. Never rejects: a failed reset logs `[admin-password-reset]
+   * FAILED` and leaves the old password in place. Fire-and-forget like `identityReady`; no route
+   * gates on it. Optional: only the real SQLite composition (`server/runtime/composition/deps.ts`)
+   * wires it, so a boot test can await the reset before logging in with the new password.
+   */
+  adminPasswordResetReady?: Promise<void>;
+  /**
    * Bound closure over `identity.authorize()` + its repos (ADR-006/ADR-021 §2:
    * `authorize()` itself is ordinary core code, not a port — this field exists
    * so `core/commands` can call it without importing the `identity` library;

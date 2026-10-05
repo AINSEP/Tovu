@@ -921,6 +921,12 @@ async function composeSiteRouteDeps(
   const resolvedThemesDir = resolveThemesDirOverride(overrides);
   seedSiteThemes({ stockDir: builtInThemesDir(), siteThemesDir: resolvedThemesDir });
   const resolvedSiteBinding = resolveSiteBindingOverride(overrides);
+  // Resolved here, before the first fire-and-forget boot promise below: `resolveBlobStore` throws on
+  // an unknown TOVU_MEDIA_BLOB_STORE or an incomplete S3 config, and a throw after those promises
+  // start leaves them running against the store `createSiteRouteDeps` then closes — each one rejects
+  // unhandled ("The database connection is not open") on top of the operator's real config error.
+  const resolvedUploadsDir = overrides?.uploadsDir ?? mediaUploadsDir();
+  const blobStore = resolveBlobStore(resolvedUploadsDir);
 
   // The one content kernel (SQLite: over `content.db`, one per connection; Postgres: the site's
   // database), read by the prelude below and handed to boot modules as `deps.contentKernel`.
@@ -1006,9 +1012,9 @@ async function composeSiteRouteDeps(
     save: (record: Parameters<typeof identity.principalRepo.save>[0]) => identity.principalRepo.save(record),
   };
   // Fire-and-forget, mirroring `identityReady`/`blobHydrationReady` below — opt-in only (see the
-  // function's own doc), so this is a genuine no-op on every ordinary boot.
+  // function's own doc), so this is a genuine no-op on every ordinary boot. Exposed on the returned
+  // deps (like `blobHydrationReady`) so a boot test can await the reset; nothing gates on it.
   const adminPasswordResetReady = applyAdminPasswordResetFromEnvIfConfigured({ dbOps: storeBound.dbOps, workspaceId, identity, clock, idGen, overrides });
-  void adminPasswordResetReady;
   const presentationRepo = new SqlitePresentationSettingsRepo(kernel);
   const settingsRepo = new SqliteSettingsRepo(kernel);
   // Fire-and-forget, mirroring `identityReady` (see routes/types.ts's `settingsReady` doc) — this
@@ -1211,8 +1217,8 @@ async function composeSiteRouteDeps(
   // caller needs to gate on it — `hydrateBlobStoreFromSeed`'s own per-key gate makes every run after
   // the first an all-`skipped` no-op. It calls `blobStore.putIfAbsent()` — one atomic call per key
   // now, not a separate `exists()`/`put()` pair (see that file's header for the race that closes).
-  const resolvedUploadsDir = overrides?.uploadsDir ?? mediaUploadsDir();
-  const blobStore = resolveBlobStore(resolvedUploadsDir);
+  // `resolvedUploadsDir`/`blobStore` are resolved in the prelude above (a bad
+  // TOVU_MEDIA_BLOB_STORE config must throw before any fire-and-forget boot promise starts).
   const blobHydrationReady = hydrateBlobStoreFromSeed({
     seedUploadsDir: builtInSeedUploadsDir(),
     blobStore,
@@ -2113,6 +2119,9 @@ async function composeSiteRouteDeps(
     // Boot-time blob hydration readiness — see the `blobHydrationReady` construction above (hoisted
     // alongside `blobStore` itself) for why this is fired independently and exposed here.
     blobHydrationReady,
+    // The opt-in boot password reset's completion — see its construction above and
+    // `routes/types.ts`'s `adminPasswordResetReady` doc.
+    adminPasswordResetReady,
     // ADR-027 §4 transform registry + rendition generation: registry rows are now durable too
     // (ADR-046 Phase 1). The real running server gets `SharpImageTransformer` (unlike
     // `server/app.ts`'s hermetic-test composition, which uses the deterministic in-memory
