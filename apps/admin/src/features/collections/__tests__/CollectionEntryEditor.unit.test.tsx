@@ -83,6 +83,22 @@ describe("new entry — title and slug fields", () => {
     const slugInput = await screen.findByLabelText("Entry slug");
     expect(slugInput).toHaveAttribute("placeholder", "entry-slug");
   });
+
+  it("names the rich-text body, and leaves no form control without an accessible name", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ items: [ARTICLE_TYPE] }));
+
+    render(
+      <FetchQueryProvider>
+        <CollectionEntryEditor contentTypeKey="articles" entryId={null} />
+      </FetchQueryProvider>
+    );
+
+    expect(await screen.findByRole("textbox", { name: "Content" })).toHaveClass("ProseMirror");
+    const controls = document.body.querySelectorAll<HTMLElement>(
+      "input:not([type=hidden]), select, textarea, button, [contenteditable=true]",
+    );
+    for (const control of controls) expect(control, control.outerHTML.slice(0, 160)).toHaveAccessibleName();
+  });
 });
 
 describe("injected hook seam (useCollectionEntryEditorHook)", () => {

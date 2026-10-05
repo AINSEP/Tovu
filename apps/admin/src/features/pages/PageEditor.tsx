@@ -595,9 +595,6 @@ function PageEditorToolbarEnd({
       ) : null}
       {bodyFormat === "html" ? (
         <div className="editor-template-picker">
-          <label className="a11y-label-wrap">
-            <span className="visually-hidden">{t("Template")}</span>
-          </label>
           <ViewTemplateButton
             disabled={!templateChoice}
             onClick={onViewTemplateClick}
@@ -607,6 +604,7 @@ function PageEditorToolbarEnd({
           {availableTemplates.length > 0 ? (
             <select
               value={pickerValue}
+              aria-label={t("Template")}
               // `pickerValueToChoice`, not the raw `e.target.value` — translates the synthetic
               // `THEME_DEFAULT_SENTINEL` option back to `null`; every other value (a real filename, or
               // the bare `""`) already IS the `templateChoice` to store, see that function's own doc.
@@ -629,6 +627,7 @@ function PageEditorToolbarEnd({
             <select
               disabled
               value=""
+              aria-label={t("Template")}
               {...agentHandle({ handle: "page-template-choice" }, {
                 role: "field",
                 label: "The active theme declares no page templates, so there is nothing to choose here.",

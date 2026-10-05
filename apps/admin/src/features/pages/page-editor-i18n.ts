@@ -46,7 +46,7 @@ const pageEditorMarkupTranslations: Record<string, Record<string, string>> = {
 // key — untouched, this set only routes Page-editor copy.
 const postEditorKeys = new Set([
   "Back", "Pages", "Content", "Edit page", "Draft", "Published", "Publish", "Restore", "Discard",
-  "Save anyway", "Keep editing", "Template", "No templates for this theme",
+  "Save anyway", "Keep editing", "Template", "View Template", "No templates for this theme",
   "Loading editor…", "URL slug", "view ↗", "Move to trash?", "Move to trash",
   "to trash? It will disappear from the site and from this list.", "Exit full screen (Esc)",
   "Show full screen", "Exit full screen",

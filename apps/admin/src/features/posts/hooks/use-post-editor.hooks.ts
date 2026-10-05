@@ -724,6 +724,11 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
     ],
     content: "",
     editorProps: {
+      // Names the ProseMirror `contenteditable`, which had none; `t` is read once at creation, same
+      // as the Placeholder copy above. `role` is restated because TipTap adds its default
+      // `role="textbox"` only at view creation — a later `setOptions` re-applies these attributes
+      // as-is, so omitting it here drops the role.
+      attributes: { role: "textbox", "aria-label": t("Content") },
       handleDrop: (view, event, _slice, moved) => handleImageDrop(view, event, moved),
     },
     // The title-node half of the title's two-way sync with the standalone title `<input>` (see

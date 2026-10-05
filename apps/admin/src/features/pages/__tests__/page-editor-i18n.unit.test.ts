@@ -101,6 +101,17 @@ describe("PAGE_EDITOR_DICT: cross-locale key parity", () => {
   });
 });
 
+/**
+ * `toBeTruthy` above also passes on the raw English key (`posts-i18n.ts` backfills a missing locale
+ * entry with the key itself), which is how "Template" — the template select's accessible name —
+ * shipped English-only in 20 locales. These template-picker keys must resolve to real copy.
+ */
+describe("template picker copy", () => {
+  it.each(["Template", "View Template", "No templates for this theme"])("translates %j in every locale, not left in English", (key) => {
+    for (const locale of Object.keys(PAGE_EDITOR_DICT)) expect(t(locale, key), locale).not.toBe(key);
+  });
+});
+
 describe("PAGE_EXTERNAL_CHANGE_MESSAGE", () => {
   it("is translated in every locale, not left in English", () => {
     for (const locale of Object.keys(PAGE_EDITOR_DICT)) {

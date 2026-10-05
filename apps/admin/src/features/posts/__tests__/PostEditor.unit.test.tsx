@@ -1511,6 +1511,46 @@ describe("Header — back-link confirmLeave guard and status select", () => {
   });
 });
 
+/**
+ * The template picker's `<label>` used to wrap only its own visually-hidden text, never the
+ * `<select>`, so screen readers announced an unnamed combobox (same gap 1639f7a10 closed for the
+ * status select). Both branches — real templates and the disabled "no templates" control — are
+ * pinned, plus a whole-screen sweep so the next unnamed control fails here too.
+ */
+describe("Accessible names", () => {
+  const spanish = (key: string) => ({ Template: "Plantilla" })[key] ?? key;
+
+  it("names the template select when the theme declares templates", () => {
+    renderPostEditor({ availableTemplates: ["post.html"], templateChoice: "post.html", t: spanish });
+
+    expect(screen.getByRole("combobox", { name: "Plantilla" })).toHaveAttribute("data-agent-element", "post-template-choice");
+  });
+
+  it("names the disabled template select when the theme declares none", () => {
+    renderPostEditor({ availableTemplates: [], t: spanish });
+
+    expect(screen.getByRole("combobox", { name: "Plantilla" })).toBeDisabled();
+  });
+
+  it("names the rich-text body", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST }));
+    await renderRealPostEditor();
+
+    expect(screen.getByRole("textbox", { name: "Content" })).toHaveClass("ProseMirror");
+  });
+
+  it("leaves no form control on the real edit screen without an accessible name", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST }));
+    await renderRealPostEditor();
+
+    const controls = document.body.querySelectorAll<HTMLElement>(
+      "input:not([type=hidden]), select, textarea, button, [contenteditable=true]",
+    );
+    expect(controls.length).toBeGreaterThan(0);
+    for (const control of controls) expect(control, control.outerHTML.slice(0, 160)).toHaveAccessibleName();
+  });
+});
+
 describe("Title and slug fields — typing calls setTitle/setSlug", () => {
   it("typing in the title field calls setTitle with the field's new value", async () => {
     const user = userEvent.setup();

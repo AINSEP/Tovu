@@ -1030,10 +1030,10 @@ function PostEditorToolbarEnd({
  *
  * Post-template-picker feature (2026-08-10) — rendered whenever this is a Post/formulaic-body record
  * (`bodyFormat: "doc"`), not an `"html"`-format Page — a Page's body IS its own design already (see
- * `resolveHtmlEmbedsForRender`'s own doc), so it has nothing to pick between. Untranslated (`t()`
- * falls back to the raw key, same graceful-degrade every other string on this screen already relies
- * on) — this repo's i18n dictionaries cover 19 locales and adding this feature's strings to all of
- * them is out of scope for this pass; disclosed rather than silently skipped.
+ * `resolveHtmlEmbedsForRender`'s own doc), so it has nothing to pick between. Its copy shipped
+ * Spanish-only at first; every locale in `posts-i18n.ts` carries it since 2026-10-04, when the
+ * select also gained `aria-label` (its old `<label>` wrapped only its own hidden text, never the
+ * `<select>`, so the control had no accessible name).
  *
  * Options list real templates FIRST, "No template chosen" LAST (owner's own ordering request) —
  * matches `theme.json`'s own `postTemplate` doc ("ordered to nudge the right choice"): opting OUT is
@@ -1068,9 +1068,6 @@ function PostEditorTemplatePicker({
   if ((bodyFormat ?? "doc") !== "doc") return null;
   return (
     <div className="editor-template-picker">
-      <label className="a11y-label-wrap">
-        <span className="visually-hidden">{t("Template")}</span>
-      </label>
       {availableTemplates.length > 0 ? (
         <>
           {/* Read-only inspection, not editing (`TemplateSourceModal.tsx`'s own file header —
@@ -1089,6 +1086,7 @@ function PostEditorTemplatePicker({
           />
           <select
             value={templateChoice ?? ""}
+            aria-label={t("Template")}
             // `e.target.value`, NOT `|| null` — "No template chosen" must persist as `""`
             // (explicitly opted out), which `resolveTemplate` treats differently from `null`
             // (never chosen → falls back to the first template). Coercing to `null` here is what
@@ -1114,6 +1112,7 @@ function PostEditorTemplatePicker({
         <select
           disabled
           value=""
+          aria-label={t("Template")}
           {...agentHandle({ handle: "post-template-choice" }, {
             role: "field",
             label: "The active theme declares no post templates, so there is nothing to choose here.",

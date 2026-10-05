@@ -537,6 +537,35 @@ describe("status, publish, save", () => {
   });
 });
 
+/**
+ * The template picker's `<label>` used to wrap only its own visually-hidden text, never the
+ * `<select>`, so screen readers announced an unnamed combobox (same gap 1639f7a10 closed for the
+ * status select). Both branches are pinned, plus a sweep of every view so the next unnamed control
+ * fails here too.
+ */
+describe("Accessible names", () => {
+  const spanish = (key: string) => ({ Template: "Plantilla" })[key] ?? key;
+
+  it("names the template select when the theme declares templates", () => {
+    renderEditor({ availableTemplates: ["pages-sidebar.html"], templateChoice: "pages-sidebar.html", t: spanish });
+    expect(screen.getByRole("combobox", { name: "Plantilla" })).toHaveAttribute("data-agent-element", "page-template-choice");
+  });
+
+  it("names the disabled template select when the theme declares none", () => {
+    renderEditor({ availableTemplates: [], t: spanish });
+    expect(screen.getByRole("combobox", { name: "Plantilla" })).toBeDisabled();
+  });
+
+  it.each(["preview", "html", "interactive"] as const)("leaves no form control in the %s view without an accessible name", (view) => {
+    renderEditor({ view, availableTemplates: ["pages-sidebar.html"], templateChoice: "" });
+    const controls = document.body.querySelectorAll<HTMLElement>(
+      "input:not([type=hidden]), select, textarea, button, [contenteditable=true]",
+    );
+    expect(controls.length).toBeGreaterThan(0);
+    for (const control of controls) expect(control, control.outerHTML.slice(0, 160)).toHaveAccessibleName();
+  });
+});
+
 describe("delete confirmation", () => {
   it("opens the ConfirmDialog on Delete, without touching window.confirm", async () => {
     const user = userEvent.setup();

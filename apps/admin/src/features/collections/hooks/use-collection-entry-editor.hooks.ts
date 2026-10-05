@@ -145,7 +145,13 @@ export function useCollectionEntryEditor(
     });
   }, []);
 
-  const editor = useEditor({ extensions: [StarterKit, WidgetEmbed], content: "" });
+  // Names the ProseMirror `contenteditable`, which had none. `role` is restated for the reason
+  // `use-post-editor.hooks.ts`'s own `editorProps.attributes` gives.
+  const editor = useEditor({
+    extensions: [StarterKit, WidgetEmbed],
+    content: "",
+    editorProps: { attributes: { role: "textbox", "aria-label": t("Content") } },
+  });
 
   const list = useFetchQuery({
     key: KEYS.entry(props.contentTypeKey, props.entryId),

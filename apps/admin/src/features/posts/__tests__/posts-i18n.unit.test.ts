@@ -53,6 +53,20 @@ describe("POSTS_DICT: cross-locale key parity", () => {
 });
 
 /**
+ * The parity check above cannot see a locale left in English: `posts-i18n.ts` backfills any key
+ * missing from a locale with the English key itself. That is how "Template" — the template select's
+ * accessible name — shipped translated only in Spanish. The template picker's copy must be real.
+ */
+describe("POSTS_DICT: template picker copy", () => {
+  it.each(["Template", "View Template", "No template chosen", "No templates for this theme"])(
+    "translates %j in every locale, not left in English",
+    (key) => {
+      for (const locale of Object.keys(POSTS_DICT)) expect(t(locale, key), locale).not.toBe(key);
+    },
+  );
+});
+
+/**
  * Regression for basic words (Cancel, Delete permanently, …) rendering English in every locale
  * (S-I18N fallback fix). `POSTS_DICT.de` carries neither "Cancel" nor "Delete permanently" — both
  * are `COMMON_I18N` keys in all 21 locales, so `t` must fall through to `COMMON_I18N` instead of
