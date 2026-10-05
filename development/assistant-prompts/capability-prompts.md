@@ -141,7 +141,7 @@ propose newsletter work.
 | T-03 | Make the header background dark navy. | `theme_list_files` → `theme_read_file` → `theme_edit_file` | Local public header is navy. Theme still validates | LOCAL | OK |
 | T-04 | Undo my CSS change, put the file back the way it shipped. | `theme_reset_file` | File back to original. Header color back | LOCAL | OK |
 | T-05 | Make a new theme based on tovu-theme called "roastery". | `theme_copy_file`/`theme_write_file` → `theme_rescan` | "roastery" shows in Themes and can be turned on | LOCAL | ? |
-| T-06 | Install the "X" theme from the theme catalog. | **NONE** (admin Theme Explore installs; the home page says "browse, preview, install and activate are real today") | Theme installed and listed | LOCAL | GAP |
+| T-06 | Install the "X" theme from the theme catalog. | **NONE**. No catalog exists: the theme marketplace and its `theme_install_from_marketplace` tool were deleted 2026-10-04 (owner). Make a theme with T-05 instead | Theme installed and listed | LOCAL | N/A (no catalog) |
 | T-07 | Switch the admin to Spanish. Then back to English. | `settings_list_ui_locales` → `settings_set_ui_preference` | Admin text is Spanish, then English | LOCAL | OK |
 
 ## 8. Publish to the live site
@@ -202,8 +202,8 @@ owner's OK. Leave out the 4 test pages/forms (owner decision 2026-10-04).
 | X-04 | Uninstall the X plugin. | `plugins_uninstall` | Gone from the list | LOCAL | OK |
 | X-05 | Connect my Higgsfield account. | `agent_plugin_connect` (`agent_plugin_set_access_token` fallback) | Plugin shows connected. Its MCP tools are admitted after a daemon restart | LOCAL (OAuth with vendor) | ? |
 | X-06 | Remember for the GitHub plugin that my backup repo is `<owner>/<repo>`. | `agent_plugin_write_note` (confirm) | Note shows in the plugin's memory panel | LOCAL | OK |
-| X-07 | Install the plugin in this folder / zip. | **NONE** (admin Install Plugin dialog; todos "Plugin install" plan) | Plugin listed | LOCAL | GAP |
-| X-08 | Install the "X" skill. | **NONE** (admin Skills screen) | Skill listed | LOCAL | GAP |
+| X-07 | Install the plugin in this folder / zip (absolute path). | `plugins_install` (confirm card; needs `TOVU_PLUGIN_LOCAL_INSTALL=1`, like the admin dialog) | Plugin listed, off | LOCAL | ? |
+| X-08 | Install the skill at `https://github.com/<owner>/<repo>`. | `skills_install` (confirm card; GitHub URL only) | Skill listed, on | LOCAL (GitHub fetch) | ? |
 
 ## 12. SEO and redirects
 
@@ -375,12 +375,12 @@ K-02, then K-04 (unknown). LOCAL. Status: ?.
 5. F-06: can't delete a form from chat (`trash_item` lacks `form`).
 6. F-07: can't trash a submission. The tool description says `form_submission` works, the schema refuses it.
 7. N-05: can't delete a menu (`trash_item` lacks `menu`).
-8. T-06: can't install a theme from the catalog.
+8. T-06: no theme catalog to install from (deleted 2026-10-04, owner).
 9. L-10: plugins/skills/agent-plugin files don't publish live (theme files only).
 10. B-06: no restore from a GitHub backup.
 11. D-10: no full-site deploy (Fly) trigger.
-12. X-07: can't install a plugin.
-13. X-08: can't install a skill.
+12. X-07: DONE 2026-10-05 (`plugins_install`).
+13. X-08: DONE 2026-10-05 (`skills_install`, GitHub URL).
 14. U-06: user delete can't be reached (`trash_item` lacks `user`, but `identity_user_delete` needs it trashed).
 15. U-07: no user password reset (may be on purpose).
 16. U-09: no member create/invite.
@@ -634,6 +634,7 @@ packages are shown by their source path. `publish_content_publish` is uncommitte
 | `pages_write_html` | W | `apps/website/src/features/pages/agent-tools.ts:140` |
 | `pages_write_region` | W | `apps/website/src/features/pages/agent-tools.ts:177` |
 | `plugins_set_enabled` | W | `apps/website/src/features/plugin-runtime/agent-tools.ts:210` |
+| `plugins_install` | W | `apps/website/src/features/plugin-runtime/install-tool.ts` |
 | `plugins_uninstall` | W | `apps/website/src/features/plugin-runtime/agent-tools.ts:226` |
 | `publish_backstop_gaps` | R | `apps/website/src/features/publish-content/agent-tools.ts:42` |
 | `publish_content_connect` | W | `apps/website/src/features/publish-content/agent-tools.ts:43` |
@@ -669,6 +670,7 @@ packages are shown by their source path. `publish_content_publish` is uncommitte
 | `site_get_profile` | R | `apps/website/src/features/site-inspection/tool-registrations.ts:134` |
 | `sites_duplicate_site` | W | `apps/website/src/features/sites/tool-registrations.ts:157` |
 | `sites_list` | R | `apps/website/src/features/sites/list-tool.ts:11` |
+| `skills_install` | W | `apps/website/src/features/skills/install-tool.ts` |
 | `source_control_delete_credential` | W | `apps/website/src/features/permanent-delete/agent-tools.ts:14` |
 | `source_control_execute_commit` | W | `apps/website/src/features/source-control/tool-registrations.ts:185` |
 | `source_control_get_capabilities` | R | `apps/website/src/features/source-control/tool-registrations.ts:177` |
