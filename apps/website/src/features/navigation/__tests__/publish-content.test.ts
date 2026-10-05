@@ -311,10 +311,11 @@ function makeRepointDeps(input: {
 }
 
 /**
- * A `MenuRepoPort` wrapper whose `findById` hands back a version one higher on every call after the
- * first — simulating a concurrent edit landing between `repointOneMenu`'s own read (to compute
- * `expectedVersion`) and `updateMenuTree`'s internal re-read inside `execute()`. Used only by the
- * "changed during publish" test below; every other method delegates unchanged.
+ * A `MenuRepoPort` wrapper whose `findById` lands a concurrent edit (the stored version one higher)
+ * before every call after the first — simulating a concurrent edit landing between
+ * `repointOneMenu`'s own read (to compute `expectedVersion`) and `updateMenuTree`'s save inside
+ * `execute()`, which the save's compare-and-set then refuses. Used only by the "changed during
+ * publish" test below; every other method delegates unchanged.
  */
 class VersionRacingMenuRepo implements MenuRepoPort {
   private readonly inner: MenuRepoPort;
@@ -328,7 +329,10 @@ class VersionRacingMenuRepo implements MenuRepoPort {
     const row = await this.inner.findById(required);
     if (!row) return row;
     this.calls += 1;
-    return { ...row, version: row.version + (this.calls - 1) };
+    if (this.calls === 1) return row;
+    const edited = { ...row, version: row.version + 1 };
+    await this.inner.save(edited);
+    return edited;
   }
 
   findBySlug(required: { workspaceId: string; slug: string }) {
@@ -339,8 +343,8 @@ class VersionRacingMenuRepo implements MenuRepoPort {
     return this.inner.list(required);
   }
 
-  save(record: NavMenuEntry) {
-    return this.inner.save(record);
+  save(record: NavMenuEntry, options?: { expectedVersion?: number | undefined }) {
+    return this.inner.save(record, options);
   }
 
   remove(required: { workspaceId: string; id: string }) {

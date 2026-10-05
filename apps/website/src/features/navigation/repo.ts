@@ -1,4 +1,4 @@
-import type { Selectable } from "kysely";
+import type { Insertable, Selectable } from "kysely";
 
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import type { MenusTable, NavLocationBindingsTable } from "../../platform/db/content-database.generated.js";
@@ -126,12 +126,18 @@ export class SqlMenuRepo implements MenuRepoPort {
   /**
    * Upserts a `menus` row by id. A trashed row is left as it is — the upsert's UPDATE branch is
    * scoped to live rows only, so a stale save cannot revive one.
+   *
+   * With `expectedVersion` the save is a compare-and-set instead (wm S4): one conditional UPDATE on
+   * the live row holding that version, so two writers that read the same version cannot both land
+   * (a Postgres writer blocked on the row lock re-checks the WHERE against the winner's row).
    * @throws MenuConflictError when a trashed row holds the slug: `findBySlug` above hides it, so the
    *         app-level slug check could not see it before the INSERT hit the real unique index (the
    *         only unique index left once the id conflict is absorbed by the upsert).
+   * @throws MenuConflictError ``menu '<id>' was modified concurrently (expected version <n>, found <stored|none>)``
+   *         when the compare-and-set misses (stale version, trashed or missing row).
    * @complexity O(1).
    */
-  async save(record: NavMenuEntry): Promise<void> {
+  async save(record: NavMenuEntry, options: { expectedVersion?: number | undefined } = {}): Promise<void> {
     const values = {
       workspace_id: record.workspaceId,
       slug: record.slug,
@@ -143,6 +149,10 @@ export class SqlMenuRepo implements MenuRepoPort {
       version: record.version,
     };
     try {
+      if (options.expectedVersion !== undefined) {
+        await this.compareAndSet(record, values, options.expectedVersion);
+        return;
+      }
       await this.kernel.run((db) =>
         db
           .insertInto("menus")
@@ -156,6 +166,23 @@ export class SqlMenuRepo implements MenuRepoPort {
       }
       throw error;
     }
+  }
+
+  /** The conditional UPDATE behind `save`'s `expectedVersion`; on a miss, re-reads the live version for the message. */
+  private async compareAndSet(record: NavMenuEntry, values: Omit<Insertable<MenusTable>, "id">, expectedVersion: number): Promise<void> {
+    const result = await this.kernel.run((db) =>
+      db
+        .updateTable("menus")
+        .set(values)
+        .where("workspace_id", "=", record.workspaceId)
+        .where("id", "=", record.id)
+        .where("status", "!=", TRASH)
+        .where("version", "=", expectedVersion)
+        .executeTakeFirst()
+    );
+    if (Number(result.numUpdatedRows) > 0) return;
+    const found = (await this.findById({ workspaceId: record.workspaceId, id: record.id }))?.version ?? "none";
+    throw new MenuConflictError({ message: `menu '${record.id}' was modified concurrently (expected version ${expectedVersion}, found ${found})` });
   }
 
   async remove(required: { workspaceId: string; id: string }): Promise<void> {
