@@ -190,6 +190,7 @@ import { adoptLegacyTrashedWidgets, restoreWidgetPriorStatus } from "#src/featur
 import { SqliteEntryRefsRepo } from "#src/platform/db/sqlite/entry-refs-repo.sqlite";
 import { SqlitePluginActivationRepo } from "#src/features/plugin-runtime/repo.sqlite";
 import { WORD_COUNT_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/word-count/index";
+import { CONTENT_ANALYZER_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/content-analyzer/index";
 import { createDeclaredContentTypePorts, deferDeclaredContentTypePorts } from "#src/features/plugin-runtime/declarative-enable";
 import { forgetPluginActivations, type RemovePluginFn } from "#src/features/plugin-runtime/uninstall";
 import { composePluginRuntime } from "./plugin-runtime.js";
@@ -1013,7 +1014,9 @@ async function composeSiteRouteDeps(
     workspaceId,
     clock,
     activationRepo: pluginActivationRepo,
-    sources: [WORD_COUNT_RUNTIME_SOURCE],
+    // content-analyzer (AW-7 Tier 2) is tier-2: compiled in, disabled until enabled, and its code
+    // only ever runs in a fresh worker per call (`plugin-runtime.ts`'s tier-2 import seam).
+    sources: [WORD_COUNT_RUNTIME_SOURCE, CONTENT_ANALYZER_RUNTIME_SOURCE],
     // Reachability fix: previously omitted entirely, so `discoverPlugins()` only ever scanned the
     // compiled-in built-in registry — a plugin placed on disk (REQ-02's install layout) was
     // invisible to every real boot of this composition root, no matter how it got there.
@@ -2271,6 +2274,7 @@ async function composeSiteRouteDeps(
     listPluginConflicts: pluginRuntime.listPluginConflicts,
     removePlugin,
     readPluginPackageFiles: pluginRuntime.readPluginPackageFiles,
+    previewPluginBeforeSave: pluginRuntime.previewPluginBeforeSave,
     pluginInstaller: pluginRuntime.pluginInstaller,
     pluginBeforeSaveHook: pluginRuntime.beforeSaveHook,
     pluginRuntimeReady,

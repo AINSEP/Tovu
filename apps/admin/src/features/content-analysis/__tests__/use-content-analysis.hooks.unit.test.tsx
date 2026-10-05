@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError } from "@/lib/api";
+import { ApiError, WORKSPACE_ID } from "@/lib/api";
 import { FetchQueryProvider } from "@/lib/fetch-query";
 import { createFakeContentAnalysisPort } from "../hooks/content-analysis-dependencies.hooks";
 import { useContentAnalysis, useWiredContentAnalysis, type ContentAnalysisTarget } from "../hooks/use-content-analysis.hooks";
@@ -175,7 +175,7 @@ describe("useWiredContentAnalysis (real routes, stubbed fetch)", () => {
     return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
   }
 
-  it("reads the plugin list and POSTs the draft to /plugins/content-analyzer/preview", async () => {
+  it("reads the plugin list and POSTs the draft to the workspace-scoped /plugins/content-analyzer/preview route", async () => {
     const requests: Array<{ url: string; method: string; body: unknown }> = [];
     vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
@@ -196,7 +196,7 @@ describe("useWiredContentAnalysis (real routes, stubbed fetch)", () => {
     expect(result.current.view.report?.stats[0]?.value).toBe("55");
     const preview = requests.find((request) => request.url.endsWith("/preview"));
     expect(preview).toEqual({
-      url: "/api/admin/v1/plugins/content-analyzer/preview",
+      url: `/api/admin/v1/workspaces/${WORKSPACE_ID}/plugins/content-analyzer/preview`,
       method: "POST",
       body: { postId: "p1", title: "Draft title", bodyJson: DOC },
     });

@@ -1,4 +1,4 @@
-import { authenticatedAdminRequest } from "@/lib/api";
+import { authenticatedAdminRequest, WORKSPACE_ID } from "@/lib/api";
 import { defaultPluginsPort } from "../../plugins/hooks/plugins-dependencies.hooks";
 import { CONTENT_ANALYZER_PLUGIN_ID, type PluginPreviewRequest } from "../rules";
 import type { ContentAnalysisPort, PluginPreviewResponse } from "./content-analysis-port.hooks";
@@ -12,7 +12,8 @@ import type { ContentAnalysisPort, PluginPreviewResponse } from "./content-analy
 export const defaultContentAnalysisPort: ContentAnalysisPort = {
   listPlugins: () => defaultPluginsPort.listPlugins(),
   previewPlugin: ({ pluginId }, body) =>
-    authenticatedAdminRequest({ path: `/plugins/${encodeURIComponent(pluginId)}/preview`, method: "POST", body }),
+    // Workspace-scoped like every plugins route (`routes/plugins/preview.ts`, PLUGIN_PREVIEW).
+    authenticatedAdminRequest({ path: `/workspaces/${WORKSPACE_ID}/plugins/${encodeURIComponent(pluginId)}/preview`, method: "POST", body }),
 };
 
 /** Seed state for {@link createFakeContentAnalysisPort}. */

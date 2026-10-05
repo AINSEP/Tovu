@@ -193,6 +193,7 @@ import { InMemoryWidgetRegionBindingRepo } from "#src/features/widgets/repo.memo
 import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
 import { InMemoryPluginActivationRepo } from "#src/features/plugin-runtime/repo.memory";
 import { WORD_COUNT_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/word-count/index";
+import { CONTENT_ANALYZER_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/content-analyzer/index";
 import { createDeclaredContentTypePorts, deferDeclaredContentTypePorts } from "#src/features/plugin-runtime/declarative-enable";
 import { forgetPluginActivations, type RemovePluginFn } from "#src/features/plugin-runtime/uninstall";
 import { createApplyConnectDefaults } from "#src/features/agent-plugins/apply-connect-defaults";
@@ -383,7 +384,9 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     workspaceId: seededWorkspace.id,
     clock,
     activationRepo: pluginActivationRepo,
-    sources: [WORD_COUNT_RUNTIME_SOURCE],
+    // content-analyzer (AW-7 Tier 2) is tier-2: compiled in, disabled until enabled, and its code
+    // only ever runs in a fresh worker per call (`plugin-runtime.ts`'s tier-2 import seam).
+    sources: [WORD_COUNT_RUNTIME_SOURCE, CONTENT_ANALYZER_RUNTIME_SOURCE],
     coreClaims: TOVU_CORE_EXTENSION_CLAIMS,
     // AW-7 Tier 1: plugins' declared content types go through core's own `registerContentType`.
     // Deferred: `contentTypeRepo`/`outbox` are declared further down, and enable never runs during
@@ -1358,6 +1361,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     listPluginConflicts: pluginRuntime.listPluginConflicts,
     removePlugin,
     readPluginPackageFiles: pluginRuntime.readPluginPackageFiles,
+    previewPluginBeforeSave: pluginRuntime.previewPluginBeforeSave,
     pluginInstaller: pluginRuntime.pluginInstaller,
     pluginBeforeSaveHook: pluginRuntime.beforeSaveHook,
     // In-memory activationRepo starts empty every test run, so there is nothing to re-attach —

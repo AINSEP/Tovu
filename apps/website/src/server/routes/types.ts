@@ -139,6 +139,7 @@ import type { WidgetRegionBindingRepoPort, RemoveWidgetFn } from "../../features
 import type { EntryRefsRepoPort } from "../../contracts/core/entry-refs/ports.js";
 import type { PluginActivationRepoPort } from "../../features/plugin-runtime/activation.js";
 import type { PluginDiscoveryRecord } from "../../features/plugin-runtime/discovery.js";
+import type { HookRegistry } from "../../features/plugin-runtime/hook-registry.js";
 import type { PluginConflict } from "../../features/plugin-runtime/plugin-claims.js";
 import type { PluginPackageFiles } from "../../features/plugin-runtime/package-files.js";
 import type { RemovePluginFn } from "../../features/plugin-runtime/uninstall.js";
@@ -1402,6 +1403,11 @@ export interface PluginRuntimeDeps {
    * (`PLUGIN_FILES`). Path safety lives in the binding (`plugin-runtime.ts`) and
    * `features/plugin-runtime/package-files.ts`; the route only authorizes and resolves the record. */
   readPluginPackageFiles: (record: PluginDiscoveryRecord) => Promise<PluginPackageFiles>;
+  /** AW-7 Tier 2 (2026-10-04) — the same process-lifetime hook registry's preview: ONE attached
+   * plugin's beforeSave patch for a draft, nothing saved or counted toward quarantine; `null` ⇒ not
+   * attached in this process. Read by `PLUGIN_PREVIEW` (`routes/plugins/preview.ts`) and, in the
+   * agent daemon, by tier-2 capability tools for a fresh result (`capability-tool-registrations.ts`). */
+  previewPluginBeforeSave: HookRegistry["previewBeforeSave"];
   /** The same process-lifetime hook registry's content-facing port. */
   pluginBeforeSaveHook: BeforeSaveHookPort;
   /** Fire-and-forget at boot (mirrors `commentsReady`) — resolves once every plugin durably marked
