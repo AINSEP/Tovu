@@ -292,7 +292,7 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired): Pl
     // Declared contributions (AW-7 Tier 1) are applied only now, after the conflict gate; a tier-1
     // plugin's `loadCode` is never called.
     await enableDeclaredPlugin(
-      { pluginId, workspaceId: required.workspaceId, manifest: record.manifest, loadCode: () => attachPlugin(pluginId, record) },
+      { pluginId, workspaceId: required.workspaceId, manifest: record.manifest, loadCode: () => attachPlugin(pluginId, record), unloadCode: () => hookRegistry.detach(pluginId) },
       required.declaredContentTypes ? { contentTypes: required.declaredContentTypes } : {},
     );
   }

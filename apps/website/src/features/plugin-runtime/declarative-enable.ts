@@ -10,7 +10,10 @@
  *
  * Order for a code plugin with content types: plan (read-only) → load code → create types. A
  * conflict refuses the enable before the plugin's code is imported, and a failed load leaves no
- * types behind.
+ * types behind. A type that still fails to create (everything core would refuse is already refused
+ * at discovery, so this is an infrastructure failure) unloads the code again, so a refused enable
+ * never leaves a hook running. Types created before that failure stay: retain-by-default, and
+ * tombstoning them would burn their keys for good (content-types INV-06); a later enable keeps them.
  */
 import {
   NoopContentTypeIndexProvisioner,
@@ -32,6 +35,8 @@ export interface EnableDeclaredPluginRequired {
   readonly manifest: PluginManifest;
   /** Loads and attaches the plugin's code (the runtime's own load path). Never called for tier-1. */
   readonly loadCode: () => Promise<void>;
+  /** Detaches what `loadCode` attached — called only when a content type fails to create after it. */
+  readonly unloadCode: () => void;
 }
 
 export interface EnableDeclaredPluginOptional {
@@ -62,7 +67,12 @@ export async function enableDeclaredPlugin(required: EnableDeclaredPluginRequire
     throw new PluginInvalidError(`plugin '${pluginId}' cannot be turned on: ${plan.conflicts.join("; ")}`);
   }
   await load();
-  await applyDeclaredContentTypes({ ports, workspaceId, pluginId, plan });
+  try {
+    await applyDeclaredContentTypes({ ports, workspaceId, pluginId, plan });
+  } catch (error) {
+    required.unloadCode();
+    throw error;
+  }
 }
 
 export interface CreateDeclaredContentTypePortsRequired {

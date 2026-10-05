@@ -43,6 +43,10 @@ import type { PluginManifest, PluginValidationError } from "./manifest.js";
 export const MAX_DECLARED_CONTENT_TYPES = 20;
 /** ADR-024 §5 bound: how many fields one declared content type may carry. */
 export const MAX_DECLARED_FIELDS = 50;
+/** Core's own per-type queryable-field cap (`QUERYABLE_FIELD_CAP` in `@jini-ai/cms`'s
+ *  `registerContentType`, not exported). Checked here so a declaration core would refuse is
+ *  `invalid` at discovery, instead of failing at enable after the plugin's code attached. */
+export const MAX_DECLARED_QUERYABLE_FIELDS = 20;
 const MAX_LABEL_LENGTH = 100;
 const IDENTIFIER_GRAMMAR_TEXT = "^[a-z][a-z0-9_]{0,63}$";
 
@@ -135,6 +139,10 @@ function parseFields(raw: unknown, typeKey: string): { fields: ContentTypeFieldD
   const errors = parsed.flatMap((result) => result.errors);
   for (const name of duplicateNames(fields.map((field) => field.name))) {
     errors.push(declError(`content type '${typeKey}' declares field '${name}' more than once`));
+  }
+  const queryableCount = fields.filter((field) => field.queryable).length;
+  if (queryableCount > MAX_DECLARED_QUERYABLE_FIELDS) {
+    errors.push(declError(`content type '${typeKey}' declares ${queryableCount} queryable fields; at most ${MAX_DECLARED_QUERYABLE_FIELDS} are allowed`));
   }
   return { fields, errors };
 }

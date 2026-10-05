@@ -45,10 +45,11 @@ function harness(withPorts = true) {
         loadCode: async () => {
           order.push(`code:${(await repo.findByKey({ workspaceId: WS, key: "faq" })) === null ? "before-types" : "after-types"}`);
         },
+        unloadCode: () => { order.push("unload"); },
       },
       withPorts ? { contentTypes: ports } : {},
     );
-  return { repo, enable, order };
+  return { repo, ports, enable, order };
 }
 
 test("a tier-1 plugin registers its content types and never reaches the code loader", async () => {
@@ -138,4 +139,19 @@ test("deferred ports are built once, on first use, and forward both operations",
   assert.deepEqual(await ports.register({ workspaceId: WS, key: "faq", label: "FAQ", fields: [], actorId: "plugin:p" }), { ok: true });
   assert.equal(builds, 1);
   assert.deepEqual(calls, ["find:faq", "register:faq"]);
+});
+
+test("a type registration that fails after the code loaded detaches the code and rethrows; nothing stays attached", async () => {
+  const h = harness();
+  const boom = new Error("index provisioning failed");
+  const fresh = { key: "fresh", label: "Fresh", fields: [{ name: "a", kind: "text" }] };
+  const failing = { ...h.ports, register: async (input: Parameters<typeof h.ports.register>[0]) => (input.key === "fresh" ? { ok: false as const, error: boom } : h.ports.register(input)) };
+  await assert.rejects(
+    enableDeclaredPlugin(
+      { pluginId: "testimonials-faq", workspaceId: WS, manifest: manifest({ tier: "tier-3", contentTypes: [FAQ, fresh] }), loadCode: async () => { h.order.push("code"); }, unloadCode: () => { h.order.push("unload"); } },
+      { contentTypes: failing },
+    ),
+    (error: unknown) => error === boom,
+  );
+  assert.deepEqual(h.order, ["code", "unload"]);
 });

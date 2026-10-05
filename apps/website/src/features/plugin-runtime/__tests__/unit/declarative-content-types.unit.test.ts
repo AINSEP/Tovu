@@ -8,6 +8,7 @@ import {
   applyDeclaredContentTypes,
   MAX_DECLARED_CONTENT_TYPES,
   MAX_DECLARED_FIELDS,
+  MAX_DECLARED_QUERYABLE_FIELDS,
   parseDeclaredContentTypes,
   planDeclaredContentTypes,
   validateDeclarativeManifest,
@@ -77,6 +78,13 @@ test("fields: an array of 1..MAX entries", () => {
   assert.deepEqual(messages([{ ...FAQ, fields: "x" }]), [`content type 'faq' must declare 1-${MAX_DECLARED_FIELDS} fields`]);
   const tooMany = Array.from({ length: MAX_DECLARED_FIELDS + 1 }, (_, i) => ({ name: `f${i}`, kind: "text" }));
   assert.deepEqual(messages([{ ...FAQ, fields: tooMany }]), [`content type 'faq' must declare 1-${MAX_DECLARED_FIELDS} fields`]);
+});
+
+test("queryable fields: at most core's per-type cap, so registration cannot refuse it after the code loaded", () => {
+  const queryable = (n: number) => Array.from({ length: n }, (_, i) => ({ name: `q${i}`, kind: "integer", queryable: true }));
+  assert.equal(MAX_DECLARED_QUERYABLE_FIELDS, 20);
+  assert.deepEqual(messages([{ ...FAQ, fields: queryable(20) }]), []);
+  assert.deepEqual(messages([{ ...FAQ, fields: queryable(21) }]), ["content type 'faq' declares 21 queryable fields; at most 20 are allowed"]);
 });
 
 test("field errors: shape, unknown key, name, kind, flags, storage-only queryable", () => {

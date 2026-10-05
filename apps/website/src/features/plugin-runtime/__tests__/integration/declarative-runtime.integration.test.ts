@@ -125,3 +125,23 @@ test("boot skips a tier-1 plugin (its types are already stored) and still attach
   assert.deepEqual(h.imports, ["code"]);
   assert.equal(await h.faq(), null, "boot re-applies nothing: declared types were stored when the plugin was turned on");
 });
+
+test("a code plugin whose type creation fails after its code attached is detached again, and its activation is rolled back", async () => {
+  const imports: string[] = [];
+  const activationRepo = new InMemoryPluginActivationRepo();
+  const failing = { findByKey: async () => null, register: async () => ({ ok: false as const, error: new Error("index provisioning failed") }) };
+  const runtime = composePluginRuntime({
+    workspaceId: WORKSPACE, clock, activationRepo, sources: [source("faq-plus", { ...CODE_PLUGIN, contentTypes: [FAQ] }, imports)], declaredContentTypes: failing,
+  });
+  await assert.rejects(
+    setPluginEnabled({
+      deps: { clock, repo: activationRepo, discovery: await runtime.discoverPlugins(), onEnabled: runtime.onPluginEnabled, onDisabled: runtime.onPluginDisabled },
+      input: { workspaceId: WORKSPACE, pluginId: "faq-plus", enabled: true },
+    }),
+    { message: "index provisioning failed" },
+  );
+  assert.deepEqual(imports, ["faq-plus"], "the code did load before the type failed");
+  assert.equal(await runtime.previewPluginBeforeSave("faq-plus", { id: "d", workspaceId: WORKSPACE, title: "t", slug: "t", status: "draft", bodyJson: {}, ext: {} }), null, "no hook left attached");
+  assert.deepEqual(await runtime.beforeSaveHook({ id: "d", workspaceId: WORKSPACE, title: "t", slug: "t", status: "draft", bodyJson: {}, ext: {} }), {});
+  assert.equal(await activationRepo.getActivation({ workspaceId: WORKSPACE, pluginId: "faq-plus" }), null);
+});
