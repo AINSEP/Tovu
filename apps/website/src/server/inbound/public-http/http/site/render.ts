@@ -6,6 +6,7 @@ import { resolveTemplateId, resolveLiquidTemplateId, resolveHandlebarsTemplateId
 import { renderStaticPage } from "#src/features/theme/static-render";
 import {
   renderEntryList,
+  renderEntryListStructuredData,
   withEntryListStyleOnce,
   type EntryListItem,
   type EntryListFieldValue,
@@ -2230,10 +2231,10 @@ function renderWidgetRecentEntries(ir: WidgetRenderIR): string {
   if (items.length === 0) return RECENT_ENTRIES_EMPTY_HTML;
 
   const layout = ir.props.layout;
+  const structuredData: Pick<EntryListRenderOptions, "structuredData"> = ir.props.structuredData === COLLECTION_LIST_FAQ_PAGE ? { structuredData: COLLECTION_LIST_FAQ_PAGE } : {};
   if (layout !== "list" && isCollectionListLayout(layout)) {
     const columns = typeof ir.props.columns === "number" ? ir.props.columns : 3;
     const typeKey = str(ir.props.typeKey, "recent-entries");
-    const structuredData: Pick<EntryListRenderOptions, "structuredData"> = ir.props.structuredData === COLLECTION_LIST_FAQ_PAGE ? { structuredData: COLLECTION_LIST_FAQ_PAGE } : {};
     return renderEntryList(items, { columns, layout, typeKey, ...structuredData }) ?? RECENT_ENTRIES_EMPTY_HTML;
   }
 
@@ -2244,7 +2245,9 @@ function renderWidgetRecentEntries(ir: WidgetRenderIR): string {
       return `<li class="widget-entry-summary">${inner}</li>`;
     })
     .join("");
-  return `<ul class="widget widget-recent-entries">${lis}</ul>`;
+  // The legacy markup, plus the FAQPage block when asked for — `list` is the default layout, so an
+  // FAQ widget that never set one must not silently lose it.
+  return `<ul class="widget widget-recent-entries">${lis}</ul>${renderEntryListStructuredData(items, structuredData)}`;
 }
 
 /** The `class="…"` attribute from a resolved item's `attrs.cssClass`, or `""` when absent — same

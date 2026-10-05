@@ -1397,6 +1397,20 @@ test("recent-entries (AW-7 accordion/carousel): every non-list layout goes throu
   assert.match(unknown, /<ul class="widget widget-recent-entries">/, "an unknown layout keeps the legacy list markup");
 });
 
+test("recent-entries: the default list layout keeps its legacy markup and still emits requested FAQPage JSON-LD", () => {
+  const child = {
+    componentId: "entry-list-item",
+    props: { title: "Can I freeze it?", href: null, dateIso: "2026-01-01T00:00:00.000Z", dateLabel: "Jan 1, 2026", fields: [{ name: "answer", label: "Answer", kind: "text", value: "Yes" }] },
+  };
+  const jsonLd = `<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Can I freeze it?","acceptedAnswer":{"@type":"Answer","text":"Yes"}}]}</script>`;
+  for (const layout of [undefined, "list"]) {
+    const html = renderWidgetIr({ componentId: "recent-entries", props: { ...(layout === undefined ? {} : { layout }), typeKey: "faq", structuredData: "faq-page" }, children: [child] });
+    assert.equal(html, `<ul class="widget widget-recent-entries"><li class="widget-entry-summary">Can I freeze it?</li></ul>${jsonLd}`, String(layout));
+  }
+  const plain = renderWidgetIr({ componentId: "recent-entries", props: { typeKey: "faq" }, children: [child] });
+  assert.doesNotMatch(plain, /application\/ld\+json/, "opt-in only");
+});
+
 test("recent-entries: zero items renders the same 'No entries yet.' fallback regardless of layout", () => {
   const listEmpty = renderWidgetIr({ componentId: "recent-entries", props: { layout: "list", columns: 3, typeKey: "recent-entries" }, children: [] });
   const cardsEmpty = renderWidgetIr({ componentId: "recent-entries", props: { layout: "cards", columns: 3, typeKey: "recent-entries" }, children: [] });

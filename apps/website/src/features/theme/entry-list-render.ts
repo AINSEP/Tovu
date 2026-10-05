@@ -302,8 +302,18 @@ function renderTemplateItem(template: string, item: EntryListItem): string {
  */
 export function renderEntryList(items: readonly EntryListItem[], options: EntryListRenderOptions): string | undefined {
   if (items.length === 0) return undefined;
-  const structured = options.structuredData === "faq-page" ? renderFaqPageJsonLd(items) : "";
-  return renderEntryListBody(items, options) + structured;
+  return renderEntryListBody(items, options) + renderEntryListStructuredData(items, options);
+}
+
+/**
+ * The opt-in structured-data block for `items` (`""` when none is requested or none applies).
+ * Exported for a caller that renders its own list markup — the `recent-entries` widget's legacy
+ * `list` layout — so it still emits the JSON-LD it was asked for.
+ *
+ * @complexity O(n · f) over items and their displayed fields.
+ */
+export function renderEntryListStructuredData(items: readonly EntryListItem[], options: Pick<EntryListRenderOptions, "structuredData">): string {
+  return options.structuredData === "faq-page" ? renderFaqPageJsonLd(items) : "";
 }
 
 /** {@link renderEntryList}'s markup half, one branch per presentation. @complexity O(n · f). */
