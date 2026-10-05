@@ -5,10 +5,15 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
+import { closeSqliteConnection } from "#src/platform/db/kernel/index";
 import { defaultPgliteSocketDir, PGLITE_SOCKET_FILE } from "#src/platform/db/kernel/drivers/pglite-owner";
+import { sqliteClientOf, sqliteConnectionOf } from "#src/platform/db/kernel/drivers/sqlite";
 import { openChatDb } from "#src/platform/db/sqlite/chat-db";
+import type { ContentDbSeedData } from "#src/platform/db/sqlite/content-db";
 import type { SiteStorage } from "#src/platform/site-dir/types";
+import { seededPosts, seededPresentation, seededWorkspace } from "../../configuration/seed.js";
 import { createSiteRouteDeps } from "../deps.js";
+import { openSiteContentDb } from "../open-site-content-db.js";
 import { openSiteStore, PG_SOCKET_ENV, PGLITE_DATA_DIR_NAME, StorageNotAvailableError } from "../open-site-store.js";
 import { StorageSecretError } from "../storage-secret.js";
 
@@ -26,6 +31,12 @@ import { StorageSecretError } from "../storage-secret.js";
  *   Given an expired guest chat in chat.db         -> the API process's composition deletes it (sweep started)
  *   Given the agent daemon's composition (client)  -> no sweep; the expired chat stays
  */
+
+/** The demo seed with its first post twice: the second insert breaks the posts primary key mid-preparation. */
+function duplicatePostSeed(): ContentDbSeedData {
+  const [post] = seededPosts;
+  return { workspace: seededWorkspace, posts: [post, post], presentation: seededPresentation };
+}
 
 function mkSiteDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "tovu-open-site-store-"));
@@ -73,6 +84,69 @@ test("sqlite: opens content.db and chat.db beside it and hands back both kernels
     assert.ok(store.sqliteDb, "SQLite exposes its Drizzle handle for sqliteOnlyServices");
     assert.ok(fs.existsSync(path.join(dir, "content.db")) && fs.existsSync(path.join(dir, "chat.db")));
     await store.close();
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("sqlite: a chat.db that cannot open rejects, and the content.db this call opened is closed", async () => {
+  const dir = mkSiteDir();
+  try {
+    const chatDbPath = path.join(dir, "chat.db");
+    fs.mkdirSync(chatDbPath); // a directory: SQLite cannot open it as a database file
+    await assert.rejects(
+      openSiteStore({ storage: { kind: "sqlite" }, dbPath: path.join(dir, "content.db"), chatDbPath, role: "owner" }),
+      /unable to open database file/
+    );
+    // content.db runs in WAL mode; closing its last connection checkpoints and removes -wal and -shm.
+    assert.deepEqual(fs.readdirSync(dir).sort(), ["chat.db", "content.db"], "the opened content.db is closed");
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("sqlite: a chat.db that cannot open leaves a caller-supplied content.db open", async () => {
+  const dir = mkSiteDir();
+  const db = await openSiteContentDb(path.join(dir, "content.db"));
+  try {
+    const chatDbPath = path.join(dir, "chat.db");
+    fs.mkdirSync(chatDbPath);
+    await assert.rejects(
+      openSiteStore({ storage: { kind: "sqlite" }, dbPath: path.join(dir, "content.db"), chatDbPath, role: "owner" }, { db }),
+      /unable to open database file/
+    );
+    assert.equal(sqliteClientOf(db).open, true, "the caller's handle is the caller's to close");
+  } finally {
+    closeSqliteConnection(db);
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("sqlite: closing a store over a caller-supplied content.db closes chat.db and leaves content.db open", async () => {
+  const dir = mkSiteDir();
+  const db = await openSiteContentDb(path.join(dir, "content.db"));
+  try {
+    const store = await openSiteStore(
+      { storage: { kind: "sqlite" }, dbPath: path.join(dir, "content.db"), chatDbPath: path.join(dir, "chat.db"), role: "owner" },
+      { db }
+    );
+    assert.equal(store.sqliteDb, db, "the supplied handle backs the content kernel");
+    await store.close();
+    assert.equal(sqliteConnectionOf(store.chat)?.open, false, "chat.db, opened by the call, is closed");
+    assert.equal(sqliteClientOf(db).open, true, "content.db, supplied by the caller, stays open");
+  } finally {
+    closeSqliteConnection(db);
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("pglite: a failed first-run preparation stops the owner, so the next owner opens the same data dir", async () => {
+  const dir = mkSiteDir();
+  const required = { storage: { kind: "pglite" } as const, dbPath: path.join(dir, "content.db"), chatDbPath: path.join(dir, "chat.db"), role: "owner" as const };
+  try {
+    await assert.rejects(openSiteStore(required, { seed: duplicatePostSeed() }), /duplicate key value violates unique constraint/);
+    const next = await openSiteStore(required);
+    await next.close();
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
