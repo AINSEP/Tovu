@@ -239,11 +239,7 @@
 .page-preview-fab {
   position: absolute; top: 0.6rem; right: 0.6rem; z-index: 3;
   width: 2.25rem; height: 2.25rem; padding: 0; border: 0; border-radius: 0.5rem;
-  display: grid; place-items: center;
-  /* Draggable (2026-10-05): the inline `top`/`right` from `useDraggablePreviewFab` override the
-     corner default above; `touch-action: none` hands touch moves to its pointer handlers instead of
-     scrolling the page. */
-  cursor: grab; touch-action: none;
+  display: grid; place-items: center; cursor: pointer;
   font-size: 1.15rem; line-height: 1; color: #fff;
   background: rgba(17, 17, 17, 0.42); backdrop-filter: blur(6px);
   opacity: 0.32; transition: opacity 0.15s ease, background 0.15s ease;
@@ -259,10 +255,6 @@
   pointer-events: none; opacity: 0; transition: opacity 0.12s ease;
 }
 .page-preview-fab:hover .page-preview-fab-tip, .page-preview-fab:focus-visible .page-preview-fab-tip { opacity: 1; }
-/* Dragged into the stage's left half, the hint opens rightwards instead (`fabTipSide`). */
-.page-preview-fab-tip[data-side="right"] { right: auto; left: 0; }
-.page-preview-fab-dragging { cursor: grabbing; opacity: 1; transition: none; }
-.page-preview-fab-dragging .page-preview-fab-tip { opacity: 0; }
 
 /* `position: absolute; inset: 0` against `.admin-main-col` (`styles.css`, which is where its own
    `position: relative` lives), NOT `position: fixed` over the whole viewport — deliberately, so it

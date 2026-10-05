@@ -13,7 +13,6 @@ import { resolveTabBarTabIndex, useTabBarKeyboard } from "../../components/TabBa
 import { DEVICE_PREVIEW_WIDTHS, type DevicePreviewDevice } from "../../components/DevicePreview/DevicePreview.hooks";
 import { DevicePreviewFrame } from "../../components/DevicePreview/DevicePreviewFrame";
 import { DevicePreviewToggle } from "../../components/DevicePreview/DevicePreviewToggle";
-import { useDraggablePreviewFab } from "../../components/DevicePreview/use-draggable-preview-fab.hooks";
 import type { Translate } from "../../lib/dictionary-translator";
 import { siteUrl } from "../../lib/site-url";
 import type {
@@ -1286,19 +1285,11 @@ function PagePreview({
  * and nobody should "fix" a11y by editing it.
  */
 function PagePreviewFab({ expanded, onToggle, t }: { expanded: boolean; onToggle: () => void; t: Translate }) {
-  // Draggable within the preview stage (2026-10-05 owner: the fixed corner covered page content). A
-  // drag never toggles; see `useDraggablePreviewFab` for the click-vs-drag rule and session memory.
-  const drag = useDraggablePreviewFab({ onToggle });
   return (
     <button
       type="button"
-      className={drag.dragging ? "page-preview-fab page-preview-fab-dragging" : "page-preview-fab"}
-      style={drag.style}
-      onClick={drag.onClick}
-      onPointerDown={drag.onPointerDown}
-      onPointerMove={drag.onPointerMove}
-      onPointerUp={drag.onPointerUp}
-      onPointerCancel={drag.onPointerCancel}
+      className="page-preview-fab"
+      onClick={onToggle}
       aria-label={expanded ? t("Exit full screen") : t("Show full screen")}
       {...agentHandle({ handle: "page-preview-expand" }, {
         role: "button",
@@ -1333,7 +1324,7 @@ function PagePreviewFab({ expanded, onToggle, t }: { expanded: boolean; onToggle
           drew the native one past the window's right edge ("Exit f…"). Anchored to the button and
           opening leftwards (`pages.css`), it stays inside the preview. `aria-hidden` because
           `aria-label` above already names the button; this only repeats it visually. */}
-      <span className="page-preview-fab-tip" data-side={drag.tipSide} aria-hidden="true">
+      <span className="page-preview-fab-tip" aria-hidden="true">
         {expanded ? t("Exit full screen (Esc)") : t("Show full screen")}
       </span>
     </button>
