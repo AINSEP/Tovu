@@ -199,6 +199,7 @@ export const registerAdminPostUpdateRoute: ContentRouteRegistrar = (app, deps) =
                   clock: deps.clock,
                   outbox: deps.outbox,
                   beforeSaveHook: deps.pluginBeforeSaveHook,
+                  slugChangeCapture: deps.slugChangeCapture,
                 },
                 input: {
                   workspaceId: deps.workspaceId,

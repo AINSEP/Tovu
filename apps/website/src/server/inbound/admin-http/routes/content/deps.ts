@@ -88,6 +88,8 @@ export type ContentRouteDeps = Pick<
    *  through `restorePostForward` must also drop the Trash index row `removePost` wrote. */
   | "forgetRemovedPost"
   | "pluginBeforeSaveHook"
+  /** `posts/update.ts` + `pages/update.ts` hand it to `updatePost` (SPEC-009 slug-change redirects). */
+  | "slugChangeCapture"
   | "pagesHtmlStore"
   | "changeSets"
   | "outbox"

@@ -87,6 +87,7 @@ import {
   type BeforeSaveHookPort,
   type ForgetRemovedPostFn,
   type RemovePostFn,
+  type SlugChangeCaptureLookup,
 } from "./post.js";
 // The SAME boundary `server/inbound/admin-http/routes/posts/update.ts` uses — imported, not copied.
 // The two arms diverged in the first place because only one of them had this logic at all.
@@ -142,6 +143,9 @@ export interface PostToolDeps {
   postRepo: PostRepoPort;
   postSearch: PostSearchPort;
   pluginBeforeSaveHook: BeforeSaveHookPort;
+  /** Routing's slug-change slot lookup — `content_post_update` renames leave the same 301 the admin
+   *  routes' do. A `RouteDeps` satisfies it; see `UpdatePostDeps.slugChangeCapture`. */
+  slugChangeCapture: SlugChangeCaptureLookup;
   /**
    * The pre-bound removal `content_post_delete` hands `deletePost` — see `post.ts`'s
    * {@link import("./post.js").RemovePostFn}. Structurally typed, so this file also imports nothing
@@ -888,6 +892,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
                   clock: routeDeps.clock,
                   outbox: routeDeps.outbox,
                   beforeSaveHook: routeDeps.pluginBeforeSaveHook,
+                  slugChangeCapture: routeDeps.slugChangeCapture,
                 },
                 // `title`/`slug`/`bodyJson`/`status` are the MERGED values (the caller's own field,
                 // or the stored one for an omitted field) — never the raw, possibly-partial input.

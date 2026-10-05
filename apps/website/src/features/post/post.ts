@@ -4,6 +4,7 @@ import type { OutboxPort } from "@jini-ai/cms/core";
 
 import { isTrashed } from "../../contracts/core/soft-delete.js";
 import { toSlug } from "#src/platform/html/slug";
+import { postPublicPath, type SlugChangeCapture } from "#src/platform/routing/index";
 
 export type PostStatus = "draft" | "published";
 
@@ -553,7 +554,21 @@ export interface UpdatePostDeps {
    * before this feature (no `ext` is written, no extra call is made). See `runBeforeSaveHook`.
    */
   beforeSaveHook?: BeforeSaveHookPort;
+  /**
+   * SPEC-009 REQ-15 (ADR-039 §4) — looks up the `SlugChangeCapture` bound in routing's slot at call
+   * time; the composition root passes `getSlugChangeCapture`. A lookup rather than the capture itself
+   * because the slot is disposable: closing a site store unbinds its capture (39411114d), and a
+   * write after that must see "nothing bound", not a capture over a closed database.
+   *
+   * OPTIONAL, and an absent lookup or an unbound slot captures nothing — routing's own doc names that
+   * the safe no-op while Redirects is not installed. Every real update surface (`pages/update.ts`,
+   * `posts/update.ts`, `content_post_update`) passes it; see `captureSlugChange` for when it fires.
+   */
+  slugChangeCapture?: SlugChangeCaptureLookup;
 }
+
+/** The call-time lookup {@link UpdatePostDeps.slugChangeCapture} takes — `getSlugChangeCapture`'s shape. */
+export type SlugChangeCaptureLookup = () => SlugChangeCapture | undefined;
 
 export interface UpdatePostRequired {
   deps: UpdatePostDeps;
@@ -1002,9 +1017,17 @@ function isValidPostStatus(status: unknown): status is PostStatus {
   return status === "draft" || status === "published";
 }
 
-/** behavior.spec.md BR-02/BR-03 reserved-word rule — see `RESERVED_SLUGS`'s doc for scope. */
-function isReservedSlug(slug: string): boolean {
-  return RESERVED_SLUGS.has(slug);
+/**
+ * behavior.spec.md BR-02/BR-03 reserved-word rule — see `RESERVED_SLUGS`'s doc for scope. One
+ * check, one message, for both `createPost`'s explicit slug and `updatePost`'s rename: the update
+ * path used to check format only, so create refused `admin` and a rename onto it succeeded.
+ *
+ * @throws PostValidationError `slug '<slug>' is reserved`.
+ */
+function assertSlugNotReserved(slug: string): void {
+  if (RESERVED_SLUGS.has(slug)) {
+    throw new PostValidationError(`slug '${slug}' is reserved`);
+  }
 }
 
 /** Pure, pre-repo-access fields `resolveCreateFields` computes from a `createPost` input, once validated. */
@@ -1119,9 +1142,7 @@ function resolveExplicitSlug(input: CreatePostInput): string | undefined {
   // SPEC-002 REQ-04/AC-04 — a PROVIDED slug equal to a reserved word is a hard failure (BR-03
   // step 3); a DERIVED slug landing on a reserved word is a different, not-yet-implemented rule
   // (BR-02 suffixing) — see `RESERVED_SLUGS`'s doc.
-  if (isReservedSlug(explicitSlug)) {
-    throw new PostValidationError(`slug '${explicitSlug}' is reserved`);
-  }
+  assertSlugNotReserved(explicitSlug);
   return explicitSlug;
 }
 
@@ -1278,7 +1299,7 @@ export async function createPost(
 /**
  * Validates and normalizes `updatePost`'s caller-supplied `title`/`slug`, and validates
  * `bodyJson`/`status` in place, in behavior.spec.md's documented order (first failure wins):
- * title, then slug format, then `bodyJson` shape, then `status` enum — the same ordering
+ * title, then slug format, then reserved slug, then `bodyJson` shape, then `status` enum — the same ordering
  * discipline `resolveCreateFields`'s per-field validators follow for `createPost`.
  */
 function validateUpdatePostInput(
@@ -1296,6 +1317,7 @@ function validateUpdatePostInput(
   if (!validFormat) {
     throw new PostValidationError("slug must use lowercase letters, numbers, and dashes");
   }
+  assertSlugNotReserved(slug);
   // Required for a `"doc"` row, meaningless for an `"html"` one. A bespoke-HTML Page has no Tiptap
   // document at all, so demanding one here would make its title, slug and status permanently
   // un-editable — the only way to change them is this function, and the caller has no Tiptap body
@@ -1436,6 +1458,39 @@ function buildUpdatedPost(
   };
 }
 
+/**
+ * SPEC-009 REQ-15/16 — hands the bound `SlugChangeCapture` a published entry's old and new public
+ * paths, so its old URL 301s to the new one instead of 404ing. Called inside `updatePost`'s
+ * transaction, after the row write: the capture opens no transaction of its own (ADR-PIPE-009
+ * Decision A), so its redirect lands or rolls back with the rename, and a throw aborts both (INV-02).
+ *
+ * Fires only when the slug changed on an entry that was PUBLISHED before this write — a draft's URL
+ * was never public, so there is nothing to preserve, while unpublishing under a new slug still
+ * captures because the old URL was live until now. Never from the root slug: a rule from `/` would
+ * send the homepage away once the theme's own index is what `/` should fall back to.
+ *
+ * Content stays redirect-ignorant: it only knows routing's slot, never the redirects feature.
+ *
+ * @complexity O(1) — one lookup and at most one capture call.
+ */
+async function captureSlugChange(
+  lookup: SlugChangeCaptureLookup | undefined,
+  existing: PostRecord,
+  post: PostRecord,
+  actor: UUID
+): Promise<void> {
+  if (existing.slug === post.slug || existing.status !== "published" || existing.slug === ROOT_SLUG) return;
+  const capture = lookup?.();
+  if (!capture) return;
+  await capture.onSlugChange({
+    workspaceId: post.workspaceId,
+    entryId: post.id,
+    oldPath: postPublicPath(existing.slug),
+    newPath: postPublicPath(post.slug),
+    actor,
+  });
+}
+
 export async function updatePost(
   required: UpdatePostRequired,
   _optional: UpdatePostOptional = {}
@@ -1477,6 +1532,7 @@ export async function updatePost(
   // `PostNotFoundError` reach the caller exactly as they did before this change.
   const { id: revisionId, previousId: previousRevisionId } = await deps.repo.transaction(async () => {
     await persistUpdatedPost(deps.repo, post, input.expectedVersion);
+    await captureSlugChange(deps.slugChangeCapture, existing, post, input.actorId ?? SYSTEM_ACTOR_ID);
     return deps.repo.appendRevision({
       postId: post.id,
       workspaceId: post.workspaceId,

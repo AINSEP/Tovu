@@ -33,6 +33,7 @@ export {
   type PostAutosaveSnapshot,
   type ForgetRemovedPostFn,
   type RemovePostFn,
+  type SlugChangeCaptureLookup,
 } from "./post.js";
 // The optimistic-concurrency boundary, shared by the admin HTTP route and the `content_post_update`
 // agent tool — see `expected-version.ts` for why it is a module of its own rather than a copy in

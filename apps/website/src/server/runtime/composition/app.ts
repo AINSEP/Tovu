@@ -178,7 +178,7 @@ import {
   registerRedirectsPhaseHandlers,
   type RedirectsWriteDeps,
 } from "#src/features/redirects/index";
-import { registerSlugChangeCapture } from "#src/platform/routing/index";
+import { getSlugChangeCapture, registerSlugChangeCapture } from "#src/platform/routing/index";
 import {
   InMemoryDbOpsAdapter,
   InMemoryDatabaseIntrospectionAdapter,
@@ -1118,6 +1118,9 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // `deps.ts`'s. Constructed eagerly, but its scratch database is not opened until the first
     // search, so the many tests that call `createRouteDeps()` without searching pay nothing.
     postSearch: new InMemoryPostSearchIndex(postRepo),
+    // SPEC-009 REQ-15 — `updatePost` looks the capture up per write, so whatever is bound in routing's
+    // slot at that moment (`registerSlugChangeCapture` above) decides whether a rename leaves a redirect.
+    slugChangeCapture: getSlugChangeCapture,
     // Backed by `postRepo` above, NOT by a throwaway `:memory:` ContentDb — this root's posts do
     // not live in any SQLite database, so a real-adapter-over-scratch-db would edit rows nothing
     // else in this root can see. See `features/pages/html-document-store.memory.ts`'s header.

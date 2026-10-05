@@ -27,7 +27,7 @@ import type {
 } from "@jini-ai/user-management";
 import type { ApiKeyRepoPort, ApiKeySecretHasherPort } from "../../features/identity/api-key-types.js";
 import type { LipayApi } from "../../features/plugins/lipay/lipay-plugin.js";
-import type { PostRepoPort, PostSearchPort, BeforeSaveHookPort, PostRecord, RemovePostFn } from "../../features/post/index.js";
+import type { PostRepoPort, PostSearchPort, BeforeSaveHookPort, PostRecord, RemovePostFn, SlugChangeCaptureLookup } from "../../features/post/index.js";
 import type { PagesHtmlDocumentStoreFactory } from "../../features/pages/index.js";
 import type { ChatStoreFactory } from "../../assistant/persistence/tenant-scope.js";
 import type { ChatRunLedger } from "#src/assistant/index";
@@ -911,6 +911,12 @@ export interface PostDeps {
    * handle so no route holds it, and every instance is bound to one `(workspaceId, postId)` pair.
    */
   pagesHtmlStore: PagesHtmlDocumentStoreFactory;
+  /**
+   * SPEC-009 REQ-15 — routing's slug-change slot lookup (`getSlugChangeCapture`), handed to every
+   * `updatePost` call a route or agent tool makes so a published entry's rename leaves a 301 from
+   * its old URL. See `UpdatePostDeps.slugChangeCapture` for why it is a lookup, not the capture.
+   */
+  slugChangeCapture: SlugChangeCaptureLookup;
 }
 
 /**

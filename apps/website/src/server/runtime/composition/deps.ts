@@ -177,7 +177,7 @@ import {
   SqliteRedirectRepo,
   type RedirectsWriteDeps,
 } from "#src/features/redirects/index";
-import { registerSlugChangeCapture } from "#src/platform/routing/index";
+import { getSlugChangeCapture, registerSlugChangeCapture } from "#src/platform/routing/index";
 import { SqliteRestorePointsRepo } from "#src/platform/db/sqlite/database-journal-repo";
 import { SqliteDatabaseIntrospectionAdapter } from "#src/platform/db/sqlite/database-introspection-adapter.sqlite";
 import { InMemorySiteStatusRepo } from "#src/features/database/repo.memory";
@@ -1972,6 +1972,9 @@ async function composeSiteRouteDeps(
     db: sqliteTrashDb,
     postRepo,
     postSearch: postSearchIndexFor(kernel, { ready: postSearchBackfillReady }),
+    // SPEC-009 REQ-15 — `updatePost` looks the capture up per write, so whatever is bound in routing's
+    // slot at that moment (`registerSlugChangeCapture` above) decides whether a rename leaves a redirect.
+    slugChangeCapture: getSlugChangeCapture,
     // SPEC-047/ADR-056 — the db handle and clock are closed over here so no route ever holds one;
     // a route supplies only the `(workspaceId, postId)` scope. See `RouteDeps.pagesHtmlStore`.
     // `entryRefsRepo` (SPEC-047 Slice 3) is the same instance `RouteDeps.entryRefsRepo` below
