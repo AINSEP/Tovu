@@ -24,7 +24,7 @@
  * Deployment -> overview, static-site, full-site, dockerfile, history.
  * Deployment / Static Site / Publish target -> github-pages, netlify, vercel,
  *   cloudflare-pages, s3-compatible (shipped deploy-target JSON registry).
- * Source Control -> providers; Security (/access-tokens) -> access-tokens, site-token.
+ * Source Control -> providers; Security (/access-tokens) -> access-tokens, site-key.
  * Security / Access Tokens / category -> all, source-control, hosting, media, ai, ops, general.
  * Settings -> execution, instructions, notifications, privacy, appearance, language,
  *   memory, workspace, about.
@@ -399,8 +399,8 @@ async function capture(page: Page, filename: string): Promise<void> {
   // - .dash-activity-time: server write timestamps in recent activity.
   // - .workspace-identity-grid Created value: server timestamp on the legacy Workspace tab.
   // - .deployment-facts code: absolute filesystem paths vary with the isolated runtime directory.
-  // - .site-token-fingerprint: per-runtime generated key fingerprint (never reveal the key).
-  // - .site-token-status-note code: absolute per-runtime key-file path.
+  // - .site-key-fingerprint: per-runtime generated key fingerprint (never reveal the key).
+  // - .site-key-status-note code: absolute per-runtime key-file path.
   // No random entity IDs or avatars are displayed by the representative states.
   // Stable titles, slugs, nav icons, media thumbnails, menu rows, skill chips and popup are visible.
   await page.evaluate(() => {
@@ -418,8 +418,8 @@ async function capture(page: Page, filename: string): Promise<void> {
     page.locator(".dash-activity-time"),
     page.locator(".workspace-identity-grid .settings-layer-cell").filter({ hasText: "Created" }).locator("span").last(),
     page.locator(".deployment-facts code"),
-    page.locator(".site-token-fingerprint"),
-    page.locator(".site-token-status-note code"),
+    page.locator(".site-key-fingerprint"),
+    page.locator(".site-key-status-note code"),
   ];
   // Viewport-sized shots reflect the actual responsive shell and fixed-position chat dock;
   // fullPage could expand the image to an overflowing off-canvas mobile sidebar's width.

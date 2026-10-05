@@ -12,7 +12,7 @@ import { defineConfig, devices } from "@playwright/test";
  *
  * Two differences from that config, both load-bearing:
  *
- * 1. **`TOVU_INTEGRATIONS_ROOT_KEY` is set.** Saving a credential seals it, and with no master
+ * 1. **`TOVU_SITE_KEY` is set.** Saving a credential seals it, and with no master
  *    secret every PUT is a `503 SECRET_STORE_UNCONFIGURED` — the suite would fail on a missing env
  *    var rather than on behavior. The value is a throwaway all-`a` hex key for this hermetic
  *    in-memory DB only; nothing it seals outlives the run.
@@ -30,7 +30,7 @@ const REPO_ROOT = path.resolve(import.meta.dirname, "..");
 const ADMIN_ROOT = path.resolve(REPO_ROOT, "apps/admin");
 
 /** Throwaway sealing key — 32 bytes of `a` as hex. Hermetic run only; never a real secret. */
-const TEST_ROOT_KEY = "a".repeat(64);
+const TEST_SITE_KEY = "a".repeat(64);
 
 export default defineConfig({
   testDir: "./e2e",
@@ -52,7 +52,7 @@ export default defineConfig({
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: [
     {
-      command: `PORT=${API_PORT} TOVU_DB=memory TOVU_INTEGRATIONS_ROOT_KEY=${TEST_ROOT_KEY} JINI_AGENT_DAEMON_PORT=${DAEMON_PORT} node --import tsx apps/website/src/index.ts`,
+      command: `PORT=${API_PORT} TOVU_DB=memory TOVU_SITE_KEY=${TEST_SITE_KEY} JINI_AGENT_DAEMON_PORT=${DAEMON_PORT} node --import tsx apps/website/src/index.ts`,
       cwd: REPO_ROOT,
       url: API_BASE_URL,
       timeout: 45_000,

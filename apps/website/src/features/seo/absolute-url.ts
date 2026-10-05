@@ -103,7 +103,7 @@ export function toAbsoluteUrl(origin: VerifiedOrigin | undefined, path: string):
  * "now redundant".
  *
  * @param mode - Defaults to `resolveRuntimeMode`; injectable for tests, mirroring
- * `root-key-boot-notice.ts`'s `RootKeyBootNoticeDeps.mode` convention.
+ * `site-key-boot-notice.ts`'s `SiteKeyBootNoticeDeps.mode` convention.
  * @complexity O(1) plus one `canonicalOrigin` lookup.
  */
 export async function resolveWorkspaceOrigin(

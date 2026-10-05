@@ -144,7 +144,7 @@ test("ASSISTANT_DISALLOWED_TOOLS also blocks the other host-CLI write and backgr
   }
 });
 
-// Owner rule: the agent must never read the root key. The CLI runs under bypassPermissions with a
+// Owner rule: the agent must never read the site key. The CLI runs under bypassPermissions with a
 // production cwd that contains sites/.tovu, so its built-in Read/Grep/Glob would otherwise walk
 // straight past the fs-files denylist. Grep and Glob honour Read() deny rules; `//` is an absolute
 // pattern, so `//**/.tovu/**` covers the folder at any depth, cwd or home alike.
@@ -154,7 +154,7 @@ test("ASSISTANT_DISALLOWED_TOOLS denies Read on the .tovu folder at any depth, i
     [
       "Read(//**/.tovu/**)",
       "Read(~/.tovu/**)",
-      "Read(//**/*root-key*.hex)",
+      "Read(//**/*-key*.hex)",
       "Read(//proc/**)",
     ].sort(),
   );

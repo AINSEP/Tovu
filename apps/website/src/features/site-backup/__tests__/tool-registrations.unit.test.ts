@@ -173,7 +173,7 @@ function write(file: string, content: string): void {
 /** Redirects `homedir()`-based site-key resolution (`unreadableCredentialMessage`'s default,
  *  site-aware status) to a throwaway temp dir for the life of one test, and also clears the
  *  env-var/mode inputs that ordering reads — so a passing run never touches, creates, or is
- *  influenced by the operator's real `~/.tovu`. Mirrors `admin-site-token-routes.test.ts`'s own
+ *  influenced by the operator's real `~/.tovu`. Mirrors `admin-site-key-routes.test.ts`'s own
  *  `isolateHomeDir`. */
 function isolateHomeDir(t: TestContext): string {
   const dir = mkdtempSync(path.join(tmpdir(), "tovu-site-backup-test-home-"));
@@ -226,10 +226,10 @@ interface HarnessOptions {
   allow?: (permission: string) => boolean;
   /** The sealer the tools decrypt with; the one credentials were sealed with by default. */
   openSealer?: (sealedWith: SecretSealerPort) => SecretSealerPort;
-  rootKeyStatus?: () => { active: boolean; invalid?: boolean };
-  /** When true, leaves `deps.siteBackupRootKeyStatus` unset entirely (rather than this harness's own
+  siteKeyStatus?: () => { active: boolean; invalid?: boolean };
+  /** When true, leaves `deps.siteBackupSiteKeyStatus` unset entirely (rather than this harness's own
    *  `{active: true}` stub) so the SUT's real default, site-aware status computation runs. */
-  useDefaultRootKeyStatus?: boolean;
+  useDefaultSiteKeyStatus?: boolean;
   withoutSources?: boolean;
   planNowMs?: () => number;
 }
@@ -260,7 +260,7 @@ function harness(t: TestContext, options: HarnessOptions = {}) {
     dbOps,
     ...(options.withoutSources ? {} : { siteBackupSources: site.sources }),
     siteBackupPlanStore: planStore,
-    ...(options.useDefaultRootKeyStatus ? {} : { siteBackupRootKeyStatus: options.rootKeyStatus ?? (() => ({ active: true })) }),
+    ...(options.useDefaultSiteKeyStatus ? {} : { siteBackupSiteKeyStatus: options.siteKeyStatus ?? (() => ({ active: true })) }),
     siteBackupFailureLog: (line) => logLines.push(line),
     siteBackupNow: () => new Date(NOW),
   };
@@ -591,7 +591,7 @@ test("the unreadable-credential message follows the Site key's status and never 
     { status: { active: false, invalid: true }, expected: /set but malformed/ },
   ];
   for (const { status, expected } of cases) {
-    const h = harness(t, { openSealer: (sealedWith) => new LeakySealer(sealedWith), rootKeyStatus: () => status });
+    const h = harness(t, { openSealer: (sealedWith) => new LeakySealer(sealedWith), siteKeyStatus: () => status });
     await h.seed();
     const result = await plan(h);
     assert.equal(result.code, "CREDENTIAL_UNREADABLE");
@@ -605,7 +605,7 @@ test("the unreadable-credential message follows the Site key's status and never 
 
 test("site-key plan §A3b: a site with an ACTIVE per-site key file is never told 'this server has no Site key' — the default status is site-aware, not env/legacy-only", async (t) => {
   const home = isolateHomeDir(t);
-  const h = harness(t, { openSealer: (sealedWith) => new LeakySealer(sealedWith), useDefaultRootKeyStatus: true });
+  const h = harness(t, { openSealer: (sealedWith) => new LeakySealer(sealedWith), useDefaultSiteKeyStatus: true });
   await h.seed();
   // `makeSite` stamps `.site-meta.json` with `{siteId: "s1"}`, so this site's resolved siteKeyId is
   // "s1" (site-key-sources.ts's `resolveSiteKeyId`: siteKeyId defaults to siteId when absent) — mint

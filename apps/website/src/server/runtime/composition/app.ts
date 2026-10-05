@@ -900,7 +900,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // the SAME member rows the returned `memberRepo` field exposes (mirrors `entryRepo`/
   // `widgetBindingRepo`'s identical hoisting rationale above), and so `newsletterKeyring` is the
   // ONE process-lifetime `KeyringPort` instance also used to build `webhookSigner` just below —
-  // one root key, purpose-namespaced (`webhooks/ports.ts`'s `KeyringPort.derive()` contract),
+  // one site key, purpose-namespaced (`webhooks/ports.ts`'s `KeyringPort.derive()` contract),
   // not two independent keyrings.
   const memberRepo = new InMemoryMemberRepo([]);
   const newsletterKeyring = new InMemoryKeyring();
@@ -1834,13 +1834,13 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // Access Tokens page's "Add custom provider" form: CRUD over saved user-defined provider
   // connections (`custom_credential_sets`). `custom-credentials.write`-gated on every verb.
   registerAdminCustomCredentialsRoutes(app, routeDeps);
-  // Security panel → Site Token tab: view/generate the TOVU_INTEGRATIONS_ROOT_KEY root key's
-  // generated-file fallback. `admin.security.tokens.manage`-gated on both verbs — see that route
+  // Security panel → site key tab: view/generate the TOVU_SITE_KEY site key's
+  // generated-file fallback. `admin.security.site-key.manage`-gated on both verbs — see that route
   // file's own header for exactly what this does and does not cover (since 2026-09-09 it seals
   // every stored credential and can satisfy a production boot, but webhook signing / newsletter
   // tokens still need the env var). Generate runs the one site-key writer boot runs
   // (`ensureSiteKeyForSite`), handed in here because the route itself may not import it; the
-  // recovery verbs (import, start fresh) get `siteTokenRecovery` the same way.
+  // recovery verbs (import, start fresh) get `siteKeyRecovery` the same way.
   registerAdminSiteKeyRoutes(app, routeDeps, { ensureSiteKeyForSite, ...siteKeyRecovery });
   // Chat composer's folder control: GET/PUT/DELETE the fs-files `custom` root — the operator-set
   // folder `fs_list_files`/`fs_read_file` may reach outside `repo`/`site`. `content.read`-gated, the
@@ -2126,7 +2126,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
     sink: routeDeps.analyticsSink,
     config: routeDeps.analyticsConfig,
     resolveWorkspaceForHost: async () => routeDeps.workspaceId, // single-workspace v1
-    rootKeySeed: process.env.ANALYTICS_ROOT_KEY_SEED ?? "dev-only-insecure-seed",
+    analyticsSeed: process.env.ANALYTICS_ROOT_KEY_SEED ?? "dev-only-insecure-seed",
   });
 
   // ADR-046 Phase 3 (SPEC-034): the public media rendition route now registers earlier, as part of

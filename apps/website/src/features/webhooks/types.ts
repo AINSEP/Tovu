@@ -31,7 +31,7 @@
  *
  * Monotonic signing-secret generation for one subscription. Rotation mints `version + 1` and
  * both versions sign during an overlap window (ADR-036 §4). The secret itself is never stored —
- * it is HKDF-derived from the install root key + subscriptionId + version (ADR-036 §9).
+ * it is HKDF-derived from the install site key + subscriptionId + version (ADR-036 §9).
  *
  * Durable header for one outbound webhook subscription (core-owned table `webhook_subscriptions`).
  * Composite `(workspace_id, id)` isolation per ADR-007/ADR-021 §4; no plaintext secret is stored —
@@ -108,7 +108,7 @@
  * Sealed outbound-integration credential (core-owned table `integration_secrets`) — e.g. a
  * third-party API token an operator pastes for an outbound connector. Unlike a signing secret
  * (derived, never stored) this MUST be recoverable to send, so it is stored **sealed** by the
- * install root key via {@link import("./ports.js").SecretSealerPort} and never as plaintext in the
+ * install site key via {@link import("./ports.js").SecretSealerPort} and never as plaintext in the
  * portable folder (ADR-024 secret invariant). v1 = seam only (ADR-036 §8); the connector runtime
  * that consumes it is deferred.
  *
@@ -116,7 +116,7 @@
  *
  * Ciphertext + wrapping metadata; opened only in-process via the sealer port.
  *
- * Opaque sealed blob. `keyId` names the root-key generation the value was wrapped under, so
+ * Opaque sealed blob. `keyId` names the site-key generation the value was wrapped under, so
  * `tovu build`/export can rewrap (`--secrets=rewrap`) or strip (`--secrets=strip`, default) rather
  * than silently carrying a secret out of the folder — the egress analog of ADR-027 §A6 `--blobs`.
  *

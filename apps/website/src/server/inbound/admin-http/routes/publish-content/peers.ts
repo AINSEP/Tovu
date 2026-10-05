@@ -45,7 +45,7 @@ function statusFor(err: unknown): { status: number; code: string } {
   if (err instanceof PublishContentPeerValidationError) return { status: 400, code: "VALIDATION_ERROR" };
   if (err instanceof PublishContentPeerDuplicateLabelError) return { status: 409, code: "DUPLICATE_LABEL" };
   if (err instanceof PublishContentPeerNotFoundError) return { status: 404, code: "PEER_NOT_FOUND" };
-  // The root key is unset/misconfigured. Operator-actionable and NOT a leak: the message names the
+  // The site key is unset/misconfigured. Operator-actionable and NOT a leak: the message names the
   // configuration failure, never the plaintext that failed to seal.
   if (err instanceof PublishContentPeerSecretStoreUnconfiguredError) return { status: 503, code: "SECRET_STORE_UNCONFIGURED" };
   return { status: 500, code: "INTERNAL_ERROR" };

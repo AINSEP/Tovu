@@ -109,7 +109,7 @@ export class ExternalMcpValidationError extends Error {
   }
 }
 
-/** Raised when sealing fails because no root key is configured — distinct from a validation error,
+/** Raised when sealing fails because no site key is configured — distinct from a validation error,
  *  because nothing the operator types can fix it. */
 export class ExternalMcpSecretStoreUnconfiguredError extends Error {
   constructor(message: string) {
@@ -673,7 +673,7 @@ export function resolveExternalMcpOAuthStatus(record: Pick<ExternalMcpServerReco
  *
  * Not repaired by unsealing, deliberately. This is read by a plain list route that must answer
  * without a keyring round trip, and must keep answering TRUTHFULLY for a row whose blob will not
- * open at all: a rotated root key, or a legacy `aad_version 0` ciphertext. A decrypt here would turn
+ * open at all: a rotated site key, or a legacy `aad_version 0` ciphertext. A decrypt here would turn
  * either into a failed settings tab, and would put a keyring dependency on a read path that has
  * never had one.
  *
@@ -753,7 +753,7 @@ export async function listExternalMcpServerViews(
  *
  * A row whose sealed env cannot be opened is SKIPPED rather than thrown on, and the reason is
  * returned in `failures`. This mirrors `bootstrap.ts`'s fail-open posture for the same reason: a
- * rotated root key or a corrupt row must not stop the daemon booting, and one unusable server must
+ * rotated site key or a corrupt row must not stop the daemon booting, and one unusable server must
  * not take out a second working one. Disabled rows never reach the sealer at all.
  *
  * @returns The usable configs plus a per-server accounting of what could not be read.
@@ -1154,7 +1154,7 @@ export interface SaveExternalMcpServerInput {
  * `mcp-federation/config.ts` draws for allowlists, and for the same reason.
  *
  * @throws {ExternalMcpValidationError} On any invalid operator input.
- * @throws {ExternalMcpSecretStoreUnconfiguredError} When no root key is available to seal under.
+ * @throws {ExternalMcpSecretStoreUnconfiguredError} When no site key is available to seal under.
  * @complexity O(n) in the size of the env block.
  * @overallScore 100
  */
@@ -1525,7 +1525,7 @@ async function assertUnderExternalMcpServerCap(
  *  why); an empty parsed block clears the seal to `null` rather than sealing `{}`. Split out purely
  *  to keep {@link saveExternalMcpServer}'s complexity under the shop ceiling.
  *  @throws {ExternalMcpValidationError} On a malformed env block (via {@link parseEnvBlock}).
- *  @throws {ExternalMcpSecretStoreUnconfiguredError} When no root key is available to seal under. */
+ *  @throws {ExternalMcpSecretStoreUnconfiguredError} When no site key is available to seal under. */
 /** {@link resolveExternalMcpSealedEnv}'s `rawEnv === undefined` branch — carries the existing sealed
  *  env block through untouched. Split out purely to keep that function's complexity under the shop
  *  ceiling.
@@ -1545,7 +1545,7 @@ function carryForwardExternalMcpSealedEnv(
 /** {@link resolveExternalMcpSealedEnv}'s fresh-seal branch — parses and seals a NEW env block. Split
  *  out purely to keep that function's complexity under the shop ceiling.
  *  @throws {ExternalMcpValidationError} On a malformed env block (via {@link parseEnvBlock}).
- *  @throws {ExternalMcpSecretStoreUnconfiguredError} When no root key is available to seal under. */
+ *  @throws {ExternalMcpSecretStoreUnconfiguredError} When no site key is available to seal under. */
 async function sealFreshExternalMcpEnv(
   deps: Pick<ExternalMcpStoreDeps, "sealer" | "keyring">,
   identity: ExternalMcpAadIdentity,
@@ -1724,7 +1724,7 @@ export interface ExternalMcpSealedOAuthPayload {
  *
  * @returns `{}` when the row holds none, which is the normal state before a connection is authorized.
  * @throws {ExternalMcpSecretStoreUnconfiguredError} When the blob exists but cannot be opened — a
- * rotated root key or a corrupt row. Distinct from "no blob" on purpose: the caller must not treat a
+ * rotated site key or a corrupt row. Distinct from "no blob" on purpose: the caller must not treat a
  * decryption failure as "not connected yet" and start a fresh authorization over a token that is
  * still live at the provider.
  * @complexity O(1) — one unseal.
@@ -1762,7 +1762,7 @@ export async function openExternalMcpOAuthPayload(
  * it hold a token" — a cleared connection keeps its client secret in that blob — which is why
  * {@link externalMcpRecordHasStoredToken} reads the plaintext columns instead.
  *
- * @throws {ExternalMcpSecretStoreUnconfiguredError} When no root key is available.
+ * @throws {ExternalMcpSecretStoreUnconfiguredError} When no site key is available.
  * @complexity O(1) — one seal.
  */
 /**
@@ -1898,7 +1898,7 @@ function assertValidStaticAccessToken(token: string): string {
  * `oauthAadVersion` together, for the reason {@link SealedExternalMcpOAuth} gives.
  *
  * @throws {ExternalMcpValidationError} Via {@link assertValidStaticAccessToken}.
- * @throws {ExternalMcpSecretStoreUnconfiguredError} When no root key is available to seal under.
+ * @throws {ExternalMcpSecretStoreUnconfiguredError} When no site key is available to seal under.
  * @complexity O(n) in the token length; at most one seal.
  */
 async function resolveSealedStaticAccessToken(

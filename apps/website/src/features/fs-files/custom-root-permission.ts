@@ -48,7 +48,7 @@ import { registerBuiltinRoleGrant } from "../identity/builtin-role-grants.js";
  * {@link FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION} is imported by
  * `server/inbound/admin-http/routes/fs-files/custom-root.ts`, which `composition/app.ts` imports
  * statically (`app.ts:217`) — the same "reached via its own consumer" mechanism
- * `features/identity/site-token-permission.ts` documents for itself.
+ * `features/identity/site-key-permission.ts` documents for itself.
  * `server/inbound/admin-http/routes/fs-files/__tests__/custom-root-permission.test.ts` pins the
  * resulting grant end-to-end through the real route against a workspace seeded the way the shipping
  * one was, so a regression surfaces as a failing privilege test rather than as a silent lockout.

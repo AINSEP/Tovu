@@ -14,9 +14,9 @@ import {
 import type { SiteKeyHandle, SecretSealerPort } from "#src/features/webhooks/index";
 
 /**
- * @file The Site Token tab's last-resort recovery on sealed credentials (design
- * `2026-09-14-root-key-regenerate-and-desktop-key-source-design.md` §4.3/§4.6): which sealed values
- * open under a given key ("Paste your old token" proves a token by opening a real one), and removing
+ * @file The site key tab's last-resort recovery on sealed credentials (historical
+ * recovery design dated 2026-09-14 §4.3/§4.6): which sealed values
+ * open under a given key ("Paste your old site key" proves a key by opening a real one), and removing
  * the ones that do not ("Start fresh", after a restore point).
  *
  * Discovery and each store's AAD come from `sealed-credential-inventory.ts` (catalog + descriptors),
@@ -36,7 +36,7 @@ const COMPANION_SUFFIXES = ["masked", "key_tail", "token_tail"] as const;
 
 export interface SealedCredentialKeyDeps {
   readonly kernel: ContentKernel;
-  /** A sealer over the key being checked (e.g. `FixedRootKeyKeyring`). Only `open` is used. */
+  /** A sealer over the key being checked (e.g. `FixedSiteKeyKeyring`). Only `open` is used. */
   readonly sealer: Pick<SecretSealerPort, "open">;
   readonly descriptors: readonly SealedColumnDescriptor[];
 }

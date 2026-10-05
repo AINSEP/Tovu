@@ -22,10 +22,10 @@ import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
  * (see either file's own header, or `serve.ts`'s 2026-09-05 dispatch comments referencing them).
  *
  * `envSnapshot`'s first four checks are unchanged from `index.ts`'s original implementation. The
- * fifth, `hasMissingIntegrationsRootKey`, was added by this fix (2026-09-09, integrations-root-key
- * silent-rekey gap): `TOVU_INTEGRATIONS_ROOT_KEY` used to be classified `"recommended"`
+ * fifth, `hasMissingIntegrationsSiteKey`, was added by this fix (2026-09-09, site-key
+ * silent-rekey gap): `TOVU_SITE_KEY` used to be classified `"recommended"`
  * (`features/deployments/deploy-config.ts`'s `REQUIRED_SECRETS`) with no boot-gate check at all —
- * a container redeploy with the var unset booted fine and silently derived a new root key every
+ * a container redeploy with the var unset booted fine and silently derived a new site key every
  * time (`EnvOrFileKeyring`'s generated-file fallback resolves against the container's ephemeral
  * rootfs, not the persistent volume). See this file's own inline comment on the field below for the
  * full mechanism. See this function's own inline comments below for what each check means; nothing
@@ -41,7 +41,7 @@ export async function runProductionReadinessGateOrExit(): Promise<void> {
     mode,
     inventory: CAPABILITY_INVENTORY,
     envSnapshot: {
-      // True when `ANALYTICS_ROOT_KEY_SEED` is unset, since `registerAnalyticsIngestRoute`'s wiring
+      // True when `ANALYTICS_ANALYTICS_SEED` is unset, since `registerAnalyticsIngestRoute`'s wiring
       // in `app.ts` falls back to the literal dev placeholder `"dev-only-insecure-seed"` whenever
       // that env var is absent.
       hasDevSecretPlaceholder: !process.env.ANALYTICS_ROOT_KEY_SEED,
@@ -57,20 +57,20 @@ export async function runProductionReadinessGateOrExit(): Promise<void> {
       // the owner account. Imported from that module so this can never drift out of sync with what
       // the seeder actually did.
       hasDefaultOwnerPassword: (process.env.TOVU_ADMIN_PASSWORD ?? DEFAULT_OWNER_PASSWORD) === DEFAULT_OWNER_PASSWORD,
-      // True when NEITHER the env var NOR a valid key file resolves to usable root-key material —
-      // `inspectRootKeyMaterial()` is the SAME env-first/file-second check `EnvOrFileKeyring`'s own
-      // `resolveRootKey()` uses, called here with its defaults so this reads the identical
-      // `defaultRootKeyFilePath()` any instance would (which is mode-aware — the durable
+      // True when NEITHER the env var NOR a valid key file resolves to usable site-key material —
+      // `inspectSiteKeyMaterial()` is the SAME env-first/file-second check `EnvOrFileKeyring`'s own
+      // `resolveSiteKey()` uses, called here with its defaults so this reads the identical
+      // `defaultSiteKeyFilePath()` any instance would (which is mode-aware — the durable
       // `<cwd>/sites/.tovu/...` path in production, not `homedir()`; see that function's own doc).
       //
       // 2026-09-09 (durability fix, second pass): this used to check ONLY `process.env.
-      // TOVU_INTEGRATIONS_ROOT_KEY`, which made a valid, already-generated key file invisible to
-      // this gate — the exact chicken-and-egg the admin Site Token tab's Generate action would
+      // TOVU_SITE_KEY`, which made a valid, already-generated key file invisible to
+      // this gate — the exact chicken-and-egg the admin site key tab's Generate action would
       // otherwise hit (boot refuses before the admin UI that could "fix" it in-app is ever
       // reachable). A key file that exists but is not valid hex still counts as missing here
-      // (`inspectRootKeyMaterial().active` is `false` for that case too, via its own `invalid`
+      // (`inspectSiteKeyMaterial().active` is `false` for that case too, via its own `invalid`
       // branch) — this gate does not currently distinguish "absent" from "present but corrupt" in
-      // its own failure code (`missing-integrations-root-key` either way); both are equally unsafe
+      // its own failure code (`missing-site-key` either way); both are equally unsafe
       // to boot on, so the coarser signal is still correct, just not maximally specific.
       hasMissingSiteKey: !siteKeyStatus.active,
       hasSiteKeyEnvConflict: siteKeyStatus.reason === "env-conflict",

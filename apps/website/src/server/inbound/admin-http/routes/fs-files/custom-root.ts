@@ -17,7 +17,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  * `/api/admin/v1/workspaces/:workspaceId/fs-files/custom-root` — the operator-facing surface for the
  * `fs-files` domain's `custom` root (`features/fs-files/layout.ts`, `custom-root-store.ts`).
  *
- * Shape copied from `routes/system/site-token.ts`: a `Pick<RouteDeps, "workspaceId" | "authorize">`
+ * Shape copied from `routes/system/site-key.ts`: a `Pick<RouteDeps, "workspaceId" | "authorize">`
  * deps slice (no settings ledger, no repo — the value is persisted by `custom-root-store.ts`, keyed
  * by `workspaceId`), the same `rejectUnlessAuthorized` two-step, one file for every verb.
  *
@@ -52,7 +52,7 @@ export type AdminFsFilesCustomRootDeps = Pick<RouteDeps, "workspaceId" | "author
 const BASE_PATH = "/api/admin/v1/workspaces/:workspaceId/fs-files/custom-root";
 
 /** Shared workspace-path-param + permission check every verb below performs first — same shape
- *  `site-token.ts`'s own `rejectUnlessAuthorized`. Takes the permission as a parameter because the
+ *  `site-key.ts`'s own `rejectUnlessAuthorized`. Takes the permission as a parameter because the
  *  verbs no longer share one (see this file's header). Returns `true` (response already written) iff
  *  the caller should stop. */
 async function rejectUnlessAuthorized(

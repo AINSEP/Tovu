@@ -1682,7 +1682,7 @@ export const siteAssistantCredentials = sqliteTable(
     provider: text("provider").notNull().default("google"),
     baseUrl: text("base_url"),
     model: text("model"),
-    /** `SealedSecret.keyId` — names the root-key generation the value was wrapped under. */
+    /** `SealedSecret.keyId` — names the site-key generation the value was wrapped under. */
     sealedKeyId: text("sealed_key_id"),
     /** Base64 `AEAD ciphertext || 16-byte GCM auth tag`. */
     sealedCiphertext: text("sealed_ciphertext"),
@@ -2288,7 +2288,7 @@ export const mediaProviderCredentials = sqliteTable(
     providerId: text("provider_id").notNull(),
     baseUrl: text("base_url"),
     model: text("model"),
-    /** `SealedSecret.keyId` — names the root-key generation the value was wrapped under. */
+    /** `SealedSecret.keyId` — names the site-key generation the value was wrapped under. */
     sealedKeyId: text("sealed_key_id"),
     /** Base64 `AEAD ciphertext || 16-byte GCM auth tag`. */
     sealedCiphertext: text("sealed_ciphertext"),

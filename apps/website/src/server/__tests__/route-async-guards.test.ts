@@ -34,7 +34,7 @@ import type { LipayApi } from "#src/features/plugins/lipay/lipay-plugin";
  * report for the captured RED output.
  *
  * `AbortSignal.timeout(3000)` bounds every request in this file for the same reason
- * `publish-credentials-route.test.ts`'s own root-key-missing test documents: an unguarded async
+ * `publish-credentials-route.test.ts`'s own site-key-missing test documents: an unguarded async
  * handler that rejects with nothing calling `res.json()`/`res.status()` leaves the client hanging
  * with no response, not a quick error — a regression here must fail in seconds, never hang the
  * whole suite.

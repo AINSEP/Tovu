@@ -267,7 +267,7 @@ test("buildServeEnv drops inherited PORT, TOVU_DB and TOVU_CONTENT_DB", () => {
 test("buildServeEnv drops only the inherited public origin while preserving credentials and other vars", () => {
   const baseEnv = {
     TOVU_PUBLIC_URL: "https://localhost:3000",
-    TOVU_INTEGRATIONS_ROOT_KEY: "test-root-key",
+    TOVU_SITE_KEY: "test-site-key",
     TOVU_AGENT_DAEMON_TOKEN: "test-daemon-token",
     CUSTOM_SITE_VAR: "keep-me",
     PATH: "/usr/bin",

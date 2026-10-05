@@ -25,10 +25,10 @@ export function describeApiError(e: unknown, fallback: string): string {
     if (e.code === "FORBIDDEN") return "You do not have permission to change the AI assistant's settings.";
     if (e.code === "ASSISTANT_SETTINGS_VALIDATION_ERROR") return e.message || "That value was rejected.";
     // ADR-058's fail-closed branch, translated rather than shown raw. The server's own message names
-    // the variable, but it names it in server-operator language ("set TOVU_INTEGRATIONS_ROOT_KEY (a
-    // hex-encoded root key) in the server environment") arriving in a UI where the reader has just
+    // the variable, but it names it in server-operator language ("set TOVU_SITE_KEY (a
+    // hex-encoded site key) in the server environment") arriving in a UI where the reader has just
     // pasted a key and been told it did not save. The distinction that matters to them is that
-    // NOTHING IS WRONG WITH THEIR KEY — the server has no master secret to encrypt it under.
+    // NOTHING IS WRONG WITH THEIR KEY — the server has no site key to encrypt it under.
     if (e.code === "SECRET_STORE_UNCONFIGURED")
       return "The server can't store keys yet: it has no site key. Set TOVU_SITE_KEY (hex) and restart. Your key was not saved.";
     if (e.code === "SITE_CREDENTIAL_VALIDATION_ERROR") return e.message || "That value was rejected.";

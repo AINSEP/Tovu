@@ -303,26 +303,26 @@ test("a denied-pattern file is silently excluded from listFsFiles, not merely re
 });
 
 // ---------------------------------------------------------------------------
-// 3d. Root key and home-directory secrets (2026-09-24 fix) — the agent must never be able to read
-//     TOVU_INTEGRATIONS_ROOT_KEY off disk (owner rule, "Site Token" = the root key = the one secret),
+// 3d. site key and home-directory secrets (2026-09-24 fix) — the agent must never be able to read
+//     TOVU_SITE_KEY off disk (owner rule, "site key" = the site key = the one secret),
 //     nor the shell rc files that export notarization/API creds, nor Claude's own OAuth store.
 // ---------------------------------------------------------------------------
 
-test("isDeniedFsFileName matches any '*root-key*.hex' site key basename, not just the literal generated filename", () => {
-  // Filename patterns stay unchanged during the copy-only stage; the deny-rule widening is Stage C.
-  for (const name of [LEGACY_SITE_KEY_FILENAME, "root-key.hex", "old-root-key-backup.hex", "INTEGRATIONS-ROOT-KEY.HEX"]) {
+test("isDeniedFsFileName matches any '*-key*.hex' site key basename, not just the literal generated filename", () => {
+  // Copies and alternate key-file basenames stay denied outside the hidden key directory.
+  for (const name of [LEGACY_SITE_KEY_FILENAME, "site-key.hex", "old-site-key-backup.hex", "ARCHIVE-KEY-2026.HEX", "other-key-copy.hex"]) {
     assert.equal(isDeniedFsFileName(name), true, `expected '${name}' to be denied`);
   }
-  assert.equal(isDeniedFsFileName("root-key.txt"), false, "a name merely containing 'root-key' without the .hex extension must not match");
+  assert.equal(isDeniedFsFileName("site-key.txt"), false, "a name merely containing 'site-key' without the .hex extension must not match");
 });
 
-test("a '*root-key*.hex' site key file is refused on read and excluded from listFsFiles even outside a .tovu directory", () => {
+test("a '*-key*.hex' site key file is refused on read and excluded from listFsFiles even outside a .tovu directory", () => {
   const { root } = makeAllowedRoot();
   fs.mkdirSync(path.join(root, "backups"), { recursive: true });
-  fs.writeFileSync(path.join(root, "backups", "old-root-key.hex"), "deadbeef", "utf8");
-  assert.throws(() => readFsFile({ rootPath: root, relativePath: "backups/old-root-key.hex" }), /denied filename pattern/);
+  fs.writeFileSync(path.join(root, "backups", "old-site-key.hex"), "deadbeef", "utf8");
+  assert.throws(() => readFsFile({ rootPath: root, relativePath: "backups/old-site-key.hex" }), /denied filename pattern/);
   const files = listFsFiles({ rootPath: root }).files;
-  assert.equal(files.includes("backups/old-root-key.hex"), false);
+  assert.equal(files.includes("backups/old-site-key.hex"), false);
 });
 
 test(`the production site key layout (sites/.tovu/${LEGACY_SITE_KEY_FILENAME}) is refused via the denied '.tovu' segment`, () => {
@@ -557,7 +557,7 @@ test("node_modules, .git, and dist are excluded from listFsFiles but not from fs
 // ---------------------------------------------------------------------------
 // 3e. Spellings the host file system folds onto a denied name (2026-09-24 review of 9060b6c26).
 //     macOS's default case-insensitive APFS opens `.baſhrc` (U+017F LONG S) as `.bashrc` and
-//     `root-Key.hex` (U+212A KELVIN SIGN) as `root-key.hex` — verified on this machine — yet neither
+//     `site-key.hex` (U+212A KELVIN SIGN) as `site-key.hex` — verified on this machine — yet neither
 //     `toLowerCase()` nor a non-`u` `/i` regex folds either character. Windows strips trailing dots
 //     and spaces from every path component and reads `name::$DATA` as `name` itself.
 // ---------------------------------------------------------------------------
@@ -569,7 +569,7 @@ test("a Unicode case-fold spelling of a denied filename is refused before the fi
     () => readFsFile({ rootPath: root, relativePath: ".baſhrc" }),
     { message: "path '.baſhrc' matches a denied filename pattern and cannot be accessed" },
   );
-  assert.equal(isDeniedFsFileName("integrations-root-Key.hex"), true, "KELVIN SIGN spelling of the site key file");
+  assert.equal(isDeniedFsFileName("site-Key.hex"), true, "KELVIN SIGN spelling of the site key file");
 });
 
 test("a Unicode case-fold spelling of a denied path segment is refused", () => {

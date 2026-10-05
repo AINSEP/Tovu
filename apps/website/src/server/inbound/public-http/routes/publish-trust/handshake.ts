@@ -24,7 +24,7 @@ import type { KeyringPort } from "#src/features/webhooks/index";
  *
  * Three fields, to anyone who asks:
  *
- * - `installationId` — derived from this install's root key through HKDF. It is not a secret and
+ * - `installationId` — derived from this install's site key through HKDF. It is not a secret and
  *   was never treated as one: it is published inside the grant, which lives in committed deploy
  *   config by design. It is one-way — it identifies this install without revealing the key it came
  *   from — and possessing it grants nothing, because every credential is checked by signature.
@@ -38,7 +38,7 @@ import type { KeyringPort } from "#src/features/webhooks/index";
  * has not. It exists for exactly one reason — so the source learns this destination's identity
  * without a human reading a workspace id off a screen and typing it somewhere.
  *
- * A destination restored from a backup derives a DIFFERENT installation id (its root key changed),
+ * A destination restored from a backup derives a DIFFERENT installation id (its site key changed),
  * and the source is expected to notice that change loudly rather than publish into a stranger.
  *
  * ## Flood resistance
@@ -62,9 +62,9 @@ const PUBLISH_TRUST_HANDSHAKE_PER_IP: RateLimitProfile = {
  *  configured" and "a grant that is not yours". The real reason goes to the server's own log. */
 const HANDSHAKE_REFUSAL = { error: "the publishing handshake was refused", code: "UNAUTHENTICATED" } as const;
 
-/** What every handshake route answers when this install has no usable root key, so it has no
+/** What every handshake route answers when this install has no usable site key, so it has no
  *  installation id to state or sign against. Says nothing about any grant, like `/identity`. */
-const NO_SITE_TOKEN = {
+const NO_SITE_KEY = {
   error: "This site has no usable Site key yet, so it cannot accept publishes. Set one up on this site first.",
   code: "SECRET_STORE_UNCONFIGURED",
 } as const;
@@ -143,10 +143,10 @@ export function registerPublishTrustHandshakeRoutes(app: Express, deps: PublishT
     return false;
   }
 
-  /** This install's id, or `null` after sending the 503 when the root key is missing. */
+  /** This install's id, or `null` after sending the 503 when the site key is missing. */
   async function installationIdOrRefuse(res: Response): Promise<string | null> {
     const id = await deps.targetInstallationId.catch(() => null);
-    if (id === null) res.status(503).json(NO_SITE_TOKEN);
+    if (id === null) res.status(503).json(NO_SITE_KEY);
     return id;
   }
 

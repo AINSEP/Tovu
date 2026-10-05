@@ -146,7 +146,7 @@ test("non-loopback TOVU_PUBLIC_URL is never dropped", async () => {
  * `clearBlankSiteKeyEnv` runs BEFORE `.env` is loaded. `process.loadEnvFile` never overrides a
  * variable already present, even an empty one, and the keyring treats an empty value as absent — so
  * a blank shell `TOVU_SITE_KEY` would hide `.env`'s real key and let
- * `tovu root-key ensure` mint a second one.
+ * `tovu site-key ensure` mint a second one.
  */
 test("clearBlankSiteKeyEnv: blank TOVU_SITE_KEY is removed so .env can fill it", () => {
   const env = { TOVU_SITE_KEY: "" };
@@ -210,7 +210,7 @@ test("main supplies the imported server with loopback binding and the final env 
       copyFileSync(new URL(`../${name}`, import.meta.url), path.join(fixture, "development", "scripts", name));
     }
     writeFileSync(path.join(fixture, "package.json"), '{"type":"module"}');
-    writeFileSync(path.join(fixture, ".env"), "TOVU_SITE_KEY=fixture-root-key\nTOVU_PUBLIC_URL=http://localhost:3000\n");
+    writeFileSync(path.join(fixture, ".env"), "TOVU_SITE_KEY=fixture-site-key\nTOVU_PUBLIC_URL=http://localhost:3000\n");
     // Any port probe fails this regression. The stub reads the exact env main supplied; no
     // repository .env or existing compiled server is touched.
     writeFileSync(path.join(fixture, "runner.mjs"), `
@@ -247,7 +247,7 @@ test("main supplies the imported server with loopback binding and the final env 
     assert.ok(line, "the compiled server stub must actually be imported");
     assert.deepEqual(JSON.parse(line.slice("LAUNCHER_RESULT ".length)), {
       host: "127.0.0.1", autoStartPort: "1", publicUrlPresent: false,
-      siteKey: "fixture-root-key", siteKeyNotice: "off", lifecycleLog: "off",
+      siteKey: "fixture-site-key", siteKeyNotice: "off", lifecycleLog: "off",
     });
   } finally {
     rmSync(fixture, { recursive: true, force: true });

@@ -17,7 +17,7 @@
  * holding live secret keys, `autoload = 'yes'`, i.e. `SELECT`ed into PHP memory on every request,
  * and the subject of its own 2021 "rotate your gateway keys" advisory after a DB-exposure bug.
  *
- * `KeyringPort` is deliberately NOT reused: it derives secrets via HKDF from a root key, which is
+ * `KeyringPort` is deliberately NOT reused: it derives secrets via HKDF from a site key, which is
  * right for outbound signing secrets Tovu itself mints and wrong for externally-issued provider
  * credentials that must round-trip verbatim (`webhooks/ports.ts`'s `SecretSealerPort` framing).
  */

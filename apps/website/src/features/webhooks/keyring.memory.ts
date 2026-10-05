@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { FixedRootKeyKeyring as FixedSiteKeyKeyring } from "@jini-ai/platform/secrets";
+import { FixedRootKeyKeyring as FixedSiteKeyKeyring } from "@jini-ai/platform/secrets"; // site-key-legacy: until @jini-ai/platform release with SiteKey exports; remove on/after 2026-11-01
 import { HKDF_EXTRACTION_SALT } from "./keyring.env.js";
 import type { KeyringPort } from "./ports.js";
 
@@ -12,12 +12,12 @@ import type { KeyringPort } from "./ports.js";
  * Purpose:
  * Backs the hermetic `RouteDeps` composition (`server/app.ts`'s `createRouteDeps()`, used by
  * every route test) with the REAL `createKeyringBackedSigner`/HKDF derivation code path, without
- * touching the filesystem or an env var the way `EnvOrFileKeyring` does. A random root key is
+ * touching the filesystem or an env var the way `EnvOrFileKeyring` does. A random site key is
  * generated once per instance and held only in memory.
  *
  * Hermetic route composition exercises the real signer/HKDF path without reading an env var
- * or the filesystem. This instance retains one random root key only in memory. */
-// Shared derivation: Jini/packages/platform/src/secrets/keyring.env.ts (FixedRootKeyKeyring).
+ * or the filesystem. This instance retains one random site key only in memory. */
+// Shared derivation: Jini/packages/platform/src/secrets/keyring.env.ts (FixedSiteKeyKeyring).
 export class InMemoryKeyring implements KeyringPort {
   private readonly keyring: FixedSiteKeyKeyring;
 

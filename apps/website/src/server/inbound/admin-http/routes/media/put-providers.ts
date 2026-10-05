@@ -23,7 +23,7 @@ import type { MediaProviderRouteRegistrar } from "./deps.js";
  * The response never echoes key material — it is the same markers-only map GET returns. Three
  * failure outcomes, mirroring `put-site-credential.ts`'s split: 400 validation (unknown provider
  * id, wrong field type, oversized field), 503 `SECRET_STORE_UNCONFIGURED` (missing
- * `TOVU_INTEGRATIONS_ROOT_KEY`, detected before any write lands), 500 everything else.
+ * `TOVU_SITE_KEY`, detected before any write lands), 500 everything else.
  */
 export const registerAdminMediaPutProvidersRoute: MediaProviderRouteRegistrar = (app, deps) => {
   app.put("/api/admin/v1/workspaces/:workspaceId/media/providers", async (req, res) => {

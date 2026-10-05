@@ -18,18 +18,18 @@ export interface EnvSnapshot {
   /** SPEC-022 §4.2: true when the seeded owner account still has the publicly-documented default password. */
   hasDefaultOwnerPassword: boolean;
   /**
-   * True when NEITHER `TOVU_INTEGRATIONS_ROOT_KEY` NOR a valid, already-generated key file
-   * resolves to usable root-key material (`features/webhooks/keyring.env.ts`'s
-   * `inspectRootKeyMaterial()`).
+   * True when NEITHER `TOVU_SITE_KEY` NOR a valid, already-generated key file
+   * resolves to usable site-key material (`features/webhooks/keyring.env.ts`'s
+   * `inspectSiteKeyMaterial()`).
    *
    * Before the 2026-09-09 durability fix, `EnvOrFileKeyring`'s generated-file fallback resolved
    * under `homedir()` — inside the shipped container (`Dockerfile`'s `USER node`) that resolved to
-   * the image rootfs, not the mounted Fly volume, so the file (and the root key it held) did not
+   * the image rootfs, not the mounted Fly volume, so the file (and the site key it held) did not
    * survive a redeploy, and this check covered only the env var for exactly that reason. The key
-   * file now defaults to `<cwd>/sites/.tovu/integrations-root-key.hex` in production — ON the
+   * file now defaults to `<cwd>/sites/.tovu/site-key.hex` in production — ON the
    * mounted volume — so a valid file there is durable and this check now accepts it too. Left
    * unchecked (missing both), a production boot succeeds silently and (depending on which keyring
-   * instance hits it first) either mints an ephemeral root key or throws mid-request — this check
+   * instance hits it first) either mints an ephemeral site key or throws mid-request — this check
    * turns that into a loud boot-time refusal instead.
    */
   hasMissingSiteKey: boolean;

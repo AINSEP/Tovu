@@ -393,7 +393,7 @@ interface BuildServeEnvInput {
  * same reason — see the LAN-bind plan note above the identity-seeding paragraph.
  * `TOVU_PUBLIC_URL` is dropped because desktop development loads the repo-root
  * `.env`: its public origin belongs to that site, not each spawned site's loopback server.
- * `TOVU_INTEGRATIONS_ROOT_KEY` and the rest of the inherited environment remain available.
+ * `TOVU_SITE_KEY` and the rest of the inherited environment remain available.
  * `TOVU_ADMIN_USER`/
  * `TOVU_ADMIN_PASSWORD` are ALREADY a random, never-shown pair by the time this function runs —
  * {@link buildCliEnv} above seeds them unconditionally — so a caller that passes no

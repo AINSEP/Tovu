@@ -14,7 +14,7 @@ import { buildExecutionCredentialAad } from "./execution-credential-aad.js";
  * of workspace-only:
  * - {@link getExecutionCredential} — read model only. Never decrypts (`masked` is a plain column,
  *   computed once at write time), so this never touches the sealer/keyring and never fails on a
- *   misconfigured master secret.
+ *   misconfigured site key.
  * - {@link setExecutionCredential} — write-only for the key itself: `apiKey`, when provided, is
  *   sealed and never echoed back. Omitted `apiKey` leaves the stored key untouched.
  * - {@link deleteExecutionCredential} — clears the key only; `protocol`/`providerId`/`baseUrl`/
@@ -23,7 +23,7 @@ import { buildExecutionCredentialAad } from "./execution-credential-aad.js";
  *
  * {@link resolveExecutionCredential} is the fourth function and the odd one out: it is the BYOK-turn
  * route's read path (called per admin turn, not from an admin CRUD route), and it must NEVER throw.
- * A missing row, a missing master secret, or a corrupt/tampered ciphertext all resolve to `null`,
+ * A missing row, a missing site key, or a corrupt/tampered ciphertext all resolve to `null`,
  * which the caller (`byok-credential.ts`'s stored port) treats as "no stored credential" — unlike
  * ADR-058's sibling function there is no env-var fallback to degrade to here; `null` just means the
  * turn has no usable credential from this source.
@@ -114,7 +114,7 @@ export interface ExecutionCredentialReadDeps {
 
 /**
  * The read model an admin screen renders. Pure DB read — no sealer, no keyring, cannot fail on a
- * misconfigured master secret.
+ * misconfigured site key.
  *
  * @complexity O(1) — one `findByWorkspaceAndPrincipal` lookup.
  * @overallScore 100
@@ -129,8 +129,8 @@ export async function getExecutionCredential(
 
 export class ExecutionCredentialValidationError extends Error {}
 
-/** Thrown when a caller supplies a new `apiKey` but the master secret
- *  (`TOVU_INTEGRATIONS_ROOT_KEY`) is unavailable — fail-closed, mirroring
+/** Thrown when a caller supplies a new `apiKey` but the site key
+ *  (`TOVU_SITE_KEY`) is unavailable — fail-closed, mirroring
  *  `SiteAssistantSecretStoreUnconfiguredError`. Distinct from
  *  {@link ExecutionCredentialValidationError} so the route can map it to its own `503
  *  SECRET_STORE_UNCONFIGURED` response rather than a `400`. */
@@ -244,7 +244,7 @@ function carryForwardExecutionCredentialSeal(
 
 /** {@link resolveExecutionCredentialSeal}'s fresh-seal branch. Split out purely to keep that
  *  function's complexity under the shop ceiling.
- *  @throws {ExecutionCredentialSecretStoreUnconfiguredError} The master secret is unavailable. */
+ *  @throws {ExecutionCredentialSecretStoreUnconfiguredError} The site key is unavailable. */
 async function sealFreshExecutionCredential(
   deps: Pick<ExecutionCredentialWriteDeps, "sealer" | "keyring">,
   identity: { workspaceId: UUID; principalId: UUID },
@@ -256,8 +256,8 @@ async function sealFreshExecutionCredential(
     const sealed = await deps.sealer.seal({ plaintext: apiKey, key: activeKey, aad });
     return { sealed, masked: maskOf(apiKey), aadVersion: 1 };
   } catch (err) {
-    // Any failure deriving/sealing under the current root key is treated as "the secret store is
-    // unconfigured" — the realistic failure mode is a missing `TOVU_INTEGRATIONS_ROOT_KEY`, and
+    // Any failure deriving/sealing under the current site key is treated as "the secret store is
+    // unconfigured" — the realistic failure mode is a missing `TOVU_SITE_KEY`, and
     // this must never fall through to a plaintext write.
     throw new ExecutionCredentialSecretStoreUnconfiguredError(
       `admin execution credential secret store is unconfigured: ${err instanceof Error ? err.message : String(err)}`

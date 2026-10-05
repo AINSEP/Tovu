@@ -16,7 +16,7 @@ import { SEALED_COLUMN_DESCRIPTORS } from "#src/server/runtime/composition/seale
 import { countSealedCredentialsOpening, discardSealedCredentialsNotOpening, resealCredentialsOpeningUnder } from "../sealed-credential-discard.js";
 
 /**
- * @file The Site Token tab's "Start fresh" discard and "Paste your old token" check
+ * @file The site key tab's "Start fresh" discard and "Paste your old token" check
  * (`sealed-credential-discard.ts`): sealed values that do not open under a given key are removed —
  * a row whose sealed value is its whole point is deleted, a nullable sealed value is cleared with
  * the columns its shape check ties to it — and values that DO open are never touched.

@@ -22,7 +22,7 @@ import type { PublishConnectionInput, PublishCredentialSummary, PublishProviderI
  * line between them:
  *
  * - {@link describeCredential}/{@link listPublishCredentials} — read model only. Never decrypts, never
- *   touches `sealer`/`keyring` at all, so neither can fail on a misconfigured master secret. This is
+ *   touches `sealer`/`keyring` at all, so neither can fail on a misconfigured site key. This is
  *   what the GET route, the read-only agent tool, and any other "is X configured" caller must use.
  * - {@link resolveForPublish} — the ONLY function in this module that decrypts. Never called from
  *   preview, never called from anything agent-facing (mirrors `site-credential-store.ts`'s own
@@ -82,7 +82,7 @@ export class PublishCredentialValidationError extends Error {}
 export class PublishCredentialDuplicateLabelError extends Error {}
 
 /** Thrown when `sealer.seal()`/`keyring.activeKey()` fails while writing a connection — the realistic
- *  cause is a missing master secret (`TOVU_INTEGRATIONS_ROOT_KEY`), same fail-closed contract
+ *  cause is a missing site key (`TOVU_SITE_KEY`), same fail-closed contract
  *  `SiteAssistantSecretStoreUnconfiguredError` documents for the sibling ADR-058 table. */
 export class PublishCredentialSecretStoreUnconfiguredError extends Error {}
 
@@ -126,7 +126,7 @@ export interface PublishCredentialReadDeps {
 
 /**
  * The read model for ONE credential set. Pure DB read — no sealer, no keyring, cannot fail on a
- * misconfigured master secret. Returns `null` if no row exists for `(workspaceId, id)`, or the row's
+ * misconfigured site key. Returns `null` if no row exists for `(workspaceId, id)`, or the row's
  * vendor is no deploy host's (not an error — the caller decides whether that is a 404).
  *
  * @complexity O(1) — one `findById` lookup plus one registry load.
@@ -336,7 +336,7 @@ async function writeTranslatingDuplicateLabel(write: () => Promise<void>, provid
  *
  * @throws {PublishCredentialValidationError} `label`/`connection`/`isDefault` fails shape validation.
  * @throws {PublishCredentialDuplicateLabelError} `(workspaceId, vendor, label)` already exists.
- * @throws {PublishCredentialSecretStoreUnconfiguredError} The master secret is unavailable.
+ * @throws {PublishCredentialSecretStoreUnconfiguredError} The site key is unavailable.
  * @complexity O(n) in the vendor's own (small) existing-connection count, to decide default
  *   auto-assignment, plus one keyring derivation, one seal, and one insert.
  */
@@ -456,7 +456,7 @@ async function promoteReplacementDefaultInOldGroup(
  * @throws {PublishCredentialDuplicateLabelError} The (possibly renamed) `(vendor, label)` collides
  *   with a different row.
  * @throws {PublishCredentialSecretStoreUnconfiguredError} A new `connection` was supplied but the
- *   master secret is unavailable.
+ *   site key is unavailable.
  * @complexity O(1) — one read, one registry load, at most one seal, one update.
  */
 export async function updatePublishCredential(deps: PublishCredentialWriteDeps, input: UpdatePublishCredentialInput): Promise<PublishCredentialSummary> {
@@ -498,7 +498,7 @@ export async function deletePublishCredential(deps: { repo: VendorCredentialSetR
  *  vendor-table blob and re-labels it as `providerId`'s connection.
  *
  *  Wraps ANY failure (bad AAD, tampered ciphertext, wrong key, or — the realistic one — a missing
- *  `TOVU_INTEGRATIONS_ROOT_KEY` surfacing as a raw `KeyringPort` error) into the SAME typed
+ *  `TOVU_SITE_KEY` surfacing as a raw `KeyringPort` error) into the SAME typed
  *  {@link PublishCredentialSecretStoreUnconfiguredError} {@link sealConnection} already throws for
  *  the write side, rather than letting a raw `Error` escape — it still throws, still ends the
  *  request, just as a type every caller's HTTP boundary already knows how to map (`publish-

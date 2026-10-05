@@ -282,8 +282,8 @@ export async function runServeCommand(input: RunServeCommandInput): Promise<void
   await runProductionReadinessGateOrExit();
 
   // Same pairing as `index.ts`: the gate above is production-only, so a LOCAL `tovu serve` — which
-  // is what the desktop shell spawns for every site — said nothing at all about a missing root key
-  // until this existed. See `root-key-boot-notice.ts`.
+  // is what the desktop shell spawns for every site — said nothing at all about a missing site key
+  // until this existed. See `site-key-boot-notice.ts`.
   warnIfNoSiteKeyAtBoot();
 
   warnIfLegacyEnvVarsIgnored();
@@ -337,7 +337,7 @@ async function serveBootedSite(input: RunServeCommandInput, target: string, owne
   // site-key plan §A3a: safe to call on every boot (a valid per-site file is read, not rewritten —
   // see `ensureSiteKeyForBoot`'s own header). Result is discarded — no caller here needs it, same
   // "safe to call on every boot" framing `ensureSiteKey` itself documents. Must precede
-  // `createSiteRouteDeps` below, which is what actually resolves the root key this may have just
+  // `createSiteRouteDeps` below, which is what actually resolves the site key this may have just
   // adopted or minted. Must FOLLOW `bootSiteDir` and the port/host checks above: it can write
   // `.site-meta.json`, and a boot those refuse must leave the directory untouched — a refused
   // marker-less dir that gained a `.site-meta.json` here is one `tovu adopt` then refuses as

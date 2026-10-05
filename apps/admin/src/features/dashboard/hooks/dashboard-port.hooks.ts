@@ -33,8 +33,8 @@ export interface DashboardPort {
   getPasswordStatus(): Promise<{ usesDefaultPassword: boolean; principalId: string }>;
   /** Site-key plan (2026-09-24) §A.6 — a seventh independent read, same "each source owns its own
    *  error slot, advisory, swallowed on failure" shape `getPasswordStatus` above documents. Narrowed
-   *  to just `state` (`GET .../system/site-token`'s full response also carries `active`/`source`/
+   *  to just `state` (`GET .../system/site-key`'s full response also carries `active`/`source`/
    *  `fingerprint`/`keyFilePath`, none of which the dashboard's own warning banner needs — the
-   *  Security → Site Token tab is the one place that reads the rest). */
+   *  Security → site key tab is the one place that reads the rest). */
   getSiteKeyState(): Promise<{ state: AdminSiteKeyState }>;
 }

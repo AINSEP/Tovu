@@ -9,7 +9,7 @@ import type { TargetDescription } from "./postgres-target.js";
  * {@link TargetDescription}.
  *
  * {@link SealedDatabaseDestinationStore} is the real one: the address is sealed whole (AES-GCM under
- * the site's root key, AAD bound to the workspace — `destination-aad.ts`) in
+ * the site's site key, AAD bound to the workspace — `destination-aad.ts`) in
  * `database_transfer_destinations`, so it survives a restart and is never readable at rest.
  * {@link InMemoryDatabaseDestinationStore} backs compositions without a database (route tests).
  */
@@ -34,7 +34,7 @@ export interface DatabaseDestinationStorePort {
   recordRun(workspaceId: string, summary: DatabaseTransferRunSummary): Promise<void>;
 }
 
-/** A saved address that no longer opens: another root key, or a row moved between workspaces. */
+/** A saved address that no longer opens: another site key, or a row moved between workspaces. */
 export class DestinationUnreadableError extends Error {
   constructor() {
     super("the saved destination database could not be unlocked (the site's key may have changed); save it again with database_transfer_set_destination");

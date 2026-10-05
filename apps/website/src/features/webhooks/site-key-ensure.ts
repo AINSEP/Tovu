@@ -18,12 +18,12 @@ import { writeJsonFileAtomic } from "#src/platform/site-dir/atomic-write";
 
 /**
  * @file Site-key plan (`ADS-memory/.local-artifacts/plan-site-key-2026-09-24.md`) §A.2 — the ONE
- * writer for a site's key file. The CLI's old `tovu root-key ensure` command
- * (`cli/commands/root-key.ts`) was absorbed into {@link ensureSiteKeyForBoot} and deleted outright
- * (Stage A3b, `abc4807d5`) — `planRootKeyEnsure`/`RootKeyEnsurePlan` (that command's own pure
+ * writer for a site's key file. The CLI's old `tovu site-key ensure` command
+ * (`cli/commands/site-key.ts`) was absorbed into {@link ensureSiteKeyForBoot} and deleted outright
+ * (Stage A3b, `abc4807d5`) — `planSiteKeyEnsure`/`SiteKeyEnsurePlan` (that command's own pure
  * decision table) went with it as dead code (site-key plan §A.6: zero callers once the CLI command
  * was gone). `findSiteKeyDependentData` (the per-site scan `ensureSiteKey` uses, on every storage
- * kind) lives in `platform/db/key-dependent-data.ts` on the storage kernel; the admin Site Token
+ * kind) lives in `platform/db/key-dependent-data.ts` on the storage kernel; the admin site key
  * route imports it there, and the boot callers inject it here ({@link KeyDependentDataScan}), so
  * this feature never value-imports `platform/db`.
  *
@@ -49,7 +49,7 @@ import { writeJsonFileAtomic } from "#src/platform/site-dir/atomic-write";
  * stay readers (`allowFileAutoGenerate: false`), and this module is the only place `randomBytes`
  * feeds a site key file. Nothing under `server/inbound/**` may import this module (site-key plan
  * §A.3) — Stage A3a's own wiring test enforces that; this file does not import anything from
- * `server/inbound` in either direction. The one request path that runs it, the admin Site Token
+ * `server/inbound` in either direction. The one request path that runs it, the admin site key
  * `generate` (2026-09-29), receives {@link ensureSiteKeyForSite} from the composition root, so a
  * request writes a key only by these same rules and never by a writer of its own.
  */
@@ -91,7 +91,7 @@ export interface PlanSiteKeyEnsureInput {
   readonly other: SiteKeyMaterialCheck;
   /** Irrelevant unless both `perSite` and `other` are `"absent"` — a caller may pass `false`
    *  unconditionally otherwise, the same convention the now-deleted CLI decision table
-   *  (`planRootKeyEnsure`, site-key plan §A.6) used for its own equivalent field. */
+   *  (`planSiteKeyEnsure`, site-key plan §A.6) used for its own equivalent field. */
   readonly siteDbsWithKeyData: boolean;
 }
 
@@ -128,7 +128,7 @@ export function planSiteKeyEnsure(input: PlanSiteKeyEnsureInput): SiteKeyEnsureP
 
 export interface EnsureSiteKeyInput {
   /** This site's own directory — only this site's store is scanned for key-dependent data (A.2:
-   *  per-site keys), never every sibling site the way the CLI's `tovu root-key ensure` did. */
+   *  per-site keys), never every sibling site the way the CLI's `tovu site-key ensure` did. */
   readonly siteDir: string;
   /** `.site-meta.json`'s `siteKeyId` (A.1/A.4). */
   readonly siteKeyId: string;
@@ -367,7 +367,7 @@ export interface EnsureSiteKeyForBootInput {
  * be written must still start the server. `ensureSiteKey` itself deliberately keeps its own
  * never-swallow contract (its own `@throws` doc) for a caller that wants to fail loudly; this
  * function is the boot-path wrapper specifically, and a boot-time key failure is exactly the class
- * of thing `root-key-boot-notice.ts` exists to surface at the terminal, not crash the process over —
+ * of thing `site-key-boot-notice.ts` exists to surface at the terminal, not crash the process over —
  * the admin status route already reports a missing key the same way it does for any other reason one
  * was never created.
  *
@@ -382,7 +382,7 @@ export async function ensureSiteKeyForBoot(input: EnsureSiteKeyForBootInput): Pr
     return await ensureSiteKeyForSite(input);
   } catch (err) {
     // Boot must never go down over this — see this function's own header. `console.error` (not the
-    // `warn`-level line `root-key-boot-notice.ts` prints moments later on the same terminal) so an
+    // `warn`-level line `site-key-boot-notice.ts` prints moments later on the same terminal) so an
     // operator can tell "the key mechanism itself failed" apart from "no key happens to exist yet".
     console.error(`[site-key] could not ensure a site key at boot for ${input.siteDir}: ${(err as Error).message}`);
     return undefined;
@@ -391,7 +391,7 @@ export async function ensureSiteKeyForBoot(input: EnsureSiteKeyForBootInput): Pr
 
 /**
  * {@link ensureSiteKeyForBoot} without its catch: resolves (or, in local mode, mints) this site's
- * `siteKeyId`, then runs {@link ensureSiteKey}. Also the admin Site Token route's `generate`, injected
+ * `siteKeyId`, then runs {@link ensureSiteKey}. Also the admin site key route's `generate`, injected
  * by the composition root (`server/runtime/composition/app.ts`) so that route mints, adopts and
  * refuses by exactly the rules boot uses rather than a second writer of its own.
  *
@@ -443,7 +443,7 @@ export type InstallSiteKeyResult =
   | { readonly outcome: "env-conflict" };
 
 /**
- * Makes `hex` this site's key — the Site Token tab's recovery writer (design §4.3/§4.6: "Unlock
+ * Makes `hex` this site's key — the site key tab's recovery writer (design §4.3/§4.6: "Unlock
  * with token", "Start fresh"). The caller has already decided `hex` is right; this only writes it.
  *
  * The target is the first key file in this site's source order (the per-site file locally, the

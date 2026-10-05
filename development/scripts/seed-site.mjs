@@ -80,9 +80,9 @@ const PRUNE_TABLES = [
   // covered by one of the ten tables below (verified by grep — see the seed-site report for the
   // exact search). Two independent reasons to prune all of them, not just the ones with real rows
   // today: (1) a fresh deploy's operator configures their own, so the owner's, even sealed, must
-  // never sit in git history; (2) the seal is an envelope encrypted against `TOVU_INTEGRATIONS_ROOT_KEY`
+  // never sit in git history; (2) the seal is an envelope encrypted against `TOVU_SITE_KEY`
   // (`AesGcmSecretSealer`), which is per-environment — a deployed container almost certainly has a
-  // DIFFERENT root key than whatever produced the seed, so a shipped sealed row would not just be
+  // DIFFERENT site key than whatever produced the seed, so a shipped sealed row would not just be
   // inert, it would be ciphertext that fails to decrypt at USE time, a far more confusing failure
   // than the honest "not configured yet" empty state pruning these tables produces instead.
   "admin_execution_credentials",

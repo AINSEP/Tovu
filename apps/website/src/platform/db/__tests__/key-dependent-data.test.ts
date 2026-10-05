@@ -17,10 +17,10 @@ import { findKeyDependentData, scanOpenedKernel } from "../key-dependent-data.js
 // ---------------------------------------------------------------------------
 // findKeyDependentData — moved here from `features/webhooks/site-key-sources.ts` with the scan
 // itself (storage plan N2: onto the storage kernel). `site-key-ensure.ts` receives it injected;
-// the admin Site Token route imports it directly.
+// the admin site key route imports it directly.
 //
-// These 4 cases were originally written against the CLI's `tovu root-key ensure` command
-// (`cli/__tests__/unit/root-key-ensure.unit.test.ts`, deleted in `abc4807d5` when that command was
+// These 4 cases were originally written against the CLI's `tovu site-key ensure` command
+// (`cli/__tests__/unit/site-key-ensure.unit.test.ts`, deleted in `abc4807d5` when that command was
 // absorbed into `ensureSiteKeyForBoot`) and lost with it. `site-key-ensure.unit.test.ts` only
 // exercises this function indirectly (via `ensureSiteKey`'s own "refuse" case, sealed_ciphertext
 // only) — restored here as direct tests against the function itself, covering the 3 cases that

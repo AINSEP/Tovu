@@ -107,7 +107,7 @@ const publishCredentialSets: SealedColumnDescriptor = {
 /**
  * `publish_content_peers` — added by migration `0066_shocking_psynapse` (the publish-content
  * feature, `feat(db): ...` two days after this inventory's own 13-descriptor introduction,
- * `feat(root-key): add a read-only sealed-credential inventory`), and never registered here. Unlike
+ * `feat(site-key): add a read-only sealed-credential inventory`), and never registered here. Unlike
  * every store above, this table was born with AAD from day one (every write stamps
  * `PUBLISH_CONTENT_PEER_AAD_VERSION`, per `peer-aad.ts`) — there is no
  * `aad_version = 0` "legacy, no AAD" era to special-case, so this passes the row's own

@@ -51,7 +51,7 @@ function sendPutSiteCredentialError(res: Response, err: unknown): void {
  *
  * Three outcomes, not two: this route adds a `503 SECRET_STORE_UNCONFIGURED` branch on top of
  * `put-settings.ts`'s usual 400-validation/500-other split (ADR-058 §4) — a missing
- * `TOVU_INTEGRATIONS_ROOT_KEY` is a distinct, actionable operator error, not a generic 500, and not a
+ * `TOVU_SITE_KEY` is a distinct, actionable operator error, not a generic 500, and not a
  * validation problem with the request body.
  */
 export const registerAdminAssistantPutSiteCredentialRoute: AssistantSettingsRouteRegistrar = (app, deps) => {

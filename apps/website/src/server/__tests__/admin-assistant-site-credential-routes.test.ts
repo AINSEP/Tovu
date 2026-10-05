@@ -19,14 +19,14 @@ import type { RouteDeps } from "../routes/types.js";
  *
  * What matters most: the write-only contract (PUT never echoes the key, GET never decrypts), the
  * omitted-apiKey "leave it alone" semantics at the HTTP layer, and the `503 SECRET_STORE_UNCONFIGURED`
- * fail-closed branch when the master secret is unavailable — simulated with a `KeyringPort` double
+ * fail-closed branch when the site key is unavailable — simulated with a `KeyringPort` double
  * that always throws, swapped into the module's deps for that one test only.
  */
 
 const WORKSPACE_ID = "workspace-local";
 const CREDENTIAL_PATH = `/api/admin/v1/workspaces/${WORKSPACE_ID}/assistant/site-credential`;
 
-/** Always fails — simulates a missing `TOVU_INTEGRATIONS_ROOT_KEY` without touching real env state. */
+/** Always fails — simulates a missing `TOVU_SITE_KEY` without touching real env state. */
 class BrokenKeyring implements KeyringPort {
   async activeKey(): Promise<{ readonly keyId: string }> {
     throw new Error("no site key: TOVU_SITE_KEY is not set and allowFileFallback is disabled");

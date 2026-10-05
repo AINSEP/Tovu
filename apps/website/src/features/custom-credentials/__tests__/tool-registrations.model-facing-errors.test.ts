@@ -327,7 +327,7 @@ test("a secret-store failure names its KIND under a fixed message — its own te
 
 test("a MISSING SITE KEY reaches the model as the actionable secret-store reason, not a redacted 500", async () => {
   // The live 2026-09-18 incident, verbatim: the desktop app booted its site server with no
-  // `TOVU_INTEGRATIONS_ROOT_KEY` and no key file, so `EnvOrFileKeyring` threw this exact text,
+  // `TOVU_SITE_KEY` and no key file, so `EnvOrFileKeyring` threw this exact text,
   // `decryptRecord` wrapped it, and BOTH credential-using tools answered `500 INTERNAL_ERROR` —
   // the one operator-fixable condition in this domain, indistinguishable from a crash.
   const keyringMessage =

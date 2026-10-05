@@ -16,7 +16,7 @@ import { buildMediaProviderCredentialAad } from "./aad.js";
  *
  * Two functions, matching the port exactly:
  * - {@link getMediaProviderCredentials} — read model only. Never decrypts (`keyTail` is a plain
- *   column computed at write time), so it cannot fail on a misconfigured master secret.
+ *   column computed at write time), so it cannot fail on a misconfigured site key.
  * - {@link saveMediaProviderCredentials} — WHOLE-MAP REPLACE, including deletion. The tab's
  *   `saveMediaProviders` sends its entire local map and treats an absent provider as a tombstone
  *   (see `useMediaProvidersTab`'s `flushNow`), so a provider missing from the payload must be
@@ -152,7 +152,7 @@ const KNOWN_PROVIDER_IDS: ReadonlySet<string> = new Set(MEDIA_PROVIDERS.map((pro
 
 export class MediaProviderCredentialValidationError extends Error {}
 
-/** Thrown when a caller supplies a new key but the master secret (`TOVU_INTEGRATIONS_ROOT_KEY`) is
+/** Thrown when a caller supplies a new key but the site key (`TOVU_SITE_KEY`) is
  *  unavailable — fail-closed, mirroring the two sibling credential stores so the route can map it
  *  to its own `503 SECRET_STORE_UNCONFIGURED` rather than a generic `400`. */
 export class MediaProviderCredentialSecretStoreUnconfiguredError extends Error {}
@@ -178,7 +178,7 @@ export interface MediaProviderCredentialReadDeps {
 
 /**
  * Every configured provider for a workspace, as markers only. Pure DB read — never decrypts, so a
- * missing or rotated master secret cannot make this fail.
+ * missing or rotated site key cannot make this fail.
  *
  * @complexity O(n) over the workspace's provider rows, itself bounded by the catalogue size.
  * @overallScore 100
@@ -331,7 +331,7 @@ function buildProviderUpsertRow(
  *
  * Ordering is deliberate and load-bearing: every entry is validated, then every new key is sealed,
  * and only then is anything written. Sealing is the one step that can fail for an environmental
- * reason (a missing `TOVU_INTEGRATIONS_ROOT_KEY`), so doing it up front means that failure cannot
+ * reason (a missing `TOVU_SITE_KEY`), so doing it up front means that failure cannot
  * leave the workspace half-rewritten — the alternative, sealing inside the write loop, would delete
  * some providers and abort before writing the rest.
  *
@@ -345,7 +345,7 @@ function buildProviderUpsertRow(
  * @throws {MediaProviderCredentialValidationError} `providers` is not an object, names an unknown
  *   provider id, or carries a non-string/oversized `apiKey`/`baseUrl`/`model`.
  * @throws {MediaProviderCredentialSecretStoreUnconfiguredError} a new key was supplied but the
- *   master secret is unavailable — never downgraded to a plaintext write or a silent skip.
+ *   site key is unavailable — never downgraded to a plaintext write or a silent skip.
  * @complexity O(n) over the submitted providers, plus one keyring derivation per NEW key. `n` is
  *   bounded by the catalogue: unknown ids are rejected, so the payload cannot exceed its size.
  * @overallScore 100
@@ -421,7 +421,7 @@ export interface ResolvedMediaProviderCredential {
  * contract for the sibling table.
  *
  * @throws {MediaProviderCredentialSecretStoreUnconfiguredError} A row with a sealed key exists but
- *   `sealer.open()` failed — the master secret is missing/rotated, or the stored row is corrupted.
+ *   `sealer.open()` failed — the site key is missing/rotated, or the stored row is corrupted.
  * @complexity O(n) in the workspace's own (small, catalogue-bounded) provider-credential row count,
  *   plus one decrypt when a key is present.
  */

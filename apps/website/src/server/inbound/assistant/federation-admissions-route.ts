@@ -39,7 +39,7 @@ import type { FederatedAdmissionReport } from "@jini-ai/mcp/federation";
  *
  * `configFailures` (2026-09-13): a SAVED, enabled row can fail before it ever reaches
  * `attachFederatedMcpTools` at all — most commonly a sealed env block that cannot be decrypted
- * because the site token is not available (`external-mcp-store.ts`'s `openExternalMcpEnv`). Such a
+ * because the site key is not available (`external-mcp-store.ts`'s `openExternalMcpEnv`). Such a
  * row has no admission report and is therefore invisible to `reports` above, which is exactly why an
  * operator whose saved server hit this case was told the generic "the assistant isn't running this
  * server at all" instead of the real reason — the real reason existed only in this process's own

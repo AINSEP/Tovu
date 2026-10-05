@@ -25,7 +25,7 @@
  * row already in an unknown/corrupted state cannot affect this script.
  *
  * The new password is never hardcoded here. Preferred: the `TOVU_ADMIN_RESET_PASSWORD` env var
- * (keeps it out of shell history, the same reasoning `TOVU_INTEGRATIONS_ROOT_KEY` follows for every
+ * (keeps it out of shell history, the same reasoning `TOVU_SITE_KEY` follows for every
  * other secret-ish input in this directory). Falls back to `--password=<value>` for a caller that
  * cannot set env vars (e.g. a one-line Fly console command) — that caller accepts the shell-history
  * exposure knowingly.

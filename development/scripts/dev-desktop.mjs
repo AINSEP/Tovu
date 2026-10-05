@@ -47,7 +47,7 @@
  *
  * Loads `.env` from the repo root, same as `development/scripts/dev.mjs` (`npm run dev`) does, via the
  * shared `load-repo-root-env.mjs` helper — before this, `npm run desktop` passed `process.env` straight
- * through with no `.env` read at all, so a repo-root secret like `TOVU_INTEGRATIONS_ROOT_KEY` never
+ * through with no `.env` read at all, so a repo-root secret like `TOVU_SITE_KEY` never
  * reached a site server this app spawns (`tovu serve` inherits `process.env`), and a stored OAuth MCP
  * server (e.g. Higgsfield) silently failed to decrypt instead of surfacing as unset config.
  *

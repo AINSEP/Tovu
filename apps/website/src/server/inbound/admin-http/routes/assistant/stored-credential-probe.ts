@@ -124,7 +124,7 @@ export interface ResolveProbeCredentialInput {
  * ones the server approved. Same pin-what-you-validated discipline `connection-guard.ts`'s
  * `pinnedFetch` applies to the resolved address.
  *
- * A missing row, an unset key, a missing master secret and a corrupt ciphertext all arrive from
+ * A missing row, an unset key, a missing site key and a corrupt ciphertext all arrive from
  * `resolveSiteAssistantApiKey` as `null` and are treated identically to "no stored key": the probe
  * proceeds with an empty key against the requested endpoint, letting the provider return its own
  * auth error, which is a truer message than a synthesized one. Nothing is exposed by that path —
@@ -179,7 +179,7 @@ export async function resolveProbeCredential(
  * stored credentials are write-only to the same permission, so both need it identically.
  *
  * @param stored - The resolved credential, or `null` for every "there is nothing to protect here"
- *   outcome (no row, no key, missing master secret, corrupt ciphertext). `null` returns an empty key
+ *   outcome (no row, no key, missing site key, corrupt ciphertext). `null` returns an empty key
  *   against the requested endpoint, letting the provider return its own auth error — a truer message
  *   than a synthesized one, and nothing is exposed because there is no secret in play.
  * @param requestedBaseUrl - The endpoint from the request body. Compared, never sent.

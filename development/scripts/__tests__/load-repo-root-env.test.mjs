@@ -12,8 +12,8 @@ import { loadRepoRootEnvFile } from "../load-repo-root-env.mjs";
  * @file Regression coverage for the shared `.env` loader both `development/scripts/dev.mjs`
  * (`npm run dev`) and `development/scripts/dev-desktop.mjs` (`npm run desktop`) call before anything
  * reads `process.env`. Before this, `dev-desktop.mjs` never loaded `.env` at all, so a repo-root
- * secret like `TOVU_INTEGRATIONS_ROOT_KEY` never reached a desktop-launched site server's environment
- * — a stored OAuth MCP server (e.g. Higgsfield) then failed to decrypt with "no root key" and was
+ * secret like `TOVU_SITE_KEY` never reached a desktop-launched site server's environment
+ * — a stored OAuth MCP server (e.g. Higgsfield) then failed to decrypt with "no site key" and was
  * silently skipped, while the same secret worked fine under `npm run dev`.
  *
  * Uses real temp-dir fixture `.env` files (never the repo's own `.env`) and process-env keys that are

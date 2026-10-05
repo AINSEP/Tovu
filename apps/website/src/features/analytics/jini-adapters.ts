@@ -23,7 +23,7 @@ export const analyticsPrivacyPolicy: AnalyticsPrivacyPolicy = {
 /**
  * Host-owned HKDF wire context: changing either string changes existing visitor/session hashes.
  * The fixed non-secret extraction salt pins the extraction step reproducibly across processes;
- * uniqueness comes from the secret root key and the workspace/date info, not this constant.
+ * uniqueness comes from the secret analytics seed and the workspace/date info, not this constant.
  */
 export const analyticsSaltContext: AnalyticsSaltContext = {
   extractionSalt: "tovu-analytics-daily-salt-hkdf-v1",
@@ -33,7 +33,7 @@ export const analyticsSaltContext: AnalyticsSaltContext = {
 /** Existing HTTP dependencies retain the host clock, IDs and plugin hook ABI. */
 export interface AnalyticsIngestRouteDeps extends IngestDeps {
   resolveWorkspaceForHost: (host: string) => Promise<string | null> | string | null;
-  rootKeySeed: string;
+  analyticsSeed: string;
 }
 
 /**
@@ -59,7 +59,7 @@ export function createAnalyticsIngestBinding(
         list: (_required, optional) => host.sink.list(optional),
       },
       resolveWorkspaceForHost: ({ host: siteHost }) => host.resolveWorkspaceForHost(siteHost),
-      rootKeySeed: host.rootKeySeed,
+      rootKeySeed: host.analyticsSeed, // site-key-legacy: installed @jini-ai/analytics seed field; remove on/after 2026-11-01
       saltContext: analyticsSaltContext,
       privacyPolicy: analyticsPrivacyPolicy,
     },

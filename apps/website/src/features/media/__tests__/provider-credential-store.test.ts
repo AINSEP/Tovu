@@ -22,7 +22,7 @@ import { buildMediaProviderCredentialAad } from "../aad.js";
  * rather than left alone (the tab expresses Clear as an omission), an entry with no `apiKey` keeps
  * the stored key so a `baseUrl`-only edit does not silently wipe it, UI-spelled provider ids are
  * REJECTED so the engine-canonical id is the only thing that can ever reach storage, and a missing
- * master secret fails closed before any row is written rather than persisting a partial map.
+ * site key fails closed before any row is written rather than persisting a partial map.
  */
 
 const WORKSPACE = "workspace-1";
@@ -35,7 +35,7 @@ function makeDeps() {
   return { repo, deps: { repo, keyring, sealer, clock } };
 }
 
-/** A `KeyringPort` that always fails — simulates a missing `TOVU_INTEGRATIONS_ROOT_KEY` without
+/** A `KeyringPort` that always fails — simulates a missing `TOVU_SITE_KEY` without
  *  touching real env state. */
 class BrokenKeyring implements KeyringPort {
   async activeKey(): Promise<{ readonly keyId: string }> {
@@ -558,7 +558,7 @@ test("resolveMediaProviderCredential fails closed with MediaProviderCredentialSe
   );
 
   // Same row, but resolved through a sealer backed by a broken keyring — mirrors this suite's own
-  // "a missing master secret fails closed" fixture for the write path, applied to the read path.
+  // "a missing site key fails closed" fixture for the write path, applied to the read path.
   const brokenSealer = new AesGcmSecretSealer(new BrokenKeyring());
   await assert.rejects(
     () => resolveMediaProviderCredential({ repo, sealer: brokenSealer }, { workspaceId: WORKSPACE, providerId: "openai" }),

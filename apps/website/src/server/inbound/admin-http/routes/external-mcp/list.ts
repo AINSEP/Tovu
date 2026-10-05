@@ -10,7 +10,7 @@ import { guardExternalMcpRequest } from "./guard.js";
  * decrypted credentials for display would be a strictly worse trade than showing which variables
  * are set. That property is asserted in `external-mcp-store.test.ts`, not merely intended.
  *
- * Never decrypts, so it cannot fail on a rotated or missing master secret — the same property
+ * Never decrypts, so it cannot fail on a rotated or missing site key — the same property
  * `connectors/get-config.ts` and `media/get-providers.ts` rely on.
  */
 export const registerAdminExternalMcpListRoute: ExternalMcpRouteRegistrar = (app, deps) => {

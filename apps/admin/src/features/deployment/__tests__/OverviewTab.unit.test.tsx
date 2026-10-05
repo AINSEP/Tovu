@@ -11,7 +11,7 @@ import type { AdminDeploymentOverview } from "@/lib/api";
  * `FetchQueryProvider`/network round trip is needed to exercise the rendered states. Pins the one
  * hard requirement from the brief: every value on screen traces to a real field on
  * `AdminDeploymentOverview`, and the two "warning, not error" nuances (default password,
- * `TOVU_INTEGRATIONS_ROOT_KEY`) render distinguishably from a plain "set" row.
+ * `TOVU_SITE_KEY`) render distinguishably from a plain "set" row.
  */
 
 const fakeT = (key: string): string => key;

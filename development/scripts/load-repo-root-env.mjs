@@ -1,7 +1,7 @@
 /**
  * @file Shared `.env` loader for the two Tovu dev entry points that need it: `development/scripts/dev.mjs`
  * (`npm run dev`) and `development/scripts/dev-desktop.mjs` (`npm run desktop`). See either script's own
- * header comment for why loading `.env` matters — a missing secret like `TOVU_INTEGRATIONS_ROOT_KEY`
+ * header comment for why loading `.env` matters — a missing secret like `TOVU_SITE_KEY`
  * otherwise surfaces far downstream as a silently-skipped feature (a stored OAuth MCP server that fails
  * to decrypt, or a `503 SECRET_STORE_UNCONFIGURED`) rather than as unset config at boot.
  *
@@ -28,7 +28,7 @@ import path from "node:path";
  *
  * `npm start` DOES import this file now (`development/scripts/start.mjs`,
  * npm-start-just-works-plan-2026-09-24) — the gap that comment used to describe was the actual
- * defect this plan fixes: an owner's `TOVU_INTEGRATIONS_ROOT_KEY` in `.env` never reached a plain
+ * defect this plan fixes: an owner's `TOVU_SITE_KEY` in `.env` never reached a plain
  * `npm start` boot. `start.mjs` is still not `apps/website/src/index.ts` itself, and still not the
  * Dockerfile's own boot path (`CMD ["node","dist/src/index.js"]`, which never runs `start.mjs`) — so
  * a container or `tovu serve`-packaged boot is exactly as unaffected as before.

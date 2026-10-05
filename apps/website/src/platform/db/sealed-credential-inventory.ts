@@ -8,11 +8,10 @@ import type { KeyringPort, SiteKeyHandle, SealedSecret, SecretSealerPort } from 
 /**
  * @file Read-only inventory of every sealed credential in the content database: which rows exist, what they
  * are (by a non-secret label), which key generation stamped them, and whether each one opens under
- * the root key this process resolves right now.
+ * the site key this process resolves right now.
  *
  * ## Why this exists
- * Every root-key lifecycle design (`ADS-memory/.local-artifacts/agent-reports/2026-09-16-w4-root-key-designs.md`
- * §9) rests on one capability nothing in the product had: knowing exactly which stored credentials
+ * Every site-key lifecycle design (the historical 2026-09-16 lifecycle design record, §9) rests on one capability nothing in the product had: knowing exactly which stored credentials
  * a key change would cost. "Replace the key" consent (Design D) and "is anything still sealed under
  * the old key?" (Design C) both trust this answer, so it is built alone, read-only, first.
  *
@@ -33,7 +32,7 @@ import type { KeyringPort, SiteKeyHandle, SealedSecret, SecretSealerPort } from 
  *
  * ## What `opensUnderActiveKey` means, and when it is `"unknown"`
  * `true` — the store's own `sealer.open(...)` succeeded, exactly as the app itself would open the row
- * today. `false` — that open failed while the root key was demonstrably usable both before the scan
+ * today. `false` — that open failed while the site key was demonstrably usable both before the scan
  * and immediately after the failure (a sealer round-trip probe), so the row is sealed under different
  * key material, bound to a different AAD, or corrupt: this key does not open it. `"unknown"` whenever
  * that cannot be established — never a guess, never defaulted to `true`. See
@@ -49,7 +48,7 @@ import type { KeyringPort, SiteKeyHandle, SealedSecret, SecretSealerPort } from 
  * Every statement is a SELECT built here from catalog names (identifiers quoted by Kysely, never
  * spliced text), so the inventory cannot write by construction; all reads happen in one kernel
  * transaction so the counts and rows are one consistent snapshot, on any dialect. No
- * open (and so no keyring derivation) is attempted when `hasRootKeySource()` reports no key source:
+ * open (and so no keyring derivation) is attempted when `hasSiteKeySource()` reports no key source:
  * a keyring allowed to auto-generate a key file would otherwise MINT one on first use.
  */
 
@@ -70,7 +69,7 @@ export type OpensUnderActiveKey = true | false | "unknown";
  * - `incomplete-sealed-row`: the ciphertext is set but its key id, nonce or alg is missing.
  * - `unrecognized-aad-version`: the row's AAD version is one its store's descriptor does not know.
  * - `unsupported-alg`: the row's alg is not the one this process's sealer produces.
- * - `no-root-key`: no root key source is present, so no open was attempted.
+ * - `no-site-key`: no site key source is present, so no open was attempted.
  * - `active-key-unavailable`: the sealer could not round-trip a probe value under the active key.
  */
 export type SealedCredentialUnknownReason =
@@ -80,7 +79,7 @@ export type SealedCredentialUnknownReason =
   | "incomplete-sealed-row"
   | "unrecognized-aad-version"
   | "unsupported-alg"
-  | "no-root-key"
+  | "no-site-key"
   | "active-key-unavailable";
 
 /** One sealed blob in one row. A row with two sealed columns yields two entries. */
@@ -155,12 +154,12 @@ export interface SealedCredentialInventoryDeps {
   readonly sealer: Pick<SecretSealerPort, "seal" | "open">;
   readonly keyring: Pick<KeyringPort, "activeKey">;
   /**
-   * Whether a root key source (env var or key file, valid or not) is present right now — e.g.
-   * `inspectRootKeyMaterial().source !== "none"`. When `false`, no open is attempted. Wire the
+   * Whether a site key source (env var or key file, valid or not) is present right now — e.g.
+   * `inspectSiteKeyMaterial().source !== "none"`. When `false`, no open is attempted. Wire the
    * sealer over a keyring with `allowFileAutoGenerate: false` too, which also closes the window
    * between this check and the first derivation.
    */
-  readonly hasRootKeySource: () => boolean;
+  readonly hasSiteKeySource: () => boolean;
   readonly descriptors: readonly SealedColumnDescriptor[];
 }
 
@@ -381,7 +380,7 @@ async function readActiveKey(keyring: SealedCredentialInventoryDeps["keyring"]):
 
 /** Decides once, up front, whether opens can be attempted at all — and never derives with no key source. */
 async function createActiveKeyCheck(deps: SealedCredentialInventoryDeps, key: SiteKeyHandle | null): Promise<ActiveKeyCheck> {
-  if (!deps.hasRootKeySource()) return { attemptOpen: async () => unknownVerdict("no-root-key") };
+  if (!deps.hasSiteKeySource()) return { attemptOpen: async () => unknownVerdict("no-site-key") };
   const probeAlg = key === null ? null : await probeSealer(deps.sealer, key);
   if (key === null || probeAlg === null) return { attemptOpen: async () => unknownVerdict("active-key-unavailable") };
   return {
@@ -459,7 +458,7 @@ function tally(entries: readonly SealedCredentialEntry[]): SealedCredentialInven
  * Lists every sealed credential in the database. Read-only; see this file's header for the
  * discovery, AAD, honesty and no-secret rules it keeps.
  *
- * @param deps - The content database's kernel, the app's sealer + keyring, a root-key-source check, and the
+ * @param deps - The content database's kernel, the app's sealer + keyring, a site-key-source check, and the
  *   per-store descriptors (production: `SEALED_COLUMN_DESCRIPTORS`).
  * @returns Entries in catalog order (table name, then column order), per-column summaries, totals.
  * @throws {SealedCredentialInventoryLimitError} Above `options.maxEntries` sealed rows. Database

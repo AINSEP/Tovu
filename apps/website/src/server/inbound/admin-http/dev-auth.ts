@@ -293,7 +293,7 @@ export function getAuthedCredentialKind(res: Response): AuthCredentialKind {
 }
 
 /** What every route family that refuses a machine credential sends — identical shape whether the
- *  refusal came from `routes/api-keys/*` or `routes/system/site-token.ts`, so a caller can branch
+ *  refusal came from `routes/api-keys/*` or `routes/system/site-key.ts`, so a caller can branch
  *  on `code`/`details.reason` without knowing which family answered. */
 export interface CredentialKindForbiddenBody {
   error: string;
@@ -305,8 +305,8 @@ export interface CredentialKindForbiddenBody {
  * The shared "this action must stay out of reach of a machine credential" guard
  * (`getAuthedCredentialKind`'s own doc names the rule). Two route families call this today:
  * `routes/api-keys/deps.ts`'s `rejectApiKeyCredential` (an api_key may never mint, issue, or
- * revoke another key — SPEC-006 REQ-08) and `routes/system/site-token.ts` (an api_key may never
- * read or mint the site token, since a leaked key would then expose every other stored
+ * revoke another key — SPEC-006 REQ-08) and `routes/system/site-key.ts` (an api_key may never
+ * read or mint the site key, since a leaked key would then expose every other stored
  * credential). Both need the identical 403 shape, so this is the one place that shape is spelled
  * out; each caller supplies only the wording and the permission name its own 403 body should carry.
  *

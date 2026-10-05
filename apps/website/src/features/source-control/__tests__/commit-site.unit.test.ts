@@ -222,7 +222,7 @@ test("commitSiteToSourceControl: no saved credential fails cleanly with NO_CREDE
  * `publishStaticSite` guard around `credentialSource.resolve()`: `commitSiteToSourceControl`'s own
  * doc claims "Never throws: every failure... is returned as `{ok: false, code, message}`", but before
  * this fix the call to `resolveDefaultForSourceControl` below had no try/catch at all, so a genuine
- * decrypt failure (a process boot with no `TOVU_INTEGRATIONS_ROOT_KEY`, or any other sealer/keyring
+ * decrypt failure (a process boot with no `TOVU_SITE_KEY`, or any other sealer/keyring
  * error) broke that contract silently. Worse than the publish-credentials sibling's own version of
  * this bug: this function is reached from `tool-registrations.ts`'s `source_control_execute_commit`,
  * which runs inside `agent-daemon-server.ts` — a SEPARATE OS process from Tovu's main server with no
@@ -233,7 +233,7 @@ test("commitSiteToSourceControl: no saved credential fails cleanly with NO_CREDE
 test("commitSiteToSourceControl: a genuine decrypt failure (e.g. a boot with no site key) returns {ok:false, NO_CREDENTIALS_CONFIGURED} — the SAME 'never throws' contract every other failure mode already gets, never an unhandled rejection", async () => {
   const deps = await withGithubCredential(testRouteDeps());
   // A sealer backed by a DIFFERENT keyring than the one the credential was actually sealed under —
-  // `sealer.open()` fails auth-tag verification, the same shape a missing root key produces live.
+  // `sealer.open()` fails auth-tag verification, the same shape a missing site key produces live.
   const brokenSealer = new AesGcmSecretSealer(new InMemoryKeyring());
   const result = await commitSiteToSourceControl(
     { providerId: "github", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: brokenSealer }, gitAdapter: neverCalledGitAdapter() },

@@ -133,7 +133,7 @@ test("re-reads reports and config failures after a reload replaces both arrays",
 
 /**
  * A saved, enabled external-MCP row can fail before it ever reaches `attachFederatedMcpTools` at
- * all — most commonly a sealed env block that cannot be decrypted because the site token is not
+ * all — most commonly a sealed env block that cannot be decrypted because the site key is not
  * available (`external-mcp-store.ts`'s `openExternalMcpEnv`). Such a row has no admission report and
  * is invisible to `reports` above; before this field existed, the ONLY place its real reason
  * appeared was this process's own stderr (`agent-daemon-server.ts`'s

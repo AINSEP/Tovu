@@ -411,7 +411,7 @@ const CUSTOM_CREDENTIALS_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = 
   // key-file path — the identical disclosure {@link FORM_SAVE_CALLER_SAFE_ERRORS} already refuses for
   // this same class on the SAVE path. Its KIND, though, is the one failure in this domain an operator
   // can actually act on, and until 2026-09-18 it was the only one that reached the model redacted:
-  // a site booted with no Site Token answered `500 INTERNAL_ERROR` on every credentialed call, which is
+  // a site booted with no site key answered `500 INTERNAL_ERROR` on every credentialed call, which is
   // indistinguishable from the site having crashed. Listed LAST because it is the broadest of the
   // four — no ordering hazard today (no class here subclasses another), but the safe habit.
   {
@@ -703,7 +703,7 @@ function rejectUnexpectedSetTokenFields(input: Record<string, unknown>): void {
  * messages ever embeds a field value. That was false: `store.ts`'s `sealConnection` wraps the sealer's
  * own failure text, the sealer is handed the submitted token as plaintext, and `decryptRecord`'s
  * `JSON.parse` arm shows the shape (it quotes its input). With the shipped `EnvOrFileKeyring`, a
- * missing Site Token put the env var name and the absolute key-file path on screen. A raw repo error
+ * missing site key put the env var name and the absolute key-file path on screen. A raw repo error
  * went out verbatim.
  *
  * - `CustomCredentialValidationError`, `CustomCredentialNotFoundError`: verbatim. Fixed text, field

@@ -60,7 +60,7 @@ function makeDeps() {
   return { repo, keyring, sealer, deps: { repo, keyring, sealer, clock } };
 }
 
-/** Simulates a missing `TOVU_INTEGRATIONS_ROOT_KEY` without touching real env state. */
+/** Simulates a missing `TOVU_SITE_KEY` without touching real env state. */
 class BrokenKeyring implements KeyringPort {
   async activeKey(): Promise<{ readonly keyId: string }> {
     throw new Error("no site key: TOVU_SITE_KEY is not set");
@@ -279,7 +279,7 @@ test("a row whose credentials cannot be decrypted is skipped, never thrown on", 
   await saveExternalMcpServer(deps, validInput());
   await saveExternalMcpServer(deps, validInput({ serverId: "healthy", env: "OK=1" }));
 
-  // A root key rotated out from under an existing row — the realistic cause.
+  // A site key rotated out from under an existing row — the realistic cause.
   const strangerSealer = new AesGcmSecretSealer(new InMemoryKeyring());
   const { configs, failures } = await readEnabledExternalMcpConfigs({ repo, sealer: strangerSealer }, WORKSPACE);
 

@@ -15,7 +15,7 @@
  * cannot reach here that way. The alternative, putting it in the stored connection's own `env` block,
  * would route a plain directory path through `external-mcp-store.ts`'s credential sealing
  * (`:1380-1391`) and make registration fail with `SECRET_STORE_UNCONFIGURED` on any site without a
- * keyring root key. Argv is stored plaintext, needs no key, and is visible in the row for review.
+ * keyring site key. Argv is stored plaintext, needs no key, and is visible in the row for review.
  *
  * The same env replacement is why the shell does not name this file as the connection's `command`
  * directly: the command would have to be Electron's binary, and `ELECTRON_RUN_AS_NODE=1` does not

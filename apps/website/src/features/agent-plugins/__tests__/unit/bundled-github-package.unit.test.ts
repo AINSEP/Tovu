@@ -248,7 +248,7 @@ test("site-backup.md: a site backup is plan-then-push, private-only, and never f
   assert.match(backup, /private/i);
 
   // A missing credential and an undecryptable one are different fixes; the second starts with the
-  // Site Token, and swapping the GitHub token would not help.
+  // site key, and swapping the GitHub token would not help.
   assert.match(backup, /CREDENTIAL_NOT_FOUND/);
   assert.match(backup, /CREDENTIAL_UNREADABLE/);
   assert.match(backup, /Site key/);

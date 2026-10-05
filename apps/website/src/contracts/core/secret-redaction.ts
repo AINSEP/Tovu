@@ -56,7 +56,7 @@ const TOVU_SECRET_POLICY: RedactionPolicy = {
  * ## Why IPs and paths are untouched
  * IPs: the owner's question about IP handling is parked — nothing here touches them, and
  * diagnostics' `url_credentials` rule keeps the host it sits beside. Paths: a path is
- * not a secret, and the owner's ruling was "secrets only" — an absolute path (e.g. the root-key
+ * not a secret, and the owner's ruling was "secrets only" — an absolute path (e.g. the site-key
  * file's location) stays visible because it is useful for debugging and the key's bytes never
  * appear in an error.
  *

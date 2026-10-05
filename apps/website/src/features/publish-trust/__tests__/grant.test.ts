@@ -181,7 +181,7 @@ test("the create-post route is NOT a publishing route — a stolen publish crede
   assert.equal(isPublishTrustRoute("POST", "/api/admin/v1/workspaces/ws-1/posts"), false);
   assert.equal(isPublishTrustRoute("PUT", "/api/admin/v1/workspaces/ws-1/posts/post-1"), false);
   assert.equal(isPublishTrustRoute("POST", "/api/admin/v1/workspaces/ws-1/api-keys"), false);
-  assert.equal(isPublishTrustRoute("GET", "/api/admin/v1/system/site-token"), false);
+  assert.equal(isPublishTrustRoute("GET", "/api/admin/v1/system/site-key"), false);
 });
 
 test("the peers routes are NOT reachable — a publishing credential cannot edit publishing config", () => {

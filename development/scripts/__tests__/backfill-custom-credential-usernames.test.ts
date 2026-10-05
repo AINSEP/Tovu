@@ -24,7 +24,7 @@ import { missingDbPathMessage } from "../backfill-db-path.js";
  * real-subprocess approach (this file's own header), with one deliberate structural difference:
  * that test's second case proves an abort-on-first-failure script stops without losing prior writes;
  * this script's own dispatch requires the OPPOSITE behavior (continue past a single bad row so one
- * rotated/wrong master secret never blocks every other credential from migrating), so this file's
+ * rotated/wrong site key never blocks every other credential from migrating), so this file's
  * second case proves CONTINUATION instead of abort, and a third case proves the "no username" branch
  * is a no-op skip, not a failure.
  *
@@ -33,7 +33,7 @@ import { missingDbPathMessage } from "../backfill-db-path.js";
  * unconditionally at import time, so a child process is the only way to invoke it without also
  * inheriting this test runner's own argv/cwd.
  *
- * A throwaway, per-test random hex root key stands in for the real `TOVU_INTEGRATIONS_ROOT_KEY` —
+ * A throwaway, per-test random hex site key stands in for the real `TOVU_SITE_KEY` —
  * this file never touches the real one. `EnvOrFileKeyring`/`AesGcmSecretSealer` are constructed the
  * exact same way `server/deps.ts`'s `siteAssistantSecretKeyring` is
  * (`new EnvOrFileKeyring({ allowFileFallback: false })`), so this test exercises the identical
@@ -49,9 +49,9 @@ function tmpDir(prefix: string): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
 }
 
-function runScript(dbPath: string, rootKeyHex: string | undefined, extraArgs: string[] = []): string {
-  const env = { ...process.env, ...(rootKeyHex !== undefined ? { [LEGACY_SITE_KEY_ENV_VAR_NAME]: rootKeyHex } : {}) };
-  if (rootKeyHex === undefined) delete env[LEGACY_SITE_KEY_ENV_VAR_NAME];
+function runScript(dbPath: string, siteKeyHex: string | undefined, extraArgs: string[] = []): string {
+  const env = { ...process.env, ...(siteKeyHex !== undefined ? { [LEGACY_SITE_KEY_ENV_VAR_NAME]: siteKeyHex } : {}) };
+  if (siteKeyHex === undefined) delete env[LEGACY_SITE_KEY_ENV_VAR_NAME];
   return execFileSync("node", ["--import", "tsx", SCRIPT, "--db", dbPath, ...extraArgs], {
     cwd: REPO_ROOT,
     encoding: "utf8",
@@ -74,12 +74,12 @@ interface SeedCredentialInput {
 test("backfill-custom-credential-usernames: populates the column from the sealed payload, leaves the ciphertext byte-identical, and is idempotent on re-run", async () => {
   const scratch = tmpDir("backfill-custom-credential-usernames-");
   const dbPath = path.join(scratch, "content.db");
-  const rootKeyHex = randomBytes(32).toString("hex");
+  const siteKeyHex = randomBytes(32).toString("hex");
 
   // Readers now reread on every derivation; retain the synthetic key through the reopen proof
   // without depending on a cached key or changing this test runner's environment.
   const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] }, {
-    env: () => ({ [LEGACY_SITE_KEY_ENV_VAR_NAME]: rootKeyHex }),
+    env: () => ({ [LEGACY_SITE_KEY_ENV_VAR_NAME]: siteKeyHex }),
   });
   const sealer = new AesGcmSecretSealer(keyring);
   const activeKey = await keyring.activeKey();
@@ -116,8 +116,8 @@ test("backfill-custom-credential-usernames: populates the column from the sealed
 
   // --- Dry run: decrypts this row (same as --apply, so its count is accurate — see the
   // "dry run's reported would-migrate count matches --apply's" test below for the case this
-  // guards against) and so needs the root key, but must still write nothing. ---
-  const dryRunOutput = runScript(dbPath, rootKeyHex);
+  // guards against) and so needs the site key, but must still write nothing. ---
+  const dryRunOutput = runScript(dbPath, siteKeyHex);
   assert.match(dryRunOutput, /DRY RUN: 1 row\(s\) would be migrated, 0 would be skipped \(no username\), 0 would fail \(could not decrypt\), 0 already migrated, 1 total/);
   const afterDryRun = openContentDb(dbPath);
   const rowAfterDryRun = afterDryRun.select().from(customCredentialSets).all()[0]!;
@@ -126,7 +126,7 @@ test("backfill-custom-credential-usernames: populates the column from the sealed
   afterDryRun.$client.close();
 
   // --- Apply: decrypts under the row's own AAD and copies `username` onto the plaintext column. ---
-  const applyOutput = runScript(dbPath, rootKeyHex, ["--apply"]);
+  const applyOutput = runScript(dbPath, siteKeyHex, ["--apply"]);
   assert.match(applyOutput, /RESTORE POINT CAPTURED/);
   assert.match(applyOutput, new RegExp(`MIGRATED: workspace=${WORKSPACE} id=${credId}`));
   assert.match(applyOutput, /Done: 1 row\(s\) migrated, 0 already migrated, 0 skipped \(no username\), 0 failed, 1 total/);
@@ -153,7 +153,7 @@ test("backfill-custom-credential-usernames: populates the column from the sealed
 
   // --- Idempotency: a re-run over an already-migrated database is a complete no-op — no restore
   // point (nothing pending), and the column/ciphertext are unchanged. ---
-  const secondApplyOutput = runScript(dbPath, rootKeyHex, ["--apply"]);
+  const secondApplyOutput = runScript(dbPath, siteKeyHex, ["--apply"]);
   assert.match(secondApplyOutput, /Nothing to migrate/);
   assert.doesNotMatch(secondApplyOutput, /RESTORE POINT CAPTURED/);
   const afterSecondApply = openContentDb(dbPath);
@@ -168,15 +168,15 @@ test("backfill-custom-credential-usernames: populates the column from the sealed
 test("backfill-custom-credential-usernames: a row that fails to decrypt is skipped and counted, but its siblings still migrate — and the run exits non-zero", async () => {
   const scratch = tmpDir("backfill-custom-credential-usernames-corrupt-");
   const dbPath = path.join(scratch, "content.db");
-  const rootKeyHex = randomBytes(32).toString("hex");
+  const siteKeyHex = randomBytes(32).toString("hex");
 
-  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = rootKeyHex;
+  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = siteKeyHex;
   const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] });
   const sealer = new AesGcmSecretSealer(keyring);
   const activeKey = await keyring.activeKey();
 
   // A row this test will corrupt after sealing it correctly — simulates a bit-flipped/tampered
-  // ciphertext (or one sealed under a rotated/unrelated root key) already sitting in the table,
+  // ciphertext (or one sealed under a rotated/unrelated site key) already sitting in the table,
   // independent of anything this script does.
   const corruptId = "cred-corrupt";
   const corruptSealed = await sealer.seal({
@@ -189,7 +189,7 @@ test("backfill-custom-credential-usernames: a row that fails to decrypt is skipp
   // A GOOD row, alphabetically/insertion-ordered AFTER the corrupt one — must still migrate even
   // though the row before it in the scan failed. This is the one deliberate divergence from
   // `backfill-vendor-credentials.ts` (which aborts the whole run on its first decrypt failure): a
-  // rotated or wrong master secret on ONE row must never block every other credential in the table.
+  // rotated or wrong site key on ONE row must never block every other credential in the table.
   const goodId = "cred-good";
   const goodPlaintext = JSON.stringify({ token: "FIXTURE_GOOD_TOKEN", username: "good-owner" });
   const goodSealed = await sealer.seal({
@@ -244,7 +244,7 @@ test("backfill-custom-credential-usernames: a row that fails to decrypt is skipp
 
   let threw = false;
   try {
-    runScript(dbPath, rootKeyHex, ["--apply"]);
+    runScript(dbPath, siteKeyHex, ["--apply"]);
   } catch (err) {
     threw = true;
     const output = `${(err as { stdout?: string }).stdout ?? ""}`;
@@ -268,9 +268,9 @@ test("backfill-custom-credential-usernames: a row that fails to decrypt is skipp
 test("backfill-custom-credential-usernames: a sealed payload with no username is skipped, not treated as an error", async () => {
   const scratch = tmpDir("backfill-custom-credential-usernames-nousername-");
   const dbPath = path.join(scratch, "content.db");
-  const rootKeyHex = randomBytes(32).toString("hex");
+  const siteKeyHex = randomBytes(32).toString("hex");
 
-  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = rootKeyHex;
+  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = siteKeyHex;
   const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] });
   const sealer = new AesGcmSecretSealer(keyring);
   const activeKey = await keyring.activeKey();
@@ -340,7 +340,7 @@ test("backfill-custom-credential-usernames: a sealed payload with no username is
   seedDb.$client.close();
   delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
 
-  const applyOutput = runScript(dbPath, rootKeyHex, ["--apply"]);
+  const applyOutput = runScript(dbPath, siteKeyHex, ["--apply"]);
   assert.match(applyOutput, new RegExp(`SKIPPED \\(no username in sealed payload\\): workspace=${WORKSPACE} id=${credId}`));
   assert.match(applyOutput, new RegExp(`MIGRATED: workspace=${WORKSPACE} id=${pendingId}`));
   assert.match(applyOutput, /Done: 1 row\(s\) migrated, 0 already migrated, 1 skipped \(no username\), 0 failed, 2 total/);
@@ -358,9 +358,9 @@ test("backfill-custom-credential-usernames: a sealed payload with no username is
 test("backfill-custom-credential-usernames: a database whose ONLY NULL row is undecryptable is reported as FAILED, never as \"Nothing to migrate\"", async () => {
   const scratch = tmpDir("backfill-custom-credential-usernames-only-corrupt-");
   const dbPath = path.join(scratch, "content.db");
-  const rootKeyHex = randomBytes(32).toString("hex");
+  const siteKeyHex = randomBytes(32).toString("hex");
 
-  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = rootKeyHex;
+  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = siteKeyHex;
   const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] });
   const sealer = new AesGcmSecretSealer(keyring);
   const activeKey = await keyring.activeKey();
@@ -406,7 +406,7 @@ test("backfill-custom-credential-usernames: a database whose ONLY NULL row is un
   let threw = false;
   let output = "";
   try {
-    output = runScript(dbPath, rootKeyHex, ["--apply"]);
+    output = runScript(dbPath, siteKeyHex, ["--apply"]);
   } catch (err) {
     threw = true;
     output = `${(err as { stdout?: string }).stdout ?? ""}`;
@@ -429,9 +429,9 @@ test("backfill-custom-credential-usernames: a database whose ONLY NULL row is un
 test("backfill-custom-credential-usernames: dry run's reported would-migrate count matches --apply's real pending count on a token-only-only database", async () => {
   const scratch = tmpDir("backfill-custom-credential-usernames-dryrun-accuracy-");
   const dbPath = path.join(scratch, "content.db");
-  const rootKeyHex = randomBytes(32).toString("hex");
+  const siteKeyHex = randomBytes(32).toString("hex");
 
-  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = rootKeyHex;
+  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = siteKeyHex;
   const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] });
   const sealer = new AesGcmSecretSealer(keyring);
   const activeKey = await keyring.activeKey();
@@ -471,8 +471,8 @@ test("backfill-custom-credential-usernames: dry run's reported would-migrate cou
   seedDb.$client.close();
   delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
 
-  // Dry run now decrypts to classify the row (same as --apply), so it needs the real root key.
-  const dryRunOutput = runScript(dbPath, rootKeyHex, []);
+  // Dry run now decrypts to classify the row (same as --apply), so it needs the real site key.
+  const dryRunOutput = runScript(dbPath, siteKeyHex, []);
   assert.match(
     dryRunOutput,
     /DRY RUN: 0 row\(s\) would be migrated,/,
@@ -480,7 +480,7 @@ test("backfill-custom-credential-usernames: dry run's reported would-migrate cou
   );
 
   // THE MANDATORY PROOF: --apply against the SAME database must agree with the dry run above.
-  const applyOutput = runScript(dbPath, rootKeyHex, ["--apply"]);
+  const applyOutput = runScript(dbPath, siteKeyHex, ["--apply"]);
   assert.match(applyOutput, /Nothing to migrate/);
   assert.doesNotMatch(applyOutput, /RESTORE POINT CAPTURED/, "a token-only-only database has nothing to migrate");
 
@@ -496,9 +496,9 @@ test("backfill-custom-credential-usernames: dry run's reported would-migrate cou
 test("backfill-custom-credential-usernames: countPending converges to 0 with a token-only row present, instead of reporting outstanding work forever", async () => {
   const scratch = tmpDir("backfill-custom-credential-usernames-convergence-");
   const dbPath = path.join(scratch, "content.db");
-  const rootKeyHex = randomBytes(32).toString("hex");
+  const siteKeyHex = randomBytes(32).toString("hex");
 
-  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = rootKeyHex;
+  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = siteKeyHex;
   const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] });
   const sealer = new AesGcmSecretSealer(keyring);
   const activeKey = await keyring.activeKey();
@@ -567,7 +567,7 @@ test("backfill-custom-credential-usernames: countPending converges to 0 with a t
 
   // --- First apply: migrates the genuinely pending row, skips the token-only row (no username to
   // copy) — the token-only row's `username` column stays NULL, as it always will. ---
-  const firstApply = runScript(dbPath, rootKeyHex, ["--apply"]);
+  const firstApply = runScript(dbPath, siteKeyHex, ["--apply"]);
   assert.match(firstApply, /RESTORE POINT CAPTURED/);
   assert.match(firstApply, new RegExp(`MIGRATED: workspace=${WORKSPACE} id=${pendingId}`));
   assert.match(firstApply, new RegExp(`SKIPPED \\(no username in sealed payload\\): workspace=${WORKSPACE} id=${tokenOnlyId}`));
@@ -579,13 +579,13 @@ test("backfill-custom-credential-usernames: countPending converges to 0 with a t
   // `username IS NULL` row as pending regardless of whether it could ever be backfilled, so this
   // second invocation would loop forever: same restore point capture, same "SKIPPED" line, on every
   // future run, even though nothing will ever change again. ---
-  const secondApply = runScript(dbPath, rootKeyHex, ["--apply"]);
+  const secondApply = runScript(dbPath, siteKeyHex, ["--apply"]);
   assert.match(secondApply, /Nothing to migrate/);
   assert.doesNotMatch(secondApply, /RESTORE POINT CAPTURED/, "a token-only row must never be re-treated as pending work");
   assert.doesNotMatch(secondApply, /SKIPPED/, "the token-only row must not be re-decrypted/re-processed on a converged run");
 
   // --- A third invocation confirms this is a stable, converged state, not a one-off fluke. ---
-  const thirdApply = runScript(dbPath, rootKeyHex, ["--apply"]);
+  const thirdApply = runScript(dbPath, siteKeyHex, ["--apply"]);
   assert.match(thirdApply, /Nothing to migrate/);
 
   const db = openContentDb(dbPath);
@@ -601,9 +601,9 @@ test("backfill-custom-credential-usernames: countPending converges to 0 with a t
 test("backfill-custom-credential-usernames: the FAILED-only summary line reports the database's real total row count, not just the unreadable count", async () => {
   const scratch = tmpDir("backfill-custom-credential-usernames-failed-total-");
   const dbPath = path.join(scratch, "content.db");
-  const rootKeyHex = randomBytes(32).toString("hex");
+  const siteKeyHex = randomBytes(32).toString("hex");
 
-  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = rootKeyHex;
+  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = siteKeyHex;
   const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] });
   const sealer = new AesGcmSecretSealer(keyring);
   const activeKey = await keyring.activeKey();
@@ -676,7 +676,7 @@ test("backfill-custom-credential-usernames: the FAILED-only summary line reports
 
   let output = "";
   try {
-    output = runScript(dbPath, rootKeyHex, ["--apply"]);
+    output = runScript(dbPath, siteKeyHex, ["--apply"]);
   } catch (err) {
     output = `${(err as { stdout?: string }).stdout ?? ""}`;
   }

@@ -17,7 +17,7 @@ import {
 } from "../keyring.env.js";
 import type { SiteKeySource } from "../site-key-sources.js";
 
-const ENV_VAR = "TOVU_TEST_INTEGRATIONS_ROOT_KEY";
+const ENV_VAR = "TOVU_TEST_SITE_KEY";
 
 async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
   const dir = mkdtempSync(join(tmpdir(), "tovu-keyring-test-"));
@@ -42,7 +42,7 @@ test("env-var override supplies the site key", async () => {
     // RFC 5869 vector calculated independently with Python hashlib/hmac, not this keyring.
     assert.equal(Buffer.from(secret).toString("hex"), "8f60aeee05219cf2d5d3f6126a4118c165d5be0d584e0701777ee1abf17ab88d");
     await withTempDir(async (dir) => {
-      const keyFilePath = join(dir, "root-key.hex");
+      const keyFilePath = join(dir, "site-key.hex");
       writeFileSync(keyFilePath, "aa".repeat(32), { mode: 0o600 });
       const fileKeyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }, { kind: "per-site-file", path: keyFilePath }] }, { env: () => ({ TOVU_SITE_KEY: process.env["TOVU_TEST_UNSET_VECTOR"] }) });
       assert.deepEqual(await fileKeyring.deriveSigningSecret({ workspaceId: "ws-1", subscriptionId: "sub-1", version: 1 }), secret);
@@ -55,7 +55,7 @@ test("env-var override supplies the site key", async () => {
 
 test("generated-file fallback creates a key outside the caller-specified path only once", async () => {
   await withTempDir(async (dir) => {
-    const keyFilePath = join(dir, "nested", "root-key.hex");
+    const keyFilePath = join(dir, "nested", "site-key.hex");
     generateFileSiteKey({ keyFilePath });
     const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }, { kind: "per-site-file", path: keyFilePath }] }, { env: () => ({ TOVU_SITE_KEY: process.env["TOVU_TEST_UNSET_VAR"] }) });
 
@@ -86,7 +86,7 @@ test("generated-file fallback creates a key outside the caller-specified path on
 
 test("HKDF determinism: same input yields same output; different inputs diverge", async () => {
   await withTempDir(async (dir) => {
-    const keyFilePath = join(dir, "root-key.hex");
+    const keyFilePath = join(dir, "site-key.hex");
     generateFileSiteKey({ keyFilePath });
     const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }, { kind: "per-site-file", path: keyFilePath }] }, { env: () => ({}) });
 
@@ -144,7 +144,7 @@ test("HKDF known answers preserve signing and secret-sealer key compatibility", 
   const expected = "14d4c938fdcabf1565bfabc9548975ab030e2494577dae057b35df76eb6abef8";
   assert.equal(Buffer.from(await keyring.derive(input)).toString("hex"), expected);
   await withTempDir(async (dir) => {
-    const keyFilePath = join(dir, "root-key.hex");
+    const keyFilePath = join(dir, "site-key.hex");
     writeFileSync(keyFilePath, "aa".repeat(32), { mode: 0o600 });
     const installed = new EnvOrFileKeyring({ sources: [{ kind: "per-site-file", path: keyFilePath }] }, { env: () => ({}) });
     assert.equal(Buffer.from(await installed.derive(input)).toString("hex"), expected);
@@ -209,7 +209,7 @@ test("invalid hex-encoded env var throws error", async () => {
 
 test("allowFileAutoGenerate: false throws rather than minting a file, when neither env var nor file exists", async () => {
   await withTempDir(async (dir) => {
-    const keyFilePath = join(dir, "root-key.hex");
+    const keyFilePath = join(dir, "site-key.hex");
     const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }, { kind: "per-site-file", path: keyFilePath }] }, { env: () => ({ TOVU_SITE_KEY: process.env["TOVU_TEST_UNSET_VAR_AUTOGEN"] }) });
 
     await assert.rejects(
@@ -220,9 +220,9 @@ test("allowFileAutoGenerate: false throws rather than minting a file, when neith
   });
 });
 
-test("allowFileAutoGenerate: false still READS a file an explicit generateFileRootKey already created", async () => {
+test("allowFileAutoGenerate: false still READS a file an explicit generateFileSiteKey already created", async () => {
   await withTempDir(async (dir) => {
-    const keyFilePath = join(dir, "root-key.hex");
+    const keyFilePath = join(dir, "site-key.hex");
     const generated = generateFileSiteKey({ keyFilePath });
 
     const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }, { kind: "per-site-file", path: keyFilePath }] }, { env: () => ({ TOVU_SITE_KEY: process.env["TOVU_TEST_UNSET_VAR_AUTOGEN_2"] }) });
@@ -239,12 +239,12 @@ test("an env-only source list has no file write target", () => {
 });
 
 // ---------------------------------------------------------------------------
-// generateFileRootKey — create-only, never overwrite.
+// generateFileSiteKey — create-only, never overwrite.
 // ---------------------------------------------------------------------------
 
-test("generateFileRootKey writes a fresh 32-byte key and returns its hex/fingerprint/path", async () => {
+test("generateFileSiteKey writes a fresh 32-byte key and returns its hex/fingerprint/path", async () => {
   await withTempDir(async (dir) => {
-    const keyFilePath = join(dir, "root-key.hex");
+    const keyFilePath = join(dir, "site-key.hex");
     const result = generateFileSiteKey({ keyFilePath });
 
     assert.equal(result.keyFilePath, keyFilePath);
@@ -256,14 +256,14 @@ test("generateFileRootKey writes a fresh 32-byte key and returns its hex/fingerp
   });
 });
 
-test("fingerprintRootKeyHex preserves the SHA-256 stamp of decoded site key bytes", () => {
+test("fingerprintSiteKeyHex preserves the SHA-256 stamp of decoded site key bytes", () => {
   // SHA-256(32 bytes of 0xaa) starts with e0e77a507412; pin the persisted site-meta contract.
   assert.equal(fingerprintSiteKeyHex("aa".repeat(32)), "e0e77a507412");
 });
 
-test("generateFileRootKey throws RootKeyFileAlreadyExistsError, and never overwrites, when a file is already there", async () => {
+test("generateFileSiteKey throws SiteKeyFileAlreadyExistsError, and never overwrites, when a file is already there", async () => {
   await withTempDir(async (dir) => {
-    const keyFilePath = join(dir, "root-key.hex");
+    const keyFilePath = join(dir, "site-key.hex");
     const first = generateFileSiteKey({ keyFilePath });
 
     assert.throws(() => generateFileSiteKey({ keyFilePath }), SiteKeyFileAlreadyExistsError);
@@ -284,9 +284,9 @@ test("generateFileRootKey throws RootKeyFileAlreadyExistsError, and never overwr
  * create (`O_CREAT | O_EXCL`) refuses both, which is why the assertion is on the refusal and not
  * on any particular timing.
  */
-test("generateFileRootKey refuses a target it did not create, even one existsSync() reports as absent", async () => {
+test("generateFileSiteKey refuses a target it did not create, even one existsSync() reports as absent", async () => {
   await withTempDir(async (dir) => {
-    const keyFilePath = join(dir, "root-key.hex");
+    const keyFilePath = join(dir, "site-key.hex");
     const linkTarget = join(dir, "somewhere-else.hex");
     symlinkSync(linkTarget, keyFilePath);
 
@@ -298,18 +298,18 @@ test("generateFileRootKey refuses a target it did not create, even one existsSyn
 });
 
 // ---------------------------------------------------------------------------
-// inspectRootKeyMaterial / revealRootKeyMaterial — status vs. reveal.
+// inspectSiteKeyMaterial / revealSiteKeyMaterial — status vs. reveal.
 // ---------------------------------------------------------------------------
 
-test("inspectRootKeyMaterial: none active when neither env var nor file resolves", async () => {
+test("inspectSiteKeyMaterial: none active when neither env var nor file resolves", async () => {
   await withTempDir(async (dir) => {
-    const keyFilePath = join(dir, "root-key.hex");
+    const keyFilePath = join(dir, "site-key.hex");
     const status = inspectSiteKeyMaterial({ sources: [{ kind: "env" }, { kind: "per-site-file", path: keyFilePath }] }, { env: () => ({ TOVU_SITE_KEY: process.env["TOVU_TEST_UNSET_VAR_INSPECT_1"] }) });
     assert.deepEqual(status, { active: false, source: "none", keyFilePath });
   });
 });
 
-test("inspectRootKeyMaterial: active via env var, with a fingerprint, and NEVER the raw value", async () => {
+test("inspectSiteKeyMaterial: active via env var, with a fingerprint, and NEVER the raw value", async () => {
   const envVarName = "TOVU_TEST_INSPECT_ENV";
   process.env[envVarName] = "bb".repeat(32);
   try {
@@ -323,9 +323,9 @@ test("inspectRootKeyMaterial: active via env var, with a fingerprint, and NEVER 
   }
 });
 
-test("inspectRootKeyMaterial: active via file when the env var is unset", async () => {
+test("inspectSiteKeyMaterial: active via file when the env var is unset", async () => {
   await withTempDir(async (dir) => {
-    const keyFilePath = join(dir, "root-key.hex");
+    const keyFilePath = join(dir, "site-key.hex");
     const generated = generateFileSiteKey({ keyFilePath });
     const status = inspectSiteKeyMaterial({ sources: [{ kind: "env" }, { kind: "per-site-file", path: keyFilePath }] }, { env: () => ({ TOVU_SITE_KEY: process.env["TOVU_TEST_UNSET_VAR_INSPECT_2"] }) });
     assert.equal(status.active, true);
@@ -334,7 +334,7 @@ test("inspectRootKeyMaterial: active via file when the env var is unset", async 
   });
 });
 
-test("inspectRootKeyMaterial: invalid hex in the env var reports invalid, not active, and no fingerprint", async () => {
+test("inspectSiteKeyMaterial: invalid hex in the env var reports invalid, not active, and no fingerprint", async () => {
   const envVarName = "TOVU_TEST_INSPECT_INVALID";
   process.env[envVarName] = "not-valid-hex!!";
   try {
@@ -348,7 +348,7 @@ test("inspectRootKeyMaterial: invalid hex in the env var reports invalid, not ac
   }
 });
 
-test("revealRootKeyMaterial: includes the raw hex value when active — the one function in this pair that can", async () => {
+test("revealSiteKeyMaterial: includes the raw hex value when active — the one function in this pair that can", async () => {
   const envVarName = "TOVU_TEST_REVEAL_ENV";
   const value = "cc".repeat(32);
   process.env[envVarName] = value;
@@ -361,9 +361,9 @@ test("revealRootKeyMaterial: includes the raw hex value when active — the one 
   }
 });
 
-test("revealRootKeyMaterial: no hex field when nothing is active", async () => {
+test("revealSiteKeyMaterial: no hex field when nothing is active", async () => {
   await withTempDir(async (dir) => {
-    const keyFilePath = join(dir, "root-key.hex");
+    const keyFilePath = join(dir, "site-key.hex");
     const reveal = revealSiteKeyMaterial({ sources: [{ kind: "env" }, { kind: "per-site-file", path: keyFilePath }] }, { env: () => ({ TOVU_SITE_KEY: process.env["TOVU_TEST_UNSET_VAR_REVEAL"] }) });
     assert.equal(reveal.active, false);
     assert.equal(reveal.hex, undefined);
@@ -371,15 +371,15 @@ test("revealRootKeyMaterial: no hex field when nothing is active", async () => {
 });
 
 // ---------------------------------------------------------------------------
-// 2026-09-16 fix: the FILE branch of resolveRootKey validates what the ENV
+// 2026-09-16 fix: the FILE branch of resolveSiteKey validates what the ENV
 // branch validates (and a minimum length), and shares ONE verdict with
-// inspectRootKeyMaterial.
+// inspectSiteKeyMaterial.
 //
 // Before this fix the file branch was a bare `Buffer.from(hex, "hex")`:
 // non-hex content silently became a ZERO-length buffer, `hkdfSync` accepted it,
 // and every credential on that install was sealed under an AES key that is a
 // fixed function of public constants — computable by anyone with the source.
-// Meanwhile `inspectRootKeyMaterial` (its own validator) reported the same file
+// Meanwhile `inspectSiteKeyMaterial` (its own validator) reported the same file
 // as unusable, so the Secrets screen and the sealer disagreed and the sealer won.
 // ---------------------------------------------------------------------------
 
@@ -394,9 +394,9 @@ const MALFORMED_KEY_FILE_CONTENTS: ReadonlyArray<{ label: string; contents: stri
 ];
 
 for (const { label, contents, reason } of MALFORMED_KEY_FILE_CONTENTS) {
-  test(`resolveRootKey REFUSES a key file containing ${label} — it never seals under truncated bytes`, async () => {
+  test(`resolveSiteKey REFUSES a key file containing ${label} — it never seals under truncated bytes`, async () => {
     await withTempDir(async (dir) => {
-      const keyFilePath = join(dir, "root-key.hex");
+      const keyFilePath = join(dir, "site-key.hex");
       writeFileSync(keyFilePath, contents, { mode: 0o600 });
 
       const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }, { kind: "per-site-file", path: keyFilePath }] }, { env: () => ({ TOVU_SITE_KEY: process.env["TOVU_TEST_UNSET_VAR_MALFORMED_FILE"] }) });
@@ -419,9 +419,9 @@ for (const { label, contents, reason } of MALFORMED_KEY_FILE_CONTENTS) {
  * i.e. a key anyone with the source can compute. The assertion is on the typed refusal, which is the
  * only outcome that rules that value out.
  */
-test("a non-hex key file is refused with a typed UnusableRootKeyError, not collapsed to the publicly computable zero-length-IKM key", async () => {
+test("a non-hex key file is refused with a typed UnusableSiteKeyError, not collapsed to the publicly computable zero-length-IKM key", async () => {
   await withTempDir(async (dir) => {
-    const keyFilePath = join(dir, "root-key.hex");
+    const keyFilePath = join(dir, "site-key.hex");
     writeFileSync(keyFilePath, "not-hex-at-all", { mode: 0o600 });
 
     const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }, { kind: "per-site-file", path: keyFilePath }] }, { env: () => ({ TOVU_SITE_KEY: process.env["TOVU_TEST_UNSET_VAR_ZERO_IKM"] }) });
@@ -438,10 +438,10 @@ test("a non-hex key file is refused with a typed UnusableRootKeyError, not colla
   });
 });
 
-test("the status screen and the sealer cannot disagree: whatever inspectRootKeyMaterial calls unusable, resolveRootKey refuses", async () => {
+test("the status screen and the sealer cannot disagree: whatever inspectSiteKeyMaterial calls unusable, resolveSiteKey refuses", async () => {
   await withTempDir(async (dir) => {
     const envVarName = "TOVU_TEST_UNSET_VAR_AGREEMENT";
-    const keyFilePath = join(dir, "root-key.hex");
+    const keyFilePath = join(dir, "site-key.hex");
 
     for (const { contents } of MALFORMED_KEY_FILE_CONTENTS) {
       writeFileSync(keyFilePath, contents, { mode: 0o600 });
@@ -452,7 +452,7 @@ test("the status screen and the sealer cannot disagree: whatever inspectRootKeyM
       const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }, { kind: "per-site-file", path: keyFilePath }] }, { env: () => ({ TOVU_SITE_KEY: process.env[envVarName] }) });
       await assert.rejects(
         () => keyring.derive({ workspaceId: "ws-1", purpose: "secret-sealer", info: "v1" }),
-        `resolveRootKey must refuse the same material inspect reports unusable: ${JSON.stringify(contents)}`
+        `resolveSiteKey must refuse the same material inspect reports unusable: ${JSON.stringify(contents)}`
       );
     }
   });
@@ -478,7 +478,7 @@ test("a hex key shorter than 32 bytes is unusable through BOTH paths — a short
 
 test("the malformed-key-file error names the file, says what is wrong, and does NOT imply replacing it restores anything", async () => {
   await withTempDir(async (dir) => {
-    const keyFilePath = join(dir, "root-key.hex");
+    const keyFilePath = join(dir, "site-key.hex");
     writeFileSync(keyFilePath, `0x${"ab".repeat(32)}`, { mode: 0o600 });
 
     const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }, { kind: "per-site-file", path: keyFilePath }] }, { env: () => ({ TOVU_SITE_KEY: process.env["TOVU_TEST_UNSET_VAR_MESSAGE"] }) });
@@ -517,10 +517,10 @@ test("a malformed env var that could never have sealed anything gets no already-
   }
 });
 
-test("inspectRootKeyMaterial reports the SAME rejection reason resolveRootKey throws with", async () => {
+test("inspectSiteKeyMaterial reports the SAME rejection reason resolveSiteKey throws with", async () => {
   await withTempDir(async (dir) => {
     const envVarName = "TOVU_TEST_UNSET_VAR_REASON_AGREEMENT";
-    const keyFilePath = join(dir, "root-key.hex");
+    const keyFilePath = join(dir, "site-key.hex");
     writeFileSync(keyFilePath, "ab".repeat(8), { mode: 0o600 });
 
     assert.deepEqual(inspectSiteKeyMaterial({ sources: [{ kind: "env" }, { kind: "per-site-file", path: keyFilePath }] }, { env: () => ({ TOVU_SITE_KEY: process.env[envVarName] }) }), {
@@ -541,7 +541,7 @@ test("inspectRootKeyMaterial reports the SAME rejection reason resolveRootKey th
 
 test("a valid key file with a trailing newline is still usable — trimming whitespace around the value is not malformed", async () => {
   await withTempDir(async (dir) => {
-    const keyFilePath = join(dir, "root-key.hex");
+    const keyFilePath = join(dir, "site-key.hex");
     writeFileSync(keyFilePath, `${"cd".repeat(32)}\n`, { mode: 0o600 });
 
     const status = inspectSiteKeyMaterial({ sources: [{ kind: "env" }, { kind: "per-site-file", path: keyFilePath }] }, { env: () => ({ TOVU_SITE_KEY: process.env["TOVU_TEST_UNSET_VAR_TRAILING_NL"] }) });
@@ -685,7 +685,7 @@ test("sources: a key file replaced while the process runs takes effect on the ne
     const input = { workspaceId: "ws-1", purpose: "p", info: "i" };
     const before = await keyring.derive(input);
 
-    // What the Site Token tab's "Paste your old token" / "Start fresh" do: swap the file in place.
+    // What the site key tab's "Paste your old token" / "Start fresh" do: swap the file in place.
     writeFileSync(keyFile, "44".repeat(32), { mode: 0o600 });
     const after = await keyring.derive(input);
 
@@ -695,11 +695,11 @@ test("sources: a key file replaced while the process runs takes effect on the ne
 });
 
 // ---------------------------------------------------------------------------
-// Site-key plan §A3b: `inspectRootKeyMaterial`/`revealRootKeyMaterial` accept the same `sources`
+// Site-key plan §A3b: `inspectSiteKeyMaterial`/`revealSiteKeyMaterial` accept the same `sources`
 // seam as `EnvOrFileKeyring`, but never throw — a status read, not a resolution.
 // ---------------------------------------------------------------------------
 
-test("inspectRootKeyMaterial: sources — the first source with material wins and reports active", async () => {
+test("inspectSiteKeyMaterial: sources — the first source with material wins and reports active", async () => {
   await withTempDir(async (dir) => {
     const perSiteFile = join(dir, "per-site.hex");
     const legacyFile = join(dir, "legacy.hex");
@@ -719,7 +719,7 @@ test("inspectRootKeyMaterial: sources — the first source with material wins an
   });
 });
 
-test("inspectRootKeyMaterial: sources — an env-kind source reports source 'env'", async () => {
+test("inspectSiteKeyMaterial: sources — an env-kind source reports source 'env'", async () => {
   const envVarName = "TOVU_TEST_INSPECT_SOURCES_ENV";
   process.env[envVarName] = "77".repeat(32);
   try {
@@ -732,7 +732,7 @@ test("inspectRootKeyMaterial: sources — an env-kind source reports source 'env
   }
 });
 
-test("inspectRootKeyMaterial: sources — a present-but-invalid source is reported invalid, never thrown (a status read must not throw)", async () => {
+test("inspectSiteKeyMaterial: sources — a present-but-invalid source is reported invalid, never thrown (a status read must not throw)", async () => {
   await withTempDir(async (dir) => {
     const invalidFile = join(dir, "invalid.hex");
     writeFileSync(invalidFile, "not-hex-at-all", { mode: 0o600 });
@@ -746,7 +746,7 @@ test("inspectRootKeyMaterial: sources — a present-but-invalid source is report
   });
 });
 
-test("inspectRootKeyMaterial: sources — a blank env var falls through to the next source, exactly like EnvOrFileKeyring", async () => {
+test("inspectSiteKeyMaterial: sources — a blank env var falls through to the next source, exactly like EnvOrFileKeyring", async () => {
   const envVarName = "TOVU_TEST_INSPECT_SOURCES_BLANK_ENV";
   await withTempDir(async (dir) => {
     const fallbackFile = join(dir, "fallback.hex");
@@ -768,20 +768,20 @@ test("inspectRootKeyMaterial: sources — a blank env var falls through to the n
   });
 });
 
-test("inspectRootKeyMaterial: sources — nothing present anywhere reports inactive, source 'none', not invalid", () => {
+test("inspectSiteKeyMaterial: sources — nothing present anywhere reports inactive, source 'none', not invalid", () => {
   const status = inspectSiteKeyMaterial({ sources: [{ kind: "per-site-file", path: "/never/created.hex" }] }, { env: () => ({}) });
   assert.equal(status.active, false);
   assert.equal(status.source, "none");
   assert.equal(status.invalid, undefined);
 });
 
-test("inspectRootKeyMaterial: sources — keyFilePath is the per-site-file candidate's path, not the legacy default; envVarName/keyFilePath options are ignored", () => {
+test("inspectSiteKeyMaterial: sources — keyFilePath is the per-site-file candidate's path, not the legacy default; envVarName/keyFilePath options are ignored", () => {
   const sources: SiteKeySource[] = [{ kind: "per-site-file", path: "/site-keys/site-abc.hex" }];
   const status = inspectSiteKeyMaterial({ sources: sources }, { env: () => ({}) });
   assert.equal(status.keyFilePath, "/site-keys/site-abc.hex");
 });
 
-test("revealRootKeyMaterial: sources — includes the raw hex when a source resolves", async () => {
+test("revealSiteKeyMaterial: sources — includes the raw hex when a source resolves", async () => {
   await withTempDir(async (dir) => {
     const perSiteFile = join(dir, "per-site.hex");
     const hex = "99".repeat(32);
@@ -796,7 +796,7 @@ test("revealRootKeyMaterial: sources — includes the raw hex when a source reso
   });
 });
 
-test("revealRootKeyMaterial: sources — a present-but-invalid source is reported invalid, never thrown", () => {
+test("revealSiteKeyMaterial: sources — a present-but-invalid source is reported invalid, never thrown", () => {
   const reveal = revealSiteKeyMaterial({ sources: [{ kind: "env" }] }, { env: () => ({}) });
   assert.equal(reveal.active, false);
   assert.equal(reveal.source, "none");
@@ -816,7 +816,7 @@ test("a key longer than 32 bytes is still accepted — the floor is a minimum, n
   }
 });
 
-test("generateFileRootKey creates a missing key directory at mode 0700 (site-key plan §A.1: the site-keys dir is 0700)", { skip: process.platform === "win32" }, async () => {
+test("generateFileSiteKey creates a missing key directory at mode 0700 (site-key plan §A.1: the site-keys dir is 0700)", { skip: process.platform === "win32" }, async () => {
   await withTempDir(async (dir) => {
     const keyFilePath = join(dir, "site-keys", "site-1.hex");
     generateFileSiteKey({ keyFilePath });

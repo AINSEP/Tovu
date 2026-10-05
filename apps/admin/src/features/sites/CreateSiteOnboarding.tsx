@@ -210,7 +210,7 @@ function DatabaseSection({ t }: { t: Translate }) {
 /** One optional service's token field. The token is typed into a password input and sent only with
  *  the create request. */
 function PluginTokenField({ field, onChange, t }: { field: CreateSitePluginTokenField; onChange: (pluginId: string, value: string) => void; t: Translate }) {
-  const inputId = `site-token-${field.pluginId}`;
+  const inputId = `site-key-${field.pluginId}`;
   return (
     <div className="site-db-option is-token">
       <span className="site-db-option-text">

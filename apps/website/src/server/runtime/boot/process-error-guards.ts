@@ -2,7 +2,7 @@
  * @file Process-level safety net for an unhandled promise rejection escaping every route/middleware
  * layer beneath it — the systemic half of a live-found crash (2026-08-16): an admin route that
  * decrypts a stored secret (`publish-credentials.ts`'s `POST .../:id/verify`) threw on a missing
- * root key with no surrounding try/catch, Express 4 does not catch an async handler's own rejection
+ * site key with no surrounding try/catch, Express 4 does not catch an async handler's own rejection
  * (that is an Express 5 behavior change, not available here — `package.json` pins `express` to
  * `^4.21.2`), and nothing anywhere in `src/` was listening for `unhandledRejection` either — so
  * Node's own default (`--unhandled-rejections=throw`, terminate the process when no listener is

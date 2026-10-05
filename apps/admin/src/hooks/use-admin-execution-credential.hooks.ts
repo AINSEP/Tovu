@@ -133,7 +133,7 @@ function describeAdminExecutionCredentialError(e: unknown, fallback: string): st
   if (e instanceof ApiError) {
     if (e.code === "EXECUTION_CREDENTIAL_VALIDATION_ERROR") return e.message || "That value was rejected.";
     // Same fail-closed translation `features/ai-assistant/rules.ts`'s `describeApiError` gives the
-    // sibling site-credential code — the server has no master secret to encrypt under, and that is
+    // sibling site-credential code — the server has no site key to encrypt under, and that is
     // an operator-actionable server fact, not a problem with the key that was just typed.
     if (e.code === "SECRET_STORE_UNCONFIGURED")
       return "The server can't store keys yet: it has no site key. Set TOVU_SITE_KEY (hex) and restart. Your key was not saved.";

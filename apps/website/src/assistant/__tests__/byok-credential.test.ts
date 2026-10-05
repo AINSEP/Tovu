@@ -145,7 +145,7 @@ test("a decrypt failure on the stored row degrades to null, it does not throw", 
     { workspaceId: WORKSPACE, principalId: ADMIN_A, apiKey: "stored-key-0000", protocol: "anthropic", model: "claude-opus-4-8" }
   );
 
-  // A sealer over a DIFFERENT root key generation — simulates a rotated/reset master secret.
+  // A sealer over a DIFFERENT site key generation — simulates a rotated/reset site key.
   const otherSealer = new AesGcmSecretSealer(new InMemoryKeyring("different-generation"));
   const port = createStoredExecutionCredentialPort({ repo, sealer: otherSealer });
   const resolved = await port.resolve({ requestBody: {}, workspaceId: WORKSPACE, principalId: ADMIN_A });

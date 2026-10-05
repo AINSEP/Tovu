@@ -417,7 +417,7 @@ test("overwrite live: ticks sent through the relay to an OLD-build live are refu
 });
 
 /** A grantless api_key principal issued a key under the admin built-in policy, as a Bearer header —
- *  the same pair `admin-site-token-routes.test.ts` mints. */
+ *  the same pair `admin-site-key-routes.test.ts` mints. */
 async function issueAdminApiKey(baseUrl: string, cookie: string): Promise<{ authorization: string }> {
   const principal = await expectJson<{ principal: { id: string } }>(
     await fetch(`${baseUrl}/api/admin/v1/api-keys/principals`, {

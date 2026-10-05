@@ -304,14 +304,14 @@ describe("ADM-001 — the reverse direction", () => {
  * The Integrations banner's generic "The assistant isn't running this server at all. Restart the
  * assistant to load it." was misleading for one specific saved-and-enabled connection: one whose
  * sealed env failed to decrypt (`external-mcp-store.ts`'s `openExternalMcpEnv`, most commonly
- * because the site token is not available). Restarting does not fix that — the decrypt fails again
+ * because the site key is not available). Restarting does not fix that — the decrypt fails again
  * on the very next boot — but the operator had no way to learn the real reason short of reading the
  * daemon's own stderr. `describeAdmissionDrift`'s `snapshot.configFailures` (2026-09-13) carries that
  * boot-time reason across the same two-hop relay `isPreset` already crosses, and this file gives it
  * a dedicated, plain-language message instead of the generic guess.
  */
 describe("decrypt-failed — a saved connection that never reached admission", () => {
-  it("reports the site-token message, not the generic 'not running' guess, when the boot-time failure names a decrypt problem", () => {
+  it("reports the site-key message, not the generic 'not running' guess, when the boot-time failure names a decrypt problem", () => {
     const drifted = describeAdmissionDrift(
       { connections: [], configFailures: [{ connectionId: "higgsfield", reason: "stored credentials could not be decrypted: Unsupported state or unable to authenticate data" }] },
       { higgsfield: { allowedToolNames: "generate_image", enabled: true } },

@@ -5,17 +5,17 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 
 import {
-  describeNewSiteTokenRefusal,
-  firstNewSiteTokenRefusal,
+  describeNewSiteAgentPluginTokenRefusal,
+  firstNewSiteAgentPluginTokenRefusal,
   listBundledAgentPluginServers,
-  NEW_SITE_TOKENS_SHAPE_ERROR,
+  NEW_SITE_AGENT_PLUGIN_TOKENS_SHAPE_ERROR,
   parseNewSiteAgentPluginTokens,
   resolveBundledAgentPlugin,
-} from "../../new-site-tokens.js";
+} from "../../new-site-agent-plugin-tokens.js";
 import { listTokenSignInPlugins } from "../../token-sign-in.js";
 
 /**
- * @file `new-site-tokens.ts`: the create-time token rules the admin route and `tovu init` share —
+ * @file `new-site-agent-plugin-tokens.ts`: the create-time token rules the admin route and `tovu init` share —
  * shape, refusal messages, and reading the bundled plugins a new site will get.
  */
 
@@ -31,7 +31,7 @@ function writePlugin(dirName: string, name: string, mcp: unknown): void {
 }
 
 before(() => {
-  root = fs.mkdtempSync(path.join(os.tmpdir(), "new-site-tokens-"));
+  root = fs.mkdtempSync(path.join(os.tmpdir(), "new-site-agent-plugin-tokens-"));
   writePlugin("supabase", "supabase", {
     mcpServers: {
       supabase: {
@@ -58,7 +58,7 @@ test("parse: absent is none; blanks are dropped; values are trimmed", () => {
 });
 
 test("parse: a non-object, a bad plugin id, a non-string, an over-long token, or too many entries are refused", () => {
-  const refused = { ok: false, error: NEW_SITE_TOKENS_SHAPE_ERROR };
+  const refused = { ok: false, error: NEW_SITE_AGENT_PLUGIN_TOKENS_SHAPE_ERROR };
   assert.deepEqual(parseNewSiteAgentPluginTokens("sbp_x"), refused);
   assert.deepEqual(parseNewSiteAgentPluginTokens(["sbp_x"]), refused);
   assert.deepEqual(parseNewSiteAgentPluginTokens({ "Not An Id": "x" }), refused);
@@ -69,25 +69,25 @@ test("parse: a non-object, a bad plugin id, a non-string, an over-long token, or
 });
 
 test("refusals: invalid and unsupported stop the create with the plugin's name; ok and unavailable do not", () => {
-  assert.deepEqual(describeNewSiteTokenRefusal("supabase", "invalid"), {
+  assert.deepEqual(describeNewSiteAgentPluginTokenRefusal("supabase", "invalid"), {
     code: "AGENT_PLUGIN_TOKEN_INVALID",
     error: "That Supabase access token didn't work. Check it, or leave it empty and connect Supabase later from chat. No site was created.",
   });
-  assert.equal(describeNewSiteTokenRefusal("supabase", "unsupported")?.code, "AGENT_PLUGIN_TOKEN_UNSUPPORTED");
-  assert.equal(describeNewSiteTokenRefusal("supabase", "ok"), null);
-  assert.equal(describeNewSiteTokenRefusal("supabase", "unavailable"), null);
+  assert.equal(describeNewSiteAgentPluginTokenRefusal("supabase", "unsupported")?.code, "AGENT_PLUGIN_TOKEN_UNSUPPORTED");
+  assert.equal(describeNewSiteAgentPluginTokenRefusal("supabase", "ok"), null);
+  assert.equal(describeNewSiteAgentPluginTokenRefusal("supabase", "unavailable"), null);
 });
 
-test("firstNewSiteTokenRefusal names the first refused plugin and never carries a token", async () => {
+test("firstNewSiteAgentPluginTokenRefusal names the first refused plugin and never carries a token", async () => {
   const checked: { pluginId: string; token: string }[] = [];
-  const refusal = await firstNewSiteTokenRefusal(async ({ pluginId, token }) => {
+  const refusal = await firstNewSiteAgentPluginTokenRefusal(async ({ pluginId, token }) => {
     checked.push({ pluginId, token });
     return pluginId === "b" ? "invalid" : "ok";
   }, { a: "tok-a", b: "tok-b", c: "tok-c" });
   assert.equal(refusal?.pluginId, "b");
   assert.deepEqual(checked, [{ pluginId: "a", token: "tok-a" }, { pluginId: "b", token: "tok-b" }], "checking stops at the first refusal");
   assert.ok(!JSON.stringify(refusal).includes("tok-b"));
-  assert.equal(await firstNewSiteTokenRefusal(async () => "ok", { a: "x" }), null);
+  assert.equal(await firstNewSiteAgentPluginTokenRefusal(async () => "ok", { a: "x" }), null);
 });
 
 test("bundled plugins: read by manifest name; retired and manifest-less dirs are skipped; an absent root is empty", async () => {

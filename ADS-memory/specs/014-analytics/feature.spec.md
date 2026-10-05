@@ -131,7 +131,7 @@ clamping, and validation-bound detail live in `behavior.spec.md`.
   derivation, coarse UA classification, session-id derivation, referrer/UTM extraction,
   the optional `beforeIngest` hook.
 - Daily salt derivation (`src/analytics/salt.ts`), including its documented, disclosed
-  `rootKeySeed`-string simplification (not yet wired to a real `KeyringPort`).
+  `analyticsSeed`-string simplification (not yet wired to a real `KeyringPort`).
 - The in-memory `AnalyticsSinkPort` adapter, `LocalBufferSink` (`src/analytics/repo.memory.ts`),
   including its bounded `list()` read accessor.
 - The admin read route `GET /api/admin/v1/workspaces/:workspaceId/analytics/recent-hits`
@@ -231,7 +231,7 @@ Tier-3 storage/dashboard build-out and the permission-hardening follow-up.
   CIDR range).
 - REQ-06: The system shall derive a `visitorHash` as
   `sha256(dailySalt ‖ siteHost ‖ coarseRequestSignal)`, where `dailySalt` is a 32-byte
-  HKDF-SHA256 output derived on demand from `(rootKeySeed, workspaceId, utcDate)` and never
+  HKDF-SHA256 output derived on demand from `(analyticsSeed, workspaceId, utcDate)` and never
   persisted, and `coarseRequestSignal` is a truncated IP prefix plus coarse device/browser
   class — never the raw IP address or the raw User-Agent string.
 - REQ-07: The system shall classify the request's User-Agent into a coarse `deviceClass`
@@ -315,7 +315,7 @@ Tier-3 storage/dashboard build-out and the permission-hardening follow-up.
   serialization, and neither an `ip` nor a `userAgent` key exists on that object (asserted
   at the unit, service, and HTTP-route levels).
 - AC-15 (REQ-06) [P2]: Given two different `workspaceId` values and the same `utcDate` and
-  `rootKeySeed`, when `deriveDailySalt` is called for each, then the two derived salts
+  `analyticsSeed`, when `deriveDailySalt` is called for each, then the two derived salts
   differ.
 - AC-16 (REQ-06) [P2]: Given an empty `workspaceId` or an empty `utcDate`, when
   `deriveDailySalt` is called, then it throws `RangeError`.
@@ -384,7 +384,7 @@ Tier-3 storage/dashboard build-out and the permission-hardening follow-up.
 - INV-01: A raw IP address or a raw User-Agent string must never appear as a field, or
   anywhere in the JSON serialization, of a `NormalizedHit` or any object derived from one.
 - INV-02: `deriveDailySalt`'s output must never be written to any file, table, cache, or
-  returned/stored object — it is recomputed on every call from `(rootKeySeed, workspaceId,
+  returned/stored object — it is recomputed on every call from `(analyticsSeed, workspaceId,
   utcDate)` and exists only for the duration of that call.
 - INV-03: The `POST /_analytics/e` route must always respond `204 No Content` with an
   empty body — no accept/reject outcome, validation failure, or unexpected internal error
@@ -447,7 +447,7 @@ Tier-3 storage/dashboard build-out and the permission-hardening follow-up.
 | `node:crypto` (`hkdfSync`, `createHash`) | HKDF-SHA256 daily salt derivation and SHA-256 `visitorHash`/`sessionId` hashing | Node runtime absence — not a real risk in this deployment target | none — blocks the entire ingest path; this is a core Node built-in, not an optional dependency |
 | Injected `resolveWorkspaceForHost` (currently `server/app.ts`'s single-workspace stub) | Host → workspace id resolution | Always resolves to the single deployed workspace today; a real multi-tenant deployment has no host-routing implementation yet | none — real host-based routing is an explicitly named future seam (ADR-035 §5), not built |
 | Injected `AnalyticsConfigPort` (currently `server/app.ts`'s hard-coded stub) | Per-site enabled/DNT/GPC/exclusion/retention config | The stub always returns `enabled: true` with empty exclusion lists; there is no way to actually disable analytics or configure exclusions in the running app today | none — real config is meant to come from the ADR-028 settings ledger, not yet wired |
-| `process.env.ANALYTICS_ROOT_KEY_SEED` | Site key material for daily salt derivation | Falls back to the literal string `"dev-only-insecure-seed"` when unset | Documented dev-only fallback; production deployment must set this env var, or (once available) source it from a corrected `KeyringPort.derive()` |
+| `process.env.ANALYTICS_ANALYTICS_SEED` | Site key material for daily salt derivation | Falls back to the literal string `"dev-only-insecure-seed"` when unset | Documented dev-only fallback; production deployment must set this env var, or (once available) source it from a corrected `KeyringPort.derive()` |
 | `requireAdminSession` (`src/server/middleware/dev-auth.ts`) | Session-level gating for all `/api/admin/*` routes, including recent-hits | If session validation fails, the request is rejected before reaching the analytics route | none needed — this is the only gate the recent-hits route currently has (see Known Deviations item 2) |
 
 ---

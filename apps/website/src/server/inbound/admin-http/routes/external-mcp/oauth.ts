@@ -62,7 +62,7 @@ function sendExternalMcpOAuthError(res: import("express").Response, error: unkno
     // admin client has one contract to handle rather than two. It matters here because the routes
     // that still surface it — connect and the callback, which must OPEN the blob to authenticate to
     // the token endpoint — otherwise fall through to a bare 500 "internal error", which tells an
-    // operator whose root key has rotated nothing about the one thing they can act on.
+    // operator whose site key has rotated nothing about the one thing they can act on.
     res.status(503).json({ error: error.message, code: "SECRET_STORE_UNCONFIGURED" });
     return;
   }

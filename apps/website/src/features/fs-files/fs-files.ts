@@ -58,12 +58,12 @@ export const FS_FILES_DENYLIST = {
    * `config.json`, and `hosts.yml` are generic names that appear harmlessly elsewhere, so denying the
    * directory is the narrower of the two mistakes.
    *
-   * `.tovu` (2026-09-24) — the install-wide root key's own directory. `keyring.env.ts`'s
-   * `defaultRootKeyFilePath` resolves to `<cwd>/sites/.tovu/integrations-root-key.hex` in production
+   * `.tovu` (2026-09-24) — the install-wide site key's own directory. `keyring.env.ts`'s
+   * `siteKeySources` resolves to `<cwd>/sites/.tovu/site-key.hex` in production
    * (a SIBLING of every `sites/<name>/` folder, on the durable Fly volume) and to
-   * `~/.tovu/integrations-root-key.hex` in local/dev (reachable through the operator-set `custom`
-   * root, `layout.ts`'s home-directory case). `TOVU_INTEGRATIONS_ROOT_KEY` is the one secret the
-   * "Site Token" admin UI, every webhook/analytics/newsletter signing secret, and site-token
+   * `~/.tovu/site-keys/<siteKeyId>.hex` in local/dev (reachable through the operator-set `custom`
+   * root, `layout.ts`'s home-directory case). `TOVU_SITE_KEY` is the one secret the
+   * "site key" admin UI, webhook/newsletter signing secrets, and site-key
    * permission checks all derive from (see `keyring.env.ts`'s own header) — the owner's standing rule
    * is that the agent must never be able to read it off disk. Denying the whole `.tovu` segment, not
    * merely the generated filename, also keeps `fs_list_files` from ever enumerating that directory's
@@ -107,10 +107,10 @@ export const FS_FILES_DENYLIST = {
    *   shared-credentials file, which has no suffix family to match on.
    * - `.git-credentials` (exact basename) — git's own credential-store file, another extension-less
    *   name that none of the patterns above covers.
-   * - `*root-key*.hex` (2026-09-24) — belt-and-braces for the root key file itself, independent of
-   *   the `.tovu` SEGMENT deny above: a copy, backup, or rename of `integrations-root-key.hex` sitting
+   * - `*-key*.hex` (2026-09-24) — belt-and-braces for the site key file itself, independent of
+   *   the `.tovu` SEGMENT deny above: a copy, backup, or rename of `site-key.hex` sitting
    *   anywhere else in the tree (outside a `.tovu` directory, where the segment deny would not fire)
-   *   is still the same live `TOVU_INTEGRATIONS_ROOT_KEY` material and must stay unreadable.
+   *   is still the same live `TOVU_SITE_KEY` material and must stay unreadable.
    * - `.credentials.json` (exact basename, 2026-09-24) — Claude's own OAuth token store
    *   (`~/.claude/.credentials.json`), reachable through the operator-set `custom` root the same way
    *   `.aws`/`.docker`/`.kube` are. Distinct from the pre-existing `credentials.json` (no leading dot)
@@ -143,7 +143,7 @@ export const FS_FILES_DENYLIST = {
     /^credentials$/i,
     /^client_secret.*\.json$/i,
     /^\.git-credentials$/i,
-    /root-key.*\.hex$/i,
+    /-key[^/]*\.hex$/i,
     /^\.credentials\.json$/i,
     /^\.(?:bash_profile|bashrc|bash_login|zshrc|zprofile|zshenv|zlogin|profile)$/i,
     /^\.?\.storage-secret\.json(?:\..*)?$/i,

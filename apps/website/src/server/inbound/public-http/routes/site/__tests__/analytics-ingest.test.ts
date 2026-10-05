@@ -27,7 +27,7 @@ function buildApp(sink: ReturnType<typeof createLocalAnalyticsSink> = createLoca
     sink,
     config: base.analyticsConfig,
     resolveWorkspaceForHost: async () => base.workspaceId,
-    rootKeySeed: "test-seed",
+    analyticsSeed: "test-seed",
     ...overrides,
   };
   const app = express();
@@ -341,7 +341,7 @@ test("analytics-ingest: `req.hostname ?? \"\"` fallback, forced via a direct han
       resolvedHost = host;
       return base.workspaceId;
     },
-    rootKeySeed: "test-seed",
+    analyticsSeed: "test-seed",
   };
   const app = express();
   app.use(express.json());

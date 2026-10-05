@@ -18,7 +18,7 @@ import {
  * - A row with a sealed key is the original explicitly-configured peer. Unchanged: the key is
  *   opened by `resolvePeerCredential`, the one decrypting function in `peers.ts`.
  * - A row with NO sealed key is a destination this install is CONNECTED to. There is nothing to
- *   open, because nothing was ever stored: the handshake proves possession of the Site Token and
+ *   open, because nothing was ever stored: the handshake proves possession of the site key and
  *   mints a session token good for the next few minutes, and that token is the credential.
  *
  * ## Why this is the only change the outbound transport needed
@@ -48,7 +48,7 @@ export interface PublishDestinationCredentialDeps {
 /**
  * Resolves whatever credential a destination is due, for the lifetime of one outbound request.
  *
- * @param input.workspaceId - THIS install's workspace. It scopes the row AND selects the Site Token
+ * @param input.workspaceId - THIS install's workspace. It scopes the row AND selects the site key
  * the publishing key is derived from; those are deliberately the same value.
  * @returns A credential the transport driver can use unchanged.
  * @throws {PublishContentPeerNotFoundError} when no row exists.

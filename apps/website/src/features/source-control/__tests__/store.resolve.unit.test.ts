@@ -21,7 +21,7 @@ import {
  * throws rather than degrading to `null`.
  */
 
-/** Always fails — simulates a missing `TOVU_INTEGRATIONS_ROOT_KEY` without touching real env state.
+/** Always fails — simulates a missing `TOVU_SITE_KEY` without touching real env state.
  *  Byte-identical double to `publish-credentials/__tests__/store.unit.test.ts`'s own `BrokenKeyring`,
  *  kept local rather than imported cross-feature (this file's own convention — see `store.ts`'s header
  *  on why this table's decrypt path is not shared with the publish-credentials sibling). */
@@ -83,7 +83,7 @@ test("resolveDefaultForSourceControl throws on a genuine decrypt failure rather 
 
 /**
  * Live-found (2026-08-16), the daemon-side twin of `publish-credentials/__tests__/store.unit.test.ts`'s
- * own "converts a decrypt failure... into the typed error" test: a row saved with a working root key,
+ * own "converts a decrypt failure... into the typed error" test: a row saved with a working site key,
  * then resolved by a process that never had one. Before this fix, `resolveDefaultForSourceControl` let
  * the keyring's raw `Error` escape untyped — this feature's own caller,
  * `commit-site.ts`'s `commitSiteToSourceControl`, has NO try/catch around this call at all (unlike the
@@ -97,7 +97,7 @@ test("resolveDefaultForSourceControl converts a decrypt failure (missing site ke
   await createSourceControlCredential(workingDeps, { workspaceId: WORKSPACE, label: "x", connection: { providerId: "github", token: "t" } });
 
   // Same saved row, but a keyring that cannot derive the key to open it — simulates the live scenario:
-  // the row already exists, the CURRENT process just has no root key.
+  // the row already exists, the CURRENT process just has no site key.
   const brokenDeps = { repo: workingDeps.repo, sealer: new AesGcmSecretSealer(new BrokenKeyring()) };
 
   await assert.rejects(

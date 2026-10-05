@@ -80,7 +80,7 @@ import { toPublishContentDeps, type PublishContentRouteDeps, type PublishContent
  * `openPeer` no longer calls `resolvePeerCredential` directly. `destination-credential.ts` decides
  * whether this destination is an explicitly-configured peer (a sealed key, opened per request) or
  * one this install is CONNECTED to (nothing stored; a session token minted by proving possession of
- * the Site Token). Both arrive as the same `ResolvedPeerCredential`, so every route below is
+ * the site key). Both arrive as the same `ResolvedPeerCredential`, so every route below is
  * unchanged and cannot tell them apart.
  *
  * ## The credential never appears in a response

@@ -9,19 +9,19 @@ import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 
 /**
- * @file 2026-09-09 integrations-root-key fix, then durability fix (same day, second pass) —
+ * @file 2026-09-09 site-key fix, then durability fix (same day, second pass) —
  * `runProductionReadinessGateOrExit`'s own env-var wiring (`boot-readiness-gate.ts`). The source
  * checks pin the shared keyring wiring; an isolated subprocess also exercises the real refusal
  * and success paths, including missing, invalid, and valid durable key material.
  *
  * SUPERSEDED (second pass, same day): the first version of this test pinned
- * `hasMissingIntegrationsRootKey: !process.env.TOVU_INTEGRATIONS_ROOT_KEY` — env-var-only. That
+ * `hasMissingIntegrationsSiteKey: !process.env.TOVU_SITE_KEY` — env-var-only. That
  * made a valid, already-generated key file invisible to this gate, which was the exact
- * chicken-and-egg the admin Site Token tab's Generate action would otherwise hit (boot refuses
+ * chicken-and-egg the admin site key tab's Generate action would otherwise hit (boot refuses
  * before the admin UI that could "fix" it in-app is ever reachable). The field now reads
- * `!inspectRootKeyMaterial().active` — the SAME env-first/file-second check `EnvOrFileKeyring`'s
- * own `resolveRootKey()` uses — so a valid key file at the (now durable, in production)
- * `defaultRootKeyFilePath()` also satisfies this gate. This test asserts the NEW wiring; the old
+ * `!inspectSiteKeyMaterial().active` — the SAME env-first/file-second check `EnvOrFileKeyring`'s
+ * own `resolveSiteKey()` uses — so a valid key file at the (now durable, in production)
+ * `defaultSiteKeyFilePath()` also satisfies this gate. This test asserts the NEW wiring; the old
  * assertion is deliberately gone, not left alongside as a second, contradictory check.
  */
 

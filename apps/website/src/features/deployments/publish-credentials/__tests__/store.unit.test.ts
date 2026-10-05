@@ -28,7 +28,7 @@ import { InMemoryPublishCredentialSetRepo } from "../repo.memory.js";
 import { copyPublishCredentialsToVendorTable } from "../vendor-table-backfill.js";
 import type { DeployTargetRegistry, LoadedDeployTarget } from "#src/features/deployments/deploy-targets/types";
 
-/** Always fails — simulates a missing `TOVU_INTEGRATIONS_ROOT_KEY` without touching real env state.
+/** Always fails — simulates a missing `TOVU_SITE_KEY` without touching real env state.
  *  Same double used by `server/__tests__/admin-media-provider-routes.test.ts`'s own `BrokenKeyring`
  *  for the identical class of problem on a sibling secret store. */
 class BrokenKeyring implements KeyringPort {
@@ -174,8 +174,8 @@ test("resolveForPublish returns null for a non-existent id — not an error", as
 });
 
 /**
- * Live-found (2026-08-16): a row saved with a working root key, then resolved by a process that
- * never had one (a real, common shape — a server restart/reboot without `TOVU_INTEGRATIONS_ROOT_KEY`
+ * Live-found (2026-08-16): a row saved with a working site key, then resolved by a process that
+ * never had one (a real, common shape — a server restart/reboot without `TOVU_SITE_KEY`
  * set, hitting a row an EARLIER, correctly-configured boot already saved). Before the fix,
  * `resolveForPublish` let the keyring's raw `Error` escape untyped; every caller's HTTP boundary
  * (`server/routes/admin/system/publish-credentials.ts`'s `sendStoreError`) only recognizes FOUR
@@ -195,7 +195,7 @@ test("resolveForPublish converts a decrypt failure (missing site key) into the t
   });
 
   // Same repo (the same saved row), but a keyring that cannot derive the key to open it — simulates
-  // exactly the live scenario: the row already exists, the CURRENT process just has no root key.
+  // exactly the live scenario: the row already exists, the CURRENT process just has no site key.
   const brokenKeyring = new BrokenKeyring();
   const brokenDeps = { repo: workingDeps.repo, sealer: new AesGcmSecretSealer(brokenKeyring), loadDeployTargets: workingDeps.loadDeployTargets };
 

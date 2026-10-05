@@ -11,9 +11,9 @@ import type { KeyringPort } from "#src/features/webhooks/index";
  * remaining calls of one publish do not each need a signature round trip.
  *
  * NO NEW KEY HERE EITHER. The token is HMAC'd under a secret derived from the DESTINATION's own
- * root key — the same "Site Token" that install already has — through the same `KeyringPort.derive`
+ * site key — the same "site key" that install already has — through the same `KeyringPort.derive`
  * seam, under its own `purpose` so it is domain-separated from the signing-key derivation. Nothing
- * is minted, stored or shown; a restart or a Site Token regeneration simply invalidates outstanding
+ * is minted, stored or shown; a restart or a site key regeneration simply invalidates outstanding
  * sessions, which for a minutes-long credential is the correct behavior rather than a problem.
  *
  * WHAT THE TOKEN IS NOT: it is not an admin credential and carries no route allowlist. The set of

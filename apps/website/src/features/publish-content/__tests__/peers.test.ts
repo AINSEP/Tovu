@@ -159,7 +159,7 @@ test("an unopenable ciphertext surfaces as the typed secret-store error, never a
   await createDefaultPeer(deps);
   const stored = await deps.repo.findById({ workspaceId: WORKSPACE, id: "peer-1" });
   assert.ok(stored);
-  // Corrupt the ciphertext in place — the shape a rotated/lost root key produces.
+  // Corrupt the ciphertext in place — the shape a rotated/lost site key produces.
   await deps.repo.update({ ...stored, sealed: { ...stored.sealed!, ciphertext: Buffer.from("garbage").toString("base64") } });
 
   await assert.rejects(

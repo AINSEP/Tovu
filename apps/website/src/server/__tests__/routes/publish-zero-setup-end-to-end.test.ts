@@ -53,7 +53,7 @@ import { toPublishContentDeps } from "#src/server/inbound/admin-http/routes/publ
  * destination is listening on. It stands in for TLS and DNS and nothing else — every request it
  * forwards is the exact method, path, headers and body the production client would send, and the
  * destination is the real `createApp()`. The source's keyring is a faithful HKDF double with its
- * OWN root key, which is the honest arrangement: two installs have different Site Tokens by design
+ * OWN site key, which is the honest arrangement: two installs have different site keys by design
  * and the destination only ever sees a public key.
  *
  * ## The assertion that matters most
@@ -65,12 +65,12 @@ import { toPublishContentDeps } from "#src/server/inbound/admin-http/routes/publ
  */
 
 const DESTINATION_ORIGIN = "https://destination.test";
-const SOURCE_ROOT_KEY = "7".repeat(64);
-const OTHER_COMPUTER_ROOT_KEY = "3".repeat(64);
+const SOURCE_SITE_KEY = "7".repeat(64);
+const OTHER_COMPUTER_SITE_KEY = "3".repeat(64);
 
 /** The same HKDF construction `keyring.env.ts` uses — a faithful double, not a friendlier one. */
-function testKeyring(rootKeyHex: string): KeyringPort {
-  const rootKey = Buffer.from(rootKeyHex, "hex");
+function testKeyring(siteKeyHex: string): KeyringPort {
+  const siteKey = Buffer.from(siteKeyHex, "hex");
   return {
     async activeKey() {
       return { keyId: "v1" };
@@ -80,7 +80,7 @@ function testKeyring(rootKeyHex: string): KeyringPort {
     },
     async derive(input: { workspaceId: string; purpose: string; info: string }) {
       return new Uint8Array(
-        hkdfSync("sha256", rootKey, Buffer.alloc(0), `${input.purpose}:${input.workspaceId}:${input.info}`, 32)
+        hkdfSync("sha256", siteKey, Buffer.alloc(0), `${input.purpose}:${input.workspaceId}:${input.info}`, 32)
       );
     },
   } as unknown as KeyringPort;
@@ -206,8 +206,8 @@ async function scenario(sourceWorkspaceId = "workspace-local") {
 }
 
 /** Steps 1-3: confirm the site, connect, deploy. */
-async function connectAndDeploy(s: Awaited<ReturnType<typeof scenario>>, rootKeyHex = SOURCE_ROOT_KEY) {
-  const keyring = testKeyring(rootKeyHex);
+async function connectAndDeploy(s: Awaited<ReturnType<typeof scenario>>, siteKeyHex = SOURCE_SITE_KEY) {
+  const keyring = testKeyring(siteKeyHex);
   const connected = await connectDestination(
     { httpClient: s.httpClient, keyring, provisioning: s.provisioning, clock: s.clock, workspaceId: s.sourceDeps.workspaceId },
     { baseUrl: DESTINATION_ORIGIN, entityTypes: listPublishContentContributors().map((c) => c.entityType) }
@@ -229,7 +229,7 @@ async function connectAndDeploy(s: Awaited<ReturnType<typeof scenario>>, rootKey
  *  destination's gated ceremony over HTTP. Returns the destination's execute response. */
 async function publishEverything(s: Awaited<ReturnType<typeof scenario>>, site: { id: string }, overwriteEntityKeys: readonly string[] = []) {
   const credential = await resolvePublishDestinationCredential(
-    { repo: s.peerRepo, sealer: s.sourceDeps.siteAssistantSecretSealer, keyring: testKeyring(SOURCE_ROOT_KEY), httpClient: s.httpClient },
+    { repo: s.peerRepo, sealer: s.sourceDeps.siteAssistantSecretSealer, keyring: testKeyring(SOURCE_SITE_KEY), httpClient: s.httpClient },
     { workspaceId: s.sourceDeps.workspaceId, id: site.id }
   );
   const workspace = await s.sourceDeps.workspaceRepo.findById({ id: s.sourceDeps.workspaceId });
@@ -282,7 +282,7 @@ test("connecting learns the destination's workspace instead of asking a human fo
     assert.equal(grants.length, 1);
     assert.equal(grants[0].workspaceId, s.destinationDeps.workspaceId);
     assert.match(written, /"publicKeys"/);
-    assert.ok(!written.includes(SOURCE_ROOT_KEY), "the Site key must never reach committed config");
+    assert.ok(!written.includes(SOURCE_SITE_KEY), "the Site key must never reach committed config");
     assert.ok(!/privateKey|secret|apiKey/i.test(written), written);
     const [seed] = await s.sourceDeps.postRepo.list({ workspaceId: "workspace-local" });
     assert.ok(seed);
@@ -303,9 +303,9 @@ test("a fresh install connects and then publishes, with no key displayed or copi
     const { site } = await connectAndDeploy(s);
 
     // THE step every previous agent stopped short of: the publish path resolving a credential for a
-    // destination that has no stored key, by proving possession of the Site Token on the wire.
+    // destination that has no stored key, by proving possession of the site key on the wire.
     const credential = await resolvePublishDestinationCredential(
-      { repo: s.peerRepo, sealer: s.sourceDeps.siteAssistantSecretSealer, keyring: testKeyring(SOURCE_ROOT_KEY), httpClient: s.httpClient },
+      { repo: s.peerRepo, sealer: s.sourceDeps.siteAssistantSecretSealer, keyring: testKeyring(SOURCE_SITE_KEY), httpClient: s.httpClient },
       { workspaceId: s.sourceDeps.workspaceId, id: site.id }
     );
     assert.ok(credential.apiKey.length > 0);
@@ -416,10 +416,10 @@ test("forms and the active theme publish through a publishing grant", async () =
 test("a computer that was never connected is refused in plain language", async () => {
   const s = await scenario();
   try {
-    // Connected, deployed — then a DIFFERENT computer (a different Site Token) tries to publish.
+    // Connected, deployed — then a DIFFERENT computer (a different site key) tries to publish.
     const { site } = await connectAndDeploy(s);
     const stranger = resolvePublishDestinationCredential(
-      { repo: s.peerRepo, sealer: s.sourceDeps.siteAssistantSecretSealer, keyring: testKeyring(OTHER_COMPUTER_ROOT_KEY), httpClient: s.httpClient },
+      { repo: s.peerRepo, sealer: s.sourceDeps.siteAssistantSecretSealer, keyring: testKeyring(OTHER_COMPUTER_SITE_KEY), httpClient: s.httpClient },
       { workspaceId: s.sourceDeps.workspaceId, id: site.id }
     );
 
@@ -448,7 +448,7 @@ test("disconnecting removes only this computer, and leaves another computer's gr
     await connectDestination(
       {
         httpClient: s.httpClient,
-        keyring: testKeyring(OTHER_COMPUTER_ROOT_KEY),
+        keyring: testKeyring(OTHER_COMPUTER_SITE_KEY),
         provisioning: s.provisioning,
         clock: s.clock,
         workspaceId: s.sourceDeps.workspaceId,
@@ -458,7 +458,7 @@ test("disconnecting removes only this computer, and leaves another computer's gr
     assert.equal((JSON.parse(await s.readGrantDocument()) as unknown[]).length, 2);
 
     await disconnectDestination({
-      keyring: testKeyring(SOURCE_ROOT_KEY),
+      keyring: testKeyring(SOURCE_SITE_KEY),
       provisioning: s.provisioning,
       workspaceId: s.sourceDeps.workspaceId,
     });

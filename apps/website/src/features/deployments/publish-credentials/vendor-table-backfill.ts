@@ -19,7 +19,7 @@ import type { PublishCredentialSetRecord, PublishCredentialSetRepoPort } from ".
  *
  * Idempotent: a row whose id is already in the vendor table is left alone. Legacy rows are never
  * changed or deleted (they stay one release as a safety net), so a row skipped today (its host's
- * plugin is missing, the root key is not set) is simply tried again at the next boot.
+ * plugin is missing, the site key is not set) is simply tried again at the next boot.
  */
 
 export interface VendorTableBackfillDeps {

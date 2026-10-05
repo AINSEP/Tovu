@@ -92,7 +92,7 @@ describe("isEnvVarRowUnsafe", () => {
   });
 });
 
-// c7-rev-settings-deploy 2026-09-24: the root key resolves from the env var OR a generated key
+// c7-rev-settings-deploy 2026-09-24: the site key resolves from the env var OR a generated key
 // file; the row must say which, and a malformed key must read as a warning, not a neutral "Not set".
 describe("envVarStatusLabelKey / isEnvVarRowUnsafe — site key source and validity", () => {
   it("labels a site key resolved from the generated key file", () => {

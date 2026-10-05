@@ -36,14 +36,14 @@ import type { ServerModuleHandle } from "./types.js";
  */
 export function createCoreModule(deps: RouteDeps): ServerModuleHandle {
   // This install's own publishing identity — the audience every publishing token must name.
-  // Derived once per process rather than per request: it is a pure function of the root key and
+  // Derived once per process rather than per request: it is a pure function of the site key and
   // the workspace, so it cannot change while the process runs. Awaited inside each consumer, so a
   // slow keyring delays the first handshake rather than boot.
   const targetInstallationId = deriveInstallationId({
     keyring: deps.siteAssistantSecretKeyring,
     workspaceId: deps.workspaceId,
   });
-  // Marks a missing root key as handled at boot. Each consumer still awaits the same rejection and
+  // Marks a missing site key as handled at boot. Each consumer still awaits the same rejection and
   // refuses that one request; without this, a keyless process logs an unhandled rejection at startup.
   targetInstallationId.catch(() => undefined);
   const challengeStore = new InMemoryPublishChallengeStore(deps.clock);

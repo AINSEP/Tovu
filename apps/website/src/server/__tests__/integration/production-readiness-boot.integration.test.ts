@@ -21,7 +21,7 @@ async function withComposedSite(
 ): Promise<void> {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-production-composition-"));
   const cwd = process.cwd();
-  const names = ["TOVU_RUNTIME_MODE", "TOVU_ADMIN_PASSWORD", "ANALYTICS_ROOT_KEY_SEED", "TOVU_SITE_KEY", LEGACY_SITE_KEY_ENV_VAR_NAME];
+  const names = ["TOVU_RUNTIME_MODE", "TOVU_ADMIN_PASSWORD", "ANALYTICS_ANALYTICS_SEED", "TOVU_SITE_KEY", LEGACY_SITE_KEY_ENV_VAR_NAME];
   const original = new Map(names.map((name) => [name, process.env[name]]));
   const home = t.mock.method(os, "homedir", () => root);
   syncBuiltinESMExports();
@@ -194,8 +194,8 @@ test("AC-05/INV-01 (regression, FAILS FIRST without the fix): the real compositi
     mode,
     inventory: CAPABILITY_INVENTORY,
     envSnapshot: {
-      // A safe production deploy's env snapshot (ANALYTICS_ROOT_KEY_SEED set, TOVU_ADMIN_PASSWORD
-      // changed from the default, TOVU_INTEGRATIONS_ROOT_KEY set) — matches what this fix's own
+      // A safe production deploy's env snapshot (ANALYTICS_SITE_KEY_SEED set, TOVU_ADMIN_PASSWORD
+      // changed from the default, TOVU_SITE_KEY set) — matches what this fix's own
       // manual boot verification used.
       hasDevSecretPlaceholder: false,
       hasLocalhostEgressAllowance: false,
@@ -219,11 +219,11 @@ test("§2.1 step 1: the real composition boots successfully in local mode despit
 });
 
 /**
- * 2026-09-09 integrations-root-key fix — real-composition wiring regression, same DEPS_SOURCE
+ * 2026-09-09 site-key fix — real-composition wiring regression, same DEPS_SOURCE
  * static-read technique the AC-23/24 test above already uses for the identical reason: exercising
  * `createSiteRouteDeps()` end-to-end here would let `newsletterKeyring` actually write to the
- * REAL `homedir()`-relative `~/.tovu/integrations-root-key.hex` on whichever machine runs this
- * suite whenever `TOVU_INTEGRATIONS_ROOT_KEY` is unset there — a live-filesystem side effect this
+ * REAL `homedir()`-relative `~/.tovu/site-key.hex` on whichever machine runs this
+ * suite whenever `TOVU_SITE_KEY` is unset there — a live-filesystem side effect this
  * test must never risk. A source-level assertion on the exact composition-root wiring line proves
  * the same fact safely: before this fix, `newsletterKeyring` was `new EnvOrFileKeyring()` with an
  * unconditional (bare) fallback — a hardcoded `true` regardless of runtime mode — which is exactly

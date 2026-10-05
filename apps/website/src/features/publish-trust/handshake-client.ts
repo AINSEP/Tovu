@@ -16,7 +16,7 @@ import { deriveInstallationId, derivePublishSigningKey } from "./keys.js";
  *    from the flow: the source reads the destination's own answer instead of the owner reading it
  *    off a screen.
  * 2. `POST /challenge` — take a single-use nonce.
- * 3. `POST /session` — sign the nonce with the key DERIVED from this install's Site Token and
+ * 3. `POST /session` — sign the nonce with the key DERIVED from this install's site key and
  *    exchange the signature for a short-lived session token.
  *
  * ## Nothing here is stored, displayed or copied
@@ -43,7 +43,7 @@ export const PUBLISH_TRUST_HANDSHAKE_BASE = "/api/publish-trust/v1";
  * The rotation generation this source signs with.
  *
  * A constant, not a setting: rotation here is a counter, and the counter only ever moves when the
- * Site Token itself is regenerated — at which point the DERIVED key changes anyway, so bumping the
+ * site key itself is regenerated — at which point the DERIVED key changes anyway, so bumping the
  * generation would buy nothing and would strand the grant that names generation 1. It exists as a
  * named constant so the grant writer and the signer cannot disagree about it.
  */
@@ -117,10 +117,10 @@ function siteNameOf(baseUrl: string): string {
   }
 }
 
-/** True when a destination's 503 body carries the code `handshake.ts` sends for a missing root key.
+/** True when a destination's 503 body carries the code `handshake.ts` sends for a missing site key.
  *  Only the code is read; the destination's own wording never reaches the owner.
  *  @complexity O(n) in the body length. */
-function isNoSiteTokenBody(bodyText: string): boolean {
+function isNoSiteKeyBody(bodyText: string): boolean {
   try {
     const parsed: unknown = JSON.parse(bodyText);
     return typeof parsed === "object" && parsed !== null && (parsed as { code?: unknown }).code === "SECRET_STORE_UNCONFIGURED";
@@ -173,8 +173,8 @@ async function callHandshake(
       "not-connected"
     );
   }
-  if (response.status === 503 && isNoSiteTokenBody(response.bodyText)) {
-    // `handshake.ts` answers this when the destination has no usable root key. No retry fixes it,
+  if (response.status === 503 && isNoSiteKeyBody(response.bodyText)) {
+    // `handshake.ts` answers this when the destination has no usable site key. No retry fixes it,
     // so the sentence names the fix instead of "try again".
     throw new PublishTrustHandshakeError(
       `${site} has no Site key set up yet, so it cannot accept publishes. Set one up on that site, then try again.`,
@@ -232,10 +232,10 @@ export async function fetchDestinationIdentity(
 }
 
 /**
- * Proves possession of this install's Site Token to a destination and takes a publishing session.
+ * Proves possession of this install's site key to a destination and takes a publishing session.
  *
  * The private half of the signing key exists only inside this call: {@link derivePublishSigningKey}
- * rebuilds it from the Site Token, signs one nonce, and the closure is collected. Between two
+ * rebuilds it from the site key, signs one nonce, and the closure is collected. Between two
  * publishes there is nothing on disk to steal, rotate or copy.
  *
  * `targetOrigin` in the derivation is `input.baseUrl` VERBATIM, and the grant written at connect
@@ -245,7 +245,7 @@ export async function fetchDestinationIdentity(
  *
  * @param input.baseUrl - The destination, normalized. Also the key-derivation audience.
  * @param input.workspaceId - THIS install's workspace. Never the destination's: it selects which
- * Site Token derives the key.
+ * site key derives the key.
  * @throws {PublishTrustHandshakeError} — every failure, already a sentence.
  * @complexity O(1) plus three round trips, two HKDFs and one Ed25519 signature.
  */

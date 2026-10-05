@@ -67,7 +67,7 @@ import { buildVendorCredentialAad } from "../../../apps/website/src/features/ven
  * unconditionally at import time, so a child process is the only way to invoke it without also
  * inheriting this test runner's own argv/cwd.
  *
- * A throwaway, per-test random hex root key stands in for the real `TOVU_INTEGRATIONS_ROOT_KEY` —
+ * A throwaway, per-test random hex site key stands in for the real `TOVU_SITE_KEY` —
  * this file never touches the real one, and the two `EnvOrFileKeyring`/`AesGcmSecretSealer` pairs it
  * constructs (one to seal the OLD-format fixture rows before the script runs, one to open the
  * NEW-format rows after) are built the exact same way `server/deps.ts`'s `siteAssistantSecretKeyring`
@@ -102,10 +102,9 @@ function tableRows(dbPath: string, table: string): unknown[] {
   finally { db.close(); }
 }
 
-function runScript(dbPath: string, rootKeyHex: string | undefined, extraArgs: string[] = []): string {
-  const env = { ...process.env, ...(rootKeyHex !== undefined ? { [LEGACY_SITE_KEY_ENV_VAR_NAME]: rootKeyHex } : {}) };
-  delete env.TOVU_INTEGRATIONS_ROOT_KEY_UNUSED;
-  if (rootKeyHex === undefined) delete env[LEGACY_SITE_KEY_ENV_VAR_NAME];
+function runScript(dbPath: string, siteKeyHex: string | undefined, extraArgs: string[] = []): string {
+  const env = { ...process.env, ...(siteKeyHex !== undefined ? { [LEGACY_SITE_KEY_ENV_VAR_NAME]: siteKeyHex } : {}) };
+  if (siteKeyHex === undefined) delete env[LEGACY_SITE_KEY_ENV_VAR_NAME];
   return execFileSync("node", ["--import", "tsx", SCRIPT, "--db", dbPath, ...extraArgs], {
     cwd: REPO_ROOT,
     encoding: "utf8",
@@ -116,12 +115,12 @@ function runScript(dbPath: string, rootKeyHex: string | undefined, extraArgs: st
 test("backfill-vendor-credentials: seals OLD, migrates, opens NEW — plus vendor-merge label/default disambiguation and idempotency", async () => {
   const scratch = tmpDir("backfill-vendor-credentials-");
   const dbPath = path.join(scratch, "content.db");
-  const rootKeyHex = randomBytes(32).toString("hex");
+  const siteKeyHex = randomBytes(32).toString("hex");
 
   // --- Seed two OLD-format rows that will merge into the SAME "github" vendor group (this is the
   // real-world common case this script's own header documents: every existing row's label is the
   // hardcoded literal "default"), plus one that stays solo (gitlab, no collision). ---
-  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = rootKeyHex;
+  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = siteKeyHex;
   const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] });
   const sealer = new AesGcmSecretSealer(keyring);
   const activeKey = await keyring.activeKey();
@@ -207,7 +206,7 @@ test("backfill-vendor-credentials: seals OLD, migrates, opens NEW — plus vendo
   const originalPublishRows = tableRows(dbPath, "publish_credential_sets");
   const originalSourceControlRows = tableRows(dbPath, "source_control_credential_sets");
 
-  // --- Dry run: needs NO root key at all (this script's own header claims this explicitly) and
+  // --- Dry run: needs NO site key at all (this script's own header claims this explicitly) and
   // must write nothing. ---
   const dryRunOutput = runScript(dbPath, undefined);
   assert.match(dryRunOutput, /DRY RUN: 3 row\(s\) would be migrated, 0 already migrated, 3 total/);
@@ -217,7 +216,7 @@ test("backfill-vendor-credentials: seals OLD, migrates, opens NEW — plus vendo
 
   // --- Apply: now the real migration runs, decrypting under each row's OLD AAD and re-sealing under
   // the NEW one. ---
-  const applyOutput = runScript(dbPath, rootKeyHex, ["--apply"]);
+  const applyOutput = runScript(dbPath, siteKeyHex, ["--apply"]);
   assert.deepEqual(tableRows(dbPath, "publish_credential_sets"), originalPublishRows);
   assert.deepEqual(tableRows(dbPath, "source_control_credential_sets"), originalSourceControlRows);
   assert.match(applyOutput, /RESTORE POINT CAPTURED/);
@@ -261,7 +260,7 @@ test("backfill-vendor-credentials: seals OLD, migrates, opens NEW — plus vendo
   // --- THE MANDATORY PROOF: seal OLD, migrate, open NEW. A fresh keyring/sealer pair (same
   // construction as production) must decrypt each new row's ciphertext under buildVendorCredentialAad
   // and recover the EXACT original plaintext this test sealed under the OLD AAD above. ---
-  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = rootKeyHex;
+  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = siteKeyHex;
   const openKeyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] });
   const openSealer = new AesGcmSecretSealer(openKeyring);
 
@@ -306,7 +305,7 @@ test("backfill-vendor-credentials: seals OLD, migrates, opens NEW — plus vendo
 
   // --- Idempotency: a second --apply run over an already-migrated database must be a complete
   // no-op — no new rows, no restore point (nothing pending to back up for). ---
-  const secondApplyOutput = runScript(dbPath, rootKeyHex, ["--apply"]);
+  const secondApplyOutput = runScript(dbPath, siteKeyHex, ["--apply"]);
   assert.match(secondApplyOutput, /Nothing to migrate/);
   assert.doesNotMatch(secondApplyOutput, /RESTORE POINT CAPTURED/);
   const afterSecondApply = openContentDb(dbPath);
@@ -330,8 +329,8 @@ test("backfill-vendor-credentials: resumes a partial github group and migrates t
   t.after(() => fs.rmSync(scratch, { recursive: true, force: true }));
   const priorKey = process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
   t.after(() => { if (priorKey === undefined) delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME]; else process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = priorKey; });
-  const rootKeyHex = randomBytes(32).toString("hex");
-  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = rootKeyHex;
+  const siteKeyHex = randomBytes(32).toString("hex");
+  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = siteKeyHex;
   const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] });
   const sealer = new AesGcmSecretSealer(keyring);
   const key = await keyring.activeKey();
@@ -357,8 +356,8 @@ test("backfill-vendor-credentials: resumes a partial github group and migrates t
   db.insert(vendorCredentialSets).values({ id: fixtures[0].id, workspaceId: WORKSPACE, vendorId: "github", label: "default", tokenTail: "1111", isDefault: true, accountLabel: "existing-account", createdAt: NOW, updatedAt: NOW, sealedKeyId: existingSealed.keyId, sealedCiphertext: existingSealed.ciphertext, sealedNonce: existingSealed.nonce, sealedAlg: existingSealed.alg }).run();
   db.$client.close();
   const existing = tableRows(dbPath, "vendor_credential_sets")[0];
-  assert.match(runScript(dbPath, rootKeyHex), /2 row\(s\) would be migrated, 1 already migrated, 3 total/);
-  assert.match(runScript(dbPath, rootKeyHex, ["--apply"]), /2 row\(s\) migrated, 1 already migrated, 3 total/);
+  assert.match(runScript(dbPath, siteKeyHex), /2 row\(s\) would be migrated, 1 already migrated, 3 total/);
+  assert.match(runScript(dbPath, siteKeyHex, ["--apply"]), /2 row\(s\) migrated, 1 already migrated, 3 total/);
   const raw = new Database(dbPath, { readonly: true });
   try {
     assert.deepEqual(raw.prepare("SELECT * FROM vendor_credential_sets WHERE id = ?").get(fixtures[0].id), existing);
@@ -379,9 +378,9 @@ test("backfill-vendor-credentials: resumes a partial github group and migrates t
 test("backfill-vendor-credentials: a corrupted source row aborts the run without losing rows written before it", async () => {
   const scratch = tmpDir("backfill-vendor-credentials-corrupt-");
   const dbPath = path.join(scratch, "content.db");
-  const rootKeyHex = randomBytes(32).toString("hex");
+  const siteKeyHex = randomBytes(32).toString("hex");
 
-  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = rootKeyHex;
+  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = siteKeyHex;
   const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] });
   const sealer = new AesGcmSecretSealer(keyring);
   const activeKey = await keyring.activeKey();
@@ -445,7 +444,7 @@ test("backfill-vendor-credentials: a corrupted source row aborts the run without
   seedDb.$client.close();
   delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
 
-  assert.throws(() => runScript(dbPath, rootKeyHex, ["--apply"]), /Command failed/);
+  assert.throws(() => runScript(dbPath, siteKeyHex, ["--apply"]), /Command failed/);
 
   const db = openContentDb(dbPath);
   const rows = db.select().from(vendorCredentialSets).all();

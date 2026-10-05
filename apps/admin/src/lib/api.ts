@@ -318,7 +318,7 @@ export interface AdminFederatedAdmissionEntry {
 /**
  * One SAVED, enabled external-MCP row the daemon could not even attempt to connect — it never
  * reached `attachFederatedMcpTools` at all, so it has no matching {@link AdminFederatedAdmissionEntry}
- * either. Most commonly a sealed env block that failed to decrypt because the site token is not
+ * either. Most commonly a sealed env block that failed to decrypt because the site key is not
  * available (`assistant/external-mcp-store.ts`'s `openExternalMcpEnv`).
  *
  * `reason` is the daemon's own operator-facing failure string
@@ -436,10 +436,10 @@ function flattenAdmissionConnection(raw: RawAdmissionConnection): AdminFederated
 export interface AdminDeploymentEnvVarStatus {
   name: string;
   set: boolean;
-  /** `TOVU_INTEGRATIONS_ROOT_KEY` only: where the root key came from. There `set` means "a usable
-   *  root key resolves" — a valid generated key file counts, malformed material does not. */
+  /** `TOVU_SITE_KEY` only: where the site key came from. There `set` means "a usable
+   *  site key resolves" — a valid generated key file counts, malformed material does not. */
   source?: "env" | "file" | "none";
-  /** `TOVU_INTEGRATIONS_ROOT_KEY` only, present iff key material was found but is malformed. */
+  /** `TOVU_SITE_KEY` only, present iff key material was found but is malformed. */
   invalid?: true;
 }
 
@@ -773,27 +773,27 @@ export interface AdminPublishCredentialsSnapshot {
 }
 
 /** Mirrors `resolveRuntimeMode()`'s own closed union (`contracts/core/runtime-mode.ts`) — the
- *  Site Token tab's own copy of "is this a production deployment" (the fact that decides whether
- *  the generate action can matter at all — see `AdminSiteTokenStatus`'s doc). */
+ *  site key tab's own copy of "is this a production deployment" (the fact that decides whether
+ *  the generate action can matter at all — see `AdminSiteKeyStatus`'s doc). */
 export type AdminSiteKeyRuntimeMode = "production" | "local";
 
 /**
- * Mirrors `SiteTokenState` (`apps/website/src/contracts/core/site-token-state.ts`) — the site-key
- * plan §A.6 5-state set `GET .../system/site-token`'s `state` field now carries. Hand-declared
+ * Mirrors `SiteKeyState` (`apps/website/src/contracts/core/site-key-state.ts`) — the site-key
+ * plan §A.6 5-state set `GET .../system/site-key`'s `state` field now carries. Hand-declared
  * rather than imported: that file isn't wired into this app's `@tovu/*` tsconfig/vite path-alias
  * list yet (see its own header comment — a later admin-side slice does that; this one only needs a
- * stable value to read). `ADMIN_SITE_TOKEN_STATES` is the runtime source of truth this type is
- * derived from — `lib/__tests__/site-token-state-parity.unit.test.ts` reads the server source
+ * stable value to read). `ADMIN_SITE_KEY_STATES` is the runtime source of truth this type is
+ * derived from — `lib/__tests__/site-key-state-parity.unit.test.ts` reads the server source
  * file's own union text off disk and checks it against this list, so the two can never silently
  * drift apart. Keep both edited together.
  */
 export const ADMIN_SITE_KEY_STATES = ["active", "missing", "missing-with-data", "mismatch", "invalid", "env-conflict"] as const;
 export type AdminSiteKeyState = (typeof ADMIN_SITE_KEY_STATES)[number];
 
-/** Mirrors `GET .../system/site-token`'s response shape (`inspectRootKeyMaterial`, server-side).
+/** Mirrors `GET .../system/site-key`'s response shape (`inspectSiteKeyMaterial`, server-side).
  *  NEVER carries the key value itself — only whether one is active, which of the two possible
  *  sources it came from, and a one-way `fingerprint` a human can use to recognize "same key as
- *  before" across a reload without revealing it. Call `api.revealSiteToken()` for the actual
+ *  before" across a reload without revealing it. Call `api.revealSiteKey()` for the actual
  *  value, behind its own explicit action. */
 export interface AdminSiteKeyStatus {
   envVarName?: string;
@@ -812,16 +812,16 @@ export interface AdminSiteKeyStatus {
   state: AdminSiteKeyState;
 }
 
-/** `POST .../system/site-token/generate`'s success outcomes: `already-active` (200, a key matching
+/** `POST .../system/site-key/generate`'s success outcomes: `already-active` (200, a key matching
  *  the site's stamp was already in place, nothing written), `recovered` (200, the stamped key was
  *  found in another source and adopted), `created` (201, no sealed data, a new key minted). */
 export type AdminSiteKeyGenerateOutcome = "already-active" | "recovered" | "created";
 
-/** Mirrors `POST .../system/site-token/generate`'s `200`/`201` response shape. Deliberately has NO
- *  `hex` field (sol finding 3-2, 2026-09-16 fix): `useSiteToken`'s `generate()` only ever reads
+/** Mirrors `POST .../system/site-key/generate`'s `200`/`201` response shape. Deliberately has NO
+ *  `hex` field (sol finding 3-2, 2026-09-16 fix): `useSiteKey`'s `generate()` only ever reads
  *  `fingerprint`/`keyFilePath`/`runtimeMode` from this response, so the server stopped sending the
- *  raw key value here — it had no consumer and was pure exposure. `api.revealSiteToken()` (below)
- *  stays the one, explicit, on-purpose call that returns the value; `AdminSiteTokenStatus` (the
+ *  raw key value here — it had no consumer and was pure exposure. `api.revealSiteKey()` (below)
+ *  stays the one, explicit, on-purpose call that returns the value; `AdminSiteKeyStatus` (the
  *  plain `GET`) never carries it either. */
 export interface AdminGeneratedSiteKey {
   outcome: AdminSiteKeyGenerateOutcome;
@@ -830,7 +830,7 @@ export interface AdminGeneratedSiteKey {
   runtimeMode: AdminSiteKeyRuntimeMode;
 }
 
-/** `POST .../system/site-token/import`'s 200: the pasted token is now this site's key. `resealed`
+/** `POST .../system/site-key/import`'s 200: the pasted token is now this site's key. `resealed`
  *  counts credentials saved under the key that was in place and moved onto the token. */
 export interface AdminImportedSiteKey {
   outcome: "unlocked";
@@ -847,7 +847,7 @@ export interface AdminSiteKeyAffectedWebhook {
   targetUrl: string;
 }
 
-/** `GET .../system/site-token/start-fresh`: what confirming would do, in one plain sentence. */
+/** `GET .../system/site-key/start-fresh`: what confirming would do, in one plain sentence. */
 export interface AdminSiteKeyStartFreshPreview {
   removes: number;
   affectedWebhooks: AdminSiteKeyAffectedWebhook[];
@@ -855,7 +855,7 @@ export interface AdminSiteKeyStartFreshPreview {
   runtimeMode: AdminSiteKeyRuntimeMode;
 }
 
-/** `POST .../system/site-token/start-fresh`'s 200. The new key is never in the body. */
+/** `POST .../system/site-key/start-fresh`'s 200. The new key is never in the body. */
 export interface AdminStartedFreshSiteKey {
   outcome: "started-fresh";
   fingerprint: string;
@@ -867,7 +867,7 @@ export interface AdminStartedFreshSiteKey {
   runtimeMode: AdminSiteKeyRuntimeMode;
 }
 
-/** Mirrors `POST .../system/site-token/reveal`'s response shape — {@link AdminSiteKeyStatus}
+/** Mirrors `POST .../system/site-key/reveal`'s response shape — {@link AdminSiteKeyStatus}
  *  plus the raw value when one is active. `hex` is absent when `active` is `false` (nothing to
  *  reveal). */
 export interface AdminRevealedSiteKey extends AdminSiteKeyStatus {
@@ -3322,7 +3322,7 @@ export const api = {
   // `lib/execution-settings.ts` keeps for this admin's own assistant, and the whole reason these three
   // routes exist. All three return the same write-only `{ data: SiteAssistantCredential }` view;
   // none of them can return key material. `PUT` additionally answers `503 SECRET_STORE_UNCONFIGURED`
-  // when the server has no `TOVU_INTEGRATIONS_ROOT_KEY` — a fail-closed operator error, not a bug,
+  // when the server has no `TOVU_SITE_KEY` — a fail-closed operator error, not a bug,
   // and one screens must translate rather than show raw (see `features/ai-assistant/AiAssistant.tsx`).
   getAssistantSiteCredential: () =>
     request<{ data: SiteAssistantCredential }>(`/workspaces/${WORKSPACE_ID}/assistant/site-credential`),
@@ -4012,16 +4012,16 @@ export const api = {
       method: "POST",
     }),
 
-  // Secrets panel → Site Token tab (`src/server/inbound/admin-http/routes/system/site-token.ts`)
-  // — status of the TOVU_INTEGRATIONS_ROOT_KEY root key's generated-file fallback, an explicit
-  // reveal action, and a create-only generate action. `admin.security.tokens.manage`-gated
+  // Secrets panel → site key tab (`src/server/inbound/admin-http/routes/system/site-key.ts`)
+  // — status of the TOVU_SITE_KEY site key's generated-file fallback, an explicit
+  // reveal action, and a create-only generate action. `admin.security.site-key.manage`-gated
   // server-side on every one of the three calls below. See that route file's own header for the
   // 2026-09-09 durability fix (a generated key file now genuinely protects every stored credential
   // in production too, with one disclosed gap: webhook signing/newsletter tokens still need the
   // env var there) and for the accepted security tradeoff of a key file living beside the
   // database it protects.
   /** Never throws for "no key active" — that is `{active: false, source: "none"}`, a normal 200,
-   *  not an error. Never carries the key value — see `revealSiteToken` for that. */
+   *  not an error. Never carries the key value — see `revealSiteKey` for that. */
   getSiteKeyStatus: () => request<AdminSiteKeyStatus>(`/workspaces/${WORKSPACE_ID}/system/site-key`),
   /** Returns the raw key value (whichever source is active) when one is set — a deliberate,
    *  explicit, separately-clickable action, never fired on page load. Superseded an earlier
@@ -4036,8 +4036,8 @@ export const api = {
    *  is the code and whose `.body.detail` is a plain-words sentence: `KEY_DEPENDENT_DATA` (saved
    *  credentials need a key that is not here), `KEY_MISMATCH` (the key here is not the one they
    *  were locked with), `KEY_INVALID` (a key is set but malformed), `SITE_META_UNREADABLE`, and in
-   *  production `ALREADY_EXISTS` (a key file appeared mid-request). See `use-site-token.hooks.ts`'s
-   *  `classifySiteTokenGenerateError`. Never overwrites or rotates a key. */
+   *  production `ALREADY_EXISTS` (a key file appeared mid-request). See `use-site-key.hooks.ts`'s
+   *  `classifySiteKeyGenerateError`. Never overwrites or rotates a key. */
   generateSiteKey: () =>
     request<AdminGeneratedSiteKey>(`/workspaces/${WORKSPACE_ID}/system/site-key/generate`, { method: "POST" }),
   /** "Paste your old token": installs `token` only once it opens this site's saved credentials,
@@ -4050,7 +4050,7 @@ export const api = {
   previewSiteKeyStartFresh: () =>
     request<AdminSiteKeyStartFreshPreview>(`/workspaces/${WORKSPACE_ID}/system/site-key/start-fresh`),
   /** "Start fresh": restore point, remove what can't be unlocked, install the key. `confirm` must be
-   *  `START FRESH` (else 400 `CONFIRMATION_REQUIRED`); other refusals as {@link importSiteToken}'s
+   *  `START FRESH` (else 400 `CONFIRMATION_REQUIRED`); other refusals as {@link importSiteKey}'s
    *  plus `STORAGE_SECRET_LOCKED`. */
   startFreshSiteKey: (confirm: string) =>
     request<AdminStartedFreshSiteKey>(`/workspaces/${WORKSPACE_ID}/system/site-key/start-fresh`, { method: "POST", body: JSON.stringify({ confirm }) }),

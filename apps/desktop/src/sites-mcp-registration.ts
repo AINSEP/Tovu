@@ -13,7 +13,7 @@
  *    the `command` without that variable launches a second GUI app instead of a script.
  *    Putting the variable in the stored row's `env` block instead routes it through
  *    `external-mcp-store.ts:1380-1391`'s credential sealing, which fails the whole save with
- *    `SECRET_STORE_UNCONFIGURED` on any site that has no keyring root key. (win32, where no script
+ *    `SECRET_STORE_UNCONFIGURED` on any site that has no keyring site key. (win32, where no script
  *    can be exec'd, is covered by that same adapter instead: see {@link buildSitesMcpRegistration}.)
  *
  * 2. **`args` splits on whitespace.** `external-mcp-store.ts`'s `parseArgs` splits on whitespace
@@ -388,7 +388,7 @@ function quoteArg(value: string): string {
  * `launcherPath` IS `electronPath` on that platform, so this function commands it directly and
  * carries `bridgePath` plus `--user-data-dir <userDataDir>` in `args` — the facts the POSIX launcher
  * script states in its own `exec` line. `ELECTRON_RUN_AS_NODE=1`, the script's `export` line, is NOT
- * sent in `env`: that field is sealed with the site's root key, so it failed the whole save with
+ * sent in `env`: that field is sealed with the site's site key, so it failed the whole save with
  * `SECRET_STORE_UNCONFIGURED` on a site without one. The daemon's stdio adapter supplies it instead
  * (`mcp-federation/adapter.stdio.ts`'s `buildMcpChildEnv`): on win32 a child whose command is the
  * daemon's own executable — this Electron binary — inherits the daemon's own run mode, which

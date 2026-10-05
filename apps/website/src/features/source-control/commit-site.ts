@@ -397,7 +397,7 @@ export async function previewCommitExport(input: CommitSiteInput, validateTarget
  * This is a REAL contract, not aspirational (live-found 2026-08-16, mirroring `static-publish/
  * adapter.ts`'s own `publishStaticSite` fix for the identical shape): the call to
  * `resolveDefaultForSourceControl` below used to run unguarded, so a genuine decrypt failure (a
- * missing master secret, a tampered row) propagated as an UNCAUGHT exception, breaking this exact doc
+ * missing site key, a tampered row) propagated as an UNCAUGHT exception, breaking this exact doc
  * comment. `tool-registrations.ts`'s `source_control_execute_commit` handler is written assuming this
  * function never throws, so that was a real crash risk, not just a documentation lie — worse than the
  * publish-credentials sibling's version of this bug, since this call runs inside

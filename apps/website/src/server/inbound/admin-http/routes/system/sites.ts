@@ -14,11 +14,11 @@ import {
 } from "#src/platform/site-dir/index";
 import {
   bundledAgentPluginsSourceRoot,
-  firstNewSiteTokenRefusal,
-  listNewSiteTokenSignInPlugins,
+  firstNewSiteAgentPluginTokenRefusal,
+  listNewSiteAgentPluginTokenSignInPlugins,
   parseNewSiteAgentPluginTokens,
   resolveBundledAgentPlugin,
-} from "#src/features/agent-plugins/new-site-tokens";
+} from "#src/features/agent-plugins/new-site-agent-plugin-tokens";
 import {
   checkAgentPluginAccessToken as checkAgentPluginAccessTokenReal,
   listTokenSignInPlugins as listTokenSignInPluginsReal,
@@ -159,7 +159,7 @@ function parseCreateSiteName(
   return { ok: true, name };
 }
 
-/** The create body's optional `agentPluginTokens` (`new-site-tokens.ts`, shared with `tovu init`). */
+/** The create body's optional `agentPluginTokens` (`new-site-agent-plugin-tokens.ts`, shared with `tovu init`). */
 function parseAgentPluginTokens(body: unknown): { ok: true; tokens: Record<string, string> } | { ok: false; body: ValidationErrorBody } {
   const parsed = parseNewSiteAgentPluginTokens((body as Record<string, unknown> | null | undefined)?.agentPluginTokens);
   return parsed.ok ? parsed : { ok: false, body: { error: parsed.error, code: "VALIDATION_ERROR" } };
@@ -174,7 +174,7 @@ async function checkTokensBeforeCreate(
   const check = deps.checkAgentPluginAccessToken ?? checkAgentPluginAccessTokenReal;
   const httpClient = deps.customCredentialsHttpClient;
   const resolveInstalledPlugin = resolveBundledAgentPlugin(bundledAgentPluginsSourceRoot());
-  const refusal = await firstNewSiteTokenRefusal(
+  const refusal = await firstNewSiteAgentPluginTokenRefusal(
     // Checked against the bundled plugin the NEW site's first boot seeds, not this site's install.
     async (input) => (httpClient ? check({ workspaceId: deps.workspaceId, httpClient, resolveInstalledPlugin }, input) : "unsupported"),
     tokens,
@@ -267,7 +267,7 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
         entityType: "site-registry",
       });
       if (!authorized) return;
-      const plugins = await (deps.listTokenSignInPlugins ?? (() => listNewSiteTokenSignInPlugins()))(deps.workspaceId);
+      const plugins = await (deps.listTokenSignInPlugins ?? (() => listNewSiteAgentPluginTokenSignInPlugins()))(deps.workspaceId);
       res.status(200).json({ plugins });
     } catch (err) {
       console.error("[system/sites] unexpected error listing token sign-in plugins", err);

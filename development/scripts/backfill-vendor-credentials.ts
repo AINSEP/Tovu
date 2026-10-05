@@ -14,7 +14,7 @@ import { siteKeyEnvOnlySources } from "../../apps/website/src/features/webhooks/
  * component from a destination id (`"github-pages"`) to a vendor id (`"github"`), which changes the
  * derived AAD string, which means the OLD ciphertext's auth tag no longer verifies once moved
  * without also being re-sealed. SQL cannot decrypt or re-encrypt a GCM ciphertext; only application
- * code holding the real root key can. This script is that application code.
+ * code holding the real site key can. This script is that application code.
  *
  * ## Safety
  *
@@ -95,7 +95,7 @@ import { siteKeyEnvOnlySources } from "../../apps/website/src/features/webhooks/
  *   npx tsx development/scripts/backfill-vendor-credentials.ts --apply
  *   npx tsx development/scripts/backfill-vendor-credentials.ts --db <path> --apply
  *
- * `--apply` requires `TOVU_INTEGRATIONS_ROOT_KEY` to be set to the SAME root key the live server
+ * `--apply` requires `TOVU_SITE_KEY` to be set to the SAME site key the live server
  * uses (`EnvOrFileKeyring({ allowFileFallback: false })` — identical construction to
  * `server/deps.ts`'s `siteAssistantSecretKeyring`, the actual instance `publish-credentials/
  * store.ts`/`source-control/store.ts` seal and open through today). Sealing under any OTHER key
@@ -319,7 +319,7 @@ export interface VendorCredentialBackfillResult {
  * a time, already-migrated rows skipped.
  *
  * @throws Propagates whatever `deps.sealer.open`/`deps.sealer.seal`/`deps.keyring.activeKey()`
- *   throws (a genuine decrypt failure or an unconfigured root key), `deriveTokenTail`'s shape error,
+ *   throws (a genuine decrypt failure or an unconfigured site key), `deriveTokenTail`'s shape error,
  *   or this function's own post-seal verification mismatch — always BEFORE any write for the row
  *   that failed, and never swallowed into a partial or best-guess result. A caller (this file's own
  *   `main()`) that wants a "stop at the first failure" script — the correct behavior for an
@@ -424,7 +424,7 @@ async function main(): Promise<void> {
   const db = args.apply ? openContentDb(dbPath) : openContentDbReadOnly(dbPath);
   // Constructed unconditionally but touches no env var until `sealer.open`/`sealer.seal` is actually
   // called (`EnvOrFileKeyring`'s own doc) — a dry run below never calls either, so a dry run needs no
-  // `TOVU_INTEGRATIONS_ROOT_KEY` at all.
+  // `TOVU_SITE_KEY` at all.
   const keyring = new EnvOrFileKeyring({ sources: siteKeyEnvOnlySources({}) });
   const sealer = new AesGcmSecretSealer(keyring);
 

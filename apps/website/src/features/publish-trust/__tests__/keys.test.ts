@@ -19,11 +19,11 @@ import {
  */
 
 /** A faithful {@link KeyringPort} double: the SAME HKDF construction `keyring.env.ts` uses
- *  (sha256, 32-byte output, `purpose` bound into the info string), over a fixed root key. A
+ *  (sha256, 32-byte output, `purpose` bound into the info string), over a fixed site key. A
  *  friendlier double — one that returned the info string hashed differently, or ignored `purpose` —
  *  would let a domain-separation bug pass here and fail in production. */
-function testKeyring(rootKeyHex: string): KeyringPort {
-  const rootKey = Buffer.from(rootKeyHex, "hex");
+function testKeyring(siteKeyHex: string): KeyringPort {
+  const siteKey = Buffer.from(siteKeyHex, "hex");
   return {
     async activeKey() {
       return { keyId: "v1" };
@@ -33,7 +33,7 @@ function testKeyring(rootKeyHex: string): KeyringPort {
     },
     async derive(input: { workspaceId: string; purpose: string; info: string }) {
       const effectiveInfo = `${input.purpose}:${input.workspaceId}:${input.info}`;
-      return new Uint8Array(hkdfSync("sha256", rootKey, Buffer.alloc(0), effectiveInfo, 32));
+      return new Uint8Array(hkdfSync("sha256", siteKey, Buffer.alloc(0), effectiveInfo, 32));
     },
   } as unknown as KeyringPort;
 }
@@ -81,9 +81,9 @@ test("each destination gets its own key — a signature for one cannot authentic
 });
 
 test("regenerating the Site key changes the publishing key — rotation for free", async () => {
-  const underSiteTokenA = await derivePublishSigningKey(keyInput({ keyring: testKeyring(ROOT_A) }));
-  const underSiteTokenB = await derivePublishSigningKey(keyInput({ keyring: testKeyring(ROOT_B) }));
-  assert.notEqual(underSiteTokenA.publicKeyB64u, underSiteTokenB.publicKeyB64u);
+  const underSiteKeyA = await derivePublishSigningKey(keyInput({ keyring: testKeyring(ROOT_A) }));
+  const underSiteKeyB = await derivePublishSigningKey(keyInput({ keyring: testKeyring(ROOT_B) }));
+  assert.notEqual(underSiteKeyA.publicKeyB64u, underSiteKeyB.publicKeyB64u);
 });
 
 test("a genuine signature verifies", async () => {
@@ -145,7 +145,7 @@ test("the installation id is stable across key rotation, and distinct per instal
 });
 
 test("the installation id is domain-separated from the signing key derivation", async () => {
-  // Both derive from the same root key over the same workspace. If `purpose` were decorative in an
+  // Both derive from the same site key over the same workspace. If `purpose` were decorative in an
   // implementation, these could collide and the published installation id would leak key material.
   const keyring = testKeyring(ROOT_A);
   const purposes: string[] = [];

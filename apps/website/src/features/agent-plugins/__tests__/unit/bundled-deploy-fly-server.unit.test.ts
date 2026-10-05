@@ -175,7 +175,7 @@ test("fly-server.md keeps secrets out of fly.toml and names all three as boot-bl
   assert.match(skill, /ANALYTICS_ROOT_KEY_SEED/);
   assert.match(skill, /TOVU_SITE_KEY/);
 
-  // As of 2026-09-09 (ddfa5e07) all three are boot-blocking — TOVU_INTEGRATIONS_ROOT_KEY's old
+  // As of 2026-09-09 (ddfa5e07) all three are boot-blocking — TOVU_SITE_KEY's old
   // silent-rekey-on-redeploy failure mode was closed by a boot gate, so there is no longer a
   // "not boot-blocking" secret to distinguish in this table. What still has to survive: the
   // rotation/undecryptable risk is a DIFFERENT hazard the boot gate cannot close (a rotated key

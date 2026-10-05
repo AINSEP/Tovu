@@ -24,11 +24,11 @@ import type { RouteDeps } from "#src/server/routes/types";
  * of capability. `entityType: "deployment-status"` follows `recent-hits.ts`'s precedent of a
  * route-specific descriptive string rather than a shared literal across unrelated resources.
  *
- * ## Site-key plan §A3b — site-aware root-key row
+ * ## Site-key plan §A3b — site-aware site-key row
  *
- * The `TOVU_INTEGRATIONS_ROOT_KEY` row resolves THIS site's own ordered source list
- * ({@link resolveSiteKeySources}, `site-token.ts`) instead of `inspectRootKeyMaterial()`'s
- * module-level env-then-legacy-default precedence — the same seam the Site Token tab's own
+ * The `TOVU_SITE_KEY` row resolves THIS site's own ordered source list
+ * ({@link resolveSiteKeySources}, `site-key.ts`) instead of `inspectSiteKeyMaterial()`'s
+ * module-level env-then-legacy-default precedence — the same seam the site key tab's own
  * `GET`/`reveal`/`generate` verbs already use, so a site with a resolvable per-site key file
  * (`~/.tovu/site-keys/<siteKeyId>.hex`) reports it as active here too, not only on that tab. A site
  * with no readable `.site-meta.json` (or production, which has no per-site file at all) falls back
@@ -43,10 +43,10 @@ export type AdminDeploymentOverviewDeps = Pick<
 export interface DeploymentEnvVarStatus {
   name: string;
   set: boolean;
-  /** Root key row only: where the keyring's material came from. `set` there means "usable root key",
+  /** site key row only: where the keyring's material came from. `set` there means "usable site key",
    *  so a valid generated key file counts, and malformed env/file material does not. */
   source?: SiteKeyStatus["source"];
-  /** Root key row only, present iff material was found but the keyring would reject it. */
+  /** site key row only, present iff material was found but the keyring would reject it. */
   invalid?: true;
 }
 
@@ -92,7 +92,7 @@ const REQUIRED_ENV_VAR_NAMES = [
   "JINI_AGENT_DAEMON_PORT",
 ] as const;
 
-/** The root key row, from what `EnvOrFileKeyring` would actually resolve — the env var OR a generated
+/** The site key row, from what `EnvOrFileKeyring` would actually resolve — the env var OR a generated
  *  key file, validated — rather than the env var's bare presence. @complexity O(1). */
 function siteKeyEnvVarStatus(siteKey: SiteKeyStatus): DeploymentEnvVarStatus {
   return {
@@ -113,7 +113,7 @@ function envVarStatus(name: (typeof REQUIRED_ENV_VAR_NAMES)[number], siteKey: Si
  *
  * @param input.defaultOwnerPasswordUnsafe the one field that needs the database, resolved by the
  *   caller ({@link isOwnerOnDefaultPassword}) so this stays synchronous.
- * @param input.rootKey test seam; defaults to a live {@link inspectSiteKeyMaterial} read.
+ * @param input.siteKey test seam; defaults to a live {@link inspectSiteKeyMaterial} read.
  * @complexity O(1) — fixed-size env var list, no iteration over caller-controlled data.
  */
 export function buildDeploymentOverviewSnapshot(input: {
@@ -179,9 +179,9 @@ export function registerAdminDeploymentOverviewRoute(app: Express, deps: AdminDe
       }
 
       // Site-key plan §A3b: resolve THIS site's own source order (the same
-      // `resolveSiteTokenSources` seam `site-token.ts`'s GET/reveal/generate verbs use) rather than
-      // `buildDeploymentOverviewSnapshot`'s bare-default `inspectRootKeyMaterial()`, so a site with a
-      // resolvable per-site key file reports it here too, not just on the Site Token tab.
+      // `resolveSiteKeySources` seam `site-key.ts`'s GET/reveal/generate verbs use) rather than
+      // `buildDeploymentOverviewSnapshot`'s bare-default `inspectSiteKeyMaterial()`, so a site with a
+      // resolvable per-site key file reports it here too, not just on the site key tab.
       const { sources } = resolveSiteKeySources(deps);
       res.status(200).json(
         buildDeploymentOverviewSnapshot({

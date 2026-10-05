@@ -17,7 +17,7 @@ import type { KeyringPort, SealedSecret, SecretSealerPort } from "#src/features/
  *
  * - {@link toPeerSummary} / {@link listPublishContentPeers} / {@link getPublishContentPeerSummary} —
  *   read model only. Never decrypts, never touches `sealer`/`keyring` at all, so neither can fail
- *   on a misconfigured root key. This is what every route response is built from.
+ *   on a misconfigured site key. This is what every route response is built from.
  * - {@link resolvePeerCredential} — the ONLY function in this module that decrypts. Its one
  *   legitimate caller is the outbound transport driver (`peer-transport.ts`), server-side and
  *   human-gated behind `publish_content.apply`. It is named to say "decrypts" out loud so a future
@@ -29,8 +29,8 @@ import type { KeyringPort, SealedSecret, SecretSealerPort } from "#src/features/
  * columns are not merely omitted from the read model; the read model has nowhere to put them.
  *
  * STORAGE SHAPE, and why it is the vendor-neutral one: the sealed bytes live in `content.db`'s own
- * `sealed_*` columns, wrapped under the install's root key (`KeyringPort`, an env var today —
- * `TOVU_INTEGRATIONS_ROOT_KEY` — with an OS-keychain adapter as the rule-of-two second). Nothing
+ * `sealed_*` columns, wrapped under the install's site key (`KeyringPort`, an env var today —
+ * `TOVU_SITE_KEY` — with an OS-keychain adapter as the rule-of-two second). Nothing
  * here reaches for a platform secret store, so there is no `fly secrets` / AWS Secrets Manager /
  * SSM / Render env-group dependency to port. Confirmed by reading
  * `features/deployments/publish-credentials/store.ts` before copying it, per this task's brief.
@@ -213,7 +213,7 @@ function requireBaseUrl(raw: unknown): string {
  * Wraps `sealer.seal()`/`keyring.activeKey()` failure into the fail-closed
  * {@link PublishContentPeerSecretStoreUnconfiguredError} contract — never falls through to a
  * plaintext write. The underlying error's message is carried through because it names the
- * MISCONFIGURATION (an unset root key), never the plaintext being sealed.
+ * MISCONFIGURATION (an unset site key), never the plaintext being sealed.
  *
  * @complexity O(1) plus one key derivation and one AEAD seal.
  */
@@ -254,7 +254,7 @@ export interface CreatePeerInput {
  * @returns The read model, never the record — a create response carries no more than a list row.
  * @throws {PublishContentPeerValidationError} on any unusable field.
  * @throws {PublishContentPeerDuplicateLabelError} when the label is already taken in this workspace.
- * @throws {PublishContentPeerSecretStoreUnconfiguredError} when the root key is unavailable.
+ * @throws {PublishContentPeerSecretStoreUnconfiguredError} when the site key is unavailable.
  * @complexity O(1) — one seal and one insert.
  */
 export async function createPublishContentPeer(
@@ -412,7 +412,7 @@ export interface ResolvedPeerCredential {
  *
  * @throws {PublishContentPeerNotFoundError} when no row exists.
  * @throws {PublishContentPeerCredentialMissingError} when the row carries no sealed credential.
- * @throws {PublishContentPeerSecretStoreUnconfiguredError} when the root key is unavailable or the
+ * @throws {PublishContentPeerSecretStoreUnconfiguredError} when the site key is unavailable or the
  * ciphertext fails auth-tag verification — a typed error rather than whatever raw error
  * `SecretSealerPort.open()` produced, so a boundary never renders a driver message.
  * @complexity O(1) — one read and one AEAD open.
@@ -504,7 +504,7 @@ export class InMemoryPublishContentPeerRepo implements PublishContentPeerRepoPor
 
 /**
  * Saves (or refreshes) the row for a destination this install is CONNECTED to — a site whose
- * publishing is authorized by the derived Site Token handshake rather than by a pasted key.
+ * publishing is authorized by the derived site key handshake rather than by a pasted key.
  *
  * `sealed: null` IS the marker, and it needs no migration or new column because it was previously
  * unreachable: {@link createPublishContentPeer} always seals, and {@link updatePublishContentPeer}
@@ -591,7 +591,7 @@ export async function saveConnectedDestination(
     label,
     baseUrl,
     remoteWorkspaceId,
-    // Never a key: a connected destination authenticates by proving possession of the Site Token
+    // Never a key: a connected destination authenticates by proving possession of the site key
     // at publish time, so there is nothing to store between publishes.
     sealed: null,
     masked: null,

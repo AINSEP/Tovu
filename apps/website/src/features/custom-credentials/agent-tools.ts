@@ -16,7 +16,7 @@ import { WRITE_FILES_LIMITS } from "./write-files-validation.js";
  *   without asking a human to retype a name.com or hosting-provider label the system already has), category,
  *   baseUrl/additionalHosts, and created/updated timestamps. Built on `store.ts`'s existing
  *   non-decrypting `listCustomCredentials` read model — never touches `sealer`/`keyring`, so it cannot
- *   fail on a misconfigured master secret and, structurally, cannot leak a token:
+ *   fail on a misconfigured site key and, structurally, cannot leak a token:
  *   `CustomCredentialSummary` has no field capable of carrying one (see `types.ts`'s own doc). Also
  *   reports the credential's `username` when it has one (2026-09-01). That was NOT true when this tool
  *   shipped: `username` used to live inside the same sealed ciphertext as the token, so surfacing it

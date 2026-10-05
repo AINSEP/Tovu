@@ -883,7 +883,7 @@ interface SetOAuthStatusOptions {
  * throw the same `ExternalMcpSecretStoreUnconfiguredError`
  * (`openExternalMcpOAuthPayload`/`sealExternalMcpOAuthPayload`'s own `@throws`): they mean different
  * things about whether the secret is actually lost. If OPEN fails, the blob could not be decrypted
- * at all — a rotated root key or a corrupt row — so whatever it held is already unrecoverable, and
+ * at all — a rotated site key or a corrupt row — so whatever it held is already unrecoverable, and
  * falling back to the pre-existing wholesale-null behavior loses nothing that was not lost already
  * (this is what keeps `markNeedsReauth`, `disconnect()`, and the device-poll terminal path from
  * wedging on a blob that is already dead). If OPEN succeeds but the RE-SEAL fails, the secret was

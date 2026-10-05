@@ -12,7 +12,7 @@ import type { SiteStorage } from "./types.js";
 /**
  * @file "Does this site hold data only its current site key can open?" for a whole site folder, on
  * every storage kind (ADR-067). `ensureSiteKey` (injected by the boot callers) refuses to mint or
- * adopt a key over such data, and the admin Site Token route reports `"missing-with-data"` from it.
+ * adopt a key over such data, and the admin site key route reports `"missing-with-data"` from it.
  * A PGlite or Postgres site has no `content.db`, so scanning that file alone saw "no data" there.
  */
 

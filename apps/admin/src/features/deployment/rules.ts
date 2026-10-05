@@ -346,7 +346,7 @@ export const FULL_SITE_CAPABILITIES: readonly DeploymentCapability[] = STATIC_SI
 }));
 
 /**
- * The Overview tab's per-env-var explanatory note, as a dictionary key. `TOVU_INTEGRATIONS_ROOT_KEY`
+ * The Overview tab's per-env-var explanatory note, as a dictionary key. `TOVU_SITE_KEY`
  * is boot-blocking in production (`REQUIRED_SECRETS` above; `boot-readiness-gate.ts`'s
  * the production readiness gate calls `process.exit(1)` when neither the env var nor a valid key
  * file resolves) but NOT in local/dev mode, where an unset value instead surfaces later as a 503 on
@@ -383,7 +383,7 @@ export function isEnvVarRowUnsafe(varStatus: AdminDeploymentEnvVarStatus): boole
 }
 
 /**
- * The Overview env-var row's status label key. The root key row names a generated key file as its
+ * The Overview env-var row's status label key. The site key row names a generated key file as its
  * source (the keyring reads the env var OR that file) and calls malformed material invalid rather
  * than "Not set", since something IS configured there and it is broken.
  * @complexity O(1).

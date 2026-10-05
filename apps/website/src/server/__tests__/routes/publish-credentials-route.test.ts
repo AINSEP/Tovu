@@ -32,7 +32,7 @@ import type { RouteDeps } from "../../routes/types.js";
 
 const CREDENTIALS_PATH = "system/publish/credentials";
 
-/** Always fails — simulates a missing `TOVU_INTEGRATIONS_ROOT_KEY` without touching real env state.
+/** Always fails — simulates a missing `TOVU_SITE_KEY` without touching real env state.
  *  Same double `server/__tests__/admin-media-provider-routes.test.ts`'s own `BrokenKeyring` uses for
  *  the identical class of problem on a sibling secret store. */
 class BrokenKeyring implements KeyringPort {
@@ -551,13 +551,13 @@ test("publish-credentials: a network failure during POST .../:id/verify reports 
 });
 
 /**
- * Live-found (2026-08-16): a saved row from a HEALTHY prior boot (`TOVU_INTEGRATIONS_ROOT_KEY` set),
+ * Live-found (2026-08-16): a saved row from a HEALTHY prior boot (`TOVU_SITE_KEY` set),
  * hit by `POST .../:id/verify` on a NEW boot that never had the key — exactly the trigger an e2e run
  * reproduced. Before this fix, that request killed the WHOLE server process, not just itself: this
  * route had no try/catch at all, Express 4 does not catch an async handler's own rejection, and
  * nothing in `src/` was catching it at the process level either.
  *
- * Two apps sharing ONE repo simulate "the row already exists, THIS process just has no root key" —
+ * Two apps sharing ONE repo simulate "the row already exists, THIS process just has no site key" —
  * app1 (a normal, working sealer) creates and saves the row; app2 (a `BrokenKeyring`) is a second,
  * independent server instance pointed at the SAME `vendorCredentialSetRepo`, standing in for a
  * later, differently-configured boot. This is deliberately not "swap the sealer mid-request" — a

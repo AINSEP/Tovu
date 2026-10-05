@@ -21,7 +21,7 @@
  *      forwarding to build, and `index.ts`'s own `process.ppid` watchdog still sees `npm` as its
  *      parent exactly as it does today. The imported `index.js` itself now ensures a usable site key
  *      exists (`ensureSiteKeyForBoot`, site-key plan §A3a) before it starts listening — this
- *      launcher no longer spawns a separate `tovu root-key ensure` step to do that (removed
+ *      launcher no longer spawns a separate `tovu site-key ensure` step to do that (removed
  *      2026-09-24: `ensureSiteKeyForBoot`'s boot-path wiring made the standalone CLI command and
  *      this launcher's own spawn of it redundant).
  *

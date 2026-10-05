@@ -586,7 +586,7 @@ for (const notReadyStatus of ["link-delayed", "protected", "failed"] as const) {
 
 test("publishStaticSite: a credentialSource.resolve() that THROWS (a genuine decrypt failure, not merely 'not configured') is caught, not left to escape as an uncaught exception", async () => {
   // `publish-credentials/store.ts`'s `resolveForPublish`/`resolveDefaultForPublish` deliberately throw
-  // on a real decrypt failure (bad AAD, tampered ciphertext, missing master key) rather than resolving
+  // on a real decrypt failure (bad AAD, tampered ciphertext, missing site key) rather than resolving
   // a silent `null` — this is the exact shape that failure takes once it reaches the composed
   // `PublishCredentialSource.resolve()` this function calls.
   const deps: RouteDeps = testRouteDeps();

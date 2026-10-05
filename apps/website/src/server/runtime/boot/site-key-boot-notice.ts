@@ -24,7 +24,7 @@ import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
  * was reading.
  *
  * The desktop shell now detects this in its own process and shows a banner
- * (`apps/desktop/src/root-key-boot-guard.ts`). This function is the same detection for the OTHER
+ * (`apps/desktop/src/site-key-boot-guard.ts`). This function is the same detection for the OTHER
  * launcher — `npm run dev`, and a packaged `tovu serve` — where there is no shell to put a banner
  * in. It is a log line, and a log line is admittedly the weaker surface; its job is to be at BOOT,
  * beside everything else a developer reads while a server starts, rather than hours later beside a
@@ -52,7 +52,7 @@ export interface SiteKeyBootNoticeDeps {
 }
 
 /**
- * Warns on this server's terminal when it booted without usable root-key material.
+ * Warns on this server's terminal when it booted without usable site-key material.
  *
  * Call from a top-level boot path, next to `runProductionReadinessGateOrExit()`. Inert in
  * production, where that gate has already refused to boot at all for this exact condition —

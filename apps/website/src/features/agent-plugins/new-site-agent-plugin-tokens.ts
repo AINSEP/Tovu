@@ -24,7 +24,7 @@ const PLUGIN_ID_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const MAX_AGENT_PLUGIN_TOKENS = 8;
 const MAX_TOKEN_LENGTH = 4096;
 
-export const NEW_SITE_TOKENS_SHAPE_ERROR = "'agentPluginTokens' must map plugin ids to token strings";
+export const NEW_SITE_AGENT_PLUGIN_TOKENS_SHAPE_ERROR = "'agentPluginTokens' must map plugin ids to token strings";
 
 /**
  * `{ [pluginId]: token }`, trimmed, blanks dropped. `null`/`undefined` is "none given".
@@ -32,7 +32,7 @@ export const NEW_SITE_TOKENS_SHAPE_ERROR = "'agentPluginTokens' must map plugin 
  */
 export function parseNewSiteAgentPluginTokens(raw: unknown): { ok: true; tokens: Record<string, string> } | { ok: false; error: string } {
   if (raw === undefined || raw === null) return { ok: true, tokens: {} };
-  const invalid = { ok: false as const, error: NEW_SITE_TOKENS_SHAPE_ERROR };
+  const invalid = { ok: false as const, error: NEW_SITE_AGENT_PLUGIN_TOKENS_SHAPE_ERROR };
   if (typeof raw !== "object" || Array.isArray(raw) || Object.keys(raw).length > MAX_AGENT_PLUGIN_TOKENS) return invalid;
   const tokens: Record<string, string> = {};
   for (const [pluginId, value] of Object.entries(raw)) {
@@ -44,7 +44,7 @@ export function parseNewSiteAgentPluginTokens(raw: unknown): { ok: true; tokens:
 
 /** Why a token given at create time stops the create, or `null` when it may be stored. A token the
  *  vendor could not be reached to check is still stored: the new site's first use tells. */
-export function describeNewSiteTokenRefusal(
+export function describeNewSiteAgentPluginTokenRefusal(
   pluginId: string,
   outcome: TokenCheckOutcome,
 ): { code: "AGENT_PLUGIN_TOKEN_INVALID" | "AGENT_PLUGIN_TOKEN_UNSUPPORTED"; error: string } | null {
@@ -62,12 +62,12 @@ export function describeNewSiteTokenRefusal(
  * The first refusal across `tokens`, checked in order, or `null` when every token may be stored.
  * @complexity One check (at most one outbound GET) per token.
  */
-export async function firstNewSiteTokenRefusal(
+export async function firstNewSiteAgentPluginTokenRefusal(
   check: (input: { pluginId: string; token: string }) => Promise<TokenCheckOutcome>,
   tokens: Readonly<Record<string, string>>,
 ): Promise<{ pluginId: string; code: string; error: string } | null> {
   for (const [pluginId, token] of Object.entries(tokens)) {
-    const refusal = describeNewSiteTokenRefusal(pluginId, await check({ pluginId, token }));
+    const refusal = describeNewSiteAgentPluginTokenRefusal(pluginId, await check({ pluginId, token }));
     if (refusal) return { pluginId, ...refusal };
   }
   return null;
@@ -131,6 +131,6 @@ export function bundledAgentPluginsSourceRoot(): string {
  *
  * @complexity O(p) bundled plugin dirs.
  */
-export function listNewSiteTokenSignInPlugins(sourceRoot: string = bundledAgentPluginsSourceRoot()): Promise<readonly TokenSignInPlugin[]> {
+export function listNewSiteAgentPluginTokenSignInPlugins(sourceRoot: string = bundledAgentPluginsSourceRoot()): Promise<readonly TokenSignInPlugin[]> {
   return listTokenSignInPlugins("new-site", () => listBundledAgentPluginServers(sourceRoot));
 }

@@ -112,7 +112,7 @@ if (!process.env.E2E_LIVE_PUBLISH_CONTENT_DB) {
  * file's own header: a `.env` silently overriding real env vars on a production boot would be a much
  * worse thing than requiring an explicit load in dev). Every other config in this directory boots
  * `src/index.ts` the same raw way and never needed this, because none of them decrypt a real secret —
- * `AesGcmSecretSealer` needs `TOVU_INTEGRATIONS_ROOT_KEY` to decrypt the real GitHub token this suite
+ * `AesGcmSecretSealer` needs `TOVU_SITE_KEY` to decrypt the real GitHub token this suite
  * verifies, and its `allowFileFallback: false` posture in this install means a missing key is a hard,
  * uncaught throw (measured: crashed the whole webServer process, not a clean 4xx) rather than a
  * graceful degrade. `process.loadEnvFile` is Node's own (v20.12+, no dependency) — same call

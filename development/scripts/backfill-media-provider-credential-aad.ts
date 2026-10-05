@@ -10,7 +10,7 @@
  * auth tag is DERIVED, never stored (`features/webhooks/secret-sealer.aesgcm.ts`'s own file header).
  * A legacy row's ciphertext auth tag only verifies under NO aad — starting to pass one on `open()`
  * without first re-sealing would make every existing row permanently unopenable. SQL cannot decrypt
- * or re-encrypt a GCM ciphertext; only application code holding the real root key can. This script
+ * or re-encrypt a GCM ciphertext; only application code holding the real site key can. This script
  * is that application code.
  *
  * ## IN-PLACE re-seal, not a migrate-to-a-new-table (unlike `backfill-vendor-credentials.ts`)
@@ -62,7 +62,7 @@
  *   npx tsx development/scripts/backfill-media-provider-credential-aad.ts --apply
  *   npx tsx development/scripts/backfill-media-provider-credential-aad.ts --db <path> --apply
  *
- * `--apply` requires `TOVU_INTEGRATIONS_ROOT_KEY` to be set to the SAME root key the live server
+ * `--apply` requires `TOVU_SITE_KEY` to be set to the SAME site key the live server
  * uses (`EnvOrFileKeyring({ allowFileFallback: false })`, identical construction to
  * `server/deps.ts`'s real keyring). A dry run never touches the keyring at all, so it needs no env
  * var.

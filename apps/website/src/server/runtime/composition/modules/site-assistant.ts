@@ -321,8 +321,8 @@ function toByokProtocol(provider: string): ByokProtocol | null {
  * have done nothing (and, before this fix, would have quietly answered as Google instead).
  *
  * `storedKeyPresent` separates "no key was ever saved" from "a key is saved but this server could
- * not open it" — a missing `TOVU_INTEGRATIONS_ROOT_KEY` or a ciphertext written under a different
- * root key. Both reach here as "no key", and telling an operator to save one they can plainly see
+ * not open it" — a missing `TOVU_SITE_KEY` or a ciphertext written under a different
+ * site key. Both reach here as "no key", and telling an operator to save one they can plainly see
  * in the admin tab is the kind of answer that costs an afternoon.
  *
  * @complexity O(1).

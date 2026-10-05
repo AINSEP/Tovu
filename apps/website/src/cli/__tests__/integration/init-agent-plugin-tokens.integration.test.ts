@@ -5,7 +5,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 
 import { ValidationError } from "#src/platform/site-dir/errors";
-import { readNewSiteTokensFromStdin } from "../../commands/agent-plugin-tokens.js";
+import { readNewSiteAgentPluginTokensFromStdin } from "../../commands/agent-plugin-tokens.js";
 import { readSiteDir } from "#src/platform/site-dir/read-site-dir";
 import { runInitCommand } from "../../commands/init.js";
 
@@ -49,9 +49,9 @@ function restoreStdout(): string {
 }
 
 test("stdin that is not a JSON object of plugin ids to strings is refused", async () => {
-  await assert.rejects(readNewSiteTokensFromStdin(async () => "sbp_plain"), (err: unknown) => err instanceof ValidationError && /expects a JSON object/.test(err.message));
-  await assert.rejects(readNewSiteTokensFromStdin(async () => "[1]"), (err: unknown) => err instanceof ValidationError && /must map plugin ids/.test(err.message));
-  assert.deepEqual(await readNewSiteTokensFromStdin(async () => '{"supabase":"  "}'), {});
+  await assert.rejects(readNewSiteAgentPluginTokensFromStdin(async () => "sbp_plain"), (err: unknown) => err instanceof ValidationError && /expects a JSON object/.test(err.message));
+  await assert.rejects(readNewSiteAgentPluginTokensFromStdin(async () => "[1]"), (err: unknown) => err instanceof ValidationError && /must map plugin ids/.test(err.message));
+  assert.deepEqual(await readNewSiteAgentPluginTokensFromStdin(async () => '{"supabase":"  "}'), {});
 });
 
 test("a rejected token creates no site and seals nothing", async () => {

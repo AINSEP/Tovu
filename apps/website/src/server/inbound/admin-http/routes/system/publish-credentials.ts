@@ -162,12 +162,12 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
    *  network blip can never turn a successful save into a 500. That guarantee does NOT extend to the
    *  DECRYPT step underneath it: `verifyPublishCredentialById` calls `resolveForPublish`
    *  (`publish-credentials/store.ts`), which throws `PublishCredentialSecretStoreUnconfiguredError`
-   *  when the stored secret cannot be decrypted (a missing master secret, or a tampered/corrupt row)
+   *  when the stored secret cannot be decrypted (a missing site key, or a tampered/corrupt row)
    *  — the SAME "surface, don't swallow" contract that module documents for itself. Every caller of
    *  this function below MUST run through a `try`/`catch` that maps the result via `sendStoreError`.
    *
    *  Found live (2026-08-16): this was NOT true for `POST .../:id/verify` below until this fix — it
-   *  had no try/catch at all, so a missing root key took down the WHOLE server process (Express 4
+   *  had no try/catch at all, so a missing site key took down the WHOLE server process (Express 4
    *  does not catch an async handler's own rejection, and nothing else in `src/` was catching it at
    *  the process level either), not just that one request. An earlier version of THIS comment
    *  claimed `verifyAfterSave` "never throws" without qualifying which layer that applied to — do

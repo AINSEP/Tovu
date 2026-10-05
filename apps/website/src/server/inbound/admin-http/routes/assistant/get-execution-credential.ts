@@ -8,7 +8,7 @@ import type { AssistantSettingsRouteRegistrar } from "./deps.js";
  * `:principalId` in the path and none accepted from the request — an admin can only ever read their
  * own row, by construction, not by an authorization check. Shape and error contract mirror
  * `get-site-credential.ts`: same `{ data }` envelope, same 404-on-workspace-mismatch. Pure DB read
- * (`getExecutionCredential` never decrypts), so this cannot fail on a misconfigured master secret.
+ * (`getExecutionCredential` never decrypts), so this cannot fail on a misconfigured site key.
  */
 export const registerAdminAssistantGetExecutionCredentialRoute: AssistantSettingsRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/assistant/execution-credential", async (req, res) => {

@@ -22,7 +22,7 @@ import {
 
 const WORKSPACE = "ws-1";
 
-/** Same double every sibling credential store's own test file uses for "the master secret is
+/** Same double every sibling credential store's own test file uses for "the site key is
  *  unavailable" — see `vendor-credentials/__tests__/store.unit.test.ts`'s own `BrokenKeyring`. */
 class BrokenKeyring implements KeyringPort {
   async activeKey(): Promise<{ readonly keyId: string }> {

@@ -116,14 +116,14 @@ function perSiteFilePath(home: string, siteKeyId: string): string {
   return join(home, ".tovu", "site-keys", `${siteKeyId}.hex`);
 }
 
-/** `~/.tovu/integrations-root-key.hex` — the one shared file every install had before per-site
+/** `~/.tovu/site-key.hex` — the one shared file every install had before per-site
  *  keys, still read (never written by a reader) as an adoption source. */
 function legacySharedFilePath(home: string): string {
   return join(home, ".tovu", LEGACY_SITE_KEY_FILENAME);
 }
 
-/** `<cwd>/sites/.tovu/integrations-root-key.hex` — the production durable-volume path
- *  (`keyring.env.ts`'s `defaultRootKeyFilePath` production branch), reused here unchanged. */
+/** `<cwd>/sites/.tovu/site-key.hex` — the production durable-volume path
+ *  (`keyring.env.ts`'s `defaultSiteKeyFilePath` production branch), reused here unchanged. */
 function legacyVolumeFilePath(cwd: string): string {
   return join(cwd, "sites", ".tovu", LEGACY_SITE_KEY_FILENAME);
 }
@@ -199,8 +199,8 @@ export interface SiteKeySourcesForSiteDirInput {
 /**
  * {@link siteKeySources}'s ordered list, keyed off `siteDir`'s own `.site-meta.json`
  * ({@link resolveSiteKeyId}) — the exact two-call composition every site-aware caller needs
- * (read this site's `siteKeyId`, then order its candidate sources). Both the admin Site Token
- * route (`server/inbound/admin-http/routes/system/site-token.ts`'s `resolveSiteTokenSources`) and
+ * (read this site's `siteKeyId`, then order its candidate sources). Both the admin site key
+ * route (`server/inbound/admin-http/routes/system/site-key.ts`'s `resolveSiteKeySources`) and
  * the site-backup tool (`site-backup/tool-registrations.ts`'s `unreadableCredentialMessage`) call
  * this rather than each re-assembling the same two calls, so a third site-aware caller has one
  * function to reuse instead of a third independently-reasoned copy of the wiring.
@@ -220,7 +220,7 @@ export interface ResolveSiteKeyFingerprintInput {
 /**
  * This site's stamped `siteKeyFingerprint` from `.site-meta.json` (site-key plan §A.4/§A.6) — a
  * READ-ONLY sibling of {@link resolveSiteKeyId}, same never-throws contract and same shared parse
- * ({@link readSiteMetaJson}). Backs the admin Site Token route's `"mismatch"` state: a valid key
+ * ({@link readSiteMetaJson}). Backs the admin site key route's `"mismatch"` state: a valid key
  * resolving to a DIFFERENT fingerprint than this one means the physical key file was substituted
  * after the stamp was written (`site-key-ensure.ts`'s `ensureSiteKey` derives the identical
  * `"mismatch"` outcome for the write path from the same two values, via its own
@@ -244,19 +244,19 @@ export function siteKeyFilePathFrom(sources: readonly SiteKeySource[]): string |
 
 /**
  * One {@link SiteKeySource}'s raw material from `env`/the filesystem — `undefined` when that source
- * has none. The ONE place both `keyring.env.ts`'s `EnvOrFileKeyring.resolveRootKeyFromSources` and
+ * has none. The ONE place both `keyring.env.ts`'s `EnvOrFileKeyring.resolveSiteKeyFromSources` and
  * `site-key-ensure.ts`'s `ensureSiteKey` read a source's material, so the "a blank env var counts
  * as unset" rule below can never drift between the two (it did, briefly — A3a found it duplicated
  * and inconsistent, each side reading the env case slightly differently).
  *
  * A env-kind source whose var IS set but blank or whitespace-only is treated as ABSENT, not
- * present-but-invalid: `development/scripts/start.mjs`'s own `clearBlankRootKeyEnv` exists for the
+ * present-but-invalid: `development/scripts/start.mjs`'s own `clearBlankSiteKeyEnv` exists for the
  * exact same reason — a spawned child (the desktop app's own boot path) can pass a blank value
  * through, and an operator's shell profile can just as easily `export TOVU_SITE_KEY=` with nothing
  * after it. Either way the var must fall through to the next source exactly as if it had never been
  * set, not be reported as a broken/invalid key. A file-kind source's content is NOT trimmed or
  * blank-checked here — a real file that exists and is empty is a genuinely broken on-disk state
- * ({@link parseRootKeyHex}'s own `"empty"` rejection), distinct from an env var nobody set a value
+ * ({@link parseSiteKeyHex}'s own `"empty"` rejection), distinct from an env var nobody set a value
  * for.
  *
  * @complexity O(1) env read, or one `existsSync` plus a file read for a file-kind source.

@@ -11,7 +11,7 @@ import { SIGNATURE_VOCABULARY } from "./signing.js";
  *
  * Purpose:
  * Replaces `createFixedSecretSigner`'s dev-only fixed-map stand-in with the production signing
- * path ADR-036 §5 specifies: `HKDF(rootKey, info) via KeyringPort.deriveSigningSecret`. No secret
+ * path ADR-036 §5 specifies: `HKDF(siteKey, info) via KeyringPort.deriveSigningSecret`. No secret
  * is ever cached or persisted here — every delivery attempt re-derives it from the keyring.
  *
  * How it relates to the project:

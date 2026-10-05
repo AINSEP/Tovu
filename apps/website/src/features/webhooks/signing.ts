@@ -14,8 +14,8 @@
  * - `./delivery.ts`'s `processDueDeliveries` calls a `WebhookSigner` (defined here) to produce
  *   the header for the exact raw bytes it is about to POST — no re-serialization between sign
  *   and send (ADR-036 §4).
- * - The secret itself is a plain `Buffer` parameter here, NOT derived from a real root key.
- *   ADR-036 §5 specifies `HKDF(rootKey, info) via KeyringPort.deriveSigningSecret` as the
+ * - The secret itself is a plain `Buffer` parameter here, NOT derived from a real site key.
+ *   ADR-036 §5 specifies `HKDF(siteKey, info) via KeyringPort.deriveSigningSecret` as the
  *   production source of the secret bytes; that port's shape is still being corrected
  *   upstream (ADR-036 Round-3 fold notes `KeyringPort` needs a dedicated home/ADR-041). Wiring
  *   `WebhookSigner` to `KeyringPort.deriveSigningSecret()` is the follow-up once that lands —

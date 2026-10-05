@@ -3,7 +3,7 @@ import * as crypto from "node:crypto";
 import { mock, test } from "node:test";
 
 // Public fixture material only. Pin the existing adapter before extracting it.
-const rootKeyHex = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
+const siteKeyHex = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
 const iv = Buffer.from("202122232425262728292a2b", "hex");
 const aad = "vendor-credential-set:v1:ws-1:github:cred-1";
 const plaintext = "not-a-real-credential-just-fixture-plaintext";
@@ -21,12 +21,13 @@ test("current sealing wire bytes and stored fixture remain pinned", async () => 
   try {
     const { AesGcmSecretSealer } = await import("../secret-sealer.aesgcm.js");
     const { FixedSiteKeyKeyring } = await import("../keyring.env.js");
-    const keyring = new FixedSiteKeyKeyring(rootKeyHex);
+    const keyring = new FixedSiteKeyKeyring(siteKeyHex);
     // Independently pin the existing salt and derivation labels as well as the envelope.
+    // The salt is a wire-format constant, not UI copy: its bytes keep the old name on purpose.
     assert.deepEqual(
       await keyring.derive({ workspaceId: "secret-sealer", purpose: "secret-sealer.v1", info: "v1" }),
-      new Uint8Array(crypto.hkdfSync("sha256", Buffer.from(rootKeyHex, "hex"),
-        "tovu-integrations-root-key-hkdf-v1", "secret-sealer.v1:secret-sealer:v1", 32)),
+      new Uint8Array(crypto.hkdfSync("sha256", Buffer.from(siteKeyHex, "hex"),
+        "tovu-integrations-root-key-hkdf-v1", "secret-sealer.v1:secret-sealer:v1", 32)), // site-key-frozen: never change (every sealed row depends on these bytes)
     );
     const sealer = new AesGcmSecretSealer(keyring);
     assert.deepEqual(await sealer.seal({ plaintext, key: await keyring.activeKey(), aad }), fixture);

@@ -159,15 +159,15 @@ test("production onboarding writer round-trips multiple tokens through a freshly
   process.env.TOVU_RUNTIME_MODE = "production";
   process.env.TOVU_SITE_KEY = "8c".repeat(32);
   delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
-  await sealPendingAgentPluginTokensForNewSite({ siteDir, siteKeyId: "round-trip-site", tokens: { supabase: TOKEN, other: "distinct-other-site-token" } });
+  await sealPendingAgentPluginTokensForNewSite({ siteDir, siteKeyId: "round-trip-site", tokens: { supabase: TOKEN, other: "distinct-other-site-key" } });
   const raw = fs.readFileSync(target(), "utf8");
-  assert.ok(!raw.includes(TOKEN) && !raw.includes("distinct-other-site-token"));
+  assert.ok(!raw.includes(TOKEN) && !raw.includes("distinct-other-site-key"));
   assert.equal(fs.statSync(target()).mode & 0o777, 0o600);
   const bootSealer = siteSecretSealer(siteDir, process.env, "round-trip-site").sealer;
   const calls: Array<[string, string]> = [];
   const { logs, log } = recorder();
   await applyPendingAgentPluginTokens({ siteDir, sealer: bootSealer, importToken: async (id, token) => { calls.push([id, token]); return "saved"; } }, log);
-  assert.deepEqual(calls.sort(), [["other", "distinct-other-site-token"], ["supabase", TOKEN]]);
+  assert.deepEqual(calls.sort(), [["other", "distinct-other-site-key"], ["supabase", TOKEN]]);
   assert.deepEqual(logs.warn, []);
   assert.equal(fs.existsSync(target()), false);
 });

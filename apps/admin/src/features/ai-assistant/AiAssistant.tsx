@@ -481,7 +481,7 @@ export function AssistantDaemonRestart(props: AssistantDaemonRestartProps) {
  *
  * Wired to ADR-058's encrypted server-side store (`GET`/`PUT`/`DELETE
  * /api/admin/v1/workspaces/:id/assistant/site-credential`), which encrypts at rest under a
- * deploy-time master secret rather than putting a secret in the ADR-028 settings ledger.
+ * deploy-time site key rather than putting a secret in the ADR-028 settings ledger.
  *
  * Writing is an explicit press of one of TWO buttons — "Save key" writes the key, "Save settings"
  * writes provider/base URL/model and never a key (owner ruling, 2026-09-02; the single overloaded
@@ -491,9 +491,9 @@ export function AssistantDaemonRestart(props: AssistantDaemonRestartProps) {
  * credential field a write, and destroyed a live key during development), and `dirty` for why a mount
  * or a hydration can never trigger one.
  *
- * ⚠️ Operationally required: the server must have `TOVU_INTEGRATIONS_ROOT_KEY` (hex) set, or every
+ * ⚠️ Operationally required: the server must have `TOVU_SITE_KEY` (hex) set, or every
  * save answers `503 SECRET_STORE_UNCONFIGURED`. That is ADR-058 failing CLOSED on purpose — a
- * missing master secret must not silently mint a key file — not a bug in this screen. `rules.ts`'s
+ * missing site key must not silently mint a key file — not a bug in this screen. `rules.ts`'s
  * `describeApiError` translates it into copy that tells the operator their key is fine and the
  * server is not.
  */

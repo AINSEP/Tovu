@@ -151,12 +151,12 @@ function DefaultPasswordBanner({ onDismiss, t }: { onDismiss: () => void; t: Tra
 }
 
 /** Site-key plan (2026-09-24) §A.6 — the site-key warning banner. Same `.notice.warning` full block
- *  the tab's own {@link SiteTokenScopeNotice}-equivalent uses for a genuinely urgent state (unlike
+ *  the tab's own {@link SiteKeyScopeNotice}-equivalent uses for a genuinely urgent state (unlike
  *  the deliberately-subtler {@link DefaultPasswordBanner}): `showSiteKeyBanner` is only ever `true`
  *  for `missing-with-data`/`mismatch`/`invalid` (`rules.ts`'s `shouldShowSiteKeyBanner`) — states
  *  where saved credentials genuinely cannot be opened, not a routine nag. No dismiss control (a
  *  standing fact about the install's data, not a one-time reminder) and no extra CTA link — the
- *  Secrets → Site Token tab is already one click away in the sidebar, and adding a link here would
+ *  Secrets → site key tab is already one click away in the sidebar, and adding a link here would
  *  mean adding yet another translated string for a banner that is meant to stay terse. `role=
  *  "status"`, same as `DefaultPasswordBanner`: it renders on load rather than in response to an
  *  action. */

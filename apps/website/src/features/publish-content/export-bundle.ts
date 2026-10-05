@@ -262,7 +262,7 @@ export function includeReferencedEntities(
   const added: PackedEntity[] = [];
   const rootsByKey = new Map<string, Set<string>>();
   for (const root of envelope.entities) {
-    const rootKey = entityKey(root.entityType, root.id);
+    const rootEntityKey = entityKey(root.entityType, root.id);
     const seen = new Set<string>();
     const pending = [...referencesOf(root)];
     while (pending.length > 0) {
@@ -276,7 +276,7 @@ export function includeReferencedEntities(
         rootsByKey.set(key, new Set());
         added.push(target);
       }
-      rootsByKey.get(key)!.add(rootKey);
+      rootsByKey.get(key)!.add(rootEntityKey);
       pending.push(...referencesOf(target));
     }
   }

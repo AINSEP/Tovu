@@ -28,7 +28,7 @@ The former `ingest.ts` and `repo.memory.ts` forks were deleted in favor of `@jin
 - Only the fully normalized `NormalizedHit` may cross `AnalyticsSinkPort` — nothing upstream of
   that boundary (raw IP, raw User-Agent) may ever be attached to a persisted or returned object.
 - The daily salt is derived, never stored. No file, table, or cache in this module holds the salt
-  itself — every call re-derives it from `rootKeySeed` + `workspaceId` + `utcDate`.
+  itself — every call re-derives it from `analyticsSeed` + `workspaceId` + `utcDate`.
 - `ingestHit` does not throw for expected/policy outcomes (unresolved workspace, disabled site,
   DNT/GPC, exclusions, PII rejection) — it reports them via `{ accepted: false, reason }`, because
   the beacon this feeds is a public, unauthenticated, fire-and-forget endpoint that must not turn
@@ -41,7 +41,7 @@ The former `ingest.ts` and `repo.memory.ts` forks were deleted in favor of `@jin
 
 - **`KeyringPort` mismatch (Round-2 audit blocker).** `src/webhooks/ports.ts`'s `KeyringPort`
   is signing-specific (`deriveSigningSecret`) and cannot serve generic salt derivation yet.
-  `salt.ts#deriveDailySalt` therefore takes a raw `rootKeySeed` string instead of calling
+  `salt.ts#deriveDailySalt` therefore takes a raw `analyticsSeed` string instead of calling
   `KeyringPort` — see the `TODO` in that file. Rewire once a corrected, generic
   `KeyringPort.derive()` ships.
 - **Session-id v1 simplification.** The Jini engine buckets by a fixed 30-minute

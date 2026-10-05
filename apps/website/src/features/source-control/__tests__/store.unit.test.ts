@@ -22,7 +22,7 @@ import {
   type SourceControlCredentialWriteDeps,
 } from "../store.js";
 
-/** Always fails — simulates a missing `TOVU_INTEGRATIONS_ROOT_KEY` without touching real env state.
+/** Always fails — simulates a missing `TOVU_SITE_KEY` without touching real env state.
  *  Mirrors `store.resolve.unit.test.ts`'s own local `BrokenKeyring` (kept local to each test file, not
  *  shared, per this feature's own no-cross-file-test-helper convention). Used here for the WRITE-side
  *  `sealConnection` catch — `store.resolve.unit.test.ts` already proves the READ-side `decryptRecord`

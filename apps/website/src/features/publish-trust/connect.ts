@@ -38,7 +38,7 @@ import {
  * provider credentials on the owner's machine — the dependency this design exists to remove), so
  * the grant takes effect on the next deploy and {@link ConnectedDestination.nextStep} says so in
  * one sentence. Nothing secret is written, displayed, copied or stored: the private half is derived
- * from the Site Token on demand and never exists between publishes.
+ * from the site key on demand and never exists between publishes.
  */
 
 /** Deploy-config files a repo may carry, in the order they are consulted for a candidate address.
@@ -87,7 +87,7 @@ export interface ConnectDeps extends HandshakeClientDeps {
   readonly keyring: KeyringPort;
   readonly provisioning: PublishTrustProvisioningPort;
   readonly clock: Clock;
-  /** THIS install's workspace — the Site Token the publishing key is derived from. */
+  /** THIS install's workspace — the site key the publishing key is derived from. */
   readonly workspaceId: string;
 }
 

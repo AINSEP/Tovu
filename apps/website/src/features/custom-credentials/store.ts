@@ -24,7 +24,7 @@ import {
  * decrypt path can be added the same way `resolveForPublish`/`resolveDefaultForSourceControl` were).
  *
  * {@link describeCredential}/{@link listCustomCredentials} — read model only, never touch
- * `sealer`/`keyring` at all, so neither can fail on a misconfigured master secret.
+ * `sealer`/`keyring` at all, so neither can fail on a misconfigured site key.
  *
  * {@link createCustomCredential}/{@link updateCustomCredential}/{@link deleteCustomCredential} —
  * validate-then-write. `connection`, when supplied, is ALWAYS resealed as a fresh ciphertext (never
@@ -56,7 +56,7 @@ export class CustomCredentialValidationError extends Error {}
 export class CustomCredentialDuplicateLabelError extends Error {}
 
 /** Thrown when `sealer.seal()`/`keyring.activeKey()` fails while writing a connection — the
- *  realistic cause is a missing master secret (`TOVU_INTEGRATIONS_ROOT_KEY`), same fail-closed
+ *  realistic cause is a missing site key (`TOVU_SITE_KEY`), same fail-closed
  *  contract every sibling credential table's store documents. */
 export class CustomCredentialSecretStoreUnconfiguredError extends Error {}
 
@@ -86,7 +86,7 @@ export interface CustomCredentialReadDeps {
 
 /**
  * The read model for ONE credential set. Pure DB read — no sealer, no keyring, cannot fail on a
- * misconfigured master secret. Returns `null` if no row exists for `(workspaceId, id)` (not an
+ * misconfigured site key. Returns `null` if no row exists for `(workspaceId, id)` (not an
  * error — the caller decides whether that is a 404).
  *
  * @complexity O(1) — one `findById` lookup.
@@ -311,7 +311,7 @@ export interface CreateCustomCredentialInput {
  * @throws {CustomCredentialValidationError} `label`/`category`/`baseUrl`/`connection` fails shape
  *   validation.
  * @throws {CustomCredentialDuplicateLabelError} `(workspaceId, label)` already exists.
- * @throws {CustomCredentialSecretStoreUnconfiguredError} The master secret is unavailable.
+ * @throws {CustomCredentialSecretStoreUnconfiguredError} The site key is unavailable.
  * @complexity O(1) plus one keyring derivation, one seal, and one insert (which may itself throw on
  *   the UNIQUE index, translated here rather than propagated raw).
  */
@@ -393,7 +393,7 @@ export interface UpdateCustomCredentialInput {
  * @throws {CustomCredentialDuplicateLabelError} The (possibly renamed) `label` collides with a
  *   different row.
  * @throws {CustomCredentialSecretStoreUnconfiguredError} A new `connection` was supplied but the
- *   master secret is unavailable.
+ *   site key is unavailable.
  *
  * ## `username`/`connection` precedence (2026-09-01)
  *
@@ -564,7 +564,7 @@ export interface CustomCredentialResolveDeps {
  * `CustomCredentialSetRepoPort`'s surface (and therefore both its adapters) for a single caller.
  *
  * @throws {CustomCredentialSecretStoreUnconfiguredError} A row with this label exists but
- *   `decryptRecord` failed (master secret missing/rotated, or a corrupted row).
+ *   `decryptRecord` failed (site key missing/rotated, or a corrupted row).
  * @complexity O(n) in the workspace's own (small) credential-set count, plus one decrypt.
  */
 export async function resolveCustomCredentialByLabel(

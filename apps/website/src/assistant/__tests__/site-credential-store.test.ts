@@ -20,7 +20,7 @@ import { buildSiteAssistantCredentialAad } from "../site-credential-aad.js";
  * consumer's never-throws read path.
  *
  * The assertions that matter most: `apiKey` is never echoed back by GET or by the view SET/DELETE
- * return, an omitted `apiKey` on SET never touches the sealer, a missing master secret fails closed
+ * return, an omitted `apiKey` on SET never touches the sealer, a missing site key fails closed
  * with a distinct error rather than a plaintext write, and `resolveSiteAssistantApiKey` truly never
  * throws — every failure mode it can hit resolves to `null` instead.
  */
@@ -36,7 +36,7 @@ function makeDeps() {
 }
 
 /** A `KeyringPort` that always fails `derive()`/`activeKey()` — simulates a missing
- *  `TOVU_INTEGRATIONS_ROOT_KEY` without touching real env state. */
+ *  `TOVU_SITE_KEY` without touching real env state. */
 class BrokenKeyring implements KeyringPort {
   async activeKey(): Promise<{ readonly keyId: string }> {
     throw new Error("no site key: TOVU_SITE_KEY is not set and allowFileFallback is disabled");
@@ -235,8 +235,8 @@ test("resolveSiteAssistantApiKey returns null (not a throw) when the sealed row 
   const { deps, repo } = makeDeps();
   await setSiteAssistantCredential(deps, { workspaceId: WORKSPACE, apiKey: "some-key" });
 
-  // A sealer over a DIFFERENT root key than the one that sealed the row — simulates a rotated or
-  // reset master secret. `open()` must reject (wrong key -> auth tag mismatch), and the resolver
+  // A sealer over a DIFFERENT site key than the one that sealed the row — simulates a rotated or
+  // reset site key. `open()` must reject (wrong key -> auth tag mismatch), and the resolver
   // must swallow that into `null`, never propagate it to the caller.
   const otherSealer = new AesGcmSecretSealer(new InMemoryKeyring("different-generation"));
   let warned = 0;

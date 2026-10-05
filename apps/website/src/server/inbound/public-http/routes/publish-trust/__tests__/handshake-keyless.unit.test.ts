@@ -7,7 +7,7 @@ import { InMemoryPublishChallengeStore } from "#src/features/publish-trust/chall
 import type { PublishTrustResolution } from "#src/features/publish-trust/provisioning";
 import { registerPublishTrustHandshakeRoutes, type PublishTrustHandshakeDeps } from "../handshake.js";
 
-// A process started without its root key cannot derive its own installation id. Express 4 does not
+// A process started without its site key cannot derive its own installation id. Express 4 does not
 // catch a rejected async handler, so each handshake route that awaited the derivation left the
 // caller hanging and logged an unhandled rejection. Each must answer at once with a typed 503.
 

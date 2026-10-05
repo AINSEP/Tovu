@@ -271,15 +271,15 @@ async function main(): Promise<void> {
   await runProductionReadinessGateOrExit();
 
   // The LOCAL-mode counterpart to the gate above, which returns immediately outside production.
-  // "Do not refuse to boot without a root key" was implemented as "do not mention it", and that
-  // silence cost an afternoon on 2026-09-18 — see `root-key-boot-notice.ts`'s own header. Warns
+  // "Do not refuse to boot without a site key" was implemented as "do not mention it", and that
+  // silence cost an afternoon on 2026-09-18 — see `site-key-boot-notice.ts`'s own header. Warns
   // and carries on; never refuses, never throws.
   warnIfNoSiteKeyAtBoot();
 
   if (!useMemory) await guardContentDbSchemaOrExit(defaultContentDbPath());
   // site-key plan §A3a: gated identically to the schema guard right above — a `:memory:` boot has
   // no site directory at all, so there is nowhere for `ensureSiteKeyForBoot` to look. Must precede
-  // `createSiteRouteDeps` below, which is what actually resolves the root key this may have just
+  // `createSiteRouteDeps` below, which is what actually resolves the site key this may have just
   // adopted or minted.
   if (!useMemory) await ensureSiteKeyForBoot({ siteDir: siteDir(), findSiteKeyDependentData });
 

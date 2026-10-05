@@ -34,7 +34,7 @@ Product calls that govern future work. Dates are when the owner said it. Archive
 - **Publish selection (09-19):** "we should have the ability to push a select group of things and not all of it". Per-row/per-group selection is a requirement.
 - **Publish list order (09-26):** to-publish first A–Z, then up-to-date A–Z, one shared comparator.
 - **Publish replacing a live page repoints live menu links (09-24).** Overwrite of seed-untouched rows is pre-ticked (09-24). A chat without admin rights cannot publish: "OK for now", owner unsure, revisit.
-- **Site key (09-24, supersedes the 09-19 "Site key" name):** call it "site key" EVERYWHERE (copy, code, env var, file names, routes, i18n, tests) in one job, with only a temporary old-name fallback so prod and existing installs still decrypt; auto-create it (no banner, no Generate click); keep the Generate button but hidden. The root-key decision for desktop 0.1.8 is still the owner's.
+- **Site key (09-24, supersedes the 09-19 "Site Token" name):** call it "site key" EVERYWHERE (copy, code, env var, file names, routes, i18n, tests) in one job, with only a temporary old-name fallback so prod and existing installs still decrypt; auto-create it (no banner, no Generate click); keep the Generate button but hidden. The site-key decision for desktop 0.1.8 is still the owner's. <!-- site-key-legacy: historical September 19 label; rephrase after 2026-11-01 closeout -->
 - **Agents may read everything (09-24):** the `.env` deny was reverted ("claude should read everything"); the non-Claude CLI key-file block is parked.
 - **Embeds (09-16):** JSON picks only WHAT to embed (type + slug); every option is a plain attribute on the marker (e.g. `controls="false"`); page-HTML security stays as is. Docs use slugs, never long UUIDs (09-23).
 - **Public file URLs (09-23):** serve only files something published uses, plus a user-changeable setting, default protected.
@@ -118,7 +118,7 @@ Re-audited against code/git 2026-10-04 (evening): statuses below marked **PARTLY
 - **Rotate the GitHub + NVIDIA keys** printed by `pgrep -fl` (owner-only, 10-02, L3724).
 - **List/cursor/branch validation, jl C6a–C6c** (09-24, L3318): plan `ADS-memory/.local-artifacts/fix-plan-jini-leftovers-2026-09-24.md`.
 - **Regenerate a leaked site key from the UI** (09-12, L88): must re-encrypt every sealed credential; an env-set key cannot change from the UI. Recovery routes exist (`82444fec4`), no regenerate flow.
-- **Finish the site-key rename** (09-19/09-24, L2412/L3240): job 1 (2026-10-04) adds dual env reads with conflict refusal and site-key copy in all locales. Identifier/file/route renames (Stage C), coordinator verification, owner secret-name migration, and legacy retirement remain. Keep the existing key bytes; do not rotate during the rename.
+- **Finish the site-key rename** (09-19/09-24, L2412/L3240): jobs 1–2 (2026-10-04) committed dual env reads, conflict refusal, site-key copy, identifiers, files, routes, and permission migration. Job 3 swept prose, added the name guard and missing tab translations, and prepared Jini canonical exports; two schema comments await the staged comment-only patch. Coordinator verification, the Jini release/import update, owner secret-name migration, and legacy retirement remain. Keep the existing key bytes; do not rotate during the rename.
 - **Legal: controller name + desktop AI report link** (09-24, L3042/L3303): the rest landed 10-04 (`a0336c0dc`, see Done below). Still open: the pages say `[[OWNER NAME]]` where the owner's name goes, and the desktop Help menu has no "Report AI content" link. Form-IP cleanup (`2a41f672e`) stays off until a `@jini-ai/cms-forms` release with `sweepExpiredSubmissionIps` is installed.
 
 ### Owner-only actions and calls
@@ -141,7 +141,7 @@ Re-audited against code/git 2026-10-04 (evening): statuses below marked **PARTLY
 - **Compound Deploy + Publish tool** (L2279/L3236): parked; separate Deploy and Publish ship.
 - **Secrets sync channel for publish** (09-24, L3228): parked; publish excludes credentials by design.
 - **Exhaustive "everything under sites/" publish gap audit** (09-24, L3234): parked.
-- **Sandbox non-Claude local CLIs from reading the key** (09-24, L2117/L3242): "just do the MVP"; plan `plan-root-key-non-claude-cli-2026-09-24.md`.
+- **Sandbox non-Claude local CLIs from reading the key** (09-24, L2117/L3242): "just do the MVP"; historical CLI sandbox plan (2026-09-24).
 - **Purge/reseed the removed sample users** (09-24, L3155): jordan/alex stay in Trash; seed regeneration parked.
 - **Newsletter backlog (wm S6/S7, jl C4a)** (09-24, L3312): no newsletter work at all.
 - **Public MCP member sign-in `/auth/magic`** (09-28, L3585): HOLD.
@@ -358,10 +358,10 @@ the only one this transport can serve.
 3. Decide production's behavior. A `runtimeMode` (`"production" | "local"`) signal already exists
    server-side (`apps/website/src/contracts/core/runtime-mode.ts:23`, from `TOVU_RUNTIME_MODE`, defaulting
    safely to `"local"`) and already reaches two admin screens:
-   `apps/admin/src/features/security/SiteTokenTab.tsx:104` and
+   `apps/admin/src/features/security/SiteKeyTab.tsx:104` and
    `apps/admin/src/features/deployment/OverviewTab.tsx:213` (+ `rules.ts:641` `runtimeModeLabelKey`).
    Deployment Overview's `AdminDeploymentOverview.mode` is the natural source to reuse — it needs a
-   lighter permission than Site key. Gate the tab on that, or replace it with an honest
+   lighter permission than managing the site key. Gate the tab on that, or replace it with an honest
    "not available on hosted production" notice.
 
 **Open owner question (parked 2026-09-19):** until step 1 lands, should the tab be hidden everywhere,

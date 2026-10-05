@@ -60,7 +60,7 @@ export type AdmissionDriftKind =
   | "removed-but-still-running"
   // A more specific reading of `not-running` (2026-09-13): the daemon did not merely fail to admit
   // this connection, it never even ATTEMPTED to — `readEnabledExternalMcpConfigs` could not decrypt
-  // its sealed env because the site token is not available, and the operator was being told to
+  // its sealed env because the site key is not available, and the operator was being told to
   // restart the assistant for a problem restarting cannot fix on its own. See
   // {@link isDecryptFailureReason} and the `configFailures` plumbing in {@link describeAdmissionDrift}.
   | "decrypt-failed"
@@ -178,8 +178,8 @@ const REMOVED_BUT_STILL_RUNNING_KEY =
 
 /**
  * A saved, enabled connection that failed to decrypt at boot — same English-only choice as the three
- * keys above, for the same reason (2026-09-13). Names the site token specifically, by the tab's own
- * current label (`SiteTokenTab.tsx`, renamed from "Root key" the same day), rather than the generic
+ * keys above, for the same reason (2026-09-13). Names the site key specifically, by the tab's own
+ * current label (`SiteKeyTab.tsx`, renamed from "the previous label" the same day), rather than the generic
  * "restart the assistant" {@link NOT_RUNNING_KEY} gives for this exact case: restarting alone changes
  * nothing here, because the decrypt will fail again on the next boot until the token itself is fixed.
  */

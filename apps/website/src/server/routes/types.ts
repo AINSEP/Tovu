@@ -315,7 +315,7 @@ export interface CredentialsDeps {
   /**
    * The `KeyringPort` `siteAssistantSecretSealer` derives its AES key from — exposed separately
    * (not just baked into the sealer) because `setSiteAssistantCredential` also needs
-   * `keyring.activeKey()` directly, to know which root-key generation to stamp into a freshly-sealed
+   * `keyring.activeKey()` directly, to know which site-key generation to stamp into a freshly-sealed
    * row. Deliberately its OWN `EnvOrFileKeyring` instance in the real composition root
    * (`server/deps.ts`), constructed `{allowFileFallback:false}`, independent of the shared instance
    * webhook signing/newsletter tokens use — see ADR-058 §2 for why that asymmetry is intentional.

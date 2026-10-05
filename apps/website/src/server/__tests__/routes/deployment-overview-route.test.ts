@@ -71,13 +71,13 @@ test("deployment-overview: a mismatched workspaceId in the URL 404s", async (t) 
 test("deployment-overview: the seeded owner gets 200 with real process/env-derived fields, never a fabricated value", async (t) => {
   const previousPassword = process.env.TOVU_ADMIN_PASSWORD;
   const previousDaemonPort = process.env.JINI_AGENT_DAEMON_PORT;
-  const previousRootKey = process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
+  const previousSiteKey = process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
   const previousMode = process.env.TOVU_RUNTIME_MODE;
   const previousUser = process.env.TOVU_ADMIN_USER;
   const previousHome = process.env.HOME;
   // Deliberately unset all three: proves the response reports the REAL current process state rather
-  // than always claiming "set". HOME points at an empty temp dir so a root key file generated on the
-  // machine running the suite (under the real home) cannot make the root-key row active.
+  // than always claiming "set". HOME points at an empty temp dir so a site key file generated on the
+  // machine running the suite (under the real home) cannot make the site-key row active.
   delete process.env.TOVU_ADMIN_PASSWORD;
   delete process.env.JINI_AGENT_DAEMON_PORT;
   delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
@@ -92,8 +92,8 @@ test("deployment-overview: the seeded owner gets 200 with real process/env-deriv
     else process.env.TOVU_ADMIN_PASSWORD = previousPassword;
     if (previousDaemonPort === undefined) delete process.env.JINI_AGENT_DAEMON_PORT;
     else process.env.JINI_AGENT_DAEMON_PORT = previousDaemonPort;
-    if (previousRootKey === undefined) delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
-    else process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = previousRootKey;
+    if (previousSiteKey === undefined) delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
+    else process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = previousSiteKey;
     if (previousMode === undefined) delete process.env.TOVU_RUNTIME_MODE;
     else process.env.TOVU_RUNTIME_MODE = previousMode;
     if (previousUser === undefined) delete process.env.TOVU_ADMIN_USER;

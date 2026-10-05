@@ -44,7 +44,7 @@ function validateExecutionCredentialField(field: string, value: unknown): void {
  *
  * Scoped to `(deps.workspaceId, getAuthedPrincipal(res).id)` — an admin can only ever write their
  * own row. Same 3-outcome split as `put-site-credential.ts`: 400 validation, 503
- * `SECRET_STORE_UNCONFIGURED` (missing `TOVU_INTEGRATIONS_ROOT_KEY`, checked before any write), 500
+ * `SECRET_STORE_UNCONFIGURED` (missing `TOVU_SITE_KEY`, checked before any write), 500
  * everything else.
  */
 export const registerAdminAssistantPutExecutionCredentialRoute: AssistantSettingsRouteRegistrar = (app, deps) => {

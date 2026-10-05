@@ -126,7 +126,7 @@ Note: deterministic ordering (OAuth-first vs. fallback), the read-only default, 
 
 - INV-01: A raw Supabase OAuth token or personal access token must never appear in the assistant's transcript, in tool-call arguments visible to the model, or in any application log.
 - INV-02: A Supabase connection must never execute a write-capable tool unless that exact tool name is present in the connection's operator-set `writeAllowedToolNames`.
-- INV-03: The sealed credential for a Supabase connection must always use the same root-key-derived AES-256-GCM sealer used for every other External MCP or custom credential — never a plugin-specific storage mechanism.
+- INV-03: The sealed credential for a Supabase connection must always use the same site-key-derived AES-256-GCM sealer used for every other External MCP or custom credential — never a plugin-specific storage mechanism.
 - INV-04: A Supabase tool must never be enabled for the assistant while no project has been selected for that connection.
 - INV-05: An MCP-UI form submission naming a Supabase-plugin tool id must never be processed unless that exact id is present in `MCP_UI_REDEEMABLE_TOOL_IDS`.
 

@@ -343,8 +343,8 @@ function daysUntil(iso: string, nowIso: string): number {
  * `publicKeyB64u` from `sourceInstallationId`.
  *
  * MATCHES ON THE PUBLIC KEY, NOT THE GENERATION, and that distinction is the whole point. Rotation
- * bumps the generation, but regenerating the Site Token changes the derived key while leaving the
- * generation alone (`keys.ts`: the key is HKDF over the Site Token). A grant naming the right
+ * bumps the generation, but regenerating the site key changes the derived key while leaving the
+ * generation alone (`keys.ts`: the key is HKDF over the site key). A grant naming the right
  * generation and the previous key is therefore DEAD, and a generation comparison would report it
  * as current — publishing would fail with the destination insisting it was connected.
  *

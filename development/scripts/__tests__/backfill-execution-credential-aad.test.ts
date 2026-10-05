@@ -110,9 +110,9 @@ function tmpDir(prefix: string): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
 }
 
-function runScript(dbPath: string, rootKeyHex: string | undefined, extraArgs: string[] = []): string {
-  const env = { ...process.env, ...(rootKeyHex !== undefined ? { [LEGACY_SITE_KEY_ENV_VAR_NAME]: rootKeyHex } : {}) };
-  if (rootKeyHex === undefined) delete env[LEGACY_SITE_KEY_ENV_VAR_NAME];
+function runScript(dbPath: string, siteKeyHex: string | undefined, extraArgs: string[] = []): string {
+  const env = { ...process.env, ...(siteKeyHex !== undefined ? { [LEGACY_SITE_KEY_ENV_VAR_NAME]: siteKeyHex } : {}) };
+  if (siteKeyHex === undefined) delete env[LEGACY_SITE_KEY_ENV_VAR_NAME];
   return execFileSync("node", ["--import", "tsx", SCRIPT, "--db", dbPath, ...extraArgs], {
     cwd: REPO_ROOT,
     encoding: "utf8",
@@ -123,9 +123,9 @@ function runScript(dbPath: string, rootKeyHex: string | undefined, extraArgs: st
 test("backfill-execution-credential-aad: seals OLD (no aad), migrates in place, opens NEW — preserves protocol/masked, and is idempotent", async () => {
   const scratch = tmpDir("backfill-execution-aad-");
   const dbPath = path.join(scratch, "content.db");
-  const rootKeyHex = randomBytes(32).toString("hex");
+  const siteKeyHex = randomBytes(32).toString("hex");
 
-  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = rootKeyHex;
+  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = siteKeyHex;
   const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] });
   const sealer = new AesGcmSecretSealer(keyring);
   const activeKey = await keyring.activeKey();
@@ -188,7 +188,7 @@ test("backfill-execution-credential-aad: seals OLD (no aad), migrates in place, 
   const dryRunOutput = runScript(dbPath, undefined);
   assert.match(dryRunOutput, /DRY RUN: 1 row\(s\) would be migrated, 1 total pending/);
 
-  const applyOutput = runScript(dbPath, rootKeyHex, ["--apply"]);
+  const applyOutput = runScript(dbPath, siteKeyHex, ["--apply"]);
   assert.match(applyOutput, /RESTORE POINT CAPTURED/);
   assert.match(applyOutput, new RegExp(`MIGRATED: workspace=${WORKSPACE} principal=${ADMIN_A} -> aad_version=1`));
 
@@ -203,7 +203,7 @@ test("backfill-execution-credential-aad: seals OLD (no aad), migrates in place, 
   assert.equal(rowA.masked, "••••1111", "masked must survive untouched");
   assert.equal(rowB.aadVersion, 0, "a row with no key must be left untouched");
 
-  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = rootKeyHex;
+  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = siteKeyHex;
   const openSealer = new AesGcmSecretSealer(new EnvOrFileKeyring({ sources: [{ kind: "env" }] }));
   const reopened = await openSealer.open({
     sealed: { keyId: rowA.sealedKeyId!, ciphertext: rowA.sealedCiphertext!, nonce: rowA.sealedNonce!, alg: rowA.sealedAlg! },
@@ -220,7 +220,7 @@ test("backfill-execution-credential-aad: seals OLD (no aad), migrates in place, 
   delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
   db.$client.close();
 
-  const secondApplyOutput = runScript(dbPath, rootKeyHex, ["--apply"]);
+  const secondApplyOutput = runScript(dbPath, siteKeyHex, ["--apply"]);
   assert.match(secondApplyOutput, /Nothing to migrate/);
   assert.doesNotMatch(secondApplyOutput, /RESTORE POINT CAPTURED/);
 
@@ -244,8 +244,8 @@ test("backfill-execution-credential-aad: --dry-run never applies a pending migra
     .insert(principals)
     .values({ id: ADMIN_A, workspaceId: WORKSPACE, kind: "user", displayName: "Admin A", status: "active", createdAt: NOW })
     .run();
-  const rootKeyHex = randomBytes(32).toString("hex");
-  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = rootKeyHex;
+  const siteKeyHex = randomBytes(32).toString("hex");
+  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = siteKeyHex;
   const sealer = new AesGcmSecretSealer(new EnvOrFileKeyring({ sources: [{ kind: "env" }] }));
   const activeKey = await new EnvOrFileKeyring({ sources: [{ kind: "env" }] }).activeKey();
   const sealed = await sealer.seal({ plaintext: "FIXTURE_DRYRUN_KEY", key: activeKey }); // NO aad — legacy shape.
@@ -341,8 +341,8 @@ function readCredentialRow(dbPath: string): { sealedCiphertext: string; aadVersi
 test("backfill-execution-credential-aad: a key rotation landing mid-run ABORTS the backfill instead of reverting it", async () => {
   const scratch = tmpDir("backfill-execution-aad-race-");
   const dbPath = path.join(scratch, "content.db");
-  const rootKeyHex = randomBytes(32).toString("hex");
-  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = rootKeyHex;
+  const siteKeyHex = randomBytes(32).toString("hex");
+  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = siteKeyHex;
 
   const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] });
   const sealer = new AesGcmSecretSealer(keyring);

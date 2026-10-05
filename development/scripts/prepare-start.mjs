@@ -2,7 +2,7 @@
  * `prestart` for the root `npm start`: builds whatever a fresh clone or unzipped copy is missing —
  * and rebuilds whatever is stale — before `development/scripts/start.mjs` runs
  * (npm-start-just-works-plan-2026-09-24 Slices 2-3; `start.mjs` is what now loads `.env`, ensures a
- * root key, and picks a port before importing the compiled `dist/src/index.js` in-process), so "npm
+ * site key, and picks a port before importing the compiled `dist/src/index.js` in-process), so "npm
  * install, then npm start" is the whole setup, on every subsequent boot too.
  *
  * A checkout ships none of the three build outputs `npm start` serves — `dist/` (the server),

@@ -26,10 +26,10 @@
  *     pass that ships it, mirrored 1:1 like every other entry here.
  *   - Signing-secret rotation/generation/reveal. `signing.ts`/`signing.keyring.ts`/`keyring.env.ts`/
  *     `keyring.memory.ts` derive a subscription's HMAC signing secret via
- *     `KeyringPort.deriveSigningSecret` (HKDF over the install root key) at delivery time — the
+ *     `KeyringPort.deriveSigningSecret` (HKDF over the install site key) at delivery time — the
  *     secret is NEVER stored, and no admin route reveals, regenerates, or rotates it (there is no
  *     rotation admin route at all yet; `WebhookSubscriptionRecord.previousSecretVersion` exists in
- *     the type but nothing currently writes a rotation). Even if such a route existed, root-key /
+ *     the type but nothing currently writes a rotation). Even if such a route existed, site-key /
  *     signing-secret material is credential-adjacent in exactly the same class as Identity's
  *     excluded `resetUserPassword`: reachable-by-prompt-injection agent access to a lever that
  *     controls what a third party trusts as an authentic webhook from this workspace is a

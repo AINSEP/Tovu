@@ -32,8 +32,8 @@ const CAPABILITIES = ["publish_content.read", "publish_content.apply"] as const;
 const A_SHA = "a".repeat(64);
 const NOW = "2026-09-19T12:00:00.000Z";
 
-function testKeyring(rootKeyHex: string): KeyringPort {
-  const rootKey = Buffer.from(rootKeyHex, "hex");
+function testKeyring(siteKeyHex: string): KeyringPort {
+  const siteKey = Buffer.from(siteKeyHex, "hex");
   return {
     async activeKey() {
       return { keyId: "v1" };
@@ -43,7 +43,7 @@ function testKeyring(rootKeyHex: string): KeyringPort {
     },
     async derive(input: { workspaceId: string; purpose: string; info: string }) {
       return new Uint8Array(
-        hkdfSync("sha256", rootKey, Buffer.alloc(0), `${input.purpose}:${input.workspaceId}:${input.info}`, 32)
+        hkdfSync("sha256", siteKey, Buffer.alloc(0), `${input.purpose}:${input.workspaceId}:${input.info}`, 32)
       );
     },
   } as unknown as KeyringPort;

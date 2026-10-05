@@ -9,7 +9,7 @@ import type { StorageKernel } from "./kernel/port.js";
  * §A.2/§A.6), on the storage kernel.
  *
  * Two callers need it: `features/webhooks/site-key-ensure.ts`'s `ensureSiteKey` (refuse to mint a
- * fresh key over sealed data) and the admin Site Token route's `"missing-with-data"` state. The
+ * fresh key over sealed data) and the admin site key route's `"missing-with-data"` state. The
  * feature side never imports this module (`platform/db` is composition-built); the boot callers
  * (`src/index.ts`, `cli/commands/serve.ts`) inject `platform/site-dir/site-key-dependent-data.ts`'s
  * `findSiteKeyDependentData` into it, which picks the store to scan by the site's storage kind

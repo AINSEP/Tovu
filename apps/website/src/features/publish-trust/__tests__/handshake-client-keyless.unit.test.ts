@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { fetchDestinationIdentity, openPublishSession, PublishTrustHandshakeError } from "../handshake-client.js";
 
-// A destination with no Site Token answers every handshake route with a typed 503. The owner must
+// A destination with no site key answers every handshake route with a typed 503. The owner must
 // read what to fix on that site, not "try again in a moment", which no retry will ever satisfy.
 test("a destination without a Site key is named as the thing to fix", async () => {
   const requests: unknown[] = [];

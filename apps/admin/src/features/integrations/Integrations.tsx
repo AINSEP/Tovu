@@ -172,7 +172,7 @@ export function Integrations({ useIntegrationsHook = useWiredIntegrations }: Int
           `features/providers/Providers.tsx`'s, which draws the kicker, title and description for
           the whole Integrations page. A tab body that re-declared a page title directly beneath
           the page title it sits under would read as a rendering bug — the same reason
-          `AccessTokensTab`/`SiteTokenTab` are headerless under `Security.tsx`'s one shell. The
+          `AccessTokensTab`/`SiteKeyTab` are headerless under `Security.tsx`'s one shell. The
           description this header used to carry ("Send webhook notifications to external services
           when content on this site changes.") is not lost — it moved to the tab's own intro line
           below, where it still explains the tab without competing with the page title.

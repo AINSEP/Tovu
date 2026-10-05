@@ -9,7 +9,7 @@ import type { RouteDeps } from "../../routes/types.js";
  * @file Branches of four `system/*` admin routes that their own suites never reached:
  *
  * - `custom-credentials.ts` / `source-control-credentials.ts`: a sealer that cannot seal (the
- *   realistic cause is a missing `TOVU_INTEGRATIONS_ROOT_KEY`) must answer `503
+ *   realistic cause is a missing `TOVU_SITE_KEY`) must answer `503
  *   SECRET_STORE_UNCONFIGURED` and write nothing. Both route suites only ever boot a working sealer,
  *   so the mapping collapsing into a generic 500 — which the admin UI cannot explain — shipped green.
  * - `mail-status.ts`: gated on `admin.forms.manage`; its suite only signs in as the wildcard owner.

@@ -62,7 +62,7 @@
 |--------|-----------------------------------------|-----------|---------|--------|
 | INV-01 | Raw token must never appear in transcript, tool args, or logs | pending | pending | PENDING |
 | INV-02 | No write-capable tool executes without explicit `writeAllowedToolNames` entry | pending | pending | PENDING |
-| INV-03 | Sealed credential always uses the shared root-key-derived AES-256-GCM sealer | pending | pending | PENDING |
+| INV-03 | Sealed credential always uses the shared site-key-derived AES-256-GCM sealer | pending | pending | PENDING |
 | INV-04 | No Supabase tool enabled while no project is selected | pending | pending | PENDING |
 | INV-05 | MCP-UI submission processed only for ids in `MCP_UI_REDEEMABLE_TOOL_IDS` | pending | pending | PENDING |
 

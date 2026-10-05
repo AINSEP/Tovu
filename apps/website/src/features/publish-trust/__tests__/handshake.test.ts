@@ -25,8 +25,8 @@ import { mintPublishSession, SESSION_TTL_MS, verifyPublishSession } from "../ses
 
 /** The same HKDF construction `keyring.env.ts` uses — see `keys.test.ts` for why a faithful double
  *  rather than a friendlier one. */
-function testKeyring(rootKeyHex: string): KeyringPort {
-  const rootKey = Buffer.from(rootKeyHex, "hex");
+function testKeyring(siteKeyHex: string): KeyringPort {
+  const siteKey = Buffer.from(siteKeyHex, "hex");
   return {
     async activeKey() {
       return { keyId: "v1" };
@@ -36,7 +36,7 @@ function testKeyring(rootKeyHex: string): KeyringPort {
     },
     async derive(input: { workspaceId: string; purpose: string; info: string }) {
       return new Uint8Array(
-        hkdfSync("sha256", rootKey, Buffer.alloc(0), `${input.purpose}:${input.workspaceId}:${input.info}`, 32)
+        hkdfSync("sha256", siteKey, Buffer.alloc(0), `${input.purpose}:${input.workspaceId}:${input.info}`, 32)
       );
     },
   } as unknown as KeyringPort;
@@ -66,9 +66,9 @@ function movableClock(startIso = "2026-09-19T12:00:00.000Z") {
 let nonceCounter = 0;
 const idGen = { newId: () => `nonce-${++nonceCounter}` };
 
-async function sourceKey(rootKeyHex = SOURCE_ROOT, generation = 1) {
+async function sourceKey(siteKeyHex = SOURCE_ROOT, generation = 1) {
   return derivePublishSigningKey({
-    keyring: testKeyring(rootKeyHex),
+    keyring: testKeyring(siteKeyHex),
     workspaceId: WORKSPACE,
     sourceInstallationId: SOURCE_INSTALL,
     targetOrigin: TARGET_ORIGIN,

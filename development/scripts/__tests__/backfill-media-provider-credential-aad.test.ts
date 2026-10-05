@@ -36,9 +36,9 @@ function tmpDir(prefix: string): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
 }
 
-function runScript(dbPath: string, rootKeyHex: string | undefined, extraArgs: string[] = []): string {
-  const env = { ...process.env, ...(rootKeyHex !== undefined ? { [LEGACY_SITE_KEY_ENV_VAR_NAME]: rootKeyHex } : {}) };
-  if (rootKeyHex === undefined) delete env[LEGACY_SITE_KEY_ENV_VAR_NAME];
+function runScript(dbPath: string, siteKeyHex: string | undefined, extraArgs: string[] = []): string {
+  const env = { ...process.env, ...(siteKeyHex !== undefined ? { [LEGACY_SITE_KEY_ENV_VAR_NAME]: siteKeyHex } : {}) };
+  if (siteKeyHex === undefined) delete env[LEGACY_SITE_KEY_ENV_VAR_NAME];
   return execFileSync("node", ["--import", "tsx", SCRIPT, "--db", dbPath, ...extraArgs], {
     cwd: REPO_ROOT,
     encoding: "utf8",
@@ -49,9 +49,9 @@ function runScript(dbPath: string, rootKeyHex: string | undefined, extraArgs: st
 test("backfill-media-provider-credential-aad: seals OLD (no aad), migrates in place, opens NEW — plus a no-key row is left alone and the run is idempotent", async () => {
   const scratch = tmpDir("backfill-media-aad-");
   const dbPath = path.join(scratch, "content.db");
-  const rootKeyHex = randomBytes(32).toString("hex");
+  const siteKeyHex = randomBytes(32).toString("hex");
 
-  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = rootKeyHex;
+  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = siteKeyHex;
   const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] });
   const sealer = new AesGcmSecretSealer(keyring);
   const activeKey = await keyring.activeKey();
@@ -116,7 +116,7 @@ test("backfill-media-provider-credential-aad: seals OLD (no aad), migrates in pl
   seedDb.$client.close();
   delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
 
-  // --- Dry run: needs NO root key at all and must write nothing. ---
+  // --- Dry run: needs NO site key at all and must write nothing. ---
   const dryRunOutput = runScript(dbPath, undefined);
   assert.match(dryRunOutput, /DRY RUN: 2 row\(s\) would be migrated, 2 total pending/);
   const afterDryRun = openContentDb(dbPath);
@@ -128,7 +128,7 @@ test("backfill-media-provider-credential-aad: seals OLD (no aad), migrates in pl
   afterDryRun.$client.close();
 
   // --- Apply: decrypts under no aad, re-seals under the derived aad. ---
-  const applyOutput = runScript(dbPath, rootKeyHex, ["--apply"]);
+  const applyOutput = runScript(dbPath, siteKeyHex, ["--apply"]);
   assert.match(applyOutput, /RESTORE POINT CAPTURED/);
   assert.match(applyOutput, new RegExp(`MIGRATED: workspace=${WORKSPACE} provider=openai -> aad_version=1`));
   assert.match(applyOutput, new RegExp(`MIGRATED: workspace=${WORKSPACE} provider=grok -> aad_version=1`));
@@ -151,7 +151,7 @@ test("backfill-media-provider-credential-aad: seals OLD (no aad), migrates in pl
   // --- THE MANDATORY PROOF: seal OLD, migrate, open NEW. A fresh keyring/sealer pair must decrypt
   // each row's ciphertext under buildMediaProviderCredentialAad and recover the EXACT original
   // plaintext this test sealed under NO aad above. ---
-  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = rootKeyHex;
+  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = siteKeyHex;
   const openSealer = new AesGcmSecretSealer(new EnvOrFileKeyring({ sources: [{ kind: "env" }] }));
 
   const reopenedOpenai = await openSealer.open({
@@ -178,7 +178,7 @@ test("backfill-media-provider-credential-aad: seals OLD (no aad), migrates in pl
   db.$client.close();
 
   // --- Idempotency: a second --apply run must be a complete no-op. ---
-  const secondApplyOutput = runScript(dbPath, rootKeyHex, ["--apply"]);
+  const secondApplyOutput = runScript(dbPath, siteKeyHex, ["--apply"]);
   assert.match(secondApplyOutput, /Nothing to migrate/);
   assert.doesNotMatch(secondApplyOutput, /RESTORE POINT CAPTURED/);
   const afterSecondApply = openContentDb(dbPath);
@@ -192,9 +192,9 @@ test("backfill-media-provider-credential-aad: seals OLD (no aad), migrates in pl
 test("backfill-media-provider-credential-aad: a corrupted row aborts the run without losing rows migrated before it", async () => {
   const scratch = tmpDir("backfill-media-aad-corrupt-");
   const dbPath = path.join(scratch, "content.db");
-  const rootKeyHex = randomBytes(32).toString("hex");
+  const siteKeyHex = randomBytes(32).toString("hex");
 
-  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = rootKeyHex;
+  process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = siteKeyHex;
   const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] });
   const sealer = new AesGcmSecretSealer(keyring);
   const activeKey = await keyring.activeKey();
@@ -241,7 +241,7 @@ test("backfill-media-provider-credential-aad: a corrupted row aborts the run wit
   seedDb.$client.close();
   delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
 
-  assert.throws(() => runScript(dbPath, rootKeyHex, ["--apply"]), /Command failed/);
+  assert.throws(() => runScript(dbPath, siteKeyHex, ["--apply"]), /Command failed/);
 
   const db = openContentDb(dbPath);
   const rows = db.select().from(mediaProviderCredentials).all();

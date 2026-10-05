@@ -5,7 +5,7 @@ import type { NextFunction, Request, Response } from "express";
 
 import { requirePublishTrust } from "../publish-trust-auth.js";
 
-// A process started without its root key cannot derive its own installation id. A bearer token it
+// A process started without its site key cannot derive its own installation id. A bearer token it
 // cannot verify must still reach the session gate (an API key uses the same header), not leave the
 // request hanging on the rejected derivation.
 test("a keyless instance passes a bearer request on to the session gate instead of hanging", async () => {
@@ -38,7 +38,7 @@ test("a keyless instance passes a bearer request on to the session gate instead 
   assert.equal(nextArg, undefined);
 });
 
-// The id was derived at boot, but the session key is derived per request: a root key that goes
+// The id was derived at boot, but the session key is derived per request: a site key that goes
 // missing afterwards must not turn into a rejected middleware either.
 test("a keyring that fails at verify time passes the request on instead of hanging", async () => {
   const middleware = requirePublishTrust({

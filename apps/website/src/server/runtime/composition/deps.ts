@@ -1577,7 +1577,7 @@ async function composeSiteRouteDeps(
   // returns, only when it is first read.
   const runtimeMode = resolveRuntimeMode();
 
-  // site-key plan §A3a: both root-key-backed keyrings below need this site's own ordered source
+  // site-key plan §A3a: both site-key-backed keyrings below need this site's own ordered source
   // list (per-site file first in local mode, mirroring `ensureSiteKey`'s own writer-side ordering —
   // `site-key-sources.ts`). Computed once, here, rather than per-keyring: `dbPath !== ":memory:" ?
   // dirname(dbPath) : undefined` is the SAME "every real boot path keeps content.db in its site
@@ -1597,24 +1597,24 @@ async function composeSiteRouteDeps(
   // SPEC-011 (Newsletter) Stage 5 wiring — hoisted for the same reason `server/app.ts`'s identical
   // hoisting comment explains: `newsletterSubscriberDirectory` must read the SAME member rows the
   // returned `memberRepo` field exposes, and `newsletterKeyring` is the ONE process-lifetime
-  // `KeyringPort` instance also used to build `webhookSigner` below (one root key,
+  // `KeyringPort` instance also used to build `webhookSigner` below (one site key,
   // purpose-namespaced — `webhooks/ports.ts`'s `KeyringPort.derive()` contract — not two).
   //
-  // `allowFileFallback: runtimeMode !== "production"` (2026-09-09 integrations-root-key fix): in
+  // `allowFileFallback: runtimeMode !== "production"` (2026-09-09 site-key fix): in
   // local/dev mode this still defaults to `true` (unchanged from before this fix) — a developer
-  // with no `TOVU_INTEGRATIONS_ROOT_KEY` set must keep booting via the generated-file fallback. In
+  // with no `TOVU_SITE_KEY` set must keep booting via the generated-file fallback. In
   // production, the file fallback resolves against the container's own ephemeral rootfs (`Dockerfile`'s
   // `USER node` -> `homedir()` is `/home/node`, not the mounted Fly volume) — a missing var there
-  // used to boot fine and silently mint a fresh, throwaway root key on every redeploy. The boot-time
-  // gate (`server/runtime/boot/production-readiness-gate.ts`'s `hasMissingIntegrationsRootKey`) is
+  // used to boot fine and silently mint a fresh, throwaway site key on every redeploy. The boot-time
+  // gate (`server/runtime/boot/production-readiness-gate.ts`'s `hasMissingIntegrationsSiteKey`) is
   // the primary fix — it refuses to boot before this line is ever reached — this is defense in
   // depth: if that gate is ever bypassed or this composition root is ever reached from a path that
   // does not call it, `newsletterKeyring` still fails loudly on first use in production (missing
-  // env var AND no key file at the durable path — `keyring.env.ts`'s `defaultRootKeyFilePath`)
+  // env var AND no key file at the durable path — `keyring.env.ts`'s `defaultSiteKeyFilePath`)
   // rather than silently re-keying.
   //
   // NOT extended to `allowFileFallback: true` unconditionally (undoing the `runtimeMode` gate)
-  // even though `defaultRootKeyFilePath`'s 2026-09-09 durability fix removed the ORIGINAL reason
+  // even though `defaultSiteKeyFilePath`'s 2026-09-09 durability fix removed the ORIGINAL reason
   // for this gate (the ephemeral-rootfs problem) — a committed regression test
   // (`production-readiness-boot.integration.test.ts`) pins this exact mode-gated construction, and
   // this pass's own dispatch scoped the production fix to `siteAssistantSecretKeyring` below, not
@@ -1626,7 +1626,7 @@ async function composeSiteRouteDeps(
   // above. The local-mode "must keep booting via the generated-file fallback" rationale was written
   // (`ddfa5e07`) while reading and minting were still one unit; the `allowFileAutoGenerate` split
   // arrived two hours later (`bb84fc1b`) and was applied to `siteAssistantSecretKeyring` only. Left
-  // on the default, this instance minted `~/.tovu/integrations-root-key.hex` unattended in local
+  // on the default, this instance minted `~/.tovu/site-key.hex` unattended in local
   // mode — and its only live consumer is the PUBLIC `/newsletter/unsubscribe` route, whose
   // `processUnsubscribe` derives before it can reject a token, so ANY anonymous request with a
   // base64url-JSON token minted it. `siteAssistantSecretKeyring` reads that same path, so the key
@@ -1647,32 +1647,32 @@ async function composeSiteRouteDeps(
   const newsletterHooks = createHookRegistry();
 
   // ADR-058: the SITE assistant credential store's OWN `KeyringPort` instance — deliberately NOT
-  // `newsletterKeyring` above, even though both read the same `TOVU_INTEGRATIONS_ROOT_KEY` env var
-  // and (when it is set) derive from byte-identical root-key material.
+  // `newsletterKeyring` above, even though both read the same `TOVU_SITE_KEY` env var
+  // and (when it is set) derive from byte-identical site-key material.
   //
   // 2026-09-09 — CHANGED from `{ allowFileFallback: false }` to `{ allowFileFallback: true,
   // allowFileAutoGenerate: false }` (owner-approved, after this exact asymmetry was flagged rather
-  // than silently reconciled — `ADS-memory/reports/2026-09-09-security-site-token.md`). This
+  // than silently reconciled — the historical Security durability report dated 2026-09-09). This
   // instance may now READ an already-generated key file — the durable, production-safe path
-  // `defaultRootKeyFilePath()` now resolves to — but will NEVER mint one itself
+  // `defaultSiteKeyFilePath()` now resolves to — but will NEVER mint one itself
   // (`allowFileAutoGenerate: false`): the only way a file comes into existence for this store is
-  // the admin Secrets page's Site Token tab's explicit, attended Generate action
-  // (`keyring.env.ts`'s `generateFileRootKey`, a plain function independent of this flag).
+  // the admin Secrets page's site key tab's explicit, attended Generate action
+  // (`keyring.env.ts`'s `generateFileSiteKey`, a plain function independent of this flag).
   //
   // This UPDATES rather than reverses ADR-058 §2's stated reasoning: that section's actual
   // objection was an UNATTENDED first-use mint under a feature encrypting a real, paid credential
-  // ("a missing root key throws immediately rather than silently minting..."), which
+  // ("a missing site key throws immediately rather than silently minting..."), which
   // `allowFileAutoGenerate: false` still fully honors. It DOES contradict ADR-058 §9's "leaked
-  // backup alone is not enough" framing: that defense assumed the root key lives only in the live
+  // backup alone is not enough" framing: that defense assumed the site key lives only in the live
   // process's environment, never on disk beside `content.db`. Once a generated key file exists on
   // the same Fly volume as the database it protects, someone who obtains a volume snapshot/backup
   // gets both — the ciphertext AND the key that opens it. This is an ACCEPTED, DOCUMENTED cost of
   // this change, not an oversight: it trades some of ADR-058's original defense-in-depth for the
-  // ability to run without `fly secrets set` at all. See `ADS-memory/reports/
-  // 2026-09-09-security-site-token.md` for the full tradeoff writeup.
+  // ability to run without `fly secrets set` at all. See the historical Security durability report
+  // dated 2026-09-09 for the full tradeoff writeup.
   // site-key plan §A3a: `sources` is threaded in UNCONDITIONALLY (both modes) — safe and
   // behavior-preserving in production, since `siteKeySourcesList`'s production branch is exactly
-  // `[env, legacy-volume-file]`, the same env-then-`defaultRootKeyFilePath()` precedence this
+  // `[env, legacy-volume-file]`, the same env-then-`defaultSiteKeyFilePath()` precedence this
   // instance's own default (non-`sources`) resolution already used (`site-key-sources.ts`'s
   // `legacyVolumeFilePath` doc: "the production durable-volume path ... reused here unchanged").
   const siteAssistantSecretKeyring = new EnvOrFileKeyring({

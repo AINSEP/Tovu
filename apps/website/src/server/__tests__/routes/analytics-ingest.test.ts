@@ -22,7 +22,7 @@ import { registerAnalyticsIngestRoute } from "../../inbound/public-http/routes/s
  * `packet-one-routes.test.ts`.
  */
 
-const ROOT_KEY_SEED = "test-root-key-seed-do-not-use-in-prod";
+const ANALYTICS_SEED = "test-site-key-seed-do-not-use-in-prod";
 
 function makeConfig(overrides: Partial<AnalyticsSiteConfig> = {}): AnalyticsSiteConfig {
   return {
@@ -65,7 +65,7 @@ function makeDeps(overrides: Partial<AnalyticsIngestRouteDeps> = {}): { deps: An
     sink,
     config: makeConfigPort(makeConfig()),
     resolveWorkspaceForHost: async (host: string) => (host === "example.com" ? "workspace-1" : null),
-    rootKeySeed: ROOT_KEY_SEED,
+    analyticsSeed: ANALYTICS_SEED,
     ...overrides,
   };
   return { deps, sink };

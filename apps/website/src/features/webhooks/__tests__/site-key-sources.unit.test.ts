@@ -187,7 +187,7 @@ test("siteKeyFilePathFrom: the per-site-file candidate's path when one is presen
 
 /**
  * §A.6 — `resolveSiteKeyFingerprint`: the read-only sibling of `resolveSiteKeyId`, backing the
- * admin Site Token route's `"mismatch"` state (a resolved key whose fingerprint differs from
+ * admin site key route's `"mismatch"` state (a resolved key whose fingerprint differs from
  * `.site-meta.json`'s own stamped `siteKeyFingerprint`).
  */
 test("resolveSiteKeyFingerprint: reads .site-meta.json's stamped siteKeyFingerprint", () => {

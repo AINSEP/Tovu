@@ -28,7 +28,7 @@ import {
  * 1. **Connecting a second computer must not disconnect the first.** The document is a list keyed
  *    by `sourceInstallationId`, and provisioning merges into it.
  * 2. **A stale grant must be visible as stale.** Matching is on the PUBLIC KEY, not the generation,
- *    because regenerating the Site Token changes the key while leaving the generation alone.
+ *    because regenerating the site key changes the key while leaving the generation alone.
  * 3. **Revoking publishing and revoking provider access are independent.** Two unrelated inputs can
  *    each switch publishing off on their own, and neither read path touches a provider credential.
  */
@@ -234,7 +234,7 @@ test("a Site key regeneration is reported as a stale key, not as connected", () 
   const status = describeConnection({
     resolution: res,
     sourceInstallationId: "laptop",
-    publicKeyB64u: "pk-laptop-after-regenerating-the-site-token",
+    publicKeyB64u: "pk-laptop-after-regenerating-the-site-key",
     siteLabel: "tovu.com",
     nowIso: NOW,
   });

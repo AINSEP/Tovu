@@ -211,7 +211,7 @@ export const webhooksDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToo
  * `targetUrl` or nothing at all), and `WebhookSubscriptionNotFoundError` interpolates the caller's
  * own id. The HMAC signing secret is never stored and never named by either class — it is derived
  * at delivery time by `KeyringPort.deriveSigningSecret` and lives entirely in `signing.ts`/
- * `keyring.env.ts`, whose errors (`RootKeyFileAlreadyExistsError` among them) are deliberately
+ * `keyring.env.ts`, whose errors (`SiteKeyFileAlreadyExistsError` among them) are deliberately
  * ABSENT here: they are operator/installation faults naming real filesystem paths, exactly the
  * class of internals this allowlist exists to keep redacted.
  *

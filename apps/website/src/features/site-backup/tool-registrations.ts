@@ -72,10 +72,10 @@ import {
  *
  * Credential errors are split so an operator can act on them: a label with no saved row is
  * `CREDENTIAL_NOT_FOUND` (with the labels that do exist), and a saved row this server cannot decrypt
- * is `CREDENTIAL_UNREADABLE`, whose message says WHICH problem it is from THIS SITE's own Site Token
- * status (`inspectRootKeyMaterial` run over `siteKeySourcesForSiteDir`'s site-aware source ordering —
- * site-key plan §A3b, the same composed helper the admin Site Token route reuses, so an active
- * per-site key file is never mistaken for "no Site Token" — see `unreadableCredentialMessage`) —
+ * is `CREDENTIAL_UNREADABLE`, whose message says WHICH problem it is from THIS SITE's own site key
+ * status (`inspectSiteKeyMaterial` run over `siteKeySourcesForSiteDir`'s site-aware source ordering —
+ * site-key plan §A3b, the same composed helper the admin site key route reuses, so an active
+ * per-site key file is never mistaken for "no site key" — see `unreadableCredentialMessage`) —
  * never from the decrypt error's own text, which can quote plaintext. (The same "unreadable reads as
  * missing" confusion `ADS-memory/.local-artifacts/reports/2026-09-21-byok-triage.md` traced for BYOK
  * keys.)
@@ -191,8 +191,8 @@ export interface SiteBackupToolDeps {
   readonly siteBackupSources?: SiteBackupSources;
   /** Test-only; defaults to the process-wide store. */
   readonly siteBackupPlanStore?: SiteBackupPlanStore;
-  /** Test-only; defaults to {@link siteAwareRootKeyStatus} (site-aware — see that function's doc). */
-  readonly siteBackupRootKeyStatus?: () => { readonly active: boolean; readonly invalid?: boolean };
+  /** Test-only; defaults to {@link siteAwareSiteKeyStatus} (site-aware — see that function's doc). */
+  readonly siteBackupSiteKeyStatus?: () => { readonly active: boolean; readonly invalid?: boolean };
   /** Test-only; defaults to `console.warn`. Receives only lines built here — never a token. */
   readonly siteBackupFailureLog?: (line: string) => void;
   /** Test-only; defaults to the real clock. */
@@ -287,14 +287,14 @@ async function pickCredentialLabel(deps: SiteBackupToolDeps, providers: readonly
 }
 
 /**
- * This site's own Site Token status ({@link inspectSiteKeyMaterial}), resolved over THIS site's
+ * This site's own site key status ({@link inspectSiteKeyMaterial}), resolved over THIS site's
  * site-aware source ordering ({@link siteKeySourcesForSiteDir} — site-key plan §A3b, the same
- * composed helper the admin Site Token route's `resolveSiteTokenSources` reuses) rather than the
- * module-wide env-then-legacy-file default `inspectRootKeyMaterial()` falls back to when called
+ * composed helper the admin site key route's `resolveSiteKeySources` reuses) rather than the
+ * module-wide env-then-legacy-file default `inspectSiteKeyMaterial()` falls back to when called
  * bare. That default cannot see a per-site key file at all (`~/.tovu/site-keys/<id>.hex`), so a site
  * whose OWN key is active but has no env var and no legacy shared file would be reported `active:
  * false` — the exact gap {@link unreadableCredentialMessage} used to surface as "this server has no
- * Site Token" for a site that in fact has one.
+ * site key" for a site that in fact has one.
  *
  * Falls back to the bare, non-site-aware status only when this runtime has no site folder at all
  * (`deps.siteBackupSources` absent — the in-memory `app.ts` runtime; in practice the plan tool's own
@@ -304,18 +304,18 @@ async function pickCredentialLabel(deps: SiteBackupToolDeps, providers: readonly
  * @complexity O(1) — one `.site-meta.json` read plus a fixed-size source list, matching
  *   {@link inspectSiteKeyMaterial}'s own cost.
  */
-function siteAwareRootKeyStatus(deps: SiteBackupToolDeps): { active: boolean; invalid?: boolean } {
+function siteAwareSiteKeyStatus(deps: SiteBackupToolDeps): { active: boolean; invalid?: boolean } {
   const siteDir = deps.siteBackupSources?.siteDir;
   if (siteDir === undefined) return inspectSiteKeyMaterial({ sources: siteKeySources({ mode: resolveRuntimeMode(), env: process.env, home: homedir(), cwd: process.cwd() }) });
   const sources = siteKeySourcesForSiteDir({ siteDir, mode: resolveRuntimeMode(), env: process.env, home: homedir(), cwd: process.cwd() });
   return inspectSiteKeyMaterial({ sources });
 }
 
-/** Why a saved credential could not be decrypted, from THIS SITE's own Site Token status
- *  ({@link siteAwareRootKeyStatus}) — never the bare, env/legacy-only default (see that function's
- *  own doc for why that used to misreport an active per-site key as "no Site Token"). */
+/** Why a saved credential could not be decrypted, from THIS SITE's own site key status
+ *  ({@link siteAwareSiteKeyStatus}) — never the bare, env/legacy-only default (see that function's
+ *  own doc for why that used to misreport an active per-site key as "no site key"). */
 function unreadableCredentialMessage(deps: SiteBackupToolDeps, label: string): string {
-  const status = (deps.siteBackupRootKeyStatus ?? (() => siteAwareRootKeyStatus(deps)))();
+  const status = (deps.siteBackupSiteKeyStatus ?? (() => siteAwareSiteKeyStatus(deps)))();
   if (status.active) {
     return (
       `the credential '${label}' is saved but cannot be decrypted with this server's Site key: it differs from the one the credential was saved under, ` +

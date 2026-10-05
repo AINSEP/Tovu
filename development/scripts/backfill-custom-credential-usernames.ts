@@ -40,7 +40,7 @@ import { siteKeyEnvOnlySources } from "../../apps/website/src/features/webhooks/
  * `backfill-vendor-credentials.ts` aborts the entire run on its first decrypt failure — the correct
  * choice for an irreversible cross-table secret move, where "half-moved" is a state worth stopping
  * to look at. This script's own dispatch requires the OPPOSITE behavior: a row that fails to decrypt
- * (a rotated or wrong master secret, or a corrupted row) is logged, counted, and SKIPPED — the run
+ * (a rotated or wrong site key, or a corrupted row) is logged, counted, and SKIPPED — the run
  * continues to every remaining row rather than stopping. Two reasons this is the right shape here,
  * not just a preference:
  *
@@ -75,7 +75,7 @@ import { siteKeyEnvOnlySources } from "../../apps/website/src/features/webhooks/
  *   npx tsx development/scripts/backfill-custom-credential-usernames.ts --apply
  *   npx tsx development/scripts/backfill-custom-credential-usernames.ts --db <path> --apply
  *
- * Both `--apply` and a dry run require `TOVU_INTEGRATIONS_ROOT_KEY` to be set to the SAME root key
+ * Both `--apply` and a dry run require `TOVU_SITE_KEY` to be set to the SAME site key
  * the live server uses (`EnvOrFileKeyring({ allowFileFallback: false })` — identical construction to
  * `server/deps.ts`'s `siteAssistantSecretKeyring`, the actual instance `custom-credentials/store.ts`
  * seals and opens through today) whenever the table has any `username IS NULL` row to classify — a
@@ -206,7 +206,7 @@ async function classifyRow(row: CustomCredentialRow, deps: { sealer: SecretSeale
  *
  * @throws Only for a condition this function has no safe way to route into the `failed` bucket:
  *   `deps.keyring.activeKey()`/`deps.sealer.derive` failing before any row is even attempted would
- *   mean the root key itself is unconfigured, not that any one row is bad — but this function never
+ *   mean the site key itself is unconfigured, not that any one row is bad — but this function never
  *   calls either eagerly, so in practice a decrypt/parse failure for one row is always caught and
  *   counted here, never propagated.
  * @complexity O(n) in the row count — one classification per row, and for a pending `--apply` row
@@ -274,7 +274,7 @@ export async function runCustomCredentialUsernameBackfill(
  * carries a `username` to copy — the same `extractUsername` check the apply loop itself applies,
  * reused here so the two can never disagree.
  *
- * The root key is resolved ONCE, unguarded, before the per-row loop: a systemic misconfiguration
+ * The site key is resolved ONCE, unguarded, before the per-row loop: a systemic misconfiguration
  * (the key entirely missing) must fail loudly here exactly as `--apply` already always required,
  * never get swallowed into a false "nothing pending". A single row's OWN decrypt/parse failure
  * (corrupt ciphertext, or sealed under an old, since-rotated key) is caught per-row and never counted
@@ -317,12 +317,12 @@ async function countPending(
   const rows = allRows.filter((row) => row.username === null);
   if (rows.length === 0) return { pending: 0, unreadable: [], totalRows: allRows.length };
 
-  // Forces root-key resolution up front (cached for every derive/open call below) so a missing key
+  // Forces site-key resolution up front (cached for every derive/open call below) so a missing key
   // fails loudly here rather than masquerading as "every row is unreadable, so nothing is pending".
   await deps.keyring.derive({
     workspaceId: "pending-check",
     purpose: "custom-credential-username-backfill",
-    info: "root-key-availability",
+    info: "site-key-availability",
   });
 
   let pending = 0;
@@ -356,7 +356,7 @@ async function main(): Promise<void> {
     // SQLite's own `readonly` connection mode, so neither can happen. A dry run now decrypts each
     // NULL-username row exactly like `--apply` does (see `runCustomCredentialUsernameBackfill`'s own
     // doc) so its reported counts genuinely match what `--apply` would do instead of over-counting
-    // token-only rows as "would be migrated" — it therefore needs `TOVU_INTEGRATIONS_ROOT_KEY` set
+    // token-only rows as "would be migrated" — it therefore needs `TOVU_SITE_KEY` set
     // whenever the table has any NULL-username row to classify, same as `--apply`. A table with no
     // NULL rows at all (nothing to classify) still needs no key.
     const db = openContentDbReadOnly(dbPath);
@@ -373,7 +373,7 @@ async function main(): Promise<void> {
 
   // Constructed before the pending check (moved up from after it): `countPending` now needs to
   // decrypt to tell a genuinely pending row from a token-only one, and a fully-migrated database
-  // (no NULL rows at all) still resolves no root key, same as before this change.
+  // (no NULL rows at all) still resolves no site key, same as before this change.
   const keyring = new EnvOrFileKeyring({ sources: siteKeyEnvOnlySources({}) });
   const sealer = new AesGcmSecretSealer(keyring);
 

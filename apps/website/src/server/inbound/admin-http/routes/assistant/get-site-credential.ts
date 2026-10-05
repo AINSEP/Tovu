@@ -7,7 +7,7 @@ import type { AssistantSettingsRouteRegistrar } from "./deps.js";
  * is set and what it ends in. Shape and error contract copied from `get-settings.ts` in this same
  * directory: same auth gate, same `{ data }` envelope, same 404-on-workspace-mismatch. Pure DB read
  * (`getSiteAssistantCredential` never decrypts — see that function's own doc), so this route cannot
- * fail on a misconfigured master secret the way PUT can.
+ * fail on a misconfigured site key the way PUT can.
  */
 export const registerAdminAssistantGetSiteCredentialRoute: AssistantSettingsRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/assistant/site-credential", async (req, res) => {

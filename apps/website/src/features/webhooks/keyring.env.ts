@@ -1,9 +1,9 @@
 import {
-  FixedRootKeyKeyring as JiniFixedSiteKeyKeyring,
-  UnusableRootKeyError as JiniUnusableSiteKeyError,
-  parseRootKeyHex as parseKeyHex,
-  fingerprintRootKeyHex as fingerprintKeyHex,
-  generateFileRootKey as generateKeyFile,
+  FixedRootKeyKeyring as JiniFixedSiteKeyKeyring, // site-key-legacy: until @jini-ai/platform release with SiteKey exports; remove on/after 2026-11-01
+  UnusableRootKeyError as JiniUnusableSiteKeyError, // site-key-legacy: until @jini-ai/platform release with SiteKey exports; remove on/after 2026-11-01
+  parseRootKeyHex as parseKeyHex, // site-key-legacy: until @jini-ai/platform release with SiteKey exports; remove on/after 2026-11-01
+  fingerprintRootKeyHex as fingerprintKeyHex, // site-key-legacy: until @jini-ai/platform release with SiteKey exports; remove on/after 2026-11-01
+  generateFileRootKey as generateKeyFile, // site-key-legacy: until @jini-ai/platform release with SiteKey exports; remove on/after 2026-11-01
 } from "@jini-ai/platform/secrets";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
@@ -17,7 +17,7 @@ import { SITE_KEY_ENV_VAR_NAME, resolveSiteKeyEnv, readSiteKeySourceMaterial, si
  * (ADR-PIPE-015 Phase 1, GAP-02/GAP-03).
  *
  * Purpose:
- * The real root-key source `signing.keyring.ts`'s signer depends on. Never persists the derived
+ * The real site-key source `signing.keyring.ts`'s signer depends on. Never persists the derived
  * signing secret itself (ADR-024 secret invariant, ADR-036 §5) — only the *root* key material is
  * held, and every signing secret is re-derived via HKDF on demand from it.
  *
@@ -77,17 +77,17 @@ import { SITE_KEY_ENV_VAR_NAME, resolveSiteKeyEnv, readSiteKeySourceMaterial, si
  *  sealing under it. Never rewrites, deletes or "repairs" the file — recovery is a separate,
  *  owner-level decision this module does not make.
  *
- * HKDF(rootKey, info = `${workspaceId}:${subscriptionId}:v${version}`) — shared by every keyring
+ * HKDF(siteKey, info = `${workspaceId}:${subscriptionId}:v${version}`) — shared by every keyring
  *  here so a key checked in memory derives exactly what the installed one will.
  *
  * `purpose` is bound into the info string (not just a label) so it is a real domain-separation
- *  boundary from {@link deriveSigningSecretFromRootKey} (ports.ts KeyringPort doc).
+ *  boundary from {@link deriveSigningSecretFromSiteKey} (ports.ts KeyringPort doc).
  *
- * A {@link KeyringPort} over one given root key, held only in memory — for checking a candidate
- * (a pasted site token, or the key "Start fresh" keeps) against sealed rows BEFORE it is written
+ * A {@link KeyringPort} over one given site key, held only in memory — for checking a candidate
+ * (a pasted site key, or the key "Start fresh" keeps) against sealed rows BEFORE it is written
  * anywhere. Derives exactly as {@link EnvOrFileKeyring} does.
  *
- * @throws {Error} `hex` is not a valid root key ({@link parseSiteKeyHex}) — callers validate first.
+ * @throws {Error} `hex` is not a valid site key ({@link parseSiteKeyHex}) — callers validate first.
  */
 
 export const HKDF_EXTRACTION_SALT = "tovu-integrations-root-key-hkdf-v1"; // site-key-frozen: never change (every sealed row depends on these bytes)
@@ -105,7 +105,7 @@ export interface SiteKeyReaderDeps {
 }
 
 /**
- * `KeyringPort` adapter resolving root-key material from an env var, or a generated file outside
+ * `KeyringPort` adapter resolving site-key material from an env var, or a generated file outside
  * the portable site folder. Thrown errors never carry a placeholder secret — a caller that
  * catches and swallows the error, then proceeds, is a bug in the caller, not this module.
  *
@@ -167,7 +167,7 @@ export class EnvOrFileKeyring implements KeyringPort {
 }
 
 /** Candidate-key adapter supplies Tovu's immutable HKDF salt; no root material is persisted. */
-// Recovery checks a pasted/retained Site Token against sealed rows BEFORE writing it anywhere;
+// Recovery checks a pasted/retained site key against sealed rows BEFORE writing it anywhere;
 // the candidate must derive exactly what the installed keyring would derive.
 export class FixedSiteKeyKeyring implements KeyringPort {
   private readonly keyring: JiniFixedSiteKeyKeyring;
@@ -201,7 +201,7 @@ function describeSiteKeySource(source: SiteKeySource): string {
   return source.kind === "env" ? `env var ${SITE_KEY_ENV_VAR_NAME}` : `the site key file at ${source.path}`;
 }
 
-/** Why present root-key material was refused. `"too-short"` means valid hex of fewer than
+/** Why present site-key material was refused. `"too-short"` means valid hex of fewer than
  *  {@link SITE_KEY_LENGTH_BYTES} bytes — the exact length this module itself generates, and the
  *  length of every secret HKDF derives from it, so anything shorter caps the derived key's entropy
  *  below its own size (a truncated copy or partial write lands here). */
@@ -215,7 +215,7 @@ export type ParsedSiteKeyHex =
   | { readonly ok: false; readonly reason: SiteKeyRejection; readonly hexDigits: number };
 
 /**
- * THE root-key validator — the one both {@link EnvOrFileKeyring}'s resolution (env and file
+ * THE site-key validator — the one both {@link EnvOrFileKeyring}'s resolution (env and file
  * branches alike) and {@link inspectSiteKeyMaterial}/{@link revealSiteKeyMaterial} call, so no two
  * paths in this module can reach different verdicts on the same material. Trims surrounding
  * whitespace (a trailing newline from `echo >` is not a malformed key), nothing else.
@@ -260,8 +260,8 @@ function unusableSiteKeyMessage(input: { subject: string; detail: string; sealed
 }
 
 /**
- * Thrown by {@link EnvOrFileKeyring} when a root-key source IS present but fails
- * {@link parseSiteKeyHex}. Distinct from the plain "no root key" errors (nothing configured):
+ * Thrown by {@link EnvOrFileKeyring} when a site-key source IS present but fails
+ * {@link parseSiteKeyHex}. Distinct from the plain "no site key" errors (nothing configured):
  * this one means something is configured and broken. Never carries the key material.
  */
 export class UnusableSiteKeyError extends Error {
@@ -277,7 +277,7 @@ export class UnusableSiteKeyError extends Error {
 }
 
 /**
- * A short, one-way fingerprint of root-key material — safe to display in an admin UI, never
+ * A short, one-way fingerprint of site-key material — safe to display in an admin UI, never
  * reversible to the key itself (`sha256`, truncated). Deliberately NOT `deriveSigningSecret`'s
  * HKDF (different salt, different purpose, different output length) — this must never be
  * confused with a real derived secret, it exists purely for a human to recognize "same key as
@@ -378,13 +378,13 @@ export interface SiteKeyReveal extends SiteKeyStatus {
 
 /**
  * Like {@link inspectSiteKeyMaterial}, but includes the raw key value when one is active — backs
- * the admin "Site Token" panel's explicit, permission-gated Reveal action (owner: "i want that
+ * the admin "site key" panel's explicit, permission-gated Reveal action (owner: "i want that
  * token to be visible to admins or else when it breaks they have no idea whats going on" —
  * fingerprint-only was the ORIGINAL brief; this supersedes it). Never called on page load, only
  * from a dedicated route the operator must click through — see `server/inbound/admin-http/routes/
- * system/site-token.ts`'s `POST .../reveal`.
+ * system/site-key.ts`'s `POST .../reveal`.
  *
- * Reads whichever source is currently active (env or file, same precedence as `resolveRootKey`),
+ * Reads whichever source is currently active (env or file, same precedence as `resolveSiteKey`),
  * so an admin can confirm the value in this UI matches what they set in `fly secrets`/their shell,
  * not only the file-backed case.
  */
@@ -406,7 +406,7 @@ export class SiteKeyFileAlreadyExistsError extends Error {
 }
 
 /** {@link generateFileSiteKey}'s result. `hex` is the raw key this call just wrote to disk, in
- *  the clear — but `server/inbound/admin-http/routes/system/site-token.ts`'s `POST .../generate`
+ *  the clear — but `server/inbound/admin-http/routes/system/site-key.ts`'s `POST .../generate`
  *  deliberately does NOT forward it in the HTTP response (sol finding 3-2, 2026-09-16): the admin
  *  controller never read it, so echoing it over the wire was pure exposure with no product
  *  behavior. `POST .../reveal` is the one route that discloses the value on purpose. Callers of
@@ -418,12 +418,12 @@ export interface GeneratedFileSiteKey {
 }
 
 /**
- * Generates a fresh root key and writes it to `keyFilePath` (default: the exact same
- * `~/.tovu/integrations-root-key.hex` `EnvOrFileKeyring` reads by default) — backs the admin
- * "Site Token" panel's Generate action.
+ * Generates a fresh site key and writes it to `keyFilePath` (default: the exact same
+ * `~/.tovu/site-key.hex` `EnvOrFileKeyring` reads by default) — backs the admin
+ * "site key" panel's Generate action.
  *
- * Uses the same `randomBytes(ROOT_KEY_LENGTH_BYTES)` call and `0o600` file mode
- * `resolveRootKey`'s own generated-file fallback above uses — not a second, independently-reasoned
+ * Uses the same `randomBytes(SITE_KEY_LENGTH_BYTES)` call and `0o600` file mode
+ * `resolveSiteKey`'s own generated-file fallback above uses — not a second, independently-reasoned
  * source of randomness.
  *
  * Refuses (throws {@link SiteKeyFileAlreadyExistsError}) if anything already exists at that path —
@@ -450,7 +450,7 @@ export function generateFileSiteKey(options: { keyFilePath: string }, _optional 
   mkdirSync(dirname(keyFilePath), { recursive: true, mode: 0o700 });
   try { return generateKeyFile({ keyFilePath }); }
   catch (error) {
-    if (isAlreadyExistsError(error) || (error instanceof Error && error.name === "RootKeyFileAlreadyExistsError")) {
+    if (isAlreadyExistsError(error) || (error instanceof Error && error.name === "RootKeyFileAlreadyExistsError")) { // site-key-legacy: until @jini-ai/platform release with SiteKey exports; remove on/after 2026-11-01
       throw new SiteKeyFileAlreadyExistsError(keyFilePath);
     }
     throw error;

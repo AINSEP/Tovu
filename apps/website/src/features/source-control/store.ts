@@ -25,7 +25,7 @@ import type {
  * against a real caller.
  *
  * {@link describeCredential}/{@link listSourceControlCredentials} — read model only, never touch
- * `sealer`/`keyring` at all, so neither can fail on a misconfigured master secret.
+ * `sealer`/`keyring` at all, so neither can fail on a misconfigured site key.
  *
  * {@link createSourceControlCredential}/{@link updateSourceControlCredential}/
  * {@link deleteSourceControlCredential} — validate-then-write. `connection`, when supplied, is
@@ -64,7 +64,7 @@ export class SourceControlCredentialValidationError extends Error {}
 export class SourceControlCredentialDuplicateLabelError extends Error {}
 
 /** Thrown when `sealer.seal()`/`keyring.activeKey()` fails while writing a connection — the
- *  realistic cause is a missing master secret (`TOVU_INTEGRATIONS_ROOT_KEY`), same fail-closed
+ *  realistic cause is a missing site key (`TOVU_SITE_KEY`), same fail-closed
  *  contract `PublishCredentialSecretStoreUnconfiguredError` documents for the sibling table. */
 export class SourceControlCredentialSecretStoreUnconfiguredError extends Error {}
 
@@ -115,7 +115,7 @@ export interface SourceControlCredentialReadDeps {
 
 /**
  * The read model for ONE credential set. Pure DB read — no sealer, no keyring, cannot fail on a
- * misconfigured master secret. Returns `null` if no row exists for `(workspaceId, id)` (not an
+ * misconfigured site key. Returns `null` if no row exists for `(workspaceId, id)` (not an
  * error — the caller decides whether that is a 404).
  *
  * @complexity O(1) — one `findById` lookup.
@@ -264,7 +264,7 @@ function decideCreateDefault(existingForProvider: readonly unknown[], requested:
  *   validation.
  * @throws {SourceControlCredentialDuplicateLabelError} `(workspaceId, providerId, label)` already
  *   exists.
- * @throws {SourceControlCredentialSecretStoreUnconfiguredError} The master secret is unavailable.
+ * @throws {SourceControlCredentialSecretStoreUnconfiguredError} The site key is unavailable.
  * @complexity O(n) in the provider's own (small) existing-connection count, to decide default
  *   auto-assignment, plus one keyring derivation, one seal, and one insert (which may itself throw
  *   on the UNIQUE index, translated here rather than propagated raw).
@@ -330,7 +330,7 @@ export interface UpdateSourceControlCredentialInput {
  * @throws {SourceControlCredentialDuplicateLabelError} The (possibly renamed) `(providerId, label)`
  *   collides with a different row.
  * @throws {SourceControlCredentialSecretStoreUnconfiguredError} A new `connection` was supplied but
- *   the master secret is unavailable.
+ *   the site key is unavailable.
  * @complexity O(1) — one read, at most one seal, one update.
  */
 export async function updateSourceControlCredential(
@@ -401,7 +401,7 @@ export async function deleteSourceControlCredential(deps: SourceControlCredentia
  *  (`aad.ts`'s header).
  *
  *  Wraps ANY failure (bad AAD, tampered ciphertext, wrong key, or — the realistic one — a missing
- *  `TOVU_INTEGRATIONS_ROOT_KEY` surfacing as a raw `KeyringPort` error) into the SAME typed
+ *  `TOVU_SITE_KEY` surfacing as a raw `KeyringPort` error) into the SAME typed
  *  {@link SourceControlCredentialSecretStoreUnconfiguredError} {@link sealConnection} already throws
  *  for the write side, rather than letting a raw `Error` escape — mirrors `publish-credentials/
  *  store.ts`'s own `decryptRecord` fix (2026-08-16) byte-for-byte, for the identical reason.
@@ -441,10 +441,10 @@ async function decryptRecord(sealer: SecretSealerPort, record: SourceControlCred
  * this file's header already warns against.
  *
  * Same "no such row" (`null`, a normal outcome) vs. genuine decrypt failure (thrown, a tampered row or
- * missing master secret) distinction {@link resolveDefaultForPublish} documents for its own contract.
+ * missing site key) distinction {@link resolveDefaultForPublish} documents for its own contract.
  *
  * @throws {SourceControlCredentialSecretStoreUnconfiguredError} `decryptRecord` failed — a
- *   tampered/corrupt row or (the realistic cause) a missing master secret. See that function's own
+ *   tampered/corrupt row or (the realistic cause) a missing site key. See that function's own
  *   doc for why this is a typed error rather than whatever raw error `SecretSealerPort.open()`/
  *   `KeyringPort` produced.
  * @complexity O(1) — one repo read, one decrypt, one `JSON.parse`.

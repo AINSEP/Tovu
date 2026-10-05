@@ -7,7 +7,7 @@ import type { AssistantSettingsRouteRegistrar } from "./deps.js";
  * `provider`/`baseUrl`/`model` are left as they were (see `deleteSiteAssistantCredential`'s own
  * doc). Idempotent: deleting an already-unset key is a normal 200, not a 404 — this is "make sure no
  * key is stored," not "a key must currently exist." No sealer/keyring involved (clearing needs no
- * decrypt), so this cannot fail on a misconfigured master secret either.
+ * decrypt), so this cannot fail on a misconfigured site key either.
  */
 export const registerAdminAssistantDeleteSiteCredentialRoute: AssistantSettingsRouteRegistrar = (app, deps) => {
   app.delete("/api/admin/v1/workspaces/:workspaceId/assistant/site-credential", async (req, res) => {

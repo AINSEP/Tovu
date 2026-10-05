@@ -37,7 +37,7 @@ function makeDeps() {
 }
 
 /** A `KeyringPort` that always fails `derive()`/`activeKey()` — simulates a missing
- *  `TOVU_INTEGRATIONS_ROOT_KEY` without touching real env state. */
+ *  `TOVU_SITE_KEY` without touching real env state. */
 class BrokenKeyring implements KeyringPort {
   async activeKey(): Promise<{ readonly keyId: string }> {
     throw new Error("no site key: TOVU_SITE_KEY is not set and allowFileFallback is disabled");
@@ -272,7 +272,7 @@ test("resolveExecutionCredential returns null (not a throw) when the sealed row 
   const { deps, repo } = makeDeps();
   await setExecutionCredential(deps, { workspaceId: WORKSPACE, principalId: ADMIN_A, apiKey: "some-key" });
 
-  // A sealer over a DIFFERENT root key generation — simulates a rotated/reset master secret.
+  // A sealer over a DIFFERENT site key generation — simulates a rotated/reset site key.
   const otherSealer = new AesGcmSecretSealer(new InMemoryKeyring("different-generation"));
   let warned = 0;
   const resolved = await resolveExecutionCredential(

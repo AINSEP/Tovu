@@ -206,11 +206,11 @@ test("§4.2 / §2.1 step 1: a default owner password is inert outside production
 });
 
 /**
- * 2026-09-09 integrations-root-key fix (RED-first regression): before this check existed, a
- * production boot with `TOVU_INTEGRATIONS_ROOT_KEY` unset returned `{ ok: true }` here — the real
+ * 2026-09-09 site-key fix (RED-first regression): before this check existed, a
+ * production boot with `TOVU_SITE_KEY` unset returned `{ ok: true }` here — the real
  * bug this suite now pins closed. `EnvOrFileKeyring`'s generated-file fallback resolves against the
  * container's own ephemeral rootfs, not the persistent volume, so an unset var used to boot fine and
- * silently mint a fresh, throwaway root key on every redeploy.
+ * silently mint a fresh, throwaway site key on every redeploy.
  */
 test("2026-09-09 fix: a missing TOVU_SITE_KEY refuses production boot, names the check", async () => {
   const result = await runProductionReadinessGate({
@@ -274,7 +274,7 @@ test("2026-09-09 fix: aggregates alongside other unsafe defaults and undurable c
   });
   assert.equal(result.ok, false);
   if (!result.ok) {
-    // undurable capability + dev-secret-placeholder + missing-integrations-root-key = 3 distinct
+    // undurable capability + dev-secret-placeholder + missing-site-key = 3 distinct
     // failures, none short-circuited by the others (behavior.spec.md §2.1).
     assert.equal(result.failures.length, 3);
     assert.ok(result.failures.some((f) => f.code === "PRODUCTION_CAPABILITY_NOT_DURABLE"));

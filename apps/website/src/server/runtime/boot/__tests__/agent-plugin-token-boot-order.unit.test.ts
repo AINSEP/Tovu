@@ -75,7 +75,7 @@ test("default boot adapters preserve a failed onboarding token over a conflictin
     enabled: false, command: "", url: "https://mcp.example.com/mcp", args: "", allowedToolNames: "",
     writeAllowedToolNames: "", principalId: "owner", provisionedByPluginId: "supabase",
   });
-  const sealed = await sealer.seal({ plaintext: "chosen-site-token", key: await keyring.activeKey(), aad: "tovu:agent-plugin-pending-token:v1:supabase" });
+  const sealed = await sealer.seal({ plaintext: "chosen-site-key", key: await keyring.activeKey(), aad: "tovu:agent-plugin-pending-token:v1:supabase" });
   const pendingFile = path.join(siteDir, PENDING_AGENT_PLUGIN_TOKENS_FILENAME);
   fs.writeFileSync(pendingFile, JSON.stringify({ version: 1, tokens: { supabase: sealed } }));
   let failImport = true;
@@ -98,6 +98,6 @@ test("default boot adapters preserve a failed onboarding token over a conflictin
   await importAgentPluginTokensAtBoot(realDeps, bootOptions);
   const saved = await repo.findByServerId({ workspaceId: realDeps.workspaceId, serverId: "supabase" });
   assert.ok(saved?.sealedOAuth);
-  assert.equal((await openExternalMcpOAuthPayload(sealer, saved)).staticAccessToken, "chosen-site-token");
+  assert.equal((await openExternalMcpOAuthPayload(sealer, saved)).staticAccessToken, "chosen-site-key");
   assert.equal(fs.existsSync(pendingFile), false);
 });

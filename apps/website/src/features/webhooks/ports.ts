@@ -26,9 +26,9 @@
  *
  * Contract rationale for the Jini implementation and this host boundary:
  *
- * Opaque root-key handle. The raw bytes never cross the SDK/ABI surface (ADR-024 §3 by-handle).
+ * Opaque site-key handle. The raw bytes never cross the SDK/ABI surface (ADR-024 §3 by-handle).
  *
- * Names the active root-key generation, stamped into {@link SealedSecret.keyId}.
+ * Names the active site-key generation, stamped into {@link SealedSecret.keyId}.
  */
 import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
 import type { EgressPolicy, HttpClientPort } from "../../platform/http/index.js";
@@ -49,21 +49,21 @@ export type { EgressPolicy, HttpClientPort, HttpRequest, HttpResponse } from "..
 /* Secret material — kept OUT of the portable content.db                       */
 /* -------------------------------------------------------------------------- */
 
-export type { RootKeyHandle as SiteKeyHandle } from "@jini-ai/platform/secrets";
-import type { RootKeyHandle as SiteKeyHandle } from "@jini-ai/platform/secrets";
+export type { RootKeyHandle as SiteKeyHandle } from "@jini-ai/platform/secrets"; // site-key-legacy: until @jini-ai/platform release with SiteKey exports; remove on/after 2026-11-01
+import type { RootKeyHandle as SiteKeyHandle } from "@jini-ai/platform/secrets"; // site-key-legacy: until @jini-ai/platform release with SiteKey exports; remove on/after 2026-11-01
 
 /**
- * Access to the install's root key, held OUTSIDE `content.db` (env var now → OS keychain next =
+ * Access to the install's site key, held OUTSIDE `content.db` (env var now → OS keychain next =
  * rule-of-two), so the portable folder never carries usable secret material (ADR-024 secret
  * invariant). Signing secrets are DERIVED from it (never stored): the delivery worker calls
- * {@link deriveSigningSecret} at sign time. Rotating the root key re-derives all signing secrets
+ * {@link deriveSigningSecret} at sign time. Rotating the site key re-derives all signing secrets
  * (receivers must re-copy) and is the trigger for a sealed-secret rewrap on export.
  */
 export interface KeyringPort {
   activeKey(): Promise<SiteKeyHandle>;
   /**
-   * HKDF(rootKey, info = `${workspaceId}:${subscriptionId}:v${version}`) → raw signing secret.
-   * Deterministic for a fixed root key, so no per-subscription secret is ever persisted.
+   * HKDF(siteKey, info = `${workspaceId}:${subscriptionId}:v${version}`) → raw signing secret.
+   * Deterministic for a fixed site key, so no per-subscription secret is ever persisted.
    */
   deriveSigningSecret(input: {
     workspaceId: UUID;
@@ -78,7 +78,7 @@ export interface KeyringPort {
    * fields can't express Analytics' `analytics-salt:{workspaceId}:{utcDate}` info string or
    * Newsletter's unsubscribe-token info string, which must include `consent_revision_id`).
    * `purpose` namespaces the caller (e.g. `'analytics-salt'`, `'newsletter-unsubscribe'`); `info`
-   * is the caller-owned, fully-formed HKDF info string. Same root-key custody guarantee as
+   * is the caller-owned, fully-formed HKDF info string. Same site-key custody guarantee as
    * `deriveSigningSecret` — no raw key material crosses this interface, only derived output.
    * **Implementations MUST bind `purpose` into the derivation** (e.g. effective HKDF info =
    * `${purpose}:${info}`, or `purpose` as the HKDF salt/label) and MUST keep `derive()`
@@ -92,7 +92,7 @@ export interface KeyringPort {
 /**
  * Seals/opens recoverable outbound credentials (unlike signing secrets, these must round-trip).
  * Rule-of-two: a real AEAD adapter (libsodium/AES-GCM) built now + an in-memory test double.
- * Wrapping is always under a {@link KeyringPort} root key, so `content.db` holds only ciphertext.
+ * Wrapping is always under a {@link KeyringPort} site key, so `content.db` holds only ciphertext.
  *
  * `aad` (Additional Authenticated Data, AES-GCM's own mechanism — RFC 5116 §5.1) is OPTIONAL and
  * backward compatible: a caller that never passes it keeps sealing/opening exactly as before. A

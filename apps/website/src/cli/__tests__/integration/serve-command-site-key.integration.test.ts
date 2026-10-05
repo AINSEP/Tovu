@@ -26,17 +26,16 @@ const require = createRequire(import.meta.url);
  *    never block boot — `ensureSiteKey`'s own `"refuse"` action semantics), but no file is created.
  *
  * Scoped to a filesystem assertion (the per-site file's presence/absence under a temp `HOME`), not
- * an authenticated HTTP round trip against the admin Site Token route — that route needs a
+ * an authenticated HTTP round trip against the admin site key route — that route needs a
  * login/cookie flow this suite has no existing pattern for, and A3b's own route tests will cover
- * that surface directly. See the A3a handoff (`ADS-memory/.local-artifacts/handoffs/
- * 2026-09-24-site-key-A3.md`) for the reasoning this file was modeled from.
+ * that surface directly. See the historical Stage A3 dispatch dated 2026-09-24 for the reasoning this file was modeled from.
  *
  * `HOME` is explicitly overridden to a fresh temp directory per test, and
- * `TOVU_INTEGRATIONS_ROOT_KEY`/`TOVU_SITE_KEY` are explicitly blanked in the child's env — never
+ * The primary and deprecated site-key environment variables are explicitly blanked in the child's env — never
  * relying on merely inheriting `process.env` (via `childProcessCoverageEnv`, which copies the FULL
- * parent env): the owner's shell may already export a real root key. Blank string is this
+ * parent env): the owner's shell may already export a real site key. Blank string is this
  * codebase's own established "treat as absent" convention (`development/scripts/start.mjs`'s
- * `clearBlankRootKeyEnv`).
+ * `clearBlankSiteKeyEnv`).
  */
 
 const CLI_MAIN = path.resolve(import.meta.dirname, "../../main.ts");
@@ -168,7 +167,7 @@ function buildSealedCiphertextDb(dbPath: string): void {
 }
 
 /** Env every test in this file spawns with: a fresh, isolated `HOME` (so `~/.tovu/site-keys/`
- *  resolves under a throwaway temp dir, never the real one) and both root-key env var names
+ *  resolves under a throwaway temp dir, never the real one) and both site-key env var names
  *  explicitly made ABSENT — see this file's header for why inheriting the real parent env is
  *  unsafe here.
  *

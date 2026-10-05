@@ -81,7 +81,7 @@ async function sealedQuad(input: { sealer: Sealer; keyring: InMemoryKeyring; pla
 
 /**
  * One sealed row in every production sealed column, each sealed by `sealWith` under that store's AAD.
- * The rows in `kernel` are sealed under `sealWith`'s root key.
+ * The rows in `kernel` are sealed under `sealWith`'s site key.
  */
 async function seedEverySealedColumn(kernel: ContentKernel, sealWith: { sealer: Sealer; keyring: InMemoryKeyring }, secrets: string[]): Promise<void> {
   await seedPrincipals(kernel, WS, ["principal-1"]);
@@ -164,7 +164,7 @@ async function freshFixture(kernel: ContentKernel): Promise<Fixture> {
 }
 
 function depsFor(fixture: Pick<Fixture, "kernel">, overrides: Partial<SealedCredentialInventoryDeps> & { sealer: Sealer; keyring: InMemoryKeyring }): SealedCredentialInventoryDeps {
-  return { kernel: fixture.kernel, hasRootKeySource: () => true, descriptors: SEALED_COLUMN_DESCRIPTORS, ...overrides };
+  return { kernel: fixture.kernel, hasSiteKeySource: () => true, descriptors: SEALED_COLUMN_DESCRIPTORS, ...overrides };
 }
 
 function assertNoSecretIn(inventory: SealedCredentialInventory, secrets: readonly string[]): void {
@@ -268,14 +268,14 @@ for (const each of eachDialect({ tables: TABLES, make: (kernel) => kernel })) {
     assert.equal(vendor?.unknownReason, "no-descriptor");
   });
 
-  test(`undeterminable: with no site key source present, every row is unknown/no-root-key and the sealer is never called [${each.name}]`, async () => {
+  test(`undeterminable: with no site key source present, every row is unknown/no-site-key and the sealer is never called [${each.name}]`, async () => {
     const fixture = await freshFixture(each.make());
     const sealer = countingSealer(fixture.sealer);
-    const inventory = await listSealedCredentials(depsFor(fixture, { sealer, keyring: fixture.keyring, hasRootKeySource: () => false }));
+    const inventory = await listSealedCredentials(depsFor(fixture, { sealer, keyring: fixture.keyring, hasSiteKeySource: () => false }));
 
     assert.equal(sealer.calls, 0, "no derivation may run when no key source exists — a keyring could mint one");
     assert.deepEqual(inventory.totals, { sealed: 13, opens: 0, doesNotOpen: 0, unknown: 13 });
-    assert.ok(inventory.entries.every((entry) => entry.unknownReason === "no-root-key"));
+    assert.ok(inventory.entries.every((entry) => entry.unknownReason === "no-site-key"));
   });
 
   test(`undeterminable: a key source that cannot round-trip a probe makes every row unknown — never false — and no error text leaks [${each.name}]`, async () => {
@@ -326,7 +326,7 @@ for (const each of eachDialect({ tables: TABLES, make: (kernel) => kernel })) {
       ...(await sealedQuad({ sealer, keyring, plaintext: "c", aad: buildSiteAssistantCredentialAad({ workspaceId: WS as UUID }), secrets })),
     });
 
-    const inventory = await listSealedCredentials({ kernel, sealer, keyring, hasRootKeySource: () => true, descriptors: SEALED_COLUMN_DESCRIPTORS });
+    const inventory = await listSealedCredentials({ kernel, sealer, keyring, hasSiteKeySource: () => true, descriptors: SEALED_COLUMN_DESCRIPTORS });
     const byWorkspace = new Map(inventory.entries.map((entry) => [entry.workspaceId, entry]));
 
     assert.equal(byWorkspace.get(WS)?.opensUnderActiveKey, "unknown");
@@ -358,7 +358,7 @@ for (const each of eachDialect({ tables: TABLES, make: (kernel) => kernel })) {
       },
       aadFor: () => ({ kind: "aad", aad: "fixture" }),
     });
-    const run = (descriptors: SealedColumnDescriptor[]) => listSealedCredentials({ kernel, sealer, keyring, hasRootKeySource: () => true, descriptors });
+    const run = (descriptors: SealedColumnDescriptor[]) => listSealedCredentials({ kernel, sealer, keyring, hasSiteKeySource: () => true, descriptors });
 
     const fits = await run([descriptor(["id", "name"])]);
     assert.deepEqual(fits.entries.map((entry) => [entry.rowId, entry.unknownReason]), [["alg", "unsupported-alg"], ["incomplete", "incomplete-sealed-row"], [null, "descriptor-error"]]);
@@ -385,7 +385,7 @@ for (const each of eachDialect({ tables: TABLES, make: (kernel) => kernel })) {
       provider: "anthropic",
     });
 
-    const inventory = await listSealedCredentials({ kernel, sealer, keyring, hasRootKeySource: () => true, descriptors: SEALED_COLUMN_DESCRIPTORS });
+    const inventory = await listSealedCredentials({ kernel, sealer, keyring, hasSiteKeySource: () => true, descriptors: SEALED_COLUMN_DESCRIPTORS });
 
     assert.equal(await resolveSiteAssistantApiKey({ repo, sealer }, { workspaceId: WS as UUID }).then((resolved) => resolved?.apiKey), `${LEAK}real-store-api-key`);
     assert.deepEqual(inventory.totals, { sealed: 1, opens: 1, doesNotOpen: 0, unknown: 0 });

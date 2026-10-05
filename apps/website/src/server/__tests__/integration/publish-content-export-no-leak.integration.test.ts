@@ -291,15 +291,15 @@ async function loginAsOwner(baseUrl: string): Promise<string> {
 test("GET .../publish-content/export never leaks a row from any sensitive table, even for the most-privileged (wildcard) caller", async (t) => {
   // `createApp` → `createCoreModule` → `deriveInstallationId` (publish-trust, `112153842`,
   // 2026-09-19 — one day AFTER this test was written) now derives an installation credential from
-  // the real root key on every boot, via `EnvOrFileKeyring`. This test must never read the
-  // machine's own key (or write `~/.tovu/integrations-root-key.hex`), so it sets a throwaway
+  // the real site key on every boot, via `EnvOrFileKeyring`. This test must never read the
+  // machine's own key (or write `~/.tovu/site-key.hex`), so it sets a throwaway
   // synthetic one for its own process only — the same pattern
-  // `root-key-boot-notice.unit.test.ts` uses — and restores whatever was there before.
-  const rootKeyBefore = process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
+  // `site-key-boot-notice.unit.test.ts` uses — and restores whatever was there before.
+  const siteKeyBefore = process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
   process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = "a".repeat(64);
   t.after(() => {
-    if (rootKeyBefore === undefined) delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
-    else process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = rootKeyBefore;
+    if (siteKeyBefore === undefined) delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
+    else process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = siteKeyBefore;
   });
 
   const db = openContentDb(":memory:");

@@ -936,7 +936,7 @@ test("the connection gate ignores a static_env server, which has no authorizatio
 // pass the `seal` case by accident.
 // ---------------------------------------------------------------------------
 
-/** A sealer that cannot open anything — a rotated `TOVU_INTEGRATIONS_ROOT_KEY`, a changed AAD, or a
+/** A sealer that cannot open anything — a rotated `TOVU_SITE_KEY`, a changed AAD, or a
  *  corrupt row. `openExternalMcpOAuthPayload` converts any `open` failure into
  *  `ExternalMcpSecretStoreUnconfiguredError`; sealing is left working so the failure is unambiguously
  *  the read leg. */
@@ -947,7 +947,7 @@ function sealerThatCannotOpen(inner: SecretSealerPort): SecretSealerPort {
   };
 }
 
-/** Opens `healthyOpens` times and then stops — a root key that goes away BETWEEN a boot-time read
+/** Opens `healthyOpens` times and then stops — a site key that goes away BETWEEN a boot-time read
  *  and the write that follows it, which is how a live session discovers the problem rather than a
  *  process that was broken from the start. */
 function sealerThatStopsOpeningAfter(inner: SecretSealerPort, healthyOpens: number): SecretSealerPort {

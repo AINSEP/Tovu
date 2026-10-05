@@ -9,11 +9,11 @@ import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { bootAuthenticated } from "../helpers/http-test-server.js";
 
 /**
- * @file Site-key plan §A3b — the Deployment Overview's `TOVU_INTEGRATIONS_ROOT_KEY` row must
- * resolve THIS site's own source order (`resolveSiteTokenSources`, `routes/system/site-token.ts`) —
- * the same seam `site-token.ts`'s own `GET`/`reveal`/`generate` verbs already use — instead of the
- * module-level `inspectRootKeyMaterial()` hardcoded env-then-legacy-default precedence. Mirrors
- * `admin-site-token-routes.test.ts`'s "generate writes THIS site's own per-site key file" proof, but
+ * @file Site-key plan §A3b — the Deployment Overview's `TOVU_SITE_KEY` row must
+ * resolve THIS site's own source order (`resolveSiteKeySources`, `routes/system/site-key.ts`) —
+ * the same seam `site-key.ts`'s own `GET`/`reveal`/`generate` verbs already use — instead of the
+ * module-level `inspectSiteKeyMaterial()` hardcoded env-then-legacy-default precedence. Mirrors
+ * `admin-site-key-routes.test.ts`'s "generate writes THIS site's own per-site key file" proof, but
  * read-only: stamps a resolvable `siteKeyId` and writes a valid key file directly at the PER-SITE
  * path, never at the legacy default a non-site-aware read would still check — so a non-site-aware
  * implementation reports "missing" here while a site-aware one reports "active".
@@ -21,18 +21,18 @@ import { bootAuthenticated } from "../helpers/http-test-server.js";
 
 /** Redirects `homedir()`-based default key-file resolution to a throwaway temp dir for the life of
  *  one test, and clears the env var so only the per-site file this test writes can make the row
- *  active — same pattern `admin-site-token-routes.test.ts`'s own `isolateHomeDir` uses. */
+ *  active — same pattern `admin-site-key-routes.test.ts`'s own `isolateHomeDir` uses. */
 function isolateHomeDir(t: import("node:test").TestContext): string {
   const dir = mkdtempSync(path.join(tmpdir(), "tovu-deployment-overview-test-home-"));
   const originalHome = process.env.HOME;
-  const originalRootKey = process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
+  const originalSiteKey = process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
   process.env.HOME = dir;
   delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
   t.after(() => {
     if (originalHome === undefined) delete process.env.HOME;
     else process.env.HOME = originalHome;
-    if (originalRootKey === undefined) delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
-    else process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = originalRootKey;
+    if (originalSiteKey === undefined) delete process.env[LEGACY_SITE_KEY_ENV_VAR_NAME];
+    else process.env[LEGACY_SITE_KEY_ENV_VAR_NAME] = originalSiteKey;
     rmSync(dir, { recursive: true, force: true });
   });
   return dir;
@@ -49,7 +49,7 @@ test("deployment-overview: TOVU_SITE_KEY row is site-aware — reads THIS site's
   writeFileSync(siteMetaPath, JSON.stringify({ siteId: "deployment-overview-site-key-test" }));
 
   // A valid 32-byte key written ONLY at the per-site path — never at the legacy default
-  // (`~/.tovu/integrations-root-key.hex`) a non-site-aware read would still check.
+  // (`~/.tovu/site-key.hex`) a non-site-aware read would still check.
   const perSiteKeyPath = path.join(home, ".tovu", "site-keys", "deployment-overview-site-key-test.hex");
   mkdirSync(path.dirname(perSiteKeyPath), { recursive: true });
   writeFileSync(perSiteKeyPath, "ab".repeat(32));
@@ -62,10 +62,10 @@ test("deployment-overview: TOVU_SITE_KEY row is site-aware — reads THIS site's
   });
   assert.equal(res.status, 200);
   const body = (await res.json()) as { envVars: Array<{ name: string; set: boolean; source?: string }> };
-  const rootKeyRow = body.envVars.find((row) => row.name === "TOVU_SITE_KEY");
-  assert.ok(rootKeyRow, "the TOVU_SITE_KEY row is present");
-  assert.equal(rootKeyRow?.set, true, "the per-site key file must be found and counted as active");
-  assert.equal(rootKeyRow?.source, "file");
+  const siteKeyRow = body.envVars.find((row) => row.name === "TOVU_SITE_KEY");
+  assert.ok(siteKeyRow, "the TOVU_SITE_KEY row is present");
+  assert.equal(siteKeyRow?.set, true, "the per-site key file must be found and counted as active");
+  assert.equal(siteKeyRow?.source, "file");
 });
 
 test("deployment-overview: falls back to today's behavior when this site has no resolvable siteKeyId", async (t) => {
@@ -83,8 +83,8 @@ test("deployment-overview: falls back to today's behavior when this site has no 
   });
   assert.equal(res.status, 200);
   const body = (await res.json()) as { envVars: Array<{ name: string; set: boolean; source?: string }> };
-  const rootKeyRow = body.envVars.find((row) => row.name === "TOVU_SITE_KEY");
-  assert.ok(rootKeyRow, "the TOVU_SITE_KEY row is present");
-  assert.equal(rootKeyRow?.set, false, "nothing is configured at the env var or the legacy default file");
-  assert.equal(rootKeyRow?.source, "none");
+  const siteKeyRow = body.envVars.find((row) => row.name === "TOVU_SITE_KEY");
+  assert.ok(siteKeyRow, "the TOVU_SITE_KEY row is present");
+  assert.equal(siteKeyRow?.set, false, "nothing is configured at the env var or the legacy default file");
+  assert.equal(siteKeyRow?.source, "none");
 });

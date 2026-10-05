@@ -12,7 +12,7 @@ import { buildSiteAssistantCredentialAad } from "./site-credential-aad.js";
  * Three functions, one contract each:
  * - {@link getSiteAssistantCredential} — read model only. Never decrypts (`masked` is a plain
  *   column, computed once at write time — ADR-058 §3), so this never touches the sealer/keyring and
- *   never fails on a misconfigured master secret.
+ *   never fails on a misconfigured site key.
  * - {@link setSiteAssistantCredential} — write-only for the key itself: `apiKey`, when provided, is
  *   sealed and never echoed back. Omitted `apiKey` leaves the stored key untouched.
  * - {@link deleteSiteAssistantCredential} — clears the key only; `provider`/`baseUrl`/`model` are
@@ -22,7 +22,7 @@ import { buildSiteAssistantCredentialAad } from "./site-credential-aad.js";
  * {@link resolveSiteAssistantApiKey} is the fourth function and the odd one out: it is the RUNTIME
  * consumer's read path (called from `site-assistant.ts` per chat request, not from an admin route),
  * and its contract is the opposite of the other three — it must NEVER throw. A missing row, a
- * missing master secret, or a corrupt/tampered ciphertext all resolve to `null`, which the caller
+ * missing site key, or a corrupt/tampered ciphertext all resolve to `null`, which the caller
  * treats as "fall back to `env.GEMINI_API_KEY`" (ADR-058 §4/§6). A visitor-facing request must
  * degrade, never 500, when the credential store is unavailable.
  */
@@ -97,7 +97,7 @@ export interface SiteAssistantCredentialReadDeps {
 
 /**
  * The read model an admin screen renders. Pure DB read — no sealer, no keyring, cannot fail on a
- * misconfigured master secret (ADR-058 §4).
+ * misconfigured site key (ADR-058 §4).
  *
  * @complexity O(1) — one `findByWorkspaceId` lookup.
  * @overallScore 100
@@ -112,8 +112,8 @@ export async function getSiteAssistantCredential(
 
 export class SiteAssistantCredentialValidationError extends Error {}
 
-/** Thrown when a caller supplies a new `apiKey` but the master secret
- *  (`TOVU_INTEGRATIONS_ROOT_KEY`) is unavailable — ADR-058 §4's fail-closed contract. Distinct from
+/** Thrown when a caller supplies a new `apiKey` but the site key
+ *  (`TOVU_SITE_KEY`) is unavailable — ADR-058 §4's fail-closed contract. Distinct from
  *  {@link SiteAssistantCredentialValidationError} so the route can map it to its own `503
  *  SECRET_STORE_UNCONFIGURED` response rather than a `400`. */
 export class SiteAssistantSecretStoreUnconfiguredError extends Error {}
@@ -149,7 +149,7 @@ function maskOf(apiKey: string): string {
  *
  * @throws {SiteAssistantCredentialValidationError} `apiKey` is an empty/whitespace-only string, or
  *   `provider`/`baseUrl`/`model` is present and not a string.
- * @throws {SiteAssistantSecretStoreUnconfiguredError} `apiKey` was provided but the master secret is
+ * @throws {SiteAssistantSecretStoreUnconfiguredError} `apiKey` was provided but the site key is
  *   unavailable — propagated from `sealer.seal()`/`keyring.activeKey()`, never silently downgraded
  *   to a plaintext write or a silent no-op.
  * @complexity O(1) — one keyring derivation (only when `apiKey` is provided) plus one upsert.
@@ -191,7 +191,7 @@ function assertValidSetSiteAssistantCredentialInput(input: SetSiteAssistantCrede
  *  §8), or the existing sealed value carried forward unchanged when it is omitted. Split out of
  *  {@link setSiteAssistantCredential} purely to keep that function's complexity under the shop
  *  ceiling.
- *  @throws {SiteAssistantSecretStoreUnconfiguredError} `apiKey` was provided but the master secret
+ *  @throws {SiteAssistantSecretStoreUnconfiguredError} `apiKey` was provided but the site key
  *  is unavailable. */
 /** {@link resolveSiteAssistantCredentialSeal}'s `apiKey === undefined` branch — carries the existing
  *  sealed key through unchanged. Split out purely to keep that function's complexity under the shop
@@ -204,7 +204,7 @@ function carryForwardSiteAssistantCredentialSeal(
 
 /** {@link resolveSiteAssistantCredentialSeal}'s fresh-seal branch. Split out purely to keep that
  *  function's complexity under the shop ceiling.
- *  @throws {SiteAssistantSecretStoreUnconfiguredError} The master secret is unavailable. */
+ *  @throws {SiteAssistantSecretStoreUnconfiguredError} The site key is unavailable. */
 async function sealFreshSiteAssistantCredential(
   deps: Pick<SiteAssistantCredentialWriteDeps, "sealer" | "keyring">,
   workspaceId: UUID,
@@ -216,9 +216,9 @@ async function sealFreshSiteAssistantCredential(
     const sealed = await deps.sealer.seal({ plaintext: apiKey, key: activeKey, aad });
     return { sealed, masked: maskOf(apiKey), aadVersion: 1 };
   } catch (err) {
-    // Any failure deriving/sealing under the current root key is treated as "the secret store is
+    // Any failure deriving/sealing under the current site key is treated as "the secret store is
     // unconfigured" (ADR-058 §4) — the realistic failure mode here is a missing
-    // `TOVU_INTEGRATIONS_ROOT_KEY`, and this must never fall through to a plaintext write.
+    // `TOVU_SITE_KEY`, and this must never fall through to a plaintext write.
     throw new SiteAssistantSecretStoreUnconfiguredError(
       `site assistant secret store is unconfigured: ${err instanceof Error ? err.message : String(err)}`
     );
@@ -314,7 +314,7 @@ export interface ResolvedSiteAssistantCredential {
 /**
  * The runtime consumer's read path (ADR-058 §6) — called per visitor chat request from
  * `server/modules/site-assistant.ts`. Returns `null` on ANYTHING that would otherwise throw: no row,
- * no key stored, the master secret missing, a tampered/corrupt ciphertext. The caller's contract is
+ * no key stored, the site key missing, a tampered/corrupt ciphertext. The caller's contract is
  * to fall back to `env.GEMINI_API_KEY` on `null`, never to surface a 500 to an anonymous visitor over
  * a credential-store problem.
  *

@@ -37,7 +37,7 @@ const contributions = {
   derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
 };
 
-/** A `KeyringPort` that always fails — simulates a missing/rotated `TOVU_INTEGRATIONS_ROOT_KEY`
+/** A `KeyringPort` that always fails — simulates a missing/rotated `TOVU_SITE_KEY`
  *  without touching real env state. Same local-duplicate idiom every other credential-store test in
  *  this codebase uses (e.g. `media/__tests__/provider-credential-store.test.ts`'s own copy). */
 class BrokenKeyring implements KeyringPort {
@@ -375,7 +375,7 @@ test("a saved credential that fails to decrypt throws its own error and never fa
   const fixture = fakeRouteDeps({ env: { OPENAI_API_KEY: "env-key-must-never-be-used" } });
   await seedOpenAiCredential(fixture);
   // Same repo (holds the already-seeded row), but a sealer built on a keyring that can never derive
-  // the key it was sealed with — simulates a rotated/missing master secret without touching real env
+  // the key it was sealed with — simulates a rotated/missing site key without touching real env
   // state (same idiom `media/__tests__/provider-credential-store.test.ts` already establishes).
   const brokenDeps = { ...fixture.deps, siteAssistantSecretSealer: new AesGcmSecretSealer(new BrokenKeyring()) };
 

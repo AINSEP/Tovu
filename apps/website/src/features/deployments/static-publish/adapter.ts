@@ -269,7 +269,7 @@ type ResolvedCredentialSourceSuccess = Extract<Awaited<ReturnType<PublishCredent
  * `PublishCredentialSource.resolve()`'s own doc documents a throw as a real, DELIBERATE possibility
  * for the DB-backed source (`publish-credentials/store.ts`'s `resolveForPublish`/
  * `resolveDefaultForPublish`: "a decrypt failure here should surface, not degrade" — a corrupted row
- * or a missing master secret throws rather than resolving a silent `null`). `publishStaticSite`'s own
+ * or a missing site key throws rather than resolving a silent `null`). `publishStaticSite`'s own
  * contract is that IT never throws regardless — so a genuine decrypt failure still needs to
  * "surface", just through the established `{ok:false, code, message}` channel instead of an uncaught
  * exception, exactly like every other failure mode in that function. `err.message` only, same

@@ -38,7 +38,7 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..
 // `load-repo-root-env.mjs` for the full mechanism and precedence rule (shell exports win; `.env` only
 // fills gaps). `development/scripts/dev-desktop.mjs` (`npm run desktop`) calls the same loader for the
 // same reason: without it, a desktop-launched site server never sees a secret like
-// `TOVU_INTEGRATIONS_ROOT_KEY`, and a stored OAuth MCP server silently fails to decrypt instead of
+// `TOVU_SITE_KEY`, and a stored OAuth MCP server silently fails to decrypt instead of
 // surfacing as unset config.
 if (loadRepoRootEnvFile(REPO_ROOT)) {
   console.log("tovu dev: loaded .env");

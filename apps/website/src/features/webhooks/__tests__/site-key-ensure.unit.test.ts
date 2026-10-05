@@ -271,7 +271,7 @@ test("ensureSiteKeyForBoot: siteDir has a .site-meta.json siteId → resolves it
 // this is not a hypothetical edge case: it is what a fresh checkout's `sites/tovu-com` looks like
 // under a plain `npm start`/`npm run dev` boot. Before this fix `ensureSiteKeyForBoot` silently did
 // nothing for exactly this site, and `start.mjs` unconditionally silenced the one notice that would
-// have said so (`TOVU_ROOT_KEY_NOTICE=off`) on the false premise a key had just been ensured.
+// have said so (`TOVU_SITE_KEY_NOTICE=off`) on the false premise a key had just been ensured.
 // ---------------------------------------------------------------------------
 
 test("ensureSiteKeyForBoot: siteDir has no .site-meta.json, LOCAL mode → mints a minimal one and mints the per-site key file — no silent gap", async () => {
@@ -639,7 +639,7 @@ test("ensureSiteKey: a per-site key the stamp does not name, and NO source holds
 });
 
 // ---------------------------------------------------------------------------
-// 2026-09-29 installSiteKey: the Site Token tab's recovery (a pasted old token, or "Start fresh")
+// 2026-09-29 installSiteKey: the site key tab's recovery (a pasted old token, or "Start fresh")
 // installs a chosen key as this site's key — a wrong per-site file is backed up, never deleted, and
 // the stamp names the installed key.
 // ---------------------------------------------------------------------------

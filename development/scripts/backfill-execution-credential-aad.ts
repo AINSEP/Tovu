@@ -23,7 +23,7 @@
  *   npx tsx development/scripts/backfill-execution-credential-aad.ts --apply
  *   npx tsx development/scripts/backfill-execution-credential-aad.ts --db <path> --apply
  *
- * `--apply` requires `TOVU_INTEGRATIONS_ROOT_KEY` set to the SAME root key the live server uses. A
+ * `--apply` requires `TOVU_SITE_KEY` set to the SAME site key the live server uses. A
  * dry run never touches the keyring.
  *
  * Exit codes: `0` on success (including "nothing to do"); `1` if any row fails to decrypt, fails its

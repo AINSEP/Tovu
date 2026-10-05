@@ -9,8 +9,8 @@ import type { KeyringPort } from "#src/features/webhooks/index";
  * THE ONE IDEA IN THIS FILE: a publishing credential is **derived, never issued**. There is no key
  * to mint on the destination, no key to copy back, no key column to add, and no key at rest for an
  * attacker to steal from `content.db` or a backup. Everything below is HKDF over the install's
- * existing root key (`KeyringPort.derive`, `features/webhooks/ports.ts`), which already holds the
- * "root key lives OUTSIDE content.db" invariant this codebase depends on everywhere else.
+ * existing site key (`KeyringPort.derive`, `features/webhooks/ports.ts`), which already holds the
+ * "site key lives OUTSIDE content.db" invariant this codebase depends on everywhere else.
  *
  * Two derivations, deliberately domain-separated by `purpose` (the port contract requires
  * implementations to bind `purpose` into the derivation, so these cannot collide):
@@ -80,7 +80,7 @@ function fromBase64Url(value: string, expectedBytes: number): Buffer | null {
  * This install's stable publishing identity.
  *
  * Derived, not stored, for three reasons: no migration, no value for an operator to mistype, and
- * nothing that can drift between two copies of the same install. It changes only if the root key or
+ * nothing that can drift between two copies of the same install. It changes only if the site key or
  * the workspace changes — both of which ARE a different install, which is the behavior the
  * destination's "was this site restored from a backup?" check wants.
  *

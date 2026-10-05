@@ -23,8 +23,8 @@ import { loginAsOwner } from "../helpers/http-test-server.js";
  * answers authorization from RBAC instead of the grant, or lets a publishing token fall through to
  * whatever credential the request happens to carry.
  *
- * The source install is a FAKE with its own root key — which is the honest arrangement, since the
- * two installs have different root keys by design and the destination only ever sees a public key.
+ * The source install is a FAKE with its own site key — which is the honest arrangement, since the
+ * two installs have different site keys by design and the destination only ever sees a public key.
  */
 const WORKSPACE = "workspace-local";
 const SOURCE_ROOT = "1".repeat(64);
@@ -35,8 +35,8 @@ const CAPABILITIES = ["publish_content.read", "publish_content.apply"] as const;
 const A_SHA = "a".repeat(64);
 
 /** The same HKDF construction `keyring.env.ts` uses — a faithful double, not a friendlier one. */
-function testKeyring(rootKeyHex: string): KeyringPort {
-  const rootKey = Buffer.from(rootKeyHex, "hex");
+function testKeyring(siteKeyHex: string): KeyringPort {
+  const siteKey = Buffer.from(siteKeyHex, "hex");
   return {
     async activeKey() {
       return { keyId: "v1" };
@@ -46,15 +46,15 @@ function testKeyring(rootKeyHex: string): KeyringPort {
     },
     async derive(input: { workspaceId: string; purpose: string; info: string }) {
       return new Uint8Array(
-        hkdfSync("sha256", rootKey, Buffer.alloc(0), `${input.purpose}:${input.workspaceId}:${input.info}`, 32)
+        hkdfSync("sha256", siteKey, Buffer.alloc(0), `${input.purpose}:${input.workspaceId}:${input.info}`, 32)
       );
     },
   } as unknown as KeyringPort;
 }
 
-async function sourceKey(rootKeyHex = SOURCE_ROOT) {
+async function sourceKey(siteKeyHex = SOURCE_ROOT) {
   return derivePublishSigningKey({
-    keyring: testKeyring(rootKeyHex),
+    keyring: testKeyring(siteKeyHex),
     workspaceId: WORKSPACE,
     sourceInstallationId: SOURCE_INSTALL,
     targetOrigin: TARGET_ORIGIN,
