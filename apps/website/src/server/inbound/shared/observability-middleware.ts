@@ -8,8 +8,10 @@ import { REQUEST_ID_HEADER, resolveRequestId } from "./request-id.js";
  * @file Records inbound HTTP requests through the injected diagnostics observability port
  * (Constitution Article VIII). Express owns routing and response completion; Jini owns tracking.
  * Deliberately the only caller of ObservabilityPort.trackRequest in this codebase today.
- * DB/outbound/agent signals remain separate additions: each needs its own real instrumentation
- * call site before a port shape is designed, as explained in Jini's observability/ports.ts.
+ * DB/outbound/agent signals were each shaped after their own real instrumentation call site, as
+ * Jini's observability/ports.ts requires, and are recorded there: the storage kernel and guarded
+ * HTTP clients (decorated in `deps.ts`) and the agent-run finalizer. This middleware only opens the
+ * request scope they nest under.
  *
  * Registered first in `createApp()`, ahead of `applySiteServingGate` and every route module (see
  * that call site's own comment), so a request the serving gate rejects or a 404 that matches no
@@ -52,6 +54,9 @@ export function applyRequestTracking(app: Express, deps: { observability: Observ
       tracker.end({ statusCode: res.statusCode, routePattern });
     });
 
-    next();
+    // Routing and the handler run inside the request's scope, so a DB query or outbound call they
+    // make is recorded as this request's child. A tracker from an adapter without scoping lacks run().
+    if (tracker.run) tracker.run(next);
+    else next();
   });
 }

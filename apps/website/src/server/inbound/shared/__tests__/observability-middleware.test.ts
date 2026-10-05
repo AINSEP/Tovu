@@ -5,7 +5,7 @@ import express from "express";
 
 import { applyRequestTracking } from "../observability-middleware.js";
 import { startTestServer } from "../../../__tests__/helpers/http-test-server.js";
-import type { ObservabilityPort, RequestTrackingInput, RequestTrackingOutcome } from "#src/platform/observability/index";
+import { createNoopObservabilityPort, type ObservabilityPort, type RequestTrackingInput, type RequestTrackingOutcome } from "#src/platform/observability/index";
 
 /**
  * @file Unit coverage for `applyRequestTracking` in isolation from the full `createApp()`
@@ -22,6 +22,8 @@ function createSpyObservabilityPort(): {
 } {
   const calls: Array<{ input: RequestTrackingInput; outcome: RequestTrackingOutcome }> = [];
   const port: ObservabilityPort = {
+    // The non-request signals are not under test here; the shared no-op keeps the spy a full port.
+    ...createNoopObservabilityPort({}),
     trackRequest(input) {
       return {
         end(outcome) {
@@ -137,4 +139,44 @@ test("two concurrent in-flight requests are tracked independently — one reques
     { input: { method: "POST", path: "/error" }, outcome: { statusCode: 500, routePattern: "/error" } },
     { input: { method: "GET", path: "/welcome" }, outcome: { statusCode: 200, routePattern: "/welcome" } },
   ]);
+});
+
+test("the rest of the request runs inside the tracker's scope, so spans a handler starts are the request span's children", async (t) => {
+  let inside = false;
+  const handlerSawScope: boolean[] = [];
+  const port: ObservabilityPort = {
+    ...createNoopObservabilityPort({}),
+    trackRequest() {
+      return {
+        end() {},
+        run<T>(fn: () => T): T {
+          inside = true;
+          try {
+            return fn();
+          } finally {
+            inside = false;
+          }
+        },
+      };
+    },
+  };
+  const app = express();
+  applyRequestTracking(app, { observability: port });
+  app.get("/scoped", (_req, res) => {
+    handlerSawScope.push(inside);
+    res.status(204).end();
+  });
+  const baseUrl = await startTestServer(app, t);
+
+  assert.equal((await fetch(`${baseUrl}/scoped`)).status, 204);
+  assert.deepEqual(handlerSawScope, [true]);
+});
+
+test("a tracker without run() (an adapter written before scoping) still lets the request through", async (t) => {
+  const port: ObservabilityPort = { ...createNoopObservabilityPort({}), trackRequest: () => ({ end() {} }) };
+  const app = express();
+  applyRequestTracking(app, { observability: port });
+  app.get("/plain", (_req, res) => res.status(200).send("ok"));
+  const baseUrl = await startTestServer(app, t);
+  assert.equal((await fetch(`${baseUrl}/plain`)).status, 200);
 });

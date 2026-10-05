@@ -2111,7 +2111,7 @@ on screen, rather than silently listing a subset as if it were everything.
 
 ## Observability (OpenTelemetry) — extend the existing port to the uncovered surfaces (owner priority, 2026-09-09)
 
-**OPEN (re-audit 10-04):** all three gaps remain; the port moved to `@jini-ai/diagnostics` (`5ec1a964d`), so the `ports.ts`/`noop.ts`/`app.ts` paths below are stale (see `platform/observability/index.ts:49`).
+**PARTLY DONE 2026-10-04:** gap 1 built — DB (storage kernel), outbound (guarded HTTP clients) and agent-run (finalizer) spans through the Jini port, nested under the request span; ops note `development/docs/deployment/observability.md`. Gaps 2 (admin client timings) and 3 (Web Vitals) still open: both need a browser export path. **Was OPEN (re-audit 10-04):** all three gaps remain; the port moved to `@jini-ai/diagnostics` (`5ec1a964d`), so the `ports.ts`/`noop.ts`/`app.ts` paths below are stale (see `platform/observability/index.ts:49`).
 
 Owner's words: fairly high priority, but not the highest. An Operations nav page + its own settings
 system landed the same night (see the admin section immediately below) — this entry is the actual

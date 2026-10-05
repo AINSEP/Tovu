@@ -31,7 +31,9 @@
 // Span lifecycle rationale: Jini packages/diagnostics/src/observability/otel.ts.
 // Small single-process VPS installs should pay no SDK footprint until an exporter is configured;
 // the synchronous composition roots cannot adopt an async import without changing their boot contract.
-import { SpanKind, SpanStatusCode, type Span, type Tracer } from "@opentelemetry/api";
+import { AsyncLocalStorage } from "node:async_hooks";
+
+import { ROOT_CONTEXT, SpanKind, SpanStatusCode, trace, type Span, type Tracer } from "@opentelemetry/api";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
 import { resourceFromAttributes } from "@opentelemetry/resources";
 import { ATTR_SERVICE_NAME } from "@opentelemetry/semantic-conventions";
@@ -42,6 +44,8 @@ import {
   type ExporterFactory,
   type ObservabilityConfigEnabled,
   type ObservabilityPort,
+  type SpanScopePort,
+  type TraceSpanKind,
   type TraceSpanPort,
   type TracerPort,
   type TracerProviderFactory,
@@ -52,21 +56,51 @@ export interface OtelAdapterOptions {
   spanProcessors?: SpanProcessor[];
 }
 
+const SDK_SPAN_KINDS: Record<TraceSpanKind, SpanKind> = { server: SpanKind.SERVER, client: SpanKind.CLIENT, internal: SpanKind.INTERNAL };
+
+/** SDK span behind each port span this module handed out, so a port span can be named as a parent. */
+const sdkSpans = new WeakMap<TraceSpanPort, Span>();
+
 /** Translates object-shaped diagnostics span methods to SDK calls; no lifecycle policy here. */
 function adaptSpan({ span }: { span: Span }): TraceSpanPort {
-  return {
+  const port: TraceSpanPort = {
     updateName: ({ name }) => { span.updateName(name); },
     setAttribute: ({ name, value }) => { span.setAttribute(name, value); },
-    setStatus: () => { span.setStatus({ code: SpanStatusCode.ERROR }); },
+    setStatus: ({ description }) => { span.setStatus({ code: SpanStatusCode.ERROR, ...(description ? { message: description } : {}) }); },
+    addEvent: ({ name, attributes }) => { span.addEvent(name, attributes); },
     end: () => { span.end(); },
+  };
+  sdkSpans.set(port, span);
+  return port;
+}
+
+/**
+ * Starts an SDK span from Jini's structural input and returns its host adapter. The parent goes in
+ * as an explicit context (`trace.setSpan(ROOT_CONTEXT, parent)`), not through a registered global
+ * context manager — the same "never take over @opentelemetry/api's process-wide registration" rule
+ * this file's header gives for the provider.
+ */
+function adaptTracer({ tracer }: { tracer: Tracer }): TracerPort {
+  return {
+    startSpan: ({ name, kind, attributes }, { parent } = {}) => {
+      const parentSpan = parent ? sdkSpans.get(parent) : undefined;
+      const context = parentSpan ? trace.setSpan(ROOT_CONTEXT, parentSpan) : undefined;
+      return adaptSpan({ span: tracer.startSpan(name, { kind: SDK_SPAN_KINDS[kind], attributes }, context) });
+    },
   };
 }
 
-/** Starts an SDK server span from Jini's structural input and returns its host adapter. */
-function adaptTracer({ tracer }: { tracer: Tracer }): TracerPort {
-  return {
-    startSpan: ({ name, attributes }) => adaptSpan({ span: tracer.startSpan(name, { kind: SpanKind.SERVER, attributes }) }),
-  };
+/**
+ * The active port span per async context, so a DB query or outbound call made while serving a
+ * request becomes that request span's child. AsyncLocalStorage is Node-only, which is why Jini takes
+ * this as a host port. Express caveat: a continuation resumed from a socket/stream callback outside
+ * the scope (some body parsers) starts root spans rather than mis-parenting them.
+ * @param _required Empty; each call owns a fresh store.
+ * @returns A scope port over one AsyncLocalStorage instance.
+ */
+export function createAsyncLocalSpanScope(_required: Record<string, never>): SpanScopePort {
+  const storage = new AsyncLocalStorage<TraceSpanPort>();
+  return { active: () => storage.getStore(), run: ({ span, fn }) => storage.run(span, fn) };
 }
 
 /**
@@ -131,5 +165,5 @@ export function createOtelFactories(_required: Record<string, never>, options: O
 export function createOtelObservabilityPort({ config }: { config: ObservabilityConfigEnabled }, options: OtelAdapterOptions = {}): ObservabilityPort {
   // Construct once at boot: the batch processor's export queue/timer belongs to the provider,
   // not to individual requests. getTracer uses the instance so other global registrations survive.
-  return createDiagnosticOtelPort({ config, ...createOtelFactories({}, options) });
+  return createDiagnosticOtelPort({ config, ...createOtelFactories({}, options) }, { scope: createAsyncLocalSpanScope({}) });
 }

@@ -7,7 +7,7 @@ import test from "node:test";
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { createSiteRouteDeps } from "../../runtime/composition/deps.js";
 import { startTestServer } from "../helpers/http-test-server.js";
-import type { ObservabilityPort, RequestTrackingInput, RequestTrackingOutcome } from "#src/platform/observability/index";
+import { createNoopObservabilityPort, type ObservabilityPort, type RequestTrackingInput, type RequestTrackingOutcome } from "#src/platform/observability/index";
 
 /**
  * @file Proves `createApp()`'s request-tracking middleware actually runs against BOTH `RouteDeps`
@@ -36,6 +36,8 @@ function createSpyObservabilityPort(): {
 } {
   const calls: Array<{ input: RequestTrackingInput; outcome: RequestTrackingOutcome }> = [];
   const port: ObservabilityPort = {
+    // The non-request signals are not under test here; the shared no-op keeps the spy a full port.
+    ...createNoopObservabilityPort({}),
     trackRequest(input) {
       return {
         end(outcome) {

@@ -46,6 +46,8 @@ import {
 } from "#src/contracts/core/assistant-run-events";
 import { isTerminalRunStatus, type AgentEvent } from "@jini-ai/chat/core";
 
+import { createNoopObservabilityPort, type AgentRunStatus, type ObservabilityPort } from "#src/platform/observability/index";
+
 import { getAgentDaemonUrl } from "../../lifecycle/agent-daemon-port.js";
 
 /** What the finalizer needs from the daemon. Injected so tests can stand in a fake daemon. */
@@ -66,6 +68,12 @@ export interface AssistantRunFinalizerOptions {
   readonly maxReconnects?: number;
   /** Least time between two in-flight checkpoints of one run. Default 1000 ms; tests pass 0. */
   readonly checkpointIntervalMs?: number;
+  /**
+   * Records each watched run as one agent run (`RouteDeps.observability`). This is the API-side
+   * point that learns every daemon run's terminal outcome, so it is where that signal belongs; the
+   * daemon cannot report its own death. Default: the no-op port.
+   */
+  readonly observability?: Pick<ObservabilityPort, "trackAgentRun">;
 }
 
 export interface AssistantRunFinalizer {
@@ -137,6 +145,7 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
   const reconnectDelayMs = options.reconnectDelayMs ?? 2_000;
   const maxReconnects = options.maxReconnects ?? 30;
   const checkpointIntervalMs = options.checkpointIntervalMs ?? 1_000;
+  const observability = options.observability ?? createNoopObservabilityPort({});
   const active = new Map<string, { watch: Watch; done: Promise<void> }>();
 
   /** Stop progress scheduling and await the ledger's atomic terminal write; persistence errors propagate. */
@@ -230,18 +239,29 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
     return { kind: "dropped" };
   }
 
-  async function follow(watch: Watch): Promise<void> {
+  /** Follows the run to a proven outcome and returns it for the run's tracker. */
+  async function follow(watch: Watch): Promise<AgentRunStatus> {
     for (let attempt = 0; attempt <= maxReconnects; attempt += 1) {
       const result = await readStream(watch).catch((): StreamResult => ({ kind: "dropped" }));
-      if (result.kind === "ended") return settle(watch, result.status, watch.events);
-      if (result.kind === "gone") return settleInterrupted(watch);
+      if (result.kind === "ended") {
+        await settle(watch, result.status, watch.events);
+        return result.status;
+      }
+      if (result.kind === "gone") {
+        await settleInterrupted(watch);
+        return "interrupted";
+      }
       // Dropped: only a 404 proves the run is gone. Anything else (the daemon is mid-respawn, a
       // body timeout during a long card wait) is worth another look.
-      if ((await daemon.runStatus(watch.runId, watch.principalId)) === 404) return settleInterrupted(watch);
+      if ((await daemon.runStatus(watch.runId, watch.principalId)) === 404) {
+        await settleInterrupted(watch);
+        return "interrupted";
+      }
       await delay(reconnectDelayMs);
     }
     // Gave up without proof either way. The row stays `running`: the browser can still reattach,
     // and the next boot's reconcile marks it interrupted if nothing else does.
+    return "abandoned";
   }
 
   return {
@@ -263,8 +283,14 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
         checkpointPending: false,
         terminal: false,
       };
-      const done = follow(watch)
+      const tracker = observability.trackAgentRun({ runId }, { conversationId });
+      // Inside the run's scope, so the ledger writes the loop makes are recorded under the run.
+      const done = tracker
+        .run(() => follow(watch))
+        .then((status) => tracker.end({ status }))
         .catch((error: unknown) => {
+          // A watch that threw proved nothing about the run itself; the error says why it stopped.
+          tracker.end({ status: "abandoned", error });
           console.error(`[assistant-run-finalizer] watching run ${runId} failed`, error);
         })
         .finally(() => {

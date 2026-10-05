@@ -1,9 +1,11 @@
 import { createRequire } from "node:module";
 import { createObservabilityPort as createDiagnosticObservabilityPort, createNoopObservabilityPort, type ObservabilityConfig, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
+// Decorators for the DB kernel and the guarded HTTP client; both are identity for the no-op port.
+export { instrumentStorageKernel, isNoopObservabilityPort, trackHttpClient } from "@jini-ai/diagnostics/observability";
 
 // Retained host adapter surface: consumers must continue to resolve these names while r15
 // rewires the shared roots to the package and explicit configuration arguments.
-export type { ObservabilityConfig, ObservabilityConfigDisabled, ObservabilityConfigEnabled, ObservabilityPort, RequestTracker, RequestTrackingInput, RequestTrackingOutcome } from "@jini-ai/diagnostics/observability";
+export type { AgentRunStatus, ObservabilityConfig, ObservabilityConfigDisabled, ObservabilityConfigEnabled, ObservabilityPort, RequestTracker, RequestTrackingInput, RequestTrackingOutcome } from "@jini-ai/diagnostics/observability";
 export { createNoopObservabilityPort };
 export { resolveObservabilityConfig } from "./config.js";
 
@@ -44,13 +46,15 @@ const require = createRequire(import.meta.url);
  * `noop.ts` (the default — see its own header for why it must cost nothing) and `otel.ts` (request lifecycle through structural factories); Tovu's SDK factories are
  * lazily loaded by this `createObservabilityPort`.
  *
- * Kept intentionally small (one method) per this task's explicit scope: cover only the ONE signal
- * this codebase actually has a wired instrumentation point for today (inbound HTTP, via
- * `server/inbound/shared/observability-middleware.ts`). `trackDbQuery`/`trackOutboundCall`/
- * `trackAgentRun` are named as the port's natural next additions in the handoff, not built here —
- * each would need its own real call site to design the input/outcome shape against, the same
- * reason `trackRequest`'s own shape below follows Express's actual request/response lifecycle
- * rather than a guessed-in-advance generic shape.
+ * Originally kept to one method (inbound HTTP, via `server/inbound/shared/observability-middleware.ts`):
+ * `trackDbQuery`/`trackOutboundCall`/`trackAgentRun` were named as the port's next additions but
+ * deliberately not built until each had a real call site to design the input/outcome shape against
+ * — the same reason `trackRequest`'s shape follows Express's actual request/response lifecycle
+ * rather than a guessed-in-advance generic shape. They now exist (2026-10-04), each shaped after its
+ * seam: the storage kernel (`instrumentStorageKernel`, in `deps.ts`), the guarded HTTP client
+ * (`createDefaultHttpClient(policy, { observability })`) and the agent-run finalizer
+ * (`assistant-run-finalizer.ts`). The SDK adapter also gets an AsyncLocalStorage span scope so
+ * those spans nest under the request that caused them.
  *
  * The shared, do-nothing tracker every `trackRequest()` call from the no-op port returns. One
  * Jini-owned frozen object reused across every call (never constructed per-request) so the default path pays
@@ -83,10 +87,10 @@ const require = createRequire(import.meta.url);
 export function createObservabilityPort({ config }: { config: ObservabilityConfig }): ObservabilityPort {
   if (!config.enabled) return createNoopObservabilityPort({});
 
-  const { createOtelFactories }: typeof import("./otel.js") = require("./otel.js");
+  const { createOtelFactories, createAsyncLocalSpanScope }: typeof import("./otel.js") = require("./otel.js");
   const factories = createOtelFactories({});
   return createDiagnosticObservabilityPort({
     config,
     ...factories,
-  });
+  }, { scope: createAsyncLocalSpanScope({}) });
 }

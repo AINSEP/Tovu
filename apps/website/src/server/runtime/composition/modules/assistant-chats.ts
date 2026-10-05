@@ -85,7 +85,7 @@ export interface AssistantChatsModuleOptions {
 }
 
 export function createAssistantChatsModule(deps: RouteDeps, options: AssistantChatsModuleOptions = {}): ServerModuleHandle {
-  const finalizer = options.finalizer ?? createAssistantRunFinalizer({ ledger: deps.chatRunLedger });
+  const finalizer = options.finalizer ?? createAssistantRunFinalizer({ ledger: deps.chatRunLedger, observability: deps.observability });
   return {
     name: "assistant-chats",
     registerRoutes: (app: Express) => {

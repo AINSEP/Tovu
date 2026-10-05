@@ -12,6 +12,7 @@ import {
   type EgressPolicy,
 } from "@jini-ai/platform/http/guarded";
 import type { HttpClientPort as JiniHttpClientPort } from "@jini-ai/core/primitives";
+import { trackHttpClient, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
 import type { HttpClientPort, HttpTransportAdapter } from "./ports.js";
 
 export type { AddressClass } from "@jini-ai/platform/http/guarded";
@@ -45,13 +46,22 @@ export function classifyAddress(ip: string): AddressClass {
   return classifyGuardedAddress({ ip });
 }
 
+/** Optional collaborators every client constructor accepts. `observability` records one outbound
+ * call per send (scheme/host/port and status only — never path, query or headers); omitted or the
+ * no-op port, the guarded client is returned unwrapped. */
+export interface HttpClientOptions { observability?: ObservabilityPort; }
+
+function observed({ client }: { client: JiniHttpClientPort }, { observability }: HttpClientOptions): JiniHttpClientPort {
+  return observability ? trackHttpClient({ client, observability }) : client;
+}
+
 /** Adapts existing transport/consumer contracts without exposing an unguarded client.
  * Inject DNS and clock ports for deterministic guard checks; native defaults perform no I/O here.
  * @example createHttpClient({ transport, policy }, { dns, clock })
  */
 export function createHttpClient(
   { transport, policy }: { transport: HttpTransportAdapter; policy: EgressPolicy },
-  optional: { dns?: DnsResolver; clock?: GuardedClock } = {}
+  optional: { dns?: DnsResolver; clock?: GuardedClock } & HttpClientOptions = {}
 ): HttpClientPort {
   const native = createNodeGuardedHttpPorts({});
   const client = createGuardedHttpClient({
@@ -61,12 +71,13 @@ export function createHttpClient(
     clock: optional.clock ?? native.clock,
     userAgent: DEFAULT_USER_AGENT,
   });
-  return toTovuHttpClient({ client });
+  return toTovuHttpClient({ client: observed({ client }, optional) });
 }
 
-/** Binds Tovu's egress policy and user agent to the native pinned transport. */
-export function createDefaultHttpClient(policy: EgressPolicy): HttpClientPort {
+/** Binds Tovu's egress policy and user agent to the native pinned transport.
+ * @param options Optional observability port (see {@link HttpClientOptions}). */
+export function createDefaultHttpClient(policy: EgressPolicy, options: HttpClientOptions = {}): HttpClientPort {
   const native = createNodeGuardedHttpPorts({});
   const client = createGuardedHttpClient({ ...native, policy, userAgent: DEFAULT_USER_AGENT });
-  return toTovuHttpClient({ client });
+  return toTovuHttpClient({ client: observed({ client }, options) });
 }
