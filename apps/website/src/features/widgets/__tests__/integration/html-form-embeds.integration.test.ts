@@ -38,7 +38,8 @@ test("form slug, form id and widget spellings resolve identically and fill plain
   assert.equal((rendered.match(/<form /g) ?? []).length, 3);
   assert.equal((rendered.match(/action="\/forms\/contact\/submit"/g) ?? []).length, 3);
   assert.match(rendered, /method="post"/);
-  assert.match(rendered, /<label>Email<input type="email" name="email" data-tovu-field="email" required/);
+  // `toolparam*` since 98ccfc6e0: published forms are WebMCP tools, one param per field.
+  assert.match(rendered, /<label>Email<input type="email" name="email" data-tovu-field="email" toolparamtitle="Email" toolparamdescription="Email" required>/);
   assert.match(rendered, /name="_hp"/);
   assert.doesNotMatch(rendered, /class=|style=|<style|data-embed-config/);
 });
@@ -57,7 +58,8 @@ test("HTML mode is per occurrence, and native POST results reveal plain confirma
   assert.match(success, /data-tovu-form-success data-form-slug="contact" role="status">Thanks — your message has been sent\.<\/div>/);
   assert.match(success, /<form hidden data-tovu-form/);
   const failure = injectFormSubmissionResultIntoHtml(plain, { kind: "validation", slug: "contact", fieldErrors: [{ field: "email", reason: "invalid" }] });
-  assert.match(failure, /role="alert">Please check your answers. email: invalid/);
+  // A sentence from the field's label since 2e733c6a5 (friendly form errors), not "email: invalid".
+  assert.match(failure, /role="alert">Please check your email\.<\/div>/);
 });
 
 test("theme validator accepts restored form vocabulary and mode key", () => {
