@@ -167,6 +167,12 @@ function resolveOverrideTemplateChoice(rawTemplateChoice: unknown): string | nul
   return rawTemplateChoice === undefined ? null : String(rawTemplateChoice);
 }
 
+/** The preview is author-controlled HTML served from the admin origin. The editors' iframe already
+ *  sandboxes it (`PAGE_PREVIEW_IFRAME_SANDBOX`, `apps/admin/src/features/pages/rules.ts`); this header
+ *  applies the same flags when the URL is opened on its own, as a top-level tab. Never
+ *  `allow-same-origin`: with it, a preview's script could call admin APIs with the session cookie. */
+const PREVIEW_CSP = "sandbox allow-scripts allow-forms allow-popups";
+
 export const registerAdminPostTemplatePreviewRoute: ContentRouteRegistrar = (app, deps) => {
   const handlePreviewRequest: RequestHandler = async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
@@ -208,7 +214,7 @@ export const registerAdminPostTemplatePreviewRoute: ContentRouteRegistrar = (app
       // Never cached: re-requested on every template selection, and a cached response would show
       // the operator a stale template and read as "the picker did nothing" — the exact bug this
       // route exists to fix (mirrors `theme-page-preview.ts`'s identical no-store rule).
-      res.set("Cache-Control", "no-store").type("html").send(html);
+      res.set("Cache-Control", "no-store").set("Content-Security-Policy", PREVIEW_CSP).type("html").send(html);
     } catch (err) {
       if (err instanceof TemplatePreviewRenderError) {
         res.status(err.status).type("text/plain").send(err.message);

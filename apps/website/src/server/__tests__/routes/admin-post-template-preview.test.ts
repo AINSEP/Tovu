@@ -182,6 +182,26 @@ test("never persists the override — the row's stored templateChoice is unchang
   assert.equal(reloaded.templateChoice, "blog-post.html", "the preview request must not have written anything back");
 });
 
+// Author-controlled HTML served from the admin origin: opened as a top-level tab (outside the
+// editor's sandboxed iframe) it would otherwise run with the admin session's origin.
+test("GET and POST previews are sandboxed by CSP, matching the editor iframe's flags and never allow-same-origin", async (t) => {
+  const { app, deps } = buildTestApp(staticThemeWithTemplates());
+  const post = await savePost(deps, { slug: "contact" });
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const get = await fetch(previewUrl(baseUrl, post.id, "page-shell.html"), { headers: { cookie } });
+  const posted = await fetch(previewUrl(baseUrl, post.id, "page-shell.html"), {
+    method: "POST",
+    headers: { cookie, "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ bodyHtml: "<p>x</p>" }).toString(),
+  });
+
+  for (const res of [get, posted]) {
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get("content-security-policy"), "sandbox allow-scripts allow-forms allow-popups");
+  }
+});
+
 // 2026-08-12 pending-body fix: the owner's own reported bug — any content edit used to fall the
 // preview all the way back to the raw, unstyled `SrcDocSandbox` because there was no way to hand this
 // route the operator's unsaved `bodyJson`. `POST` (new) accepts one; `GET` (unchanged, exercised by
