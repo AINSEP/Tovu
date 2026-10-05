@@ -29,7 +29,7 @@ import {
 import { buildAuthorizationHeader } from "@jini-ai/integrations/credentialed-http";
 import { normalizeWriteFilePath, validateBranch, validateCommitMessage, validateRepositoryTarget } from "../custom-credentials/write-files-validation.js";
 import type { SecretSealerPort } from "../webhooks/index.js";
-import { inspectRootKeyMaterial } from "../webhooks/keyring.env.js";
+import { inspectSiteKeyMaterial } from "../webhooks/keyring.env.js";
 import { siteKeySources, siteKeySourcesForSiteDir } from "../webhooks/site-key-sources.js";
 import { SITE_BACKUP_PUSH_TOOL_ID } from "./confirmation-ui.js";
 import type { CredentialedRepositoryTarget, InspectBackupRepositoryResult, SourceControlProvider, UploadedBackupBlob } from "../source-control/provider-module.js";
@@ -287,7 +287,7 @@ async function pickCredentialLabel(deps: SiteBackupToolDeps, providers: readonly
 }
 
 /**
- * This site's own Site Token status ({@link inspectRootKeyMaterial}), resolved over THIS site's
+ * This site's own Site Token status ({@link inspectSiteKeyMaterial}), resolved over THIS site's
  * site-aware source ordering ({@link siteKeySourcesForSiteDir} — site-key plan §A3b, the same
  * composed helper the admin Site Token route's `resolveSiteTokenSources` reuses) rather than the
  * module-wide env-then-legacy-file default `inspectRootKeyMaterial()` falls back to when called
@@ -302,13 +302,13 @@ async function pickCredentialLabel(deps: SiteBackupToolDeps, providers: readonly
  * re-resolves the credential independently and must not throw if it ever is).
  *
  * @complexity O(1) — one `.site-meta.json` read plus a fixed-size source list, matching
- *   {@link inspectRootKeyMaterial}'s own cost.
+ *   {@link inspectSiteKeyMaterial}'s own cost.
  */
 function siteAwareRootKeyStatus(deps: SiteBackupToolDeps): { active: boolean; invalid?: boolean } {
   const siteDir = deps.siteBackupSources?.siteDir;
-  if (siteDir === undefined) return inspectRootKeyMaterial({ sources: siteKeySources({ mode: resolveRuntimeMode(), env: process.env, home: homedir(), cwd: process.cwd() }) });
+  if (siteDir === undefined) return inspectSiteKeyMaterial({ sources: siteKeySources({ mode: resolveRuntimeMode(), env: process.env, home: homedir(), cwd: process.cwd() }) });
   const sources = siteKeySourcesForSiteDir({ siteDir, mode: resolveRuntimeMode(), env: process.env, home: homedir(), cwd: process.cwd() });
-  return inspectRootKeyMaterial({ sources });
+  return inspectSiteKeyMaterial({ sources });
 }
 
 /** Why a saved credential could not be decrypted, from THIS SITE's own Site Token status

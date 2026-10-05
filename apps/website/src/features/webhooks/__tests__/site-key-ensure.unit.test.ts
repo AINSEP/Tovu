@@ -12,7 +12,7 @@ import test from "node:test";
 
 import { sql } from "kysely";
 
-import { fingerprintRootKeyHex } from "../keyring.env.js";
+import { fingerprintSiteKeyHex } from "../keyring.env.js";
 import { findSiteKeyDependentData } from "#src/platform/site-dir/site-key-dependent-data";
 import { openPgliteKernel } from "#src/platform/db/kernel/drivers/pglite";
 import { ensureSiteKey, ensureSiteKeyForBoot, installSiteKey, mintSiteKeyHex, planSiteKeyEnsure, type SiteKeyMaterialCheck } from "../site-key-ensure.js";
@@ -130,7 +130,7 @@ test("ensureSiteKey: an existing valid per-site file is a no-op — never rewrit
   const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env: bareEnv(), home, findSiteKeyDependentData });
 
   assert.equal(result.action, "noop");
-  assert.equal(result.fingerprint, fingerprintRootKeyHex(hex));
+  assert.equal(result.fingerprint, fingerprintSiteKeyHex(hex));
   assert.equal(readFileSync(perSiteFilePath, "utf8"), hex);
 });
 
@@ -153,7 +153,7 @@ test("ensureSiteKey: per-site absent, env var active → 'adopt' — the per-sit
   const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home, findSiteKeyDependentData });
 
   assert.equal(result.action, "adopt");
-  assert.equal(result.fingerprint, fingerprintRootKeyHex(hex));
+  assert.equal(result.fingerprint, fingerprintSiteKeyHex(hex));
   const perSiteFilePath = perSiteFilePathIn(home, "site-1");
   assert.equal(readFileSync(perSiteFilePath, "utf8"), hex);
 });
@@ -167,7 +167,7 @@ test("ensureSiteKey: per-site absent, legacy shared file active → 'adopt' from
   const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env: bareEnv(), home, findSiteKeyDependentData });
 
   assert.equal(result.action, "adopt");
-  assert.equal(result.fingerprint, fingerprintRootKeyHex(hex));
+  assert.equal(result.fingerprint, fingerprintSiteKeyHex(hex));
   const perSiteFilePath = perSiteFilePathIn(home, "site-1");
   assert.equal(readFileSync(perSiteFilePath, "utf8"), hex);
   // The legacy file itself must be untouched — adopt copies, it never deletes the source.
@@ -204,7 +204,7 @@ test("ensureSiteKey: env var present but whitespace-only, legacy shared file act
   const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home, findSiteKeyDependentData });
 
   assert.equal(result.action, "adopt");
-  assert.equal(result.fingerprint, fingerprintRootKeyHex(hex));
+  assert.equal(result.fingerprint, fingerprintSiteKeyHex(hex));
 });
 
 test("ensureSiteKey: nothing anywhere, this site's content.db holds a sealed row → 'refuse' — no file created", async () => {
@@ -225,7 +225,7 @@ test("ensureSiteKey: nothing anywhere, no content.db yet (brand new site) → 'm
   const perSiteFilePath = perSiteFilePathIn(home, "site-1");
   const written = readFileSync(perSiteFilePath, "utf8");
   assert.match(written, /^[0-9a-f]{64}$/);
-  assert.equal(result.fingerprint, fingerprintRootKeyHex(written));
+  assert.equal(result.fingerprint, fingerprintSiteKeyHex(written));
 });
 
 test("ensureSiteKey: mint writes the per-site file at mode 0600 and the site-keys dir at mode 0700", async () => {
@@ -378,7 +378,7 @@ test("ensureSiteKey: noop with a stamp that already matches the key's real finge
   mkdirSync(path.dirname(perSiteFilePath), { recursive: true });
   const hex = validHex();
   writeFileSync(perSiteFilePath, hex, { mode: 0o600 });
-  const fingerprint = fingerprintRootKeyHex(hex);
+  const fingerprint = fingerprintSiteKeyHex(hex);
   writeSiteMeta(siteDir, { siteId: "meta-site-1", siteKeyFingerprint: fingerprint });
   const metaPathStatBefore = statSync(path.join(siteDir, ".site-meta.json"));
 
@@ -397,8 +397,8 @@ test("ensureSiteKey: noop with a TAMPERED (mismatched) stamped fingerprint → '
   mkdirSync(path.dirname(perSiteFilePath), { recursive: true });
   const hex = validHex();
   writeFileSync(perSiteFilePath, hex, { mode: 0o600 });
-  const realFingerprint = fingerprintRootKeyHex(hex);
-  const tamperedFingerprint = fingerprintRootKeyHex(validHex()); // a different key's fingerprint, planted here on purpose
+  const realFingerprint = fingerprintSiteKeyHex(hex);
+  const tamperedFingerprint = fingerprintSiteKeyHex(validHex()); // a different key's fingerprint, planted here on purpose
   assert.notEqual(tamperedFingerprint, realFingerprint, "test precondition: the two fingerprints must actually differ");
   writeSiteMeta(siteDir, { siteId: "meta-site-1", siteKeyFingerprint: tamperedFingerprint });
 
@@ -418,7 +418,7 @@ test("ensureSiteKey: adopt into a fresh per-site file also stamps the fingerprin
   const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home, findSiteKeyDependentData });
 
   assert.equal(result.action, "adopt");
-  assert.equal(readSiteMeta(siteDir).siteKeyFingerprint, fingerprintRootKeyHex(hex));
+  assert.equal(readSiteMeta(siteDir).siteKeyFingerprint, fingerprintSiteKeyHex(hex));
 });
 
 // ---------------------------------------------------------------------------
@@ -431,7 +431,7 @@ test("ensureSiteKey: adopt into a fresh per-site file also stamps the fingerprin
 // ---------------------------------------------------------------------------
 
 test("ensureSiteKey: adopt of a key whose fingerprint differs from the stamp, on a site with sealed data → 'mismatch', and the wrong key is NOT written", async () => {
-  const stampedFingerprint = fingerprintRootKeyHex(validHex());
+  const stampedFingerprint = fingerprintSiteKeyHex(validHex());
   const wrongHex = validHex();
   writeSiteMeta(siteDir, { siteId: "meta-site-1", siteKeyFingerprint: stampedFingerprint });
   buildSealedCiphertextDb(path.join(siteDir, "content.db"));
@@ -440,25 +440,25 @@ test("ensureSiteKey: adopt of a key whose fingerprint differs from the stamp, on
   const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home, findSiteKeyDependentData });
 
   assert.equal(result.action, "mismatch");
-  assert.equal(result.fingerprint, fingerprintRootKeyHex(wrongHex), "reports the candidate's own fingerprint");
+  assert.equal(result.fingerprint, fingerprintSiteKeyHex(wrongHex), "reports the candidate's own fingerprint");
   assert.equal(existsSync(perSiteFilePathIn(home, "site-1")), false, "a key the stamp proves wrong must never become the site's permanent per-site key");
   assert.equal(readSiteMeta(siteDir).siteKeyFingerprint, stampedFingerprint, "the stamp is evidence while sealed data exists — never overwritten");
 });
 
 test("ensureSiteKey: adopt with a stale stamp on a site with NO key-dependent data → 'adopt', and the stamp is updated to the adopted key", async () => {
   const hex = validHex();
-  writeSiteMeta(siteDir, { siteId: "meta-site-1", siteKeyFingerprint: fingerprintRootKeyHex(validHex()) });
+  writeSiteMeta(siteDir, { siteId: "meta-site-1", siteKeyFingerprint: fingerprintSiteKeyHex(validHex()) });
   const env = { ...bareEnv(), [LEGACY_SITE_KEY_ENV_VAR_NAME]: hex };
 
   const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home, findSiteKeyDependentData });
 
   assert.equal(result.action, "adopt");
   assert.equal(readFileSync(perSiteFilePathIn(home, "site-1"), "utf8"), hex);
-  assert.equal(readSiteMeta(siteDir).siteKeyFingerprint, fingerprintRootKeyHex(hex));
+  assert.equal(readSiteMeta(siteDir).siteKeyFingerprint, fingerprintSiteKeyHex(hex));
 });
 
 test("ensureSiteKey: mint on a site carrying a stale stamp (moved/copied site, no sealed data) → 'mint', and the stamp is updated — no permanent false mismatch", async () => {
-  writeSiteMeta(siteDir, { siteId: "meta-site-1", siteKeyFingerprint: fingerprintRootKeyHex(validHex()) });
+  writeSiteMeta(siteDir, { siteId: "meta-site-1", siteKeyFingerprint: fingerprintSiteKeyHex(validHex()) });
 
   const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env: bareEnv(), home, findSiteKeyDependentData });
 
@@ -548,7 +548,7 @@ function writeLegacySharedKey(homeDir: string, hex: string): void {
 
 test("ensureSiteKey: a different env key comes first but the legacy file holds the stamped key, on a site with sealed data → 'adopt' of the stamped key", async () => {
   const rightHex = validHex();
-  writeSiteMeta(siteDir, { siteId: "meta-site-1", siteKeyFingerprint: fingerprintRootKeyHex(rightHex) });
+  writeSiteMeta(siteDir, { siteId: "meta-site-1", siteKeyFingerprint: fingerprintSiteKeyHex(rightHex) });
   buildSealedCiphertextDb(path.join(siteDir, "content.db"));
   writeLegacySharedKey(home, rightHex);
   const env = { ...bareEnv(), [LEGACY_SITE_KEY_ENV_VAR_NAME]: validHex() };
@@ -556,14 +556,14 @@ test("ensureSiteKey: a different env key comes first but the legacy file holds t
   const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home, findSiteKeyDependentData });
 
   assert.equal(result.action, "adopt");
-  assert.equal(result.fingerprint, fingerprintRootKeyHex(rightHex));
+  assert.equal(result.fingerprint, fingerprintSiteKeyHex(rightHex));
   assert.equal(readFileSync(perSiteFilePathIn(home, "site-1"), "utf8"), rightHex, "the key the stamp names is the one adopted");
-  assert.equal(readSiteMeta(siteDir).siteKeyFingerprint, fingerprintRootKeyHex(rightHex), "the stamp is unchanged");
+  assert.equal(readSiteMeta(siteDir).siteKeyFingerprint, fingerprintSiteKeyHex(rightHex), "the stamp is unchanged");
 });
 
 test("ensureSiteKey: a malformed env key comes first but the legacy file holds the stamped key → 'adopt' of the stamped key, not 'invalid'", async () => {
   const rightHex = validHex();
-  writeSiteMeta(siteDir, { siteId: "meta-site-1", siteKeyFingerprint: fingerprintRootKeyHex(rightHex) });
+  writeSiteMeta(siteDir, { siteId: "meta-site-1", siteKeyFingerprint: fingerprintSiteKeyHex(rightHex) });
   buildSealedCiphertextDb(path.join(siteDir, "content.db"));
   writeLegacySharedKey(home, rightHex);
   const env = { ...bareEnv(), [LEGACY_SITE_KEY_ENV_VAR_NAME]: "not-a-key" };
@@ -592,7 +592,7 @@ function backupsOf(homeDir: string, siteKeyId: string): string[] {
 test("ensureSiteKey: a per-site key the stamp does not name, with the stamped key in the legacy file → wrong file backed up, stamped key adopted", async () => {
   const rightHex = validHex();
   const wrongHex = validHex();
-  writeSiteMeta(siteDir, { siteId: "meta-site-1", siteKeyFingerprint: fingerprintRootKeyHex(rightHex) });
+  writeSiteMeta(siteDir, { siteId: "meta-site-1", siteKeyFingerprint: fingerprintSiteKeyHex(rightHex) });
   buildSealedCiphertextDb(path.join(siteDir, "content.db"));
   writePerSiteKey(home, "site-1", wrongHex);
   writeLegacySharedKey(home, rightHex);
@@ -600,18 +600,18 @@ test("ensureSiteKey: a per-site key the stamp does not name, with the stamped ke
   const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env: bareEnv(), home, findSiteKeyDependentData });
 
   assert.equal(result.action, "adopt");
-  assert.equal(result.fingerprint, fingerprintRootKeyHex(rightHex));
+  assert.equal(result.fingerprint, fingerprintSiteKeyHex(rightHex));
   assert.equal(readFileSync(perSiteFilePathIn(home, "site-1"), "utf8"), rightHex);
   const backups = backupsOf(home, "site-1");
   assert.equal(backups.length, 1, "the wrong key is kept as exactly one backup");
   assert.equal(readFileSync(path.join(home, ".tovu", "site-keys", backups[0]!), "utf8"), wrongHex, "the backup holds the wrong key unchanged");
   assert.equal(statSync(path.join(home, ".tovu", "site-keys", backups[0]!)).mode & 0o777, 0o600);
-  assert.equal(readSiteMeta(siteDir).siteKeyFingerprint, fingerprintRootKeyHex(rightHex), "the stamp is unchanged");
+  assert.equal(readSiteMeta(siteDir).siteKeyFingerprint, fingerprintSiteKeyHex(rightHex), "the stamp is unchanged");
 });
 
 test("ensureSiteKey: a malformed per-site key, with the stamped key in the env var → wrong file backed up, stamped key adopted", async () => {
   const rightHex = validHex();
-  writeSiteMeta(siteDir, { siteId: "meta-site-1", siteKeyFingerprint: fingerprintRootKeyHex(rightHex) });
+  writeSiteMeta(siteDir, { siteId: "meta-site-1", siteKeyFingerprint: fingerprintSiteKeyHex(rightHex) });
   writePerSiteKey(home, "site-1", "not-a-key");
   const env = { ...bareEnv(), [LEGACY_SITE_KEY_ENV_VAR_NAME]: rightHex };
 
@@ -626,7 +626,7 @@ test("ensureSiteKey: a malformed per-site key, with the stamped key in the env v
 
 test("ensureSiteKey: a per-site key the stamp does not name, and NO source holds the stamped key → 'mismatch', nothing moved", async () => {
   const wrongHex = validHex();
-  writeSiteMeta(siteDir, { siteId: "meta-site-1", siteKeyFingerprint: fingerprintRootKeyHex(validHex()) });
+  writeSiteMeta(siteDir, { siteId: "meta-site-1", siteKeyFingerprint: fingerprintSiteKeyHex(validHex()) });
   buildSealedCiphertextDb(path.join(siteDir, "content.db"));
   writePerSiteKey(home, "site-1", wrongHex);
   writeLegacySharedKey(home, validHex());
@@ -647,17 +647,17 @@ test("ensureSiteKey: a per-site key the stamp does not name, and NO source holds
 test("installSiteKey (local): writes the per-site file, backs up a different one, and stamps .site-meta.json", async () => {
   const oldHex = validHex();
   const newHex = validHex();
-  writeSiteMeta(siteDir, { siteId: "meta-site-1", siteKeyId: "site-1", siteKeyFingerprint: fingerprintRootKeyHex(validHex()), keep: "me" });
+  writeSiteMeta(siteDir, { siteId: "meta-site-1", siteKeyId: "site-1", siteKeyFingerprint: fingerprintSiteKeyHex(validHex()), keep: "me" });
   writePerSiteKey(home, "site-1", oldHex);
 
   const result = installSiteKey({ siteDir, hex: newHex, mode: "local", env: bareEnv(), home });
 
-  assert.deepEqual(result, { outcome: "installed", keyFilePath: perSiteFilePathIn(home, "site-1"), fingerprint: fingerprintRootKeyHex(newHex) });
+  assert.deepEqual(result, { outcome: "installed", keyFilePath: perSiteFilePathIn(home, "site-1"), fingerprint: fingerprintSiteKeyHex(newHex) });
   assert.equal(readFileSync(perSiteFilePathIn(home, "site-1"), "utf8"), newHex);
   const backups = backupsOf(home, "site-1");
   assert.equal(backups.length, 1);
   assert.equal(readFileSync(path.join(home, ".tovu", "site-keys", backups[0]!), "utf8"), oldHex);
-  assert.deepEqual(readSiteMeta(siteDir), { siteId: "meta-site-1", siteKeyId: "site-1", siteKeyFingerprint: fingerprintRootKeyHex(newHex), keep: "me" });
+  assert.deepEqual(readSiteMeta(siteDir), { siteId: "meta-site-1", siteKeyId: "site-1", siteKeyFingerprint: fingerprintSiteKeyHex(newHex), keep: "me" });
 });
 
 test("installSiteKey (local): the same key already in place → nothing backed up", async () => {
@@ -688,7 +688,7 @@ test("installSiteKey (production): no env key → the durable-volume file is wri
   const result = installSiteKey({ siteDir, hex, mode: "production", env: bareEnv(), home, cwd: siteDir });
 
   const volumeFile = path.join(siteDir, "sites", ".tovu", "site-key.hex");
-  assert.deepEqual(result, { outcome: "installed", keyFilePath: volumeFile, fingerprint: fingerprintRootKeyHex(hex) });
+  assert.deepEqual(result, { outcome: "installed", keyFilePath: volumeFile, fingerprint: fingerprintSiteKeyHex(hex) });
   assert.equal(readFileSync(volumeFile, "utf8"), hex);
 });
 

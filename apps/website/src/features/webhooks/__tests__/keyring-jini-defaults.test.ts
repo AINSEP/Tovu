@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { EnvOrFileKeyring, generateFileRootKey } from "../keyring.env.js";
+import { EnvOrFileKeyring, generateFileSiteKey } from "../keyring.env.js";
 
 /** Host source policy is read-only; generation belongs to an explicit writer. */
 test("readers refuse missing files, reuse an explicit key and never mint", async (t) => {
@@ -15,7 +15,7 @@ test("readers refuse missing files, reuse an explicit key and never mint", async
   const keyring = new EnvOrFileKeyring({ sources }, { env: () => ({}) });
   await assert.rejects(keyring.derive(input), /no site key/);
   assert.equal(existsSync(keyFilePath), false);
-  generateFileRootKey({ keyFilePath });
+  generateFileSiteKey({ keyFilePath });
   const before = readFileSync(keyFilePath, "utf8");
   const secret = await keyring.derive(input);
   assert.deepEqual(await new EnvOrFileKeyring({ sources }, { env: () => ({}) }).derive(input), secret);

@@ -49,8 +49,8 @@ export type { EgressPolicy, HttpClientPort, HttpRequest, HttpResponse } from "..
 /* Secret material — kept OUT of the portable content.db                       */
 /* -------------------------------------------------------------------------- */
 
-export type { RootKeyHandle } from "@jini-ai/platform/secrets";
-import type { RootKeyHandle } from "@jini-ai/platform/secrets";
+export type { RootKeyHandle as SiteKeyHandle } from "@jini-ai/platform/secrets";
+import type { RootKeyHandle as SiteKeyHandle } from "@jini-ai/platform/secrets";
 
 /**
  * Access to the install's root key, held OUTSIDE `content.db` (env var now → OS keychain next =
@@ -60,7 +60,7 @@ import type { RootKeyHandle } from "@jini-ai/platform/secrets";
  * (receivers must re-copy) and is the trigger for a sealed-secret rewrap on export.
  */
 export interface KeyringPort {
-  activeKey(): Promise<RootKeyHandle>;
+  activeKey(): Promise<SiteKeyHandle>;
   /**
    * HKDF(rootKey, info = `${workspaceId}:${subscriptionId}:v${version}`) → raw signing secret.
    * Deterministic for a fixed root key, so no per-subscription secret is ever persisted.
@@ -129,7 +129,7 @@ export interface KeyringPort {
  * free to seal with none — this just records that none currently do.
  */
 export interface SecretSealerPort {
-  seal(input: { plaintext: string; key: RootKeyHandle; aad?: string }): Promise<SealedSecret>;
+  seal(input: { plaintext: string; key: SiteKeyHandle; aad?: string }): Promise<SealedSecret>;
   open(input: { sealed: SealedSecret; aad?: string }): Promise<string>;
 }
 

@@ -3,7 +3,7 @@ import { chmodSync, closeSync, fsyncSync, linkSync, mkdirSync, openSync, readFil
 import { homedir } from "node:os";
 import { basename, dirname, join } from "node:path";
 
-import { fingerprintRootKeyHex, parseRootKeyHex, type RootKeyRejection } from "./keyring.env.js";
+import { fingerprintSiteKeyHex, parseSiteKeyHex, type SiteKeyRejection } from "./keyring.env.js";
 import {
   readSiteKeySourceMaterial,
   resolveSiteKeyEnv,
@@ -162,8 +162,8 @@ export interface EnsureSiteKeyResult {
    *  same value). For `"mismatch"` this is the file's real fingerprint, never the stale value still
    *  sitting in `.site-meta.json` — see {@link reconcileSiteKeyFingerprint}. */
   readonly fingerprint?: string;
-  /** Present for `"invalid"` — which {@link RootKeyRejection} the offending material failed. */
-  readonly reason?: RootKeyRejection | "env-conflict";
+  /** Present for `"invalid"` — which {@link SiteKeyRejection} the offending material failed. */
+  readonly reason?: SiteKeyRejection | "env-conflict";
 }
 
 /**
@@ -200,7 +200,7 @@ export async function ensureSiteKey(input: EnsureSiteKeyInput): Promise<EnsureSi
   const otherSources = sources.filter((source) => source.kind !== "per-site-file");
 
   const perSiteRaw = readRawSiteKeyMaterial(perSiteSource, env);
-  const perSiteParsed = perSiteRaw === undefined ? undefined : parseRootKeyHex(perSiteRaw);
+  const perSiteParsed = perSiteRaw === undefined ? undefined : parseSiteKeyHex(perSiteRaw);
 
   // A source holding exactly the key `.site-meta.json` names is the right one to adopt wherever it
   // sits in the order; only without such a source does the first-present rule apply.
@@ -211,15 +211,15 @@ export async function ensureSiteKey(input: EnsureSiteKeyInput): Promise<EnsureSi
   // holds the stamped key: the per-site file would otherwise outrank the right key forever. It is
   // moved aside, never deleted, and the stamped key takes its place.
   if (perSiteRaw !== undefined && stampedOtherRaw !== undefined && !matchesFingerprint(perSiteParsed, stampedFingerprint)) {
-    const stampedParsed = parseRootKeyHex(stampedOtherRaw);
+    const stampedParsed = parseSiteKeyHex(stampedOtherRaw);
     if (!stampedParsed.ok) throw new Error("ensureSiteKey: stamped material implies a valid key");
     moveSiteKeyFileAside(perSiteFilePath, perSiteRaw);
     const written = atomicCreateSiteKeyFile(perSiteFilePath, stampedParsed.hex);
-    return withFingerprintReconciliation(input.siteDir, "adopt", perSiteFilePath, fingerprintRootKeyHex(written), async () => false);
+    return withFingerprintReconciliation(input.siteDir, "adopt", perSiteFilePath, fingerprintSiteKeyHex(written), async () => false);
   }
 
   const otherRaw = stampedOtherRaw ?? findFirstPresentMaterial(otherSources, env);
-  const otherParsed = otherRaw === undefined ? undefined : parseRootKeyHex(otherRaw);
+  const otherParsed = otherRaw === undefined ? undefined : parseSiteKeyHex(otherRaw);
 
   let hasKeyDataMemo: boolean | undefined;
   const siteHasKeyData = async (): Promise<boolean> => {
@@ -239,7 +239,7 @@ export async function ensureSiteKey(input: EnsureSiteKeyInput): Promise<EnsureSi
   switch (plan.action) {
     case "noop": {
       if (!perSiteParsed?.ok) throw new Error("ensureSiteKey: 'noop' plan implies a valid per-site key");
-      return withFingerprintReconciliation(input.siteDir, "noop", perSiteFilePath, fingerprintRootKeyHex(perSiteParsed.hex), async () => false);
+      return withFingerprintReconciliation(input.siteDir, "noop", perSiteFilePath, fingerprintSiteKeyHex(perSiteParsed.hex), async () => false);
     }
     case "invalid": {
       const rejected = perSiteParsed?.ok === false ? perSiteParsed : otherParsed?.ok === false ? otherParsed : undefined;
@@ -252,12 +252,12 @@ export async function ensureSiteKey(input: EnsureSiteKeyInput): Promise<EnsureSi
       // source, so adopting a key the stamp already proves wrong would make it permanent and block
       // the right key from ever being adopted. With no key-dependent data the stamp protects
       // nothing, so adoption goes ahead and the stamp is updated.
-      const candidateFingerprint = fingerprintRootKeyHex(otherParsed.hex);
+      const candidateFingerprint = fingerprintSiteKeyHex(otherParsed.hex);
       if (stampedFingerprint !== undefined && stampedFingerprint !== candidateFingerprint && (await siteHasKeyData())) {
         return { action: "mismatch", perSiteFilePath, fingerprint: candidateFingerprint };
       }
       const written = atomicCreateSiteKeyFile(perSiteFilePath, otherParsed.hex);
-      return withFingerprintReconciliation(input.siteDir, "adopt", perSiteFilePath, fingerprintRootKeyHex(written), async () => !(await siteHasKeyData()));
+      return withFingerprintReconciliation(input.siteDir, "adopt", perSiteFilePath, fingerprintSiteKeyHex(written), async () => !(await siteHasKeyData()));
     }
     case "refuse":
       return { action: "refuse", perSiteFilePath };
@@ -267,7 +267,7 @@ export async function ensureSiteKey(input: EnsureSiteKeyInput): Promise<EnsureSi
       // `mint` is only planned when the site has no key-dependent data, so a stale stamp (a moved or
       // copied site folder) protects nothing — it is replaced rather than left as a permanent,
       // false "mismatch".
-      return withFingerprintReconciliation(input.siteDir, "mint", perSiteFilePath, fingerprintRootKeyHex(written), async () => !(await siteHasKeyData()));
+      return withFingerprintReconciliation(input.siteDir, "mint", perSiteFilePath, fingerprintSiteKeyHex(written), async () => !(await siteHasKeyData()));
     }
     case "production-noop":
       // Unreachable here (the mode==="production" branch above already returned) — kept only so
@@ -459,7 +459,7 @@ export type InstallSiteKeyResult =
  * @complexity O(n) in the (fixed-size) source list, plus a few small file reads/writes.
  */
 export function installSiteKey(input: InstallSiteKeyInput): InstallSiteKeyResult | undefined {
-  const parsed = parseRootKeyHex(input.hex);
+  const parsed = parseSiteKeyHex(input.hex);
   if (!parsed.ok) throw new Error(`installSiteKey: not a valid site key (${parsed.reason})`);
   const env = input.env ?? process.env;
   if (resolveSiteKeyEnv({ env }).kind === "conflict") return { outcome: "env-conflict" };
@@ -467,22 +467,22 @@ export function installSiteKey(input: InstallSiteKeyInput): InstallSiteKeyResult
   const siteKeyId = resolveSiteKeyId({ siteDir: input.siteDir }) ?? mintSiteKeyIdIfAbsent(input.siteDir, mode);
   if (mode !== "production" && !siteKeyId) return undefined;
   const sources = siteKeySources({ mode, env, home: input.home ?? homedir(), cwd: input.cwd ?? process.cwd(), siteKeyId });
-  const fingerprint = fingerprintRootKeyHex(parsed.hex);
+  const fingerprint = fingerprintSiteKeyHex(parsed.hex);
 
   for (const source of sources) {
     if (source.kind === "env") {
       const material = readSiteKeySourceMaterial(source, env);
       if (material === undefined) continue;
       if ("conflict" in material) return { outcome: "env-conflict" };
-      if (!matchesFingerprint(parseRootKeyHex(material.raw), fingerprint)) return { outcome: "env-key-set" };
+      if (!matchesFingerprint(parseSiteKeyHex(material.raw), fingerprint)) return { outcome: "env-key-set" };
       stampFingerprint(input.siteDir, fingerprint);
       return { outcome: "installed", keyFilePath: `env:${material.envVarName}`, fingerprint };
     }
     if (source.path === undefined) continue;
     const current = readRawSiteKeyMaterial(source, env);
-    if (current !== undefined && !matchesFingerprint(parseRootKeyHex(current), fingerprint)) moveSiteKeyFileAside(source.path, current);
+    if (current !== undefined && !matchesFingerprint(parseSiteKeyHex(current), fingerprint)) moveSiteKeyFileAside(source.path, current);
     const written = atomicCreateSiteKeyFile(source.path, parsed.hex);
-    if (fingerprintRootKeyHex(written) !== fingerprint) throw new Error("installSiteKey: another process wrote a different key at the same moment; nothing was stamped");
+    if (fingerprintSiteKeyHex(written) !== fingerprint) throw new Error("installSiteKey: another process wrote a different key at the same moment; nothing was stamped");
     stampFingerprint(input.siteDir, fingerprint);
     return { outcome: "installed", keyFilePath: source.path, fingerprint };
   }
@@ -549,9 +549,9 @@ function mintMinimalSiteMetaJson(siteDir: string): string | undefined {
   }
 }
 
-/** {@link planSiteKeyEnsure}'s input shape from a raw {@link parseRootKeyHex} result (or
+/** {@link planSiteKeyEnsure}'s input shape from a raw {@link parseSiteKeyHex} result (or
  *  `undefined` for "nothing there"). */
-function materialCheckOf(parsed: ReturnType<typeof parseRootKeyHex> | undefined): SiteKeyMaterialCheck {
+function materialCheckOf(parsed: ReturnType<typeof parseSiteKeyHex> | undefined): SiteKeyMaterialCheck {
   if (parsed === undefined) return { kind: "absent" };
   return parsed.ok ? { kind: "valid" } : { kind: "invalid" };
 }
@@ -569,15 +569,15 @@ function findStampedMaterial(
   if (stampedFingerprint === undefined) return undefined;
   for (const source of sources) {
     const raw = readRawSiteKeyMaterial(source, env);
-    const parsed = raw === undefined ? undefined : parseRootKeyHex(raw);
-    if (parsed?.ok && fingerprintRootKeyHex(parsed.hex) === stampedFingerprint) return raw;
+    const parsed = raw === undefined ? undefined : parseSiteKeyHex(raw);
+    if (parsed?.ok && fingerprintSiteKeyHex(parsed.hex) === stampedFingerprint) return raw;
   }
   return undefined;
 }
 
 /** Whether `parsed` is a valid key whose fingerprint is `fingerprint`. @complexity O(1). */
-function matchesFingerprint(parsed: ReturnType<typeof parseRootKeyHex> | undefined, fingerprint: string | undefined): boolean {
-  return parsed?.ok === true && fingerprint !== undefined && fingerprintRootKeyHex(parsed.hex) === fingerprint;
+function matchesFingerprint(parsed: ReturnType<typeof parseSiteKeyHex> | undefined, fingerprint: string | undefined): boolean {
+  return parsed?.ok === true && fingerprint !== undefined && fingerprintSiteKeyHex(parsed.hex) === fingerprint;
 }
 
 /**

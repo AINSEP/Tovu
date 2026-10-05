@@ -3,7 +3,7 @@ import { type RawBuilder, sql } from "kysely";
 import type { ContentKernel } from "./content-kernel.js";
 import { listColumns, listTables } from "./kernel/dialect.js";
 import type { StorageKernel } from "./kernel/port.js";
-import type { KeyringPort, RootKeyHandle, SealedSecret, SecretSealerPort } from "#src/features/webhooks/index";
+import type { KeyringPort, SiteKeyHandle, SealedSecret, SecretSealerPort } from "#src/features/webhooks/index";
 
 /**
  * @file Read-only inventory of every sealed credential in the content database: which rows exist, what they
@@ -332,7 +332,7 @@ async function takeSnapshot(deps: SealedCredentialInventoryDeps, maxEntries: num
  * Seals and re-opens a constant probe under the active key. Returns the sealer's alg on success,
  * `null` on any failure (whose message is never read).
  */
-async function probeSealer(sealer: SealedCredentialInventoryDeps["sealer"], key: RootKeyHandle): Promise<string | null> {
+async function probeSealer(sealer: SealedCredentialInventoryDeps["sealer"], key: SiteKeyHandle): Promise<string | null> {
   try {
     const sealed = await sealer.seal({ plaintext: PROBE_PLAINTEXT, key, aad: PROBE_AAD });
     const reopened = await sealer.open({ sealed, aad: PROBE_AAD });
@@ -356,7 +356,7 @@ function toSealedSecret(cells: SealedCells): SealedSecret | null {
  */
 async function openWithWorkingKey(input: {
   sealer: SealedCredentialInventoryDeps["sealer"];
-  key: RootKeyHandle;
+  key: SiteKeyHandle;
   probeAlg: string;
   sealed: SealedSecret;
   aad: string | undefined;
@@ -371,7 +371,7 @@ async function openWithWorkingKey(input: {
   }
 }
 
-async function readActiveKey(keyring: SealedCredentialInventoryDeps["keyring"]): Promise<RootKeyHandle | null> {
+async function readActiveKey(keyring: SealedCredentialInventoryDeps["keyring"]): Promise<SiteKeyHandle | null> {
   try {
     return await keyring.activeKey();
   } catch {
@@ -380,7 +380,7 @@ async function readActiveKey(keyring: SealedCredentialInventoryDeps["keyring"]):
 }
 
 /** Decides once, up front, whether opens can be attempted at all — and never derives with no key source. */
-async function createActiveKeyCheck(deps: SealedCredentialInventoryDeps, key: RootKeyHandle | null): Promise<ActiveKeyCheck> {
+async function createActiveKeyCheck(deps: SealedCredentialInventoryDeps, key: SiteKeyHandle | null): Promise<ActiveKeyCheck> {
   if (!deps.hasRootKeySource()) return { attemptOpen: async () => unknownVerdict("no-root-key") };
   const probeAlg = key === null ? null : await probeSealer(deps.sealer, key);
   if (key === null || probeAlg === null) return { attemptOpen: async () => unknownVerdict("active-key-unavailable") };

@@ -1,5 +1,5 @@
 import { AesGcmSecretSealer as JiniSecretSealer } from "@jini-ai/platform/secrets";
-import type { KeyringPort, RootKeyHandle, SecretSealerPort } from "./ports.js";
+import type { KeyringPort, SiteKeyHandle, SecretSealerPort } from "./ports.js";
 import type { SealedSecret } from "@jini-ai/platform/secrets";
 
 /** Host port adapter preserving the existing sealed wire format and open(input.aad) contract.
@@ -105,7 +105,7 @@ export class AesGcmSecretSealer implements SecretSealerPort {
    * own three fields ever reaches Jini.
    * @complexity O(plaintext bytes), delegated to Jini AES-GCM.
    */
-  seal(input: { plaintext: string; key: RootKeyHandle; aad?: string }): Promise<SealedSecret> {
+  seal(input: { plaintext: string; key: SiteKeyHandle; aad?: string }): Promise<SealedSecret> {
     return this.sealer.seal({ plaintext: input.plaintext, key: input.key, aad: input.aad ?? "" });
   }
 

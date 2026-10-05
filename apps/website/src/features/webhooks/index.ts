@@ -27,7 +27,7 @@ export type {
 export type {
   IntegrationSecretRepoPort,
   KeyringPort,
-  RootKeyHandle,
+  SiteKeyHandle,
   SecretSealerPort,
   WebhookDeliveryRepoPort,
   WebhookSubscriptionRepoPort,

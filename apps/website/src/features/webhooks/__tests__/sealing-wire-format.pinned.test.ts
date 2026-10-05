@@ -20,8 +20,8 @@ test("current sealing wire bytes and stored fixture remain pinned", async () => 
   });
   try {
     const { AesGcmSecretSealer } = await import("../secret-sealer.aesgcm.js");
-    const { FixedRootKeyKeyring } = await import("../keyring.env.js");
-    const keyring = new FixedRootKeyKeyring(rootKeyHex);
+    const { FixedSiteKeyKeyring } = await import("../keyring.env.js");
+    const keyring = new FixedSiteKeyKeyring(rootKeyHex);
     // Independently pin the existing salt and derivation labels as well as the envelope.
     assert.deepEqual(
       await keyring.derive({ workspaceId: "secret-sealer", purpose: "secret-sealer.v1", info: "v1" }),

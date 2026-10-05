@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { FixedRootKeyKeyring } from "@jini-ai/platform/secrets";
+import { FixedRootKeyKeyring as FixedSiteKeyKeyring } from "@jini-ai/platform/secrets";
 import { HKDF_EXTRACTION_SALT } from "./keyring.env.js";
 import type { KeyringPort } from "./ports.js";
 
@@ -19,10 +19,10 @@ import type { KeyringPort } from "./ports.js";
  * or the filesystem. This instance retains one random root key only in memory. */
 // Shared derivation: Jini/packages/platform/src/secrets/keyring.env.ts (FixedRootKeyKeyring).
 export class InMemoryKeyring implements KeyringPort {
-  private readonly keyring: FixedRootKeyKeyring;
+  private readonly keyring: FixedSiteKeyKeyring;
 
   constructor(keyId = "v1") {
-    this.keyring = new FixedRootKeyKeyring({
+    this.keyring = new FixedSiteKeyKeyring({
       hex: randomBytes(32).toString("hex"), hkdfSalt: HKDF_EXTRACTION_SALT, // site-key-frozen: never change (every sealed row depends on these bytes)
     }, { keyId });
   }

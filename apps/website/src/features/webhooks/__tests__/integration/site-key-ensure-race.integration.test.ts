@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
-import { fingerprintRootKeyHex } from "../../keyring.env.js";
+import { fingerprintSiteKeyHex } from "../../keyring.env.js";
 import { setTimeout as delay } from "node:timers/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -91,8 +91,8 @@ test("2 concurrent processes minting the same siteKeyId under the same home conv
     const siteKeysDir = path.join(home, ".tovu", "site-keys");
     const finalHex = readFileSync(path.join(siteKeysDir, `${siteKeyId}.hex`), "utf8").trim();
     assert.match(finalHex, /^[0-9a-f]{64}$/);
-    assert.equal(resultA.fingerprint, fingerprintRootKeyHex(finalHex), "both results must name the key actually on disk");
-    assert.equal(resultB.fingerprint, fingerprintRootKeyHex(finalHex));
+    assert.equal(resultA.fingerprint, fingerprintSiteKeyHex(finalHex), "both results must name the key actually on disk");
+    assert.equal(resultB.fingerprint, fingerprintSiteKeyHex(finalHex));
     const entries = readdirSync(siteKeysDir);
     assert.deepEqual(entries, [`${siteKeyId}.hex`], "exactly one file must exist — no leftover temp files, no duplicate");
   } finally {

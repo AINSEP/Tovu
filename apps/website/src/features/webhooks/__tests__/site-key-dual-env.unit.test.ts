@@ -4,10 +4,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { resolveSiteKeyEnv, SITE_KEY_ENV_VAR_NAME, LEGACY_SITE_KEY_ENV_VAR_NAME, siteKeyEnvOnlySources, siteKeySources } from "../site-key-sources.js";
-import { EnvOrFileKeyring, UnusableRootKeyError, inspectRootKeyMaterial, revealRootKeyMaterial } from "../keyring.env.js";
+import { EnvOrFileKeyring, UnusableSiteKeyError, inspectSiteKeyMaterial, revealSiteKeyMaterial } from "../keyring.env.js";
 import { ensureSiteKey, ensureSiteKeyForBoot, installSiteKey } from "../site-key-ensure.js";
 import { runProductionReadinessGate } from "#src/server/runtime/boot/production-readiness-gate";
-import { siteTokenState } from "#src/server/inbound/admin-http/routes/system/site-token";
+import { siteKeyState } from "#src/server/inbound/admin-http/routes/system/site-key";
 
 const key = "ab".repeat(32);
 const other = "cd".repeat(32);
@@ -23,18 +23,18 @@ for (const [label, env, expected] of [
   test(`dual env: ${label}`, async () => {
     assert.deepEqual(resolveSiteKeyEnv({ env }), expected);
     const sources = siteKeyEnvOnlySources({});
-    const status = inspectRootKeyMaterial({ sources }, { env: () => env });
-    const reveal = revealRootKeyMaterial({ sources }, { env: () => env });
+    const status = inspectSiteKeyMaterial({ sources }, { env: () => env });
+    const reveal = revealSiteKeyMaterial({ sources }, { env: () => env });
     const keyring = new EnvOrFileKeyring({ sources }, { env: () => env });
     if (expected.kind === "conflict") {
       assert.equal(status.reason, "env-conflict");
       assert.equal(status.active, false);
       assert.equal(reveal.hex, undefined);
-      await assert.rejects(keyring.derive(derive), (error: unknown) => error instanceof UnusableRootKeyError && error.reason === "env-conflict");
-      assert.equal(siteTokenState({ ...status, hasKeyDependentData: false }), "env-conflict");
+      await assert.rejects(keyring.derive(derive), (error: unknown) => error instanceof UnusableSiteKeyError && error.reason === "env-conflict");
+      assert.equal(siteKeyState({ ...status, hasKeyDependentData: false }), "env-conflict");
       const result = await runProductionReadinessGate({ mode: "production", inventory: [], envSnapshot: {
         hasDevSecretPlaceholder: false, hasLocalhostEgressAllowance: false, hasAlwaysOnAnalyticsStub: false,
-        hasDefaultOwnerPassword: false, hasMissingIntegrationsRootKey: !status.active, hasSiteKeyEnvConflict: status.reason === "env-conflict",
+        hasDefaultOwnerPassword: false, hasMissingSiteKey: !status.active, hasSiteKeyEnvConflict: status.reason === "env-conflict",
       } });
       assert.equal(result.ok, false);
       if (!result.ok) assert.ok(result.failures.some(f => f.details.checkName === "site-key-env-conflict"));
@@ -97,8 +97,8 @@ test("a valid per-site file cannot hide conflicting env aliases", async (t) => {
   const file = join(keyDir, "safe.hex");
   writeFileSync(file, key);
   const sources = siteKeySources({ mode: "local", home, cwd: home, env, siteKeyId: "safe" });
-  assert.equal(inspectRootKeyMaterial({ sources }, { env: () => env }).reason, "env-conflict");
-  await assert.rejects(new EnvOrFileKeyring({ sources }, { env: () => env }).derive(derive), (e: unknown) => e instanceof UnusableRootKeyError && e.reason === "env-conflict");
+  assert.equal(inspectSiteKeyMaterial({ sources }, { env: () => env }).reason, "env-conflict");
+  await assert.rejects(new EnvOrFileKeyring({ sources }, { env: () => env }).derive(derive), (e: unknown) => e instanceof UnusableSiteKeyError && e.reason === "env-conflict");
   assert.equal((await ensureSiteKey({ siteDir: home, home, cwd: home, env, mode: "local", siteKeyId: "safe", findSiteKeyDependentData: async () => false })).action, "refuse");
   assert.deepEqual(readdirSync(keyDir), ["safe.hex"]);
 });

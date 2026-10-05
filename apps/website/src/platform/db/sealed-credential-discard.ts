@@ -11,7 +11,7 @@ import {
   type SealedColumnDescriptor,
   type SealedRowIdentity,
 } from "./sealed-credential-inventory.js";
-import type { RootKeyHandle, SecretSealerPort } from "#src/features/webhooks/index";
+import type { SiteKeyHandle, SecretSealerPort } from "#src/features/webhooks/index";
 
 /**
  * @file The Site Token tab's last-resort recovery on sealed credentials (design
@@ -88,7 +88,7 @@ export interface ResealCredentialsDeps extends SealedCredentialKeyDeps {
   /** A sealer over the new key; `seal` writes the moved values. */
   readonly sealer: Pick<SecretSealerPort, "open" | "seal">;
   /** The new key's handle, as its keyring's `activeKey()` reports it. */
-  readonly key: RootKeyHandle;
+  readonly key: SiteKeyHandle;
   /** A sealer over the key the values may have been sealed under instead. */
   readonly previous: Pick<SecretSealerPort, "open">;
 }
