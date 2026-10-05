@@ -571,9 +571,16 @@ let boundSlugChangeCapture: SlugChangeCapture | undefined;
  * that check belongs to the content write chokepoint (which knows whether
  * preservation is enabled) and to Redirects (neither exists in this repo
  * yet). This library only exposes the registration slot itself.
+ *
+ * @returns a disposer that unbinds exactly THIS registration: a no-op once a later call has bound
+ * another implementation, so a stale composition torn down after a newer one booted cannot clear
+ * the newer site's capture (the same identity scoping `registerResolvePhase`'s disposers use).
  */
-export function registerSlugChangeCapture(impl: SlugChangeCapture): void {
+export function registerSlugChangeCapture(impl: SlugChangeCapture): () => void {
   boundSlugChangeCapture = impl;
+  return () => {
+    if (boundSlugChangeCapture === impl) boundSlugChangeCapture = undefined;
+  };
 }
 
 /** The currently bound `SlugChangeCapture`, or `undefined` if none is bound. */

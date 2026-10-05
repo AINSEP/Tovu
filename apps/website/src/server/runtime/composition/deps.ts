@@ -751,6 +751,13 @@ function createSiteDisplayNameSource(dbPath: string): SiteDisplayNameSource {
 }
 
 /**
+ * What a composition hands its store's `onClose`: the disposer a `register*`/`subscribe` call
+ * returned, or the promise of one (`EventBusPort.subscribe` is async), so every registration goes
+ * through the one collector whatever its return shape.
+ */
+type StoreCloseRegistration = (() => unknown) | Promise<() => unknown>;
+
+/**
  * The prelude's store step (R1 plan R1d): the site's storage choice from its `.site-meta.json`
  * (absent = SQLite), then the content + chat store it names. When `overrides.db` is supplied (the
  * install-dir `serve` path), that SAME handle is reused rather than opening/migrating a second db —
@@ -763,14 +770,14 @@ function createSiteDisplayNameSource(dbPath: string): SiteDisplayNameSource {
  * ever queries a closed store. `release` is what {@link createSiteRouteDeps} runs when the rest of
  * the composition fails: close what this call opened, or only stop the sweep on a supplied store.
  *
- * `onClose` collects the composition's process-wide registrations (a resolve-phase handler bound to
- * this store's repos) so both `close()` and `release` remove them first. Without it, a closed site's
- * handler stays on every request's path, querying a database that is no longer open.
+ * `onClose` collects the composition's registrations (a resolve-phase handler or slot bound to this
+ * store's repos, a bus subscription) so both `close()` and `release` remove them first. Without it, a
+ * closed site's handler stays on every request's path, querying a database that is no longer open.
  */
 async function openCompositionStore(
   dbPath: string,
   overrides?: Partial<CreateSiteRouteDepsOverrides>
-): Promise<{ store: SiteStore; release: () => Promise<void>; onClose: (dispose: () => void) => void }> {
+): Promise<{ store: SiteStore; release: () => Promise<void>; onClose: (registration: StoreCloseRegistration) => void }> {
   const storage = resolveSiteStorage(isInMemoryDbPath(dbPath) ? ":memory:" : dirname(dbPath));
   hydrateContentDbIfNeeded(dbPath, storage, overrides);
   const role = overrides?.storeRole ?? "owner";
@@ -785,9 +792,9 @@ async function openCompositionStore(
   const stopSubmissionIpSweep = role === "owner"
     ? startSubmissionIpExpirySweep({ kernel: opened.content })
     : async () => {};
-  const disposers: Array<() => void> = [];
+  const registrations: StoreCloseRegistration[] = [];
   const stopStoreUsers = async (): Promise<void> => {
-    for (const dispose of disposers.splice(0)) dispose();
+    await Promise.all(registrations.splice(0).map(async (registration) => (await registration)()));
     await Promise.all([stopChatSweep(), stopSubmissionIpSweep()]);
   };
   const store: SiteStore = {
@@ -801,7 +808,7 @@ async function openCompositionStore(
   return {
     store,
     release: supplied === undefined ? store.close : stopStoreUsers,
-    onClose: (dispose) => { disposers.push(dispose); },
+    onClose: (registration) => { registrations.push(registration); },
   };
 }
 
@@ -935,7 +942,7 @@ export async function createSiteRouteDeps(
  */
 async function composeSiteRouteDeps(
   dbPath: string,
-  opened: { store: SiteStore; onStoreClose: (dispose: () => void) => void },
+  opened: { store: SiteStore; onStoreClose: (registration: StoreCloseRegistration) => void },
   overrides?: Partial<CreateSiteRouteDepsOverrides>
 ): Promise<NewsletterRouteDeps & ByokToolSurfaceDeps> {
   const { store, onStoreClose } = opened;
@@ -1525,8 +1532,9 @@ async function composeSiteRouteDeps(
     idGen,
     outbox,
   };
-  // Disposed with the store: the resolver closes over this site's `redirectRepo`, and the phase
-  // registry is process-wide, so it must not outlive the database it queries.
+  // Disposed with the store: the resolver and the slug capture close over this site's
+  // `redirectRepo`, and the phase registry and capture slot are process-wide, so neither may outlive
+  // the database it queries. The hit fold's bus is this site's own; it leaves with the site too.
   onStoreClose(registerRedirectsPhaseHandlers({
     resolver: new RedirectPhaseHandlerResolver({
       repo: redirectRepo,
@@ -1535,10 +1543,10 @@ async function composeSiteRouteDeps(
       hits: { outbox, clock, idGen },
     }),
   }));
-  registerSlugChangeCapture(
+  onStoreClose(registerSlugChangeCapture(
     new RedirectSlugChangeCapture({ repo: redirectRepo, db: redirectRepo, clock, idGen })
-  );
-  void registerRedirectHitOutboxHandler({ bus, hitSink: redirectHitSink });
+  ));
+  onStoreClose(registerRedirectHitOutboxHandler({ bus, hitSink: redirectHitSink }));
 
   // ADR-041 §2 — opens the sidecar ops journal alongside content.db. `mkdirSync` (recursive) is
   // required first: unlike `openContentDb`'s target (the process cwd, which already exists),

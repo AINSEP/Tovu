@@ -478,3 +478,18 @@ test("registerSlugChangeCapture binds the implementation getSlugChangeCapture re
   registerSlugChangeCapture(replacement);
   assert.equal(getSlugChangeCapture(), replacement);
 });
+
+test("registerSlugChangeCapture's disposer unbinds only its own registration", () => {
+  resetRoutingRegistrationsForTests();
+  const stale: SlugChangeCapture = { onSlugChange: async () => {} };
+  const current: SlugChangeCapture = { onSlugChange: async () => {} };
+
+  const disposeStale = registerSlugChangeCapture(stale);
+  const disposeCurrent = registerSlugChangeCapture(current);
+  // A superseded site torn down after the newer one bound must leave the newer capture in place.
+  disposeStale();
+  assert.equal(getSlugChangeCapture(), current);
+
+  disposeCurrent();
+  assert.equal(getSlugChangeCapture(), undefined);
+});
