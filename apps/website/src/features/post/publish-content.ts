@@ -11,12 +11,13 @@ import type {
   PublishContentDeps,
   PublishContentPorts,
   PackedEntity,
+  PublishContentReference,
   RetireTarget,
   TaxonomyPublishPorts,
 } from "#src/features/publish-content/type-registry";
 import { prepareTermSync, readTermIds, TERM_SYNC_PERMISSION, withTermIds } from "#src/features/taxonomy/publish-term-ids";
 
-import { importPostEntity, isTrashed, restorePostForward, retirePostForReplacement, PostConflictError, PostNotFoundError, ROOT_SLUG } from "./post.js";
+import { importPostEntity, isTrashed, presentScheduleFields, restorePostForward, retirePostForReplacement, PostConflictError, PostNotFoundError, ROOT_SLUG } from "./post.js";
 import type { PostKind, PostRecord } from "./post.js";
 
 /**
@@ -130,13 +131,18 @@ const POST_FIELD_DISPOSITIONS: Record<keyof PostRecord, "transferred" | "provena
   // content and never deletes production content — until that is answered.
   deletedAt: "local",
 
-  // Scheduled publishing / featured image (2026-10-05) — NOT carried yet. KNOWN GAP (follow-up):
-  // a scheduled post published to production arrives as plain `published` and is live at once.
-  // Classifying these "transferred" (packed only when set) changed every pinned content hash in
-  // `publish-content.characterization.test.ts` even for rows without them — cause not yet found.
-  publishAt: "local",
-  featuredMediaId: "local",
+  // Scheduled publishing / featured image (2026-10-05) — carried, so a scheduled post stays
+  // scheduled at the destination instead of going live the moment it lands. Packed and hashed ONLY
+  // WHEN SET (`omitWhenAbsent` below, and `toPublishableState`): repos keep both keys absent when
+  // unset (`presentScheduleFields`), so a row without them keeps the exact state and hash it had
+  // before these fields existed (`publish-content.characterization.test.ts` pins those hashes).
+  publishAt: "transferred",
+  featuredMediaId: "transferred",
 };
+
+/** Transferred fields left off the wire (and out of the hash) when the row has no value for them,
+ *  so adding them did not move the hash of any row that never set them. */
+const OMIT_WHEN_ABSENT: ReadonlySet<keyof PostRecord> = new Set(["publishAt", "featuredMediaId"]);
 
 /** The keys {@link toPublishableState} puts on the wire: `"transferred"` plus `"provenance"`.
  *  Derived from {@link POST_FIELD_DISPOSITIONS} rather than re-listed, so the two cannot drift. */
@@ -159,6 +165,8 @@ export type PublishablePostState = Pick<PostRecord, (typeof PACKED_POST_FIELDS)[
  * and one whose column holds SQL `NULL` hash identically across two instances whose adapters
  * represent that difference differently. (`content-hash.ts`'s `normalize` collapses the same two
  * cases, but doing it here makes the WIRE shape unambiguous too, not just the hash input.)
+ * The exception is {@link OMIT_WHEN_ABSENT}: those keys are left out when unset, matching the
+ * factory's `omitWhenAbsent`, so this state and the packed hash stay one recipe.
  *
  * Exported so a test can assert against THE state builder rather than re-deriving the field list
  * on its own — a duplicated recipe in a test is the same drift this DTO exists to close, and it
@@ -169,6 +177,7 @@ export type PublishablePostState = Pick<PostRecord, (typeof PACKED_POST_FIELDS)[
 export function toPublishableState(post: PostRecord): Record<string, unknown> {
   const state: Record<string, unknown> = {};
   for (const field of PACKED_POST_FIELDS) {
+    if (OMIT_WHEN_ABSENT.has(field) && post[field] === undefined) continue;
     state[field] = post[field] ?? null;
   }
   return state;
@@ -191,10 +200,14 @@ function toImportableRecord(
   const packed = state as Partial<PostRecord>;
   const wire: Record<string, unknown> = {};
   for (const field of PACKED_POST_FIELDS) {
+    if (OMIT_WHEN_ABSENT.has(field)) continue;
     wire[field] = packed[field] ?? null;
   }
   return {
     ...(wire as unknown as PublishablePostState),
+    // Absent on the wire means "none": the destination's own schedule/featured image is CLEARED, not
+    // kept, so a source that went live makes the destination live too.
+    ...presentScheduleFields({ publishAt: packed.publishAt ?? null, featuredMediaId: packed.featuredMediaId ?? null }),
     id,
     workspaceId,
     // Recomputed by `importPostEntity` itself; present only because `PostRecord` requires them, and
@@ -208,6 +221,15 @@ function toImportableRecord(
     createdByPrincipalId: existing ? existing.createdByPrincipalId : ((wire.createdByPrincipalId as string | null) ?? null),
     createdAt: existing ? existing.createdAt : ((wire.createdAt as string | null) ?? null),
   };
+}
+
+/** {@link collectBodyReferences} plus the featured image, so a scoped publish carries that media too. */
+function postReferences(state: Readonly<Record<string, unknown>>): readonly PublishContentReference[] {
+  const refs = collectBodyReferences(state);
+  const featured = state.featuredMediaId;
+  if (typeof featured !== "string" || featured.length === 0) return refs;
+  if (refs.some((ref) => ref.entityType === "media" && ref.key === featured)) return refs;
+  return [...refs, { entityType: "media", key: featured }];
 }
 
 /** A row as this transport sees it: see this file's header for `termIds`. */
@@ -269,8 +291,8 @@ function contributePostKind(kind: PostKind): PublishContentContributor {
     },
     isTrashed,
     fields: { ...POST_FIELD_DISPOSITIONS, termIds: "transferred" },
-    omitWhenAbsent: ["termIds"],
-    references: (entity) => collectBodyReferences(entity.state),
+    omitWhenAbsent: ["termIds", ...OMIT_WHEN_ABSENT],
+    references: (entity) => postReferences(entity.state),
     // Not the factory's `address`: a slug held by a trashed row keeps this sentence, and the slug
     // checks run before the kind check on an unfiltered read, as before the migration.
     validate: async ({ ports, workspaceId, entity }) => {
