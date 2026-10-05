@@ -67,3 +67,34 @@ test("the public static-page pipeline wires taxonomy read ports and resolves mar
   assert.match(rendered, /data-tovu-term="from-the-public-pipeline"/);
   assert.doesNotMatch(rendered, /class=|style=|data-embed-config|widget-placeholder/);
 });
+
+test("purged taxonomies and purged terms never render", async () => {
+  const html = marker("Categories");
+  const purgedTaxonomy = await resolveHtmlPageEmbeds({ deps: deps([{ ...taxonomy, status: "purged" }]), input: { workspaceId: "ws", html } });
+  assert.equal(purgedTaxonomy.get("taxonomy")?.size, 0);
+  const rendered = renderHtmlPageBody(html, await resolveHtmlPageEmbeds({ deps: deps([taxonomy], [term("kept"), term("gone", { status: "purged" })]), input: { workspaceId: "ws", html } }));
+  assert.match(rendered, /data-tovu-term="kept"/);
+  assert.doesNotMatch(rendered, /gone/);
+});
+
+test("a marker without a target id resolves nothing and the taxonomy's terms are listed once per page", async () => {
+  const dependencies = deps(); const listed: string[] = [];
+  const termRepo = { listByTaxonomy: async (input: { taxonomyId: string }) => { listed.push(input.taxonomyId); return dependencies.termRepo.listByTaxonomy(input); } };
+  const idless = `<div data-embed-config='${JSON.stringify({ type: "taxonomy", mode: "html" })}'></div>`;
+  const resolved = await resolveHtmlPageEmbeds({ deps: { ...dependencies, termRepo }, input: { workspaceId: "ws", html: idless + marker("Categories") + marker("tax-1") } });
+  assert.deepEqual([...resolved.get("taxonomy")!.keys()].sort(), ["Categories", "tax-1"]);
+  assert.deepEqual(listed, ["tax-1"]);
+});
+
+test("self, two-term and three-term parent cycles render every term exactly once", async () => {
+  const html = marker("Categories");
+  const terms = [term("self", { parentId: "self" }), term("a", { parentId: "b" }), term("b", { parentId: "a" }),
+    term("x", { parentId: "z" }), term("y", { parentId: "x" }), term("z", { parentId: "y" })];
+  const rendered = renderHtmlPageBody(html, await resolveHtmlPageEmbeds({ deps: deps([taxonomy], terms), input: { workspaceId: "ws", html } }));
+  for (const id of ["self", "a", "b", "x", "y", "z"]) assert.equal((rendered.match(new RegExp(`data-tovu-term="${id}"`, "g")) ?? []).length, 1, id);
+  assert.match(rendered, /<li data-tovu-term="self" data-depth="0">/);
+  // With no root, the cycle members surface from the first one, nested in parent order.
+  assert.match(rendered, /data-tovu-term="a" data-depth="0">.*data-tovu-term="b" data-depth="1"/);
+  const rootless = renderHtmlPageBody(html, await resolveHtmlPageEmbeds({ deps: deps([taxonomy], terms.slice(1, 3)), input: { workspaceId: "ws", html } }));
+  assert.match(rootless, /^<section [^>]*><ul data-tovu-taxonomy-list data-depth="0"><li data-tovu-term="a" data-depth="0">.*data-tovu-term="b" data-depth="1".*<\/section>$/);
+});
