@@ -4,7 +4,7 @@ import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type Ag
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { ToolContributor } from "#src/assistant/index";
 import { getDeployOpsAgentToolCatalog } from "./agent-tools.js";
-import { MAX_WAIT_SECONDS, runDeployOps, waitForDeployOps, type DeployOpsToolDeps } from "./run-ops.js";
+import { MAX_WAIT_SECONDS, runDeploy, runDeployOps, waitForDeployOps, type DeployOpsToolDeps } from "./run-ops.js";
 import type { DeployOpsInput, DeployOpsRegistry } from "./types.js";
 export type { DeployOpsToolDeps } from "./run-ops.js";
 export const deployOpsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
@@ -16,6 +16,8 @@ export const deployOpsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentTo
   ["deployment_ops_wait", "none"],
   // -> credential summary and listTargets(GET), audit only.
   ["deployment_ops_list_targets", "none"],
+  // -> same bound facade with send(POST/PATCH/PUT); starts an external deploy on the vendor platform.
+  ["deployment_ops_deploy", "mutates-durable-state"],
 ]);
 /** Read a bounded string; JSON schema alone cannot protect direct calls to the handler. */
 function string(input: Record<string, unknown>, key: string, required = false): string | undefined {
@@ -30,13 +32,20 @@ function integer(input: Record<string, unknown>, key: string, fallback: number, 
   if (typeof value !== "number" || !Number.isInteger(value) || value < min || value > max) throw new ToolInputError({ message: `${key} must be an integer from ${min} to ${max}.` });
   return value;
 }
+/** Validate deploy input independently of the schema, then call the same feature function as the admin route. */
+function deployHandler(deps: DeployOpsToolDeps, input: Record<string, unknown>, signal?: AbortSignal) {
+  for (const key of Object.keys(input)) if (!["platform", "target", "ref", "credentialLabel"].includes(key)) throw new ToolInputError({ message: `Unexpected deployment ops input '${key}'.` });
+  const ref = string(input, "ref"); const credentialLabel = string(input, "credentialLabel");
+  return runDeploy({ deps, input: { platform: string(input, "platform", true)!, target: string(input, "target", true)!, ...(ref !== undefined ? { ref } : {}), ...(credentialLabel !== undefined ? { credentialLabel } : {}) } }, { signal });
+}
 /** Permission precedes any plugin/credential read. Handler input validation is independent of the schema. */
 export function buildDeployOpsRegistrations(deps: DeployOpsToolDeps): ToolRegistration[] {
   const catalog = getDeployOpsAgentToolCatalog(deps.deployOpsRegistry);
   const handlers: Record<string, ToolHandler> = {};
   for (const tool of catalog) handlers[tool.name] = async ctx => {
-    await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "custom-credentials.read" }, { entityType: "deploy-ops" });
+    await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: tool.authorization.permission }, { entityType: "deploy-ops" });
     const input = requireInputRecord({ input: ctx.input });
+    if (tool.name === "deployment_ops_deploy") return deployHandler(deps, input, ctx.signal);
     const isList = tool.name === "deployment_ops_list_targets";
     const allowed = isList ? ["platform", "credentialLabel", "org"] : ["platform", "target", "credentialLabel", "runId", "branch", ...(tool.name === "deployment_ops_logs" ? ["limit"] : []), ...(tool.name === "deployment_ops_wait" ? ["until", "timeoutSeconds"] : [])];
     for (const key of Object.keys(input)) if (!allowed.includes(key)) throw new ToolInputError({ message: `Unexpected deployment ops input '${key}'.` });
@@ -49,7 +58,7 @@ export function buildDeployOpsRegistrations(deps: DeployOpsToolDeps): ToolRegist
   };
   return buildDomainRegistrations({ domain: "deploy-ops", catalogModule: "features/deployments/deploy-ops/agent-tools.ts", catalog: indexCatalogById({ catalog: catalog }), handlers, derivedRisk: deployOpsDerivedRisk });
 }
-/** Contribute four read-only tools; the composition root supplies a gated registry for daemon schemas. */
+/** Contribute four read-only tools and the deploy tool; the composition root supplies a gated registry for daemon schemas. */
 export function contributeDeployOpsTools(options: { registry?: DeployOpsRegistry } = {}): ToolContributor {
   return { domain: "deploy-ops", build: deps => buildDeployOpsRegistrations({ ...deps, ...(options.registry ? { deployOpsRegistry: options.registry } : {}) }), risk: deployOpsDerivedRisk };
 }

@@ -4,11 +4,11 @@ import { buildDeployOpsRegistrations } from "../tool-registrations.js";
 import { waitForDeployOps } from "../run-ops.js";
 import { fixture, execution } from "./ops-fixture.js";
 import { AT } from "./module-fixture.js";
-test("all four tools are wired read-only with platform enum from registry", async () => {
+test("four read-only tools and the write deploy tool are wired with platform enum from registry", async () => {
   const f = await fixture();
   const registrations = buildDeployOpsRegistrations(f.deps);
   assert.deepEqual(registrations.map(r => ({ id: r.descriptor.id, readOnly: r.descriptor.readOnly })), [
-    { id: "deployment_ops_status", readOnly: true }, { id: "deployment_ops_logs", readOnly: true }, { id: "deployment_ops_wait", readOnly: true }, { id: "deployment_ops_list_targets", readOnly: true },
+    { id: "deployment_ops_status", readOnly: true }, { id: "deployment_ops_logs", readOnly: true }, { id: "deployment_ops_wait", readOnly: true }, { id: "deployment_ops_list_targets", readOnly: true }, { id: "deployment_ops_deploy", readOnly: false },
   ]);
   for (const r of registrations) assert.deepEqual((r.descriptor.inputSchema as any).properties.platform.enum, ["fly", "github-actions"]);
 });
@@ -26,7 +26,7 @@ test("every tool denies permission before registry or credential requests", asyn
   const f = await fixture();
   let reads = 0;
   const deps = { ...f.deps, authorize: async () => ({ allowed: false, reason: "denied" }), loadDeployOps: async () => { reads++; return f.registry; } };
-  for (const r of buildDeployOpsRegistrations(deps)) await assert.rejects(r.handler(execution({ platform: "fly", target: "shop", until: "healthy" })), { message: "principal 'principal' is not authorized for 'custom-credentials.read' (denied)" });
+  for (const r of buildDeployOpsRegistrations(deps)) await assert.rejects(r.handler(execution({ platform: "fly", target: "shop", until: "healthy" })), { message: `principal 'principal' is not authorized for '${r.descriptor.id === "deployment_ops_deploy" ? "custom-credentials.write" : "custom-credentials.read"}' (denied)` });
   assert.deepEqual(f.calls, []); assert.equal(reads, 0);
 });
 test("handlers exercise status, logs and targets; invalid limits and timeouts are refused", async () => {

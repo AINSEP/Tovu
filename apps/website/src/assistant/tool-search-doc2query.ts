@@ -205,6 +205,9 @@ export const DOC2QUERY: Readonly<Record<string, readonly string[]>> = {
   deployment_ops_list_targets: [
     "List my Fly apps.", "Which apps do I have on Fly?", "Show available deployment targets.", "What Fly apps can you inspect?",
   ],
+  deployment_ops_deploy: [
+    "Deploy the server now.", "Redeploy my app to production.", "Ship the latest commit on main to Fly.", "Start a deploy through GitHub Actions.",
+  ],
   domain_lookup_dns: [
     "What DNS records does my domain have?",
     "Show the A and AAAA IP addresses for the apex and www.",

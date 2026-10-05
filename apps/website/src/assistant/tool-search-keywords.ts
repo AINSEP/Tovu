@@ -79,6 +79,7 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   deployment_ops_logs: "logs log output error why did deploy fail build failed crash fly github actions",
   deployment_ops_wait: "wait until deployed finished done poll check again in a minute",
   deployment_ops_list_targets: "list my fly apps which apps do I have deployments",
+  deployment_ops_deploy: "deploy now redeploy ship release roll out push the server app to production start a deploy fly github actions workflow dispatch latest commit main",
   domain_lookup_dns: "domain DNS dig lookup resolve records A AAAA CNAME MX TXT NS nameservers propagation apex www IP mail verification ACME challenge _acme-challenge DKIM DMARC _dmarc _domainkey",
   domain_check_dns: "domain DNS custom points pointing host hosting deploy target expected compare mismatch apex www publish destination",
   domain_tls_status: "domain TLS SSL HTTPS certificate status valid trust trusted expired hostname mismatch security",

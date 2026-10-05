@@ -4,7 +4,7 @@ import { makeCredentialedRequest, resolveRequestTarget, CredentialedRequestValid
 import { EgressRefusedError } from "../../../platform/http/index.js";
 import type { AuthorizeFn } from "../../../contracts/core/commands/index.js";
 import { loadDeployOpsRegistry, requirePlatform } from "./registry.js";
-import type { DeployOpsContext, DeployOpsInput, DeployOpsLogs, DeployOpsRegistry, DeployOpsStatus, DeployOpsTargets, DeployOpsWaitResult, LoadedDeployOps } from "./types.js";
+import type { DeployOpsContext, DeployOpsDeployResult, DeployOpsInput, DeployOpsResponse, DeployOpsSendRequest, DeployOpsLogs, DeployOpsRegistry, DeployOpsStatus, DeployOpsTargets, DeployOpsWaitResult, LoadedDeployOps } from "./types.js";
 
 /** Response text is capped before parsing; the credential layer has already redacted secrets. */
 export const MAX_RESPONSE_CHARS = 256_000;
@@ -54,7 +54,7 @@ async function credentialLabel(deps: DeployOpsToolDeps, platform: LoadedDeployOp
   return matches[0]!.label;
 }
 
-/** Bound GET facade. Both the platform and saved credential must allow the exact HTTPS origin. */
+/** Bound GET/write facade. Both the platform and saved credential must allow the exact HTTPS origin. */
 async function boundContext(deps: DeployOpsToolDeps, platform: LoadedDeployOps, explicit: string | undefined, signal?: AbortSignal): Promise<DeployOpsContext> {
   if (!deps.deployOpsHttpClient) throw new ToolInputError({ message: "Deployment ops HTTP client is unavailable. Restart the site to rebuild its tool dependencies." });
   const label = await credentialLabel(deps, platform, explicit);
@@ -66,47 +66,54 @@ async function boundContext(deps: DeployOpsToolDeps, platform: LoadedDeployOps, 
     ...(deps.customCredentialsAudit ? { audit: deps.customCredentialsAudit } : {}),
     ...(deps.loadAuthSchemes ? { loadAuthSchemes: deps.loadAuthSchemes } : {}),
   };
+  /** One guarded path for every method, so a write can never get a looser binding than a read. */
+  const call = async (method: "GET" | DeployOpsSendRequest["method"], rawUrl: string, body?: unknown): Promise<DeployOpsResponse> => {
+    if (signal?.aborted) throw aborted();
+    let url: URL;
+    try { url = new URL(rawUrl); } catch { throw new ToolInputError({ message: "Deployment ops module supplied an invalid URL." }); }
+    if (url.protocol !== "https:" || url.username || url.password || url.port || !platform.descriptor.hosts.includes(url.hostname)) throw new ToolInputError({ message: `Deployment ops platform '${platform.descriptor.id}' does not allow host '${url.hostname}'.` });
+    try { await resolveRequestTarget({ repo: requestDeps.repo }, { workspaceId: deps.workspaceId, label, url: rawUrl }); }
+    catch (error) {
+      if (error instanceof CredentialedRequestValidationError) throw new ToolInputError({ message: `Credential '${label}' does not allow host '${url.hostname}'. Add that host to the saved credential or choose another credentialLabel.` });
+      if (error instanceof CustomCredentialNotFoundError) throw new ToolInputError({ message: `No saved custom credential labeled '${label}'. Choose another credentialLabel.` });
+      throw error;
+    }
+    if (signal?.aborted) throw aborted();
+    let response;
+    let transportTruncated = false;
+    // Preserve the text clipping flag the credential API does not expose in its returned shape.
+    const boundedDeps: CredentialedRequestDeps = { ...requestDeps, httpClient: { send: async request => {
+      // Auth scheme loading can yield after the earlier abort check. Recheck at the I/O boundary.
+      if (signal?.aborted) throw aborted();
+      const result = await requestDeps.httpClient.send({ ...request, ...(signal ? { signal } : {}), maxResponseBytes: MAX_RESPONSE_CHARS });
+      transportTruncated = result.bodyTruncated === true;
+      return result;
+    } } };
+    const write = method === "GET" ? {} : { headers: { "content-type": "application/json", accept: "application/json" }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) };
+    try { response = await makeCredentialedRequest(boundedDeps, { workspaceId: deps.workspaceId, label, method, url: rawUrl, ...write }); }
+    catch (error) {
+      if (signal?.aborted) throw aborted();
+      if (error instanceof EgressRefusedError) throw new ToolInputError({ message: `Deployment ops host '${url.hostname}' was refused by outbound HTTP policy. Use a public HTTPS endpoint allowed by the saved credential.` });
+      if (error instanceof CredentialedRequestTransportError) throw new ToolInputError({ message: method === "GET" ? `Could not reach deployment ops host '${url.hostname}' using credential '${label}'. Retry the check.` : `Lost the connection to deployment ops host '${url.hostname}' during a ${method}; it may or may not have been accepted. Check deployment_ops_status before retrying.` });
+      if (error instanceof CredentialedRequestValidationError || error instanceof CustomCredentialNotFoundError) throw new ToolInputError({ message: `Credential '${label}' changed or no longer allows host '${url.hostname}'. Check its saved hosts or choose another credentialLabel.` });
+      throw error;
+    }
+    if (signal?.aborted) throw aborted();
+    if (response.status === 401 || response.status === 403) throw new ToolInputError({ message: `Credential '${label}' was rejected (HTTP ${response.status}). Run custom_credential_verify with label '${label}' and check its saved token/scopes.` });
+    if (response.status < 200 || response.status >= 300) throw new ToolInputError({ message: `Deployment ops host '${url.hostname}' returned HTTP ${response.status}. Check the target and retry; redirects are not followed.` });
+    const text = response.bodyText.slice(0, MAX_RESPONSE_CHARS);
+    const truncated = transportTruncated || response.bodyText.length > MAX_RESPONSE_CHARS;
+    let json: unknown;
+    if (!truncated) { try { json = JSON.parse(text); } catch { /* Plain logs are valid text. */ } }
+    return { status: response.status, ...(json !== undefined ? { json } : {}), text, truncated };
+  };
   return {
     nowIso: () => nowIso({ clock: deps.clock }),
     fail: message => { throw new ToolInputError({ message: message }); },
-    get: async rawUrl => {
-      if (signal?.aborted) throw aborted();
-      let url: URL;
-      try { url = new URL(rawUrl); } catch { throw new ToolInputError({ message: "Deployment ops module supplied an invalid URL." }); }
-      if (url.protocol !== "https:" || url.username || url.password || url.port || !platform.descriptor.hosts.includes(url.hostname)) throw new ToolInputError({ message: `Deployment ops platform '${platform.descriptor.id}' does not allow host '${url.hostname}'.` });
-      try { await resolveRequestTarget({ repo: requestDeps.repo }, { workspaceId: deps.workspaceId, label, url: rawUrl }); }
-      catch (error) {
-        if (error instanceof CredentialedRequestValidationError) throw new ToolInputError({ message: `Credential '${label}' does not allow host '${url.hostname}'. Add that host to the saved credential or choose another credentialLabel.` });
-        if (error instanceof CustomCredentialNotFoundError) throw new ToolInputError({ message: `No saved custom credential labeled '${label}'. Choose another credentialLabel.` });
-        throw error;
-      }
-      if (signal?.aborted) throw aborted();
-      let response;
-      let transportTruncated = false;
-      // Preserve the text clipping flag the credential API does not expose in its returned shape.
-      const boundedDeps: CredentialedRequestDeps = { ...requestDeps, httpClient: { send: async request => {
-        // Auth scheme loading can yield after the earlier abort check. Recheck at the I/O boundary.
-        if (signal?.aborted) throw aborted();
-        const result = await requestDeps.httpClient.send({ ...request, ...(signal ? { signal } : {}), maxResponseBytes: MAX_RESPONSE_CHARS });
-        transportTruncated = result.bodyTruncated === true;
-        return result;
-      } } };
-      try { response = await makeCredentialedRequest(boundedDeps, { workspaceId: deps.workspaceId, label, method: "GET", url: rawUrl }); }
-      catch (error) {
-        if (signal?.aborted) throw aborted();
-        if (error instanceof EgressRefusedError) throw new ToolInputError({ message: `Deployment ops host '${url.hostname}' was refused by outbound HTTP policy. Use a public HTTPS endpoint allowed by the saved credential.` });
-        if (error instanceof CredentialedRequestTransportError) throw new ToolInputError({ message: `Could not reach deployment ops host '${url.hostname}' using credential '${label}'. Retry the check.` });
-        if (error instanceof CredentialedRequestValidationError || error instanceof CustomCredentialNotFoundError) throw new ToolInputError({ message: `Credential '${label}' changed or no longer allows host '${url.hostname}'. Check its saved hosts or choose another credentialLabel.` });
-        throw error;
-      }
-      if (signal?.aborted) throw aborted();
-      if (response.status === 401 || response.status === 403) throw new ToolInputError({ message: `Credential '${label}' was rejected (HTTP ${response.status}). Run custom_credential_verify with label '${label}' and check its saved token/scopes.` });
-      if (response.status < 200 || response.status >= 300) throw new ToolInputError({ message: `Deployment ops host '${url.hostname}' returned HTTP ${response.status}. Check the target and retry; redirects are not followed.` });
-      const text = response.bodyText.slice(0, MAX_RESPONSE_CHARS);
-      const truncated = transportTruncated || response.bodyText.length > MAX_RESPONSE_CHARS;
-      let json: unknown;
-      if (!truncated) { try { json = JSON.parse(text); } catch { /* Plain logs are valid text. */ } }
-      return { status: response.status, ...(json !== undefined ? { json } : {}), text, truncated };
+    get: rawUrl => call("GET", rawUrl),
+    send: input => {
+      if (!["POST", "PATCH", "PUT"].includes(input.method)) throw new ToolInputError({ message: `Deployment ops module supplied unsupported method '${String(input.method)}'.` });
+      return call(input.method, input.url, input.body);
     },
   };
 }
@@ -135,6 +142,46 @@ export async function runDeployOps(deps: DeployOpsToolDeps, input: DeployOpsInpu
   if (operation === "listTargets") return platform.module.listTargets!(ctx, { org: input.org });
   if (operation === "logs") return platform.module.logs(ctx, { ...input, limit: input.limit ?? 100 });
   return platform.module.status(ctx, input);
+}
+
+export interface DeployRequest { platform: string; target: string; ref?: string; credentialLabel?: string }
+const clip = (value: unknown) => String(value).slice(0, 2000);
+/** Keep only the documented fields; platform/target come from the request, never from the module. O(machineIds). */
+function normalizeDeployResult(input: DeployRequest, result: DeployOpsDeployResult): DeployOpsDeployResult {
+  if (result?.started !== true || typeof result.summary !== "string") throw new ToolInputError({ message: `Deployment ops platform '${input.platform}' returned an invalid deploy result.` });
+  if (result.runId !== undefined && !/^[0-9]+$/.test(String(result.runId))) throw new ToolInputError({ message: `Deployment ops platform '${input.platform}' returned an invalid run id.` });
+  return {
+    platform: input.platform, target: input.target, started: true, summary: clip(result.summary),
+    ...(result.runId !== undefined ? { runId: String(result.runId) } : {}),
+    ...(typeof result.sha === "string" ? { sha: clip(result.sha) } : {}),
+    ...(Array.isArray(result.machineIds) ? { machineIds: result.machineIds.slice(0, 32).map(clip) } : {}),
+    ...(typeof result.image === "string" ? { image: clip(result.image) } : {}),
+    ...(typeof result.url === "string" && result.url.startsWith("https://") ? { url: clip(result.url) } : {}),
+  };
+}
+
+/**
+ * Start a deploy through a freshly gated installed adapter. The chat tool and the admin route both call this.
+ * @param required - `deps`: saved-credential ports and the no-redirect HTTP client; `input`: platform, target, optional ref and credential label.
+ * @param optional - `signal` cancels before further requests and propagates to the transport.
+ * @returns The normalized accepted-deploy result; landing is observed afterwards with status/wait.
+ * @throws {ToolInputError} Unknown or observe-only platforms, credential/host/auth failures, invalid module results, or cancellation.
+ * @complexity Time: O(credentials + response size) plus bounded adapter requests. Space: O(response size).
+ * @example await runDeploy({ deps, input: { platform: "github-actions", target: "owner/repo", ref: "main" } }, { signal });
+ */
+export async function runDeploy(required: { deps: DeployOpsToolDeps; input: DeployRequest }, optional: { signal?: AbortSignal } = {}): Promise<DeployOpsDeployResult> {
+  const { deps, input } = required; const { signal } = optional;
+  if (signal?.aborted) throw aborted();
+  const registry = await (deps.loadDeployOps ?? loadDeployOpsRegistry)({ workspaceId: deps.workspaceId });
+  const platform = requirePlatform(registry, input.platform);
+  if (!platform.module.deploy) {
+    const deployable = registry.list().filter(p => typeof p.module.deploy === "function").map(p => p.descriptor.id);
+    throw new ToolInputError({ message: `Deployment ops platform '${input.platform}' cannot deploy; it is observe-only. Platforms that can deploy: ${deployable.join(", ") || "(none)"}.` });
+  }
+  const ctx = await boundContext(deps, platform, input.credentialLabel, signal);
+  if (signal?.aborted) throw aborted();
+  const result = await platform.module.deploy(ctx, { target: input.target, ...(input.ref !== undefined ? { ref: input.ref } : {}) });
+  return normalizeDeployResult(input, result);
 }
 
 /** Race an in-flight status against the deadline and cancellation. Listeners/timers always cleaned up. */

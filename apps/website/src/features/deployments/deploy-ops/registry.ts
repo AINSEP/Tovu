@@ -48,7 +48,7 @@ export async function loadDeployOpsRegistryFromSource(plugin: TrustedPluginPacka
       const imported = await importContainedModule(plugin, descriptor.module);
       const candidate = typeof imported === "string" ? undefined : imported.exported;
       if (typeof imported === "string") refusals.push(`deploy ops platform '${descriptor.id}' was not loaded: module could not be imported`);
-      else if (!object(candidate) || typeof candidate.status !== "function" || typeof candidate.logs !== "function" || (candidate.listTargets !== undefined && typeof candidate.listTargets !== "function")) refusals.push(`deploy ops platform '${descriptor.id}' was not loaded: module must export status() and logs()`);
+      else if (!object(candidate) || typeof candidate.status !== "function" || typeof candidate.logs !== "function" || (candidate.listTargets !== undefined && typeof candidate.listTargets !== "function") || (candidate.deploy !== undefined && typeof candidate.deploy !== "function")) refusals.push(`deploy ops platform '${descriptor.id}' was not loaded: module must export status() and logs()`);
       else loaded.push({ descriptor, pluginId: plugin.pluginId, module: candidate as unknown as DeployOpsModule });
     } catch { refusals.push(`deploy ops platform '${descriptor.id}' was not loaded: module could not be read or imported`); }
   }
