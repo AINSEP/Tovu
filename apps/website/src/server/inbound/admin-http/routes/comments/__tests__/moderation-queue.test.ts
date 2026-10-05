@@ -219,3 +219,14 @@ test("moderation-queue: a malformed cursor is a 400 VALIDATION_ERROR, not a sile
   assert.equal(res.status, 400);
   assert.deepEqual(await res.json(), { error: "invalid cursor", code: "VALIDATION_ERROR" });
 });
+
+// A repeated `cursor` parses as an array; it used to read as "no cursor" and silently restart at page 1.
+test("moderation-queue: a non-string cursor is a 400 VALIDATION_ERROR, not a silent page 1", async (t) => {
+  const { app, commentRepo } = buildApp();
+  await commentRepo.create(makeComment({ id: "p-0" }));
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await fetch(`${baseUrl}${PATH}?cursor=a&cursor=b`);
+  assert.equal(res.status, 400);
+  assert.deepEqual(await res.json(), { error: "'cursor' must be a string", code: "VALIDATION_ERROR" });
+});

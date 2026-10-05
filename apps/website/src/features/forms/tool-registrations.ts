@@ -15,7 +15,7 @@
  */
 import type { Clock, IdGenerator } from "@jini-ai/core/primitives";
 import type { AuthorizeFn, ChangeSetRepoPort } from "../../contracts/core/commands/index.js";
-import { AGENT_TOOL_PRINCIPAL_KIND, buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { AGENT_TOOL_PRINCIPAL_KIND, buildDomainRegistrations, indexCatalogById, optionalString, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { type OutboxPort, ForbiddenError, adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
 import type { ToolContributor, DuplicateResourceHandlerContributor } from "#src/assistant/index";
@@ -365,7 +365,8 @@ export function buildFormsRegistrations(routeDeps: FormsToolDeps): ToolRegistrat
       if (!definition) throw new FormDefinitionNotFoundError({ message: `form definition '${formId}' was not found` });
 
       const limit = requireSubmissionsLimit(input);
-      const cursor = typeof input.cursor === "string" ? input.cursor : undefined;
+      // A non-string cursor is refused, not read as "no cursor" and page 1 (the HTTP route already refuses it).
+      const cursor = optionalString({ input, key: "cursor" });
       const page = await adaptFormSubmissionRepo({ repo: routeDeps.formSubmissionRepo }).listByDefinition({
         workspaceId: routeDeps.workspaceId,
         formDefinitionId: formId,

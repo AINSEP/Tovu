@@ -496,6 +496,19 @@ test("forms_list_submissions: an out-of-range limit is refused", async () => {
   );
 });
 
+// A non-string cursor used to read as "no cursor" and silently restart at page 1.
+test("forms_list_submissions: a non-string cursor is refused before the repo is read", async () => {
+  const { deps, order } = fakeRouteDeps();
+  const { id: formId } = await seedDefinition(deps);
+  for (const cursor of [123, null, ["c-1"]]) {
+    await assert.rejects(
+      () => wired("forms_list_submissions", deps).handler(executionContext({ formId, cursor })),
+      (error: unknown) => error instanceof ToolInputError && error.message === "'cursor' must be a string",
+    );
+  }
+  assert.equal(order.includes("submissionRepo.listByDefinition"), false);
+});
+
 test("forms_list_submissions: an unknown formId is reported not found", async () => {
   const { deps } = fakeRouteDeps();
   await assert.rejects(

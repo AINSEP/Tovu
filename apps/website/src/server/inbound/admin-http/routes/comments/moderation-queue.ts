@@ -1,4 +1,4 @@
-import { optionalOneOf, readToolLimit, ToolInputError } from "@jini-ai/core";
+import { optionalOneOf, optionalString, readToolLimit, ToolInputError } from "@jini-ai/core";
 import type { Express } from "express";
 
 import { COMMENT_STATUSES, type CommentRepoPort, type CommentStatus } from "#src/features/comments/index";
@@ -24,7 +24,8 @@ function parseQueueQuery(query: Record<string, unknown>): { status: CommentStatu
   return {
     status: optionalOneOf({ input, key: "status", values: COMMENT_STATUSES }) ?? "pending",
     limit: readToolLimit({ input, max: 100, fallback: 20 }),
-    cursor: typeof query.cursor === "string" ? query.cursor : null,
+    // A repeated `cursor` arrives as an array: refused, not read as "no cursor" and page 1.
+    cursor: optionalString({ input: query, key: "cursor" }) ?? null,
   };
 }
 

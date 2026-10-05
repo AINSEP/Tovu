@@ -12,7 +12,7 @@
  * real admin route performs it. The seventh, `comments_update_settings`, is the exception and is
  * documented at its own handler.
  */
-import { buildDomainRegistrations, indexCatalogById, optionalOneOf, readToolLimit, requireInputRecord, requireNumber, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { buildDomainRegistrations, indexCatalogById, optionalOneOf, optionalString, readToolLimit, requireInputRecord, requireNumber, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, type AuthorizeFn, ForbiddenError, requireToolPermission } from "@jini-ai/cms/core";
 import { forbiddenRule, withModelFacingErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
 // `ToolInputError` specifically — see `features/post/tool-registrations.ts`'s identical import
@@ -213,7 +213,8 @@ export function buildCommentsRegistrations(
       await routeDeps.commentsReady;
       const status: CommentStatus = optionalOneOf({ input, key: "status", values: COMMENT_STATUSES }) ?? "pending";
       const limit = readToolLimit({ input, max: 100, fallback: 20 });
-      const cursor = typeof input.cursor === "string" ? input.cursor : null;
+      // A non-string cursor is refused, not read as "no cursor" and page 1.
+      const cursor = optionalString({ input, key: "cursor" }) ?? null;
       const page = await routeDeps.commentRepo.listModerationQueue({ workspaceId: routeDeps.workspaceId, status, limit, cursor });
       return toModerationQueueToolView(page);
     },

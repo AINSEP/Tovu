@@ -69,3 +69,12 @@ test("defaults stay pending/20, a listed status passes through and an over-cap l
     { status: "spam", limit: 100, cursor: "c-9" },
   ]);
 });
+
+// A non-string cursor used to read as "no cursor" and silently restart the queue at page 1.
+test("a non-string cursor is refused before the repo is read", async () => {
+  const h = harness();
+  for (const cursor of [123, null, { x: "bad" }, ["c-1"]]) {
+    assert.equal(await rejectionMessage(h.list({ cursor })), "'cursor' must be a string");
+  }
+  assert.deepEqual(h.queries, []);
+});
