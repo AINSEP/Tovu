@@ -282,7 +282,8 @@ export type AssistantToolRegistryDeps = import("../features/analytics/tool-regis
   ExternalMcpReauthToolDeps &
   ExternalMcpToolDeps &
   TrashToolDeps &
-  TrashItemToolDeps;
+  TrashItemToolDeps &
+  import("../features/identity/delete-user-service.js").TrashUserToolDeps;
 
 /**
  * One wired domain: its builder and the risk classification its own wiring file maintains.

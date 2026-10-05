@@ -16,6 +16,7 @@ import { contributeAgentPluginConnectTools, contributeAgentPluginSearchTools } f
 import { contributeCommentsTools } from "#src/features/comments/tool-registrations";
 import { contributePermanentDeleteTools } from "#src/features/permanent-delete/tool-registrations";
 import { buildPermanentDeleteDeps } from "./permanent-delete-deps.js";
+import { bindTrashUserForTool } from "./trash-user-tool-port.js";
 import { contributeContentDuplicationTools } from "#src/features/content-duplication/tool-registrations";
 import { contributeContentTypesTools } from "#src/features/content-types/tool-registrations";
 import { contributeCustomCredentialsTools } from "#src/features/custom-credentials/tool-registrations";
@@ -37,6 +38,8 @@ import { fetchDaemonAdmissions } from "#src/server/runtime/services/external-mcp
 import { contributeFsFilesTools } from "#src/features/fs-files/tool-registrations";
 import { contributePagesTools } from "#src/features/pages/tool-registrations";
 import { contributePluginsTools } from "#src/features/plugin-runtime/tool-registrations";
+import { contributePluginsInstallTools } from "#src/features/plugin-runtime/install-tool";
+import { contributeSkillsInstallTools } from "#src/features/skills/install-tool";
 import { toPublishContentDeps } from "../../inbound/admin-http/routes/publish-content/deps.js";
 import { contributePublishContentTools } from "#src/features/publish-content/tool-registrations";
 import { installFirstPartyPublishContentTypes } from "./publish-content-manifest.js";
@@ -368,6 +371,8 @@ export function installFirstPartyToolContributors(
   contributions.contributors.register({ contribution: contributeNewsletterDeliveryTools() });
   contributions.contributors.register({ contribution: contributePagesTools() });
   contributions.contributors.register({ contribution: contributePluginsTools() });
+  contributions.contributors.register({ contribution: contributePluginsInstallTools() });
+  contributions.contributors.register({ contribution: contributeSkillsInstallTools() });
   contributions.contributors.register({ contribution: contributePostTools() });
   contributions.contributors.register({ contribution: contributePostPreviewTools({ renderPostPreview: async (deps, input) => {
     try { return await renderPostPreview(deps as Parameters<typeof renderPostPreview>[0], input); }
@@ -417,7 +422,8 @@ export function installFirstPartyToolContributors(
   // the four per-domain delete tools, through the derived-contributor seam registered just below —
   // see `features/trash/trash-item-tool.ts`.)
   contributions.contributors.register({ contribution: contributeTrashTools() });
-  contributions.derivedContributors.register({ contribution: { domain: "trash-item", derive: deriveTrashItemRegistrations, risk: trashItemDerivedRisk } });
+  // `trashUser` gives `trash_item` its `user` kind through the Users screen's own delete (see that port's doc).
+  contributions.derivedContributors.register({ contribution: { domain: "trash-item", derive: (input) => deriveTrashItemRegistrations(input, { trashUser: bindTrashUserForTool(input.routeDeps) }), risk: trashItemDerivedRisk } });
   contributions.contributors.register({ contribution: contributeWidgetsTools() });
   contributions.contributors.register({ contribution: contributeWorkspaceTools() });
 

@@ -417,10 +417,10 @@ test("the entityType check reads the live adapter map at CALL time, not a list c
   void registrations;
 
   postAdapterRegistered = false;
-  // Delegate and generic kinds remain available; only `post` is removed by this probe.
+  // Delegate, generic and `user` kinds remain available; only `post` is removed by this probe.
   await assert.rejects(call(trashItem, { entityType: "post", entityId: "post-1" }), {
     message:
-      "trash_item: 'post' is not a kind of thing the Trash can hold. Expected one of: comment, media, redirect, widget, form_submission, term, taxonomy. Nothing was changed.",
+      "trash_item: 'post' is not a kind of thing the Trash can hold. Expected one of: comment, media, redirect, widget, form_submission, term, taxonomy, user. Nothing was changed.",
   });
   assert.equal((await routeDeps.postRepo.findById({ workspaceId: routeDeps.workspaceId, id: "post-1" }))?.deletedAt, null);
 });

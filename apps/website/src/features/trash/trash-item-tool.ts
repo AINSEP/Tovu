@@ -59,6 +59,7 @@ import { COMMENT_ENTITY_TYPE } from "./adapters/comment.js";
 import { MEDIA_ENTITY_TYPE } from "./adapters/media.js";
 import { POST_ENTITY_TYPE } from "./adapters/post.js";
 import { REDIRECT_ENTITY_TYPE } from "./adapters/redirect.js";
+import { USER_ENTITY_TYPE } from "./adapters/user.js";
 import type { TrashDb } from "./db-port.js";
 import { moveToTrash, type MoveToTrashOutcome } from "./move-to-trash.js";
 import { type EntitySnapshotRow, readLiveSnapshot } from "./entry-sql.js";
@@ -133,6 +134,20 @@ export interface TrashItemDelegate {
    */
   toDelegateInput(deps: TrashItemToolDeps, entityId: string): Promise<Record<string, unknown> | null>;
 }
+
+/**
+ * Moves one user (or API-key principal) to the Trash. Bound at composition to the SAME `trashUser`
+ * the admin `DELETE users/:principalId` route calls (`server/runtime/composition/trash-user-tool-port.ts`),
+ * so its owner/built-in-admin caller gate, self/seeded-owner/last-owner refusals and idempotent
+ * "already in Trash" no-op all apply unchanged. A port, not an import: `trashUser` lives in
+ * `features/identity` and needs the identity repo bag, which this feature never holds.
+ *
+ * `user` is a bespoke Trash adapter, not a `TRASHABLE` registry entry (see `adapters/user.ts`), so
+ * the generic `moveToTrash` path cannot reach it, and there is no per-domain trash tool to delegate
+ * to either: the identity catalog is package-owned and has only the permanent `identity_user_delete`.
+ * Refusals are thrown as `ToolInputError` by the binder, already worded for the model.
+ */
+export type TrashUserPort = (required: { principalId: string; callerPrincipalId: string }) => Promise<{ noop: boolean }>;
 
 /** Insertion order is the order the model is told the kinds in. */
 export const TRASH_ITEM_DELEGATES: ReadonlyMap<TrashEntityType, TrashItemDelegate> = new Map<TrashEntityType, TrashItemDelegate>([
@@ -216,7 +231,7 @@ function trashItemToolDefinition(reachableKinds: readonly TrashEntityType[]): Ag
   return {
     name: TRASH_ITEM_TOOL_ID,
     description:
-      "Moves one item to Trash immediately with {entityType, entityId}. The entityType enum lists supported kinds. Runs the kind's existing permission and version checks through its own delete tool or moveToTrash. Returns {entityType, entityId, via, outcome}, where via names the delegate or 'moveToTrash' and outcome reports the reversible removal. Refuses unsupported kinds, missing items, denied permissions, and version conflicts. Recover with trash_restore_item. Permanent deletion is a separate confirmation-gated tool.",
+      "Moves one item to Trash immediately with {entityType, entityId}. The entityType enum lists supported kinds. Runs the kind's existing permission and version checks through its own delete tool, moveToTrash, or (for a user) the Users screen's own delete. Returns {entityType, entityId, via, outcome}, where via names the delegate, 'moveToTrash' or 'trashUser' and outcome reports the reversible removal. A trashed user is disabled and signed out; only the owner or an admin may trash one, never themselves or the owner. Refuses unsupported kinds, missing items, denied permissions, and version conflicts. Recover with trash_restore_item. Permanent deletion is a separate confirmation-gated tool (identity_user_delete for a trashed user, trash_purge_item otherwise).",
     // The strongest of the four delegates' declarations (`content_post_delete`'s), because this tool
     // can reach every one of them.
     sideEffects: "deletes-durable-state",
@@ -240,7 +255,9 @@ function trashItemToolDefinition(reachableKinds: readonly TrashEntityType[]): Ag
 }
 
 /**
- * `trash_item`'s declared catalog: one entry, every kind in {@link TRASH_ITEM_DELEGATES}.
+ * `trash_item`'s declared catalog: one entry, every kind in {@link TRASH_ITEM_DELEGATES}, then `user`
+ * (the composition root always binds {@link TrashUserPort}; generic registry kinds are absent here
+ * because they come from the live registry, not from a static list).
  *
  * Deliberately NOT part of the listing/restoration catalog. That catalog is proven to hold exactly two
  * tools by `__tests__/tool-registrations.purge-ban.test.ts`, and this tool is built by a
@@ -250,7 +267,7 @@ function trashItemToolDefinition(reachableKinds: readonly TrashEntityType[]): Ag
  * getTrashAgentToolCatalog (features/trash/agent-tools.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 export function getTrashItemAgentToolCatalog(): readonly AgentToolDefinition[] {
-  return [trashItemToolDefinition([...TRASH_ITEM_DELEGATES.keys()])];
+  return [trashItemToolDefinition([...TRASH_ITEM_DELEGATES.keys(), USER_ENTITY_TYPE])];
 }
 
 /**
@@ -343,6 +360,51 @@ function buildGenericTrashHandler(spec: { entityType: TrashEntityType; entry: Tr
 }
 
 /**
+ * Builds the handler for one bespoke-delegate kind: pre-checks the delegate's own permission, resolves
+ * the delegate's input from that kind's own table (not-found -> `ToolInputError`), then runs the
+ * delegate's ALREADY-BUILT handler unchanged.
+ *
+ * @complexity O(1) plus the delegate's own resolve read and write.
+ */
+function buildDelegateTrashHandler(spec: { delegate: TrashItemDelegate; delegateHandler: ToolHandler; routeDeps: TrashItemToolDeps }): ToolHandler {
+  const { delegate, delegateHandler, routeDeps } = spec;
+  const entityType = delegate.entityType;
+  return async (ctx, options = {}) => {
+    const input = requireInputRecord({ input: ctx.input });
+    const entityId = requireString({ input: input, key: "entityId" });
+    await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: delegate.permission }, { entityType, entityId });
+
+    const delegateInput = await delegate.toDelegateInput(routeDeps, entityId);
+    if (!delegateInput) {
+      throw new ToolInputError({ message: `trash_item: ${entityType} '${entityId}' was not found. Nothing was changed.` });
+    }
+
+    // The same `ctx` preserves the caller, signal and audit identity,
+    // with only the input swapped for the delegate's own shape. Forward the interactive
+    // options too, so a delegate that asks the human retains its confirmation channel.
+    const outcome = await delegateHandler({ ...ctx, input: delegateInput }, options);
+    return { entityType, entityId, via: delegate.toolId, outcome };
+  };
+}
+
+/**
+ * Builds the handler for `user`: hands the id and the calling principal to {@link TrashUserPort}.
+ * No permission pre-check here — `trashUser`'s own caller gate (owner or built-in `admin` role, by
+ * role name, never a grant) is the gate, and the Trash's `user -> "*"` restore permission would wrongly
+ * refuse the built-in admin it allows.
+ *
+ * @complexity O(1) plus `trashUser`'s own cost (O(n) in principals for its owner-count guard).
+ */
+function buildUserTrashHandler(trashUser: TrashUserPort): ToolHandler {
+  return async (ctx) => {
+    const input = requireInputRecord({ input: ctx.input });
+    const entityId = requireString({ input: input, key: "entityId" });
+    const { noop } = await trashUser({ principalId: entityId, callerPrincipalId: ctx.principal.id });
+    return { entityType: USER_ENTITY_TYPE, entityId, via: "trashUser", outcome: { trashed: true, cancelled: false, alreadyInTrash: noop } };
+  };
+}
+
+/**
  * Builds the `trash_item` registration over the already-built registration list.
  *
  * @param required.registrations every registration `buildAssistantToolRegistrations`' contributor
@@ -350,6 +412,7 @@ function buildGenericTrashHandler(spec: { entityType: TrashEntityType; entry: Tr
  * @param required.routeDeps the same route-deps bag those registrations were built from.
  * @param required.surfaces retained for composition compatibility; reversible removal opens no card.
  * @param optional.delegates test seam; defaults to {@link TRASH_ITEM_DELEGATES}.
+ * @param optional.trashUser makes `user` an accepted kind; absent = `user` is not accepted.
  * @returns one registration, or none when neither a delegate's tool nor any registry entry is
  *          reachable. A list so the caller appends it the way it appends
  *          `deriveContentReadRegistrations`' output.
@@ -364,16 +427,18 @@ function buildGenericTrashHandler(spec: { entityType: TrashEntityType; entry: Tr
  */
 export function deriveTrashItemRegistrations(
   required: { registrations: readonly ToolRegistration[]; routeDeps: TrashItemToolDeps; surfaces: AssistantSurfaceDeps },
-  optional: { delegates?: ReadonlyMap<TrashEntityType, TrashItemDelegate> } = {}
+  optional: { delegates?: ReadonlyMap<TrashEntityType, TrashItemDelegate>; trashUser?: TrashUserPort } = {}
 ): ToolRegistration[] {
   const { routeDeps, surfaces } = required;
   const delegates = optional.delegates ?? TRASH_ITEM_DELEGATES;
   const registered = new Map(required.registrations.map((registration) => [registration.descriptor.id, registration.handler]));
 
-  const delegateHandlerByEntityType = new Map<TrashEntityType, ToolHandler>();
+  // One handler per accepted kind, in the order the model is told the kinds in: delegates, then
+  // generic registry kinds, then `user`.
+  const handlerByEntityType = new Map<TrashEntityType, ToolHandler>();
   for (const delegate of delegates.values()) {
-    const handler = registered.get(delegate.toolId);
-    if (handler) delegateHandlerByEntityType.set(delegate.entityType, handler);
+    const delegateHandler = registered.get(delegate.toolId);
+    if (delegateHandler) handlerByEntityType.set(delegate.entityType, buildDelegateTrashHandler({ delegate, delegateHandler, routeDeps }));
   }
 
   // GENERIC kinds: every `TRASHABLE` registry entry with no bespoke delegate above (`widget` DOES
@@ -387,44 +452,28 @@ export function deriveTrashItemRegistrations(
   // build a catalog without every domain" reality the comment above already accepts for
   // `isTrashableEntityType`. A missing registry degrades to "no generic kinds," not a crash that
   // takes the whole assistant catalog down with it.
-  const genericEntryByEntityType = new Map<TrashEntityType, TrashEntry>();
   for (const [entityType, entry] of routeDeps.registry ?? []) {
-    if (!delegateHandlerByEntityType.has(entityType)) genericEntryByEntityType.set(entityType, entry);
+    if (!handlerByEntityType.has(entityType)) handlerByEntityType.set(entityType, buildGenericTrashHandler({ entityType, entry, routeDeps, surfaces }));
   }
 
-  if (delegateHandlerByEntityType.size === 0 && genericEntryByEntityType.size === 0) return [];
+  if (optional.trashUser && !handlerByEntityType.has(USER_ENTITY_TYPE)) {
+    handlerByEntityType.set(USER_ENTITY_TYPE, buildUserTrashHandler(optional.trashUser));
+  }
 
-  const reachableKinds = [...delegateHandlerByEntityType.keys(), ...genericEntryByEntityType.keys()];
+  if (handlerByEntityType.size === 0) return [];
+
+  const reachableKinds = [...handlerByEntityType.keys()];
 
   const handlers: Record<string, ToolHandler> = {
     trash_item: async (ctx, options = {}) => {
       const input = requireInputRecord({ input: ctx.input });
       const entityType = requireString({ input: input, key: "entityType" });
-      const entityId = requireString({ input: input, key: "entityId" });
 
       // Against the live adapter map, on every call — never a list captured when this was built.
-      const delegate = delegates.get(entityType);
-      const delegateHandler = delegateHandlerByEntityType.get(entityType);
-      if (delegate && delegateHandler && routeDeps.isTrashableEntityType(entityType)) {
-        await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: delegate.permission }, { entityType, entityId });
+      const kindHandler = handlerByEntityType.get(entityType);
+      if (kindHandler && routeDeps.isTrashableEntityType(entityType)) return kindHandler(ctx, options);
 
-        const delegateInput = await delegate.toDelegateInput(routeDeps, entityId);
-        if (!delegateInput) {
-          throw new ToolInputError({ message: `trash_item: ${entityType} '${entityId}' was not found. Nothing was changed.` });
-        }
-
-        // The same `ctx` preserves the caller, signal and audit identity,
-        // with only the input swapped for the delegate's own shape. Forward the interactive
-        // options too, so a delegate that asks the human retains its confirmation channel.
-        const outcome = await delegateHandler({ ...ctx, input: delegateInput }, options);
-        return { entityType, entityId, via: delegate.toolId, outcome };
-      }
-
-      const genericEntry = genericEntryByEntityType.get(entityType);
-      if (genericEntry && routeDeps.isTrashableEntityType(entityType)) {
-        return buildGenericTrashHandler({ entityType, entry: genericEntry, routeDeps, surfaces })(ctx, options);
-      }
-
+      requireString({ input: input, key: "entityId" });
       const accepted = reachableKinds.filter((kind) => routeDeps.isTrashableEntityType(kind));
       throw new ToolInputError({ message: `trash_item: '${entityType}' is not a kind of thing the Trash can hold. Expected one of: ${accepted.join(", ")}. ` +
           "Nothing was changed." });

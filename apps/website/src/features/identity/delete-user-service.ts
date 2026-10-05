@@ -79,6 +79,13 @@ export interface DeleteUserDeps {
   isInTrash: (principalId: UUID) => Promise<boolean>;
 }
 
+/**
+ * What `trash_item`'s `user` kind (`server/runtime/composition/trash-user-tool-port.ts`) reads from
+ * the assistant's route deps beyond `IdentityToolDeps`' repo bag — named here so the assistant's
+ * deps union (`assistant/tool-registrations.ts`) can carry it without reaching for `RouteDeps`.
+ */
+export type TrashUserToolDeps = Pick<DeleteUserDeps, "removeUser" | "isInTrash">;
+
 export interface DeleteUserInput {
   workspaceId: UUID;
   callerPrincipalId: UUID;

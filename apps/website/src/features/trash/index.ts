@@ -94,7 +94,7 @@ export {
   TRASH_ITEM_TOOL_ID,
   trashItemDerivedRisk,
 } from "./trash-item-tool.js";
-export type { TrashItemDelegate, TrashItemToolDeps } from "./trash-item-tool.js";
+export type { TrashItemDelegate, TrashItemToolDeps, TrashUserPort } from "./trash-item-tool.js";
 
 export { createPostTrashAdapter, POST_ENTITY_TYPE } from "./adapters/post.js";
 export { createCommentTrashAdapter, COMMENT_ENTITY_TYPE } from "./adapters/comment.js";
