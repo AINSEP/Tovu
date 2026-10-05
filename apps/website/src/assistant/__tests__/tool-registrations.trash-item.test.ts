@@ -71,8 +71,9 @@ function harness(grants: Grants) {
   return { routeDeps, surfaceExchanges, registrations, authorizeCalls };
 }
 
-// This file's hermetic composition registers only the term/taxonomy GENERIC kinds. Built once from
-// the real schema module, the full registry lets tests reach the remaining generic kinds too.
+// This file's hermetic composition registers only the form_submission/term/taxonomy GENERIC kinds
+// (`form_submission` since ea41a5c33, F3469/F1868). Built once from the real schema module, the full
+// registry lets tests reach the remaining generic kinds too.
 const REAL_REGISTRY = buildTrashRegistry();
 
 function withRealTrashRegistry(routeDeps: RouteDeps): RouteDeps {
@@ -411,7 +412,7 @@ test("an entityType with no registered Trash adapter is refused with an exact er
   // genuinely un-adapted kind here (see `withRealTrashRegistry`'s comment).
   await assert.rejects(call(tool(registrations, TRASH_ITEM_TOOL_ID), { entityType: "form", entityId: "post-1" }), {
     message:
-      "trash_item: 'form' is not a kind of thing the Trash can hold. Expected one of: post, comment, media, redirect, widget, term, taxonomy. Nothing was changed.",
+      "trash_item: 'form' is not a kind of thing the Trash can hold. Expected one of: post, comment, media, redirect, widget, form_submission, term, taxonomy. Nothing was changed.",
   });
   assert.deepEqual(authorizeCalls, []);
   assert.deepEqual(await trashRows(routeDeps), []);
@@ -430,7 +431,7 @@ test("the entityType check reads the live adapter map at CALL time, not a list c
   // Delegate and generic kinds remain available; only `post` is removed by this probe.
   await assert.rejects(call(trashItem, { entityType: "post", entityId: "post-1" }), {
     message:
-      "trash_item: 'post' is not a kind of thing the Trash can hold. Expected one of: comment, media, redirect, widget, term, taxonomy. Nothing was changed.",
+      "trash_item: 'post' is not a kind of thing the Trash can hold. Expected one of: comment, media, redirect, widget, form_submission, term, taxonomy. Nothing was changed.",
   });
   assert.equal((await routeDeps.postRepo.findById({ workspaceId: routeDeps.workspaceId, id: "post-1" }))?.deletedAt, null);
 });
