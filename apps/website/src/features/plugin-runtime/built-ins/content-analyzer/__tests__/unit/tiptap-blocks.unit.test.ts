@@ -100,6 +100,18 @@ test("defensive: non-object input, unknown nodes, non-array content and non-stri
   ]);
 });
 
+test("the admin editor's leading `title` node is skipped: the title is analyzed separately, never as body text", () => {
+  // apps/admin/src/features/posts/rules.ts withTitleNode prepends this node to every saved bodyJson.
+  const doc = {
+    type: "doc",
+    content: [
+      { type: "title", content: [t("My Post Title")] },
+      { type: "paragraph", content: [t("Body.")] },
+    ],
+  };
+  assert.deepEqual(tiptapToBlocks(doc), [{ kind: "text", text: "Body." }]);
+});
+
 test("a top-level array of nodes is accepted like a doc's content", () => {
   assert.deepEqual(tiptapToBlocks([{ type: "paragraph", content: [t("x")] }]), [{ kind: "text", text: "x" }]);
 });

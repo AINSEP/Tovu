@@ -14,6 +14,7 @@
  *   (marks split one sentence into several sibling text nodes); `hardBreak` becomes a space.
  * - `image` / `mediaImage` -> image block (`attrs.alt` when it is a string, else `null`), whether it
  *   sits at block level or inline inside a paragraph (emitted right after that paragraph).
+ * - `title` (the admin editor's leading title node) -> skipped; the title is scored separately.
  * - A bare `text` node reached at block level (e.g. a table cell holding text directly) -> text block.
  * - Every other node with a `content` array (doc, lists, list items, blockquotes, tables, unknown
  *   containers) is walked into; everything else is skipped.
@@ -99,6 +100,10 @@ function walk(node: unknown, out: ContentBlock[], depth: number): void {
     out.push(imageBlock(current));
     return;
   }
+  // The admin editor prepends a `title` node to every bodyJson (apps/admin/src/features/posts/
+  // rules.ts `withTitleNode`); the title reaches the scorer separately, so counting it here would
+  // double it into the body's words.
+  if (current.type === "title") return;
   if (current.type === "text") {
     if (typeof current.text === "string") out.push({ kind: "text", text: current.text });
     return;
