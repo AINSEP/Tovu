@@ -1,4 +1,4 @@
-/** Actions observer: requests stay on api.github.com; job-log archive redirects are never requested. */
+/** Actions observer and deploy dispatcher: requests stay on api.github.com; job-log archive redirects are never requested. */
 const text = value => String(value ?? "").slice(0, 2000);
 /** Reject path injection and build a fixed-host repository URL. */
 function base(ctx, target) {
@@ -69,4 +69,47 @@ async function logs(ctx, input) {
   }
   return { platform: "github-actions", target: input.target, lines, truncated };
 }
-export default { status, logs };
+/** The repo's deploy workflow. Its dispatch input `expected_sha` makes it refuse to deploy a ref that moved. */
+const DEPLOY_WORKFLOW = "fly-deploy.yml";
+const FULL_SHA = /^[0-9a-f]{40}$/;
+const RUN_LOOKUPS = 5;
+const RUN_LOOKUP_DELAY_MS = 2000;
+/** Host and GitHub clocks differ; a run created this long before our dispatch can still be ours. */
+const CLOCK_SKEW_MS = 30_000;
+/** Branch or tag names only: the dispatch API runs a workflow on a ref, never at a bare commit. */
+function refName(ctx, ref) {
+  const value = ref ?? "main";
+  if (typeof value !== "string" || value.length > 200 || !/^[A-Za-z0-9._/-]+$/.test(value) || /^[-/.]|[/.]$|\.\.|\/\/|\.lock$/.test(value)) ctx.fail("ref must be a branch or tag name.");
+  if (/^[0-9a-fA-F]{40}$/.test(value)) ctx.fail("ref must be a branch or tag name; GitHub cannot dispatch a workflow at a bare commit SHA. Push the commit to a branch first.");
+  return value;
+}
+/** Find our run: this workflow, this exact SHA, created no earlier than just before the dispatch. At most RUN_LOOKUPS GETs. */
+async function findRun(ctx, workflow, sha, since) {
+  for (let attempt = 0; attempt < RUN_LOOKUPS; attempt++) {
+    if (attempt > 0) await ctx.sleep(RUN_LOOKUP_DELAY_MS);
+    const response = (await ctx.get(`${workflow}/runs?event=workflow_dispatch&head_sha=${sha}&per_page=10`)).json;
+    if (!Array.isArray(response?.workflow_runs)) ctx.fail("Workflow runs response must contain workflow_runs.");
+    // A run on another SHA is never reported as this deploy, even if it is the newest.
+    const run = response.workflow_runs.find(r => r && r.head_sha === sha && /^\d+$/.test(String(r.id)) && Date.parse(r.created_at) >= since);
+    if (run) return run;
+  }
+  return undefined;
+}
+/** Resolve ref -> full SHA, dispatch the deploy workflow pinned to it, then return the run id. O(1) + bounded lookups. */
+async function deploy(ctx, input) {
+  const repo = base(ctx, input.target);
+  const ref = refName(ctx, input.ref);
+  const commit = (await ctx.get(`${repo}/commits/${ref.split("/").map(encodeURIComponent).join("/")}`)).json;
+  if (typeof commit?.sha !== "string" || !FULL_SHA.test(commit.sha)) ctx.fail(`Could not resolve '${ref}' to a full commit SHA.`);
+  const sha = commit.sha;
+  const workflow = `${repo}/actions/workflows/${DEPLOY_WORKFLOW}`;
+  const since = Date.parse(ctx.nowIso()) - CLOCK_SKEW_MS;
+  const dispatched = await ctx.send({ method: "POST", url: `${workflow}/dispatches`, body: { ref, inputs: { expected_sha: sha } } });
+  // Newer API versions may answer with the run directly; otherwise (204) look it up by SHA.
+  const directId = dispatched.json?.workflow_run_id;
+  const run = directId !== undefined && /^\d+$/.test(String(directId)) ? { id: directId, html_url: dispatched.json.html_url } : await findRun(ctx, workflow, sha, since);
+  const pinned = `The workflow refuses to deploy if '${ref}' no longer resolves to ${sha} when it starts.`;
+  if (!run) return { platform: "github-actions", target: input.target, started: true, sha, summary: text(`Dispatched ${DEPLOY_WORKFLOW} on '${ref}' at ${sha}, but its run was not visible yet. ${pinned} Check deployment_ops_status with branch '${ref}' in a minute.`) };
+  return { platform: "github-actions", target: input.target, started: true, sha, runId: String(run.id), ...(typeof run.html_url === "string" && run.html_url.startsWith("https://github.com/") ? { url: text(run.html_url) } : {}), summary: text(`Dispatched ${DEPLOY_WORKFLOW} on '${ref}' at ${sha}; run ${run.id}. ${pinned}`) };
+}
+export default { status, logs, deploy };

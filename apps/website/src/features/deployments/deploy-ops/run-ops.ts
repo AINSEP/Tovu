@@ -10,6 +10,8 @@ import type { DeployOpsContext, DeployOpsDeployResult, DeployOpsInput, DeployOps
 export const MAX_RESPONSE_CHARS = 256_000;
 /** The daemon applies no default tool timeout; this tool owns its 300s deadline and cancellation. */
 export const MAX_WAIT_SECONDS = 300;
+/** One module pause is short; a module that needs longer must poll, so cancellation stays prompt. */
+export const MAX_MODULE_SLEEP_MS = 5_000;
 export interface DeployOpsToolDeps {
   authorize: AuthorizeFn;
   workspaceId: string;
@@ -110,6 +112,7 @@ async function boundContext(deps: DeployOpsToolDeps, platform: LoadedDeployOps, 
   return {
     nowIso: () => nowIso({ clock: deps.clock }),
     fail: message => { throw new ToolInputError({ message: message }); },
+    sleep: ms => (deps.waitClock ?? systemClock).sleep(Math.min(Math.max(0, Number(ms) || 0), MAX_MODULE_SLEEP_MS), signal),
     get: rawUrl => call("GET", rawUrl),
     send: input => {
       if (!["POST", "PATCH", "PUT"].includes(input.method)) throw new ToolInputError({ message: `Deployment ops module supplied unsupported method '${String(input.method)}'.` });

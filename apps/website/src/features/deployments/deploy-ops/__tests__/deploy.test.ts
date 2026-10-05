@@ -73,7 +73,7 @@ test("a dropped write connection warns that the deploy may have started", async 
 
 test("observe-only and unknown platforms are refused before any credential or HTTP work", async () => {
   const f = await withDeploy(undefined);
-  await assert.rejects(runDeploy({ deps: f.deps, input: { platform: "fly", target: "shop" } }), { name: "ToolInputError", message: "Deployment ops platform 'fly' cannot deploy; it is observe-only. Platforms that can deploy: (none)." });
+  await assert.rejects(runDeploy({ deps: f.deps, input: { platform: "fly", target: "shop" } }), { name: "ToolInputError", message: "Deployment ops platform 'fly' cannot deploy; it is observe-only. Platforms that can deploy: github-actions." });
   await assert.rejects(runDeploy({ deps: f.deps, input: { platform: "missing", target: "shop" } }), { name: "ToolInputError", message: "Unknown deployment ops platform 'missing'. Choose: fly, github-actions." });
   assert.deepEqual(f.calls, []);
 });

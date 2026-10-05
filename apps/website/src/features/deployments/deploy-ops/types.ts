@@ -39,6 +39,8 @@ export interface DeployOpsContext {
   /** Same binding as `get`: one credential, the platform's hosts, HTTPS only, no redirects, capped and redacted. */
   send(request: DeployOpsSendRequest): Promise<DeployOpsResponse>;
   nowIso(): string;
+  /** Abortable pause between follow-up reads (e.g. waiting for a dispatched run to appear); capped by the host. */
+  sleep(ms: number): Promise<void>;
   /** A model-visible refusal, without importing host code into a plugin module. */
   fail(message: string): never;
 }
