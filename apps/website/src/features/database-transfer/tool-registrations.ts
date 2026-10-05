@@ -111,7 +111,7 @@ export function buildDatabaseTransferRegistrations(deps: DatabaseTransferToolDep
     surfaces: {
       open: (binding, emit) => surfaces.surfaceExchanges.open(binding, emit),
       resolveDecision: resolveConfirmationDecision, askThenReport,
-      confirmation: (plan, exchangeId) => ({ channel: "mcp-ui", payload: { resource: buildConfirmationSurface({ plan, exchangeId }) } }),
+      confirmation: (plan, exchangeId, optional = {}) => ({ channel: "mcp-ui", payload: { resource: buildConfirmationSurface({ plan, exchangeId, ...optional }) } }),
       destinationForm: exchangeId => ({ channel: "mcp-ui", payload: { resource: buildDestinationForm(exchangeId) } }),
       destinationOutcome: input => ({ channel: "mcp-ui", payload: { resource: buildDestinationOutcome(input) } }),
       dismissedParam: SURFACE_DISMISSED_PARAM, addressField: DESTINATION_ADDRESS_FIELD,

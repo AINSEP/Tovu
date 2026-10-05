@@ -309,6 +309,7 @@ async function confirmEnable(
   const ui = buildEnableConfirmationResource({
     subject: { family: request.family, pluginId: request.pluginId },
     exchangeId: exchange.id,
+    expiresAtMs: exchange.expiresAtMs(),
   });
 
   // A cancelled run must not leave a dialog holding a call nobody is listening to, nor hold this
@@ -368,7 +369,7 @@ async function confirmUninstall(
   }
 
   const exchange = surfaces.surfaceExchanges.open({ toolId: PLUGINS_UNINSTALL_TOOL_ID, principalId: ctx.principal.id }, emitSurface);
-  const ui = buildUninstallConfirmationResource({ preview, exchangeId: exchange.id });
+  const ui = buildUninstallConfirmationResource({ preview, exchangeId: exchange.id, expiresAtMs: exchange.expiresAtMs() });
 
   // A cancelled run must not leave a dialog holding a call nobody is listening to, nor hold this
   // handler open until the idle deadline — mirrors `confirmEnable`'s identical guard above.

@@ -170,8 +170,8 @@ function reauthSurfaceUri(exchangeId: string): UIResourceUri {
  * `confirmation.ts`'s own doc ("cancel... stays optional because a non-destructive confirmation has
  * nothing to burn"): there is nothing here to burn server-side, only an acknowledgement to record.
  */
-function buildReauthSurface(input: { exchangeId: string; label: string; settingsLink: string }): UIResource {
-  const { exchangeId, label, settingsLink } = input;
+function buildReauthSurface(input: { exchangeId: string; expiresAtMs: number; label: string; settingsLink: string }): UIResource {
+  const { exchangeId, expiresAtMs, label, settingsLink } = input;
   return buildConfirmationSurface({
     uri: reauthSurfaceUri(exchangeId),
     title: `Reconnect ${label}`,
@@ -186,6 +186,8 @@ function buildReauthSurface(input: { exchangeId: string; label: string; settings
     },
     app: { appName: "tovu-external-mcp-reauth", appVersion: "1" },
     preferredFrameSize: ["100%", "260px"],
+    // The exchange's deadline, so the chat counts the notice down — as `requireHumanConfirm` does.
+    expiresAtMs,
   });
 }
 
@@ -354,7 +356,7 @@ export function buildExternalMcpReauthRegistrations(
       const closeOnAbort = () => exchange.close();
       ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
       try {
-        const ui = buildReauthSurface({ exchangeId: exchange.id, label, settingsLink: externalMcpSettingsDeepLink(serverId) });
+        const ui = buildReauthSurface({ exchangeId: exchange.id, expiresAtMs: exchange.expiresAtMs(), label, settingsLink: externalMcpSettingsDeepLink(serverId) });
         const answer = await resolveReauthAcknowledgement(exchange, ui);
 
         // Best-effort re-read: the administrator may answer well after the row's own status changed

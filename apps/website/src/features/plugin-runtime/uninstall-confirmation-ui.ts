@@ -35,10 +35,12 @@ function uninstallConfirmationUri(pluginId: string): UIResourceUri {
  * without saying which one is not consent.
  * @param spec.exchangeId - The held-open call's correlation handle (`SurfaceExchange.id`). This is
  * the only place it may go — see this file's header.
+ * @param spec.expiresAtMs - The exchange's deadline (`SurfaceExchange.expiresAtMs()`, read right
+ * before rendering), so the chat counts the card down and closes it — as `requireHumanConfirm` does.
  * @complexity O(n) in the rendered field lengths.
  */
-export function buildUninstallConfirmationResource(spec: { preview: PluginUninstallPreview; exchangeId: string }): UIResource {
-  const { preview, exchangeId } = spec;
+export function buildUninstallConfirmationResource(spec: { preview: PluginUninstallPreview; exchangeId: string; expiresAtMs: number }): UIResource {
+  const { preview, exchangeId, expiresAtMs } = spec;
 
   return buildConfirmationSurface({
     uri: uninstallConfirmationUri(preview.pluginId),
@@ -66,5 +68,6 @@ export function buildUninstallConfirmationResource(spec: { preview: PluginUninst
     },
     app: { appName: "tovu-plugins-uninstall", appVersion: "1" },
     preferredFrameSize: ["100%", "340px"],
+    expiresAtMs,
   });
 }

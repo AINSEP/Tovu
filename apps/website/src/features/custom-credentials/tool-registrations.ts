@@ -1316,6 +1316,7 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
         host: target.url.host,
         path: `${target.url.pathname}${target.url.search}`,
         exchangeId: exchange.id,
+        expiresAtMs: exchange.expiresAtMs(),
       });
 
       const closeOnAbort = () => exchange.close();

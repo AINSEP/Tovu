@@ -28,10 +28,13 @@ export function deleteRequestConfirmationUri(exchangeId: string): UIResourceUri 
  * path — per the owner's own requirement ("showing the operator the label, the resolved host, the
  * method and the full path so they can see exactly what is about to be destroyed").
  *
+ * `spec.expiresAtMs` is the exchange's deadline (`SurfaceExchange.expiresAtMs()`), so the chat counts
+ * the card down and closes it — as `requireHumanConfirm` does.
+ *
  * @complexity O(1) — a handful of fixed-size field reads.
  */
-export function buildDeleteRequestConfirmationResource(spec: { label: string; host: string; path: string; exchangeId: string }): UIResource {
-  const { label, host, path, exchangeId } = spec;
+export function buildDeleteRequestConfirmationResource(spec: { label: string; host: string; path: string; exchangeId: string; expiresAtMs: number }): UIResource {
+  const { label, host, path, exchangeId, expiresAtMs } = spec;
 
   return buildConfirmationSurface({
     uri: deleteRequestConfirmationUri(exchangeId),
@@ -57,5 +60,6 @@ export function buildDeleteRequestConfirmationResource(spec: { label: string; ho
     },
     app: { appName: "tovu-custom-credential-make-request-delete", appVersion: "1" },
     preferredFrameSize: ["100%", "360px"],
+    expiresAtMs,
   });
 }

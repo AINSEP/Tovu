@@ -129,8 +129,10 @@ function deleteConfirmationUri(exchangeId: string): UIResourceUri {
 function buildDeleteConfirmationResource(spec: {
   subscription: { label: string; targetUrl: string; status: string };
   exchangeId: string;
+  /** The exchange's deadline, so the chat counts the card down — as `requireHumanConfirm` does. */
+  expiresAtMs: number;
 }): UIResource {
-  const { subscription, exchangeId } = spec;
+  const { subscription, exchangeId, expiresAtMs } = spec;
   return buildConfirmationSurface({
     uri: deleteConfirmationUri(exchangeId),
     title: "Delete this webhook subscription?",
@@ -154,6 +156,7 @@ function buildDeleteConfirmationResource(spec: {
     },
     app: { appName: "tovu-webhooks-delete-subscription", appVersion: "1" },
     preferredFrameSize: ["100%", "320px"],
+    expiresAtMs,
   });
 }
 
@@ -338,6 +341,7 @@ export function buildWebhooksRegistrations(
       const ui = buildDeleteConfirmationResource({
         subscription: { label: existing.label, targetUrl: existing.targetUrl, status: existing.status },
         exchangeId: exchange.id,
+        expiresAtMs: exchange.expiresAtMs(),
       });
 
       const closeOnAbort = () => exchange.close();

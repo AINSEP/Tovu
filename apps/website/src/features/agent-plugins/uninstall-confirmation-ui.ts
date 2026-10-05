@@ -40,14 +40,16 @@ function uninstallConfirmationUri(pluginId: string): UIResourceUri {
  * @param spec.preview - What would be removed. The plugin is NAMED, because "uninstall this plugin?"
  * without saying which one is not consent.
  * @param spec.exchangeId - The held-open call's correlation handle (`SurfaceExchange.id`).
+ * @param spec.expiresAtMs - The exchange's deadline (`SurfaceExchange.expiresAtMs()`, read right
+ * before rendering), so the chat counts the card down and closes it — as `requireHumanConfirm` does.
  * @param options.locale - The operator's admin locale for the two memory choices (`memory-i18n.ts`).
  * @complexity O(n) in the rendered field lengths.
  */
 export function buildUninstallConfirmationResource(
-  spec: { preview: AgentPluginUninstallPreview; exchangeId: string },
+  spec: { preview: AgentPluginUninstallPreview; exchangeId: string; expiresAtMs: number },
   { locale = "en" }: { locale?: string } = {},
 ): UIResource {
-  const { preview, exchangeId } = spec;
+  const { preview, exchangeId, expiresAtMs } = spec;
 
   return buildConfirmationSurface({
     uri: uninstallConfirmationUri(preview.pluginId),
@@ -79,5 +81,6 @@ export function buildUninstallConfirmationResource(
     },
     app: { appName: "tovu-agent-plugins-uninstall", appVersion: "1" },
     preferredFrameSize: ["100%", "340px"],
+    expiresAtMs,
   });
 }

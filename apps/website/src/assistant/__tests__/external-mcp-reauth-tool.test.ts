@@ -4,6 +4,7 @@ import test from "node:test";
 import express from "express";
 
 import { createToolRegistry, type SurfaceEmission } from "@jini-ai/core";
+import { MCP_UI_EXPIRES_AT_META_KEY } from "@jini-ai/ui/mcp-ui/surfaces";
 import { createToolExecutor } from "@jini-ai/daemon";
 
 import { startTestServer } from "../../server/__tests__/helpers/http-test-server.js";
@@ -120,7 +121,10 @@ test("an expired-token connection raises the re-auth surface, naming the server"
   await new Promise((resolve) => setImmediate(resolve));
 
   assert.equal(emitted.length, 1, "the notice must be emitted before the call parks");
-  const html = (emitted[0]!.payload as { resource?: { resource?: { text?: string } } }).resource?.resource?.text ?? "";
+  const resource = (emitted[0]!.payload as { resource?: { resource?: { text?: string; _meta?: Record<string, unknown> } } }).resource?.resource;
+  // Like every requireHumanConfirm card: the exchange deadline, so the chat can count it down.
+  assert.ok(Number(resource?._meta?.[MCP_UI_EXPIRES_AT_META_KEY]) > Date.now(), "the notice must carry its countdown deadline");
+  const html = resource?.text ?? "";
   assert.match(html, /Higgsfield \(test\)/, "the dialog must name the actual server, not a generic message");
   assert.match(html, /Settings.*External MCP/, "the dialog must point at the existing Settings authorize flow");
 

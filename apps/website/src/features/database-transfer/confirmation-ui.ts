@@ -27,9 +27,10 @@ function plural(n: number, one: string, many: string): string {
   return `${n.toLocaleString("en-US")} ${n === 1 ? one : many}`;
 }
 
-/** @complexity O(left-out tables). */
-export function buildConfirmationSurface(spec: { plan: DatabaseTransferPlan; exchangeId: string }): UIResource {
-  const { plan, exchangeId } = spec;
+/** `spec.expiresAtMs` is the exchange's deadline, so the chat counts the card down and closes it — as
+ *  `requireHumanConfirm` does. @complexity O(left-out tables). */
+export function buildConfirmationSurface(spec: { plan: DatabaseTransferPlan; exchangeId: string; expiresAtMs?: number }): UIResource {
+  const { plan, exchangeId, expiresAtMs } = spec;
   const where = `${plan.destination.database} on ${plan.destination.host}`;
   const leftOutRows = plan.leftOut.reduce((sum, entry) => sum + entry.rows, 0);
   const details = [
@@ -49,5 +50,6 @@ export function buildConfirmationSurface(spec: { plan: DatabaseTransferPlan; exc
     cancel: { label: "Cancel", toolName: DATABASE_TRANSFER_RUN_TOOL_ID, params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "cancel" } },
     app: { appName: "tovu-database-transfer-run", appVersion: "1" },
     preferredFrameSize: ["100%", "420px"],
+    ...(expiresAtMs === undefined ? {} : { expiresAtMs }),
   });
 }

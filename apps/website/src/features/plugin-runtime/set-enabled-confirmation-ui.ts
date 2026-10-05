@@ -95,10 +95,12 @@ export function enableConfirmationUri(subject: EnableConfirmationSubject): UIRes
  * that says "enable this plugin?" without saying which one is not consent.
  * @param spec.exchangeId - The held-open call's correlation handle (`SurfaceExchange.id`). This is
  * the only place it may go — see this file's header.
+ * @param spec.expiresAtMs - The exchange's deadline (`SurfaceExchange.expiresAtMs()`, read right
+ * before rendering), so the chat counts the card down and closes it — as `requireHumanConfirm` does.
  * @complexity O(n) in the rendered field lengths.
  */
-export function buildEnableConfirmationResource(spec: { subject: EnableConfirmationSubject; exchangeId: string }): UIResource {
-  const { subject, exchangeId } = spec;
+export function buildEnableConfirmationResource(spec: { subject: EnableConfirmationSubject; exchangeId: string; expiresAtMs: number }): UIResource {
+  const { subject, exchangeId, expiresAtMs } = spec;
   const copy = FAMILY_COPY[subject.family];
 
   return buildConfirmationSurface({
@@ -125,5 +127,6 @@ export function buildEnableConfirmationResource(spec: { subject: EnableConfirmat
     },
     app: { appName: "tovu-plugins-set-enabled", appVersion: "1" },
     preferredFrameSize: ["100%", "320px"],
+    expiresAtMs,
   });
 }

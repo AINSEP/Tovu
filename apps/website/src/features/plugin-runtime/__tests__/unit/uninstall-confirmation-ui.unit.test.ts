@@ -3,7 +3,7 @@ import test from "node:test";
 import { buildUninstallConfirmationResource } from "../../uninstall-confirmation-ui.js";
 
 test("site plugin uninstall surface encodes both decisions for plugins_uninstall with the exact exchange", () => {
-  const resource = buildUninstallConfirmationResource({ preview: { pluginId: "site/x", name: "Site Plugin", version: "3.2.1" }, exchangeId: "uninstall-42" });
+  const resource = buildUninstallConfirmationResource({ preview: { pluginId: "site/x", name: "Site Plugin", version: "3.2.1" }, exchangeId: "uninstall-42", expiresAtMs: 1_300_000 });
   assert.equal(resource.resource.uri, "ui://tovu/plugins-uninstall/site%2Fx");
   const html = resource.resource.text;
   assert.ok(html);

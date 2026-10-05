@@ -185,7 +185,7 @@ async function confirmUninstall(
   }
 
   const exchange = surfaces.surfaceExchanges.open({ toolId: PLUGINS_UNINSTALL_TOOL_ID, principalId: ctx.principal.id }, emitSurface);
-  const ui = buildUninstallConfirmationResource({ preview, exchangeId: exchange.id }, { locale });
+  const ui = buildUninstallConfirmationResource({ preview, exchangeId: exchange.id, expiresAtMs: exchange.expiresAtMs() }, { locale });
 
   // A cancelled run must not leave a dialog holding a call nobody is listening to.
   const closeOnAbort = () => exchange.close();

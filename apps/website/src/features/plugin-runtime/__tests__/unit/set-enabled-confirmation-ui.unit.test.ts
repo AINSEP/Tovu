@@ -5,7 +5,7 @@ import { buildEnableConfirmationResource, enableConfirmationUri } from "../../se
 // Adapter contract (F1.1/F2.5/F2.6): run the real renderer, then read its actual action payload.
 for (const family of ["agent-plugin", "site-runtime"] as const) {
   test(`${family} enable surface encodes identity and both callback requests for the held exchange`, () => {
-    const resource = buildEnableConfirmationResource({ subject: { family, pluginId: "tools/x ?", label: "A <B>", version: "2.7.0" }, exchangeId: "exchange-42" });
+    const resource = buildEnableConfirmationResource({ subject: { family, pluginId: "tools/x ?", label: "A <B>", version: "2.7.0" }, exchangeId: "exchange-42", expiresAtMs: 1_300_000 });
     assert.equal(resource.resource.uri, `ui://tovu/plugins-set-enabled/${family}/tools%2Fx%20%3F`);
     const html = resource.resource.text;
     assert.ok(html);
@@ -23,7 +23,7 @@ for (const family of ["agent-plugin", "site-runtime"] as const) {
   });
 }
 test("id-only enable surface names the id and omits an absent Version detail", () => {
-  const resource = buildEnableConfirmationResource({ subject: { family: "agent-plugin", pluginId: "bare-plugin" }, exchangeId: "bare-exchange" });
+  const resource = buildEnableConfirmationResource({ subject: { family: "agent-plugin", pluginId: "bare-plugin" }, exchangeId: "bare-exchange", expiresAtMs: 1_300_000 });
   const html = resource.resource.text;
   assert.ok(html);
   assert.equal(html.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/)?.[1], "Enable bare-plugin?");

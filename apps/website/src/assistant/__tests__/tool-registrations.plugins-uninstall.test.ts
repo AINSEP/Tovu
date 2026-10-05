@@ -8,6 +8,7 @@ import test from "node:test";
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import type { UIResource } from "#src/assistant/index";
+import { MCP_UI_EXPIRES_AT_META_KEY } from "@jini-ai/ui/mcp-ui/surfaces";
 import { InMemoryExternalMcpServerRepo } from "#src/assistant/index";
 import { InMemoryChangeSetRepo } from "../../contracts/core/commands/index.js";
 import {
@@ -163,7 +164,10 @@ async function uninstallWithDecision(
   await new Promise((resolve) => setImmediate(resolve));
   if (emitted.length === 0) return pending; // refused before the dialog — let the caller assert on it
 
-  const html = (emitted[0] as { payload: { resource: UIResource } }).payload.resource.resource.text ?? "";
+  const resource = (emitted[0] as { payload: { resource: UIResource } }).payload.resource.resource;
+  // Like every requireHumanConfirm card: the exchange deadline, so the chat can count it down.
+  assert.ok(Number(resource._meta?.[MCP_UI_EXPIRES_AT_META_KEY]) > Date.now(), "the dialog must carry its countdown deadline");
+  const html = resource.text ?? "";
   assert.match(html, /Move My Plugin to trash\?/);
   assert.match(html, /all workspaces on this site/);
   assert.match(html, /60 days/);
@@ -446,7 +450,10 @@ test("plugins_uninstall with family:'agent-plugin' opens a dialog whose confirm 
     const first = await Promise.race([firstEmitted.then(() => "emitted" as const), pending.then(() => "settled" as const)]);
     assert.equal(first, "emitted", `expected the agent-plugin uninstall dialog to open before the call settled: ${JSON.stringify(emitted)}`);
     assert.equal(emitted.length, 1, "expected the agent-plugin uninstall dialog to open");
-    const html = (emitted[0] as { payload: { resource: UIResource } }).payload.resource.resource.text ?? "";
+    const resource = (emitted[0] as { payload: { resource: UIResource } }).payload.resource.resource;
+    // Like every requireHumanConfirm card: the exchange deadline, so the chat can count it down.
+    assert.ok(Number(resource._meta?.[MCP_UI_EXPIRES_AT_META_KEY]) > Date.now(), "the dialog must carry its countdown deadline");
+    const html = resource.text ?? "";
     assert.match(html, new RegExp(`Uninstall ${AGENT_PLUGIN_ID}\\?`));
 
     const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { ToolExecutionOptions, ToolRegistration } from "@jini-ai/core";
+import { MCP_UI_EXPIRES_AT_META_KEY, type UIResource } from "@jini-ai/ui/mcp-ui/surfaces";
 import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
 import { InMemoryDatabaseDestinationStore } from "../destination-store.js";
 import { DatabaseTransferPlanStore } from "../plan-store.js";
@@ -57,6 +58,16 @@ test("every registration refuses denied permission before snapshots, forms, plan
   assert.equal(h.surfaces.size(), 0);
   assert.equal((await h.destinations.get("ws")), null);
   assert.equal(h.plans.take({ planId: h.plan.planId, principalId: "owner", workspaceId: "ws" }).ok, true);
+});
+
+test("database_transfer_run's confirmation card carries its exchange deadline, like every requireHumanConfirm card", async () => {
+  const h = harness();
+  const controller = new AbortController();
+  const before = Date.now();
+  const emitted: unknown[] = [];
+  await call(h.tools.get("database_transfer_run")!, { planId: h.plan.planId }, controller.signal, async (surface) => { emitted.push(surface); controller.abort(); });
+  const resource = (emitted[0] as { payload: { resource: UIResource } }).payload.resource.resource;
+  assert.ok(Number(resource._meta?.[MCP_UI_EXPIRES_AT_META_KEY]) >= before + 100, "the card must carry its countdown deadline");
 });
 
 for (const id of ["database_transfer_run", "database_transfer_set_destination"]) {

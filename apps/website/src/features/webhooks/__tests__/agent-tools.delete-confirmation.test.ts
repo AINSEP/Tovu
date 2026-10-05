@@ -4,6 +4,7 @@ import test from "node:test";
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { MCP_UI_MIME_TYPE, type UIResource } from "#src/assistant/index";
+import { MCP_UI_EXPIRES_AT_META_KEY } from "@jini-ai/ui/mcp-ui/surfaces";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../repo.memory.js";
 import { createSubscription, pauseSubscription } from "../subscriptions.js";
@@ -91,6 +92,8 @@ async function raiseDialog(deleteTool: ToolRegistration, subscriptionId: string,
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(emitted.length, 1, "the dialog must be emitted before the call parks");
   const ui = (emitted[0] as { payload: { resource: UIResource } }).payload.resource;
+  // Like every requireHumanConfirm card: the exchange deadline, so the chat can count it down.
+  assert.ok(Number(ui.resource._meta?.[MCP_UI_EXPIRES_AT_META_KEY]) > Date.now(), "the dialog must carry its countdown deadline");
   const html = ui.resource.text;
   const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
   assert.ok(match, "the surface must carry its exchange id");

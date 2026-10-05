@@ -6,6 +6,7 @@ import test from "node:test";
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import type { UIResource } from "#src/assistant/index";
+import { MCP_UI_EXPIRES_AT_META_KEY } from "@jini-ai/ui/mcp-ui/surfaces";
 import { InMemoryChangeSetRepo } from "../../contracts/core/commands/index.js";
 import {
   SURFACE_EXCHANGE_ID_PARAM,
@@ -302,7 +303,10 @@ async function enableWithDecision(
   await new Promise((resolve) => setImmediate(resolve));
   if (emitted.length === 0) return pending; // refused before the dialog — let the caller assert on it
 
-  const html = (emitted[0] as { payload: { resource: UIResource } }).payload.resource.resource.text ?? "";
+  const resource = (emitted[0] as { payload: { resource: UIResource } }).payload.resource.resource;
+  // Like every requireHumanConfirm card: the exchange deadline, so the chat can count it down.
+  assert.ok(Number(resource._meta?.[MCP_UI_EXPIRES_AT_META_KEY]) > Date.now(), "the dialog must carry its countdown deadline");
+  const html = resource.text ?? "";
   const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
   assert.ok(match, "the dialog must carry its exchange id");
   surfaceExchanges.deliver({ exchangeId: match[1] ?? "", params: { decision }, principalId: PRINCIPAL_ID, toolId: "plugins_set_enabled" });
