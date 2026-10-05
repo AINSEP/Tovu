@@ -109,6 +109,8 @@ async function makeHarness(options: { script?: readonly ScriptStep[]; grant?: st
       command: "npx",
       args: "-y higgs-mcp",
       allowedToolNames: "generate_image",
+      writeAllowedToolNames: "",
+      principalId: "principal-1",
       oauth: {
         providerId: PROVIDER.providerId,
         grant: options.grant ?? "authorization_code",
@@ -515,6 +517,8 @@ test("reportAuthFailure passes a non-OAuth connection's error through unchanged 
       command: "npx",
       args: "-y plain-mcp",
       allowedToolNames: "",
+      writeAllowedToolNames: "",
+      principalId: "principal-1",
     },
   );
   const original = new Error("mcp-federation: the server answered 'tools/call' with HTTP 500");
@@ -700,6 +704,8 @@ test("re-pointing an OAuth connection's client id discards the token it no longe
       command: "npx",
       args: "-y higgs-mcp",
       allowedToolNames: "generate_image",
+      writeAllowedToolNames: "",
+      principalId: "principal-1",
       oauth: { clientId: "a-different-client" },
     },
   );
@@ -729,6 +735,8 @@ test("a save that changes nothing about the OAuth binding leaves the live connec
       command: "npx",
       args: "-y higgs-mcp",
       allowedToolNames: "generate_image",
+      writeAllowedToolNames: "",
+      principalId: "principal-1",
     },
   );
 
@@ -917,6 +925,8 @@ test("the connection gate ignores a static_env server, which has no authorizatio
       command: "npx",
       args: "-y plain-mcp",
       allowedToolNames: "some_tool",
+      writeAllowedToolNames: "",
+      principalId: "principal-1",
     },
   );
   const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, repo });

@@ -89,7 +89,8 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
     transaction: async (fn) => fn(),
     matcher: redirectMatcher,
     originRegistry: new OriginRegistry({ repo: originRepo }),
-    clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => `2026-07-29T00:00:${String(clockTick++).padStart(2, "0")}.000Z` },
+    // One second later on every read, so successive writes carry distinct, ordered timestamps.
+    clock: { nowMs: () => Date.parse(`2026-07-29T00:00:${String(clockTick++).padStart(2, "0")}.000Z`) },
     idGen: { newId: () => `redirect-${++idTick}` },
     outbox: new InMemoryOutbox(),
   };

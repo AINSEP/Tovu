@@ -89,6 +89,8 @@ async function makeConnectHandler(derivedPublicOrigin: string | undefined): Prom
       command: "npx",
       args: "-y test-mcp",
       allowedToolNames: "do_thing",
+      writeAllowedToolNames: "",
+      principalId: "principal-1",
       oauth: {
         providerId: PROVIDER.providerId,
         grant: "authorization_code",

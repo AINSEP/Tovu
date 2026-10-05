@@ -7,7 +7,7 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "../../features/content-types/index.js";
 import { registerContentType } from "../../features/content-types/index.js";
-import { entriesAgentToolCatalog, type AgentToolDefinition as EntriesAgentToolDefinition } from "../../features/entries/index.js";
+import { entriesAgentToolCatalog, type EntriesAgentToolDefinition } from "../../features/entries/index.js";
 import { InMemoryEntryRepo } from "../../features/entries/index.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";

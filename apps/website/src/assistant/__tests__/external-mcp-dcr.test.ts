@@ -80,6 +80,8 @@ async function save(store: ReturnType<typeof makeStore>, options: SaveOptions) {
     url: options.url,
     args: "",
     allowedToolNames: "",
+    writeAllowedToolNames: "",
+    principalId: "principal-1",
     oauth: { grant: "authorization_code", ...(options.oauth ?? {}) },
   });
 }
@@ -98,6 +100,8 @@ async function saveWithoutGrant(store: ReturnType<typeof makeStore>, options: Sa
     url: options.url,
     args: "",
     allowedToolNames: "",
+    writeAllowedToolNames: "",
+    principalId: "principal-1",
     oauth: { ...(options.oauth ?? {}) },
   });
 }
@@ -165,6 +169,8 @@ test("a STDIO OAuth connection still requires a client id — it has no URL to d
         command: "npx",
         args: "-y some-mcp",
         allowedToolNames: "",
+        writeAllowedToolNames: "",
+        principalId: "principal-1",
         oauth: { grant: "authorization_code", providerId: "example-oidc", tokenEnvName: "SOME_TOKEN" },
       }),
     (error: unknown) => {
@@ -189,6 +195,8 @@ test("a STDIO OAuth connection still requires a provider identity", async () => 
         command: "npx",
         args: "-y some-mcp",
         allowedToolNames: "",
+        writeAllowedToolNames: "",
+        principalId: "principal-1",
         oauth: { grant: "authorization_code", clientId: "typed-by-hand", tokenEnvName: "SOME_TOKEN" },
       }),
     (error: unknown) => {
@@ -224,6 +232,8 @@ test("a STDIO OAuth connection still requires a sign-in method — it has no URL
         command: "npx",
         args: "-y some-mcp",
         allowedToolNames: "",
+        writeAllowedToolNames: "",
+        principalId: "principal-1",
         oauth: { providerId: "example-oidc", clientId: "typed-by-hand", tokenEnvName: "SOME_TOKEN" },
       }),
     (error: unknown) => {

@@ -151,7 +151,7 @@ async function submitForm(harness: Harness, toolId: string, input: unknown, para
   assert.ok(delivered, `${toolId}: the submission must reach the parked call`);
 
   const wire = await pending;
-  const events = await harness.eventLog.replay(harness.run.id, null);
+  const events = await harness.eventLog.replay({ runId: harness.run.id, afterCursor: null });
   return { wire, wireText: JSON.stringify(wire), eventsText: JSON.stringify(events) };
 }
 

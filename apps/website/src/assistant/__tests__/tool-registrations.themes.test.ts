@@ -265,7 +265,7 @@ test("each themes tool checks exactly the permission its catalog entry declares"
   async function checkPermission(toolId: string, input: Record<string, unknown>) {
     authorizeCalls.length = 0;
     const emitted: unknown[] = [];
-    const result = await registrations.get(toolId)!.handler({ ...executionContext(input), emitSurface: async (s) => void emitted.push(s) });
+    const result = await registrations.get(toolId)!.handler(executionContext(input), { emitSurface: async (s) => void emitted.push(s) });
     if (toolId === "theme_trash_file") {
       assert.deepEqual(emitted, [], "reversible theme trash runs without a confirmation card");
     }

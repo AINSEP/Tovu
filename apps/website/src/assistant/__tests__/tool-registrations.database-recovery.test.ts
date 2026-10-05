@@ -341,8 +341,7 @@ test("the human-confirmer guard itself refuses a plain handler for a confirmer-m
           sideEffects: "mutates-durable-state",
         },
         derivedRisk: new Map([["synthetic_confirmation_probe", "mutates-durable-state"]]),
-        handler: async () => ({}),
-      }),
+      }, { handler: async () => ({}) }),
     { message: HUMAN_CONFIRMER_REFUSAL("synthetic_confirmation_probe") },
   );
 });
@@ -355,7 +354,9 @@ test("migrate-forward and restore are the only execute tools here, and each says
     .sort();
   assert.deepEqual(executeIds, ["backup_execute_restore", "database_execute_migrate_forward"]);
   for (const id of executeIds) {
-    assert.match(wired(combinedRegistrations(deps), id).descriptor.description, /Shows the user a confirm dialog first and only runs if they confirm\./);
+    const { description } = wired(combinedRegistrations(deps), id).descriptor;
+    assert.ok(description, `'${id}' must carry a description`);
+    assert.match(description, /Shows the user a confirm dialog first and only runs if they confirm\./);
   }
 });
 

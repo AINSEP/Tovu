@@ -34,7 +34,9 @@ function servers(read: string[]): Readonly<Record<string, McpServerConfig>> {
     { pluginManifest: { $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: pluginId, extensions: { tovu: { mcpServers: { remote: { tovuDefaultTools: { read } } } } } } });
   assert.equal(parsed.ok, true);
   if (!parsed.ok) throw new Error("invalid fixture");
-  assert.deepEqual(parsed.config.servers.remote?.tovuDefaultTools?.read, read, "the fixture must contain a valid read declaration");
+  const remote = parsed.config.servers.remote;
+  assert.ok(remote && remote.type !== "stdio", "the fixture must declare a remote server");
+  assert.deepEqual(remote.tovuDefaultTools?.read, read, "the fixture must contain a valid read declaration");
   return parsed.config.servers;
 }
 

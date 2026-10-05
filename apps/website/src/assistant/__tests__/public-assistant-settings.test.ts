@@ -133,6 +133,7 @@ test("the read fails CLOSED — anything that is not literally true reads as off
       scope: "workspace",
       workspaceId: WORKSPACE,
       principalId: null,
+      originPluginId: null,
       valueJson: written as never,
       state: "set",
       defVersion: definition.version,

@@ -2,52 +2,45 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { detectsExplicitNavigationIntent, resolvePublicTarget } from "../client-directives.js";
-import { listPublishedPosts } from "#src/features/post/index";
+import { InMemoryPostRepo, listPublishedPosts, type PostRecord, type PostRepoPort } from "#src/features/post/index";
+import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
 /**
  * SPEC-046 REQ-6/REQ-8 (`resolvePublicTarget`) and D-1 (`detectsExplicitNavigationIntent`). The
- * `FakeRow`/`row`/`fakePort` shapes below mirror `tools.test.ts` deliberately — this file proves the
- * one shared resolver `tools.ts`'s page-action tools all call, so it needs the same "leaky by
- * contract" fake `PostRepoPort` that file documents (see its header): `list()` returns every row,
- * drafts and trashed rows included, so a passing test here proves THIS function's filter, not the
- * port's.
+ * rows below sit in the REAL `InMemoryPostRepo`, whose `list()` is "leaky by contract" the way
+ * `tools.test.ts` documents (see its header): it returns every row in the workspace, drafts and
+ * trashed rows included, so a passing test here proves THIS function's filter, not the port's.
  */
 
-interface FakeRow {
-  id: string;
-  workspaceId: string;
-  title: string;
-  slug: string;
-  bodyJson: unknown;
-  status: "draft" | "published";
-  kind: "post" | "page";
-  updatedAt: string;
-  version: number;
-  deletedAt?: string | null;
-}
-
-function row(partial: Partial<FakeRow> & { slug: string; status: FakeRow["status"] }): FakeRow {
-  return {
-    id: `id-${partial.slug}`,
+function row(fields: Partial<PostRecord> & Pick<PostRecord, "slug" | "status">): PostRecord {
+  return buildPostRecord({
+    id: `id-${fields.slug}`,
     workspaceId: "ws",
-    title: partial.slug,
+    title: fields.slug,
     bodyJson: {},
-    kind: "post",
     updatedAt: "2026-01-01",
-    version: 1,
     deletedAt: null,
-    ...partial,
-  };
+    ...fields,
+  });
 }
 
-const ROWS: FakeRow[] = [
+const ROWS: PostRecord[] = [
   row({ slug: "public-post", status: "published", title: "Public Post" }),
   row({ slug: "secret-draft", status: "draft", title: "Secret Draft" }),
   row({ slug: "taken-down", status: "published", title: "Taken Down", deletedAt: "2026-02-01" }),
 ];
 
-function fakePort(rows: FakeRow[] = ROWS) {
-  return { list: async () => rows as never };
+function fakePort(rows: PostRecord[] = ROWS): PostRepoPort {
+  return new InMemoryPostRepo(rows);
+}
+
+/** The real repo, recording every `list()` argument it is called with. */
+class ListSpyPostRepo extends InMemoryPostRepo {
+  readonly listCalls: Array<{ workspaceId: string }> = [];
+  override async list(required: { workspaceId: string }): Promise<PostRecord[]> {
+    this.listCalls.push(required);
+    return super.list(required);
+  }
 }
 
 /**
@@ -107,15 +100,9 @@ describe("resolvePublicTarget", () => {
   });
 
   it("scopes the underlying list to the given workspace, matching listPublishedPosts's own contract", async () => {
-    const calls: unknown[] = [];
-    const port = {
-      list: async (params: unknown) => {
-        calls.push(params);
-        return ROWS as never;
-      },
-    };
-    await resolvePublicTarget(makeDeps({ postRepo: port as never, workspaceId: "ws-42" }), "public-post");
-    assert.deepEqual(calls[0], { workspaceId: "ws-42" });
+    const port = new ListSpyPostRepo(ROWS);
+    await resolvePublicTarget(makeDeps({ postRepo: port, workspaceId: "ws-42" }), "public-post");
+    assert.deepEqual(port.listCalls[0], { workspaceId: "ws-42" });
   });
 });
 

@@ -20,6 +20,7 @@ function existingView(overrides: Partial<ExternalMcpServerView> = {}): ExternalM
   return {
     serverId: "srv-1",
     label: "Existing Label",
+    provisionedByPluginId: null,
     transport: "stdio",
     authMode: "api_key",
     enabled: true,
@@ -31,13 +32,15 @@ function existingView(overrides: Partial<ExternalMcpServerView> = {}): ExternalM
     writeGrantsUpdatedByPrincipalId: null,
     writeGrantsUpdatedAt: null,
     envNames: [],
-    oauth: { providerId: null, grant: null, clientId: null, scopes: ["read", "write"], status: "disconnected", expiresAt: null, tokenEnvName: null },
+    hasAccessToken: false,
+    accessTokenEnvName: null,
+    oauth: { providerId: null, grant: null, clientId: null, scopes: ["read", "write"], status: "disconnected", expiresAt: null, tokenEnvName: null, hasStoredToken: false },
     ...overrides,
   };
 }
 
 test("buildExternalMcpSaveForm: routes submit and cancel to the same exchange with fixed identity parameters", () => {
-  const exchange = { id: "exchange-1", send: async () => {}, receive: async () => ({ status: "abandoned" as const }), close: () => {} };
+  const exchange = { id: "exchange-1", send: async () => {}, receive: async () => ({ status: "abandoned" as const }), close: () => {}, expiresAtMs: () => 0 };
   for (const isUpdate of [false, true]) {
     for (const authMode of [undefined, "oauth"]) {
       const resource = buildExternalMcpSaveForm({ exchange, save: { id: "srv-1", transport: "streamable_http", authMode }, isUpdate });
@@ -121,7 +124,7 @@ test("mergeExternalMcpSavePrefill: a null existing OAuth field falls back to uns
 test("mergeExternalMcpSavePrefill: a non-null existing OAuth field is used as fallback", () => {
   const result = mergeExternalMcpSavePrefill(
     BASE_INPUT,
-    existingView({ oauth: { providerId: "google", grant: "device_code", clientId: "client-1", scopes: [], status: "connected", expiresAt: null, tokenEnvName: "TOKEN_ENV" } }),
+    existingView({ oauth: { providerId: "google", grant: "device_code", clientId: "client-1", scopes: [], status: "connected", expiresAt: null, tokenEnvName: "TOKEN_ENV", hasStoredToken: true } }),
   );
   assert.equal(result.oauthProviderId, "google");
   assert.equal(result.oauthGrant, "device_code");
@@ -219,8 +222,9 @@ test("oauthClientSecret's hint differs between create and update", () => {
 
 test("neither env nor secret fields ever carry a `value` key, regardless of input", () => {
   const fields = buildExternalMcpSaveFormFields({ id: "srv-1", transport: "stdio", authMode: "oauth" }, false);
-  const env = fields.find((f) => f.name === "env") as Record<string, unknown>;
-  const secret = fields.find((f) => f.name === "oauthClientSecret") as Record<string, unknown>;
+  const env = fields.find((f) => f.name === "env");
+  const secret = fields.find((f) => f.name === "oauthClientSecret");
+  assert.ok(env && secret);
   assert.equal("value" in env, false);
   assert.equal("value" in secret, false);
 });

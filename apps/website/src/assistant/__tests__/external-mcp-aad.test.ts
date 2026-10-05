@@ -55,7 +55,7 @@ test("external-mcp OAuth blob: opens under its OWN (workspace, server) identity"
   const identity = { workspaceId: WORKSPACE, serverId: SERVER_A };
   const { sealedOAuth, oauthAadVersion } = await sealExternalMcpOAuthPayload(deps, identity, {
     clientSecret: "cs-server-a",
-    tokens: { accessToken: "at-server-a", refreshToken: "rt-server-a" },
+    tokens: { accessToken: "at-server-a", refreshToken: "rt-server-a", tokenType: "Bearer", scopes: [], expiresAt: null },
   });
   assert.notEqual(sealedOAuth, null);
   // The seal hands back the version with the ciphertext, so the row can never fall out of step.
@@ -71,7 +71,7 @@ test("external-mcp OAuth blob: CROSS-SERVER ciphertext transplant is rejected (t
   const { sealedOAuth: sealed } = await sealExternalMcpOAuthPayload(
     deps,
     { workspaceId: WORKSPACE, serverId: SERVER_A },
-    { clientSecret: "cs-server-a", tokens: { accessToken: "at-server-a" } },
+    { clientSecret: "cs-server-a", tokens: { accessToken: "at-server-a", refreshToken: null, tokenType: "Bearer", scopes: [], expiresAt: null } },
   );
 
   // Server A's ciphertext, presented as if it were row B's. Before the fix this returned
@@ -150,7 +150,7 @@ test('external-mcp env ciphertext opens only in its original row and slot', asyn
   assert.equal(result.failures[0]!.serverId, SERVER_B);
   assert.match(result.failures[0]!.reason, /could not be decrypted/);
   await assert.rejects(() => sealer.open({
-    sealed: row.sealedEnv!, key: { keyId: row.sealedEnv!.keyId },
+    sealed: row.sealedEnv!,
     aad: buildExternalMcpOAuthAad({ workspaceId: WORKSPACE, serverId: SERVER_A }),
   }));
 });

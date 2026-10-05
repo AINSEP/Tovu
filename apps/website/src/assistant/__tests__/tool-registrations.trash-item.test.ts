@@ -312,7 +312,7 @@ test("a post trashed through trash_item uses content_post_delete's permission ch
   const { routeDeps, surfaceExchanges, registrations } = harness(EVERYTHING);
   await seedPost(routeDeps);
 
-  const { pending, exchangeId } = await beginCall(tool(registrations, TRASH_ITEM_TOOL_ID), {
+  const { pending } = await beginCall(tool(registrations, TRASH_ITEM_TOOL_ID), {
     entityType: "post",
     entityId: "post-1",
   });
@@ -345,7 +345,7 @@ test("a comment trashed through trash_item resolves its version server-side and 
   const { routeDeps, surfaceExchanges, registrations } = harness(EVERYTHING);
   await seedComment(routeDeps);
 
-  const { pending, exchangeId } = await beginCall(tool(registrations, TRASH_ITEM_TOOL_ID), {
+  const { pending } = await beginCall(tool(registrations, TRASH_ITEM_TOOL_ID), {
     entityType: "comment",
     entityId: "comment-1",
   });
@@ -369,7 +369,7 @@ test("a media asset trashed through trash_item is tagged with the human principa
   const { routeDeps, surfaceExchanges, registrations } = harness(EVERYTHING);
   await seedMedia(routeDeps);
 
-  const { pending, exchangeId } = await beginCall(tool(registrations, TRASH_ITEM_TOOL_ID), {
+  const { pending } = await beginCall(tool(registrations, TRASH_ITEM_TOOL_ID), {
     entityType: "media",
     entityId: "media-1",
   });
@@ -387,7 +387,7 @@ test("a redirect tombstoned through trash_item is tagged with the human principa
   const { routeDeps, surfaceExchanges, registrations } = harness(EVERYTHING);
   const rule = await seedRedirect(routeDeps);
 
-  const { pending, exchangeId } = await beginCall(tool(registrations, TRASH_ITEM_TOOL_ID), {
+  const { pending } = await beginCall(tool(registrations, TRASH_ITEM_TOOL_ID), {
     entityType: "redirect",
     entityId: rule.id,
   });
@@ -513,7 +513,7 @@ test("SINK AUDIT: in the production catalog, trash_item accepts every delegate A
   const [trashItem] = deriveTrashItemRegistrations({
     registrations,
     routeDeps: withRealTrashRegistry(routeDeps),
-    surfaces: createSurfaceExchangeStore(),
+    surfaces: { surfaceExchanges: createSurfaceExchangeStore() },
   });
   const schema = trashItem.descriptor.inputSchema as {
     properties: { entityType: { enum: string[] } };
@@ -530,7 +530,7 @@ test("a kind whose delete tool is not registered is not accepted, with an exact 
   const [trashItem] = deriveTrashItemRegistrations({
     registrations: withoutComments,
     routeDeps: withRealTrashRegistry(routeDeps),
-    surfaces: createSurfaceExchangeStore(),
+    surfaces: { surfaceExchanges: createSurfaceExchangeStore() },
   });
   assert.ok(trashItem);
 
@@ -544,7 +544,7 @@ test("a kind whose delete tool is not registered is not accepted, with an exact 
 test("with no delegate tool registered and an empty registry, trash_item is not registered", () => {
   const { routeDeps } = harness(EVERYTHING);
   const emptyRegistry = { ...routeDeps, registry: new Map() };
-  assert.deepEqual(deriveTrashItemRegistrations({ registrations: [], routeDeps: emptyRegistry, surfaces: createSurfaceExchangeStore() }), []);
+  assert.deepEqual(deriveTrashItemRegistrations({ registrations: [], routeDeps: emptyRegistry, surfaces: { surfaceExchanges: createSurfaceExchangeStore() } }), []);
 });
 
 test("with no delegate tool registered but a non-empty registry, trash_item is still registered for the GENERIC kinds", () => {
@@ -552,7 +552,7 @@ test("with no delegate tool registered but a non-empty registry, trash_item is s
   const [trashItem] = deriveTrashItemRegistrations({
     registrations: [],
     routeDeps: withRealTrashRegistry(routeDeps),
-    surfaces: createSurfaceExchangeStore(),
+    surfaces: { surfaceExchanges: createSurfaceExchangeStore() },
   });
   assert.ok(trashItem, "generic registry kinds have no delegate, so trash_item must still be built from the registry alone");
   const schema = trashItem.descriptor.inputSchema as { properties: { entityType: { enum: string[] } } };

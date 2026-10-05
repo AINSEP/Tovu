@@ -120,7 +120,7 @@ type Harness = Awaited<ReturnType<typeof buildHarness>>;
 async function callWrite(harness: Harness) {
   const wire = await delegatedToolExecuteRoute.handle({ input: { runId: harness.run.id, toolUseId: "tu-1", toolId: WRITE_FILES_TOOL_ID, input: VALID_INPUT }, deps: { lifecycle: harness.lifecycle, toolExecutor: harness.toolExecutor, resolvePrincipal: () => ({ id: PRINCIPAL_ID }) } as never });
   assert.equal(harness.openedExchangeIds.length, 0, "an ordinary write raises no confirmation card");
-  const events = await harness.eventLog.replay(harness.run.id, null);
+  const events = await harness.eventLog.replay({ runId: harness.run.id, afterCursor: null });
   return { wireText: JSON.stringify(wire), eventsText: JSON.stringify(events) };
 }
 

@@ -53,7 +53,7 @@ interface Harness {
 }
 
 async function bootDaemonRoutes(): Promise<Harness> {
-  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog() });
+  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   const registry = createRunOwnerRegistry();
 
   /** Mirrors `agent-daemon-server.ts`'s `onStarted`: decode the proxy's `contextRef`, record the owner. */
@@ -291,7 +291,8 @@ test("the ?contextRef= filter still applies, and stays owner-scoped underneath i
   // Byte-identical contextRef, different principal — the filter alone would return both.
   const { run: bobRun } = await harness.lifecycle.start({ contextRef: contextRefFor(ALICE, "second") });
   harness.registry.record(bobRun.id, BOB);
-  assert.equal((await harness.lifecycle.get({ runId: bobRun.id }))?.contextRef, (await harness.lifecycle.get({ runId: second }))?.contextRef);
+  const sameContext = await harness.lifecycle.list({}, { contextRef: contextRefFor(ALICE, "second") });
+  assert.deepEqual(sameContext.map((run) => run.id).sort(), [second, bobRun.id].sort());
 
   const res = await fetch(
     `${harness.baseUrl}/api/runs?contextRef=${encodeURIComponent(contextRefFor(ALICE, "second"))}`,

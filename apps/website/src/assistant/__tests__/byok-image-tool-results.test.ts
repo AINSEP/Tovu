@@ -52,7 +52,6 @@ function fakeRouteDeps(): ByokToolSurfaceDeps {
 test("SURFACE: execute_delegated_tool returns an image-bearing tool output as content blocks, not a JSON string", async () => {
   const surface = createByokToolSurface(fakeRouteDeps(), { ...( { installExtensions: false }), contributions });
   const result = await surface.executeMetaTool({ id: "principal-byok-image" }, { id: "run-byok-image" }, {
-    id: "call-1",
     name: "execute_delegated_tool",
     input: { toolId: "assistant_demo_image" },
   });
@@ -69,7 +68,6 @@ test("SURFACE: execute_delegated_tool returns an image-bearing tool output as co
 test("SURFACE: a tool whose output is plain JSON is still a JSON string, byte-identical to before", async () => {
   const surface = createByokToolSurface(fakeRouteDeps(), { ...( { installExtensions: false }), contributions });
   const result = await surface.executeMetaTool({ id: "principal-byok-image" }, { id: "run-byok-image" }, {
-    id: "call-2",
     name: "search_tools",
     input: { query: "view image" },
   });

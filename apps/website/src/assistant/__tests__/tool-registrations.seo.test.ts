@@ -1,4 +1,3 @@
-import { createSettingsPrincipalLookup } from "#src/features/settings/index";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 /**
@@ -31,7 +30,7 @@ import {
 import { type AgentToolDefinition } from "@jini-ai/core";
 import { getSeoAgentToolCatalog } from "../../features/seo/agent-tools.js";
 import { ensureSeoSettingDefinitions, getSeoSettings } from "../../features/seo/settings.js";
-import { buildSitemap, invalidateSitemapCache } from "../../features/seo/sitemap.js";
+import { buildSitemap, invalidateSitemapCache, SITEMAP_INVALIDATED_EVENT } from "../../features/seo/sitemap.js";
 import { contributeSeoTools } from "../../features/seo/tool-registrations.js";
 
 import {
@@ -40,6 +39,7 @@ import {
 } from "../tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
+import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -96,13 +96,18 @@ async function fakeRouteDeps(options: { allow?: boolean; posts?: PostRecord[] } 
   };
 
   await ensureSeoSettingDefinitions(
-    { settingsRepo, clock, ids: idGen, principals: createSettingsPrincipalLookup({ repo: principalRepo }) },
+    { settingsRepo, clock, ids: idGen, principals: principalRepo },
     { workspaceId: WORKSPACE_ID, systemPrincipalId: "system-seo" },
   );
 
+  // bebc5736f: SEO writes enqueue `seo.sitemap_invalidated` so the serving process (not only this
+  // one) drops its cached sitemap; the real in-memory outbox and bus carry it here.
+  const bus = new InMemoryEventBus();
   const deps = {
     workspaceId: WORKSPACE_ID,
     seoReady: Promise.resolve(),
+    outbox: new InMemoryOutbox(),
+    bus,
     postRepo,
     settingsRepo,
     principalRepo,
@@ -115,7 +120,7 @@ async function fakeRouteDeps(options: { allow?: boolean; posts?: PostRecord[] } 
     originRegistry,
   };
 
-  return { deps: deps as unknown as RegistryDepsWithoutLimiter, authorizeCalls, postRepo, settingsRepo };
+  return { deps: deps as unknown as RegistryDepsWithoutLimiter, authorizeCalls, postRepo, settingsRepo, bus };
 }
 
 function executionContext(input: Record<string, unknown> | undefined): ToolExecutionContext {
@@ -354,8 +359,10 @@ test("workflow: set site-wide settings, get settings to confirm the patch landed
 });
 
 test("seo_regenerate_sitemap rebuilds the active cache rather than only acknowledging", async () => {
-  const { deps, postRepo } = await fakeRouteDeps();
+  const { deps, postRepo, bus } = await fakeRouteDeps();
   const sitemapDeps = { postRepo, settingsRepo: deps.settingsRepo, media: deps, originRegistry: deps.originRegistry };
+  const invalidated: unknown[] = [];
+  await bus.subscribe({ eventName: SITEMAP_INVALIDATED_EVENT, handler: async (event) => { invalidated.push(event.workspaceId); } });
   invalidateSitemapCache({ workspaceId: WORKSPACE_ID });
   try {
     assert.deepEqual((await buildSitemap(sitemapDeps, { workspaceId: WORKSPACE_ID })).map(({ loc }) => loc), ["https://example.test/hello-world"]);
@@ -363,6 +370,8 @@ test("seo_regenerate_sitemap rebuilds the active cache rather than only acknowle
     assert.deepEqual((await buildSitemap(sitemapDeps, { workspaceId: WORKSPACE_ID })).map(({ loc }) => loc), ["https://example.test/hello-world"]);
     assert.deepEqual(await wired(deps, "seo_regenerate_sitemap").handler(executionContext({})), { accepted: true });
     assert.deepEqual((await buildSitemap(sitemapDeps, { workspaceId: WORKSPACE_ID })).map(({ loc }) => loc), ["https://example.test/updated-slug"]);
+    // The serving process caches its own sitemap; only this event reaches it.
+    assert.deepEqual(invalidated, [WORKSPACE_ID]);
   } finally {
     invalidateSitemapCache({ workspaceId: WORKSPACE_ID });
   }

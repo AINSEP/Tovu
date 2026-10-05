@@ -196,11 +196,13 @@ test("exactly the 12 safe widgets operations are wired — no invented purge/for
 test("no wired widgets tool is named or claims a purge/force-delete of a widget instance", () => {
   const { deps } = fakeRouteDeps();
   for (const [id, registration] of widgetsRegistrations(deps)) {
+    const { description } = registration.descriptor;
+    assert.ok(description, `'${id}' must carry a description`);
     assert.equal(/purge|force/i.test(id), false, `'${id}' must not be named for a purge/force-delete`);
     // Carve out negated clauses ("there is no purge/force-delete tool") AND legitimate mentions of
     // 'purged' as a filterable STATUS VALUE (widgets_list_instances' own "trashed/purged instances"
     // wording, describing what includeInactive surfaces — not a claim this tool purges anything).
-    const claim = registration.descriptor.description
+    const claim = description
       .replace(/\b(never|no|not|cannot|can't|won't)\b[^.;—]*/gi, "")
       .replace(/trash(ed)?\/purged/gi, "");
     assert.equal(/force-delet/i.test(claim), false, `'${id}' must not claim a force-delete capability`);

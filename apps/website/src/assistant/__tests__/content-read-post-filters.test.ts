@@ -8,7 +8,8 @@ import { createSurfaceExchangeStore } from "../../contracts/core/tool-surface-ex
 import { InMemoryPostRepo } from "../../features/post/index.js";
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
 
-import type { AssistantToolRegistryDeps } from "../tool-registrations.js";
+import { createRouteDeps } from "../../server/runtime/composition/app.js";
+import { toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 import { deriveContentReadRegistrations } from "../content-read-tool.js";
 
 const contributions = {
@@ -21,11 +22,14 @@ function fixture() {
   const contributor = contributions.contributors.list({}).find((entry) => entry.domain === "post");
   assert.ok(contributor);
   const source = contributor.build(
-    {
-      workspaceId: "ws",
-      postRepo: new InMemoryPostRepo(),
-      authorize: async () => ({ allowed: true, reason: "matched" }),
-    } as AssistantToolRegistryDeps,
+    toAssistantRegistryDeps({
+      routeDeps: {
+        ...createRouteDeps(),
+        workspaceId: "ws",
+        postRepo: new InMemoryPostRepo(),
+        authorize: async () => ({ allowed: true, reason: "matched" }),
+      },
+    }),
     { surfaceExchanges: createSurfaceExchangeStore() },
   );
   const dispatched: Array<{ id: string; input: unknown }> = [];

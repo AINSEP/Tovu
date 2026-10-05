@@ -269,7 +269,7 @@ test("READ-ONLY: a remedy that is itself registered read-only still runs, and th
       inputSchema: { type: "object", required: ["label"], properties: { label: { type: "string" } } },
     },
     policy: { authorize: () => "allow" },
-    handler: (ctx: ToolExecutionContext) => {
+    handler: async (ctx: ToolExecutionContext) => {
       calls.push({ toolId: "probe_read", input: ctx.input });
       originalCalls += 1;
       return originalCalls === 1
@@ -284,7 +284,7 @@ test("READ-ONLY: a remedy that is itself registered read-only still runs, and th
       inputSchema: { type: "object", required: ["label", "region"], properties: { label: { type: "string" }, region: { type: "string" } } },
     },
     policy: { authorize: () => "allow" },
-    handler: (ctx: ToolExecutionContext) => {
+    handler: async (ctx: ToolExecutionContext) => {
       calls.push({ toolId: "probe_pick_region", input: ctx.input });
       return { picked: true };
     },

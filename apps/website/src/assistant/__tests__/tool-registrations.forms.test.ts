@@ -161,11 +161,13 @@ test("no forms_delete_submission is wired — it stays human-UI-only (see agent-
 test("INV-08: no wired tool is named for a delete, and none claims to delete a form definition", () => {
   const { deps } = fakeRouteDeps();
   for (const [id, registration] of formsRegistrations(deps)) {
+    const { description } = registration.descriptor;
+    assert.ok(description, `'${id}' must carry a description`);
     assert.equal(/delete|destroy|purge|drop|remove/i.test(id), false, `'${id}' must not be named for a delete — FormDefinitionRepoPort exposes no delete method to call`);
     // Carve out negated clauses first ("no tool can delete...", "never permanently deleted"), then
     // match any inflection of the verb — narrowing the verb to dodge a negated false positive (the
     // trailing-`s`-only form this replaced) under-matches "delete"/"deleting"/"delete the X".
-    const claim = registration.descriptor.description.replace(/\b(never|no|not|cannot|can't|won't)\b[^.;—]*/gi, "");
+    const claim = description.replace(/\b(never|no|not|cannot|can't|won't)\b[^.;—]*/gi, "");
     assert.equal(
       /\b(delete|destroy|purge|drop)(s|d|ing)?\b/i.test(claim),
       false,

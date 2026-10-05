@@ -39,6 +39,7 @@ import { contributeMediaTools } from "../../features/media/tool-registrations.js
 
 import { type AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
 import { makeRemoveMediaDouble } from "#src/features/media/__tests__/remove-media-double";
+import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -76,7 +77,7 @@ async function seedPublicTransform(deps: RegistryDepsWithoutLimiter): Promise<vo
     deps: {
       transformRepo: (deps as unknown as { transformDefinitionRepo: InMemoryTransformDefinitionRepo }).transformDefinitionRepo,
       idGen: { newId: () => "transform-public-v1" },
-      clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
+      clock: createFakeClock({ startIso: NOW }),
     },
     input: { workspaceId: WORKSPACE_ID, name: "public", params: { format: "webp" }, owner: "core" },
   });
@@ -174,11 +175,13 @@ test("exactly the four safe media-service.ts operations are wired — no invente
 test("no wired media tool is named or described for a hard purge/force-delete", () => {
   const { deps } = fakeRouteDeps();
   for (const [id, registration] of mediaRegistrations(deps)) {
+    const { description } = registration.descriptor;
+    assert.ok(description, `'${id}' must carry a description`);
     assert.equal(/purge|force/i.test(id), false, `'${id}' must not be named for a purge/force-delete — that operation is deliberately unwired`);
     // Carve out negated clauses first ("there is no purge/force-delete tool"), then match any
     // remaining claim — mirrors `tool-registrations.forms.test.ts`'s identical technique for its
     // own delete-claim assertion, to avoid a false positive on a sentence describing an exclusion.
-    const claim = registration.descriptor.description.replace(/\b(never|no|not|cannot|can't|won't)\b[^.;—]*/gi, "");
+    const claim = description.replace(/\b(never|no|not|cannot|can't|won't)\b[^.;—]*/gi, "");
     assert.equal(/purge|force-delet/i.test(claim), false, `'${id}' must not claim a purge/force-delete capability`);
   }
 });
@@ -252,6 +255,7 @@ test("a tool result is an explicit model-facing view: workspaceId/timestamps dro
   assert.deepEqual(Object.keys(found).sort(), [
     "alt",
     "caption",
+    "createdBy",
     "credit",
     "cssClass",
     "htmlAttributes",
@@ -267,6 +271,8 @@ test("a tool result is an explicit model-facing view: workspaceId/timestamps dro
   assert.equal("createdAt" in found, false);
   assert.equal("updatedAt" in found, false);
   assert.equal(found.status, "active");
+  // c321cd0ca / @jini-ai/cms 0.4.2: every media tool view names the principal that created the asset.
+  assert.equal(found.createdBy, PRINCIPAL_ID);
   // No "public" transform was registered for this fixture (see `seedPublicTransform`'s own doc) —
   // `publicUrl` must degrade to `null`, never throw or silently omit the field.
   assert.equal(found.publicUrl, null);

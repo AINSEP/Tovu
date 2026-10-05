@@ -81,6 +81,12 @@ function planSteps() {
   ];
 }
 
+/** The commit phase's first call (bebc5736f): a non-recursive read of the CONFIRMED base tree, so an
+ *  overwritten file keeps its mode (100644/100755). `fly.toml` is absent here, so it is written 100644. */
+function modeLookupStep() {
+  return { match: /\/git\/trees\/base-tree-sha$/, status: 200, json: { tree: [], truncated: false } };
+}
+
 function fakeRouteDeps(options: { allow?: boolean; httpSteps?: { match: RegExp; status: number; json?: unknown }[] } = {}) {
   let allow = options.allow ?? true;
   const repo = new InMemoryCustomCredentialSetRepo();
@@ -268,6 +274,7 @@ test("confirm: the human's click performs the real write (blob, tree, commit, re
   const { deps, httpClient, writeDeps } = fakeRouteDeps({
     httpSteps: [
       ...planSteps(),
+      modeLookupStep(),
       { match: /\/git\/blobs$/, status: 201, json: { sha: "blob-sha" } },
       { match: /\/git\/trees$/, status: 201, json: { sha: "new-tree-sha" } },
       { match: /\/git\/commits$/, status: 201, json: { sha: "new-commit-sha" } },
@@ -278,13 +285,14 @@ test("confirm: the human's click performs the real write (blob, tree, commit, re
   const surfaceExchanges = createSurfaceExchangeStore();
   const writeTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
-  const { pending, exchangeId, ui } = await beginCall(writeTool);
+  const { pending } = await beginCall(writeTool);
   const result = await pending;
 
   assert.deepEqual(result, { executed: true, commitSha: "new-commit-sha", commitUrl: "https://github.com/octo/demo/commit/new-commit-sha", filesWritten: 1 });
-  assert.equal(httpClient.calls.length, 7);
+  assert.equal(httpClient.calls.length, 8);
   for (const request of httpClient.calls) assert.equal(request.headers?.Authorization, "Bearer github-secret-token");
-  const [blob, tree, commit, ref] = httpClient.calls.slice(3);
+  const [modeLookup, blob, tree, commit, ref] = httpClient.calls.slice(3);
+  assert.equal(modeLookup!.method, "GET");
   const blobBody = JSON.parse(blob!.body!);
   assert.equal(blob!.method, "POST");
   assert.equal(blobBody.encoding, "base64");
@@ -368,7 +376,7 @@ test("insufficient permission is refused before any decrypt or network call", as
 });
 
  test("n06: repository write runs without a confirmation channel", async (t) => {
-  const {deps, writeDeps, httpClient} = fakeRouteDeps({httpSteps: [...planSteps(),
+  const {deps, writeDeps, httpClient} = fakeRouteDeps({httpSteps: [...planSteps(), modeLookupStep(),
     {match: /\/git\/blobs$/, status: 201, json: {sha: "blob-sha"}},
     {match: /\/git\/trees$/, status: 201, json: {sha: "new-tree-sha"}},
     {match: /\/git\/commits$/, status: 201, json: {sha: "new-commit-sha"}},

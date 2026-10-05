@@ -569,6 +569,45 @@ test("a write entry outside the pattern the trust tier would refuse is rejected 
   );
 });
 
+/** One stored row with every column at its neutral value: a `stdio`/`static_env` server with no
+ *  lists, no env and no OAuth, sealed under the legacy no-AAD lineage (`aadVersion: 0`) — what these
+ *  hand-built rows meant before the AAD columns existed, and what `sealer.seal` without an `aad`
+ *  produces. Tests name only the columns their assertion turns on. */
+function storedRow(fields: Pick<ExternalMcpServerRecord, "serverId"> & Partial<ExternalMcpServerRecord>): ExternalMcpServerRecord {
+  return {
+    workspaceId: WORKSPACE,
+    label: null,
+    provisionedByPluginId: null,
+    transport: "stdio",
+    authMode: "static_env",
+    enabled: true,
+    command: null,
+    url: null,
+    args: null,
+    allowedToolNames: null,
+    writeAllowedToolNames: null,
+    writeGrantsUpdatedByPrincipalId: null,
+    writeGrantsUpdatedAt: null,
+    envNames: null,
+    sealedEnv: null,
+    oauthProviderId: null,
+    oauthGrant: null,
+    oauthClientId: null,
+    oauthEndpointsJson: null,
+    oauthScopesJson: null,
+    oauthStatus: null,
+    oauthExpiresAt: null,
+    oauthTokenEnvName: null,
+    oauthRefreshLeaseUntil: null,
+    sealedOAuth: null,
+    aadVersion: 0,
+    oauthAadVersion: 0,
+    createdAt: "2026-08-09T00:00:00.000Z",
+    updatedAt: "2026-08-09T00:00:00.000Z",
+    ...fields,
+  };
+}
+
 test("a NULL and a '[]' writeAllowedToolNames column both read as an empty list", async () => {
   const { repo } = makeDeps();
   const base = {
@@ -592,6 +631,9 @@ test("a NULL and a '[]' writeAllowedToolNames column both read as an empty list"
     oauthTokenEnvName: null,
     oauthRefreshLeaseUntil: null,
     sealedOAuth: null,
+    provisionedByPluginId: null,
+    aadVersion: 0,
+    oauthAadVersion: 0,
     createdAt: "2026-08-09T00:00:00.000Z",
     updatedAt: "2026-08-09T00:00:00.000Z",
   };
@@ -789,7 +831,7 @@ test("a workspace at the server cap refuses a NEW server but still allows updati
 
 test("the admin read model degrades corrupt stored JSON to safe defaults rather than throwing", async () => {
   const { repo } = makeDeps();
-  await repo.upsert({
+  await repo.upsert(storedRow({
     workspaceId: WORKSPACE,
     serverId: "corrupt",
     label: null,
@@ -802,7 +844,7 @@ test("the admin read model degrades corrupt stored JSON to safe defaults rather 
     sealedEnv: null,
     createdAt: "2026-08-09T00:00:00.000Z",
     updatedAt: "2026-08-09T00:00:00.000Z",
-  });
+  }));
 
   const [view] = await listExternalMcpServerViews({ repo }, WORKSPACE);
   assert.ok(view);
@@ -815,7 +857,7 @@ test("the admin read model degrades corrupt stored JSON to safe defaults rather 
 
 test("the admin read model treats a null args/allowedToolNames/envNames column as empty, not a parse failure", async () => {
   const { repo } = makeDeps();
-  await repo.upsert({
+  await repo.upsert(storedRow({
     workspaceId: WORKSPACE,
     serverId: "bare",
     label: "Bare",
@@ -828,7 +870,7 @@ test("the admin read model treats a null args/allowedToolNames/envNames column a
     sealedEnv: null,
     createdAt: "2026-08-09T00:00:00.000Z",
     updatedAt: "2026-08-09T00:00:00.000Z",
-  });
+  }));
 
   const [view] = await listExternalMcpServerViews({ repo }, WORKSPACE);
   assert.deepEqual(view?.args, []);
@@ -838,7 +880,7 @@ test("the admin read model treats a null args/allowedToolNames/envNames column a
 
 test("readEnabledExternalMcpConfigs reports a stored row with an unsupported transport or missing command, at read time, not just at save time", async () => {
   const { repo, sealer } = makeDeps();
-  await repo.upsert({
+  await repo.upsert(storedRow({
     workspaceId: WORKSPACE,
     serverId: "legacy-http",
     label: "legacy",
@@ -851,7 +893,7 @@ test("readEnabledExternalMcpConfigs reports a stored row with an unsupported tra
     sealedEnv: null,
     createdAt: "2026-08-09T00:00:00.000Z",
     updatedAt: "2026-08-09T00:00:00.000Z",
-  });
+  }));
 
   const unsupported = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "legacy-http" });
   assert.ok(unsupported);
@@ -868,7 +910,7 @@ test("readEnabledExternalMcpConfigs reports a stored row with an unsupported tra
 test("a decrypted env block that is valid JSON but not an object (e.g. an array) degrades to an empty env, not a throw", async () => {
   const { repo, sealer, keyring } = makeDeps();
   const sealedEnv = await sealer.seal({ plaintext: JSON.stringify(["not", "an", "object"]), key: await keyring.activeKey() });
-  await repo.upsert({
+  await repo.upsert(storedRow({
     workspaceId: WORKSPACE,
     serverId: "weird-payload",
     label: "weird",
@@ -881,7 +923,7 @@ test("a decrypted env block that is valid JSON but not an object (e.g. an array)
     sealedEnv,
     createdAt: "2026-08-09T00:00:00.000Z",
     updatedAt: "2026-08-09T00:00:00.000Z",
-  });
+  }));
 
   const { configs, failures } = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
   assert.equal(failures.length, 0);
@@ -1161,6 +1203,8 @@ function resaveFlippingEnabledOnly(): Parameters<typeof saveExternalMcpServer>[1
     url: "https://mcp.example.com/mcp",
     args: "",
     allowedToolNames: "",
+    writeAllowedToolNames: "",
+    principalId: "principal-1",
     oauth: TODAYS_UNTOUCHED_OAUTH_SAVE_BODY,
   };
 }

@@ -13,15 +13,15 @@ import { createLiveToolCatalogQuery } from "../tool-catalog-live-query.js";
 
 function stubCatalog(label: string): ToolCatalogQuery {
   return {
-    search: (query) => [{ id: `${label}:${query}`, description: label, source: "test", score: 1 }],
-    describe: (id) => ({ id: `${label}:${id}`, description: label, source: "test" }),
+    search: ({ query }) => [{ id: `${label}:${query}`, description: label, source: "test", score: 1 }],
+    describe: ({ id }) => ({ id: `${label}:${id}`, description: label, source: "test" }),
   };
 }
 
 test("query delegates to the initially-bound catalog before any rebind", () => {
   const live = createLiveToolCatalogQuery(stubCatalog("first"));
-  assert.deepEqual(live.query.search("q"), [{ id: "first:q", description: "first", source: "test", score: 1 }]);
-  assert.deepEqual(live.query.describe("x"), { id: "first:x", description: "first", source: "test" });
+  assert.deepEqual(live.query.search({ query: "q" }), [{ id: "first:q", description: "first", source: "test", score: 1 }]);
+  assert.deepEqual(live.query.describe({ id: "x" }), { id: "first:x", description: "first", source: "test" });
 });
 
 test("rebind swaps what the SAME query object delegates to — object identity never changes", () => {
@@ -31,7 +31,7 @@ test("rebind swaps what the SAME query object delegates to — object identity n
   live.rebind(stubCatalog("second"));
 
   assert.equal(live.query, queryReference, "the object handed to registerToolCatalogRoutes must stay the same reference across a rebind");
-  assert.deepEqual(live.query.search("q"), [{ id: "second:q", description: "second", source: "test", score: 1 }]);
+  assert.deepEqual(live.query.search({ query: "q" }), [{ id: "second:q", description: "second", source: "test", score: 1 }]);
 });
 
 test("multiple rebinds always reflect the MOST RECENT catalog, never an earlier one", () => {
@@ -39,7 +39,7 @@ test("multiple rebinds always reflect the MOST RECENT catalog, never an earlier 
   live.rebind(stubCatalog("reload-1"));
   live.rebind(stubCatalog("reload-2"));
 
-  assert.deepEqual(live.query.describe("x"), { id: "reload-2:x", description: "reload-2", source: "test" });
+  assert.deepEqual(live.query.describe({ id: "x" }), { id: "reload-2:x", description: "reload-2", source: "test" });
 });
 
 test("search preserves an explicit limit before and after rebind", () => {

@@ -34,7 +34,7 @@ import { renderUiAgentToolCatalog } from "../render-ui-tool.js";
 import { commentsAgentToolCatalog } from "../../features/comments/agent-tools.js";
 import {
   contentTypesAgentToolCatalog,
-  type AgentToolDefinition,
+  type ContentTypesAgentToolDefinition as AgentToolDefinition,
 } from "../../features/content-types/index.js";
 import { customCredentialsAgentToolCatalog } from "../../features/custom-credentials/agent-tools.js";
 import { getDatabaseAgentToolCatalog } from "../../features/database/agent-tools.js";

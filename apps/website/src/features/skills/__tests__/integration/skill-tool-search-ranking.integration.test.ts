@@ -153,7 +153,7 @@ test("the skill tool IS present in registry.list({}) and describable by exact id
     assert.equal(registry.has({ toolId: "skill_incident_response" }), true);
     assert.equal(
       registry.list({}).length,
-      nativeOnly.list().length + 1,
+      nativeOnly.list({}).length + 1,
       "one installed skill must add exactly ONE tool to the real catalog",
     );
 

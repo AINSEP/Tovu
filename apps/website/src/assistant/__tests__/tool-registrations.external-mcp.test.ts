@@ -516,6 +516,7 @@ test("external_mcp_test_connection: a disabled server reports ok:false without d
     workspaceId: WORKSPACE_ID,
     serverId: "disabled-one",
     label: null,
+    provisionedByPluginId: null,
     transport: "streamable_http",
     authMode: "none",
     enabled: false,
@@ -554,6 +555,7 @@ test("external_mcp_test_connection: an enabled, resolvable server reports ok:tru
     workspaceId: WORKSPACE_ID,
     serverId: "ready-one",
     label: null,
+    provisionedByPluginId: null,
     transport: "streamable_http",
     authMode: "none",
     enabled: true,
@@ -688,7 +690,7 @@ test("external_mcp_oauth_connect: delegates to the wired OAuth service with an a
   const originalPublicUrl = process.env.TOVU_PUBLIC_URL;
   process.env.TOVU_PUBLIC_URL = "https://tovu.example.com";
   try {
-    const beginConnectCalls: Array<{ serverId: string; redirectUri: string }> = [];
+    const beginConnectCalls: Array<Parameters<ExternalMcpOAuthService["beginConnect"]>[0]> = [];
     const oauth: Pick<ExternalMcpOAuthService, "beginConnect"> = {
       async beginConnect(input) {
         beginConnectCalls.push(input);

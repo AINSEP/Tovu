@@ -64,6 +64,8 @@ async function harness(fetchFn?: OAuthFetch) {
       workspaceId: WORKSPACE, serverId: SERVER, label: "Higgs", transport: "stdio",
       authMode: "oauth", enabled: true, command: "npx", args: "-y higgs-mcp",
       allowedToolNames: "generate_image",
+      writeAllowedToolNames: "",
+      principalId: "principal-1",
       oauth: {
         providerId: PROVIDER.providerId, grant: "authorization_code", clientId: "tovu-client",
         clientSecret: "s3cr3t", scopes: "images:generate", tokenEnvName: "HIGGS_TOKEN",

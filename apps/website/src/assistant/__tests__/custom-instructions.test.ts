@@ -63,6 +63,7 @@ async function writeCustomInstructions(settingsRepo: InMemorySettingsRepo, works
     scope: "workspace",
     workspaceId,
     principalId: null,
+    originPluginId: null,
     valueJson: text,
     state: "set",
     defVersion: definition.version,

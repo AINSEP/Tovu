@@ -63,7 +63,7 @@ function fakeRouteDeps(options: { allow?: boolean; deny?: string[] } = {}) {
   const taxonomyRepo = new InMemoryTaxonomyRepo();
   const termRepo = new InMemoryTermRepo();
   const entryTermRepo = new InMemoryEntryTermRepo();
-  const taxonomyRevisionRepo = new InMemoryTaxonomyRevisionRepo({});
+  const taxonomyRevisionRepo = new InMemoryTaxonomyRevisionRepo();
   const postRepo = new InMemoryPostRepo();
   const entryRepo = new InMemoryEntryRepo();
   const contentTypeRepo = new InMemoryContentTypeRepo();
@@ -99,10 +99,9 @@ function fakeRouteDeps(options: { allow?: boolean; deny?: string[] } = {}) {
 
 /** Seeds one real 'post' row through the real chokepoint, for assign-terms/merge-overlap tests. */
 async function seedPost(deps: RegistryDepsWithoutLimiter, title = "My Post"): Promise<string> {
-  const routeDeps = deps as unknown as { postRepo: InMemoryPostRepo; clock: { nowIso: () => string }; idGen: { newId: () => string } };
-  const id = routeDeps.idGen.newId();
+  const id = deps.idGen.newId();
   const { post } = await createPost({
-    deps: { repo: routeDeps.postRepo, clock: routeDeps.clock },
+    deps: { repo: deps.postRepo, clock: deps.clock },
     input: { workspaceId: WORKSPACE_ID, id, title, kind: "post" },
   });
   return post.id;
@@ -170,15 +169,17 @@ test("taxonomy_execute_merge_term keeps its confirmer-must-equal-own-delegatedBy
 test("no taxonomy tool is named for a confirm step, and only taxonomy_execute_merge_term executes a merge — saying the user confirms", () => {
   const { deps } = fakeRouteDeps();
   for (const [id, registration] of taxonomyRegistrations(deps)) {
+    const { description } = registration.descriptor;
+    assert.ok(description, `'${id}' must carry a description`);
     assert.equal(/confirm/i.test(id), false, `'${id}' must not be named for a confirm step`);
     if (id === "taxonomy_execute_merge_term") {
-      assert.match(registration.descriptor.description, /Shows the user a confirm dialog first and only merges if they confirm\./);
+      assert.match(description, /Shows the user a confirm dialog first and only merges if they confirm\./);
       continue;
     }
     assert.equal(/execute_merge/i.test(id), false, `'${id}' must not be named for an execute step`);
     // Carve out negated clauses — mirrors `tool-registrations.widgets-contracts.test.ts`'s
     // negation-aware discipline. Only a POSITIVE claim of confirming a merge is disqualifying.
-    const claim = registration.descriptor.description.replace(/\b(never|no|not|cannot|can't|won't|requires? a human to|asks the user to)\b[^.;—]*/gi, "");
+    const claim = description.replace(/\b(never|no|not|cannot|can't|won't|requires? a human to|asks the user to)\b[^.;—]*/gi, "");
     assert.equal(/\bconfirms?\b.*merge|\bmerge\b.*\bconfirms?\b/i.test(claim), false, `'${id}' must not claim it can confirm a merge`);
   }
 });

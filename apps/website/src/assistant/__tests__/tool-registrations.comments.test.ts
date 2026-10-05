@@ -1,4 +1,3 @@
-import { createSettingsPrincipalLookup } from "#src/features/settings/index";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 /**
@@ -74,7 +73,7 @@ async function fakeRouteDeps(options: { allow?: boolean } = {}) {
   // The real ledger write chokepoint requires a registered definition before `set()` can write a
   // value — mirrors what boot-time `commentsSettingsReady` does in the real server.
   await ensureCommentsSettingDefinitions(
-    { settingsRepo, clock, ids: idGen, principals: createSettingsPrincipalLookup({ repo: principalRepo }) },
+    { settingsRepo, clock, ids: idGen, principals: principalRepo },
     { workspaceId: WORKSPACE_ID, systemPrincipalId: SYSTEM_PRINCIPAL_ID },
   );
 
@@ -181,8 +180,10 @@ test("exactly the 7 designed Comments tools are wired — no invented purge tool
 test("no wired tool is named for a purge/permanent-delete, and none claims to purge", async () => {
   const { deps } = await fakeRouteDeps();
   for (const [id, registration] of commentsRegistrations(deps)) {
+    const { description } = registration.descriptor;
+    assert.ok(description, `'${id}' must carry a description`);
     assert.equal(/purge|permanent/i.test(id), false, `'${id}' must not be named for a purge — that lever is human-UI-only`);
-    const claim = registration.descriptor.description.replace(/\b(never|no|not)\b[^.;—]*/gi, "");
+    const claim = description.replace(/\b(never|no|not)\b[^.;—]*/gi, "");
     assert.equal(/\bpurge(s|d|ing)?\b/i.test(claim), false, `'${id}' must not claim to purge`);
   }
 });

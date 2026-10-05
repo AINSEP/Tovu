@@ -25,10 +25,9 @@ import {
   buildAssistantToolRegistrations,
   type AssistantSurfaceDeps,
 } from "../../apps/website/src/assistant/tool-registrations.js";
-import { toAssistantRegistryDeps } from "../../apps/website/src/assistant/__tests__/fixtures/registry-deps.js";
+import { toAssistantRegistryDeps, type RegistryDepsWithoutLimiter } from "../../apps/website/src/assistant/__tests__/fixtures/registry-deps.js";
 import type { DerivedToolContributor, ToolContributor } from "../../apps/website/src/assistant/tool-contribution-registry.js";
 import { installFirstPartyToolContributors } from "../../apps/website/src/server/runtime/composition/tool-catalog-manifest.js";
-import type { RouteDeps } from "../../apps/website/src/server/routes/types.js";
 
 /**
  * Floor for the real catalog size, used only to catch the "contributors never installed" failure
@@ -39,13 +38,15 @@ import type { RouteDeps } from "../../apps/website/src/server/routes/types.js";
 export const MIN_EXPECTED_TOOL_COUNT = 100;
 
 /**
- * The `RouteDeps` shape every suite in this directory has hand-rolled identically (verified byte-
- * identical across all nine broken suites before extraction) — a permissive fake sufficient to build
+ * The route-deps shape every suite in this directory has hand-rolled identically (verified byte-
+ * identical across all nine broken suites before extraction), typed as the registry's own
+ * {@link RegistryDepsWithoutLimiter} (`buildEvalToolRegistry` adds the limiter through
+ * `toAssistantRegistryDeps`, as the production roots do) — a permissive fake sufficient to build
  * registrations without touching a real database. Suites that need additional fields can still build
  * their own and pass it to {@link buildEvalToolRegistry} directly; this export is a convenience, not
  * a required seam.
  */
-export function fakeEvalRouteDeps(): RouteDeps {
+export function fakeEvalRouteDeps(): RegistryDepsWithoutLimiter {
   const deps = {
     workspaceId: "ws-eval",
     clock: { nowMs: () => Date.parse("2026-08-05T00:00:00.000Z"), nowIso: () => "2026-08-05T00:00:00.000Z" },
@@ -65,7 +66,7 @@ export function fakeEvalRouteDeps(): RouteDeps {
     },
     outbox: { enqueue: async () => {} },
   };
-  return deps as unknown as RouteDeps;
+  return deps as unknown as RegistryDepsWithoutLimiter;
 }
 
 /**
@@ -84,7 +85,7 @@ export function fakeEvalRouteDeps(): RouteDeps {
  * @complexity O(t) in the total wired-tool count.
  */
 export function buildEvalToolRegistry(
-  routeDeps: RouteDeps,
+  routeDeps: RegistryDepsWithoutLimiter,
   surfaces?: AssistantSurfaceDeps,
   options?: { readonly includeContentReadCollapse?: boolean },
 ): ToolRegistry {

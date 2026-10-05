@@ -47,7 +47,7 @@ test("TEMP: full wired-tool catalog sanitizes cleanly for Gemini across all 5 cl
   const deps = createRouteDeps();
   await deps.identityReady;
   const surface = createByokToolSurface(deps as never, { contributions });
-  const tools = surface.registry.list();
+  const tools = surface.registry.list({});
   assert.ok(tools.length > 100, `expected ~130 tools, got ${tools.length}`);
 
   const ids = new Set(tools.map((tool) => tool.id));

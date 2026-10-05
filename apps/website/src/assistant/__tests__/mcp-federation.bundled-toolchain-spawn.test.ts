@@ -68,7 +68,7 @@ function fakeRegistry(): ToolRegistry {
     register(registration: ToolRegistration) {
       descriptors.push(registration.descriptor);
     },
-    has: (toolId: string) => descriptors.some((descriptor) => descriptor.id === toolId),
+    has: ({ toolId }: { toolId: string }) => descriptors.some((descriptor) => descriptor.id === toolId),
     list: () => descriptors,
   };
 }

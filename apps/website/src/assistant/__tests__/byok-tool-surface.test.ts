@@ -25,6 +25,7 @@ import type { UIResource } from "@jini-ai/ui/mcp-ui/surfaces";
 import { SURFACE_EXCHANGE_ID_PARAM } from "../../contracts/core/tool-surface-exchanges.js";
 import { createInMemoryToolAttemptAuditSink } from "../../features/tool-audit/repo.memory.js";
 import { META_TOOL_DESCRIPTORS, createByokToolSurface, type ByokToolSurfaceDeps } from "../byok-tool-surface.js";
+import type { ByokToolResultBlock } from "../byok-provider-turn.js";
 import { TOOL_FAILURE_RECOVERY_TOOL_ID } from "../tool-failure-recovery.js";
 import { constrainPrincipalToReadOnlyTools } from "../read-only-tool-constraint.js";
 import { TOOL_ERROR_ID_PATTERN } from "../tool-failure-redaction.js";
@@ -94,6 +95,13 @@ function call(name: string, input: unknown) {
   return { name, input };
 }
 
+/** Every meta-tool result these tests read is plain text; image blocks only come from a tool's own
+ *  image output (`byok-image-tool-results.test.ts`), so a block array here is itself a failure. */
+function textOf(result: { readonly content: string | readonly ByokToolResultBlock[] }): string {
+  if (typeof result.content !== "string") assert.fail(`expected a text tool result, got ${JSON.stringify(result.content)}`);
+  return result.content;
+}
+
 test("the published meta-tool set is exactly the 3 staged-discovery tools, and nothing else reaches the provider", () => {
   assert.deepEqual(
     META_TOOL_DESCRIPTORS.map((tool) => tool.id),
@@ -107,7 +115,7 @@ test("search_tools finds a real tool in the real catalog, and every hit it retur
   const result = await s.executeMetaTool(PRINCIPAL, RUN, call("search_tools", { query: "workspace" }));
 
   assert.notEqual(result.isError, true);
-  const { hits } = JSON.parse(result.content) as { hits: ReadonlyArray<{ id: string }> };
+  const { hits } = JSON.parse(textOf(result)) as { hits: ReadonlyArray<{ id: string }> };
   assert.ok(hits.length > 0, "expected at least one hit for 'workspace'");
 
   // The non-drift property `buildToolCatalogQuery` exists for: search is seeded from the same
@@ -121,11 +129,11 @@ test("search_tools finds a real tool in the real catalog, and every hit it retur
 test("search_tools clamps an out-of-range limit instead of spending a turn refusing it", async () => {
   const s = surface();
   const tooMany = await s.executeMetaTool(PRINCIPAL, RUN, call("search_tools", { query: "post", limit: 999 }));
-  const { hits } = JSON.parse(tooMany.content) as { hits: readonly unknown[] };
+  const { hits } = JSON.parse(textOf(tooMany)) as { hits: readonly unknown[] };
   assert.ok(hits.length <= 25, `expected the limit clamped to 25, got ${hits.length} hits`);
 
   const tooFew = await s.executeMetaTool(PRINCIPAL, RUN, call("search_tools", { query: "post", limit: 0 }));
-  const parsed = JSON.parse(tooFew.content) as { hits: readonly unknown[] };
+  const parsed = JSON.parse(textOf(tooFew)) as { hits: readonly unknown[] };
   assert.equal(parsed.hits.length, 1, "expected a 0 limit clamped up to 1, not treated as 'no results'");
 });
 
@@ -172,14 +180,14 @@ test("search_tools with a missing or empty query is a readable error, not an emp
   for (const input of [{}, { query: "" }, { query: "   " }, { query: 42 }, null]) {
     const result = await s.executeMetaTool(PRINCIPAL, RUN, call("search_tools", input));
     assert.equal(result.isError, true, `expected an error for input ${JSON.stringify(input)}`);
-    assert.match(result.content, /'query' is required/);
+    assert.match(textOf(result), /'query' is required/);
   }
 });
 
 test("a query that matches nothing reports that it matched nothing, rather than looking like a broken tool", async () => {
   const result = await surface().executeMetaTool(PRINCIPAL, RUN, call("search_tools", { query: "zzzzqqqwwwnothingmatchesthis" }));
   assert.notEqual(result.isError, true);
-  const parsed = JSON.parse(result.content) as { hits: readonly unknown[]; note?: string };
+  const parsed = JSON.parse(textOf(result)) as { hits: readonly unknown[]; note?: string };
   assert.equal(parsed.hits.length, 0);
   assert.match(String(parsed.note), /No tool matched/);
 });
@@ -188,15 +196,15 @@ test("describe_tool returns a real tool's input schema, and refuses an unknown i
   const s = surface();
   const found = await s.executeMetaTool(PRINCIPAL, RUN, call("describe_tool", { id: "content_read.workspace" }));
   assert.notEqual(found.isError, true);
-  assert.match(found.content, /content_read\.workspace/);
-  const registered = s.registry.list().find((tool) => tool.id === "content_read.workspace");
+  assert.match(textOf(found), /content_read\.workspace/);
+  const registered = s.registry.list({}).find((tool) => tool.id === "content_read.workspace");
   assert.ok(registered?.inputSchema);
-  assert.deepEqual(JSON.parse(found.content).inputSchema, registered.inputSchema);
+  assert.deepEqual(JSON.parse(textOf(found)).inputSchema, registered.inputSchema);
 
   const missing = await s.executeMetaTool(PRINCIPAL, RUN, call("describe_tool", { id: "content_read.workspace_but_invented" }));
   assert.equal(missing.isError, true);
-  assert.match(missing.content, /No tool with id/);
-  assert.match(missing.content, /search_tools/, "an error the model can act on should name the tool that fixes it");
+  assert.match(textOf(missing), /No tool with id/);
+  assert.match(textOf(missing), /search_tools/, "an error the model can act on should name the tool that fixes it");
 });
 
 test("execute_delegated_tool with a HALLUCINATED tool id returns a recoverable error — it does not throw and kill the turn", async () => {
@@ -205,8 +213,8 @@ test("execute_delegated_tool with a HALLUCINATED tool id returns a recoverable e
   // `executeTool`, out of the provider adapter's loop, and aborts the SSE stream mid-turn.
   const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "definitely_not_a_real_tool", input: {} }));
   assert.equal(result.isError, true);
-  assert.match(result.content, /unknown tool/i);
-  assert.match(result.content, /search_tools/);
+  assert.match(textOf(result), /unknown tool/i);
+  assert.match(textOf(result), /search_tools/);
 });
 
 test("execute_delegated_tool requires a toolId, and says so", async () => {
@@ -214,7 +222,7 @@ test("execute_delegated_tool requires a toolId, and says so", async () => {
   for (const input of [{}, { toolId: "" }, { toolId: 7 }]) {
     const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", input));
     assert.equal(result.isError, true);
-    assert.match(result.content, /'toolId' is required/);
+    assert.match(textOf(result), /'toolId' is required/);
   }
 });
 
@@ -226,21 +234,21 @@ test("execute_delegated_tool accepts a JSON-ENCODED input string — the observe
     return { received: ctx.input };
   }));
   const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "probe_encoded_input", input: '{"unused":true}' }));
-  assert.doesNotMatch(result.content, /must be a JSON object/, "a JSON-encoded object string must be parsed, not refused");
+  assert.doesNotMatch(textOf(result), /must be a JSON object/, "a JSON-encoded object string must be parsed, not refused");
   assert.notEqual(result.isError, true);
   assert.deepEqual(received, { unused: true });
-  assert.deepEqual(JSON.parse(result.content), { received: { unused: true } });
+  assert.deepEqual(JSON.parse(textOf(result)), { received: { unused: true } });
 });
 
 test("execute_delegated_tool refuses an input that is neither an object nor JSON-parseable, naming what is wrong", async () => {
   const s = surface();
   const plain = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "content_read.workspace", input: "just some prose" }));
   assert.equal(plain.isError, true);
-  assert.match(plain.content, /must be a JSON object/);
+  assert.match(textOf(plain), /must be a JSON object/);
 
   const array = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "content_read.workspace", input: [1, 2] }));
   assert.equal(array.isError, true);
-  assert.match(array.content, /an array/);
+  assert.match(textOf(array), /an array/);
 });
 
 test("execute_delegated_tool treats an empty-string input the same as omitted — no input, not a parse error", async () => {
@@ -251,19 +259,19 @@ test("execute_delegated_tool treats an empty-string input the same as omitted �
     return { noInput: ctx.input === undefined };
   }));
   const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "probe_empty_input", input: "" }));
-  assert.doesNotMatch(result.content, /must be a JSON object/, "an empty string must resolve to 'no input', not be refused as unparseable");
+  assert.doesNotMatch(textOf(result), /must be a JSON object/, "an empty string must resolve to 'no input', not be refused as unparseable");
   const omitted = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "probe_empty_input" }));
   assert.notEqual(result.isError, true);
   assert.notEqual(omitted.isError, true);
   assert.deepEqual(received, [undefined, undefined]);
   assert.deepEqual(result, omitted);
-  assert.deepEqual(JSON.parse(result.content), { noInput: true });
+  assert.deepEqual(JSON.parse(textOf(result)), { noInput: true });
 });
 
 test("execute_delegated_tool refuses a non-object, non-array, non-string input (e.g. a bare number), naming the actual type", async () => {
   const result = await surface().executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "content_read.workspace", input: 42 }));
   assert.equal(result.isError, true);
-  assert.match(result.content, /not number\./);
+  assert.match(textOf(result), /not number\./);
 });
 
 // Every Tovu tool registration's OWN handler is the sole authorization evaluator — the
@@ -281,7 +289,7 @@ test("execute_delegated_tool maps a real tool's own thrown ForbiddenError (from 
   const s = createByokToolSurface(deniedDeps, { ...( { installExtensions: false }), contributions });
   const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "content_read.workspace", input: {} }));
   assert.equal(result.isError, true);
-  assert.match(result.content, /not authorized/);
+  assert.match(textOf(result), /not authorized/);
 });
 
 test("execute_delegated_tool maps an already-aborted signal to a readable 'cancelled' error", async () => {
@@ -290,7 +298,7 @@ test("execute_delegated_tool maps an already-aborted signal to a readable 'cance
   const s = surface();
   const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "content_read.workspace", input: {} }), controller.signal);
   assert.equal(result.isError, true);
-  assert.match(result.content, /was cancelled/);
+  assert.match(textOf(result), /was cancelled/);
 });
 
 test("a model that calls a REAL tool id as the tool NAME is told how to reach it, not just that it failed", async () => {
@@ -298,7 +306,7 @@ test("a model that calls a REAL tool id as the tool NAME is told how to reach it
   // directly, because the meta-set is the only thing it was actually offered.
   const result = await surface().executeMetaTool(PRINCIPAL, RUN, call("content_read.workspace", {}));
   assert.equal(result.isError, true);
-  assert.match(result.content, /execute_delegated_tool with toolId: "content_read\.workspace"/);
+  assert.match(textOf(result), /execute_delegated_tool with toolId: "content_read\.workspace"/);
 });
 
 // ---------------------------------------------------------------------------
@@ -335,7 +343,7 @@ test("READ-ONLY PARITY: a read-only-constrained principal cannot dispatch a writ
   // pre-existing, deliberate choice unrelated to this fix, so this asserts the status this dispatch
   // maps to `isError` from (`denied`), not the daemon path's own literal refusal text.
   assert.equal(result.isError, true, "BYOK's dispatch must refuse a write tool for a read-only-constrained principal, same as the daemon stack");
-  assert.match(result.content, /was denied for this caller/);
+  assert.match(textOf(result), /was denied for this caller/);
   assert.equal(writeCalls, 0, "the gate must refuse BEFORE the handler runs, not merely report failure after a real write");
 });
 
@@ -370,7 +378,7 @@ test("INCIDENT FIX: a search_tools call through executeMetaTool is recorded with
   const s = createByokToolSurface(fakeRouteDeps(), { ...( { toolAttemptAudit: { sink, workspaceId: "ws-meta-tool" }, installExtensions: false }), contributions });
 
   const result = await s.executeMetaTool(PRINCIPAL, RUN, call("search_tools", { query: "workspace", limit: 5 }));
-  const { hits } = JSON.parse(result.content) as { hits: ReadonlyArray<{ id: string }> };
+  const { hits } = JSON.parse(textOf(result)) as { hits: ReadonlyArray<{ id: string }> };
 
   assert.equal(sink.events.length, 1);
   const [event] = sink.events;
@@ -442,7 +450,7 @@ test("ordinary successful and throwing delegated handlers record their complete 
   const success = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "probe_audit_success", input: {} }));
   const failure = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "probe_audit_failure", input: {} }));
   assert.notEqual(success.isError, true);
-  assert.deepEqual(JSON.parse(success.content), { saved: true });
+  assert.deepEqual(JSON.parse(textOf(success)), { saved: true });
   assert.equal(failure.isError, true);
   assert.deepEqual(sink.events.map(({ toolId, phase, workspaceId, principalId, runId }) => ({ toolId, phase, workspaceId, principalId, runId })),
     [
@@ -539,7 +547,7 @@ test("WIRING: a diagnostic-carrying execute_delegated_tool result goes through a
 
   const result = await pending;
   assert.notEqual(result.isError, true);
-  assert.deepEqual(JSON.parse(result.content), { fixed: true }, "the final result must be the RETRY's own output, not the original diagnostic");
+  assert.deepEqual(JSON.parse(textOf(result)), { fixed: true }, "the final result must be the RETRY's own output, not the original diagnostic");
   assert.equal(originalCallCount, 2, "the original tool must run exactly twice: the failing call, then the retry — never more");
   assert.deepEqual(remedyInputSeen, { value: "the-fix" }, "the human's answer must reach the remedy tool's own input");
   assert.equal(s.surfaceExchanges.size(), 0, "the exchange must be closed once resolved — with no sink involved, nothing here depends on toolAttemptAudit at all");
@@ -565,7 +573,7 @@ test("WIRING: a successful first call is never retried and raises no recovery su
     emitSurface,
   );
 
-  assert.deepEqual(JSON.parse(result.content), { fixed: true });
+  assert.deepEqual(JSON.parse(textOf(result)), { fixed: true });
   assert.equal(callCount, 1, "a call that never carries a diagnostic must run exactly once");
   assert.equal(emitted.length, 0, "no recovery surface should ever be raised for a hint-free result");
   assert.equal(s.surfaceExchanges.size(), 0, "the happy path must never open a recovery exchange at all — not just resolve one quickly");
@@ -603,7 +611,7 @@ test("WIRING: no second recovery cycle — a retry whose OWN result also carries
 
   const result = await pending;
   assert.deepEqual(
-    JSON.parse(result.content),
+    JSON.parse(textOf(result)),
     { hint: "second problem", remedyToolId: "fake_recoverable_remedy_double" },
     "the retry's own diagnostic-shaped output must reach the model untouched — no second cycle",
   );
@@ -648,7 +656,7 @@ test("WIRING: declining the recovery surface returns the ORIGINAL failure untouc
 
   const result = await pending;
   assert.deepEqual(
-    JSON.parse(result.content),
+    JSON.parse(textOf(result)),
     { executed: false, status: 401, hint: "needs a value", remedyToolId: "fake_recoverable_decline_remedy" },
     "a decline must hand back the exact original diagnostic, verbatim",
   );
@@ -665,7 +673,7 @@ test("WIRING: a headless call (no emitSurface) with a diagnostic-carrying result
   // No emitSurface passed — the synthetic/headless caller shape this loop's own doc says must never guess.
   const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "fake_recoverable_headless", input: {} }));
 
-  assert.deepEqual(JSON.parse(result.content), { hint: "needs a value", remedyToolId: "fake_recoverable_headless_remedy" });
+  assert.deepEqual(JSON.parse(textOf(result)), { hint: "needs a value", remedyToolId: "fake_recoverable_headless_remedy" });
   assert.equal(s.surfaceExchanges.size(), 0, "no exchange should be left open with no channel to answer through");
 });
 
@@ -702,12 +710,12 @@ test("WIRING: the failed retry still returns a coherent, exact error to the mode
   // 2026-09-16: an internal failure now carries a redacted-message ID prefix (`tool-failure-redaction.ts`,
   // owner decision "hide secrets only") — the retry's own message still reaches the model verbatim
   // AFTER that prefix, it is just no longer the exact first characters of `content`.
-  assert.ok(result.content.startsWith("Error ERR-"), `expected an ID prefix, got: ${result.content}`);
+  assert.ok(textOf(result).startsWith("Error ERR-"), `expected an ID prefix, got: ${textOf(result)}`);
   assert.ok(
-    result.content.endsWith(": still broken after the fix"),
+    textOf(result).endsWith(": still broken after the fix"),
     "the retry's own failure message must reach the model verbatim (after the ID prefix), not be swallowed",
   );
-  assert.match(result.content, TOOL_ERROR_ID_PATTERN, "an internal failure must carry a copyable error ID");
+  assert.match(textOf(result), TOOL_ERROR_ID_PATTERN, "an internal failure must carry a copyable error ID");
   // The single most important assertion in this file: a retry that ITSELF fails must never trigger a
   // second ask -> apply -> retry cycle. Proven structurally by call/surface counts, not just by the
   // final content — a recursive re-entry here would show up as a 3rd `originalCallCount` or a 2nd
@@ -832,7 +840,7 @@ test("BYOK federation: after awaitFederation settles, search_tools finds the new
   await s.awaitFederation(1000);
 
   const result = await s.executeMetaTool(PRINCIPAL, RUN, call("search_tools", { query: "echo" }));
-  const { hits } = JSON.parse(result.content) as { hits: ReadonlyArray<{ id: string }> };
+  const { hits } = JSON.parse(textOf(result)) as { hits: ReadonlyArray<{ id: string }> };
 
   assert.ok(
     hits.some((hit) => hit.id === "mcp__echo-server__echo"),
@@ -859,7 +867,7 @@ test("BYOK federation: settled admitted tools execute with remote names and argu
   const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "mcp__echo-server__echo", input: { text: "hello" } }));
   assert.notEqual(result.isError, true);
   assert.deepEqual(session.calls, [{ name: "echo", arguments: { text: "hello" } }]);
-  const parsed = JSON.parse(result.content);
+  const parsed = JSON.parse(textOf(result));
   assert.deepEqual(parsed.federated, { connectionId: "echo-server", tool: "echo", remoteReportedError: false });
   assert.match(parsed.untrusted, /remote echo result/);
   const payload = parsed.untrusted.match(/<untrusted-data-[^>]+>\n([\s\S]*?)\n<\/untrusted-data-/)?.[1];
@@ -951,8 +959,8 @@ test("BYOK federation: execute_delegated_tool for a server that was never in the
   const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "mcp__ghost-server__whatever", input: {} }));
 
   assert.equal(result.isError, true);
-  assert.doesNotMatch(result.content, /still connecting/i, "a server that was never in the roster must not be told to wait");
-  assert.match(result.content, /unknown tool/i);
+  assert.doesNotMatch(textOf(result), /still connecting/i, "a server that was never in the roster must not be told to wait");
+  assert.match(textOf(result), /unknown tool/i);
 
   releaseConnect(new InMemoryMcpSession({ tools: [{ name: "echo", description: "echo text", inputSchema: { type: "object" } }] }));
   await s.federation?.start();

@@ -337,7 +337,7 @@ async function scopeHarness({ exempt = false } = {}) {
   registry.register({
     descriptor: { id: "scope_probe" },
     policy: { authorize: () => "allow" },
-    handler: ({ run, principal }) => {
+    handler: async ({ run, principal }) => {
       const effect = { runId: run.id, principalId: principal.id };
       executions.push(effect);
       return effect;

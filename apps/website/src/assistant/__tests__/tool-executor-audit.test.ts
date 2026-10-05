@@ -7,6 +7,7 @@ import type { ToolExecutionResult, ToolExecutor } from "@jini-ai/daemon";
 import { createInMemoryToolAttemptAuditSink } from "../../features/tool-audit/repo.memory.js";
 import type { ToolAttemptAuditSink } from "../../features/tool-audit/types.js";
 import { describeInput, withToolAttemptAudit } from "../tool-executor-audit.js";
+import type { RedactedToolExecutionResult } from "../tool-failure-redaction.js";
 
 /**
  * @file `tool-executor-audit.ts` — the durable tool-attempt trail.
@@ -241,9 +242,11 @@ test("2026-09-16: a redacted internal failure's row links to its error ID, never
   const sink = createInMemoryToolAttemptAuditSink();
   const secret = "sk_" + "live_" + "Ab3".repeat(8);
   const errorId = "ERR-AAAA-BBBB-CCCC-DDDD";
-  const inner = fakeExecutor({
-    result: { executionId: "exec-8", status: "failed", errorKind: "internal", error: `Error ${errorId}: boom ${secret}`, errorId },
-  });
+  // Shaped exactly as `withRedactedToolFailures` leaves it: the ID rides beside the base result.
+  const redacted: RedactedToolExecutionResult = {
+    executionId: "exec-8", status: "failed", errorKind: "internal", error: `Error ${errorId}: boom ${secret}`, errorId,
+  };
+  const inner = fakeExecutor({ result: redacted });
 
   await wrap(inner, sink).execute({ principal: PRINCIPAL, run: RUN, toolId: "t", input: {} });
 
