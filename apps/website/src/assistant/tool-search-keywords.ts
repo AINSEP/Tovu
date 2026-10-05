@@ -335,7 +335,10 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
     "copy this form duplicate a form copy a page copy a post copy this image copy a media asset " +
     "duplicate an image reuse this picture same image different alt text " +
     "same content new name new title starting point template based on existing existing page existing post existing form existing media",
-  collections_entry_publish: "publish live go public release draft entry post article",
+  // 2026-10-04: "publish the Blue Mug product" (operator request co-04) fell to rank 4 behind
+  // publish_backstop_gaps (445575f6c), whose id carries "publish". Collection entries are a site's
+  // products and listings, so those are this tool's own words for "entry".
+  collections_entry_publish: "publish live go public release draft entry post article product products listing",
   collections_entry_unpublish: "unpublish hide draft retract take down entry post",
   collections_entry_create: "entry create new record item content add",
   collections_entry_list: "entries records items content list all",
@@ -495,6 +498,10 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   trash_restore_item: "recover undelete restore deleted bring back get back undo delete removed page post image",
   trash_list_items: "whats what's trash bin recycle deleted items recently deleted show list empty trash permanently delete purge",
   trash_item: "delete remove get rid of menu menus submission submissions form entry entries spam navigation nav header footer delete menu remove menu delete menus remove menus",
+  // Reads the history of manual "send by hand" backstop sends; it publishes nothing. Its own words keep
+  // it on those requests: its id carries "publish", which alone outranked collections_entry_publish
+  // for "publish the Blue Mug product" (co-04, 2026-10-04).
+  publish_backstop_gaps: "manual send by hand backstop gaps sent manually not covered unsupported uncovered missing type history counts reasons",
   // The report's strings for these two also had "push"; dropped, because it outranked
   // deployment_execute_static_publish for "push my site live to netlify" (backfill-ranking test).
   publish_content_status: "push changes live is my site set up to publish publishing setup readiness changes live go live update live site not updating",

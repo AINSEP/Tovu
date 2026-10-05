@@ -100,6 +100,9 @@ export const DOC2QUERY: Readonly<Record<string, readonly string[]>> = {
   // Keep publish and backup intents distinct from observation tools when the catalog grows.
   deployment_get_static_publish_capabilities: [
     "Which static publishing hosts are available?", "Can this site publish to Netlify?", "Where can I publish a static site?", "Which hosting credentials are connected?",
+    // 2026-10-04: publish_backstop_gaps (445575f6c; "publish" in its id, "yet" in its description)
+    // pushed "can I publish my site yet" to rank 4. These are that question in its own words.
+    "Is my site ready to publish yet?", "Can I publish my site yet, or is hosting not set up?",
   ],
   // 2026-10-03: the deploy-ops tools (5ec1a964d) outranked source_control_get_capabilities for "is
   // github connected", and catalog growth dropped site_describe_capabilities out of the top 3 for "what
