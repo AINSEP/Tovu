@@ -18,7 +18,7 @@ import ts from "typescript";
  *  - `deps.ts` `createSiteRouteDeps`: store open → `composeSiteRouteDeps` → on failure, release the store.
  *  - `deps.ts` `composeSiteRouteDeps` prelude (R1b/R1d): store open → `await` workspace → `await`
  *    deny-store probe → `await` orphaned-chat check, all before the body starts its first
- *    fire-and-forget boot promise (`backfillPostSearchIndex`), so no boot promise interleaves with a
+ *    fire-and-forget boot promise (`preparePostSearchIndex`), so no boot promise interleaves with a
  *    prelude await.
  *
  * Source assertions, like `serving-app-boot-wiring.unit.test.ts`: `index.ts` boots a real server and
@@ -129,7 +129,7 @@ test("createSiteRouteDeps prelude: store open, then the awaited workspace, deny 
   const workspace = indexOfAnchor(body, "await resolveWorkspaceIdOverride(kernel, overrides)");
   const denyStore = indexOfAnchor(body, "await publishTrustRevocationStoreFor(kernel)");
   const orphanCheck = indexOfAnchor(body, "await warnOnOrphanedChatRows(");
-  const firstBootPromise = indexOfAnchor(body, "backfillPostSearchIndex(");
+  const firstBootPromise = indexOfAnchor(body, "preparePostSearchIndex(");
   assert.ok(open < kernel && kernel < workspace, "the workspace is read on the kernel of the opened store");
   assert.ok(workspace < denyStore, "the deny store is probed after the workspace resolves");
   assert.ok(denyStore < orphanCheck, "the orphaned-chat check runs after the deny store probe (chat.db opened with the store)");

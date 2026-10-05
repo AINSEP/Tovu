@@ -19,7 +19,7 @@ import { resolveProductRoot } from "#src/platform/site-dir/product-root";
 // `resolveStorefrontProducts` doc for why this field exists at all.
 import { resolveStorefrontProducts } from "../../inbound/public-http/routes/site/products.js";
 import {
-  backfillPostSearchIndex,
+  preparePostSearchIndex,
   SqlitePostRepo,
   postSearchIndexFor,
   createPostRevertRegistry,
@@ -968,8 +968,11 @@ async function composeSiteRouteDeps(
   // half-indexed corpus; on a warm database it is a single indexed anti-join that writes nothing.
   // A failure is logged and search carries on over what is indexed. See
   // `backfillPostSearchIndex`'s own doc for why it fills gaps rather than rebuilding.
-  const postSearchBackfillReady = backfillPostSearchIndex(kernel).catch((err) => {
-    console.error(`backfillPostSearchIndex failed at boot: ${(err as Error).message}`);
+  // Rows written by OLDER projection code (e.g. HTML pages indexed before f7ca1e766 projected
+  // `body_html`) are re-projected once per site by the same step when the stored projection version
+  // is behind the code's — no resave needed (`reindexStalePostSearchIndex`). Not awaited by boot.
+  const postSearchBackfillReady = preparePostSearchIndex(kernel).catch((err) => {
+    console.error(`preparePostSearchIndex failed at boot: ${(err as Error).message}`);
   });
   // Canonical Jini clocks use milliseconds; existing CMS/DB host ports still read ISO timestamps.
   const clock = { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() };
