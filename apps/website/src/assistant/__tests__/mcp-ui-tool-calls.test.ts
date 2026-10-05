@@ -140,6 +140,8 @@ const EXPECTED_ALLOWLIST = [
   // 2026-09-27 (S-G1, 1ec285153) — the generic Agent Plugin Connect card; see the allowlist's own entry.
   "agent_plugin_connect",
   "agent_plugin_set_access_token",
+  // 2026-10-04 (852d711e6, Layout B) — the confirmed plugin-note save (`requireHumanConfirm`).
+  "agent_plugin_write_note",
   "assistant_ask_choice",
   "assistant_demo_choices",
   "assistant_tool_failure_recovery",

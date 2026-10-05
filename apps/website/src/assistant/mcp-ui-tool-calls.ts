@@ -70,6 +70,10 @@ export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
   // here anyway so a later cancel/retry action needs no second edit to stop being a silent 403.
   // (It replaced the Supabase-only `supabase_get_database` prototype, deleted 2026-09-27.)
   "agent_plugin_connect",
+  // 2026-10-04 (852d711e6, Layout B) — `agent_plugin_write_note` (`features/agent-plugins/
+  // write-note-tool.ts`) asks first through `requireHumanConfirm`, the same held-open exchange the
+  // identity deletes below use: the human sees the exact note and file before it is saved to the
+  // plugin's memory. Without this entry every Save/Cancel click would 403 with TOOL_NOT_ALLOWLISTED.
   "agent_plugin_write_note",
   // 2026-08-15 — `deployment_propose_custom_provider_credential` (`features/deployments/
   // publish-agent-tools.ts`) holds up the SAME shape `content_post_delete`/
