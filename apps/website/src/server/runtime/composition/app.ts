@@ -1748,8 +1748,10 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // NEW public (non-admin) member route family (ADR-PIPE-013 Decision §2-3) —
   // mounted OUTSIDE /api/admin's `requireAdminSession` middleware (this
   // family is unauthenticated by design), alongside the existing
-  // `registerContentPostGetRoute`-style public mount above. Boot-time repo
-  // adapters remain in-memory (Decision §5) — unchanged by this wiring.
+  // `registerContentPostGetRoute`-style public mount above. The member repos
+  // are whatever `routeDeps` carries: in-memory from `createRouteDeps()` (this
+  // file, the hermetic test composition), durable SQL from `deps.ts`'s
+  // `createSiteRouteDeps()` (the real site, ADR-046 Phase 1).
   const memberPublicDeps: MemberPublicRouteDeps = {
     workspaceId: routeDeps.workspaceId,
     memberRepo: routeDeps.memberRepo,
