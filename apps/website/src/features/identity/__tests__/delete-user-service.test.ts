@@ -132,8 +132,9 @@ async function makeOwnerWildcard(f: Fixture, principalId: string): Promise<void>
 }
 
 /** Assigns the built-in `admin` role to `principalId` — OWNER DECISION 2026-09-24's second gate,
- *  distinct from `makeOwnerWildcard`: `admin` holds no `user.manage`/`role.manage` (Jini `seed.ts`,
- *  "Owner-only per REQ-09"), so this exercises the role-name check, not a permission grant. */
+ *  distinct from `makeOwnerWildcard`: `admin` holds no `user.manage` (Jini `seed.ts`, owner-only per
+ *  DR-001; it holds `role.manage` since 2026-10-05, which no delete path checks), so this exercises
+ *  the role-name check, not a permission grant. */
 async function makeBuiltinAdmin(f: Fixture, principalId: string): Promise<void> {
   const adminRole = await f.identity.repos.roles.findByName({ workspaceId: f.workspaceId, name: "admin" });
   assert.ok(adminRole, "seedIdentity must have created the built-in admin role");
