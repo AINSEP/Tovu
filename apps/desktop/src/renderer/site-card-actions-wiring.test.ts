@@ -27,7 +27,7 @@ import test from 'node:test';
 import fs from 'node:fs';
 import path from 'node:path';
 import { elements, hookHarness, sourceFunction } from './source-test-harness.js';
-import { IN_FLIGHT_STATUS, performPowerAction, powerControl } from './use-site-power.hooks.js';
+import { IN_FLIGHT_STATUS, performPowerAction, powerControl, runPowerToggle } from './use-site-power.hooks.js';
 
 const grid = fs.readFileSync(path.join(import.meta.dirname, 'SiteGrid.tsx'), 'utf8');
 const css = fs.readFileSync(path.join(import.meta.dirname, 'app.css'), 'utf8');
@@ -148,6 +148,11 @@ test('the power button calls power.toggle and renders the label powerControl dec
   assert.match(actions, /: control && \(/, 'a status with no honest button renders none');
 });
 
+test('Start opens the site through the SAME onOpen a card click uses — no second open path', () => {
+  assert.match(grid, /const power = usePower\(onSiteUpdated, \{ onStarted: onOpen \}\);/);
+  assert.match(power, /onStarted\?: \(id: string\) => void/);
+});
+
 test('Start/Stop reuses the header\'s "Create website" class rather than a hand-copied look', () => {
   // Both must wear the identical `button--create` token — the owner's requirement was to REUSE the
   // class, not eyeball a matching colour. `app` carries the header button (`App.tsx`); `grid`
@@ -244,16 +249,16 @@ test('the pending mark is cleared on BOTH arms, so a failed start cannot stick o
   // The one thing this control must never do is remember its own press. There is no renderer here
   // to drive the failure arm, so the clearing is asserted structurally: it must not sit inside the
   // success branch.
-  const toggle = power.slice(power.indexOf('const toggle = useCallback('), power.indexOf('return { statusOf, errorOf, toggle };'));
-  assert.match(toggle, /if \(result\.error === undefined\) onSiteUpdated\?\.\(result\.record\);/);
-  assert.match(toggle, /else setErrors/);
+  const toggle = power.slice(power.indexOf('const toggle = useCallback('), power.indexOf('const restartControlOf = useCallback('));
+  assert.match(toggle, /const error = await runPowerToggle\(\{ action, id, bridge: runnerInventoryBridge\(\) \}, \{ onSiteUpdated, onStarted \}\);/);
+  assert.match(toggle, /if \(error !== null\) setErrors/);
   const clear = toggle.indexOf('setPending((current) => withoutKey(current, id));');
   assert.notEqual(clear, -1, 'the pending mark must be cleared');
-  assert.ok(clear > toggle.indexOf('else setErrors'), 'the clear must follow both arms, not live inside one');
+  assert.ok(clear > toggle.indexOf('if (error !== null) setErrors'), 'the clear must follow both arms, not live inside one');
   const harness = hookHarness();
   let reject!: (error: Error) => void;
   const usePower = sourceFunction(power, 'useSitePower', { ...harness.bindings,
-    powerControl, performPowerAction, IN_FLIGHT_STATUS,
+    powerControl, performPowerAction, runPowerToggle, IN_FLIGHT_STATUS,
     withoutKey: sourceFunction(power, 'withoutKey'),
     runnerInventoryBridge: () => ({ startSite: () => new Promise((_resolve, fail) => { reject = fail; }) }),
   });
@@ -276,7 +281,7 @@ test("main's refreshed record reaches the grid, rather than waiting on the 4s po
   // simply never handed to the grid, and the only symptom would be a card four seconds stale.
   assert.match(app, /const applySiteRecord = useApplySiteRecord\(setProjects\);/);
   assert.match(app, /<SiteGrid [^>]*onSiteUpdated=\{onSiteUpdated\}/);
-  assert.match(grid, /const power = usePower\(onSiteUpdated\);/);
+  assert.match(grid, /const power = usePower\(onSiteUpdated, \{ onStarted: onOpen \}\);/);
   for (const [component, callback] of [['MainArea', 'applySiteRecord'], ['MainContent', 'onSiteUpdated'], ['ProjectsBody', 'onSiteUpdated']]) {
     assert.match(app, new RegExp(`<${component}\\b[^>]*onSiteUpdated=\\{${callback}\\}`), `${component} must forward the actual update callback`);
   }

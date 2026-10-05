@@ -11,7 +11,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { IN_FLIGHT_STATUS, performPowerAction, powerControl } from './use-site-power.hooks.js';
+import { IN_FLIGHT_STATUS, performPowerAction, powerControl, runPowerToggle } from './use-site-power.hooks.js';
 import type { SiteRecord } from '../contracts/project.js';
 
 const RECORD = { id: '/sites/a', status: 'running', port: 4321 } as unknown as SiteRecord;
@@ -127,4 +127,63 @@ test('the in-flight status of each action is the lifecycle status of the same na
   // These two strings are `SiteLifecycleStatus` members that main also produces
   // (`site-transitions.ts`), so a card mid-click and a card mid-drain render identically.
   assert.deepEqual(IN_FLIGHT_STATUS, { start: 'starting', stop: 'stopping' });
+});
+
+// ---------------------------------------------------------------------------------------------
+// runPowerToggle — what one Start/Stop press does after main answers
+// ---------------------------------------------------------------------------------------------
+
+const STOPPED = { ...RECORD, status: 'stopped' } as SiteRecord;
+const bridgeResolving = (record: SiteRecord) => ({ startSite: async () => record, stopSite: async () => record });
+
+test('a Start that comes back running opens the site, after the card has the new record', async () => {
+  // The owner's ask: Start then a second click on the card was one click too many. Opening goes
+  // through the card's own open callback, so the tab is the same one a card click makes.
+  const calls: string[] = [];
+  const error = await runPowerToggle({ action: 'start', id: '/sites/a', bridge: bridgeResolving(RECORD) }, {
+    onSiteUpdated: (record) => calls.push(`updated:${record.status}`),
+    onStarted: (id) => calls.push(`open:${id}`),
+  });
+
+  assert.equal(error, null);
+  assert.deepEqual(calls, ['updated:running', 'open:/sites/a']);
+});
+
+test('a failed Start stays on the card: the error is returned and nothing opens', async () => {
+  const calls: string[] = [];
+  const error = await runPowerToggle({
+    action: 'start',
+    id: '/sites/a',
+    bridge: { startSite: () => Promise.reject(new Error('tovu serve failed: PORT_IN_USE')), stopSite: async () => RECORD },
+  }, {
+    onSiteUpdated: () => calls.push('updated'),
+    onStarted: () => calls.push('open'),
+  });
+
+  assert.equal(error, 'tovu serve failed: PORT_IN_USE');
+  assert.deepEqual(calls, []);
+});
+
+test('a Start whose record does not say running does not open the site', async () => {
+  // Opening waits for the site to REPORT running — main's record, not the press.
+  const opened: string[] = [];
+  const error = await runPowerToggle({ action: 'start', id: '/sites/a', bridge: bridgeResolving(STOPPED) }, {
+    onStarted: (id) => opened.push(id),
+  });
+
+  assert.equal(error, null);
+  assert.deepEqual(opened, []);
+});
+
+test('a Stop never opens the site', async () => {
+  const opened: string[] = [];
+  const updated: SiteRecord[] = [];
+  const error = await runPowerToggle({ action: 'stop', id: '/sites/a', bridge: bridgeResolving(RECORD) }, {
+    onSiteUpdated: (record) => updated.push(record),
+    onStarted: (id) => opened.push(id),
+  });
+
+  assert.equal(error, null);
+  assert.deepEqual(updated, [RECORD]);
+  assert.deepEqual(opened, []);
 });

@@ -129,15 +129,55 @@ export async function performPowerAction(
   }
 }
 
+/** What a power press may do once main answers, beyond the card's own state. */
+export interface SitePowerCallbacks {
+  /** Applies main's refreshed record — see {@link useSitePower}. */
+  onSiteUpdated?: (record: SiteRecord) => void;
+  /** Opens the site that was just started. The caller passes the card's own open callback, so a
+   *  Start lands in exactly the tab a click on the card would have opened — one open path, not two. */
+  onStarted?: (id: string) => void;
+}
+
+/**
+ * One Start/Stop press, end to end: the bridge call, then what its outcome means for the window.
+ *
+ * **A Start that comes back running opens the site.** Starting a site and then clicking its card to
+ * go in was one click too many — nobody presses Start on a site they do not mean to use. It waits
+ * for main's record to SAY `running` (main resolves `startSite` only after `tovu serve` is ready),
+ * never for the press itself, so a start that fails or settles any other way stays on the card with
+ * its error showing exactly as before.
+ *
+ * Separate from the hook for the same reason {@link performPowerAction} is: this package has no
+ * React renderer, so this is the seam a test can call.
+ *
+ * @returns the operator-facing failure, or `null` on success.
+ * @complexity O(1) beyond the IPC round trip.
+ */
+export async function runPowerToggle(
+  { action, id, bridge }: { action: SitePowerAction; id: string; bridge: Parameters<typeof performPowerAction>[2] },
+  { onSiteUpdated, onStarted }: SitePowerCallbacks = {},
+): Promise<string | null> {
+  const result = await performPowerAction(action, id, bridge);
+  if (result.error !== undefined) return result.error;
+  onSiteUpdated?.(result.record);
+  if (action === 'start' && result.record.status === 'running') onStarted?.(id);
+  return null;
+}
+
 /**
  * @param onSiteUpdated applies the refreshed record main resolves with. Optional, and the card is
  *   still correct without it — the 4 s poll would catch up — but up to four seconds of showing a
  *   stopped site as running is exactly the lie this control exists not to tell, so `App.tsx` wires
  *   it. The record is main's, never one composed here from what was clicked.
+ * @param onStarted the card's open callback; a Start that comes back running calls it with the
+ *   site's id. See {@link runPowerToggle}.
  * @returns the three things a card needs: the status to render, the failure to show, the click.
  * @complexity O(1) per call; the two maps hold one entry per site with an unsettled action.
  */
-export function useSitePower(onSiteUpdated?: (record: SiteRecord) => void): SitePower {
+export function useSitePower(
+  onSiteUpdated?: (record: SiteRecord) => void,
+  { onStarted }: Pick<SitePowerCallbacks, 'onStarted'> = {},
+): SitePower {
   const [pending, setPending] = useState<Readonly<Record<string, SitePowerOperation>>>({});
   const [errors, setErrors] = useState<Readonly<Record<string, string>>>({});
   // A stable lock independent of React's batched render: a fast second click uses the old closure.
@@ -167,9 +207,8 @@ export function useSitePower(onSiteUpdated?: (record: SiteRecord) => void): Site
       setErrors((current) => withoutKey(current, id));
 
       try {
-        const result = await performPowerAction(action, id, runnerInventoryBridge());
-        if (result.error === undefined) onSiteUpdated?.(result.record);
-        else setErrors((current) => ({ ...current, [id]: result.error }));
+        const error = await runPowerToggle({ action, id, bridge: runnerInventoryBridge() }, { onSiteUpdated, onStarted });
+        if (error !== null) setErrors((current) => ({ ...current, [id]: error }));
       } finally {
         // Cleared on BOTH arms: a start that failed leaves the site stopped, which is what the
         // polled record already says. Holding `starting` after that would be the button remembering
@@ -178,7 +217,7 @@ export function useSitePower(onSiteUpdated?: (record: SiteRecord) => void): Site
         setPending((current) => withoutKey(current, id));
       }
     },
-    [onSiteUpdated, statusOf, inFlight],
+    [onSiteUpdated, onStarted, statusOf, inFlight],
   );
 
   const restartControlOf = useCallback((project: SiteRecord) => restartControl({

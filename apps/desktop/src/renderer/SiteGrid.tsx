@@ -103,7 +103,9 @@ export function SiteGrid({
     useDeleteState(onDelete);
   const rename = useRenameState(onRenamed);
   const actions = useActions();
-  const power = usePower(onSiteUpdated);
+  // Start opens the site once it is running, through the very `onOpen` a card click calls — see
+  // `runPowerToggle`.
+  const power = usePower(onSiteUpdated, { onStarted: onOpen });
   const locate = useLocate(onSiteUpdated);
 
   return (

@@ -4,7 +4,7 @@ import test from 'node:test';
 import { performSiteRestart, restartControl } from './use-site-power.hooks.js';
 import type { SiteRecord } from '../contracts/project.js';
 import { elements, hookHarness, sourceFunction } from './source-test-harness.js';
-import { IN_FLIGHT_STATUS, performPowerAction, powerControl } from './use-site-power.hooks.js';
+import { IN_FLIGHT_STATUS, performPowerAction, powerControl, runPowerToggle } from './use-site-power.hooks.js';
 import { desktopCopy } from '../desktop-i18n.js';
 
 const record = { id: '/site', status: 'running' } as SiteRecord;
@@ -40,7 +40,7 @@ test('rapid Restart/Stop clicks share one synchronous guard and clear it after f
   let fail!: (reason: Error) => void;
   let stops = 0;
   const usePower = sourceFunction(source, 'useSitePower', { ...harness.bindings,
-    powerControl, performPowerAction, performSiteRestart, restartControl, desktopCopy,
+    powerControl, performPowerAction, runPowerToggle, performSiteRestart, restartControl, desktopCopy,
     IN_FLIGHT_STATUS, withoutKey: sourceFunction(source, 'withoutKey'),
     runnerInventoryBridge: () => ({ stopSite: () => { stops++; return new Promise((_r, reject) => { fail = reject; }); }, startSite: async () => record }),
   });
