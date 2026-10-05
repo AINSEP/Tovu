@@ -2,1775 +2,1441 @@
   "_about": "Route <-> chat-tool parity map, read by development/scripts/check-route-tool-parity.ts. Each admin route is {tools:[ids]} (covered), {chatless:'<reason>'} (auth-session | ui-only-asset | streaming-transport | internal-health | covered-by-generic:<tool> | intentional:<why>), {gap:'<note>'} (confirmed gap), or {tools:[]} (untriaged; `suggested` is a heuristic hint, not coverage).",
   "routes": {
     "POST /api/admin/v1/a2ui/actions": {
-      "tools": []
+      "chatless": "intentional:chat card round-trip transport (the chat's own UI channel)"
     },
     "POST /api/admin/v1/api-keys": {
-      "tools": []
+      "chatless": "intentional:mints a bearer secret shown once; it must not pass through the model"
     },
     "POST /api/admin/v1/api-keys/:id/revoke": {
-      "tools": []
+      "gap": "no tool revokes an API key"
     },
     "POST /api/admin/v1/api-keys/principals": {
-      "tools": []
+      "gap": "no tool creates an API-key principal"
     },
     "POST /api/admin/v1/assistant/ag-ui-run": {
-      "tools": []
+      "chatless": "streaming-transport"
     },
     "POST /api/admin/v1/assistant/byok-turn": {
-      "tools": []
+      "chatless": "streaming-transport"
     },
     "POST /api/admin/v1/auth/boot-session": {
-      "tools": [],
-      "suggestedChatless": "auth-session"
+      "chatless": "auth-session"
     },
     "POST /api/admin/v1/auth/login": {
-      "tools": [],
-      "suggestedChatless": "auth-session"
+      "chatless": "auth-session"
     },
     "POST /api/admin/v1/auth/logout": {
-      "tools": [],
-      "suggestedChatless": "auth-session"
+      "chatless": "auth-session"
     },
     "GET /api/admin/v1/auth/me": {
-      "tools": [],
-      "suggestedChatless": "auth-session"
+      "chatless": "auth-session"
     },
     "GET /api/admin/v1/auth/me/password-status": {
-      "tools": [],
-      "suggestedChatless": "auth-session"
+      "chatless": "auth-session"
     },
     "GET /api/admin/v1/content-types": {
-      "tools": [],
-      "suggested": [
-        "content_post_preview",
-        "content_post_search",
-        "content_read.backup_restore_point"
+      "tools": [
+        "content_read.collection_content_type"
       ]
     },
     "POST /api/admin/v1/content-types": {
-      "tools": [],
-      "suggested": [
-        "collections_content_type_define",
-        "content_post_create"
+      "tools": [
+        "collections_content_type_define"
       ]
     },
     "PUT /api/admin/v1/content-types/:key/fields": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "collections_content_type_update_fields"
       ]
     },
     "POST /api/admin/v1/content-types/:key/lifecycle": {
-      "tools": []
+      "tools": [
+        "collections_content_type_deprecate",
+        "collections_content_type_reactivate",
+        "collections_content_type_tombstone"
+      ]
     },
     "POST /api/admin/v1/database/migrate-forward/confirm": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "database_execute_migrate_forward"
       ]
     },
     "POST /api/admin/v1/database/migrate-forward/execute": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "database_execute_migrate_forward"
       ]
     },
     "POST /api/admin/v1/database/migrate-forward/plan": {
-      "tools": [],
-      "suggested": [
-        "database_plan_migrate_forward",
-        "database_execute_migrate_forward",
-        "database_transfer_plan"
+      "tools": [
+        "database_plan_migrate_forward"
       ]
     },
     "GET /api/admin/v1/database/restore-points": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "content_read.database_restore_point"
       ]
     },
     "POST /api/admin/v1/database/restore-points": {
-      "tools": [],
-      "suggested": [
-        "content_read.database_restore_point"
+      "tools": [
+        "backup_create_restore_point"
       ]
     },
     "GET /api/admin/v1/database/schema-state": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "database_get_schema_state"
       ]
     },
     "GET /api/admin/v1/database/timeline": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "database_query_timeline"
       ]
     },
     "GET /api/admin/v1/entries": {
-      "tools": [],
-      "suggested": [
-        "content_read.collection_entry",
-        "content_read.seo_entry_meta",
-        "seo_analyze_entry"
+      "tools": [
+        "content_read.collection_entry"
       ]
     },
     "POST /api/admin/v1/entries": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "collections_entry_create"
       ]
     },
     "PUT /api/admin/v1/entries/:id": {
-      "tools": [],
-      "suggested": [
-        "collections_entry_update",
-        "seo_set_entry_overrides"
+      "tools": [
+        "collections_entry_update"
       ]
     },
     "POST /api/admin/v1/entries/:id/lifecycle": {
-      "tools": []
+      "tools": [
+        "collections_entry_publish",
+        "collections_entry_unpublish"
+      ]
     },
     "POST /api/admin/v1/mcp-ui/tool-calls": {
-      "tools": []
+      "chatless": "intentional:chat card round-trip transport (the chat's own UI channel)"
     },
     "POST /api/admin/v1/recovery/deep-link": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "recovery_resolve_deep_link"
       ]
     },
     "POST /api/admin/v1/recovery/disclosure": {
-      "tools": []
+      "tools": [
+        "backup_plan_restore"
+      ],
+      "note": "backup_plan_restore returns the discarded-write-window disclosure"
     },
     "GET /api/admin/v1/recovery/restore-points": {
-      "tools": [],
-      "suggested": [
-        "content_read.backup_restore_point",
-        "backup_plan_restore",
-        "backup_create_restore_point"
+      "tools": [
+        "content_read.backup_restore_point"
       ]
     },
     "POST /api/admin/v1/recovery/restore/confirm": {
-      "tools": [],
-      "suggested": [
-        "backup_create_restore_point",
+      "tools": [
         "backup_execute_restore"
       ]
     },
     "POST /api/admin/v1/recovery/restore/execute": {
-      "tools": [],
-      "suggested": [
-        "backup_execute_restore",
-        "backup_create_restore_point"
-      ]
-    },
-    "POST /api/admin/v1/recovery/restore/plan": {
-      "tools": [],
-      "suggested": [
-        "backup_create_restore_point",
-        "backup_plan_restore",
+      "tools": [
         "backup_execute_restore"
       ]
     },
+    "POST /api/admin/v1/recovery/restore/plan": {
+      "tools": [
+        "backup_plan_restore"
+      ]
+    },
     "GET /api/admin/v1/recovery/status": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "recovery_get_status"
       ]
     },
     "GET /api/admin/v1/taxonomy": {
-      "tools": [],
-      "suggested": [
-        "content_read.taxonomy",
-        "taxonomy_get_assigned_terms",
-        "taxonomy_plan_merge_term"
+      "tools": [
+        "content_read.taxonomy"
       ]
     },
     "POST /api/admin/v1/taxonomy": {
-      "tools": [],
-      "suggested": [
-        "taxonomy_create_taxonomy",
-        "taxonomy_create_term"
+      "tools": [
+        "taxonomy_create_taxonomy"
       ]
     },
     "DELETE /api/admin/v1/taxonomy/:id": {
-      "tools": []
+      "tools": [
+        "trash_item"
+      ]
     },
     "POST /api/admin/v1/taxonomy/:taxonomyId/terms": {
-      "tools": [],
-      "suggested": [
-        "taxonomy_create_term",
-        "taxonomy_assign_terms",
-        "taxonomy_execute_merge_term"
-      ]
-    },
-    "POST /api/admin/v1/taxonomy/assign-terms": {
-      "tools": [],
-      "suggested": [
-        "taxonomy_assign_terms",
-        "taxonomy_create_term",
-        "taxonomy_execute_merge_term"
-      ]
-    },
-    "GET /api/admin/v1/taxonomy/assigned-terms": {
-      "tools": [],
-      "suggested": [
-        "taxonomy_get_assigned_terms",
-        "taxonomy_plan_merge_term",
-        "taxonomy_assign_terms"
-      ]
-    },
-    "DELETE /api/admin/v1/taxonomy/terms/:id": {
-      "tools": []
-    },
-    "PUT /api/admin/v1/taxonomy/terms/:id": {
-      "tools": [],
-      "suggested": [
-        "taxonomy_rename_term",
-        "taxonomy_assign_terms",
+      "tools": [
         "taxonomy_create_term"
       ]
     },
+    "POST /api/admin/v1/taxonomy/assign-terms": {
+      "tools": [
+        "taxonomy_assign_terms"
+      ]
+    },
+    "GET /api/admin/v1/taxonomy/assigned-terms": {
+      "tools": [
+        "taxonomy_get_assigned_terms"
+      ]
+    },
+    "DELETE /api/admin/v1/taxonomy/terms/:id": {
+      "tools": [
+        "trash_item"
+      ]
+    },
+    "PUT /api/admin/v1/taxonomy/terms/:id": {
+      "tools": [
+        "taxonomy_rename_term"
+      ]
+    },
     "POST /api/admin/v1/taxonomy/terms/:id/merge/confirm": {
-      "tools": [],
-      "suggested": [
-        "taxonomy_create_term",
-        "taxonomy_execute_merge_term",
-        "taxonomy_assign_terms"
-      ]
-    },
-    "POST /api/admin/v1/taxonomy/terms/:id/merge/execute": {
-      "tools": [],
-      "suggested": [
-        "taxonomy_execute_merge_term",
-        "taxonomy_create_term",
-        "taxonomy_assign_terms"
-      ]
-    },
-    "POST /api/admin/v1/taxonomy/terms/:id/merge/plan": {
-      "tools": [],
-      "suggested": [
-        "taxonomy_plan_merge_term",
-        "taxonomy_create_term",
+      "tools": [
         "taxonomy_execute_merge_term"
       ]
     },
+    "POST /api/admin/v1/taxonomy/terms/:id/merge/execute": {
+      "tools": [
+        "taxonomy_execute_merge_term"
+      ]
+    },
+    "POST /api/admin/v1/taxonomy/terms/:id/merge/plan": {
+      "tools": [
+        "taxonomy_plan_merge_term"
+      ]
+    },
     "POST /api/admin/v1/taxonomy/unassign-terms": {
-      "tools": [],
-      "suggested": [
-        "taxonomy_create_term",
-        "taxonomy_unassign_terms",
-        "taxonomy_assign_terms"
+      "tools": [
+        "taxonomy_unassign_terms"
       ]
     },
     "GET /api/admin/v1/workspaces": {
-      "tools": []
+      "tools": [
+        "content_read.workspace"
+      ]
     },
     "POST /api/admin/v1/workspaces": {
-      "tools": []
+      "chatless": "intentional:v1 has exactly one addressable workspace; separate sites are the multi-site unit (sites_*)"
     },
     "DELETE /api/admin/v1/workspaces/:workspaceId": {
-      "tools": []
+      "chatless": "intentional:v1 has exactly one addressable workspace; separate sites are the multi-site unit (sites_*)"
     },
     "GET /api/admin/v1/workspaces/:workspaceId": {
-      "tools": []
+      "tools": [
+        "content_read.workspace"
+      ]
     },
     "PATCH /api/admin/v1/workspaces/:workspaceId": {
-      "tools": []
+      "tools": [
+        "workspace_update"
+      ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/agent-plugins": {
-      "tools": [],
-      "suggested": [
-        "content_read.plugin",
+      "tools": [
         "search_agent_plugin_local"
       ]
     },
     "PATCH /api/admin/v1/workspaces/:workspaceId/agent-plugins/:pluginId": {
-      "tools": [],
-      "suggested": [
-        "agent_plugin_set_access_token",
-        "agent_plugin_write_note",
+      "tools": [
         "plugins_set_enabled"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/agent-plugins/:pluginId/files": {
-      "tools": []
+      "tools": [
+        "fs_list_files",
+        "fs_read_file"
+      ],
+      "note": "package-file viewer; the files sit under the site root fs_list_files/fs_read_file read"
     },
     "GET /api/admin/v1/workspaces/:workspaceId/agent-plugins/:pluginId/memory": {
-      "tools": []
+      "chatless": "intentional:each installed Agent Plugin contributes its own memory read tool at runtime (features/agent-plugins/memory-tools.ts); no static tool id"
     },
     "PUT /api/admin/v1/workspaces/:workspaceId/agent-plugins/:pluginId/memory": {
-      "tools": []
-    },
-    "GET /api/admin/v1/workspaces/:workspaceId/analytics/recent-hits": {
-      "tools": [],
-      "suggested": [
-        "analytics_list_recent_hits"
+      "tools": [
+        "agent_plugin_write_note"
       ]
     },
+    "GET /api/admin/v1/workspaces/:workspaceId/analytics/recent-hits": {
+      "tools": [
+        "analytics_list_recent_hits"
+      ],
+      "note": "owner deferred analytics, but this read tool already exists"
+    },
     "DELETE /api/admin/v1/workspaces/:workspaceId/assistant/execution-credential": {
-      "tools": []
+      "chatless": "intentional:configures the assistant runtime the chat itself runs on (model/agent/key)"
     },
     "GET /api/admin/v1/workspaces/:workspaceId/assistant/execution-credential": {
-      "tools": []
+      "chatless": "intentional:configures the assistant runtime the chat itself runs on (model/agent/key)"
     },
     "PUT /api/admin/v1/workspaces/:workspaceId/assistant/execution-credential": {
-      "tools": []
+      "chatless": "intentional:configures the assistant runtime the chat itself runs on (model/agent/key)"
     },
     "POST /api/admin/v1/workspaces/:workspaceId/assistant/execution/detect-agents": {
-      "tools": []
+      "chatless": "intentional:configures the assistant runtime the chat itself runs on (model/agent/key)"
     },
     "POST /api/admin/v1/workspaces/:workspaceId/assistant/execution/models": {
-      "tools": []
+      "chatless": "intentional:configures the assistant runtime the chat itself runs on (model/agent/key)"
     },
     "POST /api/admin/v1/workspaces/:workspaceId/assistant/execution/test-agent": {
-      "tools": []
+      "chatless": "intentional:configures the assistant runtime the chat itself runs on (model/agent/key)"
     },
     "POST /api/admin/v1/workspaces/:workspaceId/assistant/execution/test-connection": {
-      "tools": []
+      "chatless": "intentional:configures the assistant runtime the chat itself runs on (model/agent/key)"
     },
     "GET /api/admin/v1/workspaces/:workspaceId/assistant/settings": {
-      "tools": []
+      "gap": "no tool reads the public site assistant settings (site.assistant.*; not a registered settings definition, so settings_get_effective cannot)"
     },
     "PUT /api/admin/v1/workspaces/:workspaceId/assistant/settings": {
-      "tools": []
+      "gap": "no tool turns the public site assistant on/off (site.assistant.*; not a registered settings definition, so settings_set_value cannot)"
     },
     "DELETE /api/admin/v1/workspaces/:workspaceId/assistant/site-credential": {
-      "tools": []
+      "chatless": "intentional:configures the assistant runtime the chat itself runs on (model/agent/key)"
     },
     "GET /api/admin/v1/workspaces/:workspaceId/assistant/site-credential": {
-      "tools": []
+      "chatless": "intentional:configures the assistant runtime the chat itself runs on (model/agent/key)"
     },
     "PUT /api/admin/v1/workspaces/:workspaceId/assistant/site-credential": {
-      "tools": []
+      "chatless": "intentional:configures the assistant runtime the chat itself runs on (model/agent/key)"
     },
     "GET /api/admin/v1/workspaces/:workspaceId/change-sets": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "change_sets_list"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/change-sets/:changeSetId": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "change_sets_list"
-      ]
+      ],
+      "note": "list only; no per-id detail read"
     },
     "POST /api/admin/v1/workspaces/:workspaceId/change-sets/:changeSetId/revert": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "change_sets_revert"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/comments/:commentId/approve": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "comments_approve_comment"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/comments/:commentId/purge": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "comments_purge_comment"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/comments/:commentId/restore": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "comments_restore_comment"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/comments/:commentId/spam": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "comments_mark_comment_spam"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/comments/:commentId/trash": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "comments_trash_comment"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/comments/queue": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "content_read.comment_moderation_queue"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/comments/settings": {
-      "tools": [],
-      "suggested": [
-        "comments_get_settings",
-        "comments_update_settings"
-      ]
-    },
-    "PUT /api/admin/v1/workspaces/:workspaceId/comments/settings": {
-      "tools": [],
-      "suggested": [
-        "comments_update_settings",
+      "tools": [
         "comments_get_settings"
       ]
     },
+    "PUT /api/admin/v1/workspaces/:workspaceId/comments/settings": {
+      "tools": [
+        "comments_update_settings"
+      ]
+    },
     "GET /api/admin/v1/workspaces/:workspaceId/commerce/status": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "commerce_get_status"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/entries/:hostEntryId/widget-embeds": {
-      "tools": []
+      "tools": [
+        "widgets_insert_embed"
+      ]
     },
     "PUT /api/admin/v1/workspaces/:workspaceId/entries/:hostEntryId/widget-embeds": {
-      "tools": []
+      "tools": [
+        "widgets_reorder_embeds"
+      ]
     },
     "DELETE /api/admin/v1/workspaces/:workspaceId/entries/:hostEntryId/widget-embeds/:placementId": {
-      "tools": []
+      "tools": [
+        "widgets_remove_embed"
+      ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/forms": {
-      "tools": [],
-      "suggested": [
-        "content_read.form_definition",
-        "forms_get_submission",
-        "forms_list_submissions"
+      "tools": [
+        "content_read.form_definition"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/forms": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "forms_create_definition"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/forms/:formId": {
-      "tools": [],
-      "suggested": [
-        "content_read.form_definition",
-        "forms_get_submission",
-        "forms_list_submissions"
+      "tools": [
+        "content_read.form_definition"
       ]
     },
     "PUT /api/admin/v1/workspaces/:workspaceId/forms/:formId": {
-      "tools": [],
-      "suggested": [
-        "forms_set_definition_status",
-        "forms_update_definition"
+      "tools": [
+        "forms_update_definition",
+        "forms_set_definition_status"
       ]
     },
     "PUT /api/admin/v1/workspaces/:workspaceId/forms/:formId/authoring": {
-      "tools": []
+      "tools": [
+        "forms_update_definition"
+      ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/forms/:formId/submissions": {
-      "tools": [],
-      "suggested": [
-        "forms_get_submission",
+      "tools": [
         "forms_list_submissions"
       ]
     },
     "DELETE /api/admin/v1/workspaces/:workspaceId/forms/:formId/submissions/:submissionId": {
-      "tools": []
+      "tools": [
+        "trash_item"
+      ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/forms/:formId/submissions/:submissionId": {
-      "tools": [],
-      "suggested": [
-        "forms_get_submission",
-        "forms_list_submissions"
+      "tools": [
+        "forms_get_submission"
       ]
     },
     "DELETE /api/admin/v1/workspaces/:workspaceId/fs-files/custom-root": {
-      "tools": []
+      "chatless": "intentional:sets which folder the chat's own file tools may read; a security boundary the owner sets, not the model"
     },
     "GET /api/admin/v1/workspaces/:workspaceId/fs-files/custom-root": {
-      "tools": []
+      "chatless": "intentional:sets which folder the chat's own file tools may read; a security boundary the owner sets, not the model"
     },
     "PUT /api/admin/v1/workspaces/:workspaceId/fs-files/custom-root": {
-      "tools": [],
-      "suggested": [
-        "custom_credential_write_files"
-      ]
+      "chatless": "intentional:sets which folder the chat's own file tools may read; a security boundary the owner sets, not the model"
     },
     "GET /api/admin/v1/workspaces/:workspaceId/integrations/subscriptions": {
-      "tools": [],
-      "suggested": [
-        "content_read.webhook_subscription",
-        "webhooks_create_subscription",
-        "webhooks_delete_subscription"
+      "tools": [
+        "content_read.webhook_subscription"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/integrations/subscriptions": {
-      "tools": [],
-      "suggested": [
-        "webhooks_create_subscription",
-        "webhooks_delete_subscription",
-        "webhooks_pause_subscription"
+      "tools": [
+        "webhooks_create_subscription"
       ]
     },
     "DELETE /api/admin/v1/workspaces/:workspaceId/integrations/subscriptions/:subscriptionId": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "webhooks_delete_subscription"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/integrations/subscriptions/:subscriptionId/deliveries": {
-      "tools": [],
-      "suggested": [
-        "webhooks_get_deliveries",
-        "content_read.webhook_subscription"
+      "tools": [
+        "webhooks_get_deliveries"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/integrations/subscriptions/:subscriptionId/pause": {
-      "tools": [],
-      "suggested": [
-        "webhooks_pause_subscription",
-        "webhooks_create_subscription",
-        "webhooks_delete_subscription"
+      "tools": [
+        "webhooks_pause_subscription"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/mcp-servers": {
-      "tools": [],
-      "suggested": [
-        "content_read.external_mcp",
-        "external_mcp_get_admissions",
-        "external_mcp_reauth_prompt"
+      "tools": [
+        "content_read.external_mcp"
       ]
     },
     "DELETE /api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "external_mcp_delete"
       ]
     },
     "PUT /api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId": {
-      "tools": []
+      "tools": [
+        "external_mcp_save"
+      ]
     },
     "DELETE /api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId/oauth": {
-      "tools": [],
-      "suggested": [
-        "external_mcp_oauth_connect",
-        "external_mcp_oauth_poll_device"
-      ]
+      "gap": "no tool disconnects an external MCP server's OAuth grant"
     },
     "POST /api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId/oauth/connect": {
-      "tools": [],
-      "suggested": [
-        "external_mcp_oauth_connect",
-        "external_mcp_oauth_poll_device"
-      ]
-    },
-    "POST /api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId/oauth/device/poll": {
-      "tools": [],
-      "suggested": [
-        "external_mcp_oauth_poll_device",
+      "tools": [
         "external_mcp_oauth_connect"
       ]
     },
+    "POST /api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId/oauth/device/poll": {
+      "tools": [
+        "external_mcp_oauth_poll_device"
+      ]
+    },
     "POST /api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId/probe": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "external_mcp_probe_connection"
       ]
     },
     "DELETE /api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId/tool-approvals/:toolName": {
-      "tools": []
+      "gap": "no tool revokes an external MCP tool's 'Always allow' approval"
     },
     "GET /api/admin/v1/workspaces/:workspaceId/mcp-servers/admissions": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "external_mcp_get_admissions"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/mcp-servers/tool-approvals": {
-      "tools": []
+      "gap": "no tool lists external MCP 'Always allow' approvals"
     },
     "GET /api/admin/v1/workspaces/:workspaceId/media": {
-      "tools": [],
-      "suggested": [
-        "content_read.media_asset",
-        "media_list_providers",
-        "media_view_image"
+      "tools": [
+        "content_read.media_asset"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/media": {
-      "tools": [],
-      "suggested": [
-        "media_import_from_url",
-        "media_import_local_file",
+      "tools": [
         "media_upload_asset"
       ]
     },
     "DELETE /api/admin/v1/workspaces/:workspaceId/media/:mediaId": {
-      "tools": [],
-      "suggested": [
-        "media_purge_asset",
-        "media_trash_asset"
+      "tools": [
+        "media_purge_asset"
       ]
     },
     "PATCH /api/admin/v1/workspaces/:workspaceId/media/:mediaId": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "media_update_metadata"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/media/:mediaId/original": {
-      "tools": []
+      "tools": [
+        "media_view_image"
+      ],
+      "note": "serves the original bytes; the chat views them through media_view_image"
     },
     "POST /api/admin/v1/workspaces/:workspaceId/media/:mediaId/replace": {
-      "tools": []
+      "gap": "no tool replaces a media asset's file in place (same id, new bytes)"
     },
     "POST /api/admin/v1/workspaces/:workspaceId/media/:mediaId/trash": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "media_trash_asset"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/media/import-url": {
-      "tools": [],
-      "suggested": [
-        "media_import_from_url",
-        "media_import_local_file"
+      "tools": [
+        "media_import_from_url"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/media/providers": {
-      "tools": [],
-      "suggested": [
-        "media_list_providers",
-        "media_propose_provider_credential"
-      ]
-    },
-    "PUT /api/admin/v1/workspaces/:workspaceId/media/providers": {
-      "tools": [],
-      "suggested": [
-        "media_propose_provider_credential",
+      "tools": [
         "media_list_providers"
       ]
     },
+    "PUT /api/admin/v1/workspaces/:workspaceId/media/providers": {
+      "tools": [
+        "media_propose_provider_credential"
+      ]
+    },
     "GET /api/admin/v1/workspaces/:workspaceId/members": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "content_read.member"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/members/:memberId": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "content_read.member"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/members/:memberId/disable": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "members_disable"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/members/request-magic-link": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "members_request_magic_link"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/menus": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "content_read.menu"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/menus": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "menus_create_menu"
       ]
     },
     "DELETE /api/admin/v1/workspaces/:workspaceId/menus/:menuId": {
-      "tools": []
+      "gap": "in progress: trash_item (menu kind not in its entityType enum yet)"
     },
     "GET /api/admin/v1/workspaces/:workspaceId/menus/:menuId": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "content_read.menu"
       ]
     },
     "PUT /api/admin/v1/workspaces/:workspaceId/menus/:menuId": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "menus_update_menu_tree"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/menus/:menuId/locations": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "menus_assign_location"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/newsletter/campaigns": {
-      "tools": [],
-      "suggested": [
-        "content_read.newsletter_campaign",
-        "newsletter_cancel_campaign",
-        "newsletter_create_campaign"
+      "tools": [
+        "content_read.newsletter_campaign"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/newsletter/campaigns": {
-      "tools": [],
-      "suggested": [
-        "newsletter_create_campaign",
-        "newsletter_cancel_campaign",
-        "newsletter_pause_campaign"
+      "tools": [
+        "newsletter_create_campaign"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/newsletter/campaigns/:id": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "content_read.newsletter_campaign"
       ]
     },
     "PATCH /api/admin/v1/workspaces/:workspaceId/newsletter/campaigns/:id": {
-      "tools": [],
-      "suggested": [
-        "newsletter_update_campaign",
-        "newsletter_cancel_campaign",
-        "newsletter_create_campaign"
+      "tools": [
+        "newsletter_update_campaign"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/newsletter/campaigns/:id/cancel": {
-      "tools": [],
-      "suggested": [
-        "newsletter_cancel_campaign",
-        "newsletter_create_campaign",
-        "newsletter_pause_campaign"
+      "tools": [
+        "newsletter_cancel_campaign"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/newsletter/campaigns/:id/pause": {
-      "tools": [],
-      "suggested": [
-        "newsletter_pause_campaign",
-        "newsletter_create_campaign",
-        "newsletter_cancel_campaign"
+      "tools": [
+        "newsletter_pause_campaign"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/newsletter/campaigns/:id/resume": {
-      "tools": [],
-      "suggested": [
-        "newsletter_resume_campaign",
-        "newsletter_create_campaign",
-        "newsletter_cancel_campaign"
+      "tools": [
+        "newsletter_resume_campaign"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/newsletter/campaigns/:id/schedule": {
-      "tools": [],
-      "suggested": [
-        "newsletter_schedule_campaign",
-        "newsletter_create_campaign",
-        "newsletter_cancel_campaign"
+      "tools": [
+        "newsletter_schedule_campaign"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/newsletter/campaigns/:id/send": {
-      "tools": [],
-      "suggested": [
-        "newsletter_send_campaign",
-        "newsletter_send_test",
-        "newsletter_create_campaign"
+      "tools": [
+        "newsletter_send_campaign"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/newsletter/campaigns/:id/send-test": {
-      "tools": [],
-      "suggested": [
-        "newsletter_send_test",
-        "newsletter_create_campaign",
-        "newsletter_send_campaign"
+      "tools": [
+        "newsletter_send_test"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/newsletter/campaigns/:id/sends": {
-      "tools": [],
-      "suggested": [
-        "newsletter_list_send_log",
-        "content_read.newsletter_campaign",
-        "newsletter_send_campaign"
+      "tools": [
+        "newsletter_list_send_log"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/newsletter/lists": {
-      "tools": [],
-      "suggested": [
-        "content_read.newsletter_list",
-        "newsletter_list_send_log",
-        "newsletter_list_subscriptions"
-      ]
-    },
-    "POST /api/admin/v1/workspaces/:workspaceId/newsletter/lists": {
-      "tools": [],
-      "suggested": [
-        "newsletter_create_list",
-        "newsletter_archive_list",
+      "tools": [
         "content_read.newsletter_list"
       ]
     },
+    "POST /api/admin/v1/workspaces/:workspaceId/newsletter/lists": {
+      "tools": [
+        "newsletter_create_list"
+      ]
+    },
     "POST /api/admin/v1/workspaces/:workspaceId/newsletter/lists/:id/archive": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "newsletter_archive_list"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/newsletter/lists/:listId/subscriptions": {
-      "tools": [],
-      "suggested": [
-        "newsletter_list_subscriptions",
-        "content_read.newsletter_list",
-        "newsletter_list_send_log"
+      "tools": [
+        "newsletter_list_subscriptions"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/newsletter/lists/:listId/subscriptions": {
-      "tools": [],
-      "suggested": [
-        "newsletter_create_subscription",
-        "newsletter_remove_subscription",
-        "newsletter_create_list"
+      "tools": [
+        "newsletter_create_subscription"
       ]
     },
     "DELETE /api/admin/v1/workspaces/:workspaceId/newsletter/lists/:listId/subscriptions/:id": {
-      "tools": [],
-      "suggested": [
-        "newsletter_archive_list",
+      "tools": [
         "newsletter_remove_subscription"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/newsletter/lists/:listId/subscriptions/import": {
-      "tools": [],
-      "suggested": [
-        "newsletter_create_list",
-        "newsletter_create_subscription",
-        "newsletter_archive_list"
-      ]
+      "gap": "no tool bulk-imports subscribers (newsletter_create_subscription is one at a time)"
     },
     "POST /api/admin/v1/workspaces/:workspaceId/newsletter/subscriptions/:id/resend-confirmation": {
-      "tools": [],
-      "suggested": [
-        "newsletter_resend_confirmation",
-        "newsletter_create_subscription",
-        "newsletter_remove_subscription"
+      "tools": [
+        "newsletter_resend_confirmation"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/pages": {
-      "tools": [],
-      "suggested": [
-        "fetch_published_page",
-        "pages_read_html",
-        "site_collect_page_evidence"
+      "tools": [
+        "content_read.content_post"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/pages": {
-      "tools": []
+      "tools": [
+        "content_post_create"
+      ]
     },
     "DELETE /api/admin/v1/workspaces/:workspaceId/pages/:pageId": {
-      "tools": []
+      "tools": [
+        "content_post_delete"
+      ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/pages/:pageId": {
-      "tools": [],
-      "suggested": [
-        "fetch_published_page",
-        "pages_read_html",
-        "site_collect_page_evidence"
+      "tools": [
+        "content_read.content_post"
       ]
     },
     "PUT /api/admin/v1/workspaces/:workspaceId/pages/:pageId": {
-      "tools": [],
-      "suggested": [
-        "pages_write_html",
-        "pages_write_region",
-        "theme_set_page_published"
-      ]
+      "tools": [
+        "content_post_update"
+      ],
+      "note": "partial: route also takes publishAt, featuredMediaId, templateChoice, overridesThemePage; content_post_update's schema has none of them"
     },
     "PUT /api/admin/v1/workspaces/:workspaceId/pages/:pageId/html": {
-      "tools": [],
-      "suggested": [
-        "pages_write_html",
-        "pages_read_html"
+      "tools": [
+        "pages_write_html"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/plugins": {
-      "tools": [],
-      "suggested": [
-        "content_read.plugin",
-        "search_agent_plugin_local"
+      "tools": [
+        "content_read.plugin"
       ]
     },
     "DELETE /api/admin/v1/workspaces/:workspaceId/plugins/:pluginId": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "plugins_uninstall"
       ]
     },
     "PATCH /api/admin/v1/workspaces/:workspaceId/plugins/:pluginId": {
-      "tools": [],
-      "suggested": [
-        "agent_plugin_set_access_token",
-        "agent_plugin_write_note",
+      "tools": [
         "plugins_set_enabled"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/plugins/:pluginId/files": {
-      "tools": []
+      "tools": [
+        "fs_list_files",
+        "fs_read_file"
+      ],
+      "note": "package-file viewer; the files sit under the site root fs_list_files/fs_read_file read"
     },
     "GET /api/admin/v1/workspaces/:workspaceId/plugins/:pluginId/preview": {
-      "tools": []
+      "gap": "no tool runs a plugin's Analyze preview (content.entry.beforeSave filter on a draft)"
     },
     "POST /api/admin/v1/workspaces/:workspaceId/plugins/:pluginId/preview": {
-      "tools": []
+      "gap": "no tool runs a plugin's Analyze preview (content.entry.beforeSave filter on a draft)"
     },
     "POST /api/admin/v1/workspaces/:workspaceId/plugins/install": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "plugins_install"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/plugins/install/preview": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "plugins_install"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/plugins/install/zip": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "plugins_install"
-      ]
+      ],
+      "note": "route takes uploaded zip bytes; the tool installs the same .zip from a local path"
     },
     "POST /api/admin/v1/workspaces/:workspaceId/plugins/install/zip/preview": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "plugins_install"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/policies": {
-      "tools": [],
-      "suggested": [
-        "content_read.identity_policy",
-        "identity_policy_list_permissions"
+      "tools": [
+        "content_read.identity_policy"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/policies": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "identity_policy_create"
       ]
     },
     "DELETE /api/admin/v1/workspaces/:workspaceId/policies/:policyId": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "identity_policy_delete"
       ]
     },
     "PATCH /api/admin/v1/workspaces/:workspaceId/policies/:policyId": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "identity_policy_update"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/policies/:policyId/permissions": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "identity_policy_list_permissions"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/policies/:policyId/permissions": {
-      "tools": [],
-      "suggested": [
-        "identity_policy_list_permissions"
-      ]
+      "gap": "no tool adds a permission to a custom policy (identity_policy_update only renames)"
     },
     "DELETE /api/admin/v1/workspaces/:workspaceId/policies/:policyId/permissions/:policyPermissionId": {
-      "tools": []
+      "gap": "no tool removes a permission from a custom policy"
     },
     "GET /api/admin/v1/workspaces/:workspaceId/posts": {
-      "tools": [],
-      "suggested": [
-        "content_post_preview",
-        "content_post_search",
-        "content_read.content_post"
+      "tools": [
+        "content_read.content_post",
+        "content_post_search"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/posts": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "content_post_create"
       ]
     },
     "DELETE /api/admin/v1/workspaces/:workspaceId/posts/:postId": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "content_post_delete"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/posts/:postId": {
-      "tools": [],
-      "suggested": [
-        "content_post_preview",
-        "content_post_search",
+      "tools": [
         "content_read.content_post"
       ]
     },
     "PUT /api/admin/v1/workspaces/:workspaceId/posts/:postId": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "content_post_update"
-      ]
+      ],
+      "note": "partial: route also takes publishAt (schedule), featuredMediaId, templateChoice, overridesThemePage; content_post_update's schema has none of them (in progress: post schedule/featured image tool)"
     },
     "DELETE /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave": {
-      "tools": []
+      "chatless": "intentional:editor's unsaved-draft buffer; the chat saves directly with content_post_update"
     },
     "GET /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave": {
-      "tools": []
+      "chatless": "intentional:editor's unsaved-draft buffer; the chat saves directly with content_post_update"
     },
     "PUT /api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave": {
-      "tools": []
+      "chatless": "intentional:editor's unsaved-draft buffer; the chat saves directly with content_post_update"
     },
     "GET /api/admin/v1/workspaces/:workspaceId/posts/:postId/template-preview": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "content_post_preview"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/posts/:postId/template-preview": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "content_post_preview"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/presentation": {
-      "tools": []
-    },
-    "PATCH /api/admin/v1/workspaces/:workspaceId/presentation": {
-      "tools": []
-    },
-    "POST /api/admin/v1/workspaces/:workspaceId/publish-content/backstop": {
-      "tools": [],
-      "suggested": [
-        "publish_backstop_gaps"
+      "tools": [
+        "site_get_profile",
+        "content_read.theme"
       ]
     },
+    "PATCH /api/admin/v1/workspaces/:workspaceId/presentation": {
+      "tools": [
+        "theme_set_active"
+      ]
+    },
+    "POST /api/admin/v1/workspaces/:workspaceId/publish-content/backstop": {
+      "gap": "no tool hand-sends an item publishing does not cover (backstop); publish_backstop_gaps only reads"
+    },
     "GET /api/admin/v1/workspaces/:workspaceId/publish-content/backstop/gaps": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "publish_backstop_gaps"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/publish-content/backstop/status": {
-      "tools": [],
-      "suggested": [
-        "publish_content_status",
-        "publish_backstop_gaps"
-      ]
+      "gap": "no tool reports whether the backstop (hand-send) is allowed here"
     },
     "GET /api/admin/v1/workspaces/:workspaceId/publish-content/blobs/:sha": {
-      "tools": []
+      "chatless": "intentional:peer-to-peer publish transport called by the other Tovu instance; publish_content_publish / publish_content_plan_pull drive it"
     },
     "PUT /api/admin/v1/workspaces/:workspaceId/publish-content/blobs/:sha": {
-      "tools": []
+      "chatless": "intentional:peer-to-peer publish transport called by the other Tovu instance; publish_content_publish / publish_content_plan_pull drive it"
     },
     "POST /api/admin/v1/workspaces/:workspaceId/publish-content/blobs/probe": {
-      "tools": []
+      "chatless": "intentional:peer-to-peer publish transport called by the other Tovu instance; publish_content_publish / publish_content_plan_pull drive it"
     },
     "POST /api/admin/v1/workspaces/:workspaceId/publish-content/bundles": {
-      "tools": []
+      "chatless": "intentional:peer-to-peer publish transport called by the other Tovu instance; publish_content_publish / publish_content_plan_pull drive it"
     },
     "GET /api/admin/v1/workspaces/:workspaceId/publish-content/capabilities": {
-      "tools": [],
-      "suggested": [
-        "deployment_get_static_publish_capabilities"
-      ]
+      "chatless": "intentional:Publish dialog's type catalog; publish_content_publish validates the same types itself"
     },
     "GET /api/admin/v1/workspaces/:workspaceId/publish-content/destination": {
-      "tools": []
+      "tools": [
+        "publish_content_status"
+      ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/publish-content/destination/connect": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "publish_content_connect"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/publish-content/destination/disconnect": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "publish_content_disconnect"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/publish-content/export": {
-      "tools": []
+      "chatless": "intentional:peer-to-peer publish transport called by the other Tovu instance; publish_content_publish / publish_content_plan_pull drive it"
     },
     "POST /api/admin/v1/workspaces/:workspaceId/publish-content/import/confirm": {
-      "tools": []
+      "tools": [
+        "publish_content_execute_pull"
+      ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/publish-content/import/execute": {
-      "tools": [],
-      "suggested": [
-        "deployment_execute_static_publish",
+      "tools": [
         "publish_content_execute_pull"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/publish-content/import/plan": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "publish_content_plan_pull"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/publish-content/peers": {
-      "tools": []
+      "gap": "no tool lists named publish peers (chat only sees the one live destination via publish_content_status)"
     },
     "POST /api/admin/v1/workspaces/:workspaceId/publish-content/peers": {
-      "tools": []
+      "gap": "no tool adds a named publish peer with its own credential (publish_content_connect covers only the live destination)"
     },
     "DELETE /api/admin/v1/workspaces/:workspaceId/publish-content/peers/:peerId": {
-      "tools": []
+      "gap": "no tool removes a named publish peer (publish_content_disconnect covers only the live destination)"
     },
     "PATCH /api/admin/v1/workspaces/:workspaceId/publish-content/peers/:peerId": {
-      "tools": []
+      "gap": "no tool renames a publish peer or rotates its credential"
     },
     "POST /api/admin/v1/workspaces/:workspaceId/publish-content/peers/:peerId/pull": {
-      "tools": [],
-      "suggested": [
-        "publish_content_execute_pull",
+      "tools": [
         "publish_content_plan_pull"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/publish-content/peers/:peerId/push/confirm": {
-      "tools": []
+      "tools": [
+        "publish_content_publish"
+      ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/publish-content/peers/:peerId/push/execute": {
-      "tools": [],
-      "suggested": [
-        "deployment_execute_static_publish",
-        "publish_content_execute_pull"
+      "tools": [
+        "publish_content_publish"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/publish-content/peers/:peerId/push/plan": {
-      "tools": [],
-      "suggested": [
-        "publish_content_plan_pull"
+      "tools": [
+        "publish_content_publish"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/publish-content/runs/:runId": {
-      "tools": []
+      "chatless": "intentional:run-status poll; publish_content_publish / publish_content_execute_pull return the run status inline"
     },
     "GET /api/admin/v1/workspaces/:workspaceId/publish-content/runs/:runId/backstop": {
-      "tools": [],
-      "suggested": [
-        "publish_backstop_gaps"
-      ]
+      "gap": "no tool reads a run's backstop log"
     },
     "POST /api/admin/v1/workspaces/:workspaceId/publish-content/runs/:runId/undo-backstop": {
-      "tools": [],
-      "suggested": [
-        "publish_backstop_gaps"
-      ]
+      "gap": "no tool undoes a backstop hand-send"
     },
     "GET /api/admin/v1/workspaces/:workspaceId/redirects": {
-      "tools": [],
-      "suggested": [
-        "content_read.redirect",
-        "redirects_get_hits"
+      "tools": [
+        "content_read.redirect"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/redirects": {
-      "tools": [],
-      "suggested": [
-        "redirects_create",
-        "redirects_import"
+      "tools": [
+        "redirects_create"
       ]
     },
     "DELETE /api/admin/v1/workspaces/:workspaceId/redirects/:id": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "redirects_tombstone"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/redirects/:id": {
-      "tools": [],
-      "suggested": [
-        "content_read.redirect",
-        "redirects_get_hits"
+      "tools": [
+        "content_read.redirect"
       ]
     },
     "PATCH /api/admin/v1/workspaces/:workspaceId/redirects/:id": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "redirects_update"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/redirects/:id/hits": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "redirects_get_hits"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/redirects/import": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "redirects_import"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/roles": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "content_read.identity_role"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/roles": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "identity_role_create"
       ]
     },
     "DELETE /api/admin/v1/workspaces/:workspaceId/roles/:roleId": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "identity_role_delete"
       ]
     },
     "PATCH /api/admin/v1/workspaces/:workspaceId/roles/:roleId": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "identity_role_rename"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/seo/entries/:entryId": {
-      "tools": [],
-      "suggested": [
-        "content_read.seo_entry_meta",
-        "seo_analyze_entry"
+      "tools": [
+        "content_read.seo_entry_meta"
       ]
     },
     "PUT /api/admin/v1/workspaces/:workspaceId/seo/entries/:entryId": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "seo_set_entry_overrides"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/seo/entries/:entryId/analyze": {
-      "tools": [],
-      "suggested": [
-        "seo_analyze_entry",
-        "content_read.seo_entry_meta"
+      "tools": [
+        "seo_analyze_entry"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/seo/settings": {
-      "tools": [],
-      "suggested": [
-        "seo_get_settings",
-        "seo_set_settings"
-      ]
-    },
-    "PUT /api/admin/v1/workspaces/:workspaceId/seo/settings": {
-      "tools": [],
-      "suggested": [
-        "seo_set_settings",
+      "tools": [
         "seo_get_settings"
       ]
     },
+    "PUT /api/admin/v1/workspaces/:workspaceId/seo/settings": {
+      "tools": [
+        "seo_set_settings"
+      ]
+    },
     "POST /api/admin/v1/workspaces/:workspaceId/seo/sitemap/regenerate": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "seo_regenerate_sitemap"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/settings/definitions": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "content_read.setting_definition"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/settings/definitions": {
-      "tools": [],
-      "suggested": [
-        "content_read.setting_definition"
-      ]
+      "gap": "no tool registers/renames/retypes/tombstones a site-owned setting definition"
     },
     "GET /api/admin/v1/workspaces/:workspaceId/settings/effective": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "settings_get_effective"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/settings/events": {
-      "tools": [],
-      "suggestedChatless": "streaming-transport"
+      "chatless": "streaming-transport"
     },
     "GET /api/admin/v1/workspaces/:workspaceId/settings/raw": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "settings_get_raw"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/settings/reset": {
-      "tools": []
+      "gap": "no tool resets a whole settings namespace (settings_clear_value clears one key)"
     },
     "DELETE /api/admin/v1/workspaces/:workspaceId/settings/value": {
-      "tools": [],
-      "suggested": [
-        "settings_clear_value",
-        "settings_set_value"
-      ]
-    },
-    "PUT /api/admin/v1/workspaces/:workspaceId/settings/value": {
-      "tools": [],
-      "suggested": [
-        "settings_set_value",
+      "tools": [
         "settings_clear_value"
       ]
     },
+    "PUT /api/admin/v1/workspaces/:workspaceId/settings/value": {
+      "tools": [
+        "settings_set_value"
+      ]
+    },
     "GET /api/admin/v1/workspaces/:workspaceId/site/profile": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "site_get_profile"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/skills": {
-      "tools": []
+      "gap": "no tool lists installed skills with their enabled state"
     },
     "POST /api/admin/v1/workspaces/:workspaceId/skills": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "skills_install"
       ]
     },
     "DELETE /api/admin/v1/workspaces/:workspaceId/skills/:toolId": {
-      "tools": []
+      "gap": "no tool uninstalls a skill"
     },
     "PATCH /api/admin/v1/workspaces/:workspaceId/skills/:toolId": {
-      "tools": []
+      "gap": "no tool enables/disables an installed skill"
     },
     "GET /api/admin/v1/workspaces/:workspaceId/skills/:toolId/files": {
-      "tools": []
+      "tools": [
+        "fs_list_files",
+        "fs_read_file"
+      ],
+      "note": "package-file viewer; the files sit under the site root fs_list_files/fs_read_file read"
     },
     "GET /api/admin/v1/workspaces/:workspaceId/skills/:toolId/guidance": {
-      "tools": []
+      "chatless": "intentional:each installed skill is itself a chat tool whose call returns this guidance"
     },
     "POST /api/admin/v1/workspaces/:workspaceId/system/assistant-daemon/restart": {
-      "tools": []
+      "chatless": "intentional:restarts the daemon the chat itself runs on; on-demand recovery already restarts it automatically"
     },
     "GET /api/admin/v1/workspaces/:workspaceId/system/custom/credentials": {
-      "tools": [],
-      "suggested": [
-        "content_read.custom_credential",
-        "custom_credential_verify",
-        "custom_credential_create"
+      "tools": [
+        "content_read.custom_credential"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/system/custom/credentials": {
-      "tools": [],
-      "suggested": [
-        "custom_credential_create",
-        "custom_credential_delete",
-        "custom_credential_make_request"
+      "tools": [
+        "custom_credential_create"
       ]
     },
     "DELETE /api/admin/v1/workspaces/:workspaceId/system/custom/credentials/:id": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "custom_credential_delete"
       ]
     },
     "PUT /api/admin/v1/workspaces/:workspaceId/system/custom/credentials/:id": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "custom_credential_set_token",
-        "custom_credential_set_username",
-        "custom_credential_write_files"
+        "custom_credential_set_username"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/system/deployment-overview": {
-      "tools": [],
-      "suggested": [
-        "deployment_generate_bucket_hosting_setup",
-        "deployment_get_dockerfile",
-        "deployment_get_export_status"
-      ]
+      "gap": "no tool reads the Deployment Overview snapshot (how this instance runs: runtime, site-key source, default-password warning)"
     },
     "GET /api/admin/v1/workspaces/:workspaceId/system/dockerfile": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "deployment_get_dockerfile"
       ]
     },
     "PUT /api/admin/v1/workspaces/:workspaceId/system/dockerfile": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "deployment_set_dockerfile"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/system/export": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "deployment_get_export_status"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/system/export": {
-      "tools": []
+      "tools": [
+        "deployment_trigger_export"
+      ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/system/mail-status": {
-      "tools": [],
-      "suggested": [
-        "commerce_get_status",
-        "database_transfer_status",
-        "deployment_get_export_status"
+      "tools": [
+        "system_get_mail_status"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/system/module-status": {
-      "tools": [],
-      "suggested": [
-        "commerce_get_status",
-        "database_transfer_status",
-        "deployment_get_export_status"
-      ]
+      "gap": "no tool reads the boot module-status list (each module's lifecycle status)"
     },
     "GET /api/admin/v1/workspaces/:workspaceId/system/observability-status": {
-      "tools": [],
-      "suggested": [
-        "commerce_get_status",
-        "database_transfer_status",
-        "deployment_get_export_status"
-      ]
+      "gap": "no tool reports whether OpenTelemetry export is on"
     },
     "GET /api/admin/v1/workspaces/:workspaceId/system/publish": {
-      "tools": [],
-      "suggested": [
-        "deployment_get_static_publish_capabilities",
-        "deployment_preview_static_publish",
-        "publish_backstop_gaps"
-      ]
+      "chatless": "intentional:run-status poll; deployment_execute_static_publish runs the publish synchronously and returns the result"
     },
     "POST /api/admin/v1/workspaces/:workspaceId/system/publish": {
-      "tools": []
+      "tools": [
+        "deployment_execute_static_publish"
+      ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/system/publish-targets": {
-      "tools": [],
-      "suggested": [
-        "deployment_get_static_publish_capabilities",
-        "deployment_ops_list_targets",
-        "deployment_preview_static_publish"
+      "tools": [
+        "deployment_get_static_publish_capabilities"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/system/publish/credentials": {
-      "tools": []
+      "tools": [
+        "deployment_get_static_publish_capabilities"
+      ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/system/publish/credentials": {
-      "tools": []
+      "tools": [
+        "deployment_propose_custom_provider_credential"
+      ]
     },
     "DELETE /api/admin/v1/workspaces/:workspaceId/system/publish/credentials/:id": {
-      "tools": []
+      "tools": [
+        "deployment_delete_provider_credential"
+      ]
     },
     "PUT /api/admin/v1/workspaces/:workspaceId/system/publish/credentials/:id": {
-      "tools": []
+      "tools": [
+        "deployment_propose_custom_provider_credential"
+      ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/system/publish/credentials/:id/verify": {
-      "tools": []
+      "gap": "no tool re-verifies a saved static-publish credential against its host"
     },
     "GET /api/admin/v1/workspaces/:workspaceId/system/publish/preview": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "deployment_preview_static_publish"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/system/server-logs": {
-      "tools": [],
-      "suggested": [
-        "deployment_ops_logs",
-        "newsletter_list_send_log",
-        "system_read_server_logs"
-      ]
+      "gap": "in progress: system_read_server_logs"
     },
     "GET /api/admin/v1/workspaces/:workspaceId/system/site-key": {
-      "tools": [],
-      "suggested": [
-        "site_backup_plan",
-        "site_collect_page_evidence",
-        "site_describe_capabilities"
-      ]
+      "chatless": "intentional:site root key ceremony: secret key material, owner-only, never through the model"
     },
     "POST /api/admin/v1/workspaces/:workspaceId/system/site-key/generate": {
-      "tools": []
+      "chatless": "intentional:site root key ceremony: secret key material, owner-only, never through the model"
     },
     "POST /api/admin/v1/workspaces/:workspaceId/system/site-key/import": {
-      "tools": []
+      "chatless": "intentional:site root key ceremony: secret key material, owner-only, never through the model"
     },
     "POST /api/admin/v1/workspaces/:workspaceId/system/site-key/reveal": {
-      "tools": []
+      "chatless": "intentional:site root key ceremony: secret key material, owner-only, never through the model"
     },
     "GET /api/admin/v1/workspaces/:workspaceId/system/site-key/start-fresh": {
-      "tools": []
+      "chatless": "intentional:site root key ceremony: secret key material, owner-only, never through the model"
     },
     "POST /api/admin/v1/workspaces/:workspaceId/system/site-key/start-fresh": {
-      "tools": []
+      "chatless": "intentional:site root key ceremony: secret key material, owner-only, never through the model"
     },
     "GET /api/admin/v1/workspaces/:workspaceId/system/sites": {
-      "tools": [],
-      "suggested": [
-        "site_backup_plan",
-        "site_collect_page_evidence",
-        "site_describe_capabilities"
+      "tools": [
+        "sites_list"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/system/sites": {
-      "tools": [],
-      "suggested": [
-        "sites_create_site"
-      ]
+      "gap": "in progress: sites_create_site"
     },
     "POST /api/admin/v1/workspaces/:workspaceId/system/sites/:name/activate": {
-      "tools": []
+      "gap": "in progress: sites_switch_site"
     },
     "GET /api/admin/v1/workspaces/:workspaceId/system/sites/token-sign-in-plugins": {
-      "tools": []
+      "gap": "in progress: sites_create_site (new-site Agent Plugin token sign-in list)"
     },
     "GET /api/admin/v1/workspaces/:workspaceId/system/source-control/credentials": {
-      "tools": [],
-      "suggested": [
-        "source_control_delete_credential",
-        "source_control_propose_credential"
+      "tools": [
+        "source_control_get_capabilities"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/system/source-control/credentials": {
-      "tools": [],
-      "suggested": [
-        "source_control_delete_credential",
+      "tools": [
         "source_control_propose_credential"
       ]
     },
     "DELETE /api/admin/v1/workspaces/:workspaceId/system/source-control/credentials/:id": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "source_control_delete_credential"
       ]
     },
     "PUT /api/admin/v1/workspaces/:workspaceId/system/source-control/credentials/:id": {
-      "tools": [],
-      "suggested": [
-        "source_control_delete_credential",
+      "tools": [
         "source_control_propose_credential"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/system/source-control/providers": {
-      "tools": []
+      "tools": [
+        "source_control_get_capabilities"
+      ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/themes": {
-      "tools": [],
-      "suggested": [
-        "content_read.theme",
-        "theme_list_files",
-        "theme_read_file"
+      "tools": [
+        "content_read.theme"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/themes/:themeId": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "content_read.theme",
-        "theme_list_files",
-        "theme_read_file"
+        "theme_list_files"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/themes/:themeId/file": {
-      "tools": [],
-      "suggested": [
-        "theme_list_files",
-        "theme_read_file",
-        "theme_copy_file"
+      "tools": [
+        "theme_read_file"
       ]
     },
     "PUT /api/admin/v1/workspaces/:workspaceId/themes/:themeId/file": {
-      "tools": [],
-      "suggested": [
-        "theme_edit_file",
-        "theme_rename_file",
-        "theme_write_file"
+      "tools": [
+        "theme_write_file",
+        "theme_edit_file"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/themes/:themeId/file/copy": {
-      "tools": [],
-      "suggested": [
-        "theme_copy_file",
-        "theme_edit_file",
-        "theme_rename_file"
+      "tools": [
+        "theme_copy_file"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/themes/:themeId/file/delete": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "theme_trash_file"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/themes/:themeId/file/rename": {
-      "tools": [],
-      "suggested": [
-        "theme_rename_file",
-        "theme_copy_file",
-        "theme_edit_file"
+      "tools": [
+        "theme_rename_file"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/themes/:themeId/file/reset": {
-      "tools": [],
-      "suggested": [
-        "theme_reset_file",
-        "theme_copy_file",
-        "theme_edit_file"
+      "tools": [
+        "theme_reset_file"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/themes/:themeId/page/publish": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "theme_set_page_published"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/themes/rescan": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "theme_rescan"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/trash": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "trash_list_items"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/trash/items": {
-      "tools": [],
-      "suggested": [
-        "trash_item",
-        "trash_purge_item",
-        "trash_restore_item"
+      "tools": [
+        "trash_item"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/trash/purge": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "trash_purge_item"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/trash/restore": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "trash_restore_item"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/users": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "content_read.identity_user"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/users": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "identity_user_create"
       ]
     },
     "DELETE /api/admin/v1/workspaces/:workspaceId/users/:principalId": {
-      "tools": [],
-      "suggested": [
-        "identity_user_delete"
+      "tools": [
+        "trash_item"
       ]
     },
     "PATCH /api/admin/v1/workspaces/:workspaceId/users/:principalId": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "identity_user_update_email"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/users/:principalId/disable": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "identity_user_disable"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/users/:principalId/enable": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "identity_user_enable"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/users/:principalId/policies": {
-      "tools": []
+      "tools": [
+        "identity_policy_attach"
+      ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/users/:principalId/reset-password": {
-      "tools": []
+      "gap": "no tool resets another user's password (needs an in-chat secret form so the password never reaches the model)"
     },
     "POST /api/admin/v1/workspaces/:workspaceId/users/:principalId/roles": {
-      "tools": []
+      "tools": [
+        "identity_role_assign"
+      ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/widgets": {
-      "tools": [],
-      "suggested": [
-        "content_read.widget_instance",
-        "content_read.widget_region"
+      "tools": [
+        "content_read.widget_instance"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/widgets": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "widgets_create_instance"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/widgets/:id": {
-      "tools": [],
-      "suggested": [
-        "content_read.widget_instance",
-        "content_read.widget_region"
+      "tools": [
+        "content_read.widget_instance"
       ]
     },
     "PUT /api/admin/v1/workspaces/:workspaceId/widgets/:id": {
-      "tools": [],
-      "suggested": [
-        "widgets_set_region_placements",
+      "tools": [
         "widgets_update_instance"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/widgets/:id/trash": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "widgets_trash_instance"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/widgets/regions": {
-      "tools": [],
-      "suggested": [
-        "content_read.widget_region",
-        "widgets_bind_region",
-        "widgets_set_region_placements"
-      ]
-    },
-    "POST /api/admin/v1/workspaces/:workspaceId/widgets/regions": {
-      "tools": [],
-      "suggested": [
-        "widgets_bind_region",
-        "widgets_set_region_placements",
+      "tools": [
         "content_read.widget_region"
       ]
     },
+    "POST /api/admin/v1/workspaces/:workspaceId/widgets/regions": {
+      "tools": [
+        "widgets_bind_region"
+      ]
+    },
     "GET /api/admin/v1/workspaces/:workspaceId/widgets/regions/:regionKey": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "content_read.widget_region"
       ]
     },
     "PUT /api/admin/v1/workspaces/:workspaceId/widgets/regions/:regionKey": {
-      "tools": [],
-      "suggested": [
-        "widgets_set_region_placements",
-        "widgets_bind_region"
+      "tools": [
+        "widgets_set_region_placements"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/widgets/tools/create": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "widgets_create_instance"
       ]
     },
     "GET /api/admin/v1/workspaces/:workspaceId/widgets/tools/diagnose/:widgetInstanceId": {
-      "tools": []
+      "tools": [
+        "content_read.widget_instance"
+      ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/widgets/tools/place": {
-      "tools": []
+      "tools": [
+        "widgets_insert_embed",
+        "widgets_set_region_placements"
+      ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/widgets/tools/remove": {
-      "tools": [],
-      "suggested": [
+      "tools": [
         "widgets_remove_embed"
       ]
     }
