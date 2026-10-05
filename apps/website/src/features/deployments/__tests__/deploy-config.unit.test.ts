@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mkdirSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -37,13 +37,22 @@ test("buildDeploymentDescriptor: secrets are declared by name only, with the boo
   // container redeploy).
   assert.deepEqual(descriptor.secrets, [
     { name: "TOVU_ADMIN_PASSWORD", requirement: "boot-blocking" },
-    { name: "ANALYTICS_ANALYTICS_SEED", requirement: "boot-blocking" },
+    { name: "ANALYTICS_ROOT_KEY_SEED", requirement: "boot-blocking" },
     { name: "TOVU_SITE_KEY", requirement: "boot-blocking" },
   ]);
   // Deliberately excluded — see deploy-config.ts's own REQUIRED_SECRETS doc for why.
   const names = descriptor.secrets.map((s) => s.name);
   assert.ok(!names.includes("TOVU_ADMIN_USER"));
   assert.ok(!names.includes("JINI_AGENT_DAEMON_PORT"));
+});
+
+test("buildDeploymentDescriptor: each boot-blocking env secret is one the real boot gate reads by that exact name", () => {
+  // A rename once declared `ANALYTICS_ANALYTICS_SEED` while the gate still read
+  // `ANALYTICS_ROOT_KEY_SEED`: an operator setting every declared secret got `dev-secret-placeholder`
+  // and a refused boot. `TOVU_SITE_KEY` is resolved through `siteKeySources`, not a direct read.
+  const gate = readFileSync(path.join(process.cwd(), "apps/website/src/server/runtime/boot/boot-readiness-gate.ts"), "utf8");
+  const direct = buildDeploymentDescriptor().secrets.filter((s) => s.requirement === "boot-blocking" && s.name !== "TOVU_SITE_KEY");
+  assert.deepEqual(direct.filter((s) => !gate.includes(`process.env.${s.name}`)).map((s) => s.name), []);
 });
 
 test("buildDeploymentDescriptor: called twice returns the same values (no hidden mutable state)", () => {

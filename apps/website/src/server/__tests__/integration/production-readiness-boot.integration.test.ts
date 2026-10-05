@@ -22,7 +22,7 @@ async function withComposedSite(
 ): Promise<void> {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-production-composition-"));
   const cwd = process.cwd();
-  const names = ["TOVU_RUNTIME_MODE", "TOVU_ADMIN_PASSWORD", "ANALYTICS_ANALYTICS_SEED", "TOVU_SITE_KEY", LEGACY_SITE_KEY_ENV_VAR_NAME];
+  const names = ["TOVU_RUNTIME_MODE", "TOVU_ADMIN_PASSWORD", "ANALYTICS_ROOT_KEY_SEED", "TOVU_SITE_KEY", LEGACY_SITE_KEY_ENV_VAR_NAME];
   const original = new Map(names.map((name) => [name, process.env[name]]));
   const home = t.mock.method(os, "homedir", () => root);
   syncBuiltinESMExports();

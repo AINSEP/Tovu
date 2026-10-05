@@ -124,7 +124,7 @@ export function createDeployConfigKit(): DeployConfigKit {
  * The secrets every renderer must declare by name.
  *
  * CORRECTION (this pass): an earlier version of this comment claimed this list was "verified
- * against the actual boot-gate code" — that claim was false: `ANALYTICS_ANALYTICS_SEED` was
+ * against the actual boot-gate code" — that claim was false: `ANALYTICS_ROOT_KEY_SEED` was
  * boot-blocking but absent from `REQUIRED_SECRETS`, so every generated config omitted it and a
  * deployer following one would hit `PRODUCTION_BOOT_UNSAFE_DEFAULT: dev-secret-placeholder` on
  * first boot with no warning from this tool. Fixed below. A false "verified" claim is worse than no
@@ -148,9 +148,9 @@ export function createDeployConfigKit(): DeployConfigKit {
  * to need an entry:
  *
  * 1. `hasDevSecretPlaceholder` ("dev-secret-placeholder") — `boot-readiness-gate.ts`:
- *    `!process.env.ANALYTICS_ANALYTICS_SEED`. Boot-blocking, and NAMES A REAL SECRET
+ *    `!process.env.ANALYTICS_ROOT_KEY_SEED`. Boot-blocking, and NAMES A REAL SECRET
  *    (`registerAnalyticsIngestRoute`'s wiring in `app.ts` falls back to the literal dev placeholder
- *    `"dev-only-insecure-seed"` whenever this is unset) — covered by the `ANALYTICS_ANALYTICS_SEED`
+ *    `"dev-only-insecure-seed"` whenever this is unset) — covered by the `ANALYTICS_ROOT_KEY_SEED`
  *    entry below.
  * 2. `hasLocalhostEgressAllowance` ("localhost-egress-allowance") — `boot-readiness-gate.ts`:
  *    hardcoded `false`, unconditionally, for every real boot. That file's own comment on the field
@@ -182,7 +182,7 @@ export function createDeployConfigKit(): DeployConfigKit {
  * - `TOVU_ADMIN_PASSWORD` — "boot-blocking". Check 4 above. `docker-compose.yml`'s own "Required"
  *   env block (`${TOVU_ADMIN_PASSWORD:?set TOVU_ADMIN_PASSWORD in .env}`) already draws the
  *   identical line.
- * - `ANALYTICS_ANALYTICS_SEED` — "boot-blocking". Check 1 above.
+ * - `ANALYTICS_ROOT_KEY_SEED` — "boot-blocking". Check 1 above.
  * - `TOVU_SITE_KEY` — "boot-blocking" (as of this pass; was "recommended"). Check 5
  *   above. Before this pass this var was absent entirely from `production-readiness-gate.ts`'s
  *   checks — boot succeeded without it, silently re-keying every redeploy (this file's 2026-09-09
@@ -211,7 +211,7 @@ export function createDeployConfigKit(): DeployConfigKit {
  */
 const REQUIRED_SECRETS: readonly DeploymentSecret[] = [
   { name: "TOVU_ADMIN_PASSWORD", requirement: "boot-blocking" },
-  { name: "ANALYTICS_ANALYTICS_SEED", requirement: "boot-blocking" },
+  { name: "ANALYTICS_ROOT_KEY_SEED", requirement: "boot-blocking" },
   { name: "TOVU_SITE_KEY", requirement: "boot-blocking" },
 ];
 

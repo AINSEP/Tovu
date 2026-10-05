@@ -41,7 +41,7 @@ export async function runProductionReadinessGateOrExit(): Promise<void> {
     mode,
     inventory: CAPABILITY_INVENTORY,
     envSnapshot: {
-      // True when `ANALYTICS_ANALYTICS_SEED` is unset, since `registerAnalyticsIngestRoute`'s wiring
+      // True when `ANALYTICS_ROOT_KEY_SEED` is unset, since `registerAnalyticsIngestRoute`'s wiring
       // in `app.ts` falls back to the literal dev placeholder `"dev-only-insecure-seed"` whenever
       // that env var is absent.
       hasDevSecretPlaceholder: !process.env.ANALYTICS_ROOT_KEY_SEED,

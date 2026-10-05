@@ -39,7 +39,7 @@ import { analyticsSaltContext } from "./jini-adapters.js";
  * request (or cache it in memory for the current UTC day at most); nothing here writes to disk.
  *
  * @param required.analyticsSeed - Secret analytics seed material. In v1 this is an opaque string sourced
- *   from an env var placeholder (e.g. `process.env.ANALYTICS_ANALYTICS_SEED`); the real integration
+ *   from an env var placeholder (e.g. `process.env.ANALYTICS_ROOT_KEY_SEED`); the real integration
  *   point is `KeyringPort.activeKey()` once that port grows a generic derive method (see file
  *   header TODO).
  * @param required.workspaceId - Workspace the salt is scoped to (ADR-007 — no cross-workspace salt
