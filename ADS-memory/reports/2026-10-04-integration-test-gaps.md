@@ -1,0 +1,49 @@
+# Integration test gap map — 2026-10-04
+
+Author: QA(Execution) subagent (owner directive 2026-10-04: author missing integration tests, do NOT run them).
+Scope: `apps/website/src` server routes and composition. Newsletter and browser-side timing excluded per owner.
+
+## Method
+
+- Inventoried every `app.<verb>("<path>")` registration under `server/inbound/**` (270 routes).
+- For each route, counted test files that reference its path (any tier), test files that reference it AND boot a real store
+  (`createSiteRouteDeps` / `bootSiteDir` / `createSiteRouteDepsForWorkspace`, 49 files), and PGlite-booting test files (6).
+- Cross-checked repo-level dialect coverage: 69 files use `describeEachDialect`/`eachDialect`
+  (`platform/db/kernel/__tests__/dialect-matrix.ts`).
+- Matching is by path string, so a test that builds a URL from constants can be missed (counts are a map, not a fact).
+
+## Headline
+
+1. **Repo level is well covered on both dialects.** Almost every Kysely repo has a `describeEachDialect` suite.
+2. **Route level runs almost entirely on the hermetic in-memory root.** ~237 of 270 routes have no test that reaches them
+   through a real-store composition; the in-memory repos are a different implementation (e.g. `app.ts` binds an inert
+   `findForTrash` stub for taxonomy), so a route test passing there proves nothing about the shipped wiring.
+3. **PGlite composition is proven by ONE smoke test** (`create-site-route-deps.pglite.integration.test.ts`: create/list/delete
+   posts, pages, media, settings, taxonomy, chat). Every other admin route is unproven over Postgres through HTTP.
+4. **8 routes are referenced by no test at all** (see gap 6).
+
+## Ranked gaps
+
+| # | Gap | Why it matters | Status tonight |
+|---|-----|----------------|----------------|
+| 1 | Trash purge / restore through the real composition (SQLite + PGlite) | The only human-triggered hard delete in the product. `admin-trash-routes.test.ts` uses a hand-assembled trash module on SQLite; the PGlite smoke test trashes but never purges or restores. | AUTHORED `server/__tests__/integration/trash-purge-real-composition.unrun.integration.test.ts` |
+| 2 | Change-set record → revert through the real composition (SQLite + PGlite), Idempotency-Key replay on the persisted column | ADR-046 moved change-sets off the in-memory repo; revert success path is only tested with fake reverters on the hermetic root. | AUTHORED `server/__tests__/integration/change-set-revert-real-composition.unrun.integration.test.ts` |
+| 3 | `POST /api/admin/v1/auth/logout` | Zero references in any test. Must revoke the persisted session row, not just clear the cookie. | AUTHORED `server/__tests__/integration/admin-logout-session.unrun.integration.test.ts` |
+| 4 | Admin CRUD families on PGlite through HTTP: menus, redirects, forms, content-types → entries lifecycle, users/roles/policies | Only in-memory route tests exist; Postgres type/constraint differences (JSONB, booleans, unique violations → 409 mapping) surface only here. | AUTHORED (menus, redirects, content-types/entries) — see batch 2 below |
+| 5 | Taxonomy term merge plan → confirm → execute; database migrate-forward plan → confirm → execute; publish-content import plan → confirm → execute — gated-mutation token flows on a real store | Token rows live in `gated_mutation_tokens`; in-memory tests can't catch a dialect bug in single-use consumption. | NOT authored (next wave) |
+| 6 | Routes with ZERO test references: `DELETE/GET .../mcp-servers/.../tool-approvals`, `POST .../mcp-servers/:id/oauth/device/poll`, `POST .../themes/:id/file/delete`, `POST .../themes/:id/page/publish`, `POST .../widgets/:id/trash`, `POST /auth/logout` (gap 3), newsletter list archive (excluded) | Untested at every tier. | Partially AUTHORED — see batch 2 below |
+| 7 | Member sign-in → magic link → complete → member session on the real composition (real mailer resolution, `magic_links` table) | Existing tests use `createRouteDeps()` and capture the console mailer. | NOT authored — `members-magiclink-red` agent is active in this area tonight; avoid collision |
+| 8 | Plugin install → enable → render on the real composition (declared content types persisted, then rendered by the site) | `testimonials-faq-sample.integration.test.ts` proves it on the hermetic root only. | NOT authored — AW-7 agents are active in this area tonight |
+| 9 | Users / roles / policies RBAC routes on a real store (grant → effective permission → 403/200 on a gated route) | 20 route tests, all hermetic; memory says RBAC members are "decorative" in places. | NOT authored |
+| 10 | Recovery restore-points / restore and database timeline on SQLite through HTTP | Restore is destructive; only route-level tests with in-memory deps exist. | NOT authored |
+| 11 | Assistant execution credential / site credential PUT→GET→DELETE on a real store (sealed credential repos) | Repos are dialect-tested; the route→sealing→repo seam is not. | NOT authored |
+| 12 | Boot wiring on PGlite: `runBootLifecycle` modules (reconciliation, settings/seo critical failures) | `boot-lifecycle-real-deps.integration.test.ts` is SQLite only. | NOT authored |
+
+## Notes for whoever runs these
+
+- All authored files are named `*.unrun.integration.test.ts`, start with the `@unrun` header and prefix every title `[unrun] `.
+  Registry: `development/UNRUN-TESTS.md`.
+- The root `npm test` / `test:ci` globs (`apps/website/src/**/*.test.ts`) and `isIntegrationTestFile` WILL pick these files up.
+  Running the full suite runs them. Run them scoped first.
+- Shared boot helper: `server/__tests__/helpers/unrun-site-boot.ts` (`initSite` → `bootSiteDir` → `createSiteRouteDeps` with
+  `serve.ts`'s overrides → `createApp` → owner login), one body for `sqlite` and `pglite`. PGlite boots cost seconds each.
