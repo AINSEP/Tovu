@@ -11,7 +11,7 @@ import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 
 import { InMemoryEventBus } from "#src/contracts/core/events/index";
-import { resolveObservabilityConfig, createObservabilityPort } from "#src/platform/observability/index";
+import { resolveObservabilityConfig, createObservabilityPort, instrumentStorageKernel } from "#src/platform/observability/index";
 import { resolveProductRoot } from "#src/platform/site-dir/product-root";
 // A plain static import, unlike `createApp`/`exportSite` below: `resolveStorefrontProducts` has no
 // eager top-level side effect (`routes/site/products.ts`'s module body only declares functions/a
@@ -932,6 +932,16 @@ async function composeSiteRouteDeps(
   // The one content kernel (SQLite: over `content.db`, one per connection; Postgres: the site's
   // database), read by the prelude below and handed to boot modules as `deps.contentKernel`.
   const kernel = store.content;
+  // Env-driven — off (the real no-op port) unless the operator has set
+  // `OTEL_EXPORTER_OTLP_ENDPOINT`. This is the composition root BOTH real-process boot paths
+  // build `RouteDeps` from (`index.ts`'s non-memory branch AND `cli/commands/serve.ts`'s `tovu
+  // serve`), so this is the one call site where the real (non-hermetic) adapter choice belongs —
+  // see `platform/observability/index.ts`'s `createObservabilityPort` doc and `routes/types.ts`'s
+  // `ObservabilityDeps` doc for the rule-of-two this mirrors. Resolved here, ahead of every
+  // consumer, because the storage kernels and guarded HTTP clients below are decorated with it
+  // (identity for the no-op port, so a default boot keeps its exact objects).
+  const observability = createObservabilityPort({ config: resolveObservabilityConfig({ env: process.env }) });
+  instrumentStorageKernel({ kernel, observability });
   // Everything below is built from `kernel` / `chat` (the chat kernel) except these, which depend on
   // the storage engine (`store-bound-services.ts`: `sqliteOnlyServices` or `pgOnlyServices`).
   const storeBound = storeBoundServicesFor(store, dbPath);
@@ -954,6 +964,7 @@ async function composeSiteRouteDeps(
   // store (`openCompositionStore`), so the orphaned-chat check below runs after it.
   const chatDbPath = defaultChatDbPath(dbPath);
   const chat = store.chat;
+  instrumentStorageKernel({ kernel: chat, observability });
   // The split above was wiring-only: it redirected the chat stores at `chat.db` but never moved
   // the rows an already-deployed `content.db` was holding, and nothing anywhere reported that.
   // Every such conversation is intact but unread, because the stores no longer look in that file.
@@ -1719,7 +1730,7 @@ async function composeSiteRouteDeps(
     workspaceId,
     customCredentialRepo: customCredentialSetRepo,
     sealer: siteAssistantSecretSealer,
-    httpClient: createDefaultHttpClient(SINGLE_HOP_HTTPS_EGRESS_POLICY),
+    httpClient: createDefaultHttpClient(SINGLE_HOP_HTTPS_EGRESS_POLICY, { observability }),
     loadMailAdapters: () => loadMailAdapterRegistry({ workspaceId }),
     mode: runtimeMode,
   });
@@ -1731,13 +1742,13 @@ async function composeSiteRouteDeps(
   // (2026-09-10) rather than the mailer's `SINGLE_HOP_HTTPS_EGRESS_POLICY` — that policy's own doc
   // has the live incident (GitHub's Actions job-logs endpoint 302s to a signed Azure Blob URL) that
   // made a zero-redirect policy the wrong fit for this tool specifically.
-  const customCredentialsHttpClient = createDefaultHttpClient(CUSTOM_CREDENTIALS_EGRESS_POLICY);
+  const customCredentialsHttpClient = createDefaultHttpClient(CUSTOM_CREDENTIALS_EGRESS_POLICY, { observability });
 
   // `features/media-import`'s `media_import_from_url` needs its own guarded `HttpClientPort` — a
   // THIRD instance, and the only one built from a policy other than SINGLE_HOP_HTTPS. See
   // `routes/types.ts`'s `mediaImportHttpClient` doc and `MEDIA_IMPORT_EGRESS_POLICY`'s own doc for
   // why fetching an image file cannot use the fixed-method, no-redirect, 1 MB policy above.
-  const mediaImportHttpClient = createDefaultHttpClient(MEDIA_IMPORT_EGRESS_POLICY);
+  const mediaImportHttpClient = createDefaultHttpClient(MEDIA_IMPORT_EGRESS_POLICY, { observability });
 
   // `features/publish-content`'s outbound push/pull leg needs its own guarded `HttpClientPort` — a
   // FOURTH instance. It is the only one whose policy is built rather than imported as a literal,
@@ -1747,7 +1758,8 @@ async function composeSiteRouteDeps(
   // so on every platform. Unset means "every peer must resolve to a public address", the safe
   // default. See `createPublishContentPeerEgressPolicy`'s own doc.
   const publishContentPeerHttpClient = createDefaultHttpClient(
-    createPublishContentPeerEgressPolicy(parsePublishContentDevHosts(process.env.TOVU_PUBLISH_CONTENT_DEV_HOSTS))
+    createPublishContentPeerEgressPolicy(parsePublishContentDevHosts(process.env.TOVU_PUBLISH_CONTENT_DEV_HOSTS)),
+    { observability }
   );
 
   // Extracted (not inlined into the return object below) so `revertRegistry` can close over the
@@ -2039,13 +2051,8 @@ async function composeSiteRouteDeps(
     siteBackupSources: resolveSiteBackupSources({ siteDir: resolvedSiteBinding.dir, uploadsDir: resolvedUploadsDir, themesDir: resolvedThemesDir }),
     outbox,
     bus,
-    // Env-driven — off (the real no-op port) unless the operator has set
-    // `OTEL_EXPORTER_OTLP_ENDPOINT`. This is the composition root BOTH real-process boot paths
-    // build `RouteDeps` from (`index.ts`'s non-memory branch AND `cli/commands/serve.ts`'s `tovu
-    // serve`), so this is the one call site where the real (non-hermetic) adapter choice belongs —
-    // see `platform/observability/index.ts`'s `createObservabilityPort` doc and `routes/types.ts`'s
-    // `ObservabilityDeps` doc for the rule-of-two this mirrors.
-    observability: createObservabilityPort({ config: resolveObservabilityConfig({ env: process.env }) }),
+    // Built in the prelude (see `observability`'s construction above for the rule-of-two it follows).
+    observability,
     // Built and probed in the prelude above, over the same content kernel that carries site content.
     publishTrustRevocations,
     clock,
@@ -2330,7 +2337,7 @@ async function composeSiteRouteDeps(
     // See `routes/types.ts`'s own doc — a genuinely separate `HttpClientPort` instance from
     // `resolvedMailer`'s, built above.
     customCredentialsHttpClient,
-    deployOpsHttpClient: createDefaultHttpClient(SINGLE_HOP_HTTPS_EGRESS_POLICY),
+    deployOpsHttpClient: createDefaultHttpClient(SINGLE_HOP_HTTPS_EGRESS_POLICY, { observability }),
     // 2026-09-06 — see `routes/types.ts`'s `mediaImportHttpClient` doc. A third instance, built
     // above from `MEDIA_IMPORT_EGRESS_POLICY` rather than `SINGLE_HOP_HTTPS_EGRESS_POLICY`.
     mediaImportHttpClient,
