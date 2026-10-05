@@ -1,4 +1,4 @@
-import { CONTENT_MIGRATIONS } from "../migrations/index.js";
+import { CONTENT_MIGRATIONS, type MigrationStep } from "../migrations/index.js";
 import { readFrozenChain } from "../migrations/legacy-sqlite.js";
 import type { ContentDb } from "./content-db.js";
 
@@ -17,7 +17,8 @@ import type { ContentDb } from "./content-db.js";
  */
 export function bootstrapFreshContentDb(
   { db }: { db: ContentDb },
-  _optional: Record<string, never> = {},
+  // Injectable for the drift guard's own test; production always uses the real step list.
+  { migrations = CONTENT_MIGRATIONS }: { migrations?: readonly MigrationStep[] } = {},
 ): boolean {
   const client = db.$client;
   const hasTables = () => client.prepare("SELECT 1 FROM sqlite_schema WHERE type = 'table' AND substr(name, 1, 7) <> 'sqlite_' LIMIT 1").get() !== undefined;
@@ -90,8 +91,8 @@ export function bootstrapFreshContentDb(
       client.exec(`CREATE INDEX publish_backstop_log_run ON publish_backstop_log(workspace_id, run_id)`);
     },
   };
-  if (CONTENT_MIGRATIONS.length !== Object.keys(operations).length ||
-      CONTENT_MIGRATIONS.some(step => !Object.hasOwn(operations, step.id))) {
+  if (migrations.length !== Object.keys(operations).length ||
+      migrations.some(step => !Object.hasOwn(operations, step.id))) {
     throw new Error("fresh content bootstrap is behind CONTENT_MIGRATIONS; update its fresh-only operations and schema parity guard");
   }
 
@@ -101,7 +102,7 @@ export function bootstrapFreshContentDb(
     // Ledger and schema commit together. A failure leaves an empty database that can be retried.
     client.exec("CREATE TABLE tovu_migrations (id TEXT PRIMARY KEY, checksum TEXT NOT NULL, applied_at TEXT NOT NULL)");
     const record = client.prepare("INSERT INTO tovu_migrations (id, checksum, applied_at) VALUES (?, ?, ?)");
-    for (const step of CONTENT_MIGRATIONS) {
+    for (const step of migrations) {
       operations[step.id]!();
       record.run(step.id, step.checksum, new Date().toISOString());
     }
