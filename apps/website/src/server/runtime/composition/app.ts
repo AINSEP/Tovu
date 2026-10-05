@@ -1749,6 +1749,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
     mailer: routeDeps.mailer,
     clock: routeDeps.clock,
     idGen: routeDeps.idGen,
+    principalRepo: routeDeps.principalRepo,
     magicLinkPerEmailLimiter,
     magicLinkPerIpLimiter,
     magicLinkCompleteAttemptLimiter,

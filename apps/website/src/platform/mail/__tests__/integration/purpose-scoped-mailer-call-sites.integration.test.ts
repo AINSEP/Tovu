@@ -8,6 +8,7 @@ import { registerFormNotifySubscriber } from "#src/features/forms/notify-subscri
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "#src/features/forms/repo.memory";
 import { InMemoryMagicLinkTokenRepo, InMemoryMemberRepo, InMemoryMemberSessionRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "#src/features/members/repo.memory";
 import { requestSignInLink } from "#src/features/members/write-service";
+import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { wrapMailerWithPurposeGate } from "../../purpose-scoped-mailer.js";
 import type { MailerPort, MailerSendOptions, MailerSendResult } from "../../ports.js";
 
@@ -92,7 +93,7 @@ test("real call sites use distinct lanes through the production gate and sign-in
     clock: { nowMs: () => Date.parse(now), nowIso: () => now }, ids: { newId: () => `id-${++id}` },
     members: new InMemoryMemberRepo(), tiers: new InMemoryMemberTierRepo(),
     subscriptions: new InMemoryMemberSubscriptionRepo(), sessions: new InMemoryMemberSessionRepo(),
-    magicLinks: new InMemoryMagicLinkTokenRepo(), mailer,
+    magicLinks: new InMemoryMagicLinkTokenRepo(), mailer, principals: new InMemoryPrincipalRepo({}),
   }, input: { workspaceId: "ws-1", email: "member@example.com" } }).then((result) => { completed = true; return result; });
   try {
     // Drain the call site's asynchronous repo operations without advancing any wall-clock timer.

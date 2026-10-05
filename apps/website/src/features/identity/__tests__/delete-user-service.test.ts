@@ -303,6 +303,23 @@ test("trashUser: refuses to drop the workspace's last active owner-`*` principal
   );
 });
 
+test("trashUser: a site member holding `*` never counts as the remaining owner (INV-08, F3144)", async () => {
+  const f = await setup("ws-inv08-member");
+  const lastOwnerId = await createBareUser(f, "last-owner");
+  await makeOwnerWildcard(f, lastOwnerId);
+  await disablePrincipalDirect(f, f.ownerPrincipalId);
+  // Only a hand-edited store can give a member `*` (grant services refuse non-user targets).
+  await f.identity.repos.principals.save({ id: "member-1", workspaceId: f.workspaceId, kind: "member", displayName: "Site member", status: "active", createdAt: "2026-01-01T00:00:00.000Z" });
+  await grantDirectPermission(f, "member-1", "*", "member-star");
+
+  await assert.rejects(
+    trashUser({ deps: f.deps, input: { workspaceId: f.workspaceId, callerPrincipalId: f.ownerPrincipalId, principalId: lastOwnerId, seededOwnerPrincipalId: f.ownerPrincipalId } }),
+    (err: unknown) =>
+      err instanceof OwnerRequiredError &&
+      err.message === "the workspace must keep at least one active owner-`*` principal"
+  );
+});
+
 test("trashUser: after trashing owner B, trashing owner C (the last active one besides the caller) still trips INV-08", async () => {
   const f = await setup("ws-inv08-sequential");
   const ownerB = await createBareUser(f, "owner-b");

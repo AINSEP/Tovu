@@ -90,7 +90,7 @@ function assertValidEmail(email: string): string {
  * caller's signal to skip issuing a token/mail while still returning the constant
  * `{ delivered: true }` response (see {@link requestSignInLink}'s own doc).
  *
- * @complexity O(1) — one lookup, at most one save.
+ * @complexity O(1) — one lookup, at most two saves (the member principal, then the member).
  */
 async function resolveOrCreateSignInMember(required: {
   deps: MembersWriteServiceDeps;
@@ -113,6 +113,18 @@ async function resolveOrCreateSignInMember(required: {
     updatedAt: nowIso,
     version: 1,
   };
+  // The member's principal row comes first, so a member row never exists without one. Its kind is
+  // what makes `authorize()` deny every operator permission to this member (F3144); a principal
+  // left behind by a failed member save is inert for the same reason. The display name is not the
+  // email, so no second copy of the address lives outside the members tables.
+  await deps.principals.save({
+    id: member.id,
+    workspaceId,
+    kind: "member",
+    displayName: "Site member",
+    status: "active",
+    createdAt: nowIso,
+  });
   await deps.members.save(member);
   return member;
 }

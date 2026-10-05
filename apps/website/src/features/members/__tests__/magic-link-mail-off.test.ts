@@ -4,6 +4,7 @@ import type { ToolExecutionContext } from "@jini-ai/core";
 import { InMemoryMagicLinkTokenRepo, InMemoryMemberRepo, InMemoryMemberSessionRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "../repo.memory.js";
 import { createRateLimiter, MAGIC_LINK_PER_EMAIL } from "../../../contracts/core/rate-limit/rate-limit.js";
 import { ConsoleMailerAdapter } from "../mailer.console.js";
+import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { buildMembersRegistrations, type MembersToolDeps } from "../tool-registrations.js";
 
 const NOTE = "Email sending is not configured: messages are printed to the server console and never leave this machine. Set up a mail provider agent plugin and save its key in Access Tokens to send real email.";
@@ -11,7 +12,7 @@ const NOW = "2026-10-01T00:00:00Z";
 function harness(driver = "console", allowed = true) {
   let next = 0;
   const sent: string[] = [];
-  const deps: MembersToolDeps = { workspaceId: "ws", clock: { nowIso: () => NOW, nowMs() { return Date.parse(this.nowIso()); } }, idGen: { newId: () => `m${++next}` }, memberRepo: new InMemoryMemberRepo(), memberTierRepo: new InMemoryMemberTierRepo(), memberSubscriptionRepo: new InMemoryMemberSubscriptionRepo(), memberSessionRepo: new InMemoryMemberSessionRepo(), magicLinkRepo: new InMemoryMagicLinkTokenRepo(),
+  const deps: MembersToolDeps = { workspaceId: "ws", clock: { nowIso: () => NOW, nowMs() { return Date.parse(this.nowIso()); } }, idGen: { newId: () => `m${++next}` }, memberRepo: new InMemoryMemberRepo(), memberTierRepo: new InMemoryMemberTierRepo(), memberSubscriptionRepo: new InMemoryMemberSubscriptionRepo(), memberSessionRepo: new InMemoryMemberSessionRepo(), magicLinkRepo: new InMemoryMagicLinkTokenRepo(), principalRepo: new InMemoryPrincipalRepo({}),
     authorize: async () => ({ allowed, reason: "fixture grant" }), magicLinkPerEmailLimiter: { check: async ({ key: _key }) => ({ allowed: true }) },
     mailer: { capabilities: () => ({ ...new ConsoleMailerAdapter().capabilities(), driver }), send: async (message) => { sent.push(message.to.email); return { ok: true, providerMessageId: "message", acceptedAt: NOW }; }, sendBatch: async () => assert.fail("must not batch") },
   };

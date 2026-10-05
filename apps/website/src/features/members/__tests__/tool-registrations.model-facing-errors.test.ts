@@ -25,6 +25,7 @@ import {
   InMemoryMemberTierRepo,
 } from "../repo.memory.js";
 import { buildMembersRegistrations, type MembersToolDeps } from "../tool-registrations.js";
+import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { MemberConflictError, MemberAuthError } from "../types.js";
 
 const WORKSPACE_ID = "ws-members-errors";
@@ -43,6 +44,7 @@ function makeRouteDeps(options: { allow?: boolean; allowEveryRequest?: boolean }
     memberSubscriptionRepo: new InMemoryMemberSubscriptionRepo(),
     memberSessionRepo: new InMemoryMemberSessionRepo(),
     magicLinkRepo: new InMemoryMagicLinkTokenRepo(),
+    principalRepo: new InMemoryPrincipalRepo({}),
     mailer: {
       capabilities: () => ({ driver: "smtp", maxBatchSize: 1, supportsIdempotencyKey: false, supportsWebhookFeedback: false, supportsAttachments: true }),
       send: async () => ({ ok: true, providerMessageId: "message", acceptedAt: NOW }),

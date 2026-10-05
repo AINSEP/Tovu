@@ -3,6 +3,7 @@ import type { Express, NextFunction, Request, Response } from "express";
 import {
   AuthInvalidCredentialsError,
   type IdentityRepos,
+  type PrincipalKind as IdentityPrincipalKind,
   type PrincipalRecord,
 } from "@jini-ai/user-management";
 import {
@@ -124,9 +125,21 @@ export function gatedPrincipalKindFor(kind: AuthCredentialKind): PrincipalKind {
   }
 }
 
+/**
+ * A principal an admin credential may resolve to: any kind but a site `member`. Members sign in on
+ * the member origin with their own session (ADR-030 §3) and `authorize()` denies them every
+ * operator permission (F3144); `currentCredential` also refuses an operator session or API key that
+ * resolves to one, so admin routes can rely on this type.
+ */
+export type OperatorPrincipalRecord = PrincipalRecord & { kind: Exclude<IdentityPrincipalKind, "member"> };
+
+function isOperatorPrincipal(principal: PrincipalRecord): principal is OperatorPrincipalRecord {
+  return principal.kind !== "member";
+}
+
 /** A resolved credential: who is calling, and which of the two credential types proved it. */
 export interface AuthenticatedCredential {
-  principal: PrincipalRecord;
+  principal: OperatorPrincipalRecord;
   kind: AuthCredentialKind;
 }
 
@@ -231,7 +244,9 @@ export async function currentCredential(
       deps: authServiceDepsFrom(deps),
       input: { workspaceId: deps.workspaceId, rawToken },
     });
-    if (resolved?.principal) return { principal: resolved.principal, kind: "session" };
+    // A member principal is refused like a missing session (no oracle): only a hand-minted row
+    // could pair one with an operator session.
+    if (resolved?.principal && isOperatorPrincipal(resolved.principal)) return { principal: resolved.principal, kind: "session" };
   }
 
   const rawKey = readApiKeyCredential(req);
@@ -242,7 +257,9 @@ export async function currentCredential(
     deps: apiKeyServiceDepsFrom(deps),
     input: { workspaceId: deps.workspaceId, rawKey },
   });
-  return authenticated ? { principal: authenticated.principal, kind: "api_key" } : null;
+  return authenticated && isOperatorPrincipal(authenticated.principal)
+    ? { principal: authenticated.principal, kind: "api_key" }
+    : null;
 }
 
 /**
@@ -253,7 +270,7 @@ export async function currentCredential(
  * @complexity O(1) — see `currentCredential`.
  * @overallScore 100
  */
-export async function currentPrincipal(deps: SessionAuthDeps, req: Request): Promise<PrincipalRecord | null> {
+export async function currentPrincipal(deps: SessionAuthDeps, req: Request): Promise<OperatorPrincipalRecord | null> {
   return (await currentCredential(deps, req))?.principal ?? null;
 }
 
@@ -263,8 +280,8 @@ export async function currentPrincipal(deps: SessionAuthDeps, req: Request): Pro
  * Throws if called on a request that didn't pass through
  * `requireAdminSession` first — a wiring bug, not a runtime auth outcome.
  */
-export function getAuthedPrincipal(res: Response): PrincipalRecord {
-  const principal = res.locals.principal as PrincipalRecord | undefined;
+export function getAuthedPrincipal(res: Response): OperatorPrincipalRecord {
+  const principal = res.locals.principal as OperatorPrincipalRecord | undefined;
   if (!principal) {
     throw new Error(
       "getAuthedPrincipal: no principal on res.locals — requireAdminSession must run before this route"

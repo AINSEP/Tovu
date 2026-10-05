@@ -65,6 +65,8 @@ export interface MembersToolDeps {
   memberSessionRepo: MemberSessionRepoPort;
   magicLinkRepo: MagicLinkTokenRepoPort;
   mailer: MembersWriteServiceDeps["mailer"];
+  /** See `MembersWriteServiceDeps.principals` — sign-up writes the member's `kind: "member"` principal here. */
+  principalRepo: MembersWriteServiceDeps["principals"];
   /** Resolves configuration independently of sending; production supplies this so disabled
    * members (which skip sends) cannot be distinguished during a lazy driver swap. */
   settleMailer?: () => Promise<void>;
@@ -89,6 +91,7 @@ function toMembersWriteServiceDeps(deps: MembersToolDeps): MembersWriteServiceDe
     sessions: deps.memberSessionRepo,
     magicLinks: deps.magicLinkRepo,
     mailer: deps.mailer,
+    principals: deps.principalRepo,
   };
 }
 

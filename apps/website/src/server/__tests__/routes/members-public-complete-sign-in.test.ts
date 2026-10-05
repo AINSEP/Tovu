@@ -34,6 +34,7 @@ function buildPublicApp(): { app: express.Express; deps: MemberPublicRouteDeps }
     mailer: routeDeps.mailer,
     clock: routeDeps.clock,
     idGen: routeDeps.idGen,
+    principalRepo: routeDeps.principalRepo,
     magicLinkPerEmailLimiter: createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: routeDeps.clock }),
     magicLinkPerIpLimiter: createRateLimiter({ profile: MAGIC_LINK_PER_IP, clock: routeDeps.clock }),
     magicLinkCompleteAttemptLimiter: createRateLimiter({ profile: MAGIC_LINK_COMPLETE_ATTEMPT, clock: routeDeps.clock }),

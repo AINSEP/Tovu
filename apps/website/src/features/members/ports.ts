@@ -24,6 +24,7 @@
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, ISODateTime, UUID } from "@jini-ai/core/primitives";
 import type { MailerPort } from "../../platform/mail/index.js";
 import type { OriginRegistryPort } from "../../features/origin/index.js";
+import type { PrincipalRepoPort } from "@jini-ai/user-management";
 import type {
   ConsentPurpose,
   MagicLinkTokenRecord,
@@ -195,6 +196,14 @@ export interface MembersWriteServiceDeps {
   sessions: MemberSessionRepoPort;
   magicLinks: MagicLinkTokenRepoPort;
   mailer: MailerPort;
+  /**
+   * The identity principal store. A member signing up gets a `kind: "member"` principal row with
+   * the member's own id (`MemberRecord.id` is a principal id, ADR-021 §5), so `authorize()` can
+   * reject the member AS a member: `@jini-ai/user-management`'s `principalKindMayExercisePermission`
+   * bars that kind from every operator permission (OWNER DECISION 2026-10-04, F3144). Required so
+   * no composition can forget it.
+   */
+  principals: Pick<PrincipalRepoPort, "save">;
   /**
    * ADR-040 canonical-origin registry (ADR-PIPE-013 Decision §3) — optional:
    * no composition root in this repo wires a real `OriginRegistryPort`

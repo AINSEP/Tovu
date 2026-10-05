@@ -1,5 +1,5 @@
 import type { UUID } from "@jini-ai/core/primitives";
-import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, OwnerRequiredError } from "@jini-ai/user-management";
+import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, OwnerRequiredError, principalKindMayExercisePermission } from "@jini-ai/user-management";
 import { resolveEffectivePermissions, authorizeDepsFrom, assertOwnerTargetMayBeModified, type AuthServiceDeps } from "@jini-ai/user-management/server";
 import { UserDeleteUnsupportedError } from "./user-purge-types.js";
 
@@ -185,7 +185,12 @@ async function countActiveOwnerWildcardPrincipals(required: {
 }): Promise<number> {
   const { deps, workspaceId } = required;
   const allPrincipals = await deps.repos.principals.list({ workspaceId });
-  const activePrincipals = allPrincipals.filter((principal) => principal.status === "active");
+  // Same kind bar as the library helper: a site member can never be the remaining owner, and the
+  // member roster costs no grant reads here.
+  const activePrincipals = allPrincipals.filter(
+    (principal) =>
+      principal.status === "active" && principalKindMayExercisePermission({ kind: principal.kind, permission: "*" })
+  );
   const flags = await Promise.all(
     activePrincipals.map((principal) =>
       principalHoldsOwnerWildcard({ deps, workspaceId, principalId: principal.id })

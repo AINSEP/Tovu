@@ -18,13 +18,16 @@
  * (ADR-021 §1). Nothing in this file grants a member an operator permission.
  */
 import type { ISODateTime, JsonObject, UUID } from "@jini-ai/core/primitives";
+import type { PrincipalKind } from "@jini-ai/user-management";
 
 /**
- * Principal kind for a front-end member. Distinct from ADR-021's
- * `user | agent | api_key | system`; a member never holds operator RBAC roles.
- * (Extending the ADR-021 `principals.kind` enum is an OPEN QUESTION — ADR-030.)
+ * Principal kind for a front-end member: `@jini-ai/user-management`'s `"member"` kind, distinct from
+ * the operator kinds `user | agent | api_key | system`. Sign-up writes a principal row of this kind
+ * (`write-service.ts`), and `authorize()` denies it every operator permission through the single
+ * `principalKindMayExercisePermission` rule. OWNER DECISION 2026-10-04 (F3144): members may not use
+ * admin features for now; allowing some later is a change to that one rule.
  */
-export type MemberPrincipalKind = "member";
+export type MemberPrincipalKind = Extract<PrincipalKind, "member">;
 
 /**
  * Member account lifecycle. Disable-only, never hard-deleted, because a member

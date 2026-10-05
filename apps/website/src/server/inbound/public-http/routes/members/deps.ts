@@ -26,6 +26,7 @@ import type {
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, UUID } from "@jini-ai/core/primitives";
 import type { OriginRegistryPort } from "#src/features/origin/index";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
+import type { PrincipalRepoPort } from "@jini-ai/user-management";
 
 /**
  * Deps the public sign-in/complete-sign-in routes need. Intentionally has NO
@@ -44,6 +45,9 @@ export interface MemberPublicRouteDeps {
   mailer: MailerPort;
   clock: ClockPort;
   idGen: IdGeneratorPort;
+  /** Where sign-up writes the member's `kind: "member"` principal — see `MembersWriteServiceDeps.principals`.
+   *  Write-only and kind-fixed by the write service, so this family still holds no session or authorize power. */
+  principalRepo: Pick<PrincipalRepoPort, "save">;
   /** ADR-040 canonical-origin registry — optional, see `MembersWriteServiceDeps.origin`'s doc. */
   origin?: OriginRegistryPort;
   magicLinkPerEmailLimiter: RateLimiter;
@@ -62,6 +66,7 @@ export function toPublicMembersWriteServiceDeps(deps: MemberPublicRouteDeps): Me
     sessions: deps.memberSessionRepo,
     magicLinks: deps.magicLinkRepo,
     mailer: deps.mailer,
+    principals: deps.principalRepo,
     origin: deps.origin,
   };
 }

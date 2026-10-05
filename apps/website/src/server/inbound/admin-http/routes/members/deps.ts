@@ -69,5 +69,6 @@ export function toMembersWriteServiceDeps(deps: MembersRouteDeps): MembersWriteS
     sessions: deps.memberSessionRepo,
     magicLinks: deps.magicLinkRepo,
     mailer: deps.mailer,
+    principals: deps.principalRepo,
   };
 }

@@ -34,6 +34,7 @@ import {
 } from "../types.js";
 import { DefaultMemberAccessResolver } from "../access-resolver.js";
 import type { MembersWriteServiceDeps } from "../ports.js";
+import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 
 const WORKSPACE_ID = "ws-1";
 
@@ -86,6 +87,7 @@ function makeDeps(overrides: Partial<MembersWriteServiceDeps> = {}) {
   const clock = makeClock("2026-07-10T00:00:00.000Z");
   const ids = makeIds("id");
   const { mailer, sent } = makeMailer();
+  const principals = new InMemoryPrincipalRepo({});
 
   const deps: MembersWriteServiceDeps = {
     clock,
@@ -96,10 +98,11 @@ function makeDeps(overrides: Partial<MembersWriteServiceDeps> = {}) {
     sessions: new InMemoryMemberSessionRepo(),
     magicLinks: new InMemoryMagicLinkTokenRepo(),
     mailer,
+    principals,
     ...overrides,
   };
 
-  return { deps, clock, sent };
+  return { deps, clock, sent, principals };
 }
 
 /** Fake `OriginRegistryPort` — only `canonicalOrigin` matters for these tests. */
@@ -119,6 +122,21 @@ function extractRawToken(linkText: string): string {
   assert.ok(match, "expected a token= query param in the sign-in link body");
   return match![1];
 }
+
+test("requestSignInLink gives a new member a kind 'member' principal under the member's id, once (F3144)", async () => {
+  const { deps, principals } = makeDeps();
+
+  await requestSignInLink({ deps, input: { workspaceId: "ws-1", email: "new@example.com" } });
+  const member = await deps.members.findByEmail({ workspaceId: "ws-1", email: "new@example.com" });
+  assert.ok(member);
+  assert.deepEqual(await principals.list({ workspaceId: "ws-1" }), [
+    { id: member.id, workspaceId: "ws-1", kind: "member", displayName: "Site member", status: "active", createdAt: member.createdAt },
+  ]);
+
+  // A second request for the same member reuses its row and principal.
+  await requestSignInLink({ deps, input: { workspaceId: "ws-1", email: "new@example.com" } });
+  assert.equal((await principals.list({ workspaceId: "ws-1" })).length, 1);
+});
 
 test("requestSignInLink -> completeSignIn happy path: hashes both tokens at rest and activates a pending member", async () => {
   const { deps, sent, clock } = makeDeps();
