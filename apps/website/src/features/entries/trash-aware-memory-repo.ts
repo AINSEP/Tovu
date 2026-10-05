@@ -1,4 +1,4 @@
-import { EntrySlugConflictError, InMemoryEntryRepo } from "./index.js";
+import { EntrySlugConflictError, InMemoryEntryRepo, VersionConflictError } from "./index.js";
 import type { EntryListPort, EntryRecord, EntryRepoPort, EntryRevisionInput, EntryStatus } from "./index.js";
 import type { CollectionListQuery, CollectionSortBy, EntryDisplayListPort, EntryListExcludingTypesPort } from "./public-list.js";
 
@@ -82,16 +82,22 @@ export class TrashAwareInMemoryEntryRepo implements EntryRepoPort, EntryListPort
   }
 
   /**
+   * With `expectedVersion`, the inner repo's compare-and-set decides; a trashed row is a conflict
+   * (found none — the same as the SQL repo), not a silent skip, since the inner repo cannot see the Trash.
    * @throws EntrySlugConflictError when a trashed row holds the slug (same text as the SQLite repo).
+   * @throws VersionConflictError when the compare-and-set misses.
    * @complexity O(n) over stored entries (one slug scan).
    */
-  async save(row: EntryRecord): Promise<void> {
-    if (this.deletedAt.has(row.id)) return;
+  async save(row: EntryRecord, options: { expectedVersion?: number | undefined } = {}): Promise<void> {
+    if (this.deletedAt.has(row.id)) {
+      if (options.expectedVersion === undefined) return;
+      throw new VersionConflictError({ message: `expected version ${options.expectedVersion} for entry '${row.id}', found none` });
+    }
     const holder = await this.inner.findBySlug({ workspaceId: row.workspaceId, type: row.type, slug: row.slug });
     if (holder && holder.id !== row.id && this.deletedAt.has(holder.id)) {
       throw new EntrySlugConflictError({ message: `an entry with slug '${row.slug}' is in the Trash — restore it, or delete it permanently from the Trash, to reuse the slug` });
     }
-    await this.inner.save(row);
+    await this.inner.save(row, options);
   }
 
   async appendRevision(revision: EntryRevisionInput): Promise<void> {

@@ -79,8 +79,8 @@ Re-audited against code/git 2026-10-04 (evening): statuses below marked **PARTLY
 - **Publish installed skills, site plugins and agent-plugin files** (09-24, L3093–3098): only the theme-files handler exists in the publish type registry.
 
 ### Persistence & CAS (web-medium `wm` plan: `ADS-memory/.local-artifacts/fix-plan-web-medium-2026-09-24.md`; owner ordered these run 09-24, L3256)
-- **wm S3 entries** (L3314): Jini `entries/write-service` checks version before the transaction and saves with no persistence `expectedVersion` guard.
-- **wm S4 menus** (L3314): Jini `navigation/menu-service:updateMenuTree` same pattern.
+- ~~**wm S3 entries**~~ **DONE 2026-10-04 (Jini `50c63960` + Tovu entries commit, needs a cms release + Tovu adoption):** `EntryRepoPort.save(row, { expectedVersion })` is a compare-and-set inside the write's transaction on every adapter (SQLite, PGlite, real Postgres, memory); update/publish/unpublish/import-as-update pass it, a loss is `{ ok: false }`. Left: an import-as-create race (two creates of the same id) stays an unconditional upsert.
+- ~~**wm S4 menus**~~ **DONE 2026-10-04 (Jini `347a91b8` + Tovu `61b8f3305`, needs a cms release + Tovu adoption):** `MenuRepoPort.save(record, { expectedVersion })` is a conditional UPDATE; `updateMenuTree` and both `assignLocation` saves pass it.
 - ~~**wm S5 content types**~~ **DONE 2026-10-04 (Jini `6e754d04`, needs a cms release + Tovu adoption):** `tombstoneContentType` tears down indexes after the save commits.
 - ~~**wm S16 tool failures**~~ **DONE 2026-10-04 (`7fa926257`):** comments handlers wrapped (`COMMENTS_FORBIDDEN`/`_NOT_FOUND`/`_VERSION_CONFLICT`, typed errors). Earlier state — **PARTLY:** taxonomy tools are wrapped and S18 unassign landed (`bebc5736f`). Left: comments still throw plain `Error` (`features/comments/tool-registrations.ts:145-146,243`). Redirects DONE (wm S16 redirects commit): handlers wrapped (`REDIRECTS_*` codes incl. FORBIDDEN), import `failed[]` redacts unlisted errors.
 

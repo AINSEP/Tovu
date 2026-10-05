@@ -3,7 +3,7 @@ import { type Kysely, type SelectQueryBuilder, sql } from "kysely";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import type { ContentDatabase } from "../../platform/db/content-database.generated.js";
 import { isUniqueViolation, jsonScalarEquals, jsonSortKey } from "../../platform/db/kernel/dialect.js";
-import { EntrySlugConflictError } from "./index.js";
+import { EntrySlugConflictError, VersionConflictError } from "./index.js";
 import type { EntryListPort, EntryRecord, EntryRepoPort, EntryRevisionInput, EntryStatus } from "./index.js";
 import type {
   CollectionListQuery,
@@ -88,13 +88,23 @@ export class SqlEntryRepo implements EntryRepoPort, EntryListPort, EntryDisplayL
    * Upserts an `entries` row by id — full-replace semantics, matching `InMemoryEntryRepo.save`'s
    * `Map.set` behavior exactly. A trashed row is left as it is (a stale save cannot bring it back).
    *
+   * With `expectedVersion` the save is a compare-and-set instead (wm S3): one conditional UPDATE on
+   * the live row holding that version, inside the caller's transaction, so two writers that read the
+   * same version cannot both land (a Postgres writer blocked on the row lock re-checks the WHERE
+   * against the winner's row).
    * @throws EntrySlugConflictError when a trashed row holds the slug: the reads above hide it, so the
    *         chokepoint's own slug check could not see it.
+   * @throws VersionConflictError ``expected version <n> for entry '<id>', found <stored|none>`` when the
+   *         compare-and-set misses (stale version, trashed or missing row).
    * @complexity O(1).
    */
-  async save(record: EntryRecord): Promise<void> {
+  async save(record: EntryRecord, options: { expectedVersion?: number | undefined } = {}): Promise<void> {
     const values = toRow(record);
     try {
+      if (options.expectedVersion !== undefined) {
+        await this.compareAndSet(record, values, options.expectedVersion);
+        return;
+      }
       await this.kernel.run((db) =>
         db
           .insertInto("entries")
@@ -108,6 +118,23 @@ export class SqlEntryRepo implements EntryRepoPort, EntryListPort, EntryDisplayL
       }
       throw error;
     }
+  }
+
+  /** The conditional UPDATE behind `save`'s `expectedVersion`; on a miss, re-reads the live version for the message. */
+  private async compareAndSet(record: EntryRecord, values: ReturnType<typeof toRow>, expectedVersion: number): Promise<void> {
+    const result = await this.kernel.run((db) =>
+      db
+        .updateTable("entries")
+        .set(values)
+        .where("workspace_id", "=", record.workspaceId)
+        .where("id", "=", record.id)
+        .where("deleted_at", "is", null)
+        .where("version", "=", expectedVersion)
+        .executeTakeFirst()
+    );
+    if (Number(result.numUpdatedRows) > 0) return;
+    const found = (await this.findById({ workspaceId: record.workspaceId, id: record.id }))?.version ?? "none";
+    throw new VersionConflictError({ message: `expected version ${expectedVersion} for entry '${record.id}', found ${found}` });
   }
 
   async appendRevision(revision: EntryRevisionInput): Promise<void> {
