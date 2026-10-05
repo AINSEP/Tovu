@@ -83,7 +83,8 @@ export function usePostPreviewIframeEscape(expanded: boolean, onCollapse: () => 
     };
     const bind = () => {
       frameDocument?.removeEventListener("keydown", onKeyDown);
-      // Cross-origin dev previews cannot expose their document; the visible exit control remains available.
+      // Opaque-origin previews (`PAGE_PREVIEW_IFRAME_SANDBOX` has no `allow-same-origin`) and cross-origin
+      // dev previews cannot expose their document; the visible exit control remains available.
       frameDocument = iframe.contentDocument;
       frameDocument?.addEventListener("keydown", onKeyDown);
     };

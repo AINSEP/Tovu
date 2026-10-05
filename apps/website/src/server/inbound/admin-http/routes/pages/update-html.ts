@@ -136,9 +136,9 @@ function sendStoreError(res: Response, err: unknown): void {
  *   arbitrary markup is what a Page IS — so the exposure is bounded by WHO may write it instead:
  *   the same principals already trusted with raw theme source, which is the same trust level the
  *   theme layer has always had. The admin preview iframes carry `sandbox` (admin
- *   `features/pages/rules.ts`'s `PAGE_PREVIEW_IFRAME_SANDBOX`, 2026-10-04), but WITH
- *   `allow-scripts allow-same-origin` and a same-origin document, so preview script still runs with
- *   the admin origin; that constant's doc says why. The published page is not sandboxed. A holder
+ *   `features/pages/rules.ts`'s `PAGE_PREVIEW_IFRAME_SANDBOX`, 2026-10-04) WITHOUT
+ *   `allow-same-origin` since 2026-10-05, so preview script runs in an opaque origin and cannot reach
+ *   the admin document or its APIs; that constant's doc says why. The published page is not sandboxed. A holder
  *   of `pages.edit_html` can still put script on the public site, and that is intended.
  */
 export const registerAdminPageUpdateHtmlRoute: ContentRouteRegistrar = (app, deps) => {

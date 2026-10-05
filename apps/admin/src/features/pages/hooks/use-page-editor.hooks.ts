@@ -355,9 +355,12 @@ export interface PageEditorController {
    * The live-site iframe is cross-origin in dev (`siteUrl`'s own origin, `:3000` vs. the admin's
    * `:5173` — see `PagePreview`'s own doc). Reading or driving scroll on a foreign `Window` is a
    * browser security restriction this code cannot route around without the site itself cooperating
-   * (out of scope — another agent owns `apps/website`), so that branch's position is NOT remembered;
-   * the template-preview branch (same-origin through the `/api` dev-proxy) is unaffected and works
-   * normally. See this function's own implementation comment for the try/catch this relies on.
+   * (out of scope — another agent owns `apps/website`), so that branch's position is NOT remembered.
+   * Since 2026-10-05 the template-preview branch is in the same position: `PAGE_PREVIEW_IFRAME_SANDBOX`
+   * dropped `allow-same-origin`, so every preview document has an opaque origin and this handler's
+   * `try` swallows the `SecurityError` on both branches. Restoring it needs the preview document to
+   * report its own scroll by `postMessage`. See this function's own implementation comment for the
+   * try/catch this relies on.
    */
   onPreviewFrameLoad: (iframe: HTMLIFrameElement) => void;
 }
@@ -984,8 +987,8 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     try {
       // Cross-origin (the live-site branch): reading `.scrollY` or calling `.scrollTo()` on a foreign
       // `Window` throws a `SecurityError` — caught below, so that branch's position is simply never
-      // remembered rather than crashing the load handler. The same-origin template-preview branch
-      // reaches neither restriction.
+      // remembered rather than crashing the load handler. The template-preview branch is opaque-origin
+      // too since 2026-10-05 (`PAGE_PREVIEW_IFRAME_SANDBOX` has no `allow-same-origin`).
       const win = iframe.contentWindow;
       if (!win) return;
       win.scrollTo(0, previewScrollYRef.current);

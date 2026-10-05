@@ -597,15 +597,10 @@ export function pagePreviewFormTarget(page: AdminPost | null): string {
  * Before this the preview iframes had no `sandbox` at all, while `update-html.ts`'s header claimed the
  * authoring preview was sandboxed. The post editor's three `PostPreviewFrame` iframes
  * (`features/posts/PostEditor.tsx`) import this same constant (owner, 2026-10-04) so the two editors'
- * flags cannot drift; there `allow-same-origin` also keeps `usePostPreviewIframeEscape`'s Escape
- * listener on the frame document working.
+ * flags cannot drift.
  *
- * Each flag is there because the preview needs it to render and behave exactly as it did unsandboxed:
+ * Each flag is there because the preview needs it to render and behave as it does unsandboxed:
  * - `allow-scripts`: theme JS (menus, carousels, Liquid-rendered widgets) must run in the preview.
- * - `allow-same-origin`: without it the document gets an opaque origin, which (a) breaks the per-tab
- *   scroll memory (`onPreviewFrameLoad` reads `contentWindow.scrollY`; the template-preview branch is
- *   same-origin through the `/api` proxy) and (b) turns `/theme-assets/...` font and module-script
- *   loads into CORS requests the site does not answer.
  * - `allow-forms`: shipped themes have real forms (sign-in/sign-up pages, newsletter footers).
  * - `allow-popups`: authored HTML uses `target="_blank"` links; a popup inherits this sandbox (no
  *   `allow-popups-to-escape-sandbox`).
@@ -614,13 +609,21 @@ export function pagePreviewFormTarget(page: AdminPost | null): string {
  * never navigate the admin tab itself by `target="_top"` links or `top.location`, and `allow-modals`.
  * Link clicks inside the frame still navigate the frame, which needs no flag.
  *
- * Honest limit: a same-origin document with `allow-scripts allow-same-origin` can reach its parent
- * and strip its own sandbox, so on the template-preview branch (same origin as the admin) this is a
- * guard against accidental top navigation and popups escaping, not an isolation boundary. Real
- * isolation needs an opaque origin (drop `allow-same-origin`), which costs the scroll memory and
- * theme fonts above, so it is a separate owner decision.
+ * Deliberately absent since 2026-10-05: `allow-same-origin`. Both branches load documents from the
+ * admin's own origin (the template-preview route always; the live site in production, where `siteUrl`
+ * returns a root-relative path), and a same-origin document holding `allow-scripts allow-same-origin`
+ * can reach `parent.document`, call `/api/admin/*` with the owner's session, and strip its own sandbox.
+ * Without it the preview runs in an opaque origin, the same isolation Theme Studio's preview already
+ * uses. What that costs, accepted on purpose:
+ * - per-tab scroll memory (`onPreviewFrameLoad` can no longer read or set `contentWindow.scrollY`; its
+ *   `try` swallows the `SecurityError`, so the preview opens at the top),
+ * - Escape inside an expanded post preview (`usePostPreviewIframeEscape` gets a null
+ *   `contentDocument`; the visible exit control still collapses it),
+ * - theme scripts that touch `localStorage`/cookies, or call the site's own APIs, inside the preview.
+ * Theme fonts still load: `/theme-assets` answers font requests with `Access-Control-Allow-Origin: *`
+ * for exactly this opaque-origin case (`theme-content-security-headers.ts`).
  */
-export const PAGE_PREVIEW_IFRAME_SANDBOX = "allow-scripts allow-same-origin allow-forms allow-popups";
+export const PAGE_PREVIEW_IFRAME_SANDBOX = "allow-scripts allow-forms allow-popups";
 
 /**
  * The working copy's editable HTML for a loaded row — exactly the mount effect's own

@@ -727,9 +727,16 @@ describe("sort labels and conflict copy are translated, not English passthrough"
 });
 
 describe("PAGE_PREVIEW_IFRAME_SANDBOX", () => {
-  it("is exactly the four flags the preview needs, and never lets the preview navigate the admin tab", () => {
-    expect(PAGE_PREVIEW_IFRAME_SANDBOX.split(" ").sort()).toEqual(["allow-forms", "allow-popups", "allow-same-origin", "allow-scripts"]);
+  it("is exactly the three flags the preview needs, and never lets the preview navigate the admin tab", () => {
+    expect(PAGE_PREVIEW_IFRAME_SANDBOX.split(" ").sort()).toEqual(["allow-forms", "allow-popups", "allow-scripts"]);
     expect(PAGE_PREVIEW_IFRAME_SANDBOX).not.toMatch(/allow-top-navigation/);
     expect(PAGE_PREVIEW_IFRAME_SANDBOX).not.toMatch(/allow-popups-to-escape-sandbox/);
+  });
+
+  // 2026-10-05: both preview branches load admin-origin documents (the template-preview route always,
+  // the live site in production). `allow-scripts` + `allow-same-origin` there lets preview script read
+  // `parent.document`, call `/api/admin/*` with the owner's session, and strip its own sandbox.
+  it("never grants allow-same-origin, so preview script runs in an opaque origin", () => {
+    expect(PAGE_PREVIEW_IFRAME_SANDBOX.split(" ")).not.toContain("allow-same-origin");
   });
 });
