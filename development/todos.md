@@ -962,7 +962,7 @@ Three Fable reviewers (architecture/DI, excess-and-dead-code, bugs) ran twice: *
       as the active site and writes Create/Activate/duplicate under `<cwd>/sites` and `<cwd>/.env`.
       The desktop arm is masked only by `tovu-server.cjs` setting `TOVU_SITE_DIR`. Proposed fix: a
       `RouteDeps.siteBinding` set once per composition root.
-- [ ] **PARTLY:** symptom fixed `11aa47080`; still an import-time `Map`. **Authz grants register into a module-scope `Map` by import side effect** —
+- [x] DONE (explicit `createAppPermissionGrants` registry passed to identity wiring; Jini `createPermissionMigrationRegistry`). **Authz grants register into a module-scope `Map` by import side effect** —
       `apps/website/src/features/identity/builtin-role-grants.ts:13-16`, populated by
       `pages/permissions.ts:122-146` at module evaluation time.
       `development/scripts/backfill-reset-admin-password.ts:132` builds identity deps without that

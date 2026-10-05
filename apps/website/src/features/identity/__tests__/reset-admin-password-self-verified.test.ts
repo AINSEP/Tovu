@@ -17,6 +17,8 @@ import {
   AdminPasswordResetVerificationFailedError,
 } from "../reset-admin-password-self-verified.js";
 import { openPreparedContentDb } from "../../../platform/db/sqlite/__tests__/helpers/open-prepared-content-db.js";
+// No host grants: this file certifies the password reset, not boot-time grant reconciliation.
+import { createPermissionGrantRegistry } from "../permission-grants.js";
 
 /**
  * @file The mandatory proof for `reset-admin-password-self-verified.ts` — the module written after
@@ -58,7 +60,7 @@ test("resetAdminPasswordSelfVerified: resets the seeded owner's password, self-v
   const { dir, dbPath } = tmpDbPath("reset-admin-pw-happy-");
   try {
     const db = await openPreparedContentDb(dbPath);
-    const identity = createSqliteIdentityRouteDeps({ db, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
+    const identity = createSqliteIdentityRouteDeps({ permissionGrants: createPermissionGrantRegistry({}), db, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
     await identity.identityReady;
 
     const repos: IdentityRepos = {
@@ -106,7 +108,7 @@ test("resetAdminPasswordSelfVerified: a write that does not verify is caught bef
   const { dir, dbPath } = tmpDbPath("reset-admin-pw-corrupt-");
   try {
     const db = await openPreparedContentDb(dbPath);
-    const identity = createSqliteIdentityRouteDeps({ db, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
+    const identity = createSqliteIdentityRouteDeps({ permissionGrants: createPermissionGrantRegistry({}), db, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
     await identity.identityReady;
 
     const repos: IdentityRepos = {

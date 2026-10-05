@@ -7,7 +7,10 @@ import type { PublishContentRouteDeps } from "../deps.js";
 import { registerAdminPolicyWritePermissionRoute } from "../../users/write-policy-permission.js";
 import type { UsersRouteDeps } from "../../users/deps.js";
 import { isKnownPermission } from "@jini-ai/user-management";
-import "#src/features/publish-content/permissions";
+import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
+
+// Composition registers publish.backstop in the library catalog (no longer an import side effect).
+createAppPermissionGrants({});
 
 test("the catalog lists publish.backstop, but role.manage cannot grant it", async (t) => {
   assert.equal(isKnownPermission({ id: "publish.backstop" }), true);

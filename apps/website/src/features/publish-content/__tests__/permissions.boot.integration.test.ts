@@ -6,10 +6,10 @@ import test from "node:test";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { createSqliteIdentityRouteDeps } from "#src/features/identity/wiring";
-// Side-effect import: registers the Task 9 grants under test. Reached directly rather than via the
-// `publish-content` server module (which would drag in every route's Express wiring just for
-// this), mirroring `wiring.test.ts`'s side-effect import of the Pages permission module.
-import "#src/features/publish-content/permissions";
+// The app's explicit grant registry (`registerPublishContentPermissionGrants` registers the Task 9
+// grants under test) — reached without the `publish-content` server module, which would drag in
+// every route's Express wiring just for this.
+import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
 
 // A reproducible already-seeded workspace with publishing grants explicitly absent.
 const WORKSPACE_ID = "workspace-publish-permissions";
@@ -29,7 +29,7 @@ async function createSeededContentDb(): Promise<{ dir: string; dbPath: string }>
   const dbPath = path.join(dir, "content.db");
   const db = openContentDb(dbPath);
   try {
-    const setup = createSqliteIdentityRouteDeps({ db, workspaceId: WORKSPACE_ID,
+    const setup = createSqliteIdentityRouteDeps({ permissionGrants: createAppPermissionGrants({}), db, workspaceId: WORKSPACE_ID,
       clock: fixedClock, idGen: counterIdGen("seed"), reconcileGrantsOnBoot: false });
     await setup.identityReady;
     const admin = await setup.policyRepo.findByName({ workspaceId: WORKSPACE_ID, name: "admin-builtin-policy" });
@@ -54,7 +54,7 @@ async function createSeededContentDb(): Promise<{ dir: string; dbPath: string }>
 
 async function bootSeededContentDb(dbPath: string, idPrefix: string) {
   const db = openContentDb(dbPath);
-  const deps = createSqliteIdentityRouteDeps({ db, workspaceId: WORKSPACE_ID,
+  const deps = createSqliteIdentityRouteDeps({ permissionGrants: createAppPermissionGrants({}), db, workspaceId: WORKSPACE_ID,
     clock: fixedClock, idGen: counterIdGen(idPrefix) });
   try {
     await deps.identityReady;

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { authorize } from "@jini-ai/user-management/server";
-import { listPermissionMigrations, migrateDeprecatedPermissionGrants, registerPermissionMigration } from "@jini-ai/user-management/server";
+import { createPermissionMigrationRegistry, migrateDeprecatedPermissionGrants } from "@jini-ai/user-management/server";
 import { NAVIGATION_PERMISSIONS } from "#src/features/navigation/index";
 import { InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPolicyRepo, InMemoryPrincipalRepo, InMemoryPrincipalRoleRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo } from "@jini-ai/user-management/server";
 
@@ -29,22 +29,23 @@ function counterIdGen(prefix = "id") {
 }
 
 // ---------------------------------------------------------------------------
-// T004: registerPermissionMigration / listPermissionMigrations (pure registry)
+// T004: PermissionMigrationRegistry register / list (pure registry, one per test)
 // ---------------------------------------------------------------------------
 
-test("C-001: registerPermissionMigration registers a {from, to, reason} pair; listPermissionMigrations returns it", () => {
-  registerPermissionMigration({
+test("C-001: registry.register registers a {from, to, reason} pair; registry.list returns it", () => {
+  const registry = createPermissionMigrationRegistry({});
+  registry.register({
     from: "test.legacy.perm-a",
     to: ["test.new.perm-a1", "test.new.perm-a2"],
     reason: "test migration A",
   });
-  registerPermissionMigration({
+  registry.register({
     from: "test.legacy.perm-b",
     to: ["test.new.perm-b1"],
     reason: "test migration B",
   });
 
-  const all = listPermissionMigrations({});
+  const all = registry.list({});
   const a = all.find((m) => m.from === "test.legacy.perm-a");
   const b = all.find((m) => m.from === "test.legacy.perm-b");
 
@@ -57,18 +58,19 @@ test("C-001: registerPermissionMigration registers a {from, to, reason} pair; li
 });
 
 test("C-001: re-registering the same `from` overwrites rather than duplicates (idempotent re-registration, matches PermissionCatalog.register)", () => {
-  registerPermissionMigration({
+  const registry = createPermissionMigrationRegistry({});
+  registry.register({
     from: "test.legacy.perm-overwrite",
     to: ["test.new.perm-v1"],
     reason: "first registration",
   });
-  registerPermissionMigration({
+  registry.register({
     from: "test.legacy.perm-overwrite",
     to: ["test.new.perm-v2a", "test.new.perm-v2b"],
     reason: "second registration supersedes the first",
   });
 
-  const matches = listPermissionMigrations({}).filter((m) => m.from === "test.legacy.perm-overwrite");
+  const matches = registry.list({}).filter((m) => m.from === "test.legacy.perm-overwrite");
   assert.equal(matches.length, 1, "exactly one entry exists for this `from`, not two");
   assert.deepEqual(matches[0].to, ["test.new.perm-v2a", "test.new.perm-v2b"]);
   assert.equal(matches[0].reason, "second registration supersedes the first");
@@ -94,7 +96,8 @@ function buildFixture() {
 }
 
 test("C-002/INV-NEW-01: fans out a deprecated grant to every `to` string, keeps the deprecated grant, and leaves an unrelated permission untouched", async () => {
-  registerPermissionMigration({
+  const registry = createPermissionMigrationRegistry({});
+  registry.register({
     from: "navigation.manage",
     to: [
       "admin.menus.read",
@@ -132,7 +135,7 @@ test("C-002/INV-NEW-01: fans out a deprecated grant to every `to` string, keeps 
     constraintJson: null,
   });
 
-  const result = await migrateDeprecatedPermissionGrants({ transactions,
+  const result = await migrateDeprecatedPermissionGrants({ migrations: registry.list({}), transactions,
     policyPermissions,
     policies,
     idGen,
@@ -161,7 +164,8 @@ test("C-002/INV-NEW-01: fans out a deprecated grant to every `to` string, keeps 
 });
 
 test("C-002/INV-NEW-01: running the migration a second time is a no-op (idempotency)", async () => {
-  registerPermissionMigration({
+  const registry = createPermissionMigrationRegistry({});
+  registry.register({
     from: "navigation.manage",
     to: [
       "admin.menus.read",
@@ -191,7 +195,7 @@ test("C-002/INV-NEW-01: running the migration a second time is a no-op (idempote
     constraintJson: null,
   });
 
-  const first = await migrateDeprecatedPermissionGrants({ transactions,
+  const first = await migrateDeprecatedPermissionGrants({ migrations: registry.list({}), transactions,
     policyPermissions,
     policies,
     idGen,
@@ -199,7 +203,7 @@ test("C-002/INV-NEW-01: running the migration a second time is a no-op (idempote
   });
   assert.equal(first.migratedGrantCount, 6);
 
-  const second = await migrateDeprecatedPermissionGrants({ transactions,
+  const second = await migrateDeprecatedPermissionGrants({ migrations: registry.list({}), transactions,
     policyPermissions,
     policies,
     idGen,
@@ -212,7 +216,8 @@ test("C-002/INV-NEW-01: running the migration a second time is a no-op (idempote
 });
 
 test("C-002/INV-NEW-01: a policy that never held the deprecated permission is never touched", async () => {
-  registerPermissionMigration({
+  const registry = createPermissionMigrationRegistry({});
+  registry.register({
     from: "navigation.manage",
     to: ["admin.menus.read", "admin.menus.manage"],
     reason: "ADR-PIPE-012 D-1/D-2/D-9 permission split/rename",
@@ -235,7 +240,7 @@ test("C-002/INV-NEW-01: a policy that never held the deprecated permission is ne
     constraintJson: null,
   });
 
-  const result = await migrateDeprecatedPermissionGrants({ transactions,
+  const result = await migrateDeprecatedPermissionGrants({ migrations: registry.list({}), transactions,
     policyPermissions,
     policies,
     idGen,
@@ -250,7 +255,8 @@ test("C-002/INV-NEW-01: a policy that never held the deprecated permission is ne
 });
 
 test("C-002: a `to` string already held by the policy is not duplicated", async () => {
-  registerPermissionMigration({
+  const registry = createPermissionMigrationRegistry({});
+  registry.register({
     from: "navigation.manage",
     to: ["admin.menus.read", "admin.menus.manage"],
     reason: "ADR-PIPE-012 D-1/D-2/D-9 permission split/rename",
@@ -282,7 +288,7 @@ test("C-002: a `to` string already held by the policy is not duplicated", async 
     constraintJson: null,
   });
 
-  const result = await migrateDeprecatedPermissionGrants({ transactions,
+  const result = await migrateDeprecatedPermissionGrants({ migrations: registry.list({}), transactions,
     policyPermissions,
     policies,
     idGen,
@@ -304,7 +310,8 @@ test("C-002: a `to` string already held by the policy is not duplicated", async 
 // ---------------------------------------------------------------------------
 
 test("T012: a policy holding only navigation.manage is authorized for every new admin.menus.* action after migration runs", async () => {
-  registerPermissionMigration({
+  const registry = createPermissionMigrationRegistry({});
+  registry.register({
     from: "navigation.manage",
     to: [
       "admin.menus.read",
@@ -358,7 +365,7 @@ test("T012: a policy holding only navigation.manage is authorized for every new 
   });
   assert.equal(beforeRead.allowed, false, "pre-migration, the new string is not yet granted");
 
-  await migrateDeprecatedPermissionGrants({ transactions,
+  await migrateDeprecatedPermissionGrants({ migrations: registry.list({}), transactions,
     policyPermissions,
     policies,
     idGen: { newId: () => `migrated-${Math.random()}` },

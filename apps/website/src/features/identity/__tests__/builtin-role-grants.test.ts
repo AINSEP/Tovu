@@ -5,8 +5,8 @@ import { InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryRolePolicyRep
 
 import {
   applyBuiltinRoleGrants,
-  listBuiltinRoleGrants,
-  registerBuiltinRoleGrant,
+  createBuiltinRoleGrantRegistry,
+  type BuiltinRoleGrantRegistry,
 } from "../builtin-role-grants.js";
 
 /**
@@ -17,8 +17,8 @@ import {
  * without being able to see them: that a grant reaches ONE policy (so a sibling built-in role
  * cannot be widened by accident), and that it is additive-only (so a rerun on every boot is safe).
  *
- * The registry is a module singleton, so these tests register their own pairs rather than reading
- * the real ones — `node:test` gives each file its own process, so that stays local to this file.
+ * Each test creates its own registry and registers its own pairs rather than reading the real ones;
+ * there is no module-scope registry for one test's registrations to leak into another's.
  */
 
 const WORKSPACE = "ws-builtin-role-grants";
@@ -81,8 +81,9 @@ function newFixture(): Fixture {
   };
 }
 
-const apply = (fixture: Fixture, prefix: string) =>
+const apply = (fixture: Fixture, prefix: string, registry: BuiltinRoleGrantRegistry) =>
   applyBuiltinRoleGrants({
+    grants: registry.list({}),
     roles: fixture.roles,
     rolePolicies: fixture.rolePolicies,
     policies: fixture.policies,
@@ -96,11 +97,12 @@ const permissionsOf = async (fixture: Fixture, policyId: string) =>
     (row) => row.permission
   );
 
-test("registerBuiltinRoleGrant is idempotent per {role, permission} — re-registering overwrites rather than duplicating", () => {
-  registerBuiltinRoleGrant({ role: "admin", permission: "test.dup", reason: "first" });
-  registerBuiltinRoleGrant({ role: "admin", permission: "test.dup", reason: "second" });
+test("registry.register is idempotent per {role, permission} — re-registering overwrites rather than duplicating", () => {
+  const registry = createBuiltinRoleGrantRegistry({});
+  registry.register({ role: "admin", permission: "test.dup", reason: "first" });
+  registry.register({ role: "admin", permission: "test.dup", reason: "second" });
 
-  const matching = listBuiltinRoleGrants().filter((g) => g.role === "admin" && g.permission === "test.dup");
+  const matching = registry.list({}).filter((g) => g.role === "admin" && g.permission === "test.dup");
   assert.equal(matching.length, 1);
   assert.equal(matching[0]?.reason, "second", "the later registration wins, matching PermissionCatalog.register");
 });
@@ -111,12 +113,13 @@ test("registerBuiltinRoleGrant is idempotent per {role, permission} — re-regis
  * later edit could weaken.
  */
 test("a grant reaches only the named role's own built-in policy — a sibling built-in role is untouched", async () => {
+  const registry = createBuiltinRoleGrantRegistry({});
   const fixture = newFixture();
   const admin = await seedRoleWithPolicy(fixture, { role: "admin-isolated", permissions: ["content.write"] });
   const editor = await seedRoleWithPolicy(fixture, { role: "editor-isolated", permissions: ["content.write"] });
 
-  registerBuiltinRoleGrant({ role: "admin-isolated", permission: "test.isolated", reason: "certifies isolation" });
-  const result = await apply(fixture, "grant");
+  registry.register({ role: "admin-isolated", permission: "test.isolated", reason: "certifies isolation" });
+  const result = await apply(fixture, "grant", registry);
 
   assert.equal(result.grantedCount, 1, "exactly one row written");
   assert.ok((await permissionsOf(fixture, admin.policyId)).includes("test.isolated"));
@@ -127,14 +130,15 @@ test("a grant reaches only the named role's own built-in policy — a sibling bu
 });
 
 test("a grant is additive — the policy's existing permissions all survive it", async () => {
+  const registry = createBuiltinRoleGrantRegistry({});
   const fixture = newFixture();
   const admin = await seedRoleWithPolicy(fixture, {
     role: "admin-additive",
     permissions: ["content.write", "media.read"],
   });
 
-  registerBuiltinRoleGrant({ role: "admin-additive", permission: "test.additive", reason: "certifies additivity" });
-  await apply(fixture, "grant");
+  registry.register({ role: "admin-additive", permission: "test.additive", reason: "certifies additivity" });
+  await apply(fixture, "grant", registry);
 
   assert.deepEqual((await permissionsOf(fixture, admin.policyId)).sort(), [
     "content.write",
@@ -144,12 +148,13 @@ test("a grant is additive — the policy's existing permissions all survive it",
 });
 
 test("re-running is a no-op — grantedCount is 0 and no duplicate row is appended", async () => {
+  const registry = createBuiltinRoleGrantRegistry({});
   const fixture = newFixture();
   const admin = await seedRoleWithPolicy(fixture, { role: "admin-rerun" });
 
-  registerBuiltinRoleGrant({ role: "admin-rerun", permission: "test.rerun", reason: "certifies idempotence" });
-  const first = await apply(fixture, "first");
-  const second = await apply(fixture, "second");
+  registry.register({ role: "admin-rerun", permission: "test.rerun", reason: "certifies idempotence" });
+  const first = await apply(fixture, "first", registry);
+  const second = await apply(fixture, "second", registry);
 
   assert.equal(first.grantedCount, 1);
   assert.equal(second.grantedCount, 0, "a boot with nothing to add must write nothing");
@@ -157,26 +162,29 @@ test("re-running is a no-op — grantedCount is 0 and no duplicate row is append
 });
 
 test("a registration whose role does not exist in this workspace is skipped, not an error", async () => {
+  const registry = createBuiltinRoleGrantRegistry({});
   const fixture = newFixture();
 
-  registerBuiltinRoleGrant({ role: "role-that-does-not-exist", permission: "test.absent", reason: "certifies skip" });
-  const result = await apply(fixture, "grant");
+  registry.register({ role: "role-that-does-not-exist", permission: "test.absent", reason: "certifies skip" });
+  const result = await apply(fixture, "grant", registry);
 
   assert.equal(result.grantedCount, 0);
 });
 
 test("a NON-built-in role sharing a built-in's name is skipped — a registration names the seeded role, not any role", async () => {
+  const registry = createBuiltinRoleGrantRegistry({});
   const fixture = newFixture();
   const impostor = await seedRoleWithPolicy(fixture, { role: "admin-impostor", roleIsBuiltin: false });
 
-  registerBuiltinRoleGrant({ role: "admin-impostor", permission: "test.impostor", reason: "certifies builtin check" });
-  const result = await apply(fixture, "grant");
+  registry.register({ role: "admin-impostor", permission: "test.impostor", reason: "certifies builtin check" });
+  const result = await apply(fixture, "grant", registry);
 
   assert.equal(result.grantedCount, 0);
   assert.deepEqual(await permissionsOf(fixture, impostor.policyId), []);
 });
 
 test("a non-built-in policy attached to a built-in role is skipped — operator attachments are not the library's to reconcile", async () => {
+  const registry = createBuiltinRoleGrantRegistry({});
   const fixture = newFixture();
   const role = await seedRoleWithPolicy(fixture, { role: "admin-attached" });
 
@@ -194,8 +202,8 @@ test("a non-built-in policy attached to a built-in role is skipped — operator 
     policyId: "policy-operator-made",
   });
 
-  registerBuiltinRoleGrant({ role: "admin-attached", permission: "test.attached", reason: "certifies builtin-policy check" });
-  const result = await apply(fixture, "grant");
+  registry.register({ role: "admin-attached", permission: "test.attached", reason: "certifies builtin-policy check" });
+  const result = await apply(fixture, "grant", registry);
 
   assert.equal(result.grantedCount, 1, "only the role's own built-in policy is written");
   assert.deepEqual(await permissionsOf(fixture, role.policyId), ["test.attached"]);
@@ -203,11 +211,12 @@ test("a non-built-in policy attached to a built-in role is skipped — operator 
 });
 
 test("a granted row is unscoped — resourceType and constraintJson are null, matching every seeded built-in grant", async () => {
+  const registry = createBuiltinRoleGrantRegistry({});
   const fixture = newFixture();
   const admin = await seedRoleWithPolicy(fixture, { role: "admin-unscoped" });
 
-  registerBuiltinRoleGrant({ role: "admin-unscoped", permission: "test.unscoped", reason: "certifies row shape" });
-  await apply(fixture, "grant");
+  registry.register({ role: "admin-unscoped", permission: "test.unscoped", reason: "certifies row shape" });
+  await apply(fixture, "grant", registry);
 
   const [row] = await fixture.policyPermissions.listByPolicyId({
     workspaceId: WORKSPACE,
@@ -218,4 +227,13 @@ test("a granted row is unscoped — resourceType and constraintJson are null, ma
   // into a subtler one that only some call sites see.
   assert.equal(row.resourceType, null);
   assert.equal(row.constraintJson, null);
+});
+
+test("registries are independent — a grant registered on one is never listed by another", () => {
+  const first = createBuiltinRoleGrantRegistry({});
+  const second = createBuiltinRoleGrantRegistry({});
+  first.register({ role: "admin", permission: "test.first-only", reason: "isolation" });
+
+  assert.deepEqual(second.list({}), []);
+  assert.deepEqual(createBuiltinRoleGrantRegistry({}, { grants: first.list({}) }).list({}), first.list({}));
 });

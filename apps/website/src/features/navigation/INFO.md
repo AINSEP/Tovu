@@ -105,7 +105,7 @@ index, and the resolved render model themes consume.
   six admin route files check the action-specific string; `delete.ts` checks
   both `admin.menus.delete` (always) and `admin.menus.delete.force`
   (additionally, only when `?force=true`) before any repo call. The shared
-  `registerPermissionMigration()`/`migrateDeprecatedPermissionGrants()`
+  migration-registry (`createPermissionMigrationRegistry`)/`migrateDeprecatedPermissionGrants()`
   mechanism (`src/identity/permission-migrations.ts`) exists to fan out any
   pre-existing `navigation.manage` grant to the six new strings, but is **not
   yet wired into `identity/seed.ts`'s live boot path** — gated on a real

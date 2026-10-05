@@ -9,6 +9,10 @@ import { applyBuiltinRoleGrants } from "../../identity/builtin-role-grants.js";
 import { InMemoryPostRepo, createPost } from "../../post/index.js";
 import { InMemoryPagesHtmlDocumentStore } from "../html-document-store.memory.js";
 import { buildPagesRegistrations } from "../tool-registrations.js";
+import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
+
+/** The app's real, explicit grant registry — the same one every composition root passes to identity wiring. */
+const APP_PERMISSION_GRANTS = createAppPermissionGrants({});
 
 /**
  * @file SPEC-047 REQ-9 — `pages.edit_html` is a REAL permission, and an `editor` does not hold it.
@@ -134,7 +138,7 @@ async function buildChain(vintage: Vintage = "fresh"): Promise<Chain> {
 
   if (vintage === "pre-theme-edit") await dropAdminThemeEdit(repos);
 
-  await migrateDeprecatedPermissionGrants({ transactions: repos.transactions,
+  await migrateDeprecatedPermissionGrants({ migrations: APP_PERMISSION_GRANTS.migrations.list({}), transactions: repos.transactions,
     policyPermissions: repos.policyPermissions,
     policies: repos.policies,
     idGen: counterIdGen("mig"),
@@ -142,6 +146,7 @@ async function buildChain(vintage: Vintage = "fresh"): Promise<Chain> {
   });
 
   await applyBuiltinRoleGrants({
+    grants: APP_PERMISSION_GRANTS.roleGrants.list({}),
     roles: repos.roles,
     rolePolicies: repos.rolePolicies,
     policies: repos.policies,

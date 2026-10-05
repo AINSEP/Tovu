@@ -14,6 +14,10 @@ import { PageConcurrentEditError, type PagesHtmlDocumentStorePort } from "#src/f
 import { applyBuiltinRoleGrants } from "#src/features/identity/builtin-role-grants";
 import { registerAdminPageUpdateHtmlRoute } from "#src/server/inbound/admin-http/routes/pages/update-html";
 import type { ContentRouteDeps } from "#src/server/inbound/admin-http/routes/content/deps";
+import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
+
+/** The app's real, explicit grant registry — the same one every composition root passes to identity wiring. */
+const APP_PERMISSION_GRANTS = createAppPermissionGrants({});
 
 /**
  * @file The permission gate on `PUT /pages/:pageId/html` (2026-08-10; retargeted to
@@ -293,7 +297,7 @@ async function realIdentityHarness(
 
   if (vintage === "pre-theme-edit") await dropAdminThemeEdit(repos);
 
-  await migrateDeprecatedPermissionGrants({ transactions: repos.transactions,
+  await migrateDeprecatedPermissionGrants({ migrations: APP_PERMISSION_GRANTS.migrations.list({}), transactions: repos.transactions,
     policyPermissions: repos.policyPermissions,
     policies: repos.policies,
     idGen,
@@ -304,6 +308,7 @@ async function realIdentityHarness(
   // Ordered after the fan-out, matching `features/identity/wiring.ts`'s own boot sequence, so a
   // grant the fan-out would already have made is a no-op here rather than a race.
   await applyBuiltinRoleGrants({
+    grants: APP_PERMISSION_GRANTS.roleGrants.list({}),
     roles: repos.roles,
     rolePolicies: repos.rolePolicies,
     policies: repos.policies,

@@ -1,4 +1,4 @@
-import { registerBuiltinRoleGrant } from "../identity/builtin-role-grants.js";
+import type { PermissionGrantRegistry } from "../identity/permission-grants.js";
 import { registerPermission } from "@jini-ai/user-management";
 
 /**
@@ -15,7 +15,7 @@ import { registerPermission } from "@jini-ai/user-management";
  * except `owner` (which clears every gate on its `*` wildcard) is refused regardless of role — the
  * routes work TODAY only because the seeded owner's wildcard papers over the gap.
  *
- * `registerBuiltinRoleGrant` — not `registerPermissionMigration` — is the right mechanism here for
+ * A built-in-role grant — not a permission-migration pair — is the right mechanism here for
  * the same reason `features/pages/permissions.ts` (SPEC-047 REQ-9, the worked example this file
  * copies) ultimately landed on it over the fan-out it first tried: a fan-out is anchored on an
  * EXISTING permission a principal already holds, and there is no existing permission in this
@@ -35,13 +35,15 @@ import { registerPermission } from "@jini-ai/user-management";
  *
  * ## Ordering
  *
- * Same invariant `features/pages/permissions.ts` documents: this module's `registerBuiltinRoleGrant`
- * calls are module-evaluation side effects, and must run before `applyBuiltinRoleGrants` (chained
- * off `identityReady` in `features/identity/wiring.ts`) reads the registry. They do, by ES module
- * semantics — `server/runtime/composition/modules/publish-content.ts` imports this module for that
- * side effect, and it sits in the static import graph of `server/runtime/composition/app.ts`, which
- * is fully evaluated before `createApp()` ever calls `createSqliteIdentityRouteDeps`/
- * `createInMemoryIdentityRouteDeps` and kicks off the seed promise this chains off.
+ * Same invariant `features/pages/permissions.ts` documents: the grants below must be registered
+ * before `applyBuiltinRoleGrants` (chained off `identityReady` in `features/identity/wiring.ts`)
+ * reads them. They used to be module-evaluation side effects, reached because
+ * `server/runtime/composition/modules/publish-content.ts` imported this module for that side effect
+ * inside `composition/app.ts`'s static import graph. They are now an explicit call:
+ * `server/runtime/composition/app-permission-grants.ts` invokes
+ * {@link registerPublishContentPermissionGrants} on the registry every composition root passes to
+ * identity wiring. The `publish.backstop` catalog entry moved into the same call, so importing this
+ * module registers nothing.
  */
 
 /**
@@ -65,29 +67,41 @@ export const PUBLISH_CONTENT_APPLY_PERMISSION = "publish_content.apply";
 /** The manual surface additionally checks built-in role membership; a custom wildcard role
  * never qualifies, even if role.manage has written this permission into its own policy. */
 export const PUBLISH_BACKSTOP_PERMISSION = "publish.backstop";
-registerPermission({ id: PUBLISH_BACKSTOP_PERMISSION, owner: "publish-content", description: "Send uncovered site items by hand (owner and built-in admins only)." });
-registerBuiltinRoleGrant({ role: "admin", permission: PUBLISH_BACKSTOP_PERMISSION,
-  reason: "Owner B1 (2026-10-04): manual publish is available only to the owner and built-in admins; every route also enforces that role boundary." });
+/**
+ * Register publish-content's catalog entry and built-in `admin` grants (see this file's header) on
+ * `required.registry`. `registerPermission` still extends `@jini-ai/user-management`'s own catalog,
+ * which is that library's module singleton; it is called here, at composition, rather than on import.
+ *
+ * @complexity O(1).
+ */
+export function registerPublishContentPermissionGrants(
+  required: { registry: PermissionGrantRegistry },
+  _optional: Record<string, never> = {}
+): void {
+  registerPermission({ id: PUBLISH_BACKSTOP_PERMISSION, owner: "publish-content", description: "Send uncovered site items by hand (owner and built-in admins only)." });
+  required.registry.roleGrants.register({ role: "admin", permission: PUBLISH_BACKSTOP_PERMISSION,
+    reason: "Owner B1 (2026-10-04): manual publish is available only to the owner and built-in admins; every route also enforces that role boundary." });
 
-registerBuiltinRoleGrant({
-  role: "admin",
-  permission: PUBLISH_CONTENT_READ_PERMISSION,
-  reason:
-    "publish-content (Publish Content) Task 9: reading a workspace's exportable publish-content " +
-    "data is a workspace-operator capability, not ordinary authoring — editor and viewer hold " +
-    "neither publish_content.read nor publish_content.apply. Stated against the built-in admin " +
-    "role directly (no existing permission's fan-out reaches this) so it lands on every " +
-    "already-seeded workspace, not only a freshly-seeded one — same reasoning as " +
-    "features/pages/permissions.ts's pages.edit_html grant.",
-});
+  required.registry.roleGrants.register({
+    role: "admin",
+    permission: PUBLISH_CONTENT_READ_PERMISSION,
+    reason:
+      "publish-content (Publish Content) Task 9: reading a workspace's exportable publish-content " +
+      "data is a workspace-operator capability, not ordinary authoring — editor and viewer hold " +
+      "neither publish_content.read nor publish_content.apply. Stated against the built-in admin " +
+      "role directly (no existing permission's fan-out reaches this) so it lands on every " +
+      "already-seeded workspace, not only a freshly-seeded one — same reasoning as " +
+      "features/pages/permissions.ts's pages.edit_html grant.",
+  });
 
-registerBuiltinRoleGrant({
-  role: "admin",
-  permission: PUBLISH_CONTENT_APPLY_PERMISSION,
-  reason:
-    "publish-content (Publish Content) Task 9: applying an import can move any registered " +
-    "publish-content type's data across workspace/instance boundaries and is guarded by a " +
-    "restore-point capture precisely because it can be destructive — a workspace-operator " +
-    "capability, not ordinary authoring. See the publish_content.read grant above for why a " +
-    "direct role grant, not a fan-out, is the mechanism.",
-});
+  required.registry.roleGrants.register({
+    role: "admin",
+    permission: PUBLISH_CONTENT_APPLY_PERMISSION,
+    reason:
+      "publish-content (Publish Content) Task 9: applying an import can move any registered " +
+      "publish-content type's data across workspace/instance boundaries and is guarded by a " +
+      "restore-point capture precisely because it can be destructive — a workspace-operator " +
+      "capability, not ordinary authoring. See the publish_content.read grant above for why a " +
+      "direct role grant, not a fan-out, is the mechanism.",
+  });
+}

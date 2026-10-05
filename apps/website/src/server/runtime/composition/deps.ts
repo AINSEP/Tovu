@@ -144,6 +144,7 @@ import {
 } from "#src/features/media/index";
 import { ensureCoreMediaTransform } from "#src/features/media/bootstrap";
 import { createSqliteIdentityRouteDeps, type IdentityRouteDepsSlice } from "#src/features/identity/wiring";
+import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
 import {
   resetAdminPasswordSelfVerified,
   AdminPasswordResetVerificationFailedError,
@@ -996,7 +997,7 @@ async function composeSiteRouteDeps(
   const pluginRuntimeReady = pluginRuntime.attachEnabledPluginsAtBoot();
   // SQLite-backed identity (principals/users/sessions/roles/policies persist in content.db) so a
   // login survives a `tsx watch` restart instead of being silently wiped every file save.
-  const identity = createSqliteIdentityRouteDeps({ db: kernel, workspaceId, clock, idGen });
+  const identity = createSqliteIdentityRouteDeps({ db: kernel, workspaceId, clock, idGen, permissionGrants: createAppPermissionGrants({}) });
   // Keep the host repository ABI while binding the active/workspace-scoped settings lookup.
   const settingsPrincipals = {
     ...createSettingsPrincipalLookup({ repo: identity.principalRepo }),

@@ -10,6 +10,7 @@ import { assignRole, createUser, type AuthServiceDeps } from "@jini-ai/user-mana
 import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, OwnerRequiredError } from "@jini-ai/user-management";
 import { createSqliteIdentityRouteDeps, type IdentityRouteDepsSlice } from "../wiring.js";
 import { trashUser, SelfDeleteError, type DeleteUserDeps } from "../delete-user-service.js";
+import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
 
 /**
  * @file RED-first coverage for `trashUser` (delete-user plan v2 Slice 2, and the OWNER DECISION
@@ -50,7 +51,7 @@ async function setup(workspaceId: string): Promise<Fixture> {
   db.$client
     .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
     .run(workspaceId, workspaceId, workspaceId, "2026-01-01T00:00:00.000Z");
-  const wiring = createSqliteIdentityRouteDeps({ db, workspaceId, clock, idGen: counterIdGen() });
+  const wiring = createSqliteIdentityRouteDeps({ permissionGrants: createAppPermissionGrants({}), db, workspaceId, clock, idGen: counterIdGen() });
   await wiring.identityReady;
   const ownerPrincipalId = await wiring.ownerPrincipalId;
 

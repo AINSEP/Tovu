@@ -44,7 +44,7 @@ import {
  * which the built-in `editor` role holds, so an `editor` could drive page generation and thereby
  * write unsanitized script into the public site. It also recorded the fix as impossible here,
  * because no seeded row spelled `pages.edit_html`. `features/pages/permissions.ts` now creates that
- * row from this repo, via the host-facing `registerPermissionMigration` seam; see its header.
+ * row from this repo, via the host-facing permission-migration registry seam; see its header.
  *
  * `pages_read_html` deliberately still checks `content.read`. REQ-9 is about who may AUTHOR raw
  * markup, and reading a page's own stored body is not the injection capability — narrowing the read

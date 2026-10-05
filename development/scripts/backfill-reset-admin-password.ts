@@ -74,16 +74,14 @@ import {
   resetAdminPasswordSelfVerified,
   AdminPasswordResetVerificationFailedError,
 } from "../../apps/website/src/features/identity/reset-admin-password-self-verified.js";
-// Side-effect import: registers this repo's OWN theme.edit -> pages.edit_html permission-migration
-// pair and admin -> pages.edit_html built-in-role grant (features/pages/permissions.ts, both
-// consumed via createSqliteIdentityRouteDeps's identityReady below) before that promise resolves.
-// This script previously omitted it, so identityReady's boot-time reconciliation fan-out ran
-// against an EMPTY registry here — every other composition root (server/runtime/composition/app.ts,
-// deps.ts) reaches this registration only incidentally, by also importing the Pages barrel for an
-// unrelated reason (InMemoryPagesHtmlDocumentStore / PagesHtmlDocumentStore), so this script was the
-// one place the grant silently never applied. Mirrors the identical side-effect import
-// `features/identity/__tests__/wiring.test.ts` already carries, and for the same reason.
-import "../../apps/website/src/features/pages/index.js";
+// The app's explicit permission-grant registry, passed to createSqliteIdentityRouteDeps below. This
+// script once built identity deps WITHOUT importing the module whose import side effect filled the
+// old module-scope registry, so identityReady's boot-time reconciliation fan-out ran against an
+// EMPTY registry here — every other composition root (server/runtime/composition/app.ts, deps.ts)
+// reached that registration only incidentally, by also importing the Pages barrel for an unrelated
+// reason, so this script was the one place the admin -> pages.edit_html grant silently never
+// applied (`11aa47080`). `permissionGrants` is now a required argument, so that cannot recur.
+import { createAppPermissionGrants } from "../../apps/website/src/server/runtime/composition/app-permission-grants.js";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..");
 
@@ -149,7 +147,7 @@ async function main(): Promise<void> {
   // anything is outstanding — against a read-only connection that throws instead of no-op'ing (see
   // wiring.ts's own comment on this). `--apply`'s writable connection reconciles exactly like every
   // real server boot does.
-  const identity = createSqliteIdentityRouteDeps({ db, workspaceId, clock, idGen, reconcileGrantsOnBoot: args.apply });
+  const identity = createSqliteIdentityRouteDeps({ db, workspaceId, clock, idGen, permissionGrants: createAppPermissionGrants({}), reconcileGrantsOnBoot: args.apply });
   await identity.identityReady;
 
   const target = await identity.userRepo.findByUsername({ workspaceId, username: args.username });

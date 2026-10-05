@@ -11,11 +11,12 @@ import { InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPoli
 import { type IdentityRepos } from "@jini-ai/user-management";
 
 import { applyBuiltinRoleGrants } from "../builtin-role-grants.js";
-// Importing for its module-evaluation side effect (the `registerPermissionMigration`/
-// `registerBuiltinRoleGrant` calls) — same reasoning `edit-html-permission.test.ts` documents for
-// its own equivalent import: a test file that never imports the module under test would pass
-// vacuously if that module were ever deleted, since nothing would register anything.
-import "../site-key-permission.js";
+import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
+
+// The app's real, explicit grant registry — it calls `registerSiteKeyPermissionGrants`, so this file
+// still exercises the module under test: deleting it breaks this import rather than letting the
+// tests below pass vacuously with nothing registered.
+const APP_PERMISSION_GRANTS = createAppPermissionGrants({});
 
 /**
  * @file `admin.security.site-key.manage` is a REAL permission, and `editor`/`viewer` do not hold it.
@@ -31,7 +32,7 @@ import "../site-key-permission.js";
  * workspace whose admin policy holds `admin.integrations.manage` (current
  * `BUILTIN_ADMIN_PERMISSIONS`); `"pre-integrations-manage"` simulates a workspace seeded before
  * that permission existed, where the `admin.integrations.manage -> admin.security.site-key.manage`
- * migration's `from` row is absent and only the direct `registerBuiltinRoleGrant` reaches admin.
+ * migration's `from` row is absent and only the direct built-in-role grant reaches admin.
  */
 
 const SITE_KEY_MANAGE = "admin.security.site-key.manage";
@@ -75,7 +76,7 @@ async function buildChain(vintage: Vintage = "fresh"): Promise<Chain> {
 
   if (vintage === "pre-integrations-manage") await dropAdminIntegrationsManage(repos);
 
-  await migrateDeprecatedPermissionGrants({ transactions: repos.transactions,
+  await migrateDeprecatedPermissionGrants({ migrations: APP_PERMISSION_GRANTS.migrations.list({}), transactions: repos.transactions,
     policyPermissions: repos.policyPermissions,
     policies: repos.policies,
     idGen: counterIdGen("mig"),
@@ -83,6 +84,7 @@ async function buildChain(vintage: Vintage = "fresh"): Promise<Chain> {
   });
 
   await applyBuiltinRoleGrants({
+    grants: APP_PERMISSION_GRANTS.roleGrants.list({}),
     roles: repos.roles,
     rolePolicies: repos.rolePolicies,
     policies: repos.policies,
@@ -167,7 +169,7 @@ test("the 'owner' principal is unaffected — it clears the gate on its '*' wild
 // ---------------------------------------------------------------------------
 // The vintage that actually ships: a workspace seeded before
 // admin.integrations.manage existed. The migration's `from` row is absent
-// there, so ONLY the direct registerBuiltinRoleGrant can reach admin.
+// there, so ONLY the direct built-in-role grant can reach admin.
 // ---------------------------------------------------------------------------
 
 test("an 'admin' principal in a pre-integrations-manage workspace ALSO holds admin.security.site-key.manage — the grant cannot depend on a seed row that workspace never got", async () => {
@@ -207,7 +209,7 @@ test("a custom policy holding only the integrations anchor inherits token manage
   await repos.principalPolicies.save({ id: "custom-link", workspaceId: WORKSPACE, principalId: "custom-user", policyId: "custom-policy" });
   await repos.policyPermissions.save({ id: "custom-anchor", workspaceId: WORKSPACE, policyId: "custom-policy", permission: "admin.integrations.manage" });
   assert.equal((await can("custom-user", SITE_KEY_MANAGE)).allowed, false);
-  await migrateDeprecatedPermissionGrants({ transactions: repos.transactions, policyPermissions: repos.policyPermissions, policies: repos.policies, idGen: counterIdGen("custom-mig"), workspaceId: WORKSPACE });
+  await migrateDeprecatedPermissionGrants({ migrations: APP_PERMISSION_GRANTS.migrations.list({}), transactions: repos.transactions, policyPermissions: repos.policyPermissions, policies: repos.policies, idGen: counterIdGen("custom-mig"), workspaceId: WORKSPACE });
   assert.deepEqual(await can("custom-user", SITE_KEY_MANAGE), { allowed: true, reason: "matched" });
 });
 
@@ -220,7 +222,7 @@ test("C2: a custom policy holding only the former site-key permission keeps acce
   await repos.principalPolicies.save({ id: "legacy-key-link", workspaceId: WORKSPACE, principalId: "legacy-key-user", policyId: "legacy-key-policy" });
   await repos.policyPermissions.save({ id: "legacy-key-grant", workspaceId: WORKSPACE, policyId: "legacy-key-policy", permission: oldPermission });
   assert.deepEqual(await can("legacy-key-user", newPermission), { allowed: false, reason: "no_grant" });
-  const migrate = () => migrateDeprecatedPermissionGrants({ transactions: repos.transactions, policyPermissions: repos.policyPermissions, policies: repos.policies, idGen: counterIdGen("legacy-key-mig"), workspaceId: WORKSPACE });
+  const migrate = () => migrateDeprecatedPermissionGrants({ migrations: APP_PERMISSION_GRANTS.migrations.list({}), transactions: repos.transactions, policyPermissions: repos.policyPermissions, policies: repos.policies, idGen: counterIdGen("legacy-key-mig"), workspaceId: WORKSPACE });
   await migrate();
   await migrate(); // Every boot is additive and idempotent.
   assert.deepEqual(await can("legacy-key-user", newPermission), { allowed: true, reason: "matched" });
@@ -234,7 +236,7 @@ test("real identityReady boot restores token-management access in a workspace la
   const db = openContentDb(join(dir, "content.db"));
   t.after(() => { db.$client.close(); rmSync(dir, { recursive: true, force: true }); });
   const idGen = counterIdGen("boot");
-  const setup = createSqliteIdentityRouteDeps({ db, workspaceId: WORKSPACE, clock, idGen, reconcileGrantsOnBoot: false });
+  const setup = createSqliteIdentityRouteDeps({ permissionGrants: createAppPermissionGrants({}), db, workspaceId: WORKSPACE, clock, idGen, reconcileGrantsOnBoot: false });
   await setup.identityReady;
   const policy = await setup.policyRepo.findByName({ workspaceId: WORKSPACE, name: "admin-builtin-policy" });
   const role = await setup.roleRepo.findByName({ workspaceId: WORKSPACE, name: "admin" });
@@ -249,7 +251,7 @@ test("real identityReady boot restores token-management access in a workspace la
   await setup.principalRoleRepo.save({ id: "vintage-role", workspaceId: WORKSPACE, principalId: "vintage-admin", roleId: role.id });
   const request = { workspaceId: WORKSPACE, principalId: "vintage-admin", permission: "admin.security.site-key.manage" };
   assert.deepEqual(await setup.authorize(request), { allowed: false, reason: "no_grant" });
-  const boot = createSqliteIdentityRouteDeps({ db, workspaceId: WORKSPACE, clock, idGen });
+  const boot = createSqliteIdentityRouteDeps({ permissionGrants: createAppPermissionGrants({}), db, workspaceId: WORKSPACE, clock, idGen });
   await boot.identityReady;
   assert.deepEqual(await boot.authorize(request), { allowed: true, reason: "matched" });
   const grants = await boot.policyPermissionRepo.listByPolicyId({ workspaceId: WORKSPACE, policyId: policy.id });

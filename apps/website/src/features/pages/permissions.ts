@@ -1,6 +1,4 @@
-import { registerPermissionMigration } from "@jini-ai/user-management/server";
-
-import { registerBuiltinRoleGrant } from "../identity/builtin-role-grants.js";
+import type { PermissionGrantRegistry } from "../identity/permission-grants.js";
 
 /**
  * @file SPEC-047 REQ-9 — the `pages.edit_html` permission, and the grant that makes it real.
@@ -33,9 +31,9 @@ import { registerBuiltinRoleGrant } from "../identity/builtin-role-grants.js";
  * Both this route's header and `tool-registrations.ts` previously recorded REQ-9 as blocked outside
  * this repository, on the reasoning that `authorize()` matches literal `policy_permissions` rows and
  * the seed that would create one lives in the library. The first half is true; the conclusion was
- * not. `registerPermissionMigration` is exported to hosts from `@jini-ai/user-management` precisely so
- * a host can add its own pair (the library's own `identity/index.ts` says so), and the boot-time
- * fan-out that consumes the registry already lives in THIS repo. No library change is needed.
+ * not. `@jini-ai/user-management`'s migration registry (`createPermissionMigrationRegistry`) exists
+ * precisely so a host can add its own pair, and the boot-time fan-out that consumes it already lives
+ * in THIS repo. No library change is needed.
  *
  * ## Why `theme.edit` is the right `from`, and why it is NOT sufficient on its own
  *
@@ -75,7 +73,7 @@ import { registerBuiltinRoleGrant } from "../identity/builtin-role-grants.js";
  * Restoring it to an already-deployed workspace is a real expansion of admin's reach and an
  * operator's decision to make deliberately — not a side effect of a fix scoped to page HTML.
  *
- * `registerBuiltinRoleGrant` states the intent directly instead: the built-in `admin` role holds
+ * The built-in-role grant states the intent directly instead: the built-in `admin` role holds
  * `pages.edit_html`. It writes one row on one `isBuiltin` policy — the admin role's own — so
  * `editor-builtin-policy` and `viewer-builtin-policy` are unreachable structurally rather than by a
  * filter a later edit could weaken. See `features/identity/builtin-role-grants.ts` for the
@@ -88,16 +86,16 @@ import { registerBuiltinRoleGrant } from "../identity/builtin-role-grants.js";
  *
  * ## Ordering
  *
- * The registrations below are module-evaluation side effects, and they must happen before
- * `migrateDeprecatedPermissionGrants`/`applyBuiltinRoleGrants` run. They do, by ES module semantics
- * rather than by luck:
- * both consumers of {@link PAGES_EDIT_HTML_PERMISSION} (`routes/pages/update-html.ts` and
- * `features/pages/tool-registrations.ts`) are in the static import graph of the composition roots
- * that call `createSqliteIdentityRouteDeps`/`createInMemoryIdentityRouteDeps`, so this module is
- * fully evaluated before any composition-root code runs, let alone before the seed promise it
- * chains off resolves. `edit-html-permission.test.ts` pins the resulting grant end-to-end, so a
- * regression in that ordering surfaces as a failing privilege test rather than as a silent
- * fail-open.
+ * The registrations below must happen before `migrateDeprecatedPermissionGrants`/
+ * `applyBuiltinRoleGrants` run. They used to be module-evaluation side effects that happened first
+ * only because both consumers of {@link PAGES_EDIT_HTML_PERMISSION} (`routes/pages/update-html.ts`
+ * and `features/pages/tool-registrations.ts`) sat in the composition roots' static import graph — a
+ * standalone script outside that graph reconciled without them (`11aa47080`). They are now an
+ * explicit call: `server/runtime/composition/app-permission-grants.ts` invokes
+ * {@link registerPagesPermissionGrants} on the registry every composition root passes to identity
+ * wiring, so the order is guaranteed by the call sequence, not by import order.
+ * `edit-html-permission.test.ts` pins the resulting grant end-to-end, so a regression surfaces as a
+ * failing privilege test rather than as a silent fail-open.
  */
 
 /**
@@ -119,28 +117,38 @@ export const PAGES_EDIT_HTML_PERMISSION = "pages.edit_html";
  */
 const DERIVED_FROM_PERMISSION = "theme.edit";
 
-registerPermissionMigration({
-  from: DERIVED_FROM_PERMISSION,
-  to: [PAGES_EDIT_HTML_PERMISSION],
-  reason:
-    "SPEC-047 REQ-9: writing a Page's bespoke HTML body stores unsanitized markup that renders into " +
-    "the public site, so it is gated on its own pages.edit_html rather than on content.write, which " +
-    "the built-in editor role holds. Every principal already trusted with raw theme source " +
-    "(theme.edit) inherits it, which is exactly the admin-not-editor split REQ-9 asks for. Unlike " +
-    "this mechanism's rename pairs, `from` is not deprecated — theme.edit stays live and untouched " +
-    "(the fan-out is additive-only); it is used here as the trust anchor, following the " +
-    "settings.user.write -> settings.user.read precedent.",
-});
+/**
+ * Register `pages.edit_html`'s two boot-time grants (see this file's header) on `required.registry`.
+ *
+ * @complexity O(1).
+ */
+export function registerPagesPermissionGrants(
+  required: { registry: PermissionGrantRegistry },
+  _optional: Record<string, never> = {}
+): void {
+  required.registry.migrations.register({
+    from: DERIVED_FROM_PERMISSION,
+    to: [PAGES_EDIT_HTML_PERMISSION],
+    reason:
+      "SPEC-047 REQ-9: writing a Page's bespoke HTML body stores unsanitized markup that renders into " +
+      "the public site, so it is gated on its own pages.edit_html rather than on content.write, which " +
+      "the built-in editor role holds. Every principal already trusted with raw theme source " +
+      "(theme.edit) inherits it, which is exactly the admin-not-editor split REQ-9 asks for. Unlike " +
+      "this mechanism's rename pairs, `from` is not deprecated — theme.edit stays live and untouched " +
+      "(the fan-out is additive-only); it is used here as the trust anchor, following the " +
+      "settings.user.write -> settings.user.read precedent.",
+  });
 
-registerBuiltinRoleGrant({
-  role: "admin",
-  permission: PAGES_EDIT_HTML_PERMISSION,
-  reason:
-    "SPEC-047 REQ-9: the built-in admin role authors raw page HTML; editor and viewer do not. " +
-    "Stated against the role rather than derived from another permission because the theme.edit " +
-    "-> pages.edit_html pair above only reaches a workspace that HOLDS theme.edit, and a workspace " +
-    "seeded before theme.edit joined BUILTIN_ADMIN_PERMISSIONS never will (seedIdentity " +
-    "early-returns once an owner user exists). Without this, every already-deployed workspace " +
-    "gates raw-page-HTML authoring on a permission no principal holds, which refuses admin rather " +
-    "than only editor.",
-});
+  required.registry.roleGrants.register({
+    role: "admin",
+    permission: PAGES_EDIT_HTML_PERMISSION,
+    reason:
+      "SPEC-047 REQ-9: the built-in admin role authors raw page HTML; editor and viewer do not. " +
+      "Stated against the role rather than derived from another permission because the theme.edit " +
+      "-> pages.edit_html pair above only reaches a workspace that HOLDS theme.edit, and a workspace " +
+      "seeded before theme.edit joined BUILTIN_ADMIN_PERMISSIONS never will (seedIdentity " +
+      "early-returns once an owner user exists). Without this, every already-deployed workspace " +
+      "gates raw-page-HTML authoring on a permission no principal holds, which refuses admin rather " +
+      "than only editor.",
+  });
+}

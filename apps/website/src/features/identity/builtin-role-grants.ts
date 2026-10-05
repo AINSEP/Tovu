@@ -62,39 +62,55 @@ export interface BuiltinRoleGrant {
   readonly reason: string;
 }
 
-/**
- * Module-singleton registry, keyed by role+permission so re-registration overwrites rather than
- * duplicating — matches `registerPermissionMigration`'s and `PermissionCatalog.register`'s
- * established overwrite semantics.
- */
-const registry = new Map<string, BuiltinRoleGrant>();
-
-/**
- * Register a built-in-role grant for later fan-out. Idempotent per `{role, permission}` pair.
- *
- * Called as a module-evaluation side effect by the feature that owns the permission (see
- * `features/pages/permissions.ts`), so the feature keeps its own policy statement rather than
- * identity holding a list of other features' strings.
- *
- * @complexity O(1).
- */
-export function registerBuiltinRoleGrant(grant: BuiltinRoleGrant): void {
-  // `\u0000` is the ESCAPED form of the NUL separator this key has always used — same code unit,
-  // same comparisons, written so tooling can read this file. A raw NUL byte here made git classify
-  // the whole file as binary: `git log --numstat` reported `-\t-` for it, so `ab051e61`'s refactor
-  // of this module showed as "Bin 7359 -> 8043 bytes" with no reviewable diff, in a permissions
-  // file. Text tools that stop at a NUL byte skipped it for the same reason. Do not paste a literal
-  // NUL back in; changing the separator to any other character would change how existing keys
-  // compare, which is a different change entirely.
-  registry.set(`${grant.role}\u0000${grant.permission}`, grant);
+/** A host-owned set of built-in-role grants; see {@link createBuiltinRoleGrantRegistry}. */
+export interface BuiltinRoleGrantRegistry {
+  /**
+   * Register a built-in-role grant for later fan-out. Idempotent per `{role, permission}` pair:
+   * re-registration overwrites rather than duplicating — matches `PermissionMigrationRegistry.register`'s
+   * and `PermissionCatalog.register`'s established overwrite semantics.
+   *
+   * Called at composition by the feature that owns the permission (see
+   * `features/pages/permissions.ts`'s `registerPagesPermissionGrants`), so the feature keeps its own
+   * policy statement rather than identity holding a list of other features' strings.
+   *
+   * @complexity O(1).
+   */
+  register(grant: BuiltinRoleGrant): void;
+  /** Enumerate every registered built-in-role grant, in first-registration order. */
+  list(_required: Record<string, never>): BuiltinRoleGrant[];
 }
 
-/** Enumerate every registered built-in-role grant. */
-export function listBuiltinRoleGrants(): BuiltinRoleGrant[] {
-  return [...registry.values()];
+/**
+ * Create an empty built-in-role grant registry. One is created per composition root (inside
+ * `createPermissionGrantRegistry`, `permission-grants.ts`) and passed to identity wiring as a port.
+ * There is deliberately no module-scope registry: one filled by import side effects made which
+ * grants existed depend on which modules a process happened to import, and a standalone script that
+ * never imported the registering module reconciled against an empty registry (`11aa47080`).
+ *
+ * @complexity O(g) where g = `optional.grants`.
+ */
+export function createBuiltinRoleGrantRegistry(
+  _required: Record<string, never> = {},
+  optional: { grants?: readonly BuiltinRoleGrant[] } = {}
+): BuiltinRoleGrantRegistry {
+  const byKey = new Map<string, BuiltinRoleGrant>();
+  const register = (grant: BuiltinRoleGrant): void => {
+    // `\u0000` is the ESCAPED form of the NUL separator this key has always used — same code unit,
+    // same comparisons, written so tooling can read this file. A raw NUL byte here made git classify
+    // the whole file as binary: `git log --numstat` reported `-\t-` for it, so `ab051e61`'s refactor
+    // of this module showed as "Bin 7359 -> 8043 bytes" with no reviewable diff, in a permissions
+    // file. Text tools that stop at a NUL byte skipped it for the same reason. Do not paste a literal
+    // NUL back in; changing the separator to any other character would change how existing keys
+    // compare, which is a different change entirely.
+    byKey.set(`${grant.role}\u0000${grant.permission}`, grant);
+  };
+  for (const grant of optional.grants ?? []) register(grant);
+  return { register, list: () => [...byKey.values()] };
 }
 
 export interface ApplyBuiltinRoleGrantsDeps {
+  /** Every grant to reconcile — normally the composition root's `roleGrants.list({})`. */
+  grants: readonly BuiltinRoleGrant[];
   roles: RoleRepoPort;
   rolePolicies: RolePolicyRepoPort;
   policies: PolicyRepoPort;
@@ -104,7 +120,7 @@ export interface ApplyBuiltinRoleGrantsDeps {
 }
 
 export interface ApplyBuiltinRoleGrantsResult {
-  /** New `policy_permissions` rows written across every registered grant. `0` once reconciled. */
+  /** New `policy_permissions` rows written across every passed grant. `0` once reconciled. */
   grantedCount: number;
 }
 
@@ -150,7 +166,7 @@ async function grantToRoleBindings(
 }
 
 /**
- * For every registered `{role, permission}`, ensure that built-in role's own built-in policy holds
+ * For every `{role, permission}` in `deps.grants`, ensure that built-in role's own built-in policy holds
  * the permission — adding only the rows that are missing.
  *
  * Skips a registration whose role does not exist in this workspace, and skips a role that is not
@@ -160,13 +176,13 @@ async function grantToRoleBindings(
  * Safe to call on every boot: a rerun with nothing to add returns `grantedCount: 0`, mirroring
  * `migrateDeprecatedPermissionGrants`' boot-safety contract.
  *
- * @complexity O(g * p) where g = registered grants and p = policies bound to a named role; both are
+ * @complexity O(g * p) where g = passed grants and p = policies bound to a named role; both are
  * small, bounded collections (built-in roles are 1:1 with their policy).
  */
 export async function applyBuiltinRoleGrants(
   deps: ApplyBuiltinRoleGrantsDeps
 ): Promise<ApplyBuiltinRoleGrantsResult> {
-  const grants = listBuiltinRoleGrants();
+  const { grants } = deps;
   if (grants.length === 0) return { grantedCount: 0 };
 
   const { workspaceId } = deps;

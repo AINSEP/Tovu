@@ -28,6 +28,7 @@ import { identityServiceDepsFrom, type UsersRouteDeps } from "../deps.js";
 import { assignRole, createUser, createSessionForPrincipal, validateSession, resolveEffectivePermissions, authorizeDepsFrom } from "@jini-ai/user-management/server";
 import { OwnerRequiredError } from "@jini-ai/user-management";
 import { trashUser } from "#src/features/identity/delete-user-service";
+import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
 
 /**
  * @file RED-first coverage for the `DELETE_USER` HTTP route (delete-user plan v2 Slice 2/3, and the
@@ -77,7 +78,7 @@ async function buildApp(
   db.$client
     .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
     .run(WORKSPACE_ID, WORKSPACE_ID, WORKSPACE_ID, "2026-01-01T00:00:00.000Z");
-  const wiring = createSqliteIdentityRouteDeps({ db, workspaceId: WORKSPACE_ID, clock, idGen: counterIdGen() });
+  const wiring = createSqliteIdentityRouteDeps({ permissionGrants: createAppPermissionGrants({}), db, workspaceId: WORKSPACE_ID, clock, idGen: counterIdGen() });
   await wiring.identityReady;
   const ownerId = await wiring.ownerPrincipalId;
   const callerId = principalId ?? ownerId;

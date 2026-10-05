@@ -1,4 +1,4 @@
-import { registerBuiltinRoleGrant } from "../identity/builtin-role-grants.js";
+import type { PermissionGrantRegistry } from "../identity/permission-grants.js";
 
 /**
  * @file The `fs_files.custom_root.manage` permission, and the grant that makes it real — gates
@@ -28,12 +28,12 @@ import { registerBuiltinRoleGrant } from "../identity/builtin-role-grants.js";
  *
  * ## Why a built-in-role grant, and no migration pair
  *
- * `registerBuiltinRoleGrant` writes one row onto the built-in `admin` role's own policy on every
+ * The built-in-role grant writes one row onto the built-in `admin` role's own policy on every
  * boot, additive and idempotent, so it reaches already-seeded workspaces that `seedIdentity` will
  * never revisit. See `features/identity/builtin-role-grants.ts` for the mechanism and
  * `features/pages/permissions.ts` for the full reasoning this mirrors.
  *
- * Unlike those two precedents this file registers NO `registerPermissionMigration` pair. A fan-out
+ * Unlike those two precedents this file registers NO permission-migration pair. A fan-out
  * grants the new string to every policy already holding some anchor, including operator-created
  * ones; the ruling names owner and admin specifically, so the grant is stated against the role and
  * nothing else. The cost is recorded rather than hidden: a workspace that gave a CUSTOM policy
@@ -43,12 +43,15 @@ import { registerBuiltinRoleGrant } from "../identity/builtin-role-grants.js";
  *
  * ## Ordering
  *
- * The registration below is a module-evaluation side effect and must run before
- * `applyBuiltinRoleGrants` does. It does, by ES module semantics:
+ * The registration below must run before `applyBuiltinRoleGrants` does. It used to be a
+ * module-evaluation side effect that ran first only because
  * {@link FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION} is imported by
  * `server/inbound/admin-http/routes/fs-files/custom-root.ts`, which `composition/app.ts` imports
- * statically (`app.ts:217`) — the same "reached via its own consumer" mechanism
- * `features/identity/site-key-permission.ts` documents for itself.
+ * statically — the same "reached via its own consumer" mechanism
+ * `features/identity/site-key-permission.ts` relied on. It is now an explicit call:
+ * `server/runtime/composition/app-permission-grants.ts` invokes
+ * {@link registerFsFilesCustomRootPermissionGrants} on the registry every composition root passes
+ * to identity wiring.
  * `server/inbound/admin-http/routes/fs-files/__tests__/custom-root-permission.test.ts` pins the
  * resulting grant end-to-end through the real route against a workspace seeded the way the shipping
  * one was, so a regression surfaces as a failing privilege test rather than as a silent lockout.
@@ -61,14 +64,25 @@ import { registerBuiltinRoleGrant } from "../identity/builtin-role-grants.js";
  */
 export const FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION = "fs_files.custom_root.manage";
 
-registerBuiltinRoleGrant({
-  role: "admin",
-  permission: FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION,
-  reason:
-    "Owner ruling 2026-09-15: owner and admin may change which host directory the assistant's " +
-    "filesystem tools are pointed at; reading through the currently-set folder stays on " +
-    "content.read. Stated directly against the built-in admin role because this repo's own " +
-    "content.db was seeded before several admin permissions existed and seedIdentity early-returns " +
-    "once an owner user exists — a grant that depended on a seed row that workspace never got would " +
-    "refuse every admin in the only installation that actually ships.",
-});
+/**
+ * Register the custom-root permission's built-in `admin` grant (see this file's header) on
+ * `required.registry`.
+ *
+ * @complexity O(1).
+ */
+export function registerFsFilesCustomRootPermissionGrants(
+  required: { registry: PermissionGrantRegistry },
+  _optional: Record<string, never> = {}
+): void {
+  required.registry.roleGrants.register({
+    role: "admin",
+    permission: FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION,
+    reason:
+      "Owner ruling 2026-09-15: owner and admin may change which host directory the assistant's " +
+      "filesystem tools are pointed at; reading through the currently-set folder stays on " +
+      "content.read. Stated directly against the built-in admin role because this repo's own " +
+      "content.db was seeded before several admin permissions existed and seedIdentity early-returns " +
+      "once an owner user exists — a grant that depended on a seed row that workspace never got would " +
+      "refuse every admin in the only installation that actually ships.",
+  });
+}

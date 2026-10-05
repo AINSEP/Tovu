@@ -8,6 +8,7 @@ import { authorize as authorizeCore } from "@jini-ai/user-management/server";
 import { Argon2PasswordHasher, loadArgon2Binding } from "@jini-ai/user-management/server";
 import { migrateDeprecatedPermissionGrants } from "@jini-ai/user-management/server";
 import { applyBuiltinRoleGrants } from "./builtin-role-grants.js";
+import type { PermissionGrantRegistry } from "./permission-grants.js";
 import type { IdentityRepos, PasswordHasherPort } from "@jini-ai/user-management";
 import { InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPolicyRepo, InMemoryPrincipalRepo, InMemoryPrincipalRoleRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo, InMemorySessionRepo, InMemoryUserRepo } from "@jini-ai/user-management/server";
 import { InMemoryApiKeyRepo } from "./repo.memory.js";
@@ -113,6 +114,10 @@ export interface IdentityRouteDepsSlice {
  * composition roots need. Factored out so the in-memory and SQLite constructors below stay
  * identical except for which repo instances they pass in.
  *
+ * `required.permissionGrants` is the composition root's explicit grant registry
+ * (`server/runtime/composition/app-permission-grants.ts`); the reconciliation below reads exactly
+ * what it holds, so which grants a boot applies never depends on module import order.
+ *
  * `required.reconcileGrantsOnBoot` (default `true`) gates the write-capable steps chained onto
  * `identityReady` below (`migrateDeprecatedPermissionGrants` + `applyBuiltinRoleGrants`) — see
  * their call site's own comment for why a caller holding a genuinely read-only connection MUST
@@ -121,7 +126,7 @@ export interface IdentityRouteDepsSlice {
 function buildIdentityRouteDeps(
   repos: IdentityRepos,
   apiKeyRepo: ApiKeyRepoPort,
-  required: { workspaceId: UUID; clock: ClockPort | { nowIso(): string }; idGen: IdGeneratorPort; reconcileGrantsOnBoot?: boolean }
+  required: { workspaceId: UUID; clock: ClockPort | { nowIso(): string }; idGen: IdGeneratorPort; permissionGrants: PermissionGrantRegistry; reconcileGrantsOnBoot?: boolean }
 ): IdentityRouteDepsSlice {
   const passwordHasher = new Argon2PasswordHasher({ loadBinding: loadArgon2Binding });
   const apiKeySecretHasher = new ScryptApiKeySecretHasher();
@@ -158,6 +163,7 @@ function buildIdentityRouteDeps(
           // ADR-PIPE-012 T013/T014: every registered {from, to} permission-migration pair (currently
           // navigation.manage -> admin.menus.* and integration.manage -> admin.integrations.manage)
           // fans out to any pre-existing policy still holding the deprecated string.
+          migrations: required.permissionGrants.migrations.list({}),
           policyPermissions: repos.policyPermissions,
           policies: repos.policies,
           idGen: required.idGen,
@@ -172,6 +178,7 @@ function buildIdentityRouteDeps(
           // made is already in place and this step no-ops on it rather than racing it.
           .then(() =>
             applyBuiltinRoleGrants({
+              grants: required.permissionGrants.roleGrants.list({}),
               roles: repos.roles,
               rolePolicies: repos.rolePolicies,
               policies: repos.policies,
@@ -231,6 +238,8 @@ export function createInMemoryIdentityRouteDeps(required: {
   workspaceId: UUID;
   clock: ClockPort | { nowIso(): string };
   idGen: IdGeneratorPort;
+  /** The composition root's explicit grant registry — see `buildIdentityRouteDeps`'s doc. */
+  permissionGrants: PermissionGrantRegistry;
   /** See `buildIdentityRouteDeps`'s doc. `false` skips the boot-time grant/migration reconciliation
    *  fan-out; omit (default `true`) to keep today's behavior. The in-memory store never rejects a
    *  write, so no in-memory caller needs this — kept here only for signature parity with the
@@ -269,6 +278,8 @@ export function createSqliteIdentityRouteDeps(
     workspaceId: UUID;
     clock: ClockPort | { nowIso(): string };
     idGen: IdGeneratorPort;
+    /** The composition root's explicit grant registry — see `buildIdentityRouteDeps`'s doc. */
+    permissionGrants: PermissionGrantRegistry;
     /** See `buildIdentityRouteDeps`'s doc. Pass `false` when `db` is a genuinely read-only
      *  connection (e.g. `openContentDbReadOnly`) — otherwise an outstanding grant/migration attempts
      *  a real `.save()` against it and throws, instead of the intended no-op. Omit (default `true`)

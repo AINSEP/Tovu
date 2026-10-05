@@ -144,6 +144,7 @@ import {
   InMemoryTransformDefinitionRepo,
 } from "#src/features/media/index";
 import { createInMemoryIdentityRouteDeps } from "#src/features/identity/wiring";
+import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
 import {
   InMemoryNewsletterAudienceSnapshotRepo,
   InMemoryNewsletterCampaignRepo,
@@ -386,7 +387,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
       ? {}
       : { failureThreshold: options.pluginFailureThreshold }),
   });
-  const identity = createInMemoryIdentityRouteDeps({ workspaceId: seededWorkspace.id, clock, idGen });
+  const identity = createInMemoryIdentityRouteDeps({ workspaceId: seededWorkspace.id, clock, idGen, permissionGrants: createAppPermissionGrants({}) });
   // Keep the host repository ABI while binding the active/workspace-scoped settings lookup.
   const settingsPrincipals = {
     ...createSettingsPrincipalLookup({ repo: identity.principalRepo }),

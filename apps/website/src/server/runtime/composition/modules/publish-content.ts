@@ -1,10 +1,5 @@
-// Side-effect import, same shape as `features/pages/permissions.ts`'s own consumers: registers the
-// Task 9 built-in-role grants (`publish_content.read`/`publish_content.apply` -> admin) before
-// any composition-root code runs — see that module's header for why this must happen here, in the
-// static import graph, rather than inline at call time below.
 import path from "node:path";
 
-import "#src/features/publish-content/permissions";
 import { installFirstPartyPublishContentTypes } from "#src/server/runtime/composition/publish-content-manifest";
 import { registerPublishContentExportRoute } from "#src/server/inbound/admin-http/routes/publish-content/export";
 import { registerPublishContentBlobsProbeRoute } from "#src/server/inbound/admin-http/routes/publish-content/blobs-probe";

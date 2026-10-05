@@ -113,8 +113,8 @@ function sendStoreError(res: Response, err: unknown): void {
  * `@jini-ai/cms` repo, since `authorize()` matches literal `policy_permissions` rows and the built-in
  * role seed lives there.
  *
- * **That blocker was not real, and the gap is now closed.** `registerPermissionMigration` is exported
- * to hosts for exactly this, and the boot-time fan-out that consumes it (`migrateDeprecatedPermission
+ * **That blocker was not real, and the gap is now closed.** The permission-migration registry is
+ * exported to hosts for exactly this, and the boot-time fan-out that consumes it (`migrateDeprecatedPermission
  * Grants`, called from `features/identity/wiring.ts`) already lives in this repo. `features/pages/
  * permissions.ts` registers `theme.edit -> pages.edit_html`, so every principal already trusted with
  * raw theme source inherits raw-page-HTML authoring: `admin` and `owner` yes, `editor` and `viewer`

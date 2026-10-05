@@ -152,7 +152,7 @@ test("an api_key holding admin.security.site-key.manage is refused 403 on GET st
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   // The admin built-in policy carries admin.security.site-key.manage (site-key-permission.ts's
-  // registerBuiltinRoleGrant), so this key genuinely holds the permission every verb below gates
+  // registerSiteKeyPermissionGrants), so this key genuinely holds the permission every verb below gates
   // on — any refusal is therefore about the credential type, not a missing grant.
   const bearer = await issueApiKeyBearer(baseUrl, cookie, "admin-builtin-policy");
   const me = await fetch(`${baseUrl}/api/admin/v1/auth/me`, { headers: bearer });

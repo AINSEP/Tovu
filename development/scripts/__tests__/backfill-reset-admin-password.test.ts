@@ -14,6 +14,10 @@ import { openContentDb } from "../../../apps/website/src/platform/db/sqlite/cont
 import { workspaces } from "../../../apps/website/src/platform/db/schema.sqlite.js";
 import { createSqliteIdentityRouteDeps, DEFAULT_OWNER_PASSWORD } from "../../../apps/website/src/features/identity/wiring.js";
 import { missingDbPathMessage } from "../backfill-db-path.js";
+// Every identity built directly by this file uses a registry holding NO host grants: the script under
+// test must bring the app's own grants itself (`createAppPermissionGrants`), so these fixtures start
+// in exactly the gap the script once failed to close (see the pages.edit_html test below).
+import { createPermissionGrantRegistry } from "../../../apps/website/src/features/identity/permission-grants.js";
 
 /**
  * @file The CLI-level proof for `backfill-reset-admin-password.ts` — dry run touches nothing,
@@ -109,7 +113,7 @@ function runScriptDbEquals(dbPath: string, extraArgs: string[] = [], envOverride
 async function seedWorkspaceAndIdentity(dbPath: string): Promise<void> {
   const seedDb = openContentDb(dbPath);
   seedDb.insert(workspaces).values({ id: WORKSPACE, name: WORKSPACE, slug: WORKSPACE, createdAt: NOW }).run();
-  const identity = createSqliteIdentityRouteDeps({ db: seedDb, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
+  const identity = createSqliteIdentityRouteDeps({ permissionGrants: createPermissionGrantRegistry({}), db: seedDb, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
   await identity.identityReady;
   seedDb.$client.close();
 }
@@ -125,7 +129,7 @@ test("backfill-reset-admin-password: dry run reports the target user and writes 
   assert.doesNotMatch(dryRunOutput, /RESTORE POINT CAPTURED/);
   const db = openContentDb(dbPath);
   try {
-    const identity = createSqliteIdentityRouteDeps({ db, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
+    const identity = createSqliteIdentityRouteDeps({ permissionGrants: createPermissionGrantRegistry({}), db, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
     await identity.identityReady;
     const repos: IdentityRepos = {
       transactions: identity.transactions, principals: identity.principalRepo, users: identity.userRepo,
@@ -179,7 +183,7 @@ test("backfill-reset-admin-password: --apply with a whitespace-only password ref
   // THE MANDATORY PROOF: assert on real state, not just the log line — the seed-default password
   // must still authenticate, confirming nothing was actually written.
   const db = openContentDb(dbPath);
-  const identity = createSqliteIdentityRouteDeps({ db, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
+  const identity = createSqliteIdentityRouteDeps({ permissionGrants: createPermissionGrantRegistry({}), db, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
   await identity.identityReady;
   const repos: IdentityRepos = {
       transactions: identity.transactions,
@@ -220,7 +224,7 @@ test("backfill-reset-admin-password: --apply resets the seeded owner's password 
 
   // Independent confirmation through the real login() path, not just the script's own claim.
   const db = openContentDb(dbPath);
-  const identity = createSqliteIdentityRouteDeps({ db, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
+  const identity = createSqliteIdentityRouteDeps({ permissionGrants: createPermissionGrantRegistry({}), db, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
   await identity.identityReady;
   const repos: IdentityRepos = {
       transactions: identity.transactions,
@@ -259,7 +263,7 @@ test("backfill-reset-admin-password: failed fresh verification exits nonzero and
   const prepared = openContentDb(dbPath);
   let wrongHash: string;
   try {
-    const identity = createSqliteIdentityRouteDeps({ db: prepared, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
+    const identity = createSqliteIdentityRouteDeps({ permissionGrants: createPermissionGrantRegistry({}), db: prepared, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
     await identity.identityReady;
     wrongHash = await identity.passwordHasher.hash({ password: "fixture-substituted-password" });
   } finally {
@@ -311,7 +315,7 @@ test("backfill-reset-admin-password: failed fresh verification exits nonzero and
   }
   const db = openContentDb(dbPath);
   try {
-    const identity = createSqliteIdentityRouteDeps({ db, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
+    const identity = createSqliteIdentityRouteDeps({ permissionGrants: createPermissionGrantRegistry({}), db, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
     await identity.identityReady;
     const repos: IdentityRepos = {
       transactions: identity.transactions, principals: identity.principalRepo, users: identity.userRepo,
@@ -415,9 +419,10 @@ test("backfill-reset-admin-password: --db=<path> (the same '=' form --username=/
  * importing `features/pages/index.js`, so `identityReady`'s boot-time reconciliation ran against an
  * EMPTY registry here — the `theme.edit -> pages.edit_html` migration and the `admin ->
  * pages.edit_html` built-in-role grant (SPEC-047 REQ-9) that every real server boot applies never
- * reached this script's own `--apply` writes. `seedWorkspaceAndIdentity` above deliberately does
- * NOT import the Pages barrel either, so the DB it produces starts in exactly that gap: admin holds
- * `theme.edit` (from the base seed) but not yet `pages.edit_html`.
+ * reached this script's own `--apply` writes. The script now passes `createAppPermissionGrants({})`
+ * explicitly. `seedWorkspaceAndIdentity` above deliberately passes a registry with NO host grants,
+ * so the DB it produces starts in exactly that gap: admin holds `theme.edit` (from the base seed)
+ * but not yet `pages.edit_html`.
  *
  * The dry-run half guards the hazard the fix itself introduced: `identityReady` now attempts that
  * same reconciliation on every invocation, and a dry run's connection is genuinely read-only

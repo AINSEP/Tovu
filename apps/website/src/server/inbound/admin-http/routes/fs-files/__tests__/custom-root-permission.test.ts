@@ -13,6 +13,10 @@ import { InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPoli
 import { applyBuiltinRoleGrants } from "#src/features/identity/builtin-role-grants";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminFsFilesCustomRootRoutes, type AdminFsFilesCustomRootDeps } from "../custom-root.js";
+import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
+
+/** The app's real, explicit grant registry — the same one every composition root passes to identity wiring. */
+const APP_PERMISSION_GRANTS = createAppPermissionGrants({});
 
 /**
  * @file Who may CHANGE the `fs-files` custom root — certified end-to-end through the real route,
@@ -101,13 +105,14 @@ async function buildChain(): Promise<Chain> {
 
   await rewindAdminToShippingVintage(repos);
 
-  await migrateDeprecatedPermissionGrants({ transactions: repos.transactions,
+  await migrateDeprecatedPermissionGrants({ migrations: APP_PERMISSION_GRANTS.migrations.list({}), transactions: repos.transactions,
     policyPermissions: repos.policyPermissions,
     policies: repos.policies,
     idGen: counterIdGen("mig"),
     workspaceId: WORKSPACE_ID,
   });
   await applyBuiltinRoleGrants({
+    grants: APP_PERMISSION_GRANTS.roleGrants.list({}),
     roles: repos.roles,
     rolePolicies: repos.rolePolicies,
     policies: repos.policies,

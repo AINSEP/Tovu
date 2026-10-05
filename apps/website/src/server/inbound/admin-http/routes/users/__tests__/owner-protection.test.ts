@@ -10,6 +10,7 @@ import { registerAdminUserUpdateRoute } from "../update.js";
 import { registerAdminUserEnableRoute } from "../enable.js";
 import { registerAdminUserAssignRoleRoute } from "../assign-role.js";
 import { registerAdminUserAttachPolicyRoute } from "../attach-policy.js";
+import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
 
 /** Owner-email follow-up: real identity services and transactions, with direct route invocation
  * to verify response mapping in environments that cannot open HTTP listeners. Existing HTTP
@@ -21,7 +22,7 @@ async function setup() {
   let n = 0;
   const idGen = { newId: () => `guard-${++n}` };
   const clock = { nowIso: () => "2026-10-03T00:00:00.000Z" };
-  const wiring = createInMemoryIdentityRouteDeps({ workspaceId, clock, idGen });
+  const wiring = createInMemoryIdentityRouteDeps({ permissionGrants: createAppPermissionGrants({}), workspaceId, clock, idGen });
   await wiring.identityReady;
   const ownerId = await wiring.ownerPrincipalId;
   const deps: UsersRouteDeps = { ...wiring, workspaceId, clock, idGen };

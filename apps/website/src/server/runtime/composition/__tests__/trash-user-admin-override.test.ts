@@ -6,6 +6,7 @@ import { assignRole, createUser, type AuthServiceDeps } from "@jini-ai/user-mana
 import { createSqliteIdentityRouteDeps } from "#src/features/identity/wiring";
 import { POST_ENTITY_TYPE, USER_ENTITY_TYPE } from "#src/features/trash/index";
 import { withUserTrashAdminOverride } from "../trash-user-admin-override.js";
+import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
 
 /**
  * @file RED-first coverage for `withUserTrashAdminOverride` (delete-user plan v2 Slice 3, "Open gap"
@@ -27,7 +28,7 @@ function counterIdGen() {
 
 async function buildIdentity(workspaceId: string): Promise<{ identity: AuthServiceDeps; ownerPrincipalId: string }> {
   const db = openContentDb(":memory:");
-  const wiring = createSqliteIdentityRouteDeps({ db, workspaceId, clock, idGen: counterIdGen() });
+  const wiring = createSqliteIdentityRouteDeps({ permissionGrants: createAppPermissionGrants({}), db, workspaceId, clock, idGen: counterIdGen() });
   await wiring.identityReady;
   const ownerPrincipalId = await wiring.ownerPrincipalId;
   const identity: AuthServiceDeps = {

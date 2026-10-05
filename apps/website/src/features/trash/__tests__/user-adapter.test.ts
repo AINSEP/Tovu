@@ -16,6 +16,7 @@ import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlit
 import { createTrashSweep } from "@jini-ai/cms/trash";
 import { computePurgeAfter, createTrashService } from "@jini-ai/cms/trash";
 import type { TrashAdapter, TrashPort } from "@jini-ai/cms/trash";
+import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
 
 /**
  * @file RED-first coverage for the user `TrashAdapter` (delete-user plan v2 Slice 1) — hide/unhide
@@ -47,7 +48,7 @@ async function setup(workspaceId: string, idGen: { next(): string } = counterIdG
     .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
     .run(workspaceId, workspaceId, workspaceId, "2026-01-01T00:00:00.000Z");
   const clock = { nowIso: () => AT, nowMs: () => Date.parse(AT) };
-  const wiring = createSqliteIdentityRouteDeps({ db, workspaceId, clock, idGen: counterIdGenNew() });
+  const wiring = createSqliteIdentityRouteDeps({ permissionGrants: createAppPermissionGrants({}), db, workspaceId, clock, idGen: counterIdGenNew() });
   await wiring.identityReady;
   const ownerPrincipalId = await wiring.ownerPrincipalId;
 
