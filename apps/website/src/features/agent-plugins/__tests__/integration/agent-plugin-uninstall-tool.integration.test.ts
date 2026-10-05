@@ -14,6 +14,7 @@ import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "
 import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 
 import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { operatorLocaleLedger } from "../fixtures/operator-locale-ledger.js";
 
 
 import { forceRemove } from "../fixtures/force-remove.js";
@@ -207,6 +208,18 @@ test("checks admin.plugins.enable for this run's principal, scoped to this works
     assert.equal(authorizeCalls[0]!.principalId, PRINCIPAL_ID);
     assert.equal(authorizeCalls[0]!.permission, "admin.plugins.enable");
     assert.equal(authorizeCalls[0]!.workspaceId, WORKSPACE_A);
+  });
+});
+
+test("the dialog's memory choices are in the calling operator's saved admin language", async () => {
+  await withAgentPluginsDir(async () => {
+    await installReal(WORKSPACE_A, "my-plugin", "archive-locale");
+    const { saveOperatorLocale, settingsRepo } = await operatorLocaleLedger(WORKSPACE_A);
+    await saveOperatorLocale(PRINCIPAL_ID, "de");
+    const surfaceExchanges = createSurfaceExchangeStore();
+    const { surface } = await answerDialog(findRegistration({ ...fakeDeps().deps, settingsRepo }, surfaceExchanges), surfaceExchanges, "my-plugin", "cancel");
+    assert.match(surfaceHtml(surface), />Deinstallieren · Speicher behalten</);
+    assert.match(surfaceHtml(surface), />Deinstallieren und Speicher löschen</);
   });
 });
 

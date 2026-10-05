@@ -16,7 +16,7 @@ import type { AgentPluginUninstallToolDeps } from "../../uninstall-tool.js";
  *
  * S4 (2026-09-24) deleted the standalone `agent_plugins_uninstall` tool; its handler moved to
  * `uninstall-tool.ts`'s `runAgentPluginUninstall`, reached only through `plugins_uninstall`. That
- * branch reads just `authorize` and `workspaceId`; every other `PluginsToolDeps` field here belongs to
+ * branch reads just `authorize`, `workspaceId` and (for its copy) `settingsRepo`; every other `PluginsToolDeps` field here belongs to
  * the site-runtime branch and must never be called on this path.
  */
 export function buildPluginsUninstallRegistration(deps: AgentPluginUninstallToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration {
@@ -27,6 +27,8 @@ export function buildPluginsUninstallRegistration(deps: AgentPluginUninstallTool
   const pluginsDeps: PluginsToolDeps = {
     authorize: deps.authorize,
     workspaceId: deps.workspaceId,
+    // The operator's admin language for the dialog copy (`operator-locale.ts`), when the test supplies a ledger.
+    ...(deps.settingsRepo ? { settingsRepo: deps.settingsRepo } : {}),
     clock: { nowIso: () => new Date().toISOString() },
     idGen: { newId: () => "id-1" },
     changeSets: new InMemoryChangeSetRepo(),

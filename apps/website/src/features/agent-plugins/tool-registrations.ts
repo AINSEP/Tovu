@@ -1,5 +1,6 @@
 import { buildPluginMemoryRegistrations } from "./memory-tools.js";
 import { WRITE_PLUGIN_NOTE, pluginNoteCatalog, pluginNoteRisk, pluginNoteHandler } from "./write-note-tool.js";
+import type { OperatorLocaleDeps } from "./operator-locale.js";
 import { appendPluginNotes } from "./memory.js";
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
@@ -1093,7 +1094,7 @@ export function contributeAgentPluginSearchTools(): ToolContributor {
  * static tool this domain contributes is wired from the one place, the same split that file already
  * uses for `search_agent_plugin_local`.
  */
-export function buildAgentPluginConnectRegistrations(routeDeps: AgentPluginAccessTokenToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
+export function buildAgentPluginConnectRegistrations(routeDeps: AgentPluginAccessTokenToolDeps & OperatorLocaleDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     [WRITE_PLUGIN_NOTE]: pluginNoteHandler({ deps: routeDeps, surfaces }),
     // Both handlers forward `optional`: it carries `emitSurface`, the only channel their card can use.

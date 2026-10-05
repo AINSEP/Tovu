@@ -28,3 +28,9 @@ test("all declared versions are displayed in the version detail", () => {
   const ui = buildUninstallConfirmationResource({ preview: { pluginId: "plugin", versions: ["1.2.0", "2.4.0"], archiveDigests: ["a", "b"] }, exchangeId: "exchange" });
   assert.match(ui.resource.text, /<dt>Version<\/dt><dd>1\.2\.0, 2\.4\.0<\/dd>/);
 });
+
+test("the two memory choices are in the operator's admin language when one is given", () => {
+  const html = buildUninstallConfirmationResource({ preview: { pluginId: "plugin", versions: [], archiveDigests: ["a"] }, exchangeId: "exchange" }, { locale: "es" }).resource.text;
+  assert.match(html, /<button[^>]*data-mcpui-action="confirm"[^>]*>Desinstalar · conservar memoria<\/button>/);
+  assert.match(html, /<button[^>]*data-mcpui-action="delete-memory"[^>]*>Desinstalar y eliminar memoria<\/button>/);
+});

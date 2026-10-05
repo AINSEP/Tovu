@@ -40,9 +40,13 @@ function uninstallConfirmationUri(pluginId: string): UIResourceUri {
  * @param spec.preview - What would be removed. The plugin is NAMED, because "uninstall this plugin?"
  * without saying which one is not consent.
  * @param spec.exchangeId - The held-open call's correlation handle (`SurfaceExchange.id`).
+ * @param options.locale - The operator's admin locale for the two memory choices (`memory-i18n.ts`).
  * @complexity O(n) in the rendered field lengths.
  */
-export function buildUninstallConfirmationResource(spec: { preview: AgentPluginUninstallPreview; exchangeId: string }): UIResource {
+export function buildUninstallConfirmationResource(
+  spec: { preview: AgentPluginUninstallPreview; exchangeId: string },
+  { locale = "en" }: { locale?: string } = {},
+): UIResource {
   const { preview, exchangeId } = spec;
 
   return buildConfirmationSurface({
@@ -59,11 +63,11 @@ export function buildUninstallConfirmationResource(spec: { preview: AgentPluginU
       "tool stays listed until Tovu restarts.",
     danger: true,
     confirm: {
-      label: memoryText({ key: "Uninstall · keep memory" }),
+      label: memoryText({ key: "Uninstall · keep memory", locale }),
       toolName: PLUGINS_UNINSTALL_TOOL_ID,
       params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "confirm" },
     },
-    alternatives: [{ id: "delete-memory", label: memoryText({ key: "Uninstall and delete memory" }),
+    alternatives: [{ id: "delete-memory", label: memoryText({ key: "Uninstall and delete memory", locale }),
       toolName: PLUGINS_UNINSTALL_TOOL_ID,
       params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "confirm", choice: "delete-memory" },
     }],

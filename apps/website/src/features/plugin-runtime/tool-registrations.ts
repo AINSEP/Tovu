@@ -134,6 +134,7 @@ import { buildUninstallConfirmationResource, PLUGINS_UNINSTALL_TOOL_ID } from ".
 // (a separate workstream's file; not touched here, same reasoning as the `set-enabled.js` import
 // above). See that file's header for the merge.
 import { runAgentPluginUninstall } from "../agent-plugins/uninstall-tool.js";
+import type { OperatorLocaleDeps } from "../agent-plugins/operator-locale.js";
 
 const CATALOG_BY_ID = indexCatalogById({ catalog: pluginAgentToolCatalog });
 
@@ -171,7 +172,7 @@ async function listAgentPluginsForResponse(workspaceId: string): Promise<readonl
  * the dispatch's explicit out-of-scope list. `server/routes/*` satisfies this structurally by
  * passing its existing `RouteDeps` object; nothing there changes.
  */
-export interface PluginsToolDeps {
+export interface PluginsToolDeps extends OperatorLocaleDeps {
   authorize: AuthorizeFn;
   workspaceId: string;
   clock: Clock;

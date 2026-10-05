@@ -12,6 +12,7 @@ import {
 import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError } from "@jini-ai/agent-plugins/lifecycle";
 import { FileLockTimeoutError } from "@jini-ai/platform/fs/file-lock";
 import { resolveAgentPluginLayout } from "./layout.js";
+import { resolveOperatorLocale, type OperatorLocaleDeps } from "./operator-locale.js";
 import {
   AgentPluginChangedSincePreviewError,
   AgentPluginNotFoundError,
@@ -55,7 +56,7 @@ import { buildUninstallConfirmationResource, PLUGINS_UNINSTALL_TOOL_ID } from ".
 /** The narrow slice of the route-deps bag this branch's handler reads. Structurally satisfied by
  *  `PluginsToolDeps` (`plugin-runtime/tool-registrations.ts`), which carries both fields among many
  *  others — this interface stays narrow so this module does not have to import that wider type. */
-export interface AgentPluginUninstallToolDeps {
+export interface AgentPluginUninstallToolDeps extends OperatorLocaleDeps {
   readonly authorize: AuthorizeFn;
   readonly workspaceId: string;
 }
@@ -172,6 +173,7 @@ async function confirmUninstall(
   surfaces: AssistantSurfaceDeps,
   ctx: Pick<ToolExecutionContext, "principal" | "signal">,
   preview: AgentPluginUninstallPreview,
+  locale: string,
   optional: ToolExecutionOptions = {},
 ): Promise<ConfirmationOutcome & { deleteMemory?: boolean }> {
   const emitSurface = optional.emitSurface;
@@ -183,7 +185,7 @@ async function confirmUninstall(
   }
 
   const exchange = surfaces.surfaceExchanges.open({ toolId: PLUGINS_UNINSTALL_TOOL_ID, principalId: ctx.principal.id }, emitSurface);
-  const ui = buildUninstallConfirmationResource({ preview, exchangeId: exchange.id });
+  const ui = buildUninstallConfirmationResource({ preview, exchangeId: exchange.id }, { locale });
 
   // A cancelled run must not leave a dialog holding a call nobody is listening to.
   const closeOnAbort = () => exchange.close();
@@ -284,7 +286,8 @@ export async function runAgentPluginUninstall(
   const previewed = await previewOrRefusal(request);
   if ("refusal" in previewed) return previewed.refusal;
 
-  const outcome = await confirmUninstall(surfaces, ctx, previewed.preview, optional);
+  const locale = await resolveOperatorLocale({ deps: routeDeps, workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id });
+  const outcome = await confirmUninstall(surfaces, ctx, previewed.preview, locale, optional);
   if (!outcome.confirmed) return notConfirmedUninstallResult(outcome, pluginId);
 
   return uninstallConfirmedAgentPlugin(request, previewed.preview, outcome.deleteMemory === true);
