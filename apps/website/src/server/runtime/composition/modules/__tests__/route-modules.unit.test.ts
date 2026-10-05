@@ -57,7 +57,13 @@ const CASES: readonly ModuleCase[] = [
   {
     name: "agent-plugins",
     create: () => createAgentPluginsModule(noDeps),
-    routes: [`GET ${W}/agent-plugins`, `PATCH ${W}/agent-plugins/:pluginId`, `GET ${W}/agent-plugins/:pluginId/files`],
+    routes: [
+      `GET ${W}/agent-plugins`,
+      `PATCH ${W}/agent-plugins/:pluginId`,
+      `GET ${W}/agent-plugins/:pluginId/files`,
+      `GET ${W}/agent-plugins/:pluginId/memory`,
+      `PUT ${W}/agent-plugins/:pluginId/memory`,
+    ],
   },
   { name: "analytics", create: () => createAnalyticsModule(noDeps), routes: [`GET ${W}/analytics/recent-hits`] },
   {
@@ -102,6 +108,7 @@ const CASES: readonly ModuleCase[] = [
       `POST ${W}/forms`,
       `GET ${W}/forms/:formId`,
       `PUT ${W}/forms/:formId`,
+      `PUT ${W}/forms/:formId/authoring`,
       `GET ${W}/forms/:formId/submissions`,
       `GET ${W}/forms/:formId/submissions/:submissionId`,
       `DELETE ${W}/forms/:formId/submissions/:submissionId`,
@@ -145,7 +152,20 @@ const CASES: readonly ModuleCase[] = [
   {
     name: "plugins",
     create: () => createPluginsModule(noDeps),
-    routes: [`GET ${W}/plugins`, `PATCH ${W}/plugins/:pluginId`, `DELETE ${W}/plugins/:pluginId`, `GET ${W}/plugins/:pluginId/files`],
+    routes: [
+      `GET ${W}/plugins`,
+      `PATCH ${W}/plugins/:pluginId`,
+      `DELETE ${W}/plugins/:pluginId`,
+      `GET ${W}/plugins/:pluginId/files`,
+      `POST ${W}/plugins/install/preview`,
+      `POST ${W}/plugins/install`,
+      `POST ${W}/plugins/install/zip/preview`,
+      `POST ${W}/plugins/install/zip`,
+      // Must stay after `install/preview`: `:pluginId/preview` also matches that URL (pluginId =
+      // "install"), and Express runs the first registered match, so registering it earlier sends the
+      // install dialog's consent preview to the plugin-preview handler instead.
+      `POST ${W}/plugins/:pluginId/preview`,
+    ],
   },
   {
     name: "redirects",
