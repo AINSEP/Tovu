@@ -34,10 +34,10 @@ function makeFakeDb() {
 
 function makeFakeRepo(existing: RedirectRecord[] = []) {
   return {
-    async findByFromPattern(required: { workspaceId: string; fromPattern: string }) {
+    async lookupExact(required: { workspaceId: string; path: string; includeOverrideOnly: boolean }) {
       return (
         existing.find(
-          (r) => r.workspaceId === required.workspaceId && r.fromPattern === required.fromPattern
+          (r) => r.workspaceId === required.workspaceId && r.fromPattern === required.path
         ) ?? null
       );
     },
@@ -171,3 +171,18 @@ for (const overrides of [
     assert.deepEqual(await repo.findById({ workspaceId: baseInput.workspaceId, id: prior.id }), { ...prior, ...overrides });
   });
 }
+
+test("repeated renames a→b→a→c→a→b leave /a pointing at the live /b, not into a /a→/c→/a loop", async () => {
+  // Ids ascend with creation and the clock ticks per capture, so the first `/a → /b` rule sorts
+  // before the later `/a → /c` one by id while resolution (newest wins) picks `/a → /c`.
+  const repo = new InMemoryRedirectRepo();
+  let ms = Date.parse("2026-07-13T00:00:00.000Z");
+  const capture = new RedirectSlugChangeCapture({ repo, db: repo,
+    clock: { nowMs: () => (ms += 1000) }, idGen: makeIdGen() });
+  const path = ["/a", "/b", "/a", "/c", "/a", "/b"];
+  for (let i = 1; i < path.length; i++) {
+    await capture.onSlugChange({ ...baseInput, oldPath: path[i - 1], newPath: path[i], changeSetId: `cs-${i}` });
+  }
+  const winner = await repo.lookupExact({ workspaceId: baseInput.workspaceId, path: "/a", includeOverrideOnly: false });
+  assert.equal(winner?.toTarget, "/b");
+});

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
+import { RedirectSlugChangeCapture } from "../capture.js";
 import { type SqlRedirectRepo, redirectRepoFor } from "../repo.js";
 import { RedirectNotFoundError, type RedirectRecord, type RedirectRevision } from "../types.js";
 
@@ -222,6 +223,21 @@ describeEachDialect<SqlRedirectRepo>(
         await repo.insertRevision(revision(record));
       });
       assert.equal((await repo.listRevisionsForTests("tx")).length, 1);
+    });
+
+    test("slug capture after renames a→b→a→c→a→b resolves /a to the live /b, not into a /a→/c→/a loop", async () => {
+      const repo = makeRepo();
+      let ms = Date.parse("2026-09-28T00:00:00.000Z");
+      let n = 0;
+      const capture = new RedirectSlugChangeCapture({ repo, db: repo,
+        clock: { nowMs: () => (ms += 1000) }, idGen: { newId: () => `cap-${++n}` } });
+      const path = ["/a", "/b", "/a", "/c", "/a", "/b"];
+      for (let i = 1; i < path.length; i++) {
+        await capture.onSlugChange({ workspaceId: WS, entryId: "post-1", oldPath: path[i - 1], newPath: path[i],
+          actor: "user-1", changeSetId: `cs-${i}` });
+      }
+      const winner = await repo.lookupExact({ workspaceId: WS, path: "/a", includeOverrideOnly: false });
+      assert.equal(winner?.toTarget, "/b");
     });
   }
 );

@@ -23,11 +23,16 @@ import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
  * DB column — `state.spec.md`'s frozen `RedirectRecord`/`RedirectRevision`
  * shapes (mirrored from the already-written `src/redirects/types.ts`) carry
  * no `changeSetId` field, so this reuses the existing
- * `RedirectRepoPort.findByFromPattern` read (already on the frozen `ports.ts`)
- * to detect "this exact slug-change was already captured": an existing
- * `active`, `source: 'auto_slug_change'` rule with `fromPattern === oldPath`
- * and `toTarget === newPath` means the same change was already captured, so a
- * retry is a no-op rather than a duplicate insert.
+ * `RedirectRepoPort.lookupExact` read (already on the frozen `ports.ts`)
+ * to detect "this exact slug-change was already captured": when the rule that
+ * requests for `oldPath` actually follow (`RedirectRepoPort.lookupExact`, the
+ * resolver's own newest-wins order) is an `active`, `source: 'auto_slug_change'`
+ * rule with `toTarget === newPath`, the same change was already captured, so a
+ * retry is a no-op rather than a duplicate insert. It must be the WINNING rule,
+ * not just any historical match: after `a→b→a→c→a`, an older `/a → /b` still
+ * exists but the newer `/a → /c` wins, so renaming `a→b` again has to insert a
+ * fresh `/a → /b` or `/a` keeps resolving to `/c`, whose own rule points back
+ * at `/a` — a permanent loop.
  *
  * Architectural role:
  * Feature logic. No Express/route code, no direct SQL — writes go through the
@@ -40,15 +45,16 @@ import { insertRedirectAndRevision, type RedirectDbHandle } from "./ports.intern
 import type { RedirectRecord, RedirectRevision } from "./types.js";
 
 /**
- * The narrow read this capture needs — `RedirectRepoPort.findByFromPattern`
- * only (idempotency check). Declared as a `Pick` rather than the full
- * `RedirectRepoPort` so this file's dependency surface documents exactly what
- * it reads.
+ * The narrow read this capture needs — `RedirectRepoPort.lookupExact` only
+ * (idempotency check against the rule resolution actually picks). Declared as
+ * a `Pick` rather than the full `RedirectRepoPort` so this file's dependency
+ * surface documents exactly what it reads.
  */
 export interface RedirectSlugChangeCaptureReadDeps {
-  findByFromPattern(required: {
+  lookupExact(required: {
     workspaceId: string;
-    fromPattern: string;
+    path: string;
+    includeOverrideOnly: boolean;
   }): Promise<RedirectRecord | null>;
 }
 
@@ -79,9 +85,10 @@ export class RedirectSlugChangeCapture implements SlugChangeCapture {
    * @complexity O(1) — one read (idempotency check) + two writes.
    */
   async onSlugChange(input: SlugChangeCaptureInput): Promise<void> {
-    const existing = await this.deps.repo.findByFromPattern({
+    const existing = await this.deps.repo.lookupExact({
       workspaceId: input.workspaceId,
-      fromPattern: input.oldPath,
+      path: input.oldPath,
+      includeOverrideOnly: false,
     });
     if (existing && existing.source === "auto_slug_change" && existing.toTarget === input.newPath) {
       // Same change already captured (retry of the same changeSetId) — idempotent no-op.
