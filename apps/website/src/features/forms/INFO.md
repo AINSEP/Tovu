@@ -40,10 +40,12 @@ ADR-036 subsystem — Forms adds zero webhook-dispatch code, only the event).
 - A honeypot-tripped submission (`_hp` present and non-empty after trim) never persists a row,
   never emits the event, never triggers notification/webhook — but returns the identical `201`
   response as a genuine accept (REQ-08/INV-04) — see `isHoneypotTripped`/`submitForm`.
-- A double submit (same workspace, slug, source IP and body within the 60s window or the one
-  before it) stores ONE row and answers both requests `accepted`: the submission id is derived
-  from those inputs and written with `createOnce` (`ON CONFLICT (id) DO NOTHING`), so the primary
-  key drops the copy atomically, JS-free, on every dialect — see `submit-service.ts`'s header.
+- A double submit stores ONE row and answers both requests `accepted`. Every served form carries a
+  fresh hidden `_attempt` token (`injectFormAttemptTokens`, `http/site/form-render.ts`, applied by
+  `routes/site/pages.ts`); a repeat of one token (or, with no token, of the same IP and body) within
+  60s of its acceptance is answered without a row. The claim is atomic in process memory and never
+  persisted; submission ids are random; the row and its outbox event commit in one transaction, so
+  a failed enqueue leaves nothing behind and its retry is stored — see `submission-attempts.ts`.
 - `submit-service.ts` never `await`s `processOutbox(...)` or any mail/webhook-adjacent call inline
   — always `void`, so a slow/broken mail provider can never block the public response (REQ-16/
   INV-05, AC-24). This is a standing Code Review gate (ADR-PIPE-010 Enforcement).

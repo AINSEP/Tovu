@@ -6,7 +6,8 @@ import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { FormDefinitionNotFoundError, FormRateLimitExceededError, FormSubmissionValidationError } from "@jini-ai/cms-forms";
 import { FORMS_SUBMIT_PROFILE } from "../rate-limit-profile.js";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "../repo.memory.js";
-import { duplicateSubmissionId, DUPLICATE_SUBMISSION_WINDOW_MS, submitForm } from "../submit-service.js";
+import { submitForm } from "../submit-service.js";
+import { createSubmissionAttempts, DUPLICATE_ATTEMPT, DUPLICATE_SUBMISSION_WINDOW_MS, FORM_ATTEMPT_FIELD, submissionAttemptKey } from "../submission-attempts.js";
 import type { DomainEvent } from "@jini-ai/cms/core";
 import type { FormDefinitionRecord } from "@jini-ai/cms-forms";
 
@@ -218,7 +219,7 @@ test("submitForm: INV-07 — enqueues exactly one form.submission.received event
   const page = await deps.submissionRepo.listByDefinition({ workspaceId: WORKSPACE_ID, formDefinitionId: "def-1", limit: 10 });
   assert.equal(page.items.length, 1);
   const submission = page.items[0]!;
-  assert.deepEqual(received[0], { id: "id-1", name: "form.submission.received", workspaceId: WORKSPACE_ID, aggregateId: submission.id, occurredAt: NOW, payload: { workspaceId: WORKSPACE_ID, formDefinitionId: submission.formDefinitionId, submissionId: submission.id } });
+  assert.deepEqual(received[0], { id: "id-2", name: "form.submission.received", workspaceId: WORKSPACE_ID, aggregateId: submission.id, occurredAt: NOW, payload: { workspaceId: WORKSPACE_ID, formDefinitionId: submission.formDefinitionId, submissionId: submission.id } });
 });
 
 test("submitForm: AC-24/INV-05 — the response resolves before a slow/throwing subscriber settles (fire-and-forget outbox drain)", { timeout: 2000 }, async (t) => {
@@ -258,8 +259,8 @@ test("submitForm: AC-24/INV-05 — the response resolves before a slow/throwing 
 });
 
 // ---------------------------------------------------------------------------
-// Double-submit dedupe: a double-clicked Send (two POSTs of the same body from the same visitor)
-// must store ONE submission and answer both with the same accepted result.
+// Double-submit dedupe: a double-clicked Send (the same attempt token posted twice) must store ONE
+// submission and answer both alike; distinct attempts must never be silently dropped.
 // ---------------------------------------------------------------------------
 
 async function storedSubmissions(deps: ReturnType<typeof makeDeps>) {
@@ -273,108 +274,220 @@ function makeClockedDeps(startMs: number) {
   return { deps: { ...deps, clock, rateLimiter: createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock }) }, advance: (ms: number) => { nowMs += ms; } };
 }
 
-const ADA = { name: "Ada", email: "ada@example.com" };
-
-test("submitForm: a double-submitted body (same visitor, same form) stores one row, one event, and answers both alike", async (t) => {
-  const deps = makeDeps();
-  await deps.definitionRepo.create(makeDefinition());
+function recordEnqueued(t: { mock: { method: typeof test.mock.method } }, deps: ReturnType<typeof makeDeps>): DomainEvent[] {
   const enqueued: DomainEvent[] = [];
   const enqueue = deps.outbox.enqueue.bind(deps.outbox);
   t.mock.method(deps.outbox, "enqueue", async (event: DomainEvent) => { enqueued.push(event); await enqueue(event); });
-  const input = { workspaceId: WORKSPACE_ID, slug: "contact", body: ADA, sourceIp: "4.4.4.4" };
+  return enqueued;
+}
 
-  const results = await Promise.all([submitForm({ deps, input }), submitForm({ deps, input })]);
+const ADA = { name: "Ada", email: "ada@example.com" };
+const attempt = (token: string, sourceIp = "4.4.4.4") => ({ workspaceId: WORKSPACE_ID, slug: "contact", body: { ...ADA, [FORM_ATTEMPT_FIELD]: token }, sourceIp });
+
+test("submitForm: a double-clicked Send (one attempt token, posted twice at once) stores one row and one event, answers both accepted", async (t) => {
+  const deps = makeDeps();
+  await deps.definitionRepo.create(makeDefinition());
+  const enqueued = recordEnqueued(t, deps);
+
+  const results = await Promise.all([submitForm({ deps, input: attempt("tok-1") }), submitForm({ deps, input: attempt("tok-1") })]);
 
   assert.deepEqual(results, [{ status: "accepted" }, { status: "accepted" }]);
   const rows = await storedSubmissions(deps);
   assert.equal(rows.length, 1);
-  assert.deepEqual(rows[0]!.data, ADA);
+  assert.deepEqual(rows[0]!.data, ADA, "the attempt token is never stored");
   assert.deepEqual(enqueued.map((e) => e.aggregateId), [rows[0]!.id]);
 });
 
-test("submitForm: the stored row and its event carry the derived id; the event id still comes from idGen", async (t) => {
+test("submitForm: two visitors behind one NAT sending the same answer from different page loads both get a row", async () => {
   const deps = makeDeps();
   await deps.definitionRepo.create(makeDefinition());
-  const enqueued: DomainEvent[] = [];
-  const enqueue = deps.outbox.enqueue.bind(deps.outbox);
-  t.mock.method(deps.outbox, "enqueue", async (event: DomainEvent) => { enqueued.push(event); await enqueue(event); });
-  const input = { workspaceId: WORKSPACE_ID, slug: "contact", body: ADA, sourceIp: "4.4.4.4" };
 
-  await submitForm({ deps, input });
-
-  const id = duplicateSubmissionId({ input, windowIndex: Math.floor(Date.parse(NOW) / DUPLICATE_SUBMISSION_WINDOW_MS) });
-  assert.match(id, /^[0-9a-f]{8}-[0-9a-f]{4}-8[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
-  assert.deepEqual((await storedSubmissions(deps)).map((row) => row.id), [id]);
-  assert.deepEqual(enqueued.map((e) => [e.id, e.aggregateId, (e.payload as { submissionId: string }).submissionId]), [["id-1", id, id]]);
-});
-
-test("duplicateSubmissionId: body key order does not matter; every other input does", () => {
-  const input = { workspaceId: WORKSPACE_ID, slug: "contact", body: { name: "Ada", email: "a@x.io" }, sourceIp: "4.4.4.4" };
-  const id = duplicateSubmissionId({ input, windowIndex: 7 });
-  assert.equal(duplicateSubmissionId({ input: { ...input, body: { email: "a@x.io", name: "Ada" } }, windowIndex: 7 }), id);
-  for (const other of [
-    { input: { ...input, workspaceId: "ws-2" }, windowIndex: 7 },
-    { input: { ...input, slug: "other" }, windowIndex: 7 },
-    { input: { ...input, sourceIp: "5.5.5.5" }, windowIndex: 7 },
-    { input: { ...input, body: { name: "Ada", email: "b@x.io" } }, windowIndex: 7 },
-    { input, windowIndex: 8 },
-  ]) assert.notEqual(duplicateSubmissionId(other), id);
-});
-
-test("submitForm: a double submit straddling a window boundary is still one row", async () => {
-  const { deps, advance } = makeClockedDeps(DUPLICATE_SUBMISSION_WINDOW_MS * 1000 - 100);
-  await deps.definitionRepo.create(makeDefinition());
-  const input = { workspaceId: WORKSPACE_ID, slug: "contact", body: ADA, sourceIp: "4.4.4.4" };
-
-  await submitForm({ deps, input });
-  advance(200);
-  assert.deepEqual(await submitForm({ deps, input }), { status: "accepted" });
-
-  assert.equal((await storedSubmissions(deps)).length, 1);
-});
-
-test("submitForm: the same body again after the window, or a different body, or another visitor, is a new row", async () => {
-  const { deps, advance } = makeClockedDeps(DUPLICATE_SUBMISSION_WINDOW_MS * 1000);
-  await deps.definitionRepo.create(makeDefinition());
-  const input = { workspaceId: WORKSPACE_ID, slug: "contact", body: ADA, sourceIp: "4.4.4.4" };
-
-  await submitForm({ deps, input });
-  await submitForm({ deps, input: { ...input, body: { ...ADA, name: "Grace" } } });
-  await submitForm({ deps, input: { ...input, sourceIp: "5.5.5.5" } });
-  advance(DUPLICATE_SUBMISSION_WINDOW_MS * 2);
-  await submitForm({ deps, input });
-
-  assert.equal((await storedSubmissions(deps)).length, 4);
-});
-
-test("submitForm: a custom duplicateWindowMs sets the window", async () => {
-  const { deps, advance } = makeClockedDeps(0);
-  await deps.definitionRepo.create(makeDefinition());
-  const input = { workspaceId: WORKSPACE_ID, slug: "contact", body: ADA, sourceIp: "4.4.4.4" };
-
-  await submitForm({ deps, input }, { duplicateWindowMs: 1000 });
-  advance(2000);
-  await submitForm({ deps, input }, { duplicateWindowMs: 1000 });
+  await submitForm({ deps, input: attempt("tok-visitor-a", "9.9.9.9") });
+  await submitForm({ deps, input: attempt("tok-visitor-b", "9.9.9.9") });
 
   assert.equal((await storedSubmissions(deps)).length, 2);
 });
 
-test("submitForm: a repo failure other than a duplicate still propagates", async (t) => {
+test("submitForm: the stored id and the event's aggregate are the random idGen ids, nothing derived from the visitor", async (t) => {
   const deps = makeDeps();
   await deps.definitionRepo.create(makeDefinition());
-  t.mock.method(deps.submissionRepo, "createOnce", async () => { throw new Error("disk full"); });
+  const enqueued = recordEnqueued(t, deps);
 
-  await assert.rejects(
-    () => submitForm({ deps, input: { workspaceId: WORKSPACE_ID, slug: "contact", body: ADA, sourceIp: "4.4.4.4" } }),
-    /disk full/
-  );
+  await submitForm({ deps, input: attempt("tok-1") });
+
+  assert.deepEqual((await storedSubmissions(deps)).map((row) => row.id), ["id-1"]);
+  assert.deepEqual(enqueued.map((e) => [e.id, e.aggregateId, (e.payload as { submissionId: string }).submissionId]), [["id-2", "id-1", "id-1"]]);
 });
 
-test("submitForm: a refused request never reaches the id derivation (no clock read)", async () => {
-  const deps = { ...makeDeps(), clock: { nowMs: (): number => assert.fail("clock must not be read") } };
+test("submitForm: a repeat is suppressed for the window measured from acceptance — 64s later is a new row, whatever the minute", async () => {
+  const minute = 60_000;
+  const { deps, advance } = makeClockedDeps(1000 * minute + 1000);
+  await deps.definitionRepo.create(makeDefinition());
+  const input = { workspaceId: WORKSPACE_ID, slug: "contact", body: ADA, sourceIp: "4.4.4.4" };
 
-  await assert.rejects(
-    () => submitForm({ deps, input: { workspaceId: WORKSPACE_ID, slug: "missing", body: ADA, sourceIp: "4.4.4.4" } }),
-    FormDefinitionNotFoundError
-  );
+  await submitForm({ deps, input });
+  advance(DUPLICATE_SUBMISSION_WINDOW_MS - 1);
+  await submitForm({ deps, input });
+  assert.equal((await storedSubmissions(deps)).length, 1, "inside the window: the same submission");
+  advance(4001);
+  await submitForm({ deps, input });
+  assert.equal((await storedSubmissions(deps)).length, 2, "64s after the first: a new submission");
+});
+
+test("submitForm: concurrent copies straddling a minute boundary still store one row, even when the first pauses before its insert", async () => {
+  const deps = makeDeps();
+  await deps.definitionRepo.create(makeDefinition());
+  // The first copy reads the clock just before a minute boundary, the second just after it.
+  const boundary = 1000 * 60_000;
+  let reads = 0;
+  const clock = { nowMs: () => (++reads <= 2 ? boundary - 1 : boundary + 1) };
+  // The first insert stalls, so the second copy decides while the first row is not yet written.
+  const repo = deps.submissionRepo;
+  let stalled = false;
+  const stallFirst = <A extends unknown[], R>(write: (...args: A) => Promise<R>) => async (...args: A): Promise<R> => {
+    if (!stalled) { stalled = true; await new Promise((resolve) => setTimeout(resolve, 20)); }
+    return write(...args);
+  };
+  const submissionRepo = new Proxy(repo, {
+    get(target, prop, receiver) {
+      const value = Reflect.get(target, prop, receiver) as unknown;
+      return (prop === "create" || prop === "createOnce") && typeof value === "function"
+        ? stallFirst((value as (...args: unknown[]) => Promise<unknown>).bind(target))
+        : value;
+    },
+  });
+  const fixedClock = { nowMs: () => boundary };
+  const clocked = { ...deps, submissionRepo, clock, rateLimiter: createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock: fixedClock }) };
+  const input = { workspaceId: WORKSPACE_ID, slug: "contact", body: ADA, sourceIp: "4.4.4.4" };
+
+  const results = await Promise.all([submitForm({ deps: clocked, input }), submitForm({ deps: clocked, input })]);
+
+  assert.deepEqual(results, [{ status: "accepted" }, { status: "accepted" }]);
+  assert.equal((await storedSubmissions(deps)).length, 1);
+});
+
+test("submitForm: without a token, the same body from the same IP collapses; another IP, body or form does not", async () => {
+  const deps = makeDeps();
+  await deps.definitionRepo.create(makeDefinition());
+  await deps.definitionRepo.create(makeDefinition({ id: "def-2", slug: "other" }));
+  const input = { workspaceId: WORKSPACE_ID, slug: "contact", body: ADA, sourceIp: "4.4.4.4" };
+
+  await submitForm({ deps, input });
+  await submitForm({ deps, input });
+  await submitForm({ deps, input: { ...input, body: { ...ADA, name: "Grace" } } });
+  await submitForm({ deps, input: { ...input, sourceIp: "5.5.5.5" } });
+  await submitForm({ deps, input: { ...input, slug: "other" } });
+
+  assert.equal((await storedSubmissions(deps)).length, 3);
+});
+
+test("submitForm: a failed enqueue rolls the row back, and the retry of that same attempt stores it with its event", async (t) => {
+  const deps = makeDeps();
+  await deps.definitionRepo.create(makeDefinition());
+  const enqueued: DomainEvent[] = [];
+  const enqueue = deps.outbox.enqueue.bind(deps.outbox);
+  let failNext = true;
+  t.mock.method(deps.outbox, "enqueue", async (event: DomainEvent) => {
+    if (failNext) { failNext = false; throw new Error("outbox unavailable"); }
+    enqueued.push(event);
+    await enqueue(event);
+  });
+
+  await assert.rejects(() => submitForm({ deps, input: attempt("tok-1") }), { message: "outbox unavailable" });
+  assert.equal((await storedSubmissions(deps)).length, 0, "no submission without its event");
+
+  assert.deepEqual(await submitForm({ deps, input: attempt("tok-1") }), { status: "accepted" });
+  const rows = await storedSubmissions(deps);
+  assert.equal(rows.length, 1);
+  assert.deepEqual(enqueued.map((e) => e.aggregateId), [rows[0]!.id]);
+});
+
+test("submitForm: a copy waiting on a first copy that fails is stored itself, not answered accepted with nothing stored", async (t) => {
+  const deps = makeDeps();
+  await deps.definitionRepo.create(makeDefinition());
+  const enqueue = deps.outbox.enqueue.bind(deps.outbox);
+  let calls = 0;
+  t.mock.method(deps.outbox, "enqueue", async (event: DomainEvent) => {
+    if (++calls === 1) throw new Error("outbox unavailable");
+    await enqueue(event);
+  });
+
+  const [first, second] = await Promise.allSettled([submitForm({ deps, input: attempt("tok-1") }), submitForm({ deps, input: attempt("tok-1") })]);
+
+  assert.equal(first.status, "rejected");
+  assert.deepEqual(second, { status: "fulfilled", value: { status: "accepted" } });
+  assert.equal((await storedSubmissions(deps)).length, 1);
+});
+
+test("submitForm: a refused request leaves no claim, so the same attempt is processed once the form exists", async () => {
+  const deps = makeDeps();
+  await assert.rejects(() => submitForm({ deps, input: attempt("tok-1") }), FormDefinitionNotFoundError);
+  await deps.definitionRepo.create(makeDefinition());
+
+  await submitForm({ deps, input: attempt("tok-1") });
+
+  assert.equal((await storedSubmissions(deps)).length, 1);
+});
+
+test("submitForm: a repo failure propagates and stores nothing", async (t) => {
+  const deps = makeDeps();
+  await deps.definitionRepo.create(makeDefinition());
+  t.mock.method(deps.submissionRepo, "create", async () => { throw new Error("disk full"); });
+
+  await assert.rejects(() => submitForm({ deps, input: attempt("tok-1") }), /disk full/);
+});
+
+test("submitForm: a duplicate still passes the rate check and consumes a slot, as any request does", async () => {
+  const deps = makeDeps();
+  await deps.definitionRepo.create(makeDefinition());
+
+  for (let i = 0; i < 5; i++) assert.deepEqual(await submitForm({ deps, input: attempt("tok-1") }), { status: "accepted" });
+  await assert.rejects(() => submitForm({ deps, input: attempt("tok-2") }), FormRateLimitExceededError);
+
+  assert.equal((await storedSubmissions(deps)).length, 1);
+});
+
+test("submissionAttemptKey: body key order does not matter; workspace, slug, IP, token and body do", () => {
+  const input = { workspaceId: WORKSPACE_ID, slug: "contact", body: { name: "Ada", email: "a@x.io" }, sourceIp: "4.4.4.4" };
+  const key = submissionAttemptKey({ input, attemptToken: "t" });
+  assert.equal(submissionAttemptKey({ input: { ...input, body: { email: "a@x.io", name: "Ada" } }, attemptToken: "t" }), key);
+  for (const other of [
+    { input: { ...input, workspaceId: "ws-2" }, attemptToken: "t" },
+    { input: { ...input, slug: "other" }, attemptToken: "t" },
+    { input: { ...input, sourceIp: "5.5.5.5" }, attemptToken: "t" },
+    { input: { ...input, body: { name: "Ada", email: "b@x.io" } }, attemptToken: "t" },
+    { input, attemptToken: "u" },
+    { input, attemptToken: undefined },
+  ]) assert.notEqual(submissionAttemptKey(other), key);
+});
+
+test("createSubmissionAttempts: past maxEntries the oldest claim is forgotten (a duplicate is stored, never a drop)", async () => {
+  const attempts = createSubmissionAttempts({}, { maxEntries: 2 });
+  const nowMs = () => 0;
+  const ran: string[] = [];
+  const run = (key: string) => attempts.once({ key, nowMs, submit: async () => { ran.push(key); return key; } });
+
+  await run("a");
+  await run("b");
+  await run("c");
+  assert.equal(await run("c"), DUPLICATE_ATTEMPT);
+  await run("a");
+
+  assert.deepEqual(ran, ["a", "b", "c", "a"]);
+});
+
+test("createSubmissionAttempts: expired claims are pruned as new ones arrive", async () => {
+  const attempts = createSubmissionAttempts({}, { windowMs: 10, maxEntries: 2 });
+  let now = 0;
+  const ran: string[] = [];
+  const run = (key: string) => attempts.once({ key, nowMs: () => now, submit: async () => { ran.push(key); return key; } });
+
+  await run("a");
+  now = 5;
+  await run("b");
+  now = 12;
+  await run("c");
+  assert.equal(await run("b"), DUPLICATE_ATTEMPT, "b (accepted at 5) is still inside its window at 12");
+
+  assert.deepEqual(ran, ["a", "b", "c"]);
 });

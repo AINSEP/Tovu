@@ -151,18 +151,10 @@ export class SqlFormSubmissionRepo implements FormSubmissionRepoPort {
     await this.kernel.run((db) => db.insertInto("form_submissions").values(toSubmissionRow(record)).execute());
   }
 
-  /** `ON CONFLICT (id) DO NOTHING`: the primary key decides, so concurrent writers cannot both insert.
-   *  @complexity O(log n) one indexed insert. */
-  async createOnce(record: FormSubmissionRecord): Promise<{ created: boolean }> {
-    const inserted = await this.kernel.run((db) =>
-      db
-        .insertInto("form_submissions")
-        .values(toSubmissionRow(record))
-        .onConflict((oc) => oc.column("id").doNothing())
-        .executeTakeFirst()
-    );
-    // A driver that reported no count reads as created: losing dedupe beats dropping a submission.
-    return { created: Number(inserted.numInsertedOrUpdatedRows) !== 0 };
+  /** The content kernel's transaction; a nested call joins the open one.
+   *  @complexity O(1) beyond `work`. */
+  transaction<T>(work: () => Promise<T>): Promise<T> {
+    return this.kernel.transaction(work);
   }
 
   /**

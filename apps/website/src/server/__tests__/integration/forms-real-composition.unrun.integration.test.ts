@@ -13,8 +13,9 @@ import { bootSite, expectJson, send, SITE_DIALECTS, type BootedSite } from "../h
  * Existing route tests use the hermetic root's in-memory form repos; `forms.journey.ts` (round 3)
  * drives the browser. Unproven over a real store until here: `fields` JSON round-tripping the
  * dialect, the `form_definitions` slug check (`repo.ts`), an anonymous submission landing in
- * `form_submissions` and listing for the admin, the per-window duplicate collapse
- * (`createOnce`), a disabled definition refusing submissions, and submission delete.
+ * `form_submissions` and listing for the admin, the duplicate collapse (no `_attempt` token: same
+ * IP and body within the window, `submission-attempts.ts`), a disabled definition refusing
+ * submissions, and submission delete.
  *
  * Public submissions are intentionally unauthenticated; these requests carry no cookie.
  */

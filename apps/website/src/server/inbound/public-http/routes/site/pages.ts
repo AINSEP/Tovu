@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
 import type { JsonObject } from "@jini-ai/core/primitives";
 
@@ -86,6 +87,7 @@ import {
 } from "../../http/site/render.js";
 import { renderBareEntryDocument } from "../../http/site/bare-page.js";
 import { markOffSiteLinksOpenInNewTab } from "../../http/site/external-links.js";
+import { injectFormAttemptTokens } from "../../http/site/form-render.js";
 import { isHttpsRequest } from "../oauth/public-origin.js";
 import { MEMBER_SESSION_COOKIE } from "../members/complete-sign-in.js";
 import type { RouteDeps, RouteRegistrar } from "#src/server/routes/types";
@@ -2260,10 +2262,16 @@ function resolvePerVisitorResponse(req: Request, res: Response): PerVisitorRespo
  * port-free Host value (synchronous — no additional I/O beyond what every call site already has in
  * scope), used to tell an off-site link apart from an absolute link back to this same site.
  *
- * @complexity O(html length) — one pass for each of the two transforms it composes.
+ * Each form also gets this response's own `_attempt` token ({@link injectFormAttemptTokens}) so a
+ * double-clicked Send stores one submission. Not under the static-export marker: an exported file is
+ * served unchanged to every visitor and re-published on every export, so a token baked into it would
+ * be shared and would change every exported page on every publish; those forms post without one.
+ *
+ * @complexity O(html length) — one pass for each of the three transforms it composes.
  */
 function finalizePublicPageHtml(req: Request, html: string, formResult: FormSubmissionRedirectResult | undefined): string {
-  return injectFormSubmissionResultIntoHtml(markOffSiteLinksOpenInNewTab(html, req.hostname), formResult);
+  const finished = injectFormSubmissionResultIntoHtml(markOffSiteLinksOpenInNewTab(html, req.hostname), formResult);
+  return isStaticExportRequest(req) ? finished : injectFormAttemptTokens(finished, { newToken: randomUUID });
 }
 
 /**

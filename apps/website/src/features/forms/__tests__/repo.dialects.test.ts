@@ -4,11 +4,12 @@ import { test } from "node:test";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { FormSlugConflictError } from "@jini-ai/cms-forms";
-import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryEventBus } from "#src/contracts/core/events/index";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { FORMS_SUBMIT_PROFILE } from "../rate-limit-profile.js";
 import { formDefinitionRepoFor, formSubmissionRepoFor } from "../repo.js";
-import { duplicateSubmissionId, DUPLICATE_SUBMISSION_WINDOW_MS, submitForm } from "../submit-service.js";
+import { submitForm } from "../submit-service.js";
+import { outboxFor } from "#src/platform/db/repos/outbox-repo";
 import type { FormDefinitionRecord, FormSubmissionRecord } from "@jini-ai/cms-forms";
 
 /**
@@ -55,7 +56,7 @@ function repos(kernel: ContentKernel) {
 
 describeEachDialect(
   "forms repos",
-  { tables: ["form_definitions", "form_submissions"], make: repos },
+  { tables: ["form_definitions", "form_submissions", "outbox_events"], make: repos },
   (makeRepos) => {
     const trash = (kernel: ContentKernel, table: "form_definitions" | "form_submissions", id: string) =>
       kernel.run((db) => db.updateTable(table).set({ deleted_at: T0 }).where("id", "=", id).execute());
@@ -140,33 +141,80 @@ describeEachDialect(
       assert.equal(await subs.findById({ workspaceId: WS, id: "s2" }), null);
     });
 
-    test("createOnce inserts a new id, refuses a taken one (trashed included) without overwriting it", async () => {
+    test("transaction rolls a submission back with the event write that failed after it, and commits both on success", async () => {
       const { kernel, defs, subs } = makeRepos();
       await defs.create(definition("def-1", "contact"));
-      assert.deepEqual(await subs.createOnce(submission("s1", T0)), { created: true });
-      assert.deepEqual(await subs.createOnce(submission("s1", T0, { data: { name: "second" } })), { created: false });
+      const outbox = outboxFor(kernel);
+      const event = (id: string, submissionId: string) => ({
+        id, name: "form.submission.received", occurredAt: T0, workspaceId: WS, aggregateId: submissionId,
+        payload: { workspaceId: WS, formDefinitionId: "def-1", submissionId },
+      });
+      await assert.rejects(
+        () => subs.transaction(async () => {
+          await subs.create(submission("s1", T0));
+          await outbox.enqueue(event("e1", "s1"));
+          throw new Error("enqueue failed after the write");
+        }),
+        { message: "enqueue failed after the write" },
+      );
+      assert.equal(await subs.findById({ workspaceId: WS, id: "s1" }), null);
+      assert.equal((await kernel.run((db) => db.selectFrom("outbox_events").select("id").execute())).length, 0);
+
+      await subs.transaction(async () => {
+        await subs.create(submission("s1", T0));
+        await outbox.enqueue(event("e1", "s1"));
+      });
       assert.deepEqual(await subs.findById({ workspaceId: WS, id: "s1" }), submission("s1", T0));
-      await trash(kernel, "form_submissions", "s1");
-      assert.deepEqual(await subs.createOnce(submission("s1", T0)), { created: false });
-      assert.equal((await kernel.run((db) => db.selectFrom("form_submissions").select("id").execute())).length, 1);
+      assert.deepEqual((await kernel.run((db) => db.selectFrom("outbox_events").select("event_json").execute())).map((row) => (JSON.parse(row.event_json) as { aggregateId: string }).aggregateId), ["s1"]);
     });
 
-    test("submitForm: two concurrent POSTs of one body store exactly one row and answer both the same", async () => {
+    test("submitForm: a failed enqueue leaves no row; the retry of that attempt stores the row and its event", async () => {
+      const { kernel, defs, subs } = makeRepos();
+      await defs.create(definition("def-1", "contact"));
+      const clock = { nowMs: () => Date.parse(T0) };
+      let n = 0;
+      const realOutbox = outboxFor(kernel);
+      let failNext = true;
+      const outbox = Object.assign(Object.create(realOutbox) as typeof realOutbox, {
+        enqueue: async (event: Parameters<typeof realOutbox.enqueue>[0]) => {
+          if (failNext) { failNext = false; throw new Error("outbox unavailable"); }
+          await realOutbox.enqueue(event);
+        },
+      });
+      const deps = {
+        definitionRepo: defs, submissionRepo: subs, outbox, bus: new InMemoryEventBus(), clock,
+        idGen: { newId: () => `id-${++n}` }, rateLimiter: createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock }),
+      };
+      const input = { workspaceId: WS, slug: "contact", body: { name: "Ada", _attempt: "tok-1" }, sourceIp: "203.0.113.9" };
+
+      await assert.rejects(() => submitForm({ deps, input }), { message: "outbox unavailable" });
+      assert.equal((await kernel.run((db) => db.selectFrom("form_submissions").select("id").execute())).length, 0);
+
+      assert.deepEqual(await submitForm({ deps, input }), { status: "accepted" });
+      const rows = await kernel.run((db) => db.selectFrom("form_submissions").select(["id", "data_json"]).execute());
+      assert.equal(rows.length, 1);
+      const events = await kernel.run((db) => db.selectFrom("outbox_events").select("event_json").execute());
+      assert.deepEqual(events.map((row) => (JSON.parse(row.event_json) as { aggregateId: string }).aggregateId), [rows[0]!.id]);
+      assert.deepEqual(JSON.parse(rows[0]!.data_json), { name: "Ada" }, "the attempt token is never stored");
+    });
+
+    test("submitForm: two concurrent POSTs of one attempt store exactly one row and answer both the same", async () => {
       const { kernel, defs, subs } = makeRepos();
       await defs.create(definition("def-1", "contact"));
       const clock = { nowMs: () => Date.parse(T0) };
       let n = 0;
       const deps = {
-        definitionRepo: defs, submissionRepo: subs, outbox: new InMemoryOutbox(), bus: new InMemoryEventBus(), clock,
-        idGen: { newId: () => `evt-${++n}` }, rateLimiter: createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock }),
+        definitionRepo: defs, submissionRepo: subs, outbox: outboxFor(kernel), bus: new InMemoryEventBus(), clock,
+        idGen: { newId: () => `id-${++n}` }, rateLimiter: createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock }),
       };
-      const input = { workspaceId: WS, slug: "contact", body: { name: "Ada" }, sourceIp: "203.0.113.9" };
+      const input = { workspaceId: WS, slug: "contact", body: { name: "Ada", _attempt: "tok-1" }, sourceIp: "203.0.113.9" };
       const results = await Promise.all([submitForm({ deps, input }), submitForm({ deps, input })]);
       assert.deepEqual(results, [{ status: "accepted" }, { status: "accepted" }]);
       const rows = await kernel.run((db) => db.selectFrom("form_submissions").selectAll().execute());
       assert.equal(rows.length, 1);
-      assert.equal(rows[0]!.id, duplicateSubmissionId({ input, windowIndex: Math.floor(Date.parse(T0) / DUPLICATE_SUBMISSION_WINDOW_MS) }));
-      assert.equal(n, 1, "only the stored submission's event drew an id");
+      assert.match(rows[0]!.id, /^id-\d$/, "an idGen id, not one derived from the visitor");
+      const events = await kernel.run((db) => db.selectFrom("outbox_events").select("event_json").execute());
+      assert.deepEqual(events.map((row) => (JSON.parse(row.event_json) as { aggregateId: string }).aggregateId), [rows[0]!.id]);
     });
 
     test("listByDefinition pages newest-first with an id tie-break and a cursor", async () => {

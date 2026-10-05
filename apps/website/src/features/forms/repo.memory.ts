@@ -148,6 +148,7 @@ function toSubmissionRecord(row: StoredFormSubmission): FormSubmissionRecord {
 
 export class InMemoryFormSubmissionRepo implements FormSubmissionRepoPort {
   private readonly rows = new Map<UUID, StoredFormSubmission>();
+  private turn: Promise<unknown> = Promise.resolve();
 
   /** Trash-aware, like `repo.sqlite.ts`: a trashed submission reads as missing. */
   async findById(required: { workspaceId: UUID; id: UUID }): Promise<FormSubmissionRecord | null> {
@@ -160,11 +161,23 @@ export class InMemoryFormSubmissionRepo implements FormSubmissionRepoPort {
     this.rows.set(record.id, { ...record, data: { ...record.data }, deletedAt: null, version: 1 });
   }
 
-  /** Mirrors the SQL adapter's `ON CONFLICT (id) DO NOTHING`; a trashed row still holds its id. */
-  async createOnce(record: FormSubmissionRecord): Promise<{ created: boolean }> {
-    if (this.rows.has(record.id)) return { created: false };
-    await this.create(record);
-    return { created: true };
+  /** Rolls this repo's rows back when `work` throws, as the SQL adapter's transaction does. Calls
+   *  take turns (as the SQLite kernel's do) so one rollback cannot erase another call's row; a
+   *  nested call would wait on itself. Other in-memory stores (the outbox) are not covered.
+   *  @complexity O(n) snapshot of the stored rows. */
+  transaction<T>(work: () => Promise<T>): Promise<T> {
+    const run = this.turn.then(async () => {
+      const snapshot = new Map(this.rows);
+      try {
+        return await work();
+      } catch (error) {
+        this.rows.clear();
+        for (const [id, row] of snapshot) this.rows.set(id, row);
+        throw error;
+      }
+    });
+    this.turn = run.catch(() => undefined);
+    return run;
   }
 
   async listByDefinition(required: {

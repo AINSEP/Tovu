@@ -20,12 +20,11 @@ export interface FormSubmissionRepoPort extends Omit<PackageSubmissionRepo, "lis
     cursor?: string | null;
   }): Promise<FormSubmissionPage>;
   /**
-   * Inserts `record` unless a row with its id already exists (trashed rows included), atomically in
-   * the store, so two concurrent writers of the same id can never both insert. The public submit
-   * path derives the id from the submission itself and uses this to drop a double submit.
-   * @returns `{ created: false }` when the id was already taken; nothing is written then.
+   * Runs `work` in one store transaction: commit when it resolves, roll back when it throws. The
+   * public submit path writes a submission and its outbox event inside it, so the outbox must live
+   * in the same store (it does: both are bound to the site's content kernel).
    */
-  createOnce(record: FormSubmissionRecord): Promise<{ created: boolean }>;
+  transaction<T>(work: () => Promise<T>): Promise<T>;
 }
 
 /**

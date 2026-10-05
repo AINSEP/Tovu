@@ -156,4 +156,14 @@ test("recent-entries and contact-form resolve real records through the public se
   assert.match(html, /Resolver reply address/);
   assert.match(html, /type="email"[^>]*name="reply"|name="reply"[^>]*type="email"/);
   assert.doesNotMatch(html, /widget-placeholder/);
+
+  // Double-submit fix (2026-10-05): each served page gives the form its own attempt token; a static
+  // export, served unchanged to every visitor, carries none.
+  const token = (page: string) => /<form\b[^>]*data-form-slug="resolver-contact"[^>]*><input type="hidden" name="_attempt" value="([0-9a-f-]{36})">/.exec(page)?.[1];
+  const again = await (await fetch(`${baseUrl}/`)).text();
+  assert.ok(token(html), "the served form carries an attempt token");
+  assert.notEqual(token(again), token(html), "a second page load gets a different token");
+  const exported = await (await fetch(`${baseUrl}/`, { headers: { "x-tovu-static-export": "1" } })).text();
+  assert.match(exported, /action="\/forms\/resolver-contact\/submit"/);
+  assert.doesNotMatch(exported, /name="_attempt"/);
 });

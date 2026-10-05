@@ -24,6 +24,7 @@
 
 import { escapeHtml } from "#src/platform/html/escape";
 import { formValidationMessages, formDocumentLocale } from "./form-validation-message.js";
+import { FORM_ATTEMPT_FIELD } from "#src/features/forms/submission-attempts";
 
 const FORM_CLASS = "tovu-form";
 const FORM_SUCCESS_CLASS = "tovu-form-success";
@@ -516,6 +517,26 @@ export function injectFormSubmissionResultIntoHtml(html: string, result: FormSub
   // `html`, and no longer lines up with anything once an earlier edit shifts every byte after it.
   const withUpdatedForm = html.slice(0, formMatch.index) + updatedForm + html.slice(formMatch.index + originalForm.length);
   return result.kind === "success" ? showFormSuccessMessage(withUpdatedForm, slugPattern) : withUpdatedForm;
+}
+
+/** Every public form's opening tag: both renderers (Builder and HTML mode) stamp `${FORM_SLUG_ATTR}`. */
+const FORM_OPENING_TAG = new RegExp(`<form\\b[^>]*\\b${FORM_SLUG_ATTR}="[^"]*"[^>]*>`, "gi");
+
+/**
+ * Puts a fresh hidden `_attempt` token first inside every public form on a page being served, so the
+ * submit route can tell a double-clicked Send (one token, twice) from two real submissions (two
+ * page loads). See `features/forms/submission-attempts.ts` for the dedupe it feeds and its fallback.
+ *
+ * Applied per response, after rendering, because neither form renderer has a request in scope and
+ * a rendered body must stay identical for every visitor up to this point. A page a shared cache
+ * replays repeats its token; that only falls back to the old same-IP-and-body comparison.
+ * @complexity O(html.length) — one regex pass; one `newToken()` call per form.
+ */
+export function injectFormAttemptTokens(html: string, { newToken }: { newToken: () => string }): string {
+  return html.replace(
+    FORM_OPENING_TAG,
+    (openTag) => `${openTag}<input type="hidden" name="${FORM_ATTEMPT_FIELD}" value="${escapeHtml(newToken())}">`,
+  );
 }
 
 // ---------------------------------------------------------------------------

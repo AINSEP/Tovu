@@ -268,6 +268,25 @@ test("POST /forms/:slug/submit: a double-clicked Send on a JS-disabled form (two
   assert.deepEqual(page.items.map((item) => item.data), [{ name: "Ada" }]);
 });
 
+test("POST /forms/:slug/submit: the page's _attempt token decides — one token posted twice stores one row, two page loads with the same answer store two, and the token is never stored", async (t) => {
+  const { server, baseUrl, definitionRepo, submissionRepo } = await startTestApp();
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  await definitionRepo.create(makeDefinition());
+
+  const post = (token: string) => fetch(`${baseUrl}/forms/contact/submit`, {
+    method: "POST",
+    redirect: "manual",
+    headers: { "content-type": "application/x-www-form-urlencoded", accept: "text/html", referer: `${baseUrl}/contact-us` },
+    body: `name=Ada&_hp=&_attempt=${token}`,
+  });
+  const statuses = await Promise.all([post("load-1"), post("load-1")]);
+  statuses.push(await post("load-2"));
+
+  assert.deepEqual(statuses.map((res) => [res.status, res.headers.get("location")]), Array(3).fill([303, "/contact-us?form=contact&form_status=success"]));
+  const page = await submissionRepo.listByDefinition({ workspaceId: WORKSPACE_ID, formDefinitionId: "def-1", limit: 10 });
+  assert.deepEqual(page.items.map((item) => item.data), [{ name: "Ada" }, { name: "Ada" }]);
+});
+
 test("POST /forms/:slug/submit: a CHECKED checkbox on a real browser form POST (urlencoded `field=on`, the only value the rendered `<input type=\"checkbox\">` without a value attribute ever sends) is accepted and stored as true — not rejected as 'must be a boolean'", async (t) => {
   const { server, baseUrl, definitionRepo, submissionRepo } = await startTestApp();
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
@@ -682,7 +701,7 @@ test("POST /forms/:slug/submit: Accept: text/html + a validation failure whose f
 
 test("POST /forms/:slug/submit: an error submitForm never actually raises today (a plain, untyped repo failure) still degrades to a generic 500 INTERNAL_ERROR, not an unhandled rejection", async (t) => {
   const realSubmissionRepo = new InMemoryFormSubmissionRepo();
-  const brokenSubmissionRepo = withThrowingMethod(realSubmissionRepo, "createOnce");
+  const brokenSubmissionRepo = withThrowingMethod(realSubmissionRepo, "create");
   const { server, baseUrl, definitionRepo } = await startTestApp({ submissionRepo: brokenSubmissionRepo as InMemoryFormSubmissionRepo });
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
   await definitionRepo.create(makeDefinition());
