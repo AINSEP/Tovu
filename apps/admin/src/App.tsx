@@ -14,6 +14,7 @@ import { translateAdminNavGroups, translateAdminNavLabel } from "./lib/admin-nav
 import { t as tApp } from "./app-i18n";
 import { useWiredAdminLocale } from "./hooks/use-admin-locale.hooks";
 import { useAgentScreenRoute } from "./hooks/use-agent-screen-context.hooks";
+import { useSidebarEmptyClickToggle } from "./hooks/use-sidebar-empty-click-toggle.hooks";
 import { AssistantDock } from "./components/AssistantDock/AssistantDock";
 import { ChatFab } from "./components/ChatFab/ChatFab";
 import { PublishContentDialog } from "./features/publish-content/PublishContentDialog";
@@ -223,6 +224,17 @@ function SidebarLogoutButton(props: { onLogout: () => void; locale: string }) {
       <span>{logOutLabel}</span>
     </button>
   );
+}
+
+/**
+ * Click on blank sidebar space toggles the desktop rail — see `useSidebarEmptyClickToggle`. A
+ * separate component for the same reason as `SidebarLogoutButton`: `useSidebar()` only works
+ * inside `<Sidebar>`.
+ */
+function SidebarEmptyClickToggle() {
+  const { toggleRail } = useSidebar();
+  useSidebarEmptyClickToggle({ toggleRail });
+  return null;
 }
 
 /**
@@ -630,6 +642,7 @@ export function App(props: AppProps) {
           railDefaultCollapsed
         >
           <Sidebar.MobileHeader onClose={() => setSidebarOpen(false)} />
+          <SidebarEmptyClickToggle />
           {/* The nav is rendered in two calls so the rail toggle can sit directly under "AI
               Assistant" instead of down in the footer — the operator wants the collapse control
               beside the sections it collapses, not adrift at the bottom of a 26-item list.
