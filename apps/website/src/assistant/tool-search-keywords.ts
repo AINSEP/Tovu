@@ -55,6 +55,7 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   content_stats: "how many count number of posts pages articles statistics stats word count words long length percentage chart pie breakdown",
   analytics_list_recent_hits: "analytics traffic visitors visits views page views hits who visited popular pages referrers where from recent",
   system_get_mail_status: "email mail not arriving didn't get email sending configured smtp provider delivery magic link",
+  system_read_server_logs: "server errors logs console crash crashed exception stack trace warnings what went wrong failed broken debug terminal output 500",
   taxonomy_get_assigned_terms: "which tags categories does this post have assigned terms show tags of page",
   media_list_providers: "image generation provider video generation which ai image provider configured set up api key openai replicate available list providers images videos",
   media_propose_provider_credential: "add image generation key set up provider api key connect openai for images video videos credential configure save human form",

@@ -285,6 +285,7 @@ import { createAnalyticsModule } from "./modules/analytics.js";
 import { createCommerceModule } from "./modules/commerce.js";
 import { registerAdminModuleStatusRoute } from "../../inbound/admin-http/routes/system/module-status.js";
 import { registerAdminObservabilityStatusRoute } from "../../inbound/admin-http/routes/system/observability-status.js";
+import { registerAdminServerLogsRoute } from "../../inbound/admin-http/routes/system/server-logs.js";
 import { registerAdminMailStatusRoute } from "../../inbound/admin-http/routes/system/mail-status.js";
 import { registerAdminAssistantDaemonRoutes } from "../../inbound/admin-http/routes/system/assistant-daemon.js";
 import { registerAdminDeploymentOverviewRoute } from "../../inbound/admin-http/routes/system/deployment-overview.js";
@@ -1812,6 +1813,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // Observability admin page, Overview tab (`development/todos.md` 2026-09-09 owner ask) — same
   // `system.read`-gated shape as the module-status route just above.
   registerAdminObservabilityStatusRoute(app, routeDeps);
+  registerAdminServerLogsRoute(app, routeDeps);
   // Whether outbound mail really sends (not the console fallback) — the form editor greys out its
   // notification settings when it does not.
   registerAdminMailStatusRoute(app, routeDeps);

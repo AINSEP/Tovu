@@ -15,6 +15,7 @@ import { PortInUseError } from "../errors.js";
 import { startAssistantDaemon, shutdownAssistantDaemon } from "../../server/inbound/assistant/index.js";
 import { ensureAgentDaemonPortResolved } from "../../server/runtime/lifecycle/agent-daemon-port.js";
 import { installUnhandledRejectionGuard } from "../../server/runtime/boot/process-error-guards.js";
+import { installServerLogCapture } from "../../platform/server-logs/index.js";
 import { registerPluginSdkResolver } from "../../server/runtime/boot/plugin-sdk-resolver.js";
 import { ensureAgentDaemonToken } from "../../assistant/index.js";
 import { runProductionReadinessGateOrExit } from "../../server/runtime/boot/boot-readiness-gate.js";
@@ -259,6 +260,10 @@ export async function runServeCommand(input: RunServeCommandInput): Promise<void
   // the guard module's own header prescribes: fixed structurally, once, here, rather than chasing
   // down every individual forked promise that lacks a `.catch()` today or might tomorrow.
   installUnhandledRejectionGuard();
+  // Server log capture (gap A-04): keeps recent console output in memory, redacted, so the admin
+  // server-logs route and the `system_read_server_logs` chat tool can show recent errors. Installed
+  // right after the rejection guard so boot-time failures are captured too.
+  installServerLogCapture();
 
   // Mints `TOVU_AGENT_DAEMON_TOKEN` (unless the operator already set one) into this process's env
   // so `startAssistantDaemon()` — called later, from inside `app.listen()`'s callback — hands it to

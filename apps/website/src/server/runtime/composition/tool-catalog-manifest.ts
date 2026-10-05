@@ -2,6 +2,7 @@ import type { AssistantToolContributions } from "#src/assistant/index";
 import { ToolInputError } from "@jini-ai/core";
 import { contributeAnalyticsTools } from "#src/features/analytics/tool-registrations";
 import { contributeMailStatusTools } from "#src/features/mail-status/tool-registrations";
+import { contributeServerLogsTools } from "#src/features/server-logs/tool-registrations";
 import { renderPostPreview, TemplatePreviewRenderError } from "#src/server/inbound/admin-http/routes/posts/template-preview-render";
 import { contributeIdentityPolicyListPermissionsTools } from "#src/features/identity/permission-list-tool";
 import { contributeSitesListTools } from "#src/features/sites/list-tool";
@@ -307,6 +308,7 @@ export function installFirstPartyToolContributors(
   contributions.contributors.register({ contribution: contributeContentStatsTools() });
   contributions.contributors.register({ contribution: contributeAnalyticsTools() });
   contributions.contributors.register({ contribution: contributeMailStatusTools() });
+  contributions.contributors.register({ contribution: contributeServerLogsTools() });
   // `search_agent_plugin_local` — a STATIC tool (id/schema known at module load); the DYNAMIC
   // `agent_plugin_<pluginId>` tools this same domain also owns are registered separately, directly
   // onto the `ToolRegistry`, by `agent-daemon-server.ts`'s own `registerInstalledAgentPluginTools`

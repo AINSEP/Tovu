@@ -27,6 +27,7 @@ import { createDaemonSupervisor as createSidecarSupervisor } from "@jini-ai/side
 import type { DaemonSupervisorRequired, SpawnedDaemonProcess as SidecarDaemonProcess, SupervisorScheduler } from "@jini-ai/sidecar/supervisor";
 import path from "node:path";
 
+import { createLineCaptureStream, getServerLogBuffer } from "../../../platform/server-logs/index.js";
 import { clearAssistantDaemonFailure, recordAssistantDaemonFailure } from "./readiness-state.js";
 import { getAgentDaemonPortForSpawnEnv } from "./agent-daemon-port.js";
 import { AGENT_DAEMON_EXIT_CODE, createRespawnPolicy } from "#src/assistant/index";
@@ -402,7 +403,16 @@ function createRealDaemonProcessPorts(input: DaemonSpawnEnvInput): DaemonProcess
         TOVU_AGENT_DAEMON_REGISTRY_PATH: registryPath,
       },
       registry,
-    }, { stdout: process.stdout, stderr: process.stderr, platform: process.platform });
+    }, {
+      // The daemon's output still reaches this terminal unchanged; each line is ALSO kept in the
+      // server log buffer tagged `daemon` (gap A-04), since piped child output never passes through
+      // this process's console. stderr carries the daemon's warnings too, but it cannot be told apart
+      // from errors here, so it is tagged `error`. Fresh streams per spawn: `pipe()` ends them when
+      // that child exits.
+      stdout: createLineCaptureStream({ buffer: getServerLogBuffer(), passThrough: process.stdout, level: "info", source: "daemon" }),
+      stderr: createLineCaptureStream({ buffer: getServerLogBuffer(), passThrough: process.stderr, level: "error", source: "daemon" }),
+      platform: process.platform,
+    });
   }
   // Termination uses the same registry identity; launch env is refreshed only when spawning.
   const cleanupAdapter = createProcessAdapter();
