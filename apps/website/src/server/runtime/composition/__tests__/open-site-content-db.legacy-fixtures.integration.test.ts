@@ -10,6 +10,7 @@ import { closeSqliteConnection } from "#src/platform/db/kernel/drivers/sqlite";
 import { CONTENT_MIGRATIONS } from "#src/platform/db/migrations/index";
 import { MIGRATION_BACKUP_PREFIX } from "#src/platform/db/sqlite/content-db";
 import { openSiteContentDb } from "../open-site-content-db.js";
+import { LEGACY_CHAT_TABLES, allowedRemovals, contentOver, fillEveryTable, missingRows, readContent } from "./fixtures/legacy-content-history.js";
 
 const drizzleDir = path.resolve(import.meta.dirname, "../../../../platform/db/drizzle");
 const sha = (file: string) => crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");
@@ -33,6 +34,9 @@ function legacyFile(file: string, count: number, duplicate: boolean): void {
       db.exec("CREATE TABLE p_history_probe (id TEXT PRIMARY KEY, value TEXT NOT NULL)");
       db.prepare("INSERT INTO p_history_probe VALUES (?, ?)").run("existing-record", `preserve history ${count}`);
     })();
+    // Every core table holds rows, so a tail step that rebuilds a table (copy -> drop -> rename) has
+    // real content to lose, and a dropped table is a populated one (F2248/F2249).
+    fillEveryTable(db, { except: ["p_history_probe"] });
   } finally {
     db.close();
   }
@@ -79,6 +83,8 @@ for (const fixture of [
       assert.equal(before.tables.includes("tovu_migrations"), false);
       assert.equal(before.tables.includes("external_mcp_tool_approvals"), fixture.count === 78);
       const originalState = snapshot(file);
+      const pristine = path.join(root, "pristine.db");
+      fs.copyFileSync(file, pristine);
 
       closeSqliteConnection(await openSiteContentDb(file));
 
@@ -87,10 +93,29 @@ for (const fixture of [
       assert.equal(adopted.tables.includes("external_mcp_tool_approvals"), true, "the pending DDL must actually run");
       assert.deepEqual(adopted.marker, [{ id: "existing-record", value: `preserve history ${fixture.count}` }]);
       const db = new Database(file, { readonly: true });
+      const original = new Database(pristine, { readonly: true });
       try {
         assert.deepEqual(db.prepare("SELECT id FROM tovu_migrations ORDER BY id").all(), CONTENT_MIGRATIONS.map(step => ({ id: step.id })));
+        // Content, not counts: every row of every surviving table keeps its values over the columns
+        // the table had before (rows the boot seeds for the default workspace may be added); a table
+        // may vanish only if a migration source drops it (0002 only when empty).
+        const before = readContent(original);
+        const after = readContent(db);
+        const allowed = allowedRemovals(fixture.count);
+        for (const [table, content] of Object.entries(before)) {
+          if (after[table] === undefined) {
+            assert.ok(allowed.has(table), `${table} vanished, but no migration drops it`);
+            if (LEGACY_CHAT_TABLES.has(table)) assert.equal(content.rows, 0, `0002 drops ${table} only when empty`);
+            continue;
+          }
+          if (table === "__drizzle_migrations") continue;
+          const common = content.columns.filter(column => after[table]!.columns.includes(column));
+          assert.deepEqual(missingRows(contentOver(original, table, common), contentOver(db, table, common)), [], `${table}: rows rewritten or lost`);
+        }
+        assert.ok(Object.values(before).filter(content => content.rows > 0).length > 80, "the fixture filled the core tables");
       } finally {
         db.close();
+        original.close();
       }
       const ops = path.join(root, "ops");
       const backups = fs.readdirSync(ops).filter(name => name.startsWith(MIGRATION_BACKUP_PREFIX) && name.endsWith(".db"));
