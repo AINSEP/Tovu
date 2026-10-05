@@ -5,6 +5,7 @@ import { contentKernel } from "../db/content-kernel.js";
 import { closeSqliteConnection } from "../db/kernel/index.js";
 import { prepareContentStore } from "../db/prepare-content-store.js";
 import { type ContentDb, migrateSqliteContentFile, openSqliteContentConnection } from "../db/sqlite/content-db.js";
+import { runBootDataRepairs } from "#src/server/runtime/composition/boot-data-repairs";
 import { openSiteStore, type SiteStore } from "#src/server/runtime/composition/open-site-store";
 import { writeJsonFileAtomic } from "./atomic-write.js";
 import { SiteCorruptError, SiteDirInvalidError } from "./errors.js";
@@ -64,16 +65,20 @@ export interface StoreSiteDirBoot extends BootSiteDirResultBase {
 export type BootSiteDirResult = SqliteSiteDirBoot | StoreSiteDirBoot;
 
 /**
- * Closes what {@link bootSiteDir} opened. SQLite closes `content.db` synchronously, before the
- * returned promise exists. `composed` is the store `createSiteRouteDeps` handed to `onStoreOpened`
- * when the composition got that far: closing it stops the composition's guest-chat sweep (waiting
- * for a pass in flight) and then closes `boot.store` (Postgres/PGlite) or the `chat.db` the
- * composition opened beside `content.db` (SQLite). Without it, `boot.store` is closed directly.
+ * Closes what {@link bootSiteDir} opened. `composed` is the store `createSiteRouteDeps` handed to
+ * `onStoreOpened` when the composition got that far: closing it stops the composition's sweeps
+ * (guest-chat, submission-IP retention; waiting for a pass in flight) and then closes `boot.store`
+ * (Postgres/PGlite) or the `chat.db` the composition opened beside `content.db` (SQLite). Without
+ * it, `boot.store` is closed directly. SQLite's borrowed `content.db` closes LAST, and even when
+ * that close rejects: closing it first left a sweep batch still in flight on a closed connection.
  */
 export async function closeSiteDirBoot(boot: BootSiteDirResult, composed?: Pick<SiteStore, "close">): Promise<void> {
-  if (boot.db !== undefined) closeSqliteConnection(boot.db);
-  if (composed !== undefined) await composed.close();
-  else if (boot.store !== undefined) await boot.store.close();
+  try {
+    if (composed !== undefined) await composed.close();
+    else if (boot.store !== undefined) await boot.store.close();
+  } finally {
+    if (boot.db !== undefined) closeSqliteConnection(boot.db);
+  }
 }
 
 /**
@@ -130,6 +135,10 @@ export async function bootSiteDir(required: BootSiteDirRequired, options: BootSi
 
     // The watermark singleton row every content store carries.
     await prepareContentStore(contentKernel(db));
+    // The stored-data repairs every other store opener runs. The CLI hands this handle to the
+    // composition as `overrides.db`, which skips `openSiteContentDb` (where SQLite runs them), so
+    // without this `tovu serve <dir>`/`tovu export <dir>` never repaired a SQLite install.
+    await runBootDataRepairs({ kernel: contentKernel(db) });
 
     // BR-05 step 5 / BR-06 / CIC U-002-B2/ORD1: the stamp rewrite happens ONLY when a migration
     // was actually needed, both fields together, in one atomic operation, and only AFTER

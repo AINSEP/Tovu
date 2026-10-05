@@ -18,7 +18,7 @@ import { setReadinessSnapshot } from "./server/runtime/lifecycle/readiness-state
 import { registerPluginSdkResolver } from "./server/runtime/boot/plugin-sdk-resolver.js";
 import { installUnhandledRejectionGuard } from "./server/runtime/boot/process-error-guards.js";
 import { shutdownAssistantDaemon, startAssistantDaemon } from "./server/inbound/assistant/index.js";
-import { closeStoreOnShutdown } from "./server/runtime/lifecycle/close-store-on-shutdown.js";
+import { closeStoreOnShutdown, stopServingWithinGrace } from "./server/runtime/lifecycle/close-store-on-shutdown.js";
 import { ensureAgentDaemonPortResolved } from "./server/runtime/lifecycle/agent-daemon-port.js";
 import { ensureAgentDaemonToken } from "./assistant/index.js";
 import { registerAdminDevProxyUpgrade } from "./server/inbound/admin-http/admin-dev-proxy.js";
@@ -337,10 +337,16 @@ async function main(): Promise<void> {
   // them (bounded), or a site stopped seconds after boot closes under them (see `await-boot-work.ts`).
   const bootWork: Promise<unknown>[] = [];
   if (deps.legacyPublishCredentialsReady) bootWork.push(deps.legacyPublishCredentialsReady);
+  // Set once `createServingApp` below has started the background loops: stops them and the listener
+  // before the store closes, so a drain awaiting a subscriber is not cut off mid-delivery.
+  let stopServing: () => Promise<void> = async () => {};
   // PGlite/Postgres: close the store on shutdown (releases the PGlite lock and socket); SQLite: no-op.
   const storeOwnsShutdown =
     siteStore !== undefined &&
-    closeStoreOnShutdown({ store: siteStore, onShutdown: shutdownAssistantDaemon }, { bootWork: () => bootWork });
+    closeStoreOnShutdown(
+      { store: siteStore, onShutdown: shutdownAssistantDaemon },
+      { bootWork: () => bootWork, stopServing: () => stopServing() }
+    );
 
   // ADR-046 Phase 3 (SPEC-031): the boot-module composition itself now lives in
   // `server/runtime/boot/bootstrap.ts` (unit-testable, unlike this file — see the note above on why
@@ -362,8 +368,9 @@ async function main(): Promise<void> {
   // `createServingApp`, not bare `createApp`: it also starts the background outbox drainer, after
   // `createApp` has attached every subscriber. The drainer's timer is unref'd, so it never holds this
   // process open.
-  const { app, bootWork: servingBootWork } = createServingApp(deps);
+  const { app, outboxDrainer, trashSweeper, bootWork: servingBootWork } = createServingApp(deps);
   bootWork.push(...servingBootWork);
+  stopServing = () => stopServingWithinGrace({ server, workers: [outboxDrainer, { stop: () => trashSweeper.stop({}) }] });
   // TLS-gated the same way `apps/admin/vite.config.ts` gates Vite's own dev server: cert pair
   // present -> HTTPS, absent -> plain HTTP/1.1 (`devTls`/`devScheme`, computed above at module
   // load). Express 4 has no native HTTP/2 support (no `spdy`/`http2` compat shim added here), so

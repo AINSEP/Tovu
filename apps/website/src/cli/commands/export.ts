@@ -6,6 +6,7 @@ import { bootSiteDir, closeSiteDirBoot } from "../../platform/site-dir/boot-site
 import type { SiteStore } from "../../server/runtime/composition/open-site-store.js";
 import { resolveInstallDirTarget } from "../../platform/site-dir/resolve-install-dir-target.js";
 import { registerPluginSdkResolver } from "../../server/runtime/boot/plugin-sdk-resolver.js";
+import { awaitBootWorkWithinBound } from "../../server/runtime/lifecycle/await-boot-work.js";
 import { reconcileInterruptedMigrationOnBoot } from "#src/features/database/boot/reconcile-interrupted-migration";
 import { ExportIncompleteError, ExportBlockedPendingRecoveryError } from "../errors.js";
 
@@ -135,6 +136,9 @@ export async function runExportCommand(input: RunExportCommandInput): Promise<vo
   const bootResult = await bootSiteDir({ dir: target }, { workspaceId: input.workspaceId });
   // The composition's store (`onStoreOpened`): closing it stops its guest-chat sweep, then the store.
   let composedStore: SiteStore | undefined;
+  // Boot passes the composition (and the crawl's `createSiteApp()`) started and never awaited, which
+  // read the store: the cleanup below waits for them, bounded, the way `tovu serve`'s does.
+  let routeDepsForCleanup: { legacyPublishCredentialsReady?: Promise<void>; siteAppBootWork?: ReadonlySet<Promise<void>> } = {};
 
   // Opened right after `bootSiteDir`, so a composition failure closes the store too (a PGlite owner
   // socket left open would keep this process from exiting).
@@ -156,6 +160,7 @@ export async function runExportCommand(input: RunExportCommandInput): Promise<vo
       siteBinding: { dir: target, name: path.basename(target), dirOverridden: true, switcherCompatible: false },
       onStoreOpened: (store) => (composedStore = store),
     });
+    routeDepsForCleanup = routeDeps;
     const outputDir = resolveExportOutputDir(input, routeDeps.exportOutputRootDir);
 
     // See this file's header. The same CRITICAL check `tovu serve`'s boot lifecycle runs first,
@@ -181,6 +186,10 @@ export async function runExportCommand(input: RunExportCommandInput): Promise<vo
       );
     }
   } finally {
+    const { legacyPublishCredentialsReady, siteAppBootWork } = routeDepsForCleanup;
+    await awaitBootWorkWithinBound({
+      work: [...(legacyPublishCredentialsReady ? [legacyPublishCredentialsReady] : []), ...(siteAppBootWork ?? [])],
+    });
     await closeSiteDirBoot(bootResult, composedStore);
   }
 }

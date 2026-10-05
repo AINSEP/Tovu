@@ -1943,6 +1943,8 @@ async function composeSiteRouteDeps(
         maxResponseBytes: 96 * 1024 * 1024, maxDecompressedBytes: 96 * 1024 * 1024 },
     });
   const externalMcpOAuthHttpPorts = createTovuOAuthHttpPorts({ http: guardedOutboundHttpClient });
+  // `createSiteApp()`'s unsettled boot passes (see `RouteDeps.siteAppBootWork`); each leaves once settled.
+  const siteAppBootWork = new Set<Promise<void>>();
   const routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = {
     workspaceId: workspaceId,
     workspaceRepo: new SqliteWorkspaceRepo(kernel),
@@ -2358,7 +2360,14 @@ async function composeSiteRouteDeps(
     // below rather than taking it per call; same self-referencing-closure shape `exportSiteBound`
     // below already uses, same TEST GOTCHA (`routes/types.ts`'s `exportSiteBound` doc, generalized:
     // spread-override is silently inert; mutate the object in place instead).
-    createSiteApp: () => createApp(routeDeps),
+    createSiteApp: () =>
+      createApp(routeDeps, {
+        onBootWork: (work) => {
+          siteAppBootWork.add(work);
+          void work.then(() => siteAppBootWork.delete(work), () => siteAppBootWork.delete(work));
+        },
+      }),
+    siteAppBootWork,
     // 2026-08-20 (RouteDeps-narrowing pass 2) — same nullary-closure conversion, same reasoning, same
     // TEST GOTCHA.
     resolveStorefrontProducts: () => resolveStorefrontProducts(routeDeps),

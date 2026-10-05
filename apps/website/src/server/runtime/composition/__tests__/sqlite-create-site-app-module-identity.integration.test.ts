@@ -199,3 +199,14 @@ test("createSiteApp() on a SQLite composition adds no second copy of the serving
   assert.equal(deliveries[0].eventId, "module-identity-event");
   assert.equal(deliveries[0].status, "pending");
 });
+
+test("createSiteApp() exposes its BYOK boot pass on siteAppBootWork until it settles, so tovu export can await it", async (t) => {
+  const deps = await bootSqliteSite(t);
+  assert.equal(deps.siteAppBootWork?.size, 0);
+  deps.createSiteApp();
+  const pending = [...(deps.siteAppBootWork ?? [])];
+  assert.equal(pending.length, 1, "the BYOK tool-registration pass createApp started");
+  await Promise.allSettled(pending);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(deps.siteAppBootWork?.size, 0, "a settled pass leaves the set");
+});

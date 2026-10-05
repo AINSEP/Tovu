@@ -67,6 +67,12 @@ export function closeWithinBound(
  * when the close starts, not here: `index.ts` registers these handlers before `createServingApp`
  * returns its passes.
  *
+ * `optional.stopServing` runs before all of that: it stops the listener taking requests and the
+ * background loops (`createServingApp`'s outbox drainer and trash sweeper), and the store closes
+ * only once it settles. Without it a drain that had claimed an event and was awaiting a subscriber
+ * lost the store beneath it, so the event stayed `processing` until its lease expired and was then
+ * delivered again. See {@link stopServingWithinGrace}.
+ *
  * @returns `true` when the handlers were registered (the caller must then start the daemon with
  *   `registerProcessSignalHandlers: false`); `false` on SQLite, where nothing is registered.
  */
@@ -77,6 +83,7 @@ export function closeStoreOnShutdown(
     timeoutMs?: number;
     log?: (message: string) => void;
     bootWork?: () => readonly Promise<unknown>[];
+    stopServing?: () => Promise<void>;
   } = {}
 ): boolean {
   const { store, onShutdown } = required;
@@ -85,11 +92,13 @@ export function closeStoreOnShutdown(
   const timeoutMs = optional.timeoutMs ?? DEFAULT_CLOSE_TIMEOUT_MS;
   const log = optional.log ?? ((message: string) => console.error(message));
   const bootWork = optional.bootWork ?? (() => []);
+  const stopServing = optional.stopServing ?? (async () => {});
 
   let closing: Promise<void> | undefined;
   const closeBounded = (): Promise<void> => {
     closing ??= closeWithinBound(
       async () => {
+        await stopServing();
         await awaitBootWorkWithinBound({ work: bootWork() }, { timeoutMs: timeoutMs / 2, log });
         await store.close();
       },
@@ -107,4 +116,37 @@ export function closeStoreOnShutdown(
   proc.once("beforeExit", () => void closeBounded());
   proc.once("exit", onShutdown);
   return true;
+}
+
+/** The slice of an `http.Server` {@link stopServingWithinGrace} closes. */
+export interface ClosableServer {
+  close(callback: (error?: Error) => void): unknown;
+  closeIdleConnections?(): void;
+  closeAllConnections?(): void;
+}
+
+/**
+ * The default boot's (`index.ts`) half of `tovu serve`'s BR-07 shutdown: stops the background
+ * loops (so no new drain or sweep starts) and the listener (no new connections), lets requests
+ * already in flight finish, and resolves once both have. A keep-alive socket that never sends
+ * another request would hold `server.close()` open forever, so idle sockets close at once and any
+ * still open after `graceMs` (default 500 ms, `serve.ts`'s window) are cut. Never rejects: a
+ * listener that was not running, or a worker whose `stop()` throws, still lets the store close.
+ *
+ * @complexity O(workers + open connections).
+ */
+export async function stopServingWithinGrace(
+  required: { server: ClosableServer; workers: ReadonlyArray<{ stop(): Promise<void> }> },
+  optional: { graceMs?: number } = {}
+): Promise<void> {
+  const { server, workers } = required;
+  const workersStopped = Promise.allSettled(workers.map((worker) => worker.stop()));
+  const serverClosed = new Promise<void>((resolve) => {
+    server.close(() => resolve());
+  });
+  server.closeIdleConnections?.();
+  const cut = setTimeout(() => server.closeAllConnections?.(), optional.graceMs ?? 500);
+  cut.unref();
+  await Promise.all([workersStopped, serverClosed]);
+  clearTimeout(cut);
 }

@@ -299,6 +299,14 @@ export interface MediaDeps {
    * anything closing the store) await that tail instead of deleting the site directory under it (F1833).
    */
   legacyPublishCredentialsReady?: Promise<void>;
+  /**
+   * The boot passes {@link RouteDeps.createSiteApp} started that have not settled yet (`createApp`'s
+   * BYOK tool-registration pass, `CreateAppOptions.onBootWork`); each leaves the set once it
+   * settles. A caller that closes the store after calling `createSiteApp()` (the `tovu export`
+   * command) awaits these, bounded, first, or a short export closes the store beneath its own pass.
+   * Optional like `legacyPublishCredentialsReady`: only the real composition wires it.
+   */
+  siteAppBootWork?: ReadonlySet<Promise<void>>;
 }
 
 /**

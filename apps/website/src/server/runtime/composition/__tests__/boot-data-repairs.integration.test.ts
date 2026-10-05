@@ -11,6 +11,8 @@ import { closeSqliteConnection } from "#src/platform/db/kernel/drivers/sqlite";
 import { runBootDataRepairs } from "../boot-data-repairs.js";
 import { openSiteContentDb } from "../open-site-content-db.js";
 import { openSiteStore } from "../open-site-store.js";
+import { bootSiteDir, closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
+import { initSite } from "#src/platform/site-dir/init-site";
 
 /**
  * @file `runBootDataRepairs`: its per-repair failure policy (with fakes), and that BOTH store
@@ -86,5 +88,30 @@ test("pglite: openSiteStore's Postgres-family preparation runs the repair (its m
     }
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("sqlite install dir: bootSiteDir (tovu serve/export <dir>) runs the repair before handing out its handle", async () => {
+  // Those commands hand `bootSiteDir`'s open handle to the composition as `overrides.db`, which
+  // bypasses `openSiteContentDb`; the repair has to run on this path too.
+  const parent = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-boot-data-repairs-site-dir-"));
+  const dir = path.join(parent, "site");
+  try {
+    await initSite({ dir, name: "Repair Site" });
+    const seeded = await openSiteContentDb(path.join(dir, "content.db"));
+    await contentKernel(seeded).run((db) =>
+      db.deleteFrom("setting_values_global").where("setting_id", "=", UNREADABLE_OWNER_ENTRIES_REPAIR_SETTING_ID).execute()
+    );
+    assert.equal(await markerPresent(contentKernel(seeded)), false);
+    closeSqliteConnection(seeded);
+
+    const boot = await bootSiteDir({ dir });
+    try {
+      assert.equal(boot.db !== undefined && (await markerPresent(contentKernel(boot.db))), true);
+    } finally {
+      await closeSiteDirBoot(boot);
+    }
+  } finally {
+    fs.rmSync(parent, { recursive: true, force: true });
   }
 });
