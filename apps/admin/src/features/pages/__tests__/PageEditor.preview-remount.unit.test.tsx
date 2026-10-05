@@ -84,4 +84,23 @@ describe("PageEditor — a draft's preview survives full-screen toggles", () => 
     expect(document.querySelector(".page-preview-expanded")).toBeNull();
     await waitFor(() => expect(mountedPreview().filled).toBe(true), { timeout: 3000 });
   });
+
+  // The view half of the fix: one element tree in both states, so the toggle keeps the rendered
+  // document (and its scroll) instead of reloading it, and the fab stays inside the preview stage.
+  it("keeps the SAME iframe node across the toggle, with the fab inside the preview stage", async () => {
+    renderDraftEditor();
+    await waitFor(() => expect(mountedPreview().filled).toBe(true), { timeout: 3000 });
+    const before = mountedPreview().iframe;
+
+    fireEvent.click(screen.getByRole("button", { name: "Show full screen" }));
+    expect(mountedPreview().iframe).toBe(before);
+    const fab = screen.getByRole("button", { name: "Exit full screen" });
+    expect(fab.parentElement).toHaveClass("page-preview-stage");
+    expect(fab.parentElement?.querySelector(".page-preview-notice")).toBeNull();
+    expect(fab).not.toHaveAttribute("title");
+    expect(fab.querySelector(".page-preview-fab-tip")).toHaveTextContent("Exit full screen (Esc)");
+
+    fireEvent.click(fab);
+    expect(mountedPreview().iframe).toBe(before);
+  });
 });

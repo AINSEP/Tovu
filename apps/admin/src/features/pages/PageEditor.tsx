@@ -1226,46 +1226,46 @@ function PagePreview({
 }) {
   const canShowLiveSite = status === "published" && !dirty;
 
-  const pane = (
-    <>
-      {canShowLiveSite ? null : (
-        <p className="page-preview-notice">
-          {pagePreviewNotice({ status, contentDirty })}
-        </p>
-      )}
-      {/* Collapsed vs. expanded frame/scaler heights: see `devicePreviewFrameStyles`. */}
-      <DevicePreviewFrame width={width} frameRef={frameRef} paneWidth={paneWidth} expanded={expanded}>
-        <PagePreviewFrame
-          canShowLiveSite={canShowLiveSite}
-          slug={slug}
-          version={version}
-          html={html}
-          templatePreviewUrl={templatePreviewUrl}
-          previewFormRef={previewFormRef}
-          previewFormTarget={previewFormTarget}
-          onFrameLoad={onFrameLoad}
-          t={t}
-        />
-      </DevicePreviewFrame>
-    </>
-  );
-
-  const fab = <PagePreviewFab expanded={expanded} onToggle={onToggleExpanded} t={t} />;
-
-  // Collapsed: the pane plus the control, wrapped in `.page-preview-surface` — that wrapper is the
-  // `position: relative` ancestor the fab's `position: absolute` resolves against (`pages.css`), so
-  // the fab must stay inside it. Same wrapper in the expanded branch below, for the same reason.
-  if (!expanded) return <div className="page-preview-surface">{pane}{fab}</div>;
-
+  // ONE element tree in both states, only the outer class changes (2026-10-05 owner bug). The two
+  // states used to return different trees, so every toggle unmounted the form + iframe pair and
+  // mounted an empty `about:blank` one: a draft's preview went blank (fixed at the root by
+  // `usePageEditor`'s node-keyed re-submit) and even a working toggle reloaded the page under the
+  // operator. Keeping the same nodes keeps the rendered document, and its scroll, across the toggle.
+  //
   // Expanded: `.page-preview-expanded` (`styles/pages.css`) is `position: absolute; inset: 0`
   // against `.admin-main-col` — see `styles/editor.css`'s `.post-preview-expanded` comment for the
   // full containment argument (why this covers only the admin content column, never
   // `.admin-chat-dock`); Pages reuses the geometry and the `z-index`, not the rule.
+  //
+  // `.page-preview-stage` wraps the frame and the control and is the `position: relative` box the
+  // fab's `position: absolute` resolves against (`pages.css`), so the fab always sits INSIDE the
+  // previewed area — never over the notice line above it, which is where it landed when the whole
+  // surface (notice included) was its containing block.
   return (
-    <div className="page-preview-expanded">
+    <div className={expanded ? "page-preview-expanded" : "page-preview-host"}>
       <div className="page-preview-surface">
-        {pane}
-        {fab}
+        {canShowLiveSite ? null : (
+          <p className="page-preview-notice">
+            {pagePreviewNotice({ status, contentDirty })}
+          </p>
+        )}
+        <div className="page-preview-stage">
+          {/* Collapsed vs. expanded frame/scaler heights: see `devicePreviewFrameStyles`. */}
+          <DevicePreviewFrame width={width} frameRef={frameRef} paneWidth={paneWidth} expanded={expanded}>
+            <PagePreviewFrame
+              canShowLiveSite={canShowLiveSite}
+              slug={slug}
+              version={version}
+              html={html}
+              templatePreviewUrl={templatePreviewUrl}
+              previewFormRef={previewFormRef}
+              previewFormTarget={previewFormTarget}
+              onFrameLoad={onFrameLoad}
+              t={t}
+            />
+          </DevicePreviewFrame>
+          <PagePreviewFab expanded={expanded} onToggle={onToggleExpanded} t={t} />
+        </div>
       </div>
     </div>
   );
@@ -1290,7 +1290,6 @@ function PagePreviewFab({ expanded, onToggle, t }: { expanded: boolean; onToggle
       type="button"
       className="page-preview-fab"
       onClick={onToggle}
-      title={expanded ? t("Exit full screen (Esc)") : t("Show full screen")}
       aria-label={expanded ? t("Exit full screen") : t("Show full screen")}
       {...agentHandle({ handle: "page-preview-expand" }, {
         role: "button",
@@ -1321,6 +1320,13 @@ function PagePreviewFab({ expanded, onToggle, t }: { expanded: boolean; onToggle
       })}
     >
       <span aria-hidden="true">{expanded ? "\u2921" : "\u2922"}</span>
+      {/* The hint is drawn in-page, not the native `title` tooltip (2026-10-05): the desktop app
+          drew the native one past the window's right edge ("Exit f…"). Anchored to the button and
+          opening leftwards (`pages.css`), it stays inside the preview. `aria-hidden` because
+          `aria-label` above already names the button; this only repeats it visually. */}
+      <span className="page-preview-fab-tip" aria-hidden="true">
+        {expanded ? t("Exit full screen (Esc)") : t("Show full screen")}
+      </span>
     </button>
   );
 }

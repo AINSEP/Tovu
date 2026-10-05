@@ -172,8 +172,12 @@
    for the layout as of this date.
 
    Expanded stays flush: `.page-preview-expanded .page-preview-surface` below sets `margin-top: 0`,
-   and the surface is not a direct child of `.page` in that state anyway. */
-.page > .page-preview-surface { margin-top: -15px; }
+   and the surface is not a direct child of `.page` in that state anyway.
+
+   `.page-preview-host` (2026-10-05) is the collapsed state's class for the wrapper `PagePreview`
+   renders in BOTH states (expanded swaps it for `.page-preview-expanded`) — one element tree, so a
+   toggle never remounts the preview iframe. It carries no styles of its own. */
+.page > .page-preview-host > .page-preview-surface { margin-top: -15px; }
 
 /*
  * The preview renders at a FIXED viewport width and is scaled down to fit — see
@@ -227,6 +231,11 @@
  * fixed-height frame.
  */
 .page-preview-surface { position: relative; display: flex; flex-direction: column; }
+/* The frame plus the fab, and the fab's containing block (2026-10-05). The surface also holds the
+   notice line, so with the surface as containing block the fab sat over that notice instead of
+   inside the preview (owner screenshots: over the header line expanded, straddling the frame's top
+   border collapsed). */
+.page-preview-stage { position: relative; display: flex; flex-direction: column; }
 .page-preview-fab {
   position: absolute; top: 0.6rem; right: 0.6rem; z-index: 3;
   width: 2.25rem; height: 2.25rem; padding: 0; border: 0; border-radius: 0.5rem;
@@ -236,6 +245,16 @@
   opacity: 0.32; transition: opacity 0.15s ease, background 0.15s ease;
 }
 .page-preview-fab:hover, .page-preview-fab:focus-visible { opacity: 1; background: rgba(17, 17, 17, 0.72); }
+/* In-page hint replacing the native `title` tooltip, which the desktop app clipped at the window's
+   right edge. Anchored to the button's right edge so it opens leftwards, into the preview. */
+.page-preview-fab-tip {
+  position: absolute; top: calc(100% + 6px); right: 0;
+  padding: 0.25rem 0.5rem; border-radius: 0.375rem;
+  white-space: nowrap; font-size: 0.75rem; line-height: 1.2;
+  color: #fff; background: rgba(17, 17, 17, 0.88);
+  pointer-events: none; opacity: 0; transition: opacity 0.12s ease;
+}
+.page-preview-fab:hover .page-preview-fab-tip, .page-preview-fab:focus-visible .page-preview-fab-tip { opacity: 1; }
 
 /* `position: absolute; inset: 0` against `.admin-main-col` (`styles.css`, which is where its own
    `position: relative` lives), NOT `position: fixed` over the whole viewport — deliberately, so it
@@ -248,10 +267,11 @@
 /* The `-space-6` pull above is a gap fix for sitting directly under the toolbar; expanded there is
    no toolbar above this panel. */
 .page-preview-expanded .page-preview-surface { flex: 1; min-height: 0; margin-top: 0; }
+.page-preview-expanded .page-preview-stage { flex: 1; min-height: 0; }
 /* THE LOAD-BEARING CHAIN, and the one jsdom can never see. The expanded frame has no inline height
    (`PageEditor.tsx` writes one only when collapsed) and takes its height from this `flex: 1`, which
    only works because every ancestor up to `.page-preview-expanded` is a flex column: panel ->
-   surface -> frame. Drop any link and the frame falls back to its intrinsic height — on the Posts
+   surface -> stage -> frame. Drop any link and the frame falls back to its intrinsic height — on the Posts
    side the identical omission rendered a ~150px sliver of site header over an empty white box, and
    its unit tests stayed green throughout. `min-height: 0` on each is what lets a flex item shrink
    below its content; without it the chain overflows instead of fitting. Pinned by a CSS-text
