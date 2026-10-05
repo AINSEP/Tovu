@@ -34,7 +34,7 @@ import { OriginNotVerifiedError, type OriginRegistryPort, type VerifiedOrigin } 
  */
 
 test("GET /robots.txt: a rule with only `allow` and a rule with only `disallow` each emit just their one directive, and the sitemap is still advertised", async (t) => {
-  const deps: RouteDeps = createRouteDeps();
+  const deps: ReturnType<typeof createRouteDeps> = createRouteDeps();
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -60,7 +60,7 @@ test("GET /robots.txt: a rule with only `allow` and a rule with only `disallow` 
 });
 
 test("GET /robots.txt: no rules and sitemap disabled -> completely empty body, not even a trailing newline", async (t) => {
-  const deps: RouteDeps = createRouteDeps();
+  const deps: ReturnType<typeof createRouteDeps> = createRouteDeps();
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 

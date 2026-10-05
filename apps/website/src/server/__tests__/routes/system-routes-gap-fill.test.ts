@@ -41,7 +41,7 @@ for (const surface of [
   },
 ]) {
   test(`${surface.name}: POST with a secret store that cannot seal is 503 SECRET_STORE_UNCONFIGURED and stores no row`, async (t) => {
-    const deps: RouteDeps = { ...createRouteDeps(), siteAssistantSecretSealer: brokenSealer };
+    const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps(), siteAssistantSecretSealer: brokenSealer };
     const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
     const base = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${surface.path}`;
 
@@ -64,7 +64,7 @@ for (const surface of [
 }
 
 test("mail-status: a signed-in principal without admin.forms.manage is 403 and learns nothing about the mailer", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const { baseUrl } = await bootAuthenticated(createApp(deps), t);
   const bare = await loginAsBarePrincipal(deps, baseUrl);
 
@@ -78,7 +78,7 @@ test("mail-status: a signed-in principal without admin.forms.manage is 403 and l
 });
 
 test("observability-status: with an OTLP endpoint configured, reports enabled with the configured service name", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
   const url = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/observability-status`;
 

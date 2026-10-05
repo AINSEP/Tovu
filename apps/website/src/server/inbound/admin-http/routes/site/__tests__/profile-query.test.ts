@@ -41,7 +41,7 @@ test("parsePageLimit: accepts 1 and 200 inclusive, refuses 201, a repeated param
 });
 
 test("GET site/profile: pageLimit caps the pages section's items while total still counts every page", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
   for (const title of ["Profile Page A", "Profile Page B", "Profile Page C"]) {
     const created = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/pages`, {

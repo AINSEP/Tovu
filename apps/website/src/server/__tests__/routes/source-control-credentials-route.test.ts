@@ -46,7 +46,7 @@ async function loginAsBarePrincipal(deps: RouteDeps, baseUrl: string): Promise<s
 }
 
 test("source-control-credentials: an unauthorized principal (no grants) gets 403 on every verb", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl } = await bootAuthenticated(app, t);
   const cookie = await loginAsBarePrincipal(deps, baseUrl);
@@ -73,7 +73,7 @@ test("source-control-credentials: an unauthorized principal (no grants) gets 403
 });
 
 test("source-control-credentials: a mismatched workspaceId in the URL 404s on every verb", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const wrongWorkspacePath = `${baseUrl}/api/admin/v1/workspaces/not-the-real-workspace/${CREDENTIALS_PATH}`;
@@ -88,7 +88,7 @@ test("source-control-credentials: a mismatched workspaceId in the URL 404s on ev
 });
 
 test("source-control-credentials: GET starts with an empty list", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -99,7 +99,7 @@ test("source-control-credentials: GET starts with an empty list", async (t) => {
 });
 
 test("source-control-credentials: full CRUD round trip — create, list, update (omitted connection keeps the secret, blank is rejected), delete", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const base = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${CREDENTIALS_PATH}`;
@@ -156,7 +156,7 @@ test("source-control-credentials: full CRUD round trip — create, list, update 
 });
 
 test("source-control-credentials: DELETE on a never-existed id is idempotent (204, not 404)", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -165,7 +165,7 @@ test("source-control-credentials: DELETE on a never-existed id is idempotent (20
 });
 
 test("source-control-credentials: PUT on a non-existent id 404s with NOT_FOUND", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -180,7 +180,7 @@ test("source-control-credentials: PUT on a non-existent id 404s with NOT_FOUND",
 });
 
 test("source-control-credentials: POST with an invalid connection shape 400s with VALIDATION, and bitbucket needs a username", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const base = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${CREDENTIALS_PATH}`;
@@ -209,7 +209,7 @@ test("source-control-credentials: POST with an invalid connection shape 400s wit
 });
 
 test("source-control-credentials: a duplicate (provider, label) 409s with DUPLICATE_LABEL and never creates a second row", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const base = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${CREDENTIALS_PATH}`;
@@ -234,7 +234,7 @@ test("source-control-credentials: a duplicate (provider, label) 409s with DUPLIC
 });
 
 test("source-control providers: lists the github plugin's host with its declared credential form; a bare principal gets 403", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const url = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/source-control/providers`;

@@ -44,7 +44,7 @@ async function bootSite(t: import("node:test").TestContext): Promise<{ deps: Rou
   const base = createRouteDeps();
   const scratch = discoverAllBuiltInThemes({ dir: scratchTemplatedThemesRoot(t), source: "built-in" });
   assert.ok(scratch.some((th) => th.manifest.id === "fm-scratch"), "precondition: the scratch templated theme was discovered");
-  const deps: RouteDeps = { ...base, themes: [...base.themes, ...scratch] };
+  const deps: ReturnType<typeof createRouteDeps> = { ...base, themes: [...base.themes, ...scratch] };
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
   return { deps, baseUrl, cookie };
 }

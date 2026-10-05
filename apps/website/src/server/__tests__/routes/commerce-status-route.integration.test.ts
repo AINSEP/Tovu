@@ -43,7 +43,7 @@ async function loginAsBarePrincipal(deps: RouteDeps, baseUrl: string): Promise<s
 }
 
 test("commerce status: requires an authenticated admin session", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const { baseUrl } = await bootAuthenticated(createApp(deps), t);
 
   const response = await fetch(statusUrl(baseUrl, deps.workspaceId));
@@ -52,7 +52,7 @@ test("commerce status: requires an authenticated admin session", async (t) => {
 });
 
 test("commerce status: rejects a workspace outside the composed tenant", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
 
   const response = await fetch(statusUrl(baseUrl, "other-workspace"), { headers: { cookie } });
@@ -61,7 +61,7 @@ test("commerce status: rejects a workspace outside the composed tenant", async (
 });
 
 test("commerce status: requires the existing integration-management permission", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const { baseUrl } = await bootAuthenticated(createApp(deps), t);
   const cookie = await loginAsBarePrincipal(deps, baseUrl);
 
@@ -76,7 +76,7 @@ test("commerce status: requires the existing integration-management permission",
 });
 
 test("commerce status: returns an unavailable snapshot when no payment runtime is composed", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
 
   const response = await fetch(statusUrl(baseUrl, deps.workspaceId), { headers: { cookie } });
@@ -106,7 +106,7 @@ test("commerce status: returns an unavailable snapshot when no payment runtime i
 });
 
 test("commerce status: returns registered providers without claiming downstream capabilities", async (t) => {
-  const deps: RouteDeps = {
+  const deps: ReturnType<typeof createRouteDeps> = {
     ...createRouteDeps(),
     lipay: {
       listProviders: () => [

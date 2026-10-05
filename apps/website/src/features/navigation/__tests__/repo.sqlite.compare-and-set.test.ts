@@ -6,6 +6,7 @@ import { MenuConflictError, updateMenuTree, type MenuRepoPort, type NavMenuEntry
 import type { OutboxPort } from "@jini-ai/cms/core";
 import { SqlMenuRepo } from "../repo.js";
 import { TrashAwareInMemoryMenuRepo } from "../trash-aware-memory-menu-repo.js";
+import { MenuVersionConflictError } from "../menu-version-conflict-error.js";
 
 /**
  * @file Menu writes are compare-and-set (wm S4): `MenuRepoPort.save(record, { expectedVersion })`
@@ -38,7 +39,7 @@ async function trash(repo: MenuRepoPort, row: NavMenuEntry): Promise<void> {
 
 function conflict(id: string, expected: number, found: number | "none"): (error: unknown) => boolean {
   return (error) =>
-    error instanceof MenuConflictError &&
+    error instanceof MenuVersionConflictError &&
     error.message === `menu '${id}' was modified concurrently (expected version ${expected}, found ${found})`;
 }
 
@@ -82,6 +83,7 @@ function runCompareAndSetSuite(adapterName: string, makeRepo: () => MenuRepoPort
       () => repo.save(menu({ slug: "taken", version: 2 }), { expectedVersion: 1 }),
       (error: unknown) =>
         error instanceof MenuConflictError &&
+        !(error instanceof MenuVersionConflictError) &&
         error.message === "a menu with slug 'taken' is in the Trash — restore it, or delete it permanently from the Trash, to reuse the slug"
     );
     assert.equal((await repo.findById({ workspaceId: WS, id: "menu-1" }))?.slug, "primary-nav");

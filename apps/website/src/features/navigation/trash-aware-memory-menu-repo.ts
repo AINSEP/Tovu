@@ -2,6 +2,7 @@ import { InMemoryMenuRepo, MenuConflictError } from "@jini-ai/cms/navigation";
 import type { MenuRepoPort, MenuStatus, NavMenuEntry } from "@jini-ai/cms/navigation";
 
 import type { MenuTrashLookup } from "./menu-trash-follow-ups.js";
+import { MenuVersionConflictError } from "./menu-version-conflict-error.js";
 
 /**
  * @file The in-memory twin of `repo.sqlite.ts`'s Trash rules, for the hermetic composition
@@ -53,8 +54,10 @@ export class TrashAwareInMemoryMenuRepo implements MenuRepoPort, MenuTrashLookup
    * `repo.memory.ts`), so writing through it never silently drops `doc`/`locations`.
    * With `expectedVersion`, the inner repo's compare-and-set decides (a trashed row is a conflict,
    * found none — the same as the SQL repo), so a trashed row is not silently skipped.
-   * @throws MenuConflictError when a trashed row holds the slug (same text as the SQLite repo), or
-   *         when the compare-and-set misses.
+   * @throws MenuConflictError when a trashed row holds the slug (same text as the SQLite repo).
+   * @throws MenuVersionConflictError when the compare-and-set misses. The inner repo throws Jini's
+   *         plain `MenuConflictError` for that, and with `expectedVersion` it is the only conflict
+   *         its `save` can throw, so it is re-wrapped here with the same message.
    * @complexity O(n) over stored menus (one id lookup, one slug scan).
    */
   async save(record: NavMenuEntry, options: { expectedVersion?: number | undefined } = {}): Promise<void> {
@@ -65,7 +68,14 @@ export class TrashAwareInMemoryMenuRepo implements MenuRepoPort, MenuTrashLookup
     if (holder && holder.id !== record.id && holder.status === "trash") {
       throw new MenuConflictError({ message: `a menu with slug '${record.slug}' is in the Trash — restore it, or delete it permanently from the Trash, to reuse the slug` });
     }
-    await this.inner.save(record, options);
+    try {
+      await this.inner.save(record, options);
+    } catch (error) {
+      if (options.expectedVersion !== undefined && error instanceof MenuConflictError) {
+        throw new MenuVersionConflictError({ message: error.message }, { cause: error });
+      }
+      throw error;
+    }
   }
 
   /** Hard-remove a menu row (only called after the trash step). @complexity O(n). */

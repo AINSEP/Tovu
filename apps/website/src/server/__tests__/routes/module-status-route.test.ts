@@ -41,7 +41,7 @@ async function loginAsBarePrincipal(deps: RouteDeps, baseUrl: string): Promise<s
 }
 
 test("module-status: an unauthorized principal (no grants) gets 403", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl } = await bootAuthenticated(app, t); // boots the server; cookie unused here
   const cookie = await loginAsBarePrincipal(deps, baseUrl);
@@ -67,7 +67,7 @@ test("module-status: the seeded owner (wildcard grant) gets 200 with the full mo
   };
   setReadinessSnapshot(knownResult);
 
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -92,7 +92,7 @@ test("module-status: reports 503 (not 200) when the snapshot's ok is false, same
   };
   setReadinessSnapshot(knownResult);
 
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -104,7 +104,7 @@ test("module-status: reports 503 (not 200) when the snapshot's ok is false, same
 });
 
 test("module-status: a mismatched workspaceId in the URL 404s", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 

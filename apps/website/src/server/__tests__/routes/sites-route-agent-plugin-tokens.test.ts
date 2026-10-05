@@ -6,17 +6,19 @@ import test from "node:test";
 
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { bootAuthenticated } from "../helpers/http-test-server.js";
-import type { RouteDeps } from "../../routes/types.js";
 import type { AdminSitesDeps } from "../../inbound/admin-http/routes/system/sites.js";
 
 /**
  * @file Create-site onboarding's optional `agentPluginTokens` on `POST .../system/sites`
  * (`inbound/admin-http/routes/system/sites.ts`), plus `GET .../system/sites/token-sign-in-plugins`.
  * The token check, the seal into the new site and `createSite` are injected on the route deps (the
- * route's own DI seams, which `RouteDeps` does not declare — hence the cast), so this proves the HTTP
+ * route's own DI seams, which `RouteDeps` does not declare — hence `SitesTestDeps`), so this proves the HTTP
  * contract only: a bad or rejected token refuses the create with nothing made; a good one is checked,
  * the site is made, and the token is sealed for it; a seal failure still reports the created site.
  */
+
+/** The composed app's deps plus the sites route's own injectable seams (`AdminSitesDeps`). */
+type SitesTestDeps = ReturnType<typeof createRouteDeps> & AdminSitesDeps;
 
 const TOKEN = "sbp_route_token_never_echoed";
 
@@ -31,7 +33,7 @@ function setup(overrides: Partial<TokenDeps> & { listTokenSignInPlugins?: AdminS
     sealPendingAgentPluginTokens: async (required) => void sealed.push(required),
     ...overrides,
   };
-  const deps = {
+  const deps: SitesTestDeps = {
     ...createRouteDeps(),
     isSiteSwitcherEnabled: () => true,
     createSite: async (required: { name: string }) => {
@@ -40,11 +42,11 @@ function setup(overrides: Partial<TokenDeps> & { listTokenSignInPlugins?: AdminS
     },
     ...tokenDeps,
     ...(overrides.listTokenSignInPlugins ? { listTokenSignInPlugins: overrides.listTokenSignInPlugins } : {}),
-  } as RouteDeps;
+  };
   return { deps, created, checked, sealed };
 }
 
-async function create(deps: RouteDeps, t: Parameters<typeof bootAuthenticated>[1], body: unknown) {
+async function create(deps: SitesTestDeps, t: Parameters<typeof bootAuthenticated>[1], body: unknown) {
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/sites`, {
     method: "POST",

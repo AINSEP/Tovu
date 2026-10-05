@@ -102,7 +102,7 @@ async function loginAsBarePrincipal(deps: RouteDeps, baseUrl: string): Promise<s
 }
 
 test("publish-credentials: an unauthorized principal (no grants) gets 403 on every verb", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl } = await bootAuthenticated(app, t);
   const cookie = await loginAsBarePrincipal(deps, baseUrl);
@@ -151,7 +151,7 @@ test("publish-credentials: an unauthorized principal (no grants) gets 403 on eve
 // -------------------------------------------------------------------------------------------------
 
 test("publish-credentials: POST with no body at all still 400s with VALIDATION (pins real behavior; does NOT kill the (req.body ?? {}) mutant — see note above)", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -170,7 +170,7 @@ test("publish-credentials: POST with no body at all still 400s with VALIDATION (
 });
 
 test("publish-credentials: a successful verify (status 'valid' with an accountLabel) persists that label to the row, not just the response", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const base = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${CREDENTIALS_PATH}`;
@@ -208,7 +208,7 @@ test("publish-credentials: a successful verify (status 'valid' with an accountLa
 });
 
 test("publish-credentials: a mismatched workspaceId in the URL 404s on every verb", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const wrongWorkspacePath = `${baseUrl}/api/admin/v1/workspaces/not-the-real-workspace/${CREDENTIALS_PATH}`;
@@ -223,7 +223,7 @@ test("publish-credentials: a mismatched workspaceId in the URL 404s on every ver
 });
 
 test("publish-credentials: GET starts with an empty list and the deps' own executionMode", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -235,7 +235,7 @@ test("publish-credentials: GET starts with an empty list and the deps' own execu
 });
 
 test("publish-credentials: full CRUD round trip — create, list, update (blank connection keeps the secret), delete", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const base = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${CREDENTIALS_PATH}`;
@@ -304,7 +304,7 @@ test("publish-credentials: full CRUD round trip — create, list, update (blank 
 // -------------------------------------------------------------------------------------------------
 
 test("publish-credentials: PUT with a NEW connection re-verifies it (unlike a label-only rename, which does not)", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const base = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${CREDENTIALS_PATH}`;
@@ -353,7 +353,7 @@ test("publish-credentials: PUT with a NEW connection re-verifies it (unlike a la
 });
 
 test("publish-credentials: PUT with isDefault: true promotes this row and demotes the previous default for the same provider", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const base = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${CREDENTIALS_PATH}`;
@@ -391,7 +391,7 @@ test("publish-credentials: PUT with isDefault: true promotes this row and demote
 });
 
 test("publish-credentials: DELETE on a never-existed id is idempotent (204, not 404)", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -400,7 +400,7 @@ test("publish-credentials: DELETE on a never-existed id is idempotent (204, not 
 });
 
 test("publish-credentials: PUT on a non-existent id 404s with NOT_FOUND", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -415,7 +415,7 @@ test("publish-credentials: PUT on a non-existent id 404s with NOT_FOUND", async 
 });
 
 test("publish-credentials: POST with an invalid connection shape 400s with VALIDATION, and github-pages needs only a token (no owner/repo)", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const base = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${CREDENTIALS_PATH}`;
@@ -448,7 +448,7 @@ test("publish-credentials: POST with an invalid connection shape 400s with VALID
 });
 
 test("publish-credentials: a duplicate (provider, label) 409s with DUPLICATE_LABEL and never creates a second row", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const base = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${CREDENTIALS_PATH}`;
@@ -474,7 +474,7 @@ test("publish-credentials: a duplicate (provider, label) 409s with DUPLICATE_LAB
 });
 
 test("publish-credentials: POST .../:id/verify 404s for a never-existed id", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -487,7 +487,7 @@ test("publish-credentials: POST .../:id/verify 404s for a never-existed id", asy
 });
 
 test("publish-credentials: POST .../:id/verify re-checks an existing connection on demand and reports an honest result, never the credential", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const base = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${CREDENTIALS_PATH}`;
@@ -512,7 +512,7 @@ test("publish-credentials: POST .../:id/verify re-checks an existing connection 
 });
 
 test("publish-credentials: a network failure during POST .../:id/verify reports 'unreachable', never 'invalid' — a flaky network must not read as a bad credential", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const base = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${CREDENTIALS_PATH}`;
@@ -606,7 +606,7 @@ test("publish-credentials: a site key missing at verify time (present at save ti
   // App 2: a SEPARATE server instance sharing the SAME repo (so it can see the row app1 just saved)
   // but a keyring that always throws — the current process, not the one that saved the row.
   const brokenKeyring = new BrokenKeyring();
-  const deps2: RouteDeps = {
+  const deps2: ReturnType<typeof createRouteDeps> = {
     ...createRouteDeps(),
     vendorCredentialSetRepo: deps1.vendorCredentialSetRepo,
     siteAssistantSecretKeyring: brokenKeyring,
@@ -699,7 +699,7 @@ function repoThatVanishesRowOnSecondRead(real: VendorCredentialSetRepoPort): Ven
  * longer equals `""`, so this same call would 404 instead of throwing -- the mutant this test kills.
  */
 test("publish-credentials: rejectUnlessAuthorized's `req.params.workspaceId ?? \"\"` fallback, forced via a direct handler call with workspaceId absent", async () => {
-  const deps: RouteDeps = { ...createRouteDeps(), workspaceId: "" };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps(), workspaceId: "" };
   const app = express();
   registerAdminPublishCredentialsRoutes(app, deps);
   const handler = extractRouteHandler(app, "get", "/api/admin/v1/workspaces/:workspaceId/system/publish/credentials");
@@ -723,7 +723,7 @@ test("publish-credentials: rejectUnlessAuthorized's `req.params.workspaceId ?? \
  * assertion kills.
  */
 test("publish-credentials: POST's `req.body ?? {}` fallback, forced via a direct handler call with req.body omitted entirely", async () => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const ownerPrincipal = await resolveSeededOwnerPrincipal(deps);
   const app = createApp(deps);
   const handler = extractRouteHandler(app, "post", "/api/admin/v1/workspaces/:workspaceId/system/publish/credentials");
@@ -750,7 +750,7 @@ test("publish-credentials: POST's `req.body ?? {}` fallback, forced via a direct
  * this stays a pure `req.body` probe with no network/verification call in the way.
  */
 test("publish-credentials: PUT's `req.body ?? {}` fallback, forced via a direct handler call with req.body omitted entirely", async () => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const ownerPrincipal = await resolveSeededOwnerPrincipal(deps);
   const credential = await createPublishCredential(
     {
@@ -794,7 +794,7 @@ test("publish-credentials: PUT's `req.body ?? {}` fallback, forced via a direct 
  * apart, `null !== undefined`, which is the mutant this test kills.
  */
 test("publish-credentials: verifyAfterSave's `result ?? undefined` fallback, forced via a repo that vanishes the row on its second read", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const credential = await createPublishCredential(
     {
       repo: deps.vendorCredentialSetRepo,

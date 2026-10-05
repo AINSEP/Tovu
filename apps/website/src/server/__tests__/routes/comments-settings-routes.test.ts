@@ -41,7 +41,7 @@ async function loginAsBarePrincipal(deps: RouteDeps, baseUrl: string): Promise<s
 }
 
 test("GET .../comments/settings returns the pre-ledger defaults once definitions are registered", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -61,7 +61,7 @@ test("GET .../comments/settings returns the pre-ledger defaults once definitions
 });
 
 test("PUT .../comments/settings persists a partial patch; a subsequent GET reflects it", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -95,7 +95,7 @@ test("PUT .../comments/settings persists a partial patch; a subsequent GET refle
 });
 
 test("PUT .../comments/settings 400s on an invalid patch and writes nothing", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const before = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/comments/settings`, { headers: { cookie } });
@@ -166,7 +166,7 @@ async function loginWithPermissions(deps: RouteDeps, baseUrl: string, permission
 }
 
 test("round-1 external audit (codex codex-r1-B-001, verified): a principal holding ONLY comments.configure -- not the broader settings.workspace.write -- can actually GET and PUT settings, not just pass the route's own gate", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl } = await bootAuthenticated(app, t);
   const leastPrivCookie = await loginWithPermissions(deps, baseUrl, ["comments.configure"]);
@@ -191,7 +191,7 @@ test("round-1 external audit (codex codex-r1-B-001, verified): a principal holdi
 });
 
 test("a principal without comments.configure is refused on both GET and PUT", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl } = await bootAuthenticated(app, t);
   const bareCookie = await loginAsBarePrincipal(deps, baseUrl);

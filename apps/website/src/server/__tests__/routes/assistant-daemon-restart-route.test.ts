@@ -4,6 +4,7 @@ import test from "node:test";
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { bootAuthenticated } from "../helpers/http-test-server.js";
 import type { RouteDeps } from "../../routes/types.js";
+import type { AdminAssistantDaemonDeps } from "../../inbound/admin-http/routes/system/assistant-daemon.js";
 
 /**
  * @file Admin "Restart assistant" action — `POST /api/admin/v1/workspaces/:workspaceId/system/
@@ -55,7 +56,7 @@ async function loginAsBarePrincipal(deps: RouteDeps, baseUrl: string, permission
 
 test("assistant-daemon restart: an unauthorized principal (no grants) gets 403", async (t) => {
   let restarts = 0;
-  const deps: RouteDeps = { ...createRouteDeps(), restartAssistantDaemon: () => { restarts++; return { ok: true }; } };
+  const deps: ReturnType<typeof createRouteDeps> & AdminAssistantDaemonDeps = { ...createRouteDeps(), restartAssistantDaemon: () => { restarts++; return { ok: true }; } };
   const app = createApp(deps);
   const { baseUrl } = await bootAuthenticated(app, t); // boots the server; cookie unused here
   const cookie = await loginAsBarePrincipal(deps, baseUrl);
@@ -72,7 +73,7 @@ test("assistant-daemon restart: an unauthorized principal (no grants) gets 403",
 for (const permission of ["system.read", "system.write"]) {
   test(`assistant-daemon restart: a ${permission}-only principal ${permission === "system.read" ? "is denied without restarting" : "can restart"}`, async (t) => {
     let restarts = 0;
-    const deps: RouteDeps = { ...createRouteDeps(), restartAssistantDaemon: () => { restarts++; return { ok: true }; } };
+    const deps: ReturnType<typeof createRouteDeps> & AdminAssistantDaemonDeps = { ...createRouteDeps(), restartAssistantDaemon: () => { restarts++; return { ok: true }; } };
     const { baseUrl } = await bootAuthenticated(createApp(deps), t);
     const cookie = await loginAsBarePrincipal(deps, baseUrl, [permission]);
     const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/assistant-daemon/restart`, {
@@ -91,7 +92,7 @@ for (const permission of ["system.read", "system.write"]) {
 }
 
 test("assistant-daemon restart: a mismatched workspaceId in the URL 404s", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -103,7 +104,7 @@ test("assistant-daemon restart: a mismatched workspaceId in the URL 404s", async
 });
 
 test("assistant-daemon restart: no cookie at all gets 401, not a restart attempt", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl } = await bootAuthenticated(app, t);
 

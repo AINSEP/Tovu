@@ -46,7 +46,7 @@ async function loginAsBarePrincipal(deps: RouteDeps, baseUrl: string): Promise<s
 }
 
 test("deployment-overview: an unauthorized principal (no grants) gets 403", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl } = await bootAuthenticated(app, t);
   const cookie = await loginAsBarePrincipal(deps, baseUrl);
@@ -58,7 +58,7 @@ test("deployment-overview: an unauthorized principal (no grants) gets 403", asyn
 });
 
 test("deployment-overview: a mismatched workspaceId in the URL 404s", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -104,7 +104,7 @@ test("deployment-overview: the seeded owner gets 200 with real process/env-deriv
     rmSync(home, { recursive: true, force: true });
   });
 
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -168,7 +168,7 @@ function withAdminPasswordEnv(t: { after(fn: () => void): void }, value: string 
 
 /** Logs in as the seeded owner (on the default password), runs `afterLogin`, then reads the overview. */
 async function fetchOverview(
-  deps: RouteDeps,
+  deps: ReturnType<typeof createRouteDeps>,
   t: Parameters<typeof bootAuthenticated>[1],
   afterLogin: () => Promise<void> = async () => {}
 ): Promise<{ defaultOwnerPasswordUnsafe: boolean; envVars: Array<{ name: string; set: boolean }> }> {
@@ -187,7 +187,7 @@ async function fetchOverview(
 // rotates an existing owner). An env-only check reported that site as "Changed from the default."
 test("deployment-overview: an owner still on the default password is unsafe even when TOVU_ADMIN_PASSWORD now holds something else", async (t) => {
   withAdminPasswordEnv(t, undefined);
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   await deps.identityReady;
   process.env.TOVU_ADMIN_PASSWORD = "a-random-password-set-after-the-owner-was-seeded";
 
@@ -201,7 +201,7 @@ test("deployment-overview: an owner still on the default password is unsafe even
 
 test("deployment-overview: an owner whose stored password is no longer the default is safe even with TOVU_ADMIN_PASSWORD unset", async (t) => {
   withAdminPasswordEnv(t, undefined);
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const body = await fetchOverview(deps, t, async () => {
     const ownerPrincipalId = await deps.ownerPrincipalId;
     const owner = await deps.userRepo.findByPrincipalId({ workspaceId: deps.workspaceId, principalId: ownerPrincipalId });
@@ -215,7 +215,7 @@ test("deployment-overview: reports a known agent-daemon failure, latched from ou
   recordAssistantDaemonFailure("boom");
   t.after(() => clearAssistantDaemonFailure());
 
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 

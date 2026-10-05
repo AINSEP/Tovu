@@ -47,7 +47,7 @@ function makeThemesRoot(): string {
   return root;
 }
 
-function testDeps(themesRoot: string): RouteDeps {
+function testDeps(themesRoot: string): ReturnType<typeof createRouteDeps> {
   return {
     ...createRouteDeps(),
     themesDir: themesRoot,

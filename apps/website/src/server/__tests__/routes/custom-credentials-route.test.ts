@@ -45,7 +45,7 @@ async function loginAsBarePrincipal(deps: RouteDeps, baseUrl: string): Promise<s
 }
 
 test("custom-credentials: an unauthorized principal (no grants) gets 403 on every verb", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl } = await bootAuthenticated(app, t);
   const cookie = await loginAsBarePrincipal(deps, baseUrl);
@@ -72,7 +72,7 @@ test("custom-credentials: an unauthorized principal (no grants) gets 403 on ever
 });
 
 test("custom-credentials: a mismatched workspaceId in the URL 404s on every verb", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const wrongWorkspacePath = `${baseUrl}/api/admin/v1/workspaces/not-the-real-workspace/${CREDENTIALS_PATH}`;
@@ -87,7 +87,7 @@ test("custom-credentials: a mismatched workspaceId in the URL 404s on every verb
 });
 
 test("custom-credentials: GET starts with an empty list", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -98,7 +98,7 @@ test("custom-credentials: GET starts with an empty list", async (t) => {
 });
 
 test("custom-credentials: full CRUD round trip — create, list, update (blank connection keeps the secret), delete", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const base = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${CREDENTIALS_PATH}`;
@@ -150,7 +150,7 @@ test("custom-credentials: full CRUD round trip — create, list, update (blank c
 });
 
 test("custom-credentials: PUT can update `username` alone, and clear it with `null` — the wire-level proof this route passes both through independently of `connection`", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const base = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${CREDENTIALS_PATH}`;
@@ -206,7 +206,7 @@ test("custom-credentials: PUT can update `username` alone, and clear it with `nu
 });
 
 test("custom-credentials: DELETE on a never-existed id is idempotent (204, not 404)", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -215,7 +215,7 @@ test("custom-credentials: DELETE on a never-existed id is idempotent (204, not 4
 });
 
 test("custom-credentials: PUT on a non-existent id 404s with NOT_FOUND", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -230,7 +230,7 @@ test("custom-credentials: PUT on a non-existent id 404s with NOT_FOUND", async (
 });
 
 test("custom-credentials: POST validation — blank label, unknown category, and a non-http(s) base URL all 400 with VALIDATION", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const base = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${CREDENTIALS_PATH}`;
@@ -266,7 +266,7 @@ test("custom-credentials: POST validation — blank label, unknown category, and
 });
 
 test("custom-credentials: a duplicate label 409s with DUPLICATE_LABEL and never creates a second row — workspace-wide, no provider dimension", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const base = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${CREDENTIALS_PATH}`;

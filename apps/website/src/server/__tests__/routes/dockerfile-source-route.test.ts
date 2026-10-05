@@ -80,7 +80,7 @@ async function loginAsBarePrincipal(deps: RouteDeps, baseUrl: string): Promise<s
 }
 
 test("dockerfile-source: an unauthorized principal (no grants) gets 403", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl } = await bootAuthenticated(app, t);
   const cookie = await loginAsBarePrincipal(deps, baseUrl);
@@ -92,7 +92,7 @@ test("dockerfile-source: an unauthorized principal (no grants) gets 403", async 
 });
 
 test("dockerfile-source: a mismatched workspaceId in the URL 404s", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -103,7 +103,7 @@ test("dockerfile-source: a mismatched workspaceId in the URL 404s", async (t) =>
 });
 
 test("dockerfile-source: the seeded owner gets the isolated Dockerfile bytes", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -127,7 +127,7 @@ test("dockerfile-source: a missing Dockerfile reports an honest absence", async 
 });
 
 test("dockerfile-source: PUT — an unauthorized principal (no grants) gets 403 and never writes", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl } = await bootAuthenticated(app, t);
   const cookie = await loginAsBarePrincipal(deps, baseUrl);
@@ -143,7 +143,7 @@ test("dockerfile-source: PUT — an unauthorized principal (no grants) gets 403 
 });
 
 test("dockerfile-source: PUT — a mismatched workspaceId in the URL 404s", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -156,7 +156,7 @@ test("dockerfile-source: PUT — a mismatched workspaceId in the URL 404s", asyn
 });
 
 test("dockerfile-source: PUT — a body with no 'contents' string 400s and never writes", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const before = readDockerfileSource();
@@ -178,7 +178,7 @@ test("dockerfile-source: PUT — a body with no 'contents' string 400s and never
 });
 
 test("dockerfile-source: PUT — no 'If-Match' header at all is refused 400 and never writes (strict, not permissive — Terra C5)", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const before = readDockerfileSource();
@@ -195,7 +195,7 @@ test("dockerfile-source: PUT — no 'If-Match' header at all is refused 400 and 
 });
 
 test("dockerfile-source: PUT — the seeded owner can overwrite the Dockerfile with a fresh If-Match, and a following GET reflects it (new ETag too)", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -222,7 +222,7 @@ test("dockerfile-source: PUT — the seeded owner can overwrite the Dockerfile w
 });
 
 test("dockerfile-source: PUT — a stale If-Match is refused 412 with the CURRENT contents, and the lost update never happens (Terra C5 regression)", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 

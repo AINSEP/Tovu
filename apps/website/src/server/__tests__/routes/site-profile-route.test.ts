@@ -126,7 +126,7 @@ async function seedHoneytokens(deps: RouteDeps): Promise<void> {
 const PROFILE_PATH = (workspaceId: string): string => `/api/admin/v1/workspaces/${workspaceId}/site/profile`;
 
 test("site profile route: a mismatched workspaceId in the URL 404s", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -135,7 +135,7 @@ test("site profile route: a mismatched workspaceId in the URL 404s", async (t) =
 });
 
 test("site profile route: an unauthenticated request never reaches the handler", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const baseUrl = await startTestServer(app, t);
 
@@ -144,7 +144,7 @@ test("site profile route: an unauthenticated request never reaches the handler",
 });
 
 test("site profile route: the seeded owner gets every section, with real data", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   await deps.settingsReady;
@@ -169,7 +169,7 @@ test("site profile route: the seeded owner gets every section, with real data", 
 });
 
 test("site profile route: a principal with no grants gets 200 with EVERY section forbidden — not a blanket 403", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl } = await bootAuthenticated(app, t);
   const cookie = await loginAsBarePrincipal(deps, baseUrl, { username: "bare-site-profile" });
@@ -187,7 +187,7 @@ test("site profile route: a principal with no grants gets 200 with EVERY section
 });
 
 test("site profile route: '?sections=' scopes the response to exactly what was asked for", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -201,7 +201,7 @@ test("site profile route: '?sections=' scopes the response to exactly what was a
 });
 
 test("site profile route: an unknown section or a bad pageLimit is a 400, never a silent default", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   deps.postRepo = new InMemoryPostRepo(["a", "b", "c"].map((id) => ({
     id, workspaceId: deps.workspaceId, title: `Page ${id}`, slug: `page-${id}`, kind: "page" as const, status: "published" as const,
     bodyFormat: "doc" as const, bodyJson: { type: "doc", content: [] }, bodyHtml: null, version: 1, updatedAt: "2026-10-01T00:00:00.000Z",
@@ -234,7 +234,7 @@ test("site profile route: an unknown section or a bad pageLimit is a 400, never 
 });
 
 test("site profile route: no canary seeded in any credential store reaches the response body", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   await deps.settingsReady;

@@ -18,7 +18,7 @@ import type { RouteDeps } from "../../routes/types.js";
 const WS = "workspace-local";
 
 async function boot(t: test.TestContext): Promise<{ deps: RouteDeps; baseUrl: string; owner: string; bare: string }> {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
   const bare = await loginAsBarePrincipal(deps, baseUrl);
   return { deps, baseUrl, owner: cookie, bare };

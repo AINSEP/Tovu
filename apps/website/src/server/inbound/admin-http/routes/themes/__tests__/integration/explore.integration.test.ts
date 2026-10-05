@@ -52,7 +52,7 @@ function makeThemesRoot(): string {
   return root;
 }
 
-function testDeps(themesDir: string, overrides: Partial<RouteDeps> = {}): RouteDeps {
+function testDeps(themesDir: string, overrides: Partial<RouteDeps> = {}): ReturnType<typeof createRouteDeps> {
   const themes = discoverAllBuiltInThemes({ dir: themesDir, source: "site" });
   return { ...createRouteDeps(), themes, themesDir, ...overrides };
 }

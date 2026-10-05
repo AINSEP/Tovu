@@ -58,7 +58,7 @@ const AT = "2026-09-20T12:00:00.000Z";
 // 1. The sink audit — the real app
 
 test("createApp() actually mounts all four trash routes, including the generic move-to-trash one", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
   const root = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/trash`;
 
@@ -100,7 +100,7 @@ test("createApp() actually mounts all four trash routes, including the generic m
 });
 
 test("createApp() moves a term through the generic trash items route", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
   const taxRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy`, {
     method: "POST",
@@ -127,7 +127,7 @@ test("createApp() moves a term through the generic trash items route", async (t)
 });
 
 test("the trash routes answer 404 for a workspace that is not this site's", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
   const root = `${baseUrl}/api/admin/v1/workspaces/${WS_MISMATCH}/trash`;
 
@@ -171,7 +171,7 @@ interface TrashHarness {
  * @complexity O(1) — one in-memory content DB and one express app per call.
  */
 function buildTrashHarness(): TrashHarness {
-  const base: RouteDeps = { ...createRouteDeps() };
+  const base: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const db = openContentDb(":memory:");
   const client = (db as unknown as { $client: Database.Database }).$client;
   client

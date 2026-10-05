@@ -2,6 +2,7 @@ import {
   MenuConflictError,
   MenuNotFoundError,
   MenuValidationError,
+  MenuVersionConflictError,
   updateMenuTree,
 } from "#src/features/navigation/index";
 import type { NavItemNode } from "#src/features/navigation/index";
@@ -50,6 +51,12 @@ function sendUpdateMenuTreeError(res: Response, err: unknown): void {
   }
   if (err instanceof MenuValidationError) {
     res.status(400).json({ error: err.message });
+    return;
+  }
+  // Before the `MenuConflictError` branch it extends: a lost compare-and-set carries the same
+  // `VERSION_CONFLICT` code posts and entries send, which is how the admin tells it from a slug 409.
+  if (err instanceof MenuVersionConflictError) {
+    res.status(409).json({ error: err.message, code: "VERSION_CONFLICT" });
     return;
   }
   if (err instanceof MenuConflictError) {

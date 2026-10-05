@@ -84,7 +84,7 @@ function withThrowingMethods<T extends object>(real: T, brokenMethodNames: reado
 // ---------------------------------------------------------------------------------------------
 
 test("publish-credentials: GET responds 500 (not a hang) when the repo throws an untyped error", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   deps.vendorCredentialSetRepo = withThrowingMethods(deps.vendorCredentialSetRepo as VendorCredentialSetRepoPort, ["listByWorkspace"]);
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
@@ -98,7 +98,7 @@ test("publish-credentials: GET responds 500 (not a hang) when the repo throws an
 });
 
 test("publish-credentials: DELETE responds 500 (not a hang) when the repo throws an untyped error", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   deps.vendorCredentialSetRepo = withThrowingMethods(deps.vendorCredentialSetRepo as VendorCredentialSetRepoPort, ["delete"]);
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
@@ -121,7 +121,7 @@ test("publish-credentials: DELETE responds 500 (not a hang) when the repo throws
  * throwing an untyped error.
  */
 test("publish-credentials: POST responds 500 (not a hang) when the store throws an error none of the four typed classes match", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   deps.vendorCredentialSetRepo = withThrowingMethods(deps.vendorCredentialSetRepo as VendorCredentialSetRepoPort, ["insert"]);
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
@@ -141,7 +141,7 @@ test("publish-credentials: POST responds 500 (not a hang) when the store throws 
 // ---------------------------------------------------------------------------------------------
 
 test("source-control-credentials: GET responds 500 (not a hang) when the repo throws an untyped error", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   deps.sourceControlCredentialSetRepo = withThrowingMethods(deps.sourceControlCredentialSetRepo as SourceControlCredentialSetRepoPort, [
     "listByWorkspace",
   ]);
@@ -157,7 +157,7 @@ test("source-control-credentials: GET responds 500 (not a hang) when the repo th
 });
 
 test("source-control-credentials: DELETE responds 500 (not a hang) when the repo throws an untyped error", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   deps.sourceControlCredentialSetRepo = withThrowingMethods(deps.sourceControlCredentialSetRepo as SourceControlCredentialSetRepoPort, ["delete"]);
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
@@ -180,7 +180,7 @@ test("source-control-credentials: DELETE responds 500 (not a hang) when the repo
 // local slot that OTHER test files in this suite depend on being idle.
 // ---------------------------------------------------------------------------------------------
 
-function withThrowingAuthorize(deps: RouteDeps): RouteDeps {
+function withThrowingAuthorize(deps: ReturnType<typeof createRouteDeps>): ReturnType<typeof createRouteDeps> {
   return { ...deps, authorize: async () => { throw new Error("simulated authorize backend failure"); } };
 }
 
@@ -299,7 +299,7 @@ test("dockerfile-source: PUT responds 500 (not a hang) when deps.authorize throw
 // `deps.commentWriteService` throwing — the one awaited call each handler reaches after auth.
 // ---------------------------------------------------------------------------------------------
 
-function withThrowingCommentWriteService(deps: RouteDeps): RouteDeps {
+function withThrowingCommentWriteService(deps: ReturnType<typeof createRouteDeps>): ReturnType<typeof createRouteDeps> {
   const broken: CommentWriteService = {
     applyModeration: async () => {
       throw new Error("simulated comment write-service failure");
@@ -445,7 +445,7 @@ test("system/module-status: GET responds 500 (not a hang) when deps.authorize th
 });
 
 test("site/comments-submit: POST responds 500 (not a hang) when commentIngressPolicy.submit throws — the one PUBLIC route in this file", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const brokenIngressPolicy: CommentIngressPolicy = {
     submit: async () => {
       throw new Error("simulated ingress-policy failure");

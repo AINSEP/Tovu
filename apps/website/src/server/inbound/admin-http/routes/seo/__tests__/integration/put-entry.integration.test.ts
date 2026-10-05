@@ -15,7 +15,7 @@ const WORKSPACE_ID = "workspace-local";
 const ENTRY_ID = "post-home";
 const PATH = `/api/admin/v1/workspaces/${WORKSPACE_ID}/seo/entries/${ENTRY_ID}`;
 
-function testDeps(overrides: Partial<RouteDeps> = {}): RouteDeps {
+function testDeps(overrides: Partial<RouteDeps> = {}): ReturnType<typeof createRouteDeps> {
   return { ...createRouteDeps(), ...overrides };
 }
 

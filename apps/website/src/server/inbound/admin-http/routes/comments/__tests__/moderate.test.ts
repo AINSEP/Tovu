@@ -382,7 +382,7 @@ async function loginWithPermissions(deps: RouteDeps, baseUrl: string, permission
     status: "active",
     createdAt: deps.clock.nowIso(),
   });
-  await deps.userRepo.save({ principalId, workspaceId: deps.workspaceId, username, passwordHash: await deps.passwordHasher.hash("grant-pw") });
+  await deps.userRepo.save({ principalId, workspaceId: deps.workspaceId, username, passwordHash: await deps.passwordHasher.hash({ password: "grant-pw" }) });
   await deps.policyRepo.save({ id: policyId, workspaceId: deps.workspaceId, name: `grant-policy-${suffix}`, isBuiltin: false, isFrozen: false });
   for (const permission of permissions) {
     await deps.policyPermissionRepo.save({ id: `grant-pp-${suffix}-${permission}`, workspaceId: deps.workspaceId, policyId, permission, resourceType: null, constraintJson: null });
@@ -399,7 +399,7 @@ async function loginWithPermissions(deps: RouteDeps, baseUrl: string, permission
 }
 
 test("moderate RBAC: a 'comments.moderate'-only principal can approve/spam/restore but is REFUSED trash and purge", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl } = await bootAuthenticated(app, t);
   const moderatorCookie = await loginWithPermissions(deps, baseUrl, ["comments.moderate"]);

@@ -7,6 +7,7 @@ import test from "node:test";
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from "../helpers/http-test-server.js";
 import type { RouteDeps } from "../../routes/types.js";
+import type { AdminSitesDeps } from "../../inbound/admin-http/routes/system/sites.js";
 import type { SiteListEntry } from "#src/platform/site-dir/index";
 
 /**
@@ -31,6 +32,9 @@ const SAMPLE_SITE: SiteListEntry = {
 };
 
 const SAMPLE_BINDING = { dir: "/repo/sites/tovu-com", name: "tovu-com", dirOverridden: false, switcherCompatible: true };
+
+/** The composed app's deps plus the sites route's own injectable seams (`AdminSitesDeps`). */
+type SitesTestDeps = ReturnType<typeof createRouteDeps> & AdminSitesDeps;
 
 async function loginAsBarePrincipal(deps: RouteDeps, baseUrl: string): Promise<string> {
   await deps.identityReady;
@@ -60,7 +64,7 @@ async function loginAsBarePrincipal(deps: RouteDeps, baseUrl: string): Promise<s
 }
 
 test("sites: a mismatched workspaceId in the URL 404s", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: SitesTestDeps = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -69,7 +73,7 @@ test("sites: a mismatched workspaceId in the URL 404s", async (t) => {
 });
 
 test("sites: an unauthorized principal (no grants) gets 403 on create, not a create attempt", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps(), isSiteSwitcherEnabled: () => true };
+  const deps: SitesTestDeps = { ...createRouteDeps(), isSiteSwitcherEnabled: () => true };
   const app = createApp(deps);
   const { baseUrl } = await bootAuthenticated(app, t);
   const cookie = await loginAsBarePrincipal(deps, baseUrl);
@@ -87,7 +91,7 @@ test("sites: read and write grants gate each handler before its dependencies are
   let pluginLists = 0;
   let creates = 0;
   let activations = 0;
-  const deps: RouteDeps = {
+  const deps: SitesTestDeps = {
     ...createRouteDeps(), isSiteSwitcherEnabled: () => true, siteBinding: SAMPLE_BINDING,
     listSites: () => { lists += 1; return [SAMPLE_SITE]; },
     listTokenSignInPlugins: async () => { pluginLists += 1; return []; },
@@ -132,7 +136,7 @@ test("sites: read and write grants gate each handler before its dependencies are
 });
 
 test("sites: List — 200 with switchingEnabled + the injected site list, regardless of the flag's value", async (t) => {
-  const deps: RouteDeps = {
+  const deps: SitesTestDeps = {
     ...createRouteDeps(),
     isSiteSwitcherEnabled: () => false,
     listSites: () => [SAMPLE_SITE],
@@ -155,7 +159,7 @@ test("sites: List — 200 with switchingEnabled + the injected site list, regard
 });
 
 test("sites: List — currentSite.listed is FALSE when the served directory is absent from sites[] (the marker-less live site case)", async (t) => {
-  const deps: RouteDeps = {
+  const deps: SitesTestDeps = {
     ...createRouteDeps(),
     isSiteSwitcherEnabled: () => true,
     // A served directory that is not on disk at all (`/repo/...` does not exist here). Distinct
@@ -188,7 +192,7 @@ function mkServedButUnregisteredDir(t: { after: (fn: () => void) => void }): str
 
 test("sites: List — the served directory appears in sites[] as `unregistered` even though listSites() drops it", async (t) => {
   const dir = mkServedButUnregisteredDir(t);
-  const deps: RouteDeps = {
+  const deps: SitesTestDeps = {
     ...createRouteDeps(),
     isSiteSwitcherEnabled: () => true,
     // The real gap the owner reported: the folder is plainly being served, and `listSites` returns
@@ -216,7 +220,7 @@ test("sites: List — the served directory appears in sites[] as `unregistered` 
 });
 
 test("sites: List — a served directory that IS registered reports registration:'registered' and listed:true", async (t) => {
-  const deps: RouteDeps = {
+  const deps: SitesTestDeps = {
     ...createRouteDeps(),
     isSiteSwitcherEnabled: () => true,
     listSites: () => [SAMPLE_SITE],
@@ -237,7 +241,7 @@ test("sites: List — a served directory that IS registered reports registration
 test("sites: Activate — an `unregistered` served name is STILL a 404, because the write path keeps using the strict listSites()", async (t) => {
   const dir = mkServedButUnregisteredDir(t);
   let called = false;
-  const deps: RouteDeps = {
+  const deps: SitesTestDeps = {
     ...createRouteDeps(),
     isSiteSwitcherEnabled: () => true,
     listSites: () => [],
@@ -260,7 +264,7 @@ test("sites: Activate — an `unregistered` served name is STILL a 404, because 
 });
 
 test("sites: List — reports a pending persisted choice and the TOVU_SITE_DIR override that would defeat it", async (t) => {
-  const deps: RouteDeps = {
+  const deps: SitesTestDeps = {
     ...createRouteDeps(),
     isSiteSwitcherEnabled: () => true,
     listSites: () => [SAMPLE_SITE],
@@ -278,7 +282,7 @@ test("sites: List — reports a pending persisted choice and the TOVU_SITE_DIR o
 
 test("sites: Create — flag OFF refuses with 403 SITE_SWITCHING_DISABLED, and never calls createSite", async (t) => {
   let called = false;
-  const deps: RouteDeps = {
+  const deps: SitesTestDeps = {
     ...createRouteDeps(),
     isSiteSwitcherEnabled: () => false,
     createSite: () => {
@@ -301,7 +305,7 @@ test("sites: Create — flag OFF refuses with 403 SITE_SWITCHING_DISABLED, and n
 
 test("sites: Create — flag ON but siteBinding.switcherCompatible false (install-dir boot) refuses with 409 SITE_BINDING_NOT_SWITCHABLE, and never calls createSite", async (t) => {
   let called = false;
-  const deps: RouteDeps = {
+  const deps: SitesTestDeps = {
     ...createRouteDeps(),
     isSiteSwitcherEnabled: () => true,
     siteBinding: { ...SAMPLE_BINDING, switcherCompatible: false },
@@ -324,7 +328,7 @@ test("sites: Create — flag ON but siteBinding.switcherCompatible false (instal
 });
 
 test("sites: Create — flag ON, seeded owner, 201 with the created site's name/dir/siteId", async (t) => {
-  const deps: RouteDeps = {
+  const deps: SitesTestDeps = {
     ...createRouteDeps(),
     isSiteSwitcherEnabled: () => true,
     createSite: async (required: { name: string }) => ({ name: required.name, dir: `/repo/sites/${required.name}`, siteId: "generated-id" }),
@@ -347,7 +351,7 @@ test("sites: Create — flag ON, seeded owner, 201 with the created site's name/
 
 test("sites: Create — a missing 'name' in the body is a 400 VALIDATION_ERROR, before createSite is ever called", async (t) => {
   let called = false;
-  const deps: RouteDeps = {
+  const deps: SitesTestDeps = {
     ...createRouteDeps(),
     isSiteSwitcherEnabled: () => true,
     createSite: () => {
@@ -370,7 +374,7 @@ test("sites: Create — a missing 'name' in the body is a 400 VALIDATION_ERROR, 
 
 test("sites: Activate — flag OFF refuses with 403 SITE_SWITCHING_DISABLED, and never persists", async (t) => {
   let called = false;
-  const deps: RouteDeps = {
+  const deps: SitesTestDeps = {
     ...createRouteDeps(),
     isSiteSwitcherEnabled: () => false,
     listSites: () => [SAMPLE_SITE],
@@ -392,7 +396,7 @@ test("sites: Activate — flag OFF refuses with 403 SITE_SWITCHING_DISABLED, and
 
 test("sites: Activate — flag ON but siteBinding.switcherCompatible false (install-dir boot) refuses with 409 SITE_BINDING_NOT_SWITCHABLE, and never persists", async (t) => {
   let called = false;
-  const deps: RouteDeps = {
+  const deps: SitesTestDeps = {
     ...createRouteDeps(),
     isSiteSwitcherEnabled: () => true,
     siteBinding: { ...SAMPLE_BINDING, switcherCompatible: false },
@@ -415,7 +419,7 @@ test("sites: Activate — flag ON but siteBinding.switcherCompatible false (inst
 
 test("sites: Activate — a name not present in listSites() is a 404 SITE_NOT_FOUND, and never persists", async (t) => {
   let called = false;
-  const deps: RouteDeps = {
+  const deps: SitesTestDeps = {
     ...createRouteDeps(),
     isSiteSwitcherEnabled: () => true,
     listSites: () => [SAMPLE_SITE],
@@ -437,7 +441,7 @@ test("sites: Activate — a name not present in listSites() is a 404 SITE_NOT_FO
 
 test("sites: Activate — an existing site, flag ON, persists via persistActiveSite and returns restart instructions, never killing anything", async (t) => {
   const persistCalls: Array<{ name: string }> = [];
-  const deps: RouteDeps = {
+  const deps: SitesTestDeps = {
     ...createRouteDeps(),
     isSiteSwitcherEnabled: () => true,
     listSites: () => [SAMPLE_SITE, { ...SAMPLE_SITE, name: "second-site", active: false }],
@@ -463,7 +467,7 @@ test("sites: Activate — an existing site, flag ON, persists via persistActiveS
 
 test("sites: Create — a `storage` field in the body never reaches createSite (PGlite/Postgres creation is `tovu init --storage` only)", async (t) => {
   const received: unknown[] = [];
-  const deps: RouteDeps = {
+  const deps: SitesTestDeps = {
     ...createRouteDeps(),
     isSiteSwitcherEnabled: () => true,
     createSite: async (required: { name: string }) => {

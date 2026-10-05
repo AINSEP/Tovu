@@ -36,7 +36,7 @@ const EXPORT_PATH = "system/export";
  *  dir — `startExportRun` reads this `RouteDeps` field instead of `process.env.TOVU_EXPORT_DIR`
  *  (export-run.ts no longer reads env vars at all), so overriding it here is what keeps this
  *  suite's real `exportSite` writes off the checked-out repo. */
-function testRouteDeps(): RouteDeps {
+function testRouteDeps(): ReturnType<typeof createRouteDeps> {
   return { ...createRouteDeps(), exportOutputRootDir: exportOutputDir };
 }
 
@@ -68,7 +68,7 @@ async function loginAsBarePrincipal(deps: RouteDeps, baseUrl: string): Promise<s
 }
 
 test("export-site: an unauthorized principal (no grants) gets 403 on both the trigger and the status poll", async (t) => {
-  const deps: RouteDeps = { ...testRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl } = await bootAuthenticated(app, t);
   const cookie = await loginAsBarePrincipal(deps, baseUrl);
@@ -84,7 +84,7 @@ test("export-site: an unauthorized principal (no grants) gets 403 on both the tr
 });
 
 test("export-site: a mismatched workspaceId in the URL 404s on both routes", async (t) => {
-  const deps: RouteDeps = { ...testRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -99,7 +99,7 @@ test("export-site: a mismatched workspaceId in the URL 404s on both routes", asy
 });
 
 test("export-site: workspaceId can never actually be undefined through real routing on either route (a matched `:workspaceId` segment is always a populated string) -- their `?? \"\"` fallbacks are reached by calling the real handlers directly, the same type-bypass technique a `default: throw` exhaustiveness guard would need", async () => {
-  const deps: RouteDeps = { ...testRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...testRouteDeps() };
   const app = createApp(deps);
   const routePath = `/api/admin/v1/workspaces/:workspaceId/${EXPORT_PATH}`;
 
@@ -123,7 +123,7 @@ test("export-site: workspaceId can never actually be undefined through real rout
 });
 
 test("export-site: the status poll starts idle before any trigger has run in this process", async (t) => {
-  const deps: RouteDeps = { ...testRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -134,7 +134,7 @@ test("export-site: the status poll starts idle before any trigger has run in thi
 });
 
 test("export-site: a malformed trigger body 400s and never starts a run", async (t) => {
-  const deps: RouteDeps = { ...testRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -147,7 +147,7 @@ test("export-site: a malformed trigger body 400s and never starts a run", async 
 });
 
 test("export-site: a non-object (array) trigger body 400s -- 'request body must be a JSON object'", async (t) => {
-  const deps: RouteDeps = { ...testRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -162,7 +162,7 @@ test("export-site: a non-object (array) trigger body 400s -- 'request body must 
 });
 
 test("export-site: a 'basePath' of the wrong type 400s", async (t) => {
-  const deps: RouteDeps = { ...testRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -177,7 +177,7 @@ test("export-site: a 'basePath' of the wrong type 400s", async (t) => {
 });
 
 test("export-site: authorize() throwing (not just denying) 500s on both the trigger and the status poll, and never touches the run state", async (t) => {
-  const deps: RouteDeps = {
+  const deps: ReturnType<typeof createRouteDeps> = {
     ...testRouteDeps(),
     authorize: async () => {
       throw new Error("boom");
@@ -198,7 +198,7 @@ test("export-site: authorize() throwing (not just denying) 500s on both the trig
 });
 
 test("export-site: trigger starts a real run (202), honors a real 'basePath', a concurrent second trigger gets 409, and the poll settles to an honest completed report", async (t) => {
-  const deps: RouteDeps = { ...testRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...testRouteDeps() };
   const staleFile = path.join(exportOutputDir, "stale.html");
   writeFileSync(staleFile, "previous export");
   const realExport = deps.runExportSite;
@@ -271,7 +271,7 @@ test("export-site: trigger starts a real run (202), honors a real 'basePath', a 
 test("export-site: req.body can never actually be undefined through this app's real composition (the global express.json() in app.ts always defaults it to {}) -- parseTriggerRequestBody's `body === undefined` branch is reached by calling the real handler directly with an explicitly undefined body, the same type-bypass technique a `default: throw` exhaustiveness guard would need; the trigger still starts a real, honest export", async (t) => {
   const ownOutputDir = mkdtempSync(path.join(tmpdir(), "tovu-export-route-test-bypass-"));
   t.after(() => rmSync(ownOutputDir, { recursive: true, force: true }));
-  const deps: RouteDeps = {
+  const deps: ReturnType<typeof createRouteDeps> = {
     ...testRouteDeps(),
     exportOutputRootDir: ownOutputDir,
     // No `requireAdminSession` middleware runs on a directly-invoked handler, and the fake

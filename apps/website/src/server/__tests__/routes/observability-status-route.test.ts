@@ -56,7 +56,7 @@ test.beforeEach((t) => {
 });
 
 test("observability-status: an unauthorized principal (no grants) gets 403", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl } = await bootAuthenticated(app, t); // boots the server; cookie unused here
   const cookie = await loginAsBarePrincipal(deps, baseUrl);
@@ -68,7 +68,7 @@ test("observability-status: an unauthorized principal (no grants) gets 403", asy
 });
 
 test("observability-status: the seeded owner (wildcard grant) gets 200, disabled by default", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -80,7 +80,7 @@ test("observability-status: the seeded owner (wildcard grant) gets 200, disabled
 });
 
 test("observability-status: a mismatched workspaceId in the URL 404s", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 

@@ -110,7 +110,11 @@ function runCliSync(args: string[], env: NodeJS.ProcessEnv = {}, timeoutMs = 30_
 }
 
 function spawnServe(args: string[], env: NodeJS.ProcessEnv = {}, cwd?: string): ChildProcessWithoutNullStreams {
-  return spawn(process.execPath, ["--import", TSX_LOADER, CLI_MAIN, "serve", ...args], { env: { ...childProcessCoverageEnv(WORKER_COVERAGE_DIR), ...env }, cwd }) as ChildProcessWithoutNullStreams;
+  const childEnv = { ...childProcessCoverageEnv(WORKER_COVERAGE_DIR), ...env };
+  // npm test supplies a relative TSX_TSCONFIG_PATH. Like the loader path above, it must resolve
+  // in the parent's cwd before a foreign-cwd child starts; otherwise tsx fails before CLI boot.
+  if (childEnv.TSX_TSCONFIG_PATH) childEnv.TSX_TSCONFIG_PATH = path.resolve(childEnv.TSX_TSCONFIG_PATH);
+  return spawn(process.execPath, ["--import", TSX_LOADER, CLI_MAIN, "serve", ...args], { env: childEnv, cwd }) as ChildProcessWithoutNullStreams;
 }
 
 /**
@@ -161,12 +165,14 @@ async function waitForHttpReady(port: number, child: ChildProcessWithoutNullStre
   const deadline = Date.now() + timeoutMs * factor;
   let exited = false;
   let exitCode: number | null = null;
+  let stderr = "";
+  child.stderr.on("data", (chunk) => { stderr += chunk.toString(); });
   child.on("exit", (code) => {
     exited = true;
     exitCode = code;
   });
   while (Date.now() < deadline) {
-    if (exited) throw new Error(`server process exited early (code ${exitCode}) before becoming ready`);
+    if (exited) throw new Error(`server process exited early (code ${exitCode}) before becoming ready; stderr:\n${stderr}`);
     try {
       const res = await fetch(`http://127.0.0.1:${port}/`, { signal: AbortSignal.timeout(FETCH_POLL_TIMEOUT_MS) });
       void res.text();
@@ -324,7 +330,7 @@ test("EC-04: serve exits 1 with PORT_IN_USE when the resolved port is already bo
   await new Promise<void>((resolve) => blocker.listen(port, resolve));
   try {
     const result = runCliSync(["serve", dir, "--port", String(port)]);
-    assert.equal(result.status, 1);
+    assert.equal(result.status, 1, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
     assert.match(result.stderr, /^tovu: PORT_IN_USE:/m);
     assert.match(result.stderr, new RegExp(String(port)));
   } finally {

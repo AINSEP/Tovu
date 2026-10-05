@@ -37,7 +37,7 @@ function fakePriceRepo(pricesByProduct: Record<string, CommercePriceRecord[]>): 
   };
 }
 
-function testDeps(overrides: Partial<RouteDeps> = {}): RouteDeps {
+function testDeps(overrides: Partial<RouteDeps> = {}): ReturnType<typeof createRouteDeps> {
   return { ...createRouteDeps(), ...overrides };
 }
 

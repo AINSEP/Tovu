@@ -1,9 +1,19 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { afterEach, beforeEach } from "node:test";
 
 import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import { buildDaemonSpawnEnvOverrides } from "../daemon-supervisor.js";
 import { siteThemesDir } from "../../composition/deps.js";
+
+let inheritedSiteDir: string | undefined;
+beforeEach(() => {
+  inheritedSiteDir = process.env.TOVU_SITE_DIR;
+  delete process.env.TOVU_SITE_DIR;
+});
+afterEach(() => {
+  if (inheritedSiteDir === undefined) delete process.env.TOVU_SITE_DIR;
+  else process.env.TOVU_SITE_DIR = inheritedSiteDir;
+});
 
 /**
  * @file Regression coverage for the daemon-spawn site-dir defect (2026-08-29 follow-up to the

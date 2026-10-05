@@ -19,7 +19,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  * shared `exportOutputDir` per test, same trick the unit-tier file uses).
  */
 
-function testDeps(exportOutputDir: string, overrides: Partial<RouteDeps> = {}): RouteDeps {
+function testDeps(exportOutputDir: string, overrides: Partial<RouteDeps> = {}): ReturnType<typeof createRouteDeps> {
   return { ...createRouteDeps(), exportOutputRootDir: exportOutputDir, ...overrides };
 }
 

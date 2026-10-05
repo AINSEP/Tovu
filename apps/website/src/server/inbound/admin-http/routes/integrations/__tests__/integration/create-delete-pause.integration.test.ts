@@ -26,7 +26,7 @@ import type { RouteDeps } from "#src/server/routes/types";
 const WORKSPACE_ID = "workspace-local";
 const SUBS_PATH = `/api/admin/v1/workspaces/${WORKSPACE_ID}/integrations/subscriptions`;
 
-function testDeps(overrides: Partial<RouteDeps> = {}): RouteDeps {
+function testDeps(overrides: Partial<RouteDeps> = {}): ReturnType<typeof createRouteDeps> {
   return { ...createRouteDeps(), ...overrides };
 }
 

@@ -26,7 +26,7 @@ function mailerWithDriver(driver: string): MailerPort {
   };
 }
 
-async function getMailStatus(deps: RouteDeps, t: test.TestContext, workspaceId = deps.workspaceId): Promise<Response> {
+async function getMailStatus(deps: ReturnType<typeof createRouteDeps>, t: test.TestContext, workspaceId = deps.workspaceId): Promise<Response> {
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
   return fetch(`${baseUrl}/api/admin/v1/workspaces/${workspaceId}/system/mail-status`, { headers: { cookie } });
 }

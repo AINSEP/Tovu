@@ -25,7 +25,7 @@ import type { RouteDeps } from "#src/server/routes/types";
 const WORKSPACE_ID = "workspace-local";
 const MENU_SLUG = "primary-nav-int";
 
-function testDeps(overrides: Partial<RouteDeps> = {}): RouteDeps {
+function testDeps(overrides: Partial<RouteDeps> = {}): ReturnType<typeof createRouteDeps> {
   return { ...createRouteDeps(), ...overrides };
 }
 

@@ -56,7 +56,7 @@ const PUBLISH_PATH = "system/publish";
  *  (adapter.ts no longer reads env vars at all). Defaults to this file's own shared throwaway temp
  *  dir; the two "concurrent trigger" tests below pass their OWN per-test dir instead, since they
  *  need a directory that outlives only that one test. */
-function testRouteDeps(publishOutputRootDir: string = publishOutputDir): RouteDeps {
+function testRouteDeps(publishOutputRootDir: string = publishOutputDir): ReturnType<typeof createRouteDeps> {
   return { ...createRouteDeps(), publishOutputRootDir };
 }
 
@@ -120,7 +120,7 @@ async function loginAsBarePrincipal(deps: RouteDeps, baseUrl: string): Promise<s
 }
 
 test("publish-site: an unauthorized principal (no grants) gets 403 on both the trigger and the status poll", async (t) => {
-  const deps: RouteDeps = { ...testRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl } = await bootAuthenticated(app, t);
   const cookie = await loginAsBarePrincipal(deps, baseUrl);
@@ -136,7 +136,7 @@ test("publish-site: an unauthorized principal (no grants) gets 403 on both the t
 });
 
 test("publish-site: a mismatched workspaceId in the URL 404s on both routes", async (t) => {
-  const deps: RouteDeps = { ...testRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -151,7 +151,7 @@ test("publish-site: a mismatched workspaceId in the URL 404s on both routes", as
 });
 
 test("publish-site: the status poll starts idle before any trigger has run in this process", async (t) => {
-  const deps: RouteDeps = { ...testRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -162,7 +162,7 @@ test("publish-site: the status poll starts idle before any trigger has run in th
 });
 
 test("publish-site: a malformed trigger body 400s and never starts a run", async (t) => {
-  const deps: RouteDeps = { ...testRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -203,7 +203,7 @@ test("publish-site: a malformed trigger body 400s and never starts a run", async
 });
 
 test("publish-site preview: netlify and cloudflare-pages are accepted targets (2026-08-15, all four Jini targets) — never 400 for a bare target with no other fields", async (t) => {
-  const deps: RouteDeps = { ...testRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -220,7 +220,7 @@ test("publish-site preview: netlify and cloudflare-pages are accepted targets (2
 });
 
 test("publish-site: trigger starts a real run (202), and — with no GITHUB_TOKEN configured — the poll settles quickly to an honest errored/NO_CREDENTIALS_CONFIGURED result, never touching a real GitHub/Vercel API", async (t) => {
-  const deps: RouteDeps = { ...testRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   t.after(() => rmSync(publishOutputDir, { recursive: true, force: true }));
@@ -264,7 +264,7 @@ test("publish-site: a concurrent second trigger gets 409 while the first provide
   // re-read `process.env` at call time deep inside `publishStaticSite`; now the value is resolved
   // once when `deps` is built, so it must be set BEFORE `createApp(deps)`, not after).
   const runOutputDir = mkdtempSync(path.join(tmpdir(), "tovu-publish-race-test-"));
-  const deps: RouteDeps = { ...testRouteDeps(runOutputDir) };
+  const deps: ReturnType<typeof createRouteDeps> = { ...testRouteDeps(runOutputDir) };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const previousVercelToken = process.env.VERCEL_TOKEN;
@@ -350,7 +350,7 @@ test("publish-site: a concurrent call through the ASSISTANT TOOL while the HTTP 
   // mutation (adapter.ts no longer reads env vars at all; the value is resolved once when `deps` is
   // built, so it must be set BEFORE `createApp(deps)`).
   const runOutputDir = mkdtempSync(path.join(tmpdir(), "tovu-publish-cross-path-test-"));
-  const deps: RouteDeps = { ...testRouteDeps(runOutputDir) };
+  const deps: ReturnType<typeof createRouteDeps> = { ...testRouteDeps(runOutputDir) };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const previousVercelToken = process.env.VERCEL_TOKEN;
@@ -450,7 +450,7 @@ test("publish-site: a concurrent call through the ASSISTANT TOOL while the HTTP 
  * NO_CREDENTIALS_CONFIGURED test proves it for the trigger route.
  */
 test("publish-site preview: an unauthorized principal (no grants) gets 403", async (t) => {
-  const deps: RouteDeps = { ...testRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl } = await bootAuthenticated(app, t);
   const cookie = await loginAsBarePrincipal(deps, baseUrl);
@@ -460,7 +460,7 @@ test("publish-site preview: an unauthorized principal (no grants) gets 403", asy
 });
 
 test("publish-site preview: a mismatched workspaceId 404s", async (t) => {
-  const deps: RouteDeps = { ...testRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -469,7 +469,7 @@ test("publish-site preview: a mismatched workspaceId 404s", async (t) => {
 });
 
 test("publish-site preview: a missing/unrecognized target, and a github-pages preview missing repo, both 400", async (t) => {
-  const deps: RouteDeps = { ...testRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -485,7 +485,7 @@ test("publish-site preview: a missing/unrecognized target, and a github-pages pr
 });
 
 test("publish-site preview: github-pages reports the derived base path and, with no GITHUB_TOKEN configured, credentialsConfigured false — never starting a run", async (t) => {
-  const deps: RouteDeps = { ...testRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -521,7 +521,7 @@ test("publish-site preview: github-pages reports the derived base path and, with
 });
 
 test("publish-site preview: an invalid owner is reported as invalid with no base path, and vercel never carries one", async (t) => {
-  const deps: RouteDeps = { ...testRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -541,7 +541,7 @@ test("publish-site preview: an invalid owner is reported as invalid with no base
 });
 
 test("publish-site preview: with a token configured, credentialsConfigured is true and the token itself never crosses the response", async (t) => {
-  const deps: RouteDeps = { ...testRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const previousToken = process.env.GITHUB_TOKEN;
@@ -578,7 +578,7 @@ test("publish-site preview: with a token configured, credentialsConfigured is tr
  */
 
 test("publish-site: an array-shaped trigger body 400s (the same 'must be a JSON object' rejection as a non-object body)", async (t) => {
-  const deps: RouteDeps = { ...testRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -592,7 +592,7 @@ test("publish-site: an array-shaped trigger body 400s (the same 'must be a JSON 
 });
 
 test("publish-site: a trigger body missing 'owner' for github-pages, and an invalid (non-string) 'branch'/'teamId', all 400 -- the TRIGGER route's own copy of the shape checks the preview route already exercises above", async (t) => {
-  const deps: RouteDeps = { ...testRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -632,7 +632,7 @@ test("publish-site: a trigger body missing 'owner' for github-pages, and an inva
 });
 
 test("publish-site: a github-pages trigger WITH a valid 'branch', and a vercel trigger WITH a valid 'teamId', both parse and start a real run (202) -- same hermetic NO_CREDENTIALS_CONFIGURED settle as every other trigger test in this file", async (t) => {
-  const deps: RouteDeps = { ...testRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -727,7 +727,7 @@ test("publish-site: branch, teamId and projectName reach the provider port and a
 });
 
 test("publish-site: netlify, cloudflare-pages and s3-compatible TRIGGER requests (not just their preview counterparts above) parse and start a real run (202)", async (t) => {
-  const deps: RouteDeps = { ...testRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -752,7 +752,7 @@ test("publish-site: netlify, cloudflare-pages and s3-compatible TRIGGER requests
 });
 
 test("publish-site preview: a missing owner entirely (not just blank) for github-pages 400s the same as a blank one", async (t) => {
-  const deps: RouteDeps = { ...testRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -762,7 +762,7 @@ test("publish-site preview: a missing owner entirely (not just blank) for github
 });
 
 test("publish-site preview: a github-pages preview WITH a 'branch' query param, and a vercel preview WITH a 'teamId' query param, both still 200 -- proving the parse succeeds even though neither value is itself echoed in the response (basePath is owner/repo-derived only, per computeBasePath)", async (t) => {
-  const deps: RouteDeps = { ...testRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -780,7 +780,7 @@ test("publish-site preview: a github-pages preview WITH a 'branch' query param, 
 });
 
 test("publish-site: an authorize() failure surfaces as a 500 on all three routes (trigger, status poll, preview) -- the one awaited call every route's own try wraps before any target-specific logic", async (t) => {
-  const deps: RouteDeps = { ...testRouteDeps(), authorize: async () => { throw new Error("boom"); } };
+  const deps: ReturnType<typeof createRouteDeps> = { ...testRouteDeps(), authorize: async () => { throw new Error("boom"); } };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -802,7 +802,7 @@ test("publish-site: an authorize() failure surfaces as a 500 on all three routes
 });
 
 test("publish-site: workspaceId can never actually be undefined through this app's real composition on any of the three routes (a matched `:param` segment is always a populated string) -- reached by calling each real handler directly, the same type-bypass technique put-entry.test.ts's own equivalent test uses", async (t) => {
-  const deps: RouteDeps = { ...testRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...testRouteDeps() };
   const app = createApp(deps);
 
   const triggerHandler = extractRouteHandler(app, "post", "/api/admin/v1/workspaces/:workspaceId/system/publish");
@@ -845,7 +845,7 @@ test("publish-site: workspaceId can never actually be undefined through this app
 // to the default row or to the server-environment-variable token.
 
 test("publish-site: a trigger naming a credential this workspace does not own is refused by the run — never falls back to the default/env credential", async (t) => {
-  const deps: RouteDeps = { ...testRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -879,7 +879,7 @@ test("publish-site: a trigger naming a credential this workspace does not own is
 });
 
 test("publish-site: a non-string or blank 'credentialId' 400s and never starts a run", async (t) => {
-  const deps: RouteDeps = { ...testRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -905,7 +905,7 @@ test("publish-site: a non-string or blank 'credentialId' 400s and never starts a
  * like the preview.
  */
 test("publish-targets: lists every registry target with its label and declared config fields", async (t) => {
-  const deps: RouteDeps = { ...testRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -927,7 +927,7 @@ test("publish-targets: lists every registry target with its label and declared c
 });
 
 test("publish-targets: a target with a saved credential carries its form's field specs, secret flagged, no vendor id", async (t) => {
-  const deps: RouteDeps = { ...testRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -952,7 +952,7 @@ test("publish-targets: a target with a saved credential carries its form's field
 });
 
 test("publish-targets: a target's i18n block crosses the response exactly as its plugin declares it", async (t) => {
-  const deps: RouteDeps = { ...testRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -965,7 +965,7 @@ test("publish-targets: a target's i18n block crosses the response exactly as its
 });
 
 test("publish-targets: an unauthorized principal gets 403 and a mismatched workspaceId 404s", async (t) => {
-  const deps: RouteDeps = { ...testRouteDeps() };
+  const deps: ReturnType<typeof createRouteDeps> = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
