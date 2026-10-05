@@ -1036,7 +1036,7 @@ identity model), Comments (ADR-031 — the `soon` badge is a **deliberate** owne
 | Analytics | 🟡 | Aggregation, trends, breakdowns, goals, export. (The stale "sitting in memory" copy is already fixed — `Analytics.tsx:13-15`.) |
 | Integrations / API | 🟡 | API-key issuance (ADR-048), outbound credentials, and rotation surfaces. |
 | Backups / Recovery | 🟡 | Import/export, the interrupted-migration unblock route, and complete write-window counts. |
-| Settings | 🟡 | **PARTLY:** 2 inert wraps left (`SettingsUi.tsx:474,571`), was 5. 5 of 13 tabs are still `settings-ui-inert-wrap` mounts with no Tovu backend (13 tab ids, 5 inert wrappers in `SettingsUi.tsx`). |
+| Settings | 🟡 | **PARTLY:** 2 tabs stay greyed out ON PURPOSE (owner 2026-10-04: keep them visible so people know they're coming): **Privacy** (vendor-telemetry consent; Tovu sends no telemetry yet) and **Memory** (assistant remembers facts across chats; not built — chat history does persist). Build each later; until then don't hide or delete them (`SettingsUi.tsx` `settings-ui-inert-wrap`). |
 
 **Evidence caveat:** panel/route existence was verified against source; tests were inventoried, not
 executed. Several domains re-export their core implementation from `@jini-ai/cms` — those internals
