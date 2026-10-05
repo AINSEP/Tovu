@@ -22,6 +22,7 @@ import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
  */
 import { type Clock as ClockPort, type IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
 import { assertEntityLive, type DomainEvent, type OutboxPort } from "@jini-ai/cms/core";
+import { callerSafeErrorMessage, type CallerSafeErrorRule } from "@jini-ai/core/model-facing-tool-errors";
 import { hasForbiddenRawUrlCharacter } from "../../features/origin/index.js";
 import type { OriginRegistryPort, RedirectTargetContext } from "../../features/origin/index.js";
 
@@ -722,6 +723,20 @@ function errorToCode(err: unknown): string {
 }
 
 /**
+ * The classes whose message a per-rule import failure may carry verbatim — the same four
+ * {@link errorToCode} names (wm S16, 2026-10-04). `failed[]` is a RETURNED result (the agent tool
+ * and the admin import route both hand it out as-is), so it bypasses the transport's
+ * INTERNAL_ERROR redaction; before this, an infrastructure error (a driver failure quoting a file
+ * path, say) put its raw message straight into the model's and the admin's view.
+ */
+const IMPORT_FAILURE_SAFE_RULES: readonly CallerSafeErrorRule[] = [
+  { error: RedirectValidationError },
+  { error: RedirectTargetNotAllowedError },
+  { error: RedirectConflictError },
+  { error: RedirectLoopError },
+];
+
+/**
  * C-004: batch-create reusing the same chokepoint, no bypass (REQ-26). Each
  * item is processed independently through `createRedirect` — NOT one shared
  * transaction across items (EC-08); a per-item failure does not abort
@@ -754,7 +769,7 @@ export async function importRedirects(
       failed.push({
         index,
         code: errorToCode(err),
-        message: err instanceof Error ? err.message : String(err),
+        message: callerSafeErrorMessage({ err, rules: IMPORT_FAILURE_SAFE_RULES, fallback: "an internal error occurred" }),
       });
     }
   }

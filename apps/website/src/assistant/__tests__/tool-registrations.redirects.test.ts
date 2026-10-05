@@ -277,7 +277,7 @@ for (const toolId of Object.keys(TOOL_INPUTS)) {
   });
 }
 
-test("redirects_get: an unknown id propagates RedirectNotFoundError unwrapped", async () => {
+test("redirects_get: an unknown id reaches the model as its not-found message", async () => {
   const { deps } = fakeRouteDeps();
   await assert.rejects(() => wired(deps, "content_read.redirect").handler(executionContext({ id: "no-such-id" })), /was not found/);
 });

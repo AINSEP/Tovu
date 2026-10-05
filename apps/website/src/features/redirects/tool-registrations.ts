@@ -15,7 +15,9 @@ import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { buildDomainRegistrations, indexCatalogById, isRecord, optionalBoolean, optionalNumber, optionalString, requireInputRecord, requireNumber, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { type AuthorizeFn, requireToolPermission } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
+import { withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
 import type { ToolContributor } from "#src/assistant/index";
+import { forbiddenRule, type ModelFacingErrorRule } from "#src/contracts/core/model-facing-tool-errors";
 import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
 import { getRedirectsAgentToolCatalog } from "./agent-tools.js";
 import type { RedirectHitSink, RedirectRepoPort } from "./ports.js";
@@ -27,7 +29,13 @@ import {
   MAX_IMPORT_BATCH_SIZE,
   type RedirectsWriteDeps,
 } from "./redirects.js";
-import { RedirectNotFoundError } from "./types.js";
+import {
+  RedirectConflictError,
+  RedirectLoopError,
+  RedirectNotFoundError,
+  RedirectTargetNotAllowedError,
+  RedirectValidationError,
+} from "./types.js";
 import type {
   CreateRedirectInput,
   RedirectMatchType,
@@ -104,6 +112,29 @@ export const redirectsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentTo
   //    as redirects_create, N times, with a per-item try/catch (EC-08).
   ["redirects_import", "mutates-durable-state"],
 ]);
+
+/**
+ * Redirects' model-facing allowlist (wm S16, 2026-10-04). Every `Redirect*Error` and the kit's
+ * `ForbiddenError` extend plain `Error`, so before this wrap `ToolExecutor` classified each refusal
+ * as `internal` and the model saw only a redacted INTERNAL_ERROR — it could not tell "that id does
+ * not exist" or "that would loop" from a crash, and could not correct its call.
+ *
+ * Message safety, checked against every construction site in `redirects.ts`/`matcher.ts`/this
+ * file: each message is fixed text plus the caller's own input (id, pattern, target, numbers) or a
+ * fixed `siteRelativeTargetReason`/`siteRelativeRefusalReason` phrase — no paths, SQL, or other
+ * tenants' data. `RedirectTargetNotAllowedError` names only the caller's `toTarget` and a fixed
+ * reason. `EntityNotLiveError` (a trashed rule) is not listed: it already extends `ToolInputError`.
+ * The plain `Error` for a missing Trash adapter is deliberately NOT listed: it is a wiring fault and
+ * stays redacted.
+ */
+const REDIRECTS_MODEL_FACING_RULES: readonly ModelFacingErrorRule[] = [
+  forbiddenRule("REDIRECTS"),
+  { error: RedirectNotFoundError, code: "REDIRECTS_NOT_FOUND" },
+  { error: RedirectValidationError, code: "REDIRECTS_VALIDATION" },
+  { error: RedirectLoopError, code: "REDIRECTS_LOOP" },
+  { error: RedirectTargetNotAllowedError, code: "REDIRECTS_TARGET_NOT_ALLOWED" },
+  { error: RedirectConflictError, code: "REDIRECTS_CONFLICT" },
+];
 
 export function buildRedirectsRegistrations(
   routeDeps: RedirectsToolDeps,
@@ -241,7 +272,7 @@ export function buildRedirectsRegistrations(
     domain: "redirects",
     catalogModule: "redirects/agent-tools.ts",
     catalog: CATALOG_BY_ID,
-    handlers,
+    handlers: withModelFacingErrors({ handlers, rules: REDIRECTS_MODEL_FACING_RULES }),
     derivedRisk: redirectsDerivedRisk,
   });
 }

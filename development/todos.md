@@ -82,7 +82,7 @@ Re-audited against code/git 2026-10-04 (evening): statuses below marked **PARTLY
 - **wm S3 entries** (L3314): Jini `entries/write-service` checks version before the transaction and saves with no persistence `expectedVersion` guard.
 - **wm S4 menus** (L3314): Jini `navigation/menu-service:updateMenuTree` same pattern.
 - **wm S5 content types** (L3314): Jini `content-types/lifecycle.ts:220` tears down indexes before the transactional save.
-- **wm S16 tool failures** (L3314) — **PARTLY:** taxonomy tools are wrapped and S18 unassign landed (`bebc5736f`). Left: comments still throw plain `Error` (`features/comments/tool-registrations.ts:145-146,243`); redirect errors unmapped.
+- **wm S16 tool failures** (L3314) — **PARTLY:** taxonomy tools are wrapped and S18 unassign landed (`bebc5736f`). Left: comments still throw plain `Error` (`features/comments/tool-registrations.ts:145-146,243`). Redirects DONE (wm S16 redirects commit): handlers wrapped (`REDIRECTS_*` codes incl. FORBIDDEN), import `failed[]` redacts unlisted errors.
 
 ### Chat & admin
 - **Typed answers to a pending ask_choice, jl A1a/A1b** (09-24, L3318): typing produces no request; on a consumed answer the client must DROP the text or it starts a second PAID run (L2243). No `deliverTypedAnswer` producer in admin or Jini chat.
