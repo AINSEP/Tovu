@@ -792,7 +792,9 @@ feature. Don't build a vendor-specific widget. Verified 2026-09-21 by a read-onl
     (`apps/admin/src/features/pages/rules.ts`: `allow-scripts allow-same-origin allow-forms allow-popups`, no top navigation);
     `update-html.ts`'s false "opaque-origin srcdoc" claim corrected. Still open (owner decision): the template-preview branch is
     same-origin with the admin, so with `allow-same-origin` its script still runs with the admin origin. Dropping that flag isolates it
-    but loses preview scroll memory and theme fonts/module scripts (CORS). `PostEditor.tsx`'s preview iframes are not sandboxed either.
+    but loses preview scroll memory and theme fonts/module scripts (CORS). ~~`PostEditor.tsx`'s preview iframes are not sandboxed either.~~
+    DONE 10-04: all three `PostPreviewFrame` iframes import the same `PAGE_PREVIEW_IFRAME_SANDBOX`.
+  - Serve editor previews (page + post) from their own origin, so the sandbox no longer has to strip same-origin (owner 2026-10-04).
 
 **2026-09-22: owner confirms this is definitely wanted, scheduled for later.** Verified no migration
 is needed — the widget/field/menu types involved are app-code unions, not DB schema, and their data

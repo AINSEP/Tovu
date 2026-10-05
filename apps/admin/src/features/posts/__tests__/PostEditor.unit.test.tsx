@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PostEditor } from "../PostEditor";
 import { useWiredPostEditor, type PostEditorController } from "../hooks/use-post-editor.hooks";
 import { api, type AdminPost } from "@/lib/api";
+import { PAGE_PREVIEW_IFRAME_SANDBOX } from "../../pages/rules";
 
 // The shared Categories & Tags box reads its own taxonomy list and terms; stubbed to echo its
 // content ref so this file's fetch queue and assertions stay about the editor itself (its own
@@ -1058,6 +1059,18 @@ describe("Edit/Preview toolbar", () => {
     renderPostEditor({ view: "edit" });
     expect(document.querySelector('[data-agent-element="post-body"]')).toBeInTheDocument();
     expect(screen.queryByTitle("Post preview")).not.toBeInTheDocument();
+  });
+
+  // 2026-10-04 (owner): every post-preview branch carries the page editor's OWN sandbox constant —
+  // one source, so the two editors' flags can never drift apart (`PAGE_PREVIEW_IFRAME_SANDBOX`'s doc
+  // says why each flag is there; `rules.unit.test.ts` pins the flag set itself).
+  it.each([
+    ["live site", { status: "published", dirty: false, contentDirty: false, slug: "hello-world" }],
+    ["template", { status: "published", dirty: true, contentDirty: false, templateChoice: "blog-post.html" }],
+    ["pending-content POST", { status: "published", dirty: true, contentDirty: true }],
+  ] as const)("sandboxes the %s preview iframe with the page editor's shared flag set", (_branch, state) => {
+    renderPostEditor({ view: "preview", ...state });
+    expect(screen.getByTitle("Post preview")).toHaveAttribute("sandbox", PAGE_PREVIEW_IFRAME_SANDBOX);
   });
 
   it("renders the preview iframe, not the Tiptap body editor, in preview view", () => {

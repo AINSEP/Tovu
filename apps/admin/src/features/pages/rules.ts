@@ -593,7 +593,10 @@ export function pagePreviewFormTarget(page: AdminPost | null): string {
 /**
  * The `sandbox` flags on BOTH `PagePreviewFrame` iframes (live site and template preview), 2026-10-04.
  * Before this the preview iframes had no `sandbox` at all, while `update-html.ts`'s header claimed the
- * authoring preview was sandboxed.
+ * authoring preview was sandboxed. The post editor's three `PostPreviewFrame` iframes
+ * (`features/posts/PostEditor.tsx`) import this same constant (owner, 2026-10-04) so the two editors'
+ * flags cannot drift; there `allow-same-origin` also keeps `usePostPreviewIframeEscape`'s Escape
+ * listener on the frame document working.
  *
  * Each flag is there because the preview needs it to render and behave exactly as it did unsandboxed:
  * - `allow-scripts`: theme JS (menus, carousels, Liquid-rendered widgets) must run in the preview.

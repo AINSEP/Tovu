@@ -22,6 +22,7 @@ import { usePostPreviewIframeEscape } from "./hooks/use-post-editor-ui.hooks";
 import { TemplateSourceModal } from "../../components/TemplateSource/TemplateSourceModal";
 import { ViewTemplateButton } from "../../components/TemplateSource/ViewTemplateButton";
 import { TermPicker } from "../taxonomy/TermPicker";
+import { PAGE_PREVIEW_IFRAME_SANDBOX } from "../pages/rules";
 import { ContentAnalysisCard } from "../content-analysis/ContentAnalysisCard";
 import {
   toolbarBtnClass,
@@ -1908,7 +1909,14 @@ function PostPreviewFrame({
   const iframeRef = usePostPreviewIframeEscape(expanded, onCollapse);
   if (canShowLiveSite) {
     return (
-      <iframe ref={iframeRef} src={siteUrl(`/${slug}`)} title={t("Post preview")} className="page-preview-iframe" referrerPolicy="no-referrer" />
+      <iframe
+        ref={iframeRef}
+        src={siteUrl(`/${slug}`)}
+        title={t("Post preview")}
+        className="page-preview-iframe"
+        sandbox={PAGE_PREVIEW_IFRAME_SANDBOX}
+        referrerPolicy="no-referrer"
+      />
     );
   }
   if (canShowTemplatePreview) {
@@ -1918,6 +1926,7 @@ function PostPreviewFrame({
         src={templatePreviewUrl}
         title={t("Post preview")}
         className="page-preview-iframe"
+        sandbox={PAGE_PREVIEW_IFRAME_SANDBOX}
         referrerPolicy="no-referrer"
       />
     );
@@ -1931,7 +1940,14 @@ function PostPreviewFrame({
       <form ref={previewFormRef} method="post" target={previewFormTarget} action={templatePreviewUrl} hidden>
         <input type="hidden" name="bodyJson" value={JSON.stringify(bodyJson)} />
       </form>
-      <iframe ref={iframeRef} name={previewFormTarget} title={t("Post preview")} className="page-preview-iframe" referrerPolicy="no-referrer" />
+      <iframe
+        ref={iframeRef}
+        name={previewFormTarget}
+        title={t("Post preview")}
+        className="page-preview-iframe"
+        sandbox={PAGE_PREVIEW_IFRAME_SANDBOX}
+        referrerPolicy="no-referrer"
+      />
     </>
   );
 }
