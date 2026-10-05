@@ -647,6 +647,12 @@ button { font: inherit; color: inherit; }
 
 .workspace__frame { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: var(--bg); }
 
+/* Electron gives <webview> `display: flex` from an inline `<style>` in its shadow root, and the
+   iframe inside takes its height only from `flex: 1 1 auto`. `index.html`'s CSP (`style-src
+   'self'`) blocks that inline style, so without this rule the iframe falls back to the default
+   150px and the site's admin is cut off just under the workspace bar. */
+webview { display: flex; }
+
 /* Covers the still-mounted guest rather than replacing it — only reachable for `stalled`, a
    guess, never for `failed`, a fact; see the long comment in App.tsx on why the two behave
    differently. Opaque so a guest that is only slow, not actually broken, cannot show its own
