@@ -115,11 +115,11 @@ test("a plugin with no attached beforeSave filter is 409 PLUGIN_NOT_ENABLED", as
   assert.deepEqual(await h.post(DRAFT), { status: 409, body: { error: "plugin is not enabled", code: "PLUGIN_NOT_ENABLED" } });
 });
 
-test("a failing filter is 422 PLUGIN_HOOK_FAILED with the registry's own message", async (t) => {
-  const h = await boot(t, { preview: async () => { throw new PluginHookFailedError("content-analyzer", "plugin 'content-analyzer' beforeSave hook failed"); } });
+test("a failing filter is 422 PLUGIN_HOOK_FAILED with fixed text, never the plugin's own error", async (t) => {
+  const h = await boot(t, { preview: async () => { throw new PluginHookFailedError("content-analyzer", "plugin 'content-analyzer' content.entry.beforeSave filter failed: token=sk-live-123"); } });
   assert.deepEqual(await h.post(DRAFT), {
     status: 422,
-    body: { error: "plugin 'content-analyzer' beforeSave hook failed", code: "PLUGIN_HOOK_FAILED", pluginId: "content-analyzer" },
+    body: { error: "a site plugin (content-analyzer) failed on this draft; nothing was saved", code: "PLUGIN_HOOK_FAILED", pluginId: "content-analyzer" },
   });
 });
 

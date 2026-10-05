@@ -1,3 +1,4 @@
+import { pluginHookRefusalText } from "#src/contracts/core/plugin-hook-failed-error";
 import { PluginHookFailedError } from "#src/features/plugin-runtime/hook-registry";
 
 /**
@@ -16,14 +17,36 @@ export interface PluginHookErrorResponse {
   status(code: number): { json(body: unknown): unknown };
 }
 
+export interface PluginHookFailedBody {
+  readonly error: string;
+  readonly code: "PLUGIN_HOOK_FAILED";
+  readonly pluginId: string;
+}
+
 /**
- * If `err` is a `PluginHookFailedError`, writes the 500 `PLUGIN_HOOK_FAILED` envelope and returns
- * `true`. Returns `false` (writes nothing) for any other error, so a route's own error mapper can
- * call this first and fall through to its remaining branches unchanged.
+ * The `PLUGIN_HOOK_FAILED` envelope every HTTP route returns for a hook refusal. `error` is fixed
+ * text (`pluginHookRefusalText`, or `publicText` when the route is not a save), never `err.message`:
+ * that quotes the plugin's own thrown error, which can carry a credential, SQL or a path — agent
+ * tools redact it the same way. The full message goes to the server log instead, the only place the
+ * cause survives for a preview (a save's also lands in the quarantine reason).
+ *
+ * @complexity O(1).
+ */
+export function pluginHookFailedBody(err: PluginHookFailedError, optional: { publicText?: string } = {}): PluginHookFailedBody {
+  // eslint-disable-next-line no-console
+  console.warn(`[plugin-runtime] '${err.pluginId}' hook refused a request: ${err.message}`);
+  return { error: optional.publicText ?? pluginHookRefusalText(err), code: "PLUGIN_HOOK_FAILED", pluginId: err.pluginId };
+}
+
+/**
+ * If `err` is a `PluginHookFailedError`, writes the 500 `PLUGIN_HOOK_FAILED` envelope
+ * ({@link pluginHookFailedBody}) and returns `true`. Returns `false` (writes nothing) for any other
+ * error, so a route's own error mapper can call this first and fall through to its remaining
+ * branches unchanged.
  * @complexity O(1).
  */
 export function sendPluginHookFailedError(res: PluginHookErrorResponse, err: unknown): boolean {
   if (!(err instanceof PluginHookFailedError)) return false;
-  res.status(500).json({ error: err.message, code: "PLUGIN_HOOK_FAILED", pluginId: err.pluginId });
+  res.status(500).json(pluginHookFailedBody(err));
   return true;
 }

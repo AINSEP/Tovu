@@ -1,4 +1,5 @@
 import { PluginHookFailedError } from "#src/features/plugin-runtime/hook-registry";
+import { pluginHookFailedBody } from "#src/server/inbound/admin-http/http/plugin-hook-error";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { Response } from "express";
@@ -34,11 +35,12 @@ function parsePreviewDraft(body: unknown): PreviewDraft | null {
 }
 
 /** Maps this route's thrown errors onto the admin error envelope. A hook failure is the plugin's
- *  (422 — the draft could not be processed), carrying the registry's own fixed-shape message, as the
- *  save routes' `sendPluginHookFailedError` does; anything else names no internals. @complexity O(1). */
+ *  (422 — the draft could not be processed), in the save routes' `PLUGIN_HOOK_FAILED` envelope with
+ *  fixed preview text — never the plugin's own error; anything else names no internals.
+ *  @complexity O(1). */
 function sendPluginPreviewError(res: Response, err: unknown): void {
   if (err instanceof PluginHookFailedError) {
-    res.status(422).json({ error: err.message, code: "PLUGIN_HOOK_FAILED", pluginId: err.pluginId });
+    res.status(422).json(pluginHookFailedBody(err, { publicText: `a site plugin (${err.pluginId}) failed on this draft; nothing was saved` }));
     return;
   }
   res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });

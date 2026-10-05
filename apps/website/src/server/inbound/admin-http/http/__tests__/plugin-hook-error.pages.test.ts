@@ -28,7 +28,7 @@ test("HTTP: creating a page through a throwing beforeSave filter returns 500 PLU
   });
 
   assert.equal(res.status, 500);
-  assert.deepEqual(await res.json(), { error: "create filter failed: boom", code: "PLUGIN_HOOK_FAILED", pluginId: "throwing-plugin" });
+  assert.deepEqual(await res.json(), { error: "a site plugin (throwing-plugin) refused this save; the content was not saved", code: "PLUGIN_HOOK_FAILED", pluginId: "throwing-plugin" });
 });
 
 test("HTTP: updating a page through a throwing beforeSave filter returns PLUGIN_HOOK_FAILED and leaves the stored page unchanged", async (t) => {
@@ -62,6 +62,6 @@ test("HTTP: updating a page through a throwing beforeSave filter returns PLUGIN_
   });
 
   assert.equal(updated.status, 500);
-  assert.deepEqual(await updated.json(), { error: "update filter failed: boom", code: "PLUGIN_HOOK_FAILED", pluginId: "throwing-plugin" });
+  assert.deepEqual(await updated.json(), { error: "a site plugin (throwing-plugin) refused this save; the content was not saved", code: "PLUGIN_HOOK_FAILED", pluginId: "throwing-plugin" });
   assert.deepEqual(await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: post.id }), before);
 });

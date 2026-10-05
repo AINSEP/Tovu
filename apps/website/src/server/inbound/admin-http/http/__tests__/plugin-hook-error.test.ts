@@ -37,11 +37,16 @@ function capturingResponse(): { res: CapturingRes; statusCode: () => number | un
 
 test("sendPluginHookFailedError: a PluginHookFailedError is mapped to 500 with code PLUGIN_HOOK_FAILED and the plugin id", () => {
   const { res, statusCode, jsonBody } = capturingResponse();
-  const handled = sendPluginHookFailedError(res, new PluginHookFailedError("word-count", "boom"));
+  const handled = sendPluginHookFailedError(res, new PluginHookFailedError("word-count", "provider request failed; token=sk-live-123"));
 
   assert.equal(handled, true);
   assert.equal(statusCode(), 500);
-  assert.deepEqual(jsonBody(), { error: "boom", code: "PLUGIN_HOOK_FAILED", pluginId: "word-count" });
+  // The registry's message quotes the plugin's own thrown error; only fixed text leaves the server.
+  assert.deepEqual(jsonBody(), {
+    error: "a site plugin (word-count) refused this save; the content was not saved",
+    code: "PLUGIN_HOOK_FAILED",
+    pluginId: "word-count",
+  });
 });
 
 test("sendPluginHookFailedError: any other error is left unhandled (writes nothing, returns false)", () => {
@@ -96,6 +101,6 @@ test("HTTP: updating a post through a throwing beforeSave filter returns PLUGIN_
     }),
   });
   assert.equal(updated.status, 500);
-  assert.deepEqual(await updated.json(), { error: "update filter failed: boom", code: "PLUGIN_HOOK_FAILED", pluginId: "throwing-plugin" });
+  assert.deepEqual(await updated.json(), { error: "a site plugin (throwing-plugin) refused this save; the content was not saved", code: "PLUGIN_HOOK_FAILED", pluginId: "throwing-plugin" });
   assert.deepEqual(await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: post.id }), before);
 });

@@ -27,13 +27,28 @@ export class PluginHookFailedError extends Error {
 }
 
 /**
- * Re-classifies a plugin save-hook refusal into a `ToolInputError` the model can act on; anything
- * else is returned unchanged (and stays redacted by the transport).
+ * The public text for a save-hook refusal — what an agent tool and every HTTP route return instead
+ * of the error's own message.
  *
- * The message is FIXED apart from the plugin id (and, for a partly applied run, the refused item's
+ * The text is FIXED apart from the plugin id (and, for a partly applied run, the refused item's
  * ref): a `PluginHookFailedError`'s own text quotes the plugin's thrown error (or a
- * quarantine-persistence error), which can carry a path, a SQL error or a secret — the same reason `ModelFacingErrorRule.message` exists. That rule shape cannot
- * interpolate the plugin id, which is why this is a function rather than a rule.
+ * quarantine-persistence error), which can carry a path, a SQL error or a secret — the same reason `ModelFacingErrorRule.message` exists.
+ *
+ * @complexity O(1).
+ */
+export function pluginHookRefusalText(err: PluginHookFailedError): string {
+  // A refused item of a partly applied run must not claim "nothing was saved": the items before it
+  // landed. The item ref is a stable id, never body content.
+  return err.refusedItemRef === null
+    ? `a site plugin (${err.pluginId}) refused this save; the content was not saved`
+    : `a site plugin (${err.pluginId}) refused item ${err.refusedItemRef}; items applied before it stay saved, so check the import history before retrying`;
+}
+
+/**
+ * Re-classifies a plugin save-hook refusal into a `ToolInputError` the model can act on; anything
+ * else is returned unchanged (and stays redacted by the transport). The message is
+ * {@link pluginHookRefusalText}; a `ModelFacingErrorRule` cannot interpolate the plugin id, which is
+ * why this is a function rather than a rule.
  *
  * @param err - Any rejection a tool handler threw.
  * @returns The value to re-throw.
@@ -41,13 +56,7 @@ export class PluginHookFailedError extends Error {
  */
 export function toModelFacingPluginHookError(err: unknown): unknown {
   if (!(err instanceof PluginHookFailedError)) return err;
-  // A refused item of a partly applied run must not claim "nothing was saved": the items before it
-  // landed. The item ref is a stable id, never body content.
-  return new ToolInputError({
-    message: err.refusedItemRef === null
-      ? `PLUGIN_HOOK_FAILED: a site plugin (${err.pluginId}) refused this save; the content was not saved`
-      : `PLUGIN_HOOK_FAILED: a site plugin (${err.pluginId}) refused item ${err.refusedItemRef}; items applied before it stay saved, so check the import history before retrying`,
-  });
+  return new ToolInputError({ message: `PLUGIN_HOOK_FAILED: ${pluginHookRefusalText(err)}` });
 }
 
 /**

@@ -3,6 +3,7 @@ import { PluginHookFailedError } from "#src/contracts/core/plugin-hook-failed-er
 import { TokenAlreadyRedeemedError, TokenExpiredError } from "#src/contracts/core/gated-mutations/token";
 import { RestorePointUnavailableError } from "#src/features/publish-content/execute-import";
 import { PublishContentBundleNotFoundError } from "#src/features/publish-content/gated-hooks";
+import { pluginHookFailedBody } from "#src/server/inbound/admin-http/http/plugin-hook-error";
 
 /**
  * @file The one error-to-HTTP mapping the publish-content import routes (`import.ts`: plan,
@@ -32,7 +33,7 @@ export function importErrorResponse(err: unknown): ImportErrorResponse {
   if (err instanceof RestorePointUnavailableError) return { status: 409, body: { error, code: "RESTORE_POINT_UNAVAILABLE" } };
   if (err instanceof PublishContentBundleNotFoundError) return { status: 404, body: { error, code: "BUNDLE_NOT_FOUND" } };
   // Same envelope as the posts routes' `sendPluginHookFailedError`, so a client tells a plugin's
-  // refusal apart from any other internal error.
-  if (err instanceof PluginHookFailedError) return { status: 500, body: { error, code: "PLUGIN_HOOK_FAILED", pluginId: err.pluginId } };
+  // refusal apart from any other internal error — and the same fixed text, never the plugin's own.
+  if (err instanceof PluginHookFailedError) return { status: 500, body: pluginHookFailedBody(err) };
   return { status: 500, body: { error, code: "INTERNAL_ERROR" } };
 }

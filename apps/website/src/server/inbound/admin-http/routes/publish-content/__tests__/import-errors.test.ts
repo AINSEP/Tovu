@@ -29,10 +29,14 @@ test("each known import error maps to its status and code, keeping its message",
 });
 
 test("a plugin save-hook refusal mid-import is a 500 PLUGIN_HOOK_FAILED naming the plugin, like the posts routes", () => {
-  const err = new PluginHookFailedError("seo", "plugin 'seo' refused", { refusedItemRef: "post:p-2" });
+  const err = new PluginHookFailedError("seo", "plugin 'seo' filter failed: password=hunter2", { refusedItemRef: "post:p-2" });
   assert.deepEqual(importErrorResponse(err), {
     status: 500,
-    body: { error: "plugin 'seo' refused", code: "PLUGIN_HOOK_FAILED", pluginId: "seo" },
+    body: {
+      error: "a site plugin (seo) refused item post:p-2; items applied before it stay saved, so check the import history before retrying",
+      code: "PLUGIN_HOOK_FAILED",
+      pluginId: "seo",
+    },
   });
 });
 
