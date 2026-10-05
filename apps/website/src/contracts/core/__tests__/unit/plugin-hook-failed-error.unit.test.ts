@@ -34,6 +34,25 @@ test("toModelFacingPluginHookError publishes only the fixed refusal and the plug
   assert.equal(out.message, "PLUGIN_HOOK_FAILED: a site plugin (seo) refused this save; the content was not saved");
 });
 
+test("PluginHookFailedError has no refused item unless a multi-item apply names one", () => {
+  assert.equal(new PluginHookFailedError("seo", "raw").refusedItemRef, null);
+  const cause = new PluginHookFailedError("seo", "raw");
+  const atItem = new PluginHookFailedError("seo", "raw", { cause, refusedItemRef: "post:p-2" });
+  assert.equal(atItem.refusedItemRef, "post:p-2");
+  assert.equal(atItem.cause, cause);
+});
+
+test("toModelFacingPluginHookError names the refused item and that earlier items stay saved", () => {
+  const out = toModelFacingPluginHookError(
+    new PluginHookFailedError("seo", "raw /secret/path", { refusedItemRef: "post:p-2" })
+  );
+  assert.ok(out instanceof ToolInputError);
+  assert.equal(
+    out.message,
+    "PLUGIN_HOOK_FAILED: a site plugin (seo) refused item post:p-2; items applied before it stay saved, so check the import history before retrying"
+  );
+});
+
 test("toModelFacingPluginHookError returns any other rejection unchanged", () => {
   const other = new Error("boom");
   assert.equal(toModelFacingPluginHookError(other), other);

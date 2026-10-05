@@ -13,11 +13,16 @@ import { ToolInputError, type ToolHandler } from "@jini-ai/core";
  * triggers `CapabilityDeniedError`, or returns an invalid `ext` write (BR-07/EC-10). */
 export class PluginHookFailedError extends Error {
   readonly pluginId: string;
+  /** The item a multi-item apply was writing when the hook refused (e.g. `post:<id>`), set only by
+   * an apply that is NOT all-or-nothing (`publish-content/apply-loop.ts`), so items applied before
+   * it stay saved. `null` for a single save, where the refusal means nothing was saved. */
+  readonly refusedItemRef: string | null;
 
-  constructor(pluginId: string, message: string, options?: { cause?: unknown }) {
+  constructor(pluginId: string, message: string, options?: { cause?: unknown; refusedItemRef?: string }) {
     super(message, options);
     this.name = "PluginHookFailedError";
     this.pluginId = pluginId;
+    this.refusedItemRef = options?.refusedItemRef ?? null;
   }
 }
 
@@ -25,9 +30,9 @@ export class PluginHookFailedError extends Error {
  * Re-classifies a plugin save-hook refusal into a `ToolInputError` the model can act on; anything
  * else is returned unchanged (and stays redacted by the transport).
  *
- * The message is FIXED apart from the plugin id: a `PluginHookFailedError`'s own text quotes the
- * plugin's thrown error (or a quarantine-persistence error), which can carry a path, a SQL error
- * or a secret — the same reason `ModelFacingErrorRule.message` exists. That rule shape cannot
+ * The message is FIXED apart from the plugin id (and, for a partly applied run, the refused item's
+ * ref): a `PluginHookFailedError`'s own text quotes the plugin's thrown error (or a
+ * quarantine-persistence error), which can carry a path, a SQL error or a secret — the same reason `ModelFacingErrorRule.message` exists. That rule shape cannot
  * interpolate the plugin id, which is why this is a function rather than a rule.
  *
  * @param err - Any rejection a tool handler threw.
@@ -36,8 +41,12 @@ export class PluginHookFailedError extends Error {
  */
 export function toModelFacingPluginHookError(err: unknown): unknown {
   if (!(err instanceof PluginHookFailedError)) return err;
+  // A refused item of a partly applied run must not claim "nothing was saved": the items before it
+  // landed. The item ref is a stable id, never body content.
   return new ToolInputError({
-    message: `PLUGIN_HOOK_FAILED: a site plugin (${err.pluginId}) refused this save; the content was not saved`,
+    message: err.refusedItemRef === null
+      ? `PLUGIN_HOOK_FAILED: a site plugin (${err.pluginId}) refused this save; the content was not saved`
+      : `PLUGIN_HOOK_FAILED: a site plugin (${err.pluginId}) refused item ${err.refusedItemRef}; items applied before it stay saved, so check the import history before retrying`,
   });
 }
 

@@ -1,4 +1,5 @@
 import { ForbiddenError, PlanStaleError } from "#src/contracts/core/gated-mutations/gateway";
+import { PluginHookFailedError } from "#src/contracts/core/plugin-hook-failed-error";
 import { TokenAlreadyRedeemedError, TokenExpiredError } from "#src/contracts/core/gated-mutations/token";
 import { RestorePointUnavailableError } from "#src/features/publish-content/execute-import";
 import { PublishContentBundleNotFoundError } from "#src/features/publish-content/gated-hooks";
@@ -13,7 +14,7 @@ import { PublishContentBundleNotFoundError } from "#src/features/publish-content
 /** The status and JSON body an import route sends for a thrown error. */
 export interface ImportErrorResponse {
   status: number;
-  body: { error: string; code: string };
+  body: { error: string; code: string; pluginId?: string };
 }
 
 /**
@@ -30,5 +31,8 @@ export function importErrorResponse(err: unknown): ImportErrorResponse {
   if (err instanceof TokenAlreadyRedeemedError) return { status: 409, body: { error, code: "TOKEN_ALREADY_REDEEMED" } };
   if (err instanceof RestorePointUnavailableError) return { status: 409, body: { error, code: "RESTORE_POINT_UNAVAILABLE" } };
   if (err instanceof PublishContentBundleNotFoundError) return { status: 404, body: { error, code: "BUNDLE_NOT_FOUND" } };
+  // Same envelope as the posts routes' `sendPluginHookFailedError`, so a client tells a plugin's
+  // refusal apart from any other internal error.
+  if (err instanceof PluginHookFailedError) return { status: 500, body: { error, code: "PLUGIN_HOOK_FAILED", pluginId: err.pluginId } };
   return { status: 500, body: { error, code: "INTERNAL_ERROR" } };
 }

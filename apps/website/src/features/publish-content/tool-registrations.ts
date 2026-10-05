@@ -22,6 +22,7 @@ import { pullAndStageFromPeer, type PublishContentPullDeps } from "./pull.js";
 import { PublishContentPeerNotFoundError, PublishContentPeerCredentialMissingError, PublishContentPeerSecretStoreUnconfiguredError } from "./peers.js";
 import { PublishContentPeerTransportError } from "./peer-transport.js";
 import type { AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
+import { PluginHookFailedError, toModelFacingPluginHookError } from "../../contracts/core/plugin-hook-failed-error.js";
 import {
   connectDestination,
   disconnectDestination,
@@ -517,6 +518,8 @@ async function pullToolBoundary<T>(run: () => Promise<T>): Promise<T> {
   try { return await run(); } catch (error) {
     if (error instanceof PlanStaleError) throw new ToolInputError({ message: "The local content changed after the dialog was shown. Run publish_content_execute_pull again to review a fresh plan." });
     if (error instanceof PublishContentBundleNotFoundError) throw new ToolInputError({ message: "This pull plan was not found or has expired. Run publish_content_plan_pull again." });
+    // The apply writes row by row, so the refusal names the item and says earlier items stay saved.
+    if (error instanceof PluginHookFailedError) throw toModelFacingPluginHookError(error);
     if (error instanceof RestorePointUnavailableError) throw new ToolInputError({ message: "This computer cannot capture a restore point. Pulling content is refused until backups are available." });
     if (error instanceof PublishContentPeerNotFoundError) {
       throw new ToolInputError({ message: "The saved destination was removed. Choose a saved peerId or connect the live site again." });

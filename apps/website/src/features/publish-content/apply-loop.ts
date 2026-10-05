@@ -7,6 +7,8 @@ import { createHash } from "node:crypto";
 import { type Clock as ClockPort, type IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
 import { ForbiddenError } from "@jini-ai/cms/core";
 
+import { PluginHookFailedError } from "../../contracts/core/plugin-hook-failed-error.js";
+
 import { PublishContentApplyRowError } from "./apply-errors.js";
 import { loadActiveBundle } from "./bundle-staging.js";
 import type { PublishContentBundleRepoPort } from "./bundle-staging.js";
@@ -215,6 +217,17 @@ function classifyApplyRowFailure(
     };
   }
   return null;
+}
+
+/**
+ * Names the item a plugin save hook refused when it aborts a row-by-row run, so the caller can say
+ * that the items before it stay saved (`PluginHookFailedError.refusedItemRef`). Any other error, or
+ * a failure outside a row, is returned unchanged.
+ * @complexity O(1).
+ */
+function withRefusedItem(error: unknown, itemKey: string | null): unknown {
+  if (!(error instanceof PluginHookFailedError) || itemKey === null) return error;
+  return new PluginHookFailedError(error.pluginId, error.message, { cause: error, refusedItemRef: itemKey });
 }
 
 /**
@@ -812,14 +825,17 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
             }) } });
         }
       };
+      // Only a raw-row/raw-file run is all-or-nothing; every other run writes row by row, so an
+      // abort leaves the rows before it saved.
+      const transactional = entities.some((entity) => entity.entityType === "raw-row" || entity.entityType === "raw-file");
       try {
-        if (entities.some((entity) => entity.entityType === "raw-row" || entity.entityType === "raw-file")) {
+        if (transactional) {
           if (!handlerDeps.backstop?.rows) throw new Error("The raw-row transaction port is not wired.");
           await handlerDeps.backstop.rows.transaction({ work: applyRows });
         } else await applyRows();
       } catch (error) {
         const rollbackErrors: string[] = [];
-        if (entities.some((entity) => entity.entityType === "raw-row" || entity.entityType === "raw-file")) {
+        if (transactional) {
           for (const rollback of [...(handlerDeps.backstop?.fileRollbacks ?? [])].reverse()) {
             try { await rollback(); } catch (failure) { rollbackErrors.push(failure instanceof Error ? failure.message : "A file could not be rolled back."); }
           }
@@ -859,7 +875,7 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
         if (auditRecord) await handlerDeps.backstop!.audit!.save({ record: { ...auditRecord, result: "failure",
           inverses: rollbackErrors.length > 0 ? (handlerDeps.backstop?.inverses ?? []).filter((i) => i.kind === "raw-file") : [],
           details: { error: error instanceof Error ? error.message : "This send was rolled back.", rollbackErrors } } });
-        throw error;
+        throw transactional ? error : withRefusedItem(error, activeItemKey);
       }
 
       const { repointChangeSetIds, menuLinksUpdated, menuLinksNotUpdated } = await runRepointPass();

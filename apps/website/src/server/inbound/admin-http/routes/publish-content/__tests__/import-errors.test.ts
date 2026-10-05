@@ -7,6 +7,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { ForbiddenError, PlanStaleError } from "#src/contracts/core/gated-mutations/gateway";
+import { PluginHookFailedError } from "#src/contracts/core/plugin-hook-failed-error";
 import { TokenAlreadyRedeemedError, TokenExpiredError } from "#src/contracts/core/gated-mutations/token";
 import { RestorePointUnavailableError } from "#src/features/publish-content/execute-import";
 import { PublishContentBundleNotFoundError } from "#src/features/publish-content/gated-hooks";
@@ -25,6 +26,14 @@ test("each known import error maps to its status and code, keeping its message",
   for (const [err, status, code] of cases) {
     assert.deepEqual(importErrorResponse(err), { status, body: { error: err.message, code } }, code);
   }
+});
+
+test("a plugin save-hook refusal mid-import is a 500 PLUGIN_HOOK_FAILED naming the plugin, like the posts routes", () => {
+  const err = new PluginHookFailedError("seo", "plugin 'seo' refused", { refusedItemRef: "post:p-2" });
+  assert.deepEqual(importErrorResponse(err), {
+    status: 500,
+    body: { error: "plugin 'seo' refused", code: "PLUGIN_HOOK_FAILED", pluginId: "seo" },
+  });
 });
 
 test("a non-Error throw is a 500 with the generic message", () => {
