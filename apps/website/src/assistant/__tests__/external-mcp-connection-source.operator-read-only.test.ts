@@ -8,6 +8,7 @@ import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
 import { createApplyConnectDefaults } from "../../features/agent-plugins/apply-connect-defaults.js";
 import * as federation from "../../features/agent-plugins/federate-mcp.js";
+import { resolveAgentPluginLayout } from "../../features/agent-plugins/layout.js";
 import { parseAgentPluginMcpConfig, type McpServerConfig } from "../../features/agent-plugins/mcp-metadata.js";
 import { createStoredExternalMcpConnectionSource } from "../external-mcp-connection-source.js";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
@@ -105,9 +106,12 @@ test("real manifest resolver grants only a build-seeded plugin at the exact endp
   const previous = process.env.TOVU_AGENT_PLUGINS_DIR;
   process.env.TOVU_AGENT_PLUGINS_DIR = root;
   try {
-    const workspaceRoot = path.join(root, "ws", workspaceId);
+    // Paths come from the product layout so the fixture installs where the resolver reads
+    // (Layout B moved packages to <workspace>/<pluginId>/package/sha256 in 852d711e6).
+    const workspaceLayout = resolveAgentPluginLayout().forWorkspace(workspaceId);
+    const workspaceRoot = workspaceLayout.root;
     const digest = "a".repeat(64);
-    const packageRoot = path.join(workspaceRoot, "packages", "sha256", digest);
+    const packageRoot = path.join(workspaceLayout.pluginPackagesDir({ pluginId }), digest);
     await mkdir(packageRoot, { recursive: true });
     await writeFile(path.join(packageRoot, "plugin.json"), JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: pluginId, extensions: { tovu: { mcpServers: { remote: { tovuDefaultTools: { read: ["inspect"] } } } } } }));
     await writeFile(path.join(packageRoot, "mcp.json"), JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
