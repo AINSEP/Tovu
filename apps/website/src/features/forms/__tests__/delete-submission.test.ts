@@ -9,7 +9,7 @@ const submission = { id: "sub-a", workspaceId: "ws-a", formDefinitionId: "form-a
 function repo(record: typeof submission | null): FormSubmissionRepoPort {
   return {
     findById: async (query) => query.workspaceId === "ws-a" && query.id === "sub-a" ? record : null,
-    create: async () => assert.fail("unexpected create"), listByDefinition: async () => assert.fail("unexpected list"),
+    create: async () => assert.fail("unexpected create"), createOnce: async () => assert.fail("unexpected createOnce"), listByDefinition: async () => assert.fail("unexpected list"),
   };
 }
 

@@ -4,7 +4,11 @@ import { test } from "node:test";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { FormSlugConflictError } from "@jini-ai/cms-forms";
+import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
+import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
+import { FORMS_SUBMIT_PROFILE } from "../rate-limit-profile.js";
 import { formDefinitionRepoFor, formSubmissionRepoFor } from "../repo.js";
+import { duplicateSubmissionId, DUPLICATE_SUBMISSION_WINDOW_MS, submitForm } from "../submit-service.js";
 import type { FormDefinitionRecord, FormSubmissionRecord } from "@jini-ai/cms-forms";
 
 /**
@@ -134,6 +138,35 @@ describeEachDialect(
       assert.equal(await subs.findById({ workspaceId: OTHER, id: "s1" }), null);
       await trash(kernel, "form_submissions", "s2");
       assert.equal(await subs.findById({ workspaceId: WS, id: "s2" }), null);
+    });
+
+    test("createOnce inserts a new id, refuses a taken one (trashed included) without overwriting it", async () => {
+      const { kernel, defs, subs } = makeRepos();
+      await defs.create(definition("def-1", "contact"));
+      assert.deepEqual(await subs.createOnce(submission("s1", T0)), { created: true });
+      assert.deepEqual(await subs.createOnce(submission("s1", T0, { data: { name: "second" } })), { created: false });
+      assert.deepEqual(await subs.findById({ workspaceId: WS, id: "s1" }), submission("s1", T0));
+      await trash(kernel, "form_submissions", "s1");
+      assert.deepEqual(await subs.createOnce(submission("s1", T0)), { created: false });
+      assert.equal((await kernel.run((db) => db.selectFrom("form_submissions").select("id").execute())).length, 1);
+    });
+
+    test("submitForm: two concurrent POSTs of one body store exactly one row and answer both the same", async () => {
+      const { kernel, defs, subs } = makeRepos();
+      await defs.create(definition("def-1", "contact"));
+      const clock = { nowMs: () => Date.parse(T0) };
+      let n = 0;
+      const deps = {
+        definitionRepo: defs, submissionRepo: subs, outbox: new InMemoryOutbox(), bus: new InMemoryEventBus(), clock,
+        idGen: { newId: () => `evt-${++n}` }, rateLimiter: createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock }),
+      };
+      const input = { workspaceId: WS, slug: "contact", body: { name: "Ada" }, sourceIp: "203.0.113.9" };
+      const results = await Promise.all([submitForm({ deps, input }), submitForm({ deps, input })]);
+      assert.deepEqual(results, [{ status: "accepted" }, { status: "accepted" }]);
+      const rows = await kernel.run((db) => db.selectFrom("form_submissions").selectAll().execute());
+      assert.equal(rows.length, 1);
+      assert.equal(rows[0]!.id, duplicateSubmissionId({ input, windowIndex: Math.floor(Date.parse(T0) / DUPLICATE_SUBMISSION_WINDOW_MS) }));
+      assert.equal(n, 1, "only the stored submission's event drew an id");
     });
 
     test("listByDefinition pages newest-first with an id tie-break and a cursor", async () => {

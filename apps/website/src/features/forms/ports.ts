@@ -2,6 +2,7 @@ import type { UUID } from "@jini-ai/core/primitives";
 import type {
   FormSubmissionRepoPort as PackageSubmissionRepo,
   FormSubmissionPage,
+  FormSubmissionRecord,
 } from "@jini-ai/cms-forms";
 
 // The repository consumers share this adapter entry; the canonical definition port lives in Jini.
@@ -18,6 +19,13 @@ export interface FormSubmissionRepoPort extends Omit<PackageSubmissionRepo, "lis
     limit: number;
     cursor?: string | null;
   }): Promise<FormSubmissionPage>;
+  /**
+   * Inserts `record` unless a row with its id already exists (trashed rows included), atomically in
+   * the store, so two concurrent writers of the same id can never both insert. The public submit
+   * path derives the id from the submission itself and uses this to drop a double submit.
+   * @returns `{ created: false }` when the id was already taken; nothing is written then.
+   */
+  createOnce(record: FormSubmissionRecord): Promise<{ created: boolean }>;
 }
 
 /**

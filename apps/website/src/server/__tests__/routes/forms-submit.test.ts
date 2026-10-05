@@ -33,6 +33,7 @@ function makeDefinition(overrides: Partial<FormDefinitionRecord> = {}): FormDefi
     status: "active",
     createdAt: NOW,
     updatedAt: NOW,
+    version: 1,
     ...overrides,
   };
 }
@@ -246,6 +247,25 @@ test("POST /forms/:slug/submit: a real browser's application/x-www-form-urlencod
     body: "name=Ada",
   });
   assert.equal(res.status, 201, "the required 'name' field must have been parsed off the urlencoded body");
+});
+
+test("POST /forms/:slug/submit: a double-clicked Send on a JS-disabled form (two identical browser POSTs) stores one submission and redirects both to the same success page", async (t) => {
+  const { server, baseUrl, definitionRepo, submissionRepo } = await startTestApp();
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  await definitionRepo.create(makeDefinition());
+
+  const post = () => fetch(`${baseUrl}/forms/contact/submit`, {
+    method: "POST",
+    redirect: "manual",
+    headers: { "content-type": "application/x-www-form-urlencoded", accept: "text/html", referer: `${baseUrl}/contact-us` },
+    body: "name=Ada&_hp=",
+  });
+  const [first, second] = await Promise.all([post(), post()]);
+
+  assert.deepEqual([first.status, second.status], [303, 303]);
+  assert.equal(second.headers.get("location"), first.headers.get("location"));
+  const page = await submissionRepo.listByDefinition({ workspaceId: WORKSPACE_ID, formDefinitionId: "def-1", limit: 10 });
+  assert.deepEqual(page.items.map((item) => item.data), [{ name: "Ada" }]);
 });
 
 test("POST /forms/:slug/submit: a CHECKED checkbox on a real browser form POST (urlencoded `field=on`, the only value the rendered `<input type=\"checkbox\">` without a value attribute ever sends) is accepted and stored as true — not rejected as 'must be a boolean'", async (t) => {
@@ -644,6 +664,7 @@ test("POST /forms/:slug/submit: Accept: text/html + a validation failure whose f
     list: (required) => real.list(required),
     create: (record) => real.create(record),
     update: (record) => real.update(record),
+    isSlugTaken: (required) => real.isSlugTaken(required),
   };
   const { server, baseUrl } = await startTestApp({ definitionRepo: racyRepo });
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
@@ -661,7 +682,7 @@ test("POST /forms/:slug/submit: Accept: text/html + a validation failure whose f
 
 test("POST /forms/:slug/submit: an error submitForm never actually raises today (a plain, untyped repo failure) still degrades to a generic 500 INTERNAL_ERROR, not an unhandled rejection", async (t) => {
   const realSubmissionRepo = new InMemoryFormSubmissionRepo();
-  const brokenSubmissionRepo = withThrowingMethod(realSubmissionRepo, "create");
+  const brokenSubmissionRepo = withThrowingMethod(realSubmissionRepo, "createOnce");
   const { server, baseUrl, definitionRepo } = await startTestApp({ submissionRepo: brokenSubmissionRepo as InMemoryFormSubmissionRepo });
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
   await definitionRepo.create(makeDefinition());
@@ -758,6 +779,7 @@ test("POST /forms/:slug/submit: a DB failure in the flash-cookie's own second fi
     list: (required) => real.list(required),
     create: (record) => real.create(record),
     update: (record) => real.update(record),
+    isSlugTaken: (required) => real.isSlugTaken(required),
   };
   const { server, baseUrl } = await startTestApp({ definitionRepo: flakyRepo });
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));

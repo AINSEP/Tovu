@@ -160,6 +160,13 @@ export class InMemoryFormSubmissionRepo implements FormSubmissionRepoPort {
     this.rows.set(record.id, { ...record, data: { ...record.data }, deletedAt: null, version: 1 });
   }
 
+  /** Mirrors the SQL adapter's `ON CONFLICT (id) DO NOTHING`; a trashed row still holds its id. */
+  async createOnce(record: FormSubmissionRecord): Promise<{ created: boolean }> {
+    if (this.rows.has(record.id)) return { created: false };
+    await this.create(record);
+    return { created: true };
+  }
+
   async listByDefinition(required: {
     workspaceId: UUID;
     formDefinitionId: UUID;
