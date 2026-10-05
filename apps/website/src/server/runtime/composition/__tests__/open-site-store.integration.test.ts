@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -14,7 +13,7 @@ import type { SiteStorage } from "#src/platform/site-dir/types";
 import { seededPosts, seededPresentation, seededWorkspace } from "../../configuration/seed.js";
 import { createSiteRouteDeps } from "../deps.js";
 import { openSiteContentDb } from "../open-site-content-db.js";
-import { openSiteStore, PG_SOCKET_ENV, PGLITE_DATA_DIR_NAME, StorageNotAvailableError } from "../open-site-store.js";
+import { openSiteStore, PG_SOCKET_ENV, PGLITE_DATA_DIR_NAME, type SiteStore, StorageNotAvailableError } from "../open-site-store.js";
 import { StorageSecretError } from "../storage-secret.js";
 
 /**
@@ -29,7 +28,13 @@ import { StorageSecretError } from "../storage-secret.js";
  *   (Postgres opening for real: `create-site-route-deps.postgres.test.ts`.)
  *   (PGlite opening for real: `create-site-route-deps.pglite.integration.test.ts`.)
  *   Given an expired guest chat in chat.db         -> the API process's composition deletes it (sweep started)
+ *   Given a chat that expires after startup        -> a later pass on the sweep's interval deletes it
+ *   Given the store closing during a sweep pass    -> close waits for the pass, then closes chat.db
  *   Given the agent daemon's composition (client)  -> no sweep; the expired chat stays
+ *   Given chat.db cannot open                      -> rejected; an opened content.db is closed, a supplied one stays open
+ *   Given a supplied content.db                    -> close() closes chat.db only
+ *   Given a PGlite/Postgres preparation failure    -> rejected; the owner lock / the pool is released
+ *                                                     (Postgres: `open-site-store.postgres.test.ts`)
  */
 
 /** The demo seed with its first post twice: the second insert breaks the posts primary key mid-preparation. */
@@ -65,6 +70,11 @@ function chatIds(chatDbPath: string): string[] {
   } finally {
     chat.close();
   }
+}
+
+/** Every boot-time write the composition started (its `*Ready` promises), so the store can close after. */
+async function bootSettled(deps: object): Promise<void> {
+  await Promise.all(Object.entries(deps).filter(([key]) => key.endsWith("Ready")).map(([, value]) => value));
 }
 
 async function waitFor(check: () => boolean, label: string): Promise<void> {
@@ -229,39 +239,87 @@ test("the API process's composition starts the guest-chat expiry sweep on chat.d
   }
 });
 
-test("the agent daemon's composition (client) leaves the sweep to the API process", async () => {
+test("the API process's sweep re-runs on its interval: a chat that expires after startup goes on a later pass", async () => {
   const dir = mkSiteDir();
+  let store: SiteStore | undefined;
   try {
     const chatDbPath = path.join(dir, "chat.db");
     seedGuestChats(chatDbPath);
-    const deps = await createSiteRouteDeps(path.join(dir, "content.db"), { storeRole: "client" });
-    await deps.commentsReady;
-    // Observe the boot collaborator in a fresh module graph, independent of sweep scheduling.
-    fs.mkdirSync(path.join(dir, "probe"));
-    const child = spawnSync(process.execPath, ["--import", "tsx", "--experimental-test-module-mocks", "--input-type=module", "-e", `
-      import assert from "node:assert/strict";
-      import { mock } from "node:test";
-      process.argv[1] = ${JSON.stringify(new URL(import.meta.url).pathname)};
-      let starts = 0;
-      mock.module("#src/assistant/persistence/chat-expiry-sweep", {
-        namedExports: { startChatExpirySweep() { starts++; return async () => {}; } },
-      });
-      const { createSiteRouteDeps } = await import(${JSON.stringify(new URL("../deps.ts", import.meta.url).href)});
-      for (const [role, expected] of [["client", 0], ["owner", 1]]) {
-        let store;
-        try {
-          const deps = await createSiteRouteDeps(${JSON.stringify(path.join(dir, "probe", "content.db"))}, {
-            storeRole: role, onStoreOpened: opened => { store = opened; },
-          });
-          await Promise.all(Object.entries(deps).filter(([key]) => key.endsWith("Ready")).map(([, value]) => value));
-          assert.equal(starts, expected, role + " sweep starts");
-        } finally { await store?.close(); }
-      }
-    `], { encoding: "utf8", timeout: 30_000 });
-    assert.equal(child.error, undefined);
-    assert.equal(child.status, 0, child.stderr || child.stdout);
+    let clock = Date.now();
+    let passes = 0;
+    const now = (): number => {
+      passes++;
+      return clock;
+    };
+    const deps = await createSiteRouteDeps(path.join(dir, "content.db"), {
+      chatExpirySweep: { intervalMs: 20, now },
+      onStoreOpened: (opened) => (store = opened),
+    });
+    await bootSettled(deps);
+    await waitFor(() => passes >= 3, "two passes after the boot pass");
+    assert.deepEqual(chatIds(chatDbPath), ["fresh"], "the boot pass took the expired chat; later passes keep the unexpired one");
+    clock += 2 * 3_600_000; // "fresh" expired an hour ago, by the sweep's clock
+    await waitFor(() => chatIds(chatDbPath).length === 0, "a later pass to sweep the chat that expired after startup");
+  } finally {
+    await store?.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("closing the API process's store waits for the sweep pass in flight before closing chat.db", async () => {
+  const dir = mkSiteDir();
+  let store: SiteStore | undefined;
+  try {
+    const chatDbPath = path.join(dir, "chat.db");
+    seedGuestChats(chatDbPath);
+    let clock = Date.now();
+    let armed = false;
+    let closing: Promise<void> | undefined;
+    // A pass reads the clock synchronously, then queries; the queued close therefore starts while
+    // that pass's delete is still pending.
+    const now = (): number => {
+      if (armed && closing === undefined) queueMicrotask(() => (closing = store?.close()));
+      return clock;
+    };
+    const deps = await createSiteRouteDeps(path.join(dir, "content.db"), {
+      chatExpirySweep: { intervalMs: 20, now },
+      onStoreOpened: (opened) => (store = opened),
+    });
+    await bootSettled(deps);
+    clock += 2 * 3_600_000;
+    armed = true;
+    await waitFor(() => closing !== undefined, "a pass to start, and the store to start closing during it");
+    await closing;
+    assert.equal(sqliteConnectionOf(store!.chat)?.open, false, "chat.db is closed");
+    assert.deepEqual(chatIds(chatDbPath), [], "the pass in flight finished its delete before chat.db closed");
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("the agent daemon's composition (client) never starts the sweep", async () => {
+  const dir = mkSiteDir();
+  let store: SiteStore | undefined;
+  try {
+    const chatDbPath = path.join(dir, "chat.db");
+    seedGuestChats(chatDbPath);
+    let passes = 0;
+    const now = (): number => {
+      passes++;
+      return Date.now();
+    };
+    const deps = await createSiteRouteDeps(path.join(dir, "content.db"), {
+      storeRole: "client",
+      chatExpirySweep: { intervalMs: 20, now },
+      onStoreOpened: (opened) => (store = opened),
+    });
+    await bootSettled(deps);
+    // A started sweep runs its first pass synchronously while the composition opens its store, so a
+    // clock never read means no sweep, without waiting on the timer.
+    assert.equal(passes, 0, "no sweep pass on a client");
     assert.deepEqual(chatIds(chatDbPath), ["expired", "fresh"]);
   } finally {
+    await store?.close();
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });

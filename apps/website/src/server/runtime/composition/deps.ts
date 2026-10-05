@@ -609,6 +609,12 @@ export interface CreateSiteRouteDepsOverrides {
    */
   storeRole: SiteStoreRole;
   /**
+   * The owner's guest-chat expiry sweep timing (`startChatExpirySweep`): its re-run interval and
+   * clock. Omitted, the sweep runs hourly on `Date.now`; tests pass a short interval and a
+   * controlled clock to observe later passes and closing during one.
+   */
+  chatExpirySweep: { intervalMs?: number; now?: () => number };
+  /**
    * A workspace id to serve, validated against the store this call opens (`resolveWorkspace`
    * rejects an id with no row). The Postgres/PGlite form of `db` + `workspaceId`, which need the
    * SQLite handle the id was validated against; see {@link createSiteRouteDepsForWorkspace}.
@@ -765,7 +771,7 @@ async function openCompositionStore(
   // seed) unless `overrides.db`, then `chat.db` beside it (`defaultChatDbPath`). `chat.db`'s
   // directory is `dirname(dbPath)`, which the content open already required to exist.
   const opened = supplied ?? (await openSiteStore({ storage, dbPath, chatDbPath: defaultChatDbPath(dbPath), role }, { db: overrides?.db }));
-  const stopChatSweep = startOwnerChatExpirySweep(role, opened.chat);
+  const stopChatSweep = startOwnerChatExpirySweep(role, opened.chat, overrides?.chatExpirySweep);
   // Owner only, just like chat retention. Stop both passes before closing the supplied/opened
   // store, including composition-failure cleanup. Jini's export and migration 0006 gate the IP sweep.
   const stopSubmissionIpSweep = role === "owner"
@@ -784,8 +790,12 @@ async function openCompositionStore(
 }
 
 /** The guest-chat expiry sweep, on the owner only; its stop function (a no-op on a client). */
-function startOwnerChatExpirySweep(role: SiteStoreRole, chat: SiteStore["chat"]): () => Promise<void> {
-  return role === "owner" ? startChatExpirySweep(chat) : async () => {};
+function startOwnerChatExpirySweep(
+  role: SiteStoreRole,
+  chat: SiteStore["chat"],
+  timing: CreateSiteRouteDepsOverrides["chatExpirySweep"] = {}
+): () => Promise<void> {
+  return role === "owner" ? startChatExpirySweep(chat, timing) : async () => {};
 }
 
 /**
