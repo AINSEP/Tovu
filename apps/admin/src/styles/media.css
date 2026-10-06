@@ -413,3 +413,19 @@
    `components/TabBar` now (`Media.tsx`, `Media.hooks.tsx`'s `resolveMediaTabs`), the same
    underline-and-icon primitive every other tab row in this admin uses, so its rules are
    `styles.css`'s `.tab-bar*` block. Nothing else ever used these two classes. */
+
+/* Phones (mobile catalog ME-1/ME-3, 2026-10-06). The upload and import rows mixed a ~160px field
+   with half-width ones (Remote URL and its Alt text at ~165px each, the button wrapping alone);
+   here each field takes the width it is given — the remote URL a whole line, each alt text the
+   line beside its own button. Below 480px the library is two columns, not one 360px card per
+   screen (107 items was ~38,000px of scrolling). */
+@media (max-width: 640px) {
+  .page:has(> .media-grid) > .toolbar { flex-wrap: wrap; }
+  .page:has(> .media-grid) > .toolbar > input:not(.file-input) { flex: 1 1 140px; width: auto; min-width: 0; }
+  .page:has(> .media-grid) > .toolbar:not(:has(> .file-input)) > input:first-child { flex-basis: 100%; }
+  /* Wide enough basis that the upload row's alt text drops under "Choose file" beside Upload. */
+  .page:has(> .media-grid) > .toolbar:has(> .file-input) > input:not(.file-input) { flex-basis: 200px; }
+}
+@media (max-width: 480px) {
+  .media-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+}
