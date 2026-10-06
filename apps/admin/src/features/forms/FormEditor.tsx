@@ -11,6 +11,7 @@ import { useFieldAttributesDialog } from "./hooks/use-field-attributes-dialog.ho
 import { useFormFieldsEditor } from "./hooks/use-form-fields-editor.hooks";
 import { useWiredFormSubmissionDetail } from "./hooks/use-form-submission-detail.hooks";
 import { useWiredFormSubmissions } from "./hooks/use-form-submissions.hooks";
+import { useFormSubmissionDate } from "./hooks/use-form-submission-date.hooks";
 import { useWiredFormEditor } from "./hooks/use-form-editor.hooks";
 
 /**
@@ -483,6 +484,10 @@ export interface FormSubmissionDetailProps {
   t: (key: string) => string;
 }
 
+function FormSubmissionDate({ date }: { date: { text: string; full: string; dateTime: string | undefined } }) {
+  return <time dateTime={date.dateTime} title={date.full}>{date.text}</time>;
+}
+
 function FormSubmissionDetail({
   formId,
   submissionId,
@@ -491,6 +496,7 @@ function FormSubmissionDetail({
   useFormSubmissionDetailHook = useWiredFormSubmissionDetail,
   t,
 }: FormSubmissionDetailProps) {
+  const formatDate = useFormSubmissionDate({});
   const { submission, error, confirmOpen, deleting, requestDelete, cancelDelete, confirmDelete } = useFormSubmissionDetailHook({
     formId,
     submissionId,
@@ -522,7 +528,7 @@ function FormSubmissionDetail({
           <tbody>
             <tr>
               <th>{t("Submitted at")}</th>
-              <td>{submission.submittedAt}</td>
+              <td><FormSubmissionDate date={formatDate({ iso: submission.submittedAt })} /></td>
             </tr>
             <tr>
               <th>{t("Source IP")}</th>
@@ -574,6 +580,7 @@ export interface FormSubmissionsProps {
 }
 
 function FormSubmissions({ formId, useFormSubmissionsHook = useWiredFormSubmissions, t, answerColumns = [] }: FormSubmissionsProps) {
+  const formatDate = useFormSubmissionDate({});
   const { submissions, nextCursor, error, selectedId, setSelectedId, load, loadingMore } = useFormSubmissionsHook({ formId });
 
   if (selectedId) {
@@ -616,7 +623,7 @@ function FormSubmissions({ formId, useFormSubmissionsHook = useWiredFormSubmissi
         rows={submissions}
         rowKey={(s) => s.id}
         columns={[
-          { key: "submitted-at", header: t("Submitted at"), cell: (s) => s.submittedAt },
+          { key: "submitted-at", header: t("Submitted at"), cell: (s) => <FormSubmissionDate date={formatDate({ iso: s.submittedAt })} /> },
           { key: "source-ip", header: t("Source IP"), cell: (s) => s.sourceIp },
           ...answerColumns,
           {

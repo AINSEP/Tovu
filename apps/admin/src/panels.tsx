@@ -505,9 +505,9 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
           // rather than off `window` so the component stays a pure function of its props.
           //
           // `?page=` (2026-08-27, optional) picks which of that theme's pages to open on — set by
-          // the Pages screen's "Theme Pages" rows. `?? undefined` rather than `themeId`'s `?? ""`:
-          // an absent `?page=` is a genuine, ordinary state (open the default page), whereas an
-          // absent `?theme=` is a malformed URL that has no screen to show.
+          // the Pages screen's "Theme Pages" rows. `?? undefined` opens the default page when
+          // absent. An absent `?theme=` now resolves to the active theme in ThemeExplore's hook
+          // before mounting the editor; an empty ID must never request the theme registry route.
           //
           // `?file=` (2026-08-30, optional) is the general, full-relative-path form this screen
           // writes back for a NON-page file (`theme-explore-url.hooks.ts`'s

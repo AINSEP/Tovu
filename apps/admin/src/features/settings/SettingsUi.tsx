@@ -129,6 +129,7 @@ import { t as tWorkspace } from "../workspace/workspace-i18n";
 import { describeSaveStatus, resolveByokConfig } from "./rules";
 import { useWiredSettingsLocaleSync } from "./hooks/use-settings-locale-sync.hooks";
 import { useSettingsUi, type SettingsUiController } from "./hooks/use-settings-ui.hooks";
+import { useSettingsActiveTabScroll } from "./hooks/use-settings-active-tab-scroll.hooks";
 import type { Translate } from "../../lib/dictionary-translator";
 import { useWiredAdminExecutionCredential } from "../../hooks/use-admin-execution-credential.hooks";
 import { AdminByokKeyFooter, AdminByokMigrationPrompt, AdminByokSettingsFooter } from "../../components/AdminByokKeyPanel";
@@ -283,6 +284,7 @@ export function SettingsUi(props: SettingsUiProps) {
   const tabId = resolveTabId(props.tabId);
   useEffect(() => { if (props.tabId === "skills") navigate("/skills", { replace: true }); }, [props.tabId]);
   const s: SettingsUiController = useSettingsUiHook();
+  const settingsRootRef = useSettingsActiveTabScroll({ ready: !s.loading, tabId });
 
   /**
    * `SettingsDialogShell` renders `tabs[].label/title/subtitle` verbatim — it only calls `t()` on
@@ -790,7 +792,7 @@ export function SettingsUi(props: SettingsUiProps) {
           `settings-ui-section` (Agent Plugins, Authentication, AI Assistant, the placeholder tabs,
           and this one), so anything meant for the Settings page alone must not select on the
           shared class. `data-theme` is pinned — see the comment above `return`. */}
-      <div className="settings-ui-section settings-page" data-theme="light">
+      <div ref={settingsRootRef} className="settings-ui-section settings-page" data-theme="light">
         {s.loadError ? (
           <p className="settings-ui-load-error" role="alert">
             {t("Could not load saved settings (")}{s.loadError}{t("). Showing defaults — edits will still save.")}

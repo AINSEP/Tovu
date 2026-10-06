@@ -1057,6 +1057,42 @@ describe("EditMediaModal — eye-icon trigger", () => {
     expect(within(dialog as HTMLElement).getByLabelText("Title")).toHaveValue("Sunset Photo");
   });
 
+  it("a phone card's title opens its metadata dialog and its row menu remains independent", async () => {
+    const matchMedia = vi.spyOn(window, "matchMedia").mockImplementation((query) => ({
+      matches: query === "(max-width: 640px)", media: query, onchange: null,
+      addListener: vi.fn(), removeListener: vi.fn(), addEventListener: vi.fn(), removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+    try {
+      fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
+      const user = userEvent.setup();
+      const { container } = renderScreen();
+      const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
+      const dialog = document.querySelector("dialog.media-edit-dialog") as HTMLElement;
+      await user.click(within(card).getByRole("button", { name: 'Actions for "Sunset Photo"' }));
+      expect(dialog.hasAttribute("open")).toBe(false);
+      await user.keyboard("{Escape}");
+      await user.click(within(card).getByRole("button", { name: "Edit metadata: Sunset Photo" }));
+      await waitFor(() => expect(dialog.hasAttribute("open")).toBe(true));
+      expect(within(dialog).getByLabelText("Title")).toHaveValue("Sunset Photo");
+      expect(within(dialog).getByRole("heading", { name: 'Editing "Sunset Photo"' }).textContent).toBe('Editing "Sunset Photo"');
+      expect(document.querySelector("dialog.media-lightbox")?.hasAttribute("open")).toBe(false);
+    } finally {
+      matchMedia.mockRestore();
+    }
+  });
+
+  it("keeps the desktop card title as text with the existing eye action", async () => {
+    fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
+    const user = userEvent.setup();
+    const { container } = renderScreen();
+    const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
+    expect(within(card).queryByRole("button", { name: "Edit metadata: Sunset Photo" })).toBeNull();
+    await user.click(within(card).getByText("Sunset Photo"));
+    expect(document.querySelector("dialog.media-edit-dialog")?.hasAttribute("open")).toBe(false);
+    expect(within(card).getByRole("button", { name: 'Edit "Sunset Photo"' })).toBeInTheDocument();
+  });
+
   it("is a single shared <dialog>, not one per card", async () => {
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
     renderScreen();

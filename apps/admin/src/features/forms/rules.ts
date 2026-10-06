@@ -61,6 +61,23 @@ export interface FormDateLine {
   label: string;
 }
 
+/** One form event's compact local date and full tooltip. Shared by definitions and submissions;
+ * malformed legacy values stay visible as a dash rather than throwing during table rendering. */
+export function formDateDisplay(
+  { iso, locale }: { iso: string; locale: string },
+  { timeZone }: { timeZone?: string } = {},
+): { text: string; full: string; dateTime: string | undefined } {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return { text: "—", full: "—", dateTime: undefined };
+  return {
+    text: new Intl.DateTimeFormat(locale, { dateStyle: "short", timeStyle: "short", timeZone }).format(date),
+    full: new Intl.DateTimeFormat(locale, {
+      year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone,
+    }).format(date),
+    dateTime: date.toISOString(),
+  };
+}
+
 /** Form-specific date copy. The shared admin timestamp helper intentionally slices ISO text
  * and its relative helper is English-only; these two events need the operator's locale and
  * browser time zone. Absolute dates remain accurate while the list stays open without a timer.
@@ -70,7 +87,7 @@ export interface FormDateLine {
  * displayed short text, so edits within the same minute collapse and the rule follows the locale's
  * own precision. Intl picks the date order — never a hand-built "M/D/YY".
  *
- * @complexity O(1) time and space — two dates, two formatters.
+ * @complexity O(1) time and space — two dates, fixed-size formatting.
  */
 export function formDatesLines(
   { form, locale, t }: {
@@ -80,18 +97,8 @@ export function formDatesLines(
   },
   { timeZone }: { timeZone?: string } = {},
 ): FormDateLine[] {
-  const shortFormatter = new Intl.DateTimeFormat(locale, { dateStyle: "short", timeStyle: "short", timeZone });
-  const fullFormatter = new Intl.DateTimeFormat(locale, {
-    year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone,
-  });
-  const describe = (iso: string) => {
-    const date = new Date(iso);
-    return Number.isNaN(date.getTime())
-      ? { text: "—", full: "—", dateTime: undefined }
-      : { text: shortFormatter.format(date), full: fullFormatter.format(date), dateTime: date.toISOString() };
-  };
-  const created = describe(form.createdAt);
-  const updated = describe(form.updatedAt);
+  const created = formDateDisplay({ iso: form.createdAt, locale }, { timeZone });
+  const updated = formDateDisplay({ iso: form.updatedAt, locale }, { timeZone });
   if (created.text === updated.text) {
     const label = t("Created {created} · Updated {updated}")
       .replace("{created}", created.full)

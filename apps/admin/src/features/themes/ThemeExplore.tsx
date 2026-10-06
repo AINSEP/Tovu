@@ -30,6 +30,7 @@ import {
   type ThemeExploreView,
 } from "./hooks/use-theme-explore.hooks";
 import { useThemeExploreFullscreen } from "./ThemeExplore.hooks";
+import { useWiredThemeExploreTheme } from "./hooks/use-theme-explore-theme.hooks";
 
 /**
  * @file Explore — edit any theme, active or not, and see it rendered.
@@ -1165,7 +1166,19 @@ function ThemeExploreFullscreenDialog({
   );
 }
 
-export function ThemeExplore({
+export function ThemeExplore(props: ThemeExploreProps) {
+  const resolved = useWiredThemeExploreTheme({ themeId: props.themeId });
+  if (resolved.loading) return <div className="notice">{resolved.t("Loading theme…")}</div>;
+  if (!resolved.themeId) return (
+    <div className={`notice${resolved.error ? " error" : ""}`}>
+      <p>{resolved.error ?? resolved.t("No theme is active. Your site renders unstyled so you can supply your own CSS; posts, pages and products still publish normally. Activate a theme below to switch back at any time — nothing was deleted.")}</p>
+      <a href={siteUrl("/admin/themes")}>{resolved.t("Themes")}</a>
+    </div>
+  );
+  return <ThemeExploreContent {...props} themeId={resolved.themeId} />;
+}
+
+function ThemeExploreContent({
   themeId,
   pageId,
   fileId,

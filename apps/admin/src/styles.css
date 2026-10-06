@@ -741,6 +741,11 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
   .theme-explore-files-wrap { position: static; }
   .theme-explore-files { position: static; inset: auto; max-height: 240px; }
 }
+/* TH-4: once the file list has its own row on a phone, use the page's scroller. The capped
+   tablet/desktop layout above still keeps a long list from inflating its neighbouring pane. */
+@media (max-width: 640px) {
+  .theme-explore-files { max-height: none; overflow-y: visible; overscroll-behavior: auto; }
+}
 .theme-explore-files ul { list-style: none; margin: 0 0 var(--space-4); padding: 0; }
 /* Group headings stay visible while their own group scrolls past — with six groups and 60 entries,
    a name alone does not say whether you are looking at a script or an asset. */
@@ -6050,12 +6055,77 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   .admin-content :is(button, [role="button"]):not([role="switch"]) { min-width: 40px; }
   .admin-content :is(input[type="checkbox"], input[type="radio"]) { width: 20px; height: 20px; }
 
+  /* OB-1 (also Settings Privacy): a touch-synthesized hover must not leave an inactive tab
+     looking pressed. The active underline and keyboard focus outline still convey state. */
+  .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-nav-item,
+  .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-nav-item:hover {
+    background: transparent;
+  }
+
+  /* TR-2: bulk actions only take space once there is a selection; busy selected actions stay
+     visible and disabled, so their progress does not cause the toolbar to jump. */
+  .trash-toolbar[data-selection-empty="true"] .trash-bulk-action { display: none; }
+
+  /* DB-1/AI-4/FO-4: short desktop rows become labelled, full-width fields on phones. */
+  .database-filter-bar { display: grid; grid-template-columns: minmax(0, 1fr); width: 100%; }
+  .database-filter-bar .field { min-width: 0; width: 100%; }
+  .database-filter-bar :is(input, select) { width: 100%; min-width: 0; }
+  .database-filter-bar > button { justify-self: start; }
+  .theme-explore-files-heading { position: static; }
+  .settings-ui-section .jini-byok-model-row { flex-direction: column; align-items: stretch; }
+  .settings-ui-section .jini-byok-model-row > .jini-field { flex: 0 1 auto; width: 100%; }
+  .settings-ui-section .jini-byok-model-row > .jini-byok-test-btn { align-self: flex-start; }
+  /* CustomSelect receives jini-input on its wrapper as well as drawing its own trigger border.
+     Keep only the trigger box so the phone model field matches the neighbouring inputs. */
+  .settings-ui-section .jini-byok-model-row .jini-select.jini-input {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  /* PO-3: labels start their own line; featured-image controls can still sit beside each other. */
+  .page > .editor-publishing-fields { justify-content: flex-start; align-items: stretch; }
+  .editor-publishing-fields > .editor-publishing-field { flex: 1 1 100%; flex-wrap: wrap; min-width: 0; }
+  .editor-publishing-fields .field-label { flex-basis: 100%; text-align: left; }
+  .editor-publishing-fields input { width: 100%; min-width: 0; }
+
+  /* DE-3: keep the overview title intact, with the explanatory badge on the next line. */
+  .deployment-path-head { flex-wrap: wrap; }
+  .deployment-path-head > .status {
+    flex-basis: auto;
+    margin-left: calc(2.25rem + var(--space-3));
+    max-width: calc(100% - 2.25rem - var(--space-3));
+    white-space: normal;
+  }
+  .deployment-path-head > .card-title { flex-basis: calc(100% - 2.25rem - var(--space-3)); }
+
+  /* AP-3: the page owns phone scrolling; release every fixed-height shell layer together. */
+  .settings-ui-section.agent-plugins-section,
+  .agent-plugins-section .jini-tabbed-dialog,
+  .agent-plugins-section .jini-tabbed-dialog-body,
+  .agent-plugins-section .jini-tabbed-dialog-content {
+    height: auto;
+    max-height: none;
+    min-height: 0;
+  }
+  .agent-plugins-section .jini-tabbed-dialog,
+  .agent-plugins-section .jini-tabbed-dialog-content { overflow: visible; overscroll-behavior: auto; }
+
+  /* The drawer's active indicator belongs inside its gutter, not against the screen edge. */
+  .cms-nav .cms-item.active::before { left: -6px; border-radius: var(--r-pill); }
+
   /* A card row opens its record from anywhere on the card, not only from the ~16px-tall title
      link (US-2): the title link's `::after` stretches over the whole row, and the row's own
      controls sit above it so they still get their taps. */
   table.list-table > tbody > tr:has(> td:first-child > a[href]) { position: relative; }
   table.list-table > tbody > tr > td:first-child > a[href]::after { content: ""; position: absolute; inset: 0; }
   table.list-table > tbody > tr > td:not(:first-child) :is(a, button, select, input, label) { position: relative; z-index: 1; }
+}
+
+@media (max-width: 480px) {
+  .sites-grid { grid-template-columns: minmax(0, 1fr); }
+  .form-editor-panel .field-row:has(#form-name) { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* ------------------------------------------------------------------------

@@ -189,6 +189,27 @@
   padding: var(--space-3) var(--space-4);
 }
 
+/* ME-4: the title's native button opens the same details as the eye/menu action. Stretch its
+   target over the phone card body, with the independent row menu above it. */
+@media (max-width: 640px) {
+  .media-card-body { position: relative; }
+  .media-card-body .media-card-details {
+    display: block;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .media-card-details::after { content: ""; position: absolute; inset: 0; }
+  .media-card-body .row-menu-trigger { position: relative; z-index: 1; }
+}
+
 .media-card-title {
   font-size: var(--text-sm);
   font-weight: 600;

@@ -189,3 +189,42 @@
   padding-inline: 4px;
   margin-inline: -4px;
 }
+
+/* The phone tap-target floor enlarges Memory's icon buttons. Let control rows wrap instead
+ * of keeping Jini's intrinsic, non-shrinking width and clipping the last switch (SE-2). */
+@media (max-width: 640px) {
+  .admin-content .memory-panel-head-controls {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 100%;
+    flex-wrap: wrap;
+  }
+  .admin-content .memory-panel-seg {
+    flex: 1 1 180px;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .admin-content .memory-panel-seg .jini-seg-btn {
+    padding-inline: 8px;
+    overflow-wrap: anywhere;
+  }
+  .admin-content .memory-panel-head-copy { min-width: 0; overflow-wrap: anywhere; }
+  .admin-content .jini-toggle-row-text {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  /* SE-4: the 40px button floor and the custom colour input must use the same circular box. */
+  .admin-content :is(.jini-accent-swatch, .jini-accent-swatch-picker) {
+    flex: 0 0 40px;
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+    max-width: 40px;
+    max-height: 40px;
+    aspect-ratio: 1;
+    padding: 0;
+    border-radius: 50%;
+  }
+}

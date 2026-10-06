@@ -1,10 +1,11 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { executePageCapability } from "@jini-ai/agentic/core";
 import { createDomPageDriver } from "@jini-ai/agentic/dom";
 
 import { ThemeExplore } from "../ThemeExplore";
+import { api } from "@/lib/api";
 import type { ThemeExploreController, ThemeExploreFile } from "../hooks/use-theme-explore.hooks";
 
 /**
@@ -131,6 +132,55 @@ function renderExplore(overrides: Partial<ThemeExploreController> = {}) {
   const utils = render(<ThemeExplore themeId="novice" useThemeExploreHook={useThemeExploreHook} />);
   return { ctrl, ...utils };
 }
+
+describe("Explore without a theme query parameter", () => {
+  it("loads the active theme before mounting the editor instead of requesting /themes/", async () => {
+    const presentation = vi.spyOn(api, "getPresentation").mockResolvedValue({
+      settings: { workspaceId: "workspace-local", activeThemeId: "novice", updatedAt: "2026-10-06T00:00:00Z" },
+      availableThemeIds: ["novice"], availableThemes: [{ id: "novice", tier: "static" }],
+    } as Awaited<ReturnType<typeof api.getPresentation>>);
+    const getDetail = vi.spyOn(api, "getThemeDetail").mockImplementation(async (themeId) => {
+      // The empty ID reproduces the registry-shaped response that caused files.map to fail.
+      if (!themeId) return { themes: [] } as never;
+      return {
+        id: "novice", name: "Novice", tier: "static", status: "valid", errors: [],
+        hasOriginal: true, pages: ["index"], partials: [],
+        files: [{ path: "pages/index.html", group: "page" as const, readable: true, editable: true, resettable: true }],
+      };
+    });
+    const getFile = vi.spyOn(api, "getThemeFile").mockResolvedValue({ path: "pages/index.html", content: "<h1>Home</h1>" });
+    try {
+      render(<ThemeExplore themeId="" />);
+      expect(getDetail.mock.calls).toEqual([]);
+      await waitFor(() => expect(screen.getByTitle("Theme preview")).toBeInTheDocument());
+      expect(presentation).toHaveBeenCalledTimes(1);
+      expect(getDetail.mock.calls).toEqual([["novice"]]);
+      await waitFor(() => expect(getFile.mock.calls).toEqual([["novice", "pages/index.html"]]));
+      expect(new URL((screen.getByTitle("Theme preview") as HTMLIFrameElement).src).pathname).toBe("/theme-explore/novice/index");
+    } finally {
+      presentation.mockRestore();
+      getDetail.mockRestore();
+      getFile.mockRestore();
+    }
+  });
+
+  it("offers a Themes link when no theme is active and never mounts an empty-ID editor", async () => {
+    const presentation = vi.spyOn(api, "getPresentation").mockResolvedValue({
+      settings: { workspaceId: "workspace-local", activeThemeId: "", updatedAt: "2026-10-06T00:00:00Z" },
+      availableThemeIds: [], availableThemes: [],
+      activeThemeTemplates: [], activeThemeStaticPageIds: [],
+    });
+    const useThemeExploreHook = vi.fn(() => controller());
+    try {
+      render(<ThemeExplore themeId="" useThemeExploreHook={useThemeExploreHook} />);
+      expect((await screen.findByRole("link", { name: "Themes" })).getAttribute("href")).toBe("/admin/themes");
+      expect(useThemeExploreHook.mock.calls).toEqual([]);
+      expect(screen.queryByTitle("Theme preview")).toBeNull();
+    } finally {
+      presentation.mockRestore();
+    }
+  });
+});
 
 describe("preview src — pages, partials, and templates", () => {
   it("points a selected PAGE's preview at /theme-explore/{theme}/{pageId}", () => {

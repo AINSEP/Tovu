@@ -1,8 +1,22 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { ApiError, type AdminFormDefinition } from "@/lib/api";
-import { describeTrashError, formDatesLines, formRowMenuItems, formsListError, newestUpdatedForms } from "../rules";
+import { describeTrashError, formDateDisplay, formDatesLines, formRowMenuItems, formsListError, newestUpdatedForms } from "../rules";
 import { t } from "../forms-i18n";
+
+describe("submission date display", () => {
+  it("uses local date and time while preserving the precise submission instant", () => {
+    expect(formDateDisplay({ iso: "2026-10-06T03:12:05.365Z", locale: "en-US" }, { timeZone: "America/Los_Angeles" })).toEqual({
+      text: "10/5/26, 8:12 PM", full: "Oct 5, 2026, 8:12 PM", dateTime: "2026-10-06T03:12:05.365Z",
+    });
+    expect(formDateDisplay({ iso: "2026-10-06T03:12:05.365Z", locale: "en-GB" }, { timeZone: "UTC" }).text)
+      .toBe("06/10/2026, 03:12");
+  });
+
+  it.each(["", "invalid"])("shows a dash for a malformed stored timestamp (%s)", (iso) => {
+    expect(formDateDisplay({ iso, locale: "en-US" })).toEqual({ text: "—", full: "—", dateTime: undefined });
+  });
+});
 
 /**
  * @file T7a (2026-09-21) pure-logic coverage: the forms-delete confirm flow's `RowMenu` items, its

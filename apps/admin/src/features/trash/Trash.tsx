@@ -123,7 +123,7 @@ function TrashToolbar(props: { controller: TrashController; selectedCount: numbe
   const none = selectedCount === 0 || controller.busy;
 
   return (
-    <div className="toolbar">
+    <div className="toolbar trash-toolbar" data-selection-empty={selectedCount === 0}>
       <span className="muted-cell">
         {interpolate(t(locale, "{count} selected"), { count: String(selectedCount) })}
       </span>
@@ -141,7 +141,7 @@ function TrashToolbar(props: { controller: TrashController; selectedCount: numbe
       </button>
       <button
         type="button"
-        className="btn-secondary"
+        className="btn-secondary trash-bulk-action"
         disabled={none}
         onClick={() => void controller.onRestoreSelected()}
         {...agentHandle({ handle: "trash-restore" }, { role: "button", label: t(locale, "Restore") })}
@@ -150,7 +150,7 @@ function TrashToolbar(props: { controller: TrashController; selectedCount: numbe
       </button>
       <button
         type="button"
-        className="btn-danger"
+        className="btn-danger trash-bulk-action"
         disabled={none}
         onClick={() => controller.setPurgeConfirmOpen(true)}
         {...agentHandle({ handle: "trash-purge" }, { role: "button", label: t(locale, "Delete permanently") })}

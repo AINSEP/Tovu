@@ -18,6 +18,7 @@ import {
 } from "./rules";
 import { useWiredMedia, type MediaController } from "./hooks/use-media.hooks";
 import { useWiredMediaPreview } from "./hooks/use-media-preview.hooks";
+import { useMediaCardDetails } from "./hooks/use-media-card-details.hooks";
 import { useWiredEditMediaPanel, type EditMediaPanelController } from "./hooks/use-edit-media-panel.hooks";
 import { useEditMediaModal } from "./hooks/use-edit-media-modal.hooks";
 import { useMediaLightbox } from "./hooks/use-media-lightbox.hooks";
@@ -1042,6 +1043,7 @@ function MediaGridOrEmpty({
   onTrash: (item: AdminMedia) => void;
   onRequestPurge: (item: AdminMedia | null) => void;
 }) {
+  const { isPhone, openDetails } = useMediaCardDetails({ onToggleEdit });
   if (visibleMedia.length === 0) {
     if (activeTab === "all") {
       return (
@@ -1072,7 +1074,12 @@ function MediaGridOrEmpty({
           </div>
           <div className="media-card-body">
             <p className="media-card-title" title={item.title}>
-              {item.title}
+              {isPhone ? <button
+                type="button"
+                className="media-card-details"
+                aria-label={`${t("Edit metadata")}: ${item.title}`}
+                onClick={() => openDetails(item)}
+              >{item.title}</button> : item.title}
             </p>
             <div className="media-card-meta">
               <span className={`status status-${item.status}`}><ServerLabel value={item.status} /></span>
