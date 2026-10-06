@@ -52,12 +52,23 @@ anything in `skipped` or `notes`. Then:
 site_backup_push({ planId: "<planId>" })
 ```
 
-**One call raises the confirmation dialog and waits.** There is no second call. Calling again while
-one is pending raises a second, separate dialog rather than answering the first.
+**No dialog: the push starts at once.** The plan you showed is the human's review, so show it
+first. The push re-checks the repository (still private, branch not moved, files unchanged) before
+the first upload.
 
-The `planId` is used up as soon as `site_backup_push` raises its dialog, whatever the human
-answers. After a cancel, an expiry or a failure, a second attempt starts with a fresh
-`site_backup_plan`.
+A large site can take longer than one call. The push waits about 4 minutes; if the upload is still
+running then, it returns `{ pushed: false, cancelled: false, inProgress: true, planId, progress,
+message }`, where `progress` is `{ filesDone, filesTotal, bytesDone, bytesTotal }`. Tell the human
+how far it got, then **call `site_backup_push` again with the same `planId`** to keep waiting. That
+does not start a second upload, and nothing is committed until every file is up: the backup is
+still one commit. Keep re-calling while it answers `inProgress`.
+
+The `planId` is used up when its push finishes, whatever the outcome. After a failure, a second
+attempt starts with a fresh `site_backup_plan`. A server restart drops a running push; nothing is
+committed, so plan again.
+
+GitHub hiccups (a timeout, a 5xx, a rate limit) are retried inside the push with backoff, up to 5
+tries per request. A failure that reaches you is final, and its message names the file it stopped at.
 
 ---
 
@@ -72,31 +83,23 @@ The repository must also **already have one commit**. An empty repository is ref
 
 ---
 
-## What the confirmation dialog shows
-
-Titled *Back up this site to owner/repo?*, it names the credential, the repository (marked
-private), the branch, and the folder: **replaced** (its current contents are removed) or
-**created**. It then lists the scopes (and any left out), the file count and total size, and the
-database snapshot's size. Anything skipped and any notes come next, then every file, one `path (size)`
-line each, capped at 200 lines.
-
-Its warning says three things. The database holds members, form submissions, admin accounts and
-saved credentials, encrypted with the site's Site key. The folder is replaced as a whole, and
-nothing outside it changes. And this is a real commit that Tovu cannot undo.
+## What the push returns
 
 | Result | Meaning |
 |---|---|
 | `{ pushed: true, commitSha, commitUrl, repository, branch, folder, filesWritten, totalBytes }` | Written. Report the SHA and URL. |
-| `{ pushed: false, cancelled: true }` | The human declined. Nothing was written. Say so and stop. |
-| `{ pushed: false, cancelled: false, reason: "expired" \| "abandoned" }` | Nobody answered in time, or the run ended first. Nothing was written. |
+| `{ pushed: false, cancelled: false, inProgress: true, planId, progress, message }` | Still uploading. Report the progress, then call `site_backup_push` again with the same `planId`. |
+| `{ pushed: false, cancelled: false, reason: "abandoned" }` | The run ended while the push was waiting. The upload stopped and nothing was committed. Plan again. |
 | `{ pushed: false, cancelled: false, code, message }` | Refused. See the codes below. Nothing was written. |
 
 ---
 
 ## Limits
 
-- **100 MiB per file.** That is GitHub's own limit. A larger file is refused, **never truncated
-  or split**, and every such file is named in the message, so one fix covers them all.
+- **100 MiB per file.** That is GitHub's own limit. A media, theme or plugin file over it is **left
+  out** of the backup and listed in the plan's `skipped` with its size, **never truncated or
+  split**; tell the human which files those are. A database snapshot over it fails the plan
+  (`LIMIT_EXCEEDED`), because a backup without its database is not a backup.
 - **At most 3000 files and 1 GiB in total.**
 
 Every limit is checked by the plan, before anything is uploaded (`LIMIT_EXCEEDED`). Relay the
@@ -135,7 +138,7 @@ own.
 | `PLAN_STALE` | A file on the site changed after the plan | Plan again, and show the new plan |
 | `DIVERGED_BRANCH` | Someone pushed to the branch after the plan. Nothing was written | Plan again, and show the new plan |
 | `PROVIDER_ERROR` | GitHub rejected a request | The message names what went wrong. Pass it on |
-| `NETWORK_UNREACHABLE` | GitHub could not be reached at all | Says nothing about the credential. Try again later, from a fresh plan |
+| `NETWORK_UNREACHABLE` | GitHub could not be reached, even after retries | Says nothing about the credential. Try again later, from a fresh plan |
 | `UNAVAILABLE` | This runtime has no site folder on disk | A backup cannot be made from here |
 | `SITE_BACKUP_FORBIDDEN` | The person lacks the backup or credential-write permission | An admin grants it. Nothing was touched |
 | `SITE_BACKUP_INVALID_INPUT` | A field was malformed | The message names the field. Fix it and plan again |

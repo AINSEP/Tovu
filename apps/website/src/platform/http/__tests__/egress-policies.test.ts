@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createPublishContentPeerEgressPolicy, parsePublishContentDevHosts } from "../egress-policies.js";
+import { createPublishContentPeerEgressPolicy, CUSTOM_CREDENTIALS_EGRESS_POLICY, parsePublishContentDevHosts, SITE_BACKUP_EGRESS_POLICY } from "../egress-policies.js";
 
 // F4.3/F7.2: an ignored allowlist or parser without lowercasing must fail.
 test("peer dev hosts normalize case and whitespace, drop empty entries and keep IPv6 literals", () => {
@@ -20,4 +20,9 @@ test("peer policy preserves the supplied hosts while bounding authenticated HTTP
     connectTimeoutMs: 30_000, maxResponseBytes: 100_663_296, maxDecompressedBytes: 100_663_296,
   });
   assert.deepEqual(createPublishContentPeerEgressPolicy([]).devHostAllowlist, []);
+});
+
+test("the site backup policy is the custom-credential one with a 2-minute idle ceiling, not 10 s (a 42 MiB blob timed out live)", () => {
+  assert.equal(CUSTOM_CREDENTIALS_EGRESS_POLICY.connectTimeoutMs, 10_000);
+  assert.deepEqual(SITE_BACKUP_EGRESS_POLICY, { ...CUSTOM_CREDENTIALS_EGRESS_POLICY, connectTimeoutMs: 120_000 });
 });

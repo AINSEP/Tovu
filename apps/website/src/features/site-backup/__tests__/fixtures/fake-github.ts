@@ -8,13 +8,25 @@ import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../../plat
  * the composed runtime's real egress client, so the plan and the push run through the real wiring.
  */
 
+/** What the next blob POST does instead of storing the blob: answer with this status (and headers),
+ *  or throw this transport error. */
+export type BlobFault = { readonly status: number; readonly headers?: Record<string, string>; readonly message?: string } | { readonly throws: Error };
+
 /** A GitHub stand-in for `octo/backups`, answering from mutable state so a test can change the world
  *  between the plan and the push. Every request is recorded; an unknown one is recorded as
- *  `unexpected` and answered 599 so it cannot pass silently. */
+ *  `unexpected` and answered 599 so it cannot pass silently. A tree entry may carry its file inline
+ *  (`content`, UTF-8) instead of a blob `sha`, as the backup push sends small text files. */
 export class FakeGitHub implements HttpClientPort {
   readonly calls: HttpRequest[] = [];
   readonly unexpected: string[] = [];
   readonly blobContents: Buffer[] = [];
+  /** Consumed one per blob POST, before the blob is stored. */
+  readonly blobFaults: BlobFault[] = [];
+  /** When set, every blob POST waits on it before answering (to hold a push mid-upload). */
+  blobGate: Promise<void> | undefined;
+  /** Blob POSTs being answered right now, and the most there ever were at once. */
+  blobsInFlight = 0;
+  maxBlobsInFlight = 0;
   readonly files = new Map<string, Buffer>([["README.md", Buffer.from("Outside the backup folder")]]);
   private readonly treeFiles = new Map<string, Map<string, Buffer>>();
   private commitTree: string | undefined;
@@ -36,11 +48,7 @@ export class FakeGitHub implements HttpClientPort {
       return json(200, { tree: { sha: `tree-of-${s.tip}` } });
     }
     if (route === "GET /contents/demo-site?ref=main") return s.folderExists ? json(200, [{ name: "tovu-backup.json" }]) : json(404, { message: "Not Found" });
-    if (route === "POST /git/blobs") {
-      const body = JSON.parse(request.body ?? "{}") as { content: string; encoding: string };
-      this.blobContents.push(Buffer.from(body.content, body.encoding === "base64" ? "base64" : "utf8"));
-      return json(201, { sha: `blob-${this.blobContents.length}` });
-    }
+    if (route === "POST /git/blobs") return this.createBlob(request);
     if (route === "POST /git/trees") {
       const body = JSON.parse(request.body ?? "{}");
       if (body.base_tree) assert.ok(this.treeFiles.has(body.base_tree), "base tree must exist");
@@ -51,6 +59,10 @@ export class FakeGitHub implements HttpClientPort {
           const subtree = this.treeFiles.get(entry.sha);
           assert.ok(subtree, "subtree must exist");
           for (const [name, bytes] of subtree) files.set(`${entry.path}/${name}`, bytes);
+        } else if (typeof entry.content === "string") {
+          assert.equal(entry.type, "blob");
+          assert.equal(entry.sha, undefined, "an inline entry carries content OR a sha, never both");
+          files.set(entry.path, Buffer.from(entry.content, "utf8"));
         } else {
           assert.equal(entry.type, "blob");
           const bytes = this.blobContents[Number(entry.sha.replace("blob-", "")) - 1];
@@ -82,6 +94,29 @@ export class FakeGitHub implements HttpClientPort {
     }
     this.unexpected.push(route);
     return json(599, { message: "unexpected request" });
+  }
+
+  private async createBlob(request: HttpRequest): Promise<HttpResponse> {
+    this.blobsInFlight += 1;
+    this.maxBlobsInFlight = Math.max(this.maxBlobsInFlight, this.blobsInFlight);
+    try {
+      if (this.blobGate) await this.blobGate;
+      // Yields once so blob requests started together are all in flight before any answers.
+      await new Promise((resolve) => setImmediate(resolve));
+      const fault = this.blobFaults.shift();
+      if (fault && "throws" in fault) throw fault.throws;
+      if (fault) return { status: fault.status, headers: fault.headers ?? {}, bodyText: JSON.stringify({ message: fault.message ?? "fault" }) };
+      const body = JSON.parse(request.body ?? "{}") as { content: string; encoding: string };
+      this.blobContents.push(Buffer.from(body.content, body.encoding === "base64" ? "base64" : "utf8"));
+      return json(201, { sha: `blob-${this.blobContents.length}` });
+    } finally {
+      this.blobsInFlight -= 1;
+    }
+  }
+
+  /** The git Data API writes in order, as `METHOD /path` relative to the repository. */
+  writeRoutes(): string[] {
+    return this.writes().map((c) => `${c.method} ${new URL(c.url).pathname.replace(/^\/repos\/octo\/backups/, "")}`);
   }
 
   writes(): HttpRequest[] {

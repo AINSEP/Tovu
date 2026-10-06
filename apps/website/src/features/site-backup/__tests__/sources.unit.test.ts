@@ -13,6 +13,7 @@ import {
   collectSiteBackupFiles,
   readPlannedFile,
   SITE_BACKUP_LIMITS,
+  skipOversizedFiles,
   type SiteBackupInclude,
   type SiteBackupSources,
 } from "../sources.js";
@@ -344,6 +345,14 @@ test("exactly 100 MiB is allowed; the total is summed", () => {
 test("a host that declares no per-file limit gets no per-file check, only this tool's own caps", () => {
   const result = checkSiteBackupLimits([{ path: "big", bytes: 200 * 1024 * 1024 }], { label: "Other Host" });
   assert.deepEqual(result, { ok: true, totalBytes: 200 * 1024 * 1024 });
+});
+
+test("a disk file over the host's per-file limit is left out and named in skipped with its size; exactly the limit stays", () => {
+  const file = (filePath: string, bytes: number) => ({ path: filePath, absPath: `/site/${filePath}`, bytes, mtimeMs: 1, scope: "media" as const });
+  const result = skipOversizedFiles([file("uploads/a.png", 10), file("uploads/movie.mp4", GITHUB_HOST.maxFileBytes + 1), file("uploads/b.png", GITHUB_HOST.maxFileBytes)], GITHUB_HOST);
+  assert.deepEqual(result.files.map((f) => f.path), ["uploads/a.png", "uploads/b.png"]);
+  assert.deepEqual(result.skipped, [{ path: "uploads/movie.mp4", reason: "100 MiB, over GitHub's 100 MiB per-file limit" }]);
+  assert.deepEqual(skipOversizedFiles([file("big", 200 * 1024 * 1024)], { label: "Other Host" }).skipped, [], "no declared limit, nothing skipped");
 });
 
 test("too many files, or too many bytes in total, is refused with the cap named", () => {

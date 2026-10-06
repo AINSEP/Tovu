@@ -18,7 +18,8 @@ import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { resolveAgentPluginLayout } from "../../agent-plugins/layout.js";
 import { SiteBackupPlanStore } from "../plan-store.js";
 import type { SiteBackupSources } from "../sources.js";
-import { buildSiteBackupRegistrations, siteBackupAgentToolCatalog, type SiteBackupToolDeps } from "../tool-registrations.js";
+import { SiteBackupPushJobs } from "../push-jobs.js";
+import { buildSiteBackupRegistrations, siteBackupAgentToolCatalog, type PushResult, type SiteBackupToolDeps } from "../tool-registrations.js";
 import { githubFromSource } from "../../source-control/__tests__/fixtures/github-from-source.js";
 import { InMemorySourceControlCredentialSetRepo } from "../../source-control/repo.memory.js";
 import { createSourceControlCredential } from "../../source-control/store.js";
@@ -33,8 +34,12 @@ import { createFakeClock } from "#src/__tests__/support/fake-clock";
  *
  * The properties this file owns:
  * - the plan is read-only (GETs only, no dialog) and a refusal costs no database snapshot;
- * - the push writes nothing until the human confirms, and re-checks what can change in between
- *   (visibility, the branch tip, the files) before the first blob is uploaded;
+ * - the push needs no dialog (a repository write is not gated since 6eac86229), and re-checks what
+ *   can change since the plan (visibility, the branch tip, the files) before the first blob is
+ *   uploaded;
+ * - a large push uploads a few files at a time, retries a transient host failure, names the file a
+ *   final failure stopped at, and outlasts one call: past its wait budget it reports progress, and a
+ *   re-call with the same planId waits on the same upload;
  * - a planId works once, for the principal that made it;
  * - a missing credential and an undecryptable one are different codes, and the decrypt error's own
  *   text never reaches the model;
@@ -148,6 +153,10 @@ interface HarnessOptions {
   useDefaultSiteKeyStatus?: boolean;
   withoutSources?: boolean;
   planNowMs?: () => number;
+  /** `deps.siteBackupPushWaitMs`; the real 4 minutes by default. */
+  pushWaitMs?: number;
+  /** Wraps the GitHub provider loader (to lower a host's file limit). */
+  providers?: SiteBackupToolDeps["loadSourceControlProviders"];
 }
 
 function harness(t: TestContext, options: HarnessOptions = {}) {
@@ -163,6 +172,8 @@ function harness(t: TestContext, options: HarnessOptions = {}) {
   const logLines: string[] = [];
   const surfaceExchanges = createSurfaceExchangeStore();
   const planStore = new SiteBackupPlanStore(options.planNowMs ? { now: options.planNowMs } : {});
+  /** Every retry wait the GitHub client asked for; none is slept. */
+  const sleeps: number[] = [];
 
   const deps: SiteBackupToolDeps = {
     authorize: async (params) => {
@@ -174,13 +185,16 @@ function harness(t: TestContext, options: HarnessOptions = {}) {
     sourceControlCredentialSetRepo: sourceControlRepo,
     siteAssistantSecretSealer: options.openSealer ? options.openSealer(sealer) : sealer,
     customCredentialsHttpClient: github,
-    loadSourceControlProviders: githubFromSource,
+    loadSourceControlProviders: options.providers ?? githubFromSource,
     dbOps,
     ...(options.withoutSources ? {} : { siteBackupSources: site.sources }),
     siteBackupPlanStore: planStore,
     ...(options.useDefaultSiteKeyStatus ? {} : { siteBackupSiteKeyStatus: options.siteKeyStatus ?? (() => ({ active: true })) }),
     siteBackupFailureLog: (line) => logLines.push(line),
     siteBackupNow: () => new Date(NOW),
+    siteBackupPushJobs: new SiteBackupPushJobs<PushResult>(),
+    siteBackupSleep: async (ms) => void sleeps.push(ms),
+    ...(options.pushWaitMs !== undefined ? { siteBackupPushWaitMs: options.pushWaitMs } : {}),
   };
   const writeDeps: CustomCredentialWriteDeps = {
     repo,
@@ -201,6 +215,7 @@ function harness(t: TestContext, options: HarnessOptions = {}) {
     site,
     github,
     dbOps,
+    sleeps,
     authorized,
     logLines,
     surfaceExchanges,
@@ -589,7 +604,7 @@ test("a network failure is NETWORK_UNREACHABLE; the detail goes to the server lo
 // site_backup_push
 // ---------------------------------------------------------------------------
 
-test("the push raises the dialog and touches GitHub not at all while it waits; confirm re-checks, then blobs -> 2 trees -> commit -> non-force ref update", async (t) => {
+test("the push re-checks the repository, uploads only the database as a blob (text rides inline), then 2 trees -> commit -> non-force ref update", async (t) => {
   const h = harness(t);
   h.github.files.set("demo-site/obsolete.txt", Buffer.from("Old backup file"));
   h.github.state.folderExists = true;
@@ -597,10 +612,10 @@ test("the push raises the dialog and touches GitHub not at all while it waits; c
   const planned = await plan(h);
   const callsAfterPlan = h.github.calls.length;
 
-  const { pending } = await beginCall(h, planned.planId as string);
+  const result = (await call(h.pushTool, { planId: planned.planId })) as Result;
 
-  const result = await pending;
-
+  const manifestBytes = h.github.files.get("demo-site/tovu-backup.json");
+  assert.ok(manifestBytes, "the manifest is committed into the folder");
   assert.deepEqual(result, {
     pushed: true,
     commitSha: "new-commit",
@@ -609,29 +624,31 @@ test("the push raises the dialog and touches GitHub not at all while it waits; c
     branch: "main",
     folder: "demo-site",
     filesWritten: (planned.fileCount as number) + 1,
-    totalBytes: DB_BYTES.length + Buffer.byteLength('{"name":"Demo Site"}') + Buffer.byteLength('{"siteId":"s1"}') + Buffer.byteLength("IMG") + Buffer.byteLength("<html>") + Buffer.byteLength("# skill") + h.github.blobContents.at(-1)!.length,
+    totalBytes: DB_BYTES.length + Buffer.byteLength('{"name":"Demo Site"}') + Buffer.byteLength('{"siteId":"s1"}') + Buffer.byteLength("IMG") + Buffer.byteLength("<html>") + Buffer.byteLength("# skill") + manifestBytes.length,
   });
   assert.deepEqual(h.github.unexpected, []);
 
   const pushCalls = h.github.calls.slice(callsAfterPlan).map((c) => `${c.method} ${new URL(c.url).pathname.replace(/^\/repos\/octo\/backups/, "")}`);
-  const blobCount = pushCalls.filter((c) => c === "POST /git/blobs").length;
   assert.deepEqual(pushCalls, [
     "GET ",
     "GET /git/ref/heads/main",
     "GET /git/commits/tip-1",
     "GET /contents/demo-site",
-    ...Array.from({ length: blobCount }, () => "POST /git/blobs"),
+    "POST /git/blobs",
     "POST /git/trees",
     "POST /git/trees",
     "POST /git/commits",
     "PATCH /git/refs/heads/main",
   ]);
-  assert.equal(blobCount, (planned.fileCount as number) + 1, "one blob per distinct file, plus the manifest");
+  assert.deepEqual(h.github.blobContents.map((bytes) => [...bytes]), [DB_BYTES], "only the database (it holds a NUL byte) is a blob; the plan's snapshot");
+  const folderTree = JSON.parse(h.github.writes()[1]!.body ?? "{}") as { base_tree?: string; tree: { path: string; sha?: string; content?: string }[] };
+  assert.equal(folderTree.base_tree, undefined, "the folder starts empty, so stale files in it disappear");
+  assert.deepEqual(folderTree.tree.filter((entry) => entry.sha !== undefined).map((entry) => entry.path), ["database/content.db"]);
 
-  assert.deepEqual([...h.github.blobContents[0]!], DB_BYTES, "the database uploaded is the snapshot the plan captured");
-  const manifest = JSON.parse(h.github.blobContents.at(-1)!.toString("utf8")) as { format: string; files: { path: string }[] };
-  assert.equal(manifest.format, "tovu-site-backup", "the manifest is uploaded last");
+  const manifest = JSON.parse(manifestBytes.toString("utf8")) as { format: string; files: { path: string }[] };
+  assert.equal(manifest.format, "tovu-site-backup");
   assert.equal(manifest.files.length, planned.fileCount);
+  assert.equal(folderTree.tree.at(-1)!.path, "tovu-backup.json", "the manifest is the folder's last entry");
   assert.deepEqual([...h.github.files.keys()].sort(), [
     "README.md", "demo-site/database/content.db", "demo-site/settings/.site-meta.json", "demo-site/settings/config.json",
     "demo-site/skills/ws/workspace-local/notes/SKILL.md", "demo-site/themes/static/demo/index.html", "demo-site/tovu-backup.json",
@@ -643,7 +660,6 @@ test("the push raises the dialog and touches GitHub not at all while it waits; c
     ["demo-site/skills/ws/workspace-local/notes/SKILL.md", Buffer.from("# skill")], ["demo-site/themes/static/demo/index.html", Buffer.from("<html>")],
     ["demo-site/uploads/ws/workspace-local/blobs/ab/abcdef", Buffer.from("IMG")],
   ] as const) assert.deepEqual(h.github.files.get(name), bytes, name);
-  assert.deepEqual(JSON.parse(h.github.files.get("demo-site/tovu-backup.json")!.toString("utf8")), manifest);
 
   const writes = h.github.writes();
   const rootTree = JSON.parse(writes.at(-3)!.body ?? "{}") as { base_tree: string };
@@ -654,6 +670,7 @@ test("the push raises the dialog and touches GitHub not at all while it waits; c
   const ref = JSON.parse(writes.at(-1)!.body ?? "{}") as Record<string, unknown>;
   assert.equal("force" in ref, false, "never a force push");
   assert.doesNotMatch(JSON.stringify(result), new RegExp(TOKEN));
+  assert.deepEqual(h.sleeps, [], "nothing failed, so nothing was retried");
 });
 
 test("a pre-aborted push abandons without a dialog or host writes", async (t) => {
@@ -805,4 +822,161 @@ test("the site_backup_* tool copy names no host: the host's name, API origin and
   assert.equal(result.commitSha, "new-commit");
   assert.equal(h.github.writes().at(-1)?.method, "PATCH");
   assert.equal(h.surfaceExchanges.size(), 0);
+});
+
+// ---------------------------------------------------------------------------
+// site_backup_push — large sites (a 212 MiB, 1510-file backup timed out live on 2026-10-06)
+// ---------------------------------------------------------------------------
+
+/** Resolves once `ready()` holds (checked every millisecond), or after `maxMs` so a regression fails
+ *  on its assertion instead of hanging the suite. */
+function when(ready: () => boolean, maxMs = 2000): Promise<void> {
+  const deadline = Date.now() + maxMs;
+  return new Promise((resolve) => {
+    const tick = (): void => void (ready() || Date.now() > deadline ? resolve() : setTimeout(tick, 1));
+    tick();
+  });
+}
+
+/** A gate a test opens by hand: blob POSTs wait on it while it is shut. */
+function shutGate(): { promise: Promise<void>; open: () => void } {
+  let open!: () => void;
+  const promise = new Promise<void>((resolve) => {
+    open = resolve;
+  });
+  return { promise, open };
+}
+
+/** A binary (it holds a NUL byte, so it cannot ride inline) unique to `n`. */
+function binary(n: number): Buffer {
+  return Buffer.concat([Buffer.from([0x00, 0xff]), Buffer.from(`media-${n}`)]);
+}
+
+test("a large site: each distinct binary is one blob, at most 4 in flight; ~750 text files ride inline over 3 chained folder trees; one commit", async (t) => {
+  const h = harness(t);
+  const blobsDir = path.join(h.site.root, "uploads", "ws", "workspace-local", "blobs", "cd");
+  mkdirSync(blobsDir, { recursive: true });
+  for (let n = 0; n < 40; n++) writeFileSync(path.join(blobsDir, `media-${String(n).padStart(2, "0")}`), binary(n));
+  writeFileSync(path.join(blobsDir, "media-copy-of-07"), binary(7));
+  for (let n = 0; n < 700; n++) write(path.join(h.site.root, "themes", "static", "big", `page-${String(n).padStart(3, "0")}.html`), `<p>page ${n}</p>`);
+  await h.seed();
+  const planned = await plan(h);
+  const fileCount = planned.fileCount as number;
+  assert.equal(fileCount, 6 + 41 + 700, "the small site's database and 5 files, 41 binaries, 700 pages");
+  // Shut until four blob requests are waiting at once: a fifth in flight would be a regression.
+  h.github.blobGate = when(() => h.github.blobsInFlight >= 4);
+
+  const result = (await call(h.pushTool, { planId: planned.planId })) as Result;
+
+  assert.equal(result.pushed, true, JSON.stringify(result));
+  assert.equal(result.filesWritten, fileCount + 1, "every planned file and the manifest");
+  assert.deepEqual(h.github.unexpected, []);
+  assert.equal(h.github.maxBlobsInFlight, 4, "four uploads overlap, never more");
+  const writes = h.github.writeRoutes();
+  assert.equal(writes.filter((w) => w === "POST /git/blobs").length, 1 + 40, "the database and each DISTINCT binary once (the copy of media-07 is deduped)");
+  assert.deepEqual(writes.slice(41), ["POST /git/trees", "POST /git/trees", "POST /git/trees", "POST /git/trees", "POST /git/commits", "PATCH /git/refs/heads/main"]);
+  const trees = h.github.writes().filter((c) => c.url.endsWith("/git/trees")).map((c) => JSON.parse(c.body ?? "{}") as { base_tree?: string; tree: unknown[] });
+  assert.deepEqual(trees.map((tree) => tree.tree.length), [300, 300, fileCount + 1 - 600, 1], "folder entries in chunks of 300, then the root tree grafts the folder");
+  assert.deepEqual(trees.map((tree) => tree.base_tree), [undefined, "new-tree-1", "new-tree-2", "tree-of-tip-1"], "each chunk builds on the previous one; the folder starts empty");
+  assert.equal(h.github.files.get("demo-site/themes/static/big/page-699.html")?.toString("utf8"), "<p>page 699</p>");
+  assert.deepEqual(h.github.files.get("demo-site/uploads/ws/workspace-local/blobs/cd/media-copy-of-07"), binary(7));
+  assert.deepEqual(h.github.files.get("demo-site/uploads/ws/workspace-local/blobs/cd/media-39"), binary(39));
+});
+
+test("a transient blob failure (502, then a dropped connection) is retried with backoff, and the backup still lands as one commit", async (t) => {
+  const h = harness(t);
+  await h.seed();
+  const planId = await plannedId(h);
+  h.github.blobFaults.push({ status: 502 }, { throws: Object.assign(new Error("socket hang up"), { code: "ECONNRESET" }) });
+
+  const result = (await call(h.pushTool, { planId })) as Result;
+
+  assert.equal(result.pushed, true, JSON.stringify(result));
+  assert.deepEqual(h.sleeps, [2000, 4000], "doubling backoff between the three tries");
+  assert.deepEqual(h.github.writeRoutes(), ["POST /git/blobs", "POST /git/blobs", "POST /git/blobs", "POST /git/trees", "POST /git/trees", "POST /git/commits", "PATCH /git/refs/heads/main"]);
+  assert.deepEqual([...h.github.files.get("demo-site/database/content.db")!], DB_BYTES);
+});
+
+test("a final blob failure (422) names the file, is not retried, and commits nothing", async (t) => {
+  const h = harness(t);
+  await h.seed();
+  const planId = await plannedId(h);
+  h.github.blobFaults.push({ status: 422, message: "Validation Failed" });
+
+  const result = (await call(h.pushTool, { planId })) as Result;
+
+  assert.equal(result.pushed, false);
+  assert.equal(result.code, "PROVIDER_ERROR");
+  assert.match(result.message as string, /^uploading 'database\/content\.db' failed: .*Validation Failed/);
+  assert.deepEqual(h.sleeps, []);
+  assert.deepEqual(h.github.writeRoutes(), ["POST /git/blobs"], "no tree, commit or ref update");
+});
+
+test("a push past its wait budget returns inProgress with progress; re-calling with the same planId waits on the SAME upload, which lands once", async (t) => {
+  const h = harness(t, { pushWaitMs: 20 });
+  await h.seed();
+  const planId = await plannedId(h);
+  const gate = shutGate();
+  h.github.blobGate = gate.promise;
+
+  const first = (await call(h.pushTool, { planId })) as Result;
+  assert.equal(first.inProgress, true, JSON.stringify(first));
+  assert.equal(first.planId, planId);
+  const progress = first.progress as { filesDone: number; filesTotal: number; bytesDone: number; bytesTotal: number };
+  assert.deepEqual(progress, { filesDone: 5, filesTotal: 6, bytesDone: progress.bytesTotal - DB_BYTES.length, bytesTotal: progress.bytesTotal }, "the inline text is done; the database blob is held");
+  assert.match(first.message as string, /Call site_backup_push again with the same planId/);
+
+  const second = (await call(h.pushTool, { planId })) as Result;
+  assert.equal(second.inProgress, true, "still uploading, and the plan was not taken a second time");
+
+  gate.open();
+  const third = (await call(h.pushTool, { planId })) as Result;
+  assert.equal(third.pushed, true, JSON.stringify(third));
+  const writes = h.github.writeRoutes();
+  assert.equal(writes.filter((w) => w === "POST /git/blobs").length, 1, "one upload, not one per call");
+  assert.equal(writes.filter((w) => w === "POST /git/commits").length, 1);
+
+  const fourth = (await call(h.pushTool, { planId })) as Result;
+  assert.equal(fourth.code, "PLAN_NOT_FOUND", "a collected outcome is forgotten; the planId is spent");
+});
+
+test("stopping the run while the push waits abandons the upload: no further file, no tree, no commit", async (t) => {
+  const h = harness(t);
+  await h.seed();
+  const planId = await plannedId(h);
+  const gate = shutGate();
+  h.github.blobGate = gate.promise;
+  const controller = new AbortController();
+
+  const pending = call(h.pushTool, { planId }, { signal: controller.signal }) as Promise<Result>;
+  await when(() => h.github.blobsInFlight === 1);
+  controller.abort();
+  assert.deepEqual(await pending, { pushed: false, cancelled: false, reason: "abandoned" });
+
+  gate.open();
+  await when(() => h.github.blobsInFlight === 0);
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.deepEqual(h.github.writeRoutes(), ["POST /git/blobs"], "the blob already in flight finishes; nothing after it");
+});
+
+test("a media file over the host's per-file limit is left out of the plan and named in skipped; the rest is backed up", async (t) => {
+  const lowered: NonNullable<SiteBackupToolDeps["loadSourceControlProviders"]> = async (workspaceId) => {
+    const registry = await githubFromSource(workspaceId);
+    const lower = (loaded: ReturnType<typeof registry.list>[number]) => ({ ...loaded, descriptor: { ...loaded.descriptor, maxFileBytes: 1000 } });
+    return { ...registry, list: () => registry.list().map(lower), get: (id: string) => { const found = registry.get(id); return found ? lower(found) : undefined; } };
+  };
+  const h = harness(t, { providers: lowered });
+  write(path.join(h.site.root, "uploads", "ws", "workspace-local", "blobs", "ef", "huge"), "x".repeat(2048));
+  await h.seed();
+
+  const planned = await plan(h);
+
+  assert.equal(planned.planned, true, JSON.stringify(planned));
+  assert.deepEqual((planned.skipped as { path: string }[]).map((s) => s.path), ["uploads/ws/workspace-local/blobs/ef/huge"]);
+  assert.match((planned.skipped as { reason: string }[])[0]!.reason, /^2(\.0)? KiB, over GitHub's 1000 B per-file limit$/);
+  assert.equal((planned.files as { path: string }[]).some((f) => f.path.endsWith("/huge")), false);
+
+  const result = (await call(h.pushTool, { planId: planned.planId })) as Result;
+  assert.equal(result.pushed, true);
+  assert.equal(h.github.files.has("demo-site/uploads/ws/workspace-local/blobs/ef/huge"), false);
 });

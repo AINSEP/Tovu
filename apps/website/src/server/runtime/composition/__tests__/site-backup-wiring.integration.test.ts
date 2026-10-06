@@ -79,10 +79,13 @@ test("createSiteRouteDeps gives site backup the directories the site is served f
   assert.equal(sources.siteDir, deps.siteBinding.dir);
   assert.equal(sources.themesDir, deps.themesDir);
   assert.equal(sources.mediaUploadsDir, process.env.TOVU_MEDIA_BLOB_STORE === "s3" ? null : mediaUploadsDir());
-  assert.equal(sources.agentPluginsDir, resolveAgentPluginLayout().root);
+  assert.equal(sources.agentPlugins.root, resolveAgentPluginLayout().root);
   assert.equal(sources.skillsDir, resolveSkillLayout().root);
   const productVersion = (JSON.parse(fs.readFileSync(path.join(process.cwd(), "package.json"), "utf8")) as { version: string }).version;
   assert.equal(sources.tovuVersion, productVersion);
+
+  assert.ok(deps.siteBackupHttpClient, "the backup gets its own long-timeout client");
+  assert.notEqual(deps.siteBackupHttpClient, deps.customCredentialsHttpClient, "not the 10 s custom-credential client");
 
   const tools = registrationsOver(deps);
   const plan = tools.get("site_backup_plan");
@@ -183,7 +186,9 @@ test("the composed plan and push back up THIS site: a credential sealed by the c
   );
 
   const github = new FakeGitHub();
-  const tools = registrationsOver({ ...deps, customCredentialsHttpClient: github, loadSourceControlProviders: githubFromSource } as Parameters<typeof registrationsOver>[0]);
+  // Both clients: the composed deps carry a real `siteBackupHttpClient` (the backup's long-timeout
+  // egress policy), and the backup prefers it over the custom-credential one.
+  const tools = registrationsOver({ ...deps, customCredentialsHttpClient: github, siteBackupHttpClient: github, loadSourceControlProviders: githubFromSource } as Parameters<typeof registrationsOver>[0]);
   const planTool = tools.get("site_backup_plan");
   const pushTool = tools.get("site_backup_push");
   assert.ok(planTool && pushTool);
