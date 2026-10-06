@@ -84,7 +84,7 @@ describe("AgentPlugins — Add a plugin", () => {
   it("accepts one dropped .zip and refuses a drop of several files", async () => {
     renderAddTab();
     await openAddTab();
-    const zone = screen.getByText("Drop a .zip here").closest(".agent-plugin-dropzone")!;
+    const zone = screen.getByText("Drop a .zip here").closest(".install-tab-dropzone")!;
 
     fireEvent.drop(zone, { dataTransfer: { files: [zip("a.zip"), zip("b.zip")] } });
     expect(screen.getByRole("alert")).toHaveTextContent("Choose one .zip file.");

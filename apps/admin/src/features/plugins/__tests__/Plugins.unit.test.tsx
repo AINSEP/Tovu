@@ -92,14 +92,14 @@ afterEach(() => {
   window.history.replaceState(null, "", "/");
 });
 
-describe("tabs: Installed, Downloaded, Marketplace, in that order, Installed active by default", () => {
-  it("renders exactly those three tabs in that order, with Installed selected", async () => {
+describe("tabs: Installed, Downloaded, Add a plugin, Marketplace, in that order, Installed active by default", () => {
+  it("renders exactly those four tabs in that order, with Installed selected", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE));
     render(<Plugins />);
 
     const tablist = await screen.findByRole("tablist");
     const tabs = within(tablist).getAllByRole("tab");
-    expect(tabs.map((tab) => tab.textContent)).toEqual(["Installed", "Downloaded", "Marketplace"]);
+    expect(tabs.map((tab) => tab.textContent)).toEqual(["Installed", "Downloaded", "Add a plugin", "Marketplace"]);
     expect(within(tablist).getByRole("tab", { name: "Installed" })).toHaveAttribute("aria-selected", "true");
   });
 });

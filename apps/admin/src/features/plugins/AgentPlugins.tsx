@@ -135,8 +135,10 @@ function AgentPluginList({
 
 /**
  * The shared shell both list tabs (Downloaded, Installed) render through: the status line(s), the
- * row list when the tab's own scope is non-empty, and the section-wide uninstall-unavailable
- * footnote plus spec link. Introduced with the Downloaded/Installed split (2026-09-09) so those two
+ * row list when the tab's own scope is non-empty, and the section-wide uninstall footnote plus spec
+ * link. The footnote names only bundled packages as not uninstallable (2026-10-06): an uploaded one
+ * can be removed through the assistant's `plugins_uninstall`, since this screen has no uninstall
+ * route yet. Introduced with the Downloaded/Installed split (2026-09-09) so those two
  * tabs — which differ only in WHICH rows they scope to and their own copy, never in markup — share
  * one implementation instead of two copies that could drift.
  *
@@ -190,7 +192,7 @@ function AgentPluginListPanel({
           collision in the live DOM. */}
       <div className="agent-plugins-footnotes">
         <p id={uninstallNoteId} className="jini-field-hint">
-          {t("Uninstall is unavailable: these packages ship with Tovu and are restored on the next restart.")}
+          {t("Plugins that ship with Tovu can't be uninstalled: they come back on the next restart. To remove one you added, ask the assistant.")}
         </p>
         <p className="jini-field-hint">
           {t("Package format:")}{" "}

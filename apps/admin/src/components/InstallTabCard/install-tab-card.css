@@ -1,0 +1,54 @@
+/* The shared "Add a …" tab card (Skills, Agent Plugins, Plugins). `.card`, `.card-title`,
+   `.card-lead`, `.field-label`, `.field-hint` and button paint stay the app's own. */
+.install-tab-card { display: flex; flex-direction: column; gap: var(--space-4); }
+.install-tab-card .card-title { margin: 0; }
+.install-tab-option { display: flex; flex-direction: column; gap: var(--space-2); }
+.install-tab-option + .install-tab-option { padding-top: var(--space-4); border-top: 1px solid var(--border); }
+.install-tab-option.is-soon { opacity: 0.7; }
+.install-tab-option-heading {
+  display: flex; align-items: center; gap: var(--space-2);
+  margin: 0; font-size: var(--text-sm); font-weight: 650; color: var(--fg);
+}
+.install-tab-badge {
+  padding: 2px 8px; font-size: 11px; font-weight: 600; letter-spacing: 0.02em;
+  color: var(--muted); background: var(--surface-3); border-radius: 999px;
+}
+.install-tab-field { display: flex; flex-direction: column; gap: var(--space-2); }
+.install-tab-field-controls { display: flex; align-items: center; gap: var(--space-3); }
+.install-tab-field-controls input { flex: 1; min-width: 0; }
+.install-tab-field-controls button { flex: 0 0 auto; }
+.install-tab-dropzone {
+  display: flex; flex-direction: column; align-items: center; text-align: center; gap: var(--space-2);
+  padding: 28px 20px;
+  border: 1px dashed var(--border-strong); border-radius: var(--r-md);
+  background: var(--surface-2);
+  transition: border-color 120ms ease, background-color 120ms ease;
+}
+.install-tab-dropzone.is-dragging {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface-2));
+}
+.install-tab-dropzone p { margin: 0; }
+.install-tab-dropzone-glyph {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 48px; height: 48px;
+  color: var(--muted); background: var(--surface-3); border-radius: 999px;
+}
+.install-tab-dropzone-title { font-size: var(--text-sm); font-weight: 600; color: var(--fg); overflow-wrap: anywhere; }
+.install-tab-check { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); color: var(--fg-2); cursor: pointer; }
+.install-tab-review {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: var(--space-3) var(--space-4); border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface-2);
+}
+.install-tab-review p { margin: 0; font-size: var(--text-sm); color: var(--fg-2); overflow-wrap: anywhere; }
+.install-tab-review strong { color: var(--fg); }
+.install-tab-alert, .install-tab-success {
+  margin: 0; padding: 9px 12px; font-size: 13px; line-height: 1.5; border-radius: var(--r-sm);
+}
+.install-tab-alert { color: var(--danger-ink); background: var(--danger-bg); border: 1px solid color-mix(in srgb, var(--danger) 28%, transparent); }
+.install-tab-success { color: var(--fg); background: var(--ok-bg); border: 1px solid color-mix(in srgb, var(--ok) 28%, transparent); }
+.install-tab-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-3); }
+@media (max-width: 560px) {
+  .install-tab-field-controls { flex-direction: column; align-items: stretch; }
+  .install-tab-actions button { flex: 1 1 100%; }
+}

@@ -6,6 +6,7 @@ import { SkillRow } from "./SkillRow";
 import { SkillDocumentIcon } from "./skills-visuals";
 import { SKILL_FILE_ACCEPT, useSkills, type SkillsController } from "./use-skills.hooks";
 import { PackageFilesModal } from "../plugins/PackageFilesModal";
+import { InstallTabCard, InstallTabFieldRow, InstallTabOption } from "../../components/InstallTabCard/InstallTabCard";
 import { useSkillFilesModal } from "./use-skill-files.hooks";
 import "./skills.css";
 
@@ -35,22 +36,25 @@ function InstalledSkillsPanel({ controller }: { controller: SkillsController }) 
 /** Install inputs keep their values and pending confirmation in the page controller. */
 function AddSkillPanel({ controller }: { controller: SkillsController }) {
   return (
-    <section className="card skills-add" aria-labelledby="skills-add-title">
-      <h2 id="skills-add-title" className="card-title">Add a skill</h2>
-      <form className="skills-github-form" onSubmit={controller.onSubmitGithub}>
-        <label className="field-label" htmlFor="skills-github-url">GitHub URL</label>
-        <div className="skills-github-controls">
-          <input id="skills-github-url" value={controller.githubUrl} onChange={controller.onGithubUrlChange} placeholder="https://github.com/owner/skill" />
-          <button type="submit" className="btn-primary" disabled={controller.githubDisabled}>Add from GitHub</button>
+    <InstallTabCard titleId="skills-add-title" title="Add a skill">
+      <InstallTabOption>
+        <InstallTabFieldRow
+          inputId="skills-github-url"
+          label="GitHub URL"
+          value={controller.githubUrl}
+          onChange={controller.onGithubUrlChange}
+          placeholder="https://github.com/owner/skill"
+          onSubmit={controller.onSubmitGithub}
+          action={{ label: "Add from GitHub", disabled: controller.githubDisabled, primary: true }}
+        />
+        <div className="editor-actions">
+          <button type="button" className="btn-secondary" disabled={controller.addBusy} onClick={controller.onChooseFiles}>Upload files</button>
+          <button type="button" className="btn-secondary" disabled={controller.addBusy} onClick={controller.onChooseFolder}>Upload folder</button>
         </div>
-      </form>
-      <div className="editor-actions">
-        <button type="button" className="btn-secondary" disabled={controller.addBusy} onClick={controller.onChooseFiles}>Upload files</button>
-        <button type="button" className="btn-secondary" disabled={controller.addBusy} onClick={controller.onChooseFolder}>Upload folder</button>
-      </div>
+      </InstallTabOption>
       <input ref={controller.filesInput} className="skills-file-input" type="file" aria-label="Choose skill files" multiple accept={SKILL_FILE_ACCEPT} onChange={controller.onFilesChange} hidden />
       <input ref={controller.folderInput} className="skills-file-input" type="file" aria-label="Choose skill folder" multiple {...{ webkitdirectory: "" }} onChange={controller.onFilesChange} hidden />
-    </section>
+    </InstallTabCard>
   );
 }
 

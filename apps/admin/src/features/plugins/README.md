@@ -5,7 +5,7 @@ The installed-plugins list behind the sidebar's **Design & System → Plugins** 
 | file | what it is |
 |---|---|
 | `Plugins.tsx` | List of installed plugins, enable/disable. |
-| `InstallPluginDialog.tsx` | Local folder/ZIP review and explicit install consent. |
+| `AddPluginPanel.tsx` | "Add a plugin" tab: local folder/ZIP review and explicit install consent, on the shared `components/InstallTabCard`. |
 | `hooks/use-plugin-install.hooks.ts` | Preview invalidation, install requests and modal lifecycle. |
 | `index.ts` | The only surface `panels.tsx` may import. |
 

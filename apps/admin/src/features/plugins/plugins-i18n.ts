@@ -9,6 +9,9 @@ import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
 const PLUGINS_DICT: Record<string, Record<string, string>> = {
   es: {
+    // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
+    "{name} is installed and switched off. Turn it on in Downloaded.": "{name} está instalado y desactivado. Actívalo en Descargado.",
+    "Plugins that ship with Tovu can't be uninstalled: they come back on the next restart. To remove one you added, ask the assistant.": "Los plugins incluidos con Tovu no se pueden desinstalar: vuelven en el próximo reinicio. Para quitar uno que añadiste, pídeselo al asistente.",
     // Agent Plugins "Add a plugin" tab (2026-10-06).
     "Add a plugin": "Añadir un plugin",
     "Install a package you already have.": "Instala un paquete que ya tienes.",
@@ -153,8 +156,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
       "El mercado está planeado para una versión futura. Tovu aún no descarga, instala ni lista paquetes del mercado.",
     "Read the package format": "Leer el formato del paquete",
     "Package format:": "Formato del paquete:",
-    "Uninstall is unavailable: these packages ship with Tovu and are restored on the next restart.":
-      "Desinstalar no está disponible: estos paquetes se incluyen con Tovu y se restauran en el próximo reinicio.",
 
     // Plugins.tsx's Installed/Downloaded/Marketplace tab rebuild (2026-09-09) — this screen's OWN
     // new copy. "Installed"/"Downloaded"/"Marketplace"/"Nothing to browse yet" are reused verbatim
@@ -195,6 +196,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Some files are not listed: this package is larger than the viewer's limits.": "Algunos archivos no aparecen: este paquete supera los límites del visor.",
   },
   id: {
+    // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
+    "{name} is installed and switched off. Turn it on in Downloaded.": "{name} terpasang dan nonaktif. Aktifkan di Diunduh.",
+    "Plugins that ship with Tovu can't be uninstalled: they come back on the next restart. To remove one you added, ask the assistant.": "Plugin bawaan Tovu tidak dapat dicopot: plugin itu kembali saat mulai ulang berikutnya. Untuk menghapus plugin yang Anda tambahkan, minta asisten.",
     // Agent Plugins "Add a plugin" tab (2026-10-06).
     "Add a plugin": "Tambah plugin",
     "Install a package you already have.": "Pasang paket yang sudah Anda miliki.",
@@ -340,7 +344,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Marketplace is planned for a future release. Tovu does not fetch, install, or list marketplace packages yet.": "Marketplace direncanakan untuk rilis mendatang. Tovu belum mengambil, memasang, atau menampilkan paket marketplace.",
     "Read the package format": "Baca format paket",
     "Package format:": "Format paket:",
-    "Uninstall is unavailable: these packages ship with Tovu and are restored on the next restart.": "Copot pemasangan tidak tersedia: paket ini disertakan dengan Tovu dan dipulihkan saat mulai ulang berikutnya.",
     "No plugins are enabled for this site.": "Tidak ada plugin yang diaktifkan untuk situs ini.",
     "Enabled plugins extend what this site can do.": "Plugin yang diaktifkan memperluas kemampuan situs ini.",
     "Built-in plugins ship with Tovu itself and have no on-disk files to remove.": "Plugin bawaan disertakan dengan Tovu sendiri dan tidak memiliki berkas di disk untuk dihapus.",
@@ -349,6 +352,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Install a plugin by placing its files in this site's plugin install directory.": "Pasang plugin dengan menempatkan berkasnya di direktori instalasi plugin situs ini.",
   },
   de: {
+    // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
+    "{name} is installed and switched off. Turn it on in Downloaded.": "{name} ist installiert und ausgeschaltet. Schalte es unter Heruntergeladen ein.",
+    "Plugins that ship with Tovu can't be uninstalled: they come back on the next restart. To remove one you added, ask the assistant.": "Mit Tovu ausgelieferte Plugins lassen sich nicht deinstallieren: Sie kehren beim nächsten Neustart zurück. Um ein selbst hinzugefügtes zu entfernen, frag den Assistenten.",
     // Agent Plugins "Add a plugin" tab (2026-10-06).
     "Add a plugin": "Plugin hinzufügen",
     "Install a package you already have.": "Ein vorhandenes Paket installieren.",
@@ -494,7 +500,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Marketplace is planned for a future release. Tovu does not fetch, install, or list marketplace packages yet.": "Der Marktplatz ist für eine künftige Version geplant. Tovu ruft noch keine Marktplatzpakete ab, installiert oder listet sie.",
     "Read the package format": "Paketformat lesen",
     "Package format:": "Paketformat:",
-    "Uninstall is unavailable: these packages ship with Tovu and are restored on the next restart.": "Deinstallieren ist nicht verfügbar: Diese Pakete werden mit Tovu ausgeliefert und beim nächsten Neustart wiederhergestellt.",
     "No plugins are enabled for this site.": "Für diese Website sind keine Plugins aktiviert.",
     "Enabled plugins extend what this site can do.": "Aktivierte Plugins erweitern, was diese Website kann.",
     "Built-in plugins ship with Tovu itself and have no on-disk files to remove.": "Integrierte Plugins werden mit Tovu selbst ausgeliefert und haben keine Dateien auf dem Datenträger, die entfernt werden könnten.",
@@ -503,6 +508,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Install a plugin by placing its files in this site's plugin install directory.": "Installieren Sie ein Plugin, indem Sie seine Dateien im Plugin-Installationsverzeichnis dieser Website ablegen.",
   },
   "zh-CN": {
+    // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
+    "{name} is installed and switched off. Turn it on in Downloaded.": "{name} 已安装且处于关闭状态。请在“已下载”中开启。",
+    "Plugins that ship with Tovu can't be uninstalled: they come back on the next restart. To remove one you added, ask the assistant.": "随 Tovu 提供的插件无法卸载：它们会在下次重启时恢复。要移除你添加的插件，请让助手来做。",
     // Agent Plugins "Add a plugin" tab (2026-10-06).
     "Add a plugin": "添加插件",
     "Install a package you already have.": "安装你已有的软件包。",
@@ -648,7 +656,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Marketplace is planned for a future release. Tovu does not fetch, install, or list marketplace packages yet.": "市场计划在未来版本中推出。Tovu 目前还不会获取、安装或列出市场中的软件包。",
     "Read the package format": "阅读软件包格式说明",
     "Package format:": "软件包格式：",
-    "Uninstall is unavailable: these packages ship with Tovu and are restored on the next restart.": "无法卸载：这些软件包随 Tovu 一起提供，会在下次重启时恢复。",
     "No plugins are enabled for this site.": "此站点没有启用任何插件。",
     "Enabled plugins extend what this site can do.": "启用的插件可以扩展此站点的功能。",
     "Built-in plugins ship with Tovu itself and have no on-disk files to remove.": "内置插件随 Tovu 本身提供，没有可删除的磁盘文件。",
@@ -657,6 +664,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Install a plugin by placing its files in this site's plugin install directory.": "将插件文件放入此站点的插件安装目录即可安装插件。",
   },
   "zh-TW": {
+    // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
+    "{name} is installed and switched off. Turn it on in Downloaded.": "{name} 已安裝且為關閉狀態。請在「已下載」中開啟。",
+    "Plugins that ship with Tovu can't be uninstalled: they come back on the next restart. To remove one you added, ask the assistant.": "隨 Tovu 內附的外掛無法解除安裝：它們會在下次重新啟動時回來。若要移除你新增的外掛，請讓助理處理。",
     // Agent Plugins "Add a plugin" tab (2026-10-06).
     "Add a plugin": "新增外掛",
     "Install a package you already have.": "安裝你已有的套件。",
@@ -802,7 +812,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Marketplace is planned for a future release. Tovu does not fetch, install, or list marketplace packages yet.": "市集預計在未來版本推出。Tovu 目前還不會擷取、安裝或列出市集套件。",
     "Read the package format": "閱讀套件格式說明",
     "Package format:": "套件格式：",
-    "Uninstall is unavailable: these packages ship with Tovu and are restored on the next restart.": "無法解除安裝：這些套件隨 Tovu 內附，會在下次重新啟動時還原。",
     "No plugins are enabled for this site.": "此網站沒有啟用任何外掛。",
     "Enabled plugins extend what this site can do.": "已啟用的外掛可擴充此網站的功能。",
     "Built-in plugins ship with Tovu itself and have no on-disk files to remove.": "內建外掛隨 Tovu 本身提供，沒有可移除的磁碟檔案。",
@@ -811,6 +820,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Install a plugin by placing its files in this site's plugin install directory.": "將外掛檔案放入此網站的外掛安裝目錄即可安裝外掛。",
   },
   "pt-BR": {
+    // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
+    "{name} is installed and switched off. Turn it on in Downloaded.": "{name} está instalado e desativado. Ative-o em Baixado.",
+    "Plugins that ship with Tovu can't be uninstalled: they come back on the next restart. To remove one you added, ask the assistant.": "Os plugins que acompanham o Tovu não podem ser desinstalados: eles voltam na próxima reinicialização. Para remover um que você adicionou, peça ao assistente.",
     // Agent Plugins "Add a plugin" tab (2026-10-06).
     "Add a plugin": "Adicionar um plugin",
     "Install a package you already have.": "Instale um pacote que você já tem.",
@@ -956,7 +968,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Marketplace is planned for a future release. Tovu does not fetch, install, or list marketplace packages yet.": "O marketplace está planejado para uma versão futura. O Tovu ainda não busca, instala nem lista pacotes do marketplace.",
     "Read the package format": "Ler o formato do pacote",
     "Package format:": "Formato do pacote:",
-    "Uninstall is unavailable: these packages ship with Tovu and are restored on the next restart.": "Não é possível desinstalar: estes pacotes acompanham o Tovu e são restaurados na próxima reinicialização.",
     "No plugins are enabled for this site.": "Nenhum plugin está ativado neste site.",
     "Enabled plugins extend what this site can do.": "Plugins ativados ampliam o que este site pode fazer.",
     "Built-in plugins ship with Tovu itself and have no on-disk files to remove.": "Os plugins integrados acompanham o próprio Tovu e não têm arquivos em disco para remover.",
@@ -965,6 +976,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Install a plugin by placing its files in this site's plugin install directory.": "Instale um plugin colocando os arquivos dele no diretório de instalação de plugins deste site.",
   },
   ru: {
+    // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
+    "{name} is installed and switched off. Turn it on in Downloaded.": "{name} установлен и выключен. Включите его на вкладке «Загружено».",
+    "Plugins that ship with Tovu can't be uninstalled: they come back on the next restart. To remove one you added, ask the assistant.": "Плагины, поставляемые с Tovu, нельзя удалить: они возвращаются при следующем перезапуске. Чтобы удалить добавленный вами плагин, попросите ассистента.",
     // Agent Plugins "Add a plugin" tab (2026-10-06).
     "Add a plugin": "Добавить плагин",
     "Install a package you already have.": "Установите пакет, который у вас уже есть.",
@@ -1110,7 +1124,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Marketplace is planned for a future release. Tovu does not fetch, install, or list marketplace packages yet.": "Маркетплейс запланирован в одном из будущих выпусков. Tovu пока не загружает, не устанавливает и не показывает пакеты маркетплейса.",
     "Read the package format": "Прочитать описание формата пакета",
     "Package format:": "Формат пакета:",
-    "Uninstall is unavailable: these packages ship with Tovu and are restored on the next restart.": "Удаление недоступно: эти пакеты поставляются с Tovu и восстанавливаются при следующем перезапуске.",
     "No plugins are enabled for this site.": "Для этого сайта не включено ни одного плагина.",
     "Enabled plugins extend what this site can do.": "Включённые плагины расширяют возможности этого сайта.",
     "Built-in plugins ship with Tovu itself and have no on-disk files to remove.": "Встроенные плагины поставляются вместе с Tovu и не имеют файлов на диске, которые можно удалить.",
@@ -1119,6 +1132,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Install a plugin by placing its files in this site's plugin install directory.": "Чтобы установить плагин, поместите его файлы в каталог установки плагинов этого сайта.",
   },
   fa: {
+    // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
+    "{name} is installed and switched off. Turn it on in Downloaded.": "{name} نصب شده و خاموش است. آن را در «دانلودشده» روشن کنید.",
+    "Plugins that ship with Tovu can't be uninstalled: they come back on the next restart. To remove one you added, ask the assistant.": "افزونه‌هایی که همراه Tovu ارائه می‌شوند حذف‌شدنی نیستند: در راه‌اندازی مجدد بعدی برمی‌گردند. برای حذف افزونه‌ای که خودتان افزوده‌اید، از دستیار بخواهید.",
     // Agent Plugins "Add a plugin" tab (2026-10-06).
     "Add a plugin": "افزودن افزونه",
     "Install a package you already have.": "بسته‌ای را که از قبل دارید نصب کنید.",
@@ -1264,7 +1280,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Marketplace is planned for a future release. Tovu does not fetch, install, or list marketplace packages yet.": "بازارچه برای نسخه‌ای در آینده برنامه‌ریزی شده است. Tovu هنوز بسته‌های بازارچه را دریافت، نصب یا فهرست نمی‌کند.",
     "Read the package format": "خواندن قالب بسته",
     "Package format:": "قالب بسته:",
-    "Uninstall is unavailable: these packages ship with Tovu and are restored on the next restart.": "حذف نصب در دسترس نیست: این بسته‌ها همراه Tovu ارائه می‌شوند و در راه‌اندازی مجدد بعدی بازیابی می‌شوند.",
     "No plugins are enabled for this site.": "هیچ افزونه‌ای برای این سایت فعال نیست.",
     "Enabled plugins extend what this site can do.": "افزونه‌های فعال توانایی‌های این سایت را گسترش می‌دهند.",
     "Built-in plugins ship with Tovu itself and have no on-disk files to remove.": "افزونه‌های داخلی همراه خود Tovu ارائه می‌شوند و فایلی روی دیسک برای حذف ندارند.",
@@ -1273,6 +1288,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Install a plugin by placing its files in this site's plugin install directory.": "برای نصب یک افزونه، فایل‌های آن را در دایرکتوری نصب افزونه‌های این سایت قرار دهید.",
   },
   ar: {
+    // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
+    "{name} is installed and switched off. Turn it on in Downloaded.": "تم تثبيت {name} وهو متوقف. شغّله من «تم التنزيل».",
+    "Plugins that ship with Tovu can't be uninstalled: they come back on the next restart. To remove one you added, ask the assistant.": "لا يمكن إلغاء تثبيت الإضافات المضمّنة مع Tovu: فهي تعود عند إعادة التشغيل التالية. لإزالة إضافة أضفتها بنفسك، اطلب ذلك من المساعد.",
     // Agent Plugins "Add a plugin" tab (2026-10-06).
     "Add a plugin": "إضافة مكوّن إضافي",
     "Install a package you already have.": "ثبّت حزمة لديك بالفعل.",
@@ -1418,7 +1436,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Marketplace is planned for a future release. Tovu does not fetch, install, or list marketplace packages yet.": "المتجر مخطط له في إصدار مستقبلي. لا يجلب Tovu حزم المتجر ولا يثبّتها ولا يسردها بعد.",
     "Read the package format": "اقرأ تنسيق الحزمة",
     "Package format:": "تنسيق الحزمة:",
-    "Uninstall is unavailable: these packages ship with Tovu and are restored on the next restart.": "إلغاء التثبيت غير متاح: هذه الحزم مضمّنة مع Tovu وتُستعاد عند إعادة التشغيل التالية.",
     "No plugins are enabled for this site.": "لا توجد إضافات مفعّلة لهذا الموقع.",
     "Enabled plugins extend what this site can do.": "توسّع الإضافات المفعّلة ما يمكن لهذا الموقع فعله.",
     "Built-in plugins ship with Tovu itself and have no on-disk files to remove.": "الإضافات المدمجة مضمّنة مع Tovu نفسه وليست لها ملفات على القرص لإزالتها.",
@@ -1427,6 +1444,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Install a plugin by placing its files in this site's plugin install directory.": "ثبّت إضافة بوضع ملفاتها في دليل تثبيت الإضافات الخاص بهذا الموقع.",
   },
   ja: {
+    // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
+    "{name} is installed and switched off. Turn it on in Downloaded.": "{name} をインストールしました（オフ）。「ダウンロード済み」でオンにしてください。",
+    "Plugins that ship with Tovu can't be uninstalled: they come back on the next restart. To remove one you added, ask the assistant.": "Tovu に同梱のプラグインはアンインストールできません。次回の再起動で元に戻ります。自分で追加したものを削除するには、アシスタントに頼んでください。",
     // Agent Plugins "Add a plugin" tab (2026-10-06).
     "Add a plugin": "プラグインを追加",
     "Install a package you already have.": "手元のパッケージをインストールします。",
@@ -1572,7 +1592,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Marketplace is planned for a future release. Tovu does not fetch, install, or list marketplace packages yet.": "マーケットプレイスは今後のリリースで予定されています。Tovu はまだマーケットプレイスのパッケージを取得、インストール、一覧表示しません。",
     "Read the package format": "パッケージ形式を読む",
     "Package format:": "パッケージ形式:",
-    "Uninstall is unavailable: these packages ship with Tovu and are restored on the next restart.": "アンインストールできません: これらのパッケージは Tovu に同梱されており、次回の再起動時に復元されます。",
     "No plugins are enabled for this site.": "このサイトで有効なプラグインはありません。",
     "Enabled plugins extend what this site can do.": "有効なプラグインは、このサイトでできることを広げます。",
     "Built-in plugins ship with Tovu itself and have no on-disk files to remove.": "組み込みプラグインは Tovu 本体に同梱されており、削除できるディスク上のファイルはありません。",
@@ -1581,6 +1600,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Install a plugin by placing its files in this site's plugin install directory.": "このサイトのプラグインインストールディレクトリにファイルを配置して、プラグインをインストールします。",
   },
   ko: {
+    // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
+    "{name} is installed and switched off. Turn it on in Downloaded.": "{name}이(가) 설치되었고 꺼져 있습니다. 다운로드됨에서 켜세요.",
+    "Plugins that ship with Tovu can't be uninstalled: they come back on the next restart. To remove one you added, ask the assistant.": "Tovu에 포함된 플러그인은 제거할 수 없습니다. 다음 재시작 때 다시 복원됩니다. 직접 추가한 플러그인을 제거하려면 어시스턴트에게 요청하세요.",
     // Agent Plugins "Add a plugin" tab (2026-10-06).
     "Add a plugin": "플러그인 추가",
     "Install a package you already have.": "이미 가지고 있는 패키지를 설치합니다.",
@@ -1726,7 +1748,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Marketplace is planned for a future release. Tovu does not fetch, install, or list marketplace packages yet.": "마켓플레이스는 향후 릴리스에서 제공될 예정입니다. Tovu는 아직 마켓플레이스 패키지를 가져오거나 설치하거나 나열하지 않습니다.",
     "Read the package format": "패키지 형식 읽기",
     "Package format:": "패키지 형식:",
-    "Uninstall is unavailable: these packages ship with Tovu and are restored on the next restart.": "제거할 수 없습니다: 이 패키지들은 Tovu와 함께 제공되며 다음 재시작 시 복원됩니다.",
     "No plugins are enabled for this site.": "이 사이트에 활성화된 플러그인이 없습니다.",
     "Enabled plugins extend what this site can do.": "활성화된 플러그인은 이 사이트의 기능을 확장합니다.",
     "Built-in plugins ship with Tovu itself and have no on-disk files to remove.": "기본 제공 플러그인은 Tovu 자체와 함께 제공되며 제거할 디스크 파일이 없습니다.",
@@ -1735,6 +1756,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Install a plugin by placing its files in this site's plugin install directory.": "이 사이트의 플러그인 설치 디렉터리에 파일을 넣어 플러그인을 설치하세요.",
   },
   pl: {
+    // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
+    "{name} is installed and switched off. Turn it on in Downloaded.": "{name} jest zainstalowana i wyłączona. Włącz ją w zakładce Pobrane.",
+    "Plugins that ship with Tovu can't be uninstalled: they come back on the next restart. To remove one you added, ask the assistant.": "Wtyczek dostarczanych z Tovu nie można odinstalować: wracają przy następnym ponownym uruchomieniu. Aby usunąć dodaną przez siebie wtyczkę, poproś asystenta.",
     // Agent Plugins "Add a plugin" tab (2026-10-06).
     "Add a plugin": "Dodaj wtyczkę",
     "Install a package you already have.": "Zainstaluj pakiet, który już masz.",
@@ -1880,7 +1904,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Marketplace is planned for a future release. Tovu does not fetch, install, or list marketplace packages yet.": "Sklep jest planowany w przyszłej wersji. Tovu nie pobiera, nie instaluje ani nie wyświetla jeszcze pakietów ze sklepu.",
     "Read the package format": "Przeczytaj opis formatu pakietu",
     "Package format:": "Format pakietu:",
-    "Uninstall is unavailable: these packages ship with Tovu and are restored on the next restart.": "Odinstalowanie jest niedostępne: te pakiety są dostarczane z Tovu i zostaną przywrócone przy następnym uruchomieniu.",
     "No plugins are enabled for this site.": "W tej witrynie nie włączono żadnych wtyczek.",
     "Enabled plugins extend what this site can do.": "Włączone wtyczki rozszerzają możliwości tej witryny.",
     "Built-in plugins ship with Tovu itself and have no on-disk files to remove.": "Wbudowane wtyczki są dostarczane z samym Tovu i nie mają plików na dysku do usunięcia.",
@@ -1889,6 +1912,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Install a plugin by placing its files in this site's plugin install directory.": "Zainstaluj wtyczkę, umieszczając jej pliki w katalogu instalacji wtyczek tej witryny.",
   },
   hu: {
+    // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
+    "{name} is installed and switched off. Turn it on in Downloaded.": "A(z) {name} telepítve van, kikapcsolva. Kapcsold be a Letöltve lapon.",
+    "Plugins that ship with Tovu can't be uninstalled: they come back on the next restart. To remove one you added, ask the assistant.": "A Tovuval szállított bővítmények nem távolíthatók el: a következő újraindításkor visszakerülnek. Az általad hozzáadott bővítmény eltávolításához kérd meg az asszisztenst.",
     // Agent Plugins "Add a plugin" tab (2026-10-06).
     "Add a plugin": "Bővítmény hozzáadása",
     "Install a package you already have.": "Telepíts egy meglévő csomagot.",
@@ -2034,7 +2060,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Marketplace is planned for a future release. Tovu does not fetch, install, or list marketplace packages yet.": "A piactér egy jövőbeli kiadásban érkezik. A Tovu még nem tölt le, nem telepít és nem listáz piactéri csomagokat.",
     "Read the package format": "A csomagformátum leírása",
     "Package format:": "Csomagformátum:",
-    "Uninstall is unavailable: these packages ship with Tovu and are restored on the next restart.": "Az eltávolítás nem érhető el: ezek a csomagok a Tovuval érkeznek, és a következő újraindításkor visszaállnak.",
     "No plugins are enabled for this site.": "Ezen a webhelyen nincs engedélyezett bővítmény.",
     "Enabled plugins extend what this site can do.": "Az engedélyezett bővítmények bővítik a webhely képességeit.",
     "Built-in plugins ship with Tovu itself and have no on-disk files to remove.": "A beépített bővítmények magával a Tovuval érkeznek, és nincsenek eltávolítható fájljaik a lemezen.",
@@ -2043,6 +2068,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Install a plugin by placing its files in this site's plugin install directory.": "Bővítmény telepítéséhez helyezd a fájljait a webhely bővítménytelepítési könyvtárába.",
   },
   fr: {
+    // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
+    "{name} is installed and switched off. Turn it on in Downloaded.": "{name} est installé et désactivé. Activez-le dans Téléchargé.",
+    "Plugins that ship with Tovu can't be uninstalled: they come back on the next restart. To remove one you added, ask the assistant.": "Les plugins fournis avec Tovu ne peuvent pas être désinstallés : ils reviennent au prochain redémarrage. Pour retirer un plugin que vous avez ajouté, demandez à l’assistant.",
     // Agent Plugins "Add a plugin" tab (2026-10-06).
     "Add a plugin": "Ajouter une extension",
     "Install a package you already have.": "Installer un paquet que vous avez déjà.",
@@ -2188,7 +2216,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Marketplace is planned for a future release. Tovu does not fetch, install, or list marketplace packages yet.": "La place de marché est prévue pour une version future. Tovu ne récupère, n'installe ni ne liste encore de paquets de la place de marché.",
     "Read the package format": "Lire le format des paquets",
     "Package format:": "Format des paquets :",
-    "Uninstall is unavailable: these packages ship with Tovu and are restored on the next restart.": "La désinstallation n'est pas disponible : ces paquets sont fournis avec Tovu et restaurés au prochain redémarrage.",
     "No plugins are enabled for this site.": "Aucune extension n'est activée pour ce site.",
     "Enabled plugins extend what this site can do.": "Les extensions activées étendent ce que ce site peut faire.",
     "Built-in plugins ship with Tovu itself and have no on-disk files to remove.": "Les extensions intégrées sont fournies avec Tovu lui-même et n'ont aucun fichier sur disque à supprimer.",
@@ -2197,6 +2224,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Install a plugin by placing its files in this site's plugin install directory.": "Installez une extension en plaçant ses fichiers dans le répertoire d'installation des extensions de ce site.",
   },
   uk: {
+    // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
+    "{name} is installed and switched off. Turn it on in Downloaded.": "{name} встановлено й вимкнено. Увімкніть його на вкладці «Завантажено».",
+    "Plugins that ship with Tovu can't be uninstalled: they come back on the next restart. To remove one you added, ask the assistant.": "Плагіни, що постачаються з Tovu, не можна видалити: вони повертаються під час наступного перезапуску. Щоб видалити доданий вами плагін, попросіть асистента.",
     // Agent Plugins "Add a plugin" tab (2026-10-06).
     "Add a plugin": "Додати плагін",
     "Install a package you already have.": "Установіть пакет, який у вас уже є.",
@@ -2342,7 +2372,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Marketplace is planned for a future release. Tovu does not fetch, install, or list marketplace packages yet.": "Маркетплейс заплановано в одному з майбутніх випусків. Tovu поки не завантажує, не встановлює і не показує пакети маркетплейсу.",
     "Read the package format": "Прочитати опис формату пакета",
     "Package format:": "Формат пакета:",
-    "Uninstall is unavailable: these packages ship with Tovu and are restored on the next restart.": "Видалення недоступне: ці пакети постачаються з Tovu і відновлюються під час наступного перезапуску.",
     "No plugins are enabled for this site.": "Для цього сайту не ввімкнено жодного плагіна.",
     "Enabled plugins extend what this site can do.": "Увімкнені плагіни розширюють можливості цього сайту.",
     "Built-in plugins ship with Tovu itself and have no on-disk files to remove.": "Вбудовані плагіни постачаються разом із Tovu і не мають файлів на диску, які можна видалити.",
@@ -2351,6 +2380,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Install a plugin by placing its files in this site's plugin install directory.": "Щоб установити плагін, помістіть його файли до каталогу встановлення плагінів цього сайту.",
   },
   tr: {
+    // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
+    "{name} is installed and switched off. Turn it on in Downloaded.": "{name} yüklendi ve kapalı. İndirildi sekmesinde açın.",
+    "Plugins that ship with Tovu can't be uninstalled: they come back on the next restart. To remove one you added, ask the assistant.": "Tovu ile gelen eklentiler kaldırılamaz: bir sonraki yeniden başlatmada geri gelirler. Eklediğiniz bir eklentiyi kaldırmak için asistandan isteyin.",
     // Agent Plugins "Add a plugin" tab (2026-10-06).
     "Add a plugin": "Eklenti ekle",
     "Install a package you already have.": "Elinizdeki bir paketi yükleyin.",
@@ -2496,7 +2528,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Marketplace is planned for a future release. Tovu does not fetch, install, or list marketplace packages yet.": "Pazar yeri gelecekteki bir sürüm için planlanıyor. Tovu henüz pazar yeri paketlerini getirmiyor, yüklemiyor veya listelemiyor.",
     "Read the package format": "Paket biçimini okuyun",
     "Package format:": "Paket biçimi:",
-    "Uninstall is unavailable: these packages ship with Tovu and are restored on the next restart.": "Kaldırma kullanılamıyor: bu paketler Tovu ile birlikte gelir ve bir sonraki yeniden başlatmada geri yüklenir.",
     "No plugins are enabled for this site.": "Bu site için etkin eklenti yok.",
     "Enabled plugins extend what this site can do.": "Etkin eklentiler bu sitenin yapabileceklerini genişletir.",
     "Built-in plugins ship with Tovu itself and have no on-disk files to remove.": "Yerleşik eklentiler Tovu'nun kendisiyle birlikte gelir ve kaldırılacak disk dosyaları yoktur.",
@@ -2505,6 +2536,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Install a plugin by placing its files in this site's plugin install directory.": "Bir eklentiyi, dosyalarını bu sitenin eklenti kurulum dizinine yerleştirerek yükleyin.",
   },
   th: {
+    // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
+    "{name} is installed and switched off. Turn it on in Downloaded.": "ติดตั้ง {name} แล้วและปิดอยู่ เปิดได้ที่แท็บ ดาวน์โหลดแล้ว",
+    "Plugins that ship with Tovu can't be uninstalled: they come back on the next restart. To remove one you added, ask the assistant.": "ปลั๊กอินที่มาพร้อม Tovu ถอนการติดตั้งไม่ได้: จะกลับมาเมื่อรีสตาร์ทครั้งถัดไป หากต้องการลบปลั๊กอินที่คุณเพิ่มเอง ให้ขอผู้ช่วย",
     // Agent Plugins "Add a plugin" tab (2026-10-06).
     "Add a plugin": "เพิ่มปลั๊กอิน",
     "Install a package you already have.": "ติดตั้งแพ็กเกจที่คุณมีอยู่แล้ว",
@@ -2650,7 +2684,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Marketplace is planned for a future release. Tovu does not fetch, install, or list marketplace packages yet.": "ตลาดกลางมีแผนจะเปิดในรุ่นถัดไป ขณะนี้ Tovu ยังไม่ดึง ติดตั้ง หรือแสดงรายการแพ็กเกจจากตลาดกลาง",
     "Read the package format": "อ่านรูปแบบแพ็กเกจ",
     "Package format:": "รูปแบบแพ็กเกจ:",
-    "Uninstall is unavailable: these packages ship with Tovu and are restored on the next restart.": "ถอนการติดตั้งไม่ได้: แพ็กเกจเหล่านี้มาพร้อมกับ Tovu และจะถูกกู้คืนเมื่อรีสตาร์ทครั้งถัดไป",
     "No plugins are enabled for this site.": "ไม่มีปลั๊กอินที่เปิดใช้งานสำหรับเว็บไซต์นี้",
     "Enabled plugins extend what this site can do.": "ปลั๊กอินที่เปิดใช้งานช่วยขยายสิ่งที่เว็บไซต์นี้ทำได้",
     "Built-in plugins ship with Tovu itself and have no on-disk files to remove.": "ปลั๊กอินในตัวมาพร้อมกับ Tovu และไม่มีไฟล์บนดิสก์ให้ลบ",
@@ -2659,6 +2692,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Install a plugin by placing its files in this site's plugin install directory.": "ติดตั้งปลั๊กอินโดยวางไฟล์ของปลั๊กอินในไดเรกทอรีติดตั้งปลั๊กอินของเว็บไซต์นี้",
   },
   it: {
+    // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
+    "{name} is installed and switched off. Turn it on in Downloaded.": "{name} è installato e disattivato. Attivalo in Scaricato.",
+    "Plugins that ship with Tovu can't be uninstalled: they come back on the next restart. To remove one you added, ask the assistant.": "I plugin forniti con Tovu non si possono disinstallare: tornano al prossimo riavvio. Per rimuoverne uno che hai aggiunto tu, chiedi all'assistente.",
     // Agent Plugins "Add a plugin" tab (2026-10-06).
     "Add a plugin": "Aggiungi un plugin",
     "Install a package you already have.": "Installa un pacchetto che hai già.",
@@ -2804,7 +2840,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Marketplace is planned for a future release. Tovu does not fetch, install, or list marketplace packages yet.": "Il marketplace è previsto in una versione futura. Tovu non recupera, installa né elenca ancora pacchetti del marketplace.",
     "Read the package format": "Leggi il formato del pacchetto",
     "Package format:": "Formato del pacchetto:",
-    "Uninstall is unavailable: these packages ship with Tovu and are restored on the next restart.": "La disinstallazione non è disponibile: questi pacchetti sono forniti con Tovu e vengono ripristinati al prossimo riavvio.",
     "No plugins are enabled for this site.": "Nessun plugin è attivato per questo sito.",
     "Enabled plugins extend what this site can do.": "I plugin attivati estendono ciò che questo sito può fare.",
     "Built-in plugins ship with Tovu itself and have no on-disk files to remove.": "I plugin integrati sono forniti con Tovu stesso e non hanno file su disco da rimuovere.",
@@ -2813,6 +2848,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Install a plugin by placing its files in this site's plugin install directory.": "Installa un plugin inserendo i suoi file nella directory di installazione dei plugin di questo sito.",
   },
   hi: {
+    // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
+    "{name} is installed and switched off. Turn it on in Downloaded.": "{name} इंस्टॉल हो गया है और बंद है। इसे «डाउनलोड किया गया» में चालू करें।",
+    "Plugins that ship with Tovu can't be uninstalled: they come back on the next restart. To remove one you added, ask the assistant.": "Tovu के साथ आने वाले प्लगइन अनइंस्टॉल नहीं किए जा सकते: वे अगले रीस्टार्ट पर लौट आते हैं। अपने जोड़े हुए प्लगइन को हटाने के लिए सहायक से कहें।",
     // Agent Plugins "Add a plugin" tab (2026-10-06).
     "Add a plugin": "प्लगिन जोड़ें",
     "Install a package you already have.": "अपने पास मौजूद पैकेज इंस्टॉल करें।",
@@ -2958,7 +2996,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Marketplace is planned for a future release. Tovu does not fetch, install, or list marketplace packages yet.": "मार्केटप्लेस भविष्य की किसी रिलीज़ के लिए नियोजित है। Tovu अभी मार्केटप्लेस पैकेज न तो लाता है, न इंस्टॉल करता है और न ही सूचीबद्ध करता है।",
     "Read the package format": "पैकेज फ़ॉर्मैट पढ़ें",
     "Package format:": "पैकेज फ़ॉर्मैट:",
-    "Uninstall is unavailable: these packages ship with Tovu and are restored on the next restart.": "अनइंस्टॉल उपलब्ध नहीं है: ये पैकेज Tovu के साथ आते हैं और अगले रीस्टार्ट पर बहाल हो जाते हैं।",
     "No plugins are enabled for this site.": "इस साइट के लिए कोई प्लगिन सक्षम नहीं है।",
     "Enabled plugins extend what this site can do.": "सक्षम प्लगिन इस साइट की क्षमताओं को बढ़ाते हैं।",
     "Built-in plugins ship with Tovu itself and have no on-disk files to remove.": "बिल्ट-इन प्लगिन स्वयं Tovu के साथ आते हैं और उनकी हटाने योग्य कोई डिस्क फ़ाइल नहीं होती।",
@@ -2967,6 +3004,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Install a plugin by placing its files in this site's plugin install directory.": "किसी प्लगिन की फ़ाइलें इस साइट की प्लगिन इंस्टॉल डायरेक्टरी में रखकर उसे इंस्टॉल करें।",
   },
   ur: {
+    // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
+    "{name} is installed and switched off. Turn it on in Downloaded.": "{name} انسٹال ہو گیا ہے اور بند ہے۔ اسے ڈاؤن لوڈ شدہ میں آن کریں۔",
+    "Plugins that ship with Tovu can't be uninstalled: they come back on the next restart. To remove one you added, ask the assistant.": "Tovu کے ساتھ آنے والے پلگ اِن اَن انسٹال نہیں کیے جا سکتے: وہ اگلی ری اسٹارٹ پر واپس آ جاتے ہیں۔ اپنا شامل کیا ہوا پلگ اِن ہٹانے کے لیے اسسٹنٹ سے کہیں۔",
     // Agent Plugins "Add a plugin" tab (2026-10-06).
     "Add a plugin": "پلگ اِن شامل کریں",
     "Install a package you already have.": "اپنے پاس موجود پیکج انسٹال کریں۔",
@@ -3112,7 +3152,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Marketplace is planned for a future release. Tovu does not fetch, install, or list marketplace packages yet.": "مارکیٹ پلیس مستقبل کی کسی ریلیز کے لیے منصوبہ بند ہے۔ Tovu ابھی مارکیٹ پلیس پیکیجز نہ لاتا ہے، نہ انسٹال کرتا ہے اور نہ ہی فہرست بناتا ہے۔",
     "Read the package format": "پیکیج فارمیٹ پڑھیں",
     "Package format:": "پیکیج فارمیٹ:",
-    "Uninstall is unavailable: these packages ship with Tovu and are restored on the next restart.": "اَن انسٹال دستیاب نہیں: یہ پیکیجز Tovu کے ساتھ آتے ہیں اور اگلی ری اسٹارٹ پر بحال ہو جاتے ہیں۔",
     "No plugins are enabled for this site.": "اس سائٹ کے لیے کوئی پلگ اِن فعال نہیں ہے۔",
     "Enabled plugins extend what this site can do.": "فعال پلگ اِنز اس سائٹ کی صلاحیتوں کو بڑھاتے ہیں۔",
     "Built-in plugins ship with Tovu itself and have no on-disk files to remove.": "بلٹ اِن پلگ اِنز خود Tovu کے ساتھ آتے ہیں اور ان کی ہٹانے کے لیے کوئی ڈسک فائلیں نہیں ہوتیں۔",
@@ -3121,6 +3160,9 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Install a plugin by placing its files in this site's plugin install directory.": "کسی پلگ اِن کی فائلیں اس سائٹ کی پلگ اِن انسٹال ڈائرکٹری میں رکھ کر اسے انسٹال کریں۔",
   },
   bn: {
+    // Plugins "Add a plugin" tab and the bundled-only uninstall footnote (2026-10-06).
+    "{name} is installed and switched off. Turn it on in Downloaded.": "{name} ইনস্টল হয়েছে এবং বন্ধ আছে। «ডাউনলোড করা হয়েছে» ট্যাবে এটি চালু করুন।",
+    "Plugins that ship with Tovu can't be uninstalled: they come back on the next restart. To remove one you added, ask the assistant.": "Tovu-এর সঙ্গে আসা প্লাগইন আনইনস্টল করা যায় না: পরের রিস্টার্টে সেগুলো ফিরে আসে। নিজের যোগ করা প্লাগইন সরাতে সহকারীকে বলুন।",
     // Agent Plugins "Add a plugin" tab (2026-10-06).
     "Add a plugin": "প্লাগইন যোগ করুন",
     "Install a package you already have.": "আপনার কাছে থাকা একটি প্যাকেজ ইনস্টল করুন।",
@@ -3266,7 +3308,6 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "Marketplace is planned for a future release. Tovu does not fetch, install, or list marketplace packages yet.": "মার্কেটপ্লেস ভবিষ্যতের একটি রিলিজে আসার পরিকল্পনা আছে। Tovu এখনও মার্কেটপ্লেসের প্যাকেজ আনে না, ইনস্টল করে না বা তালিকাভুক্ত করে না।",
     "Read the package format": "প্যাকেজ ফরম্যাট পড়ুন",
     "Package format:": "প্যাকেজ ফরম্যাট:",
-    "Uninstall is unavailable: these packages ship with Tovu and are restored on the next restart.": "আনইনস্টল উপলব্ধ নয়: এই প্যাকেজগুলো Tovu-এর সাথে আসে এবং পরবর্তী রিস্টার্টে পুনরুদ্ধার হয়।",
     "No plugins are enabled for this site.": "এই সাইটের জন্য কোনো প্লাগইন চালু নেই।",
     "Enabled plugins extend what this site can do.": "চালু থাকা প্লাগইন এই সাইটের সক্ষমতা বাড়ায়।",
     "Built-in plugins ship with Tovu itself and have no on-disk files to remove.": "বিল্ট-ইন প্লাগইন Tovu-এর সাথেই আসে এবং মুছে ফেলার মতো কোনো ডিস্ক ফাইল নেই।",

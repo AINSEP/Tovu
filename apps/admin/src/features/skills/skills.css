@@ -13,12 +13,6 @@
 .skills-page .jini-tabbed-dialog-head { padding-top: 0; padding-inline: 0; }
 .skills-page .jini-tabbed-dialog-content { overflow: visible; padding-inline: 0; }
 .skills-page .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar { padding-inline: 0; }
-.skills-add { display: flex; flex-direction: column; gap: var(--space-4); }
-.skills-add .card-title { margin: 0; }
-.skills-github-form { display: flex; flex-direction: column; gap: var(--space-2); }
-.skills-github-controls { display: flex; align-items: center; gap: var(--space-3); }
-.skills-github-controls input { flex: 1; min-width: 0; }
-.skills-github-controls button { flex: 0 0 auto; }
 .skills-file-input[hidden] { display: none; }
 .skills-row-summary { flex: 1; min-width: 0; padding-bottom: 12px; }
 .skills-row-summary .agent-plugin-row-summary { width: 100%; padding-bottom: 4px; }
@@ -32,6 +26,5 @@
 .skills-confirm-dialog { box-sizing: border-box; width: calc(100% - 2rem); max-height: calc(100dvh - 2rem); overflow-y: auto; }
 .skills-confirm-source { overflow-wrap: anywhere; }
 @media (max-width: 560px) {
-  .skills-github-controls { flex-direction: column; align-items: stretch; }
   .skills-row-source { padding-right: 14px; }
 }

@@ -1,7 +1,8 @@
-import { useRef, useState, type ChangeEvent, type DragEvent } from "react";
+import { useRef, useState, type ChangeEvent } from "react";
 
 import { ApiError, type AdminAgentPlugin } from "@/lib/api";
 import type { Translate } from "@/lib/dictionary-translator";
+import { useZipDrop } from "../../../components/InstallTabCard/use-zip-drop.hooks";
 import { agentPluginDisplayName } from "../rules";
 import type { AgentPluginInstallPort } from "./agent-plugin-install-port.hooks";
 
@@ -60,7 +61,6 @@ export function useAgentPluginInstall(
 ) {
   const { port, t, onInstalled } = required;
   const [file, setFile] = useState<File | null>(null);
-  const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [installed, setInstalled] = useState<{ name: string; alreadyInstalled: boolean } | null>(null);
@@ -94,17 +94,16 @@ export function useAgentPluginInstall(
     }
   }
 
-  function onDrop(event: DragEvent<HTMLElement>): void {
-    event.preventDefault();
-    setDragging(false);
-    if (locked.current) return;
-    const files = Array.from(event.dataTransfer.files ?? []);
-    if (files.length === 1) choose(files[0]!);
-    else {
-      setInstalled(null);
-      setError(t(ONE_ZIP));
-    }
-  }
+  const drop = useZipDrop({
+    isLocked: () => locked.current,
+    onDropFiles: (files) => {
+      if (files.length === 1) choose(files[0]!);
+      else {
+        setInstalled(null);
+        setError(t(ONE_ZIP));
+      }
+    },
+  });
 
   const installedMessage = installed
     ? t(installed.alreadyInstalled ? "{name} is already installed." : "{name} is installed and switched off. Turn it on in Installed.").replace("{name}", installed.name)
@@ -114,7 +113,7 @@ export function useAgentPluginInstall(
     t,
     file,
     fileSizeLabel: file ? `${(file.size / (1024 * 1024)).toFixed(1)} MiB` : "",
-    dragging,
+    drop,
     busy,
     error,
     installedMessage,
@@ -123,12 +122,6 @@ export function useAgentPluginInstall(
     onChooseFile: () => inputRef.current?.click(),
     onFileChange: (event: ChangeEvent<HTMLInputElement>) => choose(event.target.files?.[0] ?? null),
     onClearFile: () => choose(null),
-    onDragOver: (event: DragEvent<HTMLElement>) => {
-      event.preventDefault();
-      if (!locked.current) setDragging(true);
-    },
-    onDragLeave: () => setDragging(false),
-    onDrop,
     install: () => void install(),
   };
 }

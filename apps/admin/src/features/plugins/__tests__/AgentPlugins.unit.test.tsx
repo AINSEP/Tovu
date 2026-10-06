@@ -224,7 +224,7 @@ describe("AgentPlugins", () => {
     expect(uninstall).toHaveAccessibleName("Uninstall Site Compliance — unavailable");
     // A disabled control is not focusable, so the WHY has to reach the accessibility tree some
     // other way — a described-by pointing at the section's own visible note.
-    expect(uninstall).toHaveAccessibleDescription(/ship with Tovu and are restored on the next restart/);
+    expect(uninstall).toHaveAccessibleDescription(/ship with Tovu can.t be uninstalled: they come back on the next restart\. To remove one you added, ask the assistant\./);
   });
 
   it("keeps every per-plugin fact, moving keywords and components behind the row's own expander", async () => {

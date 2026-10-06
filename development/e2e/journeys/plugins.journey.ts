@@ -17,7 +17,7 @@ import { API, PUBLIC_URL, WS_API, createPublishedPageWithHtml, expect, fetchPubl
  * Install is from a folder on the server (`TOVU_PLUGIN_LOCAL_INSTALL=1` in the journeys config),
  * given as an absolute path because the site server's cwd is the repo root.
  *
- * Strings: `apps/admin/src/features/plugins/{InstallPluginDialog.tsx,rules.ts,Plugins.tsx}`.
+ * Strings: `apps/admin/src/features/plugins/{AddPluginPanel.tsx,rules.ts,Plugins.tsx}`.
  * Public markup: `apps/website/src/features/theme/entry-list-render.ts`.
  */
 const REPO_ROOT = path.resolve(import.meta.dirname, "../../..");
@@ -35,10 +35,10 @@ async function pluginState(request: APIRequestContext, id: string): Promise<{ en
   return ((await res.json()).plugins as Array<{ id: string; enabled: boolean }>).find((p) => p.id === id);
 }
 
+/** Fills the Plugins "Add a plugin" tab card (`AddPluginPanel`) and previews; returns that card. */
 async function previewFolder(page: Page, folder: string): Promise<ReturnType<Page["getByRole"]>> {
-  await page.goto("/admin/plugins?tab=downloaded");
-  await page.getByRole("button", { name: "Install plugin" }).click();
-  const dialog = page.getByRole("dialog", { name: "Install plugin" });
+  await page.goto("/admin/plugins?tab=add");
+  const dialog = page.getByRole("region", { name: "Add a plugin" });
   await dialog.getByLabel("Folder on this server").fill(folder);
   await dialog.getByRole("button", { name: "Preview plugin" }).click();
   await expect(dialog.getByRole("button", { name: "Install (stays off)" })).toBeVisible();
@@ -67,8 +67,9 @@ test.describe.serial("AW-7 Tier 1: Testimonials + FAQ, code-free", () => {
     await expect(dialog.locator(".plugin-errors"), "a fresh workspace has no name conflicts").toHaveCount(0);
     await expect(dialog).toHaveScreenshot("plugin-install-preview-tier1.png");
     await dialog.getByRole("button", { name: "Install (stays off)" }).click();
-    await expect(dialog).toHaveCount(0);
+    await expect(dialog).toContainText(`${SAMPLE_NAME} is installed and switched off. Turn it on in Downloaded.`);
     expect((await pluginState(request, "testimonials-faq"))?.enabled).toBe(false);
+    await page.goto("/admin/plugins?tab=downloaded");
     await expect(page.getByRole("button", { name: `Enable ${SAMPLE_NAME}` })).toBeVisible();
   });
 
@@ -149,7 +150,7 @@ test.describe.serial("AW-7 Tier 1: Testimonials + FAQ, code-free", () => {
     await expect(conflicts.getByRole("listitem")).toContainText([/"faq" is already used by Testimonials \+ FAQ\./]);
     await expect(dialog).toHaveScreenshot("plugin-install-preview-conflict.png");
     await dialog.getByRole("button", { name: "Install (stays off)" }).click();
-    await expect(dialog).toHaveCount(0);
+    await expect(dialog).toContainText("is installed and switched off. Turn it on in Downloaded.");
   });
 
   test("the conflicting plugin's row names the clash, and enabling it is refused while the other is on", { tag: ["@unrun"] }, async ({ page, request }) => {

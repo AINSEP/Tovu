@@ -1,5 +1,4 @@
 import type { ComponentType } from "react";
-import { agentHandle } from "@jini-ai/agentic";
 
 import type { AdminPlugin } from "@/lib/api";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
@@ -9,7 +8,8 @@ import { navigate } from "../../lib/router";
 import { PluginRow } from "./PluginRow";
 import { PluginPackageFilesModal } from "./PluginPackageFilesModal";
 import { PluginRemoveConfirmDialog } from "./PluginRemoveConfirmDialog";
-import { InstallPluginDialog } from "./InstallPluginDialog";
+import { AddPluginPanel } from "./AddPluginPanel";
+import { UploadIcon } from "./agent-plugins-visuals";
 import { DownloadedTabIcon, InstalledTabIcon, MarketplaceTabIcon, PluginTrashIcon } from "./plugins-visuals";
 import { filterInstalledPlugins, pluginRemoveAriaLabel, pluginRemoveBlocker, pluginToggleAriaLabel, pluginToggleControl } from "./rules";
 import { useWiredPlugins, type PluginsController } from "./hooks/use-plugins.hooks";
@@ -29,7 +29,7 @@ import { useWiredPlugins, type PluginsController } from "./hooks/use-plugins.hoo
  * row also has an eye button opening `PluginPackageFilesModal` (`PLUGIN_FILES`, 2026-09-13) — the
  * same read-only package-files viewer Agent Plugins uses.
  *
- * Three tabs, Installed first (owner correction, applied identically to the sibling screen the same
+ * Four tabs, Installed first (owner correction, applied identically to the sibling screen the same
  * night — Installed before Downloaded, not the other way round):
  *  - **Installed** — `plugin.enabled === true` only. Carries the Enable/Disable toggle unchanged
  *    from the pre-split table (`pluginToggleControl`/`onToggleEnabled`).
@@ -42,6 +42,9 @@ import { useWiredPlugins, type PluginsController } from "./hooks/use-plugins.hoo
  *    the route always refuses). A disabled row also carries a direct, unconfirmed Enable — the only
  *    lever on this screen to re-activate a plugin once it's off, since Installed only ever lists
  *    enabled rows.
+ *  - **Add a plugin** — the shared `InstallTabCard` (`AddPluginPanel.tsx`): a server folder or one
+ *    `.zip`, previewed before install. Replaced the header "Install plugin" popup (owner, 2026-10-06),
+ *    so all three install screens (Skills, Agent Plugins, Plugins) share one tab and card.
  *  - **Marketplace** — a designed empty state; nothing is fetched, listed, or installable (REQ-02:
  *    install is a filesystem operation, placing files under this site's plugin install directory,
  *    not an HTTP one — `api.spec.md` §1 lists no install/marketplace route for this family either).
@@ -61,7 +64,7 @@ export interface PluginsProps {
   usePluginsHook?: typeof useWiredPlugins;
 }
 
-const PLUGINS_TAB_IDS = ["installed", "downloaded", "marketplace"] as const;
+const PLUGINS_TAB_IDS = ["installed", "downloaded", "add", "marketplace"] as const;
 type PluginsTabId = (typeof PLUGINS_TAB_IDS)[number];
 
 /** Falls back to the Installed tab for an absent or unrecognized `?tab=` value. Delegates to the
@@ -270,17 +273,24 @@ function MarketplacePanel({ controller }: PluginsTabPanelProps) {
         <p className="page-description">
           {t("Marketplace is planned for a future release. Tovu does not fetch, list, or install plugins from a marketplace yet.")}
         </p>
-        <p className="page-description">
-          {controller.canInstallFolder ? t("Install plugin") : t("Install a plugin by placing its files in this site's plugin install directory.")}
-        </p>
+        {controller.canInstallFolder ? null : (
+          <p className="page-description">{t("Install a plugin by placing its files in this site's plugin install directory.")}</p>
+        )}
       </div>
     </div>
   );
 }
 
+/** Add a plugin: the shared install card. Without an install controller (a test hook that omits
+ *  it) the tab is empty. */
+function AddPanel({ controller }: PluginsTabPanelProps) {
+  return controller.install ? <AddPluginPanel controller={controller.install} canInstall={controller.canInstallFolder === true} /> : null;
+}
+
 const PLUGINS_TAB_PANELS: Record<PluginsTabId, ComponentType<PluginsTabPanelProps>> = {
   installed: InstalledPanel,
   downloaded: DownloadedPanel,
+  add: AddPanel,
   marketplace: MarketplacePanel,
 };
 
@@ -321,6 +331,7 @@ function LoadedPlugins({ plugins, controller, activeTabId }: { plugins: AdminPlu
   const tabs: TabBarTab[] = [
     { id: "installed", label: t("Installed"), icon: <InstalledTabIcon />, handle: "plugins-tab-installed", handleLabel: "Switch to the Installed tab — plugins this site has turned on" },
     { id: "downloaded", label: t("Downloaded"), icon: <DownloadedTabIcon />, handle: "plugins-tab-downloaded", handleLabel: "Switch to the Downloaded tab — every plugin on disk for this site, regardless of whether it's turned on" },
+    { id: "add", label: t("Add a plugin"), icon: <UploadIcon />, handle: "plugins-tab-add", handleLabel: "Switch to the Add a plugin tab — install a plugin from a folder on this server or a .zip" },
     { id: "marketplace", label: t("Marketplace"), icon: <MarketplaceTabIcon />, handle: "plugins-tab-marketplace", handleLabel: "Switch to the Marketplace tab — a future place to discover plugins" },
   ];
 
@@ -334,9 +345,6 @@ function LoadedPlugins({ plugins, controller, activeTabId }: { plugins: AdminPlu
             {t("Enable or disable plugins discovered in this site's plugin install directory.")}
           </p>
         </div>
-        {controller.canInstallFolder && controller.install ? (
-          <button type="button" onClick={controller.install.open} {...agentHandle({ handle: "plugins-install" }, { role: "button", label: t("Install plugin") })}>{t("Install plugin")}</button>
-        ) : null}
       </div>
       {rowError ? (
         <div className="notice error">
@@ -355,8 +363,6 @@ function LoadedPlugins({ plugins, controller, activeTabId }: { plugins: AdminPlu
       <TabBar ariaLabel={t("Plugins")} tabs={tabs} activeId={activeTabId} onChange={navigateToPluginsTab} containerHandle="plugins-tab-bar" />
 
       <ActivePanel plugins={plugins} controller={controller} rowHandleById={rowHandleById} />
-
-      {controller.install?.isOpen ? <InstallPluginDialog controller={controller.install} /> : null}
 
       {inspectedPlugin ? <PluginPackageFilesModal plugin={inspectedPlugin} onClose={controller.onCloseInspector} /> : null}
 
