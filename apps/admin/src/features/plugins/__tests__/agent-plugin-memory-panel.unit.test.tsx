@@ -82,6 +82,6 @@ test('Memory and Package files switch the header and selected ARIA tab together 
   expect(packageTab).toHaveAttribute('aria-selected', 'true');
   expect(memoryTab).toHaveAttribute('aria-selected', 'false');
   expect(screen.getByRole('dialog')).toHaveAccessibleName('Higgsfield Media package files preview');
-  expect(screen.getByText("Read-only view of this plugin's files; nothing runs from this screen.")).toBeInTheDocument();
+  expect(screen.queryByText("Read-only view of this plugin's files; nothing runs from this screen.")).not.toBeInTheDocument();
   expect(screen.queryByText('Edit project notes and review what this plugin has learned.')).not.toBeInTheDocument();
 });

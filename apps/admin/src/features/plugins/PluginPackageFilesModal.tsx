@@ -22,7 +22,6 @@ export function PluginPackageFilesModal({ plugin, onClose, useFiles = useWiredPl
   return (
     <PackageFilesModal
       title={`${plugin.name} ${t("package files")}`}
-      subtitle={t("Read-only view of this plugin's files; nothing runs from this screen.")}
       files={files}
       selectedFile={selectedFile}
       onSelectFile={selectFile}

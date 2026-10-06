@@ -4611,11 +4611,22 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-md);
 }
+/* Header: title + close on the first row, the Package files / Memory tabs wrapped onto their own
+   row under the title (owner, 2026-10-06). The shell lays the header out as one flex row of title,
+   tabs, actions, close; at phone width that squeezed the title into a narrow column beside the tabs
+   and wasted the top third of the modal. Wrapping + `order` re-flows it without touching Jini: the
+   title block claims all but the close button's width, so the tabs always break to row two. */
 .agent-plugin-source-modal [data-preview-modal-header] {
-  min-height: 4rem;
+  flex-wrap: wrap;
   padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--border);
 }
+.agent-plugin-source-modal [data-preview-modal-title-block] { order: 0; flex: 1 1 calc(100% - 3rem - 12px); min-width: 0; }
+.agent-plugin-source-modal [data-preview-modal-close] { order: 1; }
+.agent-plugin-source-modal [data-preview-modal-tabs] { order: 2; }
+.agent-plugin-source-modal [data-preview-modal-actions] { order: 3; }
+/* Nothing renders actions here; the shell's inline `display: flex` would still claim a gap. */
+.agent-plugin-source-modal [data-preview-modal-actions]:empty { display: none !important; }
 .agent-plugin-source-modal [data-preview-modal-title] { font-weight: 700; color: var(--fg); }
 .agent-plugin-source-modal [data-preview-modal-subtitle] { margin-top: 2px; font-size: var(--text-sm); color: var(--muted); }
 .agent-plugin-source-modal [data-preview-modal-close],
@@ -4727,6 +4738,12 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 }
 
 @media (max-width: 720px) {
+  /* Phone: a thinner backdrop margin and header, and full-width tabs, so the tree and code get the room. */
+  .agent-plugin-source-modal { padding: var(--space-2); }
+  .agent-plugin-source-modal [data-preview-modal] { max-height: calc(100dvh - 1rem); }
+  .agent-plugin-source-modal [data-preview-modal-header] { padding: var(--space-3); }
+  .agent-plugin-source-modal [data-preview-modal-tabs] { flex-basis: 100%; }
+  .agent-plugin-source-modal [data-preview-modal-tabs] button { flex: 1; }
   .agent-plugin-source-browser { grid-template-columns: 1fr; grid-template-rows: minmax(8rem, 32%) minmax(0, 1fr); }
   .agent-plugin-source-files { border-right: none; border-bottom: 1px solid var(--border); }
 }

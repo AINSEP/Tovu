@@ -28,7 +28,7 @@ import { usePackageFileWrap } from "./hooks/use-package-file-wrap.hooks";
 
 export interface PackageFilesModalProps {
   readonly title: string;
-  readonly subtitle: string;
+  readonly subtitle?: string | undefined;
   readonly files: readonly PackageFileView[];
   readonly selectedFile: PackageFileView | null;
   readonly onSelectFile: (relativePath: string) => void;
