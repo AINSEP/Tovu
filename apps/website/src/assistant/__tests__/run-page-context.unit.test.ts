@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildPageContextPromptBlock, readRunPageContext } from "../run-page-context.js";
+import { buildPageContextPromptBlock, readRunPageContext, withPageContextBlock } from "../run-page-context.js";
 import { parseRunStartContextRef } from "../run-start-context.js";
 
 /**
@@ -94,4 +94,36 @@ test("readRunPageContext rejects a context without a path or section", () => {
   assert.equal(readRunPageContext({ path: "/pages" }), undefined);
   assert.equal(readRunPageContext(null), undefined);
   assert.equal(readRunPageContext(["/pages"]), undefined);
+});
+
+// Demo V3 2026-10-05: on Studio → Playground the chart was drawn on the canvas, yet the assistant
+// said "the chart in the chat above" — the screen block never said where its drawings go.
+test("the block says where drawings appear: on the screen's canvas, or in the chat", () => {
+  const canvas = buildPageContextPromptBlock(readRunPageContext({ path: "/playground", section: "playground", drawingSurface: "canvas" }));
+  assert.equal(
+    canvas.split("\n").at(-1),
+    "- Where drawings appear: on this screen's canvas, not in the chat (assistant_render_ui output is shown on the canvas)",
+  );
+  const chat = buildPageContextPromptBlock(readRunPageContext({ path: "/pages", section: "pages", drawingSurface: "chat" }));
+  assert.equal(chat.split("\n").at(-1), "- Where drawings appear: inline in the chat (assistant_render_ui output is shown in the chat)");
+});
+
+test("readRunPageContext keeps only a known drawingSurface", () => {
+  assert.equal(readRunPageContext({ path: "/playground", section: "playground", drawingSurface: "canvas" })?.drawingSurface, "canvas");
+  assert.equal(readRunPageContext({ path: "/pages", section: "pages", drawingSurface: "chat" })?.drawingSurface, "chat");
+  assert.deepEqual(readRunPageContext({ path: "/pages", section: "pages", drawingSurface: "sidebar" }), { path: "/pages", section: "pages" });
+  assert.doesNotMatch(buildPageContextPromptBlock(readRunPageContext({ path: "/pages", section: "pages" })), /Where drawings appear/);
+});
+
+test("withPageContextBlock puts the screen block in front of the newest user message only (BYOK turns)", () => {
+  const messages = [
+    { role: "user" as const, content: "earlier" },
+    { role: "assistant" as const, content: "ok" },
+    { role: "user" as const, content: "chart my content" },
+  ];
+  const context = readRunPageContext({ path: "/playground", section: "playground", drawingSurface: "canvas" });
+  const result = withPageContextBlock({ messages, pageContext: context });
+  assert.deepEqual(result.slice(0, 2), messages.slice(0, 2));
+  assert.equal(result[2]!.content, `${buildPageContextPromptBlock(context)}\n\nchart my content`);
+  assert.equal(withPageContextBlock({ messages, pageContext: undefined }), messages);
 });

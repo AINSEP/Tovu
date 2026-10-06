@@ -7,6 +7,7 @@ import {
   readAgentScreenContext,
   resetAgentScreenContext,
 } from "../agent-screen-context";
+import { resetPlaygroundRenderTargetBus, setPlaygroundRenderTarget } from "../playground-render-target-bus";
 import { useAgentScreenEntry, useAgentScreenRoute } from "@/hooks/use-agent-screen-context.hooks";
 
 /**
@@ -24,7 +25,10 @@ const LANDING_ENTRY = {
   status: "published",
 };
 
-afterEach(() => resetAgentScreenContext());
+afterEach(() => {
+  resetAgentScreenContext();
+  resetPlaygroundRenderTargetBus();
+});
 
 describe("agent screen context store", () => {
   it("reports nothing before any screen is published", () => {
@@ -39,12 +43,29 @@ describe("agent screen context store", () => {
       section: "pages",
       view: "page-editor",
       entry: LANDING_ENTRY,
+      drawingSurface: "chat",
     });
   });
 
   it("omits view on a section's index screen", () => {
     publishAgentScreenRoute({ path: "/pages", section: "pages", view: null });
-    expect(readAgentScreenContext()).toEqual({ path: "/pages", section: "pages" });
+    expect(readAgentScreenContext()).toEqual({ path: "/pages", section: "pages", drawingSurface: "chat" });
+  });
+
+  // Demo V3 2026-10-05: on Studio → Playground the chart was drawn on the canvas, yet the assistant
+  // said "the chart in the chat above" — nothing told it where its drawings go on this screen.
+  it("says drawings land on the canvas while a screen has registered one, and in the chat otherwise", () => {
+    publishAgentScreenRoute({ path: "/playground", section: "playground", view: null });
+    expect(readAgentScreenContext({ hasCanvas: () => true })?.drawingSurface).toBe("canvas");
+    expect(readAgentScreenContext({ hasCanvas: () => false })?.drawingSurface).toBe("chat");
+  });
+
+  it("reads the Playground render target by default", () => {
+    publishAgentScreenRoute({ path: "/playground", section: "playground", view: null });
+    setPlaygroundRenderTarget(document.createElement("div"));
+    expect(readAgentScreenContext()?.drawingSurface).toBe("canvas");
+    setPlaygroundRenderTarget(null);
+    expect(readAgentScreenContext()?.drawingSurface).toBe("chat");
   });
 
   it("does not report an entry without a route — an entry alone does not say where the operator is", () => {
@@ -68,7 +89,7 @@ describe("useAgentScreenRoute / useAgentScreenEntry", () => {
     expect(readAgentScreenContext()?.entry).toEqual(LANDING_ENTRY);
 
     editor.unmount();
-    expect(readAgentScreenContext()).toEqual({ path: "/pages/x", section: "pages", view: "page-editor" });
+    expect(readAgentScreenContext()).toEqual({ path: "/pages/x", section: "pages", view: "page-editor", drawingSurface: "chat" });
   });
 
   it("publishes nothing while the editor's entry is still loading", () => {

@@ -490,6 +490,9 @@ async function startByokRun(
       credentials: "same-origin",
       body: JSON.stringify({
         messages,
+        // The admin screen, as on the Local CLI path (`buildLocalCliContextRef`): the server puts it
+        // in front of the newest message so a BYOK turn knows the open page and where drawings go.
+        ...pageContextField(input),
         byok: {
           protocol: byok.protocol,
           apiKey: byok.apiKey,

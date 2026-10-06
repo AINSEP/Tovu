@@ -27,6 +27,19 @@ export interface RunPageContextEntry {
   readonly status?: string;
 }
 
+/**
+ * Where `assistant_render_ui` output appears on the operator's screen: `canvas` when the screen has
+ * one (Studio → Playground portals every drawing there), else `chat`. Only the browser makes that
+ * routing call, so without this the model said "the chart in the chat above" while it sat on the
+ * canvas (demo V3, 2026-10-05).
+ */
+export type RunDrawingSurface = "canvas" | "chat";
+
+const DRAWING_SURFACE_LINES: Readonly<Record<RunDrawingSurface, string>> = {
+  canvas: "- Where drawings appear: on this screen's canvas, not in the chat (assistant_render_ui output is shown on the canvas)",
+  chat: "- Where drawings appear: inline in the chat (assistant_render_ui output is shown in the chat)",
+};
+
 /** The admin screen a run's message was sent from. */
 export interface RunPageContext {
   /** The admin route path, e.g. `/pages/<id>`. */
@@ -36,6 +49,8 @@ export interface RunPageContext {
   /** The panel's sub-view, e.g. `page-editor`; absent on a section's own index screen. */
   readonly view?: string;
   readonly entry?: RunPageContextEntry;
+  /** See {@link RunDrawingSurface}; absent when the browser did not say. */
+  readonly drawingSurface?: RunDrawingSurface;
 }
 
 /** Longest value kept for any one field; an entry title is the only one that realistically nears it. */
@@ -53,6 +68,10 @@ function readCappedString(value: unknown): string | undefined {
 /** Spreads `{ [key]: value }` only when `value` is defined — keeps absent fields off the object. */
 function optionalField<K extends string>(key: K, value: string | undefined): { [P in K]?: string } {
   return (value === undefined ? {} : { [key]: value }) as { [P in K]?: string };
+}
+
+function readDrawingSurface(value: unknown): RunDrawingSurface | undefined {
+  return value === "canvas" || value === "chat" ? value : undefined;
 }
 
 function readEntry(value: unknown): RunPageContextEntry | undefined {
@@ -87,11 +106,13 @@ export function readRunPageContext(value: unknown): RunPageContext | undefined {
   const section = readCappedString(value.section);
   if (path === undefined || section === undefined) return undefined;
   const entry = readEntry(value.entry);
+  const drawingSurface = readDrawingSurface(value.drawingSurface);
   return {
     path,
     section,
     ...optionalField("view", readCappedString(value.view)),
     ...(entry === undefined ? {} : { entry }),
+    ...(drawingSurface === undefined ? {} : { drawingSurface }),
   };
 }
 
@@ -122,5 +143,31 @@ export function buildPageContextPromptBlock(context: RunPageContext | undefined)
     `- Section: ${JSON.stringify(context.section)}`,
     ...(context.view === undefined ? [] : [`- Screen: ${JSON.stringify(context.view)}`]),
     `- Open entry: ${describeEntry(context.entry)}`,
+    ...(context.drawingSurface === undefined ? [] : [DRAWING_SURFACE_LINES[context.drawingSurface]]),
   ].join("\n");
+}
+
+/**
+ * The BYOK turn's counterpart of `agent-daemon-server.ts`'s `onStarted` prompt assembly: the screen
+ * block goes directly in front of the operator's newest words, so "this page" and "where drawings
+ * appear" mean the same on both execution paths. The BYOK route (`assistant-byok.ts`) received no
+ * screen at all before this, so the 2026-09-16 "which page is this?" fix never reached it.
+ *
+ * @param required.messages - The validated history; the last entry is the newest user message.
+ * @param required.pageContext - {@link readRunPageContext}'s result.
+ * @returns A new array with the block prepended to the last user message, or `messages` itself
+ *   (same reference) when there is no context or no trailing user message.
+ * @complexity O(n) in messages (one copy).
+ */
+export function withPageContextBlock<M extends { readonly role: string; readonly content: string }>({
+  messages,
+  pageContext,
+}: {
+  messages: readonly M[];
+  pageContext: RunPageContext | undefined;
+}): readonly M[] {
+  const block = buildPageContextPromptBlock(pageContext);
+  const last = messages[messages.length - 1];
+  if (block === "" || last?.role !== "user") return messages;
+  return [...messages.slice(0, -1), { ...last, content: `${block}\n\n${last.content}` }];
 }

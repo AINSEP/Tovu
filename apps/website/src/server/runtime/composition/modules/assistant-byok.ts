@@ -65,6 +65,7 @@ import {
   type ByokToolSurfaceDeps,
 } from "#src/assistant/index";
 import { formatCustomInstructionsOverlay, resolveCustomInstructions } from "#src/assistant/custom-instructions";
+import { readRunPageContext, withPageContextBlock } from "#src/assistant/run-page-context";
 import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { AgentRunStatus } from "#src/platform/observability/index";
@@ -312,12 +313,15 @@ async function resolveTurnInputsOrRespond(
   credentialPort: ExecutionCredentialPort,
   routeDeps: RouteDeps,
 ): Promise<ByokTurnInputs | null> {
-  const body = (req.body ?? {}) as { messages?: unknown; byok?: RequestSuppliedByokConfig };
-  const messages = resolveMessages(body.messages);
-  if (messages.length === 0 || messages[messages.length - 1]?.role !== "user") {
+  const body = (req.body ?? {}) as { messages?: unknown; byok?: RequestSuppliedByokConfig; pageContext?: unknown };
+  const history = resolveMessages(body.messages);
+  if (history.length === 0 || history[history.length - 1]?.role !== "user") {
     res.status(400).json({ error: "'messages' must end with a non-empty user message", code: "VALIDATION_ERROR" });
     return null;
   }
+  // The admin screen block, same as a Local CLI run's (`run-page-context.ts`): degrade-only, so a
+  // malformed `pageContext` means "the turn does not know the screen", never a rejected request.
+  const messages = [...withPageContextBlock({ messages: history, pageContext: readRunPageContext(body.pageContext) })];
 
   const authed = getAuthedPrincipal(res);
   const credential = await credentialPort.resolve({

@@ -278,6 +278,22 @@ describe("startByokRun — request shape and startup failures", () => {
     expect(body.byok).not.toHaveProperty("maxTokens");
   });
 
+  // The admin screen (open page, where drawings appear) reached only Local CLI runs; a BYOK turn
+  // never told the model which screen it was on (demo V3 / owner, 2026-10-05).
+  test("sends the screen the message was sent from as pageContext, and omits a malformed one", async () => {
+    fetchMock = vi.fn(async () => new Response(streamFromChunks([frame("end", {})]), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const transport = createTovuAssistantTransport({ getExecutionConfig: () => byokConfig() });
+    const pageContext = { path: "/playground", section: "playground", drawingSurface: "canvas" };
+
+    await transport.startRun({ history: HISTORY, signal: new AbortController().signal, context: { pageContext } }, handlers());
+    await transport.startRun({ history: HISTORY, signal: new AbortController().signal, context: { pageContext: "pages" } }, handlers());
+
+    const bodies = fetchMock.mock.calls.map(([, init]) => JSON.parse((init as RequestInit).body as string) as Record<string, unknown>);
+    expect(bodies[0]!.pageContext).toEqual(pageContext);
+    expect(bodies[1]).not.toHaveProperty("pageContext");
+  });
+
   test("includes baseUrl and maxTokens only when present, not as empty/undefined keys", async () => {
     const stream = streamFromChunks([frame("end", {})]);
     fetchMock = vi.fn(async () => new Response(stream, { status: 200 }));

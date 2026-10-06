@@ -453,6 +453,34 @@ test(`${BYOK_TURN_PATH} composes 'system' from SYSTEM_PREAMBLE plus the admin In
   assert.equal(capturedSystem, `${SYSTEM_PREAMBLE}\n\n${expectedOverlay}`);
 });
 
+// Demo V3 2026-10-05 / owner 2026-10-05: the per-message screen block (which page is open, where
+// drawings appear) reached only the Local CLI path; a BYOK turn never saw the screen at all.
+test(`${BYOK_TURN_PATH} puts the admin screen block in front of the newest user message`, async (t) => {
+  const deps = createRouteDeps();
+  const app = createApp(deps);
+  const { baseUrl } = await bootAuthenticated(app, t);
+  const cookie = await loginWithPermissions(deps, baseUrl, ["workspace.manage"]);
+
+  let capturedMessages: Array<{ role: string; content: unknown }> = [];
+  const providerUrl = await stubProvider(t, (_callCount, requestBody) => {
+    capturedMessages = requestBody.messages as Array<{ role: string; content: unknown }>;
+    return sseBody(messageStart(), textBlock(0, "Hello."), messageDelta("end_turn"), messageStop());
+  });
+
+  const res = await postByokTurn(baseUrl, cookie, {
+    ...BYOK_BODY,
+    pageContext: { path: "/playground", section: "playground", drawingSurface: "canvas" },
+    byok: { ...BYOK_BODY.byok, baseUrl: providerUrl },
+  });
+  assert.equal(res.status, 200);
+  await res.text();
+
+  const firstUser = JSON.stringify(capturedMessages.find((message) => message.role === "user")?.content);
+  assert.match(firstUser, /\[Current admin screen/);
+  assert.match(firstUser, /- Where drawings appear: on this screen's canvas, not in the chat/);
+  assert.match(firstUser, /What is this workspace called\? Use your tool\./);
+});
+
 test(`${BYOK_TURN_PATH} sends the bare SYSTEM_PREAMBLE as 'system' when no custom instructions are set`, async (t) => {
   const deps = createRouteDeps();
   const app = createApp(deps);

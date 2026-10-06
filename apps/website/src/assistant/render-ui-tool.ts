@@ -1,4 +1,4 @@
-import { createLabCatalog, parseAgentToRendererMessage, type AgentToRendererMessage } from "@jini-ai/agentic/a2ui";
+import { A2UI_DISPLAY_ONLY_PROPERTY, createLabCatalog, parseAgentToRendererMessage, type AgentToRendererMessage } from "@jini-ai/agentic/a2ui";
 
 import { buildDomainRegistrations, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 
@@ -37,7 +37,11 @@ export const renderUiAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: RENDER_UI_TOOL_ID,
     description:
-      "Renders an arbitrary A2UI surface inline in the chat, built from real components (basic layout/text " +
+      // Not "inline in the chat" alone: a screen with a canvas (Studio → Playground) shows the
+      // surface there, and the model told the operator "the chart in the chat above" while it sat
+      // on the canvas (demo V3, 2026-10-05). The per-message screen block says which.
+      "Renders an arbitrary A2UI surface in the admin UI: inline in the chat, or on the open screen's canvas " +
+      "when it has one (the Current admin screen block's 'Where drawings appear' line says which). Built from real components (basic layout/text " +
       "primitives like Column/Row/Text/Card, plus every registry component search_components can find, e.g. " +
       "shadcn.button, shadcn.checkbox-field, recharts.pie-chart, recharts.bar-chart, recharts.line-chart). " +
       "Call search_components/describe_component first to learn exact component ids and their required props. " +
@@ -128,7 +132,13 @@ export function buildRenderUiRegistrations(
       };
 
       try {
-        const created = await emitA2ui({ version: "v1.0", createSurface: { surfaceId, catalogId: catalog.catalogId, dataModel: {} } });
+        // Display-only: this tool draws and asks nothing, so the chat must not read the surface as
+        // a question ("Waiting for your answer above") while the call waits out its refusal grace
+        // period below (demo V3, 2026-10-05). `surfaceProperties` is an open record; renderers ignore it.
+        const created = await emitA2ui({
+          version: "v1.0",
+          createSurface: { surfaceId, catalogId: catalog.catalogId, surfaceProperties: { [A2UI_DISPLAY_ONLY_PROPERTY]: true }, dataModel: {} },
+        });
         if (!created.ok) return { rendered: false, reason: "schema-rejected", detail: created.reason };
 
         const updated = await emitA2ui({ version: "v1.0", updateComponents: { surfaceId, components: components as never } });
@@ -144,7 +154,12 @@ export function buildRenderUiRegistrations(
           };
         }
 
-        return { rendered: true, note: "The surface is now visible in the chat. Briefly describe what it shows." };
+        return {
+          rendered: true,
+          note:
+            "The surface is now visible to the administrator: on this screen's canvas or in the chat, as the Current admin screen " +
+            "block's 'Where drawings appear' line says (in the chat when there is no such line). Briefly describe what it shows and say where it is.",
+        };
       } finally {
         exchange.close();
       }

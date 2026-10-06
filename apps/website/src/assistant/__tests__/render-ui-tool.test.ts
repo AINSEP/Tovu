@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { A2UI_DISPLAY_ONLY_PROPERTY } from "@jini-ai/agentic/a2ui";
 import type { SurfaceEmission, SurfaceEmitter } from "@jini-ai/core";
 import type { ToolRegistration } from "@jini-ai/core";
 
-import { RENDER_UI_TOOL_ID, buildRenderUiRegistrations } from "../render-ui-tool.js";
+import { RENDER_UI_TOOL_ID, buildRenderUiRegistrations, renderUiAgentToolCatalog } from "../render-ui-tool.js";
 import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
 
 /**
@@ -77,6 +78,17 @@ function surfaceIdFromEmitted(emitted: unknown[]): string {
   return createMsg.payload.message.createSurface!.surfaceId;
 }
 
+// Demo V3 2026-10-05: on Studio → Playground the chart was drawn on the canvas, but this note said
+// "visible in the chat" and the model repeated it. Where it lands is the screen block's call.
+const RENDERED_NOTE =
+  "The surface is now visible to the administrator: on this screen's canvas or in the chat, as the Current admin screen block's 'Where drawings appear' line says (in the chat when there is no such line). Briefly describe what it shows and say where it is.";
+
+test("the tool description says a drawing may land on the screen's canvas, not only in the chat", () => {
+  const entry = renderUiAgentToolCatalog.find((tool) => tool.name === RENDER_UI_TOOL_ID)!;
+  assert.match(entry.description, /^Renders an arbitrary A2UI surface in the admin UI: inline in the chat, or on the open screen's canvas when it has one \(the Current admin screen block's 'Where drawings appear' line says which\)\./);
+  assert.doesNotMatch(entry.description, /inline in the chat, built/);
+});
+
 test("returns rendered: true when nothing reports a refusal", async () => {
   const surfaceExchanges = createSurfaceExchangeStore();
   const handler = buildHandler(surfaceExchanges);
@@ -85,13 +97,16 @@ test("returns rendered: true when nothing reports a refusal", async () => {
 
   const result = await call(handler, { input: { components }, emitSurface: async (surface) => void emitted.push(surface) });
 
-  assert.deepEqual(result, { rendered: true, note: "The surface is now visible in the chat. Briefly describe what it shows." });
+  assert.deepEqual(result, { rendered: true, note: RENDERED_NOTE });
   const surfaceId = surfaceIdFromEmitted(emitted);
   assert.equal(emitted.length, 2);
   assert.equal(emitted[0]!.channel, "a2ui");
   assert.equal(emitted[1]!.channel, "a2ui");
-  const created = emitted[0]!.payload as { message: { version: string; createSurface: { surfaceId: string; catalogId: string; dataModel: unknown } } };
+  const created = emitted[0]!.payload as { message: { version: string; createSurface: { surfaceId: string; catalogId: string; dataModel: unknown; surfaceProperties?: unknown } } };
   assert.equal(created.message.version, "v1.0");
+  // A chart asks nothing: the chat must not read it as "Waiting for your answer above" while this
+  // call waits out its refusal grace period (demo V3, 2026-10-05).
+  assert.deepEqual(created.message.createSurface.surfaceProperties, { [A2UI_DISPLAY_ONLY_PROPERTY]: true });
   assert.equal(created.message.createSurface.surfaceId, surfaceId);
   assert.ok(created.message.createSurface.catalogId);
   assert.deepEqual(created.message.createSurface.dataModel, {});
@@ -118,7 +133,7 @@ test("a button action during the grace period is not a renderer refusal", async 
     }
   } });
 
-  assert.deepEqual(await pending, { rendered: true, note: "The surface is now visible in the chat. Briefly describe what it shows." });
+  assert.deepEqual(await pending, { rendered: true, note: RENDERED_NOTE });
   assert.equal(surfaceExchanges.size(), 0);
 });
 
