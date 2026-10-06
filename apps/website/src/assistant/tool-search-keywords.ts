@@ -97,6 +97,7 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
     "image alt text caption description rename file photo metadata video videos autoplay muted loop playsinline poster controls attribute attributes html class classes css lazy loading slug slugs",
   media_generate_asset: "image images generate generated generating create created ai art artwork draw drawing design logo banner illustration picture dall-e dalle openai gpt make making",
   media_promote_chat_attachment: "image images photo attachment attachments attached uploaded chat file files add save promote this the one I sent library gallery",
+  media_view_video: "video videos clip clips movie movies watch see view look describe cat content frames stills screenshot timestamps duration audio attachment attached media library motion movement sequence interval intervals spacing gap gaps every seconds start count sampling sheet sheets grid tiles contact skim overview zoom",
   // 2026-09-06 — the incident this tool exists for was a DISCOVERY failure as much as a capability
   // one: the assistant was holding a CloudFront URL for an image it had just generated and reported
   // there was "no import-by-URL tool". Whatever an operator (or a model) calls the act of pointing at

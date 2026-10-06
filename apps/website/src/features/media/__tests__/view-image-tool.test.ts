@@ -227,7 +227,7 @@ test("neither or both of mediaId/slug is a ToolInputError, not a guess", async (
   }
 });
 
-test("a video asset is refused with a clear message saying there is no poster frame, not a broken image", async () => {
+test("a video asset is refused with a pointer to media_view_video, not a broken image", async () => {
   const harness = makeHarness();
   // A real ISO-BMFF `ftyp` box with the `isom` brand — what `sniffContentType` classifies as MP4.
   const mp4 = new Uint8Array([0, 0, 0, 0x18, ...Buffer.from("ftypisom"), 0, 0, 2, 0, ...Buffer.from("isomiso2"), 0, 0, 0, 8, ...Buffer.from("free")]);
@@ -237,7 +237,7 @@ test("a video asset is refused with a clear message saying there is no poster fr
     assert.ok(error instanceof ToolInputError, String(error));
     assert.equal(
       error.message,
-      `media_view_image: media asset '${asset.id}' is a video (video/mp4). This tool only shows still images, and no poster frame is available for videos — describe it from its title and caption instead, or ask the human.`,
+      `media_view_image: media asset '${asset.id}' is a video (video/mp4). This tool only shows still images. Use media_view_video with this mediaId to see sampled video frames.`,
     );
     return true;
   });

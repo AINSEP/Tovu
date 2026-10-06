@@ -126,6 +126,7 @@ export type ChatAttachmentRefusal =
   | "record-unreadable"
   | "record-outside-upload-root"
   | "not-owner"
+  | "too-large"
   | "integrity";
 
 export type ChatAttachmentReadResult =
@@ -262,7 +263,7 @@ async function observeAttachment(
  */
 export async function readChatAttachmentForOwner(
   deps: { readonly uploadDirectory: string },
-  input: { readonly ref: string; readonly ownerId: string }
+  input: { readonly ref: string; readonly ownerId: string; readonly maxBytes?: number }
 ): Promise<ChatAttachmentReadResult> {
   if (!CHAT_ATTACHMENT_REF_PATTERN.test(input.ref)) return refuse("malformed-ref");
 
@@ -301,6 +302,10 @@ export async function readChatAttachmentForOwner(
   // single comparison below enforces that rule and ordinary ownership together — `undefined` never
   // equals a non-empty id — so a separate `=== undefined` guard here would be dead code.
   if (loaded.record.ownerId !== input.ownerId) return refuse("not-owner");
+
+  // Video preview has a tighter cap than upload. Refuse before allocating/reading its payload;
+  // the identity gate below also proves that the current file still has this recorded size.
+  if (input.maxBytes !== undefined && (!Number.isFinite(loaded.record.size) || loaded.record.size < 0 || loaded.record.size > input.maxBytes)) return refuse("too-large");
 
   const observed = await observeAttachment(loaded.filePath);
   if (observed === undefined) return refuse("integrity");

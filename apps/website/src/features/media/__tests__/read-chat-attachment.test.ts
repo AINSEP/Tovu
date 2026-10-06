@@ -341,3 +341,12 @@ test("read-chat-attachment: an upload directory that does not exist is not found
 
   assert.deepEqual(await read(staged), { ok: false, refusal: "no-record" });
 });
+
+test('read-chat-attachment: the video preview size cap refuses an owned file before payload read', async t => {
+  const staged = await stage(t);
+  await writeSidecar(staged);
+  assert.deepEqual(await readChatAttachmentForOwner({ uploadDirectory: staged.uploadDirectory }, { ref: REF, ownerId: OWNER, maxBytes: BYTES.byteLength - 1 }), { ok: false, refusal: 'too-large' });
+  const accepted = await readChatAttachmentForOwner({ uploadDirectory: staged.uploadDirectory }, { ref: REF, ownerId: OWNER, maxBytes: BYTES.byteLength });
+  assert.equal(accepted.ok, true);
+  if (accepted.ok) assert.deepEqual(new Uint8Array(accepted.bytes), BYTES);
+});

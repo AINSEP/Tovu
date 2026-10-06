@@ -57,6 +57,8 @@ import { contributeWebhooksTools } from "#src/features/webhooks/tool-registratio
 import { contributeMediaTools } from "#src/features/media/tool-registrations";
 import { contributeMediaDuplicateHandlers } from "#src/features/media/duplicate-asset";
 import { contributeMediaViewImageTools } from "#src/features/media/view-image-tool";
+import { contributeMediaViewVideoTools, type MediaVideoToolPorts } from "#src/features/media/view-video-tool";
+import { createMediaVideoToolPorts } from "./media-video-ports.js";
 import { contributeMediaGenerationTools } from "#src/features/media-generation/tool-registrations";
 import { contributeMediaProviderTools } from "#src/features/media-generation/providers-tools";
 import { contributeMediaImportTools } from "#src/features/media-import/tool-registrations";
@@ -298,11 +300,13 @@ export function installFirstPartyToolContributors(
     observability,
     createHttpClient = createDefaultHttpClient,
     fetchAdmissions = fetchDaemonAdmissions,
+    mediaVideoPorts = createMediaVideoToolPorts({}, {}),
   }: {
     deployOpsRegistry?: DeployOpsRegistry;
     observability?: ObservabilityPort;
     createHttpClient?: typeof createDefaultHttpClient;
     fetchAdmissions?: typeof fetchDaemonAdmissions;
+    mediaVideoPorts?: MediaVideoToolPorts;
   } = {},
 ): void {
   contributions.contributors.register({ contribution: contributeContentStatsTools() });
@@ -364,6 +368,7 @@ export function installFirstPartyToolContributors(
   contributions.contributors.register({ contribution: contributeWebhooksTools() });
   contributions.contributors.register({ contribution: contributeMediaTools() });
   contributions.contributors.register({ contribution: contributeMediaViewImageTools() });
+  contributions.contributors.register({ contribution: contributeMediaViewVideoTools(mediaVideoPorts, {}) });
   contributions.contributors.register({ contribution: contributeMediaGenerationTools() });
   contributions.contributors.register({ contribution: contributeMediaProviderTools() });
   contributions.contributors.register({ contribution: contributeMediaImportTools() });

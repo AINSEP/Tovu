@@ -36,8 +36,8 @@ import { sniffContentType, type AssetBlobRepoPort, type BlobStorePort, type Medi
  * ## What it refuses
  *
  * The decision is made from the stored BYTES (`sniffContentType`), never the declared type: a video
- * is refused with a plain "no poster frame" message (there is no frame-extraction pipeline in this
- * host — ffmpeg is not a dependency), and anything else that is not a decodable raster image is
+ * is refused with a pointer to `media_view_video` (video extraction is a separate injected port,
+ * with optional host ffmpeg), and anything else that is not a decodable raster image is
  * refused by name. Every refusal is a `ToolInputError`, so the model gets the reason, not a redacted
  * internal error.
  */
@@ -75,7 +75,7 @@ export const mediaViewImageAgentToolCatalog: AgentToolDefinition[] = [
       "Call this before writing or improving alt text, writing a caption, describing a photo, checking what a picture contains, or choosing between images; " +
       "never guess what an image shows from its title or filename. Pass exactly one of `mediaId` or `slug` (find them with content_read.media_asset). " +
       `Returns the image (WebP, long edge at most ${VIEW_IMAGE_MAX_EDGE_PX}px, downscaled when larger) plus its metadata as JSON: id, slug, title, current alt, caption, status, the original's type and dimensions, and the returned dimensions. ` +
-      "Read-only: it changes nothing — to save new alt text afterwards, use media_update_metadata. Videos are refused (no poster frame is available), as is anything that is not a still image.",
+      "Read-only: it changes nothing — to save new alt text afterwards, use media_update_metadata. For video still frames use media_view_video; this tool refuses anything that is not a still image.",
     sideEffects: "none",
     authorization: { permission: "media.read" },
     inputSchema: {
@@ -188,7 +188,7 @@ async function renderForModel(asset: MediaRecord, bytes: Uint8Array, contentType
 function assertStillImage(asset: MediaRecord, contentType: string): void {
   if (contentType.startsWith("video/")) {
     throw refusal(
-      `media asset '${asset.id}' is a video (${contentType}). This tool only shows still images, and no poster frame is available for videos — describe it from its title and caption instead, or ask the human.`,
+      `media asset '${asset.id}' is a video (${contentType}). This tool only shows still images. Use media_view_video with this mediaId to see sampled video frames.`,
     );
   }
   if (!contentType.startsWith("image/") || contentType === "image/svg+xml") {
