@@ -4,6 +4,7 @@ import type { Translate } from "@/lib/dictionary-translator";
 import type { PluginInstallPort, PluginInstallPreview, PluginInstallSource } from "./plugin-install-port.hooks";
 import { pluginInstallPreviewDisplay } from "../rules";
 import { useZipDrop } from "../../../components/InstallTabCard/use-zip-drop.hooks";
+import { useFolderUpload } from "../../../components/InstallTabCard/use-folder-upload.hooks";
 
 const ZIP_MAX_BYTES = 32 * 1024 * 1024;
 const TOO_LARGE = "ZIP exceeds the upload or expanded package size limit.";
@@ -29,10 +30,10 @@ function errorKey(error: unknown, fallback: string): string {
 }
 
 /**
- * The Plugins "Add a plugin" tab's state: a server folder or one uploaded `.zip` (picker or drop),
- * the replace option, the preview (trust review) and the install it unlocks. Changing any input
- * invalidates the preview, so an install always matches what was reviewed. Moved from the retired
- * "Install plugin" popup (2026-10-06); the flow is unchanged.
+ * The Plugins "Add a plugin" tab's state: a server folder or one uploaded `.zip` (picker, drop, or a
+ * picked folder zipped in the browser), the replace option, the preview (trust review) and the
+ * install it unlocks. Changing any input invalidates the preview, so an install always matches what
+ * was reviewed. Moved from the retired "Install plugin" popup (2026-10-06); the flow is unchanged.
  */
 export function usePluginInstall(required: { port: PluginInstallPort; t: Translate; onInstalled: () => Promise<void> }, _optional = {}) {
   const [folder, setFolder] = useState("");
@@ -86,10 +87,16 @@ export function usePluginInstall(required: { port: PluginInstallPort; t: Transla
     await required.onInstalled();
   }
   const drop = useZipDrop({ isLocked: () => locked.current, onDropFiles: (files) => chooseZip(files[0] ?? null) });
+  // A picked folder becomes `<folder>.zip` and then IS the chosen zip: same limit, preview, install.
+  const folderUpload = useFolderUpload({
+    maxBytes: ZIP_MAX_BYTES, tooLarge: TOO_LARGE, isLocked: () => locked.current, onZipped: chooseZip,
+    onError: (key) => { invalidate(); setZipFile(null); setError(required.t(key)); },
+  });
   return {
-    folder, zipFile, zipInputRef, replace, preview, busy, error, drop, t: required.t,
+    folder, zipFile, zipInputRef, replace, preview, error, drop, folderUpload, t: required.t,
+    busy: busy || folderUpload.zipping,
     zipSizeLabel: zipFile ? `${(zipFile.size / (1024 * 1024)).toFixed(1)} MiB` : "",
-    reviewDisabled: busy || !hasSource(),
+    reviewDisabled: busy || folderUpload.zipping || !hasSource(),
     previewDisplay: preview ? pluginInstallPreviewDisplay(preview, required.t) : null,
     installedMessage: installedName ? required.t("{name} is installed and switched off. Turn it on in Downloaded.").replace("{name}", installedName) : null,
     setFolder: chooseFolder,

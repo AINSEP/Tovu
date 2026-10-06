@@ -5,7 +5,8 @@ import { UploadIcon } from "./agent-plugins-visuals";
 import type { AgentPluginInstallController } from "./hooks/use-agent-plugin-install.hooks";
 
 /**
- * The Agent Plugins "Add a plugin" tab: upload one `.zip` (drop or pick), installed switched off.
+ * The Agent Plugins "Add a plugin" tab: upload one `.zip` (drop or pick) or a picked folder (zipped
+ * in the browser), installed switched off.
  * "From a URL" is shown disabled as Coming soon: the server has no fetch-and-install route yet, so
  * a working-looking field would be one the operator tries and fails. State lives in
  * `use-agent-plugin-install.hooks.ts`; the card is the shared `InstallTabCard` Skills and Plugins
@@ -19,7 +20,7 @@ export function AddAgentPluginPanel({ controller: c }: { controller: AgentPlugin
       title={t("Add a plugin")}
       lede={t("Install an Agent Plugin package from a .zip. New plugins stay off until you switch them on in Installed.")}
     >
-      <InstallTabOption heading={t("Upload a .zip")}>
+      <InstallTabOption heading={t("Upload a .zip or a folder")}>
         <ZipDropZone
           drop={c.drop}
           glyph={<UploadIcon size={24} />}
@@ -32,6 +33,14 @@ export function AddAgentPluginPanel({ controller: c }: { controller: AgentPlugin
           inputLabel={t("Upload a .zip")}
           onFileChange={c.onFileChange}
           chooseProps={agentHandle({ handle: "agent-plugin-add-choose" }, { role: "button", label: "Choose an Agent Plugin .zip" })}
+          folder={{
+            label: t("Choose a folder"),
+            inputLabel: t("Choose a plugin folder"),
+            onChoose: c.folderUpload.onChoose,
+            inputRef: c.folderUpload.inputRef,
+            onFilesChange: c.folderUpload.onChange,
+            chooseProps: agentHandle({ handle: "agent-plugin-add-choose-folder" }, { role: "button", label: "Choose an Agent Plugin folder to upload" }),
+          }}
         />
         {c.error ? (
           <p className="install-tab-alert" role="alert">

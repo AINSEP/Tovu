@@ -3,6 +3,7 @@ import { useRef, useState, type ChangeEvent } from "react";
 import { ApiError, type AdminAgentPlugin } from "@/lib/api";
 import type { Translate } from "@/lib/dictionary-translator";
 import { useZipDrop } from "../../../components/InstallTabCard/use-zip-drop.hooks";
+import { useFolderUpload } from "../../../components/InstallTabCard/use-folder-upload.hooks";
 import { agentPluginDisplayName } from "../rules";
 import type { AgentPluginInstallPort } from "./agent-plugin-install-port.hooks";
 
@@ -51,8 +52,8 @@ function fileProblem(file: File): string | null {
 }
 
 /**
- * The "Add a plugin" tab's state: one chosen `.zip` (picker or drop), its validation, and the
- * upload. Installs never switch a plugin on; `onInstalled` hands the new row to the list so the
+ * The "Add a plugin" tab's state: one chosen `.zip` (picker, drop, or a picked folder zipped in the
+ * browser), its validation, and the upload. Installs never switch a plugin on; `onInstalled` hands the new row to the list so the
  * Installed tab shows it without a reload.
  */
 export function useAgentPluginInstall(
@@ -105,6 +106,19 @@ export function useAgentPluginInstall(
     },
   });
 
+  // A picked folder becomes `<folder>.zip` and goes through `choose` like any picked zip.
+  const folderUpload = useFolderUpload({
+    maxBytes: AGENT_PLUGIN_ZIP_MAX_BYTES,
+    tooLarge: TOO_LARGE,
+    isLocked: () => locked.current,
+    onZipped: choose,
+    onError: (key) => {
+      setInstalled(null);
+      setFile(null);
+      setError(t(key));
+    },
+  });
+
   const installedMessage = installed
     ? t(installed.alreadyInstalled ? "{name} is already installed." : "{name} is installed and switched off. Turn it on in Installed.").replace("{name}", installed.name)
     : null;
@@ -114,11 +128,12 @@ export function useAgentPluginInstall(
     file,
     fileSizeLabel: file ? `${(file.size / (1024 * 1024)).toFixed(1)} MiB` : "",
     drop,
-    busy,
+    folderUpload,
+    busy: busy || folderUpload.zipping,
     error,
     installedMessage,
     inputRef,
-    installDisabled: busy || !file,
+    installDisabled: busy || folderUpload.zipping || !file,
     onChooseFile: () => inputRef.current?.click(),
     onFileChange: (event: ChangeEvent<HTMLInputElement>) => choose(event.target.files?.[0] ?? null),
     onClearFile: () => choose(null),

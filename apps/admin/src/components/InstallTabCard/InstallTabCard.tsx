@@ -80,8 +80,32 @@ export function InstallTabFieldRow({
   );
 }
 
+/** A disclosure for a rarely needed way to install (Plugins' server path), closed by default so it
+ *  does not compete with the upload. `hint` says what the field is in plain words. */
+export function InstallTabAdvanced({ summary, hint, children }: { summary: string; hint: string; children: ReactNode }) {
+  return (
+    <details className="install-tab-advanced">
+      <summary>{summary}</summary>
+      <p className="field-hint">{hint}</p>
+      {children}
+    </details>
+  );
+}
+
+/** "Choose a folder" beside "Choose a file": a hidden folder picker (`webkitdirectory`) whose files
+ *  the page zips and treats as a chosen `.zip` (`use-folder-upload.hooks.ts`). */
+export interface ZipDropZoneFolder {
+  label: string;
+  inputLabel: string;
+  onChoose: () => void;
+  inputRef: RefObject<HTMLInputElement | null>;
+  onFilesChange: (event: ChangeEvent<HTMLInputElement>) => void;
+  /** Extra attributes for the choose-folder button (agent handles). */
+  chooseProps?: Record<string, unknown>;
+}
+
 /** A styled drop target for one package file, with a "Choose a file" button opening a hidden
- *  picker — never the browser's raw file input. */
+ *  picker — never the browser's raw file input — and, when `folder` is set, "Choose a folder". */
 export function ZipDropZone({
   drop,
   glyph,
@@ -94,6 +118,7 @@ export function ZipDropZone({
   inputLabel,
   onFileChange,
   chooseProps,
+  folder,
 }: {
   drop: ZipDropController;
   glyph: ReactNode;
@@ -107,6 +132,7 @@ export function ZipDropZone({
   onFileChange: (event: ChangeEvent<HTMLInputElement>) => void;
   /** Extra attributes for the choose button (agent handles). */
   chooseProps?: Record<string, unknown>;
+  folder?: ZipDropZoneFolder;
 }) {
   return (
     <>
@@ -120,11 +146,21 @@ export function ZipDropZone({
         <span className="install-tab-dropzone-glyph">{glyph}</span>
         <p className="install-tab-dropzone-title">{title}</p>
         <p className="field-hint">{hint}</p>
-        <button type="button" className="btn-secondary" disabled={busy} onClick={onChoose} {...chooseProps}>
-          {chooseLabel}
-        </button>
+        <div className="install-tab-dropzone-actions">
+          <button type="button" className="btn-secondary" disabled={busy} onClick={onChoose} {...chooseProps}>
+            {chooseLabel}
+          </button>
+          {folder ? (
+            <button type="button" className="btn-secondary" disabled={busy} onClick={folder.onChoose} {...folder.chooseProps}>
+              {folder.label}
+            </button>
+          ) : null}
+        </div>
       </div>
       <input ref={inputRef} type="file" accept=".zip,application/zip" hidden aria-label={inputLabel} onChange={onFileChange} />
+      {folder ? (
+        <input ref={folder.inputRef} type="file" multiple hidden aria-label={folder.inputLabel} onChange={folder.onFilesChange} {...{ webkitdirectory: "" }} />
+      ) : null}
     </>
   );
 }

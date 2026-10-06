@@ -1,14 +1,16 @@
 import { agentHandle } from "@jini-ai/agentic";
 
-import { InstallTabCard, InstallTabFieldRow, InstallTabOption, ZipDropZone } from "../../components/InstallTabCard/InstallTabCard";
+import { InstallTabAdvanced, InstallTabCard, InstallTabFieldRow, InstallTabOption, ZipDropZone } from "../../components/InstallTabCard/InstallTabCard";
 import { UploadIcon } from "./agent-plugins-visuals";
 import type { PluginInstallController } from "./hooks/use-plugin-install.hooks";
 
 /**
  * The Plugins "Add a plugin" tab, on the shared `InstallTabCard` (owner, 2026-10-06 — replaces the
- * header "Install plugin" popup, whose raw file input and cramped layout "looks awful"). A server
- * folder OR one `.zip`, the replace option, then Preview: the trust review must be seen before
- * Install appears. All state, async work and consent invalidation live in `use-plugin-install.hooks.ts`.
+ * header "Install plugin" popup, whose raw file input and cramped layout "looks awful"). One `.zip`
+ * or a picked folder (zipped in the browser), or — under "Advanced" — a folder path on the server,
+ * then the replace option and Preview: the trust review must be seen before Install appears. The
+ * server path is tucked away because it was a bare path with no button and read as broken (owner,
+ * 2026-10-06). All state, async work and consent invalidation live in `use-plugin-install.hooks.ts`.
  *
  * `canInstall` is the server's `installSources` answer: when local installs are switched off the
  * card says so instead of offering fields that would only be refused.
@@ -24,24 +26,12 @@ export function AddPluginPanel({ controller: c, canInstall }: { controller: Plug
   }
   return (
     <InstallTabCard titleId="plugins-add-title" title={t("Add a plugin")} lede={t("It stays off in every workspace until you turn it on.")}>
-      <InstallTabOption>
-        <InstallTabFieldRow
-          inputId="plugins-install-folder"
-          label={t("Folder on this server")}
-          value={c.folder}
-          disabled={c.busy}
-          onChange={c.onFolderChange}
-          placeholder="/path/to/plugin"
-          onSubmit={c.onSubmitFolder}
-          inputProps={agentHandle({ handle: "plugins-install-folder" }, { role: "field", label: t("Folder on this server") })}
-        />
-      </InstallTabOption>
-      <InstallTabOption heading={t("Upload a .zip")}>
+      <InstallTabOption heading={t("Upload a .zip or a folder")}>
         <ZipDropZone
           drop={c.drop}
           glyph={<UploadIcon size={24} />}
           title={c.zipFile ? c.zipFile.name : t("Drop a .zip here")}
-          hint={c.zipFile ? c.zipSizeLabel : t("Upload .zip (max 32 MiB)")}
+          hint={c.zipFile ? c.zipSizeLabel : t("A .zip or a plugin folder, up to 32 MiB.")}
           busy={c.busy}
           chooseLabel={t("Choose a file")}
           onChoose={c.onChooseZip}
@@ -49,7 +39,27 @@ export function AddPluginPanel({ controller: c, canInstall }: { controller: Plug
           inputLabel={t("Upload .zip (max 32 MiB)")}
           onFileChange={c.onZipChange}
           chooseProps={agentHandle({ handle: "plugins-install-zip" }, { role: "button", label: "Choose a plugin .zip" })}
+          folder={{
+            label: t("Choose a folder"),
+            inputLabel: t("Choose a plugin folder"),
+            onChoose: c.folderUpload.onChoose,
+            inputRef: c.folderUpload.inputRef,
+            onFilesChange: c.folderUpload.onChange,
+            chooseProps: agentHandle({ handle: "plugins-install-folder-upload" }, { role: "button", label: "Choose a plugin folder to upload" }),
+          }}
         />
+        <InstallTabAdvanced summary={t("Advanced: install from a path on this server")} hint={t("The full path of a plugin folder on the computer running Tovu.")}>
+          <InstallTabFieldRow
+            inputId="plugins-install-folder"
+            label={t("Folder on this server")}
+            value={c.folder}
+            disabled={c.busy}
+            onChange={c.onFolderChange}
+            placeholder="/path/to/plugin"
+            onSubmit={c.onSubmitFolder}
+            inputProps={agentHandle({ handle: "plugins-install-folder" }, { role: "field", label: t("Folder on this server") })}
+          />
+        </InstallTabAdvanced>
       </InstallTabOption>
       <InstallTabOption>
         <label className="install-tab-check">

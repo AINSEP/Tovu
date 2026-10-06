@@ -1,7 +1,7 @@
 /** The Plugins "Add a plugin" tab (moved from the retired "Install plugin" popup, 2026-10-06):
  *  the trust review is shown before install, installs stay off, and the tab reads as switched off
  *  when the server allows no local installs. */
-import { render, screen, waitFor, cleanup } from "@testing-library/react";
+import { render, screen, waitFor, cleanup, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, it, expect, vi } from "vitest";
 import { createFakePluginInstallPort } from "../hooks/plugin-install-dependencies.hooks";
@@ -92,7 +92,7 @@ it("the header no longer carries an Install plugin button; the tab offers fields
 });
 
 it("new consent and tab strings are translated in all supported locales", () => {
-  const keys = ["Add a plugin", "Folder on this server", "Replace existing version", "Preview plugin", "Install (stays off)", "Local plugin · unverified publisher", "Capabilities", "Hooks", "This plugin runs code with full access to this computer and every site on it.", "It stays off in every workspace until you turn it on.", "Failed to preview plugin.", "Failed to install plugin.", "Package changed. Review it again before installing.", "Local folder installs are disabled on this server.", "Turn this plugin off in every workspace before installing.", "Installation conflicts with an existing plugin. Check its version and replacement option.", "Invalid plugin package. Check its manifest, integrity and folder.", "{name} is installed and switched off. Turn it on in Downloaded.", "Plugins that ship with Tovu can't be uninstalled: they come back on the next restart. To remove one you added, ask the assistant."];
+  const keys = ["Add a plugin", "Folder on this server", "Replace existing version", "Preview plugin", "Install (stays off)", "Local plugin · unverified publisher", "Capabilities", "Hooks", "This plugin runs code with full access to this computer and every site on it.", "It stays off in every workspace until you turn it on.", "Failed to preview plugin.", "Failed to install plugin.", "Package changed. Review it again before installing.", "Local folder installs are disabled on this server.", "Turn this plugin off in every workspace before installing.", "Installation conflicts with an existing plugin. Check its version and replacement option.", "Invalid plugin package. Check its manifest, integrity and folder.", "{name} is installed and switched off. Turn it on in Downloaded.", "Plugins that ship with Tovu can't be uninstalled: they come back on the next restart. To remove one you added, ask the assistant.", "Upload a .zip or a folder", "A .zip or a plugin folder, up to 32 MiB.", "Choose a folder", "Choose a plugin folder", "Advanced: install from a path on this server", "The full path of a plugin folder on the computer running Tovu.", "That folder is empty.", "Could not read that folder. Try again.", "That folder has more than 4096 files."];
   for (const locale of ["es", "id", "de", "zh-CN", "zh-TW", "pt-BR", "ru", "fa", "ar", "ja", "ko", "pl", "hu", "fr", "uk", "tr", "th", "it", "hi", "ur", "bn"]) {
     for (const key of keys) {
       expect(t(locale, key)).toBeTruthy();
@@ -100,6 +100,28 @@ it("new consent and tab strings are translated in all supported locales", () => 
     }
     expect(t(locale, "{name} is installed and switched off. Turn it on in Downloaded.")).toContain("{name}");
   }
+});
+
+it("Choose a folder zips the picked folder and previews it as a .zip; the server path sits under Advanced", async () => {
+  const port = createFakePluginInstallPort({ preview }); const read = vi.spyOn(port, "preview");
+  const { user } = renderAddTab(port, ["folder", "zip"]);
+  expect(await screen.findByRole("button", { name: "Choose a folder" })).toBeTruthy();
+  expect(screen.getByRole("textbox", { name: "Folder on this server" }).closest("details")?.querySelector("summary")?.textContent).toBe("Advanced: install from a path on this server");
+  const manifest = new File(["{}"], "tovu.plugin.json");
+  Object.defineProperty(manifest, "webkitRelativePath", { value: "hello/tovu.plugin.json" });
+  fireEvent.change(screen.getByLabelText("Choose a plugin folder"), { target: { files: [manifest] } });
+  expect(await screen.findByText("hello.zip")).toBeTruthy();
+  await user.click(screen.getByRole("button", { name: "Preview plugin" }));
+  await waitFor(() => expect(read).toHaveBeenCalledOnce());
+  const source = read.mock.calls[0]![0].source;
+  expect(source.kind === "zip" && source.file.name).toBe("hello.zip");
+});
+
+it("an empty picked folder is refused in plain words and leaves nothing to preview", async () => {
+  renderAddTab(createFakePluginInstallPort({ preview }), ["folder", "zip"]);
+  fireEvent.change(await screen.findByLabelText("Choose a plugin folder"), { target: { files: [] } });
+  expect(await screen.findByText("That folder is empty.")).toBeTruthy();
+  expect((screen.getByRole("button", { name: "Preview plugin" }) as HTMLButtonElement).disabled).toBe(true);
 });
 
 it("the Add a plugin tab label carries the sidebar's Soon tag and still switches to the tab", async () => {

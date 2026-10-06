@@ -1,6 +1,9 @@
 /* The shared "Add a …" tab card (Skills, Agent Plugins, Plugins). `.card`, `.card-title`,
    `.card-lead`, `.field-label`, `.field-hint` and button paint stay the app's own. */
 .install-tab-card { display: flex; flex-direction: column; gap: var(--space-4); }
+/* No card frame (owner, 2026-10-06: "remove the card outline"): the tab already frames this
+   content, so a bordered box inside it was a second, redundant frame. Flush with the tab bar. */
+.install-tab-card.card { border: none; box-shadow: none; background: transparent; padding: var(--space-2) 0 0; border-radius: 0; }
 .install-tab-card .card-title { margin: 0; }
 .install-tab-option { display: flex; flex-direction: column; gap: var(--space-2); }
 .install-tab-option + .install-tab-option { padding-top: var(--space-4); border-top: 1px solid var(--border); }
@@ -34,7 +37,11 @@
   width: 48px; height: 48px;
   color: var(--muted); background: var(--surface-3); border-radius: 999px;
 }
+.install-tab-dropzone-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-2); }
 .install-tab-dropzone-title { font-size: var(--text-sm); font-weight: 600; color: var(--fg); overflow-wrap: anywhere; }
+/* "Advanced: …" disclosure: a quiet text-weight summary, so the upload above stays the main path. */
+.install-tab-advanced > summary { cursor: pointer; width: fit-content; font-size: var(--text-sm); font-weight: 600; color: var(--fg-2); }
+.install-tab-advanced > .field-hint { margin: var(--space-2) 0; }
 .install-tab-check { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); color: var(--fg-2); cursor: pointer; }
 .install-tab-review {
   display: flex; flex-direction: column; gap: 4px;

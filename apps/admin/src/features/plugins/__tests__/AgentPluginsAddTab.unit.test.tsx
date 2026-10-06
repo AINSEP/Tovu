@@ -131,6 +131,30 @@ describe("AgentPlugins — Add a plugin", () => {
     expect(installButton()).toBeEnabled();
   });
 
+  it("Choose a folder zips the picked folder and installs it as <folder>.zip", async () => {
+    const { port, onInstalled } = renderAddTab();
+    await openAddTab();
+    const manifest = new File(["{}"], "plugin.json");
+    Object.defineProperty(manifest, "webkitRelativePath", { value: "note-taker/plugin.json" });
+
+    fireEvent.change(screen.getByLabelText("Choose a plugin folder"), { target: { files: [manifest] } });
+    expect(await screen.findByText("note-taker.zip")).toBeInTheDocument();
+    await userEvent.click(installButton());
+
+    await waitFor(() => expect(onInstalled).toHaveBeenCalledWith(NOTE_TAKER));
+    expect(port.uploads).toEqual([{ name: "note-taker.zip", sha256: "sha-of-note-taker.zip" }]);
+  });
+
+  it("refuses an empty picked folder before uploading anything", async () => {
+    const { port } = renderAddTab();
+    await openAddTab();
+
+    fireEvent.change(screen.getByLabelText("Choose a plugin folder"), { target: { files: [] } });
+    expect(await screen.findByRole("alert")).toHaveTextContent("That folder is empty.");
+    expect(installButton()).toBeDisabled();
+    expect(port.uploads).toEqual([]);
+  });
+
   it("says so when the same package was already installed", async () => {
     renderAddTab(createFakeAgentPluginInstallPort({ row: NOTE_TAKER }, { alreadyInstalled: true }));
     await openAddTab();
