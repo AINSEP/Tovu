@@ -288,3 +288,48 @@
   border: 1px solid var(--jini-border);
   border-radius: var(--jini-radius-sm);
 }
+
+/* "Add server" in the brand primary (mobile catalog IN-5, 2026-10-06): Jini's own
+   `.external-mcp-add-button` paints it `--jini-accent` — near-black, the only primary action in
+   the admin that is not burnt orange. Two classes so it outranks Jini's one-class rule whichever
+   stylesheet loads last; `color` named too, per this file's header. */
+.external-mcp-source .external-mcp-add-button,
+.external-mcp-add-button.external-mcp-add-button {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-ink);
+}
+
+/* Phones (mobile catalog IN-1, 2026-10-06): the card and its "Tools" button sat side by side as two
+   boxes, so each server's card was a different width (a "Tools 20" button is wider than "Tools 8"),
+   the Remove buttons did not line up, and names truncated at ~12 characters. The row becomes the
+   one card instead — the Jini card inside goes borderless at full width (checkbox, name, Remove),
+   and Tools sits on a second line inside the same box, under the name. */
+@media (max-width: 640px) {
+  .external-mcp-source-row {
+    flex-wrap: wrap;
+    gap: 0;
+    padding-bottom: 10px;
+    background: var(--jini-bg-subtle, var(--surface-2));
+    border: 1px solid var(--jini-border, var(--border));
+    border-radius: var(--jini-radius-sm, var(--r-sm));
+  }
+  .external-mcp-source-card { flex: 1 1 100%; }
+  .external-mcp-source-row .source-config-item-card { border: 0; background: transparent; }
+  .external-mcp-source-tools-open { margin: 0 0 0 42px; }
+}
+
+/* Phones (mobile catalog IN-3, 2026-10-06): modal > grey picker panel > white list was three nested
+   boxes, leaving ~350px of list for 148 tools inside a fixed-height scroller inside a scrolling
+   modal body, and the "Changes here take effect…" note was cut at the modal's bottom edge. Here the
+   modal is the whole screen, the picker panel loses its own box, and the list grows so the modal
+   body is the one scroller. */
+@media (max-width: 640px) {
+  .settings-dialog-backdrop:has(> .external-mcp-tools-modal) { place-items: stretch; }
+  .settings-dialog.external-mcp-tools-modal {
+    width: 100%; max-width: none; height: 100dvh; max-height: none;
+    border-radius: 0; padding: 16px;
+  }
+  .external-mcp-tools-modal .external-mcp-tool-picker { padding: 0; background: transparent; border: 0; }
+  .external-mcp-tools-modal .external-mcp-tool-list { max-height: none; }
+}
