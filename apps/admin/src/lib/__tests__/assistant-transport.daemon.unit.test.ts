@@ -46,11 +46,14 @@ const MULTI_TURN_HISTORY: ChatMessage[] = [
 let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
   resetFakeEventSource();
   vi.stubGlobal("EventSource", FakeEventSource);
 });
 
 afterEach(() => {
+  vi.clearAllTimers();
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
@@ -514,155 +517,8 @@ describe("startRun — resume-capable agents skip resending the transcript", () 
   });
 });
 
-describe("subscribeToRun — EventSource frame handling", () => {
-  async function openRun() {
-    fetchMock = vi.fn(async () => new Response(JSON.stringify({ run: { id: "run-1" } }), { status: 200 }));
-    vi.stubGlobal("fetch", fetchMock);
-    const transport = createTovuAssistantTransport();
-    const h = handlers();
-    await transport.startRun({ history: HISTORY, signal: new AbortController().signal }, h);
-    const source = FakeEventSource.instances[0]!;
-    return { h, source };
-  }
-
-  test("an 'agent' frame is translated and forwarded to onEvent, then collected for onDone", async () => {
-    const { h, source } = await openRun();
-
-    source.emit("agent", JSON.stringify({ runId: "run-1", kind: "agent", payload: { type: "text_delta", delta: "hi" } }));
-    source.emit("end", "");
-
-    expect(h.events).toEqual([{ kind: "text", text: "hi" }]);
-    expect(h.done).toEqual([{ kind: "text", text: "hi" }]);
-    expect(source.closed).toBe(true);
-  });
-
-  test("an 'agent' frame that translates to null (thinking_start) is not forwarded", async () => {
-    const { h, source } = await openRun();
-
-    source.emit("agent", JSON.stringify({ runId: "run-1", kind: "agent", payload: { type: "thinking_start" } }));
-    source.emit("end", "");
-
-    expect(h.events).toEqual([]);
-    expect(h.done).toEqual([]);
-  });
-
-  test("a 'stdout' frame becomes a raw AgentEvent from its chunk field", async () => {
-    const { h, source } = await openRun();
-
-    source.emit("stdout", JSON.stringify({ runId: "run-1", kind: "stdout", payload: { chunk: "building..." } }));
-    source.emit("end", "");
-
-    expect(h.events).toEqual([{ kind: "raw", line: "building..." }]);
-  });
-
-  test("an 'end' frame carrying reason 'max_tool_turns' surfaces a status notice before onDone", async () => {
-    // Coverage-gap-fill (2026-09-05): every other 'end' test in this file emits `""` (no data), so
-    // `terminalReasonNotice`'s only truthy branch (assistant-transport.ts) had never fired. The
-    // daemon path wraps the reason in `payload` (readTerminalReason's `wrapped: true` argument),
-    // unlike BYOK's bare `{reason}` shape.
-    const { h, source } = await openRun();
-
-    source.emit("end", JSON.stringify({ payload: { reason: "max_tool_turns" } }));
-
-    expect(h.events).toEqual([
-      {
-        kind: "status",
-        label: "Stopped early — tool-step limit reached",
-        detail: "This turn used all the tool steps allowed for one message, so it may be unfinished. Ask it to continue to pick up where it left off.",
-      },
-    ]);
-    expect(h.done).toEqual(h.events);
-  });
-
-  test("an 'end' frame with valid JSON but no 'payload' key ends the run quietly — the wrapped path's own `?? {}` fallback", async () => {
-    // Coverage-gap-fill (2026-09-05): the test above always includes a `payload` object, so
-    // `readTerminalReason`'s `(parsed.payload ?? {})` fallback (assistant-transport.ts) had never
-    // run. A frame that parses but carries no `payload` at all is the documented "no data" case one
-    // level up from a totally empty string.
-    const { h, source } = await openRun();
-
-    source.emit("end", JSON.stringify({ unrelated: true }));
-
-    expect(h.events).toEqual([]);
-    expect(h.done).toEqual([]);
-  });
-
-  test("an 'error' frame with a data payload reports the wire message via onError", async () => {
-    const { h, source } = await openRun();
-
-    source.emit("error", JSON.stringify({ runId: "run-1", kind: "error", payload: { message: "agent crashed" } }));
-
-    expect(h.errors).toHaveLength(1);
-    expect(h.errors[0]?.message).toBe("agent crashed");
-  });
-
-  test("a bare connection error probes the run and permits reconnection without failing it", async () => {
-    const { h, source } = await openRun();
-
-    // n08 restart acceptance: a transient transport drop must not make success sticky-failed.
-    source.emit("error", "");
-    await Promise.resolve();
-
-    expect(fetchMock.mock.calls[1]).toEqual(["/api/runs/run-1", { credentials: "same-origin" }]);
-    expect(h.errors).toEqual([]);
-    expect(h.onDone).not.toHaveBeenCalled();
-    expect(source.closed).toBe(false);
-    source.emit("end", JSON.stringify({ status: "succeeded", code: 0 }));
-    expect(h.onDone).toHaveBeenCalledExactlyOnceWith([]);
-    expect(h.errors).toEqual([]);
-  });
-
-  test("'end' only calls onDone once even if fired twice — settled guard", async () => {
-    const { h, source } = await openRun();
-
-    source.emit("end", "");
-    source.emit("end", "");
-
-    expect(h.done).toEqual([]);
-    expect(h.onDone).toHaveBeenCalledTimes(1);
-  });
-
-  test("aborting the signal AFTER 'end' has already settled the run is a no-op — not a double onDone", async () => {
-    fetchMock = vi.fn(async () => new Response(JSON.stringify({ run: { id: "run-1" } }), { status: 200 }));
-    vi.stubGlobal("fetch", fetchMock);
-    const transport = createTovuAssistantTransport();
-    const controller = new AbortController();
-    const h = handlers();
-
-    await transport.startRun({ history: HISTORY, signal: controller.signal }, h);
-    const source = FakeEventSource.instances[0]!;
-    source.emit("end", "");
-    const closedAtEnd = source.closed;
-    controller.abort();
-
-    expect(closedAtEnd).toBe(true);
-    expect(h.done).toEqual([]); // unchanged by the post-settlement abort
-    expect(h.onDone).toHaveBeenCalledTimes(1);
-  });
-
-  test("an 'error' frame with an empty message field falls back to the generic 'agent run failed' message", async () => {
-    const { h, source } = await openRun();
-
-    source.emit("error", JSON.stringify({ runId: "run-1", kind: "error", payload: { message: "" } }));
-
-    expect(h.errors.map((e) => e.message)).toEqual(["agent run failed"]);
-  });
-
-  test("aborting the signal before 'end' closes the source without ever calling onDone", async () => {
-    fetchMock = vi.fn(async () => new Response(JSON.stringify({ run: { id: "run-1" } }), { status: 200 }));
-    vi.stubGlobal("fetch", fetchMock);
-    const transport = createTovuAssistantTransport();
-    const controller = new AbortController();
-    const h = handlers();
-
-    await transport.startRun({ history: HISTORY, signal: controller.signal }, h);
-    const source = FakeEventSource.instances[0]!;
-    controller.abort();
-
-    expect(source.closed).toBe(true);
-    expect(h.done).toBeNull();
-  });
-});
+// Attempt frame completion, dropped connections and diagnosis persistence are covered through
+// injected ports in durable-run-subscription, closed-stream and run-death regression suites.
 
 describe("reattachRun — daemon path", () => {
   test("re-subscribes to the same EventSource URL for a daemon run id", async () => {

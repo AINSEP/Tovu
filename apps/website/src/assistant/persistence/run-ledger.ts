@@ -1,20 +1,20 @@
 import type { AgentEvent, ChatMessage, ChatRunStatus } from "@jini-ai/chat/core";
 import type { ExpressionBuilder } from "kysely";
 
-import { runInterruptedNotice } from "#src/contracts/core/assistant-run-events";
 import { type ChatDatabase, type ChatKernel, chatKernel } from "#src/platform/db/chat-kernel";
 import type { SqliteConnectionSource } from "@jini-ai/db/kernel/sqlite";
+import { createDurableRunStore } from "./durable-run-store.js";
+import type { DurableRunStore } from "../durable-runs/ports.js";
 
 /**
  * @file The run-status half of chat history: the writes that decide how an assistant turn ENDS.
  *
  * Purpose:
- * Two writers can finish the same assistant row. The browser saves a turn when its own stream
- * ends; the server finalizer (`assistant-run-finalizer.ts`) saves it when the daemon's stream ends,
- * whether or not a browser is still attached. Both write the same translation of the same run, so
- * the rule is simple: **for one run, the first terminal write wins**. A later write for that run —
- * a second terminal save, or a stub that arrives late — is ignored. A write for a DIFFERENT run id
- * (a retry reuses the message id with a new run) is a new turn and goes through as normal.
+ * The browser formerly competed with the finalizer to finish daemon rows. Daemon acceptance
+ * and recovery now own those rows, while request-bound BYOK/AG-UI keep their browser writes.
+ * For one attempt the first terminal write wins; subsequent checkpoints or settlements are
+ * ignored. Continuation changes the attempt id by CAS while retaining the logical message;
+ * an older attempt cannot write afterward. Terminal rows remain absorbing during recovery.
  *
  * How it stays race-free with async storage: every "is it settled?" check and the write it guards
  * run in ONE kernel transaction holding the run's lock ({@link runLockKey}), and {@link
@@ -25,7 +25,8 @@ import type { SqliteConnectionSource } from "@jini-ai/db/kernel/sqlite";
  * ONE Kysely body over the chat kernel (`platform/db/chat-kernel.ts`), for every dialect. Nothing
  * here exposes history to request handlers; the cross-owner boot operation
  * ({@link ChatRunLedger.reconcileInterrupted}) supplies a recovery port with the persisted owner
- * and run stub, or cancels interrupted rows with a notice. No row is ever deleted.
+ * and run stub. The recovery coordinator decides whether to reattach, continue or finalize;
+ * rows it cannot adopt receive an atomic cancellation fallback rather than spinning forever.
  */
 
 const TERMINAL_STATUSES = ["succeeded", "failed", "canceled"] as const;
@@ -66,6 +67,7 @@ export interface ChatRunRecoveryOptions {
 }
 
 export interface ChatRunLedger {
+  readonly durable?: DurableRunStore;
   /**
    * Runs `write` only while `run`'s row holds no terminal status (an unknown row, another run id, or
    * a row still `queued`/`running` all count as unsettled), with no settle able to land in between.
@@ -84,17 +86,9 @@ export interface ChatRunLedger {
    * A no-op once the row is terminal or belongs to another run. Resolves `true` when it wrote.
    */
   checkpoint(progress: RunProgress): Promise<boolean>;
-  /**
-   * Serving-boot repair: offers queued/running rows to the recovery port before canceling those
-   * it did not retain. Keeps content/events and appends the restart notice to interrupted rows.
-   * Resolves how many rows it canceled.
-   *
-   * Being a detached child does not prove the daemon died: teardown can be bypassed, and standalone
-   * daemons have no parent watchdog. Serving composition must supply recovery for daemon runs.
-   * BYOK/AG-UI turns lived on the old request and can be canceled. Never call this while building
-   * export apps: those are also built inside the still-live daemon. Row locks and run/status guards
-   * protect against a browser save, checkpoint, or retry arriving during the daemon probe.
-   */
+  /** Serving-only discovery of unfinished rows. The injected recovery coordinator owns adopted
+   * runs; rows it cannot adopt are canceled, preserving saved work. Returns handled rows.
+   * Export apps must not invoke discovery while a serving daemon is still alive. */
   reconcileInterrupted(required?: { now?: number }, optional?: ChatRunRecoveryOptions): Promise<number>;
 }
 
@@ -132,8 +126,22 @@ function readEvents(eventsJson: string | null): AgentEvent[] {
   return Array.isArray(events) ? (events as AgentEvent[]) : [];
 }
 
-function eventsWithNotice(eventsJson: string | null): AgentEvent[] {
-  return [...readEvents(eventsJson), runInterruptedNotice()];
+function hasNewToolProgress(current: readonly AgentEvent[], next: readonly AgentEvent[]): boolean {
+  const key = (event: AgentEvent) => event.kind === "tool_use" ? `use:${event.id}` : event.kind === "tool_result" ? `result:${event.toolUseId}` : "";
+  const saved = new Set(current.map(key));
+  return next.some((event) => { const id = key(event); return id !== "" && !saved.has(id); });
+}
+
+function retainSavedEvents(saved: readonly AgentEvent[], incoming: readonly AgentEvent[]): AgentEvent[] {
+  const keys = new Set(saved.map((event) => JSON.stringify(event)));
+  const additions = incoming.filter((event) => event.kind !== "text" && !keys.has(JSON.stringify(event)));
+  return [...saved, ...additions];
+}
+
+function keepToolCheckpoints(saved: readonly AgentEvent[], incoming: readonly AgentEvent[]): AgentEvent[] {
+  const key = (event: AgentEvent) => event.kind === "tool_use" ? `use:${event.id}` : event.kind === "tool_result" ? `result:${event.toolUseId}` : "";
+  const seen = new Set(incoming.map(key));
+  return [...incoming, ...saved.filter((event) => { const id = key(event); return id !== "" && !seen.has(id); })];
 }
 
 /**
@@ -158,6 +166,7 @@ export function createChatRunLedger(store: ChatKernel | SqliteConnectionSource):
   }
 
   return {
+    durable: createDurableRunStore({ kernel }, {}),
     unlessSettled(run, write) {
       return kernel.transaction(async () => {
         await kernel.lockKey(runLockKey(run));
@@ -169,12 +178,21 @@ export function createChatRunLedger(store: ChatKernel | SqliteConnectionSource):
     settle(settlement) {
       return kernel.transaction(async () => {
         await kernel.lockKey(runLockKey(settlement));
+        const saved = await kernel.run((db) => db.selectFrom("ai_chat_messages").select(["content", "events_json"])
+          .where((eb) => eb.and([isRunRow(eb, settlement), notTerminal(eb)])).executeTakeFirst());
+        if (!saved) return false;
+        const content = settlement.content.length >= saved.content.length ? settlement.content : saved.content;
+        let events = keepToolCheckpoints(readEvents(saved.events_json), settlement.events);
+        if (content !== settlement.content) {
+          events = retainSavedEvents(readEvents(saved.events_json), settlement.events);
+          if (!events.some((event) => event.kind === "text")) events.unshift({ kind: "text", text: saved.content });
+        }
         const result = await kernel.run((db) =>
           db
             .updateTable("ai_chat_messages")
             .set({
-              content: settlement.content,
-              events_json: JSON.stringify(settlement.events),
+              content,
+              events_json: JSON.stringify(events),
               run_status: settlement.status,
               ended_at: settlement.endedAt,
             })
@@ -194,17 +212,32 @@ export function createChatRunLedger(store: ChatKernel | SqliteConnectionSource):
     },
 
     async checkpoint(progress) {
+      return kernel.transaction(async () => {
+      await kernel.lockKey(runLockKey(progress));
+      const current = await kernel.run((db) => db.selectFrom("ai_chat_messages").select(["content", "events_json"])
+        .where((eb) => eb.and([isRunRow(eb, progress), notTerminal(eb)])).executeTakeFirst());
+      if (!current || progress.content.length < current.content.length) return false;
+      const events = keepToolCheckpoints(readEvents(current.events_json), progress.events);
+      const grown = progress.content.length > current.content.length || hasNewToolProgress(readEvents(current.events_json), events);
       const result = await kernel.run((db) =>
         db
           .updateTable("ai_chat_messages")
-          .set({ content: progress.content, events_json: JSON.stringify(progress.events) })
+          .set({ content: progress.content, events_json: JSON.stringify(events) })
           .where((eb) => eb.and([isRunRow(eb, progress), notTerminal(eb)]))
           .executeTakeFirst()
       );
+      if (Number(result.numUpdatedRows) > 0 && grown) {
+        // Progress earns a fresh recovery budget. Replayed prefixes and the coordinator's
+        // divider are not progress and cannot keep a repeatedly failing attempt alive forever.
+        await kernel.run((db) => db.updateTable("assistant_run_attempts")
+          .set({ recovery_count: 0, recovery_deadline: null, recovery_elapsed_ms: 0, last_progress_at: Date.now() })
+          .where("message_id", "=", progress.messageId).execute());
+      }
       return Number(result.numUpdatedRows) > 0;
+      });
     },
 
-    async reconcileInterrupted({ now = Date.now() } = {}, optional = {}) {
+    async reconcileInterrupted(required = {}, optional = {}) {
       const stuck = await kernel.run((db) =>
         db
           .selectFrom("ai_chat_messages")
@@ -217,7 +250,7 @@ export function createChatRunLedger(store: ChatKernel | SqliteConnectionSource):
       );
       let count = 0;
       for (const row of stuck) {
-        if (await optional.recover?.({
+        const dispatched = await optional.recover?.({
           principalId: row.owner_kind === "user" ? row.owner_id : null,
           conversationId: row.conversation_id,
           message: {
@@ -225,29 +258,32 @@ export function createChatRunLedger(store: ChatKernel | SqliteConnectionSource):
             ...(row.run_id ? { runId: row.run_id } : {}),
             runStatus: row.run_status as "queued" | "running",
           },
-        })) continue;
-        count += await kernel.transaction(async () => {
-          await kernel.lockKey(runLockKey({ conversationId: row.conversation_id, messageId: row.id, runId: row.run_id ?? "" }));
-          const current = await kernel.run((db) => db.selectFrom("ai_chat_messages")
-            .select("events_json").where("id", "=", row.id)
-            .where("run_id", row.run_id === null ? "is" : "=", row.run_id)
-            .where("run_status", "in", ["queued", "running"]).executeTakeFirst());
-          if (!current) return 0;
-          const result = await kernel.run((db) =>
-            db
-              .updateTable("ai_chat_messages")
-              .set((eb) => ({
-                run_status: "canceled",
-                events_json: JSON.stringify(eventsWithNotice(current.events_json)),
-                ended_at: eb.fn.coalesce("ended_at", eb.val(now)),
-              }))
-              .where("id", "=", row.id)
-              .where("run_id", row.run_id === null ? "is" : "=", row.run_id)
-              .where("run_status", "in", ["queued", "running"])
-              .executeTakeFirst()
-          );
-          return Number(result.numUpdatedRows);
         });
+        if (dispatched) { count += 1; continue; }
+        // A legacy stub without an attempt id, or a host without durable recovery, cannot ever
+        // be adopted. Preserve the latest checkpoint under the same lock as settle: discovery's
+        // snapshot may be old, and acceptance/recovery may have replaced its run id meanwhile.
+        const canceled = await kernel.transaction(async () => {
+          await kernel.lockKey(runLockKey({ conversationId: row.conversation_id, messageId: row.id, runId: row.run_id ?? "" }));
+          const matches = (eb: MessagesBuilder) => eb.and([
+            eb("id", "=", row.id), eb("conversation_id", "=", row.conversation_id), eb("role", "=", "assistant"),
+            row.run_id === null ? eb("run_id", "is", null) : eb("run_id", "=", row.run_id),
+            notTerminal(eb),
+          ]);
+          const current = await kernel.run((db) => db.selectFrom("ai_chat_messages").select("events_json")
+            .where(matches).executeTakeFirst());
+          if (!current) return false;
+          const endedAt = required.now ?? Date.now();
+          const events = [...readEvents(current.events_json), { kind: "status", label: "Stopped. Saved work is above." }];
+          const result = await kernel.run((db) => db.updateTable("ai_chat_messages")
+            .set({ run_status: "canceled", ended_at: endedAt, events_json: JSON.stringify(events) })
+            .where(matches).executeTakeFirst());
+          if (Number(result.numUpdatedRows) === 0) return false;
+          await kernel.run((db) => db.updateTable("ai_chats").set({ updated_at: endedAt })
+            .where("id", "=", row.conversation_id).execute());
+          return true;
+        });
+        if (canceled) count += 1;
       }
       return count;
     },

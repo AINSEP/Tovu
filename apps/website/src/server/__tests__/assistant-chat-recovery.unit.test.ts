@@ -3,12 +3,13 @@ import test from "node:test";
 import express from "express";
 import type { ChatMessage } from "@jini-ai/chat/core";
 import type { ChatRunLedger } from "#src/assistant/index";
+import { recoveryLedgerFixture } from "./durable-ledger.fixture.js";
 import { createInMemoryChatHistory } from "#src/assistant/persistence/store-factory";
 import { createNoopObservabilityPort } from "#src/platform/observability/index";
 import { createLiveRunTracker, CONCURRENT_RUN_REFUSAL_MESSAGE, failRunBeforeStart } from "../inbound/assistant/agent-run-concurrency.js";
 import { wouldForcedColdStartLoseConversationContext } from "../inbound/assistant/agent-session-resume.js";
 import { createAssistantChatsModule } from "../runtime/composition/modules/assistant-chats.js";
-import { createAssistantRunFinalizer, createHttpRunDaemonClient, type RunDaemonClient } from "../runtime/composition/modules/assistant-run-finalizer.js";
+import { createAssistantRunFinalizer, createHttpRunDaemonClient, assistantRunFinalizerFor, type RunDaemonClient } from "../runtime/composition/modules/assistant-run-finalizer.js";
 import type { RouteDeps } from "../routes/types.js";
 
 /** Spec/decision: only a serving boot reconciles transcripts. A surviving daemon run is adopted
@@ -24,21 +25,11 @@ function harness(required: { status: number | null }, optional: { events?: ChatM
   const body = new ReadableStream<Uint8Array>({ start(controller) { stream = controller; } });
   const calls: unknown[] = [];
   let repairs = 0;
+  const base = recoveryLedgerFixture({ message, now: () => 1234 }, {}).ledger;
   const ledger: ChatRunLedger = {
-    unlessSettled: async (_run, write) => ({ written: true, value: await write() }),
-    checkpoint: async () => true,
-    settle: async (input) => {
-      calls.push(input);
-      if (message.runStatus !== "running") return false;
-      Object.assign(message, { content: input.content, events: [...input.events], runStatus: input.status, endedAt: input.endedAt });
-      return true;
-    },
-    reconcileInterrupted: async (_required, options) => {
-      repairs++;
-      if (await options?.recover?.({ principalId: "owner", conversationId: "chat", message: { ...message } })) return 0;
-      message.runStatus = "canceled";
-      return 1;
-    },
+    ...base,
+    settle: async (input) => { calls.push(input); return base.settle(input); },
+    reconcileInterrupted: async (required, options) => { repairs++; return base.reconcileInterrupted(required, options); },
   };
   const daemon: RunDaemonClient = {
     runStatus: async ({ runId, principalId }) => { calls.push({ runId, principalId }); return required.status; },
@@ -78,13 +69,13 @@ function harness(required: { status: number | null }, optional: { events?: ChatM
 
 test("restart recovery adopts a live daemon run, persists its reply, and permits the next send", async () => {
   const h = harness({ status: 200 });
-  assert.equal(await h.finalizer.reconcileInterrupted({}, {}), 0);
+  assert.equal(await h.finalizer.reconcileInterrupted({}, {}), 1);
   assert.equal(h.message.runStatus, "running");
   assert.equal(h.finalizer.activeCount(), 1);
   assert.deepEqual(h.calls.slice(0, 2), [{ runId: "run-old", principalId: "owner" }, { stream: "run-old", principalId: "owner" }]);
   // While the adopted answer is actually live, ordinary serialization still applies.
   assert.deepEqual(await h.send(), { status: "failed", errors: [
-    "The assistant could not start: another answer in this chat is still running. Wait for it to finish, or stop it, then send again.",
+    "Another answer in this chat is still running. This turn could not start.",
   ] });
   h.finish();
   await h.finalizer.idle();
@@ -92,20 +83,13 @@ test("restart recovery adopts a live daemon run, persists its reply, and permits
   assert.deepEqual(await h.send(), { status: "running", errors: [] });
 });
 
-test("restart recovery cancels only a run the daemon has forgotten", async () => {
-  const h = harness({ status: 404 });
-  h.tracker.unregister("chat", "run-old");
-  assert.equal(await h.finalizer.reconcileInterrupted({}, {}), 1);
-  assert.equal(h.message.runStatus, "canceled");
-  assert.equal(h.finalizer.activeCount(), 0);
-  assert.deepEqual(h.calls, [{ runId: "run-old", principalId: "owner" }]);
-  assert.equal(h.tracker.hasConcurrentLiveRun("chat", "run-next"), false);
-});
+// Forgotten attempts now continue through CAS; assistant-durable-finalizer.unit.test.ts covers
+// that incident with real storage. This suite retains live/uncertain adoption and serving-only boot.
 
 for (const status of [null, 401, 403, 503]) {
   test(`restart recovery preserves and watches an unproven run when daemon status is ${status}`, async () => {
     const h = harness({ status });
-    assert.equal(await h.finalizer.reconcileInterrupted({}, {}), 0);
+    assert.equal(await h.finalizer.reconcileInterrupted({}, {}), 1);
     assert.equal(h.message.runStatus, "running");
     h.finish();
     await h.finalizer.idle();
@@ -151,7 +135,7 @@ test("restart recovery through the lazy history ledger persists the surviving da
     },
   };
   const finalizer = createAssistantRunFinalizer({ ledger: chatRunLedger, daemon, now: () => 1234 });
-  assert.equal(await finalizer.reconcileInterrupted({}, {}), 0);
+  assert.equal(await finalizer.reconcileInterrupted({}, {}), 1);
   await finalizer.idle();
   const [saved] = await store.messages({ conversationId: "chat" });
   assert.equal(saved?.runStatus, "succeeded");
@@ -196,6 +180,8 @@ test("adopted watches use the recovery daemon while new sends use the current da
   const completed = (runId: string) => new Response(`event: end\ndata: ${JSON.stringify({ runId, kind: "end", payload: { status: "succeeded", code: 0 } })}\n\n`);
   const finalizer = createAssistantRunFinalizer({
     ledger: h.ledger,
+    // Match the fixture's progress clock for deterministic recovery timestamps.
+    now: () => 1234,
     recoveryDaemon: {
       runStatus: async ({ runId }) => { calls.push(`probe:${runId}`); return 200; },
       openEvents: async ({ runId }) => { calls.push(`recovered:${runId}`); return completed(runId); },
@@ -205,9 +191,25 @@ test("adopted watches use the recovery daemon while new sends use the current da
       openEvents: async ({ runId }) => { calls.push(`current:${runId}`); return completed(runId); },
     },
   });
-  assert.equal(await finalizer.reconcileInterrupted({}, {}), 0);
+  assert.equal(await finalizer.reconcileInterrupted({}, {}), 1);
   await finalizer.idle();
   finalizer.watch({ principalId: "owner", conversationId: "chat", message: { id: "next", role: "assistant", content: "", runId: "run-next", runStatus: "running" } }, {});
   await finalizer.idle();
   assert.deepEqual(calls, ["probe:run-old", "recovered:run-old", "current:run-next"]);
+});
+
+test("serving composition adds prior-daemon recovery to the coordinator first created by an export app", async () => {
+  const message: ChatMessage = { id: "answer", role: "assistant", content: "Partial", runId: "old", runStatus: "running", events: [{ kind: "text", text: "Partial" }] };
+  const { ledger } = recoveryLedgerFixture({ message, now: () => 1234 }, {});
+  const calls: string[] = [];
+  const current: RunDaemonClient = { runStatus: async () => { calls.push("current-probe"); return 404; }, openEvents: async () => { throw new Error("wrong current endpoint"); } };
+  const exported = assistantRunFinalizerFor({ ledger, daemon: current, now: () => 1234 }, {});
+  const serving = assistantRunFinalizerFor({ ledger, recoveryDaemon: {
+    runStatus: async () => { calls.push("prior-probe"); return 200; },
+    openEvents: async () => { calls.push("prior-stream"); return new Response('event: end\ndata: {"payload":{"status":"succeeded","code":0}}\n\n'); },
+  } }, {});
+  assert.equal(serving, exported);
+  await serving.reconcileInterrupted({}, {}); await serving.idle();
+  assert.deepEqual(calls, ["prior-probe", "prior-stream"]);
+  assert.equal(message.runStatus, "succeeded"); assert.equal(message.content, "Partial");
 });

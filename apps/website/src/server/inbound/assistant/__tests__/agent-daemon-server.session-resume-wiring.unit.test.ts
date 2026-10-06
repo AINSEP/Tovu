@@ -3,6 +3,10 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import test, { describe } from "node:test";
 
+// Load the source-evaluation dependencies before test deadlines start: their cold import
+// includes TypeScript and the Jini barrels and can exceed the cleanup test's 2-second limit.
+import { captureDaemonRun } from "./helpers/daemon-source.js";
+
 /**
  * @file Wiring proof for the H1/H2 fixes, in the same style as
  * `agent-daemon-installs-unhandled-rejection-guard.unit.test.ts` next to this file: reads the
@@ -96,23 +100,47 @@ describe("H2 wiring — overlapping runs on one conversation must not both resum
     assert.ok(registerIndex < refreshIndex, "liveRunTracker.register must be called synchronously, before onStarted's first await (the custom-instructions refresh) — a register that runs after an await could lose the single-threaded-ordering guarantee two near-simultaneous requests rely on");
   });
 
-  test("a run unregisters itself from the tracker on its own terminal event", () => {
-    const waitForTerminalIndex = onStartedSource.indexOf("runLifecycle.waitForTerminal({ runId: run.id }).finally(");
-    assert.ok(waitForTerminalIndex > -1, "this test's own anchor (the waitForTerminal cleanup block) must still exist verbatim");
-
-    const unregisterIndex = onStartedSource.indexOf("liveRunTracker.unregister(");
-    assert.ok(unregisterIndex > -1, "onStarted must unregister this run from liveRunTracker on terminal — without this, every finished run would look live forever and every later turn on that conversation would be wrongly forced cold");
-
-    // Find the matching finally-block boundary loosely: the next occurrence of the attachment
-    // cleanup call is inside the SAME finally() this file already uses for principal cleanup, so
-    // unregister landing before it confirms it is in that same block rather than some unrelated
-    // later one.
-    const attachmentCleanupIndex = onStartedSource.indexOf("attachmentStore?.cleanupRun({ runId: run.id })");
-    assert.ok(attachmentCleanupIndex > -1, "this test's own anchor (the attachment cleanup call) must still exist verbatim");
-    assert.ok(
-      waitForTerminalIndex < unregisterIndex && unregisterIndex < attachmentCleanupIndex,
-      "liveRunTracker.unregister must be called inside the same waitForTerminal(...).finally() block that already cleans up principalByRunId and attachments — not some other, unconnected callback",
-    );
+  test("a run unregisters itself from the tracker on its own terminal event", { timeout: 2000 }, async () => {
+    // finish() takes lifecycle states; it translates "cancelled" to the wire's "canceled".
+    for (const status of ["succeeded", "failed", "cancelled"] as const) {
+      const fixture = await sessionFixture();
+      const conversationId = "terminal-cleanup-chat";
+      const calls: unknown[] = [];
+      let cleaned!: () => void;
+      const cleanup = new Promise<void>((resolve) => { cleaned = resolve; });
+      await captureDaemonRun({ prompt: "Answer", conversationId }, {
+        lifecycle: fixture.lifecycle,
+        bindings: {
+          ...fixture.bindings,
+          liveRunTracker: {
+            ...fixture.liveRunTracker,
+            unregister: (chatId: string, runId: string) => {
+              calls.push({ unregister: { conversationId: chatId, runId } });
+              fixture.liveRunTracker.unregister(chatId, runId);
+            },
+          },
+          attachmentStore: { cleanupRun: async (input: { runId: string }) => { calls.push({ cleanup: input }); cleaned(); } },
+        },
+      });
+      assert.equal(fixture.liveRunTracker.conversationIdForRun("daemon-test-run"), conversationId);
+      assert.deepEqual(calls, [], "a live run must retain its tracker and attachments");
+      fixture.liveRunTracker.register(conversationId, "other-live-run");
+      const finished = await fixture.lifecycle.finish({ runId: "daemon-test-run", status, code: status === "succeeded" ? 0 : 1, signal: null, resumable: false });
+      assert.equal(finished.state, status, "the lifecycle must reach the requested terminal state");
+      await cleanup;
+      // Observe the real terminal callback rather than its source spelling: unregister must
+      // happen before attachment cleanup in the SAME principal/attachment cleanup block, not
+      // an unrelated later callback. Otherwise finished runs appear live forever and force
+      // every later turn cold. Only this run's registration may be released.
+      assert.deepEqual(calls, [
+        { unregister: { conversationId, runId: "daemon-test-run" } },
+        { cleanup: { runId: "daemon-test-run" } },
+      ]);
+      assert.equal(fixture.liveRunTracker.conversationIdForRun("daemon-test-run"), undefined);
+      assert.equal(fixture.liveRunTracker.conversationIdForRun("other-live-run"), conversationId);
+      fixture.liveRunTracker.unregister(conversationId, "other-live-run");
+      assert.equal(fixture.liveRunTracker.hasConcurrentLiveRun(conversationId, "next-run"), false);
+    }
   });
 
   test("hasConcurrentLiveRun gates whether this run may read/pass a stored resumeSessionId", () => {
@@ -261,7 +289,6 @@ async function sessionFixture() {
 // F1.4/F6.3: dead-code clearSessionId and clearing by run.id both leave this seeded binding alive.
 for (const terminal of ["failed-unconfirmed", "succeeded-reconfirmed"] as const) {
   test(`onStarted's real stream ${terminal === "failed-unconfirmed" ? "clears only the resumed conversation-agent binding" : "persists the CLI's reconfirmed session"}`, async () => {
-    const { captureDaemonRun } = await import("./helpers/daemon-source.js");
     const fixture = await sessionFixture();
     const key = { conversationId: "conversation-original", agentId: "claude" };
     await fixture.agentSessions.setSessionId({ ...key, sessionId: "dead-resume-id" });
@@ -292,7 +319,6 @@ for (const terminal of ["failed-unconfirmed", "succeeded-reconfirmed"] as const)
 }
 
 test("onStarted refuses a concurrent memory-carrying run and never dispatches a cold executor call", async () => {
-  const { captureDaemonRun } = await import("./helpers/daemon-source.js");
   const fixture = await sessionFixture();
   const key = { conversationId: "conversation-contended", agentId: "claude" };
   await fixture.agentSessions.setSessionId({ ...key, sessionId: "existing-history-id" });
@@ -309,12 +335,11 @@ test("onStarted refuses a concurrent memory-carrying run and never dispatches a 
   assert.equal((await fixture.lifecycle.get({ runId: "daemon-test-run" }))?.state, "failed");
   const error = events.find((event) => event.kind === "error");
   assert.ok(error);
-  assert.deepEqual(error.payload, { message: "The assistant could not start: another answer in this chat is still running. Wait for it to finish, or stop it, then send again." });
+  assert.deepEqual(error.payload, { message: "Another answer in this chat is still running. This turn could not start." });
   assert.equal(await fixture.agentSessions.getSessionId(key), "existing-history-id");
 });
 
 test("onStarted registers the conversation synchronously while instruction refresh is held", async () => {
-  const { captureDaemonRun } = await import("./helpers/daemon-source.js");
   const fixture = await sessionFixture();
   const key = { conversationId: "conversation-before-refresh", agentId: "claude" };
   await fixture.agentSessions.setSessionId({ ...key, sessionId: "session-before-refresh" });

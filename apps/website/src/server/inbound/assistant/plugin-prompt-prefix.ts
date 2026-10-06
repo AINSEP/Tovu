@@ -51,7 +51,7 @@ export async function resolveAgentPluginPromptPrefix(
     await failRunBeforeStart(
       runLifecycle,
       run.id,
-      "The assistant could not start: a selected Agent Plugin could not be loaded. Remove it from the message or reinstall it, then send again.",
+      "The assistant could not start: a selected Agent Plugin could not be loaded.",
     );
     console.error(`[agent-daemon] run ${run.id}: Agent Plugin resolution failed`, result.reason);
     return null;

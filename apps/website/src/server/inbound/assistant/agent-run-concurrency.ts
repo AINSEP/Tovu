@@ -17,10 +17,12 @@
  * test avoids cross-test pollution, while `agent-daemon-server.ts` itself only ever needs exactly
  * one instance for its own process lifetime.
  *
- * In-process only, and deliberately not persisted: starts empty on every daemon restart, and a
- * restart needs no special handling for that. A restart kills every CLI child process this run's
- * own daemon spawned, so nothing a stale entry could have been protecting against is actually
- * "live" any more either — an empty tracker after restart matches reality exactly, not a gap in it.
+ * In-process only: this map tracks process/session occupancy and tool conversation lookup, not
+ * ownership of the durable answer. The unfinished message reserves that slot across attempts;
+ * terminal settlement or deletion releases it. The earlier assumption that a daemon restart
+ * necessarily killed every CLI child was too strong: a daemon-only kill can leave an orphan.
+ * recover() now verifies the saved child identity before native resume, otherwise reconstructs
+ * under a fresh session. An empty local map cannot establish that an old child is dead.
  */
 
 export interface LiveRunTracker {
@@ -175,7 +177,7 @@ export interface FailingRunLifecycle {
 
 /** The plain reason a run gets when another run on the same chat still holds its agent session. */
 export const CONCURRENT_RUN_REFUSAL_MESSAGE =
-  "The assistant could not start: another answer in this chat is still running. Wait for it to finish, or stop it, then send again.";
+  "Another answer in this chat is still running. This turn could not start.";
 
 /**
  * Ends a run this host refuses before it starts, with the plain reason on the run's own stream.

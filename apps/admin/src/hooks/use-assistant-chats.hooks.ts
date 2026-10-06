@@ -893,9 +893,13 @@ export function useAssistantChats(
    * own within moments. A run that ends before any further delta fires has nothing left worth
    * reattaching to anyway.
    *
+   * Daemon acceptance now closes that former gap before dispatch. This best-effort path remains
+   * only for request-bound BYOK/AG-UI; browser daemon stubs cannot own durable attempt state.
    * @complexity O(1) plus at most one `PUT`.
    */
   const persistRunStub = useCallback((conversationId: string, message: ChatMessage): void => {
+    // Daemon acceptance commits the stub before dispatch; browser snapshots cannot own it.
+    if (message.runId && !message.runId.startsWith("byok:") && !message.runId.startsWith("agui:")) return;
     const written = runStubWrittenRef.current.get(conversationId) ?? new Set<string>();
     runStubWrittenRef.current.set(conversationId, written);
     // Per run, not per message id: a retry reuses the id with a new run (see `messageWriteKey`).

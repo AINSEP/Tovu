@@ -1,3 +1,4 @@
+import { prepareByokMessageAttachments } from "#src/server/inbound/assistant/byok-message-attachments";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor, DerivedToolContributor } from "#src/assistant/index";
 /**
@@ -313,7 +314,7 @@ async function resolveTurnInputsOrRespond(
   credentialPort: ExecutionCredentialPort,
   routeDeps: RouteDeps,
 ): Promise<ByokTurnInputs | null> {
-  const body = (req.body ?? {}) as { messages?: unknown; byok?: RequestSuppliedByokConfig; pageContext?: unknown };
+  const body = (req.body ?? {}) as { messages?: unknown; byok?: RequestSuppliedByokConfig; pageContext?: unknown; attachmentIds?: unknown };
   const history = resolveMessages(body.messages);
   if (history.length === 0 || history[history.length - 1]?.role !== "user") {
     res.status(400).json({ error: "'messages' must end with a non-empty user message", code: "VALIDATION_ERROR" });
@@ -338,6 +339,21 @@ async function resolveTurnInputsOrRespond(
     return null;
   }
 
+  if (body.attachmentIds !== undefined) {
+    if (!Array.isArray(body.attachmentIds) || body.attachmentIds.length > 10 ||
+      body.attachmentIds.some(ref => typeof ref !== "string" || !ref)) {
+      res.status(400).json({ error: "Invalid message attachments", code: "VALIDATION_ERROR" });
+      return null;
+    }
+    try {
+      const prepared = await prepareByokMessageAttachments({ refs: body.attachmentIds, principalId: authed.id }, {});
+      const last = messages[messages.length - 1]!;
+      messages[messages.length - 1] = { ...last, content: last.content + prepared.notice, images: prepared.images };
+    } catch {
+      res.status(400).json({ error: "Attachment is unavailable. Reattach it before sending.", code: "VALIDATION_ERROR" });
+      return null;
+    }
+  }
   return { messages, principal: { id: authed.id }, credential };
 }
 

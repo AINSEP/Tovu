@@ -828,13 +828,16 @@ export function useSkillAwareAttachmentUploader(
     uploadAttachments: ReturnType<typeof createDaemonAttachmentUploader>;
     proposeFiles: (files: readonly File[]) => Promise<void>;
   },
+  _optional: Record<string, never> = {},
 ): ReturnType<typeof createDaemonAttachmentUploader> {
-  return useCallback(async files => {
+  return useCallback(async (files, options) => {
     if (files.some(file => file.name === "SKILL.md" || file.name.toLowerCase().endsWith(".zip"))) {
       await proposeFiles(files);
       return [];
     }
-    return uploadAttachments(files);
+    // The composer owns the message batch and cancellation lifetime. Dropping these options
+    // makes separate attach actions create different batches, which the daemon cannot claim.
+    return options === undefined ? uploadAttachments(files) : uploadAttachments(files, options);
   }, [uploadAttachments, proposeFiles]);
 }
 

@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 
 import { sqliteKernel } from "@jini-ai/db/kernel/sqlite";
 import { SQLITE_CHAT_STATEMENTS } from "../migrations/chat/0001_sqlite_chat_tables.js";
+import { durableRunStatements } from "../migrations/chat/0002_durable_run_attempts.js";
 import { migrateChatDatabase } from "../migrations/index.js";
 
 /**
@@ -61,5 +62,6 @@ export async function openSiteChatDb(filePath: string): Promise<Database.Databas
 export function openChatDb(filePath: string): Database.Database {
   const sqlite = openChatConnection(filePath);
   for (const statement of SQLITE_CHAT_STATEMENTS) sqlite.exec(statement);
+  for (const statement of durableRunStatements({ dialect: "sqlite" }, {})) sqlite.exec(statement);
   return sqlite;
 }

@@ -3,6 +3,16 @@ import { describe, expect, it, vi } from "vitest";
 import { resolveSkillsAvailable, useSkillAwareAttachmentUploader } from "../hooks/AssistantDock.hooks";
 
 describe("skill-aware attachment routing", () => {
+  it("preserves one message batch and its abort signal across two attach actions", async () => {
+    const uploadAttachments = vi.fn(async () => []);
+    const { result } = renderHook(() => useSkillAwareAttachmentUploader({ uploadAttachments, proposeFiles: vi.fn() }));
+    const options = { batchId: "message-batch", signal: new AbortController().signal };
+    const green = [new File(["green"], "green-square.png")];
+    const yellow = [new File(["yellow"], "yellow-square.png")];
+    await result.current(green, options);
+    await result.current(yellow, options);
+    expect(uploadAttachments.mock.calls).toEqual([[green, options], [yellow, options]]);
+  });
   it("returns ordinary attachment results unchanged", async () => {
     const attachments = [{ name: "notes.txt", path: "attachment:notes", kind: "file" as const }];
     const uploadAttachments = vi.fn(async () => attachments);

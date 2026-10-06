@@ -49,7 +49,7 @@ function sessionHarness() {
     parseRunStartContextRef: () => ({ prompt: "hello", principalId: "principal-1", conversationId: "conv-1", attachmentIds: [], pluginRefIds: [] }),
     assemblePromptWithPluginPrefix: (prompt: string) => prompt,
     buildPageContextPromptBlock: () => "",
-    principalByRunId: new Map(), runOwners: { record() {} },
+    principalByRunId: new Map(), messageAttachmentRefsByRunId: new Map(), runOwners: { record() {} },
     // No live executor in this harness: isolate serialization of the binding, not the live-run gate.
     liveRunTracker: { register() {}, hasConcurrentLiveRun: () => false },
     frontendControl: { bindOnStarted() {} }, customInstructionsCache: { refresh: async () => {} },
@@ -146,33 +146,50 @@ describe("Defect 1 wiring — the conversation/session binding must be written a
     }
   });
 
-  test("a SECOND setSessionId call site exists, reached at dispatch rather than from the terminal end event", () => {
+  test("a binding write exists at dispatch rather than only in the event subscription", () => {
     /*
      * The defect in one assertion. Before the fix the ONLY `setSessionId` call in this file lived
      * in the `runLifecycle.stream(...)` subscription's `end` branch, so the binding was written
      * only by a run that survived long enough to report a terminal `sessionRef`. A run that died
      * first stored nothing at all, and the next turn started cold under a brand-new session.
      *
-     * Counted rather than located by index: the stream subscription is declared textually ABOVE
+     * Scoped to resolveSessionBinding: the stream subscription is declared textually ABOVE
      * `agentExecutor.run` even though it fires long after it, so "appears before the run call" is
      * not evidence of anything here — an earlier draft of this test passed against the unfixed
-     * file for exactly that reason.
+     * file for exactly that reason. Terminal persistence now goes through captureEarlySession;
+     * counting raw setSessionId strings would also count comments rather than actual writes.
      */
-    const callSites = onStartedSource.split("routeDeps.agentSessions.setSessionId(").length - 1;
+    const bindingFnIndex = onStartedSource.indexOf("async function resolveSessionBinding(");
+    const lockCallIndex = onStartedSource.indexOf("conversationStartLock.run(");
+    assert.ok(bindingFnIndex > -1 && lockCallIndex > bindingFnIndex, "the dispatch binding function and its lock call must exist in order");
+    const bindingFnSource = onStartedSource.slice(bindingFnIndex, lockCallIndex);
     assert.ok(
-      callSites >= 2,
-      `onStarted must persist the conversation/session binding at dispatch as well as from the terminal end event — found ${callSites} setSessionId call site(s), meaning a run that dies early still orphans its CLI session (Defect 1)`,
+      /routeDeps\.(?:agentSessions\.setSessionId|chatRunLedger\.durable\.captureSession)\(/.test(bindingFnSource),
+      "onStarted must persist the conversation/session binding at dispatch as well as from events — otherwise a run that dies early still orphans its CLI session (Defect 1)",
     );
   });
 
   test("the dispatch-time write is awaited, so the binding is durable before the CLI is ever spawned", () => {
     const runCallIndex = onStartedSource.indexOf("await agentExecutor.run({");
+    assert.ok(runCallIndex > -1, "the awaited agentExecutor.run call must exist");
     const preDispatch = onStartedSource.slice(0, runCallIndex);
-    // `await`, specifically: the terminal-event call site is a fire-and-forget `void ...setSessionId`,
-    // so this also distinguishes the new call site from the old one rather than re-matching it.
+    const bindingFnIndex = preDispatch.indexOf("async function resolveSessionBinding(");
+    assert.ok(bindingFnIndex > -1, "the dispatch binding function must exist before agentExecutor.run");
+    const bindingFnSource = preDispatch.slice(bindingFnIndex);
+    // `await`, specifically: dispatch selects durable captureSession or legacy setSessionId into
+    // `prepared`, then awaits prepared.catch(...). Merely starting either write (or void prepared)
+    // can lose the race with the CLI; the event subscription's fire-and-forget capture is insufficient.
+    const preparedWrite = /const\s+prepared\s*=\s*([^;]+);\s*await\s+prepared(?:\.catch\(|\s*;)/.exec(bindingFnSource);
     assert.ok(
-      /await\s+routeDeps\.agentSessions\.setSessionId\(/.test(preDispatch),
-      "the dispatch-time setSessionId must be awaited — a fire-and-forget write can lose the race with the run it is supposed to be binding",
+      /await\s+routeDeps\.(?:agentSessions\.setSessionId|chatRunLedger\.durable\.captureSession)\(/.test(bindingFnSource)
+        || (preparedWrite !== null
+          && /routeDeps\.chatRunLedger\.durable\.captureSession\(/.test(preparedWrite[1])
+          && /routeDeps\.agentSessions\.setSessionId\(/.test(preparedWrite[1])),
+      "the dispatch-time binding write must be awaited — a fire-and-forget write can lose the race with the run it is supposed to be binding",
+    );
+    assert.ok(
+      /await\s+conversationStartLock\.run\(conversationId,\s*resolveSessionBinding\)/.test(preDispatch),
+      "dispatch must await the locked binding function before agentExecutor.run",
     );
   });
 

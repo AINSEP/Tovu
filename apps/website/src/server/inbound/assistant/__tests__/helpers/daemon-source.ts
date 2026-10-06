@@ -4,6 +4,8 @@ import path from "node:path";
 import ts from "typescript";
 import type { AgentExecutorRunInput, RunLifecycle } from "@jini-ai/daemon";
 
+import { createEarlySessionCapture } from "../../early-run-session.js";
+import type { AgentSessionStore } from "#src/assistant/persistence/agent-session-store";
 import { parseRunStartContextRef } from "#src/assistant/run-start-context";
 import { buildPageContextPromptBlock } from "#src/assistant/run-page-context";
 import { createRunActiveContextStore, type RunActiveContextStore } from "#src/assistant/run-active-context";
@@ -49,13 +51,16 @@ export async function captureDaemonRun(
   let reject!: (error: Error) => void;
   const captured = new Promise<AgentExecutorRunInput>((yes, no) => { resolve = yes; reject = no; });
   const timer = setTimeout(() => reject(new Error("onStarted did not call the executor")), 1000);
+  const fixtureDeps = options.bindings?.routeDeps as { agentSessions?: AgentSessionStore } | undefined;
   const bindings = {
+    captureEarlySession: createEarlySessionCapture({ sessions: fixtureDeps?.agentSessions ?? { getSessionId: async () => null, setSessionId: async () => {}, clearSessionId: async () => {} }, readStart: async () => null }, {}),
     parseRunStartContextRef, buildPageContextPromptBlock, assemblePromptWithPluginPrefix,
     agentCarriesOwnMemory, resolveResumeSessionField, wouldForcedColdStartLoseConversationContext,
     agentAcceptsHostMintedSessionId, resolveHostMintedSessionId, resolveNewSessionField,
     ASSISTANT_DISALLOWED_TOOLS, ASSISTANT_SETTING_SOURCES, resolveAssistantRunSettings,
     DEFAULT_AGENT_ID: "claude",
     principalByRunId: new Map(),
+    messageAttachmentRefsByRunId: new Map(),
     runOwners: { record() {} },
     runActiveContexts: options.runActiveContexts ?? createRunActiveContextStore(),
     frontendControl: { bindOnStarted() {} },

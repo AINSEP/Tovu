@@ -69,6 +69,11 @@ import { resolveChatAttachmentUploadDirectory } from "#src/server/inbound/assist
 import type { RouteDeps } from "#src/server/routes/types";
 import { daemonFetch, getAgentDaemonUrl, forwardToAgentDaemon, respondIfDaemonKnownFailed, type DaemonCallOptions } from "./assistant-daemon-client.js";
 import type { ServerModuleHandle } from "./types.js";
+import { randomUUID } from "node:crypto";
+import { createRunAcceptance } from "#src/assistant/durable-runs/accept";
+import { assistantRunFinalizerFor, createHttpRunDaemonClient } from "./assistant-run-finalizer.js";
+import type { DurableRun } from "#src/assistant/durable-runs/ports";
+import { RunSlotBusyError } from "#src/assistant/persistence/durable-run-store";
 
 /** Streams `upstream`'s response back onto `res` as it arrives — required for the SSE run-events
  * endpoint, where buffering the whole body first would defeat live streaming entirely.
@@ -121,7 +126,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
  * principal into `contextRef` so the daemon (no cookie of its own) can answer `resolveDelegatedPrincipal`
  * for this run later, and can record who owns it. Every other route is a transparent pass-through
  * — they carry the same principal in a header instead, since they have no body to stamp. */
-async function proxyRunStart(req: Request, res: Response, daemon: DaemonCallOptions): Promise<void> {
+async function proxyRunStart(req: Request, res: Response, daemon: DaemonCallOptions, deps: RouteDeps): Promise<void> {
   const principal = getAuthedPrincipal(res);
   const body = (req.body ?? {}) as { contextRef?: unknown; agentId?: unknown; idempotencyKey?: unknown };
 
@@ -133,6 +138,13 @@ async function proxyRunStart(req: Request, res: Response, daemon: DaemonCallOpti
     return;
   }
 
+  if (!isPlainObject(decoded)) {
+    res.status(400).json({ error: "'contextRef' must be a JSON-encoded object", code: "VALIDATION_ERROR" }); return;
+  }
+  // Recovery session choices are server decisions, never client-controlled launch fields.
+  delete decoded.recoveryMode;
+  delete decoded.recoverySessionId;
+  if (await proxyAcceptedRun({ decoded, body, deps, res }, {})) return;
   const upstream = await forwardToAgentDaemon(req, res, {
     ...body,
     contextRef: JSON.stringify({ ...decoded, principalId: principal.id }),
@@ -141,10 +153,70 @@ async function proxyRunStart(req: Request, res: Response, daemon: DaemonCallOpti
   await relayResponse(upstream, req, res);
 }
 
+async function proxyAcceptedRun(
+  { decoded, body, deps, res }: { decoded: Record<string, unknown>; body: { agentId?: unknown }; deps: RouteDeps; res: Response }, _optional = {},
+): Promise<boolean> {
+  const principal = getAuthedPrincipal(res);
+  const durable = deps.chatRunLedger.durable;
+  if (durable && typeof decoded.conversationId === "string" && typeof decoded.assistantMessageId === "string") {
+    const finalizer = assistantRunFinalizerFor({ ledger: deps.chatRunLedger, observability: deps.observability }, {});
+    const client = createHttpRunDaemonClient({ observability: deps.observability });
+    const acceptance = createRunAcceptance({ store: durable, now: Date.now, mintRunId: randomUUID,
+      launch: (required, optional) => client.launch!(required, optional),
+      attach: (run) => finalizer.watch({ principalId: principal.id, conversationId: run.conversationId, message: run.message }),
+    }, {});
+    const run = await acceptance.accept({ principalId: principal.id, workspaceId: deps.workspaceId,
+      conversationId: decoded.conversationId, messageId: decoded.assistantMessageId,
+      request: { ...(typeof body.agentId === "string" ? { agentId: body.agentId } : {}), contextRef: JSON.stringify({ ...decoded, principalId: principal.id }) },
+    }, {});
+    if (!run) { res.status(404).json({ error: "not found" }); return true; }
+    res.status(201).json({ run: { id: run.runId }, messageId: run.messageId, conversationId: run.conversationId });
+    return true;
+  }
+  return false;
+}
+
 async function proxyPassthrough(req: Request, res: Response, daemon: DaemonCallOptions): Promise<void> {
   const upstream = await forwardToAgentDaemon(req, res, req.method === "GET" || req.method === "HEAD" ? undefined : req.body, daemon);
   if (!upstream) return;
   await relayResponse(upstream, req, res);
+}
+
+async function ownedDurableRun({ req, res, deps }: { req: Request; res: Response; deps: RouteDeps }, _optional = {}): Promise<DurableRun | null> {
+  const store = deps.chatRunLedger.durable;
+  if (!store) return null;
+  const principalId = getAuthedPrincipal(res).id;
+  const messageId = (req.body as { messageId?: unknown } | undefined)?.messageId;
+  const run = typeof messageId === "string" ? await store.load({ messageId }, {}) : await store.find({ runId: req.params.runId!, principalId }, {});
+  return run?.principalId === principalId && run.workspaceId === deps.workspaceId ? run : null;
+}
+
+async function recoverDurableRun({ req, res, deps }: { req: Request; res: Response; deps: RouteDeps }, _optional = {}): Promise<void> {
+  const run = await ownedDurableRun({ req, res, deps }, {});
+  if (!run) { res.status(404).json({ error: "not found" }); return; }
+  const finalizer = assistantRunFinalizerFor({ ledger: deps.chatRunLedger, observability: deps.observability }, {});
+  await finalizer.recover({ messageId: run.messageId, trigger: "browser" }, {});
+  const current = await deps.chatRunLedger.durable!.load({ messageId: run.messageId }, {});
+  if (!current) { res.status(404).json({ error: "not found" }); return; }
+  res.json({ message: current.message, conversationId: current.conversationId });
+}
+
+async function cancelDurableRun({ req, res, deps, daemon }: { req: Request; res: Response; deps: RouteDeps; daemon: DaemonCallOptions }, _optional = {}): Promise<void> {
+  let run = await ownedDurableRun({ req, res, deps }, {});
+  if (!run) run = await cancelBeforeAcceptance({ req, res, deps }, {});
+  if (!run) { await proxyPassthrough(req, res, daemon); return; }
+  await deps.chatRunLedger.durable!.cancel({ runId: run.runId, reason: "user-stop" }, {});
+  await assistantRunFinalizerFor({ ledger: deps.chatRunLedger, observability: deps.observability }, {})
+    .recover({ messageId: run.messageId, trigger: "browser" }, {});
+  res.json({ run: { id: run.runId, state: "cancelled" } });
+}
+
+async function cancelBeforeAcceptance({ req, res, deps }: { req: Request; res: Response; deps: RouteDeps }, _optional = {}): Promise<DurableRun | null> {
+  const body = (req.body ?? {}) as { messageId?: unknown; conversationId?: unknown };
+  if (typeof body.messageId !== "string" || typeof body.conversationId !== "string") return null;
+  return deps.chatRunLedger.durable?.cancelPending({ messageId: body.messageId, conversationId: body.conversationId,
+    runId: randomUUID(), workspaceId: deps.workspaceId, principalId: getAuthedPrincipal(res).id, now: Date.now(),
+  }, {}) ?? null;
 }
 
 /**
@@ -445,7 +517,10 @@ export function createAssistantModule(routeDeps: RouteDeps, byokSurfaceExchanges
     registerRoutes: (app: Express) => {
       app.use("/api/runs", requireAdminSession(routeDeps));
       app.post("/api/runs", (req: Request, res: Response, next: NextFunction) => {
-        proxyRunStart(req, res, daemon).catch(next);
+        proxyRunStart(req, res, daemon, routeDeps).catch((error: unknown) => {
+          if (error instanceof RunSlotBusyError) { res.status(409).json({ error: error.message, code: "CHAT_RUN_BUSY" }); return; }
+          next(error);
+        });
       });
       // `@jini-ai/http-kit`'s `registerRunRoutes` mounts `GET /api/runs` (list runs, optionally
       // filtered by `?contextRef=`) on the daemon alongside the `:runId` routes. It was missing
@@ -454,9 +529,10 @@ export function createAssistantModule(routeDeps: RouteDeps, byokSurfaceExchanges
       // The daemon answers it with the caller's own runs only — http-kit's version lists every
       // run on the box, which would hand one admin the ids of every other admin's runs.
       app.get("/api/runs", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
+      app.post("/api/runs/:runId/recover", (req, res, next) => recoverDurableRun({ req, res, deps: routeDeps }, {}).catch(next));
       app.get("/api/runs/:runId", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
       app.get("/api/runs/:runId/events", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
-      app.post("/api/runs/:runId/cancel", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
+      app.post("/api/runs/:runId/cancel", (req, res, next) => cancelDurableRun({ req, res, deps: routeDeps, daemon }, {}).catch(next));
 
       app.use("/api/agents", requireAdminSession(routeDeps));
       app.get("/api/agents", (req, res, next) => respondWithEnrichedAgentList(req, res, routeDeps).catch(next));

@@ -159,6 +159,6 @@ test("resolveAgentPluginPromptPrefix tells the user why the run could not start 
   } });
   assert.deepEqual(kinds.slice(-2), ["error", "end"]);
   assert.deepEqual(errors, [
-    { message: "The assistant could not start: a selected Agent Plugin could not be loaded. Remove it from the message or reinstall it, then send again." },
+    { message: "The assistant could not start: a selected Agent Plugin could not be loaded." },
   ]);
 });

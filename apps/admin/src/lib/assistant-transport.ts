@@ -25,6 +25,9 @@ import { promptWithSelectedSkills } from "@/features/plugins/selected-skills";
  * accumulated here) — chat-core's own `ChatMessage.events` array is what concatenates them into one
  * growing message, so accumulating twice would double the text.
  */
+import { browserQueuedStartPorts, startQueuedDaemonRun } from "./queued-daemon-start";
+import { withAcceptanceCancellation } from "./acceptance-cancellation";
+import { browserDurableSubscriptionPorts, durableRunBindings, followDurableRun } from "./durable-run-subscription";
 import { buildTranscript, latestUserPromptFromHistory } from "@jini-ai/chat/core";
 import type { AgentEvent, ChatMessage } from "@jini-ai/chat/core";
 import type { ChatTransport, ReattachRunOptions, RunHandlers, StartRunInput } from "@jini-ai/chat/react";
@@ -35,12 +38,9 @@ import {
   asString,
   readSseFrames,
   readTerminalReason,
-  runInterruptedNotice,
   terminalReasonNotice,
   translateRunAgentPayload,
-  translateRunFrame,
   type RunAgentPayload,
-  type RunFrameOutcome,
 } from "@tovu/assistant-run-events";
 
 const RUNS_URL = "/api/runs";
@@ -220,138 +220,10 @@ function toChatCoreRunStatus(state: string): "queued" | "running" | "succeeded" 
   }
 }
 
-/** Both startRun and reattachRun carry their owner's cancellation signal, so an abandoned pane
- * closes its subscription without waiting for the run's own end/error frame. */
-/** Shown when the agent daemon answers 404 for a run it was streaming — it restarted and lost it. */
-const RUN_FORGOTTEN_MESSAGE =
-  "The assistant restarted while this answer was running, so it stopped. Send your message again to retry.";
-
-/** A run the daemon reports failed whose `end` frame this tab could not load (its stream would not reopen). */
-const RUN_ENDED_UNSEEN_FAILED_MESSAGE = "This answer failed before it finished. Send your message again to retry.";
-/** `EventSource.CLOSED`, spelled out because the global may be a test fake without the static. */
-const EVENT_SOURCE_CLOSED = 2;
-/** First reopen delay after the browser closed a run stream for good; doubles per failed reopen. */
-const RUN_STREAM_REOPEN_MS = 1_000;
-const RUN_STREAM_REOPEN_MAX_MS = 10_000;
-const TERMINAL_RUN_STATES = new Set(["succeeded", "failed", "cancelled"]);
-
-/** The daemon's run state from a `GET /api/runs/:runId` answer, or `undefined` for anything but a readable 200. */
-async function runStateOf(response: Response | null): Promise<string | undefined> {
-  if (!response?.ok) return undefined;
-  const body = (await response.json().catch(() => null)) as { run?: { state?: unknown } } | null;
-  return typeof body?.run?.state === "string" ? body.run.state : undefined;
-}
-
+/** The durable message owns recovery and terminal state; this subscription follows replacement
+ * attempts without writing a browser-inferred failure into history. */
 function subscribeToRun(runId: string, handlers: RunHandlers, signal?: AbortSignal): void {
-  // Abort events are not replayed to new listeners. A late start response or an already-cancelled
-  // reattach must not open a stream that will keep reconnecting after its owner has gone away.
-  if (signal?.aborted) return;
-  const runUrl = `${RUNS_URL}/${encodeURIComponent(runId)}`;
-  const collected: AgentEvent[] = [];
-  // `cursor` is the last SSE `id:` seen, so a reopened stream resumes after it instead of replaying
-  // (and duplicating) every event. `framed` says whether the current stream delivered anything.
-  const state = { settled: false, cursor: "", framed: false, opens: 0, reopenMs: RUN_STREAM_REOPEN_MS, timer: undefined as ReturnType<typeof setTimeout> | undefined };
-  let source!: EventSource;
-
-  const stop = () => {
-    state.settled = true;
-    clearTimeout(state.timer);
-    source.close();
-  };
-  const finish = () => {
-    if (state.settled) return;
-    stop();
-    handlers.onDone(collected);
-  };
-
-  signal?.addEventListener("abort", () => {
-    if (!state.settled) stop();
-  });
-
-  // One daemon frame's effect, from the translation the API's run finalizer also uses
-  // (`@tovu/assistant-run-events`), so the row this tab saves and the row the server saves agree.
-  // ORDER IS LOAD-BEARING for an `end` frame: its notices first, then `onError` for a failed run,
-  // then `finish()`. `useRunStream`'s `onDone` keeps an existing `'error'` status
-  // (`prev.status === 'error' ? prev.status : 'done'`), so error-then-finish marks the run failed
-  // AND hands `onDone` the collected events — including `terminalOutcomeNotice`'s exit code.
-  // Swapping them would silently restore the old `succeeded` for a dead run (2026-09-07).
-  const apply = (outcome: RunFrameOutcome) => {
-    for (const translated of outcome.events) {
-      collected.push(translated);
-      handlers.onEvent(translated);
-    }
-    if (outcome.error) handlers.onError(outcome.error);
-    if (outcome.terminal) finish();
-  };
-  const onFrame = (kind: "agent" | "stdout" | "stderr" | "end" | "error", event: Event) => {
-    const message = event as MessageEvent<string>;
-    if (message.lastEventId) state.cursor = message.lastEventId;
-    state.framed = true;
-    state.reopenMs = RUN_STREAM_REOPEN_MS;
-    apply(translateRunFrame(kind, message.data));
-  };
-
-  const settleAsForgotten = () => {
-    // Saved with the turn, not only shown: the error is live-only state, and without this event a
-    // reload shows a bare "failed". The server finalizer writes the same notice for the same death.
-    const notice = runInterruptedNotice();
-    collected.push(notice);
-    handlers.onEvent(notice);
-    handlers.onError(new Error(RUN_FORGOTTEN_MESSAGE));
-    finish();
-  };
-
-  const settleWithoutEnd = (runState: string) => {
-    if (runState === "failed") handlers.onError(new Error(RUN_ENDED_UNSEEN_FAILED_MESSAGE));
-    finish();
-  };
-
-  // The agent daemon restarts on every dev API reload and keeps runs in memory only, so a drop
-  // can mean the run no longer exists anywhere: only a 404 ends the run as forgotten. While the
-  // browser is still reconnecting on its own (`closed` false), that is all there is to do.
-  // A browser that got a non-200 answer (the API's 502/503 while the daemon boots) closes the
-  // stream for good and never retries, which left a finished turn on "Still working…" forever
-  // (2026-10-05), so a closed stream is reopened here after the last cursor, with backoff. A run
-  // that is already over but whose reopened stream also failed without a frame settles with what
-  // arrived rather than retrying forever.
-  const recover = async (closed: boolean) => {
-    const response = await fetch(runUrl, { credentials: "same-origin" }).catch(() => null);
-    if (state.settled) return;
-    if (response?.status === 404) return settleAsForgotten();
-    if (!closed) return;
-    const runState = await runStateOf(response);
-    if (state.settled) return;
-    if (runState !== undefined && TERMINAL_RUN_STATES.has(runState) && state.opens > 1 && !state.framed) return settleWithoutEnd(runState);
-    state.timer = setTimeout(open, state.reopenMs);
-    state.reopenMs = Math.min(state.reopenMs * 2, RUN_STREAM_REOPEN_MAX_MS);
-  };
-
-  function open(): void {
-    if (state.settled) return;
-    const own = new EventSource(`${runUrl}/events${state.cursor ? `?afterCursor=${encodeURIComponent(state.cursor)}` : ""}`);
-    source = own;
-    state.opens += 1;
-    state.framed = false;
-    own.addEventListener("agent", (event) => onFrame("agent", event));
-    own.addEventListener("stdout", (event) => onFrame("stdout", event));
-    // The agent CLI's stderr. `@jini-ai/daemon`'s `agent-executor.ts` emits this as its own SSE event
-    // kind, and until 2026-09-06 nothing here listened for it — an `EventSource` silently drops a named
-    // event with no listener. That is where a dying CLI prints WHY it is dying. Rendered as `raw`,
-    // exactly like `stdout`.
-    own.addEventListener("stderr", (event) => onFrame("stderr", event));
-    own.addEventListener("end", (event) => onFrame("end", event));
-    own.addEventListener("error", (event) => {
-      if ((event as MessageEvent<string>).data) return onFrame("error", event);
-      // A bare EventSource connection error (no `data`, e.g. the server never responded) rather
-      // than a run-level error frame. onError would make the chat hook's failed status sticky even
-      // after a successful end, so a transport drop must not classify the run itself.
-      const closed = own.readyState === EVENT_SOURCE_CLOSED;
-      if (closed) own.close();
-      void recover(closed);
-    });
-  }
-
-  open();
+  followDurableRun({ runId, handlers, signal, binding: durableRunBindings.get(runId), ports: browserDurableSubscriptionPorts({}, {}) }, {});
 }
 
 /** Client-minted, not server-minted — see module doc's path-2 section: a BYOK run has no server-side
@@ -490,6 +362,7 @@ async function startByokRun(
       credentials: "same-origin",
       body: JSON.stringify({
         messages,
+        ...attachmentIdsField(input),
         // The admin screen, as on the Local CLI path (`buildLocalCliContextRef`): the server puts it
         // in front of the newest message so a BYOK turn knows the open page and where drawings go.
         ...pageContextField(input),
@@ -666,6 +539,7 @@ export function buildLocalCliContextRef(
 ): Record<string, unknown> {
   return {
     prompt: promptWithSelectedSkills(prompt, input.context),
+    assistantMessageId: (input as StartRunInput & { assistantMessageId?: string }).assistantMessageId,
     ...frontendBindTokenField(input),
     ...modelField(input),
     ...reasoningField(input),
@@ -862,7 +736,8 @@ async function finishLocalCliRun(
     throw new Error(`agent run failed to start (${response.status})${detail ? `: ${detail.slice(0, 300)}` : ""}`);
   }
 
-  const { run } = (await response.json()) as { run: { id: string } };
+  const { run, messageId, conversationId } = (await response.json()) as { run: { id: string }; messageId?: string; conversationId?: string };
+  if (messageId && conversationId) durableRunBindings.set(run.id, { messageId, conversationId });
   subscribeToRun(run.id, handlers, signal);
   return { runId: run.id };
 }
@@ -921,13 +796,16 @@ export function createTovuAssistantTransport(options: CreateTovuAssistantTranspo
       await persistUserTurnBeforeDispatch(input, conversationId, options.persistUserTurn);
       const contextRef = buildLocalCliContextRef(input, prompt, conversationId);
 
-      const response = await fetch(RUNS_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify({ contextRef: JSON.stringify(contextRef), agentId: input.agentId }),
-        signal: input.signal,
-      });
+      const response = await withAcceptanceCancellation({ signal: input.cancelSignal,
+        start: () => startQueuedDaemonRun({
+          body: { contextRef: JSON.stringify(contextRef), agentId: input.agentId, idempotencyKey: contextRef.assistantMessageId },
+          signal: input.cancelSignal ?? input.signal, ports: browserQueuedStartPorts({}, {}),
+        }, {}),
+        cancel: async () => {
+          await fetch(`${RUNS_URL}/pending/cancel`, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ messageId: contextRef.assistantMessageId, conversationId }) });
+        },
+      }, {});
 
       return finishLocalCliRun(response, handlers, input.signal);
     },
@@ -976,7 +854,7 @@ export function createTovuAssistantTransport(options: CreateTovuAssistantTranspo
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
-        body: JSON.stringify({ runId }),
+        body: JSON.stringify({ runId, messageId: durableRunBindings.get(runId)?.messageId }),
       });
       // 404: the daemon no longer knows this run (it restarted), so nothing is left running to stop.
       if (response.status === 404) return;

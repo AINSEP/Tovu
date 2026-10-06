@@ -55,6 +55,7 @@ export function createInMemoryChatHistory(): { chatHistory: ChatStoreFactory; ch
   // One kernel per connection (memoized), so building a ledger per use costs nothing and keeps the
   // database lazy.
   const chatRunLedger: ChatRunLedger = {
+    get durable() { return createChatRunLedger(open()).durable; },
     unlessSettled: (run, write) => createChatRunLedger(open()).unlessSettled(run, write),
     settle: (settlement) => createChatRunLedger(open()).settle(settlement),
     checkpoint: (progress) => createChatRunLedger(open()).checkpoint(progress),

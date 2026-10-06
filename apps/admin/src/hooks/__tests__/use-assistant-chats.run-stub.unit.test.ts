@@ -18,7 +18,8 @@ import { useAssistantChats } from "../use-assistant-chats.hooks";
  * NORMAL settled-transcript writer, `flush`. What was missing is the one-time exception: the moment
  * a run's `runId` first appears on the pane's current assistant message, it is worth exactly one
  * extra durable write, because that id is the only thing a future reattach could ever resume. This
- * suite proves that write happens, happens at most once per run (not once per delta), and does not
+ * suite now covers the request-bound BYOK exception. Daemon acceptance moved to the server. It
+ * proves that legacy write happens at most once per run (not once per delta), and does not
  * interfere with the normal terminal-state write that follows it.
  */
 
@@ -47,7 +48,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe("useAssistantChats — active-run stub write", () => {
+describe("useAssistantChats — request-bound legacy stub write", () => {
   it("durably writes a non-terminal assistant message's runId the first time onMessagesChange sees it", async () => {
     const port = createFakeAssistantChatsPort({ conversations: [CONVERSATION] });
     const { result } = await mountWith(port);
@@ -56,7 +57,7 @@ describe("useAssistantChats — active-run stub write", () => {
       result.current.select("fake-seed");
     });
 
-    const running: ChatMessage = { id: "a1", role: "assistant", content: "", runId: "run-1", runStatus: "running" };
+    const running: ChatMessage = { id: "a1", role: "assistant", content: "", runId: "byok:run-1", runStatus: "running" };
     await act(async () => {
       result.current.onMessagesChange([userTurn("u1", "hello"), running]);
     });
@@ -66,7 +67,7 @@ describe("useAssistantChats — active-run stub write", () => {
       expect(saved).toContain("a1");
     });
     expect(port.saved.get("fake-seed")?.find((m) => m.id === "a1")).toMatchObject({
-      runId: "run-1",
+      runId: "byok:run-1",
       runStatus: "running",
     });
   });
@@ -80,7 +81,7 @@ describe("useAssistantChats — active-run stub write", () => {
     });
 
     const deltas = ["H", "He", "Hel", "Hell", "Hello"].map(
-      (content): ChatMessage => ({ id: "a1", role: "assistant", content, runId: "run-1", runStatus: "running" }),
+      (content): ChatMessage => ({ id: "a1", role: "assistant", content, runId: "byok:run-1", runStatus: "running" }),
     );
     for (const assistantMessage of deltas) {
       await act(async () => {
@@ -104,7 +105,7 @@ describe("useAssistantChats — active-run stub write", () => {
     await act(async () => {
       result.current.onMessagesChange([
         userTurn("u1", "hello"),
-        { id: "a1", role: "assistant", content: "wor", runId: "run-1", runStatus: "running" },
+        { id: "a1", role: "assistant", content: "wor", runId: "byok:run-1", runStatus: "running" },
       ]);
     });
     await waitFor(() => expect(port.saved.get("fake-seed")?.some((m) => m.id === "a1")).toBe(true));
@@ -112,7 +113,7 @@ describe("useAssistantChats — active-run stub write", () => {
     await act(async () => {
       result.current.onMessagesChange([
         userTurn("u1", "hello"),
-        { id: "a1", role: "assistant", content: "world", runId: "run-1", runStatus: "succeeded" },
+        { id: "a1", role: "assistant", content: "world", runId: "byok:run-1", runStatus: "succeeded" },
       ]);
     });
 
@@ -135,7 +136,7 @@ describe("useAssistantChats — active-run stub write", () => {
     });
     const { result } = await mountWith(port);
     await act(async () => result.current.select("fake-seed"));
-    const running: ChatMessage = { id: "a1", role: "assistant", content: "wor", runId: "run-1", runStatus: "running" };
+    const running: ChatMessage = { id: "a1", role: "assistant", content: "wor", runId: "byok:run-1", runStatus: "running" };
     const complete: ChatMessage = { ...running, content: "world", runStatus: "succeeded" };
     await act(async () => result.current.onMessagesChange([running]));
     await waitFor(() => expect(writes).toHaveBeenCalledWith("fake-seed", running));
@@ -156,7 +157,7 @@ describe("useAssistantChats — active-run stub write", () => {
     await act(async () => {
       result.current.onMessagesChange([
         userTurn("u1", "hello"),
-        { id: "a1", role: "assistant", content: "", runId: "run-1", runStatus: "queued" },
+        { id: "a1", role: "assistant", content: "", runId: "byok:run-1", runStatus: "queued" },
       ]);
     });
 
@@ -186,7 +187,7 @@ describe("useAssistantChats — active-run stub write", () => {
     await act(async () => {
       result.current.onMessagesChange([
         userTurn("u1", "hello"),
-        { id: "a1", role: "assistant", content: "h", runId: "run-1", runStatus: "running" },
+        { id: "a1", role: "assistant", content: "h", runId: "byok:run-1", runStatus: "running" },
       ]);
     });
     // The first attempt threw; nothing durable yet.
@@ -195,7 +196,7 @@ describe("useAssistantChats — active-run stub write", () => {
     await act(async () => {
       result.current.onMessagesChange([
         userTurn("u1", "hello"),
-        { id: "a1", role: "assistant", content: "he", runId: "run-1", runStatus: "running" },
+        { id: "a1", role: "assistant", content: "he", runId: "byok:run-1", runStatus: "running" },
       ]);
     });
 
@@ -214,30 +215,30 @@ describe("useAssistantChats — active-run stub write", () => {
     const turn = (message: ChatMessage) => [userTurn("u1", "hello"), message];
 
     await act(async () => {
-      result.current.onMessagesChange(turn({ id: "a1", role: "assistant", content: "", runId: "run-1", runStatus: "running" }));
+      result.current.onMessagesChange(turn({ id: "a1", role: "assistant", content: "", runId: "byok:run-1", runStatus: "running" }));
     });
     await act(async () => {
-      result.current.onMessagesChange(turn({ id: "a1", role: "assistant", content: "", runId: "run-1", runStatus: "failed" }));
+      result.current.onMessagesChange(turn({ id: "a1", role: "assistant", content: "", runId: "byok:run-1", runStatus: "failed" }));
     });
     await waitFor(() => expect(port.saved.get("fake-seed")?.find((m) => m.id === "a1")?.runStatus).toBe("failed"));
 
     // The retry: reset to queued (still carrying the old run id), then the new run id arrives.
     await act(async () => {
-      result.current.onMessagesChange(turn({ id: "a1", role: "assistant", content: "", runId: "run-1", runStatus: "queued" }));
+      result.current.onMessagesChange(turn({ id: "a1", role: "assistant", content: "", runId: "byok:run-1", runStatus: "queued" }));
     });
     await act(async () => {
-      result.current.onMessagesChange(turn({ id: "a1", role: "assistant", content: "", runId: "run-2", runStatus: "running" }));
+      result.current.onMessagesChange(turn({ id: "a1", role: "assistant", content: "", runId: "byok:run-2", runStatus: "running" }));
     });
     await waitFor(() =>
-      expect(port.saved.get("fake-seed")?.find((m) => m.id === "a1")).toMatchObject({ runId: "run-2", runStatus: "running" }),
+      expect(port.saved.get("fake-seed")?.find((m) => m.id === "a1")).toMatchObject({ runId: "byok:run-2", runStatus: "running" }),
     );
 
     await act(async () => {
-      result.current.onMessagesChange(turn({ id: "a1", role: "assistant", content: "second try", runId: "run-2", runStatus: "succeeded" }));
+      result.current.onMessagesChange(turn({ id: "a1", role: "assistant", content: "second try", runId: "byok:run-2", runStatus: "succeeded" }));
     });
     await waitFor(() =>
       expect(port.saved.get("fake-seed")?.find((m) => m.id === "a1")).toMatchObject({
-        runId: "run-2",
+        runId: "byok:run-2",
         runStatus: "succeeded",
         content: "second try",
       }),
@@ -246,8 +247,8 @@ describe("useAssistantChats — active-run stub write", () => {
   });
 
   it("does not re-save a retry's old run id while the retry is still queued", async () => {
-    // Reload after the first run settled, then retry: the reset message still carries run-1. That run
-    // is already saved, so the only write before run-2 exists would be a stale stub that overwrites it.
+    // Reload after the first run settled, then retry: the reset message still carries byok:run-1. That run
+    // is already saved, so the only write before byok:run-2 exists would be a stale stub that overwrites it.
     const port = createFakeAssistantChatsPort({ conversations: [CONVERSATION] });
     const { result } = await mountWith(port);
     await act(async () => {
@@ -256,7 +257,7 @@ describe("useAssistantChats — active-run stub write", () => {
     await act(async () => {
       result.current.onMessagesChange([
         userTurn("u1", "hello"),
-        { id: "a1", role: "assistant", content: "first", runId: "run-1", runStatus: "succeeded" },
+        { id: "a1", role: "assistant", content: "first", runId: "byok:run-1", runStatus: "succeeded" },
       ]);
     });
     await waitFor(() => expect(port.saved.get("fake-seed")?.find((m) => m.id === "a1")?.runStatus).toBe("succeeded"));
@@ -265,9 +266,23 @@ describe("useAssistantChats — active-run stub write", () => {
     await act(async () => {
       result.current.onMessagesChange([
         userTurn("u1", "hello"),
-        { id: "a1", role: "assistant", content: "", runId: "run-1", runStatus: "queued" },
+        { id: "a1", role: "assistant", content: "", runId: "byok:run-1", runStatus: "queued" },
       ]);
     });
     expect(port.attemptedIds().filter((id) => id === "a1").length).toBe(attemptsBefore);
   });
+});
+
+// A daemon message already exists when POST /api/runs returns; writing its browser view
+// would restore obsolete attempt ids after a restart. Keep this acceptance guard explicit.
+it("never sends a browser daemon stub, including repeated deltas", async () => {
+  const port = createFakeAssistantChatsPort({ conversations: [CONVERSATION] });
+  const { result } = await mountWith(port);
+  await act(async () => { result.current.select("fake-seed"); });
+  for (const content of ["", "Half", "Half an answer"]) {
+    await act(async () => { result.current.onMessagesChange([
+      userTurn("u1", "hello"), { id: "a1", role: "assistant", content, runId: "daemon-1", runStatus: "running" },
+    ]); });
+  }
+  expect(port.attemptedIds().filter((id) => id === "a1")).toEqual([]);
 });

@@ -14,7 +14,7 @@ const stub = { id: "a1", role: "assistant" as const, content: "", events: [], ru
 const notice = {
   kind: "status" as const,
   label: "The assistant restarted while this answer was running, so it stopped.",
-  detail: "Anything it wrote before the restart is kept above. Send your message again to retry.",
+  detail: "Anything it wrote before the restart is kept above.",
 };
 
 function frame(kind: string, payload: unknown): string {
@@ -25,6 +25,82 @@ function deferred() {
   let resolve!: () => void;
   const promise = new Promise<void>((done) => { resolve = done; });
   return { promise, resolve };
+}
+
+for (const missing of ["run-id", "durable-store"] as const) {
+  test(`serving boot cancels a row with no ${missing} once and keeps its saved answer`, async () => {
+    const db = openChatDb(":memory:");
+    const ledger = createChatRunLedger(db);
+    const store = createChatStoreFactory(db)(principal);
+    const events = [{ kind: "text" as const, text: "Saved partial" }];
+    try {
+      await store.create({ id: "c1" });
+      await store.appendMessage({ conversationId: "c1", message: missing === "run-id"
+        ? { id: "a1", role: "assistant", content: "Saved partial", events, runStatus: "running" }
+        : { ...stub, content: "Saved partial", events } });
+      const finalizer = createAssistantRunFinalizer({
+        ledger: missing === "durable-store" ? { ...ledger, durable: undefined } : ledger,
+        daemon: { openEvents: async () => { throw new Error("orphan must not be watched"); },
+          runStatus: async () => { throw new Error("orphan must not be probed"); } }, now: () => 1234,
+      });
+      assert.equal(await finalizer.reconcileInterrupted({ now: 1234 }), 1);
+      assert.equal(await finalizer.reconcileInterrupted({ now: 2345 }), 0);
+      await finalizer.idle();
+      const saved = (await store.messages({ conversationId: "c1" }))[0]!;
+      assert.equal(saved.runStatus, "canceled");
+      assert.equal(saved.content, "Saved partial");
+      assert.deepEqual(saved.events, [...events, { kind: "status", label: "Stopped. Saved work is above." }]);
+      assert.equal(saved.endedAt, 1234);
+    } finally { db.close(); }
+  });
+}
+
+test("a missing daemon attempt without durable recovery settles canceled instead of stranding its row", async () => {
+  const db = openChatDb(":memory:");
+  const ledger = createChatRunLedger(db);
+  const store = createChatStoreFactory(db)(principal);
+  try {
+    await store.create({ id: "c1" });
+    const message = { ...stub, content: "Saved partial", events: [{ kind: "text" as const, text: "Saved partial" }] };
+    await store.appendMessage({ conversationId: "c1", message });
+    const finalizer = createAssistantRunFinalizer({ ledger: { ...ledger, durable: undefined },
+      daemon: { openEvents: async () => new Response(null, { status: 404 }), runStatus: async () => 404 },
+      reconnectDelayMs: 0, now: () => 1234,
+    });
+    finalizer.watch({ principalId: "owner", conversationId: "c1", message });
+    await finalizer.idle();
+    const saved = (await store.messages({ conversationId: "c1" }))[0]!;
+    assert.equal(saved.runStatus, "canceled");
+    assert.equal(saved.content, "Saved partial");
+    assert.deepEqual(saved.events, [...message.events, { kind: "status", label: "Stopped. Saved work is above." }]);
+  } finally { db.close(); }
+});
+
+for (const [reason, expectedLaunches] of [["HTTP 400: invalid_request_error", 0], ["HTTP 503: overloaded", 1]] as const) {
+  test(`a failed stream uses the shared retryability policy: ${reason}`, async () => {
+    const db = openChatDb(":memory:");
+    const store = createChatStoreFactory(db)(principal);
+    let launches = 0;
+    try {
+      await store.create({ id: "c1" });
+      await store.appendMessage({ conversationId: "c1", message: stub });
+      const finalizer = createAssistantRunFinalizer({ ledger: createChatRunLedger(db), reconnectDelayMs: 0,
+        daemon: {
+          openEvents: async ({ runId }) => new Response(runId === "run-1"
+            ? frame("agent", { type: "text_delta", delta: "Partial" }) + frame("error", { message: reason }) + frame("end", { status: "failed", code: 1 })
+            : frame("end", { status: "succeeded", code: 0 })),
+          runStatus: async () => 200, launch: async () => { launches++; },
+        }, now: () => 1234,
+      });
+      finalizer.watch({ principalId: "owner", conversationId: "c1", message: stub });
+      await finalizer.idle();
+      const saved = (await store.messages({ conversationId: "c1" }))[0]!;
+      assert.equal(launches, expectedLaunches);
+      assert.equal(saved.runStatus, expectedLaunches ? "succeeded" : "failed");
+      assert.equal(saved.content.startsWith("Partial"), true);
+      assert.equal(saved.events?.some((event) => event.kind === "status" && event.label === reason), true);
+    } finally { db.close(); }
+  });
 }
 
 test("a buffered completed run settles despite a pending checkpoint, and stays succeeded after reopening chat.db", async () => {
@@ -111,66 +187,36 @@ test("a buffered completed run settles despite a pending checkpoint, and stays s
   }
 });
 
-test("daemon disappearance cancels the interrupted turn, preserves progress, and ignores a late failed browser save", async () => {
+// Daemon disappearance now continues the same message. The incident regression lives in
+// assistant-durable-finalizer.unit.test.ts and exercises boot, CAS, reconstruction and completion.
+
+test("an authentication failure keeps its partial answer and never launches a continuation", async () => {
   const db = openChatDb(":memory:");
-  const ledger = createChatRunLedger(db);
   const store = createChatStoreFactory(db)(principal);
   await store.create({ id: "c1" });
   await store.appendMessage({ conversationId: "c1", message: stub });
+  let launches = 0;
   const finalizer = createAssistantRunFinalizer({
-    ledger,
+    ledger: createChatRunLedger(db), reconnectDelayMs: 0,
     daemon: {
-      openEvents: async () => new Response(frame("agent", { type: "text_delta", delta: "Partial" })),
-      runStatus: async () => 404,
-    },
-    checkpointIntervalMs: 0,
-    now: () => 1234,
+      openEvents: async () => new Response(frame("agent", { type: "text_delta", delta: "Partial" }) +
+        frame("error", { message: "Not logged in" }) + frame("end", { code: 1, status: "failed" })),
+      runStatus: async () => 200, launch: async () => { launches++; },
+    }, now: () => 1234,
   });
   try {
     finalizer.watch({ principalId: "owner", conversationId: "c1", message: stub });
     await finalizer.idle();
-    await store.appendMessage({ conversationId: "c1", message: { ...stub, runStatus: "failed", events: [], content: "" } });
     const saved = (await store.messages({ conversationId: "c1" }))[0]!;
     assert.equal(saved.runStatus, "canceled");
     assert.equal(saved.content, "Partial");
-    assert.deepEqual(saved.events, [{ kind: "text", text: "Partial" }, notice]);
-    assert.equal(saved.endedAt, 1234);
-  } finally {
-    db.close();
-  }
+    assert.equal(saved.events?.at(-1)?.kind, "status");
+    assert.deepEqual(saved.events?.at(-1), { kind: "status", label: "Not logged in. Saved work is above." });
+    assert.equal(launches, 0);
+  } finally { db.close(); }
 });
 
-test("a genuine CLI failure still saves failed with its exit diagnosis", async () => {
-  const db = openChatDb(":memory:");
-  const store = createChatStoreFactory(db)(principal);
-  await store.create({ id: "c1" });
-  await store.appendMessage({ conversationId: "c1", message: stub });
-  const finalizer = createAssistantRunFinalizer({
-    ledger: createChatRunLedger(db),
-    daemon: {
-      openEvents: async () => new Response(frame("end", { code: 1, status: "failed", resumable: false })),
-      runStatus: async () => 200,
-    },
-    now: () => 1234,
-  });
-  try {
-    finalizer.watch({ principalId: "owner", conversationId: "c1", message: stub });
-    await finalizer.idle();
-    const saved = (await store.messages({ conversationId: "c1" }))[0]!;
-    assert.equal(saved.runStatus, "failed");
-    assert.equal(saved.content, "");
-    assert.deepEqual(saved.events, [{
-      kind: "status",
-      label: "Run failed — the agent process exited without answering",
-      detail: "exit code 1, signal none, resumable no. The agent CLI's own stderr is shown above when it printed anything; otherwise check the server log for `[agent-daemon] run <id> ended`.",
-    }]);
-    assert.equal(saved.endedAt, 1234);
-  } finally {
-    db.close();
-  }
-});
-
-test("a browser-first restart save of a request-bound run is canceled before it can win terminal settlement as failed", async () => {
+test("a request-bound run retains its ordinary browser terminal status", async () => {
   const db = openChatDb(":memory:");
   const store = createChatStoreFactory(db)(principal);
   const ledger = createChatRunLedger(db);
@@ -178,13 +224,12 @@ test("a browser-first restart save of a request-bound run is canceled before it 
   try {
     await store.create({ id: "c1" });
     await store.appendMessage({ conversationId: "c1", message: byokStub });
-    // The current chat hook maps onError + onDone to failed. Its exact restart notice distinguishes
-    // interruption from a CLI failure, even when this browser save beats the server finalizer.
-    // A BYOK/AG-UI turn lived on the dropped request, so the browser's notice is proof it died.
+    // BYOK/AG-UI live on their request and are excluded from durable continuation.
+    // Presentation text no longer rewrites a request-bound terminal status.
     await store.appendMessage({ conversationId: "c1", message: { ...byokStub, runStatus: "failed", content: "Partial", events: [{ kind: "text", text: "Partial" }, notice] } });
     assert.equal(await ledger.settle({ conversationId: "c1", messageId: "a1", runId: "byok:run-1", status: "canceled", content: "late", events: [], endedAt: 1234 }), false);
     const saved = (await store.messages({ conversationId: "c1" }))[0]!;
-    assert.equal(saved.runStatus, "canceled", "the browser must not turn process interruption into a failed run");
+    assert.equal(saved.runStatus, "failed");
     assert.equal(saved.content, "Partial");
     assert.deepEqual(saved.events, [{ kind: "text", text: "Partial" }, notice]);
     assert.equal(await ledger.reconcileInterrupted({ now: 2000 }), 0);
@@ -218,7 +263,7 @@ test("a browser-first restart save of a daemon run stays running, and the finali
   }
 });
 
-test("a browser's genuine failure with a different status notice remains failed", async () => {
+test("an unknown daemon terminal snapshot cannot create a server-owned message", async () => {
   const db = openChatDb(":memory:");
   const store = createChatStoreFactory(db)(principal);
   try {
@@ -226,8 +271,7 @@ test("a browser's genuine failure with a different status notice remains failed"
     const events = [{ kind: "status" as const, label: notice.label, detail: "The CLI reported a real error." }];
     await store.appendMessage({ conversationId: "c1", message: { ...stub, runStatus: "failed", events } });
     const saved = (await store.messages({ conversationId: "c1" }))[0]!;
-    assert.equal(saved.runStatus, "failed");
-    assert.deepEqual(saved.events, events);
+    assert.equal(saved, undefined);
   } finally {
     db.close();
   }

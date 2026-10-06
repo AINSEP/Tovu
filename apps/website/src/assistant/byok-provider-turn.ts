@@ -30,12 +30,11 @@ import { providerTurnAdapters, runProviderToolTurn } from "@jini-ai/agent-runtim
  *  four values by TypeScript regardless of which file declares the union. */
 export type ByokProtocol = "anthropic" | "openai" | "azure" | "google";
 
-/** One flattened conversation turn. Deliberately just `{role, content}` — no image/tool-call
- *  reconstruction from history, matching this slice's disclosed scope (see `assistant-byok.ts`'s
- *  header: history replay, not full multi-modal reconstruction, is the v1 goal). */
+/** Text history plus pixels prepared for the current message at the shared attachment seam. */
 export interface ByokChatMessage {
   readonly role: "user" | "assistant";
   readonly content: string;
+  readonly images?: readonly { readonly mimeType: string; readonly data: string }[];
 }
 
 /**

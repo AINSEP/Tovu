@@ -92,9 +92,9 @@ test("a run the daemon no longer knows (404) is tracked as interrupted", async (
   assert.deepEqual(runs.map((run) => run.outcome), [{ status: "interrupted" }]);
 });
 
-test("inconclusive reconnect exhaustion is saved canceled and tracked as interrupted", async () => {
+test("inconclusive reconnect exhaustion cannot terminalize a row without the recovery port", async () => {
   const { runs, ledger } = await watchOnce({ daemon: daemon(() => stream(frame("agent", { type: "text_delta", delta: "Part" })), null) });
-  assert.deepEqual(ledger.settled, ["canceled"]);
+  assert.deepEqual(ledger.settled, []);
   assert.deepEqual(runs.map((run) => run.outcome), [{ status: "interrupted" }]);
 });
 

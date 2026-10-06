@@ -1,10 +1,16 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import { readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test, { describe } from "node:test";
+import ts from "typescript";
 
+import { getAgentDef } from "@jini-ai/agent-runtime";
+import { sniffContentType } from "@jini-ai/cms/media";
+import { prepareMessageAttachments, type AgentExecutorRunInput, type RunLifecycle } from "@jini-ai/daemon";
 import { createDiskAttachmentStore, detectAttachmentKind } from "@jini-ai/daemon/http";
+import { captureDaemonRun, daemonFunction, daemonInitializer, daemonSource, evaluateDaemonExpression } from "./helpers/daemon-source.js";
 
 /**
  * @file Regression coverage for the bug where a non-image chat attachment (a `.md`, a PDF, any
@@ -16,59 +22,55 @@ import { createDiskAttachmentStore, detectAttachmentKind } from "@jini-ai/daemon
  * being loaded.
  *
  * Two layers of evidence:
- * - the first `describe` pins the exact shape of the `imagePaths:` field inside
- *   `resolveAttachmentRunFields` in the real source file, so a future edit that reintroduces a
- *   `kind`-based filter there fails this test immediately;
+ * - the first `describe` guards unfiltered claimed refs entering shared preparation and all three
+ *   outputs reaching the executor, so neither a kind filter nor a dropped notice can hide a file;
  * - the second `describe` executes the production resolver and complete onStarted callback,
- *   asserting the executor receives both PDF and image paths. It also proves the fix is safe
+ *   asserting the executor receives exact image pixels/paths and a PDF notice. It proves this is safe
  *   for a genuinely binary, non-text, non-image
  *   attachment — not just a `.md`, which a naive "reads as UTF-8 text" runtime could pass by
  *   accident — using the real `@jini-ai/http-kit` disk-backed `AttachmentStore` end to end
- *   (register -> claim), so the claimed path and bytes are real, not fabricated.
+ *   (register -> claim -> prepare -> executor), so the claimed path and bytes are real, not fabricated.
+ *
+ * The old imagePaths naming-mismatch guard is obsolete: Jini now puts only images in imagePaths;
+ * non-images reach the agent through a notice naming their local path. Directory access alone does
+ * not tell an agent that a file exists, so forwarding that notice is part of both source guards.
  */
 
-const DAEMON_ENTRY_SOURCE = fs.readFileSync(path.join(import.meta.dirname, "../agent-daemon-server.ts"), "utf8");
+// AST boundaries scope the scans to live functions; removing comments lets the why comments quote
+// the historical kind filter without satisfying (or tripping) executable-code assertions.
+const sourcePrinter = ts.createPrinter({ removeComments: true });
+const resolveAttachmentRunFieldsSource = sourcePrinter.printNode(ts.EmitHint.Unspecified, daemonFunction("resolveAttachmentRunFields"), daemonSource);
+const onStartedSource = sourcePrinter.printNode(ts.EmitHint.Expression, daemonInitializer("onStarted"), daemonSource);
 
-/** Scopes every assertion in the first `describe` to `resolveAttachmentRunFields`'s own body, so a
- * coincidental match elsewhere in the file could never make a reintroduced filter pass by accident. */
-const resolveAttachmentRunFieldsSource = (() => {
-  const startIndex = DAEMON_ENTRY_SOURCE.indexOf("async function resolveAttachmentRunFields(");
-  assert.ok(startIndex > -1, "this test's own anchor (the resolveAttachmentRunFields declaration) must still exist verbatim — update the anchor if that line's shape changes");
-  const endIndex = DAEMON_ENTRY_SOURCE.indexOf("const onStarted: RunStartHandler", startIndex);
-  assert.ok(endIndex > -1, "this test's own anchor (the onStarted declaration that follows) must still exist verbatim");
-  return DAEMON_ENTRY_SOURCE.slice(startIndex, endIndex);
-})();
+/** Both guards pin the complete delivery contract: adding a filter OR dropping a notice must fail
+ * either guard independently. A readable PDF must be named to the agent before executor dispatch. */
+function assertAttachmentDeliveryContract() {
+  assert.match(resolveAttachmentRunFieldsSource,
+    /const\s+byPath\s*=\s*new Map\(claimed\.attachments\.map\(\s*\(?attachment\)?\s*=>\s*\[attachment\.path,\s*attachment\]\s*\)\s*\)\s*;/,
+    "every claimed attachment must enter the path map without filtering");
+  assert.match(resolveAttachmentRunFieldsSource,
+    /const\s+prepared\s*=\s*await prepareMessageAttachments\(\s*\{\s*refs:\s*\[\.\.\.byPath\.keys\(\)\]/,
+    "all claimed paths must be passed to shared preparation");
+  assert.doesNotMatch(resolveAttachmentRunFieldsSource, /\.filter\s*\(/,
+    "the resolver must not filter claimed attachments before shared preparation classifies their bytes");
+  assert.match(resolveAttachmentRunFieldsSource,
+    /return\s*\{\s*imagePaths:\s*prepared\.imagePaths,\s*imageContents:\s*prepared\.images,\s*attachmentNotice:\s*prepared\.notice,/,
+    "image paths, pixels and non-image notices must all be returned");
+  assert.match(onStartedSource, /prompt\s*\+=\s*attachmentRunFields\.attachmentNotice\s*\?\?\s*""/,
+    "the notice must be added to the actual executor prompt");
+  assert.match(onStartedSource, /\.\.\.attachmentRunFields\s*,/,
+    "prepared image paths and pixels must be forwarded to the executor");
+}
 
-describe("resolveAttachmentRunFields — imagePaths must not drop non-image attachments", () => {
-  test("the imagePaths field maps every claimed attachment's path, with no kind filter ahead of it", () => {
-    assert.match(
-      resolveAttachmentRunFieldsSource,
-      /imagePaths:\s*claimed\.attachments\.map\(\s*\(attachment\)\s*=>\s*attachment\.path\s*\)\s*,/,
-      'imagePaths must be built from claimed.attachments.map(...) directly, with no .filter(kind === "image") ahead of it — a non-image attachment (a .md, a PDF, any file the composer accepted) must still reach AgentExecutor.run()\'s imagePaths, not be silently dropped before the agent CLI is ever told it exists',
-    );
+describe("resolveAttachmentRunFields — no claimed attachment is silently dropped", () => {
+  test("all claimed refs reach preparation and its paths, pixels and notice reach the executor", () => {
+    assertAttachmentDeliveryContract();
   });
 
-  test('the old kind === "image" filter is gone from the live imagePaths assignment (the explanatory comment above it is allowed to quote the old code)', () => {
-    const imagePathsLineMatch = resolveAttachmentRunFieldsSource.match(/^\s*imagePaths:\s*[^\n]+,\s*$/m);
-    assert.ok(imagePathsLineMatch, "this test's own anchor (the imagePaths: field-assignment line) must still exist verbatim");
-    assert.doesNotMatch(
-      imagePathsLineMatch[0],
-      /attachment\.kind\s*===\s*["']image["']/,
-      "the live imagePaths: field-assignment line must not filter attachments by kind before building imagePaths — quoting the old code in a comment above it is fine, but the executable line itself must not",
-    );
-  });
-
-  test("the imagePaths/\"image\" naming mismatch left by this fix is recorded in a comment, not left silent", () => {
-    assert.match(
-      resolveAttachmentRunFieldsSource,
-      /imagePaths/,
-      "sanity check: the field name itself is still present to comment on",
-    );
-    assert.match(
-      DAEMON_ENTRY_SOURCE,
-      /imagePaths.{0,400}(name|word).{0,200}(inaccurate|misleading|no longer accurate)/is,
-      "the call site (or the surrounding block) must carry a comment recording that `imagePaths` now also carries non-image paths, and that the name/prompt wording are known-inaccurate follow-up work for Jini's image-prompt-delivery.ts / AgentExecutor.run() option naming — silence here would let the mismatch look accidental instead of a recorded tradeoff",
-    );
+  test('the old kind === "image" filter is absent from executable preparation wiring', () => {
+    assertAttachmentDeliveryContract();
+    assert.doesNotMatch(resolveAttachmentRunFieldsSource, /\.kind\s*===?\s*["']image["']/,
+      "claimed metadata must not exclude files before shared byte-based preparation; comments may quote the old filter");
   });
 });
 
@@ -112,17 +114,10 @@ describe("real AttachmentStore + a genuine binary non-image fixture", () => {
     assert.equal(claimed.attachments[0]?.kind, "file");
     assert.equal(claimed.attachments[0]?.path, filePath);
     // The claimed path is real and its bytes are exactly what was written — the store pipeline does
-    // not truncate, re-encode, or otherwise touch binary content on its way to becoming an
-    // imagePaths entry.
+    // not truncate, re-encode, or otherwise touch binary content on its way to being named in a
+    // file notice. The PDF must not be sent as image pixels or a native CLI image argument.
     assert.deepEqual(fs.readFileSync(filePath), pdfBytes);
 
-    const fixedImagePaths = claimed.attachments.map((attachment) => attachment.path);
-    const oldFilteredImagePaths = claimed.attachments.filter((attachment) => attachment.kind === "image").map((attachment) => attachment.path);
-
-    assert.deepEqual(fixedImagePaths, [filePath], "the fixed mapping (no kind filter) must include the real, claimed PDF path");
-    assert.deepEqual(oldFilteredImagePaths, [], "the removed kind === \"image\" filter would have silently dropped this exact real attachment — the bug this fix closes");
-
-    const { daemonFunction, evaluateDaemonExpression, captureDaemonRun } = await import("./helpers/daemon-source.js");
     const secondPath = path.join(batchDirectory, "second-report.pdf");
     fs.writeFileSync(secondPath, pdfBytes, { mode: 0o600 });
     const second = await store.register({ input: { batchId, path: secondPath, name: "second-report.pdf", kind: "file", size: pdfBytes.length } });
@@ -131,16 +126,27 @@ describe("real AttachmentStore + a genuine binary non-image fixture", () => {
     assert.equal(detectAttachmentKind({ body: imageBytes }), "image");
     fs.writeFileSync(imagePath, imageBytes);
     const image = await store.register({ input: { batchId, path: imagePath, name: "screenshot.png", kind: "image", size: imageBytes.length } });
-    const resolve = evaluateDaemonExpression<(run: { id: string }, ids: readonly string[], lifecycle: unknown) => Promise<Record<string, unknown> | null>>(daemonFunction("resolveAttachmentRunFields"), {
+    const resolve = evaluateDaemonExpression<(required: {
+      run: { id: string }; attachmentIds: readonly string[]; runLifecycle: RunLifecycle; agentId?: string;
+    }, optional: {}) => Promise<Partial<AgentExecutorRunInput> | null>>(daemonFunction("resolveAttachmentRunFields"), {
       attachmentStore: store,
-      failRunBeforeStart: async () => { throw new Error("unexpected attachment failure"); },
-      console,
+      // Source evaluation does not inherit imports. Use the exact production dependencies rather
+      // than replacing preparation or MIME detection, so this covers the real binary delivery path.
+      DEFAULT_AGENT_ID: "claude", getAgentDef, prepareMessageAttachments, readFile, sniffContentType,
+      // Let the resolver report its original caught error instead of masking it with a fixture error.
+      failRunBeforeStart: async () => {},
+      console: { error: (...args: unknown[]) => assert.fail(args.map(String).join(" ")) },
     });
     // F2.3/F2.4: both the production resolver and its caller run; dropping the spread fails here.
     const input = await captureDaemonRun({ prompt: "Read both attachments", attachmentIds: [second.path, image.path] }, {
       bindings: { resolveAttachmentRunFields: resolve },
     });
-    assert.deepEqual(input.imagePaths, [secondPath, imagePath]);
+    assert.deepEqual(input.imagePaths, [imagePath], "only actual images become native CLI image arguments");
+    assert.deepEqual(input.imageContents, [{ mimeType: "image/png", data: imageBytes.toString("base64") }],
+      "the image's exact bytes must reach the executor as normalized pixels");
+    const notice = `\n\nAttachments to this message:\nsecond-report.pdf: read the attached file at ${secondPath}.`;
+    assert.equal(input.prompt, `<<SUBAGENT_DISPATCH>>\n\nRead both attachments${notice}`,
+      "the real PDF must be explicitly named to the agent, not merely granted directory access");
     assert.deepEqual(input.extraAllowedDirs, [batchDirectory]);
     assert.equal(input.uploadRoot, batchDirectory);
     assert.deepEqual(fs.readFileSync(secondPath), pdfBytes);

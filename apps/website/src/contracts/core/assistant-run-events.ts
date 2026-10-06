@@ -392,22 +392,6 @@ export function isDaemonRunId(runId: string): boolean {
   return runId.length > 0 && !NON_DAEMON_RUN_ID_PREFIXES.some((prefix) => runId.startsWith(prefix));
 }
 
-/** The plain message a run killed by a restart ends with, wherever that is noticed. */
-export const RUN_INTERRUPTED_LABEL = "The assistant restarted while this answer was running, so it stopped.";
-export const RUN_INTERRUPTED_DETAIL = "Anything it wrote before the restart is kept above. Send your message again to retry.";
-
-/**
- * The visible, saved notice for a run that died with its process (a daemon or API restart).
- *
- * An event, not only an error: a run's error is live-only state, while `events_json` is what the pane
- * renders after a reload. Without the event, a restarted run reads as a bare "failed" with no reason.
- * Used by the browser (daemon answers 404), the server finalizer (the same 404), the finalizer's
- * exit flush, and the boot-time reconcile — so every path describes the same death the same way.
- */
-export function runInterruptedNotice(): AgentEvent {
-  return { kind: "status", label: RUN_INTERRUPTED_LABEL, detail: RUN_INTERRUPTED_DETAIL };
-}
-
 /**
  * A chat message's `content` for a list of events: `@jini-ai/chat`'s own rule
  * (`assistantContentFromEvents`, also what `useConversation` uses for a live turn), so a row the

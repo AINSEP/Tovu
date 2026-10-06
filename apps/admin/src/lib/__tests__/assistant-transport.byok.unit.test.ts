@@ -256,6 +256,19 @@ afterEach(() => {
 });
 
 describe("startByokRun — request shape and startup failures", () => {
+  test("sends both current-message image refs to BYOK without borrowing history attachments", async () => {
+    fetchMock = vi.fn(async () => new Response(streamFromChunks([frame("end", {})]), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const transport = createTovuAssistantTransport({ getExecutionConfig: () => byokConfig() });
+    await transport.startRun({
+      history: [{ id: "old", role: "user", content: "old question", attachments: [{ path: "red", name: "red.png", kind: "image" }] },
+        { id: "now", role: "user", content: "what colours?" }],
+      attachments: [{ path: "green", name: "green.png", kind: "image" }, { path: "yellow", name: "yellow.png", kind: "image" }],
+      signal: new AbortController().signal,
+    }, handlers());
+    const body = JSON.parse((fetchMock.mock.calls[0]![1] as RequestInit).body as string);
+    expect(body.attachmentIds).toEqual(["green", "yellow"]);
+  });
   test("sends only non-blank messages, mapped to {role, content}, with the byok credentials", async () => {
     const stream = streamFromChunks([frame("end", {})]);
     fetchMock = vi.fn(async () => new Response(stream, { status: 200 }));

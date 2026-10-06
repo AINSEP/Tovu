@@ -1,0 +1,1 @@
+export const INCIDENT_PARTIAL = "Need a repo-creation tool. Check the github plugin skill and capabilities.\n\nCreating the repo via the saved `github` credential.\n\nRepo created (private, `main`). Now the backup plan.";

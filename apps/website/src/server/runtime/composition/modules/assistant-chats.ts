@@ -30,7 +30,7 @@ import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/adm
 import type { RouteDeps } from "#src/server/routes/types";
 import { runEventsForSave } from "#src/contracts/core/assistant-run-events";
 import type { ServerModuleHandle } from "./types.js";
-import { createAssistantRunFinalizer, createHttpRunDaemonClient, type AssistantRunFinalizer } from "./assistant-run-finalizer.js";
+import { assistantRunFinalizerFor, createHttpRunDaemonClient, type AssistantRunFinalizer } from "./assistant-run-finalizer.js";
 import { createNoopObservabilityPort } from "#src/platform/observability/index";
 
 /** Preserve a standalone resource name (including skill slugs) verbatim. Prose still follows
@@ -90,7 +90,7 @@ export interface AssistantChatsModuleOptions {
 }
 
 export function createAssistantChatsModule(deps: RouteDeps, options: AssistantChatsModuleOptions = {}): ServerModuleHandle {
-  const finalizer = options.finalizer ?? createAssistantRunFinalizer({
+  const finalizer = options.finalizer ?? assistantRunFinalizerFor({
     ledger: deps.chatRunLedger, observability: deps.observability,
     ...(options.recoverInterrupted && deps.siteBinding?.dir ? {
       recoveryDaemon: createHttpRunDaemonClient({ observability: deps.observability ?? createNoopObservabilityPort({}) }, {
@@ -103,15 +103,15 @@ export function createAssistantChatsModule(deps: RouteDeps, options: AssistantCh
     registerRoutes: (app: Express) => {
       /*
        * Serving-boot repair, before chat routes answer: a queued/running turn may still belong to
-       * a live detached daemon, so reattach its replayable stream and finalizer. Cancel forgotten
-       * runs or resolve inconclusive watches within a bound, preserving partial content and the
-       * reason; a daemon that still reports the run prevents cancellation. Child teardown is best
+       * a live detached daemon, so dispatch each unfinished binding to the shared coordinator. It
+       * reattaches live attempts, waits for uncertainty, and continues dead attempts within the
+       * saved budget. Child teardown is best
        * effort, not proof of death. Route registration also happens during static exports inside the
        * daemon (and eagerly on importing app.ts); those are not restarts and must never sweep.
        */
       const reconciled = (options.recoverInterrupted ? finalizer.reconcileInterrupted({}, {}) : Promise.resolve(0)).then(
         (repaired) => {
-          if (repaired > 0) console.log(`[assistant-chats] marked ${repaired} interrupted chat turn(s) canceled`);
+          if (repaired > 0) console.log(`[assistant-chats] dispatched ${repaired} unfinished chat turn(s) to recovery`);
         },
         (error: unknown) => {
           // A failed repair leaves rows `running` (the pane shows them spinning); it must not keep
@@ -181,12 +181,16 @@ export function createAssistantChatsModule(deps: RouteDeps, options: AssistantCh
       });
 
       app.delete("/api/assistant/chats/:id", (req, res, next) => {
-        // TODO(public assistant): cancel any in-flight run owned by this conversation before the
-        // row disappears. The daemon owns run state (`assistant/run-ownership.ts`), so this needs a
-        // proxied cancel first — Open Design hit exactly this and left orphaned CLI subprocesses
-        // billing. Not reachable today: admin runs are not yet associated with a conversation id.
-        storeFor(res)
-          .delete({ id: req.params.id! })
+        // Cancel before deleting the binding. Once cascaded away, recovery cannot recreate it.
+        const store = storeFor(res);
+        store.messages({ conversationId: req.params.id! }).then(async (messages) => {
+          for (const message of messages) {
+            if (!message.runId || !["queued", "running"].includes(message.runStatus ?? "")) continue;
+            await deps.chatRunLedger.durable?.cancel({ runId: message.runId, reason: "conversation-deleted" }, {});
+            await finalizer.recover({ messageId: message.id, trigger: "browser" }, {});
+          }
+          await store.delete({ id: req.params.id! });
+        })
           .then(() => res.status(204).end())
           .catch(next);
       });
@@ -225,7 +229,10 @@ export function createAssistantChatsModule(deps: RouteDeps, options: AssistantCh
             // run belongs to. From here the server saves the finished turn itself, so it no longer
             // depends on this browser staying connected (`assistant-run-finalizer.ts`). A no-op for
             // anything that is not an in-flight daemon run.
-            finalizer.watch({ principalId: getAuthedPrincipal(res).id, conversationId: id, message: saved });
+            // Acceptance already starts the authoritative watch; a browser save merely returns
+            // that row. Re-reading its attempt base prevents a replay from erasing prior segments.
+            const durable = await deps.chatRunLedger.durable?.load({ messageId: saved.id }, {});
+            finalizer.watch({ principalId: getAuthedPrincipal(res).id, conversationId: id, message: saved }, { attemptBase: [...(durable?.attemptBase ?? [])] });
             res.json({ message: saved });
           })
           .catch(next);

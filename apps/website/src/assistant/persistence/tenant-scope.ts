@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 
 import type { ChatHistoryStore, ChatMessage } from "@jini-ai/chat/core";
 
-import { isDaemonRunId, RUN_INTERRUPTED_DETAIL, RUN_INTERRUPTED_LABEL } from "#src/contracts/core/assistant-run-events";
+import { isDaemonRunId } from "#src/contracts/core/assistant-run-events";
 import { type ChatKernel, chatKernel } from "#src/platform/db/chat-kernel";
 import type { SqliteConnectionSource } from "@jini-ai/db/kernel/sqlite";
 import { createChatHistoryStore } from "./chat-history-store.js";
@@ -74,18 +74,9 @@ export type ChatPrincipal = AdminChatPrincipal | GuestChatPrincipal;
  */
 export type ChatStoreFactory = (principal: ChatPrincipal) => ChatHistoryStore;
 
-/**
- * The browser's onError/onDone pair reports interruption as failed. Recognize only the exact
- * saved restart notice. For daemon runs, the finalizer owns proof or bounded resolution: losing the
- * browser's stream does not release a live daemon's conversation slot. Other request-bound runs
- * can be canceled immediately; genuine failures stay failed.
- * @complexity O(message events) time, O(1) space; no storage or input mutation.
- */
-function isInterruptedBrowserSave(message: ChatMessage): boolean {
-  return (message.runStatus === "failed" || message.runStatus === "canceled") && (message.events?.some((event) =>
-    event.kind === "status" && event.label === RUN_INTERRUPTED_LABEL && event.detail === RUN_INTERRUPTED_DETAIL
-  ) ?? false);
-}
+/* Transport failure used to be detected by matching an exact saved restart notice. Server
+ * acceptance now owns daemon rows, so presentation text cannot decide cancellation or recovery.
+ * A lost browser stream still must not release a live execution's conversation slot. */
 
 /**
  * Returns chat history scoped to exactly one principal.
@@ -127,26 +118,18 @@ export function createTenantScopedChatStore(
      */
     async appendMessage({ conversationId, message }) {
       if (message.role !== "assistant" || !message.runId) return store.appendMessage({ conversationId, message });
-      const interrupted = isInterruptedBrowserSave(message);
-      const daemonInterrupted = interrupted && isDaemonRunId(message.runId);
-      const normalized = interrupted ? {
-        ...message,
-        runStatus: daemonInterrupted ? "running" as const : "canceled" as const,
-        ...(daemonInterrupted ? {
-          endedAt: undefined,
-          events: message.events?.filter((event) => !(event.kind === "status" && event.label === RUN_INTERRUPTED_LABEL && event.detail === RUN_INTERRUPTED_DETAIL)),
-        } : {}),
-      } : message;
       const outcome = await ledger.unlessSettled(
         { conversationId, messageId: message.id, runId: message.runId },
         async () => {
-          // Keep the latest server checkpoint, rather than replace it with the disconnected
-          // browser's stale partial answer. The route watches this retained stub again.
-          if (daemonInterrupted) {
-            const saved = (await store.messages({ conversationId })).find((m) => m.id === message.id && m.runId === message.runId);
+          // Server acceptance and recovery own daemon rows. Browser snapshots can carry an old
+          // attempt id or a transport-only failure; returning the stored row fences both without
+          // matching presentation text. BYOK/AG-UI remain request-bound.
+          if (isDaemonRunId(message.runId)) {
+            const saved = (await store.messages({ conversationId })).find((m) => m.id === message.id);
             if (saved) return saved;
+            if (message.runStatus !== "queued" && message.runStatus !== "running") return null;
           }
-          return store.appendMessage({ conversationId, message: normalized });
+          return store.appendMessage({ conversationId, message });
         }
       );
       if (outcome.written) return outcome.value;

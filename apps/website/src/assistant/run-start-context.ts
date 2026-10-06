@@ -42,6 +42,18 @@ function readOptionalContextString(value: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
+function readRecoveryContext(
+  { parsed }: { parsed: { assistantMessageId?: unknown; recoveryMode?: unknown; recoverySessionId?: unknown } }, _optional = {},
+): { assistantMessageId?: string; recoveryMode?: "native" | "reconstruction"; recoverySessionId?: string } {
+  const assistantMessageId = readOptionalContextString(parsed.assistantMessageId);
+  const recoverySessionId = readOptionalContextString(parsed.recoverySessionId);
+  return {
+    ...(assistantMessageId ? { assistantMessageId } : {}),
+    ...(parsed.recoveryMode === "native" || parsed.recoveryMode === "reconstruction" ? { recoveryMode: parsed.recoveryMode } : {}),
+    ...(recoverySessionId ? { recoverySessionId } : {}),
+  };
+}
+
 /**
  * Decodes a run's `contextRef` JSON into the fields `onStarted` needs.
  *
@@ -70,6 +82,9 @@ export function parseRunStartContextRef(contextRef: string): {
   pluginRefIds: readonly string[];
   conversationId?: string;
   pageContext?: RunPageContext;
+  assistantMessageId?: string;
+  recoveryMode?: "native" | "reconstruction";
+  recoverySessionId?: string;
 } {
   const parsed = JSON.parse(contextRef) as {
     prompt?: unknown;
@@ -80,6 +95,9 @@ export function parseRunStartContextRef(contextRef: string): {
     pluginRefIds?: unknown;
     conversationId?: unknown;
     pageContext?: unknown;
+    assistantMessageId?: unknown;
+    recoveryMode?: unknown;
+    recoverySessionId?: unknown;
   };
   const prompt = requireNonEmptyContextField(parsed.prompt, "prompt");
   const principalId = requireNonEmptyContextField(parsed.principalId, "principalId");
@@ -108,5 +126,6 @@ export function parseRunStartContextRef(contextRef: string): {
     ...(reasoning === undefined ? {} : { reasoning }),
     ...(conversationId === undefined ? {} : { conversationId }),
     ...(pageContext === undefined ? {} : { pageContext }),
+    ...readRecoveryContext({ parsed }, {}),
   };
 }

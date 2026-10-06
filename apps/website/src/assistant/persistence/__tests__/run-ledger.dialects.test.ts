@@ -17,7 +17,7 @@ const T0 = 1_790_000_000_000;
 const RESTART_NOTICE = {
   kind: "status",
   label: "The assistant restarted while this answer was running, so it stopped.",
-  detail: "Anything it wrote before the restart is kept above. Send your message again to retry.",
+  detail: "Anything it wrote before the restart is kept above.",
 };
 
 const RUN: RunRef = { conversationId: "c1", messageId: "a1", runId: "run-1" };
@@ -174,33 +174,23 @@ describeEachChatDialect("ChatRunLedger", (kernel) => ({ kernel, ledger: createCh
     assert.equal((await row(kernel, "a1")).content, "Final");
   });
 
-  test("reconcileInterrupted cancels interrupted rows across the batch without changing completed or user rows", async () => {
+  test("boot cancels unfinished rows when a recovery port is unavailable, preserving saved work", async () => {
     const { kernel, ledger } = make();
     await seed(kernel, [
       { id: "a1", content: "Partial", events: [{ kind: "text", text: "Partial" }], position: 0 },
-      { id: "a2", content: "", runStatus: "queued", runId: "byok:x", position: 1, endedAt: T0 + 1 },
-      { id: "a3", content: "", eventsJson: "{not json", position: 2 },
-      { id: "a4", content: "Done", events: [{ kind: "text", text: "Done" }], runStatus: "succeeded", position: 3 },
-      { id: "u1", role: "user", content: "hi", runStatus: "running", position: 4 },
+      { id: "a2", content: "", runStatus: "queued", runId: "byok:x", position: 1 },
+      { id: "a3", content: "Done", runStatus: "succeeded", position: 2 },
+      { id: "u1", role: "user", content: "hi", runStatus: "running", position: 3 },
     ]);
-
-    assert.equal(await ledger.reconcileInterrupted({ now: T0 + 7 }), 3);
-
-    assert.deepEqual(await row(kernel, "a1"), {
-      content: "Partial",
-      events_json: JSON.stringify([{ kind: "text", text: "Partial" }, RESTART_NOTICE]),
-      events: [{ kind: "text", text: "Partial" }, RESTART_NOTICE],
-      run_status: "canceled",
-      ended_at: T0 + 7,
-    });
-    const a2 = await row(kernel, "a2");
-    assert.equal(a2.run_status, "canceled");
-    assert.equal(a2.ended_at, T0 + 1, "an existing ended_at is kept");
-    assert.deepEqual((await row(kernel, "a3")).events, [RESTART_NOTICE], "a corrupt event log is replaced, not fatal");
-    assert.equal((await row(kernel, "a4")).run_status, "succeeded");
-    assert.equal((await row(kernel, "u1")).run_status, "running", "user rows are not runs");
-
+    assert.equal(await ledger.reconcileInterrupted({ now: T0 + 7 }), 2);
+    assert.equal((await row(kernel, "a1")).run_status, "canceled");
+    assert.equal((await row(kernel, "a1")).content, "Partial");
+    assert.deepEqual((await row(kernel, "a1")).events, [{ kind: "text", text: "Partial" }, { kind: "status", label: "Stopped. Saved work is above." }]);
+    assert.equal((await row(kernel, "a1")).ended_at, T0 + 7);
+    assert.equal((await row(kernel, "a2")).run_status, "canceled");
     assert.equal(await ledger.reconcileInterrupted({ now: T0 + 8 }), 0);
+    assert.equal((await row(kernel, "a3")).run_status, "succeeded");
+    assert.equal((await row(kernel, "u1")).run_status, "running");
   });
 
   test("reconcileInterrupted offers the stored owner and stub to recovery and keeps adopted rows running", async () => {
@@ -213,15 +203,18 @@ describeEachChatDialect("ChatRunLedger", (kernel) => ({ kernel, ledger: createCh
     assert.equal(await ledger.reconcileInterrupted({ now: T0 + 7 }, { recover: async (input) => {
       seen.push(input);
       return input.message.runId === "run-1";
-    } }), 1);
+    } }), 2);
     assert.deepEqual(seen, [
       { principalId: "u", conversationId: "c1", message: { id: "a1", role: "assistant", content: "Partial", events: [{ kind: "text", text: "Partial" }], runId: "run-1", runStatus: "running" } },
       { principalId: "u", conversationId: "c1", message: { id: "a2", role: "assistant", content: "", events: [], runId: "byok:x", runStatus: "queued" } },
     ]);
     assert.equal((await row(kernel, "a1")).run_status, "running");
     assert.equal((await row(kernel, "a1")).content, "Partial");
-    assert.deepEqual((await row(kernel, "a2")).events, [RESTART_NOTICE]);
-    assert.equal((await row(kernel, "a2")).run_status, "canceled");
+    // A row the recovery port cannot adopt receives the same terminal fallback as an orphan.
+    assert.deepEqual(await row(kernel, "a2"), {
+      content: "", events_json: JSON.stringify([{ kind: "status", label: "Stopped. Saved work is above." }]),
+      events: [{ kind: "status", label: "Stopped. Saved work is above." }], run_status: "canceled", ended_at: T0 + 7,
+    });
   });
 
   test("reconcileInterrupted cannot cancel a retry that replaced the probed run", async () => {
@@ -244,8 +237,19 @@ describeEachChatDialect("ChatRunLedger", (kernel) => ({ kernel, ledger: createCh
       return false;
     } }), 1);
     assert.equal((await row(kernel, "a1")).content, "Latest");
-    assert.deepEqual((await row(kernel, "a1")).events, [{ kind: "text", text: "Latest" }, RESTART_NOTICE]);
+    assert.deepEqual((await row(kernel, "a1")).events, [{ kind: "text", text: "Latest" }, { kind: "status", label: "Stopped. Saved work is above." }]);
     assert.equal((await row(kernel, "a1")).run_status, "canceled");
+  });
+
+  test("boot cancellation fences a missing run id when acceptance supplies one during discovery", async () => {
+    const { kernel, ledger } = make();
+    await seed(kernel, [{ id: "a1", runId: null, position: 0 }]);
+    assert.equal(await ledger.reconcileInterrupted({ now: T0 + 7 }, { recover: async () => {
+      await kernel.run((db) => db.updateTable("ai_chat_messages").set({ run_id: "accepted", content: "Accepted answer" }).where("id", "=", "a1").execute());
+      return false;
+    } }), 0);
+    assert.equal((await row(kernel, "a1")).run_status, "running");
+    assert.equal((await row(kernel, "a1")).content, "Accepted answer");
   });
 
   test("a browser restart notice cannot terminalize a live daemon row or erase its checkpoint", async () => {

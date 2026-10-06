@@ -41,6 +41,22 @@ export type ChatDatabase = {
   ai_chat_messages: AiChatMessagesTable;
   assistant_agent_sessions: AssistantAgentSessionsTable;
   assistant_conversation_tool_approvals: AssistantConversationToolApprovalsTable;
+  assistant_run_attempts: {
+    message_id: string;
+    engine: string;
+    accepted_json: string;
+    recovery_count: number;
+    recovery_deadline: number | null;
+    recovery_elapsed_ms: number;
+    attempt_started_at: number;
+    last_progress_at: number;
+    cancel_reason: string | null;
+    session_id: string | null;
+    session_confirmed: number;
+    child_pid: number | null;
+    child_started_at: string | null;
+    attempt_base_json: string;
+  };
 };
 
 export type ChatKernel = StorageKernel<ChatDatabase>;

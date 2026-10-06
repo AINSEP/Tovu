@@ -174,7 +174,7 @@ describe("failRunBeforeStart", () => {
     await failRunBeforeStart(lifecycle, "run-1", CONCURRENT_RUN_REFUSAL_MESSAGE);
 
     assert.deepEqual(calls, [
-      ["emit", "run-1", { event: "error", data: { message: "The assistant could not start: another answer in this chat is still running. Wait for it to finish, or stop it, then send again." } }],
+      ["emit", "run-1", { event: "error", data: { message: "Another answer in this chat is still running. This turn could not start." } }],
       ["finish", { runId: "run-1", status: "failed", code: null, signal: null, resumable: false }],
     ]);
   });

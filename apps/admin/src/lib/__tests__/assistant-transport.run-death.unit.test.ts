@@ -1,71 +1,12 @@
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { describe, expect, test } from "vitest";
+import { terminalOutcomeNotice } from "../assistant-transport";
+import { durableSubscriptionFixture } from "./durable-subscription.fixture";
 
-import type { AgentEvent, ChatMessage } from "@jini-ai/chat/core";
-import type { RunHandlers } from "@jini-ai/chat/react";
-
-import { createTovuAssistantTransport, terminalOutcomeNotice } from "../assistant-transport";
-import { FakeEventSource, resetFakeEventSource } from "./assistant-transport.test-helpers";
-
-/**
- * @file Regression suite for the 2026-09-06 "chat just craps out" investigation
- * (`ADS-memory/reports/2026-09-06-chat-death-investigation.md`).
- *
- * Two defects, both in `subscribeToRun`, both of which made a dead run indistinguishable from a
- * successful one:
- *
- * 1. **No `"stderr"` listener.** `@jini-ai/daemon`'s `agent-executor.ts` emits the agent CLI's
- *    stderr as its own SSE event kind. `subscribeToRun` registered listeners for `agent`, `stdout`,
- *    `error` and `end` only, and an `EventSource` silently drops a named event nobody listens for —
- *    so every diagnostic a dying CLI printed crossed the wire and was discarded in the browser.
- * 2. **`end.status` ignored.** `finish()` is the ONLY event a terminal run emits; its
- *    `RunEndPayload` carries `status`/`code`/`signal`/`resumable`. The `end` listener read only
- *    `reason` — a field that exists on the BYOK path and not on `RunEndPayload` at all — so a run
- *    the daemon had already classified `failed` was reported through `onDone` as an ordinary
- *    completion and persisted to `chat.db` as `run_status='succeeded'` with empty content.
- *
- * The live evidence both assertions are modelled on: `sites/tovu-com/chat.db` holds two assistant
- * rows with `run_status='succeeded'`, zero content, zero events, and durations of 578 ms (`codex`)
- * and 552 ms (`claude`).
- */
-
-function handlers(): RunHandlers & { events: AgentEvent[]; errors: Error[]; done: AgentEvent[] | null } {
-  const events: AgentEvent[] = [];
-  const errors: Error[] = [];
-  let done: AgentEvent[] | null = null;
-  return {
-    events,
-    errors,
-    get done() {
-      return done;
-    },
-    onEvent: (ev: AgentEvent) => events.push(ev),
-    onError: (err: Error) => errors.push(err),
-    onDone: (finalEvents: AgentEvent[]) => {
-      done = finalEvents;
-    },
-  } as unknown as RunHandlers & { events: AgentEvent[]; errors: Error[]; done: AgentEvent[] | null };
-}
-
-const HISTORY: ChatMessage[] = [{ id: "1", role: "user", content: "where do I write an article?" }];
-
-/** Wire shape of a daemon `end` frame — `RunProtocolEventWire` with a `RunEndPayload`. */
+/** CLI stderr and terminal diagnoses must stay visible. Daemon end is attempt-level evidence;
+ * it no longer permits a browser to write a logical run as succeeded or failed. */
 function endFrame(payload: Record<string, unknown>): string {
-  return JSON.stringify({ runId: "run-1", kind: "end", payload });
+  return JSON.stringify({ runId: "old", kind: "end", payload });
 }
-
-beforeEach(() => {
-  resetFakeEventSource();
-  vi.stubGlobal("EventSource", FakeEventSource);
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async () => ({ ok: true, json: async () => ({ run: { id: "run-1" } }) })),
-  );
-});
-
-afterEach(() => {
-  vi.unstubAllGlobals();
-  vi.restoreAllMocks();
-});
 
 describe("terminalOutcomeNotice", () => {
   test("a failed end payload names the status and the real exit code", () => {
@@ -99,156 +40,20 @@ describe("terminalOutcomeNotice", () => {
   });
 });
 
-describe("subscribeToRun — a run that dies without answering", () => {
-  test("a run that failed before it started shows and saves the daemon's plain reason, then says nothing ran", async () => {
-    // Before this, a pre-spawn failure (the daemon's failBeforeSpawn, or the host refusing a run)
-    // showed only "Run failed — the agent process exited without answering", which was not even true:
-    // no process ever started, and the reason stayed in the server log.
-    const h = handlers();
-    await createTovuAssistantTransport().startRun({ history: HISTORY } as never, h);
-    const source = FakeEventSource.instances[0]!;
-
-    source.emit(
-      "error",
-      JSON.stringify({ runId: "run-1", kind: "error", payload: { message: 'The assistant could not start: unknown agentId "nope"' } }),
-    );
-    source.emit("end", endFrame({ status: "failed", code: null, signal: null, resumable: false }));
-
-    expect(h.done).toEqual([
-      { kind: "status", label: 'The assistant could not start: unknown agentId "nope"' },
-      {
-        kind: "status",
-        label: "Run failed before the agent started",
-        detail: "Nothing ran, so there is no exit code. The reason, when there is one, is shown above.",
-      },
-    ]);
-    expect(h.errors.map((error) => error.message)).toEqual(['The assistant could not start: unknown agentId "nope"', "The run failed before the agent started."]);
-  });
-
-  test("forwards the agent CLI's stderr instead of dropping it", async () => {
-    const h = handlers();
-    await createTovuAssistantTransport().startRun({ history: HISTORY } as never, h);
-    const source = FakeEventSource.instances[0]!;
-
-    source.emit(
-      "stderr",
-      JSON.stringify({ runId: "run-1", kind: "stderr", payload: { chunk: "codex: not logged in" } }),
-    );
-
-    expect(h.events).toEqual([{ kind: "raw", line: "codex: not logged in" }]);
-  });
-
-  test("a failed end frame surfaces the failure, and carries it into the persisted event log", async () => {
-    const h = handlers();
-    await createTovuAssistantTransport().startRun({ history: HISTORY } as never, h);
-    const source = FakeEventSource.instances[0]!;
-
-    // Exactly the wire traffic behind chat 80bb855d position 7: no agent frames at all, then a
-    // terminal `end` the daemon has already classified as a failure.
-    source.emit("end", endFrame({ status: "failed", code: 1, signal: null, resumable: false }));
-
-    // Before this fix `done` was `[]` — a completely empty, "successful" turn.
-    expect(h.done).not.toBeNull();
-    expect(h.done).toHaveLength(1);
-    expect(h.done![0]!.kind).toBe("status");
-    expect((h.done![0] as { label: string }).label).toContain("Run failed");
-    expect((h.done![0] as { detail: string }).detail).toContain("exit code 1");
-  });
-
-  test("a successful end frame still finishes with exactly the events the run produced", async () => {
-    const h = handlers();
-    await createTovuAssistantTransport().startRun({ history: HISTORY } as never, h);
-    const source = FakeEventSource.instances[0]!;
-
-    source.emit(
-      "agent",
-      JSON.stringify({ runId: "run-1", kind: "agent", payload: { type: "text_delta", delta: "hello" } }),
-    );
-    source.emit("end", endFrame({ status: "succeeded", code: 0, signal: null }));
-
-    expect(h.done).toEqual([{ kind: "text", text: "hello" }]);
-    expect(h.errors).toEqual([]);
-  });
+test("legacy subscribers still receive stderr, but a failed attempt end never finalizes their message", async () => {
+  const h = durableSubscriptionFixture({ checkpoint: false }, {});
+  h.opened[0]!.frame("stderr", JSON.stringify({ payload: { chunk: "Not logged in" } }), "1");
+  h.opened[0]!.frame("end", endFrame({ status: "failed", code: 1 }), "2");
+  await h.flush();
+  expect(h.events).toEqual([{ kind: "raw", line: "Not logged in" }]);
+  expect(h.done).toEqual([]); expect(h.errors).toEqual([]);
+  h.abort.abort();
 });
 
-/**
- * 2026-09-24 live publish: an agent commit reloaded the dev API, which restarted the agent daemon.
- * The daemon forgot the run, the stream dropped with a bare connection error, and the chat stayed
- * "running" forever; Stop then POSTed `/cancel` and got 404. A run the daemon no longer knows must
- * end as failed with a plain sentence, and stopping it must not be an error.
- */
-describe("a run the agent daemon forgot (daemon restarted mid-run)", () => {
-  function routeFetch(statusFor: (url: string, init?: RequestInit) => number) {
-    return vi.fn(async (url: string, init?: RequestInit) => {
-      const status = statusFor(url, init);
-      if (status === 404) return new Response("run not found", { status: 404 });
-      return new Response(JSON.stringify({ run: { id: "run-1", state: "running" } }), { status });
-    });
-  }
-
-  test("a bare stream drop whose run the daemon answers 404 for ends the run as failed with a plain message", async () => {
-    vi.stubGlobal("fetch", routeFetch((url, init) => (init?.method === "POST" ? 200 : 404)));
-    const h = handlers();
-    await createTovuAssistantTransport().startRun({ history: HISTORY } as never, h);
-    const source = FakeEventSource.instances[0]!;
-
-    source.emit("error", "");
-    await vi.waitFor(() => expect(h.done).not.toBeNull());
-
-    expect(h.errors.map((e) => e.message)).toEqual([
-      "The assistant restarted while this answer was running, so it stopped. Send your message again to retry.",
-    ]);
-    expect(h.done).not.toBeNull();
-    expect(source.closed).toBe(true);
-  });
-
-  test("a forgotten run is saved with the plain restart notice after what it already produced", async () => {
-    // FINDING A (2026-09-27): the error is live-only, so without an event a reload showed a bare
-    // "failed". The API's run finalizer saves the same notice for the same death, so whichever of
-    // the two writes the row first, it reads the same.
-    vi.stubGlobal("fetch", routeFetch((url, init) => (init?.method === "POST" ? 200 : 404)));
-    const h = handlers();
-    await createTovuAssistantTransport().startRun({ history: HISTORY } as never, h);
-    const source = FakeEventSource.instances[0]!;
-
-    source.emit("agent", JSON.stringify({ runId: "run-1", kind: "agent", payload: { type: "text_delta", delta: "Half" } }));
-    source.emit("error", "");
-    await vi.waitFor(() => expect(h.done).toEqual([
-      { kind: "text", text: "Half" },
-      {
-        kind: "status",
-        label: "The assistant restarted while this answer was running, so it stopped.",
-        detail: "Anything it wrote before the restart is kept above. Send your message again to retry.",
-      },
-    ]));
-  });
-
-  test("a bare stream drop while the daemon still knows the run leaves it running (EventSource reconnects)", async () => {
-    const probeResponse = new Response(JSON.stringify({ run: { id: "run-1", state: "running" } }), { status: 200 });
-    const probeStatus = vi.spyOn(probeResponse, "status", "get");
-    const fetchMock = routeFetch(() => 200);
-    fetchMock.mockImplementation(async (_url, init) => init?.method === "POST"
-      ? new Response(JSON.stringify({ run: { id: "run-1", state: "running" } }), { status: 200 })
-      : probeResponse);
-    vi.stubGlobal("fetch", fetchMock);
-    const h = handlers();
-    await createTovuAssistantTransport().startRun({ history: HISTORY } as never, h);
-    const source = FakeEventSource.instances[0]!;
-
-    expect(probeStatus).not.toHaveBeenCalled();
-    source.emit("error", "");
-    // Witness that the resumed probe consumed its response before checking the negative outcome.
-    await vi.waitFor(() => expect(probeStatus).toHaveBeenCalledTimes(1));
-    expect(fetchMock).toHaveBeenLastCalledWith("/api/runs/run-1", { credentials: "same-origin" });
-
-    expect(h.errors.map((e) => e.message)).toEqual([]);
-    expect(h.done).toBeNull();
-    expect(source.closed).toBe(false);
-  });
-
-  test("stopping a run the daemon answers 404 for resolves — there is nothing left to stop", async () => {
-    vi.stubGlobal("fetch", routeFetch(() => 404));
-
-    await expect(createTovuAssistantTransport().stopRun("run-1")).resolves.toBeUndefined();
-  });
+test("a persisted failed answer completes once with its saved diagnosis and partial text", async () => {
+  const h = durableSubscriptionFixture();
+  const events = [{ kind: "text" as const, text: "Partial" }, { kind: "status" as const, label: "Not logged in. Saved work is above." }];
+  h.save({ id: "answer", role: "assistant", content: "Partial", runId: "old", runStatus: "failed", events });
+  await h.tick(); await h.tick();
+  expect(h.done).toEqual([events]); expect(h.errors).toEqual([]);
 });

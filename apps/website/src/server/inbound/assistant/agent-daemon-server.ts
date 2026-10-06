@@ -1,3 +1,4 @@
+import { sniffContentType } from "#src/features/media/index";
 import { createTovuOAuthHttpPorts } from "#src/platform/oauth/endpoint-safety";
 import { createSupervisorRegistry } from "@jini-ai/sidecar/supervisor/node";
 import type { ToolContributor, DerivedToolContributor } from "#src/assistant/index";
@@ -69,7 +70,7 @@ import express from "express";
 
 import { createContributionRegistry, createToolRegistry } from "@jini-ai/core";
 import type { Principal } from "@jini-ai/core";
-import { createAgentExecutor, createInMemoryEventLog, createRunLifecycle } from "@jini-ai/daemon";
+import { createAgentExecutor, createInMemoryEventLog, createRunLifecycle, prepareMessageAttachments, type MessageAttachmentImage } from "@jini-ai/daemon";
 // From `@jini-ai/agent-runtime`, which owns the seam — not `@jini-ai/daemon`, which only accepts
 // one as an option. The ambient shim this repo used to carry declared it on `daemon`, and being a
 // shim it made that wrong claim typecheck cleanly.
@@ -168,6 +169,10 @@ import { TOVU_MAX_UPLOAD_BYTES } from "#src/features/media/index";
 import { createLostFrontendBindings } from "#src/assistant/lost-frontend-binding";
 import { withPageNavigateErrorRewrap } from "#src/assistant/rewrap-page-navigate-error";
 import { delegatedToolErrorDisclosure } from "#src/assistant/tool-failure-redaction";
+import { registerDurableRunStartRoute, registerDurableToolGuard } from "./durable-run-routes.js";
+import { createEarlySessionCapture } from "./early-run-session.js";
+import { readProcessStart } from "./attempt-process-identity.js";
+import { checkReadOnlyTool, defaultDaemonMessages } from "@jini-ai/daemon/read-only-tools";
 import { createRunActiveContextStore, registerRunActiveContextRoute } from "#src/assistant/run-active-context";
 import { createRunScopedCredentials } from "#src/assistant/run-scoped-credential";
 import type { RunPageContext } from "#src/assistant/run-page-context";
@@ -499,6 +504,7 @@ registry.register(
     // A thunk, not `attachmentStore` itself — same reasoning as `buildPromoteChatAttachmentTool`'s
     // own `getStore` just above: this line runs before `start()` assigns it.
     getStore: () => attachmentStore,
+    getMessageAttachmentRefs: ({ runId }) => messageAttachmentRefsByRunId.get(runId) ?? [],
   }),
 );
 
@@ -692,6 +698,10 @@ const agentExecutor = createAgentExecutor({
  * terminal transition on purpose: the exempt `/api/delegated-tool-calls` route's remaining defence
  * is that a `runId` only resolves while its run is in flight (`daemon-auth.ts`). */
 const principalByRunId = new Map<string, Principal>();
+/** Accepted-message refs decoded by `onStarted`, keyed by the SAME lifecycle id used by claim()
+ * and delegated tools. `lifecycle.get()` returns public RunStatus without contextRef; parsing it
+ * there silently hid every attachment. Keep this binding for the tracked principal's lifetime. */
+const messageAttachmentRefsByRunId = new Map<string, readonly string[]>();
 /** Per-run bridge credentials. Valid only while `principalByRunId` tracks the run, so they share its
  * lifetime; `revoke` on terminal only keeps the map small. See `run-scoped-credential.ts`. */
 const runCredentials = createRunScopedCredentials({ principalOfLiveRun: (runId) => principalByRunId.get(runId)?.id });
@@ -752,16 +762,17 @@ const conversationStartLock = createConversationStartLock();
  * A no-op ({} fields) when `attachmentIds` is empty — the common case, no store round trip needed.
  */
 async function resolveAttachmentRunFields(
-  run: OnStartedContext["run"],
-  attachmentIds: readonly string[],
-  runLifecycle: OnStartedContext["lifecycle"],
-): Promise<{ imagePaths?: readonly string[]; extraAllowedDirs?: readonly string[]; uploadRoot?: string } | null> {
+  { run, attachmentIds, runLifecycle, agentId = DEFAULT_AGENT_ID }: {
+    run: OnStartedContext["run"]; attachmentIds: readonly string[]; runLifecycle: OnStartedContext["lifecycle"]; agentId?: string;
+  }, _optional = {},
+): Promise<{ imagePaths?: readonly string[]; imageContents?: readonly MessageAttachmentImage[]; attachmentNotice?: string;
+  extraAllowedDirs?: readonly string[]; uploadRoot?: string } | null> {
   if (attachmentIds.length === 0) return {};
 
   if (!attachmentStore) {
     // Structurally unreachable (see `attachmentStore`'s own doc) but fails only this run, not the
     // process, if it somehow is.
-    await failRunBeforeStart(runLifecycle, run.id, "The assistant could not start: attachments are not ready yet. Send again in a moment.");
+    await failRunBeforeStart(runLifecycle, run.id, "The assistant could not start: attachments are not ready yet.");
     console.error(`[agent-daemon] run ${run.id}: attachment claim requested before the attachment store was ready`);
     return null;
   }
@@ -775,23 +786,18 @@ async function resolveAttachmentRunFields(
     const refs: StoredAttachment[] = attachmentIds.map((id) => ({ path: id, name: "", kind: "file" }));
     const claimed = await attachmentStore.claim({ attachments: refs, runId: run.id });
     if (claimed.batchDirectory === undefined) return {};
-    return {
-      // Deliberately NOT `.filter((attachment) => attachment.kind === "image")` — that used to be
-      // here, matching `attachments.ts`'s own doc-comment example usage, and it silently broke
-      // non-image attachments: `extraAllowedDirs` below already grants the agent read access to
-      // every claimed file regardless of kind, but a filtered `imagePaths` meant a `.md` (or any
-      // `kind: "file"` upload) was claimed, readable, and then never named to the agent at all —
-      // `image-prompt-delivery.ts` only narrates paths it is actually given. `imagePaths` (the
-      // field name here) and the "image" wording in that module's prompt text are now both
-      // inaccurate for a non-image path — known, deliberate, and left as-is: fixing the naming is a
-      // Jini change (`packages/daemon/src/image-prompt-delivery.ts`'s prompt copy, and the
-      // `AgentExecutor.run()` option name itself), and Jini's tree currently carries uncommitted
-      // work from other sessions that a rebuild would republish. Tovu-Runner's
-      // `fleet-chat-transport.ts#buildChatStartPayload` made the same call for the same reason.
-      imagePaths: claimed.attachments.map((attachment) => attachment.path),
-      extraAllowedDirs: [claimed.batchDirectory],
-      uploadRoot: claimed.batchDirectory,
-    };
+    const def = getAgentDef({ id: agentId });
+    const byPath = new Map(claimed.attachments.map(attachment => [attachment.path, attachment]));
+    const prepared = await prepareMessageAttachments({ refs: [...byPath.keys()], read: async ({ ref }) => {
+      const attachment = byPath.get(ref)!;
+      const bytes = await readFile(attachment.path);
+      return { name: attachment.name, path: attachment.path, bytes, mimeType: sniffContentType({ bytes }) };
+    } }, { fileAccess: true, imageAccess: def?.imageDelivery === "native" || def?.imageDelivery === "prompt-path" || def?.promptInputFormat === "stream-json" });
+    // Non-image uploads need an explicit prompt notice as well as directory access; otherwise a
+    // readable .md/video is never named to the agent. Generic delivery now owns that distinction.
+    return { imagePaths: prepared.imagePaths, imageContents: prepared.images, attachmentNotice: prepared.notice,
+      extraAllowedDirs: [claimed.batchDirectory], uploadRoot: claimed.batchDirectory };
+
   } catch (error) {
     // Fails the run outright rather than silently continuing without the image: the same severity
     // this handler already gives a malformed `contextRef` above. A user who attached a screenshot
@@ -799,11 +805,13 @@ async function resolveAttachmentRunFields(
     // integrity check failure) would otherwise get a confusing answer about content the agent never
     // looked at, with nothing explaining why.
     const message = error instanceof Error ? error.message : String(error);
-    await failRunBeforeStart(runLifecycle, run.id, "The assistant could not start: an attached file could not be read. Attach it again, then send.");
+    await failRunBeforeStart(runLifecycle, run.id, "The assistant could not start: an attached file could not be read.");
     console.error(`[agent-daemon] run ${run.id}: attachment claim failed`, message);
     return null;
   }
 }
+
+const captureEarlySession = createEarlySessionCapture({ sessions: routeDeps.agentSessions, durable: routeDeps.chatRunLedger.durable, readStart: readProcessStart }, {});
 
 const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) => {
   let prompt: string;
@@ -814,6 +822,9 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
   let reasoning: string | undefined;
   let conversationId: string | undefined;
   let pageContext: RunPageContext | undefined;
+  let durableMessageId: string | undefined;
+  let recoveryMode: "native" | "reconstruction" | undefined;
+  let recoverySessionId: string | undefined;
   // H1 fix: set once `storedSessionId` is resolved below, read by the stream subscription's
   // `shouldClearSessionOnFailedResume` check — `null` (unchanged) means this run never attempted a
   // resume in the first place, so a failed/no-sessionRef end event has nothing stale to clear.
@@ -841,14 +852,18 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
     reasoning = decoded.reasoning;
     conversationId = decoded.conversationId;
     pageContext = decoded.pageContext;
+    durableMessageId = decoded.assistantMessageId;
+    recoveryMode = decoded.recoveryMode;
+    recoverySessionId = decoded.recoverySessionId;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    void failRunBeforeStart(runLifecycle, run.id, "The assistant could not start: the request was malformed. Reload the page, then send again.");
+    void failRunBeforeStart(runLifecycle, run.id, "The assistant could not start: the request was malformed.");
     console.error(`[agent-daemon] run ${run.id}: malformed contextRef`, message);
     return;
   }
 
   principalByRunId.set(run.id, principal);
+  messageAttachmentRefsByRunId.set(run.id, attachmentIds);
   runOwners.record(run.id, principal.id);
   // H2 fix (`agent-run-concurrency.ts`): registered synchronously, in this same
   // never-`await`-ed-yet prefix, so a second `onStarted` call for the same conversation — however
@@ -857,8 +872,9 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
   // nothing to key concurrency by for a daemon client other than the admin chat pane.
   if (conversationId !== undefined) liveRunTracker.register(conversationId, run.id);
   if (pageContext !== undefined) runActiveContexts.record(run.id, pageContext);
-  void runLifecycle.waitForTerminal({ runId: run.id }).finally(() => {
+  void runLifecycle.waitForTerminal({ runId: run.id }).catch(() => undefined).finally(() => {
     principalByRunId.delete(run.id);
+    messageAttachmentRefsByRunId.delete(run.id);
     runCredentials.revoke(run.id);
     runActiveContexts.forget(run.id);
     // The owner must outlive the run's end (a finished run is still read and replayed), but not the
@@ -904,20 +920,21 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
         if (endPayload.status === "succeeded") console.log(line);
         else console.error(line);
       }
-      const sessionRef = extractSessionRefFromEndEvent(event);
-      if (sessionRef !== undefined) {
-        void routeDeps.agentSessions.setSessionId({ conversationId: resolvedConversationId, agentId: resolvedAgentId, sessionId: sessionRef }).catch((error: unknown) => {
-          console.error(`[agent-daemon] run ${run.id}: failed to persist agent session id`, error);
-        });
-        return;
-      }
+      // Status carries capture-style locators (Codex/opencode) before end. A killed process must
+      // not lose its locator; generation checks also prevent a stale attempt changing the session.
+      void captureEarlySession({ event, runId: run.id, conversationId: resolvedConversationId, agentId: resolvedAgentId }, { durableBinding: durableMessageId !== undefined })
+        .catch((error: unknown) => console.error(`[agent-daemon] run ${run.id}: failed to persist agent session id`, error));
+      if (extractSessionRefFromEndEvent(event) !== undefined) return;
       // H1 fix: this run attempted `--resume <attemptedResumeSessionId>` and reached its terminal
       // `end` event without the CLI ever reconfirming a session id — the stored id is unconfirmed
       // at best, and per this repo's own daemon-restarted-from-a-different-cwd hazard, frequently
       // dead. Clear it so the NEXT turn falls back to a cold start instead of retrying the same
       // dead id forever. See `shouldClearSessionOnFailedResume`'s own doc for the full condition.
       if (shouldClearSessionOnFailedResume(event, attemptedResumeSessionId)) {
-        void routeDeps.agentSessions.clearSessionId({ conversationId: resolvedConversationId, agentId: resolvedAgentId }).catch((error: unknown) => {
+        const cleared = durableMessageId && routeDeps.chatRunLedger.durable
+          ? routeDeps.chatRunLedger.durable.clearSession({ runId: run.id, sessionId: attemptedResumeSessionId! }, {})
+          : routeDeps.agentSessions.clearSessionId({ conversationId: resolvedConversationId, agentId: resolvedAgentId });
+        void cleared.catch((error: unknown) => {
           console.error(`[agent-daemon] run ${run.id}: failed to clear dead agent session id`, error);
         });
       }
@@ -943,14 +960,11 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
   void customInstructionsCache
     .refresh()
     .then(async () => {
-      // `imagePaths`/`extraAllowedDirs`/`uploadRoot` are pre-existing `AgentExecutor.run()` options
-      // (`packages/daemon/src/agent-executor.ts`) — this only ever produces real values for them.
-      // Deliberately NOT touching `prompt` here: a second agent owns making the CLI agent actually
-      // look at `imagePaths` (per-def prompt augmentation / delivery mode), and augmenting it here
-      // too would deliver the same image twice for whichever defs it lands on. This handler's job
-      // ends at handing `run()` correct paths.
-      const attachmentRunFields = await resolveAttachmentRunFields(run, attachmentIds, runLifecycle);
+      // One generic preparation turns every claimed file into image pixels or a file notice.
+      // Runtime wire adapters decide how to carry those pixels; the CMS adapter owns authorization.
+      const attachmentRunFields = await resolveAttachmentRunFields({ run, attachmentIds, runLifecycle, agentId: request.agentId ?? DEFAULT_AGENT_ID }, {});
       if (!attachmentRunFields) return;
+      prompt += attachmentRunFields.attachmentNotice ?? "";
 
       // Resolved AFTER attachments, BEFORE `run()`: prepending to `prompt` (unlike the attachment
       // fields above, which are separate `AgentExecutor.run()` options) means this must land before
@@ -1005,8 +1019,10 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
         // Defect 1 fix a cold start is no longer id-less: `resolveHostMintedSessionId` below mints
         // one and persists it before the CLI is spawned, which is what this comment used to say was
         // deliberately NOT happening.
-        const storedSessionId =
-          conversationId !== undefined ? await routeDeps.agentSessions.getSessionId({ conversationId, agentId }) : null;
+        const priorSessionId = conversationId !== undefined ? await routeDeps.agentSessions.getSessionId({ conversationId, agentId }) : null;
+        // Recovery is authoritative about native resume: reconstruction must never quietly use
+        // the old locator, which could still be written by an orphaned CLI after daemon death.
+        const storedSessionId = recoveryMode === "reconstruction" ? null : recoveryMode === "native" ? recoverySessionId ?? null : priorSessionId;
         // A run the user just stopped is still exiting for a few seconds. Wait for it, so a message
         // sent right after Stop resumes the session instead of being refused (2026-09-27).
         if (conversationId !== undefined) {
@@ -1079,7 +1095,10 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
           // durable BEFORE the CLI is spawned. A failure here is logged and the run continues —
           // losing resumability for one conversation is the pre-fix behavior, where failing the
           // run outright would cost the user a turn over a bookkeeping write.
-          await routeDeps.agentSessions.setSessionId({ conversationId, agentId, sessionId: hostMintedSessionId }).catch((error: unknown) => {
+          const prepared = durableMessageId && routeDeps.chatRunLedger.durable
+            ? routeDeps.chatRunLedger.durable.captureSession({ runId: run.id, sessionId: hostMintedSessionId, confirmed: false }, {})
+            : routeDeps.agentSessions.setSessionId({ conversationId, agentId, sessionId: hostMintedSessionId });
+          await prepared.catch((error: unknown) => {
             console.error(`[agent-daemon] run ${run.id}: failed to persist minted agent session id at dispatch`, error);
           });
         }
@@ -1097,6 +1116,12 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       // agent run would queue a second tab's turn behind it for minutes with no feedback.
       const sessionBinding = await conversationStartLock.run(conversationId, resolveSessionBinding);
       if (sessionBinding === null) return;
+      if (durableMessageId && routeDeps.chatRunLedger.durable) {
+        const attempt = await routeDeps.chatRunLedger.durable.find({ runId: run.id }, {});
+        if (!attempt || attempt.cancelReason || !["queued", "running"].includes(attempt.message.runStatus ?? "")) {
+          await failRunBeforeStart(runLifecycle, run.id, "This execution attempt no longer owns the answer."); return;
+        }
+      }
 
       await agentExecutor.run({
         runId: run.id,
@@ -1135,6 +1160,8 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
     // reaching `run()`, so it does not rely on this catch for that.)
     .catch((error: unknown) => {
       console.error(`[agent-daemon] run ${run.id} failed to start`, error);
+      // A startup rejection must terminalize its attempt so its slot and credentials release.
+      void failRunBeforeStart(runLifecycle, run.id, "The assistant could not start this execution attempt.");
     });
 };
 
@@ -1192,6 +1219,7 @@ const adapter: AdapterContext = { resolvedPortRef: { current: port }, env: proce
 app.use("/api/runs/:runId", requireRunOwnership(runOwners, lifecycle));
 app.get("/api/runs", createOwnedRunListHandler({ lifecycle, registry: runOwners }));
 
+if (routeDeps.chatRunLedger.durable) registerDurableRunStartRoute({ app, lifecycle, onStarted, store: routeDeps.chatRunLedger.durable }, {});
 registerRunRoutes({ app, deps: { lifecycle, onStarted }, adapter });
 // `rescanAgents` wired explicitly (not left to fall back to `listAgents`, `@jini-ai/http-kit`'s own
 // default): `listAssistantAgents` is now cached (see `agents.ts`'s module doc — this file's own
@@ -1220,6 +1248,15 @@ const delegatedToolRouteDeps = {
   toolRegistry: registry,
   ...delegatedToolErrorDisclosure(),
 };
+registerDurableToolGuard({ app, ledger: routeDeps.chatRunLedger,
+  isReadOnly: ({ toolId }) => checkReadOnlyTool({ toolId, registry, messages: defaultDaemonMessages.readOnly }, {}) === null,
+  async messageIdForAttempt({ runId }) {
+    const run = await lifecycle.get({ runId });
+    if (!run) return null;
+    try { const context = JSON.parse(run.contextRef); return typeof context.assistantMessageId === "string" ? context.assistantMessageId : null; }
+    catch { return null; }
+  },
+}, {});
 registerDelegatedToolRoutes({ app, deps: delegatedToolRouteDeps, adapter });
 // The MCP-UI callback endpoint. Two shapes reach it: an exchange delivery, where a form's OR
 // content_post_delete's answer resolves an agent tool call still waiting on it (ADR-055 Decision 1

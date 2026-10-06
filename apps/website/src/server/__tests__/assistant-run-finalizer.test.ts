@@ -25,8 +25,7 @@ import type { RouteDeps } from "../routes/types.js";
  * PUT of its own.
  */
 
-const RESTART_LABEL = "The assistant restarted while this answer was running, so it stopped.";
-const RESTART_DETAIL = "Anything it wrote before the restart is kept above. Send your message again to retry.";
+const CONTINUED = "\n\n---\n\nContinued\n\n";
 
 interface SavedMessage {
   id: string;
@@ -60,13 +59,16 @@ function fakeDaemon(options: {
   events: () => Response | Promise<Response>;
   runStatus?: number | null;
 }): RunDaemonClient & { opened: number } {
+  const continued = new Set<string>();
   const client = {
     opened: 0,
-    openEvents: async () => {
+    launch: async ({ run }: { run: { runId: string } }) => { continued.add(run.runId); },
+    openEvents: async ({ runId }: { runId: string }) => {
       client.opened += 1;
+      if (continued.has(runId)) return streamOf(frame("end", { status: "succeeded", code: 0 }, runId));
       return options.events();
     },
-    runStatus: async () => options.runStatus ?? 200,
+    runStatus: async ({ runId }: { runId: string }) => continued.has(runId) ? 200 : options.runStatus ?? 200,
   };
   return client;
 }
@@ -181,7 +183,7 @@ test("streamed text deltas are saved as one text event per run, by the server fi
   assert.equal(serverRow.content, "Here are your posts.");
   assert.deepEqual(serverRow.events, [{ kind: "text", text: "Here are your posts." }]);
 
-  // The browser's own save of a finished turn goes through the same PUT route.
+  // A request-bound BYOK browser save of a finished turn goes through the same PUT route.
   const browserSave = await api(baseUrl, cookie, `/${conversationId}/messages/a2`, {
     method: "PUT",
     body: JSON.stringify({
@@ -193,7 +195,7 @@ test("streamed text deltas are saved as one text event per run, by the server fi
         { kind: "text", text: "One" },
         { kind: "text", text: " two" },
       ],
-      runId: "run-2",
+      runId: "byok:run-2",
       runStatus: "succeeded",
     }),
   });
@@ -205,7 +207,7 @@ test("streamed text deltas are saved as one text event per run, by the server fi
   ]);
 });
 
-test("a run the daemon forgot (it restarted) is saved canceled, keeping what it produced, with the plain restart message", async (t) => {
+test("a run the daemon forgot continues its saved partial answer and completes the same message", async (t) => {
   const daemon = fakeDaemon({
     // The daemon dies mid-answer: the stream just stops, and the respawned daemon has never heard of the run.
     events: () => streamOf(text("Half an ans")),
@@ -219,15 +221,15 @@ test("a run the daemon forgot (it restarted) is saved canceled, keeping what it 
   await finalizer.idle();
 
   const row = await assistantRow(baseUrl, cookie, conversationId);
-  assert.equal(row.runStatus, "canceled");
-  assert.equal(row.content, "Half an ans");
+  assert.equal(row.runStatus, "succeeded");
+  assert.equal(row.content, "Half an ans" + CONTINUED);
   assert.deepEqual(row.events, [
-    { kind: "text", text: "Half an ans" },
-    { kind: "status", label: RESTART_LABEL, detail: RESTART_DETAIL },
+    { kind: "text", text: "Half an ans" + CONTINUED },
+    { kind: "status", code: "run_recovering", label: "Continuing…" },
   ]);
 });
 
-test("a run in flight when the API process dies is saved canceled at the next boot, with what it produced so far", async (t) => {
+test("a run in flight when the API process dies continues at the next serving boot with its saved checkpoint", async (t) => {
   const stream = controllableStream();
   const daemon = fakeDaemon({ events: () => stream.response, runStatus: 404 });
   const deps = createRouteDeps();
@@ -245,12 +247,13 @@ test("a run in flight when the API process dies is saved canceled at the next bo
   // The next serving boot over the same database: the daemon confirms the old run is gone.
   const reboot = harness(fakeDaemon({ events: () => streamOf(), runStatus: 404 }), deps);
   const rebooted = await bootAuthenticated(reboot.app, t);
+  await reboot.finalizer.idle();
   const row = await assistantRow(rebooted.baseUrl, rebooted.cookie, conversationId);
-  assert.equal(row.runStatus, "canceled");
-  assert.equal(row.content, "Still writ");
+  assert.equal(row.runStatus, "succeeded");
+  assert.equal(row.content, "Still writ" + CONTINUED);
   assert.deepEqual(row.events, [
-    { kind: "text", text: "Still writ" },
-    { kind: "status", label: RESTART_LABEL, detail: RESTART_DETAIL },
+    { kind: "text", text: "Still writ" + CONTINUED },
+    { kind: "status", code: "run_recovering", label: "Continuing…" },
   ]);
 
   stream.close();
@@ -322,10 +325,17 @@ test("a run that goes quiet right after a frame the interval skipped still gets 
     await finalizer.idle();
   }
   // Stream termination is a separate transition; both checkpoints above were observed in-flight.
-  assert.equal((await assistantRow(baseUrl, cookie, conversationId)).content, "Still writ");
+  // The daemon's 404 now continues the same message with the reviewed preserved-segment divider.
+  const completed = await assistantRow(baseUrl, cookie, conversationId);
+  assert.equal(completed.runStatus, "succeeded");
+  assert.equal(completed.content, "Still writ" + CONTINUED);
+  assert.deepEqual(completed.events, [
+    { kind: "text", text: "Still writ" + CONTINUED },
+    { kind: "status", code: "run_recovering", label: "Continuing…" },
+  ]);
 });
 
-test("when the browser saves the finished turn first, the finalizer does not overwrite it", async (t) => {
+test("a browser terminal snapshot cannot beat the authoritative finalizer", async (t) => {
   const stream = controllableStream();
   const daemon = fakeDaemon({ events: () => stream.response });
   const { app, finalizer } = harness(daemon);
@@ -352,7 +362,7 @@ test("when the browser saves the finished turn first, the finalizer does not ove
 
   const row = await assistantRow(baseUrl, cookie, conversationId);
   assert.equal(row.runStatus, "succeeded");
-  assert.equal(row.content, "From the tab");
+  assert.equal(row.content, "From the server");
 });
 
 test("when the finalizer saves first, a later browser save for the same run is ignored", async (t) => {
@@ -385,84 +395,18 @@ test("when the finalizer saves first, a later browser save for the same run is i
   assert.equal(finalizer.activeCount(), 0, "a settled run must not be watched again");
 });
 
-test("a retry (same message, new run id) is a new turn and is not blocked by the earlier terminal row", async (t) => {
-  let call = 0;
-  const daemon = fakeDaemon({
-    events: () => {
-      call += 1;
-      return call === 1
-        ? streamOf(frame("end", { code: 1, signal: null, status: "failed", resumable: false }))
-        : streamOf(text("Second try worked", "run-2"), frame("end", { code: 0, status: "succeeded" }, "run-2"));
-    },
-  });
-  const { app, finalizer } = harness(daemon);
+test("a browser stub with another attempt id cannot reopen an already-terminal message", async (t) => {
+  const { app, finalizer } = harness(fakeDaemon({ events: () => streamOf(text("Saved answer"), frame("end", { status: "succeeded", code: 0 })) }));
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const conversationId = await startConversation(baseUrl, cookie);
-
-  await putStub(baseUrl, cookie, conversationId, "run-1");
-  await finalizer.idle();
-  assert.equal((await assistantRow(baseUrl, cookie, conversationId)).runStatus, "failed");
-
-  await putStub(baseUrl, cookie, conversationId, "run-2");
-  await finalizer.idle();
+  await putStub(baseUrl, cookie, conversationId, "run-1"); await finalizer.idle();
+  await putStub(baseUrl, cookie, conversationId, "run-2"); await finalizer.idle();
   const row = await assistantRow(baseUrl, cookie, conversationId);
-  assert.equal(row.runId, "run-2");
-  assert.equal(row.runStatus, "succeeded");
-  assert.equal(row.content, "Second try worked");
+  assert.equal(row.runId, "run-1"); assert.equal(row.runStatus, "succeeded"); assert.equal(row.content, "Saved answer");
 });
 
-test("on boot, turns stuck at running or queued are marked canceled with the plain message and kept", async (t) => {
-  const deps = createRouteDeps();
-  // Seeded under some other admin: the repair spans every owner.
-  const store = deps.chatHistory({ kind: "user", workspaceId: deps.workspaceId, userId: "another-admin" });
-  await store.create({ id: "c-old" });
-  await store.appendMessage({ conversationId: "c-old", message: { id: "u1", role: "user", content: "hi" } });
-  await store.appendMessage({
-    conversationId: "c-old",
-    message: {
-      id: "a1",
-      role: "assistant",
-      content: "Partial",
-      events: [{ kind: "text", text: "Partial" }],
-      runId: "dead-run",
-      runStatus: "running",
-    },
-  });
-  await store.appendMessage({ conversationId: "c-old", message: { id: "a2", role: "assistant", content: "", runId: "byok:x", runStatus: "queued" } });
-  await store.appendMessage({
-    conversationId: "c-old",
-    message: {
-      id: "a3",
-      role: "assistant",
-      content: "Done",
-      events: [{ kind: "text", text: "Done" }],
-      runId: "fine-run",
-      runStatus: "succeeded",
-    },
-  });
-
-  // This harness opts into serving-boot recovery; export route registration does not.
-  const { app, finalizer } = harness(fakeDaemon({ events: () => streamOf(), runStatus: 404 }), deps);
-  const { baseUrl, cookie } = await bootAuthenticated(app, t);
-  // Any chat route answers only once the async repair has finished.
-  assert.equal((await api(baseUrl, cookie, "")).status, 200);
-
-  const messages = (await store.messages({ conversationId: "c-old" })) as SavedMessage[];
-  const byId = new Map(messages.map((m) => [m.id, m]));
-  assert.equal(messages.length, 4, "no row may be deleted");
-
-  assert.equal(byId.get("a1")?.runStatus, "canceled");
-  assert.equal(byId.get("a1")?.content, "Partial");
-  assert.deepEqual(byId.get("a1")?.events, [
-    { kind: "text", text: "Partial" },
-    { kind: "status", label: RESTART_LABEL, detail: RESTART_DETAIL },
-  ]);
-  assert.equal(byId.get("a2")?.runStatus, "canceled");
-  assert.deepEqual(byId.get("a2")?.events, [{ kind: "status", label: RESTART_LABEL, detail: RESTART_DETAIL }]);
-  assert.equal(byId.get("a3")?.runStatus, "succeeded");
-  assert.deepEqual(byId.get("a3")?.events, [{ kind: "text", text: "Done" }]);
-  assert.equal(finalizer.activeCount(), 0);
-});
+// Cross-owner serving discovery, terminal absorption and exclusions now share recover().
+// Their DI and dialect regressions live in recover.unit.test.ts and durable-run-store.dialects.test.ts.
 
 test("BYOK and AG-UI run ids are not watched: the daemon does not hold them", async (t) => {
   const daemon = fakeDaemon({ events: () => streamOf() });
@@ -505,28 +449,8 @@ test("a dropped stream reconnects from event zero and saves every event exactly 
   assert.deepEqual(row.events, [{ kind: "text", text: "First second" }]);
 });
 
-test("reconnect exhaustion keeps a live run watched until the daemon proves it gone", { timeout: 5000 }, async (t) => {
-  const daemon = fakeDaemon({ events: () => streamOf(text("Partial")), runStatus: 200 });
-  let probes = 0;
-  // A live daemon outlasts the reconnect budget, then disappears. The finalizer must still own
-  // the row at that point; returning abandoned while live would strand it after the daemon dies.
-  daemon.runStatus = async () => ++probes <= 3 ? 200 : 404;
-  const { app, finalizer } = harness(daemon);
-  const { baseUrl, cookie } = await bootAuthenticated(app, t);
-  const conversationId = await startConversation(baseUrl, cookie);
-  await putStub(baseUrl, cookie, conversationId);
-  await finalizer.idle();
-  assert.equal(daemon.opened, 4, "the live run remains watched beyond two reconnects");
-  assert.equal(finalizer.activeCount(), 0);
-  const row = await assistantRow(baseUrl, cookie, conversationId);
-  assert.equal(row.runStatus, "canceled", "the watch must observe the later unknown-run proof");
-  assert.equal(row.content, "Partial");
-  assert.deepEqual(row.events, [{ kind: "text", text: "Partial" }, {
-    kind: "status",
-    label: "The assistant restarted while this answer was running, so it stopped.",
-    detail: "Anything it wrote before the restart is kept above. Send your message again to retry.",
-  }]);
-});
+// Live proof still renews watches; dead proof continues rather than using the former cancellation
+// fallback. assistant-chat-recovery-bounds.unit.test.ts exercises that transition with injected time.
 
 test("the default daemon client forwards token, principal and encoded run path through reconnect to a saved answer", async (t) => {
   const deps = createRouteDeps();
@@ -562,6 +486,7 @@ test("the default daemon client forwards token, principal and encoded run path t
     assert.equal(row.runStatus, "succeeded");
     assert.equal(row.content, "First answer");
     assert.deepEqual(row.events, [{ kind: "text", text: "First answer" }]);
+    // The follow loop supplies its fresh live proof to recovery before renewing this watch.
     assert.deepEqual(requests, ["/events", "", "/events"].map((suffix) => ({ path: `/api/runs/${encodeURIComponent(runId)}${suffix}`, token: "Bearer finalizer-test-token", principal: user.id })));
   } finally {
     if (previousUrl === undefined) delete process.env.JINI_AGENT_DAEMON_URL; else process.env.JINI_AGENT_DAEMON_URL = previousUrl;

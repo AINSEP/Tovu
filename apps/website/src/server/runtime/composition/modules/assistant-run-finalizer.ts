@@ -7,37 +7,32 @@
  * the answer the run produced existed only in the daemon's memory, and was gone at its next restart.
  *
  * How:
- * When the browser saves the in-flight stub of a daemon run (`assistant-chats.ts`'s PUT route — the
- * one moment the server learns which row a run belongs to), this module opens the run's own event
- * stream on the daemon, folds it through the SAME translation the browser uses
- * (`contracts/core/assistant-run-events.ts`), and settles the row when the run ends:
+ * Server acceptance writes the logical assistant message before dispatch. This module follows
+ * each daemon attempt and checkpoints its projection, independently of browser lifetime. The
+ * original browser-created-stub gap is closed: even a tab lost before receiving a run id has a
+ * durable binding. Legacy stub PUTs still start watches during the transition.
  *
- * - `end` frame: the daemon's own classification (`succeeded`/`failed`/`canceled`) with the full
- *   answer and events.
- * - the daemon answers 404 for the run (it restarted and forgot it): `canceled`, keeping every event
- *   received so far, plus the plain restart notice.
- * - reconnects or the recovery window are exhausted without fresh live proof: `canceled` with the
- *   same notice. Always probe once more before this policy applies; a live answer renews watching.
- * - this API process exits or is killed: no
- *   write can finish then (storage is async, an `exit` listener cannot await), so the finalizer
- *   checkpoints the answer as it streams (`ChatRunLedger.checkpoint`, at most once per
- *   `checkpointIntervalMs`, with a trailing checkpoint so a run that goes quiet still has its last
- *   frames saved within one interval). The next serving boot probes the daemon: surviving runs
- *   are reattached from event zero; forgotten runs and bounded unresolved watches are canceled
- *   with the partial answer kept. A fresh live response prevents cancellation and renews recovery.
- *   A detached daemon can survive failed teardown, so parent exit alone is not evidence of death.
+ * A dropped/stalled stream is not proof of process death. The previous/current daemon probe,
+ * bounded follow/readWithinBound loop and one-second trailing checkpoints remain here as the
+ * live/uncertain arms of ONE recover() coordinator. A verified missing or failed attempt advances
+ * run_id by CAS and continues the same message. Exhaustion preserves saved output and finalizes
+ * once; it never asks an operator to resend. Export apps still must not initiate serving recovery.
+ * A detached daemon can survive failed teardown, so parent exit alone remains insufficient proof.
  *
  * Every write goes through `ChatRunLedger.settle`, which only changes a row that still belongs to
- * this run and is not yet terminal. So when a browser IS attached and saves the same turn first, the
- * finalizer's write is a no-op, and a browser save that arrives after the finalizer's is ignored by
- * the store (`tenant-scope.ts`). First terminal write wins; both are translations of the same stream.
+ * this run and is not yet terminal. A browser receives the saved projection and cannot
+ * terminalize a daemon run through the store (`tenant-scope.ts`). A stale attempt cannot checkpoint or settle after its CAS fence.
  *
- * Why the API and not the daemon: the API already owns every `chat.db` write and is the process the
- * browser's stub reaches, so the row, the principal and the run id meet here without a protocol
- * change. The daemon reads `chat.db` too, but writing from two processes would add a second writer
- * for no gain — and the daemon cannot write "failed" for its own death.
+ * Why finalization stays in the API: the accepted row, principal and attempt meet here, and a
+ * daemon cannot finalize its own death. The daemon saves early session locators and mutation
+ * barriers through the same guarded persistence ports; projection recovery remains API-owned.
  */
 import type { ChatMessage } from "@jini-ai/chat/core";
+import { randomUUID } from "node:crypto";
+import { createDurableRecovery } from "#src/assistant/durable-runs/recover";
+import type { DurableRecovery, DurableRun, RecoveryTrigger } from "#src/assistant/durable-runs/ports";
+import { verifyAttemptChildDead } from "#src/server/inbound/assistant/attempt-process-identity";
+import { agentCarriesOwnMemory } from "#src/server/inbound/assistant/agent-session-resume";
 import { isProcessAlive } from "@jini-ai/sidecar";
 import type { SupervisorScheduler } from "@jini-ai/sidecar/supervisor";
 import { createNodeSupervisorScheduler } from "@jini-ai/sidecar/supervisor/node";
@@ -48,7 +43,6 @@ import {
   readSseFrames,
   runContentFromEvents,
   runEventsForSave,
-  runInterruptedNotice,
   translateRunFrame,
 } from "#src/contracts/core/assistant-run-events";
 import { isTerminalRunStatus, type AgentEvent } from "@jini-ai/chat/core";
@@ -69,6 +63,8 @@ export interface RunDaemonClient {
   openEvents(required: RunDaemonRequest, optional?: { signal?: AbortSignal }): Promise<Response>;
   /** `GET /api/runs/:id`'s HTTP status, or `null` when the daemon could not be reached at all. */
   runStatus(required: RunDaemonRequest, optional?: { signal?: AbortSignal }): Promise<number | null>;
+  launch?(required: { run: DurableRun; request: { contextRef: string; agentId?: string } }, optional: {}): Promise<void>;
+  cancel?(required: RunDaemonRequest, optional: {}): Promise<void>;
 }
 
 export interface AssistantRunFinalizerOptions {
@@ -97,16 +93,19 @@ export interface AssistantRunFinalizerOptions {
    * Default: the no-op port.
    */
   readonly observability?: ObservabilityPort;
+  readonly verifyChildDead?: (required: { pid: number; startedAt: string }, optional: {}) => Promise<boolean>;
+  readonly supportsNativeResume?: (required: { agentId: string }, optional: {}) => boolean;
 }
 
 export interface AssistantRunFinalizer {
+  recover: DurableRecovery["recover"];
   /** Serving boot only: adopt persisted runs and resolve interruptions/uncertainty within a bound. */
   reconcileInterrupted(required?: { now?: number }, optional?: {}): Promise<number>;
   /**
    * Starts watching `message`'s run, if it is an in-flight daemon run not already watched. A no-op for
    * a user turn, a terminal turn, a turn with no run id, or a BYOK/AG-UI run id.
    */
-  watch(input: { principalId: string; conversationId: string; message: ChatMessage }, optional?: { daemon?: RunDaemonClient }): void;
+  watch(input: { principalId: string; conversationId: string; message: ChatMessage }, optional?: { daemon?: RunDaemonClient; attemptBase?: AgentEvent[] }): void;
   /** Resolves when every watch started so far has settled or failed to persist. For tests. */
   idle(): Promise<void>;
   /** How many runs are being watched right now. */
@@ -164,21 +163,38 @@ export function createHttpRunDaemonClient(
     }
   }
   return {
+    async launch({ run, request }, _options) {
+      const response = await send(`${(optional.currentUrl ?? getAgentDaemonUrl)()}/api/runs`, {
+        method: "POST", headers: { ...daemonHeaders(run.principalId!), "Content-Type": "application/json" },
+        body: JSON.stringify({ ...request, runId: run.runId, idempotencyKey: run.runId }), signal: AbortSignal.timeout(10_000),
+      });
+      if (!response.ok) throw new Error(`continuation rejected (${response.status})`);
+      await response.body?.cancel();
+    },
+    async cancel(required, _options) {
+      const url = replayOrigins.get(replayKey(required, {})) ?? await origin();
+      const response = await send(`${url}/api/runs/${encodeURIComponent(required.runId)}/cancel`, {
+        method: "POST", headers: { ...daemonHeaders(required.principalId), "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: "recovery-fence" }), signal: AbortSignal.timeout(5_000),
+      });
+      await response.body?.cancel();
+    },
     openEvents: async (required, { signal } = {}) =>
       send(`${replayOrigins.get(replayKey(required, {})) ?? await origin()}/api/runs/${encodeURIComponent(required.runId)}/events`, { headers: daemonHeaders(required.principalId), signal }),
     async runStatus(required, requestOptions = {}) {
       try {
         const url = await origin();
         const status = await statusAt({ ...required, url }, requestOptions);
-        if (status !== null) {
+        if (status !== null && status !== 404) {
           replayOrigins.delete(replayKey(required, {}));
           return status;
         }
         const current = (optional.currentUrl ?? getAgentDaemonUrl)();
-        if (url === current || requestOptions.signal?.aborted) return null;
-        // PID existence can mean PID reuse. Once the prior endpoint is unreachable, the current
-        // daemon's 404 can resolve the run. Never let it override a response from the prior daemon,
-        // and never fall through on a registry read error (the old address is then unknown).
+        if (url === current || requestOptions.signal?.aborted) return status;
+        // PID existence can mean PID reuse. A prior endpoint that cannot find this id may also
+        // be a surviving daemon predating a NEW accepted attempt on the current port. Probe both
+        // before declaring death; a live prior response always wins. A registry read error still
+        // fails closed because the owning address is then unknown.
         const currentStatus = await statusAt({ ...required, url: current }, requestOptions);
         if (currentStatus === 200) replayOrigins.set(replayKey(required, {}), current);
         else replayOrigins.delete(replayKey(required, {}));
@@ -199,6 +215,7 @@ interface Watch {
   readonly conversationId: string;
   readonly messageId: string;
   readonly runId: string;
+  readonly attemptBase: AgentEvent[];
   events: AgentEvent[];
   /** Keep the last complete checkpoint while a reconnect is still replaying an earlier prefix. */
   retainedEvents: AgentEvent[];
@@ -214,6 +231,17 @@ interface Watch {
   trailing?: ReturnType<typeof setTimeout>;
 }
 
+function recoverySettings({ options }: { options: AssistantRunFinalizerOptions }, _optional = {}) {
+  return { reconnectDelayMs: options.reconnectDelayMs ?? 2_000, maxReconnects: Math.max(0, options.maxReconnects ?? 30),
+    resolutionTimeoutMs: options.resolutionTimeoutMs ?? 120_000, statusTimeoutMs: options.statusTimeoutMs ?? 5_000,
+    checkpointIntervalMs: options.checkpointIntervalMs ?? 1_000 };
+}
+
+function watchable({ message }: { message: ChatMessage }, _optional = {}): boolean {
+  if (message.role !== "assistant" || !message.runId || !isDaemonRunId(message.runId)) return false;
+  return message.runStatus !== undefined && !isTerminalRunStatus({ status: message.runStatus });
+}
+
 type StreamResult = { kind: "ended"; status: RunSettlement["status"] } | { kind: "gone" } | { kind: "dropped" } | { kind: "unresolved" };
 
 /**
@@ -224,13 +252,33 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
   const observability = options.observability ?? createNoopObservabilityPort({});
   const daemon = options.daemon ?? createHttpRunDaemonClient({ observability });
   const now = options.now ?? Date.now;
-  const reconnectDelayMs = options.reconnectDelayMs ?? 2_000;
-  const maxReconnects = Math.max(0, options.maxReconnects ?? 30);
-  const resolutionTimeoutMs = options.resolutionTimeoutMs ?? 120_000;
-  const statusTimeoutMs = options.statusTimeoutMs ?? 5_000;
+  const { reconnectDelayMs, maxReconnects, resolutionTimeoutMs, statusTimeoutMs, checkpointIntervalMs } = recoverySettings({ options }, {});
   const scheduler = options.scheduler ?? createNodeSupervisorScheduler({});
-  const checkpointIntervalMs = options.checkpointIntervalMs ?? 1_000;
   const active = new Map<string, { watch: Watch; done: Promise<void> }>();
+  const recoveryStore = options.ledger.durable;
+  const newAttempts = new Set<string>();
+  const recovery = recoveryStore ? createDurableRecovery({
+    store: recoveryStore, now, mintRunId: randomUUID,
+    async probe(run, _options) {
+      const status = await probe({ runId: run.runId, principalId: run.principalId! }, { client: newAttempts.has(run.runId) ? daemon : options.recoveryDaemon ?? daemon });
+      if (status === 404) return "dead";
+      return status === 200 ? "live" : "uncertain";
+    },
+    attach(run, _options) { finalizer.watch({ principalId: run.principalId!, conversationId: run.conversationId, message: run.message }, {
+      attemptBase: [...run.attemptBase], daemon: newAttempts.has(run.runId) ? daemon : options.recoveryDaemon ?? daemon,
+    }); },
+    async launch(required, optional) {
+      if (!daemon.launch) throw new Error("daemon continuation port is unavailable");
+      newAttempts.add(required.run.runId);
+      await daemon.launch(required, optional);
+    },
+    cancelAttempt: async (run, optional) => (newAttempts.has(run.runId) ? daemon : options.recoveryDaemon ?? daemon).cancel?.({ runId: run.runId, principalId: run.principalId! }, optional),
+    // No process identity is guessed from daemon PID existence. Until the executor provides a
+    // verified child identity, reconstruction is the safe universal continuation path.
+    verifyChildDead: options.verifyChildDead ?? ((required, _options) => verifyAttemptChildDead(required, {})),
+    supportsNativeResume: options.supportsNativeResume ?? (({ agentId }, _options) => agentCarriesOwnMemory(agentId)),
+    settle: (required, _options) => options.ledger.settle(required),
+  }, {}) : undefined;
 
   async function withinDeadline<T>(
     { work, timeoutMs }: { work: Promise<T>; timeoutMs: number },
@@ -277,11 +325,23 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
     });
   }
 
-  function settleInterrupted(watch: Watch): Promise<void> {
-    // A stalled replay can contain less than the saved checkpoint. Cancellation keeps the most
-    // complete answer, just as checkpoints reject a shorter replay prefix.
+  async function recoverWatch(watch: Watch, trigger: RecoveryTrigger): Promise<void> {
     const events = interruptionEvents(watch);
-    return settle(watch, "canceled", [...events, runInterruptedNotice()]);
+    await options.ledger.checkpoint({ ...watch, content: runContentFromEvents(events), events: runEventsForSave(events) });
+    watch.terminal = true;
+    watch.abortStream.abort();
+    clearTimeout(watch.trailing);
+    if (!recovery) {
+      // Only a fresh status 404 selects "stream". Reconnect/deadline exhaustion is uncertain;
+      // without durable recovery's budget and session quarantine, retain this run's saved row.
+      if (trigger !== "stream") return;
+      await settle(watch, "canceled", [...events, { kind: "status", label: "Stopped. Saved work is above." }]);
+      return;
+    }
+    // A launch can still be committing after durable acceptance. Space repeated missing-run
+    // probes so its short grace window cannot turn into a hot loop of adopted watches.
+    await delay({ ms: reconnectDelayMs }, {});
+    await recovery.recover({ messageId: watch.messageId, expectedRunId: watch.runId, trigger }, {});
   }
 
   function interruptionEvents(watch: Watch): AgentEvent[] {
@@ -354,22 +414,36 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
     if (response.status === 404) return { kind: "gone" };
     if (!response.ok || !response.body) return { kind: "dropped" };
     watch.retainedEvents = [...interruptionEvents(watch)];
-    watch.events = [];
+    watch.events = [...watch.attemptBase];
     watch.failed = false;
     // Cancel the reader as well as HTTP when a bounded resolution settles the row. Fakes may
     // ignore the request signal; late frames must not change a settled watch's checkpoint.
     for await (const frame of readSseFrames(response.body.pipeThrough(new TransformStream(), { signal }))) {
       if (signal.aborted) return { kind: "dropped" };
-      const outcome = translateRunFrame(frame.event, frame.data);
-      watch.events.push(...outcome.events);
-      if (outcome.error) watch.failed = true;
-      if (outcome.terminal) {
-        watch.terminal = true;
-        return { kind: "ended", status: watch.failed && outcome.terminal === "succeeded" ? "failed" : outcome.terminal };
-      }
-      void checkpoint(watch);
+      const result = applyStreamFrame(watch, frame);
+      if (result) return result;
     }
     return { kind: "dropped" };
+  }
+
+  function applyStreamFrame(watch: Watch, frame: { event: string; data: string }): StreamResult | undefined {
+    const outcome = translateRunFrame(frame.event, frame.data);
+    watch.events.push(...outcome.events);
+    if (outcome.error) watch.failed = true;
+    if (outcome.terminal) {
+      watch.terminal = true;
+      return { kind: "ended", status: watch.failed && outcome.terminal === "succeeded" ? "failed" : outcome.terminal };
+    }
+    void checkpoint(watch);
+    return undefined;
+  }
+
+  async function retainLiveWatch(watch: Watch): Promise<boolean> {
+    if (!recovery) return true;
+    // follow/readWithinBound are recovery's live arm. Reuse their fresh proof for this attempt
+    // so reconnects and quiet approval waits neither probe twice nor spend the recovery budget.
+    const result = await recovery.recover({ messageId: watch.messageId, expectedRunId: watch.runId, trigger: "timeout" }, { liveRunId: watch.runId });
+    return result === "reattached" || result === "waiting";
   }
 
   /** A quiet stream (or a request stuck before headers) still needs bounded resolution. Keep the
@@ -389,6 +463,7 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
         // transcript spinning forever. The final fresh probe always gives a live daemon priority.
         return { kind: "unresolved" };
       }
+      if (!await retainLiveWatch(watch)) { watch.terminal = true; watch.abortStream.abort(); return { kind: "unresolved" }; }
       watch.resolutionDeadline = now() + resolutionTimeoutMs;
     }
   }
@@ -397,23 +472,18 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
   async function follow(watch: Watch): Promise<AgentRunStatus> {
     for (let attempt = 0; ; attempt += 1) {
       const result = await readWithinBound(watch);
-      if (result.kind === "ended") {
-        await settle(watch, result.status, watch.events);
-        return result.status;
-      }
-      if (result.kind === "unresolved") {
-        await settleInterrupted(watch);
-        return "interrupted";
-      }
+      const resolved = await resolveStreamOutcome(watch, result);
+      if (resolved) return resolved;
       // A dropped stream alone proves nothing: a daemon may be mid-respawn or waiting on a card.
       // Recheck its owning endpoint before either retrying or applying the bounded fallback. Even
       // an events 404 must not override a fresh live answer from the daemon that holds the slot.
       const status = await probe({ runId: watch.runId, principalId: watch.principalId }, { client: watch.daemon });
-      if (status === 404 || (status !== 200 && (result.kind === "gone" || attempt === maxReconnects || now() >= watch.resolutionDeadline))) {
-        await settleInterrupted(watch);
+      if (shouldRecover({ status, result, attempt, watch }, {})) {
+        await recoverWatch(watch, status === 404 ? "stream" : "timeout");
         return "interrupted";
       }
       if (status === 200) {
+        if (!await retainLiveWatch(watch)) { watch.terminal = true; watch.abortStream.abort(); return "interrupted"; }
         watch.resolutionDeadline = now() + resolutionTimeoutMs;
         if (attempt === maxReconnects) {
           // Keep monitoring a live run even after exhausting reconnects: its later death must
@@ -425,35 +495,64 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
     }
   }
 
+  function shouldRecover({ status, result, attempt, watch }: { status: number | null; result: StreamResult; attempt: number; watch: Watch }, _options = {}): boolean {
+    return status === 404 || (status !== 200 && (result.kind === "gone" || attempt === maxReconnects || now() >= watch.resolutionDeadline));
+  }
+
+  async function resolveStreamOutcome(watch: Watch, result: StreamResult): Promise<AgentRunStatus | undefined> {
+    if (result.kind === "ended") {
+      if (result.status === "failed" && recovery) await recoverWatch(watch, "attempt-failed");
+      else await settle(watch, result.status, interruptionEvents(watch));
+      return result.status;
+    }
+    if (result.kind === "unresolved") { await recoverWatch(watch, "timeout"); return "interrupted"; }
+    return undefined;
+  }
+
   const finalizer: AssistantRunFinalizer = {
+    recover: async (required, optional) => recovery ? recovery.recover(required, optional) : "gone",
     reconcileInterrupted(required = {}, _optional = {}) {
-      return options.ledger.reconcileInterrupted(required, {
-        recover: async ({ principalId, conversationId, message }) => {
-          if (!message.runId || !isDaemonRunId(message.runId) || !principalId) return false;
-          // A retained terminal daemon record is replayable too: the API may have died between
-          // the run's end and its durable save. Inconclusive probes get a bounded adopted watch;
-          // the boot probe itself is bounded so stalled discovery cannot block every chat route.
-          const recoveryDaemon = options.recoveryDaemon ?? daemon;
-          if (await probe({ runId: message.runId, principalId }, { client: recoveryDaemon }) === 404) return false;
-          finalizer.watch({ principalId, conversationId, message }, { daemon: recoveryDaemon });
-          return true;
+      return options.ledger.reconcileInterrupted({ now: required.now ?? now() }, {
+        recover: async ({ message }) => {
+          if (!message.runId) return false;
+          if (recovery) {
+            const result = await recovery.recover({ messageId: message.id, trigger: "boot" }, {});
+            return result !== "gone";
+          }
+          return false;
         },
       });
     },
     watch({ principalId, conversationId, message }, optional = {}) {
       const runId = message.runId;
-      if (message.role !== "assistant" || !runId || !isDaemonRunId(runId)) return;
-      if (message.runStatus === undefined || isTerminalRunStatus({ status: message.runStatus })) return;
-      if (active.has(runId)) return;
+      if (!watchable({ message }, {}) || !runId) return;
+      if (active.has(runId) && !active.get(runId)!.watch.terminal) return;
 
-      const watch: Watch = {
-        daemon: optional.daemon ?? daemon,
+      const watch = makeWatch({ principalId, conversationId, message, runId,
+        daemon: optional.daemon ?? daemon, attemptBase: optional.attemptBase ?? [], now: now(), resolutionTimeoutMs,
+      }, {});
+      startWatch(watch);
+    },
+
+    async idle() {
+      while (active.size > 0) await Promise.all([...active.values()].map((entry) => entry.done));
+    },
+
+    activeCount: () => active.size,
+  };
+
+  function makeWatch({ principalId, conversationId, message, runId, daemon, attemptBase, now, resolutionTimeoutMs }: {
+    principalId: string; conversationId: string; message: ChatMessage; runId: string; daemon: RunDaemonClient; attemptBase: AgentEvent[]; now: number; resolutionTimeoutMs: number;
+  }, _options = {}): Watch {
+    return {
+        daemon,
         abortStream: new AbortController(),
-        resolutionDeadline: now() + resolutionTimeoutMs,
+        resolutionDeadline: now + resolutionTimeoutMs,
         principalId,
         conversationId,
         messageId: message.id,
         runId,
+        attemptBase,
         events: [...(message.events ?? [])],
         retainedEvents: [...(message.events ?? [])],
         failed: false,
@@ -461,7 +560,11 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
         checkpointedAt: Number.NEGATIVE_INFINITY,
         checkpointPending: false,
         terminal: false,
-      };
+    };
+  }
+
+  function startWatch(watch: Watch) {
+      const { runId, conversationId } = watch;
       const tracker = observability.trackAgentRun({ runId }, { conversationId });
       // Inside the run's scope, so the ledger writes the loop makes are recorded under the run.
       const done = tracker
@@ -475,16 +578,32 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
         .finally(() => {
           watch.abortStream.abort();
           clearTimeout(watch.trailing);
-          active.delete(runId);
+          newAttempts.delete(runId);
+          if (active.get(runId)?.watch === watch) active.delete(runId);
         });
       active.set(runId, { watch, done });
-    },
+  }
+  return finalizer;
+}
 
-    async idle() {
-      while (active.size > 0) await Promise.all([...active.values()].map((entry) => entry.done));
-    },
-
-    activeCount: () => active.size,
-  };
+// Chat routes and the daemon proxy meet on the same ledger instance. Sharing this coordinator
+// avoids a browser-triggered recovery creating an independent boot/finalization engine.
+type SharedFinalizer = {
+  readonly finalizer: AssistantRunFinalizer;
+  readonly options: Omit<AssistantRunFinalizerOptions, "recoveryDaemon"> & { recoveryDaemon?: RunDaemonClient };
+};
+const sharedFinalizers = new WeakMap<ChatRunLedger, SharedFinalizer>();
+export function assistantRunFinalizerFor(required: AssistantRunFinalizerOptions, _optional = {}): AssistantRunFinalizer {
+  const existing = sharedFinalizers.get(required.ledger);
+  if (existing) {
+    // An export app can construct the route module before serving composition opts into boot
+    // recovery. Install its prior-daemon port on the same coordinator rather than freezing the
+    // earlier export defaults or creating a second recovery engine.
+    if (required.recoveryDaemon) existing.options.recoveryDaemon = required.recoveryDaemon;
+    return existing.finalizer;
+  }
+  const options = { ...required };
+  const finalizer = createAssistantRunFinalizer(options, {});
+  sharedFinalizers.set(required.ledger, { finalizer, options });
   return finalizer;
 }

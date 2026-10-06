@@ -5,18 +5,17 @@
  *
  * ## The gap this closes
  *
- * `media_promote_chat_attachment` takes an `attachmentRef`, but the model only ever learns a ref for
- * an attachment claimed IN THE SAME RUN — `@jini-ai/daemon`'s `image-prompt-delivery.ts` narrates an
- * already-claimed attachment's resolved path into that run's own prompt text, and nothing narrates
- * anything for an attachment left unclaimed from an earlier turn. A file dropped into chat and never
- * referenced again has no identifier the model can act on at all: not the composer's `attachment:
- * <uuid>` id (that never reaches the model — only the browser's own client state holds it), not a
- * path (nothing narrated one). This tool is that missing identifier source.
+ * `media_promote_chat_attachment` takes an attachmentRef. Discovery originally supplied missing
+ * refs from earlier turns by listing all pending uploads for an owner. That exposed unrelated
+ * conversations during the 2026-10-06 live test. Discovery now supplies refs only for this accepted
+ * message; actual image delivery is independent and uses byte-bearing content at run start.
  *
  * ## Scoping — the actual security decision here
  *
- * `AttachmentStore.listPendingForOwner` (`@jini-ai/http-kit`) only returns records carrying an
- * `ownerId` that matches the id passed in, and only ones no run has claimed yet. This tool always
+ * `AttachmentStore.listPendingForOwner` (`@jini-ai/daemon/http`) only returns records carrying an
+ * `ownerId` that matches the id passed in. With this run's id it includes unclaimed records and
+ * records claimed by this run: startup claims all message attachments before tools execute, so
+ * unclaimed-only discovery would hide images, videos and generic files alike. This tool always
  * passes `ctx.principal.id` — the SAME Tovu admin-session identity `agent-daemon-server.ts` decodes
  * from a run's `contextRef` (`parseRunStartContextRef`'s `principalId`, itself
  * `getAuthedPrincipal(res).id` at the proxy) and records in `principalByRunId`. That identity is
@@ -34,12 +33,9 @@
  * `promote-chat-attachment.ts` gives: one `AttachmentStore` per site daemon, keyed by
  * `TOVU_WORKSPACE`.
  *
- * What this does NOT scope by: conversation. `batchId` (one per composer turn, not per conversation
- * — see `create-daemon-attachment-uploader.ts`) carries no stable per-conversation identity a server
- * could check, so two conversations run by the SAME admin can each see the other's still-pending
- * attachments through this tool. That is an acceptable widening of the pre-existing capability-bearer
- * model, not a new one this tool introduces: an admin could already hand `media_promote_chat_attachment`
- * any ref they had seen in either conversation.
+ * Discovery is further restricted to the refs in this run's accepted message. The host resolves
+ * that binding from the daemon's contextRef, never from tool arguments. An absent binding means
+ * no results: neither another conversation nor an earlier message may donate pending files.
  */
 import type { ToolExecutionContext, ToolHandler, ToolRegistration } from "@jini-ai/core";
 import type { PendingAttachmentSummary } from "@jini-ai/daemon/http";
@@ -47,7 +43,9 @@ import type { PendingAttachmentSummary } from "@jini-ai/daemon/http";
 export const CHAT_LIST_PENDING_ATTACHMENTS_TOOL_ID = "chat_list_pending_attachments";
 
 /** The one `AttachmentStore` method this tool needs — narrowed so a test double never has to fake the rest. */
-export type PendingChatAttachmentLookup = { listPendingForOwner: (required: { ownerId: string }) => Promise<PendingAttachmentSummary[]> };
+export type PendingChatAttachmentLookup = {
+  listPendingForOwner: (required: { ownerId: string }, optional?: { runId?: string }) => Promise<PendingAttachmentSummary[]>;
+};
 
 /** No fields — this tool takes no input, matching the zero-argument schema convention used
  *  elsewhere in this codebase (`demo-image-tool.ts`, `frontend-control-capabilities.ts`). */
@@ -79,7 +77,8 @@ function toWireAttachment(attachment: PendingAttachmentSummary): Record<string, 
  */
 export function buildListPendingChatAttachmentsTool(deps: {
   readonly getStore: () => PendingChatAttachmentLookup | undefined;
-}): ToolRegistration {
+  readonly getMessageAttachmentRefs?: (required: { runId: string }, optional: Record<string, never>) => readonly string[] | Promise<readonly string[]>;
+}, _optional: Record<string, never> = {}): ToolRegistration {
   const handler: ToolHandler = async (ctx: ToolExecutionContext) => {
     const store = deps.getStore();
     if (!store) {
@@ -88,19 +87,18 @@ export function buildListPendingChatAttachmentsTool(deps: {
       // rather than asserted non-null.
       throw new Error("attachment store is not ready");
     }
-    const pending = await store.listPendingForOwner({ ownerId: ctx.principal.id });
-    return { attachments: pending.map(toWireAttachment) };
+    const pending = await store.listPendingForOwner({ ownerId: ctx.principal.id }, { runId: ctx.run.id });
+    const refs = new Set(await deps.getMessageAttachmentRefs?.({ runId: ctx.run.id }, {}) ?? []);
+    return { attachments: pending.filter(attachment => refs.has(attachment.ref)).map(toWireAttachment) };
   };
 
   return {
     descriptor: {
       id: CHAT_LIST_PENDING_ATTACHMENTS_TOOL_ID,
       description:
-        "Lists files the user attached in this chat that you have not yet been told about in this " +
-        "run — for example, something attached in an earlier turn and never referenced since. Each " +
-        "result's 'attachmentRef' can be passed straight to media_promote_chat_attachment. Only " +
-        "attachments the current user uploaded, and not yet claimed by any run, are returned; an " +
-        "empty list means there is nothing pending.",
+        "Lists files attached to this exact message, including files already claimed by this run. Each result's attachmentRef can be " +
+        "passed to media_promote_chat_attachment. Files from other conversations or messages are " +
+        "excluded; an empty list means this message has no pending attachments.",
       inputSchema: INPUT_SCHEMA,
       // `listPendingForOwner` only filters the store's in-memory records; it claims, prunes and
       // deletes nothing, so the read-only delegated-tool gateway may run this.

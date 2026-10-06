@@ -7,6 +7,7 @@ import { coercionJsonAsJson } from "./0003_coercion_json_as_json.js";
 import { dropUnusedDeploymentTables } from "./0004_drop_unused_deployment_tables.js";
 import { chatBaseline } from "./chat/0000_chat_baseline.js";
 import { sqliteChatTables } from "./chat/0001_sqlite_chat_tables.js";
+import { durableRunAttempts } from "./chat/0002_durable_run_attempts.js";
 import { mediaCreatedBy } from "./0005_media_createdby.js";
 import { submissionIpRetentionMigration } from "./0006_submission_ip_retention.js";
 import { publishBackstop } from "./0007_publish_backstop.js";
@@ -48,6 +49,7 @@ export const CONTENT_MIGRATIONS: readonly MigrationStep[] = [
 export const CHAT_MIGRATIONS: readonly MigrationStep[] = [
   chatBaseline(pinned("chat/0000_chat_baseline")),
   sqliteChatTables(pinned("chat/0001_sqlite_chat_tables")),
+  durableRunAttempts({ checksum: pinned("chat/0002_durable_run_attempts") }, {}),
 ];
 
 /** Brings a content database (any dialect) to head. See `runner.ts`. */
