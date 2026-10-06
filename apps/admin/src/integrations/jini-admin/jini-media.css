@@ -1204,6 +1204,40 @@
 :is(.jini-page, .jini-dialog) .jini-media-edit-modal-body { display: flex; flex-direction: column; }
 
 /* ============================================================
+   MEDIA PICKER — Jini's `MediaPicker` `<dialog class="jini-dialog jini-media-picker-dialog">`
+   (2026-10-05). Unstyled it drew the UA's 3px black square border, the library grid's 360px cards
+   one per row, and its Cancel/Close buttons under every card. Now: the confirm dialog's chrome
+   (thin border, rounded, shadow, dimmed backdrop), a column of title / search / scrolling grid /
+   footer so the title and Cancel never scroll away, and small cards several per row. Scoped to
+   this class only, so the edit dialog, lightbox and confirm dialog keep their own rules.
+   ============================================================ */
+.jini-media-picker-dialog {
+  border: 1px solid var(--border); border-radius: var(--r-lg); padding: var(--space-5) var(--space-6);
+  width: min(94vw, 52rem); max-width: none; max-height: 85vh; overflow: hidden;
+  background: var(--surface); color: var(--fg); box-shadow: var(--shadow-md);
+}
+.jini-media-picker-dialog[open] { display: flex; flex-direction: column; gap: var(--space-3); }
+.jini-media-picker-dialog::backdrop { background: oklch(0% 0 0 / 0.45); }
+.jini-media-picker-dialog > .jini-dialog-title { margin: 0; font-family: var(--font-display); font-size: var(--text-lg); font-weight: 700; color: var(--fg); }
+.jini-media-picker-dialog > label { display: flex; flex-direction: column; gap: 4px; }
+/* The only part that scrolls. `min-height: 0` lets the flex item shrink below its content. */
+.jini-media-picker-dialog .jini-media-grid {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 2px;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: var(--space-3);
+  align-content: start;
+}
+.jini-media-picker-dialog .jini-media-card-body { gap: var(--space-2); padding: var(--space-2); }
+.jini-media-picker-dialog .jini-media-card-title { font-size: var(--text-xs); }
+/* Every picker row is an active asset, so the status badge and size/date line add nothing here. */
+.jini-media-picker-dialog .jini-media-card-meta,
+.jini-media-picker-dialog .jini-media-card-size { display: none; }
+.jini-media-picker-dialog .jini-media-card-body > .jini-btn { width: 100%; padding: 0.3rem 0.5rem; font-size: var(--text-xs); }
+/* Footer: Cancel sits right-aligned under the grid. The kit's own Close button does exactly what
+   Cancel does, so it is hidden here rather than shown as a second identical button. */
+.jini-media-picker-dialog > .jini-btn:not(.jini-dialog-close) { align-self: flex-end; flex: none; }
+.jini-media-picker-dialog > .jini-dialog-close { display: none; }
+
+/* ============================================================
    LIGHTBOX — a single shared <dialog> instance for the whole grid, opened via `.media-card-
    expand`'s corner trigger above. See `MediaLightbox`'s own doc comment in `Media.tsx` for the
    shared-vs-per-card reasoning (mirrors `ConfirmDialog`'s own `pendingPurge`-driven single
