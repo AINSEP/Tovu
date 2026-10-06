@@ -15,6 +15,7 @@ import { createCustomCredential, type CustomCredentialWriteDeps } from "../../cu
 import type { SecretSealerPort } from "../../webhooks/index.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { resolveAgentPluginLayout } from "../../agent-plugins/layout.js";
 import { SiteBackupPlanStore } from "../plan-store.js";
 import type { SiteBackupSources } from "../sources.js";
 import { buildSiteBackupRegistrations, siteBackupAgentToolCatalog, type SiteBackupToolDeps } from "../tool-registrations.js";
@@ -129,7 +130,7 @@ function makeSite(t: TestContext): { parent: string; root: string; sources: Site
       siteDir: root,
       mediaUploadsDir: path.join(root, "uploads"),
       themesDir: path.join(root, "themes"),
-      agentPluginsDir: path.join(root, "agent-plugins"),
+      agentPlugins: resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: path.join(root, "agent-plugins") } }),
       skillsDir: path.join(root, "skills"),
       tovuVersion: "0.1.0",
     },

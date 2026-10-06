@@ -5,6 +5,7 @@ import path from "node:path";
 import test from "node:test";
 
 import type { DbOpsPort, RestoreCapability } from "#src/contracts/core/gated-mutations/ports";
+import { resolveAgentPluginLayout } from "../../agent-plugins/layout.js";
 import {
   buildSiteBackupManifest,
   captureDatabaseSnapshot,
@@ -53,12 +54,18 @@ function makeSite(): { root: string; sources: SiteBackupSources; cleanup: () => 
   write(path.join(root, "agent-plugins", "ws", "workspace-local", "packages", "superseded-2026-09-10", "d0", "plugin.json"), "{}");
   write(path.join(root, "agent-plugins", "ws", "workspace-local", "data", "higgsfield", "oauth.json"), "{\"token\":\"t\"}");
   write(path.join(root, "agent-plugins", "ws", "workspace-local", "staging", "tmp"), "t");
+  // Layout B: each installed plugin owns `<ws>/<pluginId>/{package/sha256,memory,data}`.
+  write(path.join(root, "agent-plugins", "ws", "workspace-local", "composio", "package", "sha256", "d2", "plugin.json"), "{}");
+  write(path.join(root, "agent-plugins", "ws", "workspace-local", "composio", "package", "sha256", "d2", "skills", "composio", "SKILL.md"), "# s");
+  write(path.join(root, "agent-plugins", "ws", "workspace-local", "composio", "memory", "learned", "facts.md"), "fact");
+  write(path.join(root, "agent-plugins", "ws", "workspace-local", "composio", "memory", "notes", "notes.md"), "note");
+  write(path.join(root, "agent-plugins", "ws", "workspace-local", "composio", "data", "oauth.json"), "{\"token\":\"t\"}");
   write(path.join(root, "skills", "ws", "workspace-local", "incident-response", "SKILL.md"), "# skill");
   const sources: SiteBackupSources = {
     siteDir: root,
     mediaUploadsDir: path.join(root, "uploads"),
     themesDir: path.join(root, "themes"),
-    agentPluginsDir: path.join(root, "agent-plugins"),
+    agentPlugins: resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: path.join(root, "agent-plugins") } }),
     skillsDir: path.join(root, "skills"),
     tovuVersion: "0.1.0",
   };
@@ -76,6 +83,10 @@ test("every scope switched on: exactly the scope subtrees, never the live databa
     assert.deepEqual(paths(result.files), [
       "agent-plugins/ws/workspace-local/activations.json",
       "agent-plugins/ws/workspace-local/bundled-digests.json",
+      "agent-plugins/ws/workspace-local/composio/memory/learned/facts.md",
+      "agent-plugins/ws/workspace-local/composio/memory/notes/notes.md",
+      "agent-plugins/ws/workspace-local/composio/package/sha256/d2/plugin.json",
+      "agent-plugins/ws/workspace-local/composio/package/sha256/d2/skills/composio/SKILL.md",
       "agent-plugins/ws/workspace-local/packages/sha256/d1/plugin.json",
       "settings/.site-meta.json",
       "settings/config.json",
@@ -87,6 +98,26 @@ test("every scope switched on: exactly the scope subtrees, never the live databa
     for (const file of result.files) {
       assert.doesNotMatch(file.path, /content\.db|chat\.db|journal|\.mcp\.|fs-custom-root|oauth|staging|superseded|chat-attachments|\.DS_Store|\.git\//);
     }
+  } finally {
+    site.cleanup();
+  }
+});
+
+test("plugins scope: each installed plugin's package and memory, found where the installer's own layout puts them; never its data/", async () => {
+  const site = makeSite();
+  try {
+    const result = await collectSiteBackupFiles({ sources: site.sources, include: { ...NONE, plugins: true } });
+    assert.deepEqual(paths(result.files), [
+      "agent-plugins/ws/workspace-local/activations.json",
+      "agent-plugins/ws/workspace-local/bundled-digests.json",
+      "agent-plugins/ws/workspace-local/composio/memory/learned/facts.md",
+      "agent-plugins/ws/workspace-local/composio/memory/notes/notes.md",
+      "agent-plugins/ws/workspace-local/composio/package/sha256/d2/plugin.json",
+      "agent-plugins/ws/workspace-local/composio/package/sha256/d2/skills/composio/SKILL.md",
+      "agent-plugins/ws/workspace-local/packages/sha256/d1/plugin.json",
+      "skills/ws/workspace-local/incident-response/SKILL.md",
+    ]);
+    assert.ok(result.files.every((f) => f.scope === "plugins"));
   } finally {
     site.cleanup();
   }
@@ -141,6 +172,28 @@ test("a symlink is never followed — it is skipped and reported, so a link to ~
       ["themes/static/demo/key", "uploads/ws/linked-dir"]
     );
     assert.ok(result.skipped.every((s) => /symbolic link/.test(s.reason)));
+  } finally {
+    site.cleanup();
+    rmSync(outside, { recursive: true, force: true });
+  }
+});
+
+test("plugins scope: a symlinked plugin folder or package store is reported and never followed", async () => {
+  const site = makeSite();
+  const outside = mkdtempSync(path.join(tmpdir(), "site-backup-outside-"));
+  try {
+    write(path.join(outside, "sha256", "d9", "plugin.json"), "{}");
+    const ws = path.join(site.root, "agent-plugins", "ws", "workspace-local");
+    mkdirSync(path.join(ws, "resend"));
+    symlinkSync(outside, path.join(ws, "resend", "package"));
+    symlinkSync(outside, path.join(ws, "linked-plugin"));
+    const result = await collectSiteBackupFiles({ sources: site.sources, include: { ...NONE, plugins: true } });
+    assert.ok(!paths(result.files).some((p) => p.includes("d9")));
+    const reason = "a symbolic link — never followed, so nothing outside the site can ride along";
+    assert.deepEqual([...result.skipped].sort((a, b) => (a.path < b.path ? -1 : 1)), [
+      { path: "agent-plugins/ws/workspace-local/linked-plugin", reason },
+      { path: "agent-plugins/ws/workspace-local/resend/package", reason },
+    ]);
   } finally {
     site.cleanup();
     rmSync(outside, { recursive: true, force: true });

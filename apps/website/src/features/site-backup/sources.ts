@@ -4,6 +4,7 @@ import path from "node:path";
 
 import type { DbOpsPort } from "#src/contracts/core/gated-mutations/ports";
 import { describeErrorForLog } from "../../contracts/core/model-facing-tool-errors.js";
+import type { AgentPluginLayout } from "../agent-plugins/layout.js";
 
 /**
  * @file What a site backup is made of, read from this machine: which files on disk each scope switch
@@ -25,7 +26,8 @@ import { describeErrorForLog } from "../../contracts/core/model-facing-tool-erro
  * - `ops/` (the database journal), `out/` (the rendered export, which `source_control_execute_commit`
  *   already pushes), `content.seed.db` and stray `restore-point-*.db` files.
  * - `.mcp.*.json` (MCP server env, can hold tokens) and `.fs-custom-root.json` (a local path).
- * - `agent-plugins/ws/<id>/data/` (plugin OAuth tokens), `staging/` and `packages/superseded-*`.
+ * - `agent-plugins/ws/<id>/<plugin>/data/` and the legacy `agent-plugins/ws/<id>/data/` (plugin OAuth
+ *   tokens), `staging/` and `packages/superseded-*`.
  * - `.DS_Store` and any `.git` segment.
  * - Symbolic links, never followed: a link to `~/.ssh` inside `themes/` must not ride along. Each
  *   one is reported in `skipped` so the human sees it was left out.
@@ -73,7 +75,10 @@ export interface SiteBackupSources {
    *  nothing silently. */
   readonly mediaUploadsDir: string | null;
   readonly themesDir: string;
-  readonly agentPluginsDir: string;
+  /** The installer's own layout (`features/agent-plugins/layout.ts`), never a re-derived path: every
+   *  plugin folder the backup reads comes from the same helpers `install.ts` writes through, so a
+   *  layout move cannot silently drop installed packages from a backup again. */
+  readonly agentPlugins: AgentPluginLayout;
   readonly skillsDir: string;
   readonly tovuVersion: string;
 }
@@ -181,33 +186,90 @@ async function walkTree(sink: WalkSink, input: { absDir: string; relDir: string;
 /** The files each installed-plugin workspace keeps that a restore needs. Everything else there is
  *  left out on purpose: `data/` holds plugin OAuth tokens, `staging/` is a half-finished install,
  *  and `packages/superseded-*` are replaced versions. */
-const PLUGIN_WORKSPACE_FILES = ["activations.json", "bundled-digests.json"] as const;
+const PLUGIN_WORKSPACE_FILES: ReadonlySet<string> = new Set(["activations.json", "bundled-digests.json"]);
+
+/** `agent-plugins/<path under the layout root>`, `/`-separated. */
+function agentPluginsRelPath(layout: AgentPluginLayout, absPath: string): string {
+  return ["agent-plugins", ...path.relative(layout.root, absPath).split(path.sep)].join("/");
+}
 
 /**
- * The plugins scope's `agent-plugins/` half: per workspace, {@link PLUGIN_WORKSPACE_FILES} plus the
- * content-addressed `packages/sha256/**` store, and nothing else.
+ * Walks `absDir` only when it, and every folder between `baseDir` and it, is a real directory: a
+ * symlinked `package/` or `memory/` is reported, never entered, and a missing one is nothing to
+ * back up.
  *
- * @complexity O(entries under each workspace's `packages/sha256`).
+ * @complexity O(depth from `baseDir`) `lstat`s, plus the walk itself.
  */
-async function walkAgentPlugins(sink: WalkSink, agentPluginsDir: string): Promise<void> {
-  const wsDir = path.join(agentPluginsDir, "ws");
-  for (const entry of await readdirOrEmpty(wsDir)) {
-    const relWorkspace = `agent-plugins/ws/${entry.name}`;
+async function walkOwnedDir(sink: WalkSink, input: { layout: AgentPluginLayout; baseDir: string; absDir: string }): Promise<void> {
+  let current = input.baseDir;
+  for (const segment of path.relative(input.baseDir, input.absDir).split(path.sep)) {
+    current = path.join(current, segment);
+    const info = await lstat(current).catch((err: unknown) => (isMissing(err) ? null : Promise.reject(err)));
+    if (info === null) return;
+    if (info.isSymbolicLink()) {
+      sink.skipped.push({ path: agentPluginsRelPath(input.layout, current), reason: SYMLINK_REASON });
+      return;
+    }
+    if (!info.isDirectory()) return;
+  }
+  await walkTree(sink, { absDir: input.absDir, relDir: agentPluginsRelPath(input.layout, input.absDir), scope: "plugins" });
+}
+
+/**
+ * The plugins scope's `agent-plugins/` half: per workspace, {@link PLUGIN_WORKSPACE_FILES}, the
+ * legacy flat `packages/sha256/**` store (a site not yet migrated to per-plugin folders still has its
+ * packages there), and per installed plugin its `package/sha256/**` store and its learned/notes
+ * memory — nothing else. Memory is included because it is the site's own record (uninstall offers to
+ * keep it); a plugin's `data/` is not, since it holds OAuth tokens. Every path comes from
+ * `layout`'s helpers, the same ones the installer writes through.
+ *
+ * @complexity O(entries under each included folder).
+ */
+async function walkAgentPlugins(sink: WalkSink, layout: AgentPluginLayout): Promise<void> {
+  for (const entry of await readdirOrEmpty(layout.workspacesDir)) {
+    const absWorkspace = path.join(layout.workspacesDir, entry.name);
     if (entry.isSymbolicLink()) {
-      sink.skipped.push({ path: relWorkspace, reason: SYMLINK_REASON });
+      sink.skipped.push({ path: agentPluginsRelPath(layout, absWorkspace), reason: SYMLINK_REASON });
       continue;
     }
     if (!entry.isDirectory()) continue;
-    const absWorkspace = path.join(wsDir, entry.name);
-    for (const name of PLUGIN_WORKSPACE_FILES) {
-      await addFile(sink, { absPath: path.join(absWorkspace, name), relPath: `${relWorkspace}/${name}`, scope: "plugins" });
+    let workspace;
+    try {
+      workspace = layout.forWorkspace(entry.name);
+    } catch {
+      workspace = null;
     }
-    const packagesDir = path.join(absWorkspace, "packages", "sha256");
-    const packagesInfo = await lstat(packagesDir).catch((err: unknown) => (isMissing(err) ? null : Promise.reject(err)));
-    if (packagesInfo?.isSymbolicLink()) {
-      sink.skipped.push({ path: `${relWorkspace}/packages/sha256`, reason: SYMLINK_REASON });
-    } else if (packagesInfo?.isDirectory()) {
-      await walkTree(sink, { absDir: packagesDir, relDir: `${relWorkspace}/packages/sha256`, scope: "plugins" });
+    // A folder the installer could never have written (an invalid id, or one that only resolves
+    // after case-folding to a different folder) is reported rather than walked under a guessed shape.
+    if (workspace === null || workspace.root !== absWorkspace) {
+      sink.skipped.push({ path: agentPluginsRelPath(layout, absWorkspace), reason: "not a workspace folder the plugin installer writes" });
+      continue;
+    }
+    for (const name of PLUGIN_WORKSPACE_FILES) {
+      const absPath = path.join(workspace.root, name);
+      await addFile(sink, { absPath, relPath: agentPluginsRelPath(layout, absPath), scope: "plugins" });
+    }
+    await walkOwnedDir(sink, { layout, baseDir: workspace.root, absDir: workspace.packages });
+    for (const pluginEntry of await readdirOrEmpty(workspace.root)) {
+      if (PLUGIN_WORKSPACE_FILES.has(pluginEntry.name) || (!pluginEntry.isDirectory() && !pluginEntry.isSymbolicLink())) continue;
+      let pluginRoot: string;
+      try {
+        pluginRoot = workspace.pluginRootDir({ pluginId: pluginEntry.name });
+      } catch {
+        continue; // `staging/`, `packages/`, `data/` and anything not named like a plugin id.
+      }
+      if (pluginEntry.isSymbolicLink()) {
+        sink.skipped.push({ path: agentPluginsRelPath(layout, pluginRoot), reason: SYMLINK_REASON });
+        continue;
+      }
+      const pluginId = pluginEntry.name;
+      for (const absDir of [
+        workspace.pluginPackagesDir({ pluginId }),
+        workspace.pluginMemoryDir({ pluginId, kind: "learned" }),
+        workspace.pluginMemoryDir({ pluginId, kind: "notes" }),
+      ]) {
+        await walkOwnedDir(sink, { layout, baseDir: pluginRoot, absDir });
+      }
     }
   }
 }
@@ -236,7 +298,7 @@ export async function collectSiteBackupFiles(input: { sources: SiteBackupSources
   }
   if (include.themes) await walkTree(sink, { absDir: sources.themesDir, relDir: "themes", scope: "themes" });
   if (include.plugins) {
-    await walkAgentPlugins(sink, sources.agentPluginsDir);
+    await walkAgentPlugins(sink, sources.agentPlugins);
     await walkTree(sink, { absDir: sources.skillsDir, relDir: "skills", scope: "plugins" });
   }
   if (include.settings) {

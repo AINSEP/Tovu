@@ -126,6 +126,9 @@ export interface AgentPluginLayout {
   /** `<site>/agent-plugins` (or `TOVU_AGENT_PLUGINS_DIR`) — the whole tree this feature owns. Not,
    * by itself, a usable install/data location for any workspace — see `forWorkspace`. */
   readonly root: string;
+  /** `<root>/ws` — the folder holding one `forWorkspace(id).root` per workspace. Exposed so a reader
+   * that must visit every workspace (the site backup) enumerates the same folder installs write to. */
+  readonly workspacesDir: string;
   /**
    * Resolves the fully workspace-scoped layout for one workspace. This is the ONLY way to reach a
    * `packages`/`staging`/`pluginDataDir` path — there is deliberately no instance-level equivalent
@@ -160,9 +163,11 @@ export function resolveAgentPluginLayout(optional: ResolveAgentPluginLayoutOptio
   }
 
   const root = path.resolve(override ?? path.join(resolveSiteRoot({ cwd, env }), "agent-plugins"));
+  const workspacesDir = path.join(root, "ws");
 
   return {
     root,
+    workspacesDir,
     forWorkspace(workspaceId: string): AgentPluginWorkspaceLayout {
       // Normalize BEFORE validating, not after: the pattern is deliberately lowercase-only (see its
       // own doc), so validating the raw string would reject an uppercase id that the old UUID rule
@@ -173,7 +178,7 @@ export function resolveAgentPluginLayout(optional: ResolveAgentPluginLayoutOptio
         // Quotes the RAW input, not the normalized one, so the message names what the caller passed.
         throw new Error(`forWorkspace: '${workspaceId}' is not a valid workspace id`);
       }
-      const workspaceRoot = path.join(root, "ws", normalizedWorkspaceId);
+      const workspaceRoot = path.join(workspacesDir, normalizedWorkspaceId);
       const pluginRootDir = ({ pluginId }: { pluginId: string }, _optional = {}): string => {
         if (!SAFE_ID_SEGMENT_PATTERN.test(pluginId) || pluginId.length > MAX_ID_SEGMENT_LENGTH) {
           throw new Error(`'${pluginId}' is not a valid Agent Plugin id`);

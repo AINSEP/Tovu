@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 
 import { minimatch } from "minimatch";
 
+import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { isDeniedFsFileName, readFsFile } from "#src/features/fs-files/fs-files";
 import { checkTreeFiles, checkTreePath } from "#src/features/publish-content/file-tree-policy";
 import { collectSiteBackupFiles } from "#src/features/site-backup/sources";
@@ -84,7 +85,7 @@ test("the site backup collects no .storage-secret.json from any scope", async (t
       siteDir: dir,
       mediaUploadsDir: path.join(dir, "uploads"),
       themesDir: path.join(dir, "themes"),
-      agentPluginsDir: path.join(dir, "agent-plugins"),
+      agentPlugins: resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: path.join(dir, "agent-plugins") } }),
       skillsDir: path.join(dir, "skills"),
       tovuVersion: "test",
     },

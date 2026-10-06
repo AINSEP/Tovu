@@ -756,7 +756,7 @@ function resolveSiteBackupSources(input: { siteDir: string; uploadsDir: string; 
     siteDir: input.siteDir,
     mediaUploadsDir: process.env.TOVU_MEDIA_BLOB_STORE === "s3" ? null : input.uploadsDir,
     themesDir: input.themesDir,
-    agentPluginsDir: resolveAgentPluginLayout().root,
+    agentPlugins: resolveAgentPluginLayout(),
     skillsDir: resolveSkillLayout().root,
     tovuVersion: readTovuVersion(),
   };
