@@ -87,25 +87,6 @@ it.each([
 });
 
 /**
- * SPEC-051 one-chat rule: inside the Tovu desktop app's `<webview>` the shell's own chat is the one
- * chat, so the embedded admin mounts neither its dock nor its FAB — even with the assistant on. The
- * desktop preload exposes `window.tovuDesktop.embedded` to webview guests only
- * (`apps/desktop/src/webview-guest-policy.ts`); a standalone site window, or a browser, never has it.
- */
-it("mounts neither the dock nor the chat FAB when embedded in the desktop app", async () => {
-  vi.stubGlobal("fetch", stubFetch({ data: { publicEnabled: false }, adminAssistantEnabled: true }));
-  vi.stubGlobal("tovuDesktop", { embedded: true });
-  const settingsRead = vi.spyOn(api, "getAssistantSettings");
-  const { container } = render(<App />);
-
-  await waitFor(() => expect(container.querySelector("main")).not.toBeNull());
-  await waitFor(() => expect(settingsRead).toHaveBeenCalled());
-  await act(async () => { await settingsRead.mock.results[0]!.value; });
-  expect(container.querySelector('[aria-label="Assistant"]')).toBeNull();
-  expect(container.querySelector(".chat-fab")).toBeNull();
-});
-
-/**
  * Preview fullscreen, Level 1 counterpart (2026-09-15 —
  * `ADS-memory/.local-artifacts/handoffs/2026-09-15-preview-fullscreen-PLAN.md` §5.1). The test above
  * pins the now-reverted `admin.show_site_page` overlay's containment guarantee; this pins the SAME
@@ -221,12 +202,3 @@ it("hides the assistant dock and chat FAB once the server reports TOVU_ADMIN_ASS
 function render(ui: ReactElement) {
   return renderWithoutProvider(ui, { wrapper: FetchQueryProvider });
 }
-
-it("isDesktopEmbedded is true only for an exact `embedded: true` bridge", async () => {
-  const { isDesktopEmbedded } = await import("../../App.hooks");
-  expect(isDesktopEmbedded({ tovuDesktop: { embedded: true } })).toBe(true);
-  expect(isDesktopEmbedded({ tovuDesktop: { embedded: "true" } })).toBe(false);
-  expect(isDesktopEmbedded({ tovuDesktop: {} })).toBe(false);
-  expect(isDesktopEmbedded({})).toBe(false);
-  expect(isDesktopEmbedded(undefined)).toBe(false);
-});

@@ -74,10 +74,9 @@ test("the compiled preload requires nothing but \"electron\" — a sandboxed pre
  *  `Object.defineProperty(exports, "__esModule", …)`, and Electron's sandboxed loader supplies them
  *  too: its `runPreloadScript` (`lib/sandboxed_renderer/preload.ts`, read out of the installed
  *  Electron 43.6.0 framework's `sandbox_bundle`) compiles every preload as a function of
- *  `require, process, exports, module, …` and calls it with a fresh `{}` and `{ exports }`; its
- *  `process.argv` carries `webPreferences.additionalArguments`, which `argv` stands in for. Any
+ *  `require, process, exports, module, …` and calls it with a fresh `{}` and `{ exports }`. Any
  *  OTHER free identifier the compiled output grows still throws here, as it would there. */
-function preloadAt(pathname: string, argv: readonly string[] = []) {
+function preloadAt(pathname: string) {
   const exposed: Record<string, any> = {};
   const invokes: unknown[][] = [];
   const files: unknown[] = [];
@@ -96,7 +95,7 @@ function preloadAt(pathname: string, argv: readonly string[] = []) {
     return electron;
   };
   const moduleExports = {};
-  const context = { require: requireStub, process: { argv: [...argv] }, exports: moduleExports, module: { exports: moduleExports }, window: { location: { pathname } } };
+  const context = { require: requireStub, exports: moduleExports, module: { exports: moduleExports }, window: { location: { pathname } } };
   vm.runInNewContext(compiledText, context, { filename: COMPILED_PATH });
   return { exposed, invokes, files, availability, transcription };
 }
@@ -109,14 +108,6 @@ test("window.tovuFiles is exposed on the admin surface — /admin and every path
   for (const pathname of ["/admin", "/admin/", "/admin/posts/42"]) {
     assert.deepEqual(exposedGlobalsAt(pathname), ["tovuVoice", "tovuFiles"], `at ${pathname}`);
   }
-});
-
-test("window.tovuDesktop is exposed only in a shell <webview> guest (the --tovu-desktop-embedded flag)", () => {
-  // SPEC-051: the site admin hides its own chat on this, because the shell's chat is the one chat.
-  assert.deepEqual(exposedGlobalsAt("/admin"), ["tovuVoice", "tovuFiles"], "a standalone site window gets no flag");
-  const embedded = preloadAt("/admin", ["/path/Electron Helper", "--tovu-desktop-embedded"]);
-  assert.deepEqual(Object.keys(embedded.exposed), ["tovuVoice", "tovuDesktop", "tovuFiles"]);
-  assert.equal(embedded.exposed.tovuDesktop.embedded, true);
 });
 
 test("window.tovuFiles is NOT exposed to same-origin public pages, previews, or look-alike paths", () => {

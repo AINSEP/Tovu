@@ -129,7 +129,6 @@ import { createSelftestTracker } from "./src/selftest-tracker.ts";
 import { registerSpeechIpc } from "./src/speech/speech-ipc.ts";
 import { registerFindInPageIpc, relayFindResults } from "./src/find-in-page-ipc.ts";
 import { registerRunnerIpcStubs } from "./src/runner-ipc-stubs.ts";
-import { startDesktopChat } from "./src/desktop-chat-main.ts";
 import { redeemBootSession, sitePartition, ensureSiteSession, endSiteSession } from "./src/desktop-auth.ts";
 import { sitesFilePath, seedDevFallbackSite, migrateLegacyDismissals, readTrackedSites } from "./src/tracked-sites.ts";
 import { writeSiteName } from "./src/site-config.ts";
@@ -1724,22 +1723,6 @@ app
       // Hygiene, run once past the boot scan so it sees the fullest tracked list — see
       // `sweepSitePreviewsOnBoot`'s own doc for why this is cleanup, not correctness.
       sweepSitePreviewsOnBoot(sitesCtx.projectsPath);
-      // The ONE desktop chat's main-process half (SPEC-051): before the stubs, for the same
-      // duplicate-registration reason as `registerSiteIpcHandlers` above. See `desktop-chat-main.ts`.
-      void startDesktopChat({
-        ipcMain,
-        userDataDir: app.getPath("userData"),
-        projectsPath: sitesCtx.projectsPath,
-        revealPath: async (target) => { await shell.openPath(target); },
-        pickDirectory: async (currentDirectory) => {
-          const picked = await dialog.showOpenDialog({ properties: ["openDirectory"], ...(currentDirectory === undefined ? {} : { defaultPath: currentDirectory }) });
-          return picked.canceled ? null : picked.filePaths[0] ?? null;
-        },
-        broadcast: (channel, payload) => {
-          for (const window of BrowserWindow.getAllWindows()) if (!window.isDestroyed()) window.webContents.send(channel, payload);
-        },
-        readSiteName,
-      });
       registerRunnerIpcStubs({ ipcMain });
       // Global, not per-window: see `registerGuestNavigationPolicy`'s own doc for why one
       // registration covers every project tab's `<webview>` guest.

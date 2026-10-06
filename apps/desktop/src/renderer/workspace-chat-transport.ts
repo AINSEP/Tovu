@@ -267,7 +267,6 @@ interface ChatStartPayload {
   model?: string;
   reasoning?: string;
   attachmentPaths?: readonly string[];
-  activeSiteDir?: string;
 }
 
 function buildChatStartPayload(subscriptionId: string, agentId: string, input: StartRunInput): ChatStartPayload {
@@ -283,9 +282,6 @@ function buildChatStartPayload(subscriptionId: string, agentId: string, input: S
     ...(input.attachments === undefined || input.attachments.length === 0
       ? {}
       : { attachmentPaths: input.attachments.map((attachment) => attachment.path) }),
-    // The visible site tab's folder for THIS turn (`workspaceRunContext`), a string or nothing —
-    // main re-resolves it against the tracked sites, so this is a report, not an authority.
-    ...(typeof input.context?.['activeSiteDir'] === 'string' ? { activeSiteDir: input.context['activeSiteDir'] } : {}),
   };
 }
 

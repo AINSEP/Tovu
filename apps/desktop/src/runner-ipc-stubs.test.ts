@@ -19,7 +19,6 @@ import path from "node:path";
 
 import { registerRunnerIpcStubs, notPortedError, RUNNER_STUB_CHANNELS, RUNNER_MAIN_NOT_PORTED } from "./runner-ipc-stubs.ts";
 import type { RunnerNotPortedError } from "./runner-ipc-stubs.ts";
-import { DESKTOP_CHAT_INVOKE_CHANNELS } from "./workspace-chat-ipc.ts";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -81,10 +80,6 @@ const IMPLEMENTED_CHANNELS = new Set([
   // push-only and excluded in `declaredChannels()` instead; see that function's own comment.
   "runner:find:query",
   "runner:find:stop",
-  // The desktop chat's main-process half (`workspace-chat-ipc.ts`, SPEC-051): chat, agent
-  // inventory, conversations and working-directory verbs. That module's own test pins its literals
-  // against the contracts; listed here by reference so the two lists cannot disagree.
-  ...DESKTOP_CHAT_INVOKE_CHANNELS,
 ]);
 
 test("the contract sources really do declare channels (the parse is not silently matching nothing)", () => {

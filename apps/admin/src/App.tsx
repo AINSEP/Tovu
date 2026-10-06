@@ -26,7 +26,6 @@ import {
   resolveSiteSectionRouteGate,
   translateAssistantDockLabel,
   useAdminAssistantAvailability,
-  useDesktopEmbedded,
   useAdminSession,
   useAgentPageBridge,
   useChatDockLayout,
@@ -520,8 +519,6 @@ export function App(props: AppProps) {
   // (before the `checking`/`!user` early returns below) even though it only fetches once `user` is
   // set: React's rules of hooks forbid calling it conditionally.
   const adminAssistantEnabled = useAdminAssistantAvailability(user);
-  // Inside the desktop app's `<webview>` the shell's chat is the one chat — see `isDesktopEmbedded`.
-  const desktopEmbedded = useDesktopEmbedded();
   // `TOVU_ENABLE_SITE_SWITCHER` — whether this deployment has a Sites section at all. Called
   // unconditionally here for the same rules-of-hooks reason as the line above, and read TWICE
   // below (the nav filter and the route gate) from this one value, so the sidebar and the router
@@ -721,7 +718,7 @@ export function App(props: AppProps) {
         {/* See `AssistantChrome`'s own doc comment for why this is unconditional — `enabled` is what
             decides, not a ternary here. */}
         <AssistantChrome
-          enabled={adminAssistantEnabled && !desktopEmbedded}
+          enabled={adminAssistantEnabled}
           chatOpen={chatOpen}
           setChatOpen={setChatOpen}
           sheetExpanded={sheetExpanded}

@@ -8,7 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import ts from "typescript";
 
-import { admitGuestSource, applyGuestWebPreferences, DESKTOP_EMBEDDED_ARG } from "./webview-guest-policy.ts";
+import { admitGuestSource, applyGuestWebPreferences } from "./webview-guest-policy.ts";
 import type { GuestWebPreferences } from "./webview-guest-policy.ts";
 import { fileURLToPath } from "node:url";
 
@@ -39,19 +39,6 @@ test("Node stays off and context isolation stays on, whatever the page asked for
   assert.equal(webPreferences.nodeIntegration, false);
   assert.equal(webPreferences.contextIsolation, true);
   assert.equal(webPreferences.preload, PRELOAD);
-});
-
-test("the guest is flagged as embedded in the shell, so the site admin hides its own chat (SPEC-051 one-chat rule)", () => {
-  const webPreferences: GuestWebPreferences = {};
-  applyGuestWebPreferences(webPreferences, { preloadPath: PRELOAD });
-  assert.deepEqual(webPreferences.additionalArguments, [DESKTOP_EMBEDDED_ARG]);
-  assert.equal(DESKTOP_EMBEDDED_ARG, "--tovu-desktop-embedded");
-});
-
-test("a page's own additionalArguments are replaced, never merged — the page cannot add renderer flags", () => {
-  const webPreferences: GuestWebPreferences = { additionalArguments: ["--evil", DESKTOP_EMBEDDED_ARG] };
-  applyGuestWebPreferences(webPreferences, { preloadPath: PRELOAD });
-  assert.deepEqual(webPreferences.additionalArguments, [DESKTOP_EMBEDDED_ARG]);
 });
 
 test("a missing preload path throws rather than silently producing a guest with no voice API", () => {
@@ -169,7 +156,7 @@ test("the sites-home attach registration executes the admission check before gra
     handler(event, prefs, { src });
     assert.equal(event.prevented, src === SUPERVISED ? 0 : 1);
     assert.deepEqual(prefs, src === SUPERVISED
-      ? { nodeIntegration: false, contextIsolation: true, preload: PRELOAD, additionalArguments: [DESKTOP_EMBEDDED_ARG] }
+      ? { nodeIntegration: false, contextIsolation: true, preload: PRELOAD }
       : { nodeIntegration: true, contextIsolation: false, preload: "/evil.js" });
   }
   assert.deepEqual(asked, ["https://attacker.example/admin", SUPERVISED]);

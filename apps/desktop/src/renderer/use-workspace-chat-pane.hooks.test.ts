@@ -17,7 +17,6 @@ import {
   captureFolderDrop,
   WORKSPACE_RUN_CONTEXT,
   workspaceConversationView,
-  workspaceRunContext,
 } from './use-workspace-chat-pane.hooks.js';
 import type { WorkspaceConversationSummary } from '../contracts/workspace-conversations.js';
 
@@ -126,21 +125,6 @@ test('the active conversation id is passed through when one is active', () => {
 });
 
 // ---------------------------------------------------------------------------------------------
-// workspaceRunContext (the per-turn site)
-// ---------------------------------------------------------------------------------------------
-
-test("the run context names the turn's on-screen site alongside the picker's fields", () => {
-  const context = workspaceRunContext({ activeSiteDir: '/sites/a' });
-  assert.deepEqual(context(runInput({ agentId: 'claude', model: 'opus' })), { model: 'opus', activeSiteDir: '/sites/a' });
-});
-
-test('with no site on screen the run context is exactly the picker-only one', () => {
-  const context = workspaceRunContext({ activeSiteDir: null });
-  assert.deepEqual(context(runInput({ agentId: 'claude' })), {});
-  assert.deepEqual(context(runInput({ agentId: 'claude', reasoning: 'high' })), { reasoning: 'high' });
-});
-
-// ---------------------------------------------------------------------------------------------
 // WORKSPACE_RUN_CONTEXT
 // ---------------------------------------------------------------------------------------------
 
@@ -183,11 +167,11 @@ test('WorkspaceChatPane takes everything from useWorkspaceChatPane, and the hook
   const end = rest.indexOf('\nfunction ');
   const body = end === -1 ? rest : rest.slice(0, end);
 
-  assert.match(body, /\} = useWorkspaceChatPane\(\{ activeSiteDir \}\);/);
+  assert.match(body, /\} = useWorkspaceChatPane\(\);/);
   assert.doesNotMatch(body, /\buse(State|Ref|Callback|Effect|Memo)\b/, 'raw React primitives are back in the component');
   assert.match(body, /onDropCapture=\{onDropCapture\}/);
   assert.match(body, /composerHandle=\{composerHandle\}/);
-  assert.match(body, /runContext=\{runContext\}/);
+  assert.match(body, /runContext=\{WORKSPACE_RUN_CONTEXT\}/);
   assert.match(body, /conversations=\{listItems\}/);
   assert.match(body, /\{\.\.\.conversationIdProp\}/);
 
