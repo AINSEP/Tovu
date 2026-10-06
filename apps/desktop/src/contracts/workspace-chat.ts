@@ -51,6 +51,12 @@ export interface WorkspaceChatStartInput {
   reasoning?: string;
   /** Absolute paths of this turn's staged `+` attachments (`chat-attachments.ts`). */
   attachmentPaths?: readonly string[];
+  /**
+   * The folder of the site tab on screen when this turn was sent, if any. Main accepts it only when
+   * it names a TRACKED site (`desktop-chat-main.ts`'s `resolveTrackedAddressee`); that site's tools
+   * are the only site tools the turn can reach.
+   */
+  activeSiteDir?: string;
 }
 
 export interface WorkspaceChatStartResult {

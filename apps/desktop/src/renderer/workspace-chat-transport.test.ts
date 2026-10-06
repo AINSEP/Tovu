@@ -303,6 +303,19 @@ test('buildChatStartPayload carries model/reasoning from context, coerced to str
   assert.ok(!('reasoning' in withoutContext), 'reasoning must be omitted, not sent as undefined');
 });
 
+test("buildChatStartPayload forwards the turn's on-screen site folder from context, and omits it otherwise", async () => {
+  const fake = createFakeBridge();
+  const transport = createWorkspaceChatTransport(fake.bridge);
+  await transport.startRun(startInput({ context: { activeSiteDir: '/sites/a' } }), dummyHandlers());
+  await transport.startRun(startInput({ context: { activeSiteDir: null } }), dummyHandlers());
+  await transport.startRun(startInput({ context: { activeSiteDir: 42 } }), dummyHandlers());
+  await transport.startRun(startInput(), dummyHandlers());
+  assert.equal(fake.calls.chatStart[0]!.activeSiteDir, '/sites/a');
+  for (const payload of fake.calls.chatStart.slice(1)) {
+    assert.ok(!('activeSiteDir' in payload), `activeSiteDir leaked: ${JSON.stringify(payload)}`);
+  }
+});
+
 test('buildChatStartPayload omits attachmentPaths for both undefined and empty attachments', async () => {
   const fake = createFakeBridge();
   const transport = createWorkspaceChatTransport(fake.bridge);

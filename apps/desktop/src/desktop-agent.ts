@@ -94,6 +94,40 @@ const DESKTOP_SYSTEM_OVERLAY = [
 ].join("\n");
 
 /**
+ * The tool grant every desktop turn runs under. NOT `bypass`: this agent is prompt-driven over the
+ * operator's whole machine, and the only tools it needs are its own Jini ones.
+ *
+ * - `restricted`: the CLI does not auto-approve anything; with no TTY, a tool needing approval is
+ *   refused rather than asked about.
+ * - `allowedTools`: the `jini` MCP server's four gateway tools — the ONLY route to desktop.* and
+ *   site.* — are pre-approved, so they still run without a prompt.
+ * - `disallowedTools`: the site assistant's own evidence-backed deny list
+ *   (`apps/website/.../assistant-system-overlay.ts`'s `ASSISTANT_DISALLOWED_TOOLS`, copied: this app
+ *   imports nothing from the website), enforced by the CLI even if a future grant widens.
+ * - `settingSources: []`: the operator's personal hooks/plugins never run inside a desktop turn; the
+ *   Keychain login is kept.
+ *
+ * `allowedTools`/`disallowedTools`/`settingSources` are `claude`-def flags; another CLI ignores them
+ * and runs under its own non-auto-approving `restricted` default.
+ */
+const DESKTOP_RUN_POLICY = Object.freeze({
+  permissionMode: "restricted" as const,
+  allowedTools: Object.freeze([
+    "mcp__jini__search_tools",
+    "mcp__jini__describe_tool",
+    "mcp__jini__execute_delegated_tool",
+    "mcp__jini__execute_readonly_delegated_tool",
+  ]),
+  disallowedTools: Object.freeze([
+    "Bash", "Edit", "Write", "MultiEdit", "NotebookEdit", "BashOutput", "KillShell", "Task",
+    "CronCreate", "CronDelete", "CronList", "EnterWorktree", "ExitWorktree", "RemoteTrigger", "Workflow",
+    // The site key and env-held secrets stay unreadable, same reasons as the site assistant's list.
+    "Read(//**/.tovu/**)", "Read(~/.tovu/**)", "Read(//**/*-key*.hex)", "Read(//proc/**)",
+  ]),
+  settingSources: Object.freeze([] as string[]),
+});
+
+/**
  * The turn's prompt: the pane's flattened transcript, prefixed with which site (if any) is on
  * screen for THIS turn. Pure.
  * @complexity O(n) in the prompt length.
@@ -287,7 +321,7 @@ async function createDesktopAgentRuntime(
     void executor.run(
       { runId: run.id, agentId: input.agentId, prompt: turnPrompt(input.prompt, addressee), cwd: required.workDir },
       {
-        permissionMode: "bypass",
+        ...DESKTOP_RUN_POLICY,
         ...(options.model === undefined ? {} : { model: options.model }),
         ...(options.reasoning === undefined ? {} : { reasoning: options.reasoning }),
         ...(attachments.length === 0 ? {} : { imagePaths: attachments, extraAllowedDirs: [...new Set(attachments.map((file) => path.dirname(file)))] }),
@@ -315,5 +349,5 @@ async function createDesktopAgentRuntime(
   };
 }
 
-export { createDesktopAgentRuntime, authorizeBridgeRequest, bearerToken, registryCatalog, turnPrompt, DESKTOP_OPERATOR, DESKTOP_SYSTEM_OVERLAY, DELEGATED_TOOL_CALLS_PATH };
+export { createDesktopAgentRuntime, DESKTOP_RUN_POLICY, authorizeBridgeRequest, bearerToken, registryCatalog, turnPrompt, DESKTOP_OPERATOR, DESKTOP_SYSTEM_OVERLAY, DELEGATED_TOOL_CALLS_PATH };
 export type { DesktopAgentRuntime, DesktopAgentRuntimeOptions, DesktopAgentRuntimeRequired, DesktopTurnInput, DesktopTurnOptions };

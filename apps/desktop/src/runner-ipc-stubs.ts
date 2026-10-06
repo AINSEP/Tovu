@@ -47,33 +47,14 @@ interface StubIpcMain {
  * them is register one identical handler per name.
  */
 const RUNNER_STUB_CHANNELS = Object.freeze([
-  // contracts/runtime-inventory.ts
-  "runner:agents:list",
-  "runner:agents:rescan",
-  "runner:daemon:online",
   // contracts/project.ts — every `runner:sites:*` verb is a real handler now (`project-ipc.ts`,
   // registered in `main.ts` before this module runs), `stop` included as of the site card's own
   // Stop control. None of them is stubbed here; see `SITE_IPC_CHANNELS`'s own docs.
-  // contracts/workspace-chat.ts — `event` and `navigate` are push-only, see this file's header
-  "workspace:chat:start",
-  "workspace:chat:reattach",
-  "workspace:chat:detach",
-  "workspace:chat:stop",
-  "workspace:chat:status",
-  // contracts/working-directory.ts
-  "runner:working-directory:pick",
-  "runner:working-directory:recent",
-  "runner:working-directory:exists",
-  "runner:working-directory:normalize",
+  // contracts/runtime-inventory.ts, contracts/workspace-chat.ts, contracts/working-directory.ts and
+  // contracts/workspace-conversations.ts — real handlers now, in `workspace-chat-ipc.ts` (the
+  // desktop chat's main-process half, SPEC-051). `event` and `navigate` were always push-only.
   // contracts/chat-attachments.ts
   "runner:chat-attachments:save",
-  // contracts/workspace-conversations.ts
-  "workspace:conversations:list",
-  "workspace:conversations:create",
-  "workspace:conversations:rename",
-  "workspace:conversations:delete",
-  "workspace:conversations:load-messages",
-  "workspace:conversations:save-message",
 ]);
 
 /**
@@ -101,8 +82,8 @@ function notPortedError(channel: string): RunnerNotPortedError {
  *
  * @param deps `ipcMain`, injected rather than `require("electron")`'d so this is testable under plain `node --test`.
  * @returns the channels registered, in list order.
- * @complexity O(n) in the channel count (18, fixed — 24 total minus the 6 real handlers in
- *   `project-ipc.ts`).
+ * @complexity O(n) in the channel count (1 today — every other declared channel has a real handler in
+ *   `project-ipc.ts`, `find-in-page-ipc.ts` or `workspace-chat-ipc.ts`).
  */
 function registerRunnerIpcStubs({ ipcMain }: { ipcMain: StubIpcMain }): readonly string[] {
   for (const channel of RUNNER_STUB_CHANNELS) {

@@ -276,6 +276,29 @@ export function useAdminAssistantAvailability(user: AdminUser | null): boolean {
 }
 
 /**
+ * Whether this admin is running inside the Tovu desktop app's `<webview>` — read off the
+ * `window.tovuDesktop` the desktop speech preload exposes to webview guests ONLY
+ * (`apps/desktop/src/webview-guest-policy.ts`'s `--tovu-desktop-embedded`). A browser, or a desktop
+ * standalone site window, never has it. Pure over its argument.
+ *
+ * Why the admin cares (SPEC-051, owner 2026-10-06): the desktop app has ONE chat — the shell's own
+ * FAB and right panel — so the embedded admin must not mount a second `ChatFab`/`AssistantDock` in
+ * the same corner (`apps/desktop/src/renderer/one-chat-fab-wiring.test.ts`).
+ *
+ * @complexity O(1).
+ */
+export function isDesktopEmbedded(win: unknown): boolean {
+  const bridge = (win as { tovuDesktop?: { embedded?: unknown } } | undefined)?.tovuDesktop;
+  return bridge?.embedded === true;
+}
+
+/** {@link isDesktopEmbedded} for the real `window`, read once — the flag cannot change while the page lives. */
+export function useDesktopEmbedded(): boolean {
+  const [embedded] = useState(() => isDesktopEmbedded(typeof window === "undefined" ? undefined : window));
+  return embedded;
+}
+
+/**
  * `panels.tsx`'s own id for the Sites section, named once here rather than inlined at the two call
  * sites that gate on it ({@link withoutSiteSection} and {@link resolveSiteSectionRouteGate}).
  *

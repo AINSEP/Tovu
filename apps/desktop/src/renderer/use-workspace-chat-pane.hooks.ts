@@ -8,12 +8,13 @@
  * gives: this package has no React renderer, so a decision left inside a hook body cannot be tested
  * here, while a plain function can (`use-workspace-chat-pane.hooks.test.ts`).
  *
- * The pane has no call site today — see the comment at the end of `App`'s JSX, and
- * `one-chat-fab-wiring.test.ts`. It is kept for the workspace-level chat panel that replaces the
- * removed FAB.
+ * The pane is the desktop app's ONE chat (SPEC-051): `App` mounts it as the right panel the shell's
+ * own FAB opens (`use-chat-panel.hooks.ts`), and `one-chat-fab-wiring.test.ts` pins that it is the
+ * only chat entry point on screen.
  */
 import {
   useCallback,
+  useMemo,
   useRef,
   useState,
   type Dispatch,
@@ -45,6 +46,20 @@ export const WORKSPACE_RUN_CONTEXT = (({ selection }) => ({
   ...(selection.model === undefined ? {} : { model: selection.model }),
   ...(selection.reasoning === undefined ? {} : { reasoning: selection.reasoning }),
 })) satisfies ChatPaneRunContext;
+
+/**
+ * {@link WORKSPACE_RUN_CONTEXT} plus the site on screen for the turn: the shell's one chat is not
+ * tied to a site, so which site (if any) a turn is about travels per turn, through the same opaque
+ * `context` the picker's fields use (`workspace-chat-transport.ts` forwards it as `activeSiteDir`).
+ * `null` adds nothing, so a turn from the sites home is byte-identical to the picker-only context.
+ * Pure. @complexity O(1).
+ */
+export function workspaceRunContext({ activeSiteDir }: { activeSiteDir: string | null }) {
+  return ((input) => ({
+    ...WORKSPACE_RUN_CONTEXT(input),
+    ...(activeSiteDir === null ? {} : { activeSiteDir }),
+  })) satisfies ChatPaneRunContext;
+}
 
 /** Exactly what {@link captureFolderDrop} reads off a drop event, so a test can pass a plain object. */
 export interface FolderDropEvent {
@@ -134,6 +149,8 @@ export interface WorkspaceChatPaneState extends WorkspaceConversationView {
   composerHandle: RefObject<ChatPaneComposerHandle | null>;
   /** The `<aside>`'s `onDropCapture` — see {@link captureFolderDrop}. */
   onDropCapture: (event: DragEvent<HTMLElement>) => void;
+  /** `ChatPane`'s `runContext`: the picker's fields plus this turn's on-screen site ({@link workspaceRunContext}). */
+  runContext: ReturnType<typeof workspaceRunContext>;
 }
 
 /**
@@ -143,7 +160,7 @@ export interface WorkspaceChatPaneState extends WorkspaceConversationView {
  * conversations, delete confirmation, then the pane's own state, ref and drop callback — so moving
  * them here changed no hook's position.
  */
-export function useWorkspaceChatPane(): WorkspaceChatPaneState {
+export function useWorkspaceChatPane({ activeSiteDir }: { activeSiteDir: string | null }): WorkspaceChatPaneState {
   const { transport, runtimeAccess, workingDirectoryAccess, getPathForFile, uploadAttachments } =
     useWorkspaceChatTransport();
   const conversations = useRunnerConversations();
@@ -158,6 +175,7 @@ export function useWorkspaceChatPane(): WorkspaceChatPaneState {
     (event: DragEvent<HTMLElement>) => captureFolderDrop(event, getPathForFile, composerHandle),
     [getPathForFile],
   );
+  const runContext = useMemo(() => workspaceRunContext({ activeSiteDir }), [activeSiteDir]);
 
   return {
     transport,
@@ -171,5 +189,6 @@ export function useWorkspaceChatPane(): WorkspaceChatPaneState {
     setWorkingDirectory,
     composerHandle,
     onDropCapture,
+    runContext,
   };
 }

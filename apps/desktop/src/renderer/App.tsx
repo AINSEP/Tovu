@@ -21,7 +21,8 @@ import {
   useSectionNav,
 } from './App.hooks.js';
 import { chromeVisibility, workspaceOnScreen } from './expanded-mode.js';
-import { useWorkspaceChatPane, WORKSPACE_RUN_CONTEXT } from './use-workspace-chat-pane.hooks.js';
+import { useWorkspaceChatPane } from './use-workspace-chat-pane.hooks.js';
+import { activeSiteDirOf, useChatPanel } from './use-chat-panel.hooks.js';
 import { useAddSite } from './use-add-site.hooks.js';
 import { useSiteWorkspace } from './use-site-workspace.hooks.js';
 import { useFindInPage, useComposedGuestRef, type FindInPage, type FindableGuest } from './use-find-in-page.hooks.js';
@@ -113,9 +114,12 @@ export function App({
 
   const runningCount = countRunningSites(projects);
   const active = findSection(activeId);
+  // The ONE desktop chat (SPEC-051): open/closed, docked/overlay, and which site a turn is about.
+  const chatPanel = useChatPanel();
+  const activeSiteDir = activeSiteDirOf({ visibleWorkspaceId, openSites });
 
   return (
-    <div className="app">
+    <div className="app" data-chat={chatPanel.dataChat}>
       <FindBar find={find} />
       {showTopNav && (
       <TopNav
@@ -186,24 +190,33 @@ export function App({
         />
       </main>
 
-      {/* NO chat FAB on this page, deliberately, and this comment is the whole reason.
+      {/* The desktop app's ONE chat entry point (SPEC-051, owner 2026-10-06): this FAB, and the
+          right panel it opens. There is exactly one: the embedded site admin hides its own
+          `ChatFab`/`AssistantDock` inside a desktop `<webview>` (`--tovu-desktop-embedded`, see
+          `webview-guest-policy.ts`), and `one-chat-fab-wiring.test.ts` pins both halves.
 
-          There used to be a disabled one here — a real `<button>` with `aria-disabled`, `tabIndex
-          ={-1}` and a "Fleet chat (not available yet)" tooltip — standing in for a fleet-operator
-          chat. Two things were wrong with it. It advertised a feature with no main-process half at
-          all: `WORKSPACE_CHAT_CHANNELS` (`contracts/workspace-chat.ts`) has no `ipcMain.handle` anywhere
-          in this app, so `workspace:chat:start` reaches nothing, and `WorkspaceChatPane` below has zero
-          call sites. And because it was `position: fixed` on the HOST page while the real
-          per-site assistant's FAB lives INSIDE the `<webview>` at the same corner and the same
-          `z-index`, the decoy composited on top of it and swallowed every click meant for the
-          working one — an unbuilt placeholder was blocking the built feature.
-
-          So the one chat entry point is the site's own, inside the guest, where the tools and the
-          content database are. That leaves the sites home tab with no assistant, which is the intended
-          trade: there is no site in view there to assist with. When a workspace-level chat is
-          actually built it should be a PANEL reachable from this app's own chrome, not a second
-          floating button competing with the guest's. `WorkspaceChatPane` and the `.chat-fab*` rules
-          in `app.css` are kept for it. */}
+          History, because it is why that hiding is load-bearing: an earlier DISABLED host FAB sat
+          here as a placeholder with no main-process half (nothing answered `workspace:chat:start`).
+          Being `position: fixed` on the HOST page at the same corner and `z-index` as the guest's
+          own assistant FAB, it composited on top of it and swallowed every click meant for the
+          working one — an unbuilt placeholder blocking the built feature. So it was removed, and
+          the rule became "a workspace chat is a PANEL from this app's own chrome, never a second
+          floating button competing with the guest's". The main-process half now exists
+          (`workspace-chat-ipc.ts`), and the guest's button is gone in the shell, so this one does
+          not compete with anything. */}
+      {chatPanel.open ? (
+        <WorkspaceChatPane onClose={chatPanel.closePanel} activeSiteDir={activeSiteDir} />
+      ) : (
+        <button
+          type="button"
+          className="chat-fab desktop-chat-fab"
+          onClick={chatPanel.openPanel}
+          aria-label="Open assistant"
+          title="Assistant"
+        >
+          <span aria-hidden="true">💬</span>
+        </button>
+      )}
     </div>
   );
 }
@@ -1213,7 +1226,7 @@ function ThemeControl({
   );
 }
 
-function WorkspaceChatPane({ onClose }: { onClose: () => void }) {
+function WorkspaceChatPane({ onClose, activeSiteDir }: { onClose: () => void; activeSiteDir: string | null }) {
   // Everything this pane holds and every handler it wires, including the capture-phase folder drop
   // (`captureFolderDrop`) and `WORKSPACE_RUN_CONTEXT`. See `use-workspace-chat-pane.hooks.ts`.
   const {
@@ -1229,14 +1242,15 @@ function WorkspaceChatPane({ onClose }: { onClose: () => void }) {
     setWorkingDirectory,
     composerHandle,
     onDropCapture,
-  } = useWorkspaceChatPane();
+    runContext,
+  } = useWorkspaceChatPane({ activeSiteDir });
 
   return (
-    <aside className="runner-chat-pane" aria-label="Runner chat" onDropCapture={onDropCapture}>
+    <aside className="runner-chat-pane" aria-label="Assistant" onDropCapture={onDropCapture}>
       <header className="runner-chat-pane__head">
         <div>
-          <p>Runner operator</p>
-          <h2>Workspace chat</h2>
+          <p>Tovu desktop</p>
+          <h2>Assistant</h2>
         </div>
         <div className="runner-chat-pane__head-actions">
           {/* The conversation switcher lives in the `<aside>`'s own header, not `ChatPane`'s (see
@@ -1255,7 +1269,7 @@ function WorkspaceChatPane({ onClose }: { onClose: () => void }) {
               confirmDelete={deleteConfirmation.confirmDelete}
             />
           )}
-          <button type="button" onClick={onClose} aria-label="Close Runner chat">×</button>
+          <button type="button" onClick={onClose} aria-label="Close assistant">×</button>
         </div>
       </header>
       {deleteConfirmation.pendingTitle !== null && (
@@ -1291,7 +1305,7 @@ function WorkspaceChatPane({ onClose }: { onClose: () => void }) {
           key={conversations.paneKey}
           transport={transport}
           runtimeAccess={runtimeAccess}
-          runContext={WORKSPACE_RUN_CONTEXT}
+          runContext={runContext}
           initialMessages={conversations.initialMessages}
           {...conversationIdProp}
           onMessagesChange={conversations.onMessagesChange}
@@ -1299,13 +1313,13 @@ function WorkspaceChatPane({ onClose }: { onClose: () => void }) {
           // own `onReset`, which only clears the local transcript and writes nothing durable) with
           // an empty fragment — not `title`/`undefined` alone, since `resolveChatPaneHeader` falls
           // back to the default on `undefined` too. The real switcher and "New thread" action live
-          // in the `<aside>`'s own header above instead: Runner already renders its own "Runner
-          // operator / Workspace chat" title bar there, so putting a second one here would stack two
+          // in the `<aside>`'s own header above instead: Runner already renders its own "Tovu desktop
+          // / Assistant" title bar there, so putting a second one here would stack two
           // headers rather than integrate with the one that already exists (see Tovu's
           // `AssistantDock.tsx`, which resolves the same default-header problem by replacing it
           // with its own header content directly, in a dock with no separate title bar above it).
           header={<></>}
-          placeholder="Ask about the fleet, or tell it what to run"
+          placeholder="Ask about your websites"
           variant="workspace"
           workingDirectory={workingDirectory}
           onChangeWorkingDirectory={setWorkingDirectory}

@@ -1,0 +1,31 @@
+/*
+ * The desktop app's ONE chat panel (SPEC-051): layout only. `.app[data-chat]` is set by
+ * `useChatPanel` (`use-chat-panel.hooks.ts`) — `closed`, `docked` (window >= 900px) or `overlay`.
+ * The pane's own look (`.runner-chat-pane*`) and the FAB's (`.chat-fab`) stay in `app.css`; this file
+ * only places them, and is kept separate so the panel's layout reads in one place.
+ */
+
+/* The FAB is a plain click target, not a drag handle: `app.css`'s `.chat-fab` says `grab`. */
+.desktop-chat-fab { cursor: pointer; }
+
+/* DOCKED: full window height in `.app`'s second column, and the content narrows beside it. The
+   top nav and tab strip normally span both columns (`1 / -1`), which would put them over the panel;
+   pinned to column 1 here so the panel runs top to bottom. */
+.app[data-chat='docked'] > .topnav,
+.app[data-chat='docked'] > .tabstrip { grid-column: 1; }
+.app[data-chat='docked'] > .runner-chat-pane {
+  grid-row: 1 / -1;
+  width: min(27rem, 40vw);
+}
+
+/* OVERLAY: below 900px a docked panel would leave the content too narrow to use, so the panel
+   floats over it at full height instead, and Escape closes it. */
+.app[data-chat='overlay'] > .runner-chat-pane {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  width: min(27rem, 100vw);
+  box-shadow: var(--shadow-md);
+}

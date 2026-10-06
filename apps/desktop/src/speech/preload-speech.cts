@@ -61,6 +61,16 @@ contextBridge.exposeInMainWorld("tovuVoice", {
   transcribe: (samples: Float32Array | readonly number[], sampleRate: number) =>
     speech.transcribe({ samples, sampleRate }),
 });
+/**
+ * `webview-guest-policy.ts`'s `DESKTOP_EMBEDDED_ARG`, inlined: this preload is bundled to CommonJS on
+ * its own and must not pull main-process modules in. Present only in a shell `<webview>` guest (a
+ * standalone site window never gets it), where the site admin hides its own chat because the
+ * shell's is the one chat (SPEC-051).
+ */
+const DESKTOP_EMBEDDED_ARG = "--tovu-desktop-embedded";
+if (process.argv.includes(DESKTOP_EMBEDDED_ARG)) {
+  contextBridge.exposeInMainWorld("tovuDesktop", { embedded: true });
+}
 /** File paths are a host capability granted only to the admin document. */
 const ADMIN_PATH_PREFIX = "/admin";
 // This preload also runs on same-origin public pages. Gate OS-path metadata to the admin document
