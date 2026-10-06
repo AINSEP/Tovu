@@ -227,3 +227,15 @@ test('the Instance copy section says Tovu creates the workspace', () => {
   assert.ok(paragraphs.includes('Tovu will create a separate workspace from the selected release.'));
   assert.equal(paragraphs.some((line) => /Runner will create/.test(line)), false);
 });
+
+test('the footer and credential hints name Tovu, never Runner', () => {
+  const { tree: sqliteTree } = setup();
+  const paragraphs = byType(sqliteTree, 'p').map((element) => text(element.props.children));
+  assert.ok(paragraphs.includes('UI onboarding is ready. Provisioning the copy and securely saving vendor credentials needs the Tovu supervisor connection.'));
+  const hints = (database: DatabaseProviderKind) => byType(setup({ form: { database } }).tree, 'span')
+    .filter((element) => element.props.className === 'create-field__hint')
+    .map((element) => text(element.props.children))
+    .filter((line) => /vault/.test(line));
+  assert.deepEqual(hints('supabase'), ['Credentials must be saved in the Tovu vault before provisioning; this prototype does not retain the key.']);
+  assert.deepEqual(hints('custom'), ['Credentials must be saved in the Tovu vault before provisioning; this prototype does not retain them.']);
+});

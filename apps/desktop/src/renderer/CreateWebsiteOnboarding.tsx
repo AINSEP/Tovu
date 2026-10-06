@@ -114,7 +114,7 @@ function DatabasePicker({
               type="password"
               autoComplete="off"
             />
-            <span className="create-field__hint">Credentials must be saved in the Runner vault before provisioning; this prototype does not retain the key.</span>
+            <span className="create-field__hint">Credentials must be saved in the Tovu vault before provisioning; this prototype does not retain the key.</span>
           </label>
         </div>
       )}
@@ -141,7 +141,7 @@ function DatabasePicker({
               type="password"
               autoComplete="off"
             />
-            <span className="create-field__hint">Credentials must be saved in the Runner vault before provisioning; this prototype does not retain them.</span>
+            <span className="create-field__hint">Credentials must be saved in the Tovu vault before provisioning; this prototype does not retain them.</span>
           </label>
         </div>
       )}
@@ -310,7 +310,7 @@ export function CreateWebsiteOnboarding({
             {formError ? (
               <p className="onboarding__error" role="alert">{formError}</p>
             ) : (
-              <p>UI onboarding is ready. Provisioning the copy and securely saving vendor credentials needs the Runner supervisor connection.</p>
+              <p>UI onboarding is ready. Provisioning the copy and securely saving vendor credentials needs the Tovu supervisor connection.</p>
             )}
             <div>
               <button type="button" className="button button--quiet" onClick={onBack}>Cancel</button>
