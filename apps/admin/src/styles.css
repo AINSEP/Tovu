@@ -848,23 +848,25 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
   flex-shrink: 0;
   width: 34px; height: 20px;
   padding: 0; border: none; border-radius: var(--r-pill);
-  background: var(--border-strong);
+  background: var(--jini-border-strong, var(--border-strong));
   cursor: pointer;
   transition: background-color 0.15s;
 }
-/* Green when on — the owner's own ask, verbatim ("a green toggle, Apple style") — reusing `--ok`
+/* Burnt orange (`--primary`) when on, and the same mid-grey off track, as `.agent-plugin-switch`
+   (2026-10-06 mobile catalog P-8: these were the only green toggles left in the app, next to the
+   burnt-orange plugin/skill switches). History: it was green when on — the owner's own 2026-08-30 ask, verbatim ("a green toggle, Apple style") — reusing `--ok`
    (the SAME green `.status-ok`/`.tab-bar-dot` use for "this is connected/active") rather than
    inventing a second green token, and `--ok-solid` as its own fallback-preferred value: dark mode's
    plain `--ok` is tuned to read as TEXT on a dark background and is too light to hold this track's
    own contrast against `--surface-2` there, the identical reasoning `.deployment-step-marker-done`'s
    own comment gives for the same `--ok-solid, var(--ok)` pair on a solid-filled shape. */
-.theme-explore-switch.is-on { background: var(--ok-solid, var(--ok)); }
+.theme-explore-switch.is-on { background: var(--primary); }
 /* Written as its own compound selector, not left to rely on source order against `.is-on` above:
    both this and that rule set `background` at equal specificity, so without this the locked-ON case
    (index/404 — see `lockedPublishReason`) would depend on which rule happened to come last rather
    than always winning on its own terms. */
-.theme-explore-switch.is-on:disabled { background: var(--ok-solid, var(--ok)); }
-.theme-explore-switch:disabled { cursor: not-allowed; opacity: 0.6; background: var(--border-strong); }
+.theme-explore-switch.is-on:disabled { background: var(--primary); }
+.theme-explore-switch:disabled { cursor: not-allowed; opacity: 0.6; background: var(--jini-border-strong, var(--border-strong)); }
 .theme-explore-switch-knob {
   position: absolute; top: 2px; left: 2px;
   width: 16px; height: 16px; border-radius: 50%;
@@ -967,7 +969,11 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
   letter-spacing: -0.01em; color: var(--fg); margin: 0;
 }
 .page-header .page-description { font-size: var(--text-md); color: var(--muted); margin: 0; max-width: 60ch; }
-.page-actions { display: flex; align-items: center; gap: var(--space-3); flex-shrink: 0; flex-wrap: wrap; }
+/* `max-width: 100%`: `flex-shrink: 0` keeps the group at its one-row width, so once `.page-header`
+   wraps it under the title its own `flex-wrap` never fired and a wide group (Widgets: Publish ·
+   Regions · type select · Add New, 474px) pushed the whole page sideways at 375px with "Add New"
+   off-screen (2026-10-06 mobile catalog WI-1). Capped at the header's width, it wraps instead. */
+.page-actions { display: flex; align-items: center; gap: var(--space-3); flex-shrink: 0; flex-wrap: wrap; max-width: 100%; }
 
 /* EXPERIMENT (2026-09-06, owner request — expected to be reverted as one commit if it does not
    land): on the two content editors only, the `← Pages`/`← Posts` link leaves the action group and
@@ -2357,6 +2363,17 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 /* CharacterCount readout (`Toolbar`, 2026-08-11) — `margin-left: auto` pushes it to the far end of
    the flex-wrap row, trailing every button/select group rather than sitting between them. */
 .editor-toolbar-count { margin-left: auto; padding: 0 4px; font-size: 12px; color: var(--faint); white-space: nowrap; }
+/* Phones (2026-10-06 mobile catalog PO-2): wrapped, this toolbar was ~6 ragged rows (~200px) with
+   items clipped at the right edge and labels breaking inside their buttons ("• / List"). One row that
+   scrolls sideways instead, every group and label kept whole, buttons at a 40px touch size. Nothing
+   in it positions out of the row (the Embed menu expands inline), so the scroller clips nothing. */
+@media (max-width: 640px) {
+  .editor-toolbar { flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; }
+  .editor-toolbar > *, .editor-toolbar .grp > *, .embed-insert-menu > * { flex-shrink: 0; }
+  .editor-toolbar .tb-btn { min-width: 40px; height: 40px; white-space: nowrap; }
+  .editor-toolbar .tb-color { width: 40px; height: 40px; }
+  .editor-toolbar .tb-select { height: 40px; min-height: 40px; }
+}
 /* Placeholder (`Toolbar`, 2026-08-11) — the extension's own default class/attribute names
    (`is-empty`, `data-placeholder`) kept as-is rather than renamed via `.configure()`, so this rule
    targets them directly. `float: left` + `height: 0` is the standard Tiptap placeholder recipe: the
@@ -5267,6 +5284,15 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 .deployment-step-done[open] .deployment-step-summary { margin-bottom: var(--space-1); }
 .deployment-step-done .deployment-credential-fields,
 .deployment-step-done .deployment-action { padding-left: calc(1.75rem + var(--space-3)); }
+/* Phones (2026-10-06 mobile catalog DE-1): one row left the status text a ~65px column between the
+   check and the Verify / Replace token controls, wrapping one word (even a lone "·") per line. The
+   text takes the whole row beside the marker; the controls wrap under it, aligned with the text. */
+@media (max-width: 640px) {
+  .deployment-step-summary { flex-wrap: wrap; row-gap: var(--space-2); }
+  .deployment-step-summary-text { flex-basis: calc(100% - 1.75rem - var(--space-3)); }
+  .deployment-step-summary > .deployment-step-verify { margin-left: calc(1.75rem + var(--space-3)); }
+  .deployment-step-summary-action { margin-left: auto; }
+}
 
 /* A row's own fields, stacked — deliberately NOT `.field-row` (the shared two-up `auto-fit` grid
    every target-config field set on this tab otherwise uses). `.field-row` puts both columns of a
