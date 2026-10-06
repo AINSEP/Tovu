@@ -61,6 +61,7 @@ const CASES: readonly ModuleCase[] = [
       `GET ${W}/agent-plugins`,
       `PATCH ${W}/agent-plugins/:pluginId`,
       `GET ${W}/agent-plugins/:pluginId/files`,
+      `POST ${W}/agent-plugins/install/zip`,
       `GET ${W}/agent-plugins/:pluginId/memory`,
       `PUT ${W}/agent-plugins/:pluginId/memory`,
     ],

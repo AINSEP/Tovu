@@ -56,6 +56,17 @@ export function MarketplaceIcon({ size = 16 }: IconProps) {
   );
 }
 
+/** Add a plugin — an arrow rising out of a tray: a package the operator brings in themselves. */
+export function UploadIcon({ size = 16 }: IconProps) {
+  return (
+    <svg {...LINE_ICON} width={size} height={size}>
+      <path d="M12 15.5V4.5" />
+      <path d="M7.5 9 12 4.5 16.5 9" />
+      <path d="M4 14.5v4a1.5 1.5 0 0 0 1.5 1.5h13a1.5 1.5 0 0 0 1.5-1.5v-4" />
+    </svg>
+  );
+}
+
 /* --------------------------------------------------------- per-plugin glyphs */
 
 /** Compliance / privacy / security — a shield with a check. */

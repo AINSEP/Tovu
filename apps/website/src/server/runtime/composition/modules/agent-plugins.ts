@@ -1,5 +1,6 @@
 import { registerAgentPluginMemoryRoutes } from "#src/server/inbound/admin-http/routes/agent-plugins/memory";
 import { registerAgentPluginFilesRoute } from "#src/server/inbound/admin-http/routes/agent-plugins/files";
+import { registerAgentPluginInstallRoute } from "#src/server/inbound/admin-http/routes/agent-plugins/install";
 import { registerAgentPluginsListRoute } from "#src/server/inbound/admin-http/routes/agent-plugins/list";
 import { registerAgentPluginSetEnabledRoute } from "#src/server/inbound/admin-http/routes/agent-plugins/set-enabled";
 import type { RouteDeps } from "#src/server/routes/types";
@@ -20,6 +21,7 @@ import type { ServerModuleHandle } from "./types.js";
  * (the eye button's read-only package viewer, 2026-09-13). All take the same narrow
  * `AgentPluginsRouteDeps` slice; see `set-enabled.ts`'s own header for why that mutation is
  * `authorizeOrRespond`-gated rather than `executeCommand`-wrapped, and what that costs.
+ * `AGENT_PLUGIN_INSTALL_ZIP` (2026-10-06) is the "Add a plugin" upload; see `install.ts`.
  */
 export function createAgentPluginsModule(deps: RouteDeps): ServerModuleHandle {
   return {
@@ -28,6 +30,7 @@ export function createAgentPluginsModule(deps: RouteDeps): ServerModuleHandle {
       registerAgentPluginsListRoute(app, deps);
       registerAgentPluginSetEnabledRoute(app, deps);
       registerAgentPluginFilesRoute(app, deps);
+      registerAgentPluginInstallRoute(app, deps);
       registerAgentPluginMemoryRoutes(app, deps);
     },
   };

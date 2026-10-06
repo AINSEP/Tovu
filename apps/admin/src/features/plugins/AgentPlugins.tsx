@@ -10,12 +10,16 @@ import { useId, useState } from "react";
 
 import type { AdminAgentPlugin } from "@/lib/api";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
+import { AddAgentPluginPanel } from "./AddAgentPluginPanel";
 import { AgentPluginDetailsModal } from "./AgentPluginDetailsModal";
 import { AgentPluginDisableConfirmDialog } from "./AgentPluginDisableConfirmDialog";
 import { AgentPluginRow, type AgentPluginRowStateControl } from "./AgentPluginRow";
-import { InstalledIcon, MarketplaceIcon } from "./agent-plugins-visuals";
+import { InstalledIcon, MarketplaceIcon, UploadIcon } from "./agent-plugins-visuals";
 import { agentPluginDisplayName } from "./rules";
 import { useWiredAgentPlugins, type AgentPluginsController } from "./hooks/use-agent-plugins.hooks";
+import { defaultAgentPluginInstallPort } from "./hooks/agent-plugin-install-dependencies.hooks";
+import type { AgentPluginInstallPort } from "./hooks/agent-plugin-install-port.hooks";
+import { useAgentPluginInstall } from "./hooks/use-agent-plugin-install.hooks";
 import type { Translate } from "@/lib/dictionary-translator";
 
 const AGENT_PLUGINS_SPEC_URL = "https://agent-plugins.org/specification";
@@ -301,6 +305,8 @@ export interface AgentPluginsProps {
    * Defaulted to the real hook, so production callers pass nothing and behave exactly as before.
    */
   useAgentPluginsHook?: typeof useWiredAgentPlugins;
+  /** The "Add a plugin" upload transport; tests pass `createFakeAgentPluginInstallPort`. */
+  agentPluginInstallPort?: AgentPluginInstallPort;
 }
 
 /**
@@ -335,9 +341,13 @@ export interface AgentPluginsProps {
  *     switch's off state is reachable again and a switched-off bundled plugin can be turned on
  *     from the default tab. Item 4's "Installed (only `enabled: true`)" scope no longer holds.
  */
-export function AgentPlugins({ useAgentPluginsHook = useWiredAgentPlugins }: AgentPluginsProps = {}) {
+export function AgentPlugins({
+  useAgentPluginsHook = useWiredAgentPlugins,
+  agentPluginInstallPort = defaultAgentPluginInstallPort,
+}: AgentPluginsProps = {}) {
   const controller = useAgentPluginsHook();
   const { t, locale, agentPlugins, onToggleEnabled, inspectedPlugin, closeInspector } = controller;
+  const installController = useAgentPluginInstall({ port: agentPluginInstallPort, t, onInstalled: controller.onInstalled });
   // One id, referenced by every row's disabled uninstall control — see `AgentPluginRow`'s header
   // for why the reason is stated once at section level rather than once per row.
   const uninstallNoteId = useId();
@@ -406,6 +416,14 @@ export function AgentPlugins({ useAgentPluginsHook = useWiredAgentPlugins }: Age
           })}
         />
       ),
+    },
+    {
+      id: "add",
+      label: t("Add a plugin"),
+      icon: <UploadIcon />,
+      title: t("Agent Plugins"),
+      subtitle: t("Install a package you already have."),
+      panel: <AddAgentPluginPanel controller={installController} />,
     },
     {
       id: "marketplace",

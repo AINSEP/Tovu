@@ -61,6 +61,8 @@ export interface AgentPluginsController {
   togglingIds: ReadonlySet<string>;
   /** Flips one plugin's activation and replaces that row with the server's answer. */
   onToggleEnabled: (plugin: AdminAgentPlugin) => Promise<void>;
+  /** Adds (or replaces) the row the "Add a plugin" upload answered with, so no list re-fetch. */
+  onInstalled: (plugin: AdminAgentPlugin) => void;
   /** Plugin ids whose row detail panel (keywords, portable components, MCP servers) is open. */
   expandedIds: ReadonlySet<string>;
   /** Opens or closes one row's detail panel. */
@@ -141,6 +143,8 @@ export function useAgentPlugins({ port, locale, t }: AgentPluginsDependencies): 
     toggleError,
     togglingIds,
     onToggleEnabled,
+    onInstalled: (plugin: AdminAgentPlugin) =>
+      setAgentPlugins((current) => [...(current ?? []).filter((entry) => entry.pluginId !== plugin.pluginId), plugin]),
     expandedIds,
     onToggleExpanded: (pluginId: string) => setExpandedIds((ids) => withId(ids, pluginId, !ids.has(pluginId))),
     inspectedPlugin,
