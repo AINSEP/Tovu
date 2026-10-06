@@ -1660,6 +1660,18 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 
   .admin-content { padding: var(--space-4) var(--space-3); }
 
+  /* FAB clearance (mobile catalog P-1, 2026-10-06): with the sheet CLOSED the 56px `.chat-fab`
+     sits fixed over the bottom-right of the page, and at max scroll it covered the last ~70px —
+     row icons, footnotes, and on the form editor the page's own Save button. Same `::after` spacer
+     as the open-sheet rules below (and for the same reason: padding would force the box taller);
+     88px = FAB + its bottom offset + a gap. Those rules outrank this one, so an open sheet still
+     reserves its own height instead. */
+  .admin-content::after { content: ""; display: block; height: 88px; }
+  /* Same clearance for the fixed-height tab panels that scroll on their own (Settings, Agent
+     plugins): their last rows sat under the FAB at the panel's own max scroll, which the spacer
+     above cannot reach. Page-flow panels scroll with the page, so they are left alone. */
+  .settings-ui-section:not(.settings-ui-section--page-flow) .jini-tabbed-dialog-content { padding-bottom: 88px; }
+
   /* Owner repro, 2026-08-26: the sheet covers the bottom of the page with nothing left to scroll
      into, so the last elements can never clear it. An `::after` spacer (not `padding-bottom`)
      reserves that room: padding has a hard floor at its own value — on a short viewport with the
