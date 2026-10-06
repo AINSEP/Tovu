@@ -145,7 +145,11 @@ import { updaterSkipReason } from "./src/update-policy.ts";
 import { createAutoUpdateController } from "./src/auto-update-controller.ts";
 import { automaticUpdatesMenu, readAutomaticUpdates, writeAutomaticUpdates } from "./src/desktop-update-preference.ts";
 import { desktopCopy } from "./src/desktop-i18n.ts";
-import { presenceDirPath, createInstancePresence } from "./src/instance-presence.ts";
+import { presenceDirPath } from "./src/instance-presence.ts";
+// Owner 2026-10-06: DMG window already shows drag-to-Applications; prompt redundant.
+// Restore: uncomment these imports, the helper and its call, and re-enable the wiring tests.
+// import { createInstancePresence } from "./src/instance-presence.ts";
+/*
 import {
   MOVE_PROMPT,
   applicationsTargetPath,
@@ -157,6 +161,7 @@ import {
   recordDeclinedVersion,
   runMoveToApplicationsPrompt,
 } from "./src/move-to-applications.ts";
+*/
 import type { AutoUpdateController } from "./src/auto-update-controller.ts";
 import type { MenuItemConstructorOptions } from "electron";
 import type { QuitPhase } from "@jini-ai/desktop-host/shutdown";
@@ -1530,6 +1535,9 @@ function explainOthersOpen(count: number): void {
  * from Applications and quits this process) leaves nothing behind. Its caller logs any throw (an
  * unwritable `userData` on "Not Now") and boots on.
  */
+// Owner 2026-10-06: DMG window already shows drag-to-Applications; prompt redundant.
+// Restore: uncomment this helper, its imports and call, and re-enable the wiring tests.
+/*
 async function offerMoveToApplications(): Promise<void> {
   const userDataDir = app.getPath("userData");
   const declinePath = moveDeclineFilePath(userDataDir);
@@ -1573,6 +1581,7 @@ async function offerMoveToApplications(): Promise<void> {
   });
   console.log(`[tovu-desktop] move to Applications: ${outcome}`);
 }
+*/
 
 app
   .whenReady()
@@ -1592,7 +1601,9 @@ app
     });
 
     // Before the updater and any site server: a successful move quits this process at once.
-    await offerMoveToApplications().catch((error: Error) => console.error(`[tovu-desktop] move to Applications failed: ${error.message}`));
+    // Owner 2026-10-06: DMG window already shows drag-to-Applications; prompt redundant.
+    // Restore: uncomment this call, its helper and imports, and re-enable the wiring tests.
+    // await offerMoveToApplications().catch((error: Error) => console.error(`[tovu-desktop] move to Applications failed: ${error.message}`));
 
     // Registered before either boot-mode branch below so a window's very first `isAvailable()`
     // call (fired from the preload the instant the page mounts) never races an unregistered
