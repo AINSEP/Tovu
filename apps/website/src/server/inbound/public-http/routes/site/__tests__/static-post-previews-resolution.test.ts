@@ -95,7 +95,7 @@ function activeMemberSession(): MemberSessionRecord {
  *  (REQ 2), rather than merely asserting on rendered output. */
 class CountingPostRepo implements PostRepoPort {
   listPublishedPreviewsCalls = 0;
-  previewRequests: { workspaceId: string; limit: number }[] = [];
+  previewRequests: { workspaceId: string; limit: number; nowIso?: string }[] = [];
   constructor(private readonly inner: PostRepoPort) {}
   findById(required: { workspaceId: string; id: string }) {
     return this.inner.findById(required);
@@ -106,7 +106,7 @@ class CountingPostRepo implements PostRepoPort {
   list(required: { workspaceId: string }) {
     return this.inner.list(required);
   }
-  listPublishedPreviews(required: { workspaceId: string; limit: number }) {
+  listPublishedPreviews(required: { workspaceId: string; limit: number; nowIso?: string }) {
     this.listPublishedPreviewsCalls += 1;
     this.previewRequests.push(required);
     return this.inner.listPublishedPreviews(required);
@@ -141,6 +141,13 @@ class CountingPostRepo implements PostRepoPort {
   transaction<T>(fn: () => Promise<T>) {
     return this.inner.transaction(fn);
   }
+}
+
+/** The route stamps each preview query with the request's own `nowIso` (scheduled publishing,
+ *  2026-10-05) — a wall-clock value, so it is checked for shape here, not pinned. */
+function assertPreviewRequests(repo: CountingPostRepo, expected: { workspaceId: string; limit: number }[]): void {
+  assert.deepEqual(repo.previewRequests.map(({ workspaceId, limit }) => ({ workspaceId, limit })), expected);
+  for (const { nowIso } of repo.previewRequests) assert.match(nowIso ?? "", /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
 }
 
 async function startServer(overrides: Partial<ReturnType<typeof createRouteDeps>>) {
@@ -248,7 +255,7 @@ test("GET /blog: malformed, oversized and distinct marker limits stay bounded in
     const slugs = [...section[1].matchAll(/href="\/(bounded-\d+)"/g)].map((match) => match[1]);
     assert.deepEqual(slugs, Array.from({ length: count }, (_, i) => `bounded-${29 - i}`));
   }
-  assert.deepEqual(repo.previewRequests, [{ workspaceId: WORKSPACE_ID, limit: 24 }]);
+  assertPreviewRequests(repo, [{ workspaceId: WORKSPACE_ID, limit: 24 }]);
 });
 
 test("GET /blog: zero visible previews preserve the authored fallback", async (t) => {
@@ -262,7 +269,7 @@ test("GET /blog: zero visible previews preserve the authored fallback", async (t
   const html = await res.text();
   assert.match(html, /<div class="grid"[^>]*>fallback card<\/div>/);
   assert.doesNotMatch(html, /class="post-card"|A real published post/);
-  assert.deepEqual(repo.previewRequests, [{ workspaceId: WORKSPACE_ID, limit: 6 }]);
+  assertPreviewRequests(repo, [{ workspaceId: WORKSPACE_ID, limit: 6 }]);
 });
 
 test("GET /about: a page WITHOUT the post-previews marker triggers NO bounded query and renders unaffected", async (t) => {
