@@ -88,6 +88,20 @@ describe("MediaRefField — Choose image", () => {
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
   });
 
+  // 2026-10-05: an og:image/twitter:image must be an image, so the picker hides videos (same
+  // `accept` the post featured-image chooser passes).
+  it("offers images only — a video in the library is not listed", async () => {
+    vi.spyOn(api, "listMedia").mockResolvedValue({
+      media: [mediaItem(), mediaItem({ id: "asset-2", slug: "clip", title: "Clip", contentType: "video/mp4" })],
+    });
+    const user = userEvent.setup();
+    renderField();
+
+    await user.click(screen.getByRole("button", { name: "Choose image" }));
+    expect(await screen.findByTitle("Sunset")).toBeInTheDocument();
+    expect(screen.queryByTitle("Clip")).not.toBeInTheDocument();
+  });
+
   // readable-slugs S5b: buildMediaRef prefers the slug — id and slug are distinct here so a passing
   // assertion proves the SLUG was used, not just any field.
   it("selecting an asset writes the EXACT '{slug}:public' ref and closes the dialog", async () => {

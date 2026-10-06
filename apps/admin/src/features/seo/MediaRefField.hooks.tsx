@@ -33,7 +33,13 @@ export interface MediaRefFieldController {
   /** The field's current value resolved to a thumbnail `<img src>`, or `null` when the value is
    *  empty or unparseable — see `resolveMediaRefPreviewUrl`'s own doc. */
   previewUrl: string | null;
+  /** `MediaPickerDialog`'s `accept` — images only: every field this backs is an og:image /
+   *  twitter:image, and a crawler cannot use a video there (2026-10-05, same filter the post
+   *  featured-image chooser passes). */
+  accept: readonly string[];
 }
+
+const SHARE_IMAGE_ACCEPT: readonly string[] = ["image/*"];
 
 export function useMediaRefField(
   value: string,
@@ -54,6 +60,7 @@ export function useMediaRefField(
     handleSelect,
     clear: () => onChange(""),
     previewUrl: resolveMediaRefPreviewUrl(value, deps.port.mediaOriginalUrl),
+    accept: SHARE_IMAGE_ACCEPT,
   };
 }
 

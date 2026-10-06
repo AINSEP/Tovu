@@ -57,7 +57,7 @@ export function MediaRefField({
   agentHandle: base,
   useField = useWiredMediaRefField,
 }: MediaRefFieldProps) {
-  const { pickerOpen, openPicker, closePicker, handleSelect, clear, previewUrl } = useField(value, onChange);
+  const { pickerOpen, openPicker, closePicker, handleSelect, clear, previewUrl, accept } = useField(value, onChange);
 
   return (
     <div className="field media-ref-field">
@@ -93,7 +93,7 @@ export function MediaRefField({
       </div>
       {previewUrl ? <img className="media-ref-field-preview" src={previewUrl} alt={`${label} preview`} /> : null}
       {pickerOpen ? (
-        <MediaPickerDialog onSelect={handleSelect} onCancel={closePicker} agentHandle={base ? `${base}-dialog` : undefined} />
+        <MediaPickerDialog onSelect={handleSelect} onCancel={closePicker} accept={accept} agentHandle={base ? `${base}-dialog` : undefined} />
       ) : null}
     </div>
   );

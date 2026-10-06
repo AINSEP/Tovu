@@ -51,6 +51,13 @@ describe("useMediaRefField — picker visibility", () => {
   });
 });
 
+describe("useMediaRefField — accept", () => {
+  it("asks the picker for images only", () => {
+    const { result } = renderHook(() => useMediaRefField("", vi.fn(), { port: createFakeMediaPickerPort() }));
+    expect(result.current.accept).toEqual(["image/*"]);
+  });
+});
+
 describe("useMediaRefField — handleSelect", () => {
   // readable-slugs S5b: writes the slug, not the id — buildMediaRef now prefers item.slug.
   it("calls onChange with the EXACT '{slug}:public' ref for the selected item", () => {
