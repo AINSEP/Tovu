@@ -1,5 +1,6 @@
 import type { UUID } from "@jini-ai/core/primitives";
 import { escapeXml } from "#src/platform/html/escape";
+import { postDisplayDateIso } from "#src/contracts/core/scheduled-publish";
 import { resolveWorkspaceOrigin, toAbsoluteUrl } from "./absolute-url.js";
 import { deriveExcerpt } from "./seo.js";
 import { computeIndexableEntries, type SeoSitemapDeps } from "./sitemap.js";
@@ -25,8 +26,9 @@ export const FEED_PATH = "/feed.xml";
 export interface FeedItem {
   readonly title: string;
   readonly link: string;
-  /** ISO timestamp. Posts carry no separate publish date, so this is `updatedAt`. */
-  readonly updatedAt: string;
+  /** ISO timestamp. The post's go-live time (`publishAt`) when it has one, else `updatedAt` — posts
+   *  carry no separate published-at column (`postDisplayDateIso`, owner decision 2026-10-05). */
+  readonly publishedAt: string;
   readonly description: string | undefined;
 }
 
@@ -48,7 +50,7 @@ export async function buildFeed(deps: SeoSitemapDeps, input: { workspaceId: UUID
     .filter(({ post }) => post.kind === "post")
     .sort((a, b) => (a.post.updatedAt < b.post.updatedAt ? 1 : a.post.updatedAt > b.post.updatedAt ? -1 : 0))
     .slice(0, FEED_ITEM_LIMIT)
-    .map(({ post, meta }) => ({ title: post.title, link: meta.canonical, updatedAt: post.updatedAt, description: deriveExcerpt(post) }));
+    .map(({ post, meta }) => ({ title: post.title, link: meta.canonical, publishedAt: postDisplayDateIso(post), description: deriveExcerpt(post) }));
   const origin = await resolveWorkspaceOrigin(deps.originRegistry, input.workspaceId);
   return { siteTitle: input.siteTitle, siteLink: toAbsoluteUrl(origin, "/"), feedUrl: toAbsoluteUrl(origin, FEED_PATH), items };
 }
@@ -60,7 +62,7 @@ function renderItem(item: FeedItem): string {
     `      <title>${escapeXml(item.title)}</title>\n` +
     `      <link>${escapeXml(item.link)}</link>\n` +
     `      <guid isPermaLink="true">${escapeXml(item.link)}</guid>\n` +
-    `      <pubDate>${new Date(item.updatedAt).toUTCString()}</pubDate>\n` +
+    `      <pubDate>${new Date(item.publishedAt).toUTCString()}</pubDate>\n` +
     description +
     `    </item>\n`
   );

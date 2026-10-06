@@ -34,7 +34,7 @@ test("feed excludes effective-noindex posts and retains an empty-body post witho
   const d = await deps([post(), post({ id: "hidden", slug: "hidden", title: "Hidden", seoExtJson: '{"noindex":true}' })]);
   assert.deepEqual(await buildFeed(d, { workspaceId: "feed-ws", siteTitle: "Independent title" }), {
     siteTitle: "Independent title", siteLink: "/", feedUrl: "/feed.xml", items: [
-      { title: "Live", link: "/live", updatedAt: "2026-10-01T12:00:00.000Z", description: undefined },
+      { title: "Live", link: "/live", publishedAt: "2026-10-01T12:00:00.000Z", description: undefined },
     ],
   });
 });
@@ -59,8 +59,8 @@ for (const mode of ["production", "local"] as const) {
 
 test("RSS escapes channel and item values, omits absent descriptions, and emits an exact UTC date", () => {
   assert.equal(renderRssXml({ siteTitle: 'A & <B> "C"', siteLink: "https://example.test/?a=1&b=2", feedUrl: "https://example.test/feed.xml?a=1&b=2", items: [
-    { title: "First <item>", link: "https://example.test/first?a=1&b=2", updatedAt: "2026-10-01T12:00:00.000Z", description: "Text & more" },
-    { title: "Empty", link: "https://example.test/empty", updatedAt: "2026-09-30T12:00:00.000Z", description: undefined },
+    { title: "First <item>", link: "https://example.test/first?a=1&b=2", publishedAt: "2026-10-01T12:00:00.000Z", description: "Text & more" },
+    { title: "Empty", link: "https://example.test/empty", publishedAt: "2026-09-30T12:00:00.000Z", description: undefined },
   ] }), `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
@@ -91,4 +91,11 @@ test("a real origin-registry failure propagates instead of silently producing re
   const error = new Error("origin database unavailable");
   t.mock.method(d.originRegistry, "canonicalOrigin", async () => { throw error; });
   await assert.rejects(buildFeed(d, { workspaceId: "feed-ws", siteTitle: "My site" }), (caught) => caught === error);
+});
+
+test("an item's pubDate is the post's go-live time (publishAt), not updatedAt — owner decision 2026-10-05", async () => {
+  const d = await deps([post({ publishAt: "2026-09-15T08:00:00.000Z", updatedAt: "2026-10-01T12:00:00.000Z" })]);
+  const xml = renderRssXml(await buildFeed(d, { workspaceId: "feed-ws", siteTitle: "My site" }));
+  assert.match(xml, /<pubDate>Tue, 15 Sep 2026 08:00:00 GMT<\/pubDate>/);
+  assert.doesNotMatch(xml, /01 Oct 2026/);
 });
