@@ -27,7 +27,7 @@ import type { ToolContributor } from "#src/assistant/index";
 import type { PostRepoPort } from "../post/index.js";
 import type { SettingsRepoPort } from "../settings/index.js";
 import type { PrincipalRepoPort } from "@jini-ai/user-management";
-import type { AssetRenditionRepoPort, MediaRepoPort, TransformDefinitionRepoPort } from "../media/index.js";
+import type { AssetRenditionRepoPort, MediaContentTypeStorePort, MediaRepoPort, TransformDefinitionRepoPort } from "../media/index.js";
 import type { OriginRegistryPort } from "../origin/index.js";
 import { getSeoAgentToolCatalog } from "./agent-tools.js";
 import {
@@ -65,6 +65,8 @@ export interface SeoToolDeps {
   settingsRepo: SettingsRepoPort;
   principalRepo: PrincipalRepoPort;
   mediaRepo: MediaRepoPort;
+  /** The share-image writes' content-type check (`seoImageRefRefusal`, 2026-10-05). */
+  mediaContentTypeStore: Pick<MediaContentTypeStorePort, "getMany">;
   assetRenditionRepo: AssetRenditionRepoPort;
   transformDefinitionRepo: TransformDefinitionRepoPort;
   originRegistry: OriginRegistryPort;
@@ -163,7 +165,7 @@ export function buildSeoRegistrations(routeDeps: SeoToolDeps): ToolRegistration[
           isShapeRejection: ({ error }) => error instanceof SeoFieldValidationError || error instanceof SeoInvalidCanonicalUrlError,
           fn: () =>
           setEntrySeoOverrides({
-            deps: { postRepo: routeDeps.postRepo, authorize: routeDeps.authorize, invalidateSitemapCache: input => requestSitemapInvalidation(routeDeps, input), clock: { nowMs: () => Date.parse(routeDeps.clock.nowIso()) } },
+            deps: { postRepo: routeDeps.postRepo, authorize: routeDeps.authorize, invalidateSitemapCache: input => requestSitemapInvalidation(routeDeps, input), clock: { nowMs: () => Date.parse(routeDeps.clock.nowIso()) }, media: routeDeps },
             input: {
               workspaceId: routeDeps.workspaceId,
               entryId,
@@ -197,6 +199,7 @@ export function buildSeoRegistrations(routeDeps: SeoToolDeps): ToolRegistration[
               authorize: routeDeps.authorize,
               principals: routeDeps.principalRepo,
               invalidateSitemap: input => requestSitemapInvalidation(routeDeps, input),
+              media: routeDeps,
             },
             { workspaceId: routeDeps.workspaceId, patch: seoSettingsPatchFromInput(input), callerPrincipalId: ctx.principal.id },
           ) });

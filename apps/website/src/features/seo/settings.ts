@@ -11,7 +11,9 @@ import {
   set,
   type AuthorizeFn,
 } from "../settings/index.js";
+import type { FeaturedImageDeps } from "../post/index.js";
 import { SeoSettingsValidationError } from "./errors.js";
+import { seoImageRefRefusal } from "./media.js";
 import type { RobotsDirective, RobotsRule, SeoSettingKey, SeoSettings } from "./types.js";
 
 /**
@@ -192,6 +194,9 @@ export interface SeoSettingsWriteDeps extends GetSeoSettingsDeps {
   ids: IdGeneratorPort;
   authorize: AuthorizeFn;
   principals: PrincipalRepoPort;
+  /** Media lookups for the `defaultOgImage` image check (2026-10-05, see `seoImageRefRefusal`).
+   *  Required so no write path can skip it by not wiring it. */
+  media: FeaturedImageDeps;
 }
 
 /**
@@ -378,6 +383,15 @@ function buildRobotsRulesWrites(robotsRules: RobotsRule[] | undefined): SeoSetti
 /** REQ-11/15 chokepoint write: validate ALL fields (all-or-nothing) -> decompose -> N ledger `set()` calls. */
 export async function setSeoSettings(deps: SeoSettingsWriteDeps, input: SetSeoSettingsInput): Promise<SeoSettings> {
   validateSeoSettingsPatch(input.patch);
+  // Before any write, so a refused image leaves every other field in the patch unwritten too
+  // (all-or-nothing). Unlike the entry chokepoint this runs ahead of authorization (each `set()`
+  // below authorizes itself); the PUT route authorizes first, so only the chat tool can reach it
+  // unauthorized, and all it can learn is whether an asset it names is a non-image.
+  const ogImageRefusal = await seoImageRefRefusal({
+    deps: deps.media,
+    input: { workspaceId: input.workspaceId, field: "defaultOgImage", ref: input.patch.defaultOgImage },
+  });
+  if (ogImageRefusal) throw new SeoSettingsValidationError(ogImageRefusal);
 
   // Order matches the original field-by-field pushes exactly (scalars, then defaultRobots'
   // 2 writes, then sitemapEnabled, then robotsRules) — write order is preserved on purpose.

@@ -8,6 +8,7 @@ import type {
   TransformFormat,
 } from "../media/index.js";
 import { findMediaByIdOrSlug, mediaPublicPath, mediaUrlKey } from "../media/index.js";
+import { resolveFeaturedImageRef, type FeaturedImageDeps } from "../post/index.js";
 
 /**
  * @file `resolveSeoImageRef` (ADR-PIPE-008 Decision §6, C-013, EC-07;
@@ -132,4 +133,34 @@ export async function resolveSeoImageRef(
   if (!latest) return undefined;
 
   return buildSeoImageUrl(asset, transformName, latest);
+}
+
+/**
+ * The write-path refusal for an `ogImage`/`twitterImage`/`defaultOgImage` value (2026-10-05): the
+ * message to refuse it with, or `null` to accept it. Both SEO write chokepoints call it
+ * (`setEntrySeoOverrides` in `write-service.ts`, `setSeoSettings` in `settings.ts`), so the chat
+ * tools and the admin REST routes share it.
+ *
+ * The check itself is the post featured image's ({@link resolveFeaturedImageRef}), run on the
+ * ref's `{idOrSlug}` half — one content-type rule for every "this must be an image" media field.
+ * Only a KNOWN non-image is refused. A missing or trashed asset is accepted, as before: the head
+ * render already drops such a ref fail-soft (EC-07, {@link resolveSeoImageRef}), and refusing it
+ * here would be a new rule this fix was not asked for. An absolute URL, a non-ref string and
+ * `null`/`undefined` (clear/omitted) are accepted untouched.
+ *
+ * @complexity O(1) — at most two repo reads and one content-type read.
+ */
+export async function seoImageRefRefusal(required: {
+  deps: FeaturedImageDeps;
+  input: { workspaceId: string; field: string; ref: unknown };
+}): Promise<string | null> {
+  const { deps, input } = required;
+  if (typeof input.ref !== "string") return null;
+  const ref = input.ref.trim();
+  if (!ref || isAbsoluteUrl(ref)) return null;
+  const parts = parseMediaRefParts(ref);
+  if (!parts) return null;
+  const resolution = await resolveFeaturedImageRef({ deps, input: { workspaceId: input.workspaceId, ref: parts.idOrSlug } });
+  if (resolution.ok || resolution.reason !== "not-image") return null;
+  return `${input.field}: media asset '${parts.idOrSlug}' is ${resolution.contentType}, not an image. A social share image must be an image.`;
 }

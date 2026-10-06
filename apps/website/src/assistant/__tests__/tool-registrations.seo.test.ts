@@ -24,6 +24,7 @@ import { InMemorySettingsRepo } from "../../features/settings/index.js";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import {
   InMemoryAssetRenditionRepo,
+  InMemoryMediaContentTypeStore,
   InMemoryMediaRepo,
   InMemoryTransformDefinitionRepo,
 } from "../../features/media/index.js";
@@ -103,6 +104,13 @@ async function fakeRouteDeps(options: { allow?: boolean; posts?: PostRecord[] } 
   // bebc5736f: SEO writes enqueue `seo.sitemap_invalidated` so the serving process (not only this
   // one) drops its cached sitemap; the real in-memory outbox and bus carry it here.
   const bus = new InMemoryEventBus();
+  // 2026-10-05: one image and one video asset, for the SEO image fields' non-image refusal.
+  const mediaRepo = new InMemoryMediaRepo({}, { initialRows: [] });
+  const mediaContentTypeStore = new InMemoryMediaContentTypeStore();
+  for (const [id, sha256, contentType] of [["m-share", "sha-share", "image/png"], ["m-clip", "sha-clip", "video/mp4"]]) {
+    await mediaRepo.save({ id, workspaceId: WORKSPACE_ID, title: id, slug: id, alt: "", caption: "", credit: "", source: { sha256 }, status: "active", createdAt: NOW, updatedAt: NOW, version: 1, width: null, height: null, cssClass: null, htmlAttributes: null } as never);
+    await mediaContentTypeStore.set({ workspaceId: WORKSPACE_ID, sha256, contentType });
+  }
   const deps = {
     workspaceId: WORKSPACE_ID,
     seoReady: Promise.resolve(),
@@ -111,7 +119,8 @@ async function fakeRouteDeps(options: { allow?: boolean; posts?: PostRecord[] } 
     postRepo,
     settingsRepo,
     principalRepo,
-    mediaRepo: new InMemoryMediaRepo({}, { initialRows: [] }),
+    mediaRepo,
+    mediaContentTypeStore,
     assetRenditionRepo: new InMemoryAssetRenditionRepo({}, { initialRows: [] }),
     transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}, { initialRows: [] }),
     clock,
@@ -299,6 +308,23 @@ test("seo_set_entry_overrides: rejects an unregistered field the same way the ch
     () => wired(deps, "seo_set_entry_overrides").handler(executionContext({ entryId: "post-1", notAField: "x" })),
     /Fix the input and retry/,
   );
+});
+
+test("seo_set_entry_overrides and seo_set_settings refuse a video as a share image, nothing written", async () => {
+  const { deps, postRepo, settingsRepo } = await fakeRouteDeps();
+  await assert.rejects(
+    () => wired(deps, "seo_set_entry_overrides").handler(executionContext({ entryId: "post-1", ogImage: "m-clip:og" })),
+    /ogImage: media asset 'm-clip' is video\/mp4, not an image\. A social share image must be an image\./,
+  );
+  assert.equal((await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "post-1" }))?.seoExtJson, null);
+  const before = await getSeoSettings({ settingsRepo }, { workspaceId: WORKSPACE_ID });
+  await assert.rejects(
+    () => wired(deps, "seo_set_settings").handler(executionContext({ defaultOgImage: "m-clip:og" })),
+    /defaultOgImage: media asset 'm-clip' is video\/mp4, not an image\. A social share image must be an image\./,
+  );
+  assert.deepEqual(await getSeoSettings({ settingsRepo }, { workspaceId: WORKSPACE_ID }), before);
+  await wired(deps, "seo_set_entry_overrides").handler(executionContext({ entryId: "post-1", ogImage: "m-share:og" }));
+  assert.equal((await wired(deps, "seo_set_settings").handler(executionContext({ defaultOgImage: "m-share:og" })) as { settings: { defaultOgImage?: string } }).settings.defaultOgImage, "m-share:og");
 });
 
 test("seo_get_entry_meta: an unknown entryId propagates SeoEntryNotFoundError unwrapped", async () => {

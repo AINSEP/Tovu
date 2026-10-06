@@ -1,13 +1,14 @@
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import { type Clock as ClockPort } from "@jini-ai/core/primitives";
 import { assertEntityLive, ForbiddenError, type AuthorizeFn } from "@jini-ai/cms/core";
-import { isTrashed, type PostRepoPort } from "../post/index.js";
+import { isTrashed, type FeaturedImageDeps, type PostRepoPort } from "../post/index.js";
 import {
   SeoConcurrentWriteError,
   SeoEntryNotFoundError,
   SeoFieldValidationError,
   SeoInvalidCanonicalUrlError,
 } from "./errors.js";
+import { seoImageRefRefusal } from "./media.js";
 import type { SeoExtFields, SeoExtFieldsPatch } from "./types.js";
 
 /**
@@ -142,6 +143,18 @@ function validateEnumFields(patch: Record<string, unknown>): void {
   }
 }
 
+/** Share-image fields whose media ref must be an image (2026-10-05, see `seoImageRefRefusal`). */
+const SHARE_IMAGE_FIELDS = ["ogImage", "twitterImage"] as const;
+
+/** Refuses a share-image field that names a known non-image asset. Runs after `authorize`, so a
+ *  caller without `admin.seo.manage` cannot probe the media library through its message. */
+async function validateShareImageRefs(media: FeaturedImageDeps, input: SetEntrySeoOverridesInput): Promise<void> {
+  for (const field of SHARE_IMAGE_FIELDS) {
+    const refusal = await seoImageRefRefusal({ deps: media, input: { workspaceId: input.workspaceId, field, ref: input.patch[field] } });
+    if (refusal) throw new SeoFieldValidationError(refusal);
+  }
+}
+
 function validateSeoExtFieldsPatch(patch: Record<string, unknown>): void {
   validateRegisteredKeys(patch);
   validateStringLikeFields(patch, STRING_FIELDS, STRING_FIELD_MAX_LENGTH);
@@ -171,6 +184,9 @@ export interface SetEntrySeoOverridesDeps {
    * clock" case to preserve compiling here the way `CreatePostDeps.beforeSaveHook`'s doc describes.
    */
   clock: ClockPort;
+  /** Media lookups for the share-image check (2026-10-05): an `ogImage`/`twitterImage` ref naming a
+   *  video is refused. Required so no write path can skip it by not wiring it. */
+  media: FeaturedImageDeps;
 }
 
 export interface SetEntrySeoOverridesInput {
@@ -322,6 +338,7 @@ export async function setEntrySeoOverrides(
   }
 
   validateSeoExtFieldsPatch(input.patch as Record<string, unknown>);
+  await validateShareImageRefs(deps.media, input);
 
   const mergedOverrides = await mergeOverridesOntoCurrentRow(deps.postRepo, deps.clock, input);
 

@@ -36,6 +36,7 @@ export const registerAdminSeoPutSettingsRoute: SeoRouteRegistrar = (app, deps) =
           authorize: deps.authorize,
           principals: deps.principalRepo,
           invalidateSitemap: invalidateSitemapCache,
+          media: deps,
         },
         { workspaceId: deps.workspaceId, patch: req.body ?? {}, callerPrincipalId: principal.id }
       );

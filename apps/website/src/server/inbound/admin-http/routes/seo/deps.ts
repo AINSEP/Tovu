@@ -34,6 +34,9 @@ export type SeoRouteDeps = Pick<
   | "settingsRepo"
   | "principalRepo"
   | "mediaRepo"
+  // 2026-10-05: `put-entry.ts`/`put-settings.ts` refuse a non-image share image
+  // (`seoImageRefRefusal`), which reads each asset's recorded content type.
+  | "mediaContentTypeStore"
   | "assetRenditionRepo"
   | "transformDefinitionRepo"
   // 2026-09-03 absolute-URL fix: `get-entry.ts`/`get-entry-analyze.ts`/`put-entry.ts` pass `deps`
