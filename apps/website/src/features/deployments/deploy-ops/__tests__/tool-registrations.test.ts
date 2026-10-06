@@ -11,7 +11,21 @@ test("five read-only tools, the deploy tool and the two secret writers are wired
     { id: "deployment_ops_status", readOnly: true }, { id: "deployment_ops_logs", readOnly: true }, { id: "deployment_ops_wait", readOnly: true }, { id: "deployment_ops_list_targets", readOnly: true }, { id: "deployment_ops_deploy", readOnly: false },
     { id: "deployment_ops_list_secrets", readOnly: true }, { id: "deployment_ops_set_secret", readOnly: false }, { id: "deployment_ops_unset_secret", readOnly: false },
   ]);
-  for (const r of registrations) assert.deepEqual((r.descriptor.inputSchema as any).properties.platform.enum, ["fly", "github-actions"]);
+  const secretTools = ["deployment_ops_list_secrets", "deployment_ops_set_secret", "deployment_ops_unset_secret"];
+  for (const r of registrations) assert.deepEqual((r.descriptor.inputSchema as any).properties.platform.enum, secretTools.includes(r.descriptor.id) ? ["fly"] : ["fly", "github-actions"]);
+});
+test("secret tools advertise only platforms whose loaded adapter implements secrets", async () => {
+  const f = await fixture();
+  const tools = new Map(buildDeployOpsRegistrations(f.deps).map(r => [r.descriptor.id, r.descriptor]));
+  for (const id of ["deployment_ops_list_secrets", "deployment_ops_set_secret", "deployment_ops_unset_secret"]) {
+    assert.match(tools.get(id)!.description, / Platforms: fly \(Fly\.io\)\.$/);
+    assert.doesNotMatch(tools.get(id)!.description, /github-actions|GitHub Actions/);
+  }
+  assert.match(tools.get("deployment_ops_status")!.description, /Platforms: fly \(Fly\.io\), github-actions \(GitHub Actions\)\./);
+  const observeOnly = { ...f.registry, list: () => f.registry.list().filter(p => p.descriptor.id === "github-actions") };
+  const listSecrets = buildDeployOpsRegistrations({ ...f.deps, deployOpsRegistry: observeOnly }).find(r => r.descriptor.id === "deployment_ops_list_secrets")!.descriptor;
+  assert.deepEqual((listSecrets.inputSchema as any).properties.platform.enum, []);
+  assert.match(listSecrets.description, / Platforms: none available\.$/);
 });
 test("schemas follow a narrowed or empty loaded registry rather than bundled platform ids", async () => {
   const f = await fixture();

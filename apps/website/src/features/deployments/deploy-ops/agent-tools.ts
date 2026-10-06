@@ -16,11 +16,16 @@ function bundledDescriptors(): readonly DeployOpsDescriptor[] {
     return parsed.ok ? parsed.descriptors : [];
   } catch { return []; }
 }
+const platformList = (platforms: readonly DeployOpsDescriptor[]) => ` Platforms: ${platforms.map(p => `${p.id} (${p.label})`).join(", ") || "none available"}.`;
 /** Build schemas from the loaded registry. O(platforms + eight tools); a missing registry uses bundled data only. */
 export function getDeployOpsAgentToolCatalog(registry?: DeployOpsRegistry): AgentToolDefinition[] {
   const platforms = registry ? registry.list().map(p => p.descriptor) : bundledDescriptors();
   const ids = platforms.map(p => p.id);
-  const listed = ` Platforms: ${platforms.map(p => `${p.id} (${p.label})`).join(", ") || "none available"}.`;
+  const listed = platformList(platforms);
+  // Secrets are an optional adapter verb set, so their tools advertise only adapters that export it
+  // (github-actions has none). Bundled data cannot say which do; the handler refuses the rest.
+  const secrets = registry ? registry.list().filter(p => typeof p.module.listSecrets === "function").map(p => p.descriptor) : platforms;
+  const secretsListed = registry ? platformList(secrets) : " Platforms: whichever deploy platforms have a secrets adapter.";
   const common = `${listed} Use these instead of custom_credential_make_request for deploy checks on these platforms. They don't deploy or change anything; to start a deploy use deployment_ops_deploy. For a static-site publish use deployment_get_static_publish_capabilities / the publish tools instead. Refuses unknown platforms, ambiguous credentials, saved-host mismatches, and rejected auth (use custom_credential_verify).`;
   const base = { platform: { type: "string", enum: ids }, target: { type: "string", minLength: 1, maxLength: 200, description: "App name or owner/repo, as required by the platform." }, credentialLabel: { type: "string", minLength: 1, maxLength: 200 }, runId: { type: "string", pattern: "^[0-9]+$" }, branch: { type: "string", minLength: 1, maxLength: 200 } };
   const definition = (name: string, description: string, properties: Record<string, unknown>, required: string[]): AgentToolDefinition => ({ name, description: description + common, sideEffects: "none", authorization: { permission: "custom-credentials.read" }, inputSchema: { type: "object", additionalProperties: false, properties, required } });
@@ -36,7 +41,7 @@ export function getDeployOpsAgentToolCatalog(registry?: DeployOpsRegistry): Agen
       authorization: { permission: "custom-credentials.write" },
       inputSchema: { type: "object", additionalProperties: false, properties: { platform: base.platform, target: base.target, ref: { type: "string", minLength: 1, maxLength: 200, description: "Branch or tag to deploy (github-actions default: main)." }, credentialLabel: base.credentialLabel }, required: ["platform", "target"] },
     },
-    ...secretTools({ platforms: platforms.map(p => p.id), target: base.target, credentialLabel: base.credentialLabel, listed }),
+    ...secretTools({ platforms: secrets.map(p => p.id), target: base.target, credentialLabel: base.credentialLabel, listed: secretsListed }),
   ];
 }
 /** Generic host-secrets tools; vendors are the deploy plugin's adapters, never per-vendor tools. O(1). */
