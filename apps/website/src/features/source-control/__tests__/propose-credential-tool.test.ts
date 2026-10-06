@@ -18,7 +18,7 @@ import { registerMcpUiToolCallsRoute, MCP_UI_TOOL_CALLS_PATH } from '../../../as
 import { RUN_PRINCIPAL_HEADER } from '../../../assistant/run-ownership.js';
 import { SURFACE_EXCHANGE_ID_PARAM } from '../../../contracts/core/tool-surface-exchanges.js';
 import type { ToolExecutor } from '@jini-ai/daemon';
-import { proposeSourceControlCredential, type SourceControlCredentialSetupDeps } from '../credential-setup.js';
+import { PROPOSE_CREDENTIAL_ABORTED, PROPOSE_CREDENTIAL_CANCELLED, PROPOSE_CREDENTIAL_CLOSED, PROPOSE_CREDENTIAL_SAVE_FAILED, proposeSourceControlCredential, type SourceControlCredentialSetupDeps } from '../credential-setup.js';
 import type { LoadedSourceControlProvider, LoadSourceControlProviders, SourceControlProviderDescriptor } from '../provider-registry.js';
 import type { SourceControlProviderModule } from '../provider-module.js';
 
@@ -124,10 +124,28 @@ test('t10 source form uses the provider declared masked field; submit saves a us
   assert.deepEqual(f.auth, [{ principalId: 'person', permission: 'source-control.credentials.write', workspaceId: 'ws-t10', entityType: 'source-control' }]);
 });
 
-test('t10 source cancellation returns saved false with no credential', async () => {
+// Demo dry run 2026-10-05: a Cancel came back identical to a failed save, so the reply guessed
+// "Either it was closed or the save failed". Each way of not saving now says which it was.
+test('t10 source cancellation returns saved false, cancelled true, with no credential', async () => {
   const f = fixture(); const { pending } = await form(f); submit(f, { [SURFACE_DISMISSED_PARAM]: true, token: SECRET });
-  assert.deepEqual(await pending, { saved: false, credentialId: null, provider: 'github', label: 'My backup connection' });
+  assert.deepEqual(await pending, { saved: false, credentialId: null, provider: 'github', label: 'My backup connection', cancelled: true, message: PROPOSE_CREDENTIAL_CANCELLED });
   assert.deepEqual(await listSourceControlCredentials({ repo: f.repo }, { workspaceId: 'ws-t10' }), []); assert.equal(f.surfaces.size(), 0);
+});
+
+// Demo dry run 2026-10-05: the token form opened before the person heard the repository rules.
+test('t10 source form states the backup repository rules next to the token rules', async () => {
+  const f = fixture(); const { pending, html } = await form(f);
+  assert.match(html, /private/); assert.match(html, /at least one commit/);
+  submit(f, { [SURFACE_DISMISSED_PARAM]: true }); await pending;
+});
+
+test('t10 source capabilities guidance asks for the repository and states its rules before the form', async () => {
+  const f = fixture();
+  const registration = buildSourceControlRegistrations(f.deps, { surfaceExchanges: f.surfaces }).find(r => r.descriptor.id === 'source_control_get_capabilities'); assert.ok(registration);
+  const out = await invokeFixtureHandler(registration, { executionId: 'exec', principal: { id: 'person' }, run: { id: 'run' }, input: {}, signal: new AbortController().signal }) as { providers: Array<{ guidance?: string }> };
+  const guidance = out.providers[0]?.guidance ?? '';
+  assert.match(guidance, /ask which repository/i); assert.match(guidance, /private/); assert.match(guidance, /at least one commit/); assert.match(guidance, /Contents/);
+  assert.ok(guidance.indexOf('ask which repository') < guidance.indexOf('source_control_propose_credential'), 'asks for the repository before opening the form');
 });
 
 test('t10 source permission denied opens no surface and does not read credentials', async () => {
@@ -169,13 +187,13 @@ test('t10 source missing channel and abort fail closed', async () => {
   const f = fixture();
   await assert.rejects(f.call({ provider: 'github' }), { message: 'source_control_propose_credential requires an interactive form channel. Nothing was saved.' });
   const controller = new AbortController(); const { pending } = await form(f, { signal: controller.signal }); controller.abort();
-  assert.deepEqual(await pending, { saved: false, credentialId: null, provider: 'github', label: 'My backup connection' });
+  assert.deepEqual(await pending, { saved: false, credentialId: null, provider: 'github', label: 'My backup connection', cancelled: false, message: PROPOSE_CREDENTIAL_CLOSED });
   assert.deepEqual(await listSourceControlCredentials({ repo: f.repo }, { workspaceId: 'ws-t10' }), []); assert.equal(f.surfaces.size(), 0);
 });
 
 for (const token of ['', 42]) test(`t10 source malformed submitted token ${JSON.stringify(token)} saves nothing`, async () => {
   const f = fixture(); const { pending } = await form(f); submit(f, { label: 'New connection', token });
-  assert.deepEqual(await pending, { saved: false, credentialId: null, provider: 'github', label: 'My backup connection' });
+  assert.deepEqual(await pending, { saved: false, credentialId: null, provider: 'github', label: 'My backup connection', cancelled: false, message: PROPOSE_CREDENTIAL_SAVE_FAILED });
   assert.deepEqual(await listSourceControlCredentials({ repo: f.repo }, { workspaceId: 'ws-t10' }), []);
 });
 
@@ -183,7 +201,7 @@ test('t10 source raw save errors containing the secret never reach model or surf
   const f = fixture(); f.repo.insert = async () => { throw new Error(`db echoed ${SECRET}`); };
   const { pending, emitted } = await form(f); submit(f, { label: 'New connection', token: SECRET });
   const result = await pending;
-  assert.deepEqual(result, { saved: false, credentialId: null, provider: 'github', label: 'My backup connection' });
+  assert.deepEqual(result, { saved: false, credentialId: null, provider: 'github', label: 'My backup connection', cancelled: false, message: PROPOSE_CREDENTIAL_SAVE_FAILED });
   assertNoSecret(result); assertNoSecret(emitted); assert.equal(f.surfaces.size(), 0);
 });
 
@@ -198,7 +216,7 @@ test('t10 source commit without a credential names the setup tool', async () => 
 test('t10 source expired form closes without saving', async t => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   const f = fixture(true, { idleTtlMs: 5 }); const { pending } = await form(f); t.mock.timers.tick(5);
-  assert.deepEqual(await pending, { saved: false, credentialId: null, provider: 'github', label: 'My backup connection' });
+  assert.deepEqual(await pending, { saved: false, credentialId: null, provider: 'github', label: 'My backup connection', cancelled: false, message: PROPOSE_CREDENTIAL_CLOSED });
   assert.deepEqual(await listSourceControlCredentials({ repo: f.repo }, { workspaceId: 'ws-t10' }), []); assert.equal(f.surfaces.size(), 0);
 });
 
@@ -244,7 +262,7 @@ test('t10 source pre-aborted call returns declined without loading providers or 
   const f = fixture(); const controller = new AbortController(); controller.abort();
   const deps = directDeps(f, async () => assert.fail('aborted call must not load providers'));
   assert.deepEqual(await directCall(f, deps, { provider: 'github' }, { signal: controller.signal }, async () => assert.fail('aborted call must not open a form')),
-    { saved: false, credentialId: null, provider: 'github', label: 'default' });
+    { saved: false, credentialId: null, provider: 'github', label: 'default', cancelled: false, message: PROPOSE_CREDENTIAL_ABORTED });
   assert.equal(f.surfaces.size(), 0);
 });
 
@@ -252,7 +270,7 @@ test('t10 source call aborted while providers load returns declined and opens no
   const f = fixture(); const controller = new AbortController();
   const deps = directDeps(f, bitbucketRegistry(() => controller.abort()));
   assert.deepEqual(await directCall(f, deps, { provider: 'bitbucket', label: 'Team' }, { signal: controller.signal }, async () => assert.fail('aborted call must not open a form')),
-    { saved: false, credentialId: null, provider: 'bitbucket', label: 'Team' });
+    { saved: false, credentialId: null, provider: 'bitbucket', label: 'Team', cancelled: false, message: PROPOSE_CREDENTIAL_ABORTED });
   assert.equal(f.surfaces.size(), 0);
 });
 

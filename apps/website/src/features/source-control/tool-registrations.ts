@@ -165,7 +165,7 @@ const EXECUTE_COMMIT_SCHEMA = {
 export const sourceControlAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "source_control_propose_credential",
-    description: "Opens a human form to connect a source control provider for commits or repository backup. Call when no saved credential exists; the person types the token directly into the form and the server seals it. Supply only provider and optional label, never a secret. This call waits for submission or cancellation, then returns {saved, credentialId, provider, label}; credentialId is null when nothing was saved. Only enabled providers with declared forms are supported. Permission denied or absent form channel refuses the call; invalid form data or a failed save returns saved:false. Creates a credential; editing and deleting remain admin-only. Use source_control_get_capabilities to inspect hosts and saved connections.",
+    description: "Opens a human form to connect a source control provider for commits or repository backup. Call when no saved credential exists; the person types the token directly into the form and the server seals it. Supply only provider and optional label, never a secret. Before calling it, tell the person the repository rules and ask which repository to use (source_control_get_capabilities guidance). This call waits for submission or cancellation, then returns {saved, credentialId, provider, label}; when nothing was saved it also returns cancelled (true only when the person pressed Cancel) and message saying why — report that, not a guess. Only enabled providers with declared forms are supported. Permission denied or absent form channel refuses the call; invalid form data or a failed save returns saved:false. Creates a credential; editing and deleting remain admin-only. Use source_control_get_capabilities to inspect hosts and saved connections.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "source-control.credentials.write" },
     inputSchema: { type: "object", additionalProperties: false, required: ["provider"], properties: {
@@ -334,7 +334,10 @@ function buildCapabilityGuidance(providerId: string, configured: boolean, commit
     return `No ${providerId} credential is saved, and no enabled Agent Plugin supports committing to ${providerId}${switchOn || "."}`;
   }
   if (!configured) {
-    return `No ${providerId} credential is saved yet. Call source_control_propose_credential to open a human credential form.`;
+    // Demo dry run 2026-10-05: the token form opened before the person had heard any of this.
+    return `No ${providerId} credential is saved yet. First tell the person what is needed and ask which repository (owner/name) to use: ` +
+      "for a site backup it must be private and already have at least one commit (for example a README), and the token needs " +
+      "Contents read and write on it. Then call source_control_propose_credential to open the human credential form.";
   }
   if (!commitReady) {
     return `A ${providerId} credential is saved, but no enabled Agent Plugin supports committing to ${providerId}${switchOn || "."}`;

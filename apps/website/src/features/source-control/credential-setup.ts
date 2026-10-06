@@ -27,7 +27,21 @@ export interface SourceControlCredentialSetupDeps {
 
 /** Human-only credential setup; model inputs/results never carry connection fields or raw errors. */
 const SOURCE_CONTROL_PROPOSE_CREDENTIAL_TOOL_ID = "source_control_propose_credential";
-interface ProposalResult { saved: boolean; credentialId: string | null; provider: string; label: string }
+interface ProposalResult { saved: boolean; credentialId: string | null; provider: string; label: string; cancelled?: boolean; message?: string }
+
+/** Why nothing was saved, one per cause. Demo dry run 2026-10-05: all three used to return the same
+ *  `{saved: false}`, so a person's Cancel was reported as "Either it was closed or the save failed". */
+export const PROPOSE_CREDENTIAL_CANCELLED = 'The person cancelled the form. Nothing was saved.';
+export const PROPOSE_CREDENTIAL_CLOSED = 'The form closed without an answer (it timed out or the chat run ended). Nothing was saved.';
+export const PROPOSE_CREDENTIAL_ABORTED = 'The chat run ended before the form opened. Nothing was saved.';
+export const PROPOSE_CREDENTIAL_SAVE_FAILED = 'The person submitted the form but the token could not be saved; the form told them why. Nothing was saved.';
+
+/** Repository rules a site backup enforces (`site_backup_plan`), shown on the form beside the provider's token help. */
+const BACKUP_REPOSITORY_RULES = 'For a site backup, the repository must be private and already have at least one commit (for example a README).';
+
+function notSaved(base: ProposalResult, cancelled: boolean, message: string): ProposalResult {
+  return { ...base, cancelled, message };
+}
 interface SubmissionContext { deps: SourceControlCredentialSetupDeps; descriptor: SourceControlProviderDescriptor; label: string; exchangeId: string }
 
 /** Renders a value-free save outcome on the form's URI. @complexity Time/space O(1). */
@@ -46,7 +60,8 @@ function outcome(exchangeId: string, saved: boolean): SurfaceEmission {
 async function handleSubmission(answer: SurfaceMessage, spec: SubmissionContext): Promise<{ result: ProposalResult; outcome?: SurfaceEmission }> {
   const { deps, descriptor, label, exchangeId } = spec;
   const declined: ProposalResult = { saved: false, credentialId: null, provider: descriptor.id, label };
-  if (answer.status !== 'received' || answer.params[SURFACE_DISMISSED_PARAM] === true) return { result: declined };
+  if (answer.status !== 'received') return { result: notSaved(declined, false, PROPOSE_CREDENTIAL_CLOSED) };
+  if (answer.params[SURFACE_DISMISSED_PARAM] === true) return { result: notSaved(declined, true, PROPOSE_CREDENTIAL_CANCELLED) };
   const connection: Record<string, unknown> = { providerId: descriptor.id };
   for (const field of descriptor.credential!.fields) connection[field.name] = answer.params[field.name];
   let credential: SourceControlCredentialSummary;
@@ -61,7 +76,7 @@ async function handleSubmission(answer: SurfaceMessage, spec: SubmissionContext)
   } catch {
     // Fixed metadata only: neither an exception's text nor a submitted value is safe to log.
     console.warn(JSON.stringify({ service: 'source-control', operation: SOURCE_CONTROL_PROPOSE_CREDENTIAL_TOOL_ID, exchangeId, saved: false }));
-    return { result: declined, outcome: outcome(exchangeId, false) };
+    return { result: notSaved(declined, false, PROPOSE_CREDENTIAL_SAVE_FAILED), outcome: outcome(exchangeId, false) };
   }
   return { result: { saved: true, credentialId: credential.id, provider: descriptor.id, label: credential.label }, outcome: outcome(exchangeId, true) };
 }
@@ -82,7 +97,7 @@ export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionC
   const label = optionalString({ input: raw, key: 'label' }) ?? 'default';
   if (label.length > 200) throw new ToolInputError({ message: 'Credential label must be at most 200 characters.' });
   await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: 'source-control.credentials.write' }, { entityType: 'source-control' });
-  const declined: ProposalResult = { saved: false, credentialId: null, provider, label };
+  const declined = notSaved({ saved: false, credentialId: null, provider, label }, false, PROPOSE_CREDENTIAL_ABORTED);
   if (ctx.signal.aborted) return declined;
   const registry = await deps.loadSourceControlProviders(deps.workspaceId);
   const descriptor = registry.get(provider)?.descriptor;
@@ -97,7 +112,7 @@ export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionC
   try {
     const resource = buildFormSurface({
       uri: `ui://tovu/source-control-credential/${exchange.id}` as UIResourceUri,
-      title: `Connect ${descriptor.label}`, description: descriptor.credential.help ?? 'Type the secret here. The assistant never sees it.',
+      title: `Connect ${descriptor.label}`, description: `${descriptor.credential.help ?? 'Type the secret here. The assistant never sees it.'} ${BACKUP_REPOSITORY_RULES}`,
       submitLabel: 'Save credential', toolName: SOURCE_CONTROL_PROPOSE_CREDENTIAL_TOOL_ID, baseParams: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id },
       fields: [{ kind: 'string', name: 'label', label: 'Label', required: true, value: label },
         ...descriptor.credential.fields.map(field => ({ kind: 'string' as const, name: field.name, label: field.label, required: field.required, ...(field.secret ? { secret: true } : {}) }))],
