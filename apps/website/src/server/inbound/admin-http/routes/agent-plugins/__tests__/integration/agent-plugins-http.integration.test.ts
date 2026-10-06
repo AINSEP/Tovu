@@ -128,7 +128,7 @@ test("AGENT_PLUGINS_LIST: returns real installed Agent Plugins with skills, keyw
       WORKSPACE_A,
       "tovu-deploy-fly",
       {
-        "plugin.json": manifestJson("tovu-deploy-fly", { version: "1.0.0", description: "Deploys to fly.io.", extensions: { tovu: { displayName: "  Deploy Online  " } } }),
+        "plugin.json": manifestJson("tovu-deploy-fly", { version: "1.0.0", description: "Deploys to fly.io.", extensions: { tovu: { displayName: "  Deploy Online  ", summary: "\n Puts your site online.\n\nOne click.  " } } }),
         "skills/tovu-deploy-fly/SKILL.md": "---\nname: tovu-deploy-fly\n---\n# Deploy to fly.io\nReal skill body.",
       },
       "seed-tovu-deploy-fly",
@@ -153,6 +153,7 @@ test("AGENT_PLUGINS_LIST: returns real installed Agent Plugins with skills, keyw
       agentPlugins: Array<{
         pluginId: string;
         displayName: string | null;
+        summary: string | null;
         version: string | null;
         description: string | null;
         keywords: string[];
@@ -170,6 +171,9 @@ test("AGENT_PLUGINS_LIST: returns real installed Agent Plugins with skills, keyw
     assert.deepEqual(byId.get("site-compliance")?.keywords, ["compliance", "gdpr"]);
     assert.equal(byId.get("tovu-deploy-fly")?.displayName, "Deploy Online", "extensions.tovu.displayName reaches the wire, trimmed");
     assert.equal(byId.get("site-compliance")?.displayName, null, "no display name sends null so the admin title-cases the id");
+    assert.equal(byId.get("tovu-deploy-fly")?.summary, "Puts your site online.\n\nOne click.", "extensions.tovu.summary reaches the wire, trimmed, paragraph breaks kept");
+    assert.equal(byId.get("tovu-deploy-fly")?.description, "Deploys to fly.io.", "the agent-facing description is untouched by the summary");
+    assert.equal(byId.get("site-compliance")?.summary, null, "no summary sends null so the admin shows the description");
     assert.ok(byId.get("site-compliance")?.skills.some((s) => s.name === "site-compliance"));
     agentPluginsDeps.authorize = async () => ({ allowed: false, reason: "no_grant" });
     const denied = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_A}/agent-plugins`, { headers: { cookie } });

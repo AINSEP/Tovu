@@ -9,6 +9,8 @@ import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
 const PLUGINS_DICT: Record<string, Record<string, string>> = {
   es: {
+    // Agent Plugin row: the agent-facing description behind its owner-facing summary (2026-10-06).
+    "Technical details": "Detalles técnicos",
     // Plugin conflict detection (2026-10-04): conflict lines, quarantine headline, PLUGIN_CONFLICT.
     "Turned off automatically": "Desactivado automáticamente",
     "Quarantined after {count} consecutive failures": "En cuarentena tras {count} fallos consecutivos",

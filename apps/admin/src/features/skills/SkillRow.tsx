@@ -1,3 +1,4 @@
+import { PlainTextBlocks } from "@/components/PlainTextBlocks";
 import type { SkillRowView } from "./use-skills.hooks";
 import { SkillDocumentIcon, SkillChevronIcon } from "./skills-visuals";
 import { EyeIcon, TrashIcon } from "../plugins/agent-plugins-visuals";
@@ -35,7 +36,7 @@ export function SkillRow({ row }: { row: SkillRowView }) {
         </div>
       </div>
       <div className="agent-plugin-row-detail" id={row.detailId} hidden={!row.expanded}>
-        <p className="agent-plugin-detail-description">{skill.description}</p>
+        <PlainTextBlocks text={skill.description} className="agent-plugin-detail-description" />
       </div>
     </li>
   );

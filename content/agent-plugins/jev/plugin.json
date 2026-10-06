@@ -5,6 +5,11 @@
   "description": "Teaches an agent what Jev (TypeSafe's 'System One' model) is and when it belongs in a design: a fast, cheap, non-generative model that takes state plus a typed Choice/Score/Noul question and returns a typed answer with a calibrated probability distribution, for classification, routing, scoring, and confidence-gated automation — not for writing prose. Covers the three primitives' exact request/response shapes, how to read and threshold confidence, the documented architectural patterns, jev-1.13's known jaggedness (counting, dates, indirection, adversarial content, generation), and both the HTTP API and the JavaScript SDK. This plugin declares no MCP server: Jev has no official MCP integration, so Tovu's assistant cannot call it directly through chat yet. The skill exists for designing and writing code — inside or outside Tovu — that calls Jev itself, authenticated with an API key (TYPESAFE_API_KEY, the documented SDK env var) the operator sets outside of chat.",
   "author": "Tovu",
   "license": "Apache-2.0",
+  "extensions": {
+    "tovu": {
+      "summary": "Teaches the assistant about Jev, a fast, low-cost AI model from TypeSafe. Jev answers multiple-choice and scoring questions and says how sure it is, which makes it good for sorting, routing and scoring things automatically. It does not write text.\n\nThe assistant can't use Jev from chat yet. Turn this on when you want help planning or writing software that uses Jev. You'll need your own TypeSafe key."
+    }
+  },
   "keywords": [
     "jev",
     "typesafe",

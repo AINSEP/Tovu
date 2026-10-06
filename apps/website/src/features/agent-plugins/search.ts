@@ -61,6 +61,9 @@ export interface AgentPluginSearchCandidate {
   readonly pluginId: string;
   /** Human-facing title from `plugin.json`'s `extensions.tovu.displayName`, when the package set one. */
   readonly displayName?: string;
+  /** Plain-language explainer from `plugin.json`'s `extensions.tovu.summary`, for the admin list
+   *  route only — not ranked, and the search tool's own response projection leaves it out. */
+  readonly summary?: string;
   readonly version?: string;
   readonly description?: string;
   readonly keywords: readonly string[];

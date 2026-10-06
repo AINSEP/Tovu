@@ -56,6 +56,7 @@ export const registerAgentPluginsListRoute: AgentPluginsRouteRegistrar = (app, d
         agentPlugins: candidates.map((candidate) => ({
           pluginId: candidate.pluginId,
           displayName: candidate.displayName ?? null,
+          summary: candidate.summary ?? null,
           version: candidate.version ?? null,
           description: candidate.description ?? null,
           keywords: candidate.keywords,

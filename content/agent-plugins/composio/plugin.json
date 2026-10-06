@@ -5,6 +5,11 @@
   "description": "Lets the assistant use the user's other apps (Gmail, Google Calendar, Slack, Notion, GitHub, HubSpot, Linear and 1000+ more) through Composio Connect, Composio's hosted MCP server. One browser sign-in to Composio connects it; each app is then connected on first use by a Composio sign-in link, with no API keys anywhere.",
   "author": "Tovu",
   "license": "Apache-2.0",
+  "extensions": {
+    "tovu": {
+      "summary": "Lets the assistant work with your other apps on your behalf: Gmail, Google Calendar, Slack, Notion, HubSpot and over a thousand more.\n\nYou sign in to Composio once in your browser. After that, the first time the assistant needs a new app, it gives you a link to connect it. Nothing to copy or paste."
+    }
+  },
   "keywords": [
     "composio",
     "apps",

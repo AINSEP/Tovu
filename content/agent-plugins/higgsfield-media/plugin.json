@@ -44,6 +44,7 @@
   ],
   "extensions": {
     "tovu": {
+      "summary": "Creates images with Higgsfield, an AI image service, and saves them straight into your site's Media library.\n\nTo connect it you paste one web address and sign in to Higgsfield in your browser; the assistant walks you through it. Some image styles need a paid Higgsfield plan, and the assistant picks one that works with yours.",
       "mcpServers": {
         "higgsfield": {
           "tovuAuthMode": "oauth",

@@ -1,6 +1,7 @@
 import { agentHandle } from "@jini-ai/agentic";
 import { useId } from "react";
 
+import { PlainTextBlocks } from "@/components/PlainTextBlocks";
 import type { AdminAgentPlugin } from "@/lib/api";
 import { AGENT_PLUGIN_GLYPHS, ChevronIcon, EyeIcon, TrashIcon } from "./agent-plugins-visuals";
 import { agentPluginGlyphKind, agentPluginRemoveOrEnableAriaLabel, agentPluginToggleAriaLabel, agentPluginDisplayName } from "./rules";
@@ -173,6 +174,9 @@ function DetailChips({ label, values }: { label: string; values: readonly string
 export function AgentPluginRow(props: AgentPluginRowProps) {
   const { plugin, t, locale, expanded, busy, onToggleExpanded, stateControl, onInspect, uninstallNoteId, agentHandleBase } = props;
   const displayName = agentPluginDisplayName(plugin);
+  // The owner-facing explainer (`extensions.tovu.summary`) when the package wrote one; else the
+  // spec `description`, which is written for the assistant and can be dense with tool ids.
+  const blurb = plugin.summary?.trim() || plugin.description;
   const Glyph = AGENT_PLUGIN_GLYPHS[agentPluginGlyphKind(plugin)];
   const detailId = useId();
   const headingId = useId();
@@ -219,9 +223,9 @@ export function AgentPluginRow(props: AgentPluginRowProps) {
             {/* `title` is the ONLY way to read the rest of a clamped line without opening the row —
                 a hover tooltip, not a substitute for the unclamped copy below in the expanded
                 panel (screen readers and touch have no hover; that copy is the real fix). */}
-            {plugin.description ? (
-              <span className="agent-plugin-row-desc" title={plugin.description}>
-                {plugin.description}
+            {blurb ? (
+              <span className="agent-plugin-row-desc" title={blurb}>
+                {blurb}
               </span>
             ) : null}
           </span>
@@ -287,7 +291,16 @@ export function AgentPluginRow(props: AgentPluginRowProps) {
             `-webkit-line-clamp: 1`) — a hover tooltip covers a sighted mouse user, but expanding
             the row is the only path assistive tech and touch have, so the full text repeats here,
             unclamped, first — before every other per-plugin fact this panel already held. */}
-        {plugin.description ? <p className="agent-plugin-detail-description">{plugin.description}</p> : null}
+        <PlainTextBlocks text={blurb} className="agent-plugin-detail-description" />
+        {/* With a summary above, the agent-facing description is still the package's full account
+            of itself — kept one click away rather than dropped, collapsed so it no longer opens
+            the panel with a wall of tool ids. */}
+        {blurb !== plugin.description && plugin.description ? (
+          <details className="agent-plugin-detail-technical">
+            <summary>{t("Technical details")}</summary>
+            <PlainTextBlocks text={plugin.description} className="agent-plugin-detail-technical-body" />
+          </details>
+        ) : null}
         <DetailChips label={t("Portable components")} values={plugin.skills.map((skill) => skill.name)} />
         <DetailChips label={t("MCP servers")} values={plugin.mcpServerIds} />
         <DetailChips label={t("Keywords")} values={plugin.keywords} />

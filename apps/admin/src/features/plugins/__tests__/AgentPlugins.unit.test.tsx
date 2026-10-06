@@ -260,7 +260,7 @@ describe("AgentPlugins", () => {
     // Scoped with `selector` because the collapsed summary's own (clamped) copy of the identical
     // string is still in the DOM, hidden only by CSS `-webkit-line-clamp`, not removed.
     const fullDescription = within(expandedRow).getByText("Evidence-based compliance screening.", {
-      selector: ".agent-plugin-detail-description",
+      selector: ".agent-plugin-detail-description p",
     });
     expect(fullDescription).toBeVisible();
     const componentsLabel = within(expandedRow).getByText("Portable components");

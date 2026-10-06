@@ -161,6 +161,12 @@ export interface InstalledAgentPlugin {
    *  activations, tool ids and ledgers key on — renaming it would churn all of those. Absent means
    *  callers title-case the id. */
   readonly displayName?: string;
+  /** `plugin.json`'s `extensions.tovu.summary` — a short plain-language explainer for the site owner,
+   *  shown in the admin in place of the spec `description`. That `description` stays the
+   *  agent-facing text (search ranks it and returns it to the model), so it can stay dense and
+   *  technical; this field is never ranked and never reaches the model. Blank lines separate
+   *  paragraphs. Absent means the admin shows the description. */
+  readonly summary?: string;
   /** SHA-256 of the raw archive bytes — the content-addressing key and the descriptor `revision`
    * a future capability projection pins invocation to (`capability-projection.ts`). */
   readonly archiveDigest: string;
@@ -453,18 +459,44 @@ async function writeContainedFile(params: {
 }
 
 const DISPLAY_NAME_MAX_LENGTH = 64;
+const SUMMARY_MAX_LENGTH = 1200;
 
-/** `{ displayName }` when `extensions.tovu.displayName` is a non-blank string, else `{}` — a
- *  malformed value falls back to the id rather than failing the whole index, since a title is
- *  cosmetic. Capped so a hostile package cannot flood the admin row.
- *  @complexity O(1). */
-function readTovuDisplayName(manifest: Parameters<typeof readAgentPluginExtension>[0]["manifest"]): { displayName?: string } {
-  const displayName = readAgentPluginExtension({
+/** One trimmed, non-blank string field of `extensions.tovu`, capped at `maxLength`, else
+ *  `undefined` — a malformed value falls back rather than failing the whole index, since every
+ *  field read this way is cosmetic. The cap stops a hostile package flooding the admin row.
+ *  @complexity O(maxLength). */
+function readTovuText(required: {
+  readonly manifest: Parameters<typeof readAgentPluginExtension>[0]["manifest"];
+  readonly key: string;
+  readonly maxLength: number;
+}): string | undefined {
+  const { manifest, key, maxLength } = required;
+  const text = readAgentPluginExtension({
     manifest,
     namespace: "tovu",
-    read: ({ value }) => (typeof value.displayName === "string" ? value.displayName.trim() : undefined),
+    read: ({ value }) => {
+      const field = value[key];
+      return typeof field === "string" ? field.trim() : undefined;
+    },
   });
-  return displayName ? { displayName: displayName.slice(0, DISPLAY_NAME_MAX_LENGTH) } : {};
+  return text ? text.slice(0, maxLength) : undefined;
+}
+
+/** `{ displayName }` when `extensions.tovu.displayName` is a non-blank string, else `{}` (callers
+ *  title-case the id).
+ *  @complexity O(1). */
+function readTovuDisplayName(manifest: Parameters<typeof readAgentPluginExtension>[0]["manifest"]): { displayName?: string } {
+  const displayName = readTovuText({ manifest, key: "displayName", maxLength: DISPLAY_NAME_MAX_LENGTH });
+  return displayName ? { displayName } : {};
+}
+
+/** `{ summary }` when `extensions.tovu.summary` is a non-blank string, else `{}` (the admin shows
+ *  the spec `description` instead). Inner newlines are kept: blank lines are the paragraph breaks
+ *  the admin renders.
+ *  @complexity O(1). */
+function readTovuSummary(manifest: Parameters<typeof readAgentPluginExtension>[0]["manifest"]): { summary?: string } {
+  const summary = readTovuText({ manifest, key: "summary", maxLength: SUMMARY_MAX_LENGTH });
+  return summary ? { summary } : {};
 }
 
 /**
@@ -537,6 +569,7 @@ export async function indexInstalledRoot(packageRoot: string, archiveDigest: str
     ...(parsed.manifest.author !== undefined ? { author: parsed.manifest.author } : {}),
     ...(parsed.manifest.license !== undefined ? { license: parsed.manifest.license } : {}),
     ...readTovuDisplayName(parsed.manifest),
+    ...readTovuSummary(parsed.manifest),
     archiveDigest,
     packageRoot,
     files: files.sort(),

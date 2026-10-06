@@ -3707,6 +3707,22 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   margin: 0;
   font-size: 12.5px; line-height: 1.5; color: var(--jini-text);
 }
+/* `PlainTextBlocks` paragraphs and `- ` lists: the author's blank lines become real gaps instead
+   of one wall of text. Shared by the summary and the Technical details body below. */
+:is(.agent-plugin-detail-description, .agent-plugin-detail-technical-body) { display: grid; gap: 8px; max-width: 68ch; }
+:is(.agent-plugin-detail-description, .agent-plugin-detail-technical-body) :is(p, ul) { margin: 0; }
+:is(.agent-plugin-detail-description, .agent-plugin-detail-technical-body) ul { padding-left: 1.2em; }
+/* The agent-facing description, one click away under a summary. Muted and smaller: it is
+   reference text for the curious, not what the row is about. */
+.agent-plugin-detail-technical > summary {
+  width: fit-content; cursor: pointer;
+  font-size: 12px; font-weight: 600; color: var(--jini-text-muted);
+}
+.agent-plugin-detail-technical > summary:hover { color: var(--jini-text); }
+.agent-plugin-detail-technical-body {
+  margin-top: 8px;
+  font-size: 12px; line-height: 1.5; color: var(--jini-text-muted);
+}
 .agent-plugin-detail-group { display: flex; flex-direction: column; gap: 7px; }
 .agent-plugin-detail-label {
   font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;

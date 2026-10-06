@@ -5,6 +5,11 @@
   "description": "Gives this site a hosted database (Supabase) for sign-ups, forms and app data, set up from chat with no setup steps for the person. Use it whenever someone says they need a database, want to store data, or want sign-ups or form entries saved. Always start with agent_plugin_connect { pluginId: \"supabase\" }: it shows a sign-in card (the person signs in or signs up at Supabase themselves), turns the connection on, and returns once connected. Then follow the supabase skill: find or create the database, handle Supabase's free limit of two active databases, and speak in plain words only.",
   "author": "Tovu",
   "license": "Apache-2.0",
+  "extensions": {
+    "tovu": {
+      "summary": "Gives your site a database for sign-ups, form entries and other data, set up from chat.\n\nYou sign in (or sign up) at Supabase in your browser and the assistant does the rest: it finds or creates the database and explains everything in plain words. Supabase's free plan allows two active databases, and the assistant tells you if you reach that limit."
+    }
+  },
   "keywords": [
     "supabase",
     "database",

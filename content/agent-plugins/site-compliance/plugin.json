@@ -5,6 +5,11 @@
   "description": "Evidence-based privacy, cookie/consent, and accessibility risk screening for a Tovu site. Collects citable evidence from the site's own configuration and its own rendered pages, reports findings with the exact page path, selector, header, or request that supports each one, and says 'cannot determine' where the evidence is missing. Never asserts a GDPR, CCPA/CPRA, or WCAG compliance verdict.",
   "author": "Tovu",
   "license": "Apache-2.0",
+  "extensions": {
+    "tovu": {
+      "summary": "Checks your site for privacy, cookie-consent and accessibility risks, based on what is actually on your pages and in your settings.\n\nEach finding points to the exact page and spot it is about, and where it can't tell, it says so. It flags risks; it does not certify that your site is legally compliant."
+    }
+  },
   "keywords": [
     "compliance",
     "privacy",

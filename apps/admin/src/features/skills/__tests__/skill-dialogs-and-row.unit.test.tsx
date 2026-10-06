@@ -47,6 +47,19 @@ describe("SkillRow", () => {
     expect(row.onToggleExpanded).toHaveBeenCalledOnce();
   });
 
+  it("renders the expanded description as paragraphs, not one wall of text", () => {
+    const row = rowView({
+      expanded: true,
+      skill: { toolId: "skill_notes", name: "notes", description: "Keeps notes.\n\nAlso tidies them.", enabled: true, source: "uploaded" },
+    });
+    render(<ul><SkillRow row={row} /></ul>);
+    const detail = document.getElementById("skill-notes-detail") as HTMLElement;
+    expect([...detail.querySelectorAll(".agent-plugin-detail-description p")].map((p) => p.textContent)).toEqual([
+      "Keeps notes.",
+      "Also tidies them.",
+    ]);
+  });
+
   it("shows GitHub provenance, the disabled state and blocks toggling/removal while busy", () => {
     const row = rowView({
       skill: { toolId: "skill_x", name: "x", description: "d", enabled: false, source: { githubUrl: "https://github.com/acme/x", commit: "abcdef0123" } },

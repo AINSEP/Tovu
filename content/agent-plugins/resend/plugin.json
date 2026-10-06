@@ -5,6 +5,11 @@
   "description": "Sends the site's email (sign-in links, form notifications, newsletters) through Resend's hosted email API. Ships the mail adapter itself (Tovu loads it only because Tovu shipped it) and the know-how to set it up: get a Resend API key, verify the sending domain, and save the key under Access Tokens with the exact label Tovu looks for.",
   "author": "Tovu",
   "license": "Apache-2.0",
+  "extensions": {
+    "tovu": {
+      "summary": "Sends your site's emails, like sign-in links and form notifications, through Resend, an email delivery service.\n\nThe assistant helps you set it up: get a key from Resend, confirm the web address your emails come from, and save the key in Tovu."
+    }
+  },
   "keywords": [
     "resend",
     "email",
