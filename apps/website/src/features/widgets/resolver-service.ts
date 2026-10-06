@@ -359,6 +359,8 @@ export interface ResolveHtmlPageEmbedsDeps extends WidgetInstanceResolutionDeps 
     readonly title: string;
     readonly slug: string;
     readonly updatedAt: string;
+    /** The row's go-live time — the date line shows it over `updatedAt` (`postDisplayDateIso`). */
+    readonly publishAt?: string | null;
     readonly bodyJson: JsonObject;
   };
 }
@@ -1024,7 +1026,7 @@ async function resolvePostTypeEmbeds(
       const renderContext = await resolvePostContentRenderContext(deps, post.bodyJson, context);
       resolved.set(key, {
         componentId: "post-content",
-        props: { title: post.title, slug: post.slug, updatedAt: post.updatedAt, bodyJson: post.bodyJson, ...renderContext },
+        props: { title: post.title, slug: post.slug, updatedAt: post.updatedAt, publishAt: post.publishAt ?? null, bodyJson: post.bodyJson, ...renderContext },
       });
     })
   );
@@ -1143,6 +1145,7 @@ async function resolveContentTypeEmbeds(
             title: pendingContentOverride.title,
             slug: pendingContentOverride.slug,
             updatedAt: pendingContentOverride.updatedAt,
+            publishAt: pendingContentOverride.publishAt ?? null,
             bodyJson: pendingContentOverride.bodyJson,
             header: ref.header,
             ...renderContext,
@@ -1177,6 +1180,7 @@ async function resolveContentTypeEmbeds(
           title: entity.title,
           slug: entity.slug,
           updatedAt: entity.updatedAt,
+          publishAt: entity.publishAt ?? null,
           bodyJson: entity.bodyJson,
           header: ref.header,
           ...renderContext,

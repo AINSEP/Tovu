@@ -185,3 +185,22 @@ test("both logic tiers see the identical render-data contract — the same field
   assert.equal(extract(hbsHtml), extract(liquidHtml));
   assert.equal(extract(hbsHtml), "Shared|home|&lt;Hello&gt; &amp; Welcome:welcome:2026-07-01");
 });
+
+test("both logic tiers date a post by its go-live time (publishAt) when it has one, in the list and on the post page — owner decision 2026-10-05", async () => {
+  const post = fakePost({ publishAt: "2026-06-15T12:00:00.000Z", updatedAt: "2026-07-01T00:00:00.000Z" });
+
+  const hbs = ledgerTheme();
+  hbs.handlebarsTemplates.home = "@@{{#each posts}}{{date}}|{{dateShort}}{{/each}}@@";
+  hbs.handlebarsTemplates.post = "@@{{post.date}}|{{post.dateShort}}@@";
+  const liquid = loadTheme({ themeDir: path.join(path.resolve(import.meta.dirname, "../../../../../../../../../"), "development", "fixtures", "theme-archive", "dispatch"), id: "dispatch", source: "built-in" });
+  liquid.liquidTemplates.home = "@@{% for p in posts %}{{ p.date }}|{{ p.dateShort }}{% endfor %}@@";
+  liquid.liquidTemplates.post = "@@{{ post.date }}|{{ post.dateShort }}@@";
+
+  const extract = (html: string): string => html.slice(html.indexOf("@@") + 2, html.lastIndexOf("@@"));
+  for (const theme of [hbs, liquid]) {
+    for (const route of ["home", "post"] as const) {
+      const html = await renderSite({ theme, route, siteTitle: "Shared", posts: [post], post });
+      assert.equal(extract(html), "2026-06-15T12:00:00.000Z|2026-06-15", `${theme.manifest.id} ${route}`);
+    }
+  }
+});

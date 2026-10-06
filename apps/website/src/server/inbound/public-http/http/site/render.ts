@@ -40,6 +40,7 @@ import {
   type FormFlashPayload,
 } from "./form-render.js";
 import { escapeHtml } from "#src/platform/html/escape";
+import { postDisplayDateIso } from "#src/contracts/core/scheduled-publish";
 import { toSlug } from "#src/platform/html/slug";
 
 /**
@@ -1682,7 +1683,7 @@ function entryList(ctx: SiteRenderContext, props: JsonObject): string {
   const items = ctx.posts
     .map((post, i) => {
       const folio = String(i + 1).padStart(2, "0");
-      return `<li class="entry"><a class="entry-link" href="/${escapeHtml(post.slug)}"><span class="entry-index">№ ${folio}</span><h2 class="entry-title">${escapeHtml(post.title)}</h2><p class="entry-meta">${escapeHtml(shortDate(post.updatedAt))}</p></a></li>`;
+      return `<li class="entry"><a class="entry-link" href="/${escapeHtml(post.slug)}"><span class="entry-index">№ ${folio}</span><h2 class="entry-title">${escapeHtml(post.title)}</h2><p class="entry-meta">${escapeHtml(shortDate(postDisplayDateIso(post)))}</p></a></li>`;
     })
     .join("");
   const body = items || `<li class="entry entry--empty"><p>No published posts yet.</p></li>`;
@@ -1926,7 +1927,7 @@ function renderPostBody(ctx: SiteRenderContext): string {
 
 function entryContent(ctx: SiteRenderContext): string {
   if (!ctx.post) return "";
-  return `<div class="wrap"><a class="back" href="/">← ${escapeHtml(ctx.siteTitle)}</a><article class="entry"><h1 class="entry-title">${escapeHtml(ctx.post.title)}</h1><p class="entry-meta">${escapeHtml(shortDate(ctx.post.updatedAt))}</p><div class="prose">${renderPostBody(ctx)}</div></article></div>`;
+  return `<div class="wrap"><a class="back" href="/">← ${escapeHtml(ctx.siteTitle)}</a><article class="entry"><h1 class="entry-title">${escapeHtml(ctx.post.title)}</h1><p class="entry-meta">${escapeHtml(shortDate(postDisplayDateIso(ctx.post)))}</p><div class="prose">${renderPostBody(ctx)}</div></article></div>`;
 }
 
 /**
@@ -2678,12 +2679,12 @@ function readInlineWidgets(value: JsonValue | undefined): ReadonlyMap<string, Wi
  *
  * @complexity O(1) — string concatenation only, no loop or recursion.
  */
-function renderPostDetailHeader(showHeader: boolean, titleHtml: string, dateLabel: string, updatedAt: string): string {
+function renderPostDetailHeader(showHeader: boolean, titleHtml: string, dateLabel: string, dateIso: string): string {
   if (!showHeader) return "";
   return (
     `<div class="post-detail-header">` +
     titleHtml +
-    (dateLabel ? `<div class="post-meta"><time datetime="${escapeHtml(updatedAt)}">${escapeHtml(dateLabel)}</time></div>` : "") +
+    (dateLabel ? `<div class="post-meta"><time datetime="${escapeHtml(dateIso)}">${escapeHtml(dateLabel)}</time></div>` : "") +
     `</div>`
   );
 }
@@ -2698,8 +2699,13 @@ function renderWidgetPostContent(props: JsonObject): string {
   // default-true contract on `PageHtmlEmbedRef.header` so every pre-existing template (no `header`
   // key at all) renders byte-identical to before this field existed.
   const showHeader = props.header !== false;
-  const updatedAt = typeof props.updatedAt === "string" ? props.updatedAt : "";
-  const dateLabel = updatedAt ? new Date(updatedAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "";
+  // The go-live time when the post has one (`postDisplayDateIso`, owner decision 2026-10-05) — a
+  // scheduled post's Preview shows the day it will go live, not the day it was last saved.
+  const dateIso = postDisplayDateIso({
+    publishAt: typeof props.publishAt === "string" ? props.publishAt : null,
+    updatedAt: typeof props.updatedAt === "string" ? props.updatedAt : "",
+  });
+  const dateLabel = dateIso ? new Date(dateIso).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "";
   // Back-compat fork (post-title-in-document feature, 2026-08-11): a migrated body's OWN title node
   // drives the `<h1>` (text AND alignment) so centering it in the editor actually centers it here;
   // a pre-migration body (no title node yet — every row saved before this feature landed) falls back
@@ -2712,7 +2718,7 @@ function renderWidgetPostContent(props: JsonObject): string {
   const mediaAssetMetadata = readMediaAssetMetadata(props.mediaAssetMetadata as JsonValue | undefined);
   const inlineWidgets = readInlineWidgets(props.inlineWidgets as JsonValue | undefined);
   return (
-    renderPostDetailHeader(showHeader, titleHtml, dateLabel, updatedAt) +
+    renderPostDetailHeader(showHeader, titleHtml, dateLabel, dateIso) +
     `<div class="post-detail-body">${renderDocNode(bodyJson, inlineWidgets, mediaTransformVersions, mediaAssetMetadata)}</div>`
   );
 }
@@ -2841,15 +2847,17 @@ export function buildTemplateRenderData(ctx: SiteRenderContext): Record<string, 
     // helper (and deliberately exposes no way for a theme to register one), so any formatting a
     // theme cannot express must be precomputed server-side. Purely additive: every existing Liquid
     // theme's `{{ post.date | date: … }}` keeps reading the same unchanged `date` field.
+    // `date` is the go-live time when the post has one (`postDisplayDateIso`, owner decision
+    // 2026-10-05), else `updatedAt`.
     // `featuredImage` (2026-10-05) is `{ url, alt, width, height }` or `null` — a theme renders it
     // with `{% if post.featuredImage %}<img src="{{ post.featuredImage.url }}" …>{% endif %}`.
-    posts: ctx.posts.map((p) => ({ title: p.title, slug: p.slug, date: p.updatedAt, dateShort: shortDate(p.updatedAt), featuredImage: featuredImageView(ctx, p) })),
+    posts: ctx.posts.map((p) => ({ title: p.title, slug: p.slug, date: postDisplayDateIso(p), dateShort: shortDate(postDisplayDateIso(p)), featuredImage: featuredImageView(ctx, p) })),
     post: ctx.post
       ? {
           title: ctx.post.title,
           slug: ctx.post.slug,
-          date: ctx.post.updatedAt,
-          dateShort: shortDate(ctx.post.updatedAt),
+          date: postDisplayDateIso(ctx.post),
+          dateShort: shortDate(postDisplayDateIso(ctx.post)),
           content: renderPostBody(ctx),
           featuredImage: featuredImageView(ctx, ctx.post),
         }

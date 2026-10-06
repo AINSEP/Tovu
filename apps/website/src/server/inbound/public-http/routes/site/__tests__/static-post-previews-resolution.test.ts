@@ -293,3 +293,15 @@ test("GET /blog: a Page claiming the reserved '/' root slug never appears in the
   assert.match(html, /Real Post Title/, "positive control: a real post still renders");
   assert.doesNotMatch(html, /Root Page Title Must Never Appear In Previews/, "a Page (kind: \"page\"), including the one claiming '/', must never appear in a post-previews listing");
 });
+
+test("GET /blog: a preview card dates a post by its publishAt (go-live time), not updatedAt", async (t) => {
+  const posts = [
+    publishedPost({ id: "went-live", slug: "went-live", title: "Went Live", publishAt: "2026-07-04T12:00:00.000Z", updatedAt: "2026-09-01T12:00:00.000Z" }),
+  ];
+  const { server, baseUrl } = await startServer({ themes: [themeWithPostPreviewsMarker()], postRepo: new InMemoryPostRepo(posts) });
+  t.after(() => closeServer(server));
+
+  const html = await (await fetch(`${baseUrl}/blog`)).text();
+  assert.match(html, /<time datetime="2026-07-04T12:00:00\.000Z">Jul 4, 2026<\/time>/);
+  assert.doesNotMatch(html, /Sep 1, 2026/);
+});

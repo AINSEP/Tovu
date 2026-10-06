@@ -415,8 +415,8 @@ export interface StaticPostPreview {
   readonly title: string;
   readonly href: string;
   /** ISO 8601, for `<time datetime>` — `PostRecord` has no `publishedAt` (the unified-content-marker
-   *  design doc's own note on why), so this is `updatedAt`, the same field the bounded query orders
-   *  by. */
+   *  design doc's own note on why), so this is the go-live time (`publishAt`) when the post has one,
+   *  else `updatedAt`, the same field the bounded query orders by (`postDisplayDateIso`). */
   readonly dateIso: string;
   /** Pre-formatted for display (e.g. "Sep 3, 2026") — no date-formatting/locale logic belongs in
    *  this pure render layer, mirroring every other pre-resolved field on this shape. */

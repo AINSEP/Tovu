@@ -118,3 +118,12 @@ test("the post route's themeless body carries the post, not just chrome", async 
   assert.match(html, /Welcome to Tovu/);
   assert.match(html, /Hello\./, "the post body must render — embeds and prose read no theme");
 });
+
+test("a themeless render dates a post by its go-live time (publishAt) on the list and the post page — owner decision 2026-10-05", async () => {
+  const scheduledThenLive = { ...POST, publishAt: "2026-03-20T12:00:00.000Z" } as PostRecord;
+  for (const route of ["home", "post"] as const) {
+    const html = await renderSite({ theme: null, route, siteTitle: "Acme", posts: [scheduledThenLive], post: scheduledThenLive });
+    assert.match(html, /class="entry-meta">2026-03-20<\/p>/, `${route} must show publishAt`);
+    assert.doesNotMatch(html, /2026-04-06/, `${route} must not show updatedAt`);
+  }
+});

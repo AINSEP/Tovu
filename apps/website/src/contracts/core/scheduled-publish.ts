@@ -35,6 +35,13 @@ export function isScheduledAt(record: SchedulableRecord, nowIso: string): boolea
   return record.status === "published" && typeof record.publishAt === "string" && record.publishAt > nowIso;
 }
 
+/** The date a post's date line shows (owner decision 2026-10-05): its go-live time when it has one —
+ *  so a scheduled post's Preview shows the day it will go live, and the same post shows that date once
+ *  live — else `updatedAt`, since `PostRecord` has no separate published-at column. @complexity O(1). */
+export function postDisplayDateIso(record: { readonly publishAt?: string | null; readonly updatedAt: string }): string {
+  return record.publishAt ?? record.updatedAt;
+}
+
 /** Published, not trashed, and past its go-live time — the whole public-visibility rule for a post
  *  or page row. @complexity O(1). */
 export function isLiveAt(record: SchedulableRecord & { readonly deletedAt?: string | null }, nowIso: string): boolean {

@@ -52,6 +52,7 @@ import {
   COLLECTION_MARKER_TYPE,
   type EmbedMarker,
 } from "#src/contracts/core/embeds/marker";
+import { postDisplayDateIso } from "#src/contracts/core/scheduled-publish";
 import type { ContentTypeFieldDef } from "#src/features/content-types/index";
 import type { EntryRecord } from "#src/features/entries/index";
 import { parseCollectionListConfig, humanizeFieldName, entryPublicHref } from "#src/features/entries/public-list";
@@ -1429,7 +1430,7 @@ export async function renderViaTemplate(
       taxonomyRepo: deps.taxonomyRepo,
       termRepo: deps.termRepo,
       ...(pendingBodyJson !== undefined
-        ? { pendingContentOverride: { id: post.id, title: post.title, slug: post.slug, updatedAt: post.updatedAt, bodyJson: pendingBodyJson } }
+        ? { pendingContentOverride: { id: post.id, title: post.title, slug: post.slug, updatedAt: post.updatedAt, publishAt: post.publishAt ?? null, bodyJson: pendingBodyJson } }
         : {}),
     },
     input: { workspaceId: deps.workspaceId, html: withNestedContent },
@@ -2130,9 +2131,9 @@ function filterVisiblePosts(
 }
 
 /** Pure display formatting for a post-previews card's date — the one place this file turns
- *  `PostRecord.updatedAt`'s ISO string into the short label a card shows (e.g. "Sep 3, 2026").
- *  `PostRecord` has no `publishedAt` (see `static-render.ts`'s `StaticPostPreview.dateIso` doc for
- *  why), so this reuses the same field the bounded query itself orders by. A malformed timestamp —
+ *  the post's display date ({@link postDisplayDateIso}: `publishAt` when set, else `updatedAt`) into
+ *  the short label a card shows (e.g. "Sep 3, 2026"). `PostRecord` has no `publishedAt` (see
+ *  `static-render.ts`'s `StaticPostPreview.dateIso` doc for why). A malformed timestamp —
  *  should not occur for a real stored row — degrades to the raw ISO string rather than
  *  "Invalid Date", a legible if ugly output over a broken one. */
 function formatPostPreviewDate(iso: string): string {
@@ -2174,12 +2175,10 @@ async function resolvePostPreviewsForRender(
     input: { workspaceId: deps.workspaceId, limit },
   });
   const visible = filterVisiblePosts(memberAccessResolver, posts, memberContext);
-  return visible.map((post) => ({
-    title: post.title,
-    href: postPublicPath(post.slug),
-    dateIso: post.updatedAt,
-    dateLabel: formatPostPreviewDate(post.updatedAt),
-  }));
+  return visible.map((post) => {
+    const dateIso = postDisplayDateIso(post);
+    return { title: post.title, href: postPublicPath(post.slug), dateIso, dateLabel: formatPostPreviewDate(dateIso) };
+  });
 }
 
 /** Clears the validation flash cookie (2026-08-31 field-wipe fix) — read-once contract: once THIS

@@ -1448,3 +1448,55 @@ test('resolveHtmlPageEmbeds: a missing explicit id never falls back to a valid c
     assert.equal(resolved.get(type)?.size, 0, `${type}: neither the missing id nor its competing slug resolves`);
   }
 });
+
+// ---------------------------------------------------------------------------
+// Owner decision (2026-10-05): a post's date line shows its go-live time (`publishAt`), not
+// `updatedAt`. The scheduled post's Preview (override branch) and the same post once live (DB branch)
+// must both show it — both pipe through the real renderer so the rendered label is pinned.
+// ---------------------------------------------------------------------------
+
+test('resolveHtmlPageEmbeds: a "content" embed\'s DB branch dates a live post by its publishAt, not updatedAt', async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  const postRepo = new InMemoryPostRepo([postRecord({ publishAt: "2026-08-01T12:00:00.000Z", updatedAt: "2026-08-11T12:00:00.000Z" })]);
+
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: { entryRepo, postRepo },
+    input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"content","id":"entity-1"}'></div>` },
+  });
+
+  const html = renderWidgetIr(resolved.get("content")!.get("entity-1")!);
+  assert.match(html, /<time datetime="2026-08-01T12:00:00\.000Z">Aug 1, 2026<\/time>/);
+  assert.doesNotMatch(html, /Aug 11, 2026/);
+});
+
+test('resolveHtmlPageEmbeds: the "content" embed\'s pendingContentOverride branch (a scheduled post\'s Preview) dates the post by its future publishAt', async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  const pending = postRecord({ id: "entity-1", updatedAt: "2026-10-05T12:00:00.000Z" });
+
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: {
+      entryRepo,
+      pendingContentOverride: {
+        id: "entity-1", title: pending.title, slug: pending.slug, updatedAt: pending.updatedAt,
+        publishAt: "2099-12-24T12:00:00.000Z", bodyJson: pending.bodyJson,
+      },
+    },
+    input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"content","id":"entity-1"}'></div>` },
+  });
+
+  const html = renderWidgetIr(resolved.get("content")!.get("entity-1")!);
+  assert.match(html, /<time datetime="2099-12-24T12:00:00\.000Z">Dec 24, 2099<\/time>/);
+  assert.doesNotMatch(html, /Oct 5, 2026/);
+});
+
+test('resolveHtmlPageEmbeds: a post with no publishAt keeps dating by updatedAt (unchanged)', async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  const postRepo = new InMemoryPostRepo([postRecord({ updatedAt: "2026-08-11T12:00:00.000Z" })]);
+
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: { entryRepo, postRepo },
+    input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"content","id":"entity-1"}'></div>` },
+  });
+
+  assert.match(renderWidgetIr(resolved.get("content")!.get("entity-1")!), /<time datetime="2026-08-11T12:00:00\.000Z">Aug 11, 2026<\/time>/);
+});
