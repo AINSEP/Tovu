@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import Ajv from "ajv";
-import { parseEmbedMarkerConfig } from "#src/contracts/core/embeds/marker";
+import { EMBED_MARKER_TARGET_KEYS, parseEmbedMarkerConfig } from "#src/contracts/core/embeds/marker";
 
 import { InMemoryPostRepo, createPost, VERSION_CONFLICT_CODE } from "../../post/index.js";
 import { InMemoryPagesHtmlDocumentStore } from "../html-document-store.memory.js";
@@ -54,6 +54,22 @@ test("pages_write_html and pages_write_region document the collection embed mark
     const description = byName.get(name)?.descriptor.description ?? "";
     assert.match(description, /"type":"collection"/, `${name} must mention the collection marker`);
     assert.match(description, /<template>/, `${name} must mention <template> placeholders`);
+  }
+});
+
+// Regression (2026-10-05): the contract named only collection/widget/media/menu/post-previews, so the
+// model never learned `{"type":"form"}` (restored 2026-10-04) — or taxonomy/post/content/partial —
+// existed, and wrote "I can't add a form" instead of embedding a real one. The list is now derived
+// from `EMBED_MARKER_TARGET_KEYS`, the marker vocabulary every resolver reads, so this pins parity.
+test("pages_write_html and pages_write_region name every embed marker type the resolvers support", () => {
+  const { byName } = harness();
+  for (const name of ["pages_write_html", "pages_write_region"]) {
+    const description = byName.get(name)?.descriptor.description ?? "";
+    for (const type of Object.keys(EMBED_MARKER_TARGET_KEYS)) {
+      assert.ok(description.includes(`{"type":"${type}"`), `${name} must document the '${type}' embed marker`);
+    }
+    assert.match(description, /\{"type":"form","id":"<form id or slug>"\}/, `${name} must show the form marker's target`);
+    assert.match(description, /forms_list_definitions/, `${name} must point at where a form's id comes from`);
   }
 });
 

@@ -1,3 +1,4 @@
+import { COLLECTION_MARKER_TYPE, EMBED_MARKER_TARGET_KEYS } from "#src/contracts/core/embeds/marker";
 import { PAGES_EDIT_HTML_PERMISSION } from "./permissions.js";
 import { PAGE_SKELETON_REGIONS } from "./skeleton.js";
 
@@ -36,6 +37,51 @@ const PAGE_ID_SCHEMA = {
 } as const;
 
 /**
+ * What each embed marker type renders and where its target comes from, for the contract below.
+ * `collection` is absent on purpose: the contract documents it in full on its own.
+ */
+const EMBED_TYPE_NOTES: Readonly<Record<string, string>> = {
+  widget: "a saved widget",
+  form: "a live form from the site's forms system, listed by forms_list_definitions — the right way to collect input",
+  taxonomy: "a taxonomy's term list; `id` is the taxonomy id or its unique name",
+  media: "an uploaded image or video",
+  post: "a published post's full content",
+  content: "a published entry's body",
+  menu: "a menu's links; add `\"variant\":\"tree\"` for a nested tree instead of flat links",
+  partial: "a theme partial by name — theme structure, rarely needed inside page content",
+  "post-previews": "recent post cards; optional `limit`, default 6",
+};
+
+/** The placeholder shown for a type's target value, where the generic `<id>` would be unhelpful. */
+const EMBED_TARGET_PLACEHOLDERS: Readonly<Record<string, string>> = {
+  widget: "<widget id or slug>",
+  form: "<form id or slug>",
+  taxonomy: "<taxonomy id or name>",
+  media: "<media id or slug>",
+  post: "<post id or slug>",
+  content: "<entry id or slug>",
+  menu: "<menu id>",
+  partial: "<partial name>",
+};
+
+/**
+ * Every marker type except `collection`, read off `EMBED_MARKER_TARGET_KEYS` — the vocabulary every
+ * resolver reads — so a type registered there reaches the model without editing this file. Before
+ * this was derived, the hand-written list omitted `form` (restored 2026-10-04), `taxonomy`, `post`,
+ * `content` and `partial` — so the model had no way to learn a page could embed a real form.
+ */
+function otherEmbedTypesText(): string {
+  return Object.entries(EMBED_MARKER_TARGET_KEYS)
+    .filter(([type]) => type !== COLLECTION_MARKER_TYPE)
+    .map(([type, keys]) => {
+      const target = keys[0] ? `,"${keys[0]}":"${EMBED_TARGET_PLACEHOLDERS[type] ?? `<${keys[0]}>`}"` : "";
+      const note = EMBED_TYPE_NOTES[type];
+      return `\`{"type":"${type}"${target}}\`${note ? ` (${note})` : ""}`;
+    })
+    .join(", ");
+}
+
+/**
  * The house style every generated page is held to, stated once and shared by both write tools.
  *
  * Everything in here is a constraint the surrounding system actually imposes — not taste. The
@@ -67,7 +113,8 @@ const PAGE_HTML_CONTRACT =
   "such as search. Contact, newsletter and booking submissions must retain human submission. " +
   "Do not invent a submission endpoint or field contract just to add WebMCP tags.\n" +
   "- NO <form action=\"...\">. A form you invent posts nowhere and silently drops whatever a visitor " +
-  "types into it. If the page needs to collect anything, say so in your reply instead of writing one.\n" +
+  "types into it. If the page needs to collect anything, embed a real form with the `form` marker " +
+  "below; if no suitable form exists yet, say so in your reply instead of writing one.\n" +
   "- NO external resources: no <script src>, no remote stylesheets, no remote fonts, no hotlinked " +
   "images. Use the site's own uploaded media or inline SVG.\n" +
   "- NAME MISSING BINARY ASSETS, DON'T FAKE THEM. If content you're deriving this page from (e.g. an " +
@@ -85,9 +132,8 @@ const PAGE_HTML_CONTRACT =
   "`<template>…</template>` inside the tag to control each item's markup with `{{title}}`, `{{url}}`, " +
   "`{{date}}`, `{{fields.<name>}}` placeholders — omit it for the default card/list rendering. The " +
   "wrapper tag's own `class`/`style`/`id` survive and are how you style it. Other known types: " +
-  "`{\"type\":\"widget\",\"id\":\"<slug>\"}`, `{\"type\":\"media\",\"id\":\"<slug>\"}`, " +
-  "`{\"type\":\"menu\",\"id\":\"<slug>\"}` (add `\"variant\":\"tree\"` for a nested tree instead of flat " +
-  "links), and `{\"type\":\"post-previews\",\"limit\":6}` for recent post cards.";
+  otherEmbedTypesText() +
+  ".";
 
 /**
  * The optimistic-concurrency basis, stated once for both writers.
