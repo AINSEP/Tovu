@@ -25,7 +25,9 @@
  * **Third revision (2026-10-06).** The ⋮ stays top-right, level with the name, but Start/Stop moves
  * to the LEFT, on its own row under the "SQLite" line, with Restart on that same row at the right
  * edge. The ⋮ therefore lives in a `.card__head` row beside the text, and `.card__actions` is the
- * button row beneath it.
+ * button row beneath it. *
+ * **Fourth revision, same day.** The status moves under the ⋮ on the right, "SQLite" directly under
+ * the name on the left: `.card__head` is a 2x2 grid (name | ⋮, SQLite | status).
  */
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -71,28 +73,29 @@ test('the actions row is in the card BODY, and the preview tile carries nothing 
   assert.match(body, /<div className="card__body">[\s\S]*<CardActions/, 'CardActions belongs to the info block');
 });
 
-test('the card head is two columns — the text on the left, the ⋮ at the right edge level with the name', () => {
-  // The owner's layout, in their own words: the ⋮ "parallel right aligned in the card" with the
-  // site name. That is not a property of the ⋮ itself; it is the HEAD being a ROW of two columns,
-  // so it is asserted on the head's rule. A silent revert to `flex-direction: column` would put the
-  // ⋮ back under the text with every other assertion in this file still green.
+test('the card head is a 2x2 grid — name | ⋮ on row 1, SQLite | status on row 2', () => {
+  // Fourth revision (2026-10-06, 11:10): the owner kept the ⋮ level with the name and the buttons
+  // below, but moved the status ("● Stopped") to the RIGHT, under the ⋮, with "SQLite" directly
+  // under the name on the left — one row fewer. That is a property of the head's GRID, so it is
+  // asserted on the head's rule and on the DOM order that fills it.
   const body = cardBody();
-  assert.match(body, /<div className="card__body">[\s\S]*<div className="card__head">[\s\S]*<div className="card__info">/, 'the text needs its own column element inside the head');
-  // The three lines the card SAYS about the site live in that left column, not beside the buttons.
-  const info = body.slice(body.indexOf('<div className="card__info">'), body.indexOf('<SiteCardMenu'));
-  for (const cls of ['card__name', 'card__meta', 'card__details', 'card__actionerror']) {
-    assert.match(info, new RegExp(`className="${cls}"`), `${cls} belongs in the left column`);
-  }
   const head = body.slice(body.indexOf('<div className="card__head">'), body.indexOf('<CardActions'));
-  assert.match(head, /<SiteCardMenu/, 'the ⋮ sits in the head, beside the text, not in the row of buttons below it');
+  assert.notEqual(body.indexOf('<div className="card__head">'), -1, 'the head needs its own element');
+  // Grid auto-placement fills row 1 then row 2, so the DOM order IS the layout: name, ⋮, SQLite, status.
+  const order = ['className="card__name"', '<SiteCardMenu', 'className="card__details"', 'className="card__meta"'].map((needle) => head.indexOf(needle));
+  assert.ok(order.every((index) => index !== -1), 'name, ⋮, SQLite and status must all sit in the head');
+  assert.deepEqual([...order].sort((x, y) => x - y), order, 'DOM order must be name, ⋮, SQLite, status');
+  assert.doesNotMatch(body, /className="card__info"/, 'the old left-hand text column is gone');
   const rule = css.slice(css.indexOf('.card__head {'), css.indexOf('}', css.indexOf('.card__head {')));
-  assert.match(rule, /flex-direction:\s*row/, 'the head must lay its two columns side by side');
-  for (const override of css.matchAll(/\.card__head\s*\{([^}]*)\}/g)) {
-    assert.doesNotMatch(override[1]!, /flex-direction:\s*(?!row\b)[\w-]+/, 'a later or media-query rule must not stack the head columns');
-  }
-  // Without this a long site name refuses to shrink and shoves the ⋮ off the card's right edge.
-  const infoRule = css.slice(css.indexOf('.card__info {'), css.indexOf('}', css.indexOf('.card__info {')));
-  assert.match(infoRule, /min-width:\s*0/, 'the text column must be allowed to shrink, or a long name pushes the ⋮ out');
+  assert.match(rule, /display:\s*grid/);
+  // `minmax(0, 1fr)`, not `1fr`: a bare `1fr` track refuses to shrink below a long name's width and
+  // shoves the ⋮ off the card's right edge.
+  assert.match(rule, /grid-template-columns:\s*minmax\(0,\s*1fr\)\s+auto/, 'text column left (shrinkable), ⋮/status column right');
+  const meta = css.slice(css.indexOf('.card__meta {'), css.indexOf('}', css.indexOf('.card__meta {')));
+  assert.match(meta, /justify-self:\s*end/, 'the status is right-aligned under the ⋮');
+  // Anything else the head says (a failure reason, "Provisioning setup", a refused start, a
+  // missing folder) spans both columns below row 2 rather than squeezing into one.
+  assert.match(css, /\.card__detail,\s*\.card__draft,\s*\.card__actionerror,\s*\.card__missing\s*\{\s*grid-column:\s*1 \/ -1;/);
 });
 
 test('Start/Stop sits on its own row UNDER the text, with Restart on that same row at the right edge', () => {

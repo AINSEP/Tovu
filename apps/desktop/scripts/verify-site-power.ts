@@ -22,6 +22,10 @@
  * `sharedRightEdge` (⋮ and Start/Stop on one right edge) is therefore replaced by `powerUnderText`:
  * Start/Stop's left edge on the text column's, and its top below the text.
  *
+ * **Fourth revision, same day.** The status moved under the ⋮ on the right and "SQLite" sits
+ * directly under the name; `.card__info` is gone (the head is a 2x2 grid). `powerBelowMenu` became
+ * `statusUnderMenu`, and the text-column box became the `.card__details` and `.card__meta` boxes.
+ *
  * Not part of `npm test`: it launches a real Electron app and a real site server, so it is opt-in
  * and slow. Run it after touching `src/renderer/use-site-power.hooks.ts`, `src/renderer/SiteGrid.tsx`,
  * `src/project-ipc.ts`'s `handleStart`/`handleStop`, or `src/site-transitions.ts`:
@@ -75,7 +79,7 @@ interface CardState {
   menuInTile: boolean;
   trashOnCard: boolean;
   actionsInBody: boolean;
-  layout: { name: Box | null; menu: Box | null; power: Box | null; info: Box | null };
+  layout: { name: Box | null; menu: Box | null; power: Box | null; details: Box | null; status: Box | null };
   error: string | null;
 }
 
@@ -88,12 +92,12 @@ interface Claim {
 interface LayoutClaims {
   onNameRow: Claim;
   powerUnderText: Claim;
-  powerBelowMenu: Claim;
+  statusUnderMenu: Claim;
 }
 
-const MISSING_BOX: Claim = { ok: false, why: 'card is missing a name, a ⋮ or a text column' };
+const MISSING_BOX: Claim = { ok: false, why: 'card is missing a name, a ⋮, a database line or a status' };
 /** What `layoutClaims` reports when there is no layout to read: every claim fails, and says why. */
-const NO_LAYOUT: LayoutClaims = { onNameRow: MISSING_BOX, powerUnderText: MISSING_BOX, powerBelowMenu: MISSING_BOX };
+const NO_LAYOUT: LayoutClaims = { onNameRow: MISSING_BOX, powerUnderText: MISSING_BOX, statusUnderMenu: MISSING_BOX };
 
 const failures: string[] = [];
 let shotN = 0;
@@ -151,34 +155,37 @@ const cardState = (win: Page): Promise<CardState | null> =>
       trashOnCard: has('.card__delete'),
       actionsInBody: has('.card__body .card__actions'),
       // The owner's layout, as boxes.
-      layout: { name: box('.card__name'), menu: box('.card__menubutton'), power: box('.card__power'), info: box('.card__info') },
+      layout: { name: box('.card__name'), menu: box('.card__menubutton'), power: box('.card__power'), details: box('.card__details'), status: box('.card__meta') },
       error: text('.card__actionerror'),
     };
   });
 
+/** Vertical centre of a box — rows are centre-aligned in the head grid. */
+const middle = (b: Box): number => (b.top + b.bottom) / 2;
+
 /** "align dotes with tovu-com" — the ⋮ sits on the same row as the name, not under it. */
-function onNameRow(name: Box, menu: Box, info: Box): Claim {
+function onNameRow(name: Box, menu: Box): Claim {
   return {
-    ok: Math.abs(menu.top - name.top) <= 4 && menu.left >= info.right,
-    why: `⋮ top ${menu.top.toFixed(1)} vs name top ${name.top.toFixed(1)}; ⋮ left ${menu.left.toFixed(1)} vs text column right ${info.right.toFixed(1)}`,
+    ok: Math.abs(middle(menu) - middle(name)) <= 4 && menu.left >= name.right,
+    why: `⋮ middle ${middle(menu).toFixed(1)} vs name middle ${middle(name).toFixed(1)}; ⋮ left ${menu.left.toFixed(1)} vs name right ${name.right.toFixed(1)}`,
   };
 }
 
-/** "put the start/stop under the SQLite" — on the text column's left edge, below the text. */
-function powerUnderText(info: Box, power: Box | null): Claim {
+/** "put the start/stop under the SQLite" — on the database line's left edge, below row 2. */
+function powerUnderText(details: Box, status: Box, power: Box | null): Claim {
   if (power === null) return { ok: true, why: 'no power button for this status' };
+  const rowBottom = Math.max(details.bottom, status.bottom);
   return {
-    ok: Math.abs(power.left - info.left) <= 1 && power.top >= info.bottom - 1,
-    why: `power left ${power.left.toFixed(1)} vs text left ${info.left.toFixed(1)}; power top ${power.top.toFixed(1)} vs text bottom ${info.bottom.toFixed(1)}`,
+    ok: Math.abs(power.left - details.left) <= 1 && power.top >= rowBottom - 1,
+    why: `power left ${power.left.toFixed(1)} vs SQLite left ${details.left.toFixed(1)}; power top ${power.top.toFixed(1)} vs row 2 bottom ${rowBottom.toFixed(1)}`,
   };
 }
 
-/** "have stop button right under it" — below the ⋮, never beside it. */
-function powerBelowMenu(menu: Box, power: Box | null): Claim {
-  if (power === null) return { ok: true, why: 'no power button for this status' };
+/** "status on the right under the ⋮" — right edges shared, below the ⋮, level with "SQLite". */
+function statusUnderMenu(menu: Box, details: Box, status: Box): Claim {
   return {
-    ok: power.top >= menu.bottom - 1,
-    why: `power top ${power.top.toFixed(1)} vs ⋮ bottom ${menu.bottom.toFixed(1)}`,
+    ok: Math.abs(status.right - menu.right) <= 1 && status.top >= menu.bottom - 1 && Math.abs(middle(status) - middle(details)) <= 4,
+    why: `status right ${status.right.toFixed(1)} vs ⋮ right ${menu.right.toFixed(1)}; status top ${status.top.toFixed(1)} vs ⋮ bottom ${menu.bottom.toFixed(1)}; status middle ${middle(status).toFixed(1)} vs SQLite middle ${middle(details).toFixed(1)}`,
   };
 }
 
@@ -190,17 +197,17 @@ function powerBelowMenu(menu: Box, power: Box | null): Claim {
  */
 function layoutClaims(state: CardState | null): LayoutClaims {
   const layout = state === null ? null : state.layout;
-  if (!layout || !layout.name || !layout.menu || !layout.info) return NO_LAYOUT;
+  if (!layout || !layout.name || !layout.menu || !layout.details || !layout.status) return NO_LAYOUT;
   return {
-    onNameRow: onNameRow(layout.name, layout.menu, layout.info),
-    powerUnderText: powerUnderText(layout.info, layout.power),
-    powerBelowMenu: powerBelowMenu(layout.menu, layout.power),
+    onNameRow: onNameRow(layout.name, layout.menu),
+    powerUnderText: powerUnderText(layout.details, layout.status, layout.power),
+    statusUnderMenu: statusUnderMenu(layout.menu, layout.details, layout.status),
   };
 }
 
 /** True when every one of `layoutClaims`' three claims holds. */
 function allLayoutClaimsHold(claims: LayoutClaims): boolean {
-  return claims.onNameRow.ok && claims.powerUnderText.ok && claims.powerBelowMenu.ok;
+  return claims.onNameRow.ok && claims.powerUnderText.ok && claims.statusUnderMenu.ok;
 }
 
 /** A card state with the optional parts flattened out, so the checks below read plain fields
@@ -322,7 +329,7 @@ async function requireSeededCard(win: Page, expectedSiteName: string): Promise<C
 function checkLayout(claims: LayoutClaims): void {
   check('LAYOUT_KEBAB_ON_NAME_ROW', claims.onNameRow.ok, claims.onNameRow.why);
   check('LAYOUT_POWER_UNDER_TEXT', claims.powerUnderText.ok, claims.powerUnderText.why);
-  check('LAYOUT_POWER_BELOW_KEBAB', claims.powerBelowMenu.ok, claims.powerBelowMenu.why);
+  check('LAYOUT_STATUS_UNDER_KEBAB', claims.statusUnderMenu.ok, claims.statusUnderMenu.why);
 }
 
 /** The stopped card, before anything is clicked: it is the seeded site, its controls sit where the
@@ -380,7 +387,7 @@ async function verifyStarted(win: Page): Promise<void> {
   check(
     'LAYOUT_HOLDS_WITH_STOP',
     allLayoutClaimsHold(runningLayout),
-    `with "Stop" — ${runningLayout.powerUnderText.why}; ${runningLayout.powerBelowMenu.why}`,
+    `with "Stop" — ${runningLayout.powerUnderText.why}; ${runningLayout.statusUnderMenu.why}`,
   );
   await shot(win, 'light-running');
 }

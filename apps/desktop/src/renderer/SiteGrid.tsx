@@ -20,12 +20,13 @@
  * screenshot and appear on hover; an operator could not see what a card could do without pointing at
  * it, and on a touchpad or by keyboard that is a control you have to go looking for.
  *
- * The layout is the owner's, after three rounds: the ⋮ level with the site name at the card's
- * right edge, and Start/Stop on its own row UNDER the text ("SQLite" line), with Restart on that
- * same row at the right edge. So the body is two rows — `.card__head` (the text in `.card__info`,
- * the ⋮ beside it) and `CardActions` (the labelled buttons) — which is what lets the ⋮ share a line
- * with the name without either one being positioned on top of the other. (Before 2026-10-06
- * Start/Stop and Restart were stacked under the ⋮ in a right-hand column.)
+ * The layout is the owner's, after four rounds: the ⋮ level with the site name at the card's right
+ * edge, "SQLite" under the name and the status ("● Stopped") under the ⋮, then Start/Stop on its
+ * own row at the left with Restart on that same row at the right edge. So the body is two rows —
+ * `.card__head` (a 2x2 grid: name | ⋮, SQLite | status) and `CardActions` (the labelled buttons) —
+ * which is what lets the ⋮ share a line with the name without either one being positioned on top of
+ * the other. (Before 2026-10-06 Start/Stop and Restart were stacked under the ⋮ in a right-hand
+ * column, and the status sat on its own line under the name.)
  *
  * **The right-hand side carries exactly one icon control: the ⋮ menu.** Delete used to be its own
  * always-visible trash button beside Start/Stop; the owner's own reason for pulling it inside the
@@ -193,38 +194,11 @@ function SiteCard({
         )}
       </div>
       <div className="card__body">
-        {/* The head row: the text on the left, the ⋮ at the right edge level with the name. */}
+        {/* The head is a 2x2 grid (`.card__head`): name | ⋮ on row 1, "SQLite" | status on row 2.
+            Grid auto-placement fills it in DOM order, so the order below IS the layout — and it is
+            also the reading and Tab order, which is why the ⋮ comes second rather than last. */}
         <div className="card__head">
-          {/* The left column: everything the card SAYS about the site, in its reading order. It is
-              its own element rather than a direct run of children because the head is two columns —
-              this text, and the ⋮ pinned to the card's right edge beside it. */}
-          <div className="card__info">
-            <h3 className="card__name">{project.displayName}</h3>
-            <p className="card__meta">
-              <span className="state">
-                <span className="state__dot" aria-hidden="true" />
-                {STATUS_LABEL[status]}
-              </span>
-              {project.statusDetail && (
-                <span className="card__detail" title={project.statusDetail}>
-                  {project.statusDetail}
-                </span>
-              )}
-            </p>
-            <p className="card__details">
-              {databaseLabel(project)}
-              {project.templateVersion && <> · Tovu {project.templateVersion}</>}
-            </p>
-            {project.status === 'provisioning' && <span className="card__draft">Provisioning setup</span>}
-            {/* Main's own sentence, verbatim, when a start or a stop was refused. In the body rather
-                than an overlay: nothing is pending, the card is still openable, and the failure is one
-                fact about it rather than a question to answer. */}
-            {powerError && <p className="card__actionerror">{powerError}</p>}
-            <MissingFolderNotice project={project} locate={locate} />
-          </div>
-          {/* After the text in the DOM because the ⋮ is drawn at the head's right edge, and before
-              the button row because it is drawn above it — Tab order follows reading order only
-              while the two agree. */}
+          <h3 className="card__name">{project.displayName}</h3>
           <SiteCardMenu
             project={project}
             status={status}
@@ -233,6 +207,30 @@ function SiteCard({
             onRequestDelete={onRequestDelete}
             actions={actions}
           />
+          <p className="card__details">
+            {databaseLabel(project)}
+            {project.templateVersion && <> · Tovu {project.templateVersion}</>}
+          </p>
+          <p className="card__meta">
+            <span className="state">
+              <span className="state__dot" aria-hidden="true" />
+              {STATUS_LABEL[status]}
+            </span>
+          </p>
+          {/* Everything below spans both columns (`grid-column: 1 / -1`). The failure reason left the
+              status line when the status moved into the narrow right column: unbounded text there
+              would squeeze the name's column to nothing. */}
+          {project.statusDetail && (
+            <p className="card__detail" title={project.statusDetail}>
+              {project.statusDetail}
+            </p>
+          )}
+          {project.status === 'provisioning' && <span className="card__draft">Provisioning setup</span>}
+          {/* Main's own sentence, verbatim, when a start or a stop was refused. In the body rather
+              than an overlay: nothing is pending, the card is still openable, and the failure is one
+              fact about it rather than a question to answer. */}
+          {powerError && <p className="card__actionerror">{powerError}</p>}
+          <MissingFolderNotice project={project} locate={locate} />
         </div>
         <CardActions
           project={project}
