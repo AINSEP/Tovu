@@ -49,7 +49,7 @@ function sessionHarness() {
     parseRunStartContextRef: () => ({ prompt: "hello", principalId: "principal-1", conversationId: "conv-1", attachmentIds: [], pluginRefIds: [] }),
     assemblePromptWithPluginPrefix: (prompt: string) => prompt,
     buildPageContextPromptBlock: () => "",
-    principalByRunId: new Map(), messageAttachmentRefsByRunId: new Map(), runOwners: { record() {} },
+    principalByRunId: new Map(), messageAttachmentRefsByRunId: new Map(), durableMessageIdsByRunId: new Map(), runOwners: { record() {} },
     // No live executor in this harness: isolate serialization of the binding, not the live-run gate.
     liveRunTracker: { register() {}, hasConcurrentLiveRun: () => false },
     frontendControl: { bindOnStarted() {} }, customInstructionsCache: { refresh: async () => {} },

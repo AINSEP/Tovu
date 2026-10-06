@@ -52,7 +52,12 @@ export function savedRunEvents({ json }: { json: string | null }, _optional = {}
 function continuationEvents(
   { current, incoming }: { current: DurableRun; incoming: readonly AgentEvent[] }, _optional = {},
 ): readonly AgentEvent[] {
-  const separator = incoming.findLastIndex((event) => event.kind === "text" && event.text === CONTINUATION_DIVIDER);
+  let separator = -1;
+  // Scan backward to keep the latest separator without requiring ES2023 array methods.
+  for (let index = incoming.length - 1; index >= 0; index--) {
+    const event = incoming[index];
+    if (event.kind === "text" && event.text === CONTINUATION_DIVIDER) { separator = index; break; }
+  }
   const saved = [...(current.message.events ?? [])];
   if (!saved.some((event) => event.kind === "text") && current.message.content) saved.unshift({ kind: "text", text: current.message.content });
   // A trailing checkpoint/tool barrier may land after the recovery probe but before its CAS.
@@ -60,7 +65,11 @@ function continuationEvents(
   if (separator >= 0) return [...saved, ...incoming.slice(separator)];
   // Empty startup retries have a recovery marker but no divider. Rebase their saved work under
   // the same lock too: a checkpoint may have arrived since the recovery probe.
-  const marker = incoming.findLastIndex(event => event.kind === "status" && event.code === "run_recovering");
+  let marker = -1;
+  for (let index = incoming.length - 1; index >= 0; index--) {
+    const event = incoming[index];
+    if (event.kind === "status" && event.code === "run_recovering") { marker = index; break; }
+  }
   if (marker >= 0) return [...recoveredRunEvents({ saved }, {}), ...incoming.slice(marker + 1)];
   return runContentFromEvents(incoming).length >= current.message.content.length ? incoming : saved;
 }

@@ -61,6 +61,7 @@ export async function captureDaemonRun(
     DEFAULT_AGENT_ID: "claude",
     principalByRunId: new Map(),
     messageAttachmentRefsByRunId: new Map(),
+    durableMessageIdsByRunId: new Map(),
     runOwners: { record() {} },
     runActiveContexts: options.runActiveContexts ?? createRunActiveContextStore(),
     frontendControl: { bindOnStarted() {} },

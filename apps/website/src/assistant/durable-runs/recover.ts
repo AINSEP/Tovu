@@ -16,7 +16,12 @@ function attemptFailure(run: DurableRun): "retryable" | "permanent" | "auth-fail
   const events = run.message.events ?? [];
   // Checkpoints merge adjacent text, so a base's event count is not a durable offset. The
   // coordinator's recovery marker separates attempts and survives that compaction.
-  const marker = run.attemptBase.length ? events.findLastIndex((event) => event.kind === "status" && event.code === "run_recovering") : -1;
+  let marker = -1;
+  // Reverse scan preserves the last-marker rule on the desktop's ES2022 target.
+  for (let index = run.attemptBase.length ? events.length - 1 : -1; index >= 0; index--) {
+    const event = events[index];
+    if (event.kind === "status" && event.code === "run_recovering") { marker = index; break; }
+  }
   const diagnostics = events.slice(marker >= 0 ? marker + 1 : run.attemptBase.length).flatMap((event) =>
     event.kind === "status" ? [event.label, event.detail ?? ""] : event.kind === "raw" ? [event.line] : []).join("\n");
   if (/inactivity[_ -]?(timeout|watchdog)|watchdog.*(kill|stop)/i.test(diagnostics)) return "inactivity-watchdog";

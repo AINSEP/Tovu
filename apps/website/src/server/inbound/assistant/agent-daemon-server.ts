@@ -702,6 +702,9 @@ const principalByRunId = new Map<string, Principal>();
  * and delegated tools. `lifecycle.get()` returns public RunStatus without contextRef; parsing it
  * there silently hid every attachment. Keep this binding for the tracked principal's lifetime. */
 const messageAttachmentRefsByRunId = new Map<string, readonly string[]>();
+/** The durable guard must still identify a chat attempt after its persisted row is deleted or
+ * advanced. Public RunStatus has no contextRef, so retain the decoded message id until terminal. */
+const durableMessageIdsByRunId = new Map<string, string>();
 /** Per-run bridge credentials. Valid only while `principalByRunId` tracks the run, so they share its
  * lifetime; `revoke` on terminal only keeps the map small. See `run-scoped-credential.ts`. */
 const runCredentials = createRunScopedCredentials({ principalOfLiveRun: (runId) => principalByRunId.get(runId)?.id });
@@ -864,6 +867,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
 
   principalByRunId.set(run.id, principal);
   messageAttachmentRefsByRunId.set(run.id, attachmentIds);
+  if (durableMessageId !== undefined) durableMessageIdsByRunId.set(run.id, durableMessageId);
   runOwners.record(run.id, principal.id);
   // H2 fix (`agent-run-concurrency.ts`): registered synchronously, in this same
   // never-`await`-ed-yet prefix, so a second `onStarted` call for the same conversation — however
@@ -875,6 +879,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
   void runLifecycle.waitForTerminal({ runId: run.id }).catch(() => undefined).finally(() => {
     principalByRunId.delete(run.id);
     messageAttachmentRefsByRunId.delete(run.id);
+    durableMessageIdsByRunId.delete(run.id);
     runCredentials.revoke(run.id);
     runActiveContexts.forget(run.id);
     // The owner must outlive the run's end (a finished run is still read and replayed), but not the
@@ -1251,10 +1256,7 @@ const delegatedToolRouteDeps = {
 registerDurableToolGuard({ app, ledger: routeDeps.chatRunLedger,
   isReadOnly: ({ toolId }) => checkReadOnlyTool({ toolId, registry, messages: defaultDaemonMessages.readOnly }, {}) === null,
   async messageIdForAttempt({ runId }) {
-    const run = await lifecycle.get({ runId });
-    if (!run) return null;
-    try { const context = JSON.parse(run.contextRef); return typeof context.assistantMessageId === "string" ? context.assistantMessageId : null; }
-    catch { return null; }
+    return durableMessageIdsByRunId.get(runId) ?? null;
   },
 }, {});
 registerDelegatedToolRoutes({ app, deps: delegatedToolRouteDeps, adapter });

@@ -118,13 +118,14 @@ export function createTenantScopedChatStore(
      */
     async appendMessage({ conversationId, message }) {
       if (message.role !== "assistant" || !message.runId) return store.appendMessage({ conversationId, message });
+      const runId = message.runId;
       const outcome = await ledger.unlessSettled(
-        { conversationId, messageId: message.id, runId: message.runId },
+        { conversationId, messageId: message.id, runId },
         async () => {
           // Server acceptance and recovery own daemon rows. Browser snapshots can carry an old
           // attempt id or a transport-only failure; returning the stored row fences both without
           // matching presentation text. BYOK/AG-UI remain request-bound.
-          if (isDaemonRunId(message.runId)) {
+          if (isDaemonRunId(runId)) {
             const saved = (await store.messages({ conversationId })).find((m) => m.id === message.id);
             if (saved) return saved;
             if (message.runStatus !== "queued" && message.runStatus !== "running") return null;
