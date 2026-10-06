@@ -697,8 +697,10 @@ pre.has-copy-btn > code { display: block; overflow-x: auto; }
    (`form-render.ts`'s FORM_BASELINE_STYLE), which is only the fallback for themes with no form rules.
    Every rule here is ONE type selector with the rest inside `:where()`, specificity (0,0,1): enough
    to beat that baseline, low enough that a page author's own class rule, or an equal element rule
-   in a later `<style>`, still wins. Values mirror `.field` (auth) and `.btn` above; the submit keeps
-   the accent fill Builder forms already had. Rules that set `display` exclude `[hidden]`: an author-
+   in a later `<style>`, still wins. The submit IS this theme's primary button (`.btn` shape,
+   `.btn-solid` colours); it used to keep Builder's old accent fill, a gold pill that clashed with
+   the site's own black/white "Get started" (owner, 2026-10-05). Fields mirror `.field` (auth) but sit
+   on `--bg`, so they stay distinct from a `--surface` card a page wraps the form in. Rules that set `display` exclude `[hidden]`: an author-
    origin `display` beats the UA `[hidden]` rule and would keep a submitted form visible under its
    success message. Fields are styled through descendants, never classes injected into author markup. */
 form:where(.tovu-form:not([hidden])) { display: flex; flex-direction: column; gap: 18px; max-width: 520px; }
@@ -716,7 +718,7 @@ div:where(.tovu-form .widget-form-field-checkbox) { flex-direction: row; flex-wr
 :where(.tovu-form) :is(input, textarea, select):where(:not([type="checkbox"], [type="radio"], [type="hidden"], [type="submit"], [type="button"], [type="reset"])) {
   box-sizing: border-box; width: 100%; min-height: 42px; padding: 10px 14px;
   border: 1px solid var(--border-strong); border-radius: 10px;
-  background: var(--surface); color: var(--fg); font: 14px/1.4 var(--font-body);
+  background: var(--bg); color: var(--fg); font: 14px/1.4 var(--font-body);
 }
 :where(.tovu-form) textarea { min-height: 120px; resize: vertical; }
 :where(.tovu-form) :is(input, textarea, select):where(:focus-visible) {
@@ -727,8 +729,8 @@ div:where(.tovu-form .widget-form-field-checkbox) { flex-direction: row; flex-wr
 :where(.tovu-form) input:where([type="checkbox"], [type="radio"]) { width: 16px; height: 16px; margin: 0; padding: 0; accent-color: var(--accent); }
 :where(.tovu-form) button:where(:not([type="button"], [type="reset"], [hidden])) {
   align-self: flex-start; display: inline-flex; align-items: center; justify-content: center;
-  height: 40px; padding: 0 22px; border: 1px solid transparent; border-radius: 20px;
-  background: var(--accent); color: var(--accent-fg); font: 500 14px/1 var(--font-body);
+  height: 38px; padding: 0 18px; border: 1px solid transparent; border-radius: 18px;
+  background: var(--fg); color: var(--bg); font: 500 14px/1 var(--font-body);
   cursor: pointer; transition: opacity 0.15s;
 }
 :where(.tovu-form) button:where(:not([type="button"], [type="reset"]):hover) { opacity: 0.88; }

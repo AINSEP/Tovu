@@ -106,7 +106,7 @@ export const FORM_BASELINE_STYLE =
   ":where(.widget-form-field:not([hidden])){display:flex;flex-direction:column;gap:6px;}" +
   ":where(.widget-form-field label){font-weight:600;font-size:0.9rem;}" +
   ":where(.widget-form-field input),:where(.widget-form-field textarea){font:inherit;padding:8px 10px;" +
-  "border:1px solid var(--border,#d1d5db);border-radius:6px;background:var(--surface,#fff);color:inherit;}" +
+  "border:1px solid var(--border,#d1d5db);border-radius:6px;background:var(--bg,#fff);color:inherit;}" +
   ":where(.widget-form-field textarea){min-height:100px;resize:vertical;}" +
   // Builder checkbox: box first, on the label's line, glyph-sized (must follow the input rule above,
   // equal zero specificity); a revealed field error wraps onto its own line below.
@@ -115,20 +115,23 @@ export const FORM_BASELINE_STYLE =
   ":where(.widget-form-field-checkbox label){font-weight:400;}" +
   ":where(.widget-form-field-checkbox .widget-form-field-error){flex-basis:100%;}" +
   ":where(.widget-form-field-error){color:var(--danger,var(--tovu-form-danger-fallback));font-size:0.85rem;font-weight:700;}" +
+  // Submit = the site's primary-button colours (`--fg` fill, `--bg` text, the convention tovu-theme's
+  // `.btn-solid` uses), not `--accent`: an accent-filled Send clashed with every site CTA beside it
+  // (owner, 2026-10-05). Fields sit on `--bg`, not `--surface`, so they stay distinct from a card.
   `:where(.${FORM_CLASS} button[type=submit]){align-self:flex-start;padding:8px 16px;` +
-  "border:1px solid transparent;border-radius:6px;background:var(--accent,#111827);" +
-  "color:var(--accent-fg,#fff);font-weight:600;cursor:pointer;}" +
+  "border:1px solid transparent;border-radius:6px;background:var(--fg,#111827);" +
+  "color:var(--bg,#fff);font-weight:600;cursor:pointer;}" +
   // HTML-mode forms (`html-render.ts`, keyed by `data-tovu-form`, which Builder forms never carry):
   // author markup wraps controls in `<label>`s and has no `.widget-form-field`, so the same look is
   // restated over plain descendants. Builder output is untouched by these rules.
   ":where([data-tovu-form] label:not([hidden])){display:flex;flex-direction:column;gap:6px;font-weight:600;font-size:0.9rem;}" +
   ":where([data-tovu-form] label:has(> input[type=checkbox],> input[type=radio])){flex-direction:row;align-items:center;gap:8px;font-weight:400;}" +
   ":where([data-tovu-form] :is(input:not([type=checkbox],[type=radio],[type=hidden],[type=submit],[type=button],[type=reset]),textarea,select))" +
-  "{font:inherit;padding:8px 10px;border:1px solid var(--border,#d1d5db);border-radius:6px;background:var(--surface,#fff);color:inherit;}" +
+  "{font:inherit;padding:8px 10px;border:1px solid var(--border,#d1d5db);border-radius:6px;background:var(--bg,#fff);color:inherit;}" +
   ":where([data-tovu-form] textarea){min-height:100px;resize:vertical;}" +
   ":where([data-tovu-form] button:not([type=button],[type=reset])){align-self:flex-start;padding:8px 16px;" +
-  "border:1px solid transparent;border-radius:6px;background:var(--accent,#111827);" +
-  "color:var(--accent-fg,#fff);font-weight:600;cursor:pointer;}" +
+  "border:1px solid transparent;border-radius:6px;background:var(--fg,#111827);" +
+  "color:var(--bg,#fff);font-weight:600;cursor:pointer;}" +
   `:where(.${FORM_SUCCESS_CLASS},[data-tovu-form-success]){padding:12px 14px;border-radius:6px;` +
   "background:var(--surface,#fff);border:1px solid var(--border,#d1d5db);" +
   "border-left:4px solid var(--success,var(--tovu-form-success-fallback));color:var(--success,var(--tovu-form-success-fallback));}" +

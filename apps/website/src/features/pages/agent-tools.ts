@@ -109,6 +109,11 @@ const PAGE_HTML_CONTRACT =
   "`--text-strong`, `--surface-muted`...): a token the theme lacks silently uses its fallback, and a " +
   "literal fallback is right in only ONE mode — dark text vanishes on the dark theme. A <style> " +
   "block inside the content is fine and is the expected way to style a bespoke page.\n" +
+  // Same page, same cause: every section got its own max-width + `padding: 3rem` wrapper inside the
+  // theme's article, which already sets both — a 128px hole between the intro and the form.
+  "- LAYOUT: the theme's content area already sets the page width and the space around the content. " +
+  "Do not wrap each section in its own max-width or padding container; separate sections with a " +
+  "modest margin (at most about 2rem) so the page does not open large empty gaps.\n" +
   "- TAG EDITABLE REGIONS with `data-agent-element=\"<handle>\" data-agent-role=\"region\"` on each " +
   "top-level section. These handles are how you edit parts of the page later without rewriting all " +
   `of it. A starter page ships with ${PAGE_SKELETON_REGIONS.join(", ")}; keep those handles when they ` +

@@ -50,6 +50,23 @@ for (const toolName of ["pages_write_html", "pages_write_region"]) {
   });
 }
 
+/**
+ * Same page, same root cause (chat-written CSS): each section got its own `max-width` +
+ * `padding: 3rem` wrapper inside the theme's article, which already sets width and padding — 48px +
+ * 48px + the form card's 32px margin left a 128px hole between the intro and the form.
+ */
+const LAYOUT_RULE =
+  "- LAYOUT: the theme's content area already sets the page width and the space around the content. " +
+  "Do not wrap each section in its own max-width or padding container; separate sections with a " +
+  "modest margin (at most about 2rem) so the page does not open large empty gaps.\n";
+
+for (const toolName of ["pages_write_html", "pages_write_region"]) {
+  test(`${toolName}: the contract tells the model not to stack its own section padding inside the theme's content area`, () => {
+    const tool = pagesAgentToolCatalog.find((entry) => entry.name === toolName);
+    assert.ok(tool?.description.includes(LAYOUT_RULE), `${toolName}'s description must carry the layout rule verbatim`);
+  });
+}
+
 test("every token the colour rule names is one the shipped themes actually define, in both modes", () => {
   const shared = sharedThemeTokens();
   const named = [...COLOUR_RULE.matchAll(/`var\((--[a-z0-9-]+),/g)].map((match) => match[1]);
