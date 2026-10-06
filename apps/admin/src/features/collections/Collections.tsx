@@ -572,7 +572,10 @@ export function Collections({ useCollectionsHook = useWiredCollections }: Collec
           </div>
         }
         columns={[
-          { key: "label", header: t("Label"), cell: (ct) => ct.label },
+          // The label opens the entries too (mobile catalog CO-1, 2026-10-06): "Manage entries" sits
+          // in the seventh column, off-screen in a phone's sideways scroller, so the row's own name
+          // is the obvious way in.
+          { key: "label", header: t("Label"), cell: (ct) => <a href={`/admin/collections/${ct.key}`}>{ct.label}</a> },
           { key: "key", header: t("Key"), cell: (ct) => <code>{ct.key}</code> },
           { key: "fields", header: t("Fields"), cell: (ct) => ct.fields.length },
           {

@@ -17,6 +17,7 @@ import { useAgentScreenRoute } from "./hooks/use-agent-screen-context.hooks";
 import { useSidebarEmptyClickToggle } from "./hooks/use-sidebar-empty-click-toggle.hooks";
 import { AssistantDock } from "./components/AssistantDock/AssistantDock";
 import { ChatFab } from "./components/ChatFab/ChatFab";
+import { useListTableCellLabels } from "./hooks/use-list-table-cell-labels.hooks";
 import { PublishContentDialog } from "./features/publish-content/PublishContentDialog";
 import { closePublishRequest, usePublishRequest } from "./features/publish-content/hooks/publish-request.store";
 import { t as translateDashboard } from "./features/dashboard/dashboard-i18n";
@@ -547,7 +548,9 @@ export function App(props: AppProps) {
     publishDropCapture,
   } = useChatDock();
 
-  const { setContentEl, agentBridge } = useAgentBridge();
+  const { setContentEl, contentEl, agentBridge } = useAgentBridge();
+  // Phone card layout for every `.list-table` needs each cell's column name (mobile catalog P-4).
+  useListTableCellLabels(contentEl ?? null);
   // The `admin.capture_screenshot` consent announcement — see `useScreenshotAnnouncement`'s own doc
   // (`App.hooks.tsx`) and `agent-screenshot-bus.ts`'s module doc for the privacy decision behind it.
   const { announced: screenshotAnnounced, dismiss: dismissScreenshotAnnouncement } = useScreenshotAnnouncement();

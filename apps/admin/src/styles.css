@@ -5884,3 +5884,66 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--jini-text-strong);
   white-space: pre-wrap; overflow-wrap: anywhere;
 }
+
+/* ------------------------------------------------------------------------
+   Phone card rows for every `.list-table` (mobile catalog P-4, 2026-10-06).
+   At 375px the desktop tables sat in a 351px `.table-scroll` holding 400-770px of columns: the
+   right-hand cells — usually the row actions, "More", or the only link into a record — were
+   off-screen with no hint, and narrow columns wrapped one word per line. Below 640px each row
+   becomes a card instead, with no per-screen markup: the primary cell (the first one, or the one
+   after a lone select-checkbox) is the title; a trailing cell holding a control (button, link,
+   select) is the actions slot, pinned beside the title; every other cell flows underneath as a
+   labelled meta line. `useListTableCellLabels` (App shell) supplies each cell's `data-label` from
+   its header. The header row itself shrinks to whatever is still useful on a phone — sort buttons
+   and a select-all checkbox — and disappears when it has none of those.
+   `table.list-table` (0,1,1) so this outranks per-table desktop rules like `.form-fields-table`'s
+   `min-width: 720px` regardless of which stylesheet loads last.
+   ------------------------------------------------------------------------ */
+@media (max-width: 640px) {
+  .table-scroll:has(> table.list-table) { overflow-x: visible; }
+  table.list-table { display: block; min-width: 0; table-layout: auto; }
+  table.list-table > colgroup { display: none; }
+  table.list-table > thead,
+  table.list-table > tbody { display: block; }
+
+  table.list-table > thead:not(:has(button, input)) { display: none; }
+  table.list-table > thead > tr { display: flex; flex-wrap: wrap; align-items: center; gap: 0 4px; padding: 2px 6px; background: var(--surface-2); border-bottom: 1px solid var(--border); }
+  table.list-table > thead > tr > th { display: block; border: 0; padding: 8px; background: transparent; }
+  table.list-table > thead > tr > th:not(:has(button, input)) { display: none; }
+
+  table.list-table > tbody > tr { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+  table.list-table > tbody > tr:last-child { border-bottom: none; }
+  /* Forces the meta cells onto their own line(s) under the title + actions. A flex item via its
+     own `order`: it lands after the actions slot (also order 1, earlier in source). */
+  table.list-table > tbody > tr::after { content: ""; order: 1; flex: 0 0 100%; height: 0; }
+  table.list-table > tbody > tr > td { display: block; order: 2; min-width: 0; padding: 0; border: 0; overflow-wrap: anywhere; }
+  table.list-table > tbody > tr > td:empty { display: none; }
+
+  table.list-table > tbody > tr > td:first-child,
+  table.list-table > tbody > tr > td:first-child:has(input[type="checkbox"]) + td {
+    order: 0; flex: 1 1 0; font-weight: 600; color: var(--fg);
+  }
+  table.list-table > tbody > tr > td:first-child:has(input[type="checkbox"]) { flex: 0 0 auto; }
+  table.list-table > tbody > tr > td:last-child:not(:first-child):has(button, a, select) {
+    order: 1; margin-left: auto; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px;
+  }
+
+  /* Meta line: "LABEL value". Not on the title, the actions slot or a lone checkbox. */
+  table.list-table > tbody > tr > td[data-label]::before {
+    content: attr(data-label); margin-right: 6px;
+    font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted);
+  }
+  table.list-table > tbody > tr > td:first-child::before,
+  table.list-table > tbody > tr > td:first-child:has(input[type="checkbox"]) + td::before,
+  table.list-table > tbody > tr > td:last-child:not(:first-child):has(button, a, select)::before { content: none; }
+
+  /* Editable rows (the form builder's field table, FO-3): a cell holding a text control gets its
+     label ABOVE the control and a share of the line, so a field reads as a small labelled form —
+     including the primary cell, whose control is otherwise anonymous. */
+  table.list-table > tbody > tr > td:has(> input:not([type="checkbox"]), > select) { flex: 1 1 140px; font-weight: inherit; }
+  table.list-table > tbody > tr > td:has(> input:not([type="checkbox"]), > select)::before { display: block; margin: 0 0 4px; }
+  table.list-table > tbody > tr > td:first-child:has(> input:not([type="checkbox"]), > select)::before { content: attr(data-label); }
+  /* An inline detail row (Users' expanded panel spans every column) now gets the card's width,
+     not the old table's — its own controls must not keep a desktop min-width past it. */
+  table.list-table > tbody > tr > td[colspan] :is(select, input) { max-width: 100%; }
+}
