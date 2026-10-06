@@ -9,7 +9,6 @@ import { useWiredDashboard, type StatState } from "./hooks/use-dashboard.hooks";
 import { activityRowHref, commentsStatMeta, pagesStatMeta, postsStatMeta } from "./rules";
 import { requestPublish } from "../publish-content/hooks/publish-request.store";
 import { usePublishToLiveAvailable } from "../publish-content/hooks/publish-availability.store";
-import { PublishBackstopSection } from "../publish-content/PublishBackstopSection";
 
 /**
  * @file Admin landing screen — markup only.
@@ -261,9 +260,6 @@ export function Dashboard({ useDashboardHook = useWiredDashboard }: DashboardPro
           agentHandleId="dashboard-stat-comments"
         />
       </div>
-
-      {/* Keep the overview visible even while the manual-send ceremony is expanded. */}
-      <PublishBackstopSection />
 
       <div className="dash-panels">
         <div className="dash-panel">
