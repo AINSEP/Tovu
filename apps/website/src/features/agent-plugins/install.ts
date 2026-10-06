@@ -64,7 +64,7 @@ import { chmod, mkdir, mkdtemp, open, readdir, readFile, rename, rm, stat } from
 import path from "node:path";
 
 import type { AgentPluginLayout } from "./layout.js";
-import { parseAgentPluginManifest } from "@jini-ai/agent-plugins/lifecycle";
+import { parseAgentPluginManifest, readAgentPluginExtension } from "@jini-ai/agent-plugins/lifecycle";
 import { assertContainedOnDisk, normalizePackageEntryPath, PackagePathViolation } from "./package-paths.js";
 
 /** One extraction/install failure reason. A caller (an admin route, a future marketplace installer)
@@ -155,6 +155,12 @@ export interface InstalledAgentPlugin {
   readonly keywords?: readonly string[];
   readonly author?: import("@jini-ai/agent-plugins/lifecycle").AgentPluginManifest["author"];
   readonly license?: string;
+  /** `plugin.json`'s `extensions.tovu.displayName` — the human-facing title when the id alone reads
+   *  wrong ("deploy" shows as "Deploy Online"). Lives under the spec's host-extension namespace, not
+   *  a top-level field, because the spec has no title field and `name` is the stable id that
+   *  activations, tool ids and ledgers key on — renaming it would churn all of those. Absent means
+   *  callers title-case the id. */
+  readonly displayName?: string;
   /** SHA-256 of the raw archive bytes — the content-addressing key and the descriptor `revision`
    * a future capability projection pins invocation to (`capability-projection.ts`). */
   readonly archiveDigest: string;
@@ -446,6 +452,21 @@ async function writeContainedFile(params: {
   return totalBytes;
 }
 
+const DISPLAY_NAME_MAX_LENGTH = 64;
+
+/** `{ displayName }` when `extensions.tovu.displayName` is a non-blank string, else `{}` — a
+ *  malformed value falls back to the id rather than failing the whole index, since a title is
+ *  cosmetic. Capped so a hostile package cannot flood the admin row.
+ *  @complexity O(1). */
+function readTovuDisplayName(manifest: Parameters<typeof readAgentPluginExtension>[0]["manifest"]): { displayName?: string } {
+  const displayName = readAgentPluginExtension({
+    manifest,
+    namespace: "tovu",
+    read: ({ value }) => (typeof value.displayName === "string" ? value.displayName.trim() : undefined),
+  });
+  return displayName ? { displayName: displayName.slice(0, DISPLAY_NAME_MAX_LENGTH) } : {};
+}
+
 /**
  * Reads the (already-extracted-and-trusted, or already-published) `plugin.json` at `packageRoot`
  * and walks the tree to build the `files`/`skills` index. Shared between a fresh install and the
@@ -515,6 +536,7 @@ export async function indexInstalledRoot(packageRoot: string, archiveDigest: str
     ...(parsed.manifest.keywords !== undefined ? { keywords: parsed.manifest.keywords } : {}),
     ...(parsed.manifest.author !== undefined ? { author: parsed.manifest.author } : {}),
     ...(parsed.manifest.license !== undefined ? { license: parsed.manifest.license } : {}),
+    ...readTovuDisplayName(parsed.manifest),
     archiveDigest,
     packageRoot,
     files: files.sort(),

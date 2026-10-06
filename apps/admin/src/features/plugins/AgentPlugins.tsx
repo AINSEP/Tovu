@@ -14,7 +14,7 @@ import { AgentPluginDetailsModal } from "./AgentPluginDetailsModal";
 import { AgentPluginDisableConfirmDialog } from "./AgentPluginDisableConfirmDialog";
 import { AgentPluginRow, type AgentPluginRowStateControl } from "./AgentPluginRow";
 import { InstalledIcon, MarketplaceIcon } from "./agent-plugins-visuals";
-import { humanizeAgentPluginId } from "./rules";
+import { agentPluginDisplayName } from "./rules";
 import { useWiredAgentPlugins, type AgentPluginsController } from "./hooks/use-agent-plugins.hooks";
 import type { Translate } from "@/lib/dictionary-translator";
 
@@ -119,7 +119,7 @@ function AgentPluginList({
           onToggleExpanded={() => controller.onToggleExpanded(plugin.pluginId)}
           stateControl={stateControlFor(plugin)}
           onInspect={() =>
-            controller.inspectPlugin({ id: plugin.pluginId, displayName: humanizeAgentPluginId(plugin.pluginId) })
+            controller.inspectPlugin({ id: plugin.pluginId, displayName: agentPluginDisplayName(plugin) })
           }
           uninstallNoteId={uninstallNoteId}
           agentHandleBase={rowHandles[index]!}
@@ -441,7 +441,7 @@ export function AgentPlugins({ useAgentPluginsHook = useWiredAgentPlugins }: Age
         {inspectedPlugin ? <AgentPluginDetailsModal plugin={inspectedPlugin} t={t} onClose={closeInspector} /> : null}
         {pendingDisable && pendingDisablePlugin ? (
           <AgentPluginDisableConfirmDialog
-            name={humanizeAgentPluginId(pendingDisablePlugin.pluginId)}
+            name={agentPluginDisplayName(pendingDisablePlugin)}
             variant={pendingDisable.variant}
             // Same derivation the row itself uses (`buildAgentListHandles`), computed from the one
             // id alone rather than threaded down from whichever tab's row is currently mounted —

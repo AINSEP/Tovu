@@ -55,7 +55,7 @@ function noEnvFallbackReason(target: StaticPublishTargetId): string {
 
 /** Refusal text for a target this workspace's deploy registry does not know. */
 function unknownTargetReason(target: StaticPublishTargetId): string {
-  return `'${target}' is not a deploy target this workspace knows — is the deploy plugin enabled?`;
+  return `'${target}' is not a deploy target this workspace knows — is the Deploy Online plugin turned on?`;
 }
 
 /**

@@ -59,6 +59,8 @@ export interface AgentPluginSearchSkill {
  *  SECURITY note for why: this candidate shape is what actually reaches the model). */
 export interface AgentPluginSearchCandidate {
   readonly pluginId: string;
+  /** Human-facing title from `plugin.json`'s `extensions.tovu.displayName`, when the package set one. */
+  readonly displayName?: string;
   readonly version?: string;
   readonly description?: string;
   readonly keywords: readonly string[];

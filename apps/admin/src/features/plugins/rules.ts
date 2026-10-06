@@ -386,6 +386,17 @@ export function humanizeAgentPluginId(pluginId: string): string {
 }
 
 /**
+ * The name a row shows: the package's own `displayName` (`plugin.json` `extensions.tovu.displayName`)
+ * when it set one, else {@link humanizeAgentPluginId}. The id stays the stable key; only the title
+ * can differ ("deploy" shows as "Deploy Online").
+ *
+ * @complexity O(n) in `pluginId`'s length.
+ */
+export function agentPluginDisplayName(plugin: { pluginId: string; displayName?: string | null }): string {
+  return plugin.displayName?.trim() || humanizeAgentPluginId(plugin.pluginId);
+}
+
+/**
  * Vocabulary -> glyph family, in evaluation order. Ordered rather than a flat map because a package
  * can legitimately match two families, and a stable first-match beats whichever key an object
  * happened to iterate first.
@@ -465,9 +476,9 @@ export function agentPluginGlyphKind(plugin: {
  *
  * @complexity O(1).
  */
-export function agentPluginToggleAriaLabel(plugin: { pluginId: string; enabled: boolean }, locale: string): string {
+export function agentPluginToggleAriaLabel(plugin: { pluginId: string; enabled: boolean; displayName?: string | null }, locale: string): string {
   const verb = plugin.enabled ? t(locale, "Disable") : t(locale, "Enable");
-  return `${verb} ${humanizeAgentPluginId(plugin.pluginId)}`;
+  return `${verb} ${agentPluginDisplayName(plugin)}`;
 }
 
 /** {@link buildAgentPluginDisableConfirmCopy}'s two pieces of copy — same `{ title, body }` shape as
@@ -536,9 +547,9 @@ export function buildAgentPluginDisableConfirmCopy(
  *
  * @complexity O(1).
  */
-export function agentPluginRemoveOrEnableAriaLabel(plugin: { pluginId: string; enabled: boolean }, locale: string): string {
+export function agentPluginRemoveOrEnableAriaLabel(plugin: { pluginId: string; enabled: boolean; displayName?: string | null }, locale: string): string {
   const verb = plugin.enabled ? t(locale, "Turn off") : t(locale, "Enable");
-  return `${verb} ${humanizeAgentPluginId(plugin.pluginId)}`;
+  return `${verb} ${agentPluginDisplayName(plugin)}`;
 }
 
 /**

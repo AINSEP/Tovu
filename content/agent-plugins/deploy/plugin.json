@@ -5,6 +5,11 @@
   "description": "Publishes the site's static export to a hosting service with the workspace's own saved credentials. Ships the host code itself (Tovu loads it only because Tovu shipped it) and the know-how an agent needs: which host fits the person, where to get a token, preview before publishing, and what each failure means in plain words. Netlify first; more hosts move in here one at a time. Also deploys the Tovu server itself to fly.io through a GitHub Actions workflow, with no CLI installed anywhere: one machine only (SQLite), secrets never in fly.toml, and deploying ships code, not content.",
   "author": "Tovu",
   "license": "Apache-2.0",
+  "extensions": {
+    "tovu": {
+      "displayName": "Deploy Online"
+    }
+  },
   "keywords": [
     "deploy",
     "publish",

@@ -3,7 +3,7 @@ import { useId } from "react";
 
 import type { AdminAgentPlugin } from "@/lib/api";
 import { AGENT_PLUGIN_GLYPHS, ChevronIcon, EyeIcon, TrashIcon } from "./agent-plugins-visuals";
-import { agentPluginGlyphKind, agentPluginRemoveOrEnableAriaLabel, agentPluginToggleAriaLabel, humanizeAgentPluginId } from "./rules";
+import { agentPluginGlyphKind, agentPluginRemoveOrEnableAriaLabel, agentPluginToggleAriaLabel, agentPluginDisplayName } from "./rules";
 import type { Translate } from "@/lib/dictionary-translator";
 
 /**
@@ -172,7 +172,7 @@ function DetailChips({ label, values }: { label: string; values: readonly string
 
 export function AgentPluginRow(props: AgentPluginRowProps) {
   const { plugin, t, locale, expanded, busy, onToggleExpanded, stateControl, onInspect, uninstallNoteId, agentHandleBase } = props;
-  const displayName = humanizeAgentPluginId(plugin.pluginId);
+  const displayName = agentPluginDisplayName(plugin);
   const Glyph = AGENT_PLUGIN_GLYPHS[agentPluginGlyphKind(plugin)];
   const detailId = useId();
   const headingId = useId();

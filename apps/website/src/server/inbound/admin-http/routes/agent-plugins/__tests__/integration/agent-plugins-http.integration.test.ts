@@ -62,7 +62,7 @@ function fileEntry(entryPath: string, content: string): AgentPluginArchiveEntry 
   };
 }
 
-function manifestJson(name: string, fields: { version?: string; description?: string; keywords?: readonly string[] } = {}): string {
+function manifestJson(name: string, fields: { version?: string; description?: string; keywords?: readonly string[]; extensions?: unknown } = {}): string {
   return JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name, ...fields });
 }
 
@@ -128,7 +128,7 @@ test("AGENT_PLUGINS_LIST: returns real installed Agent Plugins with skills, keyw
       WORKSPACE_A,
       "tovu-deploy-fly",
       {
-        "plugin.json": manifestJson("tovu-deploy-fly", { version: "1.0.0", description: "Deploys to fly.io." }),
+        "plugin.json": manifestJson("tovu-deploy-fly", { version: "1.0.0", description: "Deploys to fly.io.", extensions: { tovu: { displayName: "  Deploy Online  " } } }),
         "skills/tovu-deploy-fly/SKILL.md": "---\nname: tovu-deploy-fly\n---\n# Deploy to fly.io\nReal skill body.",
       },
       "seed-tovu-deploy-fly",
@@ -152,6 +152,7 @@ test("AGENT_PLUGINS_LIST: returns real installed Agent Plugins with skills, keyw
     const body = (await response.json()) as {
       agentPlugins: Array<{
         pluginId: string;
+        displayName: string | null;
         version: string | null;
         description: string | null;
         keywords: string[];
@@ -167,6 +168,8 @@ test("AGENT_PLUGINS_LIST: returns real installed Agent Plugins with skills, keyw
     assert.equal(byId.get("tovu-deploy-fly")?.enabled, false, "an explicitly disabled plugin reports enabled:false, not omitted");
     assert.equal(byId.get("site-compliance")?.version, "1.0.0");
     assert.deepEqual(byId.get("site-compliance")?.keywords, ["compliance", "gdpr"]);
+    assert.equal(byId.get("tovu-deploy-fly")?.displayName, "Deploy Online", "extensions.tovu.displayName reaches the wire, trimmed");
+    assert.equal(byId.get("site-compliance")?.displayName, null, "no display name sends null so the admin title-cases the id");
     assert.ok(byId.get("site-compliance")?.skills.some((s) => s.name === "site-compliance"));
     agentPluginsDeps.authorize = async () => ({ allowed: false, reason: "no_grant" });
     const denied = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_A}/agent-plugins`, { headers: { cookie } });

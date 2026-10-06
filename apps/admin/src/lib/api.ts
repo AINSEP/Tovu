@@ -2100,6 +2100,9 @@ export interface AdminPluginFiles {
  *  installed package's own `plugin.json` carries none (the spec itself makes both fields optional). */
 export interface AdminAgentPlugin {
   pluginId: string;
+  /** `plugin.json`'s `extensions.tovu.displayName`; `null` (or absent, from a server predating the
+   *  field) means title-case `pluginId` instead. */
+  displayName?: string | null;
   version: string | null;
   description: string | null;
   keywords: string[];

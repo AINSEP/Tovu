@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { agentPluginGlyphKind, agentPluginToggleAriaLabel, humanizeAgentPluginId } from "../rules";
+import { agentPluginDisplayName, agentPluginGlyphKind, agentPluginToggleAriaLabel, humanizeAgentPluginId } from "../rules";
 
 /**
  * @file The Agent Plugins row's two pure derivations — which glyph identifies a package, and how
@@ -78,6 +78,18 @@ describe("humanizeAgentPluginId", () => {
   });
 });
 
+describe("agentPluginDisplayName", () => {
+  it("prefers the package's own display name over the id", () => {
+    expect(agentPluginDisplayName({ pluginId: "deploy", displayName: "Deploy Online" })).toBe("Deploy Online");
+  });
+
+  it("falls back to the title-cased id when the name is absent, null or blank", () => {
+    expect(agentPluginDisplayName({ pluginId: "ui-ux-design" })).toBe("UI UX Design");
+    expect(agentPluginDisplayName({ pluginId: "deploy", displayName: null })).toBe("Deploy");
+    expect(agentPluginDisplayName({ pluginId: "deploy", displayName: "   " })).toBe("Deploy");
+  });
+});
+
 describe("agentPluginToggleAriaLabel", () => {
   it("names the target action and the plugin, so two rows' switches are distinguishable", () => {
     expect(agentPluginToggleAriaLabel({ pluginId: "site-compliance", enabled: true }, "en")).toBe("Disable Site Compliance");
@@ -86,5 +98,9 @@ describe("agentPluginToggleAriaLabel", () => {
 
   it("uses the locale's own verb", () => {
     expect(agentPluginToggleAriaLabel({ pluginId: "site-compliance", enabled: true }, "es")).toBe("Desactivar Site Compliance");
+  });
+
+  it("names the plugin by its display name when it has one", () => {
+    expect(agentPluginToggleAriaLabel({ pluginId: "deploy", enabled: false, displayName: "Deploy Online" }, "en")).toBe("Enable Deploy Online");
   });
 });

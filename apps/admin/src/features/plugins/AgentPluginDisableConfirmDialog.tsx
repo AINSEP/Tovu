@@ -36,7 +36,7 @@ import type { Translate } from "@/lib/dictionary-translator";
  */
 
 export interface AgentPluginDisableConfirmDialogProps {
-  /** The plugin's own human-readable display name (`humanizeAgentPluginId(plugin.pluginId)`) —
+  /** The plugin's own human-readable display name (`agentPluginDisplayName(plugin)`) —
    *  must name the exact plugin being disabled, not a generic "this plugin". */
   name: string;
   /** Which control opened this dialog — see this file's own header for what each reads and why. */

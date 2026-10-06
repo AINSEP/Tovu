@@ -108,7 +108,7 @@ export function missingRequiredFieldMessage(target: LoadedDeployTarget, config: 
 /** The refusal for an id the registry does not know, naming what IS available. @complexity O(t). */
 export function unknownTargetMessage(registry: DeployTargetRegistry, targetId: string): string {
   const ids = registry.list().map((target) => target.descriptor.id);
-  if (ids.length === 0) return `publish target '${targetId.slice(0, 64)}' is not available: no publish targets are installed (turn on the deploy Agent Plugin)`;
+  if (ids.length === 0) return `publish target '${targetId.slice(0, 64)}' is not available: no publish targets are installed (turn on the Deploy Online Agent Plugin)`;
   return `publish target '${targetId.slice(0, 64)}' is not available; choose one of: ${ids.join(", ")}`;
 }
 

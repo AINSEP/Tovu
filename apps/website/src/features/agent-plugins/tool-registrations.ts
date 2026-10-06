@@ -1004,6 +1004,7 @@ export async function loadAgentPluginSearchCandidates(ctx: { readonly workspaceI
 
       candidates.push({
         pluginId: plugin.pluginId,
+        ...(plugin.displayName !== undefined ? { displayName: plugin.displayName } : {}),
         ...(plugin.version !== undefined ? { version: plugin.version } : {}),
         ...(plugin.description !== undefined ? { description: plugin.description } : {}),
         keywords: plugin.keywords ?? [],
