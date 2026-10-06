@@ -43,8 +43,7 @@ test('every supported plugin locale includes the memory editor and uninstall cho
   const locales = ['es','id','de','zh-CN','zh-TW','pt-BR','ru','fa','ar','ja','ko','pl','hu','fr','uk','tr','th','it','hi','ur','bn'];
   for (const locale of locales) for (const key of ['Memory','Project notes','Learned knowledge','Save note','Uninstall · keep memory','Uninstall and delete memory',
     'Note files', 'No note files yet. Save a project note to get started.',
-    'Nothing learned yet. The assistant saves what it verifies here.',
-    'Edit project notes and review what this plugin has learned.']) {
+    'Nothing learned yet. The assistant saves what it verifies here.']) {
     expect(PLUGIN_MEMORY_DICT[locale]?.[key]).toBeTruthy();
     expect(PLUGIN_MEMORY_DICT[locale]?.[key]).not.toBe(key);
   }

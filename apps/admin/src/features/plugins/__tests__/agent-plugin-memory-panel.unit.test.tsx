@@ -75,7 +75,8 @@ test('Memory and Package files switch the header and selected ARIA tab together 
   expect(memoryTab).toHaveAttribute('aria-selected', 'true');
   expect(packageTab).toHaveAttribute('aria-selected', 'false');
   expect(screen.getByRole('dialog')).toHaveAccessibleName('Higgsfield Media Memory preview');
-  expect(screen.getByText('Edit project notes and review what this plugin has learned.')).toBeInTheDocument();
+  // Neither tab carries a subtitle (owner, 2026-10-06).
+  expect(screen.queryByText('Edit project notes and review what this plugin has learned.')).not.toBeInTheDocument();
   expect(screen.queryByText("Read-only view of this plugin's files; nothing runs from this screen.")).not.toBeInTheDocument();
 
   await userEvent.click(packageTab);

@@ -11,7 +11,7 @@ import {
 
 export interface AgentPluginDetailsModalProps {
   readonly plugin: InspectedAgentPlugin;
-  /** `AgentPlugins`' bound translator — the modal's title and subtitle copy. */
+  /** `AgentPlugins`' bound translator — the modal's title copy. */
   readonly t: Translate;
   readonly onClose: () => void;
   /** Injectable seam for the listing. Defaults to the real {@link useWiredAgentPluginDetailsModal};
@@ -35,7 +35,6 @@ export function AgentPluginDetailsModal({ plugin, t, onClose, useDetails = useWi
   return (
     <PackageFilesModal
       title={view.title}
-      subtitle={view.subtitle}
       onView={view.onView}
       files={files}
       selectedFile={selectedFile}

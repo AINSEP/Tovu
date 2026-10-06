@@ -4689,7 +4689,8 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
    directly on the bare `h3` now live on this row instead, so the toggle shares the same bar rather
    than stacking under the title; the 4rem right padding is still reserved space for the modal's
    absolutely-positioned fullscreen toggle (`[data-preview-modal-stage-fullscreen]`), which floats
-   over this corner of the pane regardless of which view is showing. */
+   over this corner of the pane regardless of which view is showing. On phones the tree stacks above
+   this bar, so the phone block below moves the toggle down into the same reserved slot. */
 .agent-plugin-source-content-header {
   display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
   padding: var(--space-3) 4rem var(--space-3) var(--space-4);
@@ -4746,8 +4747,17 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   .agent-plugin-source-modal [data-preview-modal-header] { padding: var(--space-3); }
   .agent-plugin-source-modal [data-preview-modal-tabs] { flex-basis: 100%; }
   .agent-plugin-source-modal [data-preview-modal-tabs] button { flex: 1; }
-  .agent-plugin-source-browser { grid-template-columns: 1fr; grid-template-rows: minmax(8rem, 32%) minmax(0, 1fr); }
+  .agent-plugin-source-modal { --agent-plugin-tree-pane: 11rem; }
+  .agent-plugin-source-browser { grid-template-columns: 1fr; grid-template-rows: var(--agent-plugin-tree-pane) minmax(0, 1fr); }
   .agent-plugin-source-files { border-right: none; border-bottom: 1px solid var(--border); }
+  /* The stacked tree now owns the stage's top-right corner, where the fullscreen toggle floated over
+     the first tree row (owner screenshot, 2026-10-06). Drop it into the file header bar under the
+     tree, beside "Wrap", in the slot that bar already reserves — the desktop placement. A fixed
+     tree height (not a percentage) is what lets `top` line up with that bar. `:has` keeps the
+     toggle in the corner on the Memory tab and when no file is selected, where there is no bar. */
+  .agent-plugin-source-modal [data-preview-modal-stage-frame]:has(.agent-plugin-source-content-header) > [data-preview-modal-stage-fullscreen] {
+    top: calc(var(--agent-plugin-tree-pane) + var(--space-3));
+  }
 }
 
 /* "View Template" (2026-08-10, `TemplateSourceModal.tsx`, shared by both editors since 2026-09-24) — same `PreviewModalShell` host chrome as

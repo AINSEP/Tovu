@@ -57,7 +57,7 @@ export function useAgentPluginDetailsView(required: { displayName: string; t: Tr
   return {
     onView,
     title: `${displayName} ${memoryOpen ? memoryT("Memory") : t("package files")}`,
-    // Package files has no subtitle: the read-only note cost the phone header six lines (owner, 2026-10-06).
-    subtitle: memoryOpen ? memoryT("Edit project notes and review what this plugin has learned.") : undefined,
+    // No subtitle on either tab: Package files' read-only note cost the phone header six lines, and
+    // Memory's "Edit project notes…" line followed it out (owner, 2026-10-06).
   };
 }
