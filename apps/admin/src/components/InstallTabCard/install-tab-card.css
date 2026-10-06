@@ -45,7 +45,7 @@
 .install-tab-alert, .install-tab-success {
   margin: 0; padding: 9px 12px; font-size: 13px; line-height: 1.5; border-radius: var(--r-sm);
 }
-.install-tab-alert { color: var(--danger-ink); background: var(--danger-bg); border: 1px solid color-mix(in srgb, var(--danger) 28%, transparent); }
+.install-tab-alert { color: var(--danger); background: var(--danger-bg); border: 1px solid color-mix(in srgb, var(--danger) 28%, transparent); }
 .install-tab-success { color: var(--fg); background: var(--ok-bg); border: 1px solid color-mix(in srgb, var(--ok) 28%, transparent); }
 .install-tab-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-3); }
 @media (max-width: 560px) {
