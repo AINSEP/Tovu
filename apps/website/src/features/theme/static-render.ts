@@ -1,5 +1,6 @@
 import {
   COLLECTION_MARKER_TYPE,
+  FEATURED_IMAGE_MARKER_TYPE,
   markersOfType,
   MENU_MARKER_TYPE,
   PARTIAL_MARKER_TYPE,
@@ -578,6 +579,44 @@ function injectCollectionEmbeds(html: string, lists: ReadonlyMap<string, string 
   });
 }
 
+/**
+ * The current post's featured image, already resolved by the route layer — the same
+ * `{ url, alt, width, height }` the Liquid/Handlebars tiers read as `post.featuredImage`
+ * (`render.ts`'s `featuredImageView`), so both tiers show the identical image and alt text.
+ */
+export interface StaticFeaturedImage {
+  readonly url: string;
+  readonly alt: string;
+  readonly width: number | null;
+  readonly height: number | null;
+}
+
+/** The `<img>` for a featured image. `width`/`height` reserve the box before the bytes arrive (no
+ *  layout shift; the theme's CSS scales it with `height: auto`). Eager with high fetch priority, not
+ *  lazy: it sits at the top of the post, so it is usually the page's largest paint. */
+function renderFeaturedImageTag(image: StaticFeaturedImage): string {
+  const width = image.width === null ? "" : ` width="${image.width}"`;
+  const height = image.height === null ? "" : ` height="${image.height}"`;
+  return `<img src="${escapeHtml(image.url)}" alt="${escapeHtml(image.alt)}"${width}${height} decoding="async" fetchpriority="high">`;
+}
+
+/**
+ * Fills every `{"type":"featured-image"}` marker with the current post's featured image, or removes
+ * the marker's WHOLE element when there is none. Deliberately the opposite of the "absent input,
+ * absent effect" rule {@link injectMenuEmbeds}/{@link injectPostPreviewsEmbeds} follow: a menu's
+ * fallback is real content worth keeping, but a featured-image wrapper with nothing in it is an empty
+ * figure with margins. `null`/`undefined` both mean "no image" — every surface that is not rendering
+ * a post with one (home, marketing pages, a page with none set) passes nothing.
+ *
+ * @complexity O(n) over `html`'s length — one `substituteMarkers` scan-and-splice pass.
+ */
+export function injectFeaturedImage(html: string, image: StaticFeaturedImage | null | undefined): string {
+  return substituteMarkers(html, (marker) => {
+    if (marker.type !== FEATURED_IMAGE_MARKER_TYPE) return undefined;
+    return image ? withInnerContentFinal(marker, renderFeaturedImageTag(image)) : "";
+  });
+}
+
 /** Escape a manifest-supplied string so it matches literally inside a constructed `RegExp`. */
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -724,10 +763,12 @@ export function renderStaticPage(
     menus?: Readonly<Record<string, readonly StaticMenuItem[]>>;
     postPreviews?: readonly StaticPostPreview[];
     collectionLists?: ReadonlyMap<string, string | undefined>;
+    /** The current post's featured image ({@link injectFeaturedImage}); omitted ⇒ no image. */
+    featuredImage?: StaticFeaturedImage | null;
   },
   _optional: Record<string, never> = {}
 ): string | null {
-  const { theme, pageId, htmlOverride, menus, postPreviews, collectionLists } = required;
+  const { theme, pageId, htmlOverride, menus, postPreviews, collectionLists, featuredImage } = required;
   const source = htmlOverride ?? theme.pages[pageId];
   if (source === undefined) return null;
 
@@ -758,6 +799,7 @@ export function renderStaticPage(
   html = injectMenuEmbeds(html, menus ?? {});
   html = injectPostPreviewsEmbeds(html, postPreviews ?? []);
   html = injectCollectionEmbeds(html, collectionLists ?? new Map());
+  html = injectFeaturedImage(html, featuredImage);
   html = withEntryListStyleOnce(html);
   html = rewritePageLinks(html);
   return html;

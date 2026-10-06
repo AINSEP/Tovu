@@ -41,6 +41,7 @@ import {
   type DiscoveredTheme,
   type StaticMenuItem,
   type StaticPostPreview,
+  type StaticFeaturedImage,
   type EntryListItem,
   type EntryListFieldValue,
 } from "#src/features/theme/index";
@@ -83,6 +84,7 @@ import {
   decodeFormFlashCookieValue,
   mergeFormFlashIntoResult,
   FORM_FLASH_COOKIE_NAME,
+  featuredImageView,
   type FormSubmissionRedirectResult,
   type MediaAssetRenderMeta,
 } from "../../http/site/render.js";
@@ -761,6 +763,9 @@ export async function finishStaticTierDocument(
     readonly currentPath: string;
     readonly staticMenus: StaticMenuMap | undefined;
     readonly postPreviewsAccess?: { resolver: MemberAccessResolver; context: MemberContext };
+    /** The rendered post's featured image for a `{"type":"featured-image"}` marker (2026-10-05);
+     *  omitted on every surface that is not a post, which removes the marker. */
+    readonly featuredImage?: StaticFeaturedImage | null;
     /** Threaded straight through to `resolveHtmlPageEmbeds`'s identically-shaped deps field — see
      *  {@link ResolveHtmlPageEmbedsDeps.pendingContentOverride}'s own doc for the full rationale. */
     readonly pendingContentOverride?: {
@@ -772,7 +777,7 @@ export async function finishStaticTierDocument(
     };
   }
 ): Promise<string> {
-  const { theme, pageId, html, currentPath, staticMenus, postPreviewsAccess, pendingContentOverride } = input;
+  const { theme, pageId, html, currentPath, staticMenus, postPreviewsAccess, featuredImage, pendingContentOverride } = input;
 
   const expanded = expandPartials(html, theme);
   const resolved = await resolveHtmlPageEmbeds({
@@ -812,7 +817,7 @@ export async function finishStaticTierDocument(
   // only one hand-authored directly into a theme file.
   const collectionLists = await resolveCollectionListsForRender(deps, assembled);
 
-  return renderStaticPage({ theme, pageId, htmlOverride: assembled, menus, postPreviews, collectionLists }) ?? "";
+  return renderStaticPage({ theme, pageId, htmlOverride: assembled, menus, postPreviews, collectionLists, featuredImage }) ?? "";
 }
 
 /**
@@ -1457,6 +1462,11 @@ export async function renderViaTemplate(
     currentPath: postPublicPath(post.slug),
     staticMenus,
     postPreviewsAccess,
+    // Featured image (2026-10-05): the static tier's counterpart of the templated tiers'
+    // `post.featuredImage` — resolved through the SAME metadata/transform lookups and the SAME
+    // `featuredImageView`, so both tiers show the identical URL and alt. Before this, the static
+    // path never looked the featured asset up at all and it only ever reached `og:image`.
+    featuredImage: await resolveFeaturedImageForRender(deps, post),
   });
   return injectSiteAssistantIntoStaticPage(injectExtraHeadIntoStaticPage(rendered, extraHead), siteAssistantEnabled);
 }
@@ -1483,7 +1493,9 @@ export async function renderViaTemplate(
  * treats a missing map entry as "not resolvable" and degrades to the placeholder, so this
  * function never needs its own try/catch beyond the route handler's existing one.
  */
-export async function resolveMediaTransformVersionsForRender(deps: RenderContextResolutionDeps): Promise<ReadonlyMap<string, number>> {
+export async function resolveMediaTransformVersionsForRender(
+  deps: Pick<RenderContextResolutionDeps, "workspaceId" | "transformDefinitionRepo">
+): Promise<ReadonlyMap<string, number>> {
   const definition = await getLatestTransformDefinition({
     deps: { transformRepo: deps.transformDefinitionRepo },
     input: { workspaceId: deps.workspaceId, name: CORE_PUBLIC_TRANSFORM_NAME },
@@ -1565,7 +1577,7 @@ type PendingMediaAssetMeta = Omit<MediaAssetRenderMeta, "contentType"> & { reado
  * time; this function already gathers every ref up front, so one batched call covers them all).
  */
 export async function resolveMediaAssetMetadataForRender(
-  deps: RenderContextResolutionDeps,
+  deps: Pick<RenderContextResolutionDeps, "workspaceId" | "mediaRepo" | "mediaContentTypeStore">,
   post: PostRecord | undefined,
   /** Featured image (2026-10-05): listed posts whose featured image a theme's post cards may show
    *  (`buildTemplateRenderData`'s `posts[].featuredImage`). Only their featured ids are resolved —
@@ -1617,6 +1629,27 @@ export async function resolveMediaAssetMetadataForRender(
       },
     ])
   );
+}
+
+/**
+ * The featured image a static-tier post template's `{"type":"featured-image"}` marker shows
+ * (2026-10-05), or `null` when the post has none or it does not resolve. Resolves ONLY the featured
+ * id (`listed: [post]`, no body scan) and hands the result to `render.ts`'s own `featuredImageView`,
+ * the function the Liquid/Handlebars tiers' `post.featuredImage` comes from — one view, both tiers.
+ * A post with no featured id costs no lookups at all.
+ *
+ * @complexity O(1) — at most one `findById`, one content-type lookup and one transform lookup.
+ */
+async function resolveFeaturedImageForRender(
+  deps: Pick<RenderContextResolutionDeps, "workspaceId" | "mediaRepo" | "mediaContentTypeStore" | "transformDefinitionRepo">,
+  post: PostRecord
+): Promise<StaticFeaturedImage | null> {
+  if (!post.featuredMediaId) return null;
+  const [mediaAssetMetadata, mediaTransformVersions] = await Promise.all([
+    resolveMediaAssetMetadataForRender(deps, undefined, { listed: [post] }),
+    resolveMediaTransformVersionsForRender(deps),
+  ]);
+  return featuredImageView({ mediaAssetMetadata, mediaTransformVersions }, post);
 }
 
 /** Local alias for the per-menu-id resolved link map {@link resolveStaticMenusForRender} returns —

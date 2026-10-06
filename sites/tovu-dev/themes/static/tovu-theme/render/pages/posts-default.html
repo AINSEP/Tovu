@@ -40,6 +40,9 @@
        content, so its height is unbounded and 0 (an unset threshold) is the only value that is
        satisfiable at every height. See NOTICE.md, "Why the page wrappers carry no threshold:". -->
   <article class="post-detail wrap" data-kui="fade-up 600ms expo-out distance:18px on:enter">
+    <!-- Marker: the post's featured image goes inside this element. A post with no featured image
+         removes the whole element, so no empty frame is left behind. -->
+    <figure class="post-featured" data-embed-config='{"type":"featured-image"}'></figure>
     <!-- Marker: the body of the page or post at this URL goes inside this element. -->
     <div data-embed-config='{"type":"content"}'></div>
   </article>

@@ -443,6 +443,11 @@ section.band { padding-block: 72px; border-top: 1px solid var(--border); }
 /* ---------- blog post (single-post template) ---------- */
 .post-detail { max-width: 720px; margin: 0 auto; padding-block: 72px 96px; }
 .post-detail-header { margin-bottom: 40px; }
+/* Featured image (2026-10-05) — the post's cover, above its title. The <img> carries its real
+   width/height, so the browser reserves the box before the bytes arrive (no layout shift);
+   `height: auto` keeps that ratio as it scales down to the column. */
+.post-featured { margin: 0 0 40px; }
+.post-featured img { display: block; width: 100%; height: auto; border-radius: 16px; border: 1px solid var(--border); background: var(--surface); }
 .post-detail-header h1 { font-size: clamp(30px, 4.4vw, 46px); line-height: 1.08; letter-spacing: -0.02em; margin-bottom: 16px; }
 .post-detail-header .post-meta { font-size: 13px; }
 .post-detail-body { font-size: 17px; line-height: 1.7; max-width: 66ch; }

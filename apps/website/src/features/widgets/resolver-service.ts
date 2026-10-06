@@ -1263,8 +1263,11 @@ const HTML_EMBED_RESOLVERS: Readonly<Record<string, HtmlEmbedResolver>> = {
  * `"collection"` (2026-09-23) joins the set for the identical reason: it is resolved by
  * `static-render.ts`'s `injectCollectionEmbeds`, AFTER this stage — same duplicated-literal debt as
  * the other three entries (see `COLLECTION_MARKER_TYPE`, `core/embeds/marker.ts`).
+ *
+ * `"featured-image"` (2026-10-05) joins for the identical reason: `static-render.ts`'s
+ * `injectFeaturedImage` resolves it (see `FEATURED_IMAGE_MARKER_TYPE`, `core/embeds/marker.ts`).
  */
-const THEME_OWNED_MARKER_TYPES: ReadonlySet<string> = new Set(["partial", "menu", "post-previews", "collection"]);
+const THEME_OWNED_MARKER_TYPES: ReadonlySet<string> = new Set(["partial", "menu", "post-previews", "collection", "featured-image"]);
 
 /**
  * `isPageEmbedType` (the "does this stage OWN the marker type" question, with its own doc) lives in

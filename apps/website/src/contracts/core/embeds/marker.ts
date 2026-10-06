@@ -547,6 +547,21 @@ export const POST_PREVIEWS_MARKER_TYPE = "post-previews";
 export const COLLECTION_MARKER_TYPE = "collection";
 
 /**
+ * The featured-image marker type (2026-10-05) — a post template's slot for the current post's
+ * featured image. A static-tier theme has no template language to read `post.featuredImage` (the
+ * Liquid/Handlebars tiers' theme data), so before this marker a static theme had no way to show the
+ * image at all; it only reached `og:image`. Same ownership shape as {@link COLLECTION_MARKER_TYPE}:
+ * resolved end-to-end by `features/theme/static-render.ts`'s `injectFeaturedImage`, listed in
+ * `resolver-service.ts`'s `THEME_OWNED_MARKER_TYPES`.
+ *
+ * Config shape: `{"type":"featured-image"}` — no target; it always means the entity the route is
+ * rendering. A hit fills the authored element with the `<img>` and strips the marker; no image
+ * (none set, unresolved, or a page with no current post) removes the WHOLE element, wrapper and
+ * fallback included, so a theme's figure/margins never render around nothing.
+ */
+export const FEATURED_IMAGE_MARKER_TYPE = "featured-image";
+
+/**
  * The longest a target value ({@link embedMarkerTarget}'s `id`/`slug`/`typeKey`) may be before it
  * counts as absent rather than a usable reference. A duplicate of `features/widgets/html-embeds.ts`'s
  * `MAX_EMBED_ID_LENGTH` (same number, same reasoning: a bound too long to safely carry into a

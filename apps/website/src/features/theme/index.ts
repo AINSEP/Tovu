@@ -97,6 +97,7 @@ export {
   collectionMarkerKey,
   splitCollectionMarkerInner,
   type StaticCollectionList,
+  type StaticFeaturedImage,
 } from "./static-render.js";
 
 // C5 (collections plan, 2026-09-23) — the pure entry-list renderer `pages.ts`'s

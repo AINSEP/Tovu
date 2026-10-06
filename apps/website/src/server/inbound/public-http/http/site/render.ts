@@ -2874,6 +2874,8 @@ export function buildTemplateRenderData(ctx: SiteRenderContext): Record<string, 
  * URL a body image of the same asset gets — or `null` when the post has none, the asset did not
  * resolve (trashed, deleted, not in `mediaAssetMetadata`), or the transform is not registered yet.
  * Alt text is the post title: `MediaAssetRenderMeta` carries no alt, and the image illustrates it.
+ * Exported for the static tier (`pages.ts`'s `resolveFeaturedImageForRender`), which feeds the
+ * same view to a `{"type":"featured-image"}` marker so the two tiers cannot disagree.
  *
  * @complexity O(1) — two map lookups.
  */
@@ -2881,7 +2883,10 @@ export function buildTemplateRenderData(ctx: SiteRenderContext): Record<string, 
  *  module pulls in the whole media feature barrel, which this I/O-free render module never needed. */
 const FEATURED_IMAGE_TRANSFORM = "public";
 
-function featuredImageView(ctx: SiteRenderContext, post: PostRecord): { url: string; alt: string; width: number | null; height: number | null } | null {
+export function featuredImageView(
+  ctx: Pick<SiteRenderContext, "mediaAssetMetadata" | "mediaTransformVersions">,
+  post: PostRecord
+): { url: string; alt: string; width: number | null; height: number | null } | null {
   if (!post.featuredMediaId) return null;
   const meta = ctx.mediaAssetMetadata.get(post.featuredMediaId);
   const version = ctx.mediaTransformVersions.get(FEATURED_IMAGE_TRANSFORM);
