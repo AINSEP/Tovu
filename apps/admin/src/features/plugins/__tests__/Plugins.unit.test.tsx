@@ -283,6 +283,27 @@ describe("REQ-16/AC-24: per-row inline error display, now inside the row's own e
   });
 });
 
+describe("PL-2 (mobile catalog 2026-10-06): a healthy plugin's expander is not empty", () => {
+  it("shows the plugin's id, source, access and status when it has no problems to report", async () => {
+    // Regression target: the detail panel rendered only quarantine/conflicts/errors, so expanding a
+    // healthy row rotated the chevron over an empty box.
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce(jsonResponse(AC11_PLUGINS_RESPONSE));
+    render(<Plugins tabId="downloaded" />);
+
+    const row = await screen.findByRole("listitem", { name: "Word Count" });
+    await user.click(within(row).getByRole("button", { name: /^Word Count/ }));
+
+    const detail = within(row).getByRole("group", { name: "Plugin details" });
+    expect(detail).toBeVisible();
+    expect(within(detail).getByText("word-count")).toBeVisible();
+    expect(within(detail).getByText("Built in — ships with Tovu")).toBeVisible();
+    expect(within(detail).getByText("This plugin runs code with full access to this computer and every site on it.")).toBeVisible();
+    expect(within(detail).getByText("No problems found")).toBeVisible();
+    expect(within(detail).getByText("On in this workspace")).toBeVisible();
+  });
+});
+
 describe("automatic plugin quarantine", () => {
   it("shows the durable reason/count inside the row's expander", async () => {
     const user = userEvent.setup();
@@ -642,7 +663,9 @@ describe("Accessibility (React Component Testing Policy)", () => {
     render(<Plugins tabId="downloaded" />);
 
     const invalidRow = await screen.findByRole("listitem", { name: "Invalid Site Plugin" });
-    expect(within(invalidRow).getByText(/invalid/)).toBeInTheDocument();
+    // The (collapsed) detail panel repeats the id `invalid-site-plugin` — the assertion is about the
+    // always-visible subline, so the panel is excluded.
+    expect(within(invalidRow).getByText(/invalid/, { ignore: ".plugin-row-detail *" })).toBeVisible();
   });
 });
 

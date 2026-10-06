@@ -6,7 +6,7 @@ import { PluginChevronIcon, PluginPackageIcon } from "./plugins-visuals";
 import { EyeIcon } from "./agent-plugins-visuals";
 import { PluginMetadataLabel } from "@/components/status-labels";
 import type { Translate } from "@/lib/dictionary-translator";
-import { pluginRowDetailView } from "./rules";
+import { pluginRowDetailView, pluginRowFacts } from "./rules";
 
 /**
  * @file One `.tovu-plugin` plugin, as a ROW — the shared shell both the Installed and Downloaded
@@ -51,13 +51,29 @@ export interface PluginRowProps {
   readonly onInspect: () => void;
 }
 
+/** The facts every row has (`rules.ts`'s `pluginRowFacts`) — always rendered, so a healthy
+ *  plugin's expander is never an empty box (mobile catalog PL-2, 2026-10-06). A labelled `group`,
+ *  not a heading: the row's own summary button already names the plugin. */
+function PluginRowFacts({ plugin, t }: { plugin: AdminPlugin; t: Translate }) {
+  return (
+    <dl className="plugin-row-facts" role="group" aria-label={t("Plugin details")}>
+      {pluginRowFacts(plugin, t).map((fact) => (
+        <div key={fact.label} className="plugin-row-fact">
+          <dt>{fact.label}</dt>
+          <dd>{fact.value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
 /** Quarantine, name conflicts (2026-10-04) + per-plugin `errors[]` — genuine operational signal,
  *  moved here from the pre-split table's own always-visible columns (`Plugins.tsx`'s prior
  *  `quarantine`/`errors` `DataTable` columns). Rendered only when the plugin actually has one of
  *  them, same "don't assert a question was asked and answered none" rule `AgentPluginRow`'s own
  *  `DetailChips` documents — that decision, and every string, comes from `rules.ts`'s
  *  `pluginRowDetailView`. */
-function PluginRowDetail({ plugin, t }: { plugin: AdminPlugin; t: Translate }) {
+function PluginRowProblems({ plugin, t }: { plugin: AdminPlugin; t: Translate }) {
   const view = pluginRowDetailView(plugin, t);
   if (!view) return null;
   return (
@@ -142,7 +158,8 @@ export function PluginRow({ plugin, t, expanded, onToggleExpanded, agentHandleBa
         </div>
       </div>
       <div className="plugin-row-detail" id={detailId} hidden={!expanded}>
-        <PluginRowDetail plugin={plugin} t={t} />
+        <PluginRowFacts plugin={plugin} t={t} />
+        <PluginRowProblems plugin={plugin} t={t} />
       </div>
     </li>
   );

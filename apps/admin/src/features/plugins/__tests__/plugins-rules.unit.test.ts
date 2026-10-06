@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { ApiError, type AdminPlugin } from "@/lib/api";
 import {
+  pluginRowFacts,
   buildPluginRemoveConfirmCopy,
   describeApiError,
   filterInstalledPlugins,
@@ -153,5 +154,25 @@ describe("describeApiError — characterization of every remaining branch", () =
   it("a code that names an Object.prototype member is not treated as a mapped code", () => {
     expect(describeApiError(new ApiError("server says no", 500, "toString"), "fallback")).toBe("server says no");
     expect(describeApiError(new ApiError("server says no", 500, "constructor"), "fallback")).toBe("server says no");
+  });
+});
+
+describe("pluginRowFacts (PL-2, 2026-10-06): the detail panel's always-present facts", () => {
+  const identity = (key: string) => key;
+  it("spells out a site tier-2 plugin that is off and incompatible", () => {
+    const facts = pluginRowFacts(makePlugin({ id: "x", source: "site", tier: "tier-2", status: "incompatible", enabled: false }), identity);
+    expect(facts).toEqual([
+      { label: "ID", value: "x" },
+      { label: "Source", value: "Installed on this site" },
+      { label: "Access", value: "This plugin runs code in a separate worker, limited to the capabilities it declares." },
+      { label: "Status", value: "Not compatible with this version of Tovu" },
+      { label: "State", value: "Off in this workspace" },
+    ]);
+  });
+
+  it("uses the no-code sentence for tier-1 and points an invalid plugin at its errors", () => {
+    const facts = pluginRowFacts(makePlugin({ tier: "tier-1", status: "invalid" }), identity);
+    expect(facts[2]?.value).toBe("This plugin has no code; nothing in it runs on this computer. Turning it on only adds what it declares.");
+    expect(facts[3]?.value).toBe("Invalid — see the errors below");
   });
 });

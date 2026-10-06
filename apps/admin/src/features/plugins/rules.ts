@@ -137,6 +137,52 @@ export function pluginRowDetailView(plugin: AdminPlugin, translate: Translate): 
   };
 }
 
+/** One labelled fact in the row's detail panel — see {@link pluginRowFacts}. */
+export interface PluginRowFact {
+  readonly label: string;
+  readonly value: string;
+}
+
+const PLUGIN_SOURCE_COPY: Record<AdminPlugin["source"], string> = {
+  "built-in": "Built in — ships with Tovu",
+  site: "Installed on this site",
+};
+
+/** tier-1/tier-3 reuse the install preview's trust sentences; tier-2 (built-ins only — a sideloaded
+ *  package cannot claim it) runs in a separate worker over the capability-scoped SDK
+ *  (`plugin-runtime/tier2/run-call.ts`). */
+const PLUGIN_TIER_COPY: Record<AdminPlugin["tier"], string> = {
+  "tier-1": "This plugin has no code; nothing in it runs on this computer. Turning it on only adds what it declares.",
+  "tier-2": "This plugin runs code in a separate worker, limited to the capabilities it declares.",
+  "tier-3": "This plugin runs code with full access to this computer and every site on it.",
+};
+
+const PLUGIN_STATUS_COPY: Record<AdminPlugin["status"], string> = {
+  valid: "No problems found",
+  invalid: "Invalid — see the errors below",
+  incompatible: "Not compatible with this version of Tovu",
+};
+
+/**
+ * The detail panel's always-present facts (mobile catalog PL-2, 2026-10-06). Before this, the
+ * panel held only {@link pluginRowDetailView}'s problems, so expanding a HEALTHY plugin — most of
+ * them — rotated the chevron over an empty box. `AdminPlugin` still carries no description (the
+ * server envelope has none), so these are the facts the row already has, spelled out: id, where it
+ * came from, what it can touch (the same trust sentences the install preview uses), health, and
+ * this workspace's on/off state.
+ *
+ * @complexity O(1).
+ */
+export function pluginRowFacts(plugin: AdminPlugin, translate: Translate): PluginRowFact[] {
+  return [
+    { label: translate("ID"), value: plugin.id },
+    { label: translate("Source"), value: translate(PLUGIN_SOURCE_COPY[plugin.source]) },
+    { label: translate("Access"), value: translate(PLUGIN_TIER_COPY[plugin.tier]) },
+    { label: translate("Status"), value: translate(PLUGIN_STATUS_COPY[plugin.status]) },
+    { label: translate("State"), value: translate(plugin.enabled ? "On in this workspace" : "Off in this workspace") },
+  ];
+}
+
 /** What the install dialog shows for a reviewed package — see {@link pluginInstallPreviewDisplay}. */
 export interface PluginInstallPreviewDisplay {
   readonly title: string;

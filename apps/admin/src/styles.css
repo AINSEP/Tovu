@@ -5715,16 +5715,27 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
    gap), so it visibly belongs to the row above it. */
 .plugin-row-detail { display: grid; gap: 10px; padding: 2px 17px 16px 63px; }
 .plugin-row-detail[hidden] { display: none; }
+/* The always-present facts (PL-2): a compact two-column label/value list, labels in the muted
+   small-caps-free style the subline uses so the panel reads as reference, not as a form. */
+.plugin-row-facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 14px; margin: 0; font-size: 12.5px; line-height: 1.45; }
+.plugin-row-fact { display: contents; }
+.plugin-row-fact dt { color: var(--muted); }
+.plugin-row-fact dd { margin: 0; color: var(--fg-2); overflow-wrap: anywhere; }
 
+/* Phones: the actions stay on the summary row (mobile catalog PL-1/PL-4, 2026-10-06). The previous
+   rule stacked them into their own bordered second row, which at 375px held just an eye icon and a
+   "Disable" (or a trash icon) over ~230px of empty space — a card twice the height it needed.
+   Tighter paddings, no divider, and the name/subline already ellipsize, so the row fits whole. */
 @media (max-width: 700px) {
-  .plugin-row-main { flex-direction: column; align-items: stretch; gap: 0; padding: 0; }
-  .plugin-row-summary { padding: 13px 14px 9px 17px; }
-  .plugin-row-detail { padding-left: 17px; }
-  .plugin-row-actions {
-    padding: 10px 14px 13px 17px;
-    border-left: none; border-top: 1px solid var(--border);
-    justify-content: flex-end;
-  }
+  .plugin-row-main { gap: 4px; padding: 0 10px 0 0; }
+  .plugin-row-summary { padding: 12px 4px 12px 12px; gap: 10px; }
+  .plugin-row-detail { padding-left: 12px; padding-right: 12px; }
+  .plugin-row-actions { padding-left: 0; border-left: none; gap: 4px; }
+}
+/* At phone width the decorative package glyph is what truncated the name ("Word Co…"); the row's
+   own action ("Disable"/"Enable") already states on/off, so the glyph's border tint is redundant. */
+@media (max-width: 480px) {
+  .plugin-row-glyph { display: none; }
 }
 
 .site-card-actions .btn-secondary:disabled {
