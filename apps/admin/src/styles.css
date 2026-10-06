@@ -94,6 +94,11 @@
   --primary-ink:    oklch(99% 0 0);
   --primary-dim:    oklch(55.29% 0.1129 43.4 / 0.10);
   --primary-ring:   oklch(55.29% 0.1129 43.4 / 0.22);
+  /* The keyboard focus ring, app-wide (see the `:focus-visible` rule below). Brand orange rather
+     than the near-black `--accent-text` it replaced: a black 2px ring read as an error/selection
+     box (owner, 2026-10-06). 5.02:1 vs white, so it clears WCAG's 3:1 for focus indicators.
+     Resolves per theme because `--primary` does. */
+  --focus-ring:     var(--primary);
 
   /* Assistant-drawn charts (Jini recharts reads `--jini-chart-*`, else Jini's own fallbacks — once
      the near-black `--jini-primary`, which this admin never maps — demo V3 2026-10-05: "the color
@@ -453,7 +458,19 @@ input[type="checkbox"], input[type="radio"] {
    toggle/close controls below) — WCAG 2.1 AA requires a focus indicator, and the bare `button`
    rule above does not set one of its own. Inputs/selects already get one via border-color above;
    this covers everything else in one place instead of per-component rules. */
-button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; }
+button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+/* ONE ring colour for every focus-visible element, whichever stylesheet drew the ring: ~20
+   component rules here and in `@jini-ai/ui`'s own CSS each name their own colour (`--accent-text`,
+   `--jini-accent`, `--accent`, `--link` — all near-black or blue in this admin), so recolouring them
+   one by one would drift again with the next component. `!important` on the colour only: width,
+   offset and any rule that deliberately draws no outline (`outline: none`) are left to their own
+   rules. `:focus-visible`, never `:focus` — a mouse click on a button or row draws no ring; Tab
+   does. */
+:focus-visible { outline-color: var(--focus-ring) !important; }
+/* Programmatic focus targets, not controls: `<main>` takes focus from the skip link and the dock
+   from its open effect (`tabIndex={-1}` on both, see `App.tsx`) so the NEXT Tab starts inside
+   them. A ring around the whole page or the whole dock marks nothing actionable. */
+#main-content:focus, .admin-chat-dock:focus { outline: none; }
 
 /* InfoTip (`components/InfoTip.tsx`, 2026-08-09) — a real tooltip, not the native `title`
    attribute: `title` was tried first and rejected live (owner feedback: too slow/inconsistent to
