@@ -102,13 +102,16 @@ test("canary: the footer variant survived as a config key, not a lost attribute"
 });
 
 test("canary: the docs sidebar keeps its tree variant AND its authored fallback content", () => {
-  const html = read(pagePath("tovu-theme", "blog-sidebar-template"));
+  // The docs sidebar template is `posts-sidebar.html` (it was `blog-sidebar-template.html` before the
+  // posts-*/pages-* template rename).
+  const html = read(pagePath("tovu-theme", "posts-sidebar"));
   const menu = markersOfType(html, "menu")[0];
   assert.ok(menu, "the docs template must reference a menu");
-  // `docs-current-page-sidebar` (2026-08-31 docs-nav restructure) — the reserved sentinel id that
-  // replaced the old fixed `docs-themes-menu` literal; see `pages.ts`'s `resolveStaticMenusForRender`
-  // for how the route layer resolves this one id to a different real menu per page.
-  assert.equal(menu.config.id, "docs-current-page-sidebar");
+  // `docs-section` — the reserved id the route layer resolves to the current page's docs section
+  // (`pages.ts` `DOCS_SECTION_MENU_ID`). It replaced `docs-current-page-sidebar` (2026-08-31
+  // docs-nav restructure), which had itself replaced the old fixed `docs-themes-menu` literal; see
+  // `pages.ts`'s `resolveStaticMenusForRender` for how one id resolves to a different real menu per page.
+  assert.equal(menu.config.id, "docs-section");
   assert.equal(menu.config.variant, "tree");
   // The permissive match is load-bearing: a theme marker's inner content is a real fallback shown
   // when nothing resolves. The old widgets-pipeline regex required an EMPTY div and would have
@@ -122,7 +125,8 @@ test("canary: the real theme's content-slot marker carries no id, and a real id 
   // time by `injectCurrentEntityContentId`/`withAddedId` rather than a pre-authored placeholder
   // string. The property worth canary-testing against the real file is now the ADD-an-id path itself:
   // it must produce legal, re-parseable JSON for the theme's own real (not synthetic) marker shape.
-  const html = read(pagePath("tovu-theme", "blog-post"));
+  // The post template is `posts-default.html` (it was `blog-post.html` before the template rename).
+  const html = read(pagePath("tovu-theme", "posts-default"));
   const { markers, rejected } = scanEmbedMarkers(html);
   assert.deepEqual(rejected, []);
   const content = markers.find((m) => m.type === "content");
@@ -139,7 +143,7 @@ test("canary: the real theme's content-slot marker carries no id, and a real id 
 test("canary: other authored attributes on a marker element are preserved verbatim", () => {
   // The docs nav carries class and aria-label. A substitution that rebuilds the tag from config
   // alone would drop them — losing styling and the accessible name with no test failing elsewhere.
-  const html = read(pagePath("tovu-theme", "blog-sidebar-template"));
+  const html = read(pagePath("tovu-theme", "posts-sidebar"));
   const menu = markersOfType(html, "menu")[0];
   assert.ok(menu.attrs.includes('class="docs-nav"'), menu.attrs);
   assert.ok(menu.attrs.includes('aria-label="Documentation"'), menu.attrs);

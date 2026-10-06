@@ -49,7 +49,7 @@ test("the real static/tovu-theme loads valid with its pages, partials, light tok
   assert.deepEqual(theme.errors, []);
   assert.equal(theme.status, "valid");
   assert.ok(theme.pages.index, "pages are keyed by filename minus .html");
-  assert.ok(theme.pages["blog-post"]);
+  assert.ok(theme.pages["posts-default"], "the post template (was blog-post.html before the template rename)");
   // nav.html, footer.html and the footer-* variant are picked up from the theme ROOT, not pages/.
   assert.deepEqual(Object.keys(theme.partials).sort(), ["footer", "footer-minimal", "nav"]);
   assert.ok(Object.keys(theme.tokensLight).length > 0, "tokens.light.json is read for this tier");
