@@ -79,6 +79,7 @@ const SAME_AS_ENGLISH: Readonly<Record<string, readonly string[]>> = {
   Referrer: ["de", "it"],
   Repository: ["de", "it"],
   Scripts: ["es", "pt-BR", "fr"],
+  server: ["id", "it"],
   Sitemap: ["de", "pt-BR", "it"],
   "Sitemap · {count} URLs": ["de"],
   Slug: LATIN_SCRIPT_LOCALES,
