@@ -84,7 +84,8 @@ function fabActionLabel(locale: string, action: "open" | "close", label: string)
  *
  * The drag itself is `useFabPosition`'s job entirely (injectable via the `useFab` prop, defaulted
  * to the real implementation); this component only wires its `style`/`onPointerDown` onto the
- * button and guards `onClick` with `consumeDragFlag()` so a drag's release does not also fire a
+ * button while closed (the open-state close button stays in its reserved strip) and guards
+ * `onClick` with `consumeDragFlag()` so a drag's release does not also fire a
  * toggle (see that function's own doc for why a plain `isDragging` check at this call site would
  * be timing-unsafe).
  */
@@ -108,7 +109,7 @@ export function ChatFab({
       type="button"
       className={`chat-fab${open ? " chat-fab-dock-open" : ""}${fab.isDragging ? " chat-fab-dragging" : ""}`}
       style={fab.style}
-      onPointerDown={fab.onPointerDown}
+      onPointerDown={open ? undefined : fab.onPointerDown}
       onClick={() => {
         if (fab.consumeDragFlag()) return;
         onToggle();

@@ -106,6 +106,10 @@
 
 /* --- Global assistant dock + FAB (ADR-049) --- */
 
+:root {
+  --admin-chat-fab-size: 56px;
+}
+
 .admin-chat-dock {
   flex: 0 0 380px;
   width: 380px;
@@ -132,11 +136,57 @@
   min-width: 0;
 }
 
-/* `right`/`left`/`bottom` are deliberately NOT set here — `ChatFab.tsx`'s `useFabPosition` sets
-   them as an inline `style` (drag position, resolved fresh against the current viewport on every
-   render), which always wins over a stylesheet rule for the same property regardless of
-   specificity. A CSS rule for them here would be silently dead weight at best and a confusing
-   second source of truth at worst.
+/* Own the whole height chain in the dock. Jini's default is a grid with an absolute
+   controls overlay and transcript padding reserved for it; mixing that with the host's
+   flex body makes the composer depend on the package's layout. A flex sibling reserves
+   its actual height and leaves exactly the remaining space as a scrolling transcript.
+   height:auto also lets the phone sheet's header share the dock's finite height. */
+.admin-chat-dock .jini-chat-pane {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  height: auto;
+  min-height: 0;
+}
+
+.admin-chat-dock > .chat-sheet-bar,
+.admin-chat-dock .jini-chat-pane__header,
+.admin-chat-dock .jini-chat-pane__controls {
+  flex: 0 0 auto;
+}
+
+.admin-chat-dock .jini-chat-pane__body {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.admin-chat-dock .jini-chat-pane .jini-message-list {
+  flex: 1 1 0;
+  height: auto;
+  min-height: 0;
+  overflow-y: auto;
+  /* The controls now reserve their own space; retaining overlay padding leaves a
+     composer-sized blank region after the last message. 8px, not 24px plus the last row's own
+     20px margin: that 44px read as a gap above the composer (owner, 2026-10-06). */
+  padding-bottom: 8px;
+}
+
+.admin-chat-dock .jini-chat-pane .jini-message-list > :last-child {
+  margin-bottom: 0;
+}
+
+.admin-chat-dock .jini-chat-pane__controls {
+  position: static;
+}
+
+/* Transcript rows must retain their content height when scrollback exceeds the panel. */
+.admin-chat-dock .jini-message-list > * {
+  flex-shrink: 0;
+}
+
+/* Positioning comes from `ChatFab.tsx`'s `useFabPosition` inline style. While the dock is
+   open the FAB is hidden at every width (see the open-state rules below and in styles.css).
 
    Was `background: #ffffff; color: #d4af37` — an off-token gold that read as invisible-ish
    against the dark theme's own dark surfaces and was about to clash with the new burnt-orange
@@ -149,8 +199,8 @@
    `--assistant-accent` token) rather than a revert — flagged in the handoff report either way. */
 .chat-fab {
   position: fixed;
-  width: 56px;
-  height: 56px;
+  width: var(--admin-chat-fab-size);
+  height: var(--admin-chat-fab-size);
   border-radius: var(--r-pill);
   border: 1px solid transparent;
   background: var(--primary);
@@ -167,6 +217,88 @@
   /* No `left` here — `useFabPosition` always positions via `right`/`bottom` (an offset from the
      right/bottom edges), never `left`, regardless of where on screen the FAB was dropped. */
   transition: opacity 0.14s, right 0.2s ease, bottom 0.2s ease;
+}
+
+/* Desktop open state: the composer is pinned to the dock's bottom edge, which is exactly where the
+   FAB rests, so the FAB covered Send. Reserving an 84px strip under the composer for it left the
+   input visibly floating ~10-15% up the panel (owner, 2026-10-06: "the input should be at the
+   bottom"). Same answer as phones (styles.css, owner repro 2026-08-26): while the dock is open the
+   FAB is hidden and the sheet bar's ✕ closes it. Desktop shows only that ✕; the drag handle and
+   expand toggle are phone-sheet controls. Closing drops `.is-open`, so the FAB reappears at once to
+   reopen the dock. Keep this breakpoint paired with styles.css's 640px sheet. */
+@media (width > 640px) {
+  .admin-layout .admin-chat-dock.is-open + .chat-fab { display: none; }
+
+  /* Column, as on phones, so the bar is a row above the pane rather than a column beside it. */
+  .admin-chat-dock { flex-direction: column; }
+
+  .admin-chat-dock > .chat-sheet-bar {
+    display: flex;
+    align-items: center;
+    padding: 0 var(--space-2);
+  }
+  .admin-chat-dock .chat-sheet-handle,
+  .admin-chat-dock .chat-sheet-action[aria-expanded] { display: none; }
+  .admin-chat-dock .chat-sheet-bar-actions { display: flex; }
+  .admin-chat-dock .chat-sheet-action {
+    background: transparent; color: var(--fg-2); border: 1px solid transparent;
+    width: 28px; height: 28px; padding: 0; display: grid; place-items: center; border-radius: var(--r-sm);
+  }
+  .admin-chat-dock .chat-sheet-action:hover { background: var(--surface-2); opacity: 1; }
+  .admin-chat-dock .chat-sheet-action svg { width: 15px; height: 15px; }
+
+  /* Room for the one ✕ to the right of the switcher. */
+  .admin-chat-dock .jini-chat-pane .jini-chat-pane__header { padding-right: 44px; }
+}
+
+/* One header row at every width (owner, 2026-10-06): no "Tovu assistant" / "Workspace chat"
+   labels; the chat title on one ellipsized line (full name in its hover tooltip, AssistantDock),
+   then the conversation switcher, then the bar's ⌄/✕ — so the transcript gets that height back.
+   The sheet bar (App.tsx) and the pane header are separate elements, so the bar overlaps the pane
+   by its own height and the header leaves room on its right for the bar's buttons; the bar lets
+   clicks through everywhere except those buttons so the switcher stays usable. A negative margin
+   on the header instead gets clipped by the pane's own overflow. Doubled `.jini-chat-pane`
+   prefixes beat the package's runtime <style> tag (see the header-title note below). */
+.admin-chat-dock > .chat-sheet-bar {
+  --chat-sheet-bar-height: 48px;
+  height: var(--chat-sheet-bar-height);
+  margin-bottom: calc(-1 * var(--chat-sheet-bar-height));
+  box-sizing: border-box;
+  position: relative;
+  z-index: 2;
+  pointer-events: none;
+}
+.admin-chat-dock .chat-sheet-bar-title { display: none; }
+.admin-chat-dock .chat-sheet-bar-actions { margin-left: auto; pointer-events: auto; }
+
+.admin-chat-dock .jini-chat-pane .jini-chat-pane__header {
+  min-height: 48px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  box-sizing: border-box;
+}
+/* Ellipsis, not the 2-line wrap below: the owner chose one row; the tooltip carries the rest. */
+.admin-chat-dock .jini-chat-pane .jini-chat-pane__title {
+  /* 16px = ~25% under the package's 21px (owner, 2026-10-06). */
+  font-size: 16px;
+  line-height: 1.3;
+  -webkit-line-clamp: 1;
+  text-overflow: ellipsis;
+  overflow-wrap: normal;
+  word-break: break-all;
+}
+
+/* Phone: a smaller title and room for both ⌄ and ✕; the handle sits above the row. */
+@media (max-width: 640px) {
+  .admin-chat-dock > .chat-sheet-bar { --chat-sheet-bar-height: 40px; }
+  .admin-chat-dock .jini-chat-pane .jini-chat-pane__header {
+    min-height: 40px;
+    padding: 10px 76px 4px 14px;
+  }
+  .admin-chat-dock .jini-chat-pane .jini-chat-pane__title {
+    font-size: 14px;
+    line-height: 1.3;
+  }
 }
 
 /* Measured 2026-08-03: without this the closed-state icon rendered 23.625 x 50 — the flex row

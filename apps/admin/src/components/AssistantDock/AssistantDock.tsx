@@ -511,13 +511,15 @@ export function AssistantDock({
     // own doc for why the daemon needs it too (per-conversation agent-CLI session resume).
     conversationId: chats.activeId,
   });
+  // Shown on one ellipsized line, so the full name rides along as the hover tooltip.
+  const activeTitle = chats.conversations.find((c) => c.id === chats.activeId)?.title ?? t("Tovu assistant");
 
   return (
     <JiniChatProvider transport={transport} i18n={chatI18n}>
       <SkillInstallConfirmation install={skillInstall} />
       {/* ChatPane takes `transport` directly as well as via the provider — the package's
           components read their dependencies from props, not implicitly from context. */}
-      <div className="admin-chat-dock-drop" ref={discoveryDraft.rootRef} style={{ display: "contents" }} onChangeCapture={discoveryDraft.captureDraft} onDropCapture={folderDrop.handleDropCapture}>
+      <div className="admin-chat-dock-drop" data-testid="admin-chat-driver-root" data-conversation-id={chats.activeId ?? ""} ref={discoveryDraft.rootRef} style={{ display: "contents" }} onChangeCapture={discoveryDraft.captureDraft} onDropCapture={folderDrop.handleDropCapture}>
       <ChatPane
         // Remounts the pane on a conversation switch. `ChatPane` owns its transcript and takes
         // `initialMessages` only at mount, so re-keying is how a different conversation's history
@@ -535,6 +537,8 @@ export function AssistantDock({
         onSelectionChange={handleLocalCliSelectionChange}
         {...(chats.activeId ? { conversationId: chats.activeId } : {})}
         initialMessages={chats.initialMessages}
+        // Recent prompt recall is local to this signed-in admin, including in a new chat.
+        {...(principalId ? { composerHistoryScope: principalId } : {})}
         // The Local CLI / API · BYOK row (`AgentRuntimePicker`, `@jini-ai/chat`) — previously
         // hardcoded to `executionMode: 'local'` / `apiModeAvailable: false` (never passed at all),
         // which made "API · BYOK" permanently disabled with a "not configured" label that was
@@ -577,7 +581,8 @@ export function AssistantDock({
         header={
           <div className="jini-chat-pane__header">
             <div className="jini-chat-pane__heading">
-              <span className="jini-chat-pane__eyebrow">{t("Workspace chat")}</span>
+              {/* The "Workspace chat" eyebrow was removed (owner, 2026-10-06): title, switcher and
+                  close now share one row so the transcript gets that height back. */}
               {/* Was an `<h1>` — the dock mounts on every route (ADR-049, one conversation for
                   the whole session), so every admin screen had two `<h1>`s: its own page title
                   and this one, with no signal to a screen-reader user navigating by heading which
@@ -586,8 +591,8 @@ export function AssistantDock({
                   instead of competing with the page's own `<h1>`. Class names, not the element
                   type, drive this component's styling (`styles/assistant.css`), so the tag change
                   is visually inert. */}
-              <h2 className="jini-chat-pane__title">
-                {chats.conversations.find((c) => c.id === chats.activeId)?.title ?? t("Tovu assistant")}
+              <h2 className="jini-chat-pane__title" title={activeTitle}>
+                {activeTitle}
               </h2>
             </div>
             <ConversationList
