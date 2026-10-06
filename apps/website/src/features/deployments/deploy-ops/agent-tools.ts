@@ -16,7 +16,7 @@ function bundledDescriptors(): readonly DeployOpsDescriptor[] {
     return parsed.ok ? parsed.descriptors : [];
   } catch { return []; }
 }
-/** Build schemas from the loaded registry. O(platforms + five tools); a missing registry uses bundled data only. */
+/** Build schemas from the loaded registry. O(platforms + eight tools); a missing registry uses bundled data only. */
 export function getDeployOpsAgentToolCatalog(registry?: DeployOpsRegistry): AgentToolDefinition[] {
   const platforms = registry ? registry.list().map(p => p.descriptor) : bundledDescriptors();
   const ids = platforms.map(p => p.id);
@@ -35,6 +35,41 @@ export function getDeployOpsAgentToolCatalog(registry?: DeployOpsRegistry): Agen
       sideEffects: "mutates-durable-state",
       authorization: { permission: "custom-credentials.write" },
       inputSchema: { type: "object", additionalProperties: false, properties: { platform: base.platform, target: base.target, ref: { type: "string", minLength: 1, maxLength: 200, description: "Branch or tag to deploy (github-actions default: main)." }, credentialLabel: base.credentialLabel }, required: ["platform", "target"] },
+    },
+    ...secretTools({ platforms: platforms.map(p => p.id), target: base.target, credentialLabel: base.credentialLabel, listed }),
+  ];
+}
+/** Generic host-secrets tools; vendors are the deploy plugin's adapters, never per-vendor tools. O(1). */
+function secretTools(required: { platforms: string[]; target: Record<string, unknown>; credentialLabel: Record<string, unknown>; listed: string }): AgentToolDefinition[] {
+  const { platforms, target, credentialLabel, listed } = required;
+  const name = { type: "string", pattern: "^[A-Za-z_][A-Za-z0-9_]{0,127}$", description: "Secret (environment variable) name, e.g. TOVU_SITE_KEY." };
+  const common = ` Works for any platform whose adapter supports secrets; others are refused with the list of platforms that do. Never returns or accepts a secret value.${listed}`;
+  const targetProps = { platform: { type: "string", enum: platforms }, target, credentialLabel };
+  return [
+    {
+      name: "deployment_ops_list_secrets",
+      description: `List the secrets (environment variables) set on a hosted app: names, the platform's own digest and update time only, never values. Returns platform, target, secrets [{name, digest?, updatedAt?}], truncated, appliesOn (next-deploy | vendor-restart | immediately), supportsStaging and deployNeeded (true when writes wait for the next deploy).${common}`,
+      sideEffects: "none",
+      authorization: { permission: "custom-credentials.read" },
+      inputSchema: { type: "object", additionalProperties: false, properties: targetProps, required: ["platform", "target"] },
+    },
+    {
+      name: "deployment_ops_set_secret",
+      description: `Set or copy a secret (environment variable) on a hosted app from a value the server reads itself; you never see or type the value. source {kind:'site-key'} copies this site's own site key (needs the site-key permission); source {kind:'secret', name} copies another secret already on the same target (platform side, value never shown). Compares first: if the stored value is identical nothing is written (comparison 'same'). Replacing an existing secret asks the human to confirm on a card; creating a new one does not. dryRun:true only compares. Returns platform, target, name, source, comparison (same | different | absent | unknown), changed, fingerprint and fingerprintKind ('site-key' fingerprints match the admin Security page), appliesOn, supportsStaging, deployNeeded, optional version and dryRun, and summary; a declined card returns changed:false with cancelled/reason/note. Writes are staged where the platform allows: when deployNeeded is true, run deployment_ops_deploy afterwards.${common}`,
+      sideEffects: "mutates-durable-state",
+      authorization: { permission: "custom-credentials.write" },
+      inputSchema: { type: "object", additionalProperties: false, properties: {
+        ...targetProps, name,
+        source: { type: "object", additionalProperties: false, description: "Where the server reads the value. kind 'site-key' takes no name; kind 'secret' requires name (another secret on the same target).", properties: { kind: { type: "string", enum: ["site-key", "secret"] }, name }, required: ["kind"] },
+        dryRun: { type: "boolean", default: false, description: "Only compare and report; write nothing." },
+      }, required: ["platform", "target", "name", "source"] },
+    },
+    {
+      name: "deployment_ops_unset_secret",
+      description: `Remove a secret (environment variable) from a hosted app. Always asks the human to confirm on a card first; a name that is not set is reported, not removed. Returns platform, target, name, removed, appliesOn, supportsStaging, deployNeeded, optional version and summary; a declined card returns removed:false with cancelled/reason/note. When deployNeeded is true the running app keeps the variable until deployment_ops_deploy runs.${common}`,
+      sideEffects: "deletes-durable-state",
+      authorization: { permission: "custom-credentials.write" },
+      inputSchema: { type: "object", additionalProperties: false, properties: { ...targetProps, name }, required: ["platform", "target", "name"] },
     },
   ];
 }

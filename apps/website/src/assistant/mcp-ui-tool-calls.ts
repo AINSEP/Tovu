@@ -52,6 +52,9 @@ export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
   "custom_credential_delete",
   "deployment_delete_provider_credential",
   "source_control_delete_credential",
+  // Host secrets: removing one, or replacing an existing value, waits for the human's card.
+  "deployment_ops_set_secret",
+  "deployment_ops_unset_secret",
   // Newsletter delivery parks on the same browser-only surface exchange; no model input confirms it.
   "newsletter_send_campaign",
   "newsletter_schedule_campaign",

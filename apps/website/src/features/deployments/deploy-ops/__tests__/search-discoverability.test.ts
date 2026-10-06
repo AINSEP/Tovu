@@ -24,7 +24,7 @@ test("deploy ops owner phrasings rank in the top three of the real full catalog"
   const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions });
   for (const registration of registrations) registry.register(registration);
   const catalog = buildToolCatalogQuery(registry);
-  for (const id of ["deployment_ops_status", "deployment_ops_logs", "deployment_ops_wait", "deployment_ops_list_targets", "deployment_ops_deploy"]) {
+  for (const id of ["deployment_ops_status", "deployment_ops_logs", "deployment_ops_wait", "deployment_ops_list_targets", "deployment_ops_deploy", "deployment_ops_list_secrets", "deployment_ops_set_secret", "deployment_ops_unset_secret"]) {
     assert.equal((DOC2QUERY[id] ?? []).length >= 4, true, `missing questions for ${id}`);
     for (const query of DOC2QUERY[id]!) assert.equal(catalog.search({ query }, { limit: 3 }).some(hit => hit.id === id), true, `${id}: ${query}: ${JSON.stringify(catalog.search({ query }, { limit: 3 }).map(h => h.id))}`);
   }

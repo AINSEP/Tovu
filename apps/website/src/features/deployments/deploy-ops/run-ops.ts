@@ -26,6 +26,10 @@ export interface DeployOpsToolDeps {
   loadDeployOps?: (ctx: { workspaceId: string }) => Promise<DeployOpsRegistry>;
   deployOpsRegistry?: DeployOpsRegistry;
   waitClock?: WaitClock;
+  /** This boot's site folder; the default site-key reader resolves the same sources the Security page does. */
+  siteBinding?: { dir?: string };
+  /** Test seam: this site's active site key in hex, or undefined when none is usable. Never returned to the model. */
+  readSiteKey?: () => string | undefined;
 }
 export interface WaitClock { now(): number; sleep(ms: number, signal?: AbortSignal): Promise<void> }
 const systemClock: WaitClock = {
@@ -38,7 +42,7 @@ const systemClock: WaitClock = {
     signal?.addEventListener("abort", onAbort, { once: true });
   }),
 };
-const aborted = () => new ToolInputError({ message: "Deployment ops wait was aborted." });
+export const aborted = () => new ToolInputError({ message: "Deployment ops wait was aborted." });
 const TIMEOUT = Symbol("deployment ops timeout");
 
 /** Resolve by explicit label or exactly one saved host match, without decrypting. O(credentials). */
@@ -56,8 +60,11 @@ async function credentialLabel(deps: DeployOpsToolDeps, platform: LoadedDeployOp
   return matches[0]!.label;
 }
 
-/** Bound GET/write facade. Both the platform and saved credential must allow the exact HTTPS origin. */
-async function boundContext(deps: DeployOpsToolDeps, platform: LoadedDeployOps, explicit: string | undefined, signal?: AbortSignal): Promise<DeployOpsContext> {
+/**
+ * Bound GET/write facade. Both the platform and saved credential must allow the exact HTTPS origin.
+ * `allowDelete` is set only by the secret-removal verb, so no other verb's module can send a DELETE.
+ */
+export async function boundContext(deps: DeployOpsToolDeps, platform: LoadedDeployOps, explicit: string | undefined, signal?: AbortSignal, options: { allowDelete?: boolean } = {}): Promise<DeployOpsContext> {
   if (!deps.deployOpsHttpClient) throw new ToolInputError({ message: "Deployment ops HTTP client is unavailable. Restart the site to rebuild its tool dependencies." });
   const label = await credentialLabel(deps, platform, explicit);
   const requestDeps: CredentialedRequestDeps = {
@@ -115,7 +122,7 @@ async function boundContext(deps: DeployOpsToolDeps, platform: LoadedDeployOps, 
     sleep: ms => (deps.waitClock ?? systemClock).sleep(Math.min(Math.max(0, Number(ms) || 0), MAX_MODULE_SLEEP_MS), signal),
     get: rawUrl => call("GET", rawUrl),
     send: input => {
-      if (!["POST", "PATCH", "PUT"].includes(input.method)) throw new ToolInputError({ message: `Deployment ops module supplied unsupported method '${String(input.method)}'.` });
+      if (![...["POST", "PATCH", "PUT"], ...(options.allowDelete ? ["DELETE"] : [])].includes(input.method)) throw new ToolInputError({ message: `Deployment ops module supplied unsupported method '${String(input.method)}'.` });
       return call(input.method, input.url, input.body);
     },
   };

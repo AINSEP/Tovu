@@ -29,6 +29,18 @@ export function parseDeployOpsFile(raw: string): ParseResult {
   return { ok: true, descriptors };
 }
 
+const OPTIONAL_VERBS = ["listTargets", "deploy", "listSecrets", "setSecret", "unsetSecret", "readSecret"] as const;
+const SECRET_VERBS = ["listSecrets", "setSecret", "unsetSecret"] as const;
+/** A half secrets adapter would list what it cannot remove (or the reverse), so the verbs and capabilities come as one set. O(1). */
+function secretsShapeError(candidate: Record<string, unknown>): string | undefined {
+  const present = SECRET_VERBS.filter(verb => candidate[verb] !== undefined);
+  if (present.length === 0) return candidate.secretCapabilities !== undefined || candidate.readSecret !== undefined ? "secretCapabilities and readSecret need listSecrets(), setSecret() and unsetSecret()" : undefined;
+  if (present.length !== SECRET_VERBS.length) return "a secrets adapter must export listSecrets(), setSecret() and unsetSecret() together";
+  const caps = candidate.secretCapabilities;
+  if (!object(caps) || !["next-deploy", "vendor-restart", "immediately"].includes(caps.appliesOn as string) || typeof caps.supportsStaging !== "boolean") return "secretCapabilities must declare appliesOn and supportsStaging";
+  return undefined;
+}
+
 /**
  * Import contained modules; isolate unreadable manifests, invalid exports and missing modules as refusals.
  * @param plugin - Trusted source directory. The caller owns activation/digest gates; this seam is for tests.
@@ -48,7 +60,8 @@ export async function loadDeployOpsRegistryFromSource(plugin: TrustedPluginPacka
       const imported = await importContainedModule(plugin, descriptor.module);
       const candidate = typeof imported === "string" ? undefined : imported.exported;
       if (typeof imported === "string") refusals.push(`deploy ops platform '${descriptor.id}' was not loaded: module could not be imported`);
-      else if (!object(candidate) || typeof candidate.status !== "function" || typeof candidate.logs !== "function" || (candidate.listTargets !== undefined && typeof candidate.listTargets !== "function") || (candidate.deploy !== undefined && typeof candidate.deploy !== "function")) refusals.push(`deploy ops platform '${descriptor.id}' was not loaded: module must export status() and logs()`);
+      else if (!object(candidate) || typeof candidate.status !== "function" || typeof candidate.logs !== "function" || OPTIONAL_VERBS.some(verb => candidate[verb] !== undefined && typeof candidate[verb] !== "function")) refusals.push(`deploy ops platform '${descriptor.id}' was not loaded: module must export status() and logs()`);
+      else if (secretsShapeError(candidate)) refusals.push(`deploy ops platform '${descriptor.id}' was not loaded: ${secretsShapeError(candidate)}`);
       else loaded.push({ descriptor, pluginId: plugin.pluginId, module: candidate as unknown as DeployOpsModule });
     } catch { refusals.push(`deploy ops platform '${descriptor.id}' was not loaded: module could not be read or imported`); }
   }

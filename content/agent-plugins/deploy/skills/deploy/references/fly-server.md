@@ -113,8 +113,10 @@ must live outside `sites/` in the image and be copied in at runtime.** Putting i
 `fly.toml` is committed to the repo. `[env]` in it is **public**. Only non-secret values belong
 there — the template ships `TOVU_RUNTIME_MODE` and `PORT`, and nothing else.
 
-Everything below goes through `flyctl secrets set` (or the equivalent API call), never the
-committed file:
+Everything below goes through the platform's secrets, never the committed file. From chat use
+`deployment_ops_list_secrets` / `deployment_ops_set_secret` / `deployment_ops_unset_secret`
+(platform `fly`, target = the app name): they never take or return a value, compare before
+writing, and stage the change for the next deploy. Off chat, `flyctl secrets set` does the same:
 
 | Secret | Status | What happens without it |
 |---|---|---|
@@ -153,7 +155,12 @@ fly secrets set TOVU_SITE_KEY=$(openssl rand -hex 32) -a <app>
 ```
 
 For an existing install, **reuse the existing key bytes** under the new name, verify the site
-still unlocks its saved credentials, then remove the deprecated variable. Do not run the random
+still unlocks its saved credentials, then remove the deprecated variable. From chat:
+`deployment_ops_set_secret` with `source: {kind: "secret", name: "<old name>"}` copies the value
+on Fly without it ever leaving the server (`source: {kind: "site-key"}` copies THIS running
+site's key instead, which is only right when this site is the one whose key production uses);
+deploy; check the Security page fingerprint matches the tool's `fingerprint`; then
+`deployment_ops_unset_secret` the old name. Do not run the random
 key command above as a rename. Never rotate casually: a different key cannot recover data
 sealed under the old key. Changed keys leave old credentials undecryptable without their original
 site key. Keep a private backup of the existing key.
@@ -264,8 +271,8 @@ missing secret.
 
 ### Step 4 — Set the app secrets
 
-Rule 3's table lists them. These go through fly secrets, not the committed file, and the
-operator supplies each value — you generate the random ones only if they ask you to, and even
+Rule 3's table lists them. These go through fly secrets, not the committed file
+(`deployment_ops_list_secrets` shows which are already set), and the operator supplies each value — you generate the random ones only if they ask you to, and even
 then the value goes to them, not into a file you write.
 
 Confirm all three are set before dispatching. All three are now boot-blocking and fail loudly if

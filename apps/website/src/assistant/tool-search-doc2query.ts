@@ -221,6 +221,15 @@ export const DOC2QUERY: Readonly<Record<string, readonly string[]>> = {
   deployment_ops_deploy: [
     "Deploy the server now.", "Redeploy my app to production.", "Ship the latest commit on main to Fly.", "Start a deploy through GitHub Actions.",
   ],
+  deployment_ops_list_secrets: [
+    "Which secrets are set on my Fly app?", "List the environment variables on the server.", "Is TOVU_SITE_KEY set in production?", "Show my app's secrets.",
+  ],
+  deployment_ops_set_secret: [
+    "Set TOVU_SITE_KEY on Fly from my site key.", "Copy the site key to the production server.", "Add a secret to my hosted app.", "Copy one secret to a new name on Fly.",
+  ],
+  deployment_ops_unset_secret: [
+    "Remove the old secret from Fly.", "Unset an environment variable on my server.", "Delete the OLD_API_KEY secret from production.", "Remove a secret from my hosted app.",
+  ],
   domain_lookup_dns: [
     "What DNS records does my domain have?",
     "Show the A and AAAA IP addresses for the apex and www.",

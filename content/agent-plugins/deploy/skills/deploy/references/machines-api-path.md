@@ -16,7 +16,8 @@ installed anywhere:
 1. `POST /v1/apps` — create the app.
 2. `POST /v1/apps/<app>/volumes` — create the volume, mounted at `/workspace/Tovu/sites`.
 3. `POST /v1/apps/<app>/secrets/...` — set `TOVU_ADMIN_PASSWORD`, `ANALYTICS_ROOT_KEY_SEED`,
-   and `TOVU_SITE_KEY`.
+   and `TOVU_SITE_KEY` (for the site key, `deployment_ops_set_secret` with
+   `source: {kind: "site-key"}` instead, so the value never passes through chat).
 4. `POST /v1/apps/<app>/machines` with `config.image` — start exactly one machine.
 5. `GET /v1/apps/<app>/machines` — poll until healthy, checking `/readyz`.
 
