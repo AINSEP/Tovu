@@ -3619,13 +3619,15 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 }
 .agent-plugin-row[data-enabled="true"] .agent-plugin-state { color: var(--jini-text); }
 
-/* iOS-style switch. `role="switch"` + `aria-checked` in the markup; this is only its paint. */
+/* iOS-style switch. `role="switch"` + `aria-checked` in the markup; this is only its paint.
+   The off track is a solid mid-grey, not `--jini-bg-subtle`: on that near-white fill the white knob
+   disappeared (owner screenshot, 2026-10-06). */
 .agent-plugin-switch {
   flex: 0 0 auto; position: relative;
   width: 38px; height: 22px; padding: 0;
   border: 1px solid var(--jini-border-strong);
   border-radius: var(--jini-radius-pill);
-  background: var(--jini-bg-subtle);
+  background: var(--jini-border-strong);
   cursor: pointer;
   transition: background-color 160ms var(--jini-ease-out), border-color 160ms var(--jini-ease-out);
 }
