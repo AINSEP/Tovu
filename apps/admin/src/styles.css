@@ -607,6 +607,14 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
   flex-wrap: wrap; margin: var(--space-3) 0;
 }
 .page-toolbar > button:first-of-type { margin-left: auto; }
+/* Phones (mobile catalog TH-1, 2026-10-06): once the row wraps, the auto margin parked "Rescan
+   themes" at the right edge opposite "View site" and left "Turn the theme off" alone below — three
+   scattered rows. Left-aligned like the header's own actions, it reads as one group; the row's own
+   margin goes too, since `.page`'s gap already separates it from the header. */
+@media (max-width: 640px) {
+  .page-toolbar { margin-block: 0; }
+  .page-toolbar > button:first-of-type { margin-left: 0; }
+}
 /* Card action row: Activate (or the Active tag) stays left, Explore is pushed to the right edge.
    `align-items` centers the tag against the buttons, whose padding makes them taller. */
 .theme-card-actions {
