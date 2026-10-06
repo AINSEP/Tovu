@@ -87,7 +87,7 @@ function harness(daemon: RunDaemonClient | undefined, deps: RouteDeps = createRo
   const app = express();
   app.use(express.json());
   registerAuthRoutes(app, deps);
-  createAssistantChatsModule(deps, { finalizer }).registerRoutes?.(app);
+  createAssistantChatsModule(deps, { finalizer, recoverInterrupted: true }).registerRoutes?.(app);
   return { app, deps, finalizer };
 }
 
@@ -242,8 +242,8 @@ test("a run in flight when the API process dies is saved canceled at the next bo
   assert.equal(running.runStatus, "running", "a checkpoint must not change the status");
   assert.equal(running.content, "Still writ", "the in-flight answer was not checkpointed");
 
-  // The next boot over the same chat database: building the routes runs the repair.
-  const reboot = harness(fakeDaemon({ events: () => streamOf() }), deps);
+  // The next serving boot over the same database: the daemon confirms the old run is gone.
+  const reboot = harness(fakeDaemon({ events: () => streamOf(), runStatus: 404 }), deps);
   const rebooted = await bootAuthenticated(reboot.app, t);
   const row = await assistantRow(rebooted.baseUrl, rebooted.cookie, conversationId);
   assert.equal(row.runStatus, "canceled");
@@ -441,8 +441,8 @@ test("on boot, turns stuck at running or queued are marked canceled with the pla
     },
   });
 
-  // Building the routes is "boot" for this module; the repair must be done before anything is served.
-  const { app, finalizer } = harness(fakeDaemon({ events: () => streamOf() }), deps);
+  // This harness opts into serving-boot recovery; export route registration does not.
+  const { app, finalizer } = harness(fakeDaemon({ events: () => streamOf(), runStatus: 404 }), deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   // Any chat route answers only once the async repair has finished.
   assert.equal((await api(baseUrl, cookie, "")).status, 200);

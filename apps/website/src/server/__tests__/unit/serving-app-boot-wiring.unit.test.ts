@@ -115,6 +115,7 @@ test("index.ts hands the legacy tail and createServingApp's bootWork to the stor
   const source = readCodeLines("index.ts").join("\n");
   assert.match(source, /closeStoreOnShutdown\([^;]*\bbootWork: \(\) => bootWork\b/, "the store close must read the boot work list");
   assert.match(source, /bootWork\.push\(deps\.legacyPublishCredentialsReady\)/, "the legacy publish-credential tail must be awaited");
-  assert.match(source, /const \{ app, bootWork: servingBootWork \} = createServingApp\(deps\);/);
+  // Other destructured fields (the drainer/sweeper handed to stopServing) may sit beside these two.
+  assert.match(source, /const \{[^}]*\bbootWork: servingBootWork\b[^}]*\} = createServingApp\(deps\);/);
   assert.match(source, /bootWork\.push\(\.\.\.servingBootWork\)/, "createApp's BYOK pass must be awaited");
 });

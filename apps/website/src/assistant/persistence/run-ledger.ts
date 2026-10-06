@@ -1,4 +1,4 @@
-import type { AgentEvent, ChatRunStatus } from "@jini-ai/chat/core";
+import type { AgentEvent, ChatMessage, ChatRunStatus } from "@jini-ai/chat/core";
 import type { ExpressionBuilder } from "kysely";
 
 import { runInterruptedNotice } from "#src/contracts/core/assistant-run-events";
@@ -23,9 +23,9 @@ import type { SqliteConnectionSource } from "@jini-ai/db/kernel/sqlite";
  *
  * Architectural role:
  * ONE Kysely body over the chat kernel (`platform/db/chat-kernel.ts`), for every dialect. Nothing
- * here returns message content to a caller; the one cross-owner operation
- * ({@link ChatRunLedger.reconcileInterrupted}) only ever moves rows from `queued`/`running` to
- * `canceled` with an interruption notice. No row is ever deleted.
+ * here exposes history to request handlers; the cross-owner boot operation
+ * ({@link ChatRunLedger.reconcileInterrupted}) supplies a recovery port with the persisted owner
+ * and run stub, or cancels interrupted rows with a notice. No row is ever deleted.
  */
 
 const TERMINAL_STATUSES = ["succeeded", "failed", "canceled"] as const;
@@ -52,6 +52,19 @@ export interface RunSettlement extends RunProgress {
 /** {@link ChatRunLedger.unlessSettled}'s result: the write's value, or that the run had settled. */
 export type UnlessSettled<T> = { readonly written: true; readonly value: T } | { readonly written: false };
 
+/** Internal boot recovery, never an HTTP history read. The owner comes from storage, not a client. */
+export interface InterruptedChatTurn {
+  readonly principalId: string | null;
+  readonly conversationId: string;
+  readonly message: ChatMessage;
+}
+
+export interface ChatRunRecoveryOptions {
+  /** True retains the row: a daemon run was adopted, or its death is still unproven.
+   * Called outside storage transactions so a daemon request cannot hold the database lock. */
+  readonly recover?: (input: InterruptedChatTurn) => Promise<boolean>;
+}
+
 export interface ChatRunLedger {
   /**
    * Runs `write` only while `run`'s row holds no terminal status (an unknown row, another run id, or
@@ -72,16 +85,17 @@ export interface ChatRunLedger {
    */
   checkpoint(progress: RunProgress): Promise<boolean>;
   /**
-   * Boot-time repair: marks every assistant row still `queued`/`running` as `canceled`, keeping its
-   * content and events and appending the plain restart notice. Resolves how many rows it changed.
+   * Serving-boot repair: offers queued/running rows to the recovery port before canceling those
+   * it did not retain. Keeps content/events and appends the restart notice to interrupted rows.
+   * Resolves how many rows it canceled.
    *
-   * Correct at boot because the agent daemon is a child of this process
-   * (`daemon-supervisor.ts`): a run from before this boot cannot still be alive. BYOK and AG-UI turns
-   * lived on a request to the old process, so the same holds for them. No run lock: nothing else
-   * writes these rows before the routes that serve them exist, and each row's update re-checks its
-   * status.
+   * Being a detached child does not prove the daemon died: teardown can be bypassed, and standalone
+   * daemons have no parent watchdog. Serving composition must supply recovery for daemon runs.
+   * BYOK/AG-UI turns lived on the old request and can be canceled. Never call this while building
+   * export apps: those are also built inside the still-live daemon. Row locks and run/status guards
+   * protect against a browser save, checkpoint, or retry arriving during the daemon probe.
    */
-  reconcileInterrupted(now?: number): Promise<number>;
+  reconcileInterrupted(required?: { now?: number }, optional?: ChatRunRecoveryOptions): Promise<number>;
 }
 
 /** The lock every read-then-write on one run's row takes. */
@@ -108,14 +122,18 @@ const isRunRow = (eb: MessagesBuilder, run: RunRef) =>
     eb("role", "=", "assistant"),
   ]);
 
-function eventsWithNotice(eventsJson: string | null): AgentEvent[] {
+function readEvents(eventsJson: string | null): AgentEvent[] {
   let events: unknown = [];
   try {
     events = eventsJson ? JSON.parse(eventsJson) : [];
   } catch {
     events = [];
   }
-  return [...(Array.isArray(events) ? (events as AgentEvent[]) : []), runInterruptedNotice()];
+  return Array.isArray(events) ? (events as AgentEvent[]) : [];
+}
+
+function eventsWithNotice(eventsJson: string | null): AgentEvent[] {
+  return [...readEvents(eventsJson), runInterruptedNotice()];
 }
 
 /**
@@ -186,34 +204,52 @@ export function createChatRunLedger(store: ChatKernel | SqliteConnectionSource):
       return Number(result.numUpdatedRows) > 0;
     },
 
-    reconcileInterrupted(now = Date.now()) {
-      return kernel.transaction(async () => {
-        const stuck = await kernel.run((db) =>
-          db
-            .selectFrom("ai_chat_messages")
-            .select(["id", "events_json"])
-            .where("role", "=", "assistant")
-            .where("run_status", "in", ["queued", "running"])
-            .execute()
-        );
-        let count = 0;
-        for (const row of stuck) {
+    async reconcileInterrupted({ now = Date.now() } = {}, optional = {}) {
+      const stuck = await kernel.run((db) =>
+        db
+          .selectFrom("ai_chat_messages")
+          .innerJoin("ai_chats", "ai_chats.id", "ai_chat_messages.conversation_id")
+          .select(["ai_chat_messages.id", "conversation_id", "run_id", "run_status", "content", "events_json", "owner_kind", "owner_id"])
+          .where("ai_chat_messages.role", "=", "assistant")
+          .where("ai_chat_messages.run_status", "in", ["queued", "running"])
+          .orderBy("ai_chat_messages.id")
+          .execute()
+      );
+      let count = 0;
+      for (const row of stuck) {
+        if (await optional.recover?.({
+          principalId: row.owner_kind === "user" ? row.owner_id : null,
+          conversationId: row.conversation_id,
+          message: {
+            id: row.id, role: "assistant", content: row.content, events: readEvents(row.events_json),
+            ...(row.run_id ? { runId: row.run_id } : {}),
+            runStatus: row.run_status as "queued" | "running",
+          },
+        })) continue;
+        count += await kernel.transaction(async () => {
+          await kernel.lockKey(runLockKey({ conversationId: row.conversation_id, messageId: row.id, runId: row.run_id ?? "" }));
+          const current = await kernel.run((db) => db.selectFrom("ai_chat_messages")
+            .select("events_json").where("id", "=", row.id)
+            .where("run_id", row.run_id === null ? "is" : "=", row.run_id)
+            .where("run_status", "in", ["queued", "running"]).executeTakeFirst());
+          if (!current) return 0;
           const result = await kernel.run((db) =>
             db
               .updateTable("ai_chat_messages")
               .set((eb) => ({
                 run_status: "canceled",
-                events_json: JSON.stringify(eventsWithNotice(row.events_json)),
+                events_json: JSON.stringify(eventsWithNotice(current.events_json)),
                 ended_at: eb.fn.coalesce("ended_at", eb.val(now)),
               }))
               .where("id", "=", row.id)
+              .where("run_id", row.run_id === null ? "is" : "=", row.run_id)
               .where("run_status", "in", ["queued", "running"])
               .executeTakeFirst()
           );
-          count += Number(result.numUpdatedRows);
-        }
-        return count;
-      });
+          return Number(result.numUpdatedRows);
+        });
+      }
+      return count;
     },
   };
 }

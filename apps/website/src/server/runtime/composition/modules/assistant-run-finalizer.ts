@@ -16,12 +16,13 @@
  *   answer and events.
  * - the daemon answers 404 for the run (it restarted and forgot it): `canceled`, keeping every event
  *   received so far, plus the plain restart notice.
- * - this API process exits or is killed (which also kills the daemon, `daemon-supervisor.ts`): no
+ * - this API process exits or is killed: no
  *   write can finish then (storage is async, an `exit` listener cannot await), so the finalizer
  *   checkpoints the answer as it streams (`ChatRunLedger.checkpoint`, at most once per
  *   `checkpointIntervalMs`, with a trailing checkpoint so a run that goes quiet still has its last
- *   frames saved within one interval), and the next boot's `ChatRunLedger.reconcileInterrupted` marks the row
- *   canceled, keeping that partial answer and appending the plain restart notice.
+ *   frames saved within one interval). The next serving boot probes the daemon: surviving runs
+ *   are reattached from event zero; only forgotten runs are canceled with the partial answer kept.
+ *   A detached daemon can survive failed teardown, so parent exit alone is not evidence of death.
  *
  * Every write goes through `ChatRunLedger.settle`, which only changes a row that still belongs to
  * this run and is not yet terminal. So when a browser IS attached and saves the same turn first, the
@@ -34,6 +35,7 @@
  * for no gain — and the daemon cannot write "failed" for its own death.
  */
 import type { ChatMessage } from "@jini-ai/chat/core";
+import { isProcessAlive } from "@jini-ai/sidecar";
 
 import { AGENT_DAEMON_TOKEN_ENV_VAR, RUN_PRINCIPAL_HEADER, type ChatRunLedger, type RunSettlement } from "#src/assistant/index";
 import {
@@ -61,6 +63,8 @@ export interface RunDaemonClient {
 export interface AssistantRunFinalizerOptions {
   readonly ledger: ChatRunLedger;
   readonly daemon?: RunDaemonClient;
+  /** Previous site daemon, used only for adopted watches; new sends always use the current daemon. */
+  readonly recoveryDaemon?: RunDaemonClient;
   readonly now?: () => number;
   /** Wait between reconnects when the stream drops but the daemon still has the run. */
   readonly reconnectDelayMs?: number;
@@ -78,11 +82,13 @@ export interface AssistantRunFinalizerOptions {
 }
 
 export interface AssistantRunFinalizer {
+  /** Serving boot only: adopt persisted daemon runs and cancel only proven interruptions. */
+  reconcileInterrupted(required?: { now?: number }, optional?: {}): Promise<number>;
   /**
    * Starts watching `message`'s run, if it is an in-flight daemon run not already watched. A no-op for
    * a user turn, a terminal turn, a turn with no run id, or a BYOK/AG-UI run id.
    */
-  watch(input: { principalId: string; conversationId: string; message: ChatMessage }): void;
+  watch(input: { principalId: string; conversationId: string; message: ChatMessage }, optional?: { daemon?: RunDaemonClient }): void;
   /** Resolves when every watch started so far has settled or given up. For tests. */
   idle(): Promise<void>;
   /** How many runs are being watched right now. */
@@ -99,16 +105,35 @@ function daemonHeaders(principalId: string): Record<string, string> {
 /** The real daemon, over loopback HTTP — the same URL, token and principal header the proxy uses.
  *  Each request is one outbound span through `observability` (host/port and status, never the run id
  *  or token); the events request's span ends at the response headers, not with the stream. */
-export function createHttpRunDaemonClient({ observability }: { observability: ObservabilityPort }): RunDaemonClient {
+export function createHttpRunDaemonClient(
+  { observability }: { observability: ObservabilityPort },
+  optional: {
+    /** Serving boot snapshots the prior site's registry before the replacement daemon publishes.
+     * A 404 from a new port says nothing about a run still executing on the previous port. */
+    previousDaemon?: () => Promise<{ url: string; pid: number } | null>;
+    isAlive?: (required: { pid: number }) => boolean;
+    currentUrl?: () => string;
+    fetch?: typeof fetch;
+  } = {},
+): RunDaemonClient {
   // The global `fetch` read per call, so a test that swaps it is still honored.
-  const send = trackFetch({ fetch: (url: string, init?: RequestInit) => fetch(url, init), observability });
+  const send = trackFetch({ fetch: (url: string, init?: RequestInit) => (optional.fetch ?? fetch)(url, init), observability });
+  const previous = optional.previousDaemon?.().then((record) => ({ record }), (error: unknown) => ({ error }));
+  async function origin(): Promise<string> {
+    const result = await previous;
+    if (result && "error" in result) throw result.error;
+    const record = result?.record;
+    if (record && (optional.isAlive ?? isProcessAlive)({ pid: record.pid })) return record.url;
+    return (optional.currentUrl ?? getAgentDaemonUrl)();
+  }
   return {
-    openEvents: (runId, principalId) =>
-      send(`${getAgentDaemonUrl()}/api/runs/${encodeURIComponent(runId)}/events`, { headers: daemonHeaders(principalId) }),
+    openEvents: async (runId, principalId) =>
+      send(`${await origin()}/api/runs/${encodeURIComponent(runId)}/events`, { headers: daemonHeaders(principalId) }),
     async runStatus(runId, principalId) {
       try {
-        const response = await send(`${getAgentDaemonUrl()}/api/runs/${encodeURIComponent(runId)}`, {
+        const response = await send(`${await origin()}/api/runs/${encodeURIComponent(runId)}`, {
           headers: daemonHeaders(principalId),
+          signal: AbortSignal.timeout(5_000),
         });
         await response.body?.cancel().catch(() => undefined);
         return response.status;
@@ -121,6 +146,7 @@ export function createHttpRunDaemonClient({ observability }: { observability: Ob
 
 /** One run being watched: the events received on the current connection, and whether it failed. */
 interface Watch {
+  readonly daemon: RunDaemonClient;
   readonly principalId: string;
   readonly conversationId: string;
   readonly messageId: string;
@@ -228,7 +254,7 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
   /** Reads one connection to the end. The daemon replays from event 0 on every connection, so the
    *  events collected by an earlier, dropped connection are discarded rather than doubled. */
   async function readStream(watch: Watch): Promise<StreamResult> {
-    const response = await daemon.openEvents(watch.runId, watch.principalId);
+    const response = await watch.daemon.openEvents(watch.runId, watch.principalId);
     if (response.status === 404) return { kind: "gone" };
     if (!response.ok || !response.body) return { kind: "dropped" };
     watch.events = [];
@@ -260,32 +286,46 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
       }
       // Dropped: only a 404 proves the run is gone. Anything else (the daemon is mid-respawn, a
       // body timeout during a long card wait) is worth another look.
-      if ((await daemon.runStatus(watch.runId, watch.principalId)) === 404) {
+      if ((await watch.daemon.runStatus(watch.runId, watch.principalId)) === 404) {
         await settleInterrupted(watch);
         return "interrupted";
       }
       await delay(reconnectDelayMs);
     }
     // Gave up without proof either way. The row stays `running`: the browser can still reattach,
-    // and the next boot's reconcile marks it interrupted if nothing else does.
+    // and the next serving boot probes and watches it again. An outage alone never proves death.
     return "abandoned";
   }
 
-  return {
-    watch({ principalId, conversationId, message }) {
+  const finalizer: AssistantRunFinalizer = {
+    reconcileInterrupted(required = {}, _optional = {}) {
+      return options.ledger.reconcileInterrupted(required, {
+        recover: async ({ principalId, conversationId, message }) => {
+          if (!message.runId || !isDaemonRunId(message.runId) || !principalId) return false;
+          // A retained terminal daemon record is replayable too: the API may have died between
+          // the run's end and its durable save. 401/503/connection failure is not proof of death.
+          const recoveryDaemon = options.recoveryDaemon ?? daemon;
+          if ((await recoveryDaemon.runStatus(message.runId, principalId).catch(() => null)) === 404) return false;
+          finalizer.watch({ principalId, conversationId, message }, { daemon: recoveryDaemon });
+          return true;
+        },
+      });
+    },
+    watch({ principalId, conversationId, message }, optional = {}) {
       const runId = message.runId;
       if (message.role !== "assistant" || !runId || !isDaemonRunId(runId)) return;
       if (message.runStatus === undefined || isTerminalRunStatus({ status: message.runStatus })) return;
       if (active.has(runId)) return;
 
       const watch: Watch = {
+        daemon: optional.daemon ?? daemon,
         principalId,
         conversationId,
         messageId: message.id,
         runId,
-        events: [],
+        events: [...(message.events ?? [])],
         failed: false,
-        checkpointedEvents: 0,
+        checkpointedEvents: message.events?.length ?? 0,
         checkpointedAt: Number.NEGATIVE_INFINITY,
         checkpointPending: false,
         terminal: false,
@@ -313,4 +353,5 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
 
     activeCount: () => active.size,
   };
+  return finalizer;
 }

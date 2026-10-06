@@ -7,7 +7,7 @@ import { createApp } from "./app.js";
 
 /**
  * @file `createApp` plus the site-serving process's background loops — the outbox drainer
- * (2026-09-14) and the Trash auto-purge sweeper (2026-09-20) — as one step.
+ * (2026-09-14), Trash auto-purge sweeper (2026-09-20), and assistant-run recovery — as one step.
  *
  * Callers: the two site-serving boot paths and nothing else. `src/index.ts` serves the dev API and the
  * container image (`Dockerfile` CMD). `cli/commands/serve.ts` is `tovu serve`, which the desktop app
@@ -17,6 +17,9 @@ import { createApp } from "./app.js";
  * That covers the static exporter (`routeDeps.createSiteApp()`, including inside the agent daemon)
  * and `app.ts`'s eager module-level `app`, which every importer of `app.ts` builds. The agent daemon
  * itself only enqueues (`agent-daemon-deps.ts`).
+ * Assistant recovery has the same ownership rule: an export app built by a live chat run is not
+ * a web restart. Sweeping during its route registration canceled that very run's transcript while
+ * its daemon still held the conversation (2026-10-05); only a serving boot may probe and recover.
  *
  * Order is the point. `createApp` subscribes every handler (SEO sitemap invalidation, forms notify,
  * webhook fan-out, newsletter batches, redirect hits) onto `routeDeps.bus` synchronously, and only
@@ -41,7 +44,7 @@ export function createServingApp(
   optional: { outboxDrainIntervalMs?: number; trashSweepIntervalMs?: number } = {}
 ): { app: Express; outboxDrainer: OutboxDrainer; trashSweeper: TrashSweeper; bootWork: Promise<void>[] } {
   const bootWork: Promise<void>[] = [];
-  const app = createApp(routeDeps, { onBootWork: (work) => bootWork.push(work) });
+  const app = createApp(routeDeps, { recoverAssistantChatRuns: true, onBootWork: (work) => bootWork.push(work) });
   const outboxDrainer = startOutboxDrainer(
     { outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock },
     { intervalMs: optional.outboxDrainIntervalMs }

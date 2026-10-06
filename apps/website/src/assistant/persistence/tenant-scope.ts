@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 
 import type { ChatHistoryStore, ChatMessage } from "@jini-ai/chat/core";
 
-import { RUN_INTERRUPTED_DETAIL, RUN_INTERRUPTED_LABEL } from "#src/contracts/core/assistant-run-events";
+import { isDaemonRunId, RUN_INTERRUPTED_DETAIL, RUN_INTERRUPTED_LABEL } from "#src/contracts/core/assistant-run-events";
 import { type ChatKernel, chatKernel } from "#src/platform/db/chat-kernel";
 import type { SqliteConnectionSource } from "@jini-ai/db/kernel/sqlite";
 import { createChatHistoryStore } from "./chat-history-store.js";
@@ -76,11 +76,13 @@ export type ChatStoreFactory = (principal: ChatPrincipal) => ChatHistoryStore;
 
 /**
  * The browser's onError/onDone pair reports interruption as failed. Recognize only the exact
- * saved restart notice so whichever writer wins records canceled; genuine failures stay failed.
+ * saved restart notice. For daemon runs, only the finalizer can prove the run died: losing the
+ * browser's stream does not release a live daemon's conversation slot. Other request-bound runs
+ * can be canceled immediately; genuine failures stay failed.
  * @complexity O(message events) time, O(1) space; no storage or input mutation.
  */
 function isInterruptedBrowserSave(message: ChatMessage): boolean {
-  return message.runStatus === "failed" && (message.events?.some((event) =>
+  return (message.runStatus === "failed" || message.runStatus === "canceled") && (message.events?.some((event) =>
     event.kind === "status" && event.label === RUN_INTERRUPTED_LABEL && event.detail === RUN_INTERRUPTED_DETAIL
   ) ?? false);
 }
@@ -125,10 +127,27 @@ export function createTenantScopedChatStore(
      */
     async appendMessage({ conversationId, message }) {
       if (message.role !== "assistant" || !message.runId) return store.appendMessage({ conversationId, message });
-      const normalized = isInterruptedBrowserSave(message) ? { ...message, runStatus: "canceled" as const } : message;
+      const interrupted = isInterruptedBrowserSave(message);
+      const daemonInterrupted = interrupted && isDaemonRunId(message.runId);
+      const normalized = interrupted ? {
+        ...message,
+        runStatus: daemonInterrupted ? "running" as const : "canceled" as const,
+        ...(daemonInterrupted ? {
+          endedAt: undefined,
+          events: message.events?.filter((event) => !(event.kind === "status" && event.label === RUN_INTERRUPTED_LABEL && event.detail === RUN_INTERRUPTED_DETAIL)),
+        } : {}),
+      } : message;
       const outcome = await ledger.unlessSettled(
         { conversationId, messageId: message.id, runId: message.runId },
-        () => store.appendMessage({ conversationId, message: normalized })
+        async () => {
+          // Keep the latest server checkpoint, rather than replace it with the disconnected
+          // browser's stale partial answer. The route watches this retained stub again.
+          if (daemonInterrupted) {
+            const saved = (await store.messages({ conversationId })).find((m) => m.id === message.id && m.runId === message.runId);
+            if (saved) return saved;
+          }
+          return store.appendMessage({ conversationId, message: normalized });
+        }
       );
       if (outcome.written) return outcome.value;
       const saved = await store.messages({ conversationId });

@@ -59,7 +59,7 @@ export function createInMemoryChatHistory(): { chatHistory: ChatStoreFactory; ch
     settle: (settlement) => createChatRunLedger(open()).settle(settlement),
     checkpoint: (progress) => createChatRunLedger(open()).checkpoint(progress),
     // A database nobody has opened yet holds no stuck rows, so boot-time reconcile does not open it.
-    reconcileInterrupted: async (now) => (db ? createChatRunLedger(db).reconcileInterrupted(now) : 0),
+    reconcileInterrupted: async (required, optional) => (db ? createChatRunLedger(db).reconcileInterrupted(required, optional) : 0),
   };
   return {
     chatHistory: (principal) => createTenantScopedChatStore(open(), principal, chatRunLedger),

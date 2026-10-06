@@ -1648,6 +1648,8 @@ function subscribeSiteEventHandlersOnce(routeDeps: NewsletterRouteDeps): void {
 
 /** Optional {@link createApp} hooks. */
 export interface CreateAppOptions {
+  /** Serving boot only; exporter/eager apps do not own recovery of assistant turns. */
+  recoverAssistantChatRuns?: boolean;
   /**
    * Receives each background pass `createApp` starts and returns before it finishes — today the BYOK
    * tool surface's installed-extension pass, which reads the plugin catalog and plugin activations
@@ -2004,7 +2006,10 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // module because nothing here is proxied: run execution belongs to the daemon (that is where run
   // state lives), while history belongs to Tovu's own database, where backups, snapshots, and
   // workspace scoping already work. The daemon can restart or be replaced without touching it.
-  if (adminAssistantEnabled) mountRoutes(app, createAssistantChatsModule(routeDeps));
+  if (adminAssistantEnabled) mountRoutes(app, createAssistantChatsModule(routeDeps, {
+    recoverInterrupted: options.recoverAssistantChatRuns,
+    onBootWork: options.onBootWork,
+  }));
 
   // The AI Assistant admin section's 2 settings routes (GET/PUT the public assistant's master
   // switch). Registered next to `createAssistantModule` for readability only — the two modules share

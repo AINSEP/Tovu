@@ -20,6 +20,8 @@
  * scope, so the two get separate mounts.
  */
 import type { Express, Request, Response } from "express";
+import { join } from "node:path";
+import { readLiveDaemonRegistryRecord } from "@jini-ai/sidecar";
 
 import { deriveContentConversationTitle } from "#src/contracts/headless/content-chat-title";
 import { deriveConversationTitle } from "@jini-ai/chat/core";
@@ -29,7 +31,8 @@ import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/adm
 import type { RouteDeps } from "#src/server/routes/types";
 import { runEventsForSave } from "#src/contracts/core/assistant-run-events";
 import type { ServerModuleHandle } from "./types.js";
-import { createAssistantRunFinalizer, type AssistantRunFinalizer } from "./assistant-run-finalizer.js";
+import { createAssistantRunFinalizer, createHttpRunDaemonClient, type AssistantRunFinalizer } from "./assistant-run-finalizer.js";
+import { createNoopObservabilityPort } from "#src/platform/observability/index";
 
 /** Preserve a standalone resource name (including skill slugs) verbatim. Prose still follows
  * the shared heuristic; injected guidance never enters the stored user message. */
@@ -82,20 +85,31 @@ async function maybeNameFromFirstUserMessage(
 export interface AssistantChatsModuleOptions {
   /** Tests inject one with a fake daemon; production builds the real one over `deps.chatRunLedger`. */
   readonly finalizer?: AssistantRunFinalizer;
+  /** Only the site-serving composition opts in; export apps must never repair live turns. */
+  readonly recoverInterrupted?: boolean;
+  readonly onBootWork?: (work: Promise<void>) => void;
 }
 
 export function createAssistantChatsModule(deps: RouteDeps, options: AssistantChatsModuleOptions = {}): ServerModuleHandle {
-  const finalizer = options.finalizer ?? createAssistantRunFinalizer({ ledger: deps.chatRunLedger, observability: deps.observability });
+  const finalizer = options.finalizer ?? createAssistantRunFinalizer({
+    ledger: deps.chatRunLedger, observability: deps.observability,
+    ...(options.recoverInterrupted && deps.siteBinding?.dir ? {
+      recoveryDaemon: createHttpRunDaemonClient({ observability: deps.observability ?? createNoopObservabilityPort({}) }, {
+        previousDaemon: () => readLiveDaemonRegistryRecord({ registryPath: join(deps.siteBinding.dir, "ops", "assistant-daemon.json") }),
+      }),
+    } : {}),
+  });
   return {
     name: "assistant-chats",
     registerRoutes: (app: Express) => {
       /*
-       * Boot-time repair, before any route can serve a transcript: a turn still `queued`/`running`
-       * now belongs to a run from before this boot, and that run died with the old process (the
-       * daemon is this process's child). Marked canceled with the plain restart notice, content kept,
-       * never deleted — otherwise the pane spins on it forever. See `run-ledger.ts`.
+       * Serving-boot repair, before chat routes answer: a queued/running turn may still belong to
+       * a live detached daemon, so reattach its replayable stream and finalizer; cancel only runs
+       * proven gone, preserving partial content and the reason. Child teardown is best effort,
+       * not proof of death. Route registration also happens during static exports inside the
+       * daemon (and eagerly on importing app.ts); those are not restarts and must never sweep.
        */
-      const reconciled = deps.chatRunLedger.reconcileInterrupted().then(
+      const reconciled = (options.recoverInterrupted ? finalizer.reconcileInterrupted({}, {}) : Promise.resolve(0)).then(
         (repaired) => {
           if (repaired > 0) console.log(`[assistant-chats] marked ${repaired} interrupted chat turn(s) canceled`);
         },
@@ -105,6 +119,7 @@ export function createAssistantChatsModule(deps: RouteDeps, options: AssistantCh
           console.error("[assistant-chats] boot-time repair of interrupted chat turns failed", error);
         }
       );
+      if (options.recoverInterrupted) options.onBootWork?.(reconciled);
 
       app.use("/api/assistant/chats", requireAdminSession(deps));
       // The repair is async now (storage kernel); no chat route answers until it has finished.

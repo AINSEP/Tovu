@@ -3,6 +3,7 @@ import { test } from "node:test";
 
 import type { ChatKernel } from "#src/platform/db/chat-kernel";
 import { createChatRunLedger, type RunRef } from "../run-ledger.js";
+import { createTenantScopedChatStore } from "../tenant-scope.js";
 import { describeEachChatDialect } from "./chat-dialect-matrix.js";
 
 /**
@@ -183,7 +184,7 @@ describeEachChatDialect("ChatRunLedger", (kernel) => ({ kernel, ledger: createCh
       { id: "u1", role: "user", content: "hi", runStatus: "running", position: 4 },
     ]);
 
-    assert.equal(await ledger.reconcileInterrupted(T0 + 7), 3);
+    assert.equal(await ledger.reconcileInterrupted({ now: T0 + 7 }), 3);
 
     assert.deepEqual(await row(kernel, "a1"), {
       content: "Partial",
@@ -199,7 +200,68 @@ describeEachChatDialect("ChatRunLedger", (kernel) => ({ kernel, ledger: createCh
     assert.equal((await row(kernel, "a4")).run_status, "succeeded");
     assert.equal((await row(kernel, "u1")).run_status, "running", "user rows are not runs");
 
-    assert.equal(await ledger.reconcileInterrupted(T0 + 8), 0);
+    assert.equal(await ledger.reconcileInterrupted({ now: T0 + 8 }), 0);
+  });
+
+  test("reconcileInterrupted offers the stored owner and stub to recovery and keeps adopted rows running", async () => {
+    const { kernel, ledger } = make();
+    await seed(kernel, [
+      { id: "a1", content: "Partial", events: [{ kind: "text", text: "Partial" }], position: 0 },
+      { id: "a2", runId: "byok:x", runStatus: "queued", position: 1 },
+    ]);
+    const seen: unknown[] = [];
+    assert.equal(await ledger.reconcileInterrupted({ now: T0 + 7 }, { recover: async (input) => {
+      seen.push(input);
+      return input.message.runId === "run-1";
+    } }), 1);
+    assert.deepEqual(seen, [
+      { principalId: "u", conversationId: "c1", message: { id: "a1", role: "assistant", content: "Partial", events: [{ kind: "text", text: "Partial" }], runId: "run-1", runStatus: "running" } },
+      { principalId: "u", conversationId: "c1", message: { id: "a2", role: "assistant", content: "", events: [], runId: "byok:x", runStatus: "queued" } },
+    ]);
+    assert.equal((await row(kernel, "a1")).run_status, "running");
+    assert.equal((await row(kernel, "a1")).content, "Partial");
+    assert.deepEqual((await row(kernel, "a2")).events, [RESTART_NOTICE]);
+    assert.equal((await row(kernel, "a2")).run_status, "canceled");
+  });
+
+  test("reconcileInterrupted cannot cancel a retry that replaced the probed run", async () => {
+    const { kernel, ledger } = make();
+    await seed(kernel, [{ id: "a1", position: 0 }]);
+    assert.equal(await ledger.reconcileInterrupted({ now: T0 + 7 }, { recover: async () => {
+      await kernel.run((db) => db.updateTable("ai_chat_messages").set({ run_id: "run-new", content: "New answer" }).where("id", "=", "a1").execute());
+      return false;
+    } }), 0);
+    assert.equal((await row(kernel, "a1")).run_status, "running");
+    assert.equal((await row(kernel, "a1")).content, "New answer");
+    assert.equal((await row(kernel, "a1")).ended_at, null);
+  });
+
+  test("reconcileInterrupted preserves a checkpoint written during the daemon probe", async () => {
+    const { kernel, ledger } = make();
+    await seed(kernel, [{ id: "a1", position: 0 }]);
+    assert.equal(await ledger.reconcileInterrupted({ now: T0 + 7 }, { recover: async () => {
+      assert.equal(await ledger.checkpoint({ ...RUN, content: "Latest", events: [{ kind: "text", text: "Latest" }] }), true);
+      return false;
+    } }), 1);
+    assert.equal((await row(kernel, "a1")).content, "Latest");
+    assert.deepEqual((await row(kernel, "a1")).events, [{ kind: "text", text: "Latest" }, RESTART_NOTICE]);
+    assert.equal((await row(kernel, "a1")).run_status, "canceled");
+  });
+
+  test("a browser restart notice cannot terminalize a live daemon row or erase its checkpoint", async () => {
+    const { kernel, ledger } = make();
+    await seed(kernel, [{ id: "a1", content: "Latest", events: [{ kind: "text", text: "Latest" }], position: 0 }]);
+    const store = createTenantScopedChatStore(kernel, { kind: "user", workspaceId: "ws", userId: "u" }, ledger);
+    const saved = await store.appendMessage({ conversationId: "c1", message: {
+      id: "a1", role: "assistant", runId: "run-1", runStatus: "failed", content: "Stale", events: [{ ...RESTART_NOTICE, kind: "status" as const }], endedAt: T0 + 1,
+    } });
+    assert.equal(saved?.runStatus, "running");
+    assert.equal(saved?.content, "Latest");
+    assert.deepEqual(saved?.events, [{ kind: "text", text: "Latest" }]);
+    assert.equal((await row(kernel, "a1")).ended_at, null);
+    assert.equal(await ledger.settle(settlement("Recovered answer")), true);
+    assert.equal((await row(kernel, "a1")).content, "Recovered answer");
+    assert.equal((await row(kernel, "a1")).run_status, "succeeded");
   });
 
   test("two concurrent settles of one run: exactly one wins, and the row holds the winner", async () => {

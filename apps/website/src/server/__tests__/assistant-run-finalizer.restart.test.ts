@@ -81,7 +81,7 @@ test("a buffered completed run settles despite a pending checkpoint, and stays s
       clearTimeout(timer);
     }
     // Reproduce startup repair while a completed answer's progress write is still pending.
-    await ledger.reconcileInterrupted(2000);
+    await ledger.reconcileInterrupted({ now: 2000 });
     const saved = (await store.messages({ conversationId: "c1" }))[0]!;
     assert.equal(saved.runStatus, "succeeded", "startup must not turn an already-ended answer into an interrupted turn");
     assert.equal(terminalWritten, true, "terminal settlement must not wait for an unrelated progress write");
@@ -96,7 +96,7 @@ test("a buffered completed run settles despite a pending checkpoint, and stays s
     await checkpointFinished.promise;
     db.close();
     db = openChatDb(path);
-    assert.equal(await createChatRunLedger(db).reconcileInterrupted(3000), 0);
+    assert.equal(await createChatRunLedger(db).reconcileInterrupted({ now: 3000 }), 0);
     const reopened = (await createChatStoreFactory(db)(principal).messages({ conversationId: "c1" }))[0]!;
     assert.equal(reopened.runStatus, "succeeded");
     assert.equal(reopened.content, "Finished answer");
@@ -170,22 +170,49 @@ test("a genuine CLI failure still saves failed with its exit diagnosis", async (
   }
 });
 
-test("a browser-first restart save is canceled before it can win terminal settlement as failed", async () => {
+test("a browser-first restart save of a request-bound run is canceled before it can win terminal settlement as failed", async () => {
+  const db = openChatDb(":memory:");
+  const store = createChatStoreFactory(db)(principal);
+  const ledger = createChatRunLedger(db);
+  const byokStub = { ...stub, runId: "byok:run-1" };
+  try {
+    await store.create({ id: "c1" });
+    await store.appendMessage({ conversationId: "c1", message: byokStub });
+    // The current chat hook maps onError + onDone to failed. Its exact restart notice distinguishes
+    // interruption from a CLI failure, even when this browser save beats the server finalizer.
+    // A BYOK/AG-UI turn lived on the dropped request, so the browser's notice is proof it died.
+    await store.appendMessage({ conversationId: "c1", message: { ...byokStub, runStatus: "failed", content: "Partial", events: [{ kind: "text", text: "Partial" }, notice] } });
+    assert.equal(await ledger.settle({ conversationId: "c1", messageId: "a1", runId: "byok:run-1", status: "canceled", content: "late", events: [], endedAt: 1234 }), false);
+    const saved = (await store.messages({ conversationId: "c1" }))[0]!;
+    assert.equal(saved.runStatus, "canceled", "the browser must not turn process interruption into a failed run");
+    assert.equal(saved.content, "Partial");
+    assert.deepEqual(saved.events, [{ kind: "text", text: "Partial" }, notice]);
+    assert.equal(await ledger.reconcileInterrupted({ now: 2000 }), 0);
+  } finally {
+    db.close();
+  }
+});
+
+test("a browser-first restart save of a daemon run stays running, and the finalizer's proof settles it canceled, never failed", async () => {
   const db = openChatDb(":memory:");
   const store = createChatStoreFactory(db)(principal);
   const ledger = createChatRunLedger(db);
   try {
     await store.create({ id: "c1" });
     await store.appendMessage({ conversationId: "c1", message: stub });
-    // The current chat hook maps onError + onDone to failed. Its exact restart notice distinguishes
-    // interruption from a CLI failure, even when this browser save beats the server finalizer.
+    await ledger.checkpoint({ conversationId: "c1", messageId: "a1", runId: "run-1", content: "Server partial", events: [{ kind: "text", text: "Server partial" }] });
+    // The browser losing its stream does not prove the daemon run died or released its
+    // conversation slot (2026-10-05), so this save must not terminalize the row, nor replace the
+    // server's checkpoint with the browser's stale partial.
     await store.appendMessage({ conversationId: "c1", message: { ...stub, runStatus: "failed", content: "Partial", events: [{ kind: "text", text: "Partial" }, notice] } });
-    assert.equal(await ledger.settle({ conversationId: "c1", messageId: "a1", runId: "run-1", status: "canceled", content: "late", events: [], endedAt: 1234 }), false);
+    const retained = (await store.messages({ conversationId: "c1" }))[0]!;
+    assert.equal(retained.runStatus, "running");
+    assert.equal(retained.content, "Server partial");
+    // Only the finalizer's 404 proof terminalizes it, and as canceled, not failed.
+    assert.equal(await ledger.settle({ conversationId: "c1", messageId: "a1", runId: "run-1", status: "canceled", content: "Server partial", events: [{ kind: "text", text: "Server partial" }, notice], endedAt: 1234 }), true);
     const saved = (await store.messages({ conversationId: "c1" }))[0]!;
     assert.equal(saved.runStatus, "canceled", "the browser must not turn process interruption into a failed run");
-    assert.equal(saved.content, "Partial");
-    assert.deepEqual(saved.events, [{ kind: "text", text: "Partial" }, notice]);
-    assert.equal(await ledger.reconcileInterrupted(2000), 0);
+    assert.deepEqual(saved.events, [{ kind: "text", text: "Server partial" }, notice]);
   } finally {
     db.close();
   }
