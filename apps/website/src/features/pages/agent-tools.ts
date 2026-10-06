@@ -94,10 +94,21 @@ const PAGE_HTML_CONTRACT =
   "- INNER CONTENT ONLY. Never emit <html>, <head>, <body>, <nav>, or a site footer — the active " +
   "theme's template owns all page chrome and wraps whatever you write. Emitting them produces a " +
   "broken, doubled page.\n" +
-  "- STYLE WITH THEME TOKENS, with literal fallbacks: `var(--accent, #8a4b2a)`, never a bare hex and " +
-  "never a bare `var(--accent)`. The site's theme supplies the real values; the fallback is what " +
-  "keeps the page readable if a token is missing. A <style> block inside the content is fine and is " +
-  "the expected way to style a bespoke page.\n" +
+  // Names the real tokens on purpose (demo video V1, 2026-10-05): "style with theme tokens" alone left
+  // the model guessing `--text`, which no theme defines, so its light-mode fallback painted a dark-gray
+  // heading on the dark theme. The theme's own `body`/heading rules already colour text for both modes,
+  // so inheriting is the default; `features/theme/token-aliases.ts` is the render-side backstop.
+  "- COLOURS FOLLOW THE THEME, in light AND dark mode. Let text inherit its colour: do not set `color` " +
+  "on headings, paragraphs or lists, and do not give a section a `background` unless the design needs " +
+  "one — the theme already colours them for both modes. When you do need a colour, font or border, " +
+  "use ONLY these theme tokens, each with a literal fallback: `var(--fg, #111)` text, " +
+  "`var(--muted, #666)` secondary text, `var(--bg, #fff)` page background, `var(--surface, #f5f5f5)` " +
+  "and `var(--surface-2, #eee)` panels, `var(--border, #ddd)` lines, `var(--accent, #8a4b2a)` with " +
+  "`var(--accent-fg, #fff)` for buttons, `var(--font-display, inherit)` and `var(--font-body, inherit)` " +
+  "fonts. Never a bare hex and never a bare `var(--accent)`. Do not guess other names (`--text`, " +
+  "`--text-strong`, `--surface-muted`...): a token the theme lacks silently uses its fallback, and a " +
+  "literal fallback is right in only ONE mode — dark text vanishes on the dark theme. A <style> " +
+  "block inside the content is fine and is the expected way to style a bespoke page.\n" +
   "- TAG EDITABLE REGIONS with `data-agent-element=\"<handle>\" data-agent-role=\"region\"` on each " +
   "top-level section. These handles are how you edit parts of the page later without rewriting all " +
   `of it. A starter page ships with ${PAGE_SKELETON_REGIONS.join(", ")}; keep those handles when they ` +

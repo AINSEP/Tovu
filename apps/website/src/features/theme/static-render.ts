@@ -17,6 +17,7 @@ import { escapeHtml } from "#src/platform/html/escape";
 import { withEntryListStyleOnce } from "./entry-list-render.js";
 import { findUnrewrittenAssetPaths, rewriteAssetPaths, tokenStylesheetSentinel } from "./static-asset-contract.js";
 import { DEFAULT_THEME_SLOTS, type DiscoveredTheme, type ThemeSlotDescriptor, type ThemeTokens } from "./theme.js";
+import { themeTokenAliasDeclarations } from "./token-aliases.js";
 
 /**
  * @file Real (non-spike) request-time rendering for `static`-tier themes.
@@ -31,8 +32,11 @@ import { DEFAULT_THEME_SLOTS, type DiscoveredTheme, type ThemeSlotDescriptor, ty
  * callers fall back to the existing `fallbackBody()` for those.
  */
 
+/** Theme aliases ({@link themeTokenAliasDeclarations}) ride on the dark `:root` rule so they
+ *  resolve against whichever mode's tokens are active — see `token-aliases.ts`. */
 function tokensToRootCss(tokens: ThemeTokens, tokensLight: ThemeTokens): string {
-  const darkLines = Object.entries(tokens).map(([k, v]) => `  ${k}: ${v};`);
+  const darkEntries = [...Object.entries(tokens), ...themeTokenAliasDeclarations({ tokens, tokensLight })];
+  const darkLines = darkEntries.map(([k, v]) => `  ${k}: ${v};`);
   const lightLines = Object.entries(tokensLight).map(([k, v]) => `  ${k}: ${v};`);
   return (
     `:root {\n${darkLines.join("\n")}\n}\n` +

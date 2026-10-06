@@ -33,7 +33,11 @@ export type PageSkeletonRegion = (typeof PAGE_SKELETON_REGIONS)[number];
  * Styling references theme tokens as `var(--token, <literal>)` per D-3/REQ-8 — custom property with
  * a literal fallback, never a bare hex. The literals here are only the fallback leg; the real values
  * come from the active theme's `:root` emission, so a skeleton page already looks like the site
- * before a model has touched it.
+ * before a model has touched it. Only names the themes actually define (`--surface`,
+ * `--font-display`, `--accent`), and no text colour at all — headings and body text inherit the
+ * theme's own, which is right in light AND dark mode. This file once used `--text`/`--text-strong`/
+ * `--surface-muted`/`--font-heading`, which no theme defines; the model learned that vocabulary from
+ * here, and its light-mode fallbacks put dark text on the dark theme (demo video V1, 2026-10-05).
  *
  * Deliberately readable and hand-editable: the operator sees this markup in the editor's HTML view
  * on a brand-new page, and it is the first thing that teaches them what a region is.
@@ -52,9 +56,9 @@ export const DEFAULT_PAGE_SKELETON = `<section data-agent-element="page-hero" da
 </section>
 
 <style>
-  .page-hero { padding: 4rem 1.5rem; text-align: center; background: var(--surface-muted, #f6f5f3); }
-  .page-hero h1 { font-family: var(--font-heading, inherit); color: var(--text-strong, #1b1b1b); margin: 0 0 .5rem; }
-  .page-body { padding: 3rem 1.5rem; max-width: 46rem; margin: 0 auto; color: var(--text, #333); }
+  .page-hero { padding: 4rem 1.5rem; text-align: center; background: var(--surface, #f6f5f3); }
+  .page-hero h1 { font-family: var(--font-display, inherit); margin: 0 0 .5rem; }
+  .page-body { padding: 3rem 1.5rem; max-width: 46rem; margin: 0 auto; }
   .page-cta { padding: 3rem 1.5rem; text-align: center; }
   .page-cta a { color: var(--accent, #8a4b2a); font-weight: 600; }
 </style>

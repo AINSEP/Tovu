@@ -104,7 +104,8 @@ function escapeForRegExp(value: string): string {
  * (private) `tokensToRootCss` emits at request time — duplicated rather than imported so this module
  * stays independent of that file's export surface; both are pure, four-line, and derived from the
  * identical `ThemeTokens` shape, so drift risk is low relative to widening a shared render-path file's
- * public API for one caller. */
+ * public API for one caller. One deliberate difference: no `token-aliases.ts` aliases — those exist
+ * for assistant-written page content, and this standalone theme index carries none. */
 function tokensToRootCss(theme: DiscoveredTheme): string {
   const darkLines = Object.entries(theme.tokens).map(([key, value]) => `  ${key}: ${value};`);
   const lightLines = Object.entries(theme.tokensLight).map(([key, value]) => `  ${key}: ${value};`);

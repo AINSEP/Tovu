@@ -4,6 +4,7 @@ import { MAX_SLUG_LENGTH, SLUG_FORMAT_PATTERN, type PostRecord } from "#src/feat
 import type { DiscoveredTheme, StaticMenuItem, TemplateNode } from "#src/features/theme/index";
 import { resolveTemplateId, resolveLiquidTemplateId, resolveHandlebarsTemplateId } from "#src/features/theme/theme";
 import { renderStaticPage } from "#src/features/theme/static-render";
+import { themeTokenAliasDeclarations } from "#src/features/theme/token-aliases";
 import {
   renderEntryList,
   renderEntryListStructuredData,
@@ -3020,8 +3021,9 @@ const BASE_STYLE = `
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 `;
 
+/** Carries the same guessed-name aliases as the static tier's `:root` block — see `token-aliases.ts`. */
 function tokensToCss(tokens: Record<string, string>): string {
-  const decls = Object.entries(tokens)
+  const decls = [...Object.entries(tokens), ...themeTokenAliasDeclarations({ tokens })]
     .map(([name, value]) => `${name}: ${value};`)
     .join(" ");
   return `:root { ${decls} }\n  body { font-family: var(--font-body, system-ui, sans-serif); }`;
