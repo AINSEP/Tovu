@@ -19,6 +19,8 @@ import { SiteBackupPlanStore } from "../plan-store.js";
 import type { SiteBackupSources } from "../sources.js";
 import { buildSiteBackupRegistrations, siteBackupAgentToolCatalog, type SiteBackupToolDeps } from "../tool-registrations.js";
 import { githubFromSource } from "../../source-control/__tests__/fixtures/github-from-source.js";
+import { InMemorySourceControlCredentialSetRepo } from "../../source-control/repo.memory.js";
+import { createSourceControlCredential } from "../../source-control/store.js";
 import { FakeGitHub } from "./fixtures/fake-github.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
@@ -150,6 +152,7 @@ interface HarnessOptions {
 function harness(t: TestContext, options: HarnessOptions = {}) {
   const site = makeSite(t);
   const repo = new InMemoryCustomCredentialSetRepo();
+  const sourceControlRepo = new InMemorySourceControlCredentialSetRepo();
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer(keyring);
   const github = new FakeGitHub();
@@ -167,6 +170,7 @@ function harness(t: TestContext, options: HarnessOptions = {}) {
     },
     workspaceId: WORKSPACE_ID,
     customCredentialSetRepo: repo,
+    sourceControlCredentialSetRepo: sourceControlRepo,
     siteAssistantSecretSealer: options.openSealer ? options.openSealer(sealer) : sealer,
     customCredentialsHttpClient: github,
     loadSourceControlProviders: githubFromSource,
@@ -207,6 +211,12 @@ function harness(t: TestContext, options: HarnessOptions = {}) {
     },
     seed: (label = "github", baseUrl = "https://api.github.com") =>
       createCustomCredential(writeDeps, { workspaceId: WORKSPACE_ID, label, category: "source-control", baseUrl, additionalHosts: [], connection: { token: TOKEN } }),
+    /** Saves a GitHub connection the way chat's "Connect GitHub" form does (`source_control_propose_credential`). */
+    seedConnection: (label = "GitHub backup") =>
+      createSourceControlCredential(
+        { ...writeDeps, repo: sourceControlRepo, loadSourceControlProviders: githubFromSource, fetchFn: (async () => new Response("{}", { status: 401 })) as typeof fetch },
+        { workspaceId: WORKSPACE_ID, label, connection: { providerId: "github", token: TOKEN } }
+      ),
   };
 }
 
@@ -463,6 +473,24 @@ test("no saved GitHub credential is CREDENTIAL_NOT_FOUND; a named label that doe
   assert.match(wrong.message as string, /'gh-backup'/);
   assert.match(wrong.message as string, /saved labels: 'github'/);
   assert.equal(h.github.calls.length, 0);
+});
+
+// Demo dry run 2026-10-05: chat's "Connect GitHub" form saves into the source-control store, but the
+// backup read only custom credentials, so a person who filled the form in was still told
+// CREDENTIAL_NOT_FOUND and sent to the Access Tokens page.
+test("a GitHub connection saved through chat's Connect GitHub form is used by the plan and the push", async (t) => {
+  const h = harness(t);
+  await h.seedConnection("GitHub backup");
+
+  const planned = await plan(h);
+  assert.equal(planned.planned, true, `the plan should succeed: ${JSON.stringify(planned)}`);
+  assert.equal(planned.credential, "GitHub backup");
+  assert.ok(h.github.calls.every((c) => c.method === "GET"));
+
+  const { pending } = await beginCall(h, planned.planId as string);
+  const pushed = await pending;
+  assert.equal(pushed.pushed, true, `the push should succeed: ${JSON.stringify(pushed)}`);
+  assert.deepEqual(h.github.unexpected, []);
 });
 
 test("two saved GitHub credentials are CREDENTIAL_AMBIGUOUS until one is named", async (t) => {

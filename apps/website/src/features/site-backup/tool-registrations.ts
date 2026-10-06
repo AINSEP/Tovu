@@ -35,6 +35,8 @@ import { siteKeySources, siteKeySourcesForSiteDir } from "../webhooks/site-key-s
 import { SITE_BACKUP_PUSH_TOOL_ID } from "./confirmation-ui.js";
 import type { CredentialedRepositoryTarget, InspectBackupRepositoryResult, SourceControlProvider, UploadedBackupBlob } from "../source-control/provider-module.js";
 import { buildSourceControlProviders, findReservedPath, pickSourceControlProviderForApi, type LoadSourceControlProviders } from "../source-control/provider-registry.js";
+import { isSourceControlProviderId, resolveDefaultForSourceControl, SourceControlCredentialSecretStoreUnconfiguredError } from "../source-control/store.js";
+import type { SourceControlCredentialSetRepoPort } from "../source-control/types.js";
 import { siteBackupPlanStore as DEFAULT_PLAN_STORE, type SiteBackupPlan, type SiteBackupPlanStore } from "./plan-store.js";
 import {
   buildSiteBackupManifest,
@@ -122,7 +124,7 @@ const PLAN_SCHEMA = {
   properties: {
     credential: {
       type: "string",
-      description: "Label of the saved custom credential to push with. Optional when exactly one saved credential points at a host's apiOrigin (source_control_get_capabilities lists each host's apiOrigin).",
+      description: "Label of the saved custom credential or host connection to push with. Optional when exactly one saved custom credential points at a host's apiOrigin (source_control_get_capabilities lists each host's apiOrigin), or when none does and the host has a saved connection.",
     },
     owner: { type: "string", description: "Owner or organization (the account) of the target repository on the host." },
     repo: { type: "string", description: "Target repository name. It must be PRIVATE and already have at least one commit." },
@@ -147,7 +149,7 @@ export const siteBackupAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: PLAN_TOOL_ID,
     description:
-      "Plans a BACKUP OF THIS SITE to a private repository on a git host a turned-on Agent Plugin provides (source_control_get_capabilities lists each host with its label, apiOrigin and maxFileBytes) — the site's database (content, members, form submissions, admin accounts, credentials encrypted), media, themes, installed plugins and skills, and settings — as one folder, through a saved custom credential (Access Tokens page -> 'Add custom provider', base URL = that host's apiOrigin). Use this to back up or keep a copy of the site itself; to publish the RENDERED site to a repository use source_control_execute_commit instead. Read-only: it writes nothing anywhere. It checks the credential, that the repository is PRIVATE (public and internal repositories are refused, because the database holds user data), that the credential can push, that the branch exists (defaults to the repository's default branch; an empty repository is refused — it needs a first commit such as a README), snapshots the database, lists every file with its size, and checks the limits (no file over the host's maxFileBytes, at most 3000 files and 1 GiB). Returns {planned: true, planId, expiresAt, credential, repository, visibility, branch, folder, folderExists, include, fileCount, totalBytes, totalSize, files: [{path, bytes}], skipped, notes, nextStep}, or {planned: false, code, message} naming what to fix (codes: CREDENTIAL_NOT_FOUND, CREDENTIAL_AMBIGUOUS, CREDENTIAL_UNREADABLE, REPOSITORY_NOT_FOUND, REPOSITORY_NOT_PRIVATE, NO_PUSH_PERMISSION, REPOSITORY_EMPTY, BRANCH_NOT_FOUND, FOLDER_IS_FILE, DATABASE_SNAPSHOT_FAILED, LIMIT_EXCEEDED, PROVIDER_ERROR, NETWORK_UNREACHABLE, UNAVAILABLE). Show the human the plan (repository, branch, folder, what is included, file count and size, anything skipped), then call site_backup_push with the planId.",
+      "Plans a BACKUP OF THIS SITE to a private repository on a git host a turned-on Agent Plugin provides (source_control_get_capabilities lists each host with its label, apiOrigin and maxFileBytes) — the site's database (content, members, form submissions, admin accounts, credentials encrypted), media, themes, installed plugins and skills, and settings — as one folder, through the host's connection saved with source_control_propose_credential or a saved custom credential (Access Tokens page -> 'Add custom provider', base URL = that host's apiOrigin). With no connection yet, tell the person the repository rules below and ask which repository first, then open that form. Use this to back up or keep a copy of the site itself; to publish the RENDERED site to a repository use source_control_execute_commit instead. Read-only: it writes nothing anywhere. It checks the credential, that the repository is PRIVATE (public and internal repositories are refused, because the database holds user data), that the credential can push, that the branch exists (defaults to the repository's default branch; an empty repository is refused — it needs a first commit such as a README), snapshots the database, lists every file with its size, and checks the limits (no file over the host's maxFileBytes, at most 3000 files and 1 GiB). Returns {planned: true, planId, expiresAt, credential, repository, visibility, branch, folder, folderExists, include, fileCount, totalBytes, totalSize, files: [{path, bytes}], skipped, notes, nextStep}, or {planned: false, code, message} naming what to fix (codes: CREDENTIAL_NOT_FOUND, CREDENTIAL_AMBIGUOUS, CREDENTIAL_UNREADABLE, REPOSITORY_NOT_FOUND, REPOSITORY_NOT_PRIVATE, NO_PUSH_PERMISSION, REPOSITORY_EMPTY, BRANCH_NOT_FOUND, FOLDER_IS_FILE, DATABASE_SNAPSHOT_FAILED, LIMIT_EXCEEDED, PROVIDER_ERROR, NETWORK_UNREACHABLE, UNAVAILABLE). Show the human the plan (repository, branch, folder, what is included, file count and size, anything skipped), then call site_backup_push with the planId.",
     sideEffects: "none",
     authorization: { permission: PUSH_PERMISSION },
     inputSchema: PLAN_SCHEMA,
@@ -181,6 +183,9 @@ export interface SiteBackupToolDeps {
   readonly authorize: AuthorizeFn;
   readonly workspaceId: string;
   readonly customCredentialSetRepo: CustomCredentialSetRepoPort;
+  /** The connections chat's "Connect <host>" form saves (`source_control_propose_credential`); a
+   *  host's default one is used when no custom credential points at it. `RouteDeps` has it. */
+  readonly sourceControlCredentialSetRepo?: SourceControlCredentialSetRepoPort;
   readonly siteAssistantSecretSealer: SecretSealerPort;
   readonly customCredentialsHttpClient: HttpClientPort;
   /** The git-host providers a backup pushes through (the installed, enabled Agent Plugins when
@@ -284,7 +289,7 @@ async function pickCredentialLabel(deps: SiteBackupToolDeps, providers: readonly
     return {
       ok: false,
       code: "CREDENTIAL_NOT_FOUND",
-      message: `no saved credential points at ${where} (${labelList(labels)}). Save a ${providers.map((provider) => provider.label).join(" or ")} token on the Access Tokens page ('Add custom provider', base URL ${where}), or name one with 'credential'.`,
+      message: `no saved credential points at ${where} (${labelList(labels)}). Connect ${providers.map((provider) => provider.label).join(" or ")} with source_control_propose_credential (a form in this chat), or save a token on the Access Tokens page ('Add custom provider', base URL ${where}), or name one with 'credential'.`,
     };
   }
   return { ok: false, code: "CREDENTIAL_AMBIGUOUS", message: `${matching.length} saved credentials point at ${where} (${labelList(matching)}); name one with 'credential'.` };
@@ -336,6 +341,35 @@ function unreadableCredentialMessage(deps: SiteBackupToolDeps, label: string): s
 }
 
 /**
+ * The host's default connection saved through chat's "Connect <host>" form, when no custom
+ * credential points at the host. Demo dry run 2026-10-05: that form saves into the source-control
+ * store, which this tool never read, so a person who had just filled it in was still told
+ * CREDENTIAL_NOT_FOUND. A named `credential` matches the connection's label, which is also how the
+ * push re-resolves the plan's credential.
+ *
+ * @complexity O(providers) repo reads, at most one decrypt each.
+ */
+async function resolveHostConnection(deps: SiteBackupToolDeps, providers: readonly SourceControlProvider[], requested: string | undefined): Promise<ResolvedBackupCredential | Refusal | null> {
+  const repo = deps.sourceControlCredentialSetRepo;
+  if (!repo) return null;
+  for (const provider of providers) {
+    if (!isSourceControlProviderId(provider.id)) continue;
+    let found;
+    try {
+      found = await resolveDefaultForSourceControl({ repo, sealer: deps.siteAssistantSecretSealer }, { workspaceId: deps.workspaceId, providerId: provider.id });
+    } catch (err) {
+      if (err instanceof SourceControlCredentialSecretStoreUnconfiguredError) return { ok: false, code: "CREDENTIAL_UNREADABLE", message: unreadableCredentialMessage(deps, `${provider.label} connection`) };
+      throw err;
+    }
+    if (!found || (requested !== undefined && requested !== found.label)) continue;
+    const { token } = found.connection;
+    const connection: CustomProviderConnectionInput = "username" in found.connection ? { token, username: found.connection.username } : { token };
+    return { ok: true, label: found.label, baseUrl: provider.apiOrigin, connection, provider };
+  }
+  return null;
+}
+
+/**
  * Resolves the credential the backup pushes with. A missing row and an undecryptable one are
  * different codes; the decrypt error's own text is never used (it can quote plaintext).
  *
@@ -345,7 +379,10 @@ async function resolveBackupCredential(deps: SiteBackupToolDeps, requested: stri
   const providers = await loadBackupProviders(deps);
   if (!providers.ok) return providers;
   const picked = await pickCredentialLabel(deps, providers.providers, requested);
-  if (!picked.ok) return picked;
+  if (!picked.ok) {
+    if (picked.code !== "CREDENTIAL_NOT_FOUND") return picked;
+    return (await resolveHostConnection(deps, providers.providers, requested)) ?? picked;
+  }
   let resolved;
   try {
     resolved = await resolveCustomCredentialByLabel({ repo: deps.customCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, { workspaceId: deps.workspaceId, label: picked.label });
