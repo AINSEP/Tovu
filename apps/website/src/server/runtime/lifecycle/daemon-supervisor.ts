@@ -21,7 +21,6 @@ import { execFileSync } from "node:child_process";
 import {
   createNodeDaemonProcessAdapter,
   createNodeSupervisorScheduler,
-  createSupervisorRegistry,
 } from "@jini-ai/sidecar/supervisor/node";
 import { createDaemonSupervisor as createSidecarSupervisor } from "@jini-ai/sidecar/supervisor";
 import type { DaemonSupervisorRequired, SpawnedDaemonProcess as SidecarDaemonProcess, SupervisorScheduler } from "@jini-ai/sidecar/supervisor";
@@ -29,6 +28,7 @@ import path from "node:path";
 
 import { clearAssistantDaemonFailure, recordAssistantDaemonFailure } from "./readiness-state.js";
 import { getAgentDaemonPortForSpawnEnv } from "./agent-daemon-port.js";
+import { createAssistantDaemonRegistry } from "./assistant-daemon-registry.js";
 import { AGENT_DAEMON_EXIT_CODE, createRespawnPolicy } from "#src/assistant/index";
 import type { RespawnDecision, RespawnPolicy } from "#src/assistant/index";
 
@@ -386,8 +386,7 @@ export function isDaemonProcessForWorkspace(commandLine: string, workspaceId: st
 function createRealDaemonProcessPorts(input: DaemonSpawnEnvInput): DaemonProcessPorts {
   const daemonPath = resolveDaemonScriptPath();
   const args = buildDaemonSpawnArgs({ daemonPath, workspaceId: input.workspaceId });
-  const registryPath = path.join(process.env.TOVU_SITE_DIR ?? input.siteDir, "ops", "assistant-daemon.json");
-  const registry = createSupervisorRegistry({ registryPath });
+  const { registryPath, registry } = createAssistantDaemonRegistry({ siteDir: input.siteDir }, {});
   function createProcessAdapter() {
     const isCompiled = daemonPath.endsWith(".js");
     return createNodeDaemonProcessAdapter({

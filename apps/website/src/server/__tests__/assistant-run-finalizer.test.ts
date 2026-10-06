@@ -505,19 +505,27 @@ test("a dropped stream reconnects from event zero and saves every event exactly 
   assert.deepEqual(row.events, [{ kind: "text", text: "First second" }]);
 });
 
-test("reconnect exhaustion stops watching and leaves an unproven run available for reattachment", { timeout: 5000 }, async (t) => {
+test("reconnect exhaustion keeps a live run watched until the daemon proves it gone", { timeout: 5000 }, async (t) => {
   const daemon = fakeDaemon({ events: () => streamOf(text("Partial")), runStatus: 200 });
+  let probes = 0;
+  // A live daemon outlasts the reconnect budget, then disappears. The finalizer must still own
+  // the row at that point; returning abandoned while live would strand it after the daemon dies.
+  daemon.runStatus = async () => ++probes <= 3 ? 200 : 404;
   const { app, finalizer } = harness(daemon);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const conversationId = await startConversation(baseUrl, cookie);
   await putStub(baseUrl, cookie, conversationId);
   await finalizer.idle();
-  assert.equal(daemon.opened, 3, "one attempt plus two reconnects");
+  assert.equal(daemon.opened, 4, "the live run remains watched beyond two reconnects");
   assert.equal(finalizer.activeCount(), 0);
   const row = await assistantRow(baseUrl, cookie, conversationId);
-  assert.equal(row.runStatus, "running", "exhaustion alone does not prove failure");
+  assert.equal(row.runStatus, "canceled", "the watch must observe the later unknown-run proof");
   assert.equal(row.content, "Partial");
-  assert.deepEqual(row.events, [{ kind: "text", text: "Partial" }]);
+  assert.deepEqual(row.events, [{ kind: "text", text: "Partial" }, {
+    kind: "status",
+    label: "The assistant restarted while this answer was running, so it stopped.",
+    detail: "Anything it wrote before the restart is kept above. Send your message again to retry.",
+  }]);
 });
 
 test("the default daemon client forwards token, principal and encoded run path through reconnect to a saved answer", async (t) => {

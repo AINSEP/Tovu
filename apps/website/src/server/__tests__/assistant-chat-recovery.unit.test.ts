@@ -13,8 +13,9 @@ import type { RouteDeps } from "../routes/types.js";
 
 /** Spec/decision: only a serving boot reconciles transcripts. A surviving daemon run is adopted
  * through its replayable stream, so the row remains running until its answer is persisted and
- * the daemon releases the conversation. A 404 alone proves interruption; transport/auth errors
- * prove nothing. Ports and fakes keep this contract independent of processes or HTTP listeners. */
+ * the daemon releases the conversation. A 404 proves interruption; transport/auth errors start
+ * bounded resolution. Fresh live proof renews the watch. Ports and fakes keep this contract
+ * independent of processes or HTTP listeners. */
 function harness(required: { status: number | null }, optional: { events?: ChatMessage["events"] } = {}) {
   const message: ChatMessage = { id: "answer", role: "assistant", content: "partial", events: optional.events ?? [], runId: "run-old", runStatus: "running" };
   const tracker = createLiveRunTracker();
@@ -40,8 +41,8 @@ function harness(required: { status: number | null }, optional: { events?: ChatM
     },
   };
   const daemon: RunDaemonClient = {
-    runStatus: async (runId, principalId) => { calls.push({ runId, principalId }); return required.status; },
-    openEvents: async (runId, principalId) => {
+    runStatus: async ({ runId, principalId }) => { calls.push({ runId, principalId }); return required.status; },
+    openEvents: async ({ runId, principalId }) => {
       calls.push({ stream: runId, principalId });
       return required.status === 404 ? new Response(null, { status: 404 }) : new Response(body);
     },
@@ -143,7 +144,7 @@ test("restart recovery through the lazy history ledger persists the surviving da
   await store.appendMessage({ conversationId: "chat", message: { id: "answer", role: "assistant", runId: "run-old", runStatus: "running", content: "Partial" } });
   const daemon: RunDaemonClient = {
     runStatus: async () => 200,
-    openEvents: async (runId, principalId) => {
+    openEvents: async ({ runId, principalId }) => {
       assert.equal(runId, "run-old");
       assert.equal(principalId, "owner");
       return new Response(`event: agent\ndata: ${JSON.stringify({ runId, kind: "agent", payload: { type: "text_delta", delta: "Durable recovered answer" } })}\n\nevent: end\ndata: ${JSON.stringify({ runId, kind: "end", payload: { status: "succeeded", code: 0 } })}\n\n`);
@@ -169,10 +170,10 @@ test("recovery probes the previous live daemon port and switches only after that
     currentUrl: () => "http://127.0.0.1:4102",
     fetch: async (url) => { calls.push(String(url)); return new Response(null, { status: String(url).includes(":4101/") ? 200 : 404 }); },
   });
-  assert.equal(await client.runStatus("run-old", "owner"), 200);
-  assert.equal((await client.openEvents("run-old", "owner")).status, 200);
+  assert.equal(await client.runStatus({ runId: "run-old", principalId: "owner" }, {}), 200);
+  assert.equal((await client.openEvents({ runId: "run-old", principalId: "owner" }, {})).status, 200);
   alive = false;
-  assert.equal(await client.runStatus("run-old", "owner"), 404);
+  assert.equal(await client.runStatus({ runId: "run-old", principalId: "owner" }, {}), 404);
   assert.equal(discovered, 1);
   assert.deepEqual(calls, ["http://127.0.0.1:4101/api/runs/run-old", "http://127.0.0.1:4101/api/runs/run-old/events", "http://127.0.0.1:4102/api/runs/run-old"]);
 });
@@ -184,8 +185,8 @@ test("a failed prior-daemon discovery is inconclusive and never falls through to
     currentUrl: () => "http://127.0.0.1:4102",
     fetch: async () => { fetched++; return new Response(null, { status: 404 }); },
   });
-  assert.equal(await client.runStatus("run-old", "owner"), null);
-  await assert.rejects(client.openEvents("run-old", "owner"), { message: "registry read failed" });
+  assert.equal(await client.runStatus({ runId: "run-old", principalId: "owner" }, {}), null);
+  await assert.rejects(client.openEvents({ runId: "run-old", principalId: "owner" }, {}), { message: "registry read failed" });
   assert.equal(fetched, 0);
 });
 
@@ -196,12 +197,12 @@ test("adopted watches use the recovery daemon while new sends use the current da
   const finalizer = createAssistantRunFinalizer({
     ledger: h.ledger,
     recoveryDaemon: {
-      runStatus: async (runId) => { calls.push(`probe:${runId}`); return 200; },
-      openEvents: async (runId) => { calls.push(`recovered:${runId}`); return completed(runId); },
+      runStatus: async ({ runId }) => { calls.push(`probe:${runId}`); return 200; },
+      openEvents: async ({ runId }) => { calls.push(`recovered:${runId}`); return completed(runId); },
     },
     daemon: {
       runStatus: async () => 200,
-      openEvents: async (runId) => { calls.push(`current:${runId}`); return completed(runId); },
+      openEvents: async ({ runId }) => { calls.push(`current:${runId}`); return completed(runId); },
     },
   });
   assert.equal(await finalizer.reconcileInterrupted({}, {}), 0);

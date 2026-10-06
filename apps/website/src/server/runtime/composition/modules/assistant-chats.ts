@@ -20,8 +20,7 @@
  * scope, so the two get separate mounts.
  */
 import type { Express, Request, Response } from "express";
-import { join } from "node:path";
-import { readLiveDaemonRegistryRecord } from "@jini-ai/sidecar";
+import { readPreviousAssistantDaemon } from "../../lifecycle/assistant-daemon-registry.js";
 
 import { deriveContentConversationTitle } from "#src/contracts/headless/content-chat-title";
 import { deriveConversationTitle } from "@jini-ai/chat/core";
@@ -95,7 +94,7 @@ export function createAssistantChatsModule(deps: RouteDeps, options: AssistantCh
     ledger: deps.chatRunLedger, observability: deps.observability,
     ...(options.recoverInterrupted && deps.siteBinding?.dir ? {
       recoveryDaemon: createHttpRunDaemonClient({ observability: deps.observability ?? createNoopObservabilityPort({}) }, {
-        previousDaemon: () => readLiveDaemonRegistryRecord({ registryPath: join(deps.siteBinding.dir, "ops", "assistant-daemon.json") }),
+        previousDaemon: () => readPreviousAssistantDaemon({ siteDir: deps.siteBinding.dir }, {}),
       }),
     } : {}),
   });
@@ -104,9 +103,10 @@ export function createAssistantChatsModule(deps: RouteDeps, options: AssistantCh
     registerRoutes: (app: Express) => {
       /*
        * Serving-boot repair, before chat routes answer: a queued/running turn may still belong to
-       * a live detached daemon, so reattach its replayable stream and finalizer; cancel only runs
-       * proven gone, preserving partial content and the reason. Child teardown is best effort,
-       * not proof of death. Route registration also happens during static exports inside the
+       * a live detached daemon, so reattach its replayable stream and finalizer. Cancel forgotten
+       * runs or resolve inconclusive watches within a bound, preserving partial content and the
+       * reason; a daemon that still reports the run prevents cancellation. Child teardown is best
+       * effort, not proof of death. Route registration also happens during static exports inside the
        * daemon (and eagerly on importing app.ts); those are not restarts and must never sweep.
        */
       const reconciled = (options.recoverInterrupted ? finalizer.reconcileInterrupted({}, {}) : Promise.resolve(0)).then(

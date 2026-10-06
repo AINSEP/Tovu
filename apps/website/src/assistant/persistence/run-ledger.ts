@@ -60,7 +60,7 @@ export interface InterruptedChatTurn {
 }
 
 export interface ChatRunRecoveryOptions {
-  /** True retains the row: a daemon run was adopted, or its death is still unproven.
+  /** True retains the row: a daemon run was adopted with bounded resolution of uncertainty.
    * Called outside storage transactions so a daemon request cannot hold the database lock. */
   readonly recover?: (input: InterruptedChatTurn) => Promise<boolean>;
 }

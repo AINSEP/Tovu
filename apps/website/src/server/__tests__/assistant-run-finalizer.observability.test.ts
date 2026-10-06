@@ -16,8 +16,8 @@ import { AGENT_DAEMON_TOKEN_ENV_VAR, type ChatRunLedger } from "../../assistant/
 /**
  * @file The finalizer is the API-side seam that sees every daemon run's terminal outcome, so it is
  * where `trackAgentRun` is recorded: one tracked run per watched run, ended with the outcome the
- * finalizer itself proved (succeeded/failed/canceled from the `end` frame, interrupted on a 404,
- * abandoned on reconnect exhaustion), and the follow loop runs inside the run's scope so its
+ * finalizer resolved (succeeded/failed/canceled from the `end` frame, interrupted on a 404,
+ * interrupted on bounded uncertainty), and the follow loop runs inside the run's scope so its
  * ledger writes nest under the run span.
  */
 
@@ -88,14 +88,14 @@ for (const status of ["succeeded", "failed", "canceled"] as const) {
 }
 
 test("a run the daemon no longer knows (404) is tracked as interrupted", async () => {
-  const { runs } = await watchOnce({ daemon: daemon(() => new Response("", { status: 404 })) });
+  const { runs } = await watchOnce({ daemon: daemon(() => new Response("", { status: 404 }), 404) });
   assert.deepEqual(runs.map((run) => run.outcome), [{ status: "interrupted" }]);
 });
 
-test("reconnect exhaustion is tracked as abandoned, not as a failure", async () => {
-  const { runs, ledger } = await watchOnce({ daemon: daemon(() => stream(frame("agent", { type: "text_delta", delta: "Part" }))) });
-  assert.deepEqual(ledger.settled, []);
-  assert.deepEqual(runs.map((run) => run.outcome), [{ status: "abandoned" }]);
+test("inconclusive reconnect exhaustion is saved canceled and tracked as interrupted", async () => {
+  const { runs, ledger } = await watchOnce({ daemon: daemon(() => stream(frame("agent", { type: "text_delta", delta: "Part" })), null) });
+  assert.deepEqual(ledger.settled, ["canceled"]);
+  assert.deepEqual(runs.map((run) => run.outcome), [{ status: "interrupted" }]);
 });
 
 test("a failed terminal write ends the tracked run abandoned with the error, so the span shows why", async () => {
@@ -163,10 +163,10 @@ test("createHttpRunDaemonClient: runStatus and openEvents are each one CLIENT sp
   const { exporter, port } = createInMemoryOtel();
   const client = createHttpRunDaemonClient({ observability: port });
 
-  assert.equal(await client.runStatus("run-secret-77", "principal-secret-3"), 200);
-  const events = await client.openEvents("run-secret-77", "principal-secret-3");
+  assert.equal(await client.runStatus({ runId: "run-secret-77", principalId: "principal-secret-3" }, {}), 200);
+  const events = await client.openEvents({ runId: "run-secret-77", principalId: "principal-secret-3" }, {});
   assert.equal(events.status, 200);
-  assert.equal(await client.runStatus("run-gone", "principal-secret-3"), 404);
+  assert.equal(await client.runStatus({ runId: "run-gone", principalId: "principal-secret-3" }, {}), 404);
 
   const spans = exporter.getFinishedSpans();
   assert.equal(spans.length, 3, "the events span ended at its headers, with the stream still open");
@@ -190,7 +190,7 @@ test("createHttpRunDaemonClient: an unreachable daemon is a null status and an E
   withDaemonEnv(t, `http://127.0.0.1:${closedPort}`);
   const { exporter, port } = createInMemoryOtel();
 
-  assert.equal(await createHttpRunDaemonClient({ observability: port }).runStatus("run-secret-77", "p1"), null);
+  assert.equal(await createHttpRunDaemonClient({ observability: port }).runStatus({ runId: "run-secret-77", principalId: "p1" }, {}), null);
 
   const [span] = exporter.getFinishedSpans();
   assert.equal(span.status.code, SpanStatusCode.ERROR);

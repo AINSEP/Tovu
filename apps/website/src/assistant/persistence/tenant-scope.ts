@@ -76,7 +76,7 @@ export type ChatStoreFactory = (principal: ChatPrincipal) => ChatHistoryStore;
 
 /**
  * The browser's onError/onDone pair reports interruption as failed. Recognize only the exact
- * saved restart notice. For daemon runs, only the finalizer can prove the run died: losing the
+ * saved restart notice. For daemon runs, the finalizer owns proof or bounded resolution: losing the
  * browser's stream does not release a live daemon's conversation slot. Other request-bound runs
  * can be canceled immediately; genuine failures stay failed.
  * @complexity O(message events) time, O(1) space; no storage or input mutation.
