@@ -3542,6 +3542,16 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   padding-inline: 0;
 }
 
+/* The "Add a plugin" tab's "Soon" tag (`add-plugin-tab-soon.ts`), carried as that tab's `navHint`
+   since `@jini-ai/ui`'s tab has no tag slot. This screen's only nav hint, so it is drawn as the
+   sidebar's `.cms-item .soon` pill beside the label rather than as a grey sub-line under it. Jini
+   tokens for the light-pinned island (see this block's header). */
+.agent-plugins-section .jini-tabbed-dialog-nav-text { flex-direction: row; align-items: center; gap: 0.4rem; }
+.agent-plugins-section .jini-tabbed-dialog-nav-text small {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--jini-text-muted); border: 1px solid var(--jini-border); padding: 1px 5px; border-radius: 5px;
+}
+
 /* The one-sentence lede above the list. Replaced `.settings-ui-inert-note`'s dashed-border grey
    box: that treatment means "this control does nothing yet" everywhere else in this admin, which
    is now the opposite of true on this screen — the switch below it is live. A plain lede also

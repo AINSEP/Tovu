@@ -11,6 +11,7 @@ import { useId, useState } from "react";
 import type { AdminAgentPlugin } from "@/lib/api";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { AddAgentPluginPanel } from "./AddAgentPluginPanel";
+import { addPluginTabSoonTag } from "./add-plugin-tab-soon";
 import { AgentPluginDetailsModal } from "./AgentPluginDetailsModal";
 import { AgentPluginDisableConfirmDialog } from "./AgentPluginDisableConfirmDialog";
 import { AgentPluginRow, type AgentPluginRowStateControl } from "./AgentPluginRow";
@@ -422,6 +423,9 @@ export function AgentPlugins({
     {
       id: "add",
       label: t("Add a plugin"),
+      // `TabbedDialogTab` has no tag slot, so the "Soon" tag rides `navHint`; styles.css turns this
+      // screen's nav hint into the sidebar's `.soon` pill beside the label.
+      navHint: addPluginTabSoonTag(locale),
       icon: <UploadIcon />,
       title: t("Agent Plugins"),
       subtitle: t("Install a package you already have."),

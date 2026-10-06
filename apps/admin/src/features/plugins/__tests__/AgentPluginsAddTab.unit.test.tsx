@@ -1,4 +1,4 @@
-import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, renderHook, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -50,12 +50,22 @@ function renderAddTab(port = createFakeAgentPluginInstallPort({ row: NOTE_TAKER 
 }
 
 async function openAddTab() {
-  await userEvent.click(screen.getByRole("button", { name: "Add a plugin" }));
+  await userEvent.click(screen.getByRole("button", { name: /^Add a plugin/ }));
 }
 
 const installButton = () => screen.getByRole("button", { name: "Install (stays off)" });
 
 describe("AgentPlugins — Add a plugin", () => {
+  it("the Add a plugin tab label carries the sidebar's Soon tag and the tab still opens", async () => {
+    renderAddTab();
+    const tab = screen.getByRole("button", { name: /^Add a plugin/ });
+    expect(within(tab).getByText("Soon")).toBeInTheDocument();
+    expect(tab).not.toBeDisabled();
+    await userEvent.click(tab);
+    expect(tab).toHaveClass("active");
+    expect(screen.getByText("Drop a .zip here")).toBeInTheDocument();
+  });
+
   it("offers a .zip upload with Install off until a file is chosen, and a disabled Coming soon URL option", async () => {
     renderAddTab();
     await openAddTab();

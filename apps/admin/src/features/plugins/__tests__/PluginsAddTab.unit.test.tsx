@@ -101,3 +101,15 @@ it("new consent and tab strings are translated in all supported locales", () => 
     expect(t(locale, "{name} is installed and switched off. Turn it on in Downloaded.")).toContain("{name}");
   }
 });
+
+it("the Add a plugin tab label carries the sidebar's Soon tag and still switches to the tab", async () => {
+  const port = createFakePluginsPort({ plugins: [], installSources: ["folder"] });
+  function useHook() { return usePlugins({ port, installPort: createFakePluginInstallPort({ preview }), locale: "en", t: (key) => key }); }
+  render(<Plugins tabId="installed" usePluginsHook={useHook} />);
+  const tab = await screen.findByRole("tab", { name: /^Add a plugin/ });
+  expect(tab.querySelector(".tab-bar-tag")?.textContent).toBe("Soon");
+  expect(tab).not.toBeDisabled();
+  await userEvent.setup().click(tab);
+  expect(window.location.search).toBe("?tab=add");
+  window.history.replaceState(null, "", "/");
+});
