@@ -21,7 +21,7 @@ import { DEPLOY_TARGETS_FILENAME, loadDeployTargetRegistry } from "#src/features
  * @file The bundled `deploy` Agent Plugin's package: valid, installable, and — the part no other
  * bundled plugin has — its deploy-target modules actually load from the installed, frozen digest
  * directory through the real seeder and the real registry. That last test is the dev-path check for
- * the plan's packaging risk (a module imported from `packages/sha256/<digest>/`).
+ * the plan's packaging risk (a module imported from `<pluginId>/package/sha256/<digest>/`).
  */
 
 const CONTENT_ROOT = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins");
@@ -148,7 +148,8 @@ test("upgrade: a site holding an OLDER bundled deploy digest serves the new one 
       await writeFile(descriptorPath, JSON.stringify(descriptor));
 
       await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot });
-      const packages = await readdir(layout.forWorkspace(WORKSPACE_ID).packages);
+      // Layout B (852d711e6): each plugin's digests live under <workspace>/<pluginId>/package/sha256.
+      const packages = await readdir(layout.forWorkspace(WORKSPACE_ID).pluginPackagesDir({ pluginId: "deploy" }));
       assert.equal(packages.length, 2, "the superseded digest stays on disk; the registry must still pick one");
 
       const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID });
