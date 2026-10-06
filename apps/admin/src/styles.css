@@ -95,17 +95,16 @@
   --primary-dim:    oklch(55.29% 0.1129 43.4 / 0.10);
   --primary-ring:   oklch(55.29% 0.1129 43.4 / 0.22);
 
-  /* Assistant-drawn charts (Jini recharts reads `--jini-chart-*`, else Jini's near-black
-     `--jini-primary` default, which this admin never maps — demo V3 2026-10-05: "the color is
-     ugly"). Series 1 is the accent the assistant button wears; 2-6 are fixed-order categorical
-     hues at matched lightness, run through the dataviz palette validator against white: band,
-     chroma floor, CVD >= 8 (worst 10.1 deutan), normal-vision >= 15, >= 3:1 contrast — all pass. */
-  --jini-chart-1: var(--primary);
-  --jini-chart-2: oklch(50% 0.11 240);
-  --jini-chart-3: oklch(64% 0.13 88);
-  --jini-chart-4: oklch(58% 0.15 350);
-  --jini-chart-5: oklch(50% 0.11 155);
-  --jini-chart-6: oklch(48% 0.12 295);
+  /* Assistant-drawn charts (Jini recharts reads `--jini-chart-*`, else Jini's own fallbacks — once
+     the near-black `--jini-primary`, which this admin never maps — demo V3 2026-10-05: "the color
+     is ugly"). Series 1-6 are NOT set here: Jini's default palette (`--jini-chart-default-*`,
+     @jini-ai/ui styles/variables.css) is this admin's palette, promoted to the default (owner
+     2026-10-05: "Claude orange should be the default color"). Its series 1 equals `--primary`, the
+     accent the assistant button wears; 2-6 are fixed-order categorical hues at matched lightness,
+     run through the dataviz palette validator against white: band, chroma floor, CVD >= 8 (worst
+     10.1 deutan), normal-vision >= 15, >= 3:1 contrast — all pass. Set `--jini-chart-1`..`-6` here
+     only if the admin palette must diverge from Jini's default. The neutral tokens below map to
+     this admin's own surface and ink, which Jini's base-token fallbacks would not. */
   --jini-chart-grid: var(--border);
   --jini-chart-axis: var(--muted);
   --jini-chart-cursor: var(--primary-dim);
@@ -225,15 +224,11 @@
   --primary-dim:    oklch(56% 0.10 44 / 0.16);
   --primary-ring:   oklch(56% 0.10 44 / 0.30);
 
-  /* Chart palette stepped for the dark surface (not a flip of the light one): the same hues,
-     validated against oklch(18.5% 0.018 255) — all checks pass (worst CVD 10.9 deutan). Series 1
-     sits a step lighter than dark `--primary`, whose chroma reads grey as a large fill there. */
-  --jini-chart-1: oklch(62% 0.11 44);
-  --jini-chart-2: oklch(64% 0.11 240);
-  --jini-chart-3: oklch(66% 0.13 88);
-  --jini-chart-4: oklch(65% 0.14 350);
-  --jini-chart-5: oklch(56% 0.12 155);
-  --jini-chart-6: oklch(64% 0.12 295);
+  /* Chart series come from Jini's dark default palette, which keys on this admin's `data-theme`
+     too: stepped for the dark surface (not a flip of the light one), the same hues, validated
+     against this admin's oklch(18.5% 0.018 255) — all checks pass (worst CVD 10.9 deutan). Its
+     series 1 sits a step lighter than dark `--primary`, whose chroma reads grey as a large fill
+     there. */
   --jini-chart-grid: var(--border);
   --jini-chart-axis: var(--muted);
   --jini-chart-cursor: var(--primary-dim);
