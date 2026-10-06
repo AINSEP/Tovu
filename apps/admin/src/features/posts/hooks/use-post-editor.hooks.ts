@@ -19,6 +19,7 @@ import { TaskList, TaskItem } from "@tiptap/extension-list";
 
 import type { AdminPost, ThemeTier } from "@/lib/api";
 import type { Translate } from "@/lib/dictionary-translator";
+import { interpolate } from "@/lib/template-i18n";
 import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
 import { MediaImage } from "@/lib/media-image-extension";
 import { Media } from "@/lib/media-embed-extension";
@@ -466,8 +467,16 @@ export async function uploadDroppedFile(port: PostEditorPort, file: File): Promi
  * so `save`'s own cognitive-complexity score doesn't carry this string's branching on top of the
  * stale-settlement guard added the same day.
  */
-function formatSaveSuccessMessage(statusOverride: "draft" | "published" | undefined, version: number): string {
-  return `${statusOverride === "published" ? "Published" : "Saved"} · version ${version}`;
+function formatSaveSuccessMessage(statusOverride: "draft" | "published" | undefined, saved: AdminPost, t: Translate): string {
+  // A Publish whose time is still ahead does not go live yet (2026-10-05) — saying "Published" next
+  // to the "Scheduled" badge contradicted it. The time is shown in local time, as the operator typed it.
+  if (statusOverride === "published" && isScheduledPost({ status: saved.status, publishAt: saved.publishAt ?? null }, Date.now())) {
+    return interpolate(t("Scheduled for {time} · version {version}"), {
+      time: isoToLocalDateTimeInput(saved.publishAt ?? null).replace("T", " "),
+      version: saved.version,
+    });
+  }
+  return `${statusOverride === "published" ? "Published" : "Saved"} · version ${saved.version}`;
 }
 
 /**
@@ -1012,7 +1021,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
       if (!settlement.isCurrent(generation)) return;
       setPost(saved);
       setStatus(nextStatus);
-      setMessage(formatSaveSuccessMessage(statusOverride, saved.version));
+      setMessage(formatSaveSuccessMessage(statusOverride, saved, t));
       setOriginal({ title, slug, status: nextStatus, bodyJson, templateChoice, overridesThemePage, publishAt, featuredMediaId });
       // The real content just landed — any parked standing draft is now obsolete. Not awaited: this
       // is best-effort background bookkeeping (errors are already caught inside the hook), not part

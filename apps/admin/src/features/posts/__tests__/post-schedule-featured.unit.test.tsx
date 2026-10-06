@@ -100,6 +100,31 @@ describe("usePostEditor — publishAt / featured image", () => {
     expect(result.current.dirty).toBe(false);
   });
 
+  it("publishing with a future time reports it as scheduled for that local time, not published", async () => {
+    const port = createFakePostEditorPort({ post: POST });
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: vi.fn(), t: fakeT }));
+    await waitFor(() => expect(result.current.editor).not.toBeNull());
+    await waitFor(() => expect(result.current.post).not.toBeNull());
+
+    const local = isoToLocalDateTimeInput("2099-03-04T05:06:00.000Z");
+    act(() => result.current.setPublishAtInput(local));
+    await act(async () => {
+      await result.current.save("published");
+    });
+    expect(result.current.message).toBe(`Scheduled for ${local.replace("T", " ")} · version ${port.post.version}`);
+  });
+
+  it("publishing with no time, or a past one, still says Published", async () => {
+    const port = createFakePostEditorPort({ post: { ...POST, publishAt: "2001-01-01T00:00:00.000Z" } });
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: vi.fn(), t: fakeT }));
+    await waitFor(() => expect(result.current.editor).not.toBeNull());
+    await waitFor(() => expect(result.current.post).not.toBeNull());
+    await act(async () => {
+      await result.current.save("published");
+    });
+    expect(result.current.message).toBe(`Published · version ${port.post.version}`);
+  });
+
   it("clearing a stored schedule and image sends explicit nulls", async () => {
     const port = createFakePostEditorPort({ post: { ...POST, publishAt: "2099-01-01T16:30:00.000Z", featuredMediaId: "m1" } });
     const { result } = renderHook(() => usePostEditor("p1", { port, navigate: vi.fn(), t: fakeT }));

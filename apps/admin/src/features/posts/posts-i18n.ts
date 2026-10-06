@@ -2518,12 +2518,39 @@ const POST_TEMPLATE_TRANSLATIONS: Record<string, Record<string, string>> = {
   "zh-TW": { "Editor view": "編輯器檢視", "Could not determine the active theme's (\"{themeId}\") capability tier, so this cannot tell whether it has a plain-HTML template to show.": "無法確定使用中主題（\"{themeId}\"）的功能等級，因此無法判斷它是否有可顯示的純 HTML 範本。", "The active theme (\"{themeId}\") is a {themeTier} theme — its page templates are not plain HTML files under this admin, so there is nothing to show here.": "使用中主題（\"{themeId}\"）是 {themeTier} 主題——其頁面範本在此管理後台中不是純 HTML 檔案，因此這裡沒有可顯示的內容。", "Loading template…": "正在載入範本…", "Could not load \"{templateFilename}\" from the \"{themeId}\" theme: {message}": "無法從主題 \"{themeId}\" 載入 \"{templateFilename}\"：{message}" },
 };
 
+/** The post editor's "Publish" success message when the post's time is still ahead (2026-10-05) —
+ *  see `formatSaveSuccessMessage` in `use-post-editor.hooks.ts`. Every locale, so the key-parity test
+ *  holds. */
+const POST_SCHEDULE_TRANSLATIONS: Record<string, Record<string, string>> = {
+  es: { "Scheduled for {time} · version {version}": "Programado para {time} · versión {version}" },
+  id: { "Scheduled for {time} · version {version}": "Dijadwalkan untuk {time} · versi {version}" },
+  de: { "Scheduled for {time} · version {version}": "Geplant für {time} · Version {version}" },
+  ru: { "Scheduled for {time} · version {version}": "Запланировано на {time} · версия {version}" },
+  fa: { "Scheduled for {time} · version {version}": "زمان‌بندی‌شده برای {time} · نسخهٔ {version}" },
+  ar: { "Scheduled for {time} · version {version}": "مجدول في {time} · الإصدار {version}" },
+  ja: { "Scheduled for {time} · version {version}": "{time} に公開予定 · バージョン {version}" },
+  ko: { "Scheduled for {time} · version {version}": "{time}에 게시 예약됨 · 버전 {version}" },
+  pl: { "Scheduled for {time} · version {version}": "Zaplanowano na {time} · wersja {version}" },
+  hu: { "Scheduled for {time} · version {version}": "Ütemezve: {time} · {version}. verzió" },
+  fr: { "Scheduled for {time} · version {version}": "Programmé pour le {time} · version {version}" },
+  uk: { "Scheduled for {time} · version {version}": "Заплановано на {time} · версія {version}" },
+  tr: { "Scheduled for {time} · version {version}": "{time} için zamanlandı · sürüm {version}" },
+  th: { "Scheduled for {time} · version {version}": "กำหนดเผยแพร่ {time} · เวอร์ชัน {version}" },
+  it: { "Scheduled for {time} · version {version}": "Programmato per {time} · versione {version}" },
+  hi: { "Scheduled for {time} · version {version}": "{time} के लिए शेड्यूल किया गया · संस्करण {version}" },
+  ur: { "Scheduled for {time} · version {version}": "{time} کے لیے شیڈول کیا گیا · ورژن {version}" },
+  bn: { "Scheduled for {time} · version {version}": "{time}-এর জন্য নির্ধারিত · সংস্করণ {version}" },
+  "pt-BR": { "Scheduled for {time} · version {version}": "Agendado para {time} · versão {version}" },
+  "zh-CN": { "Scheduled for {time} · version {version}": "已排定于 {time} 发布 · 版本 {version}" },
+  "zh-TW": { "Scheduled for {time} · version {version}": "已排定於 {time} 發布 · 版本 {version}" },
+};
+
 Object.assign(
   POSTS_DICT,
   Object.fromEntries(
     Object.entries(POSTS_DICT).map(([locale, dictionary]) => [
       locale,
-      { ...dictionary, ...POST_TEMPLATE_TRANSLATIONS[locale] },
+      { ...dictionary, ...POST_TEMPLATE_TRANSLATIONS[locale], ...POST_SCHEDULE_TRANSLATIONS[locale] },
     ]),
   ),
 );
