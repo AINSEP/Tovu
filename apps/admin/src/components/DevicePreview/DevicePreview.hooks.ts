@@ -94,17 +94,41 @@ export function devicePreviewButtonHandleProps(
   return agentHandle({ handle: `${handlePrefix}-${entry.key}` }, { role: "button", label: `Preview at ${entry.label} width` });
 }
 
+/** Same 640px phone breakpoint as `styles.css`'s phone rules (card tables, swipeable tabs). */
+const PHONE_VIEWPORT_QUERY = "(max-width: 640px)";
+
+function matchesPhoneViewport(): boolean {
+  return typeof window.matchMedia === "function" && window.matchMedia(PHONE_VIEWPORT_QUERY).matches;
+}
+
 /**
- * The selected device plus its pixel width. Pure view state — no I/O, nothing to inject.
+ * The device a preview opens at when its caller names none: Mobile on a phone, Desktop otherwise.
+ * On a 375px phone a 1280px preview scales by ~0.27 and its body text lands near 4px — unreadable
+ * (mobile catalog P-7/PG-4/TH-4, 2026-10-06); the phone's own width is the useful first view there.
  *
  * @complexity O(1).
  */
-export function useDevicePreviewDevice(initial: DevicePreviewDevice = "desktop"): {
+export function defaultDevicePreviewDevice({ isPhone }: { isPhone: boolean }): DevicePreviewDevice {
+  return isPhone ? "mobile" : "desktop";
+}
+
+/**
+ * The selected device plus its pixel width. View state only; the viewport check is read once, on
+ * mount, so rotating or resizing later never overrides a device the operator picked.
+ *
+ * @param initial - The device to open at. @default Mobile on a phone viewport, else Desktop
+ * @param optional.isPhone - Whether the viewport is phone-width. @default matchMedia (640px)
+ * @complexity O(1).
+ */
+export function useDevicePreviewDevice(
+  initial?: DevicePreviewDevice,
+  { isPhone = matchesPhoneViewport }: { readonly isPhone?: () => boolean } = {},
+): {
   device: DevicePreviewDevice;
   setDevice: (value: DevicePreviewDevice) => void;
   width: number;
 } {
-  const [device, setDevice] = useState<DevicePreviewDevice>(initial);
+  const [device, setDevice] = useState<DevicePreviewDevice>(() => initial ?? defaultDevicePreviewDevice({ isPhone: isPhone() }));
   return { device, setDevice, width: DEVICE_PREVIEW_WIDTHS[device] };
 }
 

@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   DEVICE_PREVIEW_WIDTHS,
+  defaultDevicePreviewDevice,
   devicePreviewButtonHandleProps,
   devicePreviewFrameStyles,
   devicePreviewScale,
@@ -197,11 +198,38 @@ describe("useDevicePreviewDevice", () => {
     expect(result.current.width).toBe(DEVICE_PREVIEW_WIDTHS.desktop);
   });
 
+  it("opens at Mobile on a phone viewport", () => {
+    const { result } = renderHook(() => useDevicePreviewDevice(undefined, { isPhone: () => true }));
+    expect(result.current.device).toBe("mobile");
+    expect(result.current.width).toBe(DEVICE_PREVIEW_WIDTHS.mobile);
+  });
+
+  it("keeps an explicit initial device even on a phone", () => {
+    const { result } = renderHook(() => useDevicePreviewDevice("tablet", { isPhone: () => true }));
+    expect(result.current.device).toBe("tablet");
+  });
+
+  it("reads the default from matchMedia's 640px phone query", () => {
+    // `Once`, not a spy + restore: the setup's `matchMedia` is itself a `vi.fn`, and restoring a
+    // spy on it drops its shared implementation for every later test in the file.
+    vi.mocked(window.matchMedia).mockReturnValueOnce({ matches: true } as MediaQueryList);
+    const { result } = renderHook(() => useDevicePreviewDevice());
+    expect(window.matchMedia).toHaveBeenCalledWith("(max-width: 640px)");
+    expect(result.current.device).toBe("mobile");
+  });
+
   it("tracks the selected device's width", () => {
     const { result } = renderHook(() => useDevicePreviewDevice());
     act(() => result.current.setDevice("tablet"));
     expect(result.current.width).toBe(834);
     act(() => result.current.setDevice("mobile"));
     expect(result.current.width).toBe(390);
+  });
+});
+
+describe("defaultDevicePreviewDevice", () => {
+  it("is Mobile on a phone and Desktop otherwise", () => {
+    expect(defaultDevicePreviewDevice({ isPhone: true })).toBe("mobile");
+    expect(defaultDevicePreviewDevice({ isPhone: false })).toBe("desktop");
   });
 });

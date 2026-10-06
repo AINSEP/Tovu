@@ -1031,23 +1031,22 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
    offset was. */
 .page:has(.page-header-split) { container-type: inline-size; }
 @container (max-width: 620px) {
-  .page-header-split { grid-template-columns: minmax(0, 1fr); }
-  .page-header-split .page-header-lead { grid-column: 1; justify-content: center; }
-  .page-header-split .page-header-text { grid-column: 1; }
+  /* Left-aligned, Back beside the title (mobile catalog P-6/PG-3/MN-4, 2026-10-06). The stacked,
+     centred version this replaced — Back pill, then kicker/title/description, then (Widgets/Menus)
+     a Back/Save row — burnt 140-250px of a phone screen before any content, and its centring
+     disagreed with every list page's left-aligned header. Back shrinks to a 40px arrow square (its
+     `aria-label`, "Back: Pages" etc., still names it) so the title keeps the rest of the row. */
+  .page-header-split { grid-template-columns: auto minmax(0, 1fr); column-gap: var(--space-3); row-gap: var(--space-3); }
+  .page-header-split .page-header-lead { grid-column: 1; grid-row: 1; justify-content: flex-start; }
+  .page-header-split .page-header-text { grid-column: 2; grid-row: 1; align-items: flex-start; text-align: left; }
+  .page-header-split .page-header-lead > .btn-secondary {
+    display: inline-grid; place-items: center; width: 40px; height: 40px; padding: 0; font-size: 0;
+  }
+  .page-header-split .page-header-lead > .btn-secondary::before { content: "\2190"; font-size: var(--text-lg); line-height: 1; }
 
-  /* Widgets/Menus (`:has(.page-header-actions)`) keep Save in the header rather than a separate
-     `.editor-action-row` below a toolbar, so collapsing to one plain stacked column would put Back
-     above the title above Save — three rows for what the owner already approved as two (title,
-     then one button row) on the narrow widget editor before this pass. Two columns instead, so
-     Back and Save can share the second row: title spans both (row 1), Back sits left and Save
-     right on row 2 — same idiom as the wide layout's three rails, just folded from 3 columns × 1
-     row into 2 columns × 2 rows instead of 1 column × 3 rows. The toolbar editors (Pages/Posts/
-     Forms) have no `.page-header-actions` at all, so this block never matches them and their
-     existing Back-then-title stack above is untouched. */
-  .page-header-split:has(.page-header-actions) { grid-template-columns: 1fr 1fr; }
-  .page-header-split:has(.page-header-actions) .page-header-text { grid-column: 1 / -1; grid-row: 1; }
-  .page-header-split:has(.page-header-actions) .page-header-lead { grid-column: 1; grid-row: 2; justify-content: flex-start; }
-  .page-header-split:has(.page-header-actions) .page-header-actions { grid-column: 2; grid-row: 2; justify-self: end; }
+  /* Widgets/Menus keep their header actions (Save, Copy embed…) — as one left-aligned row under
+     the title, the same place every list page puts its `.page-actions`. */
+  .page-header-split .page-header-actions { grid-column: 1 / -1; grid-row: 2; justify-self: start; }
 }
 
 /* Second half of the same 2026-09-06 experiment (owner: "put the published save and delete buttons
@@ -2248,6 +2247,18 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 .menu-item-fields .tb-btn { flex: 0 0 auto; }
 /* Children get a left guide rule instead of bare indentation, so nesting reads visually. */
 .menu-item-row[style*="margin-left"] { padding-left: 0.9rem; border-left: 2px solid var(--border); margin-top: 0.6rem; }
+/* Phones (mobile catalog MN-2, 2026-10-06): each level's inline `marginLeft: depth * 20` compounds
+   inside its parent row, so level-3 cards were ~190px wide and their controls reflowed differently
+   at every depth. The guide rule already shows the nesting; one small step per level is enough
+   (`!important` only because the depth margin is an inline style). Label + link type share line 1,
+   the link target gets line 2 whole (the page select clipped to "Documentatio" at 6.5rem), and the
+   move/child/remove buttons share line 3 with Remove pushed to the far end. */
+@media (max-width: 640px) {
+  .menu-item-row[style*="margin-left"] { margin-left: 0 !important; padding-left: var(--space-2); }
+  .menu-item-fields { padding: 0.6rem; }
+  .menu-item-fields > label:nth-of-type(n+3) :is(input, select) { flex: 1 1 100%; width: auto; min-width: 0; }
+  .menu-item-fields > .tb-btn:last-child { margin-left: auto; }
+}
 .editor-shell { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--surface); box-shadow: var(--shadow-sm); }
 /* Toolbar height (owner feedback on a screenshot, 2026-08-11: "~25% shorter" — two tall rows plus a
    character-count line ate too much vertical space above the writing area). Padding/gap trimmed
@@ -6015,4 +6026,50 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   /* An inline detail row (Users' expanded panel spans every column) now gets the card's width,
      not the old table's — its own controls must not keep a desktop min-width past it. */
   table.list-table > tbody > tr > td[colspan] :is(select, input) { max-width: 100%; }
+}
+
+/* ------------------------------------------------------------------------
+   Phone tap targets (mobile catalog P-3, 2026-10-06). Measured at 375px: checkboxes 16x16, sort
+   headers 13px tall, row ⋮ triggers 30x30, menu-item ↑/↓/× and chip buttons 24-26px, "Remove"
+   26px tall — all well under the ~40px a fingertip needs. One floor for every button-like control
+   in the page body instead of per-screen patches. Not on `[role="switch"]`: the pill switches
+   draw their own fixed-size track.
+   ------------------------------------------------------------------------ */
+@media (max-width: 640px) {
+  .admin-content :is(button, select, summary, [role="button"], a.btn-primary, a.btn-secondary, a.btn-ghost):not([role="switch"]) {
+    min-height: 40px;
+  }
+  .admin-content :is(button, [role="button"]):not([role="switch"]) { min-width: 40px; }
+  .admin-content :is(input[type="checkbox"], input[type="radio"]) { width: 20px; height: 20px; }
+
+  /* A card row opens its record from anywhere on the card, not only from the ~16px-tall title
+     link (US-2): the title link's `::after` stretches over the whole row, and the row's own
+     controls sit above it so they still get their taps. */
+  table.list-table > tbody > tr:has(> td:first-child > a[href]) { position: relative; }
+  table.list-table > tbody > tr > td:first-child > a[href]::after { content: ""; position: absolute; inset: 0; }
+  table.list-table > tbody > tr > td:not(:first-child) :is(a, button, select, input, label) { position: relative; z-index: 1; }
+}
+
+/* ------------------------------------------------------------------------
+   Phone editor chrome (mobile catalog P-6/PG-3/PG-5, 2026-10-06), Page and Post editors. The
+   header itself is the `.page-header-split` container rule above; this is the toolbar and the
+   Save row under it.
+   ------------------------------------------------------------------------ */
+@media (max-width: 640px) {
+  /* Device toggle and template picker share one row (they took two, plus the view tabs' own). The
+     "390px" readout goes — the pressed device icon already says which width is showing. Prefixed
+     with `.page-editor-toolbar` to outrank `styles/pages.css`'s own wrap/width rules for these
+     same classes whichever stylesheet loads last. */
+  .page-editor-toolbar .page-editor-toolbar-end { flex-wrap: nowrap; width: 100%; justify-content: space-between; }
+  .page-editor-toolbar .page-editor-toolbar-end .page-editor-width { display: none; }
+  .page-editor-toolbar .page-editor-toolbar-end .editor-template-picker { flex: 1 1 auto; min-width: 0; flex-wrap: nowrap; justify-content: flex-end; }
+  .page-editor-toolbar .page-editor-toolbar-end .editor-template-picker select { flex: 1 1 auto; width: auto; min-width: 0; max-width: none; }
+
+  /* Save stays in reach while scrolling a long body: the row pins under the top bar. `top` is minus
+     `.admin-content`'s own phone padding-top, because sticky offsets count from the scroller's
+     padding edge — at `top: 0` the body scrolled visibly through a 16px strip above the row. */
+  .editor-action-row { position: sticky; top: calc(-1 * var(--space-4)); z-index: 6; background: var(--bg); padding-block: 6px; }
+  /* Delete moves to the row's far left, away from Save on the right (PG-5: side by side at equal
+     size they were one slip apart on a phone). */
+  .editor-action-row .btn-danger { order: -2; margin-left: 0; }
 }
