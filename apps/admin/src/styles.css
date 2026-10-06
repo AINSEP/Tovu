@@ -4082,6 +4082,12 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-body {
   display: flex;
   flex-direction: column;
+  /* A grid item (of `.jini-tabbed-dialog`) defaults to `min-width: auto`, i.e. its content's
+   * min-content width — so a wide table inside a tab grew the body past the column and panned the
+   * whole page sideways (mobile catalog RC-1, Recovery at 375px: body 433px in a 351px column,
+   * "Create restore point" and every "Restore" cut off). `0` keeps it to its track and lets the
+   * table's own `.table-scroll` do the scrolling. */
+  min-width: 0;
 }
 
 .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar {
@@ -4141,6 +4147,44 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-content {
   flex: 1 1 auto;
   min-height: 0;
+}
+
+/* Phones: ONE horizontally-scrolling tab row instead of the wrap above (mobile catalog P-2,
+ * 2026-10-06). At 375px the wrap turned every strip into 2-4 rows — Settings' nine tabs took ~130px
+ * and reordered under the underline as the active tab changed — and the strip's own
+ * `--jini-modal-padding` indented it 24px from the heading. Desktop keeps the wrap and its reasoning
+ * (an x-scroller hides the tail behind a scrollbar nobody looks for); on a phone a swipeable tab row
+ * is the platform idiom, and the last tab cut at the edge is itself the "there is more" hint.
+ * Covers both strips the admin renders: Jini's inline tabbed-dialog nav (Agent plugins, Skills,
+ * AI Assistant, Authentication, Observability, Settings, Recovery) and Tovu's own `.tab-bar`
+ * (Plugins, Providers, Media, Themes, Deployment, SEO, Pages — see that rule's comment for why it
+ * wraps on desktop). The strip's bottom rule moves to an inset shadow because `overflow` clips
+ * the nav items' `margin-bottom: -1px` overlap; an inset shadow paints under the children, so the
+ * active tab's 2px underline still sits on top of the 1px rule. */
+@media (max-width: 640px) {
+  .tab-bar,
+  .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+  .tab-bar::-webkit-scrollbar,
+  .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar::-webkit-scrollbar { display: none; }
+  .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar {
+    padding-inline: 0;
+    border-bottom: none;
+    box-shadow: inset 0 -1px 0 var(--jini-border);
+  }
+  /* Slightly tighter tab padding so the common three-tab strips (Plugins, Agent plugins) still
+   * fit 375px whole instead of scrolling by a few pixels. */
+  .tab-bar-item { padding-inline: 0.7rem; }
+  .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-nav-item {
+    flex-shrink: 0;
+    margin-bottom: 0;
+    padding-inline: 8px;
+  }
 }
 
 /* NOTE: the "whole CLI card is the click target" fix that briefly lived here
