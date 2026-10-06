@@ -96,6 +96,19 @@ describe("SlowRunNoticeCard", () => {
     expect(screen.queryByRole("status")).toBeNull();
   });
 
+  // Demo dry-run 2026-10-05: the "Connect GitHub" credential form sat waiting for the owner while
+  // this line said the turn was taking longer than usual, so a run waiting on a person looked hung.
+  it("renders nothing while the run is awaiting the person's answer to an open form or card", () => {
+    render(
+      <SlowRunNoticeCard
+        {...baseProps}
+        awaitingAnswer
+        events={[{ type: "slow_running", detail: "Still working — this turn is taking longer than usual." }]}
+      />,
+    );
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
   it("renders nothing once the run has ended without succeeding — a finished run is never 'still working'", () => {
     render(<SlowRunNoticeCard {...baseProps} runStreaming={false} runSucceeded={false} events={[{ type: "slow_running" }]} />);
     expect(screen.queryByRole("status")).toBeNull();

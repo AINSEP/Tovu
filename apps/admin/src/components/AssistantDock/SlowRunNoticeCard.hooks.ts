@@ -45,11 +45,20 @@ export function resolveSlowRunDetail(events: readonly unknown[]): string | undef
  *
  * @param runStreaming - {@link ExtEventRenderProps.runStreaming}.
  * @param runSucceeded - {@link ExtEventRenderProps.runSucceeded}.
+ * @param options.awaitingAnswer - {@link ExtEventRenderProps.awaitingAnswer}. A run held on an open
+ *   form or card is waiting on the person, not slow: the daemon's watchdog still fires (it sees no
+ *   events while the form waits), and saying "taking longer than usual" under the form made a run
+ *   waiting on the owner look hung (demo dry-run, 2026-10-05). Jini's own activity line says
+ *   "Waiting for your answer above" meanwhile.
  * @returns `true` while the notice should still render; `false` once the run has reached any
- *   terminal outcome (succeeded, failed, or aborted).
+ *   terminal outcome (succeeded, failed, or aborted), or while it awaits the person's answer.
  *
  * @complexity Time/space: O(1).
  */
-export function isSlowRunNoticeVisible(runStreaming: boolean, runSucceeded: boolean): boolean {
-  return runStreaming && !runSucceeded;
+export function isSlowRunNoticeVisible(
+  runStreaming: boolean,
+  runSucceeded: boolean,
+  { awaitingAnswer = false }: { awaitingAnswer?: boolean | undefined } = {},
+): boolean {
+  return runStreaming && !runSucceeded && !awaitingAnswer;
 }
