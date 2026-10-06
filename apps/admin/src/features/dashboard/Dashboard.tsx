@@ -199,18 +199,10 @@ export function Dashboard({ useDashboardHook = useWiredDashboard }: DashboardPro
           <p className="page-description">{t("Everything happening on this site at a glance.")}</p>
         </div>
         <div className="page-actions dash-header-actions">
-          <a
-            className="btn-secondary"
-            href={siteUrl("/")}
-            target="_blank"
-            rel="noreferrer"
-            {...agentHandle({ handle: "dashboard-view-site" }, { role: "link", label: "Open the public site in a new tab" })}
-          >
-            {t("View site ↗")}
-          </a>
-          {/* Orange/`.btn-primary`, directly under "View site" — a deliberate, meaningful action,
-              not a nav link. See `PublishContentDialog.tsx` for why the dialog it opens exists and
-              why its own Confirm is a stub. */}
+          {/* Orange/`.btn-primary`, left of "View site" on one row (owner 2026-10-06; it used to sit
+              stacked under it) — a deliberate, meaningful action, not a nav link. See
+              `PublishContentDialog.tsx` for why the dialog it opens exists and why its own Confirm
+              is a stub. */}
           {canPublish ? (
             <button
               type="button"
@@ -221,9 +213,18 @@ export function Dashboard({ useDashboardHook = useWiredDashboard }: DashboardPro
                 label: "Publish all content to the live site",
               })}
             >
-              {t("Publish all content")}
+              {t("Publish All")}
             </button>
           ) : null}
+          <a
+            className="btn-secondary"
+            href={siteUrl("/")}
+            target="_blank"
+            rel="noreferrer"
+            {...agentHandle({ handle: "dashboard-view-site" }, { role: "link", label: "Open the public site in a new tab" })}
+          >
+            {t("View site ↗")}
+          </a>
         </div>
       </div>
 

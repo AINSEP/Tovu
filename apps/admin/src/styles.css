@@ -1930,15 +1930,22 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
    Split into two things with two jobs: `.dash-stat` is strictly ONE NUMBER and its label — no
    exceptions, which is what makes a row of them scan — and `.dash-panel` carries everything that
    is prose, a list, or a name. The theme moved into a panel for exactly that reason. */
-.dash-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: var(--space-4); }
+/* Fixed 2x2, capped at roughly half the content column — owner 2026-10-06: four one-number cards
+   stretched across the full width read as wide empty boxes. Two columns rather than the old
+   `auto-fit, minmax(12rem, 1fr)`, which went 4-across on wide screens and 1-per-row on a phone; the
+   `max-width` caps desktop, and below it the grid simply fills the column (still 2-up on a 375px
+   phone, where the tighter padding below keeps "items in the library" from crowding the edge). */
+.dash-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); max-width: 34rem; }
 
 /* The default-password nag: a compact one-row plain `.notice` (neutral surface + hairline), with
    the icon as its only `--warning` accent — owner: "cap the width" and "make it subtle". The link
-   and the × share one muted-to-fg text treatment so they read as a pair. Wraps under ~560px. */
+   and the × share one muted-to-fg text treatment so they read as a pair. Wraps under ~560px.
+   `margin: 0` — `.page`'s own flex `gap` already spaces it; a bottom margin on top of that left
+   40px under the banner against 24px above it (owner 2026-10-06 header tidy). */
 .notice.dash-password-banner {
   display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2) var(--space-3);
   max-width: 680px; min-height: 44px; box-sizing: border-box;
-  margin: 0 0 var(--space-4); padding: 0.45rem 0.5rem 0.45rem 0.85rem;
+  margin: 0; padding: 0.45rem 0.5rem 0.45rem 0.85rem;
   border-color: var(--border); box-shadow: none; font-size: var(--text-sm);
 }
 .dash-password-banner p { flex: 1 1 16rem; margin: 0; color: var(--fg-2); }
@@ -1952,13 +1959,15 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 .dash-password-banner-dismiss:hover { background: var(--surface-2); color: var(--fg); }
 .dash-password-banner-dismiss:focus-visible, .dash-password-banner-action:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
 
-/* "Publish Content" sits directly under "View site ↗" instead of beside it — a column, not
-   `.page-actions`'s own row. A modifier on THIS screen's actions row rather than changing
-   `.page-actions` itself, which ~39 other screens share and still want laid out as a row.
-   `align-items: flex-end` right-aligns both buttons' edges the same way a row's `justify-content`
-   would, since `.page-header`'s own `justify-content: space-between` already pins this whole
-   column to the header's right side. */
-.dash-header-actions { flex-direction: column; align-items: flex-end; gap: var(--space-2); }
+/* "Publish All" and "View site ↗" share ONE row — owner 2026-10-06, replacing the column this
+   modifier used to force ("Publish Content" stacked under "View site", `align-items: flex-end`).
+   That column is what looked broken on phones: once `.page-header` wrapped it under the subtitle,
+   the right-aligned edges left "View site" indented above a wider Publish button. Plain
+   `.page-actions` row behaviour fixes both widths — right side of the header on desktop
+   (`.page-header`'s `justify-content: space-between`), left-aligned under the subtitle like every
+   other screen's actions once it wraps. `flex-wrap: nowrap` keeps the pair together on a 375px
+   phone, where both fit with room to spare. */
+.dash-header-actions { flex-wrap: nowrap; }
 
 /* An `<a>`, not a `<div>` — the number was already the answer to "how many posts", so the card is
    the natural way to go read them. Being a real link also means it is keyboard-reachable and
@@ -1975,6 +1984,8 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   text-decoration: none; transform: translateY(-1px);
 }
 @media (prefers-reduced-motion: reduce) { .dash-stat { transition: none; } .dash-stat:hover { transform: none; } }
+/* Phone padding for the 2-up stat grid above — after `.dash-stat` so it wins the cascade. */
+@media (max-width: 480px) { .dash-stats { gap: var(--space-3); } .dash-stat { padding: var(--space-3) var(--space-4); } }
 .dash-stat-label { font-size: var(--text-2xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
 /* `font-variant-numeric: tabular-nums` keeps a column of counts optically aligned as values change
    width (9 -> 10 -> 100) instead of the digits shifting under each other. */

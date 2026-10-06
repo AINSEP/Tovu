@@ -133,13 +133,24 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-it.each([false, true])("Publish all content availability follows the live-site flag %s", async (available) => {
+it.each([false, true])("Publish All availability follows the live-site flag %s", async (available) => {
   fetchMock.mockImplementation(routeFetch(successRoutes()));
   setPublishToLiveAvailable(available);
   render(<Dashboard />);
   await screen.findByText("editorial");
-  if (available) expect(screen.getByRole("button", { name: "Publish all content" })).toBeInTheDocument();
-  else expect(screen.queryByRole("button", { name: "Publish all content" })).not.toBeInTheDocument();
+  if (available) expect(screen.getByRole("button", { name: "Publish All" })).toBeInTheDocument();
+  else expect(screen.queryByRole("button", { name: "Publish All" })).not.toBeInTheDocument();
+});
+
+// Owner 2026-10-06: one row, Publish All LEFT of View site — DOM order is what the flex row renders.
+it("puts Publish All before View site in the header actions row", async () => {
+  fetchMock.mockImplementation(routeFetch(successRoutes()));
+  render(<Dashboard />);
+  await screen.findByText("editorial");
+  const publish = screen.getByRole("button", { name: "Publish All" });
+  const viewSite = screen.getByRole("link", { name: "View site ↗" });
+  expect(publish.parentElement).toBe(viewSite.parentElement);
+  expect(publish.compareDocumentPosition(viewSite) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 });
 
 it("renders every stat card's real value and the merged, sorted activity panel when all 5 fetches succeed", async () => {
