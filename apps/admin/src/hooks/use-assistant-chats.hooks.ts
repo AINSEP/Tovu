@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChatMessage } from "@jini-ai/chat/core";
+import type { LastConversationStore } from "@jini-ai/chat/react";
 
 import { activeRunStub, HttpError, messageWriteKey, persistableMessages, type AssistantConversation } from "../lib/assistant-chats";
-import { defaultAssistantChatsPort } from "./assistant-chats-dependencies.hooks";
+import { createAssistantLastConversationStore, defaultAssistantChatsPort } from "./assistant-chats-dependencies.hooks";
 import type { AssistantChatsPort } from "./assistant-chats-port.hooks";
 
 /**
@@ -220,6 +221,37 @@ export function summarizeFlushOutcomes(
   return { idsToRelease, shouldRefresh };
 }
 
+/**
+ * What the mount-time list read says about the conversation this browser last had open.
+ *
+ * - `"restore"` — it is still in this caller's list: land on it.
+ * - `"forget"` — the list loaded and it is not there (deleted, or not this caller's): clear the
+ *   remembered id so the next load does not keep chasing it, and stay on today's empty new chat.
+ * - `"keep"` — nothing was remembered, or the list itself failed. A failed read says nothing
+ *   about whether the conversation still exists, so a network blip must not erase the memory.
+ *
+ * @complexity Time O(n) in the number of listed conversations; space O(1).
+ */
+export function resolveRememberedConversation(
+  { remembered, conversations, listFailed }: {
+    remembered: string | null;
+    conversations: readonly AssistantConversation[];
+    listFailed: boolean;
+  },
+): "restore" | "forget" | "keep" {
+  if (remembered === null || listFailed) return "keep";
+  return conversations.some((conversation) => conversation.id === remembered) ? "restore" : "forget";
+}
+
+/**
+ * Clears `store` only while it still holds `remembered`. A chat the operator opened while the list
+ * read was in flight has already been written over it, and must not be forgotten in its place.
+ * @complexity Time/space: O(1).
+ */
+function forgetRemembered(store: LastConversationStore, remembered: string | null): void {
+  if (store.read() === remembered) store.clear();
+}
+
 export interface UseAssistantChats {
   conversations: AssistantConversation[];
   activeId: string | null;
@@ -299,7 +331,18 @@ export interface UseAssistantChats {
  * left that file's total unchanged (25 → 25). Declined for this pass; flagged to the coordinator
  * rather than attempted under time pressure. See this session's report for the full reasoning.
  */
-export function useAssistantChats(port: AssistantChatsPort): UseAssistantChats {
+export function useAssistantChats(
+  port: AssistantChatsPort,
+  { lastConversation }: {
+    /**
+     * Where this browser remembers the conversation the operator was last on, so a reload (or
+     * leaving and coming back) reopens it instead of an empty new chat. Every `activeId` commit
+     * writes it; the mount-time list read restores it — see {@link resolveRememberedConversation}.
+     * Omitted, a reload opens an empty new chat as before. Captured once at mount, like `port`.
+     */
+    lastConversation?: LastConversationStore;
+  } = {},
+): UseAssistantChats {
   /**
    * The port, read through a ref so its identity is not a dependency of anything.
    *
@@ -332,6 +375,9 @@ export function useAssistantChats(port: AssistantChatsPort): UseAssistantChats {
    * than swap the prop under a live instance.
    */
   const portRef = useRef(port);
+  /** Captured once at mount for the same reason as {@link portRef}: a new store is a new identity,
+   *  which means a remount, never a swap under a live instance. */
+  const lastConversationRef = useRef(lastConversation);
 
   const [conversations, setConversations] = useState<AssistantConversation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -463,7 +509,9 @@ export function useAssistantChats(port: AssistantChatsPort): UseAssistantChats {
    */
   const refresh = useCallback(async () => {
     const seq = ++listSeqRef.current;
-    const listed = await portRef.current.listConversations().catch(() => []);
+    // `null` marks a failed read, so the mount-time restore can tell "not listed" from "no list".
+    const read = await portRef.current.listConversations().catch(() => null);
+    const listed = read ?? [];
     /*
      * A rename whose PATCH has not settled wins over whatever the server just said.
      *
@@ -489,17 +537,13 @@ export function useAssistantChats(port: AssistantChatsPort): UseAssistantChats {
     // Not written to state when superseded: a local insert that landed while this was in flight is
     // strictly newer than this snapshot.
     if (fresh) setConversations(conversations);
-    return { conversations, fresh };
+    return { conversations, fresh, failed: read === null };
   }, []);
 
   /** Records a local list mutation, invalidating any `refresh` already in flight. */
   const markListMutated = useCallback(() => {
     listSeqRef.current += 1;
   }, []);
-
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
 
   /**
    * Discards any lazy adoption belonging to a pane that is about to be replaced.
@@ -531,6 +575,10 @@ export function useAssistantChats(port: AssistantChatsPort): UseAssistantChats {
   const commitActiveId = useCallback((id: string | null) => {
     activeIdRef.current = id;
     setActiveId(id);
+    // The single point every active-conversation change passes through — select, create, lazy
+    // adoption, and delete's landing — so the remembered id can never lag what is on screen.
+    if (id === null) lastConversationRef.current?.clear();
+    else lastConversationRef.current?.write(id);
   }, []);
 
   const resetAdoption = useCallback(() => {
@@ -586,6 +634,34 @@ export function useAssistantChats(port: AssistantChatsPort): UseAssistantChats {
     // declaration above), stable for the component's lifetime — no-op addition, not a suppression.
     [resetAdoption, commitActiveId],
   );
+
+  /**
+   * The mount-time list read, which also reopens the conversation this browser was last on.
+   *
+   * Declared after `select` because it calls it — moved here from beside `refresh` for that
+   * reason only; the read itself is unchanged.
+   *
+   * The restore is skipped if the operator has already acted (switched, created, or started typing
+   * into the empty pane, which adopts a conversation) before the list arrived: their own action is
+   * newer intent than a memory from the previous page load. `switchSeqRef` covers select/create,
+   * `activeIdRef`/`adoptingRef` cover lazy adoption. Under StrictMode's double mount the first
+   * restore's `select` bumps `switchSeqRef`, so the second one stands down rather than loading twice.
+   */
+  useEffect(() => {
+    const store = lastConversationRef.current;
+    if (!store) {
+      void refresh();
+      return;
+    }
+    const remembered = store.read();
+    const intentAtMount = switchSeqRef.current;
+    void refresh().then(({ conversations, failed }) => {
+      const decision = resolveRememberedConversation({ remembered, conversations, listFailed: failed });
+      if (decision === "forget") forgetRemembered(store, remembered);
+      const untouched = switchSeqRef.current === intentAtMount && activeIdRef.current === null && adoptingRef.current === null;
+      if (decision === "restore" && untouched) select(remembered as string);
+    });
+  }, [refresh, select]);
 
   const create = useCallback(async () => {
     /*
@@ -968,11 +1044,23 @@ export function useAssistantChats(port: AssistantChatsPort): UseAssistantChats {
 /**
  * Binds the real `/api/assistant/chats` client — see `assistant-chats-dependencies.ts`.
  *
- * The zero-argument half of the `useX(dependencies)` / `useWiredX()` pair, so a component composes
- * this and a test composes {@link useAssistantChats} with a fake. Deliberately a one-liner with no
- * logic of its own: anything that lived here would be untestable by construction, since the whole
- * point of this function is that it is the part nobody injects.
+ * The wired half of the `useX(dependencies)` / `useWiredX()` pair, so a component composes this and
+ * a test composes {@link useAssistantChats} with a fake. Deliberately free of logic of its own —
+ * it only binds the real port and the real last-conversation store for the signed-in user:
+ * anything that lived here would be untestable by construction, since the whole point of this
+ * function is that it is the part nobody injects.
  */
-export function useWiredAssistantChats(): UseAssistantChats {
-  return useAssistantChats(defaultAssistantChatsPort);
+export function useWiredAssistantChats(
+  { principalId }: {
+    /** The signed-in admin. Scopes the remembered last conversation to this workspace and user, so
+     *  someone else signing in on the same browser never lands in this user's chat. Omitted, no
+     *  conversation is remembered. */
+    principalId?: string;
+  } = {},
+): UseAssistantChats {
+  // A state initializer, not a memo: `useAssistantChats` captures the store once at mount anyway.
+  const [lastConversation] = useState(() =>
+    principalId ? createAssistantLastConversationStore({ principalId }) : undefined,
+  );
+  return useAssistantChats(defaultAssistantChatsPort, { lastConversation });
 }

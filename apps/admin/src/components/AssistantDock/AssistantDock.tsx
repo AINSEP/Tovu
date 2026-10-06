@@ -287,6 +287,11 @@ export interface AssistantDockProps {
    */
   useChats?: () => UseAssistantChats;
   /**
+   * The signed-in admin's id. Scopes the remembered "last conversation" (reopened after a reload)
+   * to this workspace and user — see `useWiredAssistantChats`. Omitted, nothing is remembered.
+   */
+  principalId?: string;
+  /**
    * Injectable seam for the locale {@link useAssistantDockChrome} resolves `locale`/`t`/`chatI18n`
    * from. Defaults to the real `useWiredAdminLocale` (2026-08-18, added after live review flagged
    * that this was the one IO hook in the component still called bare): the real hook calls
@@ -405,6 +410,7 @@ function resolveAgentBridge(override: FrontendSessionBridge | null | undefined):
 export function AssistantDock({
   agentBridge: agentBridgeProp,
   useChats,
+  principalId,
   useAdminLocale,
   useExecutionConfig: useExecutionConfigOverride,
   useByokRuntime: useByokRuntimeOverride,
@@ -436,7 +442,7 @@ export function AssistantDock({
   // be able to adopt this pane's conversation before it is dispatched, because the lazy adoption
   // driven by `onMessagesChange` starts too late for the run to carry the id. See
   // `CreateTovuAssistantTransportOptions.ensureConversationId` for the full mechanism.
-  const chats = useChatsSeam(useChats);
+  const chats = useChatsSeam(useChats, { principalId });
   const transport = useAssistantTransportSeam(useAssistantTransportOverride, {
     executionConfigRef,
     ensureConversationId: chats.ensureConversationId,

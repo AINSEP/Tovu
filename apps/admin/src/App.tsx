@@ -312,6 +312,8 @@ function AssistantChrome(props: {
    *  `onFolderDropCaptureReady`. */
   publishDropCapture: (handler: (event: React.DragEvent<HTMLElement>) => void) => void;
   agentBridge: FrontendSessionBridge | null;
+  /** The signed-in admin's id — scopes the assistant's remembered last conversation. */
+  principalId: string;
   /** Bound translator — see `App`'s own `dockT` for where this comes from. */
   dockT: (key: string) => string;
   locale: string;
@@ -331,6 +333,7 @@ function AssistantChrome(props: {
     onDockDropCapture,
     publishDropCapture,
     agentBridge,
+    principalId,
     dockT,
     locale,
   } = props;
@@ -417,6 +420,7 @@ function AssistantChrome(props: {
         </div>
         <AssistantDock
           agentBridge={agentBridge}
+          principalId={principalId}
           onFolderDropCaptureReady={publishDropCapture}
         />
       </aside>
@@ -724,6 +728,7 @@ export function App(props: AppProps) {
           onDockDropCapture={handleDockDropCapture}
           publishDropCapture={publishDropCapture}
           agentBridge={agentBridge}
+          principalId={user.id}
           dockT={dockT}
           locale={navLocale}
         />

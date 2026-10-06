@@ -1,5 +1,6 @@
 import { deriveContentConversationTitle } from "@tovu/headless";
 import { deriveConversationTitle, type ChatMessage } from "@jini-ai/chat/core";
+import { createLastConversationStore, type LastConversationStore } from "@jini-ai/chat/react";
 
 import {
   createConversation,
@@ -11,6 +12,7 @@ import {
   saveMessage,
   type AssistantConversation,
 } from "../lib/assistant-chats";
+import { WORKSPACE_ID } from "../lib/api";
 import type { AssistantChatsPort } from "./assistant-chats-port.hooks";
 
 /**
@@ -41,6 +43,16 @@ export const defaultAssistantChatsPort: AssistantChatsPort = {
   loadMessages,
   saveMessage,
 };
+
+/**
+ * The real last-conversation store for one signed-in admin: `localStorage`, scoped to this
+ * workspace and user (`jini.chat.last-conversation.v1.workspace-local%3A<principalId>`), so a
+ * different admin signing in on the same browser never reopens this one's chat.
+ * @complexity Time/space: O(1).
+ */
+export function createAssistantLastConversationStore({ principalId }: { principalId: string }): LastConversationStore {
+  return createLastConversationStore({ scope: `${WORKSPACE_ID}:${principalId}` });
+}
 
 /**
  * Upserts `message` into `list`, preserving first-insert order — an update keeps its original

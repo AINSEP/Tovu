@@ -1647,8 +1647,13 @@ export function useRunContext(
  * (`components/__tests__/AssistantDock.unit.test.tsx`) — this is a pure internal relocation.
  */
 
-export function useChatsSeam(override: (() => UseAssistantChats) | undefined): UseAssistantChats {
-  return (override ?? useWiredAssistantChats)();
+export function useChatsSeam(
+  override: (() => UseAssistantChats) | undefined,
+  { principalId }: { principalId?: string } = {},
+): UseAssistantChats {
+  // `principalId` reaches only the wired hook: it scopes the remembered last conversation, which an
+  // injected test hook has no use for.
+  return override ? override() : useWiredAssistantChats({ principalId });
 }
 
 export interface AssistantDockChrome {
