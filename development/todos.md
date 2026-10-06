@@ -2712,3 +2712,11 @@ One sandbox runtime that runs anywhere (Node, desktop, any server); Cloudflare's
 
 ## LATER — Public site search bar (owner, 2026-09-28; parked)
 Plain keyword search for visitors (not AI). Verified choice: `minisearch` (no dependencies, runs in the browser, works on static exports). Rejected: `pagefind` (~115 MB native binaries in the desktop app). Open: where the box goes (header, /search page, or both). Details: `ADS-memory/reports/2026-09-28-build-vs-borrow-verified.md`.
+
+## LATER — Per-domain general tools (owner, 2026-10-05; parked — "save the chat tool stuff for another time")
+- Proposals: `development/assistant-prompts/general-tools-proposal.md` (Claude Opus 5.5, 48361d8a7) and `general-tools-proposal-codex.md` (Codex gpt-6.1-sol). Both: define each action once (Jini), generate the admin route + chat tool from it; per-domain action tables; vendors as category adapters.
+- Owner decisions: approved per-domain tables; prototype on **comments**; publish (CMS) and deploy (DevOps) are **two** domains; resetting another user's password stays **out of chat**.
+- Needs first (Jini): per-action read-only/risk, action name in audit log, per-action describe. Measure action-pick accuracy (≥95%) before collapsing to one id per domain.
+- The **31 parity-gap tools stay ON HOLD** until the prototype lands; the Claude proposal maps them to ~25 table rows (6 closable today). Includes publish "send by hand" send/status/undo for chat (the admin section was removed 2026-10-05).
+- Also: secrets copy when the vendor token can't read values — read the value from the target app itself (as done by hand for TOVU_SITE_KEY on 2026-10-05), never fall back to the local site key.
+- Testing the tools in chat: owner wants it, NOT now.
