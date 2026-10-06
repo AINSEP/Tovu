@@ -310,6 +310,22 @@ test("seo_set_entry_overrides: rejects an unregistered field the same way the ch
   );
 });
 
+// 2026-10-05: the defaultOgImage image check reads the media library, so seo_set_settings
+// authorizes before it — a denied caller learns nothing about the asset it names.
+test("seo_set_settings: a denied principal naming a video gets the permission error, not the image refusal", async () => {
+  const { deps, settingsRepo } = await fakeRouteDeps({ allow: false });
+  const before = await getSeoSettings({ settingsRepo }, { workspaceId: WORKSPACE_ID });
+  await assert.rejects(
+    () => wired(deps, "seo_set_settings").handler(executionContext({ defaultOgImage: "m-clip:og" })),
+    (error: unknown) => {
+      assert.match((error as Error).message, /is not authorized for 'admin\.seo\.manage'/);
+      assert.doesNotMatch((error as Error).message, /not an image|video/);
+      return true;
+    },
+  );
+  assert.deepEqual(await getSeoSettings({ settingsRepo }, { workspaceId: WORKSPACE_ID }), before);
+});
+
 test("seo_set_entry_overrides and seo_set_settings refuse a video as a share image, nothing written", async () => {
   const { deps, postRepo, settingsRepo } = await fakeRouteDeps();
   await assert.rejects(

@@ -15,7 +15,9 @@
  *    settings write-service's own `set()`) ARE self-enforcing chokepoints — each calls
  *    `authorize()` internally. Per ADR-021 §2's single-evaluator rule, the 2 matching handlers below
  *    do NOT also call `requireToolPermission` — that would be a second evaluation of the same
- *    permission. `put-entry.ts`/`put-settings.ts`'s own inline route-layer check is redundant
+ *    permission. Exception: `seo_set_settings` does gate first (2026-10-05), because
+ *    `setSeoSettings`' `defaultOgImage` image check reads the media library ahead of its own
+ *    `set()` authorization — see that handler. `put-entry.ts`/`put-settings.ts`'s own inline route-layer check is redundant
  *    belt-and-braces at the HTTP layer (their own comments say so); the tool path reaches the
  *    chokepoint directly instead, the same shape Forms/Identity/content-types' self-enforcing
  *    tools already use (contrast `features/workspace/tool-registrations.ts`'s `workspace_update`,
@@ -188,8 +190,12 @@ export function buildSeoRegistrations(routeDeps: SeoToolDeps): ToolRegistration[
     seo_set_settings: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
       await routeDeps.seoReady;
+      // The one exception to the single-evaluator rule in the file header (2026-10-05):
+      // `setSeoSettings` checks `defaultOgImage` against the media library BEFORE its own per-write
+      // `set()` authorizes, so without this gate a denied caller could learn whether an asset it
+      // names is a non-image. Same order as `put-settings.ts`: authorize, then the chokepoint.
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.seo.manage" }, { entityType: "seo-settings" });
 
-      // Self-enforcing chokepoint (see file header) — no requireToolPermission call here.
       const settings = await withSchemaOnRejection({ toolId: "seo_set_settings", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => error instanceof SeoSettingsValidationError, fn: () =>
           setSeoSettings(
             {

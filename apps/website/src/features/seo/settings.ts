@@ -384,9 +384,9 @@ function buildRobotsRulesWrites(robotsRules: RobotsRule[] | undefined): SeoSetti
 export async function setSeoSettings(deps: SeoSettingsWriteDeps, input: SetSeoSettingsInput): Promise<SeoSettings> {
   validateSeoSettingsPatch(input.patch);
   // Before any write, so a refused image leaves every other field in the patch unwritten too
-  // (all-or-nothing). Unlike the entry chokepoint this runs ahead of authorization (each `set()`
-  // below authorizes itself); the PUT route authorizes first, so only the chat tool can reach it
-  // unauthorized, and all it can learn is whether an asset it names is a non-image.
+  // (all-or-nothing). Unlike the entry chokepoint this runs ahead of this function's own
+  // authorization (each `set()` below authorizes itself), so both callers authorize BEFORE calling
+  // in: `put-settings.ts` inline, and the `seo_set_settings` tool via `requireToolPermission`.
   const ogImageRefusal = await seoImageRefRefusal({
     deps: deps.media,
     input: { workspaceId: input.workspaceId, field: "defaultOgImage", ref: input.patch.defaultOgImage },
