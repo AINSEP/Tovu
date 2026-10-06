@@ -48,7 +48,7 @@ const workspaceSource = fs.readFileSync(new URL('./use-site-workspace.hooks.ts',
 test('the rendered card keeps the running port and blanks the stopped port', () => {
   const SiteCard = sourceFunction(gridSource, 'SiteCard', {
     cardOpenProps, databaseLabel, deleteActionCopy, isCardOpenable, STATUS_LABEL, sitePortPresentation,
-    useSitePreview: () => null, CardActions: () => null, MissingFolderNotice: () => null,
+    useSitePreview: () => null, CardActions: () => null, SiteCardMenu: () => null, MissingFolderNotice: () => null,
   });
   for (const [status, port, expected] of [
     ['stopped', 0, ''], ['stopped', 4100, ''], ['running', 0, ''],

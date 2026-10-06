@@ -199,3 +199,31 @@ test('renders with the real default hooks: SQLite selected, submit disabled, no 
   assert.doesNotMatch(html, /Connect services/);
   assert.match(html, /This becomes the isolated local workspace folder\./);
 });
+
+test('the two database options this app cannot provision carry a "Soon" tag; SQLite does not', () => {
+  const { tree } = setup();
+  const card = (value: string) => byType(tree, 'label').find((element) => elements(element).some((child) => child.type === 'input' && child.props.value === value));
+  const soon = (value: string) => elements(card(value)).filter((element) => element.props?.className === 'database-option__soon');
+  for (const value of ['supabase', 'custom']) {
+    assert.deepEqual(soon(value).map((element) => element.props.children), ['Soon'], `${value} must say Soon`);
+  }
+  assert.deepEqual(soon('sqlite'), [], 'SQLite is available now, so it carries no tag');
+});
+
+test('the "Soon" tag reuses the admin sidebar badge look (uppercase, bordered, faint)', async () => {
+  const fs = await import('node:fs');
+  const css = fs.readFileSync(new URL('./app.css', import.meta.url), 'utf8');
+  const start = css.indexOf('.database-option__soon {');
+  assert.notEqual(start, -1, 'the tag needs its own rule');
+  const rule = css.slice(start, css.indexOf('}', start));
+  assert.match(rule, /text-transform:\s*uppercase/);
+  assert.match(rule, /border:\s*1px solid var\(--border\)/);
+  assert.match(rule, /color:\s*var\(--faint\)/);
+});
+
+test('the Instance copy section says Tovu creates the workspace', () => {
+  const { tree } = setup();
+  const paragraphs = byType(tree, 'p').map((element) => text(element.props.children));
+  assert.ok(paragraphs.includes('Tovu will create a separate workspace from the selected release.'));
+  assert.equal(paragraphs.some((line) => /Runner will create/.test(line)), false);
+});

@@ -42,7 +42,10 @@ function DatabaseOption({
       />
       <span className="database-option__radio" aria-hidden="true" />
       <span>
-        <strong>{title}</strong>
+        <span className="database-option__title">
+          <strong>{title}</strong>
+          {unavailable && <span className="database-option__soon">Soon</span>}
+        </span>
         <small>{hint}</small>
       </span>
     </label>
@@ -293,7 +296,7 @@ export function CreateWebsiteOnboarding({
           <div className="onboarding-section onboarding-section--instance">
             <div>
               <h3>Instance copy</h3>
-              <p>Runner will create a separate Tovu workspace from the selected release.</p>
+              <p>Tovu will create a separate workspace from the selected release.</p>
             </div>
             <dl className="instance-summary">
               <div><dt>Template</dt><dd>Starter Site</dd></div>

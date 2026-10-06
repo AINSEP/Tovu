@@ -17,6 +17,11 @@
  * claims that only a laid-out window can settle, read from `getBoundingClientRect` rather than from
  * pixels: a screenshot cannot tell a right-aligned column from one that merely looks flush.
  *
+ * **Third revision (2026-10-06).** The ⋮ stays level with the name, but Start/Stop moved to the
+ * LEFT, on its own row under the text (the "SQLite" line), with Restart on that row's right edge.
+ * `sharedRightEdge` (⋮ and Start/Stop on one right edge) is therefore replaced by `powerUnderText`:
+ * Start/Stop's left edge on the text column's, and its top below the text.
+ *
  * Not part of `npm test`: it launches a real Electron app and a real site server, so it is opt-in
  * and slow. Run it after touching `src/renderer/use-site-power.hooks.ts`, `src/renderer/SiteGrid.tsx`,
  * `src/project-ipc.ts`'s `handleStart`/`handleStop`, or `src/site-transitions.ts`:
@@ -82,13 +87,13 @@ interface Claim {
 
 interface LayoutClaims {
   onNameRow: Claim;
-  sharedRightEdge: Claim;
+  powerUnderText: Claim;
   powerBelowMenu: Claim;
 }
 
 const MISSING_BOX: Claim = { ok: false, why: 'card is missing a name, a ⋮ or a text column' };
 /** What `layoutClaims` reports when there is no layout to read: every claim fails, and says why. */
-const NO_LAYOUT: LayoutClaims = { onNameRow: MISSING_BOX, sharedRightEdge: MISSING_BOX, powerBelowMenu: MISSING_BOX };
+const NO_LAYOUT: LayoutClaims = { onNameRow: MISSING_BOX, powerUnderText: MISSING_BOX, powerBelowMenu: MISSING_BOX };
 
 const failures: string[] = [];
 let shotN = 0;
@@ -159,12 +164,12 @@ function onNameRow(name: Box, menu: Box, info: Box): Claim {
   };
 }
 
-/** "right aligned in the card" — the ⋮ and Start/Stop share ONE edge, the card's. */
-function sharedRightEdge(menu: Box, power: Box | null): Claim {
+/** "put the start/stop under the SQLite" — on the text column's left edge, below the text. */
+function powerUnderText(info: Box, power: Box | null): Claim {
   if (power === null) return { ok: true, why: 'no power button for this status' };
   return {
-    ok: Math.abs(menu.right - power.right) <= 1,
-    why: `⋮ right ${menu.right.toFixed(1)} vs power right ${power.right.toFixed(1)}`,
+    ok: Math.abs(power.left - info.left) <= 1 && power.top >= info.bottom - 1,
+    why: `power left ${power.left.toFixed(1)} vs text left ${info.left.toFixed(1)}; power top ${power.top.toFixed(1)} vs text bottom ${info.bottom.toFixed(1)}`,
   };
 }
 
@@ -188,14 +193,14 @@ function layoutClaims(state: CardState | null): LayoutClaims {
   if (!layout || !layout.name || !layout.menu || !layout.info) return NO_LAYOUT;
   return {
     onNameRow: onNameRow(layout.name, layout.menu, layout.info),
-    sharedRightEdge: sharedRightEdge(layout.menu, layout.power),
+    powerUnderText: powerUnderText(layout.info, layout.power),
     powerBelowMenu: powerBelowMenu(layout.menu, layout.power),
   };
 }
 
 /** True when every one of `layoutClaims`' three claims holds. */
 function allLayoutClaimsHold(claims: LayoutClaims): boolean {
-  return claims.onNameRow.ok && claims.sharedRightEdge.ok && claims.powerBelowMenu.ok;
+  return claims.onNameRow.ok && claims.powerUnderText.ok && claims.powerBelowMenu.ok;
 }
 
 /** A card state with the optional parts flattened out, so the checks below read plain fields
@@ -316,7 +321,7 @@ async function requireSeededCard(win: Page, expectedSiteName: string): Promise<C
 /** The three `LAYOUT_*` checks for one card state. */
 function checkLayout(claims: LayoutClaims): void {
   check('LAYOUT_KEBAB_ON_NAME_ROW', claims.onNameRow.ok, claims.onNameRow.why);
-  check('LAYOUT_SHARED_RIGHT_EDGE', claims.sharedRightEdge.ok, claims.sharedRightEdge.why);
+  check('LAYOUT_POWER_UNDER_TEXT', claims.powerUnderText.ok, claims.powerUnderText.why);
   check('LAYOUT_POWER_BELOW_KEBAB', claims.powerBelowMenu.ok, claims.powerBelowMenu.why);
 }
 
@@ -375,7 +380,7 @@ async function verifyStarted(win: Page): Promise<void> {
   check(
     'LAYOUT_HOLDS_WITH_STOP',
     allLayoutClaimsHold(runningLayout),
-    `with "Stop" — ${runningLayout.sharedRightEdge.why}; ${runningLayout.powerBelowMenu.why}`,
+    `with "Stop" — ${runningLayout.powerUnderText.why}; ${runningLayout.powerBelowMenu.why}`,
   );
   await shot(win, 'light-running');
 }

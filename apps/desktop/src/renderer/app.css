@@ -1003,15 +1003,22 @@ webview { display: flex; }
 .card.is-running .card__tile { background: var(--primary-dim); }
 .card.is-running .card__port { color: var(--primary); }
 
-/* TWO COLUMNS: everything the card says about the site on the left, the controls pinned to the
-   right edge. The owner asked for the ⋮ to sit on the site name's own row rather than below the
-   text, with Start/Stop directly under it, and a row of two columns is what that is — not a
-   bottom-pinned action bar with a `margin-top: auto`, which is what this was.
-   `align-items: start` tops both columns out together, which is what puts the ⋮ level with the
-   name however many lines the left column ends up running. */
+/* TWO ROWS: the head (text + ⋮), then the button row (Start/Stop left, Restart right). The owner's
+   2026-10-06 layout — Start/Stop under the "SQLite" line rather than stacked under the ⋮. */
 .card__body {
   flex: 1;
   padding: 0.75rem 0.875rem 0.875rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+/* TWO COLUMNS: everything the card says about the site on the left, the ⋮ pinned to the right
+   edge. The owner asked for the ⋮ to sit on the site name's own row rather than below the text,
+   and a row of two columns is what that is. `align-items: start` tops both columns out together,
+   which is what puts the ⋮ level with the name however many lines the left column ends up
+   running. */
+.card__head {
   display: flex;
   flex-direction: row;
   gap: 0.75rem;
@@ -1089,8 +1096,9 @@ webview { display: flex; }
 }
 
 /*
- * The card's action COLUMN, at the body's right edge: the ⋮ on the site name's row, Start/Stop
- * directly beneath it. It was a bottom-pinned horizontal row until the owner asked for this shape.
+ * The card's button ROW, under the head: Start/Stop at the left, Restart at the right edge. It was a
+ * bottom-pinned row, then a right-hand column under the ⋮ (with Start/Stop and Restart stacked),
+ * until the owner asked for this shape on 2026-10-06.
  *
  * ALWAYS VISIBLE, and in the info block rather than on the preview image. Both controls used to be
  * hover-revealed overlays on the screenshot; the owner's own reason for moving them is "that way
@@ -1098,21 +1106,19 @@ webview { display: flex; }
  * card can do without pointing at it, which is also what makes these reachable on a touch screen
  * and legible to anyone using the keyboard rather than a pointer.
  *
- * `flex: none` rather than the old `width: 100%`: this column is as wide as its widest control, and
- * `.card__info` beside it takes the rest. `align-items: flex-end` keeps the ⋮ and a wider
- * Start/Stop sharing one right edge — the card's, not each other's.
- *
- * The old `margin-top: auto` is gone with the row it pinned. Cards no longer line their buttons up
- * along the bottom; they line the ⋮ up along the TOP, which is the alignment the owner asked for
- * and the one that survives a name wrapping to two lines.
+ * No `margin-top: auto`: the row sits directly under the text ("under the SQLite line", in the
+ * owner's words) rather than pinned to the card's foot. `:empty` hides it for a status with no
+ * button at all (provisioning/blocked), so it adds no gap.
  */
 .card__actions {
-  flex: none;
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
+  flex-direction: row;
+  align-items: center;
   gap: 0.375rem;
 }
+.card__actions:empty { display: none; }
+/* Restart sits at the row's right edge whether or not Start/Stop is beside it. */
+.card__restart { margin-left: auto; }
 
 /* The lifecycle control. A LABELLED button, not a glyph: it is the one control on the card whose
    meaning changes with the site's state, and no icon says "Stopping…". No colour or sizing rule of
@@ -1145,10 +1151,10 @@ webview { display: flex; }
   font-weight: 600;
 }
 
-/* The ⋮ overflow menu — the only icon control in the action column now that delete lives inside it
-   (see `SiteCardMenu`'s own doc). No `margin-left: auto` any more: it used to be what split a
-   horizontal row, and in a column the parent's `align-items: flex-end` already holds the edge. */
-.card__menu { position: relative; z-index: 3; }
+/* The ⋮ overflow menu — the card's only icon control now that delete lives inside it (see
+   `SiteCardMenu`'s own doc). `flex: none` so a long name in `.card__info` beside it never squeezes
+   it; that column's `flex: 1` already holds the ⋮ at the head's right edge. */
+.card__menu { position: relative; z-index: 3; flex: none; }
 .card__menubutton {
   display: grid;
   place-items: center;
@@ -1170,7 +1176,7 @@ webview { display: flex; }
   position: absolute;
   /* Opens UPWARD, over the card's own preview. The trigger sits at the TOP of the body now, and
      `.card` clips to its rounded corners (`overflow: hidden`): the body below the trigger is only
-     tall enough for the two controls beside the site's three lines of text, so a list dropping
+     tall enough for the site's three lines of text and one row of buttons, so a list dropping
      downward would be cut off rather than merely hanging outside. Upward it has the whole preview
      tile to cover, and `.card__menu`'s `z-index` keeps it over the image. */
   bottom: calc(100% + 0.25rem);
@@ -1471,6 +1477,14 @@ webview { display: flex; }
 .database-option.is-selected .database-option__radio { border: 5px solid var(--primary); }
 .database-option > span:last-child { display: grid; gap: 0.125rem; }
 .database-option strong { font-size: 0.8125rem; }
+.database-option__title { display: flex; align-items: center; gap: 0.375rem; }
+/* "Soon" on an option this app cannot provision yet — the admin sidebar's `.cms-item .soon` badge
+   (`apps/admin/src/styles.css`), copied rather than imported: the desktop renderer has its own
+   stylesheet and tokens, and this keeps the two apps' "Soon" one look. */
+.database-option__soon {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--faint); border: 1px solid var(--border); padding: 1px 5px; border-radius: 5px;
+}
 .database-option small { color: var(--muted); font-size: 0.6875rem; line-height: 1.4; }
 
 .vendor-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; padding-top: 0.25rem; }

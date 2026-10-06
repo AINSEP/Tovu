@@ -21,6 +21,11 @@
  * COLUMN now, so the two tests below assert the shape rather than the old bottom-pinned row — and
  * they assert it on `.card__body`/`.card__actions`' CSS, because nothing about either button's own
  * markup changed and every other test in this file stayed green through the move.
+ *
+ * **Third revision (2026-10-06).** The ⋮ stays top-right, level with the name, but Start/Stop moves
+ * to the LEFT, on its own row under the "SQLite" line, with Restart on that same row at the right
+ * edge. The ⋮ therefore lives in a `.card__head` row beside the text, and `.card__actions` is the
+ * button row beneath it.
  */
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -66,46 +71,51 @@ test('the actions row is in the card BODY, and the preview tile carries nothing 
   assert.match(body, /<div className="card__body">[\s\S]*<CardActions/, 'CardActions belongs to the info block');
 });
 
-test('the card body is two columns — the text on the left, the action column at the right edge', () => {
+test('the card head is two columns — the text on the left, the ⋮ at the right edge level with the name', () => {
   // The owner's layout, in their own words: the ⋮ "parallel right aligned in the card" with the
-  // site name, and Stop under it. That is not a property of either control; it is the body being a
-  // ROW of two columns rather than the stack of rows it was, so it is asserted on the body's rule.
-  // A silent revert to `flex-direction: column` would put the ⋮ back under the text with every
-  // other assertion in this file still green.
+  // site name. That is not a property of the ⋮ itself; it is the HEAD being a ROW of two columns,
+  // so it is asserted on the head's rule. A silent revert to `flex-direction: column` would put the
+  // ⋮ back under the text with every other assertion in this file still green.
   const body = cardBody();
-  assert.match(body, /<div className="card__body">[\s\S]*<div className="card__info">/, 'the text needs its own column element');
+  assert.match(body, /<div className="card__body">[\s\S]*<div className="card__head">[\s\S]*<div className="card__info">/, 'the text needs its own column element inside the head');
   // The three lines the card SAYS about the site live in that left column, not beside the buttons.
-  const info = body.slice(body.indexOf('<div className="card__info">'), body.indexOf('<CardActions'));
+  const info = body.slice(body.indexOf('<div className="card__info">'), body.indexOf('<SiteCardMenu'));
   for (const cls of ['card__name', 'card__meta', 'card__details', 'card__actionerror']) {
     assert.match(info, new RegExp(`className="${cls}"`), `${cls} belongs in the left column`);
   }
-  const rule = css.slice(css.indexOf('.card__body {'), css.indexOf('}', css.indexOf('.card__body {')));
-  assert.match(rule, /flex-direction:\s*row/, 'the body must lay its two columns side by side');
-  for (const override of css.matchAll(/\.card__body\s*\{([^}]*)\}/g)) {
-    assert.doesNotMatch(override[1]!, /flex-direction:\s*(?!row\b)[\w-]+/, 'a later or media-query rule must not stack the body columns');
+  const head = body.slice(body.indexOf('<div className="card__head">'), body.indexOf('<CardActions'));
+  assert.match(head, /<SiteCardMenu/, 'the ⋮ sits in the head, beside the text, not in the row of buttons below it');
+  const rule = css.slice(css.indexOf('.card__head {'), css.indexOf('}', css.indexOf('.card__head {')));
+  assert.match(rule, /flex-direction:\s*row/, 'the head must lay its two columns side by side');
+  for (const override of css.matchAll(/\.card__head\s*\{([^}]*)\}/g)) {
+    assert.doesNotMatch(override[1]!, /flex-direction:\s*(?!row\b)[\w-]+/, 'a later or media-query rule must not stack the head columns');
   }
   // Without this a long site name refuses to shrink and shoves the ⋮ off the card's right edge.
   const infoRule = css.slice(css.indexOf('.card__info {'), css.indexOf('}', css.indexOf('.card__info {')));
   assert.match(infoRule, /min-width:\s*0/, 'the text column must be allowed to shrink, or a long name pushes the ⋮ out');
 });
 
-test('the action column stacks ⋮ above Start/Stop, sharing the card\'s right edge', () => {
+test('Start/Stop sits on its own row UNDER the text, with Restart on that same row at the right edge', () => {
+  // Third revision (2026-10-06): the owner moved Start/Stop out from under the ⋮ to the left, under
+  // the "SQLite" line, and Restart onto that same row, aligned right. The body stacks the head above
+  // the button row; the button row is a ROW, not the column it was.
+  const bodyRule = css.slice(css.indexOf('.card__body {'), css.indexOf('}', css.indexOf('.card__body {')));
+  assert.match(bodyRule, /flex-direction:\s*column/, 'the button row sits below the head, not beside it');
   const rule = css.slice(css.indexOf('.card__actions {'), css.indexOf('}', css.indexOf('.card__actions {')));
-  assert.match(rule, /flex-direction:\s*column/, 'the ⋮ and Start/Stop stack, they no longer sit side by side');
-  assert.match(rule, /align-items:\s*flex-end/, 'both controls share the card\'s right edge, not each other\'s');
+  assert.match(rule, /flex-direction:\s*row/, 'Start/Stop and Restart share one row');
   for (const override of css.matchAll(/\.card__actions\s*\{([^}]*)\}/g)) {
-    assert.doesNotMatch(override[1]!, /flex-direction:\s*(?!column\b)[\w-]+/, 'a later or media-query rule must not put Start beside the menu');
+    assert.doesNotMatch(override[1]!, /flex-direction:\s*(?!row\b)[\w-]+/, 'a later or media-query rule must not stack Start above Restart');
   }
-  // The old bottom-pinned row. Left in place it would drag the whole column to the foot of the
-  // body, which is exactly the layout the owner asked to move away from.
-  assert.doesNotMatch(rule, /margin-top:\s*auto/, 'the column is pinned to the TOP of the body now');
-  // DOM order must match the order on screen, or Tab moves from the name to Start and back up to
-  // the ⋮. The menu is written first because it is drawn first.
+  const restartRule = css.slice(css.indexOf('.card__restart {'), css.indexOf('}', css.indexOf('.card__restart {')));
+  assert.match(restartRule, /margin-left:\s*auto/, 'Restart is pushed to the right edge even when it is alone on the row');
+  // DOM order must match the order on screen, or Tab skips around: ⋮ (top right), then Start/Stop
+  // (left), then Restart (right).
+  const body = cardBody();
+  assert.ok(body.indexOf('<SiteCardMenu') < body.indexOf('<CardActions'), 'the ⋮ must render before the button row, the order it is drawn in');
   const actions = actionsBody();
-  assert.ok(
-    actions.indexOf('<SiteCardMenu') < actions.indexOf('card__power'),
-    'the ⋮ must render before Start/Stop, the order it is drawn in',
-  );
+  assert.doesNotMatch(actions, /<SiteCardMenu/, 'the ⋮ no longer lives in the button row');
+  assert.ok(actions.indexOf('power.toggle(project)') < actions.indexOf('card__restart'), 'Start/Stop renders before Restart');
+  assert.match(actions, /className="button button--quiet card__power card__restart"[\s\S]*?onClick=\{\(\) => void power\.restart\(project\)\}/);
 });
 
 test('no standalone trash control exists anywhere — delete lives only inside the ⋮ menu', () => {
@@ -181,11 +191,11 @@ test('every event that starts in the action row stops there — the card underne
 });
 
 test('the ⋮ menu carries copy and onRequestDelete through to its delete entry', () => {
-  const actions = actionsBody();
+  const body = cardBody();
   assert.match(
-    actions,
+    body,
     /<SiteCardMenu[\s\S]*?copy=\{copy\}[\s\S]*?onRequestDelete=\{onRequestDelete\}[\s\S]*?\/>/,
-    'CardActions must forward copy and onRequestDelete to the menu that now owns delete',
+    'SiteCard must forward copy and onRequestDelete to the menu that now owns delete',
   );
 });
 
