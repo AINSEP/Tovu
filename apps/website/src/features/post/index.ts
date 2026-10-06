@@ -64,6 +64,7 @@ export {
   type PostSearchQuery,
 } from "./search.js";
 export { extractPlainTextFromHtml } from "./html-plain-text.js";
+export { resolveFeaturedImageRef, resolveFeaturedMediaIdForWrite, type FeaturedImageDeps } from "./featured-image.js";
 export { InMemoryPostRepo } from "./repo.memory.js";
 export { SqlitePostRepo } from "./repo.sqlite.js";
 export { InMemoryPostSearchIndex } from "./search-index.memory.js";

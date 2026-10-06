@@ -14,7 +14,7 @@ export function useJiniMediaPicker(props: MediaPickerDialogProps, _optional: Rec
   useEffect(() => {
     if (!enabled || !picker) return;
     const abort = new AbortController();
-    void picker.pick({ accept: [] }, { signal: abort.signal }).then(async selected => {
+    void picker.pick({ accept: callbacks.current.accept ?? [] }, { signal: abort.signal }).then(async selected => {
       if (abort.signal.aborted) return;
       if (!selected) { callbacks.current.onCancel(); return; }
       const result = await authenticatedAdminRequest<{ media: AdminMedia[] }>({ path: mediaBasePath, method: 'GET' }, { signal: abort.signal });

@@ -1,4 +1,5 @@
 import { findMediaByIdOrSlug, type MediaContentTypeStorePort, type MediaRepoPort } from "../media/index.js";
+import { PostValidationError } from "./post.js";
 
 /**
  * @file Resolves the media reference a caller gives for a post/page's featured image (2026-10-05)
@@ -9,8 +10,11 @@ import { findMediaByIdOrSlug, type MediaContentTypeStorePort, type MediaRepoPort
  * media slug is editable, so storing one would break the moment the asset is renamed.
  *
  * `normalizeFeaturedMediaId` (`post.ts`) checks shape only; this is the existence check it defers
- * to "the caller that resolved it". The admin editor's picker only offers real library assets, so
- * the agent tool is the caller that needs it.
+ * to "the caller that resolved it". Both writers call it: the agent tool (`resolveFeaturedImageInput`
+ * in `tool-registrations.ts`) and the admin REST post/page update routes (via
+ * {@link resolveFeaturedMediaIdForWrite}). The REST arm was added 2026-10-05 after a visual check
+ * saved a VIDEO as a post's featured image through the editor's picker — the picker trusting the
+ * library was not enough, because the library holds videos too.
  */
 
 export interface FeaturedImageDeps {
@@ -43,4 +47,31 @@ export async function resolveFeaturedImageRef(required: {
   const contentType = types?.get(asset.source.sha256);
   if (contentType !== undefined && !contentType.startsWith("image/")) return { ok: false, reason: "not-image", contentType };
   return { ok: true, id: asset.id };
+}
+
+const FEATURED_MEDIA_ID_REFUSALS: Record<"missing" | "trashed" | "not-image", (ref: string, contentType?: string) => string> = {
+  missing: (ref) => `featuredMediaId: no media asset has the id '${ref}'.`,
+  trashed: (ref) => `featuredMediaId: media asset '${ref}' is in Trash. Restore it first, or pick another image.`,
+  "not-image": (ref, contentType) => `featuredMediaId: media asset '${ref}' is ${contentType ?? "not an image"}, not an image. A featured image must be an image.`,
+};
+
+/**
+ * The admin REST routes' `featuredMediaId` check — {@link resolveFeaturedImageRef} with its
+ * refusals thrown as `PostValidationError`, which both update routes already answer as a 400
+ * `VALIDATION_ERROR`. Omitted (`undefined`) and `null` (clear) pass through untouched; a non-string
+ * is left to `normalizeFeaturedMediaId`'s shape check in `updatePost`. A string resolves to the
+ * canonical asset id, so a media slug sent here is stored as the id (see this file's header for why).
+ *
+ * @complexity O(1) — one resolver call.
+ */
+export async function resolveFeaturedMediaIdForWrite(required: {
+  deps: FeaturedImageDeps;
+  input: { workspaceId: string; featuredMediaId: string | null | undefined };
+}): Promise<string | null | undefined> {
+  const { deps, input } = required;
+  const value = input.featuredMediaId;
+  if (typeof value !== "string" || value.trim() === "") return value;
+  const resolution = await resolveFeaturedImageRef({ deps, input: { workspaceId: input.workspaceId, ref: value } });
+  if (!resolution.ok) throw new PostValidationError(FEATURED_MEDIA_ID_REFUSALS[resolution.reason](value.trim(), resolution.contentType));
+  return resolution.id;
 }

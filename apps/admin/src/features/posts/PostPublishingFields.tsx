@@ -49,7 +49,12 @@ export function PostPublishingFields({
       </label>
       <div className="editor-publishing-field">
         <span className="field-label">{t("Featured image")}</span>
-        {picker.previewUrl ? <img className="editor-featured-preview" src={picker.previewUrl} alt={t("Featured image")} /> : null}
+        {picker.previewUrl && picker.previewFailed ? (
+          <span className="editor-featured-preview editor-featured-preview-missing" role="img" aria-label={t("Featured image unavailable")} title={t("Featured image unavailable")} />
+        ) : null}
+        {picker.previewUrl && !picker.previewFailed ? (
+          <img className="editor-featured-preview" src={picker.previewUrl} alt={t("Featured image")} onError={picker.onPreviewError} />
+        ) : null}
         <button
           type="button"
           className="btn-secondary"
@@ -70,7 +75,7 @@ export function PostPublishingFields({
         ) : null}
       </div>
       {picker.pickerOpen ? (
-        <MediaPickerDialog onSelect={picker.handleSelect} onCancel={picker.closePicker} agentHandle="post-featured-image-dialog" />
+        <MediaPickerDialog onSelect={picker.handleSelect} onCancel={picker.closePicker} accept={picker.accept} agentHandle="post-featured-image-dialog" />
       ) : null}
     </div>
   );

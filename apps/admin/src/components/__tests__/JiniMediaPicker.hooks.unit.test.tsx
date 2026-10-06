@@ -164,4 +164,11 @@ describe("useJiniMediaPicker", () => {
     await act(async () => { release(); await new Promise((resolve) => setTimeout(resolve, 0)); });
     expect(result.current).toMatchObject({ enabled: false, error: null });
   });
+
+  it("forwards the caller's accept filter to the service picker", () => {
+    const { picker, calls } = deferredPicker();
+    stubMediaList([]);
+    renderHook(() => useJiniMediaPicker({ onSelect: vi.fn(), onCancel: vi.fn(), accept: ["image/*"] }), { wrapper: scope(picker) });
+    expect(calls[0]!.required).toEqual({ accept: ["image/*"] });
+  });
 });

@@ -1093,8 +1093,13 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
 .editor-publishing-field { display: flex; align-items: center; gap: var(--space-2); }
 .editor-publishing-field .field-label { margin: 0; }
 .editor-featured-preview {
-  width: 2.25rem; height: 2.25rem; object-fit: cover;
+  width: 2.25rem; height: 2.25rem; object-fit: cover; flex: none; overflow: hidden;
   border: 1px solid var(--border); border-radius: var(--r-sm);
+}
+/* A featured asset that will not load (deleted, or a non-image saved before the server refused
+   those) — an empty hatched square the size of the thumb, never a broken image with spilled alt text. */
+.editor-featured-preview-missing {
+  display: inline-block; background: repeating-linear-gradient(45deg, var(--surface-3) 0 4px, transparent 4px 8px);
 }
 .editor-scheduled-badge {
   font-size: 0.75rem; padding: 0.1rem 0.5rem; border-radius: 999px;

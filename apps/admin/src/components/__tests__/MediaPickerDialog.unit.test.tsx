@@ -322,3 +322,37 @@ describe("MediaPickerDialog — focus management", () => {
     }
   });
 });
+
+describe("MediaPickerDialog — accept filter", () => {
+  // Regression (2026-10-05): the post editor's featured-image picker offered videos. A caller's
+  // `accept` list now filters the legacy dialog's grid with the same rule the Jini picker applies.
+  function dialogWith(items: AdminMedia[]): typeof useWiredMediaPickerDialog {
+    return (onSelect) => ({
+      items,
+      error: null,
+      select: onSelect,
+      mediaOriginalUrl: (id) => `fake://${id}`,
+      cancelRef: { current: null },
+      t: (key: string) => key,
+      locale: "en",
+    });
+  }
+  const ITEMS = [
+    mediaItem({ id: "img", title: "Photo" }),
+    mediaItem({ id: "vid", title: "Clip", contentType: "video/mp4" }),
+    mediaItem({ id: "unk", title: "Untyped", contentType: null }),
+  ];
+
+  it("shows only items whose content type matches accept", () => {
+    render(<MediaPickerDialog onSelect={vi.fn()} onCancel={vi.fn()} accept={["image/*"]} useDialog={dialogWith(ITEMS)} />);
+    expect(screen.getByRole("button", { name: /Photo/ })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Clip/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Untyped/ })).toBeNull();
+  });
+
+  it("shows every item when accept is omitted", () => {
+    render(<MediaPickerDialog onSelect={vi.fn()} onCancel={vi.fn()} useDialog={dialogWith(ITEMS)} />);
+    expect(screen.getByRole("button", { name: /Clip/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Untyped/ })).toBeTruthy();
+  });
+});

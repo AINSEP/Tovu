@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
+import { acceptsMedia } from "@jini-ai/admin/media";
 import { describeApiError, type AdminMedia } from "../../lib/api";
 import { DEFAULT_LOCALE } from "../../hooks/admin-locale-dependencies.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
@@ -55,6 +56,14 @@ export function useMediaPickerItems(port: MediaPickerPort, locale: string = DEFA
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [port, locale]);
   return { items, error };
+}
+
+/** The legacy grid's half of `MediaPickerDialogProps.accept` — Jini's own `acceptsMedia` rule, so
+ *  this dialog and the Jini picker (handed the same `accept` list) can never disagree on a type.
+ *  `null` (still loading) passes through.
+ *  @complexity O(n · a) for n items and a accept entries. */
+export function acceptedMediaItems(items: AdminMedia[] | null, accept: readonly string[] = []): AdminMedia[] | null {
+  return items && items.filter((item) => acceptsMedia({ item, accept }));
 }
 
 /** Binds the real `/api/.../media` client — see `media-picker-dependencies.hooks.ts`. The

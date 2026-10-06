@@ -6,6 +6,7 @@ import {
   PostNotFoundError,
   PostValidationError,
   PostVersionConflictError,
+  resolveFeaturedMediaIdForWrite,
   restorePostForward,
   updatePost,
   versionConflictEnvelope,
@@ -184,8 +185,9 @@ export const registerAdminPageUpdateRoute: ContentRouteRegistrar = (app, deps) =
                 featuredMediaId: priorPost.featuredMediaId ?? null,
               };
             },
-            execute: () =>
-              updatePost({
+            execute: async () => {
+              const body = parsePageUpdateBody(req.body);
+              return updatePost({
                 deps: {
                   repo: deps.postRepo,
                   clock: deps.clock,
@@ -196,10 +198,19 @@ export const registerAdminPageUpdateRoute: ContentRouteRegistrar = (app, deps) =
                 input: {
                   workspaceId: deps.workspaceId,
                   id: pageId,
-                  ...parsePageUpdateBody(req.body),
+                  ...body,
+                  // The same image check the `content_post_update` chat tool runs (2026-10-05): a video,
+                  // unknown or trashed asset is a 400 here, and a media slug is stored as its id. Inside
+                  // `execute`, after the gateway's `content.write` check, so an unauthorized caller
+                  // cannot probe the media library through this field's error messages.
+                  featuredMediaId: await resolveFeaturedMediaIdForWrite({
+                    deps: { mediaRepo: deps.mediaRepo, mediaContentTypeStore: deps.mediaContentTypeStore },
+                    input: { workspaceId: deps.workspaceId, featuredMediaId: body.featuredMediaId },
+                  }),
                   actorId: principal.id,
                 },
-              }),
+              });
+            },
             captureEntityVersion: ({ result }) => result.post.version,
             rollback: async () => {
               if (!priorPost) return;

@@ -21,7 +21,18 @@ export interface PostFeaturedImageController {
   clear: () => void;
   /** Thumbnail `<img src>` for the current id, or `null` when none is chosen. */
   previewUrl: string | null;
+  /** The picker's content-type filter — images only (2026-10-05: it offered videos, and a video
+   *  saved as the featured image rendered as a broken thumb). The server refuses a non-image too. */
+  accept: readonly string[];
+  /** True once the current id's thumbnail failed to load (a deleted asset, or a non-image saved before
+   *  the server refused those). The control shows a fixed-size placeholder instead of a broken `<img>`
+   *  whose alt text spills out of the 36px box. Resets when the id changes. */
+  previewFailed: boolean;
+  /** The thumbnail `<img>`'s `onError`. */
+  onPreviewError: () => void;
 }
+
+const FEATURED_IMAGE_ACCEPT: readonly string[] = ["image/*"];
 
 export function usePostFeaturedImage(
   value: string | null,
@@ -29,6 +40,9 @@ export function usePostFeaturedImage(
   deps: { port: Pick<MediaPickerPort, "mediaOriginalUrl"> },
 ): PostFeaturedImageController {
   const [pickerOpen, setPickerOpen] = useState(false);
+  // Keyed by the id that failed rather than a boolean, so choosing another image clears it without
+  // an effect.
+  const [failedId, setFailedId] = useState<string | null>(null);
   return {
     pickerOpen,
     openPicker: () => setPickerOpen(true),
@@ -39,6 +53,9 @@ export function usePostFeaturedImage(
     },
     clear: () => onChange(null),
     previewUrl: value ? deps.port.mediaOriginalUrl(value) : null,
+    accept: FEATURED_IMAGE_ACCEPT,
+    previewFailed: value !== null && failedId === value,
+    onPreviewError: () => setFailedId(value),
   };
 }
 

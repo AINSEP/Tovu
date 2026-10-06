@@ -5,7 +5,7 @@ import { agentHandle } from "@jini-ai/agentic";
 import type { AdminMedia } from "../../lib/api";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { splitOnPlaceholders } from "../../lib/template-i18n";
-import { useWiredMediaPickerDialog } from "./MediaPickerDialog.hooks";
+import { acceptedMediaItems, useWiredMediaPickerDialog } from "./MediaPickerDialog.hooks";
 
 /**
  * @file `MediaPickerDialog` — lets an operator choose an EXISTING asset from the Media library
@@ -60,10 +60,16 @@ export interface MediaPickerDialogProps {
   /** This dialog's own base handle — see this file's "Agent handles" doc for the full scheme. Omit
    *  to leave it untagged. */
   agentHandle?: string;
+  /** Content types this caller can use, e.g. `["image/*"]` (2026-10-05: the featured-image chooser
+   *  offered videos). Same matching as Jini's `acceptsMedia`: an asset with no known type is hidden
+   *  once a filter is given. Omit (or `[]`) to offer every asset — existing callers' behavior. */
+  accept?: readonly string[];
 }
 
-function LegacyMediaPickerDialog({ useDialog = useWiredMediaPickerDialog, agentHandle: base, ...props }: MediaPickerDialogProps) {
-  const { items, error, select, mediaOriginalUrl, cancelRef, t } = useDialog(props.onSelect, props.onCancel);
+function LegacyMediaPickerDialog({ useDialog = useWiredMediaPickerDialog, agentHandle: base, accept, ...props }: MediaPickerDialogProps) {
+  const dialog = useDialog(props.onSelect, props.onCancel);
+  const { error, select, mediaOriginalUrl, cancelRef, t } = dialog;
+  const items = acceptedMediaItems(dialog.items, accept);
   // aria-modal promises the background is unavailable; this is what keeps Tab from reaching it.
   const dialogRef = useRef<HTMLDivElement | null>(null);
   useFocusTrap(dialogRef);

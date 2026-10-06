@@ -135,6 +135,24 @@ describe("usePostFeaturedImage", () => {
     act(() => result.current.clear());
     expect(onChange).toHaveBeenLastCalledWith(null);
   });
+
+  it("asks the picker for images only", () => {
+    const port = { mediaOriginalUrl: (id: string) => `/media/${id}` };
+    const { result } = renderHook(() => usePostFeaturedImage(null, vi.fn(), { port }));
+    expect(result.current.accept).toEqual(["image/*"]);
+  });
+
+  it("a preview that fails to load is reported until the value changes", () => {
+    const port = { mediaOriginalUrl: (id: string) => `/media/${id}` };
+    const { result, rerender } = renderHook(({ value }) => usePostFeaturedImage(value, vi.fn(), { port }), {
+      initialProps: { value: "m-video" as string | null },
+    });
+    expect(result.current.previewFailed).toBe(false);
+    act(() => result.current.onPreviewError());
+    expect(result.current.previewFailed).toBe(true);
+    rerender({ value: "m-image" });
+    expect(result.current.previewFailed).toBe(false);
+  });
 });
 
 describe("PostPublishingFields", () => {
@@ -145,6 +163,9 @@ describe("PostPublishingFields", () => {
     handleSelect: vi.fn(),
     clear: vi.fn(),
     previewUrl: null,
+    accept: ["image/*"],
+    previewFailed: false,
+    onPreviewError: vi.fn(),
     ...overrides,
   });
 
@@ -176,5 +197,24 @@ describe("PostPublishingFields", () => {
     expect(screen.getByRole("img", { name: "Featured image" }).getAttribute("src")).toBe("/media/m1");
     fireEvent.click(screen.getByRole("button", { name: "Remove" }));
     expect(clear).toHaveBeenCalled();
+  });
+
+  it("a featured media that cannot be shown renders a fixed-size placeholder, not a broken image", () => {
+    render(
+      <PostPublishingFields publishAtInput="" setPublishAtInput={vi.fn()} scheduled={false} featuredMediaId="m-video" setFeaturedMediaId={vi.fn()} t={fakeT} useFeaturedImage={fakePicker({ previewUrl: "/media/m-video", previewFailed: true })} />,
+    );
+    expect(screen.queryByRole("img", { name: "Featured image" })).toBeNull();
+    const placeholder = screen.getByRole("img", { name: "Featured image unavailable" });
+    expect(placeholder.tagName).toBe("SPAN");
+    expect(placeholder.className).toContain("editor-featured-preview");
+  });
+
+  it("a broken preview image reports through onPreviewError", () => {
+    const onPreviewError = vi.fn();
+    render(
+      <PostPublishingFields publishAtInput="" setPublishAtInput={vi.fn()} scheduled={false} featuredMediaId="m1" setFeaturedMediaId={vi.fn()} t={fakeT} useFeaturedImage={fakePicker({ previewUrl: "/media/m1", onPreviewError })} />,
+    );
+    fireEvent.error(screen.getByRole("img", { name: "Featured image" }));
+    expect(onPreviewError).toHaveBeenCalled();
   });
 });
