@@ -226,26 +226,46 @@ function toChatCoreRunStatus(state: string): "queued" | "running" | "succeeded" 
 const RUN_FORGOTTEN_MESSAGE =
   "The assistant restarted while this answer was running, so it stopped. Send your message again to retry.";
 
+/** A run the daemon reports failed whose `end` frame this tab could not load (its stream would not reopen). */
+const RUN_ENDED_UNSEEN_FAILED_MESSAGE = "This answer failed before it finished. Send your message again to retry.";
+/** `EventSource.CLOSED`, spelled out because the global may be a test fake without the static. */
+const EVENT_SOURCE_CLOSED = 2;
+/** First reopen delay after the browser closed a run stream for good; doubles per failed reopen. */
+const RUN_STREAM_REOPEN_MS = 1_000;
+const RUN_STREAM_REOPEN_MAX_MS = 10_000;
+const TERMINAL_RUN_STATES = new Set(["succeeded", "failed", "cancelled"]);
+
+/** The daemon's run state from a `GET /api/runs/:runId` answer, or `undefined` for anything but a readable 200. */
+async function runStateOf(response: Response | null): Promise<string | undefined> {
+  if (!response?.ok) return undefined;
+  const body = (await response.json().catch(() => null)) as { run?: { state?: unknown } } | null;
+  return typeof body?.run?.state === "string" ? body.run.state : undefined;
+}
+
 function subscribeToRun(runId: string, handlers: RunHandlers, signal?: AbortSignal): void {
   // Abort events are not replayed to new listeners. A late start response or an already-cancelled
   // reattach must not open a stream that will keep reconnecting after its owner has gone away.
   if (signal?.aborted) return;
-  const source = new EventSource(`${RUNS_URL}/${encodeURIComponent(runId)}/events`);
+  const runUrl = `${RUNS_URL}/${encodeURIComponent(runId)}`;
   const collected: AgentEvent[] = [];
-  let settled = false;
+  // `cursor` is the last SSE `id:` seen, so a reopened stream resumes after it instead of replaying
+  // (and duplicating) every event. `framed` says whether the current stream delivered anything.
+  const state = { settled: false, cursor: "", framed: false, opens: 0, reopenMs: RUN_STREAM_REOPEN_MS, timer: undefined as ReturnType<typeof setTimeout> | undefined };
+  let source!: EventSource;
 
-  const finish = () => {
-    if (settled) return;
-    settled = true;
+  const stop = () => {
+    state.settled = true;
+    clearTimeout(state.timer);
     source.close();
+  };
+  const finish = () => {
+    if (state.settled) return;
+    stop();
     handlers.onDone(collected);
   };
 
   signal?.addEventListener("abort", () => {
-    if (!settled) {
-      settled = true;
-      source.close();
-    }
+    if (!state.settled) stop();
   });
 
   // One daemon frame's effect, from the translation the API's run finalizer also uses
@@ -263,36 +283,15 @@ function subscribeToRun(runId: string, handlers: RunHandlers, signal?: AbortSign
     if (outcome.error) handlers.onError(outcome.error);
     if (outcome.terminal) finish();
   };
-  const frameData = (event: Event) => (event as MessageEvent<string>).data;
+  const onFrame = (kind: "agent" | "stdout" | "stderr" | "end" | "error", event: Event) => {
+    const message = event as MessageEvent<string>;
+    if (message.lastEventId) state.cursor = message.lastEventId;
+    state.framed = true;
+    state.reopenMs = RUN_STREAM_REOPEN_MS;
+    apply(translateRunFrame(kind, message.data));
+  };
 
-  source.addEventListener("agent", (event) => apply(translateRunFrame("agent", frameData(event))));
-  source.addEventListener("stdout", (event) => apply(translateRunFrame("stdout", frameData(event))));
-  // The agent CLI's stderr. `@jini-ai/daemon`'s `agent-executor.ts` emits this as its own SSE event
-  // kind, and until 2026-09-06 nothing here listened for it — an `EventSource` silently drops a named
-  // event with no listener. That is where a dying CLI prints WHY it is dying. Rendered as `raw`,
-  // exactly like `stdout`.
-  source.addEventListener("stderr", (event) => apply(translateRunFrame("stderr", frameData(event))));
-  source.addEventListener("end", (event) => apply(translateRunFrame("end", frameData(event))));
-
-  source.addEventListener("error", (event) => {
-    const raw = frameData(event);
-    if (raw) {
-      apply(translateRunFrame("error", raw));
-      return;
-    }
-    // A bare EventSource connection error (no `data`, e.g. the server never responded) rather
-    // than a run-level error frame.
-    // EventSource reconnects automatically. onError would make the chat hook's failed status
-    // sticky even after a successful end, so a transport drop must not classify the run itself.
-    // The agent daemon restarts on every dev API reload and keeps runs in memory only, so a drop
-    // can mean the run no longer exists anywhere. EventSource would retry into a 404 forever and
-    // the chat would stay "running", so ask the daemon; only a 404 ends the run here.
-    void settleIfRunForgotten();
-  });
-
-  const settleIfRunForgotten = async () => {
-    const response = await fetch(`${RUNS_URL}/${encodeURIComponent(runId)}`, { credentials: "same-origin" }).catch(() => null);
-    if (settled || response?.status !== 404) return;
+  const settleAsForgotten = () => {
     // Saved with the turn, not only shown: the error is live-only state, and without this event a
     // reload shows a bare "failed". The server finalizer writes the same notice for the same death.
     const notice = runInterruptedNotice();
@@ -301,6 +300,58 @@ function subscribeToRun(runId: string, handlers: RunHandlers, signal?: AbortSign
     handlers.onError(new Error(RUN_FORGOTTEN_MESSAGE));
     finish();
   };
+
+  const settleWithoutEnd = (runState: string) => {
+    if (runState === "failed") handlers.onError(new Error(RUN_ENDED_UNSEEN_FAILED_MESSAGE));
+    finish();
+  };
+
+  // The agent daemon restarts on every dev API reload and keeps runs in memory only, so a drop
+  // can mean the run no longer exists anywhere: only a 404 ends the run as forgotten. While the
+  // browser is still reconnecting on its own (`closed` false), that is all there is to do.
+  // A browser that got a non-200 answer (the API's 502/503 while the daemon boots) closes the
+  // stream for good and never retries, which left a finished turn on "Still working…" forever
+  // (2026-10-05), so a closed stream is reopened here after the last cursor, with backoff. A run
+  // that is already over but whose reopened stream also failed without a frame settles with what
+  // arrived rather than retrying forever.
+  const recover = async (closed: boolean) => {
+    const response = await fetch(runUrl, { credentials: "same-origin" }).catch(() => null);
+    if (state.settled) return;
+    if (response?.status === 404) return settleAsForgotten();
+    if (!closed) return;
+    const runState = await runStateOf(response);
+    if (state.settled) return;
+    if (runState !== undefined && TERMINAL_RUN_STATES.has(runState) && state.opens > 1 && !state.framed) return settleWithoutEnd(runState);
+    state.timer = setTimeout(open, state.reopenMs);
+    state.reopenMs = Math.min(state.reopenMs * 2, RUN_STREAM_REOPEN_MAX_MS);
+  };
+
+  function open(): void {
+    if (state.settled) return;
+    const own = new EventSource(`${runUrl}/events${state.cursor ? `?afterCursor=${encodeURIComponent(state.cursor)}` : ""}`);
+    source = own;
+    state.opens += 1;
+    state.framed = false;
+    own.addEventListener("agent", (event) => onFrame("agent", event));
+    own.addEventListener("stdout", (event) => onFrame("stdout", event));
+    // The agent CLI's stderr. `@jini-ai/daemon`'s `agent-executor.ts` emits this as its own SSE event
+    // kind, and until 2026-09-06 nothing here listened for it — an `EventSource` silently drops a named
+    // event with no listener. That is where a dying CLI prints WHY it is dying. Rendered as `raw`,
+    // exactly like `stdout`.
+    own.addEventListener("stderr", (event) => onFrame("stderr", event));
+    own.addEventListener("end", (event) => onFrame("end", event));
+    own.addEventListener("error", (event) => {
+      if ((event as MessageEvent<string>).data) return onFrame("error", event);
+      // A bare EventSource connection error (no `data`, e.g. the server never responded) rather
+      // than a run-level error frame. onError would make the chat hook's failed status sticky even
+      // after a successful end, so a transport drop must not classify the run itself.
+      const closed = own.readyState === EVENT_SOURCE_CLOSED;
+      if (closed) own.close();
+      void recover(closed);
+    });
+  }
+
+  open();
 }
 
 /** Client-minted, not server-minted — see module doc's path-2 section: a BYOK run has no server-side

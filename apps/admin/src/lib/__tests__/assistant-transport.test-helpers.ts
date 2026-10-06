@@ -17,14 +17,16 @@ export class FakeEventSource {
   static instances: FakeEventSource[] = [];
   readonly url: string;
   closed = false;
-  private readonly listeners = new Map<string, Array<(event: { data: string }) => void>>();
+  /** `EventSource.readyState`: 1 OPEN; `failPermanently()` sets 2 CLOSED, as a browser does on a non-200 answer. */
+  readyState = 1;
+  private readonly listeners = new Map<string, Array<(event: { data: string; lastEventId: string }) => void>>();
 
   constructor(url: string) {
     this.url = url;
     FakeEventSource.instances.push(this);
   }
 
-  addEventListener(type: string, handler: (event: { data: string }) => void): void {
+  addEventListener(type: string, handler: (event: { data: string; lastEventId: string }) => void): void {
     const list = this.listeners.get(type) ?? [];
     list.push(handler);
     this.listeners.set(type, list);
@@ -38,9 +40,15 @@ export class FakeEventSource {
     this.closed = true;
   }
 
-  /** Fires every handler registered for `type`, mirroring a real `MessageEvent`'s `.data`. */
-  emit(type: string, data: string): void {
-    for (const handler of this.listeners.get(type) ?? []) handler({ data });
+  /** Fires every handler registered for `type`, mirroring a real `MessageEvent`'s `.data` and `.lastEventId` (the SSE `id:`). */
+  emit(type: string, data: string, lastEventId = ""): void {
+    for (const handler of this.listeners.get(type) ?? []) handler({ data, lastEventId });
+  }
+
+  /** A browser that got a non-200 answer (e.g. the API's 502/503 while the daemon restarts) closes for good and fires one bare `error`. */
+  failPermanently(): void {
+    this.readyState = 2;
+    this.emit("error", "");
   }
 }
 
