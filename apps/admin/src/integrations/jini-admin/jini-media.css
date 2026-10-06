@@ -1220,11 +1220,14 @@
 .jini-media-picker-dialog::backdrop { background: oklch(0% 0 0 / 0.45); }
 .jini-media-picker-dialog > .jini-dialog-title { margin: 0; font-family: var(--font-display); font-size: var(--text-lg); font-weight: 700; color: var(--fg); }
 .jini-media-picker-dialog > label { display: flex; flex-direction: column; gap: 4px; }
-/* The only part that scrolls. `min-height: 0` lets the flex item shrink below its content. */
+/* The only part that scrolls. `min-height: 0` lets the flex item shrink below its content.
+   `grid-auto-rows: max-content` because a card is `overflow: hidden`, which drops its automatic
+   minimum height to 0 — with `auto` rows the now height-capped grid squeezed every card to its
+   title line (seen live) instead of scrolling. */
 .jini-media-picker-dialog .jini-media-grid {
   flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 2px;
-  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: var(--space-3);
-  align-content: start;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); grid-auto-rows: max-content;
+  gap: var(--space-3); align-content: start;
 }
 .jini-media-picker-dialog .jini-media-card-body { gap: var(--space-2); padding: var(--space-2); }
 .jini-media-picker-dialog .jini-media-card-title { font-size: var(--text-xs); }
