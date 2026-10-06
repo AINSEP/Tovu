@@ -8,10 +8,9 @@ import { test as base, expect, type APIRequestContext, type Page } from "@playwr
  * Origins: the admin SPA is the Vite dev server (`baseURL`, proxies `/api` to the site server); the
  * public site is the site server itself. Ports mirror `playwright.journeys.config.ts`.
  */
-export const JOURNEY_ADMIN_USER = "admin";
-export const JOURNEY_ADMIN_PASSWORD = "tovu-journeys";
-export const PUBLIC_URL = "http://localhost:9101";
-export const ADMIN_URL = "http://localhost:9102";
+export { JOURNEY_ADMIN_USER, JOURNEY_ADMIN_PASSWORD } from "../support/isolated-journey-site.js";
+export const PUBLIC_URL = "http://127.0.0.1:9101";
+export const ADMIN_URL = "http://127.0.0.1:9102";
 export const WS = "workspace-local";
 export const API = "/api/admin/v1";
 export const WS_API = `${API}/workspaces/${WS}`;

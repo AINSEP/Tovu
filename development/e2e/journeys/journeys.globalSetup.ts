@@ -1,25 +1,22 @@
 // @unrun: authored 2026-10-04 by an agent, NEVER EXECUTED; selectors and flows unverified.
 import type { FullConfig } from "@playwright/test";
 
-import { mkdirSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import path from "node:path";
+import { writeFileSync } from "node:fs";
 
-import { JOURNEY_ADMIN_PASSWORD, JOURNEY_ADMIN_USER } from "./_fixtures.js";
+import { JOURNEY_ADMIN_PASSWORD, JOURNEY_ADMIN_USER, type IsolatedJourneySite } from "../support/isolated-journey-site.js";
+import { waitForAgentDaemon } from "../daemon-ready.js";
 
 /**
  * Logs in ONCE through the real login route and writes the session cookie as the `storageState`
  * every journey reuses (`adversarial.globalSetup.ts` pattern). One login per run keeps the suite
  * under `LOGIN_STRICT` (10 logins / 60s / IP); only `smoke.journey.ts` drives the login form itself.
  */
-const STORAGE_STATE_DIR = path.join(tmpdir(), "tovu-journeys-auth");
-const STORAGE_STATE_PATH = path.join(STORAGE_STATE_DIR, "storage-state.json");
-
 async function loginWithRetry(baseURL: string): Promise<Response> {
   let last: Response | undefined;
   for (let attempt = 0; attempt < 20; attempt++) {
     const response = await fetch(`${baseURL}/api/admin/v1/auth/login`, {
       method: "POST",
+      redirect: "error",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ username: JOURNEY_ADMIN_USER, password: JOURNEY_ADMIN_PASSWORD }),
     });
@@ -31,8 +28,15 @@ async function loginWithRetry(baseURL: string): Promise<Response> {
 }
 
 export default async function journeysGlobalSetup(config: FullConfig): Promise<void> {
+  const site = config.metadata.isolatedJourneySite as IsolatedJourneySite | undefined;
   const baseURL = config.projects[0]?.use?.baseURL;
-  if (!baseURL) throw new Error("journeys globalSetup: no baseURL on the first project");
+  // Validate provenance BEFORE submitting credentials. FullConfig.webServer is null for an
+  // array of servers, so use the runner-owned descriptor rather than that normalized field.
+  if (!site || site.ownerPid !== process.pid || baseURL !== site.adminURL
+    || site.adminURL !== `http://127.0.0.1:${site.ports.admin}`
+    || config.projects[0]?.use?.storageState !== site.storageState) {
+    throw new Error("journeys globalSetup requires the isolated site created by its config");
+  }
   const login = await loginWithRetry(baseURL);
   if (!login.ok) throw new Error(`journeys globalSetup: login failed (${login.status})`);
   const setCookie = login.headers.getSetCookie?.() ?? [];
@@ -54,6 +58,23 @@ export default async function journeysGlobalSetup(config: FullConfig): Promise<v
       sameSite: "Strict" as const,
     };
   });
-  mkdirSync(STORAGE_STATE_DIR, { recursive: true });
-  writeFileSync(STORAGE_STATE_PATH, JSON.stringify({ cookies, origins: [] }, null, 2));
+  writeFileSync(site.storageState, JSON.stringify({ cookies, origins: [] }, null, 2), { mode: 0o600 });
+  if (site.runtime === "local-cli") {
+    process.env.E2E_API_PORT = String(site.ports.api);
+    process.env.E2E_AGENT_DAEMON_PORT = String(site.ports.daemon);
+    // The daemon starts only after all first-boot seeders (including settings) have settled.
+    await waitForAgentDaemon();
+    const cookie = cookies.map(({ name, value }) => `${name}=${value}`).join("; ");
+    // Persist the runtime explicitly through the real settings route. The fresh seed normally
+    // defaults to Local CLI, but pin Claude so another installed CLI cannot become the selection.
+    for (const [key, valueJson] of [["mode", "local-cli"], ["localCli.agentId", "claude"]]) {
+      const saved = await fetch(`${baseURL}/api/admin/v1/workspaces/workspace-local/settings/value`, {
+        method: "PUT", redirect: "error",
+        headers: { "content-type": "application/json", cookie },
+        body: JSON.stringify({ namespace: "core.execution", key, scope: "workspace", valueJson }),
+      });
+      if (!saved.ok) throw new Error(`journeys globalSetup: could not select Claude Local CLI (${key}, ${saved.status})`);
+    }
+    console.log(`[isolated chat] Claude Code Local CLI; admin ${site.adminURL}; API ${site.apiURL}; site ${site.siteDir}`);
+  }
 }

@@ -3,6 +3,7 @@ import type { Page } from "@playwright/test";
 
 import { startFakeModelServer, toolResultsIn, type CapturedModelRequest, type FakeModelServer } from "../harness/fake-model-server.js";
 import { expect, test, uniq, WS_API } from "./_fixtures.js";
+import { createAdminChatDriver } from "../support/admin-chat-driver.js";
 
 /**
  * W9 (SCOPE.md §2, layer 2): a REAL tool call through the admin dock. Unlike `assistant.journey.ts`,
@@ -68,21 +69,6 @@ async function postCount(page: Page): Promise<number> {
   return (await listPosts(page)).length;
 }
 
-async function openDockAndSend(page: Page, prompt: string, { doubleClick = false } = {}): Promise<ReturnType<Page["locator"]>> {
-  // A fresh load remounts `AssistantDock`, whose `useExecutionConfig` reads the ledger just written.
-  await page.goto("/admin/", { waitUntil: "domcontentloaded" });
-  await page.locator(".admin-layout").waitFor({ state: "visible" });
-  await page.getByRole("button", { name: "Open assistant" }).click();
-  const dock = page.locator('aside[aria-label="Assistant"]');
-  const composer = dock.locator(".jini-composer-input");
-  await composer.waitFor({ state: "visible" });
-  await composer.fill(prompt);
-  const send = dock.locator(".jini-composer-send");
-  if (doubleClick) await send.dblclick();
-  else await send.click();
-  return dock;
-}
-
 /** Script: call `content_post_create` through the meta-tool, then answer from the tool result. */
 function createPostScript(fake: FakeModelServer, title: string, toolUseId: string): void {
   fake.enqueue(
@@ -111,10 +97,13 @@ test.describe("assistant real tool call (BYOK, fake model)", () => {
     createPostScript(fake, title, toolUseId);
     try {
       await configureByok(page, fake);
-      const dock = await openDockAndSend(page, `Create a draft post titled ${title}`);
+      const chat = createAdminChatDriver({ page });
+      // A fresh load remounts `AssistantDock`, whose `useExecutionConfig` reads the ledger just written.
+      await chat.open({ navigate: true });
+      await chat.send({ text: `Create a draft post titled ${title}` });
 
-      await expect(dock.locator(".jini-message-assistant").last()).toContainText(`Done: the draft "${title}" exists.`, { timeout: 30_000 });
-      await expect(dock.locator(".jini-message-error")).toHaveCount(0);
+      await expect(chat.ui.assistantMessages.last()).toContainText(`Done: the draft "${title}" exists.`, { timeout: 30_000 });
+      await expect(chat.ui.messageErrors).toHaveCount(0);
 
       // The provider call carried the stored credential, and the second call carried a successful
       // tool result naming the row the handler wrote.
@@ -150,9 +139,12 @@ test.describe("assistant real tool call (BYOK, fake model)", () => {
     try {
       await configureByok(page, fake);
       const before = await postCount(page);
-      const dock = await openDockAndSend(page, "Create a post with no title");
+      const chat = createAdminChatDriver({ page });
+      // A fresh load remounts `AssistantDock`, whose `useExecutionConfig` reads the ledger just written.
+      await chat.open({ navigate: true });
+      await chat.send({ text: "Create a post with no title" });
 
-      await expect(dock.locator(".jini-message-assistant").last()).toContainText("the title is missing", { timeout: 30_000 });
+      await expect(chat.ui.assistantMessages.last()).toContainText("the title is missing", { timeout: 30_000 });
       const calls = fake.generationRequests();
       expect(calls).toHaveLength(2);
       const [result] = toolResultsIn("anthropic", calls[1]!).filter((r) => r.toolUseId === toolUseId);
@@ -171,12 +163,15 @@ test.describe("assistant real tool call (BYOK, fake model)", () => {
     createPostScript(fake, title, toolUseId);
     try {
       await configureByok(page, fake);
-      const dock = await openDockAndSend(page, `Create a draft post titled ${title}`, { doubleClick: true });
-      await expect(dock.locator(".jini-message-assistant").last()).toContainText(`Done: the draft "${title}" exists.`, { timeout: 30_000 });
+      const chat = createAdminChatDriver({ page });
+      // A fresh load remounts `AssistantDock`, whose `useExecutionConfig` reads the ledger just written.
+      await chat.open({ navigate: true });
+      await chat.send({ text: `Create a draft post titled ${title}` }, { doubleClick: true });
+      await expect(chat.ui.assistantMessages.last()).toContainText(`Done: the draft "${title}" exists.`, { timeout: 30_000 });
       // A second turn would hit the empty queue (500) and show an error, and a second create would
       // show up as a second row.
       expect(fake.generationRequests()).toHaveLength(2);
-      await expect(dock.locator(".jini-message-error")).toHaveCount(0);
+      await expect(chat.ui.messageErrors).toHaveCount(0);
       expect(await postsTitled(page, title)).toHaveLength(1);
     } finally {
       await restoreLocalCli(page).finally(() => fake.close());

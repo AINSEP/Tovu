@@ -3,6 +3,7 @@ import type { Page, Request, Route } from "@playwright/test";
 import { buildConfirmationSurface, buildFormSurface } from "@jini-ai/ui/mcp-ui/surfaces";
 
 import { expect, test, uniq } from "./_fixtures.js";
+import { createAdminChatDriver } from "../support/admin-chat-driver.js";
 
 /**
  * Admin assistant dock journeys (SCOPE.md W9, stubbed-run slice). No model runs: `POST /api/runs`
@@ -29,7 +30,6 @@ import { expect, test, uniq } from "./_fixtures.js";
  * is stubbed to `running` (the transport asks it on a dropped stream and ends the run on a 404).
  */
 const RUN_ID = "journey-run-1";
-const DOCK_TEXTAREA = "textarea.jini-composer-input";
 
 type Payload = Record<string, unknown>;
 
@@ -124,43 +124,36 @@ function confirmPayloads(expiresAtMs?: number): Payload[] {
   ];
 }
 
-async function openDockAndStartRun(page: Page): Promise<void> {
-  await page.goto("/admin/posts");
-  await page.locator("button.chat-fab").click();
-  await expect(page.locator(".admin-chat-dock")).toBeVisible();
-  const textarea = page.locator(DOCK_TEXTAREA);
-  await textarea.fill("Help me choose");
-  await page.locator('button[aria-label="Send"]').click();
-}
-
 test.describe("assistant ask_choice typed answer", () => {
   test("typing while the question card is open delivers one typed answer and starts no second run", { tag: ["@unrun"] }, async ({ page }) => {
     const stub = await stubPendingRun(page, askChoicePayloads(), 202);
-    await openDockAndStartRun(page);
+    const chat = createAdminChatDriver({ page }, { adminPath: "/admin/posts" });
+    await chat.open({ navigate: true });
+    await chat.send({ text: "Help me choose" });
     await expect(page.frameLocator('iframe[title^="ui://tovu/ask-choice/"]').locator("h1.mcpui-title")).toHaveText("Pick a plan");
     // While streaming, Send turns into Stop run, so Enter is the only send path.
-    await expect(page.getByRole("button", { name: /stop run/i })).toBeVisible();
+    await expect(chat.ui.stop).toBeVisible();
 
-    const textarea = page.locator(DOCK_TEXTAREA);
-    await textarea.fill("  Something in between, please  ");
-    await textarea.press("Enter");
-    await textarea.press("Enter"); // a second Enter on the now-empty composer must not resend
+    const textarea = chat.ui.composer;
+    await chat.send({ text: "  Something in between, please  " }, { submission: "enter" });
+    await chat.send({}, { submission: "enter" }); // a second Enter on the now-empty composer must not resend
     await expect(textarea).toHaveValue("");
     await expect.poll(() => stub.toolCalls.length).toBe(1);
     expect(stub.toolCalls[0]).toEqual({ toolName: "assistant_ask_choice", params: { __typedAnswer: "Something in between, please" } });
     expect(stub.runStarts, "a typed answer must never start a second run").toHaveLength(1);
-    await expect(page.locator(".jini-chat-pane__error[role=alert]")).toHaveCount(0);
+    await expect(chat.ui.paneErrors).toHaveCount(0);
   });
 
   test("a stale question (409) shows the notice, keeps the draft and starts no run", { tag: ["@unrun"] }, async ({ page }) => {
     const stub = await stubPendingRun(page, askChoicePayloads(), 409);
-    await openDockAndStartRun(page);
+    const chat = createAdminChatDriver({ page }, { adminPath: "/admin/posts" });
+    await chat.open({ navigate: true });
+    await chat.send({ text: "Help me choose" });
     await expect(page.frameLocator('iframe[title^="ui://tovu/ask-choice/"]').locator("h1.mcpui-title")).toBeVisible();
     const draft = uniq("late answer");
-    const textarea = page.locator(DOCK_TEXTAREA);
-    await textarea.fill(draft);
-    await textarea.press("Enter");
-    await expect(page.locator(".jini-chat-pane__error[role=alert]")).toHaveText(
+    const textarea = chat.ui.composer;
+    await chat.send({ text: draft }, { submission: "enter" });
+    await expect(chat.ui.paneErrors).toHaveText(
       "That question is no longer waiting for an answer, so your message was not sent.",
     );
     await expect(textarea).toHaveValue(draft);
@@ -170,37 +163,40 @@ test.describe("assistant ask_choice typed answer", () => {
 
   test("a failed delivery (500) says so and keeps the draft for a retry", { tag: ["@unrun"] }, async ({ page }) => {
     const stub = await stubPendingRun(page, askChoicePayloads(), 500);
-    await openDockAndStartRun(page);
+    const chat = createAdminChatDriver({ page }, { adminPath: "/admin/posts" });
+    await chat.open({ navigate: true });
+    await chat.send({ text: "Help me choose" });
     await expect(page.frameLocator('iframe[title^="ui://tovu/ask-choice/"]').locator("h1.mcpui-title")).toBeVisible();
-    const textarea = page.locator(DOCK_TEXTAREA);
-    await textarea.fill("retry me");
-    await textarea.press("Enter");
-    await expect(page.locator(".jini-chat-pane__error[role=alert]")).toHaveText("Your answer could not be delivered. Try sending it again.");
+    const textarea = chat.ui.composer;
+    await chat.send({ text: "retry me" }, { submission: "enter" });
+    await expect(chat.ui.paneErrors).toHaveText("Your answer could not be delivered. Try sending it again.");
     await expect(textarea).toHaveValue("retry me");
     expect(stub.runStarts).toHaveLength(1);
   });
 
   test("ask_choice card baseline", { tag: ["@unrun"] }, async ({ page }) => {
     await stubPendingRun(page, askChoicePayloads(), 202);
-    await openDockAndStartRun(page);
+    const chat = createAdminChatDriver({ page }, { adminPath: "/admin/posts" });
+    await chat.open({ navigate: true });
+    await chat.send({ text: "Help me choose" });
     await expect(page.frameLocator('iframe[title^="ui://tovu/ask-choice/"]').locator("h1.mcpui-title")).toBeVisible();
-    await expect(page.locator(".admin-chat-dock")).toHaveScreenshot("dock-ask-choice-card.png");
+    await expect(chat.ui.dock).toHaveScreenshot("dock-ask-choice-card.png");
   });
 });
 
 test.describe("assistant confirm card", () => {
   test("typing while a CONFIRM card is pending queues the message instead of posting it as a typed answer", { tag: ["@unrun"] }, async ({ page }) => {
     const stub = await stubPendingRun(page, confirmPayloads(), 202);
-    await openDockAndStartRun(page);
+    const chat = createAdminChatDriver({ page }, { adminPath: "/admin/posts" });
+    await chat.open({ navigate: true });
+    await chat.send({ text: "Help me choose" });
     const card = page.frameLocator('iframe[title^="ui://tovu/content-post-delete/"]');
     await expect(card.locator('[data-mcpui-action="confirm"]')).toBeVisible();
 
-    const textarea = page.locator(DOCK_TEXTAREA);
-    await textarea.fill("actually, also rename it");
-    await textarea.press("Enter");
+    await chat.send({ text: "actually, also rename it" }, { submission: "enter" });
     const queued = page.getByTestId("chat-pane-queued");
     await expect(queued).toContainText("actually, also rename it");
-    await expect(page.locator(".jini-chat-pane__error[role=alert]"), "no 'no longer waiting' notice for a confirm card").toHaveCount(0);
+    await expect(chat.ui.paneErrors, "no 'no longer waiting' notice for a confirm card").toHaveCount(0);
     expect(stub.toolCalls, "nothing may be posted to the question endpoint for a confirm card").toEqual([]);
     expect(stub.runStarts, "the queued message waits for the run; it does not start a second one").toHaveLength(1);
 
@@ -210,7 +206,9 @@ test.describe("assistant confirm card", () => {
 
   test("confirm sends exactly one decision for the right tool", { tag: ["@unrun"] }, async ({ page }) => {
     const stub = await stubPendingRun(page, confirmPayloads(), 202);
-    await openDockAndStartRun(page);
+    const chat = createAdminChatDriver({ page }, { adminPath: "/admin/posts" });
+    await chat.open({ navigate: true });
+    await chat.send({ text: "Help me choose" });
     const confirm = page.frameLocator('iframe[title^="ui://tovu/content-post-delete/"]').locator('[data-mcpui-action="confirm"]');
     await expect(confirm).toBeEnabled({ timeout: 5_000 }); // disabled for its first 1500 ms (CONFIRM_DWELL_MS)
     await confirm.dblclick();
@@ -222,10 +220,12 @@ test.describe("assistant confirm card", () => {
     const start = new Date("2026-10-04T12:00:00Z");
     await page.clock.install({ time: start });
     const stub = await stubPendingRun(page, confirmPayloads(start.getTime() + 120_000), 202);
-    await openDockAndStartRun(page);
+    const chat = createAdminChatDriver({ page }, { adminPath: "/admin/posts" });
+    await chat.open({ navigate: true });
+    await chat.send({ text: "Help me choose" });
     const timer = page.locator("p.mcpui-surface-expiry[role=timer]");
     await expect(timer).toHaveText(/^Expires in (2:00|1:59)$/);
-    await expect(page.locator(".admin-chat-dock")).toHaveScreenshot("dock-confirm-card-countdown.png", { mask: [timer] });
+    await expect(chat.ui.dock).toHaveScreenshot("dock-confirm-card-countdown.png", { mask: [timer] });
 
     await page.clock.fastForward(61_000);
     await expect(timer).toHaveText(/^Expires in 0:5[89]$/);
@@ -235,7 +235,7 @@ test.describe("assistant confirm card", () => {
     const closed = page.locator(".mcpui-surface-card-closed[role=status]");
     await expect(closed).toContainText("This question expired");
     await expect(page.locator('iframe[title^="ui://tovu/content-post-delete/"]'), "an expired card shows no live form").toHaveCount(0);
-    await expect(page.locator(".admin-chat-dock")).toHaveScreenshot("dock-confirm-card-expired.png");
+    await expect(chat.ui.dock).toHaveScreenshot("dock-confirm-card-expired.png");
     expect(stub.toolCalls, "expiry must not auto-confirm").toEqual([]);
   });
 });

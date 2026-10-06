@@ -1,4 +1,5 @@
-import { test, expect, type Page, type Locator } from "@playwright/test";
+import { test, expect } from "@playwright/test";
+import { createAdminChatDriver, type AdminChatDriver } from "./support/admin-chat-driver.js";
 import { loginAsAdmin } from "./auth-fixtures.js";
 
 /**
@@ -32,7 +33,7 @@ import { loginAsAdmin } from "./auth-fixtures.js";
  * that was actually broken. The one assertion that is load-bearing for THIS bug is "the composer's
  * file input carries no accept filter", which reads the real rendered `accept` attribute instead.
  * That attribute always belongs to the REAL composer's own input — every case here drives it
- * through `fileInput()` below, never a synthetic input built for this test.
+ * through the shared driver's `ui.fileInput`, never a synthetic input built for this test.
  *
  * ## Selector durability
  *
@@ -143,64 +144,41 @@ const IMAGE_BINARY_AND_NAME_MATRIX: readonly AttachmentMatrixCase[] = [
   { label: "filename with spaces", fileName: "regression file with spaces.txt", mimeType: "text/plain", content: textFixture("spaces in the name\n"), expectedKind: "file" },
 ];
 
-async function openDock(page: Page): Promise<void> {
-  await loginAsAdmin(page);
-  await page.setViewportSize({ width: 1280, height: 900 });
-  await page.locator("button.chat-fab").click();
-  const dock = page.locator(".admin-chat-dock");
-  await expect(dock).not.toHaveAttribute("hidden", "");
-}
-
-/**
- * The file input always exists once the composer mounts with discovery groups (rendered
- * unconditionally by whichever of Jini's two composer render branches is live, not gated on the
- * "+" menu being open), so no menu click is needed to reach it — matching how `setInputFiles`
- * drives it directly rather than through a simulated click-then-native-dialog flow Playwright
- * cannot automate anyway.
- *
- * Keyed off the real `data-testid="composer-attachment-input"` hook, present on both of Jini's
- * composer render branches (`Composer.tsx`'s own `attachmentPicker && !hasDiscoveryItems` branch
- * and `ComposerDiscovery.tsx`'s `ComposerDiscoveryMenu` Files group — Tovu's admin dock takes the
- * discovery branch) — this locator doesn't need to know or care which one is live.
- */
-function fileInput(page: Page): Locator {
-  return page.getByTestId("composer-attachment-input");
-}
-
-/** Locates one attachment chip by its exact, post-sanitization `data-attachment-name` — the real
- *  value Jini's `sanitizeAttachmentName` computed, not a substring match on rendered text. Both
- *  attributes live on the same element, so this is one combined selector rather than a scoped
- *  `getByTestId().filter(...)` (which only matches a DESCENDANT, not the element itself). */
-function attachmentChip(page: Page, name: string): Locator {
-  return page.locator(`[data-testid="attachment-chip"][data-attachment-name="${name}"]`);
-}
-
 /** Drives one matrix row through the real picker and asserts the resulting chip's daemon-reported
  *  kind — not just that the upload returned success. Wrapped in `test.step` so each row shows up as
  *  its own pass/fail line in the report despite sharing one login with its group. */
-async function runMatrixCase(page: Page, matrixCase: AttachmentMatrixCase): Promise<void> {
+async function runMatrixCase(
+  { chat, matrixCase }: { chat: AdminChatDriver; matrixCase: AttachmentMatrixCase },
+  _optional = {},
+): Promise<void> {
   await test.step(matrixCase.label, async () => {
-    await fileInput(page).setInputFiles({
+    await chat.attach({ files: [{
       name: matrixCase.fileName,
       mimeType: matrixCase.mimeType,
       buffer: matrixCase.content,
-    });
-    const chip = attachmentChip(page, matrixCase.fileName);
+    }] });
+    const chip = chat.ui.attachmentChip({ name: matrixCase.fileName });
     await expect(chip).toBeVisible({ timeout: 15_000 });
     // Reads the daemon's real classification directly off the chip's own attribute — no more
     // inferring it from a `.jini-attachment-chip-icon.is-*` presentational CSS suffix.
     await expect(chip).toHaveAttribute("data-attachment-kind", matrixCase.expectedKind);
-    await expect(page.getByRole("alert")).toHaveCount(0);
+    await expect(chat.ui.errors).toHaveCount(0);
   });
 }
 
 test.describe("admin composer — attachment file picker excludes no file type", () => {
+  test.beforeEach(async ({ page }) => {
+    await loginAsAdmin(page);
+    await page.setViewportSize({ width: 1280, height: 900 });
+  });
+
   test("the composer's file input carries no accept filter, so the OS dialog cannot exclude any file", async ({
     page,
   }) => {
-    await openDock(page);
+    const chat = createAdminChatDriver({ page });
+    await chat.open();
 
-    const accept = await fileInput(page).getAttribute("accept");
+    const accept = await chat.ui.fileInput.getAttribute("accept");
 
     // The load-bearing regression assertion (see this file's module doc for why it's the only one
     // that can be). Falsy covers both `null` (React omits the attribute entirely when the prop is
@@ -210,30 +188,27 @@ test.describe("admin composer — attachment file picker excludes no file type",
   });
 
   test("text, code, and config files all upload through the picker and classify as 'file'", async ({ page }) => {
-    await openDock(page);
+    const chat = createAdminChatDriver({ page });
+    await chat.open();
     // One upload must start at the visible action: setting the hidden input alone cannot catch
     // a menu item whose input.click() wiring was removed.
     const markdown = TEXT_CODE_CONFIG_MATRIX[0]!;
-    await page.getByRole("button", { name: "Add context", exact: true }).click();
-    const chooserOpened = page.waitForEvent("filechooser");
-    await page.getByRole("menuitem", { name: "Attach files", exact: true }).click();
-    const chooser = await chooserOpened;
-    expect(await chooser.element().getAttribute("data-testid")).toBe("composer-attachment-input");
-    await chooser.setFiles({ name: markdown.fileName, mimeType: markdown.mimeType, buffer: markdown.content });
-    await expect(attachmentChip(page, markdown.fileName)).toBeVisible({ timeout: 15_000 });
-    await expect(attachmentChip(page, markdown.fileName)).toHaveAttribute("data-attachment-kind", "file");
-    await expect(page.getByRole("alert")).toHaveCount(0);
-    for (const matrixCase of TEXT_CODE_CONFIG_MATRIX.slice(1)) await runMatrixCase(page, matrixCase);
+    await chat.attach({ files: [{ name: markdown.fileName, mimeType: markdown.mimeType, buffer: markdown.content }] }, { via: "picker" });
+    await expect(chat.ui.attachmentChip({ name: markdown.fileName })).toBeVisible({ timeout: 15_000 });
+    await expect(chat.ui.attachmentChip({ name: markdown.fileName })).toHaveAttribute("data-attachment-kind", "file");
+    await expect(chat.ui.errors).toHaveCount(0);
+    for (const matrixCase of TEXT_CODE_CONFIG_MATRIX.slice(1)) await runMatrixCase({ chat, matrixCase });
     // 9 successful uploads in one session — under the 10-per-batch cap this suite is deliberately
     // staying under (see module doc).
-    await expect(page.getByTestId("attachment-chip")).toHaveCount(TEXT_CODE_CONFIG_MATRIX.length);
+    await expect(chat.ui.attachmentChips).toHaveCount(TEXT_CODE_CONFIG_MATRIX.length);
   });
 
   test("real images classify as 'image', a binary non-image and odd filenames still classify as 'file'", async ({
     page,
   }) => {
-    await openDock(page);
-    for (const matrixCase of IMAGE_BINARY_AND_NAME_MATRIX) await runMatrixCase(page, matrixCase);
+    const chat = createAdminChatDriver({ page });
+    await chat.open();
+    for (const matrixCase of IMAGE_BINARY_AND_NAME_MATRIX) await runMatrixCase({ chat, matrixCase });
 
     // The unicode/emoji filename case, run separately: `data-attachment-name` now exposes the exact
     // post-sanitization name, so this can assert the real landed value directly instead of falling
@@ -243,22 +218,23 @@ test.describe("admin composer — attachment file picker excludes no file type",
     // character by character: "regression" and both "-" survive; 🚀 -> "_"; "r" survives; each "é"
     // -> "_" (leaving "r_sum_"); "测" and "试" each -> "_"; ".txt" survives.
     await test.step("filename with unicode and emoji", async () => {
-      await fileInput(page).setInputFiles({
+      await chat.attach({ files: [{
         name: "regression-🚀-résumé-测试.txt",
         mimeType: "text/plain",
         buffer: textFixture("unicode filename attachment\n"),
-      });
-      const chip = attachmentChip(page, "regression-_-r_sum_-__.txt");
+      }] });
+      const chip = chat.ui.attachmentChip({ name: "regression-_-r_sum_-__.txt" });
       await expect(chip).toBeVisible({ timeout: 15_000 });
       await expect(chip).toHaveAttribute("data-attachment-kind", "file");
-      await expect(page.getByRole("alert")).toHaveCount(0);
+      await expect(chat.ui.errors).toHaveCount(0);
     });
 
-    await expect(page.getByTestId("attachment-chip")).toHaveCount(IMAGE_BINARY_AND_NAME_MATRIX.length + 1);
+    await expect(chat.ui.attachmentChips).toHaveCount(IMAGE_BINARY_AND_NAME_MATRIX.length + 1);
   });
 
   test("a zero-byte attachment is rejected by the daemon, with no chip added", async ({ page }) => {
-    await openDock(page);
+    const chat = createAdminChatDriver({ page });
+    await chat.open();
 
     // Passes the client-side size pre-check (0 bytes is never `> maxAttachmentBytes`), so this is
     // a REAL round trip to the daemon, which rejects it itself: `handleAttachmentUpload`
@@ -266,22 +242,23 @@ test.describe("admin composer — attachment file picker excludes no file type",
     // `{ error: { message: 'Attachment is empty' } }` before ever calling `detectAttachmentKind` —
     // an empty file is rejected outright rather than classified. A naive "does the picker accept
     // any file" implementation could easily let this one through as a phantom zero-byte chip.
-    await fileInput(page).setInputFiles({
+    await chat.attach({ files: [{
       name: "regression-empty.txt",
       mimeType: "text/plain",
       buffer: Buffer.alloc(0),
-    });
+    }] });
 
-    const alert = page.getByRole("alert");
+    const alert = chat.ui.errors;
     await expect(alert).toBeVisible();
     await expect(alert).toContainText("Attachment is empty");
-    await expect(page.getByTestId("attachment-chip")).toHaveCount(0);
+    await expect(chat.ui.attachmentChips).toHaveCount(0);
   });
 
   test("a file over the 20 MB per-attachment cap is rejected before any upload request, with no chip added", async ({
     page,
   }) => {
-    await openDock(page);
+    const chat = createAdminChatDriver({ page });
+    await chat.open();
 
     // 21 MB > `createDaemonAttachmentUploader`'s default 20 MB `maxAttachmentBytes`
     // (`create-daemon-attachment-uploader.ts`), built in-memory rather than committed as a fixture
@@ -295,16 +272,16 @@ test.describe("admin composer — attachment file picker excludes no file type",
       await route.continue();
     });
 
-    await fileInput(page).setInputFiles({
+    await chat.attach({ files: [{
       name: "regression-oversize.bin",
       mimeType: "application/octet-stream",
       buffer: Buffer.alloc(oversizeBytes),
-    });
+    }] });
 
-    const alert = page.getByRole("alert");
+    const alert = chat.ui.errors;
     await expect(alert).toBeVisible();
     await expect(alert).toContainText("20 MB");
-    await expect(page.getByTestId("attachment-chip")).toHaveCount(0);
+    await expect(chat.ui.attachmentChips).toHaveCount(0);
     // The real proof this is a client-side pre-check, not a slow/failed network round trip: the
     // daemon was never even asked.
     expect(uploadRequests).toBe(0);
