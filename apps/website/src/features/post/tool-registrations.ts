@@ -101,6 +101,7 @@ export { contributeContentStatsTools, type ContentStatsToolDeps } from "./conten
 import { copyBodyJsonWithFreshEmbedPlacements } from "./duplicate-embeds.js";
 import { resolveFeaturedImageRef, type FeaturedImageDeps } from "./featured-image.js";
 import { currentIso, isScheduledAt } from "../../contracts/core/scheduled-publish.js";
+import { resolveRuntimeMode, type RuntimeMode } from "../../contracts/core/runtime-mode.js";
 import { deriveDuplicateName } from "../content-duplication/derive-available-name.js";
 
 const CATALOG_BY_ID = indexCatalogById({ catalog: postAgentToolCatalog });
@@ -180,6 +181,9 @@ export interface PostToolDeps {
    */
   mediaRepo?: FeaturedImageDeps["mediaRepo"];
   mediaContentTypeStore?: FeaturedImageDeps["mediaContentTypeStore"];
+  /** OPTIONAL — whether this instance is the live site, for {@link publishedWhereView}. Defaults to
+   *  `resolveRuntimeMode()` (`TOVU_RUNTIME_MODE`); tests pass a fake. */
+  runtimeMode?: () => RuntimeMode;
 }
 
 /**
@@ -537,6 +541,33 @@ function toPostToolViewWithPublicUrl(routeDeps: PostToolDeps, post: PostRecord):
   return { ...toPostToolView(post), publicUrl: resolvePublicUrl(routeDeps, post), adminUrl: resolveAdminUrl(post) };
 }
 
+/** `publishedWhere` on a published write result when this instance is a local copy, not the live site. */
+export const PUBLISHED_WHERE_LOCAL =
+  "Published on this local site only, not on the live site. Say it is published on this site, not that it is live. " +
+  "publish_content_publish sends it to the live site.";
+
+/** `publishedWhere` on a published write result when this instance IS the live site (`TOVU_RUNTIME_MODE=production`). */
+export const PUBLISHED_WHERE_LIVE = "Published on the live site (this instance is the live site).";
+
+/**
+ * Where a published write landed. Demo dry run 2026-10-05: a page created `status: "published"` on
+ * the local site was reported as "Your page is live" — `status` + `publicUrl` alone read as the live
+ * site, and nothing in the result said otherwise. Only the write results (create/update/duplicate)
+ * carry it; reads and listings stay as they were.
+ *
+ * @complexity O(1).
+ */
+function publishedWhereView(routeDeps: PostToolDeps, post: PostRecord): { publishedWhere?: string } {
+  if (post.status !== "published") return {};
+  const mode = (routeDeps.runtimeMode ?? resolveRuntimeMode)();
+  return { publishedWhere: mode === "production" ? PUBLISHED_WHERE_LIVE : PUBLISHED_WHERE_LOCAL };
+}
+
+/** {@link toPostToolViewWithPublicUrl} plus {@link publishedWhereView} — the create/update/duplicate result shape. */
+function toPostWriteResultView(routeDeps: PostToolDeps, post: PostRecord): PostToolViewWithPublicUrl & { publishedWhere?: string } {
+  return { ...toPostToolViewWithPublicUrl(routeDeps, post), ...publishedWhereView(routeDeps, post) };
+}
+
 /**
  * Plain-text characters one `content_post_list` call returns across all its rows (2026-09-28).
  * The listing used to return every row's full TipTap `bodyJson`: a real "summarize my 6 posts" turn
@@ -857,7 +888,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
         // (`server/runtime/composition/agent-daemon-deps.ts`).
         await processOutbox({ outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock });
 
-        return { post: toPostToolViewWithPublicUrl(routeDeps, result.post) };
+        return { post: toPostWriteResultView(routeDeps, result.post) };
       } });
     },
 
@@ -1039,7 +1070,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
         // delivers instead (`server/runtime/composition/agent-daemon-deps.ts`).
         await processOutbox({ outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock });
 
-        return { post: toPostToolViewWithPublicUrl(routeDeps, result.post) };
+        return { post: toPostWriteResultView(routeDeps, result.post) };
       } });
     },
 
@@ -1308,7 +1339,7 @@ async function duplicatePostOrPage(
   // common case enqueues nothing).
   await processOutbox({ outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock });
 
-  return { post: toPostToolViewWithPublicUrl(routeDeps, finalPost) };
+  return { post: toPostWriteResultView(routeDeps, finalPost) };
 }
 
 /**

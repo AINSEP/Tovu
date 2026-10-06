@@ -872,7 +872,8 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
       "default 'draft' (nothing to link to yet until it is published via content_post_update). " +
       "When publicUrl is present, link to it first in your reply. adminUrl is an optional secondary edit link; never make a UUID admin URL the main published-content link. " +
       "Optional publishAt schedules it; featuredImage sets its lead image. A scheduled result has scheduled:true and publicUrl " +
-      "null: tell the user when it goes live.",
+      "null: tell the user when it will be published. A published result also has publishedWhere: whether it is on this local " +
+      "site only or on the live site — never call a local-only publish live.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "content.write" },
     inputSchema: {
@@ -903,7 +904,8 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
       "from the stored row before calling it). Send at least one of the six, or the call is rejected. This is also how a " +
       "post/page is published or unpublished: {id, kind, status:'published'} (or 'draft') alone is enough — there is no separate " +
       "set-status tool. Schedule with status:'published' plus a future publishAt; a scheduled result has scheduled:true and " +
-      "publicUrl null: tell the user when it goes live. Rejected if the row does not exist, if kind:'page' is given for an actual kind:'post' row (see " +
+      "publicUrl null: tell the user when it will be published. A published result also has publishedWhere: whether it is on " +
+      "this local site only or on the live site — never call a local-only publish live. Rejected if the row does not exist, if kind:'page' is given for an actual kind:'post' row (see " +
       "content_read.content_post's identical disclosed asymmetry — not rejected the other way around), if a sent slug is " +
       "malformed/reserved/taken by another row, or if a sent bodyJson is not a JSON object. " +
       "SEND expectedVersion whenever you are editing content you read earlier: it is how you avoid silently erasing a change a " +

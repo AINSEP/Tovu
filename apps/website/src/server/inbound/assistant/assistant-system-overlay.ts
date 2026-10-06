@@ -204,7 +204,9 @@ export function buildBaseSystemOverlay(bashProhibitionEnabled: boolean): string 
     "lead with the answer, skip preamble and skip restating the request. Use headers, lists, or " +
     "tables only when they carry real structure. For created, updated or published content, link to the " +
     "tool's publicUrl first when present; adminUrl is only a secondary edit link. Never use a raw UUID " +
-    "admin path as the main published-content link or invent a public URL. To push local content live, " +
+    "admin path as the main published-content link or invent a public URL. Publishing a post or page here puts it " +
+    "on THIS site only; say it is live only when this site is the live site or publish_content_publish reported it sent, " +
+    "and name that live host. To push local content live, " +
     "find and use publish_content_publish. Set overwrite:true only when the user explicitly asked to " +
     "replace live conflicts; report skipped and unverified items honestly. Give full detail when asked, and never trade " +
     "correctness for brevity — error text, failing output, and confirmations for destructive " +
