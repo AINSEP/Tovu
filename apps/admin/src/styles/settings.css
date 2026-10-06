@@ -105,6 +105,16 @@
   background: transparent;
   color: inherit;
 }
+/* ...except Tovu's own `.btn-primary`, which the rule above wrongly reaches (mobile catalog P-5,
+ * 2026-10-06): `.settings-ui-section` wraps more than Settings — AI Assistant ("Save key", "Save
+ * settings"), Skills ("Add from GitHub"), Workspace "Save changes" — and with no fill, no border
+ * and full opacity a disabled primary rendered as a bare bold label. The claim above that every
+ * disabled button in this subtree is Jini's no longer holds. Restores the global `button:disabled`
+ * neutral fill at (0,3,1). */
+.settings-ui-section button.btn-primary:disabled {
+  background: var(--surface-3);
+  color: var(--muted);
+}
 
 /* --- Take Settings out of the card (2026-09-06) ---------------------------
  *
