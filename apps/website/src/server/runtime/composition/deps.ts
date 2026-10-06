@@ -45,6 +45,7 @@ import { SqliteCustomCredentialSetRepo } from "#src/platform/db/sqlite/custom-cr
 import { createDefaultHttpClient } from "#src/platform/http/client";
 import {
   CUSTOM_CREDENTIALS_EGRESS_POLICY,
+  SITE_BACKUP_EGRESS_POLICY,
   MEDIA_IMPORT_EGRESS_POLICY,
   SINGLE_HOP_HTTPS_EGRESS_POLICY,
   createPublishContentPeerEgressPolicy,
@@ -1805,6 +1806,8 @@ async function composeSiteRouteDeps(
   // has the live incident (GitHub's Actions job-logs endpoint 302s to a signed Azure Blob URL) that
   // made a zero-redirect policy the wrong fit for this tool specifically.
   const customCredentialsHttpClient = createDefaultHttpClient(CUSTOM_CREDENTIALS_EGRESS_POLICY, { observability });
+  // `site_backup_push`'s large uploads: see `SITE_BACKUP_EGRESS_POLICY`'s own doc.
+  const siteBackupHttpClient = createDefaultHttpClient(SITE_BACKUP_EGRESS_POLICY, { observability });
 
   // `features/media-import`'s `media_import_from_url` needs its own guarded `HttpClientPort` — a
   // THIRD instance, and the only one built from a policy other than SINGLE_HOP_HTTPS. See
@@ -2412,6 +2415,7 @@ async function composeSiteRouteDeps(
     // See `routes/types.ts`'s own doc — a genuinely separate `HttpClientPort` instance from
     // `resolvedMailer`'s, built above.
     customCredentialsHttpClient,
+    siteBackupHttpClient,
     deployOpsHttpClient: createDefaultHttpClient(SINGLE_HOP_HTTPS_EGRESS_POLICY, { observability }),
     // 2026-09-06 — see `routes/types.ts`'s `mediaImportHttpClient` doc. A third instance, built
     // above from `MEDIA_IMPORT_EGRESS_POLICY` rather than `SINGLE_HOP_HTTPS_EGRESS_POLICY`.

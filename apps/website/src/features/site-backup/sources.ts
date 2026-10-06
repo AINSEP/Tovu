@@ -363,12 +363,30 @@ export function formatByteSize(bytes: number): string {
   return `${oneDecimal(bytes / (1024 * MIB))} GiB`;
 }
 
+/**
+ * Leaves out every disk file over the host's per-file limit, each named in `skipped` with its size,
+ * so one huge video does not cost the whole backup (2026-10-06: the owner asked for a full backup
+ * that just works). The database is not a disk file here: an oversized snapshot still fails the plan
+ * in {@link checkSiteBackupLimits}, because a backup without its database is not a backup.
+ *
+ * @complexity O(n).
+ */
+export function skipOversizedFiles(files: readonly PlannedDiskFile[], host: SiteBackupHostLimit): { files: PlannedDiskFile[]; skipped: SkippedSiteBackupFile[] } {
+  const maxFileBytes = host.maxFileBytes;
+  if (maxFileBytes === undefined) return { files: [...files], skipped: [] };
+  const skipped = files
+    .filter((file) => file.bytes > maxFileBytes)
+    .map((file) => ({ path: file.path, reason: `${formatByteSize(file.bytes)}, over ${host.label}'s ${formatByteSize(maxFileBytes)} per-file limit` }));
+  return { files: files.filter((file) => file.bytes <= maxFileBytes), skipped };
+}
+
 export type SiteBackupLimitsResult = { ok: true; totalBytes: number } | { ok: false; message: string };
 
 /**
  * Checks a backup against {@link SITE_BACKUP_LIMITS} and the host's own per-file limit (when its
  * plugin declares one) before anything is uploaded. A file over the per-file limit is refused, never truncated or split — and EVERY such file is named, so one retry
- * after removing them is enough.
+ * after removing them is enough. The plan runs {@link skipOversizedFiles} over the disk files first,
+ * so in practice only an oversized database snapshot reaches this refusal.
  *
  * @complexity O(n) in the file count.
  */

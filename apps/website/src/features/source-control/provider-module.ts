@@ -107,6 +107,17 @@ export interface UploadedBackupBlob {
   readonly sha256: string;
 }
 
+/** A small UTF-8 file sent inside the tree request instead of as its own blob, for a provider that
+ *  accepts that ({@link SourceControlProviderOperations.backupInlineTextMaxBytes}). */
+export interface InlineBackupText {
+  readonly path: string;
+  readonly text: string;
+  readonly bytes: number;
+  readonly sha256: string;
+}
+
+export type BackupTreeEntry = UploadedBackupBlob | InlineBackupText;
+
 export interface CommitBackupTreeInput extends CredentialedRepositoryTarget {
   readonly branch: string;
   readonly folder: string;
@@ -114,7 +125,7 @@ export interface CommitBackupTreeInput extends CredentialedRepositoryTarget {
   readonly parentCommitSha: string;
   readonly baseTreeSha: string;
   readonly htmlUrl: string;
-  readonly blobs: readonly UploadedBackupBlob[];
+  readonly entries: readonly BackupTreeEntry[];
 }
 
 /** The host facts a plugin DECLARES in `tovu-source-control.json` (`provider-registry.ts`), carried
@@ -149,6 +160,9 @@ export interface SourceControlProviderOperations {
     input: CredentialedRepositoryTarget & { readonly branch: string; readonly commitMessage: string; readonly files: readonly WriteFile[] },
     plan: FileWritePlan,
   ): Promise<CommitFilesResult>;
+  /** The largest UTF-8 file {@link commitBackupTree} accepts inline as an {@link InlineBackupText}
+   *  instead of an uploaded blob. Absent: every file is uploaded with {@link uploadBackupBlob}. */
+  readonly backupInlineTextMaxBytes?: number;
   inspectBackupRepository(input: CredentialedRepositoryTarget & { readonly branch?: string; readonly folder: string }): Promise<InspectBackupRepositoryResult>;
   uploadBackupBlob(target: CredentialedRepositoryTarget, file: { readonly path: string; readonly content: Uint8Array }): Promise<{ ok: true; blob: UploadedBackupBlob } | ProviderCallFailure>;
   commitBackupTree(input: CommitBackupTreeInput): Promise<CommitFilesResult>;
@@ -178,6 +192,8 @@ export interface SourceControlProviderKit {
   /** The guarded outbound-HTTP seam (ADR-038) for credentialed custom-credential calls. */
   readonly httpClient: HttpClientPort;
   describeTransportError(error: unknown): DescribedTransportError;
+  /** Waits before a retry. Optional so a hand-built kit may omit it; a module falls back to a timer. */
+  sleep?(ms: number): Promise<void>;
 }
 
 /** A repository named by owner and name, before anything is sent. */

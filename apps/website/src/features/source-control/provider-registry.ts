@@ -318,9 +318,11 @@ export async function buildSourceControlProviders(input: {
   readonly workspaceId: string;
   readonly httpClient: HttpClientPort;
   readonly observability?: ObservabilityPort;
+  /** Replaces the providers' retry timer (tests). */
+  readonly sleep?: (ms: number) => Promise<void>;
 }): Promise<{ readonly providers: readonly SourceControlProvider[]; readonly refusals: readonly string[]; readonly noProviderMessage: string }> {
   const registry = await (input.load ?? loadInstalledSourceControlProviders)(input.workspaceId);
-  const kit = createSourceControlProviderKit({ httpClient: input.httpClient, observability: input.observability });
+  const kit = createSourceControlProviderKit({ httpClient: input.httpClient, observability: input.observability, ...(input.sleep ? { sleep: input.sleep } : {}) });
   return { providers: registry.list().map((loaded) => buildLoadedSourceControlProvider(loaded, kit)), refusals: registry.refusals, noProviderMessage: noSourceControlProviderMessage(registry) };
 }
 

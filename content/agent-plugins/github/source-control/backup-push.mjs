@@ -14,10 +14,68 @@ import { enc, encPath, extractStringField, isOk, parseJsonBody, providerErrorMes
  * blobs on top of the planned parent, with an unforced ref update (a moved branch is `diverged`).
  * No recursive tree fetch and no deletion list are needed: the folder's tree is replaced whole.
  *
+ * Large sites (2026-10-06, a 212 MiB backup failed live): every request gets
+ * {@link BACKUP_CLIENT_OPTIONS} — a long socket-idle budget, because GitHub stays silent while it
+ * stores a big blob, and retries with backoff for timeouts, 5xx and rate limits. Small text files ride
+ * inline in the tree requests ({@link BACKUP_INLINE_TEXT_MAX_BYTES}) instead of one blob POST each,
+ * which keeps a first backup of ~1500 files to a few hundred writes, under GitHub's content-creation
+ * limits.
+ *
  * @typedef {import("./write-files.mjs").Target} Target
  * @typedef {import("./write-files.mjs").GitDataClient} GitDataClient
  * @typedef {{ path: string, blobSha: string, bytes: number, sha256: string }} UploadedBackupBlob
+ * @typedef {{ path: string, text: string, bytes: number, sha256: string }} InlineBackupText
  */
+
+/**
+ * The backup's GitHub client. The 2-minute idle budget (the backup egress policy allows it; the
+ * custom-credential one caps every request at 10 s) is what a 42 MiB database blob needed: the 10 s
+ * cap timed out while GitHub was still answering. Waits follow GitHub's REST guidance: `retry-after`
+ * first, a minute for a secondary limit without one, never longer than 10 minutes in one wait.
+ *
+ * @type {{ timeoutMs: number, retry: import("./write-files.mjs").RetryPolicy }}
+ */
+export const BACKUP_CLIENT_OPTIONS = {
+  timeoutMs: 120_000,
+  retry: { maxAttempts: 5, baseBackoffMs: 2_000, maxBackoffMs: 30_000, rateLimitWaitMs: 60_000, maxWaitMs: 10 * 60_000 },
+};
+
+/** A UTF-8 file up to this size goes inline in a tree request instead of as its own blob. */
+export const BACKUP_INLINE_TEXT_MAX_BYTES = 512 * 1024;
+
+/** One tree request's share of the folder: GitHub abandons a request it cannot finish in 10 s, so a
+ *  large folder is built over several chained `base_tree` requests rather than one. */
+const TREE_CHUNK_MAX_ENTRIES = 300;
+const TREE_CHUNK_MAX_BYTES = 2 * 1024 * 1024;
+
+/**
+ * Splits the folder's entries into tree requests, by entry count and inline-text bytes.
+ *
+ * @param {readonly (UploadedBackupBlob | InlineBackupText)[]} entries
+ * @complexity O(n).
+ */
+function chunkTreeEntries(entries) {
+  /** @type {(UploadedBackupBlob | InlineBackupText)[][]} */
+  const chunks = [[]];
+  let bytes = 0;
+  for (const entry of entries) {
+    const size = entry.path.length + ("text" in entry ? entry.bytes : 64);
+    const current = chunks[chunks.length - 1];
+    if (current.length > 0 && (current.length >= TREE_CHUNK_MAX_ENTRIES || bytes + size > TREE_CHUNK_MAX_BYTES)) {
+      chunks.push([entry]);
+      bytes = size;
+    } else {
+      current.push(entry);
+      bytes += size;
+    }
+  }
+  return chunks;
+}
+
+/** @param {UploadedBackupBlob | InlineBackupText} entry */
+function treeEntry(entry) {
+  return "text" in entry ? { path: entry.path, mode: "100644", type: "blob", content: entry.text } : { path: entry.path, mode: "100644", type: "blob", sha: entry.blobSha };
+}
 
 /** @param {GitDataClient} git */
 export function createBackupPusher(git) {
@@ -98,21 +156,40 @@ export function createBackupPusher(git) {
   }
 
   /**
+   * The backup folder's tree, built over chained requests: each one adds a chunk of entries on top of
+   * the previous one's tree (`base_tree`), the first starting empty, so the folder still REPLACES
+   * whatever was there.
+   *
+   * @param {Target} input @param {string} repoPath @param {readonly (UploadedBackupBlob | InlineBackupText)[]} entries
+   * @complexity O(n) entries over ceil(n / chunk) requests.
+   */
+  async function createFolderTree(input, repoPath, entries) {
+    /** @type {string | undefined} */
+    let folderTreeSha;
+    for (const chunk of chunkTreeEntries(entries)) {
+      const folderTree = await git.postJson(
+        input,
+        `${repoPath}/git/trees`,
+        { ...(folderTreeSha !== undefined ? { base_tree: folderTreeSha } : {}), tree: chunk.map(treeEntry) },
+        "GitHub folder tree creation failed"
+      );
+      if (!folderTree.ok) return folderTree;
+      folderTreeSha = extractStringField(folderTree.json, "sha");
+      if (!folderTreeSha) return { ok: false, code: "provider-error", message: "GitHub folder tree creation response did not include a sha" };
+    }
+    return { ok: true, sha: /** @type {string} */ (folderTreeSha) };
+  }
+
+  /**
    * @param {Target & { branch: string, folder: string, commitMessage: string, parentCommitSha: string,
-   *   baseTreeSha: string, htmlUrl: string, blobs: readonly UploadedBackupBlob[] }} input
+   *   baseTreeSha: string, htmlUrl: string, entries: readonly (UploadedBackupBlob | InlineBackupText)[] }} input
    */
   async function commitBackupTree(input) {
     const repoPath = repoPathOf(input);
 
-    const folderTree = await git.postJson(
-      input,
-      `${repoPath}/git/trees`,
-      { tree: input.blobs.map((blob) => ({ path: blob.path, mode: "100644", type: "blob", sha: blob.blobSha })) },
-      "GitHub folder tree creation failed"
-    );
+    const folderTree = await createFolderTree(input, repoPath, input.entries);
     if (!folderTree.ok) return folderTree;
-    const folderTreeSha = extractStringField(folderTree.json, "sha");
-    if (!folderTreeSha) return { ok: false, code: "provider-error", message: "GitHub folder tree creation response did not include a sha" };
+    const folderTreeSha = folderTree.sha;
 
     const rootTree = await git.postJson(
       input,

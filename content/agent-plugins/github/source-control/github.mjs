@@ -1,5 +1,5 @@
 // @ts-check
-import { createBackupPusher } from "./backup-push.mjs";
+import { BACKUP_CLIENT_OPTIONS, BACKUP_INLINE_TEXT_MAX_BYTES, createBackupPusher } from "./backup-push.mjs";
 import { createSiteCommitter } from "./commit-site.mjs";
 import { createFileWriter, createGitDataClient } from "./write-files.mjs";
 
@@ -18,8 +18,9 @@ import { createFileWriter, createGitDataClient } from "./write-files.mjs";
  *   assertNotRedirected(response: Response, hostName: string): void,
  *   isRedirectRefusal(error: unknown): boolean,
  *   httpClient: { send(request: { method: string, url: string, headers: Record<string, string>, body?: string,
- *     timeoutMs: number }): Promise<{ status: number, bodyText: string }> },
+ *     timeoutMs: number }): Promise<{ status: number, bodyText: string, headers?: Record<string, string> }> },
  *   describeTransportError(error: unknown): { refusal: string | undefined, logDetail: string },
+ *   sleep?(ms: number): Promise<void>,
  * }} Kit
  */
 
@@ -51,7 +52,7 @@ export default {
   create({ kit }) {
     const git = createGitDataClient(kit);
     const writer = createFileWriter(git);
-    const backup = createBackupPusher(git);
+    const backup = createBackupPusher(createGitDataClient(kit, BACKUP_CLIENT_OPTIONS));
     return {
       commitSite: createSiteCommitter(kit),
 
@@ -77,6 +78,7 @@ export default {
 
       planFileWrite: writer.planFileWrite,
       commitFiles: writer.commitFiles,
+      backupInlineTextMaxBytes: BACKUP_INLINE_TEXT_MAX_BYTES,
       inspectBackupRepository: backup.inspectBackupRepository,
       uploadBackupBlob: backup.uploadBackupBlob,
       commitBackupTree: backup.commitBackupTree,

@@ -14,11 +14,18 @@ import { loadSourceControlProviderRegistryFromSource } from "#src/features/sourc
 const GITHUB_PACKAGE_ROOT = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/github");
 const registry = await loadSourceControlProviderRegistryFromSource({ pluginId: "github", packageRoot: GITHUB_PACKAGE_ROOT });
 
-/** The bundled `github` plugin's provider over `httpClient`, built with the real kit. */
+/** Every retry wait the provider asked for, in order; no test ever really sleeps. */
+let sleeps: number[] = [];
+test.beforeEach(() => {
+  sleeps = [];
+});
+
+/** The bundled `github` plugin's provider over `httpClient`, built with the real kit and a sleep
+ *  that only records. */
 function githubProvider(httpClient: HttpClientPort): SourceControlProviderOperations {
   const loaded = registry.get("github");
   if (!loaded) throw new Error(`github provider did not load: ${registry.refusals.join("; ")}`);
-  return loaded.module.create({ kit: createSourceControlProviderKit({ httpClient }) });
+  return loaded.module.create({ kit: createSourceControlProviderKit({ httpClient, sleep: async (ms) => void sleeps.push(ms) }) });
 }
 
 /** Core hands the provider the `Authorization` header it built from the saved connection. */
@@ -40,7 +47,7 @@ const commitBackupTree = (deps: { httpClient: HttpClientPort }, input: Omit<Comm
  * here ever reaches GitHub.
  */
 
-type Step = { match: RegExp; method?: string; status: number; json?: unknown; bodyText?: string };
+type Step = { match: RegExp; method?: string; status: number; json?: unknown; bodyText?: string; headers?: Record<string, string>; throws?: Error };
 
 class SequentialFakeHttpClient implements HttpClientPort {
   readonly calls: HttpRequest[] = [];
@@ -54,7 +61,8 @@ class SequentialFakeHttpClient implements HttpClientPort {
     if (!step) throw new Error(`unexpected send(): ${request.method} ${request.url}`);
     if (!step.match.test(request.url)) throw new Error(`send() ${request.method} ${request.url} did not match ${step.match}`);
     if (step.method !== undefined && step.method !== request.method) throw new Error(`send() ${request.url} expected ${step.method}, got ${request.method}`);
-    return { status: step.status, headers: {}, bodyText: step.bodyText ?? JSON.stringify(step.json ?? {}) };
+    if (step.throws) throw step.throws;
+    return { status: step.status, headers: step.headers ?? {}, bodyText: step.bodyText ?? JSON.stringify(step.json ?? {}) };
   }
   remainingCount(): number {
     return this.remaining.length;
@@ -209,7 +217,7 @@ const COMMIT_INPUT = {
   parentCommitSha: "tip-sha",
   baseTreeSha: "tree-sha",
   htmlUrl: "https://github.com/octo/backups",
-  blobs: BLOBS,
+  entries: BLOBS,
 };
 
 test("the folder becomes a fresh tree (stale files inside it disappear) grafted onto the branch's tree (everything else kept), committed on the planned parent, ref moved WITHOUT force", async () => {
@@ -270,4 +278,107 @@ test("blob upload: a non-JSON success response is a provider-error, never a reco
   assert.deepEqual(result, { ok: false, code: "provider-error", message: "GitHub returned a non-JSON response." });
   assert.equal(client.calls.length, 1);
   assert.equal(client.remainingCount(), 0);
+});
+
+// ---------------------------------------------------------------------------
+// Large backups (2026-10-06: a 212 MiB backup timed out on its first blob, live)
+// ---------------------------------------------------------------------------
+
+const BLOB_URL = /\/repos\/octo\/backups\/git\/blobs$/;
+const BLOB_OK: Step = { match: BLOB_URL, method: "POST", status: 201, json: { sha: "blob-sha" } };
+const TIMED_OUT = new Error("request timed out after 120000ms");
+
+test("every backup request asks for a 2-minute idle budget, not the 30 s a file write uses", async () => {
+  const client = new SequentialFakeHttpClient([BLOB_OK]);
+  const result = await uploadBackupBlob({ httpClient: client }, TARGET, { path: "database/content.db", content: new Uint8Array([0, 1]) });
+  assert.equal(result.ok, true);
+  assert.equal(client.calls[0]!.timeoutMs, 120_000);
+});
+
+test("blob upload: a 502 and then a network timeout are retried with doubling backoff, and the third try's blob is recorded", async () => {
+  const client = new SequentialFakeHttpClient([
+    { match: BLOB_URL, method: "POST", status: 502, json: { message: "Server Error" } },
+    { match: BLOB_URL, method: "POST", status: 0, throws: TIMED_OUT },
+    BLOB_OK,
+  ]);
+  const result = await uploadBackupBlob({ httpClient: client }, TARGET, { path: "uploads/big.mp4", content: new Uint8Array([7]) });
+  assert.equal(result.ok, true);
+  assert.equal(client.calls.length, 3);
+  assert.deepEqual(sleeps, [2_000, 4_000]);
+  assert.equal(client.calls[2]!.body, client.calls[0]!.body, "the retry re-sends the same blob");
+});
+
+test("a secondary rate limit (403 with retry-after) waits exactly what GitHub asked, then retries", async () => {
+  const client = new SequentialFakeHttpClient([
+    { match: BLOB_URL, method: "POST", status: 403, headers: { "retry-after": "7" }, json: { message: "You have exceeded a secondary rate limit." } },
+    BLOB_OK,
+  ]);
+  const result = await uploadBackupBlob({ httpClient: client }, TARGET, { path: "themes/a.png", content: new Uint8Array([1]) });
+  assert.equal(result.ok, true);
+  assert.deepEqual(sleeps, [7_000]);
+});
+
+test("a secondary rate limit named only in the 403 body waits a minute; a 429 is a rate limit too", async () => {
+  const client = new SequentialFakeHttpClient([
+    { match: BLOB_URL, method: "POST", status: 403, json: { message: "You have exceeded a secondary rate limit. Please wait a few minutes." } },
+    { match: BLOB_URL, method: "POST", status: 429, json: { message: "Too many requests" } },
+    BLOB_OK,
+  ]);
+  assert.equal((await uploadBackupBlob({ httpClient: client }, TARGET, { path: "a.bin", content: new Uint8Array([1]) })).ok, true);
+  assert.deepEqual(sleeps, [60_000, 60_000]);
+});
+
+test("a plain 403 (no rate-limit sign) is final: one request, no wait", async () => {
+  const client = new SequentialFakeHttpClient([{ match: BLOB_URL, method: "POST", status: 403, json: { message: "Resource not accessible by personal access token" } }]);
+  const result = await uploadBackupBlob({ httpClient: client }, TARGET, { path: "a.bin", content: new Uint8Array([1]) });
+  assert.equal(result.ok, false);
+  assert.equal(client.calls.length, 1);
+  assert.deepEqual(sleeps, []);
+});
+
+test("a host asking to wait longer than 10 minutes (an hourly limit) is reported, not slept on", async () => {
+  const client = new SequentialFakeHttpClient([{ match: BLOB_URL, method: "POST", status: 403, headers: { "retry-after": "3600" }, json: { message: "You have exceeded a secondary rate limit." } }]);
+  const result = await uploadBackupBlob({ httpClient: client }, TARGET, { path: "a.bin", content: new Uint8Array([1]) });
+  assert.equal(result.ok, false);
+  if (result.ok) return;
+  assert.match(result.message, /secondary rate limit/);
+  assert.deepEqual(sleeps, []);
+});
+
+test("a persistently failing host gets 5 attempts in all, then the last failure is returned", async () => {
+  const client = new SequentialFakeHttpClient(Array.from({ length: 5 }, (): Step => ({ match: BLOB_URL, method: "POST", status: 503, json: { message: "Service Unavailable" } })));
+  const result = await uploadBackupBlob({ httpClient: client }, TARGET, { path: "a.bin", content: new Uint8Array([1]) });
+  assert.equal(result.ok, false);
+  if (result.ok) return;
+  assert.equal(result.code, "provider-error");
+  assert.match(result.message, /Service Unavailable/);
+  assert.equal(client.remainingCount(), 0);
+  assert.deepEqual(sleeps, [2_000, 4_000, 8_000, 16_000]);
+});
+
+test("a write a file-writer makes is never retried: custom_credential_write_files keeps one attempt and 30 s", async () => {
+  const client = new SequentialFakeHttpClient([{ match: /\/git\/ref\/heads\/main$/, method: "GET", status: 502, json: { message: "Server Error" } }]);
+  const result = await githubProvider(client).planFileWrite({ ...withAuthorization(TARGET), branch: "main", files: [{ path: "a.txt", content: "x" }] });
+  assert.equal(result.ok, false);
+  assert.equal(client.calls.length, 1);
+  assert.equal(client.calls[0]!.timeoutMs, 30_000);
+  assert.deepEqual(sleeps, []);
+});
+
+test("small text files ride inline in the tree request; a large folder is built over chained base_tree requests of at most 300 entries", async () => {
+  const entries = Array.from({ length: 650 }, (_, i) => ({ path: `themes/t/f${i}.css`, text: `/* ${i} */`, bytes: `/* ${i} */`.length, sha256: "3".repeat(64) }));
+  const client = new SequentialFakeHttpClient([
+    { match: /\/git\/trees$/, method: "POST", status: 201, json: { sha: "folder-1" } },
+    { match: /\/git\/trees$/, method: "POST", status: 201, json: { sha: "folder-2" } },
+    { match: /\/git\/trees$/, method: "POST", status: 201, json: { sha: "folder-3" } },
+    ...commitSteps(200).slice(1),
+  ]);
+  const result = await commitBackupTree({ httpClient: client }, { ...COMMIT_INPUT, entries: [BLOBS[1]!, ...entries] });
+  assert.equal(result.ok, true);
+  const trees = client.calls.slice(0, 3).map(bodyOf) as { base_tree?: string; tree: Record<string, unknown>[] }[];
+  assert.deepEqual(trees.map((t) => t.base_tree), [undefined, "folder-1", "folder-2"]);
+  assert.deepEqual(trees.map((t) => t.tree.length), [300, 300, 51]);
+  assert.deepEqual(trees[0]!.tree[0], { path: "database/content.db", mode: "100644", type: "blob", sha: "b-db" });
+  assert.deepEqual(trees[0]!.tree[1], { path: "themes/t/f0.css", mode: "100644", type: "blob", content: "/* 0 */" });
+  assert.deepEqual(bodyOf(client.calls[3]!).tree, [{ path: "sites/demo", mode: "040000", type: "tree", sha: "folder-3" }]);
 });

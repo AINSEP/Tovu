@@ -529,6 +529,9 @@ export interface CredentialsDeps {
    * operator-typed `baseUrl`, not a small set of hardcoded, reviewed provider URLs).
    */
   customCredentialsHttpClient: HttpClientPort;
+  /** `site_backup_push`'s client: `SITE_BACKUP_EGRESS_POLICY` (2-minute idle ceiling for large blob
+   *  uploads). Absent (the in-memory runtime), the backup uses {@link customCredentialsHttpClient}. */
+  siteBackupHttpClient?: HttpClientPort;
   /** Deploy observation requests must not follow vendor redirects, even to another public host. */
   deployOpsHttpClient?: HttpClientPort;
   /**

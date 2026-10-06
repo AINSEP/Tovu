@@ -21,7 +21,7 @@ import { createHash } from "node:crypto";
  * @typedef {import("./github.mjs").Kit} Kit
  * @typedef {{ baseUrl: string, authorization: string, owner: string, repo: string }} Target
  * @typedef {{ path: string, content: string }} WriteFile
- * @typedef {{ status: number, bodyText: string }} HttpResponse
+ * @typedef {{ status: number, bodyText: string, headers?: Record<string, string> }} HttpResponse
  * @typedef {{ ok: false, code: "provider-error", message: string }
  *   | { ok: false, code: "network-unreachable", message: string, logDetail: string }} Failure
  */
@@ -93,13 +93,82 @@ function isRegularFileEntry(entry) {
   return !(entry !== null && typeof entry === "object" && /** @type {Record<string, unknown>} */ (entry).download_url === null);
 }
 
-/** The credentialed GitHub calls, bound to one kit. @param {Kit} kit */
-export function createGitDataClient(kit) {
+/** GitHub's own words for its secondary (abuse) rate limit, in a 403 body that carries no header. */
+const SECONDARY_RATE_LIMIT_PATTERN = /secondary rate limit|abuse detection/i;
+
+/** @param {HttpResponse} response @param {string} name */
+function headerOf(response, name) {
+  const headers = response.headers ?? {};
+  const found = Object.keys(headers).find((key) => key.toLowerCase() === name);
+  return found === undefined ? undefined : headers[found];
+}
+
+/**
+ * How long to wait before retrying a request GitHub may answer differently next time, or
+ * `undefined` when it will not: an egress refusal, or a 4xx that is not a rate limit, is final.
+ * GitHub's documented order: `retry-after` (seconds) first, then `x-ratelimit-reset` when
+ * `x-ratelimit-remaining` is 0, then at least a minute for a secondary limit without either.
+ *
+ * @param {{ kind: "response", response: HttpResponse } | { kind: "network-unreachable", refused: boolean }} result
+ * @param {number} attempt - 1 for the first retry.
+ * @param {RetryPolicy} policy
+ * @returns {number | undefined}
+ * @complexity O(headers).
+ */
+export function retryDelayMs(result, attempt, policy) {
+  const backoff = Math.min(policy.maxBackoffMs, policy.baseBackoffMs * 2 ** (attempt - 1));
+  if (result.kind !== "response") return result.refused ? undefined : backoff;
+  const { status } = result.response;
+  const retryAfter = Number(headerOf(result.response, "retry-after"));
+  const rateLimited = status === 429 || (status === 403 && (headerOf(result.response, "retry-after") !== undefined || headerOf(result.response, "x-ratelimit-remaining") === "0" || SECONDARY_RATE_LIMIT_PATTERN.test(result.response.bodyText)));
+  if (!rateLimited) return status >= 500 && status <= 599 ? backoff : undefined;
+  if (Number.isFinite(retryAfter) && retryAfter >= 0) return retryAfter * 1000;
+  const reset = Number(headerOf(result.response, "x-ratelimit-reset"));
+  if (headerOf(result.response, "x-ratelimit-remaining") === "0" && Number.isFinite(reset)) return Math.max(0, reset * 1000 - Date.now()) + 1000;
+  return policy.rateLimitWaitMs;
+}
+
+/**
+ * @typedef {{ maxAttempts: number, baseBackoffMs: number, maxBackoffMs: number, rateLimitWaitMs: number, maxWaitMs: number }} RetryPolicy
+ * `maxWaitMs` caps one wait: GitHub asking for longer (an hourly limit) is reported, not slept on.
+ */
+
+/**
+ * The credentialed GitHub calls, bound to one kit.
+ *
+ * @param {Kit} kit
+ * @param {{ timeoutMs?: number, retry?: RetryPolicy }} [options] - `timeoutMs` is each request's
+ *   socket-idle budget (the egress policy may cap it lower). `retry` re-sends a request that failed
+ *   transiently ({@link retryDelayMs}); every GitHub Git Data write is safe to repeat (a blob or tree
+ *   is addressed by its content, and a non-force ref update to the same commit is a no-op). Without
+ *   it a request is sent once, as `custom_credential_write_files` always has.
+ */
+export function createGitDataClient(kit, options = {}) {
+  const timeoutMs = options.timeoutMs ?? GITHUB_WRITE_FILES_TIMEOUT_MS;
+  const sleep = kit.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
+
   /**
    * @param {Target} target @param {{ method: "GET" | "POST" | "PATCH", url: string, body?: string }} request
    * @returns {Promise<{ kind: "response", response: HttpResponse } | { kind: "network-unreachable", message: string, logDetail: string }>}
    */
   async function send(target, request) {
+    let result = await sendOnce(target, request);
+    const policy = options.retry;
+    for (let attempt = 1; policy !== undefined && attempt < policy.maxAttempts; attempt++) {
+      const waitMs = retryDelayMs(result, attempt, policy);
+      if (waitMs === undefined || waitMs > policy.maxWaitMs) break;
+      await sleep(waitMs);
+      result = await sendOnce(target, request);
+    }
+    if (result.kind === "response") return result;
+    return { kind: "network-unreachable", message: result.message, logDetail: result.logDetail };
+  }
+
+  /**
+   * @param {Target} target @param {{ method: "GET" | "POST" | "PATCH", url: string, body?: string }} request
+   * @returns {Promise<{ kind: "response", response: HttpResponse } | { kind: "network-unreachable", refused: boolean, message: string, logDetail: string }>}
+   */
+  async function sendOnce(target, request) {
     try {
       const response = await kit.httpClient.send({
         method: request.method,
@@ -110,14 +179,15 @@ export function createGitDataClient(kit) {
           "X-GitHub-Api-Version": GITHUB_API_VERSION,
           ...(request.body !== undefined ? { "Content-Type": "application/json" } : {}),
         },
-        timeoutMs: GITHUB_WRITE_FILES_TIMEOUT_MS,
+        timeoutMs,
         ...(request.body !== undefined ? { body: request.body } : {}),
       });
       return { kind: "response", response };
     } catch (err) {
       const described = kit.describeTransportError(err);
-      const message = described.refusal !== undefined ? `the request to GitHub was refused: ${described.refusal}` : GITHUB_UNREACHABLE_MESSAGE;
-      return { kind: "network-unreachable", message, logDetail: described.logDetail };
+      const refused = described.refusal !== undefined;
+      const message = refused ? `the request to GitHub was refused: ${described.refusal}` : GITHUB_UNREACHABLE_MESSAGE;
+      return { kind: "network-unreachable", refused, message, logDetail: described.logDetail };
     }
   }
 

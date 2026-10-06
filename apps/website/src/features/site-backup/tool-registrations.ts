@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
@@ -33,21 +32,21 @@ import type { SecretSealerPort } from "../webhooks/index.js";
 import { inspectSiteKeyMaterial } from "../webhooks/keyring.env.js";
 import { siteKeySources, siteKeySourcesForSiteDir } from "../webhooks/site-key-sources.js";
 import { SITE_BACKUP_PUSH_TOOL_ID } from "./confirmation-ui.js";
-import type { CredentialedRepositoryTarget, InspectBackupRepositoryResult, SourceControlProvider, UploadedBackupBlob } from "../source-control/provider-module.js";
+import type { CredentialedRepositoryTarget, InspectBackupRepositoryResult, SourceControlProvider } from "../source-control/provider-module.js";
 import { buildSourceControlProviders, findReservedPath, pickSourceControlProviderForApi, type LoadSourceControlProviders } from "../source-control/provider-registry.js";
 import { isSourceControlProviderId, resolveDefaultForSourceControl, SourceControlCredentialSecretStoreUnconfiguredError } from "../source-control/store.js";
 import type { SourceControlCredentialSetRepoPort } from "../source-control/types.js";
 import { siteBackupPlanStore as DEFAULT_PLAN_STORE, type SiteBackupPlan, type SiteBackupPlanStore } from "./plan-store.js";
+import { CANCELLED, initialPushProgress, uploadPlannedContent, type SiteBackupPushProgress } from "./push-engine.js";
+import { SiteBackupPushJobs } from "./push-jobs.js";
 import {
-  buildSiteBackupManifest,
   captureDatabaseSnapshot,
   checkSiteBackupLimits,
   collectSiteBackupFiles,
   formatByteSize,
-  readPlannedFile,
   SITE_BACKUP_DATABASE_PATH,
-  SITE_BACKUP_MANIFEST_PATH,
   SITE_BACKUP_SCOPES,
+  skipOversizedFiles,
   type SiteBackupHostLimit,
   type SiteBackupInclude,
   type SiteBackupSources,
@@ -64,6 +63,10 @@ import {
  * model can report the planned backup. The push uploads exactly what was planned: the database snapshot is
  * held in memory with the plan (`plan-store.ts`), and each disk file is re-read and refused if it
  * changed since (`readPlannedFile`).
+ *
+ * A large backup outlasts one tool call: the push runs as a job (`push-jobs.ts`), the call waits for
+ * it up to {@link PUSH_WAIT_MS} and otherwise returns its progress; calling the push again with the
+ * same planId keeps waiting on the same job. The upload itself is `push-engine.ts`.
  *
  * Safety rules, each re-checked at push time where the world can change in between:
  * - Private repositories only (public and "internal" both refused), because the database holds
@@ -149,7 +152,7 @@ export const siteBackupAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: PLAN_TOOL_ID,
     description:
-      "Plans a BACKUP OF THIS SITE to a private repository on a git host a turned-on Agent Plugin provides (source_control_get_capabilities lists each host with its label, apiOrigin and maxFileBytes) — the site's database (content, members, form submissions, admin accounts, credentials encrypted), media, themes, installed plugins and skills, and settings — as one folder, through the host's connection saved with source_control_propose_credential or a saved custom credential (Access Tokens page -> 'Add custom provider', base URL = that host's apiOrigin). With no connection yet, tell the person the repository rules below and ask which repository first, then open that form. Use this to back up or keep a copy of the site itself; to publish the RENDERED site to a repository use source_control_execute_commit instead. Read-only: it writes nothing anywhere. It checks the credential, that the repository is PRIVATE (public and internal repositories are refused, because the database holds user data), that the credential can push, that the branch exists (defaults to the repository's default branch; an empty repository is refused — it needs a first commit such as a README), snapshots the database, lists every file with its size, and checks the limits (no file over the host's maxFileBytes, at most 3000 files and 1 GiB). Returns {planned: true, planId, expiresAt, credential, repository, visibility, branch, folder, folderExists, include, fileCount, totalBytes, totalSize, files: [{path, bytes}], skipped, notes, nextStep}, or {planned: false, code, message} naming what to fix (codes: CREDENTIAL_NOT_FOUND, CREDENTIAL_AMBIGUOUS, CREDENTIAL_UNREADABLE, REPOSITORY_NOT_FOUND, REPOSITORY_NOT_PRIVATE, NO_PUSH_PERMISSION, REPOSITORY_EMPTY, BRANCH_NOT_FOUND, FOLDER_IS_FILE, DATABASE_SNAPSHOT_FAILED, LIMIT_EXCEEDED, PROVIDER_ERROR, NETWORK_UNREACHABLE, UNAVAILABLE). Show the human the plan (repository, branch, folder, what is included, file count and size, anything skipped), then call site_backup_push with the planId.",
+      "Plans a BACKUP OF THIS SITE to a private repository on a git host a turned-on Agent Plugin provides (source_control_get_capabilities lists each host with its label, apiOrigin and maxFileBytes) — the site's database (content, members, form submissions, admin accounts, credentials encrypted), media, themes, installed plugins and skills, and settings — as one folder, through the host's connection saved with source_control_propose_credential or a saved custom credential (Access Tokens page -> 'Add custom provider', base URL = that host's apiOrigin). With no connection yet, tell the person the repository rules below and ask which repository first, then open that form. Use this to back up or keep a copy of the site itself; to publish the RENDERED site to a repository use source_control_execute_commit instead. Read-only: it writes nothing anywhere. It checks the credential, that the repository is PRIVATE (public and internal repositories are refused, because the database holds user data), that the credential can push, that the branch exists (defaults to the repository's default branch; an empty repository is refused — it needs a first commit such as a README), snapshots the database, lists every file with its size, and checks the limits (a media, theme or plugin file over the host's maxFileBytes is left out and listed in skipped; the database over it fails the plan; at most 3000 files and 1 GiB). Returns {planned: true, planId, expiresAt, credential, repository, visibility, branch, folder, folderExists, include, fileCount, totalBytes, totalSize, files: [{path, bytes}], skipped, notes, nextStep}, or {planned: false, code, message} naming what to fix (codes: CREDENTIAL_NOT_FOUND, CREDENTIAL_AMBIGUOUS, CREDENTIAL_UNREADABLE, REPOSITORY_NOT_FOUND, REPOSITORY_NOT_PRIVATE, NO_PUSH_PERMISSION, REPOSITORY_EMPTY, BRANCH_NOT_FOUND, FOLDER_IS_FILE, DATABASE_SNAPSHOT_FAILED, LIMIT_EXCEEDED, PROVIDER_ERROR, NETWORK_UNREACHABLE, UNAVAILABLE). Show the human the plan (repository, branch, folder, what is included, file count and size, anything skipped), then call site_backup_push with the planId.",
     sideEffects: "none",
     authorization: { permission: PUSH_PERMISSION },
     inputSchema: PLAN_SCHEMA,
@@ -157,7 +160,7 @@ export const siteBackupAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: SITE_BACKUP_PUSH_TOOL_ID,
     description:
-      "Pushes the single-use plan from site_backup_plan immediately in one non-force Git commit. Requires the original permissions and principal binding, and re-checks that the repository is private, the branch is unchanged and the planned files are fresh. Replaces only the backup folder; previous contents remain recoverable in Git history. Returns {pushed:true, commitSha, commitUrl, repository, branch, folder, filesWritten, totalBytes}. Failures return {pushed:false, cancelled:false, code, message}, including expired/missing plans, changed branches or files, public repositories and credential/provider/network errors. Plan again after PLAN_STALE, DIVERGED_BRANCH or plan expiry.",
+      "Pushes the single-use plan from site_backup_plan immediately in one non-force Git commit. Requires the original permissions and principal binding, and re-checks that the repository is private, the branch is unchanged and the planned files are fresh. Replaces only the backup folder; previous contents remain recoverable in Git history. Returns {pushed:true, commitSha, commitUrl, repository, branch, folder, filesWritten, totalBytes}. A large backup can take longer than one call: then it returns {pushed:false, cancelled:false, inProgress:true, planId, progress:{filesDone, filesTotal, bytesDone, bytesTotal}, message} while the upload keeps running; tell the human how far it is and call site_backup_push again with the SAME planId to keep waiting (it never starts a second upload). Failures return {pushed:false, cancelled:false, code, message}, including expired/missing plans, changed branches or files, public repositories and credential/provider/network errors; a failed upload names the file. Transient network errors, host errors and rate limits are already retried with backoff, so do not retry NETWORK_UNREACHABLE in a loop. Plan again after PLAN_STALE, DIVERGED_BRANCH or plan expiry.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: PUSH_PERMISSION },
     inputSchema: PUSH_SCHEMA,
@@ -188,6 +191,9 @@ export interface SiteBackupToolDeps {
   readonly sourceControlCredentialSetRepo?: SourceControlCredentialSetRepoPort;
   readonly siteAssistantSecretSealer: SecretSealerPort;
   readonly customCredentialsHttpClient: HttpClientPort;
+  /** The client a backup talks to its host with (`SITE_BACKUP_EGRESS_POLICY`: a 2-minute idle
+   *  ceiling for large blob uploads); {@link customCredentialsHttpClient} when absent. */
+  readonly siteBackupHttpClient?: HttpClientPort;
   /** The git-host providers a backup pushes through (the installed, enabled Agent Plugins when
    *  omitted — the bundled `github` one today). */
   readonly loadSourceControlProviders?: LoadSourceControlProviders;
@@ -205,6 +211,12 @@ export interface SiteBackupToolDeps {
   readonly siteBackupFailureLog?: (line: string) => void;
   /** Test-only; defaults to the real clock. */
   readonly siteBackupNow?: () => Date;
+  /** Test-only; defaults to the process-wide job registry. */
+  readonly siteBackupPushJobs?: SiteBackupPushJobs<PushResult>;
+  /** Test-only; defaults to {@link PUSH_WAIT_MS}. */
+  readonly siteBackupPushWaitMs?: number;
+  /** Test-only; replaces the host's retry timer. */
+  readonly siteBackupSleep?: (ms: number) => Promise<void>;
 }
 
 /** Every refusal both tools return, as `{code, message}`. */
@@ -246,8 +258,9 @@ async function loadBackupProviders(deps: SiteBackupToolDeps): Promise<{ ok: true
   const built = await buildSourceControlProviders({
     ...(deps.loadSourceControlProviders ? { load: deps.loadSourceControlProviders } : {}),
     workspaceId: deps.workspaceId,
-    httpClient: deps.customCredentialsHttpClient,
+    httpClient: deps.siteBackupHttpClient ?? deps.customCredentialsHttpClient,
     observability: deps.observability,
+    ...(deps.siteBackupSleep ? { sleep: deps.siteBackupSleep } : {}),
   });
   for (const refusal of built.refusals) failureLog(deps)(`[site-backup] ${refusal}`);
   if (built.providers.length === 0) {
@@ -544,7 +557,7 @@ function planResult(plan: SiteBackupPlan): Record<string, unknown> {
     nextStep:
       `Show the human this plan: ${plan.owner}/${plan.repo}, branch '${plan.repository.branch}', folder '${plan.folder}' ` +
       `(${plan.repository.folderExists ? "its current contents will be replaced" : "new"}), ${files.length} files (${formatByteSize(plan.totalBytes)}), plus anything skipped. ` +
-      "Then call site_backup_push with this planId within 10 minutes; it pushes the planned backup immediately. A tovu-backup.json manifest is added at push time.",
+      "Then call site_backup_push with this planId within 10 minutes; it pushes the planned backup immediately (a large one may return inProgress: call it again with the same planId). A tovu-backup.json manifest is added at push time.",
   };
 }
 
@@ -617,96 +630,36 @@ async function prepareContent(deps: SiteBackupToolDeps, sources: SiteBackupSourc
     database = { bytes: snapshot.bytes, watermarkAtCapture: snapshot.watermarkAtCapture };
   }
   const collected = await collectSiteBackupFiles({ sources, include });
-  const limits = checkSiteBackupLimits([...(database ? [{ path: SITE_BACKUP_DATABASE_PATH, bytes: database.bytes.length }] : []), ...collected.files], host);
+  const fitting = skipOversizedFiles(collected.files, host);
+  const limits = checkSiteBackupLimits([...(database ? [{ path: SITE_BACKUP_DATABASE_PATH, bytes: database.bytes.length }] : []), ...fitting.files], host);
   if (!limits.ok) return { ok: false, code: "LIMIT_EXCEEDED", message: limits.message };
-  return { ok: true, content: { database, files: collected.files, skipped: collected.skipped, scopeNotes: collected.scopeNotes, totalBytes: limits.totalBytes } };
+  return { ok: true, content: { database, files: fitting.files, skipped: [...collected.skipped, ...fitting.skipped], scopeNotes: collected.scopeNotes, totalBytes: limits.totalBytes } };
 }
 
 // ---------------------------------------------------------------------------
 // site_backup_push
 // ---------------------------------------------------------------------------
 
-type PushResult =
+export type PushResult =
   | { pushed: true; commitSha: string; commitUrl: string; repository: string; branch: string; folder: string; filesWritten: number; totalBytes: number }
   | { pushed: false; cancelled: true }
   | { pushed: false; cancelled: false; reason: "expired" | "abandoned" }
+  | { pushed: false; cancelled: false; inProgress: true; planId: string; progress: SiteBackupPushProgress; message: string }
   | { pushed: false; cancelled: false; code: string; message: string };
 
 function pushRefusal(refusal: Refusal): PushResult {
-  return { pushed: false, cancelled: false, code: refusal.code, message: refusal.message };
-}
-
-/** Uploads bytes once per distinct content: a second file with the same sha256 reuses the blob. */
-class BlobUploader {
-  private readonly shaByHash = new Map<string, string>();
-  readonly blobs: UploadedBackupBlob[] = [];
-  constructor(
-    private readonly deps: SiteBackupToolDeps,
-    private readonly provider: SourceControlProvider,
-    private readonly target: CredentialedRepositoryTarget
-  ) {}
-
-  /** @complexity O(bytes) to hash; one POST unless the content was already uploaded. */
-  async add(file: { path: string; content: Uint8Array }): Promise<{ ok: true } | Refusal> {
-    const sha256 = createHash("sha256").update(file.content).digest("hex");
-    const existing = this.shaByHash.get(sha256);
-    if (existing !== undefined) {
-      this.blobs.push({ path: file.path, blobSha: existing, bytes: file.content.byteLength, sha256 });
-      return { ok: true };
-    }
-    const uploaded = await this.provider.uploadBackupBlob(this.target, file);
-    if (!uploaded.ok) return providerRefusal(this.deps, SITE_BACKUP_PUSH_TOOL_ID, uploaded);
-    this.shaByHash.set(sha256, uploaded.blob.blobSha);
-    this.blobs.push(uploaded.blob);
-    return { ok: true };
-  }
-}
-
-/**
- * Uploads the plan's content — the in-memory database snapshot, each disk file re-read and refused
- * if it changed, then the manifest built from the uploaded files' sha256s.
- *
- * @complexity O(total bytes); one POST per distinct file content.
- */
-async function uploadPlannedContent(
-  deps: SiteBackupToolDeps,
-  provider: SourceControlProvider,
-  plan: SiteBackupPlan,
-  target: CredentialedRepositoryTarget
-): Promise<{ ok: true; blobs: UploadedBackupBlob[] } | Refusal> {
-  const uploader = new BlobUploader(deps, provider, target);
-  if (plan.database) {
-    const added = await uploader.add({ path: SITE_BACKUP_DATABASE_PATH, content: plan.database.bytes });
-    if (!added.ok) return added;
-  }
-  for (const file of plan.files) {
-    const read = await readPlannedFile(file);
-    if (!read.ok) return { ok: false, code: "PLAN_STALE", message: read.message };
-    const added = await uploader.add({ path: file.path, content: read.bytes });
-    if (!added.ok) return added;
-  }
-  const manifest = buildSiteBackupManifest({
-    createdAt: plan.createdAt,
-    tovuVersion: plan.tovuVersion,
-    schema: plan.schema,
-    site: plan.site,
-    database: plan.database ? { watermarkAtCapture: plan.database.watermarkAtCapture } : null,
-    include: plan.include,
-    scopeNotes: plan.scopeNotes,
-    files: uploader.blobs,
-  });
-  const added = await uploader.add({ path: SITE_BACKUP_MANIFEST_PATH, content: Buffer.from(manifest, "utf8") });
-  if (!added.ok) return added;
-  return { ok: true, blobs: uploader.blobs };
+  return refusal.code === CANCELLED.code ? { pushed: false, cancelled: false, reason: "abandoned" } : { pushed: false, cancelled: false, code: refusal.code, message: refusal.message };
 }
 
 /**
  * The authorized push: re-resolve the credential, re-check the repository (still
- * private, branch not moved), upload, commit on the PLAN's parent.
+ * private, branch not moved), upload, commit on the PLAN's parent. Stopping (`signal`) takes effect
+ * between files and before the commit, never half-way through one.
  *
- * @complexity O(total bytes); one POST per distinct file plus four fixed writes.
+ * @complexity O(total bytes); see `push-engine.ts` for the uploads, plus a few fixed tree writes,
+ *   one commit and one ref update.
  */
-async function pushPlannedBackup(deps: SiteBackupToolDeps, plan: SiteBackupPlan): Promise<PushResult> {
+async function pushPlannedBackup(deps: SiteBackupToolDeps, plan: SiteBackupPlan, run: { signal: AbortSignal; progress: SiteBackupPushProgress }): Promise<PushResult> {
   const credential = await resolveBackupCredential(deps, plan.credentialLabel);
   if (!credential.ok) return pushRefusal(credential);
   const target = backupTarget(credential, plan.owner, plan.repo);
@@ -721,8 +674,16 @@ async function pushPlannedBackup(deps: SiteBackupToolDeps, plan: SiteBackupPlan)
     });
   }
 
-  const uploaded = await uploadPlannedContent(deps, credential.provider, plan, target);
+  const uploaded = await uploadPlannedContent({
+    provider: credential.provider,
+    target,
+    plan,
+    signal: run.signal,
+    progress: run.progress,
+    toRefusal: (failure) => providerRefusal(deps, SITE_BACKUP_PUSH_TOOL_ID, failure),
+  });
   if (!uploaded.ok) return pushRefusal(uploaded);
+  if (run.signal.aborted) return pushRefusal(CANCELLED);
 
   const committed = await credential.provider.commitBackupTree({
     ...target,
@@ -732,7 +693,7 @@ async function pushPlannedBackup(deps: SiteBackupToolDeps, plan: SiteBackupPlan)
     parentCommitSha: plan.repository.parentCommitSha,
     baseTreeSha: plan.repository.baseTreeSha,
     htmlUrl: plan.repository.htmlUrl,
-    blobs: uploaded.blobs,
+    entries: uploaded.entries,
   });
   if (!committed.ok) return pushRefusal(providerRefusal(deps, SITE_BACKUP_PUSH_TOOL_ID, committed));
   return {
@@ -742,8 +703,8 @@ async function pushPlannedBackup(deps: SiteBackupToolDeps, plan: SiteBackupPlan)
     repository: `${plan.owner}/${plan.repo}`,
     branch: plan.repository.branch,
     folder: plan.folder,
-    filesWritten: uploaded.blobs.length,
-    totalBytes: uploaded.blobs.reduce((sum, blob) => sum + blob.bytes, 0),
+    filesWritten: uploaded.entries.length,
+    totalBytes: uploaded.entries.reduce((sum, entry) => sum + entry.bytes, 0),
   };
 }
 
@@ -752,20 +713,50 @@ const PLAN_TAKE_MESSAGES = {
   PLAN_EXPIRED: "that backup plan expired (plans last 10 minutes). Call site_backup_plan again.",
 } as const;
 
+/** How long one push call waits for its job before reporting progress: under the 6-minute cut-off
+ *  of a delegated tool call (`push-jobs.ts`), with room for the checks before the upload. */
+export const PUSH_WAIT_MS = 4 * 60 * 1000;
+
+const DEFAULT_PUSH_JOBS = new SiteBackupPushJobs<PushResult>();
+
+/** What a call returns while its job is still uploading. */
+function inProgressResult(planId: string, progress: SiteBackupPushProgress, elapsedMs: number): PushResult {
+  return {
+    pushed: false,
+    cancelled: false,
+    inProgress: true,
+    planId,
+    progress,
+    message:
+      `Still uploading after ${Math.round(elapsedMs / 1000)} s: ${progress.filesDone} of ${progress.filesTotal} files (${formatByteSize(progress.bytesDone)} of ${formatByteSize(progress.bytesTotal)}). ` +
+      "Nothing is committed until every file is up. Call site_backup_push again with the same planId to keep waiting; it does not start a second upload.",
+  };
+}
+
 /**
- * The push: consume the principal-bound plan, re-check its target and bytes, then commit.
+ * The push: consume the principal-bound plan and start its job — or, for a planId whose job is
+ * still running, wait on that job — then report its outcome or its progress.
  *
- * @complexity O(1) plan lookup; then see {@link pushPlannedBackup}.
+ * @complexity O(1) plan and job lookup; then see {@link pushPlannedBackup}.
  */
 async function handlePush(deps: SiteBackupToolDeps, surfaces: AssistantSurfaceDeps, ctx: ToolExecutionContext): Promise<PushResult> {
   const planId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "planId" });
   await requireBackupPermissions(deps, ctx);
   if (ctx.signal.aborted) return { pushed: false, cancelled: false, reason: "abandoned" };
 
-  const taken = (deps.siteBackupPlanStore ?? DEFAULT_PLAN_STORE).take({ planId, principalId: ctx.principal.id, workspaceId: deps.workspaceId });
-  if (!taken.ok) return { pushed: false, cancelled: false, code: taken.code, message: PLAN_TAKE_MESSAGES[taken.code] };
+  const jobs = deps.siteBackupPushJobs ?? DEFAULT_PUSH_JOBS;
+  const key = { planId, principalId: ctx.principal.id, workspaceId: deps.workspaceId };
+  let job = jobs.find(key);
+  if (!job) {
+    const taken = (deps.siteBackupPlanStore ?? DEFAULT_PLAN_STORE).take(key);
+    if (!taken.ok) return { pushed: false, cancelled: false, code: taken.code, message: PLAN_TAKE_MESSAGES[taken.code] };
+    job = jobs.start(key, initialPushProgress(taken.plan), (signal, progress) => pushPlannedBackup(deps, taken.plan, { signal, progress }));
+  }
 
-  return pushPlannedBackup(deps, taken.plan);
+  const waited = await jobs.wait(job, { signal: ctx.signal, budgetMs: deps.siteBackupPushWaitMs ?? PUSH_WAIT_MS });
+  if (waited.state === "done") return waited.result;
+  if (waited.state === "abandoned") return { pushed: false, cancelled: false, reason: "abandoned" };
+  return inProgressResult(planId, waited.progress, waited.elapsedMs);
 }
 
 /**

@@ -184,6 +184,19 @@ export const CUSTOM_CREDENTIALS_EGRESS_POLICY: EgressPolicy = {
 };
 
 /**
+ * `site_backup_push`'s uploads to a git host: {@link CUSTOM_CREDENTIALS_EGRESS_POLICY} with a
+ * 2-minute socket-idle ceiling instead of 10 s. That policy's 10 s caps EVERY request on its client,
+ * whatever the caller asks for, and a live 212 MiB backup (2026-10-06) failed on its first blob: the
+ * 42 MiB database went up, then GitHub stayed silent past 10 s while storing it, and the request
+ * timed out with no response. The timer is idle time, not total time, so a body still uploading never
+ * trips it. Same 1 MB response cap: the host's answers to blob and tree writes are small.
+ */
+export const SITE_BACKUP_EGRESS_POLICY: EgressPolicy = {
+  ...CUSTOM_CREDENTIALS_EGRESS_POLICY,
+  connectTimeoutMs: 120_000,
+};
+
+/**
  * The maximum publish-content bundle a peer may answer a PULL with. Deliberately far above
  * {@link SINGLE_HOP_HTTPS_EGRESS_POLICY}'s 1 MB: an export envelope is the workspace's whole
  * transportable corpus in one JSON body (54 live posts ≈ 115 KB of body text locally, per the
