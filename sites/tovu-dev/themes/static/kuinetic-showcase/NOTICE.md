@@ -1,7 +1,7 @@
 Tovu-ized port of the kUInetic animation library's own live demo/marketing site
 (`kuinetic.com`, source checked out at `/Users/la/Programming/kUInetic/demo`, read-only —
 nothing there was modified). Built as the proving case for the `tovuize-site` agent-plugin
-skill (`content/agent-plugins/tovuize-site/`); this NOTICE records what actually happened
+skill (since 2026-10-06 the static-site conversion in `content/agent-plugins/tovu-theme/`); this NOTICE records what actually happened
 running that skill's procedure against a real, messy static site, not a description of an
 idealized conversion.
 

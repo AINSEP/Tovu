@@ -56,8 +56,16 @@ import { uninstallAgentPlugin } from "./uninstall.js";
  *
  * `tovu-deploy-fly` -> `deploy` (2026-09-29): one deploy plugin for every host; the fly.io server
  * procedure is now `deploy`'s `references/fly-server.md`.
+ *
+ * `create-tovu-theme` and `tovuize-site` -> `tovu-theme` (2026-10-06): one theme plugin for both
+ * jobs, a new theme or a converted static site. They shared the theme-format rules and had started
+ * contradicting each other about them; `tovu-theme`'s skill now carries both procedures.
  */
-export const RETIRED_BUNDLED_AGENT_PLUGINS: ReadonlyMap<string, string> = new Map([["tovu-deploy-fly", "deploy"]]);
+export const RETIRED_BUNDLED_AGENT_PLUGINS: ReadonlyMap<string, string> = new Map([
+  ["tovu-deploy-fly", "deploy"],
+  ["create-tovu-theme", "tovu-theme"],
+  ["tovuize-site", "tovu-theme"],
+]);
 
 /** What happened to the successor. `not-needed`: the retired plugin was off, so the successor was
  *  left as it was. The other three are {@link BundledAgentPluginEnableOutcome}. */

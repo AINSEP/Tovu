@@ -105,7 +105,7 @@ export const FS_ROOT_DESCRIPTORS: readonly FsRootDescriptor[] = [
   {
     id: "custom",
     description:
-      "A folder the operator has pointed the assistant at from the chat composer (including by dropping it onto the composer), anywhere on their machine — not part of this repo or site. Unset until the operator chooses one; a call against this root before then is refused, saying so. Secrets, .env files, private keys, and database files are refused wherever they appear, exactly as for the other roots. If this folder looks like an existing website, mention that the installed 'tovuize-site' Agent Plugin can convert it and can be turned on with plugins_set_enabled (family 'agent-plugin', pluginId 'tovuize-site').",
+      "A folder the operator has pointed the assistant at from the chat composer (including by dropping it onto the composer), anywhere on their machine — not part of this repo or site. Unset until the operator chooses one; a call against this root before then is refused, saying so. Secrets, .env files, private keys, and database files are refused wherever they appear, exactly as for the other roots. If this folder looks like an existing website, mention that the installed 'tovu-theme' Agent Plugin can convert it into a theme and can be turned on with plugins_set_enabled (family 'agent-plugin', pluginId 'tovu-theme').",
   },
 ];
 

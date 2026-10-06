@@ -46,12 +46,16 @@ test("premise: plugins_set_enabled accepts the 'agent-plugin' family", () => {
   assert.equal(validate({ family: "unknown", pluginId: "composio", enabled: true }), false);
 });
 
-test("the custom fs root's description names plugins_set_enabled for enabling tovuize-site, and never claims no tool can", () => {
+test("the custom fs root's description names plugins_set_enabled for enabling tovu-theme, and never claims no tool can", () => {
   const custom = FS_ROOT_DESCRIPTORS.find((descriptor) => descriptor.id === "custom");
   assert.ok(custom, "no 'custom' root descriptor");
   assert.deepEqual(claimsIn(custom.description), []);
   assert.match(custom.description, /plugins_set_enabled/);
   assert.match(custom.description, /family 'agent-plugin'/);
+  // The named plugin must be one Tovu still ships — a retired id would send the model to a plugin
+  // that no longer exists.
+  assert.match(custom.description, /pluginId 'tovu-theme'/);
+  assert.ok(fs.existsSync(path.join(AGENT_PLUGINS_CONTENT, "tovu-theme", "plugin.json")), "tovu-theme is not bundled");
 });
 
 test("no bundled Agent Plugin markdown tells the model it cannot enable a plugin", () => {

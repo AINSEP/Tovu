@@ -26,7 +26,8 @@ import { AgentPluginNotUninstallableError, uninstallAgentPlugin } from "../../un
 
 /**
  * @file `retireBundledAgentPlugins()` — the boot migration that removes `tovu-deploy-fly` (merged
- * into `deploy`, 2026-09-29) from a workspace and keeps its users' capability on.
+ * into `deploy`, 2026-09-29), and `create-tovu-theme` + `tovuize-site` (merged into `tovu-theme`,
+ * 2026-10-06), from a workspace and keeps their users' capability on.
  *
  * Every test builds the real on-disk shape a workspace has after earlier boots: packages installed
  * through `installAgentPlugin`, records written by the seeder's own `recordBundledAgentPluginIfAbsent`
@@ -36,6 +37,9 @@ import { AgentPluginNotUninstallableError, uninstallAgentPlugin } from "../../un
 const WORKSPACE_ID = "11111111-1111-4111-8111-111111111111";
 const RETIRED = "tovu-deploy-fly";
 const SUCCESSOR = "deploy";
+/** The mechanics tests below assert whole outcome lists, so they retire only `tovu-deploy-fly`;
+ *  the theme merge's own tests at the end of this file run the real map. */
+const ONLY_FLY = { retired: new Map([[RETIRED, SUCCESSOR]]) };
 
 function reader(entries: readonly AgentPluginArchiveEntry[]): AgentPluginArchiveReaderPort {
   return {
@@ -93,8 +97,8 @@ async function seedPreRetirementWorkspace(layout: ReturnType<typeof resolveAgent
   return { fly, deploy };
 }
 
-async function installedIds(packagesDir: string): Promise<string[]> {
-  return (await listInstalledPlugins(packagesDir)).map((plugin) => plugin.pluginId).sort();
+async function installedIds(workspaceRoot: string): Promise<string[]> {
+  return (await listInstalledPlugins(workspaceRoot)).map((plugin) => plugin.pluginId).sort();
 }
 
 test("the retirement map sends tovu-deploy-fly to deploy", () => {
@@ -107,7 +111,7 @@ test("an ENABLED tovu-deploy-fly: its package, record and ledger entry go; deplo
     const { fly, deploy } = await seedPreRetirementWorkspace(layout, workspaceLayout.root);
     await setAgentPluginActivation({ workspaceRoot: workspaceLayout.root, pluginId: RETIRED, enabled: true, actor: "test:operator" });
 
-    const outcomes = await retireBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID });
+    const outcomes = await retireBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID }, ONLY_FLY);
 
     assert.deepEqual(outcomes, [
       {
@@ -120,7 +124,7 @@ test("an ENABLED tovu-deploy-fly: its package, record and ledger entry go; deplo
         successor: "already-enabled",
       },
     ]);
-    assert.deepEqual(await installedIds(workspaceLayout.packages), [SUCCESSOR]);
+    assert.deepEqual(await installedIds(workspaceLayout.root), [SUCCESSOR]);
 
     const activations = await readAgentPluginActivations({ workspaceRoot: workspaceLayout.root });
     assert.equal(Object.hasOwn(activations.plugins, RETIRED), false, "the retired plugin's record is deleted, not tombstoned");
@@ -143,7 +147,7 @@ test("an enabled tovu-deploy-fly switches on deploy's untouched disabled seed re
     // The seeder's own disabled record, never touched by an operator.
     await recordBundledAgentPluginIfAbsent({ workspaceRoot: workspaceLayout.root, pluginId: SUCCESSOR });
 
-    const [outcome] = await retireBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID });
+    const [outcome] = await retireBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID }, ONLY_FLY);
 
     assert.equal(outcome?.status, "retired");
     assert.equal(outcome?.status === "retired" && outcome.successor, "enabled");
@@ -162,7 +166,7 @@ test("an enabled tovu-deploy-fly with NO deploy record creates deploy's record e
     await installPackage(layout, RETIRED, "archive-fly");
     await setAgentPluginActivation({ workspaceRoot: workspaceLayout.root, pluginId: RETIRED, enabled: true, actor: "test:operator" }, { origin: "bundled" });
 
-    const [outcome] = await retireBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID });
+    const [outcome] = await retireBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID }, ONLY_FLY);
 
     assert.equal(outcome?.status === "retired" && outcome.successor, "enabled");
     assert.equal((await readAgentPluginActivations({ workspaceRoot: workspaceLayout.root })).plugins[SUCCESSOR]?.enabled, true);
@@ -178,7 +182,7 @@ test("an operator-DISABLED deploy stays off and is reported, while tovu-deploy-f
     await setAgentPluginActivation({ workspaceRoot: workspaceLayout.root, pluginId: RETIRED, enabled: true, actor: "test:operator" });
     await setAgentPluginActivation({ workspaceRoot: workspaceLayout.root, pluginId: SUCCESSOR, enabled: false, actor: "test:operator" });
 
-    const [outcome] = await retireBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID });
+    const [outcome] = await retireBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID }, ONLY_FLY);
 
     assert.equal(outcome?.status, "retired");
     assert.equal(outcome?.status === "retired" && outcome.successor, "left-disabled-by-operator");
@@ -187,7 +191,7 @@ test("an operator-DISABLED deploy stays off and is reported, while tovu-deploy-f
     assert.equal(activations.plugins[SUCCESSOR]?.enabled, false, "an operator's decision is never overridden");
     assert.equal(activations.plugins[SUCCESSOR]?.updatedBy, "test:operator");
     assert.equal(Object.hasOwn(activations.plugins, RETIRED), false);
-    assert.deepEqual(await installedIds(workspaceLayout.packages), [SUCCESSOR]);
+    assert.deepEqual(await installedIds(workspaceLayout.root), [SUCCESSOR]);
   } finally {
     await forceRemove(cwd);
   }
@@ -200,11 +204,11 @@ test("a DISABLED tovu-deploy-fly is removed without touching deploy", async () =
     await setAgentPluginActivation({ workspaceRoot: workspaceLayout.root, pluginId: SUCCESSOR, enabled: false, actor: "test:operator" });
     const deployBefore = (await readAgentPluginActivations({ workspaceRoot: workspaceLayout.root })).plugins[SUCCESSOR];
 
-    const [outcome] = await retireBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID });
+    const [outcome] = await retireBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID }, ONLY_FLY);
 
     assert.equal(outcome?.status === "retired" && outcome.successor, "not-needed");
     assert.deepEqual((await readAgentPluginActivations({ workspaceRoot: workspaceLayout.root })).plugins[SUCCESSOR], deployBefore);
-    assert.deepEqual(await installedIds(workspaceLayout.packages), [SUCCESSOR]);
+    assert.deepEqual(await installedIds(workspaceLayout.root), [SUCCESSOR]);
   } finally {
     await forceRemove(cwd);
   }
@@ -215,12 +219,12 @@ test("a second run is a no-op: 'absent', and neither state file is rewritten", a
   try {
     await seedPreRetirementWorkspace(layout, workspaceLayout.root);
     await setAgentPluginActivation({ workspaceRoot: workspaceLayout.root, pluginId: RETIRED, enabled: true, actor: "test:operator" });
-    await retireBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID });
+    await retireBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID }, ONLY_FLY);
 
     const activationsBytes = await readFile(path.join(workspaceLayout.root, ACTIVATIONS_FILENAME), "utf8");
     const ledgerBytes = await readFile(path.join(workspaceLayout.root, BUNDLED_DIGESTS_FILENAME), "utf8");
 
-    const second = await retireBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID });
+    const second = await retireBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID }, ONLY_FLY);
 
     assert.deepEqual(second, [{ pluginId: RETIRED, successorId: SUCCESSOR, status: "absent" }]);
     assert.equal(await readFile(path.join(workspaceLayout.root, ACTIVATIONS_FILENAME), "utf8"), activationsBytes);
@@ -233,7 +237,7 @@ test("a second run is a no-op: 'absent', and neither state file is rewritten", a
 test("a workspace that never had tovu-deploy-fly: 'absent', and no state file is created", async () => {
   const { cwd, layout, workspaceLayout } = await freshLayout();
   try {
-    const outcomes = await retireBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID });
+    const outcomes = await retireBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID }, ONLY_FLY);
 
     assert.deepEqual(outcomes, [{ pluginId: RETIRED, successorId: SUCCESSOR, status: "absent" }]);
     await assert.rejects(() => access(path.join(workspaceLayout.root, ACTIVATIONS_FILENAME)));
@@ -248,7 +252,7 @@ test("a record with no package left is deleted directly", async () => {
   try {
     await recordBundledAgentPluginIfAbsent({ workspaceRoot: workspaceLayout.root, pluginId: RETIRED });
 
-    const [outcome] = await retireBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID });
+    const [outcome] = await retireBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID }, ONLY_FLY);
 
     assert.deepEqual(outcome, {
       pluginId: RETIRED,
@@ -277,7 +281,7 @@ test("a leftover ledger entry alone is dropped, and every other entry keeps its 
       "utf8",
     );
 
-    const [outcome] = await retireBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID });
+    const [outcome] = await retireBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID }, ONLY_FLY);
 
     assert.equal(outcome?.status === "retired" && outcome.ledgerEntryRemoved, true);
     const written = JSON.parse(await readFile(ledgerPath, "utf8")) as { plugins: Record<string, unknown> };
@@ -311,12 +315,12 @@ test("a MALFORMED tovu-deploy-fly record fails the retirement and changes nothin
     const raw = JSON.stringify({ schemaVersion: 1, plugins: { [RETIRED]: "bundled" } });
     await writeFile(activationsPath, raw, "utf8");
 
-    const [outcome] = await retireBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID });
+    const [outcome] = await retireBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID }, ONLY_FLY);
 
     assert.equal(outcome?.status, "failed");
     assert.match(outcome?.status === "failed" ? outcome.reason : "", /cannot tell whether 'tovu-deploy-fly' was enabled/);
     assert.equal(await readFile(activationsPath, "utf8"), raw);
-    assert.deepEqual(await installedIds(workspaceLayout.packages), [RETIRED]);
+    assert.deepEqual(await installedIds(workspaceLayout.root), [RETIRED]);
   } finally {
     await forceRemove(cwd);
   }
@@ -331,7 +335,7 @@ test("a package-list I/O failure becomes a failed retirement and the next entry 
     let reads = 0;
     const failingLayout = { ...layout, forWorkspace: (workspaceId: string) => {
       assert.equal(workspaceId, WORKSPACE_ID);
-      return reads++ === 0 ? { ...workspaceLayout, packages: brokenPackages } : workspaceLayout;
+      return reads++ === 0 ? { ...workspaceLayout, root: brokenPackages } : workspaceLayout;
     } };
     const outcomes = await retireBundledAgentPlugins({ layout: failingLayout, workspaceId: WORKSPACE_ID }, {
       retired: new Map([[RETIRED, SUCCESSOR], ["another-retired", SUCCESSOR]]),
@@ -358,7 +362,7 @@ test("uninstallAgentPlugin's retiredBundled option skips only the bundled refusa
 
     const result = await uninstallAgentPlugin(request, { retiredBundled: true });
     assert.deepEqual(result.removedDigests, [installed.archiveDigest]);
-    assert.deepEqual(await installedIds(workspaceLayout.packages), []);
+    assert.deepEqual(await installedIds(workspaceLayout.root), []);
   } finally {
     await forceRemove(cwd);
   }
@@ -380,10 +384,81 @@ test("seedBundledAgentPlugins never seeds a retired id from a stale source direc
     const result = await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: bundledRoot });
 
     assert.deepEqual(result.outcomes, []);
-    assert.deepEqual(result.retirements, [{ pluginId: RETIRED, successorId: SUCCESSOR, status: "absent" }]);
-    assert.deepEqual(await installedIds(workspaceLayout.packages), []);
+    assert.deepEqual(
+      result.retirements,
+      [...RETIRED_BUNDLED_AGENT_PLUGINS].map(([pluginId, successorId]) => ({ pluginId, successorId, status: "absent" })),
+    );
+    assert.deepEqual(await installedIds(workspaceLayout.root), []);
   } finally {
     await forceRemove(cwd);
     await forceRemove(bundledRoot);
+  }
+});
+
+// --- create-tovu-theme + tovuize-site -> tovu-theme (2026-10-06), through the real map ---------
+
+const THEME_SUCCESSOR = "tovu-theme";
+const THEME_RETIRED = ["create-tovu-theme", "tovuize-site"] as const;
+
+/** A workspace booted on a build that still shipped both theme plugins, then on one that ships
+ *  `tovu-theme`: all three installed, all three seeded disabled, all three in the ledger. */
+async function seedPreThemeMergeWorkspace(layout: ReturnType<typeof resolveAgentPluginLayout>, workspaceRoot: string) {
+  const seeded: { pluginId: string; archiveDigest: string }[] = [];
+  for (const pluginId of [...THEME_RETIRED, THEME_SUCCESSOR]) {
+    const installed = await installPackage(layout, pluginId, `archive-${pluginId}`);
+    await recordBundledAgentPluginIfAbsent({ workspaceRoot, pluginId });
+    seeded.push({ pluginId, archiveDigest: installed.archiveDigest });
+  }
+  await recordBundledAgentPluginDigests({ workspaceRoot, seeded });
+}
+
+test("the retirement map sends create-tovu-theme and tovuize-site to tovu-theme", () => {
+  for (const retired of THEME_RETIRED) assert.equal(RETIRED_BUNDLED_AGENT_PLUGINS.get(retired), THEME_SUCCESSOR);
+});
+
+test("an enabled create-tovu-theme switches tovu-theme on; both old theme plugins are removed", async () => {
+  const { cwd, layout, workspaceLayout } = await freshLayout();
+  try {
+    await seedPreThemeMergeWorkspace(layout, workspaceLayout.root);
+    await setAgentPluginActivation({ workspaceRoot: workspaceLayout.root, pluginId: "create-tovu-theme", enabled: true, actor: "test:operator" });
+
+    const outcomes = await retireBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID });
+
+    const byId = new Map(outcomes.map((outcome) => [outcome.pluginId, outcome]));
+    const created = byId.get("create-tovu-theme");
+    const tovuized = byId.get("tovuize-site");
+    assert.equal(created?.status === "retired" && created.successor, "enabled");
+    assert.equal(tovuized?.status === "retired" && tovuized.successor, "not-needed", "tovuize-site was off");
+    assert.deepEqual(await installedIds(workspaceLayout.root), [THEME_SUCCESSOR]);
+
+    const activations = await readAgentPluginActivations({ workspaceRoot: workspaceLayout.root });
+    for (const retired of THEME_RETIRED) assert.equal(Object.hasOwn(activations.plugins, retired), false, `${retired}'s record is deleted`);
+    assert.equal(activations.plugins[THEME_SUCCESSOR]?.enabled, true);
+    assert.equal(activations.plugins[THEME_SUCCESSOR]?.updatedBy, "system:retire-create-tovu-theme");
+
+    const ledger = await readBundledAgentPluginDigests(workspaceLayout.root);
+    assert.deepEqual([...ledger.keys()], [THEME_SUCCESSOR]);
+  } finally {
+    await forceRemove(cwd);
+  }
+});
+
+test("both old theme plugins DISABLED: both are removed and tovu-theme stays off", async () => {
+  const { cwd, layout, workspaceLayout } = await freshLayout();
+  try {
+    await seedPreThemeMergeWorkspace(layout, workspaceLayout.root);
+
+    const outcomes = await retireBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID });
+
+    for (const retired of THEME_RETIRED) {
+      const outcome = outcomes.find((candidate) => candidate.pluginId === retired);
+      assert.equal(outcome?.status === "retired" && outcome.successor, "not-needed", retired);
+    }
+    assert.deepEqual(await installedIds(workspaceLayout.root), [THEME_SUCCESSOR]);
+    const record = (await readAgentPluginActivations({ workspaceRoot: workspaceLayout.root })).plugins[THEME_SUCCESSOR];
+    assert.equal(record?.enabled, false);
+    assert.equal(record?.updatedBy, "system:seed");
+  } finally {
+    await forceRemove(cwd);
   }
 });
