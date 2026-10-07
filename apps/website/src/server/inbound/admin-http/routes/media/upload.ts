@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 
-import { MediaValidationError, resolveUploadContentType, TOVU_MAX_UPLOAD_BYTES, uploadMedia } from "#src/features/media/index";
+import { MediaConflictError, MediaValidationError, resolveUploadContentType, TOVU_MAX_UPLOAD_BYTES, uploadMedia } from "#src/features/media/index";
 import { resolveMediaPublicUrls } from "#src/features/media/tool-registrations";
 import { decodeStrictBase64 } from "#src/contracts/core/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -171,6 +171,12 @@ export const registerAdminMediaUploadRoute: MediaRouteRegistrar = (app, deps) =>
       const publicUrl = (await resolveMediaPublicUrls(deps, [media])).get(media.id) ?? null;
       res.status(201).json({ media: toAdminMediaResponse({ media, contentType: verifiedContentType, publicUrl, byteSize: bytes.byteLength }) });
     } catch (err) {
+      // Slug allocation is a courtesy lookup before save. Concurrent uploads can choose
+      // the same free slug; the durable repo enforces uniqueness with MediaConflictError.
+      if (err instanceof MediaConflictError) {
+        res.status(409).json({ error: err.message });
+        return;
+      }
       if (err instanceof MediaValidationError) {
         res.status(400).json({ error: err.message });
         return;

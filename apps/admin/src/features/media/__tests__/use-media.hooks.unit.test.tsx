@@ -29,6 +29,62 @@ afterEach(() => {
 });
 
 describe("useMedia — injected port (no fetch stub)", () => {
+  it("guards Upload before file reading and while the POST is pending, then allows another upload", async () => {
+    const port = createFakeMediaPort();
+    const uploadFile = port.uploadMedia;
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => { release = resolve; });
+    const calls: string[] = [];
+    port.uploadMedia = async (input, options) => {
+      calls.push(input.filename);
+      await pending;
+      return uploadFile(input, options);
+    };
+    const { result } = renderHook(() => useMedia({ port, locale: "en", t: (k) => k }), { wrapper });
+    await waitFor(() => expect(result.current.media).toEqual([]));
+    const input = document.createElement("input");
+    Object.defineProperty(input, "files", { value: [new File(["pixel"], "pixel.png", { type: "image/png" })] });
+    result.current.fileInputRef.current = input;
+    const upload = result.current.upload;
+    let first!: Promise<void>;
+    let second!: Promise<void>;
+    act(() => { first = upload(); second = upload(); });
+    // Busy must cover FileReader, before the mutation has even started.
+    expect(result.current.uploading).toBe(true);
+    await waitFor(() => expect(calls).toEqual(["pixel.png"]));
+    await act(async () => { await upload(); });
+    expect(calls).toEqual(["pixel.png"]);
+    await act(async () => { release(); await Promise.all([first, second]); });
+    expect(result.current.uploading).toBe(false);
+    expect(result.current.error).toBeNull();
+    expect(port.items).toHaveLength(1);
+    await act(async () => { await result.current.upload(); });
+    expect(calls).toEqual(["pixel.png", "pixel.png"]);
+    expect(port.items).toHaveLength(2);
+  });
+
+  it("releases the Upload guard after a failed POST so the same file can be retried", async () => {
+    const port = createFakeMediaPort();
+    const uploadFile = port.uploadMedia;
+    let attempts = 0;
+    port.uploadMedia = async (input, options) => {
+      if (++attempts === 1) throw new Error("Upload unavailable");
+      return uploadFile(input, options);
+    };
+    const { result } = renderHook(() => useMedia({ port, locale: "en", t: (k) => k }), { wrapper });
+    await waitFor(() => expect(result.current.media).toEqual([]));
+    const input = document.createElement("input");
+    Object.defineProperty(input, "files", { value: [new File(["pixel"], "pixel.png", { type: "image/png" })] });
+    result.current.fileInputRef.current = input;
+    await act(async () => { await result.current.upload(); });
+    expect(result.current.uploading).toBe(false);
+    expect(result.current.error).toBe("Upload unavailable");
+    await act(async () => { await result.current.upload(); });
+    expect(attempts).toBe(2);
+    expect(result.current.error).toBeNull();
+    expect(port.items).toHaveLength(1);
+  });
+
   it("loads the list from the injected port and never touches the real api client", async () => {
     const listSpy = vi.spyOn(api, "listMedia");
     const port = createFakeMediaPort({

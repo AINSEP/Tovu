@@ -136,6 +136,8 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
   // the new control sees exactly today's order, unchanged.
   const [orderBy, setOrderBy] = useState<MediaOrderBy>("created");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadInFlight = useRef(false);
+  const [uploading, setUploading] = useState(false);
   const [selectedFileName, setSelectedFileName] = useState("");
   const onFileChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     setSelectedFileName(event.currentTarget.files?.[0]?.name ?? "");
@@ -159,8 +161,13 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
   }
 
   async function upload() {
+    if (uploadInFlight.current) return;
     const file = fileInputRef.current?.files?.[0];
     if (!file) return;
+    // FileReader runs before the mutation. Take the guard synchronously so a second click
+    // (including one before React renders the disabled button) cannot start another upload.
+    uploadInFlight.current = true;
+    setUploading(true);
     clearOtherWriteErrors(uploadMutation);
     try {
       const dataBase64 = await readFileAsBase64(file);
@@ -170,6 +177,9 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
       setSelectedFileName("");
     } catch {
       // already surfaced through uploadMutation.error -> error below
+    } finally {
+      uploadInFlight.current = false;
+      setUploading(false);
     }
   }
 
@@ -237,7 +247,7 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
   return {
     media,
     error,
-    uploading: uploadMutation.status === "pending",
+    uploading,
     altDraft,
     setAltDraft,
     fileInputRef,
