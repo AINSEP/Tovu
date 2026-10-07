@@ -194,12 +194,19 @@ export function undeliveredUserPrompt(history: readonly ChatMessage[]): string {
   const pending = history
     .slice(lastAnsweredIndex + 1)
     .filter((message) => message.role === "user")
-    .map((message) => message.content)
     .slice(-MAX_TRANSCRIPT_TURNS);
 
   if (pending.length === 0) return latestUserPromptFromHistory({ history: history as ChatMessage[] });
-  if (pending.length === 1) return pending[0] as string;
-  return `${UNDELIVERED_TURNS_NOTE}\n\n${pending.join("\n\n")}`;
+  const newest = pending[pending.length - 1] as ChatMessage;
+  const newestText = newest.content.trim();
+  const newestAttachmentRefs = JSON.stringify((newest.attachments ?? []).map((attachment) => attachment.path));
+  // Collapse resends of the newest text with matching attachment refs: a retry is one request.
+  const distinct = pending.filter((message, index) => index === pending.length - 1
+    || message.content.trim() !== newestText
+    || JSON.stringify((message.attachments ?? []).map((attachment) => attachment.path)) !== newestAttachmentRefs)
+    .map((message) => message.content);
+  if (distinct.length === 1) return distinct[0] as string;
+  return `${UNDELIVERED_TURNS_NOTE}\n\n${distinct.join("\n\n")}`;
 }
 
 /** `@jini-ai/protocol`'s `RunState` -> chat-core's flat `RunStatus` union (different spelling: `cancelled` vs `canceled`, `pending` vs `queued`). */

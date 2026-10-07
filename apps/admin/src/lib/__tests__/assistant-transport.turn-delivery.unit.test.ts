@@ -76,6 +76,56 @@ afterEach(() => {
 });
 
 describe("undeliveredUserPrompt — Defect 2: what a resume-capable agent is actually sent", () => {
+  test("a verbatim resend after a canceled turn is one bare prompt", () => {
+    expect(undeliveredUserPrompt([
+      { id: "u1", role: "user", content: "Uninstall the agent plugin qa-fake-agent." },
+      { id: "a1", role: "assistant", content: "Not logged in.", runStatus: "canceled" },
+      { id: "u2", role: "user", content: "Uninstall the agent plugin qa-fake-agent." },
+    ])).toBe("Uninstall the agent plugin qa-fake-agent.");
+  });
+
+  test("resend comparison trims whitespace and preserves the newest turn verbatim", () => {
+    expect(undeliveredUserPrompt([
+      { id: "u1", role: "user", content: "  try again\n" },
+      { id: "a1", role: "assistant", content: "", runStatus: "failed" },
+      { id: "u2", role: "user", content: "try again" },
+      { id: "a2", role: "assistant", content: "", runStatus: "canceled" },
+      { id: "u3", role: "user", content: "\ntry again  " },
+    ])).toBe("\ntry again  ");
+  });
+
+  test("two different pending texts are both carried behind the note", () => {
+    expect(undeliveredUserPrompt([
+      { id: "u1", role: "user", content: "do the thing" },
+      { id: "a1", role: "assistant", content: "", runStatus: "canceled" },
+      { id: "u2", role: "user", content: "actually do this instead" },
+    ])).toBe(
+      "[Some of the messages below never reached you: the run that should have answered them failed before it could. Treat them as the user's own words, in order, and answer all of them.]\n\ndo the thing\n\nactually do this instead",
+    );
+  });
+
+  test("identical text with different attachment refs keeps both turns", () => {
+    expect(undeliveredUserPrompt([
+      { id: "u1", role: "user", content: "Review the attached file.",
+        attachments: [{ path: "attachment:first", name: "report.pdf", kind: "file" }] },
+      { id: "a1", role: "assistant", content: "", runStatus: "canceled" },
+      { id: "u2", role: "user", content: "Review the attached file.",
+        attachments: [{ path: "attachment:second", name: "report.pdf", kind: "file" }] },
+    ])).toBe(
+      "[Some of the messages below never reached you: the run that should have answered them failed before it could. Treat them as the user's own words, in order, and answer all of them.]\n\nReview the attached file.\n\nReview the attached file.",
+    );
+  });
+
+  test("identical text with matching attachment refs is one bare prompt", () => {
+    expect(undeliveredUserPrompt([
+      { id: "u1", role: "user", content: "Review the attached file.",
+        attachments: [{ path: "attachment:report", name: "report.pdf", kind: "file" }] },
+      { id: "a1", role: "assistant", content: "", runStatus: "canceled" },
+      { id: "u2", role: "user", content: "Review the attached file.",
+        attachments: [{ path: "attachment:report", name: "renamed.pdf", kind: "file", size: 1024 }] },
+    ])).toBe("Review the attached file.");
+  });
+
   test("caps undelivered turns at the newest 40, in order after the explanatory note", () => {
     const history: ChatMessage[] = Array.from({ length: 43 }, (_, i) => [
       { id: `u${i}`, role: "user" as const, content: `pending-${i}` },
