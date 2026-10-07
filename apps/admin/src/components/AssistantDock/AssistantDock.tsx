@@ -1,6 +1,7 @@
 import { useSelectedSkills, useComposerDiscoveryDraft, useSkillOnlySend } from "./hooks/composer-skills.hooks";
 import { useAssistantEmptyState } from "./hooks/use-assistant-empty-state.hooks";
 import { useSelectedAgentAuthWarning } from "./hooks/use-selected-agent-auth-warning.hooks";
+import { useComposerSendStopGuard } from "./hooks/use-composer-send-stop-guard.hooks";
 import { useBrowserAgentSettings } from "../../features/webmcp/browser-agent-settings.hooks";
 import { useSkillInstall } from "../../features/skills/use-skill-install.hooks";
 import { SkillInstallConfirmation } from "../../features/skills/SkillInstallConfirmation";
@@ -486,6 +487,7 @@ export function AssistantDock({
   const { selectedPluginRefIds, addPluginRef, removePluginRef } = useSelectedAgentPlugins();
   const selectedSkills = useSelectedSkills();
   const discoveryDraft = useComposerDiscoveryDraft(composerCapabilities.groups);
+  const captureComposerClick = useComposerSendStopGuard();
   const handleComposerDiscoverySelect = useComposerDiscoverySelect({
     composerCapabilities,
     callAllowlistedTool: mcpUiToolCaller,
@@ -535,7 +537,7 @@ export function AssistantDock({
       <SkillInstallConfirmation install={skillInstall} />
       {/* ChatPane takes `transport` directly as well as via the provider — the package's
           components read their dependencies from props, not implicitly from context. */}
-      <div className="admin-chat-dock-drop" data-testid="admin-chat-driver-root" data-conversation-id={chats.activeId ?? ""} ref={discoveryDraft.rootRef} style={{ display: "contents" }} onChangeCapture={discoveryDraft.captureDraft} onDropCapture={folderDrop.handleDropCapture}>
+      <div className="admin-chat-dock-drop" data-testid="admin-chat-driver-root" data-conversation-id={chats.activeId ?? ""} ref={discoveryDraft.rootRef} style={{ display: "contents" }} onClickCapture={captureComposerClick} onChangeCapture={discoveryDraft.captureDraft} onDropCapture={folderDrop.handleDropCapture}>
       <ChatPane
         // Remounts the pane on a conversation switch. `ChatPane` owns its transcript and takes
         // `initialMessages` only at mount, so re-keying is how a different conversation's history
