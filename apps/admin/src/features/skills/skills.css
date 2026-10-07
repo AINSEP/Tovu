@@ -17,7 +17,8 @@
 .skills-page .jini-tabbed-dialog-content { overflow: visible; padding-inline: 0; }
 .skills-page .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar { padding-inline: 0; }
 .skills-file-input[hidden] { display: none; }
-.skills-row-summary { flex: 1; min-width: 0; padding-bottom: 12px; }
+/* The shared row's `--row-text-min` basis decides when the actions wrap under this block (styles.css). */
+.skills-row-summary { flex: 1 1 var(--row-text-min); min-width: 0; padding-bottom: 12px; }
 .skills-row-summary .agent-plugin-row-summary { width: 100%; padding-bottom: 4px; }
 .skills-row-summary .agent-plugin-row-text { flex: 1; }
 .skills-row-identity { display: flex; align-items: center; }
@@ -30,4 +31,8 @@
 .skills-confirm-source { overflow-wrap: anywhere; }
 @media (max-width: 560px) {
   .skills-row-source { padding-right: 14px; }
+}
+/* The narrow shared row moves 9px of the bottom inset onto `.agent-plugin-row-main` (styles.css). */
+@container agent-plugin-list (max-width: 560px) {
+  .skills-row-summary { padding-bottom: 3px; }
 }

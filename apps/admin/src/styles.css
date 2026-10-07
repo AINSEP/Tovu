@@ -3683,12 +3683,17 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 }
 .agent-plugin-row[data-enabled="true"]::before { opacity: 1; }
 
-.agent-plugin-row-main { display: flex; align-items: center; gap: 12px; padding: 0 14px 0 0; }
+/* `flex-wrap` + the summary's `--row-text-min` basis decide whether the actions fit beside the
+   text (owner, 2026-10-07): while the summary keeps that much width the actions stay on its line,
+   right-aligned and vertically centred; once they don't they wrap under the text, still
+   right-aligned (`margin-left: auto`). 15rem is the glyph, chevron and padding (~100px) plus ~140px
+   of name. Same mechanism as `.plugin-row-main` on the Plugins screen. */
+.agent-plugin-row-main { --row-text-min: 15rem; display: flex; flex-wrap: wrap; align-items: center; gap: 0 12px; padding: 0 14px 0 0; }
 
 /* The row's summary IS its expander — one hit target for "tell me more", rather than a fourth
    control competing with the three real ones on the right. */
 .agent-plugin-row-summary {
-  flex: 1 1 auto; min-width: 0;
+  flex: 1 1 var(--row-text-min); min-width: 0;
   display: flex; align-items: center; gap: 12px;
   padding: 13px 8px 13px 17px;
   border: 0; background: transparent; text-align: left; font: inherit; color: inherit;
@@ -3752,7 +3757,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
    the first one. */
 .agent-plugin-row-actions {
   flex: 0 0 auto; display: flex; align-items: center; gap: 8px;
-  padding-left: 14px;
+  margin-left: auto; padding-left: 14px;
   border-left: 1px solid var(--jini-border);
   align-self: stretch;
 }
@@ -3891,8 +3896,10 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 .agent-plugins-marketplace-empty p { margin: 0; font-size: 13px; line-height: 1.55; color: var(--jini-text-muted); }
 .agent-plugins-marketplace-link { margin-top: 4px; font-size: 13px; }
 
-/* Narrow LIST: the action cluster keeps its size and the text yields, then the cluster drops under
-   the text rather than crushing it.
+/* Narrow LIST: the divider goes and the action cluster keeps its size; it stays on the text's line
+   while `--row-text-min` still fits beside it, and wraps under the text rather than crushing it
+   (owner, 2026-10-07 — this block used to stack the actions on their own line at every narrow
+   width, leaving a strip of empty space beside them).
 
    A CONTAINER query, not the `@media (max-width: 700px)` this replaced (2026-09-10). That media
    query keyed on the VIEWPORT, and the thing that actually squeezes this row is the workspace chat
@@ -3909,16 +3916,18 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
    to identify — is what starts giving way, so that is where the layout changes instead. */
 .agent-plugin-rows { container-type: inline-size; container-name: agent-plugin-list; }
 @container agent-plugin-list (max-width: 560px) {
-  .agent-plugin-row-main { flex-direction: column; align-items: stretch; gap: 0; padding: 0; }
-  .agent-plugin-row-summary { padding: 13px 14px 9px 17px; }
+  /* The row's bottom inset lives on `.agent-plugin-row-main`; the summary keeps only the rest of
+     its 13px. An inline row is 13px top and bottom as before, and actions that wrapped get the
+     inset under them instead of sitting on the card edge. `row-gap` only exists between lines. */
+  .agent-plugin-row-main { gap: 2px 8px; padding: 0 14px 9px 0; }
+  .agent-plugin-row-summary { padding: 13px 8px 4px 17px; }
   /* The text column no longer has a stable left edge once the actions stack, so the detail panel
      returns to the row's own edge and reclaims the width for its chips. */
   .agent-plugin-row-detail { padding-left: 17px; }
   .agent-plugin-row-actions {
-    justify-content: flex-end; padding: 0 14px 11px 17px;
-    /* Stacked, the zones are separated by their own stacking; a left border would now cut across
-       the row's width rather than between two columns. */
-    border-left: none; align-self: auto;
+    justify-content: flex-end; padding: 0;
+    /* Beside the text or wrapped under it, a left border would cut through the wrapped line. */
+    border-left: none; align-self: center;
   }
   /* Keeps its 8px gap to the switch rather than being pushed to the far edge by a `margin-right:
      auto`, which is what an earlier revision of this block did: at 440px that put the word 290px
@@ -5844,10 +5853,14 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   overflow: hidden;
 }
 .plugin-row + .plugin-row { border-top: 1px solid var(--border); }
-.plugin-row-main { display: flex; align-items: center; gap: 12px; padding: 0 14px 0 0; }
+/* `flex-wrap` + the summary's `--row-text-min` basis are what decide whether the actions fit
+   beside the text (owner, 2026-10-07): while the summary keeps at least that much width the actions
+   stay on its line, right-aligned and vertically centred; once they don't fit they wrap under the
+   text, still right-aligned (`margin-left: auto`). Wide lists never reach the wrap point. */
+.plugin-row-main { --row-text-min: 10rem; display: flex; flex-wrap: wrap; align-items: center; gap: 0 12px; padding: 0 14px 0 0; }
 
 .plugin-row-summary {
-  flex: 1 1 auto; min-width: 0;
+  flex: 1 1 var(--row-text-min); min-width: 0;
   display: flex; align-items: center; gap: 12px;
   padding: 13px 8px 13px 17px;
   border: 0; background: transparent; text-align: left; font: inherit; color: inherit;
@@ -5900,7 +5913,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
    subline and the action, belonging to neither. */
 .plugin-row-actions {
   flex: 0 0 auto; display: flex; align-items: center; gap: 8px;
-  padding-left: 14px;
+  margin-left: auto; padding-left: 14px;
   border-left: 1px solid var(--border);
   align-self: stretch;
 }
@@ -5940,15 +5953,21 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 /* A chat dock can make this list narrow on a wide viewport. Respond to the list's own width so
    names, versions and actions retain separate space when the dock or sidebar is open. */
 @container plugin-list (max-width: 700px) {
-  .plugin-row-main { flex-direction: column; align-items: stretch; gap: 0; padding: 0; }
-  .plugin-row-summary { padding: 12px; gap: 10px; }
+  /* The row's bottom inset lives on `.plugin-row-main` and the summary keeps only the rest of its
+     12px, so a row whose actions sit inline is 12px top and bottom as before, while actions that
+     wrapped get the row inset under them instead of sitting flush on the card edge. The 2px
+     `row-gap` only exists between wrapped lines. */
+  .plugin-row-main { gap: 2px 8px; padding: 0 12px 10px 0; }
+  .plugin-row-summary { padding: 12px 12px 2px; gap: 10px; }
   .plugin-row-text { flex: 1; }
   .plugin-row-heading { flex-wrap: wrap; }
   .plugin-row-name { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
   .plugin-row-subline { white-space: normal; overflow-wrap: anywhere; }
   .plugin-row-version { max-width: 100%; overflow-wrap: anywhere; }
   .plugin-row-detail { padding-left: 12px; padding-right: 12px; }
-  .plugin-row-actions { flex-wrap: wrap; justify-content: flex-end; padding: 0 12px 12px; border-left: none; gap: 8px; }
+  /* No divider here: the actions either sit beside the text or wrap under it, and a left border
+     would cut through the wrapped line. */
+  .plugin-row-actions { flex-wrap: wrap; justify-content: flex-end; padding: 0; border-left: none; gap: 8px; align-self: center; }
 }
 /* At phone width the decorative package glyph is what truncated the name ("Word Co…"); the row's
    own action ("Disable"/"Enable") already states on/off, so the glyph's border tint is redundant. */
