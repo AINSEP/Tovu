@@ -105,7 +105,7 @@ test.describe("W7 menus and widgets", () => {
     await expect(page).toHaveScreenshot("widgets-library.png", { mask: [page.locator("time, [data-relative-time]")] });
   });
 
-  test("a widget whose id does not exist degrades to the placeholder and never 500s the page", { tag: ["@unrun"] }, async ({ request }) => {
+  test("a widget whose id does not exist renders nothing and never 500s the page", { tag: ["@unrun"] }, async ({ request }) => {
     const pageSlug = uniqSlug("missing-widget");
     await createPublishedPageWithHtml(request, {
       title: "Missing widget",
@@ -116,7 +116,10 @@ test.describe("W7 menus and widgets", () => {
     expect(live.status).toBe(200);
     expect(live.html).toContain("before");
     expect(live.html).toContain("after");
-    expect(live.html).toContain("widget-placeholder");
+    // Product decision (2e889b9a5): a missing widget renders nothing, not a placeholder or the raw marker.
+    expect(live.html).not.toContain("widget-placeholder");
+    expect(live.html).not.toContain('data-embed-id="does-not-exist"');
+    expect(live.html).toMatch(/<p>before<\/p>\s*<p>after<\/p>/);
   });
 
   test("menus list and editor baselines", { tag: ["@unrun"] }, async ({ page, request }) => {
