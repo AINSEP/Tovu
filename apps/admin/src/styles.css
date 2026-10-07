@@ -6064,8 +6064,16 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   table.list-table > thead > tr { display: flex; flex-wrap: wrap; align-items: center; gap: 0 4px; padding: 2px 6px; background: var(--surface-2); border-bottom: 1px solid var(--border); }
   table.list-table > thead > tr > th { display: block; border: 0; padding: 8px; background: transparent; }
   table.list-table > thead > tr > th:not(:has(button, input)) { display: none; }
+  /* A select-all checkbox alone read as an empty grey bar (owner, Trash, 2026-10-07). Its label
+     already carries the translated screen-reader text ("Select every item shown"); on a phone that
+     text is shown beside the box, and the whole label is the tap target. */
+  table.list-table > thead > tr > th label:has(> input[type="checkbox"]) { display: inline-flex; align-items: center; gap: 10px; min-height: 40px; cursor: pointer; }
+  table.list-table > thead > tr > th label:has(> input[type="checkbox"]) > .visually-hidden {
+    position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; white-space: normal;
+    font-size: var(--text-sm); font-weight: 500; letter-spacing: normal; text-transform: none; color: var(--muted);
+  }
 
-  table.list-table > tbody > tr { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+  table.list-table > tbody > tr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
   table.list-table > tbody > tr:last-child { border-bottom: none; }
   /* Forces the meta cells onto their own line(s) under the title + actions. A flex item via its
      own `order`: it lands after the actions slot (also order 1, earlier in source). */
@@ -6090,6 +6098,24 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   table.list-table > tbody > tr > td:first-child::before,
   table.list-table > tbody > tr > td:first-child:has(input[type="checkbox"]) + td::before,
   table.list-table > tbody > tr > td:last-child:not(:first-child):has(button, a, select)::before { content: none; }
+
+  /* Each meta cell is its own "LABEL | value" line, labels in one fixed-width column (owner,
+     2026-10-07). As inline "LABEL value" runs side by side, the pairs wrapped wherever the line
+     ran out: a label at the end of one line and its value at the start of the next, and a
+     multi-line value (Forms' "Created / Updated") pushing its neighbours out of line. The label
+     is a float pulled into the cell's own left padding (a hanging indent), not a grid column:
+     the value's children stay in ordinary flow however many there are, every value line keeps
+     the indent, and `flow-root` grows the cell when a long label wraps to two lines. Excluded:
+     the title, the actions slot, editable cells (label above, below) and colspan detail rows. */
+  table.list-table > tbody > tr > td[data-label]:not(:first-child, :first-child:has(input[type="checkbox"]) + td, :last-child:has(button, a, select), :has(> input:not([type="checkbox"]), > select), [colspan]) {
+    --list-meta-label-w: 7.5rem;
+    flex: 0 0 100%; display: flow-root; padding-left: calc(var(--list-meta-label-w) + 12px); line-height: 20px;
+  }
+  table.list-table > tbody > tr > td[data-label]:not(:first-child, :first-child:has(input[type="checkbox"]) + td, :last-child:has(button, a, select), :has(> input:not([type="checkbox"]), > select), [colspan])::before {
+    float: left; width: var(--list-meta-label-w); margin: 0 0 0 calc(-1 * (var(--list-meta-label-w) + 12px)); line-height: 20px;
+  }
+  /* A button value (Collections' "Copy embed code") is 40px tall on phones: centre the label on it. */
+  table.list-table > tbody > tr > td[data-label]:not(:first-child, :first-child:has(input[type="checkbox"]) + td, :last-child:has(button, a, select), :has(> input:not([type="checkbox"]), > select), [colspan]):has(> button)::before { line-height: 40px; }
 
   /* Editable rows (the form builder's field table, FO-3): a cell holding a text control gets its
      label ABOVE the control and a share of the line, so a field reads as a small labelled form —

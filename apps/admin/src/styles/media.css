@@ -438,8 +438,7 @@
 /* Phones (mobile catalog ME-1/ME-3, 2026-10-06). The upload and import rows mixed a ~160px field
    with half-width ones (Remote URL and its Alt text at ~165px each, the button wrapping alone);
    here each field takes the width it is given — the remote URL a whole line, each alt text the
-   line beside its own button. Below 480px the library is two columns, not one 360px card per
-   screen (107 items was ~38,000px of scrolling). */
+   line beside its own button. */
 @media (max-width: 640px) {
   .page:has(> .media-grid) > .toolbar { flex-wrap: wrap; }
   .page:has(> .media-grid) > .toolbar > input:not(.file-input) { flex: 1 1 140px; width: auto; min-width: 0; }
@@ -447,6 +446,15 @@
   /* Wide enough basis that the upload row's alt text drops under "Choose file" beside Upload. */
   .page:has(> .media-grid) > .toolbar:has(> .file-input) > input:not(.file-input) { flex-basis: 200px; }
 }
-@media (max-width: 480px) {
-  .media-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+/* Phones: one card per row, full filename (owner, 2026-10-07). The two-column grid below 480px
+   (ME-3, 2026-10-06, chosen to shorten the scroll) left ~160px cards: filenames cut to
+   "demo-v2-ai-image…" and the preview's overlay controls (eye, expand, video controls) crowding a
+   thumbnail too small for them. The owner wants each card taking the row: the columns stretch
+   (`1fr`, not the base grid's fixed 360px, which left a gap beside the card at 414px), one per
+   row on a phone and two only once the column has 600px+ for them. The name wraps instead of
+   truncating. */
+@media (max-width: 640px) {
+  .media-grid { grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); }
+  .media-card-title,
+  .media-card-body .media-card-details { white-space: normal; overflow-wrap: anywhere; }
 }
