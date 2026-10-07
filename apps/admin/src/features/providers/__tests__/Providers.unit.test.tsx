@@ -9,6 +9,7 @@ import { Providers } from "../Providers";
 import { useRouteLocation } from "@/lib/router";
 import { defaultIntegrationsPort } from "../../integrations/hooks/integrations-dependencies.hooks";
 import { defaultAlwaysAllowPort } from "../hooks/always-allow-dependencies.hooks";
+import { defaultAdminLocalePort } from "../../../hooks/admin-locale-dependencies.hooks";
 import type { ProvidersController } from "../hooks/use-providers.hooks";
 
 /**
@@ -19,19 +20,19 @@ import type { ProvidersController } from "../hooks/use-providers.hooks";
  * `ExternalMcpSettingsPanel`.
  */
 
-function fixtureProviders(): ProvidersController {
+function fixtureProviders(restartRequired = false): ProvidersController {
   return {
     externalMcp: {
       dependencies: createFakeSourceConfigDependencies<SourceConfigItem>({
         sources: [],
         createSource: (input) => ({ id: input.fields.id?.trim() || "new-server", fields: input.fields }),
       }),
-      restartRequired: false,
+      restartRequired,
     },
   };
 }
 
-function renderPage(tabId?: string | null) {
+function renderPage(tabId?: string | null, restartRequired = false) {
   // `FetchQueryProvider` is required whenever the default "external-mcp" tab is on screen:
   // `ExternalMcpSettingsPanel` reads the running assistant's admissions through `useFetchQuery`,
   // which needs a query client — same requirement `ExternalMcpSettingsPanel.unit.test.tsx` documents
@@ -39,7 +40,7 @@ function renderPage(tabId?: string | null) {
   function RoutedPage() {
     const location = useRouteLocation();
     const query = new URLSearchParams(location.split("?")[1] ?? "");
-    return <Providers tabId={query.get("tab") ?? tabId} useProvidersHook={() => fixtureProviders()} />;
+    return <Providers tabId={query.get("tab") ?? tabId} useProvidersHook={() => fixtureProviders(restartRequired)} />;
   }
   return render(<FetchQueryProvider><RoutedPage /></FetchQueryProvider>);
 }
@@ -155,5 +156,23 @@ describe("Providers — Webhooks tab body: visible but greyed and inert, same as
     } finally {
       list.mockRestore();
     }
+  });
+});
+
+describe("Providers — External MCP restart note: translated through this page's own dictionary", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // Both notes live in `providers-i18n.ts`, not `settings-capabilities-i18n.ts`. Translating them
+  // through the capabilities dictionary misses the key and falls back to the English copy, so the
+  // pill stayed English in every non-English locale.
+  it.each([
+    [true, "Gespeichert — starten Sie Tovu neu, um eine Verbindung herzustellen"],
+    [false, "Änderungen werden beim Neustart von Tovu wirksam"],
+  ])("restartRequired=%s renders the German note in a de locale", async (restartRequired, expected) => {
+    vi.spyOn(defaultAdminLocalePort, "loadLanguage").mockResolvedValue("de");
+    renderPage("external-mcp", restartRequired);
+    expect(await screen.findByText(expected)).toBeInTheDocument();
   });
 });

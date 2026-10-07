@@ -9,7 +9,6 @@ import { TabBar, type TabBarTab } from "../../components/TabBar";
 import { ComingSoonPanel } from "../../components/ComingSoonPanel";
 import { ExternalMcpSettingsPanel } from "../settings/ExternalMcpSettingsPanel";
 import { AlwaysAllowPanel } from "./AlwaysAllowPanel";
-import { t as tCapability } from "../settings/settings-capabilities-i18n";
 import { Integrations } from "../integrations/Integrations";
 import { useWiredIntegrations } from "../integrations/hooks/use-integrations.hooks";
 import { t as tIntegrations } from "../integrations/integrations-i18n";
@@ -263,8 +262,8 @@ export function Providers(props: ProvidersProps) {
             showTitle={false}
             saveStatusLabel={
               p.externalMcp.restartRequired
-                ? tCapability(locale, "Saved — restart Tovu to connect")
-                : tCapability(locale, "Changes apply when Tovu restarts")
+                ? t(locale, "Saved — restart Tovu to connect")
+                : t(locale, "Changes apply when Tovu restarts")
             }
           />
         ) : null}
