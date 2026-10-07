@@ -58,11 +58,17 @@ export function createdTokensNote(record: Pick<CreatedSiteRecord, 'agentPluginTo
     : `${names} couldn't be saved. Open the site and ask its assistant to connect it.`;
 }
 
-export function useCreateSitePluginTokens(): CreateSitePluginTokens {
+/** `enabled` follows onboarding availability: hidden fields never contribute tokens to create. */
+export function useCreateSitePluginTokens(
+  _requiredArgs: Record<string, never> = {},
+  { enabled = true }: { enabled?: boolean } = {},
+): CreateSitePluginTokens {
   const [plugins, setPlugins] = useState<readonly TokenSignInPlugin[]>([]);
   const inputs = useRef(new Map<string, HTMLInputElement>());
 
   useEffect(() => {
+    // Owner 2026-10-06: hidden — do not offer tokens while the service section is unavailable.
+    if (!enabled) return;
     let live = true;
     const list = runnerInventoryBridge()?.listTokenSignInPlugins;
     if (!list) return;
@@ -75,7 +81,7 @@ export function useCreateSitePluginTokens(): CreateSitePluginTokens {
     return () => {
       live = false;
     };
-  }, []);
+  }, [enabled]);
 
   const inputRef = useCallback(
     (pluginId: string) => (element: HTMLInputElement | null) => {
@@ -89,13 +95,14 @@ export function useCreateSitePluginTokens(): CreateSitePluginTokens {
     (onCreate: (input: CreateSiteInput) => Promise<void>) => (input: CreateSiteInput) => {
       const values: Record<string, string> = {};
       for (const [pluginId, element] of inputs.current) {
-        values[pluginId] = element.value;
+        // Hidden means no token is sent, including a ref left over from an earlier render.
+        if (enabled) values[pluginId] = element.value;
         element.value = '';
       }
       const agentPluginTokens = tokensForCreate(values);
       return onCreate(agentPluginTokens ? { ...input, agentPluginTokens } : input);
     },
-    [],
+    [enabled],
   );
 
   return { plugins, inputRef, withTokens };

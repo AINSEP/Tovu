@@ -1498,9 +1498,10 @@ webview { display: flex; }
   padding: 1.25rem;
   border-top: 1px solid var(--border);
 }
-.onboarding__actions > p { max-width: 32rem; margin: 0; color: var(--faint); font-size: 0.75rem; }
-.onboarding__actions > .onboarding__error { color: var(--warning); font-weight: 500; }
-.onboarding__actions > div { display: flex; flex: none; gap: 0.625rem; }
+.onboarding__actions > footer { min-width: 0; }
+.onboarding__actions > footer > p { max-width: 32rem; margin: 0; color: var(--faint); font-size: 0.75rem; }
+.onboarding__actions > footer > .onboarding__error { color: var(--warning); font-weight: 500; }
+.onboarding__actions > div { display: flex; flex: none; gap: 0.625rem; margin-left: auto; }
 
 /* ---------- Jini fleet chat ---------- */
 

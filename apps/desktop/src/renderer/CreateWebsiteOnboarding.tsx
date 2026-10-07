@@ -1,15 +1,17 @@
 /**
- * The create-website onboarding flow: name the site, pick a database, review the instance
- * summary, submit. Split out of `App.tsx` as its own module — the form's field state and
+ * The create-website onboarding flow: name the site, pick a database, submit.
+ * Split out of `App.tsx` as its own module — the form's field state and
  * submission lifecycle live in `useCreateWebsiteForm` (App.hooks.ts); everything here is layout
  * and markup on top of that hook's return value.
  */
 import { useCreateWebsiteForm } from './App.hooks.js';
 import { useCreateSitePluginTokens, type CreateSitePluginTokens } from './use-create-site-plugin-tokens.hooks.js';
+import { createWebsiteOnboardingPolicy } from './create-website-onboarding-policy.js';
 import type { CreateSiteInput, DatabaseProviderKind } from '../contracts/project.js';
 import type { RefObject } from 'react';
 
-const TOVU_VERSION = '0.1.0';
+// Owner 2026-10-06: hidden — only the hidden Instance copy section reads this stale release.
+// const TOVU_VERSION = '0.1.0';
 
 function DatabaseOption({
   value,
@@ -54,6 +56,7 @@ function DatabaseOption({
 
 function DatabasePicker({
   database,
+  supabaseDatabaseUnavailable,
   onSelect,
   supabaseUrl,
   onSupabaseUrlChange,
@@ -67,6 +70,7 @@ function DatabasePicker({
   onCustomCredentialChange,
 }: {
   database: DatabaseProviderKind;
+  supabaseDatabaseUnavailable: boolean;
   onSelect: (value: DatabaseProviderKind) => void;
   supabaseUrl: string;
   onSupabaseUrlChange: (value: string) => void;
@@ -94,7 +98,7 @@ function DatabasePicker({
             settled is a product call, not this fix's. A disabled radio cannot be selected, so the
             vendor field blocks below never render and no credential is ever asked for. */}
         <DatabaseOption value="sqlite" selected={database === 'sqlite'} onSelect={onSelect} title="SQLite" hint="Default · created inside this Tovu workspace" />
-        <DatabaseOption value="supabase" selected={database === 'supabase'} onSelect={onSelect} title="Supabase" hint="Not available in this app yet · needs a hosted-database provisioner" unavailable />
+        <DatabaseOption value="supabase" selected={database === 'supabase'} onSelect={onSelect} title="Supabase" hint="Not available in this app yet · needs a hosted-database provisioner" unavailable={supabaseDatabaseUnavailable} />
         <DatabaseOption value="custom" selected={database === 'custom'} onSelect={onSelect} title="Custom DB Provider" hint="Not available in this app yet · needs a hosted-database provisioner" unavailable />
       </fieldset>
 
@@ -206,14 +210,20 @@ export function CreateWebsiteOnboarding({
   onCreate,
   useForm = useCreateWebsiteForm,
   usePluginTokens = useCreateSitePluginTokens,
+  supabaseDatabaseAvailable,
 }: {
   onBack: () => void;
   onCreate: (input: CreateSiteInput) => Promise<void>;
   useForm?: typeof useCreateWebsiteForm;
   /** Same injection pattern as `useForm`: the hook itself, defaulted to the real one. */
   usePluginTokens?: typeof useCreateSitePluginTokens;
+  /** Capability injection for renderer tests; production uses the policy module's flag. */
+  supabaseDatabaseAvailable?: boolean;
 }) {
-  const pluginTokens = usePluginTokens();
+  const { showConnectServices, supabaseDatabaseUnavailable } = createWebsiteOnboardingPolicy(
+    { formError: null }, { supabaseDatabaseAvailable },
+  );
+  const pluginTokens = usePluginTokens({}, { enabled: showConnectServices });
   const {
     name,
     setName,
@@ -235,6 +245,7 @@ export function CreateWebsiteOnboarding({
     formError,
     handleSubmit,
   } = useForm(pluginTokens.withTokens(onCreate));
+  const { showErrorFooter } = createWebsiteOnboardingPolicy({ formError });
 
   return (
     <section className="onboarding" aria-labelledby="create-website-title">
@@ -277,6 +288,7 @@ export function CreateWebsiteOnboarding({
 
             <DatabasePicker
               database={database}
+              supabaseDatabaseUnavailable={supabaseDatabaseUnavailable}
               onSelect={setDatabase}
               supabaseUrl={supabaseUrl}
               onSupabaseUrlChange={setSupabaseUrl}
@@ -291,8 +303,10 @@ export function CreateWebsiteOnboarding({
             />
           </div>
 
-          <ConnectServicesSection pluginTokens={pluginTokens} />
+          {/* // Owner 2026-10-06: hidden — service tokens wait for Supabase database availability. */}
+          {showConnectServices && <ConnectServicesSection pluginTokens={pluginTokens} />}
 
+          {/* // Owner 2026-10-06: hidden — the owner removed the Instance copy summary from onboarding.
           <div className="onboarding-section onboarding-section--instance">
             <div>
               <h3>Instance copy</h3>
@@ -305,12 +319,16 @@ export function CreateWebsiteOnboarding({
               <div><dt>Workspace</dt><dd>{slug || 'Set a website name'}</dd></div>
             </dl>
           </div>
+          */}
 
-          <footer className="onboarding__actions">
-            {formError ? (
-              <p className="onboarding__error" role="alert">{formError}</p>
-            ) : (
+          {/* // Owner 2026-10-06: hidden — the owner removed the obsolete supervisor readiness note.
               <p>UI onboarding is ready. Provisioning the copy and securely saving vendor credentials needs the Tovu supervisor connection.</p>
+          */}
+          <div className="onboarding__actions">
+            {showErrorFooter && (
+              <footer>
+                <p className="onboarding__error" role="alert">{formError}</p>
+              </footer>
             )}
             <div>
               <button type="button" className="button button--quiet" onClick={onBack}>Cancel</button>
@@ -318,7 +336,7 @@ export function CreateWebsiteOnboarding({
                 {isSubmitting ? 'Creating…' : 'Create local instance'}
               </button>
             </div>
-          </footer>
+          </div>
         </section>
       </form>
     </section>

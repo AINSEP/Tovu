@@ -128,7 +128,7 @@ test("the two database options this app cannot provision are DISABLED, with the 
     assert.match(option.slice(0, option.indexOf("/>")), /unavailable/, `the ${value} option must be marked unavailable`);
     const DatabaseOption = sourceFunction(onboarding, 'DatabaseOption');
     const DatabasePicker = sourceFunction(onboarding, 'DatabasePicker', { DatabaseOption });
-    const rendered = elements(DatabasePicker({ database: 'sqlite' }));
+    const rendered = elements(DatabasePicker({ database: 'sqlite', supabaseDatabaseUnavailable: true }));
     const radio = rendered.find((element) => element.type === 'input' && element.props.value === value);
     assert.ok(radio, `${value} must have a radio`);
     assert.equal(radio.props.disabled, true, `${value} must really be disabled`);
