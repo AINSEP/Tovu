@@ -68,7 +68,7 @@ import { useProviders } from "./hooks/use-providers.hooks";
  *
  * `initialLocale` comes from `useAdminLocale()` rather than a `useSettingsSlice` mount: it reads
  * the same `core.language.locale` key, re-fetches on the same settings-refresh bus, and does not
- * drag in the five unrelated namespaces `useSettingsUi` would (see `hooks/use-providers.hooks.ts`).
+ * drag in the six unrelated namespaces `useSettingsUi` would (see `hooks/use-providers.hooks.ts`).
  * `syncDocumentAttributes={false}` for the same reason `SettingsUi` sets it — only these tab bodies
  * are translated through this dictionary, so claiming a document-wide `<html lang>` here would
  * misinform assistive tech about the rest of the admin shell.

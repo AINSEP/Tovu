@@ -317,7 +317,7 @@ export function SettingsUi(props: SettingsUiProps) {
     SETTINGS_DIALOG_DICTIONARIES.en?.[key] ??
     CMS_SETTINGS_DIALOG_DICTIONARIES[settingsLocale]?.[key] ??
     tApp(settingsLocale, key);
-  /** The 8 "no backend yet" capability-status notes below — see `settings-capabilities-i18n.ts`'s
+  /** The 4 "no backend yet" capability-status notes below — see `settings-capabilities-i18n.ts`'s
    *  header for why these live in Tovu's own dictionary rather than `SETTINGS_DIALOG_DICTIONARIES`. */
   const tCap = (key: string): string => tCapability(settingsLocale, key);
   /** The Execution tab's own copy — the two stored-key asks (`lib/stored-credential-endpoint.ts`'s copy
@@ -648,7 +648,7 @@ export function SettingsUi(props: SettingsUiProps) {
       //
       // Placed last, immediately before About: every other tab here configures how the ASSISTANT
       // behaves or how this OPERATOR experiences the dialog (execution, instructions,
-      // notifications, privacy, appearance, language, memory, skills) — this one is the only tab
+      // notifications, privacy, appearance, language, interface, memory) — this one is the only tab
       // that is about the INSTALL's own identity, closer in kind to About's version/runtime facts
       // than to any operator preference above it. Not inserted earlier in that run (e.g. ahead of
       // Language) for the same reason: nothing about Workspace configures another tab's behavior,
