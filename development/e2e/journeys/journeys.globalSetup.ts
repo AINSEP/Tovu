@@ -5,6 +5,7 @@ import { writeFileSync } from "node:fs";
 
 import { JOURNEY_ADMIN_PASSWORD, JOURNEY_ADMIN_USER, type IsolatedJourneySite } from "../support/isolated-journey-site.js";
 import { waitForAgentDaemon } from "../daemon-ready.js";
+import { CODEX_JOURNEY } from "../support/assistant-journey-state.js";
 
 /**
  * Logs in ONCE through the real login route and writes the session cookie as the `storageState`
@@ -66,15 +67,17 @@ export default async function journeysGlobalSetup(config: FullConfig): Promise<v
     await waitForAgentDaemon();
     const cookie = cookies.map(({ name, value }) => `${name}=${value}`).join("; ");
     // Persist the runtime explicitly through the real settings route. The fresh seed normally
-    // defaults to Local CLI, but pin Claude so another installed CLI cannot become the selection.
-    for (const [key, valueJson] of [["mode", "local-cli"], ["localCli.agentId", "claude"]]) {
+    // defaults to Local CLI, but pin the requested agent so another installed CLI cannot become
+    // the selection. Unset keeps the existing live chat suite's Claude selection.
+    const agentId = CODEX_JOURNEY ? "codex" : "claude";
+    for (const [key, valueJson] of [["mode", "local-cli"], ["localCli.agentId", agentId]]) {
       const saved = await fetch(`${baseURL}/api/admin/v1/workspaces/workspace-local/settings/value`, {
         method: "PUT", redirect: "error",
         headers: { "content-type": "application/json", cookie },
         body: JSON.stringify({ namespace: "core.execution", key, scope: "workspace", valueJson }),
       });
-      if (!saved.ok) throw new Error(`journeys globalSetup: could not select Claude Local CLI (${key}, ${saved.status})`);
+      if (!saved.ok) throw new Error(`journeys globalSetup: could not select ${agentId} Local CLI (${key}, ${saved.status})`);
     }
-    console.log(`[isolated chat] Claude Code Local CLI; admin ${site.adminURL}; API ${site.apiURL}; site ${site.siteDir}`);
+    console.log(`[isolated chat] ${CODEX_JOURNEY ? "Codex" : "Claude Code"} Local CLI; admin ${site.adminURL}; API ${site.apiURL}; site ${site.siteDir}`);
   }
 }

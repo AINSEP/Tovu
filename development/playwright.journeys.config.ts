@@ -2,6 +2,7 @@
 import path from "node:path";
 import { defineConfig } from "@playwright/test";
 import { createIsolatedJourneySite, isolatedJourneyWebServers } from "./e2e/support/isolated-journey-site.js";
+import { CODEX_JOURNEY } from "./e2e/support/assistant-journey-state.js";
 
 /**
  * @file Journeys config (E2E scope doc, `ADS-memory/.local-artifacts/e2e-scope/SCOPE.md` §4).
@@ -16,7 +17,8 @@ import { createIsolatedJourneySite, isolatedJourneyWebServers } from "./e2e/supp
  */
 const REPO_ROOT = path.resolve(import.meta.dirname, "..");
 export default createIsolatedJourneySite(
-  { suite: "journeys" }, { ports: { api: 9101, admin: 9102, daemon: 9103 } },
+  { suite: "journeys" }, { ports: { api: 9101, admin: 9102, daemon: 9103 },
+    ...(CODEX_JOURNEY ? { database: "sqlite", runtime: "local-cli" } as const : {}) },
 ).then((site) => defineConfig({
   testDir: "./e2e/journeys",
   testMatch: /\.journey\.ts$/,
@@ -38,6 +40,7 @@ export default createIsolatedJourneySite(
   reporter: [
     ["list"],
     ["html", { outputFolder: path.join(REPO_ROOT, "development/playwright-report/journeys"), open: "never" }],
+    ["./e2e/support/journey-site-cleanup-reporter.ts", { site }],
   ],
   use: {
     baseURL: site.adminURL,

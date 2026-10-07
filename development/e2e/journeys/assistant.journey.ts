@@ -1,12 +1,14 @@
 // @unrun: authored 2026-10-04 by an agent, NEVER EXECUTED; selectors and flows unverified.
-import type { Page, Request, Route } from "@playwright/test";
 import { buildConfirmationSurface, buildFormSurface } from "@jini-ai/ui/mcp-ui/surfaces";
 
-import { expect, test, uniq } from "./_fixtures.js";
+import { uniq } from "./_fixtures.js";
+import { expect, test } from "../support/assistant-journey-fixtures.js";
+import { CODEX_JOURNEY, LIVE_ANSWER_TIMEOUT_MS } from "../support/assistant-journey-state.js";
+import { stubPendingRun, type Payload } from "../support/assistant-run-stub.js";
 import { createAdminChatDriver } from "../support/admin-chat-driver.js";
 
 /**
- * Admin assistant dock journeys (SCOPE.md W9, stubbed-run slice). No model runs: `POST /api/runs`
+ * Admin assistant dock journeys (SCOPE.md W9, stubbed-run slice). By default, no model runs: `POST /api/runs`
  * and its SSE stream are fulfilled by the test, following the recipe in
  * `ADS-memory/.local-artifacts/e2e-research/2026-10-04-admin-dock-research.md` and the proven stub
  * in `admin-composer-agent-plugin-chip.spec.ts`.
@@ -19,6 +21,9 @@ import { createAdminChatDriver } from "../support/admin-chat-driver.js";
  *    posts nothing to the question endpoint (Jini 5e4ee497 fixed the misroute tonight).
  *  - the approval countdown under `page.clock`, and the expired card.
  *
+ * Opt in to a live Local CLI reply with TOVU_E2E_ASSISTANT_AGENT=codex-cli. The other six
+ * tests skip because their scripted transport/error/clock conditions require the stub.
+ *
  * Stream shape: the client opens `EventSource(/api/runs/<id>/events)` and listens to the named
  * events `agent` / `end` (`apps/admin/src/lib/assistant-transport.ts`). Each `agent` frame's data is
  * a wire envelope whose `payload` goes through `translateRunAgentPayload`
@@ -27,69 +32,13 @@ import { createAdminChatDriver } from "../support/admin-chat-driver.js";
  *
  * A card stays pending only while the run is streaming. A finite SSE body with no `end` frame makes
  * EventSource reconnect and replay, so the body starts with `retry: 3600000` and the run-status GET
- * is stubbed to `running` (the transport asks it on a dropped stream and ends the run on a 404).
+ * is stubbed to `running` for status readers. The current durable transport polls `POST /recover`
+ * and renders its saved checkpoint: SSE alone no longer renders a pending card. The stub echoes
+ * the request's durable binding and returns the same running checkpoint after a dropped stream
+ * (a real recovery 404 would end the subscription).
  */
-const RUN_ID = "journey-run-1";
-
-type Payload = Record<string, unknown>;
-
-function frame(event: "agent" | "end", payload: Payload, eventId: number): string {
-  const data = {
-    runId: RUN_ID,
-    eventId: String(eventId),
-    opaqueCursor: String(eventId),
-    protocolVersion: 1,
-    ts: new Date(0).toISOString(),
-    kind: event,
-    payload,
-    durability: "durable",
-  };
-  return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-}
-
-interface RunStub {
-  runStarts: Request[];
-  toolCalls: Array<{ toolName: string; params: Record<string, unknown> }>;
-}
-
-/**
- * Stubs one pending run whose stream replays `payloads` and never ends, plus the mcp-ui decision
- * endpoint answering `toolCallStatus`.
- */
-async function stubPendingRun(page: Page, payloads: Payload[], toolCallStatus: 202 | 409 | 500): Promise<RunStub> {
-  const stub: RunStub = { runStarts: [], toolCalls: [] };
-  await page.route(
-    (url) => url.pathname.endsWith("/api/runs"),
-    async (route: Route) => {
-      if (route.request().method() !== "POST") return route.continue();
-      stub.runStarts.push(route.request());
-      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ run: { id: RUN_ID, state: "running" } }) });
-    },
-  );
-  await page.route(`**/api/runs/${RUN_ID}/events`, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: "text/event-stream",
-      body: "retry: 3600000\n\n" + payloads.map((p, i) => frame("agent", p, i + 1)).join(""),
-    }),
-  );
-  await page.route(`**/api/runs/${RUN_ID}`, (route) =>
-    route.request().method() === "GET"
-      ? route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ run: { id: RUN_ID, state: "running" } }) })
-      : route.continue(),
-  );
-  await page.route("**/api/admin/v1/mcp-ui/tool-calls", async (route) => {
-    stub.toolCalls.push(route.request().postDataJSON());
-    const body =
-      toolCallStatus === 202
-        ? { delivered: true }
-        : toolCallStatus === 409
-          ? { error: "that dialog is no longer waiting for an answer", code: "SURFACE_NOT_PENDING", reason: "unknown-or-closed" }
-          : { error: "internal error", code: "INTERNAL_ERROR" };
-    await route.fulfill({ status: toolCallStatus, contentType: "application/json", body: JSON.stringify(body) });
-  });
-  return stub;
-}
+// In live mode, leave time for a genuine CLI turn; the default journey budget stays unchanged.
+if (CODEX_JOURNEY) test.setTimeout(6 * 60_000);
 
 function askChoicePayloads(): Payload[] {
   const resource = buildFormSurface({
@@ -126,11 +75,13 @@ function confirmPayloads(expiresAtMs?: number): Payload[] {
 
 test.describe("assistant ask_choice typed answer", () => {
   test("typing while the question card is open delivers one typed answer and starts no second run", { tag: ["@unrun"] }, async ({ page }) => {
-    const stub = await stubPendingRun(page, askChoicePayloads(), 202);
+    test.skip(CODEX_JOURNEY, "Requires a scripted pending card, delivery status, or fake clock; live Codex cannot guarantee these conditions.");
+    const stub = await stubPendingRun({ page, payloads: askChoicePayloads(), toolCallStatus: 202 });
     const chat = createAdminChatDriver({ page }, { adminPath: "/admin/posts" });
     await chat.open({ navigate: true });
+    await chat.newConversation();
     await chat.send({ text: "Help me choose" });
-    await expect(page.frameLocator('iframe[title^="ui://tovu/ask-choice/"]').locator("h1.mcpui-title")).toHaveText("Pick a plan");
+    await expect(page.frameLocator('[data-mcpui-host][aria-label^="ui://tovu/ask-choice/"] iframe').locator("h1.mcpui-title")).toHaveText("Pick a plan");
     // While streaming, Send turns into Stop run, so Enter is the only send path.
     await expect(chat.ui.stop).toBeVisible();
 
@@ -145,28 +96,34 @@ test.describe("assistant ask_choice typed answer", () => {
   });
 
   test("a stale question (409) shows the notice, keeps the draft and starts no run", { tag: ["@unrun"] }, async ({ page }) => {
-    const stub = await stubPendingRun(page, askChoicePayloads(), 409);
+    test.skip(CODEX_JOURNEY, "Requires a scripted pending card, delivery status, or fake clock; live Codex cannot guarantee these conditions.");
+    const stub = await stubPendingRun({ page, payloads: askChoicePayloads(), toolCallStatus: 409 });
     const chat = createAdminChatDriver({ page }, { adminPath: "/admin/posts" });
     await chat.open({ navigate: true });
+    await chat.newConversation();
     await chat.send({ text: "Help me choose" });
-    await expect(page.frameLocator('iframe[title^="ui://tovu/ask-choice/"]').locator("h1.mcpui-title")).toBeVisible();
+    await expect(page.frameLocator('[data-mcpui-host][aria-label^="ui://tovu/ask-choice/"] iframe').locator("h1.mcpui-title")).toBeVisible();
     const draft = uniq("late answer");
     const textarea = chat.ui.composer;
     await chat.send({ text: draft }, { submission: "enter" });
-    await expect(chat.ui.paneErrors).toHaveText(
+    await expect(chat.ui.paneErrors).toContainText(
       "That question is no longer waiting for an answer, so your message was not sent.",
     );
+    // The notice carries the held answer's explicit way out (assistant-dock-i18n.ts); it is offered, not taken.
+    await expect(chat.ui.paneErrors.getByRole("button", { name: "Send as a new message" })).toBeVisible();
     await expect(textarea).toHaveValue(draft);
     expect(stub.toolCalls).toHaveLength(1);
     expect(stub.runStarts).toHaveLength(1);
   });
 
   test("a failed delivery (500) says so and keeps the draft for a retry", { tag: ["@unrun"] }, async ({ page }) => {
-    const stub = await stubPendingRun(page, askChoicePayloads(), 500);
+    test.skip(CODEX_JOURNEY, "Requires a scripted pending card, delivery status, or fake clock; live Codex cannot guarantee these conditions.");
+    const stub = await stubPendingRun({ page, payloads: askChoicePayloads(), toolCallStatus: 500 });
     const chat = createAdminChatDriver({ page }, { adminPath: "/admin/posts" });
     await chat.open({ navigate: true });
+    await chat.newConversation();
     await chat.send({ text: "Help me choose" });
-    await expect(page.frameLocator('iframe[title^="ui://tovu/ask-choice/"]').locator("h1.mcpui-title")).toBeVisible();
+    await expect(page.frameLocator('[data-mcpui-host][aria-label^="ui://tovu/ask-choice/"] iframe').locator("h1.mcpui-title")).toBeVisible();
     const textarea = chat.ui.composer;
     await chat.send({ text: "retry me" }, { submission: "enter" });
     await expect(chat.ui.paneErrors).toHaveText("Your answer could not be delivered. Try sending it again.");
@@ -175,22 +132,37 @@ test.describe("assistant ask_choice typed answer", () => {
   });
 
   test("ask_choice card baseline", { tag: ["@unrun"] }, async ({ page }) => {
-    await stubPendingRun(page, askChoicePayloads(), 202);
+    if (CODEX_JOURNEY) {
+      const chat = createAdminChatDriver({ page }, { adminPath: "/admin/posts", answerTimeoutMs: LIVE_ANSWER_TIMEOUT_MS });
+      await chat.open({ navigate: true });
+      await chat.newConversation();
+      await chat.send({ text: "Reply with a brief greeting. Do not call tools or create or change posts, media, or sites." });
+      await chat.waitForAnswer({ outcome: "succeeded" });
+      await expect(chat.ui.assistantMessages.last().locator(".jini-message-content").last(), "A real Codex assistant reply appears").toHaveText(/\S/);
+      await expect(chat.ui.assistantMessages.last()).toBeVisible();
+      await expect(chat.ui.errors).toHaveCount(0);
+      await expect(chat.ui.messageErrors).toHaveCount(0);
+      return;
+    }
+    await stubPendingRun({ page, payloads: askChoicePayloads(), toolCallStatus: 202 });
     const chat = createAdminChatDriver({ page }, { adminPath: "/admin/posts" });
     await chat.open({ navigate: true });
+    await chat.newConversation();
     await chat.send({ text: "Help me choose" });
-    await expect(page.frameLocator('iframe[title^="ui://tovu/ask-choice/"]').locator("h1.mcpui-title")).toBeVisible();
+    await expect(page.frameLocator('[data-mcpui-host][aria-label^="ui://tovu/ask-choice/"] iframe').locator("h1.mcpui-title")).toBeVisible();
     await expect(chat.ui.dock).toHaveScreenshot("dock-ask-choice-card.png");
   });
 });
 
 test.describe("assistant confirm card", () => {
   test("typing while a CONFIRM card is pending queues the message instead of posting it as a typed answer", { tag: ["@unrun"] }, async ({ page }) => {
-    const stub = await stubPendingRun(page, confirmPayloads(), 202);
+    test.skip(CODEX_JOURNEY, "Requires a scripted pending card, delivery status, or fake clock; live Codex cannot guarantee these conditions.");
+    const stub = await stubPendingRun({ page, payloads: confirmPayloads(), toolCallStatus: 202 });
     const chat = createAdminChatDriver({ page }, { adminPath: "/admin/posts" });
     await chat.open({ navigate: true });
+    await chat.newConversation();
     await chat.send({ text: "Help me choose" });
-    const card = page.frameLocator('iframe[title^="ui://tovu/content-post-delete/"]');
+    const card = page.frameLocator('[data-mcpui-host][aria-label^="ui://tovu/content-post-delete/"] iframe');
     await expect(card.locator('[data-mcpui-action="confirm"]')).toBeVisible();
 
     await chat.send({ text: "actually, also rename it" }, { submission: "enter" });
@@ -205,11 +177,13 @@ test.describe("assistant confirm card", () => {
   });
 
   test("confirm sends exactly one decision for the right tool", { tag: ["@unrun"] }, async ({ page }) => {
-    const stub = await stubPendingRun(page, confirmPayloads(), 202);
+    test.skip(CODEX_JOURNEY, "Requires a scripted pending card, delivery status, or fake clock; live Codex cannot guarantee these conditions.");
+    const stub = await stubPendingRun({ page, payloads: confirmPayloads(), toolCallStatus: 202 });
     const chat = createAdminChatDriver({ page }, { adminPath: "/admin/posts" });
     await chat.open({ navigate: true });
+    await chat.newConversation();
     await chat.send({ text: "Help me choose" });
-    const confirm = page.frameLocator('iframe[title^="ui://tovu/content-post-delete/"]').locator('[data-mcpui-action="confirm"]');
+    const confirm = page.frameLocator('[data-mcpui-host][aria-label^="ui://tovu/content-post-delete/"] iframe').locator('[data-mcpui-action="confirm"]');
     await expect(confirm).toBeEnabled({ timeout: 5_000 }); // disabled for its first 1500 ms (CONFIRM_DWELL_MS)
     await confirm.dblclick();
     await expect.poll(() => stub.toolCalls.length).toBe(1);
@@ -217,24 +191,30 @@ test.describe("assistant confirm card", () => {
   });
 
   test("the approval countdown ticks under a fake clock and the card closes as expired at the deadline", { tag: ["@unrun"] }, async ({ page }) => {
+    test.skip(CODEX_JOURNEY, "Requires a scripted confirmation deadline under page.clock; live Codex has no deterministic deadline.");
     const start = new Date("2026-10-04T12:00:00Z");
     await page.clock.install({ time: start });
-    const stub = await stubPendingRun(page, confirmPayloads(start.getTime() + 120_000), 202);
+    const stub = await stubPendingRun({ page, payloads: confirmPayloads(start.getTime() + 120_000), toolCallStatus: 202 });
     const chat = createAdminChatDriver({ page }, { adminPath: "/admin/posts" });
     await chat.open({ navigate: true });
+    await chat.newConversation();
     await chat.send({ text: "Help me choose" });
     const timer = page.locator("p.mcpui-surface-expiry[role=timer]");
-    await expect(timer).toHaveText(/^Expires in (2:00|1:59)$/);
+    // install() lets fake time flow at wall speed, so page load under machine load eats an unknown
+    // slice of the 2:00 window. Pause once the card shows, then move time by exact amounts.
+    await expect(timer).toHaveText(/^Expires in (2:00|1:\d\d)$/);
+    const pausedAt = (await page.evaluate(() => Date.now())) + 1_000;
+    await page.clock.pauseAt(pausedAt);
     await expect(chat.ui.dock).toHaveScreenshot("dock-confirm-card-countdown.png", { mask: [timer] });
 
-    await page.clock.fastForward(61_000);
+    await page.clock.fastForward(start.getTime() + 120_000 - pausedAt - 59_000);
     await expect(timer).toHaveText(/^Expires in 0:5[89]$/);
 
     await page.clock.fastForward(60_000);
     await expect(timer).toHaveCount(0);
     const closed = page.locator(".mcpui-surface-card-closed[role=status]");
     await expect(closed).toContainText("This question expired");
-    await expect(page.locator('iframe[title^="ui://tovu/content-post-delete/"]'), "an expired card shows no live form").toHaveCount(0);
+    await expect(page.locator('[data-mcpui-host][aria-label^="ui://tovu/content-post-delete/"] iframe'), "an expired card shows no live form").toHaveCount(0);
     await expect(chat.ui.dock).toHaveScreenshot("dock-confirm-card-expired.png");
     expect(stub.toolCalls, "expiry must not auto-confirm").toEqual([]);
   });
