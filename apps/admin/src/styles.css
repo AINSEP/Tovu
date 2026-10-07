@@ -4983,6 +4983,21 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   .agent-plugin-source-modal [data-preview-modal-stage-frame]:has(.agent-plugin-source-content-header) > [data-preview-modal-stage-fullscreen] {
     top: calc(var(--agent-plugin-tree-pane) + var(--space-3));
   }
+  /* The tree sizes to its rows, capped at that same 11rem (then it scrolls), and the file viewer
+     takes every pixel left (owner, 2026-10-07: with three to five files the fixed 11rem pane left a
+     block of empty tree above the viewer). With the bar no longer at a fixed height, the fullscreen
+     toggle is anchored to the file header bar instead and centred on it. Browsers without anchor
+     positioning keep the fixed-height layout above, where the `top` arithmetic still holds. */
+  @supports (anchor-name: --a) {
+    .agent-plugin-source-browser { grid-template-rows: auto minmax(0, 1fr); }
+    .agent-plugin-source-files { max-height: var(--agent-plugin-tree-pane); }
+    .agent-plugin-source-content-header { anchor-name: --agent-plugin-file-bar; }
+    .agent-plugin-source-modal [data-preview-modal-stage-frame]:has(.agent-plugin-source-content-header) > [data-preview-modal-stage-fullscreen] {
+      position-anchor: --agent-plugin-file-bar;
+      top: anchor(center);
+      translate: 0 -50%;
+    }
+  }
 }
 
 /* "View Template" (2026-08-10, `TemplateSourceModal.tsx`, shared by both editors since 2026-09-24) — same `PreviewModalShell` host chrome as
