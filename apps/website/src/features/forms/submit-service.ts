@@ -33,6 +33,7 @@ import type { Clock as ClockPort, IdGenerator as IdGeneratorPort } from "@jini-a
 import type { EventBusPort, OutboxPort } from "@jini-ai/cms/core";
 import { processOutbox } from "../../contracts/core/events/index.js";
 import { adaptFormSubmissionRepo, type FormSubmissionRepoPort } from "./ports.js";
+import { assertSubmissionEmails } from "./submission-email-validation.js";
 import { htmlSubmissionDefinition } from "./html-submission-adapter.js";
 import {
   createSubmissionAttempts,
@@ -98,7 +99,10 @@ export async function submitForm(
           findById: (target) => deps.definitionRepo.findById(target),
           findBySlug: async (target) => {
             const definition = await deps.definitionRepo.findBySlug(target);
-            return definition ? htmlSubmissionDefinition({ definition, body }) : null;
+            if (!definition) return null;
+            const adapted = htmlSubmissionDefinition({ definition, body });
+            assertSubmissionEmails({ definition: adapted, body }, {});
+            return adapted;
           },
           list: (target) => deps.definitionRepo.list(target),
           isSlugTaken: (target) => deps.definitionRepo.isSlugTaken(target),
