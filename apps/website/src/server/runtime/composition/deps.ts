@@ -1,3 +1,5 @@
+import { assertUserAccountAction } from "#src/features/identity/delete-user-service";
+import { identityServiceDepsFrom } from "#src/server/inbound/admin-http/routes/users/deps";
 import { TRASH_RETENTION_DAYS, bindWidgetRemoval } from "#src/features/trash/index";
 import { createTovuOAuthHttpPorts } from "#src/platform/oauth/endpoint-safety";
 import type { ByokToolSurfaceDeps } from "#src/assistant/index";
@@ -1484,6 +1486,13 @@ async function composeSiteRouteDeps(
       USER_ENTITY_TYPE,
       createUserTrashAdapter({
         db: kernel,
+        assertAccountAction: async (required, optional) => {
+          const service = identityServiceDepsFrom({ ...identity, workspaceId, clock, idGen });
+          await service.repos.transactions.run({ workspaceId: required.workspaceId, execute: async () => {
+            await assertUserAccountAction({ ...required, deps: service },
+              { ...optional, seededOwnerPrincipalId: await identity.ownerPrincipalId });
+          } });
+        },
         // A fresh instance, not `identity.userPurge` (removed — see `wiring.ts`'s
         // `IdentityRouteDepsSlice.removeUser` doc): `purge`'s hard-delete is now reached only
         // through this adapter's own `purge()`, never directly from the route layer.

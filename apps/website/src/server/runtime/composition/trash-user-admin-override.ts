@@ -1,6 +1,7 @@
+import { OwnerRequiredError } from "@jini-ai/user-management";
 import type { AuthServiceDeps } from "@jini-ai/user-management/server";
 
-import { callerMayManageUserTrash } from "#src/features/identity/delete-user-service";
+import { callerMayManageUserTrash, assertUserAccountAction, SelfDeleteError } from "#src/features/identity/delete-user-service";
 import { USER_ENTITY_TYPE, type TrashAuthorizeFn } from "#src/features/trash/index";
 
 /**
@@ -33,9 +34,19 @@ export function withUserTrashAdminOverride(required: {
   base: TrashAuthorizeFn;
   identity: AuthServiceDeps;
   workspaceId: string;
+  seededOwnerPrincipalId?: string | Promise<string>;
 }): TrashAuthorizeFn {
   const { base, identity, workspaceId } = required;
   return async (params) => {
+    if (params.entityType === USER_ENTITY_TYPE && params.entityId) {
+      try {
+        await assertUserAccountAction({ deps: identity, workspaceId, principalId: params.entityId, action: "purge" },
+          { callerPrincipalId: params.principalId, seededOwnerPrincipalId: await required.seededOwnerPrincipalId });
+      } catch (error) {
+        if (error instanceof SelfDeleteError || error instanceof OwnerRequiredError) return { allowed: false, reason: "owner-account-protection" };
+        throw error;
+      }
+    }
     const decision = await base(params);
     if (decision.allowed || params.entityType !== USER_ENTITY_TYPE) return decision;
     const mayManage = await callerMayManageUserTrash({

@@ -1,3 +1,4 @@
+import { assertUserAccountAction, SelfDeleteError } from "#src/features/identity/delete-user-service";
 import type { Response } from "express";
 
 import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, OwnerRequiredError } from "@jini-ai/user-management";
@@ -34,6 +35,10 @@ async function assembleDisabledUserResponse(
 
 /** Maps this route's thrown error types onto the admin error envelope. @complexity O(1). */
 function sendUserDisableError(res: Response, err: unknown): void {
+  if (err instanceof SelfDeleteError) {
+    res.status(409).json({ error: err.message, code: "SELF_DELETE" });
+    return;
+  }
   if (err instanceof IdentityForbiddenError) {
     res.status(403).json({ error: err.message, code: "FORBIDDEN", details: { permission: err.permission, reason: err.reason } });
     return;
@@ -74,15 +79,20 @@ export const registerAdminUserDisableRoute: UsersRouteRegistrar = (app, deps) =>
       const caller = getAuthedPrincipal(res);
       const seededOwnerPrincipalId = await deps.ownerPrincipalId;
 
-      const { principal } = await disablePrincipal({
-        deps: identityServiceDepsFrom(deps),
-        input: {
-          workspaceId: deps.workspaceId,
-          callerPrincipalId: caller.id,
-          principalId: String(req.params.principalId ?? ""),
-          seededOwnerPrincipalId,
-        },
-      });
+      const { principal } = await deps.transactions.run({ workspaceId: deps.workspaceId, execute: async () => {
+        const serviceDeps = identityServiceDepsFrom(deps);
+        await assertUserAccountAction({ deps: serviceDeps, workspaceId: deps.workspaceId, principalId: String(req.params.principalId ?? ""), action: "disable" },
+          { callerPrincipalId: caller.id, seededOwnerPrincipalId });
+        return disablePrincipal({
+          deps: serviceDeps,
+          input: {
+            workspaceId: deps.workspaceId,
+            callerPrincipalId: caller.id,
+            principalId: String(req.params.principalId ?? ""),
+            seededOwnerPrincipalId,
+          },
+        });
+      } });
 
       res.json({ user: await assembleDisabledUserResponse(deps, principal) });
     } catch (err) {

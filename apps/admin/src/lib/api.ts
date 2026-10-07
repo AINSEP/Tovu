@@ -1568,6 +1568,8 @@ export interface AdminWebhookDelivery {
 }
 
 export interface AdminIdentityUser {
+  isOwner?: boolean;
+  isProtectedAccount?: boolean;
   principalId: string;
   workspaceId: string;
   username: string;

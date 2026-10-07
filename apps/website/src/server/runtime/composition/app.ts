@@ -1928,6 +1928,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
         base: routeDeps.authorize,
         identity: identityServiceDepsFrom(routeDeps),
         workspaceId: routeDeps.workspaceId,
+        seededOwnerPrincipalId: routeDeps.ownerPrincipalId,
       }),
     })
   );

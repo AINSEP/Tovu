@@ -1,3 +1,5 @@
+import { assertUserAccountAction, SelfDeleteError } from "./delete-user-service.js";
+import { OwnerRequiredError } from "@jini-ai/user-management";
 /**
  * @file Identity's agent-tool registrations — built by `@jini-ai/user-management`, with Tovu's human
  * confirmation added on top.
@@ -219,8 +221,33 @@ export function buildGatedIdentityRegistrations(
 
   const hostClock = routeDeps.clock;
   const clock: Clock = "nowMs" in hostClock ? hostClock : { nowMs: () => Date.parse(hostClock.nowIso()) };
+  const identity = {
+    repos: { transactions: routeDeps.transactions, principals: routeDeps.principalRepo, users: routeDeps.userRepo,
+      sessions: routeDeps.sessionRepo, roles: routeDeps.roleRepo, policies: routeDeps.policyRepo,
+      policyPermissions: routeDeps.policyPermissionRepo, rolePolicies: routeDeps.rolePolicyRepo,
+      principalRoles: routeDeps.principalRoleRepo, principalPolicies: routeDeps.principalPolicyRepo },
+    hasher: routeDeps.passwordHasher, clock, idGen: routeDeps.idGen, tokens: routeDeps.tokens,
+  };
   return buildIdentityRegistrations({ ...routeDeps, clock }).map((registration): ToolRegistration => {
     switch (registration.descriptor.id) {
+      case "identity_user_disable":
+        return { ...registration, handler: async (ctx, options = {}) => {
+          const input = validated(registration.descriptor.id, registration.descriptor.inputSchema, ctx.input);
+          try {
+            return await routeDeps.transactions.run({ workspaceId: routeDeps.workspaceId, execute: async () => {
+              await assertUserAccountAction({ deps: identity, workspaceId: routeDeps.workspaceId, principalId: input["principalId"]!, action: "disable" },
+                { callerPrincipalId: ctx.principal.id, seededOwnerPrincipalId: await routeDeps.ownerPrincipalId });
+              return registration.handler(ctx, options);
+            } });
+          } catch (error) {
+            if (error instanceof SelfDeleteError || error instanceof OwnerRequiredError) {
+              const code = error instanceof SelfDeleteError ? "SELF_DELETE" : "OWNER_REQUIRED";
+              throw new ToolInputError({ message: `identity_user_disable: ${code}: ${error.message}. Nothing was changed.` });
+            }
+            throw error;
+          }
+        } };
+
       case ROLE_DELETE_TOOL_ID:
         return gated(registration, "deleted", confirmRoleDelete);
       case POLICY_DELETE_TOOL_ID:

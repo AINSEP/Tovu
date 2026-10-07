@@ -1,6 +1,7 @@
 import { toAdminUserResponse } from "#src/server/inbound/admin-http/http/users";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import type { UsersRouteRegistrar } from "./deps.js";
+import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
+import { userAccountProtection } from "#src/features/identity/delete-user-service";
 
 /**
  * GET users — list a workspace's human (`kind='user'`) principals for the
@@ -81,12 +82,13 @@ export const registerAdminUserListRoute: UsersRouteRegistrar = (app, deps) => {
             deps.principalPolicyRepo.listByPrincipalId({ workspaceId: deps.workspaceId, principalId: principal.id }),
           ]);
 
-          return toAdminUserResponse({
+          const protection = await userAccountProtection({ deps: identityServiceDepsFrom(deps), workspaceId: deps.workspaceId, principalId: principal.id });
+          return { ...protection, ...toAdminUserResponse({
             principal,
             user: userRow,
             roleIds: roleLinks.map((link) => link.roleId),
             policyIds: policyLinks.map((link) => link.policyId),
-          });
+          }) };
         })
       );
 

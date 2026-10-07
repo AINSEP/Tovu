@@ -66,8 +66,13 @@ export type UsersRouteDeps = Pick<
 /** Registrar signature for the users/roles/policies route modules (mirrors `RouteRegistrar`). */
 export type UsersRouteRegistrar = (app: Express, deps: UsersRouteDeps) => void;
 
+type IdentityServiceRouteDeps = Pick<UsersRouteDeps,
+  "transactions" | "userRepo" | "sessionRepo" | "roleRepo" | "policyRepo" | "policyPermissionRepo" |
+  "rolePolicyRepo" | "principalRoleRepo" | "principalPolicyRepo" | "passwordHasher" | "clock" | "idGen" | "tokens"
+> & { principalRepo: IdentityRepos["principals"] };
+
 /** Assemble the `IdentityRepos` bag identity functions expect from `RouteDeps`'s flat fields. */
-export function identityReposFrom(deps: UsersRouteDeps): IdentityRepos {
+export function identityReposFrom(deps: IdentityServiceRouteDeps): IdentityRepos {
   return {
     transactions: deps.transactions,
     principals: deps.principalRepo,
@@ -83,7 +88,7 @@ export function identityReposFrom(deps: UsersRouteDeps): IdentityRepos {
 }
 
 /** Assemble the `AuthServiceDeps` bag `grant-service.ts`'s transitions expect from `RouteDeps`. */
-export function identityServiceDepsFrom(deps: UsersRouteDeps): AuthServiceDeps {
+export function identityServiceDepsFrom(deps: IdentityServiceRouteDeps): AuthServiceDeps {
   return {
     repos: identityReposFrom(deps),
     hasher: deps.passwordHasher,

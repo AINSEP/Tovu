@@ -4,7 +4,7 @@ import { RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
 
-import { formatGrantLabel, userRowMenuItems } from "./rules";
+import { formatGrantLabel, grantOptionLabel, userRowMenuItems, isOwnerAccount, type UserAccountCapabilities } from "./rules";
 import { useWiredUsers } from "./hooks/use-users.hooks";
 import { ServerLabel } from "@/components/status-labels";
 import { InfoTip } from "@/components/InfoTip";
@@ -223,7 +223,7 @@ function GrantSelect({ principalId, label, placeholder, submitLabel, grant, savi
           <option value="">{placeholder}</option>
           {grant.options.map((option) => (
             <option key={option.id} value={option.id}>
-              {option.name}
+              {grantOptionLabel({ option, translate: t })}
               {option.isBuiltin ? ` ${t("(built-in)")}` : ""}
             </option>
           ))}
@@ -322,6 +322,7 @@ export interface UserRowActionsController {
   /** Delete-user plan v2 (2026-09-24): whether the row's `RowMenu` should carry a "Delete" item at
    *  all — see `use-users.hooks.ts`'s `canManageUserTrash` doc comment for where this comes from. */
   canDelete: boolean;
+  rowCapabilities?: (user: AdminIdentityUser) => UserAccountCapabilities;
   requestDelete: (user: AdminIdentityUser) => void;
 }
 
@@ -344,7 +345,7 @@ export interface UserRowProps {
 /** One user's row plus its optional expanded "Manage" row. `key` lives on the `<UserRow>` element at
  *  the call site, not inside here, since this is no longer the array-mapping callback itself. */
 function UserRow({ user, roleById, policyById, showGrants, actions, manage, agentBase, t, locale }: UserRowProps) {
-  const roleLabel = formatGrantLabel(user.roleIds, roleById);
+  const roleLabel = formatGrantLabel(user.roleIds, roleById, locale);
   const policyLabel = formatGrantLabel(user.policyIds, policyById);
   return (
     <>
@@ -371,6 +372,7 @@ function UserRow({ user, roleById, policyById, showGrants, actions, manage, agen
           >
             {user.username}
           </button>
+          {isOwnerAccount({ user, roles: roleById }) ? <span className="status">{t("Owner")}</span> : null}
         </td>
         <td>{user.email ?? <span className="muted-cell">—</span>}</td>
         <td>
@@ -401,7 +403,7 @@ function UserRow({ user, roleById, policyById, showGrants, actions, manage, agen
                 onRequestDelete: actions.requestDelete,
               },
               locale,
-              actions.canDelete,
+              actions.rowCapabilities?.(user) ?? actions.canDelete,
             )}
           />
         </td>
@@ -898,6 +900,7 @@ export function Users({ useUsersHook = useWiredUsers, openOwnPasswordReset }: Us
     confirmResetPassword,
 
     canManageUserTrash,
+    rowCapabilities,
     confirmingDelete,
     setConfirmingDelete,
     requestDelete,
@@ -945,6 +948,7 @@ export function Users({ useUsersHook = useWiredUsers, openOwnPasswordReset }: Us
           toggleStatus: onToggleStatus,
           openResetPassword,
           canDelete: canManageUserTrash,
+          rowCapabilities,
           requestDelete,
         }}
         manage={{

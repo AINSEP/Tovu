@@ -1,3 +1,6 @@
+import { OwnerRequiredError } from "@jini-ai/user-management";
+import { assertUserAccountAction, SelfDeleteError, callerMayManageUserTrash } from "#src/features/identity/delete-user-service";
+import { identityServiceDepsFrom } from "#src/server/inbound/admin-http/routes/users/deps";
 import { isDeepStrictEqual } from "node:util";
 import { ToolInputError } from "@jini-ai/core";
 import { purgeMedia, MediaNotFoundError, MediaStillReferencedError } from "#src/features/media/index";
@@ -16,6 +19,7 @@ import type { RouteDeps } from "#src/server/routes/types";
 type Deps = Pick<RouteDeps,
   "workspaceId" | "authorize" | "clock" | "trash" | "registry" | "ownerPrincipalId" | "principalRepo" |
   "assetBlobRepo" | "assetRenditionRepo" | "blobStore" | "forgetRemovedMedia" |
+  "idGen" | "userRepo" | "sessionRepo" | "roleRepo" | "policyRepo" | "policyPermissionRepo" | "rolePolicyRepo" | "principalRoleRepo" | "principalPolicyRepo" | "passwordHasher" | "transactions" | "tokens" |
   "commentRepo" | "commentWriteService" | "externalMcpServerRepo" | "customCredentialSetRepo" |
   "vendorCredentialSetRepo" | "loadDeployTargets" | "sourceControlCredentialSetRepo"
 > & { mediaRepo: MediaRepoPort };
@@ -86,7 +90,17 @@ async function findTrashItem(deps: Deps, matches: (item: TrashItem) => boolean, 
  * @complexity O(1) plus one authorization/owner lookup.
  */
 async function mayPurgeItem(deps: Deps, item: TrashItem, principalId: string): Promise<boolean> {
-  if (item.entityType === "user" && (item.entityId === principalId || item.entityId === await deps.ownerPrincipalId)) return false;
+  if (item.entityType === "user") {
+    const identity = identityServiceDepsFrom(deps);
+    try {
+      await assertUserAccountAction({ deps: identity, workspaceId: deps.workspaceId, principalId: item.entityId, action: "purge" },
+        { callerPrincipalId: principalId, seededOwnerPrincipalId: await deps.ownerPrincipalId });
+    } catch (error) {
+      if (error instanceof SelfDeleteError || error instanceof OwnerRequiredError) return false;
+      throw error;
+    }
+    return callerMayManageUserTrash({ deps: identity, workspaceId: deps.workspaceId, callerPrincipalId: principalId });
+  }
   const forcePermission = item.entityType === "media" ? "media.delete.force" : item.entityType === "comment" ? "comments.delete.force" : null;
   if (forcePermission) {
     return (await deps.authorize({ workspaceId: deps.workspaceId, principalId, permission: forcePermission, entityType: item.entityType, entityId: item.entityId })).allowed;

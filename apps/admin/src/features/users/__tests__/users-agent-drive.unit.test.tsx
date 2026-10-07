@@ -82,6 +82,8 @@ function usersController(overrides: Partial<UsersController> = {}): UsersControl
     openResetPassword: vi.fn(),
     confirmResetPassword: vi.fn(async () => {}),
     canManageUserTrash: false,
+    rowCapabilities: () => ({ canDelete: overrides.canManageUserTrash ?? false,
+      canDisable: true, canEnable: true, canResetPassword: true }),
     confirmingDelete: null,
     setConfirmingDelete: vi.fn(),
     requestDelete: vi.fn(),
@@ -320,7 +322,7 @@ describe("account-management controls are agent-drivable, like the rest of the p
   });
 
   it.each([false, true])("gates Delete by canManageUserTrash=%s and confirms through the real hook", async (canManageUserTrash) => {
-    const port = createFakeUsersPort({ users: [bob], canManageUserTrash });
+    const port = createFakeUsersPort({ users: [bob], meId: "u-manager", canManageUserTrash });
     const deleteUser = vi.spyOn(port, "deleteUser");
     function useRealUsers() { return useUsers({ port }); }
     const { container } = render(<FetchQueryProvider><Users useUsersHook={useRealUsers} /></FetchQueryProvider>);

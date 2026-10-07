@@ -1,6 +1,6 @@
 import type { UUID } from "@jini-ai/core/primitives";
 import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, OwnerRequiredError, principalKindMayExercisePermission } from "@jini-ai/user-management";
-import { resolveEffectivePermissions, authorizeDepsFrom, assertOwnerTargetMayBeModified, type AuthServiceDeps } from "@jini-ai/user-management/server";
+import { resolveEffectivePermissions, authorizeDepsFrom, type AuthServiceDeps } from "@jini-ai/user-management/server";
 import { UserDeleteUnsupportedError } from "./user-purge-types.js";
 
 /**
@@ -27,9 +27,7 @@ import { UserDeleteUnsupportedError } from "./user-purge-types.js";
  * are a private copy of `admin-crud-service.ts`'s same-named helpers, for the reason given below.
  */
 
-/** Thrown when the caller targets their own principal (409 `SELF_DELETE` at the route layer) — a
- *  refusal `disablePrincipal` has no equivalent of, since disabling your own account, unlike
- *  trashing it, is recoverable by another owner without needing a restore. */
+/** Self-trash, permanent delete and disable refusal (409 `SELF_DELETE`). */
 export class SelfDeleteError extends Error {}
 
 /** OWNER DECISION 2026-09-24 (delete-user plan v2, decision 7) — thrown by `enable`/`update`/
@@ -98,11 +96,11 @@ export interface DeleteUserInput {
 // Repo-bag assembly and its sharing rationale now live in Jini user-management/server (grant-service.ts).
 
 /** Private copy of `admin-crud-service.ts`'s same-named helper — see this file's header for why. */
-async function principalHoldsOwnerWildcard(required: {
+export async function principalHoldsOwnerWildcard(required: {
   deps: AuthServiceDeps;
   workspaceId: UUID;
   principalId: UUID;
-}): Promise<boolean> {
+}, _optional: Record<string, never> = {}): Promise<boolean> {
   const { deps, workspaceId, principalId } = required;
   const effectiveRows = await resolveEffectivePermissions({
     deps: authorizeDepsFrom(deps.repos),
@@ -114,35 +112,30 @@ async function principalHoldsOwnerWildcard(required: {
   );
 }
 
-/**
- * True iff `principalId` holds the built-in `admin` role, by role name and `isBuiltin`, not by any
- * permission grant (OWNER DECISION 2026-09-24, delete-user plan v2). The built-in admin policy
- * deliberately excludes `user.manage`/`role.manage` (Jini `seed.ts`, "Owner-only per REQ-09"), and
- * granting it one to reach this gate is out of scope (the plan header: "No Jini edits" — a Jini
- * change would also hand a non-owner-assignable custom role nothing, since `role.manage` can only
- * grant a CATALOG permission, and this decision is deliberately role-name-scoped, not permission-
- * scoped, so a custom role can never qualify by any grant). A role rename would silently lose this
- * gate; that is an accepted, documented tradeoff of "the simplest way that fits the existing authz"
- * — the plan's own words — until the finer-grained permission it queues is built.
- *
- * @complexity O(r) role lookups, r = roles the principal holds (small, see
- * `resolveEffectivePermissions`'s identical bound).
- */
-async function principalHoldsBuiltinAdminRole(required: {
+/** Builtin admin identity is role-scoped, never inferred from a custom permission grant.
+ * Tovu reconciles user.manage for builtin admins under the 2026-10-07 target rule. */
+export async function principalHoldsBuiltinAdminRole(required: {
   deps: AuthServiceDeps;
   workspaceId: UUID;
   principalId: UUID;
-}): Promise<boolean> {
+}, _optional: Record<string, never> = {}): Promise<boolean> {
   const { deps, workspaceId, principalId } = required;
   const roleLinks = await deps.repos.principalRoles.listByPrincipalId({ workspaceId, principalId });
   const roles = await Promise.all(
     roleLinks.map((link) => deps.repos.roles.findById({ workspaceId, id: link.roleId }))
   );
-  return roles.some((role) => role !== null && role.isBuiltin && role.name === "admin");
+  return roles.some((role) => role != null && role.isBuiltin && role.name === "admin");
 }
 
 /**
- * OWNER DECISION 2026-09-24's caller gate for trashing/restoring/permanently-deleting users: true
+ * OWNER DECISION 2026-10-07 narrows the 2026-09-24 admin trash authority:
+ * "other admins should not be able to delete other admins accounts, only the owner can do that"
+ * "i shouldnt be allowed to delete my own account right?"
+ * Admin callers retain ordinary-user trash authority. Target-aware guards below apply before
+ * every destructive transition, regardless of the caller's broader permission grants.
+ */
+/**
+ * Caller classification from 2026-09-24, narrowed by the 2026-10-07 target rule above: true
  * iff `callerPrincipalId` is the owner (an unconstrained `*` holder) or holds the built-in `admin`
  * role — never a custom role, even one granted `user.manage` via `role.manage`.
  *
@@ -206,6 +199,55 @@ async function countActiveOwnerWildcardPrincipals(required: {
   return flags.filter(Boolean).length;
 }
 
+/** Post-write invariant for grant removal; throw inside the transaction so the write rolls back. */
+export async function assertActiveOwnerFloor(required: { deps: AuthServiceDeps; workspaceId: UUID },
+  _optional: Record<string, never> = {}): Promise<void> {
+  if (await countActiveOwnerWildcardPrincipals(required) <= 0) {
+    throw new OwnerRequiredError({ message: "the workspace must keep at least one active owner-`*` principal" });
+  }
+}
+
+/** Shared classification for the target rule and Users roster affordances. */
+export async function userAccountProtection(required: {
+  deps: AuthServiceDeps; workspaceId: UUID; principalId: UUID;
+}, _optional: Record<string, never> = {}): Promise<{ isOwner: boolean; isProtectedAccount: boolean }> {
+  const { deps, workspaceId, principalId } = required;
+  const isOwner = await principalHoldsOwnerWildcard({ deps, workspaceId, principalId });
+  const links = await deps.repos.principalRoles.listByPrincipalId({ workspaceId, principalId });
+  const roles = await Promise.all(links.map(link => deps.repos.roles.findById({ workspaceId, id: link.roleId })));
+  return { isOwner, isProtectedAccount: isOwner || roles.some(role => role?.isBuiltin && (role.name === "admin" || role.name === "owner")) };
+}
+
+/** Tovu adapter for the owner account contract, pending extraction to Jini. Run inside the
+ * same identity transaction as the write. Retention has no caller, but still preserves owners. */
+export async function assertUserAccountAction(required: {
+  deps: AuthServiceDeps;
+  workspaceId: UUID;
+  principalId: UUID;
+  action: "trash" | "purge" | "disable" | "reset-password";
+}, optional: { callerPrincipalId?: UUID; seededOwnerPrincipalId?: UUID } = {}): Promise<void> {
+  const { deps, workspaceId, principalId, action } = required;
+  const { callerPrincipalId, seededOwnerPrincipalId } = optional;
+  if (action !== "reset-password" && principalId === callerPrincipalId) {
+    throw new SelfDeleteError(action === "disable" ? "you cannot disable your own account" : "you cannot delete your own account");
+  }
+  const target = await deps.repos.principals.findById({ workspaceId, id: principalId });
+  if (!target) throw new IdentityNotFoundError({ message: `principal '${principalId}' was not found` });
+  const { isOwner: owner, isProtectedAccount } = await userAccountProtection({ deps, workspaceId, principalId });
+  if (callerPrincipalId !== undefined && (isProtectedAccount || principalId === seededOwnerPrincipalId)
+      && !await principalHoldsOwnerWildcard({ deps, workspaceId, principalId: callerPrincipalId })) {
+    throw new OwnerRequiredError({ message: "only an owner can delete, trash, disable or reset the password of an admin or owner account" });
+  }
+  if (action !== "reset-password") {
+    if (principalId === seededOwnerPrincipalId) {
+      throw new OwnerRequiredError({ message: action === "disable" ? "the seeded owner principal can never be disabled" : "the seeded owner principal can never be deleted" });
+    }
+    if (target.status === "active" && owner && await countActiveOwnerWildcardPrincipals({ deps, workspaceId }) <= 1) {
+      throw new OwnerRequiredError({ message: "the workspace must keep at least one active owner-`*` principal" });
+    }
+  }
+}
+
 /** Serializes `trashUser` calls (decision 4's concurrency rule, carried over unchanged from v1's
  *  `deleteUser`): without this, two concurrent trashes targeting the workspace's only two active
  *  owner-`*` principals could each read `activeOwnerCount === 2` before either write lands, and both
@@ -251,38 +293,8 @@ export async function trashUser(required: {
       throw new IdentityValidationError({ message: `DELETE_USER target must be a user or api_key principal, got kind='${target.kind}'` });
     }
 
-    if (target.id === input.callerPrincipalId) {
-      throw new SelfDeleteError("you cannot delete your own account");
-    }
-
-    if (target.id === input.seededOwnerPrincipalId) {
-      throw new OwnerRequiredError({ message: "the seeded owner principal can never be deleted" });
-    }
-
-    // Trashing disables the account too; delegated admins must not modify owner principals.
-    await assertOwnerTargetMayBeModified({
-      deps: identity,
-      workspaceId: input.workspaceId,
-      callerPrincipalId: input.callerPrincipalId,
-      principalId: target.id,
-    });
-
-    if (target.status === "active") {
-      const holdsOwnerWildcard = await principalHoldsOwnerWildcard({
-        deps: identity,
-        workspaceId: input.workspaceId,
-        principalId: target.id,
-      });
-      if (holdsOwnerWildcard) {
-        const activeOwnerCount = await countActiveOwnerWildcardPrincipals({
-          deps: identity,
-          workspaceId: input.workspaceId,
-        });
-        if (activeOwnerCount <= 1) {
-          throw new OwnerRequiredError({ message: "the workspace must keep at least one active owner-`*` principal" });
-        }
-      }
-    }
+    await assertUserAccountAction({ deps: identity, workspaceId: input.workspaceId, principalId: target.id, action: "trash" },
+      { callerPrincipalId: input.callerPrincipalId, seededOwnerPrincipalId: input.seededOwnerPrincipalId });
 
     if (await isInTrash(target.id)) {
       return { ok: true, version: null, noop: true } as const;

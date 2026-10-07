@@ -32,6 +32,8 @@ import { lazyKernel, type MarkerStore } from "./marker-sql.js";
 export const USER_ENTITY_TYPE = "user";
 
 export interface UserTrashAdapterDeps {
+  /** Host identity guard, bound in production for manual actions and retention. */
+  assertAccountAction?: (required: { workspaceId: string; principalId: string; action: "trash" | "purge" }, optional: { callerPrincipalId?: string }) => Promise<void>;
   /** The content kernel (or, while call sites still hold one, the `content.db` handle). */
   db: MarkerStore;
   purge: UserPurgePort;
@@ -113,6 +115,8 @@ export function createUserTrashAdapter(deps: UserTrashAdapterDeps): TrashAdapter
       return underPrincipalLock(workspaceId, entityId, async (k) => {
         const before = await readPrincipal(k, workspaceId, entityId);
         if (!before) return { ok: false, reason: "not-found" };
+        await deps.assertAccountAction?.({ workspaceId, principalId: entityId, action: "trash" },
+          { callerPrincipalId: optional.actor?.principalId });
 
         const disabled = await k.run((db) =>
           db
@@ -194,6 +198,8 @@ export function createUserTrashAdapter(deps: UserTrashAdapterDeps): TrashAdapter
       return underPrincipalLock(workspaceId, entityId, async (k) => {
         const before = await readPrincipal(k, workspaceId, entityId);
         if (!before) return "already-gone";
+        await deps.assertAccountAction?.({ workspaceId, principalId: entityId, action: "purge" },
+          { callerPrincipalId: optional.actor?.principalId });
         if (before.status === "active") return "version-changed";
 
         const username = await readDisplayUsername(k, workspaceId, entityId, before.displayName);

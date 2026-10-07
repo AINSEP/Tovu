@@ -1514,11 +1514,36 @@ const RESET_PASSWORD_INFO_TRANSLATIONS: Record<string, Record<string, string>> =
   },
 };
 
+const OWNER_LABELS: Record<string, string> = {
+  "es": "Propietario",
+  "id": "Pemilik",
+  "de": "Inhaber",
+  "zh-CN": "所有者",
+  "zh-TW": "擁有者",
+  "pt-BR": "Proprietário",
+  "ru": "Владелец",
+  "fa": "مالک",
+  "ar": "المالك",
+  "ja": "オーナー",
+  "ko": "소유자",
+  "pl": "Właściciel",
+  "hu": "Tulajdonos",
+  "fr": "Propriétaire",
+  "uk": "Власник",
+  "tr": "Sahip",
+  "th": "เจ้าของ",
+  "it": "Proprietario",
+  "hi": "स्वामी",
+  "ur": "مالک",
+  "bn": "মালিক"
+};
+
 const USERS_DICT: Record<string, Record<string, string>> = Object.fromEntries(
   Object.entries(USERS_TRANSLATIONS).map(([locale, entries]) => [
     locale,
     {
       ...entries,
+      Owner: OWNER_LABELS[locale] ?? "Owner",
       ...(PASSWORD_FIELD_TRANSLATIONS[locale] ?? {}),
       ...(RESET_PASSWORD_INFO_TRANSLATIONS[locale] ?? {}),
     },

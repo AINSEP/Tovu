@@ -1,6 +1,7 @@
+import { assertActiveOwnerFloor, principalHoldsOwnerWildcard } from "#src/features/identity/delete-user-service";
 import type { Response } from "express";
 
-import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError } from "@jini-ai/user-management";
+import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, OwnerRequiredError } from "@jini-ai/user-management";
 import { removePolicyPermission } from "@jini-ai/user-management/server";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
@@ -10,6 +11,10 @@ import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
  *  reference guard to violate (a permission row is a leaf, nothing points at it).
  *  @complexity O(1). */
 function sendRemovePolicyPermissionError(res: Response, err: unknown): void {
+  if (err instanceof OwnerRequiredError) {
+    res.status(409).json({ error: err.message, code: "OWNER_REQUIRED" });
+    return;
+  }
   if (err instanceof IdentityForbiddenError) {
     res.status(403).json({
       error: err.message,
@@ -55,15 +60,25 @@ export const registerAdminPolicyPermissionRemoveRoute: UsersRouteRegistrar = (ap
       try {
         const caller = getAuthedPrincipal(res);
 
-        await removePolicyPermission({
-          deps: identityServiceDepsFrom(deps),
-          input: {
-            workspaceId: deps.workspaceId,
-            callerPrincipalId: caller.id,
-            policyId: String(req.params.policyId ?? ""),
-            policyPermissionId: String(req.params.policyPermissionId ?? ""),
-          },
-        });
+        const serviceDeps = identityServiceDepsFrom(deps);
+        await deps.transactions.run({ workspaceId: deps.workspaceId, execute: async () => {
+          const rows = await deps.policyPermissionRepo.listByPolicyId({ workspaceId: deps.workspaceId, policyId: String(req.params.policyId ?? "") });
+          const removed = rows.find(row => row.id === String(req.params.policyPermissionId ?? ""));
+          if (removed?.permission === "*" && removed.resourceType == null && removed.constraintJson == null
+              && !await principalHoldsOwnerWildcard({ deps: serviceDeps, workspaceId: deps.workspaceId, principalId: caller.id })) {
+            throw new OwnerRequiredError({ message: "only an owner can modify an owner principal" });
+          }
+          await removePolicyPermission({
+            deps: serviceDeps,
+            input: {
+              workspaceId: deps.workspaceId,
+              callerPrincipalId: caller.id,
+              policyId: String(req.params.policyId ?? ""),
+              policyPermissionId: String(req.params.policyPermissionId ?? ""),
+            },
+          });
+          await assertActiveOwnerFloor({ deps: serviceDeps, workspaceId: deps.workspaceId });
+        } });
 
         res.status(204).send();
       } catch (err) {

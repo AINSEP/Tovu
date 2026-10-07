@@ -1,3 +1,4 @@
+import { registerUserManagePermissionGrants } from "#src/features/identity/user-manage-permission";
 import { registerFsFilesCustomRootPermissionGrants } from "#src/features/fs-files/custom-root-permission";
 import { createPermissionGrantRegistry, type PermissionGrantRegistry } from "#src/features/identity/permission-grants";
 import { registerRoleManagePermissionGrants } from "#src/features/identity/role-manage-permission";
@@ -27,5 +28,6 @@ export function createAppPermissionGrants(
   registerPublishContentPermissionGrants({ registry });
   registerFsFilesCustomRootPermissionGrants({ registry });
   registerRoleManagePermissionGrants({ registry });
+  registerUserManagePermissionGrants({ registry });
   return registry;
 }

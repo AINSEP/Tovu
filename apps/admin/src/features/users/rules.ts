@@ -105,12 +105,44 @@ export interface UserRowMenuHandlers {
  *
  * @complexity Time/space: O(1) — at most four entries, no iteration.
  */
+export interface UserAccountCapabilities {
+  canDelete: boolean; canDisable: boolean; canEnable: boolean; canResetPassword: boolean;
+}
+
+/** Courtesy mirror of the server target rule. Unknown identity/roles fail closed. */
+export function userAccountCapabilities(required: {
+  user: AdminIdentityUser;
+  callerPrincipalId: string | null;
+  callerIsOwner: boolean;
+  canManageUserTrash: boolean;
+  roles: ReadonlyMap<string, { name: string; isBuiltin: boolean }>;
+}, _optional: Record<string, never> = {}): UserAccountCapabilities {
+  const { user, callerPrincipalId, callerIsOwner, canManageUserTrash, roles } = required;
+  const known = callerPrincipalId !== null;
+  const protectedAccount = user.isProtectedAccount ?? (user.roleIds.some(id => {
+    const role = roles.get(id);
+    return !role || (role.isBuiltin && (role.name === "admin" || role.name === "owner"));
+  }));
+  const mayAct = known && (callerIsOwner || !protectedAccount);
+  const destructive = mayAct && callerPrincipalId !== user.principalId;
+  return { canDelete: destructive && canManageUserTrash, canDisable: destructive,
+    canEnable: mayAct, canResetPassword: mayAct };
+}
+
+export function isOwnerAccount(required: { user: AdminIdentityUser; roles: ReadonlyMap<string, { name: string; isBuiltin: boolean }> },
+  _optional: Record<string, never> = {}): boolean {
+  return required.user.isOwner ?? required.user.roleIds.some(id => {
+    const role = required.roles.get(id);
+    return role?.isBuiltin === true && role.name === "owner";
+  });
+}
+
 export function userRowMenuItems(
   user: AdminIdentityUser,
   toggleSaving: boolean,
   handlers: UserRowMenuHandlers,
   locale: string,
-  canDelete: boolean,
+  capabilities: boolean | UserAccountCapabilities,
 ): RowMenuItem[] {
   const items: RowMenuItem[] = [
     {
@@ -138,7 +170,10 @@ export function userRowMenuItems(
       onSelect: () => handlers.onResetPassword(user),
     },
   ];
-  if (canDelete) {
+  const permissions = typeof capabilities === "boolean"
+    ? { canDelete: capabilities, canDisable: true, canEnable: true, canResetPassword: true }
+    : capabilities;
+  if (permissions.canDelete) {
     items.push({
       key: "delete",
       label: t(locale, "Delete"),
@@ -146,7 +181,9 @@ export function userRowMenuItems(
       onSelect: () => handlers.onRequestDelete(user),
     });
   }
-  return items;
+  return items.filter(item => item.key === "toggle"
+    ? (user.status === "active" ? permissions.canDisable : permissions.canEnable)
+    : item.key !== "reset-password" || permissions.canResetPassword);
 }
 
 /**
@@ -160,7 +197,15 @@ export function userRowMenuItems(
  *
  * @complexity Time: O(n) in the number of granted ids; space: O(n) for the joined string.
  */
-export function formatGrantLabel(ids: readonly string[], byId: ReadonlyMap<string, { name: string }>): string | null {
+export function grantOptionLabel(required: { option: { name: string; isBuiltin: boolean }; translate: (key: string) => string },
+  _optional: Record<string, never> = {}): string {
+  return required.option.isBuiltin && required.option.name === "owner" ? required.translate("Owner") : required.option.name;
+}
+
+export function formatGrantLabel(ids: readonly string[], byId: ReadonlyMap<string, { name: string; isBuiltin?: boolean }>, locale = "en"): string | null {
   if (ids.length === 0) return null;
-  return ids.map((id) => byId.get(id)?.name ?? id).join(", ");
+  return ids.map(id => {
+    const role = byId.get(id);
+    return role?.isBuiltin && role.name === "owner" ? t(locale, "Owner") : role?.name ?? id;
+  }).join(", ");
 }

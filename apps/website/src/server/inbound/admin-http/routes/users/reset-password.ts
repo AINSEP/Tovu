@@ -1,3 +1,4 @@
+import { assertUserAccountAction, SelfDeleteError } from "#src/features/identity/delete-user-service";
 import type { Response } from "express";
 
 import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, OwnerRequiredError } from "@jini-ai/user-management";
@@ -10,6 +11,10 @@ import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
 function sendResetPasswordError(res: Response, err: unknown): void {
   if (err instanceof UserInTrashError) {
     res.status(409).json({ error: err.message, code: "USER_IN_TRASH" });
+    return;
+  }
+  if (err instanceof SelfDeleteError) {
+    res.status(409).json({ error: err.message, code: "SELF_DELETE" });
     return;
   }
   if (err instanceof IdentityForbiddenError) {
@@ -59,16 +64,21 @@ export const registerAdminUserResetPasswordRoute: UsersRouteRegistrar = (app, de
       }
 
       const body = (req.body ?? {}) as Record<string, unknown>;
-      await resetUserPassword({
-        deps: identityServiceDepsFrom(deps),
-        input: {
-          workspaceId: deps.workspaceId,
-          callerPrincipalId: caller.id,
-          principalId,
-          password: String(body.password ?? ""),
-          seededOwnerPrincipalId,
-        },
-      });
+      await deps.transactions.run({ workspaceId: deps.workspaceId, execute: async () => {
+        const serviceDeps = identityServiceDepsFrom(deps);
+        await assertUserAccountAction({ deps: serviceDeps, workspaceId: deps.workspaceId, principalId, action: "reset-password" },
+          { callerPrincipalId: caller.id, seededOwnerPrincipalId });
+        return resetUserPassword({
+          deps: serviceDeps,
+          input: {
+            workspaceId: deps.workspaceId,
+            callerPrincipalId: caller.id,
+            principalId,
+            password: String(body.password ?? ""),
+            seededOwnerPrincipalId,
+          },
+        });
+      } });
 
       res.status(204).send();
     } catch (err) {

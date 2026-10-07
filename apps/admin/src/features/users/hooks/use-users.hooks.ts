@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, type Dispatch, type FormEvent, type SetSta
 import { ApiError, type AdminIdentityUser, type AdminPolicy, type AdminRole } from "@/lib/api";
 import { useFetchMutation, useFetchQuery } from "@/lib/fetch-query";
 import { useAsyncAction } from "@/hooks/use-async-action.hooks";
-import { describeApiError, KEYS } from "../rules";
+import { describeApiError, KEYS, isOwnerAccount, userAccountCapabilities, type UserAccountCapabilities } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { passwordResetNotice, t } from "../users-i18n";
 import { navigate as realNavigate } from "@/lib/router";
@@ -151,6 +151,7 @@ export interface UsersController {
    *  `rules.ts`'s `userRowMenuItems` `canDelete` param — see that function's own doc comment for why
    *  the real boundary is server-side, not this flag. */
   canManageUserTrash: boolean;
+  rowCapabilities: (user: AdminIdentityUser) => UserAccountCapabilities;
   /** The user a `RowMenu` "Delete" selection is asking to confirm; `null` when the dialog is shut.
    *  Mirrors `confirmingDisable` exactly (own state, own request/confirm pair) rather than sharing
    *  it — Delete and Disable are two independent confirms an operator could otherwise not tell apart
@@ -389,6 +390,14 @@ export function useUsers(deps: UsersDependencies): UsersController {
    *  question ("should closing the dialog navigate away") over the dialog's own open/close lifetime
    *  — this one is "has the auto-open already been attempted", which must stay true forever once it
    *  fires, including after the dialog this effect opened has since been closed. */
+  function rowCapabilities(user: AdminIdentityUser): UserAccountCapabilities {
+    const roleMap = new Map((roles ?? []).map(role => [role.id, role]));
+    const ownRow = users?.find(row => row.principalId === ownPrincipalId);
+    return userAccountCapabilities({ user, callerPrincipalId: ownPrincipalId,
+      callerIsOwner: ownRow ? isOwnerAccount({ user: ownRow, roles: roleMap }) : false,
+      canManageUserTrash, roles: roleMap });
+  }
+
   const deepLinkAttemptedRef = useRef(false);
   /** Set true exactly when this effect opens the dialog, cleared by the close-effect below the first
    *  time it observes `resetPasswordFor` go back to `null`. Read there to decide whether to navigate
@@ -487,6 +496,7 @@ export function useUsers(deps: UsersDependencies): UsersController {
    *  opening a second one while a toggle or a previous reset is still in flight, same discipline
    *  Redirects.tsx uses for its own `RowMenu` items (no per-item `disabled` on `RowMenu` itself). */
   function openResetPassword(user: AdminIdentityUser) {
+    if (!rowCapabilities(user).canResetPassword) return;
     if (toggleSavingId || resetPassword.saving) return;
     resetPassword.setError(null);
     setNewPassword("");
@@ -494,7 +504,7 @@ export function useUsers(deps: UsersDependencies): UsersController {
   }
 
   async function confirmResetPassword() {
-    if (!resetPasswordFor || !newPassword) return;
+    if (!resetPasswordFor || !newPassword || !rowCapabilities(resetPasswordFor).canResetPassword) return;
     // Dialog stays open on failure (unlike the Disable/Delete-style dialogs elsewhere in this app,
     // which close either way) — closing would discard the password the operator just typed for no
     // reason; there's nothing sensitive left on screen once they retry or cancel. `resetPasswordFor`/
@@ -523,6 +533,8 @@ export function useUsers(deps: UsersDependencies): UsersController {
    *  `openResetPassword` below reads to refuse opening while a toggle is in flight) out from under a
    *  still-in-flight, unrelated toggle. */
   async function onToggleStatus(user: AdminIdentityUser) {
+    const capabilities = rowCapabilities(user);
+    if (user.status === "active" ? !capabilities.canDisable : !capabilities.canEnable) return;
     setToggleSavingId(user.principalId);
     setToggleError(null);
     try {
@@ -538,6 +550,7 @@ export function useUsers(deps: UsersDependencies): UsersController {
    *  the user is currently active. Was an inline closure inside the old `rowMenuItems`; named here
    *  now that the item builder itself moved to `rules.ts` and needs a callback to hand it. */
   function requestDisable(user: AdminIdentityUser) {
+    if (!rowCapabilities(user).canDisable) return;
     setToggleError(null);
     setConfirmingDisable(user);
   }
@@ -570,6 +583,7 @@ export function useUsers(deps: UsersDependencies): UsersController {
   const [confirmingDelete, setConfirmingDelete] = useState<AdminIdentityUser | null>(null);
 
   function requestDelete(user: AdminIdentityUser) {
+    if (!rowCapabilities(user).canDelete) return;
     setToggleError(null);
     setConfirmingDelete(user);
   }
@@ -580,7 +594,7 @@ export function useUsers(deps: UsersDependencies): UsersController {
    *  open. Same stale-call guard as `confirmDisable`: only clears `confirmingDelete` when it still
    *  names the SAME user this call started for. */
   async function confirmDelete() {
-    if (!confirmingDelete) return;
+    if (!confirmingDelete || !rowCapabilities(confirmingDelete).canDelete) return;
     const user = confirmingDelete;
     try {
       await deleteUserMutation.mutate(user.principalId);
@@ -646,6 +660,7 @@ export function useUsers(deps: UsersDependencies): UsersController {
     confirmResetPassword,
 
     canManageUserTrash,
+    rowCapabilities,
     confirmingDelete,
     setConfirmingDelete,
     requestDelete,
