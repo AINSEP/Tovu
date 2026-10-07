@@ -1,12 +1,14 @@
 // @vitest-environment jsdom
 import { fireEvent, render as renderWithoutProvider, waitFor } from "@testing-library/react";
-import type { ReactElement } from "react";
+import { useState, type ReactElement } from "react";
 import { FetchQueryProvider } from "../../lib/fetch-query";
 import type { DragEvent } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { App } from "../../App";
 import type { UseAdminSession, UseChatDockLayout } from "../../App.hooks";
+import { ADMIN_LOCALES } from "../../lib/settings-tabs";
+import { ASSISTANT_DOCK_DICT } from "../../components/AssistantDock/assistant-dock-i18n";
 
 const folderDrop = vi.hoisted(() => ({ handleDropCapture: vi.fn() }));
 vi.mock("../../features/fs-files/hooks/use-folder-drop.hooks", () => ({
@@ -98,6 +100,47 @@ it("renders the assistant dock's open state through a fake useChatDock, with no 
   // wiring this test can now see end to end, not just the dock's own open/closed class.
   const fab = container.querySelector(".chat-fab");
   expect(fab).toHaveStyle({ bottom: "444px" }); // sheetHeightPx (424) + FAB_EDGE_MARGIN (20)
+});
+
+it.each(ADMIN_LOCALES)("points toward the next sheet height and names that action in $code", async ({ code }) => {
+  fetchMock.mockImplementation(async (url: string) => new Response(JSON.stringify(
+    String(url).includes("core.language") ? { data: [{ key: "locale", value: code }] } : {},
+  ), { status: 200, headers: { "content-type": "application/json" } }));
+
+  function useSheetDock(): UseChatDockLayout {
+    const [sheetExpanded, setSheetExpanded] = useState(false);
+    return fakeChatDock({ sheetExpanded, setSheetExpanded });
+  }
+
+  const expand = code === "en" ? "Expand assistant panel" : ASSISTANT_DOCK_DICT[code]["Expand assistant panel"];
+  const collapse = code === "en" ? "Collapse assistant panel" : ASSISTANT_DOCK_DICT[code]["Collapse assistant panel"];
+  expect(expand).toBeTruthy();
+  expect(collapse).toBeTruthy();
+
+  const { container } = render(<App useSession={fakeSession} useChatDock={useSheetDock} />);
+  const toggle = container.querySelector<HTMLButtonElement>(".chat-sheet-action[aria-expanded]")!;
+  const dock = container.querySelector("aside.admin-chat-dock")!;
+  await waitFor(() => expect(toggle).toHaveAttribute("aria-label", expand));
+
+  // HALF offers expansion (up); FULL offers collapse (down). The tooltip follows the label.
+  expect(dock).not.toHaveClass("is-expanded");
+  expect(toggle).toHaveAttribute("aria-expanded", "false");
+  expect(toggle).toHaveAttribute("title", expand);
+  expect(toggle.querySelector("path")).toHaveAttribute("d", "M4 11.5 9 6.5l5 5");
+
+  fireEvent.click(toggle);
+  expect(dock).toHaveClass("is-expanded");
+  expect(toggle).toHaveAttribute("aria-expanded", "true");
+  expect(toggle).toHaveAttribute("aria-label", collapse);
+  expect(toggle).toHaveAttribute("title", collapse);
+  expect(toggle.querySelector("path")).toHaveAttribute("d", "M4 6.5 9 11.5l5-5");
+
+  fireEvent.click(toggle);
+  expect(dock).not.toHaveClass("is-expanded");
+  expect(toggle).toHaveAttribute("aria-expanded", "false");
+  expect(toggle).toHaveAttribute("aria-label", expand);
+  expect(toggle).toHaveAttribute("title", expand);
+  expect(toggle.querySelector("path")).toHaveAttribute("d", "M4 11.5 9 6.5l5 5");
 });
 
 // SPEC-053 AC-01 wiring gap (e6-o4, 2026-09-14): nothing proved that a drop on App's dock `<aside>`

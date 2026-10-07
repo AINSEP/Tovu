@@ -412,9 +412,10 @@ function AssistantChrome(props: {
               onClick={() => setSheetExpanded((current) => !current)}
               aria-expanded={sheetExpanded}
               aria-label={sheetExpanded ? dockT("Collapse assistant panel") : dockT("Expand assistant panel")}
+              title={sheetExpanded ? dockT("Collapse assistant panel") : dockT("Expand assistant panel")}
             >
               <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
-                {sheetExpanded ? <path d="M4 11.5 9 6.5l5 5" /> : <path d="M4 6.5 9 11.5l5-5" />}
+                {sheetExpanded ? <path d="M4 6.5 9 11.5l5-5" /> : <path d="M4 11.5 9 6.5l5 5" />}
               </svg>
             </button>
             <button
