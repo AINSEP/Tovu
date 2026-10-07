@@ -468,16 +468,17 @@ function TabStrip({
   onSelectTab: (id: string) => void;
   onCloseTab: (id: string) => void;
 }) {
-  const { stripRef, overflow, showArrows, scrollLeft, scrollRight } = useTabStrip({ activeTab, projects });
+  const { stripRef, overflow, showArrows, scrollLeft, scrollRight, tabIndex, onKeyDown } = useTabStrip({ activeTab, projects });
   return (
     <div className="tabstrip-frame">
       {showArrows ? <button type="button" className="tabstrip-arrow" aria-label="Scroll tabs left" disabled={!overflow.left} onClick={scrollLeft}>‹</button> : null}
-      <div ref={stripRef} className="tabstrip" role="tablist" aria-label="Open websites">
+      <div ref={stripRef} className="tabstrip" role="tablist" aria-label="Open websites" onKeyDown={onKeyDown}>
         <button
           type="button"
           role="tab"
           className={`tab tab--sites-home ${activeTab === null ? 'is-active' : ''}`}
           aria-selected={activeTab === null}
+          tabIndex={tabIndex({ tabId: null }, {})}
           onClick={onSelectSitesHome}
         >
           <span className="tab__label">All</span>
@@ -490,6 +491,7 @@ function TabStrip({
               role="tab"
               className="tab__select"
               aria-selected={project.id === activeTab}
+              tabIndex={tabIndex({ tabId: project.id }, {})}
               onClick={() => onSelectTab(project.id)}
             >
               <span className={`tab__dot is-${project.status}`} aria-hidden="true" />
@@ -498,6 +500,7 @@ function TabStrip({
             <button
               type="button"
               className="tab__close"
+              tabIndex={tabIndex({ tabId: project.id }, {})}
               onClick={() => onCloseTab(project.id)}
               aria-label={`Close ${project.displayName}`}
             >

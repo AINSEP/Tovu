@@ -208,7 +208,7 @@ test('D-26: the active tab scrolls into view and overflow buttons expose the hid
 test('D-28: truncated tab names expose the full name as a title', () => {
   const name = 'Café ☕ 日本語 — a very long website name';
   const TabStrip = sourceFunction(readFileSync(new URL('./App.tsx', import.meta.url), 'utf8'), 'TabStrip', {
-    useTabStrip: () => ({ stripRef: null, overflow: { left: false, right: false }, scrollLeft() {}, scrollRight() {} }),
+    useTabStrip: () => ({ stripRef: null, overflow: { left: false, right: false }, scrollLeft() {}, scrollRight() {}, tabIndex: () => 0, onKeyDown() {} }),
   });
   const tree = elements(TabStrip({ projects: [site({ displayName: name })], activeTab: '/site' }));
   assert.equal(tree.find((element) => element.props.className === 'tab__label' && element.props.children === name)?.props.title, name);
@@ -218,7 +218,7 @@ test('D-26: scroll arrows render only while the strip overflows, each disabled o
   const source = readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
   const arrows = (overflow: { left: boolean; right: boolean }) => {
     const TabStrip = sourceFunction(source, 'TabStrip', {
-      useTabStrip: () => ({ stripRef: null, overflow, showArrows: overflow.left || overflow.right, scrollLeft() {}, scrollRight() {} }),
+      useTabStrip: () => ({ stripRef: null, overflow, showArrows: overflow.left || overflow.right, scrollLeft() {}, scrollRight() {}, tabIndex: () => 0, onKeyDown() {} }),
     });
     return elements(TabStrip({ projects: [site({})], activeTab: null }))
       .filter((element) => element.props?.className === 'tabstrip-arrow')
