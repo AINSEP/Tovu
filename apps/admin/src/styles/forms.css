@@ -43,7 +43,7 @@
 
 .form-tab[aria-selected="true"] {
   color: var(--fg);
-  border-bottom-color: var(--primary);
+  border-bottom-color: var(--selected-ring);
 }
 
 /* `FormFieldsEditor`'s field table (`FormEditor.tsx`) — every cell holds a live, unstyled-width

@@ -99,6 +99,14 @@
      box (owner, 2026-10-06). 5.02:1 vs white, so it clears WCAG's 3:1 for focus indicators.
      Resolves per theme because `--primary` does. */
   --focus-ring:     var(--primary);
+  /* The border/outline/underline that marks the SELECTED or ACTIVE item — a picked CLI card, the
+     current tab, a pressed toggle button, a chosen tile. Brand orange, same as `--focus-ring`, so a
+     mouse click (which draws no focus ring) still shows an orange selection. Was near-black: Jini's
+     `--jini-accent` used to be its own orange (#c96442) until the 2026-10-03 extraction routed it
+     through `--jini-primary` (#363636 here), and the admin's own tabs used `--accent-text` (owner,
+     2026-10-06: "black outline rather than the orange outline it used to have"). Outlines only —
+     selected FILLS (chips, sidebar row) keep their own tokens. */
+  --selected-ring:  var(--primary);
 
   /* Assistant-drawn charts (Jini recharts reads `--jini-chart-*`, else Jini's own fallbacks — once
      the near-black `--jini-primary`, which this admin never maps — demo V3 2026-10-05: "the color
@@ -2739,7 +2747,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   color: var(--muted); cursor: pointer; transition: color 0.14s, border-color 0.14s; flex-shrink: 0;
 }
 .tab-bar-item:hover { background: none; color: var(--fg); opacity: 1; }
-.tab-bar-item[aria-selected="true"] { color: var(--accent-text); border-bottom-color: var(--accent-text); }
+.tab-bar-item[aria-selected="true"] { color: var(--accent-text); border-bottom-color: var(--selected-ring); }
 .tab-bar-count { margin-left: 0.4rem; font-size: var(--text-2xs); color: var(--faint); font-variant-numeric: tabular-nums; }
 .tab-bar-item[aria-selected="true"] .tab-bar-count { color: var(--accent-text); opacity: 0.75; }
 /* `TabBarTab.tag`'s pill — same shape as the admin sidebar's own `.cms-item .soon` badge (uppercase,
@@ -4217,7 +4225,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
    * button in a row; an underline is the tab-strip idiom for the same state. */
   background: transparent;
   color: var(--jini-text-strong);
-  border-bottom-color: var(--jini-accent);
+  border-bottom-color: var(--selected-ring);
 }
 
 .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-nav-item.active svg,
@@ -4445,7 +4453,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 }
 .settings-ui-section .jini-settings-language-tile:hover { border-color: var(--jini-border-strong); }
 .settings-ui-section .jini-settings-language-tile.active {
-  border-color: var(--jini-accent);
+  border-color: var(--selected-ring);
   background: color-mix(in srgb, var(--jini-accent) 8%, var(--jini-bg-panel));
   color: var(--jini-accent);
 }
@@ -4859,7 +4867,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 }
 .agent-plugin-source-content-header button:hover { border-color: var(--border-strong); }
 .agent-plugin-source-content-header button[aria-pressed="true"] {
-  color: var(--fg); background: var(--surface); border-color: var(--accent);
+  color: var(--fg); background: var(--surface); border-color: var(--selected-ring);
 }
 .agent-plugin-source-content .code-viewer {
   display: grid; grid-template-columns: auto minmax(max-content, 1fr);
@@ -5626,7 +5634,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   background: var(--surface);
 }
 .site-db-option input[type="radio"] { margin-top: 0.15rem; }
-.site-db-option.is-selected { border-color: var(--primary); background: var(--primary-dim); }
+.site-db-option.is-selected { border-color: var(--selected-ring); background: var(--primary-dim); }
 /* Dashed, flat, and not-allowed — the visual vocabulary this stylesheet already used for "a
    placeholder, not a thing yet", carried over to the two options that genuinely are ones. */
 .site-db-option.is-unavailable { border-style: dashed; background: transparent; cursor: not-allowed; }

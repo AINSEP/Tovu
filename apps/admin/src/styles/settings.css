@@ -228,3 +228,21 @@
     border-radius: 50%;
   }
 }
+
+/* --- Selected outlines in Jini's settings components: brand orange (owner, 2026-10-06) ---------
+ *
+ * Jini's `settings-dialog.css` draws these selection rings in `--jini-accent` / `--jini-text-strong`,
+ * which resolve near-black here (see `--selected-ring` in `styles.css` for how `--jini-accent` lost
+ * its orange). Re-pointed to `--selected-ring` property by property — not by redefining
+ * `--jini-accent`, which also fills primary buttons and chips this pass leaves alone.
+ *
+ * `:root` prefix: `settings-dialog.css` loads with the settings route, after this file, so an equal-
+ * specificity rule here would lose the cascade. */
+:root .jini-agent-card.is-selected {
+  border-color: var(--selected-ring);
+  box-shadow: 0 0 0 1px var(--selected-ring);
+}
+:root .jini-accent-swatch.active {
+  box-shadow: 0 0 0 2px var(--jini-bg-panel), 0 0 0 4px var(--selected-ring);
+}
+:root .filter-pill.active { border-color: var(--selected-ring); }
