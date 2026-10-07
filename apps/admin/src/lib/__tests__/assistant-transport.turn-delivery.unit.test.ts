@@ -226,6 +226,20 @@ describe("startRun — the prompt that actually reaches the wire", () => {
 });
 
 describe("startRun — Defect 2: the user turn is made durable before the run is dispatched", () => {
+  test("acceptance carries the exact first user message even if the separate browser PUT fails", async () => {
+    stubRunsOk();
+    const userMessage: ChatMessage = { id: "first-user", role: "user", content: "Install the zip", createdAt: 1791327806142,
+      attachments: [{ path: "attachment:zip", name: "site.zip", kind: "file" }] };
+    const transport = createTovuAssistantTransport({ ensureConversationId: async () => "new-chat",
+      persistUserTurn: async () => { throw new Error("PUT failed"); },
+    });
+    await transport.startRun({ history: [userMessage], agentId: "claude", signal: new AbortController().signal }, handlers());
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const context = JSON.parse(JSON.parse(init.body as string).contextRef);
+    expect(context.conversationId).toBe("new-chat");
+    expect(context.userMessage).toEqual(userMessage);
+  });
+
   test("persistUserTurn is awaited BEFORE POST /api/runs", async () => {
     stubRunsOk();
     const order: string[] = [];

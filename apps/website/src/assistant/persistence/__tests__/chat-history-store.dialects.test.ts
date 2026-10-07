@@ -37,6 +37,47 @@ function stores(kernel: ChatKernel) {
 }
 
 describeEachChatDialect("chat history store", stores, (make) => {
+  test("legacy reversed first turn reads question then answer without changing stored positions", async () => {
+    const { kernel, alice, bob } = make();
+    await alice.create({ id: "c1" });
+    await alice.appendMessage({ conversationId: "c1", message: { id: "a1", role: "assistant", content: "Done", runId: "daemon-1", runStatus: "succeeded", createdAt: T0 + 54 } });
+    await alice.appendMessage({ conversationId: "c1", message: { ...user("u1", "Install the zip"), createdAt: T0 } });
+    await alice.appendMessage({ conversationId: "c1", message: { ...user("u2", "Next question"), createdAt: T0 + 100 } });
+    await alice.appendMessage({ conversationId: "c1", message: { id: "a2", role: "assistant", content: "Next answer", runId: "daemon-2", createdAt: T0 + 150 } });
+    assert.deepEqual((await alice.messages({ conversationId: "c1" })).map((m) => m.id), ["u1", "a1", "u2", "a2"]);
+    assert.deepEqual(await bob.messages({ conversationId: "c1" }), []);
+    const rows = await kernel.run((db) => db.selectFrom("ai_chat_messages").select(["id", "position"]).orderBy("position").execute());
+    assert.deepEqual(rows.map((r) => [r.id, Number(r.position)]), [["a1", 0], ["u1", 1], ["u2", 2], ["a2", 3]]);
+  });
+
+  test("read repair preserves a later follow-up and request-bound answers", async () => {
+    const { kernel, alice } = make(); await alice.create({ id: "c1" });
+    const messages: ChatMessage[] = [
+      { id: "a1", role: "assistant", content: "Earlier answer", runId: "daemon-1", createdAt: T0 },
+      { ...user("u1"), createdAt: T0 + 1 },
+      { id: "a2", role: "assistant", content: "BYOK", runId: "byok:2", createdAt: T0 + 5 },
+      { ...user("u2"), createdAt: T0 + 2 },
+      { id: "a3", role: "assistant", content: "Unknown clock", runId: "daemon-3", createdAt: T0 + 9 },
+      user("u3"),
+    ];
+    for (const message of messages) await alice.appendMessage({ conversationId: "c1", message });
+    await kernel.run((db) => db.updateTable("ai_chat_messages").set({ created_at: T0 + 20 }).where("id", "=", "u3").execute());
+    assert.deepEqual((await alice.messages({ conversationId: "c1" })).map((m) => m.id), messages.map((m) => m.id));
+  });
+
+  test("equal-clock legacy first turn is repaired without stealing a correctly ordered follow-up", async () => {
+    const { alice } = make(); await alice.create({ id: "c1" });
+    const messages: ChatMessage[] = [
+      { id: "a1", role: "assistant", content: "First answer", runId: "daemon-1", createdAt: T0 },
+      { ...user("u1"), createdAt: T0 },
+      { ...user("u2"), createdAt: T0 },
+      { id: "a2", role: "assistant", content: "Next answer", runId: "daemon-2", createdAt: T0 },
+      { ...user("u3"), createdAt: T0 },
+    ];
+    for (const message of messages) await alice.appendMessage({ conversationId: "c1", message });
+    assert.deepEqual((await alice.messages({ conversationId: "c1" })).map((m) => m.id), ["u1", "a1", "u2", "a2", "u3"]);
+  });
+
   test("create then get and list round-trip every conversation field", async () => {
     const { alice } = make();
     const created = await alice.create({ id: "c1", title: "Hello", titleSource: "manual", expiresAt: T0 + 1000 });

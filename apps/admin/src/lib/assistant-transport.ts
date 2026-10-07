@@ -617,12 +617,12 @@ export interface CreateTovuAssistantTransportOptions {
   /**
    * Writes one user message to durable storage — `useAssistantChats.persistUserTurn`
    * (`hooks/use-assistant-chats.hooks.ts`), wired through `AssistantDock`'s `useAssistantTransport`.
-   * Awaited by `startRun` on the Local CLI path before `POST /api/runs`, so the user's words are on
-   * disk before the run that may fail to deliver them ever starts. See
+   * Awaited by `startRun` on the Local CLI path before `POST /api/runs`, including a delta's pending
+   * PUT. Acceptance persists the same message with its stub if the browser write fails. See
    * {@link persistUserTurnBeforeDispatch} for the defect and the idempotency contract.
    *
-   * Optional so a transport built without it (every test, any non-dock consumer) keeps the
-   * pre-fix behavior — the delta-driven `flush` still writes the message, just not before dispatch.
+   * Optional for transports without the dock's persistence hook; acceptance still receives the
+   * exact user message, and the delta-driven `flush` can write the same ID afterward.
    * Its rejection is swallowed at the call site rather than failing the turn.
    */
   persistUserTurn?: (conversationId: string, message: ChatMessage) => Promise<void>;
@@ -686,9 +686,10 @@ function resolveLocalCliPrompt(
  * Defect 2 of the 2026-09-11 chat-lifecycle repair. Message persistence is a client-side
  * `Promise.all` driven by `onMessagesChange` deltas (`use-assistant-chats.hooks.ts`'s `flush`) and
  * run dispatch is a separate `POST /api/runs` here — nothing orders them and nothing makes them
- * atomic, so a browser or daemon death in the window between them can leave a dispatched run whose
- * prompt exists nowhere durable. Awaiting the write first closes that window in the one direction
- * that matters: the user's words are on disk before anything can go wrong with the run.
+ * atomic, so a browser or daemon death in the window between them could leave a dispatched run whose
+ * prompt existed nowhere durable. Await the same PUT when a delta has already scheduled it;
+ * acceptance also carries the exact user message and commits it with the assistant stub when
+ * browser persistence fails, so sending does not depend on a successful separate PUT.
  *
  * The idempotency key is the message's own id — `assistant-chats.ts`'s `saveMessage` PUTs to
  * `/messages/<id>`, so this write and the `flush` that will race it converge on one row rather than
@@ -701,9 +702,8 @@ function resolveLocalCliPrompt(
  *   `undefined` when adoption failed — there is no row to write into in that case.
  * @param persistUserTurn - `CreateTovuAssistantTransportOptions.persistUserTurn`, or `undefined`
  *   for a transport built without it (every test and any non-dock consumer).
- * @returns Nothing, always. The `.catch` is load-bearing and not defensive padding: losing the
- *   durable copy of one message is a far smaller loss than refusing to send the user's turn at all,
- *   which is the same trade `ensureConversationId` already makes one line above the call site.
+ * @returns Nothing, always. The `.catch` keeps a failed browser PUT from refusing the user's turn;
+ *   durable acceptance is now responsible for committing its copy before dispatch.
  * @complexity O(n) in history length for the newest-user-turn scan, plus one PUT.
  */
 async function persistUserTurnBeforeDispatch(
@@ -794,16 +794,20 @@ export function createTovuAssistantTransport(options: CreateTovuAssistantTranspo
       // before this point and resolve no conversation id of their own, so neither writes a durable
       // user turn ahead of dispatch — closing that needs those paths to adopt a conversation first.
       await persistUserTurnBeforeDispatch(input, conversationId, options.persistUserTurn);
-      const contextRef = buildLocalCliContextRef(input, prompt, conversationId);
+      const userMessage = [...(input.history as ChatMessage[])].reverse().find((message) => message.role === "user");
+      // Acceptance commits the question and stub together even if the separate browser PUT fails
+      // or the tab disappears. Carry the exact message ID/payload, never the rendered prompt.
+      const base = buildLocalCliContextRef(input, prompt, conversationId);
+      const contextRef = userMessage ? { ...base, userMessage } : base;
 
       const response = await withAcceptanceCancellation({ signal: input.cancelSignal,
         start: () => startQueuedDaemonRun({
-          body: { contextRef: JSON.stringify(contextRef), agentId: input.agentId, idempotencyKey: contextRef.assistantMessageId },
+          body: { contextRef: JSON.stringify(contextRef), agentId: input.agentId, idempotencyKey: base.assistantMessageId },
           signal: input.cancelSignal ?? input.signal, ports: browserQueuedStartPorts({}, {}),
         }, {}),
         cancel: async () => {
           await fetch(`${RUNS_URL}/pending/cancel`, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ messageId: contextRef.assistantMessageId, conversationId }) });
+            body: JSON.stringify({ messageId: base.assistantMessageId, conversationId }) });
         },
       }, {});
 

@@ -14,6 +14,24 @@ export class RunSlotBusyError extends Error { constructor() { super(RUN_SLOT_BUS
 type RunRow = Selectable<ChatDatabase["ai_chat_messages"]> & { owner_id: string; owner_kind: string; scope_id: string };
 type Metadata = ChatDatabase["assistant_run_attempts"] | undefined;
 
+function acceptedUserMessage(
+  { request, now }: { request: DurableRun["request"]; now: number }, _optional = {},
+): ChatMessage | null {
+  const context = JSON.parse(request.contextRef) as { userMessage?: ChatMessage };
+  // Older clients supplied only a prompt; never invent a user identity from that transcript.
+  const message = context.userMessage;
+  if (message === undefined) return null;
+  if (!message || typeof message.id !== "string" || !message.id || message.role !== "user" || typeof message.content !== "string"
+    || (message.createdAt !== undefined && !Number.isFinite(message.createdAt))) throw new Error("Invalid accepted user message");
+  if (message.attachments !== undefined && (!Array.isArray(message.attachments) || !message.attachments.every((attachment) =>
+    attachment && typeof attachment.path === "string" && typeof attachment.name === "string"
+    && (attachment.kind === "file" || attachment.kind === "image")))) throw new Error("Invalid accepted user attachments");
+  // User input cannot claim an assistant run's status/events. Keep the same identity and payload
+  // as its browser PUT, including the original clock and attachment order.
+  return { id: message.id, role: "user", content: message.content, createdAt: message.createdAt ?? now,
+    ...(message.attachments ? { attachments: message.attachments } : {}) };
+}
+
 function recoveryFields({ row, metadata }: { row: RunRow; metadata: Metadata }, _optional = {}) {
   return { recoveryCount: metadata?.recovery_count ?? 0, recoveryDeadline: metadata?.recovery_deadline ?? null,
     attemptStartedAt: metadata?.attempt_started_at ?? 0, lastProgressAt: metadata?.last_progress_at ?? row.started_at ?? row.created_at,
@@ -129,10 +147,24 @@ export function createDurableRunStore({ kernel }: { kernel: ChatKernel }, _optio
         .where("conversation_id", "=", required.conversationId).where("role", "=", "assistant")
         .where("run_status", "in", ["queued", "running"]).executeTakeFirst());
       if (occupied) throw new RunSlotBusyError();
+      const userMessage = acceptedUserMessage({ request: required.request, now: required.now }, {});
+      if (userMessage) {
+        if (userMessage.id === required.messageId) throw new Error("User and assistant messages must have different IDs");
+        // A pending/failed browser PUT must never let the assistant take the first position.
+        // Nested appends join this transaction and retain the conversation lock through both
+        // writes, so either arrival order of the idempotent PUT yields user then assistant.
+        const saved = await history.appendMessage({ conversationId: required.conversationId, message: userMessage });
+        if (!saved || saved.role !== "user") throw new Error("Accepted user message could not be persisted");
+      }
       const message: ChatMessage = { id: required.messageId, role: "assistant", content: "", events: [],
         runId: required.runId, runStatus: "queued", createdAt: required.now, startedAt: required.now,
         ...(required.request.agentId ? { agentId: required.request.agentId } : {}) };
-      if (!await history.appendMessage({ conversationId: required.conversationId, message })) return null;
+      const savedMessage = await history.appendMessage({ conversationId: required.conversationId, message });
+      if (!savedMessage || savedMessage.role !== "assistant") {
+        // Returning null here would commit the question alone after an ID collision.
+        if (userMessage) throw new Error("Accepted assistant message could not be persisted");
+        return null;
+      }
       await kernel.run((db) => db.insertInto("assistant_run_attempts").values({
         message_id: required.messageId, engine: "daemon", accepted_json: JSON.stringify(required.request),
         recovery_count: 0, recovery_deadline: null, last_progress_at: required.now, cancel_reason: null,

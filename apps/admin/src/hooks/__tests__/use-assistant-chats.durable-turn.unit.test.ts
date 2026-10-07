@@ -50,6 +50,33 @@ afterEach(() => {
 });
 
 describe("useAssistantChats.persistUserTurn", () => {
+  it("awaits the first user PUT already scheduled by a new conversation's delta", async () => {
+    const port = createFakeAssistantChatsPort();
+    const save = port.saveMessage.bind(port);
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => { release = resolve; });
+    const saveSpy = vi.spyOn(port, "saveMessage").mockImplementation(async (id, message) => {
+      await pending; await save(id, message);
+    });
+    const { result } = await mountWith(port);
+    await act(async () => { await result.current.create(); });
+    const conversationId = result.current.activeId!;
+    const turn = userTurn("first-user", "Install the zip");
+    await act(async () => { result.current.onMessagesChange([turn]); });
+    let settled = false;
+    let persisting!: Promise<void>;
+    await act(async () => {
+      persisting = result.current.persistUserTurn(conversationId, turn).then(() => { settled = true; });
+    });
+    try {
+      expect(saveSpy).toHaveBeenCalledExactlyOnceWith(conversationId, turn);
+      expect(settled, "scheduled is not committed: acceptance must wait for the pending PUT").toBe(false);
+    } finally {
+      await act(async () => { release(); await persisting; });
+    }
+    expect(port.saved.get(conversationId)).toEqual([turn]);
+  });
+
   it("writes the message through the port, awaited, before anything else touches it", async () => {
     const port = createFakeAssistantChatsPort({ conversations: [CONVERSATION] });
     const save = port.saveMessage.bind(port);

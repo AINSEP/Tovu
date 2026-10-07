@@ -5,6 +5,26 @@ import { createPgliteChatStore } from "@jini-ai/chat/store/pglite";
 import { createPostgresChatStore } from "@jini-ai/chat/store/postgres";
 
 import type { ChatKernel } from "#src/platform/db/chat-kernel";
+import type { ChatMessage } from "@jini-ai/chat/core";
+import { isDaemonRunId } from "#src/contracts/core/assistant-run-events";
+
+function repairLegacyTurnOrder({ messages }: { messages: ChatMessage[] }, _optional = {}): ChatMessage[] {
+  const ordered: ChatMessage[] = [];
+  for (let index = 0; index < messages.length; index++) {
+    const answer = messages[index];
+    const question = messages[index + 1];
+    // Legacy acceptance saved no question ID. Repair only an orphan daemon answer immediately
+    // followed by an earlier/equal-clock user row; a preceding question already owns its answer.
+    // A global timestamp sort would reorder valid follow-ups when browser/server clocks disagree.
+    if (ordered.at(-1)?.role !== "user" && answer.role === "assistant" && answer.runId && isDaemonRunId(answer.runId)
+      && question?.role === "user" && question.createdAt !== undefined && answer.createdAt !== undefined
+      && question.createdAt <= answer.createdAt) {
+      ordered.push(question, answer);
+      index++;
+    } else ordered.push(answer);
+  }
+  return ordered;
+}
 
 // Transcript-isolation rationale: Jini packages/chat/src/store/sql/store.ts.
 /**
@@ -23,10 +43,14 @@ export function createChatHistoryStore(
 ): ChatStore {
   const required = { kernel, scope };
   const optional = { clock: { nowMs: now } };
-  switch (kernel.transport) {
-    case "better-sqlite3": return createSqliteChatStore(required, optional);
-    case "pglite":
-    case "pglite-socket": return createPgliteChatStore(required, optional);
-    default: return createPostgresChatStore(required, optional);
-  }
+  const store = kernel.transport === "better-sqlite3" ? createSqliteChatStore(required, optional)
+    : kernel.transport === "pglite" || kernel.transport === "pglite-socket" ? createPgliteChatStore(required, optional)
+    : createPostgresChatStore(required, optional);
+  return { ...store,
+    // Admin reload and recovery use this full-transcript compatibility read. Preserve stored
+    // positions (and Jini's position-based page cursors); existing user databases need no migration.
+    async messages(required, optional = {}) {
+      return repairLegacyTurnOrder({ messages: await store.messages(required, optional) }, {});
+    },
+  };
 }

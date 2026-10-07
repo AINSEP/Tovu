@@ -25,6 +25,96 @@ function harness(kernel: ChatKernel) {
 }
 
 describeEachChatDialect("durable attempts migration and fencing", harness, (make) => {
+  for (const browserFirst of [false, true]) {
+    test(`first-turn acceptance persists user before answer when browserFirst=${browserFirst}`, async () => {
+      const h = make(); await h.history.create({ id: "chat" });
+      const userMessage = { id: "question", role: "user" as const, content: "Back up my site", createdAt: TIME - 54,
+        attachments: [{ path: "attachment:zip", name: "site.zip", kind: "file" as const }] };
+      if (browserFirst) await h.history.appendMessage({ conversationId: "chat", message: userMessage });
+      const required = { principalId: "admin", workspaceId: "ws", conversationId: "chat", messageId: "answer", runId: "old", now: TIME,
+        request: { agentId: "codex", contextRef: JSON.stringify({ prompt: userMessage.content, conversationId: "chat", assistantMessageId: "answer", userMessage }) } };
+      const run = (await h.store.accept(required, {}))!;
+      // Acceptance itself must own the question: a tab can disappear before its PUT lands.
+      assert.deepEqual(run.transcript.map((m) => m.id), ["question", "answer"]);
+      assert.deepEqual(run.transcript[0], userMessage);
+      await h.ledger.settle({ ...run, content: "Done", events: [], status: "succeeded", endedAt: TIME + 1 });
+      await h.history.appendMessage({ conversationId: "chat", message: userMessage });
+      await h.store.accept({ ...required, runId: "duplicate" }, {});
+      const rows = await h.kernel.run((db) => db.selectFrom("ai_chat_messages").select(["id", "position"])
+        .where("conversation_id", "=", "chat").orderBy("position").execute());
+      assert.deepEqual(rows.map((r) => [r.id, Number(r.position)]), [["question", 0], ["answer", 1]]);
+    });
+  }
+
+  test("an occupied slot does not persist the queued request's user payload", async () => {
+    const h = make(); await h.accept();
+    await assert.rejects(h.store.accept({ principalId: "admin", workspaceId: "ws", conversationId: "chat", messageId: "second", runId: "next", now: TIME,
+      request: { contextRef: JSON.stringify({ userMessage: { id: "queued-question", role: "user", content: "Next" } }) },
+    }, {}), RunSlotBusyError);
+    assert.deepEqual((await h.history.messages({ conversationId: "chat" })).map((m) => m.id), ["answer"]);
+  });
+
+  test("a colliding question ID cannot commit an answer without its question", async () => {
+    const h = make(); await h.history.create({ id: "other" }); await h.history.create({ id: "chat" });
+    await h.history.appendMessage({ conversationId: "other", message: { id: "question", role: "user", content: "Original" } });
+    await assert.rejects(h.store.accept({ principalId: "admin", workspaceId: "ws", conversationId: "chat", messageId: "answer", runId: "old", now: TIME,
+      request: { contextRef: JSON.stringify({ userMessage: { id: "question", role: "user", content: "Collision" } }) },
+    }, {}));
+    assert.deepEqual(await h.history.messages({ conversationId: "chat" }), []);
+    assert.equal((await h.history.messages({ conversationId: "other" }))[0]!.content, "Original");
+  });
+
+  test("foreign acceptance cannot persist its user payload", async () => {
+    const h = make(); await h.history.create({ id: "chat" });
+    assert.equal(await h.store.accept({ principalId: "other-admin", workspaceId: "ws", conversationId: "chat", messageId: "answer", runId: "old", now: TIME,
+      request: { contextRef: JSON.stringify({ userMessage: { id: "question", role: "user", content: "Hi" } }) },
+    }, {}), null);
+    assert.deepEqual(await h.history.messages({ conversationId: "chat" }), []);
+  });
+
+  test("an assistant ID colliding with a user row rolls back the newly appended question", async () => {
+    const h = make(); await h.history.create({ id: "chat" });
+    await h.history.appendMessage({ conversationId: "chat", message: { id: "answer", role: "user", content: "Original" } });
+    await assert.rejects(h.store.accept({ principalId: "admin", workspaceId: "ws", conversationId: "chat", messageId: "answer", runId: "old", now: TIME,
+      request: { contextRef: JSON.stringify({ userMessage: { id: "question", role: "user", content: "Hi" } }) },
+    }, {}));
+    const remaining = await h.history.messages({ conversationId: "chat" });
+    assert.deepEqual(remaining.map((m) => [m.id, m.role, m.content]), [["answer", "user", "Original"]]);
+  });
+
+  test("an invalid user payload or shared user/assistant identity cannot be accepted", async () => {
+    const h = make(); await h.history.create({ id: "chat" });
+    for (const userMessage of [
+      { id: "answer", role: "user", content: "Hi" },
+      { id: "question", role: "assistant", content: "Hi" },
+      { id: "question", role: "user", content: 123 },
+    ]) {
+      await assert.rejects(h.store.accept({ principalId: "admin", workspaceId: "ws", conversationId: "chat", messageId: "answer", runId: "old", now: TIME,
+        request: { contextRef: JSON.stringify({ userMessage }) },
+      }, {}));
+      assert.deepEqual(await h.history.messages({ conversationId: "chat" }), []);
+    }
+  });
+
+  test("user and stub appends roll back together when the second write fails", async () => {
+    const h = make(); await h.history.create({ id: "chat" });
+    const transaction = h.kernel.transaction.bind(h.kernel);
+    const failingKernel: ChatKernel = { ...h.kernel, transaction,
+      run: async (body) => h.kernel.run(async (db) => {
+        const result = await body(db);
+        // Throw after the assistant write: neither row may escape the outer acceptance transaction.
+        const stub = await db.selectFrom("ai_chat_messages").select("id").where("id", "=", "answer").executeTakeFirst();
+        if (stub) throw new Error("stub write failed");
+        return result;
+      }),
+    };
+    const store = createChatRunLedger(failingKernel).durable!;
+    await assert.rejects(store.accept({ principalId: "admin", workspaceId: "ws", conversationId: "chat", messageId: "answer", runId: "old", now: TIME,
+      request: { contextRef: JSON.stringify({ userMessage: { id: "question", role: "user", content: "Hi" } }) },
+    }, {}));
+    assert.deepEqual(await h.history.messages({ conversationId: "chat" }), []);
+  });
+
   test("a retry without a divider retains a checkpoint committed after the recovery probe", async () => {
     const h = make(); const probed = await h.accept();
     await h.ledger.checkpoint({ ...probed, content: "First output", events: [{ kind: "text", text: "First output" }] });

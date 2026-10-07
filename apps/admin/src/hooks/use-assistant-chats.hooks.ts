@@ -391,6 +391,8 @@ export function useAssistantChats(
    * switching away and back does not resurrect stale ids.
    */
   const writtenRef = useRef<Map<string, Set<string>>>(new Map());
+  /** Dedup keys include scheduled writes; dispatch must await their actual completion. */
+  const messagePendingRef = useRef<Map<string, Map<string, Promise<SaveOutcome>>>>(new Map());
   /**
    * Write keys (message id plus run id) whose active-run stub has already been written, keyed by conversation — see
    * {@link persistRunStub}'s own doc.
@@ -784,6 +786,24 @@ export function useAssistantChats(
     [markListMutated, refresh],
   );
 
+  const saveTrackedMessage = useCallback(({ conversationId, message }: { conversationId: string; message: ChatMessage }, _optional = {}): Promise<SaveOutcome> => {
+    const pending = messagePendingRef.current.get(conversationId) ?? new Map<string, Promise<SaveOutcome>>();
+    messagePendingRef.current.set(conversationId, pending);
+    const key = messageWriteKey(message);
+    const existing = pending.get(key);
+    if (existing) return existing;
+    const write = (async () => {
+      await runStubPendingRef.current.get(conversationId)?.get(key);
+      return saveWithRetry(portRef.current, conversationId, message, () => disposedRef.current);
+    })();
+    pending.set(key, write);
+    void write.then(() => {
+      pending.delete(key);
+      if (pending.size === 0) messagePendingRef.current.delete(conversationId);
+    });
+    return write;
+  }, []);
+
   /** Writes whatever in `messages` has settled and is not already stored, into `conversationId`. */
   const flush = useCallback(
     (conversationId: string, messages: ChatMessage[]) => {
@@ -800,10 +820,9 @@ export function useAssistantChats(
 
       void Promise.all(
         pending.map(async (message) => {
-          await runStubPendingRef.current.get(conversationId)?.get(messageWriteKey(message));
           return {
             message,
-            outcome: await saveWithRetry(portRef.current, conversationId, message, () => disposedRef.current),
+            outcome: await saveTrackedMessage({ conversationId, message }, {}),
           };
         }),
       ).then((results) => {
@@ -833,7 +852,7 @@ export function useAssistantChats(
         if (shouldRefresh) void refresh();
       });
     },
-    [refresh],
+    [refresh, saveTrackedMessage],
   );
 
   /**
@@ -844,7 +863,8 @@ export function useAssistantChats(
    * relationship at all to `assistant-transport.ts`'s `POST /api/runs`. The two are not atomic: a
    * run could be (and was) dispatched while the message it was dispatched for had not been written
    * anywhere, so a failure in that window left the user's words in a browser tab and nowhere else.
-   * `startRun` awaits this first, which closes the window in the direction that matters.
+   * `startRun` awaits this first, including any PUT already scheduled by `flush`. Acceptance also
+   * persists the exact user payload with its stub, covering exhausted browser writes and tab loss.
    *
    * Shares `writtenRef` with `flush` deliberately — that is what makes the two writers cooperate
    * rather than duplicate. The id is marked before the request for the same reason `flush` marks
@@ -865,15 +885,19 @@ export function useAssistantChats(
     const written = writtenRef.current.get(conversationId) ?? new Set<string>();
     writtenRef.current.set(conversationId, written);
     const key = messageWriteKey(message);
+    // A new chat's first delta often reaches flush before transport reaches this method. The
+    // dedup bit then means "scheduled", not "committed"; wait on the same PUT before dispatch.
+    const pending = messagePendingRef.current.get(conversationId)?.get(key);
+    if (pending) { await pending; return; }
     if (written.has(key)) return;
     written.add(key);
 
-    const outcome = await saveWithRetry(portRef.current, conversationId, message, () => disposedRef.current);
+    const outcome = await saveTrackedMessage({ conversationId, message }, {});
     // Same rule `summarizeFlushOutcomes` applies to a settled batch, for the same reason: only an
     // outcome that could plausibly succeed later is worth handing back to `flush`. Re-queueing a
     // permanent failure would make every later delta re-send a doomed request.
     if (outcome !== "saved") written.delete(key);
-  }, []);
+  }, [saveTrackedMessage]);
 
   /**
    * Writes the ONE extra durable row a future reattach needs: a non-terminal assistant message's
