@@ -2,6 +2,7 @@ import { buildConfirmationSurface, type UIResource, type UIResourceUri } from "@
 
 import { SURFACE_EXCHANGE_ID_PARAM } from "../../contracts/core/tool-surface-exchanges.js";
 import type { PluginUninstallPreview } from "./uninstall.js";
+import { rearmConfirmationDwell } from "./confirmation-dwell-compat.js";
 
 /**
  * @file The dialog `plugins_uninstall` raises before it removes anything.
@@ -42,7 +43,7 @@ function uninstallConfirmationUri(pluginId: string): UIResourceUri {
 export function buildUninstallConfirmationResource(spec: { preview: PluginUninstallPreview; exchangeId: string; expiresAtMs: number }): UIResource {
   const { preview, exchangeId, expiresAtMs } = spec;
 
-  return buildConfirmationSurface({
+  return rearmConfirmationDwell({ resource: buildConfirmationSurface({
     uri: uninstallConfirmationUri(preview.pluginId),
     title: `Move ${preview.name} to trash?`,
     description: `This moves the site plugin "${preview.pluginId}" (version ${preview.version}) to the Trash for 60 days.`,
@@ -69,5 +70,5 @@ export function buildUninstallConfirmationResource(spec: { preview: PluginUninst
     app: { appName: "tovu-plugins-uninstall", appVersion: "1" },
     preferredFrameSize: ["100%", "340px"],
     expiresAtMs,
-  });
+  }) });
 }

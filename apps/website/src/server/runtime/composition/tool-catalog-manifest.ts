@@ -1,3 +1,6 @@
+import { contributeAgentPluginsInstallTools } from "#src/features/agent-plugins/install-tool";
+import { createPluginInstallAttachmentReader } from "./plugin-install-attachment-reader.js";
+import type { InstallAttachmentReader } from "#src/features/plugin-runtime/install-source";
 import type { AssistantToolContributions } from "#src/assistant/index";
 import { ToolInputError } from "@jini-ai/core";
 import { contributeAnalyticsTools } from "#src/features/analytics/tool-registrations";
@@ -301,12 +304,14 @@ export function installFirstPartyToolContributors(
     createHttpClient = createDefaultHttpClient,
     fetchAdmissions = fetchDaemonAdmissions,
     mediaVideoPorts = createMediaVideoToolPorts({}, {}),
+    readInstallAttachment = createPluginInstallAttachmentReader({}, {}),
   }: {
     deployOpsRegistry?: DeployOpsRegistry;
     observability?: ObservabilityPort;
     createHttpClient?: typeof createDefaultHttpClient;
     fetchAdmissions?: typeof fetchDaemonAdmissions;
     mediaVideoPorts?: MediaVideoToolPorts;
+    readInstallAttachment?: InstallAttachmentReader;
   } = {},
 ): void {
   contributions.contributors.register({ contribution: contributeContentStatsTools() });
@@ -378,7 +383,8 @@ export function installFirstPartyToolContributors(
   contributions.contributors.register({ contribution: contributeNewsletterDeliveryTools() });
   contributions.contributors.register({ contribution: contributePagesTools() });
   contributions.contributors.register({ contribution: contributePluginsTools() });
-  contributions.contributors.register({ contribution: contributePluginsInstallTools() });
+  contributions.contributors.register({ contribution: contributePluginsInstallTools({ readInstallAttachment }) });
+  contributions.contributors.register({ contribution: contributeAgentPluginsInstallTools({ readInstallAttachment }) });
   contributions.contributors.register({ contribution: contributeSkillsInstallTools() });
   contributions.contributors.register({ contribution: contributePostTools() });
   contributions.contributors.register({ contribution: contributePostPreviewTools({ renderPostPreview: async (deps, input) => {

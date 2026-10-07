@@ -145,6 +145,11 @@ describe("buildListPendingChatAttachmentsTool", () => {
     assert.equal(registration.policy.authorize({} as never), "allow");
   });
 
+  test("descriptor names every attachmentRef consumer, including both plugin install tools", () => {
+    const { description } = buildListPendingChatAttachmentsTool({ getStore: () => fakeStore([]) }).descriptor;
+    for (const consumer of ["media_promote_chat_attachment", "plugins_install", "agent_plugins_install"]) assert.match(description, new RegExp(consumer));
+  });
+
   test("scopes the lookup to ctx.principal.id — never the run id, never an unscoped listing", async () => {
     const store = fakeStore([]);
     const registration = buildListPendingChatAttachmentsTool({ getStore: () => store });

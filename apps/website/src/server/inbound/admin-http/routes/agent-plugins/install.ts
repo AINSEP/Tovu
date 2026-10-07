@@ -44,9 +44,9 @@ const INSTALL_ERROR_MESSAGES: Readonly<Partial<Record<string, string>>> = {
 function sendInstallError(res: Response, error: unknown): void {
   if (error instanceof AgentPluginUploadError) {
     const taken = error.code === "PLUGIN_ID_TAKEN";
-    res.status(taken ? 409 : 400).json({
+    res.status(error.code === "ARCHIVE_UNREADABLE" ? 400 : 409).json({
       code: `AGENT_PLUGIN_${error.code}`,
-      error: taken ? "A different plugin with this name is already installed." : "This file is not a readable .zip.",
+      error: taken ? "This plugin ID is already installed. Choose Replace existing version to upgrade it." : error.code === "ARCHIVE_UNREADABLE" ? "This file is not a readable .zip." : error.message,
     });
     return;
   }
@@ -92,7 +92,12 @@ export const registerAgentPluginInstallRoute: AgentPluginsRouteRegistrar = (app,
         return;
       }
 
-      const { plugin, alreadyInstalled } = await installUploadedAgentPlugin({ archive: req.body as Buffer, expectedSha256, workspaceId: deps.workspaceId, actor: principal.id });
+      const replace = req.query.replace;
+      if (replace !== undefined && replace !== "true" && replace !== "false") {
+        res.status(400).json({ code: "VALIDATION_ERROR", error: "replace must be true or false." });
+        return;
+      }
+      const { plugin, alreadyInstalled } = await installUploadedAgentPlugin({ archive: req.body as Buffer, expectedSha256, workspaceId: deps.workspaceId, actor: principal.id, replace: replace === "true" });
       const candidate = (await loadAgentPluginSearchCandidates({ workspaceId: deps.workspaceId })).find((entry) => entry.pluginId === plugin.pluginId);
       res.status(alreadyInstalled ? 200 : 201).json({
         alreadyInstalled,

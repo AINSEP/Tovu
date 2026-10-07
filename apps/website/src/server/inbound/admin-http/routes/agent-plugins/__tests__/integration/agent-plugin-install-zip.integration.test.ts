@@ -97,7 +97,7 @@ test("AGENT_PLUGIN_INSTALL_ZIP: a different package under an installed name is r
 
     const clash = await upload(baseUrl, cookie, v2);
     assert.equal(clash.status, 409);
-    assert.deepEqual(await clash.json(), { code: "AGENT_PLUGIN_PLUGIN_ID_TAKEN", error: "A different plugin with this name is already installed." });
+    assert.deepEqual(await clash.json(), { code: "AGENT_PLUGIN_PLUGIN_ID_TAKEN", error: "This plugin ID is already installed. Choose Replace existing version to upgrade it." });
   });
 });
 
@@ -164,5 +164,22 @@ test("AGENT_PLUGIN_INSTALL_ZIP: input checks, auth, and permission", async (t) =
     const forbidden = await upload(baseUrl, bare, archive);
     assert.equal(forbidden.status, 403);
     assert.equal(((await forbidden.json()) as { details: { permission: string } }).details.permission, "admin.plugins.enable");
+  });
+});
+
+
+test("AGENT_PLUGIN_INSTALL_ZIP: replace=true upgrades the same plugin id and reports the new disabled row", async t => {
+  await withTempPluginsDir(async () => {
+    const { baseUrl, cookie } = await bootAuthenticated(buildTestApp(), t);
+    const old = await buildZipFixture([{ path: "plugin.json", content: manifest("1.0.0") }]);
+    const next = await buildZipFixture([{ path: "plugin.json", content: manifest("2.0.0") }]);
+    assert.equal((await upload(baseUrl, cookie, old)).status, 201);
+    const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/agent-plugins/install/zip?expectedSha256=${sha(next)}&replace=true`, {
+      method: "POST", headers: { cookie, "content-type": "application/zip" }, body: next,
+    });
+    assert.equal(response.status, 201);
+    const body = await response.json() as { agentPlugin: { version: string; enabled: boolean } };
+    assert.equal(body.agentPlugin.version, "2.0.0");
+    assert.equal(body.agentPlugin.enabled, false);
   });
 });

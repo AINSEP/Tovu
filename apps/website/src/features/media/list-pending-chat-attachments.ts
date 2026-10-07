@@ -97,7 +97,7 @@ export function buildListPendingChatAttachmentsTool(deps: {
       id: CHAT_LIST_PENDING_ATTACHMENTS_TOOL_ID,
       description:
         "Lists files attached to this exact message, including files already claimed by this run. Each result's attachmentRef can be " +
-        "passed to media_promote_chat_attachment. Files from other conversations or messages are " +
+        "passed to media_promote_chat_attachment, plugins_install or agent_plugins_install. Files from other conversations or messages are " +
         "excluded; an empty list means this message has no pending attachments.",
       inputSchema: INPUT_SCHEMA,
       // `listPendingForOwner` only filters the store's in-memory records; it claims, prunes and

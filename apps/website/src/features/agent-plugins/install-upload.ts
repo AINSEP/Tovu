@@ -12,9 +12,9 @@
  *   every file under `<folder>/`, plus `__MACOSX/` noise; `install.ts` wants `plugin.json` at the
  *   root. When the root has no `plugin.json` but exactly one top-level folder does, that folder is
  *   the package and everything outside it is dropped. Every path is still re-checked by `install.ts`.
- * - An id clash is refused. The package store is content-addressed per plugin id, so a second,
- *   different package under an installed id would sit beside the first and both consumers refuse an
- *   ambiguous id (`resolve-agent-plugin-refs.ts`). Identical bytes are a harmless no-op instead.
+ * - Replacing a disabled operator-installed plugin is explicit. Old digests are staged aside and
+ *   restored on publication failure; memory stays in place. The per-plugin lock prevents ambiguous
+ *   id races. Identical bytes are a harmless no-op instead.
  * - It stays off. An absent activation record reads as ACTIVE (operator installs predate the
  *   record), so the disabled `operator-installed` record is written BEFORE the package is
  *   published, the same order the bundled seed uses. A failed install leaves only that inert record.
@@ -23,6 +23,10 @@
  * digests (`trusted-plugin-files.ts`).
  */
 import { createHash } from "node:crypto";
+import path from "node:path";
+import { lstat } from "node:fs/promises";
+import { assertOwnedPluginPath } from "./memory.js";
+import { stageForRemoval, restoreStagedTrees, removeFrozenPackageTree, type StagedTree } from "./uninstall.js";
 
 import * as yauzl from "yauzl";
 import { parseAgentPluginManifest } from "@jini-ai/agent-plugins/lifecycle";
@@ -40,7 +44,7 @@ import {
 import { resolveAgentPluginLayout, type AgentPluginLayout } from "./layout.js";
 import { listInstalledPlugins } from "./resolve-agent-plugin-refs.js";
 
-const { setAgentPluginActivation } = agentPluginActivations;
+const { setAgentPluginActivation, isAgentPluginRecordedAsBundled, resolveAgentPluginActivation } = agentPluginActivations;
 
 const MANIFEST = "plugin.json";
 const MAX_MANIFEST_BYTES = 1024 * 1024;
@@ -48,7 +52,7 @@ const MAX_PREPASS_ENTRIES = 4096;
 /** Archiver metadata a wrapping-folder zip may carry beside the folder. Never part of a package. */
 const IGNORED_TOP_LEVEL = new Set(["__MACOSX"]);
 
-export type AgentPluginUploadErrorCode = "ARCHIVE_UNREADABLE" | "PLUGIN_ID_TAKEN";
+export type AgentPluginUploadErrorCode = "ARCHIVE_UNREADABLE" | "PLUGIN_ID_TAKEN" | "PLUGIN_ENABLED" | "PLUGIN_BUNDLED";
 
 /** Upload-only refusals; every other refusal is `install.ts`'s own `AgentPluginInstallError`. */
 export class AgentPluginUploadError extends Error {
@@ -149,6 +153,7 @@ export interface InstallUploadedAgentPluginRequired {
   readonly workspaceId: string;
   /** The authenticated principal, recorded as the activation record's `updatedBy`. */
   readonly actor: string;
+  readonly replace?: boolean;
 }
 
 export interface InstallUploadedAgentPluginOptional {
@@ -160,6 +165,7 @@ export interface InstalledUploadedAgentPlugin {
   readonly plugin: InstalledAgentPlugin;
   /** True when these exact bytes were already installed; nothing was written. */
   readonly alreadyInstalled: boolean;
+  readonly upgradeFrom?: readonly string[];
 }
 
 /**
@@ -176,31 +182,99 @@ export async function installUploadedAgentPlugin(
   const layout = optional.layout ?? resolveAgentPluginLayout();
   const reader = optional.archiveReader ?? createUploadArchiveReader();
 
-  // `install.ts` repeats both checks; they run here too so no parser touches unverified bytes.
-  if (archive.byteLength > maxAgentPluginInstallArchiveBytes()) {
-    throw new AgentPluginInstallError("ARCHIVE_TOO_LARGE", `archive is ${archive.byteLength} bytes, over the ${maxAgentPluginInstallArchiveBytes()}-byte cap`);
-  }
-  const digest = createHash("sha256").update(archive).digest("hex");
-  if (digest !== expectedSha256.toLowerCase()) {
-    throw new AgentPluginInstallError("DIGEST_MISMATCH", "the uploaded bytes do not match the file that was chosen");
-  }
+  const digest = validateUploadedBytes({ archive, expectedSha256 });
 
   const { prefix, pluginId } = await locatePackage(reader, archive);
-  const workspaceRoot = layout.forWorkspace(workspaceId).root;
-  const existing = (await listInstalledPlugins(workspaceRoot)).filter((plugin) => plugin.pluginId === pluginId);
-  const same = existing.find((plugin) => plugin.archiveDigest === digest);
-  if (same) return { plugin: same, alreadyInstalled: true };
-  if (existing.length > 0) {
-    throw new AgentPluginUploadError("PLUGIN_ID_TAKEN", `an agent plugin named '${pluginId}' is already installed`);
-  }
-
-  await setAgentPluginActivation({ workspaceRoot, pluginId, enabled: false, actor }, { origin: "operator-installed" });
-  const plugin = await installAgentPlugin({
-    archive,
-    expectedSha256: digest,
-    archiveReader: withinPrefix(reader, prefix),
-    layout,
-    workspaceId,
+  const workspaceLayout = layout.forWorkspace(workspaceId);
+  let alreadyInstalled = false;
+  let upgradeFrom: string[] = [];
+  const plugin = await installAgentPlugin({ archive, expectedSha256: digest,
+    archiveReader: withinPrefix(reader, prefix), layout, workspaceId }, {
+    // The lock belongs to installAgentPlugin. Doing an id check outside it lets two uploads
+    // both pass and publish ambiguous digests. Keep check, disabled activation, and swap together.
+    publishGuard: async ({ publish }) => {
+      const existing = await checkExisting({ workspaceRoot: workspaceLayout.root, pluginId, digest, replace: required.replace === true });
+      const same = existing.find(entry => entry.archiveDigest === digest);
+      if (same) { alreadyInstalled = true; return same; }
+      upgradeFrom = existing.flatMap(entry => entry.version ? [entry.version] : []);
+      const staged: StagedTree[] = [];
+      const packagesDir = workspaceLayout.pluginPackagesDir({ pluginId });
+      await assertOwnedPluginPath({ workspaceRoot: workspaceLayout.root, entryPath: path.relative(workspaceLayout.root, packagesDir) });
+      let installed: InstalledAgentPlugin;
+      try {
+        for (const previous of existing) staged.push(await stageForRemoval({ packagesDir, packageRoot: previous.packageRoot }));
+        // Write OFF before publication: a missing activation record otherwise means active.
+        // Replacement already proved this record OFF; preserve it exactly on success or rollback.
+        if (existing.length === 0) await setAgentPluginActivation({ workspaceRoot: workspaceLayout.root, pluginId, enabled: false, actor }, { origin: "operator-installed" });
+        installed = await publish();
+      } catch (error) {
+        const destination = path.join(packagesDir, digest);
+        // publish can fail while freezing its new tree. Remove that tree before restoring the old
+        // one, so a failed upgrade never leaves two resolvable versions under the same id.
+        if (staged.length > 0) {
+          try { if ((await lstat(destination)).isDirectory()) await removeFrozenPackageTree({ root: destination }); }
+          catch (cleanupError) { if ((cleanupError as NodeJS.ErrnoException).code !== "ENOENT") throw cleanupError; }
+        }
+        throw await restoreStagedTrees({ staged, cause: error });
+      }
+      // Publication is settled. Cleanup must never delete the new version then try to restore
+      // an old tree whose cleanup already succeeded. Quarantine names are excluded from discovery.
+      for (const tree of staged) {
+        try { await removeFrozenPackageTree({ root: tree.quarantined }); }
+        catch { console.warn(`[agent-plugins] retired package cleanup pending for '${pluginId}'`); }
+      }
+      return installed;
+    },
   });
-  return { plugin, alreadyInstalled: false };
+  return { plugin, alreadyInstalled, ...(upgradeFrom.length > 0 ? { upgradeFrom } : {}) };
+}
+
+/** Same id is the upgrade identity; different bytes alone are not evidence of a different plugin.
+ * Bundled provenance and active/undetermined records are checked strictly before a replacement. */
+async function checkExisting(required: { workspaceRoot: string; pluginId: string; digest: string; replace: boolean }, _optional: Record<string, never> = {}): Promise<InstalledAgentPlugin[]> {
+  const existing = (await listInstalledPlugins(required.workspaceRoot)).filter(plugin => plugin.pluginId === required.pluginId);
+  if (existing.some(plugin => plugin.archiveDigest === required.digest) || existing.length === 0) return existing;
+  if (!required.replace) throw new AgentPluginUploadError("PLUGIN_ID_TAKEN", "This plugin ID is already installed. Choose Replace existing version to upgrade it.");
+  if (await isAgentPluginRecordedAsBundled({ workspaceRoot: required.workspaceRoot, pluginId: required.pluginId })) throw new AgentPluginUploadError("PLUGIN_BUNDLED", "A bundled plugin owns this ID and cannot be replaced by an uploaded plugin.");
+  if ((await resolveAgentPluginActivation({ workspaceRoot: required.workspaceRoot, pluginId: required.pluginId })).verdict !== "inactive") throw new AgentPluginUploadError("PLUGIN_ENABLED", "Switch off the installed plugin before replacing its version.");
+  return existing;
+}
+
+export interface AgentPluginUploadPreview {
+  readonly pluginId: string;
+  readonly version?: string;
+  readonly digest: string;
+  readonly skills: readonly string[];
+  readonly upgradeFrom?: readonly string[];
+  readonly warning: string;
+}
+
+/** Extracts through the real install validator in staging; preview never publishes code or memory.
+ * Host paths from that ephemeral extraction are deliberately absent from this projection. */
+export async function previewUploadedAgentPlugin(required: InstallUploadedAgentPluginRequired, optional: InstallUploadedAgentPluginOptional = {}): Promise<AgentPluginUploadPreview> {
+  validateUploadedBytes(required);
+  const reader = optional.archiveReader ?? createUploadArchiveReader();
+  const layout = optional.layout ?? resolveAgentPluginLayout();
+  const { prefix, pluginId } = await locatePackage(reader, required.archive);
+  const plugin = await installAgentPlugin({ archive: required.archive, expectedSha256: required.expectedSha256,
+    archiveReader: withinPrefix(reader, prefix), layout, workspaceId: required.workspaceId }, { previewOnly: true });
+  const existing = await checkExisting({ workspaceRoot: layout.forWorkspace(required.workspaceId).root, pluginId, digest: plugin.archiveDigest, replace: required.replace === true });
+  const upgradeFrom = existing.filter(entry => entry.archiveDigest !== plugin.archiveDigest).flatMap(entry => entry.version ? [entry.version] : []);
+  return { pluginId, ...(plugin.version ? { version: plugin.version } : {}), digest: plugin.archiveDigest,
+    skills: plugin.skills.map(skill => skill.name), ...(upgradeFrom.length > 0 ? { upgradeFrom } : {}),
+    warning: "Trust: local / unverified publisher. Uploaded Agent Plugin code is not trusted to run. Skills can guide the assistant. It stays OFF until you enable it.",
+  };
+}
+
+/** Both preview and install check the upload cap/digest before a reader opens any stream.
+ * installAgentPlugin repeats these checks at the extraction boundary. */
+function validateUploadedBytes(required: { archive: Uint8Array; expectedSha256: string }, _optional: Record<string, never> = {}): string {
+  if (required.archive.byteLength > maxAgentPluginInstallArchiveBytes()) {
+    throw new AgentPluginInstallError("ARCHIVE_TOO_LARGE", "archive exceeds the 32 MiB upload cap");
+  }
+  const digest = createHash("sha256").update(required.archive).digest("hex");
+  if (!/^[a-f0-9]{64}$/i.test(required.expectedSha256) || digest !== required.expectedSha256.toLowerCase()) {
+    throw new AgentPluginInstallError("DIGEST_MISMATCH", "the uploaded bytes do not match the file that was chosen");
+  }
+  return digest;
 }

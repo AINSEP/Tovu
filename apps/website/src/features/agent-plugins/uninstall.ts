@@ -179,7 +179,7 @@ interface UninstallTargets {
 
 /** One package root renamed aside, and what restoring it takes: the path it must go back to, and the
  *  mode it carried before staging unfroze its root directory. */
-interface StagedTree {
+export interface StagedTree {
   readonly quarantined: string;
   readonly original: string;
   readonly originalMode: number;
@@ -242,18 +242,18 @@ async function uninstallAgentPluginUnlocked(
   const staged: StagedTree[] = [];
   try {
     for (const plugin of matches) {
-      staged.push(await stageForRemoval(packagesDir, plugin.packageRoot));
+      staged.push(await stageForRemoval({ packagesDir, packageRoot: plugin.packageRoot }));
     }
     await deleteAgentPluginActivation({ workspaceRoot, pluginId: required.pluginId });
   } catch (error) {
-    throw await restoreStagedTrees(staged, error);
+    throw await restoreStagedTrees({ staged, cause: error });
   }
 
   // Past this point the live state is already settled: the packages are no longer reachable under
   // any installed-digest name and the activation record is gone. These removes are the only
   // irreversible step, and nothing observable depends on them finishing.
   for (const tree of staged) {
-    await removeFrozenPackageTree(tree.quarantined);
+    await removeFrozenPackageTree({ root: tree.quarantined });
   }
 
   // Remove only empty package ancestors: a concurrently-installed digest must never be deleted.
@@ -305,7 +305,7 @@ function assertUnchangedSincePreview(
  *
  * @complexity One `stat`, one or two `chmod`s, one `rename`.
  */
-async function stageForRemoval(packagesDir: string, packageRoot: string): Promise<StagedTree> {
+export async function stageForRemoval({ packagesDir, packageRoot }: { packagesDir: string; packageRoot: string }, _optional: Record<string, never> = {}): Promise<StagedTree> {
   const quarantined = path.join(packagesDir, `${STAGED_DIRNAME_PREFIX}${randomUUID()}`);
   const originalMode = (await stat(packageRoot)).mode & 0o777;
 
@@ -327,7 +327,7 @@ async function stageForRemoval(packagesDir: string, packageRoot: string): Promis
  *
  * @complexity O(s) renames in the staged-tree count.
  */
-async function restoreStagedTrees(staged: readonly StagedTree[], cause: unknown): Promise<unknown> {
+export async function restoreStagedTrees({ staged, cause }: { staged: readonly StagedTree[]; cause: unknown }, _optional: Record<string, never> = {}): Promise<unknown> {
   const stranded: string[] = [];
   for (const tree of [...staged].reverse()) {
     try {
@@ -415,7 +415,7 @@ function malformedEntryRefusalMessage(pluginId: string): string {
  *
  * @complexity O(f) in the file/directory count under `root`.
  */
-async function removeFrozenPackageTree(root: string): Promise<void> {
+export async function removeFrozenPackageTree({ root }: { root: string }, _optional: Record<string, never> = {}): Promise<void> {
   await makeTreeWritable(root);
   await rm(root, { recursive: true, force: true });
 }

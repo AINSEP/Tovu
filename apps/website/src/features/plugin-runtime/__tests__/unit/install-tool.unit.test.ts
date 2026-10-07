@@ -134,3 +134,52 @@ test("description matches the schema: folder and zip sources, replace flag, requ
   assert.match(entry.description, /replace:true/);
   assert.doesNotMatch(entry.description, /confirm|ASKS THE HUMAN/i);
 });
+
+
+// Live E2E 2026-10-06: the Local CLI prompt names an attachment by its disk path, whose UUIDs are
+// not the ref. The model guessed refs from that path and both were refused. The ref's source must
+// be named where the model reads the schema.
+test("attachmentRef says to get it from chat_list_pending_attachments, never from a path", () => {
+  const source = (catalog[0]!.inputSchema as { properties: { source: { properties: { attachmentRef: { description: string } } } } }).properties.source;
+  assert.match(source.properties.attachmentRef.description, /chat_list_pending_attachments/);
+  assert.match(source.properties.attachmentRef.description, /not .*path/i);
+  assert.match(catalog[0]!.description, /chat_list_pending_attachments/);
+});
+
+test("attachment ZIP uses the owner-scoped read port and preview digest", async () => {
+  const installer = fakeInstaller();
+  const reads: unknown[] = [];
+  await run(deps({ pluginInstaller: installer.port, readInstallAttachment: async (required, optional) => {
+    reads.push({ required, optional });
+    return { ok: true, bytes: Buffer.from("attached zip") };
+  } }), { source: { kind: "zip", attachmentRef: "attachment:zip12345" } });
+  assert.deepEqual(reads, [{ required: { ref: "attachment:zip12345", ownerId: PRINCIPAL, runId: "r1" }, optional: { maxBytes: 32 * 1024 * 1024 } }]);
+  assert.equal(Buffer.from(installer.installs[0]!.archive!).toString(), "attached zip");
+  assert.equal(installer.installs[0]!.expectedDigest, PREVIEW.digest);
+});
+
+test("attachment input refuses both/neither source, folder refs, malformed refs and inaccessible bytes before preview", async () => {
+  const installer = fakeInstaller();
+  const d = deps({ pluginInstaller: installer.port, readInstallAttachment: async () => ({ ok: false, refusal: "not-owner" }) });
+  for (const source of [
+    { kind: "zip" }, { kind: "zip", path: "/tmp/a.zip", attachmentRef: "attachment:zip12345" },
+    { kind: "folder", attachmentRef: "attachment:zip12345" }, { kind: "zip", attachmentRef: "../../etc/passwd" },
+    { kind: "zip", attachmentRef: "attachment:zip12345" },
+  ]) await assert.rejects(() => run(d, { source }), ToolInputError);
+  assert.equal(installer.previews.length, 0);
+});
+
+test("attachment reading follows permission and site opt-in gates", async () => {
+  let reads = 0;
+  const readInstallAttachment: NonNullable<PluginsInstallToolDeps["readInstallAttachment"]> = async () => { reads++; return { ok: true, bytes: Buffer.alloc(1) }; };
+  const input = { source: { kind: "zip", attachmentRef: "attachment:zip12345" } };
+  await run(deps({ env: {}, readInstallAttachment }), input);
+  await assert.rejects(() => run(deps({ authorize: async () => ({ allowed: false, reason: "insufficient_permission" }), readInstallAttachment }), input));
+  assert.equal(reads, 0);
+});
+
+test("empty content types do not produce an empty warning clause", async () => {
+  const port: PluginInstallerPort = { preview: async () => ({ ...PREVIEW, hasCode: false }), install: async () => ({ ...PREVIEW, hasCode: false }) };
+  const result = await run(deps({ pluginInstaller: port }), FOLDER) as { warning: string };
+  assert.equal(result.warning, "This plugin contains no code.");
+});

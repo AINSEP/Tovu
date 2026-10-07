@@ -1,3 +1,4 @@
+import { createPluginInstallAttachmentReader } from "../../runtime/composition/plugin-install-attachment-reader.js";
 import { sniffContentType } from "#src/features/media/index";
 import { createTovuOAuthHttpPorts } from "#src/platform/oauth/endpoint-safety";
 import { createSupervisorRegistry } from "@jini-ai/sidecar/supervisor/node";
@@ -444,7 +445,11 @@ const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: ToolContributor }) => contribution.domain }),
   derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor }) => contribution.domain }),
 };
-installFirstPartyToolContributors({ contributions }, { deployOpsRegistry: await loadDeployOpsRegistry({ workspaceId: routeDeps.workspaceId }), observability: routeDeps.observability });
+installFirstPartyToolContributors({ contributions }, { deployOpsRegistry: await loadDeployOpsRegistry({ workspaceId: routeDeps.workspaceId }), observability: routeDeps.observability,
+  readInstallAttachment: createPluginInstallAttachmentReader({}, {
+    getMessageAttachmentRefs: ({ runId }) => messageAttachmentRefsByRunId.get(runId) ?? [],
+  }),
+});
 
 const registry = createToolRegistry({});
 let refreshSkillsCatalog = () => {};

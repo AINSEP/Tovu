@@ -3,6 +3,7 @@ import { buildConfirmationSurface, type UIResource, type UIResourceUri } from "@
 
 import { SURFACE_EXCHANGE_ID_PARAM } from "../../contracts/core/tool-surface-exchanges.js";
 import type { AgentPluginUninstallPreview } from "./uninstall.js";
+import { rearmConfirmationDwell } from "../plugin-runtime/confirmation-dwell-compat.js";
 
 /**
  * @file The dialog the Agent Plugin family's uninstall raises before it removes anything.
@@ -51,7 +52,7 @@ export function buildUninstallConfirmationResource(
 ): UIResource {
   const { preview, exchangeId, expiresAtMs } = spec;
 
-  return buildConfirmationSurface({
+  return rearmConfirmationDwell({ resource: buildConfirmationSurface({
     uri: uninstallConfirmationUri(preview.pluginId),
     title: `Uninstall ${preview.pluginId}?`,
     description: `This permanently removes the Agent Plugin "${preview.pluginId}" from this workspace: its package files and its activation record.`,
@@ -82,5 +83,5 @@ export function buildUninstallConfirmationResource(
     app: { appName: "tovu-agent-plugins-uninstall", appVersion: "1" },
     preferredFrameSize: ["100%", "340px"],
     expiresAtMs,
-  });
+  }) });
 }

@@ -406,7 +406,8 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
     "plugin plugins uninstall remove delete trash extension get rid of agent plugin agent-plugin agent-plugins " +
     "skill skills package packages permanently",
   // 2026-10-05: new tools, no prior entries.
-  plugins_install: "plugin plugins install add new upload folder zip local package site plugin tovu-plugin extension addon add-on",
+  agent_plugins_install: "agent plugin plugins install add upload attachment zip folder package agent-plugins plugin.json upgrade replace version",
+  plugins_install: "plugin plugins install add new upload folder zip attachment local package upgrade replace version site plugin tovu-plugin extension addon add-on",
   skills_install: "skill skills install add new github repo repository url agent skill SKILL.md from github",
 
   // --- agent plugins (agent-plugins.org packages — a DIFFERENT system from .tovu-plugin above) -----------
