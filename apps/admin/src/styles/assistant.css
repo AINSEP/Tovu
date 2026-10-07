@@ -108,6 +108,16 @@
 
 :root {
   --admin-chat-fab-size: 56px;
+  /* The FAB is the top in-page layer (owner, 2026-10-06: "the chatfab should always have the
+     highest z"). It sits above every non-blocking layer: the phone sheet (55), the phone nav drawer
+     and its backdrop (50/45), toasts (60), sticky bars, and portaled tooltips/row menus (70). Only
+     blocking modals with a backdrop sit above it, at 80 and up (`.settings-dialog-backdrop`, the
+     package/template source modals, the Jini dialogs), plus the popovers those modals open
+     (`.select-panel`, `.info-tip-bubble`). `chat-fab-z-order-css.unit.test.ts` enforces this, so a
+     new layer above 75 has to be filed there as a modal or the test fails. The FAB's parent
+     `.admin-layout` must not create a stacking context (transform/filter/opacity/z-index), or
+     this value only ranks the FAB inside it. */
+  --admin-chat-fab-z: 75;
 }
 
 .admin-chat-dock {
@@ -210,7 +220,7 @@
   justify-content: center;
   box-shadow: var(--shadow-md);
   cursor: pointer;
-  z-index: 30;
+  z-index: var(--admin-chat-fab-z);
   /* MSG-09: required for Pointer Events dragging to work on touch — without this, a touchstart
      on the FAB starts the browser's own page-scroll gesture instead of (or racing) the drag. */
   touch-action: none;

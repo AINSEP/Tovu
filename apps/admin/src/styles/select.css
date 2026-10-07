@@ -12,7 +12,7 @@
  *      that scroll container and would get clipped by it the moment the panel needed to render
  *      past the visible scroll area. `position: fixed`, portaled out of that subtree, is measured
  *      against the viewport instead and is not clipped by any ancestor's `overflow`.
- *   2. `.settings-dialog-backdrop` sets `position: fixed; z-index: 40`, which establishes a
+ *   2. `.settings-dialog-backdrop` sets `position: fixed; z-index: 80`, which establishes a
  *      stacking context. A `position: fixed` DESCENDANT of that backdrop still paints INSIDE that
  *      stacking context regardless of its own z-index — CSS gives no way for a normal descendant to
  *      escape an ancestor's stacking context except leaving that subtree entirely. A real portal to
@@ -103,11 +103,17 @@
 /* Floating panel — `position: fixed`, coordinates set inline per-instance from `Select.tsx`'s own
    `computePosition` (this file only supplies the shape/chrome, never the placement numbers). */
 .select-panel {
-  position: fixed; z-index: 50;
+  position: fixed;
   display: flex; flex-direction: column;
   background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--r-md);
   box-shadow: var(--shadow-md); overflow: hidden;
 }
+/* `z-index: 90` keeps the portaled panel above the modal it opens from: `.settings-dialog-backdrop`
+   moved to 80 (styles.css) so blocking modals sit above `.chat-fab`'s 75 (`styles/assistant.css`).
+   Doubled class because `@jini-ai/ui/admin-widgets.css` (imported by styles.css) also sets
+   `.select-panel { z-index: 50 }`, and which equal-specificity rule wins depends on `<style>` order
+   (checked live: the package's 50 won over a single-class 90). */
+.select-panel.select-panel { z-index: 90; }
 .select-panel:focus { outline: none; } /* focused only when there is no search input to hold focus instead; the panel's own border/shadow is already the visible "this is open" state */
 .select-search {
   margin: var(--space-2); width: auto; /* overrides the shared `input` rule's block sizing so it doesn't fight this flex column's own margin */

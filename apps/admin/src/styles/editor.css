@@ -96,7 +96,7 @@
    choice; see this file's comment just above for why that precedent could not simply be reused
    as-is). `z-index: 25` only has to beat `.admin-content`'s ordinary static/in-flow content (any
    positive value would; CSS2.1 Appendix E's stacking order) and stay BELOW `.chat-fab`'s `z-index:
-   30` (`styles/assistant.css`), so the FAB stays clickable/visible when the dock is closed, and below
+   75` (`styles/assistant.css`), so the FAB stays clickable/visible when the dock is closed, and below
    the mobile sheet dock's `z-index: 55` (`styles.css`'s own sheet-mode block), so the sheet still
    slides up over this on narrow viewports exactly as it already does over `<main>`. */
 .post-preview-expanded { position: absolute; inset: 0; z-index: 25; display: flex; flex-direction: column; background: var(--surface); }
