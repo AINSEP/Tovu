@@ -8,12 +8,13 @@ import { useExternalMcp, type ExternalMcpController } from "../../settings/hooks
  * The three tabs on this page used to be three of `SettingsUi`'s thirteen, so the obvious move when
  * they were promoted to their own page (2026-09-10) would have been to keep calling
  * `hooks/use-settings-ui.hooks.ts` and read the two fields off it. That would have been wrong in a
- * way worth stating: `useSettingsUi` mounts SIX `useSettingsSlice` instances (execution,
- * instructions, notifications, privacy, appearance, language), each of which issues its own load
- * against the settings ledger and owns its own debounce/save chain. None of the three tabs here
- * reads any of them. Reusing it would have made opening Providers fetch five namespaces this page
- * never displays, and — worse — put this page's own render behind `areAnySlicesLoading`, so an
- * unrelated slow namespace would hold the External MCP panel blank.
+ * way worth stating: `useSettingsUi` mounts SEVEN `useSettingsSlice` instances (execution,
+ * instructions, notifications, privacy, appearance, language, interface), each of which issues its
+ * own load against the settings ledger and owns its own debounce/save chain. None of the three tabs
+ * here reads any of them. Reusing it would have made opening Providers fetch six namespaces this
+ * page never displays (the seventh, language, it reads on its own through `useAdminLocale()`), and
+ * — worse — put this page's own render behind `areAnySlicesLoading`, so an unrelated slow namespace
+ * would hold the External MCP panel blank.
  *
  * So this composes only the controller the page genuinely needs, imported from
  * `features/settings/hooks/` rather than copied: `useExternalMcp` reads the `external_mcp_servers`

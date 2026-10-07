@@ -65,8 +65,9 @@ import { areAnySlicesLoading, firstLoadError } from "../rules";
  * The External MCP controller (and a since-removed Composio one) this hook used to expose left on
  * 2026-09-10 with their tabs — see `SettingsUi.tsx`'s header. External MCP is composed by
  * `features/providers/hooks/use-providers.hooks.ts` now, which deliberately does NOT reuse this
- * hook: it was never settings-ledger-backed, and mounting seven unrelated slices to
- * reach it would have put the Providers page behind six loads it never displays.
+ * hook: it was never settings-ledger-backed, and mounting its seven slices to reach it would have
+ * put the Providers page behind six loads it never displays (the seventh, `language`, feeds the
+ * locale `Providers.tsx` already reads itself through `useAdminLocale()`).
  */
 
 export interface SettingsUiController {

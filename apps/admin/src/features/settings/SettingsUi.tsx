@@ -9,7 +9,7 @@ import { useEffect } from "react";
  * cover the same rows on its own; this file no longer has a raw-ledger sibling.
  *
  * 10 tabs mounted: Execution mode, Instructions, Notifications, Privacy,
- * Dialog appearance, Language, Memory, Workspace, About. The shell is
+ * Dialog appearance, Language, User Interface, Memory, Workspace, About. The shell is
  * generic over its tab array, so adding more is appending entries to `tabs`
  * below — not restructuring this file. Each ledger-backed tab owns one
  * `useSettingsSlice` instance (its own load, debounce, save chain and diff
@@ -26,7 +26,7 @@ import { useEffect } from "react";
  * ## Four tabs LEFT this file on 2026-09-10 (owner-approved nav restructure)
  *
  * MCP server, Media providers, Connectors and External MCP are no longer here.
- * They were never "settings" in the sense the nine above are — three of them
+ * They were never "settings" in the sense the ten above are — three of them
  * configure an outside service with a credential, and the fourth exposes this
  * install to an MCP client — so they moved out to top-level nav rows instead
  * of tabs an operator had to know to look for behind Settings. Where they
@@ -93,11 +93,11 @@ import { useEffect } from "react";
  * button that opened it were removed 2026-09-19 (`s.modalOpen`/
  * `s.setModalOpen` went with them — see `use-settings-ui.hooks.ts`'s header).
  *
- * State, effects, and API/port setup live in `hooks/use-settings-ui.hooks.ts` (the six
+ * State, effects, and API/port setup live in `hooks/use-settings-ui.hooks.ts` (the seven
  * `useSettingsSlice` mounts, the fake ports/dependencies, and the merged save status) and
  * `hooks/use-settings-locale-sync.hooks.ts` (the `I18nProvider` locale bridge). Pure computation —
  * the loading gate, the first load error, the save-status label, and the dialog theme mapping —
- * lives in `rules.ts`. What stays here is the 13-tab `SettingsDialogTab[]` array (JSX per tab) and
+ * lives in `rules.ts`. What stays here is the 10-tab `SettingsDialogTab[]` array (JSX per tab) and
  * the shell mounts.
  */
 
@@ -712,7 +712,7 @@ export function SettingsUi(props: SettingsUiProps) {
    * `useSettingsDialogShell.ts`), so a literal `null` — what `URLSearchParams.get("tab")` returns
    * for every URL with no `?tab=` at all, i.e. most of them — would still count as "controlled,
    * active tab is null" and blank the panel instead of falling back to the first tab. A `?tab=`
-   * naming an id that isn't one of the 13 above (typo, stale link, or a deliberately bogus value)
+   * naming an id that isn't one of the 10 above (typo, stale link, or a deliberately bogus value)
    * would do the same, so this checks membership, not just presence — same "don't trust a raw
    * query value" instinct `WidgetInstanceEditor`'s own `?type=` guard applies for the same reason.
    */
