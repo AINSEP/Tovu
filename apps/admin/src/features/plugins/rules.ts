@@ -5,6 +5,10 @@ import type { AgentPluginGlyphKind } from "./agent-plugins-visuals";
 import { buildPackageFileTree, firstPackageFilePath } from "./package-file-tree";
 import type { PluginInstallPreview } from "./hooks/plugin-install-port.hooks";
 
+/** Resource names on the existing assistant content-refresh bus. Unknown scope refreshes both. */
+export const PLUGINS_RESOURCE = "plugins";
+export const AGENT_PLUGINS_RESOURCE = "agent-plugins";
+
 /**
  * @file Pure logic for the `plugins` feature — everything that computes a value rather than
  * rendering one. Follows the `posts/rules.ts` convention: no React import, no hooks, directly

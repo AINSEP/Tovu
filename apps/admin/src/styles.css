@@ -5804,6 +5804,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
    pinned Jini island this screen never opts into.
    ------------------------------------------------------------------------ */
 .plugin-rows {
+  container-type: inline-size; container-name: plugin-list;
   margin: 0; padding: 0; list-style: none;
   border: 1px solid var(--border); border-radius: var(--r-md);
   background: var(--surface);
@@ -5903,19 +5904,22 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 .plugin-row-fact dt { color: var(--muted); }
 .plugin-row-fact dd { margin: 0; color: var(--fg-2); overflow-wrap: anywhere; }
 
-/* Phones: the actions stay on the summary row (mobile catalog PL-1/PL-4, 2026-10-06). The previous
-   rule stacked them into their own bordered second row, which at 375px held just an eye icon and a
-   "Disable" (or a trash icon) over ~230px of empty space — a card twice the height it needed.
-   Tighter paddings, no divider, and the name/subline already ellipsize, so the row fits whole. */
-@media (max-width: 700px) {
-  .plugin-row-main { gap: 4px; padding: 0 10px 0 0; }
-  .plugin-row-summary { padding: 12px 4px 12px 12px; gap: 10px; }
+/* A chat dock can make this list narrow on a wide viewport. Respond to the list's own width so
+   names, versions and actions retain separate space when the dock or sidebar is open. */
+@container plugin-list (max-width: 700px) {
+  .plugin-row-main { flex-direction: column; align-items: stretch; gap: 0; padding: 0; }
+  .plugin-row-summary { padding: 12px; gap: 10px; }
+  .plugin-row-text { flex: 1; }
+  .plugin-row-heading { flex-wrap: wrap; }
+  .plugin-row-name { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
+  .plugin-row-subline { white-space: normal; overflow-wrap: anywhere; }
+  .plugin-row-version { max-width: 100%; overflow-wrap: anywhere; }
   .plugin-row-detail { padding-left: 12px; padding-right: 12px; }
-  .plugin-row-actions { padding-left: 0; border-left: none; gap: 4px; }
+  .plugin-row-actions { flex-wrap: wrap; justify-content: flex-end; padding: 0 12px 12px; border-left: none; gap: 8px; }
 }
 /* At phone width the decorative package glyph is what truncated the name ("Word Co…"); the row's
    own action ("Disable"/"Enable") already states on/off, so the glyph's border tint is redundant. */
-@media (max-width: 480px) {
+@container plugin-list (max-width: 480px) {
   .plugin-row-glyph { display: none; }
 }
 

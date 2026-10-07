@@ -13,7 +13,7 @@ it("a chat folder drop preserves references, asks before installing and uses the
   const root = directory([entry(md, "/skill/SKILL.md"), entry(new File(["reference"], "check.md"), "/skill/references/check.md")]);
   const preventDefault = vi.fn(), stopPropagation = vi.fn();
   const event = { dataTransfer: { items: [{ kind: "file", webkitGetAsEntry: () => root, getAsFile: () => null }], files: [], types: ["Files"] }, preventDefault, stopPropagation };
-  await act(async () => { expect(captureSkillDrop(event as never, result.current.proposeFiles, vi.fn())).toBe(true); });
+  await act(async () => { expect(captureSkillDrop({ event: event as never, proposeFiles: result.current.proposeFiles, fallback: vi.fn() })).toBe(true); });
   await waitFor(() => expect(result.current.pending).toEqual({ files: [{ path: "skill/SKILL.md", contentBase64: btoa(awaitText) }, { path: "skill/references/check.md", contentBase64: btoa("reference") }] }));
   expect(requests).toEqual([]);
   expect(preventDefault).toHaveBeenCalledTimes(1);
@@ -26,11 +26,11 @@ it("ordinary files fall through, and non-skill folders preserve the existing fol
   const fallback = vi.fn();
   const propose = vi.fn();
   const event = { dataTransfer: { items: [], files: [new File(["photo"], "photo.png")], types: ["Files"] }, preventDefault: vi.fn(), stopPropagation: vi.fn() };
-  expect(captureSkillDrop(event as never, propose, fallback)).toBe(false);
+  expect(captureSkillDrop({ event: event as never, proposeFiles: propose, fallback })).toBe(false);
   expect(event.preventDefault).not.toHaveBeenCalled();
   const root = directory([entry(new File(["notes"], "notes.md"), "/folder/notes.md")]);
   const folderEvent = { ...event, dataTransfer: { items: [{ kind: "file", webkitGetAsEntry: () => root, getAsFile: () => null }], files: [], types: ["Files"] } };
-  await act(async () => { captureSkillDrop(folderEvent as never, propose, fallback); });
+  await act(async () => { captureSkillDrop({ event: folderEvent as never, proposeFiles: propose, fallback }); });
   await waitFor(() => expect(fallback).toHaveBeenCalledTimes(1));
   expect(propose).not.toHaveBeenCalled();
 });
@@ -48,6 +48,14 @@ it("cancelling a chat file proposal persists nothing", async () => {
 it("browser directories remain on Jini's folder-expanding attachment path", () => {
   const root = directory([entry(new File(["notes"], "notes.md"), "/folder/notes.md")]);
   const event = { dataTransfer: { items: [{ kind: "file", getAsFile: () => null, webkitGetAsEntry: () => root }], files: [], types: ["Files"] }, preventDefault: vi.fn(), stopPropagation: vi.fn() };
-  expect(captureSkillDrop(event as never, vi.fn(), vi.fn(), vi.fn(), false)).toBe(false);
+  expect(captureSkillDrop({ event: event as never, proposeFiles: vi.fn(), fallback: vi.fn() }, { onError: vi.fn(), interceptFolders: false })).toBe(false);
+  expect(event.preventDefault).not.toHaveBeenCalled();
+});
+
+it.each(["site.zip", "agent.zip", "skill.zip", "SKILL.md"])("file-only %s drops reach the skill-aware attachment uploader", name => {
+  const event = { dataTransfer: { items: [], files: [new File(["file"], name)], types: ["Files"] }, preventDefault: vi.fn(), stopPropagation: vi.fn() };
+  const propose = vi.fn();
+  expect(captureSkillDrop({ event: event as never, proposeFiles: propose, fallback: vi.fn() })).toBe(false);
+  expect(propose).not.toHaveBeenCalled();
   expect(event.preventDefault).not.toHaveBeenCalled();
 });

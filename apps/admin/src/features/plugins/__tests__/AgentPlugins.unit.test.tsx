@@ -104,6 +104,20 @@ function row(name: string): HTMLElement {
 }
 
 describe("AgentPlugins", () => {
+  it("opens the URL add tab and follows subsequent URL tab changes", () => {
+    const useFake = () => fakeController();
+    const view = render(<AgentPlugins tabId="add" useAgentPluginsHook={useFake} />);
+    expect(screen.getByText("Drop a .zip here")).toBeInTheDocument();
+    view.rerender(<AgentPlugins tabId="downloaded" useAgentPluginsHook={useFake} />);
+    expect(screen.queryByText("Drop a .zip here")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Downloaded" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it.each([undefined, null, "unknown"])("guards invalid URL tab %s with Installed", (tabId) => {
+    render(<AgentPlugins tabId={tabId} useAgentPluginsHook={() => fakeController()} />);
+    expect(screen.getByRole("button", { name: "Installed" })).toHaveAttribute("aria-pressed", "true");
+  });
+
   it("renders the first horizontal tab as Installed, ahead of Downloaded and Marketplace, listing every installed plugin", async () => {
     renderAgentPlugins();
     const installedTab = screen.getByRole("button", { name: "Installed" });

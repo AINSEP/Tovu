@@ -24,14 +24,57 @@ describe("skill-aware attachment routing", () => {
     expect(proposeFiles).not.toHaveBeenCalled();
   });
 
-  it.each(["SKILL.md", "package.zip", "PACKAGE.ZIP"])("proposes the entire batch containing %s before attachment upload", async name => {
+  it.each(["SKILL.md"])("proposes loose %s before attachment upload", async name => {
     const uploadAttachments = vi.fn(async () => []);
     const proposeFiles = vi.fn(async () => {});
     const { result } = renderHook(() => useSkillAwareAttachmentUploader({ uploadAttachments, proposeFiles }));
-    const files = [new File(["reference"], "guide.md"), new File(["skill"], name)];
+    const files = [new File(["skill"], name)];
     await expect(result.current(files)).resolves.toEqual([]);
     expect(proposeFiles).toHaveBeenCalledWith(files);
     expect(uploadAttachments).not.toHaveBeenCalled();
+  });
+
+  it.each(["tovu.plugin.json", "plugin.json", "README.md"])("uploads %s ZIPs as ordinary attachments, preserving options", async manifest => {
+    const { zipFolderFiles } = await import("../../InstallTabCard/folder-zip");
+    const zip = await zipFolderFiles({ files: [new File(["{}"], manifest)], maxBytes: 1024 * 1024 });
+    const attachments = [{ name: zip.name, path: "attachment:plugin123", kind: "file" as const }];
+    const uploadAttachments = vi.fn(async () => attachments), proposeFiles = vi.fn(async () => {});
+    const { result } = renderHook(() => useSkillAwareAttachmentUploader({ uploadAttachments, proposeFiles }));
+    const options = { batchId: "plugin-batch", signal: new AbortController().signal };
+    await expect(result.current([zip], options)).resolves.toBe(attachments);
+    expect(uploadAttachments).toHaveBeenCalledWith([zip], options);
+    expect(proposeFiles).not.toHaveBeenCalled();
+  });
+
+  it("proposes a real skill ZIP and uploads other files in the same selection", async () => {
+    const { zipFolderFiles } = await import("../../InstallTabCard/folder-zip");
+    const zip = await zipFolderFiles({ files: [new File(["skill"], "SKILL.md")], maxBytes: 1024 * 1024 });
+    const note = new File(["note"], "note.txt");
+    const uploadAttachments = vi.fn(async () => []), proposeFiles = vi.fn(async () => {});
+    const { result } = renderHook(() => useSkillAwareAttachmentUploader({ uploadAttachments, proposeFiles }));
+    await result.current([zip, note]);
+    expect(proposeFiles).toHaveBeenCalledWith([zip]);
+    expect(uploadAttachments).toHaveBeenCalledWith([note]);
+  });
+
+  it("a malformed ZIP is delivered to chat", async () => {
+    const uploadAttachments = vi.fn(async () => []), proposeFiles = vi.fn(async () => {});
+    const { result } = renderHook(() => useSkillAwareAttachmentUploader({ uploadAttachments, proposeFiles }));
+    const files = [new File(["not zip"], "broken.zip")];
+    await result.current(files);
+    expect(uploadAttachments).toHaveBeenCalledWith(files);
+    expect(proposeFiles).not.toHaveBeenCalled();
+  });
+
+  it("expanded skill folders retain reference files; plugin folders with bundled skills reach chat", async () => {
+    const picked = (relativePath: string) => Object.assign(new File(["content"], relativePath.split("/").at(-1)!), { relativePath });
+    const skill = [picked("notes/SKILL.md"), picked("notes/references/guide.md")];
+    const plugin = [picked("plugin/plugin.json"), picked("plugin/skills/help/SKILL.md")];
+    const uploadAttachments = vi.fn(async () => []), proposeFiles = vi.fn(async () => {});
+    const { result } = renderHook(() => useSkillAwareAttachmentUploader({ uploadAttachments, proposeFiles }));
+    await result.current([...skill, ...plugin]);
+    expect(proposeFiles).toHaveBeenCalledWith(skill);
+    expect(uploadAttachments).toHaveBeenCalledWith(plugin);
   });
 
   it("propagates an ordinary upload rejection", async () => {

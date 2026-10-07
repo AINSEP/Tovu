@@ -661,7 +661,7 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
   {
     id: "agent-plugins",
     anyOfPermissions: ["admin.plugins.read"],
-    render: () => <AgentPlugins />,
+    render: (ctx) => <AgentPlugins tabId={ctx.query.get("tab")} />,
     nav: {
       // Sibling row alongside Plugins: surfaces the Agent Plugins open standard
       // (agent-plugins.org, published 2026-08-06) — portable skills/MCP-server bundles, distinct

@@ -51,6 +51,8 @@ const WIRED_HOOKS: readonly string[] = [
   "features/taxonomy/hooks/use-taxonomy.hooks.ts",
   "features/posts/hooks/use-posts.hooks.ts",
   "features/pages/hooks/use-pages.hooks.ts",
+  "features/plugins/hooks/use-plugins.hooks.ts",
+  "features/plugins/hooks/use-agent-plugins.hooks.ts",
   "features/media/hooks/use-media.hooks.ts",
   "features/forms/hooks/use-forms-list.hooks.ts",
   "features/security/hooks/use-access-tokens.hooks.ts",

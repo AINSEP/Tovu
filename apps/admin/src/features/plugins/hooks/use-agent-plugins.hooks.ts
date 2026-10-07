@@ -2,10 +2,13 @@ import { useEffect, useState } from "react";
 
 import { describeApiError, type AdminAgentPlugin } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
+import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
 import { t as translatePlugins } from "../plugins-i18n";
 import { defaultAgentPluginsPort } from "./agent-plugins-dependencies.hooks";
 import type { AgentPluginsPort } from "./agent-plugins-port.hooks";
 import type { Translate } from "@/lib/dictionary-translator";
+import { AGENT_PLUGINS_RESOURCE } from "../rules";
 
 /**
  * @file State for the Agent Plugins screen, so `AgentPlugins.tsx` is only markup — same split as
@@ -111,13 +114,29 @@ export function useAgentPlugins({ port, locale, t }: AgentPluginsDependencies): 
   const [togglingIds, setTogglingIds] = useState<ReadonlySet<string>>(new Set());
   const [expandedIds, setExpandedIds] = useState<ReadonlySet<string>>(new Set());
   const [inspectedPlugin, setInspectedPlugin] = useState<InspectedAgentPlugin | null>(null);
+  const settlement = useSettlementGeneration();
+
+  function reload(): Promise<void> {
+    const generation = settlement.next();
+    return port
+      .listAgentPlugins()
+      .then((r) => {
+        if (!settlement.isCurrent(generation)) return;
+        setAgentPlugins(r.agentPlugins);
+        setError(null);
+      })
+      .catch((e) => {
+        if (settlement.isCurrent(generation)) setError(describeApiError(e, translatePlugins(locale, "failed to load agent plugins")));
+      });
+  }
 
   useEffect(() => {
-    void port
-      .listAgentPlugins()
-      .then((r) => setAgentPlugins(r.agentPlugins))
-      .catch((e) => setError(describeApiError(e, translatePlugins(locale, "failed to load agent plugins"))));
+    void reload();
   }, []);
+
+  // A completed assistant install/uninstall must update both tabs without a remount. The shared
+  // generation guard prevents a slow earlier read resurrecting the just-removed package.
+  useContentRefreshSubscription(AGENT_PLUGINS_RESOURCE, () => { void reload(); });
 
   async function onToggleEnabled(plugin: AdminAgentPlugin): Promise<void> {
     // A second activation of this row's own switch while its request is outstanding is a no-op —
@@ -143,8 +162,12 @@ export function useAgentPlugins({ port, locale, t }: AgentPluginsDependencies): 
     toggleError,
     togglingIds,
     onToggleEnabled,
-    onInstalled: (plugin: AdminAgentPlugin) =>
-      setAgentPlugins((current) => [...(current ?? []).filter((entry) => entry.pluginId !== plugin.pluginId), plugin]),
+    onInstalled: (plugin: AdminAgentPlugin) => {
+      // The install response is newer than any pending list read. Keep its row until a later
+      // refresh starts rather than letting an earlier snapshot hide the completed install.
+      settlement.next();
+      setAgentPlugins((current) => [...(current ?? []).filter((entry) => entry.pluginId !== plugin.pluginId), plugin]);
+    },
     expandedIds,
     onToggleExpanded: (pluginId: string) => setExpandedIds((ids) => withId(ids, pluginId, !ids.has(pluginId))),
     inspectedPlugin,

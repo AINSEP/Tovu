@@ -31,11 +31,12 @@ async function collect(entries: readonly DropEntry[]) {
 
 /** Capture before ordinary attachment expansion. Non-skill folders retain the host's folder action. */
 export function captureSkillDrop(
-  event: DragEvent<HTMLElement>,
-  proposeFiles: (files: readonly File[], paths?: readonly string[]) => Promise<void>,
-  fallback: (event: DragEvent<HTMLElement>) => void,
-  onError: (message: string) => void = () => {},
-  interceptFolders = true,
+  { event, proposeFiles, fallback }: {
+    event: DragEvent<HTMLElement>;
+    proposeFiles: (files: readonly File[], paths?: readonly string[]) => Promise<void>;
+    fallback: (event: DragEvent<HTMLElement>) => void;
+  },
+  { onError = () => {}, interceptFolders = true }: { onError?: (message: string) => void; interceptFolders?: boolean } = {},
 ): boolean {
   // Snapshot native items synchronously: browsers protect DataTransfer after the event returns.
   const items = Array.from(event.dataTransfer.items ?? []).filter(item => item.kind === "file").map(item => ({ file: item.getAsFile(), entry: item.webkitGetAsEntry?.() as DropEntry | null }));
@@ -45,9 +46,10 @@ export function captureSkillDrop(
   // In browsers, Jini already expands folders and preserves relativePath. Its upload callback
   // offers installation for skills; other folders remain ordinary attachments.
   if (hasFolder && !interceptFolders) return false;
-  if (!hasFolder && !files.some(file => file.name === "SKILL.md" || file.name.toLowerCase().endsWith(".zip"))) return false;
+  // Every file-only drop must reach the same content-aware uploader as the picker. Capturing ZIPs
+  // by suffix here bypasses that classifier and hijacks plugin and ordinary chat attachments.
+  if (!hasFolder) return false;
   event.preventDefault(); event.stopPropagation();
-  if (!hasFolder) { void proposeFiles(files); return true; }
   const saved = { ...event, preventDefault: () => {}, stopPropagation: () => {}, dataTransfer: { ...event.dataTransfer, files, types: Array.from(event.dataTransfer.types ?? []), items: items.map(item => ({ kind: "file", getAsFile: () => item.file, webkitGetAsEntry: () => item.entry })) } } as unknown as DragEvent<HTMLElement>;
   void collect(entries).then(({ files: leaves, paths }) => {
     if (leaves.some(file => file.name === "SKILL.md")) return proposeFiles(leaves, paths);

@@ -22,6 +22,7 @@ import { defaultAgentPluginInstallPort } from "./hooks/agent-plugin-install-depe
 import type { AgentPluginInstallPort } from "./hooks/agent-plugin-install-port.hooks";
 import { useAgentPluginInstall } from "./hooks/use-agent-plugin-install.hooks";
 import type { Translate } from "@/lib/dictionary-translator";
+import { useAgentPluginTab } from "./hooks/use-agent-plugin-tab.hooks";
 
 const AGENT_PLUGINS_SPEC_URL = "https://agent-plugins.org/specification";
 
@@ -303,6 +304,8 @@ function MarketplacePanel({ t }: { t: Translate }) {
 }
 
 export interface AgentPluginsProps {
+  /** The route's guarded `?tab=` value, matching the sibling Plugins screen. */
+  tabId?: string | null;
   /**
    * Dependency injection seam for tests — the same convention `PostsProps.usePostsHook` uses.
    * Defaulted to the real hook, so production callers pass nothing and behave exactly as before.
@@ -345,9 +348,11 @@ export interface AgentPluginsProps {
  *     from the default tab. Item 4's "Installed (only `enabled: true`)" scope no longer holds.
  */
 export function AgentPlugins({
+  tabId,
   useAgentPluginsHook = useWiredAgentPlugins,
   agentPluginInstallPort = defaultAgentPluginInstallPort,
 }: AgentPluginsProps = {}) {
+  const tab = useAgentPluginTab({ tabId });
   const controller = useAgentPluginsHook();
   const { t, locale, agentPlugins, onToggleEnabled, inspectedPlugin, closeInspector } = controller;
   const installController = useAgentPluginInstall({ port: agentPluginInstallPort, t, onInstalled: controller.onInstalled });
@@ -456,6 +461,7 @@ export function AgentPlugins({
           rather than underneath it — see that rule's own comment for the widened value. */}
       <div className="settings-ui-section agent-plugins-section" data-theme="light">
         <SettingsDialogShell
+          {...tab}
           tabs={tabs}
           presentation="inline"
           className="jini-tabbed-dialog--inline"

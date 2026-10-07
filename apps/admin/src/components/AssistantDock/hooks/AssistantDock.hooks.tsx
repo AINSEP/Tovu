@@ -1,3 +1,4 @@
+import { partitionChatPackages } from "./chat-package-kind";
 import { draftAfterSkillSelection, type SelectedComposerSkill } from "@/features/plugins/selected-skills";
 import { captureSkillDrop } from "@/features/skills/skill-drop";
 import { createInstalledSkillsComposerCapabilitySource } from "@/features/plugins/installed-skills-composer-source";
@@ -831,13 +832,12 @@ export function useSkillAwareAttachmentUploader(
   _optional: Record<string, never> = {},
 ): ReturnType<typeof createDaemonAttachmentUploader> {
   return useCallback(async (files, options) => {
-    if (files.some(file => file.name === "SKILL.md" || file.name.toLowerCase().endsWith(".zip"))) {
-      await proposeFiles(files);
-      return [];
-    }
+    const { skills, attachments } = await partitionChatPackages({ files });
+    if (skills.length > 0) await proposeFiles(skills);
+    if (attachments.length === 0) return [];
     // The composer owns the message batch and cancellation lifetime. Dropping these options
     // makes separate attach actions create different batches, which the daemon cannot claim.
-    return options === undefined ? uploadAttachments(files) : uploadAttachments(files, options);
+    return options === undefined ? uploadAttachments(attachments) : uploadAttachments(attachments, options);
   }, [uploadAttachments, proposeFiles]);
 }
 
@@ -1828,7 +1828,7 @@ export function useFolderDropBridge(
 ): UseFolderDrop {
   const folderDrop = useFolderDrop(input);
   const handleDropCapture = useCallback((event: DragEvent<HTMLElement>) => {
-    if (proposeSkillFiles && captureSkillDrop(event, proposeSkillFiles, folderDrop.handleDropCapture, onSkillDropError, Boolean(window.tovuFiles))) return;
+    if (proposeSkillFiles && captureSkillDrop({ event, proposeFiles: proposeSkillFiles, fallback: folderDrop.handleDropCapture }, { ...(onSkillDropError ? { onError: onSkillDropError } : {}), interceptFolders: Boolean(window.tovuFiles) })) return;
     folderDrop.handleDropCapture(event);
   }, [proposeSkillFiles, folderDrop.handleDropCapture, onSkillDropError]);
   useEffect(() => { onReady?.(handleDropCapture); }, [onReady, handleDropCapture]);

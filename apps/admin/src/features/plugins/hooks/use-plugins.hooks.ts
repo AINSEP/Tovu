@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 
 import type { AdminPlugin } from "@/lib/api";
-import { describeApiError } from "../rules";
+import { describeApiError, PLUGINS_RESOURCE } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
+import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { t as translate } from "../plugins-i18n";
 import { defaultPluginsPort } from "./plugins-dependencies.hooks";
 import type { PluginsPort } from "./plugins-port.hooks";
@@ -158,6 +159,9 @@ export function usePlugins({ port, locale, t, installPort = defaultPluginInstall
   useEffect(() => {
     void reload();
   }, []);
+
+  // Assistant tool results already publish through this bridge; re-read via our authorized port.
+  useContentRefreshSubscription(PLUGINS_RESOURCE, () => { void reload(); });
 
   async function onToggleEnabled(plugin: AdminPlugin) {
     // EC-11: a second activation of this row's own toggle while its request is outstanding is a

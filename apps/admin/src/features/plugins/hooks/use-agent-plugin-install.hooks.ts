@@ -4,6 +4,7 @@ import { ApiError, type AdminAgentPlugin } from "@/lib/api";
 import type { Translate } from "@/lib/dictionary-translator";
 import { useZipDrop } from "../../../components/InstallTabCard/use-zip-drop.hooks";
 import { useFolderUpload } from "../../../components/InstallTabCard/use-folder-upload.hooks";
+import { installArchiveSize } from "../../../components/InstallTabCard/install-archive-size";
 import { agentPluginDisplayName } from "../rules";
 import type { AgentPluginInstallPort } from "./agent-plugin-install-port.hooks";
 
@@ -24,7 +25,9 @@ const ERROR_KEYS: Readonly<Record<string, string>> = {
   AGENT_PLUGIN_MANIFEST_MISSING: "No plugin.json found. Put plugin.json at the top of the .zip, or inside one folder.",
   AGENT_PLUGIN_MANIFEST_INVALID: "plugin.json is not a valid Agent Plugin manifest.",
   AGENT_PLUGIN_ARCHIVE_UNREADABLE: NOT_ZIP,
-  AGENT_PLUGIN_PLUGIN_ID_TAKEN: "A different plugin with this name is already installed.",
+  AGENT_PLUGIN_PLUGIN_ID_TAKEN: "This plugin ID is already installed. Choose Replace existing version to upgrade it.",
+  AGENT_PLUGIN_PLUGIN_ENABLED: "Switch off the installed plugin before replacing its version.",
+  AGENT_PLUGIN_PLUGIN_BUNDLED: "A bundled plugin owns this ID and cannot be replaced by an uploaded plugin.",
   AGENT_PLUGIN_TOO_MANY_ENTRIES: UNPACKED_TOO_LARGE,
   AGENT_PLUGIN_FILE_TOO_LARGE: UNPACKED_TOO_LARGE,
   AGENT_PLUGIN_DECOMPRESSION_BOMB: UNPACKED_TOO_LARGE,
@@ -62,6 +65,7 @@ export function useAgentPluginInstall(
 ) {
   const { port, t, onInstalled } = required;
   const [file, setFile] = useState<File | null>(null);
+  const [replace, setReplace] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [installed, setInstalled] = useState<{ name: string; alreadyInstalled: boolean } | null>(null);
@@ -71,6 +75,8 @@ export function useAgentPluginInstall(
   function choose(next: File | null): void {
     setError(null);
     setInstalled(null);
+    // Replacement is an explicit choice for these bytes; picking another package revokes it.
+    setReplace(false);
     if (inputRef.current) inputRef.current.value = "";
     const problem = next ? fileProblem(next) : null;
     setFile(problem ? null : next);
@@ -83,10 +89,11 @@ export function useAgentPluginInstall(
     setBusy(true);
     setError(null);
     try {
-      const result = await port.installZip({ file, sha256: await port.sha256({ file }) });
+      const result = await port.installZip({ file, sha256: await port.sha256({ file }), replace });
       if (result.agentPlugin) onInstalled(result.agentPlugin);
       setInstalled({ name: result.agentPlugin ? agentPluginDisplayName(result.agentPlugin) : file.name, alreadyInstalled: result.alreadyInstalled });
       setFile(null);
+      setReplace(false);
     } catch (e) {
       setError(t(errorKey(e)));
     } finally {
@@ -126,7 +133,9 @@ export function useAgentPluginInstall(
   return {
     t,
     file,
-    fileSizeLabel: file ? `${(file.size / (1024 * 1024)).toFixed(1)} MiB` : "",
+    replace,
+    onReplaceChange: (event: ChangeEvent<HTMLInputElement>) => setReplace(event.target.checked),
+    fileSizeLabel: file ? installArchiveSize({ bytes: file.size }) : "",
     drop,
     folderUpload,
     busy: busy || folderUpload.zipping,

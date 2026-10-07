@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { AgentPlugins } from "../AgentPlugins";
-import { createFakeAgentPluginInstallPort } from "../hooks/agent-plugin-install-dependencies.hooks";
+import { createFakeAgentPluginInstallPort, defaultAgentPluginInstallPort } from "../hooks/agent-plugin-install-dependencies.hooks";
 import { createFakeAgentPluginsPort } from "../hooks/agent-plugins-dependencies.hooks";
 import { useAgentPlugins, type AgentPluginsController } from "../hooks/use-agent-plugins.hooks";
 import { ApiError, type AdminAgentPlugin } from "@/lib/api";
@@ -105,6 +105,35 @@ describe("AgentPlugins — Add a plugin", () => {
     expect(installButton()).toBeEnabled();
   });
 
+  it("requires explicit Replace for an upgrade and clears it for the next archive", async () => {
+    const { port } = renderAddTab();
+    const upload = vi.spyOn(port, "installZip");
+    await openAddTab();
+    const replace = screen.getByRole("checkbox", { name: "Replace existing version" });
+    expect(replace).not.toBeChecked();
+    await userEvent.upload(screen.getByLabelText("Upload a .zip"), zip("upgrade.zip"));
+    await userEvent.click(replace);
+    await userEvent.click(installButton());
+    await screen.findByRole("status");
+    expect(upload).toHaveBeenCalledWith(expect.objectContaining({ replace: true }));
+    expect(replace).not.toBeChecked();
+
+    await userEvent.upload(screen.getByLabelText("Upload a .zip"), zip("another.zip"));
+    await userEvent.click(installButton());
+    await screen.findByRole("status");
+    expect(upload).toHaveBeenLastCalledWith(expect.objectContaining({ replace: false }));
+  });
+
+  it("choosing a different archive revokes the previous Replace choice", async () => {
+    renderAddTab();
+    await openAddTab();
+    await userEvent.upload(screen.getByLabelText("Upload a .zip"), zip("upgrade.zip"));
+    const replace = screen.getByRole("checkbox", { name: "Replace existing version" });
+    await userEvent.click(replace);
+    await userEvent.upload(screen.getByLabelText("Upload a .zip"), zip("different.zip"));
+    expect(replace).not.toBeChecked();
+  });
+
   it("refuses a non-.zip or empty file before uploading anything", async () => {
     const { port } = renderAddTab();
     await openAddTab();
@@ -126,7 +155,7 @@ describe("AgentPlugins — Add a plugin", () => {
     await userEvent.upload(screen.getByLabelText("Upload a .zip"), zip());
     await userEvent.click(installButton());
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("A different plugin with this name is already installed.");
+    expect(await screen.findByRole("alert")).toHaveTextContent("This plugin ID is already installed. Choose Replace existing version to upgrade it.");
     expect(onInstalled).not.toHaveBeenCalled();
     expect(installButton()).toBeEnabled();
   });
@@ -181,5 +210,21 @@ describe("useAgentPlugins — onInstalled", () => {
       ["deploy", "1.0.0"],
       ["note-taker", "1.0.1"],
     ]);
+  });
+});
+
+describe("Agent Plugin replacement transport", () => {
+  it.each([false, true])("sends explicit replace=%s with the archive digest", async (replace) => {
+    const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ agentPlugin: NOTE_TAKER, alreadyInstalled: false }), { status: 201, headers: { "content-type": "application/json" } }));
+    try {
+      const file = zip();
+      await defaultAgentPluginInstallPort.installZip({ file, sha256: "a".repeat(64), replace });
+      const [url, options] = fetch.mock.calls[0]!;
+      const query = new URL(String(url), "http://localhost").searchParams;
+      expect(query.get("replace")).toBe(String(replace));
+      expect(query.get("expectedSha256")).toBe("a".repeat(64));
+      expect(options?.body).toBeInstanceOf(Blob);
+      expect(new Headers(options?.headers).get("content-type")).toBe("application/zip");
+    } finally { fetch.mockRestore(); }
   });
 });

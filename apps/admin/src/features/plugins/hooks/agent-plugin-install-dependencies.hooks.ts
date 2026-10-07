@@ -3,9 +3,9 @@ import type { AgentPluginInstallPort, AgentPluginInstallResult } from "./agent-p
 
 /** The live upload, through the shared authenticated request seam (session expiry, API prefix). */
 export const defaultAgentPluginInstallPort: AgentPluginInstallPort = {
-  installZip: ({ file, sha256 }) =>
+  installZip: ({ file, sha256, replace = false }) =>
     authenticatedAdminRequest<AgentPluginInstallResult>({
-      path: `/workspaces/${WORKSPACE_ID}/agent-plugins/install/zip?${new URLSearchParams({ expectedSha256: sha256 })}`,
+      path: `/workspaces/${WORKSPACE_ID}/agent-plugins/install/zip?${new URLSearchParams({ expectedSha256: sha256, replace: String(replace) })}`,
       method: "POST",
       body: file.slice(0, file.size, "application/zip"),
     }),

@@ -5,6 +5,7 @@ import type { PluginInstallPort, PluginInstallPreview, PluginInstallSource } fro
 import { pluginInstallPreviewDisplay } from "../rules";
 import { useZipDrop } from "../../../components/InstallTabCard/use-zip-drop.hooks";
 import { useFolderUpload } from "../../../components/InstallTabCard/use-folder-upload.hooks";
+import { installArchiveSize } from "../../../components/InstallTabCard/install-archive-size";
 
 const ZIP_MAX_BYTES = 32 * 1024 * 1024;
 const TOO_LARGE = "ZIP exceeds the upload or expanded package size limit.";
@@ -95,7 +96,7 @@ export function usePluginInstall(required: { port: PluginInstallPort; t: Transla
   return {
     folder, zipFile, zipInputRef, replace, preview, error, drop, folderUpload, t: required.t,
     busy: busy || folderUpload.zipping,
-    zipSizeLabel: zipFile ? `${(zipFile.size / (1024 * 1024)).toFixed(1)} MiB` : "",
+    zipSizeLabel: zipFile ? installArchiveSize({ bytes: zipFile.size }) : "",
     reviewDisabled: busy || folderUpload.zipping || !hasSource(),
     previewDisplay: preview ? pluginInstallPreviewDisplay(preview, required.t) : null,
     installedMessage: installedName ? required.t("{name} is installed and switched off. Turn it on in Downloaded.").replace("{name}", installedName) : null,

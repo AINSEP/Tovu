@@ -13,7 +13,7 @@ export interface AgentPluginInstallResult {
 }
 
 export interface AgentPluginInstallPort {
-  installZip(required: { file: File; sha256: string }, optional?: Record<string, never>): Promise<AgentPluginInstallResult>;
+  installZip(required: { file: File; sha256: string; replace?: boolean }, optional?: Record<string, never>): Promise<AgentPluginInstallResult>;
   /** Lowercase hex SHA-256 of the file's bytes, so the server can refuse a damaged upload. */
   sha256(required: { file: File }, optional?: Record<string, never>): Promise<string>;
 }

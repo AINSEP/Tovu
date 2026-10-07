@@ -42,6 +42,11 @@ export function AddAgentPluginPanel({ controller: c }: { controller: AgentPlugin
             chooseProps: agentHandle({ handle: "agent-plugin-add-choose-folder" }, { role: "button", label: "Choose an Agent Plugin folder to upload" }),
           }}
         />
+        <label className="install-tab-check">
+          <input type="checkbox" checked={c.replace} disabled={c.busy} onChange={c.onReplaceChange}
+            {...agentHandle({ handle: "agent-plugin-add-replace" }, { role: "field", label: t("Replace existing version") })} />
+          {t("Replace existing version")}
+        </label>
         {c.error ? (
           <p className="install-tab-alert" role="alert">
             {c.error}
