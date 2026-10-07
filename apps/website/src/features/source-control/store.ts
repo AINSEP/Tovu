@@ -1,3 +1,4 @@
+import { CredentialInputError, CREDENTIAL_MESSAGES, assertCredentialFreeField, normalizeCredentialToken, credentialTokenHint, type CredentialTokenHint, type CredentialConnection } from '../../contracts/core/credential-token.js';
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import type { Clock as ClockPort, ISODateTime, UUID } from "@jini-ai/core/primitives";
 
@@ -71,12 +72,17 @@ export class SourceControlCredentialSecretStoreUnconfiguredError extends Error {
 
 export class SourceControlCredentialNotFoundError extends Error {}
 
-function toSummary(record: SourceControlCredentialSetRecord): SourceControlCredentialSummary {
+/** Owner 2026-10-07 amendment to historical never-decrypt comments below: an injected sealer
+ * now opens server-side solely to derive a safe hint. Failure keeps metadata readable. */
+async function toSummary(record: SourceControlCredentialSetRecord, sealer?: SecretSealerPort): Promise<SourceControlCredentialSummary> {
+  let tokenHint: CredentialTokenHint | null = null;
+  if (sealer) { try { tokenHint = credentialTokenHint({ token: (await decryptRecord(sealer, record)).token }); } catch { /* Keep metadata readable after site-key rotation. */ } }
   return {
     id: record.id,
     providerId: record.providerId,
     label: record.label,
     configured: true,
+    tokenHint,
     isDefault: record.isDefault,
     accountLabel: record.accountLabel,
     createdAt: record.createdAt,
@@ -96,23 +102,36 @@ function toSummary(record: SourceControlCredentialSetRecord): SourceControlCrede
  *
  * @complexity One registry load plus at most one bounded HTTP request.
  */
-async function probeAccountLabel(deps: SourceControlCredentialWriteDeps, workspaceId: UUID, providerId: SourceControlProviderId, token: string): Promise<string | null> {
+async function probeAccountLabel(deps: SourceControlCredentialWriteDeps, workspaceId: UUID, providerId: SourceControlProviderId, token: string): Promise<{ accountLabel: string | null; connection: CredentialConnection }> {
+  let connection: CredentialConnection = 'saved';
+  const fetchFn: typeof fetch = async (input, init) => {
+    try {
+      const response = await (deps.fetchFn ?? fetch)(input, init);
+      connection = response.status === 401 || response.status === 403 ? 'auth' : response.ok ? 'connected' : 'unreachable';
+      return response;
+    } catch (err) {
+      connection = err instanceof Error && (err.name === 'AbortError' || err.name === 'TimeoutError') ? 'timeout' : 'unreachable';
+      throw err;
+    }
+  };
   try {
     const built = await buildSourceControlProvider({
       ...(deps.loadSourceControlProviders ? { load: deps.loadSourceControlProviders } : {}),
-      ...(deps.fetchFn ? { fetchFn: deps.fetchFn } : {}),
+      fetchFn,
       observability: deps.observability,
       workspaceId,
       providerId,
     });
-    return built.ok ? await built.provider.readAccountLabel(token) : null;
+    const accountLabel = built.ok ? await built.provider.readAccountLabel(token) : null;
+    return { accountLabel, connection };
   } catch {
-    return null;
+    return { accountLabel: null, connection };
   }
 }
 
 export interface SourceControlCredentialReadDeps {
   repo: SourceControlCredentialSetRepoPort;
+  sealer?: SecretSealerPort;
 }
 
 /**
@@ -127,7 +146,7 @@ export async function describeCredential(
   input: { workspaceId: UUID; id: UUID }
 ): Promise<SourceControlCredentialSummary | null> {
   const record = await deps.repo.findById(input);
-  return record ? toSummary(record) : null;
+  return record ? toSummary(record, deps.sealer) : null;
 }
 
 /**
@@ -143,7 +162,7 @@ export async function listSourceControlCredentials(
   input: { workspaceId: UUID }
 ): Promise<SourceControlCredentialSummary[]> {
   const records = await deps.repo.listByWorkspace(input);
-  return records.map(toSummary);
+  return Promise.all(records.map(record => toSummary(record, deps.sealer)));
 }
 
 export interface SourceControlCredentialWriteDeps extends SourceControlCredentialReadDeps {
@@ -169,6 +188,7 @@ function validateLabel(raw: unknown): string {
   if (raw.length > MAX_LABEL_LENGTH) {
     throw new SourceControlCredentialValidationError(`label must be ${MAX_LABEL_LENGTH} characters or fewer`);
   }
+  assertPlainField({ value: raw, field: "label" });
   return raw;
 }
 
@@ -195,6 +215,20 @@ function optionalBoolean(raw: unknown, field: string): boolean | undefined {
  *
  * @complexity O(1) — fixed-shape field reads, no iteration.
  */
+function isEmptyTokenPatch(raw: unknown): boolean {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return false;
+  const token = (raw as Record<string, unknown>).token;
+  return token === '' || token === undefined;
+}
+function normalizeStoredToken({ value }: { value: unknown }): string {
+  try { return normalizeCredentialToken({ value }); }
+  catch (err) { if (err instanceof CredentialInputError) throw new SourceControlCredentialValidationError(err.message); throw err; }
+}
+function assertPlainField(required: { value: string; field: string }): void {
+  try { assertCredentialFreeField(required); }
+  catch (err) { if (err instanceof CredentialInputError) throw new SourceControlCredentialValidationError(err.message); throw err; }
+}
+
 function validateConnection(raw: unknown): SourceControlConnectionInput {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
     throw new SourceControlCredentialValidationError("connection must be an object");
@@ -205,12 +239,13 @@ function validateConnection(raw: unknown): SourceControlConnectionInput {
     throw new SourceControlCredentialValidationError(`connection.providerId must be one of: ${[...PROVIDER_IDS].join(", ")}`);
   }
 
-  const token = requireNonEmptyString(value.token, "token", providerId);
+  const token = normalizeStoredToken({ value: value.token });
   if (providerId !== "bitbucket") return { providerId, token };
 
   // Bitbucket authenticates the (token, username) pair, not the token alone — see `types.ts`'s
   // `BitbucketSourceControlConnectionInput` doc.
   const username = requireNonEmptyString(value.username, "username", providerId);
+  assertPlainField({ value: username, field: "username" });
   return { providerId, token, username };
 }
 
@@ -227,7 +262,7 @@ async function sealConnection(
     return await deps.sealer.seal({ plaintext: JSON.stringify(input.connection), key: activeKey, aad });
   } catch (err) {
     throw new SourceControlCredentialSecretStoreUnconfiguredError(
-      `source control credential secret store is unconfigured: ${err instanceof Error ? err.message : String(err)}`
+      CREDENTIAL_MESSAGES.storage
     );
   }
 }
@@ -289,7 +324,8 @@ export async function createSourceControlCredential(
   const sealed = await sealConnection(deps, { workspaceId: input.workspaceId, providerId: connection.providerId, id, connection });
   // Best-effort — see probeAccountLabel's own doc. Run against the SAME plaintext token about to be
   // sealed, before it leaves this function's scope; never throws, degrades to null.
-  const accountLabel = await probeAccountLabel(deps, input.workspaceId, connection.providerId, connection.token);
+  // Owner 2026-10-07: make the secret durable first; a failed probe must never undo a save.
+  const accountLabel = null;
   const record: SourceControlCredentialSetRecord = {
     workspaceId: input.workspaceId,
     id,
@@ -310,7 +346,12 @@ export async function createSourceControlCredential(
     }
     throw err;
   }
-  return toSummary(record);
+  const probe = await probeAccountLabel(deps, input.workspaceId, connection.providerId, connection.token);
+  const probedRecord = { ...record, accountLabel: probe.accountLabel };
+  if (probe.accountLabel !== null) {
+    try { await deps.repo.updateAccountLabel?.({ workspaceId: input.workspaceId, id, accountLabel: probe.accountLabel, expectedSealed: record.sealed }); } catch { /* A metadata failure does not undo the saved token. */ }
+  }
+  return { ...await toSummary(probedRecord, deps.sealer), connection: probe.connection };
 }
 
 export interface UpdateSourceControlCredentialInput {
@@ -356,11 +397,14 @@ export async function updateSourceControlCredential(
   // worse than none once the token has changed" reasoning `publish-credentials/store.ts` documents
   // for its own sibling column, just resolved here by an immediate re-probe instead of a later heal.
   let accountLabel = existing.accountLabel;
-  if (input.connection !== undefined) {
+  let probeConnection: CredentialConnection = "saved";
+  let changedConnection: SourceControlConnectionInput | undefined;
+  if (input.connection !== undefined && !isEmptyTokenPatch(input.connection)) {
     const connection = validateConnection(input.connection);
     providerId = connection.providerId;
     sealed = await sealConnection(deps, { workspaceId: input.workspaceId, providerId, id: input.id, connection });
-    accountLabel = await probeAccountLabel(deps, input.workspaceId, connection.providerId, connection.token);
+    changedConnection = connection;
+    accountLabel = null;
   }
 
   const record: SourceControlCredentialSetRecord = {
@@ -383,7 +427,16 @@ export async function updateSourceControlCredential(
     }
     throw err;
   }
-  return toSummary(record);
+  let probedRecord = record;
+  if (changedConnection) {
+    const probe = await probeAccountLabel(deps, input.workspaceId, changedConnection.providerId, changedConnection.token);
+    probedRecord = { ...record, accountLabel: probe.accountLabel };
+    probeConnection = probe.connection;
+    if (probe.accountLabel !== null) {
+      try { await deps.repo.updateAccountLabel?.({ workspaceId: input.workspaceId, id: input.id, accountLabel: probe.accountLabel, expectedSealed: record.sealed }); } catch { /* A metadata failure does not undo the saved token. */ }
+    }
+  }
+  return { ...await toSummary(probedRecord, deps.sealer), connection: probeConnection };
 }
 
 /**
@@ -425,7 +478,7 @@ async function decryptRecord(sealer: SecretSealerPort, record: SourceControlCred
     return JSON.parse(plaintext) as SourceControlConnectionInput;
   } catch (err) {
     throw new SourceControlCredentialSecretStoreUnconfiguredError(
-      `source control credential could not be decrypted (secret store unconfigured, or the stored row is corrupted): ${err instanceof Error ? err.message : String(err)}`
+      CREDENTIAL_MESSAGES.storage
     );
   }
 }

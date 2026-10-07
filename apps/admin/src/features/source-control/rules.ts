@@ -97,10 +97,10 @@ export function buildSourceControlConnectionInput(
 ): AdminSourceControlConnectionInput {
   const values: Record<string, string> = {};
   for (const field of declaredFields) {
-    const value = (fields.values[field.name] ?? "").trim();
+    const value = fields.values[field.name] ?? "";
     if (value !== "") values[field.name] = value;
   }
-  return { ...values, providerId: fields.providerId, token: fields.token.trim() };
+  return { ...values, providerId: fields.providerId, token: fields.token };
 }
 
 /** The single fixed label every connection saved through this page's flat per-provider row list

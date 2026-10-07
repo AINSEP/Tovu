@@ -1333,6 +1333,14 @@ export const DOC2QUERY: Readonly<Record<string, readonly string[]>> = {
   // the same reason: `custom_credential_verify`/`custom_credential_make_request` shipped with no
   // search coverage at all and went unfound in a real session. See `tool-search-keywords.ts`'s own
   // entries for the full incident context.
+  // Creation needs setup questions too: Fly.io operations otherwise crowd out its secure card.
+  custom_credential_create: [
+    "Open a secure form for a new Fly.io hosting credential.",
+    "I want to connect my Fly.io account with an API token.",
+    "Save my Fly.io token so I can use it for hosting requests.",
+    "Connect Stripe through a new saved API credential.",
+    "Store a Mailchimp API key through the masked credential form.",
+  ],
   custom_credential_list: [
     "What credentials do I have saved?",
     "Do I have an API key or token saved for name.com?",

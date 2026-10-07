@@ -13,12 +13,14 @@ import { guardExternalMcpRequest } from "./guard.js";
  *
  * Never decrypts, so it cannot fail on a rotated or missing site key — the same property
  * `connectors/get-config.ts` and `media/get-providers.ts` rely on.
+ * Owner 2026-10-07: safe hints now unseal on the server, without returning secret values. Missing
+ * keys still degrade to metadata-only reads; they must not make this settings list unavailable.
  */
 export const registerAdminExternalMcpListRoute: ExternalMcpRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/mcp-servers", async (req, res) => {
     try {
       if (!(await guardExternalMcpRequest(deps, req.params.workspaceId, res))) return;
-      const servers = await listExternalMcpServerViews({ repo: deps.externalMcpServerRepo }, deps.workspaceId);
+      const servers = await listExternalMcpServerViews({ repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer }, deps.workspaceId);
       res.json({ servers: servers.map(server => describeExternalMcpOwnership({ server, ids: deps.builtInExternalMcpServerIds })) });
     } catch {
       res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });

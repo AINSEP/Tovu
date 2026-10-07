@@ -1,3 +1,4 @@
+import type { CredentialTokenHint } from './credential-copy';
 import type {
   PublishContentConfirmResult,
   PublishContentExecuteResult,
@@ -81,6 +82,7 @@ export interface AdminMediaProviderCredentials {
   model?: string;
   apiKeyConfigured?: boolean;
   apiKeyTail?: string;
+  apiKeyHint?: CredentialTokenHint | null;
   source?: string;
 }
 
@@ -164,6 +166,8 @@ export interface AdminExternalMcpServer {
   /** Whether a static access token (auth mode `static_env`) is stored. Presence only — the token is
    *  sealed and never returned. Optional so an API that predates the field reads as "none stored". */
   hasAccessToken?: boolean;
+  accessTokenHint?: CredentialTokenHint | null;
+  envTokenHints?: Readonly<Record<string, CredentialTokenHint>>;
   /** For a `stdio` + `static_env` server: which environment variable receives that token. */
   accessTokenEnvName?: string | null;
   oauth: AdminExternalMcpOAuthView;
@@ -734,6 +738,7 @@ export type AdminPublishCredentialProviderId = string;
  * header for what "never readable back" means for the edit flow.
  */
 export interface AdminPublishCredentialSummary {
+  readonly tokenHint?: CredentialTokenHint | null;
   id: string;
   providerId: AdminPublishCredentialProviderId;
   label: string;
@@ -944,6 +949,7 @@ export interface AdminSourceControlProvidersSnapshot {
  * connected/not-connected state from.
  */
 export interface AdminSourceControlCredentialSummary {
+  readonly tokenHint?: CredentialTokenHint | null;
   readonly id: string;
   readonly providerId: AdminSourceControlProviderId;
   readonly label: string;
@@ -983,6 +989,7 @@ export type AdminCustomCredentialCategoryId = "source-control" | "hosting" | "me
  * custom row without decrypting it (see `src/platform/db/schema.sqlite.ts`'s `customCredentialSets` doc).
  */
 export interface AdminCustomCredentialSummary {
+  readonly tokenHint?: CredentialTokenHint | null;
   readonly id: string;
   readonly label: string;
   readonly category: AdminCustomCredentialCategoryId;

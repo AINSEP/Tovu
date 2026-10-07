@@ -123,7 +123,7 @@ test("the admin read model carries env names but never env values", async () => 
   assert.equal(JSON.stringify(views[0]).includes("ghp_secret_value"), false);
 });
 
-test("omitting env preserves the stored credentials, but an empty string clears them", async () => {
+test("omitting env and an exact empty update preserve the stored credentials", async () => {
   const { deps, sealer, repo } = makeDeps();
   await saveExternalMcpServer(deps, validInput());
 
@@ -135,9 +135,9 @@ test("omitting env preserves the stored credentials, but an empty string clears 
 
   await saveExternalMcpServer(deps, { ...validInput(), env: "" });
   const cleared = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
-  assert.deepEqual(stdioTarget(cleared.configs[0]).env, {});
+  assert.deepEqual(stdioTarget(cleared.configs[0]).env, { GITHUB_TOKEN: "ghp_secret_value" });
   const views = await listExternalMcpServerViews({ repo }, WORKSPACE);
-  assert.deepEqual(views[0]?.envNames, []);
+  assert.deepEqual(views[0]?.envNames, ["GITHUB_TOKEN"]);
 });
 
 test("an omitted or whitespace-only label falls back to the serverId, the same as a stored null label", async () => {
@@ -374,7 +374,8 @@ test("the admission revision changes when a leaked credential is cleared", async
   assert.ok(before);
 
   // The exact operator action from the bug report: responding to a leaked token by clearing it.
-  await saveExternalMcpServer(deps, validInput({ env: "" }));
+  // Owner 2026-10-07: an explicit empty JSON map clears env; a blank UPDATE keeps it.
+  await saveExternalMcpServer(deps, validInput({ env: "{}" }));
   const after = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "github" });
   assert.ok(after);
   assert.notEqual(
@@ -433,9 +434,10 @@ test("rotating a dedicated static access token changes the admission revision wi
   assert.deepEqual(renamed.sealedOAuth, after.sealedOAuth);
   assert.equal(externalMcpAdmissionRevision(renamed), externalMcpAdmissionRevision(after));
   await saveExternalMcpServer(deps, { ...input, env: undefined, accessToken: "" });
-  const cleared = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "github" });
-  assert.ok(cleared);
-  assert.notEqual(externalMcpAdmissionRevision(cleared), externalMcpAdmissionRevision(after));
+  const kept = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "github" });
+  assert.ok(kept);
+  assert.deepEqual(kept.sealedOAuth, after.sealedOAuth, "an empty update keeps the stored token byte-for-byte");
+  assert.equal(externalMcpAdmissionRevision(kept), externalMcpAdmissionRevision(after));
 });
 
 test("OAuth token ciphertext changes leave the admission revision unchanged", async () => {
@@ -1377,7 +1379,7 @@ test("static_env access token on a hosted server is sent as Authorization: Beare
   assert.deepEqual(httpTarget(configs[0]).headers, { authorization: "Bearer tok-hosted" });
 });
 
-test("static_env access token: an omitted token keeps the stored one, an empty string clears it", async () => {
+test("static_env access token: omitted and exactly empty tokens keep the stored one", async () => {
   const { deps, sealer, repo } = makeDeps();
   const base = { env: "", authMode: "static_env", accessTokenEnvName: "API_KEY" };
   await saveExternalMcpServer(deps, validInput({ ...base, accessToken: "tok-keep" }));
@@ -1388,9 +1390,9 @@ test("static_env access token: an omitted token keeps the stored one, an empty s
   assert.equal(stdioTarget(configs[0]).env.API_KEY, "tok-keep");
 
   const cleared = await saveExternalMcpServer(deps, validInput({ ...base, accessToken: "" }));
-  assert.equal(cleared.hasAccessToken, false);
+  assert.equal(cleared.hasAccessToken, true);
   ({ configs } = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE));
-  assert.equal(stdioTarget(configs[0]).env.API_KEY, undefined);
+  assert.equal(stdioTarget(configs[0]).env.API_KEY, "tok-keep");
 });
 
 test("static_env access token: refuses control characters (header injection) and a stdio token with no variable name", async () => {

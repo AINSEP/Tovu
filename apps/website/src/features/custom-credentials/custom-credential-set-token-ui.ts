@@ -80,7 +80,7 @@ export function buildSetTokenFormResource(spec: { label: string; exchangeId: str
         name: "token",
         label: "Token",
         hint: "Pasted or typed here only — never shown to the assistant.",
-        required: true,
+        required: false,
         secret: true,
       },
     ],

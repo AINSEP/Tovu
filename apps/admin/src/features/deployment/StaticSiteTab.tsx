@@ -1,3 +1,4 @@
+import { CredentialHint } from "@/components/CredentialHint";
 import { useState, type ReactNode } from "react";
 import { agentHandle } from "@jini-ai/agentic";
 
@@ -1021,7 +1022,7 @@ function CredentialStepDone({
             <span translate="no">{row.label}</span>
           </TemplateWithNode>{" "}
           · {translate("token stored, encrypted")} ·{" "}
-          {interpolate(translate("saved {time}"), { time: formatTimestamp(row.saved!.updatedAt) })}
+          {interpolate(translate("saved {time}"), { time: formatTimestamp(row.saved!.updatedAt) })} <CredentialHint hint={row.saved!.tokenHint} />
           {row.saved!.accountLabel ? (
             <>
               {" "}

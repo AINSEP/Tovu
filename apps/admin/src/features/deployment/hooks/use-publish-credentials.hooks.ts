@@ -1,3 +1,4 @@
+import { credentialDraftError, translateCredentialMessage } from "@/lib/credential-copy";
 import { useEffect, useRef, useState } from "react";
 
 import {
@@ -239,7 +240,7 @@ function rowFormStateFor(states: Readonly<Record<string, RowFormState>>, provide
 function publishCredentialSubmitErrorMessage(err: unknown, t: Translate, locale: string): string {
   const classified = classifyPublishCredentialSubmitError(err);
   if (classified.kind === "duplicate-label") return t("This connection was already saved — reload the page and try again.");
-  if (classified.kind === "validation") return publishCredentialSaveErrorMessage(locale, classified.detail);
+  if (classified.kind === "validation") return publishCredentialSaveErrorMessage(locale, translateCredentialMessage({ message: classified.detail, locale }));
   return publishCredentialSaveErrorMessage(locale, describeApiError(err, t("Unknown error")));
 }
 
@@ -285,12 +286,18 @@ export function usePublishCredentials(
   }
 
   function setField(providerId: AdminPublishCredentialProviderId, fieldName: string, value: string) {
-    patchRow(providerId, (current) => ({ ...current, values: { ...current.values, [fieldName]: value } }));
+    const spec = targets?.find(target => target.id === providerId)?.credential;
+    const secret = fieldName === spec?.tokenField || spec?.fields.some(field => field.name === fieldName && field.secret);
+    patchRow(providerId, (current) => ({ ...current, values: { ...current.values, [fieldName]: value }, ...(secret ? { error: credentialDraftError({ value }, { locale }) } : {}) }));
   }
 
   async function save(providerId: AdminPublishCredentialProviderId) {
     const spec = targets?.find((target) => target.id === providerId)?.credential;
     const values = rowFormStateFor(formStates, providerId).values;
+    if (spec) {
+      const error = credentialDraftError({ value: values[spec.tokenField] ?? '' }, { locale, required: !defaultCredentialForProvider(credentials ?? [], providerId) });
+      if (error) { patchRow(providerId, current => ({ ...current, error })); return; }
+    }
     if (spec === undefined || !credentialFormReadyToSave(spec, values) || savingRef.current.has(providerId)) return;
     savingRef.current.add(providerId);
 

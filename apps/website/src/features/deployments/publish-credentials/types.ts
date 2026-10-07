@@ -1,3 +1,4 @@
+import type { CredentialTokenHint } from '../../../contracts/core/credential-token.js';
 import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
 
 import type { SealedSecret } from "../../webhooks/index.js";
@@ -89,6 +90,7 @@ export interface PublishCredentialSetRecord {
  *  contains `sealed`, a token, or any `PublishConnectionInput` field — enforced by construction: this
  *  type has no field capable of carrying one. */
 export interface PublishCredentialSummary {
+  readonly tokenHint?: CredentialTokenHint | null;
   readonly id: UUID;
   /** The host this row is shown under: the first deploy host declaring its vendor. */
   readonly providerId: PublishProviderId;

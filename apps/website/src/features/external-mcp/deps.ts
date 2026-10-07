@@ -1,3 +1,4 @@
+import type { OperatorLocaleDeps } from '../agent-plugins/operator-locale.js';
 import type { Clock as ClockPort, UUID } from "@jini-ai/core/primitives";
 import type { AuthorizeFn } from "@jini-ai/cms/core";
 
@@ -52,7 +53,8 @@ import type { ExternalMcpOAuthService, ExternalMcpServerRepoPort } from "#src/as
  * completes across the process boundary like any other — `tool-registrations.ts`'s
  * `external_mcp_oauth_connect` handler no longer needs to disclose this as a limitation either.
  */
-export interface ExternalMcpToolDeps {
+export interface ExternalMcpToolDeps extends OperatorLocaleDeps {
+  externalMcpProbe?: (required: { serverId: string }) => Promise<{ ok: boolean; body: Readonly<Record<string, unknown>> }>;
   workspaceId: UUID;
   authorize: AuthorizeFn;
   clock: ClockPort;

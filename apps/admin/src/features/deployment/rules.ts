@@ -166,7 +166,9 @@ export function declaredFieldValues(
 ): Record<string, string> {
   const out: Record<string, string> = {};
   for (const field of fields) {
-    const value = (values[field.name] ?? "").trim();
+    // Secrets reach the store unchanged; ordinary config values retain their existing trimming.
+    const raw = values[field.name] ?? "";
+    const value = field.secret ? raw : raw.trim();
     if (value !== "") out[field.name] = value;
   }
   return out;
@@ -225,7 +227,12 @@ export function buildCredentialConnectionInput(
   spec: AdminPublishTargetCredentialSpec,
   values: Readonly<Record<string, string>>
 ): AdminPublishConnectionInput {
-  return { ...declaredFieldValues(spec.fields, values), providerId };
+  const fields = declaredFieldValues(spec.fields, values);
+  // tokenField is authoritative even for a descriptor that omitted its secret flag.
+  const token = values[spec.tokenField] ?? "";
+  if (token === "") delete fields[spec.tokenField];
+  else fields[spec.tokenField] = token;
+  return { ...fields, providerId };
 }
 
 /** The project-name field's label and help. The same wire field means a different thing per host

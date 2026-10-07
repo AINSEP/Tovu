@@ -365,7 +365,7 @@ export function installFirstPartyToolContributors(
     listExpectedHosts: () => listSavedHostingHosts(routeDeps),
   }) }) });
   contributions.contributors.register({ contribution: contributeEntriesTools() });
-  contributions.contributors.register({ contribution: contributeExternalMcpTools() });
+  contributions.contributors.register({ contribution: contributeExternalMcpTools({ probe: probeExternalMcpServer }) });
   contributions.contributors.register({ contribution: contributeExternalMcpOperationsTools({ probe: probeExternalMcpServer, admissions: () => fetchAdmissions({ observability }) }) });
   contributions.contributors.register({ contribution: contributeFsFilesTools() });
   contributions.contributors.register({ contribution: contributeFormsTools() });

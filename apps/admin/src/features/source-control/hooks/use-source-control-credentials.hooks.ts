@@ -1,3 +1,4 @@
+import { credentialDraftError, translateCredentialMessage } from "@/lib/credential-copy";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { describeApiError, type AdminSourceControlCredentialSummary, type AdminSourceControlProviderId } from "@/lib/api";
@@ -103,7 +104,7 @@ function blankRowFormState(): RowFormState {
 function sourceControlCredentialSubmitErrorMessage(err: unknown, t: Translate, locale: string): string {
   const classified = classifySourceControlCredentialSubmitError(err);
   if (classified.kind === "duplicate-label") return t("This connection was already saved — reload the page and try again.");
-  if (classified.kind === "validation") return sourceControlCredentialSaveErrorMessage(locale, classified.detail);
+  if (classified.kind === "validation") return sourceControlCredentialSaveErrorMessage(locale, translateCredentialMessage({ message: classified.detail, locale }));
   return sourceControlCredentialSaveErrorMessage(locale, describeApiError(err, t("unknown error")));
 }
 
@@ -148,7 +149,8 @@ export function useSourceControlCredentials(
   }
 
   function setToken(providerId: AdminSourceControlProviderId, value: string) {
-    patchForm(providerId, () => ({ token: value }));
+    const error = credentialDraftError({ value }, { locale });
+    patchForm(providerId, () => ({ token: value, error }));
   }
 
   function setField(providerId: AdminSourceControlProviderId, name: string, value: string) {
@@ -159,6 +161,8 @@ export function useSourceControlCredentials(
     const formState = formStates[providerId] ?? blankRowFormState();
     const info = providers.find((provider) => provider.id === providerId);
     const fields: SourceControlCredentialFormFields = { providerId, token: formState.token, values: formState.values };
+    const error = credentialDraftError({ value: fields.token }, { locale, required: !defaultSourceControlCredentialForProvider(credentials ?? [], providerId) });
+    if (error) { patchForm(providerId, () => ({ error })); return; }
     if (info === undefined || !sourceControlCredentialRowReadyToSave(fields, info)) return;
 
     const existing = defaultSourceControlCredentialForProvider(credentials ?? [], providerId);

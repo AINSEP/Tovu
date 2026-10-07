@@ -1,3 +1,4 @@
+import { credentialDraftError, translateCredentialMessage } from "@/lib/credential-copy";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
@@ -283,7 +284,7 @@ export interface AccessTokensController {
 function accessTokenSubmitErrorMessage(err: unknown, t: Translate, locale: string, providerLabel: string, attemptedName: string): string {
   const classified = classifyAccessTokenSubmitError(err);
   if (classified.kind === "duplicate-label") return accessTokenDuplicateNameMessage(locale, attemptedName, providerLabel);
-  if (classified.kind === "validation") return accessTokenSaveErrorMessage(locale, classified.detail);
+  if (classified.kind === "validation") return accessTokenSaveErrorMessage(locale, translateCredentialMessage({ message: classified.detail, locale }));
   return accessTokenSaveErrorMessage(locale, describeApiError(err, t("unknown error")));
 }
 
@@ -521,6 +522,7 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
    *  ever touching Username) would otherwise blank a saved username out of the draft the identical way
    *  it used to blank Name. @complexity O(1). */
   function setExistingField(rowId: string, patch: Partial<DraftFields>): void {
+    if (patch.token !== undefined) setExistingBusy(prev => ({ ...prev, [rowId]: { saving: prev[rowId]?.saving ?? false, error: credentialDraftError({ value: patch.token! }, { locale }) } }));
     setExistingDrafts((prev) => {
       const existing = prev[rowId];
       if (existing) return { ...prev, [rowId]: { ...existing, ...patch } };
@@ -539,6 +541,8 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
   async function replaceCustomCredential(row: AccessTokenRow): Promise<void> {
     const draft = existingDrafts[row.id] ?? { ...blankDraft(), name: row.name, username: row.username ?? "" };
     const fields: AccessTokenFormFields = { ref: { kind: "custom", providerId: row.providerId }, ...draft };
+    const error = credentialDraftError({ value: fields.token }, { locale });
+    if (error) { setExistingBusy(prev => ({ ...prev, [row.id]: { saving: false, error } })); return; }
     if (!customCredentialReplaceReadyToSave(fields, row.name, row.username)) return;
     if (customCredentialNameTaken(rows ?? [], fields.name, row.id)) {
       setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: false, error: accessTokenDuplicateNameMessage(locale, fields.name.trim(), t("this workspace")) } }));
@@ -575,6 +579,8 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
     const draft = existingDrafts[row.id] ?? { ...blankDraft(), name: row.name, username: row.username ?? "" };
     const fields: AccessTokenFormFields = { ref, ...draft };
     const info = accessTokenProviderInfo(providers, ref);
+    const error = credentialDraftError({ value: fields.token }, { locale });
+    if (error) { setExistingBusy(prev => ({ ...prev, [row.id]: { saving: false, error } })); return; }
     if (!accessTokenReplaceReadyToSave(fields, row.name, info)) return;
     const providerLabel = info.label;
     if (accessTokenNameTaken(rows ?? [], ref, fields.name, row.id)) {
@@ -672,6 +678,7 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
   }
   function setAddField(ref: AccessTokenProviderRef, patch: Partial<DraftFields>): void {
     const key = addFormKey(ref);
+    if (patch.token !== undefined) setAddForms(prev => ({ ...prev, [key]: { ...(prev[key] ?? blankAddFormEntry()), error: credentialDraftError({ value: patch.token! }, { locale, required: true }) } }));
     setAddForms((prev) => ({ ...prev, [key]: { ...(prev[key] ?? blankAddFormEntry()), draft: { ...(prev[key]?.draft ?? blankDraft()), ...patch } } }));
   }
 
@@ -680,6 +687,8 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
     const entry = addForms[key] ?? blankAddFormEntry();
     const fields: AccessTokenFormFields = { ref, ...entry.draft };
     const info = accessTokenProviderInfo(providers, ref);
+    const error = credentialDraftError({ value: fields.token }, { locale, required: true });
+    if (error) { setAddForms(prev => ({ ...prev, [key]: { ...entry, saving: false, error } })); return; }
     if (!accessTokenRowReadyToSave(fields, info)) return;
     const providerLabel = info.label;
     if (accessTokenNameTaken(rows ?? [], ref, fields.name)) {
@@ -739,6 +748,7 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
   const matchCount = rows === undefined ? 0 : rows.filter((row) => accessTokenRowMatchesQuery(row, accessTokenRowProviderInfo(providers, row), query)).length;
 
   function setCustomAddField(patch: Partial<CustomDraftFields>): void {
+    if (patch.token !== undefined) setCustomAddBusy(prev => ({ ...prev, error: credentialDraftError({ value: patch.token! }, { locale, required: true }) }));
     setCustomAddDraft((prev) => ({ ...prev, ...patch }));
   }
 
@@ -752,6 +762,8 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
    *  {@link RemoveConfirmDialog} already draws). */
   async function createCustomCredential(): Promise<boolean> {
     const fields: CustomCredentialFormFields = customAddDraft;
+    const error = credentialDraftError({ value: fields.token }, { locale, required: true });
+    if (error) { setCustomAddBusy({ saving: false, error }); return false; }
     if (!customCredentialReadyToSave(fields)) return false;
     if (customCredentialNameTaken(rows ?? [], fields.name)) {
       setCustomAddBusy({ saving: false, error: accessTokenDuplicateNameMessage(locale, fields.name.trim(), t("this workspace")) });

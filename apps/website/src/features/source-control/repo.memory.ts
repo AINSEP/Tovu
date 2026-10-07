@@ -56,6 +56,15 @@ export class InMemorySourceControlCredentialSetRepo implements SourceControlCred
     if (record.isDefault) this.clearOtherDefaults(record.workspaceId, record.providerId, record.id);
   }
 
+  async updateAccountLabel(input: { workspaceId: UUID; id: UUID; accountLabel: string; expectedSealed?: SourceControlCredentialSetRecord['sealed'] }, _optional = {}): Promise<void> {
+    const key = InMemorySourceControlCredentialSetRepo.rowKey(input.workspaceId, input.id);
+    const row = this.rows.get(key);
+    if (!row) return;
+    const expected = input.expectedSealed;
+    if (expected && (row.sealed.ciphertext !== expected.ciphertext || row.sealed.nonce !== expected.nonce || row.sealed.keyId !== expected.keyId || row.sealed.alg !== expected.alg)) return;
+    this.rows.set(key, { ...row, accountLabel: input.accountLabel });
+  }
+
   async findById(input: { workspaceId: UUID; id: UUID }): Promise<SourceControlCredentialSetRecord | null> {
     return this.rows.get(InMemorySourceControlCredentialSetRepo.rowKey(input.workspaceId, input.id)) ?? null;
   }

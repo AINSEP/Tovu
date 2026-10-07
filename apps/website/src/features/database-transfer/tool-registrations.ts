@@ -1,3 +1,6 @@
+import { createDestinationExchangeReporter } from './destination-exchange.js';
+import { resolveOperatorLocale, type OperatorLocaleDeps } from '../agent-plugins/operator-locale.js';
+import { assertCredentialToken, CredentialInputError } from '../../contracts/core/credential-token.js';
 import { readFile } from "node:fs/promises";
 
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
@@ -47,7 +50,7 @@ export const databaseTransferDerivedRisk: DerivedRiskByToolId = new Map<string, 
 ]);
 
 /** The slice of the route-deps bag these tools read. Structural, so this module never imports `server/routes/types`. */
-export interface DatabaseTransferToolDeps {
+export interface DatabaseTransferToolDeps extends OperatorLocaleDeps {
   readonly authorize: AuthorizeFn;
   readonly workspaceId: string;
   readonly dbOps: DbOpsPort;
@@ -94,12 +97,25 @@ async function captureChatSnapshot(deps: DatabaseTransferToolDeps): Promise<Buff
 }
 /** @complexity O(1) at registration; consumer adapters supply all schema/security/UI policy. */
 export function buildDatabaseTransferRegistrations(deps: DatabaseTransferToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
+  const destinations = deps.databaseTransferDestinationStore ?? DEFAULT_DESTINATION_STORE;
+  const localeByExchange = new Map<string, Promise<string>>();
+  const reportDestination = createDestinationExchangeReporter({ store: destinations, workspaceId: deps.workspaceId }, {
+    localeForExchange: async ({ exchangeId }) => {
+      const locale = await (localeByExchange.get(exchangeId) ?? Promise.resolve('en'));
+      localeByExchange.delete(exchangeId);
+      return locale;
+    },
+  });
   const tools = createDatabaseTransferTools({
     workspaceId: deps.workspaceId, site: deps.siteBinding?.name ?? deps.workspaceId, naming: TRANSFER_NAMING,
     clock: { nowIso: () => new Date().toISOString() },
     dbOps: deps.dbOps, plans: deps.databaseTransferPlanStore ?? DEFAULT_PLAN_STORE,
-    destinations: deps.databaseTransferDestinationStore ?? DEFAULT_DESTINATION_STORE,
-    target: deps.databaseTransferTarget ?? createPsqlPostgresTarget,
+    destinations,
+    target: connectionString => {
+      try { assertCredentialToken({ value: connectionString, field: 'address', hosted: false }); }
+      catch (err) { if (err instanceof CredentialInputError) throw new InvalidConnectionStringError(err.message); throw err; }
+      return (deps.databaseTransferTarget ?? createPsqlPostgresTarget)(connectionString);
+    },
     requirePermission: request => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: request.principalId, permission: request.permission }, { entityType: request.entityType }),
     openSource: openSqliteSnapshotSource,
     catalog: (name, source) => name === "chat" ? planChatSnapshotTables(source) : planSnapshotTables(source),
@@ -109,8 +125,12 @@ export function buildDatabaseTransferRegistrations(deps: DatabaseTransferToolDep
     schemaMismatchGuidance: "this Tovu version's Postgres layout does not match it",
     readers: { inputRecord: input => requireInputRecord({ input }), string: (input, key) => requireString({ input, key }) },
     surfaces: {
-      open: (binding, emit) => surfaces.surfaceExchanges.open(binding, emit),
-      resolveDecision: resolveConfirmationDecision, askThenReport,
+      open: (binding, emit) => {
+        const exchange = surfaces.surfaceExchanges.open(binding, emit);
+        if (binding.toolId === SET_DESTINATION_TOOL_ID) localeByExchange.set(exchange.id, resolveOperatorLocale({ deps, workspaceId: deps.workspaceId, principalId: binding.principalId }));
+        return exchange;
+      },
+      resolveDecision: resolveConfirmationDecision, askThenReport: reportDestination,
       confirmation: (plan, exchangeId, optional = {}) => ({ channel: "mcp-ui", payload: { resource: buildConfirmationSurface({ plan, exchangeId, ...optional }) } }),
       destinationForm: exchangeId => ({ channel: "mcp-ui", payload: { resource: buildDestinationForm(exchangeId) } }),
       destinationOutcome: input => ({ channel: "mcp-ui", payload: { resource: buildDestinationOutcome(input) } }),

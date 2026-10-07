@@ -1,3 +1,4 @@
+import { CredentialHint } from "@/components/CredentialHint";
 import { forwardRef, useRef } from "react";
 import { agentHandle } from "@jini-ai/agentic";
 
@@ -361,7 +362,7 @@ function TokenRow({
         <span className="access-tokens-row-name">{state.name}</span>
         <TokenRowDefaultIndicator state={state} showDefaultUi={showDefaultUi} controller={controller} t={translate} />
         <span className="access-tokens-row-summary-meta">
-          {translate("saved")} {formatTimestamp(state.row.updatedAt)}
+          {translate("saved")} {formatTimestamp(state.row.updatedAt)} <CredentialHint hint={state.row.tokenHint} />
         </span>
         <span className="access-tokens-row-summary-expand">
           {translate("Replace token")}

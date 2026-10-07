@@ -1,3 +1,4 @@
+import { normalizeCredentialToken, credentialTokenHint, type CredentialTokenHint } from '../../contracts/core/credential-token.js';
 import type { KeyringPort, SealedSecret, SecretSealerPort } from "../webhooks/index.js";
 import { buildDatabaseDestinationAad, DATABASE_DESTINATION_AAD_VERSION } from "./destination-aad.js";
 import type { TargetDescription } from "./postgres-target.js";
@@ -16,6 +17,7 @@ import type { TargetDescription } from "./postgres-target.js";
 
 export interface SavedDatabaseDestination {
   readonly connectionString: string;
+  readonly tokenHint?: CredentialTokenHint;
   readonly description: TargetDescription;
   readonly savedAt: string;
 }
@@ -50,7 +52,9 @@ export class InMemoryDatabaseDestinationStore implements DatabaseDestinationStor
   }
 
   async save(workspaceId: string, destination: SavedDatabaseDestination): Promise<void> {
-    this.destinations.set(workspaceId, destination);
+    if (destination.connectionString === '' && this.destinations.has(workspaceId)) return;
+    const connectionString = normalizeCredentialToken({ value: destination.connectionString, field: "address", hosted: false });
+    this.destinations.set(workspaceId, { ...destination, connectionString, tokenHint: credentialTokenHint({ token: connectionString }) });
     this.runs.delete(workspaceId);
   }
 
@@ -94,13 +98,15 @@ export class SealedDatabaseDestinationStore implements DatabaseDestinationStoreP
       // The sealer's own error may describe the key; it is replaced, never passed on.
       throw new DestinationUnreadableError();
     }
-    return { connectionString, description: record.description, savedAt: record.savedAt };
+    return { connectionString, tokenHint: credentialTokenHint({ token: connectionString }), description: record.description, savedAt: record.savedAt };
   }
 
   /** @complexity One AES-GCM seal and one upsert. */
   async save(workspaceId: string, destination: SavedDatabaseDestination): Promise<void> {
+    if (destination.connectionString === '' && await this.deps.repo.find(workspaceId)) return;
+    const connectionString = normalizeCredentialToken({ value: destination.connectionString, field: "address", hosted: false });
     const key = await this.deps.keyring.activeKey();
-    const sealed = await this.deps.sealer.seal({ plaintext: destination.connectionString, key, aad: buildDatabaseDestinationAad({ workspaceId }) });
+    const sealed = await this.deps.sealer.seal({ plaintext: connectionString, key, aad: buildDatabaseDestinationAad({ workspaceId }) });
     await this.deps.repo.upsert({ workspaceId, description: destination.description, sealed, aadVersion: DATABASE_DESTINATION_AAD_VERSION, savedAt: destination.savedAt, lastRunJson: null });
   }
 

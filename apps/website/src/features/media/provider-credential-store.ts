@@ -1,3 +1,4 @@
+import { CredentialInputError, CREDENTIAL_MESSAGES, assertCredentialFreeField, normalizeCredentialToken, credentialTokenHint, type CredentialTokenHint } from '../../contracts/core/credential-token.js';
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import { MEDIA_PROVIDERS } from "@jini-ai/integrations/media-providers/catalog";
 import type { Clock as ClockPort, ISODateTime, UUID } from "@jini-ai/core/primitives";
@@ -130,6 +131,7 @@ export interface MediaProviderCredentialView {
   model?: string;
   /** `true` iff a sealed key is stored. Absent rather than `false` when none is. */
   apiKeyConfigured?: boolean;
+  apiKeyHint?: CredentialTokenHint | null;
   /** Bare tail, no `••••` prefix — `@jini-ai/ui`'s `maskedKeyLabel` adds and clamps that itself. */
   apiKeyTail?: string;
 }
@@ -157,23 +159,32 @@ export class MediaProviderCredentialValidationError extends Error {}
  *  to its own `503 SECRET_STORE_UNCONFIGURED` rather than a generic `400`. */
 export class MediaProviderCredentialSecretStoreUnconfiguredError extends Error {}
 
-function toView(record: MediaProviderCredentialRecord): MediaProviderCredentialView {
+/** Owner 2026-10-07 amendment to historical never-decrypt comments: optional server-side
+ * unsealing derives only the safe length/tail hint. A failed open leaves metadata readable. */
+async function toView(record: MediaProviderCredentialRecord, sealer?: SecretSealerPort): Promise<MediaProviderCredentialView> {
   const view: MediaProviderCredentialView = {};
   if (record.baseUrl !== null) view.baseUrl = record.baseUrl;
   if (record.model !== null) view.model = record.model;
   if (record.sealed !== null) {
     view.apiKeyConfigured = true;
-    if (record.keyTail !== null) view.apiKeyTail = record.keyTail;
+    if (sealer) {
+      try {
+        const aad = record.aadVersion === 1 ? buildMediaProviderCredentialAad({ workspaceId: record.workspaceId, providerId: record.providerId }) : undefined;
+        view.apiKeyHint = credentialTokenHint({ token: await sealer.open({ sealed: record.sealed, aad }) });
+        if (view.apiKeyHint.last4 !== null) view.apiKeyTail = view.apiKeyHint.last4;
+      } catch { /* A missing site key must not hide the non-secret provider configuration. */ }
+    }
   }
   return view;
 }
 
-function toMap(records: readonly MediaProviderCredentialRecord[]): MediaProviderCredentialMap {
-  return Object.fromEntries(records.map((record) => [record.providerId, toView(record)]));
+async function toMap(records: readonly MediaProviderCredentialRecord[], sealer?: SecretSealerPort): Promise<MediaProviderCredentialMap> {
+  return Object.fromEntries(await Promise.all(records.map(async record => [record.providerId, await toView(record, sealer)])));
 }
 
 export interface MediaProviderCredentialReadDeps {
   repo: MediaProviderCredentialRepoPort;
+  sealer?: SecretSealerPort;
 }
 
 /**
@@ -187,7 +198,7 @@ export async function getMediaProviderCredentials(
   deps: MediaProviderCredentialReadDeps,
   input: { workspaceId: UUID }
 ): Promise<MediaProviderCredentialMap> {
-  return toMap(await deps.repo.listByWorkspaceId(input.workspaceId));
+  return toMap(await deps.repo.listByWorkspaceId(input.workspaceId), deps.sealer);
 }
 
 /** One provider's incoming edit. `apiKey` present and non-blank sets a new key; absent or blank
@@ -200,6 +211,7 @@ export interface MediaProviderCredentialInput {
   /** Accepted and ignored — the tab echoes back markers it was given. Listed so a payload carrying
    *  them is not rejected as having unknown fields. */
   apiKeyConfigured?: boolean;
+  apiKeyHint?: CredentialTokenHint | null;
   apiKeyTail?: string;
   source?: string;
 }
@@ -228,6 +240,8 @@ function trimmedOrNull(value: string | undefined): string | null {
 
 /** Rejects anything the row cannot faithfully hold, before a single write happens. */
 function assertValidEntry(providerId: string, entry: MediaProviderCredentialInput): void {
+  try { assertCredentialFreeField({ value: providerId, field: 'providerId' }); }
+  catch (error) { if (error instanceof CredentialInputError) throw new MediaProviderCredentialValidationError(error.message); throw error; }
   if (!KNOWN_PROVIDER_IDS.has(providerId)) {
     throw new MediaProviderCredentialValidationError(
       `unknown media provider "${providerId}" — expected an engine-canonical id from @jini-ai/integrations/media-providers`
@@ -242,7 +256,7 @@ function assertValidEntry(providerId: string, entry: MediaProviderCredentialInpu
     if (typeof value !== "string") {
       throw new MediaProviderCredentialValidationError(`${field} for "${providerId}" must be a string`);
     }
-    if (value.length > MAX_FIELD_LENGTH) {
+    if (field !== "apiKey" && value.length > MAX_FIELD_LENGTH) {
       throw new MediaProviderCredentialValidationError(
         `${field} for "${providerId}" exceeds ${MAX_FIELD_LENGTH} characters`
       );
@@ -270,19 +284,21 @@ async function sealNewProviderKeys(
 ): Promise<Map<string, FreshlySealedProviderKey>> {
   const sealedByProviderId = new Map<string, FreshlySealedProviderKey>();
   for (const [providerId, entry] of entries) {
-    const apiKey = entry.apiKey?.trim();
-    if (!apiKey) continue;
+    if (entry.apiKey === undefined || entry.apiKey === '') continue;
+    let apiKey: string;
+    try { apiKey = normalizeCredentialToken({ value: entry.apiKey, field: 'apiKey' }); }
+    catch (err) { if (err instanceof CredentialInputError) throw new MediaProviderCredentialValidationError(err.message); throw err; }
     try {
       const activeKey = await deps.keyring.activeKey();
       const aad = buildMediaProviderCredentialAad({ workspaceId, providerId });
       sealedByProviderId.set(providerId, {
         sealed: await deps.sealer.seal({ plaintext: apiKey, key: activeKey, aad }),
-        keyTail: apiKey.slice(-KEY_TAIL_LENGTH),
+        keyTail: apiKey.length >= 12 ? apiKey.slice(-KEY_TAIL_LENGTH) : "",
         aadVersion: 1,
       });
     } catch (err) {
       throw new MediaProviderCredentialSecretStoreUnconfiguredError(
-        `media provider credential secret store is unconfigured: ${err instanceof Error ? err.message : String(err)}`
+        CREDENTIAL_MESSAGES.storage
       );
     }
   }
@@ -314,6 +330,11 @@ function buildProviderUpsertRow(
   now: ISODateTime
 ): MediaProviderCredentialRecord {
   const { sealed, keyTail, aadVersion } = resolveSealedKeyPair(existing, freshlySealed);
+  if (sealed === null) throw new MediaProviderCredentialValidationError('Enter a token. Spaces alone are not a token.');
+  for (const field of ['baseUrl', 'model'] as const) {
+    try { assertCredentialFreeField({ value: entry[field] ?? '', field }); }
+    catch (err) { if (err instanceof CredentialInputError) throw new MediaProviderCredentialValidationError(err.message); throw err; }
+  }
   return {
     workspaceId,
     providerId,
@@ -398,7 +419,7 @@ export async function saveMediaProviderCredentials(
     };
   };
 
-  return toMap(await deps.repo.replaceWorkspace({ workspaceId: input.workspaceId, plan }));
+  return toMap(await deps.repo.replaceWorkspace({ workspaceId: input.workspaceId, plan }), deps.sealer);
 }
 
 export interface MediaProviderCredentialResolveDeps {
@@ -449,7 +470,7 @@ export async function resolveMediaProviderCredential(
     apiKey = await deps.sealer.open({ sealed: record.sealed, aad });
   } catch (err) {
     throw new MediaProviderCredentialSecretStoreUnconfiguredError(
-      `media provider credential for "${input.providerId}" could not be decrypted (secret store unconfigured, or the stored row is corrupted): ${err instanceof Error ? err.message : String(err)}`
+      CREDENTIAL_MESSAGES.storage
     );
   }
   return { apiKey, baseUrl: record.baseUrl, model: record.model };

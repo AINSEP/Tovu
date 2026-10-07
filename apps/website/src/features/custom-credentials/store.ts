@@ -1,3 +1,4 @@
+import { CredentialInputError, CREDENTIAL_MESSAGES, assertCredentialFreeField, normalizeCredentialToken, credentialTokenHint, type CredentialTokenHint } from '../../contracts/core/credential-token.js';
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import type { Clock as ClockPort, ISODateTime, UUID } from "@jini-ai/core/primitives";
 
@@ -66,7 +67,11 @@ export class CustomCredentialNotFoundError extends Error {}
  *  a credential without one has NO `username` key at all — "absent" stays a single representation
  *  all the way out to the admin JSON and `custom_credential_list`, instead of becoming a second,
  *  falsy-but-present value every consumer would have to remember to treat as absent. */
-function toSummary(record: CustomCredentialSetRecord): CustomCredentialSummary {
+/** Owner 2026-10-07 amendment to historical never-decrypt comments: optional server-side
+ * unsealing derives only the safe length/tail hint. A failed open leaves metadata readable. */
+async function toSummary(record: CustomCredentialSetRecord, sealer?: SecretSealerPort): Promise<CustomCredentialSummary> {
+  let tokenHint: CredentialTokenHint | null = null;
+  if (sealer) { try { tokenHint = credentialTokenHint({ token: (await decryptRecord(sealer, record)).token }); } catch { /* Keep metadata readable after site-key rotation. */ } }
   return {
     id: record.id,
     label: record.label,
@@ -75,6 +80,7 @@ function toSummary(record: CustomCredentialSetRecord): CustomCredentialSummary {
     additionalHosts: record.additionalHosts,
     ...(record.username !== undefined ? { username: record.username } : {}),
     configured: true,
+    tokenHint,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
   };
@@ -82,6 +88,7 @@ function toSummary(record: CustomCredentialSetRecord): CustomCredentialSummary {
 
 export interface CustomCredentialReadDeps {
   repo: CustomCredentialSetRepoPort;
+  sealer?: SecretSealerPort;
 }
 
 /**
@@ -93,7 +100,7 @@ export interface CustomCredentialReadDeps {
  */
 export async function describeCredential(deps: CustomCredentialReadDeps, input: { workspaceId: UUID; id: UUID }): Promise<CustomCredentialSummary | null> {
   const record = await deps.repo.findById(input);
-  return record ? toSummary(record) : null;
+  return record ? toSummary(record, deps.sealer) : null;
 }
 
 /**
@@ -113,7 +120,7 @@ export async function describeCredential(deps: CustomCredentialReadDeps, input: 
 export async function describeCredentialByLabel(deps: CustomCredentialReadDeps, input: { workspaceId: UUID; label: string }): Promise<CustomCredentialSummary | null> {
   const records = await deps.repo.listByWorkspace({ workspaceId: input.workspaceId });
   const record = records.find((row) => row.label === input.label);
-  return record ? toSummary(record) : null;
+  return record ? toSummary(record, deps.sealer) : null;
 }
 
 /**
@@ -125,7 +132,7 @@ export async function describeCredentialByLabel(deps: CustomCredentialReadDeps, 
  */
 export async function listCustomCredentials(deps: CustomCredentialReadDeps, input: { workspaceId: UUID }): Promise<CustomCredentialSummary[]> {
   const records = await deps.repo.listByWorkspace(input);
-  return records.map(toSummary);
+  return Promise.all(records.map(record => toSummary(record, deps.sealer)));
 }
 
 export interface CustomCredentialWriteDeps extends CustomCredentialReadDeps {
@@ -144,6 +151,7 @@ function validateLabel(raw: unknown): string {
   if (raw.length > MAX_LABEL_LENGTH) {
     throw new CustomCredentialValidationError(`label must be ${MAX_LABEL_LENGTH} characters or fewer`);
   }
+  assertPlainField({ value: raw, field: "label" });
   return raw;
 }
 
@@ -151,6 +159,7 @@ function validateLabel(raw: unknown): string {
  *  set — see `types.ts`'s `CustomCredentialCategoryId` doc for why this list is duplicated (not
  *  imported) from the admin app. */
 function validateCategory(raw: unknown): CustomCredentialCategoryId {
+  if (typeof raw === "string") assertPlainField({ value: raw, field: "category" });
   if (typeof raw !== "string" || !isCustomCredentialCategoryId(raw)) {
     throw new CustomCredentialValidationError(`category must be one of: ${CUSTOM_CREDENTIAL_CATEGORIES.join(", ")}`);
   }
@@ -173,6 +182,7 @@ function validateBaseUrl(raw: unknown): string {
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
     throw new CustomCredentialValidationError("baseUrl must use http or https");
   }
+  assertPlainField({ value: raw, field: "baseUrl" });
   return raw;
 }
 
@@ -191,6 +201,7 @@ function validateAdditionalHostEntry(raw: unknown, index: number): string {
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
     throw new CustomCredentialValidationError(`additionalHosts[${index}] must use http or https`);
   }
+  assertPlainField({ value: raw, field: "additionalHosts" });
   return parsed.origin;
 }
 
@@ -250,6 +261,7 @@ function validateUsernamePatch(raw: unknown): string | undefined {
   if (typeof raw !== "string" || raw.trim() === "") {
     throw new CustomCredentialValidationError("'username' must be a non-empty string, or null to clear it");
   }
+  assertPlainField({ value: raw, field: "username" });
   return raw;
 }
 
@@ -260,13 +272,28 @@ function validateUsernamePatch(raw: unknown): string | undefined {
  *
  * @complexity O(1) — fixed-shape field reads, no iteration.
  */
+function isEmptyTokenPatch(raw: unknown): boolean {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return false;
+  const token = (raw as Record<string, unknown>).token;
+  return token === '' || token === undefined;
+}
+function normalizeStoredToken({ value }: { value: unknown }): string {
+  try { return normalizeCredentialToken({ value }); }
+  catch (err) { if (err instanceof CredentialInputError) throw new CustomCredentialValidationError(err.message); throw err; }
+}
+function assertPlainField(required: { value: string; field: string }): void {
+  try { assertCredentialFreeField(required); }
+  catch (err) { if (err instanceof CredentialInputError) throw new CustomCredentialValidationError(err.message); throw err; }
+}
+
 function validateConnection(raw: unknown): CustomProviderConnectionInput {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
     throw new CustomCredentialValidationError("connection must be an object");
   }
   const value = raw as Record<string, unknown>;
-  const token = requireNonEmptyString(value.token, "token");
+  const token = normalizeStoredToken({ value: value.token });
   const username = optionalString(value.username, "username");
+  if (username !== undefined) assertPlainField({ value: username, field: "username" });
   return { token, ...(username !== undefined ? { username } : {}) };
 }
 
@@ -283,7 +310,7 @@ async function sealConnection(
     return await deps.sealer.seal({ plaintext: JSON.stringify(input.connection), key: activeKey, aad });
   } catch (err) {
     throw new CustomCredentialSecretStoreUnconfiguredError(
-      `custom credential secret store is unconfigured: ${err instanceof Error ? err.message : String(err)}`
+      CREDENTIAL_MESSAGES.storage
     );
   }
 }
@@ -349,7 +376,7 @@ export async function createCustomCredential(deps: CustomCredentialWriteDeps, in
     }
     throw err;
   }
-  return toSummary(record);
+  return toSummary(record, deps.sealer);
 }
 
 export interface UpdateCustomCredentialInput {
@@ -471,7 +498,7 @@ async function resolveSealedAndUsername(
   let sealed = existing.sealed;
   let username = existing.username;
 
-  if (input.connection !== undefined) {
+  if (input.connection !== undefined && !isEmptyTokenPatch(input.connection)) {
     const connection = validateConnection(input.connection);
     sealed = await sealConnection(deps, { workspaceId: input.workspaceId, id: input.id, connection });
     username = connection.username;
@@ -479,7 +506,7 @@ async function resolveSealedAndUsername(
 
   if (input.username !== undefined) {
     username = validateUsernamePatch(input.username);
-    if (username === undefined && input.connection === undefined) {
+    if (username === undefined && (input.connection === undefined || isEmptyTokenPatch(input.connection))) {
       const oldConnection = await decryptRecord(deps.sealer, existing);
       sealed = await sealConnection(deps, { workspaceId: input.workspaceId, id: input.id, connection: { token: oldConnection.token } });
     }
@@ -516,7 +543,7 @@ export async function updateCustomCredential(deps: CustomCredentialWriteDeps, in
     }
     throw err;
   }
-  return toSummary(record);
+  return toSummary(record, deps.sealer);
 }
 
 /**
@@ -541,7 +568,7 @@ async function decryptRecord(sealer: SecretSealerPort, record: CustomCredentialS
     return JSON.parse(plaintext) as CustomProviderConnectionInput;
   } catch (err) {
     throw new CustomCredentialSecretStoreUnconfiguredError(
-      `custom credential could not be decrypted (secret store unconfigured, or the stored row is corrupted): ${err instanceof Error ? err.message : String(err)}`
+      CREDENTIAL_MESSAGES.storage
     );
   }
 }

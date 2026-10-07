@@ -1,3 +1,4 @@
+import { CredentialInputError, assertCredentialFreeField, normalizeCredentialToken, assertCredentialToken, CREDENTIAL_MESSAGES, CREDENTIAL_TOKEN_LIMIT, credentialTokenHint, type CredentialTokenHint } from '../contracts/core/credential-token.js';
 // Local federation forks moved to @jini-ai/mcp/federation (+ /stdio, /approvals); see development/DELETED-CODE.md.
 import { createHash } from "node:crypto";
 
@@ -327,6 +328,8 @@ export interface ExternalMcpServerView {
   /** Whether a `static_env` access token is stored. Presence only, decided from plaintext columns —
    *  see {@link externalMcpRecordHasStaticAccessToken}. */
   hasAccessToken: boolean;
+  accessTokenHint?: CredentialTokenHint | null;
+  envTokenHints?: Readonly<Record<string, CredentialTokenHint>>;
   /** For `stdio` + `static_env`: the child env variable that receives that token. A NAME, so plaintext. */
   accessTokenEnvName: string | null;
   oauth: ExternalMcpOAuthView;
@@ -465,8 +468,8 @@ export function readExternalMcpToolGrants(
  *  out purely to keep `parseEnvBlock`'s cognitive complexity under the shop ceiling — `null` means
  *  "skip this line" (blank or `#` comment), matching the original inline `continue`. */
 function parseEnvLine(rawLine: string, index: number): { readonly name: string; readonly value: string } | null {
-  const line = rawLine.trim();
-  if (line === "" || line.startsWith("#")) return null;
+  const line = rawLine;
+  if (line.trim() === "" || line.trimStart().startsWith("#")) return null;
 
   const separator = line.indexOf("=");
   // Validation reaches the model through the human form; never echo the credential block.
@@ -488,6 +491,20 @@ function parseEnvLine(rawLine: string, index: number): { readonly name: string; 
 }
 
 export function parseEnvBlock(text: string): Record<string, string> {
+  // JSON is the lossless representation for multiline values; NAME=VALUE remains compatible.
+  if (text.trimStart().startsWith('{')) {
+    let parsed: unknown;
+    try { parsed = JSON.parse(text); } catch { throw new ExternalMcpValidationError(CREDENTIAL_MESSAGES.env, 'env'); }
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new ExternalMcpValidationError(CREDENTIAL_MESSAGES.env, 'env');
+    const entries = Object.entries(parsed);
+    if (entries.length > MAX_ENV_VARS) throw new ExternalMcpValidationError(`at most ${MAX_ENV_VARS} environment variables are supported`, 'env');
+    for (const [name, value] of entries) {
+      if (!ENV_NAME_PATTERN.test(name) || typeof value !== 'string' || value.includes('\0')) throw new ExternalMcpValidationError(CREDENTIAL_MESSAGES.env, 'env');
+      assertExternalMcpPlainField({ value: name, field: 'env' });
+      if (value.length > CREDENTIAL_TOKEN_LIMIT) throw new ExternalMcpValidationError('The token exceeds the 8192-character limit. Copy only the token.', 'env');
+    }
+    return Object.fromEntries(entries) as Record<string, string>;
+  }
   const env: Record<string, string> = {};
   const lines = text.split(/\r?\n/);
 
@@ -502,6 +519,8 @@ export function parseEnvBlock(text: string): Record<string, string> {
     if (Object.keys(env).length >= MAX_ENV_VARS) {
       throw new ExternalMcpValidationError(`at most ${MAX_ENV_VARS} environment variables are supported`, "env");
     }
+    if (parsed.value.length > CREDENTIAL_TOKEN_LIMIT) throw new ExternalMcpValidationError("The token exceeds the 8192-character limit. Copy only the token.", "env");
+    assertExternalMcpPlainField({ value: parsed.name, field: "env" });
     env[parsed.name] = parsed.value;
   }
 
@@ -702,7 +721,22 @@ export function externalMcpRecordHasStoredToken(
   return resolveExternalMcpOAuthStatus(record) === "connected" || record.oauthExpiresAt !== null;
 }
 
-function toView(record: ExternalMcpServerRecord): ExternalMcpServerView {
+async function toView(record: ExternalMcpServerRecord, sealer?: SecretSealerPort): Promise<ExternalMcpServerView> {
+  const envTokenHints: Record<string, CredentialTokenHint> = {};
+  if (sealer && record.sealedEnv) {
+    const opened = await openExternalMcpEnv(record, sealer);
+    if (opened.ok) for (const [name, value] of Object.entries(opened.env)) {
+      if (typeof value === 'string') envTokenHints[name] = credentialTokenHint({ token: value });
+    }
+  }
+  let accessTokenHint: CredentialTokenHint | null = null;
+  if (sealer && record.sealedOAuth) {
+    try {
+      const payload = await openExternalMcpOAuthPayload(sealer, record);
+      const token = payload.staticAccessToken ?? payload.tokens?.accessToken;
+      if (token) accessTokenHint = credentialTokenHint({ token });
+    } catch { /* A rotated site key must not prevent listing non-secret metadata. */ }
+  }
   return {
     serverId: record.serverId,
     label: record.label ?? record.serverId,
@@ -719,6 +753,8 @@ function toView(record: ExternalMcpServerRecord): ExternalMcpServerView {
     writeGrantsUpdatedAt: record.writeGrantsUpdatedAt,
     envNames: parseJsonArray(record.envNames),
     hasAccessToken: externalMcpRecordHasStaticAccessToken(record),
+    accessTokenHint,
+    ...(Object.keys(envTokenHints).length ? { envTokenHints } : {}),
     accessTokenEnvName: resolveExternalMcpAuthMode(record) === "static_env" ? record.oauthTokenEnvName : null,
     oauth: {
       providerId: record.oauthProviderId,
@@ -734,18 +770,19 @@ function toView(record: ExternalMcpServerRecord): ExternalMcpServerView {
 }
 
 /**
- * Lists the workspace's servers for the admin tab. Never unseals — the tab has no use for env
- * values and must not be a route that decrypts them.
+ * Lists the workspace's servers for the admin tab. The tab has no use for env
+ * values and must not be a route that decrypts them. Token hints alone are now derived by
+ * server-side unsealing, per the owner decision; no secret value is returned.
  *
  * @complexity O(n) in the stored server count.
  * @overallScore 100
  */
 export async function listExternalMcpServerViews(
-  deps: Pick<ExternalMcpStoreDeps, "repo">,
+  deps: Pick<ExternalMcpStoreDeps, "repo"> & Partial<Pick<ExternalMcpStoreDeps, "sealer">>,
   workspaceId: UUID,
 ): Promise<ExternalMcpServerView[]> {
   const records = await deps.repo.listByWorkspaceId(workspaceId);
-  return records.map(toView);
+  return Promise.all(records.map(record => toView(record, deps.sealer)));
 }
 
 /**
@@ -913,6 +950,10 @@ async function resolveHttpTarget(
     headers.authorization = `Bearer ${token.token}`;
   }
 
+  if (headers.authorization !== undefined) {
+    try { assertCredentialToken({ value: headers.authorization.slice('Bearer '.length), hosted: true }); }
+    catch (err) { return externalMcpFailure(record, err instanceof CredentialInputError ? err.message : CREDENTIAL_MESSAGES.ascii); }
+  }
   return { ok: true, target: { kind: "streamable_http", url: record.url, headers } };
 }
 
@@ -1488,7 +1529,7 @@ function resolveOAuthFields(
     oauthClientId: assertOAuthClientId(firstTrimmed(oauth.clientId, existing?.oauthClientId), selfConfigurable),
     oauthScopesJson: JSON.stringify(resolveSavedOAuthScopes(oauth, existing)),
     oauthTokenEnvName: resolveOAuthTokenEnvName(transport, oauth, existing),
-    clientSecret: oauth.clientSecret,
+    clientSecret: oauth.clientSecret === '' ? undefined : oauth.clientSecret === undefined ? undefined : normalizeOAuthClientSecret({ value: oauth.clientSecret }),
   };
 }
 
@@ -1564,7 +1605,7 @@ async function sealFreshExternalMcpEnv(
     return { sealedEnv, envNames, aadVersion: EXTERNAL_MCP_AAD_VERSION };
   } catch (err) {
     throw new ExternalMcpSecretStoreUnconfiguredError(
-      `external MCP credential secret store is unconfigured: ${err instanceof Error ? err.message : String(err)}`,
+      CREDENTIAL_MESSAGES.storage,
     );
   }
 }
@@ -1575,7 +1616,9 @@ async function resolveExternalMcpSealedEnv(
   rawEnv: string | undefined,
   existing: ExternalMcpServerRecord | null,
 ): Promise<{ readonly sealedEnv: SealedSecret | null; readonly envNames: string[]; readonly aadVersion: number }> {
-  return rawEnv === undefined
+  // Owner 2026-10-07: an exact blank update keeps credentials; whitespace cannot clear them.
+  if (rawEnv !== undefined && rawEnv !== '' && rawEnv.trim() === '') throw new ExternalMcpValidationError(CREDENTIAL_MESSAGES.blank, 'env');
+  return rawEnv === undefined || rawEnv === ''
     ? carryForwardExternalMcpSealedEnv(existing)
     : sealFreshExternalMcpEnv(deps, identity, rawEnv);
 }
@@ -1603,8 +1646,9 @@ function assertSafeRemoteMcpUrl(rawUrl: string, transport: ExternalMcpTransport)
   try {
     parsed = new URL(url);
   } catch {
-    throw new ExternalMcpValidationError(`'${url}' is not a valid absolute URL`, "url");
+    throw new ExternalMcpValidationError(CREDENTIAL_MESSAGES.url, "url");
   }
+  assertExternalMcpPlainField({ value: url, field: "url" });
   const loopback = LOOPBACK_HOSTNAMES.has(parsed.hostname.toLowerCase());
   if (parsed.protocol !== "https:" && !(parsed.protocol === "http:" && loopback)) {
     throw new ExternalMcpValidationError("a remote MCP server URL must use https (http is permitted only for loopback)", "url");
@@ -1746,7 +1790,7 @@ export async function openExternalMcpOAuthPayload(
     );
   } catch (err) {
     throw new ExternalMcpSecretStoreUnconfiguredError(
-      `stored OAuth credentials could not be decrypted: ${err instanceof Error ? err.message : String(err)}`,
+      "Stored OAuth credentials could not be decrypted.",
     );
   }
   // Deliberately OUTSIDE the catch above: a version mismatch is not a decryption failure, and must
@@ -1798,7 +1842,7 @@ export async function sealExternalMcpOAuthPayload(
     return { sealedOAuth, oauthAadVersion: EXTERNAL_MCP_AAD_VERSION };
   } catch (err) {
     throw new ExternalMcpSecretStoreUnconfiguredError(
-      `external MCP credential secret store is unconfigured: ${err instanceof Error ? err.message : String(err)}`,
+      CREDENTIAL_MESSAGES.storage,
     );
   }
 }
@@ -1867,26 +1911,20 @@ function resolveWriteGrantAttribution(
   return { writeGrantsUpdatedByPrincipalId: input.principalId, writeGrantsUpdatedAt: nowIso };
 }
 
-/** Generous: a JWT-shaped key can run to a few kilobytes. The cap exists so a pasted file cannot become a row. */
-const MAX_STATIC_ACCESS_TOKEN_LENGTH = 8192;
-/** C0 controls and DEL. A token carrying CR/LF would split the `Authorization` header it is sent in. */
-const CONTROL_CHARACTER_PATTERN = /[\u0000-\u001f\u007f]/;
+/** Tovu error adapter for the shared token policy. The store alone normalizes the value. */
+function normalizeOAuthClientSecret({ value }: { value: string }): string {
+  try { return normalizeCredentialToken({ value, field: 'oauth.clientSecret' }); }
+  catch (err) { if (err instanceof CredentialInputError) throw new ExternalMcpValidationError(err.message, err.field); throw err; }
+}
 
-/**
- * Validates an operator-pasted access token.
- *
- * @throws {ExternalMcpValidationError} On an oversized token, or one carrying a control character —
- *   which for a hosted row would be header injection, not a typo.
- * @complexity O(n) in the token length.
- */
-function assertValidStaticAccessToken(token: string): string {
-  if (token.length > MAX_STATIC_ACCESS_TOKEN_LENGTH) {
-    throw new ExternalMcpValidationError(`the access token may be at most ${MAX_STATIC_ACCESS_TOKEN_LENGTH} characters`, "accessToken");
+export function normalizeExternalMcpAccessToken(
+  { value, transport }: { value: unknown; transport: string }, _optional = {},
+): string {
+  try { return normalizeCredentialToken({ value, field: 'accessToken', hosted: transport !== 'stdio' }); }
+  catch (err) {
+    if (err instanceof CredentialInputError) throw new ExternalMcpValidationError(err.message, err.field);
+    throw err;
   }
-  if (CONTROL_CHARACTER_PATTERN.test(token)) {
-    throw new ExternalMcpValidationError("the access token must not contain line breaks or other control characters", "accessToken");
-  }
-  return token;
 }
 
 /**
@@ -1906,16 +1944,16 @@ async function resolveSealedStaticAccessToken(
   identity: ExternalMcpAadIdentity,
   rawToken: string | undefined,
   existing: ExternalMcpServerRecord | null,
+  transport: ExternalMcpTransport,
 ): Promise<SealedExternalMcpOAuth> {
   const none: SealedExternalMcpOAuth = { sealedOAuth: null, oauthAadVersion: EXTERNAL_MCP_AAD_VERSION };
-  if (rawToken === undefined) {
+  if (rawToken === undefined || rawToken === "") {
     return existing !== null && externalMcpRecordHasStaticAccessToken(existing)
       ? { sealedOAuth: existing.sealedOAuth, oauthAadVersion: existing.oauthAadVersion }
       : none;
   }
-  const token = rawToken.trim();
-  if (token === "") return none;
-  return sealExternalMcpOAuthPayload(deps, identity, { staticAccessToken: assertValidStaticAccessToken(token) });
+  const token = normalizeExternalMcpAccessToken({ value: rawToken, transport });
+  return sealExternalMcpOAuthPayload(deps, identity, { staticAccessToken: token });
 }
 
 /**
@@ -1974,14 +2012,31 @@ async function resolveSavedCredentialColumns(
     const sealed = await resolveSealedOAuthBlob(deps, identity, oauthFields.clientSecret, keepToken ? existing : null);
     return { ...sealed, oauthTokenEnvName: oauthFields.oauthTokenEnvName };
   }
-  const sealed = await resolveSealedStaticAccessToken(deps, identity, input.accessToken, existing);
+  const sealed = await resolveSealedStaticAccessToken(deps, identity, input.accessToken, existing, transport);
+  if (transport !== "stdio" && sealed.sealedOAuth === null) {
+    throw new ExternalMcpValidationError("Enter a token. Spaces alone are not a token.", "accessToken");
+  }
   return { ...sealed, oauthTokenEnvName: resolveStaticAccessTokenEnvName(transport, input, existing, sealed.sealedOAuth !== null) };
+}
+
+function assertExternalMcpPlainField(required: { value: string; field: string }): void {
+  try { assertCredentialFreeField(required); }
+  catch (err) {
+    if (err instanceof CredentialInputError) throw new ExternalMcpValidationError(err.message, err.field);
+    throw err;
+  }
 }
 
 export async function saveExternalMcpServer(
   deps: ExternalMcpStoreDeps,
   input: SaveExternalMcpServerInput,
 ): Promise<ExternalMcpServerView> {
+  for (const field of ["serverId", "label", "command", "args", "url", "transport", "authMode", "accessTokenEnvName"] as const) {
+    assertExternalMcpPlainField({ value: input[field] ?? "", field });
+  }
+  for (const [field, value] of Object.entries(input.oauth ?? {})) {
+    if (field !== 'clientSecret' && typeof value === 'string') assertExternalMcpPlainField({ value, field: `oauth.${field}` });
+  }
   const serverId = input.serverId.trim().toLowerCase();
   assertValidExternalMcpServerId(serverId);
   assertSupportedExternalMcpTransport(input.transport);
@@ -2047,7 +2102,7 @@ export async function saveExternalMcpServer(
     updatedAt: now,
   };
   await deps.repo.upsert(record);
-  return toView(record);
+  return toView(record, deps.sealer);
 }
 
 /**

@@ -27,7 +27,7 @@ function makeDeps() {
 
 test("a first key for a provider is saved and reported configured, with no model or baseUrl", async () => {
   const { repo, deps } = makeDeps();
-  assert.deepEqual(await saveMediaProviderKey({ deps, workspaceId: WS, provider: "openai", apiKey: "sk-first-abcd1234" }), { configured: true });
+  assert.deepEqual(await saveMediaProviderKey({ deps, workspaceId: WS, provider: "openai", apiKey: "sk-first-abcd1234" }), { configured: true, tokenHint: { length: 17, last4: "1234" } });
   const [row] = await repo.listByWorkspaceId(WS);
   assert.equal(row!.providerId, "openai");
   assert.equal(row!.baseUrl, null);
@@ -41,7 +41,7 @@ test("saving one provider's key keeps its model/baseUrl and leaves every other p
     fal: { apiKey: "fal-key-wxyz9876" },
   } });
   const before = await getMediaProviderCredentials(deps, { workspaceId: WS });
-  assert.deepEqual(await saveMediaProviderKey({ deps, workspaceId: WS, provider: "openai", apiKey: "sk-new-efgh5678" }), { configured: true });
+  assert.deepEqual(await saveMediaProviderKey({ deps, workspaceId: WS, provider: "openai", apiKey: "sk-new-efgh5678" }), { configured: true, tokenHint: { length: 15, last4: "5678" } });
   const after = await getMediaProviderCredentials(deps, { workspaceId: WS });
   assert.equal(after.openai!.baseUrl, "https://proxy.example.test/v1");
   assert.equal(after.openai!.model, "gpt-image-1");

@@ -621,3 +621,34 @@ test("credential CRUD and default resolution isolate workspaces and leave the ow
   assert.deepEqual(await deps.repo.findById({ workspaceId: WORKSPACE, id: created.id }), before);
   assert.deepEqual((await resolveDefaultForSourceControl(deps, { workspaceId: WORKSPACE, providerId: "github" }))?.connection, { providerId: "github", token: "owner-secret" });
 });
+
+for (const status of [401, 403]) test(`save-time probe reports ${status} as authentication failure after saving`, async () => {
+  const deps = makeDeps({ fetchFn: fetchReturningJson(status, { message: 'untrusted provider text' }) });
+  const saved = await createSourceControlCredential(deps, { workspaceId: WORKSPACE, label: 'auth-check', connection: { providerId: 'github', token: 'fixture-credential-a9F2' } });
+  assert.equal(saved.connection, 'auth');
+  assert.deepEqual(saved.tokenHint, { length: 23, last4: 'a9F2' });
+  assert.equal((await resolveDefaultForSourceControl(deps, { workspaceId: WORKSPACE, providerId: 'github' }))?.connection.token === 'fixture-credential-a9F2', true, 'rejection does not undo the save');
+});
+
+test('a pending old probe cannot overwrite a newer token rotation or label', async () => {
+  const repo = new InMemorySourceControlCredentialSetRepo();
+  let rotated = false;
+  let deps: SourceControlCredentialWriteDeps;
+  const fetchFn = (async () => {
+    const [row] = await repo.listByWorkspace({ workspaceId: WORKSPACE });
+    assert.equal(Boolean(row), true, 'the token is saved before probing');
+    await updateSourceControlCredential({ ...deps, loadSourceControlProviders: noProviders }, {
+      workspaceId: WORKSPACE, id: row!.id, label: 'renamed',
+      connection: { providerId: 'github', token: 'replacement-credential-b8G3' },
+    });
+    rotated = true;
+    return new Response(JSON.stringify({ login: 'old-account' }), { status: 200 });
+  }) as typeof fetch;
+  deps = makeDeps({ repo, fetchFn });
+  const saved = await createSourceControlCredential(deps, { workspaceId: WORKSPACE, label: 'original', connection: { providerId: 'github', token: 'original-credential-a9F2' } });
+  assert.equal(rotated, true);
+  const current = await repo.findById({ workspaceId: WORKSPACE, id: saved.id });
+  assert.equal(current?.label, 'renamed');
+  assert.equal(current?.accountLabel, null, 'the old account label cannot attach to a new token');
+  assert.equal((await resolveDefaultForSourceControl(deps, { workspaceId: WORKSPACE, providerId: 'github' }))?.connection.token === 'replacement-credential-b8G3', true);
+});

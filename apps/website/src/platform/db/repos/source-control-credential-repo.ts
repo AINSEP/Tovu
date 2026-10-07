@@ -176,15 +176,21 @@ export class SqlSourceControlCredentialSetRepo implements SourceControlCredentia
    *  doc for why this must never be `update()`'s full-row replace. No-op (not an error) if the row
    *  vanished — matches this same class's `delete()` idempotent posture; a raw `UPDATE ... WHERE`
    *  simply affects zero rows in that case, so no existence check is needed first. */
-  async updateAccountLabel(input: { workspaceId: UUID; id: UUID; accountLabel: string }): Promise<void> {
-    await this.kernel.run((db) =>
-      db
+  async updateAccountLabel(input: { workspaceId: UUID; id: UUID; accountLabel: string; expectedSealed?: SourceControlCredentialSetRecord['sealed'] }, _optional = {}): Promise<void> {
+    await this.kernel.run((db) => {
+      let query = db
         .updateTable("source_control_credential_sets")
         .set({ account_label: input.accountLabel })
         .where("workspace_id", "=", input.workspaceId)
-        .where("id", "=", input.id)
-        .execute()
-    );
+        .where("id", "=", input.id);
+      // Match the saved ciphertext atomically: a completed old probe cannot heal a new rotation.
+      if (input.expectedSealed) query = query
+        .where("sealed_ciphertext", "=", input.expectedSealed.ciphertext)
+        .where("sealed_nonce", "=", input.expectedSealed.nonce)
+        .where("sealed_key_id", "=", input.expectedSealed.keyId)
+        .where("sealed_alg", "=", input.expectedSealed.alg);
+      return query.execute();
+    });
   }
 
   /** One transaction holding the workspace's source-control-credential lock (see the file header). */

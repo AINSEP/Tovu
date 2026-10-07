@@ -1,3 +1,5 @@
+import { assertCredentialToken, CredentialInputError } from '../../../contracts/core/credential-token.js';
+import { credentialText } from '../../../contracts/core/credential-copy.js';
 import type { UUID } from "@jini-ai/core/primitives";
 import type { ObservabilityPort } from "#src/platform/observability/index";
 
@@ -73,6 +75,8 @@ function statusCodeSuffix(statusCode: number | undefined): string {
  *  request/account detail beyond a bare HTTP status. */
 function buildVerificationMessage(label: string, check: DeployCredentialCheck): string {
   if (check.ok) return `${label} accepted this credential.`;
+  if (check.statusCode === 401 || check.statusCode === 403) return credentialText({ id: "auth" });
+  if (check.statusCode === 408 || check.statusCode === 504) return credentialText({ id: "timeout" });
   if (check.reason === "rejected") {
     return `${label} rejected this credential${statusCodeSuffix(check.statusCode)} — it is invalid, expired, or missing the required permissions.`;
   }
@@ -184,13 +188,21 @@ async function computeVerificationResult(
 ): Promise<PublishCredentialVerificationResult> {
   const loaded = context.registry.get(target);
   if (loaded?.module.verifyCredential === undefined) return cannotVerify(noCheckReason(target), context.clock);
+  try {
+    assertCredentialToken({ value: credential.token });
+    for (const field of loaded.descriptor.credential?.fields ?? []) {
+      if (field.secret && field.name !== loaded.descriptor.credential?.tokenField && credential[field.name] !== undefined) assertCredentialToken({ value: credential[field.name], field: field.name });
+    }
+  } catch (error) {
+    return { status: "invalid", message: error instanceof CredentialInputError ? error.message : credentialText({ id: "unreachable" }), checkedAt: context.clock.nowIso() };
+  }
   let check: DeployCredentialCheck;
   try {
     check = await loaded.module.verifyCredential({ credential, kit: context.kit });
   } catch {
     check = { ok: false, reason: "unreachable" };
   }
-  const status = check.ok ? "valid" : check.reason === "rejected" ? "invalid" : "unreachable";
+  const status = check.ok ? "valid" : check.reason === "rejected" || check.statusCode === 401 || check.statusCode === 403 ? "invalid" : "unreachable";
   return {
     status,
     message: buildVerificationMessage(loaded.descriptor.credential?.vendorLabel ?? loaded.descriptor.label, check),

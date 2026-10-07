@@ -1,3 +1,4 @@
+import type { CredentialTokenHint } from "@/lib/credential-copy";
 import {
   ApiError,
   type AdminCustomConnectionInput,
@@ -387,6 +388,7 @@ function friendlyLegacyName(providerLabel: string, indexAmongLegacyRows: number)
  *  already share field-for-field except `providerId`'s literal union — the common subset this file
  *  operates on so {@link buildAccessTokenRows} needs only one implementation for both stores. */
 export interface RawCredentialSummary {
+  readonly tokenHint?: CredentialTokenHint | null;
   readonly id: string;
   readonly providerId: string;
   readonly label: string;
@@ -401,6 +403,7 @@ export interface RawCredentialSummary {
  *  `rawLabel` is kept alongside it so a genuine uniqueness check can compare against what the server
  *  actually has stored rather than only against display names. */
 export interface AccessTokenRow {
+  readonly tokenHint?: CredentialTokenHint | null;
   readonly kind: AccessTokenKind;
   readonly providerId: string;
   readonly id: string;
@@ -448,7 +451,7 @@ export function buildAccessTokenRows(
       legacyIndexByProvider.set(raw.providerId, index + 1);
       name = friendlyLegacyName(accessTokenProviderInfo(providers, { kind, providerId: raw.providerId }).label, index);
     }
-    return { kind, providerId: raw.providerId, id: raw.id, name, rawLabel: raw.label, isDefault: raw.isDefault, createdAt: raw.createdAt, updatedAt: raw.updatedAt };
+    return { kind, providerId: raw.providerId, id: raw.id, ...(raw.tokenHint ? { tokenHint: raw.tokenHint } : {}), name, rawLabel: raw.label, isDefault: raw.isDefault, createdAt: raw.createdAt, updatedAt: raw.updatedAt };
   });
 }
 
@@ -456,6 +459,7 @@ export function buildAccessTokenRows(
  *  structural subset (like {@link RawCredentialSummary}) so this file's pure functions stay
  *  independently testable without importing the API client's own type for its own sake. */
 export interface RawCustomCredentialSummary {
+  readonly tokenHint?: CredentialTokenHint | null;
   readonly id: string;
   readonly label: string;
   readonly category: AccessTokenRowCategoryId;
@@ -479,6 +483,7 @@ export interface RawCustomCredentialSummary {
 export function buildCustomCredentialRows(raws: readonly RawCustomCredentialSummary[]): AccessTokenRow[] {
   return raws.map((raw) => ({
     kind: "custom",
+    ...(raw.tokenHint ? { tokenHint: raw.tokenHint } : {}),
     providerId: raw.id,
     id: raw.id,
     name: raw.label,

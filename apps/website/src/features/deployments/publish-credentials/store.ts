@@ -1,3 +1,4 @@
+import { CredentialInputError, CREDENTIAL_MESSAGES, assertCredentialFreeField, normalizeCredentialToken, credentialTokenHint, type CredentialTokenHint } from '../../../contracts/core/credential-token.js';
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import type { Clock as ClockPort, ISODateTime, UUID } from "@jini-ai/core/primitives";
 
@@ -103,7 +104,18 @@ function hostsByVendor(registry: DeployTargetRegistry): Map<string, PublishProvi
   return hosts;
 }
 
-function toSummary(record: VendorCredentialSetRecord, providerId: PublishProviderId): PublishCredentialSummary {
+/** Owner 2026-10-07 amendment to historical never-decrypt comments: optional server-side
+ * unsealing derives only the safe length/tail hint. A failed open leaves metadata readable. */
+async function toSummary(record: VendorCredentialSetRecord, providerId: PublishProviderId, deps: PublishCredentialReadDeps): Promise<PublishCredentialSummary> {
+  let tokenHint: CredentialTokenHint | null = null;
+  if (deps.sealer) {
+    try {
+      const spec = (await deps.loadDeployTargets(record.workspaceId)).get(providerId)?.descriptor.credential;
+      const connection = await decryptRecord(deps.sealer, record, providerId);
+      const token = spec ? connection[spec.tokenField] : undefined;
+      if (typeof token === 'string') tokenHint = credentialTokenHint({ token });
+    } catch { /* Do not let an unreadable secret hide the row. */ }
+  }
   return {
     id: record.id,
     providerId,
@@ -111,7 +123,8 @@ function toSummary(record: VendorCredentialSetRecord, providerId: PublishProvide
     label: record.label,
     configured: true,
     isDefault: record.isDefault,
-    tokenTail: record.tokenTail,
+    tokenTail: tokenHint?.last4 ?? "",
+    tokenHint,
     accountLabel: record.accountLabel,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
@@ -120,6 +133,7 @@ function toSummary(record: VendorCredentialSetRecord, providerId: PublishProvide
 
 export interface PublishCredentialReadDeps {
   repo: VendorCredentialSetRepoPort;
+  sealer?: SecretSealerPort;
   /** This workspace's deploy registry: which vendor each host's credential belongs to. */
   loadDeployTargets(workspaceId: string): Promise<DeployTargetRegistry>;
 }
@@ -135,7 +149,7 @@ export async function describeCredential(deps: PublishCredentialReadDeps, input:
   const record = await deps.repo.findById(input);
   if (!record) return null;
   const providerId = hostsByVendor(await deps.loadDeployTargets(input.workspaceId)).get(record.vendorId);
-  return providerId === undefined ? null : toSummary(record, providerId);
+  return providerId === undefined ? null : toSummary(record, providerId, deps);
 }
 
 /**
@@ -148,10 +162,10 @@ export async function describeCredential(deps: PublishCredentialReadDeps, input:
 export async function listPublishCredentials(deps: PublishCredentialReadDeps, input: { workspaceId: UUID }): Promise<PublishCredentialSummary[]> {
   const hosts = hostsByVendor(await deps.loadDeployTargets(input.workspaceId));
   const records = await deps.repo.listByWorkspace(input);
-  return records.flatMap((record) => {
+  return Promise.all(records.flatMap(record => {
     const providerId = hosts.get(record.vendorId);
-    return providerId === undefined ? [] : [toSummary(record, providerId)];
-  });
+    return providerId === undefined ? [] : [toSummary(record, providerId, deps)];
+  }));
 }
 
 /**
@@ -182,6 +196,7 @@ function validateLabel(raw: unknown): string {
   if (raw.length > MAX_LABEL_LENGTH) {
     throw new PublishCredentialValidationError(`label must be ${MAX_LABEL_LENGTH} characters or fewer`);
   }
+  assertPlainField({ value: raw, field: "label" });
   return raw;
 }
 
@@ -238,6 +253,15 @@ interface ValidatedConnection {
  *
  * @complexity O(t + f): one pass over the registry's targets (for the error text), one over the fields.
  */
+function normalizeSecret(required: { value: unknown; field: string }): string {
+  try { return normalizeCredentialToken(required); }
+  catch (err) { if (err instanceof CredentialInputError) throw new PublishCredentialValidationError(err.message); throw err; }
+}
+function assertPlainField(required: { value: string; field: string }): void {
+  try { assertCredentialFreeField(required); }
+  catch (err) { if (err instanceof CredentialInputError) throw new PublishCredentialValidationError(err.message); throw err; }
+}
+
 function validateConnection(raw: unknown, registry: DeployTargetRegistry): ValidatedConnection {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
     throw new PublishCredentialValidationError("connection must be an object");
@@ -252,12 +276,17 @@ function validateConnection(raw: unknown, registry: DeployTargetRegistry): Valid
 
   const fields: Record<string, string> = {};
   for (const field of spec.fields.filter((candidate) => candidate.required)) {
-    fields[field.name] = requireNonEmptyString(value[field.name], field.name, providerId);
+    const secret = field.secret || field.name === spec.tokenField;
+    fields[field.name] = secret ? normalizeSecret({ value: value[field.name], field: field.name }) : requireNonEmptyString(value[field.name], field.name, providerId);
+    if (!secret) assertPlainField({ value: fields[field.name]!, field: field.name });
   }
   for (const field of spec.fields.filter((candidate) => !candidate.required)) {
-    const optional = optionalString(value[field.name], field.name);
+    const secret = field.secret || field.name === spec.tokenField;
+    const optional = secret && value[field.name] !== undefined ? normalizeSecret({ value: value[field.name], field: field.name }) : optionalString(value[field.name], field.name);
+    if (!secret && optional !== undefined) assertPlainField({ value: optional, field: field.name });
     if (optional !== undefined) fields[field.name] = optional;
   }
+  if (fields[spec.tokenField] === undefined) normalizeSecret({ value: undefined, field: spec.tokenField });
   return { connection: { providerId, ...fields }, spec };
 }
 
@@ -280,10 +309,10 @@ async function sealConnection(deps: PublishCredentialWriteDeps, input: { workspa
     const activeKey = await deps.keyring.activeKey();
     const aad = buildVendorCredentialAad({ workspaceId: input.workspaceId, vendorId, id: input.id });
     const sealed = await deps.sealer.seal({ plaintext: JSON.stringify({ vendorId, ...fields }), key: activeKey, aad });
-    return { vendorId, sealed, tokenTail: (fields[input.validated.spec.tokenField] ?? "").slice(-4) };
+    return { vendorId, sealed, tokenTail: credentialTokenHint({ token: fields[input.validated.spec.tokenField] ?? "" }).last4 ?? "" };
   } catch (err) {
     throw new PublishCredentialSecretStoreUnconfiguredError(
-      `publish credential secret store is unconfigured: ${err instanceof Error ? err.message : String(err)}`
+      CREDENTIAL_MESSAGES.storage
     );
   }
 }
@@ -365,7 +394,7 @@ export async function createPublishCredential(deps: PublishCredentialWriteDeps, 
   };
 
   await writeTranslatingDuplicateLabel(() => deps.repo.insert(record), validated.connection.providerId, label);
-  return toSummary(record, validated.connection.providerId);
+  return toSummary(record, validated.connection.providerId, deps);
 }
 
 export interface UpdatePublishCredentialInput {
@@ -402,7 +431,21 @@ async function resolveUpdatedConnectionSecrets(
     const { vendorId, sealed, tokenTail, accountLabel } = existing.record;
     return { vendorId, sealed, tokenTail, accountLabel, providerId: existing.host };
   }
-  const validated = validateConnection(input.connection, registry);
+  let raw = input.connection;
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    const values = raw as Record<string, unknown>;
+    const providerId = values.providerId;
+    const spec = typeof providerId === 'string' ? registry.get(providerId)?.descriptor.credential : undefined;
+    if (spec?.vendorId === existing.record.vendorId && spec.fields.some(field => (field.secret || field.name === spec.tokenField) && (values[field.name] === '' || values[field.name] === undefined))) {
+      const stored = await decryptRecord(deps.sealer, existing.record, existing.host);
+      const merged = { ...stored, ...values };
+      for (const field of spec.fields.filter(field => field.secret || field.name === spec.tokenField)) {
+        if (values[field.name] === '' || values[field.name] === undefined) merged[field.name] = stored[field.name];
+      }
+      raw = merged;
+    }
+  }
+  const validated = validateConnection(raw, registry);
   const resealed = await sealConnection(deps, { workspaceId: input.workspaceId, id: input.id, validated });
   return { ...resealed, accountLabel: null, providerId: validated.connection.providerId };
 }
@@ -479,7 +522,7 @@ export async function updatePublishCredential(deps: PublishCredentialWriteDeps, 
   await writeTranslatingDuplicateLabel(() => deps.repo.update(record), providerId, label);
   await promoteReplacementDefaultInOldGroup(deps, { workspaceId: input.workspaceId, vendorChanged, wasDefault: existing.isDefault, oldVendorId: existing.vendorId });
 
-  return toSummary(record, providerId);
+  return toSummary(record, providerId, deps);
 }
 
 /**
@@ -512,7 +555,7 @@ async function decryptRecord(sealer: SecretSealerPort, record: VendorCredentialS
     return { ...fields, providerId };
   } catch (err) {
     throw new PublishCredentialSecretStoreUnconfiguredError(
-      `publish credential could not be decrypted (secret store unconfigured, or the stored row is corrupted): ${err instanceof Error ? err.message : String(err)}`
+      CREDENTIAL_MESSAGES.storage
     );
   }
 }

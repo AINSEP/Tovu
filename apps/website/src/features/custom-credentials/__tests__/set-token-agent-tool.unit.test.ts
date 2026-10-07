@@ -281,6 +281,8 @@ test("a token submitted through the delivery route never enters the durable tool
 test("with no emitSurface, the call is refused outright with the exact fail-closed message — no exchange, no decrypt, no seal", async () => {
   const { deps, sealer, writeDeps } = fakeRouteDeps();
   await seedNameCom(writeDeps);
+  sealer.openCalls = 0; // exclude the seed's server-derived token hint from handler activity
+  sealer.sealCalls = 0;
   const surfaceExchanges = createSurfaceExchangeStore();
   const setTokenTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
@@ -298,6 +300,7 @@ test("with no emitSurface, the call is refused outright with the exact fail-clos
   );
   assert.equal(surfaceExchanges.size(), 0, "no emit seam means no exchange was ever opened");
   assert.equal(sealer.openCalls, 0);
+  assert.equal(sealer.sealCalls, 0);
 });
 
 // ---------------------------------------------------------------------------
@@ -307,12 +310,15 @@ test("with no emitSurface, the call is refused outright with the exact fail-clos
 test("a denied principal never even sees the form, and nothing decrypts", async () => {
   const { deps, sealer, authorizeCalls, writeDeps } = fakeRouteDeps({ allow: false });
   await seedNameCom(writeDeps);
+  sealer.openCalls = 0; // exclude the seed's server-derived token hint from handler activity
+  sealer.sealCalls = 0;
   const surfaceExchanges = createSurfaceExchangeStore();
   const setTokenTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
   await assert.rejects(() => call(setTokenTool), /is not authorized for 'custom-credentials\.write'/);
   assert.equal(surfaceExchanges.size(), 0, "a denied principal must never get a form opened for them");
   assert.equal(sealer.openCalls, 0);
+  assert.equal(sealer.sealCalls, 0);
   assert.equal(authorizeCalls[0]?.permission, "custom-credentials.write");
 });
 
@@ -428,7 +434,7 @@ test("submit: a username changed OUT-OF-BAND while the form was open survives a 
   );
 });
 
-test("submit: a blank token is refused as invalid, and nothing is written or re-sealed", async () => {
+test("submit: a whitespace-only token is refused as invalid, and nothing is written or re-sealed", async () => {
   const { deps, sealer, writeDeps } = fakeRouteDeps();
   await seedNameCom(writeDeps);
   sealer.sealCalls = 0;
@@ -439,9 +445,28 @@ test("submit: a blank token is refused as invalid, and nothing is written or re-
   surfaceExchanges.deliver({ exchangeId, toolId: TOOL_ID, principalId: PRINCIPAL_ID, params: { token: "   " } });
 
   const result = await pending;
-  assert.deepEqual(result, { saved: false, reason: "invalid", message: "Token cannot be blank. Nothing was saved." });
+  assert.deepEqual(result, { saved: false, reason: "invalid", message: "Enter a token. Spaces alone are not a token." });
   assert.equal(sealer.sealCalls, 0, "a blank submission must never re-seal anything");
   assert.equal(emitted.length, 2, "an invalid submission still sends a correcting outcome emission");
+});
+
+test("submit: an exactly empty token keeps the stored token without re-sealing", async () => {
+  const { deps, repo, sealer, writeDeps } = fakeRouteDeps();
+  const seeded = await seedNameCom(writeDeps);
+  const before = await repo.findById({ workspaceId: WORKSPACE_ID, id: seeded.id });
+  assert.ok(before);
+  sealer.sealCalls = 0;
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const setTokenTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
+
+  const { pending, exchangeId } = await raiseForm(setTokenTool);
+  surfaceExchanges.deliver({ exchangeId, toolId: TOOL_ID, principalId: PRINCIPAL_ID, params: { token: "" } });
+
+  assert.deepEqual(await pending, { saved: true });
+  assert.equal(sealer.sealCalls, 0, "keeping the token must not re-seal it");
+  const after = await repo.findById({ workspaceId: WORKSPACE_ID, id: seeded.id });
+  assert.ok(after);
+  assert.deepEqual(after.sealed, before.sealed, "an empty update must preserve the ciphertext byte-for-byte");
 });
 
 test("cancel: a dismissed form saves nothing, never seals, and sends no outcome emission", async () => {

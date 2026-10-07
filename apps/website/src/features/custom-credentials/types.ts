@@ -1,3 +1,4 @@
+import type { CredentialTokenHint } from '../../contracts/core/credential-token.js';
 import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
 
 import type { SealedSecret } from "@jini-ai/platform/secrets";
@@ -69,6 +70,7 @@ export interface CustomCredentialSetRecord {
  *  secret when it moved onto its own plaintext column, and the whole point of moving it was that
  *  the read model can return it without the sealer being opened. */
 export interface CustomCredentialSummary {
+  readonly tokenHint?: CredentialTokenHint | null;
   readonly id: UUID;
   readonly label: string;
   readonly category: CustomCredentialCategoryId;

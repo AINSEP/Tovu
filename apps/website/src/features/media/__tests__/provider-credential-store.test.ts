@@ -54,7 +54,7 @@ test("save stores a key and returns markers only, never the key", async () => {
 
   const saved = await saveMediaProviderCredentials(deps, {
     workspaceId: WORKSPACE,
-    providers: { openai: { apiKey: "sk-test-abcd1234", baseUrl: "https://api.openai.com/v1", model: "dall-e-3" } },
+    providers: { openai: { apiKey: " \tsk-test-abcd1234\n ", baseUrl: "https://api.openai.com/v1", model: "dall-e-3" } },
   });
 
   assert.deepEqual(saved, {
@@ -63,9 +63,12 @@ test("save stores a key and returns markers only, never the key", async () => {
       model: "dall-e-3",
       apiKeyConfigured: true,
       apiKeyTail: "1234",
+      apiKeyHint: { length: 16, last4: "1234" },
     },
   });
   assert.equal(JSON.stringify(saved).includes("sk-test-abcd1234"), false);
+  const resolved = await resolveMediaProviderCredential(deps, { workspaceId: WORKSPACE, providerId: "openai" });
+  assert.equal(resolved?.apiKey === "sk-test-abcd1234", true, "only the entered key edges may be trimmed");
 });
 
 test("the stored value round-trips through a fresh read", async () => {
@@ -75,10 +78,14 @@ test("the stored value round-trips through a fresh read", async () => {
     providers: { grok: { apiKey: "xai-key-wxyz", baseUrl: "https://api.x.ai/v1" } },
   });
 
-  const read = await getMediaProviderCredentials({ repo: deps.repo }, { workspaceId: WORKSPACE });
+  const read = await getMediaProviderCredentials(deps, { workspaceId: WORKSPACE });
 
   assert.deepEqual(read, {
-    grok: { baseUrl: "https://api.x.ai/v1", apiKeyConfigured: true, apiKeyTail: "wxyz" },
+    grok: { baseUrl: "https://api.x.ai/v1", apiKeyConfigured: true, apiKeyTail: "wxyz", apiKeyHint: { length: 12, last4: "wxyz" } },
+  });
+  // Without server-side unsealing, the legacy stored tail cannot establish a safe hint.
+  assert.deepEqual(await getMediaProviderCredentials({ repo: deps.repo }, { workspaceId: WORKSPACE }), {
+    grok: { baseUrl: "https://api.x.ai/v1", apiKeyConfigured: true },
   });
 });
 
@@ -127,22 +134,31 @@ test("a blank apiKey is treated as absent, not as a clear", async () => {
 
   const saved = await saveMediaProviderCredentials(deps, {
     workspaceId: WORKSPACE,
-    providers: { openai: { apiKey: "   " } },
+    providers: { openai: { apiKey: "" } },
   });
 
   assert.equal(saved.openai?.apiKeyConfigured, true);
   assert.equal(saved.openai?.apiKeyTail, "7777");
+  const before = await deps.repo.listByWorkspaceId(WORKSPACE);
+  await assert.rejects(saveMediaProviderCredentials(deps, {
+    workspaceId: WORKSPACE, providers: { openai: { apiKey: "   " } },
+  }), { name: "Error", message: "Enter a token. Spaces alone are not a token." });
+  assert.deepEqual(await deps.repo.listByWorkspaceId(WORKSPACE), before);
 });
 
-test("a provider with no key at all is stored without markers", async () => {
-  const { deps } = makeDeps();
-
-  const saved = await saveMediaProviderCredentials(deps, {
-    workspaceId: WORKSPACE,
-    providers: { openai: { baseUrl: "https://proxy.example.com/v1" } },
+test("a provider create with an absent or blank key fails without changing stored providers", async () => {
+  const { repo, deps } = makeDeps();
+  await saveMediaProviderCredentials(deps, {
+    workspaceId: WORKSPACE, providers: { grok: { apiKey: "xai-existing-1234" } },
   });
-
-  assert.deepEqual(saved, { openai: { baseUrl: "https://proxy.example.com/v1" } });
+  const before = await repo.listByWorkspaceId(WORKSPACE);
+  for (const apiKey of [undefined, "", "   "]) {
+    await assert.rejects(saveMediaProviderCredentials(deps, {
+      workspaceId: WORKSPACE,
+      providers: { openai: { apiKey, baseUrl: "https://proxy.example.com/v1" } },
+    }), { name: "Error", message: "Enter a token. Spaces alone are not a token." });
+    assert.deepEqual(await repo.listByWorkspaceId(WORKSPACE), before);
+  }
 });
 
 test("UI-spelled provider ids are rejected so only engine-canonical ids reach storage", async () => {
@@ -228,9 +244,9 @@ test("a provider entry that is null or an array is rejected as not-an-object, di
   );
 });
 
-/** A `KeyringPort` that rejects with a non-`Error` value — `sealNewProviderKeys`'s catch block has a
- *  ternary (`err instanceof Error ? err.message : String(err)`) whose `String(err)` half only a
- *  non-Error rejection reaches; `BrokenKeyring` above always throws a real `Error`. */
+/** A `KeyringPort` that rejects with a non-`Error` value — proves `sealNewProviderKeys` handles
+ *  arbitrary thrown values with fixed safe copy rather than stringifying possible key material;
+ *  `BrokenKeyring` above always throws a real `Error`. */
 class NonErrorThrowingKeyring implements KeyringPort {
   async activeKey(): Promise<{ readonly keyId: string }> {
     // eslint-disable-next-line @typescript-eslint/only-throw-error -- deliberately non-Error, see class doc
@@ -244,7 +260,7 @@ class NonErrorThrowingKeyring implements KeyringPort {
   }
 }
 
-test("a non-Error rejection from the keyring is still stringified into the secret-store-unconfigured message", async () => {
+test("a non-Error rejection from the keyring returns only the safe secret-store-unconfigured message", async () => {
   const { deps } = makeDeps();
   const broken = { ...deps, keyring: new NonErrorThrowingKeyring() };
 
@@ -254,7 +270,7 @@ test("a non-Error rejection from the keyring is still stringified into the secre
       assert.ok(err instanceof MediaProviderCredentialSecretStoreUnconfiguredError);
       assert.equal(
         (err as Error).message,
-        "media provider credential secret store is unconfigured: boom: no key material available"
+        "The credential could not be saved or unlocked. Check the site credential store."
       );
       return true;
     }
@@ -275,10 +291,10 @@ test("a missing site key fails closed WITHOUT writing or deleting anything", asy
     MediaProviderCredentialSecretStoreUnconfiguredError
   );
 
-  const after = await getMediaProviderCredentials({ repo }, { workspaceId: WORKSPACE });
+  const after = await getMediaProviderCredentials(deps, { workspaceId: WORKSPACE });
   assert.deepEqual(after, {
-    openai: { apiKeyConfigured: true, apiKeyTail: "5555" },
-    grok: { apiKeyConfigured: true, apiKeyTail: "6666" },
+    openai: { apiKeyConfigured: true, apiKeyTail: "5555", apiKeyHint: { length: 14, last4: "5555" } },
+    grok: { apiKeyConfigured: true, apiKeyTail: "6666", apiKeyHint: { length: 15, last4: "6666" } },
   });
 });
 
@@ -354,8 +370,8 @@ test("every read AND write of the whole-map replace happens strictly inside deps
   );
 
   // And the pre-existing row is untouched, proving nothing leaked around the guarded replace.
-  const after = await getMediaProviderCredentials({ repo: deps.repo }, { workspaceId: WORKSPACE });
-  assert.deepEqual(after, { grok: { apiKeyConfigured: true, apiKeyTail: "4444" } });
+  const after = await getMediaProviderCredentials(deps, { workspaceId: WORKSPACE });
+  assert.deepEqual(after, { grok: { apiKeyConfigured: true, apiKeyTail: "4444", apiKeyHint: { length: 17, last4: "4444" } } });
 });
 
 /** A sealer whose `seal` parks on a caller-released gate — the one async step
@@ -421,9 +437,9 @@ test("a metadata-only save cannot resurrect a key that another save rotated whil
     "sk-beta-9999",
     "the stored ciphertext must be the rotated key, not the one this save read before it started"
   );
-  assert.deepEqual(await getMediaProviderCredentials({ repo }, { workspaceId: WORKSPACE }), {
-    openai: { model: "dall-e-3", apiKeyConfigured: true, apiKeyTail: "9999" },
-    grok: { apiKeyConfigured: true, apiKeyTail: "3333" },
+  assert.deepEqual(await getMediaProviderCredentials(deps, { workspaceId: WORKSPACE }), {
+    openai: { model: "dall-e-3", apiKeyConfigured: true, apiKeyTail: "9999", apiKeyHint: { length: 12, last4: "9999" } },
+    grok: { apiKeyConfigured: true, apiKeyTail: "3333", apiKeyHint: { length: 12, last4: "3333" } },
   });
 });
 
@@ -434,11 +450,11 @@ test("a reader polling throughout a save never observes a half-replaced map", as
   const { repo, deps } = makeDeps();
   await saveMediaProviderCredentials(deps, {
     workspaceId: WORKSPACE,
-    providers: { openai: { apiKey: "sk-old-1111" }, grok: { apiKey: "xai-old-2222" } },
+    providers: { openai: { apiKey: "sk-old-key-1111" }, grok: { apiKey: "xai-old-2222" } },
   });
 
   const tailsNow = async (): Promise<string> => {
-    const map = await getMediaProviderCredentials({ repo }, { workspaceId: WORKSPACE });
+    const map = await getMediaProviderCredentials(deps, { workspaceId: WORKSPACE });
     return Object.keys(map)
       .sort()
       .map((id) => `${id}:${map[id]?.apiKeyTail}`)
@@ -471,7 +487,7 @@ test("a reader polling throughout a save never observes a half-replaced map", as
 
   await saveMediaProviderCredentials({ ...deps, repo: observingRepo }, {
     workspaceId: WORKSPACE,
-    providers: { openai: { apiKey: "sk-new-3333" }, grok: { apiKey: "xai-new-4444" } },
+    providers: { openai: { apiKey: "sk-new-key-3333" }, grok: { apiKey: "xai-new-4444" } },
   });
   assert.ok(observations.length > 1, "the observer must actually have run while the save was in flight");
   assert.equal(observations[0], BEFORE);
@@ -506,8 +522,8 @@ test("the in-memory adapter stages its writes: a planner that throws leaves stor
     /planner refused/
   );
 
-  assert.deepEqual(await getMediaProviderCredentials({ repo }, { workspaceId: WORKSPACE }), {
-    openai: { apiKeyConfigured: true, apiKeyTail: "1111" },
+  assert.deepEqual(await getMediaProviderCredentials(deps, { workspaceId: WORKSPACE }), {
+    openai: { apiKeyConfigured: true, apiKeyTail: "1111", apiKeyHint: { length: 12, last4: "1111" } },
   });
 });
 
@@ -539,9 +555,13 @@ test("resolveMediaProviderCredential returns null (not an error) for a row saved
   // No `apiKey` field at all — a row that only ever set baseUrl/model, the documented "configured
   // with no key yet" state (`MediaProviderCredentialRecord.sealed`/`.keyTail` doc: "a row may
   // legitimately hold only baseUrl/model with no key yet").
-  await saveMediaProviderCredentials(deps, {
-    workspaceId: WORKSPACE,
-    providers: { openai: { baseUrl: "https://api.openai.com/v1" } },
+  // Seed the legacy keyless row directly: new credential creates now require a key.
+  await deps.repo.upsert({
+    workspaceId: WORKSPACE, providerId: "openai", baseUrl: "https://api.openai.com/v1", model: null,
+    sealed: null, keyTail: null, aadVersion: 0, createdAt: clock.nowIso(), updatedAt: clock.nowIso(),
+  });
+  assert.deepEqual(await getMediaProviderCredentials(deps, { workspaceId: WORKSPACE }), {
+    openai: { baseUrl: "https://api.openai.com/v1" },
   });
 
   const resolved = await resolveMediaProviderCredential(deps, { workspaceId: WORKSPACE, providerId: "openai" });
@@ -564,7 +584,7 @@ test("resolveMediaProviderCredential fails closed with MediaProviderCredentialSe
     () => resolveMediaProviderCredential({ repo, sealer: brokenSealer }, { workspaceId: WORKSPACE, providerId: "openai" }),
     (err: unknown) => {
       assert.ok(err instanceof MediaProviderCredentialSecretStoreUnconfiguredError);
-      assert.match((err as Error).message, /openai/);
+      assert.equal((err as Error).message, "The credential could not be saved or unlocked. Check the site credential store.");
       assert.equal((err as Error).message.includes("sk-will-fail-to-open"), false, "the plaintext key must never appear in an error message");
       return true;
     }

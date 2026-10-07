@@ -1,3 +1,4 @@
+import { credentialDraftError, formatCredentialHint, formatCredentialHints, translateCredentialMessage } from "@/lib/credential-copy";
 import { useEffect, useRef, useState } from "react";
 
 import { describeApiError, type AdminMediaProviderMap } from "@/lib/api";
@@ -130,25 +131,25 @@ async function readAdminByok(port: OtherCredentialsPort, store: OtherCredentialS
  *  as its own row — see `rules.ts`'s `OtherCredentialStoreInfo.label` doc for the placeholder-vs-item
  *  heading split this produces). @complexity O(p) in this workspace's own (small) configured-provider
  *  count. */
-async function readMediaProviders(port: OtherCredentialsPort): Promise<RawStoreItem[]> {
+async function readMediaProviders(port: OtherCredentialsPort, locale = 'en'): Promise<RawStoreItem[]> {
   const map: AdminMediaProviderMap = await port.getMediaProviders();
   return Object.entries(map)
     .filter(([, credentials]) => credentials.apiKeyConfigured)
     .map(([providerId, credentials]) => ({
       itemId: providerId,
       name: mediaProviderLabel(providerId),
-      valueFact: maskedTailFact(credentials.apiKeyTail ?? ""),
+      valueFact: formatCredentialHint({ hint: credentials.apiKeyHint, locale }) || maskedTailFact(credentials.apiKeyTail ?? ""),
       updatedAt: null,
     }));
 }
 /** Every configured external MCP server — @complexity O(s) in this workspace's own (small) server
  *  count. */
-async function readExternalMcpServers(port: OtherCredentialsPort, t: Translate): Promise<RawStoreItem[]> {
+async function readExternalMcpServers(port: OtherCredentialsPort, t: Translate, locale = 'en'): Promise<RawStoreItem[]> {
   const { servers } = await port.listExternalMcpServers();
   return servers.filter(server => !server.builtIn).map((server) => ({
     itemId: server.serverId,
     name: server.label || server.serverId,
-    valueFact: envNamesFact(server.envNames, t),
+    valueFact: formatCredentialHint({ hint: server.accessTokenHint, locale }) || formatCredentialHints({ hints: server.envTokenHints, locale }) || envNamesFact(server.envNames, t),
     updatedAt: null,
   }));
 }
@@ -156,16 +157,16 @@ async function readExternalMcpServers(port: OtherCredentialsPort, t: Translate):
 /** Dispatches one store's read by id — the one place `OtherCredentialStoreId` is switched over for
  *  reads, mirroring `rules.ts`'s `buildAccessTokenConnectionInput` dispatch-by-kind pattern.
  *  @complexity O(1) plus whichever reader's own complexity. */
-function readStore(port: OtherCredentialsPort, store: OtherCredentialStoreInfo, t: Translate): Promise<RawStoreItem[]> {
+function readStore(port: OtherCredentialsPort, store: OtherCredentialStoreInfo, t: Translate, locale = 'en'): Promise<RawStoreItem[]> {
   switch (store.id) {
     case "site-assistant":
       return readSiteAssistant(port, store);
     case "admin-byok":
       return readAdminByok(port, store);
     case "media-provider":
-      return readMediaProviders(port);
+      return readMediaProviders(port, locale);
     case "external-mcp":
-      return readExternalMcpServers(port, t);
+      return readExternalMcpServers(port, t, locale);
   }
 }
 
@@ -200,7 +201,7 @@ function keptMediaProviderSettings(credentials: AdminMediaProviderMap[string] | 
  *  duplicate-label case here (nothing on this tier is named), so this is the plain
  *  `describeApiError`-wrapped base case only. @complexity O(1). */
 function otherCredentialSaveErrorMessage(err: unknown, t: Translate, locale: string): string {
-  return accessTokenSaveErrorMessage(locale, describeApiError(err, t("unknown error")));
+  return accessTokenSaveErrorMessage(locale, translateCredentialMessage({ message: describeApiError(err, t("unknown error")), locale }));
 }
 
 export function useOtherCredentials(
@@ -226,12 +227,12 @@ export function useOtherCredentials(
     if (fetchedRef.current) return;
     fetchedRef.current = true;
     for (const store of OTHER_CREDENTIAL_STORES) {
-      readStore(port, store, t)
+      readStore(port, store, t, locale)
         .then((items) => setStoreStates((prev) => ({ ...prev, [store.id]: { items, loadError: null } })))
         .catch((err: unknown) =>
           setStoreStates((prev) => ({
             ...prev,
-            [store.id]: { items: [], loadError: accessTokensLoadErrorMessage(locale, describeApiError(err, t("unknown error"))) },
+            [store.id]: { items: [], loadError: accessTokensLoadErrorMessage(locale, translateCredentialMessage({ message: describeApiError(err, t("unknown error")), locale })) },
           }))
         );
     }
@@ -245,7 +246,7 @@ export function useOtherCredentials(
   const writes = useSerialWrites();
 
   function setDraftToken(key: string, value: string): void {
-    setDrafts((prev) => ({ ...prev, [key]: { token: value, saving: prev[key]?.saving ?? false, error: prev[key]?.error ?? null } }));
+    setDrafts((prev) => ({ ...prev, [key]: { token: value, saving: prev[key]?.saving ?? false, error: credentialDraftError({ value }, { locale }) } }));
   }
 
   function replace(row: OtherCredentialRowState): Promise<void> {
@@ -254,12 +255,14 @@ export function useOtherCredentials(
 
   async function replaceNow(row: OtherCredentialRowState): Promise<void> {
     const draft = drafts[row.key];
-    const token = draft?.token.trim() ?? "";
+    const token = draft?.token ?? "";
     if (token === "" || !row.store.supportsReplace) return;
+    const error = credentialDraftError({ value: token }, { locale });
+    if (error) { setDrafts(prev => ({ ...prev, [row.key]: { token, saving: false, error } })); return; }
     setDrafts((prev) => ({ ...prev, [row.key]: { token, saving: true, error: null } }));
     try {
       await writeReplace(port, row.store.id, row.itemId, token);
-      await refetchOne(port, row.store, setStoreStates, t);
+      await refetchOne(port, row.store, setStoreStates, t, locale);
       setDrafts((prev) => ({ ...prev, [row.key]: { token: "", saving: false, error: null } }));
     } catch (err) {
       setDrafts((prev) => ({ ...prev, [row.key]: { token, saving: false, error: otherCredentialSaveErrorMessage(err, t, locale) } }));
@@ -273,7 +276,7 @@ export function useOtherCredentials(
   async function removeNow(row: OtherCredentialRowState): Promise<void> {
     try {
       await writeRemove(port, row.store.id, row.itemId);
-      await refetchOne(port, row.store, setStoreStates, t);
+      await refetchOne(port, row.store, setStoreStates, t, locale);
     } catch (err) {
       setDrafts((prev) => ({ ...prev, [row.key]: { token: prev[row.key]?.token ?? "", saving: false, error: otherCredentialSaveErrorMessage(err, t, locale) } }));
     }
@@ -337,9 +340,10 @@ async function refetchOne(
   port: OtherCredentialsPort,
   store: OtherCredentialStoreInfo,
   setStoreStates: (updater: (prev: Record<string, StoreState>) => Record<string, StoreState>) => void,
-  t: Translate
+  t: Translate,
+  locale: string
 ): Promise<void> {
-  const items = await readStore(port, store, t);
+  const items = await readStore(port, store, t, locale);
   setStoreStates((prev) => ({ ...prev, [store.id]: { items, loadError: null } }));
 }
 

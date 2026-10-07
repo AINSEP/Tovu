@@ -1,3 +1,4 @@
+import type { CredentialTokenHint, CredentialConnection } from '../../contracts/core/credential-token.js';
 import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
 
 import type { SealedSecret } from "../webhooks/index.js";
@@ -81,6 +82,8 @@ export interface SourceControlCredentialSetRecord {
  *  contains `sealed`, a token, or any `SourceControlConnectionInput` field — enforced by
  *  construction: this type has no field capable of carrying one. */
 export interface SourceControlCredentialSummary {
+  readonly tokenHint?: CredentialTokenHint | null;
+  readonly connection?: CredentialConnection;
   readonly id: UUID;
   readonly providerId: SourceControlProviderId;
   readonly label: string;
@@ -108,6 +111,9 @@ export interface SourceControlCredentialSetRepoPort {
   /** Full-row replace by `(workspaceId, id)` — used for both a label rename and a connection
    *  rotation. Same UNIQUE-violation possibility as `insert` (renaming into another row's label). */
   update(record: SourceControlCredentialSetRecord): Promise<void>;
+  /** Probe metadata must never replace a token rotated while the network request was pending.
+   * Adapters may omit this best-effort capability; a save still returns the verified label. */
+  updateAccountLabel?(input: { workspaceId: UUID; id: UUID; accountLabel: string; expectedSealed?: SealedSecret }, optional?: {}): Promise<void>;
   findById(input: { workspaceId: UUID; id: UUID }): Promise<SourceControlCredentialSetRecord | null>;
   /** The current default row for one `(workspaceId, providerId)` pair — `null` if that provider has
    *  no rows at all for this workspace. */

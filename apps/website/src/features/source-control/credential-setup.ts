@@ -1,3 +1,6 @@
+import { assertCredentialFreeField, CREDENTIAL_MESSAGES, type CredentialTokenHint, type CredentialConnection } from '../../contracts/core/credential-token.js';
+import { credentialText, formatCredentialHint } from '../../contracts/core/credential-copy.js';
+import { resolveOperatorLocale, type OperatorLocaleDeps } from '../agent-plugins/operator-locale.js';
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { optionalString, requireInputRecord, requireString } from "@jini-ai/core";
 import { requireToolPermission } from "@jini-ai/cms/core";
@@ -12,7 +15,7 @@ import type { AuthorizeFn } from '../../contracts/core/commands/index.js';
 /** Narrow save dependencies; independent of the registration module to avoid a type-import cycle.
  * `loadSourceControlProviders` is required: the composition root (`tool-registrations.ts`) resolves the
  * installed-plugins default, so this module never reads a workspace it was not handed. */
-export interface SourceControlCredentialSetupDeps {
+export interface SourceControlCredentialSetupDeps extends OperatorLocaleDeps {
   workspaceId: string;
   authorize: AuthorizeFn;
   sourceControlCredentialSetRepo: SourceControlCredentialWriteDeps['repo'];
@@ -27,7 +30,7 @@ export interface SourceControlCredentialSetupDeps {
 
 /** Human-only credential setup; model inputs/results never carry connection fields or raw errors. */
 const SOURCE_CONTROL_PROPOSE_CREDENTIAL_TOOL_ID = "source_control_propose_credential";
-interface ProposalResult { saved: boolean; credentialId: string | null; provider: string; label: string; cancelled?: boolean; message?: string }
+interface ProposalResult { saved: boolean; credentialId: string | null; provider: string; label: string; cancelled?: boolean; message?: string; tokenHint?: CredentialTokenHint | null; connection?: CredentialConnection }
 
 /** Why nothing was saved, one per cause. Demo dry run 2026-10-05: all three used to return the same
  *  `{saved: false}`, so a person's Cancel was reported as "Either it was closed or the save failed". */
@@ -42,14 +45,14 @@ const BACKUP_REPOSITORY_RULES = 'For a site backup, the repository must be priva
 function notSaved(base: ProposalResult, cancelled: boolean, message: string): ProposalResult {
   return { ...base, cancelled, message };
 }
-interface SubmissionContext { deps: SourceControlCredentialSetupDeps; descriptor: SourceControlProviderDescriptor; label: string; exchangeId: string }
+interface SubmissionContext { deps: SourceControlCredentialSetupDeps; descriptor: SourceControlProviderDescriptor; label: string; exchangeId: string; locale: string }
 
 /** Renders a value-free save outcome on the form's URI. @complexity Time/space O(1). */
-function outcome(exchangeId: string, saved: boolean): SurfaceEmission {
+function outcome(exchangeId: string, saved: boolean, message?: string): SurfaceEmission {
   return { channel: 'mcp-ui', payload: { resource: buildOutcomeSurface({
     uri: `ui://tovu/source-control-credential/${exchangeId}` as UIResourceUri,
     title: saved ? 'Credential saved' : 'Credential not saved', state: saved ? 'success' : 'failure',
-    message: saved ? 'The connection was saved. The assistant never sees its secret.' : 'Nothing was saved. Check the form fields and the server credential store, then try again.',
+    message: message ?? (saved ? 'The connection was saved. The assistant never sees its secret.' : 'Nothing was saved. Check the form fields and the server credential store, then try again.'),
   }) } };
 }
 
@@ -58,7 +61,7 @@ function outcome(exchangeId: string, saved: boolean): SurfaceEmission {
  * @complexity Time O(f + c), declared fields plus saved credentials; space O(f).
  */
 async function handleSubmission(answer: SurfaceMessage, spec: SubmissionContext): Promise<{ result: ProposalResult; outcome?: SurfaceEmission }> {
-  const { deps, descriptor, label, exchangeId } = spec;
+  const { deps, descriptor, label, exchangeId, locale } = spec;
   const declined: ProposalResult = { saved: false, credentialId: null, provider: descriptor.id, label };
   if (answer.status !== 'received') return { result: notSaved(declined, false, PROPOSE_CREDENTIAL_CLOSED) };
   if (answer.params[SURFACE_DISMISSED_PARAM] === true) return { result: notSaved(declined, true, PROPOSE_CREDENTIAL_CANCELLED) };
@@ -73,12 +76,17 @@ async function handleSubmission(answer: SurfaceMessage, spec: SubmissionContext)
       ...(deps.fetchFn ? { fetchFn: deps.fetchFn } : {}),
       observability: deps.observability,
     }, { workspaceId: deps.workspaceId, label: answer.params.label, connection });
-  } catch {
+  } catch (err) {
     // Fixed metadata only: neither an exception's text nor a submitted value is safe to log.
     console.warn(JSON.stringify({ service: 'source-control', operation: SOURCE_CONTROL_PROPOSE_CREDENTIAL_TOOL_ID, exchangeId, saved: false }));
-    return { result: notSaved(declined, false, PROPOSE_CREDENTIAL_SAVE_FAILED), outcome: outcome(exchangeId, false) };
+    const id = Object.entries(CREDENTIAL_MESSAGES).find(([, text]) => err instanceof Error && text === err.message)?.[0];
+    const message = id ? credentialText({ id: id as keyof typeof CREDENTIAL_MESSAGES, locale }) : PROPOSE_CREDENTIAL_SAVE_FAILED;
+    return { result: notSaved(declined, false, message), outcome: outcome(exchangeId, false, message) };
   }
-  return { result: { saved: true, credentialId: credential.id, provider: descriptor.id, label: credential.label }, outcome: outcome(exchangeId, true) };
+  const hint = formatCredentialHint({ hint: credential.tokenHint, locale });
+  const connectionStatus = credential.connection ?? 'saved';
+  const message = `${hint ? `${hint}. ` : ''}${credentialText({ id: connectionStatus, locale })}`;
+  return { result: { saved: true, credentialId: credential.id, provider: descriptor.id, label: credential.label, tokenHint: credential.tokenHint, connection: connectionStatus, message }, outcome: outcome(exchangeId, true, message) };
 }
 
 /** Opens the registry-defined human form and parks this tool call until answered or aborted.
@@ -95,6 +103,7 @@ export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionC
   }
   const provider = requireString({ input: raw, key: 'provider' });
   const label = optionalString({ input: raw, key: 'label' }) ?? 'default';
+  assertCredentialFreeField({ value: label, field: "label" });
   if (label.length > 200) throw new ToolInputError({ message: 'Credential label must be at most 200 characters.' });
   await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: 'source-control.credentials.write' }, { entityType: 'source-control' });
   const declined = notSaved({ saved: false, credentialId: null, provider, label }, false, PROPOSE_CREDENTIAL_ABORTED);
@@ -106,6 +115,7 @@ export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionC
   }
   if (ctx.signal.aborted) return declined;
   if (!optional.emitSurface) throw new ToolInputError({ message: 'source_control_propose_credential requires an interactive form channel. Nothing was saved.' });
+  const locale = await resolveOperatorLocale({ deps, workspaceId: deps.workspaceId, principalId: ctx.principal.id });
   const exchange = surfaces.surfaceExchanges.open({ toolId: SOURCE_CONTROL_PROPOSE_CREDENTIAL_TOOL_ID, principalId: ctx.principal.id }, optional.emitSurface);
   const closeOnAbort = () => exchange.close();
   ctx.signal.addEventListener('abort', closeOnAbort, { once: true });
@@ -115,10 +125,10 @@ export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionC
       title: `Connect ${descriptor.label}`, description: `${descriptor.credential.help ?? 'Type the secret here. The assistant never sees it.'} ${BACKUP_REPOSITORY_RULES}`,
       submitLabel: 'Save credential', toolName: SOURCE_CONTROL_PROPOSE_CREDENTIAL_TOOL_ID, baseParams: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id },
       fields: [{ kind: 'string', name: 'label', label: 'Label', required: true, value: label },
-        ...descriptor.credential.fields.map(field => ({ kind: 'string' as const, name: field.name, label: field.label, required: field.required, ...(field.secret ? { secret: true } : {}) }))],
+        ...descriptor.credential.fields.map(field => ({ kind: 'string' as const, name: field.name, label: field.label, required: field.required, ...(field.secret || field.name === descriptor.credential!.tokenField ? { secret: true } : {}) }))],
       cancel: { label: 'Cancel', toolName: SOURCE_CONTROL_PROPOSE_CREDENTIAL_TOOL_ID, params: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id, [SURFACE_DISMISSED_PARAM]: true } },
     });
-    return await askThenReport(exchange, { channel: 'mcp-ui', payload: { resource } }, answer => handleSubmission(answer, { deps, descriptor, label, exchangeId: exchange.id }));
+    return await askThenReport(exchange, { channel: 'mcp-ui', payload: { resource } }, answer => handleSubmission(answer, { deps, descriptor, label, exchangeId: exchange.id, locale }));
   } finally {
     ctx.signal.removeEventListener('abort', closeOnAbort);
     exchange.close();

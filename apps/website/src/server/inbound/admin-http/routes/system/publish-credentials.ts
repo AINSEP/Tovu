@@ -148,7 +148,7 @@ function sendStoreError(res: Response, err: unknown): void {
 }
 
 export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminPublishCredentialsDeps): void {
-  const readDeps = { repo: deps.vendorCredentialSetRepo, loadDeployTargets: deps.loadDeployTargets };
+  const readDeps = { sealer: deps.siteAssistantSecretSealer, repo: deps.vendorCredentialSetRepo, loadDeployTargets: deps.loadDeployTargets };
   const writeDeps = {
     repo: deps.vendorCredentialSetRepo,
     sealer: deps.siteAssistantSecretSealer,

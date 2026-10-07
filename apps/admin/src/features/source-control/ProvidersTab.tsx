@@ -1,3 +1,4 @@
+import { CredentialHint } from "@/components/CredentialHint";
 import { agentHandle } from "@jini-ai/agentic";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
@@ -308,7 +309,7 @@ function SourceControlRowSummary({
         {connected ? (
           <>
             <span translate="no">{label}</span> {translate("connected")} · {translate("token stored, encrypted")} ·{" "}
-            {translate("saved")} {formatTimestamp(row.saved!.updatedAt)}
+            {translate("saved")} {formatTimestamp(row.saved!.updatedAt)} <CredentialHint hint={row.saved!.tokenHint} />
           </>
         ) : (
           <h3 className="source-control-row-title">

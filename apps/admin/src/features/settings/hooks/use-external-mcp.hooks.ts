@@ -1,3 +1,5 @@
+import { credentialText, formatCredentialHint, formatCredentialHints, translateCredentialMessage, assertCredentialToken, CredentialInputError } from "@/lib/credential-copy";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useMemo, useRef, useState } from "react";
 
 import type {
@@ -70,7 +72,7 @@ function joinArgs(args: readonly string[]): string {
   return args.map((arg) => (/\s/.test(arg) ? `"${arg}"` : arg)).join(" ");
 }
 
-function toItem(server: AdminExternalMcpServer): SourceConfigItem {
+function toItem(server: AdminExternalMcpServer, locale: string = "en"): SourceConfigItem {
   return {
     id: server.serverId,
     label: server.label,
@@ -116,17 +118,17 @@ function toItem(server: AdminExternalMcpServer): SourceConfigItem {
       // A NAME, not a secret — round-trips the real stored value like `oauthTokenEnvName` does.
       accessTokenEnvName: server.accessTokenEnvName ?? "",
     },
-    ...includeIfDefined("statusMessage", describeStoredCredentials(server)),
+    ...includeIfDefined("statusMessage", describeStoredCredentials({ server }, { locale })),
   };
 }
 
 /** The card's "what is stored" line: env variable NAMES and whether an access token is held — never
  *  a value. `undefined` when neither is stored, so the card shows no status line at all.
  *  @complexity O(n) in the env variable count. */
-function describeStoredCredentials(server: AdminExternalMcpServer): string | undefined {
+export function describeStoredCredentials({ server }: { server: AdminExternalMcpServer }, { locale = "en" }: { locale?: string } = {}): string | undefined {
   const parts = [
-    ...(server.envNames.length > 0 ? [`Credentials set: ${server.envNames.join(", ")}`] : []),
-    ...(server.hasAccessToken ? ["Access token set"] : []),
+    ...(server.envNames.length > 0 ? [formatCredentialHints({ hints: server.envTokenHints, locale }) || `Credentials set: ${server.envNames.join(", ")}`] : []),
+    ...(server.hasAccessToken ? [`${credentialText({ id: 'set', locale })}${server.accessTokenHint ? ` (${formatCredentialHint({ hint: server.accessTokenHint, locale })})` : ""}`] : []),
   ];
   return parts.length > 0 ? parts.join(" · ") : undefined;
 }
@@ -136,10 +138,10 @@ function describeStoredCredentials(server: AdminExternalMcpServer): string | und
  *  one" (the `env` rule), and a blank variable name resolves to the stored name server-side either way,
  *  so omitting it keeps every other mode's write body byte-identical to before this field existed.
  *  @complexity O(1). */
-function toAccessTokenWriteBody(fields: Record<string, string>): Pick<AdminExternalMcpServerInput, "accessToken" | "accessTokenEnvName"> {
+export function toAccessTokenWriteBody(fields: Record<string, string>, _optional = {}): Pick<AdminExternalMcpServerInput, "accessToken" | "accessTokenEnvName"> {
   if (resolveExternalMcpEffectiveAuthMode(fields) !== "static_env") return {};
   return {
-    ...omitIfBlank("accessToken", fieldOrEmpty(fields, "accessToken")),
+    ...(fieldOrEmpty(fields, "accessToken") === "" ? {} : { accessToken: fieldOrEmpty(fields, "accessToken") }),
     ...omitIfBlank("accessTokenEnvName", fieldOrEmpty(fields, "accessTokenEnvName")),
   };
 }
@@ -242,6 +244,15 @@ export interface ExternalMcpController {
  * @complexity O(n) per fetch in the configured server count.
  * @overallScore 100
  */
+async function checkSavedServer({ item, server, locale }: { item: SourceConfigItem; server: AdminExternalMcpServer; locale: string }): Promise<SourceConfigItem> {
+  let message = credentialText({ id: 'saved', locale });
+  if (server.transport !== 'stdio' && server.enabled) {
+    try { await api.probeExternalMcpServer(server.serverId); message = credentialText({ id: 'connected', locale }); }
+    catch (err) { message = translateCredentialMessage({ message: describeApiError(err, credentialText({ id: 'unreachable', locale })), locale }); }
+  }
+  return { ...item, statusMessage: [item.statusMessage, message].filter(Boolean).join(' · ') };
+}
+
 export function useExternalMcp(): ExternalMcpController {
   const [restartRequired, setRestartRequired] = useState(false);
   // `updateSource` receives a PARTIAL patch, but the write route replaces the whole row, so the
@@ -256,13 +267,14 @@ export function useExternalMcp(): ExternalMcpController {
   // fallback below stays word-for-word identical to the picker's own copy in every locale, not just
   // English.
   const t = useExternalMcpDriftCopy();
+  const locale = useAdminLocale();
 
   const dependencies = useMemo<SourceConfigDependencies<SourceConfigItem>>(
     () => ({
       port: {
         async fetchSources() {
           const { servers } = await api.listExternalMcpServers();
-          const items = servers.map(toItem);
+          const items = servers.map(server => toItem(server, locale));
           lastKnown.current = new Map(items.map((item) => [item.id, item]));
           return items;
         },
@@ -275,6 +287,10 @@ export function useExternalMcp(): ExternalMcpController {
           if (lastKnown.current.has(serverId)) {
             return { ok: false, message: t("A server with this ID already exists. Edit that server instead.") };
           }
+          if (resolveExternalMcpEffectiveAuthMode(input.fields) === 'static_env' && input.fields.transport !== 'stdio') {
+            try { assertCredentialToken({ value: input.fields.accessToken, field: 'accessToken' }); }
+            catch (err) { if (err instanceof CredentialInputError) return { ok: false, message: translateCredentialMessage({ message: err.message, locale }) }; throw err; }
+          }
           const oauthIdentityIssue = validateExternalMcpOAuthIdentity(input.fields, t);
           if (oauthIdentityIssue) return { ok: false, message: oauthIdentityIssue };
           try {
@@ -283,11 +299,12 @@ export function useExternalMcp(): ExternalMcpController {
               toWriteBody(input.fields, true, input.fields.label)
             );
             setRestartRequired(true);
-            const item = toItem(server);
-            lastKnown.current.set(item.id, item);
-            return { ok: true, source: item };
+            const item = toItem(server, locale);
+            const checked = await checkSavedServer({ item, server, locale });
+            lastKnown.current.set(item.id, checked);
+            return { ok: true, source: checked };
           } catch (e) {
-            return { ok: false, message: describeApiError(e, t("That server could not be saved.")) };
+            return { ok: false, message: translateCredentialMessage({ message: describeApiError(e, t("That server could not be saved.")), locale }) };
           }
         },
 
@@ -327,11 +344,14 @@ export function useExternalMcp(): ExternalMcpController {
             try {
               const { server } = await api.saveExternalMcpServer(id, toWriteBody(merged.fields, merged.enabled, merged.label));
               setRestartRequired(true);
-              const item = toItem(server);
-              lastKnown.current.set(item.id, item);
-              return item;
-            } catch {
-              return null;
+              const item = toItem(server, locale);
+              const changedToken = (merged.fields.accessToken ?? '') !== '';
+              const checked = changedToken ? await checkSavedServer({ item, server, locale }) : item;
+              lastKnown.current.set(item.id, checked);
+              return checked;
+            } catch (err) {
+              if (!previous) return null;
+              return { ...previous, statusMessage: translateCredentialMessage({ message: describeApiError(err, t('That server could not be saved.')), locale }) };
             }
           }, { key: id });
         },
@@ -372,12 +392,12 @@ export function useExternalMcp(): ExternalMcpController {
               latencyMs: Date.now() - startedAt,
             };
           } catch (e) {
-            return { ok: false, message: describeApiError(e, t("Could not reach this server. You can still type tool names by hand.")) };
+            return { ok: false, message: translateCredentialMessage({ message: describeApiError(e, credentialText({ id: "unreachable", locale })), locale }) };
           }
         },
       },
     }),
-    [t, writes]
+    [t, writes, locale]
   );
 
   return { dependencies, restartRequired };

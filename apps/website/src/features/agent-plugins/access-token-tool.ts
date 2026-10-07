@@ -1,3 +1,6 @@
+import { credentialText, translateCredentialMessage } from '../../contracts/core/credential-copy.js';
+import { resolveOperatorLocale, type OperatorLocaleDeps } from './operator-locale.js';
+import { assertCredentialToken, CredentialInputError } from '../../contracts/core/credential-token.js';
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { type AgentToolSideEffect, type DerivedRiskByToolId, type AgentToolDefinition } from "@jini-ai/core";
 import { requireToolPermission } from "@jini-ai/cms/core";
@@ -57,7 +60,7 @@ export type AgentPluginTokenTargetDeps = Pick<
 >;
 
 export interface AgentPluginAccessTokenToolDeps
-  extends AgentPluginConnectToolDeps,
+  extends AgentPluginConnectToolDeps, OperatorLocaleDeps,
     Pick<SwitchOnSavedTokenDeps, "onConnected" | "isPluginOffByOperator" | "switchPluginOn"> {
   /** The guarded outbound client (ADR-038) whose egress policy already admits any public HTTPS host. */
   readonly customCredentialsHttpClient: HttpClientPort;
@@ -96,7 +99,7 @@ export const agentPluginAccessTokenDerivedRisk: DerivedRiskByToolId = new Map<st
 
 /** Plain-language messages from SPEC-052's errors.spec.md. None ever carries a token or a vendor body. */
 const MESSAGES = {
-  tokenInvalid: "That access token didn't work. Create a new one and try again. Nothing was saved.",
+  tokenInvalid: "The server rejected this token.",
   blankToken: "The access token cannot be blank. Nothing was saved.",
   saveFailed: "The access token could not be saved. Nothing was changed.",
 } as const;
@@ -170,6 +173,8 @@ export async function resolveTarget(routeDeps: AgentPluginTokenTargetDeps, plugi
 
 /** One GET with the token as a Bearer header. Never throws, never returns the token or the body. */
 export async function probeToken(httpClient: HttpClientPort, probeUrl: string, token: string): Promise<"ok" | "invalid" | "unavailable"> {
+  try { assertCredentialToken({ value: token, field: 'token' }); }
+  catch { return "invalid"; }
   let response;
   try {
     response = await httpClient.send({
@@ -246,12 +251,16 @@ async function handleAnswer(
   if (answer.status !== "received") return { result: { saved: false, reason: answer.status } };
   if (answer.params[SURFACE_DISMISSED_PARAM] === true) return { result: { saved: false, reason: "cancelled" } };
 
+  const locale = await resolveOperatorLocale({ deps: routeDeps, workspaceId: routeDeps.workspaceId, principalId });
   const submitted = answer.params.token;
   const token = typeof submitted === "string" ? submitted.trim() : "";
-  if (token === "") return failure(exchange, target, "invalid", MESSAGES.blankToken);
+  if (token === "") return failure(exchange, target, "invalid", credentialText({ id: 'blank', locale }));
+
+  try { assertCredentialToken({ value: submitted, field: 'token' }); }
+  catch (err) { if (err instanceof CredentialInputError) return failure(exchange, target, 'invalid', translateCredentialMessage({ message: err.message, locale })); throw err; }
 
   const probe = await probeToken(routeDeps.customCredentialsHttpClient, target.config.tovuTokenAuth.probeUrl, token);
-  if (probe === "invalid") return failure(exchange, target, "invalid", MESSAGES.tokenInvalid);
+  if (probe === "invalid") return failure(exchange, target, "invalid", translateCredentialMessage({ message: MESSAGES.tokenInvalid, locale }));
   if (probe === "unavailable") return failure(exchange, target, "unavailable", `${target.displayName} is unavailable right now. Try again shortly.`);
   try {
     await saveStaticAccessToken(routeDeps, target, principalId, token);

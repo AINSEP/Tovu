@@ -1,3 +1,4 @@
+import { credentialText } from '../../../contracts/core/credential-copy.js';
 /** Shared saved-server probe used by the admin route and assistant tools. Never spawns local commands or invokes remote tools. */
 import {
   connectMcpHttpSession,
@@ -12,7 +13,7 @@ import {
   type ExternalMcpServerRecord,
 } from "#src/assistant/index";
 import { isHttpLaunchSpec, type FederatedMcpConnectionConfig, type McpHttpLaunchSpec, type McpSessionPort } from "#src/assistant/mcp-federation/ports";
-import { describeRemoteToolSurface } from "@jini-ai/mcp/federation";
+import { McpAuthFailedError, McpProtocolError, describeRemoteToolSurface } from "@jini-ai/mcp/federation";
 import type { ExternalMcpToolDeps } from "#src/features/external-mcp/deps";
 
 /** Injectable session factory — the seam a route test scripts instead of opening a real socket.
@@ -159,17 +160,19 @@ async function resolveProbeTarget(deps: ExternalMcpProbeServiceDeps, serverId: s
  *  outbound session, matching W-002's own framing in the implementation outline. Split out of the
  *  route handler purely to keep it under the shop ceiling.
  *  @complexity O(t) in the remote's advertised tool count, plus one round trip. */
-async function runProbe(connect: ExternalMcpProbeSessionFactory, target: ProbeTarget): Promise<{ ok: true; tools: ReturnType<typeof describeRemoteToolSurface> } | { ok: false }> {
+async function runProbe(connect: ExternalMcpProbeSessionFactory, target: ProbeTarget): Promise<{ ok: true; tools: ReturnType<typeof describeRemoteToolSurface> } | { ok: false; kind: "auth" | "timeout" | "unreachable" }> {
   let session: McpSessionPort | undefined;
   try {
     session = await connect(target.launch, target.federationConfig.connectTimeoutMs);
     const tools = await session.listTools();
     return { ok: true, tools: describeRemoteToolSurface({ tools, config: target.federationConfig }) };
-  } catch {
+  } catch (err) {
     // Report the failed connection without logging upstream errors that may contain credentials.
-    // eslint-disable-next-line no-console
-    console.error(`external-mcp probe '${target.federationConfig.connectionId}' failed`);
-    return { ok: false };
+    // Upstream bodies/errors may contain credentials; only the closed category crosses this boundary.
+    const status = err && typeof err === 'object' ? (err as { status?: unknown; statusCode?: unknown }).status ?? (err as { statusCode?: unknown }).statusCode : undefined;
+    const auth = status === 401 || status === 403 || err instanceof McpAuthFailedError || (err instanceof McpProtocolError && /with HTTP (401|403)$/.test(err.message));
+    const timeout = err instanceof Error && (err.name === 'AbortError' || err.name === 'TimeoutError' || (err instanceof McpProtocolError && /request (?:timed out|was aborted)/.test(err.message)));
+    return { ok: false, kind: auth ? 'auth' : timeout ? 'timeout' : 'unreachable' };
   } finally {
     await session?.close().catch(() => undefined);
   }
@@ -183,6 +186,9 @@ export async function probeExternalMcpServer(deps: ExternalMcpProbeServiceDeps, 
   const resolution = await resolveProbeTarget(deps, serverId);
   if (!resolution.ok) return resolution;
   const outcome = await runProbe(deps.connect ?? defaultProbeConnect, resolution.target);
-  if (!outcome.ok) return { ok: false as const, status: 502, body: { error: "could not reach this server — the probe did not complete", code: "MCP_SERVER_UNREACHABLE" } };
+  if (!outcome.ok) {
+    const failure = { auth: { status: 401, code: 'MCP_AUTH_REJECTED' }, timeout: { status: 504, code: 'MCP_TIMEOUT' }, unreachable: { status: 502, code: 'MCP_SERVER_UNREACHABLE' } }[outcome.kind];
+    return { ok: false as const, status: failure.status, body: { error: credentialText({ id: outcome.kind }), code: failure.code } };
+  }
   return { ok: true as const, body: { tools: outcome.tools, probedAt: new Date(deps.clock.nowMs()).toISOString() } };
 }

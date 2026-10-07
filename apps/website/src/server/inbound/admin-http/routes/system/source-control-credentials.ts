@@ -88,12 +88,12 @@ function sendStoreError(res: Response, err: unknown): void {
     res.status(503).json({ error: "SECRET_STORE_UNCONFIGURED", detail: err.message });
     return;
   }
-  console.error("[source-control-credentials] unexpected error", err);
+  console.error("[source-control-credentials] unexpected store error");
   res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
 }
 
 export function registerAdminSourceControlCredentialsRoutes(app: Express, deps: AdminSourceControlCredentialsDeps): void {
-  const readDeps = { repo: deps.sourceControlCredentialSetRepo };
+  const readDeps = { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer };
   const writeDeps = {
     repo: deps.sourceControlCredentialSetRepo,
     sealer: deps.siteAssistantSecretSealer,

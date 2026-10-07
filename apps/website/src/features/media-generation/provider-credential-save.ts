@@ -1,3 +1,4 @@
+import type { CredentialTokenHint } from '../../contracts/core/credential-token.js';
 import { saveMediaProviderCredentials, type MediaProviderCredentialRepoPort, type MediaProviderCredentialWriteDeps } from '../media/provider-credential-store.js';
 
 /**
@@ -10,7 +11,7 @@ import { saveMediaProviderCredentials, type MediaProviderCredentialRepoPort, typ
  * @complexity Time O(n), space O(n), bounded by the canonical provider catalogue.
  * @example await saveMediaProviderKey({ deps, workspaceId, provider: 'openai', apiKey: humanKey });
  */
-export async function saveMediaProviderKey(input: { deps: MediaProviderCredentialWriteDeps; workspaceId: string; provider: string; apiKey: string }): Promise<{ configured: boolean }> {
+export async function saveMediaProviderKey(input: { deps: MediaProviderCredentialWriteDeps; workspaceId: string; provider: string; apiKey: string }, _optional = {}): Promise<{ configured: boolean; tokenHint: CredentialTokenHint | null }> {
   const { deps, workspaceId, provider, apiKey } = input;
   // Only `replaceWorkspace`: the store's save writes through nothing else.
   const repo: Pick<MediaProviderCredentialRepoPort, 'replaceWorkspace'> = {
@@ -27,5 +28,5 @@ export async function saveMediaProviderKey(input: { deps: MediaProviderCredentia
     }),
   };
   const saved = await saveMediaProviderCredentials({ ...deps, repo }, { workspaceId, providers: { [provider]: { apiKey } } });
-  return { configured: saved[provider]?.apiKeyConfigured === true };
+  return { configured: saved[provider]?.apiKeyConfigured === true, tokenHint: saved[provider]?.apiKeyHint ?? null };
 }

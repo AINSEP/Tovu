@@ -70,7 +70,7 @@ function sendStoreError(res: Response, err: unknown): void {
     res.status(503).json({ error: "SECRET_STORE_UNCONFIGURED", detail: err.message });
     return;
   }
-  console.error("[custom-credentials] unexpected error", err);
+  console.error("[custom-credentials] unexpected store error");
   res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
 }
 
@@ -101,7 +101,7 @@ function buildUpdateCredentialInput(workspaceId: string, id: string, body: Recor
 }
 
 export function registerAdminCustomCredentialsRoutes(app: Express, deps: AdminCustomCredentialsDeps): void {
-  const readDeps = { repo: deps.customCredentialSetRepo };
+  const readDeps = { repo: deps.customCredentialSetRepo, sealer: deps.siteAssistantSecretSealer };
   const writeDeps = {
     repo: deps.customCredentialSetRepo,
     sealer: deps.siteAssistantSecretSealer,

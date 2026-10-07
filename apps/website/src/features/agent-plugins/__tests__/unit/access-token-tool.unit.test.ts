@@ -218,7 +218,7 @@ test("EC-03/REQ-14: a token the vendor rejects is not stored, and the vendor's r
   env.http.respond = unauthorized;
   const { result, emitted } = await submit(env, { token: TOKEN });
 
-  assert.deepEqual(result, { saved: false, reason: "invalid", message: "That access token didn't work. Create a new one and try again. Nothing was saved." });
+  assert.deepEqual(result, { saved: false, reason: "invalid", message: "The server rejected this token." });
   const row = await env.readRow();
   assert.equal(row?.authMode, "oauth");
   assert.equal(row?.sealedOAuth, null);
@@ -369,3 +369,15 @@ function invokeFixtureHandler(
   const { emitSurface, ...required } = context;
   return registration.handler(required, emitSurface ? { emitSurface } : {});
 }
+
+for (const [token, message] of [
+  ['x'.repeat(8193), 'The token exceeds the 8192-character limit. Copy only the token.'],
+  ['café_東京', 'Hosted tokens must use visible ASCII characters (0x21–0x7E).'],
+  ['abc def', 'Hosted tokens must use visible ASCII characters (0x21–0x7E).'],
+  ['   ', 'Enter a token. Spaces alone are not a token.'],
+]) test(`credential validation precedes the agent-plugin probe (${message})`, async () => {
+  const env = await setup(); const { result } = await submit(env, { token });
+  assert.deepEqual(result, { saved: false, reason: 'invalid', message });
+  assert.equal(env.http.requests.length, 0, 'invalid bytes must not be probed');
+  assert.equal((await env.readRow())?.authMode, 'oauth', 'invalid bytes must not replace a working grant');
+});

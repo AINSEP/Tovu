@@ -39,7 +39,7 @@ export const registerAdminMediaGetProvidersRoute: MediaProviderRouteRegistrar = 
       }
 
       const providers = await getMediaProviderCredentials(
-        { repo: deps.mediaProviderCredentialRepo },
+        { repo: deps.mediaProviderCredentialRepo, sealer: deps.siteAssistantSecretSealer },
         { workspaceId: deps.workspaceId }
       );
       res.json(providers);
