@@ -358,10 +358,13 @@ export function SettingsUi(props: SettingsUiProps) {
       subtitle: t("Choose Local CLI or BYOK."),
       icon: (
         <TabIcon>
-          <path d="M3 5h3M9 5h6M12 9H9M6 9H3M3 13h7M13 13h2" />
-          <circle cx="7.5" cy="5" r="1.6" />
-          <circle cx="7.5" cy="9" r="1.6" transform="translate(3 0)" />
-          <circle cx="11.5" cy="13" r="1.6" />
+          {/* Robot = the AI agent; adapted from lucide `bot`, ISC. */}
+          <path d="M9 6V3H6" />
+          <rect x="3" y="6" width="12" height="9" rx="1.5" />
+          <path d="M1.5 10.5h1.5" />
+          <path d="M15 10.5h1.5" />
+          <path d="M6.75 9.75v1.5" />
+          <path d="M11.25 9.75v1.5" />
         </TabIcon>
       ),
       panel: (
@@ -796,12 +799,9 @@ export function SettingsUi(props: SettingsUiProps) {
      * default, named here for clarity since it's load-bearing (a key missing
      * from `es` renders real English, never a raw key — see
      * `dictionaries.test.tsx` upstream). `syncDocumentAttributes={false}`:
-     * the default would set `<html lang/dir>` for the WHOLE document, but
-     * only this settings panel's tab content is actually translated — the
-     * rest of the Tovu admin shell stays English regardless of this choice
-     * (same scoping rule as `AppearanceTab`'s `livePreview={false}` above),
-     * so claiming a document-wide language via `<html lang="es">` here would
-     * misinform assistive tech about the untranslated majority of the page.
+     * the admin shell owns `<html lang/dir>` via `useAdminDocumentLocale` and
+     * its live `core.language` subscription. Keeping this nested provider
+     * from writing the document avoids competing locale owners.
      */
     <I18nProvider
       initialLocale={s.language.value as string}

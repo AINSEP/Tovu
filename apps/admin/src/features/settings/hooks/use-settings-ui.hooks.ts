@@ -1,3 +1,4 @@
+import { useSettingsAppearance } from "@/hooks/use-admin-appearance.hooks";
 import { useMemo, useRef, useState } from "react";
 import {
   type ExecutionConfig,
@@ -167,6 +168,8 @@ export function useSettingsUi(): SettingsUiController {
     defaultValue: DEFAULT_INTERFACE,
     namespaces: [INTERFACE_NAMESPACE],
   });
+
+  useSettingsAppearance({ accentColor: appearance.value?.accentColor ?? DEFAULT_APPEARANCE.accentColor, ready: appearance.value !== null }, {});
 
   const slices = [execution, instructions, notifications, privacy, appearance, language, interfacePrefs];
   const save = useMemo(

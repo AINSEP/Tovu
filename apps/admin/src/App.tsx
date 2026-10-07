@@ -1,3 +1,5 @@
+import { useAdminDocumentLocale } from "./hooks/use-admin-document-locale.hooks";
+import { useAdminAppearance } from "./hooks/use-admin-appearance.hooks";
 import { AdminModulesProvider } from "./integrations/jini-admin/AdminModulesProvider";
 import { useMemo, type ReactNode } from "react";
 import type { FrontendSessionBridge } from "@jini-ai/chat/react";
@@ -607,6 +609,8 @@ export function App(props: AppProps) {
    * switching the Language setting updates the sidebar immediately instead of requiring a reload.
    */
   const navLocale = useWiredAdminLocale();
+  useAdminDocumentLocale({ locale: navLocale }, {});
+  useAdminAppearance({}, {});
   /** Settings → User Interface: whether the FAB hides while the dock is open, and whether phone tab
    *  strips wrap (see the hook's doc). */
   const interfacePreferences = useInterfacePreferences();
