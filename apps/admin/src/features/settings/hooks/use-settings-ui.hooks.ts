@@ -53,10 +53,10 @@ import { areAnySlicesLoading, firstLoadError } from "../rules";
  * through this controller: they are static render-only data (a locale list, a fallback string),
  * not state this hook owns.
  *
- * Six independent `useSettingsSlice` instances are mounted — one per ledger-backed tab (Execution,
- * Instructions, Notifications, Privacy, Dialog appearance, Language) — each with its own load,
- * debounce, save chain, and diff base (see `use-settings-slice.hooks.ts`'s own header for why that
- * independence matters). Memory and About mount no slice. Skills live under Add-Ons.
+ * Seven independent `useSettingsSlice` instances are mounted — one per ledger-backed tab (Execution,
+ * Instructions, Notifications, Privacy, Dialog appearance, Language, User Interface) — each with its
+ * own load, debounce, save chain, and diff base (see `use-settings-slice.hooks.ts`'s own header for
+ * why that independence matters). Memory and About mount no slice. Skills live under Add-Ons.
  * Workspace (folded in 2026-09-10 — see `SettingsUi.tsx`'s own header), mounts no slice either, for
  * a different reason from the other three: it has a REAL Tovu backend, just not this one — its own
  * `useWiredWorkspace()` (`features/workspace/hooks/use-workspace.hooks.ts`) owns its fetch/save/
@@ -65,8 +65,8 @@ import { areAnySlicesLoading, firstLoadError } from "../rules";
  * The External MCP controller (and a since-removed Composio one) this hook used to expose left on
  * 2026-09-10 with their tabs — see `SettingsUi.tsx`'s header. External MCP is composed by
  * `features/providers/hooks/use-providers.hooks.ts` now, which deliberately does NOT reuse this
- * hook: it was never settings-ledger-backed, and mounting six unrelated slices to
- * reach it would have put the Providers page behind five loads it never displays.
+ * hook: it was never settings-ledger-backed, and mounting seven unrelated slices to
+ * reach it would have put the Providers page behind six loads it never displays.
  */
 
 export interface SettingsUiController {
@@ -93,8 +93,8 @@ export interface SettingsUiController {
 }
 
 /**
- * @complexity Time: O(1) beyond the six constant-shaped slice mounts; `save`'s `useMemo` body is
- * O(n) in slice count (fixed at 6). Space: O(1) — no caller-controlled collections.
+ * @complexity Time: O(1) beyond the seven constant-shaped slice mounts; `save`'s `useMemo` body is
+ * O(n) in slice count (fixed at 7). Space: O(1) — no caller-controlled collections.
  */
 export function useSettingsUi(): SettingsUiController {
   // Same option, same reasoning as `features/ai-assistant/hooks/use-admin-execution-mode.hooks.ts`
