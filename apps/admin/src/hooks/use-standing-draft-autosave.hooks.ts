@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   clearStandingDraftLocalBackup,
@@ -66,11 +66,15 @@ export interface StandingDraftAutosaveSnapshot {
   baseVersion: number;
   savedAt: string;
   savedByPrincipalId: string;
+  /** Fresh server timestamp used only for the explicit recovery comparison. */
+  serverUpdatedAt?: string;
 }
 
 /** What this hook needs from the outside world — see this file's header for why it is declared
  *  here rather than imported from either feature's own port. */
 export interface StandingDraftAutosavePort {
+  /** Captured before expiry so late failures cannot borrow the next operator's identity. */
+  getBackupPrincipalId?: (requiredArgs: Record<string, never>, optionalArgs?: Record<string, never>) => string | null;
   /**
    * `options.keepalive` (2026-09-07) asks for an UNLOAD-SAFE transport, and is set only by the exit
    * flush below. An ordinary `fetch` started from `pagehide` or `visibilitychange`→hidden is
@@ -148,6 +152,7 @@ export interface StandingDraftAutosaveController {
    * the server-side draft — Load latest also calls {@link clearStandingDraft} for that.
    */
   supersedeBasis: (baseVersion: number) => void;
+  preserveFailedSave: (requiredArgs: { error: unknown; draft: StandingDraftAutosaveInput }, optionalArgs?: Record<string, never>) => void;
 }
 
 /** Idle debounce: fires this long after the LAST `scheduleAutosave` call with no further calls. */
@@ -163,8 +168,12 @@ export function useStandingDraftAutosave(deps: {
   /** Gate for "this editor is in a state where autosave should run at all" (e.g. not while a save
    *  or delete is already in flight). Recovery-check and scheduling both respect it. */
   enabled: boolean;
+  serverUpdatedAt?: string;
 }): StandingDraftAutosaveController {
-  const { port, entryId, enabled } = deps;
+  const { port, entryId, enabled, serverUpdatedAt } = deps;
+  const [backupPrincipalId] = useState(() => port.getBackupPrincipalId?.({}, {}));
+  const latestDraftRef = useRef<StandingDraftAutosaveInput | null>(null);
+  const backupGenerationRef = useRef(0);
   const [recoverableDraft, setRecoverableDraft] = useState<StandingDraftAutosaveSnapshot | null>(null);
   const [staleBasis, setStaleBasis] = useState<StandingDraftStaleBasis | null>(null);
   // Mirrors `staleBasis` for the SYNCHRONOUS gate in `scheduleAutosave`: the refusal is discovered
@@ -205,9 +214,9 @@ export function useStandingDraftAutosave(deps: {
     const next: StandingDraftStaleBasis = { baseVersion: draft.baseVersion, draft };
     staleBasisRef.current = next;
     setStaleBasis(next);
-    writeStandingDraftLocalBackup(id, draft, new Date().toISOString());
+    writeStandingDraftLocalBackup(id, draft, new Date().toISOString(), { principalId: backupPrincipalId });
     backupEntryIdRef.current = id;
-  }, []);
+  }, [backupPrincipalId]);
 
   /** Lifts the gate so scheduling resumes. Does NOT touch the mirror — see this file's header for
    *  why those two are separate. No-op when nothing is stale, so the common path never re-renders.
@@ -225,8 +234,8 @@ export function useStandingDraftAutosave(deps: {
     const id = backupEntryIdRef.current;
     if (id === null) return;
     backupEntryIdRef.current = null;
-    clearStandingDraftLocalBackup(id);
-  }, []);
+    clearStandingDraftLocalBackup(id, { principalId: backupPrincipalId });
+  }, [backupPrincipalId]);
 
   // Mount-time (and entry-change) recovery check — one read, never repeated while this entryId
   // stays mounted. A stale in-flight response from a PREVIOUS entryId is dropped via `cancelled`.
@@ -243,31 +252,39 @@ export function useStandingDraftAutosave(deps: {
     // mirror is reset, so a later accepted write for THIS entry cannot delete that other copy.
     backupEntryIdRef.current = null;
     minBaseVersionRef.current = null;
+    latestDraftRef.current = null;
     if (!enabled || !entryId) return;
     let cancelled = false;
     port
       .getAutosave(entryId)
       .then((result) => {
         if (cancelled) return;
-        const localBackup = readStandingDraftLocalBackup(entryId);
+        const localBackup = readStandingDraftLocalBackup(entryId, { principalId: backupPrincipalId });
         // Recorded whether or not it is the copy shown below: it exists, so a real Save or an
         // explicit discard on this entry has to be able to drop it. Without this the mirror written
         // before a reload would outlive every discard and re-offer itself on every later mount.
         if (localBackup !== null) backupEntryIdRef.current = entryId;
-        // Server first, always — a parked draft is authoritative and shared across tabs. The local
+        // Historically server first — a parked draft is shared across tabs. For expiry recovery,
+        // compare capture times instead: a 401 mirror may contain edits newer than that parked copy. The local
         // mirror is the fallback for exactly the case that produced it: the other tab's real save
         // cleared the server-side draft, so this tab reloads into "nothing to recover" while its
         // own refused text is the thing the operator actually wants back.
-        setRecoverableDraft(result.autosave ?? localBackup);
+        const server = result.autosave;
+        // A 401 mirror can be newer than the last accepted server autosave. Keep the newest copy.
+        const newest = localBackup && (!server || localBackup.savedAt > server.savedAt) ? localBackup : server;
+        setRecoverableDraft(newest);
       })
       .catch(() => {
-        // Best-effort: a failed recovery check just means no banner shows this session, not a
-        // reason to break editor load.
+        // A failed server recovery read must not hide the local copy rescued from an expired session.
+        if (cancelled) return;
+        const localBackup = readStandingDraftLocalBackup(entryId, { principalId: backupPrincipalId });
+        if (localBackup !== null) backupEntryIdRef.current = entryId;
+        setRecoverableDraft(localBackup);
       });
     return () => {
       cancelled = true;
     };
-  }, [enabled, entryId, port]);
+  }, [enabled, entryId, port, backupPrincipalId]);
 
   const enqueue = useCallback(
     (op: () => Promise<void>): Promise<void> =>
@@ -280,12 +297,28 @@ export function useStandingDraftAutosave(deps: {
     [writes]
   );
 
+  const preserveFailedSave = useCallback(({ error, draft }: { error: unknown; draft: StandingDraftAutosaveInput }, _options: Record<string, never> = {}) => {
+    if (!entryId || !isUnauthorizedDraftWrite(error)) return;
+    writeStandingDraftLocalBackup(entryId, draft, new Date().toISOString(), { principalId: backupPrincipalId });
+    backupEntryIdRef.current = entryId;
+  }, [entryId, backupPrincipalId]);
+
   /** The one place `putAutosave` is called. Its `{ applied }` answer is acted on here rather than
    *  discarded — see this file's STALE BASIS note. @complexity Time/space: O(1) plus the request. */
   const writeAutosave = useCallback(
-    (id: string, draft: StandingDraftAutosaveInput, keepalive: boolean) =>
-      enqueue(async () => {
-        const result = await port.putAutosave(id, draft, { keepalive });
+    (id: string, draft: StandingDraftAutosaveInput, keepalive: boolean) => {
+      const generation = backupGenerationRef.current;
+      return enqueue(async () => {
+        let result: { applied: boolean };
+        try {
+          result = await port.putAutosave(id, draft, { keepalive });
+        } catch (error) {
+          // A 401 can unmount the editor before this settles; the captured identity still owns it.
+          // Use the newest scheduled text, since an older request may fail while typing continues.
+          if (generation === backupGenerationRef.current) preserveFailedSave({ error, draft: latestDraftRef.current ?? draft });
+          throw error;
+        }
+        if (generation !== backupGenerationRef.current) return;
         if (!result.applied) {
           // Refused because the caller already moved past this basis — nothing to pause or mirror.
           if (isSupersededBasis(draft.baseVersion, minBaseVersionRef.current)) return;
@@ -296,13 +329,15 @@ export function useStandingDraftAutosave(deps: {
         // mirror is redundant and may go.
         liftStaleGate();
         dropLocalBackup();
-      }),
-    [dropLocalBackup, enqueue, liftStaleGate, markStaleBasis, port]
+      });
+    },
+    [dropLocalBackup, enqueue, liftStaleGate, markStaleBasis, port, preserveFailedSave]
   );
 
   const scheduleAutosave = useCallback(
     (draft: StandingDraftAutosaveInput) => {
       if (!enabled || !entryId) return;
+      latestDraftRef.current = draft;
       if (isSupersededBasis(draft.baseVersion, minBaseVersionRef.current)) return;
       // The gate. Same basis as the one the server already refused => this write would be refused
       // too, so it is not scheduled at all; a DIFFERENT basis means the editor reloaded the row, so
@@ -395,6 +430,8 @@ export function useStandingDraftAutosave(deps: {
   }, [enabled, entryId, flushPendingAutosave]);
 
   const clearStandingDraft = useCallback(async () => {
+    // A late 401/refusal must not resurrect a draft a successful Save or Discard superseded.
+    backupGenerationRef.current++;
     clearPendingTimer();
     setRecoverableDraft(null);
     // A real Save landed (or the operator discarded): whatever was refused is superseded, so the
@@ -422,11 +459,16 @@ export function useStandingDraftAutosave(deps: {
     [clearPendingTimer, liftStaleGate]
   );
 
-  return { recoverableDraft, staleBasis, dismissRecoverable, scheduleAutosave, clearStandingDraft, supersedeBasis };
+  const comparedDraft = useMemo(() => recoverableDraft ? { ...recoverableDraft, serverUpdatedAt } : null, [recoverableDraft, serverUpdatedAt]);
+  return { recoverableDraft: comparedDraft, staleBasis, dismissRecoverable, scheduleAutosave, clearStandingDraft, supersedeBasis, preserveFailedSave };
 }
 
 /** Whether a write built on `baseVersion` belongs to a basis the caller has left (see
  *  `supersedeBasis`). @complexity O(1). */
 function isSupersededBasis(baseVersion: number, minBaseVersion: number | null): boolean {
   return minBaseVersion !== null && baseVersion < minBaseVersion;
+}
+
+function isUnauthorizedDraftWrite(error: unknown): boolean {
+  return typeof error === "object" && error !== null && "status" in error && error.status === 401;
 }

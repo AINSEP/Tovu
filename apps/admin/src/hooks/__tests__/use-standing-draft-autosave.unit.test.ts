@@ -78,6 +78,72 @@ describe("useStandingDraftAutosave", () => {
     vi.useRealTimers();
   });
 
+  it("preserves the newest text after a 401 and offers it after re-login without changing the server", async () => {
+    const port = createFakePort({ putAutosave: vi.fn(async () => { throw { status: 401, code: "UNAUTHENTICATED" }; }) });
+    const first = renderHook(() => useStandingDraftAutosave({ port, entryId: "expired-post", enabled: true }));
+    await act(async () => vi.advanceTimersByTimeAsync(0));
+    act(() => first.result.current.scheduleAutosave({ ...DOC_DRAFT, title: "Typed before expiry" }));
+    await act(async () => vi.advanceTimersByTimeAsync(IDLE_MS_PLUS_MARGIN));
+    first.unmount();
+    const afterLogin = createFakePort();
+    const recovered = renderHook(() => useStandingDraftAutosave({ port: afterLogin, entryId: "expired-post", enabled: true }));
+    await act(async () => vi.advanceTimersByTimeAsync(0));
+    expect(recovered.result.current.recoverableDraft?.title).toBe("Typed before expiry");
+    expect(afterLogin.putAutosave).not.toHaveBeenCalled();
+    await act(async () => recovered.result.current.clearStandingDraft());
+    expect(readStandingDraftLocalBackup("expired-post")).toBeNull();
+  });
+
+  it("scopes failed saves to the captured operator and entry, and clears only that draft", async () => {
+    const alice = createFakePort({ getBackupPrincipalId: () => "alice" });
+    const first = renderHook(() => useStandingDraftAutosave({ port: alice, entryId: "same-entry", enabled: true }));
+    await act(async () => vi.advanceTimersByTimeAsync(0));
+    act(() => first.result.current.preserveFailedSave({ error: { status: 401 }, draft: { ...DOC_DRAFT, title: "Alice text" } }));
+    first.unmount();
+    const bob = createFakePort({ getBackupPrincipalId: () => "bob" });
+    const other = renderHook(() => useStandingDraftAutosave({ port: bob, entryId: "same-entry", enabled: true }));
+    await act(async () => vi.advanceTimersByTimeAsync(0));
+    expect(other.result.current.recoverableDraft).toBeNull();
+    other.unmount();
+    const recovered = renderHook(() => useStandingDraftAutosave({ port: alice, entryId: "same-entry", enabled: true, serverUpdatedAt: "2099-01-01T00:00:00.000Z" }));
+    await act(async () => vi.advanceTimersByTimeAsync(0));
+    expect(recovered.result.current.recoverableDraft).toMatchObject({ title: "Alice text", savedByPrincipalId: "alice", serverUpdatedAt: "2099-01-01T00:00:00.000Z" });
+    await act(async () => recovered.result.current.clearStandingDraft());
+    expect(readStandingDraftLocalBackup("same-entry", { principalId: "alice" })).toBeNull();
+  });
+
+  it("a 403 never parks a draft as a session expiry", async () => {
+    const port = createFakePort();
+    const { result } = renderHook(() => useStandingDraftAutosave({ port, entryId: "forbidden", enabled: true }));
+    await act(async () => vi.advanceTimersByTimeAsync(0));
+    act(() => result.current.preserveFailedSave({ error: { status: 403 }, draft: DOC_DRAFT }));
+    expect(readStandingDraftLocalBackup("forbidden")).toBeNull();
+  });
+
+  it("a late 401 cannot recreate a backup after Save or Discard clears it", async () => {
+    let rejectWrite!: (error: unknown) => void;
+    const port = createFakePort({ putAutosave: vi.fn(() => new Promise<{ applied: boolean }>((_resolve, reject) => { rejectWrite = reject; })) });
+    const { result } = renderHook(() => useStandingDraftAutosave({ port, entryId: "late-401", enabled: true }));
+    await act(async () => vi.advanceTimersByTimeAsync(0));
+    act(() => result.current.scheduleAutosave(DOC_DRAFT));
+    await act(async () => vi.advanceTimersByTimeAsync(IDLE_MS_PLUS_MARGIN));
+    let clearing!: Promise<void>;
+    act(() => { clearing = result.current.clearStandingDraft(); });
+    await act(async () => { rejectWrite({ status: 401 }); await clearing; });
+    expect(readStandingDraftLocalBackup("late-401")).toBeNull();
+  });
+
+  it("a late failure stays scoped to the original operator after the host switches identities", async () => {
+    let operator = "alice";
+    const port = createFakePort({ getBackupPrincipalId: () => operator });
+    const { result } = renderHook(() => useStandingDraftAutosave({ port, entryId: "late-operator", enabled: true }));
+    await act(async () => vi.advanceTimersByTimeAsync(0));
+    operator = "bob";
+    act(() => result.current.preserveFailedSave({ error: { status: 401 }, draft: DOC_DRAFT }));
+    expect(readStandingDraftLocalBackup("late-operator", { principalId: "alice" })?.title).toBe("Hello");
+    expect(readStandingDraftLocalBackup("late-operator", { principalId: "bob" })).toBeNull();
+  });
+
   it("checks for a recoverable draft exactly once on mount, and never auto-applies it", async () => {
     const port = createFakePort({ getAutosave: vi.fn(async () => ({ autosave: fakeSnapshot() })) });
     const { result } = renderHook(() => useStandingDraftAutosave({ port, entryId: "post-1", enabled: true }));
@@ -607,7 +673,7 @@ describe("useStandingDraftAutosave", () => {
     expect(port.putAutosaveCalls).toEqual([DOC_DRAFT]);
   });
 
-  it("prefers the server's parked draft over a local backup when both exist", async () => {
+  it("prefers the newer local draft over an older server autosave when both exist", async () => {
     const port = createFakePort({
       putAutosave: vi.fn(async () => ({ applied: false })),
       getAutosave: vi.fn(async () => ({ autosave: fakeSnapshot({ title: "From the server" }) })),
@@ -621,7 +687,7 @@ describe("useStandingDraftAutosave", () => {
     const second = renderHook(() => useStandingDraftAutosave({ port, entryId: "post-1", enabled: true }));
     await act(async () => vi.advanceTimersByTimeAsync(0));
 
-    expect(second.result.current.recoverableDraft).toMatchObject({ title: "From the server" });
+    expect(second.result.current.recoverableDraft).toMatchObject({ title: "From this tab" });
   });
 });
 

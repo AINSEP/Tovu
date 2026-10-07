@@ -330,9 +330,9 @@ describe("standing-draft autosave recovery banner", () => {
     expect(screen.getByRole("button", { name: /discard/i })).toBeInTheDocument();
   });
 
-  it("labels a stale draft (baseVersion behind the loaded page's version) instead of implying it is current", () => {
-    renderEditor({ recoverableDraft: RECOVERABLE, page: { ...BASE_PAGE, version: 2 } });
-    expect(screen.getByText(/before a newer save/i)).toBeInTheDocument();
+  it("compares the recovered capture time with the loaded server timestamp", () => {
+    renderEditor({ recoverableDraft: RECOVERABLE, page: { ...BASE_PAGE, version: 2, updatedAt: "2026-09-06T00:10:00.000Z" } });
+    expect(screen.getByText("Restore unsaved changes from 2026-09-06T00:05:00.000Z · Server content is newer.")).toBeInTheDocument();
   });
 
   it("clicking Restore calls the controller's restoreRecoveredDraft", async () => {

@@ -1,3 +1,4 @@
+import { standingDraftRecoveryMessage } from "../../lib/standing-draft-recovery-message";
 import { useThemePreviewFrame } from "../themes/hooks/use-theme-preview-refresh.hooks";
 import { WiredThemePreviewReloadButton } from "../themes/ThemePreviewReloadButton";
 import { useEffect, type RefObject } from "react";
@@ -31,9 +32,7 @@ import { TemplateSourceModal } from "../../components/TemplateSource/TemplateSou
 import { ViewTemplateButton } from "../../components/TemplateSource/ViewTemplateButton";
 import { TermPicker } from "../taxonomy/TermPicker";
 import {
-  isAutosaveDraftStale,
   PAGE_EXTERNAL_CHANGE_MESSAGE,
-  pageAutosaveBannerMessage,
   pageAutosaveStaleBasisMessage,
   pageEditorSurface,
   pageLivePreviewPath,
@@ -277,23 +276,22 @@ function PageEditorActions({
  * Standing-draft autosave (2026-09-06) — the "restore or discard" recovery banner. Never rendered
  * unless `usePageEditor` found a parked draft on mount (`recoverableDraft`); never applies it on its
  * own — both buttons require an explicit click, per the owner's own worry about silently clobbering
- * a different tab/operator's work. `pageAutosaveBannerMessage`/`isAutosaveDraftStale` (`rules.ts`)
- * own the actual wording decision so this component stays markup only.
+ * a different tab/operator's work. `standingDraftRecoveryMessage` (`lib/standing-draft-recovery-message.ts`)
+ * owns the actual wording decision so this component stays markup only.
  */
 function PageAutosaveRecoveryBanner({
   recoverableDraft,
-  currentVersion,
+  serverUpdatedAt,
   onRestore,
   onDiscard,
   t,
 }: {
   recoverableDraft: StandingDraftAutosaveSnapshot;
-  currentVersion: number;
+  serverUpdatedAt: string;
   onRestore: () => void;
   onDiscard: () => void;
   t: Translate;
 }) {
-  const stale = isAutosaveDraftStale(recoverableDraft.baseVersion, currentVersion);
   return (
     <div
       className="notice warning"
@@ -302,7 +300,7 @@ function PageAutosaveRecoveryBanner({
         label: "An unsaved draft from a previous session was found — restore it or discard it",
       })}
     >
-      <p>{pageAutosaveBannerMessage(recoverableDraft.savedAt, Date.now(), stale)}</p>
+      <p>{standingDraftRecoveryMessage({ draft: recoverableDraft, t, serverUpdatedAt })}</p>
       <button
         type="button"
         className="btn-secondary"
@@ -481,7 +479,7 @@ function PageExternalChangeBanner({ onLoadLatest, onKeepEdits, t }: { onLoadLate
  */
 function PageEditorNotices({
   recoverableDraft,
-  currentVersion,
+  serverUpdatedAt,
   onRestore,
   onDiscard,
   autosaveStaleBasis,
@@ -494,7 +492,7 @@ function PageEditorNotices({
   t,
 }: {
   recoverableDraft: StandingDraftAutosaveSnapshot | null;
-  currentVersion: number;
+  serverUpdatedAt: string;
   onRestore: () => void;
   onDiscard: () => void;
   autosaveStaleBasis: StandingDraftStaleBasis | null;
@@ -511,7 +509,7 @@ function PageEditorNotices({
       {recoverableDraft ? (
         <PageAutosaveRecoveryBanner
           recoverableDraft={recoverableDraft}
-          currentVersion={currentVersion}
+          serverUpdatedAt={serverUpdatedAt}
           onRestore={onRestore}
           onDiscard={onDiscard}
           t={t}
@@ -771,7 +769,7 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
 
       <PageEditorNotices
         recoverableDraft={recoverableDraft}
-        currentVersion={page.version}
+        serverUpdatedAt={page.updatedAt}
         onRestore={restoreRecoveredDraft}
         onDiscard={discardRecoveredDraft}
         autosaveStaleBasis={autosaveStaleBasis}

@@ -1,3 +1,4 @@
+import { setAdminDraftIdentity } from "./lib/admin-draft-identity";
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { createFrontendSessionBridge, type FrontendSessionBridge } from "@jini-ai/chat/react";
 import { createDomPageDriver } from "@jini-ai/agentic/dom";
@@ -108,6 +109,7 @@ export function useAdminSession(): UseAdminSession {
       .then((r) => {
         if (sessionEpoch.current !== readEpoch) return;
         setPublishToLiveAvailable(readPublishToLiveAvailability(r));
+        setAdminDraftIdentity({ id: r.user.id });
         setUser(r.user);
         // No `?? []`: an absent field stays "not known", so the nav filter shows everything instead
         // of hiding every gated section (see `UseAdminSession.effectivePermissions`).
@@ -162,6 +164,7 @@ export function useAdminSession(): UseAdminSession {
    */
   function handleLogin(next: AdminUser) {
     const readEpoch = ++sessionEpoch.current;
+    setAdminDraftIdentity({ id: next.id });
     setUser(next);
     // "Not known yet" rather than `[]` until the `/auth/me` below answers, so a fresh sign-in does
     // not flash an emptied nav or a no-access screen at an operator who has access.
@@ -179,6 +182,7 @@ export function useAdminSession(): UseAdminSession {
     sessionEpoch.current++;
     setEffectivePermissions([]);
     await api.logout().catch(() => undefined);
+    setAdminDraftIdentity({ id: null });
     setUser(null);
     setEffectivePermissions([]);
   }

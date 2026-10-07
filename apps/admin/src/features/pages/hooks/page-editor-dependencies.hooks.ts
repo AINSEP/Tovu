@@ -1,3 +1,4 @@
+import { getAdminDraftIdentity } from "@/lib/admin-draft-identity";
 import { api, ApiError, type AdminPost, type ThemeTier } from "@/lib/api";
 import type { StandingDraftAutosaveInput, StandingDraftAutosaveSnapshot } from "@/hooks/use-standing-draft-autosave.hooks";
 import type { PageEditorPort } from "./page-editor-port.hooks";
@@ -30,6 +31,7 @@ export const defaultPageEditorPort: PageEditorPort = {
   deletePage: (id) => api.deletePage(id),
   templatePreviewUrl: (id, templateChoice) => api.templatePreviewUrl(id, templateChoice),
   putAutosave: (id, draft, options) => api.putAutosave(id, draft, options),
+  getBackupPrincipalId: () => getAdminDraftIdentity(),
   getAutosave: (id) => api.getAutosave(id),
   discardAutosave: (id) => api.discardAutosave(id),
 };

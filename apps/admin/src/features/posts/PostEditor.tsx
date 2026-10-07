@@ -1,3 +1,4 @@
+import { standingDraftRecoveryMessage } from "../../lib/standing-draft-recovery-message";
 import { useThemePreviewFrame } from "../themes/hooks/use-theme-preview-refresh.hooks";
 import { WiredThemePreviewReloadButton } from "../themes/ThemePreviewReloadButton";
 import { EditorContent, useEditorState, type Editor } from "@tiptap/react";
@@ -33,9 +34,7 @@ import {
   FONT_SIZE_OPTIONS,
   LINE_HEIGHT_OPTIONS,
   CODE_LANGUAGE_OPTIONS,
-  isAutosaveDraftStale,
   overridesThemePageFromSelectValue,
-  postAutosaveBannerMessage,
   resolvePostPreviewBranches,
   postAutosaveStaleBasisMessage,
   postVersionConflictMessage,
@@ -725,25 +724,24 @@ function PostEditorHeader({
  * Standing-draft autosave (2026-09-06) — the "restore or discard" recovery banner. Never rendered
  * unless `usePostEditor` found a parked draft on mount (`recoverableDraft`); never applies it on its
  * own — both buttons require an explicit click, per the owner's own worry about silently clobbering
- * a different tab/operator's work. `postAutosaveBannerMessage`/`isAutosaveDraftStale` (`rules.ts`)
- * own the actual wording decision so this component stays markup only. Mirrors
+ * a different tab/operator's work. `standingDraftRecoveryMessage` (`lib/standing-draft-recovery-message.ts`)
+ * owns the actual wording decision so this component stays markup only. Mirrors
  * `features/pages/PageEditor.tsx`'s identical `PageAutosaveRecoveryBanner`, `agentHandle`-tagged
  * and copy-through-`t` because this screen already uses both throughout, unlike Pages'.
  */
 function PostAutosaveRecoveryBanner({
   recoverableDraft,
-  currentVersion,
+  serverUpdatedAt,
   onRestore,
   onDiscard,
   t,
 }: {
   recoverableDraft: StandingDraftAutosaveSnapshot;
-  currentVersion: number;
+  serverUpdatedAt: string;
   onRestore: () => void;
   onDiscard: () => void;
   t: Translate;
 }) {
-  const stale = isAutosaveDraftStale(recoverableDraft.baseVersion, currentVersion);
   return (
     <div
       className="notice warning"
@@ -752,7 +750,7 @@ function PostAutosaveRecoveryBanner({
         label: "An unsaved draft from a previous session was found — restore it or discard it",
       })}
     >
-      <p>{postAutosaveBannerMessage(recoverableDraft.savedAt, Date.now(), stale)}</p>
+      <p>{standingDraftRecoveryMessage({ draft: recoverableDraft, t, serverUpdatedAt })}</p>
       <button
         type="button"
         className="btn-secondary"
@@ -1364,7 +1362,7 @@ export interface PostEditorProps {
  */
 function PostEditorNotices({
   recoverableDraft,
-  currentVersion,
+  serverUpdatedAt,
   restoreRecoveredDraft,
   discardRecoveredDraft,
   autosaveStaleBasis,
@@ -1374,7 +1372,7 @@ function PostEditorNotices({
   t,
 }: {
   recoverableDraft: StandingDraftAutosaveSnapshot | null;
-  currentVersion: number;
+  serverUpdatedAt: string;
   restoreRecoveredDraft: () => void;
   discardRecoveredDraft: () => Promise<void>;
   autosaveStaleBasis: StandingDraftStaleBasis | null;
@@ -1388,7 +1386,7 @@ function PostEditorNotices({
       {recoverableDraft ? (
         <PostAutosaveRecoveryBanner
           recoverableDraft={recoverableDraft}
-          currentVersion={currentVersion}
+          serverUpdatedAt={serverUpdatedAt}
           onRestore={restoreRecoveredDraft}
           onDiscard={discardRecoveredDraft}
           t={t}
@@ -1483,7 +1481,7 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
 
       <PostEditorNotices
         recoverableDraft={recoverableDraft}
-        currentVersion={post.version}
+        serverUpdatedAt={post.updatedAt}
         restoreRecoveredDraft={restoreRecoveredDraft}
         discardRecoveredDraft={discardRecoveredDraft}
         autosaveStaleBasis={autosaveStaleBasis}

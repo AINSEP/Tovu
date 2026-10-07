@@ -1,3 +1,4 @@
+import { getAdminDraftIdentity } from "@/lib/admin-draft-identity";
 import { ApiError, api, type AdminMedia, type AdminPost, type AdminThemeSummary, type PresentationSettings } from "@/lib/api";
 import { POST_VERSION_CONFLICT_CODE } from "../rules";
 import type { StandingDraftAutosaveInput, StandingDraftAutosaveSnapshot } from "@/hooks/use-standing-draft-autosave.hooks";
@@ -19,6 +20,7 @@ export const defaultPostEditorPort: PostEditorPort = {
   uploadMedia: (input) => api.uploadMedia(input),
   templatePreviewUrl: (id, templateChoice) => api.templatePreviewUrl(id, templateChoice),
   putAutosave: (id, draft, options) => api.putAutosave(id, draft, options),
+  getBackupPrincipalId: () => getAdminDraftIdentity(),
   getAutosave: (id) => api.getAutosave(id),
   discardAutosave: (id) => api.discardAutosave(id),
 };

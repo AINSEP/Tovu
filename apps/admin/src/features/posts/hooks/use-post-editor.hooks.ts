@@ -634,7 +634,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   // for the ordering guarantee `clearStandingDraft` relies on. Keyed on the loaded row's real id, not
   // `postId`: `postId` is the URL segment, usually the post's SLUG, and it names nothing once the
   // operator renames the slug and saves — see `entryId` below.
-  const autosave = useStandingDraftAutosave({ port, entryId: post?.id ?? null, enabled: post !== null });
+  const autosave = useStandingDraftAutosave({ port, entryId: post?.id ?? null, enabled: post !== null, serverUpdatedAt: post?.updatedAt });
   // What every write after load targets. `postId` resolves the row once, on load (the server accepts
   // id or slug); after that the real id is the only handle that survives a slug rename. Before this,
   // the second save after a rename — and every overwrite, autosave, and delete — 404'd on the old slug.
@@ -1029,6 +1029,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
       void autosave.clearStandingDraft();
     } catch (e) {
       if (!settlement.isCurrent(generation)) return;
+      if (post) autosave.preserveFailedSave({ error: e, draft: buildPostAutosaveDraft(post, { title, slug, bodyJson: editor.getJSON() as Record<string, unknown> }) });
       // The version conflict is NOT folded into the generic error line. The two need opposite
       // reactions from the operator (a slug collision or a network blip: fix it and press Save
       // again; this: pressing Save again erases somebody's document), and the whole point of the

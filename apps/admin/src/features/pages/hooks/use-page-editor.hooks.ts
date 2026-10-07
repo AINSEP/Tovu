@@ -701,7 +701,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   // for the ordering guarantee `clearStandingDraft` relies on. `entryId`/`enabled` both key off
   // `page` rather than `routeSlug`: the recovery check needs the row's REAL id (routeSlug can be a
   // stale/legacy bookmark), and must not run at all before the id is known.
-  const autosave = useStandingDraftAutosave({ port, entryId: page?.id ?? null, enabled: page !== null });
+  const autosave = useStandingDraftAutosave({ port, entryId: page?.id ?? null, enabled: page !== null, serverUpdatedAt: page?.updatedAt });
 
   // `t`/`locale` are deliberately not listed — that gap predates this conversion (the effect only
   // ever ran off `routeSlug` even when `locale` came from `useAdminLocale()` directly) and fixing
@@ -903,6 +903,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
         void autosave.clearStandingDraft();
       } catch (e) {
         if (!settlement.isCurrent(generation)) return;
+        autosave.preserveFailedSave({ error: e, draft: buildPageAutosaveDraft(basis, { title, slug, html: bodyHtml }) });
         applySaveFailure(
           e,
           nextStatus,
@@ -918,7 +919,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
         if (settlement.isCurrent(generation)) setSaving(false);
       }
     },
-    [html, title, slug, status, templateChoice, locale, port, t, settlement, autosave.clearStandingDraft]
+    [html, title, slug, status, templateChoice, locale, port, t, settlement, autosave.clearStandingDraft, autosave.preserveFailedSave]
   );
 
   /**

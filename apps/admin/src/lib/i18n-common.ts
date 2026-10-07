@@ -524,6 +524,159 @@ const COMMON_EXTRA_I18N: Record<string, Record<string, string>> = Object.fromEnt
   Object.entries(COMMON_EXTRA_VALUES).map(([locale, values]) => [locale, Object.fromEntries(COMMON_EXTRA_KEYS.map((key, index) => [key, values[index]!]))]),
 );
 
+const DRAFT_RECOVERY_I18N: Record<string, Record<string, string>> = {
+  "es": {
+    "Restore unsaved changes from": "Restaurar cambios sin guardar de",
+    "Server content is newer.": "El contenido del servidor es más reciente.",
+    "Local changes are newer.": "Los cambios locales son más recientes.",
+    "Both copies have the same timestamp.": "Ambas copias tienen la misma fecha."
+  },
+  "de": {
+    "Restore unsaved changes from": "Ungespeicherte Änderungen wiederherstellen vom",
+    "Server content is newer.": "Der Serverinhalt ist neuer.",
+    "Local changes are newer.": "Die lokalen Änderungen sind neuer.",
+    "Both copies have the same timestamp.": "Beide Kopien haben denselben Zeitstempel."
+  },
+  "it": {
+    "Restore unsaved changes from": "Ripristina modifiche non salvate del",
+    "Server content is newer.": "Il contenuto del server è più recente.",
+    "Local changes are newer.": "Le modifiche locali sono più recenti.",
+    "Both copies have the same timestamp.": "Le due copie hanno la stessa data."
+  },
+  "zh-CN": {
+    "Restore unsaved changes from": "恢复未保存的更改，时间：",
+    "Server content is newer.": "服务器内容较新。",
+    "Local changes are newer.": "本地更改较新。",
+    "Both copies have the same timestamp.": "两份副本的时间相同。"
+  },
+  "zh-TW": {
+    "Restore unsaved changes from": "還原未儲存的變更，時間：",
+    "Server content is newer.": "伺服器內容較新。",
+    "Local changes are newer.": "本機變更較新。",
+    "Both copies have the same timestamp.": "兩份副本的時間相同。"
+  },
+  "ar": {
+    "Restore unsaved changes from": "استعادة التغييرات غير المحفوظة من",
+    "Server content is newer.": "محتوى الخادم أحدث.",
+    "Local changes are newer.": "التغييرات المحلية أحدث.",
+    "Both copies have the same timestamp.": "النسختان لهما الوقت نفسه."
+  },
+  "fa": {
+    "Restore unsaved changes from": "بازیابی تغییرات ذخیره‌نشده از",
+    "Server content is newer.": "محتوای سرور جدیدتر است.",
+    "Local changes are newer.": "تغییرات محلی جدیدتر است.",
+    "Both copies have the same timestamp.": "زمان هر دو نسخه یکسان است."
+  },
+  "ru": {
+    "Restore unsaved changes from": "Восстановить несохранённые изменения от",
+    "Server content is newer.": "Содержимое сервера новее.",
+    "Local changes are newer.": "Локальные изменения новее.",
+    "Both copies have the same timestamp.": "Время обеих копий совпадает."
+  },
+  "ja": {
+    "Restore unsaved changes from": "未保存の変更を復元：",
+    "Server content is newer.": "サーバーの内容の方が新しいです。",
+    "Local changes are newer.": "ローカルの変更の方が新しいです。",
+    "Both copies have the same timestamp.": "両方のコピーの日時は同じです。"
+  },
+  "id": {
+    "Restore unsaved changes from": "Pulihkan perubahan yang belum disimpan dari",
+    "Server content is newer.": "Konten server lebih baru.",
+    "Local changes are newer.": "Perubahan lokal lebih baru.",
+    "Both copies have the same timestamp.": "Kedua salinan memiliki waktu yang sama."
+  },
+  "pt-BR": {
+    "Restore unsaved changes from": "Restaurar alterações não salvas de",
+    "Server content is newer.": "O conteúdo do servidor é mais recente.",
+    "Local changes are newer.": "As alterações locais são mais recentes.",
+    "Both copies have the same timestamp.": "As duas cópias têm a mesma data."
+  },
+  "ko": {
+    "Restore unsaved changes from": "저장하지 않은 변경 사항 복원:",
+    "Server content is newer.": "서버 내용이 더 최신입니다.",
+    "Local changes are newer.": "로컬 변경 사항이 더 최신입니다.",
+    "Both copies have the same timestamp.": "두 사본의 시간이 같습니다."
+  },
+  "pl": {
+    "Restore unsaved changes from": "Przywróć niezapisane zmiany z",
+    "Server content is newer.": "Treść na serwerze jest nowsza.",
+    "Local changes are newer.": "Lokalne zmiany są nowsze.",
+    "Both copies have the same timestamp.": "Obie kopie mają ten sam czas."
+  },
+  "hu": {
+    "Restore unsaved changes from": "Mentetlen módosítások visszaállítása innen:",
+    "Server content is newer.": "A szerveren lévő tartalom újabb.",
+    "Local changes are newer.": "A helyi módosítások újabbak.",
+    "Both copies have the same timestamp.": "A két példány időpontja azonos."
+  },
+  "fr": {
+    "Restore unsaved changes from": "Restaurer les modifications non enregistrées du",
+    "Server content is newer.": "Le contenu du serveur est plus récent.",
+    "Local changes are newer.": "Les modifications locales sont plus récentes.",
+    "Both copies have the same timestamp.": "Les deux copies ont la même date."
+  },
+  "uk": {
+    "Restore unsaved changes from": "Відновити незбережені зміни від",
+    "Server content is newer.": "Вміст сервера новіший.",
+    "Local changes are newer.": "Локальні зміни новіші.",
+    "Both copies have the same timestamp.": "Час обох копій однаковий."
+  },
+  "tr": {
+    "Restore unsaved changes from": "Kaydedilmemiş değişiklikleri geri yükle:",
+    "Server content is newer.": "Sunucu içeriği daha yeni.",
+    "Local changes are newer.": "Yerel değişiklikler daha yeni.",
+    "Both copies have the same timestamp.": "İki kopyanın zamanı aynı."
+  },
+  "th": {
+    "Restore unsaved changes from": "กู้คืนการเปลี่ยนแปลงที่ยังไม่ได้บันทึกจาก",
+    "Server content is newer.": "เนื้อหาบนเซิร์ฟเวอร์ใหม่กว่า",
+    "Local changes are newer.": "การเปลี่ยนแปลงในเครื่องใหม่กว่า",
+    "Both copies have the same timestamp.": "สำเนาทั้งสองมีเวลาเดียวกัน"
+  },
+  "hi": {
+    "Restore unsaved changes from": "इस समय के असहेजे बदलाव बहाल करें:",
+    "Server content is newer.": "सर्वर की सामग्री नई है।",
+    "Local changes are newer.": "स्थानीय बदलाव नए हैं।",
+    "Both copies have the same timestamp.": "दोनों प्रतियों का समय समान है।"
+  },
+  "ur": {
+    "Restore unsaved changes from": "اس وقت کی غیر محفوظ تبدیلیاں بحال کریں:",
+    "Server content is newer.": "سرور کا مواد زیادہ نیا ہے۔",
+    "Local changes are newer.": "مقامی تبدیلیاں زیادہ نئی ہیں۔",
+    "Both copies have the same timestamp.": "دونوں نقول کا وقت یکساں ہے۔"
+  },
+  "bn": {
+    "Restore unsaved changes from": "এই সময়ের অসংরক্ষিত পরিবর্তন পুনরুদ্ধার করুন:",
+    "Server content is newer.": "সার্ভারের বিষয়বস্তু নতুন।",
+    "Local changes are newer.": "স্থানীয় পরিবর্তনগুলি নতুন।",
+    "Both copies have the same timestamp.": "দুটি কপির সময় একই।"
+  }
+};
+
+const BUILT_IN_I18N: Record<string, string> = {
+  "es": "Integrado",
+  "de": "Integriert",
+  "it": "Integrato",
+  "zh-CN": "内置",
+  "zh-TW": "內建",
+  "ar": "مدمج",
+  "fa": "داخلی",
+  "ru": "Встроенное",
+  "ja": "組み込み",
+  "id": "Bawaan",
+  "pt-BR": "Integrado",
+  "ko": "내장",
+  "pl": "Wbudowane",
+  "hu": "Beépített",
+  "fr": "Intégré",
+  "uk": "Вбудоване",
+  "tr": "Yerleşik",
+  "th": "ในตัว",
+  "hi": "अंतर्निहित",
+  "ur": "بلٹ اِن",
+  "bn": "অন্তর্নির্মিত"
+};
+
 export const COMMON_I18N: Record<string, Record<string, string>> = Object.fromEntries(
-  Object.entries(BASE_COMMON_I18N).map(([locale, values]) => [locale, { ...values, ...Object.entries(COMMON_EXTRA_I18N).find(([extraLocale]) => extraLocale === locale)?.[1] }]),
+  Object.entries(BASE_COMMON_I18N).map(([locale, values]) => [locale, { ...values, "Built-in": BUILT_IN_I18N[locale]!, ...DRAFT_RECOVERY_I18N[locale], ...Object.entries(COMMON_EXTRA_I18N).find(([extraLocale]) => extraLocale === locale)?.[1] }]),
 );
