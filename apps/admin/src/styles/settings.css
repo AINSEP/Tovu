@@ -55,6 +55,9 @@
 .settings-ui-section[data-theme="light"] {
   --jini-bg-panel: var(--surface);
   --jini-bg-elevated: var(--surface);
+  /* This panel stays light in a dark admin, where the inherited `--selected-text` is the dark
+     theme's lighter orange (3:1 on white). `--primary` holds 4.5:1 on white in both themes. */
+  --selected-text: var(--primary);
 }
 
 /* --- The LOUD half of the same report: the global disabled-button tint ------

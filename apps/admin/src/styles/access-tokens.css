@@ -39,13 +39,13 @@
 }
 .access-tokens-category-filter-item:hover { background: var(--surface-2); opacity: 1; }
 .access-tokens-category-filter-item[aria-selected="true"] {
-  background: var(--accent); color: var(--accent-ink); border-color: transparent;
+  background: var(--primary); color: var(--primary-ink); border-color: transparent;
 }
 
 /* "Add custom provider" — a separate control after the category pills, `margin-left: auto` pushes
    it to the far right of the (wrapping) filter row so it never reads as an eighth pill. Same
-   `--accent`/`--accent-ink` token the selected category pill above and the chat UI
-   (`assistant.css`) already use — no new hardcoded color. */
+   `--accent`/`--accent-ink` token the chat UI (`assistant.css`) uses — no new hardcoded color. The
+   selected category pill above is the selection orange instead (owner, 2026-10-06). */
 .access-tokens-add-custom-button {
   margin-left: auto;
   background: var(--accent); color: var(--accent-ink); border: 1px solid transparent;

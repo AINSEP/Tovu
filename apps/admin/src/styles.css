@@ -105,8 +105,24 @@
      `--jini-accent` used to be its own orange (#c96442) until the 2026-10-03 extraction routed it
      through `--jini-primary` (#363636 here), and the admin's own tabs used `--accent-text` (owner,
      2026-10-06: "black outline rather than the orange outline it used to have"). Outlines only —
-     selected FILLS (chips, sidebar row) keep their own tokens. */
+     Fills follow the same orange through the `--jini-theme-*-primary` mapping below. */
   --selected-ring:  var(--primary);
+  /* TEXT of the selected/active item (the current tab's label). Its own token because text needs
+     4.5:1, not the 3:1 an outline needs: light `--primary` is 5.02:1 on white, but dark
+     `--primary` is only 3.9:1 on the dark surface, so the dark block below swaps in
+     `--primary-strong` (5.4:1 on `--surface`, 5.7:1 on `--bg`). */
+  --selected-text:  var(--primary);
+  /* Jini's colour contract: every `--jini-accent*` token (selected cards, the Settings primary
+     buttons, provider chips, toggles, consent buttons, Settings tab underline) derives from
+     `--jini-primary`, which reads these two host inputs and otherwise falls back to #363636.
+     Until the 2026-10-03 extraction Jini's tabbed-dialog stylesheet set `--jini-accent` to its own
+     orange (#c96442), so all of those were orange; the extraction moved them onto `--jini-primary`
+     and this admin never set it, so they all went near-black (owner, 2026-10-06: "should be the
+     brand orange"). Mapping the inputs, not `--jini-accent` itself: Jini re-declares the derived
+     tokens on every `[data-admin-theme]`/`[data-color-scheme]` element, so only an inherited input
+     reaches them all. `--jini-primary-ink` stays Jini's white (5.02:1 on this orange). */
+  --jini-theme-light-primary: var(--primary);
+  --jini-theme-dark-primary:  var(--primary);
 
   /* Assistant-drawn charts (Jini recharts reads `--jini-chart-*`, else Jini's own fallbacks — once
      the near-black `--jini-primary`, which this admin never maps — demo V3 2026-10-05: "the color
@@ -236,6 +252,8 @@
   --primary-ink:    oklch(99% 0 0);
   --primary-dim:    oklch(56% 0.10 44 / 0.16);
   --primary-ring:   oklch(56% 0.10 44 / 0.30);
+  /* Selected-item text on the dark surface — see `--selected-text` in `:root`. */
+  --selected-text:  var(--primary-strong);
 
   /* Chart series come from Jini's dark default palette, which keys on this admin's `data-theme`
      too: stepped for the dark surface (not a flip of the light one), the same hues, validated
@@ -1516,10 +1534,12 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 }
 
 .cms-item.active { background: var(--accent-dim); color: var(--accent-text); font-weight: 600; }
-.cms-item.active svg { color: var(--accent-text); }
+/* "You are here": the rail and icon wear the selection orange (non-text, 3:1 is enough); the label
+   stays near-black, because orange text on this row's tint measures 4.4:1, under AA's 4.5. */
+.cms-item.active svg { color: var(--selected-ring); }
 .cms-item.active::before {
   content: ''; position: absolute; left: -12px; top: 50%; transform: translateY(-50%);
-  width: 3px; height: 18px; border-radius: 0 3px 3px 0; background: var(--accent-text);
+  width: 3px; height: 18px; border-radius: 0 3px 3px 0; background: var(--selected-ring);
 }
 
 .cms-item.is-soon { cursor: default; color: var(--faint); }
@@ -2747,7 +2767,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   color: var(--muted); cursor: pointer; transition: color 0.14s, border-color 0.14s; flex-shrink: 0;
 }
 .tab-bar-item:hover { background: none; color: var(--fg); opacity: 1; }
-.tab-bar-item[aria-selected="true"] { color: var(--accent-text); border-bottom-color: var(--selected-ring); }
+.tab-bar-item[aria-selected="true"] { color: var(--selected-text); border-bottom-color: var(--selected-ring); }
 .tab-bar-count { margin-left: 0.4rem; font-size: var(--text-2xs); color: var(--faint); font-variant-numeric: tabular-nums; }
 .tab-bar-item[aria-selected="true"] .tab-bar-count { color: var(--accent-text); opacity: 0.75; }
 /* `TabBarTab.tag`'s pill — same shape as the admin sidebar's own `.cms-item .soon` badge (uppercase,
@@ -4224,7 +4244,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   /* The filled pill that reads as "selected" in a vertical list reads as a
    * button in a row; an underline is the tab-strip idiom for the same state. */
   background: transparent;
-  color: var(--jini-text-strong);
+  color: var(--selected-text);
   border-bottom-color: var(--selected-ring);
 }
 

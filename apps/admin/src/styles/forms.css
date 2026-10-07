@@ -42,7 +42,7 @@
 }
 
 .form-tab[aria-selected="true"] {
-  color: var(--fg);
+  color: var(--selected-text);
   border-bottom-color: var(--selected-ring);
 }
 

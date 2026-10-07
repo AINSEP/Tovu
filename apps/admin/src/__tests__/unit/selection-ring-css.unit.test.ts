@@ -27,6 +27,29 @@ describe("admin selection ring", () => {
     expect(effectiveDeclarationsFor(stylesheet, ":root")).toMatch(/--selected-ring\s*:\s*var\(--primary\)\s*;/);
   });
 
+  it("maps Jini's primary inputs to the brand primary, so every --jini-accent* token is orange", () => {
+    const rootDeclarations = effectiveDeclarationsFor(stylesheet, ":root");
+    expect(rootDeclarations).toMatch(/--jini-theme-light-primary\s*:\s*var\(--primary\)\s*;/);
+    expect(rootDeclarations).toMatch(/--jini-theme-dark-primary\s*:\s*var\(--primary\)\s*;/);
+  });
+
+  it("selected-item text is the primary in light, the lighter primary in dark, and the primary again on the light-pinned Settings panel", () => {
+    expect(effectiveDeclarationsFor(stylesheet, ":root")).toMatch(/--selected-text\s*:\s*var\(--primary\)\s*;/);
+    expect(effectiveDeclarationsFor(stylesheet, ':root[data-theme="dark"]')).toMatch(/--selected-text\s*:\s*var\(--primary-strong\)\s*;/);
+    const settings = sheets.find((sheet) => sheet.path === "styles/settings.css")!.css;
+    expect(effectiveDeclarationsFor(settings, '.settings-ui-section[data-theme="light"]')).toMatch(/--selected-text\s*:\s*var\(--primary\)\s*;/);
+  });
+
+  it.each([
+    ["styles.css", '.tab-bar-item[aria-selected="true"]', "color"],
+    ["styles.css", ".settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-nav-item.active", "color"],
+    ["styles/forms.css", '.form-tab[aria-selected="true"]', "color"],
+  ])("%s: %s draws its active-tab %s in the selected-text token", (path, selector, property) => {
+    const css = sheets.find((sheet) => sheet.path === path)!.css;
+    const declaration = effectiveDeclarationsFor(css, selector).match(new RegExp(`(?:^|; )${property}: ([^;]+);`));
+    expect(declaration?.[1]).toBe("var(--selected-text)");
+  });
+
   it.each([
     ["styles/settings.css", ":root .jini-agent-card.is-selected", "border-color"],
     ["styles/settings.css", ":root .jini-agent-card.is-selected", "box-shadow"],
@@ -38,10 +61,19 @@ describe("admin selection ring", () => {
     ["styles.css", '.agent-plugin-source-content-header button[aria-pressed="true"]', "border-color"],
     ["styles.css", ".site-db-option.is-selected", "border-color"],
     ["styles/forms.css", '.form-tab[aria-selected="true"]', "border-bottom-color"],
+    ["styles.css", ".cms-item.active::before", "background"],
+    ["styles.css", ".cms-item.active svg", "color"],
   ])("%s: %s draws its %s in the ring token", (path, selector, property) => {
     const css = sheets.find((sheet) => sheet.path === path)!.css;
     const declaration = effectiveDeclarationsFor(css, selector).match(new RegExp(`(?:^|; )${property}: ([^;]+);`));
     expect(declaration?.[1]).toMatch(RING);
+  });
+
+  it("fills the selected Access Tokens category pill with the primary, not the near-black accent", () => {
+    const css = sheets.find((sheet) => sheet.path === "styles/access-tokens.css")!.css;
+    expect(effectiveDeclarationsFor(css, '.access-tokens-category-filter-item[aria-selected="true"]')).toMatch(
+      /background: var\(--primary\); color: var\(--primary-ink\);/,
+    );
   });
 
   it("no selected-state outline anywhere in the admin is drawn in a near-black accent", () => {
