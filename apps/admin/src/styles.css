@@ -1030,6 +1030,9 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
    Regions · type select · Add New, 474px) pushed the whole page sideways at 375px with "Add New"
    off-screen (2026-10-06 mobile catalog WI-1). Capped at the header's width, it wraps instead. */
 .page-actions { display: flex; align-items: center; gap: var(--space-3); flex-shrink: 0; flex-wrap: wrap; max-width: 100%; }
+/* Widget Regions' key field and its Bind button wrap as one unit (`WidgetRegions.tsx`). */
+.widget-regions-bind { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
+.widget-regions-bind > input { flex: 1 1 8rem; min-width: 0; }
 
 /* EXPERIMENT (2026-09-06, owner request — expected to be reverted as one commit if it does not
    land): on the two content editors only, the `← Pages`/`← Posts` link leaves the action group and
@@ -6256,6 +6259,29 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   table.list-table > tbody > tr:has(> td:first-child > a[href]) { position: relative; }
   table.list-table > tbody > tr > td:first-child > a[href]::after { content: ""; position: absolute; inset: 0; }
   table.list-table > tbody > tr > td:not(:first-child) :is(a, button, select, input, label) { position: relative; z-index: 1; }
+
+  /* Mobile sweep 2026-10-07 (P-3 follow-up), measured at a real 375px viewport. Text inputs were
+     37px against the 40px floor buttons and selects already get; one floor for every field. */
+  .admin-content input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="hidden"]) {
+    min-height: 40px;
+  }
+  /* Standalone links that sit beside 40px buttons (a panel head's "All posts"/"Change", a
+     toolbar's "View site ↗" or "Regions →", an editor's "view ↗") were 15-19px tall. Padding that
+     a matching negative margin cancels grows the hit area to ~40px without moving anything. */
+  .admin-content :is(.page-toolbar, .page-actions, .dash-panel-head, .editor-slug) > a:not([class*="btn"]) {
+    display: inline-block; padding-block: 11px; margin-block: -11px;
+  }
+  /* The pill switches keep their drawn 38x22 / 34x20 track; an invisible ring around it takes
+     the tap (P-3 deliberately left `[role="switch"]` out of the min-height floor). */
+  :is(.agent-plugin-switch, .theme-explore-switch)::before { content: ""; position: absolute; inset: -10px -4px; }
+
+  /* Dashboard "Recently updated": the title took whatever the kind chip and the 16-character
+     timestamp left (~125px), so most titles ended in "…", and the 16px link was the only tap
+     target. The title gets its own full-width line (wrapping, never clipped), chip and time sit
+     under it, and the title link's `::after` covers the row, the same idiom as US-2 above. */
+  .dash-activity-row { grid-template-columns: auto minmax(0, 1fr); gap: 4px var(--space-2); position: relative; }
+  .dash-activity-title { grid-column: 1 / -1; white-space: normal; overflow-wrap: anywhere; }
+  .dash-activity-title::after { content: ""; position: absolute; inset: 0; }
 }
 
 @media (max-width: 480px) {

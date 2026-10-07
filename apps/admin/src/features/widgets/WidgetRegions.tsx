@@ -78,19 +78,23 @@ export function WidgetRegions({ useWidgetRegionsHook = useWiredWidgetRegions }: 
         </div>
         <div className="page-header-actions page-actions">
           <PublishSectionButton section="widgets" />
-          <input
-            value={newRegionKey}
-            onChange={(e) => setNewRegionKey(e.target.value)}
-            placeholder="e.g. footer"
-            {...agentHandle({ handle: "widget-regions-new-key" }, { role: "field", label: "New region key to bind, e.g. footer" })}
-          />
-          <button
-            onClick={bind}
-            disabled={binding || !newRegionKey.trim()}
-            {...agentHandle({ handle: "widget-regions-bind" }, { role: "button", label: "Bind this region key" })}
-          >
-            {binding ? t("Binding…") : t("Bind region")}
-          </button>
+          {/* One group, so a wrapping row keeps the key field beside its own Bind button instead
+              of beside Publish (mobile sweep 2026-10-07). */}
+          <div className="widget-regions-bind">
+            <input
+              value={newRegionKey}
+              onChange={(e) => setNewRegionKey(e.target.value)}
+              placeholder="e.g. footer"
+              {...agentHandle({ handle: "widget-regions-new-key" }, { role: "field", label: "New region key to bind, e.g. footer" })}
+            />
+            <button
+              onClick={bind}
+              disabled={binding || !newRegionKey.trim()}
+              {...agentHandle({ handle: "widget-regions-bind" }, { role: "button", label: "Bind this region key" })}
+            >
+              {binding ? t("Binding…") : t("Bind region")}
+            </button>
+          </div>
         </div>
       </div>
       {error ? <div className="notice error">{error}</div> : null}
