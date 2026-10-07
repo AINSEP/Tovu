@@ -670,6 +670,34 @@
   background: currentColor;
 }
 
+/* Copy sits on the "Done · 8s · 411 out · $0.18" line, right-aligned, instead of on a line of its
+   own under it (owner, 2026-10-07: "right align it with the 'Done 8s $0.18' to save a bit more
+   space"). Jini renders the two as sibling blocks of a `display: block` message, so the message
+   becomes a two-column grid only when the usage line is directly followed by the actions row —
+   every other child spans both columns and stacks as before, and a message with an error notice
+   between them (or no usage line) keeps Jini's own layout. The package's left rail on the actions
+   row goes here: it marks a row attached to the turn above, which a right-aligned button on the
+   usage line no longer is. `.jini-chat-pane` ancestry outranks the package's injected rules (see
+   this file's header). */
+.jini-chat-pane .jini-message-assistant:has(> .jini-message-usage + .jini-message-actions--assistant) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 8px;
+  align-items: center;
+}
+.jini-chat-pane .jini-message-assistant:has(> .jini-message-usage + .jini-message-actions--assistant) > * {
+  grid-column: 1 / -1;
+}
+.jini-chat-pane .jini-message-assistant:has(> .jini-message-usage + .jini-message-actions--assistant) > .jini-message-usage {
+  grid-column: 1;
+}
+.jini-chat-pane .jini-message-assistant:has(> .jini-message-usage + .jini-message-actions--assistant) > .jini-message-actions--assistant {
+  grid-column: 2;
+  margin-top: 2px;
+  padding-left: 0;
+  border-left: 0;
+}
+
 .jini-message-attachments {
   display: flex;
   flex-wrap: wrap;
