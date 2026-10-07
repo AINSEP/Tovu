@@ -14,6 +14,7 @@ import { translateAdminNavGroups, translateAdminNavLabel } from "./lib/admin-nav
 import { t as tApp } from "./app-i18n";
 import { useWiredAdminLocale } from "./hooks/use-admin-locale.hooks";
 import { resolveAdminLayoutClassName, useInterfacePreferences } from "./hooks/use-interface-preferences.hooks";
+import { useDrawerActiveItemCentring } from "./hooks/use-drawer-active-item-centring.hooks";
 import { useAgentScreenRoute } from "./hooks/use-agent-screen-context.hooks";
 import { useSidebarEmptyClickToggle } from "./hooks/use-sidebar-empty-click-toggle.hooks";
 import { AssistantDock } from "./components/AssistantDock/AssistantDock";
@@ -539,6 +540,8 @@ export function App(props: AppProps) {
   useAgentScreenRoute({ path: routePath, section: agentPageId(route), view: route.view });
 
   const { sidebarOpen, setSidebarOpen } = useDrawer({ routePath });
+  // The phone drawer opens with the current page's item in its vertical middle (owner, 2026-10-07).
+  useDrawerActiveItemCentring({ open: sidebarOpen });
   useLinkInterceptor();
 
   // --- Assistant dock/sheet chrome (MSG-06/MSG-09) — see `useChatDockLayout`'s own doc for why
