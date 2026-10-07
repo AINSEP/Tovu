@@ -18,7 +18,7 @@ export interface ThemesPort {
   getPresentation(): Promise<{
     settings: PresentationSettings;
     availableThemeIds: string[];
-    availableThemes: Array<{ id: string; name?: string; tier: ThemeTier }>;
+    availableThemes: Array<{ id: string; name?: string; tier: ThemeTier; previewImageUrl?: string | null }>;
   }>;
   rescanThemes(): Promise<{ added: string[]; removed: string[]; total: number; availableThemeIds: string[]; duplicateIds: string[] }>;
   setActiveTheme(activeThemeId: string): Promise<{ settings: PresentationSettings; availableThemeIds: string[] }>;

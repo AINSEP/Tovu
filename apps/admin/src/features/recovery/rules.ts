@@ -88,17 +88,17 @@ export function costClassLabel(costClass: string, locale: string): string {
  * resolves them, and `cost-unavailable` means this site has no restore mechanism at all — all three
  * stay `error`. `operation-in-flight` is a transient, self-resolving wait (nothing is broken, a
  * restore/migrate is already running), and `watermark-baseline-unavailable` only narrows the
- * discarded-write disclosure to `"unknown"` counts — restoring itself still works — so both of
- * those are `warning`, not `error`. Independent of {@link isAssertiveRecoveryBanner}: one axis is
+ * discarded-write disclosure to `"unknown"` counts — restoring itself still works — so operation-in-flight is `warning` and the standing disclosure limitation is neutral. Independent of {@link isAssertiveRecoveryBanner}: one axis is
  * "how urgently should this interrupt," the other is "how bad is this," and the two don't move
  * together (`cost-unavailable` is `error` but not assertive).
  *
  * @complexity Time/space: O(1) — one membership check.
  */
-export function recoveryBannerTone(banner: AdminDegradedBanner): "error" | "warning" {
-  return banner.kind === "operation-in-flight" || banner.kind === "watermark-baseline-unavailable"
-    ? "warning"
-    : "error";
+export function recoveryBannerTone(banner: AdminDegradedBanner): "error" | "warning" | "" {
+  // D-33: unknown discard counts are a standing limitation, not an incident on a fresh site.
+  // Keep the disclosure visible; the actual restore ceremony still requires acknowledgement.
+  if (banner.kind === "watermark-baseline-unavailable") return "";
+  return banner.kind === "operation-in-flight" ? "warning" : "error";
 }
 
 /**

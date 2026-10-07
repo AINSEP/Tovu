@@ -373,6 +373,11 @@ describe("new-term form's hierarchical parent select", () => {
 });
 
 describe("new-taxonomy form's collapsed resting state (web-design pass, 2026-08-05)", () => {
+  it("D-32: an empty taxonomy list has the shared empty card", () => {
+    renderTaxonomy({ taxonomies: [] });
+    expect(screen.getByRole("status")).toHaveTextContent("No taxonomies yet");
+    expect(screen.getByText("No taxonomies yet").closest(".card")).not.toBeNull();
+  });
   it("starts collapsed behind a 'New taxonomy' page-actions button, not the form itself", () => {
     renderTaxonomy({ taxonomies: [] });
     expect(screen.getByRole("button", { name: /^new taxonomy$/i })).toBeInTheDocument();

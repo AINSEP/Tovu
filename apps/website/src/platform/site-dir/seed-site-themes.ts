@@ -1,5 +1,6 @@
 import { cpSync, existsSync, mkdirSync, renameSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { seedStarterTitle } from "./seed-starter-title.js";
 
 /**
  * @file `seedSiteThemes()` — the one-time copy that gets a site's themes OUT of the Tovu package.
@@ -91,7 +92,7 @@ const STAGING_DIR_NAME = ".themes-seed-staging";
  *   something to swallow. An absent stock tree is NOT such a case and returns `no-stock-source`.
  * @complexity O(bytes in the stock tree) on a seeding boot; O(1) on every boot after.
  */
-export function seedSiteThemes(required: SeedSiteThemesRequired): SeedSiteThemesResult {
+export function seedSiteThemes(required: SeedSiteThemesRequired, optional: { siteName?: string } = {}): SeedSiteThemesResult {
   const { stockDir, siteThemesDir } = required;
 
   if (existsSync(siteThemesDir)) return { status: "already-present", siteThemesDir };
@@ -107,6 +108,8 @@ export function seedSiteThemes(required: SeedSiteThemesRequired): SeedSiteThemes
   rmSync(stagingDir, { recursive: true, force: true });
 
   cpSync(stockDir, stagingDir, { recursive: true });
+  // Creation owns the name; subsequent boots must preserve the site's Theme Studio edits.
+  if (optional.siteName !== undefined) seedStarterTitle({ themesDir: stagingDir, siteName: optional.siteName });
   // Same parent directory, so this is a same-filesystem rename: atomic, and the moment it returns
   // the site's themes root is complete or was never there at all.
   renameSync(stagingDir, siteThemesDir);

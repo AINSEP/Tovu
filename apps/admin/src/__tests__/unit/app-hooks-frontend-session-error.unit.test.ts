@@ -57,7 +57,7 @@ describe("logFrontendSessionError", () => {
     logFrontendSessionError(event);
 
     expect(errorSpy).not.toHaveBeenCalled();
-    expect(warnSpy).toHaveBeenCalledWith("[admin] frontend session stream closed", event);
+    expect(warnSpy).toHaveBeenCalledWith("[admin] frontend session stream closed; reopen the admin to reconnect");
   });
 
   it.each([FakeEventSource.OPEN, null])("does not log an Event with readyState %s", (readyState) => {

@@ -82,6 +82,11 @@ export default defineConfig({
     },
   },
   test: {
+    // `formatTimestamp` renders the viewer's local wall time (D-06, 2026-10-06), so every suite
+    // that asserts a rendered timestamp would otherwise pass or fail depending on the machine's
+    // zone. UTC keeps those fixtures (`…Z` in, the same digits out) stable everywhere;
+    // `format-timestamp.unit.test.ts` switches to America/Los_Angeles itself to prove conversion.
+    env: { TZ: "UTC" },
     environment: "jsdom",
     environmentOptions: {
       // Native fetch (undici) has no concept of "the current document URL" the way a real

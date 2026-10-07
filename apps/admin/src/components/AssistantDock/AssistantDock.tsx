@@ -1,4 +1,5 @@
 import { useSelectedSkills, useComposerDiscoveryDraft, useSkillOnlySend } from "./hooks/composer-skills.hooks";
+import { useAssistantEmptyState } from "./hooks/use-assistant-empty-state.hooks";
 import { useBrowserAgentSettings } from "../../features/webmcp/browser-agent-settings.hooks";
 import { useSkillInstall } from "../../features/skills/use-skill-install.hooks";
 import { SkillInstallConfirmation } from "../../features/skills/SkillInstallConfirmation";
@@ -521,6 +522,7 @@ export function AssistantDock({
   const activeTitle = chats.conversations.find((c) => c.id === chats.activeId)?.title ?? t("Tovu assistant");
   const failureSurface = useAgentFailureSurface({ transport, runtimeAccess, initialMessages: chats.initialMessages,
     onSelectionChange: handleLocalCliSelectionChange, onExecutionModeChange: handleExecutionModeChange }, {});
+  const emptyState = useAssistantEmptyState({ paneKey: chats.paneKey, initialMessages: failureSurface.initialMessages, onMessagesChange: handleMessagesChange });
 
   return (
     <JiniChatProvider transport={failureSurface.transport} i18n={chatI18n}>
@@ -588,35 +590,42 @@ export function AssistantDock({
          * the title where a history control is looked for.
          */
         header={
-          <div className="jini-chat-pane__header">
-            <div className="jini-chat-pane__heading">
-              {/* The "Workspace chat" eyebrow was removed (owner, 2026-10-06): title, switcher and
-                  close now share one row so the transcript gets that height back. */}
-              {/* Was an `<h1>` — the dock mounts on every route (ADR-049, one conversation for
-                  the whole session), so every admin screen had two `<h1>`s: its own page title
-                  and this one, with no signal to a screen-reader user navigating by heading which
-                  was the real page title. `<h2>` inside this `aria-label="Assistant"` complementary
-                  region (see `App.tsx`'s `<aside>`) reads correctly as a subsection heading
-                  instead of competing with the page's own `<h1>`. Class names, not the element
-                  type, drive this component's styling (`styles/assistant.css`), so the tag change
-                  is visually inert. */}
-              <h2 className="jini-chat-pane__title" title={activeTitle}>
-                {activeTitle}
-              </h2>
+          <>
+            <div className="jini-chat-pane__header">
+              <div className="jini-chat-pane__heading">
+                {/* The "Workspace chat" eyebrow was removed (owner, 2026-10-06): title, switcher and
+                    close now share one row so the transcript gets that height back. */}
+                {/* Was an `<h1>` — the dock mounts on every route (ADR-049, one conversation for
+                    the whole session), so every admin screen had two `<h1>`s: its own page title
+                    and this one, with no signal to a screen-reader user navigating by heading which
+                    was the real page title. `<h2>` inside this `aria-label="Assistant"` complementary
+                    region (see `App.tsx`'s `<aside>`) reads correctly as a subsection heading
+                    instead of competing with the page's own `<h1>`. Class names, not the element
+                    type, drive this component's styling (`styles/assistant.css`), so the tag change
+                    is visually inert. */}
+                <h2 className="jini-chat-pane__title" title={activeTitle}>
+                  {activeTitle}
+                </h2>
+              </div>
+              <ConversationList
+                conversations={chats.conversations}
+                activeConversationId={chats.activeId}
+                onSelect={chats.select}
+                onCreate={chats.create}
+                onDelete={chats.remove}
+                onRename={chats.rename}
+              />
             </div>
-            <ConversationList
-              conversations={chats.conversations}
-              activeConversationId={chats.activeId}
-              onSelect={chats.select}
-              onCreate={chats.create}
-              onDelete={chats.remove}
-              onRename={chats.rename}
-            />
-          </div>
+            {emptyState.empty ? (
+              <div className="assistant-empty-state" role="status">
+                <p>{t("Hello! Ask me to help with your site.")}</p>
+              </div>
+            ) : null}
+          </>
         }
         title={t("Tovu assistant")}
         placeholder={t("Ask the assistant to do something…")}
-        onMessagesChange={handleMessagesChange}
+        onMessagesChange={emptyState.handleMessagesChange}
         runContext={runContext}
         // Wires the daemon-relayed `chat.*` capability channel to THIS live pane instance — see
         // `useChatPaneAgentControl`'s own doc in `@jini-ai/chat/react` for the handler side. Without

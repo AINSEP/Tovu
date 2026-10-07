@@ -164,15 +164,22 @@ describe("Providers — External MCP restart note: translated through this page'
     vi.restoreAllMocks();
   });
 
-  // Both notes live in `providers-i18n.ts`, not `settings-capabilities-i18n.ts`. Translating them
+  // The saved note lives in `providers-i18n.ts`, not `settings-capabilities-i18n.ts`. Translating it
   // through the capabilities dictionary misses the key and falls back to the English copy, so the
   // pill stayed English in every non-English locale.
   it.each([
     [true, "Gespeichert — starten Sie Tovu neu, um eine Verbindung herzustellen"],
-    [false, "Änderungen werden beim Neustart von Tovu wirksam"],
   ])("restartRequired=%s renders the German note in a de locale", async (restartRequired, expected) => {
     vi.spyOn(defaultAdminLocalePort, "loadLanguage").mockResolvedValue("de");
     renderPage("external-mcp", restartRequired);
     expect(await screen.findByText(expected)).toBeInTheDocument();
+  });
+
+  it("D-33: a fresh site has no pending-change restart note", async () => {
+    vi.spyOn(defaultAdminLocalePort, "loadLanguage").mockResolvedValue("en");
+    renderPage("external-mcp", false);
+    await screen.findByText("Third-party tools for your coding agent.");
+    expect(screen.queryByText("Changes apply when Tovu restarts")).not.toBeInTheDocument();
+    expect(screen.queryByText("Saved — restart Tovu to connect")).not.toBeInTheDocument();
   });
 });

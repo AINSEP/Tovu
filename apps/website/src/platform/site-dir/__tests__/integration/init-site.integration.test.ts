@@ -70,6 +70,12 @@ test("AC-01/AC-14/REQ-01: a clean init produces exactly the required layout with
     assert.ok(fs.statSync(themesDir).isDirectory(), "themes must be a directory");
     assert.deepEqual(fs.readdirSync(themesDir).sort(), fs.readdirSync(STOCK_THEMES_DIR).sort(), "themes/ must hold a full copy of the real stock tree right after init, not be left empty");
 
+    // D-05: exercise the actual CLI seed boundary as well as the isolated theme-copy contract.
+    const starterPage = fs.readFileSync(path.join(themesDir, "static", "tovu-starter", "render", "pages", "index.html"), "utf8");
+    assert.equal(starterPage.match(/<title>(.*?)<\/title>/)?.[1], "Demo");
+    const starterManifest = JSON.parse(fs.readFileSync(path.join(themesDir, "static", "tovu-starter", "manifest.webmanifest"), "utf8"));
+    assert.equal(starterManifest.name, "Demo");
+
     // AC-14: nothing was created outside the target dir.
     assert.deepEqual(fs.readdirSync(parent), ["demo"], "no sibling file/dir may appear outside the target");
   } finally {

@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
@@ -163,4 +166,23 @@ test("presentation get: every available theme carries its theme.json display nam
   const body = json as { availableThemes: Array<{ id: string; name: string }> };
   const tovu = body.availableThemes.find((theme) => theme.id === "tovu-theme");
   assert.equal(tovu?.name, "Tovu Theme");
+});
+
+test("D-22: presentation advertises the actual PNG and null for an absent preview", async (t) => {
+  const root = mkdtempSync(join(tmpdir(), "tovu-preview-response-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const fixture = createRouteDeps().themes.find((theme) => theme.manifest.id === "tovu-starter");
+  assert.ok(fixture);
+  const pngDir = join(root, "png");
+  mkdirSync(join(pngDir, "screenshots"), { recursive: true });
+  writeFileSync(join(pngDir, "screenshots", "index.png"), "fixture");
+  const app = buildApp({ themes: [
+    { ...fixture, dir: pngDir },
+    { ...fixture, dir: join(root, "absent"), manifest: { ...fixture.manifest, id: "no-preview" } },
+  ] });
+  const { status, json } = await get(t, app);
+  assert.equal(status, 200);
+  const body = json as { availableThemes: Array<{ id: string; previewImageUrl: string | null }> };
+  assert.equal(body.availableThemes.find((theme) => theme.id === "tovu-starter")?.previewImageUrl, "/theme-assets/tovu-starter/screenshots/index.png");
+  assert.equal(body.availableThemes.find((theme) => theme.id === "no-preview")?.previewImageUrl, null);
 });

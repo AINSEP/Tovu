@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { categoryLabel, isAssertiveRecoveryBanner, parseDeepLinkEnvelope, restoreButtonAccessibleName } from "../rules";
+import { categoryLabel, isAssertiveRecoveryBanner, parseDeepLinkEnvelope, restoreButtonAccessibleName, recoveryBannerTone } from "../rules";
 import type { AdminDegradedBanner } from "@/lib/api";
 
 /**
@@ -15,6 +15,14 @@ import type { AdminDegradedBanner } from "@/lib/api";
 function banner(overrides: Partial<AdminDegradedBanner> = {}): AdminDegradedBanner {
   return { kind: "cost-unavailable", accessibleText: "text", actionKind: "none", ...overrides };
 }
+
+it("D-33: standing disclosure limitations are neutral; operational problems retain severity", () => {
+  expect(recoveryBannerTone(banner({ kind: "watermark-baseline-unavailable" }))).toBe("");
+  expect(recoveryBannerTone(banner({ kind: "operation-in-flight" }))).toBe("warning");
+  expect(recoveryBannerTone(banner({ kind: "migration-interrupted" }))).toBe("error");
+  expect(recoveryBannerTone(banner({ kind: "pending-migration" }))).toBe("error");
+  expect(recoveryBannerTone(banner({ kind: "cost-unavailable" }))).toBe("error");
+});
 
 describe("categoryLabel", () => {
   it("maps posts_pages to its human label", () => {

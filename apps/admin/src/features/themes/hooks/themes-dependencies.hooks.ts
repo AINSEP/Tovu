@@ -18,7 +18,7 @@ export const defaultThemesPort: ThemesPort = {
 export interface FakeThemesPortOptions {
   settings?: PresentationSettings;
   availableThemeIds?: string[];
-  availableThemes?: Array<{ id: string; name?: string; tier: ThemeTier }>;
+  availableThemes?: Array<{ id: string; name?: string; tier: ThemeTier; previewImageUrl?: string | null }>;
   /** Lets a test script what a rescan reports without the fake reimplementing the
    *  server's own theme-directory scan. */
   onRescan?: () => { added: string[]; removed: string[]; total: number; availableThemeIds: string[]; duplicateIds: string[] };

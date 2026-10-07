@@ -12,6 +12,7 @@ import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
 export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
   es: {
+    "No taxonomies yet": "Todavía no hay taxonomías",
     "Copy HTML embed": "Copiar inserción HTML",
     "Copied!": "¡Copiado!",
     "Could not copy embed": "No se pudo copiar la inserción",
@@ -78,6 +79,7 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Actions for term \"{name}\"": "Acciones para el término \"{name}\"",
   },
   id: {
+    "No taxonomies yet": "Belum ada taksonomi",
     "Copy HTML embed": "Salin sematan HTML",
     "Copied!": "Disalin!",
     "Could not copy embed": "Tidak dapat menyalin sematan",
@@ -132,6 +134,7 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Actions for term \"{name}\"": "Tindakan untuk istilah \"{name}\"",
   },
   de: {
+    "No taxonomies yet": "Noch keine Taxonomien",
     "Copy HTML embed": "HTML-Einbettung kopieren",
     "Copied!": "Kopiert!",
     "Could not copy embed": "Einbettung konnte nicht kopiert werden",
@@ -186,6 +189,7 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Actions for term \"{name}\"": "Aktionen für Begriff \"{name}\"",
   },
   "zh-CN": {
+    "No taxonomies yet": "暂无分类体系",
     "Copy HTML embed": "复制 HTML 嵌入代码",
     "Copied!": "已复制！",
     "Could not copy embed": "无法复制嵌入代码",
@@ -239,6 +243,7 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Actions for term \"{name}\"": "术语\"{name}\"的操作",
   },
   "zh-TW": {
+    "No taxonomies yet": "尚無分類系統",
     "Copy HTML embed": "複製 HTML 嵌入碼",
     "Copied!": "已複製！",
     "Could not copy embed": "無法複製嵌入碼",
@@ -292,6 +297,7 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Actions for term \"{name}\"": "詞彙\"{name}\"的操作",
   },
   "pt-BR": {
+    "No taxonomies yet": "Nenhuma taxonomia ainda",
     "Copy HTML embed": "Copiar incorporação HTML",
     "Copied!": "Copiado!",
     "Could not copy embed": "Não foi possível copiar a incorporação",
@@ -346,6 +352,7 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Actions for term \"{name}\"": "Ações para o termo \"{name}\"",
   },
   ru: {
+    "No taxonomies yet": "Таксономий пока нет",
     "Copy HTML embed": "Копировать HTML для вставки",
     "Copied!": "Скопировано!",
     "Could not copy embed": "Не удалось скопировать код вставки",
@@ -400,6 +407,7 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Actions for term \"{name}\"": "Действия для термина \"{name}\"",
   },
   fa: {
+    "No taxonomies yet": "هنوز رده‌بندی‌ای وجود ندارد",
     "Copy HTML embed": "کپی کد جاسازی HTML",
     "Copied!": "کپی شد!",
     "Could not copy embed": "کد جاسازی کپی نشد",
@@ -454,6 +462,7 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Actions for term \"{name}\"": "عملیات مربوط به اصطلاح \"{name}\"",
   },
   ar: {
+    "No taxonomies yet": "لا توجد تصنيفات بعد",
     "Copy HTML embed": "نسخ كود تضمين HTML",
     "Copied!": "تم النسخ!",
     "Could not copy embed": "تعذر نسخ كود التضمين",
@@ -508,6 +517,7 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Actions for term \"{name}\"": "إجراءات لمصطلح \"{name}\"",
   },
   ja: {
+    "No taxonomies yet": "分類はまだありません",
     "Copy HTML embed": "HTML埋め込みコードをコピー",
     "Copied!": "コピーしました！",
     "Could not copy embed": "埋め込みコードをコピーできませんでした",
@@ -562,6 +572,7 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Actions for term \"{name}\"": "用語\"{name}\"の操作",
   },
   ko: {
+    "No taxonomies yet": "아직 분류가 없습니다",
     "Copy HTML embed": "HTML 삽입 코드 복사",
     "Copied!": "복사됨!",
     "Could not copy embed": "삽입 코드를 복사할 수 없습니다",
@@ -616,6 +627,7 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Actions for term \"{name}\"": "용어 \"{name}\" 작업",
   },
   pl: {
+    "No taxonomies yet": "Nie ma jeszcze taksonomii",
     "Copy HTML embed": "Kopiuj kod HTML do osadzenia",
     "Copied!": "Skopiowano!",
     "Could not copy embed": "Nie udało się skopiować kodu osadzenia",
@@ -670,6 +682,7 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Actions for term \"{name}\"": "Działania dla terminu \"{name}\"",
   },
   hu: {
+    "No taxonomies yet": "Még nincsenek taxonómiák",
     "Copy HTML embed": "HTML-beágyazás másolása",
     "Copied!": "Másolva!",
     "Could not copy embed": "A beágyazás másolása nem sikerült",
@@ -724,6 +737,7 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Actions for term \"{name}\"": "Műveletek: kifejezés \"{name}\"",
   },
   fr: {
+    "No taxonomies yet": "Aucune taxonomie pour le moment",
     "Copy HTML embed": "Copier le code HTML intégré",
     "Copied!": "Copié !",
     "Could not copy embed": "Impossible de copier le code intégré",
@@ -778,6 +792,7 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Actions for term \"{name}\"": "Actions pour le terme \"{name}\"",
   },
   uk: {
+    "No taxonomies yet": "Таксономій ще немає",
     "Copy HTML embed": "Копіювати HTML для вставлення",
     "Copied!": "Скопійовано!",
     "Could not copy embed": "Не вдалося скопіювати код вставлення",
@@ -832,6 +847,7 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Actions for term \"{name}\"": "Дії для терміна \"{name}\"",
   },
   tr: {
+    "No taxonomies yet": "Henüz taksonomi yok",
     "Copy HTML embed": "HTML gömme kodunu kopyala",
     "Copied!": "Kopyalandı!",
     "Could not copy embed": "Gömme kodu kopyalanamadı",
@@ -886,6 +902,7 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Actions for term \"{name}\"": "\"{name}\" terimi için işlemler",
   },
   th: {
+    "No taxonomies yet": "ยังไม่มีอนุกรมวิธาน",
     "Copy HTML embed": "คัดลอกโค้ดฝัง HTML",
     "Copied!": "คัดลอกแล้ว!",
     "Could not copy embed": "ไม่สามารถคัดลอกโค้ดฝังได้",
@@ -940,6 +957,7 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Actions for term \"{name}\"": "การดำเนินการสำหรับคำศัพท์ \"{name}\"",
   },
   it: {
+    "No taxonomies yet": "Nessuna tassonomia ancora",
     "Copy HTML embed": "Copia codice HTML da incorporare",
     "Copied!": "Copiato!",
     "Could not copy embed": "Impossibile copiare il codice da incorporare",
@@ -994,6 +1012,7 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Actions for term \"{name}\"": "Azioni per il termine \"{name}\"",
   },
   hi: {
+    "No taxonomies yet": "अभी कोई वर्गीकरण नहीं है",
     "Copy HTML embed": "HTML एम्बेड कॉपी करें",
     "Copied!": "कॉपी किया गया!",
     "Could not copy embed": "एम्बेड कॉपी नहीं हो सका",
@@ -1048,6 +1067,7 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Actions for term \"{name}\"": "टर्म \"{name}\" के लिए कार्रवाइयां",
   },
   ur: {
+    "No taxonomies yet": "ابھی کوئی درجہ بندی نہیں ہے",
     "Copy HTML embed": "HTML ایمبیڈ کاپی کریں",
     "Copied!": "کاپی ہو گیا!",
     "Could not copy embed": "ایمبیڈ کاپی نہیں ہو سکا",
@@ -1102,6 +1122,7 @@ export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
     "Actions for term \"{name}\"": "ٹرم \"{name}\" کے لیے کارروائیاں",
   },
   bn: {
+    "No taxonomies yet": "এখনও কোনো শ্রেণিবিন্যাস নেই",
     "Copy HTML embed": "HTML এম্বেড কপি করুন",
     "Copied!": "কপি হয়েছে!",
     "Could not copy embed": "এম্বেড কপি করা যায়নি",

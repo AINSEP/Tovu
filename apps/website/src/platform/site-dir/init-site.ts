@@ -220,7 +220,7 @@ export async function initSite(required: InitSiteRequired): Promise<InitSiteResu
     // Step 4b: themes/ is SEEDED, not plain-`mkdir`'d — see `SUBDIRS`'s own doc for why an empty
     // placeholder here would brick the site's first `tovu serve`. A seed failure is a real init
     // failure, same as any other step-4 sub-step (CIC U-003) — nothing here swallows it.
-    seedSiteThemes({ stockDir: stockThemesDir(), siteThemesDir: path.join(target, "themes") });
+    seedSiteThemes({ stockDir: stockThemesDir(), siteThemesDir: path.join(target, "themes") }, { siteName: resolvedName });
     wroteAnything = true;
 
     // Step 5: config.json write.

@@ -11,6 +11,7 @@ import { createDictionaryTranslator } from "../../lib/dictionary-translator";
  */
 export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
   es: {
+    "Hello! Ask me to help with your site.": "¡Hola! Pídeme ayuda con tu sitio.",
     "Workspace chat": "Chat del espacio de trabajo",
     "Tovu assistant": "Asistente de Tovu",
     "Ask the assistant to do something…": "Pídele algo al asistente…",
@@ -21,6 +22,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "The assistant just captured a screenshot of this screen.": "El asistente acaba de capturar una captura de pantalla de esta vista.",
   },
   id: {
+    "Hello! Ask me to help with your site.": "Halo! Minta saya membantu situs Anda.",
     "Workspace chat": "Obrolan ruang kerja",
     "Tovu assistant": "Asisten Tovu",
     "Ask the assistant to do something…": "Minta asisten melakukan sesuatu…",
@@ -31,6 +33,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "The assistant just captured a screenshot of this screen.": "Asisten baru saja mengambil tangkapan layar dari layar ini.",
   },
   de: {
+    "Hello! Ask me to help with your site.": "Hallo! Frag mich, wie ich dir bei deiner Website helfen kann.",
     "Workspace chat": "Workspace-Chat",
     "Tovu assistant": "Tovu-Assistent",
     "Ask the assistant to do something…": "Bitte den Assistenten, etwas zu tun…",
@@ -41,6 +44,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "The assistant just captured a screenshot of this screen.": "Der Assistent hat gerade einen Screenshot dieses Bildschirms aufgenommen.",
   },
   "zh-CN": {
+    "Hello! Ask me to help with your site.": "你好！让我帮你管理网站吧。",
     "Workspace chat": "工作区聊天",
     "Tovu assistant": "Tovu 助手",
     "Ask the assistant to do something…": "让助手帮你做点什么…",
@@ -51,6 +55,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "The assistant just captured a screenshot of this screen.": "助手刚刚截取了此屏幕的截图。",
   },
   "zh-TW": {
+    "Hello! Ask me to help with your site.": "你好！讓我幫你管理網站吧。",
     "Workspace chat": "工作區聊天",
     "Tovu assistant": "Tovu 助理",
     "Ask the assistant to do something…": "讓助理幫你做點什麼…",
@@ -61,6 +66,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "The assistant just captured a screenshot of this screen.": "助理剛剛擷取了此畫面的截圖。",
   },
   "pt-BR": {
+    "Hello! Ask me to help with your site.": "Olá! Peça minha ajuda com seu site.",
     "Workspace chat": "Chat do espaço de trabalho",
     "Tovu assistant": "Assistente Tovu",
     "Ask the assistant to do something…": "Peça ao assistente para fazer algo…",
@@ -71,6 +77,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "The assistant just captured a screenshot of this screen.": "O assistente acabou de capturar uma captura de tela desta janela.",
   },
   ru: {
+    "Hello! Ask me to help with your site.": "Привет! Попросите меня помочь с вашим сайтом.",
     "Workspace chat": "Чат рабочего пространства",
     "Tovu assistant": "Ассистент Tovu",
     "Ask the assistant to do something…": "Попросите ассистента что-нибудь сделать…",
@@ -81,6 +88,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "The assistant just captured a screenshot of this screen.": "Ассистент только что сделал снимок этого экрана.",
   },
   fa: {
+    "Hello! Ask me to help with your site.": "سلام! از من بخواهید در کار با سایتتان کمک کنم.",
     "Workspace chat": "گفتگوی فضای کاری",
     "Tovu assistant": "دستیار Tovu",
     "Ask the assistant to do something…": "از دستیار بخواهید کاری انجام دهد…",
@@ -91,6 +99,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "The assistant just captured a screenshot of this screen.": "دستیار همین الان از این صفحه یک عکس گرفت.",
   },
   ar: {
+    "Hello! Ask me to help with your site.": "مرحبًا! اطلب مني المساعدة في موقعك.",
     "Workspace chat": "محادثة مساحة العمل",
     "Tovu assistant": "مساعد Tovu",
     "Ask the assistant to do something…": "اطلب من المساعد القيام بشيء ما…",
@@ -101,6 +110,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "The assistant just captured a screenshot of this screen.": "التقط المساعد للتو لقطة شاشة لهذه الشاشة.",
   },
   ja: {
+    "Hello! Ask me to help with your site.": "こんにちは！サイトについてお手伝いします。",
     "Workspace chat": "ワークスペースチャット",
     "Tovu assistant": "Tovuアシスタント",
     "Ask the assistant to do something…": "アシスタントに何かを依頼する…",
@@ -111,6 +121,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "The assistant just captured a screenshot of this screen.": "アシスタントがこの画面のスクリーンショットを撮影しました。",
   },
   ko: {
+    "Hello! Ask me to help with your site.": "안녕하세요! 사이트에 대해 도움을 요청해 보세요.",
     "Workspace chat": "워크스페이스 채팅",
     "Tovu assistant": "Tovu 어시스턴트",
     "Ask the assistant to do something…": "어시스턴트에게 작업을 요청하세요…",
@@ -121,6 +132,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "The assistant just captured a screenshot of this screen.": "어시스턴트가 방금 이 화면의 스크린샷을 캡처했습니다.",
   },
   pl: {
+    "Hello! Ask me to help with your site.": "Cześć! Poproś mnie o pomoc przy swojej stronie.",
     "Workspace chat": "Czat przestrzeni roboczej",
     "Tovu assistant": "Asystent Tovu",
     "Ask the assistant to do something…": "Poproś asystenta o wykonanie czegoś…",
@@ -131,6 +143,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "The assistant just captured a screenshot of this screen.": "Asystent właśnie zrobił zrzut ekranu tego widoku.",
   },
   hu: {
+    "Hello! Ask me to help with your site.": "Szia! Kérj segítséget a webhelyedhez.",
     "Workspace chat": "Munkaterület-csevegés",
     "Tovu assistant": "Tovu asszisztens",
     "Ask the assistant to do something…": "Kérj valamit az asszisztenstől…",
@@ -141,6 +154,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "The assistant just captured a screenshot of this screen.": "Az asszisztens az imént képernyőképet készített erről a képernyőről.",
   },
   fr: {
+    "Hello! Ask me to help with your site.": "Bonjour ! Demandez-moi de vous aider avec votre site.",
     "Workspace chat": "Chat de l'espace de travail",
     "Tovu assistant": "Assistant Tovu",
     "Ask the assistant to do something…": "Demandez à l'assistant de faire quelque chose…",
@@ -151,6 +165,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "The assistant just captured a screenshot of this screen.": "L'assistant vient de capturer une capture d'écran de cet écran.",
   },
   uk: {
+    "Hello! Ask me to help with your site.": "Привіт! Попросіть мене допомогти з вашим сайтом.",
     "Workspace chat": "Чат робочого простору",
     "Tovu assistant": "Асистент Tovu",
     "Ask the assistant to do something…": "Попросіть асистента щось зробити…",
@@ -161,6 +176,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "The assistant just captured a screenshot of this screen.": "Асистент щойно зробив знімок цього екрана.",
   },
   tr: {
+    "Hello! Ask me to help with your site.": "Merhaba! Siteniz için benden yardım isteyin.",
     "Workspace chat": "Çalışma alanı sohbeti",
     "Tovu assistant": "Tovu Asistanı",
     "Ask the assistant to do something…": "Asistandan bir şey yapmasını isteyin…",
@@ -171,6 +187,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "The assistant just captured a screenshot of this screen.": "Asistan az önce bu ekranın bir ekran görüntüsünü aldı.",
   },
   th: {
+    "Hello! Ask me to help with your site.": "สวัสดี! ขอให้ฉันช่วยเกี่ยวกับเว็บไซต์ของคุณได้เลย",
     "Workspace chat": "แชทพื้นที่ทำงาน",
     "Tovu assistant": "ผู้ช่วย Tovu",
     "Ask the assistant to do something…": "ขอให้ผู้ช่วยทำบางอย่าง…",
@@ -181,6 +198,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "The assistant just captured a screenshot of this screen.": "ผู้ช่วยเพิ่งจับภาพหน้าจอนี้",
   },
   it: {
+    "Hello! Ask me to help with your site.": "Ciao! Chiedimi una mano con il tuo sito.",
     "Workspace chat": "Chat dell'area di lavoro",
     "Tovu assistant": "Assistente Tovu",
     "Ask the assistant to do something…": "Chiedi all'assistente di fare qualcosa…",
@@ -191,6 +209,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "The assistant just captured a screenshot of this screen.": "L'assistente ha appena catturato uno screenshot di questa schermata.",
   },
   hi: {
+    "Hello! Ask me to help with your site.": "नमस्ते! अपनी साइट के लिए मुझसे मदद माँगें।",
     "Workspace chat": "वर्कस्पेस चैट",
     "Tovu assistant": "Tovu सहायक",
     "Ask the assistant to do something…": "सहायक से कुछ करने के लिए कहें…",
@@ -201,6 +220,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "The assistant just captured a screenshot of this screen.": "सहायक ने अभी इस स्क्रीन का स्क्रीनशॉट लिया है।",
   },
   ur: {
+    "Hello! Ask me to help with your site.": "سلام! اپنی سائٹ کے لیے مجھ سے مدد مانگیں۔",
     "Workspace chat": "ورک اسپیس چیٹ",
     "Tovu assistant": "Tovu اسسٹنٹ",
     "Ask the assistant to do something…": "اسسٹنٹ سے کچھ کرنے کو کہیں…",
@@ -211,6 +231,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "The assistant just captured a screenshot of this screen.": "اسسٹنٹ نے ابھی اس اسکرین کا اسکرین شاٹ لیا ہے۔",
   },
   bn: {
+    "Hello! Ask me to help with your site.": "হ্যালো! আপনার সাইটের জন্য আমার সাহায্য চাইতে পারেন।",
     "Workspace chat": "ওয়ার্কস্পেস চ্যাট",
     "Tovu assistant": "Tovu সহকারী",
     "Ask the assistant to do something…": "সহকারীকে কিছু করতে বলুন…",

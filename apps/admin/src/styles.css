@@ -208,6 +208,8 @@
      shared page primitives). A token rather than a literal on each rule so `.workspace-page`,
      the SEO defaults column and every `.form-measure` site stay the same width by construction. */
   --form-measure: 42rem;
+  --content-measure: 80rem;
+  --assistant-clearance: 88px;
 
   /* Type scale — sized against Settings' own measured computed styles (`.jini-tabbed-dialog-
      kicker` 11px, `-subtitle` 13px, panel body 16px, page `h2` 26px) so the primitives below
@@ -637,6 +639,21 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
    themes" at the right edge opposite "View site" and left "Turn the theme off" alone below — three
    scattered rows. Left-aligned like the header's own actions, it reads as one group; the row's own
    margin goes too, since `.page`'s gap already separates it from the header. */
+/* D-31: the FAB also overlays list actions at 800px. A scrollable spacer lets the last row clear
+   it without forcing a short flex pane taller than the viewport. Sheet-specific rules below
+   override this on phones. Fixed-height settings panels need their own scroll clearance. Skills
+   is excluded: it reuses `.settings-ui-section` but sits in page flow at natural height
+   (`skills.css`, D-32), so the spacer above already clears it — a second 88px pushed its footer
+   note away from the list. */
+@media (min-width: 641px) {
+  .admin-layout:not(:has(.admin-chat-dock.is-open)) .admin-content::after {
+    content: ""; display: block; flex-shrink: 0; height: var(--assistant-clearance);
+  }
+  .admin-layout:not(:has(.admin-chat-dock.is-open)) .settings-ui-section:not(.settings-ui-section--page-flow):not(.skills-page) .jini-tabbed-dialog-content {
+    padding-bottom: var(--assistant-clearance);
+  }
+}
+
 @media (max-width: 640px) {
   .page-toolbar { margin-block: 0; }
   .page-toolbar > button:first-of-type { margin-left: 0; }
@@ -2006,12 +2023,17 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
    Split into two things with two jobs: `.dash-stat` is strictly ONE NUMBER and its label — no
    exceptions, which is what makes a row of them scan — and `.dash-panel` carries everything that
    is prose, a list, or a name. The theme moved into a panel for exactly that reason. */
-/* Fixed 2x2, capped at roughly half the content column — owner 2026-10-06: four one-number cards
-   stretched across the full width read as wide empty boxes. Two columns rather than the old
-   `auto-fit, minmax(12rem, 1fr)`, which went 4-across on wide screens and 1-per-row on a phone; the
-   `max-width` caps desktop, and below it the grid simply fills the column (still 2-up on a 375px
-   phone, where the tighter padding below keeps "items in the library" from crowding the edge). */
-.dash-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); max-width: 34rem; }
+/* History: owner 2026-10-06 first capped this at a fixed 2x2, `max-width: 34rem` — four one-number
+   cards stretched across the full width read as wide empty boxes (the older `auto-fit,
+   minmax(12rem, 1fr)` went 4-across on wide screens and 1-per-row on a phone). The desktop bug hunt
+   (D-30, same day) then reported that 2x2 as leaving half of a 1360px window blank. Now: two compact
+   columns in narrow panes (still 2-up on a 375px phone, where the tighter padding below keeps
+   "items in the library" from crowding the edge), four once the PANE (a container query, so the
+   dock/sidebar width counts) passes 800px, and bounded by the shared content measure so a single
+   count never becomes an unbounded box. */
+.dashboard-page { container-type: inline-size; }
+.dash-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); width: 100%; max-width: var(--content-measure); }
+@container (min-width: 800px) { .dash-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 
 /* The default-password nag: a compact one-row plain `.notice` (neutral surface + hairline), with
    the icon as its only `--warning` accent — owner: "cap the width" and "make it subtle". The link
@@ -3515,7 +3537,8 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
    RIGHT of the text, and at 46rem that action cluster squeezed the description into a two-line
    wrap on the very packages whose descriptions are longest. Still capped well short of the full
    column, so the list keeps a readable measure rather than running edge to edge. */
-.agent-plugins-section .jini-tabbed-dialog-content { max-width: 58rem; }
+/* D-32: list and header share the same page width; prose keeps its own readable measure below. */
+.agent-plugins-section .jini-tabbed-dialog-content { max-width: none; }
 
 /* Card removed (2026-09-09, owner request). `.jini-tabbed-dialog`'s own base rule
    (`@jini-ai/ui`'s `tabbed-dialog.css`) paints this shell as a MODAL — an elevated
@@ -4063,6 +4086,8 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
    restoring the card. Sibling of `.assistant-switch`'s own `max-width: 68ch`,
    set in the same spirit. */
 .settings-ui-section--page-flow .jini-tabbed-dialog-content { max-width: 46rem; }
+/* Recovery holds tables and empty cards, which should align with its full-width tab/header. */
+.settings-ui-section--page-flow.recovery-section .jini-tabbed-dialog-content { max-width: none; }
 
 /* Vertical separation between the tab's three blocks (switch → intro → form).
    The card and `.notice` boxes were carrying this implicitly through their own

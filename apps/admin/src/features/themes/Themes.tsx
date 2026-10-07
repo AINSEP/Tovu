@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Toast } from "@jini-ai/ui";
 import { agentHandle } from "@jini-ai/agentic";
 
@@ -12,6 +11,7 @@ import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { PublishSectionButton } from "../publish-content/PublishSectionButton";
 import type { Translate } from "../../lib/dictionary-translator";
 import { interpolate } from "../../lib/template-i18n";
+import { useThemeCardPreview } from "./hooks/use-theme-card-preview.hooks";
 import { useWiredThemes, type ThemesController } from "./hooks/use-themes.hooks";
 import {
   isActiveTheme,
@@ -62,54 +62,35 @@ function tabGroupLabel(t: Translate, group: ThemeTabGroup): string {
   return t(group.charAt(0).toUpperCase() + group.slice(1));
 }
 
-/** Preview-image resolution state: try the compressed JPEG first, fall back to PNG if a theme
- *  hasn't been converted, fall back to the placeholder glyph if neither file exists. */
-type PreviewStage = "jpg" | "png" | "failed";
-
 /**
  * A theme card's visual preview (2026-08-10, JPEG fallback added 2026-08-12) — `static`-tier themes
  * ship a `screenshots/index.{jpg,png}` already servable at `/theme-assets/{id}/screenshots/...` via
- * `theme-static-assets.ts`'s existing `express.static` mount, so no new backend endpoint is needed.
- * There is no API field naming which filename (if any) a theme's screenshots folder actually
- * contains, so this tries `index.jpg` first, falls back to `index.png` on `onError`, and falls back
- * to a placeholder glyph if that also errors — covers "theme has no screenshots dir at all"
- * (immediate 404 on both), "theme ships only PNG" (jpg 404s, png loads), and "theme ships only JPEG"
- * identically, with no per-theme special-casing. JPEG isn't a blanket win: measured against every
- * `static`-tier screenshot on disk, only content with real photographic/gradient detail (e.g.
- * `fuel`'s hero photo) compresses meaningfully smaller as JPEG at quality 85 — flat, text-heavy UI
- * screenshots (most of this theme set) are already near-optimal as PNG and came out the same size or
- * *larger* as JPEG, so those stay PNG-only rather than shipping a same-size-or-bigger JPEG plus an
- * extra failed request on every load.
+ * `theme-static-assets.ts`'s existing `express.static` mount. D-22 (2026-10-06): the server now
+ * advertises the file that actually exists (or `null`), so the browser no longer probes `index.jpg`
+ * and 404s before loading `index.png`; older servers keep the jpg→png→placeholder fallback in
+ * `useThemeCardPreview`. JPEG isn't a blanket win: measured against every `static`-tier screenshot
+ * on disk, only content with real photographic/gradient detail (e.g. `fuel`'s hero photo)
+ * compresses meaningfully smaller as JPEG at quality 85 — flat, text-heavy UI screenshots (most of
+ * this theme set) are already near-optimal as PNG and came out the same size or *larger* as JPEG,
+ * so those stay PNG-only.
  *
  * Click-to-expand (2026-08-10 owner feedback: the thumbnail alone is too small to read) opens
  * `ImagePreviewModal` at a real size. Only wired for the real-screenshot branch — a placeholder
  * glyph has nothing worth expanding, so it stays a plain non-interactive `<div>`.
  *
- * @complexity Time/space: O(1) — one `<img>`, one three-state fallback stage, one modal-open boolean.
+ * The per-card state lives in its own per-card hook, deliberately not in `use-themes.hooks.ts`'s
+ * screen-level controller (owner-ratified, 2026-08-14 DI migration sweep): this renders once per
+ * theme inside a `.map()`, so moving `stage`/`expanded` into the single controller would mean
+ * redesigning it around a themeId-keyed record.
+ *
+ * @complexity Time/space: O(1) — one `<img>`, one fallback stage, one modal-open boolean.
  */
-function ThemeCardPreview({ themeId, agentHandleBase, t }: { themeId: string; agentHandleBase: string; t: Translate }) {
-  // STAYS LOCAL — deliberately not moved into `use-themes.hooks.ts`'s controller (owner-ratified,
-  // 2026-08-14 DI migration sweep). Interactive DOM chrome, not async/API state: no I/O, and
-  // `Themes.unit.test.tsx` asserts it through REAL DOM behavior (the jpg→png→placeholder `<img>`
-  // fallback chain via a real `onError`, the expand-modal open/close via a real click) driven
-  // against a static `useThemesHook` fake (`() => baseController({…})`) that has no way to carry
-  // live state. Per-card on top of that: this component renders once per theme inside a `.map()`,
-  // so moving `stage`/`expanded` into the single screen-level controller would mean redesigning it
-  // around a themeId-keyed record — a structural change, not the state move this sweep asked for.
-  // Same precedent as `Posts.tsx:64`'s own local `updatedSort` and `ThemeExplore.tsx`'s
-  // `device`/`fullscreen` (see that file's own comment at the equivalent site).
-  const [stage, setStage] = useState<PreviewStage>("jpg");
-  const [expanded, setExpanded] = useState(false);
-  const ext = stage === "png" ? "png" : "jpg";
-  const src = `/theme-assets/${themeId}/screenshots/index.${ext}`;
-
-  function handleError() {
-    setStage((current) => (current === "jpg" ? "png" : "failed"));
-  }
+function ThemeCardPreview({ themeId, previewImageUrl, agentHandleBase, t }: { themeId: string; previewImageUrl?: string | null; agentHandleBase: string; t: Translate }) {
+  const { failed, src, expanded, setExpanded, handleError } = useThemeCardPreview({ themeId, previewImageUrl });
 
   return (
     <div className="theme-card-preview">
-      {stage === "failed" ? (
+      {failed ? (
         <div className="theme-card-preview-placeholder" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
             <rect x="3" y="4" width="18" height="14" rx="2" />
@@ -199,6 +180,7 @@ function withThemeDefaults(controller: ThemesController) {
     ...controller,
     themeTiers: controller.themeTiers ?? {},
     themeNames: controller.themeNames ?? {},
+    themePreviewImages: controller.themePreviewImages ?? {},
     rescanning: controller.rescanning ?? false,
     rescanNotice: controller.rescanNotice ?? null,
   };
@@ -289,6 +271,7 @@ function ThemesBanners({
 function ThemeGrid({
   visibleThemes,
   themeNames,
+  themePreviewImages,
   settings,
   busyTheme,
   activate,
@@ -296,6 +279,7 @@ function ThemeGrid({
 }: {
   visibleThemes: string[];
   themeNames: Record<string, string>;
+  themePreviewImages: Record<string, string | null | undefined>;
   settings: PresentationSettings;
   busyTheme: string | null;
   activate: (themeId: string) => Promise<void>;
@@ -324,7 +308,7 @@ function ThemeGrid({
         const name = themeDisplayName(themeId, themeNames);
         return (
           <div key={themeId} className={`theme-card theme-${themeId}${active ? " active" : ""}`}>
-            <ThemeCardPreview themeId={themeId} agentHandleBase={handleBase} t={t} />
+            <ThemeCardPreview themeId={themeId} previewImageUrl={themePreviewImages[themeId]} agentHandleBase={handleBase} t={t} />
             <h3>{name}</h3>
             <p>{t(THEME_BLURBS[themeId] ?? "")}</p>
             {/* Activate stays left, Explore is pushed right. Explore takes the app's existing
@@ -439,6 +423,7 @@ export function Themes({ useThemesHook = useWiredThemes, tabId, basePath = "/the
     themes,
     themeTiers,
     themeNames,
+    themePreviewImages,
     error,
     busyTheme,
     activate,
@@ -511,7 +496,7 @@ export function Themes({ useThemesHook = useWiredThemes, tabId, basePath = "/the
           navigate(`${basePath}?tab=${id}`, { replace: true });
         }}
       />
-      <ThemeGrid visibleThemes={visibleThemes} themeNames={themeNames} settings={settings} busyTheme={busyTheme} activate={activate} t={t} />
+      <ThemeGrid themePreviewImages={themePreviewImages} visibleThemes={visibleThemes} themeNames={themeNames} settings={settings} busyTheme={busyTheme} activate={activate} t={t} />
     </div>
   );
 }

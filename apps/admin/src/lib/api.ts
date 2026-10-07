@@ -1343,6 +1343,7 @@ export type ThemeTier = "declarative" | "templated" | "handlebars" | "static" | 
 
 /** Themes admin screen (2026-08-10) — one available theme's id plus its capability tier. */
 export interface AdminThemeSummary {
+  previewImageUrl?: string | null;
   id: string;
   /** `theme.json`'s display name (the server falls back to the id) — what the owner sees; the id
    *  stays the key. Optional so a response or test double without it still type-checks. */

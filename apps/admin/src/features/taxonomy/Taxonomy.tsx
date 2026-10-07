@@ -608,6 +608,12 @@ export function Taxonomy({ useTaxonomyHook = useWiredTaxonomy }: TaxonomyProps =
       {copyFeedback ? <p role="status">{copyFeedback}</p> : null}
       {error ? <div className="notice error">{error}</div> : null}
 
+      {taxonomies.length === 0 ? (
+        <div className="card">
+          <div className="empty-state" role="status">{t("No taxonomies yet")}</div>
+        </div>
+      ) : null}
+
       {formOpen ? (
         <NewTaxonomyForm
           onCreated={() => {

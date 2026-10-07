@@ -49,6 +49,9 @@ export interface ThemesController {
   /** Theme id -> `theme.json` display name, from the same `availableThemes` list. Optional for the
    *  same reason `themeTiers` is; an id absent here shows as itself (`themeDisplayName`). */
   themeNames?: Record<string, string>;
+  /** Theme id -> the server-advertised preview URL (D-22): a string names a file that exists, `null`
+   *  means none, `undefined` (an older server) keeps the card's jpg→png probing fallback. */
+  themePreviewImages?: Record<string, string | null | undefined>;
   error: string | null;
   /** The theme id currently being activated, or `null` when no activation is in flight. */
   busyTheme: string | null;
@@ -84,6 +87,7 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
   const [themes, setThemes] = useState<string[]>([]);
   const [themeTiers, setThemeTiers] = useState<Record<string, ThemeTier>>({});
   const [themeNames, setThemeNames] = useState<Record<string, string>>({});
+  const [themePreviewImages, setThemePreviewImages] = useState<Record<string, string | null | undefined>>({});
   const [error, setError] = useState<string | null>(null);
   const [busyTheme, setBusyTheme] = useState<string | null>(null);
   const [rescanning, setRescanning] = useState(false);
@@ -111,6 +115,7 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
         setThemes(r.availableThemeIds);
         setThemeTiers(Object.fromEntries(r.availableThemes.map((t) => [t.id, t.tier])));
         setThemeNames(themeNamesById(r.availableThemes));
+        setThemePreviewImages(Object.fromEntries(r.availableThemes.map((theme) => [theme.id, theme.previewImageUrl])));
       })
       .catch((e) => setError(e instanceof Error ? e.message : "failed to load themes"));
   }, [port]);
@@ -134,6 +139,7 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
       setThemes(fresh.availableThemeIds);
       setThemeTiers(Object.fromEntries(fresh.availableThemes.map((t) => [t.id, t.tier])));
       setThemeNames(themeNamesById(fresh.availableThemes));
+      setThemePreviewImages(Object.fromEntries(fresh.availableThemes.map((theme) => [theme.id, theme.previewImageUrl])));
       setRescanNotice(describeRescan(r));
     } catch (e) {
       setError(e instanceof Error ? e.message : "failed to rescan themes");
@@ -172,6 +178,7 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
     themes,
     themeTiers,
     themeNames,
+    themePreviewImages,
     error,
     busyTheme,
     activate,

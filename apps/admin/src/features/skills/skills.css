@@ -1,6 +1,8 @@
 /* Only Skills' composition; row, field, button and dialog paint stays shared. */
-.skills-page { max-width: 64rem; height: auto; }
-/* Keep the shared inline shell in page flow, with the existing Skills measure/insets. */
+/* D-32: Skills is a page in the shared scroll flow, not a viewport-height settings panel. */
+.skills-page.settings-ui-section { max-width: none; height: auto; }
+.skills-page.settings-ui-section > .jini-tabbed-dialog { flex: none; }
+/* Keep the shared inline shell in page flow, with the shared page insets. */
 .skills-page .jini-tabbed-dialog {
   height: auto;
   min-height: 0;
@@ -11,6 +13,7 @@
   box-shadow: none;
 }
 .skills-page .jini-tabbed-dialog-head { padding-top: 0; padding-inline: 0; }
+.skills-page .jini-tabbed-dialog-head-line { flex-direction: column; align-items: flex-start; gap: var(--space-1); }
 .skills-page .jini-tabbed-dialog-content { overflow: visible; padding-inline: 0; }
 .skills-page .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar { padding-inline: 0; }
 .skills-file-input[hidden] { display: none; }

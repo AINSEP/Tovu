@@ -191,7 +191,7 @@ export function Dashboard({ useDashboardHook = useWiredDashboard }: DashboardPro
   const canPublish = usePublishToLiveAvailable();
 
   return (
-    <div className="page">
+    <div className="page dashboard-page">
       <div className="page-header">
         <div className="page-header-text">
           <p className="page-kicker">{t("Overview")}</p>

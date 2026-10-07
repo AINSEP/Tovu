@@ -1,23 +1,39 @@
-import { expect, test } from "vitest";
+import { afterAll, beforeAll, expect, test } from "vitest";
 
 import { formatRelativeMinutesAgo, formatTimestamp } from "../format-timestamp";
 
-/**
- * @file `formatTimestamp` — pins the exact output the ~11 call sites this consolidates
- * (`x.slice(0, 16).replace("T", " ")`, audit cross-cutting finding #4) already produced, so the
- * migration to a shared helper is provably a no-op on rendered output.
- */
-
-test("formats a standard ISO timestamp as 'YYYY-MM-DD HH:MM'", () => {
-  expect(formatTimestamp("2026-08-01T10:30:00.000Z")).toBe("2026-08-01 10:30");
+// Fixed viewer zone, independent of the server's UTC timestamps and the developer's machine.
+// Run with TZ=America/Los_Angeles as well; restore env for other suites sharing this worker.
+const originalTz = process.env.TZ;
+beforeAll(() => { process.env.TZ = "America/Los_Angeles"; });
+afterAll(() => {
+  if (originalTz === undefined) delete process.env.TZ;
+  else process.env.TZ = originalTz;
 });
 
-test("trailing seconds/milliseconds/zone suffix are dropped, not just the Z", () => {
-  expect(formatTimestamp("2026-08-01T10:30:45+05:30")).toBe("2026-08-01 10:30");
+test("D-06: the UTC Updated value is the viewer's previous evening in PDT", () => {
+  expect(formatTimestamp("2026-10-07T03:28:00.000Z")).toBe("2026-10-06 20:28");
 });
 
-test("a timestamp with no sub-minute precision at all is unaffected", () => {
+test("converts explicit offsets rather than dropping their suffix", () => {
+  expect(formatTimestamp("2026-08-01T10:30:45+05:30")).toBe("2026-07-31 22:00");
+});
+
+test("observes winter PST and a year boundary", () => {
+  expect(formatTimestamp("2027-01-01T03:28:00.000Z")).toBe("2026-12-31 19:28");
+});
+
+test("the DST jump skips the missing local hour", () => {
+  expect(formatTimestamp("2026-03-08T09:59:00Z")).toBe("2026-03-08 01:59");
+  expect(formatTimestamp("2026-03-08T10:00:00Z")).toBe("2026-03-08 03:00");
+});
+
+test("zone-less ISO text is already local wall time", () => {
   expect(formatTimestamp("2026-08-01T10:30")).toBe("2026-08-01 10:30");
+});
+
+test("invalid input remains visible", () => {
+  expect(formatTimestamp("invalid timestamp")).toBe("invalid timestamp");
 });
 
 const NOW = new Date("2026-09-06T00:10:00.000Z").getTime();

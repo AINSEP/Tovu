@@ -930,7 +930,8 @@ export function logFrontendSessionError(error: unknown): void {
   if (error instanceof Event) {
     const source = error.target as { readyState?: unknown } | null;
     if (source?.readyState === EventSource.CLOSED) {
-      console.warn("[admin] frontend session stream closed", error);
+      // Native Events stringify to "[object Event]" in desktop logs. Keep the actionable fact.
+      console.warn("[admin] frontend session stream closed; reopen the admin to reconnect");
     }
     return;
   }

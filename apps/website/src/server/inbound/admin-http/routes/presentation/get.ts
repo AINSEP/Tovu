@@ -3,6 +3,7 @@ import {
   PresentationSettingsNotFoundError,
 } from "#src/features/presentation/index";
 import { findStoredTheme, validThemeIds } from "#src/features/theme/index";
+import { themePreviewImage } from "#src/features/theme/theme-preview-image";
 import { toAdminPresentationResponse } from "#src/server/inbound/admin-http/http/presentation";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps.js";
@@ -73,7 +74,8 @@ export const registerAdminPresentationGetRoute: ContentRouteRegistrar = (app, de
       // to match `validThemeIds`'s own filter above (an invalid theme is not one an operator can pick).
       const availableThemes = deps.themes
         .filter((t) => t.status === "valid")
-        .map((t) => ({ id: t.manifest.id, name: t.manifest.name, tier: t.manifest.tier, apiVersion: t.manifest.apiVersion }));
+        .map((t) => ({ id: t.manifest.id, name: t.manifest.name, tier: t.manifest.tier, apiVersion: t.manifest.apiVersion,
+          previewImageUrl: themePreviewImage({ dir: t.dir, id: t.manifest.id }, { assetsServed: t.manifest.tier === "static" || t.manifest.tier === "templated" }) }));
 
       res.json(
         toAdminPresentationResponse({
