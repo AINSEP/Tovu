@@ -129,6 +129,7 @@ import { MCP_UI_EXT_EVENT_NAME, registerExtEventRenderer, type ExtEventRenderPro
 import { OverflowAwareMcpUiSurfaceCard } from "../AssistantDock/OverflowAwareMcpUiSurfaceCard";
 import { RoutedA2uiSurfaceCard } from "../AssistantDock/RoutedA2uiSurfaceCard";
 import { SlowRunNoticeCard } from "../AssistantDock/SlowRunNoticeCard";
+import { zipFolderFiles } from "../InstallTabCard/folder-zip";
 
 const mockLoadExecutionConfig = vi.mocked(loadExecutionConfig);
 const mockSaveExecutionConfig = vi.mocked(saveExecutionConfig);
@@ -584,11 +585,19 @@ describe("AssistantDock useAttachmentUploader injection", () => {
     expect(fakeUploader).toHaveBeenCalledWith(files);
   });
 
-  it.each(["SKILL.md", "skill.zip"])("captures a dropped %s for installation before attachment upload", async name => {
+  // Since 02366180d a file-only drop is no longer captured by the dock: it falls through to ChatPane,
+  // whose upload callback classifies ZIPs by their central-directory names (not by suffix).
+  it.each([
+    ["SKILL.md", async () => new File(["---\nname: example\ndescription: Example skill.\n---\nInstructions."], "SKILL.md")],
+    ["skill.zip", () => zipFolderFiles({ files: [new File(["---\nname: example\n---\nInstructions."], "SKILL.md")], maxBytes: 1024 * 1024 })],
+  ])("routes a dropped %s to installation before attachment upload", async (_name, makeFile) => {
     const fakeUploader = vi.fn();
     render(<AssistantDock useChats={() => fakeChats()} useAttachmentUploader={() => fakeUploader} />);
-    const file = new File(["---\nname: example\ndescription: Example skill.\n---\nInstructions."], name);
-    fireEvent.drop(screen.getByTestId("chat-pane"), { dataTransfer: { files: [file], items: [], types: ["Files"] } });
+    const file = await makeFile();
+    const notCancelled = fireEvent.drop(screen.getByTestId("chat-pane"), { dataTransfer: { files: [file], items: [], types: ["Files"] } });
+    expect(notCancelled).toBe(true);
+    const props = chatPaneSpy.mock.calls.at(-1)?.[0] as { uploadAttachments: (files: File[]) => Promise<unknown[]> };
+    await act(async () => { await expect(props.uploadAttachments([file])).resolves.toEqual([]); });
     expect(await screen.findByRole("dialog", { name: "Install skill" })).toBeInTheDocument();
     expect(fakeUploader).not.toHaveBeenCalled();
   });
