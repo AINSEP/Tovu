@@ -37,7 +37,11 @@ test.describe("W3 page lifecycle", () => {
     await page.getByRole("textbox", { name: "Page title" }).fill(uniq("Journey page"));
     await writeHtmlAndSave(page, `<main><h1 id="journey-h1">${marker}</h1></main>`);
     await page.getByRole("button", { name: "Publish" }).click();
-    await expect(page.locator(".save-ok")).toContainText("Published");
+    // A page's save notice is "Saved" for both Save and Publish (`pageSaveSuccessMessage`); the
+    // status field and the public read below are what prove it published.
+    await expect(page.getByRole("combobox", { name: "Status" })).toHaveValue("published");
+    await expect(page.getByRole("button", { name: "Publish" })).toHaveCount(0);
+    await expect(page.locator(".save-ok")).toHaveText("Saved");
     const slug = await page.getByLabel("URL slug").inputValue();
     const live = await fetchPublic(request, `/${slug}`);
     expect(live.status).toBe(200);

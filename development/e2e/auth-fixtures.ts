@@ -90,9 +90,11 @@ export async function isLoggedIn(page: Page): Promise<boolean> {
   return page.locator(ADMIN_LAYOUT_SELECTOR).isVisible();
 }
 
-/** Clicks the sidebar footer's real log-out control (`App.tsx`'s `SidebarLogoutButton`) and waits
- *  for the login screen to return. */
+/** Clicks the sidebar footer's real log-out control (`App.tsx`'s `SidebarLogoutButton`), confirms
+ *  the "Log out?" dialog it opens (9fe26647a), and waits for the login screen to return. */
 export async function logoutAsAdmin(page: Page): Promise<void> {
   await page.locator(".cms-logout").click();
+  const dialog = page.getByRole("dialog").filter({ hasText: "Are you sure you want to log out?" });
+  await dialog.getByRole("button", { name: "Log out", exact: true }).click();
   await page.locator(LOGIN_CARD_SELECTOR).waitFor({ state: "visible", timeout: 10_000 });
 }

@@ -275,8 +275,9 @@ test.describe.serial("Content analysis card (AW-7 Tier 2)", () => {
     // `ContentAnalysisCard` returns null unless the plugin list says the analyzer is enabled, so
     // "off" means no card and no Analyze now button (the server's refusal is only reachable from a
     // card that was already open when the plugin went off — `plugins.journey.ts` covers that).
-    // Wait for the plugin list first: before it arrives the card is hidden too.
-    const pluginList = page.waitForResponse((r) => r.request().method() === "GET" && new URL(r.url()).pathname === `${WS_API}/plugins` && r.ok());
+    // Wait for the card's only gate, the analyzer's preview-status read (`content-analysis-port`),
+    // first: before it arrives the card is hidden too.
+    const pluginList = page.waitForResponse((r) => r.request().method() === "GET" && new URL(r.url()).pathname === `${WS_API}/plugins/content-analyzer/preview` && r.ok());
     await newPost(page);
     await pluginList;
     await expect(titleInput(page)).toBeVisible();
@@ -295,7 +296,8 @@ test.describe.serial("Content analysis card (AW-7 Tier 2)", () => {
     await page.locator('[data-agent-element="post-body"] .ProseMirror').click();
     await page.keyboard.type("Intro paragraph with a few words.");
     await page.keyboard.press("Enter");
-    await page.getByRole("button", { name: "Heading 2" }).click();
+    // The button's accessible name is its visible "H2"; "Heading 2" is only its title.
+    await page.getByTitle("Heading 2", { exact: true }).click();
     await page.keyboard.type("Second section");
     await page.getByRole("button", { name: /^Save/ }).click();
     await expect(page.locator(".save-ok")).toBeVisible();

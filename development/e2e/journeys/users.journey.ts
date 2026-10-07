@@ -58,6 +58,19 @@ async function freshContext(browser: Browser): Promise<{ context: BrowserContext
   return { context, page, errors };
 }
 
+/**
+ * GET from inside the page, so the browser's own cookie rules apply. A packaged (production) server
+ * marks the session cookie `Secure`; Chromium sends it to http://127.0.0.1, but Playwright's
+ * `page.request` withholds `Secure` cookies from any http URL, so it would read as logged out.
+ */
+async function browserGet(page: Page, url: string): Promise<{ status(): number; text(): Promise<string>; json(): Promise<any> }> {
+  const { status, body } = await page.evaluate(async (target) => {
+    const res = await fetch(target, { credentials: "same-origin" });
+    return { status: res.status, body: await res.text() };
+  }, url);
+  return { status: () => status, text: async () => body, json: async () => JSON.parse(body) };
+}
+
 async function loginAs(page: Page, username: string): Promise<void> {
   await attemptLoginAsAdmin(page, { username, password: EDITOR_PASSWORD });
   await expect(page.locator(".admin-layout")).toBeVisible();
@@ -89,7 +102,7 @@ test.describe("W8 users and roles", () => {
       await expect(page.getByRole("row").filter({ hasText: username })).toContainText("editor");
 
       await loginAs(editorSide.page, username);
-      const me = await editorSide.page.request.get(`${API}/auth/me`);
+      const me = await browserGet(editorSide.page, `${API}/auth/me`);
       await expectStatus(me, 200, "editor auth/me");
       const perms = (await me.json()).effectivePermissions as string[];
       expect(perms).toContain("content.write");
@@ -97,7 +110,7 @@ test.describe("W8 users and roles", () => {
       expect(perms).not.toContain("member.manage");
 
       // The server gate is the real enforcement, whatever the nav shows.
-      const users = await editorSide.page.request.get(`${WS_API}/users`);
+      const users = await browserGet(editorSide.page, `${WS_API}/users`);
       expect(users.status(), "an editor must not list operators").toBe(403);
       expect((await users.json()).code).toBe("FORBIDDEN");
 
@@ -106,7 +119,7 @@ test.describe("W8 users and roles", () => {
       await editorSide.page.getByRole("button", { name: "New Post" }).click();
       await expect(editorSide.page).toHaveURL(/\/admin\/posts\/[^/]+$/);
       const postId = editorSide.page.url().split("/").pop()!;
-      const post = await editorSide.page.request.get(`${WS_API}/posts/${postId}`);
+      const post = await browserGet(editorSide.page, `${WS_API}/posts/${postId}`);
       await expectStatus(post, 200, "editor-created post read");
 
       // Opening the Users screen directly must not crash the shell or kick the editor out.

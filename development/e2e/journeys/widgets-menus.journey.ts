@@ -72,7 +72,7 @@ test.describe("W7 menus and widgets", () => {
     await addUrlItem(page, "Journey Home", "https://example.test/home");
     await addUrlItem(page, "Journey About", "https://example.test/about");
     await page.getByRole("button", { name: "Save" }).click();
-    await expect(page.locator(".save-ok")).toContainText(/Saved · version \d+/);
+    // Creating a menu shows no notice: the editor moves from /new to the saved menu's own URL.
     await expect(page).not.toHaveURL(/\/admin\/menus\/new$/);
 
     const menu = await readMenuBySlug(request, slug);
@@ -155,7 +155,7 @@ test.describe("menus stress", () => {
     const error = other.locator(".save-error");
     await expect(error).toBeVisible();
     // INTENDED copy (likely bug today: the raw `MenuConflictError` message is shown).
-    await expect(error).toContainText(/saved this while you were editing/i);
+    await expect(error).toContainText("Someone else changed this while you were editing. Your changes were not saved.");
     await expect(error).not.toContainText(/expected ?version|version mismatch/i);
     await expect(other.getByPlaceholder("Label").last(), "the losing tab keeps its unsaved item").toHaveValue("From tab B");
     expect(statuses.sort()).toEqual([200, 409]);
@@ -195,7 +195,7 @@ test.describe("menus stress", () => {
     await page.getByRole("textbox", { name: "Menu title" }).fill("Double save");
     await page.getByRole("textbox", { name: "Menu slug" }).fill(slug);
     await page.getByRole("button", { name: "Save" }).dblclick();
-    await expect(page.locator(".save-ok")).toBeVisible();
+    await expect(page).not.toHaveURL(/\/admin\/menus\/new$/);
     expect(creates).toBe(1);
     const res = await request.get(`${WS_API}/menus`);
     expect(((await res.json()).menus as MenuDto[]).filter((m) => m.slug === slug)).toHaveLength(1);

@@ -23,7 +23,7 @@ import { PUBLIC_URL, TINY_PNG, WS_API, expect, test, uniqSlug } from "./_fixture
 async function uploadPng(page: Page, name: string, alt: string): Promise<void> {
   await page.goto("/admin/media");
   await page.getByLabel("File to upload").setInputFiles({ name, mimeType: "image/png", buffer: TINY_PNG });
-  await page.getByLabel("Alt text (optional)").fill(alt);
+  await page.getByLabel("Alt text (optional)", { exact: true }).fill(alt);
   await page.getByRole("button", { name: "Upload", exact: true }).click();
 }
 

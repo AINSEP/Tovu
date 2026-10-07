@@ -29,16 +29,17 @@ async function createType(request: APIRequestContext, key: string, label: string
       key,
       label,
       fields: [
-        { name: "summary", kind: "text", required: true },
-        { name: "servings", kind: "integer", queryable: true },
+        { name: "summary", kind: "text", required: true, queryable: false },
+        { name: "servings", kind: "integer", required: false, queryable: true },
       ],
     },
   });
   expect(res.status(), await res.text()).toBe(201);
 }
 
+/** `summary` is required, and the server enforces required fields on every write, drafts included. */
 async function createEntry(request: APIRequestContext, key: string, slug: string, title: string): Promise<{ id: string; version: number }> {
-  const res = await request.post(`${API}/entries`, { data: { type: key, slug, title } });
+  const res = await request.post(`${API}/entries`, { data: { type: key, slug, title, fieldsJson: { ext: { site: { summary: "Seed summary" } } } } });
   expect(res.status(), await res.text()).toBe(201);
   return (await res.json()).entry;
 }
@@ -66,7 +67,8 @@ test.describe("W6 collections", () => {
     const dialog = page.getByRole("dialog", { name: "New content type" });
     await dialog.locator("#ct-label").fill(label);
     await dialog.locator("#ct-key").fill(key);
-    await dialog.getByRole("button", { name: "Add field" }).click();
+    // The modal opens with one empty field row; adding another would leave that one unnamed.
+    await expect(dialog.getByRole("group", { name: /^Field \d+$/ })).toHaveCount(1);
     await dialog.getByLabel("Name").last().fill("summary");
     await dialog.getByLabel("Required").last().check();
     await dialog.getByRole("button", { name: "Create content type" }).click();
@@ -74,7 +76,7 @@ test.describe("W6 collections", () => {
     await expect(page.getByText(label)).toBeVisible();
 
     await page.goto(`/admin/collections/${key}`);
-    await page.getByRole("button", { name: "New entry" }).click();
+    await page.getByRole("link", { name: "New entry" }).click();
     await expect(page).toHaveURL(new RegExp(`/admin/collections/${key}/new$`));
     const title = uniq("Shakshuka");
     const slug = uniqSlug("shakshuka");
@@ -82,7 +84,8 @@ test.describe("W6 collections", () => {
     await page.getByRole("textbox", { name: "Entry slug" }).fill(slug);
     await page.locator("#entry-field-summary").fill("Eggs poached in spiced tomato.");
     await page.getByRole("button", { name: "Save" }).click();
-    await expect(page.locator(".save-ok")).toBeVisible();
+    // Creating an entry shows no notice: the editor moves from /new to the saved entry's own URL.
+    await expect(page).toHaveURL(new RegExp(`/admin/collections/${key}/${slug}$`));
     await page.getByRole("button", { name: "Publish" }).click();
     await expect(page.locator(".save-ok")).toBeVisible();
     await expect(page.getByRole("button", { name: "Unpublish" })).toBeVisible();
@@ -148,9 +151,8 @@ test.describe("collections stress", () => {
 
     const error = other.locator(".save-error");
     await expect(error).toBeVisible();
-    // INTENDED behaviour (likely bug today): posts have dedicated copy; an entry 409 shows the raw
-    // server message from `describeApiError`. The ideas report tracks this.
-    await expect(error).toContainText(/saved this while you were editing/i);
+    // The entry editor's own conflict copy, not the raw server message from `describeApiError`.
+    await expect(error).toContainText("Someone else changed this while you were editing. Your changes were not saved.");
     await expect(error).not.toContainText(/expected ?version|VERSION_CONFLICT/i);
     await expect(other.getByRole("textbox", { name: "Entry title" })).toHaveValue(titleB);
     expect(statuses.sort()).toEqual([200, 409]);
@@ -192,16 +194,20 @@ test.describe("collections stress", () => {
     expect((await readEntry(request, key, id)).title).toBe("Original owner");
   });
 
-  test("publishing with a required field empty is refused and names the field", { tag: ["@unrun"] }, async ({ page, request }) => {
+  // Required fields are enforced on every write, drafts included, so the empty field is refused at
+  // the first Save of a new entry, before Publish is reachable.
+  test("saving a new entry with a required field empty is refused and names the field", { tag: ["@unrun"] }, async ({ page, request }) => {
     const key = typeKey("required");
     await createType(request, key, "Required Type");
     const slug = uniqSlug("empty-summary");
-    await createEntry(request, key, slug, "Missing summary");
-    await openEntry(page, key, slug);
-    await expect(page.getByText("summary *")).toBeVisible();
-    await page.locator('[data-agent-element="entry-publish"]').click();
+    await page.goto(`/admin/collections/${key}/new`);
+    await page.getByRole("textbox", { name: "Entry title" }).fill("Missing summary");
+    await page.getByRole("textbox", { name: "Entry slug" }).fill(slug);
+    await page.getByRole("button", { name: "Save" }).click();
     await expect(page.locator(".save-error, [role=alert]").first()).toContainText(/summary/i);
-    await expect(page.getByRole("button", { name: "Unpublish" })).toHaveCount(0);
+    await expect(page).toHaveURL(new RegExp(`/admin/collections/${key}/new$`));
+    const listed = await request.get(`${API}/entries?type=${key}`);
+    expect(((await listed.json()).items as unknown[])).toEqual([]);
   });
 
   test("unicode and markup in field values round-trip through the editor and render escaped publicly", { tag: ["@unrun"] }, async ({ page, request }) => {

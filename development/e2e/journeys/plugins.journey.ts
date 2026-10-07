@@ -39,6 +39,8 @@ async function pluginState(request: APIRequestContext, id: string): Promise<{ en
 async function previewFolder(page: Page, folder: string): Promise<ReturnType<Page["getByRole"]>> {
   await page.goto("/admin/plugins?tab=add");
   const dialog = page.getByRole("region", { name: "Add a plugin" });
+  // The server-path field lives in a collapsed "Advanced" disclosure under the upload drop zone.
+  await dialog.getByText("Advanced: install from a path on this server").click();
   await dialog.getByLabel("Folder on this server").fill(folder);
   await dialog.getByRole("button", { name: "Preview plugin" }).click();
   await expect(dialog.getByRole("button", { name: "Install (stays off)" })).toBeVisible();
@@ -46,14 +48,13 @@ async function previewFolder(page: Page, folder: string): Promise<ReturnType<Pag
 }
 
 async function createFaq(request: APIRequestContext, title: string, answer: string, order: number): Promise<void> {
-  const created = await request.post(`${API}/entries`, { data: { type: "faq", slug: uniqSlug("faq"), title } });
+  // `answer` is required, and required fields are enforced on every write, drafts included.
+  const created = await request.post(`${API}/entries`, {
+    data: { type: "faq", slug: uniqSlug("faq"), title, fieldsJson: { ext: { site: { answer, order } } } },
+  });
   expect(created.status(), await created.text()).toBe(201);
   const entry = (await created.json()).entry as { id: string; version: number };
-  const updated = await request.put(`${API}/entries/${entry.id}`, {
-    data: { fieldsJson: { ext: { site: { answer, order } } }, expectedVersion: entry.version },
-  });
-  expect(updated.status(), await updated.text()).toBe(200);
-  const published = await request.post(`${API}/entries/${entry.id}/lifecycle`, { data: { op: "publish", expectedVersion: entry.version + 1 } });
+  const published = await request.post(`${API}/entries/${entry.id}/lifecycle`, { data: { op: "publish", expectedVersion: entry.version } });
   expect(published.status(), await published.text()).toBe(200);
 }
 
@@ -118,10 +119,13 @@ test.describe.serial("AW-7 Tier 1: Testimonials + FAQ, code-free", () => {
 
   test("a testimonials carousel is keyboard-scrollable and does not widen the page at phone width", { tag: ["@unrun"] }, async ({ page, request }) => {
     for (let i = 0; i < 4; i++) {
-      const created = await request.post(`${API}/entries`, { data: { type: "testimonial", slug: uniqSlug("t"), title: `Customer ${i}` } });
+      const created = await request.post(`${API}/entries`, {
+        data: { type: "testimonial", slug: uniqSlug("t"), title: `Customer ${i}`, fieldsJson: { ext: { site: { quote: `Quote number ${i} is great.`, order: i } } } },
+      });
+      expect(created.status(), await created.text()).toBe(201);
       const entry = (await created.json()).entry as { id: string; version: number };
-      await request.put(`${API}/entries/${entry.id}`, { data: { fieldsJson: { ext: { site: { quote: `Quote number ${i} is great.`, order: i } } }, expectedVersion: entry.version } });
-      await request.post(`${API}/entries/${entry.id}/lifecycle`, { data: { op: "publish", expectedVersion: entry.version + 1 } });
+      const published = await request.post(`${API}/entries/${entry.id}/lifecycle`, { data: { op: "publish", expectedVersion: entry.version } });
+      expect(published.status(), await published.text()).toBe(200);
     }
     const pageSlug = uniqSlug("testimonials-page");
     await createPublishedPageWithHtml(request, {
@@ -209,9 +213,10 @@ test.describe.serial("AW-7 Tier 2: Content Analyzer", () => {
     // `previewPluginRoute` answers 409 PLUGIN_NOT_ENABLED; `describeAnalysisError` words it.
     await expect(card).toContainText("The Content Analyzer plugin is not enabled.");
 
-    // Reopened, the editor reads the plugin list fresh and renders no card at all. Wait for that
-    // list first: before it arrives the card is hidden too, which would make this pass vacuously.
-    const pluginList = page.waitForResponse((r) => r.request().method() === "GET" && new URL(r.url()).pathname === `${WS_API}/plugins` && r.ok());
+    // Reopened, the editor reads the analyzer's preview status fresh (the card's only gate,
+    // `content-analysis-port`) and renders no card at all. Wait for that read first: before it
+    // arrives the card is hidden too, which would make this pass vacuously.
+    const pluginList = page.waitForResponse((r) => r.request().method() === "GET" && new URL(r.url()).pathname === `${WS_API}/plugins/content-analyzer/preview` && r.ok());
     await page.goto(editorUrl);
     await pluginList;
     await expect(page.getByRole("textbox", { name: "Post title" })).toBeVisible();

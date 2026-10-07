@@ -10,7 +10,9 @@ import { test as base, expect, type APIRequestContext, type Page } from "@playwr
  */
 export { JOURNEY_ADMIN_USER, JOURNEY_ADMIN_PASSWORD } from "../support/isolated-journey-site.js";
 export const PUBLIC_URL = "http://127.0.0.1:9101";
-export const ADMIN_URL = "http://127.0.0.1:9102";
+/** A packaged server (`TOVU_E2E_PACKAGED_APP`) serves its bundled admin on the site origin. */
+export const IS_PACKAGED_SERVER = Boolean(process.env.TOVU_E2E_PACKAGED_APP);
+export const ADMIN_URL = IS_PACKAGED_SERVER ? PUBLIC_URL : "http://127.0.0.1:9102";
 export const WS = "workspace-local";
 export const API = "/api/admin/v1";
 export const WS_API = `${API}/workspaces/${WS}`;

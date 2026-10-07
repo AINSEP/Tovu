@@ -1,8 +1,10 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { randomBytes } from "node:crypto";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { PlaywrightTestConfig } from "@playwright/test";
 import { pickFreePort } from "../../scripts/free-port.mjs";
+import { resolvePackagedDesktopApp } from "../desktop/_app-target.js";
 
 export const JOURNEY_ADMIN_USER = "admin";
 export const JOURNEY_ADMIN_PASSWORD = "tovu-journeys";
@@ -21,6 +23,22 @@ export interface IsolatedJourneySite {
   runtime: "default" | "local-cli";
   storageState: string;
   manifestPath: string;
+  /** Set when `TOVU_E2E_PACKAGED_APP` names a released .app: its bundled server replaces source. */
+  packaged?: { executablePath: string; payloadRoot: string; cliEntry: string; version: string };
+}
+
+/**
+ * `TOVU_E2E_PACKAGED_APP=<Tovu.app>` runs the server SHIPPED in that bundle instead of source: the
+ * app's own Electron binary as Node (`ELECTRON_RUN_AS_NODE=1`) on its `cliEntry`, `init` then
+ * `serve`, the way `apps/desktop/src/tovu-server.ts` spawns it. That server also serves the bundled
+ * admin build, so the admin origin IS the API origin (no Vite) and both ports collapse to `api`.
+ */
+function resolvePackagedServer(): IsolatedJourneySite["packaged"] {
+  const appPath = process.env.TOVU_E2E_PACKAGED_APP;
+  if (!appPath) return undefined;
+  const app = resolvePackagedDesktopApp({ appPath });
+  const manifest = JSON.parse(readFileSync(path.join(app.payloadRoot, "dist/runtime-manifest.json"), "utf8")) as { cliEntry: string };
+  return { executablePath: app.executablePath, payloadRoot: app.payloadRoot, cliEntry: path.join(app.payloadRoot, manifest.cliEntry), version: app.version };
 }
 
 /**
@@ -62,9 +80,12 @@ export async function createIsolatedJourneySite(
     }
     ports = { api: selected[0], admin: selected[1], daemon: selected[2] };
   }
+  const packaged = resolvePackagedServer();
+  if (packaged) ports = { ...ports, admin: ports.api };
   const runtimeDir = mkdtempSync(path.join(os.tmpdir(), `tovu-${suite}-`));
   const siteDir = path.join(runtimeDir, "sites", "journey-site");
-  mkdirSync(siteDir, { recursive: true });
+  // `tovu init` creates the packaged site dir itself.
+  mkdirSync(packaged ? path.dirname(siteDir) : siteDir, { recursive: true });
   const emptySeeds = path.join(runtimeDir, "empty-seeds");
   mkdirSync(emptySeeds);
   const site: IsolatedJourneySite = {
@@ -73,8 +94,9 @@ export async function createIsolatedJourneySite(
     adminURL: `http://127.0.0.1:${ports.admin}`,
     storageState: path.join(runtimeDir, "storage-state.json"),
     manifestPath: path.join(runtimeDir, "boot.json"),
+    ...(packaged ? { packaged } : {}),
   };
-  const env = {
+  const env: Record<string, string> = {
     NODE_ENV: "development",
     PORT: String(ports.api),
     TOVU_HOST: "127.0.0.1",
@@ -105,9 +127,27 @@ export async function createIsolatedJourneySite(
     TOVU_API_URL: site.apiURL,
     VITE_TOVU_SITE_URL: site.apiURL,
   };
+  if (packaged) applyPackagedServerEnv(env, packaged);
   writeFileSync(site.manifestPath, JSON.stringify({ site, env }), { mode: 0o600 });
   process.env[cacheKey] = JSON.stringify(site);
   return site;
+}
+
+/**
+ * The packaged app's child env (`tovu-server.ts` `buildCliEnv`/`buildServeEnv`): no `NODE_ENV`
+ * (a Finder-launched app has none), the site's own SQLite rather than `TOVU_DB`/`TOVU_CONTENT_DB`,
+ * `--port` rather than `PORT`, the bundled admin/site-chat builds, and a minted daemon token.
+ */
+function applyPackagedServerEnv(env: Record<string, string>, packaged: NonNullable<IsolatedJourneySite["packaged"]>): void {
+  for (const key of ["NODE_ENV", "PORT", "TOVU_DB", "TOVU_CONTENT_DB"]) delete env[key];
+  const { payloadRoot } = packaged;
+  Object.assign(env, {
+    ELECTRON_RUN_AS_NODE: "1",
+    TOVU_ADMIN_DIST: path.join(payloadRoot, "apps/admin/dist"),
+    TOVU_SITE_CHAT_DIST: path.join(payloadRoot, "apps/site-chat/dist"),
+    TOVU_REPO_ROOT: payloadRoot,
+    TOVU_AGENT_DAEMON_TOKEN: randomBytes(32).toString("hex"),
+  });
 }
 
 /** Playwright owns both processes and shuts them down, including the API's supervised daemon. */
@@ -116,6 +156,13 @@ export function isolatedJourneyWebServers(
 ): NonNullable<PlaywrightTestConfig["webServer"]> {
   const quote = (value: string) => `'${value.replace(/'/g, "'\\''")}'`;
   const boot = `node --import tsx development/e2e/support/start-journey-site.mjs ${quote(site.manifestPath)}`;
+  if (site.packaged) {
+    return [{
+      command: `${boot} packaged`, cwd: REPO_ROOT, url: `${site.adminURL}/admin/`,
+      timeout: 120_000, reuseExistingServer: false,
+      gracefulShutdown: { signal: "SIGTERM", timeout: 5_000 },
+    }];
+  }
   return [
     {
       command: `${boot} api`, cwd: REPO_ROOT, url: site.apiURL,

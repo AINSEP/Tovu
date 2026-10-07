@@ -108,7 +108,7 @@ test.describe("W6 forms", () => {
     await createForm(request, slug);
     await submitJson(request, slug, { email: "a@example.test", message: "baseline" });
     await page.goto("/admin/forms");
-    await expect(page.getByText(slug)).toBeVisible();
+    await expect(page.getByRole("cell", { name: slug, exact: true })).toBeVisible();
     await expect(page).toHaveScreenshot("forms-list.png", { mask: [page.locator("time, [data-relative-time]")] });
     await page.goto(`/admin/forms/${slug}`);
     await expect(page.getByLabel("Field 1 id")).toHaveValue("email");
@@ -259,8 +259,18 @@ test.describe("forms abuse and stress (public, no login)", () => {
   });
 
   test("an unknown form slug answers 404 and does not echo the slug as HTML", { tag: ["@unrun"] }, async ({ request }) => {
-    const res = await submitJson(request, encodeURIComponent("<b>nope</b>"), { message: "m" });
+    const slug = encodeURIComponent("<b>nope</b>");
+    // The JSON answer may quote the slug, but only as JSON the browser will never sniff into HTML.
+    const res = await submitJson(request, slug, { message: "m" });
     expect(res.status()).toBe(404);
-    expect(await res.text()).not.toContain("<b>");
+    expect(res.headers()["content-type"]).toContain("application/json");
+    expect(res.headers()["x-content-type-options"]).toBe("nosniff");
+    // A real browser form POST is answered with a 303 (post-redirect-get); the page it lands on
+    // must never carry the raw markup.
+    const html = await request.post(`${PUBLIC_URL}/forms/${slug}/submit`, {
+      form: { message: "m" }, headers: { accept: "text/html" },
+    });
+    expect(html.headers()["content-type"]).toContain("text/html");
+    expect(await html.text()).not.toContain("<b>nope</b>");
   });
 });
