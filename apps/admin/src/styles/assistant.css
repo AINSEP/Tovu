@@ -1438,3 +1438,11 @@
   border-radius: var(--r-md);
   font-size: var(--text-sm);
 }
+/* The published Jini footer still prints its generic terminal notice. The actual failure card
+   owns that notice when rendered; no diagnostics leaves the existing fallback visible. */
+.admin-chat-dock .jini-message-assistant:has(.admin-agent-failure) > .jini-message-error {
+  display: none;
+}
+.admin-chat-dock .admin-agent-failure p { margin: 0 0 0.5rem; overflow-wrap: anywhere; }
+.admin-chat-dock .admin-agent-failure summary { cursor: pointer; }
+.admin-chat-dock .admin-agent-failure pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 18rem; overflow: auto; }

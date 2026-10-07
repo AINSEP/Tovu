@@ -563,12 +563,22 @@ describe("AssistantDock useLocalCliSelection injection", () => {
  * later.
  */
 describe("AssistantDock useAssistantTransport injection", () => {
-  it("wires ChatPane's transport prop off the injected fake, not a freshly built real transport", () => {
-    const fakeTransport = { startRun: vi.fn() } as never;
+  it("wires ChatPane's transport prop off the injected fake, not a freshly built real transport", async () => {
+    const run = { runId: "impossible-run" };
+    const startRun = vi.fn().mockResolvedValue(run);
+    const fakeTransport = { startRun } as never;
 
     render(<AssistantDock useChats={() => fakeChats()} useAssistantTransport={() => fakeTransport} />);
 
-    expect(chatPaneSpy).toHaveBeenCalledWith(expect.objectContaining({ transport: fakeTransport }));
+    // The dock decorates the transport with the agent-failure projection (`withAgentFailureSurface`),
+    // so ChatPane gets a wrapper, not the fake by identity. A freshly built real transport would never
+    // reach this fake, so delegation through ChatPane's prop is still the proof.
+    const props = chatPaneSpy.mock.calls.at(-1)?.[0] as { transport: { startRun: (input: unknown, handlers: unknown) => Promise<unknown> } };
+    const input = { prompt: "impossible-prompt" };
+    await act(async () => {
+      await expect(props.transport.startRun(input, { onEvent: vi.fn(), onError: vi.fn(), onDone: vi.fn() })).resolves.toBe(run);
+    });
+    expect(startRun).toHaveBeenCalledWith(input, expect.objectContaining({ onEvent: expect.any(Function) }));
   });
 });
 
@@ -616,16 +626,29 @@ describe("AssistantDock useAttachmentValidator injection", () => {
 });
 
 describe("AssistantDock useRuntimeAccess injection", () => {
-  it("wires ChatPane's runtimeAccess prop off the injected fake, not the real fetch-backed one", () => {
+  it("wires ChatPane's runtimeAccess prop off the injected fake, not the real fetch-backed one", async () => {
     const fakeRuntimeAccess = {
       listAgents: vi.fn().mockResolvedValue([]),
       rescanAgents: vi.fn().mockResolvedValue([]),
       daemonOnline: vi.fn().mockResolvedValue(true),
     };
 
+    const agents = [{ id: "impossible-agent", name: "Impossible Agent" }];
+    fakeRuntimeAccess.listAgents.mockResolvedValue(agents);
+    fakeRuntimeAccess.rescanAgents.mockResolvedValue(agents);
+
     render(<AssistantDock useChats={() => fakeChats()} useRuntimeAccess={() => fakeRuntimeAccess} />);
 
-    expect(chatPaneSpy).toHaveBeenCalledWith(expect.objectContaining({ runtimeAccess: fakeRuntimeAccess }));
+    // The dock wraps listAgents/rescanAgents to capture the live inventory the failure card's
+    // "Switch to" action needs, so ChatPane gets a wrapper; every call must still reach the fake.
+    const props = chatPaneSpy.mock.calls.at(-1)?.[0] as { runtimeAccess: typeof fakeRuntimeAccess };
+    expect(props.runtimeAccess.daemonOnline).toBe(fakeRuntimeAccess.daemonOnline);
+    await act(async () => {
+      await expect(props.runtimeAccess.listAgents()).resolves.toBe(agents);
+      await expect(props.runtimeAccess.rescanAgents()).resolves.toBe(agents);
+    });
+    expect(fakeRuntimeAccess.listAgents).toHaveBeenCalledTimes(1);
+    expect(fakeRuntimeAccess.rescanAgents).toHaveBeenCalledTimes(1);
   });
 
   it("passes no placeholder agents when the runtime access is injected — a fake has no cache to seed from", () => {

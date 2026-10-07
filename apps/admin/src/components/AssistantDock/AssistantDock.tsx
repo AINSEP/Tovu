@@ -19,6 +19,9 @@ import { createAdminTypedAnswerPoster } from "../../lib/typed-answer-poster";
 import { RoutedA2uiSurfaceCard } from "./RoutedA2uiSurfaceCard";
 import { OverflowAwareMcpUiSurfaceCard } from "./OverflowAwareMcpUiSurfaceCard";
 import { SlowRunNoticeCard } from "./SlowRunNoticeCard";
+import { AgentFailureCard } from "./AgentFailureCard";
+import { FailureSurfaceContext, useAgentFailureSurface } from "./AgentFailureCard.hooks";
+import { AGENT_FAILURE_EVENT } from "./agent-failure";
 import { SelectedAgentPluginTray } from "./SelectedAgentPluginTray";
 import { FolderDropNotice } from "./FolderDropNotice";
 import { PushToTalkMicButton } from "../../features/voice-input/PushToTalkMicButton";
@@ -217,6 +220,7 @@ registerExtEventRenderer({ name: "a2ui", renderer: (props) => <RoutedA2uiSurface
  * `'status'` kind" reasoning. Same module-scope-once registration shape as the two above.
  */
 registerExtEventRenderer({ name: "slow_running", renderer: (props) => <SlowRunNoticeCard {...props} /> });
+registerExtEventRenderer({ name: AGENT_FAILURE_EVENT, renderer: (props) => <AgentFailureCard {...props} /> });
 
 declare global {
   interface Window {
@@ -515,9 +519,12 @@ export function AssistantDock({
   });
   // Shown on one ellipsized line, so the full name rides along as the hover tooltip.
   const activeTitle = chats.conversations.find((c) => c.id === chats.activeId)?.title ?? t("Tovu assistant");
+  const failureSurface = useAgentFailureSurface({ transport, runtimeAccess, initialMessages: chats.initialMessages,
+    onSelectionChange: handleLocalCliSelectionChange, onExecutionModeChange: handleExecutionModeChange }, {});
 
   return (
-    <JiniChatProvider transport={transport} i18n={chatI18n}>
+    <JiniChatProvider transport={failureSurface.transport} i18n={chatI18n}>
+      <FailureSurfaceContext.Provider value={failureSurface.actions}>
       <SkillInstallConfirmation install={skillInstall} />
       {/* ChatPane takes `transport` directly as well as via the provider — the package's
           components read their dependencies from props, not implicitly from context. */}
@@ -527,9 +534,9 @@ export function AssistantDock({
         // `initialMessages` only at mount, so re-keying is how a different conversation's history
         // gets in — pushing new messages into a live pane would fight its own state.
         key={chats.paneKey}
-        transport={transport}
+        transport={failureSurface.transport}
         deliverTypedAnswer={typedAnswerPoster}
-        runtimeAccess={runtimeAccess}
+        runtimeAccess={failureSurface.runtimeAccess}
         {...(agentsPlaceholder ? { agents: agentsPlaceholder } : {})}
         // Fully controlled (`selection`/`onSelectionChange`), not `initialSelection` — see
         // `useLocalCliSelection`'s own doc for why an uncontrolled prop can't be hydrated from
@@ -538,7 +545,7 @@ export function AssistantDock({
         selection={localCliSelection}
         onSelectionChange={handleLocalCliSelectionChange}
         {...(chats.activeId ? { conversationId: chats.activeId } : {})}
-        initialMessages={chats.initialMessages}
+        initialMessages={failureSurface.initialMessages}
         // Recent prompt recall is local to this signed-in admin, including in a new chat.
         {...(principalId ? { composerHistoryScope: principalId } : {})}
         // The Local CLI / API · BYOK row (`AgentRuntimePicker`, `@jini-ai/chat`) — previously
@@ -728,6 +735,7 @@ export function AssistantDock({
         // ]}
       />
       </div>
+      </FailureSurfaceContext.Provider>
     </JiniChatProvider>
   );
 }

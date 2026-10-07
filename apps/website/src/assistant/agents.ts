@@ -31,6 +31,13 @@ import type { AgentSummary } from "@jini-ai/daemon/http";
  * @see {@link probeAssistantAgents} for where `carriesOwnMemory` is derived.
  */
 export type AssistantAgentSummary = AgentSummary & {
+  /** Structural bridge until @jini-ai/agent-runtime publishes declarative failure hints. */
+  readonly failureHints?: readonly {
+    readonly category: "auth" | "unsupported-client";
+    readonly patterns: readonly string[];
+    readonly hint: string;
+    readonly suggestedAgentId?: string;
+  }[];
   /**
    * True when this def's own CLI/ACP session already carries its multi-turn conversation memory
    * across spawns — the client-safe projection of `@jini-ai/agent-runtime`'s
@@ -83,12 +90,14 @@ async function probeAssistantAgents(): Promise<AssistantAgentSummary[]> {
     AGENT_DEFS.filter((def) => !UNSUPPORTED_AGENT_IDS.has(def.id)).map(async (def): Promise<AssistantAgentSummary> => {
       const launch = resolveAgentLaunch({ def });
       const available = Boolean(launch.launchPath);
+      const { failureHints } = def as typeof def & Pick<AssistantAgentSummary, "failureHints">;
       const { models, source } = available
         ? await agentModelProber({ def })
         : { models: def.fallbackModels, source: "fallback" as const };
       return {
         id: def.id,
         name: def.name,
+        ...(failureHints ? { failureHints } : {}),
         available,
         supportsCustomModel: def.supportsCustomModel,
         models,
