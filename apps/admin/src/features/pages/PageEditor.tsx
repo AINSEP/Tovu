@@ -1,3 +1,5 @@
+import { useThemePreviewFrame } from "../themes/hooks/use-theme-preview-refresh.hooks";
+import { WiredThemePreviewReloadButton } from "../themes/ThemePreviewReloadButton";
 import { useEffect, type RefObject } from "react";
 import { ConfirmDialog } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
@@ -591,7 +593,10 @@ function PageEditorToolbarEnd({
   return (
     <div className="page-editor-toolbar-end">
       {view === "preview" ? (
-        <DevicePreviewToggle device={device} setDevice={setDevice} t={t} handlePrefix="page-preview-width" />
+        <>
+          <DevicePreviewToggle device={device} setDevice={setDevice} t={t} handlePrefix="page-preview-width" />
+          <WiredThemePreviewReloadButton />
+        </>
       ) : null}
       {bodyFormat === "html" ? (
         <div className="editor-template-picker">
@@ -1367,10 +1372,16 @@ function PagePreviewFrame({
   onFrameLoad: (iframe: HTMLIFrameElement) => void;
   t: Translate;
 }) {
-  if (canShowLiveSite) {
+  const fresh = useThemePreviewFrame({
+    liveUrl: siteUrl(pageLivePreviewPath(slug, version)),
+    templateUrl: templatePreviewUrl,
+    canShowLiveSite,
+  });
+  if (fresh.canShowLiveSite) {
     return (
       <iframe
-        src={siteUrl(pageLivePreviewPath(slug, version))}
+        key={fresh.liveUrl}
+        src={fresh.liveUrl}
         title={t("Page preview")}
         className="page-preview-iframe"
         sandbox={PAGE_PREVIEW_IFRAME_SANDBOX}
@@ -1387,10 +1398,11 @@ function PagePreviewFrame({
           string exactly as it did there, so a pending template choice AND a pending body are both
           honored by one submit. Mirrors `PostEditor.tsx`'s identical `PostPreviewFrame` branch 3
           almost exactly (a `bodyHtml` field here where that one sends `bodyJson`). */}
-      <form ref={previewFormRef} method="post" target={previewFormTarget} action={templatePreviewUrl} hidden>
+      <form key={`form-${fresh.templateUrl}`} ref={previewFormRef} method="post" target={previewFormTarget} action={fresh.templateUrl} hidden>
         <input type="hidden" name="bodyHtml" value={html} />
       </form>
       <iframe
+        key={fresh.templateUrl}
         name={previewFormTarget}
         title={t("Page preview")}
         className="page-preview-iframe"

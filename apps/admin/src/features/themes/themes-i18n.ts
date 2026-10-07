@@ -9,6 +9,7 @@ import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 /** Exported only so `__tests__/themes-i18n.unit.test.ts` can check whole-dictionary key parity. */
 export const THEMES_DICT: Record<string, Record<string, string>> = {
   es: {
+    "Reload preview": "Recargar vista previa",
     "Close preview": "Cerrar vista previa",
     "{id} theme preview": "Vista previa del tema {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
@@ -154,6 +155,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "failed to switch theme": "No se pudo cambiar de tema",
   },
   id: {
+    "Reload preview": "Muat ulang pratinjau",
     "Close preview": "Tutup pratinjau",
     "{id} theme preview": "Pratinjau tema {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
@@ -299,6 +301,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "failed to switch theme": "Gagal mengganti tema",
   },
   de: {
+    "Reload preview": "Vorschau neu laden",
     "Close preview": "Vorschau schließen",
     "{id} theme preview": "Vorschau des Themas {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
@@ -444,6 +447,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "failed to switch theme": "Design konnte nicht gewechselt werden",
   },
   "zh-CN": {
+    "Reload preview": "重新加载预览",
     "Close preview": "关闭预览",
     "{id} theme preview": "{id} 主题预览",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
@@ -582,6 +586,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "failed to switch theme": "切换主题失败",
   },
   "zh-TW": {
+    "Reload preview": "重新載入預覽",
     "Close preview": "關閉預覽",
     "{id} theme preview": "{id} 佈景主題預覽",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
@@ -724,6 +729,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "failed to switch theme": "切換佈景主題失敗",
   },
   "pt-BR": {
+    "Reload preview": "Recarregar prévia",
     "Close preview": "Fechar visualização",
     "{id} theme preview": "Visualização do tema {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
@@ -869,6 +875,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "failed to switch theme": "Não foi possível trocar de tema",
   },
   ru: {
+    "Reload preview": "Перезагрузить предпросмотр",
     "Close preview": "Закрыть предпросмотр",
     "{id} theme preview": "Предпросмотр темы {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
@@ -1014,6 +1021,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "failed to switch theme": "Не удалось переключить тему",
   },
   fa: {
+    "Reload preview": "بارگذاری مجدد پیش‌نمایش",
     "Close preview": "بستن پیش‌نمایش",
     "{id} theme preview": "پیش‌نمایش پوسته {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
@@ -1159,6 +1167,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "failed to switch theme": "تغییر پوسته ناموفق بود",
   },
   ar: {
+    "Reload preview": "إعادة تحميل المعاينة",
     "Close preview": "إغلاق المعاينة",
     "{id} theme preview": "معاينة قالب {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
@@ -1304,6 +1313,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "failed to switch theme": "تعذّر تبديل القالب",
   },
   ja: {
+    "Reload preview": "プレビューを再読み込み",
     "Close preview": "プレビューを閉じる",
     "{id} theme preview": "{id}テーマのプレビュー",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
@@ -1448,6 +1458,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "failed to switch theme": "テーマを切り替えられませんでした",
   },
   ko: {
+    "Reload preview": "미리보기 새로고침",
     "Close preview": "미리보기 닫기",
     "{id} theme preview": "{id} 테마 미리보기",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
@@ -1592,6 +1603,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "failed to switch theme": "테마를 전환하지 못했습니다",
   },
   pl: {
+    "Reload preview": "Odśwież podgląd",
     "Close preview": "Zamknij podgląd",
     "{id} theme preview": "Podgląd motywu {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
@@ -1737,6 +1749,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "failed to switch theme": "Nie udało się przełączyć motywu",
   },
   hu: {
+    "Reload preview": "Előnézet újratöltése",
     "Close preview": "Előnézet bezárása",
     "{id} theme preview": "{id} téma előnézete",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
@@ -1882,6 +1895,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "failed to switch theme": "Nem sikerült témát váltani",
   },
   fr: {
+    "Reload preview": "Recharger l’aperçu",
     "Close preview": "Fermer l'aperçu",
     "{id} theme preview": "Aperçu du thème {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
@@ -2027,6 +2041,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "failed to switch theme": "Impossible de changer de thème",
   },
   uk: {
+    "Reload preview": "Перезавантажити попередній перегляд",
     "Close preview": "Закрити перегляд",
     "{id} theme preview": "Перегляд теми {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
@@ -2172,6 +2187,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "failed to switch theme": "Не вдалося змінити тему",
   },
   tr: {
+    "Reload preview": "Önizlemeyi yeniden yükle",
     "Close preview": "Önizlemeyi kapat",
     "{id} theme preview": "{id} teması önizlemesi",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
@@ -2317,6 +2333,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "failed to switch theme": "Tema değiştirilemedi",
   },
   th: {
+    "Reload preview": "โหลดตัวอย่างใหม่",
     "Close preview": "ปิดตัวอย่าง",
     "{id} theme preview": "ตัวอย่างธีม {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
@@ -2461,6 +2478,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "failed to switch theme": "เปลี่ยนธีมไม่สำเร็จ",
   },
   it: {
+    "Reload preview": "Ricarica anteprima",
     "Close preview": "Chiudi anteprima",
     "{id} theme preview": "Anteprima del tema {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
@@ -2606,6 +2624,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "failed to switch theme": "Impossibile cambiare tema",
   },
   hi: {
+    "Reload preview": "पूर्वावलोकन फिर से लोड करें",
     "Close preview": "पूर्वावलोकन बंद करें",
     "{id} theme preview": "{id} थीम पूर्वावलोकन",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
@@ -2751,6 +2770,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "failed to switch theme": "थीम बदली नहीं जा सकी",
   },
   ur: {
+    "Reload preview": "پیش منظر دوبارہ لوڈ کریں",
     "Close preview": "پیش نظارہ بند کریں",
     "{id} theme preview": "{id} تھیم کا پیش نظارہ",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
@@ -2896,6 +2916,7 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "failed to switch theme": "تھیم تبدیل نہیں ہو سکی",
   },
   bn: {
+    "Reload preview": "প্রিভিউ আবার লোড করুন",
     "Close preview": "প্রিভিউ বন্ধ করুন",
     "{id} theme preview": "{id} থিমের প্রিভিউ",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":

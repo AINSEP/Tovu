@@ -263,6 +263,7 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   // silently orphan — so nothing here needs the primitive itself, only a way for retrieval to find
   // the write tool when a user asks to "copy"/"duplicate" a theme file. See this file's own header
   // for why a keyword miss is a silent failure mode, not a wrong-result one.
+  preview_reload: "preview reload refresh hard cache theme css stylesheet template navigate page changes saved",
   theme_write_file: "theme stylesheet css template edit change design code file overwrite replace whole file copy duplicate clone font fonts typography color colors colour primary brand palette style styles look",
   theme_edit_file: "theme stylesheet css template edit change design code file one line small change patch replace single word snippet section font fonts typography color colors colour primary brand palette style styles look",
   theme_read_file: "theme stylesheet css template view read design code file",

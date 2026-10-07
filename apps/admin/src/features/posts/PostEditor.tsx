@@ -1,3 +1,5 @@
+import { useThemePreviewFrame } from "../themes/hooks/use-theme-preview-refresh.hooks";
+import { WiredThemePreviewReloadButton } from "../themes/ThemePreviewReloadButton";
 import { EditorContent, useEditorState, type Editor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import DragHandle from "@tiptap/extension-drag-handle-react";
@@ -1011,7 +1013,10 @@ function PostEditorToolbarEnd({
   return (
     <div className="page-editor-toolbar-end">
       {view === "preview" ? (
-        <DevicePreviewToggle device={device} setDevice={setDevice} t={pickerProps.t} handlePrefix="post-preview-width" />
+        <>
+          <DevicePreviewToggle device={device} setDevice={setDevice} t={pickerProps.t} handlePrefix="post-preview-width" />
+          <WiredThemePreviewReloadButton />
+        </>
       ) : null}
       <PostEditorTemplatePicker {...pickerProps} />
     </div>
@@ -1925,11 +1930,17 @@ function PostPreviewFrame({
   t: Translate;
 }) {
   const iframeRef = usePostPreviewIframeEscape(expanded, onCollapse);
-  if (canShowLiveSite) {
+  const fresh = useThemePreviewFrame({
+    liveUrl: siteUrl(`/${slug}`),
+    templateUrl: templatePreviewUrl,
+    canShowLiveSite,
+  });
+  if (fresh.canShowLiveSite) {
     return (
       <iframe
         ref={iframeRef}
-        src={siteUrl(`/${slug}`)}
+        key={fresh.liveUrl}
+        src={fresh.liveUrl}
         title={t("Post preview")}
         className="page-preview-iframe"
         sandbox={PAGE_PREVIEW_IFRAME_SANDBOX}
@@ -1941,7 +1952,8 @@ function PostPreviewFrame({
     return (
       <iframe
         ref={iframeRef}
-        src={templatePreviewUrl}
+        key={fresh.templateUrl}
+        src={fresh.templateUrl}
         title={t("Post preview")}
         className="page-preview-iframe"
         sandbox={PAGE_PREVIEW_IFRAME_SANDBOX}
@@ -1955,11 +1967,12 @@ function PostPreviewFrame({
           out of layout without relying on CSS. Posts to the SAME endpoint the branch above's iframe
           `src` points `GET` at; `templateChoice` rides the query string exactly as it does there, so
           a pending template choice AND pending content are both honored by one submit. */}
-      <form ref={previewFormRef} method="post" target={previewFormTarget} action={templatePreviewUrl} hidden>
+      <form key={`form-${fresh.templateUrl}`} ref={previewFormRef} method="post" target={previewFormTarget} action={fresh.templateUrl} hidden>
         <input type="hidden" name="bodyJson" value={JSON.stringify(bodyJson)} />
       </form>
       <iframe
         ref={iframeRef}
+        key={fresh.templateUrl}
         name={previewFormTarget}
         title={t("Post preview")}
         className="page-preview-iframe"

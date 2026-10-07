@@ -65,7 +65,7 @@ describe("subscribeToSettingsChanges", () => {
 
     expect(FakeEventSource.instances).toHaveLength(1);
     const source = FakeEventSource.instances[0]!;
-    expect(source.url).toBe("/api/admin/v1/workspaces/ws%20with%20spaces/settings/events");
+    expect(source.url).toBe("/api/admin/v1/workspaces/ws%20with%20spaces/settings/events?themePreview=1");
     expect(source.options).toEqual({ withCredentials: true });
   });
 

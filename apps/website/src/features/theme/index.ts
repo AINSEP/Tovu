@@ -217,3 +217,5 @@ export {
 // Shared admin and assistant page-publication service.
 export { setThemePagePublished, ThemePagePublicationError } from "./page-publication.js";
 export { catalog as themePagePublishedAgentToolCatalog, buildRegistrations as buildThemePagePublishedRegistrations, contributeThemeSetPagePublishedTools } from "./page-publish-tool.js";
+
+export { createThemePreviewFeed, readThemePreviewRefresh, requestThemePreviewRefresh, validatePreviewPath, type ThemePreviewRefresh } from "./preview-refresh.js";

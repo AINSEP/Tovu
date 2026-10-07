@@ -13,6 +13,7 @@ import {
 } from "#src/features/presentation/index";
 
 import { writableThemeIds } from "./active-theme.js";
+import { requestThemePreviewRefresh } from "./preview-refresh.js";
 import type { DiscoveredTheme } from "./theme.js";
 
 /**
@@ -45,6 +46,8 @@ export interface SetActiveThemeToolDeps {
    *  here (never mutated) to compute {@link writableThemeIds}. */
   themes: DiscoveredTheme[];
   presentationRepo: PresentationSettingsRepoPort;
+  /** Production site directory; optional for contributors used without an open preview host. */
+  themesDir?: string;
 }
 
 const SET_ACTIVE_THEME_CATALOG: AgentToolDefinition = {
@@ -96,6 +99,7 @@ function buildSetActiveThemeHandlers(routeDeps: SetActiveThemeToolDeps): Record<
           },
           input: { workspaceId: routeDeps.workspaceId, activeThemeId: themeId },
         });
+        if (routeDeps.themesDir) requestThemePreviewRefresh({ themesDir: routeDeps.themesDir });
         return { previousThemeId, activeThemeId: result.settings.activeThemeId };
       } catch (err) {
         // Re-thrown as a `ToolInputError` (a DIFFERENT themeId would fix this) with the valid ids

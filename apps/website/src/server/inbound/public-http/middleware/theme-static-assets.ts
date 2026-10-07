@@ -62,10 +62,14 @@ import { themeAssetSecurityHeaders } from "./theme-content-security-headers.js";
  * active theme is a DB write with no restart, and the admin previews inactive themes, so a request
  * for a non-active theme's CSS is normal traffic rather than something to defend against.
  */
-export function registerThemeStaticAssets(app: Express, required: { themeRoots: readonly string[] }): void {
+export function registerThemeStaticAssets(
+  app: Express,
+  required: { themeRoots: readonly string[]; serveStatic?: typeof express.static },
+): void {
+  const serveStatic = required.serveStatic ?? express.static;
   const roots = required.themeRoots.map((dir) => path.resolve(dir));
 
-  app.use("/theme-assets/:themeId", themeAssetSecurityHeaders, (req, res, next) => {
+  app.use(["/theme-assets/:themeId", "/theme-preview-assets/:revision/:themeId"], themeAssetSecurityHeaders, (req, res, next) => {
     const themeId = String(req.params.themeId ?? "");
     // A renamed theme answers to both ids (`theme-id-aliases.ts`): old `/theme-assets/basic/...`
     // URLs baked into stored content keep resolving after the rename, on sites that have either
@@ -79,7 +83,9 @@ export function registerThemeStaticAssets(app: Express, required: { themeRoots: 
         next();
         return;
       }
-      express.static(themeDir)(req, res, (err?: unknown) => (err ? next(err) : serveFrom(index + 1)));
+      const preview = typeof req.params.revision === "string";
+      if (preview) res.set("Cache-Control", "no-store");
+      serveStatic(themeDir, preview ? { cacheControl: false, etag: false, lastModified: false } : {})(req, res, (err?: unknown) => (err ? next(err) : serveFrom(index + 1)));
     };
     serveFrom(0);
   });

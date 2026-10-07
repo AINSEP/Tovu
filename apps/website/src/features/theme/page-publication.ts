@@ -1,3 +1,4 @@
+import { requestThemePreviewRefresh } from "./preview-refresh.js";
 import { findTheme, isPublishableThemePageCandidate, loadTheme, type DiscoveredTheme } from "./theme.js";
 import { readThemeFile, writeThemeFile } from "./theme-files.js";
 
@@ -50,5 +51,6 @@ export function setThemePagePublished(
   writeThemeFile({ themeDir: theme.dir, themesRoot: deps.themesDir, relativePath: "theme.json", content: `${JSON.stringify(raw, null, 2)}\n` });
   const index = deps.themes.indexOf(theme);
   deps.themes[index] = loadTheme({ themeDir: theme.dir, id: theme.manifest.id, source: theme.source });
+  requestThemePreviewRefresh({ themesDir: deps.themesDir });
   return { page, published, publishedPages };
 }

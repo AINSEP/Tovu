@@ -1,10 +1,13 @@
+import { authorizeChangeFeed } from "./preview-feed-access.js";
+import { createThemePreviewFeed, readThemePreviewRefresh } from "#src/features/theme/index";
 import {
   collectChangedNamespaces,
   type ChangeFeedViewer,
 } from "#src/features/settings/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { Request } from "express";
-import type { SettingsRouteRegistrar } from "./deps.js";
+import type { SettingsRouteDeps } from "./deps.js";
+import type { Express } from "express";
 
 /**
  * @file `GET /api/admin/v1/workspaces/:workspaceId/settings/events` — a Server-Sent Events stream
@@ -121,8 +124,17 @@ function sseWriteHeadHeaders(req: Request): Record<string, string> {
   };
 }
 
-export const registerAdminSettingsEventsRoute: SettingsRouteRegistrar = (app, deps) => {
+export const registerAdminSettingsEventsRoute = (
+  app: Express,
+  deps: SettingsRouteDeps & { feedTimers?: {
+    scheduleInterval?: typeof setInterval;
+    clearScheduledInterval?: typeof clearInterval;
+  } },
+): void => {
   app.get("/api/admin/v1/workspaces/:workspaceId/settings/events", async (req, res) => {
+    // Resolved per request, not at registration: a test that swaps the global timers after the
+    // route is registered must still be the one this stream schedules on.
+    const { scheduleInterval = setInterval, clearScheduledInterval = clearInterval } = deps.feedTimers ?? {};
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
       return;
@@ -137,17 +149,13 @@ export const registerAdminSettingsEventsRoute: SettingsRouteRegistrar = (app, de
       return;
     }
 
-    const authResult = await deps.authorize({
-      principalId: principal.id,
-      permission: "settings.read",
-      workspaceId: deps.workspaceId,
-      entityType: "setting-value",
-    });
-    if (!authResult.allowed) {
+    const includePreview = req.query.themePreview === "1";
+    let access = await authorizeChangeFeed({ authorize: deps.authorize, principalId: principal.id, workspaceId: deps.workspaceId, includePreview });
+    if (!access.settings && !access.preview) {
       res.status(403).json({
-        error: `principal '${principal.id}' is not authorized for 'settings.read' (${authResult.reason})`,
+        error: `principal '${principal.id}' is not authorized for 'settings.read' (${access.reason})`,
         code: "FORBIDDEN",
-        details: { permission: "settings.read", reason: authResult.reason },
+        details: { permission: "settings.read", reason: access.reason },
       });
       return;
     }
@@ -186,15 +194,21 @@ export const registerAdminSettingsEventsRoute: SettingsRouteRegistrar = (app, de
       return namespace;
     };
 
+    // One tiny site-local marker bridges saves from the separate agent-daemon process.
+    // Theme events have their own type and never advance the settings ledger's Last-Event-ID.
+    const previewFeed = createThemePreviewFeed({
+      read: () => deps.themesDir ? readThemePreviewRefresh({ themesDir: deps.themesDir }) : null,
+      emit: (frame) => res.write(`event: theme-preview-refresh\ndata: ${JSON.stringify(frame)}\n\n`),
+    });
     let closed = false;
     /** True while a `tick` is mid-flight — see the guard at the top of `tick`. */
     let ticking = false;
     const close = (): void => {
       if (closed) return;
       closed = true;
-      clearInterval(pollTimer);
-      clearInterval(keepaliveTimer);
-      clearInterval(reauthorizeTimer);
+      clearScheduledInterval(pollTimer);
+      clearScheduledInterval(keepaliveTimer);
+      clearScheduledInterval(reauthorizeTimer);
     };
 
     /**
@@ -209,13 +223,9 @@ export const registerAdminSettingsEventsRoute: SettingsRouteRegistrar = (app, de
     const reauthorize = async (): Promise<void> => {
       if (closed) return;
       try {
-        const stillAllowed = await deps.authorize({
-          principalId: principal.id,
-          permission: "settings.read",
-          workspaceId: deps.workspaceId,
-          entityType: "setting-value",
-        });
-        if (closed || stillAllowed.allowed) return;
+        access = await authorizeChangeFeed({ authorize: deps.authorize, principalId: principal.id, workspaceId: deps.workspaceId, includePreview });
+        // Each channel is authorized independently; a theme-only subscriber never gets namespaces.
+        if (closed || access.settings || access.preview) return;
       } catch (error) {
         console.error("[settings] change feed re-authorization failed", error);
         return;
@@ -238,6 +248,8 @@ export const registerAdminSettingsEventsRoute: SettingsRouteRegistrar = (app, de
       // can emit the same frame, and the `cursor` write becomes a lost update.
       ticking = true;
       try {
+        if (!closed && access.preview) previewFeed();
+        if (!access.settings) return;
         // Read the head BEFORE the page, so every row counted by it was already durable when the
         // query below ran. Reading it after would let a concurrent write inflate the head past rows
         // the query never had a chance to see, and the cursor advance would skip them.
@@ -284,11 +296,11 @@ export const registerAdminSettingsEventsRoute: SettingsRouteRegistrar = (app, de
       }
     };
 
-    const pollTimer = setInterval(() => void tick(), POLL_INTERVAL_MS);
-    const keepaliveTimer = setInterval(() => {
+    const pollTimer = scheduleInterval(() => void tick(), POLL_INTERVAL_MS);
+    const keepaliveTimer = scheduleInterval(() => {
       if (!closed) res.write(": keepalive\n\n");
     }, KEEPALIVE_INTERVAL_MS);
-    const reauthorizeTimer = setInterval(() => void reauthorize(), REAUTHORIZE_INTERVAL_MS);
+    const reauthorizeTimer = scheduleInterval(() => void reauthorize(), REAUTHORIZE_INTERVAL_MS);
 
     // `close` fires on tab close, navigation, and `EventSource.close()` alike. Without this the
     // timers outlive the response and every reconnect leaks another pair.

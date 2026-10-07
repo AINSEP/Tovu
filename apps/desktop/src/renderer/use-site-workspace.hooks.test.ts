@@ -132,6 +132,10 @@ function fakeGuest(options: FakeGuestOptions = {}) {
       ready();
       calls.push('goForward');
     },
+    reloadIgnoringCache: () => {
+      ready();
+      calls.push('reloadIgnoringCache');
+    },
     reload: () => {
       ready();
       calls.push('reload');
@@ -293,12 +297,12 @@ test('the toolbar actions route goBack/goForward to the guest', () => {
 // Reload keeps history; the remount survives only as failed/stalled recovery
 // ---------------------------------------------------------------------------------------------
 
-test('Reload on a healthy guest calls webview.reload() and does NOT remount, so history survives', () => {
+test('Reload on a healthy guest ignores the HTTP cache and does NOT remount, so history survives', () => {
   const fake = fakeGuest({ canGoBack: true });
   const { dispatched, dispatch } = recorder();
   actionsFor({ guest: fake.guest, dispatch }).reload();
 
-  assert.deepEqual(fake.calls, ['reload']);
+  assert.deepEqual(fake.calls, ['reloadIgnoringCache']);
   assert.deepEqual(dispatched, [{ type: 'soft-load' }]);
 
   const next = siteWorkspaceReducer(initialSiteWorkspaceState, { type: 'soft-load' });

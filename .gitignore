@@ -90,6 +90,10 @@ sites/*/content.seed.db-shm
 sites/*/ops/*.db
 sites/*/ops/*.db-wal
 sites/*/ops/*.db-shm
+# Theme preview refresh marker (`features/theme/preview-refresh.ts`): rewritten on every theme save
+# so the agent daemon can signal the website's admin previews. Runtime state, never content.
+sites/*/themes/.preview-refresh.json
+sites/*/themes/.preview-refresh.json.*.tmp
 # R1h: the migration runner's pre-change copy of a SQLite site (`content-db.ts`
 # migrateSqliteContentFile), about the size of content.db with every row in it: never committed,
 # whatever folder the site lives in (sidecars included).

@@ -38,7 +38,7 @@ const NO_HISTORY: SiteHistory = { canGoBack: false, canGoForward: false };
 /** The slice of Electron's `<webview>` this file drives. A fake of it is what the tests pass. */
 export type WorkspaceGuest = Pick<
   HTMLWebViewElement,
-  'canGoBack' | 'canGoForward' | 'goBack' | 'goForward' | 'reload' | 'loadURL' | 'addEventListener' | 'removeEventListener'
+  'canGoBack' | 'canGoForward' | 'goBack' | 'goForward' | 'reload' | 'reloadIgnoringCache' | 'loadURL' | 'addEventListener' | 'removeEventListener'
 >;
 
 export interface SiteWorkspaceState {
@@ -229,7 +229,8 @@ export function createWorkspaceActions(input: {
   };
 
   return {
-    reload: () => (input.failed || input.stalled ? remount() : loadOrRemount((target) => target.reload())),
+    // Cache bypass covers external theme edits while retaining guest history.
+    reload: () => (input.failed || input.stalled ? remount() : loadOrRemount((target) => target.reloadIgnoringCache())),
     recover: remount,
     goBack: () => void stepHistory(guest, 'back'),
     goForward: () => void stepHistory(guest, 'forward'),

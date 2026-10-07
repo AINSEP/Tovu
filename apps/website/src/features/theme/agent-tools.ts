@@ -325,6 +325,13 @@ const RESTORE_TRASHED_FILE_SCHEMA = {
 export function getThemesAgentToolCatalog(): AgentToolDefinition[] {
   return [
     {
+      name: "preview_reload",
+      description: "Reloads every open admin theme/site preview with fresh page, CSS and JS. Optionally navigates previews to a site-relative public path such as /create-a-theme. Does not change published content.",
+      sideEffects: "mutates-durable-state",
+      authorization: { permission: THEME_READ_PERMISSION },
+      inputSchema: { type: "object", additionalProperties: false, properties: { path: { type: "string", description: "Optional site-relative public URL starting with /." } } },
+    },
+    {
       name: "theme_rescan",
       description:
         "Rescans theme folders and refreshes the site's theme registry. Call after a NEW theme folder was created or removed after boot, or when a theme is not showing. Returns { added, removed, invalid: [{ themeId, errors }] }. Invalid themes remain discoverable with their errors. Requires theme.set. Does not change the active selection.",

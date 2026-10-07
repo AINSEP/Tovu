@@ -1,3 +1,4 @@
+import { useThemeExplorePreview } from "../hooks/use-theme-explore-preview.hooks";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -129,7 +130,7 @@ function controller(overrides: Partial<ThemeExploreController> = {}): ThemeExplo
 function renderExplore(overrides: Partial<ThemeExploreController> = {}) {
   const ctrl = controller(overrides);
   const useThemeExploreHook = () => ctrl;
-  const utils = render(<ThemeExplore themeId="novice" useThemeExploreHook={useThemeExploreHook} />);
+  const utils = render(<ThemeExplore themeId="novice" useThemeExploreHook={useThemeExploreHook} useThemeExplorePreviewHook={(required) => useThemeExplorePreview(required, { makeRevision: () => "test-revision" })} />);
   return { ctrl, ...utils };
 }
 
@@ -217,7 +218,7 @@ describe("preview src — pages, partials, and templates", () => {
   it("points a non-readable ASSET's preview at the raw /theme-assets/ URL", () => {
     renderExplore({ selected: "screenshots/index.png" });
     const iframe = screen.getByTitle("Theme preview") as HTMLIFrameElement;
-    expect(iframe.src).toContain("/theme-assets/novice/screenshots/index.png");
+    expect(iframe.getAttribute("src")).toBe("/theme-preview-assets/test-revision/novice/screenshots/index.png?v=0&__tovu_preview=test-revision");
   });
 
   it("points a non-readable OTHER-group file's preview at the same raw URL — the broadened case, not just assets", () => {
@@ -226,7 +227,7 @@ describe("preview src — pages, partials, and templates", () => {
       selected: "vendor.bin",
     });
     const iframe = screen.getByTitle("Theme preview") as HTMLIFrameElement;
-    expect(iframe.src).toContain("/theme-assets/novice/vendor.bin");
+    expect(iframe.getAttribute("src")).toBe("/theme-preview-assets/test-revision/novice/vendor.bin?v=0&__tovu_preview=test-revision");
   });
 
   /**
@@ -240,14 +241,14 @@ describe("preview src — pages, partials, and templates", () => {
   it("points a readable STYLE (CSS) file's preview at the raw /theme-assets/ URL, not null", () => {
     renderExplore({ selected: "css/styles.css" });
     const iframe = screen.getByTitle("Theme preview") as HTMLIFrameElement;
-    expect(iframe.src).toContain("/theme-assets/novice/css/styles.css");
+    expect(iframe.getAttribute("src")).toBe("/theme-preview-assets/test-revision/novice/css/styles.css?v=0&__tovu_preview=test-revision");
     expect(screen.queryByText(/select a file to preview/i)).not.toBeInTheDocument();
   });
 
   it("points a readable SCRIPT (JS) file's preview at the raw /theme-assets/ URL, not null", () => {
     renderExplore({ selected: "js/main.js" });
     const iframe = screen.getByTitle("Theme preview") as HTMLIFrameElement;
-    expect(iframe.src).toContain("/theme-assets/novice/js/main.js");
+    expect(iframe.getAttribute("src")).toBe("/theme-preview-assets/test-revision/novice/js/main.js?v=0&__tovu_preview=test-revision");
     expect(screen.queryByText(/select a file to preview/i)).not.toBeInTheDocument();
   });
 
@@ -257,7 +258,7 @@ describe("preview src — pages, partials, and templates", () => {
       selected: "theme.json",
     });
     const iframe = screen.getByTitle("Theme preview") as HTMLIFrameElement;
-    expect(iframe.src).toContain("/theme-assets/novice/theme.json");
+    expect(iframe.getAttribute("src")).toBe("/theme-preview-assets/test-revision/novice/theme.json?v=0&__tovu_preview=test-revision");
     expect(screen.queryByText(/select a file to preview/i)).not.toBeInTheDocument();
   });
 
@@ -293,7 +294,7 @@ describe("preview notice — generic 'select a file' message", () => {
   it("points an ordinary readable other-group file's (e.g. NOTICE.md) preview at the raw URL, not the generic notice", () => {
     renderExplore({ view: "preview", selected: "NOTICE.md" });
     const iframe = screen.getByTitle("Theme preview") as HTMLIFrameElement;
-    expect(iframe.src).toContain("/theme-assets/novice/NOTICE.md");
+    expect(iframe.getAttribute("src")).toBe("/theme-preview-assets/test-revision/novice/NOTICE.md?v=0&__tovu_preview=test-revision");
     expect(screen.queryByText(/select a file to preview/i)).not.toBeInTheDocument();
   });
 

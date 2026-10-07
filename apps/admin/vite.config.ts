@@ -214,6 +214,7 @@ export default defineConfig({
       // Vite's own dev server (which has never heard of `/theme-assets`) instead of reaching the
       // backend that actually serves them, in production this is a non-issue since one server
       // serves both the built admin SPA and this mount.
+      "/theme-preview-assets": { target: process.env.TOVU_API_URL ?? `${apiScheme}://localhost:3000`, changeOrigin: false, secure: false },
       "/theme-assets": { target: process.env.TOVU_API_URL ?? `${apiScheme}://localhost:3000`, changeOrigin: false, secure: false },
       // `server/routes/ops/health.ts`'s `/readyz` — deliberately root-level and unauthenticated
       // (see that route's own doc), read by `lib/api.ts`'s `getAssistantDaemonReadyz` for the

@@ -1,3 +1,5 @@
+import { useThemeExplorePreview } from "./hooks/use-theme-explore-preview.hooks";
+import { WiredThemePreviewReloadButton } from "./ThemePreviewReloadButton";
 import { type KeyboardEvent, type MouseEvent, type RefObject, type SyntheticEvent } from "react";
 import { ConfirmDialog, RowMenu } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
@@ -105,6 +107,7 @@ export interface ThemeExploreProps {
   fileId?: string;
   /** DI seam for tests — same convention as `Themes.tsx`'s `useThemesHook`. */
   useThemeExploreHook?: typeof useWiredThemeExplore;
+  useThemeExplorePreviewHook?: typeof useThemeExplorePreview;
 }
 
 /**
@@ -131,62 +134,6 @@ const VIEWS: ReadonlyArray<{ key: ThemeExploreView; label: string }> = [
  *  has (a35ce9f12) without becoming a `<TabBar>` — same treatment `PageEditor.tsx`'s identical
  *  `.segmented` view row takes. `label` is the untranslated key; only `id` is read here. */
 const VIEW_TABS = VIEWS.map((entry) => ({ ...entry, id: entry.key }));
-
-/**
- * Whether `file` is a `templated`-tier Liquid source file — case-insensitive, matching every other
- * extension check in this screen's server counterpart (`explore.ts`'s
- * `isTextReadable`/`isAssetExtension`). A plain extension check rather than reading `file.kind`:
- * `fileGroup` (`explore.ts`) has no `templates/` case, so every `.liquid` file lands in the generic
- * `"other"` group today — indistinguishable from `NOTICE.md` by `kind` alone, but NOT
- * indistinguishable by what the Preview tab owes the operator (see {@link previewSrcFor}).
- *
- * @complexity O(1).
- */
-function isLiquidTemplateFile(file: ThemeExploreFile): boolean {
-  return file.path.toLowerCase().endsWith(".liquid");
-}
-
-/**
- * The URL for the selected file's preview, or `null` when the file has no meaningful one.
- *
- * Four shapes, because "preview" means four different things here:
- * - a **page** renders through the theme's own shell at `/theme-explore/{theme}/{page}`
- * - a **partial** renders standalone inside a minimal styled host, at `…/partial/{id}`
- * - a **`.liquid` template** (2026-08-12) renders through the real Liquid render pipeline at
- *   `…/template/{id}` — `id` is the filename minus `.liquid` (`file.label` for a non-page/partial
- *   file is the bare basename WITH its extension, see `fileLabel`/`use-theme-explore.hooks.ts`),
- *   matching `theme.ts`'s own `templateId = file.slice(0, -".liquid".length)` derivation
- *   byte-for-byte. The server (`theme-page-preview.ts`) is the single source of truth for whether a
- *   given template id is actually renderable — an id it doesn't recognize (a custom-named template a
- *   third-party theme ships) degrades to that route's own honest plain-text refusal inside the
- *   iframe rather than this function trying to duplicate the route/template-id mapping client-side.
- * - everything else — an asset (image, font), and now also CSS/JS/JSON/`other`-group files whether
- *   or not they're `readable` — is served raw from `/theme-assets/`, the same URL a visitor's browser
- *   would fetch it from. That route (`theme-static-assets.ts`) serves a theme's ENTIRE folder generically
- *   via `express.static`, with the correct `Content-Type` per extension — it was never scoped to
- *   binary/asset-group files only. So the browser's own native viewer does the rendering for free: CSS/JS
- *   show as syntax-colored plain text, JSON gets Chrome's built-in collapsible tree viewer, images/fonts
- *   render as themselves. 2026-08-17 owner ask (verbatim): "Can we get preview to just render everything,
- *   in a simple manner. If it's an image, it renders that. If it's a JavaScript, it just renders like
- *   HTML. If it's JSON same." — every file type should show SOMETHING in Preview, not just images.
- */
-function previewSrcFor(
-  themeId: string,
-  file: ThemeExploreFile | undefined,
-  previewNonce: number
-): string | null {
-  if (!file) return null;
-  const theme = encodeURIComponent(themeId);
-  if (file.kind === "page") return siteUrl(`/theme-explore/${theme}/${encodeURIComponent(file.label)}?v=${previewNonce}`);
-  if (file.kind === "partial") {
-    return siteUrl(`/theme-explore/${theme}/partial/${encodeURIComponent(file.label)}?v=${previewNonce}`);
-  }
-  if (isLiquidTemplateFile(file)) {
-    const templateId = file.label.replace(/\.liquid$/i, "");
-    return siteUrl(`/theme-explore/${theme}/template/${encodeURIComponent(templateId)}?v=${previewNonce}`);
-  }
-  return siteUrl(`/theme-assets/${theme}/${file.path.split("/").map(encodeURIComponent).join("/")}?v=${previewNonce}`);
-}
 
 /** `selectedFile?.collidingContent ?? null` as a named helper — pulled out of `ThemeExplore`'s
  *  own render body purely to keep that component's cyclomatic complexity under the gate (each
@@ -869,6 +816,7 @@ function ThemeExplorePreviewControls({
   return (
     <>
       <DevicePreviewToggle device={device} setDevice={setDevice} t={t} />
+      <WiredThemePreviewReloadButton disabled={previewSrc === null} />
       <button
         type="button"
         ref={fullscreenTriggerRef}
@@ -1183,6 +1131,7 @@ function ThemeExploreContent({
   pageId,
   fileId,
   useThemeExploreHook = useWiredThemeExplore,
+  useThemeExplorePreviewHook = useThemeExplorePreview,
 }: ThemeExploreProps) {
   const {
     detail,
@@ -1256,11 +1205,12 @@ function ThemeExploreContent({
   // lint even though this one holds no state of its own.
   const { onKeyDown: onViewTabsKeyDown } = useTabBarKeyboard(VIEW_TABS, view, (id) => setView(id as ThemeExploreView));
 
+  const previewSrc = useThemeExplorePreviewHook({ themeId, files, selected, previewNonce });
+
   if (error && !detail) return <div className="notice error">{error}</div>;
   if (!detail) return <div className="notice">{t("Loading theme…")}</div>;
 
   const selectedFile = files.find((f) => f.path === selected);
-  const previewSrc = previewSrcFor(detail.id, selectedFile, previewNonce);
   const publishState = selectedFilePublishState(selectedFile, t);
 
   return (

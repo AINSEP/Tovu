@@ -30,6 +30,7 @@ import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
  * for that theme.
  */
 import { resolve } from "node:path";
+import { requestThemePreviewRefresh, validatePreviewPath } from "./preview-refresh.js";
 import { statSync } from "node:fs";
 import { ToolInputError } from "@jini-ai/core";
 import { buildDomainRegistrations, indexCatalogById, optionalString, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
@@ -357,6 +358,7 @@ function reloadThemeInPlace(routeDeps: ThemeToolDeps, theme: DiscoveredTheme, th
   const reloaded = loadTheme({ themeDir: theme.dir, id: themeId, source: theme.source });
   const index = routeDeps.themes.findIndex((t) => t.manifest.id === themeId);
   if (index >= 0) routeDeps.themes[index] = reloaded;
+  requestThemePreviewRefresh({ themesDir: routeDeps.themesDir });
   return reloaded;
 }
 
@@ -459,6 +461,7 @@ const THEME_TRASH_TOOL_ID = "theme_trash_file";
  * declaration.
  */
 export const themesDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
+  ["preview_reload", "mutates-durable-state"],
   // -> rescanThemes(): replaces the live discovered-theme registry in place.
   ["theme_rescan", "mutates-durable-state"],
   // -> routeDeps.themes.map(): reads already-discovered in-memory state, no I/O at all.
@@ -589,6 +592,13 @@ export function buildThemesRegistrations(
   surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore() },
 ): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
+    preview_reload: async (ctx) => {
+      const input = requireInputRecord({ input: ctx.input ?? {} });
+      const path = optionalString({ input, key: "path" });
+      if (path !== undefined) validatePreviewPath({ path });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: THEME_READ_PERMISSION }, { entityType: "theme" });
+      return { reloaded: true, ...requestThemePreviewRefresh({ themesDir: routeDeps.themesDir }, { path }) };
+    },
     /**
      * Refreshes the rendering registry in place after folders arrive or disappear.
      * @param ctx - Principal and empty input; dependencies supply the local theme root/registry.

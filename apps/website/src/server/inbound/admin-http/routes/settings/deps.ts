@@ -27,7 +27,7 @@ import type { RouteDeps } from "#src/server/routes/types";
 export type SettingsRouteDeps = Pick<
   RouteDeps,
   "workspaceId" | "authorize" | "settingsReady" | "settingsRepo" | "clock" | "idGen" | "principalRepo"
->;
+> & { themesDir?: string };
 
 /** Registrar signature for the settings route modules (mirrors `RouteRegistrar`). */
 export type SettingsRouteRegistrar = (app: Express, deps: SettingsRouteDeps) => void;

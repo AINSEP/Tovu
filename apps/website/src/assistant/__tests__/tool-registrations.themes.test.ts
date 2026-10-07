@@ -95,7 +95,7 @@ function executionContext(input: Record<string, unknown> | undefined): ToolExecu
 }
 
 function themesRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("theme_") || r.descriptor.id === "content_read.theme").map((r) => [r.descriptor.id, r]));
+  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("theme_") || r.descriptor.id === "content_read.theme" || r.descriptor.id === "preview_reload").map((r) => [r.descriptor.id, r]));
 }
 
 function wired(deps: RegistryDepsWithoutLimiter, toolId: string): ToolRegistration {
@@ -111,6 +111,7 @@ function catalogEntry(toolId: string): AgentToolDefinition {
 }
 
 const WIRED_THEMES_TOOL_IDS = [
+  "preview_reload",
   "content_read.theme",
   "theme_rescan",
   "theme_copy_file",
@@ -134,6 +135,7 @@ const CATALOGUED_THEMES_TOOL_IDS = WIRED_THEMES_TOOL_IDS.map((id) => (id === "co
 
 // Tools that mutate durable state — everything else in `WIRED_THEMES_TOOL_IDS` is read-only.
 const DESTRUCTIVE_WRITE_TOOL_IDS = [
+  "preview_reload",
   "theme_rescan",
   "theme_write_file",
   "theme_edit_file",
@@ -155,10 +157,10 @@ const DESTRUCTIVE_WRITE_TOOL_IDS = [
 // `ADS-memory/reports/2026-09-12-theme-agent-tools-survey.md`).
 // t11 adds marketplace browse/install and theme rescan: 10 -> 13. 2026-10-04: the dead theme marketplace
 // (browse/install) is deleted: 13 -> 11.
-test("exactly the 11 themes entries are registered — nothing else", () => {
+test("exactly the 12 themes entries are registered — nothing else", () => {
   const { deps } = fakeRouteDeps();
   assert.deepEqual([...themesRegistrations(deps).keys()].sort(), [...WIRED_THEMES_TOOL_IDS].sort());
-  assert.equal(getThemesAgentToolCatalog().length, 11, "sanity: the full themes catalog is 11 entries");
+  assert.equal(getThemesAgentToolCatalog().length, 12, "sanity: the full themes catalog is 12 entries");
 });
 
 // `theme_delete_file` stays excluded (2026-08-30 re-examination pending an explicit owner call —
@@ -226,7 +228,7 @@ test("reads and theme lifecycle tools require theme.set; file writes require the
     assert.equal(catalogEntry(id).authorization.permission, "theme.set");
   }
   for (const id of DESTRUCTIVE_WRITE_TOOL_IDS) {
-    const permission = id === "theme_rescan" ? "theme.set" : "theme.edit";
+    const permission = id === "theme_rescan" || id === "preview_reload" ? "theme.set" : "theme.edit";
     assert.equal(catalogEntry(id).authorization.permission, permission, `${id} should require ${permission}`);
   }
 });

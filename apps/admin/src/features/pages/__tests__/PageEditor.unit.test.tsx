@@ -685,8 +685,9 @@ describe("view toggle (Preview / Interactive / HTML)", () => {
     const src = preview.getAttribute("src")!;
     // `siteUrl` in this test environment returns the bare path with no origin prefixed, so the
     // slash is the FIRST character, not one preceded by a domain — accept either that start-of-
-    // string form or a real "somechar/?_v=" form (what a real `siteUrl` origin produces).
-    expect(src).toMatch(/[^/]\/\?_v=\d+$|^\/\?_v=\d+$/);
+    // string form or a real "somechar/?_v=" form (what a real `siteUrl` origin produces). The theme
+    // preview refresh (2026-10-06) appends its own `&__tovu_preview=<revision>` after `_v`.
+    expect(src).toMatch(/(?:[^/]|^)\/\?_v=\d+&__tovu_preview=[\w-]+$/);
     expect(src).not.toMatch(/\/\/\?/);
     expect(src).toContain("?_v=5");
   });
@@ -757,7 +758,9 @@ describe("view toggle (Preview / Interactive / HTML)", () => {
       templatePreviewUrl: "fake://template-preview/pg1?templateChoice=page-shell.html",
     });
     const form = container.querySelector("form");
-    expect(form).toHaveAttribute("action", "fake://template-preview/pg1?templateChoice=page-shell.html");
+    // The theme preview refresh (2026-10-06) appends `&__tovu_preview=<revision>`; everything before
+    // it is still the controller's URL verbatim.
+    expect(form!.getAttribute("action")).toMatch(/^fake:\/\/template-preview\/pg1\?templateChoice=page-shell\.html&__tovu_preview=[\w-]+$/);
   });
 
   // The hidden form's whole reason to exist: carrying the operator's PENDING, unsaved `html` into the

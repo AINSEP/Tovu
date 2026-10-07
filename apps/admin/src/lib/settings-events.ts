@@ -1,3 +1,4 @@
+import { publishThemePreviewRefresh, type ThemePreviewRefresh } from "@/features/themes/theme-preview-refresh";
 /**
  * @file Subscribes to the server's settings change feed and republishes onto
  * `settings-refresh-bus.ts`, so a change made anywhere — another tab, another operator, a
@@ -29,7 +30,7 @@ interface SettingsChangedFrame {
 }
 
 function eventsUrl(workspaceId: string): string {
-  return `/api/admin/v1/workspaces/${encodeURIComponent(workspaceId)}/settings/events`;
+  return `/api/admin/v1/workspaces/${encodeURIComponent(workspaceId)}/settings/events?themePreview=1`;
 }
 
 /**
@@ -44,14 +45,21 @@ function eventsUrl(workspaceId: string): string {
  * `EventSource` retries forever otherwise, including after the component that opened it is gone.
  * @complexity O(1).
  */
-export function subscribeToSettingsChanges(workspaceId: string): () => void {
-  let source: EventSource;
+export function subscribeToSettingsChanges(workspaceId: string, { open = (url: string) => new EventSource(url, { withCredentials: true }) }: { open?: (url: string) => Pick<EventSource, "addEventListener" | "close" | "readyState"> } = {}): () => void {
+  let source: Pick<EventSource, "addEventListener" | "close" | "readyState">;
   try {
-    source = new EventSource(eventsUrl(workspaceId), { withCredentials: true });
+    source = open(eventsUrl(workspaceId));
   } catch (error) {
     console.warn("[admin] settings change feed unavailable", error);
     return () => {};
   }
+
+  source.addEventListener("theme-preview-refresh", (event) => {
+    try {
+      const frame = JSON.parse((event as MessageEvent<string>).data) as ThemePreviewRefresh;
+      publishThemePreviewRefresh(frame);
+    } catch { /* A malformed theme frame must not break the independent settings feed. */ }
+  });
 
   source.addEventListener("settings-changed", (event) => {
     try {
@@ -68,7 +76,7 @@ export function subscribeToSettingsChanges(workspaceId: string): () => void {
   // blip must not permanently silence the feed for the tab's remaining lifetime. Logged at debug
   // volume because a reconnect is ordinary, not an incident.
   source.addEventListener("error", () => {
-    if (source.readyState === EventSource.CLOSED) {
+    if (source.readyState === 2) {
       console.warn("[admin] settings change feed closed by the server; no further updates on this connection");
     }
   });
