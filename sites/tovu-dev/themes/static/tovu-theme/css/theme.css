@@ -1477,3 +1477,12 @@ html.mnav-open, html.mnav-open body { overflow: hidden; }
   .mnav[open] { animation: none; }
   .mnav-disclose svg { transition: none; }
 }
+
+/* The authored landing deck's next arrow can scroll behind the fixed 56px site-chat FAB.
+   Reserve control gutters on phones; the existing video/dot rows still span the full grid.
+   The extra attribute outranks the page body's later .tv .deck-shell style without !important. */
+@media (max-width: 640px) {
+  .tv .deck-shell[data-od-id="proof-deck"] {
+    grid-template-columns: 72px minmax(0, 1fr) 72px;
+  }
+}
