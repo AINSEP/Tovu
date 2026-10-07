@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { subscribeToContentRefresh, contentRefreshApplies } from "@/lib/content-refresh-bus";
-import { THEME_FILES_RESOURCE } from "../rules";
 import { t } from "../themes-i18n";
 import {
   freshPreviewUrl,
@@ -30,14 +28,7 @@ export function useThemePreviewRefresh(
       }),
     [url],
   );
-  useEffect(
-    () =>
-      subscribeToContentRefresh((scope) => {
-        if (contentRefreshApplies(scope, THEME_FILES_RESOURCE))
-          setFrame((current) => ({ ...current, revision: makeRevision() }));
-      }),
-    [makeRevision],
-  );
+  // The durable theme feed owns reloads; run-completion notifications only refresh editor data.
   return {
     path: frame.source === url ? frame.path : undefined,
     url: freshPreviewUrl({

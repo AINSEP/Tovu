@@ -4,12 +4,16 @@ export interface ThemePreviewRefresh {
   revision: string;
   path?: string;
 }
+// POST responses and the ordered SSE feed may interleave; remember recent revisions, not just the last.
+const recentRevisions = new Set<string>();
 const listeners = new Set<(frame: ThemePreviewRefresh) => void>();
 export function publishThemePreviewRefresh(
   frame: ThemePreviewRefresh,
   _optional: Record<string, never> = {},
 ): void {
-  if (!/^[\w-]{1,100}$/.test(frame.revision)) return;
+  if (!/^[\w-]{1,100}$/.test(frame.revision) || recentRevisions.has(frame.revision)) return;
+  recentRevisions.add(frame.revision);
+  if (recentRevisions.size > 256) recentRevisions.delete(recentRevisions.values().next().value!);
   for (const listener of [...listeners]) listener(frame);
 }
 export function subscribeThemePreviewRefresh(
@@ -23,6 +27,7 @@ export function subscribeThemePreviewRefresh(
 }
 export function resetThemePreviewRefresh(): void {
   listeners.clear();
+  recentRevisions.clear();
 }
 
 /** A directory prefix keeps CSS imports and JS modules in the fresh asset namespace too. */
@@ -53,8 +58,7 @@ export async function reloadThemePreviews(
   }: { request?: () => Promise<Response> } = {},
   _optional: Record<string, never> = {},
 ): Promise<void> {
-  // Refresh immediately even if an older backend does not expose the signal endpoint yet.
-  publishThemePreviewRefresh({ revision: crypto.randomUUID() });
+  // The POST result and its SSE echo share one revision; publishing both is a single load.
   const response = await request();
   if (!response.ok) throw new Error("preview reload failed");
   publishThemePreviewRefresh((await response.json()) as ThemePreviewRefresh);

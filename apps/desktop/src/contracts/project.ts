@@ -260,3 +260,11 @@ export type SiteHistoryCommand = 'back' | 'forward';
  * `site-history-menu.ts`, which tests that the two match.
  */
 export const SITE_HISTORY_CHANNEL = 'runner:sites:history';
+
+/** Theme notifications carry a site identity, never an authenticated URL or credential. */
+export interface SiteThemePreviewRefresh { siteDir: string; revision: string; path?: string }
+export const SITE_THEME_PREVIEW_CHANNELS = {
+  watch: 'runner:sites:theme-preview:watch',
+  unwatch: 'runner:sites:theme-preview:unwatch',
+  event: 'runner:sites:theme-preview:event',
+} as const;

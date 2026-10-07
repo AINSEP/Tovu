@@ -1731,7 +1731,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // gate. Real argon2id + principal/session model (ADR-021/SPEC-006) — see
   // inbound/admin-http/dev-auth.ts.
   mountRoutes(app, createCoreModule(routeDeps));
-  registerThemePreviewRefresh({ app, deps: routeDeps });
+  const isAuthenticatedPreviewRevision = registerThemePreviewRefresh({ app, deps: routeDeps });
 
   // ADR-046 Phase 3 (SPEC-038): the `content` server module — 11 posts/pages/change-sets/
   // presentation admin routes. `registerContentPostGetRoute` (public site content serving) stays
@@ -2121,6 +2121,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // screenshots are reachable (see theme-static-assets.ts's own header for why declarative/handlebars
   // are not listed here yet, and why templates/*.liquid source being servable is deliberate).
   registerThemeStaticAssets(app, {
+    isAuthenticatedPreviewRevision,
     // Site-relative for the same reason as `themesStaticDir` just above — this is the mount that
     // serves the live site's own theme css/js, so a package-relative root here is precisely the bug
     // the `sites/` move fixes.

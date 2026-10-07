@@ -5,6 +5,8 @@ import {
   publishThemePreviewRefresh,
   resetThemePreviewRefresh,
   freshPreviewUrl,
+  reloadThemePreviews,
+  subscribeThemePreviewRefresh,
 } from "../theme-preview-refresh";
 import { useThemePreviewRefresh } from "../hooks/use-theme-preview-refresh.hooks";
 import { ThemePreviewReloadButton } from "../ThemePreviewReloadButton";
@@ -153,4 +155,57 @@ it("DI preview origins are preserved just like real site origins", () => {
   expect(freshPreviewUrl({ url: "fake://template-preview/pg1?templateChoice=", revision: "test" })).toBe(
     "fake://template-preview/pg1?templateChoice=&__tovu_preview=test",
   );
+});
+
+it("manual POST plus its SSE echo loads every preview exactly once", async () => {
+  const seen: string[] = [];
+  const dispose = subscribeThemePreviewRefresh({ listener: ({ revision }) => seen.push(revision) });
+  let finish!: (response: Response) => void;
+  const pending = reloadThemePreviews({ request: () => new Promise((resolve) => { finish = resolve; }) });
+  expect(seen).toEqual([]);
+  publishThemePreviewRefresh({ revision: "manual-result" });
+  finish(new Response(JSON.stringify({ revision: "manual-result" }), { status: 200 }));
+  await pending;
+  expect(seen).toEqual(["manual-result"]);
+  dispose();
+});
+
+it("a resolved explore id is authoritative for alias and empty theme props", async () => {
+  const { useThemeExplorePreview } = await import("../hooks/use-theme-explore-preview.hooks");
+  for (const themeId of ["old-alias", ""]) {
+    const h = renderHook(() => useThemeExplorePreview({
+      themeId, detail: { id: "resolved" },
+      files: [{ path: "pages/index.html", label: "index", kind: "page" } as never],
+      selected: "pages/index.html", previewNonce: 0,
+    }, { makeRevision: () => "initial" }));
+    expect(h.result.current).toBe("/theme-explore/resolved/index?v=0&__tovu_preview=initial");
+    h.unmount();
+  }
+});
+
+it("explore save nonce and content notifications leave reload ownership to the durable feed", async () => {
+  const { useThemeExplorePreview } = await import("../hooks/use-theme-explore-preview.hooks");
+  const { publishContentRefresh } = await import("@/lib/content-refresh-bus");
+  const h = renderHook(({ previewNonce }) => useThemeExplorePreview({
+    themeId: "resolved", detail: { id: "resolved" },
+    files: [{ path: "pages/index.html", label: "index", kind: "page" } as never],
+    selected: "pages/index.html", previewNonce,
+  }, { makeRevision: () => "initial" }), { initialProps: { previewNonce: 0 } });
+  const initial = h.result.current;
+  h.rerender({ previewNonce: 1 });
+  act(() => publishContentRefresh());
+  expect(h.result.current).toBe(initial);
+  act(() => publishThemePreviewRefresh({ revision: "saved" }));
+  expect(h.result.current).toBe("/theme-explore/resolved/index?v=0&__tovu_preview=saved");
+});
+
+it("interleaved POST results and SSE echoes publish each durable revision only once", () => {
+  const seen: string[] = [];
+  const dispose = subscribeThemePreviewRefresh({ listener: ({ revision }) => seen.push(revision) });
+  publishThemePreviewRefresh({ revision: "first" });
+  publishThemePreviewRefresh({ revision: "second" });
+  publishThemePreviewRefresh({ revision: "first" });
+  publishThemePreviewRefresh({ revision: "second" });
+  expect(seen).toEqual(["first", "second"]);
+  dispose();
 });

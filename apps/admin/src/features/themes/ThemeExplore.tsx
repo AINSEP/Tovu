@@ -1205,7 +1205,7 @@ function ThemeExploreContent({
   // lint even though this one holds no state of its own.
   const { onKeyDown: onViewTabsKeyDown } = useTabBarKeyboard(VIEW_TABS, view, (id) => setView(id as ThemeExploreView));
 
-  const previewSrc = useThemeExplorePreviewHook({ themeId, files, selected, previewNonce });
+  const previewSrc = useThemeExplorePreviewHook({ themeId, detail, files, selected, previewNonce });
 
   if (error && !detail) return <div className="notice error">{error}</div>;
   if (!detail) return <div className="notice">{t("Loading theme…")}</div>;
@@ -1445,7 +1445,7 @@ function ThemeExplorePreview({ src, width, title }: { src: string; width: number
 
   return (
     <DevicePreviewFrame width={width} frameRef={frameRef} paneWidth={paneWidth}>
-      {/* `key={src}` forces a remount on every save (via `previewNonce` in the URL) or file/device
+      {/* `key={src}` forces a remount on every durable theme revision or file/device
           change — an iframe does not reliably refetch when only its `src` attribute changes. */}
       <iframe key={src} className="page-preview-iframe" title={title} src={src} sandbox="allow-scripts" />
     </DevicePreviewFrame>

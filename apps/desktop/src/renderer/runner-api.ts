@@ -8,6 +8,7 @@ import type {
   OpenSiteSurfaceInput,
   RenameSiteInput,
   SiteHistoryCommand,
+  SiteThemePreviewRefresh,
 } from '../contracts/project.js';
 import type {
   WorkspaceChatEventMessage,
@@ -82,6 +83,8 @@ export interface RunnerInventoryBridge {
   /** Fires when the `desktop.navigate` tool moves the top nav. */
   onNavigate: (listener: (section: RunnerSectionId) => void) => () => void;
   /** Fires on the app menu's History > Back / Forward (Cmd+[ / Cmd+]); returns its teardown. */
+  /** Owns this tab's main-process theme feed claim until cleanup (also for hidden public tabs). */
+  watchSitePreview?: (required: { siteDir: string; listener: (frame: SiteThemePreviewRefresh) => void }) => () => void;
   onSiteHistory: (listener: (command: SiteHistoryCommand) => void) => () => void;
   /** Fires on the app menu's Find (Cmd+F); returns its teardown. See `use-find-in-page.hooks.ts`. */
   onFindToggle: (listener: () => void) => () => void;

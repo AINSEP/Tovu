@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { siteUrl } from "@/lib/site-url";
 import type { ThemeExploreFile } from "./use-theme-explore.hooks";
 import { useThemePreviewRefresh } from "./use-theme-preview-refresh.hooks";
@@ -63,16 +64,18 @@ export function previewSrcFor(
 
 export function useThemeExplorePreview(
   {
-    themeId,
+    detail,
     files,
     selected,
     previewNonce,
-  }: { themeId: string; files: readonly ThemeExploreFile[]; selected: string | null; previewNonce: number },
+  }: { themeId: string; detail: { id: string } | null; files: readonly ThemeExploreFile[]; selected: string | null; previewNonce: number },
   { makeRevision }: { makeRevision?: () => string } = {},
 ): string | null {
+  // Retain the initial legacy query for URL compatibility; saves now reload via the durable feed.
+  const [initialNonce] = useState(previewNonce);
   const file = files.find((file) => file.path === selected);
   const refreshed = useThemePreviewRefresh({
-    url: previewSrcFor(themeId, file, previewNonce) ?? "",
+    url: detail ? previewSrcFor(detail.id, file, initialNonce) ?? "" : "",
     makeRevision,
   });
   return refreshed.url || null;

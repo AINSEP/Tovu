@@ -75,6 +75,7 @@ test("before-quit waits on in-flight teardowns, not only on openSites", async ()
       quit: () => { finalQuits++; },
       exit: () => { assert.fail("the pending teardown must settle before the deadline"); },
     },
+    siteThemePreviews: { dispose: () => {} },
     quitPhase: "idle", openSites: new Map(), pendingTeardowns,
     decideBeforeQuit, finalQuitHeldForUpdate: () => false,
     setTimeout, clearTimeout, QUIT_DEADLINE_MS: 30_000,
@@ -165,6 +166,7 @@ test("the closed handler drops the crash-safety row only AFTER the child is stop
     quitPhase: "idle",
     window,
     sitePreviewScheduler: { cancel: () => {} },
+    siteThemePreviews: { stop: () => {} },
     openSites: new Map([["/site", { window }]]),
     siteDir: "/site", partition: "site-partition", ctx: { registryPath: "/registry" },
     net: {}, session: { fromPartition: () => ({}) },
@@ -193,7 +195,7 @@ test("closing a window only deletes the entry that window still owns", () => {
   // site dir alone then dropped that healthy REPLACEMENT the moment the old window was closed. The
   // supervisor's own `handleExit` guards by entry identity; this is its missing sibling.
   const handler = closedHandler();
-  const guardedDelete = /if \(openSites\.get\(siteDir\)\?\.window === window\) \{\s*sitePreviewScheduler\.cancel\(\{ siteDir \}, \{\}\);\s*openSites\.delete\(siteDir\);\s*\}/;
+  const guardedDelete = /if \(openSites\.get\(siteDir\)\?\.window === window\) \{\s*sitePreviewScheduler\.cancel\(\{ siteDir \}, \{\}\);\s*siteThemePreviews\.stop\(\{ siteDir \}, \{\}\);\s*openSites\.delete\(siteDir\);\s*\}/;
   assert.match(handler, guardedDelete);
   assert.doesNotMatch(handler.replace(guardedDelete, ""), /^\s*openSites\.delete\(siteDir\);/m, "an unguarded delete drops a replacement entry");
 });

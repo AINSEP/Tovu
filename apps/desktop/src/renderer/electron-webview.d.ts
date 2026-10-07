@@ -122,7 +122,8 @@ declare global {
     goForward(): void;
     reload(): void;
     reloadIgnoringCache(): void;
-    loadURL(url: string): Promise<void>;
+    getURL(): string;
+    loadURL(url: string, options?: { extraHeaders?: string }): Promise<void>;
     /** Begins (or steps through) a search; the result arrives on the `found-in-page` event above,
      *  never as this call's return value in practice — see `use-find-in-page.hooks.ts`'s `runFind`. */
     findInPage(text: string, options?: { forward?: boolean; findNext?: boolean; matchCase?: boolean }): number;

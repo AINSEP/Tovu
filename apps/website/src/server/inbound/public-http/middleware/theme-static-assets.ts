@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import express from "express";
 import type { Express } from "express";
@@ -64,7 +64,7 @@ import { themeAssetSecurityHeaders } from "./theme-content-security-headers.js";
  */
 export function registerThemeStaticAssets(
   app: Express,
-  required: { themeRoots: readonly string[]; serveStatic?: typeof express.static },
+  required: { themeRoots: readonly string[]; serveStatic?: typeof express.static; isAuthenticatedPreviewRevision?: (required: { revision: string }, optional: {}) => boolean },
 ): void {
   const serveStatic = required.serveStatic ?? express.static;
   const roots = required.themeRoots.map((dir) => path.resolve(dir));
@@ -85,6 +85,29 @@ export function registerThemeStaticAssets(
       }
       const preview = typeof req.params.revision === "string";
       if (preview) res.set("Cache-Control", "no-store");
+      const requestedRevision = req.params.revision;
+      const revision = res.locals?.themePreviewRevision ?? (
+        typeof requestedRevision === "string" && /^[\w-]{1,100}$/.test(requestedRevision) && required.isAuthenticatedPreviewRevision?.({ revision: requestedRevision }, {})
+          ? requestedRevision : undefined
+      );
+      if (preview && typeof revision === "string" && (req.method === "GET" || req.method === "HEAD")) {
+        // Only authenticated preview CSS changes bytes; public static responses retain their cache policy.
+        let relativePath: string;
+        try { relativePath = decodeURIComponent(req.url.split("?", 1)[0] ?? "").replace(/^\/+/, ""); }
+        catch { next(); return; }
+        const cssPath = resolvePathWithin(themeDir, relativePath);
+        if (cssPath && relativePath.toLowerCase().endsWith(".css") && !relativePath.split(/[\\/]/).some((segment) => segment.startsWith("."))) {
+          try {
+            const css = readFileSync(cssPath, "utf8");
+            // Match root-relative references, preserving external hosts and existing query/fragment tails.
+            const fresh = css.replace(/((?:url\(\s*["']?|@import\s+["']))\/theme-assets\//gi,
+              `$1/theme-preview-assets/${encodeURIComponent(revision)}/`);
+            res.type("css").send(fresh);
+            return;
+          } catch { serveFrom(index + 1); return; }
+        }
+      }
+
       serveStatic(themeDir, preview ? { cacheControl: false, etag: false, lastModified: false } : {})(req, res, (err?: unknown) => (err ? next(err) : serveFrom(index + 1)));
     };
     serveFrom(0);

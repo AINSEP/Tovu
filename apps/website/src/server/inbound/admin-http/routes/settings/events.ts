@@ -1,14 +1,3 @@
-import { authorizeChangeFeed } from "./preview-feed-access.js";
-import { createThemePreviewFeed, readThemePreviewRefresh } from "#src/features/theme/index";
-import {
-  collectChangedNamespaces,
-  type ChangeFeedViewer,
-} from "#src/features/settings/index";
-import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import type { Request } from "express";
-import type { SettingsRouteDeps } from "./deps.js";
-import type { Express } from "express";
-
 /**
  * @file `GET /api/admin/v1/workspaces/:workspaceId/settings/events` — a Server-Sent Events stream
  * that tells an open admin tab when settings it can read have changed, so it re-reads without a
@@ -77,6 +66,18 @@ import type { Express } from "express";
  * line, using a neighbour that writes AFTER this workspace does — the only arrangement in which
  * the two numbers differ.
  */
+
+import { authorizeChangeFeed } from "./preview-feed-access.js";
+import { createThemePreviewFeed, readThemePreviewRefresh } from "#src/features/theme/index";
+import {
+  collectChangedNamespaces,
+  type ChangeFeedViewer,
+} from "#src/features/settings/index";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
+import type { Request } from "express";
+import type { SettingsRouteDeps } from "./deps.js";
+import type { Express } from "express";
+
 
 /** How often the ledger is checked. Fast enough that a change feels immediate, slow enough that an
  *  idle tab costs ~1 indexed lookup/sec. */
@@ -199,7 +200,7 @@ export const registerAdminSettingsEventsRoute = (
     const previewFeed = createThemePreviewFeed({
       read: () => deps.themesDir ? readThemePreviewRefresh({ themesDir: deps.themesDir }) : null,
       emit: (frame) => res.write(`event: theme-preview-refresh\ndata: ${JSON.stringify(frame)}\n\n`),
-    });
+    }, { resumeRevision: typeof req.query.themeRevision === "string" ? req.query.themeRevision : undefined });
     let closed = false;
     /** True while a `tick` is mid-flight — see the guard at the top of `tick`. */
     let ticking = false;

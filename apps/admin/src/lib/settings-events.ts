@@ -1,4 +1,3 @@
-import { publishThemePreviewRefresh, type ThemePreviewRefresh } from "@/features/themes/theme-preview-refresh";
 /**
  * @file Subscribes to the server's settings change feed and republishes onto
  * `settings-refresh-bus.ts`, so a change made anywhere — another tab, another operator, a
@@ -22,6 +21,7 @@ import { publishThemePreviewRefresh, type ThemePreviewRefresh } from "@/features
  * backoff and resume for no gain, which is the reason this uses `EventSource` rather than `fetch`
  * streaming.
  */
+import { publishThemePreviewRefresh, type ThemePreviewRefresh } from "@/features/themes/theme-preview-refresh";
 import { publishSettingsRefresh } from "./settings-refresh-bus";
 
 /** Frame payload. Namespace names only — the server never sends values (see `change-feed.ts`). */

@@ -1,5 +1,5 @@
 import type { Express, RequestHandler } from "express";
-import { loadTheme, requestThemePreviewRefresh } from "#src/features/theme/index";
+import { loadTheme, readThemePreviewRefresh, requestThemePreviewRefresh } from "#src/features/theme/index";
 import { requireAdminSession, getAuthedPrincipal } from "../../admin-http/dev-auth.js";
 import type { RouteDeps } from "#src/server/routes/types";
 
@@ -13,12 +13,25 @@ export function freshThemePreviewHtml(
 
 /** A query token opts into authenticated preview rendering; ordinary public caching is untouched. */
 export function createThemePreviewMiddleware(
-  { authenticate, refreshThemes }: { authenticate: RequestHandler; refreshThemes: () => void },
+  { authenticate, refreshThemes, readRevision, rememberRevision }: { authenticate: RequestHandler; refreshThemes: () => void; readRevision?: () => string | null; rememberRevision?: (required: { revision: string }, optional: {}) => void },
   _optional: Record<string, never> = {},
 ): RequestHandler {
+  let loadedRevision: string | null | undefined = readRevision?.();
+  const reloadChanged = (revision: string | null) => {
+    if (revision === loadedRevision) return;
+    refreshThemes();
+    loadedRevision = revision;
+  };
   return (req, res, next) => {
+    const isAsset = /^\/(?:theme-assets|theme-preview-assets)(?:\/|$)/.test(req.path ?? "");
     const revision = req.query.__tovu_preview;
     if (typeof revision !== "string" || !/^[\w-]{1,100}$/.test(revision)) {
+      try {
+        // The outer desktop guest uses public URLs. Daemon writes must update its render maps too,
+        // while visitor caching and the asset response bytes keep their ordinary public behavior.
+        if (readRevision && req.method === "GET" && !/^\/(?:api|admin|theme-assets|theme-preview-assets)(?:\/|$)/.test(req.path ?? ""))
+          reloadChanged(readRevision());
+      } catch (error) { next(error); return; }
       next();
       return;
     }
@@ -29,12 +42,17 @@ export function createThemePreviewMiddleware(
       }
       try {
         // The daemon and external editors do not update this process's boot-time source maps.
-        refreshThemes();
+        if (!isAsset) {
+          reloadChanged(readRevision ? readRevision() : revision);
+        }
+        rememberRevision?.({ revision }, {});
+        res.locals ??= {};
+        res.locals.themePreviewRevision = revision;
         const send = res.send.bind(res);
         res.send = (body: unknown) => {
           // Public routes set their cache policy later; force preview policy at the final send.
           res.set("Cache-Control", "no-store");
-          return send(typeof body === "string" ? freshThemePreviewHtml({ html: body, revision }) : body);
+          return send(typeof body === "string" && !isAsset ? freshThemePreviewHtml({ html: body, revision }) : body);
         };
         next();
       } catch (error) {
@@ -47,10 +65,18 @@ export function createThemePreviewMiddleware(
 export function registerThemePreviewRefresh(
   { app, deps }: { app: Express; deps: RouteDeps },
   _optional: Record<string, never> = {},
-): void {
+): (required: { revision: string }, optional?: {}) => boolean {
+  // Asset loads from sandboxed previews may omit cookies (fonts use anonymous CORS). The
+  // authenticated document establishes the namespace; only that namespace rewrites public CSS.
+  const authenticatedRevisions = new Set<string>();
   app.use(
     createThemePreviewMiddleware({
       authenticate: requireAdminSession(deps),
+      rememberRevision: ({ revision }) => {
+        authenticatedRevisions.add(revision);
+        if (authenticatedRevisions.size > 512) authenticatedRevisions.delete(authenticatedRevisions.values().next().value!);
+      },
+      readRevision: () => readThemePreviewRefresh({ themesDir: deps.themesDir })?.revision ?? null,
       refreshThemes: () => {
         for (let index = 0; index < deps.themes.length; index++) {
           const theme = deps.themes[index];
@@ -89,4 +115,5 @@ export function registerThemePreviewRefresh(
       }
     },
   );
+  return ({ revision }) => authenticatedRevisions.has(revision);
 }

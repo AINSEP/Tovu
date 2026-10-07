@@ -25,6 +25,7 @@ import { useEffect, useReducer, type Dispatch } from 'react';
 import { useWebviewLoadFailure } from './App.hooks.js';
 import { runnerInventoryBridge, type RunnerInventoryBridge } from './runner-api.js';
 import type { SiteHistoryCommand, SiteRecord, SiteSurface } from '../contracts/project.js';
+import { subscribeWorkspaceThemePreview } from './site-theme-preview.hooks.js';
 import { sitePortPresentation } from './site-port.rules.js';
 
 /** Whether the guest's own session history has an entry either side of the current one. */
@@ -149,11 +150,11 @@ export function trackGuestNavigation(guest: WorkspaceGuest, dispatch: Dispatch<S
   const onNavigateInPage = (event: WebviewDidNavigateInPageEvent) => {
     dispatch({ type: 'navigated', url: event.isMainFrame ? event.url : null, history: readHistory(guest) });
   };
-  guest.addEventListener('did-navigate', onNavigate);
-  guest.addEventListener('did-navigate-in-page', onNavigateInPage);
+  try { guest.addEventListener('did-navigate', onNavigate); } catch { /* Guest not attached. */ }
+  try { guest.addEventListener('did-navigate-in-page', onNavigateInPage); } catch { /* Guest not attached. */ }
   return () => {
-    guest.removeEventListener('did-navigate', onNavigate);
-    guest.removeEventListener('did-navigate-in-page', onNavigateInPage);
+    try { guest.removeEventListener('did-navigate', onNavigate); } catch { /* Guest already gone. */ }
+    try { guest.removeEventListener('did-navigate-in-page', onNavigateInPage); } catch { /* Guest already gone. */ }
   };
 }
 
@@ -167,9 +168,11 @@ export function stepHistory(guest: WorkspaceGuest | null, command: SiteHistoryCo
   const history = readHistory(guest);
   const allowed = command === 'back' ? history.canGoBack : history.canGoForward;
   if (guest === null || !allowed) return false;
-  if (command === 'back') guest.goBack();
-  else guest.goForward();
-  return true;
+  try {
+    if (command === 'back') guest.goBack();
+    else guest.goForward();
+    return true;
+  } catch { return false; }
 }
 
 /**
@@ -288,6 +291,11 @@ export function useSiteWorkspace(project: SiteRecord, hidden: boolean): SiteWork
   useEffect(() => subscribeSiteHistory({ bridge: runnerInventoryBridge(), hidden, guest }), [hidden, guest]);
 
   const src = siteSurfaceUrl({ port: project.port, view: state.view, status: project.status });
+  useEffect(() => subscribeWorkspaceThemePreview({
+    bridge: runnerInventoryBridge(), siteDir: project.installDir, port: project.port,
+    running: src !== '', url: state.liveUrl ?? src, guest, dispatch,
+  }), [project.installDir, project.port, src, state.liveUrl, guest]);
+
   const actions = createWorkspaceActions({
     guest,
     failed,

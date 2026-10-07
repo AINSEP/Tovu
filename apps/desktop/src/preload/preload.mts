@@ -22,6 +22,7 @@
  * modules with no Node surface of their own.
  */
 // Narrow speech bridge: Jini/packages/desktop-host/src/speech/speech-bridge.ts.
+import { createSiteThemePreviewBridge } from '../contracts/site-theme-preview-bridge.js';
 import { contextBridge, ipcRenderer, webFrame, webUtils } from 'electron';
 import { createSpeechBridge } from '@jini-ai/desktop-host/speech';
 import { RUNNER_AGENT_INVENTORY_CHANNELS } from '../contracts/runtime-inventory.js';
@@ -113,6 +114,7 @@ contextBridge.exposeInMainWorld(
     onNavigate: (listener: (section: RunnerSectionId) => void) =>
       subscribe(WORKSPACE_CHAT_CHANNELS.navigate, listener),
     /** The app menu's History > Back / Forward. Only the visible project tab subscribes. */
+    watchSitePreview: createSiteThemePreviewBridge({ invoke: (channel, input) => ipcRenderer.invoke(channel, input), subscribe }),
     onSiteHistory: (listener: (command: SiteHistoryCommand) => void) =>
       subscribe(SITE_HISTORY_CHANNEL, listener),
     /** The app menu's Find (Cmd+F). Carries no payload — see `use-find-in-page.hooks.ts`. */

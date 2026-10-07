@@ -12,6 +12,7 @@
  */
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { subscribeWorkspaceThemePreview } from './site-theme-preview.hooks.js';
 import { readFileSync } from 'node:fs';
 import { hookHarness, sourceFunction } from './source-test-harness.js';
 
@@ -53,7 +54,7 @@ test('workspace effects follow guest replacement and visible-tab history subscri
     },
     useWebviewLoadFailure: () => ({ failed: false, stalled: false, loaded: true, guest, guestRef: () => {} }),
     siteWorkspaceReducer, initialSiteWorkspaceState, loadResetKey, readHistory, trackGuestNavigation,
-    subscribeSiteHistory, siteSurfaceUrl, createWorkspaceActions,
+    subscribeSiteHistory, subscribeWorkspaceThemePreview, siteSurfaceUrl, createWorkspaceActions,
     liveSurface: sourceFunction(source, 'liveSurface', { surfaceOfUrl }), runnerInventoryBridge: () => bridge,
   });
   const render = () => harness.render(() => hook({ id: 'site-1', port: 4100, status: 'running' }, hidden));
@@ -476,4 +477,17 @@ test('the accelerator is a no-op on a visible tab whose guest is not mounted', (
 
 test('with no desktop bridge there is nothing to subscribe to', () => {
   assert.equal(subscribeSiteHistory({ bridge: undefined, hidden: false, guest: fakeGuest().guest }), undefined);
+});
+
+test('history steps and navigation listener setup/teardown contain every detached guest exception', () => {
+  const guest = {
+    canGoBack: () => true, canGoForward: () => true,
+    goBack: () => { throw new Error('detached'); }, goForward: () => { throw new Error('detached'); },
+    addEventListener: () => { throw new Error('detached'); }, removeEventListener: () => { throw new Error('detached'); },
+  } as unknown as WorkspaceGuest;
+  assert.doesNotThrow(() => stepHistory(guest, 'back'));
+  assert.doesNotThrow(() => stepHistory(guest, 'forward'));
+  let dispose = () => {};
+  assert.doesNotThrow(() => { dispose = trackGuestNavigation(guest, () => {}); });
+  assert.doesNotThrow(dispose);
 });

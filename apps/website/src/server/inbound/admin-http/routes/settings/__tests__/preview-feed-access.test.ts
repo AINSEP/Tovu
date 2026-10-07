@@ -106,7 +106,6 @@ test("existing stream emits exact theme frames across writers, reauthorizes and 
   await new Promise(setImmediate);
   assert.deepEqual(writes, [
     ": connected\n\n",
-    'event: theme-preview-refresh\ndata: {"revision":"first"}\n\n',
     'event: theme-preview-refresh\ndata: {"revision":"second","path":"/create-a-theme"}\n\n',
   ]);
   allowed = false;

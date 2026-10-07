@@ -123,3 +123,74 @@ test("preview asset handler disables storage and validators while normal asset o
   handler({ params: { themeId: "test" } }, res, () => assert.fail("unexpected fallthrough"));
   assert.deepEqual(options, [{ cacheControl: false, etag: false, lastModified: false }, {}]);
 });
+
+test("unchanged durable revision reloads themes once across HTML and asset requests", () => {
+  let loads = 0;
+  let durable = "boot";
+  const handler = createThemePreviewMiddleware({
+    authenticate: (_req, _res, next) => next(),
+    refreshThemes: () => { loads++; },
+    readRevision: () => durable,
+  });
+  const request = (revision: string) => {
+    const res = { locals: {}, send: () => res, set: () => res };
+    handler({ query: { __tovu_preview: revision } } as never, res as never, () => {});
+  };
+  durable = "saved-1";
+  request("frame-1");
+  request("frame-2");
+  assert.equal(loads, 1);
+  durable = "saved-2";
+  request("frame-3");
+  assert.equal(loads, 2);
+});
+
+test("authenticated preview CSS versions absolute local fonts, images and imports only", async (t) => {
+  const fs = await import("node:fs");
+  const os = await import("node:os");
+  const path = await import("node:path");
+  const { registerThemeStaticAssets } = await import("../theme-static-assets.js");
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "preview-css-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  fs.mkdirSync(path.join(root, "test", "css"), { recursive: true });
+  const css = '@font-face{src:url("/theme-assets/test/fonts/a.woff2?v=2#x")} .hero{background:url(/theme-assets/test/a.png)} @import "/theme-assets/test/css/import.css"; .relative{background:url(../a.png)} .external{background:url(https://cdn.test/theme-assets/test/a.png)}';
+  fs.writeFileSync(path.join(root, "test", "css", "main.css"), css);
+  let staticHandler: Function = () => {};
+  const authenticated = new Set<string>();
+  registerThemeStaticAssets({ use: (_route: unknown, _security: unknown, handler: Function) => { staticHandler = handler; } } as never, {
+    themeRoots: [root], serveStatic: () => (_req, res) => res.send(css),
+    isAuthenticatedPreviewRevision: ({ revision }) => authenticated.has(revision),
+  });
+  const previewHandler = createThemePreviewMiddleware({
+    authenticate: (req, _res, next) => { assert.equal(req.path, "/about", "anonymous subresource requests must remain public"); next(); },
+    refreshThemes: () => {}, rememberRevision: ({ revision }) => { authenticated.add(revision); },
+  });
+  const headers: Record<string, string> = {};
+  let sent = "";
+  const res = { locals: {}, set: (k: string, v: string) => { headers[k] = v; return res; }, type: () => res, send: (body: string) => { sent = body; return res; } };
+  const req = { query: {}, path: "/theme-preview-assets/rev-1/test/css/main.css", url: "/css/main.css", params: { revision: "rev-1", themeId: "test" }, method: "GET" };
+  staticHandler(req, res, () => assert.fail("CSS missing"));
+  assert.equal(sent, css, "unrecognized preview namespace must not change CSS bytes");
+  const htmlRes = { locals: {}, set: () => htmlRes, send: () => htmlRes };
+  previewHandler({ query: { __tovu_preview: "rev-1" }, path: "/about" } as never, htmlRes as never, () => {});
+  previewHandler(req as never, res as never, () => staticHandler(req, res, () => assert.fail("CSS missing")));
+  assert.equal(sent, css.replaceAll('"/theme-assets/', '"/theme-preview-assets/rev-1/').replaceAll('url(/theme-assets/', 'url(/theme-preview-assets/rev-1/'));
+  assert.equal(headers["Cache-Control"], "no-store");
+  const publicRes = { ...res, locals: {}, send: (body: string) => { sent = body; return publicRes; } };
+  staticHandler({ ...req, params: { themeId: "test" } }, publicRes, () => assert.fail("public CSS missing"));
+  assert.equal(sent, css);
+});
+
+test("outer public site reload adopts daemon saves once without changing public cache policy", () => {
+  let durable = "boot", loads = 0;
+  const handler = createThemePreviewMiddleware({
+    authenticate: () => assert.fail("public reload must not authenticate"),
+    readRevision: () => durable, refreshThemes: () => { loads++; },
+  });
+  const res = { set: () => assert.fail("public cache changed"), send: () => res };
+  const request = () => handler({ query: {}, path: "/about", method: "GET" } as never, res as never, () => {});
+  request(); const baseline = loads;
+  durable = "daemon-save";
+  request(); request();
+  assert.equal(loads, baseline + 1);
+});

@@ -133,6 +133,8 @@ import { redeemBootSession, sitePartition, ensureSiteSession, endSiteSession } f
 import { sitesFilePath, seedDevFallbackSite, migrateLegacyDismissals, readTrackedSites } from "./src/tracked-sites.ts";
 import { writeSiteName } from "./src/site-config.ts";
 import { readPreviewVersion, readPreviewDataUrl, writePreview, deletePreview, sweepOrphanedPreviews } from "./src/site-preview-store.ts";
+import { createSiteThemePreviewSubscriptions, openSiteThemePreviewStream } from "./src/site-theme-preview.ts";
+import { registerSiteThemePreviewIpc } from "./src/site-theme-preview-ipc.ts";
 import { createSitePreviewScheduler } from "./src/site-preview-scheduler.ts";
 import { registerSiteIpcHandlers, rescanSites } from "./src/project-ipc.ts";
 import { addSitePointer } from "./src/add-site-pointer.ts";
@@ -371,6 +373,7 @@ function sitesUiRequested(): boolean {
 const openSites = createSiteSupervisor<OpenSite>({
   onUnexpectedExit: (siteDir, exit, entry) => {
     sitePreviewScheduler.cancel({ siteDir }, {});
+    siteThemePreviews.stop({ siteDir }, {});
     // The row exists to let the NEXT launch reap a child this process left running. This one is
     // already gone, so the row is now a lie that `reconcileOrphans` would spend a `ps` call on.
     // Narrowed by pid: this instance's own file can also hold a still-draining earlier child's row
@@ -379,6 +382,19 @@ const openSites = createSiteSupervisor<OpenSite>({
     console.warn(`tovu desktop: ${siteDir}'s server exited on its own (code ${exit.code ?? "none"}, signal ${exit.signal ?? "none"}). Its tab will show as stopped; Start will spawn a fresh one.`);
   },
 });
+
+/** Main owns the authenticated transport; tabs hold disposable claims, never credentials. */
+const siteThemePreviews = createSiteThemePreviewSubscriptions({ ports: {
+  current: ({ siteDir }) => {
+    const entry = openSites.get(siteDir);
+    return entry ? { port: entry.server.port, workspaceId: entry.server.workspaceId,
+      partition: sitePartition(siteDir), lifecycle: entry.server } : undefined;
+  },
+  open: ({ target, getRevision, onFrame }) => openSiteThemePreviewStream({
+    target, getRevision, onFrame,
+    fetch: (url, init) => session.fromPartition(target.partition).fetch(String(url), { ...init, credentials: "include" }),
+  }),
+} });
 
 /** Serializes site opens PER SITE DIR — see this file's own header on why. */
 const serializer = createKeyedSerializer();
@@ -1000,6 +1016,7 @@ async function openSiteWindow(siteDir: string, ctx: SiteOpenCtx, options: SiteOp
 
   openSites.set(siteDir, { server, window, siteDir });
   scheduleSitePreview(siteDir);
+  siteThemePreviews.sync({ siteDir }, {});
   window.on("closed", () => {
     if (process.platform === "darwin" && quitPhase === "idle") {
       const entry = openSites.get(siteDir);
@@ -1016,6 +1033,7 @@ async function openSiteWindow(siteDir: string, ctx: SiteOpenCtx, options: SiteOp
     // its missing sibling.
     if (openSites.get(siteDir)?.window === window) {
       sitePreviewScheduler.cancel({ siteDir }, {});
+      siteThemePreviews.stop({ siteDir }, {});
       openSites.delete(siteDir);
     }
     // Ends this window's session for real instead of leaving it to expire on its own up to 30 days
@@ -1067,6 +1085,7 @@ async function openSiteServer(siteDir: string, ctx: SiteOpenCtx, options: SiteOp
   const { server } = await startSiteBackend(siteDir, ctx, options);
   openSites.set(siteDir, { server });
   scheduleSitePreview(siteDir);
+  siteThemePreviews.sync({ siteDir }, {});
   return server;
 }
 
@@ -1625,6 +1644,9 @@ app
     // harmless to register even for a boot mode whose window never calls it (no preload exposes
     // these channels outside the sites home window today). See `find-in-page-ipc.ts`.
     registerFindInPageIpc({ ipcMain, browserWindow: BrowserWindow });
+    registerSiteThemePreviewIpc({ ipcMain, subscriptions: siteThemePreviews,
+      allowed: (sender) => BrowserWindow.fromWebContents(sender as import("electron").WebContents)?.webContents.getURL() === pathToFileURL(SITES_RENDERER_PATH).href,
+    });
     applyDockIcon();
     // App-wide Settings is available in attach mode too; own-server mode replaces this below.
     Menu.setApplicationMenu(Menu.buildFromTemplate([
@@ -1707,7 +1729,10 @@ app
         readPreviewVersion: (siteDir: string) => readPreviewVersion(app.getPath("userData"), siteDir),
         readPreviewDataUrl: (siteDir: string) => readPreviewDataUrl(app.getPath("userData"), siteDir),
         deletePreview: (siteDir: string) => deletePreview(app.getPath("userData"), siteDir),
-        cancelPreviewCapture: ({ siteDir }: { siteDir: string }, _optional = {}) => sitePreviewScheduler.cancel({ siteDir }, {}),
+        cancelPreviewCapture: ({ siteDir }: { siteDir: string }, _optional = {}) => {
+          sitePreviewScheduler.cancel({ siteDir }, {});
+          siteThemePreviews.stop({ siteDir }, {});
+        },
         adoptSiteDir,
         // `handleCreate` classifies the picked folder BEFORE adopting it, so a project's row records
         // whether this app CREATED the directory or merely adopted one that already existed — the
@@ -1813,6 +1838,7 @@ app.on("before-quit", (event) => {
   // bounds that step itself, Jini desktop-host's `defaultUpdateTiming.stageTimeoutMs`).
   const drainDeadline = setTimeout(() => app.exit(1), QUIT_DEADLINE_MS);
   drainDeadline.unref();
+  siteThemePreviews.dispose({}, {});
   const stops = [...openSites.values()].map((entry) => entry.server.stop().catch(() => {}));
   Promise.all(stops)
     .then(() => pendingTeardowns.drain())

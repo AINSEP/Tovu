@@ -111,7 +111,7 @@ test("admin and assistant save chokepoints both signal, rejected writes do not",
   assert.deepEqual(readThemePreviewRefresh({ themesDir }), second);
 });
 
-test("feed emits one startup reload, deduplicates ticks and delivers optional navigation on new writes", async () => {
+test("feed starts silently, deduplicates ticks and delivers optional navigation on new writes", async () => {
   const { createThemePreviewFeed } = await import("../preview-refresh.js");
   let frame = { revision: "initial", path: "/old-tool-path" };
   const emitted: unknown[] = [];
@@ -121,7 +121,7 @@ test("feed emits one startup reload, deduplicates ticks and delivers optional na
   frame = { revision: "changed", path: "/new-tool-path" };
   feed();
   feed();
-  assert.deepEqual(emitted, [{ revision: "initial" }, { revision: "changed", path: "/new-tool-path" }]);
+  assert.deepEqual(emitted, [{ revision: "changed", path: "/new-tool-path" }]);
 });
 
 test("theme settings publish also signals previews", async (t) => {
@@ -216,4 +216,13 @@ test("both active-theme settings writers signal a new preview revision", async (
     updatedAt: "2026-10-06T00:00:00.000Z",
   });
   assert.notEqual(readThemePreviewRefresh({ themesDir })?.revision, first.revision);
+});
+
+test("a resumed desktop feed delivers the revision saved during its disconnected interval", async () => {
+  const { createThemePreviewFeed } = await import("../preview-refresh.js");
+  const emitted: unknown[] = [];
+  const frame = { revision: "while-disconnected", path: "/new-path" };
+  const tick = createThemePreviewFeed({ read: () => frame, emit: (next) => emitted.push(next) }, { resumeRevision: "last-delivered" });
+  tick(); tick();
+  assert.deepEqual(emitted, [frame]);
 });

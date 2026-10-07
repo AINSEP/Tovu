@@ -61,18 +61,16 @@ export function readThemePreviewRefresh(
   }
 }
 
-/** Reconnect starts with a fresh reload, without replaying an old tool's navigation. */
+/** A newly opened preview is already fresh; only later durable writes cause another load. */
 export function createThemePreviewFeed(
   { read, emit }: { read: () => ThemePreviewRefresh | null; emit: (frame: ThemePreviewRefresh) => void },
-  _optional: Record<string, never> = {},
+  { resumeRevision }: { resumeRevision?: string } = {},
 ): () => void {
-  let previous = read()?.revision;
-  let connected = false;
+  let previous = resumeRevision ?? read()?.revision;
   return () => {
     const frame = read();
-    if (!frame || (connected && frame.revision === previous)) return;
-    emit(!connected && frame.revision === previous ? { revision: frame.revision } : frame);
+    if (!frame || frame.revision === previous) return;
+    emit(frame);
     previous = frame.revision;
-    connected = true;
   };
 }
