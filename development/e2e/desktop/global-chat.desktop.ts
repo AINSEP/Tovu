@@ -122,8 +122,10 @@ async function sendFromGuestDock(app: ElectronApplication, text: string): Promis
     .poll(() => guestEval<boolean>(app, `(() => { const b = document.querySelector('button.chat-fab'); if (!b) return false; b.click(); return true; })()`), { timeout: 30_000 })
     .toBe(true);
   await expect.poll(() => guestEval<boolean>(app, `!!document.querySelector('.admin-chat-dock')`)).toBe(true);
+  // The composer stays disabled while the dock reads "Loading available CLIs" (the local-CLI
+  // detection sweep, which the D-21(b) sign-in warning also waits on). Measured 13-33 s at load ~30.
   await expect
-    .poll(() => guestEval<boolean>(app, `(() => { const t = document.querySelector('.admin-chat-dock textarea.jini-composer-input'); return !!t && !t.disabled; })()`), { timeout: 20_000, message: "the guest composer must finish initializing and become enabled" })
+    .poll(() => guestEval<boolean>(app, `(() => { const t = document.querySelector('.admin-chat-dock textarea.jini-composer-input'); return !!t && !t.disabled; })()`), { timeout: 90_000, message: "the guest composer must finish initializing and become enabled" })
     .toBe(true);
   await guestEval(app, `document.querySelector('.admin-chat-dock textarea.jini-composer-input').focus()`);
   await guestInsertText(app, text);

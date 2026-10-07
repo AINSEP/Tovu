@@ -76,9 +76,27 @@ const FAKE_SITE_KEY = "a".repeat(64);
 /** Env keys copied from the runner; everything else is dropped. */
 const ENV_ALLOWLIST = ["PATH", "TMPDIR", "LANG", "LC_ALL", "USER", "LOGNAME", "SHELL", "TERM"];
 
-/** A fresh scratch directory under the OS temp dir. */
+/**
+ * Every scratch dir this worker created. Per-launch dirs (userData, HOME, empty folders) have no
+ * owning `afterAll` and a relaunch journey reuses its userData after `closeDesktop`, so they are
+ * removed when the worker exits rather than per test. Without this every run left them in $TMPDIR.
+ */
+const createdScratchDirs = new Set<string>();
+process.on("exit", () => {
+  for (const root of createdScratchDirs) {
+    try {
+      removeScratchTree({ root }, {});
+    } catch {
+      // A child that outlived its app may still hold files; the rest are still removed.
+    }
+  }
+});
+
+/** A fresh scratch directory under the OS temp dir, removed when the worker exits. */
 export function scratchDir(label: string): string {
-  return fs.mkdtempSync(path.join(os.tmpdir(), `tovu-desktop-journey-${label}-`));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), `tovu-desktop-journey-${label}-`));
+  createdScratchDirs.add(dir);
+  return dir;
 }
 
 /** The immutable plugin store belongs to the product; only discarded scratch trees get u+w. */
