@@ -103,6 +103,10 @@ import {
   type EmbedMarker,
   type MarkerAttribute,
 } from "#src/contracts/core/embeds/marker";
+import { normalizeLegacyWidgetMarkers } from "./legacy-widget-markers.js";
+
+// Public rendering accepts legacy widget type/id attributes through this CMS-specific adapter.
+// Resolution and substitution both normalize them so their lookup keys cannot drift apart.
 
 /**
  * One embed reference found in a Page's `body_html`. `type` is deliberately a free string (see this
@@ -236,7 +240,7 @@ function toEmbedRef(marker: EmbedMarker): PageHtmlEmbedRef {
  */
 export function scanHtmlEmbeds(html: string): PageHtmlEmbedRef[] {
   const refs: PageHtmlEmbedRef[] = [];
-  for (const marker of scanEmbedMarkers(html).markers) {
+  for (const marker of scanEmbedMarkers(normalizeLegacyWidgetMarkers({ html })).markers) {
     refs.push(toEmbedRef(marker));
     if (refs.length >= MAX_HTML_EMBEDS_PER_PAGE) break;
   }
@@ -484,7 +488,7 @@ export function substituteHtmlEmbeds(
   html: string,
   resolve: (ref: PageHtmlEmbedRef, occurrence: EmbedOccurrence) => string | undefined
 ): string {
-  return substituteMarkers(html, (marker) => {
+  return substituteMarkers(normalizeLegacyWidgetMarkers({ html }), (marker) => {
     const ref = toEmbedRef(marker);
 
     if (ref.type === "media") {
@@ -499,6 +503,8 @@ export function substituteHtmlEmbeds(
 
     const replacement = resolve(ref, DEFAULT_OCCURRENCE);
     if (replacement === undefined) return undefined;
+    // A missing widget contributes nothing, including its authored wrapper/fallback content.
+    if (ref.type === "widget" && replacement === "") return "";
     if (WRAPPER_PRESERVING_EMBED_TYPES.has(ref.type)) return spliceWrapperPreservingReplacement(marker, replacement);
     return withElementKeptIfAttributed(marker, replacement);
   });

@@ -2318,7 +2318,7 @@ test("renderSite (Slice 1, declarative tier): the 'content' slot renders an html
   assert.match(html, /<div class="prose"><p>Slice 1 via slot<\/p><\/div>/);
 });
 
-test("renderSite (Slice 2): a data-embed-config type=\"widget\" embed substitutes to its resolved widget IR; an id with no matching entry in the resolved map degrades to the REQ-28 placeholder", async () => {
+test("renderSite (Slice 2): a widget embed substitutes to its resolved IR; a missing id renders nothing", async () => {
   const theme = declarativeTheme({ type: "doc", content: [] });
   theme.templates.entry = { type: "doc", content: [{ type: "slot", name: "content" }] };
   const post = htmlPage({
@@ -2338,8 +2338,7 @@ test("renderSite (Slice 2): a data-embed-config type=\"widget\" embed substitute
     }),
   });
 
-  assert.match(html, /widget-text">Embedded!/);
-  assert.equal((html.match(/widget-placeholder/g) ?? []).length, 1, "only the unresolved id degrades to the placeholder");
+  assert.equal(html.match(/<div class="prose">(.*)<\/div><\/div>/s)?.[1], '<div class="widget widget-text">Embedded!</div>');
 });
 
 test("renderSite (Slice 2): a contact-form WIDGET embed substitutes to its resolved contact-form IR — since `form` was removed as an embed type (2026-08-10) this is the ONE way a Page embeds a form, and it goes through the widget renderer unchanged", async () => {
@@ -2364,7 +2363,7 @@ test("renderSite (Slice 2): a contact-form WIDGET embed substitutes to its resol
   assert.match(html, /action="\/forms\/contact-us\/submit"/);
 });
 
-test("renderSite (Slice 2): an html Page's embed placeholders degrade safely when pageHtmlEmbeds is omitted entirely — never leaks the raw data-embed-config markup", async () => {
+test("renderSite (Slice 2): an html Page's widget renders nothing when pageHtmlEmbeds is omitted entirely", async () => {
   const theme = declarativeTheme({ type: "doc", content: [] });
   theme.templates.entry = { type: "doc", content: [{ type: "slot", name: "content" }] };
   const post = htmlPage({ bodyHtml: `<div data-embed-config='{"type":"widget","id":"widget-1"}'></div>` });
@@ -2372,7 +2371,7 @@ test("renderSite (Slice 2): an html Page's embed placeholders degrade safely whe
   const html = await renderSite({ theme, route: "post", siteTitle: "T", posts: [post], post });
 
   assert.doesNotMatch(html, /data-embed-config/);
-  assert.match(html, /widget-placeholder/);
+  assert.equal(html.match(/<div class="prose">(.*?)<\/div>/s)?.[1], "");
 });
 
 test("renderSite (Slice 2): an unresolved supported media embed degrades to the REQ-28 placeholder", async () => {
@@ -3142,10 +3141,10 @@ test("renderHtmlPageBody: a marker carrying BOTH id and slug looks up by id — 
   assert.equal(out, renderWidgetIr(TEXT_WIDGET_IR));
 });
 
-test("renderHtmlPageBody: an unresolvable slug (typo, no matching entry) degrades to the REQ-28 placeholder — never a crash, never raw marker markup", () => {
+test("renderHtmlPageBody: an unresolvable widget slug renders nothing", () => {
   const html = `<div data-embed-config='{"type":"widget","slug":"does-not-exist"}'></div>`;
   const out = renderHtmlPageBody(html, new Map([["widget", new Map()]]));
-  assert.equal(out, renderWidgetIr({ componentId: "widget-placeholder", props: {} }));
+  assert.equal(out, "");
 });
 
 // ---------------------------------------------------------------------------

@@ -3,6 +3,43 @@ import test from "node:test";
 
 import { MAX_HTML_EMBEDS_PER_PAGE, scanHtmlEmbeds, substituteHtmlEmbeds } from "../../html-embeds.js";
 
+test("legacy widget attributes resolve in either order/quoting, alongside current markers", () => {
+  const html = `<p>before</p><DIV data-embed-id='w1' DATA-EMBED-TYPE='Widget'></DIV>` +
+    `<div data-embed-type=widget data-embed-id=w2></div>` +
+    `<div data-embed-config='{"type":"widget","id":"w3"}'></div><p>after</p>`;
+  assert.equal(scanHtmlEmbeds(html).map((ref) => ref.id).join(","), "w1,w2,w3");
+  assert.equal(substituteHtmlEmbeds(html, (ref) => `<b>${ref.id}</b>`), "<p>before</p><b>w1</b><b>w2</b><b>w3</b><p>after</p>");
+});
+
+test("legacy widgets keep authored attributes and consume nested fallback content", () => {
+  const html = `<aside class="promo" data-embed-type="widget" data-embed-id="w1"><div>fallback</div></aside>`;
+  assert.equal(substituteHtmlEmbeds(html, () => "<b>real widget</b>"), '<aside class="promo"><b>real widget</b></aside>');
+});
+
+test("legacy marker text in comments, scripts and styles stays byte-identical", () => {
+  const marker = '<div data-embed-type="widget" data-embed-id="w1"></div>';
+  const inert = `<!-- ${marker} --><script>const example = '${marker}';</script><style>/* ${marker} */</style>`;
+  assert.equal(scanHtmlEmbeds(inert).length, 0);
+  assert.equal(substituteHtmlEmbeds(inert + marker, () => "<b>live widget</b>"), inert + "<b>live widget</b>");
+});
+
+test("a current config remains authoritative when obsolete widget attributes coexist", () => {
+  const html = `<div data-embed-type="widget" data-embed-id="old" data-embed-config='{"type":"widget","id":"current"}'></div>`;
+  assert.equal(scanHtmlEmbeds(html).map((ref) => ref.id).join(","), "current");
+  assert.equal(substituteHtmlEmbeds(html, (ref) => `<b>${ref.id}</b>`), "<b>current</b>");
+});
+
+test("legacy widget IDs decode entities without corrupting the JSON marker attribute", () => {
+  const html = `<div data-embed-type="widget" data-embed-id="a&apos;b&amp;c"></div>`;
+  assert.equal(scanHtmlEmbeds(html)[0]?.id, "a'b&c");
+  assert.equal(substituteHtmlEmbeds(html, () => "<b>widget</b>"), "<b>widget</b>");
+});
+
+test("an empty widget replacement removes even an attributed wrapper and its fallback", () => {
+  const html = `<p>before</p><div class="promo" data-embed-type="widget" data-embed-id="missing">fallback</div><p>after</p>`;
+  assert.equal(substituteHtmlEmbeds(html, () => ""), "<p>before</p><p>after</p>");
+});
+
 /**
  * @file SPEC-047 Slice 2 — `html-embeds.ts`'s scan/substitute pair, tested as the pure string
  * functions they are (no repo, no resolver — see `resolve-html-page-embeds.integration.test.ts` for

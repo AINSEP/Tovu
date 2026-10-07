@@ -1749,7 +1749,8 @@ const HTML_EMBED_PLACEHOLDER_IR: WidgetRenderIR = { componentId: "widget-placeho
  *
  * Within an owned type, `resolved` being `undefined` (no pre-existing caller of `renderSite` passes
  * `pageHtmlEmbeds`), that type having no entry in `resolved`, or a ref having neither a usable `id`
- * NOR `slug` (missing or invalid keys) all degrade identically to the public-safe REQ-28 marker —
+ * NOR `slug` (missing or invalid keys) all degrade identically: widgets contribute nothing; other
+ * owned types use the public-safe REQ-28 marker —
  * this function never distinguishes "unresolved" from "unresolvable" from "never attempted", never a
  * crash and never literal, unresolved marker markup reaching a visitor.
  *
@@ -1793,7 +1794,10 @@ export function renderHtmlPageBody(html: string, resolved: ResolveHtmlPageEmbeds
     // named but failed to resolve.
     if ((ref.type === "content" || ref.type === "post") && ref.id === null && ref.slug === null) return undefined;
     const lookupKey = ref.id ?? ref.slug;
-    const ir = (lookupKey !== null ? resolved?.get(ref.type)?.get(lookupKey) : undefined) ?? HTML_EMBED_PLACEHOLDER_IR;
+    const resolvedIr = lookupKey !== null ? resolved?.get(ref.type)?.get(lookupKey) : undefined;
+    // Deleted/missing widget ids must not leave raw markers or placeholder markup on the public site.
+    if (ref.type === "widget" && resolvedIr === undefined) return "";
+    const ir = resolvedIr ?? HTML_EMBED_PLACEHOLDER_IR;
     const formIr = ir.componentId === "contact-form" && ref.mode === "html"
       ? { ...ir, props: { ...ir.props, mode: "html" } } : ir;
     return renderWidgetIr(withOccurrenceMediaAttributes(withOccurrenceHeader(formIr, ref), ref, occurrence));
