@@ -3,7 +3,7 @@ import { DEFAULT_INTERFACE, type InterfaceConfig } from "@/lib/settings-tabs";
 /**
  * @file Settings → User Interface's toggle state. The slice (`useSettingsUi`'s `interface`, a
  * `useSettingsSlice` over `core.interface`) owns load, debounce and autosave; this only maps the
- * one switch onto it, so `UserInterfaceSettingsPanel.tsx` stays markup.
+ * switches onto it, so `UserInterfaceSettingsPanel.tsx` stays markup.
  */
 
 export interface UserInterfaceTabSlice {
@@ -16,6 +16,8 @@ export interface UserInterfaceTabSlice {
 export interface UserInterfaceTab {
   hideChatFabWhileOpen: boolean;
   toggleHideChatFabWhileOpen: () => void;
+  wrapTabs: boolean;
+  toggleWrapTabs: () => void;
 }
 
 /** @complexity O(1). */
@@ -25,5 +27,7 @@ export function useUserInterfaceTab(slice: UserInterfaceTabSlice): UserInterface
   return {
     hideChatFabWhileOpen: value.hideChatFabWhileOpen,
     toggleHideChatFabWhileOpen: () => onChange({ ...value, hideChatFabWhileOpen: !value.hideChatFabWhileOpen }),
+    wrapTabs: value.wrapTabs,
+    toggleWrapTabs: () => onChange({ ...value, wrapTabs: !value.wrapTabs }),
   };
 }

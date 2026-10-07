@@ -4326,6 +4326,14 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
     margin-bottom: 0;
     padding-inline: 8px;
   }
+  /* Settings → User Interface → "Wrap tabs instead of scrolling" (owner, 2026-10-07; class from
+     `useInterfacePreferences`): the operator opted back into the wrap, every tab visible at the
+     cost of a taller strip. The inset bottom rule above stays, under the last row. */
+  .admin-layout.wraps-tabs .tab-bar,
+  .admin-layout.wraps-tabs .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar {
+    flex-wrap: wrap;
+    overflow: visible;
+  }
 }
 
 /* NOTE: the "whole CLI card is the click target" fix that briefly lived here

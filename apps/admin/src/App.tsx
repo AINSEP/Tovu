@@ -13,7 +13,7 @@ import { resolvePanelAccessGate, withoutInaccessiblePanels } from "./lib/panel-a
 import { translateAdminNavGroups, translateAdminNavLabel } from "./lib/admin-nav-i18n";
 import { t as tApp } from "./app-i18n";
 import { useWiredAdminLocale } from "./hooks/use-admin-locale.hooks";
-import { resolveAdminLayoutClassName, useChatFabHideWhileOpen } from "./hooks/use-chat-fab-preference.hooks";
+import { resolveAdminLayoutClassName, useInterfacePreferences } from "./hooks/use-interface-preferences.hooks";
 import { useAgentScreenRoute } from "./hooks/use-agent-screen-context.hooks";
 import { useSidebarEmptyClickToggle } from "./hooks/use-sidebar-empty-click-toggle.hooks";
 import { AssistantDock } from "./components/AssistantDock/AssistantDock";
@@ -319,7 +319,7 @@ function AssistantChrome(props: {
   /** Bound translator — see `App`'s own `dockT` for where this comes from. */
   dockT: (key: string) => string;
   locale: string;
-  /** Settings → User Interface, via `useChatFabHideWhileOpen` (`resolveChatFabClearance` reads it). */
+  /** Settings → User Interface, via `useInterfacePreferences` (`resolveChatFabClearance` reads it). */
   hideFabWhileOpen: boolean;
 }): ReactNode {
   if (!props.enabled) return null;
@@ -603,8 +603,10 @@ export function App(props: AppProps) {
    * switching the Language setting updates the sidebar immediately instead of requiring a reload.
    */
   const navLocale = useWiredAdminLocale();
-  /** Settings → User Interface: whether the FAB hides while the dock is open (see the hook's doc). */
-  const hideFabWhileOpen = useChatFabHideWhileOpen();
+  /** Settings → User Interface: whether the FAB hides while the dock is open, and whether phone tab
+   *  strips wrap (see the hook's doc). */
+  const interfacePreferences = useInterfacePreferences();
+  const hideFabWhileOpen = interfacePreferences.hideChatFabWhileOpen;
   const navGroups = translateAdminNavGroups(navLocale, rawNavGroups);
   const navSoonLabel = translateAdminNavLabel(navLocale, "Soon");
 
@@ -639,7 +641,7 @@ export function App(props: AppProps) {
     // `createDictionaryTranslator`'s doc comment in `lib/dictionary-translator.ts`.
     <AdminModulesProvider permissions={effectivePermissions ?? NO_PERMISSIONS}>
     <ConfirmDialogDefaultsProvider cancelLabel={tApp(navLocale, "Cancel")}>
-      <div className={resolveAdminLayoutClassName(hideFabWhileOpen)}>
+      <div className={resolveAdminLayoutClassName(interfacePreferences)}>
         {/* First focusable element in the app, deliberately before `<Sidebar>` — the auditor
             measured 26 Tab presses to reach main content from a fresh load, because every route
             repeats the full sidebar first, paid on every navigation by a keyboard/screen-reader

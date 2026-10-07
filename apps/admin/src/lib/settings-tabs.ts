@@ -265,20 +265,24 @@ export async function savePrivacy(
 
 // --- User Interface -------------------------------------------------------
 
-const INTERFACE_KEYS = { hideChatFabWhileOpen: "hideChatFabWhileOpen" } as const;
+const INTERFACE_KEYS = { hideChatFabWhileOpen: "hideChatFabWhileOpen", wrapTabs: "wrapTabs" } as const;
 
 export interface InterfaceConfig {
   /** Hide the floating chat button while the assistant dock is open (the dock's ✕ closes it). */
   hideChatFabWhileOpen: boolean;
+  /** Phone tab strips wrap onto more rows instead of scrolling sideways (owner, 2026-10-07). */
+  wrapTabs: boolean;
 }
 
-/** `true`: the behaviour the owner approved before this became a choice (2026-10-06). */
-export const DEFAULT_INTERFACE: InterfaceConfig = { hideChatFabWhileOpen: true };
+/** `hideChatFabWhileOpen: true`: the behaviour the owner approved before this became a choice
+ *  (2026-10-06). `wrapTabs: false`: the swipeable one-row strip stays the phone default. */
+export const DEFAULT_INTERFACE: InterfaceConfig = { hideChatFabWhileOpen: true, wrapTabs: false };
 
 export async function loadInterface(): Promise<InterfaceConfig> {
   const values = await loadNamespaceValues(INTERFACE_NAMESPACE);
   return {
     hideChatFabWhileOpen: readBoolean(values, INTERFACE_KEYS.hideChatFabWhileOpen, DEFAULT_INTERFACE.hideChatFabWhileOpen),
+    wrapTabs: readBoolean(values, INTERFACE_KEYS.wrapTabs, DEFAULT_INTERFACE.wrapTabs),
   };
 }
 
@@ -288,6 +292,11 @@ export async function saveInterface(next: InterfaceConfig, previous: InterfaceCo
       key: INTERFACE_KEYS.hideChatFabWhileOpen,
       valueJson: next.hideChatFabWhileOpen,
       changed: next.hideChatFabWhileOpen !== previous.hideChatFabWhileOpen,
+    },
+    {
+      key: INTERFACE_KEYS.wrapTabs,
+      valueJson: next.wrapTabs,
+      changed: next.wrapTabs !== previous.wrapTabs,
     },
   ]);
 }

@@ -23,7 +23,7 @@ describe("phone settings active tab", () => {
     try {
       rerender(<Strip isPhone={isPhone} />);
       expect(scrollIntoView.mock.contexts).toEqual([screen.getByRole("button", { name: "Memory" })]);
-      expect(scrollIntoView.mock.calls).toEqual([[{ block: "nearest", inline: "nearest", behavior: "instant" }]]);
+      expect(scrollIntoView.mock.calls).toEqual([[{ block: "nearest", inline: "center", behavior: "instant" }]]);
     } finally {
       HTMLElement.prototype.scrollIntoView = original;
     }
@@ -40,7 +40,7 @@ describe("phone settings active tab", () => {
       execution.setAttribute("aria-pressed", "true");
     });
     await waitFor(() => expect(scrollIntoView.mock.calls).toEqual([
-      [{ block: "nearest", inline: "nearest", behavior: "instant" }],
+      [{ block: "nearest", inline: "center", behavior: "instant" }],
     ]));
     unmount();
     act(() => execution.setAttribute("aria-pressed", "false"));
@@ -67,7 +67,7 @@ describe("phone settings active tab", () => {
     expect(scrollIntoView.mock.calls).toEqual([]);
     phone = true;
     act(() => window.dispatchEvent(new Event("resize")));
-    expect(scrollIntoView.mock.calls).toEqual([[{ block: "nearest", inline: "nearest", behavior: "instant" }]]);
+    expect(scrollIntoView.mock.calls).toEqual([[{ block: "nearest", inline: "center", behavior: "instant" }]]);
     unmount();
     act(() => window.dispatchEvent(new Event("resize")));
     expect(scrollIntoView).toHaveBeenCalledTimes(1);
