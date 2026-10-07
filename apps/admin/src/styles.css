@@ -1033,6 +1033,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
 /* Widget Regions' key field and its Bind button wrap as one unit (`WidgetRegions.tsx`). */
 .widget-regions-bind { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
 .widget-regions-bind > input { flex: 1 1 8rem; min-width: 0; }
+.widget-regions-bind > button { flex-shrink: 0; white-space: nowrap; }
 
 /* EXPERIMENT (2026-09-06, owner request — expected to be reverted as one commit if it does not
    land): on the two content editors only, the `← Pages`/`← Posts` link leaves the action group and
@@ -1539,7 +1540,9 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 }
 .cms-item:hover { background: var(--surface-2); text-decoration: none; }
 .cms-item svg { width: 16px; height: 16px; color: var(--muted); flex-shrink: 0; }
-.cms-item > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Long translated labels (including Hungarian) stay readable in the expanded desktop sidebar
+   and mobile drawer. Rail mode still hides them with its more-specific rule below. */
+.cms-item > span { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
 /* Rail-mode hover/focus tooltip. `position: fixed`, not `absolute` — this is portaled to
    `document.body` by `Sidebar.tsx`'s `RailTooltip`, not a descendant of the scrollable `.cms-nav`
    (see that component's doc comment for why a CSS-only child tooltip could not escape it), so
