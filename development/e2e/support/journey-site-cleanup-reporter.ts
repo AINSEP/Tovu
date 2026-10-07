@@ -8,10 +8,18 @@ import type { IsolatedJourneySite } from "./isolated-journey-site.js";
 /** Playwright completes task teardown (including its managed web servers) before onEnd. Removing
  * a SQLite site in globalTeardown would instead race servers still holding its files open. */
 export default class JourneySiteCleanupReporter implements Reporter {
-  constructor(private readonly options: { site: IsolatedJourneySite }) {}
+  constructor(private readonly options: { site: IsolatedJourneySite } | { sites: IsolatedJourneySite[] }) {}
 
   async onEnd(): Promise<void | { status: FullResult["status"] }> {
-    const { site } = this.options;
+    const sites = "sites" in this.options ? this.options.sites : [this.options.site];
+    let failed = false;
+    for (const site of sites) {
+      if (!await this.deleteSite(site)) failed = true;
+    }
+    if (failed) return { status: "failed" };
+  }
+
+  private async deleteSite(site: IsolatedJourneySite): Promise<boolean> {
     try {
       assert.equal(site.ownerPid, process.pid, "Only delete this runner's isolated journey site");
       const runtimeDir = path.resolve(site.runtimeDir);
@@ -25,9 +33,10 @@ export default class JourneySiteCleanupReporter implements Reporter {
       await assert.rejects(access(runtimeDir), { code: "ENOENT" });
       await assert.rejects(access(site.siteDir), { code: "ENOENT" });
       console.log(`[journeys cleanup] Deleted isolated site and runtime: ${runtimeDir}`);
+      return true;
     } catch (error) {
       console.error("[journeys cleanup] Could not prove isolated site deletion:", error);
-      return { status: "failed" };
+      return false;
     }
   }
 }

@@ -153,7 +153,7 @@ function applyPackagedServerEnv(env: Record<string, string>, packaged: NonNullab
 /** Playwright owns both processes and shuts them down, including the API's supervised daemon. */
 export function isolatedJourneyWebServers(
   { site }: { site: IsolatedJourneySite }, _optional = {},
-): NonNullable<PlaywrightTestConfig["webServer"]> {
+): Array<Exclude<NonNullable<PlaywrightTestConfig["webServer"]>, unknown[]>> {
   const quote = (value: string) => `'${value.replace(/'/g, "'\\''")}'`;
   const boot = `node --import tsx development/e2e/support/start-journey-site.mjs ${quote(site.manifestPath)}`;
   if (site.packaged) {

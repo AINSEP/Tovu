@@ -1,5 +1,6 @@
 // @unrun: authored 2026-10-04 by an agent, NEVER EXECUTED; selectors and flows unverified.
 import { test as base, expect, type APIRequestContext, type Page } from "@playwright/test";
+import type { IsolatedJourneySite } from "../support/isolated-journey-site.js";
 
 /**
  * Shared constants and helpers for every `*.journey.ts` file (minimal stand-in for SCOPE.md's
@@ -88,6 +89,8 @@ export async function hasHorizontalScroll(page: Page): Promise<boolean> {
 }
 
 interface JourneyFixtures {
+  /** The runner-owned site selected for this project, including its public origin. */
+  journeySite: IsolatedJourneySite;
   /** Uncaught page errors seen during the test; asserted empty after every test. */
   pageErrors: string[];
 }
@@ -98,6 +101,11 @@ interface JourneyFixtures {
  * error must clear `pageErrors` itself and say why.
  */
 export const test = base.extend<JourneyFixtures>({
+  journeySite: async ({}, use, testInfo) => {
+    const site = (testInfo.project.metadata.isolatedJourneySite ?? testInfo.config.metadata.isolatedJourneySite) as IsolatedJourneySite | undefined;
+    if (!site) throw new Error("This journey requires its config's isolated site");
+    await use(site);
+  },
   pageErrors: [
     async ({ page, context }, use) => {
       const errors: string[] = [];

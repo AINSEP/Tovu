@@ -1,7 +1,7 @@
 // @unrun: authored 2026-10-04 by an agent, NEVER EXECUTED; selectors and flows unverified.
 import type { Page } from "@playwright/test";
 
-import { PUBLIC_URL, TINY_PNG, WS_API, expect, test, uniqSlug } from "./_fixtures.js";
+import { TINY_PNG, WS_API, expect, test, uniqSlug } from "./_fixtures.js";
 
 /**
  * Media journeys (SCOPE.md W4). Uploads go to `TOVU_MEDIA_UPLOADS_DIR` in the config's temp runtime
@@ -17,7 +17,7 @@ import { PUBLIC_URL, TINY_PNG, WS_API, expect, test, uniqSlug } from "./_fixture
  *
  * Public URLs: an image's "File URL" is its `"public"` core transform rendition
  * (`/m/{key}/public.v{n}/image.webp`, `features/media/public-path.ts`), served by the SITE server
- * (`PUBLIC_URL`), not the Vite admin origin, which only proxies `/api`. That rendition is a WebP
+ * (`journeySite.apiURL`), not the Vite admin origin, which only proxies `/api`. That rendition is a WebP
  * re-encode, so original bytes are checked separately through the admin original-file endpoint.
  */
 async function uploadPng(page: Page, name: string, alt: string): Promise<void> {
@@ -28,7 +28,11 @@ async function uploadPng(page: Page, name: string, alt: string): Promise<void> {
 }
 
 test.describe("W4 media lifecycle", () => {
-  test("upload a PNG, see it in the library, its public URL serves a WebP rendition and the original keeps its bytes", { tag: ["@unrun"] }, async ({ page }) => {
+  test.beforeEach(async ({ journeySite }) => {
+    expect(journeySite.database, "Media requires SQLite first-boot core transforms").toBe("sqlite");
+  });
+
+  test("upload a PNG, see it in the library, its public URL serves a WebP rendition and the original keeps its bytes", { tag: ["@unrun"] }, async ({ page, journeySite }) => {
     const name = `${uniqSlug("journey-image")}.png`;
     const title = name.replace(/\.png$/, "");
     const alt = `Alt ${name}`;
@@ -41,7 +45,7 @@ test.describe("W4 media lifecycle", () => {
     // core transform registered (`ensureCoreMediaTransform`).
     const href = await page.locator("a.field-readonly[href]").first().getAttribute("href");
     expect(href).toMatch(/^\/m\/[^/]+\/public\.v\d+\/image\.webp$/);
-    const served = await page.request.get(new URL(href!, PUBLIC_URL).toString());
+    const served = await page.request.get(new URL(href!, journeySite.apiURL).toString());
     expect(served.status()).toBe(200);
     expect(served.headers()["content-type"]).toContain("image/webp");
     expect((await served.body()).byteLength).toBeGreaterThan(0);

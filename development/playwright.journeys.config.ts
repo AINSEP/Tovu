@@ -7,19 +7,24 @@ import { CODEX_JOURNEY } from "./e2e/support/assistant-journey-state.js";
 /**
  * @file Journeys config (E2E scope doc, `ADS-memory/.local-artifacts/e2e-scope/SCOPE.md` §4).
  *
- * One hermetic boot (memory DB plus a temp runtime dir), seeded admin credentials, blanked vendor
- * keys, and one login reused through storageState. Boot code is shared with the live chat suite;
+ * Hermetic sites with seeded admin credentials, blanked vendor keys, and one login per site
+ * reused through storageState. Media uses its own SQLite site so first-boot core transforms are
+ * registered as in the shipped app; other journeys keep their existing database selection.
+ * Boot code is shared with the live chat suite;
  * that suite selects SQLite and the real Claude Local CLI instead of the journeys' browser stubs.
  *
  * `testMatch` is anchored to `.journey.ts` on purpose: every older config matches an unanchored
  * `...\.spec\.ts` regex under `testDir: ./e2e`, so a journey must never end in `.spec.ts`.
- * Ports 9101-9103 are the range SCOPE.md reserves for the new configs.
+ * Ports 9101-9103 serve the default project; media uses the helper's free-port selection.
  */
 const REPO_ROOT = path.resolve(import.meta.dirname, "..");
-export default createIsolatedJourneySite(
-  { suite: "journeys" }, { ports: { api: 9101, admin: 9102, daemon: 9103 },
-    ...(CODEX_JOURNEY ? { database: "sqlite", runtime: "local-cli" } as const : {}) },
-).then((site) => defineConfig({
+export default Promise.all([
+  createIsolatedJourneySite(
+    { suite: "journeys" }, { ports: { api: 9101, admin: 9102, daemon: 9103 },
+      ...(CODEX_JOURNEY ? { database: "sqlite", runtime: "local-cli" } as const : {}) },
+  ),
+  createIsolatedJourneySite({ suite: "journeys-media" }, { database: "sqlite" }),
+]).then(([site, mediaSite]) => defineConfig({
   testDir: "./e2e/journeys",
   testMatch: /\.journey\.ts$/,
   grepInvert: /@live/,
@@ -30,7 +35,7 @@ export default createIsolatedJourneySite(
     timeout: 15_000,
     toHaveScreenshot: { animations: "disabled", caret: "hide", maxDiffPixelRatio: 0.001 },
   },
-  // One worker: one shared memory DB and the LOGIN_STRICT limiter (10 logins / 60s / IP).
+  // One worker: serial journeys and the LOGIN_STRICT limiter (10 logins / 60s / IP).
   workers: 1,
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
@@ -40,7 +45,7 @@ export default createIsolatedJourneySite(
   reporter: [
     ["list"],
     ["html", { outputFolder: path.join(REPO_ROOT, "development/playwright-report/journeys"), open: "never" }],
-    ["./e2e/support/journey-site-cleanup-reporter.ts", { site }],
+    ["./e2e/support/journey-site-cleanup-reporter.ts", { sites: [site, mediaSite] }],
   ],
   use: {
     baseURL: site.adminURL,
@@ -54,6 +59,18 @@ export default createIsolatedJourneySite(
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
-  projects: [{ name: "chromium" }],
-  webServer: isolatedJourneyWebServers({ site }),
+  projects: [
+    { name: "chromium", testIgnore: /(?:^|\/)media\.journey\.ts$/ },
+    {
+      name: "chromium-media", testMatch: /(?:^|\/)media\.journey\.ts$/,
+      metadata: { isolatedJourneySite: mediaSite },
+      use: { baseURL: mediaSite.adminURL, storageState: mediaSite.storageState },
+      // Keep the established media screenshot paths when selecting a separate project.
+      snapshotPathTemplate: "{testDir}/{testFilePath}-snapshots/{arg}-chromium-{platform}{ext}",
+    },
+  ],
+  webServer: [
+    ...isolatedJourneyWebServers({ site }),
+    ...isolatedJourneyWebServers({ site: mediaSite }),
+  ],
 }));

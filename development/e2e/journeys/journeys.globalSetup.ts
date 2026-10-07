@@ -8,8 +8,8 @@ import { waitForAgentDaemon } from "../daemon-ready.js";
 import { CODEX_JOURNEY } from "../support/assistant-journey-state.js";
 
 /**
- * Logs in ONCE through the real login route and writes the session cookie as the `storageState`
- * every journey reuses (`adversarial.globalSetup.ts` pattern). One login per run keeps the suite
+ * Logs in ONCE per isolated site through the real login route and writes the session cookie as
+ * the `storageState` its projects reuse (`adversarial.globalSetup.ts` pattern). This keeps the suite
  * under `LOGIN_STRICT` (10 logins / 60s / IP); only `smoke.journey.ts` drives the login form itself.
  */
 async function loginWithRetry(baseURL: string): Promise<Response> {
@@ -29,15 +29,24 @@ async function loginWithRetry(baseURL: string): Promise<Response> {
 }
 
 export default async function journeysGlobalSetup(config: FullConfig): Promise<void> {
-  const site = config.metadata.isolatedJourneySite as IsolatedJourneySite | undefined;
-  const baseURL = config.projects[0]?.use?.baseURL;
+  const sites = new Map<string, IsolatedJourneySite>();
   // Validate provenance BEFORE submitting credentials. FullConfig.webServer is null for an
   // array of servers, so use the runner-owned descriptor rather than that normalized field.
-  if (!site || site.ownerPid !== process.pid || baseURL !== site.adminURL
-    || site.adminURL !== `http://127.0.0.1:${site.ports.admin}`
-    || config.projects[0]?.use?.storageState !== site.storageState) {
-    throw new Error("journeys globalSetup requires the isolated site created by its config");
+  for (const project of config.projects) {
+    const site = (project.metadata.isolatedJourneySite ?? config.metadata.isolatedJourneySite) as IsolatedJourneySite | undefined;
+    if (!site || site.ownerPid !== process.pid || project.use.baseURL !== site.adminURL
+      || site.adminURL !== `http://127.0.0.1:${site.ports.admin}`
+      || project.use.storageState !== site.storageState) {
+      throw new Error("journeys globalSetup requires the isolated site created by its config");
+    }
+    sites.set(site.runtimeDir, site);
   }
+  if (!sites.size) throw new Error("journeys globalSetup requires the isolated site created by its config");
+  for (const site of sites.values()) await loginToSite(site);
+}
+
+async function loginToSite(site: IsolatedJourneySite): Promise<void> {
+  const baseURL = site.adminURL;
   const login = await loginWithRetry(baseURL);
   if (!login.ok) throw new Error(`journeys globalSetup: login failed (${login.status})`);
   const setCookie = login.headers.getSetCookie?.() ?? [];
