@@ -1,3 +1,4 @@
+import { runBootDataRepairs } from "#src/server/runtime/composition/boot-data-repairs";
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -241,6 +242,9 @@ export async function initSite(required: InitSiteRequired): Promise<InitSiteResu
       try {
         await migrateContentDatabase(sqliteKernel<unknown>(db));
         await prepareContentStore(contentKernel(db), { seed });
+        // A freshly initialized site must already carry current repair markers, so its first boot
+        // does not mutate content.db merely to record a no-op repair. Older sites still repair on boot.
+        await runBootDataRepairs({ kernel: contentKernel(db) });
       } finally {
         closeSqliteConnection(db);
       }
