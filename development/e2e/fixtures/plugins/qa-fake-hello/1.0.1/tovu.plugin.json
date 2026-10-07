@@ -1,0 +1,15 @@
+{
+  "id": "qa-fake-hello",
+  "name": "QA Fake Hello Plugin With A Long Name For Narrow Lists",
+  "version": "1.0.1",
+  "sdkRange": "*",
+  "engine": 1,
+  "tier": "tier-1",
+  "capabilities": [],
+  "hooks": [],
+  "fields": [],
+  "contentTypes": [],
+  "integrity": {
+    "README.md": "sha256-85e760cad0a233680736ac55674dd0e4380d04a2c50f9ae72a9c730abcc1e8f6"
+  }
+}
