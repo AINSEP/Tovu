@@ -601,6 +601,30 @@ test("handleStop refuses an id this shell is not tracking", async () => {
   await assert.rejects(() => handleStop("/sites/unknown", deps), /Unknown project/);
 });
 
+test("P1: Stop/Restart cancels a pending preview before the site's graceful drain", async () => {
+  const order: string[] = [];
+  const deps = baseDeps({
+    cancelPreviewCapture: ({ siteDir }: { siteDir: string }) => { order.push(`cancel ${siteDir}`); },
+  });
+  trackSite(deps.projectsPath, "/sites/a");
+  deps.openSites.set("/sites/a", { server: { port: 4321, stop: async () => { order.push("drain"); } } });
+  await handleStop("/sites/a", deps);
+  assert.deepEqual(order, ["cancel /sites/a", "drain"]);
+  await handleStop("/sites/a", deps);
+  assert.deepEqual(order, ["cancel /sites/a", "drain", "cancel /sites/a"], "even an already-stopped site withdraws pending work");
+});
+
+test("P1: removing an adopted site cancels its preview before the server drains", async () => {
+  const order: string[] = [];
+  const deps = baseDeps({
+    cancelPreviewCapture: ({ siteDir }: { siteDir: string }) => { order.push(`cancel ${siteDir}`); },
+  });
+  trackSite(deps.projectsPath, "/sites/a", SITE_ORIGIN.adopted);
+  deps.openSites.set("/sites/a", { server: { stop: async () => { order.push("drain"); } } });
+  await handleDelete("/sites/a", deps);
+  assert.deepEqual(order, ["cancel /sites/a", "drain"]);
+});
+
 test("handleStop drains the server, drops the entry, and returns a stopped record with no port", async () => {
   let stopped = 0;
   const deps = baseDeps();

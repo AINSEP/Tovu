@@ -1,9 +1,9 @@
 // @unrun: authored 2026-10-04 by an agent, NEVER EXECUTED; selectors and flows unverified.
-import { expect, test } from "@playwright/test";
+import { expect, test, type ElectronApplication } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
 
-import { closeDesktop, emptyFolder, launchDesktop, listSites, makeSite, portAnswers, scratchDir, siteCard, startSite, stubFolderPicker } from "./_fixtures.js";
+import { closeDesktop, removeScratchTree, emptyFolder, launchDesktop, listSites, makeSite, portAnswers, scratchDir, siteCard, startSite, stubFolderPicker } from "./_fixtures.js";
 
 /**
  * D5 (SCOPE.md §3.3): a card's lifecycle on the sites home. Every site here is a scratch fixture
@@ -32,7 +32,7 @@ test.beforeAll(async () => {
   for (const name of [POWER, RENAME, REMOVE, LOCATE]) dirs[name] = await makeSite(root, name);
 });
 test.afterAll(() => {
-  if (root) fs.rmSync(root, { recursive: true, force: true });
+  if (root) removeScratchTree({ root }, {});
 });
 
 async function portOf(win: Parameters<typeof listSites>[0], name: string): Promise<number> {
@@ -41,11 +41,47 @@ async function portOf(win: Parameters<typeof listSites>[0], name: string): Promi
   return record!.port;
 }
 
+interface PreviewLoad { url: string; phase: "loaded" | "failed"; code?: number }
+/** The slice of Electron's BrowserWindow the listener reads; `electron` types are not in the e2e tsconfig. */
+interface HiddenWindow {
+  isVisible(): boolean;
+  webContents: {
+    getURL(): string;
+    on(event: "did-finish-load", listener: () => void): void;
+    on(event: "did-fail-load", listener: (event: unknown, code: number, description: string, url: string, isMainFrame: boolean) => void): void;
+  };
+}
+
+/** Observe the real hidden capture windows, so a restart cannot silently leave a dead thumbnail. */
+async function watchPreviewLoads({ app }: { app: ElectronApplication }, _optional = {}): Promise<void> {
+  await app.evaluate(({ app: electronApp }) => {
+    const state = globalThis as typeof globalThis & { __previewLoads?: PreviewLoad[] };
+    state.__previewLoads = [];
+    electronApp.on("browser-window-created", (_event: unknown, window: HiddenWindow) => {
+      if (window.isVisible()) return;
+      // A public-root load in a hidden window is the capture; the admin guest is a webview.
+      const isPreview = (url: string) => /^http:\/\/127\.0\.0\.1:\d+\/$/.test(url);
+      window.webContents.on("did-finish-load", () => {
+        const url = window.webContents.getURL();
+        if (isPreview(url)) state.__previewLoads!.push({ url, phase: "loaded" });
+      });
+      window.webContents.on("did-fail-load", (_event: unknown, code: number, _description: string, url: string, isMainFrame: boolean) => {
+        if (isMainFrame && code !== -3 && isPreview(url)) state.__previewLoads!.push({ url, phase: "failed", code });
+      });
+    });
+  });
+}
+
+async function previewLoads({ app }: { app: ElectronApplication }, _optional = {}): Promise<PreviewLoad[]> {
+  return app.evaluate(() => [...((globalThis as typeof globalThis & { __previewLoads?: PreviewLoad[] }).__previewLoads ?? [])]);
+}
+
 test("Start, Restart and Stop drive the real site process", { tag: ["@unrun"] }, async () => {
   const launch = await launchDesktop({ trackedSites: [dirs[POWER]!] });
-  const { win } = launch;
+  const { app, win } = launch;
   const card = siteCard(win, POWER);
   try {
+    await watchPreviewLoads({ app }, {});
     await startSite(win, POWER);
     const port = await portOf(win, POWER);
     expect(await portAnswers(port), "a Running site must answer on its port").toBe(true);
@@ -54,6 +90,13 @@ test("Start, Restart and Stop drive the real site process", { tag: ["@unrun"] },
     await expect(card.locator(".state")).toHaveText("Running", { timeout: 150_000 });
     const portAfterRestart = await portOf(win, POWER);
     await expect.poll(() => portAnswers(portAfterRestart), { timeout: 60_000 }).toBe(true);
+    // Restart immediately after returning to All overlaps the old 1.5 s capture debounce.
+    // Require the new lifecycle's public-root load, not merely absence of a failed old load.
+    await expect.poll(async () => (await previewLoads({ app }, {})).some((load) =>
+      load.phase === "loaded" && load.url === `http://127.0.0.1:${portAfterRestart}/`),
+    { timeout: 30_000, message: "the preview must load the restarted site's live port" }).toBe(true);
+    expect((await previewLoads({ app }, {})).filter((load) => load.phase === "failed"),
+      "no hidden preview may hit a stopped or stale port").toEqual([]);
 
     await card.getByRole("button", { name: `Stop ${POWER}`, exact: true }).click();
     await expect(card.locator(".state")).toHaveText("Stopped", { timeout: 60_000 });
@@ -164,6 +207,6 @@ test("a folder moved before launch shows as missing; a wrong folder is refused; 
     expect((await listSites(win)).find((s) => s.displayName === LOCATE)?.installDir).toBe(newDir);
   } finally {
     await closeDesktop(launch);
-    fs.rmSync(newParent, { recursive: true, force: true });
+    removeScratchTree({ root: newParent }, {});
   }
 });

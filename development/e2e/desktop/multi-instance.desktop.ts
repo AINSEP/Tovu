@@ -1,8 +1,7 @@
 // @unrun: authored 2026-10-04 by an agent, NEVER EXECUTED; selectors and flows unverified.
 import { expect, test } from "@playwright/test";
-import fs from "node:fs";
 
-import { closeDesktop, launchDesktop, listSites, makeSite, portAnswers, scratchDir, siteCard, startSite, type DesktopLaunch } from "./_fixtures.js";
+import { closeDesktop, removeScratchTree, launchDesktop, listSites, makeSite, portAnswers, scratchDir, siteCard, startSite, type DesktopLaunch } from "./_fixtures.js";
 
 /**
  * D7 (SCOPE.md §3.3): no single-instance lock (owner ruling 2026-09-20, `main.ts` never calls
@@ -23,7 +22,7 @@ test.beforeAll(async () => {
   betaDir = await makeSite(root, BETA);
 });
 test.afterAll(() => {
-  if (root) fs.rmSync(root, { recursive: true, force: true });
+  if (root) removeScratchTree({ root }, {});
 });
 
 async function runningPort(launch: DesktopLaunch, name: string): Promise<number> {

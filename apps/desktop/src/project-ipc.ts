@@ -586,7 +586,7 @@ function liveForeignServers(deps: Pick<ProjectIpcDeps, "readRegistry" | "registr
  * @complexity O(1) beyond `fs.rm`'s own cost over the site directory's contents, plus however long
  *   an already-queued operation on the same site takes to settle.
  */
-async function handleDelete(id: string, deps: Pick<ProjectIpcDeps, "serializer" | "projectsPath" | "openSites" | "repoRoot" | "readRegistry" | "registryPath" | "isLiveServeRow" | "recordSiteClosed" | "deletePreview">): Promise<void> {
+async function handleDelete(id: string, deps: Pick<ProjectIpcDeps, "serializer" | "projectsPath" | "openSites" | "cancelPreviewCapture" | "repoRoot" | "readRegistry" | "registryPath" | "isLiveServeRow" | "recordSiteClosed" | "deletePreview">): Promise<void> {
   await deps.serializer.run(id, () => deleteProject(id, deps));
 }
 
@@ -596,7 +596,7 @@ async function handleDelete(id: string, deps: Pick<ProjectIpcDeps, "serializer" 
  *
  * @complexity see {@link handleDelete}.
  */
-async function deleteProject(id: string, deps: Pick<ProjectIpcDeps, "projectsPath" | "openSites" | "repoRoot" | "readRegistry" | "registryPath" | "isLiveServeRow" | "recordSiteClosed" | "deletePreview">): Promise<void> {
+async function deleteProject(id: string, deps: Pick<ProjectIpcDeps, "projectsPath" | "openSites" | "cancelPreviewCapture" | "repoRoot" | "readRegistry" | "registryPath" | "isLiveServeRow" | "recordSiteClosed" | "deletePreview">): Promise<void> {
   const row = readTrackedSites(deps.projectsPath).find((entry) => entry.siteDir === id);
   if (row === undefined) return;
 
@@ -622,6 +622,7 @@ async function deleteProject(id: string, deps: Pick<ProjectIpcDeps, "projectsPat
     if (foreign.length > 0) throw new Error(foreignServerMessage(id, foreign));
   }
 
+  deps.cancelPreviewCapture?.({ siteDir: id }, {});
   if (openEntry !== undefined) {
     await openEntry.server.stop!(); // an entry with no `.stop` never reaches this line in practice — `OpenSiteEntry.server.stop` is optional only because other, non-delete tests build entries that omit it
     deps.openSites.delete(id);
@@ -875,7 +876,7 @@ async function explainMissingSiteDir(siteDir: string, starting: Promise<unknown>
  * @complexity O(1) beyond `server.stop()`'s own drain (bounded by its 5 s grace), plus however long
  *   an already-queued operation on the same site takes to settle.
  */
-async function handleStop(id: string, deps: Pick<ProjectIpcDeps, "serializer" | "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "registryPath" | "recordSiteClosed" | "transitions">) {
+async function handleStop(id: string, deps: Pick<ProjectIpcDeps, "serializer" | "projectsPath" | "openSites" | "cancelPreviewCapture" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "registryPath" | "recordSiteClosed" | "transitions">) {
   return await deps.serializer.run(id, async () => {
     const row = readTrackedSites(deps.projectsPath).find((entry) => entry.siteDir === id);
     if (row === undefined) {
@@ -893,7 +894,8 @@ async function handleStop(id: string, deps: Pick<ProjectIpcDeps, "serializer" | 
  *
  * @complexity see {@link handleStop}.
  */
-async function stopSiteServer(id: string, deps: Pick<ProjectIpcDeps, "openSites" | "registryPath" | "recordSiteClosed">): Promise<void> {
+async function stopSiteServer(id: string, deps: Pick<ProjectIpcDeps, "openSites" | "cancelPreviewCapture" | "registryPath" | "recordSiteClosed">): Promise<void> {
+  deps.cancelPreviewCapture?.({ siteDir: id }, {});
   const openEntry = deps.openSites.get(id);
   if (openEntry === undefined) return;
   deps.openSites.delete(id);
@@ -1038,6 +1040,8 @@ interface ProjectIpcDeps<TCtx = unknown> {
   readPreviewVersion: (siteDir: string) => number | null;
   readPreviewDataUrl: (id: string) => string | null;
   deletePreview: (id: string) => void;
+  /** Stop/Restart must withdraw pending hidden-window work before the server drains. */
+  cancelPreviewCapture?: (required: { siteDir: string }, optional: {}) => void;
   adoptSiteDir: (input: AdoptSiteDirInput) => Promise<string>;
   addSitePointer: AddSitePointerLike;
   /** Injected for tests; defaults to `agent-plugin-tokens.ts`'s CLI-backed lister. */

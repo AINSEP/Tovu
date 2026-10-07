@@ -3,7 +3,7 @@ import { expect, test, type ElectronApplication } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
 
-import { clickAppMenuItem, closeDesktop, launchDesktop, listSites, makeSite, openSiteTab, scratchDir, startSite } from "./_fixtures.js";
+import { clickAppMenuItem, closeDesktop, launchDesktop, removeScratchTree, listSites, makeSite, openSiteTab, scratchDir, startSite } from "./_fixtures.js";
 
 /**
  * D6 (SCOPE.md §3.3): the per-app settings that are built. The Settings gear itself is
@@ -27,7 +27,7 @@ test.beforeAll(async () => {
   siteDir = await makeSite(root, SITE);
 });
 test.afterAll(() => {
-  if (root) fs.rmSync(root, { recursive: true, force: true });
+  if (root) removeScratchTree({ root }, {});
 });
 
 /** Mirrors `windowBoundsFilePath` (not imported: it pulls `@jini-ai/desktop-host` into the runner). */

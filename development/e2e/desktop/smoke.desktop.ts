@@ -1,9 +1,8 @@
 // @unrun: authored 2026-10-04 by an agent, NEVER EXECUTED; selectors and flows unverified.
 import { expect, test } from "@playwright/test";
-import fs from "node:fs";
 
 import { visibleSections } from "../../../apps/desktop/src/contracts/sections.ts";
-import { closeDesktop, expectPreloadBridge, IS_PACKAGED_DESKTOP, launchDesktop, makeSite, scratchDir, siteCard } from "./_fixtures.js";
+import { closeDesktop, removeScratchTree, expectPreloadBridge, IS_PACKAGED_DESKTOP, launchDesktop, makeSite, scratchDir, siteCard } from "./_fixtures.js";
 
 /**
  * D1 (SCOPE.md §3.3): launch lands on the sites home (Websites), every nav-visible section is
@@ -25,7 +24,7 @@ test.beforeAll(async () => {
   siteDir = await makeSite(root, SITE);
 });
 test.afterAll(() => {
-  if (root) fs.rmSync(root, { recursive: true, force: true });
+  if (root) removeScratchTree({ root }, {});
 });
 
 test("launch lands on Websites with every section present and the tracked site's card", { tag: ["@unrun"] }, async () => {

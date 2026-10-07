@@ -133,6 +133,7 @@ import { redeemBootSession, sitePartition, ensureSiteSession, endSiteSession } f
 import { sitesFilePath, seedDevFallbackSite, migrateLegacyDismissals, readTrackedSites } from "./src/tracked-sites.ts";
 import { writeSiteName } from "./src/site-config.ts";
 import { readPreviewVersion, readPreviewDataUrl, writePreview, deletePreview, sweepOrphanedPreviews } from "./src/site-preview-store.ts";
+import { createSitePreviewScheduler } from "./src/site-preview-scheduler.ts";
 import { registerSiteIpcHandlers, rescanSites } from "./src/project-ipc.ts";
 import { addSitePointer } from "./src/add-site-pointer.ts";
 import { registerSitesMcpServer, writeSitesMcpLauncher } from "./src/sites-mcp-registration.ts";
@@ -369,6 +370,7 @@ function sitesUiRequested(): boolean {
  */
 const openSites = createSiteSupervisor<OpenSite>({
   onUnexpectedExit: (siteDir, exit, entry) => {
+    sitePreviewScheduler.cancel({ siteDir }, {});
     // The row exists to let the NEXT launch reap a child this process left running. This one is
     // already gone, so the row is now a lie that `reconcileOrphans` would spend a `ps` call on.
     // Narrowed by pid: this instance's own file can also hold a still-draining earlier child's row
@@ -849,13 +851,20 @@ const PREVIEW_PAINT_SETTLE_MS = 1200;
 const PREVIEW_CAPTURE_DEBOUNCE_MS = 1500;
 
 /**
- * Every site this process has already captured (or scheduled a capture for) THIS run — see
- * {@link scheduleSitePreview}. Lives for the process, not the site: closing and reopening the same
- * site within one launch does not recapture it, which is the stated design
- * (`site-preview-store.ts`'s own header argues staleness is correct behaviour here), not an
- * oversight waiting for a cache-bust.
+ * Every site this process has already captured (or scheduled a capture for) this live lifecycle —
+ * see {@link scheduleSitePreview}. A reservation avoids repeated captures on tab reuse
+ * (`site-preview-store.ts`'s own header argues staleness is correct behaviour here). Stop/restart
+ * releases it: a pending timer must not navigate to a port the old server no longer owns.
  */
-const previewCapturedThisRun = new Set<string>();
+const sitePreviewScheduler = createSitePreviewScheduler<ReturnType<typeof setTimeout>>({ ports: {
+  current: ({ siteDir }) => {
+    const entry = openSites.get(siteDir);
+    return entry ? { port: entry.server.port, partition: sitePartition(siteDir) } : undefined;
+  },
+  capture: ({ siteDir, port, partition }) => captureSitePreview(siteDir, port, partition),
+  schedule: ({ work, delayMs }) => setTimeout(work, delayMs),
+  cancel: ({ timer }) => clearTimeout(timer),
+} }, { debounceMs: PREVIEW_CAPTURE_DEBOUNCE_MS });
 
 /**
  * Capture `siteDir`'s own PUBLIC surface — `http://127.0.0.1:<port>/`, never `/admin/` — into its
@@ -881,7 +890,7 @@ const previewCapturedThisRun = new Set<string>();
  *
  * @complexity O(1) beyond the hidden window's own load/capture/destroy cost.
  */
-async function captureSitePreview(siteDir: string, port: number, partition: string): Promise<void> {
+async function captureSitePreview(siteDir: string, port: number, partition: string): Promise<boolean> {
   let window;
   try {
     window = new BrowserWindow({
@@ -892,11 +901,12 @@ async function captureSitePreview(siteDir: string, port: number, partition: stri
     });
     await window.loadURL(`http://127.0.0.1:${port}/`);
     await new Promise((resolve) => setTimeout(resolve, PREVIEW_PAINT_SETTLE_MS));
-    if (window.isDestroyed()) return;
+    if (window.isDestroyed()) return false;
     const captured = await window.webContents.capturePage();
-    writePreview(app.getPath("userData"), siteDir, captured.resize({ width: PREVIEW_WIDTH_PX }).toPNG());
+    return writePreview(app.getPath("userData"), siteDir, captured.resize({ width: PREVIEW_WIDTH_PX }).toPNG()) !== null;
   } catch (error) {
     console.warn(`tovu desktop: could not capture a preview for ${siteDir} — ${(error as Error).message}`);
+    return false;
   } finally {
     if (window && !window.isDestroyed()) window.destroy();
   }
@@ -904,20 +914,17 @@ async function captureSitePreview(siteDir: string, port: number, partition: stri
 
 /**
  * Schedule ONE offscreen capture of `siteDir`'s preview, the moment its server publishes into
- * `openSites` — never on the tab-open hot path, and never more than once per site for this
- * process's run (see {@link previewCapturedThisRun}).
+ * `openSites` — never on the tab-open hot path, and never more than once per successful live
+ * lifecycle (see {@link sitePreviewScheduler}).
  *
- * Marks the site captured BEFORE the timer fires, not after: two sites opened back to back must not
- * both slip through this check while the first's timer is still pending.
+ * Reserves the site BEFORE the timer fires, not after: two opens back to back must not
+ * both slip through this check while the first's timer is still pending. The scheduler looks up
+ * the live port at fire time; Stop cancels and re-arms it, and a failed capture releases it.
  *
- * @complexity O(1) — one Set check, one timer.
+ * @complexity O(1) — one reservation check, one timer.
  */
-function scheduleSitePreview(siteDir: string, port: number, partition: string): void {
-  if (previewCapturedThisRun.has(siteDir)) return;
-  previewCapturedThisRun.add(siteDir);
-  setTimeout(() => {
-    void captureSitePreview(siteDir, port, partition);
-  }, PREVIEW_CAPTURE_DEBOUNCE_MS);
+function scheduleSitePreview(siteDir: string): void {
+  sitePreviewScheduler.schedule({ siteDir }, {});
 }
 
 /**
@@ -992,7 +999,7 @@ async function openSiteWindow(siteDir: string, ctx: SiteOpenCtx, options: SiteOp
   }
 
   openSites.set(siteDir, { server, window, siteDir });
-  scheduleSitePreview(siteDir, server.port, partition);
+  scheduleSitePreview(siteDir);
   window.on("closed", () => {
     if (process.platform === "darwin" && quitPhase === "idle") {
       const entry = openSites.get(siteDir);
@@ -1007,7 +1014,10 @@ async function openSiteWindow(siteDir: string, ctx: SiteOpenCtx, options: SiteOp
     // reported the site as stopped, and "Start" spawned a THIRD child over the same `content.db`.
     // The supervisor's own `handleExit` guards by entry identity for exactly this reason; this is
     // its missing sibling.
-    if (openSites.get(siteDir)?.window === window) openSites.delete(siteDir);
+    if (openSites.get(siteDir)?.window === window) {
+      sitePreviewScheduler.cancel({ siteDir }, {});
+      openSites.delete(siteDir);
+    }
     // Ends this window's session for real instead of leaving it to expire on its own up to 30 days
     // later — the other half of the accumulation fix above. Best-effort and awaited before
     // `server.stop()` so the request actually reaches the child before BR-07's graceful SIGTERM
@@ -1054,9 +1064,9 @@ async function openSiteServer(siteDir: string, ctx: SiteOpenCtx, options: SiteOp
   const already = openSites.get(siteDir);
   if (already) return already.server;
 
-  const { server, partition } = await startSiteBackend(siteDir, ctx, options);
+  const { server } = await startSiteBackend(siteDir, ctx, options);
   openSites.set(siteDir, { server });
-  scheduleSitePreview(siteDir, server.port, partition);
+  scheduleSitePreview(siteDir);
   return server;
 }
 
@@ -1697,6 +1707,7 @@ app
         readPreviewVersion: (siteDir: string) => readPreviewVersion(app.getPath("userData"), siteDir),
         readPreviewDataUrl: (siteDir: string) => readPreviewDataUrl(app.getPath("userData"), siteDir),
         deletePreview: (siteDir: string) => deletePreview(app.getPath("userData"), siteDir),
+        cancelPreviewCapture: ({ siteDir }: { siteDir: string }, _optional = {}) => sitePreviewScheduler.cancel({ siteDir }, {}),
         adoptSiteDir,
         // `handleCreate` classifies the picked folder BEFORE adopting it, so a project's row records
         // whether this app CREATED the directory or merely adopted one that already existed — the

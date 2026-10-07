@@ -80,6 +80,27 @@ export function scratchDir(label: string): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), `tovu-desktop-journey-${label}-`));
 }
 
+/** The immutable plugin store belongs to the product; only discarded scratch trees get u+w. */
+export function removeScratchTree({ root }: { root: string }, _optional = {}): void {
+  function makeWritable(entry: string): void {
+    let stat: fs.Stats;
+    try {
+      stat = fs.lstatSync(entry);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+      throw error;
+    }
+    // Never follow symlinks: a fixture may point outside the tree being discarded.
+    if (stat.isSymbolicLink()) return;
+    fs.chmodSync(entry, stat.mode | 0o200);
+    if (stat.isDirectory()) {
+      for (const child of fs.readdirSync(entry)) makeWritable(path.join(entry, child));
+    }
+  }
+  makeWritable(root);
+  fs.rmSync(root, { recursive: true, force: true });
+}
+
 /** An empty folder, for the "create" and "refuse" paths. */
 export function emptyFolder(label: string): string {
   const dir = path.join(scratchDir(label), "folder");
@@ -238,11 +259,13 @@ export async function takeProblems(app: ElectronApplication): Promise<Problems> 
   });
 }
 
-/** Asserts the window is still drawn and nothing blanked it, then closes the app. */
+/** Asserts the window is still drawn and nothing blanked it, then closes the app.
+ * Soft: callers run this in `finally`, where a hard throw would replace the body's own failure
+ * in the report. Soft failures still fail the test, and both errors are listed. */
 export async function closeDesktop(launch: DesktopLaunch): Promise<void> {
   try {
-    if (!launch.win.isClosed()) await expect(launch.win.locator(".app"), "blank window: .app is gone").toBeVisible();
-    expect(await takeProblems(launch.app), "renderer crashes, failed loads or uncaught errors").toEqual([]);
+    if (!launch.win.isClosed()) await expect.soft(launch.win.locator(".app"), "blank window: .app is gone").toBeVisible();
+    expect.soft(await takeProblems(launch.app), "renderer crashes, failed loads or uncaught errors").toEqual([]);
   } finally {
     await launch.app.close();
   }

@@ -5,6 +5,7 @@ import path from "node:path";
 
 import {
   closeDesktop,
+  removeScratchTree,
   emptyFolder,
   guestFetch,
   launchDesktop,
@@ -38,7 +39,7 @@ test.beforeAll(async () => {
   existingDir = await makeSite(root, EXISTING);
 });
 test.afterAll(() => {
-  if (root) fs.rmSync(root, { recursive: true, force: true });
+  if (root) removeScratchTree({ root }, {});
 });
 
 test("Add Tovu Website adopts an existing site; it starts, opens authenticated, and is remembered", { tag: ["@unrun"] }, async () => {

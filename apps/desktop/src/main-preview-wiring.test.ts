@@ -52,7 +52,7 @@ function executable(name: string, deps: Record<string, unknown>) {
   return new Function(...Object.keys(deps), `${js}; return ${name};`)(...Object.values(deps));
 }
 
-function captureHarness(failAt?: "load" | "capture" | "store") {
+function captureHarness(failAt?: "load" | "capture" | "store" | "store-null") {
   const options: any[] = [];
   const writes: unknown[][] = [];
   const warnings: unknown[][] = [];
@@ -77,7 +77,12 @@ function captureHarness(failAt?: "load" | "capture" | "store") {
       } };
     },
     app: { getPath: (key: string) => { assert.equal(key, "userData"); return "/profile"; } },
-    writePreview: (...args: unknown[]) => { if (failAt === "store") throw new Error("store failed"); writes.push(args); },
+    writePreview: (...args: unknown[]) => {
+      if (failAt === "store") throw new Error("store failed");
+      if (failAt === "store-null") return null;
+      writes.push(args);
+      return 123;
+    },
     console: { warn: (...args: unknown[]) => warnings.push(args) },
     setTimeout: (callback: () => void) => { callback(); },
     PREVIEW_CAPTURE_WIDTH_PX: 1280, PREVIEW_CAPTURE_HEIGHT_PX: 800,
@@ -106,7 +111,7 @@ test("captureSitePreview writes through writePreview, keyed by siteDir, resized 
   assert.match(body, /\.resize\(\{[^}]*\}\)/);
   assert.match(body, /writePreview\(app\.getPath\("userData"\),\s*siteDir,/);
   const h = captureHarness();
-  await h.run("/sites/beta", 8124, "persist:beta");
+  assert.equal(await h.run("/sites/beta", 8124, "persist:beta"), true);
   assert.deepEqual(h.writes, [["/profile", "/sites/beta", h.resizedBytes]]);
   assert.equal(h.destroyed(), true);
 });
@@ -117,7 +122,7 @@ test("captureSitePreview never throws past its own boundary — every failure is
   assert.match(body, /finally/);
   for (const stage of ["load", "capture", "store"] as const) {
     const h = captureHarness(stage);
-    await assert.doesNotReject(() => h.run("/sites/failing", 8125, "persist:fail"));
+    assert.equal(await h.run("/sites/failing", 8125, "persist:fail"), false);
     assert.equal(h.warnings.length, 1, stage);
     const warning = h.warnings[0];
     assert.ok(warning);
@@ -127,27 +132,21 @@ test("captureSitePreview never throws past its own boundary — every failure is
   }
 });
 
-test("scheduleSitePreview captures a site at most once per process run", () => {
-  const body = functionBody("scheduleSitePreview");
-  assert.match(body, /previewCapturedThisRun\.has\(siteDir\)/);
-  assert.match(body, /previewCapturedThisRun\.add\(siteDir\)/);
-  assert.match(body, /setTimeout\(/);
-  const timers: Array<() => void> = [];
-  const captures: unknown[][] = [];
+test("scheduleSitePreview delegates to the live-site scheduler without capturing a port", () => {
+  const schedules: unknown[][] = [];
   const schedule = executable("scheduleSitePreview", {
-    previewCapturedThisRun: new Set<string>(),
-    PREVIEW_CAPTURE_DEBOUNCE_MS: 1500,
-    setTimeout: (fn: () => void, ms: number) => { assert.equal(ms, 1500); timers.push(fn); },
-    captureSitePreview: (...args: unknown[]) => captures.push(args),
+    sitePreviewScheduler: { schedule: (...args: unknown[]) => schedules.push(args) },
   });
-  schedule("/sites/alpha", 8123, "persist:alpha");
-  schedule("/sites/alpha", 8123, "persist:alpha");
-  assert.equal(timers.length, 1);
-  assert.deepEqual(captures, []);
-  for (const timer of timers) timer();
-  assert.deepEqual(captures, [["/sites/alpha", 8123, "persist:alpha"]]);
-  schedule("/sites/alpha", 8123, "persist:alpha");
-  assert.equal(timers.length, 1);
+  schedule("/sites/alpha");
+  assert.deepEqual(schedules, [[{ siteDir: "/sites/alpha" }, {}]]);
+  assert.match(source, /current: \(\{ siteDir \}\) => \{[\s\S]*?openSites\.get\(siteDir\)/,
+    "the debounce must read the live entry at fire time");
+});
+
+test("P1: a best-effort storage failure reports an unsuccessful capture so it can be retried", async () => {
+  const h = captureHarness("store-null");
+  assert.equal(await h.run("/sites/failing", 8125, "persist:fail"), false);
+  assert.equal(h.destroyed(), true);
 });
 
 test("both places a site enters openSites schedule its preview capture", () => {
@@ -159,18 +158,17 @@ test("both places a site enters openSites schedule its preview capture", () => {
 
   assert.match(
     windowBody,
-    /openSites\.set\(siteDir, \{ server, window, siteDir \}\);\s*\n\s*scheduleSitePreview\(siteDir, server\.port, partition\);/,
+    /openSites\.set\(siteDir, \{ server, window, siteDir \}\);\s*\n\s*scheduleSitePreview\(siteDir\);/,
     "openSiteWindow must schedule a capture immediately after publishing into openSites",
   );
   assert.match(
     serverBody,
-    /openSites\.set\(siteDir, \{ server \}\);\s*\n\s*scheduleSitePreview\(siteDir, server\.port, partition\);/,
+    /openSites\.set\(siteDir, \{ server \}\);\s*\n\s*scheduleSitePreview\(siteDir\);/,
     "openSiteServer must schedule a capture immediately after publishing into openSites",
   );
-  // `openSiteServer` used to destructure only `{ server }` from `startSiteBackend` — the capture
-  // needs `partition` too, or the capture window would run on the DEFAULT (unauthenticated)
-  // partition instead of the site's own.
-  assert.match(serverBody, /const \{ server, partition \} = await startSiteBackend\(/);
+  // The capture still needs the site's partition, or it would run on the DEFAULT
+  // (unauthenticated) partition. It now resolves that alongside the live port at fire time.
+  assert.match(source, /partition: sitePartition\(siteDir\)/);
 });
 
 test("the sites-home deps object carries the three preview operations, bound to this launch's userData", () => {

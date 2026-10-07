@@ -1,9 +1,9 @@
 // @unrun: authored 2026-10-04 by an agent, NEVER EXECUTED; selectors and flows unverified.
 import { expect, test, type ElectronApplication } from "@playwright/test";
-import fs from "node:fs";
 
 import {
   closeDesktop,
+  removeScratchTree,
   guestEval,
   guestFetch,
   guestInsertText,
@@ -39,7 +39,7 @@ test.beforeAll(async () => {
   siteDir = await makeSite(root, SITE);
 });
 test.afterAll(() => {
-  if (root) fs.rmSync(root, { recursive: true, force: true });
+  if (root) removeScratchTree({ root }, {});
 });
 
 /** Clicks the first guest button whose trimmed text matches `pattern`; false when none exists yet. */
@@ -85,7 +85,10 @@ test("the guest admin is signed in, a draft written in the guest persists, and s
     const postId = postUrl.split("/").pop()!;
 
     await expect.poll(() => focusGuestField(app, "Post title")).toBe(true);
+    // New Post deliberately seeds "Untitled"; replace it through Chromium's real input path.
+    await guestEval(app, `(document.activeElement).select()`);
     await guestInsertText(app, title);
+    await expect.poll(() => guestEval<string>(app, `document.activeElement.value`)).toBe(title);
     await expect.poll(() => clickGuestButton(app, /^Save/)).toBe(true);
     await expect
       .poll(async () => (await guestFetch(app, `${POSTS_API}/${postId}`)).body?.post?.title, { timeout: 30_000 })

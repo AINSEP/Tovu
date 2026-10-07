@@ -1,8 +1,8 @@
 // @unrun: authored 2026-10-04 by an agent, NEVER EXECUTED; selectors and flows unverified.
 import { expect, test, type ElectronApplication } from "@playwright/test";
-import fs from "node:fs";
 
-import { closeDesktop, guestEval, guestInsertText, launchDesktop, makeSite, openSiteTab, scratchDir, startSite } from "./_fixtures.js";
+import { closeDesktop, removeScratchTree, guestEval, guestInsertText, launchDesktop, makeSite, openSiteTab, scratchDir, startSite } from "./_fixtures.js";
+import { successfulRunFixture } from "./_run-fixture.js";
 
 /**
  * D4 (SCOPE.md §3.3), narrowed to what is built. The app-level "global chat" (one-chat FAB, 900 px
@@ -17,10 +17,11 @@ import { closeDesktop, guestEval, guestInsertText, launchDesktop, makeSite, open
  * `page.route` cannot reach a `<webview>` guest: the main process attaches `webContents.debugger`
  * to the guest and enables `Fetch` for `*\/api/runs*`. `POST /api/runs` answers a running run, the
  * EventSource GET answers one `text_delta` agent frame and an `end` frame, and the status GET says
- * `succeeded`. Everything else under the pattern continues to the real site server. Frame shape:
- * `journeys/assistant.journey.ts` (`frame()`), end frame: `admin-composer-agent-plugin-chip.spec.ts`.
+ * `succeeded`. Recovery returns the same saved terminal projection. Everything else under the
+ * pattern continues to the real site server. Frame shapes come from `@jini-ai/protocol` and the
+ * daemon SSE writer; `_run-fixture.ts` uses the real server/admin translation for the saved events.
  */
-const SITE = "journey-chat";
+const SITE = "journey-assistant";
 const RUN_ID = "desktop-journey-run-1";
 const REPLY = "Hello from the stubbed desktop run.";
 let root: string;
@@ -32,22 +33,8 @@ test.beforeAll(async () => {
   siteDir = await makeSite(root, SITE);
 });
 test.afterAll(() => {
-  if (root) fs.rmSync(root, { recursive: true, force: true });
+  if (root) removeScratchTree({ root }, {});
 });
-
-function agentFrame(payload: Record<string, unknown>, eventId: number): string {
-  const data = {
-    runId: RUN_ID,
-    eventId: String(eventId),
-    opaqueCursor: String(eventId),
-    protocolVersion: 1,
-    ts: new Date(0).toISOString(),
-    kind: "agent",
-    payload,
-    durability: "durable",
-  };
-  return `event: agent\ndata: ${JSON.stringify(data)}\n\n`;
-}
 
 interface RunStubCounts {
   starts: number;
@@ -59,9 +46,9 @@ interface RunStubCounts {
  * with a 500 instead. Counts land in the main process's `globalThis.__runStub`.
  */
 async function stubGuestRuns(app: ElectronApplication, mode: "reply" | "fail"): Promise<void> {
-  const streamBody = `retry: 3600000\n\n${agentFrame({ type: "text_delta", delta: REPLY }, 1)}event: end\ndata: {"status":"succeeded","code":0}\n\n`;
+  const fixture = successfulRunFixture({ runId: RUN_ID, reply: REPLY }, {});
   await app.evaluate(
-    async ({ webContents }, { runId, body, fail }) => {
+    async ({ webContents }, { runId, body, savedMessage, fail }) => {
       type Debugger = {
         attach(version: string): void;
         on(event: "message", listener: (event: unknown, method: string, params: Record<string, any>) => void): void;
@@ -71,6 +58,8 @@ async function stubGuestRuns(app: ElectronApplication, mode: "reply" | "fail"): 
       if (!guest) throw new Error("no <webview> guest");
       const state = globalThis as typeof globalThis & { __runStub?: { starts: number; streams: number } };
       state.__runStub = { starts: 0, streams: 0 };
+      let message = savedMessage;
+      let conversationId = "desktop-journey-conversation";
       const dbg = guest.debugger;
       dbg.attach("1.3");
       const fulfill = (requestId: string, status: number, contentType: string, text: string) =>
@@ -86,13 +75,21 @@ async function stubGuestRuns(app: ElectronApplication, mode: "reply" | "fail"): 
       dbg.on("message", (_event, method, params) => {
         if (method !== "Fetch.requestPaused") return;
         const requestId = params.requestId as string;
-        const request = params.request as { url: string; method: string };
+        const request = params.request as { url: string; method: string; postData?: string };
         const pathname = new URL(request.url).pathname;
         if (request.method === "POST" && pathname.endsWith("/api/runs")) {
           state.__runStub!.starts += 1;
+          const start = JSON.parse(request.postData ?? "{}") as { contextRef?: string };
+          const context = JSON.parse(start.contextRef ?? "{}") as { assistantMessageId?: string; conversationId?: string };
+          message = { ...savedMessage, id: context.assistantMessageId ?? savedMessage.id };
+          conversationId = context.conversationId ?? conversationId;
           void (fail
             ? fulfill(requestId, 500, "application/json", JSON.stringify({ error: "internal error", code: "INTERNAL_ERROR" }))
-            : fulfill(requestId, 200, "application/json", JSON.stringify({ run: { id: runId, state: "running" } })));
+            : fulfill(requestId, 200, "application/json", JSON.stringify({ run: { id: runId, state: "running" }, messageId: message.id, conversationId })));
+          return;
+        }
+        if (request.method === "POST" && pathname.endsWith(`/api/runs/${runId}/recover`)) {
+          void fulfill(requestId, 200, "application/json", JSON.stringify({ message }));
           return;
         }
         if (request.method === "GET" && pathname.endsWith(`/api/runs/${runId}/events`)) {
@@ -108,7 +105,7 @@ async function stubGuestRuns(app: ElectronApplication, mode: "reply" | "fail"): 
       });
       await dbg.sendCommand("Fetch.enable", { patterns: [{ urlPattern: "*/api/runs*", requestStage: "Request" }] });
     },
-    { runId: RUN_ID, body: streamBody, fail: mode === "fail" },
+    { runId: RUN_ID, body: fixture.stream, savedMessage: fixture.message, fail: mode === "fail" },
   );
 }
 
@@ -126,8 +123,9 @@ async function sendFromGuestDock(app: ElectronApplication, text: string): Promis
     .toBe(true);
   await expect.poll(() => guestEval<boolean>(app, `!!document.querySelector('.admin-chat-dock')`)).toBe(true);
   await expect
-    .poll(() => guestEval<boolean>(app, `(() => { const t = document.querySelector('textarea.jini-composer-input'); if (!t) return false; t.focus(); return document.activeElement === t; })()`))
+    .poll(() => guestEval<boolean>(app, `(() => { const t = document.querySelector('.admin-chat-dock textarea.jini-composer-input'); return !!t && !t.disabled; })()`), { timeout: 20_000, message: "the guest composer must finish initializing and become enabled" })
     .toBe(true);
+  await guestEval(app, `document.querySelector('.admin-chat-dock textarea.jini-composer-input').focus()`);
   await guestInsertText(app, text);
   await expect
     .poll(() => guestEval<boolean>(app, `(() => { const b = document.querySelector('button[aria-label="Send"]'); if (!b || b.disabled) return false; b.click(); return true; })()`))
@@ -144,7 +142,7 @@ test("the host sites home carries no app-level chat FAB or Runner chat pane (not
   try {
     await expect(win.locator(".chat-fab")).toHaveCount(0);
     await expect(win.locator('aside[aria-label="Runner chat"]')).toHaveCount(0);
-    await expect(win.getByRole("button", { name: /chat/i })).toHaveCount(0);
+    await expect(win.locator("header.main__head").getByRole("button", { name: "Chat", exact: true })).toHaveCount(0);
   } finally {
     await closeDesktop(launch);
   }

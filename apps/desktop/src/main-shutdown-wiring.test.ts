@@ -164,6 +164,7 @@ test("the closed handler drops the crash-safety row only AFTER the child is stop
     process: { platform: "win32" },
     quitPhase: "idle",
     window,
+    sitePreviewScheduler: { cancel: () => {} },
     openSites: new Map([["/site", { window }]]),
     siteDir: "/site", partition: "site-partition", ctx: { registryPath: "/registry" },
     net: {}, session: { fromPartition: () => ({}) },
@@ -192,6 +193,7 @@ test("closing a window only deletes the entry that window still owns", () => {
   // site dir alone then dropped that healthy REPLACEMENT the moment the old window was closed. The
   // supervisor's own `handleExit` guards by entry identity; this is its missing sibling.
   const handler = closedHandler();
-  assert.match(handler, /if \(openSites\.get\(siteDir\)\?\.window === window\) openSites\.delete\(siteDir\);/);
-  assert.doesNotMatch(handler, /^\s*openSites\.delete\(siteDir\);/m, "an unguarded delete drops a replacement entry");
+  const guardedDelete = /if \(openSites\.get\(siteDir\)\?\.window === window\) \{\s*sitePreviewScheduler\.cancel\(\{ siteDir \}, \{\}\);\s*openSites\.delete\(siteDir\);\s*\}/;
+  assert.match(handler, guardedDelete);
+  assert.doesNotMatch(handler.replace(guardedDelete, ""), /^\s*openSites\.delete\(siteDir\);/m, "an unguarded delete drops a replacement entry");
 });
