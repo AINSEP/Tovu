@@ -953,7 +953,7 @@ export const OTHER_CREDENTIAL_STORES: readonly OtherCredentialStoreInfo[] = [
     category: "ai",
     purposeLabel: "AI",
     supportsReplace: true,
-    screenLabel: "Settings · Execution mode",
+    screenLabel: "Settings · AI agent",
     screenPath: "/settings?tab=execution",
   },
   {

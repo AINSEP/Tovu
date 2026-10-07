@@ -1,5 +1,6 @@
 import { useSelectedSkills, useComposerDiscoveryDraft, useSkillOnlySend } from "./hooks/composer-skills.hooks";
 import { useAssistantEmptyState } from "./hooks/use-assistant-empty-state.hooks";
+import { useSelectedAgentAuthWarning } from "./hooks/use-selected-agent-auth-warning.hooks";
 import { useBrowserAgentSettings } from "../../features/webmcp/browser-agent-settings.hooks";
 import { useSkillInstall } from "../../features/skills/use-skill-install.hooks";
 import { SkillInstallConfirmation } from "../../features/skills/SkillInstallConfirmation";
@@ -433,7 +434,7 @@ export function AssistantDock({
   // and — via `chatI18n` — the `ConversationList` switcher mounted in `header` below. See
   // {@link useAssistantDockChrome}'s own doc for why `locale`/`t`/`chatI18n` are one hook rather
   // than three separate calls.
-  const { t, chatI18n } = useAssistantDockChrome(useAdminLocale);
+  const { locale, t, chatI18n } = useAssistantDockChrome(useAdminLocale);
 
   const { executionConfig, executionConfigRef, setExecutionConfig, handleExecutionModeChange, hasStoredAdminKey, configLoaded, readExecutionConfigForSend } = useExecutionConfigSeam(useExecutionConfigOverride);
   const { byokRuntime, handleByokModelChange } = useByokRuntimeSeam(useByokRuntimeOverride, { executionConfig, setExecutionConfig });
@@ -463,7 +464,11 @@ export function AssistantDock({
   const skillInstall = useSkillInstall();
   const uploadAttachments = useSkillAwareAttachmentUploader({ uploadAttachments: uploadOrdinaryAttachments, proposeFiles: skillInstall.proposeFiles });
   const validateAttachments = useAttachmentValidatorSeam(useAttachmentValidatorOverride);
-  const runtimeAccess = useRuntimeAccessSeam(useRuntimeAccessOverride);
+  // D-21(b): the picker's inventory has no auth status, so the sign-in warning reads Settings'
+  // detection; its wrapped runtimeAccess re-probes auth on the picker's own Rescan.
+  const pickerRuntimeAccess = useRuntimeAccessSeam(useRuntimeAccessOverride);
+  const selectedAgentAuth = useSelectedAgentAuthWarning({ mode: executionConfig.mode, agentId: localCliSelection.agentId, locale, runtimeAccess: pickerRuntimeAccess });
+  const runtimeAccess = selectedAgentAuth.runtimeAccess;
   // The picker's instant list while `listAgents` is still in flight — see `useAgentsPlaceholder`.
   const agentsPlaceholder = useAgentsPlaceholderSeam(useRuntimeAccessOverride);
   /**
@@ -703,6 +708,11 @@ export function AssistantDock({
         // element in this position is a layout trap).
         leadingAccessory={
           <>
+            {/* Jini's AgentRuntimePicker has no warning slot yet, so this rides the slot directly
+                above the input: seen before a send, cleared on sign-in + Rescan or a switch. */}
+            {selectedAgentAuth.warning ? (
+              <p className="assistant-agent-auth-warning" role="status" aria-live="polite">{selectedAgentAuth.warning}</p>
+            ) : null}
             <FolderDropNotice notice={folderDrop.notice} onDismiss={folderDrop.dismiss} onRetry={folderDrop.retry} />
             <SelectedAgentPluginTray chips={selectedPluginChips} onRemove={removePluginRef} />
             <SelectedAgentPluginTray chips={selectedSkills.chips} onRemove={selectedSkills.removeSkill} onSendSkills={skillOnlySend.canSendSkills ? skillOnlySend.sendSkills : undefined} />

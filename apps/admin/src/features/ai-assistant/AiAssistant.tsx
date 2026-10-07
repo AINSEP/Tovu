@@ -63,7 +63,7 @@ import type { Translate } from "../../lib/dictionary-translator";
  *    control that looks live but does nothing is worse than an honest "not yet".
  *
  * 3. Execution mode for the ADMIN's own assistant — a second mount of the same `ExecutionTab` over
- *    the same `core.execution` ledger namespace that Settings → Execution mode uses. See
+ *    the same `core.execution` ledger namespace that Settings → AI agent uses. See
  *    {@link AdminExecutionMode} for why it is copied here rather than moved, and for the one prop
  *    the two mounts must never disagree about.
  *
@@ -465,7 +465,7 @@ export function AssistantDaemonRestart(props: AssistantDaemonRestartProps) {
  * There are two API keys in this product and until now only one of them had a screen, which is why
  * an operator could save a key, see it persisted, and still get nothing on their public site:
  *
- * - **Settings → Execution mode → BYOK** is the ADMIN's own key. `lib/execution-settings.ts` stores
+ * - **Settings → AI agent → BYOK** is the ADMIN's own key. `lib/execution-settings.ts` stores
  *   it browser-local on purpose (its own comment: "the browser is the source of truth for `apiKey`
  *   (the ledger never sees it)"). It powers the assistant dock in THIS browser. A deployed server
  *   never sees it, and it cannot serve visitors.
@@ -775,7 +775,7 @@ export function VisitorCredentialForm({
         </p>
         <p>
           {t(
-            "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.",
+            "It is a different key from the one under Settings → AI agent → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.",
           )}
         </p>
         {/* The shared form's "Stored only by this host." hint below is true here too: both BYOK keys

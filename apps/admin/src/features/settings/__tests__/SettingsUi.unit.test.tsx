@@ -127,7 +127,7 @@ function fakeAdminExecutionCredentialController(
 
 /** Switches the inline shell to the named tab via its sidebar nav button — only the active tab's
  *  panel is mounted (`SettingsDialogShell` renders `activeTab?.panel` alone), so every scenario
- *  below outside the default "Execution mode" tab has to navigate first. */
+ *  below outside the default "AI agent" tab has to navigate first. */
 async function goToTab(user: ReturnType<typeof userEvent.setup>, tabId: string) {
   await user.click(screen.getByTestId(`settings-dialog-nav-${tabId}`));
 }
@@ -464,12 +464,12 @@ describe("?tab= deep linking", () => {
     // show no panel at all, not the first tab.
     render(<SettingsUi useSettingsUiHook={() => baseController()} tabId="not-a-real-tab" />);
 
-    expect(screen.getByRole("tablist", { name: "Execution mode" })).toBeInTheDocument();
+    expect(screen.getByRole("tablist", { name: "AI agent" })).toBeInTheDocument();
   });
 
   it("defaults to the first tab when no tabId is supplied at all", () => {
     render(<SettingsUi useSettingsUiHook={() => baseController()} />);
-    expect(screen.getByRole("tablist", { name: "Execution mode" })).toBeInTheDocument();
+    expect(screen.getByRole("tablist", { name: "AI agent" })).toBeInTheDocument();
   });
 
   it("switching tabs writes the new id into the URL's ?tab= so the shown tab is always the linkable one", async () => {
@@ -574,5 +574,21 @@ describe("Workspace tab (SPEC-044's OQ-04, folded in 2026-09-10)", () => {
     } finally {
       global.fetch = originalFetch;
     }
+  });
+});
+
+describe('D-21 selected CLI warning', () => {
+  it('shows exact sign-in guidance before a prompt can be sent', async () => {
+    const controller = baseController({
+      execution: makeSlice<ExecutionConfig>({ ...DEFAULT_EXECUTION_CONFIG, mode: 'local-cli', localCli: { agentId: 'claude' } }),
+      port: {
+        detectLocalAgents: async () => [{ id: 'claude', label: 'Claude Code', installed: true, authStatus: 'missing' }],
+        testConnection: async () => ({ ok: true }),
+      },
+    });
+    render(<SettingsUi useSettingsUiHook={() => controller} useAdminExecutionCredentialHook={() => fakeAdminExecutionCredentialController()} />);
+    expect(await screen.findByText('Claude Code: Authentication required. Sign in before sending.')).toBeInTheDocument();
+    expect(screen.getByTestId('settings-dialog-nav-execution').textContent).toContain('AI agent');
+    expect(screen.getByRole('tablist', { name: 'AI agent' })).toBeInTheDocument();
   });
 });

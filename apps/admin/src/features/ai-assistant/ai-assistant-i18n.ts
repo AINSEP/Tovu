@@ -63,8 +63,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     // Visitor tab — credential form intro
     "This key is for your visitors, not for you. It is what lets people reading your published site ask questions and get answers. It is stored on the server and used for every visitor conversation.":
       "Esta clave es para tus visitantes, no para ti. Es lo que permite que las personas que leen tu sitio publicado hagan preguntas y obtengan respuestas. Se almacena en el servidor y se usa en cada conversación de un visitante.",
-    "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
-      "Es una clave distinta de la que está en Configuración → Modo de ejecución → BYOK. Esa es la tuya propia, se guarda cifrada en el servidor, solo para tu cuenta de administración, y alimenta al asistente en esta administración. Un sitio implementado nunca puede usarla, por eso guardar una clave ahí no activa el chat para visitantes.",
+    "It is a different key from the one under Settings → AI agent → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
+      "Es una clave distinta de la que está en Configuración → Agente de IA → BYOK. Esa es la tuya propia, se guarda cifrada en el servidor, solo para tu cuenta de administración, y alimenta al asistente en esta administración. Un sitio implementado nunca puede usarla, por eso guardar una clave ahí no activa el chat para visitantes.",
     "See more about the visitor key": "Ver más sobre la clave del visitante",
     "See more": "Ver más",
     "See less": "Ver menos",
@@ -177,8 +177,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "Nonaktif. Situs publik tidak menyertakan kode asisten dan tidak mengekspos endpoint asisten apa pun — ini adalah penonaktifan penuh, bukan widget tersembunyi.",
     "This key is for your visitors, not for you. It is what lets people reading your published site ask questions and get answers. It is stored on the server and used for every visitor conversation.":
       "Kunci ini untuk pengunjung Anda, bukan untuk Anda. Inilah yang memungkinkan orang yang membaca situs terbit Anda mengajukan pertanyaan dan mendapatkan jawaban. Kunci ini disimpan di server dan digunakan untuk setiap percakapan pengunjung.",
-    "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
-      "Ini adalah kunci yang berbeda dari yang ada di Pengaturan → Mode eksekusi → BYOK. Kunci itu adalah milik Anda sendiri, disimpan terenkripsi di server, hanya untuk akun admin Anda, dan menggerakkan asisten di admin ini. Situs yang sudah diterapkan tidak akan pernah bisa menggunakannya — itulah sebabnya menyimpan kunci di sana tidak mengaktifkan obrolan pengunjung.",
+    "It is a different key from the one under Settings → AI agent → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
+      "Ini adalah kunci yang berbeda dari yang ada di Pengaturan → Agen AI → BYOK. Kunci itu adalah milik Anda sendiri, disimpan terenkripsi di server, hanya untuk akun admin Anda, dan menggerakkan asisten di admin ini. Situs yang sudah diterapkan tidak akan pernah bisa menggunakannya — itulah sebabnya menyimpan kunci di sana tidak mengaktifkan obrolan pengunjung.",
     "See more about the visitor key": "Lihat selengkapnya tentang kunci pengunjung",
     "See more": "Lihat selengkapnya",
     "See less": "Lihat lebih sedikit",
@@ -267,8 +267,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "Aus. Die öffentliche Website enthält keinen Assistenten-Code und stellt keinen Assistenten-Endpunkt bereit — das ist eine vollständige Deaktivierung, kein verstecktes Widget.",
     "This key is for your visitors, not for you. It is what lets people reading your published site ask questions and get answers. It is stored on the server and used for every visitor conversation.":
       "Dieser Schlüssel ist für Ihre Besucher, nicht für Sie. Er ermöglicht es Personen, die Ihre veröffentlichte Website lesen, Fragen zu stellen und Antworten zu erhalten. Er wird auf dem Server gespeichert und für jede Besucherunterhaltung verwendet.",
-    "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
-      "Es ist ein anderer Schlüssel als der unter Einstellungen → Ausführungsmodus → BYOK. Dieser gehört Ihnen, wird verschlüsselt auf dem Server gespeichert, nur für Ihr Admin-Konto, und betreibt den Assistenten in diesem Admin-Bereich. Eine bereitgestellte Website kann ihn niemals verwenden — deshalb aktiviert das Speichern eines Schlüssels dort nicht den Besucher-Chat.",
+    "It is a different key from the one under Settings → AI agent → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
+      "Es ist ein anderer Schlüssel als der unter Einstellungen → KI-Agent → BYOK. Dieser gehört Ihnen, wird verschlüsselt auf dem Server gespeichert, nur für Ihr Admin-Konto, und betreibt den Assistenten in diesem Admin-Bereich. Eine bereitgestellte Website kann ihn niemals verwenden — deshalb aktiviert das Speichern eines Schlüssels dort nicht den Besucher-Chat.",
     "See more about the visitor key": "Mehr über den Besucherschlüssel erfahren",
     "See more": "Mehr anzeigen",
     "See less": "Weniger anzeigen",
@@ -354,8 +354,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "关闭。公开网站不包含任何助手代码，也不暴露任何助手端点——这是完全禁用，而非隐藏的小组件。",
     "This key is for your visitors, not for you. It is what lets people reading your published site ask questions and get answers. It is stored on the server and used for every visitor conversation.":
       "此密钥是给您的访客使用的，不是给您自己用的。它让阅读您已发布网站的人能够提问并获得答案。它存储在服务器上，用于每一次访客对话。",
-    "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
-      "它与「设置 → 执行模式 → BYOK」下的密钥不同。那个密钥是您自己的，加密保存在服务器上，仅供您的管理员账户使用，并驱动此管理后台中的助手。已部署的网站永远无法使用它——这就是为什么在那里保存密钥不会开启访客聊天。",
+    "It is a different key from the one under Settings → AI agent → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
+      "它与「设置 → AI 智能体 → BYOK」下的密钥不同。那个密钥是您自己的，加密保存在服务器上，仅供您的管理员账户使用，并驱动此管理后台中的助手。已部署的网站永远无法使用它——这就是为什么在那里保存密钥不会开启访客聊天。",
     "See more about the visitor key": "了解更多关于访客密钥的信息",
     "See more": "查看更多",
     "See less": "收起",
@@ -439,8 +439,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "關閉。公開網站不包含任何助理程式碼，也不會公開任何助理端點——這是完全停用，而非隱藏的小工具。",
     "This key is for your visitors, not for you. It is what lets people reading your published site ask questions and get answers. It is stored on the server and used for every visitor conversation.":
       "此金鑰是給您的訪客使用的，不是給您自己用的。它讓閱讀您已發布網站的人能夠提問並取得答案。它儲存在伺服器上，用於每一次訪客對話。",
-    "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
-      "它與「設定 → 執行模式 → BYOK」下的金鑰不同。那個金鑰是您自己的，加密儲存在伺服器上，僅供您的管理員帳戶使用，並驅動此管理後台中的助理。已部署的網站永遠無法使用它——這就是為什麼在那裡儲存金鑰不會開啟訪客聊天。",
+    "It is a different key from the one under Settings → AI agent → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
+      "它與「設定 → AI 代理 → BYOK」下的金鑰不同。那個金鑰是您自己的，加密儲存在伺服器上，僅供您的管理員帳戶使用，並驅動此管理後台中的助理。已部署的網站永遠無法使用它——這就是為什麼在那裡儲存金鑰不會開啟訪客聊天。",
     "See more about the visitor key": "了解更多關於訪客金鑰的資訊",
     "See more": "顯示更多",
     "See less": "收合",
@@ -527,8 +527,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "Desativado. O site público não inclui código do assistente nem expõe nenhum endpoint do assistente — isso é uma desativação completa, não um widget oculto.",
     "This key is for your visitors, not for you. It is what lets people reading your published site ask questions and get answers. It is stored on the server and used for every visitor conversation.":
       "Esta chave é para seus visitantes, não para você. É o que permite que as pessoas que leem seu site publicado façam perguntas e obtenham respostas. Ela é armazenada no servidor e usada em cada conversa de visitante.",
-    "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
-      "É uma chave diferente daquela em Configurações → Modo de execução → BYOK. Aquela é sua, é salva criptografada no servidor, apenas para a sua conta de administrador, e alimenta o assistente nesta administração. Um site implantado nunca pode usá-la — por isso salvar uma chave ali não ativa o chat do visitante.",
+    "It is a different key from the one under Settings → AI agent → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
+      "É uma chave diferente daquela em Configurações → Agente de IA → BYOK. Aquela é sua, é salva criptografada no servidor, apenas para a sua conta de administrador, e alimenta o assistente nesta administração. Um site implantado nunca pode usá-la — por isso salvar uma chave ali não ativa o chat do visitante.",
     "See more about the visitor key": "Ver mais sobre a chave do visitante",
     "See more": "Ver mais",
     "See less": "Ver menos",
@@ -617,8 +617,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "Выключено. Публичный сайт не содержит кода ассистента и не открывает никакой конечной точки ассистента — это полное отключение, а не скрытый виджет.",
     "This key is for your visitors, not for you. It is what lets people reading your published site ask questions and get answers. It is stored on the server and used for every visitor conversation.":
       "Этот ключ предназначен для ваших посетителей, а не для вас. Именно он позволяет людям, читающим ваш опубликованный сайт, задавать вопросы и получать ответы. Он хранится на сервере и используется в каждой беседе с посетителем.",
-    "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
-      "Это другой ключ, отличный от того, что находится в разделе Настройки → Режим выполнения → BYOK. Тот ключ — ваш собственный, он хранится на сервере в зашифрованном виде, только для вашей учётной записи администратора, и используется ассистентом в этой админ-панели. Развёрнутый сайт никогда не сможет его использовать — поэтому сохранение ключа там не включает чат для посетителей.",
+    "It is a different key from the one under Settings → AI agent → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
+      "Это другой ключ, отличный от того, что находится в разделе Настройки → ИИ-агент → BYOK. Тот ключ — ваш собственный, он хранится на сервере в зашифрованном виде, только для вашей учётной записи администратора, и используется ассистентом в этой админ-панели. Развёрнутый сайт никогда не сможет его использовать — поэтому сохранение ключа там не включает чат для посетителей.",
     "See more about the visitor key": "Подробнее о ключе для посетителей",
     "See more": "Показать больше",
     "See less": "Показать меньше",
@@ -706,8 +706,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "خاموش. سایت عمومی هیچ کد دستیاری ارسال نمی‌کند و هیچ نقطه پایانی دستیاری را در معرض دید قرار نمی‌دهد — این یک غیرفعال‌سازی کامل است، نه یک ابزارک پنهان.",
     "This key is for your visitors, not for you. It is what lets people reading your published site ask questions and get answers. It is stored on the server and used for every visitor conversation.":
       "این کلید برای بازدیدکنندگان شماست، نه برای خودتان. این همان چیزی است که به افرادی که سایت منتشرشده‌ی شما را می‌خوانند اجازه می‌دهد سؤال بپرسند و پاسخ بگیرند. این کلید روی سرور ذخیره می‌شود و برای هر گفتگوی بازدیدکننده استفاده می‌شود.",
-    "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
-      "این کلید با کلیدی که در تنظیمات → حالت اجرا → BYOK قرار دارد، متفاوت است. آن کلید مال خودتان است، به‌صورت رمزگذاری‌شده روی سرور و فقط برای حساب مدیریت شما ذخیره می‌شود و دستیار این پنل مدیریت را تغذیه می‌کند. یک سایت مستقر هرگز نمی‌تواند از آن استفاده کند — به همین دلیل ذخیره‌ی کلید در آنجا گفتگوی بازدیدکننده را فعال نمی‌کند.",
+    "It is a different key from the one under Settings → AI agent → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
+      "این کلید با کلیدی که در تنظیمات → عامل هوش مصنوعی → BYOK قرار دارد، متفاوت است. آن کلید مال خودتان است، به‌صورت رمزگذاری‌شده روی سرور و فقط برای حساب مدیریت شما ذخیره می‌شود و دستیار این پنل مدیریت را تغذیه می‌کند. یک سایت مستقر هرگز نمی‌تواند از آن استفاده کند — به همین دلیل ذخیره‌ی کلید در آنجا گفتگوی بازدیدکننده را فعال نمی‌کند.",
     "See more about the visitor key": "بیشتر درباره‌ی کلید بازدیدکننده بخوانید",
     "See more": "بیشتر ببینید",
     "See less": "کمتر ببینید",
@@ -794,8 +794,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "معطَّل. لا يشحن الموقع العام أي كود للمساعد ولا يكشف عن أي نقطة نهاية للمساعد — هذا تعطيل كامل، وليس أداة مخفية.",
     "This key is for your visitors, not for you. It is what lets people reading your published site ask questions and get answers. It is stored on the server and used for every visitor conversation.":
       "هذا المفتاح مخصَّص لزوارك، وليس لك؛ فهو ما يتيح للأشخاص الذين يقرؤون موقعك المنشور طرح الأسئلة والحصول على إجابات. يُخزَّن على الخادم ويُستخدَم في كل محادثة مع زائر.",
-    "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
-      "إنه مفتاح مختلف عن ذلك الموجود ضمن الإعدادات → وضع التنفيذ → BYOK. ذلك المفتاح خاص بك، يُحفَظ مشفّرًا على الخادم لحساب الإدارة الخاص بك فقط، ويُشغِّل المساعد في لوحة الإدارة هذه. لا يمكن لموقع منشور أن يستخدمه أبدًا — ولهذا فإن حفظ مفتاح هناك لا يُفعِّل دردشة الزوار.",
+    "It is a different key from the one under Settings → AI agent → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
+      "إنه مفتاح مختلف عن ذلك الموجود ضمن الإعدادات → وكيل الذكاء الاصطناعي → BYOK. ذلك المفتاح خاص بك، يُحفَظ مشفّرًا على الخادم لحساب الإدارة الخاص بك فقط، ويُشغِّل المساعد في لوحة الإدارة هذه. لا يمكن لموقع منشور أن يستخدمه أبدًا — ولهذا فإن حفظ مفتاح هناك لا يُفعِّل دردشة الزوار.",
     "See more about the visitor key": "معرفة المزيد حول مفتاح الزائر",
     "See more": "عرض المزيد",
     "See less": "عرض أقل",
@@ -881,8 +881,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "オフ。公開サイトはアシスタントのコードを一切含まず、アシスタントのエンドポイントも公開しません — これは完全な無効化であり、隠しウィジェットではありません。",
     "This key is for your visitors, not for you. It is what lets people reading your published site ask questions and get answers. It is stored on the server and used for every visitor conversation.":
       "このキーは訪問者のためのものであり、あなた自身のものではありません。公開サイトを読む人が質問して回答を得られるようにするためのものです。サーバーに保存され、訪問者とのすべての会話で使用されます。",
-    "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
-      "これは「設定 → 実行モード → BYOK」にあるキーとは別のものです。そちらはあなた自身のキーで、暗号化されてサーバー上に、あなたの管理者アカウント専用として保存され、この管理画面内のアシスタントを動かします。デプロイ済みのサイトがそれを使うことは決してありません — そのため、そちらでキーを保存しても訪問者向けチャットは有効になりません。",
+    "It is a different key from the one under Settings → AI agent → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
+      "これは「設定 → AI エージェント → BYOK」にあるキーとは別のものです。そちらはあなた自身のキーで、暗号化されてサーバー上に、あなたの管理者アカウント専用として保存され、この管理画面内のアシスタントを動かします。デプロイ済みのサイトがそれを使うことは決してありません — そのため、そちらでキーを保存しても訪問者向けチャットは有効になりません。",
     "See more about the visitor key": "訪問者用キーの詳細を見る",
     "See more": "もっと見る",
     "See less": "閉じる",
@@ -968,8 +968,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "꺼짐. 공개 사이트는 어시스턴트 코드를 전혀 포함하지 않으며 어시스턴트 엔드포인트도 노출하지 않습니다 — 이는 숨겨진 위젯이 아니라 완전한 비활성화입니다.",
     "This key is for your visitors, not for you. It is what lets people reading your published site ask questions and get answers. It is stored on the server and used for every visitor conversation.":
       "이 키는 사용자님이 아니라 방문자를 위한 것입니다. 게시된 사이트를 읽는 사람들이 질문하고 답변을 받을 수 있게 해 주는 키입니다. 서버에 저장되며 모든 방문자 대화에 사용됩니다.",
-    "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
-      "설정 → 실행 모드 → BYOK에 있는 키와는 다른 키입니다. 그 키는 사용자님 소유이며 서버에 암호화되어 사용자님의 관리자 계정 전용으로 저장되고, 이 관리자 페이지의 어시스턴트를 구동합니다. 배포된 사이트는 그 키를 절대 사용할 수 없습니다 — 그래서 그곳에 키를 저장해도 방문자 채팅이 켜지지 않습니다.",
+    "It is a different key from the one under Settings → AI agent → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
+      "설정 → AI 에이전트 → BYOK에 있는 키와는 다른 키입니다. 그 키는 사용자님 소유이며 서버에 암호화되어 사용자님의 관리자 계정 전용으로 저장되고, 이 관리자 페이지의 어시스턴트를 구동합니다. 배포된 사이트는 그 키를 절대 사용할 수 없습니다 — 그래서 그곳에 키를 저장해도 방문자 채팅이 켜지지 않습니다.",
     "See more about the visitor key": "방문자 키에 대해 더 알아보기",
     "See more": "더 보기",
     "See less": "간략히 보기",
@@ -1056,8 +1056,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "Wyłączone. Publiczna witryna nie zawiera żadnego kodu asystenta i nie udostępnia żadnego punktu końcowego asystenta — to pełne wyłączenie, a nie ukryty widżet.",
     "This key is for your visitors, not for you. It is what lets people reading your published site ask questions and get answers. It is stored on the server and used for every visitor conversation.":
       "Ten klucz jest przeznaczony dla Twoich odwiedzających, nie dla Ciebie. To on umożliwia osobom czytającym Twoją opublikowaną witrynę zadawanie pytań i otrzymywanie odpowiedzi. Jest przechowywany na serwerze i używany w każdej rozmowie z odwiedzającym.",
-    "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
-      "To inny klucz niż ten w Ustawienia → Tryb wykonania → BYOK. Tamten jest Twój własny, przechowywany na serwerze w postaci zaszyfrowanej, tylko dla Twojego konta administratora, i zasila asystenta w tym panelu administracyjnym. Wdrożona witryna nigdy nie może go użyć — dlatego zapisanie tam klucza nie włącza czatu dla odwiedzających.",
+    "It is a different key from the one under Settings → AI agent → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
+      "To inny klucz niż ten w Ustawienia → Agent AI → BYOK. Tamten jest Twój własny, przechowywany na serwerze w postaci zaszyfrowanej, tylko dla Twojego konta administratora, i zasila asystenta w tym panelu administracyjnym. Wdrożona witryna nigdy nie może go użyć — dlatego zapisanie tam klucza nie włącza czatu dla odwiedzających.",
     "See more about the visitor key": "Dowiedz się więcej o kluczu dla odwiedzających",
     "See more": "Pokaż więcej",
     "See less": "Pokaż mniej",
@@ -1144,8 +1144,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "Kikapcsolva. A nyilvános webhely nem tartalmaz asszisztens-kódot, és nem tesz elérhetővé asszisztens-végpontot — ez teljes letiltás, nem rejtett modul.",
     "This key is for your visitors, not for you. It is what lets people reading your published site ask questions and get answers. It is stored on the server and used for every visitor conversation.":
       "Ez a kulcs a látogatói számára van, nem az Ön számára. Ez teszi lehetővé, hogy a közzétett webhelyét olvasó emberek kérdéseket tegyenek fel és választ kapjanak. A szerveren tárolódik, és minden látogatói beszélgetéshez felhasználásra kerül.",
-    "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
-      "Ez eltér a Beállítások → Végrehajtási mód → BYOK alatt található kulcstól. Az a sajátja, titkosítva a szerveren tárolódik, kizárólag az Ön adminisztrátori fiókjához,, és az ebben az adminisztrációban lévő asszisztenst hajtja. Egy éles webhely soha nem használhatja azt — ezért nem kapcsolja be a látogatói csevegést, ha ott mentett el egy kulcsot.",
+    "It is a different key from the one under Settings → AI agent → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
+      "Ez eltér a Beállítások → AI-ügynök → BYOK alatt található kulcstól. Az a sajátja, titkosítva a szerveren tárolódik, kizárólag az Ön adminisztrátori fiókjához,, és az ebben az adminisztrációban lévő asszisztenst hajtja. Egy éles webhely soha nem használhatja azt — ezért nem kapcsolja be a látogatói csevegést, ha ott mentett el egy kulcsot.",
     "See more about the visitor key": "Tudjon meg többet a látogatói kulcsról",
     "See more": "Több megjelenítése",
     "See less": "Kevesebb megjelenítése",
@@ -1232,8 +1232,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "Désactivé. Le site public n'embarque aucun code d'assistant et n'expose aucun point de terminaison d'assistant — il s'agit d'une désactivation complète, pas d'un widget caché.",
     "This key is for your visitors, not for you. It is what lets people reading your published site ask questions and get answers. It is stored on the server and used for every visitor conversation.":
       "Cette clé est destinée à vos visiteurs, pas à vous. Elle permet aux personnes qui lisent votre site publié de poser des questions et d'obtenir des réponses. Elle est stockée sur le serveur et utilisée pour chaque conversation avec un visiteur.",
-    "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
-      "C'est une clé différente de celle sous Paramètres → Mode d'exécution → BYOK. Celle-là vous appartient, elle est enregistrée chiffrée sur le serveur, uniquement pour votre compte administrateur, et elle alimente l'assistant dans cette administration. Un site déployé ne peut jamais l'utiliser — c'est pourquoi enregistrer une clé là-bas n'active pas le chat des visiteurs.",
+    "It is a different key from the one under Settings → AI agent → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
+      "C'est une clé différente de celle sous Paramètres → Agent IA → BYOK. Celle-là vous appartient, elle est enregistrée chiffrée sur le serveur, uniquement pour votre compte administrateur, et elle alimente l'assistant dans cette administration. Un site déployé ne peut jamais l'utiliser — c'est pourquoi enregistrer une clé là-bas n'active pas le chat des visiteurs.",
     "See more about the visitor key": "En savoir plus sur la clé visiteur",
     "See more": "Voir plus",
     "See less": "Voir moins",
@@ -1319,8 +1319,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "Вимкнено. Публічний сайт не містить жодного коду асистента і не відкриває жодної кінцевої точки асистента — це повне вимкнення, а не прихований віджет.",
     "This key is for your visitors, not for you. It is what lets people reading your published site ask questions and get answers. It is stored on the server and used for every visitor conversation.":
       "Цей ключ призначений для ваших відвідувачів, а не для вас. Саме він дозволяє людям, які читають ваш опублікований сайт, ставити запитання й отримувати відповіді. Він зберігається на сервері та використовується для кожної розмови з відвідувачем.",
-    "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
-      "Це інший ключ, ніж той, що в розділі Налаштування → Режим виконання → BYOK. Той ключ — ваш власний, зберігається на сервері в зашифрованому вигляді, лише для вашого облікового запису адміністратора, й живить асистента в цій адмін-панелі. Розгорнутий сайт ніколи не зможе його використати — тому збереження ключа там не вмикає чат для відвідувачів.",
+    "It is a different key from the one under Settings → AI agent → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
+      "Це інший ключ, ніж той, що в розділі Налаштування → ШІ-агент → BYOK. Той ключ — ваш власний, зберігається на сервері в зашифрованому вигляді, лише для вашого облікового запису адміністратора, й живить асистента в цій адмін-панелі. Розгорнутий сайт ніколи не зможе його використати — тому збереження ключа там не вмикає чат для відвідувачів.",
     "See more about the visitor key": "Дізнатися більше про ключ для відвідувачів",
     "See more": "Показати більше",
     "See less": "Показати менше",
@@ -1407,8 +1407,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "Kapalı. Herkese açık site hiçbir asistan kodu içermez ve hiçbir asistan uç noktası açığa çıkarmaz — bu gizli bir widget değil, tam bir devre dışı bırakmadır.",
     "This key is for your visitors, not for you. It is what lets people reading your published site ask questions and get answers. It is stored on the server and used for every visitor conversation.":
       "Bu anahtar sizin için değil, ziyaretçileriniz içindir. Yayınlanan sitenizi okuyan kişilerin soru sorup yanıt almasını sağlayan şey budur. Sunucuda saklanır ve her ziyaretçi konuşmasında kullanılır.",
-    "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
-      "Bu, Ayarlar → Yürütme modu → BYOK altındaki anahtardan farklı bir anahtardır. O anahtar size aittir, sunucuda şifrelenmiş olarak, yalnızca yönetici hesabınız için saklanır ve bu yönetim panelindeki asistanı çalıştırır. Dağıtılmış bir site onu asla kullanamaz — bu nedenle anahtarı orada kaydetmek ziyaretçi sohbetini açmaz.",
+    "It is a different key from the one under Settings → AI agent → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
+      "Bu, Ayarlar → Yapay zekâ ajanı → BYOK altındaki anahtardan farklı bir anahtardır. O anahtar size aittir, sunucuda şifrelenmiş olarak, yalnızca yönetici hesabınız için saklanır ve bu yönetim panelindeki asistanı çalıştırır. Dağıtılmış bir site onu asla kullanamaz — bu nedenle anahtarı orada kaydetmek ziyaretçi sohbetini açmaz.",
     "See more about the visitor key": "Ziyaretçi anahtarı hakkında daha fazla bilgi edinin",
     "See more": "Daha fazla göster",
     "See less": "Daha az göster",
@@ -1494,8 +1494,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "ปิด เว็บไซต์สาธารณะจะไม่มีโค้ดผู้ช่วยใด ๆ และไม่เปิดเผยเอนด์พอยต์ของผู้ช่วยเลย — นี่คือการปิดใช้งานอย่างสมบูรณ์ ไม่ใช่วิดเจ็ตที่ซ่อนอยู่",
     "This key is for your visitors, not for you. It is what lets people reading your published site ask questions and get answers. It is stored on the server and used for every visitor conversation.":
       "คีย์นี้มีไว้สำหรับผู้เยี่ยมชมของคุณ ไม่ใช่สำหรับคุณ เป็นสิ่งที่ทำให้ผู้ที่อ่านเว็บไซต์ที่เผยแพร่ของคุณสามารถถามคำถามและได้รับคำตอบ คีย์นี้จัดเก็บไว้บนเซิร์ฟเวอร์และใช้สำหรับการสนทนาของผู้เยี่ยมชมทุกครั้ง",
-    "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
-      "นี่คือคีย์ที่ต่างจากคีย์ในการตั้งค่า → โหมดการทำงาน → BYOK คีย์นั้นเป็นของคุณเอง จัดเก็บแบบเข้ารหัสบนเซิร์ฟเวอร์ สำหรับบัญชีผู้ดูแลของคุณเท่านั้น และขับเคลื่อนผู้ช่วยในระบบผู้ดูแลนี้ เว็บไซต์ที่ทำงานจริงจะไม่สามารถใช้คีย์นั้นได้เลย — นี่คือเหตุผลที่การบันทึกคีย์ไว้ที่นั่นไม่เปิดใช้งานแชทของผู้เยี่ยมชม",
+    "It is a different key from the one under Settings → AI agent → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
+      "นี่คือคีย์ที่ต่างจากคีย์ในการตั้งค่า → เอเจนต์ AI → BYOK คีย์นั้นเป็นของคุณเอง จัดเก็บแบบเข้ารหัสบนเซิร์ฟเวอร์ สำหรับบัญชีผู้ดูแลของคุณเท่านั้น และขับเคลื่อนผู้ช่วยในระบบผู้ดูแลนี้ เว็บไซต์ที่ทำงานจริงจะไม่สามารถใช้คีย์นั้นได้เลย — นี่คือเหตุผลที่การบันทึกคีย์ไว้ที่นั่นไม่เปิดใช้งานแชทของผู้เยี่ยมชม",
     "See more about the visitor key": "ดูข้อมูลเพิ่มเติมเกี่ยวกับคีย์ของผู้เยี่ยมชม",
     "See more": "ดูเพิ่มเติม",
     "See less": "ดูน้อยลง",
@@ -1582,8 +1582,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "Disattivato. Il sito pubblico non include alcun codice dell'assistente e non espone alcun endpoint dell'assistente — si tratta di una disattivazione completa, non di un widget nascosto.",
     "This key is for your visitors, not for you. It is what lets people reading your published site ask questions and get answers. It is stored on the server and used for every visitor conversation.":
       "Questa chiave è per i tuoi visitatori, non per te. È ciò che consente alle persone che leggono il tuo sito pubblicato di fare domande e ottenere risposte. Viene archiviata sul server e utilizzata per ogni conversazione dei visitatori.",
-    "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
-      "È una chiave diversa da quella in Impostazioni → Modalità di esecuzione → BYOK. Quella è tua, viene salvata cifrata sul server, solo per il tuo account amministratore, e alimenta l'assistente in questa amministrazione. Un sito distribuito non può mai usarla — per questo salvare una chiave lì non attiva la chat dei visitatori.",
+    "It is a different key from the one under Settings → AI agent → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
+      "È una chiave diversa da quella in Impostazioni → Agente IA → BYOK. Quella è tua, viene salvata cifrata sul server, solo per il tuo account amministratore, e alimenta l'assistente in questa amministrazione. Un sito distribuito non può mai usarla — per questo salvare una chiave lì non attiva la chat dei visitatori.",
     "See more about the visitor key": "Scopri di più sulla chiave del visitatore",
     "See more": "Mostra di più",
     "See less": "Mostra meno",
@@ -1672,8 +1672,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "बंद। सार्वजनिक साइट में कोई सहायक कोड शामिल नहीं होता और न ही कोई सहायक एंडपॉइंट उजागर होता है — यह एक पूर्ण निष्क्रियकरण है, कोई छुपा हुआ विजेट नहीं।",
     "This key is for your visitors, not for you. It is what lets people reading your published site ask questions and get answers. It is stored on the server and used for every visitor conversation.":
       "यह कुंजी आपके विज़िटर के लिए है, आपके लिए नहीं। यह वही है जो आपकी प्रकाशित साइट पढ़ने वाले लोगों को सवाल पूछने और जवाब पाने देती है। यह सर्वर पर संग्रहीत होती है और हर विज़िटर बातचीत के लिए उपयोग की जाती है।",
-    "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
-      "यह सेटिंग्स → निष्पादन मोड → BYOK में मौजूद कुंजी से अलग कुंजी है। वह कुंजी आपकी अपनी है, सर्वर पर एन्क्रिप्ट करके, केवल आपके एडमिन खाते के लिए सहेजी जाती है, और इस एडमिन में सहायक को शक्ति देती है। डिप्लॉय की गई साइट इसे कभी उपयोग नहीं कर सकती — इसीलिए वहां कुंजी सहेजने से विज़िटर चैट चालू नहीं होता।",
+    "It is a different key from the one under Settings → AI agent → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
+      "यह सेटिंग्स → AI एजेंट → BYOK में मौजूद कुंजी से अलग कुंजी है। वह कुंजी आपकी अपनी है, सर्वर पर एन्क्रिप्ट करके, केवल आपके एडमिन खाते के लिए सहेजी जाती है, और इस एडमिन में सहायक को शक्ति देती है। डिप्लॉय की गई साइट इसे कभी उपयोग नहीं कर सकती — इसीलिए वहां कुंजी सहेजने से विज़िटर चैट चालू नहीं होता।",
     "See more about the visitor key": "विज़िटर कुंजी के बारे में अधिक जानें",
     "See more": "अधिक देखें",
     "See less": "कम देखें",
@@ -1762,8 +1762,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "بند۔ عوامی سائٹ میں اسسٹنٹ کا کوئی کوڈ شامل نہیں ہوتا اور نہ ہی کوئی اسسٹنٹ اینڈ پوائنٹ ظاہر ہوتا ہے — یہ مکمل غیرفعالیت ہے، کوئی چھپا ہوا ویجٹ نہیں۔",
     "This key is for your visitors, not for you. It is what lets people reading your published site ask questions and get answers. It is stored on the server and used for every visitor conversation.":
       "یہ کلید آپ کے وزیٹرز کے لیے ہے، آپ کے لیے نہیں۔ یہی وہ چیز ہے جو آپ کی شائع شدہ سائٹ پڑھنے والے لوگوں کو سوالات پوچھنے اور جوابات حاصل کرنے دیتی ہے۔ یہ سرور پر محفوظ ہوتی ہے اور ہر وزیٹر گفتگو کے لیے استعمال ہوتی ہے۔",
-    "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
-      "یہ ترتیبات → ایگزیکیوشن موڈ → BYOK کے تحت موجود کلید سے مختلف کلید ہے۔ وہ آپ کی اپنی ہے، سرور پر خفیہ شدہ شکل میں، صرف آپ کے ایڈمن اکاؤنٹ کے لیے محفوظ ہوتی ہے، اور اس ایڈمن میں اسسٹنٹ کو طاقت دیتی ہے۔ کوئی ڈیپلائے شدہ سائٹ اسے کبھی استعمال نہیں کر سکتی — اسی لیے وہاں کلید محفوظ کرنے سے وزیٹر چیٹ فعال نہیں ہوتی۔",
+    "It is a different key from the one under Settings → AI agent → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
+      "یہ ترتیبات → AI ایجنٹ → BYOK کے تحت موجود کلید سے مختلف کلید ہے۔ وہ آپ کی اپنی ہے، سرور پر خفیہ شدہ شکل میں، صرف آپ کے ایڈمن اکاؤنٹ کے لیے محفوظ ہوتی ہے، اور اس ایڈمن میں اسسٹنٹ کو طاقت دیتی ہے۔ کوئی ڈیپلائے شدہ سائٹ اسے کبھی استعمال نہیں کر سکتی — اسی لیے وہاں کلید محفوظ کرنے سے وزیٹر چیٹ فعال نہیں ہوتی۔",
     "See more about the visitor key": "وزیٹر کلید کے بارے میں مزید دیکھیں",
     "See more": "مزید دیکھیں",
     "See less": "کم دیکھیں",
@@ -1852,8 +1852,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "বন্ধ। পাবলিক সাইট কোনো সহকারী কোড পাঠায় না এবং কোনো সহকারী এন্ডপয়েন্ট প্রকাশ করে না — এটি সম্পূর্ণ নিষ্ক্রিয়করণ, কোনো লুকানো উইজেট নয়।",
     "This key is for your visitors, not for you. It is what lets people reading your published site ask questions and get answers. It is stored on the server and used for every visitor conversation.":
       "এই কী আপনার ভিজিটরদের জন্য, আপনার জন্য নয়। এটিই আপনার প্রকাশিত সাইট পড়া মানুষদের প্রশ্ন জিজ্ঞাসা করতে ও উত্তর পেতে দেয়। এটি সার্ভারে সংরক্ষিত থাকে এবং প্রতিটি ভিজিটর কথোপকথনে ব্যবহৃত হয়।",
-    "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
-      "সেটিংস → এক্সিকিউশন মোড → BYOK-এর অধীনে থাকা কী থেকে এটি ভিন্ন একটি কী। সেটি আপনার নিজের, সার্ভারে এনক্রিপ্ট করে, শুধু আপনার অ্যাডমিন অ্যাকাউন্টের জন্য সংরক্ষিত থাকে, এবং এই অ্যাডমিনের সহকারীকে চালায়। কোনো ডিপ্লয় করা সাইট কখনো এটি ব্যবহার করতে পারে না — তাই সেখানে কী সংরক্ষণ করলে ভিজিটর চ্যাট চালু হয় না।",
+    "It is a different key from the one under Settings → AI agent → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
+      "সেটিংস → AI এজেন্ট → BYOK-এর অধীনে থাকা কী থেকে এটি ভিন্ন একটি কী। সেটি আপনার নিজের, সার্ভারে এনক্রিপ্ট করে, শুধু আপনার অ্যাডমিন অ্যাকাউন্টের জন্য সংরক্ষিত থাকে, এবং এই অ্যাডমিনের সহকারীকে চালায়। কোনো ডিপ্লয় করা সাইট কখনো এটি ব্যবহার করতে পারে না — তাই সেখানে কী সংরক্ষণ করলে ভিজিটর চ্যাট চালু হয় না।",
     "See more about the visitor key": "ভিজিটর কী সম্পর্কে আরও দেখুন",
     "See more": "আরও দেখুন",
     "See less": "কম দেখুন",

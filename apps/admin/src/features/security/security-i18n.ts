@@ -56,7 +56,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Paste the access token this provider issued from its own dashboard.": "Pega el token de acceso que este proveedor emitió desde su propio panel.",
     "Manage on": "Administrar en", "Not configured": "No configurado",
     "Site assistant model key": "Clave de modelo del asistente del sitio", "Admin AI Assistant key (BYOK)": "Clave del asistente de IA de administración (BYOK)", "Media provider keys": "Claves de proveedores de medios",
-    "AI Assistant": "Asistente de IA", "Settings · Execution mode": "Configuración · Modo de ejecución", "Providers · Media": "Proveedores · Medios",
+    "AI Assistant": "Asistente de IA", "Settings · AI agent": "Configuración · Agente de IA", "Providers · Media": "Proveedores · Medios",
     "A key is created automatically when this site starts.": "La clave se crea automáticamente cuando este sitio se inicia.", "(optional)": "(opcional)",
     "Its plugin is off or missing. You can still remove saved tokens.": "Su plugin está desactivado o no existe. Aún puedes quitar los tokens guardados.",
 
@@ -95,7 +95,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Paste the access token this provider issued from its own dashboard.": "Fügen Sie das Zugriffstoken ein, das dieser Anbieter über sein eigenes Dashboard ausgestellt hat.",
     "Manage on": "Verwalten unter", "Not configured": "Nicht konfiguriert",
     "Site assistant model key": "Modellschlüssel des Website-Assistenten", "Admin AI Assistant key (BYOK)": "Admin-KI-Assistent-Schlüssel (BYOK)", "Media provider keys": "Medienanbieter-Schlüssel",
-    "AI Assistant": "KI-Assistent", "Settings · Execution mode": "Einstellungen · Ausführungsmodus", "Providers · Media": "Anbieter · Medien",
+    "AI Assistant": "KI-Assistent", "Settings · AI agent": "Einstellungen · KI-Agent", "Providers · Media": "Anbieter · Medien",
     "A key is created automatically when this site starts.": "Ein Schlüssel wird automatisch erstellt, wenn diese Website startet.", "(optional)": "(optional)",
     "Its plugin is off or missing. You can still remove saved tokens.": "Sein Plugin ist ausgeschaltet oder fehlt. Gespeicherte Token können Sie weiterhin entfernen.",
 
@@ -134,7 +134,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Paste the access token this provider issued from its own dashboard.": "Collez le jeton d'accès que ce fournisseur a émis depuis son propre tableau de bord.",
     "Manage on": "Gérer sur", "Not configured": "Non configuré",
     "Site assistant model key": "Clé de modèle de l'assistant du site", "Admin AI Assistant key (BYOK)": "Clé de l'assistant IA d'administration (BYOK)", "Media provider keys": "Clés des fournisseurs de médias",
-    "AI Assistant": "Assistant IA", "Settings · Execution mode": "Paramètres · Mode d'exécution", "Providers · Media": "Fournisseurs · Médias",
+    "AI Assistant": "Assistant IA", "Settings · AI agent": "Paramètres · Agent IA", "Providers · Media": "Fournisseurs · Médias",
     "A key is created automatically when this site starts.": "Une clé est créée automatiquement au démarrage de ce site.", "(optional)": "(facultatif)",
     "Its plugin is off or missing. You can still remove saved tokens.": "Son plugin est désactivé ou absent. Vous pouvez toujours supprimer les jetons enregistrés.",
 
@@ -173,7 +173,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Paste the access token this provider issued from its own dashboard.": "Incolla il token di accesso emesso da questo provider dalla sua dashboard.",
     "Manage on": "Gestisci su", "Not configured": "Non configurato",
     "Site assistant model key": "Chiave del modello dell'assistente del sito", "Admin AI Assistant key (BYOK)": "Chiave dell'assistente IA di amministrazione (BYOK)", "Media provider keys": "Chiavi dei provider multimediali",
-    "AI Assistant": "Assistente IA", "Settings · Execution mode": "Impostazioni · Modalità di esecuzione", "Providers · Media": "Provider · Media",
+    "AI Assistant": "Assistente IA", "Settings · AI agent": "Impostazioni · Agente IA", "Providers · Media": "Provider · Media",
     "A key is created automatically when this site starts.": "Una chiave viene creata automaticamente all'avvio di questo sito.", "(optional)": "(facoltativo)",
     "Its plugin is off or missing. You can still remove saved tokens.": "Il suo plugin è disattivato o mancante. Puoi comunque rimuovere i token salvati.",
 
@@ -212,7 +212,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Paste the access token this provider issued from its own dashboard.": "Cole o token de acesso que este provedor emitiu no próprio painel dele.",
     "Manage on": "Gerenciar em", "Not configured": "Não configurado",
     "Site assistant model key": "Chave de modelo do assistente do site", "Admin AI Assistant key (BYOK)": "Chave do assistente de IA de administração (BYOK)", "Media provider keys": "Chaves de provedores de mídia",
-    "AI Assistant": "Assistente de IA", "Settings · Execution mode": "Configurações · Modo de execução", "Providers · Media": "Provedores · Mídia",
+    "AI Assistant": "Assistente de IA", "Settings · AI agent": "Configurações · Agente de IA", "Providers · Media": "Provedores · Mídia",
     "A key is created automatically when this site starts.": "Uma chave é criada automaticamente quando este site é iniciado.", "(optional)": "(opcional)",
     "Its plugin is off or missing. You can still remove saved tokens.": "O plugin dele está desativado ou ausente. Você ainda pode remover os tokens salvos.",
 
@@ -251,7 +251,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Paste the access token this provider issued from its own dashboard.": "Wklej token dostępu wydany przez tego dostawcę z jego własnego panelu.",
     "Manage on": "Zarządzaj w", "Not configured": "Nie skonfigurowano",
     "Site assistant model key": "Klucz modelu asystenta witryny", "Admin AI Assistant key (BYOK)": "Klucz asystenta AI administratora (BYOK)", "Media provider keys": "Klucze dostawców mediów",
-    "AI Assistant": "Asystent AI", "Settings · Execution mode": "Ustawienia · Tryb wykonania", "Providers · Media": "Dostawcy · Media",
+    "AI Assistant": "Asystent AI", "Settings · AI agent": "Ustawienia · Agent AI", "Providers · Media": "Dostawcy · Media",
     "A key is created automatically when this site starts.": "Klucz jest tworzony automatycznie podczas uruchamiania tej witryny.", "(optional)": "(opcjonalnie)",
     "Its plugin is off or missing. You can still remove saved tokens.": "Jego wtyczka jest wyłączona lub jej brak. Nadal możesz usunąć zapisane tokeny.",
 
@@ -290,7 +290,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Paste the access token this provider issued from its own dashboard.": "Illessze be a hozzáférési tokent, amelyet ez a szolgáltató a saját irányítópultjáról adott ki.",
     "Manage on": "Kezelés itt:", "Not configured": "Nincs beállítva",
     "Site assistant model key": "Webhelyasszisztens modellkulcsa", "Admin AI Assistant key (BYOK)": "Admin AI-asszisztens kulcs (BYOK)", "Media provider keys": "Médiaszolgáltatói kulcsok",
-    "AI Assistant": "AI-asszisztens", "Settings · Execution mode": "Beállítások · Végrehajtási mód", "Providers · Media": "Szolgáltatók · Média",
+    "AI Assistant": "AI-asszisztens", "Settings · AI agent": "Beállítások · AI-ügynök", "Providers · Media": "Szolgáltatók · Média",
     "A key is created automatically when this site starts.": "A kulcs automatikusan létrejön, amikor ez a webhely elindul.", "(optional)": "(nem kötelező)",
     "Its plugin is off or missing. You can still remove saved tokens.": "A bővítménye ki van kapcsolva vagy hiányzik. A mentett tokeneket továbbra is eltávolíthatja.",
 
@@ -365,7 +365,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
 
 
     "AI Assistant": "AI Asistanı",
-    "Settings · Execution mode": "Ayarlar · Yürütme modu",
+    "Settings · AI agent": "Ayarlar · Yapay zekâ ajanı",
     "Providers · Media": "Sağlayıcılar · Medya",
 
     "A key is created automatically when this site starts.": "Bu site başladığında bir anahtar otomatik olarak oluşturulur.", "(optional)": "(isteğe bağlı)",
@@ -442,7 +442,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
 
 
     "AI Assistant": "AI-ассистент",
-    "Settings · Execution mode": "Настройки · Режим выполнения",
+    "Settings · AI agent": "Настройки · ИИ-агент",
     "Providers · Media": "Провайдеры · Медиа",
 
     "A key is created automatically when this site starts.": "Ключ создаётся автоматически при запуске этого сайта.", "(optional)": "(необязательно)",
@@ -519,7 +519,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
 
 
     "AI Assistant": "AI-асистент",
-    "Settings · Execution mode": "Налаштування · Режим виконання",
+    "Settings · AI agent": "Налаштування · ШІ-агент",
     "Providers · Media": "Провайдери · Медіа",
 
     "A key is created automatically when this site starts.": "Ключ створюється автоматично під час запуску цього сайту.", "(optional)": "(необов’язково)",
@@ -596,7 +596,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
 
 
     "AI Assistant": "Asisten AI",
-    "Settings · Execution mode": "Pengaturan · Mode eksekusi",
+    "Settings · AI agent": "Pengaturan · Agen AI",
     "Providers · Media": "Penyedia · Media",
 
     "A key is created automatically when this site starts.": "Kunci dibuat secara otomatis saat situs ini dimulai.", "(optional)": "(opsional)",
@@ -673,7 +673,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
 
 
     "AI Assistant": "مساعد الذكاء الاصطناعي",
-    "Settings · Execution mode": "الإعدادات · وضع التنفيذ",
+    "Settings · AI agent": "الإعدادات · وكيل الذكاء الاصطناعي",
     "Providers · Media": "المزوّدون · الوسائط",
 
     "A key is created automatically when this site starts.": "يتم إنشاء مفتاح تلقائيًا عند بدء تشغيل هذا الموقع.", "(optional)": "(اختياري)",
@@ -750,7 +750,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
 
 
     "AI Assistant": "دستیار هوش مصنوعی",
-    "Settings · Execution mode": "تنظیمات · حالت اجرا",
+    "Settings · AI agent": "تنظیمات · عامل هوش مصنوعی",
     "Providers · Media": "ارائه‌دهندگان · رسانه",
 
     "A key is created automatically when this site starts.": "کلید هنگام شروع این سایت به‌طور خودکار ایجاد می‌شود.", "(optional)": "(اختیاری)",
@@ -827,7 +827,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
 
 
     "AI Assistant": "AI असिस्टेंट",
-    "Settings · Execution mode": "सेटिंग्स · निष्पादन मोड",
+    "Settings · AI agent": "सेटिंग्स · AI एजेंट",
     "Providers · Media": "प्रदाता · मीडिया",
 
     "A key is created automatically when this site starts.": "यह साइट शुरू होने पर कुंजी स्वचालित रूप से बन जाती है।", "(optional)": "(वैकल्पिक)",
@@ -904,7 +904,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
 
 
     "AI Assistant": "AI অ্যাসিস্ট্যান্ট",
-    "Settings · Execution mode": "সেটিংস · এক্সিকিউশন মোড",
+    "Settings · AI agent": "সেটিংস · AI এজেন্ট",
     "Providers · Media": "প্রদানকারী · মিডিয়া",
 
     "A key is created automatically when this site starts.": "এই সাইট শুরু হলে একটি কী স্বয়ংক্রিয়ভাবে তৈরি হয়।", "(optional)": "(ঐচ্ছিক)",
@@ -981,7 +981,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
 
 
     "AI Assistant": "AI اسسٹنٹ",
-    "Settings · Execution mode": "ترتیبات · عملدرآمد موڈ",
+    "Settings · AI agent": "ترتیبات · AI ایجنٹ",
     "Providers · Media": "فراہم کنندگان · میڈیا",
 
     "A key is created automatically when this site starts.": "جب یہ سائٹ شروع ہوتی ہے تو ایک کی خودکار طور پر بن جاتی ہے۔", "(optional)": "(اختیاری)",
@@ -1058,7 +1058,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
 
 
     "AI Assistant": "AIアシスタント",
-    "Settings · Execution mode": "設定 · 実行モード",
+    "Settings · AI agent": "設定 · AI エージェント",
     "Providers · Media": "プロバイダー · メディア",
 
     "A key is created automatically when this site starts.": "このサイトが起動すると、キーが自動的に作成されます。", "(optional)": "（任意）",
@@ -1135,7 +1135,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
 
 
     "AI Assistant": "AI 어시스턴트",
-    "Settings · Execution mode": "설정 · 실행 모드",
+    "Settings · AI agent": "설정 · AI 에이전트",
     "Providers · Media": "공급자 · 미디어",
 
     "A key is created automatically when this site starts.": "이 사이트가 시작되면 키가 자동으로 생성됩니다.", "(optional)": "(선택 사항)",
@@ -1212,7 +1212,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
 
 
     "AI Assistant": "ผู้ช่วย AI",
-    "Settings · Execution mode": "การตั้งค่า · โหมดการทำงาน",
+    "Settings · AI agent": "การตั้งค่า · เอเจนต์ AI",
     "Providers · Media": "ผู้ให้บริการ · สื่อ",
 
     "A key is created automatically when this site starts.": "คีย์จะถูกสร้างขึ้นโดยอัตโนมัติเมื่อไซต์นี้เริ่มทำงาน", "(optional)": "(ไม่บังคับ)",
@@ -1289,7 +1289,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
 
 
     "AI Assistant": "AI 助手",
-    "Settings · Execution mode": "设置 · 执行模式",
+    "Settings · AI agent": "设置 · AI 智能体",
     "Providers · Media": "提供商 · 媒体",
 
     "A key is created automatically when this site starts.": "此站点启动时会自动创建密钥。", "(optional)": "（可选）",
@@ -1366,7 +1366,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
 
 
     "AI Assistant": "AI 助理",
-    "Settings · Execution mode": "設定 · 執行模式",
+    "Settings · AI agent": "設定 · AI 代理",
     "Providers · Media": "供應商 · 媒體",
 
     "A key is created automatically when this site starts.": "此網站啟動時會自動建立金鑰。", "(optional)": "（選填）",

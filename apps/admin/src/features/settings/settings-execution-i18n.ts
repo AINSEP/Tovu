@@ -1,5 +1,5 @@
 /**
- * @file The Settings screen's own copy for its Execution mode tab: what the admin's stored BYOK key
+ * @file The Settings screen's own copy for its AI agent tab: what the admin's stored BYOK key
  * cannot do at the form's endpoint, plus the rest of the tab's own copy — `AdminByokKeyFooter`'s
  * "Saved to the server…" / "Stored on the server…" status lines, `AdminByokSettingsFooter`'s
  * "Settings saved." confirmation, and the Local CLI scope label.
@@ -17,9 +17,13 @@
  */
 
 import { createDictionaryTranslator } from "../../lib/dictionary-translator";
+import { ADMIN_LOCALES } from "../../lib/settings-tabs";
 
 const SETTINGS_EXECUTION_DICT: Record<string, Record<string, string>> = {
   es: {
+    "AI agent": "Agente de IA",
+    "Detected on this computer.": "Detectado en este ordenador.",
+    "Authentication required. Sign in before sending.": "Se requiere autenticación. Inicia sesión antes de enviar.",
     "No API key saved on the server. Save one first.": "No hay ninguna clave de API guardada en el servidor. Guarda una primero.",
     "Your saved key is for a different provider. Paste a key for this one.": "Tu clave guardada es de otro proveedor. Pega una clave para este.",
     "Your saved key has no provider saved with it. Paste the key again to test it.": "Tu clave guardada no tiene un proveedor guardado. Pega la clave de nuevo para probarla.",
@@ -30,6 +34,9 @@ const SETTINGS_EXECUTION_DICT: Record<string, Record<string, string>> = {
     "Detected on the Tovu server, not on your own computer.": "Detectado en el servidor de Tovu, no en tu propio equipo.",
   },
   id: {
+    "AI agent": "Agen AI",
+    "Detected on this computer.": "Terdeteksi di komputer ini.",
+    "Authentication required. Sign in before sending.": "Autentikasi diperlukan. Masuk sebelum mengirim.",
     "No API key saved on the server. Save one first.": "Tidak ada kunci API yang tersimpan di server. Simpan satu terlebih dahulu.",
     "Your saved key is for a different provider. Paste a key for this one.": "Kunci tersimpan Anda untuk penyedia lain. Tempel kunci untuk penyedia ini.",
     "Your saved key has no provider saved with it. Paste the key again to test it.": "Kunci tersimpan Anda tidak memiliki penyedia yang tersimpan. Tempel kunci lagi untuk mengujinya.",
@@ -40,6 +47,9 @@ const SETTINGS_EXECUTION_DICT: Record<string, Record<string, string>> = {
     "Detected on the Tovu server, not on your own computer.": "Terdeteksi di server Tovu, bukan di komputer Anda sendiri.",
   },
   de: {
+    "AI agent": "KI-Agent",
+    "Detected on this computer.": "Auf diesem Computer erkannt.",
+    "Authentication required. Sign in before sending.": "Authentifizierung erforderlich. Melden Sie sich vor dem Senden an.",
     "No API key saved on the server. Save one first.": "Kein API-Schlüssel auf dem Server gespeichert. Speichern Sie zuerst einen.",
     "Your saved key is for a different provider. Paste a key for this one.": "Ihr gespeicherter Schlüssel gehört zu einem anderen Anbieter. Fügen Sie einen Schlüssel für diesen ein.",
     "Your saved key has no provider saved with it. Paste the key again to test it.": "Für Ihren gespeicherten Schlüssel ist kein Anbieter gespeichert. Fügen Sie den Schlüssel erneut ein, um ihn zu testen.",
@@ -50,6 +60,9 @@ const SETTINGS_EXECUTION_DICT: Record<string, Record<string, string>> = {
     "Detected on the Tovu server, not on your own computer.": "Auf dem Tovu-Server erkannt, nicht auf Ihrem eigenen Computer.",
   },
   "zh-CN": {
+    "AI agent": "AI 智能体",
+    "Detected on this computer.": "在这台计算机上检测到。",
+    "Authentication required. Sign in before sending.": "需要身份验证。请先登录再发送。",
     "No API key saved on the server. Save one first.": "服务器上没有保存 API 密钥。请先保存一个。",
     "Your saved key is for a different provider. Paste a key for this one.": "已保存的密钥属于其他提供商。请粘贴此提供商的密钥。",
     "Your saved key has no provider saved with it. Paste the key again to test it.": "已保存的密钥未关联提供商。请重新粘贴密钥以进行测试。",
@@ -60,6 +73,9 @@ const SETTINGS_EXECUTION_DICT: Record<string, Record<string, string>> = {
     "Detected on the Tovu server, not on your own computer.": "在 Tovu 服务器上检测到，而非您自己的计算机。",
   },
   "zh-TW": {
+    "AI agent": "AI 代理",
+    "Detected on this computer.": "在這台電腦上偵測到。",
+    "Authentication required. Sign in before sending.": "需要驗證身分。請先登入再傳送。",
     "No API key saved on the server. Save one first.": "伺服器上沒有儲存 API 金鑰。請先儲存一個。",
     "Your saved key is for a different provider. Paste a key for this one.": "已儲存的金鑰屬於其他供應商。請貼上此供應商的金鑰。",
     "Your saved key has no provider saved with it. Paste the key again to test it.": "已儲存的金鑰未關聯供應商。請重新貼上金鑰以進行測試。",
@@ -70,6 +86,9 @@ const SETTINGS_EXECUTION_DICT: Record<string, Record<string, string>> = {
     "Detected on the Tovu server, not on your own computer.": "在 Tovu 伺服器上偵測到，而非您自己的電腦。",
   },
   "pt-BR": {
+    "AI agent": "Agente de IA",
+    "Detected on this computer.": "Detectado neste computador.",
+    "Authentication required. Sign in before sending.": "Autenticação necessária. Entre antes de enviar.",
     "No API key saved on the server. Save one first.": "Nenhuma chave de API salva no servidor. Salve uma primeiro.",
     "Your saved key is for a different provider. Paste a key for this one.": "Sua chave salva é de outro provedor. Cole uma chave para este.",
     "Your saved key has no provider saved with it. Paste the key again to test it.": "Sua chave salva não tem um provedor salvo. Cole a chave novamente para testá-la.",
@@ -80,6 +99,9 @@ const SETTINGS_EXECUTION_DICT: Record<string, Record<string, string>> = {
     "Detected on the Tovu server, not on your own computer.": "Detectado no servidor da Tovu, não no seu próprio computador.",
   },
   ru: {
+    "AI agent": "ИИ-агент",
+    "Detected on this computer.": "Обнаружено на этом компьютере.",
+    "Authentication required. Sign in before sending.": "Требуется авторизация. Войдите перед отправкой.",
     "No API key saved on the server. Save one first.": "На сервере не сохранён API-ключ. Сначала сохраните ключ.",
     "Your saved key is for a different provider. Paste a key for this one.": "Сохранённый ключ относится к другому провайдеру. Вставьте ключ для этого.",
     "Your saved key has no provider saved with it. Paste the key again to test it.": "Для сохранённого ключа не сохранён провайдер. Вставьте ключ снова, чтобы проверить его.",
@@ -90,6 +112,9 @@ const SETTINGS_EXECUTION_DICT: Record<string, Record<string, string>> = {
     "Detected on the Tovu server, not on your own computer.": "Обнаружено на сервере Tovu, а не на вашем компьютере.",
   },
   fa: {
+    "AI agent": "عامل هوش مصنوعی",
+    "Detected on this computer.": "روی این رایانه شناسایی شد.",
+    "Authentication required. Sign in before sending.": "احراز هویت لازم است. پیش از ارسال وارد شوید.",
     "No API key saved on the server. Save one first.": "هیچ کلید API روی سرور ذخیره نشده است. ابتدا یک کلید ذخیره کنید.",
     "Your saved key is for a different provider. Paste a key for this one.": "کلید ذخیره‌شده شما برای ارائه‌دهنده دیگری است. کلیدی برای این ارائه‌دهنده جای‌گذاری کنید.",
     "Your saved key has no provider saved with it. Paste the key again to test it.": "برای کلید ذخیره‌شده شما ارائه‌دهنده‌ای ذخیره نشده است. برای آزمایش، کلید را دوباره جای‌گذاری کنید.",
@@ -100,6 +125,9 @@ const SETTINGS_EXECUTION_DICT: Record<string, Record<string, string>> = {
     "Detected on the Tovu server, not on your own computer.": "روی سرور Tovu شناسایی شد، نه روی رایانه‌ی خودتان.",
   },
   ar: {
+    "AI agent": "وكيل الذكاء الاصطناعي",
+    "Detected on this computer.": "اكتُشف على هذا الكمبيوتر.",
+    "Authentication required. Sign in before sending.": "المصادقة مطلوبة. سجّل الدخول قبل الإرسال.",
     "No API key saved on the server. Save one first.": "لا يوجد مفتاح API محفوظ على الخادم. احفظ مفتاحًا أولًا.",
     "Your saved key is for a different provider. Paste a key for this one.": "مفتاحك المحفوظ يخص مزوّدًا آخر. الصق مفتاحًا لهذا المزوّد.",
     "Your saved key has no provider saved with it. Paste the key again to test it.": "لا يوجد مزوّد محفوظ مع مفتاحك المحفوظ. الصق المفتاح مرة أخرى لاختباره.",
@@ -110,6 +138,9 @@ const SETTINGS_EXECUTION_DICT: Record<string, Record<string, string>> = {
     "Detected on the Tovu server, not on your own computer.": "اكتُشف على خادم Tovu، وليس على جهاز الكمبيوتر الخاص بك.",
   },
   ja: {
+    "AI agent": "AI エージェント",
+    "Detected on this computer.": "このコンピューターで検出されました。",
+    "Authentication required. Sign in before sending.": "認証が必要です。送信する前にログインしてください。",
     "No API key saved on the server. Save one first.": "サーバーに API キーが保存されていません。先にキーを保存してください。",
     "Your saved key is for a different provider. Paste a key for this one.": "保存されているキーは別のプロバイダー用です。このプロバイダーのキーを貼り付けてください。",
     "Your saved key has no provider saved with it. Paste the key again to test it.": "保存されているキーにはプロバイダーが保存されていません。テストするにはキーをもう一度貼り付けてください。",
@@ -120,6 +151,9 @@ const SETTINGS_EXECUTION_DICT: Record<string, Record<string, string>> = {
     "Detected on the Tovu server, not on your own computer.": "自分のコンピューターではなく、Tovuサーバー上で検出されました。",
   },
   ko: {
+    "AI agent": "AI 에이전트",
+    "Detected on this computer.": "이 컴퓨터에서 감지되었습니다.",
+    "Authentication required. Sign in before sending.": "인증이 필요합니다. 보내기 전에 로그인하세요.",
     "No API key saved on the server. Save one first.": "서버에 저장된 API 키가 없습니다. 먼저 키를 저장하세요.",
     "Your saved key is for a different provider. Paste a key for this one.": "저장된 키는 다른 공급자용입니다. 이 공급자의 키를 붙여넣으세요.",
     "Your saved key has no provider saved with it. Paste the key again to test it.": "저장된 키에 공급자가 저장되어 있지 않습니다. 테스트하려면 키를 다시 붙여넣으세요.",
@@ -130,6 +164,9 @@ const SETTINGS_EXECUTION_DICT: Record<string, Record<string, string>> = {
     "Detected on the Tovu server, not on your own computer.": "사용자님의 컴퓨터가 아니라 Tovu 서버에서 감지되었습니다.",
   },
   pl: {
+    "AI agent": "Agent AI",
+    "Detected on this computer.": "Wykryto na tym komputerze.",
+    "Authentication required. Sign in before sending.": "Wymagane uwierzytelnienie. Zaloguj się przed wysłaniem.",
     "No API key saved on the server. Save one first.": "Na serwerze nie zapisano klucza API. Najpierw zapisz klucz.",
     "Your saved key is for a different provider. Paste a key for this one.": "Zapisany klucz należy do innego dostawcy. Wklej klucz dla tego dostawcy.",
     "Your saved key has no provider saved with it. Paste the key again to test it.": "Zapisany klucz nie ma zapisanego dostawcy. Wklej klucz ponownie, aby go przetestować.",
@@ -140,6 +177,9 @@ const SETTINGS_EXECUTION_DICT: Record<string, Record<string, string>> = {
     "Detected on the Tovu server, not on your own computer.": "Wykryto na serwerze Tovu, a nie na Twoim komputerze.",
   },
   hu: {
+    "AI agent": "AI-ügynök",
+    "Detected on this computer.": "Ezen a számítógépen észlelve.",
+    "Authentication required. Sign in before sending.": "Hitelesítés szükséges. Küldés előtt jelentkezzen be.",
     "No API key saved on the server. Save one first.": "Nincs API-kulcs mentve a szerveren. Először mentsen egyet.",
     "Your saved key is for a different provider. Paste a key for this one.": "A mentett kulcs egy másik szolgáltatóhoz tartozik. Illesszen be egy kulcsot ehhez.",
     "Your saved key has no provider saved with it. Paste the key again to test it.": "A mentett kulcshoz nincs szolgáltató mentve. A teszteléshez illessze be újra a kulcsot.",
@@ -150,6 +190,9 @@ const SETTINGS_EXECUTION_DICT: Record<string, Record<string, string>> = {
     "Detected on the Tovu server, not on your own computer.": "A Tovu szerveren észlelve, nem a saját számítógépén.",
   },
   fr: {
+    "AI agent": "Agent IA",
+    "Detected on this computer.": "Détecté sur cet ordinateur.",
+    "Authentication required. Sign in before sending.": "Authentification requise. Connectez-vous avant d’envoyer.",
     "No API key saved on the server. Save one first.": "Aucune clé API enregistrée sur le serveur. Enregistrez-en une d'abord.",
     "Your saved key is for a different provider. Paste a key for this one.": "Votre clé enregistrée est celle d'un autre fournisseur. Collez une clé pour celui-ci.",
     "Your saved key has no provider saved with it. Paste the key again to test it.": "Aucun fournisseur n'est enregistré avec votre clé. Collez à nouveau la clé pour la tester.",
@@ -160,6 +203,9 @@ const SETTINGS_EXECUTION_DICT: Record<string, Record<string, string>> = {
     "Detected on the Tovu server, not on your own computer.": "Détecté sur le serveur Tovu, pas sur votre propre ordinateur.",
   },
   uk: {
+    "AI agent": "ШІ-агент",
+    "Detected on this computer.": "Виявлено на цьому комп’ютері.",
+    "Authentication required. Sign in before sending.": "Потрібна автентифікація. Увійдіть перед надсиланням.",
     "No API key saved on the server. Save one first.": "На сервері не збережено API-ключ. Спочатку збережіть ключ.",
     "Your saved key is for a different provider. Paste a key for this one.": "Збережений ключ належить іншому постачальнику. Вставте ключ для цього.",
     "Your saved key has no provider saved with it. Paste the key again to test it.": "Для збереженого ключа не збережено постачальника. Вставте ключ ще раз, щоб перевірити його.",
@@ -170,6 +216,9 @@ const SETTINGS_EXECUTION_DICT: Record<string, Record<string, string>> = {
     "Detected on the Tovu server, not on your own computer.": "Виявлено на сервері Tovu, а не на вашому комп'ютері.",
   },
   tr: {
+    "AI agent": "Yapay zekâ ajanı",
+    "Detected on this computer.": "Bu bilgisayarda algılandı.",
+    "Authentication required. Sign in before sending.": "Kimlik doğrulaması gerekiyor. Göndermeden önce oturum açın.",
     "No API key saved on the server. Save one first.": "Sunucuda kayıtlı API anahtarı yok. Önce bir anahtar kaydedin.",
     "Your saved key is for a different provider. Paste a key for this one.": "Kayıtlı anahtarınız başka bir sağlayıcıya ait. Bu sağlayıcı için bir anahtar yapıştırın.",
     "Your saved key has no provider saved with it. Paste the key again to test it.": "Kayıtlı anahtarınızla birlikte kaydedilmiş bir sağlayıcı yok. Test etmek için anahtarı yeniden yapıştırın.",
@@ -180,6 +229,9 @@ const SETTINGS_EXECUTION_DICT: Record<string, Record<string, string>> = {
     "Detected on the Tovu server, not on your own computer.": "Kendi bilgisayarınızda değil, Tovu sunucusunda algılandı.",
   },
   th: {
+    "AI agent": "เอเจนต์ AI",
+    "Detected on this computer.": "ตรวจพบบนคอมพิวเตอร์เครื่องนี้",
+    "Authentication required. Sign in before sending.": "ต้องยืนยันตัวตน โปรดเข้าสู่ระบบก่อนส่ง",
     "No API key saved on the server. Save one first.": "ไม่มีคีย์ API ที่บันทึกไว้บนเซิร์ฟเวอร์ โปรดบันทึกคีย์ก่อน",
     "Your saved key is for a different provider. Paste a key for this one.": "คีย์ที่บันทึกไว้เป็นของผู้ให้บริการรายอื่น วางคีย์สำหรับผู้ให้บริการนี้",
     "Your saved key has no provider saved with it. Paste the key again to test it.": "คีย์ที่บันทึกไว้ไม่มีผู้ให้บริการที่บันทึกไว้ วางคีย์อีกครั้งเพื่อทดสอบ",
@@ -190,6 +242,9 @@ const SETTINGS_EXECUTION_DICT: Record<string, Record<string, string>> = {
     "Detected on the Tovu server, not on your own computer.": "ตรวจพบบนเซิร์ฟเวอร์ Tovu ไม่ใช่บนคอมพิวเตอร์ของคุณเอง",
   },
   it: {
+    "AI agent": "Agente IA",
+    "Detected on this computer.": "Rilevato su questo computer.",
+    "Authentication required. Sign in before sending.": "Autenticazione richiesta. Accedi prima di inviare.",
     "No API key saved on the server. Save one first.": "Nessuna chiave API salvata sul server. Salvane prima una.",
     "Your saved key is for a different provider. Paste a key for this one.": "La chiave salvata è di un altro provider. Incolla una chiave per questo.",
     "Your saved key has no provider saved with it. Paste the key again to test it.": "Alla chiave salvata non è associato alcun provider. Incolla di nuovo la chiave per testarla.",
@@ -200,6 +255,9 @@ const SETTINGS_EXECUTION_DICT: Record<string, Record<string, string>> = {
     "Detected on the Tovu server, not on your own computer.": "Rilevato sul server Tovu, non sul tuo computer.",
   },
   hi: {
+    "AI agent": "AI एजेंट",
+    "Detected on this computer.": "इस कंप्यूटर पर पता लगाया गया।",
+    "Authentication required. Sign in before sending.": "प्रमाणीकरण आवश्यक है। भेजने से पहले साइन इन करें।",
     "No API key saved on the server. Save one first.": "सर्वर पर कोई API कुंजी सहेजी नहीं गई है। पहले एक कुंजी सहेजें।",
     "Your saved key is for a different provider. Paste a key for this one.": "आपकी सहेजी गई कुंजी किसी दूसरे प्रदाता की है। इस प्रदाता के लिए कुंजी पेस्ट करें।",
     "Your saved key has no provider saved with it. Paste the key again to test it.": "आपकी सहेजी गई कुंजी के साथ कोई प्रदाता सहेजा नहीं गया है। जाँचने के लिए कुंजी फिर से पेस्ट करें।",
@@ -210,6 +268,9 @@ const SETTINGS_EXECUTION_DICT: Record<string, Record<string, string>> = {
     "Detected on the Tovu server, not on your own computer.": "Tovu सर्वर पर पहचाना गया, आपके अपने कंप्यूटर पर नहीं।",
   },
   ur: {
+    "AI agent": "AI ایجنٹ",
+    "Detected on this computer.": "اس کمپیوٹر پر دریافت ہوا۔",
+    "Authentication required. Sign in before sending.": "توثیق درکار ہے۔ بھیجنے سے پہلے سائن ان کریں۔",
     "No API key saved on the server. Save one first.": "سرور پر کوئی API کلید محفوظ نہیں ہے۔ پہلے ایک کلید محفوظ کریں۔",
     "Your saved key is for a different provider. Paste a key for this one.": "آپ کی محفوظ کلید کسی دوسرے فراہم کنندہ کی ہے۔ اس فراہم کنندہ کے لیے کلید پیسٹ کریں۔",
     "Your saved key has no provider saved with it. Paste the key again to test it.": "آپ کی محفوظ کلید کے ساتھ کوئی فراہم کنندہ محفوظ نہیں ہے۔ جانچنے کے لیے کلید دوبارہ پیسٹ کریں۔",
@@ -220,6 +281,9 @@ const SETTINGS_EXECUTION_DICT: Record<string, Record<string, string>> = {
     "Detected on the Tovu server, not on your own computer.": "Tovu سرور پر شناخت ہوئی، آپ کے اپنے کمپیوٹر پر نہیں۔",
   },
   bn: {
+    "AI agent": "AI এজেন্ট",
+    "Detected on this computer.": "এই কম্পিউটারে শনাক্ত হয়েছে।",
+    "Authentication required. Sign in before sending.": "প্রমাণীকরণ প্রয়োজন। পাঠানোর আগে সাইন ইন করুন।",
     "No API key saved on the server. Save one first.": "সার্ভারে কোনো API কী সংরক্ষিত নেই। আগে একটি কী সংরক্ষণ করুন।",
     "Your saved key is for a different provider. Paste a key for this one.": "আপনার সংরক্ষিত কী অন্য একটি প্রদানকারীর। এই প্রদানকারীর জন্য একটি কী পেস্ট করুন।",
     "Your saved key has no provider saved with it. Paste the key again to test it.": "আপনার সংরক্ষিত কী-এর সঙ্গে কোনো প্রদানকারী সংরক্ষিত নেই। পরীক্ষা করতে কী আবার পেস্ট করুন।",
@@ -232,3 +296,17 @@ const SETTINGS_EXECUTION_DICT: Record<string, Record<string, string>> = {
 };
 
 export const t = createDictionaryTranslator(SETTINGS_EXECUTION_DICT);
+
+/** Keep the package's internal translation key stable while changing all rendered labels/ARIA.
+ * Host dictionary overlays are the published extension point; installed packages stay untouched. */
+export function aiAgentPanelDictionaries(
+  { dictionaries }: { dictionaries: Partial<Record<string, Readonly<Record<string, string>>>> }, _optional = {},
+): Partial<Record<string, Record<string, string>>> {
+  const result: Partial<Record<string, Record<string, string>>> = { ...dictionaries };
+  // Through the translator, never an inline dictionary index (dictionary-lookup-sinks guard).
+  for (const { code: locale } of ADMIN_LOCALES) {
+    const label = t(locale, 'AI agent');
+    result[locale] = { ...dictionaries[locale], 'Execution mode': label, 'AI agent': label };
+  }
+  return result;
+}

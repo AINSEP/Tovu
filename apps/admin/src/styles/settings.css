@@ -249,3 +249,8 @@
   box-shadow: 0 0 0 2px var(--jini-bg-panel), 0 0 0 4px var(--selected-ring);
 }
 :root .filter-pill.active { border-color: var(--selected-ring); }
+
+/* Keep the separator with the description when cards wrap. A separate divider can be stranded
+   after the name (DeepSeek Reasonix); an empty tagline must not create punctuation at all. */
+.settings-page .jini-agent-card-name-divider { display: none; }
+.settings-page .jini-agent-card-tagline:not(:empty)::before { content: '·\00a0'; }

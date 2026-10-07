@@ -8,7 +8,7 @@ import { useEffect } from "react";
  * was that both stay available. `settings-raw/` was later deleted once `/settings` was judged to
  * cover the same rows on its own; this file no longer has a raw-ledger sibling.
  *
- * 10 tabs mounted: Execution mode, Instructions, Notifications, Privacy,
+ * 10 tabs mounted: AI agent, Instructions, Notifications, Privacy,
  * Dialog appearance, Language, User Interface, Memory, Workspace, About. The shell is
  * generic over its tab array, so adding more is appending entries to `tabs`
  * below — not restructuring this file. Each ledger-backed tab owns one
@@ -136,7 +136,8 @@ import { AdminByokKeyFooter, AdminByokMigrationPrompt, AdminByokSettingsFooter }
 import { TOVU_ADMIN_VERSION } from "../../lib/app-version";
 import { createProbeErrorDescriber } from "../../lib/stored-credential-endpoint";
 import { t as tCapability } from "./settings-capabilities-i18n";
-import { t as tSettingsExecution } from "./settings-execution-i18n";
+import { t as tSettingsExecution, aiAgentPanelDictionaries } from "./settings-execution-i18n";
+import { useAiAgentPresentation } from "./hooks/use-ai-agent-presentation.hooks";
 import { t as tSettings } from "./settings-i18n";
 import { t as tInterfaceCopy } from "./settings-interface-i18n";
 import { UserInterfaceSettingsPanel } from "./UserInterfaceSettingsPanel";
@@ -325,6 +326,10 @@ export function SettingsUi(props: SettingsUiProps) {
    *  either settings-dialog dictionary behind `t` carries. See `settings-execution-i18n.ts`'s header. */
   const tExecution = (key: string): string => tSettingsExecution(settingsLocale, key);
 
+  const agentPresentation = useAiAgentPresentation({
+    port: s.port, config: s.execution.value as ExecutionConfig | null, locale: settingsLocale,
+  });
+
   // Called unconditionally, ahead of the loading gate below (rules of hooks) — `resolveByokConfig`
   // falls back to `DEFAULT_EXECUTION_CONFIG.byok` while `s.execution.value` is still `null`, which
   // is harmless: the credential hook's own effects don't read `byok` until an explicit Save/migrate
@@ -348,8 +353,8 @@ export function SettingsUi(props: SettingsUiProps) {
   const tabs: SettingsDialogTab[] = [
     {
       id: "execution",
-      label: t("Execution mode"),
-      title: t("Execution mode"),
+      label: tExecution("AI agent"),
+      title: tExecution("AI agent"),
       subtitle: t("Choose Local CLI or BYOK."),
       icon: (
         <TabIcon>
@@ -362,15 +367,14 @@ export function SettingsUi(props: SettingsUiProps) {
       panel: (
         <>
           <AdminByokMigrationPrompt controller={adminCredential} />
+          {agentPresentation.warning && <p className="jini-field-hint is-error" role="status" aria-live="polite">{agentPresentation.warning}</p>}
           <ExecutionTab
             config={s.execution.value as ExecutionConfig}
             onConfigChange={s.execution.onChange}
-            port={s.port}
-            // Detection runs wherever the Tovu SERVER runs, not on the browser's
-            // machine. For a deployed CMS those are different computers, so the
-            // component's own default ("on this machine") would be a false claim
-            // about whose CLIs these are.
-            localCliScopeLabel={tExecution("Detected on the Tovu server, not on your own computer.")}
+            port={agentPresentation.port}
+            // Bridge presence identifies the desktop host; a deployed server runs elsewhere.
+            localCliScopeLabel={tExecution(agentPresentation.scopeCopy)}
+            ariaLabel={tExecution("AI agent")}
             // The admin's own BYOK credential is encrypted server-side and write-only
             // (2026-08-05) — these four keep the shared `ByokProviderForm` honest about
             // that: an empty key field is not a missing value when one is already stored,
@@ -388,7 +392,7 @@ export function SettingsUi(props: SettingsUiProps) {
             describeProbeError={createProbeErrorDescriber(tExecution)}
             apiKeyFooter={<AdminByokKeyFooter controller={adminCredential} t={tExecution} />}
             formFooter={<AdminByokSettingsFooter controller={adminCredential} t={tExecution} />}
-            agentHandle="settings-execution"
+            agentHandle="settings-ai-agent"
           />
         </>
       ),
@@ -801,7 +805,7 @@ export function SettingsUi(props: SettingsUiProps) {
      */
     <I18nProvider
       initialLocale={s.language.value as string}
-      dictionaries={SETTINGS_DIALOG_DICTIONARIES}
+      dictionaries={aiAgentPanelDictionaries({ dictionaries: SETTINGS_DIALOG_DICTIONARIES })}
       fallbackLocale="en"
       syncDocumentAttributes={false}
     >
