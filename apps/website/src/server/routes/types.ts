@@ -390,6 +390,8 @@ export interface CredentialsDeps {
    * table, usable as soon as migrations run.
    */
   externalMcpServerRepo: ExternalMcpServerRepoPort;
+  /** Runtime-owned connections declared by the desktop host, independent of labels. */
+  builtInExternalMcpServerIds?: readonly string[];
   /**
    * G3 "Always allow" approvals for external tools (`external_mcp_tool_approvals`, migration 0077):
    * one row per site + connection + remote tool, beside the connection's row and deleted with it.

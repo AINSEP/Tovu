@@ -1,3 +1,4 @@
+import { describeExternalMcpOwnership } from "#src/features/external-mcp/built-in-connections";
 import {
   ExternalMcpSecretStoreUnconfiguredError,
   ExternalMcpValidationError,
@@ -160,7 +161,7 @@ export const registerAdminExternalMcpPutRoute: ExternalMcpRouteRegistrar = (app,
       // federation runtime (agent-daemon, BYOK) via `external-mcp-roster-change.ts`, not just the
       // daemon's own `triggerFederationReload` — see that module's own header.
       void notifyExternalMcpRosterChanged();
-      res.json({ server, restartRequired: true });
+      res.json({ server: describeExternalMcpOwnership({ server, ids: deps.builtInExternalMcpServerIds }), restartRequired: true });
     } catch (err) {
       if (err instanceof ExternalMcpValidationError) {
         res.status(400).json({ error: err.message, code: "INVALID_MCP_SERVER", details: { field: err.field } });

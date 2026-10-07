@@ -131,6 +131,8 @@ export interface AdminExternalMcpToolApproval {
 }
 
 export interface AdminExternalMcpServer {
+  /** Source-derived runtime ownership, absent on older servers. */
+  builtIn?: boolean;
   serverId: string;
   label: string;
   transport: string;

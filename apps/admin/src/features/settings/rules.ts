@@ -449,3 +449,9 @@ export function buildExternalMcpRemoveConfirmCopy(
       : t("This connection will stop working immediately. You'll need to re-enter its configuration to use it again."),
   };
 }
+
+/** Source ownership is supplied by the host API, never guessed from a connection's name. */
+export function isBuiltInExternalMcpSource(
+  { source }: { source: { fields: Record<string, string> } },
+  _options = {},
+): boolean { return source.fields.builtIn === "true"; }

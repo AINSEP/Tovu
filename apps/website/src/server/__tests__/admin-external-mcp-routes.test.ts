@@ -505,3 +505,16 @@ test("saving and toggling notify a roster consumer with the updated running conf
   assert.equal(snapshots.length, 2, "a toggle must notify the runtime too");
   assert.deepEqual((await snapshots[1]!).configs, []);
 });
+
+test("host-declared built-in MCP connections are labelled and cannot be removed, independently of their name", async (t) => {
+  const { app } = buildTestApp({ builtInExternalMcpServerIds: ["host-tools"] } as Partial<RouteDeps>);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const created = await req(baseUrl, `${BASE}/host-tools`, cookie, { method: "PUT", body: JSON.stringify({ ...validBody, label: "Renamed host connection" }) });
+  assert.equal(created.status, 200);
+  const listed = await (await req(baseUrl, BASE, cookie)).json();
+  assert.equal(listed.servers[0].builtIn, true);
+  const removed = await req(baseUrl, `${BASE}/host-tools`, cookie, { method: "DELETE" });
+  assert.equal(removed.status, 409);
+  assert.equal((await removed.json()).code, "BUILT_IN_CONNECTION");
+  assert.equal((await (await req(baseUrl, BASE, cookie)).json()).servers.length, 1);
+});

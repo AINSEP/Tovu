@@ -1,3 +1,4 @@
+import { readBuiltInExternalMcpServerIds } from "#src/features/external-mcp/built-in-connections";
 import { registerThemePreviewRefresh } from "../../inbound/public-http/middleware/theme-preview-refresh.js";
 import { TRASH_RETENTION_DAYS, bindWidgetRemoval } from "#src/features/trash/index";
 import { createTovuOAuthHttpPorts } from "#src/platform/oauth/endpoint-safety";
@@ -1150,6 +1151,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     adminExecutionCredentialRepo: new InMemoryAdminExecutionCredentialRepo(),
     mediaProviderCredentialRepo: new InMemoryMediaProviderCredentialRepo(),
     externalMcpServerRepo,
+    builtInExternalMcpServerIds: readBuiltInExternalMcpServerIds({ env: process.env }),
     externalMcpToolApprovalRepo: new InMemoryExternalMcpToolApprovalRepo(),
     /**
      * ADR-058 sealing again, one more consumer: the OAuth subsystem for `authMode: "oauth"`

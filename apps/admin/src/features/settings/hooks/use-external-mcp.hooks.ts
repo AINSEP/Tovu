@@ -76,6 +76,7 @@ function toItem(server: AdminExternalMcpServer): SourceConfigItem {
     label: server.label,
     enabled: server.enabled,
     fields: {
+      builtIn: server.builtIn ? "true" : "false",
       id: server.serverId,
       transport: server.transport,
       command: server.command,

@@ -1,3 +1,4 @@
+import { isBuiltInExternalMcpServer } from "#src/features/external-mcp/built-in-connections";
 import { deleteExternalMcpServer } from "#src/assistant/index";
 import type { ExternalMcpRouteRegistrar } from "./deps.js";
 import { guardExternalMcpRequest } from "./guard.js";
@@ -18,6 +19,11 @@ export const registerAdminExternalMcpDeleteRoute: ExternalMcpRouteRegistrar = (a
   app.delete("/api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId", async (req, res) => {
     try {
       if (!(await guardExternalMcpRequest(deps, req.params.workspaceId, res))) return;
+
+      if (isBuiltInExternalMcpServer({ serverId: String(req.params.serverId ?? ""), ids: deps.builtInExternalMcpServerIds })) {
+        res.status(409).json({ error: "built-in MCP connections cannot be removed", code: "BUILT_IN_CONNECTION" });
+        return;
+      }
 
       const removed = await deleteExternalMcpServer(
         { repo: deps.externalMcpServerRepo },

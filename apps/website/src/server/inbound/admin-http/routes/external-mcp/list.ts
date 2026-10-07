@@ -1,3 +1,4 @@
+import { describeExternalMcpOwnership } from "#src/features/external-mcp/built-in-connections";
 import { listExternalMcpServerViews } from "#src/assistant/index";
 import type { ExternalMcpRouteRegistrar } from "./deps.js";
 import { guardExternalMcpRequest } from "./guard.js";
@@ -18,7 +19,7 @@ export const registerAdminExternalMcpListRoute: ExternalMcpRouteRegistrar = (app
     try {
       if (!(await guardExternalMcpRequest(deps, req.params.workspaceId, res))) return;
       const servers = await listExternalMcpServerViews({ repo: deps.externalMcpServerRepo }, deps.workspaceId);
-      res.json({ servers });
+      res.json({ servers: servers.map(server => describeExternalMcpOwnership({ server, ids: deps.builtInExternalMcpServerIds })) });
     } catch {
       res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
     }

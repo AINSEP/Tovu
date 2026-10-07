@@ -1,3 +1,4 @@
+import { isBuiltInExternalMcpServer } from "#src/features/external-mcp/built-in-connections";
 import { OwnerRequiredError } from "@jini-ai/user-management";
 import { assertUserAccountAction, SelfDeleteError, callerMayManageUserTrash } from "#src/features/identity/delete-user-service";
 import { identityServiceDepsFrom } from "#src/server/inbound/admin-http/routes/users/deps";
@@ -20,7 +21,7 @@ type Deps = Pick<RouteDeps,
   "workspaceId" | "authorize" | "clock" | "trash" | "registry" | "ownerPrincipalId" | "principalRepo" |
   "assetBlobRepo" | "assetRenditionRepo" | "blobStore" | "forgetRemovedMedia" |
   "idGen" | "userRepo" | "sessionRepo" | "roleRepo" | "policyRepo" | "policyPermissionRepo" | "rolePolicyRepo" | "principalRoleRepo" | "principalPolicyRepo" | "passwordHasher" | "transactions" | "tokens" |
-  "commentRepo" | "commentWriteService" | "externalMcpServerRepo" | "customCredentialSetRepo" |
+  "commentRepo" | "commentWriteService" | "externalMcpServerRepo" | "builtInExternalMcpServerIds" | "customCredentialSetRepo" |
   "vendorCredentialSetRepo" | "loadDeployTargets" | "sourceControlCredentialSetRepo"
 > & { mediaRepo: MediaRepoPort };
 const PAGE_SIZE = 100;
@@ -200,6 +201,9 @@ export function buildPermanentDeleteDeps(deps: Deps): PermanentDeleteToolDeps {
             return { removed: true, id };
           } });
         case "external_mcp_delete": {
+          if (isBuiltInExternalMcpServer({ serverId: id, ids: deps.builtInExternalMcpServerIds })) {
+            throw new ToolInputError({ message: "built-in MCP connections cannot be removed" });
+          }
           const serverKey = { workspaceId: deps.workspaceId, serverId: id };
           return recordPlan({ toolId, id, load: () => deps.externalMcpServerRepo.findByServerId(serverKey), label: server => server.label ?? server.serverId,
             warning: "Deletes saved configuration and authentication. Its tools refuse future calls; restart the assistant to remove their stale listings.",

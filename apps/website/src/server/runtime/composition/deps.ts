@@ -1,3 +1,4 @@
+import { readBuiltInExternalMcpServerIds } from "#src/features/external-mcp/built-in-connections";
 import { assertUserAccountAction } from "#src/features/identity/delete-user-service";
 import { identityServiceDepsFrom } from "#src/server/inbound/admin-http/routes/users/deps";
 import { TRASH_RETENTION_DAYS, bindWidgetRemoval } from "#src/features/trash/index";
@@ -2062,6 +2063,7 @@ async function composeSiteRouteDeps(
     // Same shared sealer/keyring again — one sealing capability across all three credential tables.
     mediaProviderCredentialRepo: new SqliteMediaProviderCredentialRepo(kernel),
     externalMcpServerRepo,
+    builtInExternalMcpServerIds: readBuiltInExternalMcpServerIds({ env: process.env }),
     externalMcpToolApprovalRepo: new SqliteExternalMcpToolApprovalRepo(kernel),
     /**
      * ADR-058 sealing again, one more consumer: the OAuth subsystem for `authMode: "oauth"`

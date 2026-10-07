@@ -145,7 +145,7 @@ async function readMediaProviders(port: OtherCredentialsPort): Promise<RawStoreI
  *  count. */
 async function readExternalMcpServers(port: OtherCredentialsPort, t: Translate): Promise<RawStoreItem[]> {
   const { servers } = await port.listExternalMcpServers();
-  return servers.map((server) => ({
+  return servers.filter(server => !server.builtIn).map((server) => ({
     itemId: server.serverId,
     name: server.label || server.serverId,
     valueFact: envNamesFact(server.envNames, t),

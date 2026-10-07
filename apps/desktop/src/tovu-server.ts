@@ -1,3 +1,4 @@
+import { SITES_MCP_SERVER_ID } from "./sites-mcp-registration.ts";
 /**
  * @file Own-server mode: spawn Tovu's own `tovu serve <dir>` CLI, learn the port it bound, and
  * supervise it for the life of the window.
@@ -413,6 +414,8 @@ function buildServeEnv(input: BuildServeEnvInput): NodeJS.ProcessEnv {
   const repoRoot = input.repoRoot;
   const env = buildCliEnv(input.baseEnv, input.siteDir);
   delete env.TOVU_PUBLIC_URL;
+  // Ownership comes from the host that registers this connection, never from its display name.
+  env.TOVU_BUILT_IN_MCP_SERVER_IDS = JSON.stringify([SITES_MCP_SERVER_ID]);
 
   if (!env.TOVU_AGENT_DAEMON_TOKEN) {
     env.TOVU_AGENT_DAEMON_TOKEN = randomBytes(32).toString("hex");

@@ -26,7 +26,7 @@ import {
   useSavedAllowedToolNamesById,
 } from "./ExternalMcpSettingsPanel.hooks";
 import { useWiredExternalMcpAdmissions } from "./hooks/use-external-mcp-admissions.hooks";
-import { buildExternalMcpFieldSpecs, EXTERNAL_MCP_ADD_FORM_HANDLE, resolveExternalMcpEffectiveAuthMode } from "./rules";
+import { isBuiltInExternalMcpSource, buildExternalMcpFieldSpecs, EXTERNAL_MCP_ADD_FORM_HANDLE, resolveExternalMcpEffectiveAuthMode } from "./rules";
 
 /**
  * Mirrors `@jini-ai/ui`'s own `source-config-list/constants.ts`'s `DRAFT_TEST_SCOPE` — the pseudo-id
@@ -193,6 +193,20 @@ function ExternalMcpConnectionCard(props: {
 }) {
   const { source, cardHandle, fieldSpecs, list, onRequestRemove } = props;
   const testResult = list.testResults[source.id];
+  const tBuiltIn = useExternalMcpDriftCopy();
+  if (isBuiltInExternalMcpSource({ source })) {
+    return (
+      <div className="source-config-item-card" role="region" aria-label={sourceDisplayLabel(source, fieldSpecs)} {...agentHandle({ handle: cardHandle }, { role: "region", label: sourceDisplayLabel(source, fieldSpecs) })}>
+        <div className="source-config-item-card-head">
+          <strong>{sourceDisplayLabel(source, fieldSpecs)}</strong> <span className="badge">{tBuiltIn("Built-in")}</span>
+        </div>
+        <label>
+          <input type="checkbox" {...agentHandle({ handle: `${cardHandle}-enabled` }, { role: "checkbox", label: tBuiltIn("Enable") })} checked={source.enabled} disabled={list.isPending(source.id, "update")} onChange={(event) => void list.update(source.id, { enabled: event.target.checked })} />
+          {tBuiltIn("Enable")}
+        </label>
+      </div>
+    );
+  }
   return (
     <SourceConfigItemCard
       source={source}
