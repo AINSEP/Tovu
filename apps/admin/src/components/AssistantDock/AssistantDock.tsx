@@ -430,9 +430,9 @@ export function AssistantDock({
   // than three separate calls.
   const { t, chatI18n } = useAssistantDockChrome(useAdminLocale);
 
-  const { executionConfig, executionConfigRef, setExecutionConfig, handleExecutionModeChange, hasStoredAdminKey, configLoaded } = useExecutionConfigSeam(useExecutionConfigOverride);
+  const { executionConfig, executionConfigRef, setExecutionConfig, handleExecutionModeChange, hasStoredAdminKey, configLoaded, readExecutionConfigForSend } = useExecutionConfigSeam(useExecutionConfigOverride);
   const { byokRuntime, handleByokModelChange } = useByokRuntimeSeam(useByokRuntimeOverride, { executionConfig, setExecutionConfig });
-  const { localCliSelection, handleLocalCliSelectionChange } = useLocalCliSelectionSeam(useLocalCliSelectionOverride, {
+  const { localCliSelection, handleLocalCliSelectionChange, readLocalCliSelectionForSend } = useLocalCliSelectionSeam(useLocalCliSelectionOverride, {
     executionConfig,
     setExecutionConfig,
     configLoaded,
@@ -445,6 +445,8 @@ export function AssistantDock({
   const chats = useChatsSeam(useChats, { principalId });
   const transport = useAssistantTransportSeam(useAssistantTransportOverride, {
     executionConfigRef,
+    readExecutionConfigForSend,
+    readLocalCliSelectionForSend,
     ensureConversationId: chats.ensureConversationId,
     // Defect 2 (2026-09-11): the same reasoning one line up, for the message rather than the
     // conversation. `startRun` awaits this before dispatching, so the user's turn is durable before
@@ -532,7 +534,7 @@ export function AssistantDock({
         // Fully controlled (`selection`/`onSelectionChange`), not `initialSelection` — see
         // `useLocalCliSelection`'s own doc for why an uncontrolled prop can't be hydrated from
         // the ledger's async load. `useLocalCliSelection` starts at the same `{agentId: "claude"}`
-        // this literal used to hardcode, then hydrates once the ledger settles.
+        // this literal used to hardcode, then follows saved changes after the ledger settles.
         selection={localCliSelection}
         onSelectionChange={handleLocalCliSelectionChange}
         {...(chats.activeId ? { conversationId: chats.activeId } : {})}

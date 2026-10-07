@@ -789,7 +789,7 @@ describe("useLocalCliSelection", () => {
     expect(result.current.localCliSelection).toEqual({ agentId: "claude" });
   });
 
-  it("does not re-hydrate on a later, unrelated executionConfig change — applies the ledger value at most once", () => {
+  it("keeps the selection on a later, unrelated executionConfig change", () => {
     const first = localCliConfig({ agentId: "codex", modelByAgentId: { codex: "o3" } });
     const { result, rerender } = renderHook(
       ({ executionConfig }) =>

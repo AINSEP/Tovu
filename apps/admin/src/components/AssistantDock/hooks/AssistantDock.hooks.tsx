@@ -40,6 +40,7 @@ import {
   loadAdminExecutionCredential,
   loadExecutionConfig,
   selectedLocalCliModel,
+  selectedLocalCliReasoning,
 } from "@/lib/execution-settings";
 import {
   createBundledComposerCapabilitySource,
@@ -113,15 +114,32 @@ export interface UseExecutionConfig {
   /**
    * True once the initial ledger GET (`loadExecutionConfig()`) has settled — resolved OR
    * rejected — false only during that first in-flight load. Added (2026-08-05) for
-   * {@link useLocalCliSelection}'s one-time hydration: `executionConfig.localCli.agentId` starts
+   * {@link useLocalCliSelection}'s initial hydration: `executionConfig.localCli.agentId` starts
    * `null` in `DEFAULT_EXECUTION_CONFIG`, and a load that resolves to "nothing was ever saved"
    * ALSO leaves it `null` — those two states are indistinguishable from `executionConfig` alone,
    * so a separate "has the GET settled at all" signal is what lets that hook's hydration effect
-   * fire exactly once instead of never (waiting on a non-null `agentId` that may never arrive) or
+   * fire after the first read instead of never (waiting on a non-null `agentId` that may never arrive) or
    * too early (before the load has had any chance to run).
    */
   configLoaded: boolean;
+  /** Await the current refresh, or re-read a Local CLI config older than five seconds. */
+  readExecutionConfigForSend?: () => Promise<ExecutionConfig>;
 }
+
+/** IO seam for the dock's existing ledger and credential adapters; tests provide fakes. */
+export interface DockExecutionConfigPort {
+  loadConfig: typeof loadExecutionConfig;
+  loadCredential: () => Promise<{ isSet: boolean }>;
+  now: () => number;
+}
+
+const defaultDockExecutionConfigPort: DockExecutionConfigPort = {
+  loadConfig: loadExecutionConfig,
+  loadCredential: loadAdminExecutionCredential,
+  now: Date.now,
+};
+
+export const EXECUTION_CONFIG_MAX_AGE_MS = 5_000;
 
 /**
  * Owns the runtime picker's Local CLI / API · BYOK state (ADR-049's picker, 2026-08-04 wiring) and
@@ -135,9 +153,14 @@ export interface UseExecutionConfig {
  * @example
  * const { executionConfig, handleExecutionModeChange } = useExecutionConfig();
  */
-export function useExecutionConfig(): UseExecutionConfig {
+export function useExecutionConfig(
+  _requiredArgs: Record<string, never> = {},
+  { port = defaultDockExecutionConfigPort }: { port?: DockExecutionConfigPort } = {},
+): UseExecutionConfig {
+  const io = useRef(port);
+  io.current = port;
   /**
-   * Loaded once from `execution-settings.ts`'s ledger+localStorage-backed store — the SAME source
+   * Refreshed from `execution-settings.ts`'s ledger+localStorage-backed store — the SAME source
    * the Execution-mode settings tab reads/writes — so a mode chosen there is reflected here without
    * a page reload, and a mode picked directly from this dock persists back the same way.
    *
@@ -152,10 +175,10 @@ export function useExecutionConfig(): UseExecutionConfig {
   executionConfigRef.current = executionConfig;
 
   /**
-   * True once THIS mount has made its own local write — a mode switch from
+   * Counts THIS mount's local writes — a mode switch from
    * `handleExecutionModeChange` below, or (through the wrapped `setExecutionConfig` this hook
-   * exposes) a BYOK model pick from `useByokRuntime`'s `handleByokModelChange`. Guards the
-   * mount-load effect just below: without it, an operator who switches modes before the initial
+   * exposes) a BYOK model pick from `useByokRuntime`'s `handleByokModelChange`. Each refresh samples
+   * this count before reading: without it, an operator who switches modes before the initial
    * `loadExecutionConfig()` resolves would see the switch silently revert. The load starts on
    * mount and reads whatever the server held BEFORE the switch's own `saveExecutionConfig` call;
    * if it resolves after the switch (a real race — both are ordinary network calls with no
@@ -164,10 +187,10 @@ export function useExecutionConfig(): UseExecutionConfig {
    * different mode than the server holds — exactly the disagreement
    * `handleExecutionModeChange`'s own doc comment says the ADR-028 chokepoint exists to prevent.
    *
-   * A ref, not state: flipping it must not itself trigger a render, and it needs to be readable
-   * synchronously inside the functional `setExecutionConfigState` updater below.
+   * A ref, not state: incrementing it must not itself trigger a render, and it needs to be readable
+   * synchronously when deciding whether a refresh response is still current.
    */
-  const localWriteRef = useRef(false);
+  const localWriteRef = useRef(0);
 
   /** Backs {@link UseExecutionConfig.configLoaded} — see that field's own doc. */
   const [configLoaded, setConfigLoaded] = useState(false);
@@ -197,44 +220,83 @@ export function useExecutionConfig(): UseExecutionConfig {
       ? (action as (current: ExecutionConfig) => ExecutionConfig)(previous)
       : action;
     if (next === previous) return;
-    localWriteRef.current = true;
+    localWriteRef.current += 1;
     executionConfigRef.current = next;
     setExecutionConfigState(next);
   }, []);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    // Retried while the API is unreachable (`retryWhileUnreachable`): this dock mounts once per
-    // session, so a load that lands inside a dev-API restart would otherwise leave the picker on
-    // defaults until a full reload even though the API is back seconds later.
-    void retryWhileUnreachable({ load: loadExecutionConfig, signal: controller.signal })
+  const lifecycleRef = useRef<AbortController | null>(null);
+  const refreshGeneration = useRef(0);
+  const lastLoadedAt = useRef<number | null>(null);
+  const activeRefresh = useRef<Promise<ExecutionConfig> | null>(null);
+
+  const refreshExecutionConfig = useCallback(() => {
+    const controller = lifecycleRef.current!;
+    const generation = ++refreshGeneration.current;
+    const writesAtStart = localWriteRef.current;
+    // A refresh notification invalidates the old read even if this request fails. Otherwise Send
+    // could reuse a recent cache entry after Settings told us its saved value had changed.
+    lastLoadedAt.current = null;
+    // Retried while the API is unreachable: the dock mounts once per session, so a load during
+    // a dev-API restart must recover without a page reload. A local write or newer refresh makes
+    // this response obsolete; unlike the old boolean guard, it does not block ALL future reads.
+    const pending = retryWhileUnreachable({ load: () => io.current.loadConfig(), signal: controller.signal })
       .then((config) => {
-        // Goes through the raw setter, not the wrapped `setExecutionConfig` above: applying a
-        // load must never itself count as a "local write" (see `localWriteRef`'s doc) — only an
-        // operator action should. Skipped once a local write has landed — see that doc for why.
-        if (controller.signal.aborted || localWriteRef.current) return;
+        if (controller.signal.aborted || generation !== refreshGeneration.current || writesAtStart !== localWriteRef.current) {
+          return executionConfigRef.current;
+        }
         executionConfigRef.current = config;
         setExecutionConfigState(config);
+        lastLoadedAt.current = io.current.now();
+        return config;
       })
-      // The dock is mounted on EVERY admin route, so an unhandled rejection here is not a
-      // localized failure — it fires on any page load where the settings read fails (server
-      // down, a 5xx, a body without `data`). `DEFAULT_EXECUTION_CONFIG` is already this
-      // state's initial value, so swallowing to a log leaves the picker on Local CLI rather
-      // than blanking the dock. Same shape as `handleExecutionModeChange`'s save catch below.
-      // A cancellation (unmount, or the page navigating away mid-request) is not a failure.
-      .catch((error: unknown) => {
-        if (isAbortError(error)) return;
-        console.error("[AssistantDock] failed to load execution config", error);
-      })
-      // Runs regardless of resolve/reject — `configLoaded` means "the GET settled", not "it
-      // succeeded"; a failed load still leaves `useLocalCliSelection` free to hydrate off
-      // whatever `executionConfig` ends up holding (the `DEFAULT_EXECUTION_CONFIG` this state
-      // already initialized to) rather than waiting forever for a load that already gave up.
       .finally(() => {
+        // Settled means resolved OR rejected: a failed first load still allows picker hydration
+        // from defaults. An unmount cancellation must never update the cleaned-up mount.
         if (!controller.signal.aborted) setConfigLoaded(true);
+        if (activeRefresh.current === pending) activeRefresh.current = null;
       });
-    return () => controller.abort();
+    activeRefresh.current = pending;
+    return pending;
   }, []);
+
+  const readExecutionConfigForSend = useCallback(async () => {
+    // A focus/SSE/Settings refresh may still be in flight when Send is clicked. Await the newest
+    // read and use its ref immediately, without relying on React to render the picker first.
+    if (!activeRefresh.current && (lastLoadedAt.current === null || io.current.now() - lastLoadedAt.current >= EXECUTION_CONFIG_MAX_AGE_MS)) {
+      refreshExecutionConfig();
+    }
+    while (activeRefresh.current) await activeRefresh.current;
+    return executionConfigRef.current;
+  }, [refreshExecutionConfig]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    lifecycleRef.current = controller;
+    // Another window/desktop can save execution config while this dock stays mounted. Settings
+    // already publishes this namespace on save; focus/visible also catch changes outside the tab.
+    const refresh = () => {
+      void refreshExecutionConfig().catch((error: unknown) => {
+        // The dock is present on every route. Keep defaults/current state on a background failure,
+        // but a pre-send refresh rejection is propagated so it cannot silently send a stale pick.
+        if (!isAbortError(error)) console.error("[AssistantDock] failed to load execution config", error);
+      });
+    };
+    const onVisible = () => { if (document.visibilityState === "visible") refresh(); };
+    refresh();
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", onVisible);
+    const unsubscribe = subscribeToSettingsRefresh((scope) => {
+      if (!scope || scope.includes(EXECUTION_NAMESPACE)) refresh();
+    });
+    return () => {
+      controller.abort();
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", onVisible);
+      unsubscribe();
+      activeRefresh.current = null;
+    };
+  }, [refreshExecutionConfig]);
 
   /**
    * Whether a BYOK credential is stored server-side for this admin — see {@link UseExecutionConfig.hasStoredAdminKey}'s
@@ -256,7 +318,7 @@ export function useExecutionConfig(): UseExecutionConfig {
     // Same restart-survival and cancellation handling as the ledger load above; `hasStoredAdminKey`
     // stays `null` (unknown) while retrying rather than claiming "not configured".
     const refresh = () => {
-      void retryWhileUnreachable({ load: loadAdminExecutionCredential, signal: controller.signal })
+      void retryWhileUnreachable({ load: () => io.current.loadCredential(), signal: controller.signal })
         .then((view) => {
           if (!controller.signal.aborted) setHasStoredAdminKey(view.isSet);
         })
@@ -304,6 +366,7 @@ export function useExecutionConfig(): UseExecutionConfig {
     handleExecutionModeChange,
     hasStoredAdminKey,
     configLoaded,
+    readExecutionConfigForSend,
   };
 }
 
@@ -453,6 +516,8 @@ export interface UseLocalCliSelection {
    *  `<ChatPane selection={...}>` (see {@link AssistantDock}'s JSX). */
   localCliSelection: ChatPaneAgentSelection;
   handleLocalCliSelectionChange: (selection: ChatPaneAgentSelection) => void;
+  /** Saved selection at dispatch time, preserving a pending/failed local pick. */
+  readLocalCliSelectionForSend?: (config: ExecutionConfig) => ChatPaneAgentSelection;
 }
 
 /**
@@ -463,7 +528,7 @@ export interface UseLocalCliSelection {
  * `execution-settings.ts`'s `loadExecutionConfig`/`selectedLocalCliModel` — real, persisted state
  * that nothing read the run-start path from until this hook existed, 2026-08-05).
  *
- * Split out of `AssistantDock` for the same reason `useByokRuntime` is: the hydration-once and
+ * Split out of `AssistantDock` for the same reason `useByokRuntime` is: the synchronization and
  * write-back paths are directly assertable via `renderHook`, without mounting a full dock or a
  * real `ChatPane`.
  *
@@ -483,9 +548,8 @@ export interface UseLocalCliSelection {
  * @param input.setExecutionConfig - The setter {@link useExecutionConfig} returns, so a pick made
  *   here writes back through the same state (and the same `localWriteRef` race guard)
  *   `useByokRuntime` already shares it with.
- * @param input.configLoaded - {@link UseExecutionConfig.configLoaded} — gates the one-time
- *   hydration below so it fires exactly once, after the ledger's first GET has settled, never
- *   before and never twice.
+ * @param input.configLoaded - {@link UseExecutionConfig.configLoaded} — gates initial hydration
+ *   until the first ledger GET settles. Later reads synchronize unless a local save is pending.
  * @returns `localCliSelection` (the controlled value) and `handleLocalCliSelectionChange`
  *   (`ChatPane`'s `onSelectionChange`).
  * @example
@@ -498,6 +562,7 @@ export function useLocalCliSelection(
     setExecutionConfig: React.Dispatch<React.SetStateAction<ExecutionConfig>>;
     configLoaded: boolean;
   },
+  { persistWrite = persistExecutionConfigWrite }: { persistWrite?: typeof persistExecutionConfigWrite } = {},
 ): UseLocalCliSelection {
   /**
    * Same hardcoded starting point the dock always used (`{ agentId: "claude" }`) before this hook
@@ -511,24 +576,39 @@ export function useLocalCliSelection(
   localCliSelectionRef.current = localCliSelection;
 
   /**
-   * Guards the one-time hydration effect below against the same two races `useExecutionConfig`'s
-   * own `localWriteRef` documents for `executionConfig` itself: `hydratedRef` stops it from
-   * re-applying on every later `executionConfig` change (it must apply the ledger's value at most
-   * once, not resync on an unrelated BYOK/mode write); `touchedRef` stops it from silently
-   * overwriting a selection the operator already picked with their own hand before the ledger's
-   * GET happened to resolve — the load and a fast first pick are both in-flight/interactive with
-   * no ordering guarantee between them.
+   * `touchedRef` stops a ledger GET from silently overwriting a selection the operator already
+   * picked with their own hand: the load and a fast pick have no ordering guarantee. Previously
+   * `hydratedRef` also blocked every later ledger read. Refreshes must now synchronize saved picks,
+   * so only a pending/failed local save stays protected; a successful save unlocks external sync.
+   * `pickGeneration` ensures an older save's completion cannot unlock a newer, unsaved pick.
    */
-  const hydratedRef = useRef(false);
   const touchedRef = useRef(false);
+  const pickGeneration = useRef(0);
+  const syncedSelection = useRef<string | null>(null);
+  const normalizationRef = useRef<{ key: string | null; selection: ChatPaneAgentSelection } | null>(null);
+  const persistRef = useRef(persistWrite);
+  persistRef.current = persistWrite;
+
+  const readLocalCliSelectionForSend = useCallback((config: ExecutionConfig) => {
+    if (touchedRef.current) return localCliSelectionRef.current;
+    const agentId = config.localCli.agentId ?? "claude";
+    const model = selectedLocalCliModel(config);
+    const saved = { agentId, ...(model ? { model } : {}) };
+    // Keep ChatPane's default-model normalization when the saved axes haven't changed. It is
+    // display/runtime state, not a ledger edit (see isSelectionNormalizationEcho below).
+    const normalized = normalizationRef.current;
+    return normalized && JSON.stringify(saved) === normalized.key ? normalized.selection : saved;
+  }, []);
 
   useEffect(() => {
-    if (!configLoaded || hydratedRef.current || touchedRef.current) return;
-    hydratedRef.current = true;
+    if (!configLoaded || touchedRef.current) return;
+    const selection = readLocalCliSelectionForSend(executionConfig);
     const agentId = executionConfig.localCli.agentId ?? "claude";
     const model = selectedLocalCliModel(executionConfig);
-    setLocalCliSelection({ agentId, ...(model ? { model } : {}) });
-  }, [configLoaded, executionConfig]);
+    syncedSelection.current = JSON.stringify({ agentId, ...(model ? { model } : {}) });
+    localCliSelectionRef.current = selection;
+    setLocalCliSelection(selection);
+  }, [configLoaded, executionConfig.localCli, readLocalCliSelectionForSend]);
 
   /**
    * `ChatPane`'s `onSelectionChange` — fires for an operator pick AND for `ChatPane`'s own
@@ -543,17 +623,25 @@ export function useLocalCliSelection(
     // `ChatPane` echoing its own default-model fill-in on mount: show it, but it is not a pick —
     // saving it re-wrote the ledger on every page load, and marking `touchedRef` blocked hydration.
     if (isSelectionNormalizationEcho(localCliSelectionRef.current, selection, readAgentsSnapshot())) {
+      normalizationRef.current = { key: syncedSelection.current, selection };
       localCliSelectionRef.current = selection;
       setLocalCliSelection(selection);
       return;
     }
+    normalizationRef.current = null;
     touchedRef.current = true;
+    const generation = ++pickGeneration.current;
+    localCliSelectionRef.current = selection;
     setLocalCliSelection(selection);
     const write = applyExecutionConfigChange(setExecutionConfig, (previous) => withLocalCliSelection(previous, selection));
-    if (write) persistExecutionConfigWrite(write, "[AssistantDock] failed to save Local CLI selection");
+    if (write) {
+      void persistRef.current(write, "[AssistantDock] failed to save Local CLI selection").then((saved) => {
+        if (saved && generation === pickGeneration.current) touchedRef.current = false;
+      });
+    }
   }, [setExecutionConfig]);
 
-  return { localCliSelection, handleLocalCliSelectionChange };
+  return { localCliSelection, handleLocalCliSelectionChange, readLocalCliSelectionForSend };
 }
 
 export interface UseComposerCapabilities {
@@ -741,38 +829,69 @@ export function useSelectedPluginChips(
  * const transport = useAssistantTransport({ executionConfigRef, ensureConversationId: chats.ensureConversationId });
  */
 export function useAssistantTransport(
-  { executionConfigRef, ensureConversationId, persistUserTurn }: {
+  input: {
     executionConfigRef: React.MutableRefObject<ExecutionConfig>;
+    readExecutionConfigForSend?: () => Promise<ExecutionConfig>;
+    readLocalCliSelectionForSend?: (config: ExecutionConfig) => ChatPaneAgentSelection;
     ensureConversationId?: () => Promise<string | null>;
     persistUserTurn?: (conversationId: string, message: ChatMessage) => Promise<void>;
   },
+  { createTransport = createTovuAssistantTransport }: { createTransport?: typeof createTovuAssistantTransport } = {},
 ): ReturnType<typeof createTovuAssistantTransport> {
-  return useMemo(
-    () =>
-      createTovuAssistantTransport({
-        getExecutionConfig: () => executionConfigRef.current,
-        // Turn 1's run has no conversation id of its own to send — the pane adopts one lazily, from
-        // a message delta that does not exist yet when `runContext` is frozen. See
-        // `CreateTovuAssistantTransportOptions.ensureConversationId` for the full mechanism and the
-        // amnesia it caused.
-        ...(ensureConversationId ? { ensureConversationId } : {}),
-        // Defect 2 (2026-09-11): awaited by `startRun` before `POST /api/runs`, so a run can never
-        // be dispatched for a message that exists nowhere durable. Same optional-spread shape as
-        // `ensureConversationId` above and for the same reason — a test that injects a `useChats`
-        // stub predating it still builds a working transport, just without the pre-dispatch write.
-        ...(persistUserTurn ? { persistUserTurn } : {}),
-        // ADR-059's AG-UI canary — off by default, flipped per-tab via `localStorage` (see
-        // `isAgUiTransportEnabled`'s own doc). Read fresh per `startRun` call, same as
-        // `getExecutionConfig` above.
-        getAgUiEnabled: isAgUiTransportEnabled,
-        // Which Local CLI agentIds carry their own multi-turn memory — see this file's own
-        // `getResumeCapableAgentIds` doc, and `assistant-transport.ts`'s
-        // `CreateTovuAssistantTransportOptions.getResumeCapableAgentIds` for the full contract.
-        // `useRuntimeAccess`'s `listAgents`/`rescanAgents` keep the set it reads current.
-        getResumeCapableAgentIds,
-      }),
-    [executionConfigRef, ensureConversationId, persistUserTurn],
-  );
+  const { executionConfigRef, ensureConversationId, persistUserTurn } = input;
+  const io = useRef({ input, createTransport });
+  io.current = { input, createTransport };
+  return useMemo<ReturnType<typeof createTovuAssistantTransport>>(() => {
+    const transport = io.current.createTransport({
+      getExecutionConfig: () => executionConfigRef.current,
+      // Turn 1's run has no conversation id of its own to send — the pane adopts one lazily, from
+      // a message delta that does not exist yet when `runContext` is frozen. See
+      // `CreateTovuAssistantTransportOptions.ensureConversationId` for the full mechanism and the
+      // amnesia it caused.
+      ...(ensureConversationId ? { ensureConversationId } : {}),
+      // Defect 2 (2026-09-11): awaited by `startRun` before `POST /api/runs`, so a run can never
+      // be dispatched for a message that exists nowhere durable. Same optional-spread shape as
+      // `ensureConversationId` above and for the same reason — a test that injects a `useChats`
+      // stub predating it still builds a working transport, just without the pre-dispatch write.
+      ...(persistUserTurn ? { persistUserTurn } : {}),
+      // ADR-059's AG-UI canary — off by default, flipped per-tab via `localStorage` (see
+      // `isAgUiTransportEnabled`'s own doc). Read fresh per `startRun` call, same as
+      // `getExecutionConfig` above.
+      getAgUiEnabled: isAgUiTransportEnabled,
+      // Which Local CLI agentIds carry their own multi-turn memory — see this file's own
+      // `getResumeCapableAgentIds` doc, and `assistant-transport.ts`'s
+      // `CreateTovuAssistantTransportOptions.getResumeCapableAgentIds` for the full contract.
+      // `useRuntimeAccess`'s `listAgents`/`rescanAgents` keep the set it reads current.
+      getResumeCapableAgentIds,
+    });
+    return {
+      ...transport,
+      async startRun(runInput, handlers) {
+        const fresh = io.current.input;
+        // ChatPane freezes agent/context before startRun. Re-read the saved Local CLI selection
+        // here so a just-finished refresh is used even before React renders the updated picker.
+        if (executionConfigRef.current.mode === "local-cli" && fresh.readExecutionConfigForSend) {
+          const config = await fresh.readExecutionConfigForSend();
+          if (config.mode === "local-cli") {
+            const selection = fresh.readLocalCliSelectionForSend?.(config) ?? {
+              agentId: config.localCli.agentId ?? "claude",
+              model: selectedLocalCliModel(config),
+            };
+            const { model: _oldModel, reasoning: _oldReasoning, ...context } = runInput.context ?? {};
+            const reasoning = selectedLocalCliReasoning({
+              ...config, localCli: { ...config.localCli, agentId: selection.agentId },
+            });
+            runInput = {
+              ...runInput,
+              agentId: selection.agentId,
+              context: { ...context, ...(selection.model ? { model: selection.model } : {}), ...(reasoning ? { reasoning } : {}) },
+            };
+          }
+        }
+        return transport.startRun(runInput, handlers);
+      },
+    };
+  }, [executionConfigRef, ensureConversationId, persistUserTurn]);
 }
 
 /**
@@ -1759,6 +1878,8 @@ export function useAssistantTransportSeam(
   override: typeof useAssistantTransport | undefined,
   input: {
     executionConfigRef: React.MutableRefObject<ExecutionConfig>;
+    readExecutionConfigForSend?: () => Promise<ExecutionConfig>;
+    readLocalCliSelectionForSend?: (config: ExecutionConfig) => ChatPaneAgentSelection;
     ensureConversationId?: () => Promise<string | null>;
     persistUserTurn?: (conversationId: string, message: ChatMessage) => Promise<void>;
   },

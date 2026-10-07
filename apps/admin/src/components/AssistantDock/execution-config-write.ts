@@ -43,16 +43,20 @@ export function applyExecutionConfigChange(
 /**
  * Saves one applied change through the ADR-028 `saveExecutionConfig` chokepoint, then tells other
  * mounts (an open settings tab, another dock) to re-read. A failed save is logged, not thrown, and
- * the optimistic state is kept.
+ * the optimistic state is kept. The returned success flag lets the Local CLI hook protect a
+ * pending/failed pick while allowing external changes after a successful save.
  *
  * @param failureLog - The `console.error` message for a failed save.
  */
-export function persistExecutionConfigWrite(write: ExecutionConfigWrite, failureLog: string): void {
-  void saveExecutionConfig(write.next, write.previous)
-    .then(() => publishSettingsRefresh([EXECUTION_NAMESPACE]))
+export function persistExecutionConfigWrite(write: ExecutionConfigWrite, failureLog: string): Promise<boolean> {
+  return saveExecutionConfig(write.next, write.previous)
+    .then(() => {
+      publishSettingsRefresh([EXECUTION_NAMESPACE]);
+      return true;
+    })
     .catch((error: unknown) => {
-      if (isAbortError(error)) return;
-      console.error(failureLog, error);
+      if (!isAbortError(error)) console.error(failureLog, error);
+      return false;
     });
 }
 
