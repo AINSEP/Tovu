@@ -1,4 +1,24 @@
 import type { CreatedSiteRecord, SiteRecord } from '../contracts/project.js';
+import { desktopCopy } from '../desktop-i18n.js';
+
+/** Site-folder refusals need recovery instructions; filesystem paths belong in the site's logs. */
+export function siteOperationError(
+  { error, operation }: { error: unknown; operation: 'add' | 'start' },
+  { locale = typeof navigator === 'undefined' ? 'en' : navigator.language }: { locale?: string } = {},
+): string {
+  const copy = desktopCopy({ locale }).siteErrors;
+  const message = humanSiteError({ error, fallback: operation === 'add' ? copy.add : copy.start });
+  if (operation === 'add') {
+    if (message.includes('is a folder of unrelated files')) return copy.invalid;
+    if (message.includes('there is no Tovu site here') || message.includes('has no Tovu site')) return copy.empty;
+    if (message.includes('half-initialized or damaged Tovu site')) return copy.incomplete;
+    if (message.includes('cannot be examined')) return copy.unreadable;
+  }
+  // Main can reject with paths embedded anywhere (including quoted paths containing spaces).
+  // Summarize those failures rather than trying to remove only the first path segment.
+  if (/(?:^|[\s'"(])(?:\/[\w.~][^\s]*|[A-Za-z]:\\)/.test(message)) return copy[operation];
+  return message;
+}
 
 /** Electron and Error class wrappers are transport details, never useful instructions. */
 export function humanSiteError({ error, fallback }: { error: unknown; fallback: string }, _optional = {}): string {

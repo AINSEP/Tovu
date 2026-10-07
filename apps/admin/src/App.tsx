@@ -1,3 +1,4 @@
+import { useCmsSidebarLabelTooltips } from "./hooks/use-cms-sidebar-label-tooltips.hooks";
 import { useAdminDocumentLocale } from "./hooks/use-admin-document-locale.hooks";
 import { useAdminAppearance } from "./hooks/use-admin-appearance.hooks";
 import { AdminModulesProvider } from "./integrations/jini-admin/AdminModulesProvider";
@@ -229,6 +230,11 @@ function SidebarLogoutButton(props: { onLogout: () => void; locale: string }) {
       <span>{logOutLabel}</span>
     </button>
   );
+}
+
+function SidebarLabelTooltips() {
+  useCmsSidebarLabelTooltips({});
+  return null;
 }
 
 /**
@@ -671,6 +677,7 @@ export function App(props: AppProps) {
         >
           <Sidebar.MobileHeader onClose={() => setSidebarOpen(false)} />
           <SidebarEmptyClickToggle />
+          <SidebarLabelTooltips />
           {/* The nav is rendered in two calls so the rail toggle can sit directly under "AI
               Assistant" instead of down in the footer — the operator wants the collapse control
               beside the sections it collapses, not adrift at the bottom of a 26-item list.

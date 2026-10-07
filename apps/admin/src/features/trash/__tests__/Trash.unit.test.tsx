@@ -16,6 +16,8 @@ import { FetchQueryProvider } from "@/lib/fetch-query";
  * find it here and is told nothing will reasonably conclude the widget is unrecoverable. A
  * disclosure would not fix that — it has to be visible on the first render, including on an empty
  * Trash, which is precisely when someone is looking for something that is not there.
+ * Owner update (2026-10-07): that original visibility requirement is superseded by the title's
+ * shared InfoTip. Keep the exceptions discoverable even on empty Trash without a second subtitle.
  */
 
 function item(overrides: Partial<AdminTrashItem> = {}): AdminTrashItem {
@@ -122,13 +124,48 @@ describe("Trash screen", () => {
     expect(screen.getByRole("button", { name: "Restore" })).toBeDisabled();
   });
 
-  it("names the two sections it does NOT cover, on an EMPTY Trash", () => {
+  it("shows one short subtitle and a closed info tip beside the title on empty Trash", () => {
+    const { container } = render(<Trash useTrashHook={() => controller({ items: [] })} />);
+
+    const descriptions = container.querySelectorAll(".page-header .page-description");
+    expect(descriptions).toHaveLength(1);
+    expect(descriptions[0]).toHaveTextContent("Deleted items are kept for 60 days.");
+    const info = within(screen.getByRole("heading", { level: 1 })).getByLabelText(
+      "Collection entries and theme files don't go to Trash.",
+    );
+    expect(info).toHaveAttribute("data-agent-element", "trash-coverage-info");
+    expect(screen.queryByText("Collection entries and theme files don't go to Trash.")).not.toBeInTheDocument();
+    expect(screen.getByText("The Trash is empty.")).toBeInTheDocument();
+  });
+
+  it("opens the exceptions on click using the shared title info pattern", async () => {
+    const user = userEvent.setup();
     render(<Trash useTrashHook={() => controller({ items: [] })} />);
 
-    const line = screen.getByText(/Deleted items from every section appear here/);
-    expect(line).toBeTruthy();
-    expect(line.textContent).toContain("Collection entries and Theme files");
-    expect(screen.getByText("The Trash is empty.")).toBeTruthy();
+    await user.click(screen.getByLabelText("Collection entries and theme files don't go to Trash."));
+    expect(screen.getByText("Collection entries and theme files don't go to Trash.")).toBeInTheDocument();
+  });
+
+  it("opens the exceptions with Tab and closes with Escape while keeping icon focus", async () => {
+    const user = userEvent.setup();
+    render(<Trash useTrashHook={() => controller({ items: [] })} />);
+    const info = screen.getByLabelText("Collection entries and theme files don't go to Trash.");
+
+    await user.tab();
+    expect(document.activeElement).toBe(info);
+    expect(screen.getByText("Collection entries and theme files don't go to Trash.")).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByText("Collection entries and theme files don't go to Trash.")).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(info);
+  });
+
+  it("translates the short subtitle and exceptions together", async () => {
+    const user = userEvent.setup();
+    render(<Trash useTrashHook={() => controller({ locale: "es", items: [] })} />);
+
+    expect(screen.getByText("Los elementos eliminados se conservan durante 60 días.")).toBeInTheDocument();
+    await user.click(screen.getByLabelText("Las entradas de colecciones y los archivos de temas no van a la papelera."));
+    expect(screen.getByText("Las entradas de colecciones y los archivos de temas no van a la papelera.")).toBeInTheDocument();
   });
 
   it("renders a row with its kind, actor and days remaining", () => {

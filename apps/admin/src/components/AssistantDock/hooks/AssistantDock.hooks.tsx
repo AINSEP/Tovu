@@ -870,7 +870,9 @@ export function useAssistantTransport(
         const fresh = io.current.input;
         // ChatPane freezes agent/context before startRun. Re-read the saved Local CLI selection
         // here so a just-finished refresh is used even before React renders the updated picker.
-        if (executionConfigRef.current.mode === "local-cli" && fresh.readExecutionConfigForSend) {
+        // The deployed-site UI gate may still be discovering a local host. Await its effective
+        // read in either mode so the pending BYOK projection cannot misroute a local first send.
+        if (fresh.readExecutionConfigForSend) {
           const config = await fresh.readExecutionConfigForSend();
           if (config.mode === "local-cli") {
             const selection = fresh.readLocalCliSelectionForSend?.(config) ?? {

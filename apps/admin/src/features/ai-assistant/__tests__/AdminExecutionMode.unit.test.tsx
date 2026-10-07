@@ -4,7 +4,14 @@ import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { ByokConfig, ExecutionConfig } from "@jini-ai/ui";
 
-import { AdminExecutionMode } from "../AiAssistant";
+import { AdminExecutionMode as RealAdminExecutionMode } from "../AiAssistant";
+import type { ComponentProps } from "react";
+import { useTovuExecutionPolicy } from "@/hooks/use-tovu-execution-policy.hooks";
+
+// These existing scenarios exercise a local host; runtime IO remains behind the policy seam.
+function AdminExecutionMode(props: ComponentProps<typeof RealAdminExecutionMode>) {
+  return <RealAdminExecutionMode useExecutionPolicy={(input) => useTovuExecutionPolicy(input, { desktop: true })} {...props} />;
+}
 import type { AdminExecutionModeController } from "../hooks/use-admin-execution-mode.hooks";
 import { createFakeAdminExecutionCredentialPort } from "@/hooks/admin-execution-credential-dependencies.hooks";
 import {

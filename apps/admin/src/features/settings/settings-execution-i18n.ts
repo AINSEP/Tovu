@@ -21,6 +21,7 @@ import { ADMIN_LOCALES } from "../../lib/settings-tabs";
 
 const SETTINGS_EXECUTION_DICT: Record<string, Record<string, string>> = {
   es: {
+    "Local CLI is hidden on deployed sites for now. BYOK is used; your saved choice is unchanged.": "Local CLI está oculto por ahora en los sitios desplegados. Se usa BYOK; tu elección guardada no cambia.",
     "AI agent": "Agente de IA",
     "Detected on this computer.": "Detectado en este ordenador.",
     "Authentication required. Sign in before sending.": "Se requiere autenticación. Inicia sesión antes de enviar.",
@@ -34,6 +35,7 @@ const SETTINGS_EXECUTION_DICT: Record<string, Record<string, string>> = {
     "Detected on the Tovu server, not on your own computer.": "Detectado en el servidor de Tovu, no en tu propio equipo.",
   },
   id: {
+    "Local CLI is hidden on deployed sites for now. BYOK is used; your saved choice is unchanged.": "Local CLI sementara disembunyikan di situs yang diterapkan. BYOK digunakan; pilihan tersimpan Anda tetap sama.",
     "AI agent": "Agen AI",
     "Detected on this computer.": "Terdeteksi di komputer ini.",
     "Authentication required. Sign in before sending.": "Autentikasi diperlukan. Masuk sebelum mengirim.",
@@ -47,6 +49,7 @@ const SETTINGS_EXECUTION_DICT: Record<string, Record<string, string>> = {
     "Detected on the Tovu server, not on your own computer.": "Terdeteksi di server Tovu, bukan di komputer Anda sendiri.",
   },
   de: {
+    "Local CLI is hidden on deployed sites for now. BYOK is used; your saved choice is unchanged.": "Local CLI ist auf bereitgestellten Websites vorerst ausgeblendet. BYOK wird verwendet; Ihre gespeicherte Auswahl bleibt unverändert.",
     "AI agent": "KI-Agent",
     "Detected on this computer.": "Auf diesem Computer erkannt.",
     "Authentication required. Sign in before sending.": "Authentifizierung erforderlich. Melden Sie sich vor dem Senden an.",
@@ -60,6 +63,7 @@ const SETTINGS_EXECUTION_DICT: Record<string, Record<string, string>> = {
     "Detected on the Tovu server, not on your own computer.": "Auf dem Tovu-Server erkannt, nicht auf Ihrem eigenen Computer.",
   },
   "zh-CN": {
+    "Local CLI is hidden on deployed sites for now. BYOK is used; your saved choice is unchanged.": "已部署的网站暂时隐藏 Local CLI。当前使用 BYOK；您保存的选择保持不变。",
     "AI agent": "AI 智能体",
     "Detected on this computer.": "在这台计算机上检测到。",
     "Authentication required. Sign in before sending.": "需要身份验证。请先登录再发送。",
@@ -73,6 +77,7 @@ const SETTINGS_EXECUTION_DICT: Record<string, Record<string, string>> = {
     "Detected on the Tovu server, not on your own computer.": "在 Tovu 服务器上检测到，而非您自己的计算机。",
   },
   "zh-TW": {
+    "Local CLI is hidden on deployed sites for now. BYOK is used; your saved choice is unchanged.": "已部署的網站暫時隱藏 Local CLI。目前使用 BYOK；您儲存的選擇保持不變。",
     "AI agent": "AI 代理",
     "Detected on this computer.": "在這台電腦上偵測到。",
     "Authentication required. Sign in before sending.": "需要驗證身分。請先登入再傳送。",
@@ -86,6 +91,7 @@ const SETTINGS_EXECUTION_DICT: Record<string, Record<string, string>> = {
     "Detected on the Tovu server, not on your own computer.": "在 Tovu 伺服器上偵測到，而非您自己的電腦。",
   },
   "pt-BR": {
+    "Local CLI is hidden on deployed sites for now. BYOK is used; your saved choice is unchanged.": "Local CLI está oculto por enquanto nos sites implantados. BYOK é usado; sua escolha salva permanece igual.",
     "AI agent": "Agente de IA",
     "Detected on this computer.": "Detectado neste computador.",
     "Authentication required. Sign in before sending.": "Autenticação necessária. Entre antes de enviar.",
@@ -99,6 +105,7 @@ const SETTINGS_EXECUTION_DICT: Record<string, Record<string, string>> = {
     "Detected on the Tovu server, not on your own computer.": "Detectado no servidor da Tovu, não no seu próprio computador.",
   },
   ru: {
+    "Local CLI is hidden on deployed sites for now. BYOK is used; your saved choice is unchanged.": "На развёрнутых сайтах Local CLI пока скрыт. Используется BYOK; сохранённый выбор не изменён.",
     "AI agent": "ИИ-агент",
     "Detected on this computer.": "Обнаружено на этом компьютере.",
     "Authentication required. Sign in before sending.": "Требуется авторизация. Войдите перед отправкой.",
@@ -112,6 +119,7 @@ const SETTINGS_EXECUTION_DICT: Record<string, Record<string, string>> = {
     "Detected on the Tovu server, not on your own computer.": "Обнаружено на сервере Tovu, а не на вашем компьютере.",
   },
   fa: {
+    "Local CLI is hidden on deployed sites for now. BYOK is used; your saved choice is unchanged.": "Local CLI فعلاً در سایت‌های مستقر پنهان است. از BYOK استفاده می‌شود؛ انتخاب ذخیره‌شده شما تغییر نمی‌کند.",
     "AI agent": "عامل هوش مصنوعی",
     "Detected on this computer.": "روی این رایانه شناسایی شد.",
     "Authentication required. Sign in before sending.": "احراز هویت لازم است. پیش از ارسال وارد شوید.",
@@ -125,6 +133,7 @@ const SETTINGS_EXECUTION_DICT: Record<string, Record<string, string>> = {
     "Detected on the Tovu server, not on your own computer.": "روی سرور Tovu شناسایی شد، نه روی رایانه‌ی خودتان.",
   },
   ar: {
+    "Local CLI is hidden on deployed sites for now. BYOK is used; your saved choice is unchanged.": "Local CLI مخفي مؤقتًا على المواقع المنشورة. يُستخدم BYOK؛ اختيارك المحفوظ لم يتغير.",
     "AI agent": "وكيل الذكاء الاصطناعي",
     "Detected on this computer.": "اكتُشف على هذا الكمبيوتر.",
     "Authentication required. Sign in before sending.": "المصادقة مطلوبة. سجّل الدخول قبل الإرسال.",
@@ -138,6 +147,7 @@ const SETTINGS_EXECUTION_DICT: Record<string, Record<string, string>> = {
     "Detected on the Tovu server, not on your own computer.": "اكتُشف على خادم Tovu، وليس على جهاز الكمبيوتر الخاص بك.",
   },
   ja: {
+    "Local CLI is hidden on deployed sites for now. BYOK is used; your saved choice is unchanged.": "デプロイ済みサイトでは、Local CLI は現在非表示です。BYOK を使用します。保存済みの選択は変更されません。",
     "AI agent": "AI エージェント",
     "Detected on this computer.": "このコンピューターで検出されました。",
     "Authentication required. Sign in before sending.": "認証が必要です。送信する前にログインしてください。",
@@ -151,6 +161,7 @@ const SETTINGS_EXECUTION_DICT: Record<string, Record<string, string>> = {
     "Detected on the Tovu server, not on your own computer.": "自分のコンピューターではなく、Tovuサーバー上で検出されました。",
   },
   ko: {
+    "Local CLI is hidden on deployed sites for now. BYOK is used; your saved choice is unchanged.": "배포된 사이트에서는 현재 Local CLI가 숨겨집니다. BYOK가 사용되며 저장된 선택은 변경되지 않습니다.",
     "AI agent": "AI 에이전트",
     "Detected on this computer.": "이 컴퓨터에서 감지되었습니다.",
     "Authentication required. Sign in before sending.": "인증이 필요합니다. 보내기 전에 로그인하세요.",
@@ -164,6 +175,7 @@ const SETTINGS_EXECUTION_DICT: Record<string, Record<string, string>> = {
     "Detected on the Tovu server, not on your own computer.": "사용자님의 컴퓨터가 아니라 Tovu 서버에서 감지되었습니다.",
   },
   pl: {
+    "Local CLI is hidden on deployed sites for now. BYOK is used; your saved choice is unchanged.": "Local CLI jest na razie ukryte we wdrożonych witrynach. Używane jest BYOK; zapisany wybór pozostaje bez zmian.",
     "AI agent": "Agent AI",
     "Detected on this computer.": "Wykryto na tym komputerze.",
     "Authentication required. Sign in before sending.": "Wymagane uwierzytelnienie. Zaloguj się przed wysłaniem.",
@@ -177,6 +189,7 @@ const SETTINGS_EXECUTION_DICT: Record<string, Record<string, string>> = {
     "Detected on the Tovu server, not on your own computer.": "Wykryto na serwerze Tovu, a nie na Twoim komputerze.",
   },
   hu: {
+    "Local CLI is hidden on deployed sites for now. BYOK is used; your saved choice is unchanged.": "A telepített webhelyeken a Local CLI egyelőre rejtve van. A BYOK használatos; a mentett választás változatlan.",
     "AI agent": "AI-ügynök",
     "Detected on this computer.": "Ezen a számítógépen észlelve.",
     "Authentication required. Sign in before sending.": "Hitelesítés szükséges. Küldés előtt jelentkezzen be.",
@@ -190,6 +203,7 @@ const SETTINGS_EXECUTION_DICT: Record<string, Record<string, string>> = {
     "Detected on the Tovu server, not on your own computer.": "A Tovu szerveren észlelve, nem a saját számítógépén.",
   },
   fr: {
+    "Local CLI is hidden on deployed sites for now. BYOK is used; your saved choice is unchanged.": "Local CLI est masqué pour le moment sur les sites déployés. BYOK est utilisé ; votre choix enregistré reste inchangé.",
     "AI agent": "Agent IA",
     "Detected on this computer.": "Détecté sur cet ordinateur.",
     "Authentication required. Sign in before sending.": "Authentification requise. Connectez-vous avant d’envoyer.",
@@ -203,6 +217,7 @@ const SETTINGS_EXECUTION_DICT: Record<string, Record<string, string>> = {
     "Detected on the Tovu server, not on your own computer.": "Détecté sur le serveur Tovu, pas sur votre propre ordinateur.",
   },
   uk: {
+    "Local CLI is hidden on deployed sites for now. BYOK is used; your saved choice is unchanged.": "На розгорнутих сайтах Local CLI поки приховано. Використовується BYOK; збережений вибір не змінено.",
     "AI agent": "ШІ-агент",
     "Detected on this computer.": "Виявлено на цьому комп’ютері.",
     "Authentication required. Sign in before sending.": "Потрібна автентифікація. Увійдіть перед надсиланням.",
@@ -216,6 +231,7 @@ const SETTINGS_EXECUTION_DICT: Record<string, Record<string, string>> = {
     "Detected on the Tovu server, not on your own computer.": "Виявлено на сервері Tovu, а не на вашому комп'ютері.",
   },
   tr: {
+    "Local CLI is hidden on deployed sites for now. BYOK is used; your saved choice is unchanged.": "Dağıtılan sitelerde Local CLI şimdilik gizlidir. BYOK kullanılır; kaydedilmiş seçiminiz değişmez.",
     "AI agent": "Yapay zekâ ajanı",
     "Detected on this computer.": "Bu bilgisayarda algılandı.",
     "Authentication required. Sign in before sending.": "Kimlik doğrulaması gerekiyor. Göndermeden önce oturum açın.",
@@ -229,6 +245,7 @@ const SETTINGS_EXECUTION_DICT: Record<string, Record<string, string>> = {
     "Detected on the Tovu server, not on your own computer.": "Kendi bilgisayarınızda değil, Tovu sunucusunda algılandı.",
   },
   th: {
+    "Local CLI is hidden on deployed sites for now. BYOK is used; your saved choice is unchanged.": "ขณะนี้ Local CLI ถูกซ่อนบนเว็บไซต์ที่นำขึ้นใช้งาน โดยใช้ BYOK แทน ตัวเลือกที่บันทึกไว้ของคุณยังคงเดิม",
     "AI agent": "เอเจนต์ AI",
     "Detected on this computer.": "ตรวจพบบนคอมพิวเตอร์เครื่องนี้",
     "Authentication required. Sign in before sending.": "ต้องยืนยันตัวตน โปรดเข้าสู่ระบบก่อนส่ง",
@@ -242,6 +259,7 @@ const SETTINGS_EXECUTION_DICT: Record<string, Record<string, string>> = {
     "Detected on the Tovu server, not on your own computer.": "ตรวจพบบนเซิร์ฟเวอร์ Tovu ไม่ใช่บนคอมพิวเตอร์ของคุณเอง",
   },
   it: {
+    "Local CLI is hidden on deployed sites for now. BYOK is used; your saved choice is unchanged.": "Local CLI è per ora nascosto sui siti distribuiti. Si usa BYOK; la scelta salvata resta invariata.",
     "AI agent": "Agente IA",
     "Detected on this computer.": "Rilevato su questo computer.",
     "Authentication required. Sign in before sending.": "Autenticazione richiesta. Accedi prima di inviare.",
@@ -255,6 +273,7 @@ const SETTINGS_EXECUTION_DICT: Record<string, Record<string, string>> = {
     "Detected on the Tovu server, not on your own computer.": "Rilevato sul server Tovu, non sul tuo computer.",
   },
   hi: {
+    "Local CLI is hidden on deployed sites for now. BYOK is used; your saved choice is unchanged.": "डिप्लॉय की गई साइटों पर Local CLI अभी छिपा हुआ है। BYOK का उपयोग होता है; आपका सहेजा गया विकल्प नहीं बदलता।",
     "AI agent": "AI एजेंट",
     "Detected on this computer.": "इस कंप्यूटर पर पता लगाया गया।",
     "Authentication required. Sign in before sending.": "प्रमाणीकरण आवश्यक है। भेजने से पहले साइन इन करें।",
@@ -268,6 +287,7 @@ const SETTINGS_EXECUTION_DICT: Record<string, Record<string, string>> = {
     "Detected on the Tovu server, not on your own computer.": "Tovu सर्वर पर पहचाना गया, आपके अपने कंप्यूटर पर नहीं।",
   },
   ur: {
+    "Local CLI is hidden on deployed sites for now. BYOK is used; your saved choice is unchanged.": "تعینات شدہ سائٹس پر Local CLI فی الحال پوشیدہ ہے۔ BYOK استعمال ہوتا ہے؛ آپ کا محفوظ انتخاب تبدیل نہیں ہوتا۔",
     "AI agent": "AI ایجنٹ",
     "Detected on this computer.": "اس کمپیوٹر پر دریافت ہوا۔",
     "Authentication required. Sign in before sending.": "توثیق درکار ہے۔ بھیجنے سے پہلے سائن ان کریں۔",
@@ -281,6 +301,7 @@ const SETTINGS_EXECUTION_DICT: Record<string, Record<string, string>> = {
     "Detected on the Tovu server, not on your own computer.": "Tovu سرور پر شناخت ہوئی، آپ کے اپنے کمپیوٹر پر نہیں۔",
   },
   bn: {
+    "Local CLI is hidden on deployed sites for now. BYOK is used; your saved choice is unchanged.": "স্থাপিত সাইটে Local CLI আপাতত লুকানো আছে। BYOK ব্যবহার করা হয়; আপনার সংরক্ষিত পছন্দ অপরিবর্তিত থাকে।",
     "AI agent": "AI এজেন্ট",
     "Detected on this computer.": "এই কম্পিউটারে শনাক্ত হয়েছে।",
     "Authentication required. Sign in before sending.": "প্রমাণীকরণ প্রয়োজন। পাঠানোর আগে সাইন ইন করুন।",

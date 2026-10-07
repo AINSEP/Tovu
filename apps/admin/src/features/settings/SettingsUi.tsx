@@ -1,3 +1,5 @@
+import { useTovuSettingsExecution } from '../../hooks/use-tovu-execution-adapters.hooks';
+import { useTovuExecutionPolicy } from '../../hooks/use-tovu-execution-policy.hooks';
 import { useEffect } from "react";
 /**
  * @file Admin "Settings (New)" screen — the Open Design settings-dialog port. Markup only.
@@ -240,6 +242,7 @@ function SettingsLocaleSync({
 }
 
 export interface SettingsUiProps {
+  useExecutionPolicy?: typeof useTovuExecutionPolicy;
   /** Dependency injection seam for tests — same convention as `PostsProps.usePostsHook`. */
   useSettingsUiHook?: typeof useSettingsUi;
   /**
@@ -326,8 +329,10 @@ export function SettingsUi(props: SettingsUiProps) {
    *  either settings-dialog dictionary behind `t` carries. See `settings-execution-i18n.ts`'s header. */
   const tExecution = (key: string): string => tSettingsExecution(settingsLocale, key);
 
+  const executionPolicy = useTovuSettingsExecution({ config: s.execution.value as ExecutionConfig | null, onChange: s.execution.onChange, locale: settingsLocale }, { usePolicy: props.useExecutionPolicy });
+
   const agentPresentation = useAiAgentPresentation({
-    port: s.port, config: s.execution.value as ExecutionConfig | null, locale: settingsLocale,
+    port: s.port, config: executionPolicy.config, locale: settingsLocale,
   });
 
   // Called unconditionally, ahead of the loading gate below (rules of hooks) — `resolveByokConfig`
@@ -355,7 +360,7 @@ export function SettingsUi(props: SettingsUiProps) {
       id: "execution",
       label: tExecution("AI agent"),
       title: tExecution("AI agent"),
-      subtitle: t("Choose Local CLI or BYOK."),
+      subtitle: t(executionPolicy.subtitleKey),
       icon: (
         <TabIcon>
           {/* Robot = the AI agent; adapted from lucide `bot`, ISC. */}
@@ -371,9 +376,11 @@ export function SettingsUi(props: SettingsUiProps) {
         <>
           <AdminByokMigrationPrompt controller={adminCredential} />
           {agentPresentation.warning && <p className="jini-field-hint is-error" role="status" aria-live="polite">{agentPresentation.warning}</p>}
+          {executionPolicy.note && <p className="jini-field-hint" role="status">{executionPolicy.note}</p>}
           <ExecutionTab
-            config={s.execution.value as ExecutionConfig}
-            onConfigChange={s.execution.onChange}
+            config={executionPolicy.config}
+            onConfigChange={executionPolicy.onConfigChange}
+            localCliUnavailableReason={executionPolicy.unavailableReason}
             port={agentPresentation.port}
             // Bridge presence identifies the desktop host; a deployed server runs elsewhere.
             localCliScopeLabel={tExecution(agentPresentation.scopeCopy)}
@@ -814,7 +821,7 @@ export function SettingsUi(props: SettingsUiProps) {
           `settings-ui-section` (Agent Plugins, Authentication, AI Assistant, the placeholder tabs,
           and this one), so anything meant for the Settings page alone must not select on the
           shared class. `data-theme` is pinned — see the comment above `return`. */}
-      <div ref={settingsRootRef} className="settings-ui-section settings-page" data-theme="light">
+      <div ref={settingsRootRef} className="settings-ui-section settings-page" data-theme="light" data-tovu-local-cli={executionPolicy.visibility}>
         {s.loadError ? (
           <p className="settings-ui-load-error" role="alert">
             {t("Could not load saved settings (")}{s.loadError}{t("). Showing defaults — edits will still save.")}

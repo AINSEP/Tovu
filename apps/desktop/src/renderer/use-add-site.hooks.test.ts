@@ -6,9 +6,9 @@ import { humanSiteError, addedSiteMessage } from './site-shell-policy.js';
  *
  * 1. **The pure helpers**, asserted directly. `describeAddFailure` is where this feature could go
  *    quietly wrong: main writes one refusal per folder problem, each naming the fix, and every
- *    surface — CLI, assistant, this button — is supposed to say the same sentence. A helper that
+ *    surface — CLI, assistant, this button — needs the same recovery instruction. A helper that
  *    flattened them into "Couldn't add that website." would pass any test that only checked "an
- *    error is shown", so the tests here assert on the REAL refusal strings.
+ *    error is shown", so the tests here use the REAL refusals and assert exact recovery text.
  * 2. **The wiring**, asserted against the source text, the way `rescan-wiring.test.ts` does for
  *    the sibling button. These catch what a unit test structurally cannot: logic creeping into
  *    `.tsx`, the button never being rendered, or the deleted dashed tile coming back.
@@ -65,7 +65,7 @@ function siteRecord(id: string, createdAt = '2026-01-01T00:00:00.000Z'): SiteRec
   } as SiteRecord;
 }
 
-test("a refusal reaches the operator VERBATIM, fix and all", () => {
+test("a folder refusal keeps the recovery instruction without exposing the path", () => {
   // Not a paraphrase of a refusal — the real one, lifted from `add-site-pointer.ts`'s own source so
   // this test fails if that message is ever rewritten without this surface being reconsidered.
   const real =
@@ -75,17 +75,17 @@ test("a refusal reaches the operator VERBATIM, fix and all", () => {
 
   const shown = describeAddFailure(new Error(`Error invoking remote method 'runner:sites:add-site': Error: ${real}`));
 
-  // The whole sentence, including the part that tells them what to do. `useSiteRescan` flattens
+  // Keep the part that tells them what to do. `useSiteRescan` flattens
   // every failure into one string; doing that here would throw away the only actionable half.
-  assert.equal(shown, real);
+  assert.equal(shown, 'This folder is not a Tovu website. Choose the folder containing your website.');
 });
 
-test("the Electron IPC prefix is stripped but nothing after it is", () => {
+test("the Electron IPC prefix and folder path are replaced by recovery text", () => {
   const shown = describeAddFailure(
     new Error("Error invoking remote method 'runner:sites:add-site': Error: /tmp/x has no Tovu site in it yet."),
   );
 
-  assert.equal(shown, '/tmp/x has no Tovu site in it yet.');
+  assert.equal(shown, 'No Tovu website was found in this folder. Choose an existing website or use Create website.');
   assert.doesNotMatch(shown ?? '', /invoking remote method/);
   assert.doesNotMatch(shown ?? '', /^Error:/);
 });
@@ -128,6 +128,26 @@ test("a newly added website appears first", () => {
     merged.map((project) => project.id),
     ['/sites/new', '/sites/a'],
   );
+});
+
+test('duplicate confirmation is scoped to that site; failed Add never supplies a site notice', async () => {
+  const harness = hookHarness();
+  let fail = false;
+  const added = { ...siteRecord('/sites/a'), alreadyTracked: true };
+  const useAdd = sourceFunction(hookSource, 'useAddSite', {
+    ...harness.bindings, NO_BRIDGE_MESSAGE, describeAddFailure, mergeAddedSite, addedSiteMessage,
+    runnerInventoryBridge: () => ({ addSite: async () => {
+      if (fail) throw new Error('choose a site folder');
+      return added;
+    } }),
+  });
+  const render = () => harness.render(() => useAdd({ setProjects: () => {} }));
+  await render().addSite();
+  assert.deepEqual(render().addNotice, { siteId: added.id, message: 'a is already in your list.' });
+  fail = true;
+  await render().addSite();
+  assert.equal(render().addNotice, null);
+  assert.equal(render().addError, 'choose a site folder');
 });
 
 test("the add logic lives in a hook, not in App.tsx — this repo keeps logic out of .tsx", () => {

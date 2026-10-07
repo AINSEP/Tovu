@@ -2,7 +2,15 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { AssistantDaemonRestart, assistantDaemonStatusMessage } from "../AiAssistant";
+import { AssistantDaemonRestart as RealAssistantDaemonRestart, assistantDaemonStatusMessage } from "../AiAssistant";
+import type { ComponentProps } from 'react';
+import { useTovuExecutionPolicy } from '@/hooks/use-tovu-execution-policy.hooks';
+
+// Existing restart scenarios describe a local host; keep deployment discovery injectable.
+function AssistantDaemonRestart(props: ComponentProps<typeof RealAssistantDaemonRestart>) {
+  return <RealAssistantDaemonRestart useExecutionPolicy={(input) => useTovuExecutionPolicy(input, { desktop: true })} {...props} />;
+}
+
 import type { AssistantDaemonRestartController } from "../hooks/use-assistant-daemon-restart.hooks";
 
 /**
@@ -115,4 +123,16 @@ describe("assistantDaemonStatusMessage", () => {
   it("returns null before the first check has even started (nothing loading, nothing known, no error)", () => {
     expect(assistantDaemonStatusMessage({ knownFailed: null, checkingStatus: false, statusError: null })).toBeNull();
   });
+});
+
+
+it('hides the Local CLI process entry point on a deployed site', () => {
+  const restart = vi.fn(async () => {});
+  render(<AssistantDaemonRestart
+    useAssistantDaemonRestartHook={() => fakeController({ restart })}
+    useExecutionPolicy={(input) => useTovuExecutionPolicy(input, { desktop: false, loadRuntime: async () => ({ mode: 'production' }) })}
+  />);
+  expect(screen.queryByText('Local CLI process')).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Restart assistant' })).not.toBeInTheDocument();
+  expect(restart).not.toHaveBeenCalled();
 });

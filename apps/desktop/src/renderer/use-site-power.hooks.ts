@@ -24,6 +24,7 @@ import { useCallback, useState } from 'react';
 import { runnerInventoryBridge } from './runner-api.js';
 import type { SiteLifecycleStatus, SiteRecord } from '../contracts/project.js';
 import { desktopCopy } from '../desktop-i18n.js';
+import { siteOperationError } from './site-shell-policy.js';
 
 /** Which way a click moves a site. */
 export type SitePowerAction = 'start' | 'stop';
@@ -125,7 +126,7 @@ export async function performPowerAction(
   try {
     return { record: action === 'start' ? await bridge.startSite(id) : await bridge.stopSite(id) };
   } catch (err) {
-    return { error: err instanceof Error ? err.message : String(err) };
+    return { error: action === 'start' ? siteOperationError({ error: err, operation: 'start' }) : err instanceof Error ? err.message : String(err) };
   }
 }
 

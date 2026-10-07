@@ -55,10 +55,10 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "The Trash is empty.": "La papelera está vacía.",
     "Load more": "Cargar más",
     "Loading…": "Cargando…",
-    "Deleted items stay here for 60 days, then are removed automatically.":
-      "Los elementos eliminados permanecen aquí 60 días y luego se eliminan automáticamente.",
-    "Deleted items from every section appear here, except Collection entries and Theme files.":
-      "Los elementos eliminados de todas las secciones aparecen aquí, excepto las entradas de colecciones y los archivos de temas.",
+    "Deleted items are kept for 60 days.":
+      "Los elementos eliminados se conservan durante 60 días.",
+    "Collection entries and theme files don't go to Trash.":
+      "Las entradas de colecciones y los archivos de temas no van a la papelera.",
     Post: "Entrada",
     Comment: "Comentario",
     Media: "Multimedia",
@@ -106,10 +106,10 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "The Trash is empty.": "Sampah kosong.",
     "Load more": "Muat lagi",
     "Loading…": "Memuat…",
-    "Deleted items stay here for 60 days, then are removed automatically.":
-      "Item yang dihapus tetap di sini selama 60 hari, lalu dihapus otomatis.",
-    "Deleted items from every section appear here, except Collection entries and Theme files.":
-      "Item yang dihapus dari semua bagian muncul di sini, kecuali entri Koleksi dan file Tema.",
+    "Deleted items are kept for 60 days.":
+      "Item yang dihapus disimpan selama 60 hari.",
+    "Collection entries and theme files don't go to Trash.":
+      "Entri Koleksi dan file Tema tidak masuk ke Sampah.",
     Post: "Pos",
     Comment: "Komentar",
     Media: "Media",
@@ -157,10 +157,10 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "The Trash is empty.": "Der Papierkorb ist leer.",
     "Load more": "Mehr laden",
     "Loading…": "Wird geladen…",
-    "Deleted items stay here for 60 days, then are removed automatically.":
-      "Gelöschte Elemente bleiben hier 60 Tage lang und werden dann automatisch entfernt.",
-    "Deleted items from every section appear here, except Collection entries and Theme files.":
-      "Gelöschte Elemente aus allen Bereichen werden hier angezeigt, außer Sammlungseinträgen und Theme-Dateien.",
+    "Deleted items are kept for 60 days.":
+      "Gelöschte Elemente werden 60 Tage aufbewahrt.",
+    "Collection entries and theme files don't go to Trash.":
+      "Sammlungseinträge und Theme-Dateien landen nicht im Papierkorb.",
     Post: "Beitrag",
     Comment: "Kommentar",
     Media: "Medien",
@@ -208,10 +208,10 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "The Trash is empty.": "回收站是空的。",
     "Load more": "加载更多",
     "Loading…": "加载中…",
-    "Deleted items stay here for 60 days, then are removed automatically.":
-      "已删除的项目会在此保留 60 天，之后会自动清除。",
-    "Deleted items from every section appear here, except Collection entries and Theme files.":
-      "所有板块中已删除的项目都会显示在此处，合集条目和主题文件除外。",
+    "Deleted items are kept for 60 days.":
+      "已删除的项目保留60天。",
+    "Collection entries and theme files don't go to Trash.":
+      "集合条目和主题文件不会进入回收站。",
     Post: "文章",
     Comment: "评论",
     Media: "媒体",
@@ -259,10 +259,10 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "The Trash is empty.": "資源回收筒是空的。",
     "Load more": "載入更多",
     "Loading…": "載入中…",
-    "Deleted items stay here for 60 days, then are removed automatically.":
-      "已刪除的項目會在此保留 60 天，之後會自動清除。",
-    "Deleted items from every section appear here, except Collection entries and Theme files.":
-      "所有區段中已刪除的項目都會顯示在這裡，合輯項目和佈景主題檔案除外。",
+    "Deleted items are kept for 60 days.":
+      "已刪除的項目保留60天。",
+    "Collection entries and theme files don't go to Trash.":
+      "集合項目和佈景主題檔案不會進入垃圾桶。",
     Post: "文章",
     Comment: "留言",
     Media: "媒體",
@@ -310,10 +310,10 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "The Trash is empty.": "A Lixeira está vazia.",
     "Load more": "Carregar mais",
     "Loading…": "Carregando…",
-    "Deleted items stay here for 60 days, then are removed automatically.":
-      "Os itens excluídos ficam aqui por 60 dias e depois são removidos automaticamente.",
-    "Deleted items from every section appear here, except Collection entries and Theme files.":
-      "Os itens excluídos de todas as seções aparecem aqui, exceto itens de Coleções e arquivos de Temas.",
+    "Deleted items are kept for 60 days.":
+      "Os itens excluídos são mantidos por 60 dias.",
+    "Collection entries and theme files don't go to Trash.":
+      "Entradas de coleções e arquivos de temas não vão para a lixeira.",
     Post: "Publicação",
     Comment: "Comentário",
     Media: "Mídia",
@@ -361,10 +361,10 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "The Trash is empty.": "Корзина пуста.",
     "Load more": "Загрузить ещё",
     "Loading…": "Загрузка…",
-    "Deleted items stay here for 60 days, then are removed automatically.":
-      "Удалённые элементы хранятся здесь 60 дней, а затем удаляются автоматически.",
-    "Deleted items from every section appear here, except Collection entries and Theme files.":
-      "Здесь отображаются удалённые элементы из всех разделов, кроме элементов коллекций и файлов тем.",
+    "Deleted items are kept for 60 days.":
+      "Удалённые элементы хранятся 60 дней.",
+    "Collection entries and theme files don't go to Trash.":
+      "Записи коллекций и файлы тем не попадают в корзину.",
     Post: "Запись",
     Comment: "Комментарий",
     Media: "Медиа",
@@ -412,10 +412,10 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "The Trash is empty.": "زباله‌دان خالی است.",
     "Load more": "بارگذاری بیشتر",
     "Loading…": "در حال بارگذاری…",
-    "Deleted items stay here for 60 days, then are removed automatically.":
-      "موارد حذف‌شده تا ۶۰ روز اینجا می‌مانند و سپس به‌طور خودکار حذف می‌شوند.",
-    "Deleted items from every section appear here, except Collection entries and Theme files.":
-      "موارد حذف‌شده از همه بخش‌ها اینجا نمایش داده می‌شوند، به‌جز مدخل‌های مجموعه و فایل‌های پوسته.",
+    "Deleted items are kept for 60 days.":
+      "موارد حذف‌شده به مدت ۶۰ روز نگه داشته می‌شوند.",
+    "Collection entries and theme files don't go to Trash.":
+      "ورودی‌های مجموعه و فایل‌های پوسته به سطل زباله نمی‌روند.",
     Post: "نوشته",
     Comment: "نظر",
     Media: "رسانه",
@@ -463,10 +463,10 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "The Trash is empty.": "سلة المهملات فارغة.",
     "Load more": "تحميل المزيد",
     "Loading…": "جارٍ التحميل…",
-    "Deleted items stay here for 60 days, then are removed automatically.":
-      "تبقى العناصر المحذوفة هنا 60 يومًا، ثم تُزال تلقائيًا.",
-    "Deleted items from every section appear here, except Collection entries and Theme files.":
-      "تظهر هنا العناصر المحذوفة من كل الأقسام، باستثناء عناصر المجموعات وملفات القوالب.",
+    "Deleted items are kept for 60 days.":
+      "تُحفظ العناصر المحذوفة لمدة 60 يومًا.",
+    "Collection entries and theme files don't go to Trash.":
+      "إدخالات المجموعات وملفات القوالب لا تنتقل إلى سلة المهملات.",
     // "Widgets" deliberately does not reuse `admin-nav-i18n.ts`'s own choice ("العناصر", literally
     // "the elements") — that word is also the natural translation of this same sentence's
     // "Collection entries" ("عناصر المجموعات"), and placing both back to back would read as the same
@@ -519,10 +519,10 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "The Trash is empty.": "ゴミ箱は空です。",
     "Load more": "さらに読み込む",
     "Loading…": "読み込み中…",
-    "Deleted items stay here for 60 days, then are removed automatically.":
-      "削除された項目はここに60日間保持され、その後自動的に削除されます。",
-    "Deleted items from every section appear here, except Collection entries and Theme files.":
-      "すべてのセクションの削除済み項目はここに表示されます。ただし、コレクションのエントリとテーマファイルを除きます。",
+    "Deleted items are kept for 60 days.":
+      "削除された項目は60日間保持されます。",
+    "Collection entries and theme files don't go to Trash.":
+      "コレクションのエントリとテーマファイルはゴミ箱に入りません。",
     Post: "投稿",
     Comment: "コメント",
     Media: "メディア",
@@ -570,10 +570,10 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "The Trash is empty.": "휴지통이 비어 있습니다.",
     "Load more": "더 보기",
     "Loading…": "로딩 중…",
-    "Deleted items stay here for 60 days, then are removed automatically.":
-      "삭제된 항목은 60일 동안 여기에 보관된 후 자동으로 제거됩니다.",
-    "Deleted items from every section appear here, except Collection entries and Theme files.":
-      "모든 섹션의 삭제된 항목이 여기에 표시됩니다. 단, 컬렉션 항목과 테마 파일은 제외됩니다.",
+    "Deleted items are kept for 60 days.":
+      "삭제된 항목은 60일 동안 보관됩니다.",
+    "Collection entries and theme files don't go to Trash.":
+      "컬렉션 항목과 테마 파일은 휴지통으로 이동하지 않습니다.",
     Post: "게시물",
     Comment: "댓글",
     Media: "미디어",
@@ -621,10 +621,10 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "The Trash is empty.": "Kosz jest pusty.",
     "Load more": "Wczytaj więcej",
     "Loading…": "Wczytywanie…",
-    "Deleted items stay here for 60 days, then are removed automatically.":
-      "Usunięte elementy pozostają tutaj przez 60 dni, a następnie są usuwane automatycznie.",
-    "Deleted items from every section appear here, except Collection entries and Theme files.":
-      "Usunięte elementy ze wszystkich sekcji pojawiają się tutaj, z wyjątkiem wpisów Kolekcji i plików Motywów.",
+    "Deleted items are kept for 60 days.":
+      "Usunięte elementy są przechowywane przez 60 dni.",
+    "Collection entries and theme files don't go to Trash.":
+      "Wpisy kolekcji i pliki motywów nie trafiają do kosza.",
     Post: "Wpis",
     Comment: "Komentarz",
     Media: "Multimedia",
@@ -672,10 +672,10 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "The Trash is empty.": "A Kuka üres.",
     "Load more": "Továbbiak betöltése",
     "Loading…": "Betöltés…",
-    "Deleted items stay here for 60 days, then are removed automatically.":
-      "A törölt elemek 60 napig maradnak itt, majd automatikusan eltávolításra kerülnek.",
-    "Deleted items from every section appear here, except Collection entries and Theme files.":
-      "A minden szekcióból törölt elemek itt jelennek meg, kivéve a Gyűjtemény-elemeket és a Sablon-fájlokat.",
+    "Deleted items are kept for 60 days.":
+      "A törölt elemeket 60 napig őrizzük meg.",
+    "Collection entries and theme files don't go to Trash.":
+      "A gyűjteménybejegyzések és a témafájlok nem kerülnek a kukába.",
     Post: "Bejegyzés",
     Comment: "Hozzászólás",
     Media: "Média",
@@ -723,10 +723,10 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "The Trash is empty.": "La corbeille est vide.",
     "Load more": "Charger plus",
     "Loading…": "Chargement…",
-    "Deleted items stay here for 60 days, then are removed automatically.":
-      "Les éléments supprimés restent ici 60 jours, puis sont supprimés automatiquement.",
-    "Deleted items from every section appear here, except Collection entries and Theme files.":
-      "Les éléments supprimés de toutes les sections apparaissent ici, à l'exception des entrées de Collections et des fichiers de Thèmes.",
+    "Deleted items are kept for 60 days.":
+      "Les éléments supprimés sont conservés pendant 60 jours.",
+    "Collection entries and theme files don't go to Trash.":
+      "Les entrées de collections et les fichiers de thèmes ne vont pas dans la corbeille.",
     Post: "Article",
     Comment: "Commentaire",
     Media: "Médias",
@@ -774,10 +774,10 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "The Trash is empty.": "Кошик порожній.",
     "Load more": "Завантажити ще",
     "Loading…": "Завантаження…",
-    "Deleted items stay here for 60 days, then are removed automatically.":
-      "Видалені елементи залишаються тут 60 днів, а потім видаляються автоматично.",
-    "Deleted items from every section appear here, except Collection entries and Theme files.":
-      "Видалені елементи з усіх розділів з'являються тут, окрім елементів Колекцій та файлів Тем.",
+    "Deleted items are kept for 60 days.":
+      "Видалені елементи зберігаються 60 днів.",
+    "Collection entries and theme files don't go to Trash.":
+      "Записи колекцій і файли тем не потрапляють до кошика.",
     Post: "Запис",
     Comment: "Коментар",
     Media: "Медіа",
@@ -825,10 +825,10 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "The Trash is empty.": "Çöp kutusu boş.",
     "Load more": "Daha fazla yükle",
     "Loading…": "Yükleniyor…",
-    "Deleted items stay here for 60 days, then are removed automatically.":
-      "Silinen öğeler burada 60 gün kalır, ardından otomatik olarak kaldırılır.",
-    "Deleted items from every section appear here, except Collection entries and Theme files.":
-      "Tüm bölümlerden silinen öğeler burada görünür; Koleksiyon girdileri ve Tema dosyaları hariç.",
+    "Deleted items are kept for 60 days.":
+      "Silinen öğeler 60 gün saklanır.",
+    "Collection entries and theme files don't go to Trash.":
+      "Koleksiyon kayıtları ve tema dosyaları Çöp Kutusuna gitmez.",
     Post: "Yazı",
     Comment: "Yorum",
     Media: "Medya",
@@ -876,10 +876,10 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "The Trash is empty.": "ถังขยะว่างเปล่า",
     "Load more": "โหลดเพิ่มเติม",
     "Loading…": "กำลังโหลด…",
-    "Deleted items stay here for 60 days, then are removed automatically.":
-      "รายการที่ลบจะอยู่ที่นี่ 60 วัน จากนั้นจะถูกลบโดยอัตโนมัติ",
-    "Deleted items from every section appear here, except Collection entries and Theme files.":
-      "รายการที่ถูกลบจากทุกส่วนจะแสดงที่นี่ ยกเว้นรายการคอลเลกชันและไฟล์ธีม",
+    "Deleted items are kept for 60 days.":
+      "รายการที่ลบจะถูกเก็บไว้เป็นเวลา 60 วัน",
+    "Collection entries and theme files don't go to Trash.":
+      "รายการในคอลเลกชันและไฟล์ธีมจะไม่ไปที่ถังขยะ",
     Post: "โพสต์",
     Comment: "ความคิดเห็น",
     Media: "สื่อ",
@@ -927,10 +927,10 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "The Trash is empty.": "Il Cestino è vuoto.",
     "Load more": "Carica altro",
     "Loading…": "Caricamento…",
-    "Deleted items stay here for 60 days, then are removed automatically.":
-      "Gli elementi eliminati restano qui per 60 giorni, poi vengono rimossi automaticamente.",
-    "Deleted items from every section appear here, except Collection entries and Theme files.":
-      "Gli elementi eliminati da tutte le sezioni vengono visualizzati qui, ad eccezione delle voci delle Raccolte e dei file dei Temi.",
+    "Deleted items are kept for 60 days.":
+      "Gli elementi eliminati vengono conservati per 60 giorni.",
+    "Collection entries and theme files don't go to Trash.":
+      "Le voci delle raccolte e i file dei temi non vanno nel cestino.",
     Post: "Articolo",
     Comment: "Commento",
     Media: "Contenuti multimediali",
@@ -978,10 +978,10 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "The Trash is empty.": "ट्रैश खाली है।",
     "Load more": "अधिक लोड करें",
     "Loading…": "लोड हो रहा है…",
-    "Deleted items stay here for 60 days, then are removed automatically.":
-      "हटाए गए आइटम यहां 60 दिनों तक रहते हैं, फिर स्वतः हटा दिए जाते हैं।",
-    "Deleted items from every section appear here, except Collection entries and Theme files.":
-      "सभी सेक्शन से हटाए गए आइटम यहां दिखाई देते हैं, सिवाय कलेक्शन एंट्री और थीम फ़ाइलों के।",
+    "Deleted items are kept for 60 days.":
+      "हटाए गए आइटम 60 दिनों तक रखे जाते हैं।",
+    "Collection entries and theme files don't go to Trash.":
+      "संग्रह की प्रविष्टियाँ और थीम फ़ाइलें ट्रैश में नहीं जातीं।",
     Post: "पोस्ट",
     Comment: "टिप्पणी",
     Media: "मीडिया",
@@ -1029,10 +1029,10 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "The Trash is empty.": "ردی کی ٹوکری خالی ہے۔",
     "Load more": "مزید لوڈ کریں",
     "Loading…": "لوڈ ہو رہا ہے…",
-    "Deleted items stay here for 60 days, then are removed automatically.":
-      "حذف شدہ آئٹمز یہاں 60 دن تک رہتے ہیں، پھر خود بخود ہٹا دیے جاتے ہیں۔",
-    "Deleted items from every section appear here, except Collection entries and Theme files.":
-      "تمام سیکشنز سے حذف شدہ آئٹمز یہاں دکھائے جاتے ہیں، سوائے کلیکشن اندراجات اور تھیم فائلوں کے۔",
+    "Deleted items are kept for 60 days.":
+      "حذف شدہ آئٹمز 60 دن تک رکھے جاتے ہیں۔",
+    "Collection entries and theme files don't go to Trash.":
+      "کلیکشن کی اندراجات اور تھیم فائلیں کوڑے دان میں نہیں جاتیں۔",
     Post: "پوسٹ",
     Comment: "تبصرہ",
     Media: "میڈیا",
@@ -1080,10 +1080,10 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "The Trash is empty.": "ট্র্যাশ খালি।",
     "Load more": "আরও লোড করুন",
     "Loading…": "লোড হচ্ছে…",
-    "Deleted items stay here for 60 days, then are removed automatically.":
-      "মুছে ফেলা আইটেমগুলি এখানে ৬০ দিন থাকে, তারপর স্বয়ংক্রিয়ভাবে সরিয়ে ফেলা হয়।",
-    "Deleted items from every section appear here, except Collection entries and Theme files.":
-      "সব বিভাগ থেকে মুছে ফেলা আইটেমগুলো এখানে দেখা যায়, সংগ্রহের এন্ট্রি এবং থিম ফাইল ছাড়া।",
+    "Deleted items are kept for 60 days.":
+      "মুছে ফেলা আইটেম 60 দিন রাখা হয়।",
+    "Collection entries and theme files don't go to Trash.":
+      "সংগ্রহের এন্ট্রি ও থিম ফাইল ট্র্যাশে যায় না।",
     Post: "পোস্ট",
     Comment: "মন্তব্য",
     Media: "মিডিয়া",

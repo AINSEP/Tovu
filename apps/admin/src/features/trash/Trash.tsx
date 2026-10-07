@@ -1,5 +1,6 @@
 import { DataTable, ConfirmDialog, type DataTableColumn } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
+import { InfoTip } from "@/components/InfoTip";
 
 import type { AdminTrashItem } from "../../lib/api";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
@@ -19,6 +20,8 @@ import { useWiredTrash, type TrashController } from "./hooks/use-trash.hooks";
  * The coverage line under the title is not decoration and is not behind a disclosure: phase 1
  * collects four of the seven kinds this admin can delete, so a user who deletes a widget and does
  * not find it here would otherwise conclude it is gone for good.
+ * Owner update (2026-10-07): the original always-visible coverage requirement above is superseded
+ * by the Users title's shared InfoTip pattern, keeping exceptions discoverable with less intro copy.
  */
 
 /** The select-all checkbox that lives in the table's first header cell. */
@@ -258,12 +261,15 @@ export function Trash(props: { useTrashHook?: () => TrashController } = {}) {
       <div className="page-header">
         <div className="page-header-text">
           <p className="page-kicker">{translateAdminNavLabel(locale, "Administration")}</p>
-          <h1 className="page-title">{translateAdminNavLabel(locale, "Trash")}</h1>
+          <h1 className="page-title">
+            {translateAdminNavLabel(locale, "Trash")}
+            {/* Originally not behind a disclosure, on purpose — see this file's header.
+                Owner update (2026-10-07): use the Users title's InfoTip to shorten the intro. */}
+            <InfoTip label={coverageLine(locale)} agentHandle="trash-coverage-info" />
+          </h1>
           <p className="page-description">
-            {t(locale, "Deleted items stay here for 60 days, then are removed automatically.")}
+            {t(locale, "Deleted items are kept for 60 days.")}
           </p>
-          {/* Not behind a disclosure, on purpose — see this file's header. */}
-          <p className="page-description">{coverageLine(locale)}</p>
         </div>
       </div>
 

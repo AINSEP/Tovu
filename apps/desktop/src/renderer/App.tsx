@@ -81,7 +81,7 @@ export function App({
   // every section-level move also drops back to the sites home tab. What used to make that ordering
   // impossible — the tabs hook consuming `activeId`/`appearanceOpen` — is now `deriveSitesHomeView`.
   const { openTabs, activeTab, setActiveTab, openProjectTab, closeProjectTab } = useTabs();
-  const { adding, addError, addSite } = useAddSite({ setProjects }, { onAlreadyTracked: openProjectTab });
+  const { adding, addError, addNotice, addSite } = useAddSite({ setProjects }, { onAlreadyTracked: openProjectTab });
   const {
     activeId,
     setActiveId,
@@ -143,8 +143,9 @@ export function App({
       )}
 
       <main className="main">
-        {/* Re-adding a tracked site opens its tab; keep the feedback visible there too. */}
-        {showSiteTab && addError && <p className="projects-feedback" role="status">{addError}</p>}
+        {/* Re-adding a tracked site opens its tab; keep that confirmation visible there too.
+            Folder failures belong to the websites view and must not carry into site tabs. */}
+        {showSiteTab && addNotice?.siteId === activeTab && <p className="projects-feedback" role="status">{addNotice.message}</p>}
         <MainArea
           appearanceOpen={appearanceOpen}
           onCloseAppearance={closeAppearance}

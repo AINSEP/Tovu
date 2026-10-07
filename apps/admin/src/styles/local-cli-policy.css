@@ -1,0 +1,12 @@
+/* Jini currently exposes disable, not hide, for execution modes. Keep this host adapter small
+ * until its published controls accept a visibility capability (NEEDS-JINI in SURVEY.md).
+ * display:none removes the entry point from layout, keyboard navigation and the accessibility tree.
+ * The composer popover portals to body, so it must use the owning dock's policy through :has(). */
+[data-tovu-local-cli="hidden"] .jini-seg-control > .jini-seg-btn:first-child,
+body:has([data-tovu-local-cli="hidden"][data-testid="admin-chat-driver-root"]) .jini-runtime-popover > .jini-runtime-mode:first-of-type {
+  display: none;
+}
+
+[data-tovu-local-cli="hidden"] .jini-seg-control {
+  --seg-cols: 1 !important;
+}

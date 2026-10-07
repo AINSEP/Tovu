@@ -15,7 +15,7 @@ import type { Dispatch, SetStateAction } from 'react';
 
 import type { SiteRecord } from '../contracts/project.js';
 import { runnerInventoryBridge } from './runner-api.js';
-import { humanSiteError, addedSiteMessage } from './site-shell-policy.js';
+import { humanSiteError, siteOperationError, addedSiteMessage } from './site-shell-policy.js';
 
 /** The refusal shown when the IPC bridge itself is absent — a renderer running outside Electron
  *  (a plain `vite preview`, a test harness). Stated rather than silent: a button that does nothing
@@ -29,7 +29,7 @@ const CANCELLED_MESSAGE = 'No folder was chosen.';
 /**
  * Drive the "Add Tovu Website" button.
  *
- * Main's actionable refusal survives, with Electron and Error class prefixes removed.
+ * Main's actionable refusal becomes short localized recovery text, without its internal path.
  * Cancellation resolves with null; a duplicate reports its existing name and opens that tab.
  *
  * @param setProjects the Projects screen's list setter. The new record is PREPENDED rather than
@@ -44,15 +44,18 @@ export function useAddSite({ setProjects }: { setProjects: Dispatch<SetStateActi
 ): {
   adding: boolean;
   addError: string | null;
+  addNotice: { siteId: string; message: string } | null;
   addSite: () => Promise<void>;
   clearAddError: () => void;
 } {
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
+  const [addNotice, setAddNotice] = useState<{ siteId: string; message: string } | null>(null);
 
-  const clearAddError = useCallback(() => setAddError(null), []);
+  const clearAddError = useCallback(() => { setAddError(null); setAddNotice(null); }, []);
 
   const addSite = useCallback(async () => {
+    setAddNotice(null);
     const bridge = runnerInventoryBridge();
     if (bridge === undefined) {
       setAddError(NO_BRIDGE_MESSAGE);
@@ -66,6 +69,7 @@ export function useAddSite({ setProjects }: { setProjects: Dispatch<SetStateActi
       setProjects((current) => mergeAddedSite(current, added));
       const message = addedSiteMessage({ added });
       setAddError(message);
+      setAddNotice(message ? { siteId: added.id, message } : null);
       if (message) onAlreadyTracked?.(added.id);
     } catch (error) {
       setAddError(describeAddFailure(error));
@@ -74,7 +78,7 @@ export function useAddSite({ setProjects }: { setProjects: Dispatch<SetStateActi
     }
   }, [setProjects, onAlreadyTracked]);
 
-  return { adding, addError, addSite, clearAddError };
+  return { adding, addError, addNotice, addSite, clearAddError };
 }
 
 /**
@@ -100,15 +104,16 @@ function mergeAddedSite(
  *
  * Electron wraps a main-process rejection, so `error.message` arrives prefixed with
  * `Error: Error invoking remote method '...':`. That prefix is noise to an operator, so it is
- * stripped — but only the prefix: everything after it is main's text, kept intact.
+ * stripped. Known folder refusals now use short translated recovery text (D-24), preserving the
+ * fix rather than the filesystem path; unrelated short messages still survive intact.
  *
  * @complexity O(n) in the message length.
  */
-function describeAddFailure(error: unknown): string | null {
+function describeAddFailure(error: unknown, optional: { locale?: string } = {}): string | null {
   const raw = error instanceof Error ? error.message : String(error);
   const message = humanSiteError({ error: raw, fallback: "Couldn't add that website." });
   // Their own choice, not a failure to report back at them.
-  return message === CANCELLED_MESSAGE ? null : message;
+  return message === CANCELLED_MESSAGE ? null : siteOperationError({ error: message, operation: 'add' }, optional);
 }
 
 export { CANCELLED_MESSAGE, NO_BRIDGE_MESSAGE, describeAddFailure, mergeAddedSite };

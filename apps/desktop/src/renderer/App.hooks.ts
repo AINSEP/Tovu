@@ -1,5 +1,5 @@
 import { SITE_NAME_ERROR, siteNameError } from "../contracts/site-name.js";
-import { humanSiteError, tabAfterClose, readyNoticeStillTrue, dismissOnEscape } from "./site-shell-policy.js";
+import { humanSiteError, siteOperationError, tabAfterClose, readyNoticeStillTrue, dismissOnEscape } from "./site-shell-policy.js";
 /**
  * Custom hooks pulled out of `App.tsx`.
  *
@@ -730,7 +730,7 @@ export async function performSiteStart(
   try {
     return { record: await bridge.startSite(id) };
   } catch (err) {
-    return { error: err instanceof Error ? err.message : String(err) };
+    return { error: siteOperationError({ error: err, operation: 'start' }) };
   }
 }
 

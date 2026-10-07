@@ -1,3 +1,5 @@
+import { useTovuDockExecution } from '../../hooks/use-tovu-execution-adapters.hooks';
+import { useTovuExecutionPolicy } from '../../hooks/use-tovu-execution-policy.hooks';
 import { useSelectedSkills, useComposerDiscoveryDraft, useSkillOnlySend } from "./hooks/composer-skills.hooks";
 import { useAssistantEmptyState } from "./hooks/use-assistant-empty-state.hooks";
 import { useSelectedAgentAuthWarning } from "./hooks/use-selected-agent-auth-warning.hooks";
@@ -279,6 +281,7 @@ declare global {
  */
 
 export interface AssistantDockProps {
+  useExecutionPolicy?: typeof useTovuExecutionPolicy;
   /**
    * This tab's page-control connection, owned by `App.tsx` (it outlives this pane, which unmounts
    * with the dock). `null` until the daemon has attached the surface, or if it never does.
@@ -428,6 +431,7 @@ export function AssistantDock({
   useAttachmentValidator: useAttachmentValidatorOverride,
   useRuntimeAccess: useRuntimeAccessOverride,
   onFolderDropCaptureReady,
+  useExecutionPolicy,
 }: AssistantDockProps) {
   const agentBridge = resolveAgentBridge(agentBridgeProp);
   const { enabled: webMcpEnabled } = useBrowserAgentSettings({});
@@ -437,7 +441,8 @@ export function AssistantDock({
   // than three separate calls.
   const { locale, t, chatI18n } = useAssistantDockChrome(useAdminLocale);
 
-  const { executionConfig, executionConfigRef, setExecutionConfig, handleExecutionModeChange, hasStoredAdminKey, configLoaded, readExecutionConfigForSend } = useExecutionConfigSeam(useExecutionConfigOverride);
+  const executionPolicy = useTovuDockExecution({ controller: useExecutionConfigSeam(useExecutionConfigOverride), locale }, { usePolicy: useExecutionPolicy });
+  const { executionConfig, executionConfigRef, setExecutionConfig, handleExecutionModeChange, hasStoredAdminKey, configLoaded, readExecutionConfigForSend } = executionPolicy;
   const { byokRuntime, handleByokModelChange } = useByokRuntimeSeam(useByokRuntimeOverride, { executionConfig, setExecutionConfig });
   const { localCliSelection, handleLocalCliSelectionChange, readLocalCliSelectionForSend } = useLocalCliSelectionSeam(useLocalCliSelectionOverride, {
     executionConfig,
@@ -469,9 +474,9 @@ export function AssistantDock({
   // detection; its wrapped runtimeAccess re-probes auth on the picker's own Rescan.
   const pickerRuntimeAccess = useRuntimeAccessSeam(useRuntimeAccessOverride);
   const selectedAgentAuth = useSelectedAgentAuthWarning({ mode: executionConfig.mode, agentId: localCliSelection.agentId, locale, runtimeAccess: pickerRuntimeAccess });
-  const runtimeAccess = selectedAgentAuth.runtimeAccess;
+  const runtimeAccess = executionPolicy.runtimeAccess(selectedAgentAuth.runtimeAccess);
   // The picker's instant list while `listAgents` is still in flight — see `useAgentsPlaceholder`.
-  const agentsPlaceholder = useAgentsPlaceholderSeam(useRuntimeAccessOverride);
+  const agentsPlaceholder = executionPolicy.agents(useAgentsPlaceholderSeam(useRuntimeAccessOverride));
   /**
    * The composer's discovery catalog, projected asynchronously (debate 2, "Composer slash
    * commands") — replaces the pre-2026-08-12 static `TOVU_COMPOSER_DISCOVERY_GROUPS` import. See
@@ -528,7 +533,7 @@ export function AssistantDock({
   // Shown on one ellipsized line, so the full name rides along as the hover tooltip.
   const activeTitle = chats.conversations.find((c) => c.id === chats.activeId)?.title ?? t("Tovu assistant");
   const failureSurface = useAgentFailureSurface({ transport, runtimeAccess, initialMessages: chats.initialMessages,
-    onSelectionChange: handleLocalCliSelectionChange, onExecutionModeChange: handleExecutionModeChange }, {});
+    onSelectionChange: executionPolicy.selectionChange(handleLocalCliSelectionChange), onExecutionModeChange: handleExecutionModeChange }, {});
   const emptyState = useAssistantEmptyState({ paneKey: chats.paneKey, initialMessages: failureSurface.initialMessages, onMessagesChange: handleMessagesChange });
 
   return (
@@ -537,7 +542,7 @@ export function AssistantDock({
       <SkillInstallConfirmation install={skillInstall} />
       {/* ChatPane takes `transport` directly as well as via the provider — the package's
           components read their dependencies from props, not implicitly from context. */}
-      <div className="admin-chat-dock-drop" data-testid="admin-chat-driver-root" data-conversation-id={chats.activeId ?? ""} ref={discoveryDraft.rootRef} style={{ display: "contents" }} onClickCapture={captureComposerClick} onChangeCapture={discoveryDraft.captureDraft} onDropCapture={folderDrop.handleDropCapture}>
+      <div className="admin-chat-dock-drop" data-testid="admin-chat-driver-root" data-tovu-local-cli={executionPolicy.visibility} data-conversation-id={chats.activeId ?? ""} ref={discoveryDraft.rootRef} style={{ display: "contents" }} onClickCapture={captureComposerClick} onChangeCapture={discoveryDraft.captureDraft} onDropCapture={folderDrop.handleDropCapture}>
       <ChatPane
         // Remounts the pane on a conversation switch. `ChatPane` owns its transcript and takes
         // `initialMessages` only at mount, so re-keying is how a different conversation's history
@@ -552,7 +557,7 @@ export function AssistantDock({
         // the ledger's async load. `useLocalCliSelection` starts at the same `{agentId: "claude"}`
         // this literal used to hardcode, then follows saved changes after the ledger settles.
         selection={localCliSelection}
-        onSelectionChange={handleLocalCliSelectionChange}
+        onSelectionChange={executionPolicy.selectionChange(handleLocalCliSelectionChange)}
         {...(chats.activeId ? { conversationId: chats.activeId } : {})}
         initialMessages={failureSurface.initialMessages}
         // Recent prompt recall is local to this signed-in admin, including in a new chat.
@@ -710,6 +715,7 @@ export function AssistantDock({
         // element in this position is a layout trap).
         leadingAccessory={
           <>
+            {executionPolicy.note && <p className="assistant-agent-auth-warning" role="status">{executionPolicy.note}</p>}
             {/* Jini's AgentRuntimePicker has no warning slot yet, so this rides the slot directly
                 above the input: seen before a send, cleared on sign-in + Rescan or a switch. */}
             {selectedAgentAuth.warning ? (

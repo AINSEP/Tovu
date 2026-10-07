@@ -11,7 +11,14 @@ import {
 } from "@jini-ai/ui";
 
 import { TOVU_ADMIN_VERSION } from "@/lib/app-version";
-import { SettingsUi } from "../SettingsUi";
+import { SettingsUi as RealSettingsUi } from "../SettingsUi";
+import type { ComponentProps } from "react";
+import { useTovuExecutionPolicy } from "@/hooks/use-tovu-execution-policy.hooks";
+
+// These existing scenarios exercise a local host; runtime IO remains behind the policy seam.
+function SettingsUi(props: ComponentProps<typeof RealSettingsUi>) {
+  return <RealSettingsUi useExecutionPolicy={(input) => useTovuExecutionPolicy(input, { desktop: true })} {...props} />;
+}
 import type { SettingsUiController } from "../hooks/use-settings-ui.hooks";
 import type { SettingsSlice } from "@/hooks/use-settings-slice.hooks";
 import { createFakeAdminExecutionCredentialPort } from "@/hooks/admin-execution-credential-dependencies.hooks";

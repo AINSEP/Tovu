@@ -1,3 +1,6 @@
+import { useAdminLocale } from '../../hooks/use-admin-locale.hooks';
+import { useTovuSettingsExecution } from '../../hooks/use-tovu-execution-adapters.hooks';
+import { useTovuExecutionPolicy } from '../../hooks/use-tovu-execution-policy.hooks';
 import {
   ByokProviderForm,
   DEFAULT_PROVIDER_PRESETS,
@@ -244,6 +247,7 @@ function AdminAssistantSwitch({
  * full reasoning. State lives in `hooks/use-admin-execution-mode.hooks.ts`.
  */
 interface AdminExecutionModeProps {
+  useExecutionPolicy?: typeof useTovuExecutionPolicy;
   useAdminExecutionModeHook?: typeof useAdminExecutionMode;
   /**
    * Dependency injection seam for tests — same convention as `useAdminExecutionModeHook` above, and
@@ -291,6 +295,7 @@ export function AdminExecutionMode(props: AdminExecutionModeProps) {
   const useAdminExecutionCredentialHook = resolveAdminExecutionCredentialHook(props.useAdminExecutionCredentialHook);
   const t = resolveT(props.t);
   const { port, execution } = useAdminExecutionModeHook();
+  const executionPolicy = useTovuSettingsExecution({ config: execution.value, onChange: execution.onChange, locale: useAdminLocale() }, { usePolicy: props.useExecutionPolicy });
 
   // Called unconditionally, ahead of the `execution.value === null` gate below (rules of hooks) —
   // same reasoning `SettingsUi.tsx`'s identical call documents: the credential hook's own effects
@@ -307,12 +312,14 @@ export function AdminExecutionMode(props: AdminExecutionModeProps) {
   if (execution.value === null) return <p className="muted-cell">{t("Loading execution settings…")}</p>;
 
   return (
-    <section className="assistant-execution">
+    <section className="assistant-execution" data-tovu-local-cli={executionPolicy.visibility}>
       {execution.loadError ? <div className="save-error">{execution.loadError}</div> : null}
       <AdminByokMigrationPrompt controller={adminCredential} agentHandle="ai-assistant-admin-byok-migration" />
+      {executionPolicy.note && <p className="muted-cell" role="status">{executionPolicy.note}</p>}
       <ExecutionTab
-        config={execution.value}
-        onConfigChange={execution.onChange}
+        config={executionPolicy.config}
+        onConfigChange={executionPolicy.onConfigChange}
+        localCliUnavailableReason={executionPolicy.unavailableReason}
         port={port.current}
         // Detection runs wherever the Tovu SERVER runs, not on the browser's machine. For a deployed
         // CMS those are different computers, so the component's own default ("on this machine") would
@@ -344,7 +351,7 @@ export function AdminExecutionMode(props: AdminExecutionModeProps) {
         reported). BYOK mode's two explicit buttons already own all user-facing save confirmation for
         their fields, so this generic line has nothing left to say there.
       */}
-      {execution.value.mode === "local-cli" ? (
+      {executionPolicy.config.mode === "local-cli" ? (
         <>
           <p className="assistant-save-line" role="status">
             {execution.saveState.status === "saving" ? t("Saving…") : null}
@@ -378,6 +385,7 @@ export function AdminExecutionMode(props: AdminExecutionModeProps) {
  * lying-comment failure mode a past defect in this repo was caused by.
  */
 interface AssistantDaemonRestartProps {
+  useExecutionPolicy?: typeof useTovuExecutionPolicy;
   /** Dependency injection seam for tests — same convention as `AdminExecutionModeProps
    *  .useAdminExecutionModeHook`. */
   useAssistantDaemonRestartHook?: () => AssistantDaemonRestartController;
@@ -412,6 +420,8 @@ export function AssistantDaemonRestart(props: AssistantDaemonRestartProps) {
   const controller = useAssistantDaemonRestartHook();
   const { restarting, restartResult, restartError, checkingStatus, checkStatus, restart } = controller;
   const statusMessage = assistantDaemonStatusMessage(controller, t);
+  const executionPolicy = useTovuSettingsExecution({ config: DEFAULT_EXECUTION_CONFIG, onChange: () => {}, locale: useAdminLocale() }, { usePolicy: props.useExecutionPolicy });
+  if (!executionPolicy.allowed) return null;
 
   return (
     <section className="assistant-daemon-restart">

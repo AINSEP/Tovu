@@ -38,9 +38,11 @@ export const TRASH_RESOURCE = "trash";
  * so the sentence no longer enumerates covered sections — it names the two real exceptions instead.
  * A user who deletes something and does not find it here, and is told nothing, would otherwise
  * conclude it is unrecoverable; naming the exceptions is cheaper than that mistake.
+ * Owner update (2026-10-07): the title InfoTip now carries this explanation instead of a second
+ * subtitle; the original always-visible requirement above is superseded, but the exceptions remain.
  */
 export function coverageLine(locale: string): string {
-  return t(locale, "Deleted items from every section appear here, except Collection entries and Theme files.");
+  return t(locale, "Collection entries and theme files don't go to Trash.");
 }
 
 /** A human label for a row's kind. Unknown kinds print as themselves rather than being hidden —

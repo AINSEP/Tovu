@@ -819,7 +819,7 @@
   box-shadow: none;
 }
 
-.jini-composer-leading,
+button.jini-composer-leading,
 .jini-composer-attach,
 .jini-composer-send {
   border: 1px solid var(--border);
@@ -829,6 +829,40 @@
   height: 34px;
   min-width: 34px;
   cursor: pointer;
+}
+
+/* The leading slot contains notices and pinned trays, not just buttons. Jini caps it at 64px
+   and gives children max-content widths; a sign-in warning must grow and wrap on the sheet too. */
+.admin-chat-dock .jini-chat-pane div.jini-composer-leading {
+  flex-direction: column;
+  align-items: stretch;
+  height: auto;
+  max-height: none;
+  min-width: 0;
+  overflow: visible;
+  background-image: none;
+}
+
+.admin-chat-dock .jini-chat-pane div.jini-composer-leading > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.admin-chat-dock .jini-chat-pane .jini-composer-leading .assistant-agent-auth-warning {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--warning);
+  border-radius: var(--r-sm);
+  background: var(--warning-bg);
+  color: var(--warning);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .jini-composer-send {
