@@ -1477,3 +1477,9 @@ html.mnav-open, html.mnav-open body { overflow: hidden; }
   .mnav[open] { animation: none; }
   .mnav-disclose svg { transition: none; }
 }
+
+/* Authored titles can contain an unbroken word: wrap it on phones instead of widening the page.
+   Scope to narrow screens so desktop heading sizing and line breaks stay unchanged. */
+@media (max-width: 720px) {
+  h1, h2, h3, h4, h5, h6 { overflow-wrap: anywhere; }
+}
