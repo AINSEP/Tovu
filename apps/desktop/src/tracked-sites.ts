@@ -92,6 +92,9 @@ interface TrackedSiteRow {
   origin: SiteOrigin;
   siteId?: string;
   relocationId?: string;
+  displayName?: string;
+  /** Shell-only disambiguation: adopted website contents must stay unchanged. */
+  displayNameAlias?: string;
 }
 
 /** The raw shape parsed off disk, before {@link readProjectsFile} validates it. */
@@ -259,6 +262,9 @@ interface WritableTrackedRow {
   origin?: SiteOrigin;
   siteId?: string;
   relocationId?: string;
+  displayName?: string;
+  /** Shell-only disambiguation: adopted website contents must stay unchanged. */
+  displayNameAlias?: string;
 }
 
 /**

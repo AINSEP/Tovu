@@ -1,3 +1,5 @@
+import { SITE_NAME_ERROR, siteNameError } from "../contracts/site-name.js";
+import { humanSiteError, tabAfterClose, readyNoticeStillTrue, dismissOnEscape } from "./site-shell-policy.js";
 /**
  * Custom hooks pulled out of `App.tsx`.
  *
@@ -287,10 +289,9 @@ export function useProjectTabs(): ProjectTabsState {
   };
 
   const closeProjectTab = (id: string) => {
+    // Resolve from the current tab order before removing the closed tab.
+    setActiveTab((current) => tabAfterClose({ tabs: openTabs, active: current, closing: id }));
     setOpenTabs((current) => current.filter((tabId) => tabId !== id));
-    // Closing the tab you are looking at falls back to the sites home tab rather than guessing a
-    // neighbour — the sites home tab always exists, so there is no second empty-state to design.
-    setActiveTab((current) => (current === id ? null : current));
   };
 
   return { openTabs, activeTab, setActiveTab, openProjectTab, closeProjectTab };
@@ -377,8 +378,12 @@ export function useProjectMutations(deps: {
   closeProjectTab: (id: string) => void;
   stopCreating: () => void;
   startCreating: () => void;
+  projects?: readonly SiteRecord[];
 }): SiteMutationsState {
   const [lastCreated, setLastCreated] = useState<CreatedSiteRecord | null>(null);
+  useEffect(() => {
+    if (deps.projects && lastCreated && !readyNoticeStillTrue({ created: lastCreated, projects: deps.projects })) setLastCreated(null);
+  }, [deps.projects, lastCreated]);
   // See `createFormKey` on `SiteMutationsState`. Starts at 0 and only ever goes up; the actual
   // number carries no meaning beyond "changed since the form last mounted".
   const [createFormKey, setCreateFormKey] = useState(0);
@@ -406,6 +411,7 @@ export function useProjectMutations(deps: {
       throw new Error('Runner desktop connection required to create a website.');
     }
     const result = await bridge.createSite(input);
+    if (result === null) return; // Cancelling the picker keeps the form and its name intact.
     // The token outcome is for the notice only; the grid keeps plain records.
     const { agentPluginTokens: _tokens, ...record } = result;
     deps.setProjects((current) => [...current, record]);
@@ -564,8 +570,13 @@ export function useDismissibleDropdown<T extends HTMLElement = HTMLDivElement>()
     const onPointerDown = (event: PointerEvent) => {
       if (!containerRef.current?.contains(event.target as Node)) setOpen(false);
     };
+    const onEscape = (event: KeyboardEvent) => dismissOnEscape({ event, dismiss: () => setOpen(false) });
+    document.addEventListener('keydown', onEscape, true);
     document.addEventListener('pointerdown', onPointerDown);
-    return () => document.removeEventListener('pointerdown', onPointerDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onEscape, true);
+    };
   }, [open]);
 
   return { open, setOpen, containerRef };
@@ -665,6 +676,12 @@ export function useDeleteConfirmation(onDelete: (id: string) => Promise<void>): 
   };
 
   const cancelDelete = () => setPendingId(null);
+  useEffect(() => {
+    if (!pendingId) return;
+    const onEscape = (event: KeyboardEvent) => dismissOnEscape({ event, dismiss: cancelDelete, busy: deletingId !== null });
+    document.addEventListener('keydown', onEscape, true);
+    return () => document.removeEventListener('keydown', onEscape, true);
+  }, [pendingId, deletingId]);
 
   const confirmDelete = async (id: string) => {
     setDeletingId(id);
@@ -673,7 +690,7 @@ export function useDeleteConfirmation(onDelete: (id: string) => Promise<void>): 
       await onDelete(id);
       setPendingId(null);
     } catch (err) {
-      setDeleteError(err instanceof Error ? err.message : String(err));
+      setDeleteError(humanSiteError({ error: err, fallback: 'Could not delete this website. Its card has been kept so you can try again.' }));
     } finally {
       setDeletingId(null);
     }
@@ -1362,8 +1379,8 @@ export function buildCreateProjectInput(input: {
 }
 
 /**
- * The typed website name reduced to a compact identifier — shown back to the operator as the
- * workspace preview, and read by {@link computeCanCreate} as "a name has been entered".
+ * The typed website name reduced to a compact identifier, read by {@link computeCanCreate}
+ * as "a name has been entered". The form describes the actual chosen-folder behaviour separately.
  *
  * Unicode-aware by necessity, not by preference. The original `[^a-z0-9]+` deleted every character
  * of a name written in any non-Latin script, so the slug came back empty and `computeCanCreate`
@@ -1405,6 +1422,7 @@ export interface CreateWebsiteFormState {
   canCreate: boolean;
   isSubmitting: boolean;
   formError: string | null;
+  nameError?: string | null;
   handleSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }
 
@@ -1435,10 +1453,12 @@ export function useCreateWebsiteForm(
   const slug = siteSlug(name);
   const supabaseReady = supabaseUrl.trim().length > 0 && hasSupabaseKey;
   const customReady = customProvider.trim().length > 0 && customConnection.trim().length > 0;
-  const canCreate = computeCanCreate({ slug, database, supabaseReady, customReady });
+  const nameError = name.length > 0 ? siteNameError({ name }) : null;
+  const canCreate = siteNameError({ name }) === null && computeCanCreate({ slug, database, supabaseReady, customReady });
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (siteNameError({ name })) { setFormError(SITE_NAME_ERROR); return; }
     if (!canCreate || isSubmitting) return;
 
     const input = buildCreateProjectInput({
@@ -1460,7 +1480,7 @@ export function useCreateWebsiteForm(
     try {
       await onCreate(input);
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : 'Could not create website.');
+      setFormError(humanSiteError({ error, fallback: 'Could not create website.' }));
     } finally {
       setIsSubmitting(false);
     }
@@ -1485,6 +1505,7 @@ export function useCreateWebsiteForm(
     canCreate,
     isSubmitting,
     formError,
+    nameError,
     handleSubmit,
   };
 }

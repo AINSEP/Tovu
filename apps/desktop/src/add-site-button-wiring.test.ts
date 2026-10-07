@@ -196,10 +196,10 @@ test("the button's dialog cannot create the folder it is about to refuse", async
   assert.deepEqual(shown[0]!.properties, ["openDirectory"]); // this test's own call above pushed exactly one entry
 });
 
-test("a cancelled dialog rejects and writes nothing", async () => {
+test("a cancelled dialog returns null and writes nothing", async () => {
   const { handlers, projectsPath } = registerRealHandlers(null);
 
-  await assert.rejects(() => handlers.get(channelTheButtonInvokes())!({}), /No folder was chosen/); // registerSiteIpcHandlers always registers this exact channel — proven by the first test above
+  assert.equal(await handlers.get(channelTheButtonInvokes())!({}), null); // registerSiteIpcHandlers always registers this exact channel — proven by the first test above
 
   assert.deepEqual(readTrackedSites(projectsPath), []);
 });

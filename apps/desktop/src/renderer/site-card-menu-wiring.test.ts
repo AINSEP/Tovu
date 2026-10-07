@@ -142,6 +142,8 @@ test("a running record with a local stopping status omits Open in browser throug
     useSitePreview: () => null,
     useDismissibleDropdown: () => ({ open: true, setOpen: () => {}, containerRef: { current: null } }),
     MissingFolderNotice: () => null,
+    CardRenameOverlay: () => React.createElement("div", { role: "group" }, "Rename panel"),
+    CardConfirmOverlay: () => React.createElement("div", { role: "group" }, "Delete panel"),
   };
   const SiteCard = new Function(...Object.keys(deps), `${executable}; return SiteCard;`)(...Object.values(deps));
   const project = { id: "site-1", displayName: "Test site", port: 4200, status: "running", database: { kind: "sqlite" }, deleteErasesFiles: false };
@@ -154,5 +156,14 @@ test("a running record with a local stopping status omits Open in browser throug
     }));
     assert.equal(html.includes("Open in browser"), status === "running", `rendered ${status} must decide the menu`);
     assert.ok(html.includes(`card is-${status}`));
+    assert.ok(html.includes('<h3 class="card__name" title="Test site">Test site</h3>'), "D-28: card names expose their full text");
+  }
+  for (const overlay of ["rename", "confirm"]) {
+    const html = renderToStaticMarkup(React.createElement(SiteCard, {
+      project, overlay, deleting: false, deleteError: null, rename: {},
+      power: { statusOf: () => "running", errorOf: () => null }, locate: {},
+    }));
+    assert.equal(html.includes('card__menubutton'), false, `D-25: ${overlay} must hide the menu trigger`);
+    assert.ok(html.includes(overlay === "rename" ? "Rename panel" : "Delete panel"));
   }
 });

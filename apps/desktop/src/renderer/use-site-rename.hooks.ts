@@ -23,7 +23,9 @@
  * (`CardRenameOverlay`, `SiteGrid.tsx`), kept here beside the state they read so the overlay carries
  * markup only.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { SITE_NAME_ERROR, siteNameError } from '../contracts/site-name.js';
+import { dismissOnEscape, humanSiteError } from './site-shell-policy.js';
 
 import { runnerInventoryBridge } from './runner-api.js';
 import type { RunnerInventoryBridge } from './runner-api.js';
@@ -79,6 +81,7 @@ export function renameSubmission(
   id: string,
   draft: string,
 ): RenameSubmission {
+  if (siteNameError({ name: draft })) return { kind: 'refused', message: SITE_NAME_ERROR };
   if (bridge === undefined) return { kind: 'refused', message: NO_BRIDGE_RENAME_MESSAGE };
   return { kind: 'submit', bridge, payload: { id, name: draft } };
 }
@@ -92,7 +95,7 @@ export function renameSubmission(
  * @complexity O(n) in the message length.
  */
 export function describeRenameFailure(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
+  return humanSiteError({ error, fallback: 'Could not rename this website.' });
 }
 
 export interface SiteRenameState {
@@ -168,6 +171,13 @@ export function useSiteRename(onRenamed?: (record: SiteRecord) => void): SiteRen
     setRenamingId(null);
     setRenameError(null);
   };
+
+  useEffect(() => {
+    if (!renamingId) return;
+    const onEscape = (event: KeyboardEvent) => dismissOnEscape({ event, dismiss: cancelRename, busy: saving });
+    document.addEventListener('keydown', onEscape, true);
+    return () => document.removeEventListener('keydown', onEscape, true);
+  }, [renamingId, saving]);
 
   const submitRename = async (id: string) => {
     const decision = renameSubmission(runnerInventoryBridge(), id, draft);

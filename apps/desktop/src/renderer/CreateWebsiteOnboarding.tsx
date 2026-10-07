@@ -1,3 +1,4 @@
+import { namePasteHandler } from '../contracts/site-name.js';
 /**
  * The create-website onboarding flow: name the site, pick a database, submit.
  * Split out of `App.tsx` as its own module — the form's field state and
@@ -239,7 +240,7 @@ export function CreateWebsiteOnboarding({
     setHasCustomCredential,
     supabaseKeyRef,
     customCredentialRef,
-    slug,
+    nameError,
     canCreate,
     isSubmitting,
     formError,
@@ -271,12 +272,16 @@ export function CreateWebsiteOnboarding({
               <input
                 autoFocus
                 value={name}
+                maxLength={200}
+                aria-invalid={Boolean(nameError)}
                 onChange={(event) => setName(event.target.value)}
+                onPaste={namePasteHandler({ setName })}
                 placeholder="e.g. Corner Bakery"
               />
               <span className="create-field__hint">
-                {slug ? `Workspace folder: ${slug}` : 'This becomes the isolated local workspace folder.'}
+                Your website will use the folder you choose next.
               </span>
+              {nameError && <span className="onboarding__error" role="alert">{nameError}</span>}
             </label>
           </div>
 

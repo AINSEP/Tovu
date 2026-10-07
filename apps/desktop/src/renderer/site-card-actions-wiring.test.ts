@@ -1,3 +1,4 @@
+import { dismissOnEscape, humanSiteError } from './site-shell-policy.js';
 /**
  * @file The card's action row, asserted where it can be: against source text.
  *
@@ -239,7 +240,7 @@ test('delete still goes through the confirm overlay — a menu entry makes that 
   assert.match(cardBody(), /<CardActions\b[^>]*onRequestDelete=\{onRequestDelete\}/);
   assert.match(cardBody(), /<CardConfirmOverlay\b[^>]*onCancel=\{onCancelDelete\}[^>]*onConfirm=\{onConfirmDelete\}/);
   const harness = hookHarness();
-  const useDelete = sourceFunction(appHooks, 'useDeleteConfirmation', harness.bindings);
+  const useDelete = sourceFunction(appHooks, 'useDeleteConfirmation', { ...harness.bindings, dismissOnEscape, humanSiteError, document: { addEventListener() {}, removeEventListener() {} } });
   const deleted: string[] = [];
   const onDelete = async (id: string) => { deleted.push(id); };
   const render = () => harness.render(() => useDelete(onDelete));

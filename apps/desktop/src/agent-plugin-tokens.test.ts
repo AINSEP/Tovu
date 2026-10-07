@@ -166,6 +166,7 @@ test("handleCreate passes the tokens to adoptSiteDir and returns tovu init's out
     },
   });
   const record = await handleCreate({ displayName: "Made", agentPluginTokens: { supabase: ` ${TOKEN} ` } }, deps);
+  assert.ok(record);
   assert.deepEqual(adoptInput.agentPluginTokens, { supabase: TOKEN });
   assert.deepEqual((record as { agentPluginTokens?: unknown }).agentPluginTokens, { status: "saved", pluginIds: ["supabase"] });
   assert.ok(!JSON.stringify(record).includes(TOKEN), "the returned record never carries a token");
@@ -180,6 +181,7 @@ test("handleCreate with no token is unchanged: no token options reach adoptSiteD
     adoptSiteDir: async (input: Record<string, unknown>) => ((adoptInput = input), siteDir),
   });
   const record = await handleCreate({ displayName: "Plain", agentPluginTokens: { supabase: "" } }, deps);
+  assert.ok(record);
   assert.equal("agentPluginTokens" in adoptInput, false);
   assert.equal("onInitOutput" in adoptInput, false);
   assert.equal("agentPluginTokens" in record, false);

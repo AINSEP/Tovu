@@ -1,3 +1,4 @@
+import { humanSiteError, addedSiteMessage } from './site-shell-policy.js';
 /**
  * @file Coverage for `use-add-site.hooks.ts` and the "Add Tovu Website" button's wiring.
  *
@@ -144,7 +145,7 @@ test('the add hook holds pending state, applies the returned row, and clears a p
   let resolve!: (record: SiteRecord) => void;
   let calls = 0;
   const useAdd = sourceFunction(hookSource, 'useAddSite', {
-    ...harness.bindings, NO_BRIDGE_MESSAGE, describeAddFailure, mergeAddedSite,
+    ...harness.bindings, NO_BRIDGE_MESSAGE, describeAddFailure, mergeAddedSite, addedSiteMessage,
     runnerInventoryBridge: () => ({ addSite: () => {
       calls++;
       if (calls === 1) return Promise.reject(new Error('choose a site folder'));
@@ -152,7 +153,7 @@ test('the add hook holds pending state, applies the returned row, and clears a p
     } }),
   });
   const setProjects = (update: (current: readonly SiteRecord[]) => readonly SiteRecord[]) => { projects = update(projects); };
-  const render = () => harness.render(() => useAdd(setProjects));
+  const render = () => harness.render(() => useAdd({ setProjects }));
   await render().addSite();
   assert.equal(render().addError, 'choose a site folder');
   assert.equal(render().adding, false);
@@ -171,10 +172,10 @@ test('the add hook suppresses picker cancellation and reports an absent bridge',
   for (const bridge of [undefined, { addSite: async () => { throw new Error(CANCELLED_MESSAGE); } }]) {
     const harness = hookHarness();
     const useAdd = sourceFunction(hookSource, 'useAddSite', {
-      ...harness.bindings, NO_BRIDGE_MESSAGE, describeAddFailure, mergeAddedSite,
+      ...harness.bindings, NO_BRIDGE_MESSAGE, describeAddFailure, mergeAddedSite, addedSiteMessage,
       runnerInventoryBridge: () => bridge,
     });
-    const render = () => harness.render(() => useAdd(() => assert.fail('no row should be added')));
+    const render = () => harness.render(() => useAdd({ setProjects: () => assert.fail('no row should be added') }));
     await render().addSite();
     assert.equal(render().addError, bridge === undefined ? NO_BRIDGE_MESSAGE : null);
     assert.equal(render().adding, false);
@@ -250,5 +251,5 @@ test("removing the tile did not leave an operator with no websites staring at no
 
 test("runner-api declares addSite, or the renderer cannot see the bridge method", () => {
   const runnerApi = fs.readFileSync(path.join(here, 'runner-api.ts'), 'utf8');
-  assert.match(runnerApi, /addSite: \(\) => Promise<SiteRecord>/);
+  assert.match(runnerApi, /addSite: \(\) => Promise<\(SiteRecord & \{ alreadyTracked\?: boolean \}\) \| null>/);
 });

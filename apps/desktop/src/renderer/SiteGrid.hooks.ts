@@ -98,6 +98,16 @@ export interface DeleteActionCopy {
  * @complexity O(1) time, O(1) space.
  */
 export function deleteActionCopy(project: SiteRecord): DeleteActionCopy {
+  if (project.folderMissing) {
+    return {
+      menuItemLabel: 'Remove from Projects…',
+      confirmTitle: `Remove ${project.displayName} from Projects?`,
+      confirmBody: 'Removes this website from your list. Its folder is missing, so there are no files here to delete.',
+      confirmButtonLabel: 'Remove',
+      confirmButtonBusyLabel: 'Removing…',
+      confirmButtonClass: 'button button--primary',
+    };
+  }
   if (project.deleteErasesFiles) {
     return {
       menuItemLabel: 'Delete…',

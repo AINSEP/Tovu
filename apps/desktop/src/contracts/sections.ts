@@ -132,7 +132,7 @@ export const RUNNER_SECTIONS = [
     // "read-only/navigation-only", so this grants the left chat nothing new.
     id: 'marketplace',
     group: 'workspace',
-    label: 'Marketplace (not available yet)',
+    label: 'Marketplace',
     agentDescription:
       'Where agent plugins, themes, and regular plugins will be discovered and installed across the fleet. Not built yet — no tools here.',
     tools: [],

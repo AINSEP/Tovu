@@ -39,8 +39,8 @@ export interface RunnerInventoryBridge {
    *  site is ever created — so an empty, half-initialized, or unrelated folder REJECTS with an
    *  operator-facing reason that names the fix. Surface that message verbatim; see
    *  `use-add-site.hooks.ts`. */
-  addSite: () => Promise<SiteRecord>;
-  createSite: (input: CreateSiteInput) => Promise<CreatedSiteRecord>;
+  addSite: () => Promise<(SiteRecord & { alreadyTracked?: boolean }) | null>;
+  createSite: (input: CreateSiteInput) => Promise<CreatedSiteRecord | null>;
   /** The services the create form can offer a token field for. Never rejects; `[]` on failure.
    *  Optional so an older preload without it simply offers none. */
   listTokenSignInPlugins?: () => Promise<readonly TokenSignInPlugin[]>;

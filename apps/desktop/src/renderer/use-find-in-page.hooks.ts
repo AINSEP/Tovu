@@ -1,3 +1,4 @@
+import { createFindQueryScheduler } from './find-query-scheduler.js';
 /**
  * @file The sites home window's Cmd+F find bar: opening it, routing a query to whichever surface is
  * actually on screen, and the match counter ("3 of 17") that surface reports back.
@@ -413,6 +414,7 @@ export function useFindInPage(activeGuestId: string | null): FindInPage {
   // An IME composition is in progress in the find input — reclaiming would end it.
   const composing = useRef(false);
   const reclaimFrame = useRef<number | null>(null);
+  const queryScheduler = useRef(createFindQueryScheduler({}, {})).current;
 
   const registerGuest = useCallback(
     (projectId: string, element: FindableGuest | null) => {
@@ -459,6 +461,8 @@ export function useFindInPage(activeGuestId: string | null): FindInPage {
       lastFindAt.current = performance.now();
       awaitingReport.current = true;
       runFind(target, bridge, text, options);
+      // Reclaim immediately for a typed query as well as on subsequent frames/results.
+      if (options.findNext && !composing.current) restoreFindInputFocus(inputElement.current, restoringFocus);
       // Only for a NEW session (a typed character): Enter/Shift+Enter's step must not be disturbed
       // mid-flight. Each reclaim's focus() puts the input's caret back as this frame's selection, and
       // a follow-up find that reads it anchors on the find bar instead of the previous match (see
@@ -517,12 +521,21 @@ export function useFindInPage(activeGuestId: string | null): FindInPage {
   // (`findNext: true`, per this file's header); clearing back to '' stops it instead of searching
   // for nothing.
   useEffect(() => {
+    queryScheduler.cancel();
     if (!state.open) return;
     if (state.query === '') {
+      awaitingReport.current = false;
+      cancelReclaimFrame();
       stopFind(target, bridge);
       return;
     }
-    issueFind(state.query, { forward: true, findNext: true });
+    const run = () => {
+      // Blurring during an IME composition would discard the text still being composed.
+      if (composing.current) { queryScheduler.schedule({ run }); return; }
+      issueFind(state.query, { forward: true, findNext: true });
+    };
+    queryScheduler.schedule({ run });
+    return () => queryScheduler.cancel();
     // biome-ignore lint/correctness/useExhaustiveDependencies: depends on target's stable inputs (activeGuestId), not the fresh `target`/`bridge` objects themselves.
   }, [state.query, state.open, activeGuestId]);
 
@@ -601,7 +614,14 @@ export function useFindInPage(activeGuestId: string | null): FindInPage {
     [attachBlurReclaim],
   );
 
+  useEffect(() => () => {
+    queryScheduler.cancel();
+    clearReclaimTimer();
+    cancelReclaimFrame();
+  }, [queryScheduler, clearReclaimTimer, cancelReclaimFrame]);
+
   const close = () => {
+    queryScheduler.cancel();
     clearReclaimTimer();
     cancelReclaimFrame();
     awaitingReport.current = false;
@@ -617,8 +637,8 @@ export function useFindInPage(activeGuestId: string | null): FindInPage {
     inputRef,
     setQuery: (text) => dispatch({ type: 'set-query', query: text }),
     // Follow-up requests within the current session — `findNext: false` — never a new one.
-    next: () => issueFind(state.query, { forward: true, findNext: false }),
-    previous: () => issueFind(state.query, { forward: false, findNext: false }),
+    next: () => { if (!queryScheduler.flush()) issueFind(state.query, { forward: true, findNext: false }); },
+    previous: () => { if (!queryScheduler.flush()) issueFind(state.query, { forward: false, findNext: false }); },
     close,
     registerGuest,
   };

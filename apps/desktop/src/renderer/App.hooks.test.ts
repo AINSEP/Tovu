@@ -1,3 +1,4 @@
+import { dismissOnEscape } from './site-shell-policy.js';
 /**
  * @file Behavioural tests for the plain rules `App.hooks.ts` keeps out of the components —
  * `siteSlug`, `computeCanCreate`, and the handler builders pulled out of `App.tsx`'s component
@@ -66,7 +67,7 @@ test("the dropdown effect closes on outside pointerdown, preserves inside clicks
   const inside = {};
   const containerRef = { current: { contains: (target: unknown) => target === inside } };
   const hook = sourceFunction(readFileSync(new URL("./App.hooks.ts", import.meta.url), "utf8"), "useDismissibleDropdown", {
-    ...harness.bindings, useRef: () => containerRef, document,
+    ...harness.bindings, useRef: () => containerRef, document, dismissOnEscape,
   });
   const render = () => harness.render(() => hook());
   try {

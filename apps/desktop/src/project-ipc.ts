@@ -22,8 +22,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import fsp from "node:fs/promises";
+import { removeSiteTree } from "./remove-site-tree.ts";
+import { uniqueSiteName, duplicateSiteNameError } from "./site-name-policy.ts";
+import { siteNameError } from "./contracts/site-name.ts";
 
-import { SITE_ORIGIN, readProjectsFile, readTrackedSites, trackSite, untrackSite, discoverSiteDirs, adoptDiscoveredSites } from "./tracked-sites.ts";
+import { SITE_ORIGIN, readProjectsFile, readTrackedSites, trackSite, untrackSite, discoverSiteDirs, adoptDiscoveredSites, updateProjectsFile } from "./tracked-sites.ts";
 import { mayEraseSiteDirectory, readSiteIdentity } from "./project-delete-guard.ts";
 import { sitePartition } from "./desktop-auth.ts";
 import { createRelocationGate, relocateMovedSites, repointTrackedSite, type RelocationGate } from "./site-relocation.ts";
@@ -61,6 +64,8 @@ interface SiteRow {
   createdAt: string;
   origin?: string;
   siteId?: string | null;
+  displayName?: string;
+  displayNameAlias?: string;
 }
 
 /** {@link mayEraseSiteDirectory}'s own (unexported) first-parameter type, extracted structurally
@@ -275,7 +280,8 @@ function buildSiteRecord(row: SiteRow, deps: Pick<ProjectIpcDeps, "openSites" | 
   return {
     id: row.siteDir,
     slug: path.basename(row.siteDir),
-    displayName: deps.readSiteName(row.siteDir),
+    // The config is unavailable after a Finder deletion; retain the last known display name.
+    displayName: row.displayNameAlias ?? (!fs.existsSync(row.siteDir) && typeof row.displayName === "string" ? row.displayName : deps.readSiteName(row.siteDir)),
     installDir: row.siteDir,
     port: running ? openEntry.server.port : 0,
     // Independent of `running` — a project's partition is a pure function of its own directory
@@ -329,13 +335,43 @@ function handleList(
     Partial<Pick<ProjectIpcDeps, "siteScanRoots">> & { relocationGate?: RelocationGate },
 ) {
   const file = readProjectsFile(deps.projectsPath);
-  if (deps.relocationGate && !deps.relocationGate.shouldRun(file)) return file.rows.map((row) => buildSiteRecord(row, deps));
+  if (deps.relocationGate && !deps.relocationGate.shouldRun(file)) return recordsWithRememberedNames({ rows: file.rows, deps });
   try {
     relocateMovedSites(deps.projectsPath, { searchRoots: deps.siteScanRoots ?? [] });
   } catch (error) {
     console.warn(`tovu desktop: could not save moved site folders — ${(error as Error).message}`);
   }
-  return readTrackedSites(deps.projectsPath).map((row) => buildSiteRecord(row, deps));
+  return recordsWithRememberedNames({ rows: readTrackedSites(deps.projectsPath), deps });
+}
+
+/** Store only the name, never lifecycle status or deletion authority. */
+function rememberSiteName(
+  { projectsPath, siteDir, displayName }: { projectsPath: string; siteDir: string; displayName: string }, _optional = {},
+): void {
+  try {
+    updateProjectsFile(projectsPath, (current) => ({
+      rows: current.rows.map((row) => row.siteDir === siteDir ? { ...row, displayName } : row),
+      dismissed: current.dismissed,
+    }));
+  } catch (error) {
+    // A metadata cache failure must not report a completed Create/Add/Rename as a failed action.
+    console.warn('tovu desktop: could not remember website name', error);
+  }
+}
+function recordsWithRememberedNames(
+  { rows, deps }: { rows: SiteRow[]; deps: Pick<ProjectIpcDeps, "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions"> }, _optional = {},
+) {
+  const records = rows.map((row) => buildSiteRecord(row, deps));
+  const names = new Map(records.filter((record) => !record.folderMissing).map((record) => [record.id, record.displayName]));
+  if (rows.some((row) => names.has(row.siteDir) && names.get(row.siteDir) !== row.displayName)) {
+    try {
+      updateProjectsFile(deps.projectsPath, (current) => ({
+        rows: current.rows.map((row) => names.has(row.siteDir) ? { ...row, displayName: names.get(row.siteDir)! } : row),
+        dismissed: current.dismissed,
+      }));
+    } catch (error) { console.warn('tovu desktop: could not remember website names', error); }
+  }
+  return records;
 }
 
 /**
@@ -368,6 +404,25 @@ async function handleLocate(id: string, deps: Pick<ProjectIpcDeps, "dialog" | "c
   return buildSiteRecord(row, deps);
 }
 
+/** Live names include registry aliases and cached names for missing folders. Excluding the target
+ * keeps re-adding a tracked folder and renaming a site to its own name idempotent. */
+function otherSiteNames({ deps, siteDir }: {
+  deps: Pick<ProjectIpcDeps, "projectsPath" | "readSiteName">; siteDir: string;
+}, _optional = {}): string[] {
+  return readTrackedSites(deps.projectsPath).filter((row) => row.siteDir !== siteDir).map((row) =>
+    row.displayNameAlias ?? (!fs.existsSync(row.siteDir) && row.displayName ? row.displayName : deps.readSiteName(row.siteDir)));
+}
+
+/** Adding a website must not rewrite its config. Persist a shell alias only when disambiguating. */
+function rememberSiteAlias({ projectsPath, siteDir, displayNameAlias }: {
+  projectsPath: string; siteDir: string; displayNameAlias?: string;
+}, _optional = {}): void {
+  updateProjectsFile(projectsPath, (current) => ({
+    rows: current.rows.map((row) => row.siteDir === siteDir ? { ...row, displayNameAlias } : row),
+    dismissed: current.dismissed,
+  }));
+}
+
 /**
  * "+ Create website" has no folder in its input — `CreateSiteInput` is a display name plus a
  * database choice, ported from Tovu-Runner's own provisioner-backed form. This shell has no such
@@ -386,7 +441,8 @@ async function handleLocate(id: string, deps: Pick<ProjectIpcDeps, "dialog" | "c
  * never going to be made. An absent `database` is the same as `sqlite` — every existing caller
  * omits it, and omitting it is not a claim about a provider.
  *
- * @throws {Error} when a non-SQLite database is asked for, when the folder picker is cancelled, or
+ * @returns null when the folder picker is cancelled.
+ * @throws {Error} when a non-SQLite database is asked for, the name is invalid, or
  *   when the chosen folder is occupied/incomplete (`adoptSiteDir`'s own errors — an
  *   operator-facing message either way).
  * @complexity O(1) beyond `adoptSiteDir`'s own cost.
@@ -395,6 +451,8 @@ async function handleCreate(
   input: CreateSiteInput,
   deps: Pick<ProjectIpcDeps, "dialog" | "classifySiteDir" | "adoptSiteDir" | "repoRoot" | "statePath" | "cliMode" | "projectsPath" | "openSites" | "readSiteName" | "readPreviewVersion" | "transitions">
 ) {
+  const nameError = siteNameError({ name: input.displayName });
+  if (nameError) throw new Error(nameError);
   const kind = input.database?.kind;
   if (kind !== undefined && kind !== "sqlite") {
     throw new Error(`This app only creates SQLite sites, which live in the folder you choose. "${kind}" needs a hosted-database provisioner this app does not have.`);
@@ -410,7 +468,8 @@ async function handleCreate(
     properties: ["openDirectory", "createDirectory"],
   });
   if (picked.canceled || picked.filePaths.length === 0) {
-    throw new Error("No folder was chosen.");
+    // Cancelling is a completed choice, not an IPC failure to log or display.
+    return null;
   }
   // BEFORE `adoptSiteDir`, because afterwards the answer is gone: it returns the same path whether
   // it ran `tovu init` into an empty folder or simply recognized a site that was already there. Only
@@ -419,12 +478,14 @@ async function handleCreate(
   // only two classifications that reach `trackSite` are the two this maps.
   const wasEmpty = deps.classifySiteDir(picked.filePaths[0]!) === "empty"; // just checked `filePaths.length === 0` above, so index 0 exists
   assertTokensCanReachFolder(agentPluginTokens, wasEmpty);
+  const names = otherSiteNames({ deps, siteDir: picked.filePaths[0]! });
+  const displayName = uniqueSiteName({ name: wasEmpty ? input.displayName : deps.readSiteName(picked.filePaths[0]!), names });
   const init = { output: "" };
   const siteDir = await deps.adoptSiteDir({
     dir: picked.filePaths[0]!, // same non-empty check as above
     repoRoot: deps.repoRoot,
     statePath: deps.statePath,
-    name: input.displayName,
+    name: displayName,
     cliMode: deps.cliMode,
     ...initTokenOptions(agentPluginTokens, init),
   });
@@ -436,7 +497,10 @@ async function handleCreate(
   // `null` when the folder has no readable identity: the row is then recorded without one, the fail-closed direction.
   const siteId = readSiteIdentity(siteDir);
   trackSite(deps.projectsPath, siteDir, origin, { siteId });
-  return withCreatedTokens(buildSiteRecord({ siteDir, createdAt: new Date().toISOString(), origin, siteId }, deps), init.output);
+  rememberSiteName({ projectsPath: deps.projectsPath, siteDir, displayName });
+  const displayNameAlias = displayName !== deps.readSiteName(siteDir) ? displayName : undefined;
+  rememberSiteAlias({ projectsPath: deps.projectsPath, siteDir, displayNameAlias });
+  return withCreatedTokens(buildSiteRecord({ siteDir, createdAt: new Date().toISOString(), origin, siteId, displayNameAlias }, deps), init.output);
 }
 
 /**
@@ -473,7 +537,8 @@ async function handleTokenSignInPlugins(deps: Pick<ProjectIpcDeps, "repoRoot" | 
  * The row is recorded `adopted` by `addSitePointer` itself, never `created`, so
  * `project-delete-guard.ts` can never let a later delete erase a folder this app did not make.
  *
- * @throws {Error} when the dialog is cancelled, or `AddSitePointerError` when the folder is not a
+ * @returns null when the folder picker is cancelled.
+ * @throws {AddSitePointerError} when the folder is not a
  *   complete Tovu site — either way an operator-facing message that names the fix.
  * @complexity O(n) in the tracked-project count, plus one classification.
  */
@@ -488,14 +553,23 @@ async function handleAddSite(deps: Pick<ProjectIpcDeps, "dialog" | "addSitePoint
     properties: ["openDirectory"],
   });
   if (picked.canceled || picked.filePaths.length === 0) {
-    throw new Error("No folder was chosen.");
+    // Cancelling is a completed choice, not an IPC failure to log or display.
+    return null;
   }
 
-  const { siteDir } = deps.addSitePointer({ siteDir: picked.filePaths[0]!, projectsPath: deps.projectsPath }); // just checked `filePaths.length === 0` above, so index 0 exists
+  const { siteDir, alreadyTracked } = deps.addSitePointer({ siteDir: picked.filePaths[0]!, projectsPath: deps.projectsPath }); // just checked `filePaths.length === 0` above, so index 0 exists
   const row = readTrackedSites(deps.projectsPath).find((entry) => entry.siteDir === siteDir)!; // addSitePointer just tracked this exact siteDir above, so a row for it always exists
   // Read back rather than synthesized: an already-tracked folder keeps its ORIGINAL `createdAt` and
   // origin, and a fabricated row would report today's date and reorder the operator's grid.
-  return buildSiteRecord(row, deps);
+  if (!alreadyTracked) {
+    const originalName = deps.readSiteName(siteDir);
+    const displayName = uniqueSiteName({ name: originalName, names: otherSiteNames({ deps, siteDir }) });
+    row.displayNameAlias = displayName !== originalName ? displayName : undefined;
+    rememberSiteAlias({ projectsPath: deps.projectsPath, siteDir, displayNameAlias: row.displayNameAlias });
+  }
+  const record = buildSiteRecord(row, deps);
+  rememberSiteName({ projectsPath: deps.projectsPath, siteDir, displayName: record.displayName });
+  return { ...record, alreadyTracked };
 }
 
 /**
@@ -551,8 +625,8 @@ function liveForeignServers(deps: Pick<ProjectIpcDeps, "readRegistry" | "registr
 }
 
 /**
- * Stops the project if it is running, untracks it, and — ONLY for a directory this app itself
- * created — erases its install directory.
+ * Stops the project if it is running, erases its directory ONLY when this app created it,
+ * then untracks it. Failed removal retains the row as the operator's recovery handle.
  *
  * That last word is load-bearing and is the whole reason this function consults
  * `project-delete-guard.ts` rather than calling `fs.rm` on whatever id arrives. A tracked row can
@@ -586,7 +660,7 @@ function liveForeignServers(deps: Pick<ProjectIpcDeps, "readRegistry" | "registr
  * @complexity O(1) beyond `fs.rm`'s own cost over the site directory's contents, plus however long
  *   an already-queued operation on the same site takes to settle.
  */
-async function handleDelete(id: string, deps: Pick<ProjectIpcDeps, "serializer" | "projectsPath" | "openSites" | "cancelPreviewCapture" | "repoRoot" | "readRegistry" | "registryPath" | "isLiveServeRow" | "recordSiteClosed" | "deletePreview">): Promise<void> {
+async function handleDelete(id: string, deps: Pick<ProjectIpcDeps, "serializer" | "projectsPath" | "openSites" | "cancelPreviewCapture" | "repoRoot" | "readRegistry" | "registryPath" | "isLiveServeRow" | "recordSiteClosed" | "deletePreview" | "removeSiteTree">): Promise<void> {
   await deps.serializer.run(id, () => deleteProject(id, deps));
 }
 
@@ -596,7 +670,7 @@ async function handleDelete(id: string, deps: Pick<ProjectIpcDeps, "serializer" 
  *
  * @complexity see {@link handleDelete}.
  */
-async function deleteProject(id: string, deps: Pick<ProjectIpcDeps, "projectsPath" | "openSites" | "cancelPreviewCapture" | "repoRoot" | "readRegistry" | "registryPath" | "isLiveServeRow" | "recordSiteClosed" | "deletePreview">): Promise<void> {
+async function deleteProject(id: string, deps: Pick<ProjectIpcDeps, "projectsPath" | "openSites" | "cancelPreviewCapture" | "repoRoot" | "readRegistry" | "registryPath" | "isLiveServeRow" | "recordSiteClosed" | "deletePreview" | "removeSiteTree">): Promise<void> {
   const row = readTrackedSites(deps.projectsPath).find((entry) => entry.siteDir === id);
   if (row === undefined) return;
 
@@ -634,6 +708,15 @@ async function deleteProject(id: string, deps: Pick<ProjectIpcDeps, "projectsPat
     if (openEntry.window && !openEntry.window.isDestroyed!()) openEntry.window.destroy!(); // present whenever `window` is (see `OpenSiteEntry.window`'s own doc: optional only for tests that never invoke it)
   }
 
+  // The row is the recovery handle for a partial erase: keep it until removal succeeds.
+  if (erasesFiles) {
+    try { await (deps.removeSiteTree ?? removeSiteTree)({ root: id }, {}); }
+    catch (error) {
+      const reason = (error as NodeJS.ErrnoException).code === 'EACCES'
+        ? 'Permission was denied.' : 'The folder could not be removed.';
+      throw new Error(`Could not delete this website. ${reason} Its card has been kept so you can try again.`);
+    }
+  }
   untrackSite(deps.projectsPath, id);
   // Unconditional — independent of `erasesFiles` below. A preview is this shell's own decoration,
   // not the operator's data, so a row that is merely REMOVED (adopted, files kept) still drops its
@@ -641,9 +724,7 @@ async function deleteProject(id: string, deps: Pick<ProjectIpcDeps, "projectsPat
   // (`site-preview-store.ts`'s own doc on why an orphan is otherwise unreachable, not merely
   // unlikely), so leaving the file behind would only be litter for the boot sweep to find later.
   deps.deletePreview(id);
-  if (erasesFiles) {
-    await fsp.rm(id, { recursive: true, force: true });
-  }
+
 }
 
 /**
@@ -729,7 +810,15 @@ function handleRename(input: RenameSiteInput, deps: Pick<ProjectIpcDeps, "projec
     );
   }
 
+  const nameError = siteNameError({ name: input?.name });
+  if (nameError) throw new Error(nameError);
+  const duplicateError = duplicateSiteNameError({ name: input.name!, names: otherSiteNames({ deps, siteDir: row.siteDir }) });
+  if (duplicateError) throw new Error(duplicateError);
   const name = deps.writeSiteName(row.siteDir, input?.name);
+  // An explicit successful rename replaces any Add alias; otherwise the card would keep its old name.
+  row.displayNameAlias = undefined;
+  rememberSiteAlias({ projectsPath: deps.projectsPath, siteDir: row.siteDir });
+  rememberSiteName({ projectsPath: deps.projectsPath, siteDir: row.siteDir, displayName: name });
 
   // The open window's title, when there is one. There usually is NOT: a card opens its site as a
   // `<webview>` tab inside the sites home window (whose own title is pinned to "Tovu"), and
@@ -1040,6 +1129,7 @@ interface ProjectIpcDeps<TCtx = unknown> {
   readPreviewVersion: (siteDir: string) => number | null;
   readPreviewDataUrl: (id: string) => string | null;
   deletePreview: (id: string) => void;
+  removeSiteTree?: typeof removeSiteTree;
   /** Stop/Restart must withdraw pending hidden-window work before the server drains. */
   cancelPreviewCapture?: (required: { siteDir: string }, optional: {}) => void;
   adoptSiteDir: (input: AdoptSiteDirInput) => Promise<string>;

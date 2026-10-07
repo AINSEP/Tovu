@@ -80,9 +80,9 @@ contextBridge.exposeInMainWorld(
     listSites: () => ipcRenderer.invoke(SITE_IPC_CHANNELS.list),
     rescanSites: () => ipcRenderer.invoke(SITE_IPC_CHANNELS.rescan),
     /** "Add Tovu Website" — track a folder that ALREADY holds a site. Takes no argument: main owns
-     *  the folder dialog, so the renderer never names a filesystem path. Rejects when the operator
-     *  cancels, or when the folder is not already a complete Tovu site — surface that message
-     *  verbatim, it names the fix. See `SITE_IPC_CHANNELS.addSite`. */
+     *  the folder dialog, so the renderer never names a filesystem path. Resolves null on cancel;
+     *  otherwise returns the record and alreadyTracked flag. Rejects unusable folders with an
+     *  actionable message. See `SITE_IPC_CHANNELS.addSite`. */
     addSite: () => ipcRenderer.invoke(SITE_IPC_CHANNELS.addSite),
     createSite: (input: CreateSiteInput) => ipcRenderer.invoke(SITE_IPC_CHANNELS.create, input),
     /** The services "+ Create website" can offer a token field for. See `SITE_IPC_CHANNELS.tokenSignInPlugins`. */

@@ -330,6 +330,12 @@ button { font: inherit; color: inherit; }
   transform: translateX(-50%) translateY(0);
 }
 
+/* The gear is the nav's last item; its longer "Settings — Coming soon" tip, centred, ran past the
+   right edge of a 480px window and gave the page a sideways scroll. Anchor it to the gear's right. */
+.topnav__tools .topnav__link[data-tip]::after { left: auto; right: 0; transform: translateY(-2px); }
+.topnav__tools .topnav__link[data-tip]:hover::after,
+.topnav__tools .topnav__link[data-tip]:focus-visible::after { transform: translateY(0); }
+
 @media (prefers-reduced-motion: reduce) {
   .topnav__link[data-tip]::after { transition: none; }
 }
@@ -1832,3 +1838,22 @@ webview { display: flex; }
 }
 
 .empty__body { margin: 0; color: var(--muted); }
+
+/* A selected tab remains reachable when the window narrows; arrows also expose overflow. */
+.tabstrip-frame { grid-column: 1 / -1; display: flex; align-items: stretch; min-width: 0; margin: 0.875rem 1.25rem 0; }
+.tabstrip-frame .tabstrip { flex: 1; min-width: 0; margin: 0; scrollbar-width: thin; }
+.tabstrip-frame .tabstrip::-webkit-scrollbar { display: block; height: 5px; }
+.tabstrip-frame .tabstrip::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 3px; }
+.tabstrip-arrow { flex: none; width: 24px; border: 0; border-bottom: 2px solid var(--fg); background: var(--surface); color: var(--fg); font-size: 1.25rem; cursor: pointer; }
+.tabstrip-arrow:disabled { opacity: 0.3; cursor: default; }
+.card__actions { flex-wrap: wrap; }
+.card__confirm { z-index: 5; overflow-y: auto; }
+.card__confirmtitle, .card__confirmbody, .card__confirmerror { overflow-wrap: anywhere; }
+.projects-feedback { margin: 0.5rem 1.25rem 1rem; padding: 0.75rem 1rem; border: 1px solid var(--warning); border-radius: var(--r-md); color: var(--warning); background: var(--surface); overflow-wrap: anywhere; }
+.onboarding__form, .onboarding-card, .onboarding-section, .create-field { min-width: 0; }
+.create-field input { min-width: 0; max-width: 100%; }
+.create-field__hint { overflow-wrap: anywhere; }
+.create-field > .onboarding__error { color: var(--warning); font-size: 0.75rem; overflow-wrap: anywhere; }
+.creation-notice { align-items: flex-start; }
+.creation-notice__dot { flex: none; margin-top: 0.375rem; }
+.creation-notice__text { min-width: 0; overflow-wrap: anywhere; }

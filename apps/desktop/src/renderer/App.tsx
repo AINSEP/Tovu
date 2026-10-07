@@ -1,3 +1,5 @@
+import { navAvailability } from './nav-availability.js';
+import { useTabStrip } from './use-tab-strip.hooks.js';
 import { ConversationList } from '@jini-ai/chat/react';
 import { ChatPane } from '@jini-ai/chat/react/chat-pane';
 import { findSection, visibleSections, type RunnerSection, type RunnerSectionId } from '../contracts/sections.js';
@@ -75,11 +77,11 @@ export function App({
   // A card's Start/Stop resolves with main's refreshed record; this is what puts it on screen
   // rather than leaving the card four seconds behind the poll. See `useApplySiteRecord`.
   const applySiteRecord = useApplySiteRecord(setProjects);
-  const { adding, addError, addSite } = useAddSite(setProjects);
   // Tabs before nav, and not the other way round: `useSectionNav` needs `setActiveTab` because
   // every section-level move also drops back to the sites home tab. What used to make that ordering
   // impossible — the tabs hook consuming `activeId`/`appearanceOpen` — is now `deriveSitesHomeView`.
   const { openTabs, activeTab, setActiveTab, openProjectTab, closeProjectTab } = useTabs();
+  const { adding, addError, addSite } = useAddSite({ setProjects }, { onAlreadyTracked: openProjectTab });
   const {
     activeId,
     setActiveId,
@@ -105,6 +107,7 @@ export function App({
   useRunnerNavigation(setActiveId, setActiveTab);
   const { lastCreated, openCreateWebsite, handleCreate, handleDelete, cancelCreate, createFormKey } =
     useProjectMutations({
+      projects,
       setProjects,
       closeProjectTab,
       startCreating,
@@ -140,6 +143,8 @@ export function App({
       )}
 
       <main className="main">
+        {/* Re-adding a tracked site opens its tab; keep the feedback visible there too. */}
+        {showSiteTab && addError && <p className="projects-feedback" role="status">{addError}</p>}
         <MainArea
           appearanceOpen={appearanceOpen}
           onCloseAppearance={closeAppearance}
@@ -370,7 +375,7 @@ function NavLink({
       aria-current={isActive ? 'page' : undefined}
       aria-disabled={disabled || undefined}
       tabIndex={disabled ? -1 : undefined}
-      data-tip={section.label}
+      {...navAvailability({ label: section.label, disabled })}
       aria-label={section.label}
     >
       <SectionIcon id={section.id} />
@@ -412,7 +417,7 @@ function SettingsControl({
         aria-haspopup="true"
         aria-disabled={disabled || undefined}
         tabIndex={disabled ? -1 : undefined}
-        data-tip="Settings"
+        {...navAvailability({ label: "Settings", disabled })}
         aria-label="Settings"
       >
         <GearIcon />
@@ -463,42 +468,47 @@ function TabStrip({
   onSelectTab: (id: string) => void;
   onCloseTab: (id: string) => void;
 }) {
+  const { stripRef, overflow, showArrows, scrollLeft, scrollRight } = useTabStrip({ activeTab, projects });
   return (
-    <div className="tabstrip" role="tablist" aria-label="Open websites">
-      <button
-        type="button"
-        role="tab"
-        className={`tab tab--sites-home ${activeTab === null ? 'is-active' : ''}`}
-        aria-selected={activeTab === null}
-        onClick={onSelectSitesHome}
-      >
-        <span className="tab__label">All</span>
-      </button>
+    <div className="tabstrip-frame">
+      {showArrows ? <button type="button" className="tabstrip-arrow" aria-label="Scroll tabs left" disabled={!overflow.left} onClick={scrollLeft}>‹</button> : null}
+      <div ref={stripRef} className="tabstrip" role="tablist" aria-label="Open websites">
+        <button
+          type="button"
+          role="tab"
+          className={`tab tab--sites-home ${activeTab === null ? 'is-active' : ''}`}
+          aria-selected={activeTab === null}
+          onClick={onSelectSitesHome}
+        >
+          <span className="tab__label">All</span>
+        </button>
 
-      {projects.map((project) => (
-        <span key={project.id} className={`tab ${project.id === activeTab ? 'is-active' : ''}`}>
-          <button
-            type="button"
-            role="tab"
-            className="tab__select"
-            aria-selected={project.id === activeTab}
-            onClick={() => onSelectTab(project.id)}
-          >
-            <span className={`tab__dot is-${project.status}`} aria-hidden="true" />
-            <span className="tab__label">{project.displayName}</span>
-          </button>
-          <button
-            type="button"
-            className="tab__close"
-            onClick={() => onCloseTab(project.id)}
-            aria-label={`Close ${project.displayName}`}
-          >
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
-              <path d="M6 6l8 8M14 6l-8 8" strokeLinecap="round" />
-            </svg>
-          </button>
-        </span>
-      ))}
+        {projects.map((project) => (
+          <span key={project.id} className={`tab ${project.id === activeTab ? 'is-active' : ''}`}>
+            <button
+              type="button"
+              role="tab"
+              className="tab__select"
+              aria-selected={project.id === activeTab}
+              onClick={() => onSelectTab(project.id)}
+            >
+              <span className={`tab__dot is-${project.status}`} aria-hidden="true" />
+              <span className="tab__label" title={project.displayName}>{project.displayName}</span>
+            </button>
+            <button
+              type="button"
+              className="tab__close"
+              onClick={() => onCloseTab(project.id)}
+              aria-label={`Close ${project.displayName}`}
+            >
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+                <path d="M6 6l8 8M14 6l-8 8" strokeLinecap="round" />
+              </svg>
+            </button>
+          </span>
+        ))}
+      </div>
+      {showArrows ? <button type="button" className="tabstrip-arrow" aria-label="Scroll tabs right" disabled={!overflow.right} onClick={scrollRight}>›</button> : null}
     </div>
   );
 }
@@ -1082,7 +1092,7 @@ function ProjectsBody({
   return (
     <>
       {rescanError && <p className="empty__body">{rescanError}</p>}
-      {addError && <p className="empty__body">{addError}</p>}
+      {addError && <p className="projects-feedback" role="status">{addError}</p>}
       {projects.length === 0 ? <NoWebsitesYet /> : <SiteGrid projects={projects} onOpen={onOpen} onDelete={onDelete} onSiteUpdated={onSiteUpdated} />}
     </>
   );
@@ -1162,17 +1172,19 @@ function MainContent({
               `tovu serve` on the first open. Claiming "port 0" here would be a lie the operator
               could act on (there is no server listening on port 0). Stopped records use the same
               sentinel; `sitePortPresentation` applies that rule across the renderer. */}
-          {!sitePortPresentation(lastCreated).running ? (
-            <>
-              <strong>{lastCreated.displayName}</strong> is ready — open it to start its own server.
-            </>
-          ) : (
-            <>
-              <strong>{lastCreated.displayName}</strong> is provisioned on port {lastCreated.port}
-              {lastCreated.templateVersion ? ` from Tovu ${lastCreated.templateVersion}` : ''}.
-            </>
-          )}
-          {createdTokensNote(lastCreated) ? <> {createdTokensNote(lastCreated)}</> : null}
+          <span className="creation-notice__text">
+            {!sitePortPresentation(lastCreated).running ? (
+              <>
+                <strong>{lastCreated.displayName}</strong> is ready — open it to start its own server.
+              </>
+            ) : (
+              <>
+                <strong>{lastCreated.displayName}</strong> is provisioned on port {lastCreated.port}
+                {lastCreated.templateVersion ? ` from Tovu ${lastCreated.templateVersion}` : ''}.
+              </>
+            )}
+            {createdTokensNote(lastCreated) ? <> {createdTokensNote(lastCreated)}</> : null}
+          </span>
         </p>
       )}
       <ProjectsBody

@@ -1,3 +1,4 @@
+import { makeSiteTreeWritable } from '../../../apps/desktop/src/remove-site-tree.ts';
 // @unrun: authored 2026-10-04 by an agent, NEVER EXECUTED; selectors and flows unverified.
 import { _electron as electron, expect, type ElectronApplication, type Locator, type Page } from "@playwright/test";
 import fs from "node:fs";
@@ -82,22 +83,7 @@ export function scratchDir(label: string): string {
 
 /** The immutable plugin store belongs to the product; only discarded scratch trees get u+w. */
 export function removeScratchTree({ root }: { root: string }, _optional = {}): void {
-  function makeWritable(entry: string): void {
-    let stat: fs.Stats;
-    try {
-      stat = fs.lstatSync(entry);
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
-      throw error;
-    }
-    // Never follow symlinks: a fixture may point outside the tree being discarded.
-    if (stat.isSymbolicLink()) return;
-    fs.chmodSync(entry, stat.mode | 0o200);
-    if (stat.isDirectory()) {
-      for (const child of fs.readdirSync(entry)) makeWritable(path.join(entry, child));
-    }
-  }
-  makeWritable(root);
+  makeSiteTreeWritable({ root }, {});
   fs.rmSync(root, { recursive: true, force: true });
 }
 

@@ -8,7 +8,7 @@ import { findSection, runnerToolNames, sectionsInGroup, visibleSections } from '
 // F1.6/F4.1: public section IDs/labels are literals; hidden navigation must not remove tools.
 test('visible navigation retains declaration order and filters hidden sections in each group', () => {
   assert.deepEqual(visibleSections().map(({ id, label }) => [id, label]), [
-    ['home', 'Home'], ['projects', 'Websites'], ['marketplace', 'Marketplace (not available yet)'],
+    ['home', 'Home'], ['projects', 'Websites'], ['marketplace', 'Marketplace'],
     ['generation', 'Media'], ['activity', 'Activity'], ['updates', 'Updates'],
   ]);
   assert.deepEqual(sectionsInGroup('workspace').map(({ id }) => id), ['home', 'projects', 'marketplace']);

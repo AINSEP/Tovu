@@ -1,3 +1,4 @@
+import { namePasteHandler } from '../contracts/site-name.js';
 /**
  * The site grid: one card per website, and each card's inline delete-confirm overlay. Split out
  * of `App.tsx` as its own module — this family has a small, self-contained props surface
@@ -198,15 +199,16 @@ function SiteCard({
             Grid auto-placement fills it in DOM order, so the order below IS the layout — and it is
             also the reading and Tab order, which is why the ⋮ comes second rather than last. */}
         <div className="card__head">
-          <h3 className="card__name">{project.displayName}</h3>
-          <SiteCardMenu
+          <h3 className="card__name" title={project.displayName}>{project.displayName}</h3>
+          {/* The inline panel owns the card; its actions must not share space with the menu trigger. */}
+          {overlay === null && <SiteCardMenu
             project={project}
             status={status}
             copy={copy}
             onRename={() => rename.startRename(project)}
             onRequestDelete={onRequestDelete}
             actions={actions}
-          />
+          />}
           <p className="card__details">
             {databaseLabel(project)}
             {project.templateVersion && <> · Tovu {project.templateVersion}</>}
@@ -305,7 +307,7 @@ function CardConfirmOverlay({
     >
       <p className="card__confirmtitle">{copy.confirmTitle}</p>
       <p className="card__confirmbody">{copy.confirmBody}</p>
-      {deleteError && <p className="card__confirmerror">{deleteError}</p>}
+      {deleteError && <p className="card__confirmerror" role="alert">{deleteError}</p>}
       <div className="card__confirmacts">
         <button type="button" className="button button--quiet" onClick={onCancel} disabled={deleting}>
           Cancel
@@ -598,6 +600,7 @@ function CardRenameOverlay({ project, rename }: { project: SiteRecord; rename: S
         // control the operator just clicked — landing focus anywhere else would cost them a tab.
         autoFocus
         onChange={(event) => rename.setDraft(event.target.value)}
+        onPaste={namePasteHandler({ setName: rename.setDraft })}
         // Escape cancels, Enter submits when Save is enabled. See `renameInputKeyDown`.
         onKeyDown={renameInputKeyDown(rename, project.id)}
         disabled={rename.saving}

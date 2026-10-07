@@ -1,3 +1,4 @@
+import { createFindQueryScheduler } from './find-query-scheduler.js';
 /**
  * @file Behavioural tests for `use-find-in-page.hooks.ts`: the reducer, which target a search
  * routes to, and the (deliberately backwards) `findNext` semantics `runFind`/`stopFind` apply.
@@ -432,6 +433,10 @@ function mountedFindEffects() {
     },
   };
   const createHook = runInNewContext(compiled + '\nuseFindInPage', {
+    createFindQueryScheduler: () => createFindQueryScheduler({}, { clock: {
+      schedule: (callback, _delay) => { timers.set(++nextId, callback); return nextId; },
+      cancel: (id) => { timers.delete(id as number); },
+    } }),
     Map, findBarReducer, initialFindBarState, formatMatchCount, resolveFindTarget,
     restoreFindInputFocus, runFind, stopFind, subscribeToFindResults,
     shouldCloseOnGuestChange, shouldKeepReclaimingFindFocus, shouldReclaimFindFocus,
@@ -449,6 +454,10 @@ function mountedFindEffects() {
   const controller = createHook('guest');
   controller.inputRef(input);
   const cleanups = effects.map((effect) => effect());
+  // Find now starts after typing settles; these focus contracts exercise the issued request.
+  const pendingQueries = [...timers.values()];
+  timers.clear();
+  for (const callback of pendingQueries) callback();
   calls.length = 0;
   function tick(queue: Map<number, () => void>) {
     const pending = [...queue];

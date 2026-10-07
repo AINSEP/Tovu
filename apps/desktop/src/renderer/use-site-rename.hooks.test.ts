@@ -1,3 +1,4 @@
+import { dismissOnEscape } from './site-shell-policy.js';
 /**
  * @file Coverage for `use-site-rename.hooks.ts`: its pure decision logic, IME key handling, and the
  * actual `useSiteRename` submit flow.
@@ -38,7 +39,7 @@ test('submitRename preserves the draft on failure, clears saving, and closes wit
     return new Promise((resolve, reject) => pending.push({ resolve, reject }));
   } };
   const hook = sourceFunction(readFileSync(new URL('./use-site-rename.hooks.ts', import.meta.url), 'utf8'), 'useSiteRename', {
-    ...harness.bindings, renameSubmission, describeRenameFailure, canSubmitRename, runnerInventoryBridge: () => bridge,
+    ...harness.bindings, dismissOnEscape, document: { addEventListener() {}, removeEventListener() {} }, renameSubmission, describeRenameFailure, canSubmitRename, runnerInventoryBridge: () => bridge,
   });
   const render = () => harness.render(() => hook((record: unknown) => renamed.push(record)));
   try {

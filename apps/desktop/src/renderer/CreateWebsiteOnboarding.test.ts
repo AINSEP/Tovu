@@ -95,7 +95,7 @@ test('starts on the SQLite default with no slug, a disabled submit and no vendor
     ['sqlite', true, false], ['supabase', false, true], ['custom', false, true],
   ]);
   const hint = tree.find((element) => element.props?.className === 'create-field__hint');
-  assert.equal(hint.props.children, 'This becomes the isolated local workspace folder.');
+  assert.equal(hint.props.children, 'Your website will use the folder you choose next.');
   assert.deepEqual(byType(tree, 'dd'), [], 'the hidden instance summary renders no values');
   assert.equal(submit(tree).props.disabled, true);
   assert.equal(submit(tree).props.children, 'Create local instance');
@@ -106,12 +106,13 @@ test('starts on the SQLite default with no slug, a disabled submit and no vendor
   assert.equal(tree.find((element) => element.props?.className === 'database-option is-selected ').type, 'label');
 });
 
-test('shows the workspace folder and enables submit once the form says it can create', () => {
+test('explains the chosen folder truthfully and enables submit once the form says it can create', () => {
   const { tree } = setup({ form: { name: 'Corner Bakery', slug: 'corner-bakery', canCreate: true } });
   const name = input(tree, (props) => props.placeholder === 'e.g. Corner Bakery');
   assert.equal(name.props.value, 'Corner Bakery');
+  assert.equal(name.props.maxLength, 200);
   const hint = tree.find((element) => element.props?.className === 'create-field__hint');
-  assert.equal(hint.props.children, 'Workspace folder: corner-bakery');
+  assert.equal(hint.props.children, 'Your website will use the folder you choose next.');
   assert.deepEqual(byType(tree, 'dd'), [], 'the workspace preview lives only under the name field');
   assert.equal(submit(tree).props.disabled, false);
 });
@@ -236,7 +237,7 @@ test('renders with the real default hooks: SQLite selected, submit disabled, no 
   assert.match(html, /<input type="radio" name="database" checked="" value="sqlite"\/>/);
   assert.match(html, /<button type="submit" class="button button--primary" disabled="">Create local instance<\/button>/);
   assert.doesNotMatch(html, /Connect services/);
-  assert.match(html, /This becomes the isolated local workspace folder\./);
+  assert.match(html, /Your website will use the folder you choose next\./);
 });
 
 test('the two database options this app cannot provision carry a "Soon" tag; SQLite does not', () => {
@@ -285,4 +286,14 @@ test('the credential hints name Tovu, never Runner', () => {
     .filter((line) => /vault/.test(line));
   assert.deepEqual(hints('supabase'), ['Credentials must be saved in the Tovu vault before provisioning; this prototype does not retain the key.']);
   assert.deepEqual(hints('custom'), ['Credentials must be saved in the Tovu vault before provisioning; this prototype does not retain them.']);
+});
+
+test('D-02: an oversized draft shows the exact inline validation inside the name field', () => {
+  const message = 'A name must be 1 to 200 characters, not counting spaces at either end.';
+  const { tree } = setup({ form: { name: 'x'.repeat(248), nameError: message, canCreate: false } });
+  const name = input(tree, (props) => props.placeholder === 'e.g. Corner Bakery');
+  assert.equal(name.props.maxLength, 200);
+  assert.equal(name.props['aria-invalid'], true);
+  assert.equal(tree.find((element) => element.props.role === 'alert')?.props.children, message);
+  assert.equal(submit(tree).props.disabled, true);
 });

@@ -27,7 +27,7 @@ import { sitesFilePath } from "../../../apps/desktop/src/tracked-sites.ts";
  *    `SITE_DIR_EMPTY`'s sentence.
  *  - "Create website" onboarding (`CreateWebsiteOnboarding.tsx` -> `handleCreate`): `tovu init`
  *    into the chosen empty folder, tracked as `created`, so its card offers "Delete…" (which erases
- *    files). The delete overlay is opened and CANCELLED here, never confirmed.
+ *    files). Cancellation preserves files; confirming Delete removes the whole tree.
  */
 const EXISTING = "journey-add-existing";
 let root: string;
@@ -97,7 +97,7 @@ test("cancelling the folder picker adds nothing and shows no error", { tag: ["@u
   }
 });
 
-test("Create website on an empty folder makes a real site whose Delete asks first (cancelled here)", { tag: ["@unrun"] }, async () => {
+test("Create website makes a real site whose Delete confirms and removes all files", { tag: ["@unrun"] }, async () => {
   const launch = await launchDesktop();
   const { app, win } = launch;
   const target = emptyFolder("create");
@@ -127,6 +127,13 @@ test("Create website on an empty folder makes a real site whose Delete asks firs
     await expect(confirm).toHaveCount(0);
     await expect(card).toBeVisible();
     expect(fs.existsSync(path.join(target, "content.db")), "Cancel must leave every file in place").toBe(true);
+    // D-01: the app-created agent-plugin store contains read-only packages; deletion must erase it.
+    await card.getByRole("button", { name: `More actions for ${name}` }).click();
+    await win.getByRole("menuitem", { name: "Delete…" }).click();
+    await confirm.getByRole("button", { name: "Delete", exact: true }).click();
+    await expect(card).toHaveCount(0);
+    expect(fs.existsSync(target), "Delete must remove the entire install directory").toBe(false);
+    expect((await listSites(win)).some((site) => site.installDir === target)).toBe(false);
   } finally {
     await closeDesktop(launch);
   }
@@ -148,4 +155,39 @@ test("double-clicking Create local instance creates one site", { tag: ["@unrun"]
   } finally {
     await closeDesktop(launch);
   }
+});
+
+
+test("D-02 and D-03: invalid names never open the picker, and Create cancellation keeps the form quietly", { tag: ["@unrun"] }, async () => {
+  const launch = await launchDesktop();
+  const { app, win } = launch;
+  try {
+    await app.evaluate(({ dialog }) => {
+      let calls = 0;
+      dialog.showOpenDialog = async () => { calls++; return { canceled: true, filePaths: [] }; };
+      (globalThis as typeof globalThis & { shellPickerCalls?: () => number }).shellPickerCalls = () => calls;
+    });
+    await win.getByRole("button", { name: "Create website" }).click();
+    const input = win.getByRole("textbox", { name: /^Website name/ });
+    const submit = win.getByRole("button", { name: "Create local instance" });
+    expect(await input.getAttribute("maxlength")).toBe("200");
+    // Dispatch a real oversized paste: maxlength alone would silently save a truncated name.
+    await input.evaluate((node) => {
+      const clipboardData = new DataTransfer();
+      clipboardData.setData("text", "x".repeat(201));
+      node.dispatchEvent(new ClipboardEvent("paste", { clipboardData, bubbles: true, cancelable: true }));
+    });
+    await expect(win.getByRole("alert")).toHaveText("A name must be 1 to 200 characters, not counting spaces at either end.");
+    await expect(submit).toBeDisabled();
+    expect(await app.evaluate(() => (globalThis as typeof globalThis & { shellPickerCalls: () => number }).shellPickerCalls())).toBe(0);
+    await input.fill("Cancelled Website");
+    const before = (await listSites(win)).length;
+    await submit.click();
+    await expect(submit).toBeEnabled();
+    await expect(input).toHaveValue("Cancelled Website");
+    await expect(win.getByRole("alert")).toHaveCount(0);
+    await expect(win.locator("h1.main__title")).toHaveText("Create a website");
+    expect((await listSites(win)).length).toBe(before);
+    expect(await app.evaluate(() => (globalThis as typeof globalThis & { shellPickerCalls: () => number }).shellPickerCalls())).toBe(1);
+  } finally { await closeDesktop(launch); }
 });

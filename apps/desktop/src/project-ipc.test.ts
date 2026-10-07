@@ -288,6 +288,7 @@ test("handleAddSite tracks an existing site as `adopted` and returns its record"
   const { deps } = addSiteDeps(siteDir);
 
   const record = await handleAddSite(deps);
+  assert.ok(record);
 
   assert.equal(record.id, siteDir);
   assert.equal(record.installDir, siteDir);
@@ -345,10 +346,10 @@ test("handleAddSite's dialog does NOT offer to create a folder", async () => {
   assert.equal(shown[0]!.properties.includes("createDirectory"), false); // this test's own call above pushed exactly one entry
 });
 
-test("handleAddSite rejects a cancelled dialog without writing anything", async () => {
+test("handleAddSite returns null for a cancelled dialog without writing anything", async () => {
   const { deps } = addSiteDeps(null);
 
-  await assert.rejects(() => handleAddSite(deps), /No folder was chosen/);
+  assert.equal(await handleAddSite(deps), null);
 
   assert.deepEqual(readTrackedSites(deps.projectsPath), []);
 });
@@ -357,12 +358,16 @@ test("handleAddSite keeps an already-tracked project's original createdAt", asyn
   const siteDir = siteFixture();
   const { deps } = addSiteDeps(siteDir);
   const first = await handleAddSite(deps);
+  assert.ok(first);
 
   const second = await handleAddSite(deps);
+  assert.ok(second);
 
   // Read back from the registry rather than synthesized: a fabricated record would stamp today's
   // date and silently reorder the operator's Projects grid on a re-add.
   assert.equal(second.createdAt, first.createdAt);
+  assert.equal(first.alreadyTracked, false);
+  assert.equal(second.alreadyTracked, true);
   assert.equal(readTrackedSites(deps.projectsPath).length, 1);
 });
 
@@ -395,13 +400,14 @@ test("handleCreate accepts an explicit sqlite choice, and an input with no datab
       adoptSiteDir: async () => siteDir,
     });
     const record = await handleCreate({ displayName: "New Site", database }, deps);
+    assert.ok(record);
     assert.equal(record.database.kind, "sqlite");
   }
 });
 
-test("handleCreate throws when the folder picker is cancelled", async () => {
+test("handleCreate returns null when the folder picker is cancelled", async () => {
   const deps = baseDeps({ dialog: { showOpenDialog: async () => ({ canceled: true, filePaths: [] }) } });
-  await assert.rejects(() => handleCreate({ displayName: "New Site" }, deps as typeof deps & Pick<ProjectIpcDeps, "adoptSiteDir">), /No folder was chosen/); // never reached — refused before adoptSiteDir
+  assert.equal(await handleCreate({ displayName: "New Site" }, deps as typeof deps & Pick<ProjectIpcDeps, "adoptSiteDir">), null); // never reached — refused before adoptSiteDir
 });
 
 test("handleCreate adopts the picked folder, tracks it, and returns its record", async () => {
@@ -416,6 +422,7 @@ test("handleCreate adopts the picked folder, tracks it, and returns its record",
   });
 
   const record = await handleCreate({ displayName: "New Site" }, deps);
+  assert.ok(record);
 
   assert.equal(adoptCalledWith!.dir, picked); // handleCreate above always calls adoptSiteDir before returning
   assert.equal(adoptCalledWith!.name, "New Site"); // handleCreate above always calls adoptSiteDir before returning
@@ -913,6 +920,7 @@ test("handleCreate stamps the new site's own identity on its created row", async
   const deps = baseDeps();
 
   const record = await handleCreateInto(deps as Parameters<typeof handleCreate>[1], siteDir, "site-a"); // handleCreateInto assigns dialog/classifySiteDir/adoptSiteDir itself before use
+  assert.ok(record);
 
   assert.equal(readTrackedSites(deps.projectsPath)[0]!.siteId, "site-a");
   assert.equal(record.deleteErasesFiles, true, "the site it just made is still the site at that path");
@@ -988,6 +996,7 @@ test("handleCreate records 'created' when it initialized an empty folder, 'adopt
     });
 
     const record = await handleCreate({ displayName: "New Site" }, deps);
+    assert.ok(record);
 
     assert.equal(readTrackedSites(deps.projectsPath)[0]!.origin, expected, `a "${kind}" folder must be tracked as ${expected}`);
     assert.equal(record.deleteErasesFiles, expected === SITE_ORIGIN.created);
@@ -1098,13 +1107,15 @@ test("rescanSites picks up a recently-opened site that lives outside every scan 
   assert.deepEqual(rescanSites(deps).map((r) => r.id), [outside]);
 });
 
-test("rescanSites leaves an already-tracked project's row exactly as it was", () => {
+test("rescanSites leaves an already-tracked project's row as it was, apart from the cached name", () => {
   const deps = scanDeps();
   const alpha = siteFolder(deps.scanRoot, "alpha");
   trackSite(deps.projectsPath, alpha, SITE_ORIGIN.adopted);
   const before = readTrackedSites(deps.projectsPath);
   rescanSites(deps);
-  assert.deepEqual(readTrackedSites(deps.projectsPath), before);
+  // D-18: listing caches the last known name so a later missing-folder card can still show it;
+  // origin, createdAt and identity must stay exactly as tracked.
+  assert.deepEqual(readTrackedSites(deps.projectsPath), [{ ...before[0]!, displayName: "alpha" }]);
 });
 
 test("rescanSites ignores a folder under the scan root that is not a site", () => {
@@ -1487,4 +1498,138 @@ test("handleLocate refuses an untracked id without altering the tracked list", a
   await assert.rejects(() => handleLocate("/never-tracked", deps), /not tracking a site.*nothing to locate/);
 
   assert.deepEqual(readTrackedSites(deps.projectsPath), before);
+});
+
+test('D-01: delete untracks and removes the preview only after the files are gone; a failed erase keeps the card', async () => {
+  for (const fails of [true, false]) {
+    const siteDir = writeSite(path.join(tempDir(), 'read-only-site'), 'd01-site');
+    const deps = baseDeps({
+      removeSiteTree: async ({ root }): Promise<void> => {
+        assert.equal(root, siteDir);
+        assert.equal(readTrackedSites(deps.projectsPath).length, 1, 'keep the recovery card during erase');
+        if (fails) throw Object.assign(new Error('unlink failed'), { code: 'EACCES' });
+        fs.rmSync(root, { recursive: true });
+      },
+      deletePreview: () => assert.equal(fs.existsSync(siteDir), false),
+    });
+    trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.created, { siteId: 'd01-site' });
+    if (fails) {
+      await assert.rejects(handleDelete(siteDir, deps), {
+        message: 'Could not delete this website. Permission was denied. Its card has been kept so you can try again.',
+      });
+      assert.equal(readTrackedSites(deps.projectsPath).length, 1);
+      assert.equal(fs.existsSync(siteDir), true);
+    } else {
+      await handleDelete(siteDir, deps);
+      assert.deepEqual(readTrackedSites(deps.projectsPath), []);
+      assert.equal(fs.existsSync(siteDir), false);
+    }
+  }
+});
+
+test('D-01: deleting a read-only plugin store really removes its entire tree', async () => {
+  const siteDir = writeSite(path.join(tempDir(), 'immutable-site'), 'immutable-site');
+  const store = path.join(siteDir, 'agent-plugins', 'package');
+  fs.mkdirSync(store, { recursive: true });
+  fs.writeFileSync(path.join(store, 'mcp.json'), '{}');
+  fs.chmodSync(path.join(store, 'mcp.json'), 0o444);
+  fs.chmodSync(store, 0o555);
+  fs.chmodSync(path.dirname(store), 0o555);
+  const deps = baseDeps();
+  trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.created, { siteId: 'immutable-site' });
+  await handleDelete(siteDir, deps);
+  assert.equal(fs.existsSync(siteDir), false);
+  assert.deepEqual(readTrackedSites(deps.projectsPath), []);
+});
+
+test('D-02: invalid Create names are rejected with exact inline copy before opening the folder picker', async () => {
+  const deps = baseDeps({
+    dialog: { showOpenDialog: async () => assert.fail('invalid names must not open the picker') },
+    adoptSiteDir: async () => assert.fail('invalid names must not create files'),
+  });
+  for (const displayName of ['', '   ', 'x'.repeat(201)]) {
+    await assert.rejects(handleCreate({ displayName }, deps), {
+      message: 'A name must be 1 to 200 characters, not counting spaces at either end.',
+    });
+  }
+});
+
+test('D-18: the last read name survives a missing folder, including after Rename', () => {
+  const siteDir = writeSite(path.join(tempDir(), 'slug'), 'named-site');
+  const deps = baseDeps({
+    readSiteName: (dir) => JSON.parse(fs.readFileSync(path.join(dir, 'config.json'), 'utf8')).name as string,
+    writeSiteName,
+    classifySiteDir: () => "site",
+  });
+  trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.created, { siteId: 'named-site' });
+  assert.equal(first(handleList(deps)).displayName, 'slug');
+  handleRename({ id: siteDir, name: 'My website' }, deps);
+  fs.rmSync(siteDir, { recursive: true });
+  const record = first(handleList(deps));
+  assert.equal(record.displayName, 'My website');
+  assert.equal(record.folderMissing, true);
+});
+
+test('D-10: Create passes the first free name to the injected initializer', async () => {
+  const names = new Map<string, string>();
+  const root = tempDir();
+  const target = path.join(root, 'new');
+  fs.mkdirSync(target);
+  let initializedName = '';
+  const deps = baseDeps({
+    readSiteName: (dir: string) => names.get(dir) ?? path.basename(dir),
+    dialog: { showOpenDialog: async () => ({ canceled: false, filePaths: [target] }) },
+    adoptSiteDir: async ({ dir, name }: { dir: string; name?: string }) => {
+      initializedName = name!;
+      names.set(dir, name!);
+      return dir;
+    },
+  });
+  for (const [slug, name] of [['a', ' Bakery '], ['b', 'BAKERY 2'], ['c', 'Bakery 4']]) {
+    const dir = path.join(root, slug!);
+    names.set(dir, name!);
+    trackSite(deps.projectsPath, dir, SITE_ORIGIN.adopted);
+  }
+  const result = await handleCreate({ displayName: 'bakery' }, deps);
+  assert.equal(initializedName, 'bakery 3');
+  assert.equal(result?.displayName, 'bakery 3');
+  assert.equal(handleList(deps).find((row) => row.id === target)?.displayName, 'bakery 3');
+});
+
+test('D-10: Add aliases duplicate names durably without writing either site config; re-add is stable', async () => {
+  const root = tempDir();
+  const first = writeSite(path.join(root, 'first'), 'first');
+  const second = writeSite(path.join(root, 'second'), 'second');
+  fs.writeFileSync(path.join(first, 'config.json'), JSON.stringify({ name: 'Bakery' }));
+  fs.writeFileSync(path.join(second, 'config.json'), JSON.stringify({ name: ' bakery ' }));
+  const before = fs.readFileSync(path.join(second, 'config.json'), 'utf8');
+  const { deps } = addSiteDeps(second, {
+    readSiteName: (dir: string) => JSON.parse(fs.readFileSync(path.join(dir, 'config.json'), 'utf8')).name as string,
+  });
+  trackSite(deps.projectsPath, first, SITE_ORIGIN.adopted);
+  assert.equal((await handleAddSite(deps))?.displayName, 'bakery 2');
+  assert.equal((await handleAddSite(deps))?.displayName, 'bakery 2');
+  assert.equal(handleList(deps).find((row) => row.id === second)?.displayName, 'bakery 2');
+  assert.equal(fs.readFileSync(path.join(second, 'config.json'), 'utf8'), before);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(first, 'config.json'), 'utf8')).name, 'Bakery');
+});
+
+test('D-10: Rename refuses duplicate before calling its write port and allows its own name', () => {
+  const root = tempDir();
+  const own = writeSite(path.join(root, 'own'), 'own');
+  const other = writeSite(path.join(root, 'other'), 'other');
+  let writes = 0;
+  const names = new Map([[own, 'Bakery'], [other, 'bakery 2']]);
+  const deps = renameDeps({
+    readSiteName: (dir: string) => names.get(dir)!,
+    writeSiteName: (dir: string, name: string) => { writes += 1; names.set(dir, name.trim()); return name.trim(); },
+  });
+  trackSite(deps.projectsPath, own, SITE_ORIGIN.adopted);
+  trackSite(deps.projectsPath, other, SITE_ORIGIN.adopted);
+  assert.throws(() => handleRename({ id: own, name: ' BAKERY 2 ' }, deps), {
+    message: 'A website named "BAKERY 2" is already tracked. Choose a different name.',
+  });
+  assert.equal(writes, 0);
+  assert.equal(handleRename({ id: own, name: ' BAKERY ' }, deps).displayName, 'BAKERY');
+  assert.equal(writes, 1);
 });

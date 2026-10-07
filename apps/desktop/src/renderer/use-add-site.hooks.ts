@@ -15,31 +15,22 @@ import type { Dispatch, SetStateAction } from 'react';
 
 import type { SiteRecord } from '../contracts/project.js';
 import { runnerInventoryBridge } from './runner-api.js';
+import { humanSiteError, addedSiteMessage } from './site-shell-policy.js';
 
 /** The refusal shown when the IPC bridge itself is absent — a renderer running outside Electron
  *  (a plain `vite preview`, a test harness). Stated rather than silent: a button that does nothing
  *  at all is indistinguishable from a broken one. */
 const NO_BRIDGE_MESSAGE = "This build can't open a folder picker — run the desktop app.";
 
-/** The operator dismissing the folder picker. Main rejects with this exact sentence
- *  (`project-ipc.ts`'s `handleAddSite`), and it is the one refusal that is not worth showing:
- *  they know they cancelled. */
+/** Compatibility with an older preload/main pair that rejected cancellation instead of returning
+ * null. A cancellation must stay quiet even while the shell is being upgraded. */
 const CANCELLED_MESSAGE = 'No folder was chosen.';
 
 /**
  * Drive the "Add Tovu Website" button.
  *
- * **The error text is surfaced VERBATIM, and that is the load-bearing choice here.** Main's
- * refusals already name the fix — "use Create website to make a new site in an empty folder", "if
- * your site lives in a subfolder, point at that subfolder instead", "it may be on an unmounted
- * volume" — and they are written once, in `add-site-pointer.ts`, so the CLI, the assistant and this
- * button all say the same thing about the same folder. Paraphrasing here (the way
- * `useSiteRescan` flattens every failure into "Couldn't scan for sites.") would re-create
- * exactly the three-way drift that one shared implementation exists to prevent, and would replace
- * an actionable sentence with a dead end.
- *
- * A cancelled picker is the single exception: it is a refusal, but showing it would report the
- * operator's own decision back to them as an error.
+ * Main's actionable refusal survives, with Electron and Error class prefixes removed.
+ * Cancellation resolves with null; a duplicate reports its existing name and opens that tab.
  *
  * @param setProjects the Projects screen's list setter. The new record is PREPENDED rather than
  *   triggering a re-list: `handleAddSite` already returns the record, and a second `listSites`
@@ -48,7 +39,9 @@ const CANCELLED_MESSAGE = 'No folder was chosen.';
  *   none), `addSite` to invoke, and `clearAddError` for a dismiss affordance.
  * @complexity O(n) in the current project count, for the duplicate check.
  */
-export function useAddSite(setProjects: Dispatch<SetStateAction<readonly SiteRecord[]>>): {
+export function useAddSite({ setProjects }: { setProjects: Dispatch<SetStateAction<readonly SiteRecord[]>> },
+  { onAlreadyTracked }: { onAlreadyTracked?: (id: string) => void } = {},
+): {
   adding: boolean;
   addError: string | null;
   addSite: () => Promise<void>;
@@ -69,13 +62,17 @@ export function useAddSite(setProjects: Dispatch<SetStateAction<readonly SiteRec
     setAddError(null);
     try {
       const added = await bridge.addSite();
+      if (added === null) return;
       setProjects((current) => mergeAddedSite(current, added));
+      const message = addedSiteMessage({ added });
+      setAddError(message);
+      if (message) onAlreadyTracked?.(added.id);
     } catch (error) {
       setAddError(describeAddFailure(error));
     } finally {
       setAdding(false);
     }
-  }, [setProjects]);
+  }, [setProjects, onAlreadyTracked]);
 
   return { adding, addError, addSite, clearAddError };
 }
@@ -109,8 +106,7 @@ function mergeAddedSite(
  */
 function describeAddFailure(error: unknown): string | null {
   const raw = error instanceof Error ? error.message : String(error);
-  const message = raw.replace(/^Error invoking remote method '[^']*':\s*/, '').replace(/^Error:\s*/, '').trim();
-  if (message === '' ) return "Couldn't add that website.";
+  const message = humanSiteError({ error: raw, fallback: "Couldn't add that website." });
   // Their own choice, not a failure to report back at them.
   return message === CANCELLED_MESSAGE ? null : message;
 }
