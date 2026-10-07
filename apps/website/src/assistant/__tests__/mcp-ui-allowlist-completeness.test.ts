@@ -1,3 +1,4 @@
+import { POLICY_CONFIRMATION_TOOL_IDS } from "../../contracts/headless/assistant-tool-approval-policy.js";
 /**
  * @file Structural guard for `MCP_UI_REDEEMABLE_TOOL_IDS` (2026-09-24 unwired-sink sweep).
  *
@@ -30,6 +31,7 @@ const A2UI_EXCHANGE_TOOL_IDS = new Set(["assistant_render_ui", "assistant_demo_a
 /** Permanent-delete handlers iterate a static catalog and pass a parameterised toolId to
  * requireHumanConfirm. Their real exchange/handler tests exercise every id, including bypasses. */
 const PARAMETERISED_EXCHANGE_TOOL_IDS = new Set<string>([
+  ...POLICY_CONFIRMATION_TOOL_IDS,
   // Settings shares a confirmWrite adapter for the set/clear handlers; the behavioral tests
   // exercise both IDs with the real exchange store, including wrong-binding and typed answers.
   "assistant_ask_choice", "settings_set_value", "settings_clear_value",
@@ -66,7 +68,8 @@ interface ExchangeScan {
 // New unresolved expressions fail closed, including in these same files.
 const DYNAMIC_BINDINGS = new Map<string, ReadonlySet<string>>([
   ["contracts/core/human-confirm.ts", new Set(["toolId", "spec.dialog(prepared)"])],
-  ["assistant/external-mcp-call-confirmation.ts", new Set(["spec"])],
+  ["assistant/external-mcp-call-confirmation.ts", new Set(["actionConfirmSpec(spec, context.approvalRequest)"])],
+  ["assistant/tool-approval-policy.ts", new Set(["toolId"])],
   ["assistant/ask-choice-tool.ts", new Set(["toolId"])],
   ["features/permanent-delete/tool-registrations.ts", new Set(["toolId"])],
   ["features/settings/tool-registrations.ts", new Set(["toolId"])],
@@ -168,6 +171,16 @@ test("the parser enumerates alternate opener shapes and reports unresolved bindi
   assert.equal(fixture.unresolved.length, 2);
   assert.match(fixture.unresolved[0]!, /binding$/);
   assert.match(fixture.unresolved[1]!, /unknownId$/);
+});
+
+test("the federated card adapter permits only its reviewed dynamic spec expression", () => {
+  const fixture = scanExchangeTexts([{ file: path.join(SRC_ROOT, "assistant/external-mcp-call-confirmation.ts"), text: `
+    requireHumanConfirm({ ctx, surfaces, spec: actionConfirmSpec(spec, context.approvalRequest) });
+    requireHumanConfirm({ ctx, surfaces, spec: actionConfirmSpec(otherSpec, context.approvalRequest) });
+  ` }]);
+  assert.deepEqual(fixture.unresolved, [
+    "assistant/external-mcp-call-confirmation.ts:3: actionConfirmSpec(otherSpec, context.approvalRequest)",
+  ]);
 });
 
 function missingFromAllowlist(openers: ReadonlySet<string>, allowlist: ReadonlySet<string>): string[] {

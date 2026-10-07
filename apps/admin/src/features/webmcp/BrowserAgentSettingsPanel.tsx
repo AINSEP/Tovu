@@ -24,7 +24,7 @@ export function BrowserAgentSettingsPanel({ locale }: { locale: string }) {
             <span id={`${id}-hint`} className="jini-toggle-row-hint">
               {t(locale, "Enabled by default. This choice applies to the admin in this browser on this site.")}
               {" "}
-              {t(locale, "Compatible browsers can operate tagged admin controls. Changes require your confirmation.")}
+              {t(locale, "Compatible browsers can operate tagged admin controls. Destructive and publish actions require approval.")}
             </span>
           </span>
           <span className="jini-toggle-row-switch" aria-hidden="true" />

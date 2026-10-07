@@ -1,3 +1,4 @@
+import { withExtensionApprovalPolicy } from '../../contracts/headless/assistant-tool-approval-policy.js';
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString,
   type AgentToolDefinition, type AgentToolSideEffect, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { pluginMemory } from "./memory.js";
@@ -12,6 +13,7 @@ export function buildPluginMemoryRegistrations(required: {
   const handlers: Record<string, ToolHandler> = {};
   const risk = new Map<string, AgentToolSideEffect>();
   const owners = new Map<string, Identity>();
+  const approvalFamilies = new Map<string, 'plugin-memory-read' | 'plugin-memory-write'>();
   for (const source of required.sources) {
     for (const operation of ["read", "write"] as const) {
       const id = `${source.id}__memory_${operation}`;
@@ -22,6 +24,7 @@ export function buildPluginMemoryRegistrations(required: {
           properties: { entryPath: { type: "string" }, ...(operation === "write" ? { text: { type: "string" } } : {}) } },
       });
       owners.set(id, source); risk.set(id, sideEffects);
+      approvalFamilies.set(id, operation === "read" ? 'plugin-memory-read' : 'plugin-memory-write');
       handlers[id] = async ctx => {
         const input = requireInputRecord({ input: ctx.input });
         const allowed = operation === "read" ? ["entryPath"] : ["entryPath", "text"];
@@ -38,7 +41,8 @@ export function buildPluginMemoryRegistrations(required: {
   }).map(registration => {
     const owner = owners.get(registration.descriptor.id)!;
     const policy = registration.policy;
-    return { ...registration, policy: { authorize: async ctx =>
-      (await required.gate.isCallable(owner)) ? policy.authorize(ctx) : "deny" } };
+    return withExtensionApprovalPolicy({ registration: { ...registration, policy: { authorize: async ctx =>
+      (await required.gate.isCallable(owner)) ? policy.authorize(ctx) : "deny" } },
+      family: approvalFamilies.get(registration.descriptor.id)! });
   });
 }

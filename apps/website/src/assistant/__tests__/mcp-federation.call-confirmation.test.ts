@@ -46,7 +46,7 @@ const refusalForAdmittedToolUnderCurrentGrants = (
 
 const PRINCIPAL_ID = "principal-g3";
 const SCHEMA = { type: "object", properties: { query: { type: "string" }, project_id: { type: "string" } } } as const;
-/** A read-only tool's inputs: nothing write-shaped (`query`, `sql`, …), which would always ask. */
+/** A read-only tool's inputs: ordinary inputs; query/sql names alone do not ask (owner 2026-10-07). */
 const READ_SCHEMA = { type: "object", properties: { project_id: { type: "string" } } } as const;
 
 const CONFIG: FederatedMcpConnectionConfig = {

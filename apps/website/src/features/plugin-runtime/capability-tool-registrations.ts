@@ -1,3 +1,4 @@
+import { withExtensionApprovalPolicy } from '../../contracts/headless/assistant-tool-approval-policy.js';
 import { buildDomainRegistrations, indexCatalogById, isRecord, requireInputRecord, requireString, ToolInputError, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
@@ -459,7 +460,7 @@ export function buildPluginCapabilityToolRegistrations(
       catalog: indexCatalogById({ catalog: [capabilityCatalogEntry(source)] }),
       handlers: { [source.id]: capabilityToolHandler(source, deps) },
       derivedRisk: pluginCapabilityToolDerivedRisk([source]),
-    }).map((registration) => withActivationGate(registration, deps, source.pluginId)),
+    }).map((registration) => withExtensionApprovalPolicy({ registration: withActivationGate(registration, deps, source.pluginId), family: 'plugin-capability-result' })),
   );
 }
 

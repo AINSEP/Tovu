@@ -954,7 +954,7 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "content_post_delete",
     description:
-      "Moves one post or page to Trash immediately, with {id, kind}. Returns {deleted: true, cancelled: false, post}. This is a reversible soft delete: the row is retained and can be restored through trash_restore_item or the recorded change set. Requires content.read and content.write. Refuses a missing/already-trashed row, a page kind mismatch, or a concurrent version change. Permanent deletion is a separate confirmation-gated tool.",
+      "Waits for human approval, then moves one post or page to Trash with {id, kind}. Returns {deleted: true, cancelled: false, post}. This is a reversible soft delete: the row is retained and can be restored through trash_restore_item or the recorded change set. Requires content.read and content.write. Refuses a missing/already-trashed row, a page kind mismatch, or a concurrent version change. Permanent deletion is a separate confirmation-gated tool.",
     // Genuinely destructive, and classified as its own thing rather than folded into the same
     // bucket as an edit — `tool-registrations.ts`'s independent `postDerivedRisk` derives the
     // identical value from what the handler actually calls, and the two are compared for equality
@@ -964,7 +964,8 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
     // codebase grants no `content.delete` anywhere, and inventing a permission no policy grants
     // would make the tool unusable rather than safer. Matches `posts/delete.ts`/`pages/delete.ts`.
     authorization: { permission: "content.write" },
-    // Reversible removal needs no confirmation transport or model-supplied consent field.
+    // Owner 2026-10-07: the shared registration policy asks before reversible removal too.
+    // Consent arrives through the human surface exchange, never a model-supplied input field.
     inputSchema: {
       type: "object",
       additionalProperties: false,

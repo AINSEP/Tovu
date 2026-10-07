@@ -1074,7 +1074,8 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
       } });
     },
 
-    /** Moves content to Trash without a confirmation; permission and version checks still apply. */
+    /** Domain execution after the shared approval policy asks the human (owner 2026-10-07).
+     * Permission and version checks still apply here; the registration composition owns the card. */
     content_post_delete: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
       const id = requireString({ input: input, key: "id" });

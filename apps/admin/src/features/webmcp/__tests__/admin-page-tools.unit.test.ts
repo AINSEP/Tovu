@@ -54,7 +54,7 @@ describe("admin page WebMCP", () => {
     registerAdminPageWebMcpTools({ driver: f.driver, signal: f.controller.signal }, {
       modelContext: { registerTool: async ({ tool }) => { tools.push(tool as WebMcpToolRegistration); } },
     });
-    await expect(tools.find((t) => t.name === "page.fill")!.execute({ handle: "save", text: "hello" })).rejects.toThrow(/confirmation/);
+    await expect(tools.find((t) => t.name === "page.click")!.execute({ handle: "save" })).rejects.toThrow(/confirmation/);
     expect(f.driver.fill).not.toHaveBeenCalled();
   });
 

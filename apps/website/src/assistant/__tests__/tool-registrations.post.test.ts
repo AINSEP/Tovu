@@ -9,6 +9,7 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { InMemoryChangeSetRepo } from "../../contracts/core/commands/index.js";
 import { InMemoryEventBus, InMemoryOutbox } from "../../contracts/core/events/index.js";
+import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
 import { InMemoryPostRepo, InMemoryPostSearchIndex } from "../../features/post/index.js";
 import { type AgentToolDefinition as PostAgentToolDefinition } from "@jini-ai/core";
 import { postAgentToolCatalog } from "../../features/post/agent-tools.js";
@@ -93,13 +94,13 @@ function catalogEntry(toolId: string): PostAgentToolDefinition {
   return entry;
 }
 
-function postRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
+function postRegistrations(deps: RegistryDepsWithoutLimiter, surfaceExchanges = createSurfaceExchangeStore()): Map<string, ToolRegistration> {
   // `content_read.content_post` (2026-09-08) is the collapsed replacement for content_post_get/
   // content_post_list — see assistant/content-read-tool.ts. Captured here alongside every other
   // "content_post_"-prefixed id so `wired(...)` keeps working for callers that ask for either the
   // old ids (still true for create/delete/search/update, never collapsed) or the new merged one.
   return new Map(
-    buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions })
+    buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaceExchanges }, { contributions })
       .filter((r) => r.descriptor.id.startsWith("content_post_") || r.descriptor.id === "content_read.content_post")
       .map((r) => [r.descriptor.id, r]),
   );
@@ -109,6 +110,30 @@ function wired(toolId: string, deps: RegistryDepsWithoutLimiter): ToolRegistrati
   const found = postRegistrations(deps).get(toolId);
   assert.ok(found, `expected '${toolId}' to be wired`);
   return found;
+}
+
+/** Publication fixtures must answer the real card: owner policy (2026-10-07) gates status
+ * changes, while patches without status run directly. Check persistence before approving. */
+async function confirmedCall(deps: RegistryDepsWithoutLimiter, toolId: string, input: Record<string, unknown>) {
+  const surfaceExchanges: SurfaceExchangeStore = createSurfaceExchangeStore();
+  const registration = postRegistrations(deps, surfaceExchanges).get(toolId);
+  assert.ok(registration, `expected '${toolId}' to be wired`);
+  const before = structuredClone(await deps.postRepo.list({ workspaceId: WORKSPACE_ID }));
+  let emitted = 0;
+  const result = await registration.handler(executionContext(input), {
+    emitSurface: async (surface) => {
+      emitted += 1;
+      assert.equal(surface.channel, "mcp-ui");
+      const html = (surface.payload as { resource: { resource: { text: string } } }).resource.resource.text;
+      const exchangeId = html.match(/__exchangeId"\s*:\s*"([^"]+)"/)?.[1];
+      assert.ok(exchangeId, "the approval card must name its exchange");
+      assert.deepEqual(await deps.postRepo.list({ workspaceId: WORKSPACE_ID }), before, "publication must wait for approval");
+      assert.deepEqual(surfaceExchanges.deliver({ exchangeId, toolId, principalId: PRINCIPAL_ID, params: { decision: "confirm" } }), { ok: true });
+    },
+  });
+  assert.equal(emitted, 1, "publication must ask exactly once");
+  assert.equal(surfaceExchanges.size(), 0);
+  return result;
 }
 
 const EMPTY_DOC = { type: "doc", content: [] };
@@ -195,7 +220,7 @@ test("the delete tool's description tells the model the SAME call reports the ou
   const entry = catalogEntry("content_post_delete");
   assert.ok(
     entry.description.startsWith(
-      "Moves one post or page to Trash immediately, with {id, kind}. Returns {deleted: true, cancelled: false, post}.",
+      "Waits for human approval, then moves one post or page to Trash with {id, kind}. Returns {deleted: true, cancelled: false, post}.",
     ),
     entry.description,
   );
@@ -206,7 +231,7 @@ test("the delete tool's description tells the model the SAME call reports the ou
 // 2. Published contracts
 // ---------------------------------------------------------------------------
 
-test("every wired Posts/Pages registration publishes its catalog entry's inputSchema and description verbatim", () => {
+test("every wired Posts/Pages registration publishes its catalog contract except retired read-tool references", () => {
   const { deps } = fakeRouteDeps();
   // `content_read.content_post` (2026-09-08) is excluded from this loop: its catalog entry lives in
   // assistant/content-read-tool.ts, not postAgentToolCatalog, so `catalogEntry(id)` (a lookup against
@@ -217,9 +242,14 @@ test("every wired Posts/Pages registration publishes its catalog entry's inputSc
   // thrown (see the shared-shell tests above, which construct it too).
   for (const [id, registration] of postRegistrations(deps)) {
     if (id === "content_read.content_post") continue;
+    // The host deliberately rewrites retired read IDs in schema prose (2026-10-05).
+    // Pin the exact alias substitution while comparing the entire remaining catalog contract.
+    const expected = JSON.parse(JSON.stringify(catalogEntry(id)).replaceAll(
+      "content_post_create/content_post_list/content_post_get", "content_post_create/content_read.content_post",
+    )) as PostAgentToolDefinition;
     assert.ok(registration.descriptor.inputSchema, `${id} must publish an inputSchema`);
-    assert.deepEqual(registration.descriptor.inputSchema, catalogEntry(id).inputSchema, `${id}'s published schema must be its catalog entry's, not a second copy`);
-    assert.equal(registration.descriptor.description, catalogEntry(id).description);
+    assert.deepEqual(registration.descriptor.inputSchema, expected.inputSchema, `${id}'s published schema must be its catalog entry's with current read-tool references`);
+    assert.equal(registration.descriptor.description, expected.description);
   }
 });
 
@@ -419,7 +449,7 @@ test("content_post_update: a denied principal is rejected and nothing is written
   await postRepo.save(buildPostRecord({ id: "p1", workspaceId: WORKSPACE_ID, title: "T", slug: "t", bodyJson: EMPTY_DOC, status: "draft", kind: "post", updatedAt: NOW, version: 1 }));
 
   await assert.rejects(
-    () => wired("content_post_update", deps).handler(executionContext({ id: "p1", kind: "post", title: "T2", slug: "t", bodyJson: EMPTY_DOC, status: "draft" })),
+    () => wired("content_post_update", deps).handler(executionContext({ id: "p1", kind: "post", title: "T2", slug: "t", bodyJson: EMPTY_DOC })),
     /is not authorized for 'content\.write'/,
   );
 
@@ -453,7 +483,7 @@ test("content_post_update rejects a non-JSON-object bodyJson", async () => {
   await postRepo.save(buildPostRecord({ id: "p1", workspaceId: WORKSPACE_ID, title: "T", slug: "t", bodyJson: EMPTY_DOC, status: "draft", kind: "post", updatedAt: NOW, version: 1 }));
 
   await assert.rejects(
-    () => wired("content_post_update", deps).handler(executionContext({ id: "p1", kind: "post", title: "T", slug: "t", bodyJson: "not an object", status: "draft" })),
+    () => wired("content_post_update", deps).handler(executionContext({ id: "p1", kind: "post", title: "T", slug: "t", bodyJson: "not an object" })),
     /\(object\) is required/,
   );
 });
@@ -494,7 +524,7 @@ test("workflow (post): create a post, give it a real TipTap body, publish it, th
 
   // Step 2: update its bodyJson with real TipTap content, using the id step 1 returned.
   const updated = (await wired("content_post_update", deps).handler(
-    executionContext({ id: postId, kind: "post", title: "My Article", slug: "my-article", bodyJson: RICH_DOC, status: "draft" }),
+    executionContext({ id: postId, kind: "post", title: "My Article", slug: "my-article", bodyJson: RICH_DOC }),
   )) as { post: { id: string; bodyJson: unknown; version: number; status: string } };
   assert.equal(updated.post.id, postId, "the update must operate on the SAME post created in step 1");
   assert.deepEqual(updated.post.bodyJson, RICH_DOC);
@@ -503,8 +533,8 @@ test("workflow (post): create a post, give it a real TipTap body, publish it, th
 
   // Step 3: publish — a content_post_update call with status:'published', chained off step 2's own
   // returned version/slug/bodyJson (post.ts has no separate publish function to call instead).
-  const published = (await wired("content_post_update", deps).handler(
-    executionContext({ id: postId, kind: "post", title: "My Article", slug: "my-article", bodyJson: RICH_DOC, status: "published" }),
+  const published = (await confirmedCall(deps, "content_post_update",
+    { id: postId, kind: "post", title: "My Article", slug: "my-article", bodyJson: RICH_DOC, status: "published" },
   )) as { post: { id: string; status: string; version: number } };
   assert.equal(published.post.id, postId);
   assert.equal(published.post.status, "published");
@@ -536,14 +566,14 @@ test("workflow (page): create a page, give it a real TipTap body, publish it, th
 
   // Step 2: update its bodyJson.
   const updated = (await wired("content_post_update", deps).handler(
-    executionContext({ id: pageId, kind: "page", title: "About Us", slug: "about-us", bodyJson: RICH_DOC, status: "draft" }),
+    executionContext({ id: pageId, kind: "page", title: "About Us", slug: "about-us", bodyJson: RICH_DOC }),
   )) as { post: { id: string; bodyJson: unknown; version: number } };
   assert.equal(updated.post.id, pageId);
   assert.deepEqual(updated.post.bodyJson, RICH_DOC);
 
   // Step 3: publish.
-  const published = (await wired("content_post_update", deps).handler(
-    executionContext({ id: pageId, kind: "page", title: "About Us", slug: "about-us", bodyJson: RICH_DOC, status: "published" }),
+  const published = (await confirmedCall(deps, "content_post_update",
+    { id: pageId, kind: "page", title: "About Us", slug: "about-us", bodyJson: RICH_DOC, status: "published" },
   )) as { post: { id: string; status: string; version: number } };
   assert.equal(published.post.status, "published");
   assert.equal(published.post.version, 3);
@@ -594,9 +624,10 @@ async function seedSearchCorpus(deps: RegistryDepsWithoutLimiter): Promise<Recor
     { key: "about", kind: "page", title: "About the team", slug: "about", text: "We mention pricing here only in passing.", status: "published" },
     { key: "draft", kind: "post", title: "Draft pricing rework", slug: "pricing-rework", text: "Not published yet.", status: "draft" },
   ] as const) {
-    const created = (await wired("content_post_create", deps).handler(
-      executionContext({ kind: spec.kind, title: spec.title, slug: spec.slug, bodyJson: body(spec.text), status: spec.status }),
-    )) as { post: { id: string } };
+    const input = { kind: spec.kind, title: spec.title, slug: spec.slug, bodyJson: body(spec.text), status: spec.status };
+    const created = (await (spec.status === "published"
+      ? confirmedCall(deps, "content_post_create", input)
+      : wired("content_post_create", deps).handler(executionContext(input)))) as { post: { id: string } };
     ids[spec.key] = created.post.id;
   }
 
@@ -699,11 +730,12 @@ test("content_post_search: an edit changes what the post is findable by", async 
   const body = (text: string) => ({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text }] }] });
 
   await wired("content_post_update", deps).handler(
-    executionContext({ id: ids.pricing, kind: "post", title: "Sponsorship tiers", slug: "sponsorship", bodyJson: body("Nothing about money here."), status: "published" }),
+    executionContext({ id: ids.pricing, kind: "post", title: "Sponsorship tiers", slug: "sponsorship", bodyJson: body("Nothing about money here.") }),
   );
 
   const byNewTitle = await search(deps, { query: "sponsorship" });
   assert.ok(byNewTitle.hits.some((hit) => hit.id === ids.pricing), "the new title must be findable");
+  assert.equal(byNewTitle.hits.find((hit) => hit.id === ids.pricing)?.status, "published", "a direct content patch must preserve publication status");
 
   const byOldTitle = await search(deps, { query: "plans" });
   assert.equal(

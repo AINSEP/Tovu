@@ -19,6 +19,7 @@
  * `modules/assistant-byok.ts`'s turn route awaits once before dispatching a turn.
  */
 import type { ToolRegistration, ToolRegistry } from "@jini-ai/core";
+import { toolApprovalPolicyFor } from "../contracts/headless/assistant-tool-approval-policy.js";
 
 import type { PluginCapabilityToolDeps } from "../features/plugin-runtime/capability-tool-registrations.js";
 import type { PluginDiscoveryRecord } from "../features/plugin-runtime/discovery.js";
@@ -97,7 +98,12 @@ export function attachAssistantToolExtensions(
   deps: AttachAssistantToolExtensionsDeps,
   log: string,
 ): AssistantToolExtensions {
-  const installed = deps.registerInstalled(registry, deps, log);
+  // Extension ids come from installed data, so check the factory's explicit behavior metadata
+  // at the registration boundary too. A new family cannot silently bypass the native guard.
+  const installed = deps.registerInstalled({ register(registration) {
+    toolApprovalPolicyFor({ registration });
+    registry.register(registration);
+  } }, deps, log);
   const federation = createFederationRuntime({
     registry,
     deps: deps.federation.deps,

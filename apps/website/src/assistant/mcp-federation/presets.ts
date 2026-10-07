@@ -134,7 +134,7 @@ export const tovuFederationMessages: FederationMessages = {
       ? `${request.connectionLabel} marks this tool as destructive: it can delete or overwrite data, and that may not be undoable.`
       : `This can change things in ${request.connectionLabel}.`;
     return request.writeShapedInputs.length
-      ? `${base} Its input ${request.writeShapedInputs.join(", ")} looks like it can change data, so Tovu asks every time.` : base;
+      ? `${base} Its protected action requires approval each time; input fields: ${request.writeShapedInputs.join(", ")}.` : base;
   },
   // Command basenames, including Windows suffixes, select the original installed-toolchain advice.
   launchUnavailable: ({ command, searchedDirs }) => {

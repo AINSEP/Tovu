@@ -19,7 +19,7 @@ import { commitSkillInstall, listManagedSkills, prepareSkillInstall, SkillInputE
  * `admin.assistant.use` permission as that route.
  *
  * It fetches and validates first, then writes exactly those validated bytes (one fetch, pinned to one
- * commit). No confirmation card (owner, 2026-10-05: only permanent deletes ask first; it shipped with
+ * commit). No confirmation card (owner 2026-10-07: ordinary installs run directly; trash/delete/publish ask; it shipped with
  * one in 444e9dfca and was dropped the same day) — the admin screen's own dialog is unchanged. Uploaded folders/ZIPs
  * are not a source here: the admin chat composer already installs a dropped skill through the Skills
  * screen's own upload path.

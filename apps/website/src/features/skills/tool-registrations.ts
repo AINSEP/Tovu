@@ -1,3 +1,4 @@
+import { withExtensionApprovalPolicy } from '../../contracts/headless/assistant-tool-approval-policy.js';
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 
@@ -354,7 +355,7 @@ export function buildSkillToolRegistrations(sources: readonly SkillToolSource[])
     catalog: indexCatalogById({ catalog: catalog }),
     handlers,
     derivedRisk: skillToolDerivedRisk(sources),
-  });
+  }).map(registration => withExtensionApprovalPolicy({ registration, family: 'installed-guidance' }));
 }
 
 /**

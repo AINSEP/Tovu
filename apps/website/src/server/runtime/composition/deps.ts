@@ -1488,7 +1488,7 @@ async function composeSiteRouteDeps(
       createUserTrashAdapter({
         db: kernel,
         assertAccountAction: async (required, optional) => {
-          const service = identityServiceDepsFrom({ ...identity, workspaceId, clock, idGen });
+          const service = identityServiceDepsFrom({ ...identity, clock, idGen });
           await service.repos.transactions.run({ workspaceId: required.workspaceId, execute: async () => {
             await assertUserAccountAction({ ...required, deps: service },
               { ...optional, seededOwnerPrincipalId: await identity.ownerPrincipalId });

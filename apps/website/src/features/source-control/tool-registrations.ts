@@ -54,7 +54,7 @@ import type { ObservabilityPort } from "../../platform/observability/index.js";
  *   host (`provider-registry.ts`; the bundled `github` plugin today) — so a workspace that saved a
  *   credential for a host no plugin serves learns from THIS tool that committing isn't available,
  *   never from a failed commit attempt (2026-08-16 review requirement).
- * - `source_control_execute_commit` performs an authorized Git commit immediately. Provider,
+ * - `source_control_execute_commit` performs an authorized Git commit after the shared approval gate (owner 2026-10-07). Provider,
  *   credential, target and branch checks still apply; existing Git history preserves overwritten
  *   files. Credentials remain server-side and are never included in the model's call or result.
  */
@@ -184,7 +184,7 @@ export const sourceControlAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "source_control_execute_commit",
     description:
-      "Commits a fresh site export to a source control repository using its saved credential. Runs immediately with {provider, owner, repo, commitMessage, branch?}; provider must be listed by source_control_get_capabilities with commitSupported:true. Pass dryRun:true to preview files and bytes without contacting the host. Returns {committed:true, owner, repo, branch, branchCreated, commitSha, commitUrl, filesChanged, filesDeleted, divergedPaths}. Reports deleted and diverged paths; only previously exported paths whose live content still matches the export may be removed. Other files and human edits are preserved. Git history retains prior content. Returns {committed:false, reason, message} when the credential or provider is unavailable, and {committed:false, cancelled:false, code, message} when the commit itself fails. Never accepts or exposes a token. Requires source-control.commit.",
+      "Commits a fresh site export to a source control repository using its saved credential. Requires human approval before exporting to the remote repository with {provider, owner, repo, commitMessage, branch?}; provider must be listed by source_control_get_capabilities with commitSupported:true. Pass dryRun:true to preview files and bytes without contacting the host. Returns {committed:true, owner, repo, branch, branchCreated, commitSha, commitUrl, filesChanged, filesDeleted, divergedPaths}. Reports deleted and diverged paths; only previously exported paths whose live content still matches the export may be removed. Other files and human edits are preserved. Git history retains prior content. Returns {committed:false, reason, message} when the credential or provider is unavailable, and {committed:false, cancelled:false, code, message} when the commit itself fails. Never accepts or exposes a token. Requires source-control.commit.",
     // Genuinely consequential (pushes a real commit into someone's actual git history using a
     // write-scoped external credential) — classified accordingly, cross-checked against
     // `sourceControlDerivedRisk` below at build time. Deliberately carries NO `actorClassRule` — see
@@ -388,7 +388,8 @@ export function buildSourceControlRegistrations(deps: SourceControlToolDeps, sur
       return { providers };
     },
 
-    /** Runs an authorized commit immediately; target, credential and branch checks remain. */
+    /** Shared owner 2026-10-07 approval precedes real export commits, which can remove stale paths;
+     * dry-run previews stay direct. Target, credential and branch checks remain. */
     source_control_execute_commit: async (ctx) => {
       const raw = requireInputRecord({ input: ctx.input });
       const command = parseCommitCommand(raw);

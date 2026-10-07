@@ -19,8 +19,8 @@ import { REDIRECT_MATCH_TYPES, REDIRECT_SOURCES, REDIRECT_STATUSES } from "./typ
  * same way a single created rule is (`redirects_update`/`redirects_tombstone`), and a per-rule
  * failure never aborts the batch (`importRedirects`'s own `created`/`failed` split, EC-08) — the
  * same risk envelope as `redirects_create`/`redirects_update`, just N rows instead of one. It is not
- * a permanent, undoable-only-by-restore action, so the owner's "only permanent deletes hold up an
- * in-chat confirm" rule leaves it unconfirmed, same as `redirects_create`.
+ * a destructive/publish action, so the owner 2026-10-07 policy leaves ordinary creation/import
+ * unconfirmed, same as `redirects_create`; `redirects_tombstone` separately requires approval.
  *
  * `redirects_create`/`redirects_update` both accept `override` (a rule that preempts already-live
  * content resolution rather than only filling a 404). This is real, meaningful behavior — but it is

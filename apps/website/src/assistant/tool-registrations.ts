@@ -1,3 +1,5 @@
+import { applyToolApprovalPolicy, approvalClassFor } from "./tool-approval-policy.js";
+import { getEffective as getEffectiveSetting, LANGUAGE_NAMESPACE } from "@jini-ai/cms/settings";
 import type { Deps as SitesListToolDeps } from "../features/sites/list-tool.js";
 import type { CommerceStatusToolDeps } from "../features/commerce/index.js";
 /**
@@ -724,6 +726,22 @@ export function buildAssistantToolRegistrations(
   // `content_read.<resource>` cards, all dispatching through one shared handler factory. See
   // `content-read-tool.ts`'s own header for why this runs here as a post-processing pass rather than
   // as one more `ToolContributor` in the loop above (it needs to see what that loop already built).
-  if (options.includeContentReadCollapse === false) return registrations;
-  return deriveContentReadRegistrations(registrations);
+  // Apply after derivation: trash_item delegates to the original domain handlers, so one
+  // approval covers the selected action instead of asking again inside its delegate.
+  // Before collapse: content_read cards inherit the checked read registrations.
+  const approvedRegistrations = registrations.map(registration => applyToolApprovalPolicy({ registration, surfaces }, {
+    localeFor: async ctx => {
+      if (!routeDeps.settingsRepo) return "en";
+      const setting = await getEffectiveSetting({ repo: routeDeps.settingsRepo }, {
+        namespace: LANGUAGE_NAMESPACE, key: "locale",
+        scopeContext: { workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id },
+      });
+      return typeof setting?.value === "string" ? setting.value : "en";
+    },
+  }));
+  if (options.includeContentReadCollapse === false) return approvedRegistrations;
+  const finalRegistrations = deriveContentReadRegistrations(approvedRegistrations);
+  // A new collapsed card is a new registered tool too: never exempt it from the guard.
+  for (const registration of finalRegistrations) approvalClassFor({ toolId: registration.descriptor.id, input: undefined });
+  return finalRegistrations;
 }

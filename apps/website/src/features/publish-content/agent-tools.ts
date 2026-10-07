@@ -12,9 +12,9 @@
  * ## Why autonomous publishing returned
  *
  * The 2026-09-24 design removed the tool to avoid a second confirmation surface with duplicated
- * safety rules. Owner decision 2026-10-05: the assistant must publish on its own. The restored tool
+ * safety rules. Owner decision 2026-10-05 restored assistant publishing; 2026-10-07 requires human approval. The restored tool
  * shares the dialog's feature-side planning, selection and re-plan checks and the destination's
- * existing import gateway. It runs without an MCP-UI card; overwrite still requires explicit input.
+ * existing import gateway. The shared approval policy opens its MCP-UI card; overwrite still requires explicit input.
  *
  * ## The vocabulary rule
  *
@@ -55,7 +55,7 @@ export const publishContentAgentToolCatalog: AgentToolDefinition[] = [
       "Omit peerId for the connected destination; several destinations require choosing a saved peerId. " +
       "Omit filters to publish everything pending. Use types and items (exact title, slug, id or type:id) to select only named items; excludeItems removes named items. " +
       "Set overwrite:true ONLY when the user explicitly asks to replace conflicting live content; defaults to skipping conflicts and reporting why. " +
-      "No human confirmation card. Returns published items with live publicUrl, skipped items with reasons, unchanged items, and verification problems. " +
+      "Waits for a human confirmation card (owner 2026-10-07). Returns published items with live publicUrl, skipped items with reasons, unchanged items, and verification problems. " +
       "Give the live publicUrl first in your reply; an admin edit link is secondary. Never invent a live link or claim unverified items landed.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "publish_content.apply" },

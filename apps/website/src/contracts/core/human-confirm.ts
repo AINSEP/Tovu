@@ -39,6 +39,7 @@ export interface HumanConfirmSpec {
   readonly warning?: string;
   readonly danger?: boolean;
   readonly confirmLabel: string;
+  readonly cancelLabel?: string;
   /**
    * Further affirmative buttons after confirm ("Allow for this chat", say). Each one confirms exactly
    * as confirm does — same dwell, same one-call lock — and also posts its `choice`, which comes back
@@ -105,7 +106,7 @@ export async function requireHumanConfirm(
     ...(alternatives.length > 0
       ? { alternatives: alternatives.map((alternative) => ({ id: alternative.id, label: alternative.label, ...action("confirm", alternative.choice) })) }
       : {}),
-    cancel: { label: "Cancel", ...action("cancel") },
+    cancel: { label: spec.cancelLabel ?? "Cancel", ...action("cancel") },
     app: { appName: `tovu-${toolId.replaceAll("_", "-")}`, appVersion: "1" },
     preferredFrameSize: ["100%", "340px"],
     // The chat counts this down and closes the card when it passes, so nobody answers a card the

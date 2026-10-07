@@ -14,6 +14,8 @@
  * `mcp-ui-tool-calls-route.ts` and `server/modules/assistant.ts`) so the two cannot drift apart.
  */
 
+import { POLICY_CONFIRMATION_TOOL_IDS } from "../contracts/headless/assistant-tool-approval-policy.js";
+
 import { FEDERATED_TOOL_ID_PREFIX } from "@jini-ai/mcp/federation";
 
 /**
@@ -37,6 +39,8 @@ import { FEDERATED_TOOL_ID_PREFIX } from "@jini-ai/mcp/federation";
  * PendingConfirmationStore (apps/website/src/assistant/pending-confirmations.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
+  // Owner 2026-10-07: these IDs answer policy cards only; never execute a fresh callback call.
+  ...POLICY_CONFIRMATION_TOOL_IDS,
   // Credential forms submit secrets only to the already parked, principal-bound exchange.
   "media_propose_provider_credential",
   "source_control_propose_credential",
@@ -112,7 +116,7 @@ export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
   // tool: both families' confirm/cancel clicks redeem through this ONE id now.
   "plugins_uninstall",
   // `plugins_install` / `skills_install` were listed here 2026-10-05 behind an Install/Cancel card,
-  // then the card was dropped the same day (owner: only permanent deletes confirm). They no longer
+  // then the card was dropped the same day. Owner 2026-10-07 keeps ordinary installs direct. They no longer
   // open an exchange, so listing them would make this endpoint a no-human path to an install.
   // The `/search` composer capability's real execution path (`apps/admin/src/features/plugins/
   // composer-capabilities.ts`'s `allowlisted-tool-call` binding) — a direct, immediate browser call
@@ -260,7 +264,7 @@ export function isMcpUiToolCallAllowed(toolName: string): boolean {
  * request answers an open card (names an exchange, or is a typed answer resolved to one).
  *
  * Why federated ids are not simply allowlisted: they are discovered at runtime, and every one of them
- * that is not marked read-only opens a per-call confirmation card (G3, `external-mcp-call-
+ * declaring a protected action opens a per-call confirmation card (G3, `external-mcp-call-
  * confirmation.ts`). Answering that card only hands a decision to a call that is already parked and
  * already authorized; it executes nothing, and the exchange's own binding (tool id + principal)
  * decides whether the answer lands. Letting the same id reach Shape 2 would make this route a way to
@@ -271,8 +275,8 @@ export function isMcpUiToolCallAllowed(toolName: string): boolean {
 export function isMcpUiToolCallPermitted(toolName: string, answersAnExchange: boolean): boolean {
   // Form secrets must reach a parked handler, never a fresh tool execution or its input audit.
   if (toolName === "media_propose_provider_credential" || toolName === "source_control_propose_credential") return answersAnExchange;
-  // Permanent-delete cards may answer a parked call, never execute a new call via this endpoint.
-  if (PERMANENT_DELETE_CONFIRMATION_TOOL_IDS.has(toolName)) return answersAnExchange;
+  // Destructive/publish policy cards may answer a parked call, never execute a new call via this endpoint.
+  if (PERMANENT_DELETE_CONFIRMATION_TOOL_IDS.has(toolName) || POLICY_CONFIRMATION_TOOL_IDS.has(toolName)) return answersAnExchange;
   if (MCP_UI_REDEEMABLE_TOOL_IDS.has(toolName)) return true;
   return answersAnExchange && toolName.startsWith(FEDERATED_TOOL_ID_PREFIX);
 }

@@ -2,7 +2,7 @@
 /**
  * @file G3: the per-call Confirm/Cancel card for protected external actions: permanent deletion,
  * delivery to people, and changes to assistant privacy/instructions/access (shared trust R3,
- * owner rule 2026-10-01). The handler classifies actual arguments as well as remote hints;
+ * plus trash/restore-over-existing/publication (owner rule 2026-10-07). The handler classifies actual arguments as well as remote hints;
  * neither removing a card nor remembering approval grants admission or permissions.
  *
  * Built on `requireHumanConfirm` (`contracts/core/human-confirm.ts`) — the same held-open MCP-UI
@@ -22,8 +22,8 @@
  * (@jini-ai/mcp/federation), so a changed server, name or hints asks again. A remembered
  * approval skips the card; it never changes what is sent — the frozen arguments go out as before.
  *
- * Protected calls with write-shaped inputs (`sql`, `query`, `drop`, …) and destructive calls are
- * asked every time: neither remembered scope skips their card, and they offer nothing to remember.
+ * Trash/delete/restore-over-existing/publish calls are asked every time. Existing specific
+ * protected calls with write-shaped inputs also offer nothing to remember; neither scope skips them.
  * An ordinary read or write needs no card solely because an input happens to be named query/sql.
  *
  * Architectural role: `assistant` composition helper, implementing `FederationDeps.confirmCall`.
@@ -40,8 +40,7 @@ import { notConfirmedResult, requireHumanConfirm, type HumanConfirmSpec } from "
 import type { AssistantSurfaceDeps } from "../contracts/core/tool-surface-exchanges.js";
 import type { ConversationToolApprovalStore, ExternalMcpToolApprovalRepoPort } from "./external-mcp-tool-approval-ports.js";
 import { toJiniConversationApprovalStore, toJiniToolApprovalRepo } from "./external-mcp-tool-approval-adapters.js";
-import type { FederatedCallConfirmationRequest } from "@jini-ai/mcp/federation";
-import type { FederationDeps } from "./mcp-federation/registrations.js";
+import type { FederatedPolicyConfirmationRequest, FederationDeps } from "./mcp-federation/registrations.js";
 import { tovuFederationMessages, TOVU_MCP_APPROVAL_FINGERPRINT_DOMAIN } from "./mcp-federation/presets.js";
 
 /** Saving Always allow changes site settings for everyone, requiring the Integrations permission. */
@@ -61,10 +60,21 @@ export interface FederatedApprovalDeps {
  * Existing callers keep the host ABI; Jini refuses remember choices for destructive calls.
  * @complexity O(a) in the argument count and rendered values.
  */
-export function buildFederatedCallConfirmSpec(request: FederatedCallConfirmationRequest,
+export function buildFederatedCallConfirmSpec(request: FederatedPolicyConfirmationRequest,
   offers: FederatedCardOffers = { offerChat: false, offerAlways: false },
 ): HumanConfirmSpec {
-  return buildJiniSpec({ request, messages: tovuFederationMessages, errorCode: "EXTERNAL_MCP" }, { offers });
+  return actionConfirmSpec(buildJiniSpec({ request, messages: tovuFederationMessages, errorCode: "EXTERNAL_MCP" }, { offers }), request);
+}
+
+/** Per-call consent and irreversible-deletion wording are separate decisions. Jini still refuses
+ * remembered grants; these CMS cards describe the real action instead of relabeling it a delete. */
+function actionConfirmSpec(spec: HumanConfirmSpec, request: FederatedPolicyConfirmationRequest): HumanConfirmSpec {
+  const action = request.approvalClass === 'publish' ? 'publishes, unpublishes or deploys content'
+    : request.approvalClass === 'trash' ? 'moves data to Trash'
+    : request.approvalClass === 'restore-over-existing' ? 'restores over existing data' : undefined;
+  return action ? { ...spec, danger: request.approvalClass !== 'publish',
+    warning: `This action ${action} in ${request.connectionLabel}. Approval applies to this call only.`,
+  } : spec;
 }
 
 /** Bind the parked MCP-UI exchange and CMS permission evaluator to Jini's approval lifecycle.
@@ -75,11 +85,13 @@ export function buildFederatedCallConfirmSpec(request: FederatedCallConfirmation
 export function createFederatedCallConfirmer(surfaces: AssistantSurfaceDeps,
   approvals?: FederatedApprovalDeps,
 ): NonNullable<FederationDeps["confirmCall"]> {
-  const confirm = createJiniConfirmer<ToolExecutionContext & ToolExecutionOptions, AssistantSurfaceDeps>({
+  const confirm = createJiniConfirmer<ToolExecutionContext & ToolExecutionOptions & { approvalRequest: FederatedPolicyConfirmationRequest }, AssistantSurfaceDeps>({
     fingerprintDomain: TOVU_MCP_APPROVAL_FINGERPRINT_DOMAIN,
     errorCode: "EXTERNAL_MCP", messages: tovuFederationMessages, surfaceExchanges: surfaces,
     humanConfirm: { ask: async ({ context, surfaceExchanges, spec }) => {
-      const outcome = await requireHumanConfirm({ ctx: context, surfaces: surfaceExchanges, spec }, { emitSurface: context.emitSurface });
+      const outcome = await requireHumanConfirm({ ctx: context, surfaces: surfaceExchanges,
+        spec: actionConfirmSpec(spec, context.approvalRequest),
+      }, { emitSurface: context.emitSurface });
       return outcome.confirmed ? outcome : { confirmed: false, result: notConfirmedResult(outcome) };
     } },
   }, {
@@ -96,5 +108,5 @@ export function createFederatedCallConfirmer(surfaces: AssistantSurfaceDeps,
       `[external-mcp] could not remember the "${choice}" approval for ${toolId}; this call runs, the next one asks again — ${error instanceof Error ? error.message : String(error)}`,
     ),
   });
-  return (context, request) => confirm({ context, request });
+  return (context, request) => confirm({ context: { ...context, approvalRequest: request }, request });
 }

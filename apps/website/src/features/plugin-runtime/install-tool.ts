@@ -26,7 +26,7 @@ import type { PluginsToolDeps } from "./tool-registrations.js";
  * re-inspects and refuses a package that changed since the preview. The same
  * `TOVU_PLUGIN_LOCAL_INSTALL=1` opt-in gates it, and the same `admin.plugins.enable` permission.
  *
- * No confirmation card (owner, 2026-10-05: only permanent deletes ask first; it shipped with one in
+ * No confirmation card (owner 2026-10-07: ordinary installs run directly; trash/delete/publish ask; it shipped with one in
  * 444e9dfca and was dropped the same day). The digest pin still matters without a human in between:
  * it refuses bytes swapped between the inspection and the write. The trust disclosure the card showed
  * (`install-consent.ts`, which the CLI prompt still uses) comes back as the result's `warning`.

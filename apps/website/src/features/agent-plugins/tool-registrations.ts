@@ -1,3 +1,4 @@
+import { withExtensionApprovalPolicy } from '../../contracts/headless/assistant-tool-approval-policy.js';
 import { buildPluginMemoryRegistrations } from "./memory-tools.js";
 import { WRITE_PLUGIN_NOTE, pluginNoteCatalog, pluginNoteRisk, pluginNoteHandler } from "./write-note-tool.js";
 import type { OperatorLocaleDeps } from "./operator-locale.js";
@@ -780,7 +781,7 @@ export function buildAgentPluginToolRegistrations(
         `tool-registrations: '${registration.descriptor.id}' has no owning Agent Plugin, so its activation could not be gated`,
       );
     }
-    return withToolGate(registration, gate, identity);
+    return withExtensionApprovalPolicy({ registration: withToolGate(registration, gate, identity), family: 'installed-guidance' });
   });
 }
 

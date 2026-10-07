@@ -44,7 +44,7 @@ const describeFederatedTool = ({ remoteDescription, ...required }: { label: stri
 const WORKSPACE_ID = "ws-g3r";
 const PRINCIPAL_ID = "principal-g3r";
 const OTHER_PRINCIPAL_ID = "principal-other";
-// No write-shaped input names here (`sql`, `query`, …): those always ask, whatever is remembered
+// Owner 2026-10-07: protected actions always ask; query/sql names alone do not require approval
 // (`mcp-federation.extra-approval-checks.test.ts`).
 const SCHEMA = { type: "object", properties: { project_id: { type: "string" }, name: { type: "string" } } } as const;
 
@@ -450,7 +450,7 @@ test("G3 remembered: revoking an Always allow makes the tool ask again", async (
 // Tool identity: a changed server, name or hints voids a remembered approval
 // ---------------------------------------------------------------------------
 
-test("G3 remembered: a changed annotation voids an Always allow — sends ask again without being styled as permanent deletion", async () => {
+test("G3 remembered: a destructive annotation voids an Always allow and requires approval for every call", async () => {
   const stores = memoryStores();
   await callAndAnswer(harness(stores), "send_email", { decision: "confirm", choice: "always" });
 
@@ -460,11 +460,16 @@ test("G3 remembered: a changed annotation voids an Always allow — sends ask ag
   await tick();
   assert.equal(cards.length, 1, "the changed tool asks again");
   const card = readCard(cards[0]);
-  assert.deepEqual(card.buttons.map(([id]) => id), ["confirm", "allow-chat", "allow-always", "cancel"]);
+  // Owner 2026-10-07: destructive declarations require one-call consent; they cannot be remembered.
+  assert.deepEqual(card.buttons.map(([id]) => id), ["confirm", "cancel"]);
   answer(h, card, "send_email", { decision: "cancel" });
   await pending;
   assert.deepEqual(h.sent, []);
   assert.deepEqual(await stores.always.listByWorkspaceId(WORKSPACE_ID), []);
+  await callAndAnswer(h, "send_email", { decision: "confirm", choice: "always" }, { conversation: "chat-b" });
+  assert.equal(h.sent.length, 1, "an explicit confirmation approves exactly one call");
+  assert.deepEqual(await stores.always.listByWorkspaceId(WORKSPACE_ID), [], "a forged remember choice saves nothing");
+  assert.equal(await runsWithoutCard(h, "send_email", { conversation: "chat-b" }), false);
 });
 
 test("G3 remembered: a changed annotation voids an Allow for this chat", async () => {
@@ -472,6 +477,20 @@ test("G3 remembered: a changed annotation voids an Allow for this chat", async (
   await callAndAnswer(harness(stores), "send_email", { decision: "confirm", choice: "chat" }, { conversation: "chat-a" });
   const changed = TOOLS.map((tool) => (tool.name === "send_email" ? { ...tool, annotations: { readOnlyHint: false, idempotentHint: true } } : tool));
   assert.equal(await runsWithoutCard(harness(stores, { tools: changed }), "send_email", { conversation: "chat-a" }), false);
+});
+
+test("G3 remembered: publication requires each call's approval and never offers a remembered scope", async () => {
+  const stores = memoryStores();
+  await callAndAnswer(harness(stores), "send_email", { decision: "confirm", choice: "always" });
+  const tools = TOOLS.map(tool => tool.name === "send_email" ? { ...tool, description: "Publishes a site." } : tool);
+  const h = harness(stores, { tools });
+  const card = await callAndAnswer(h, "send_email", { decision: "confirm", choice: "always" });
+  assert.deepEqual(card.buttons.map(([id]) => id), ["confirm", "cancel"]);
+  assert.equal(card.html.includes("This action publishes, unpublishes or deploys content in Supabase. Approval applies to this call only."), true);
+  assert.equal(h.sent.length, 1);
+  assert.deepEqual(await stores.always.listByWorkspaceId(WORKSPACE_ID), []);
+  assert.equal(await runsWithoutCard(h, "send_email", { conversation: "chat-b" }), false);
+  assert.equal(h.sent.length, 1);
 });
 
 test("G3 remembered: a changed server (a new admission revision) voids an Always allow", async () => {

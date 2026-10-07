@@ -1,14 +1,14 @@
 // Local federation forks moved to @jini-ai/mcp/federation (+ /stdio, /approvals); see development/DELETED-CODE.md.
 // Boot-loop implementation and rationale: Jini/packages/mcp/src/federation/bootstrap.ts.
 import { attachFederatedMcpTools as attachJiniTools, type McpSessionPort as JiniMcpSessionPort } from "@jini-ai/mcp/federation";
-import type { ToolRegistry } from "@jini-ai/core";
+import type { ToolRegistration, ToolRegistry } from "@jini-ai/core";
 
 import { toJiniMcpSession, toTovuMcpSession } from "./adapter.http.js";
 import { createDefaultConnect as createJiniConnect, stdioLaunchResolverFromEnv, type McpStdioLaunchResolver, type ResolvedStdioLaunch, type StdioLaunchResolverFromEnvOptions } from "@jini-ai/mcp/federation/stdio";
 import type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 import type { McpSessionPort, McpStdioChannel } from "./ports.js";
 import { listFederatedMcpPresets, tovuFederationMessages, TOVU_MCP_CLIENT_INFO } from "./presets.js";
-import { toJiniFederationDeps, type FederationDeps } from "./registrations.js";
+import { buildFederatedMcpRegistrations, toJiniFederationDeps, type FederationDeps } from "./registrations.js";
 // The shared admission report is canonical in Jini; the host registration adapter does not redeclare it.
 import type { FederatedAdmissionReport } from "@jini-ai/mcp/federation";
 
@@ -252,11 +252,26 @@ export function tovuStdioLaunchResolverFromEnv(env: NodeJS.ProcessEnv, options: 
 export async function attachFederatedMcpTools(params: AttachFederatedMcpToolsParams): Promise<AttachFederatedToolsResult> {
   const { logger, connect, connections } = resolveFederationAttachInputs(params);
   const originalSessions = new Map<JiniMcpSessionPort, McpSessionPort>();
+  const classified = new Map<string, ToolRegistration>();
   const result = await attachJiniTools({
-    registry: params.registry, deps: toJiniFederationDeps({ deps: params.deps }),
+    // Jini owns the boot loop, reports and session cleanup. Bind the same enumerated tools to
+    // the host policy before registration, so boot and reload cannot bypass per-call approval.
+    registry: { ...params.registry, register(registration) {
+      const reviewed = classified.get(registration.descriptor.id);
+      if (!reviewed) throw new Error(`${registration.descriptor.id} has no approval classification`);
+      params.registry.register(reviewed);
+    } }, deps: toJiniFederationDeps({ deps: params.deps }),
     async connect({ connection }) {
       const hostSession = await connect(connection);
       const session = toJiniMcpSession({ session: hostSession });
+      session.listTools = async () => {
+        const tools = await hostSession.listTools();
+        const built = buildFederatedMcpRegistrations({ tools, session: hostSession, config: connection.config,
+          deps: params.deps, nativeToolIds: new Set(params.registry.list({}).map(tool => tool.id)),
+        });
+        for (const registration of built.registrations) classified.set(registration.descriptor.id, registration);
+        return tools;
+      };
       originalSessions.set(session, hostSession);
       return session;
     },

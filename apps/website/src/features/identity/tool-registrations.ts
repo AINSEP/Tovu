@@ -21,7 +21,7 @@ import { OwnerRequiredError } from "@jini-ai/user-management";
  * (`SurfaceExchangeStore` + `mcp-ui-tool-calls-route.ts`) is Tovu's, so the gate wraps Jini's
  * handlers here instead of living in Jini:
  * - `identity_role_delete` / `identity_policy_delete` delete for good — the owner's standing rule
- *   is that only permanent deletes hold up an in-chat confirm. (`identity_role_assign` /
+ *   now requires approval for trash/delete/restore-over-existing/publish (owner 2026-10-07). (`identity_role_assign` /
  *   `identity_policy_attach` were gated too for one day, 2026-09-24, then backed out the same day:
  *   granting a role/policy isn't a delete, even though there is no unassign/detach tool.)
  * - `identity_user_create` no longer takes a password from the model. The human types the first
