@@ -138,6 +138,12 @@ publish:
 
 mac:
   category: public.app-category.developer-tools
+  # icons@1.1.0 writes PNGs into icp4/icp5/icp6, which macOS decodes as striped garbage,
+  # and mislabels the Retina slots (ic13=512 instead of 256; ic14=1024 instead of 512).
+  # Use the verified iconutil-generated ICNS from content/brand/icons/macos/icon.icns:
+  # ic04/ic05 ARGB small icons, correct Retina slots, and ic10 from the original 1024px master.
+  # A larger PNG alone would still go through the broken converter.
+  icon: build/icon.icns
   target:
     - dmg
     # The auto-updater's payload: Squirrel.Mac installs from a zip, never from a dmg. Its blockmap
@@ -192,7 +198,7 @@ win:
   target:
     - target: nsis
       arch: [x64]            # Windows-on-ARM runs x64 under emulation; no arm64 build in v1
-  icon: build/icon.png       # 512x512 (checked), >= 256 required
+  icon: build/icon.png       # 1024x1024 original master; ICO conversion includes the required 256px frame
 
 nsis:
   # Resolves to `Tovu-windows-x64-setup.exe` — the exact name both the workflow's `win-x64` matrix
