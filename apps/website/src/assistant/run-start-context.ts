@@ -1,3 +1,5 @@
+import { withCredentialPasteGuidance } from "./credential-guidance.js";
+import { redactUserText } from "@jini-ai/chat/core";
 /**
  * @file `parseRunStartContextRef` — the decode/validate step for a run-start request's
  * `contextRef` JSON, pulled out of `agent-daemon-server.ts`'s `onStarted` handler into its own
@@ -99,7 +101,7 @@ export function parseRunStartContextRef(contextRef: string): {
     recoveryMode?: unknown;
     recoverySessionId?: unknown;
   };
-  const prompt = requireNonEmptyContextField(parsed.prompt, "prompt");
+  const prompt = withCredentialPasteGuidance({ text: redactUserText({ text: requireNonEmptyContextField(parsed.prompt, "prompt") }).text }, {});
   const principalId = requireNonEmptyContextField(parsed.principalId, "principalId");
   const attachmentIds = readContextStringArray(parsed.attachmentIds);
   const pluginRefIds = readContextStringArray(parsed.pluginRefIds);

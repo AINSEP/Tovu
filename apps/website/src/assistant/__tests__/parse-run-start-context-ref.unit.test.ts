@@ -138,3 +138,10 @@ test("invalid JSON and non-object envelopes cannot start a run", () => {
     assert.throws(() => parseRunStartContextRef(raw), Error, raw);
   }
 });
+
+test("daemon model prompt removes pasted credentials and preserves the request", () => {
+  const secret = 'sk-' + 'A1b2C3d4E5f6G7h8I9j0';
+  const prompt = parseRunStartContextRef(JSON.stringify({ prompt: `Use this ${secret} to connect my account`, principalId: 'p1' })).prompt;
+  assert.equal(prompt, 'Use this [token removed] to connect my account\n\nThe user tried to share a credential; open the matching card. Do not repeat the removed value. Tell them to rotate it if it was real.');
+  assert.equal(prompt.includes(secret), false, 'raw credential reached daemon model input');
+});

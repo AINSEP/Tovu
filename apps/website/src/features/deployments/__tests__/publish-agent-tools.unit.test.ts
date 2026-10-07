@@ -69,6 +69,8 @@ function fakeDeps(
       return allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };
     },
     loadDeployTargets: loadBundledDeployTargets,
+    // Saving now automatically verifies; the real provider modules still use this fake HTTP port.
+    fetchFn: async () => new Response('{"message":"fixture auth rejection"}', { status: 401 }),
     ...(options.credentialSource ? { credentialSource: options.credentialSource } : {}),
     ...(options.buildTarget ? { buildTarget: options.buildTarget } : {}),
   };
@@ -170,7 +172,8 @@ function failingDeployTarget(message: string): DeployTarget {
   };
 }
 
-/** A saved `vendor_credential_sets` row for the capabilities tests; the sealed blob is never opened. */
+/** A saved `vendor_credential_sets` row for the capabilities tests; its unreadable seal proves
+ * metadata remains readable when server-side hint unsealing fails. */
 function vendorRow(fields: Pick<VendorCredentialSetRecord, "workspaceId" | "id" | "vendorId" | "label" | "isDefault"> & Partial<VendorCredentialSetRecord>): VendorCredentialSetRecord {
   return { sealed: {} as never, tokenTail: "", accountLabel: null, createdAt: NOW, updatedAt: NOW, ...fields };
 }
@@ -310,6 +313,8 @@ test("deployment_get_static_publish_capabilities's description forbids ever aski
   assert.match(entry.description, /do not ask the user to paste/i);
   assert.ok(entry.description.includes("Do NOT ask the user to paste an API token, access key, or any other secret into this chat, ever, for any reason:"));
   assert.match(entry.description, /Static Site tab/);
+  assert.equal(entry.description.includes("call deployment_propose_custom_provider_credential in this turn to open its secure card, then retry once after a successful save."), true);
+  assert.equal(entry.description.includes("is an alternative for manual setup."), true);
 });
 
 test("deployment_get_static_publish_capabilities lists exactly the registry's hosts, each with its label, config fields and vendor group from the descriptor", async () => {
@@ -413,7 +418,7 @@ test("deployment_get_static_publish_capabilities reports per-provider readiness 
   assert.doesNotMatch(JSON.stringify(result), /should-never-appear/);
 });
 
-test("deployment_get_static_publish_capabilities: a saved credential surfaces its stored tokenTail and nothing more of the secret", async () => {
+test("deployment_get_static_publish_capabilities: a saved credential surfaces its server-derived hint and nothing more of the secret", async () => {
   const { deps } = fakeDeps({
     credentialSource: {
       async resolve() { throw new Error("must not be called by this handler"); },
@@ -431,13 +436,24 @@ test("deployment_get_static_publish_capabilities: a saved credential surfaces it
   const surfaceExchanges = createSurfaceExchangeStore();
   const capabilities = tool(buildRegistrations(deps, surfaceExchanges), "deployment_get_static_publish_capabilities");
   const result = (await call(capabilities)) as {
-    providers: { providerId: string; credentialConfigured: boolean; savedCredentials: { label: string; tokenTail: string | null }[] }[];
+    providers: { providerId: string; credentialConfigured: boolean; savedCredentials: { label: string; tokenTail: string | null; tokenHint: { length: number; last4: string | null } | null }[] }[];
   };
 
   const github = result.providers.find((p) => p.providerId === "github-pages")!;
   assert.equal(github.savedCredentials.length, 1);
-  assert.equal(github.savedCredentials[0]!.tokenTail, "1234", "the entry must carry the stored last-4 tail");
+  assert.equal(github.savedCredentials[0]!.tokenTail, "1234", "the entry must carry the server-derived last-4 tail");
+  assert.deepEqual(github.savedCredentials[0]!.tokenHint, { length: 29, last4: "1234" });
   assert.doesNotMatch(JSON.stringify(result), /ghp_aVeryRealLookingToken/, "must NEVER surface anything beyond the last 4 characters");
+  // Short credentials must never be exposed in full by treating their entire value as a tail.
+  await createPublishCredential(
+    { repo: deps.vendorCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen, loadDeployTargets: deps.loadDeployTargets },
+    { workspaceId: deps.workspaceId, label: "short", connection: { providerId: "github-pages", token: "tiny" } }
+  );
+  const shortResult = await call(capabilities) as typeof result;
+  const short = shortResult.providers.find(p => p.providerId === "github-pages")!.savedCredentials.find(c => c.label === "short")!;
+  assert.equal(short.tokenTail, "");
+  assert.deepEqual(short.tokenHint, { length: 4, last4: null });
+  assert.equal(JSON.stringify(shortResult).includes("tiny"), false);
 });
 
 test("deployment_get_static_publish_capabilities: a freshly saved s3-compatible credential reads as configured but not yet verified, through the real DB-backed credential source", async () => {
@@ -785,6 +801,7 @@ test("no credential configured for the requested provider: an actionable result 
   const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_execute_static_publish");
 
   const result = (await call(executeTool, { input: { target: "vercel", projectName: "demo" }, emitSurface: async () => undefined })) as {
+    credentialSetup: unknown;
     published: boolean;
     reason: string;
     message: string;
@@ -792,6 +809,10 @@ test("no credential configured for the requested provider: an actionable result 
 
   assert.equal(result.published, false);
   assert.equal(result.reason, "no-credential");
+  assert.deepEqual(result.credentialSetup, {
+    setupToolId: "deployment_propose_custom_provider_credential", remedyToolId: "deployment_propose_custom_provider_credential", prefill: { target: "vercel" },
+    hint: "A missing or rejected credential may be fixed by saving it through the secure card.",
+  });
   assert.match(result.message, /vercel/);
   assert.match(result.message, /Static Site tab/);
   assert.equal(surfaceExchanges.size(), 0, "a guaranteed-fail call must never raise a dialog");
@@ -1094,7 +1115,7 @@ test("propose-credential works for any host with a credential spec: a netlify fo
   assert.doesNotMatch(html, /id="mcpui-field-siteId"/, "the netlify module never reads a site id, so the form does not ask for one");
 
   surfaceExchanges.deliver({ exchangeId, toolId: "deployment_propose_custom_provider_credential", principalId: PRINCIPAL_ID, params: { token: "nfp_realtoken9876" } });
-  assert.deepEqual(await pending, { saved: true, providerId: "netlify", connected: true });
+  assert.deepEqual(await pending, { saved: true, providerId: "netlify", connected: false, connection: "auth", tokenHint: { length: 17, last4: "9876" }, message: "…9876, 17 chars. The server rejected this token." });
   const rows = (await deps.vendorCredentialSetRepo.listByWorkspace({ workspaceId: deps.workspaceId })).filter((r) => r.vendorId === "netlify");
   assert.equal(rows.length, 1);
   assert.equal(rows[0]!.tokenTail, "9876");
@@ -1157,7 +1178,7 @@ test("submit: a first-time save creates exactly one s3-compatible row, auto-defa
   assert.deepEqual(delivered, { ok: true });
 
   const result = await pending;
-  assert.deepEqual(result, { saved: true, providerId: "s3-compatible", connected: true });
+  assert.deepEqual(result, { saved: true, providerId: "s3-compatible", connected: false, connection: "auth", tokenHint: { length: 6, last4: null }, message: "6 chars. The server rejected this token." });
   assert.doesNotMatch(JSON.stringify(result), /s3cr3t|AKIAEXAMPLE/, "the secret/access key must never appear in the tool's own return value");
 
   const rows = await deps.vendorCredentialSetRepo.listByWorkspace({ workspaceId: deps.workspaceId });
@@ -1167,7 +1188,8 @@ test("submit: a first-time save creates exactly one s3-compatible row, auto-defa
   assert.equal(s3Rows[0]!.label, "default");
   // `VALID_FORM_SUBMISSION.secretAccessKey` is "s3cr3t" — s3-compatible's primary secret is
   // `secretAccessKey`, not `accessKeyId` (`vendor-credentials/store.ts`'s `deriveTokenTail`).
-  assert.equal(s3Rows[0]!.tokenTail, "s3cr3t".slice(-4), "tokenTail must be the last 4 characters of the SECRET access key, not the access key id");
+  // Owner 2026-10-07: the secret access key is shorter than 12, so it exposes no characters.
+  assert.equal(s3Rows[0]!.tokenTail, "", "short secrets expose only their length");
 });
 
 test("submit: a SECOND save updates the existing row rather than creating a duplicate — one row per provider, matching the admin's own flat-row UX", async () => {
@@ -1189,7 +1211,7 @@ test("submit: a SECOND save updates the existing row rather than creating a dupl
     params: { ...VALID_FORM_SUBMISSION, bucket: "renamed-bucket", secretAccessKey: "rotated-secret" },
   });
   const result = await second.pending;
-  assert.deepEqual(result, { saved: true, providerId: "s3-compatible", connected: true });
+  assert.deepEqual(result, { saved: true, providerId: "s3-compatible", connected: false, connection: "auth", tokenHint: { length: 14, last4: "cret" }, message: "…cret, 14 chars. The server rejected this token." });
 
   const rows = (await deps.vendorCredentialSetRepo.listByWorkspace({ workspaceId: deps.workspaceId })).filter((r) => r.vendorId === "s3-compatible");
   assert.equal(rows.length, 1, "a second save must UPDATE the existing row, never create a second one");
@@ -1536,10 +1558,14 @@ test("confirm: with no buildTarget override injected, the REAL default buildJini
 
   const { pending } = await beginCall(executeTool, { target: "s3-compatible", projectName: "demo-site" });
 
-  const result = (await pending) as { published: boolean; code: string; message: string };
+  const result = (await pending) as { published: boolean; code: string; message: string; credentialSetup: unknown };
   assert.equal(result.published, false);
   assert.equal(result.code, "NO_CREDENTIALS_CONFIGURED");
-  assert.match(result.message, /bucket/);
+  assert.equal(result.message, "credential is not usable for s3-compatible");
+  assert.deepEqual(result.credentialSetup, {
+    setupToolId: "deployment_propose_custom_provider_credential", remedyToolId: "deployment_propose_custom_provider_credential", prefill: { target: "s3-compatible" },
+    hint: "A missing or rejected credential may be fixed by saving it through the secure card.",
+  });
   assert.doesNotMatch(result.message, /s3cr3t/);
 });
 
@@ -1586,7 +1612,7 @@ test("submit: a non-Error thrown by the credential write step still returns a sa
   const realRepo = deps.vendorCredentialSetRepo;
   deps.vendorCredentialSetRepo = new Proxy(realRepo, {
     get(target, prop) {
-      if (prop === "insert") return async () => { throw "boom — not an Error instance"; };
+      if (prop === "insert") return async () => { throw VALID_FORM_SUBMISSION.secretAccessKey; };
       const value = Reflect.get(target, prop);
       return typeof value === "function" ? value.bind(target) : value;
     },
@@ -1600,7 +1626,8 @@ test("submit: a non-Error thrown by the credential write step still returns a sa
   const result = (await pending) as { saved: boolean; reason: string; message: string };
   assert.equal(result.saved, false);
   assert.equal(result.reason, "invalid");
-  assert.equal(result.message, "boom — not an Error instance");
+  assert.equal(result.message, "Could not reach the server.");
+  assert.equal(JSON.stringify(result).includes(VALID_FORM_SUBMISSION.secretAccessKey), false);
 });
 
  test("n06: repository write runs without a confirmation channel", async (t) => {

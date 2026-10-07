@@ -1,3 +1,4 @@
+import { redactAdminRunContextRef } from "../credential-chat-intake.js";
 import type { AcceptedRunRequest, DurableRun, DurableRunStore } from "./ports.js";
 
 export interface RunAcceptancePorts {
@@ -11,7 +12,8 @@ export interface RunAcceptancePorts {
 export function createRunAcceptance(ports: RunAcceptancePorts, _optional = {}) {
   return {
     async accept(required: { principalId: string; workspaceId: string; conversationId: string; messageId: string; request: AcceptedRunRequest }, _options = {}) {
-      const run = await ports.store.accept({ ...required, runId: ports.mintRunId(), now: ports.now() }, {});
+      const request = { ...required.request, contextRef: redactAdminRunContextRef({ contextRef: required.request.contextRef }, {}) };
+      const run = await ports.store.accept({ ...required, request, runId: ports.mintRunId(), now: ports.now() }, {});
       if (!run) return null;
       // The stub and accepted input are committed BEFORE dispatch. The daemon uses the stored
       // attempt id as its idempotency key, so duplicate POSTs cannot start two executors.

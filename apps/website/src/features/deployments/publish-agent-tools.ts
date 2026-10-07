@@ -1,5 +1,14 @@
+import { issueCredentialSetup } from "#src/contracts/core/tool-failure-diagnostics";
+import { assertCredentialFreeField, type CredentialTokenHint } from '../../contracts/core/credential-token.js';
+import { credentialText, formatCredentialHint, translateCredentialMessage } from '../../contracts/core/credential-copy.js';
+import { resolveOperatorLocale, type OperatorLocaleDeps } from '../agent-plugins/operator-locale.js';
+import { PublishCredentialValidationError } from './publish-credentials/store.js';
+import { verifyPublishCredentialById } from './static-publish/verify.js';
 import { nowIso as clockNowIso, type Clock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
+/** Owner 2026-10-07 amendment: capability summaries may unseal server-side only for safe
+ * length/tail hints. Historical never-decrypt comments below still explain the boundary against
+ * resolving usable credentials for the model; readiness and provider checks remain probe-free. */
 /**
  * @file The static-publish sub-feature's agent-tool catalog + wiring (ADR-049 Decision 4's
  * per-domain split, `static-publish/`'s half — see that directory's `types.ts` header for why it is
@@ -66,7 +75,7 @@ import type { VendorCredentialSetRepoPort } from "../vendor-credentials/index.js
 
 import type { ToolContributor } from "#src/assistant/index";
 
-import { askOnce, SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, type AssistantSurfaceDeps, type SurfaceExchange, type SurfaceMessage } from "../../contracts/core/tool-surface-exchanges.js";
+import { askOnce, askThenReport, SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, type AssistantSurfaceDeps, type SurfaceExchange, type SurfaceMessage } from "../../contracts/core/tool-surface-exchanges.js";
 // `SurfaceEmission` itself is `@jini-ai/core`'s own type (`tool-surface-exchanges.ts` re-exports the
 // functions that use it, but not the type) — imported directly here so the extracted
 // `mapPublishOutcomeToToolResult`/`buildAlreadyRunningResult`/`handlePublishConfirmationAnswer`
@@ -238,7 +247,7 @@ export const staticPublishAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "deployment_get_static_publish_capabilities",
     description:
-      "Reports live publish readiness for every static-publish host the turned-on deploy plugin provides, WITHOUT decrypting or exposing any credential. For each provider: providerId and label; configFields (the fields to pass to deployment_preview_static_publish/deployment_execute_static_publish as top-level strings: name, label, required, help); whether it is ready to publish to right now (ready is true ONLY when a credential is saved AND it was last verified to actually work against the real provider; a saved-but-unverified or saved-but-failing credential is reported as NOT ready, distinctly from no credential at all); credentialConfigured (true iff a credential row/env var exists at all for this provider. This is the field that answers 'is anything saved', kept deliberately separate from verified/accountLabel below: credentialConfigured:true with accountLabel:null means a credential EXISTS but its account identity is not yet known (never verified, or a verify that has not run since), which is a completely different situation from credentialConfigured:false, where nothing is saved for this provider at all and the human needs to add one before anything else is possible); every named credential set saved for it (id, label, isDefault, createdAt, updatedAt, tokenTail: the LAST 4 CHARACTERS ONLY of that credential's token or secret key, held in the clear so it can be shown to a human as a short identifier like '••••ab12' when they have more than one saved connection for a provider; it is NEVER the full token, a longer fragment, or any ciphertext); the cached verification state (verified: 'valid' | 'invalid' | 'unreachable' | null, and verifiedAt. null means configured but never verified; 'unreachable' means the last check could not reach the provider due to a network issue and does NOT mean the credential is bad, distinctly from 'invalid', which means the provider itself rejected it; this is a CACHED result from the last time a human verified it, possibly stale, never a live check made by this call); accountLabel (the verified credential's own public account login/username, or null when not yet verified or for a provider with no such field to report; NEVER an email, plan, or org. Use it as the default for a config field that names the account to publish under, instead of guessing one from the human's name or email address, using the requested account when supplied. Ask only when the account is missing or ambiguous; when accountLabel is null and no account was supplied, say plainly that the account is not known yet and ask the human directly. NEVER offer an example, placeholder, or 'e.g. <name>' value to illustrate the answer, even a made-up-looking one, since this tool has no way to know whether it happens to match a real account); lastPublish (the last successful publish to this provider from this server: target, url, reachable, status, projectName, publishedAt and the config it used, or null if this provider has never been published to from here. When the human asks to 'publish again' or 'publish the same way as last time', use this to fill the config fields and projectName without asking, and report the previous url when relevant); and, for a provider that is NOT ready, a human-readable reason naming what is missing or wrong (no credential saved for this workspace, a required credential field is not configured, the credential has never been verified yet, it was rejected by the provider, or the last check could not reach the provider). Also reports this install's executionMode ('self-hosted-cli' or 'hosted-api-only'), which affects whether a server-environment-variable credential can ever be used as a fallback. Call this before telling a human what publishing would do, before calling deployment_execute_static_publish, or whenever asked something like 'can I publish, and to where'. Do NOT ask the user to paste an API token, access key, or any other secret into this chat, ever, for any reason: a value typed into chat is written into the conversation transcript, which is exactly what this workspace's encrypted credential store exists to avoid, and this tool has no way to accept one anyway (it takes no input). If a provider is not ready, tell the human to add or fix that provider's credential themselves in the admin's Static Site tab (Deployment panel → Static Site → Publish), which saves it encrypted server-side and never shows it to you. You can also offer to help right here in chat: deployment_propose_custom_provider_credential shows the human an editable form for any host that takes a saved credential (you never see or handle the secret fields).",
+      "Reports live publish readiness for every static-publish host the turned-on deploy plugin provides, WITHOUT exposing any credential. Server-side unsealing derives only safe length and last-4 hints; short tokens expose length alone. For each provider: providerId and label; configFields (the fields to pass to deployment_preview_static_publish/deployment_execute_static_publish as top-level strings: name, label, required, help); whether it is ready to publish to right now (ready is true ONLY when a credential is saved AND it was last verified to actually work against the real provider; a saved-but-unverified or saved-but-failing credential is reported as NOT ready, distinctly from no credential at all); credentialConfigured (true iff a credential row/env var exists at all for this provider. This is the field that answers 'is anything saved', kept deliberately separate from verified/accountLabel below: credentialConfigured:true with accountLabel:null means a credential EXISTS but its account identity is not yet known (never verified, or a verify that has not run since), which is a completely different situation from credentialConfigured:false, where nothing is saved for this provider at all and the human needs to add one before anything else is possible); every named credential set saved for it (id, label, isDefault, createdAt, updatedAt, tokenHint: the server-derived length and last4, with no characters exposed for tokens shorter than 12; tokenTail: the same safe last4 or an empty string, so it can be shown to a human as a short identifier like '••••ab12' when they have more than one saved connection for a provider; it is NEVER the full token, a longer fragment, or any ciphertext); the cached verification state (verified: 'valid' | 'invalid' | 'unreachable' | null, and verifiedAt. null means configured but never verified; 'unreachable' means the last check could not reach the provider due to a network issue and does NOT mean the credential is bad, distinctly from 'invalid', which means the provider itself rejected it; this is a CACHED result from the last time a human verified it, possibly stale, never a live check made by this call); accountLabel (the verified credential's own public account login/username, or null when not yet verified or for a provider with no such field to report; NEVER an email, plan, or org. Use it as the default for a config field that names the account to publish under, instead of guessing one from the human's name or email address, using the requested account when supplied. Ask only when the account is missing or ambiguous; when accountLabel is null and no account was supplied, say plainly that the account is not known yet and ask the human directly. NEVER offer an example, placeholder, or 'e.g. <name>' value to illustrate the answer, even a made-up-looking one, since this tool has no way to know whether it happens to match a real account); lastPublish (the last successful publish to this provider from this server: target, url, reachable, status, projectName, publishedAt and the config it used, or null if this provider has never been published to from here. When the human asks to 'publish again' or 'publish the same way as last time', use this to fill the config fields and projectName without asking, and report the previous url when relevant); and, for a provider that is NOT ready, a human-readable reason naming what is missing or wrong (no credential saved for this workspace, a required credential field is not configured, the credential has never been verified yet, it was rejected by the provider, or the last check could not reach the provider). Also reports this install's executionMode ('self-hosted-cli' or 'hosted-api-only'), which affects whether a server-environment-variable credential can ever be used as a fallback. Call this before telling a human what publishing would do, before calling deployment_execute_static_publish, or whenever asked something like 'can I publish, and to where'. Do NOT ask the user to paste an API token, access key, or any other secret into this chat, ever, for any reason: a value typed into chat is written into the conversation transcript, which is exactly what this workspace's encrypted credential store exists to avoid, and this tool has no way to accept one anyway (it takes no input). If a provider needs a missing or rejected credential, call deployment_propose_custom_provider_credential in this turn to open its secure card, then retry once after a successful save. The admin's Static Site tab (Deployment panel → Static Site → Publish) is an alternative for manual setup.",
     sideEffects: "none",
     authorization: { permission: "deployments.read" },
     inputSchema: NO_INPUT_SCHEMA,
@@ -336,7 +345,7 @@ type ExportSiteBoundFn = (options: { outputDir: string; clean?: boolean; basePat
  *
  * Every other field below is a direct port type (never an indexed-access off `RouteDeps`).
  */
-export interface StaticPublishToolDeps {
+export interface StaticPublishToolDeps extends OperatorLocaleDeps {
   readonly authorize: AuthorizeFn;
   readonly workspaceId: string;
   readonly clock: Clock;
@@ -368,6 +377,8 @@ export interface StaticPublishToolDeps {
    *  fields a target takes and judges them. Defaults to the installed deploy Agent Plugin
    *  (`loadDeployTargetRegistry`); a test injects a registry read from the plugin's source. */
   loadDeployTargets?: (workspaceId: string) => Promise<DeployTargetRegistry>;
+  /** Post-save connection checks share the verifier's HTTP seam; fixtures never need real egress. */
+  readonly fetchFn?: typeof fetch;
   /** Test-only override for `RouteDeps.publishHistoryStore` (2026-08-16 rework — that field is now
    *  the real, DB-backed `SqlitePublishHistoryStore` in production; see `routes/types.ts`'s own doc)
    *  — lets a test inject an `InMemoryPublishHistoryStore` so it can assert on a recorded publish (or
@@ -554,7 +565,7 @@ interface ProviderCapabilityContext {
 
 /** {@link buildProviderCapability}'s `savedCredentials` entries: no secret, only the token's last 4. */
 function mapSavedCredentials(saved: Awaited<ReturnType<typeof listPublishCredentials>>) {
-  return saved.map(({ id, label, isDefault, createdAt, updatedAt, tokenTail }) => ({ id, label, isDefault, createdAt, updatedAt, tokenTail }));
+  return saved.map(({ id, label, isDefault, createdAt, updatedAt, tokenTail, tokenHint }) => ({ id, label, isDefault, createdAt, updatedAt, tokenTail, tokenHint }));
 }
 
 /**
@@ -707,7 +718,7 @@ function mapPublishOutcomeToToolResult(
   }
   if (!outcome.ok) {
     return {
-      result: { published: false, cancelled: false, code: outcome.code, message: outcome.message },
+      result: { published: false, cancelled: false, code: outcome.code, message: outcome.message, ...(outcome.credentialSetup ? { credentialSetup: outcome.credentialSetup } : {}) },
       outcome: {
         channel: "mcp-ui",
         payload: { resource: buildPublishOutcomeResource({ exchangeId: exchange.id, config, detailRows, projectName, state: "failure", message: outcome.message }) },
@@ -768,8 +779,9 @@ function readCredentialHints(raw: Record<string, unknown>, descriptor: DeployTar
       const takes = fields.length > 0 ? `It takes: ${fields.map((candidate) => candidate.name).join(", ")}.` : "It takes none.";
       throw new ToolInputError({ message: `'${key}' is not a credential field of ${descriptor.id}. ${takes}` });
     }
-    if (field.secret === true) throw new ToolInputError({ message: `'${key}' is secret: the person types it into the form, never into the chat.` });
+    if (field.secret === true || key === descriptor.credential?.tokenField) throw new ToolInputError({ message: `'${key}' is secret: the person types it into the form, never into the chat.` });
     if (typeof value !== "string") throw new ToolInputError({ message: `'${key}' must be a string.` });
+    assertCredentialFreeField({ value, field: key });
     if (value.trim() !== "") hints[key] = value;
   }
   return hints;
@@ -792,7 +804,7 @@ function buildProposeCredentialForm(exchange: SurfaceExchange, descriptor: Deplo
       label: field.label,
       ...(field.help !== undefined ? { hint: field.help } : {}),
       required: field.required,
-      ...(field.secret === true ? { secret: true } : {}),
+      ...(field.secret === true || field.name === credential.tokenField ? { secret: true } : {}),
       ...(prefill[field.name] !== undefined ? { value: prefill[field.name] } : {}),
     })),
     cancel: {
@@ -819,7 +831,7 @@ async function saveProposedCredential(
   targetId: string,
   credential: DeployTargetCredentialSpec,
   params: Record<string, unknown>
-): Promise<{ ok: true } | { ok: false; message: string }> {
+): Promise<{ ok: true; credentialId: string; tokenHint: CredentialTokenHint | null } | { ok: false; message: string }> {
   const connection: Record<string, unknown> = { providerId: targetId };
   for (const field of credential.fields) {
     if (typeof params[field.name] === "string") connection[field.name] = params[field.name];
@@ -835,14 +847,12 @@ async function saveProposedCredential(
   try {
     const saved = await listPublishCredentials(writeDeps, { workspaceId: deps.workspaceId });
     const existing = saved.find((row) => row.providerId === targetId && row.isDefault);
-    if (existing) {
-      await updatePublishCredential(writeDeps, { workspaceId: deps.workspaceId, id: existing.id, connection });
-    } else {
-      await createPublishCredential(writeDeps, { workspaceId: deps.workspaceId, label: CUSTOM_PROVIDER_CREDENTIAL_ROW_LABEL, connection });
-    }
-    return { ok: true };
+    const stored = existing
+      ? await updatePublishCredential(writeDeps, { workspaceId: deps.workspaceId, id: existing.id, connection })
+      : await createPublishCredential(writeDeps, { workspaceId: deps.workspaceId, label: CUSTOM_PROVIDER_CREDENTIAL_ROW_LABEL, connection });
+    return { ok: true, credentialId: stored.id, tokenHint: stored.tokenHint ?? null };
   } catch (err) {
-    return { ok: false, message: err instanceof Error ? err.message : String(err) };
+    return { ok: false, message: err instanceof PublishCredentialValidationError ? err.message : credentialText({ id: 'unreachable' }) };
   }
 }
 
@@ -851,7 +861,7 @@ async function saveProposedCredential(
  * top-level function so its own complexity is measured independently of the handler that opens the
  * exchange and builds the form.
  */
-async function handleProposeCredentialAnswer(answer: SurfaceMessage, deps: StaticPublishToolDeps, targetId: string, credential: DeployTargetCredentialSpec) {
+async function handleProposeCredentialAnswer(answer: SurfaceMessage, deps: StaticPublishToolDeps, targetId: string, credential: DeployTargetCredentialSpec, locale: string = "en") {
   if (answer.status !== "received") {
     return {
       saved: false,
@@ -866,11 +876,27 @@ async function handleProposeCredentialAnswer(answer: SurfaceMessage, deps: Stati
 
   const saveResult = await saveProposedCredential(deps, targetId, credential, answer.params);
   if (!saveResult.ok) {
-    return { saved: false, cancelled: false, reason: "invalid", message: saveResult.message };
+    return { saved: false, cancelled: false, reason: "invalid", message: translateCredentialMessage({ message: saveResult.message, locale }) };
   }
 
-  // NEVER echoes a field value, secret or not.
-  return { saved: true, providerId: targetId, connected: true };
+  // NEVER echoes a field value, secret or not. Owner 2026-10-07: the submitted human card
+  // now authorizes the same post-save read-only check as the admin form. Model-only reads stay probe-free.
+  let connection: 'saved' | 'connected' | 'auth' | 'timeout' | 'unreachable' = 'saved';
+  try {
+    const registry = await deployTargetsLoader(deps)(deps.workspaceId);
+    if (registry.get(targetId)?.module.verifyCredential) {
+      const verification = await verifyPublishCredentialById({
+        repo: deps.vendorCredentialSetRepo, sealer: deps.siteAssistantSecretSealer,
+        cache: deps.publishCredentialVerificationCache, clock: { nowIso: () => clockNowIso({ clock: deps.clock }) },
+        loadDeployTargets: deployTargetsLoader(deps), observability: deps.observability, fetchFn: deps.fetchFn,
+      }, { workspaceId: deps.workspaceId, id: saveResult.credentialId });
+      connection = verification?.status === 'valid' ? 'connected' : verification?.status === 'invalid' ? 'auth' : verification?.message === credentialText({ id: 'timeout' }) ? 'timeout' : 'unreachable';
+    }
+  } catch { connection = 'unreachable'; }
+  const hint = formatCredentialHint({ hint: saveResult.tokenHint, locale });
+  return { saved: true, providerId: targetId, connected: connection === 'connected', connection,
+    tokenHint: saveResult.tokenHint, message: `${hint ? `${hint}. ` : ''}${credentialText({ id: connection, locale })}` };
+
 }
 
 /**
@@ -936,7 +962,9 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "deployments.read" }, { entityType: "site-publish" });
 
       const loadDeployTargets = deployTargetsLoader(deps);
-      const saved = await listPublishCredentials({ repo: deps.vendorCredentialSetRepo, loadDeployTargets } satisfies PublishCredentialReadDeps, {
+      // Owner 2026-10-07 amendment: unseal only server-side to derive the safe hint.
+      // Readiness still uses isConfigured(); no usable credential or provider probe reaches this result.
+      const saved = await listPublishCredentials({ repo: deps.vendorCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, loadDeployTargets } satisfies PublishCredentialReadDeps, {
         workspaceId: deps.workspaceId,
       });
 
@@ -947,8 +975,9 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
       return { executionMode: deps.publishExecutionMode, providers };
     },
 
-    /** Validates and publishes immediately with server-side credentials. The result still waits
-     * for the provider and public reachability check; a headless execution needs no consent channel. */
+    /** Validates and publishes with server-side credentials after the shared registration policy
+     * asks for human approval (owner 2026-10-07). The result still waits for the provider and
+     * public reachability check; headless assistant calls without consent fail closed. */
     deployment_execute_static_publish: async (ctx, optional = {}) => {
       const raw = requireInputRecord({ input: ctx.input });
       const registry = await deployTargetsLoader(deps)(deps.workspaceId);
@@ -971,7 +1000,8 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
           published: false,
           cancelled: false,
           reason: "no-credential",
-          message: `No publish credential is configured for '${target}'. Add one in the admin's Static Site tab (Deployment panel → Static Site → Publish) before publishing. (${readiness.reason})`,
+          credentialSetup: issueCredentialSetup({ setupToolId: "deployment_propose_custom_provider_credential", prefill: { target } }, {}),
+          message: `No publish credential is configured for '${target}'. Call deployment_propose_custom_provider_credential to open its secure card, then retry once. The admin's Static Site tab is an alternative. (${readiness.reason})`,
         };
       }
 
@@ -1016,17 +1046,29 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
         );
       }
 
+      const stored = await listPublishCredentials({ repo: deps.vendorCredentialSetRepo, loadDeployTargets: deployTargetsLoader(deps) }, { workspaceId: deps.workspaceId });
+      const updating = stored.some(row => row.providerId === descriptor.id && row.isDefault);
+      // The store keeps exact blank secrets on update; the form must permit that submission too.
+      const formCredential = updating ? { ...credential, fields: credential.fields.map(field => field.secret || field.name === credential.tokenField ? { ...field, required: false } : field) } : credential;
       const exchange: SurfaceExchange = surfaces.surfaceExchanges.open(
         { toolId: PROPOSE_CUSTOM_PROVIDER_CREDENTIAL_TOOL_ID, principalId: ctx.principal.id },
         optional.emitSurface
       );
-      const ui = buildProposeCredentialForm(exchange, descriptor, credential, prefill);
+      const locale = await resolveOperatorLocale({ deps, workspaceId: deps.workspaceId, principalId: ctx.principal.id });
+      const ui = buildProposeCredentialForm(exchange, descriptor, formCredential, prefill);
 
       const closeOnAbort = () => exchange.close();
       ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
       try {
-        const answer = await askOnce(exchange, { channel: "mcp-ui", payload: { resource: ui } });
-        return await handleProposeCredentialAnswer(answer, deps, descriptor.id, credential);
+        return await askThenReport(exchange, { channel: 'mcp-ui', payload: { resource: ui } }, async answer => {
+          const result = await handleProposeCredentialAnswer(answer, deps, descriptor.id, credential, locale);
+          if (answer.status !== 'received' || answer.params[SURFACE_DISMISSED_PARAM] === true) return { result };
+          const message = 'message' in result && typeof result.message === 'string' ? result.message : credentialText({ id: 'unreachable', locale });
+          return { result, outcome: { channel: 'mcp-ui', payload: { resource: buildOutcomeSurface({
+            uri: customProviderCredentialFormUri(exchange.id), title: credentialText({ id: result.saved ? 'savedTitle' : 'unreachable', locale }),
+            state: result.saved ? 'success' : 'failure', message,
+          }) } } };
+        });
       } finally {
         ctx.signal.removeEventListener("abort", closeOnAbort);
       }

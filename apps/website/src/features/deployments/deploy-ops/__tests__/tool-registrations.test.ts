@@ -114,3 +114,14 @@ test("a stalled first poll still returns a timeout result at the deadline", asyn
   assert.deepEqual(await waiting, { reached: false, waitedSeconds: 10, polls: 1, last: { platform: "example", target: "shop", state: "unknown", summary: "No status received before timeout.", items: [], checkedAt: AT } });
   assert.equal(received!.aborted, true);
 });
+
+test('missing deploy credential is returned as a card diagnostic before HTTP', async () => {
+  const f = await fixture([]);
+  const status = buildDeployOpsRegistrations(f.deps).find(r => r.descriptor.id === 'deployment_ops_status')!;
+  const result = await status.handler(execution({ platform: 'fly', target: 'shop' })) as { credentialSetup: unknown };
+  assert.deepEqual(result.credentialSetup, {
+    setupToolId: 'custom_credential_create', remedyToolId: 'custom_credential_create', prefill: { label: 'fly', baseUrl: 'https://api.machines.dev', category: 'ops' },
+    hint: 'A missing or rejected credential may be fixed by saving it through the secure card.',
+  });
+  assert.deepEqual(f.calls, []);
+});

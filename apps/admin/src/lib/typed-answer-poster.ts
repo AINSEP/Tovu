@@ -1,3 +1,5 @@
+import { onAdminSecretRedacted } from "./credential-card-guidance";
+import type { UserTextRedactionOptions } from "@jini-ai/chat/core";
 /**
  * @module typed-answer-poster
  *
@@ -28,9 +30,9 @@ export const ADMIN_MCP_UI_TOOL_CALLS_PATH = "/api/admin/v1/mcp-ui/tool-calls";
  * @param deps.fetch - The browser's fetch in production; a hand-written fake in tests.
  * @complexity O(1) per call — one request.
  */
-export function createAdminTypedAnswerPoster({ fetch }: { fetch: typeof globalThis.fetch }): DeliverTypedAnswer {
+export function createAdminTypedAnswerPoster({ fetch }: { fetch: typeof globalThis.fetch }, options: UserTextRedactionOptions = {}): DeliverTypedAnswer {
   return createTypedAnswerPoster(
     { baseUrl: "", fetch, toolName: ASK_CHOICE_TOOL_ID },
-    { path: ADMIN_MCP_UI_TOOL_CALLS_PATH },
+    { path: ADMIN_MCP_UI_TOOL_CALLS_PATH, onSecretRedacted: onAdminSecretRedacted, ...options },
   );
 }

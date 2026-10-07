@@ -294,7 +294,10 @@ test("a module whose create() throws is reported like a legacy unusable credenti
     },
     { target: "netlify" },
   );
-  assert.deepEqual(result, { ok: false, code: "NO_CREDENTIALS_CONFIGURED", message: "credential is not usable for netlify: Netlify token is required." });
+  assert.deepEqual(result, { ok: false, code: "NO_CREDENTIALS_CONFIGURED", message: "credential is not usable for netlify", credentialSetup: {
+    setupToolId: "deployment_propose_custom_provider_credential", prefill: { target: "netlify" },
+    remedyToolId: "deployment_propose_custom_provider_credential", hint: "A missing or rejected credential may be fixed by saving it through the secure card.",
+  } });
 });
 
 test("a registry that fails to load is refused as INVALID_CONFIG with the reason, never published some other way", async () => {

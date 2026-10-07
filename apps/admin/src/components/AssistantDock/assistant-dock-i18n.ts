@@ -1,3 +1,5 @@
+import { SETTINGS_DIALOG_DICTIONARIES, type Locale } from "@jini-ai/ui";
+import { SECRET_REDACTED_NOTICE, CREDENTIAL_CARD_GUIDANCE } from "@jini-ai/chat/core";
 import type { I18nAdapter } from "@jini-ai/chat/react";
 import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
@@ -746,6 +748,6 @@ function interpolate(template: string, vars: Record<string, string | number> | u
 export function createChatI18nAdapter(locale: string): I18nAdapter {
   return {
     locale,
-    t: (key, vars) => interpolate(CHAT_PANE_I18N_DICT[locale]?.[key] ?? key, vars),
+    t: (key, vars) => interpolate(CHAT_PANE_I18N_DICT[locale]?.[key] ?? ((key === SECRET_REDACTED_NOTICE || key === CREDENTIAL_CARD_GUIDANCE) ? SETTINGS_DIALOG_DICTIONARIES[locale as Locale]?.[key] : undefined) ?? key, vars),
   };
 }

@@ -1,3 +1,4 @@
+import { type ToolFailureDiagnostic, issueCredentialSetup } from "#src/contracts/core/tool-failure-diagnostics";
 import type { Clock } from "@jini-ai/core/primitives";
 import type { HttpClientPort } from "@jini-ai/core/primitives";
 import {
@@ -283,7 +284,7 @@ function buildNoCredentialError(providerId: string): Error {
   return new Error(
     `media_generate_asset: no ${label} media-provider credential is configured for this workspace${envNote}. ` +
       "Call media_propose_provider_credential to open a human key form, or an operator can add one in the admin under Media -> \"Media providers\" (Access Tokens' " +
-      "counterpart for generation vendors) before this tool can generate an image with this model. Do not retry — " +
+      "counterpart for generation vendors) then retry this tool once with the same model. " +
       "this will not resolve without that credential being added."
   );
 }
@@ -317,7 +318,7 @@ interface GeneratedMediaView {
 
 export function buildMediaGenerationRegistrations(routeDeps: MediaGenerationToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
-    media_generate_asset: async (ctx): Promise<{ media: GeneratedMediaView }> => {
+    media_generate_asset: async (ctx): Promise<{ media: GeneratedMediaView } | { generated: false; message: string; credentialSetup: ToolFailureDiagnostic }> => {
       const input = requireInputRecord({ input: ctx.input });
       const prompt = requireString({ input: input, key: "prompt" });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "media.upload" }, { entityType: "media" });
@@ -332,7 +333,8 @@ export function buildMediaGenerationRegistrations(routeDeps: MediaGenerationTool
 
           const credential = await resolveCredentialForProvider(routeDeps, providerId);
           if (!credential && !allowStubFallback) {
-            throw buildNoCredentialError(providerId);
+            return { generated: false, message: buildNoCredentialError(providerId).message,
+              credentialSetup: issueCredentialSetup({ setupToolId: "media_propose_provider_credential", prefill: { provider: providerId } }, {}) };
           }
 
           const generate = routeDeps.generateMedia ?? defaultGenerateMedia;

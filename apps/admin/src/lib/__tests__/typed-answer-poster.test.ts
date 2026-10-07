@@ -42,3 +42,13 @@ describe("createAdminTypedAnswerPoster", () => {
     await expect(createAdminTypedAnswerPoster({ fetch: fake.fetch })({ text: "deploy it" })).resolves.toBe("failed");
   });
 });
+
+it("redacts a credential before the admin answer POST and emits only count metadata", async () => {
+  const fake = fakeFetch(async () => new Response(null, { status: 202 }));
+  const signals: unknown[] = [];
+  const secret = 'sk-' + 'A1b2C3d4E5f6G7h8I9j0';
+  await createAdminTypedAnswerPoster({ fetch: fake.fetch }, { onSecretRedacted: signal => signals.push(signal) })({ text: `Please save ${secret}` });
+  expect(fake.requests[0]?.init?.body).toBe(JSON.stringify({ toolName: 'assistant_ask_choice', params: { __typedAnswer: 'Please save [token removed]' } }));
+  expect(signals).toEqual([{ secretRedacted: true, count: 1 }]);
+  expect(String(fake.requests[0]?.init?.body).includes(secret)).toBe(false);
+});

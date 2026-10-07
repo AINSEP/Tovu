@@ -1175,3 +1175,25 @@ test(`${BYOK_TURN_PATH} spans: the browser disconnecting mid-turn ends the span 
   assert.equal(run.attributes["agent.run.status"], "canceled");
   assert.equal(run.status.code, SpanStatusCode.UNSET);
 });
+
+test('BYOK removes credential text from every user history message before provider input', async t => {
+  const deps = createRouteDeps();
+  const { baseUrl } = await bootAuthenticated(createApp(deps), t);
+  const cookie = await loginWithPermissions(deps, baseUrl, ['workspace.manage']);
+  const seen: unknown[] = [];
+  const providerUrl = await stubProvider(t, (_count, body) => {
+    seen.push(body);
+    return sseBody(messageStart(), textBlock(0, 'Use the secure card.'), messageDelta('end_turn'), messageStop());
+  });
+  const secret = 'sk-' + 'A1b2C3d4E5f6G7h8I9j0';
+  const response = await postByokTurn(baseUrl, cookie, { ...BYOK_BODY,
+    messages: [{ role: 'user', content: `Save ${secret}` }, { role: 'assistant', content: 'Which account?' }, { role: 'user', content: `Connect with ${secret}` }],
+    byok: { ...BYOK_BODY.byok, baseUrl: providerUrl },
+  });
+  assert.equal(response.status, 200); await response.text();
+  assert.equal(seen.length, 1);
+  assert.equal(JSON.stringify(seen).includes(secret), false, 'raw credential reached the provider');
+  const messages = (seen[0] as { messages: Array<{ role: string; content: unknown }> }).messages;
+  assert.equal(JSON.stringify(messages[0]!.content).includes('Save [token removed]'), true);
+  assert.equal(JSON.stringify(messages[2]!.content).includes('Connect with [token removed]'), true);
+});

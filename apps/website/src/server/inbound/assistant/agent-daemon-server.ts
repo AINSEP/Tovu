@@ -1,3 +1,4 @@
+import { applyToolApprovalPolicy } from "#src/assistant/tool-approval-policy";
 import { createPluginInstallAttachmentReader } from "../../runtime/composition/plugin-install-attachment-reader.js";
 import { sniffContentType } from "#src/features/media/index";
 import { createTovuOAuthHttpPorts } from "#src/platform/oauth/endpoint-safety";
@@ -170,7 +171,7 @@ import { TOVU_MAX_UPLOAD_BYTES } from "#src/features/media/index";
 import { createLostFrontendBindings } from "#src/assistant/lost-frontend-binding";
 import { withPageNavigateErrorRewrap } from "#src/assistant/rewrap-page-navigate-error";
 import { delegatedToolErrorDisclosure } from "#src/assistant/tool-failure-redaction";
-import { registerDurableRunStartRoute, registerDurableToolGuard } from "./durable-run-routes.js";
+import { registerCredentialRunIntake, registerDurableRunStartRoute, registerDurableToolGuard } from "./durable-run-routes.js";
 import { createEarlySessionCapture } from "./early-run-session.js";
 import { readProcessStart } from "./attempt-process-identity.js";
 import { checkReadOnlyTool, defaultDaemonMessages } from "@jini-ai/daemon/read-only-tools";
@@ -584,7 +585,9 @@ const frontendControl = createFrontendControl({
 // `withReadOnlyFrontendCapabilities` marks page.find_elements and admin.capture_screenshot read-only,
 // so the read-only delegated-tool gateway runs them (see `frontend-control-capabilities.ts`).
 for (const registration of withPageNavigateErrorRewrap(withReadOnlyFrontendCapabilities(frontendControl.toolRegistrations))) {
-  registry.register(lostFrontendBindings.wrap(registration));
+  // Page clicks carry arbitrary UI effects; apply the same reviewed host policy as WebMCP.
+  // Every frontend registration needs a classification, including local chat operations.
+  registry.register(applyToolApprovalPolicy({ registration: lostFrontendBindings.wrap(registration), surfaces: { surfaceExchanges } }));
 }
 // Wrapped, not bare: `@jini-ai/daemon`'s executor keeps its audit records in an in-process `Map`
 // and mints them only AFTER authorization resolves, so an unknown tool id or a throwing
@@ -1229,6 +1232,7 @@ const adapter: AdapterContext = { resolvedPortRef: { current: port }, env: proce
 app.use("/api/runs/:runId", requireRunOwnership(runOwners, lifecycle));
 app.get("/api/runs", createOwnedRunListHandler({ lifecycle, registry: runOwners }));
 
+registerCredentialRunIntake({ app }, {});
 if (routeDeps.chatRunLedger.durable) registerDurableRunStartRoute({ app, lifecycle, onStarted, store: routeDeps.chatRunLedger.durable }, {});
 registerRunRoutes({ app, deps: { lifecycle, onStarted }, adapter });
 // `rescanAgents` wired explicitly (not left to fall back to `listAgents`, `@jini-ai/http-kit`'s own

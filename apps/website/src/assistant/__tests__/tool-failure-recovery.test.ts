@@ -6,7 +6,7 @@ import type { ToolExecutionResult, ToolExecutor } from "@jini-ai/daemon";
 import type { UIResource } from "@jini-ai/ui/mcp-ui/surfaces";
 
 import { createSurfaceExchangeStore, SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM } from "../../contracts/core/tool-surface-exchanges.js";
-import { issueToolFailureDiagnostic } from "../../contracts/core/tool-failure-diagnostics.js";
+import { issueCredentialSetup, issueToolFailureDiagnostic } from "../../contracts/core/tool-failure-diagnostics.js";
 import { TOOL_FAILURE_RECOVERY_TOOL_ID, withToolFailureRecovery } from "../tool-failure-recovery.js";
 
 /**
@@ -573,4 +573,43 @@ test("interactive nested-array recovery dispatches remedy and retry with the ori
     controller.abort();
     await pending;
   }
+});
+
+for (const [setupToolId, prefill] of [
+  ['custom_credential_create', { label: 'api', baseUrl: 'https://api.example.com' }],
+  ['custom_credential_set_token', { label: 'api' }],
+  ['media_propose_provider_credential', { provider: 'openai' }],
+  ['custom_credential_create', { label: 'fly', baseUrl: 'https://api.machines.dev', category: 'ops' }],
+  ['deployment_propose_custom_provider_credential', { target: 'vercel' }],
+  ['external_mcp_save', { id: 'hosted' }],
+] as const) test(`credential setup ${setupToolId} goes straight to the card and retries once`, async () => {
+  const diagnostic = issueCredentialSetup({ setupToolId, prefill }, {});
+  const original = { executionId: 'e1', status: 'completed' as const, output: { credentialSetup: diagnostic } };
+  const inner = routedExecutor({
+    [ORIGINAL_TOOL_ID]: () => original,
+    [setupToolId]: () => ({ executionId: 'e2', status: 'completed', output: { saved: true } }),
+  });
+  const descriptor: ToolDescriptor = { id: setupToolId, inputSchema: { type: 'object', properties: Object.fromEntries(Object.keys(prefill).map(key => [key, { type: 'string' }])), required: Object.keys(prefill) } };
+  const exchanges = createSurfaceExchangeStore();
+  const executor = withToolFailureRecovery(inner, { surfaceExchanges: exchanges, registry: fakeRegistry([descriptor]) });
+  const { pending, emitted } = await runOriginal(executor);
+  assert.equal(await pending, original, 'a retry diagnostic must not start another cycle');
+  assert.deepEqual(inner.calls, [
+    { toolId: ORIGINAL_TOOL_ID, input: ORIGINAL_INPUT }, { toolId: setupToolId, input: prefill }, { toolId: ORIGINAL_TOOL_ID, input: ORIGINAL_INPUT },
+  ]);
+  assert.deepEqual(emitted, [], 'the card supplies the decision; recovery adds no extra question');
+  assert.equal(exchanges.size(), 0);
+});
+
+test('a cancelled or failed CREATE card never retries the original call', async () => {
+  const original = { executionId: 'e1', status: 'completed' as const, output: { credentialSetup: issueCredentialSetup({ setupToolId: SET_TOKEN_TOOL_ID, prefill: { label: 'api' } }, {}) } };
+  const inner = routedExecutor({ [ORIGINAL_TOOL_ID]: () => original, [SET_TOKEN_TOOL_ID]: () => ({ executionId: 'e2', status: 'completed', output: { created: false } }) });
+  const executor = withToolFailureRecovery(inner, { surfaceExchanges: createSurfaceExchangeStore(), registry: fakeRegistry([SET_TOKEN_DESCRIPTOR]) });
+  const { pending } = await runOriginal(executor); assert.equal(await pending, original);
+  assert.equal(inner.calls.length, 2);
+});
+
+test('credential diagnostics refuse secret-shaped prefills before model output', () => {
+  assert.throws(() => issueCredentialSetup({ setupToolId: SET_TOKEN_TOOL_ID, prefill: { token: 'value' } }, {}), { message: 'Credential setup accepts only non-secret metadata.' });
+  assert.throws(() => issueCredentialSetup({ setupToolId: SET_TOKEN_TOOL_ID, prefill: { label: 'sk-' + 'A1b2C3d4E5f6G7h8I9j0' } }, {}));
 });

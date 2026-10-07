@@ -1,3 +1,8 @@
+import { issueCredentialSetup } from "#src/contracts/core/tool-failure-diagnostics";
+import { assertCredentialFreeField } from '../../contracts/core/credential-token.js';
+import { buildOutcomeSurface, type UIResourceUri } from '@jini-ai/ui/mcp-ui/surfaces';
+import { credentialText, formatCredentialHint, formatCredentialHints, translateCredentialMessage } from '../../contracts/core/credential-copy.js';
+import { resolveOperatorLocale } from '../agent-plugins/operator-locale.js';
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireNoInput, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { UUID } from "@jini-ai/core/primitives";
@@ -5,7 +10,7 @@ import { ToolInputError } from "@jini-ai/core";
 
 import {
   SURFACE_DISMISSED_PARAM,
-  askOnce,
+  askThenReport,
   type AssistantSurfaceDeps,
   type SurfaceExchange,
   type SurfaceMessage,
@@ -208,7 +213,7 @@ function optionalStringField(input: Record<string, unknown>, key: string): strin
  *  @complexity O(1). */
 function optionalSecretField(input: Record<string, unknown>, key: string): string | undefined {
   const value = optionalStringField(input, key);
-  return value === undefined || value.trim() === "" ? undefined : value;
+  return value === undefined || value === "" ? undefined : value;
 }
 
 /** The model's own {@link ExternalMcpSaveInput} fields beyond `id`/`transport` — every one of
@@ -244,7 +249,7 @@ function buildModelSaveInput(input: Record<string, unknown>): ExternalMcpSaveInp
   let save: ExternalMcpSaveInput = { id, transport };
   for (const key of SAVE_MODEL_OPTIONAL_FIELDS) {
     const value = optionalStringField(input, key);
-    if (value !== undefined) save = { ...save, [key]: value };
+    if (value !== undefined) { assertCredentialFreeField({ value, field: key }); save = { ...save, [key]: value }; }
   }
   return save;
 }
@@ -358,7 +363,8 @@ async function handleExternalMcpSaveAnswer(
   routeDeps: ExternalMcpToolDeps,
   principalId: string,
   answer: SurfaceMessage,
-): Promise<unknown> {
+  locale: string = "en",
+): Promise<Record<string, unknown>> {
   if (answer.status !== "received") {
     return {
       saved: false,
@@ -389,10 +395,21 @@ async function handleExternalMcpSaveAnswer(
     // see `external-mcp-roster-change.ts`'s own header. Fire-and-forget: this chat-surface save
     // already succeeded and is durable regardless of whether any registered runtime reloads cleanly.
     void notifyExternalMcpRosterChanged();
-    return { saved: true, server };
+    let connection = credentialText({ id: 'saved', locale });
+    let connectionCode = 'not_tested';
+    if (server.transport !== 'stdio' && routeDeps.externalMcpProbe) {
+      try {
+        const probe = await routeDeps.externalMcpProbe({ serverId: server.serverId });
+        connectionCode = probe.ok ? 'connected' : String(probe.body.code ?? 'MCP_SERVER_UNREACHABLE');
+        const id = probe.ok ? 'connected' : connectionCode === 'MCP_AUTH_REJECTED' ? 'auth' : connectionCode === 'MCP_TIMEOUT' ? 'timeout' : 'unreachable';
+        connection = credentialText({ id, locale });
+      } catch { connectionCode = 'MCP_SERVER_UNREACHABLE'; connection = credentialText({ id: 'unreachable', locale }); }
+    }
+    const hint = [formatCredentialHint({ hint: server.accessTokenHint, locale }), formatCredentialHints({ hints: server.envTokenHints, locale })].filter(Boolean).join(' · ');
+    return { saved: true, server, connection: connectionCode, message: `${hint ? `${hint}. ` : ''}${connection}` };
   } catch (err) {
     if (err instanceof ExternalMcpValidationError) {
-      return { saved: false, cancelled: false, reason: "invalid", message: err.message, field: err.field };
+      return { saved: false, cancelled: false, reason: "invalid", message: translateCredentialMessage({ message: err.message, locale }), field: err.field };
     }
     throw err;
   }
@@ -427,7 +444,7 @@ export function buildExternalMcpRegistrations(routeDeps: ExternalMcpToolDeps, su
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
         workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: EXTERNAL_MCP_MANAGE_PERMISSION }, { entityType: "external-mcp-server" });
 
-      const servers = await listExternalMcpServerViews({ repo: routeDeps.externalMcpServerRepo }, routeDeps.workspaceId);
+      const servers = await listExternalMcpServerViews({ repo: routeDeps.externalMcpServerRepo, sealer: routeDeps.siteAssistantSecretSealer }, routeDeps.workspaceId);
       return { servers };
     },
 
@@ -448,8 +465,9 @@ export function buildExternalMcpRegistrations(routeDeps: ExternalMcpToolDeps, su
             "so a connection form cannot be shown here. Nothing was saved." });
       }
 
+      const locale = await resolveOperatorLocale({ deps: routeDeps, workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id });
       const modelInput = buildModelSaveInput(input);
-      const existingViews = await listExternalMcpServerViews({ repo: routeDeps.externalMcpServerRepo }, routeDeps.workspaceId);
+      const existingViews = await listExternalMcpServerViews({ repo: routeDeps.externalMcpServerRepo, sealer: routeDeps.siteAssistantSecretSealer }, routeDeps.workspaceId);
       const existingView = existingViews.find((view) => view.serverId === modelInput.id);
       const prefill = mergeExternalMcpSavePrefill(modelInput, existingView);
 
@@ -462,8 +480,16 @@ export function buildExternalMcpRegistrations(routeDeps: ExternalMcpToolDeps, su
       ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
       try {
         const ui = buildExternalMcpSaveForm({ exchange, save: prefill, isUpdate: existingView !== undefined });
-        const answer = await askOnce(exchange, { channel: "mcp-ui", payload: { resource: ui } });
-        return await handleExternalMcpSaveAnswer(routeDeps, ctx.principal.id, answer);
+        return await askThenReport(exchange, { channel: 'mcp-ui', payload: { resource: ui } }, async answer => {
+          const result = await handleExternalMcpSaveAnswer(routeDeps, ctx.principal.id, answer, locale);
+          if (answer.status !== 'received' || answer.params[SURFACE_DISMISSED_PARAM] === true) return { result };
+          const message = typeof result.message === 'string' ? result.message : credentialText({ id: 'unreachable', locale });
+          return { result, outcome: { channel: 'mcp-ui', payload: { resource: buildOutcomeSurface({
+            uri: `ui://tovu/external-mcp-save/${exchange.id}` as UIResourceUri,
+            title: result.saved ? credentialText({ id: result.connection === 'connected' ? 'connected' : 'savedTitle', locale }) : credentialText({ id: 'unreachable', locale }),
+            state: result.saved ? 'success' : 'failure', message,
+          }) } } };
+        });
       } finally {
         ctx.signal.removeEventListener("abort", closeOnAbort);
       }
@@ -480,6 +506,13 @@ export function buildExternalMcpRegistrations(routeDeps: ExternalMcpToolDeps, su
       const record = await routeDeps.externalMcpServerRepo.findByServerId({ workspaceId: routeDeps.workspaceId, serverId: id });
       if (!record) return { ok: false, reason: `no external MCP server is configured as '${id}'` };
       if (!record.enabled) return { ok: false, reason: "this server is disabled" };
+
+      if (routeDeps.externalMcpProbe) {
+        const probe = await routeDeps.externalMcpProbe({ serverId: id });
+        return !probe.ok && probe.body.code === "MCP_AUTH_REJECTED" && record.authMode === "static_env"
+          ? { ...probe, credentialSetup: issueCredentialSetup({ setupToolId: "external_mcp_save", prefill: { id } }, {}) }
+          : probe;
+      }
 
       const { configs, failures } = await readEnabledExternalMcpConfigs(
         { repo: routeDeps.externalMcpServerRepo, sealer: routeDeps.siteAssistantSecretSealer, oauth: routeDeps.externalMcpOAuth?.tokenResolver },
@@ -558,6 +591,6 @@ export function buildExternalMcpRegistrations(routeDeps: ExternalMcpToolDeps, su
  * `server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not
  * by importing this module. See this file's header for what was unreachable before this existed.
  */
-export function contributeExternalMcpTools(): ToolContributor {
-  return { domain: "external-mcp", build: buildExternalMcpRegistrations, risk: externalMcpDerivedRisk };
+export function contributeExternalMcpTools({ probe }: { probe?: (deps: ExternalMcpToolDeps, serverId: string) => Promise<{ ok: boolean; body: Readonly<Record<string, unknown>> }> } = {}, _optional = {}): ToolContributor {
+  return { domain: "external-mcp", build: (deps, surfaces) => buildExternalMcpRegistrations({ ...deps, ...(probe ? { externalMcpProbe: ({ serverId }: { serverId: string }) => probe(deps, serverId) } : {}) }, surfaces), risk: externalMcpDerivedRisk };
 }

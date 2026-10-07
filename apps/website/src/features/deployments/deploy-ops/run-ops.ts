@@ -1,3 +1,5 @@
+import type { OperatorLocaleDeps } from "#src/features/agent-plugins/operator-locale";
+import { issueCredentialSetup, type ToolFailureDiagnostic } from "#src/contracts/core/tool-failure-diagnostics";
 import { nowIso } from "@jini-ai/core/primitives";
 import { ToolInputError } from "@jini-ai/core";
 import { makeCredentialedRequest, resolveRequestTarget, CredentialedRequestValidationError, CredentialedRequestTransportError, type CredentialedRequestDeps, listCustomCredentials, CustomCredentialNotFoundError, allowedOriginsFor } from "#src/features/custom-credentials/index";
@@ -12,7 +14,7 @@ export const MAX_RESPONSE_CHARS = 256_000;
 export const MAX_WAIT_SECONDS = 300;
 /** One module pause is short; a module that needs longer must poll, so cancellation stays prompt. */
 export const MAX_MODULE_SLEEP_MS = 5_000;
-export interface DeployOpsToolDeps {
+export interface DeployOpsToolDeps extends OperatorLocaleDeps {
   authorize: AuthorizeFn;
   workspaceId: string;
   clock: CredentialedRequestDeps["clock"];
@@ -45,17 +47,26 @@ const systemClock: WaitClock = {
 export const aborted = () => new ToolInputError({ message: "Deployment ops wait was aborted." });
 const TIMEOUT = Symbol("deployment ops timeout");
 
+/** Internal control signal caught at the registration boundary; tools return the diagnostic. */
+export class DeployCredentialSetupRequired extends ToolInputError {
+  readonly credentialSetup: ToolFailureDiagnostic;
+  constructor({ label, baseUrl }: { label: string; baseUrl: string }, _optional = {}) {
+    super({ message: "No matching deployment credential is saved. Call custom_credential_create to open its secure card, then retry once." });
+    this.credentialSetup = issueCredentialSetup({ setupToolId: "custom_credential_create", prefill: { label, baseUrl, category: "ops" } }, {});
+  }
+}
+
 /** Resolve by explicit label or exactly one saved host match, without decrypting. O(credentials). */
 async function credentialLabel(deps: DeployOpsToolDeps, platform: LoadedDeployOps, explicit?: string): Promise<string> {
   const credentials = await listCustomCredentials({ repo: deps.customCredentialSetRepo }, { workspaceId: deps.workspaceId });
   const labels = credentials.map(c => c.label).sort().join(", ") || "(none)";
   if (explicit !== undefined) {
-    if (!credentials.some(c => c.label === explicit)) throw new ToolInputError({ message: `No saved custom credential labeled '${explicit}'. Choose: ${labels}.` });
+    if (!credentials.some(c => c.label === explicit)) throw new DeployCredentialSetupRequired({ label: explicit, baseUrl: `https://${platform.descriptor.hosts[0]!}` }, {});
     return explicit;
   }
   const host = platform.descriptor.hosts[0]!;
   const matches = credentials.filter(c => allowedOriginsFor(c).includes(`https://${host}`));
-  if (matches.length === 0) throw new ToolInputError({ message: `No saved custom credential matches '${host}'. Set credentialLabel. Saved labels: ${labels}.` });
+  if (matches.length === 0) throw new DeployCredentialSetupRequired({ label: platform.descriptor.id, baseUrl: `https://${host}` }, {});
   if (matches.length !== 1) throw new ToolInputError({ message: `Several saved custom credentials match '${host}'. Set credentialLabel to one of: ${matches.map(c => c.label).sort().join(", ")}.` });
   return matches[0]!.label;
 }

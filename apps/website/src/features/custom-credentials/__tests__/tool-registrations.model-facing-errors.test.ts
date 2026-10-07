@@ -198,11 +198,24 @@ test("an unknown label says not-found on every tool that resolves one, rather th
 
     const result = await call(harness, name.split(" ")[0]!, input);
 
+    if (name.startsWith("custom_credential_verify") || name.startsWith("custom_credential_make_request")) {
+      assert.equal(result.ok, true);
+      assert.equal(result.ok, true);
+      if (!result.ok) continue;
+      const output = result.value.result.output as { credentialSetup?: unknown };
+      assert.deepEqual(output.credentialSetup, {
+        setupToolId: "custom_credential_create", remedyToolId: "custom_credential_create",
+        prefill: { label: "nope", ...(input.url ? { baseUrl: "https://api.fly.io" } : {}) },
+        hint: "A missing or rejected credential may be fixed by saving it through the secure card.",
+      });
+      assert.equal(httpClient.calls.length, 0);
+      continue;
+    }
     assert.equal(result.ok, false, `${name}: expected a refusal`);
     if (result.ok) continue;
     assert.deepEqual(
       result.error,
-      { code: "BAD_REQUEST", message: "CUSTOM_CREDENTIALS_NOT_FOUND: no custom credential labeled 'nope' in this workspace" },
+      { code: "BAD_REQUEST", message: "CUSTOM_CREDENTIALS_NOT_FOUND: no custom credential labeled 'nope' in this workspace. Call custom_credential_create to open the secure credential card, then retry once." },
       name
     );
     assert.equal(httpClient.calls.length, 0, `${name}: nothing may be sent for an unknown label`);

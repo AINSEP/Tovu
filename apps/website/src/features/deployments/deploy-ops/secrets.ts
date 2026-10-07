@@ -21,7 +21,7 @@ import type { DeployOpsContext, DeployOpsSecretAppliesOn, DeployOpsSecretInfo, D
  * reports a one-way fingerprint.
  */
 
-export type SecretValueSource = { kind: "site-key" } | { kind: "secret"; name: string };
+export type SecretValueSource = { kind: "site-key" } | { kind: "secret"; name: string } | { kind: "typed" };
 export interface SecretTargetInput { platform: string; target: string; credentialLabel?: string }
 export interface SetSecretInput extends SecretTargetInput { name: string; source: SecretValueSource; dryRun?: boolean }
 export interface UnsetSecretInput extends SecretTargetInput { name: string }
@@ -156,6 +156,12 @@ function validateSetInput(platform: LoadedDeployOps, input: SetSecretInput): voi
   if (!platform.module.readSecret) throw new ToolInputError({ message: `Deployment ops platform '${input.platform}' cannot read secret values, so it cannot copy one secret to another. Use source kind 'site-key'.` });
 }
 
+/** Private card-only value: preserve bytes and refuse missing values without displaying them. */
+function requireTypedValue({ value }: { value: unknown }, _optional = {}): string {
+  if (typeof value !== "string" || value.trim() === "" || value.length > 8192) throw new ToolInputError({ message: "The secure form requires a non-blank secret of at most 8192 characters." });
+  return value;
+}
+
 /**
  * Set one secret on a host target from a server-side source; skips the write when the value is already there.
  * @param required - `deps`: credential ports, no-redirect client, site-key reader; `input`: platform, target, name, source, optional dryRun and credential label.
@@ -165,15 +171,17 @@ function validateSetInput(platform: LoadedDeployOps, input: SetSecretInput): voi
  * @complexity Time: O(credentials + secrets + value length) plus at most four adapter requests. Space: O(secrets).
  * @example await runSetSecret({ deps, input: { platform: "fly", target: "my-app", name: "TOVU_SITE_KEY", source: { kind: "site-key" } } }, { confirm });
  */
-export async function runSetSecret(required: { deps: DeployOpsToolDeps; input: SetSecretInput }, optional: { signal?: AbortSignal; confirm?: SecretConfirm } = {}): Promise<SetSecretResult> {
+export async function runSetSecret(required: { deps: DeployOpsToolDeps; input: SetSecretInput }, optional: { signal?: AbortSignal; confirm?: SecretConfirm; typedValue?: unknown } = {}): Promise<SetSecretResult> {
   const { deps, input } = required; const { signal, confirm } = optional;
   const platform = await secretsPlatform(deps, input.platform, signal);
   validateSetInput(platform, input);
   const siteKey = input.source.kind === "site-key" ? requireSiteKey(deps) : undefined;
   const ctx = await boundContext(deps, platform, input.credentialLabel, signal);
-  const value = await resolveValue(platform, ctx, input, siteKey);
+  const value = input.source.kind === "typed"
+    ? requireTypedValue({ value: optional.typedValue }, {})
+    : await resolveValue(platform, ctx, input, siteKey);
   const comparison = await compareCurrent(platform, ctx, input, value, signal);
-  const source = input.source.kind === "site-key" ? "this site's key" : `secret ${input.source.name}`;
+  const source = input.source.kind === "site-key" ? "this site's key" : input.source.kind === "typed" ? "the secure card" : `secret ${input.source.name}`;
   const base = { platform: input.platform, target: input.target, name: input.name, source: input.source, comparison, ...secretFingerprint(value), ...applies(platform) };
   if (comparison === "same") return { ...base, changed: false, deployNeeded: false, summary: `'${input.name}' on '${input.target}' already holds ${source}; nothing was written.` };
   if (input.dryRun) return { ...base, changed: false, dryRun: true, deployNeeded: false, summary: `Dry run: '${input.name}' would be ${comparison === "absent" ? "created" : "replaced"} from ${source}. Nothing was written.` };

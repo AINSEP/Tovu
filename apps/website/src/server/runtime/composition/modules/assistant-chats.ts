@@ -23,7 +23,7 @@ import type { Express, Request, Response } from "express";
 import { readPreviousAssistantDaemon } from "../../lifecycle/assistant-daemon-registry.js";
 
 import { deriveContentConversationTitle } from "#src/contracts/headless/content-chat-title";
-import { deriveConversationTitle } from "@jini-ai/chat/core";
+import { deriveConversationTitle, redactUserMessage, redactUserText } from "@jini-ai/chat/core";
 import type { ChatHistoryStore, ChatMessage } from "@jini-ai/chat/core";
 
 import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
@@ -150,7 +150,7 @@ export function createAssistantChatsModule(deps: RouteDeps, options: AssistantCh
         // A title derived from the first prompt, when the client sends one. Local and synchronous
         // — a conversation needs a name the moment it appears in the list, and a model call to
         // produce one would put a spinner in front of every "New chat".
-        const seed = typeof body.firstMessage === "string" ? deriveAssistantConversationTitle(body.firstMessage) : "";
+        const seed = typeof body.firstMessage === "string" ? deriveAssistantConversationTitle(redactUserText({ text: body.firstMessage }).text) : "";
         storeFor(res)
           .create({
             id,
@@ -208,13 +208,17 @@ export function createAssistantChatsModule(deps: RouteDeps, options: AssistantCh
           res.status(400).json({ error: "'role' must be 'user' or 'assistant'", code: "VALIDATION_ERROR" });
           return;
         }
+        if (typeof body.content !== "string") {
+          res.status(400).json({ error: "'content' must be a string", code: "VALIDATION_ERROR" });
+          return;
+        }
         const sent = body as unknown as ChatMessage;
-        const message: ChatMessage = {
+        const message: ChatMessage = redactUserMessage({ message: {
           ...sent,
           id: req.params.messageId!,
           // Streamed text deltas saved as one event per run, the same shape the server finalizer writes.
           ...(Array.isArray(sent.events) ? { events: runEventsForSave(sent.events) } : {}),
-        };
+        } }).message;
         const id = req.params.id!;
         const store = storeFor(res);
         store

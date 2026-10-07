@@ -1,3 +1,4 @@
+import { CREDENTIAL_GUIDANCE } from "#src/assistant/credential-guidance";
 /**
  * @file Test seam extracted out of `agent-daemon-server.ts`'s `assistantPromptAugmenter.
  * systemOverlay()`: the base tool-catalog-protocol overlay every assistant run receives, and the
@@ -231,6 +232,7 @@ export function buildBaseSystemOverlay(bashProhibitionEnabled: boolean): string 
     "and audit-log guarantees entirely. Never authenticate as an administrator yourself (e.g. via " +
     "the admin login route) to perform an action a registered tool already exists for. " +
     buildBashProhibitionBlock(bashProhibitionEnabled) +
+    CREDENTIAL_GUIDANCE +
     "What to do instead when you believe no tool fits: search_tools again with different phrasing and a " +
     "higher limit, and if it still does not exist, SAY SO. State plainly that the catalog has no tool " +
     "for this, and describe what the missing tool would need to do and what inputs it would take. That " +
@@ -265,9 +267,8 @@ export function buildBaseSystemOverlay(bashProhibitionEnabled: boolean): string 
     "retry the ORIGINAL failed call through custom_credential_verify/custom_credential_make_request " +
     "exactly ONCE. Report the retry's real outcome truthfully — success only if the retry itself " +
     "actually succeeded, and the provider's own error, unchanged, if it failed again. Never attempt " +
-    "a second ask-fix-retry cycle for the same request: if the retry still fails, or " +
-    "'usernameStored' was already true (a different, unguessable cause this diagnostic cannot " +
-    "explain), stop and report the failure plainly instead of looping. When a federated external " +
+    "a second ask-fix-retry cycle for the same request: if the retry still fails, stop and report the failure plainly. " +
+    "If the ORIGINAL failed call already had 'usernameStored' true, use custom_credential_set_token to rotate the saved token through its secure card and retry once. When a federated external " +
     "MCP tool call (its id starts with 'mcp__') fails with an error saying a server 'is " +
     "disconnected: its authorization expired or was revoked', do not just relay that in prose and " +
     "do not keep retrying the same tool. Call external_mcp_reauth_prompt with that connection's id " +

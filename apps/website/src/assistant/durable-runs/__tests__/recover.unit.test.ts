@@ -312,3 +312,18 @@ test("a failed end outranks a fresh live HTTP record", async () => {
   assert.equal(await h.recovery.recover({ messageId: "answer", trigger: "attempt-failed" }, { liveRunId: "old" }), "continued");
   assert.deepEqual(h.probes, []); assert.equal(h.launches.length, 1);
 });
+
+test("run acceptance removes pasted credentials before the durable store sees its envelope", async () => {
+  const h = harness();
+  let captured = "";
+  const acceptance = createRunAcceptance({
+    store: { ...h.store, async accept({ request }) { captured = request.contextRef; return null; } },
+    now: () => TIME, mintRunId: () => "safe-attempt", launch: async () => assert.fail("not accepted"), attach: () => assert.fail("not accepted"),
+  }, {});
+  const secret = "sk-" + "A1b2C3d4E5f6G7h8I9j0";
+  assert.equal(await acceptance.accept({ principalId: "admin", workspaceId: "ws", conversationId: "chat", messageId: "answer",
+    request: { agentId: "codex", contextRef: JSON.stringify({ prompt: `Save ${secret} please`, conversationId: "chat" }) },
+  }, {}), null);
+  assert.equal(captured.includes(secret), false);
+  assert.deepEqual(JSON.parse(captured), { prompt: "Save [token removed] please", conversationId: "chat" });
+});

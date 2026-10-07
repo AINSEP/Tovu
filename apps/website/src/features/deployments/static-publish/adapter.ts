@@ -1,3 +1,4 @@
+import { issueCredentialSetup } from "#src/contracts/core/tool-failure-diagnostics";
 import { rmSync } from "node:fs";
 import path from "node:path";
 
@@ -299,12 +300,13 @@ async function resolvePublishCredentialForSite(
       outcome: {
         ok: false,
         code: "NO_CREDENTIALS_CONFIGURED",
+        credentialSetup: issueCredentialSetup({ setupToolId: "deployment_propose_custom_provider_credential", prefill: { target: input.config.target } }, {}),
         message: `credential could not be resolved: ${err instanceof Error ? err.message : String(err)}`,
       },
     };
   }
   if (!credential.ok) {
-    return { ok: false, outcome: { ok: false, code: "NO_CREDENTIALS_CONFIGURED", message: credential.reason } };
+    return { ok: false, outcome: { ok: false, code: "NO_CREDENTIALS_CONFIGURED", credentialSetup: issueCredentialSetup({ setupToolId: "deployment_propose_custom_provider_credential", prefill: { target: input.config.target } }, {}), message: credential.reason } };
   }
   return { ok: true, credential };
 }
@@ -535,8 +537,9 @@ function constructTargetForPublish(
     if (deps.buildTarget !== undefined) return { ok: true, target: deps.buildTarget(config, credential) };
     const kit = deps.hostKit ?? createDeployHostKit({ observability: deps.observability });
     return { ok: true, target: adaptInstalledTarget(pluginTarget.module.create({ credential, config: config as unknown as UnknownRecord, kit })) };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return { ok: false, outcome: { ok: false, code: "NO_CREDENTIALS_CONFIGURED", message: `credential is not usable for ${config.target}: ${message}` } };
+  } catch {
+    // Adapter exceptions may include a credential field; the card needs only the target identifier.
+    return { ok: false, outcome: { ok: false, code: "NO_CREDENTIALS_CONFIGURED", message: `credential is not usable for ${config.target}`,
+      credentialSetup: issueCredentialSetup({ setupToolId: "deployment_propose_custom_provider_credential", prefill: { target: config.target } }, {}) } };
   }
 }

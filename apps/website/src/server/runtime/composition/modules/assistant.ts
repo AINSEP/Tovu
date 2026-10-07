@@ -1,3 +1,4 @@
+import { redactAdminRunContextRef } from "#src/assistant/credential-chat-intake";
 /**
  * @file ADR-049 (process-shape correction) — Tovu never spawns a coding-agent CLI itself. This
  * module is a thin, session-authenticated reverse proxy in front of the standalone agent daemon
@@ -132,7 +133,7 @@ async function proxyRunStart(req: Request, res: Response, daemon: DaemonCallOpti
 
   let decoded: Record<string, unknown>;
   try {
-    decoded = JSON.parse(typeof body.contextRef === "string" ? body.contextRef : "{}") as Record<string, unknown>;
+    decoded = JSON.parse(redactAdminRunContextRef({ contextRef: typeof body.contextRef === "string" ? body.contextRef : "{}" }, {})) as Record<string, unknown>;
   } catch {
     res.status(400).json({ error: "'contextRef' must be a JSON-encoded object", code: "VALIDATION_ERROR" });
     return;

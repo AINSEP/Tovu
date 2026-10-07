@@ -55,7 +55,7 @@ test('t10 media callback delivers a human key only to its parked call, rejects w
   assert.deepEqual(await f.repo.listByWorkspaceId('ws-t10'), []);
   assert.deepEqual(await callback('person', params), { status: 202, body: { delivered: true } });
   const result = await pending;
-  assert.deepEqual(result, { saved: true, provider: 'openai', configured: true });
+  assert.deepEqual(result, { saved: true, provider: 'openai', configured: true, tokenHint: { length: 27, last4: '-731' }, connection: 'not_tested', message: '…-731, 27 chars. Saved, not tested.' });
   assertNoSecret(result); assertNoSecret(emitted);
   assert.deepEqual(await resolveMediaProviderCredential({ repo: f.repo, sealer: f.sealer }, { workspaceId: 'ws-t10', providerId: 'openai' }),
     { apiKey: SECRET, baseUrl: null, model: null });
@@ -116,7 +116,7 @@ test('t10 media list contains exact safe keys, includes configured and unconfigu
   const result = await f.call('media_list_providers', {}) as { providers: Array<{ id: string; label: string; kinds: string[]; configured: boolean }> };
   assert.deepEqual(Object.keys(result), ['providers']); assert.ok(result.providers.length > 1);
   for (const provider of result.providers) {
-    assert.deepEqual(Object.keys(provider).sort(), ['configured', 'id', 'kinds', 'label']);
+    assert.deepEqual(Object.keys(provider).sort(), ['configured', 'id', 'integrated', 'kinds', 'label']);
     assert.ok(provider.kinds.length > 0); assert.ok(provider.kinds.every(k => k === 'image' || k === 'video'));
   }
   assert.equal(result.providers.find(p => p.id === 'openai')!.configured, true);
@@ -136,7 +136,7 @@ test('t10 media form masks the key and submits through a bound exchange; save re
   assert.match(html, /media_propose_provider_credential/); assert.match(html, /exchange-t10/); assertNoSecret(emitted);
   assert.deepEqual(f.surfaces.deliver({ exchangeId: 'exchange-t10', toolId: 'media_propose_provider_credential', principalId: 'intruder', params: { apiKey: SECRET } }), { ok: false, reason: 'binding-mismatch' });
   submit(f, { apiKey: SECRET, provider: 'replicate' }); // provider identity is bound, not taken from the browser.
-  assert.deepEqual(await pending, { saved: true, provider: 'openai', configured: true });
+  assert.deepEqual(await pending, { saved: true, provider: 'openai', configured: true, tokenHint: { length: 27, last4: '-731' }, connection: 'not_tested', message: '…-731, 27 chars. Saved, not tested.' });
   assert.deepEqual(await resolveMediaProviderCredential({ repo: f.repo, sealer: f.sealer }, { workspaceId: 'ws-t10', providerId: 'openai' }),
     { apiKey: SECRET, baseUrl: 'https://images.example.com', model: 'chosen-model' });
   assert.deepEqual((await f.repo.listByWorkspaceId('ws-t10')).find(r => r.providerId === 'replicate'), otherBefore);
@@ -176,9 +176,9 @@ test('t10 media fails closed without a surface channel or after abort', async ()
   assert.deepEqual(await f.repo.listByWorkspaceId('ws-t10'), []); assert.equal(f.surfaces.size(), 0);
 });
 
-for (const key of ['', 42]) test(`t10 media malformed submitted key ${JSON.stringify(key)} saves nothing`, async () => {
+for (const key of ['', '   ', 42]) test(`t10 media malformed submitted key ${JSON.stringify(key)} saves nothing`, async () => {
   const f = fixture(); const { pending } = await form(f); submit(f, { apiKey: key });
-  assert.deepEqual(await pending, { saved: false, provider: 'openai', configured: false });
+  assert.deepEqual(await pending, { saved: false, provider: 'openai', configured: false, message: 'Enter a token. Spaces alone are not a token.' });
   assert.deepEqual(await f.repo.listByWorkspaceId('ws-t10'), []);
 });
 
@@ -215,7 +215,7 @@ test('t10 media failed outcome emission still returns the persisted safe result'
   await Promise.race([raised, pending.then(() => assert.fail('call returned without a form'))]);
   submit(f, { apiKey: SECRET });
   const result = await pending;
-  assert.deepEqual(result, { saved: true, provider: 'openai', configured: true });
+  assert.deepEqual(result, { saved: true, provider: 'openai', configured: true, tokenHint: { length: 27, last4: '-731' }, connection: 'not_tested', message: '…-731, 27 chars. Saved, not tested.' });
   assertNoSecret(result);
   assert.deepEqual(await resolveMediaProviderCredential({ repo: f.repo, sealer: f.sealer }, { workspaceId: 'ws-t10', providerId: 'openai' }), { apiKey: SECRET, baseUrl: null, model: null });
   assert.equal(emissions, 2); assert.equal(f.surfaces.size(), 0);
@@ -226,9 +226,13 @@ test('t10 media generation missing key names the human setup tool in its refusal
   const f = fixture();
   const deps = { ...f.deps, env: {}, generateMedia: async () => assert.fail('missing credential must not call a vendor') } as unknown as MediaGenerationToolDeps;
   const registration = buildMediaGenerationRegistrations(deps).find(r => r.descriptor.id === 'media_generate_asset'); assert.ok(registration);
-  await assert.rejects(invokeFixtureHandler(registration, { executionId: 'exec', principal: { id: 'person' }, run: { id: 'run' },
-    input: { prompt: 'Cover image', model: 'gpt-image-2' }, signal: new AbortController().signal }),
-    { message: 'media_generate_asset: no OpenAI media-provider credential is configured for this workspace (also checked OPENAI_API_KEY in this process\'s environment — none were set). Call media_propose_provider_credential to open a human key form, or an operator can add one in the admin under Media -> "Media providers" (Access Tokens\' counterpart for generation vendors) before this tool can generate an image with this model. Do not retry — this will not resolve without that credential being added.' });
+  const result = await invokeFixtureHandler(registration, { executionId: 'exec', principal: { id: 'person' }, run: { id: 'run' },
+    input: { prompt: 'Cover image', model: 'gpt-image-2' }, signal: new AbortController().signal }) as { generated: boolean; credentialSetup: unknown };
+  assert.equal(result.generated, false);
+  assert.deepEqual(result.credentialSetup, {
+    setupToolId: 'media_propose_provider_credential', remedyToolId: 'media_propose_provider_credential', prefill: { provider: 'openai' },
+    hint: 'A missing or rejected credential may be fixed by saving it through the secure card.',
+  });
 });
 
 test('t10 media saving while a different provider rotates preserves the latest ciphertext and current metadata', async () => {
@@ -238,7 +242,7 @@ test('t10 media saving while a different provider rotates preserves the latest c
   } });
   const otherBefore = (await f.repo.listByWorkspaceId('ws-t10')).find(r => r.providerId === 'replicate');
   submit(f, { apiKey: SECRET });
-  assert.deepEqual(await pending, { saved: true, provider: 'openai', configured: true });
+  assert.deepEqual(await pending, { saved: true, provider: 'openai', configured: true, tokenHint: { length: 27, last4: '-731' }, connection: 'not_tested', message: '…-731, 27 chars. Saved, not tested.' });
   assert.deepEqual((await f.repo.listByWorkspaceId('ws-t10')).find(r => r.providerId === 'replicate'), otherBefore);
   assert.deepEqual(await resolveMediaProviderCredential({ repo: f.repo, sealer: f.sealer }, { workspaceId: 'ws-t10', providerId: 'openai' }),
     { apiKey: SECRET, baseUrl: 'https://new-images.example.com', model: 'latest-model' });
@@ -252,3 +256,16 @@ function invokeFixtureHandler(
   const { emitSurface, ...required } = context;
   return registration.handler(required, emitSurface ? { emitSurface } : {});
 }
+
+test('an unimplemented media provider stays in the catalog and its save outcome names the limitation', async () => {
+  const f = fixture(); const emitted: SurfaceEmission[] = [];
+  let resolve!: () => void; const ready = new Promise<void>(done => { resolve = done; });
+  const pending = f.call('media_propose_provider_credential', { provider: 'replicate' }, { emitSurface: async surface => { emitted.push(surface); resolve(); } });
+  await ready; submit(f, { apiKey: SECRET });
+  const result = await pending as { saved: boolean; message: string };
+  assert.equal(result.saved, true);
+  assert.equal(result.message, '…-731, 27 chars. Saved, not tested. Generation is not available yet for this provider.');
+  const providers = await f.call('media_list_providers', {}) as { providers: Array<{ id: string; integrated: boolean }> };
+  assert.equal(providers.providers.find(provider => provider.id === 'replicate')!.integrated, false);
+  assert.equal(emitted.length, 2); assertNoSecret(result);
+});

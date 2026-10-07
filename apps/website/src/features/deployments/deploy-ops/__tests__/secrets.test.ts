@@ -153,8 +153,8 @@ test("tools: the site-key source needs the site-key permission; a value can neve
   const set = buildDeployOpsRegistrations(denied as typeof h.deps).find(r => r.descriptor.id === "deployment_ops_set_secret")!;
   await assert.rejects(set.handler(execution({ platform: "fly", target: "shop", name: "TOVU_SITE_KEY", source: { kind: "site-key" } })), { message: `principal 'principal' is not authorized for '${SITE_KEY_MANAGE_PERMISSION}' (denied)` });
   for (const [input, message] of [
-    [{ platform: "fly", target: "shop", name: "X", source: { kind: "site-key", value: "leak" } }, "source must be {kind:'site-key'} or {kind:'secret', name}."],
-    [{ platform: "fly", target: "shop", name: "X", source: { kind: "literal" } }, "source must be {kind:'site-key'} or {kind:'secret', name}."],
+    [{ platform: "fly", target: "shop", name: "X", source: { kind: "site-key", value: "leak" } }, "source must be {kind:'typed'}, {kind:'site-key'} or {kind:'secret', name}."],
+    [{ platform: "fly", target: "shop", name: "X", source: { kind: "literal" } }, "source must be {kind:'typed'}, {kind:'site-key'} or {kind:'secret', name}."],
     [{ platform: "fly", target: "shop", name: "X", source: { kind: "site-key" }, value: "leak" }, "Unexpected deployment ops input 'value'."],
     [{ platform: "fly", target: "shop", name: "X", source: { kind: "site-key" }, dryRun: "yes" }, "dryRun must be a boolean."],
   ] as const) await assert.rejects(set.handler(execution(input)), { name: "ToolInputError", message });
@@ -162,7 +162,7 @@ test("tools: the site-key source needs the site-key permission; a value can neve
   const schema = set.descriptor.inputSchema as any;
   assert.deepEqual(Object.keys(schema.properties), ["platform", "target", "credentialLabel", "name", "source", "dryRun"]);
   assert.deepEqual(schema.required, ["platform", "target", "name", "source"]);
-  assert.deepEqual(schema.properties.source.properties.kind.enum, ["site-key", "secret"]);
+  assert.deepEqual(schema.properties.source.properties.kind.enum, ["site-key", "secret", "typed"]);
 });
 
 test("tools: unset holds the call on a card for the named human and re-checks permission before deleting", async () => {
@@ -226,4 +226,34 @@ test("the default site-key reader resolves this site's sources; no bound site me
     if (previous.mode !== undefined) process.env.TOVU_RUNTIME_MODE = previous.mode;
     await forceRemove(siteDir);
   }
+});
+
+test('typed secret enters only the masked card and reaches the platform with exact bytes', async () => {
+  const h = await harness({ [`GET ${API}`]: listed(), [`GET ${API}/STRIPE_KEY?show_secrets=true`]: { status: 404, body: {} }, [`POST ${API}/STRIPE_KEY`]: { status: 201, body: { version: 1 } } });
+  const store = createSurfaceExchangeStore(); const emitted: unknown[] = [];
+  const registration = buildDeployOpsRegistrations(h.deps, { surfaceExchanges: store }).find(r => r.descriptor.id === 'deployment_ops_set_secret')!;
+  const pending = registration.handler(execution({ platform: 'fly', target: 'shop', name: 'STRIPE_KEY', source: { kind: 'typed' } }), { emitSurface: async surface => { emitted.push(surface); } });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(emitted.length, 1);
+  const html = (emitted[0] as { payload: { resource: { resource: { text: string } } } }).payload.resource.resource.text;
+  assert.equal(html.includes('<textarea'), true); assert.equal(html.includes('name="value"'), true);
+  assert.equal(html.includes('data-mcpui-secret'), true);
+  const match = html.match(/__exchangeId"\s*:\s*"([^"]+)"/); assert.ok(match);
+  const secret = '  opaque-key\r\nsecond-line  ';
+  assert.deepEqual(store.deliver({ exchangeId: match[1]!, toolId: 'deployment_ops_set_secret', principalId: 'principal', params: { value: secret } }), { ok: true });
+  const result = await pending;
+  assert.equal((result as { changed: boolean }).changed, true);
+  const post = h.calls.find(call => call.method === 'POST')!;
+  assert.equal(JSON.parse(post.body!).value === secret, true, 'secret bytes changed on the vendor request');
+  assert.equal(JSON.stringify([result, emitted]).includes(JSON.stringify(secret).slice(1, -1)), false, 'secret reached the model or outcome');
+  assert.equal(store.size(), 0); assert.equal(emitted.length, 2);
+  const uris = emitted.map(item => (item as { payload: { resource: { resource: { uri: string } } } }).payload.resource.resource.uri);
+  assert.equal(uris[1], uris[0], 'the outcome must replace the input card');
+});
+
+test('typed secret refuses model-supplied values and headless execution', async () => {
+  const h = await harness({}); const set = buildDeployOpsRegistrations(h.deps).find(r => r.descriptor.id === 'deployment_ops_set_secret')!;
+  await assert.rejects(set.handler(execution({ platform: 'fly', target: 'shop', name: 'STRIPE_KEY', source: { kind: 'typed', value: 'smuggled' } })), { message: "source must be {kind:'typed'}, {kind:'site-key'} or {kind:'secret', name}." });
+  await assert.rejects(set.handler(execution({ platform: 'fly', target: 'shop', name: 'STRIPE_KEY', source: { kind: 'typed' } })), { message: 'A typed deployment secret requires an interactive secure card. Nothing was changed.' });
+  assert.deepEqual(h.calls, []);
 });

@@ -127,6 +127,10 @@ async function seedFlyIo(writeDeps: CustomCredentialWriteDeps) {
     additionalHosts: ["https://api.machines.dev"],
     connection: { token: "flyio-secret-token" },
   });
+  // The authorized setup save now unseals to derive its safe token hint (C3, 2026-10-07).
+  // Count only the request under test, retaining zero-decrypt assertions for unconfirmed DELETEs.
+  assert.ok(writeDeps.sealer instanceof TrackingSecretSealer);
+  writeDeps.sealer.openCalls = 0;
 }
 
 function buildRegistrations(deps: CustomCredentialsToolDeps, surfaceExchanges: SurfaceExchangeStore): Map<string, ToolRegistration> {
@@ -487,16 +491,14 @@ test("an unknown label is refused as not-found before any dialog is raised", asy
   const surfaceExchanges = createSurfaceExchangeStore();
   const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
-  await assert.rejects(
-    () => call(deleteTool, { input: { label: "does-not-exist", method: "DELETE", url: "https://api.fly.io/v1/apps" } }),
-    (err: unknown) => {
-      // A `ToolInputError` since 2026-09-16: the map-level model-facing wrap re-classifies
-      // `CustomCredentialNotFoundError` so the real reason is not redacted on its way to the model.
-      assert.ok(err instanceof ToolInputError);
-      assert.equal((err as Error).message, "CUSTOM_CREDENTIALS_NOT_FOUND: no custom credential labeled 'does-not-exist' in this workspace");
-      return true;
-    }
-  );
+  // A `ToolInputError` since 2026-09-16: the map-level model-facing wrap re-classified
+  // `CustomCredentialNotFoundError` so the real reason was not redacted on its way to the model.
+  // Credential setup now returns a diagnostic; DELETE is still not dispatched or confirmed here.
+  const result = await call(deleteTool, { input: { label: "does-not-exist", method: "DELETE", url: "https://api.fly.io/v1/apps" } }) as { credentialSetup: unknown };
+  assert.deepEqual(result.credentialSetup, {
+    setupToolId: "custom_credential_create", remedyToolId: "custom_credential_create", prefill: { label: "does-not-exist", baseUrl: "https://api.fly.io" },
+    hint: "A missing or rejected credential may be fixed by saving it through the secure card.",
+  });
   assert.equal(surfaceExchanges.size(), 0, "an unresolvable target must never raise a dialog");
   assert.equal(sealer.openCalls, 0);
   assert.equal(httpClient.calls.length, 0);

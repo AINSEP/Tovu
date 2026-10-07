@@ -299,3 +299,21 @@ test("rejects a message with an unknown role", async (t) => {
   });
   assert.equal(response.status, 400);
 });
+
+test("pasted credentials are removed before real chat-store rows are written or returned", async t => {
+  const { baseUrl, cookie } = await bootAuthenticated(buildApp(), t);
+  const { conversation } = await (await api(baseUrl, cookie, '', { method: 'POST', body: '{}' })).json() as { conversation: { id: string } };
+  const secret = 'sk-' + 'A1b2C3d4E5f6G7h8I9j0';
+  for (const content of [`Save ${secret} please`, `Update ${secret} please`]) {
+    const response = await api(baseUrl, cookie, `/${conversation.id}/messages/guarded`, {
+      method: 'PUT', body: JSON.stringify({ role: 'user', content, createdAt: 1 }),
+    });
+    assert.equal(response.status, 200);
+    const saved = await response.json() as { message: { content: string } };
+    assert.equal(saved.message.content, content.startsWith('Save') ? 'Save [token removed] please' : 'Update [token removed] please');
+    assert.equal(JSON.stringify(saved).includes(secret), false, 'credential escaped the write boundary');
+  }
+  const rows = await (await api(baseUrl, cookie, `/${conversation.id}/messages`)).json() as { messages: Array<{ content: string }> };
+  assert.deepEqual(rows.messages.map(row => row.content), ['Update [token removed] please']);
+  assert.equal(JSON.stringify(rows).includes(secret), false, 'credential escaped the stored transcript');
+});

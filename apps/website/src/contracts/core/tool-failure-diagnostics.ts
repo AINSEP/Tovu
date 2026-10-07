@@ -1,3 +1,5 @@
+import { redactUserText } from "@jini-ai/chat/core";
+import { assertCredentialFreeField } from "./credential-token.js";
 /**
  * @file The general tool-failure contract (2026-09-01): what ANY tool attaches to a failed outcome
  * so a caller — human, agent, or an automated retry loop — has something to reason about instead of a
@@ -73,6 +75,8 @@
  * file's header) as additional fields alongside the two declared here.
  */
 export interface ToolFailureDiagnostic {
+  readonly setupToolId?: string;
+  readonly prefill?: Readonly<Record<string, string | number | boolean | null>>;
   /**
    * The best hypothesis for why the call failed, together with what input or state would change the
    * outcome if that hypothesis is right (facets 2 and 3 of this file's header) — one hedged sentence,
@@ -123,4 +127,20 @@ export function issueToolFailureDiagnostic<T extends ToolFailureDiagnostic>(diag
  */
 export function isIssuedToolFailureDiagnostic(value: unknown): boolean {
   return typeof value === "object" && value !== null && issuedDiagnostics.has(value);
+}
+
+/** Only card metadata travels through recovery; secret values belong to the parked card. */
+export function issueCredentialSetup(
+  required: { setupToolId: string; prefill: Readonly<Record<string, string | number | boolean | null>> },
+  _optional = {},
+): ToolFailureDiagnostic & { setupToolId: string; prefill: typeof required.prefill; hint: string; remedyToolId: string } {
+  for (const [key, value] of Object.entries(required.prefill)) {
+    if (/token|secret|password|authorization|env|headers|body|key/i.test(key)) throw new Error("Credential setup accepts only non-secret metadata.");
+    if (typeof value === "string") {
+      assertCredentialFreeField({ value, field: key }, {});
+      if (redactUserText({ text: value }).secretRedacted) throw new Error("Credential setup accepts only non-secret metadata.");
+    }
+  }
+  return issueToolFailureDiagnostic({ ...required, remedyToolId: required.setupToolId,
+    hint: "A missing or rejected credential may be fixed by saving it through the secure card." });
 }

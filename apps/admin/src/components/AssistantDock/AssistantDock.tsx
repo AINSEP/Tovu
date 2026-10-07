@@ -1,3 +1,4 @@
+import { onAdminSecretRedacted } from "@/lib/credential-card-guidance";
 import { useTovuDockExecution } from '../../hooks/use-tovu-execution-adapters.hooks';
 import { useTovuExecutionPolicy } from '../../hooks/use-tovu-execution-policy.hooks';
 import { useSelectedSkills, useComposerDiscoveryDraft, useSkillOnlySend } from "./hooks/composer-skills.hooks";
@@ -550,6 +551,7 @@ export function AssistantDock({
         key={chats.paneKey}
         transport={failureSurface.transport}
         deliverTypedAnswer={typedAnswerPoster}
+        onSecretRedacted={onAdminSecretRedacted}
         runtimeAccess={failureSurface.runtimeAccess}
         {...(agentsPlaceholder ? { agents: agentsPlaceholder } : {})}
         // Fully controlled (`selection`/`onSelectionChange`), not `initialSelection` — see

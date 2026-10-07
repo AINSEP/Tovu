@@ -82,7 +82,7 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   deployment_ops_list_targets: "list my fly apps which apps do I have deployments",
   deployment_ops_deploy: "deploy now redeploy ship release roll out push the server app to production start a deploy fly github actions workflow dispatch latest commit main",
   deployment_ops_list_secrets: "list secrets environment variables env vars which secrets are set on my app server host fly names digests",
-  deployment_ops_set_secret: "set secret add environment variable env var copy site key to host server rename secret copy secret fly stage",
+  deployment_ops_set_secret: "set secret STRIPE_KEY on my app add environment variable env var copy site key to host server rename secret copy secret fly stage",
   deployment_ops_unset_secret: "unset secret remove delete environment variable env var old secret from host server app fly",
   domain_lookup_dns: "domain DNS dig lookup resolve records A AAAA CNAME MX TXT NS nameservers propagation apex www IP mail verification ACME challenge _acme-challenge DKIM DMARC _dmarc _domainkey",
   domain_check_dns: "domain DNS custom points pointing host hosting deploy target expected compare mismatch apex www publish destination",
@@ -560,7 +560,7 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
     "credential token api key set update change rotate replace new expired refresh save secret",
   custom_credential_create:
     "credential add new create save connect account api key token provider registrar hosting third-party " +
-    "service dns fly.io name.com save store add new api key secret stripe openai mailchimp",
+    "service dns use my fly.io token name.com save store add new api key secret connect my stripe account openai save my mailchimp API key",
   // The generic plugin token fallback form (was SPEC-052's supabase_set_access_token, moved
   // 2026-09-29). Deliberately NO "connect", "sign in", "database" or "postgres": those belong to
   // agent_plugin_connect below, and a fallback outranking it is how supabase_get_database was misused.

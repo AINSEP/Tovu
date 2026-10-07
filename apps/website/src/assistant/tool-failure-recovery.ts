@@ -1,3 +1,5 @@
+import { assertCredentialFreeField } from "../contracts/core/credential-token.js";
+import { redactUserText } from "@jini-ai/chat/core";
 import type { Principal, ToolDescriptor, ToolRegistry } from "@jini-ai/core";
 import type { ToolExecutionResult, ToolExecutor } from "@jini-ai/daemon";
 import { buildFormSurface, type SurfaceField, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
@@ -130,7 +132,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 
 /** The one shape this loop treats as actionable — both fields present, both non-empty strings. `hint`
  *  alone (no `remedyToolId`) is deliberately excluded; see this file's header. */
-type ActionableToolFailureDiagnostic = Required<Pick<ToolFailureDiagnostic, "hint" | "remedyToolId">>;
+type ActionableToolFailureDiagnostic = Required<Pick<ToolFailureDiagnostic, "hint" | "remedyToolId">> & Pick<ToolFailureDiagnostic, "setupToolId" | "prefill">;
 
 function isActionableDiagnostic(value: Record<string, unknown>): value is ActionableToolFailureDiagnostic {
   return typeof value.hint === "string" && value.hint.length > 0 && typeof value.remedyToolId === "string" && value.remedyToolId.length > 0;
@@ -149,7 +151,7 @@ function isActionableDiagnostic(value: Record<string, unknown>): value is Action
  * @complexity O(1).
  */
 function remedyReportedFailure(output: unknown): boolean {
-  return isPlainObject(output) && output["saved"] === false;
+  return isPlainObject(output) && (output["saved"] === false || output["created"] === false || output["cancelled"] === true || output["connected"] === false);
 }
 
 /** Mutable, explicitly-threaded scan budget for {@link walkForDiagnostic} — a plain object passed down
@@ -189,7 +191,7 @@ function walkForDiagnostic(value: unknown, depth: number, scanState: DiagnosticS
   // widget's props) is plain JSON and can carry `{hint, remedyToolId}` too. Only a diagnostic the
   // tool itself issued for a failure may raise the recovery dialog — see `issueToolFailureDiagnostic`.
   if (isPlainObject(value) && isIssuedToolFailureDiagnostic(value) && isActionableDiagnostic(value)) {
-    return { hint: value.hint, remedyToolId: value.remedyToolId };
+    return value;
   }
 
   const children = diagnosticScanChildren(value);
@@ -323,6 +325,24 @@ function planRemedyCall(input: { remedyToolId: string; descriptor: ToolDescripto
   return { remedyToolId, carryForward, askFor };
 }
 
+/** Card schemas accept metadata only. Reject secret-shaped prefills before even asking. */
+function planCredentialSetup(
+  { diagnostic, descriptor }: { diagnostic: ActionableToolFailureDiagnostic; descriptor: ToolDescriptor | undefined }, _optional = {},
+): RemedyPlan | undefined {
+  const shape = resolveRemedySchemaShape(descriptor);
+  if (!shape || diagnostic.setupToolId !== diagnostic.remedyToolId || !diagnostic.prefill) return undefined;
+  const prefill = diagnostic.prefill;
+  for (const [key, value] of Object.entries(prefill)) {
+    if (!(key in shape.properties) || /token|secret|password|authorization|env|headers|body|key/i.test(key)) return undefined;
+    if (!isJsonPrimitive(value) || (typeof value === "string" && redactUserText({ text: value }).secretRedacted)) return undefined;
+    if (typeof value === "string") {
+      try { assertCredentialFreeField({ value, field: key }, {}); } catch { return undefined; }
+    }
+  }
+  if (shape.required.some(key => !(key in prefill))) return undefined;
+  return { remedyToolId: diagnostic.remedyToolId, carryForward: prefill };
+}
+
 function recoverySurfaceUri(exchangeId: string): UIResourceUri {
   return `ui://tovu/tool-failure-recovery/${exchangeId}` as UIResourceUri;
 }
@@ -416,7 +436,9 @@ function resolveRecoveryGate(input: {
   if (readOnlyRefusal !== null) return { attempt: false, outcome: { ...result, error: readOnlyRemedyRefusalMessage(readOnlyRefusal) } };
 
   const descriptor = registry.list({}).find((d) => d.id === diagnostic.remedyToolId);
-  const plan = planRemedyCall({ remedyToolId: diagnostic.remedyToolId, descriptor, originalInput });
+  const plan = diagnostic.setupToolId
+    ? planCredentialSetup({ diagnostic, descriptor }, {})
+    : planRemedyCall({ remedyToolId: diagnostic.remedyToolId, descriptor, originalInput });
   if (!plan) return { attempt: false, outcome: result };
 
   return { attempt: true, plan };
@@ -486,14 +508,16 @@ export function withToolFailureRecovery(inner: ToolExecutor, deps: ToolFailureRe
       const gate = resolveRecoveryGate({ diagnostic, principal, originalInput: input, registry: deps.registry, result });
       if (!gate.attempt) return gate.outcome;
 
-      const exchange = deps.surfaceExchanges.open({ toolId: TOOL_FAILURE_RECOVERY_TOOL_ID, principalId: principal.id }, emitSurface);
-      const ui = buildRecoveryFormResource({ exchangeId: exchange.id, hint: diagnostic.hint, remedyToolId: diagnostic.remedyToolId, askFor: gate.plan.askFor });
-
-      const decision = await collectRecoveryDecision({ exchange, ui, askForKey: gate.plan.askFor?.key, signal });
-      // Declined, dismissed, expired, or a blank answer — the ORIGINAL failure is still the truth.
-      if (!decision.proceed) return result;
-
-      const remedyInput = buildRemedyInput(gate.plan, decision);
+      let remedyInput: Record<string, unknown> = { ...gate.plan.carryForward };
+      if (!diagnostic.setupToolId) {
+        const exchange = deps.surfaceExchanges.open({ toolId: TOOL_FAILURE_RECOVERY_TOOL_ID, principalId: principal.id }, emitSurface);
+        const ui = buildRecoveryFormResource({ exchangeId: exchange.id, hint: diagnostic.hint, remedyToolId: diagnostic.remedyToolId, askFor: gate.plan.askFor });
+        const decision = await collectRecoveryDecision({ exchange, ui, askForKey: gate.plan.askFor?.key, signal });
+        // Declined, dismissed, expired, or a blank answer — the ORIGINAL failure is still the truth.
+        if (!decision.proceed) return result;
+        remedyInput = buildRemedyInput(gate.plan, decision);
+      }
+      // Credential setup goes directly to the masked card; it supplies its own human decision.
 
       // ---- STRUCTURAL ONE-CYCLE GUARD ----
       // Both calls below go straight to `inner` — never back through this function or the object it

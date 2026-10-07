@@ -1,3 +1,5 @@
+import { CREDENTIAL_GUIDANCE, withCredentialPasteGuidance } from "#src/assistant/credential-guidance";
+import { redactUserMessage } from "@jini-ai/chat/core";
 import { prepareByokMessageAttachments } from "#src/server/inbound/assistant/byok-message-attachments";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor, DerivedToolContributor } from "#src/assistant/index";
@@ -86,7 +88,7 @@ export const SYSTEM_PREAMBLE =
   "request. Use headers, lists, or tables only when they carry real structure. Give full detail " +
   "when asked, and never trade correctness for brevity — error text, failing output, and " +
   "confirmations for destructive actions keep their full content. " +
-  "Only call tools that exist in your tool list; never invent one.";
+  "Only call tools that exist in your tool list; never invent one. " + CREDENTIAL_GUIDANCE;
 
 /** How long one BYOK turn waits on `ByokToolSurface.awaitFederation` before giving up and running
  *  with whatever tools are searchable so far — see that method's own doc for why the wait is bounded
@@ -184,7 +186,8 @@ function toByokChatMessage(entry: unknown): ByokChatMessage | null {
   const role = entry.role === "user" || entry.role === "assistant" ? entry.role : null;
   const content = typeof entry.content === "string" ? entry.content : null;
   if (role === null || content === null || content.length === 0) return null;
-  return { role, content };
+  const safe = redactUserMessage({ message: { role, content } }).message;
+  return { ...safe, role, content: role === "user" ? withCredentialPasteGuidance({ text: safe.content }, {}) : safe.content };
 }
 
 /** Validates and bounds the client-supplied history. Fail-soft on individual malformed entries

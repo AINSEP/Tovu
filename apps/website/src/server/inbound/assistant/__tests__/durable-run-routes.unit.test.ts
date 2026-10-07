@@ -3,7 +3,7 @@ import { test } from "node:test";
 import type { Express, Request, Response, NextFunction } from "express";
 import type { DurableRun, DurableRunStore } from "#src/assistant/durable-runs/ports";
 import type { ChatRunLedger } from "#src/assistant/persistence/run-ledger";
-import { registerDurableToolGuard, registerDurableRunStartRoute } from "../durable-run-routes.js";
+import { registerCredentialRunIntake, registerDurableToolGuard, registerDurableRunStartRoute } from "../durable-run-routes.js";
 import { UNKNOWN_MUTATION_ERROR } from "#src/assistant/durable-runs/continuation";
 
 function router() {
@@ -97,4 +97,17 @@ test("duplicate accepted POSTs keep the chosen attempt id and call the executor 
     { runId: "chosen", principalId: "admin" }, [{ contextRef: "saved-context" }, { contextRef: "saved-context", agentId: "codex", idempotencyKey: "chosen", runId: "chosen" }],
     { runId: "chosen", principalId: "admin" }, [{ contextRef: "saved-context" }, { contextRef: "saved-context", agentId: "codex", idempotencyKey: "chosen", runId: "chosen" }],
   ]);
+});
+
+test('daemon intake sanitizes both bound and headless starts before lifecycle persistence', () => {
+  for (const runId of [undefined, 'accepted']) {
+    const h = router(); const out = response(); let forwarded = false;
+    registerCredentialRunIntake({ app: h.app }, {});
+    const secret = 'sk-' + 'A1b2C3d4E5f6G7h8I9j0';
+    const body = { runId, contextRef: JSON.stringify({ prompt: `Use ${secret} please`, principalId: 'owner' }) };
+    h.routes.get('/api/runs')!({ body } as Request, out.res, (() => { forwarded = true; }) as NextFunction);
+    assert.equal(forwarded, true); assert.deepEqual(out.sent, []);
+    assert.deepEqual(JSON.parse(body.contextRef), { prompt: 'Use [token removed] please', principalId: 'owner' });
+    assert.equal(body.contextRef.includes(secret), false, 'raw credential reached lifecycle acceptance');
+  }
 });

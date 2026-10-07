@@ -48,7 +48,7 @@ export function getDeployOpsAgentToolCatalog(registry?: DeployOpsRegistry): Agen
 function secretTools(required: { platforms: string[]; target: Record<string, unknown>; credentialLabel: Record<string, unknown>; listed: string }): AgentToolDefinition[] {
   const { platforms, target, credentialLabel, listed } = required;
   const name = { type: "string", pattern: "^[A-Za-z_][A-Za-z0-9_]{0,127}$", description: "Secret (environment variable) name, e.g. TOVU_SITE_KEY." };
-  const common = ` Works for any platform whose adapter supports secrets; others are refused with the list of platforms that do. Never returns or accepts a secret value.${listed}`;
+  const common = ` Works for any platform whose adapter supports secrets; others are refused with the list of platforms that do. Never returns a secret value or accepts one in model input.${listed}`;
   const targetProps = { platform: { type: "string", enum: platforms }, target, credentialLabel };
   return [
     {
@@ -60,12 +60,12 @@ function secretTools(required: { platforms: string[]; target: Record<string, unk
     },
     {
       name: "deployment_ops_set_secret",
-      description: `Set or copy a secret (environment variable) on a hosted app from a value the server reads itself; you never see or type the value. source {kind:'site-key'} copies this site's own site key (needs the site-key permission); source {kind:'secret', name} copies another secret already on the same target (platform side, value never shown). Compares first: if the stored value is identical nothing is written (comparison 'same'). Replacing an existing secret asks the human to confirm on a card; creating a new one does not. dryRun:true only compares. Returns platform, target, name, source, comparison (same | different | absent | unknown), changed, fingerprint and fingerprintKind ('site-key' fingerprints match the admin Security page), appliesOn, supportsStaging, deployNeeded, optional version and dryRun, and summary; a declined card returns changed:false with cancelled/reason/note. Writes are staged where the platform allows: when deployNeeded is true, run deployment_ops_deploy afterwards.${common}`,
+      description: `Set or copy a secret (environment variable) on a hosted app from a server-side source or a masked secure card; the assistant never sees the value. source {kind:'typed'} opens the masked card for a new key such as STRIPE_KEY; the human types the value there. source {kind:'site-key'} copies this site's own site key (needs the site-key permission); source {kind:'secret', name} copies another secret already on the same target (platform side, value never shown). Compares first: if the stored value is identical nothing is written (comparison 'same'). Replacing an existing secret asks the human to confirm on a card; creating a new one does not. dryRun:true only compares. Returns platform, target, name, source, comparison (same | different | absent | unknown), changed, fingerprint and fingerprintKind ('site-key' fingerprints match the admin Security page), appliesOn, supportsStaging, deployNeeded, optional version and dryRun, and summary; a declined card returns changed:false with cancelled/reason/note. Writes are staged where the platform allows: when deployNeeded is true, run deployment_ops_deploy afterwards.${common}`,
       sideEffects: "mutates-durable-state",
       authorization: { permission: "custom-credentials.write" },
       inputSchema: { type: "object", additionalProperties: false, properties: {
         ...targetProps, name,
-        source: { type: "object", additionalProperties: false, description: "Where the server reads the value. kind 'site-key' takes no name; kind 'secret' requires name (another secret on the same target).", properties: { kind: { type: "string", enum: ["site-key", "secret"] }, name }, required: ["kind"] },
+        source: { type: "object", additionalProperties: false, description: "Where the server reads the value. kind 'typed' opens a secure card and takes no value; kind 'site-key' takes no name; kind 'secret' requires name (another secret on the same target).", properties: { kind: { type: "string", enum: ["site-key", "secret", "typed"] }, name }, required: ["kind"] },
         dryRun: { type: "boolean", default: false, description: "Only compare and report; write nothing." },
       }, required: ["platform", "target", "name", "source"] },
     },

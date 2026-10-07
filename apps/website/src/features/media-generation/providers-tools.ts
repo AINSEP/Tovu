@@ -1,3 +1,6 @@
+import { assertCredentialFreeField, CREDENTIAL_MESSAGES, type CredentialTokenHint } from '../../contracts/core/credential-token.js';
+import { credentialText, formatCredentialHint } from '../../contracts/core/credential-copy.js';
+import { resolveOperatorLocale, type OperatorLocaleDeps } from '../agent-plugins/operator-locale.js';
 import { type Clock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { buildDomainRegistrations, indexCatalogById, optionalString, requireInputRecord, requireNoInput, requireString, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
@@ -14,9 +17,9 @@ import type { AgentToolDefinition } from "@jini-ai/core";
 import { saveMediaProviderKey } from './provider-credential-save.js';
 
 /** Native credential setup uses the existing MCP-UI exchange; secrets never enter model input/result. */
-interface ProviderView { id: string; label: string; kinds: Array<'image' | 'video'>; configured: boolean }
-interface ProposalResult { saved: boolean; provider: string; configured: boolean }
-export interface MediaProviderToolDeps {
+interface ProviderView { id: string; label: string; kinds: Array<'image' | 'video'>; integrated: boolean; configured: boolean }
+interface ProposalResult { saved: boolean; provider: string; configured: boolean; tokenHint?: CredentialTokenHint | null; message?: string; connection?: "not_tested" }
+export interface MediaProviderToolDeps extends OperatorLocaleDeps {
   workspaceId: string;
   authorize: AuthorizeFn;
   mediaProviderCredentialRepo: MediaProviderCredentialRepoPort;
@@ -31,19 +34,19 @@ const PROVIDERS = MEDIA_PROVIDERS.flatMap(provider => {
   const kinds: Array<'image' | 'video'> = [];
   if (imageIds.has(provider.id)) kinds.push('image');
   if (videoIds.has(provider.id)) kinds.push('video');
-  return kinds.length === 0 ? [] : [{ id: provider.id, label: provider.label, kinds }];
+  return kinds.length === 0 ? [] : [{ id: provider.id, label: provider.label, integrated: provider.integrated, kinds }];
 });
 
 export const mediaProvidersAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: 'media_list_providers',
-    description: 'Lists the catalogued image/video generation providers and which have a saved workspace key. Call to inspect media provider setup before generation or opening a credential form. Returns {providers:[{id,label,kinds,configured}]}; configured means saved key presence, not live verification or adapter support. Never returns keys, prefixes, suffixes or lengths. Uses the same media.read permission and saved credential source as the admin Media providers tab. Does not inspect process environment credentials. Permission denial refuses the call.',
+    description: 'Lists the catalogued image/video generation providers and which have a saved workspace key. Call to inspect media provider setup before generation or opening a credential form. Returns {providers:[{id,label,kinds,integrated,configured}]}; configured means saved key presence, not live verification or adapter support. Never returns keys, prefixes, suffixes or lengths. Uses the same media.read permission and saved credential source as the admin Media providers tab. Does not inspect process environment credentials. Permission denial refuses the call.',
     sideEffects: 'none', authorization: { permission: 'media.read' },
     inputSchema: { type: 'object', additionalProperties: false, required: [], properties: {} },
   },
   {
     name: MEDIA_PROPOSE_PROVIDER_CREDENTIAL_TOOL_ID,
-    description: 'Opens a human form to save or rotate an image/video provider API key. Call when generation needs a missing provider credential; use media_list_providers for ids. Supply only provider and optional reason, never a key. The person types the key into a masked form and the server seals it; this call waits for submit/cancel and returns {saved,provider,configured} without any secret or key fragment. Preserves other providers and existing base URL/model settings. Invalid input, permission denial or absent interactive channel refuses the call; cancelled, expired or failed saves return saved:false. Does not verify a key with the vendor or enable an unimplemented adapter.',
+    description: 'Opens a human form to save or rotate an image/video provider API key. Call when generation needs a missing provider credential; use media_list_providers for ids. Supply only provider and optional reason, never a key. The person types the key into a masked form and the server seals it; this call waits for submit/cancel and returns {saved,provider,configured,tokenHint,message}, including only the server-derived length and last four characters for keys of at least 12 characters. Never returns the full key. Preserves other providers and existing base URL/model settings. Invalid input, permission denial or absent interactive channel refuses the call; cancelled, expired or failed saves return saved:false. Does not verify a key with the vendor or enable an unimplemented adapter.',
     sideEffects: 'mutates-durable-state', authorization: { permission: 'admin.integrations.manage' },
     inputSchema: { type: 'object', additionalProperties: false, required: ['provider'], properties: {
       provider: { type: 'string', enum: PROVIDERS.map(provider => provider.id) },
@@ -64,38 +67,44 @@ const CATALOG = indexCatalogById({ catalog: mediaProvidersAgentToolCatalog });
  */
 async function listProviders(deps: MediaProviderToolDeps): Promise<{ providers: ProviderView[] }> {
   const stored = await getMediaProviderCredentials({ repo: deps.mediaProviderCredentialRepo }, { workspaceId: deps.workspaceId });
-  return { providers: PROVIDERS.map(provider => ({ id: provider.id, label: provider.label, kinds: [...provider.kinds], configured: stored[provider.id]?.apiKeyConfigured === true })) };
+  return { providers: PROVIDERS.map(provider => ({ id: provider.id, label: provider.label, kinds: [...provider.kinds], integrated: provider.integrated, configured: stored[provider.id]?.apiKeyConfigured === true })) };
 }
 
 /** Fixed outcome text cannot echo a submitted key or a raw persistence error. @complexity Time/space O(1). */
-function outcome(exchangeId: string, saved: boolean): SurfaceEmission {
+function outcome(exchangeId: string, saved: boolean, message?: string): SurfaceEmission {
   return { channel: 'mcp-ui', payload: { resource: buildOutcomeSurface({
     uri: `ui://tovu/media-provider-credential/${exchangeId}` as UIResourceUri,
     title: saved ? 'Provider key saved' : 'Provider key not saved', state: saved ? 'success' : 'failure',
-    message: saved ? 'The provider key was saved. The assistant never sees it.' : 'Nothing was saved. Check the key and the server credential store, then try again.',
+    message: message ?? (saved ? 'The provider key was saved. The assistant never sees it.' : 'Nothing was saved. Check the key and the server credential store, then try again.'),
   }) } };
 }
 
 /** Validates a human key, saves via the shared store and returns only fixed safe fields.
  * @complexity Time/space O(n) for the catalogue-bounded store patch; no provider network call.
  */
-async function handleSubmission(answer: SurfaceMessage, spec: { deps: MediaProviderToolDeps; provider: string; exchangeId: string; configured: boolean }): Promise<{ result: ProposalResult; outcome?: SurfaceEmission }> {
-  const { deps, provider, exchangeId, configured } = spec;
+async function handleSubmission(answer: SurfaceMessage, spec: { deps: MediaProviderToolDeps; provider: string; exchangeId: string; configured: boolean; locale: string }): Promise<{ result: ProposalResult; outcome?: SurfaceEmission }> {
+  const { deps, provider, exchangeId, configured, locale } = spec;
   const declined: ProposalResult = { saved: false, provider, configured };
   if (answer.status !== 'received' || answer.params[SURFACE_DISMISSED_PARAM] === true) return { result: declined };
   const key = answer.params.apiKey;
-  if (typeof key !== 'string' || key.trim() === '') return { result: declined, outcome: outcome(exchangeId, false) };
-  let saved: { configured: boolean };
+  if (typeof key !== 'string' || (key === '' ? !configured : key.trim() === '')) { const message = credentialText({ id: 'blank', locale }); return { result: { ...declined, message }, outcome: outcome(exchangeId, false, message) }; }
+  let saved: { configured: boolean; tokenHint: CredentialTokenHint | null };
   try {
     saved = await saveMediaProviderKey({
       deps: { repo: deps.mediaProviderCredentialRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock },
       workspaceId: deps.workspaceId, provider, apiKey: key,
     });
-  } catch {
+  } catch (err) {
     console.warn(JSON.stringify({ service: 'media-providers', operation: MEDIA_PROPOSE_PROVIDER_CREDENTIAL_TOOL_ID, exchangeId, saved: false }));
-    return { result: declined, outcome: outcome(exchangeId, false) };
+    const id = Object.entries(CREDENTIAL_MESSAGES).find(([, text]) => err instanceof Error && text === err.message)?.[0];
+    const message = id ? credentialText({ id: id as keyof typeof CREDENTIAL_MESSAGES, locale }) : undefined;
+    return { result: { ...declined, ...(message ? { message } : {}) }, outcome: outcome(exchangeId, false, message) };
   }
-  return { result: { saved: true, provider, configured: saved.configured }, outcome: outcome(exchangeId, true) };
+  const hint = formatCredentialHint({ hint: saved.tokenHint, locale });
+  const unavailable = PROVIDERS.find(candidate => candidate.id === provider)?.integrated === false
+    ? ` ${credentialText({ id: 'generationUnavailable', locale })}` : '';
+  const message = `${hint ? `${hint}. ` : ''}${credentialText({ id: 'saved', locale })}${unavailable}`;
+  return { result: { saved: true, provider, configured: saved.configured, tokenHint: saved.tokenHint, connection: 'not_tested', message }, outcome: outcome(exchangeId, true, message) };
 }
 
 /** Strict non-secret model input; bound provider identity is never taken from the form submission.
@@ -109,6 +118,7 @@ async function proposeCredential(ctx: ToolExecutionContext, deps: MediaProviderT
   const provider = PROVIDERS.find(candidate => candidate.id === providerId);
   if (!provider) throw new ToolInputError({ message: 'Unknown media provider. Call media_list_providers for supported provider ids.' });
   const reason = optionalString({ input: raw, key: 'reason' });
+  if (reason !== undefined) assertCredentialFreeField({ value: reason, field: "reason" });
   if (reason !== undefined && reason.length > 1000) throw new ToolInputError({ message: 'Credential setup reason must be at most 1000 characters.' });
   await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: 'admin.integrations.manage' }, { entityType: 'media' });
   const { providers } = await listProviders(deps);
@@ -116,6 +126,7 @@ async function proposeCredential(ctx: ToolExecutionContext, deps: MediaProviderT
   const declined: ProposalResult = { saved: false, provider: providerId, configured };
   if (ctx.signal.aborted) return declined;
   if (!optional.emitSurface) throw new ToolInputError({ message: 'media_propose_provider_credential requires an interactive form channel. Nothing was saved.' });
+  const locale = await resolveOperatorLocale({ deps, workspaceId: deps.workspaceId, principalId: ctx.principal.id });
   const exchange = surfaces.surfaceExchanges.open({ toolId: MEDIA_PROPOSE_PROVIDER_CREDENTIAL_TOOL_ID, principalId: ctx.principal.id }, optional.emitSurface);
   const closeOnAbort = () => exchange.close();
   ctx.signal.addEventListener('abort', closeOnAbort, { once: true });
@@ -124,10 +135,10 @@ async function proposeCredential(ctx: ToolExecutionContext, deps: MediaProviderT
       uri: `ui://tovu/media-provider-credential/${exchange.id}` as UIResourceUri, title: `Connect ${provider.label}`,
       description: reason ?? 'Type the API key directly into this form. The assistant never sees it.',
       submitLabel: 'Save provider key', toolName: MEDIA_PROPOSE_PROVIDER_CREDENTIAL_TOOL_ID, baseParams: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id },
-      fields: [{ kind: 'string', name: 'apiKey', label: 'API key', secret: true, required: true }],
+      fields: [{ kind: 'string', name: 'apiKey', label: 'API key', secret: true, required: !configured }],
       cancel: { label: 'Cancel', toolName: MEDIA_PROPOSE_PROVIDER_CREDENTIAL_TOOL_ID, params: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id, [SURFACE_DISMISSED_PARAM]: true } },
     });
-    return await askThenReport(exchange, { channel: 'mcp-ui', payload: { resource } }, answer => handleSubmission(answer, { deps, provider: providerId, configured, exchangeId: exchange.id }));
+    return await askThenReport(exchange, { channel: 'mcp-ui', payload: { resource } }, answer => handleSubmission(answer, { deps, provider: providerId, configured, exchangeId: exchange.id, locale }));
   } finally {
     ctx.signal.removeEventListener('abort', closeOnAbort);
     exchange.close();

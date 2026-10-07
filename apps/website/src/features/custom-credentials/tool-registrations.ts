@@ -1,3 +1,7 @@
+import { withCustomCredentialSetup, type CredentialSetupFailure } from "./credential-recovery.js";
+import { assertCredentialFreeField } from '../../contracts/core/credential-token.js';
+import { credentialText, formatCredentialHint, translateCredentialMessage } from '../../contracts/core/credential-copy.js';
+import { resolveOperatorLocale, type OperatorLocaleDeps } from '../agent-plugins/operator-locale.js';
 import type { Clock } from "@jini-ai/core/primitives";
 import { buildAuthorizationHeader } from "@jini-ai/integrations/credentialed-http";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireNoInput, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
@@ -220,7 +224,7 @@ import { validateRepositoryTarget, validateWriteFilesInput, type NormalizedWrite
  * identical kind of external write.
  */
 
-export interface CustomCredentialsToolDeps {
+export interface CustomCredentialsToolDeps extends OperatorLocaleDeps {
   readonly authorize: AuthorizeFn;
   readonly workspaceId: string;
   readonly clock: Clock;
@@ -406,7 +410,7 @@ function isWriteFilesShapeRejection(error: unknown): boolean {
  */
 const CUSTOM_CREDENTIALS_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
   forbiddenRule("CUSTOM_CREDENTIALS"),
-  { error: CustomCredentialNotFoundError, code: "CUSTOM_CREDENTIALS_NOT_FOUND" },
+  { error: CustomCredentialNotFoundError, code: "CUSTOM_CREDENTIALS_NOT_FOUND", guidance: "Call custom_credential_create to open the secure credential card, then retry once." },
   { error: CustomCredentialValidationError, code: "CUSTOM_CREDENTIALS_VALIDATION_FAILED" },
   { error: CredentialedRequestValidationError, code: "CUSTOM_CREDENTIALS_REQUEST_REJECTED" },
   // A FIXED message, never `err.message`: this class wraps the sealer's, the keyring's, or
@@ -777,6 +781,7 @@ type SetTokenResult = { saved: true } | { saved: false; reason: "cancelled" | "e
  *  rather than the handler's whole closure, same shape `features/deployments/publish-agent-tools.ts`'s
  *  `PublishConfirmationContext` uses for the identical reason. */
 interface SetTokenAnswerContext {
+  locale: string;
   readonly routeDeps: CustomCredentialsToolDeps;
   readonly existing: CustomCredentialSummary;
   readonly label: string;
@@ -806,7 +811,7 @@ interface SetTokenAnswerContext {
  * @complexity O(1) plus one `updateCustomCredential` call (validate, seal, write).
  */
 async function handleSetTokenAnswer(answer: SurfaceMessage, ctx: SetTokenAnswerContext): Promise<{ result: SetTokenResult; outcome?: SurfaceEmission }> {
-  const { routeDeps, existing, label, exchange } = ctx;
+  const { routeDeps, existing, label, exchange, locale } = ctx;
 
   if (answer.status !== "received") {
     return { result: { saved: false, reason: answer.status } };
@@ -816,14 +821,15 @@ async function handleSetTokenAnswer(answer: SurfaceMessage, ctx: SetTokenAnswerC
   }
 
   const token = typeof answer.params["token"] === "string" ? answer.params["token"] : "";
-  if (token.trim() === "") {
-    const message = "Token cannot be blank. Nothing was saved.";
+  if (token !== "" && token.trim() === "") {
+    const message = credentialText({ id: "blank", locale });
     return {
       result: { saved: false, reason: "invalid", message },
       outcome: { channel: "mcp-ui", payload: { resource: buildSetTokenOutcomeResource({ exchangeId: exchange.id, label, state: "failure", message }) } },
     };
   }
 
+  let credential: CustomCredentialSummary;
   try {
     // Re-reads the username HERE, at write time — never trusts `existing` (captured back when
     // `custom_credential_set_token`'s handler first resolved the label, before the form was even shown
@@ -840,7 +846,7 @@ async function handleSetTokenAnswer(answer: SurfaceMessage, ctx: SetTokenAnswerC
         { workspaceId: routeDeps.workspaceId, label: current.label })
       : null;
     const username = current?.username ?? resolved?.connection.username;
-    await updateCustomCredential(
+    credential = await updateCustomCredential(
       {
         repo: routeDeps.customCredentialSetRepo,
         sealer: routeDeps.siteAssistantSecretSealer,
@@ -864,15 +870,17 @@ async function handleSetTokenAnswer(answer: SurfaceMessage, ctx: SetTokenAnswerC
     );
   } catch (err) {
     // Never `err.message`: it can quote the token just submitted. See FORM_SAVE_CALLER_SAFE_ERRORS.
-    const message = reportFormSaveFailure(routeDeps, { toolId: SET_TOKEN_TOOL_ID, exchangeId: exchange.id, credentialId: existing.id, err });
+    const message = translateCredentialMessage({ message: reportFormSaveFailure(routeDeps, { toolId: SET_TOKEN_TOOL_ID, exchangeId: exchange.id, credentialId: existing.id, err }), locale });
     return {
       result: { saved: false, reason: "error", message },
       outcome: { channel: "mcp-ui", payload: { resource: buildSetTokenOutcomeResource({ exchangeId: exchange.id, label, state: "failure", message }) } },
     };
   }
 
-  const message = `Token for '${label}' saved.`;
+  const hint = formatCredentialHint({ hint: credential.tokenHint, locale });
+  const message = `${hint ? `${hint}. ` : ""}${credentialText({ id: "saved", locale })}`;
   return {
+    // Token hints belong on the human's card, never in the model-facing result or audit output.
     result: { saved: true },
     outcome: { channel: "mcp-ui", payload: { resource: buildSetTokenOutcomeResource({ exchangeId: exchange.id, label, state: "success", message }) } },
   };
@@ -892,6 +900,7 @@ function readCreateCredentialPrefill(input: Record<string, unknown>): CreateCred
   const prefill: { label?: string; baseUrl?: string; category?: string } = {};
   for (const field of ["label", "baseUrl", "category"] as const) {
     if (typeof input[field] === "string" && (input[field] as string).trim() !== "") {
+      assertCredentialFreeField({ value: input[field] as string, field });
       prefill[field] = input[field] as string;
     }
   }
@@ -906,7 +915,7 @@ function readCreateCredentialPrefill(input: Record<string, unknown>): CreateCred
  *  `'duplicate-label'` is this tool's own addition — `custom_credential_set_token` has no equivalent
  *  case, since it always targets a row that is already known to exist. */
 type CreateCredentialResult =
-  | { created: true; credential: CustomCredentialSummary }
+  | { created: true; credential: Omit<CustomCredentialSummary, "tokenHint"> }
   | { created: false; reason: "cancelled" | "expired" | "abandoned" | "invalid" | "duplicate-label" | "error"; message?: string };
 
 /** Every dependency {@link handleCreateAnswer} needs to create the credential and report the outcome —
@@ -914,6 +923,7 @@ type CreateCredentialResult =
  *  `custom_credential_set_token`, there is no row to resolve before the form opens — a CREATE's target
  *  row does not exist until the human submits. */
 interface CreateAnswerContext {
+  locale: string;
   readonly routeDeps: CustomCredentialsToolDeps;
   readonly exchange: SurfaceExchange;
 }
@@ -985,6 +995,11 @@ interface CreateCredentialSubmission {
  *
  * @complexity O(1) — three fixed defaulting decisions.
  */
+function safeCredentialLabel({ label }: { label: string }): string {
+  try { assertCredentialFreeField({ value: label, field: 'label' }); return label.trim() === '' ? '(unlabeled)' : label; }
+  catch { return '(unlabeled)'; }
+}
+
 function deriveCreateCredentialSubmission(raw: RawCreateCredentialFields): CreateCredentialSubmission {
   return {
     label: raw.label,
@@ -992,7 +1007,7 @@ function deriveCreateCredentialSubmission(raw: RawCreateCredentialFields): Creat
     category: raw.category.trim() === "" ? "general" : raw.category,
     username: raw.username.trim() === "" ? undefined : raw.username,
     token: raw.token,
-    displayLabel: raw.label.trim() === "" ? "(unlabeled)" : raw.label,
+    displayLabel: safeCredentialLabel({ label: raw.label }),
   };
 }
 
@@ -1067,7 +1082,7 @@ function mapCreateCredentialError(
  * @complexity O(1) plus one `createCustomCredential` call (validate, seal, insert).
  */
 async function handleCreateAnswer(answer: SurfaceMessage, ctx: CreateAnswerContext): Promise<{ result: CreateCredentialResult; outcome?: SurfaceEmission }> {
-  const { routeDeps, exchange } = ctx;
+  const { routeDeps, exchange, locale } = ctx;
 
   if (answer.status !== "received") {
     return { result: { created: false, reason: answer.status } };
@@ -1079,7 +1094,7 @@ async function handleCreateAnswer(answer: SurfaceMessage, ctx: CreateAnswerConte
   const submission = deriveCreateCredentialSubmission(readRawCreateCredentialFields(answer.params));
 
   if (submission.token.trim() === "") {
-    return buildCreateFailureOutcome(exchange.id, submission.displayLabel, "invalid", "Token cannot be blank. Nothing was saved.");
+    return buildCreateFailureOutcome(exchange.id, submission.displayLabel, "invalid", credentialText({ id: "blank", locale }));
   }
 
   // Only the save itself sits in the `try`, so "Nothing was saved" in a failure message stays true.
@@ -1102,12 +1117,17 @@ async function handleCreateAnswer(answer: SurfaceMessage, ctx: CreateAnswerConte
       }
     );
   } catch (err) {
-    return mapCreateCredentialError(err, { routeDeps, exchangeId: exchange.id, label: submission.label, displayLabel: submission.displayLabel });
+    const failure = mapCreateCredentialError(err, { routeDeps, exchangeId: exchange.id, label: submission.label, displayLabel: submission.displayLabel });
+    if (err instanceof CustomCredentialValidationError) return buildCreateFailureOutcome(exchange.id, submission.displayLabel, 'invalid', translateCredentialMessage({ message: err.message, locale }));
+    return failure;
   }
 
-  const message = `Credential '${credential.label}' created.`;
+  // The summary's token hint is for the human outcome only; strip it before returning to the model.
+  const { tokenHint, ...modelCredential } = credential;
+  const hint = formatCredentialHint({ hint: tokenHint, locale });
+  const message = `${hint ? `${hint}. ` : ""}${credentialText({ id: "saved", locale })}`;
   return {
-    result: { created: true, credential },
+    result: { created: true, credential: modelCredential },
     outcome: { channel: "mcp-ui", payload: { resource: buildCreateOutcomeResource({ exchangeId: exchange.id, label: credential.label, state: "success", message }) } },
   };
 }
@@ -1139,7 +1159,7 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
       const input = requireInputRecord({ input: ctx.input });
       const label = requireString({ input, key: "label" });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: READ_PERMISSION }, { entityType: DOMAIN });
-      return verifyCustomCredential(requestDeps, { workspaceId: routeDeps.workspaceId, label });
+      return withCustomCredentialSetup({ label, verification: true, invoke: () => verifyCustomCredential(requestDeps, { workspaceId: routeDeps.workspaceId, label }) }, {});
     },
 
     // The self-healing FIX half of the 401/403 diagnostic `custom_credential_verify`/
@@ -1224,7 +1244,8 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
       try {
         // `askThenReport`, not `askOnce` — see `handleSetTokenAnswer`'s own header for the full defect
         // this closes and why the handler is a separate top-level function rather than inlined here.
-        const answerContext: SetTokenAnswerContext = { routeDeps, existing, label, exchange };
+        const locale = await resolveOperatorLocale({ deps: routeDeps, workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id });
+        const answerContext: SetTokenAnswerContext = { routeDeps, existing, label, exchange, locale };
         return await askThenReport<SetTokenResult>(exchange, { channel: "mcp-ui", payload: { resource: ui } }, (answer) => handleSetTokenAnswer(answer, answerContext));
       } finally {
         ctx.signal.removeEventListener("abort", closeOnAbort);
@@ -1267,7 +1288,8 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
       try {
         // `askThenReport`, not `askOnce` — see `handleCreateAnswer`'s own header for the full defect
         // this closes and why the handler is a separate top-level function rather than inlined here.
-        const answerContext: CreateAnswerContext = { routeDeps, exchange };
+        const locale = await resolveOperatorLocale({ deps: routeDeps, workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id });
+        const answerContext: CreateAnswerContext = { routeDeps, exchange, locale };
         return await askThenReport<CreateCredentialResult>(exchange, { channel: "mcp-ui", payload: { resource: ui } }, (answer) => handleCreateAnswer(answer, answerContext));
       } finally {
         ctx.signal.removeEventListener("abort", closeOnAbort);
@@ -1279,7 +1301,7 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
     // mechanism and why. All shape/security-boundary validation (`method`/`url`/`headers`/`body`,
     // label existence, host allowlist) happens inside `resolveRequestTarget`/`makeCredentialedRequest`
     // themselves — this handler's only job is deciding WHETHER to gate, never re-validating.
-    custom_credential_make_request: async (ctx, { emitSurface } = {}): Promise<CredentialedRequestOutcome> => {
+    custom_credential_make_request: async (ctx, { emitSurface } = {}): Promise<CredentialedRequestOutcome | CredentialSetupFailure> => {
       const input = requireInputRecord({ input: ctx.input });
       const label = requireString({ input, key: "label" });
       const method = requireString({ input, key: "method" });
@@ -1287,7 +1309,7 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: WRITE_PERMISSION }, { entityType: DOMAIN });
 
       if (method !== "DELETE") {
-        return makeModelFacingCredentialedRequest(requestDeps, { workspaceId: routeDeps.workspaceId, label, method, url, headers: input.headers, body: input.body });
+        return withCustomCredentialSetup({ label, url, invoke: () => makeModelFacingCredentialedRequest(requestDeps, { workspaceId: routeDeps.workspaceId, label, method, url, headers: input.headers, body: input.body }) }, {});
       }
 
       // Non-decrypting: a declined/expired/off-allowlist DELETE must never have cost a decrypt.
@@ -1295,7 +1317,8 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
       // `CustomCredentialNotFoundError` reach the model through the map-level
       // `CUSTOM_CREDENTIALS_MODEL_FACING_ERRORS` wrap instead (2026-09-16) — the daemon-boundary
       // redaction this comment once deferred was confirmed to reach here too.
-      const target = await resolveRequestTarget({ repo: requestDeps.repo }, { workspaceId: routeDeps.workspaceId, label, url });
+      const target = await withCustomCredentialSetup({ label, url, invoke: () => resolveRequestTarget({ repo: requestDeps.repo }, { workspaceId: routeDeps.workspaceId, label, url }) }, {});
+      if ("credentialSetup" in target) return target;
 
       // Fail closed rather than degrade — same posture `content_post_delete`'s own handler documents:
       // an execution context that cannot hold this call open cannot run a gated DELETE at all.
@@ -1329,7 +1352,7 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
       }
       if (!decision.confirmed) return decision.result;
 
-      return makeModelFacingCredentialedRequest(requestDeps, { workspaceId: routeDeps.workspaceId, label, method: "DELETE", url, headers: input.headers, body: input.body });
+      return withCustomCredentialSetup({ label, url, invoke: () => makeModelFacingCredentialedRequest(requestDeps, { workspaceId: routeDeps.workspaceId, label, method: "DELETE", url, headers: input.headers, body: input.body }) }, {});
     },
 
     // Writes one or more named files into a saved credential's repository, in one atomic commit, ALWAYS

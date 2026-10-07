@@ -1,3 +1,4 @@
+import { collectTypedDeploySecret } from "./typed-secret-card.js";
 import { nowIso } from "@jini-ai/core/primitives";
 import { ToolInputError } from "@jini-ai/core";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
@@ -9,7 +10,7 @@ import { SITE_KEY_MANAGE_PERMISSION } from "#src/features/identity/site-key-perm
 import type { ToolExecutionContext, ToolExecutionOptions } from "@jini-ai/core";
 import { runListSecrets, runSetSecret, runUnsetSecret, type SecretConfirm, type SecretConfirmRequest, type SecretValueSource } from "./secrets.js";
 import { getDeployOpsAgentToolCatalog } from "./agent-tools.js";
-import { MAX_WAIT_SECONDS, runDeploy, runDeployOps, waitForDeployOps, type DeployOpsToolDeps } from "./run-ops.js";
+import { DeployCredentialSetupRequired, MAX_WAIT_SECONDS, runDeploy, runDeployOps, waitForDeployOps, type DeployOpsToolDeps } from "./run-ops.js";
 import type { DeployOpsInput, DeployOpsRegistry } from "./types.js";
 export type { DeployOpsToolDeps } from "./run-ops.js";
 export const deployOpsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
@@ -54,11 +55,12 @@ function onlyKeys(input: Record<string, unknown>, allowed: readonly string[]): v
 }
 /** `source` is a closed shape: a value can never ride in on it. O(1). */
 function valueSource(raw: unknown): SecretValueSource {
-  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) throw new ToolInputError({ message: "source must be {kind:'site-key'} or {kind:'secret', name}." });
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) throw new ToolInputError({ message: "source must be {kind:'typed'}, {kind:'site-key'} or {kind:'secret', name}." });
   const record = raw as Record<string, unknown>;
+  if (record.kind === "typed" && Object.keys(record).length === 1) return { kind: "typed" };
   if (record.kind === "site-key" && Object.keys(record).length === 1) return { kind: "site-key" };
   if (record.kind === "secret" && typeof record.name === "string" && Object.keys(record).length === 2) return { kind: "secret", name: record.name };
-  throw new ToolInputError({ message: "source must be {kind:'site-key'} or {kind:'secret', name}." });
+  throw new ToolInputError({ message: "source must be {kind:'typed'}, {kind:'site-key'} or {kind:'secret', name}." });
 }
 type Permit = (permission: string) => Promise<void>;
 const TAKES_EFFECT: Record<SecretConfirmRequest["appliesOn"], string> = { "next-deploy": "on the next deploy", "vendor-restart": "after the platform restarts the app", immediately: "immediately" };
@@ -96,7 +98,9 @@ function secretsHandler(deps: DeployOpsToolDeps, surfaces: AssistantSurfaceDeps 
     const source = valueSource(input.source);
     if (input.dryRun !== undefined && typeof input.dryRun !== "boolean") throw new ToolInputError({ message: "dryRun must be a boolean." });
     if (source.kind === "site-key") await permit(SITE_KEY_MANAGE_PERMISSION);
-    return runSetSecret({ deps, input: { ...target, name: string(input, "name", true)!, source, dryRun: input.dryRun === true } }, optional);
+    const setInput = { ...target, name: string(input, "name", true)!, source, dryRun: input.dryRun === true };
+    if (source.kind === "typed") return collectTypedDeploySecret({ ctx, deps, surfaces, input: setInput, permit: () => permit("custom-credentials.write") }, { ...options, confirm: optional.confirm });
+    return runSetSecret({ deps, input: setInput }, optional);
   };
 }
 const SECRET_TOOLS = ["deployment_ops_list_secrets", "deployment_ops_set_secret", "deployment_ops_unset_secret"];
@@ -105,20 +109,25 @@ export function buildDeployOpsRegistrations(deps: DeployOpsToolDeps, surfaces?: 
   const catalog = getDeployOpsAgentToolCatalog(deps.deployOpsRegistry);
   const handlers: Record<string, ToolHandler> = {};
   for (const tool of catalog) handlers[tool.name] = async (ctx, options) => {
-    const permit: Permit = permission => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission }, { entityType: "deploy-ops" });
-    await permit(tool.authorization.permission);
-    if (SECRET_TOOLS.includes(tool.name)) return secretsHandler(deps, surfaces, tool.name, permit)(ctx, options);
-    const input = requireInputRecord({ input: ctx.input });
-    if (tool.name === "deployment_ops_deploy") return deployHandler(deps, input, ctx.signal);
-    const isList = tool.name === "deployment_ops_list_targets";
-    const allowed = isList ? ["platform", "credentialLabel", "org"] : ["platform", "target", "credentialLabel", "runId", "branch", ...(tool.name === "deployment_ops_logs" ? ["limit"] : []), ...(tool.name === "deployment_ops_wait" ? ["until", "timeoutSeconds"] : [])];
-    for (const key of Object.keys(input)) if (!allowed.includes(key)) throw new ToolInputError({ message: `Unexpected deployment ops input '${key}'.` });
-    const args: DeployOpsInput = { platform: string(input, "platform", true)!, target: isList ? "" : string(input, "target", true)!, credentialLabel: string(input, "credentialLabel"), ...(isList ? { org: string(input, "org") } : { runId: string(input, "runId"), branch: string(input, "branch") }) };
-    if (tool.name === "deployment_ops_list_targets") return runDeployOps(deps, args, "listTargets", ctx.signal);
-    if (tool.name === "deployment_ops_logs") return runDeployOps(deps, { ...args, limit: integer(input, "limit", 100, 1, 500) }, "logs", ctx.signal);
-    if (tool.name === "deployment_ops_status") return runDeployOps(deps, args, "status", ctx.signal);
-    if (input.until !== "healthy" && input.until !== "finished") throw new ToolInputError({ message: "until must be 'healthy' or 'finished'." });
-    return waitForDeployOps({ status: signal => runDeployOps(deps, args, "status", signal), clock: deps.waitClock, initial: { platform: args.platform, target: args.target, state: "unknown", summary: "No status received before timeout.", items: [], checkedAt: nowIso({ clock: deps.clock }) } }, { until: input.until, timeoutSeconds: integer(input, "timeoutSeconds", 180, 10, MAX_WAIT_SECONDS), signal: ctx.signal });
+    try {
+      const permit: Permit = permission => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission }, { entityType: "deploy-ops" });
+      await permit(tool.authorization.permission);
+      if (SECRET_TOOLS.includes(tool.name)) return await secretsHandler(deps, surfaces, tool.name, permit)(ctx, options);
+      const input = requireInputRecord({ input: ctx.input });
+      if (tool.name === "deployment_ops_deploy") return await deployHandler(deps, input, ctx.signal);
+      const isList = tool.name === "deployment_ops_list_targets";
+      const allowed = isList ? ["platform", "credentialLabel", "org"] : ["platform", "target", "credentialLabel", "runId", "branch", ...(tool.name === "deployment_ops_logs" ? ["limit"] : []), ...(tool.name === "deployment_ops_wait" ? ["until", "timeoutSeconds"] : [])];
+      for (const key of Object.keys(input)) if (!allowed.includes(key)) throw new ToolInputError({ message: `Unexpected deployment ops input '${key}'.` });
+      const args: DeployOpsInput = { platform: string(input, "platform", true)!, target: isList ? "" : string(input, "target", true)!, credentialLabel: string(input, "credentialLabel"), ...(isList ? { org: string(input, "org") } : { runId: string(input, "runId"), branch: string(input, "branch") }) };
+      if (tool.name === "deployment_ops_list_targets") return await runDeployOps(deps, args, "listTargets", ctx.signal);
+      if (tool.name === "deployment_ops_logs") return await runDeployOps(deps, { ...args, limit: integer(input, "limit", 100, 1, 500) }, "logs", ctx.signal);
+      if (tool.name === "deployment_ops_status") return await runDeployOps(deps, args, "status", ctx.signal);
+      if (input.until !== "healthy" && input.until !== "finished") throw new ToolInputError({ message: "until must be 'healthy' or 'finished'." });
+      return await waitForDeployOps({ status: signal => runDeployOps(deps, args, "status", signal), clock: deps.waitClock, initial: { platform: args.platform, target: args.target, state: "unknown", summary: "No status received before timeout.", items: [], checkedAt: nowIso({ clock: deps.clock }) } }, { until: input.until, timeoutSeconds: integer(input, "timeoutSeconds", 180, 10, MAX_WAIT_SECONDS), signal: ctx.signal });
+    } catch (error) {
+      if (error instanceof DeployCredentialSetupRequired) return { executed: false, credentialSetup: error.credentialSetup };
+      throw error;
+    }
   };
   return buildDomainRegistrations({ domain: "deploy-ops", catalogModule: "features/deployments/deploy-ops/agent-tools.ts", catalog: indexCatalogById({ catalog: catalog }), handlers, derivedRisk: deployOpsDerivedRisk });
 }

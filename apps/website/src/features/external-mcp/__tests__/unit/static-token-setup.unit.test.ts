@@ -34,7 +34,7 @@ test("hosted static token entered through the form is sealed, used as bearer aut
     assert.notEqual(match, null);
     surfaces.deliver({ exchangeId: match![1]!, toolId: "external_mcp_save", principalId: "owner", params: { id: "hosted", transport: "streamable_http", authMode: "static_env", url: "https://hosted.example/mcp", accessToken } });
     const result = await pending;
-    assert.deepEqual(Object.keys(result as object).sort(), ["saved", "server"]);
+    assert.deepEqual(Object.keys(result as object).sort(), ["connection", "message", "saved", "server"]);
     assert.equal((result as { saved: boolean }).saved, true);
     assert.equal(JSON.stringify(result).includes(secret), false);
     const resolved = await readEnabledExternalMcpConfigs({ repo, sealer }, deps.workspaceId);
@@ -87,3 +87,31 @@ function invokeFixtureHandler(
   const { emitSurface, ...required } = context;
   return registration.handler(required, emitSurface ? { emitSurface } : {});
 }
+
+test('a rejected saved static token returns a secure update-card diagnostic', async () => {
+  const repo = new InMemoryExternalMcpServerRepo(); const keyring = new InMemoryKeyring(); const sealer = new AesGcmSecretSealer(keyring);
+  const surfaces = createSurfaceExchangeStore();
+  const deps = { workspaceId: 'ws-static-recovery', authorize: async () => ({ allowed: true, reason: 'matched' }),
+    clock: { nowMs: () => Date.parse('2026-10-07T00:00:00Z'), nowIso: () => '2026-10-07T00:00:00Z' },
+    externalMcpServerRepo: repo, siteAssistantSecretSealer: sealer, siteAssistantSecretKeyring: keyring,
+    externalMcpProbe: async () => ({ ok: false, body: { code: 'MCP_AUTH_REJECTED' } }),
+  };
+  const registrations = buildExternalMcpRegistrations(deps, { surfaceExchanges: surfaces });
+  let surface: unknown;
+  const save = invokeFixtureHandler(registrations.find(registration => registration.descriptor.id === 'external_mcp_save')!, {
+    executionId: 'save', principal: { id: 'owner' }, run: { id: 'run' }, input: { id: 'hosted', transport: 'streamable_http', authMode: 'static_env', url: 'https://hosted.example/mcp' }, signal: new AbortController().signal,
+    emitSurface: async value => { surface = value; },
+  });
+  await new Promise(resolve => setImmediate(resolve));
+  const html = (surface as { payload: { resource: { resource: { text: string } } } }).payload.resource.resource.text;
+  const match = html.match(/__exchangeId"\s*:\s*"([^"]+)"/); assert.ok(match);
+  surfaces.deliver({ exchangeId: match[1]!, toolId: 'external_mcp_save', principalId: 'owner', params: { id: 'hosted', transport: 'streamable_http', authMode: 'static_env', url: 'https://hosted.example/mcp', accessToken: 'private-test-token' } });
+  await save;
+  const result = await invokeFixtureHandler(registrations.find(registration => registration.descriptor.id === 'external_mcp_test_connection')!, {
+    executionId: 'probe', principal: { id: 'owner' }, run: { id: 'run' }, input: { id: 'hosted' }, signal: new AbortController().signal,
+  }) as { credentialSetup: unknown };
+  assert.deepEqual(result.credentialSetup, {
+    setupToolId: 'external_mcp_save', remedyToolId: 'external_mcp_save', prefill: { id: 'hosted' },
+    hint: 'A missing or rejected credential may be fixed by saving it through the secure card.',
+  });
+});

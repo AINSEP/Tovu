@@ -1,3 +1,4 @@
+import type { ToolFailureDiagnostic } from "#src/contracts/core/tool-failure-diagnostics";
 import type { UUID } from "@jini-ai/core/primitives";
 
 /**
@@ -84,6 +85,7 @@ export type StaticPublishOutcome =
   | {
       readonly ok: false;
       readonly code: "INVALID_CONFIG" | "NO_CREDENTIALS_CONFIGURED" | "EXPORT_FAILED" | "PROVIDER_ERROR";
+      readonly credentialSetup?: ToolFailureDiagnostic;
       readonly message: string;
     };
 

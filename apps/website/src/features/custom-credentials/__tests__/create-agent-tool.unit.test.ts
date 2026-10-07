@@ -277,6 +277,7 @@ test("submit: a new credential is created, sealed exactly once, the token decryp
   assert.equal(result.credential.category, "source-control");
   assert.equal(result.credential.baseUrl, "https://api.github.com");
   assert.ok(!JSON.stringify(result).includes("brand-new-secret-token"), "the result must never contain the submitted token");
+  assert.ok(!("tokenHint" in result.credential), "token hints belong only on the human's outcome card");
   assert.equal(sealer.sealCalls, 1, "a confirmed submission seals exactly once");
 
   assert.equal(emitted.length, 2, "a successful submission must send a correcting outcome emission");
@@ -330,7 +331,7 @@ test("submit: a blank token is refused as invalid, and nothing is written or sea
   });
 
   const result = await pending;
-  assert.deepEqual(result, { created: false, reason: "invalid", message: "Token cannot be blank. Nothing was saved." });
+  assert.deepEqual(result, { created: false, reason: "invalid", message: "Enter a token. Spaces alone are not a token." });
   assert.equal(sealer.sealCalls, 0);
   assert.equal(emitted.length, 2, "an invalid submission still sends a correcting outcome emission");
   assert.equal((await repo.listByWorkspace({ workspaceId: WORKSPACE_ID })).length, 0);
@@ -506,4 +507,45 @@ test("submit with no category hint at all: the credential is still created, land
   const rows = await repo.listByWorkspace({ workspaceId: WORKSPACE_ID });
   assert.equal(rows.length, 1);
   assert.equal(rows[0]!.category, "general");
+});
+
+test('card-created credential is reused by the same label with the exact Authorization token', async () => {
+  const { deps } = fakeRouteDeps();
+  const requests: HttpRequest[] = [];
+  deps.customCredentialsHttpClient = { send: async request => { requests.push(request); return { status: 200, headers: {}, bodyText: 'ok' }; } };
+  const exchanges = createSurfaceExchangeStore(); const registrations = buildRegistrations(deps, exchanges);
+  const secret = 'exact-token.Mixed_0123456789-+/=';
+  const { pending, exchangeId } = await raiseForm(tool(registrations, TOOL_ID));
+  assert.deepEqual(exchanges.deliver({ exchangeId, toolId: TOOL_ID, principalId: PRINCIPAL_ID,
+    params: { label: 'billing', baseUrl: 'https://api.example.com', category: 'general', token: secret },
+  }), { ok: true });
+  const saved = await pending;
+  assert.equal((saved as { created: boolean }).created, true);
+  const result = await call(tool(registrations, 'custom_credential_make_request'), { input: { label: 'billing', method: 'GET', url: 'https://api.example.com/account' } });
+  assert.equal((result as { status: number }).status, 200);
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0]!.headers?.Authorization === `Bearer ${secret}`, true, 'Authorization must preserve the exact saved token');
+  assert.equal(JSON.stringify([saved, result]).includes(secret), false, 'secret reached model results');
+});
+
+test('missing request credential returns the create-card diagnostic with URL origin prefill', async () => {
+  const { deps } = fakeRouteDeps(); const registrations = buildRegistrations(deps, createSurfaceExchangeStore());
+  const result = await call(tool(registrations, 'custom_credential_make_request'), { input: { label: 'billing', method: 'GET', url: 'https://api.example.com/account' } }) as { credentialSetup: unknown };
+  assert.deepEqual(result.credentialSetup, {
+    setupToolId: 'custom_credential_create', remedyToolId: 'custom_credential_create', prefill: { label: 'billing', baseUrl: 'https://api.example.com' },
+    hint: 'A missing or rejected credential may be fixed by saving it through the secure card.',
+  });
+});
+
+for (const mode of ['request', 'verify'] as const) test(`${mode} credential rejection offers the existing-label rotation card`, async () => {
+  const { deps, writeDeps } = fakeRouteDeps();
+  await seedGithub(writeDeps, { token: 'private-test-token', username: 'account' });
+  deps.customCredentialsHttpClient = { send: async () => ({ status: 401, headers: {}, bodyText: 'Unauthorized' }) };
+  const registrations = buildRegistrations(deps, createSurfaceExchangeStore());
+  const id = mode === 'verify' ? 'custom_credential_verify' : 'custom_credential_make_request';
+  const result = await call(tool(registrations, id), { input: { label: 'github', ...(mode === 'request' ? { method: 'GET', url: 'https://api.github.com/user' } : {}) } }) as { credentialSetup: unknown };
+  assert.deepEqual(result.credentialSetup, {
+    setupToolId: 'custom_credential_set_token', remedyToolId: 'custom_credential_set_token', prefill: { label: 'github' },
+    hint: 'A missing or rejected credential may be fixed by saving it through the secure card.',
+  });
 });

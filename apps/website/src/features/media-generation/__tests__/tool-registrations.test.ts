@@ -214,6 +214,8 @@ test("media_generate_asset publishes its catalog entry's inputSchema and descrip
   assert.ok(registration.descriptor.inputSchema);
   assert.deepEqual(registration.descriptor.inputSchema, catalogEntry("media_generate_asset").inputSchema);
   assert.equal(registration.descriptor.description, catalogEntry("media_generate_asset").description);
+  assert.equal(registration.descriptor.description?.includes("call media_propose_provider_credential in this turn, then retry the original generation exactly once after the key is saved."), true);
+  assert.equal(registration.descriptor.description?.includes("Do not retry"), false);
 });
 
 test("requiresConfirmation is unset — no ceremony beyond the ordinary permission gate", () => {
@@ -229,32 +231,31 @@ test("the real catalog and this wiring layer's own risk classification agree", (
 // 2. No credential configured — fails closed, nothing written, nothing generated
 // ---------------------------------------------------------------------------
 
-test("no OpenAI credential configured: rejects with a clear message naming Media providers, calls neither generateMedia nor uploadMedia", async () => {
+test("no OpenAI credential configured: returns the secure-card diagnostic, calls neither generateMedia nor uploadMedia", async () => {
   const { deps, mediaRepo, generateCalls } = fakeRouteDeps();
 
-  await assert.rejects(
-    () => wired("media_generate_asset", deps).handler(executionContext({ prompt: "a red bicycle" })),
-    (error: unknown) => {
-      assert.ok(error instanceof Error);
-      assert.match(error.message, /no OpenAI media-provider credential is configured/);
-      assert.match(error.message, /Media providers/);
-      assert.match(error.message, /Do not retry/);
-      return true;
-    }
-  );
+  const result = await wired("media_generate_asset", deps).handler(executionContext({ prompt: "a red bicycle" })) as { generated: boolean; credentialSetup: unknown };
+  assert.equal(result.generated, false);
+  assert.deepEqual(result.credentialSetup, {
+    setupToolId: "media_propose_provider_credential", remedyToolId: "media_propose_provider_credential", prefill: { provider: "openai" },
+    hint: "A missing or rejected credential may be fixed by saving it through the secure card.",
+  });
 
   assert.equal(generateCalls.length, 0, "the vendor must never be called when there is no credential to call it with");
   assert.deepEqual(await mediaRepo.list({ workspaceId: WORKSPACE_ID }), [], "nothing may be written when generation never ran");
 });
 
-test("a credential saved with baseUrl/model but no key yet is treated the same as no credential at all", async () => {
-  const { deps, mediaProviderCredentialRepo, siteAssistantSecretSealer, keyring, generateCalls } = fakeRouteDeps();
-  await saveMediaProviderCredentials(
-    { repo: mediaProviderCredentialRepo, sealer: siteAssistantSecretSealer, keyring, clock: createFakeClock({ startIso: NOW }) },
-    { workspaceId: WORKSPACE_ID, providers: { openai: { baseUrl: "https://api.openai.com/v1" } } }
-  );
+test("a legacy credential saved with baseUrl/model but no key yet is treated the same as no credential at all", async () => {
+  const { deps, mediaProviderCredentialRepo, generateCalls } = fakeRouteDeps();
+  // New credential creates require a key; seed the legacy keyless row directly to exercise reads.
+  await mediaProviderCredentialRepo.upsert({
+    workspaceId: WORKSPACE_ID, providerId: "openai", baseUrl: "https://api.openai.com/v1", model: null,
+    sealed: null, keyTail: null, aadVersion: 0, createdAt: NOW, updatedAt: NOW,
+  });
 
-  await assert.rejects(() => wired("media_generate_asset", deps).handler(executionContext({ prompt: "a red bicycle" })), /no OpenAI media-provider credential is configured/);
+  const result = await wired("media_generate_asset", deps).handler(executionContext({ prompt: "a red bicycle" })) as { generated: boolean; credentialSetup: { setupToolId: string } };
+  assert.equal(result.generated, false);
+  assert.equal(result.credentialSetup.setupToolId, "media_propose_provider_credential");
   assert.equal(generateCalls.length, 0);
 });
 
@@ -392,18 +393,21 @@ test("a saved credential that fails to decrypt throws its own error and never fa
 });
 
 test("no credential anywhere (saved or env) names the selected model's vendor, not always 'OpenAI'", async () => {
-  const { deps, generateCalls } = fakeRouteDeps({ env: {} });
+  const { deps, mediaRepo, generateCalls } = fakeRouteDeps({ env: {} });
 
-  await assert.rejects(
-    () => wired("media_generate_asset", deps).handler(executionContext({ prompt: "a red circle", model: "gemini-3.1-flash-image-preview" })),
-    (error: unknown) => {
-      assert.ok(error instanceof Error);
-      assert.match(error.message, /no Nano Banana media-provider credential is configured/);
-      assert.match(error.message, /GOOGLE_API_KEY, GEMINI_API_KEY/, "should name the env vars it checked");
-      return true;
-    }
-  );
+  const result = await wired("media_generate_asset", deps).handler(executionContext({ prompt: "a red circle", model: "gemini-3.1-flash-image-preview" })) as { generated: boolean; message: string; credentialSetup: unknown };
+  assert.equal(result.generated, false);
+  assert.equal(result.message,
+    "media_generate_asset: no Nano Banana media-provider credential is configured for this workspace (also checked GOOGLE_API_KEY, GEMINI_API_KEY in this process's environment — none were set). " +
+    "Call media_propose_provider_credential to open a human key form, or an operator can add one in the admin under Media -> \"Media providers\" (Access Tokens' " +
+    "counterpart for generation vendors) then retry this tool once with the same model. " +
+    "this will not resolve without that credential being added.");
+  assert.deepEqual(result.credentialSetup, {
+    setupToolId: "media_propose_provider_credential", remedyToolId: "media_propose_provider_credential", prefill: { provider: "nanobanana" },
+    hint: "A missing or rejected credential may be fixed by saving it through the secure card.",
+  });
   assert.equal(generateCalls.length, 0);
+  assert.deepEqual(await mediaRepo.list({ workspaceId: WORKSPACE_ID }), []);
 });
 
 // ---------------------------------------------------------------------------

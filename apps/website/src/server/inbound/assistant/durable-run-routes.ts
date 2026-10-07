@@ -1,3 +1,4 @@
+import { redactAdminRunContextRef } from "#src/assistant/credential-chat-intake";
 import type { Express } from "express";
 import type { RunStartHandler } from "@jini-ai/daemon/http";
 import type { ChatRunLedger } from "#src/assistant/persistence/run-ledger";
@@ -6,6 +7,19 @@ import { UNKNOWN_MUTATION_ERROR } from "#src/assistant/durable-runs/continuation
 import { RUN_PRINCIPAL_HEADER } from "#src/assistant/run-ownership";
 
 type Lifecycle = Parameters<RunStartHandler>[0]["lifecycle"];
+
+/** Always precedes run routes, including starts that have no durable chat binding. */
+export function registerCredentialRunIntake({ app }: { app: Express }, _optional = {}): void {
+  app.post("/api/runs", (req, res, next) => {
+    const body = (req.body ?? {}) as { contextRef?: unknown };
+    // This route precedes the ordinary daemon route too, so headless starts use the same guard.
+    if (typeof body.contextRef === "string") {
+      try { body.contextRef = redactAdminRunContextRef({ contextRef: body.contextRef }, {}); }
+      catch { res.status(400).json({ error: "The run context must be a JSON object.", code: "VALIDATION_ERROR" }); return; }
+    }
+    next();
+  });
+}
 
 /** Tovu chooses the attempt id before dispatch. The published daemon lifecycle already accepts
  * runId; this host route exposes it only for an authenticated, persisted staff-chat binding. */

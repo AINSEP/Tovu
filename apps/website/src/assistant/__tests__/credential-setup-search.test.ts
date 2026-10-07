@@ -17,6 +17,8 @@ const contributions = {
 };
 
 const cases: Record<string, string[]> = {
+  custom_credential_create: ["connect my Stripe account", "save my Mailchimp API key", "use my Fly.io token"],
+  deployment_ops_set_secret: ["set STRIPE_KEY on my app"],
   media_list_providers: ['which image generation providers are configured', 'list video generation providers', 'which AI image provider can I use', 'is my Replicate image provider configured'],
   media_propose_provider_credential: ['add an image generation API key', 'connect OpenAI for images', 'set up my video provider key', 'open a form to save an image provider credential'],
   source_control_propose_credential: ['connect GitHub token for commits', 'save a GitLab source control credential', 'set up repository backup credentials', 'open a form to connect source control'],
