@@ -10,6 +10,12 @@
 #   <out>/<shard>.md      the final agent_message — written ONLY when the stream has turn.completed
 #                         and no error/turn.failed event (exit 0 does NOT mean success)
 #   <out>/<shard>.failed  reason, when the run did not succeed
+# After the marker, every prompt is prefixed with a persona preamble: the AI-Dev-Shop programmer and
+# software-architect personas (or $CODEX_PERSONAS, space-separated agent names; set it empty to
+# skip) plus a "reuse before you write" rule. Why: --ignore-rules skips AGENTS.md, so without this
+# Codex jobs ran persona-less and copied sibling features instead of extending shared mechanisms
+# (2026-10-07: ~10 hand-rolled copies of one credential-card lifecycle; the owner asked that every
+# Codex job carry these personas).
 # A shard whose .md already exists is skipped, so a re-run resumes where the last one stopped.
 # Blocks in the foreground until every shard has finished; prints a status table at the end.
 set -u
@@ -19,7 +25,14 @@ SANDBOX=${2:?sandbox mode: read-only | workspace-write}
 OUT_DIR=${3:?output dir}
 MAX_JOBS=${CODEX_SHARD_CONCURRENCY:-5}
 EFFORT=${CODEX_EFFORT:-medium}
-REPO=/Users/la/Programming/Tovu
+REPO=${CODEX_REPO:-/Users/la/Programming/Tovu}
+PERSONAS=${CODEX_PERSONAS-programmer software-architect}
+persona_preamble() {
+  [ -n "$PERSONAS" ] || return 0
+  printf '%s\n' "## Personas (read before any work)"
+  for p in $PERSONAS; do printf '%s\n' "- Read /Users/la/Programming/Tovu/AI-Dev-Shop/agents/$p/skills.md and work as that agent."; done
+  printf '%s\n\n' "- REUSE BEFORE YOU WRITE: before adding any new module, form, store, helper, wrapper or test harness, search Tovu and Jini (/Users/la/Programming/Jini) for an existing one that does the job, and extend it. Never copy a sibling feature's lifecycle code. If two places would share logic, put it in ONE shared place (generic logic belongs in Jini); a new generic path must replace the old ones, not sit beside them. Add no abstraction that has only one user. Say in your report what you reused."
+}
 
 case "$SANDBOX" in
   read-only|workspace-write) ;;
@@ -66,7 +79,7 @@ NODE
 run_shard() {
   local prompt=$1 shard=$2
   local jsonl="$OUT_DIR/$shard.jsonl" err="$OUT_DIR/$shard.err"
-  { printf '%s\n\n' '<<PEER_DISPATCH>>'; cat "$prompt"; } \
+  { printf '%s\n\n' '<<PEER_DISPATCH>>'; persona_preamble; cat "$prompt"; } \
     | codex exec --ignore-rules --ignore-user-config --ephemeral --json -s "$SANDBOX" -m gpt-6.1-sol \
         -c model_reasoning_effort="$EFFORT" -C "$REPO" - > "$jsonl" 2> "$err"
   local rc=$?
