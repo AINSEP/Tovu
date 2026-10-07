@@ -10,9 +10,8 @@
 #   <out>/<shard>.md      the final agent_message — written ONLY when the stream has turn.completed
 #                         and no error/turn.failed event (exit 0 does NOT mean success)
 #   <out>/<shard>.failed  reason, when the run did not succeed
-# After the marker, every prompt is prefixed with a persona preamble: the AI-Dev-Shop programmer and
-# software-architect personas (or $CODEX_PERSONAS, space-separated agent names; set it empty to
-# skip) plus a "reuse before you write" rule. Why: --ignore-rules skips AGENTS.md, so without this
+# After the marker, every prompt is prefixed with a persona preamble: Codex picks the best-fitting AI-Dev-Shop persona(s) from
+# the agent roster (or $CODEX_PERSONAS forces names; "none" skips) plus a "reuse before you write" rule. Why: --ignore-rules skips AGENTS.md, so without this
 # Codex jobs ran persona-less and copied sibling features instead of extending shared mechanisms
 # (2026-10-07: ~10 hand-rolled copies of one credential-card lifecycle; the owner asked that every
 # Codex job carry these personas).
@@ -26,11 +25,15 @@ OUT_DIR=${3:?output dir}
 MAX_JOBS=${CODEX_SHARD_CONCURRENCY:-5}
 EFFORT=${CODEX_EFFORT:-medium}
 REPO=${CODEX_REPO:-/Users/la/Programming/Tovu}
-PERSONAS=${CODEX_PERSONAS-programmer software-architect}
+PERSONAS=${CODEX_PERSONAS-}   # empty = Codex picks; or force names, e.g. "programmer refactor"; "none" = skip
 persona_preamble() {
-  [ -n "$PERSONAS" ] || return 0
-  printf '%s\n' "## Personas (read before any work)"
-  for p in $PERSONAS; do printf '%s\n' "- Read /Users/la/Programming/Tovu/AI-Dev-Shop/agents/$p/skills.md and work as that agent."; done
+  [ "$PERSONAS" = none ] && return 0
+  printf '%s\n' "## Persona (before any work)"
+  if [ -n "$PERSONAS" ]; then
+    for p in $PERSONAS; do printf '%s\n' "- Read /Users/la/Programming/Tovu/AI-Dev-Shop/agents/$p/skills.md and work as that agent."; done
+  else
+    printf '%s\n' "- Read the roster /Users/la/Programming/Tovu/AI-Dev-Shop/framework/routing/agent-index.md, pick the 1-2 personas that best fit THIS task (e.g. programmer, refactor, software-architect, tdd, qa-e2e, security, database, web-design), read each one's /Users/la/Programming/Tovu/AI-Dev-Shop/agents/<name>/skills.md, and work as them. Name your pick and why in one line at the top of your report."
+  fi
   printf '%s\n\n' "- REUSE BEFORE YOU WRITE: before adding any new module, form, store, helper, wrapper or test harness, search Tovu and Jini (/Users/la/Programming/Jini) for an existing one that does the job, and extend it. Never copy a sibling feature's lifecycle code. If two places would share logic, put it in ONE shared place (generic logic belongs in Jini); a new generic path must replace the old ones, not sit beside them. Add no abstraction that has only one user. Say in your report what you reused."
 }
 
