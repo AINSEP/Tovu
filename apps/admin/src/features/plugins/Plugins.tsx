@@ -227,7 +227,8 @@ function InstalledPanel({ plugins, controller, rowHandleById }: PluginsTabPanelP
   );
 }
 
-/** Downloaded: every plugin, followed by the built-in note — or its own empty state. */
+/** Downloaded: the two remove notes as compact helper text under the tabs, then every plugin — or
+ *  its own empty state. The notes sat under the list until the owner moved them up (2026-10-07). */
 function DownloadedPanel({ plugins, controller, rowHandleById }: PluginsTabPanelProps) {
   const { t } = controller;
   if (plugins.length === 0) {
@@ -246,6 +247,14 @@ function DownloadedPanel({ plugins, controller, rowHandleById }: PluginsTabPanel
   }
   return (
     <>
+      <div className="plugins-remove-notes">
+        <p id={PLUGINS_REMOVE_NOTE_IDS["built-in"]} className="page-description">
+          {t("Built-in plugins ship with Tovu itself and have no on-disk files to remove.")}
+        </p>
+        <p id={PLUGINS_REMOVE_NOTE_IDS.enabled} className="page-description">
+          {t("Turn a plugin off on Installed before removing it.")}
+        </p>
+      </div>
       <DownloadedPluginRows
         plugins={plugins}
         controller={controller}
@@ -254,12 +263,6 @@ function DownloadedPanel({ plugins, controller, rowHandleById }: PluginsTabPanel
         rowHandleById={rowHandleById}
         onRequestRemove={controller.onRequestRemove}
       />
-      <p id={PLUGINS_REMOVE_NOTE_IDS["built-in"]} className="page-description">
-        {t("Built-in plugins ship with Tovu itself and have no on-disk files to remove.")}
-      </p>
-      <p id={PLUGINS_REMOVE_NOTE_IDS.enabled} className="page-description">
-        {t("Turn a plugin off on Installed before removing it.")}
-      </p>
     </>
   );
 }

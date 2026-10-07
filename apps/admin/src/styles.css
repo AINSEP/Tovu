@@ -5932,8 +5932,14 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 }
 /* Honest-disabled — built-in plugins have no on-disk artifact for this route to remove. Must LOOK
    unavailable rather than merely fail on click; the reason lives in `aria-describedby` and the
-   section-wide note under the list. */
+   section-wide note above the list. */
 .plugin-icon-btn:disabled { color: var(--faint); cursor: default; }
+
+/* Downloaded's two Remove notes, as compact helper text between the tabs and the list (owner,
+   2026-10-07). Under the list they read as page body copy, each with a full paragraph margin. The
+   negative margins trim `.page`'s 24px flex gap so the notes sit with the tabs and the list. */
+.plugins-remove-notes { display: grid; gap: 2px; margin: calc(-1 * var(--space-2)) 0 calc(-1 * var(--space-3)); }
+.plugins-remove-notes > p { margin: 0; font-size: var(--text-sm); line-height: 1.45; color: var(--muted); }
 
 /* Detail panel — quarantine + `errors[]`, moved here from the pre-split table's own always-visible
    columns. `[hidden]` needs its own rule for the reason every other `[hidden]` panel in this file
