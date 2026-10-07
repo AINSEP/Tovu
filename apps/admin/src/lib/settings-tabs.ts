@@ -35,6 +35,9 @@ export const NOTIFICATIONS_NAMESPACE = "core.notifications";
 export const PRIVACY_NAMESPACE = "core.privacy";
 export const APPEARANCE_NAMESPACE = "core.appearance";
 export const LANGUAGE_NAMESPACE = "core.language";
+/** Per-operator admin chrome preferences — registered by the website's
+ *  `features/settings/admin-interface.ts`, mirrored (not re-derived) here. */
+export const INTERFACE_NAMESPACE = "core.interface";
 
 /** Workspace-scoped: custom instructions and telemetry consent are properties
  *  of the workspace, not of whoever happens to be looking at the tab. */
@@ -258,4 +261,33 @@ export async function savePrivacy(
     },
   ];
   return saveChangedEntries(PRIVACY_NAMESPACE, WORKSPACE_SCOPE, candidates);
+}
+
+// --- User Interface -------------------------------------------------------
+
+const INTERFACE_KEYS = { hideChatFabWhileOpen: "hideChatFabWhileOpen" } as const;
+
+export interface InterfaceConfig {
+  /** Hide the floating chat button while the assistant dock is open (the dock's ✕ closes it). */
+  hideChatFabWhileOpen: boolean;
+}
+
+/** `true`: the behaviour the owner approved before this became a choice (2026-10-06). */
+export const DEFAULT_INTERFACE: InterfaceConfig = { hideChatFabWhileOpen: true };
+
+export async function loadInterface(): Promise<InterfaceConfig> {
+  const values = await loadNamespaceValues(INTERFACE_NAMESPACE);
+  return {
+    hideChatFabWhileOpen: readBoolean(values, INTERFACE_KEYS.hideChatFabWhileOpen, DEFAULT_INTERFACE.hideChatFabWhileOpen),
+  };
+}
+
+export async function saveInterface(next: InterfaceConfig, previous: InterfaceConfig): Promise<readonly string[]> {
+  return saveChangedEntries(INTERFACE_NAMESPACE, USER_SCOPE, [
+    {
+      key: INTERFACE_KEYS.hideChatFabWhileOpen,
+      valueJson: next.hideChatFabWhileOpen,
+      changed: next.hideChatFabWhileOpen !== previous.hideChatFabWhileOpen,
+    },
+  ]);
 }

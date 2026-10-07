@@ -217,6 +217,7 @@ import {
   preserveLegacySiteTitles,
   type SiteDisplayNameSource,
 } from "#src/features/settings/site-title";
+import { ensureAdminInterfaceSettingDefinitions } from "#src/features/settings/admin-interface";
 import { SqliteSiteTitlePreservationStore } from "#src/features/settings/site-title-preservation.sqlite";
 import { SqliteCommentRepo } from "#src/features/comments/repo.sqlite";
 import {
@@ -1206,6 +1207,9 @@ async function composeSiteRouteDeps(
   const siteDisplayName = createSiteDisplayNameSource(dbPath);
   const siteTitleSettingsDeps = { settingsRepo, clock, ids: idGen, principals: settingsPrincipals };
   const siteTitleReady = analyticsSettingsReady
+    // `core.interface` (`features/settings/admin-interface.ts`), chained here for the same
+    // one-connection reason as the registrations above.
+    .then(() => ensureAdminInterfaceSettingDefinitions(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureSiteTitleSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() =>
       preserveLegacySiteTitles(

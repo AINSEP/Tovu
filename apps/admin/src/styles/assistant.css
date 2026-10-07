@@ -118,6 +118,9 @@
      `.admin-layout` must not create a stacking context (transform/filter/opacity/z-index), or
      this value only ranks the FAB inside it. */
   --admin-chat-fab-z: 75;
+  /* The FAB's default gap from the viewport's right and bottom edges. Must equal `FAB_EDGE_MARGIN`
+     in `ChatFab.hooks.tsx`, which positions it; the composer room below is computed from it. */
+  --admin-chat-fab-inset: 20px;
 }
 
 .admin-chat-dock {
@@ -235,9 +238,13 @@
    bottom"). Same answer as phones (styles.css, owner repro 2026-08-26): while the dock is open the
    FAB is hidden and the sheet bar's ✕ closes it. Desktop shows only that ✕; the drag handle and
    expand toggle are phone-sheet controls. Closing drops `.is-open`, so the FAB reappears at once to
-   reopen the dock. Keep this breakpoint paired with styles.css's 640px sheet. */
+   reopen the dock. Keep this breakpoint paired with styles.css's 640px sheet.
+   Since 2026-10-06 that hide is the operator's choice (Settings → User Interface, default on):
+   `App.tsx` adds `.hides-fab-while-open` to `.admin-layout` only while it is on. Off, the FAB stays
+   above the open dock (`--admin-chat-fab-z`) and its click closes it. */
 @media (width > 640px) {
-  .admin-layout .admin-chat-dock.is-open + .chat-fab { display: none; }
+  .admin-layout.hides-fab-while-open .admin-chat-dock.is-open + .chat-fab { display: none; }
+
 
   /* Column, as on phones, so the bar is a row above the pane rather than a column beside it. */
   .admin-chat-dock { flex-direction: column; }
@@ -259,6 +266,22 @@
 
   /* Room for the one ✕ to the right of the switcher. */
   .admin-chat-dock .jini-chat-pane .jini-chat-pane__header { padding-right: 44px; }
+}
+
+/* Hide setting OFF (Settings → User Interface): the FAB stays in the dock's bottom-right corner
+   (its default spot; `resolveChatFabClearance` stops pushing it out while the setting is off), right
+   where the composer's footer ends, so it would cover Send and the runtime picker. The footer gets
+   room for it instead of a strip under the composer, so the composer stays pinned to the bottom
+   (owner, 2026-10-06). `--admin-chat-composer-edge` is how far the footer's right edge already sits
+   in from the viewport edge, measured live: 17px docked (the controls' 16px padding plus the
+   composer's 1px border), 11px in the phone sheet (10px plus 1px). The rest of the FAB's width, its
+   inset and an 8px gap become padding: Send ends 8px left of the FAB at both widths. */
+.admin-chat-dock { --admin-chat-composer-edge: 17px; }
+@media (max-width: 640px) {
+  .admin-chat-dock { --admin-chat-composer-edge: 11px; }
+}
+.admin-layout:not(.hides-fab-while-open) .admin-chat-dock.is-open .jini-composer-footer {
+  padding-right: calc(var(--admin-chat-fab-size) + var(--admin-chat-fab-inset) + 8px - var(--admin-chat-composer-edge));
 }
 
 /* One header row at every width (owner, 2026-10-06): no "Tovu assistant" / "Workspace chat"

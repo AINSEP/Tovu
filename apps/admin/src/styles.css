@@ -1762,8 +1762,9 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
      out-guess every page's layout with smarter avoidance math. Scoped to `.is-open` only (not
      `.is-expanded`): the sheet bar's close button is present in both the peek and expanded
      states, so the FAB should disappear in both. Closing the sheet drops `.is-open`, so the
-     ordinary bottom-right FAB reappears immediately to reopen it. */
-  .admin-layout .admin-chat-dock.is-open + .chat-fab { display: none; }
+     ordinary bottom-right FAB reappears immediately to reopen it. Operator's choice since
+     2026-10-06 (Settings → User Interface, default on = this hide); see `styles/assistant.css`. */
+  .admin-layout.hides-fab-while-open .admin-chat-dock.is-open + .chat-fab { display: none; }
 }
 
 /* Sheet chrome (drag handle, title, expand/close) — App.tsx-rendered, sitting above

@@ -138,6 +138,8 @@ import { createProbeErrorDescriber } from "../../lib/stored-credential-endpoint"
 import { t as tCapability } from "./settings-capabilities-i18n";
 import { t as tSettingsExecution } from "./settings-execution-i18n";
 import { t as tSettings } from "./settings-i18n";
+import { t as tInterfaceCopy } from "./settings-interface-i18n";
+import { UserInterfaceSettingsPanel } from "./UserInterfaceSettingsPanel";
 import { memoryPanelDictionaries } from "./settings-memory-i18n";
 import { BrowserAgentSettingsPanel } from "../webmcp/BrowserAgentSettingsPanel";
 import { t as tApp } from "../../app-i18n";
@@ -547,6 +549,22 @@ export function SettingsUi(props: SettingsUiProps) {
           agentHandle="settings-language"
         />
       ),
+    },
+    {
+      // Owner, 2026-10-06: per-operator admin chrome preferences (`core.interface`). Copy lives in
+      // `settings-interface-i18n.ts`; the panel's own doc covers what the one switch controls.
+      id: "interface",
+      label: tInterfaceCopy(settingsLocale, "User Interface"),
+      title: tInterfaceCopy(settingsLocale, "User Interface"),
+      subtitle: tInterfaceCopy(settingsLocale, "How the admin's controls behave for you. Saved per operator."),
+      icon: (
+        <TabIcon>
+          <rect x="2.5" y="3" width="13" height="12" rx="2" />
+          <path d="M2.5 6.5h13" />
+          <circle cx="12" cy="11.5" r="1.5" />
+        </TabIcon>
+      ),
+      panel: <UserInterfaceSettingsPanel slice={s.interface} locale={settingsLocale} />,
     },
     {
       id: "memory",

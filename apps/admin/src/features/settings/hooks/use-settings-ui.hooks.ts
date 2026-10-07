@@ -17,24 +17,29 @@ import {
   APPEARANCE_NAMESPACE,
   DEFAULT_APPEARANCE,
   DEFAULT_INSTRUCTIONS,
+  DEFAULT_INTERFACE,
   DEFAULT_LOCALE,
   DEFAULT_NOTIFICATIONS,
   DEFAULT_PRIVACY,
   INSTRUCTIONS_NAMESPACE,
+  INTERFACE_NAMESPACE,
   LANGUAGE_NAMESPACE,
   NOTIFICATIONS_NAMESPACE,
   PRIVACY_NAMESPACE,
   loadAppearance,
   loadInstructions,
+  loadInterface,
   loadLanguage,
   loadNotifications,
   loadPrivacy,
   saveAppearance,
   saveInstructions,
+  saveInterface,
   saveLanguage,
   saveNotifications,
   savePrivacy,
   type AppearanceConfig,
+  type InterfaceConfig,
 } from "@/lib/settings-tabs";
 import { mergeSaveStates, useSettingsSlice, type SaveState, type SettingsSlice } from "@/hooks/use-settings-slice.hooks";
 import { areAnySlicesLoading, firstLoadError } from "../rules";
@@ -78,6 +83,8 @@ export interface SettingsUiController {
   privacy: SettingsSlice<PrivacyConsentState>;
   appearance: SettingsSlice<AppearanceConfig>;
   language: SettingsSlice<string>;
+  /** Settings → User Interface (`core.interface`, per operator). */
+  interface: SettingsSlice<InterfaceConfig>;
 
   /** `true` until every mounted slice has settled — see `rules.ts`'s `areAnySlicesLoading`. */
   loading: boolean;
@@ -153,8 +160,14 @@ export function useSettingsUi(): SettingsUiController {
     defaultValue: DEFAULT_LOCALE,
     namespaces: [LANGUAGE_NAMESPACE],
   });
+  const interfacePrefs = useSettingsSlice<InterfaceConfig>({
+    load: loadInterface,
+    save: saveInterface,
+    defaultValue: DEFAULT_INTERFACE,
+    namespaces: [INTERFACE_NAMESPACE],
+  });
 
-  const slices = [execution, instructions, notifications, privacy, appearance, language];
+  const slices = [execution, instructions, notifications, privacy, appearance, language, interfacePrefs];
   const save = useMemo(
     () => mergeSaveStates(slices.map((slice) => slice.saveState)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -173,6 +186,7 @@ export function useSettingsUi(): SettingsUiController {
     privacy,
     appearance,
     language,
+    interface: interfacePrefs,
 
     loading: areAnySlicesLoading(slices),
     loadError: firstLoadError(slices),

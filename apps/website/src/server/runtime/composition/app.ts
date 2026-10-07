@@ -212,6 +212,7 @@ import {
   InMemorySiteTitlePreservationStore,
   preserveLegacySiteTitles,
 } from "#src/features/settings/site-title";
+import { ensureAdminInterfaceSettingDefinitions } from "#src/features/settings/admin-interface";
 import { InMemoryCommentRepo } from "#src/features/comments/repo.memory";
 import type { CommentRecord } from "#src/features/comments/index";
 import { registerCommentsSubmitRoute } from "../../inbound/public-http/routes/site/comments-submit.js";
@@ -502,6 +503,9 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   const siteTitlePreservationStore = new InMemorySiteTitlePreservationStore();
   const siteTitleSettingsDeps = { settingsRepo, clock, ids: idGen, principals: settingsPrincipals };
   const siteTitleReady = analyticsSettingsReady
+    // `core.interface` (`features/settings/admin-interface.ts`), chained here for the same
+    // one-connection reason as the registrations above.
+    .then(() => ensureAdminInterfaceSettingDefinitions(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() => ensureSiteTitleSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
     .then(() =>
       preserveLegacySiteTitles(

@@ -597,8 +597,14 @@ export function resolveChatFabClearance(params: {
   chatOpen: boolean;
   sheetHeightPx: number;
   dockWidthPx: number;
+  /** Settings → User Interface (default `true`). Off, the FAB stays visible over the open dock and
+   *  keeps its own spot (by default the dock's bottom-right corner), where the composer footer
+   *  leaves room for it (`styles/assistant.css`), so it reads as the dock's own close button
+   *  instead of jumping out over the page. On, it is hidden while open and clearance is moot. */
+  fabHidesWhileOpen?: boolean;
 }): { avoidBottomPx: number; avoidRightPx: number } {
-  const { isSheetMode, chatOpen, sheetHeightPx, dockWidthPx } = params;
+  const { isSheetMode, chatOpen, sheetHeightPx, dockWidthPx, fabHidesWhileOpen = true } = params;
+  if (!fabHidesWhileOpen) return { avoidBottomPx: 0, avoidRightPx: 0 };
   return {
     avoidBottomPx: isSheetMode && chatOpen ? sheetHeightPx : 0,
     avoidRightPx: !isSheetMode && chatOpen ? dockWidthPx : 0,
