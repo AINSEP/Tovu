@@ -1,3 +1,4 @@
+import { AdminPageApprovalDialog } from "./features/webmcp/AdminPageApprovalDialog";
 import { useCmsSidebarLabelTooltips } from "./hooks/use-cms-sidebar-label-tooltips.hooks";
 import { useAdminDocumentLocale } from "./hooks/use-admin-document-locale.hooks";
 import { useAdminAppearance } from "./hooks/use-admin-appearance.hooks";
@@ -705,6 +706,7 @@ export function App(props: AppProps) {
           </Sidebar.Footer>
         </Sidebar>
         <LogoutConfirmDialog logoutConfirm={logoutConfirm} locale={navLocale} />
+        <AdminPageApprovalDialog locale={navLocale} />
         {/* Mobile-only backdrop behind the open drawer (`styles.css` hides `.cms-nav`'s off-canvas
             behavior above 900px, so this has nothing to sit behind there either — conditionally
             rendered rather than CSS-hidden since it would otherwise sit invisibly over the whole

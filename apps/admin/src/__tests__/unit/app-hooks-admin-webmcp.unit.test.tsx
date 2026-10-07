@@ -4,18 +4,22 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { registerAdminWebMcpTool, useAgentPageBridge } from "../../App.hooks";
 import { PUBLISH_CONTENT_CAPABILITY } from "@tovu/publish-content-ui";
 import { PAGE_CAPABILITIES } from "@jini-ai/agentic";
+import type { FrontendSessionBridge } from "@jini-ai/chat/react";
 import { setBrowserAgentEnabled } from "../../features/webmcp/browser-agent-settings.hooks";
 
-vi.mock("@jini-ai/chat/react", () => ({
-  createFrontendSessionBridge: vi.fn(() => ({ ready: Promise.resolve(), close: vi.fn() })),
+// Inject the transport factory; no module replacement or network is needed for page registration.
+const createBridge = vi.fn((): FrontendSessionBridge => ({
+  ready: Promise.resolve({ sessionId: "session-1", bindToken: "bind-1" }),
+  bindToken: () => "bind-1", close: vi.fn(),
+  bridgeAccess: { subscribe: () => () => {}, respondSuccess: async () => {}, respondError: async () => {} },
 }));
-vi.mock("../../hooks/use-admin-locale.hooks", () => ({ useWiredAdminLocale: () => "en" }));
 
 const documentContextDescriptor = Object.getOwnPropertyDescriptor(document, "modelContext");
 const navigatorContextDescriptor = Object.getOwnPropertyDescriptor(navigator, "modelContext");
 
 afterEach(() => {
   act(() => setBrowserAgentEnabled({ enabled: true }));
+  createBridge.mockClear();
   for (const [target, descriptor] of [[document, documentContextDescriptor], [navigator, navigatorContextDescriptor]] as const) {
     if (descriptor) Object.defineProperty(target, "modelContext", descriptor);
     else Reflect.deleteProperty(target, "modelContext");
@@ -113,11 +117,12 @@ describe("registerAdminWebMcpTool", () => {
   it("the real bridge registers on mount and aborts its registered signal on unmount", () => {
     const registerTool = vi.fn();
     Object.defineProperty(document, "modelContext", { configurable: true, value: { registerTool } });
-    const { result, unmount } = renderHook(() => useAgentPageBridge());
+    const { result, unmount } = renderHook(() => useAgentPageBridge({ createBridge }));
     const element = document.createElement("main");
     act(() => result.current.setContentEl(element));
 
-    expect(registerTool).toHaveBeenCalledTimes(1 + PAGE_CAPABILITIES.length);
+    expect(createBridge).toHaveBeenCalledTimes(1);
+    expect(registerTool).toHaveBeenCalledTimes(2 + PAGE_CAPABILITIES.length);
     const [registration, options] = registerTool.mock.calls[0];
     expect(registration.name).toBe(PUBLISH_CONTENT_CAPABILITY.id);
     expect(options.signal.aborted).toBe(false);
@@ -126,21 +131,20 @@ describe("registerAdminWebMcpTool", () => {
   });
 
   it("opt-out aborts every browser tool without tearing down the assistant bridge", async () => {
-    const { createFrontendSessionBridge } = await import("@jini-ai/chat/react");
     const registerTool = vi.fn();
     Object.defineProperty(document, "modelContext", { configurable: true, value: { registerTool } });
-    const { result } = renderHook(() => useAgentPageBridge());
+    const { result } = renderHook(() => useAgentPageBridge({ createBridge }));
     act(() => result.current.setContentEl(document.createElement("main")));
     const bridge = result.current.agentBridge!;
-    const callsBeforeToggle = vi.mocked(createFrontendSessionBridge).mock.calls.length;
+    const callsBeforeToggle = createBridge.mock.calls.length;
     const signals = registerTool.mock.calls.map((call) => call[1].signal as AbortSignal);
     act(() => setBrowserAgentEnabled({ enabled: false }));
     expect(signals.every((signal) => signal.aborted)).toBe(true);
     expect(result.current.agentBridge).toBe(bridge);
     expect(bridge.close).not.toHaveBeenCalled();
     act(() => setBrowserAgentEnabled({ enabled: true }));
-    expect(registerTool).toHaveBeenCalledTimes(2 * (1 + PAGE_CAPABILITIES.length));
-    expect(vi.mocked(createFrontendSessionBridge).mock.calls).toHaveLength(callsBeforeToggle);
+    expect(registerTool).toHaveBeenCalledTimes(2 * (2 + PAGE_CAPABILITIES.length));
+    expect(createBridge.mock.calls).toHaveLength(callsBeforeToggle);
   });
 
   it("stale publish callbacks cannot bypass an opt-out", async () => {

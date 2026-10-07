@@ -207,3 +207,22 @@ it("Jini-expanded chat folder paths survive skill upload preparation", async () 
   const ref = Object.assign(new File(["reference"], "check.md"), { relativePath: "incident/references/check.md" });
   expect(await prepareSkillUpload([md, ref])).toEqual({ files: [{ path: "incident/SKILL.md", contentBase64: btoa("rules") }, { path: "incident/references/check.md", contentBase64: btoa("reference") }] });
 });
+
+
+it("tags every Skills add-tab input/action and both install confirmation choices", async () => {
+  window.history.replaceState(null, "", "/admin/skills?tab=add");
+  vi.stubGlobal("fetch", vi.fn(async () => Response.json({ skills: [] })));
+  render(<Skills />);
+  for (const [name, handle] of [["GitHub URL", "skills-add-github-url"], ["Choose skill files", "skills-add-files-input"], ["Choose skill folder", "skills-add-folder-input"]]) {
+    expect(screen.getByLabelText(name)).toHaveAttribute("data-agent-element", handle);
+  }
+  for (const [name, handle] of [["Add from GitHub", "skills-add-github"], ["Upload files", "skills-add-files"], ["Upload folder", "skills-add-folder"]]) {
+    expect(screen.getByRole("button", { name })).toHaveAttribute("data-agent-element", handle);
+  }
+  fireEvent.change(screen.getByRole("textbox", { name: "GitHub URL" }), { target: { value: "https://github.com/acme/incident" } });
+  fireEvent.click(screen.getByRole("button", { name: "Add from GitHub" }));
+  expect(screen.getByRole("button", { name: "Cancel" })).toHaveAttribute("data-agent-element", "skills-install-cancel");
+  expect(screen.getByRole("button", { name: "Confirm install" })).toHaveAttribute("data-agent-element", "skills-install-confirm");
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(screen.queryByRole("dialog", { name: "Install skill" })).toBeNull();
+});

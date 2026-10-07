@@ -1,3 +1,4 @@
+import { agentHandle } from "@jini-ai/agentic";
 import { SettingsDialogShell, type SettingsDialogTab } from "@jini-ai/ui";
 import "@jini-ai/ui/settings-dialog.css";
 import { SkillInstallConfirmation } from "./SkillInstallConfirmation";
@@ -39,6 +40,8 @@ function AddSkillPanel({ controller }: { controller: SkillsController }) {
     <InstallTabCard titleId="skills-add-title" title="Add a skill">
       <InstallTabOption>
         <InstallTabFieldRow
+          inputProps={agentHandle({ handle: "skills-add-github-url" }, { role: "field", label: "GitHub URL" })}
+          actionProps={agentHandle({ handle: "skills-add-github" }, { role: "button", label: "Add from GitHub" })}
           inputId="skills-github-url"
           label="GitHub URL"
           value={controller.githubUrl}
@@ -48,12 +51,12 @@ function AddSkillPanel({ controller }: { controller: SkillsController }) {
           action={{ label: "Add from GitHub", disabled: controller.githubDisabled, primary: true }}
         />
         <div className="editor-actions">
-          <button type="button" className="btn-secondary" disabled={controller.addBusy} onClick={controller.onChooseFiles}>Upload files</button>
-          <button type="button" className="btn-secondary" disabled={controller.addBusy} onClick={controller.onChooseFolder}>Upload folder</button>
+          <button type="button" className="btn-secondary" disabled={controller.addBusy} onClick={controller.onChooseFiles} {...agentHandle({ handle: "skills-add-files" }, { role: "button", label: "Upload files" })}>Upload files</button>
+          <button type="button" className="btn-secondary" disabled={controller.addBusy} onClick={controller.onChooseFolder} {...agentHandle({ handle: "skills-add-folder" }, { role: "button", label: "Upload folder" })}>Upload folder</button>
         </div>
       </InstallTabOption>
-      <input ref={controller.filesInput} className="skills-file-input" type="file" aria-label="Choose skill files" multiple accept={SKILL_FILE_ACCEPT} onChange={controller.onFilesChange} hidden />
-      <input ref={controller.folderInput} className="skills-file-input" type="file" aria-label="Choose skill folder" multiple {...{ webkitdirectory: "" }} onChange={controller.onFilesChange} hidden />
+      <input ref={controller.filesInput} {...agentHandle({ handle: "skills-add-files-input" }, { role: "field", label: "Choose skill files" })} className="skills-file-input" type="file" aria-label="Choose skill files" multiple accept={SKILL_FILE_ACCEPT} onChange={controller.onFilesChange} hidden />
+      <input ref={controller.folderInput} {...agentHandle({ handle: "skills-add-folder-input" }, { role: "field", label: "Choose skill folder" })} className="skills-file-input" type="file" aria-label="Choose skill folder" multiple {...{ webkitdirectory: "" }} onChange={controller.onFilesChange} hidden />
     </InstallTabCard>
   );
 }

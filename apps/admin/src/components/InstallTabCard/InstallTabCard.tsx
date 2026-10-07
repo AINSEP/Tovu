@@ -51,6 +51,7 @@ export function InstallTabFieldRow({
   action,
   onSubmit,
   inputProps,
+  actionProps,
 }: {
   inputId: string;
   label?: string;
@@ -64,6 +65,8 @@ export function InstallTabFieldRow({
   onSubmit?: (event: FormEvent<HTMLFormElement>) => void;
   /** Extra attributes for the input (agent handles). */
   inputProps?: Record<string, unknown>;
+  /** Extra attributes for the submit button (agent handles). */
+  actionProps?: Record<string, unknown>;
 }) {
   return (
     <form className="install-tab-field" onSubmit={onSubmit ?? ((event) => event.preventDefault())}>
@@ -71,7 +74,7 @@ export function InstallTabFieldRow({
       <div className="install-tab-field-controls">
         <input id={inputId} type={type} value={value} onChange={onChange} placeholder={placeholder} disabled={disabled} aria-label={label ? undefined : placeholder} {...inputProps} />
         {action ? (
-          <button type="submit" className={action.primary ? "btn-primary" : "btn-secondary"} disabled={action.disabled}>
+          <button type="submit" className={action.primary ? "btn-primary" : "btn-secondary"} disabled={action.disabled} {...actionProps}>
             {action.label}
           </button>
         ) : null}
@@ -82,10 +85,10 @@ export function InstallTabFieldRow({
 
 /** A disclosure for a rarely needed way to install (Plugins' server path), closed by default so it
  *  does not compete with the upload. `hint` says what the field is in plain words. */
-export function InstallTabAdvanced({ summary, hint, children }: { summary: string; hint: string; children: ReactNode }) {
+export function InstallTabAdvanced({ summary, hint, children, summaryProps }: { summary: string; hint: string; children: ReactNode; summaryProps?: Record<string, unknown> }) {
   return (
     <details className="install-tab-advanced">
-      <summary>{summary}</summary>
+      <summary {...summaryProps}>{summary}</summary>
       <p className="field-hint">{hint}</p>
       {children}
     </details>
@@ -102,6 +105,7 @@ export interface ZipDropZoneFolder {
   onFilesChange: (event: ChangeEvent<HTMLInputElement>) => void;
   /** Extra attributes for the choose-folder button (agent handles). */
   chooseProps?: Record<string, unknown>;
+  inputProps?: Record<string, unknown>;
 }
 
 /** A styled drop target for one package file, with a "Choose a file" button opening a hidden
@@ -118,6 +122,8 @@ export function ZipDropZone({
   inputLabel,
   onFileChange,
   chooseProps,
+  dropProps,
+  fileProps,
   folder,
 }: {
   drop: ZipDropController;
@@ -132,6 +138,8 @@ export function ZipDropZone({
   onFileChange: (event: ChangeEvent<HTMLInputElement>) => void;
   /** Extra attributes for the choose button (agent handles). */
   chooseProps?: Record<string, unknown>;
+  dropProps?: Record<string, unknown>;
+  fileProps?: Record<string, unknown>;
   folder?: ZipDropZoneFolder;
 }) {
   return (
@@ -142,6 +150,7 @@ export function ZipDropZone({
         onDragLeave={drop.onDragLeave}
         onDrop={drop.onDrop}
         aria-busy={busy}
+        {...dropProps}
       >
         <span className="install-tab-dropzone-glyph">{glyph}</span>
         <p className="install-tab-dropzone-title">{title}</p>
@@ -157,9 +166,9 @@ export function ZipDropZone({
           ) : null}
         </div>
       </div>
-      <input ref={inputRef} type="file" accept=".zip,application/zip" hidden aria-label={inputLabel} onChange={onFileChange} />
+      <input ref={inputRef} type="file" accept=".zip,application/zip" hidden aria-label={inputLabel} onChange={onFileChange} {...fileProps} />
       {folder ? (
-        <input ref={folder.inputRef} type="file" multiple hidden aria-label={folder.inputLabel} onChange={folder.onFilesChange} {...{ webkitdirectory: "" }} />
+        <input ref={folder.inputRef} type="file" multiple hidden aria-label={folder.inputLabel} onChange={folder.onFilesChange} {...folder.inputProps} {...{ webkitdirectory: "" }} />
       ) : null}
     </>
   );

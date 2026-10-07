@@ -1,0 +1,3 @@
+/* Keep the exact proposed input readable inside the shared dialog, even for long server paths
+   or a narrow phone. The dialog itself retains the app's existing confirmation paint. */
+.webmcp-page-approval-input { white-space: pre-wrap; overflow-wrap: anywhere; }

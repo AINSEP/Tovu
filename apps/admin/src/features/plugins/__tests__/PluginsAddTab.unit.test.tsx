@@ -135,3 +135,27 @@ it("the Add a plugin tab label carries the sidebar's Soon tag and still switches
   expect(window.location.search).toBe("?tab=add");
   window.history.replaceState(null, "", "/");
 });
+
+
+it("publishes stable handles for the drop zone, Advanced, Replace and Cancel", async () => {
+  const { user } = renderAddTab(createFakePluginInstallPort({ preview }), ["folder", "zip"]);
+  await screen.findByRole("textbox", { name: "Folder on this server" });
+  const advanced = screen.getByText("Advanced: install from a path on this server");
+  expect(advanced).toHaveAttribute("data-agent-element", "plugins-install-advanced");
+  expect(advanced.parentElement).not.toHaveAttribute("open");
+  await user.click(advanced);
+  expect(advanced.parentElement).toHaveAttribute("open");
+  expect(screen.getByText("Drop a .zip here").closest(".install-tab-dropzone")).toHaveAttribute("data-agent-element", "plugins-install-dropzone");
+  expect(screen.getByLabelText("Upload .zip (max 32 MiB)")).toHaveAttribute("data-agent-element", "plugins-install-zip-input");
+  expect(screen.getByLabelText("Choose a plugin folder")).toHaveAttribute("data-agent-element", "plugins-install-folder-input");
+  const replace = screen.getByRole("checkbox", { name: "Replace existing version" });
+  expect(replace).toHaveAttribute("data-agent-element", "plugins-install-replace");
+  await user.click(replace);
+  expect(replace).toBeChecked();
+  await user.type(screen.getByRole("textbox", { name: "Folder on this server" }), "/server/package");
+  await user.click(screen.getByRole("button", { name: "Preview plugin" }));
+  const cancel = await screen.findByRole("button", { name: "Cancel" });
+  expect(cancel).toHaveAttribute("data-agent-element", "plugins-install-cancel");
+  await user.click(cancel);
+  expect(screen.queryByRole("button", { name: "Install (stays off)" })).toBeNull();
+});

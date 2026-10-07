@@ -22,6 +22,8 @@ export function AddAgentPluginPanel({ controller: c }: { controller: AgentPlugin
     >
       <InstallTabOption heading={t("Upload a .zip or a folder")}>
         <ZipDropZone
+          dropProps={agentHandle({ handle: "agent-plugin-add-dropzone" }, { role: "region", label: t("Drop a .zip here") })}
+          fileProps={agentHandle({ handle: "agent-plugin-add-file-input" }, { role: "field", label: t("Upload a .zip") })}
           drop={c.drop}
           glyph={<UploadIcon size={24} />}
           title={c.file ? c.file.name : t("Drop a .zip here")}
@@ -34,6 +36,7 @@ export function AddAgentPluginPanel({ controller: c }: { controller: AgentPlugin
           onFileChange={c.onFileChange}
           chooseProps={agentHandle({ handle: "agent-plugin-add-choose" }, { role: "button", label: "Choose an Agent Plugin .zip" })}
           folder={{
+            inputProps: agentHandle({ handle: "agent-plugin-add-folder-input" }, { role: "field", label: t("Choose a plugin folder") }),
             label: t("Choose a folder"),
             inputLabel: t("Choose a plugin folder"),
             onChoose: c.folderUpload.onChoose,
@@ -76,7 +79,8 @@ export function AddAgentPluginPanel({ controller: c }: { controller: AgentPlugin
           type="url"
           disabled
           placeholder="https://github.com/owner/plugin"
-          inputProps={{ "aria-label": t("Plugin URL") }}
+          inputProps={{ "aria-label": t("Plugin URL"), ...agentHandle({ handle: "agent-plugin-add-url" }, { role: "field", label: t("Plugin URL") }) }}
+          actionProps={agentHandle({ handle: "agent-plugin-add-from-url" }, { role: "button", label: t("Add from URL") })}
           action={{ label: t("Add from URL"), disabled: true }}
         />
       </InstallTabOption>

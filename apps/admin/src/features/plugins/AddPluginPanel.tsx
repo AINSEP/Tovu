@@ -28,6 +28,8 @@ export function AddPluginPanel({ controller: c, canInstall }: { controller: Plug
     <InstallTabCard titleId="plugins-add-title" title={t("Add a plugin")} lede={t("It stays off in every workspace until you turn it on.")}>
       <InstallTabOption heading={t("Upload a .zip or a folder")}>
         <ZipDropZone
+          dropProps={agentHandle({ handle: "plugins-install-dropzone" }, { role: "region", label: t("Drop a .zip here") })}
+          fileProps={agentHandle({ handle: "plugins-install-zip-input" }, { role: "field", label: t("Upload .zip (max 32 MiB)") })}
           drop={c.drop}
           glyph={<UploadIcon size={24} />}
           title={c.zipFile ? c.zipFile.name : t("Drop a .zip here")}
@@ -40,6 +42,7 @@ export function AddPluginPanel({ controller: c, canInstall }: { controller: Plug
           onFileChange={c.onZipChange}
           chooseProps={agentHandle({ handle: "plugins-install-zip" }, { role: "button", label: "Choose a plugin .zip" })}
           folder={{
+            inputProps: agentHandle({ handle: "plugins-install-folder-input" }, { role: "field", label: t("Choose a plugin folder") }),
             label: t("Choose a folder"),
             inputLabel: t("Choose a plugin folder"),
             onChoose: c.folderUpload.onChoose,
@@ -48,7 +51,7 @@ export function AddPluginPanel({ controller: c, canInstall }: { controller: Plug
             chooseProps: agentHandle({ handle: "plugins-install-folder-upload" }, { role: "button", label: "Choose a plugin folder to upload" }),
           }}
         />
-        <InstallTabAdvanced summary={t("Advanced: install from a path on this server")} hint={t("The full path of a plugin folder on the computer running Tovu.")}>
+        <InstallTabAdvanced summaryProps={agentHandle({ handle: "plugins-install-advanced" }, { role: "button", label: t("Advanced: install from a path on this server") })} summary={t("Advanced: install from a path on this server")} hint={t("The full path of a plugin folder on the computer running Tovu.")}>
           <InstallTabFieldRow
             inputId="plugins-install-folder"
             label={t("Folder on this server")}
@@ -63,7 +66,7 @@ export function AddPluginPanel({ controller: c, canInstall }: { controller: Plug
       </InstallTabOption>
       <InstallTabOption>
         <label className="install-tab-check">
-          <input type="checkbox" checked={c.replace} disabled={c.busy} onChange={c.onReplaceChange} />
+          <input type="checkbox" checked={c.replace} disabled={c.busy} onChange={c.onReplaceChange} {...agentHandle({ handle: "plugins-install-replace" }, { role: "field", label: t("Replace existing version") })} />
           {t("Replace existing version")}
         </label>
         {c.previewDisplay ? <PluginInstallPreviewDetails controller={c} /> : null}
@@ -72,7 +75,7 @@ export function AddPluginPanel({ controller: c, canInstall }: { controller: Plug
         <div className="install-tab-actions">
           {c.preview ? (
             <>
-              <button type="button" className="btn-secondary" disabled={c.busy} onClick={c.cancelReview}>{t("Cancel")}</button>
+              <button type="button" className="btn-secondary" disabled={c.busy} onClick={c.cancelReview} {...agentHandle({ handle: "plugins-install-cancel" }, { role: "button", label: t("Cancel") })}>{t("Cancel")}</button>
               <button type="button" className="btn-primary" disabled={c.busy} onClick={c.install} {...agentHandle({ handle: "plugins-install-confirm" }, { role: "button", label: t("Install (stays off)") })}>{t("Install (stays off)")}</button>
             </>
           ) : (

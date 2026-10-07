@@ -5,8 +5,7 @@ import { createDomPageDriver } from "@jini-ai/agentic/dom";
 import { toWebMcpTool, type WebMcpRegisterToolOptions, type WebMcpToolRegistration } from "@jini-ai/agentic";
 import { registerAdminPageWebMcpTools } from "./features/webmcp/admin-page-tools";
 import { getBrowserAgentEnabled, useBrowserAgentSettings } from "./features/webmcp/browser-agent-settings.hooks";
-import { t as tWebMcp } from "./features/webmcp/webmcp-i18n";
-import { useWiredAdminLocale } from "./hooks/use-admin-locale.hooks";
+import { adminPageApprovals } from "./features/webmcp/admin-page-approval.store";
 
 import { buildAdminAgentPages } from "./lib/agent-pages";
 import {
@@ -1008,12 +1007,13 @@ export function registerAdminWebMcpTool(
   }
 }
 
-export function useAgentPageBridge(): UseAgentPageBridge {
+export function useAgentPageBridge(
+  { createBridge = createFrontendSessionBridge }: { createBridge?: typeof createFrontendSessionBridge } = {},
+  _optional: Record<string, never> = {},
+): UseAgentPageBridge {
   const [contentEl, setContentEl] = useState<HTMLElement | null>(null);
   const [agentBridge, setAgentBridge] = useState<FrontendSessionBridge | null>(null);
   const { enabled: webMcpEnabled } = useBrowserAgentSettings({});
-  const locale = useWiredAdminLocale();
-
   // Stable for the app's lifetime: rebuilding it would tear down the driver (and with it the SSE
   // connection) on every render.
   const agentPages = useMemo(() => buildAdminAgentPages(), []);
@@ -1023,7 +1023,7 @@ export function useAgentPageBridge(): UseAgentPageBridge {
   useEffect(() => {
     if (!pageDriver) return;
 
-    const bridge = createFrontendSessionBridge({ baseUrl: "", fetch, openStream: ({ url }) => new EventSource(url) }, {
+    const bridge = createBridge({ baseUrl: "", fetch, openStream: ({ url }) => new EventSource(url) }, {
       pageDriver,
       executors,
       onError: logFrontendSessionError,
@@ -1037,7 +1037,7 @@ export function useAgentPageBridge(): UseAgentPageBridge {
       bridge.close();
       setAgentBridge((current) => (current === bridge ? null : current));
     };
-  }, [pageDriver, executors]);
+  }, [pageDriver, executors, createBridge]);
 
   useEffect(() => {
     if (!pageDriver || !webMcpEnabled) return;
@@ -1048,12 +1048,10 @@ export function useAgentPageBridge(): UseAgentPageBridge {
     const webMcpController = new AbortController();
     registerAdminWebMcpTool(executors, webMcpController.signal);
     registerAdminPageWebMcpTools({ driver: pageDriver, signal: webMcpController.signal }, {
-      requestUserInteraction: async ({ capability, args }) => window.confirm(
-        `${tWebMcp(locale, "Allow the browser agent to perform this admin action?")}\n\n${capability.id}\n${JSON.stringify(args, null, 2)}`,
-      ),
+      approvals: adminPageApprovals,
     });
     return () => webMcpController.abort();
-  }, [pageDriver, executors, webMcpEnabled, locale]);
+  }, [pageDriver, executors, webMcpEnabled]);
 
   return { contentEl, setContentEl, agentBridge };
 }

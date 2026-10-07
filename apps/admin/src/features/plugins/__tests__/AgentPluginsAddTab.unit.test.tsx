@@ -228,3 +228,18 @@ describe("Agent Plugin replacement transport", () => {
     } finally { fetch.mockRestore(); }
   });
 });
+
+
+it("tags every Agent Plugins add-tab control, including the disabled URL option", async () => {
+  renderAddTab();
+  await openAddTab();
+  expect(screen.getByText("Drop a .zip here").closest(".install-tab-dropzone")).toHaveAttribute("data-agent-element", "agent-plugin-add-dropzone");
+  for (const [name, handle] of [["Choose a file", "agent-plugin-add-choose"], ["Choose a folder", "agent-plugin-add-choose-folder"], ["Install (stays off)", "agent-plugin-add-install"], ["Add from URL", "agent-plugin-add-from-url"]]) {
+    expect(screen.getByRole("button", { name })).toHaveAttribute("data-agent-element", handle);
+  }
+  expect(screen.getByLabelText("Upload a .zip")).toHaveAttribute("data-agent-element", "agent-plugin-add-file-input");
+  expect(screen.getByLabelText("Choose a plugin folder")).toHaveAttribute("data-agent-element", "agent-plugin-add-folder-input");
+  expect(screen.getByRole("checkbox", { name: "Replace existing version" })).toHaveAttribute("data-agent-element", "agent-plugin-add-replace");
+  expect(screen.getByRole("textbox", { name: "Plugin URL" })).toHaveAttribute("data-agent-element", "agent-plugin-add-url");
+  expect(screen.getByRole("button", { name: "Add from URL" })).toBeDisabled();
+});
