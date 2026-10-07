@@ -193,6 +193,30 @@
   margin-inline: -4px;
 }
 
+/* Phones: the page is the only scroller (owner, 2026-10-07: "white space covering up the Claude
+ * Code entry"). The fixed-height shell above is a desktop layout. At 375x667 the wrapped tab strip
+ * and head left `.jini-tabbed-dialog-content` ~270px of its own scroll box. Inside the page's own
+ * scroll that made a nested scroll trap: the last card was cut at the box's bottom edge with
+ * `.admin-content::after`'s 88px FAB spacer as a blank band under it. The box's top edge also
+ * sliced the Local CLI / BYOK segmented control into an empty grey bar under the tabs. Same
+ * release as `.settings-ui-section--page-flow` (`styles.css`), scoped to this screen and phone
+ * width only. With no inner scroller, `.admin-content::after` is the FAB clearance, so the
+ * content drops `styles.css`'s 88px panel padding (which outranks it at (0,3,0)) back to Jini's own. */
+@media (max-width: 640px) {
+  .settings-ui-section.settings-page,
+  .settings-ui-section.settings-page > .jini-tabbed-dialog--inline,
+  .settings-ui-section.settings-page > .jini-tabbed-dialog--inline > .jini-tabbed-dialog-body {
+    height: auto;
+    min-height: 0;
+    max-height: none;
+  }
+  .settings-ui-section.settings-page > .jini-tabbed-dialog--inline .jini-tabbed-dialog-content {
+    overflow: visible;
+    overscroll-behavior: auto;
+    padding-bottom: 22px;
+  }
+}
+
 /* The phone tap-target floor enlarges Memory's icon buttons. Let control rows wrap instead
  * of keeping Jini's intrinsic, non-shrinking width and clipping the last switch (SE-2). */
 @media (max-width: 640px) {
