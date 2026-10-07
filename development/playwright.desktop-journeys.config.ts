@@ -15,6 +15,13 @@ import { defineConfig } from "@playwright/test";
  * regex under `testDir: ./e2e`, so a desktop journey must never end in `.spec.ts`.
  *
  * Local only: Electron on Linux CI would need xvfb, and CI is off anyway (SCOPE.md §3.3).
+ *
+ * Set TOVU_DESKTOP_E2E_APP to a released .app bundle or its Contents/MacOS binary to test that
+ * build without building/staging dev assets. Setup logs the app path and bundle version. The
+ * scratch userData and scrubbed env still apply; source-contract-only smoke checks skip.
+ * Example (from the repo root):
+ * TOVU_DESKTOP_E2E_APP="/Volumes/Tovu 0.1.12/Tovu.app" npx playwright test --config=development/playwright.desktop-journeys.config.ts
+ * Unset: the existing dev Electron launch and fresh-build gate are unchanged.
  */
 const REPO_ROOT = path.resolve(import.meta.dirname, "..");
 

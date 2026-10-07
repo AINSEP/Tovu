@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 import fs from "node:fs";
 
 import { visibleSections } from "../../../apps/desktop/src/contracts/sections.ts";
-import { closeDesktop, expectPreloadBridge, launchDesktop, makeSite, scratchDir, siteCard } from "./_fixtures.js";
+import { closeDesktop, expectPreloadBridge, IS_PACKAGED_DESKTOP, launchDesktop, makeSite, scratchDir, siteCard } from "./_fixtures.js";
 
 /**
  * D1 (SCOPE.md §3.3): launch lands on the sites home (Websites), every nav-visible section is
@@ -29,6 +29,7 @@ test.afterAll(() => {
 });
 
 test("launch lands on Websites with every section present and the tracked site's card", { tag: ["@unrun"] }, async () => {
+  test.skip(IS_PACKAGED_DESKTOP, "Expected sections come from the checkout's contracts/sections.ts, which may differ from the release.");
   const launch = await launchDesktop({ trackedSites: [siteDir] });
   const { win } = launch;
   try {
@@ -50,6 +51,7 @@ test("launch lands on Websites with every section present and the tracked site's
 });
 
 test("clicking every inert section and the Settings gear keeps the Websites screen drawn", { tag: ["@unrun"] }, async () => {
+  test.skip(IS_PACKAGED_DESKTOP, "Expected inert sections come from the checkout's contracts/sections.ts, which may differ from the release.");
   const launch = await launchDesktop({ trackedSites: [siteDir] });
   const { win } = launch;
   try {

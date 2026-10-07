@@ -2,6 +2,7 @@
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { IS_PACKAGED_DESKTOP, resolvePackagedDesktopApp } from "./_app-target.js";
 
 /**
  * Fresh-build gate for the desktop journeys (SCOPE.md §3.2). `electron .` loads whatever is in
@@ -11,6 +12,8 @@ import path from "node:path";
  *
  * The guest admin is NOT built here: each `tovu serve` child serves `apps/admin/dist`. This only
  * refuses to start when that build is missing or older than `apps/admin/src`, and names the command.
+ * Packaged mode logs the release's identity and skips every dev build/freshness check: the bundle
+ * supplies its own renderer, preload and guest admin, and must be tested exactly as shipped.
  */
 const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..", "..");
 const DESKTOP_DIR = path.join(REPO_ROOT, "apps", "desktop");
@@ -43,6 +46,11 @@ function assertFresh(built: string, sourceDir: string, fix: string): void {
 }
 
 export default async function desktopGlobalSetup(): Promise<void> {
+  if (IS_PACKAGED_DESKTOP) {
+    const app = resolvePackagedDesktopApp({ appPath: process.env.TOVU_DESKTOP_E2E_APP! });
+    console.log(`desktop journeys: packaged app ${app.inputPath}; CFBundleShortVersionString=${app.version}; executable=${app.executablePath}`);
+    return;
+  }
   execFileSync("npm", ["run", "build"], { cwd: DESKTOP_DIR, stdio: "inherit" });
   assertFresh(path.join(DESKTOP_DIR, "dist", "renderer", "index.html"), path.join(DESKTOP_DIR, "src", "renderer"), "The renderer build did not refresh it.");
   assertFresh(path.join(DESKTOP_DIR, "dist", "preload", "preload.mjs"), path.join(DESKTOP_DIR, "src", "preload"), "The preload build did not refresh it.");

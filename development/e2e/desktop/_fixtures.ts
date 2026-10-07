@@ -4,9 +4,13 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { createRequire } from "node:module";
+import { spawn } from "node:child_process";
 
 import { initSiteDir } from "../../../apps/desktop/src/site-dir-store.ts";
 import { SITE_ORIGIN, sitesFilePath, trackSite } from "../../../apps/desktop/src/tracked-sites.ts";
+import { IS_PACKAGED_DESKTOP, resolvePackagedDesktopApp } from "./_app-target.js";
+
+export { IS_PACKAGED_DESKTOP } from "./_app-target.js";
 
 /**
  * Shared harness for every `*.desktop.ts` journey (SCOPE.md §3.2, E2E-H2 minimal stand-in).
@@ -32,14 +36,39 @@ import { SITE_ORIGIN, sitesFilePath, trackSite } from "../../../apps/desktop/src
  *
  * The checkout's own `sites/tovu-dev` may appear as a seeded card (`seedDevFallbackSite` in
  * `main.ts`). Journeys address cards by their own fixture names only and never touch that card.
+ *
+ * `TOVU_DESKTOP_E2E_APP` selects a released .app (or its Contents/MacOS binary). It receives no
+ * source args/cwd; the same env isolation applies, and userData must match the requested scratch
+ * directory exactly. Fixture sites use its bundled CLI so their schema matches the release.
  */
 export const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..", "..");
 export const DESKTOP_DIR = path.join(REPO_ROOT, "apps", "desktop");
 const desktopRequire = createRequire(path.join(DESKTOP_DIR, "package.json"));
-export const ELECTRON_BIN: string = desktopRequire("electron");
+const PACKAGED_APP = IS_PACKAGED_DESKTOP ? resolvePackagedDesktopApp({ appPath: process.env.TOVU_DESKTOP_E2E_APP! }) : undefined;
+export const ELECTRON_BIN: string = PACKAGED_APP?.executablePath ?? desktopRequire("electron");
 
-/** The one real userData directory no journey may touch. */
+/** The dev real userData directory no journey may touch. */
 export const REAL_USER_DATA_DIR = path.join(os.homedir(), "Library", "Application Support", "tovu-desktop");
+const REAL_PACKAGED_USER_DATA_DIR = path.join(os.homedir(), "Library", "Application Support", "Tovu");
+
+/** Resolve symlinks even when a requested directory has not been created yet. */
+function canonicalPath(dir: string): string {
+  const absolute = path.resolve(dir);
+  if (fs.existsSync(absolute)) return fs.realpathSync(absolute);
+  const parent = path.dirname(absolute);
+  return parent === absolute ? absolute : path.join(canonicalPath(parent), path.basename(absolute));
+}
+
+/** Also refuse subdirectories and symlink aliases before seeding any tracked sites. */
+function refuseRealUserData(userDataDir: string): void {
+  const requested = canonicalPath(userDataDir);
+  for (const realDir of [REAL_USER_DATA_DIR, REAL_PACKAGED_USER_DATA_DIR]) {
+    const real = canonicalPath(realDir);
+    if (requested === real || requested.startsWith(`${real}${path.sep}`)) {
+      throw new Error(`e2e isolation failure: userData is inside the real ${realDir}. Refusing to continue.`);
+    }
+  }
+}
 
 const FAKE_SITE_KEY = "a".repeat(64);
 
@@ -61,11 +90,26 @@ export function emptyFolder(label: string): string {
 /**
  * A real initialized site (`tovu init` through the shipping store), named `name`. Slow (the CLI
  * boots under tsx), so call it from `beforeAll`.
+ * Packaged mode uses the release's compiled CLI and Electron's own Node instead of current source.
  */
 export async function makeSite(root: string, name: string): Promise<string> {
   const dir = path.join(root, name);
   fs.mkdirSync(dir, { recursive: true });
-  await initSiteDir({ repoRoot: REPO_ROOT, dir, name, cliMode: "source", baseEnv: { ...scrubbedEnv(), TOVU_SITE_DIR: dir } });
+  const packagedApp = PACKAGED_APP;
+  if (packagedApp) {
+    const home = scratchDir("init-home");
+    await initSiteDir({
+      repoRoot: packagedApp.payloadRoot,
+      dir,
+      name,
+      cliMode: "compiled",
+      baseEnv: { ...scrubbedEnv(), HOME: home, TOVU_SITE_DIR: dir, TOVU_SITE_KEY: FAKE_SITE_KEY, TOVU_DISABLE_DEV_TLS: "1" },
+      // initSiteDir supplies ELECTRON_RUN_AS_NODE=1; this fixture never sends plugin tokens.
+      spawnFn: (_command, args, options) => spawn(packagedApp.executablePath, args, { ...options, cwd: home, stdio: ["ignore", "pipe", "pipe"] }),
+    });
+  } else {
+    await initSiteDir({ repoRoot: REPO_ROOT, dir, name, cliMode: "source", baseEnv: { ...scrubbedEnv(), TOVU_SITE_DIR: dir } });
+  }
   expect(fs.existsSync(path.join(dir, "config.json")), `${name}: config.json`).toBe(true);
   expect(fs.existsSync(path.join(dir, "content.db")), `${name}: content.db`).toBe(true);
   return dir;
@@ -98,11 +142,14 @@ export interface LaunchOptions {
 /** Launches the sites-home UI with a scrubbed env, the userData guard and the blank-window guards. */
 export async function launchDesktop(options: LaunchOptions = {}): Promise<DesktopLaunch> {
   const userDataDir = options.userDataDir ?? scratchDir("userdata");
+  refuseRealUserData(userDataDir);
+  if (PACKAGED_APP && options.env?.TOVU_DESKTOP_USER_DATA_DIR !== undefined && options.env.TOVU_DESKTOP_USER_DATA_DIR !== userDataDir) {
+    throw new Error("e2e isolation failure: packaged launches cannot override TOVU_DESKTOP_USER_DATA_DIR through options.env.");
+  }
   for (const siteDir of options.trackedSites ?? []) trackSite(sitesFilePath(userDataDir), siteDir, SITE_ORIGIN.adopted);
   const app = await electron.launch({
     executablePath: ELECTRON_BIN,
-    args: ["."],
-    cwd: DESKTOP_DIR,
+    ...(PACKAGED_APP ? { args: [] } : { args: ["."], cwd: DESKTOP_DIR }),
     env: {
       ...scrubbedEnv(),
       HOME: scratchDir("home"),
@@ -124,9 +171,14 @@ export async function launchDesktop(options: LaunchOptions = {}): Promise<Deskto
     timeout: 150_000,
   });
   const resolved = await app.evaluate(({ app: electronApp }) => electronApp.getPath("userData"));
-  if (resolved === REAL_USER_DATA_DIR) {
-    await app.close();
-    throw new Error(`e2e isolation failure: Electron resolved userData to the real ${REAL_USER_DATA_DIR}. Refusing to continue.`);
+  try {
+    refuseRealUserData(resolved);
+    if (PACKAGED_APP && canonicalPath(resolved) !== canonicalPath(userDataDir)) {
+      throw new Error(`e2e isolation failure: packaged app ${PACKAGED_APP.inputPath} (${PACKAGED_APP.version}) ignored TOVU_DESKTOP_USER_DATA_DIR: requested ${userDataDir}, Electron resolved ${resolved}. Refusing to continue.`);
+    }
+  } catch (error) {
+    await app.close().catch(() => {});
+    throw error;
   }
   await installBlankWindowGuards(app);
   const win = await app.firstWindow({ timeout: 150_000 });
@@ -202,11 +254,22 @@ export function siteCard(win: Page, name: string): Locator {
   return win.locator(".card").filter({ has: win.locator(".card__name", { hasText: exact }) });
 }
 
-/** Presses the card's Start and waits for Running (a cold `tovu serve` under tsx is over a minute). */
+/**
+ * Presses the card's Start and waits for Running (a cold `tovu serve` under tsx is over a minute).
+ *
+ * A Start that comes back running opens the site's tab (`runPowerToggle` in
+ * `renderer/use-site-power.hooks.ts`), which unmounts the card grid, so the card cannot be watched
+ * for Running. Waits for that tab instead, then returns to All and checks the card there, leaving
+ * callers on the grid as before.
+ */
 export async function startSite(win: Page, name: string): Promise<void> {
   const card = siteCard(win, name);
   await card.getByRole("button", { name: `Start ${name}`, exact: true }).click();
-  await expect(card.locator(".state")).toHaveText("Running", { timeout: 150_000 });
+  const tabs = win.getByRole("tablist", { name: "Open websites" });
+  await expect(tabs.getByRole("tab", { name, exact: true }), "a Start that comes back running opens the site")
+    .toHaveAttribute("aria-selected", "true", { timeout: 150_000 });
+  await tabs.getByRole("tab", { name: "All", exact: true }).click();
+  await expect(card.locator(".state")).toHaveText("Running");
 }
 
 /** Opens the site's tab and waits for its admin guest to load. */
