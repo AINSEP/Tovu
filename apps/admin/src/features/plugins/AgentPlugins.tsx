@@ -9,7 +9,7 @@ import { agentHandle } from "@jini-ai/agentic";
 import { useId, useState } from "react";
 
 import type { AdminAgentPlugin } from "@/lib/api";
-import { buildAgentListHandles } from "../../lib/agent-list-handles";
+import { buildAgentListHandles } from "@jini-ai/agentic";
 import { AddAgentPluginPanel } from "./AddAgentPluginPanel";
 import { addPluginTabSoonTag } from "./add-plugin-tab-soon";
 import { AgentPluginDetailsModal } from "./AgentPluginDetailsModal";
@@ -21,7 +21,7 @@ import { useWiredAgentPlugins, type AgentPluginsController } from "./hooks/use-a
 import { defaultAgentPluginInstallPort } from "./hooks/agent-plugin-install-dependencies.hooks";
 import type { AgentPluginInstallPort } from "./hooks/agent-plugin-install-port.hooks";
 import { useAgentPluginInstall } from "./hooks/use-agent-plugin-install.hooks";
-import type { Translate } from "@/lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 import { useAgentPluginTab } from "./hooks/use-agent-plugin-tab.hooks";
 
 const AGENT_PLUGINS_SPEC_URL = "https://agent-plugins.org/specification";
@@ -107,9 +107,7 @@ function AgentPluginList({
   // Plugin ids are stable and unique, same per-row-handle derivation every other list on this
   // workstream uses (`buildAgentListHandles`). Derived from each id alone (see that function's own
   // doc), so a plugin's row handle is identical whichever tab currently lists it.
-  const rowHandles = buildAgentListHandles(
-    "agent-plugin-row",
-    agentPlugins.map((plugin) => plugin.pluginId),
+  const rowHandles = buildAgentListHandles({ prefix: "agent-plugin-row", ids: agentPlugins.map((plugin) => plugin.pluginId) }
   );
 
   return (
@@ -477,7 +475,7 @@ export function AgentPlugins({
             // id alone rather than threaded down from whichever tab's row is currently mounted —
             // that function derives a handle from the id, not list position, so this always matches
             // the handle the row published, in either tab.
-            agentHandleBase={buildAgentListHandles("agent-plugin-row", [pendingDisablePlugin.pluginId])[0]!}
+            agentHandleBase={buildAgentListHandles({ prefix: "agent-plugin-row", ids: [pendingDisablePlugin.pluginId] })[0]!}
             onConfirm={() => {
               setPendingDisable(null);
               void onToggleEnabled(pendingDisablePlugin);

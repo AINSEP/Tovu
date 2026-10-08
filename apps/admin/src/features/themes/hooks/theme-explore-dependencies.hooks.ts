@@ -6,8 +6,7 @@ import type { ThemeExploreFileEntry, ThemeExplorePort } from "./theme-explore-po
  * `ThemeExplorePort` routes — see `theme-explore-port.hooks.ts` for why the split exists.
  */
 
-/** The live implementation, as a module-level singleton — matches `redirects-dependencies
- *  .hooks.ts`'s `defaultRedirectsPort`. Each method narrows the real route's wider response down
+/** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s `redirectsHostPorts`. Each method narrows the real route's wider response down
  *  to what the port declares (see `theme-explore-port.hooks.ts`'s own doc comment on why). */
 export const defaultThemeExplorePort: ThemeExplorePort = {
   getThemeDetail: (themeId) => api.getThemeDetail(themeId),

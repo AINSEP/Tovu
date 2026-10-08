@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, expect, it, vi } from "vitest";
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 import { defaultSecurityPermissionsPort } from "../security-permissions-dependencies.hooks";
 import { useWiredSecurityPermissions } from "../use-security-permissions.hooks";
 

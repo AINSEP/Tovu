@@ -4,7 +4,7 @@ import { slugRedirectPath } from "../slug-redirect-path";
 
 /**
  * @file `slugRedirectPath` — the shared rule behind `widgetSlugRedirectPath`
- * (`features/widgets/rules.ts`, its first, narrower instance) and, per readable-slugs S6a, the
+ * (`widgetSlugRedirectPath`, now `@jini-ai/admin/widgets`, its first, narrower instance) and, per readable-slugs S6a, the
  * post/page editor load effects. Same four cases that file's own `widgetSlugRedirectPath` suite
  * pins, generalised over an explicit `base` instead of a hardcoded `/widgets`.
  */

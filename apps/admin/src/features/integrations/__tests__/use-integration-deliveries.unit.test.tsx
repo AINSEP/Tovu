@@ -1,7 +1,7 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 import { useIntegrationDeliveries } from "../hooks/use-integration-deliveries.hooks";
 import { createFakeIntegrationDeliveriesPort } from "../hooks/integration-deliveries-dependencies.hooks";
 import type { AdminWebhookDelivery } from "@/lib/api";
@@ -18,7 +18,7 @@ import type { AdminWebhookDelivery } from "@/lib/api";
  * "injected t is genuinely returned" group, which uses a distinctive fake.
  *
  * `fetch-query` migration (2026-08-12): every `renderHook` now needs `wrapper: FetchQueryProvider`
- * — see `redirects/__tests__/use-redirects.hooks.unit.test.tsx`'s identical wrapper for the pilot
+ * — see `Jini redirects/react/__tests__/use-redirects.hooks.unit.test.tsx`'s identical wrapper for the pilot
  * precedent.
  */
 

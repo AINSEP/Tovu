@@ -12,11 +12,11 @@ import {
 
 import { isProtectedEmbedElement } from "./lib/embed-placeholder";
 
-import { resolveTabBarTabIndex, useTabBarKeyboard } from "../../components/TabBar.hooks";
+import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
 import { DEVICE_PREVIEW_WIDTHS, type DevicePreviewDevice } from "../../components/DevicePreview/DevicePreview.hooks";
 import { DevicePreviewFrame } from "../../components/DevicePreview/DevicePreviewFrame";
 import { DevicePreviewToggle } from "../../components/DevicePreview/DevicePreviewToggle";
-import type { Translate } from "../../lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 import { siteUrl } from "../../lib/site-url";
 import type {
   StandingDraftAutosaveSnapshot,
@@ -758,7 +758,7 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
   } = usePageEditorHook(routeSlug);
   // Above the early returns below: `use*` has to be called unconditionally for the rules-of-hooks
   // lint even though this one holds no state of its own.
-  const { onKeyDown: onViewTabsKeyDown } = useTabBarKeyboard(VIEW_TABS, view, (id) => setView(id as PageEditorView));
+  const { onKeyDown: onViewTabsKeyDown } = useTabBarKeyboard({ tabs: VIEW_TABS, activeId: view, onChange: (id) => setView(id as PageEditorView) });
 
   if (error && !page) return <div className="notice error">{error}</div>;
   if (!page) return <div className="notice">{t("Loading editor…")}</div>;
@@ -836,7 +836,7 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
               role="tab"
               aria-selected={view === entry.key}
               className={view === entry.key ? "is-active" : undefined}
-              tabIndex={resolveTabBarTabIndex(VIEW_TABS, view, entry)}
+              tabIndex={resolveTabBarTabIndex({ tabs: VIEW_TABS, activeId: view, tab: entry })}
               onClick={() => setView(entry.key)}
               {...agentHandle({ handle: `page-view-${entry.key}` }, { role: "button", label: `Switch to the ${entry.label} view` })}
             >

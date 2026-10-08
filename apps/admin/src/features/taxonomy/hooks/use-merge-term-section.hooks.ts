@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { describeApiError, type AdminTerm } from "@/lib/api";
-import { useFetchMutation } from "@/lib/fetch-query";
+import { useFetchMutation } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../taxonomy-i18n";
 import { KEYS } from "../rules";
@@ -21,7 +21,7 @@ import type { MergeTermSectionPort } from "./merge-term-section-port.hooks";
  * `createFakeMergeTermSectionPort` instead of stubbing global `fetch`. `useWiredMergeTermSection`
  * below is the zero-argument pair `Taxonomy.tsx` actually mounts.
  *
- * `lib/fetch-query` migration (2026-08-12): plan/confirm/execute are three independent
+ * `@jini-ai/ui/fetch-query` migration (2026-08-12): plan/confirm/execute are three independent
  * `useFetchMutation`s rather than one shared `busy`/`error` pair — only `executeMergeTerm` actually
  * changes taxonomy state (the plan/confirm steps just issue a token), so only it
  * `invalidates: [KEYS.list]`. `busy`/`error` below fold the three back into the single values the
@@ -64,14 +64,15 @@ export function useMergeTermSection(
   const [error, setError] = useState<string | null>(null);
 
   const planMutation = useFetchMutation({
-    run: (target: { fromTermId: string; intoTermId: string }) => port.planMergeTerm(target),
+    run: ({ input: target }: { input: { fromTermId: string; intoTermId: string } }) => port.planMergeTerm(target),
   });
   const confirmMutation = useFetchMutation({
-    run: (target: { fromTermId: string; planId: string; planHash: string }) => port.confirmMergeTerm(target),
+    run: ({ input: target }: { input: { fromTermId: string; planId: string; planHash: string } }) => port.confirmMergeTerm(target),
   });
   // The only step that actually changes taxonomy state — plan/confirm merely issue a token.
   const executeMutation = useFetchMutation({
-    run: (target: { fromTermId: string; intoTermId: string; confirmationToken: string }) => port.executeMergeTerm(target),
+    run: ({ input: target }: { input: { fromTermId: string; intoTermId: string; confirmationToken: string } }) => port.executeMergeTerm(target),
+  }, {
     invalidates: [KEYS.list],
   });
 
@@ -111,13 +112,13 @@ export function useMergeTermSection(
     setBusy(true);
     setError(null);
     try {
-      const r = await planMutation.mutate({ fromTermId: term.id, intoTermId });
+      const r = await planMutation.mutate({ input: { fromTermId: term.id, intoTermId } });
       if (activeTermIdRef.current !== forTermId) return; // superseded by a term switch
       setPlan({ planId: r.planId, planHash: r.planHash, overlappingContentCount: r.details.overlappingContentCount });
       setStep("planned");
     } catch (e) {
       if (activeTermIdRef.current !== forTermId) return;
-      setError(describeApiError(e, t(locale, "Failed to plan the merge")));
+      setError(describeApiError(e, t({ locale: locale, key: "Failed to plan the merge" })));
     } finally {
       if (activeTermIdRef.current === forTermId) setBusy(false);
     }
@@ -129,13 +130,13 @@ export function useMergeTermSection(
     setBusy(true);
     setError(null);
     try {
-      const r = await confirmMutation.mutate({ fromTermId: term.id, planId: plan.planId, planHash: plan.planHash });
+      const r = await confirmMutation.mutate({ input: { fromTermId: term.id, planId: plan.planId, planHash: plan.planHash } });
       if (activeTermIdRef.current !== forTermId) return;
       setConfirmationToken(r.confirmationToken);
       setStep("confirmed");
     } catch (e) {
       if (activeTermIdRef.current !== forTermId) return;
-      setError(describeApiError(e, t(locale, "Failed to confirm the merge")));
+      setError(describeApiError(e, t({ locale: locale, key: "Failed to confirm the merge" })));
     } finally {
       if (activeTermIdRef.current === forTermId) setBusy(false);
     }
@@ -147,7 +148,7 @@ export function useMergeTermSection(
     setBusy(true);
     setError(null);
     try {
-      await executeMutation.mutate({ fromTermId: term.id, intoTermId, confirmationToken });
+      await executeMutation.mutate({ input: { fromTermId: term.id, intoTermId, confirmationToken } });
       // `onMerged` also guarded — `Taxonomy.tsx`'s own `onMerged` both clears `selectedTermId` AND
       // reloads; a stale execute must not deselect whatever DIFFERENT term the operator has since
       // switched to. The list still refreshes regardless (`executeMutation`'s own
@@ -157,7 +158,7 @@ export function useMergeTermSection(
       onMerged();
     } catch (e) {
       if (activeTermIdRef.current !== forTermId) return;
-      setError(describeApiError(e, t(locale, "Failed to execute the merge")));
+      setError(describeApiError(e, t({ locale: locale, key: "Failed to execute the merge" })));
     } finally {
       if (activeTermIdRef.current === forTermId) setBusy(false);
     }

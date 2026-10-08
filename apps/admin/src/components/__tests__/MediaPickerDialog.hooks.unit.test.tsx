@@ -1,4 +1,5 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { MediaPickerDialog } from "../MediaPickerDialog/MediaPickerDialog";
+import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { api, ApiError, type AdminMedia } from "../../lib/api";
@@ -101,31 +102,32 @@ describe("useMediaPickerDialog", () => {
     expect(onSelect).toHaveBeenCalledWith(item);
   });
 
-  it("calls onCancel when Escape is pressed anywhere in the document", () => {
+  it("native cancel calls the current onCancel through the rendered dialog", () => {
     vi.spyOn(api, "listMedia").mockReturnValue(new Promise(() => {}));
     const onCancel = vi.fn();
-    renderHook(() => useWiredMediaPickerDialog(vi.fn(), onCancel));
+    render(<MediaPickerDialog onSelect={vi.fn()} onCancel={onCancel} />);
 
-    act(() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
+    fireEvent(screen.getByRole("dialog"), new Event("cancel", { cancelable: true }));
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
   it("ignores non-Escape keys", () => {
     vi.spyOn(api, "listMedia").mockReturnValue(new Promise(() => {}));
     const onCancel = vi.fn();
-    renderHook(() => useWiredMediaPickerDialog(vi.fn(), onCancel));
+    render(<MediaPickerDialog onSelect={vi.fn()} onCancel={onCancel} />);
 
     act(() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" })));
     expect(onCancel).not.toHaveBeenCalled();
   });
 
-  it("removes its keydown listener on unmount, so a stray Escape afterward is a no-op", () => {
+  it("removes native cancellation on unmount, so a stray cancel afterward is a no-op", () => {
     vi.spyOn(api, "listMedia").mockReturnValue(new Promise(() => {}));
     const onCancel = vi.fn();
-    const { unmount } = renderHook(() => useWiredMediaPickerDialog(vi.fn(), onCancel));
+    const { unmount } = render(<MediaPickerDialog onSelect={vi.fn()} onCancel={onCancel} />);
 
+    const dialog = screen.getByRole("dialog");
     unmount();
-    act(() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
+    fireEvent(dialog, new Event("cancel", { cancelable: true }));
     expect(onCancel).not.toHaveBeenCalled();
   });
 });

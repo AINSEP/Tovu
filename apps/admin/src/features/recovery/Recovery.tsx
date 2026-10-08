@@ -3,8 +3,8 @@ import { agentHandle } from "@jini-ai/agentic";
 import { I18nProvider, SETTINGS_DIALOG_DICTIONARIES, SettingsDialogShell, type SettingsDialogTab } from "@jini-ai/ui";
 import "@jini-ai/ui/settings-dialog.css";
 
-import { buildAgentListHandles } from "../../lib/agent-list-handles";
-import { formatTimestamp } from "../../lib/format-timestamp";
+import { buildAgentListHandles } from "@jini-ai/agentic";
+import { formatTimestamp } from "@jini-ai/ui/panel-kit";
 import type { AdminDisclosureResult, AdminRecoveryStatus, AdminRestorePoint } from "../../lib/api";
 import {
   categoryLabel,
@@ -107,17 +107,17 @@ function DegradedBannerView(props: { locale: string; status: AdminRecoveryStatus
           href="/admin/database"
           {...agentHandle({ handle: "recovery-banner-go-to-database" }, { role: "link", label: "Go to Database to resolve the pending migration" })}
         >
-          {t(locale, "Go to Database")}
+          {t({ locale: locale, key: "Go to Database" })}
         </a>
       ) : null}
       {banner.actionKind === "unblock-interrupted-migration" ? (
         <button
           type="button"
           disabled
-          title={t(locale, "No unblock route exists yet — see this screen's file header.")}
+          title={t({ locale: locale, key: "No unblock route exists yet — see this screen's file header." })}
           {...agentHandle({ handle: "recovery-banner-unblock" }, { role: "button", label: "Unblock an interrupted migration (not yet available)" })}
         >
-          {t(locale, "Unblock (not yet available)")}
+          {t({ locale: locale, key: "Unblock (not yet available)" })}
         </button>
       ) : null}
     </div>
@@ -133,9 +133,7 @@ function RestorePointsList(props: {
   // Restore-point ids are stable and unique, same per-row-handle derivation every other list on
   // this workstream uses (`buildAgentListHandles`) — needed because `DataTable`'s `cell` callback
   // only receives the row, not its index.
-  const rowHandles = buildAgentListHandles(
-    "recovery-row",
-    props.points.map((p) => p.id),
+  const rowHandles = buildAgentListHandles({ prefix: "recovery-row", ids: props.points.map((p) => p.id) }
   );
   const rowHandleById = new Map(props.points.map((p, index) => [p.id, rowHandles[index]!]));
   return (
@@ -145,23 +143,23 @@ function RestorePointsList(props: {
       empty={
         <div className="card">
           <div className="empty-state">
-            <p>{t(locale, "No restore points yet.")}</p>
+            <p>{t({ locale: locale, key: "No restore points yet." })}</p>
           </div>
         </div>
       }
       columns={[
-        { key: "timestamp", header: t(locale, "Timestamp"), cell: (p) => formatTimestamp(p.createdAt) },
-        { key: "trigger", header: t(locale, "Trigger"), cell: (p) => p.trigger },
+        { key: "timestamp", header: t({ locale: locale, key: "Timestamp" }), cell: (p) => formatTimestamp({ iso: p.createdAt }, { timeZone: "local" }) },
+        { key: "trigger", header: t({ locale: locale, key: "Trigger" }), cell: (p) => p.trigger },
         {
           key: "cost-class",
-          header: t(locale, "Cost class"),
+          header: t({ locale: locale, key: "Cost class" }),
           cell: (p) => <span className={`status status-${p.costClass}`}>{costClassLabel(p.costClass, locale)}</span>,
         },
         {
           key: "restore",
           cell: (p) =>
             p.costClass === "unavailable" ? (
-              <span className="muted-cell">{t(locale, "No restore-point mechanism available — see the runbook.")}</span>
+              <span className="muted-cell">{t({ locale: locale, key: "No restore-point mechanism available — see the runbook." })}</span>
             ) : (
               <button
                 type="button"
@@ -173,7 +171,7 @@ function RestorePointsList(props: {
                 aria-label={restoreButtonAccessibleName(locale, p)}
                 {...agentHandle({ handle: `${rowHandleById.get(p.id)}-restore` }, { role: "button", label: "Begin the restore ceremony for this restore point" })}
               >
-                {t(locale, "Restore…")}
+                {t({ locale: locale, key: "Restore…" })}
               </button>
             ),
         },
@@ -200,14 +198,14 @@ function RestorePointsPanel(props: {
   return (
     <div>
       <div className="editor-header">
-        <h2>{t(locale, "Restore points")}</h2>
+        <h2>{t({ locale: locale, key: "Restore points" })}</h2>
         <button
           type="button"
           onClick={props.onCreate}
           disabled={props.creating}
           {...agentHandle({ handle: "recovery-create-restore-point" }, { role: "button", label: "Create a new restore point now" })}
         >
-          {props.creating ? t(locale, "Creating…") : t(locale, "Create restore point")}
+          {props.creating ? t({ locale: locale, key: "Creating…" }) : t({ locale: locale, key: "Create restore point" })}
         </button>
       </div>
       <RestorePointsList locale={locale} points={props.points} onSelect={props.onSelect} />
@@ -239,7 +237,7 @@ function DisclosurePanel(props: {
             <li key={category}>{discardCountLine(locale, count, categoryLabel(category, locale))}</li>
           ))}
         </ul>
-        <p className="recovery-loss-caveat">{t(locale, "This covers watermark-stamped write paths only (posts/pages and plugin-table writes today) and is NOT a complete count of everything written since this restore point — change-sets, taxonomy writes, Collections entries, and sessions are not yet counted here.")}</p>
+        <p className="recovery-loss-caveat">{t({ locale: locale, key: "This covers watermark-stamped write paths only (posts/pages and plugin-table writes today) and is NOT a complete count of everything written since this restore point — change-sets, taxonomy writes, Collections entries, and sessions are not yet counted here." })}</p>
       </div>
       {/* A SIBLING of the manifest, not a child of it (web-design pass #3, 2026-09-10). This is the
           one sentence on the screen that changes what an operator should do — it says every figure
@@ -267,7 +265,7 @@ function DisclosurePanel(props: {
             label: "Acknowledge the discarded-write-window disclosure",
           })}
         />
-        {t(locale, "I understand this count is partial, not exhaustive, and accept the loss window described above.")}
+        {t({ locale: locale, key: "I understand this count is partial, not exhaustive, and accept the loss window described above." })}
       </label>
     </div>
   );
@@ -289,7 +287,7 @@ function RestoreDisclosureStatus(props: {
   const { locale, point, disclosure, error, acknowledged, onAcknowledgeChange } = props;
 
   if (error) return <div className="notice error">{error}</div>;
-  if (!disclosure) return <div className="notice">{t(locale, "Computing the discarded-write-window disclosure…")}</div>;
+  if (!disclosure) return <div className="notice">{t({ locale: locale, key: "Computing the discarded-write-window disclosure…" })}</div>;
   return <DisclosurePanel locale={locale} point={point} disclosure={disclosure} acknowledged={acknowledged} onAcknowledgeChange={onAcknowledgeChange} />;
 }
 
@@ -307,11 +305,11 @@ function RestoreIdleStep(props: { locale: string; acknowledged: boolean; busy: b
         className="btn-primary"
         disabled={!acknowledged || busy}
         aria-describedby="recovery-ack-label"
-        title={!acknowledged ? t(locale, "Acknowledge the disclosure above to continue.") : undefined}
+        title={!acknowledged ? t({ locale: locale, key: "Acknowledge the disclosure above to continue." }) : undefined}
         onClick={onStart}
         {...agentHandle({ handle: "recovery-restore-start" }, { role: "button", label: "Continue to confirm the restore" })}
       >
-        {busy ? t(locale, "Planning…") : t(locale, "Continue to confirm")}
+        {busy ? t({ locale: locale, key: "Planning…" }) : t({ locale: locale, key: "Continue to confirm" })}
       </button>
     </div>
   );
@@ -330,7 +328,7 @@ function RestorePlannedStep(props: { locale: string; planId: string; busy: boole
         disabled={busy}
         {...agentHandle({ handle: "recovery-restore-confirm" }, { role: "button", label: "Confirm the planned restore, issuing a one-time execution token" })}
       >
-        {busy ? t(locale, "Confirming…") : t(locale, "Confirm restore")}
+        {busy ? t({ locale: locale, key: "Confirming…" }) : t({ locale: locale, key: "Confirm restore" })}
       </button>
     </div>
   );
@@ -341,7 +339,7 @@ function RestoreConfirmedStep(props: { locale: string; busy: boolean; onExecute:
   const { locale, busy, onExecute } = props;
   return (
     <div className="recovery-ceremony-step">
-      <p>{t(locale, "Confirmed. Executing performs the restore — this cannot be undone.")}</p>
+      <p>{t({ locale: locale, key: "Confirmed. Executing performs the restore — this cannot be undone." })}</p>
       <button
         type="button"
         className="btn-danger"
@@ -349,7 +347,7 @@ function RestoreConfirmedStep(props: { locale: string; busy: boolean; onExecute:
         disabled={busy}
         {...agentHandle({ handle: "recovery-restore-execute" }, { role: "button", label: "Execute the confirmed restore now — cannot be undone" })}
       >
-        {busy ? t(locale, "Restoring…") : t(locale, "Execute restore")}
+        {busy ? t({ locale: locale, key: "Restoring…" }) : t({ locale: locale, key: "Execute restore" })}
       </button>
     </div>
   );
@@ -368,7 +366,7 @@ function RestoreDoneStep(props: { locale: string; restoreRunId: string; state: s
       </p>
       {restartRequired ? (
         <p className="save-error" role="alert">
-          {t(locale, "The database file was replaced — this server process is still serving the pre-restore data from its open connection. Restart the server now to pick up the restored data.")}
+          {t({ locale: locale, key: "The database file was replaced — this server process is still serving the pre-restore data from its open connection. Restart the server now to pick up the restored data." })}
         </p>
       ) : null}
     </div>
@@ -452,7 +450,7 @@ function RestoreFlow({
         <div className="recovery-ceremony-summary">
           <div className="recovery-restore-title-row">
             <h2 className="recovery-restore-title">
-              {t("Restore to")} {formatTimestamp(point.createdAt)}
+              {t("Restore to")} {formatTimestamp({ iso: point.createdAt }, { timeZone: "local" })}
             </h2>
             <span className="visually-hidden">{t("Cost class")}</span>
             <span className={`status status-${point.costClass}`}>{costClassLabel(point.costClass, locale)}</span>
@@ -498,7 +496,7 @@ function RestoreTabPanel(props: { locale: string; selected: AdminRestorePoint | 
   if (!props.selected) {
     return (
       <div className="notice">
-        <p>{t(props.locale, "Select a restore point from the Restore points tab to begin.")}</p>
+        <p>{t({ locale: props.locale, key: "Select a restore point from the Restore points tab to begin." })}</p>
       </div>
     );
   }

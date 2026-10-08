@@ -41,9 +41,9 @@ export function HistoryTab() {
               structure entirely (confirmed live — this tab's heading list was `H1` and nothing
               else). `.deployment-empty-title` supplies the size, so the element choice is free to
               be the semantically correct one. */}
-          <h2 className="deployment-empty-title">{t(locale, "No deploys yet")}</h2>
+          <h2 className="deployment-empty-title">{t({ locale: locale, key: "No deploys yet" })}</h2>
           <p className="deployment-empty-body">
-            {t(locale, "Nothing has been deployed from this screen — and nothing can be yet. Once a host is wired up, every build and deploy will be listed here with its outcome.")}
+            {t({ locale: locale, key: "Nothing has been deployed from this screen — and nothing can be yet. Once a host is wired up, every build and deploy will be listed here with its outcome." })}
           </p>
           <a
             className="btn-secondary"
@@ -53,7 +53,7 @@ export function HistoryTab() {
               label: "Open the Static Site tab to see how to publish today",
             })}
           >
-            {t(locale, "See how to publish today")}
+            {t({ locale: locale, key: "See how to publish today" })}
           </a>
         </div>
       </div>

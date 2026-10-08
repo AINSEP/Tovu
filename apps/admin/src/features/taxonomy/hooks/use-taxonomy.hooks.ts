@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { type AdminTaxonomy, type AdminTaxonomyWithTerms, type AdminTerm } from "@/lib/api";
-import { useFetchMutation, useFetchQuery, useInvalidate } from "@/lib/fetch-query";
+import { useFetchMutation, useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { contentRefreshApplies, subscribeToContentRefresh } from "@/lib/content-refresh-bus";
 import {
   describeDeleteBlocked,
@@ -41,7 +41,7 @@ import type { TaxonomyPort } from "./taxonomy-port.hooks";
  * hard-failing, and that refusal is not an error to bury in the generic `error` banner — it is
  * expected, recoverable, and names its own remedy (`rules.ts`'s `describeDeleteBlocked`). Kept as
  * its own `{ termId, state } | null` (not folded into `error`) so `Taxonomy.tsx` can show it scoped
- * to the specific row it's about, the same way `Comments.tsx`'s per-row `rs.error` does, rather than
+ * to the specific row it's about, the same way `@jini-ai/admin/comments/react`'s per-row `rs.error` does, rather than
  * a page-level banner that doesn't say which of several terms it's talking about.
  *
  * `port` is injected — see `taxonomy-port.hooks.ts` (shared with `use-term-detail-panel.hooks.ts`,
@@ -59,11 +59,11 @@ import type { TaxonomyPort } from "./taxonomy-port.hooks";
  * direct import for this hook's OWN error strings: a pure lookup that already takes `locale`
  * explicitly, not a host reach.
  *
- * `lib/fetch-query` migration (2026-08-12): the list read is now `useFetchQuery({ key: KEYS.list,
+ * `@jini-ai/ui/fetch-query` migration (2026-08-12): the list read is now `useFetchQuery({ key: KEYS.list,
  * ... })`, and the two Trash mutations are `useFetchMutation`s that `invalidates: [KEYS.list]`
  * instead of calling `load()` by hand on success — see `rules.ts`'s `KEYS` doc. `error`'s precedence
  * (an active delete's own hard failure over a background list-refresh failure) mirrors
- * `redirects/rules.ts`'s `visibleRedirectsError`, with one addition that screen doesn't have: a
+ * `Jini redirects/rules.ts`'s `visibleRedirectsError`, with one addition that screen doesn't have: a
  * *blocked* (409) delete outcome is excluded from this banner entirely — it already has its own
  * scoped `deleteTermBlocked`/`deleteTaxonomyBlocked` slot (see the controller doc comment below), so
  * showing the same refusal twice would be a second, redundant channel for the identical fact.
@@ -129,19 +129,19 @@ export interface TaxonomyController {
  *  screen's perspective as this call having just deleted it.
  *
  * `refetch` (T8b, 2026-09-21): the mutation's own `invalidates` only fires on success
- * (`lib/fetch-query/adapter.tanstack.tsx`), so a 404 — reached only through the `catch` branch —
+ * (`@jini-ai/ui/fetch-query`), so a 404 — reached only through the `catch` branch —
  * needs its own explicit refetch to drop the row for anyone still looking; mirrors
- * `use-forms-list.hooks.ts`'s `removeForm` calling `invalidateList()` from the identical branch. */
+ * `Jini forms/react/hooks/use-forms-list.hooks.ts`'s `removeForm` calling `invalidateList()` from the identical branch. */
 async function runGuardedDelete(
   id: string,
-  mutate: (id: string) => Promise<unknown>,
+  mutate: (required: { input: string }) => Promise<unknown>,
   refetch: () => void,
   clearPending: () => void,
   onSuccess: () => void,
   onBlocked: (blocked: DeleteBlockedState) => void,
 ): Promise<void> {
   try {
-    await mutate(id);
+    await mutate({ input: id });
     clearPending();
     onSuccess();
   } catch (e) {
@@ -177,7 +177,7 @@ export function useTaxonomy(port: TaxonomyPort, locale: string, t: (key: string)
   const invalidate = useInvalidate();
   useEffect(() => {
     return subscribeToContentRefresh((scope) => {
-      if (contentRefreshApplies(scope, TAXONOMY_RESOURCE)) invalidate(KEYS.list);
+      if (contentRefreshApplies(scope, TAXONOMY_RESOURCE)) invalidate({ key: KEYS.list });
     });
   }, [invalidate]);
 
@@ -189,7 +189,8 @@ export function useTaxonomy(port: TaxonomyPort, locale: string, t: (key: string)
     null
   );
   const deleteTermMutation = useFetchMutation({
-    run: (termId: string) => port.trashTerm({ id: termId }),
+    run: ({ input: termId }: { input: string }) => port.trashTerm({ id: termId }),
+  }, {
     invalidates: [KEYS.list],
   });
 
@@ -199,7 +200,8 @@ export function useTaxonomy(port: TaxonomyPort, locale: string, t: (key: string)
     state: DeleteBlockedState;
   } | null>(null);
   const deleteTaxonomyMutation = useFetchMutation({
-    run: (taxonomyId: string) => port.trashTaxonomy({ id: taxonomyId }),
+    run: ({ input: taxonomyId }: { input: string }) => port.trashTaxonomy({ id: taxonomyId }),
+  }, {
     invalidates: [KEYS.list],
   });
 
@@ -211,12 +213,12 @@ export function useTaxonomy(port: TaxonomyPort, locale: string, t: (key: string)
   const error = visibleTaxonomyError({
     deleteTermBlocked: deleteTermBlocked !== null,
     deleteTermError: deleteTermMutation.error,
-    deleteTermFallback: translate(locale, "Failed to delete term"),
+    deleteTermFallback: translate({ locale: locale, key: "Failed to delete term" }),
     deleteTaxonomyBlocked: deleteTaxonomyBlocked !== null,
     deleteTaxonomyError: deleteTaxonomyMutation.error,
-    deleteTaxonomyFallback: translate(locale, "Failed to delete taxonomy"),
+    deleteTaxonomyFallback: translate({ locale: locale, key: "Failed to delete taxonomy" }),
     listError: list.error,
-    listFallback: translate(locale, "failed to load taxonomies"),
+    listFallback: translate({ locale: locale, key: "failed to load taxonomies" }),
   });
 
   function requestDeleteTerm(term: AdminTerm | null) {
@@ -302,6 +304,6 @@ export function useTaxonomy(port: TaxonomyPort, locale: string, t: (key: string)
  */
 export function useWiredTaxonomy(): TaxonomyController {
   const locale = useAdminLocale();
-  const t = (key: string): string => translate(locale, key);
+  const t = (key: string): string => translate({ locale: locale, key: key });
   return useTaxonomy(defaultTaxonomyPort, locale, t);
 }

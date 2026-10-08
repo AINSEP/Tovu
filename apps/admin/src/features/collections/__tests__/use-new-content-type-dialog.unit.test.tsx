@@ -1,9 +1,9 @@
-import { act, render, renderHook, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError, type AdminContentType } from "@/lib/api";
-import { FetchQueryProvider } from "@/lib/fetch-query";
-import { tabFromLastFocusableInDialog } from "@/hooks/__tests__/focus-trap.test-helpers";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
+import { NewContentTypeDialog } from "../Collections";
 import { createFakeNewContentTypeDialogPort } from "../hooks/new-content-type-dialog-dependencies.hooks";
 import { useNewContentTypeDialog, useWiredNewContentTypeDialog } from "../hooks/use-new-content-type-dialog.hooks";
 import type { NewContentTypeDialogPort } from "../hooks/new-content-type-dialog-port.hooks";
@@ -18,8 +18,8 @@ import type { NewContentTypeDialogPort } from "../hooks/new-content-type-dialog-
  * coverage added alongside that conversion, proving the pure hook is independently testable
  * against `createFakeNewContentTypeDialogPort` with no `fetch` stub at all.
  *
- * `wrapper` (2026-08-12, `lib/fetch-query` migration): `createContentType` now goes through
- * `useFetchMutation`, which throws without a `QueryClientProvider` ancestor.
+ * `wrapper` (2026-08-12, `@jini-ai/ui/fetch-query` migration): `createContentType` now goes through
+ * `useFetchMutation`, which throws without a `FetchQueryProvider` ancestor.
  */
 
 function wrapper({ children }: { children: React.ReactNode }) {
@@ -180,9 +180,9 @@ describe("submit — success", () => {
     });
     expect(view.result.current.saving).toBe(true);
 
-    // `useFetchMutation` (TanStack's `useMutation`) flips `saving` to `true` synchronously on
+    // `useFetchMutation` (Jini's `useMutation`) flips `saving` to `true` synchronously on
     // `mutate()`, same as the pre-migration `setSaving(true)` did — but unlike that direct call, it
-    // defers actually INVOKING `mutationFn` (and therefore this `fetch`) by one microtask, so
+    // defers actually INVOKING `run` (and therefore this `fetch`) by one microtask, so
     // `resolveCreate` is not assigned yet at this exact point. `await Promise.resolve()` lets that
     // deferred call land before this reaches for it.
     await act(async () => {
@@ -226,42 +226,31 @@ describe("submit — failure", () => {
   });
 });
 
-describe("Escape-to-cancel", () => {
-  it("calls onCancel when Escape is pressed while mounted", () => {
-    const { onCancel } = mount();
-    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+describe("native dialog lifecycle (M3)", () => {
+  it("native cancel reaches the domain's current cancel handler", () => {
+    const onCancel = vi.fn();
+    render(<NewContentTypeDialog onCreated={vi.fn()} onCancel={onCancel} t={(key) => key}
+      useNewContentTypeDialogHook={(props) => useNewContentTypeDialog(props, { port: createFakeNewContentTypeDialogPort(), locale: "en" })} />, { wrapper });
+    fireEvent(screen.getByRole("dialog"), new Event("cancel", { cancelable: true }));
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
-});
 
-describe("focus trap (M3)", () => {
-  it("Tab from the dialog's last focusable element wraps to the first instead of leaving", () => {
-    function Harness() {
-      const { dialogRef } = useNewContentTypeDialog(
-        { onCreated: vi.fn(), onCancel: vi.fn() },
-        { port: createFakeNewContentTypeDialogPort(), locale: "en" }
-      );
-      return (
-        <>
-          <button type="button">page behind</button>
-          <form ref={dialogRef} role="dialog" aria-modal="true">
-            <button type="button">first</button>
-            <button type="button">last</button>
-          </form>
-        </>
-      );
-    }
-    render(<Harness />, { wrapper });
-
-    const { event, first } = tabFromLastFocusableInDialog();
-
-    expect(event.defaultPrevented).toBe(true);
-    expect(document.activeElement).toBe(first);
+  it("uses native modality and returns focus to the opener on unmount", () => {
+    const opener = document.createElement("button");
+    document.body.appendChild(opener);
+    opener.focus();
+    const { unmount } = render(<NewContentTypeDialog onCreated={vi.fn()} onCancel={vi.fn()} t={(key) => key}
+      useNewContentTypeDialogHook={(props) => useNewContentTypeDialog(props, { port: createFakeNewContentTypeDialogPort(), locale: "en" })} />, { wrapper });
+    expect(screen.getByRole("dialog").tagName).toBe("DIALOG");
+    expect(screen.getByRole("dialog")).toHaveAttribute("open");
+    unmount();
+    expect(opener).toHaveFocus();
+    opener.remove();
   });
 });
 
 describe("cancel — in-flight guard (H4)", () => {
-  it("Escape while the create request is in flight does not dismiss the dialog", async () => {
+  it("cancel while the create request is in flight does not dismiss the dialog", async () => {
     const onCancel = vi.fn();
     const onCreated = vi.fn();
     const created = deferred<{ contentType: AdminContentType }>();
@@ -278,13 +267,13 @@ describe("cancel — in-flight guard (H4)", () => {
     });
     await waitFor(() => expect(result.current.saving).toBe(true));
 
-    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    act(() => result.current.cancel());
     expect(onCancel).not.toHaveBeenCalled();
 
     created.resolve({ contentType: {} as AdminContentType });
     await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
 
-    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    act(() => result.current.cancel());
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 });

@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 import type { AdminMediaProviderMap } from "@/lib/api";
 import { useOtherCredentials, useWiredOtherCredentials } from "../use-other-credentials.hooks";
 import type { OtherCredentialGroupState } from "../use-other-credentials.hooks";
@@ -88,6 +88,15 @@ function findGroup(groups: readonly OtherCredentialGroupState[] | undefined, sto
 }
 
 describe("useOtherCredentials — reading all four stores", () => {
+  it("uses the same localized server hint for both BYOK stores without adding mask bullets", async () => {
+    const port = createFakeOtherCredentialsPort({
+      getSiteAssistantCredential: () => Promise.resolve({ data: { isSet: true, masked: "••••a9F2", tokenHint: { length: 18, last4: "a9F2" }, provider: "openai", baseUrl: null, model: null, updatedAt: null } }),
+      getAdminByokCredential: () => Promise.resolve({ data: { isSet: true, masked: null, tokenHint: { length: 4, last4: null }, protocol: "anthropic", providerId: null, baseUrl: null, model: null, maxTokens: null, updatedAt: null } }),
+    });
+    const { result } = renderHook(() => useOtherCredentials(port, T, "es", { query: "", category: "all" }), { wrapper });
+    await waitFor(() => expect(findGroup(result.current.groups, "site-assistant")?.rows[0]?.valueFact).toBe("…a9F2, 18 caracteres"));
+    await waitFor(() => expect(findGroup(result.current.groups, "admin-byok")?.rows[0]?.valueFact).toBe("4 caracteres"));
+  });
   it("settles each store independently into its own row(s), covering every reader and readStore's dispatch", async () => {
     const port = createFakeOtherCredentialsPort({
       getSiteAssistantCredential: () => Promise.resolve({ data: { isSet: true, masked: "site", provider: "openai", baseUrl: null, model: null, updatedAt: "2026-08-01T00:00:00.000Z" } }),
@@ -256,7 +265,7 @@ describe("useOtherCredentials — replace: per-store dispatch (writeReplace)", (
 
     await act(() => result.current.replace(findGroup(result.current.groups, "site-assistant")!.rows[0]!));
 
-    expect(setSiteAssistantCredential).toHaveBeenCalledWith({ apiKey: "sk-new" }); // trimmed
+    expect(setSiteAssistantCredential).toHaveBeenCalledExactlyOnceWith({ apiKey: "  sk-new  " }); // store owns normalization
     await waitFor(() => expect(findGroup(result.current.groups, "site-assistant")?.rows[0]?.valueFact).toBe("••••new1"));
     const settled = findGroup(result.current.groups, "site-assistant")!.rows[0]!;
     expect(settled.token).toBe("");

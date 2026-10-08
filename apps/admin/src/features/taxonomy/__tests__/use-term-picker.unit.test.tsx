@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 import { createFakeTermPickerPort } from "../hooks/term-picker-dependencies.hooks";
 import { useTermPicker, useWiredTermPicker } from "../hooks/use-term-picker.hooks";
 import type { TermPickerPort } from "../hooks/term-picker-port.hooks";
@@ -13,7 +13,7 @@ import type { AdminTaxonomyWithTerms } from "@/lib/api";
  * (assign the added ids, unassign the removed ones). Driven through `createFakeTermPickerPort`; one
  * wired case at the bottom proves the real client's three routes.
  *
- * `wrapper`: the read and the save go through `lib/fetch-query`, which needs its provider.
+ * `wrapper`: the read and the save go through `@jini-ai/ui/fetch-query`, which needs its provider.
  */
 
 function wrapper({ children }: { children: React.ReactNode }) {

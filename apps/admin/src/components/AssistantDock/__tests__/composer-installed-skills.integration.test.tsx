@@ -41,7 +41,12 @@ describe("installed skills from GET through the real composer slash popup", () =
   it.each(["sk", "ui", "ux"])("preserves both enabled skills in projection and relevant labeled rows for /%s", async query => {
     const fetchMock = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
       expect(url).toBe("/api/admin/v1/workspaces/workspace-local/skills");
-      expect(init).toEqual({ credentials: "same-origin" });
+      expect(init).toEqual({
+        credentials: "same-origin",
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+        signal: expect.any(AbortSignal),
+      });
       return Response.json(skillsResponse);
     });
     vi.stubGlobal("fetch", fetchMock);

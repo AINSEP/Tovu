@@ -5,11 +5,15 @@ import { resolve } from "node:path";
 import { expect, it } from "vitest";
 import { effectiveDeclarationsFor } from "./css-declarations.test-helper";
 
-it("expanded sidebar labels can wrap at desktop widths and in the mobile drawer", () => {
+it("expanded sidebar labels wrap at word boundaries and Soon badges stay whole", () => {
   const stylesheet = readFileSync(resolve(process.cwd(), "src/styles.css"), "utf8");
-  const label = effectiveDeclarationsFor(stylesheet, ".cms-item > span");
+  const label = effectiveDeclarationsFor(stylesheet, ".cms-item > span:not(.soon)");
   expect(label).toMatch(/white-space:\s*normal;/);
-  expect(label).toMatch(/overflow-wrap:\s*anywhere;/);
+  expect(label).toMatch(/overflow-wrap:\s*normal;/);
+  expect(label).toMatch(/word-break:\s*normal;/);
+  const badge = effectiveDeclarationsFor(stylesheet, ".cms-item .soon");
+  expect(badge).toMatch(/white-space:\s*nowrap;/);
+  expect(badge).toMatch(/flex-shrink:\s*0;/);
 });
 
 function Tooltips() { useCmsSidebarLabelTooltips({}); return null; }

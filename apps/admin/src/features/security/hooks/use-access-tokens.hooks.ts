@@ -11,11 +11,10 @@ import {
   type AdminSourceControlCredentialSummary,
 } from "@/lib/api";
 import { localizePublishTargets, localizeSourceControlProviders } from "@/lib/descriptor-i18n";
-import { useFetchQuery } from "@/lib/fetch-query";
+import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
-import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
-import type { Translate } from "@/lib/dictionary-translator";
+import { useSettlementGeneration, type Translate } from "@jini-ai/ui/panel-kit";
 import { withPromotedDefault } from "../../deployment/rules";
 import {
   t as defaultT,
@@ -455,7 +454,7 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
   const reloadAllStores = useCallback(async () => {
     const requestGeneration = settlement.next();
     const results = await Promise.allSettled([port.publish.list(), port.sourceControl.list(), port.custom.list()]);
-    if (!settlement.isCurrent(requestGeneration)) return; // superseded by a newer reload
+    if (!settlement.isCurrent({ generation: requestGeneration })) return; // superseded by a newer reload
     const [publishResult, sourceControlResult, customResult] = results;
     if (publishResult.status === "fulfilled") setPublishCredentials(publishResult.value.credentials);
     if (sourceControlResult.status === "fulfilled") setSourceControlCredentials(sourceControlResult.value.credentials);
@@ -835,6 +834,6 @@ function mergeRaw<T extends { id: string }>(list: readonly T[], result: T, isNew
  */
 export function useWiredAccessTokens(): AccessTokensController {
   const locale = useAdminLocale();
-  const boundT = useCallback((key: string): string => defaultT(locale, key), [locale]);
+  const boundT = useCallback((key: string): string => defaultT({ locale: locale, key: key }), [locale]);
   return useAccessTokens(defaultAccessTokensPort, boundT, locale);
 }

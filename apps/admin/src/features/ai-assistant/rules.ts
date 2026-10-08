@@ -1,6 +1,7 @@
 import { DEFAULT_PROVIDER_PRESETS, isProviderConfigured, type ApiProtocol, type ByokConfig } from "@jini-ai/ui";
 
 import { ApiError, describeApiError as describeApiErrorDefault, type SiteAssistantCredential } from "../../lib/api";
+import { storedCredentialHint } from "../../lib/credential-copy";
 
 /**
  * @file Pure logic for the `ai-assistant` feature — everything that computes a value rather than
@@ -127,4 +128,23 @@ export function hydrateVisitorCredentialConfig(current: ByokConfig, stored: Site
  *  @complexity Time: O(p) in the number of provider presets; space: O(1). */
 function knownProtocol(provider: string): ApiProtocol | null {
   return DEFAULT_PROVIDER_PRESETS.find((p) => p.protocol === provider)?.protocol ?? null;
+}
+
+/** The server's `••••<last 4>` shown IN the key field — which key is stored, answered where the
+ *  operator is already looking, instead of in a sentence underneath. `undefined` (no placeholder)
+ *  whenever nothing is stored or the server didn't send a mask.
+ *
+ *  Safe precisely BECAUSE it is a placeholder: `config.apiKey` stays empty, so `saveKey`
+ *  sends nothing at all and the stored key is left alone. A pre-filled value here would be a
+ *  real value the save path would persist AS the key. Pulled to a top-level pure function per the
+ *  complexity-pass extraction rule — one of the few remaining branch points in
+ *  `VisitorCredentialForm` itself once {@link VisitorCredentialKeyFooter} moved out.
+ *
+ *  Also `undefined` when the stored key belongs to another endpoint: after a provider switch the mask
+ *  would read as a key saved for the provider now selected. */
+export function visitorCredentialApiKeyPlaceholder(
+  stored: SiteAssistantCredential | null,
+  storedKeyIsForOtherEndpoint = false,
+): string | undefined {
+  return storedCredentialHint({ stored, storedKeyIsForOtherEndpoint });
 }

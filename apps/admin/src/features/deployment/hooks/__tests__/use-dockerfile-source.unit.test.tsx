@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "@/lib/api";
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 import { useDockerfileSource } from "../use-dockerfile-source.hooks";
 import { createFakeDockerfileSourcePort, FAKE_DOCKERFILE_ETAG } from "../dockerfile-source-dependencies.hooks";
 
@@ -256,7 +256,7 @@ describe("useDockerfileSource — save", () => {
     // between them — before the first has any chance to resolve (or even for React to re-render
     // with the Save button disabled). The synchronous guard (`savingRef`) is what makes this prove
     // anything: the second call's own top-of-function check reads the ref the FIRST call already
-    // set, entirely independent of when TanStack's own mutation machinery (a black box from this
+    // set, entirely independent of when Jini's own mutation machinery (a black box from this
     // test's perspective) actually gets around to invoking the port. Same shape as
     // `use-static-publish.unit.test.tsx`'s own C4 regression test.
     let firstCall!: Promise<void>;
@@ -320,8 +320,8 @@ describe("useDockerfileSource — save", () => {
     await act(async () => {
       await result.current.save();
     });
-    // `useFetchMutation`'s own `error` settles through TanStack's async state machine, one tick
-    // after the awaited `mutateAsync` rejection this hook's `save()` already caught — `waitFor`
+    // `useFetchMutation`'s own `error` becomes visible after React renders the rejected write
+    // that this hook's `save()` already caught — `waitFor`
     // rather than a bare synchronous assertion, same as the load-error test above.
     await waitFor(() => expect(result.current.saveError).not.toBeNull());
 

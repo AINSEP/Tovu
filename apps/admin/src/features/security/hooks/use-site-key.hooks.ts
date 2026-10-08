@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { ApiError, describeApiError, type AdminSiteKeyStatus } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import type { Translate } from "@/lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 import { t as defaultT, siteKeyGenerateErrorMessage, siteKeyLoadErrorMessage, siteKeyRevealErrorMessage } from "../security-i18n";
 import { defaultSiteKeyPort } from "./site-key-dependencies.hooks";
 import type { SiteKeyPort } from "./site-key-port.hooks";
@@ -152,6 +152,6 @@ export function useSiteKey(port: SiteKeyPort, t: Translate, locale: string): Sit
  */
 export function useWiredSiteKey(): SiteKeyController {
   const locale = useAdminLocale();
-  const boundT = (key: string): string => defaultT(locale, key);
+  const boundT = (key: string): string => defaultT({ locale: locale, key: key });
   return useSiteKey(defaultSiteKeyPort, boundT, locale);
 }

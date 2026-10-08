@@ -1,6 +1,15 @@
-import type { QueryKey } from "@/lib/fetch-query";
+import type { QueryKey } from "@jini-ai/ui/fetch-query";
 import type { AdminTrashItem, AdminTrashPurgeOutcome, AdminTrashRestoreOutcome } from "@/lib/api";
 import { t } from "./trash-i18n";
+import { ApiError, REQUEST_TIMEOUT_CODE, describeApiError } from "@/lib/api";
+
+/** A timeout settles the load; give the operator a localized next action. */
+export function describeTrashLoadError({ error, locale }: { error: unknown; locale: string }, _optional = {}): string {
+  if (error instanceof ApiError && error.code === REQUEST_TIMEOUT_CODE) {
+    return t({ locale: locale, key: "The Tovu API did not respond. Try refreshing the Trash." });
+  }
+  return describeApiError(error, t({ locale: locale, key: "failed to load the Trash" }));
+}
 
 /**
  * @file Pure decisions for the Trash screen — cache keys, the coverage sentence, selection
@@ -42,7 +51,7 @@ export const TRASH_RESOURCE = "trash";
  * subtitle; the original always-visible requirement above is superseded, but the exceptions remain.
  */
 export function coverageLine(locale: string): string {
-  return t(locale, "Collection entries and theme files don't go to Trash.");
+  return t({ locale: locale, key: "Collection entries and theme files don't go to Trash." });
 }
 
 /** A human label for a row's kind. Unknown kinds print as themselves rather than being hidden —
@@ -63,12 +72,12 @@ export function entityTypeLabel(locale: string, entityType: string): string {
     user: "User",
   };
   const label = known[entityType];
-  return label ? t(locale, label) : entityType;
+  return label ? t({ locale: locale, key: label }) : entityType;
 }
 
 export function itemSubtitle(locale: string, item: { entityType: string; subtitle: string | null }): string | null {
   if (item.entityType !== "plugin") return item.subtitle;
-  const shared = t(locale, "Shared across all workspaces on this site.");
+  const shared = t({ locale: locale, key: "Shared across all workspaces on this site." });
   return item.subtitle ? `${item.subtitle} · ${shared}` : shared;
 }
 
@@ -126,7 +135,7 @@ export function actorLabel(
 ): ActorLabel {
   const human = humanActorLabel(locale, item, knownUsernames);
   if (item.actorPluginId != null) {
-    return { label: `${human} + ${t(locale, "AI")}`, title: item.actorPluginId };
+    return { label: `${human} + ${t({ locale: locale, key: "AI" })}`, title: item.actorPluginId };
   }
   return { label: human };
 }
@@ -137,14 +146,14 @@ function humanActorLabel(locale: string, item: AdminTrashItem, knownUsernames: R
     if (item.actorUsername != null) return item.actorUsername;
     // Explicit null: the server checked and found no account. Still let a real "system" actor win
     // over "Deleted user" — same reasoning the old single-function version documented.
-    return item.actorIsSystem ? t(locale, "System") : t(locale, "Deleted user");
+    return item.actorIsSystem ? t({ locale: locale, key: "System" }) : t({ locale: locale, key: "Deleted user" });
   }
   // The server never sent actorUsername at all (an older build) — try resolving it ourselves before
   // giving up.
   const resolved = knownUsernames.get(item.actorPrincipalId);
   if (resolved) return resolved;
-  if (item.actorIsSystem || item.actorPrincipalId === "system") return t(locale, "System");
-  return t(locale, "Unknown");
+  if (item.actorIsSystem || item.actorPrincipalId === "system") return t({ locale: locale, key: "System" });
+  return t({ locale: locale, key: "Unknown" });
 }
 
 /**
@@ -209,14 +218,14 @@ export function describePurgeReport(
  */
 function describeBatch(locale: string, succeeded: number, total: number, verb: "restored" | "deleted"): string {
   if (succeeded === total) {
-    return verb === "restored" ? t(locale, "Restored.") : t(locale, "Deleted permanently.");
+    return verb === "restored" ? t({ locale: locale, key: "Restored." }) : t({ locale: locale, key: "Deleted permanently." });
   }
   if (succeeded === 0) {
-    return verb === "restored" ? t(locale, "Nothing was restored.") : t(locale, "Nothing was deleted.");
+    return verb === "restored" ? t({ locale: locale, key: "Nothing was restored." }) : t({ locale: locale, key: "Nothing was deleted." });
   }
   return verb === "restored"
-    ? `${t(locale, "Restored.")} ${succeeded}/${total}`
-    : `${t(locale, "Deleted permanently.")} ${succeeded}/${total}`;
+    ? `${t({ locale: locale, key: "Restored." })} ${succeeded}/${total}`
+    : `${t({ locale: locale, key: "Deleted permanently." })} ${succeeded}/${total}`;
 }
 
 /**
@@ -227,4 +236,3 @@ function describeBatch(locale: string, succeeded: number, total: number, verb: "
  *
  * @complexity O(1).
  */
-// describeOutcome (apps/admin/src/features/trash/rules.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.

@@ -1,5 +1,5 @@
-import { hasPermission } from "@/lib/permissions";
-import { useFetchQuery } from "@/lib/fetch-query";
+import { hasPermission } from "@jini-ai/ui/panel-kit";
+import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { SITE_KEY_MANAGE_PERMISSION } from "../rules";
 import { defaultSecurityPermissionsPort } from "./security-permissions-dependencies.hooks";
 import type { SecurityPermissionsPort } from "./security-permissions-port.hooks";
@@ -24,13 +24,13 @@ export interface SecurityPermissionsController {
 }
 
 // Namespaced under "security" — same convention `use-access-tokens.hooks.ts` uses for its own
-// three list reads (`["security", "publish-credentials"]` etc.) and `comments/rules.ts`'s
+// three list reads (`["security", "publish-credentials"]` etc.) and `@jini-ai/admin/comments` KEYS's
 // `KEYS.permissions` (`["comments", "permissions"]`) uses for this exact same `/auth/me` read.
 const SECURITY_PERMISSIONS_KEY = ["security", "permissions"] as const;
 
 export function useSecurityPermissions(port: SecurityPermissionsPort): SecurityPermissionsController {
   const query = useFetchQuery({ key: SECURITY_PERMISSIONS_KEY, fetch: () => port.me() });
-  const canManageSiteKey = hasPermission(query.data?.effectivePermissions ?? [], SITE_KEY_MANAGE_PERMISSION);
+  const canManageSiteKey = hasPermission({ permissions: query.data?.effectivePermissions ?? [], permission: SITE_KEY_MANAGE_PERMISSION });
   return { canManageSiteKey };
 }
 

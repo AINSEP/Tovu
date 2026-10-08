@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 import type { AdminTaxonomy } from "@/lib/api";
 import { Taxonomy } from "../Taxonomy";
 import { useTaxonomy } from "../hooks/use-taxonomy.hooks";

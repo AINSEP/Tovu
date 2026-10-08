@@ -1,6 +1,6 @@
 import { agentHandle } from "@jini-ai/agentic";
 import { MediaPickerDialog } from "@/components/MediaPickerDialog/MediaPickerDialog";
-import type { Translate } from "@/lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 import { useWiredPostFeaturedImage } from "./hooks/use-post-featured-image.hooks";
 
 /**

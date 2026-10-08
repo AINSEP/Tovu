@@ -1,3 +1,4 @@
+import { COMMON_I18N } from "../../lib/i18n-common";
 /**
  * @file Spanish dictionary for `Posts.tsx` (list) and `PostEditor.tsx` (shared post/page editor
  * screen — see that file's header for why one editor serves both kinds).
@@ -23,7 +24,7 @@
  * read as a stray leading verb before the sentence's real subject. Not a missing-translation bug —
  * `posts-i18n.unit.test.ts`'s non-empty-value check excludes this one key for this reason.
  */
-import { createDictionaryTranslator } from "../../lib/dictionary-translator";
+import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 export const POSTS_DICT: Record<string, Record<string, string>> = {
   es: {
@@ -2555,4 +2556,4 @@ Object.assign(
   ),
 );
 
-export const t = createDictionaryTranslator(POSTS_DICT);
+export const t = createDictionaryTranslator({ featureDictionary: POSTS_DICT }, { commonDictionary: COMMON_I18N });

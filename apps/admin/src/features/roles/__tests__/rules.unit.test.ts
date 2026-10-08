@@ -248,7 +248,7 @@ describe("roles-i18n — C4 keys", () => {
   for (const [index, key] of NEW_KEYS.entries()) {
     for (const locale of LOCALES) {
       it(`t(${locale}, "${key}") matches the locale's error copy`, () => {
-        const translated = t(locale, key);
+        const translated = t({ locale: locale, key: key });
         expect(translated.length).toBeGreaterThan(0);
         expect(translated).not.toBe(key);
         expect(translated).toBe(EXPECTED[locale][index]);

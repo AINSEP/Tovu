@@ -23,7 +23,7 @@ import { useWiredWorkspace, useWorkspace } from "../hooks/use-workspace.hooks";
  * test file, no separate port/dependencies files of their own.
  *
  * `useWorkspace` calls `useAdminLocale()` INTERNALLY (not an injected param — contrast
- * `use-redirects.hooks.ts`'s `t`/`locale` params), so this file stubs global `fetch` for the
+ * `Jini redirects/react/hooks/use-redirects.hooks.ts`'s `t`/`locale` params), so this file stubs global `fetch` for the
  * `/settings/effective?namespace=core.language` call only — same interceptor shape
  * `use-roles.unit.test.tsx`/`use-restore-flow.unit.test.ts` use. Every OTHER read/write here goes
  * through the injected `WorkspacePort`, never real `fetch`.
@@ -53,7 +53,7 @@ function stubLocaleFetch(localeData: Array<{ key: string; value: string }> = [])
   );
 }
 
-/** Routes on method + a distinguishing URL substring, matching `use-redirects.hooks.unit.test.tsx`'s
+/** Routes on method + a distinguishing URL substring, matching `Jini redirects/react/__tests__/use-redirects.hooks.unit.test.tsx`'s
  *  `routeFetch` helper — used only by the `useWiredWorkspace` end-to-end test below, which needs
  *  BOTH the locale call and the real `/workspaces/workspace-local` GET/PATCH routed. */
 function routeFetch(routes: Array<{ when: (url: string, init?: RequestInit) => boolean; respond: () => Response }>) {

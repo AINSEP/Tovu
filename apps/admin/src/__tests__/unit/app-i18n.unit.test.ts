@@ -15,15 +15,15 @@ describe("app shell translations", () => {
     ["You don't have access to this", "No tienes acceso a esto"],
     ["Ask the site owner if you need this section.", "Pide acceso al propietario del sitio si necesitas esta sección."],
   ])("translates Spanish shell copy %s", (key, expected) => {
-    expect(t("es", key)).toBe(expected);
+    expect(t({ locale: "es", key: key })).toBe(expected);
   });
 
   it("resolves each call's locale and falls back to shared copy or the original key", () => {
-    expect(t("de", "Open navigation")).toBe("Navigation öffnen");
-    expect(t("es", "Open navigation")).toBe("Abrir navegación");
-    expect(t("es", "Cancel")).toBe("Cancelar");
-    expect(t("unknown-locale", "Open navigation")).toBe("Open navigation");
-    expect(t("en", "Log out?")).toBe("Log out?");
-    expect(t("es", "Unlisted shell message")).toBe("Unlisted shell message");
+    expect(t({ locale: "de", key: "Open navigation" })).toBe("Navigation öffnen");
+    expect(t({ locale: "es", key: "Open navigation" })).toBe("Abrir navegación");
+    expect(t({ locale: "es", key: "Cancel" })).toBe("Cancelar");
+    expect(t({ locale: "unknown-locale", key: "Open navigation" })).toBe("Open navigation");
+    expect(t({ locale: "en", key: "Log out?" })).toBe("Log out?");
+    expect(t({ locale: "es", key: "Unlisted shell message" })).toBe("Unlisted shell message");
   });
 });

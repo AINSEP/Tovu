@@ -1,5 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;500&display=swap');
 @import '@jini-ai/ui/admin-widgets.css';
+/* Keep Tovu's link colour and text size when widgets are imported directly from Jini. */
+@import './styles/see-more.css';
 
 /* ============================================================
    Tovu Admin — design tokens (Port-derived, light default + dark)
@@ -500,7 +502,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
    them. A ring around the whole page or the whole dock marks nothing actionable. */
 #main-content:focus, .admin-chat-dock:focus { outline: none; }
 
-/* InfoTip (`components/InfoTip.tsx`, 2026-08-09) — a real tooltip, not the native `title`
+/* InfoTip (`@jini-ai/ui/admin-widgets`, 2026-08-09) — a real tooltip, not the native `title`
    attribute: `title` was tried first and rejected live (owner feedback: too slow/inconsistent to
    notice, and the icon itself read as too small). Owner also asked for it to open ABOVE the
    trigger — that's unsafe with a plain CSS `position: absolute` bubble here, since this component's
@@ -1542,7 +1544,8 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 .cms-item svg { width: 16px; height: 16px; color: var(--muted); flex-shrink: 0; }
 /* Long translated labels (including Hungarian) stay readable in the expanded desktop sidebar
    and mobile drawer. Rail mode still hides them with its more-specific rule below. */
-.cms-item > span { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+.cms-item { flex-wrap: wrap; }
+.cms-item > span:not(.soon) { flex: 1 0 min-content; white-space: normal; overflow-wrap: normal; word-break: normal; }
 /* Rail-mode hover/focus tooltip. `position: fixed`, not `absolute` — this is portaled to
    `document.body` by `Sidebar.tsx`'s `RailTooltip`, not a descendant of the scrollable `.cms-nav`
    (see that component's doc comment for why a CSS-only child tooltip could not escape it), so
@@ -1569,6 +1572,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 .cms-item.is-soon:hover { background: transparent; }
 .cms-item.is-soon svg { color: var(--faint); }
 .cms-item .soon {
+  flex-shrink: 0; white-space: nowrap; overflow-wrap: normal; word-break: normal;
   margin-left: auto; font-size: 9px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
   color: var(--faint); border: 1px solid var(--border); padding: 1px 5px; border-radius: 5px;
 }
@@ -1756,7 +1760,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   /* Same clearance for the fixed-height tab panels that scroll on their own (Settings, Agent
      plugins): their last rows sat under the FAB at the panel's own max scroll, which the spacer
      above cannot reach. Page-flow panels scroll with the page, so they are left alone. */
-  .settings-ui-section:not(.settings-ui-section--page-flow) .jini-tabbed-dialog-content { padding-bottom: 88px; }
+  .settings-ui-section:not(.settings-ui-section--page-flow):not(.skills-page) .jini-tabbed-dialog-content { padding-bottom: 88px; }
 
   /* Owner repro, 2026-08-26: the sheet covers the bottom of the page with nothing left to scroll
      into, so the last elements can never clear it. An `::after` spacer (not `padding-bottom`)
@@ -4134,6 +4138,9 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
  * field, because that is where the operator is looking when they have those
  * three questions. */
 .assistant-key-footer { display: flex; flex-direction: column; gap: 8px; }
+/* The host footer already explains server encryption and replacement. Hide only the shared
+   storage hint, keeping format warnings visible and standalone forms' host hint intact. */
+.settings-ui-section .jini-byok-card > .jini-field:has(+ .jini-byok-key-footer) > .jini-field-hint:not(.is-error) { display: none; }
 
 .assistant-key-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 

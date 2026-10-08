@@ -1,9 +1,9 @@
-import { buildAgentListHandles } from "../../lib/agent-list-handles";
+import { buildAgentListHandles } from "@jini-ai/agentic";
 import type { AdminSiteListEntry, AdminSitesSnapshot } from "../../lib/api";
-import type { Translate } from "../../lib/dictionary-translator";
-import { resolveActiveTabId } from "../../lib/resolve-active-tab-id";
-import { interpolate } from "../../lib/template-i18n";
-import type { TabBarTab } from "../../components/TabBar";
+import type { Translate } from "@jini-ai/ui/panel-kit";
+import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
+import { interpolate } from "@jini-ai/ui/panel-kit";
+import type { TabBarTab } from "@jini-ai/ui/tab-strip";
 import { siteRegistration, siteRowState, siteRowStateLabelKey, siteRowStateToneClass } from "./rules";
 import { AllSitesIcon, NewSiteIcon } from "./sites-visuals";
 
@@ -58,16 +58,14 @@ export function resolveActivateDisabled(args: {
  *  any locale. Also the row's `agentHandle` label, so the two channels never drift.
  *  @complexity Time/space: O(1). */
 export function resolveActivateAriaLabel(siteName: string, t: Translate): string {
-  return interpolate(t("Save {name} as the site to serve after the next restart"), { name: siteName });
+  return interpolate({ template: t("Save {name} as the site to serve after the next restart"), vars: { name: siteName } });
 }
 
 /** `Sites`'s own per-row agent handles. Folder names are unique under `sites/` (they ARE the
  *  directory entries), so they disambiguate one row's controls from another's — see `Sites.tsx`'s
  *  own history for this reasoning. */
 export function resolveSitesRowHandles(sites: readonly AdminSiteListEntry[]): string[] {
-  return buildAgentListHandles(
-    "sites-row",
-    sites.map((site) => site.name),
+  return buildAgentListHandles({ prefix: "sites-row", ids: sites.map((site) => site.name) }
   );
 }
 
@@ -166,7 +164,7 @@ export type SitesTabId = (typeof SITES_TAB_IDS)[number];
  *  guard `Deployment.tsx`/`Database.tsx`/`Themes.tsx` use — a stale bookmark or a typo must open the
  *  list, never a blank panel. */
 export function resolveSitesTabId(tabId: string | null | undefined): SitesTabId {
-  return resolveActiveTabId(tabId, SITES_TAB_IDS, "all");
+  return resolveActiveTabId({ tabId: tabId, validIds: SITES_TAB_IDS, defaultId: "all" });
 }
 
 /**

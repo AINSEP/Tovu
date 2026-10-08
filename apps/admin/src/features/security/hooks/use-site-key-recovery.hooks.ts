@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import { ApiError, describeApiError, type AdminSiteKeyAffectedWebhook, type AdminSiteKeyStartFreshPreview, type AdminSiteKeyStatus } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import type { Translate } from "@/lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 import { t as defaultT } from "../security-i18n";
 import { defaultSiteKeyPort } from "./site-key-dependencies.hooks";
 import type { SiteKeyPort } from "./site-key-port.hooks";
@@ -155,6 +155,6 @@ export function useSiteKeyRecovery(port: SiteKeyRecoveryPort, t: Translate, onRe
 /** Binds the real port and the resolved locale — same `useWired*` shape as `useWiredSiteKey`. */
 export function useWiredSiteKeyRecovery(onRecovered: (() => Promise<void> | void) | undefined): SiteKeyRecoveryController {
   const locale = useAdminLocale();
-  const boundT = (key: string): string => defaultT(locale, key);
+  const boundT = (key: string): string => defaultT({ locale: locale, key: key });
   return useSiteKeyRecovery(defaultSiteKeyPort, boundT, onRecovered);
 }

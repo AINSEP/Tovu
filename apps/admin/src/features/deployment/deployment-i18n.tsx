@@ -1,5 +1,6 @@
-import { interpolate, localeEntry } from "../../lib/template-i18n";
-import { createDictionaryTranslator } from "../../lib/dictionary-translator";
+import { COMMON_I18N } from "../../lib/i18n-common";
+import { interpolate, localeEntry } from "@jini-ai/ui/panel-kit";
+import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 /**
  * @file Translations for the Deployment panel (`/admin/deployment`) — five tabs (Overview, Static
@@ -2254,7 +2255,7 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = Object.fromEntri
   ]),
 );
 
-export const t = createDictionaryTranslator(DEPLOYMENT_DICT);
+export const t = createDictionaryTranslator({ featureDictionary: DEPLOYMENT_DICT }, { commonDictionary: COMMON_I18N });
 
 /**
  * "{count} lines" for the Dockerfile viewer's header.
@@ -2268,7 +2269,7 @@ export const t = createDictionaryTranslator(DEPLOYMENT_DICT);
  * @complexity O(1) — one lookup and one substitution.
  */
 export function dockerfileLineCountLabel(translate: (key: string) => string, count: number): string {
-  return interpolate(translate("{count} lines"), { count: String(count) });
+  return interpolate({ template: translate("{count} lines"), vars: { count: String(count) } });
 }
 
 /** The Overview tab's load-error banner — embeds `describeApiError`'s already-formatted message
@@ -2299,7 +2300,7 @@ const OVERVIEW_LOAD_ERROR_TEMPLATE: Record<string, string> = {
 };
 
 export function deploymentOverviewLoadErrorMessage(locale: string, error: string): string {
-  return interpolate(localeEntry({ table: OVERVIEW_LOAD_ERROR_TEMPLATE, locale }), { error });
+  return interpolate({ template: localeEntry({ table: OVERVIEW_LOAD_ERROR_TEMPLATE, locale }), vars: { error } });
 }
 
 /** The Dockerfile tab's load-error banner — same shape as {@link deploymentOverviewLoadErrorMessage}. */
@@ -2329,7 +2330,7 @@ const DOCKERFILE_LOAD_ERROR_TEMPLATE: Record<string, string> = {
 };
 
 export function dockerfileLoadErrorMessage(locale: string, error: string): string {
-  return interpolate(localeEntry({ table: DOCKERFILE_LOAD_ERROR_TEMPLATE, locale }), { error });
+  return interpolate({ template: localeEntry({ table: DOCKERFILE_LOAD_ERROR_TEMPLATE, locale }), vars: { error } });
 }
 
 /**
@@ -2355,7 +2356,7 @@ const DOCKERFILE_SAVE_ERROR_TEMPLATE: Record<string, string> = {
 };
 
 export function dockerfileSaveErrorMessage(locale: string, error: string): string {
-  return interpolate(localeEntry({ table: DOCKERFILE_SAVE_ERROR_TEMPLATE, locale }), { error });
+  return interpolate({ template: localeEntry({ table: DOCKERFILE_SAVE_ERROR_TEMPLATE, locale }), vars: { error } });
 }
 
 /** The Static Site tab's export-status LOAD-error banner (the initial `GET .../system/export` this
@@ -2373,7 +2374,7 @@ const EXPORT_LOAD_ERROR_TEMPLATE: Record<string, string> = {
 };
 
 export function exportLoadErrorMessage(locale: string, error: string): string {
-  return interpolate(localeEntry({ table: EXPORT_LOAD_ERROR_TEMPLATE, locale }), { error });
+  return interpolate({ template: localeEntry({ table: EXPORT_LOAD_ERROR_TEMPLATE, locale }), vars: { error } });
 }
 
 /**
@@ -2396,7 +2397,7 @@ const EXPORT_TRIGGER_ERROR_TEMPLATE: Record<string, string> = {
 };
 
 export function exportTriggerErrorMessage(locale: string, error: string): string {
-  return interpolate(localeEntry({ table: EXPORT_TRIGGER_ERROR_TEMPLATE, locale }), { error });
+  return interpolate({ template: localeEntry({ table: EXPORT_TRIGGER_ERROR_TEMPLATE, locale }), vars: { error } });
 }
 
 /**
@@ -2413,7 +2414,7 @@ const EXPORT_POLL_ERROR_TEMPLATE: Record<string, string> = {
 };
 
 export function exportPollErrorMessage(locale: string, error: string): string {
-  return interpolate(localeEntry({ table: EXPORT_POLL_ERROR_TEMPLATE, locale }), { error });
+  return interpolate({ template: localeEntry({ table: EXPORT_POLL_ERROR_TEMPLATE, locale }), vars: { error } });
 }
 
 /** The Static Site tab's publish-status LOAD-error banner (the initial `GET .../system/publish` this
@@ -2431,7 +2432,7 @@ const PUBLISH_LOAD_ERROR_TEMPLATE: Record<string, string> = {
 };
 
 export function publishLoadErrorMessage(locale: string, error: string): string {
-  return interpolate(localeEntry({ table: PUBLISH_LOAD_ERROR_TEMPLATE, locale }), { error });
+  return interpolate({ template: localeEntry({ table: PUBLISH_LOAD_ERROR_TEMPLATE, locale }), vars: { error } });
 }
 
 /** The Static Site tab's publish-preview error banner — a failed `GET .../system/publish/preview`
@@ -2449,7 +2450,7 @@ const PUBLISH_PREVIEW_ERROR_TEMPLATE: Record<string, string> = {
 };
 
 export function publishPreviewErrorMessage(locale: string, error: string): string {
-  return interpolate(localeEntry({ table: PUBLISH_PREVIEW_ERROR_TEMPLATE, locale }), { error });
+  return interpolate({ template: localeEntry({ table: PUBLISH_PREVIEW_ERROR_TEMPLATE, locale }), vars: { error } });
 }
 
 /** The Static Site tab's "Publish" trigger-error banner — same shape and same "409 while already
@@ -2468,7 +2469,7 @@ const PUBLISH_TRIGGER_ERROR_TEMPLATE: Record<string, string> = {
 };
 
 export function publishTriggerErrorMessage(locale: string, error: string): string {
-  return interpolate(localeEntry({ table: PUBLISH_TRIGGER_ERROR_TEMPLATE, locale }), { error });
+  return interpolate({ template: localeEntry({ table: PUBLISH_TRIGGER_ERROR_TEMPLATE, locale }), vars: { error } });
 }
 
 /** The Static Site tab's publish POLL-error banner — same split and same 2026-08-15 fix
@@ -2480,7 +2481,7 @@ const PUBLISH_POLL_ERROR_TEMPLATE: Record<string, string> = {
 };
 
 export function publishPollErrorMessage(locale: string, error: string): string {
-  return interpolate(localeEntry({ table: PUBLISH_POLL_ERROR_TEMPLATE, locale }), { error });
+  return interpolate({ template: localeEntry({ table: PUBLISH_POLL_ERROR_TEMPLATE, locale }), vars: { error } });
 }
 
 /**
@@ -2494,7 +2495,7 @@ const PUBLISH_CREDENTIALS_LOAD_ERROR_TEMPLATE: Record<string, string> = {
 };
 
 export function publishCredentialsLoadErrorMessage(locale: string, error: string): string {
-  return interpolate(localeEntry({ table: PUBLISH_CREDENTIALS_LOAD_ERROR_TEMPLATE, locale }), { error });
+  return interpolate({ template: localeEntry({ table: PUBLISH_CREDENTIALS_LOAD_ERROR_TEMPLATE, locale }), vars: { error } });
 }
 
 /**
@@ -2509,7 +2510,7 @@ const PUBLISH_CREDENTIAL_SAVE_ERROR_TEMPLATE: Record<string, string> = {
 };
 
 export function publishCredentialSaveErrorMessage(locale: string, error: string): string {
-  return interpolate(localeEntry({ table: PUBLISH_CREDENTIAL_SAVE_ERROR_TEMPLATE, locale }), { error });
+  return interpolate({ template: localeEntry({ table: PUBLISH_CREDENTIAL_SAVE_ERROR_TEMPLATE, locale }), vars: { error } });
 }
 
 /** One provider row's re-verify-error banner — same shape as {@link PUBLISH_CREDENTIAL_SAVE_ERROR_TEMPLATE}
@@ -2523,7 +2524,7 @@ const PUBLISH_CREDENTIAL_VERIFY_ERROR_TEMPLATE: Record<string, string> = {
 };
 
 export function publishCredentialVerifyErrorMessage(locale: string, error: string): string {
-  return interpolate(localeEntry({ table: PUBLISH_CREDENTIAL_VERIFY_ERROR_TEMPLATE, locale }), { error });
+  return interpolate({ template: localeEntry({ table: PUBLISH_CREDENTIAL_VERIFY_ERROR_TEMPLATE, locale }), vars: { error } });
 }
 
 /** The "which saved token publishes" picker's failed-switch banner — same shape as
@@ -2535,5 +2536,5 @@ const PUBLISH_CREDENTIAL_SELECT_ERROR_TEMPLATE: Record<string, string> = {
 };
 
 export function publishCredentialSelectErrorMessage(locale: string, error: string): string {
-  return interpolate(localeEntry({ table: PUBLISH_CREDENTIAL_SELECT_ERROR_TEMPLATE, locale }), { error });
+  return interpolate({ template: localeEntry({ table: PUBLISH_CREDENTIAL_SELECT_ERROR_TEMPLATE, locale }), vars: { error } });
 }

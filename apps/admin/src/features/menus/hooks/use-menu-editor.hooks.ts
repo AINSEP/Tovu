@@ -3,13 +3,12 @@ import { type AdminMenu, type AdminMenuItem } from "@/lib/api";
 import { isVersionConflict, VERSION_CONFLICT_MESSAGE } from "@/lib/version-conflict";
 import { navigate as realNavigate } from "@/lib/router";
 import { slugRedirectPath } from "@/lib/slug-redirect-path";
-import { useDirtyGuard } from "@/hooks/use-dirty-guard.hooks";
+import { useDirtyGuard, type Translate } from "@jini-ai/ui/panel-kit";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { menuHtmlEmbed } from "../html-rules";
 import { t as translate } from "../menus-i18n";
 import { defaultMenusPort } from "./menus-dependencies.hooks";
 import type { MenusPort } from "./menus-port.hooks";
-import type { Translate } from "@/lib/dictionary-translator";
 import { hasPageLinks, pageItemsForSave, type MenuPageChoice } from "../page-link-rules";
 
 /**
@@ -246,7 +245,7 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t, clipbo
     };
   }, [menuId, isNew]);
 
-  const { confirmLeave } = useDirtyGuard<MenuFormState>({ title, slug, items }, original);
+  const { confirmLeave } = useDirtyGuard<MenuFormState>({ current: { title, slug, items }, original }, { host: window, translate: (key) => key });
 
   // Stale-response guard, save() half (2026-08-12 audit finding): the load effect's `cancelled`
   // flag above is scoped to a single effect run and flipped by that SAME effect's own cleanup — but
@@ -376,6 +375,6 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t, clipbo
  */
 export function useWiredMenuEditor(menuId: string | null): MenuEditorController {
   const locale = useAdminLocale();
-  const t = (key: string): string => translate(locale, key);
+  const t = (key: string): string => translate({ locale: locale, key: key });
   return useMenuEditor(menuId, { port: defaultMenusPort, navigate: realNavigate, t });
 }

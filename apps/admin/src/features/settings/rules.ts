@@ -1,9 +1,9 @@
 import type { ByokConfig, ExecutionConfig, SourceFieldSpec, SourceFieldValues } from "@jini-ai/ui";
 
-import { buildAgentListHandles } from "../../lib/agent-list-handles";
+import { buildAgentListHandles } from "@jini-ai/agentic";
 import { DEFAULT_EXECUTION_CONFIG } from "../../lib/execution-settings";
 import type { SaveState } from "../../hooks/use-settings-slice.hooks";
-import type { Translate } from "../../lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 
 const identityTranslate: Translate = (key) => key;
 
@@ -328,7 +328,7 @@ export const EXTERNAL_MCP_CARD_HANDLE_PREFIX = "mcp-server";
  * @complexity See {@link buildAgentListHandles}.
  */
 export function buildExternalMcpCardHandles(sourceIds: readonly string[]): string[] {
-  return buildAgentListHandles(EXTERNAL_MCP_CARD_HANDLE_PREFIX, sourceIds);
+  return buildAgentListHandles({ prefix: EXTERNAL_MCP_CARD_HANDLE_PREFIX, ids: sourceIds });
 }
 
 /**

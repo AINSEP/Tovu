@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { ChatMessage } from "@jini-ai/chat/core";
+import { ApiError, onUnauthenticated } from "../api";
 
 import {
   activeRunStub,
@@ -39,6 +40,48 @@ describe("HttpError", () => {
   });
 });
 
+describe("authenticated transcript requests", () => {
+  it.each([
+    ["list", () => listConversations()],
+    ["save", () => saveMessage("c1", { id: "m1", role: "user", content: "hello" })],
+    ["delete", () => deleteConversation("c1")],
+  ] as const)("%s notifies session expiry while preserving HttpError", async (_label, send) => {
+    const listener = vi.fn();
+    const unsubscribe = onUnauthenticated(listener);
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ code: "UNAUTHENTICATED" }, 401, "Unauthorized")));
+    try {
+      const error = await send().catch((error: unknown) => error);
+      expect(error).toBeInstanceOf(HttpError);
+      expect(error).toBeInstanceOf(ApiError);
+      expect(error).toMatchObject({ status: 401, code: "UNAUTHENTICATED", message: "401 Unauthorized" });
+      expect(listener).toHaveBeenCalledTimes(1);
+    } finally {
+      unsubscribe();
+    }
+  });
+
+  it.each([
+    [401, { code: "PROVIDER_AUTH_FAILED" }],
+    [401, {}],
+    [403, { code: "UNAUTHENTICATED" }],
+  ] as const)("HTTP %s without the session-expiry pair does not log out the admin", async (status, body) => {
+    const listener = vi.fn();
+    const unsubscribe = onUnauthenticated(listener);
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse(body, status)));
+    try {
+      await expect(listConversations()).rejects.toBeInstanceOf(HttpError);
+      expect(listener).not.toHaveBeenCalled();
+    } finally {
+      unsubscribe();
+    }
+  });
+
+  it("rejects malformed successful transcript JSON", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("not-json", { status: 200 })));
+    await expect(listConversations()).rejects.toMatchObject({ name: "SyntaxError" });
+  });
+});
+
 describe("listConversations", () => {
   it("returns the parsed conversations list on success", async () => {
     const conversations = [{ id: "c1", title: "Chat one", titleSource: "generated" as const, messageCount: 3, createdAt: 1, updatedAt: 2 }];
@@ -46,7 +89,7 @@ describe("listConversations", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(listConversations()).resolves.toEqual(conversations);
-    expect(fetchMock).toHaveBeenCalledWith("/api/assistant/chats", { credentials: "same-origin" });
+    expect(fetchMock).toHaveBeenCalledWith("/api/assistant/chats", expect.objectContaining({ method: "GET", credentials: "same-origin", headers: { "Content-Type": "application/json" }, signal: expect.any(AbortSignal) }));
   });
 
   it("coerces a missing/non-array conversations field to [] rather than propagating undefined", async () => {
@@ -117,7 +160,7 @@ describe("deleteConversation", () => {
 
     await deleteConversation("c/1");
 
-    expect(fetchMock).toHaveBeenCalledWith("/api/assistant/chats/c%2F1", { method: "DELETE", credentials: "same-origin" });
+    expect(fetchMock).toHaveBeenCalledWith("/api/assistant/chats/c%2F1", expect.objectContaining({ method: "DELETE", credentials: "same-origin", signal: expect.any(AbortSignal) }));
   });
 
   it("throws HttpError on a non-ok response", async () => {
@@ -135,7 +178,7 @@ describe("loadMessages", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(loadMessages("c1")).resolves.toEqual(messages);
-    expect(fetchMock).toHaveBeenCalledWith("/api/assistant/chats/c1/messages", { credentials: "same-origin" });
+    expect(fetchMock).toHaveBeenCalledWith("/api/assistant/chats/c1/messages", expect.objectContaining({ method: "GET", credentials: "same-origin", signal: expect.any(AbortSignal) }));
   });
 
   it("coerces a missing/non-array messages field to [] rather than propagating undefined", async () => {

@@ -6,7 +6,7 @@ import type { MenuPageChoice } from "../page-link-rules";
  * an interface rather than a direct `lib/api` import.
  *
  * Follows the `useX(dependencies)` / `useWiredX()` pair documented in
- * `development/docs/architecture/wired-hooks-convention.md` and `redirects-port.hooks.ts` (the
+ * `development/docs/architecture/wired-hooks-convention.md` and `Jini redirects/SOURCE-RATIONALE.md` (the
  * canonical reference): this file declares, `menus-dependencies.hooks.ts` binds the real `api`
  * client, and nothing else under `features/menus` imports `lib/api` for these five routes. One
  * shared port rather than one per hook — both hooks read/write the same `/menus` resource.

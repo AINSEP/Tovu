@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import type { Translate } from "@/lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 import { t as translate } from "../plugins-i18n";
 import {
   describeApiError,
@@ -88,6 +88,6 @@ export function usePluginPackageFiles({ pluginId, port, t }: PluginPackageFilesD
  *  current admin locale. */
 export function useWiredPluginPackageFiles(pluginId: string): PluginPackageFilesController {
   const locale = useAdminLocale();
-  const t = (key: string): string => translate(locale, key);
+  const t = (key: string): string => translate({ locale: locale, key: key });
   return usePluginPackageFiles({ pluginId, port: defaultPluginsPort, t });
 }

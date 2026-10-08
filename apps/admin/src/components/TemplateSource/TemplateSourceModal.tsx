@@ -3,7 +3,7 @@ import { CodeWithLines } from "@jini-ai/ui";
 import { PreviewModalShell } from "@jini-ai/ui/renderers";
 
 import type { ThemeTier } from "@/lib/api";
-import type { Translate } from "@/lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 import { navigate } from "@/lib/router";
 import { templateEditUrl, useWiredTemplateSource } from "./use-template-source.hooks";
 

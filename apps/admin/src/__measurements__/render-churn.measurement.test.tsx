@@ -2,13 +2,13 @@ import { Profiler, type ProfilerOnRenderCallback } from "react";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { FetchQueryProvider } from "../lib/fetch-query";
-import { Redirects } from "../features/redirects/Redirects";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
+import { Redirects } from "./redirects-harness";
 import { useWiredTaxonomy } from "../features/taxonomy/hooks/use-taxonomy.hooks";
 
 /**
  * @file Measurement instrument — deliverable C of the request-volume follow-up
- * (TM-TOVU-2026-08-12-A: did `lib/fetch-query` actually reduce request volume, or just move it?).
+ * (TM-TOVU-2026-08-12-A: did `@jini-ai/ui/fetch-query` actually reduce request volume, or just move it?).
  * MEASUREMENT-ONLY, NOT a correctness test — companion to `request-volume.measurement.test.tsx`
  * (same audit, same "commit it so it isn't paid for twice" reasoning). Run with:
  * `cd apps/admin && npx vitest run src/__measurements__/render-churn.measurement.test.tsx --reporter=verbose`
@@ -22,7 +22,7 @@ import { useWiredTaxonomy } from "../features/taxonomy/hooks/use-taxonomy.hooks"
  * Profiler render count needs the React tree, not paint/layout, so jsdom is sufficient and
  * deterministic) rather than trusting the static grep alone, and measures the one adjacent question
  * that IS still open: does invalidating one query key cause a component that only reads a DIFFERENT
- * key to re-render (would indicate `FetchQueryProvider`'s context, not TanStack's own per-query
+ * key to re-render (would indicate `FetchQueryProvider`'s context, not Jini's own per-query
  * subscription store, is what drives re-renders)? Confirmed no — see the audit thread for the number.
  */
 

@@ -37,7 +37,6 @@ import {
  *  draft-clobber risk that guard prevents — see that hook's own file header. */
 export const DEPLOYMENT_EXPORT_RESOURCE = "deployment-export";
 
-// Full Site informational provider rows retired with that tab (2026-10-03).
 
 /**
  * The single fixed label every connection saved through the flat per-provider credential list uses

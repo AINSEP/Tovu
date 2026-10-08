@@ -21,9 +21,10 @@ import { DEFAULT_PROVIDER_PRESETS, resolveSelectedPreset, type ExecutionConfig }
 import { buildSandboxProxyDataUrl } from "@jini-ai/ui/mcp-ui/surfaces";
 
 import { navigate } from "@/lib/router";
+import { ApiError, authenticatedAdminRequest } from "@/lib/api";
 import { createChatAttachmentValidator } from "@/lib/chat-attachment-liveness";
 import { readAgentsSnapshot, writeAgentsSnapshot } from "@/lib/assistant-agents-snapshot";
-import { useCachedLoader, type CachedLoader } from "@/lib/fetch-query";
+import { useCachedLoader, type CachedLoader } from "@jini-ai/ui/fetch-query";
 import { publishSettingsRefresh, subscribeToSettingsRefresh } from "@/lib/settings-refresh-bus";
 import { publishContentRefresh } from "@/lib/content-refresh-bus";
 import { createTovuAssistantTransport } from "@/lib/assistant-transport";
@@ -150,12 +151,17 @@ export const EXECUTION_CONFIG_MAX_AGE_MS = 5_000;
  * @returns `executionConfig` (the live value), `executionConfigRef` (read-fresh mirror for
  *   consumers that must not capture a stale closure), `setExecutionConfig`, and
  *   `handleExecutionModeChange` (persists a mode switch back through the ADR-028 chokepoint).
+ * @param options.port - Ledger/credential IO; defaults to the existing host adapters.
+ * @param options.persistWrite - Write seam for component tests; defaults to the shared dock writer.
  * @example
  * const { executionConfig, handleExecutionModeChange } = useExecutionConfig();
  */
 export function useExecutionConfig(
   _requiredArgs: Record<string, never> = {},
-  { port = defaultDockExecutionConfigPort }: { port?: DockExecutionConfigPort } = {},
+  { port = defaultDockExecutionConfigPort, persistWrite = persistExecutionConfigWrite }: {
+    port?: DockExecutionConfigPort;
+    persistWrite?: typeof persistExecutionConfigWrite;
+  } = {},
 ): UseExecutionConfig {
   const io = useRef(port);
   io.current = port;
@@ -353,11 +359,11 @@ export function useExecutionConfig(
     const nextMode: ExecutionConfig["mode"] = mode === "api" ? "byok" : "local-cli";
     const write = applyExecutionConfigChange(setExecutionConfig, (previous) =>
       previous.mode === nextMode ? previous : { ...previous, mode: nextMode });
-    if (write) persistExecutionConfigWrite(write, "[AssistantDock] failed to save execution mode");
+    if (write) persistWrite(write, "[AssistantDock] failed to save execution mode");
     // `setExecutionConfig` added: it's a `useCallback([], ...)`-wrapped setter (itself stable for
     // the component's lifetime, see its own declaration above), so listing it is a no-op that only
     // satisfies the linter — Part 2 triage fix, not a suppression.
-  }, [setExecutionConfig]);
+  }, [setExecutionConfig, persistWrite]);
 
   return {
     executionConfig,
@@ -389,6 +395,8 @@ export interface UseByokRuntime {
  *   `executionConfig.mode` are read.
  * @param input.setExecutionConfig - The setter {@link useExecutionConfig} returns, so a model
  *   picked here writes back through the same state.
+ * @param options.createPort - Model-discovery IO factory; defaults to the existing execution adapter.
+ * @param options.persistWrite - Write seam for component tests; defaults to the shared dock writer.
  * @returns `byokRuntime` (provider identity, model, and discovered options for the picker) and
  *   `handleByokModelChange`.
  * @example
@@ -402,6 +410,10 @@ export function useByokRuntime(
     executionConfig: ExecutionConfig;
     setExecutionConfig: React.Dispatch<React.SetStateAction<ExecutionConfig>>;
   },
+  { createPort = createExecutionPort, persistWrite = persistExecutionConfigWrite }: {
+    createPort?: typeof createExecutionPort;
+    persistWrite?: typeof persistExecutionConfigWrite;
+  } = {},
 ): UseByokRuntime {
   /**
    * Models the saved BYOK credential can actually run — the same list `features/ai-assistant/AiAssistant.tsx`'s
@@ -418,7 +430,7 @@ export function useByokRuntime(
    * here comes from SAVED config, which an operator committed with an explicit Save, never from a
    * field being typed into. There is no partial-hostname state for this effect to walk.
    */
-  const executionPort = useRef(createExecutionPort());
+  const executionPort = useRef(createPort());
   const [byokModels, setByokModels] = useState<readonly { id: string; label: string }[]>([]);
   const { apiKey: byokApiKey, baseUrl: byokBaseUrl, protocol: byokProtocol } = executionConfig.byok;
 
@@ -482,9 +494,9 @@ export function useByokRuntime(
     (model: string) => {
       const write = applyExecutionConfigChange(setExecutionConfig, (previous) =>
         previous.byok.model === model ? previous : { ...previous, byok: { ...previous.byok, model } });
-      if (write) persistExecutionConfigWrite(write, "[AssistantDock] failed to save BYOK model");
+      if (write) persistWrite(write, "[AssistantDock] failed to save BYOK model");
     },
-    [setExecutionConfig],
+    [setExecutionConfig, persistWrite],
   );
 
   return { byokRuntime, handleByokModelChange };
@@ -658,8 +670,7 @@ export interface UseComposerCapabilities {
  * `AssistantDockProps`, defaulted to this real implementation — see `AssistantDock.tsx` for the
  * wiring.
  *
- * createToolCatalogComposerCapabilitySource (features/plugins/tool-catalog-composer-source.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
- * The raw tool catalog is deliberately NOT in the source list — owner decision, 2026-08-21: the menu's job is to let a user point
+ * The raw tool catalog is deliberately NOT in the source list: the menu's job is to let a user point
  * the assistant at a Skill or Agent Plugin whose instructions it should follow, not to hand it a raw
  * tool name (the assistant already picks its own tools once it understands the goal). The ~25 live
  * tool rows that source contributed were also structurally inert — every capability it produces
@@ -1080,19 +1091,22 @@ function recordAgents<T extends readonly AgentWithMemoryFlag[]>(agents: T): T {
  * that is mid-restart — resolving it once cached it (`staleTime: Infinity`) until a hard reload.
  * Throwing also keeps it out of the query cache and the localStorage snapshot.
  */
-async function readAgentsResponse(response: Response, label: string): Promise<AgentWithMemoryFlag[]> {
-  if (!response.ok) throw new Error(`${label} answered ${response.status}`);
-  const { agents } = (await response.json()) as { agents?: AgentWithMemoryFlag[] };
+async function readAgentsResponse(
+  { inventory: { agents }, label }: { inventory: { agents?: AgentWithMemoryFlag[] }; label: string },
+  _options: Record<string, never> = {},
+): Promise<AgentWithMemoryFlag[]> {
   if (!Array.isArray(agents) || agents.length === 0) throw new Error(`${label} answered with no agents`);
   return agents;
 }
 
 async function fetchAgents(): Promise<ChatPaneAgent[]> {
-  const response = await fetch(AGENTS_URL, {
-    credentials: "same-origin",
+  const inventory = await authenticatedAdminRequest<{ agents?: AgentWithMemoryFlag[] }>({ path: "", method: "GET" }, {
+    basePath: "/api/agents",
+    requireJson: true,
     signal: AbortSignal.timeout(AGENTS_FETCH_TIMEOUT_MS),
+    errorFactory: ({ error }) => new ApiError(`GET ${AGENTS_URL} answered ${error.status}`, error.status, error.code, error.body),
   });
-  return readAgentsResponse(response, `GET ${AGENTS_URL}`);
+  return readAgentsResponse({ inventory, label: `GET ${AGENTS_URL}` });
 }
 
 /**
@@ -1106,7 +1120,7 @@ const AGENTS_QUERY_KEY = ["assistant", "agents"] as const;
 /** Writes a fresh inventory into the cache and everything that reads it. */
 function replaceAgents(loader: CachedLoader<ChatPaneAgent[]>, agents: ChatPaneAgent[]): ChatPaneAgent[] {
   recordAgents(agents);
-  loader.replace(agents);
+  loader.replace({ value: agents });
   return agents;
 }
 
@@ -1114,17 +1128,22 @@ function replaceAgents(loader: CachedLoader<ChatPaneAgent[]>, agents: ChatPaneAg
  *  cache-bypassing GET does instead. When both fail it rejects without touching the cache, so a
  *  failed rescan never overwrites a good inventory (`ChatPane` keeps showing the last good list). */
 async function rescanAgentsInto(loader: CachedLoader<ChatPaneAgent[]>): Promise<ChatPaneAgent[]> {
-  const response = await fetch(`${AGENTS_URL}/rescan`, {
-    method: "POST",
-    credentials: "same-origin",
+  const inventory = await authenticatedAdminRequest<{ agents?: AgentWithMemoryFlag[] }>({ path: "/rescan", method: "POST" }, {
+    basePath: "/api/agents",
+    requireJson: true,
     signal: AbortSignal.timeout(AGENTS_FETCH_TIMEOUT_MS),
+    errorFactory: ({ error }) => new ApiError(`POST ${AGENTS_URL}/rescan answered ${error.status}`, error.status, error.code, error.body),
+  }).catch((error: unknown) => {
+    // Fall back on an unusable response; a failed/canceled fetch still rejects as before.
+    if ((error instanceof ApiError && error.status > 0) || error instanceof SyntaxError) return null;
+    throw error;
   });
-  const rescanned = await readAgentsResponse(response, `POST ${AGENTS_URL}/rescan`).catch(() => null);
+  const rescanned = inventory === null ? null : await readAgentsResponse({ inventory, label: `POST ${AGENTS_URL}/rescan` }).catch(() => null);
   return replaceAgents(loader, rescanned ?? (await fetchAgents()));
 }
 
 function useAgentsLoader(): CachedLoader<ChatPaneAgent[]> {
-  return useCachedLoader({ key: AGENTS_QUERY_KEY, fetch: fetchAgents, staleTime: Infinity });
+  return useCachedLoader({ key: AGENTS_QUERY_KEY, fetch: fetchAgents }, { staleTime: Infinity });
 }
 
 /**

@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 
 import { describeApiError, type AdminWebhookSubscription } from "@/lib/api";
-import { useFetchMutation, useFetchQuery, useInvalidate } from "@/lib/fetch-query";
+import { useFetchMutation, useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { t as defaultT } from "../integrations-i18n";
@@ -31,13 +31,13 @@ import type { IntegrationsPort } from "./integrations-port.hooks";
  * phrasing. `useIntegrations` itself never calls `t`/reads `locale` internally — both exist solely
  * to hand through to the component, same as the port.
  *
- * `lib/fetch-query` migration (2026-08-12): the list read is `useFetchQuery({ key: KEYS.list, ...
+ * `@jini-ai/ui/fetch-query` migration (2026-08-12): the list read is `useFetchQuery({ key: KEYS.list, ...
  * })`; `create`/`togglePause`/`delete` are three independent `useFetchMutation`s that each
  * `invalidates: [KEYS.list]` — same three-independent-writes shape `redirects/hooks/use-
  * redirects.hooks.ts` (the pilot) established. `formError` (the create form's own inline error) is
  * a direct read of `createMutation.error` — it needs no `clearOtherWriteErrors` treatment since it
  * has no sibling on that channel and a mutation's own `.error` clears itself the next time `mutate`
- * is called. `error` (the page-level banner) DOES need it, mirroring `redirects/rules.ts`'s
+ * is called. `error` (the page-level banner) DOES need it, mirroring `Jini redirects/SOURCE-RATIONALE.md`'s
  * `clearOtherWriteErrors`: toggle/delete are two independent mutations sharing that one channel, so
  * a stale failure from one must not survive past the start of the other.
  *
@@ -87,7 +87,7 @@ export function useIntegrations(port: IntegrationsPort, t: (key: string) => stri
   // unsubscribe/resubscribe on every render — see `use-media.hooks.ts`'s identical `invalidateList`
   // note.
   const invalidate = useInvalidate();
-  const invalidateList = useCallback(() => invalidate(KEYS.list), [invalidate]);
+  const invalidateList = useCallback(() => invalidate({ key: KEYS.list }), [invalidate]);
   useContentRefreshSubscription(WEBHOOKS_RESOURCE, invalidateList);
 
   const [formOpen, setFormOpen] = useState(false);
@@ -100,16 +100,19 @@ export function useIntegrations(port: IntegrationsPort, t: (key: string) => stri
   const [pendingDelete, setPendingDelete] = useState<AdminWebhookSubscription | null>(null);
 
   const createMutation = useFetchMutation({
-    run: (input: { label: string; targetUrl: string; topics: string[] }) => port.createIntegrationSubscription(input),
+    run: ({ input }: { input: { label: string; targetUrl: string; topics: string[] } }) => port.createIntegrationSubscription(input),
+  }, {
     invalidates: [KEYS.list],
   });
   const toggleMutation = useFetchMutation({
-    run: (subscription: AdminWebhookSubscription) =>
+    run: ({ input: subscription }: { input: AdminWebhookSubscription }) =>
       port.pauseIntegrationSubscription({ id: subscription.id, paused: subscription.status !== "paused" }),
+  }, {
     invalidates: [KEYS.list],
   });
   const deleteMutation = useFetchMutation({
-    run: (id: string) => port.deleteIntegrationSubscription(id),
+    run: ({ input: id }: { input: string }) => port.deleteIntegrationSubscription(id),
+  }, {
     invalidates: [KEYS.list],
   });
 
@@ -122,7 +125,7 @@ export function useIntegrations(port: IntegrationsPort, t: (key: string) => stri
   async function onCreate(e: React.FormEvent) {
     e.preventDefault();
     try {
-      await createMutation.mutate({ label, targetUrl, topics: parseTopics(topics) });
+      await createMutation.mutate({ input: { label, targetUrl, topics: parseTopics(topics) } });
       setLabel("");
       setTargetUrl("");
       setTopics("");
@@ -135,7 +138,7 @@ export function useIntegrations(port: IntegrationsPort, t: (key: string) => stri
   async function onTogglePause(subscription: AdminWebhookSubscription) {
     clearOtherPageErrors(toggleMutation);
     try {
-      await toggleMutation.mutate(subscription);
+      await toggleMutation.mutate({ input: subscription });
     } catch {
       // already surfaced through toggleMutation.error -> error below
     }
@@ -150,7 +153,7 @@ export function useIntegrations(port: IntegrationsPort, t: (key: string) => stri
     const subscription = pendingDelete;
     clearOtherPageErrors(deleteMutation);
     try {
-      await deleteMutation.mutate(subscription.id);
+      await deleteMutation.mutate({ input: subscription.id });
     } catch {
       // already surfaced through deleteMutation.error -> error below
     } finally {
@@ -203,6 +206,6 @@ export function useIntegrations(port: IntegrationsPort, t: (key: string) => stri
  */
 export function useWiredIntegrations(): IntegrationsController {
   const locale = useAdminLocale();
-  const t = (key: string): string => defaultT(locale, key);
+  const t = (key: string): string => defaultT({ locale: locale, key: key });
   return useIntegrations(defaultIntegrationsPort, t, locale);
 }

@@ -2,8 +2,8 @@ import { agentHandle } from "@jini-ai/agentic";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { navigate } from "../../lib/router";
-import { resolveActiveTabId } from "../../lib/resolve-active-tab-id";
-import { TabBar, type TabBarTab } from "../../components/TabBar";
+import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
+import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
 import { t } from "./source-control-i18n";
 import { ProvidersTab } from "./ProvidersTab";
 import { SourceControlIcon } from "./source-control-visuals";
@@ -55,7 +55,7 @@ type SourceControlTabId = (typeof SOURCE_CONTROL_TAB_IDS)[number];
  *  at five tabs where this guard mattered immediately, and a second real tab landing here later
  *  should not have to reintroduce it. */
 function resolveSourceControlTabId(tabId: string | null | undefined): SourceControlTabId {
-  return resolveActiveTabId(tabId, SOURCE_CONTROL_TAB_IDS, "providers");
+  return resolveActiveTabId({ tabId: tabId, validIds: SOURCE_CONTROL_TAB_IDS, defaultId: "providers" });
 }
 
 export interface SourceControlProps {
@@ -76,7 +76,7 @@ export function SourceControl(props: SourceControlProps) {
   const tabs: TabBarTab[] = [
     {
       id: "providers",
-      label: t(locale, "Providers"),
+      label: t({ locale: locale, key: "Providers" }),
       icon: <SourceControlIcon size={16} />,
       handle: "source-control-tab-providers",
       handleLabel: "Switch to the Providers tab — connect GitHub, GitLab, or Bitbucket so Tovu can read (and later push to) your repositories",
@@ -97,18 +97,16 @@ export function SourceControl(props: SourceControlProps) {
         })}
       >
         <div className="page-header-text">
-          <p className="page-kicker">{t(locale, "Operations")}</p>
-          <h1 className="page-title">{t(locale, "Source Control")}</h1>
+          <p className="page-kicker">{t({ locale: locale, key: "Operations" })}</p>
+          <h1 className="page-title">{t({ locale: locale, key: "Source Control" })}</h1>
           <p className="page-description">
-            {t(
-              locale,
-              "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet."
+            {t({ locale: locale, key: "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet." }
             )}
           </p>
         </div>
       </div>
       <TabBar
-        ariaLabel={t(locale, "Source Control")}
+        ariaLabel={t({ locale: locale, key: "Source Control" })}
         tabs={tabs}
         activeId={activeTabId}
         onChange={handleTabChange}

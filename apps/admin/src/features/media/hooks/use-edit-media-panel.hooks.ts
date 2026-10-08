@@ -1,9 +1,9 @@
 import { useMemo, useRef, useState } from "react";
 
-import { embedMarkerSnippet } from "@tovu/embed-marker";
+import { embedMarkerSnippet } from "@jini-ai/cms/widgets/markers";
 
 import type { AdminMedia } from "@/lib/api";
-import { useFetchMutation, useFetchQuery } from "@/lib/fetch-query";
+import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import {
   KEYS,
   describeApiError,
@@ -43,7 +43,7 @@ import type { MediaPort } from "./media-port.hooks";
  * thing (an authenticated admin-only byte stream, not necessarily a link a visitor could follow) and
  * is unaffected by this change.
  *
- * `lib/fetch-query` migration (2026-08-12): `save` is one `useFetchMutation` that `invalidates:
+ * `@jini-ai/ui/fetch-query` migration (2026-08-12): `save` is one `useFetchMutation` that `invalidates:
  * [KEYS.list]` — this hook has no read of its own to invalidate (see `rules.ts`'s `KEYS` doc), so
  * there is no sibling-vs-nested key decision to make here at all, unlike `forms`/`collections`'
  * list-plus-detail-editor pairs.
@@ -125,7 +125,7 @@ export interface EditMediaPanelController {
    *  `Media.tsx` never renders this button in that state anyway; the guard is here too so a stray
    *  call is inert rather than handing the clipboard API a `null`. */
   copyUrl: () => Promise<void>;
-  /** `embedMarkerSnippet("media", "slug", item.slug)` — see `@tovu/embed-marker`'s doc for the
+  /** `embedMarkerSnippet({ type: "media", key: "slug", value: item.slug })` — see `@jini-ai/cms/widgets/markers`'s doc for the
    *  shared helper. Computed here (not in `Media.tsx`, which stays markup-only) so the panel can
    *  both display it (in a read-only `<code>`, same idiom as the sha256/URL rows) and copy it. */
   embedSnippet: string;
@@ -159,7 +159,8 @@ export function useEditMediaPanel(props: EditMediaPanelHookProps, { port, locale
   // `props.item` keeps advancing underneath it. See this file's own header.
   const baselineRef = useRef(item);
   const saveMutation = useFetchMutation({
-    run: (input: { target: { id: string }; patch: MediaMetadataPatch }) => port.updateMedia(input.target, input.patch),
+    run: ({ input }: { input: { target: { id: string }; patch: MediaMetadataPatch } }) => port.updateMedia(input.target, input.patch),
+  }, {
     invalidates: [KEYS.list],
   });
   const [hashCopied, setHashCopied] = useState(false);
@@ -169,7 +170,7 @@ export function useEditMediaPanel(props: EditMediaPanelHookProps, { port, locale
   // See this file's header for why `publicUrl` is a plain read of the server-computed field, not a
   // port call.
   const publicUrl = item.publicUrl;
-  const embedSnippet = embedMarkerSnippet("media", "slug", item.slug);
+  const embedSnippet = embedMarkerSnippet({ type: "media", key: "slug", value: item.slug });
 
   function setTitle(value: string) {
     setDraft((d) => ({ ...d, title: value }));
@@ -248,25 +249,26 @@ export function useEditMediaPanel(props: EditMediaPanelHookProps, { port, locale
       return;
     }
     try {
-      await saveMutation.mutate({ target: { id: item.id }, patch });
+      await saveMutation.mutate({ input: { target: { id: item.id }, patch } });
       onSaved();
     } catch {
       // already surfaced through saveMutation.error -> error below
     }
   }
 
-  const error = saveMutation.error ? describeApiError(saveMutation.error, t(locale, "failed to save media metadata")) : null;
+  const error = saveMutation.error ? describeApiError(saveMutation.error, t({ locale: locale, key: "failed to save media metadata" })) : null;
 
   const creators = useFetchQuery({
     key: ["media", "creator-names"],
     fetch: () => (port.listUsers ? port.listUsers() : Promise.resolve({ users: [] })),
+  }, {
     enabled: Boolean(item.createdBy),
   });
   const userNames = useMemo(
     () => new Map((creators.data?.users ?? []).map((user) => [user.principalId, user.username] as const)),
     [creators.data],
   );
-  const createdByLabel = mediaCreatedByLabel({ item, unknownLabel: t(locale, "Unknown") }, { userNames });
+  const createdByLabel = mediaCreatedByLabel({ item, unknownLabel: t({ locale: locale, key: "Unknown" }) }, { userNames });
 
   return {
     draft,

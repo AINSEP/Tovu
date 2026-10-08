@@ -2,7 +2,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 import { Integrations } from "../Integrations";
 
 /**
@@ -17,9 +17,9 @@ import { Integrations } from "../Integrations";
  * already use) so `fetchMock.mock.calls` still holds exactly this screen's own requests, in the
  * order each test already expects — order-independent, unlike seeding a leading queue slot.
  *
- * `renderScreen` wraps every render in `FetchQueryProvider` (2026-08-12, `lib/fetch-query`
+ * `renderScreen` wraps every render in `FetchQueryProvider` (2026-08-12, `@jini-ai/ui/fetch-query`
  * migration) — `Integrations`'s hooks are now backed by `useFetchQuery`/`useFetchMutation`, which
- * throw without a `QueryClientProvider` ancestor. `main.tsx` provides this in production; here it
+ * throw without a `FetchQueryProvider` ancestor. `main.tsx` provides this in production; here it
  * is one `FetchQueryProvider` per render, matching `taxonomy`'s own component-test precedent.
  */
 

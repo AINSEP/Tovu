@@ -3,7 +3,7 @@ import { useState } from "react";
 import { ConfirmDialog } from "@jini-ai/admin/react";
 import { TaxonomyRowMenu } from "./TaxonomyRowMenu";
 import { agentHandle } from "@jini-ai/agentic";
-import { buildAgentListHandles } from "../../lib/agent-list-handles";
+import { buildAgentListHandles } from "@jini-ai/agentic";
 import { termDepth, otherMergeTargets, type DeleteBlockedState } from "./rules";
 import { useWiredNewTermForm } from "./hooks/use-new-term-form.hooks";
 import { useWiredNewTaxonomyForm } from "./hooks/use-new-taxonomy-form.hooks";
@@ -58,7 +58,7 @@ import { PublishSectionButton } from "../publish-content/PublishSectionButton";
  *
  * Web-design pass (2026-08-05): both create forms used to render permanently open, which is why
  * this screen read as heavier/different from every sibling list screen (`Media.tsx`,
- * `Comments.tsx`, `Menus.tsx`, `Integrations.tsx`) — those default to a compact list with the
+ * `@jini-ai/admin/comments/react`, `Menus.tsx`, `Integrations.tsx`) — those default to a compact list with the
  * create form collapsed behind a `.page-actions` header button (`Integrations.tsx`'s `formOpen`
  * idiom, reused verbatim here) or a small inline trigger. `NewTaxonomyForm` now follows that same
  * toggle idiom via `useTaxonomy`'s `formOpen`; each group's `NewTermForm` gets its own collapsed
@@ -69,7 +69,7 @@ import { PublishSectionButton } from "../publish-content/PublishSectionButton";
  * Delete term/taxonomy (web-design pass, 2026-08-05): the owner's other complaint — dummy
  * categories/tags created to test creation, with no way to remove them — closes here through the
  * generic single-item Trash route. Both use the same
- * `RowMenu`("Delete …") → `ConfirmDialog` idiom `Media.tsx`/`Comments.tsx`/`Menus.tsx` already use
+ * `RowMenu`("Delete …") → `ConfirmDialog` idiom `Media.tsx`/`@jini-ai/admin/comments/react`/`Menus.tsx` already use
  * for their own destructive actions — no new interaction pattern introduced. State (the pending
  * row, the busy flag, and the *blocked* outcome) lives in `useTaxonomy`; see that hook's own comment
  * for why a 409 refusal is a distinct state from a hard failure. `deleteTermBlocked`/
@@ -702,9 +702,7 @@ function namespaceList(
   // Computed once, across every group, so two taxonomies whose names slugify identically still get
   // distinct handles — see `NewTermForm`'s own `agentBase` doc for why this cannot be derived
   // independently inside each group's own `NewTermForm` instance.
-  const newTermFormBases = buildAgentListHandles(
-    "taxonomy-new-term",
-    taxonomies.map((group) => group.taxonomy.id),
+  const newTermFormBases = buildAgentListHandles({ prefix: "taxonomy-new-term", ids: taxonomies.map((group) => group.taxonomy.id) }
   );
   // Same id list as `newTermFormBases` above, so a taxonomy's "Delete taxonomy" menu handle and its
   // "+ Add term" form handle share the same id-derived slug (e.g. `taxonomy-new-term-tax-a-open` /
@@ -712,15 +710,11 @@ function namespaceList(
   // group without cross-referencing anything else. `RowMenu`'s `agentHandle` prop only reached this
   // package this session; before that, this menu (and the per-term one below) published no handle at
   // all and its trigger/items were invisible to `page.find_elements` regardless of what this file did.
-  const taxonomyMenuHandles = buildAgentListHandles(
-    "taxonomy-menu",
-    taxonomies.map((group) => group.taxonomy.id),
+  const taxonomyMenuHandles = buildAgentListHandles({ prefix: "taxonomy-menu", ids: taxonomies.map((group) => group.taxonomy.id) }
   );
   // Term ids are globally unique across every taxonomy, not scoped per group — same reasoning
   // `CollectionEntryEditor.tsx`'s `TermPicker` documents for its own flat `term-picker-term` list.
-  const termHandles = buildAgentListHandles(
-    "taxonomy-term",
-    taxonomies.flatMap((group) => group.terms.map((term) => term.id)),
+  const termHandles = buildAgentListHandles({ prefix: "taxonomy-term", ids: taxonomies.flatMap((group) => group.terms.map((term) => term.id)) }
   );
   let termHandleIndex = 0;
 

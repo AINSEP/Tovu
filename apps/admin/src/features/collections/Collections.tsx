@@ -1,7 +1,9 @@
 import { CONTENT_TYPE_FIELD_KINDS, type AdminContentType, type ContentTypeFieldKind } from "../../lib/api";
 import { DataTable, RowMenu } from "@jini-ai/admin/react";
+import { Dialog } from "@jini-ai/ui-kit/react";
+import "../../styles/native-domain-dialogs.css";
 import { agentHandle } from "@jini-ai/agentic";
-import { buildAgentListHandles } from "../../lib/agent-list-handles";
+import { buildAgentListHandles } from "@jini-ai/agentic";
 import { contentTypeMenuItems, type DraftField, type LifecycleConfirmOp } from "./rules";
 import { useWiredCollections } from "./hooks/use-collections.hooks";
 import { ServerLabel } from "@/components/status-labels";
@@ -32,9 +34,11 @@ import { PublishSectionButton } from "../publish-content/PublishSectionButton";
  *
  * ## Markup only
  *
- * Every dialog's state now lives in its own `hooks/use-<thing>.hooks.ts`; the shared
- * Escape-to-cancel listener the three dialogs used to duplicate lives in
- * `hooks/use-escape-to-cancel.hooks.ts`. Validation, draft-field-list transforms, error-message
+ * Every dialog's state lives in its own `hooks/use-<thing>.hooks.ts`; Jini now owns native
+ * cancellation and focus. The former feature-local Escape helper consolidated identical
+ * effects to avoid dropped/double Escape delivery when callbacks rebound on each render;
+ * native cancellation removes the need for that subscription and its cleanup entirely.
+ * Validation, draft-field-list transforms, error-message
  * formatting, and the row-menu builder all moved to `rules.ts`.
  */
 
@@ -151,36 +155,27 @@ export interface NewContentTypeDialogProps {
   t: (key: string) => string;
 }
 
-function NewContentTypeDialog({
+export function NewContentTypeDialog({
   onCreated,
   onCancel,
   useNewContentTypeDialogHook = useWiredNewContentTypeDialog,
   t,
-}: NewContentTypeDialogProps) {
-  const { label, setLabel, key, setKey, fields, updateField, removeField, addField, error, saving, submit, cancel, dialogRef } =
+}: NewContentTypeDialogProps, _optional: Record<string, never> = {}) {
+  const { label, setLabel, key, setKey, fields, updateField, removeField, addField, error, saving, submit, cancel } =
     useNewContentTypeDialogHook({ onCreated, onCancel });
-  const fieldHandles = buildAgentListHandles(
-    "new-content-type-field",
-    fields.map((f) => String(f._rowId)),
+  const fieldHandles = buildAgentListHandles({ prefix: "new-content-type-field", ids: fields.map((f) => String(f._rowId)) }
   );
 
   return (
-    <div className="settings-dialog-backdrop" onClick={cancel}>
+    <Dialog open title={t("New content type")} onClose={() => cancel()} pending={saving}
+      className="settings-dialog tovu-domain-dialog collections-type-dialog">
       <form
-        ref={dialogRef}
-        className="settings-dialog collections-type-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="new-content-type-title"
-        onClick={(e) => e.stopPropagation()}
         onSubmit={submit}
         {...agentHandle({ handle: "new-content-type-dialog" }, {
           role: "region",
           label: "New content type dialog — its label, key, and field schema",
         })}
       >
-        <h2 id="new-content-type-title">{t("New content type")}</h2>
-
         <div className="field">
           <label className="field-label" htmlFor="ct-label">{t("Label")}</label>
           <input
@@ -188,7 +183,7 @@ function NewContentTypeDialog({
             value={label}
             onChange={(e) => setLabel(e.target.value)}
             placeholder={t("e.g. Recipe")}
-            autoFocus
+            data-jini-autofocus=""
             {...agentHandle({ handle: "new-content-type-label" }, { role: "field", label: "This content type's display name" })}
           />
         </div>
@@ -258,7 +253,7 @@ function NewContentTypeDialog({
           </button>
         </span>
       </form>
-    </div>
+    </Dialog>
   );
 }
 
@@ -276,40 +271,31 @@ export interface EditFieldsDialogProps {
   t: (key: string) => string;
 }
 
-function EditFieldsDialog({
+export function EditFieldsDialog({
   contentType,
   onSaved,
   onCancel,
   useEditFieldsDialogHook = useWiredEditFieldsDialog,
   t,
-}: EditFieldsDialogProps) {
-  const { fields, updateField, removeField, addField, error, saving, submit, cancel, dialogRef } = useEditFieldsDialogHook({
+}: EditFieldsDialogProps, _optional: Record<string, never> = {}) {
+  const { fields, updateField, removeField, addField, error, saving, submit, cancel } = useEditFieldsDialogHook({
     contentType,
     onSaved,
     onCancel,
   });
-  const fieldHandles = buildAgentListHandles(
-    "edit-fields-field",
-    fields.map((f) => String(f._rowId)),
+  const fieldHandles = buildAgentListHandles({ prefix: "edit-fields-field", ids: fields.map((f) => String(f._rowId)) }
   );
 
   return (
-    <div className="settings-dialog-backdrop" onClick={cancel}>
+    <Dialog open title={`${t("Edit fields —")} ${contentType.label}`} onClose={() => cancel()} pending={saving}
+      className="settings-dialog tovu-domain-dialog collections-type-dialog">
       <form
-        ref={dialogRef}
-        className="settings-dialog collections-type-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="edit-fields-title"
-        onClick={(e) => e.stopPropagation()}
         onSubmit={submit}
         {...agentHandle({ handle: "edit-fields-dialog" }, {
           role: "region",
           label: "Edit fields dialog — this content type's full field schema",
         })}
       >
-        <h2 id="edit-fields-title">{t("Edit fields —")} {contentType.label}</h2>
-
         <div>
           {fields.map((f, index) => (
             <ContentTypeFieldFieldset
@@ -354,13 +340,14 @@ function EditFieldsDialog({
             className="btn-secondary"
             onClick={cancel}
             disabled={saving}
+            data-jini-autofocus=""
             {...agentHandle({ handle: "edit-fields-cancel" }, { role: "button", label: "Close this dialog without saving field changes" })}
           >
             {t("Cancel")}
           </button>
         </span>
       </form>
-    </div>
+    </Dialog>
   );
 }
 
@@ -379,39 +366,30 @@ export interface LifecycleConfirmDialogProps {
   t: (key: string) => string;
 }
 
-function LifecycleConfirmDialog({
+export function LifecycleConfirmDialog({
   op,
   contentType,
   onConfirm,
   onCancel,
   useLifecycleConfirmDialogHook = useLifecycleConfirmDialog,
   t,
-}: LifecycleConfirmDialogProps) {
-  const { copy, autoFocusCancel, dialogRef } = useLifecycleConfirmDialogHook({ op, onCancel });
+}: LifecycleConfirmDialogProps, _optional: Record<string, never> = {}) {
+  const { copy, autoFocusCancel } = useLifecycleConfirmDialogHook({ op, onCancel });
 
   return (
-    <div className="settings-dialog-backdrop" onClick={onCancel}>
-      <div
-        ref={dialogRef}
-        className="settings-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="lifecycle-dialog-title"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 id="lifecycle-dialog-title">{copy.title}</h2>
+    <Dialog open title={copy.title} onClose={() => onCancel()} className="settings-dialog tovu-domain-dialog">
         <p>
           {copy.body} (<strong>{contentType.label}</strong>)
         </p>
         <span className="editor-actions">
           {/* Deprecate is reversible (Reactivate exists) but access-affecting — `.btn-warning`,
               same distinction as Users.tsx's Disable. Tombstone is not, per its own copy above
-              ("not reversible from this screen") — `.btn-danger`, matching Roles.tsx/Redirects.tsx's
+              ("not reversible from this screen") — `.btn-danger`, matching Roles.tsx/Jini redirects/react/pages/RedirectsPage.tsx's
               existing destructive-delete convention. */}
           <button
             type="button"
             className={op === "deprecate" ? "btn-warning" : "btn-danger"}
-            autoFocus={!autoFocusCancel}
+            data-jini-autofocus={autoFocusCancel ? undefined : ""}
             onClick={onConfirm}
             {...agentHandle({ handle: "lifecycle-confirm" }, {
               role: "button",
@@ -424,15 +402,14 @@ function LifecycleConfirmDialog({
           <button
             type="button"
             className="btn-secondary"
-            autoFocus={autoFocusCancel}
+            data-jini-autofocus={autoFocusCancel ? "" : undefined}
             onClick={onCancel}
             {...agentHandle({ handle: "lifecycle-cancel" }, { role: "button", label: "Close this dialog without changing the lifecycle" })}
           >
             {t("Cancel")}
           </button>
         </span>
-      </div>
-    </div>
+    </Dialog>
   );
 }
 
@@ -441,6 +418,12 @@ function LifecycleConfirmDialog({
 // ---------------------------------------------------------------------------
 
 export interface CollectionsProps {
+  /** Domain controllers stay injectable while Jini owns every dialog's native lifecycle. */
+  dialogHooks?: {
+    useNewContentTypeDialogHook?: typeof useWiredNewContentTypeDialog;
+    useEditFieldsDialogHook?: typeof useWiredEditFieldsDialog;
+    useLifecycleConfirmDialogHook?: typeof useLifecycleConfirmDialog;
+  };
   /**
    * Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
    * for `useCustomSelect`. Defaulted to the real hook, so production callers (`panels.tsx`) pass
@@ -454,6 +437,7 @@ export interface CollectionsProps {
  * Split out because each one is its own conditional-render branch on the parent — bundling all
  * three into one component keeps `Collections` itself down to the table + header. */
 function CollectionsDialogs(props: {
+  dialogHooks?: CollectionsProps["dialogHooks"];
   showNewDialog: boolean;
   onNewDialogCreated: () => void;
   onNewDialogCancel: () => void;
@@ -480,24 +464,27 @@ function CollectionsDialogs(props: {
 
   return (
     <>
-      {showNewDialog ? <NewContentTypeDialog onCreated={onNewDialogCreated} onCancel={onNewDialogCancel} t={t} /> : null}
+      {showNewDialog ? <NewContentTypeDialog onCreated={onNewDialogCreated} onCancel={onNewDialogCancel} t={t}
+        useNewContentTypeDialogHook={props.dialogHooks?.useNewContentTypeDialogHook} /> : null}
       {pendingLifecycle ? (
         <LifecycleConfirmDialog
           op={pendingLifecycle.op}
           contentType={pendingLifecycle.contentType}
           onConfirm={() => onLifecycleConfirm(pendingLifecycle.op, pendingLifecycle.contentType)}
           onCancel={onLifecycleCancel}
+          useLifecycleConfirmDialogHook={props.dialogHooks?.useLifecycleConfirmDialogHook}
           t={t}
         />
       ) : null}
       {editingFieldsFor ? (
-        <EditFieldsDialog contentType={editingFieldsFor} onSaved={onFieldsSaved} onCancel={onFieldsCancel} t={t} />
+        <EditFieldsDialog contentType={editingFieldsFor} onSaved={onFieldsSaved} onCancel={onFieldsCancel} t={t}
+          useEditFieldsDialogHook={props.dialogHooks?.useEditFieldsDialogHook} />
       ) : null}
     </>
   );
 }
 
-export function Collections({ useCollectionsHook = useWiredCollections }: CollectionsProps = {}) {
+export function Collections({ useCollectionsHook = useWiredCollections, dialogHooks }: CollectionsProps = {}) {
   const {
     types,
     error,
@@ -527,9 +514,7 @@ export function Collections({ useCollectionsHook = useWiredCollections }: Collec
   // (`@jini-ai/admin/react`) accepts an `agentHandle` prop — before this session it published none,
   // so its trigger and dropdown items were invisible to `page.find_elements` regardless of what this
   // file did (see `FormsList.tsx`'s identical fix).
-  const rowHandles = buildAgentListHandles(
-    "collections-row",
-    types.map((ct) => ct.key),
+  const rowHandles = buildAgentListHandles({ prefix: "collections-row", ids: types.map((ct) => ct.key) }
   );
 
   return (
@@ -647,6 +632,7 @@ export function Collections({ useCollectionsHook = useWiredCollections }: Collec
       />
 
       <CollectionsDialogs
+        dialogHooks={dialogHooks}
         showNewDialog={showNewDialog}
         onNewDialogCreated={() => {
           setShowNewDialog(false);

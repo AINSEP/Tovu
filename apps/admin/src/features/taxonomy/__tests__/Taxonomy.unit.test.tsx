@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminTaxonomyWithTerms, AdminTerm } from "@/lib/api";
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 import { Taxonomy } from "../Taxonomy";
 import type { TaxonomyController } from "../hooks/use-taxonomy.hooks";
 
@@ -16,11 +16,11 @@ import type { TaxonomyController } from "../hooks/use-taxonomy.hooks";
  * controller exercises their real markup/state without needing to mock `fetch` for anything that
  * does not actually submit a form.
  *
- * `FetchQueryProvider` wraps every render below (2026-08-12, `lib/fetch-query` migration): only the
+ * `FetchQueryProvider` wraps every render below (2026-08-12, `@jini-ai/ui/fetch-query` migration): only the
  * top-level `useTaxonomy` is stubbed via `useTaxonomyHook` — `NewTaxonomyForm`/`NewTermForm`/
  * `MergeTermSection`/`TermDetailPanel` still compose their OWN real `useWiredX` hooks (no injected
  * seam of their own in these tests), each now backed by `useFetchQuery`/`useFetchMutation`, which
- * throw without a `QueryClientProvider` ancestor. `main.tsx` provides this in production; here it is
+ * throw without a `FetchQueryProvider` ancestor. `main.tsx` provides this in production; here it is
  * one `FetchQueryProvider` per render, matching `redirects`'s own hook tests.
  */
 

@@ -1,3 +1,4 @@
+import { COMMON_I18N } from "../../lib/i18n-common";
 /**
  * @file Settings -> Memory tab: the copy `@jini-ai/ui`'s `MemorySettingsPanel` renders (the header
  * card, the "Memories | How it works" switch, `MemoryList`'s empty state, `MemoryHowPanel` and
@@ -5,13 +6,13 @@
  *
  * Those components translate through `@jini-ai/ui`'s own `useT()`, which reads the nearest
  * `I18nProvider`. The provider `SettingsUi.tsx` mounts carries `SETTINGS_DIALOG_DICTIONARIES`, and
- * neither that dictionary nor `@jini-ai/cms/settings`' has the memory panel's keys, so the whole
+ * neither that dictionary nor `@jini-ai/core/settings`' has the memory panel's keys, so the whole
  * panel rendered English in every locale. `SettingsUi.tsx` now wraps the panel in a nested
  * `I18nProvider` fed by {@link memoryPanelDictionaries} — the package's existing host-dictionary
  * mechanism, no change to `@jini-ai/ui`. Keys are the package's literal English strings; English
  * itself needs no block (a miss renders the key).
  */
-import { createDictionaryTranslator } from "../../lib/dictionary-translator";
+import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 const SETTINGS_MEMORY_DICT: Record<string, Record<string, string>> = {
   es: {
@@ -814,7 +815,7 @@ const SETTINGS_MEMORY_DICT: Record<string, Record<string, string>> = {
   },
 };
 
-export const t = createDictionaryTranslator(SETTINGS_MEMORY_DICT);
+export const t = createDictionaryTranslator({ featureDictionary: SETTINGS_MEMORY_DICT }, { commonDictionary: COMMON_I18N });
 
 /** Every `t()` key the mounted memory panel renders, as the package spells it. */
 const MEMORY_PANEL_KEYS: readonly string[] = [
@@ -864,5 +865,5 @@ const MEMORY_PANEL_KEYS: readonly string[] = [
  * @complexity O(k) in the key count.
  */
 export function memoryPanelDictionaries(locale: string): Record<string, Record<string, string>> {
-  return { [locale]: Object.fromEntries(MEMORY_PANEL_KEYS.map((key) => [key, t(locale, key)])) };
+  return { [locale]: Object.fromEntries(MEMORY_PANEL_KEYS.map((key) => [key, t({ locale: locale, key: key })])) };
 }

@@ -355,14 +355,4 @@ export function useThemeCanvasStyling(
   return state;
 }
 
-/**
- * Binds the real `/theme-assets/...` fetch — the zero-dependencies half of the
- * `useX(dependencies)` / `useWiredX()` pair, so `PageEditor.tsx` composes this and a test composes
- * {@link useThemeCanvasStyling} with `createFakeThemeCanvasPort`.
- *
- * @param themeId - See {@link useThemeCanvasStyling}.
- * @param apiVersion - See {@link useThemeCanvasStyling}.
- * @param templateChoice - See {@link useThemeCanvasStyling}.
- * @returns The current {@link ThemeCanvasStylingState}.
- */
-// useWiredThemeCanvasStyling (apps/admin/src/features/pages/hooks/use-theme-canvas-styling.hooks.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
+

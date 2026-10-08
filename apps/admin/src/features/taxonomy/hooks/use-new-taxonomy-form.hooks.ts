@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { describeApiError } from "@/lib/api";
-import { useFetchMutation } from "@/lib/fetch-query";
+import { useFetchMutation } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../taxonomy-i18n";
 import { KEYS } from "../rules";
@@ -19,7 +19,7 @@ import type { NewTaxonomyFormPort } from "./new-taxonomy-form-port.hooks";
  * instead of stubbing global `fetch`. `useWiredNewTaxonomyForm` below is the zero-argument pair
  * `Taxonomy.tsx` actually mounts.
  *
- * `lib/fetch-query` migration (2026-08-12): `createTaxonomy` is a `useFetchMutation` that
+ * `@jini-ai/ui/fetch-query` migration (2026-08-12): `createTaxonomy` is a `useFetchMutation` that
  * `invalidates: [KEYS.list]` instead of the parent's `onCreated` calling `load()` by hand — same
  * client-side-validation-vs-request-error precedence as `redirects`'s
  * `use-import-redirects-form.hooks.ts`'s `error`.
@@ -49,19 +49,20 @@ export function useNewTaxonomyForm(
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const createMutation = useFetchMutation({
-    run: (input: { name: string; hierarchical: boolean }) => port.createTaxonomy(input),
+    run: ({ input }: { input: { name: string; hierarchical: boolean } }) => port.createTaxonomy(input),
+  }, {
     invalidates: [KEYS.list],
   });
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) {
-      setValidationError(t(locale, "Name is required."));
+      setValidationError(t({ locale: locale, key: "Name is required." }));
       return;
     }
     setValidationError(null);
     try {
-      await createMutation.mutate({ name: name.trim(), hierarchical });
+      await createMutation.mutate({ input: { name: name.trim(), hierarchical } });
       setName("");
       setHierarchical(false);
       options.onCreated();
@@ -71,7 +72,7 @@ export function useNewTaxonomyForm(
   }
 
   const saving = createMutation.status === "pending";
-  const error = validationError ?? (createMutation.error ? describeApiError(createMutation.error, t(locale, "Failed to create taxonomy")) : null);
+  const error = validationError ?? (createMutation.error ? describeApiError(createMutation.error, t({ locale: locale, key: "Failed to create taxonomy" })) : null);
 
   return { name, setName, hierarchical, setHierarchical, error, saving, submit };
 }

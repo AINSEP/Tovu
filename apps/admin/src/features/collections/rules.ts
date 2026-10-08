@@ -1,9 +1,9 @@
 import type { RowMenuItem } from "@jini-ai/admin/react";
-import { embedMarkerSnippet } from "@tovu/embed-marker";
+import { embedMarkerSnippet } from "@jini-ai/cms/widgets/markers";
 
 import { ApiError, describeApiError, type AdminContentType, type ContentTypeFieldDef } from "../../lib/api";
-import type { Translate } from "../../lib/dictionary-translator";
-import type { QueryKey } from "../../lib/fetch-query";
+import type { Translate } from "@jini-ai/ui/panel-kit";
+import type { QueryKey } from "@jini-ai/ui/fetch-query";
 import { isVersionConflict } from "../../lib/version-conflict";
 import { t as translate } from "./collections-i18n";
 
@@ -24,7 +24,7 @@ import { t as translate } from "./collections-i18n";
  *
  * `KEYS` (fetch-query migration, 2026-08-12): `entries(key)` is a real child of `list` — a content
  * type's fields/lifecycle changing SHOULD refresh its entries list, matching
- * `lib/fetch-query/types.ts`'s `QueryKey` prefix-invalidation contract.
+ * `@jini-ai/ui/fetch-query`'s `QueryKey` prefix-invalidation contract.
  *
  * `entry(key, id)` is deliberately a SIBLING of `entries(key)`, not a child of it — both nest under
  * `list` (so a content-type field/lifecycle change still refreshes an open editor's own read, which
@@ -70,7 +70,7 @@ export function isUserCollection(key: string): boolean {
  * fallback, per the fix landed in `a9ab19c4f`). Keeps the wrapper `<div data-embed-config='...'>`
  * shape every other embeddable type already uses.
  *
- * A thin wrapper over `@tovu/embed-marker`'s generalised `embedMarkerSnippet` (readable-slugs S5b,
+ * A thin wrapper over `@jini-ai/cms/widgets/markers`'s generalised `embedMarkerSnippet` (readable-slugs S5b,
  * 2026-09-23) — this was the one admin-generated marker that existed before that generalisation, so
  * it moved onto the shared builder rather than keeping its own copy of the template. Byte-for-byte
  * unchanged output.
@@ -78,7 +78,7 @@ export function isUserCollection(key: string): boolean {
  * @complexity Time/space: O(1) — one template string.
  */
 export function collectionEmbedSnippet(key: string): string {
-  return embedMarkerSnippet("collection", "id", key);
+  return embedMarkerSnippet({ type: "collection", key: "id", value: key });
 }
 
 /**
@@ -121,7 +121,7 @@ const RESERVED_KEYS = new Set(["post", "page"]);
 type LocaleOrTranslate = string | Translate;
 
 function localize(localeOrTranslate: LocaleOrTranslate, key: string): string {
-  return typeof localeOrTranslate === "function" ? localeOrTranslate(key) : translate(localeOrTranslate, key);
+  return typeof localeOrTranslate === "function" ? localeOrTranslate(key) : translate({ locale: localeOrTranslate, key: key });
 }
 
 /**
@@ -129,7 +129,7 @@ function localize(localeOrTranslate: LocaleOrTranslate, key: string): string {
  */
 export function validateKey(key: string, locale = "en"): string | null {
   if (!KEY_GRAMMAR.test(key)) {
-    return translate(locale, "Key must start with a lowercase letter and contain only lowercase letters, digits, and underscores (max 64 chars).");
+    return translate({ locale: locale, key: "Key must start with a lowercase letter and contain only lowercase letters, digits, and underscores (max 64 chars)." });
   }
   if (RESERVED_KEYS.has(key)) {
     return `"${key}" is a reserved key (built-in content already uses it).`;
@@ -216,7 +216,7 @@ export function validateNewContentTypeDraft(
 ): string | null {
   const keyError = validateKey(draft.key.trim(), locale);
   if (keyError) return keyError;
-  if (!draft.label.trim()) return translate(locale, "Label is required.");
+  if (!draft.label.trim()) return translate({ locale: locale, key: "Label is required." });
   return firstDraftFieldError(draft.fields, locale);
 }
 
@@ -271,7 +271,7 @@ export const LIFECYCLE_COPY: Record<LifecycleConfirmOp, { title: string; body: s
 
 export function lifecycleCopy(op: LifecycleConfirmOp, locale = "en"): { title: string; body: string } {
   const copy = LIFECYCLE_COPY[op];
-  return { ...copy, title: translate(locale, copy.title) };
+  return { ...copy, title: translate({ locale: locale, key: copy.title }) };
 }
 
 /**
@@ -317,7 +317,7 @@ export function contentTypeMenuItems(
   handlers: ContentTypeRowMenuHandlers,
   locale: string,
 ): RowMenuItem[] {
-  const t = (key: string): string => translate(locale, key);
+  const t = (key: string): string => translate({ locale: locale, key: key });
   const items: RowMenuItem[] = [
     { key: "edit-fields", label: t("Edit fields"), onSelect: () => handlers.onEditFields(contentType) },
   ];

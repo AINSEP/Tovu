@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
 import { ApiError, type AdminMenu } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
+import { useSettlementGeneration, type Translate } from "@jini-ai/ui/panel-kit";
 import { t as translate } from "../menus-i18n";
 import { defaultMenusPort } from "./menus-dependencies.hooks";
 import type { MenusPort } from "./menus-port.hooks";
-import type { Translate } from "@/lib/dictionary-translator";
 
 /**
  * @file Everything the Menus LIST does, so `Menus.tsx` is only markup.
@@ -55,7 +54,7 @@ export interface MenusController {
 }
 
 /**
- * Classifies a failed `port.trash` call the same way `forms/rules.ts`'s `describeTrashError` does
+ * Classifies a failed `port.trash` call the same way `@jini-ai/admin/forms` rules.ts's `describeTrashError` does
  * for the generic `POST /trash/items` 404/409 contract — kept local rather than imported since
  * this is the only caller in `features/menus` today (see that file's own doc comment for the fuller
  * rationale, shared verbatim here): a 404 means the row is already gone (quiet re-read, no banner);
@@ -94,11 +93,11 @@ export function useMenus({ port, t }: MenusDependencies): MenusController {
     port
       .listMenus()
       .then((r) => {
-        if (!loadSettlement.isCurrent(generation)) return;
+        if (!loadSettlement.isCurrent({ generation })) return;
         setMenus(r.menus);
       })
       .catch((e) => {
-        if (!loadSettlement.isCurrent(generation)) return;
+        if (!loadSettlement.isCurrent({ generation })) return;
         setError(e instanceof Error ? e.message : "failed to load menus");
       });
   }
@@ -159,6 +158,6 @@ export function useMenus({ port, t }: MenusDependencies): MenusController {
  */
 export function useWiredMenus(): MenusController {
   const locale = useAdminLocale();
-  const t = (key: string): string => translate(locale, key);
+  const t = (key: string): string => translate({ locale: locale, key: key });
   return useMenus({ port: defaultMenusPort, t });
 }

@@ -46,7 +46,7 @@ const EXPECTED_STARTUP_COPY: Record<string, string> = {
 describe('t(locale, "A key is created automatically when this site starts.")', () => {
   for (const locale of LOCALES) {
     it(`translates for ${locale}`, () => {
-      const translated = t(locale, "A key is created automatically when this site starts.");
+      const translated = t({ locale: locale, key: "A key is created automatically when this site starts." });
       expect(translated.length).toBeGreaterThan(0);
       expect(translated).not.toBe("A key is created automatically when this site starts.");
       expect(translated).toBe(EXPECTED_STARTUP_COPY[locale]);
@@ -54,7 +54,7 @@ describe('t(locale, "A key is created automatically when this site starts.")', (
   }
 
   it("falls back to the English copy for an unrecognized locale", () => {
-    expect(t("xx", "A key is created automatically when this site starts.")).toBe("A key is created automatically when this site starts.");
+    expect(t({ locale: "xx", key: "A key is created automatically when this site starts." })).toBe("A key is created automatically when this site starts.");
   });
 });
 
@@ -78,13 +78,13 @@ describe("site key terminology copy", () => {
   for (const locale of LOCALES) {
     it(`has translated site key copy in ${locale}`, () => {
       for (const key of ["Site key", "Active: environment variable {name}"]) {
-        expect(t(locale, key)).not.toBe(key);
+        expect(t({ locale: locale, key: key })).not.toBe(key);
       }
-      expect(t(locale, "Active: environment variable {name}")).toContain("{name}");
+      expect(t({ locale: locale, key: "Active: environment variable {name}" })).toContain("{name}");
     });
   }
   it("names the key in German and Spanish", () => {
-    expect(t("de", "Site key")).toBe("Website-Schlüssel");
-    expect(t("es", "Site key")).toBe("Clave del sitio");
+    expect(t({ locale: "de", key: "Site key" })).toBe("Website-Schlüssel");
+    expect(t({ locale: "es", key: "Site key" })).toBe("Clave del sitio");
   });
 });

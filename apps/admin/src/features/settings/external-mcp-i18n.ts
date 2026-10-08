@@ -1,3 +1,4 @@
+import { COMMON_I18N } from "../../lib/i18n-common";
 /**
  * @file Operator-facing copy for the external-MCP write-tool picker (badges, failure states, and
  * the restart-drift prompt) — `ADS-memory/reports/pipeline/external-mcp-write-tools/
@@ -25,7 +26,7 @@
  * there is no established localized term for either in this codebase's existing dictionaries.
  */
 
-import { createDictionaryTranslator } from "../../lib/dictionary-translator";
+import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
   es: {
@@ -34,9 +35,6 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "An ID is required.": "Se requiere un ID.",
     "That server could not be saved.": "No se pudo guardar ese servidor.",
     "Save this server before you can test it.": "Guarda este servidor antes de probarlo.",
-    // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
-    // referenced by the exported `t`) into the live dict, plus the subtitle gap found
-    // alongside it.
     "This server published no usable input schema for this tool, so Tovu cannot offer it.": "Este servidor no publicó un esquema de entrada utilizable para esta herramienta, por lo que Tovu no puede ofrecerla.",
     "This server advertised a tool under a name Tovu will not register.": "Este servidor anunció una herramienta con un nombre que Tovu no registrará.",
     "This server advertised the same tool name twice, so Tovu kept only the first.": "Este servidor anunció el mismo nombre de herramienta dos veces, por lo que Tovu conservó solo la primera.",
@@ -78,9 +76,6 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "An ID is required.": "ID wajib diisi.",
     "That server could not be saved.": "Server itu tidak dapat disimpan.",
     "Save this server before you can test it.": "Simpan server ini sebelum Anda dapat mengujinya.",
-    // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
-    // referenced by the exported `t`) into the live dict, plus the subtitle gap found
-    // alongside it.
     "This server published no usable input schema for this tool, so Tovu cannot offer it.": "Server ini tidak menerbitkan skema input yang dapat digunakan untuk alat ini, sehingga Tovu tidak dapat menawarkannya.",
     "This server advertised a tool under a name Tovu will not register.": "Server ini mengiklankan alat dengan nama yang tidak akan didaftarkan Tovu.",
     "This server advertised the same tool name twice, so Tovu kept only the first.": "Server ini mengiklankan nama alat yang sama dua kali, sehingga Tovu hanya menyimpan yang pertama.",
@@ -122,9 +117,6 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "An ID is required.": "Eine ID ist erforderlich.",
     "That server could not be saved.": "Dieser Server konnte nicht gespeichert werden.",
     "Save this server before you can test it.": "Speichere diesen Server, bevor du ihn testen kannst.",
-    // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
-    // referenced by the exported `t`) into the live dict, plus the subtitle gap found
-    // alongside it.
     "This server published no usable input schema for this tool, so Tovu cannot offer it.": "Dieser Server hat kein verwendbares Eingabeschema für dieses Werkzeug veröffentlicht; Tovu kann es daher nicht anbieten.",
     "This server advertised a tool under a name Tovu will not register.": "Dieser Server hat ein Werkzeug unter einem Namen angekündigt, den Tovu nicht registrieren wird.",
     "This server advertised the same tool name twice, so Tovu kept only the first.": "Dieser Server hat denselben Werkzeugnamen zweimal angekündigt; Tovu hat nur den ersten behalten.",
@@ -166,9 +158,6 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "An ID is required.": "需要 ID。",
     "That server could not be saved.": "无法保存该服务器。",
     "Save this server before you can test it.": "请先保存此服务器，然后再测试。",
-    // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
-    // referenced by the exported `t`) into the live dict, plus the subtitle gap found
-    // alongside it.
     "This server published no usable input schema for this tool, so Tovu cannot offer it.": "此服务器未发布此工具可用的输入架构，因此 Tovu 无法提供它。",
     "This server advertised a tool under a name Tovu will not register.": "此服务器以 Tovu 不会注册的名称发布了一个工具。",
     "This server advertised the same tool name twice, so Tovu kept only the first.": "此服务器两次发布了相同的工具名称，因此 Tovu 只保留了第一个。",
@@ -210,9 +199,6 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "An ID is required.": "需要 ID。",
     "That server could not be saved.": "無法儲存該伺服器。",
     "Save this server before you can test it.": "請先儲存此伺服器，再進行測試。",
-    // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
-    // referenced by the exported `t`) into the live dict, plus the subtitle gap found
-    // alongside it.
     "This server published no usable input schema for this tool, so Tovu cannot offer it.": "此伺服器未發布此工具可用的輸入架構，因此 Tovu 無法提供它。",
     "This server advertised a tool under a name Tovu will not register.": "此伺服器以 Tovu 不會註冊的名稱發布了一個工具。",
     "This server advertised the same tool name twice, so Tovu kept only the first.": "此伺服器兩次發布相同的工具名稱，因此 Tovu 只保留第一個。",
@@ -254,9 +240,6 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "An ID is required.": "Um ID é obrigatório.",
     "That server could not be saved.": "Não foi possível salvar esse servidor.",
     "Save this server before you can test it.": "Salve este servidor antes de testá-lo.",
-    // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
-    // referenced by the exported `t`) into the live dict, plus the subtitle gap found
-    // alongside it.
     "This server published no usable input schema for this tool, so Tovu cannot offer it.": "Este servidor não publicou um esquema de entrada utilizável para esta ferramenta, portanto o Tovu não pode oferecê-la.",
     "This server advertised a tool under a name Tovu will not register.": "Este servidor anunciou uma ferramenta com um nome que o Tovu não registrará.",
     "This server advertised the same tool name twice, so Tovu kept only the first.": "Este servidor anunciou o mesmo nome de ferramenta duas vezes, então o Tovu manteve apenas a primeira.",
@@ -298,9 +281,6 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "An ID is required.": "Требуется ID.",
     "That server could not be saved.": "Не удалось сохранить этот сервер.",
     "Save this server before you can test it.": "Сохраните этот сервер, прежде чем тестировать его.",
-    // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
-    // referenced by the exported `t`) into the live dict, plus the subtitle gap found
-    // alongside it.
     "This server published no usable input schema for this tool, so Tovu cannot offer it.": "Этот сервер не опубликовал пригодную для использования входную схему для этого инструмента, поэтому Tovu не может его предложить.",
     "This server advertised a tool under a name Tovu will not register.": "Этот сервер объявил инструмент под именем, которое Tovu не будет регистрировать.",
     "This server advertised the same tool name twice, so Tovu kept only the first.": "Этот сервер дважды объявил одно и то же имя инструмента, поэтому Tovu сохранил только первый.",
@@ -342,9 +322,6 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "An ID is required.": "شناسه الزامی است.",
     "That server could not be saved.": "ذخیرهٔ آن سرور ممکن نشد.",
     "Save this server before you can test it.": "پیش از آزمایش، این سرور را ذخیره کنید.",
-    // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
-    // referenced by the exported `t`) into the live dict, plus the subtitle gap found
-    // alongside it.
     "This server published no usable input schema for this tool, so Tovu cannot offer it.": "این سرور طرحواره ورودی قابل‌استفاده‌ای برای این ابزار منتشر نکرده است، بنابراین Tovu نمی‌تواند آن را ارائه دهد.",
     "This server advertised a tool under a name Tovu will not register.": "این سرور ابزاری را با نامی معرفی کرده که Tovu آن را ثبت نخواهد کرد.",
     "This server advertised the same tool name twice, so Tovu kept only the first.": "این سرور یک نام ابزار را دو بار معرفی کرده است، بنابراین Tovu فقط اولین را نگه داشت.",
@@ -386,9 +363,6 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "An ID is required.": "المعرّف مطلوب.",
     "That server could not be saved.": "تعذّر حفظ ذلك الخادم.",
     "Save this server before you can test it.": "احفظ هذا الخادم قبل أن تتمكن من اختباره.",
-    // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
-    // referenced by the exported `t`) into the live dict, plus the subtitle gap found
-    // alongside it.
     "This server published no usable input schema for this tool, so Tovu cannot offer it.": "لم ينشر هذا الخادم مخطط إدخال قابلاً للاستخدام لهذه الأداة، لذا لا يمكن لـ Tovu تقديمها.",
     "This server advertised a tool under a name Tovu will not register.": "أعلن هذا الخادم عن أداة باسم لن يسجّله Tovu.",
     "This server advertised the same tool name twice, so Tovu kept only the first.": "أعلن هذا الخادم عن اسم الأداة نفسه مرتين، لذا احتفظ Tovu بالأولى فقط.",
@@ -430,9 +404,6 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "An ID is required.": "ID は必須です。",
     "That server could not be saved.": "そのサーバーを保存できませんでした。",
     "Save this server before you can test it.": "テストする前にこのサーバーを保存してください。",
-    // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
-    // referenced by the exported `t`) into the live dict, plus the subtitle gap found
-    // alongside it.
     "This server published no usable input schema for this tool, so Tovu cannot offer it.": "このサーバーはこのツール用の使用可能な入力スキーマを公開しなかったため、Tovu はこれを提供できません。",
     "This server advertised a tool under a name Tovu will not register.": "このサーバーは Tovu が登録しない名前でツールを公開しました。",
     "This server advertised the same tool name twice, so Tovu kept only the first.": "このサーバーは同じツール名を2回公開したため、Tovu は最初の1つだけを保持しました。",
@@ -474,9 +445,6 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "An ID is required.": "ID가 필요합니다.",
     "That server could not be saved.": "해당 서버를 저장할 수 없습니다.",
     "Save this server before you can test it.": "테스트하기 전에 이 서버를 저장하세요.",
-    // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
-    // referenced by the exported `t`) into the live dict, plus the subtitle gap found
-    // alongside it.
     "This server published no usable input schema for this tool, so Tovu cannot offer it.": "이 서버는 이 도구에 사용할 수 있는 입력 스키마를 게시하지 않았으므로 Tovu가 이를 제공할 수 없습니다.",
     "This server advertised a tool under a name Tovu will not register.": "이 서버는 Tovu가 등록하지 않을 이름으로 도구를 공개했습니다.",
     "This server advertised the same tool name twice, so Tovu kept only the first.": "이 서버가 동일한 도구 이름을 두 번 공개하여 Tovu는 첫 번째 것만 유지했습니다.",
@@ -518,9 +486,6 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "An ID is required.": "ID jest wymagane.",
     "That server could not be saved.": "Nie udało się zapisać tego serwera.",
     "Save this server before you can test it.": "Zapisz ten serwer, zanim go przetestujesz.",
-    // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
-    // referenced by the exported `t`) into the live dict, plus the subtitle gap found
-    // alongside it.
     "This server published no usable input schema for this tool, so Tovu cannot offer it.": "Ten serwer nie opublikował użytecznego schematu wejściowego dla tego narzędzia, więc Tovu nie może go zaoferować.",
     "This server advertised a tool under a name Tovu will not register.": "Ten serwer ogłosił narzędzie pod nazwą, której Tovu nie zarejestruje.",
     "This server advertised the same tool name twice, so Tovu kept only the first.": "Ten serwer dwukrotnie ogłosił tę samą nazwę narzędzia, więc Tovu zachował tylko pierwsze.",
@@ -562,9 +527,6 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "An ID is required.": "Az azonosító megadása kötelező.",
     "That server could not be saved.": "Ezt a szervert nem sikerült menteni.",
     "Save this server before you can test it.": "Mentsd a szervert, mielőtt tesztelnéd.",
-    // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
-    // referenced by the exported `t`) into the live dict, plus the subtitle gap found
-    // alongside it.
     "This server published no usable input schema for this tool, so Tovu cannot offer it.": "Ez a szerver nem tett közzé használható bemeneti sémát ehhez az eszközhöz, ezért a Tovu nem tudja felkínálni.",
     "This server advertised a tool under a name Tovu will not register.": "Ez a szerver olyan néven hirdetett meg egy eszközt, amelyet a Tovu nem fog regisztrálni.",
     "This server advertised the same tool name twice, so Tovu kept only the first.": "Ez a szerver kétszer hirdette meg ugyanazt az eszköznevet, ezért a Tovu csak az elsőt tartotta meg.",
@@ -606,9 +568,6 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "An ID is required.": "Un ID est requis.",
     "That server could not be saved.": "Impossible d’enregistrer ce serveur.",
     "Save this server before you can test it.": "Enregistrez ce serveur avant de pouvoir le tester.",
-    // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
-    // referenced by the exported `t`) into the live dict, plus the subtitle gap found
-    // alongside it.
     "This server published no usable input schema for this tool, so Tovu cannot offer it.": "Ce serveur n'a publié aucun schéma d'entrée utilisable pour cet outil, Tovu ne peut donc pas le proposer.",
     "This server advertised a tool under a name Tovu will not register.": "Ce serveur a annoncé un outil sous un nom que Tovu n'enregistrera pas.",
     "This server advertised the same tool name twice, so Tovu kept only the first.": "Ce serveur a annoncé deux fois le même nom d'outil, Tovu n'a donc conservé que le premier.",
@@ -650,9 +609,6 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "An ID is required.": "Потрібен ID.",
     "That server could not be saved.": "Не вдалося зберегти цей сервер.",
     "Save this server before you can test it.": "Збережіть цей сервер, перш ніж тестувати його.",
-    // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
-    // referenced by the exported `t`) into the live dict, plus the subtitle gap found
-    // alongside it.
     "This server published no usable input schema for this tool, so Tovu cannot offer it.": "Цей сервер не опублікував придатну для використання вхідну схему для цього інструмента, тому Tovu не може його запропонувати.",
     "This server advertised a tool under a name Tovu will not register.": "Цей сервер оголосив інструмент під назвою, яку Tovu не реєструватиме.",
     "This server advertised the same tool name twice, so Tovu kept only the first.": "Цей сервер двічі оголосив однакову назву інструмента, тому Tovu залишив лише перший.",
@@ -694,9 +650,6 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "An ID is required.": "Kimlik gerekli.",
     "That server could not be saved.": "Bu sunucu kaydedilemedi.",
     "Save this server before you can test it.": "Test etmeden önce bu sunucuyu kaydedin.",
-    // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
-    // referenced by the exported `t`) into the live dict, plus the subtitle gap found
-    // alongside it.
     "This server published no usable input schema for this tool, so Tovu cannot offer it.": "Bu sunucu bu araç için kullanılabilir bir giriş şeması yayımlamadı, bu yüzden Tovu onu sunamaz.",
     "This server advertised a tool under a name Tovu will not register.": "Bu sunucu, Tovu'nun kaydetmeyeceği bir adla bir araç duyurdu.",
     "This server advertised the same tool name twice, so Tovu kept only the first.": "Bu sunucu aynı araç adını iki kez duyurdu, bu yüzden Tovu yalnızca ilkini tuttu.",
@@ -738,9 +691,6 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "An ID is required.": "ต้องระบุ ID",
     "That server could not be saved.": "บันทึกเซิร์ฟเวอร์นั้นไม่ได้",
     "Save this server before you can test it.": "บันทึกเซิร์ฟเวอร์นี้ก่อนจึงจะทดสอบได้",
-    // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
-    // referenced by the exported `t`) into the live dict, plus the subtitle gap found
-    // alongside it.
     "This server published no usable input schema for this tool, so Tovu cannot offer it.": "เซิร์ฟเวอร์นี้ไม่ได้เผยแพร่สคีมาอินพุตที่ใช้งานได้สำหรับเครื่องมือนี้ ดังนั้น Tovu จึงไม่สามารถเสนอเครื่องมือนี้ได้",
     "This server advertised a tool under a name Tovu will not register.": "เซิร์ฟเวอร์นี้ประกาศเครื่องมือภายใต้ชื่อที่ Tovu จะไม่ลงทะเบียน",
     "This server advertised the same tool name twice, so Tovu kept only the first.": "เซิร์ฟเวอร์นี้ประกาศชื่อเครื่องมือเดียวกันสองครั้ง ดังนั้น Tovu จึงเก็บไว้เฉพาะรายการแรก",
@@ -782,9 +732,6 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "An ID is required.": "L’ID è obbligatorio.",
     "That server could not be saved.": "Impossibile salvare quel server.",
     "Save this server before you can test it.": "Salva questo server prima di poterlo testare.",
-    // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
-    // referenced by the exported `t`) into the live dict, plus the subtitle gap found
-    // alongside it.
     "This server published no usable input schema for this tool, so Tovu cannot offer it.": "Questo server non ha pubblicato uno schema di input utilizzabile per questo strumento, quindi Tovu non può offrirlo.",
     "This server advertised a tool under a name Tovu will not register.": "Questo server ha pubblicizzato uno strumento con un nome che Tovu non registrerà.",
     "This server advertised the same tool name twice, so Tovu kept only the first.": "Questo server ha pubblicizzato due volte lo stesso nome di strumento, quindi Tovu ha mantenuto solo il primo.",
@@ -826,9 +773,6 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "An ID is required.": "ID आवश्यक है।",
     "That server could not be saved.": "वह सर्वर सहेजा नहीं जा सका।",
     "Save this server before you can test it.": "परीक्षण करने से पहले इस सर्वर को सहेजें।",
-    // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
-    // referenced by the exported `t`) into the live dict, plus the subtitle gap found
-    // alongside it.
     "This server published no usable input schema for this tool, so Tovu cannot offer it.": "इस सर्वर ने इस टूल के लिए उपयोग योग्य इनपुट स्कीमा प्रकाशित नहीं किया, इसलिए Tovu इसे प्रदान नहीं कर सकता।",
     "This server advertised a tool under a name Tovu will not register.": "इस सर्वर ने एक ऐसे नाम से टूल की घोषणा की जिसे Tovu पंजीकृत नहीं करेगा।",
     "This server advertised the same tool name twice, so Tovu kept only the first.": "इस सर्वर ने एक ही टूल नाम की दो बार घोषणा की, इसलिए Tovu ने केवल पहले वाले को रखा।",
@@ -870,9 +814,6 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "An ID is required.": "ID ضروری ہے۔",
     "That server could not be saved.": "وہ سرور محفوظ نہیں ہو سکا۔",
     "Save this server before you can test it.": "جانچنے سے پہلے اس سرور کو محفوظ کریں۔",
-    // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
-    // referenced by the exported `t`) into the live dict, plus the subtitle gap found
-    // alongside it.
     "This server published no usable input schema for this tool, so Tovu cannot offer it.": "اس سرور نے اس ٹول کے لیے کوئی قابلِ استعمال ان پٹ اسکیمہ شائع نہیں کیا، اس لیے Tovu اسے پیش نہیں کر سکتا۔",
     "This server advertised a tool under a name Tovu will not register.": "اس سرور نے ایسے نام سے ٹول کا اعلان کیا جسے Tovu رجسٹر نہیں کرے گا۔",
     "This server advertised the same tool name twice, so Tovu kept only the first.": "اس سرور نے ایک ہی ٹول کا نام دو بار اعلان کیا، اس لیے Tovu نے صرف پہلا رکھا۔",
@@ -914,9 +855,6 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
     "An ID is required.": "ID প্রয়োজন।",
     "That server could not be saved.": "সার্ভারটি সংরক্ষণ করা যায়নি।",
     "Save this server before you can test it.": "পরীক্ষা করার আগে এই সার্ভারটি সংরক্ষণ করুন।",
-    // i18n sweep 2026-09-22: moved from the dead EXTERNAL_MCP_ADMISSION_COPY object (never
-    // referenced by the exported `t`) into the live dict, plus the subtitle gap found
-    // alongside it.
     "This server published no usable input schema for this tool, so Tovu cannot offer it.": "এই সার্ভার এই টুলের জন্য ব্যবহারযোগ্য ইনপুট স্কিমা প্রকাশ করেনি, তাই Tovu এটি প্রদান করতে পারে না।",
     "This server advertised a tool under a name Tovu will not register.": "এই সার্ভার এমন একটি নামে টুল ঘোষণা করেছে যা Tovu নিবন্ধন করবে না।",
     "This server advertised the same tool name twice, so Tovu kept only the first.": "এই সার্ভার একই টুলের নাম দুবার ঘোষণা করেছে, তাই Tovu শুধু প্রথমটি রেখেছে।",
@@ -956,4 +894,4 @@ const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
 
 /** Bound translator — call as `t(locale, "<exact English copy>")`. Falls back to `COMMON_I18N`,
  *  then to the English key itself, per `dictionary-translator.ts`. */
-export const t = createDictionaryTranslator(EXTERNAL_MCP_DICT);
+export const t = createDictionaryTranslator({ featureDictionary: EXTERNAL_MCP_DICT }, { commonDictionary: COMMON_I18N });

@@ -1,5 +1,5 @@
 import { ApiError, describeApiError, type AdminTaxonomyWithTerms, type AdminTerm } from "../../lib/api";
-import type { QueryKey } from "../../lib/fetch-query";
+import type { QueryKey } from "@jini-ai/ui/fetch-query";
 
 /**
  * @file Pure logic for the `taxonomy` feature — everything that computes a value rather than
@@ -20,8 +20,8 @@ import type { QueryKey } from "../../lib/fetch-query";
  * `KEYS` (fetch-query migration, 2026-08-12): one cache identity for the whole taxonomy list. Every
  * write on this screen — create taxonomy, create term, rename term, delete term, delete taxonomy,
  * merge-execute — used to call the same shared `load()` by hand; each now invalidates this single
- * key instead, per `lib/fetch-query/types.ts`'s `QueryKey` doc. Defined once here (not per hook file)
- * for the same reason `redirects/rules.ts`'s `KEYS` is: a hand-typed second `["taxonomies"]` in one
+ * key instead, per `@jini-ai/ui/fetch-query`'s `QueryKey` doc. Defined once here (not per hook file)
+ * for the same reason `Jini redirects/rules.ts`'s `KEYS` is: a hand-typed second `["taxonomies"]` in one
  * of the five hook files would silently stop matching this one the moment either is edited.
  */
 export const KEYS = {
@@ -55,7 +55,7 @@ export const TAXONOMY_RESOURCE = "taxonomy";
  * `useTaxonomy`'s page-level error banner, extracted out of that hook (`refactor/fetch-query`
  * complexity pass, 2026-08-12 — the hook's own precedence chain over three sources pushed it to
  * complexity 10 against a ceiling of 9). Precedence: an active delete's own hard failure outranks a
- * background list-refresh failure — same reasoning as `redirects/rules.ts`'s `visibleRedirectsError`
+ * background list-refresh failure — same reasoning as `Jini redirects/rules.ts`'s `visibleRedirectsError`
  * (a stale list-refresh error should not read as "your delete failed"). A *blocked* (409) delete is
  * excluded entirely — it already has its own scoped `deleteTermBlocked`/`deleteTaxonomyBlocked` slot
  * in `useTaxonomy`, so folding it into this banner too would show the identical refusal twice. A 404
@@ -172,7 +172,7 @@ export function describeDeleteBlocked(e: unknown): DeleteBlockedState | null {
 /**
  * Classifies a failed `api.trash` call for term/taxonomy deletes — the generic `POST /trash/items`
  * 404/409 contract every domain's delete now shares. Duplicated locally rather than imported, per
- * `forms/rules.ts`'s own `describeTrashError` header ("do not reach across features" — each feature
+ * `@jini-ai/admin/forms` rules.ts's own `describeTrashError` header ("do not reach across features" — each feature
  * owns its own copy of this classifier, same as `TaxonomyPort`/`FormsPort` each own their own port
  * interface for what is structurally the same route):
  *

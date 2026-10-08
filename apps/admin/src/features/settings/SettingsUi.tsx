@@ -132,7 +132,7 @@ import { describeSaveStatus, resolveByokConfig } from "./rules";
 import { useWiredSettingsLocaleSync } from "./hooks/use-settings-locale-sync.hooks";
 import { useSettingsUi, type SettingsUiController } from "./hooks/use-settings-ui.hooks";
 import { useSettingsActiveTabScroll } from "./hooks/use-settings-active-tab-scroll.hooks";
-import type { Translate } from "../../lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 import { useWiredAdminExecutionCredential } from "../../hooks/use-admin-execution-credential.hooks";
 import { AdminByokKeyFooter, AdminByokMigrationPrompt, AdminByokSettingsFooter } from "../../components/AdminByokKeyPanel";
 import { TOVU_ADMIN_VERSION } from "../../lib/app-version";
@@ -146,7 +146,7 @@ import { UserInterfaceSettingsPanel } from "./UserInterfaceSettingsPanel";
 import { memoryPanelDictionaries } from "./settings-memory-i18n";
 import { BrowserAgentSettingsPanel } from "../webmcp/BrowserAgentSettingsPanel";
 import { t as tApp } from "../../app-i18n";
-import { SETTINGS_DIALOG_DICTIONARIES as CMS_SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/cms/settings";
+import { SETTINGS_DIALOG_DICTIONARIES as CMS_SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/core/settings";
 
 /** Shared 16px icon frame, so a tab's glyph can be written as bare path data. */
 function TabIcon({ children }: { children: React.ReactNode }) {
@@ -310,24 +310,24 @@ export function SettingsUi(props: SettingsUiProps) {
    *
    * Third fallback tier added 2026-08-08: the 24 generic tab labels/subtitles (Instructions,
    * Notifications, Privacy, MCP server, Memory, Skills, Version, ...) moved out of `@jini-ai/ui`
-   * into `@jini-ai/cms/settings` — see project memory "Settings-dialog i18n relocation". Checking
+   * into `@jini-ai/core/settings` — see project memory "Settings-dialog i18n relocation". Checking
    * `CMS_SETTINGS_DIALOG_DICTIONARIES` last (not first) costs nothing: the two dictionaries are
    * disjoint key sets, so ordering only matters for the final raw-key fallback.
    */
   const settingsLocale = s.language.value as string;
   const t = (key: string): string =>
-    tSettings(settingsLocale, key) !== key ? tSettings(settingsLocale, key) :
+    tSettings({ locale: settingsLocale, key: key }) !== key ? tSettings({ locale: settingsLocale, key: key }) :
     SETTINGS_DIALOG_DICTIONARIES[settingsLocale]?.[key] ??
     SETTINGS_DIALOG_DICTIONARIES.en?.[key] ??
     CMS_SETTINGS_DIALOG_DICTIONARIES[settingsLocale]?.[key] ??
-    tApp(settingsLocale, key);
+    tApp({ locale: settingsLocale, key: key });
   /** The 4 "no backend yet" capability-status notes below — see `settings-capabilities-i18n.ts`'s
    *  header for why these live in Tovu's own dictionary rather than `SETTINGS_DIALOG_DICTIONARIES`. */
-  const tCap = (key: string): string => tCapability(settingsLocale, key);
+  const tCap = (key: string): string => tCapability({ locale: settingsLocale, key: key });
   /** The Execution tab's own copy — the two stored-key asks (`lib/stored-credential-endpoint.ts`'s copy
    *  constants), the `AdminByokKeyFooter` status lines, and the Local CLI scope label — none of which
    *  either settings-dialog dictionary behind `t` carries. See `settings-execution-i18n.ts`'s header. */
-  const tExecution = (key: string): string => tSettingsExecution(settingsLocale, key);
+  const tExecution = (key: string): string => tSettingsExecution({ locale: settingsLocale, key: key });
 
   const executionPolicy = useTovuSettingsExecution({ config: s.execution.value as ExecutionConfig | null, onChange: s.execution.onChange, locale: settingsLocale }, { usePolicy: props.useExecutionPolicy });
 
@@ -568,9 +568,9 @@ export function SettingsUi(props: SettingsUiProps) {
       // Owner, 2026-10-06: per-operator admin chrome preferences (`core.interface`). Copy lives in
       // `settings-interface-i18n.ts`; the panel's own doc covers what the one switch controls.
       id: "interface",
-      label: tInterfaceCopy(settingsLocale, "User Interface"),
-      title: tInterfaceCopy(settingsLocale, "User Interface"),
-      subtitle: tInterfaceCopy(settingsLocale, "How the admin's controls behave for you. Saved per operator."),
+      label: tInterfaceCopy({ locale: settingsLocale, key: "User Interface" }),
+      title: tInterfaceCopy({ locale: settingsLocale, key: "User Interface" }),
+      subtitle: tInterfaceCopy({ locale: settingsLocale, key: "How the admin's controls behave for you. Saved per operator." }),
       icon: (
         <TabIcon>
           <rect x="2.5" y="3" width="13" height="12" rx="2" />
@@ -677,9 +677,9 @@ export function SettingsUi(props: SettingsUiProps) {
       // page. Two dictionaries carrying the same three English source strings would drift the
       // moment either changed.
       id: "workspace",
-      label: tWorkspace(settingsLocale, "Workspace"),
-      title: tWorkspace(settingsLocale, "Workspace"),
-      subtitle: tWorkspace(settingsLocale, "This site's identity — its name, URL slug, and creation date."),
+      label: tWorkspace({ locale: settingsLocale, key: "Workspace" }),
+      title: tWorkspace({ locale: settingsLocale, key: "Workspace" }),
+      subtitle: tWorkspace({ locale: settingsLocale, key: "This site's identity — its name, URL slug, and creation date." }),
       // Unchanged from the retired nav row's own icon — a card/panel with a header bar, read as
       // "this install's own identity card", distinct from every `TabIcon` glyph around it.
       icon: (

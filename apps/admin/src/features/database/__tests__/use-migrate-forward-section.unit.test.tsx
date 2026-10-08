@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 import type { AdminSchemaState } from "@/lib/api";
 import { useMigrateForwardSection, useWiredMigrateForwardSection } from "../hooks/use-migrate-forward-section.hooks";
 import { createFakeMigrateForwardSectionPort } from "../hooks/migrate-forward-section-dependencies.hooks";
@@ -20,11 +20,11 @@ import { createFakeTimelineSectionPort } from "../hooks/timeline-section-depende
  * even if a caller invoked the later step directly.
  *
  * `fetch-query` migration (2026-08-12): every `renderHook` now needs `wrapper: FetchQueryProvider`
- * — see `redirects/__tests__/use-redirects.hooks.unit.test.tsx`'s identical wrapper for the pilot
+ * — see `Jini redirects/react/__tests__/use-redirects.hooks.unit.test.tsx`'s identical wrapper for the pilot
  * precedent. `startPlan`/`doConfirm` have no `invalidates` — they write nothing another screen reads
  * — but `doExecute` invalidates `KEYS.schemaState` and `KEYS.timelineAll` (see the hook file's own
  * header and the "re-reads what a migration changes" describe below), so `useFetchMutation` needs a
- * `QueryClient` in context both to call `useMutation` and to actually invalidate those keys.
+ * `FetchQueryCache` in context both to call `useMutation` and to actually invalidate those keys.
  *
  * The bodies below drive the WIRED hook (real `fetch`); the "injected port" describe block at the
  * bottom (2026-08-14, Orc-BASH pass) proves the pure hook is independently testable against
@@ -84,9 +84,8 @@ describe("startPlan", () => {
     act(() => {
       promise = result.current.startPlan();
     });
-    // `busy` reads TanStack's own `mutation.status`, whose observer notification is scheduled via
-    // a real `setTimeout(0)` (`notifyManager`'s `flush`) rather than a microtask — a bare read here
-    // races that timer. `waitFor` polls with real timers, so it reliably sees the flip.
+    // `busy` reads Jini's mutation status after React renders the state change. A bare read can
+    // race that render; `waitFor` polls until the busy indicator has observed it.
     await waitFor(() => expect(result.current.busy).toBe(true));
 
     await act(async () => {

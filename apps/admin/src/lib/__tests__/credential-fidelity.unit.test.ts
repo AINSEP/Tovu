@@ -1,13 +1,21 @@
 import { describe, expect, it } from 'vitest';
 import { ADMIN_LOCALES } from '../../../../website/src/contracts/core/admin-locales';
 import { CREDENTIAL_COPY } from '../../../../website/src/contracts/core/credential-copy';
-import { credentialDraftError, credentialText, formatCredentialHint } from '../credential-copy';
+import { credentialDraftError, credentialText, formatCredentialHint, storedCredentialHint } from '../credential-copy';
 import { buildSourceControlConnectionInput } from '../../features/source-control/rules';
 import { buildCredentialConnectionInput } from '../../features/deployment/rules';
 import { describeStoredCredentials, toAccessTokenWriteBody } from '../../features/settings/hooks/use-external-mcp.hooks';
 import type { AdminExternalMcpServer } from '../api';
 
 describe('credential byte preservation and safe admin hints', () => {
+  it('uses server hints for both BYOK placeholders and separates a literal dot from the ellipsis', () => {
+    const stored = { isSet: true, masked: '••••a9F2', tokenHint: { length: 18, last4: 'a9F2' } };
+    expect(storedCredentialHint({ stored })).toBe('…a9F2, 18 chars');
+    expect(storedCredentialHint({ stored }, { locale: 'fr' })).toBe('…a9F2, 18 caractères');
+    expect(storedCredentialHint({ stored, storedKeyIsForOtherEndpoint: true })).toBeUndefined();
+    expect(storedCredentialHint({ stored: { ...stored, masked: null, tokenHint: { length: 4, last4: null } } })).toBe('4 chars');
+    expect(formatCredentialHint({ hint: { length: 21, last4: '.com' } })).toBe('…\u202f.com, 21 chars');
+  });
   it('sends the original entered token to the store; blank and whitespace stay distinct', () => {
     for (const token of [' \nabc+/=._-~\n ', '', '   ']) {
       expect(buildSourceControlConnectionInput({ providerId: 'github', token, values: {} }, []).token === token).toBe(true);

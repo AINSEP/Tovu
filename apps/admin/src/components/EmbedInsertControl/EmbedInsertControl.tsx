@@ -193,7 +193,7 @@ function WidgetShortcutPicker(props: {
  */
 export function EmbedInsertControl({ useEmbed = useEmbedInsertControl, agentHandle: base, ...props }: EmbedInsertControlProps) {
   const locale = useAdminLocale();
-  const t = (key: string) => sharedComponentsT(locale, key);
+  const t = (key: string) => sharedComponentsT({ locale: locale, key: key });
   const { open, setOpen, widgetMode, setWidgetMode, mediaPicking, setMediaPicking, formControl, menuControl, insertWidget } =
     useEmbed(props.editor);
 

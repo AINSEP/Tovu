@@ -20,7 +20,6 @@ vi.mock("../../../lib/router", () => ({ navigate: vi.fn() }));
  * the WIRED hook (real `fetch`); the "injected port" describe block at the bottom (2026-08-14,
  * Orc-BASH pass) proves the pure hook is independently testable against `createFakeRecoveryPort`
  * with no `fetch` stub for the data itself.
- * use-restore-points-section.unit.test.tsx (features/database/__tests__/use-restore-points-section.unit.test.tsx) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 
 function jsonResponse(body: unknown, status = 200): Response {

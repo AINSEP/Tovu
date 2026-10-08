@@ -1,5 +1,5 @@
 import type { AdminNavGroup } from "@jini-ai/admin/core";
-import { hasPermission } from "./permissions";
+import { hasPermission } from "@jini-ai/ui/panel-kit";
 
 /**
  * @file Which admin sections the signed-in operator can use — the sidebar filter and the direct-URL
@@ -47,7 +47,7 @@ export function isPanelAccessible(input: {
   const { panel, permissions } = input;
   const required = panel.anyOfPermissions ?? [];
   if (permissions === undefined || required.length === 0) return true;
-  return required.some((permission) => hasPermission(permissions, permission));
+  return required.some((permission) => hasPermission({ permissions: permissions, permission: permission }));
 }
 
 /**

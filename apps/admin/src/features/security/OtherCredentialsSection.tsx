@@ -2,8 +2,8 @@ import { forwardRef, useRef } from "react";
 import { agentHandle } from "@jini-ai/agentic";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { formatTimestamp } from "../../lib/format-timestamp";
-import type { Translate } from "../../lib/dictionary-translator";
+import { formatTimestamp } from "@jini-ai/ui/panel-kit";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 import type { OtherCredentialStoreInfo } from "./rules";
 import { otherCredentialRemoveDialogBody, removeDialogTitle } from "./security-i18n";
 import type { OtherCredentialRowState, OtherCredentialsController } from "./hooks/use-other-credentials.hooks";
@@ -150,13 +150,15 @@ function OtherCredentialStaticRow({ row, controller }: { row: OtherCredentialRow
   const translate = controller.t;
   const dialogRef = useRef<HTMLDialogElement>(null);
   return (
-    <div className="access-tokens-row access-tokens-row-done">
+    <div className="access-tokens-row access-tokens-row-done access-tokens-row-static">
       <div className="access-tokens-row-summary">
-        <span className="access-tokens-row-marker access-tokens-row-marker-done" aria-hidden="true" />
-        <span className="access-tokens-row-name">{row.valueFact}</span>
+        <span className="access-tokens-row-marker access-tokens-row-marker-done" aria-hidden="true">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m5 12 4 4L19 6" /></svg>
+        </span>
+        <span className="access-tokens-row-fact">{row.valueFact}</span>
         {row.updatedAt ? (
           <span className="access-tokens-row-summary-meta">
-            {translate("saved")} {formatTimestamp(row.updatedAt)}
+            {translate("saved")} {formatTimestamp({ iso: row.updatedAt }, { timeZone: "local" })}
           </span>
         ) : null}
       </div>
@@ -211,7 +213,7 @@ function OtherCredentialReplaceableRow({ row, controller }: { row: OtherCredenti
               {translate("Access token")}
               {row.updatedAt ? (
                 <span className="access-tokens-row-summary-meta access-tokens-field-label-meta">
-                  {translate("saved")} {formatTimestamp(row.updatedAt)}
+                  {translate("saved")} {formatTimestamp({ iso: row.updatedAt }, { timeZone: "local" })}
                 </span>
               ) : null}
             </label>

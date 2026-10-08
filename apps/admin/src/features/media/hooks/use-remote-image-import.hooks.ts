@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { useFetchMutation } from "@/lib/fetch-query";
+import { useFetchMutation } from "@jini-ai/ui/fetch-query";
 import { describeApiError, KEYS } from "../rules";
 import { defaultMediaImportPort, type MediaImportPort } from "./media-import-dependencies.hooks";
 
@@ -13,14 +13,15 @@ export function useRemoteImageImport(
   const [alt, setAlt] = useState("");
   const inFlight = useRef(false);
   const mutation = useFetchMutation({
-    run: (input: { url: string; alt?: string }) => port.importFromUrl({ url: input.url }, { alt: input.alt }),
+    run: ({ input }: { input: { url: string; alt?: string } }) => port.importFromUrl({ url: input.url }, { alt: input.alt }),
+  }, {
     invalidates: [KEYS.list],
   });
   async function submit() {
     if (inFlight.current || !url.trim()) return;
     inFlight.current = true;
     try {
-      await mutation.mutate({ url: url.trim(), alt: alt.trim() || undefined });
+      await mutation.mutate({ input: { url: url.trim(), alt: alt.trim() || undefined } });
       setUrl("");
       setAlt("");
     } catch {

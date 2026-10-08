@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError, WORKSPACE_ID } from "@/lib/api";
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 import { createFakeContentAnalysisPort } from "../hooks/content-analysis-dependencies.hooks";
 import { useContentAnalysis, useWiredContentAnalysis, type ContentAnalysisTarget } from "../hooks/use-content-analysis.hooks";
 import type { ContentAnalysisPort } from "../hooks/content-analysis-port.hooks";

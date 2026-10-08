@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useWiredSourceConfigAddForm, type SourceConfigDependencies, type SourceConfigItem } from "@jini-ai/ui";
 
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import type { Translate } from "@/lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 
 import { grantWriteFieldValue, type SavedConnectionIntent } from "./external-mcp-admissions-rules";
 import { t as tExternalMcp } from "./external-mcp-i18n";
@@ -57,7 +57,7 @@ export function useSavedAllowedToolNamesById(sources: readonly SourceConfigItem[
  *  translations. */
 export function useExternalMcpDriftCopy(): Translate {
   const locale = useAdminLocale();
-  return useCallback((key: string) => tExternalMcp(locale, key), [locale]);
+  return useCallback((key: string) => tExternalMcp({ locale: locale, key: key }), [locale]);
 }
 
 /**

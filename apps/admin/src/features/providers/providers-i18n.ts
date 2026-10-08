@@ -1,3 +1,4 @@
+import { COMMON_I18N } from "../../lib/i18n-common";
 /**
  * @file Translations for the Integrations page (`features/providers/Providers.tsx`, route
  * `/admin/providers`) — this feature's own dictionary rather than the shared `lib/admin-nav-i18n.ts`
@@ -18,7 +19,7 @@
  * "Webhooks" tab LABELS both read from `features/integrations/integrations-i18n.tsx` instead —
  * carried over unchanged from `DeveloperApi.tsx`, not duplicated here.
  */
-import { createDictionaryTranslator } from "../../lib/dictionary-translator";
+import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 export const PROVIDERS_DICT: Record<string, Record<string, string>> = {
   es: {
@@ -361,4 +362,4 @@ export const PROVIDERS_DICT: Record<string, Record<string, string>> = {
 
 /** Same two-step fallback every other `t()` in this app uses: translated value, else the English
  *  source string itself — never a raw dictionary-miss placeholder. */
-export const t = createDictionaryTranslator(PROVIDERS_DICT);
+export const t = createDictionaryTranslator({ featureDictionary: PROVIDERS_DICT }, { commonDictionary: COMMON_I18N });

@@ -5,7 +5,7 @@ import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as translateObservability } from "../observability-i18n";
 import { defaultObservabilityStatusPort } from "./observability-status-dependencies.hooks";
 import type { ObservabilityStatusPort } from "./observability-status-port.hooks";
-import type { Translate } from "@/lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 
 /**
  * @file State for the Observability screen's Overview tab, so `Observability.tsx` is only markup —
@@ -48,7 +48,7 @@ export function useObservabilityStatus({ port, locale, t }: ObservabilityStatusD
     void port
       .getObservabilityStatus()
       .then((result) => setStatus(result))
-      .catch((e) => setError(describeApiError(e, translateObservability(locale, "failed to load observability status"))));
+      .catch((e) => setError(describeApiError(e, translateObservability({ locale: locale, key: "failed to load observability status" }))));
   }, []);
 
   return { status, error, t, locale };
@@ -64,6 +64,6 @@ export function useObservabilityStatus({ port, locale, t }: ObservabilityStatusD
  */
 export function useWiredObservabilityStatus(): ObservabilityStatusController {
   const locale = useAdminLocale();
-  const t = (key: string): string => translateObservability(locale, key);
+  const t = (key: string): string => translateObservability({ locale: locale, key: key });
   return useObservabilityStatus({ port: defaultObservabilityStatusPort, locale, t });
 }

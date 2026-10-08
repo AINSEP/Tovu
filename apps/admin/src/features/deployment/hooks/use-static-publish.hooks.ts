@@ -8,7 +8,7 @@ import {
   type AdminStaticPublishTargetId,
 } from "@/lib/api";
 import { localizePublishTargets } from "@/lib/descriptor-i18n";
-import { useFetchQuery } from "@/lib/fetch-query";
+import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import {
   t as defaultT,
@@ -17,7 +17,7 @@ import {
   publishPreviewErrorMessage,
   publishTriggerErrorMessage,
 } from "../deployment-i18n";
-import type { Translate } from "@/lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 import {
   buildStaticPublishConfig,
   publishTargetById,
@@ -364,6 +364,6 @@ export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: 
  */
 export function useWiredStaticPublish(): StaticPublishController {
   const locale = useAdminLocale();
-  const t = (key: string): string => defaultT(locale, key);
+  const t = (key: string): string => defaultT({ locale: locale, key: key });
   return useStaticPublish(defaultStaticPublishPort, t, locale);
 }

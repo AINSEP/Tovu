@@ -5,7 +5,7 @@ import { DEFAULT_ALLOWED_MIME_TYPES } from "@jini-ai/cms/media";
 
 import { Media } from "../Media";
 import { api } from "@/lib/api";
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 
 /**
  * @file `Media` — MSG-05's preview-grid rewrite. Pins the two behaviors the dispatch called out as

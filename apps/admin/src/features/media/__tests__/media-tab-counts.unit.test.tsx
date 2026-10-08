@@ -7,7 +7,7 @@ import { resolveMediaTabs } from "../Media.hooks";
 import { mediaContentTabCounts } from "../rules";
 import { MEDIA_PROVIDER_CATALOG } from "../media-provider-catalog";
 import type { AdminMedia } from "@/lib/api";
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 
 /**
  * @file Owner ask (2026-09-26): a count next to each Media tab — "All 42 · Images 30 · Videos 12 ·

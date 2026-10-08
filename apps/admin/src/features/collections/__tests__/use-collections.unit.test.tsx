@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError, type AdminContentType } from "@/lib/api";
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 import { createFakeCollectionsPort } from "../hooks/collections-dependencies.hooks";
 import { useCollections, useWiredCollections } from "../hooks/use-collections.hooks";
 
@@ -16,9 +16,8 @@ import { useCollections, useWiredCollections } from "../hooks/use-collections.ho
  * coverage added alongside that conversion, proving the pure hook is independently testable
  * against `createFakeCollectionsPort` with no `fetch` stub at all.
  *
- * `wrapper` (2026-08-12, `lib/fetch-query` migration): the list read and `runLifecycle` now go
- * through `useFetchQuery`/`useFetchMutation`, which throw without a `QueryClientProvider` ancestor.
- * use-restore-points-section.unit.test.tsx (features/database/__tests__/use-restore-points-section.unit.test.tsx) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
+ * `wrapper` (2026-08-12, `@jini-ai/ui/fetch-query` migration): the list read and `runLifecycle` now go
+ * through `useFetchQuery`/`useFetchMutation`, which throw without a `FetchQueryProvider` ancestor.
  */
 
 function wrapper({ children }: { children: React.ReactNode }) {
@@ -132,10 +131,10 @@ describe("runLifecycle", () => {
     const call = fetchMock.mock.calls.at(-2)!;
     expect(String(call[0])).toContain("/content-types/recipe/lifecycle");
     expect(JSON.parse(String((call[1] as RequestInit).body))).toEqual({ op: "deprecate", expectedVersion: 1 });
-    // `waitFor`, not a bare synchronous read (2026-08-12, `lib/fetch-query` migration):
+    // `waitFor`, not a bare synchronous read (2026-08-12, `@jini-ai/ui/fetch-query` migration):
     // `runLifecycle`'s own promise resolves once the WRITE settles, but the reload it now triggers
     // via `invalidates: [KEYS.list]` is a separate, un-awaited background refetch — see
-    // `adapter.tanstack.tsx`'s own comment on why invalidation is fire-and-forget.
+    // `@jini-ai/ui/fetch-query`'s own comment on why invalidation is fire-and-forget.
     await waitFor(() => expect(result.current.types).toEqual([{ ...TYPE, status: "deprecated" }]));
     expect(result.current.actionError).toBeNull();
   });
@@ -149,7 +148,7 @@ describe("runLifecycle", () => {
       await result.current.runLifecycle(TYPE, "tombstone");
     });
 
-    // `waitFor` (2026-08-12, `lib/fetch-query` migration): `actionError` is now derived from
+    // `waitFor` (2026-08-12, `@jini-ai/ui/fetch-query` migration): `actionError` is now derived from
     // `useFetchMutation`'s own `.error`, which can land one render after `runLifecycle()` itself
     // resolves — see `use-merge-term-section.unit.test.tsx`'s identical note in `taxonomy`.
     await waitFor(() => expect(result.current.actionError).toBe('Failed to tombstone "Recipe"'));

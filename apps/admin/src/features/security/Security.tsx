@@ -2,8 +2,8 @@ import { agentHandle } from "@jini-ai/agentic";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { navigate } from "../../lib/router";
-import { resolveActiveTabId } from "../../lib/resolve-active-tab-id";
-import { TabBar, type TabBarTab } from "../../components/TabBar";
+import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
+import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
 import { t } from "./security-i18n";
 import { AccessTokensTab } from "./AccessTokensTab";
 import { SiteKeyTab } from "./SiteKeyTab";
@@ -106,7 +106,7 @@ const ACCESS_TOKENS_ONLY_TAB_IDS: readonly SecurityTabId[] = ["access-tokens"];
  *  typo would, and they land on Access Tokens instead of an empty panel. */
 function resolveSecurityTabId(tabId: string | null | undefined, canManageSiteKey: boolean): SecurityTabId {
   const validIds: readonly SecurityTabId[] = canManageSiteKey ? SECURITY_TAB_IDS : ACCESS_TOKENS_ONLY_TAB_IDS;
-  return resolveActiveTabId(tabId, validIds, "access-tokens");
+  return resolveActiveTabId({ tabId: tabId, validIds: validIds, defaultId: "access-tokens" });
 }
 
 export interface SecurityProps {
@@ -137,7 +137,7 @@ export function Security(props: SecurityProps) {
   const tabs: TabBarTab[] = [
     {
       id: "access-tokens",
-      label: t(locale, "Access Tokens"),
+      label: t({ locale: locale, key: "Access Tokens" }),
       icon: <AccessTokensIcon size={16} />,
       handle: "security-tab-access-tokens",
       handleLabel: "Switch to the Access Tokens tab — every access token and other saved credential this install holds, in one place",
@@ -146,10 +146,10 @@ export function Security(props: SecurityProps) {
       ? [
           {
             id: "site-key",
-            label: t(locale, "Site key"),
+            label: t({ locale: locale, key: "Site key" }),
             icon: <SiteKeyIcon size={16} />,
             handle: "security-tab-site-key",
-            handleLabel: t(locale, "Switch to the site key tab"),
+            handleLabel: t({ locale: locale, key: "Switch to the site key tab" }),
           } satisfies TabBarTab,
         ]
       : []),
@@ -169,18 +169,16 @@ export function Security(props: SecurityProps) {
         })}
       >
         <div className="page-header-text">
-          <p className="page-kicker">{t(locale, "Operations")}</p>
-          <h1 className="page-title">{t(locale, "Secrets")}</h1>
+          <p className="page-kicker">{t({ locale: locale, key: "Operations" })}</p>
+          <h1 className="page-title">{t({ locale: locale, key: "Secrets" })}</h1>
           <p className="page-description">
-            {t(
-              locale,
-              "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it."
+            {t({ locale: locale, key: "One place to see every access token this install holds, and create, rotate, or remove one without hunting across the screens that created it." }
             )}
           </p>
         </div>
       </div>
       <TabBar
-        ariaLabel={t(locale, "Secrets")}
+        ariaLabel={t({ locale: locale, key: "Secrets" })}
         tabs={tabs}
         activeId={activeTabId}
         onChange={handleTabChange}

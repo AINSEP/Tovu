@@ -1,4 +1,4 @@
-import { WORKSPACE_ID } from "../../lib/api";
+import { authenticatedAdminRequest, WORKSPACE_ID } from "../../lib/api";
 import type { ComposerCapabilitySource, TovuComposerCapability } from "./composer-capabilities";
 
 /** Installed standalone skills are read fresh from the site's workspace skills directory.
@@ -17,7 +17,7 @@ interface InstalledSkillsResponse {
   readonly skills?: unknown;
 }
 
-const INSTALLED_SKILLS_PATH = `/api/admin/v1/workspaces/${WORKSPACE_ID}/skills`;
+const INSTALLED_SKILLS_PATH = `/workspaces/${WORKSPACE_ID}/skills`;
 const INSTALLED_SKILLS_GROUP_ID = "installed-skills";
 const INSTALLED_SKILLS_GROUP_LABEL = "Installed Skills";
 
@@ -77,10 +77,7 @@ export function createInstalledSkillsComposerCapabilitySource(): ComposerCapabil
     id: "installed-skills",
     list: async () => {
       try {
-        const response = await fetch(INSTALLED_SKILLS_PATH, { credentials: "same-origin" });
-        if (!response.ok) return [];
-
-        const body = (await response.json()) as InstalledSkillsResponse;
+        const body = await authenticatedAdminRequest<InstalledSkillsResponse>({ path: INSTALLED_SKILLS_PATH, method: "GET" });
         if (!Array.isArray(body.skills)) return [];
 
         return body.skills.filter(isInstalledSkillSummary).filter(s => s.enabled !== false).map(toCapability);

@@ -2,9 +2,9 @@ import { Fragment, type FormEvent } from "react";
 import { DataTable, RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
 import type { AdminPolicy, AdminPolicyPermission, AdminRole } from "../../lib/api";
-import { buildAgentListHandles } from "../../lib/agent-list-handles";
+import { buildAgentListHandles } from "@jini-ai/agentic";
 
-import { TabBar } from "../../components/TabBar";
+import { TabBar } from "@jini-ai/ui/tab-strip";
 import { roleMenuItems, policyMenuItems } from "./rules";
 import { useWiredRoles, type PendingPermissionRemove } from "./hooks/use-roles.hooks";
 import { goToRolesTab, resolveRolesTabId, resolveRolesTabs, type RolesTabId } from "./Roles.hooks";
@@ -44,7 +44,7 @@ import { rolesDescriptionParts, roleDeleteBodyParts, policyDeleteBodyParts, perm
  *
  * ## Tabs (2026-09-06)
  *
- * The two sections are now two `?tab=` tabs on the shared `components/TabBar`, the same primitive
+ * The two sections are now two `?tab=` tabs on the shared `@jini-ai/ui/tab-strip`, the same primitive
  * `Deployment.tsx`, `Sites.tsx`, `Themes.tsx`, `Security.tsx`, `SourceControl.tsx` and
  * `Database.tsx` already use — the tab shell was ALREADY extracted, so this screen reuses it
  * rather than becoming another implementation. Why two tabs, and the case AGAINST them that was
@@ -125,9 +125,7 @@ export function RolesSection({ roles, create, row, t, locale }: RolesSectionProp
   // reasoning as every other list on this workstream. Built-in rows render no `RowMenu` at all (see
   // the "actions" cell's own guard below), but a handle is still computed for every role so index
   // alignment with `roles` never drifts.
-  const roleMenuHandles = buildAgentListHandles(
-    "roles-row",
-    roles.map((role) => role.id),
+  const roleMenuHandles = buildAgentListHandles({ prefix: "roles-row", ids: roles.map((role) => role.id) }
   );
   return (
     <>
@@ -354,9 +352,7 @@ function PolicyPermissionList({ policyId, permission, t }: PolicyPermissionListP
   // Only the currently-open policy's own permission list is ever mounted at once, so a handle
   // needs to be unique within THIS list, not across every policy — same reasoning `Roles`' own
   // per-policy `agentBase` already applies one level up.
-  const removeHandles = buildAgentListHandles(
-    `policy-permission-remove-${policyId}`,
-    permission.rows.map((row) => row.id),
+  const removeHandles = buildAgentListHandles({ prefix: `policy-permission-remove-${policyId}`, ids: permission.rows.map((row) => row.id) }
   );
   return (
     <ul className="permission-list">
@@ -385,7 +381,7 @@ function PolicyPermissionList({ policyId, permission, t }: PolicyPermissionListP
 function PolicyPermissionForm({ policyId, savingId, permission, t }: PolicyPermissionFormProps) {
   // Only the currently-open policy's own form is ever mounted at once — same reasoning
   // `PolicyPermissionList`'s own `removeHandles` comment gives, one level up.
-  const formHandleBase = buildAgentListHandles("policy-permission-form", [policyId])[0]!;
+  const formHandleBase = buildAgentListHandles({ prefix: "policy-permission-form", ids: [policyId] })[0]!;
   return (
     <tr>
       <td colSpan={4}>
@@ -496,9 +492,7 @@ export interface PoliciesSectionProps {
  *  section no longer has to restate the row's entire surface in its own type just to relay it. */
 export function PoliciesSection({ policies, create, row, permission, t, locale }: PoliciesSectionProps) {
   // Policy ids are stable and unique, same reasoning as `RolesSection`'s `roleMenuHandles` above.
-  const policyMenuBases = buildAgentListHandles(
-    "policies-row",
-    policies.map((policy) => policy.id),
+  const policyMenuBases = buildAgentListHandles({ prefix: "policies-row", ids: policies.map((policy) => policy.id) }
   );
   return (
     <>

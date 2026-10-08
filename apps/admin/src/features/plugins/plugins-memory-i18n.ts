@@ -1,4 +1,5 @@
-import { createDictionaryTranslator } from "@/lib/dictionary-translator";
+import { COMMON_I18N } from "../../lib/i18n-common";
+import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 /** Plugin memory copy in every supported admin locale. */
 export const PLUGIN_MEMORY_DICT: Record<string, Record<string, string>> = {
@@ -423,4 +424,4 @@ export const PLUGIN_MEMORY_DICT: Record<string, Record<string, string>> = {
     "Note": "নোট"
   }
 };
-export const t = createDictionaryTranslator(PLUGIN_MEMORY_DICT);
+export const t = createDictionaryTranslator({ featureDictionary: PLUGIN_MEMORY_DICT }, { commonDictionary: COMMON_I18N });

@@ -211,7 +211,7 @@ describe("VisitorCredentialKeyFooter", () => {
     render(
       <VisitorCredentialKeyFooter
         {...fakeController({ discovery: { status: "error", message } })}
-        t={(key) => translateAiAssistant("de", key)}
+        t={(key) => translateAiAssistant({ locale: "de", key: key })}
       />,
     );
     expect(

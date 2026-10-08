@@ -1,7 +1,7 @@
 import { agentHandle } from "@jini-ai/agentic";
 
 import { usePluginRemoveConfirm } from "./hooks/use-plugin-remove-confirm.hooks";
-import type { Translate } from "@/lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 
 /** @file Confirmation gate before a site plugin moves to the 60-day Trash. */
 

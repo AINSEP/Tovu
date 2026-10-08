@@ -11,8 +11,8 @@ import type { TaxonomyPort } from "./taxonomy-port.hooks";
  * doc comment.
  */
 
-/** The live implementation, as a module-level singleton — matches `redirects-dependencies.hooks.ts`'s
- *  `defaultRedirectsPort`. */
+/** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s
+ *  `redirectsHostPorts`. */
 export const defaultTaxonomyPort: TaxonomyPort = {
   listTaxonomies: () => api.listTaxonomies(),
   trashTerm: ({ id }) => api.trash({ type: "term", id }),

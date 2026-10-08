@@ -1,7 +1,7 @@
 import { agentHandle } from "@jini-ai/agentic";
 
 import type { AdminMenuItem, AdminMenuItemAttrs } from "../../lib/api";
-import type { Translate } from "../../lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 import { useWiredMenuEditor } from "./hooks/use-menu-editor.hooks";
 import { useMenuItemRemove } from "./MenuEditor.hooks";
 import { MenuPageLinkFields } from "./MenuPageLinkFields";

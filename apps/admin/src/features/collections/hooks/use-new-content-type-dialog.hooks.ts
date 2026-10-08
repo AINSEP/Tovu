@@ -1,7 +1,7 @@
-import { useRef, useState, type RefObject } from "react";
+import { useRef, useState } from "react";
 
 import { describeApiError } from "@/lib/api";
-import { useFetchMutation } from "@/lib/fetch-query";
+import { useFetchMutation } from "@jini-ai/ui/fetch-query";
 import {
   addDraftField,
   emptyField,
@@ -12,9 +12,7 @@ import {
   validateNewContentTypeDraft,
   type DraftField,
 } from "../rules";
-import { useEscapeToCancel } from "./use-escape-to-cancel.hooks";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { useFocusTrap } from "@/hooks/use-focus-trap.hooks";
 import { t } from "../collections-i18n";
 import { defaultNewContentTypeDialogPort } from "./new-content-type-dialog-dependencies.hooks";
 import type { NewContentTypeDialogPort } from "./new-content-type-dialog-port.hooks";
@@ -36,7 +34,7 @@ import type { NewContentTypeDialogPort } from "./new-content-type-dialog-port.ho
  * `createFakeNewContentTypeDialogPort` instead of stubbing global `fetch`.
  * `useWiredNewContentTypeDialog` below is the pair `Collections.tsx` actually mounts.
  *
- * `lib/fetch-query` migration (2026-08-12): `createContentType` is a `useFetchMutation` that
+ * `@jini-ai/ui/fetch-query` migration (2026-08-12): `createContentType` is a `useFetchMutation` that
  * `invalidates: [KEYS.list]` instead of `props.onCreated`'s caller (`Collections.tsx`) reloading by
  * hand.
  */
@@ -57,8 +55,6 @@ export interface NewContentTypeDialogController {
    * `createContentType` is in flight, so those dismiss paths can't unmount the dialog out from
    * under its own pending write (H4). */
   cancel: () => void;
-  /** Attach to the dialog's own `role="dialog"` root so `useFocusTrap` (M3) can find it. */
-  dialogRef: RefObject<HTMLFormElement | null>;
 }
 
 export interface NewContentTypeDialogDependencies {
@@ -79,19 +75,16 @@ export function useNewContentTypeDialog(
   const [fields, setFields] = useState<DraftField[]>([emptyField()]);
   const [validationError, setValidationError] = useState<string | null>(null);
   const inFlightRef = useRef(false);
-  const dialogRef = useRef<HTMLFormElement | null>(null);
 
   function cancel() {
     if (inFlightRef.current) return;
     props.onCancel();
   }
 
-  useEscapeToCancel(cancel);
-  useFocusTrap(dialogRef);
-
   const createMutation = useFetchMutation({
-    run: (input: { key: string; label: string; fields: ReturnType<typeof stripDraftFieldRowIds> }) =>
+    run: ({ input }: { input: { key: string; label: string; fields: ReturnType<typeof stripDraftFieldRowIds> } }) =>
       port.createContentType(input),
+  }, {
     invalidates: [KEYS.list],
   });
 
@@ -119,11 +112,11 @@ export function useNewContentTypeDialog(
 
     inFlightRef.current = true;
     try {
-      await createMutation.mutate({
+      await createMutation.mutate({ input: {
         key: key.trim(),
         label: label.trim(),
         fields: stripDraftFieldRowIds(fields),
-      });
+      } });
       props.onCreated();
     } catch {
       // already surfaced through createMutation.error -> error below
@@ -133,9 +126,9 @@ export function useNewContentTypeDialog(
   }
 
   const saving = createMutation.status === "pending";
-  const error = validationError ?? (createMutation.error ? describeApiError(createMutation.error, t(locale, "Failed to create content type")) : null);
+  const error = validationError ?? (createMutation.error ? describeApiError(createMutation.error, t({ locale: locale, key: "Failed to create content type" })) : null);
 
-  return { label, setLabel, key, setKey, fields, updateField, removeField, addField, error, saving, submit, cancel, dialogRef };
+  return { label, setLabel, key, setKey, fields, updateField, removeField, addField, error, saving, submit, cancel };
 }
 
 /**

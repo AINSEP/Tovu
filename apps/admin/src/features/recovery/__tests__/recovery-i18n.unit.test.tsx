@@ -5,9 +5,9 @@ import { baselineUnavailableMessage, discardCountLine, restoreDoneMessage, resto
 // Author Checklist F1.1/F4.3/F6.2: literal translated sentences, distinct IDs/counts,
 // actual rendered nodes, no translator mocks; reject forcing all helpers to English.
 it("binds the recovery dictionary and keeps untranslated keys intact", () => {
-  expect(t("es", "Restore points")).toBe("Puntos de restauración");
-  expect(t("unlisted-locale", "Restore points")).toBe("Restore points");
-  expect(t("es", "unknown future recovery label")).toBe("unknown future recovery label");
+  expect(t({ locale: "es", key: "Restore points" })).toBe("Puntos de restauración");
+  expect(t({ locale: "unlisted-locale", key: "Restore points" })).toBe("Restore points");
+  expect(t({ locale: "es", key: "unknown future recovery label" })).toBe("unknown future recovery label");
 });
 
 it.each([

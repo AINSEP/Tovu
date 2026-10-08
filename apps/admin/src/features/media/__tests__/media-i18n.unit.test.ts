@@ -93,6 +93,6 @@ describe("MEDIA_DICT: cross-locale key parity", () => {
 describe("MEDIA_DICT: t() falls back to COMMON_I18N", () => {
   it("translates 'Kind' in German even though MEDIA_DICT.de never carries it", () => {
     expect(MEDIA_DICT.de.Kind).toBeUndefined();
-    expect(t("de", "Kind")).toBe(COMMON_I18N.de.Kind);
+    expect(t({ locale: "de", key: "Kind" })).toBe(COMMON_I18N.de.Kind);
   });
 });

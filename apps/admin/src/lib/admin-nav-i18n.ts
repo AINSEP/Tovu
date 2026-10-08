@@ -1,3 +1,4 @@
+import { COMMON_I18N } from "./i18n-common";
 /**
  * @file Spanish translation for the main admin sidebar — group headings, item labels, and the
  * "Soon" badge — the gap the user flagged twice: `SettingsUi.tsx`'s `I18nProvider` only ever
@@ -16,7 +17,7 @@
  * translation surface, not covered here.
  */
 import type { AdminNavGroup } from "@jini-ai/admin/core";
-import { createDictionaryTranslator } from "./dictionary-translator";
+import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 const ADMIN_NAV_DICT: Record<string, Record<string, string>> = {
   es: {
@@ -1301,7 +1302,7 @@ const ADMIN_NAV_DICT: Record<string, Record<string, string>> = {
 
 /** Same two-step fallback every other `t()` in this app uses: translated value, else the English
  *  source string itself — never a raw dictionary-miss placeholder. */
-export const translateAdminNavLabel = createDictionaryTranslator(ADMIN_NAV_DICT);
+export const translateAdminNavLabel = createDictionaryTranslator({ featureDictionary: ADMIN_NAV_DICT }, { commonDictionary: COMMON_I18N });
 
 /** Applies `translateAdminNavLabel` to every group heading and item label in `getNav()`'s output.
  *  Pure — returns new arrays/objects, doesn't mutate the (possibly cached) input.
@@ -1312,10 +1313,10 @@ export const translateAdminNavLabel = createDictionaryTranslator(ADMIN_NAV_DICT)
 export function translateAdminNavGroups(locale: string, groups: readonly AdminNavGroup[]): AdminNavGroup[] {
   return groups.map((group) => ({
     ...group,
-    label: group.label ? translateAdminNavLabel(locale, group.label) : group.label,
+    label: group.label ? translateAdminNavLabel({ locale: locale, key: group.label }) : group.label,
     items: group.items.map((item) => ({
       ...item,
-      label: translateAdminNavLabel(locale, item.label),
+      label: translateAdminNavLabel({ locale: locale, key: item.label }),
     })),
   }));
 }

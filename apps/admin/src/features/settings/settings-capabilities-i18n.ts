@@ -1,3 +1,4 @@
+import { COMMON_I18N } from "../../lib/i18n-common";
 /**
  * @file Settings screen "no backend yet" capability-status notes (the disabled-panel reference
  * text for Privacy/telemetry, Media providers, Memory, External MCP, and Skills,
@@ -7,7 +8,7 @@
  * project memory "Settings-dialog i18n relocation" for the full decision record.
  */
 
-import { createDictionaryTranslator } from "../../lib/dictionary-translator";
+import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 const SETTINGS_CAPABILITIES_DICT: Record<string, Record<string, string>> = {
   es: {
@@ -201,4 +202,4 @@ const SETTINGS_CAPABILITIES_DICT: Record<string, Record<string, string>> = {
   },
 };
 
-export const t = createDictionaryTranslator(SETTINGS_CAPABILITIES_DICT);
+export const t = createDictionaryTranslator({ featureDictionary: SETTINGS_CAPABILITIES_DICT }, { commonDictionary: COMMON_I18N });

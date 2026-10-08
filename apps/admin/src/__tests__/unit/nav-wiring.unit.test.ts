@@ -153,7 +153,7 @@ describe("Operations nav section — observability", () => {
 });
 
 describe("Commerce nav section", () => {
-  it("exists with exactly Payments, Orders, Products, Subscriptions, Billing in that order", () => {
+  it("keeps exactly Orders, Products, Subscriptions, Billing in that order while Payments is off", () => {
     const commerce = getNav().find((group) => group.label === "Commerce");
     expect(commerce).toBeDefined();
 
@@ -163,7 +163,7 @@ describe("Commerce nav section", () => {
     // "no longer lists Payments under People" case below exists to guard. Weakening it to
     // accommodate one new row would retire that guarantee for every row.
     const ids = commerce!.items.map((item) => item.id);
-    expect(ids).toEqual(["payments", "orders", "products", "subscriptions", "billing"]);
+    expect(ids).toEqual(["orders", "products", "subscriptions", "billing"]);
   });
 
   it("no longer lists Payments under People", () => {

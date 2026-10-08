@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { agentHandle } from "@jini-ai/agentic";
 import type { AdminDeploymentEnvVarStatus, AdminDeploymentOverview } from "../../lib/api";
-import type { Translate } from "../../lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 import {
   daemonStatusLabelKey,
   deploymentEnvVarNoteKey,

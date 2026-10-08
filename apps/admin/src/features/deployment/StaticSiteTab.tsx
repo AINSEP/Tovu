@@ -4,9 +4,9 @@ import { agentHandle } from "@jini-ai/agentic";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { navigate } from "../../lib/router";
-import { TabBar } from "../../components/TabBar";
-import { formatTimestamp } from "../../lib/format-timestamp";
-import { interpolate, splitOnPlaceholders } from "../../lib/template-i18n";
+import { TabBar } from "@jini-ai/ui/tab-strip";
+import { formatTimestamp } from "@jini-ai/ui/panel-kit";
+import { interpolate, splitOnPlaceholders } from "@jini-ai/ui/panel-kit";
 import type {
   AdminExportRunSnapshot,
   AdminPublishExecutionMode,
@@ -15,7 +15,7 @@ import type {
   AdminStaticPublishPreview,
   AdminStaticPublishTargetId,
 } from "../../lib/api";
-import type { Translate } from "../../lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 import { t } from "./deployment-i18n";
 import {
   STATIC_SITE_CAPABILITIES,
@@ -457,7 +457,7 @@ function resolvePublishCredentialsHook(
 
 export function StaticSiteTab(props: StaticSiteTabProps) {
   const locale = useAdminLocale();
-  const translate = (key: string): string => t(locale, key);
+  const translate = (key: string): string => t({ locale: locale, key: key });
 
   const useStaticExportHook = resolveStaticExportHook(props.useStaticExportHook);
   const useStaticPublishHook = resolveStaticPublishHook(props.useStaticPublishHook);
@@ -475,23 +475,23 @@ export function StaticSiteTab(props: StaticSiteTabProps) {
             <span className="deployment-path-icon">
               <StaticSiteIcon />
             </span>
-            <h2 className="card-title">{t(locale, "What a static export gives you")}</h2>
+            <h2 className="card-title">{t({ locale: locale, key: "What a static export gives you" })}</h2>
           </div>
           <div className="card-head-actions">
-            <span className="status status-neutral">{t(locale, "Available from a terminal")}</span>
+            <span className="status status-neutral">{t({ locale: locale, key: "Available from a terminal" })}</span>
           </div>
         </div>
         <div className="deployment-card-body">
           <p className="card-lead">
-            {t(locale, "A fast, read-only copy of this site's published pages — no server behind it.")}
+            {t({ locale: locale, key: "A fast, read-only copy of this site's published pages — no server behind it." })}
           </p>
           <div className="deployment-split">
             <div>
-              <span className="deployment-fact-label">{t(locale, "What survives the export")}</span>
+              <span className="deployment-fact-label">{t({ locale: locale, key: "What survives the export" })}</span>
               <CapabilityList rows={STATIC_SITE_CAPABILITIES} t={translate} />
             </div>
             <div>
-              <span className="deployment-fact-label">{t(locale, "Where it runs")}</span>
+              <span className="deployment-fact-label">{t({ locale: locale, key: "Where it runs" })}</span>
               <ul className="deployment-chips">
                 {(publishController.targets ?? []).map((target) => (
                   <li key={target.id} translate="no">
@@ -500,7 +500,7 @@ export function StaticSiteTab(props: StaticSiteTabProps) {
                 ))}
               </ul>
               <p className="deployment-action-reason">
-                {t(locale, "The output is a plain folder of files — any static host will serve it.")}
+                {t({ locale: locale, key: "The output is a plain folder of files — any static host will serve it." })}
               </p>
             </div>
           </div>
@@ -930,7 +930,7 @@ function CredentialStepTodo({
 
 /**
  * Step 1, connected — collapsed to one settled summary line behind a native `<details>` (same
- * disclosure affordance this admin already uses elsewhere — `Redirects.tsx`'s bulk-import panel,
+ * disclosure affordance this admin already uses elsewhere — `Jini redirects/react/pages/RedirectsPage.tsx`'s bulk-import panel,
  * `AiAssistant.tsx`'s roadmap accordion — rather than a second, JS-driven one), CLOSED by default:
  * the step is done, so it gets out of the way, the mirror image of {@link CredentialStepTodo}
  * staying open because its step is NOT done.
@@ -986,7 +986,7 @@ function CredentialStepTodo({
 /** One translated template with a single placeholder rendered as a React node (a name that must
  *  stay untranslated), so each locale places the name where its own grammar needs it. */
 function TemplateWithNode({ template, token, children }: { template: string; token: string; children: ReactNode }) {
-  const [before, after] = splitOnPlaceholders(template, [token]);
+  const [before, after] = splitOnPlaceholders({ template: template, tokens: [token] });
   return (
     <>
       {before}
@@ -1022,7 +1022,7 @@ function CredentialStepDone({
             <span translate="no">{row.label}</span>
           </TemplateWithNode>{" "}
           · {translate("token stored, encrypted")} ·{" "}
-          {interpolate(translate("saved {time}"), { time: formatTimestamp(row.saved!.updatedAt) })} <CredentialHint hint={row.saved!.tokenHint} />
+          {interpolate({ template: translate("saved {time}"), vars: { time: formatTimestamp({ iso: row.saved!.updatedAt }, { timeZone: "local" }) } })} <CredentialHint hint={row.saved!.tokenHint} />
           {row.saved!.accountLabel ? (
             <>
               {" "}
@@ -1139,7 +1139,7 @@ function CredentialTokenPicker({
       >
         {options.map((credential) => (
           <option key={credential.id} value={credential.id}>
-            {(credential.accountLabel ?? credential.label) + " — " + formatTimestamp(credential.updatedAt)}
+            {(credential.accountLabel ?? credential.label) + " — " + formatTimestamp({ iso: credential.updatedAt }, { timeZone: "local" })}
           </option>
         ))}
       </select>

@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 import { Users } from "../UsersPanel";
 import { useUsers } from "../hooks/users-controller.hooks";
 import { createFakeUsersPort } from "../hooks/users-dependencies.hooks";
@@ -11,25 +11,25 @@ const user: AdminIdentityUser = { principalId: "owner", workspaceId: "w", userna
 const handlers = { onRequestDisable() {}, onEnable() {}, onManage() {}, onResetPassword() {}, onRequestDelete() {} };
 describe("account row capabilities", () => {
   it("owner's own row only offers Manage and Reset password", () => {
-    expect(userRowMenuItems({ user: user, toggleSaving: false, handlers: handlers, translate: key => t("en", key), canDelete: false, capabilities: { canDelete: false, canDisable: false, canEnable: true, canResetPassword: true } }).map(i => i.key)).toEqual(["manage", "reset-password"]);
+    expect(userRowMenuItems({ user: user, toggleSaving: false, handlers: handlers, translate: key => t({ locale: "en", key: key }), canDelete: false, capabilities: { canDelete: false, canDisable: false, canEnable: true, canResetPassword: true } }).map(i => i.key)).toEqual(["manage", "reset-password"]);
   });
   it("non-owner has no Delete, Disable or Reset password on protected rows", () => {
-    expect(userRowMenuItems({ user: user, toggleSaving: false, handlers: handlers, translate: key => t("en", key), canDelete: false, capabilities: { canDelete: false, canDisable: false, canEnable: false, canResetPassword: false } }).map(i => i.key)).toEqual(["manage"]);
+    expect(userRowMenuItems({ user: user, toggleSaving: false, handlers: handlers, translate: key => t({ locale: "en", key: key }), canDelete: false, capabilities: { canDelete: false, canDisable: false, canEnable: false, canResetPassword: false } }).map(i => i.key)).toEqual(["manage"]);
   });
   it("owner can act on another admin", () => {
-    expect(userRowMenuItems({ user: user, toggleSaving: false, handlers: handlers, translate: key => t("en", key), canDelete: false, capabilities: { canDelete: true, canDisable: true, canEnable: true, canResetPassword: true } }).map(i => i.key)).toEqual(["toggle", "manage", "reset-password", "delete"]);
+    expect(userRowMenuItems({ user: user, toggleSaving: false, handlers: handlers, translate: key => t({ locale: "en", key: key }), canDelete: false, capabilities: { canDelete: true, canDisable: true, canEnable: true, canResetPassword: true } }).map(i => i.key)).toEqual(["toggle", "manage", "reset-password", "delete"]);
   });
 });
 it("builtin owner role is shown as Owner; custom role names and username are preserved", () => {
   const roles = new Map([["owner-role", { name: "owner", isBuiltin: true }], ["custom", { name: "owner", isBuiltin: false }]]);
-  expect(formatGrantLabel({ ids: ["owner-role"], byId: roles, translate: key => t("en", key) })).toBe("Owner");
-  expect(formatGrantLabel({ ids: ["custom"], byId: roles, translate: key => t("en", key) })).toBe("owner");
+  expect(formatGrantLabel({ ids: ["owner-role"], byId: roles, translate: key => t({ locale: "en", key: key }) })).toBe("Owner");
+  expect(formatGrantLabel({ ids: ["custom"], byId: roles, translate: key => t({ locale: "en", key: key }) })).toBe("owner");
   expect(user.username).toBe("admin");
 });
 const labels = { es: "Propietario", id: "Pemilik", de: "Inhaber", "zh-CN": "所有者", "zh-TW": "擁有者", "pt-BR": "Proprietário", ru: "Владелец", fa: "مالک", ar: "المالك", ja: "オーナー", ko: "소유자", pl: "Właściciel", hu: "Tulajdonos", fr: "Propriétaire", uk: "Власник", tr: "Sahip", th: "เจ้าของ", it: "Proprietario", hi: "स्वामी", ur: "مالک", bn: "মালিক" };
 for (const [locale, label] of Object.entries(labels)) it(`Owner label in ${locale}`, () => {
-  expect(t(locale, "Owner")).toBe(label);
-  expect(formatGrantLabel({ ids: ["owner-role"], byId: new Map([["owner-role", { name: "owner", isBuiltin: true }]]), translate: key => t(locale, key) })).toBe(label);
+  expect(t({ locale: locale, key: "Owner" })).toBe(label);
+  expect(formatGrantLabel({ ids: ["owner-role"], byId: new Map([["owner-role", { name: "owner", isBuiltin: true }]]), translate: key => t({ locale: locale, key: key }) })).toBe(label);
 });
 
 it("row capabilities hide destructive self actions, even for an owner", () => {

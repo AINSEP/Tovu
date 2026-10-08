@@ -1,10 +1,11 @@
 import { act, fireEvent, render as renderWithoutProvider, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { isValidElement, type ReactNode } from "react";
+import { isValidElement, type ComponentProps, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ExecutionConfig } from "@jini-ai/ui";
 import type { FrontendSessionBridge } from "@jini-ai/chat/react";
 import { setBrowserAgentEnabled } from "../../features/webmcp/browser-agent-settings.hooks";
+import { useTovuExecutionPolicy } from "../../hooks/use-tovu-execution-policy.hooks";
 
 /**
  * @file `AssistantDock`'s own prop-wiring to `ChatPane` through the DOM — the render layer only.
@@ -21,93 +22,42 @@ import { setBrowserAgentEnabled } from "../../features/webmcp/browser-agent-sett
  * instead of only reachable by pushing a real dock through a live daemon connection.
  */
 
-const chatPaneSpy = vi.hoisted(() => vi.fn());
-const mcpUiFetch = vi.hoisted(() => vi.fn<typeof globalThis.fetch>());
+const chatPaneSpy = vi.fn();
+const mcpUiFetch = vi.fn<typeof globalThis.fetch>();
 
-vi.mock("@jini-ai/chat/react", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@jini-ai/chat/react")>();
-  return {
-  JiniChatProvider: ({ children }: { children: ReactNode }) => children,
-  ChatPane: (props: {
-    executionMode: string;
-    apiModeAvailable: boolean;
-    byokRuntime: { model: string; providerLabel?: string };
-    onExecutionModeChange: (mode: "local" | "api") => void;
-    onByokModelChange: (model: string) => void;
-    selection?: { agentId: string; model?: string };
-    onSelectionChange?: (selection: { agentId: string; model?: string }) => void;
-    runContext?: () => { model?: string; frontendBindToken?: string };
-    conversationId?: string;
-    initialMessages?: unknown[];
-    composerSlots?: { discoveryGroups?: readonly unknown[] };
-    attachmentAccept?: string;
-  }) => {
-    chatPaneSpy(props);
-    return (
-      <section className="jini-chat-pane" data-testid="chat-pane">
-        <button type="button" onClick={() => props.onExecutionModeChange("api")}>
-          switch-to-api
-        </button>
-        <button type="button" onClick={() => props.onByokModelChange("gpt-5")}>
-          pick-model
-        </button>
-        <button
-          type="button"
-          onClick={() => props.onSelectionChange?.({ agentId: "claude", model: "claude-sonnet-5" })}
-        >
-          pick-local-model
-        </button>
-      </section>
-    );
-  },
-  ConversationList: () => null,
-  A2uiSurfaceCard: () => null,
-  createDaemonAttachmentUploader: () => vi.fn(),
-  // The caller captures its transport at composition time. Inject the fake before constructing it
-  // while retaining the real package's request construction and response handling.
-  createMcpUiToolCaller: (required: Parameters<typeof import("@jini-ai/chat/react").createMcpUiToolCaller>[0], optional: Parameters<typeof import("@jini-ai/chat/react").createMcpUiToolCaller>[1]) =>
-    actual.createMcpUiToolCaller({ ...required, fetch: mcpUiFetch }, optional),
-  // Same injection for the typed-answer poster, which also binds its fetch at module scope.
-  createTypedAnswerPoster: (required: Parameters<typeof import("@jini-ai/chat/react").createTypedAnswerPoster>[0], optional: Parameters<typeof import("@jini-ai/chat/react").createTypedAnswerPoster>[1]) =>
-    actual.createTypedAnswerPoster({ ...required, fetch: mcpUiFetch }, optional),
-  registerExtEventRenderer: vi.fn(),
-  registerMcpUiSurfaceRenderer: vi.fn(),
-  // Module-scope value, not a function: `AssistantDock.tsx` reads it at import time for its
-  // `registerExtEventRenderer(MCP_UI_EXT_EVENT_NAME, ...)` call, so omitting it from this factory
-  // made the whole file throw on import ("No MCP_UI_EXT_EVENT_NAME export is defined") rather than
-  // fail a single test. Kept as the literal the package exports rather than a placeholder, since
-  // the registration key is the value under test if this ever grows an assertion.
-  MCP_UI_EXT_EVENT_NAME: "mcp-ui",
-  // Same trap: passed at module scope as the MCP-UI renderer's `slotKey` (one transcript slot per
-  // `ui://` URI), so a factory without it fails the whole file at import.
-  mcpUiSurfaceSlotKey: () => undefined,
-  };
-});
+// The caller captures its transport at composition time. Inject the fake before constructing it
+// while retaining the real package's request construction and response handling.
+// The typed-answer poster also binds fetch at module scope. Keeping the whole Jini barrel real
+// preserves createAssistantChatsClient, MCP_UI_EXT_EVENT_NAME and mcpUiSurfaceSlotKey: omitting
+// those module-scope exports from a mock made entire suites throw before running any tests.
+vi.stubGlobal("fetch", mcpUiFetch);
+const { AssistantDock: RealAssistantDock } = await import("../AssistantDock/AssistantDock");
+vi.unstubAllGlobals();
 
-vi.mock("../../lib/execution-settings", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../lib/execution-settings")>();
-  return {
-    ...actual,
-    loadExecutionConfig: vi.fn(),
-    saveExecutionConfig: vi.fn(),
-    createExecutionPort: vi.fn(),
-    loadAdminExecutionCredential: vi.fn(),
-  };
-});
+function PaneRecorder(props: ComponentProps<typeof RealChatPane>) {
+  chatPaneSpy(props);
+  return (
+    <section className="jini-chat-pane" data-testid="chat-pane">
+      <button type="button" onClick={() => props.onExecutionModeChange?.("api")}>switch-to-api</button>
+      <button type="button" onClick={() => props.onByokModelChange?.("gpt-5")}>pick-model</button>
+      <button type="button" onClick={() => props.onSelectionChange?.({ agentId: "claude", model: "claude-sonnet-5" })}>
+        pick-local-model
+      </button>
+    </section>
+  );
+}
 
-// `publishSettingsRefresh` stays a spy (this file's own concern — a run-completion side effect);
-// `subscribeToSettingsRefresh` keeps its real, side-effect-free in-memory pub/sub implementation
-// (`importOriginal`) rather than being stubbed away, since `useAdminLocale()` (now called by
-// `AssistantDock` for the dock's own translated chrome) subscribes through it on mount.
-vi.mock("../../lib/settings-refresh-bus", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../lib/settings-refresh-bus")>();
-  return { ...actual, publishSettingsRefresh: vi.fn() };
-});
+// Existing hook seams supply IO fakes. The settings bus and router stay real, so locale
+// subscriptions still work and the navigation test observes the resulting browser URL.
+// These picker-wiring tests need an available CLI. Inject desktop capability into the real policy
+// so unknown deployment discovery cannot close the gate (owner 2026-10-07).
+function AssistantDock(props: ComponentProps<typeof RealAssistantDock>) {
+  return <RealAssistantDock ChatPane={PaneRecorder} useExecutionConfig={useTestExecutionConfig}
+    useExecutionPolicy={(input) => useTovuExecutionPolicy(input, { desktop: true })}
+    useByokRuntime={useTestByokRuntime} useLocalCliSelection={useTestLocalCliSelection} {...props} />;
+}
 
-vi.mock("../../lib/router", () => ({ navigate: vi.fn() }));
-
-import { AssistantDock } from "../AssistantDock/AssistantDock";
-import { FetchQueryProvider } from "../../lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 import { writeAgentsSnapshot } from "../../lib/assistant-agents-snapshot";
 
 /** Every render sits under the app's query-cache provider, as `main.tsx` mounts the real dock:
@@ -123,18 +73,36 @@ import {
   saveExecutionConfig,
 } from "../../lib/execution-settings";
 import type { UseAssistantChats } from "../../hooks/use-assistant-chats.hooks";
-import { navigate } from "../../lib/router";
-import type { UseByokRuntime, UseExecutionConfig, UseLocalCliSelection } from "../AssistantDock/hooks/AssistantDock.hooks";
-import { MCP_UI_EXT_EVENT_NAME, registerExtEventRenderer, type ExtEventRenderProps } from "@jini-ai/chat/react";
+import { useByokRuntime, useExecutionConfig, useLocalCliSelection, type UseByokRuntime, type UseExecutionConfig, type UseLocalCliSelection } from "../AssistantDock/hooks/AssistantDock.hooks";
+import { ChatPane as RealChatPane, MCP_UI_EXT_EVENT_NAME, getExtEventRenderer, type ExtEventRenderProps } from "@jini-ai/chat/react";
 import { OverflowAwareMcpUiSurfaceCard } from "../AssistantDock/OverflowAwareMcpUiSurfaceCard";
 import { RoutedA2uiSurfaceCard } from "../AssistantDock/RoutedA2uiSurfaceCard";
 import { SlowRunNoticeCard } from "../AssistantDock/SlowRunNoticeCard";
 import { zipFolderFiles } from "../InstallTabCard/folder-zip";
 
-const mockLoadExecutionConfig = vi.mocked(loadExecutionConfig);
-const mockSaveExecutionConfig = vi.mocked(saveExecutionConfig);
-const mockCreateExecutionPort = vi.mocked(createExecutionPort);
-const mockLoadAdminExecutionCredential = vi.mocked(loadAdminExecutionCredential);
+const mockLoadExecutionConfig = vi.fn<typeof loadExecutionConfig>();
+const mockSaveExecutionConfig = vi.fn<typeof saveExecutionConfig>();
+const mockCreateExecutionPort = vi.fn<typeof createExecutionPort>();
+const mockLoadAdminExecutionCredential = vi.fn<typeof loadAdminExecutionCredential>();
+
+const executionConfigPort = {
+  loadConfig: mockLoadExecutionConfig,
+  loadCredential: mockLoadAdminExecutionCredential,
+  now: Date.now,
+};
+const persistWrite: typeof import("../AssistantDock/execution-config-write").persistExecutionConfigWrite = async (write) => {
+  await mockSaveExecutionConfig(write.next, write.previous);
+  return true;
+};
+function useTestExecutionConfig() {
+  return useExecutionConfig({}, { port: executionConfigPort, persistWrite });
+}
+function useTestByokRuntime(input: Parameters<typeof useByokRuntime>[0]) {
+  return useByokRuntime(input, { createPort: mockCreateExecutionPort, persistWrite });
+}
+function useTestLocalCliSelection(input: Parameters<typeof useLocalCliSelection>[0]) {
+  return useLocalCliSelection(input, { persistWrite });
+}
 
 /** Neutral "nothing stored" default — most tests here care about the LOCAL `apiKey` field and
  *  should not have to think about the server-side credential state to get a stable result. */
@@ -239,7 +207,7 @@ beforeEach(() => {
   mockSaveExecutionConfig.mockReset().mockResolvedValue([]);
   mockCreateExecutionPort.mockReset().mockReturnValue({ listModels: vi.fn().mockResolvedValue([]) } as never);
   mockLoadAdminExecutionCredential.mockReset().mockResolvedValue(storedCredential(false));
-  vi.mocked(navigate).mockReset();
+  window.history.replaceState(null, "", "/admin");
   chatPaneSpy.mockReset();
   mcpUiFetch.mockReset();
   consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -368,7 +336,8 @@ describe("AssistantDock", () => {
     expect(mcpItem).toEqual(expect.objectContaining({ id: "mcp:settings" }));
     expect(mcpItem).not.toHaveProperty("argumentHint");
     await props.composerSlots.onDiscoverySelect({ item: mcpItem!, source: "slash" });
-    expect(navigate).toHaveBeenCalledWith("/settings?tab=external-mcp");
+    expect(window.location.pathname).toBe("/admin/settings");
+    expect(window.location.search).toBe("?tab=external-mcp");
   });
 
   it("wires executionMode/apiModeAvailable off the loaded config, not a hardcoded default", async () => {
@@ -717,7 +686,6 @@ describe("AssistantDock agentControl wiring (chat.* frontend-control bridge)", (
     const agentBridge = fakeAgentBridge();
     render(<AssistantDock useChats={() => fakeChats()} agentBridge={agentBridge} />);
     const props = chatPaneSpy.mock.calls.at(-1)?.[0];
-    const { ChatPane: RealChatPane } = await vi.importActual<typeof import("@jini-ai/chat/react")>("@jini-ai/chat/react");
     const { unmount } = render(<RealChatPane agentControl={props.agentControl} transport={{
       startRun: vi.fn(), reattachRun: vi.fn(), fetchRunStatus: vi.fn(), stopRun: vi.fn(),
     }} />);
@@ -780,27 +748,26 @@ describe("AssistantDock agentControl wiring (chat.* frontend-control bridge)", (
 });
 
 /**
- * Coverage-gap-fill (2026-09-05). `registerExtEventRenderer` is mocked (`vi.fn()`) at the top of
- * this file — a real MCP-UI runtime is what would normally invoke the registered renderer, and this
- * file never runs one. That leaves the renderer callback itself (`AssistantDock.tsx`'s own
- * `registerExtEventRenderer({ name: MCP_UI_EXT_EVENT_NAME, renderer: (props) => (...) })`) captured by the mock but
+ * Coverage-gap-fill (2026-09-05). A real MCP-UI runtime would normally invoke the registered
+ * renderer, and this file never runs one. That leaves the renderer callback itself (`AssistantDock.tsx`'s own
+ * `registerExtEventRenderer({ name: MCP_UI_EXT_EVENT_NAME, renderer: (props) => (...) })`) registered but
  * never called. The registration runs once at module import time (this file's own `import {
  * AssistantDock } from "../AssistantDock/AssistantDock"` already triggered it), so the callback is
- * captured here and invoked directly with a fabricated `props` object — the same direct-invocation
- * treatment this repo gives a callback that only a framework/runtime, not a test, would otherwise
- * call.
+ * retrieved from the real registry here and invoked directly with a fabricated `props` object —
+ * the same direct-invocation treatment this repo gives a callback that only a framework/runtime,
+ * not a test, would otherwise call.
  */
 describe("AssistantDock — ext event renderer registrations", () => {
   /**
-   * Retrieves the callback from the registration's required arguments for direct assertions.
+   * Retrieves the callback from Jini's real registry for direct assertions.
    * @throws When the dock failed to register the requested event renderer.
-   * @complexity Time O(r) for r mock registrations; auxiliary space O(1).
+   * @complexity Time/space O(1) for the registry lookup.
    */
   function rendererFor(eventName: string) {
-    const registration = vi.mocked(registerExtEventRenderer).mock.calls.find(([{ name }]) => name === eventName);
-    expect(registration).toBeDefined();
-    if (!registration) throw new Error(`No ext-event renderer registered for ${eventName}`);
-    return registration[0].renderer;
+    const renderer = getExtEventRenderer({ name: eventName });
+    expect(renderer).toBeDefined();
+    if (!renderer) throw new Error(`No ext-event renderer registered for ${eventName}`);
+    return renderer;
   }
 
   /**
@@ -886,7 +853,7 @@ describe("AssistantDock — ext event renderer registrations", () => {
    * Coverage-gap-fill (2026-09-05). Same shape as the MCP-UI registration above, for the other two
    * module-scope-once `registerExtEventRenderer` calls in `AssistantDock.tsx`
    * (`"a2ui"` -> `RoutedA2uiSurfaceCard`, `"slow_running"` -> `SlowRunNoticeCard`) — neither renderer
-   * callback had ever been invoked, since `registerExtEventRenderer` itself is mocked in this file.
+   * callback had ever been invoked, since this file does not run the transcript runtime.
    */
   it("registers a renderer under 'a2ui' that renders RoutedA2uiSurfaceCard with every prop passed through, plus a real onAgentAction", () => {
     const renderer = rendererFor("a2ui");
@@ -920,7 +887,7 @@ describe("AssistantDock — pane title reads the active conversation's own title
     return { id: "conv-1", title: "My chat", titleSource: "manual", messageCount: 1, createdAt: 0, updatedAt: 0, ...overrides };
   }
 
-  /** `ChatPane` itself is mocked to a bare recorder that does not render its `header` prop (see
+  /** `ChatPane` is injected as a bare recorder that does not render its `header` prop (see
    *  this file's own `ChatPane` factory), so the title has to be read out of the captured prop and
    *  rendered separately, the same way this describe block's sibling tests read other captured
    *  props directly off `chatPaneSpy` rather than off the DOM. */

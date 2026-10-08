@@ -51,8 +51,7 @@ const DEFAULT_STATUS: AdminRecoveryStatus = { costClass: "cheap", banner: null }
  * An in-memory {@link RecoveryPort} for tests — "every port gets a fake" (see
  * `assistant-chats-dependencies.hooks.ts`). `listRecoveryRestorePoints` always returns the live
  * `points` array's current snapshot, so a `createRestorePoint` call that appends to it is visible on
- * the next list read — the same shape the former restore-point fake used.
- * restore-points-section-dependencies.hooks.ts (features/database/hooks/restore-points-section-dependencies.hooks.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
+ * the next list read.
  */
 export function createFakeRecoveryPort(options: FakeRecoveryPortOptions = {}): RecoveryPort & {
   /** Every `resolveRecoveryDeepLink` call's envelope, in call order. */

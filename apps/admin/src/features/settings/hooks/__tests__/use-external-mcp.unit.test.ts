@@ -2,41 +2,33 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminExternalMcpServer } from "@/lib/api";
+import { useExternalMcp as useExternalMcpHook } from "../use-external-mcp.hooks";
 
 /**
  * @file Coverage for `useExternalMcp` (0/9 funcs) — the real `/mcp-servers` transport behind
- * Settings → External MCP. No injected port here (unlike its `settings/hooks` siblings): the hook
+ * Settings → External MCP. Historical seam rationale: no injected port here (unlike its `settings/hooks` siblings): the hook
  * calls `api.*` directly, so this file mocks `lib/api` the same way `access-tokens-dependencies
  * .unit.test.ts` does for a live-binding surface.
+ * The hook now accepts the same API contract as an injected port; these are DI fakes instead.
  */
 
-const { listExternalMcpServers, saveExternalMcpServer, deleteExternalMcpServer, probeExternalMcpServer } = vi.hoisted(() => ({
+const port = {
   listExternalMcpServers: vi.fn(),
   saveExternalMcpServer: vi.fn(),
   deleteExternalMcpServer: vi.fn(),
   probeExternalMcpServer: vi.fn(),
-}));
-
-vi.mock("../../../../lib/api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../../../lib/api")>();
-  return {
-    ...actual,
-    api: { ...actual.api, listExternalMcpServers, saveExternalMcpServer, deleteExternalMcpServer, probeExternalMcpServer },
-  };
-});
+};
+const { listExternalMcpServers, saveExternalMcpServer, deleteExternalMcpServer, probeExternalMcpServer } = port;
 
 // Controls the locale `useExternalMcpDriftCopy` resolves inside the hook under test, the same seam
 // `Placeholder.unit.test.tsx`/`AssistantDock.hooks.unit.test.tsx` use for their own locale hook —
 // here it is the DEFAULT-port `useAdminLocale` rather than `useWiredAdminLocale`, since that is the
 // one `ExternalMcpSettingsPanel.hooks.tsx`'s `useExternalMcpDriftCopy` actually calls.
-const { useAdminLocale } = vi.hoisted(() => ({ useAdminLocale: vi.fn(() => "en") }));
-
-vi.mock("../../../../hooks/use-admin-locale.hooks", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../../../hooks/use-admin-locale.hooks")>();
-  return { ...actual, useAdminLocale };
-});
-
-const { useExternalMcp } = await import("../use-external-mcp.hooks");
+// The original locale seam above is now supplied directly instead of replacing a module.
+const useAdminLocale = vi.fn(() => "en");
+function useExternalMcp() {
+  return useExternalMcpHook({ port, useAdminLocaleHook: useAdminLocale });
+}
 
 beforeEach(() => {
   listExternalMcpServers.mockReset();
@@ -104,6 +96,7 @@ describe("useExternalMcp — fetchSources / toItem", () => {
         label: "Local filesystem",
         enabled: true,
         fields: {
+          builtIn: "false",
           id: "local-fs",
           transport: "stdio",
           command: "npx",
@@ -245,7 +238,7 @@ describe("useExternalMcp — addSource", () => {
     expect(outcome).toEqual({ ok: false, message: "An ID is required." });
   });
 
-  it("defaults command/args/allowedToolNames/env to \"\" when those keys are absent from fields", async () => {
+  it("defaults absent non-secret fields to \"\" and omits untouched env", async () => {
     saveExternalMcpServer.mockResolvedValue({ server: server(), restartRequired: true });
     const { result } = renderHook(() => useExternalMcp());
 
@@ -263,6 +256,17 @@ describe("useExternalMcp — addSource", () => {
       writeAllowedToolNames: "",
       authMode: "static_env",
     });
+  });
+
+  it.each([undefined, "", "   "])("rejects a remote static_env create with an absent or blank token (%j) before saving", async (accessToken) => {
+    const { result } = renderHook(() => useExternalMcp());
+    const outcome = await result.current.dependencies.port.addSource({
+      fields: { id: "remote", transport: "streamable_http", authMode: "static_env", url: "https://example.test/mcp",
+        ...(accessToken === undefined ? {} : { accessToken }) },
+    });
+    expect(outcome).toEqual({ ok: false, message: "Enter a token. Spaces alone are not a token." });
+    expect(saveExternalMcpServer).not.toHaveBeenCalled();
+    expect(probeExternalMcpServer).not.toHaveBeenCalled();
   });
 
   it("saves via api.saveExternalMcpServer(id, body), trims the id, sets restartRequired, and returns the mapped item", async () => {
@@ -372,15 +376,16 @@ describe("useExternalMcp — updateSource", () => {
     });
   });
 
-  it("a rejected update returns null without throwing", async () => {
+  it("a rejected update preserves the prior row with the failure message without throwing", async () => {
     listExternalMcpServers.mockResolvedValue({ servers: [server()] });
     saveExternalMcpServer.mockRejectedValue(new Error("network down"));
     const { result } = renderHook(() => useExternalMcp());
-    await result.current.dependencies.port.fetchSources();
+    const [previous] = await result.current.dependencies.port.fetchSources();
 
     const outcome = await result.current.dependencies.port.updateSource!("local-fs", { enabled: false });
 
-    expect(outcome).toBeNull();
+    expect(outcome).toEqual({ ...previous, statusMessage: "network down" });
+    expect(saveExternalMcpServer).toHaveBeenCalledTimes(1);
   });
 
   it("two concurrent updateSource calls for the SAME id must not let the later write revert the earlier one's change (stale merge-base race)", async () => {
@@ -659,23 +664,25 @@ describe("useExternalMcp — testSource (D-5: wired to the probe route)", () => 
     expect(outcome).toEqual({ ok: false, message: "could not connect: ECONNREFUSED" });
   });
 
-  it("falls back to the picker's own unreachable-server copy when the rejection carries no message", async () => {
+  it("falls back to the shared credential unreachable-server copy when the rejection carries no message", async () => {
     // Mirrors `describeApiError`'s own "no message on the error" branch — matches
     // `external-mcp-i18n.ts`'s established "Could not reach this server..." copy so the same
     // failure reads identically whether the operator hits it from the Test button or the picker.
+    // C3 supersedes that copy with the shared credential verdict used for post-save probes too.
     probeExternalMcpServer.mockRejectedValue({});
     const { result } = renderHook(() => useExternalMcp());
 
     const outcome = await result.current.dependencies.port.testSource!("local-fs");
 
-    expect(outcome).toEqual({ ok: false, message: "Could not reach this server. You can still type tool names by hand." });
+    expect(outcome).toEqual({ ok: false, message: "Could not reach the server." });
   });
 
   // Bug: this fallback is the exact same copy `external-mcp-i18n.ts` ships full translations for
   // (the comment on the test above says as much), but this call site built it with the raw English
   // literal instead of `t()` — a non-English operator saw English here even though the picker's own
   // "Could not reach this server" copy is fully translated.
-  it("translates the unreachable-server fallback for a non-English locale, matching the picker's own copy", async () => {
+  // Keep the original locale-regression rationale above; the shared verdict must also translate.
+  it("translates the shared unreachable-server fallback for a non-English locale", async () => {
     useAdminLocale.mockReturnValue("es");
     probeExternalMcpServer.mockRejectedValue({});
     const { result } = renderHook(() => useExternalMcp());
@@ -684,7 +691,7 @@ describe("useExternalMcp — testSource (D-5: wired to the probe route)", () => 
 
     expect(outcome).toEqual({
       ok: false,
-      message: "No se pudo contactar con este servidor. Aún puedes escribir los nombres de las herramientas a mano.",
+      message: "No se pudo contactar con el servidor.",
     });
   });
 });

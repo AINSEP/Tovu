@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminPolicy, AdminRole } from "@/lib/api";
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 import {
   PolicyRow,
   Roles,
@@ -221,9 +221,9 @@ describe("tabs", () => {
   it("reuses the existing section-heading i18n keys as tab labels, adding no new copy strings", () => {
     // Both labels go through the real dictionary, so a locale that already translates the "Roles"
     // and "Policies" headings translates the tabs too — the point of reusing the keys.
-    renderRoles({ t: realT.bind(null, "es") });
-    expect(screen.getByRole("tab", { name: new RegExp(realT("es", "Roles")) })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: new RegExp(realT("es", "Policies")) })).toBeInTheDocument();
+    renderRoles({ locale: "es", t: (key) => realT({ locale: "es", key }) });
+    expect(screen.getByRole("tab", { name: realT({ locale: "es", key: "Roles" }) })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: realT({ locale: "es", key: "Policies" }) })).toBeInTheDocument();
   });
 });
 
@@ -624,7 +624,7 @@ describe("section/row controller seam", () => {
     // English in every locale with no error and no failing test. This binds the real translator to
     // `es` and asserts the Spanish copy, which only passes if each key matches character for
     // character (the ellipsis in "Loading permissions…" is the easiest one to get wrong).
-    const spanish = (key: string) => realT("es", key);
+    const spanish = (key: string) => realT({ locale: "es", key: key });
     render(
       <table>
         <tbody>

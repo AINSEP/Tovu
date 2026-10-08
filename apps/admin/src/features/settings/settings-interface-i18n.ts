@@ -1,4 +1,5 @@
-import { createDictionaryTranslator } from "../../lib/dictionary-translator";
+import { COMMON_I18N } from "../../lib/i18n-common";
+import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 /** Settings → User Interface copy (owner, 2026-10-06; tab wrapping 2026-10-07), across the same 21 admin locales as `settings-i18n.ts`. */
 const INTERFACE_DICT: Record<string, Record<string, string>> = {
@@ -25,4 +26,4 @@ const INTERFACE_DICT: Record<string, Record<string, string>> = {
   bn: { "User Interface": "ইউজার ইন্টারফেস", "How the admin's controls behave for you. Saved per operator.": "অ্যাডমিনের নিয়ন্ত্রণগুলো আপনার জন্য কীভাবে কাজ করে। প্রতিটি অপারেটরের জন্য আলাদাভাবে সংরক্ষিত।", "Hide the chat button while the chat is open": "চ্যাট খোলা থাকলে চ্যাট বোতাম লুকান", "On: the chat panel's ✕ closes it. Off: the button stays on screen above the open panel and closes it.": "চালু: চ্যাট প্যানেলের ✕ এটি বন্ধ করে। বন্ধ: বোতামটি খোলা প্যানেলের উপরে স্ক্রিনে থাকে এবং এটি বন্ধ করে।", "Wrap tabs instead of scrolling": "স্ক্রল না করে ট্যাবগুলো পরের লাইনে নিন", "On: on narrow screens, tab rows wrap onto more lines so every tab is visible. Off: they stay on one row you swipe sideways.": "চালু: সরু স্ক্রিনে ট্যাবের সারি একাধিক লাইনে ভাগ হয়ে যায়, যাতে সব ট্যাব দেখা যায়। বন্ধ: ট্যাবগুলো এক সারিতে থাকে, যা পাশে সোয়াইপ করে দেখতে হয়।" },
 };
 
-export const t = createDictionaryTranslator(INTERFACE_DICT);
+export const t = createDictionaryTranslator({ featureDictionary: INTERFACE_DICT }, { commonDictionary: COMMON_I18N });

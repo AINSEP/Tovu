@@ -30,7 +30,7 @@ export interface UsersDependencies {
 /** Bind host locale, routes and transport; Jini owns all screen state and account rules. */
 export function useUsers({ port, openOwnPasswordReset, navigate }: UsersDependencies, _optional: Record<string, never> = {}): UsersController {
   const locale = useAdminLocale();
-  const translate = useCallback((key: string) => t(locale, key), [locale]);
+  const translate = useCallback((key: string) => t({ locale: locale, key: key }), [locale]);
   const jiniPort = useMemo(() => toJiniUsersPort({ port }), [port]);
   const controller = useJiniUsers({ port: jiniPort, translate, queryScope: WORKSPACE_ID }, {
     openOwnPasswordReset,

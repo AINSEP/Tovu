@@ -1,7 +1,7 @@
 import { agentHandle } from "@jini-ai/agentic";
 
 import type { AdminSiteListEntry, AdminSitesSnapshot } from "../../lib/api";
-import type { Translate } from "../../lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 import {
   resolveActivateAriaLabel,
   resolveActivateDisabled,

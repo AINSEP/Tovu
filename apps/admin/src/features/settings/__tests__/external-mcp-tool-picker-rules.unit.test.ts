@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { ApiError, type AdminRemoteToolSurfaceEntry } from "@/lib/api";
-import type { Translate } from "@/lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 
 import { t as tExternalMcp } from "../external-mcp-i18n";
 import {
@@ -23,7 +23,7 @@ import {
  *  `useExternalMcpDriftCopy` hands the component at runtime — used below so the translation
  *  assertions exercise the actual shipped dictionary rather than a stand-in fake. */
 function driftCopyFor(locale: string): Translate {
-  return (key: string) => tExternalMcp(locale, key);
+  return (key: string) => tExternalMcp({ locale: locale, key: key });
 }
 
 /**

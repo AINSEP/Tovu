@@ -1,4 +1,5 @@
-import { createDictionaryTranslator } from "../../lib/dictionary-translator";
+import { COMMON_I18N } from "../../lib/i18n-common";
+import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 /** Settings-shell copy that belongs to Tovu rather than the upstream dialog package. */
 const SETTINGS_DICT: Record<string, Record<string, string>> = {
@@ -25,4 +26,4 @@ const SETTINGS_DICT: Record<string, Record<string, string>> = {
   bn: { "Loading settings…": "সেটিংস লোড হচ্ছে…", "Could not load saved settings (": "সংরক্ষিত সেটিংস লোড করা যায়নি (", "). Showing defaults — edits will still save.": ")। ডিফল্ট মান দেখানো হচ্ছে — সম্পাদনাগুলি তবুও সংরক্ষিত হবে।", "Skills": "দক্ষতা", "Info": "তথ্য", "Saved": "সংরক্ষিত", "Saving…": "সংরক্ষণ করা হচ্ছে…" },
 };
 
-export const t = createDictionaryTranslator(SETTINGS_DICT);
+export const t = createDictionaryTranslator({ featureDictionary: SETTINGS_DICT }, { commonDictionary: COMMON_I18N });

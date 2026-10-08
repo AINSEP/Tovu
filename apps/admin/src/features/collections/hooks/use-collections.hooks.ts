@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import { describeApiError, type AdminContentType } from "@/lib/api";
-import { useFetchMutation, useFetchQuery } from "@/lib/fetch-query";
+import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { collectionEmbedSnippet, isUserCollection, KEYS, type LifecycleConfirmOp } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { lifecycleFailureMessage, t as translate } from "../collections-i18n";
@@ -35,7 +35,7 @@ import type { CollectionsPort } from "./collections-port.hooks";
  * carve-out). `useAdminLocale()` and `COLLECTIONS_DICT` are read only inside
  * {@link useWiredCollections}.
  *
- * `lib/fetch-query` migration (2026-08-12): the content-type list read is now `useFetchQuery({ key:
+ * `@jini-ai/ui/fetch-query` migration (2026-08-12): the content-type list read is now `useFetchQuery({ key:
  * KEYS.list, ... })`; `runLifecycle` is a `useFetchMutation` that `invalidates: [KEYS.list]` — which
  * cascades to every entries list and open entry editor too, per `rules.ts`'s `KEYS` doc, since a
  * lifecycle change (or a field-schema edit via `EditFieldsDialog`) can change what those screens show.
@@ -108,15 +108,16 @@ export function useCollections(deps: CollectionsDependencies): CollectionsContro
   const [copyFallback, setCopyFallback] = useState<{ key: string; snippet: string } | null>(null);
 
   const lifecycleMutation = useFetchMutation({
-    run: (input: { key: string; op: "deprecate" | "reactivate" | "tombstone"; expectedVersion: number }) =>
+    run: ({ input }: { input: { key: string; op: "deprecate" | "reactivate" | "tombstone"; expectedVersion: number } }) =>
       port.contentTypeLifecycle(input),
+  }, {
     invalidates: [KEYS.list],
   });
 
   async function runLifecycle(contentType: AdminContentType, op: "deprecate" | "reactivate" | "tombstone") {
     setLastAttempt({ op, contentType });
     try {
-      await lifecycleMutation.mutate({ key: contentType.key, op, expectedVersion: contentType.version });
+      await lifecycleMutation.mutate({ input: { key: contentType.key, op, expectedVersion: contentType.version } });
     } catch {
       // already surfaced through lifecycleMutation.error -> actionError below
     }
@@ -136,7 +137,7 @@ export function useCollections(deps: CollectionsDependencies): CollectionsContro
     }
   }
 
-  const error = list.error ? describeApiError(list.error, translate(locale, "failed to load content types")) : null;
+  const error = list.error ? describeApiError(list.error, translate({ locale: locale, key: "failed to load content types" })) : null;
   const actionError =
     lifecycleMutation.error && lastAttempt
       ? describeApiError(lifecycleMutation.error, lifecycleFailureMessage(locale, lastAttempt.op, lastAttempt.contentType.label))
@@ -171,6 +172,6 @@ export function useCollections(deps: CollectionsDependencies): CollectionsContro
  */
 export function useWiredCollections(): CollectionsController {
   const locale = useAdminLocale();
-  const t = (key: string): string => translate(locale, key);
+  const t = (key: string): string => translate({ locale: locale, key: key });
   return useCollections({ port: defaultCollectionsPort, locale, t });
 }

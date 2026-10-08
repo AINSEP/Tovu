@@ -3,7 +3,7 @@ import { getNav, type AdminNavItem } from "../nav";
 import { useWiredAdminLocale } from "../hooks/use-admin-locale.hooks";
 import { translateAdminNavLabel } from "../lib/admin-nav-i18n";
 import { DEFAULT_LOCALE } from "../lib/settings-tabs";
-import { interpolate, localeEntry } from "../lib/template-i18n";
+import { interpolate, localeEntry } from "@jini-ai/ui/panel-kit";
 
 /**
  * @file Fallback screen for a section with no dedicated component yet — reached either directly
@@ -93,7 +93,7 @@ const COMING_SOON_TEMPLATE: Record<string, string> = {
 /** "X is coming soon." in the caller's locale — `label` here is already translated (by
  *  `Placeholder`, via `translateAdminNavLabel`) by the time it reaches this component. */
 function comingSoonDescription(locale: string, label: string): string {
-  return interpolate(localeEntry({ table: COMING_SOON_TEMPLATE, locale }), { label });
+  return interpolate({ template: localeEntry({ table: COMING_SOON_TEMPLATE, locale }), vars: { label } });
 }
 
 export function ComingSoonNotice(props: {
@@ -187,8 +187,8 @@ export function Placeholder(props: {
 
   return (
     <ComingSoonNotice
-      kicker={translateAdminNavLabel(locale, findNavGroupLabel(props.sectionId))}
-      label={translateAdminNavLabel(locale, item.label)}
+      kicker={translateAdminNavLabel({ locale: locale, key: findNavGroupLabel(props.sectionId) })}
+      label={translateAdminNavLabel({ locale: locale, key: item.label })}
       locale={locale}
       note={props.note}
       agentHandle={props.agentHandle}

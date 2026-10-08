@@ -1,0 +1,9 @@
+/* Jini owns the native modal lifecycle. These CMS dialogs keep their labelled
+   domain actions, like Jini MediaPicker, so a second generic Close adds no action. */
+.tovu-domain-dialog > .jini-dialog-close { display: none; }
+.settings-dialog.tovu-domain-dialog { border: 0; color: var(--fg); margin: auto; }
+.tovu-domain-dialog:not([open]) { display: none; }
+.tovu-domain-dialog::backdrop { background: oklch(0% 0 0 / 0.45); }
+/* The native title sits outside each form; the form still owns submission and
+   keeps the same vertical rhythm the former form-as-dialog root supplied. */
+.tovu-domain-dialog > form { display: flex; flex-direction: column; gap: 0.9rem; }

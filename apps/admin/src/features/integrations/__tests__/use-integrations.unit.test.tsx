@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { useIntegrations } from "../hooks/use-integrations.hooks";
 import { createFakeIntegrationsPort } from "../hooks/integrations-dependencies.hooks";
@@ -21,7 +21,7 @@ import type { AdminWebhookSubscription } from "@/lib/api";
  * internally.
  *
  * `fetch-query` migration (2026-08-12): every `renderHook` now needs `wrapper: FetchQueryProvider`
- * — see `redirects/__tests__/use-redirects.hooks.unit.test.tsx`'s identical wrapper for the pilot
+ * — see `Jini redirects/react/__tests__/use-redirects.hooks.unit.test.tsx`'s identical wrapper for the pilot
  * precedent.
  */
 
@@ -87,9 +87,9 @@ describe("useIntegrations — injected port", () => {
     });
 
     // `createMutation` invalidates `KEYS.list` rather than setting `subscriptions` directly from
-    // its own response (2026-08-12, `lib/fetch-query` migration) — the invalidated query's
+    // its own response (2026-08-12, `@jini-ai/ui/fetch-query` migration) — the invalidated query's
     // background refetch is not guaranteed to have landed the instant `onCreate` resolves (`
-    // invalidateQueries` is deliberately not awaited, `adapter.tanstack.tsx`'s own comment), so
+    // invalidateQueries` is deliberately not awaited, `@jini-ai/ui/fetch-query`'s own comment), so
     // `waitFor` instead of a bare synchronous read.
     await waitFor(() => expect(result.current.subscriptions).toHaveLength(1));
     expect(result.current.subscriptions?.[0]?.label).toBe("New hook");

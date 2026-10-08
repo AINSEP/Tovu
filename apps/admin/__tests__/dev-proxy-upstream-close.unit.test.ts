@@ -95,7 +95,7 @@ function outcomeOf(port: number, urlPath: string, headers: Record<string, string
   return new Promise((resolve) => {
     const req = get({ host: "127.0.0.1", port, path: urlPath, headers }, (res) => {
       res.resume();
-      const marked = res.headers["x-tovu-dev-proxy"] === "upstream-refused" ? " upstream-refused" : "";
+      const marked = res.headers["x-tovu-upstream-status"] === "upstream-refused" ? " upstream-refused" : "";
       resolve(`status ${res.statusCode}${marked}`);
     });
     req.on("error", () => resolve("connection dropped"));

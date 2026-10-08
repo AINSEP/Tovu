@@ -1,7 +1,7 @@
 import { act, render, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { FetchQueryProvider, useFetchQuery } from "@/lib/fetch-query";
+import { FetchQueryProvider, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { useTaxonomy, useWiredTaxonomy } from "../hooks/use-taxonomy.hooks";
 import { createFakeTaxonomyPort } from "../hooks/taxonomy-dependencies.hooks";
@@ -12,9 +12,9 @@ import { KEYS, TAXONOMY_RESOURCE } from "../rules";
  * reachable from `renderHook` with no table and no detail panel. Follows the fetch-mocking harness
  * `PostEditor.unit.test.tsx` established for this package.
  *
- * `wrapper` (2026-08-12, `lib/fetch-query` migration): `useTaxonomy` now goes through
- * `useFetchQuery`/`useFetchMutation`, which throw without a `QueryClientProvider` ancestor — see
- * `redirects/__tests__/use-redirects.hooks.unit.test.tsx`'s identical `wrapper`.
+ * `wrapper` (2026-08-12, `@jini-ai/ui/fetch-query` migration): `useTaxonomy` now goes through
+ * `useFetchQuery`/`useFetchMutation`, which throw without a `FetchQueryProvider` ancestor — see
+ * `Jini redirects/react/__tests__/use-redirects.hooks.unit.test.tsx`'s identical `wrapper`.
  */
 
 function wrapper({ children }: { children: React.ReactNode }) {

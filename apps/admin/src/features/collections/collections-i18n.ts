@@ -1,3 +1,4 @@
+import { COMMON_I18N } from "../../lib/i18n-common";
 /**
  * @file Spanish dictionary for `Collections.tsx` (list + its three modals), `CollectionEntries.tsx`
  * (per-type entry list), and `CollectionEntryEditor.tsx` (entry editor). Same
@@ -8,8 +9,8 @@
  * label) sits in the middle of the Spanish sentence, not always in the same relative position
  * English puts it.
  */
-import { interpolate, localeEntry } from "../../lib/template-i18n";
-import { createDictionaryTranslator } from "../../lib/dictionary-translator";
+import { interpolate, localeEntry } from "@jini-ai/ui/panel-kit";
+import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 export const COLLECTIONS_DICT: Record<string, Record<string, string>> = {
   es: {
@@ -1207,7 +1208,7 @@ mergeDictionaryTranslations(COLLECTIONS_DICT, COLLECTIONS_EMBED_I18N);
  *  Exported so the feature's `.hooks.ts` files (which have no JSX and build their own `t` closure
  *  the way the `.tsx` screens in this feature do) can call it directly instead of duplicating the
  *  lookup. */
-export const t = createDictionaryTranslator(COLLECTIONS_DICT);
+export const t = createDictionaryTranslator({ featureDictionary: COLLECTIONS_DICT }, { commonDictionary: COMMON_I18N });
 
 const LIFECYCLE_VERB: Record<string, Record<"deprecate" | "reactivate" | "tombstone", string>> = {
   en: { deprecate: "deprecate", reactivate: "reactivate", tombstone: "tombstone" },
@@ -1281,7 +1282,7 @@ export function lifecycleFailureMessage(
   label: string,
 ): string {
   const verb = localeEntry({ table: LIFECYCLE_VERB, locale })[op];
-  return interpolate(localeEntry({ table: LIFECYCLE_FAILURE_TEMPLATE, locale }), { verb, label });
+  return interpolate({ template: localeEntry({ table: LIFECYCLE_FAILURE_TEMPLATE, locale }), vars: { verb, label } });
 }
 
 const ENTRY_LIFECYCLE_FAILURE: Record<string, Record<"publish" | "unpublish", string>> = {

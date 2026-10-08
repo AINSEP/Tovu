@@ -1,8 +1,7 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { tabFromLastFocusableInDialog } from "../../hooks/__tests__/focus-trap.test-helpers";
 import { MediaEditDialog } from "../MediaEditDialog/MediaEditDialog";
 import type { useWiredMediaEditDialog } from "../MediaEditDialog/MediaEditDialog.hooks";
 
@@ -27,7 +26,6 @@ function fakeController(overrides: Partial<ReturnType<typeof useWiredMediaEditDi
     htmlAttributesError: null,
     save: vi.fn(),
     t: (key) => key,
-    altRef: { current: null },
     ...overrides,
   };
 }
@@ -125,14 +123,14 @@ describe("MediaEditDialog — dismissal", () => {
     const user = userEvent.setup();
     const onCancel = vi.fn();
     const useDialog: typeof useWiredMediaEditDialog = () => fakeController();
-    const { container } = render(
+    render(
       <MediaEditDialog initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={vi.fn()} onCancel={onCancel} useDialog={useDialog} />
     );
 
-    await user.click(screen.getByRole("dialog"));
+    await user.click(screen.getByRole("dialog").querySelector("h2")!);
     expect(onCancel).not.toHaveBeenCalled();
 
-    await user.click(container.querySelector(".settings-dialog-backdrop")!);
+    await user.click(screen.getByRole("dialog"));
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 });
@@ -208,7 +206,7 @@ describe("MediaEditDialog — real useWiredMediaEditDialog wiring (no fake)", ()
     await user.type(screen.getByLabelText("HTML attributes (optional)"), 'onerror="x"');
     expect(await screen.findByText("Event handler attributes like 'onerror' are not allowed.")).toBeInTheDocument();
     expect(document.activeElement).toBe(screen.getByLabelText("HTML attributes (optional)"));
-    await user.keyboard("{Escape}");
+    fireEvent(screen.getByRole("dialog"), new Event("cancel", { cancelable: true }));
     expect(onCancel).toHaveBeenCalledOnce();
 
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -217,12 +215,10 @@ describe("MediaEditDialog — real useWiredMediaEditDialog wiring (no fake)", ()
 });
 
 describe("MediaEditDialog — focus trap", () => {
-  it("keeps Tab inside the dialog: Tab on the last focusable element wraps to the first", async () => {
+  it("renders an open native dialog; browser Tab containment is provided by showModal", async () => {
     render(<MediaEditDialog initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={vi.fn()} onCancel={vi.fn()} useDialog={() => fakeController()} />);
-    const { event, first } = tabFromLastFocusableInDialog();
-
-    expect(event.defaultPrevented).toBe(true);
-    expect(document.activeElement).toBe(first);
+    expect(screen.getByRole("dialog").tagName).toBe("DIALOG");
+    expect(screen.getByRole("dialog")).toHaveAttribute("open");
   });
 });
 

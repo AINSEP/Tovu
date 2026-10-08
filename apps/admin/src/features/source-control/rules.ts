@@ -86,18 +86,20 @@ export interface SourceControlCredentialFormFields {
 }
 
 /**
- * Builds the wire {@link AdminSourceControlConnectionInput}: `providerId`, the trimmed token, and
- * each of `declaredFields` typed non-blank, trimmed. Always includes `token`, even when blank —
+ * Builds the wire {@link AdminSourceControlConnectionInput}: `providerId`, the unchanged token, and
+ * each non-blank declared field. Ordinary fields are trimmed; secret fields reach the store
+ * unchanged so its admission policy can reject whitespace-only input. Always includes `token`, even when blank —
  * detecting "no new token typed" is {@link sourceControlCredentialRowReadyToSave}'s job.
- * @complexity O(f) in the declared field count.
+ * @complexity O(f + c) time, O(f + c) space for f declared fields containing c characters.
  */
 export function buildSourceControlConnectionInput(
   fields: SourceControlCredentialFormFields,
-  declaredFields: readonly Pick<AdminPublishTargetField, "name">[]
+  declaredFields: readonly Pick<AdminPublishTargetField, "name" | "secret">[]
 ): AdminSourceControlConnectionInput {
   const values: Record<string, string> = {};
   for (const field of declaredFields) {
-    const value = fields.values[field.name] ?? "";
+    const raw = fields.values[field.name] ?? "";
+    const value = field.secret ? raw : raw.trim();
     if (value !== "") values[field.name] = value;
   }
   return { ...values, providerId: fields.providerId, token: fields.token };

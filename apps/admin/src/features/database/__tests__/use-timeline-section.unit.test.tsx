@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminLedgerRow } from "@/lib/api";
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 import { navigate } from "@/lib/router";
 import { navigateToRecoveryWithDeepLink, useTimelineSection, useWiredTimelineSection } from "../hooks/use-timeline-section.hooks";
 import { createFakeTimelineSectionPort } from "../hooks/timeline-section-dependencies.hooks";
@@ -17,7 +17,7 @@ import { createFakeTimelineSectionPort } from "../hooks/timeline-section-depende
  * testable against `createFakeTimelineSectionPort` with no `fetch` stub at all.
  *
  * `fetch-query` migration (2026-08-12): every `renderHook` now needs `wrapper: FetchQueryProvider`
- * — see `redirects/__tests__/use-redirects.hooks.unit.test.tsx`'s identical wrapper for the pilot
+ * — see `Jini redirects/react/__tests__/use-redirects.hooks.unit.test.tsx`'s identical wrapper for the pilot
  * precedent.
  */
 
@@ -150,8 +150,8 @@ describe("applyFilters", () => {
     expect(url).toContain("fromDate=2026-01-01");
     expect(url).toContain("toDate=2026-12-31");
     // Replaced, not appended — a filter change is a reset, not a continuation of the old page.
-    // `rows` derives from `firstPage.data`, whose observer notification is deferred via TanStack's
-    // `notifyManager` (a real `setTimeout(0)`, not a microtask) — `waitFor` polls with real timers.
+    // `rows` derives from `firstPage.data` after the cache notification reaches React;
+    // `waitFor` observes the rendered result rather than racing that update.
     await waitFor(() => expect(result.current.rows).toEqual([ROW_WITHOUT_RESTORE_POINT]));
   });
 });
@@ -236,9 +236,7 @@ describe("loadMore", () => {
     // mode and defers its flush — the very next synchronous read below would then race it (and the
     // dangling, never-awaited flush leaks into whichever test runs next in this file). A block body
     // makes the callback return `undefined`, keeping `act()` synchronous, matching the established
-    // `act(() => { promise = result.current.X(); })` shape this suite already uses elsewhere (e.g.
-    // the former restore-point create test).
-    // use-restore-points-section.unit.test.tsx (features/database/__tests__/use-restore-points-section.unit.test.tsx) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
+    // `act(() => { promise = result.current.X(); })` shape this suite uses elsewhere.
     act(() => {
       void result.current.loadMore();
     });

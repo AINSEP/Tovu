@@ -1,8 +1,7 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { tabFromLastFocusableInDialog } from "../../hooks/__tests__/focus-trap.test-helpers";
 import { WidgetAddControl, WidgetPickerDialog } from "../WidgetPickerDialog/WidgetPickerDialog";
 
 /**
@@ -61,6 +60,7 @@ it("Escape closes the Select's dropdown without cancelling the dialog underneath
   const trigger = await screen.findByRole("combobox", { name: /existing text widgets/i });
   await user.click(trigger);
   expect(screen.getByRole("listbox")).toBeInTheDocument();
+  expect(screen.getByRole("dialog").contains(screen.getByRole("listbox"))).toBe(true);
 
   await user.keyboard("{Escape}");
 
@@ -70,13 +70,12 @@ it("Escape closes the Select's dropdown without cancelling the dialog underneath
 });
 
 it("a bare Escape (no dropdown open) still cancels the dialog, unaffected by the fix above", async () => {
-  const user = userEvent.setup();
   const onCancel = vi.fn();
 
   render(<WidgetPickerDialog widgetType="text" onUseExisting={vi.fn()} onCreateNew={vi.fn()} onCancel={onCancel} />);
   await screen.findByRole("combobox", { name: /existing text widgets/i });
 
-  await user.keyboard("{Escape}");
+  fireEvent(screen.getByRole("dialog"), new Event("cancel", { cancelable: true }));
 
   expect(onCancel).toHaveBeenCalledTimes(1);
 });
@@ -143,7 +142,6 @@ describe("WidgetPickerDialog dialog-hook injection", () => {
         newConfig: {},
         setNewConfig: vi.fn(),
         error: null,
-        titleId: "fake-title-id",
         existingSelectId: "fake-existing-select-id",
         newTitleInputId: "fake-title-input-id",
         newTitleInputRef: { current: null },
@@ -171,8 +169,10 @@ describe("WidgetPickerDialog dialog-hook injection", () => {
       />
     );
 
-    expect(screen.getByRole("heading", { name: "Place a Fake Type widget" })).toBeInTheDocument();
-    expect(screen.getByRole("dialog")).toHaveAttribute("aria-labelledby", "fake-title-id");
+    const heading = screen.getByRole("heading", { name: "Place a Fake Type widget" });
+    expect(heading.id).not.toBe("");
+    // Jini's native dialog owns the title ID; the injected controller owns its text.
+    expect(screen.getByRole("dialog", { name: "Place a Fake Type widget" })).toHaveAttribute("aria-labelledby", heading.id);
     // `hasExisting: false` in the fake means only "Create new" renders, same as the real hook would
     // for a genuinely empty `instances` — but here that's the fake's own value, not a real fetch.
     expect(screen.queryByRole("button", { name: "Use this widget" })).not.toBeInTheDocument();
@@ -297,24 +297,22 @@ describe("WidgetAddControl — real flow (unmocked useWidgetAddControl)", () => 
 });
 
 describe("WidgetPickerDialog — focus trap", () => {
-  it("keeps Tab inside the dialog: Tab on the last focusable element wraps to the first", async () => {
+  it("renders an open native dialog; browser Tab containment is provided by showModal", async () => {
     render(<WidgetPickerDialog widgetType="text" onUseExisting={vi.fn()} onCreateNew={vi.fn()} onCancel={vi.fn()} />);
     await screen.findByRole("button", { name: "Use this widget" });
-    const { event, first } = tabFromLastFocusableInDialog();
-
-    expect(event.defaultPrevented).toBe(true);
-    expect(document.activeElement).toBe(first);
+    expect(screen.getByRole("dialog").tagName).toBe("DIALOG");
+    expect(screen.getByRole("dialog")).toHaveAttribute("open");
   });
 
-  it("wraps Shift+Tab from the first dialog control to the last", async () => {
-    const user = userEvent.setup();
-    render(<WidgetPickerDialog widgetType="text" onUseExisting={vi.fn()} onCreateNew={vi.fn()} onCancel={vi.fn()} />);
+  it("returns focus to its opener when the native dialog unmounts", async () => {
+    const opener = document.createElement("button");
+    document.body.appendChild(opener);
+    opener.focus();
+    const { unmount } = render(<WidgetPickerDialog widgetType="text" onUseExisting={vi.fn()} onCreateNew={vi.fn()} onCancel={vi.fn()} />);
     await screen.findByRole("button", { name: "Use this widget" });
-    const first = screen.getByRole("combobox", { name: /existing text widgets/i });
-    const last = screen.getByRole("button", { name: "Cancel" });
-    first.focus();
-    expect(first).toHaveFocus();
-    await user.tab({ shift: true });
-    expect(last).toHaveFocus();
+    expect(screen.getByRole("button", { name: "Cancel" })).toHaveFocus();
+    unmount();
+    expect(opener).toHaveFocus();
+    opener.remove();
   });
 });

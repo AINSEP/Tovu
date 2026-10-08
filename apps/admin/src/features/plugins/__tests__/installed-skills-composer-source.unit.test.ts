@@ -7,25 +7,16 @@ import { createInstalledSkillsComposerCapabilitySource } from "../installed-skil
  * (`skills-composer-typeahead` Phase 1B, C-004) — the browser-side consumer of
  * `GET /api/admin/v1/workspaces/:workspaceId/skills` (Phase 1A). `fetch` is injected via
  * `vi.stubGlobal` rather than hitting a real server, so these assert this source's own
- * mapping/degradation contract in isolation, mirroring
- * the former tool-catalog unit suite's precedent for the same reason: the real
- * route is certified end to end by Phase 1A's own integration tests, and the
+ * mapping/degradation contract in isolation. The real route is covered end to end by the
+ * integration tests, and the
  * degrade-to-empty property this file asserts directly is what INV-001
  * (`composer-capabilities.ts`'s duplicate-id/rejection guard) depends on to keep a routine
  * fetch failure from taking the whole composer menu down.
- *
- * The happy-path fixture below is the exact `{skills: [...]}` shape the Coordinator verified
- * live against the running server (`curl` against `:3000` with `incident-response` installed),
- * not invented data — see the implementation outline's "Phase 1A is DONE" section.
- * tool-catalog-composer-source.unit.test.ts (features/plugins/__tests__/tool-catalog-composer-source.unit.test.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
+
  */
 
 function jsonResponse(body: unknown, init: { ok?: boolean; status?: number } = {}): Response {
-  return {
-    ok: init.ok ?? true,
-    status: init.status ?? 200,
-    json: async () => body,
-  } as unknown as Response;
+  return new Response(JSON.stringify(body), { status: init.status ?? (init.ok === false ? 500 : 200) });
 }
 
 afterEach(() => {

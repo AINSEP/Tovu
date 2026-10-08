@@ -1,8 +1,8 @@
 import { describeApiError, type AdminDeploymentOverview } from "@/lib/api";
-import { useFetchQuery } from "@/lib/fetch-query";
+import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as defaultT, deploymentOverviewLoadErrorMessage } from "../deployment-i18n";
-import type { Translate } from "@/lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 import { defaultDeploymentOverviewPort } from "./deployment-overview-dependencies.hooks";
 import type { DeploymentOverviewPort } from "./deployment-overview-port.hooks";
 
@@ -54,6 +54,6 @@ export function useDeploymentOverview(
  */
 export function useWiredDeploymentOverview(): DeploymentOverviewController {
   const locale = useAdminLocale();
-  const t = (key: string): string => defaultT(locale, key);
+  const t = (key: string): string => defaultT({ locale: locale, key: key });
   return useDeploymentOverview(defaultDeploymentOverviewPort, t, locale);
 }

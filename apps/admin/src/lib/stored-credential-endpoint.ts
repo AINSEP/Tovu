@@ -1,5 +1,5 @@
 import { ApiError } from "./api";
-import type { Translate } from "./dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 
 /**
  * @file Rules for a BYOK key the server holds write-only and will only send to the endpoint it was saved

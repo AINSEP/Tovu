@@ -9,8 +9,8 @@ import { PAGE_VERSION_CONFLICT_CODE } from "../rules";
  * see `page-editor-port.hooks.ts` for why the split exists.
  */
 
-/** The live implementation, as a module-level singleton — matches `redirects-dependencies.hooks.ts`'s
- *  `defaultRedirectsPort`. `getPresentation` narrows `api.getPresentation()`'s wider response down to
+/** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s
+ *  `redirectsHostPorts`. `getPresentation` narrows `api.getPresentation()`'s wider response down to
  *  the fields this port promises. */
 export const defaultPageEditorPort: PageEditorPort = {
   getPage: (routeSlug) => api.getPage(routeSlug),

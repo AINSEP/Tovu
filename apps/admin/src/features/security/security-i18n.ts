@@ -1,5 +1,6 @@
-import { interpolate, localeEntry } from "../../lib/template-i18n";
-import { createDictionaryTranslator } from "../../lib/dictionary-translator";
+import { COMMON_I18N } from "../../lib/i18n-common";
+import { interpolate, localeEntry } from "@jini-ai/ui/panel-kit";
+import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 import type { OtherCredentialStoreInfo } from "./rules";
 
 /** Feature-specific Security copy. Shared chrome such as Save and Cancel falls back to COMMON_I18N. */
@@ -1380,7 +1381,7 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
   },
 };
 
-export const t = createDictionaryTranslator(SECURITY_DICT);
+export const t = createDictionaryTranslator({ featureDictionary: SECURITY_DICT }, { commonDictionary: COMMON_I18N });
 
 /** Load error banner — same `{error}`-interpolated template shape
  *  `publishCredentialsLoadErrorMessage`/`sourceControlCredentialsLoadErrorMessage` use. */
@@ -1388,7 +1389,7 @@ const ACCESS_TOKENS_LOAD_ERROR_TEMPLATE: Record<string, string> = {
   en: "Couldn't load saved access tokens: {error}",
 };
 export function accessTokensLoadErrorMessage(locale: string, error: string): string {
-  return interpolate(localeEntry({ table: ACCESS_TOKENS_LOAD_ERROR_TEMPLATE, locale }), { error });
+  return interpolate({ template: localeEntry({ table: ACCESS_TOKENS_LOAD_ERROR_TEMPLATE, locale }), vars: { error } });
 }
 
 /** One row's save-error banner — mirrors `publishCredentialSaveErrorMessage`'s exact shape. */
@@ -1396,7 +1397,7 @@ const ACCESS_TOKEN_SAVE_ERROR_TEMPLATE: Record<string, string> = {
   en: "Couldn't save this token: {error}",
 };
 export function accessTokenSaveErrorMessage(locale: string, error: string): string {
-  return interpolate(localeEntry({ table: ACCESS_TOKEN_SAVE_ERROR_TEMPLATE, locale }), { error });
+  return interpolate({ template: localeEntry({ table: ACCESS_TOKEN_SAVE_ERROR_TEMPLATE, locale }), vars: { error } });
 }
 
 /** A failed Remove — its own action-specific wording, distinct from
@@ -1407,7 +1408,7 @@ const ACCESS_TOKEN_REMOVE_ERROR_TEMPLATE: Record<string, string> = {
   en: "Couldn't remove this token: {error}",
 };
 export function accessTokenRemoveErrorMessage(locale: string, error: string): string {
-  return interpolate(localeEntry({ table: ACCESS_TOKEN_REMOVE_ERROR_TEMPLATE, locale }), { error });
+  return interpolate({ template: localeEntry({ table: ACCESS_TOKEN_REMOVE_ERROR_TEMPLATE, locale }), vars: { error } });
 }
 
 /** A failed "Make default" — same action-specific reasoning as {@link accessTokenRemoveErrorMessage}. */
@@ -1415,7 +1416,7 @@ const ACCESS_TOKEN_MAKE_DEFAULT_ERROR_TEMPLATE: Record<string, string> = {
   en: "Couldn't make this token the default: {error}",
 };
 export function accessTokenMakeDefaultErrorMessage(locale: string, error: string): string {
-  return interpolate(localeEntry({ table: ACCESS_TOKEN_MAKE_DEFAULT_ERROR_TEMPLATE, locale }), { error });
+  return interpolate({ template: localeEntry({ table: ACCESS_TOKEN_MAKE_DEFAULT_ERROR_TEMPLATE, locale }), vars: { error } });
 }
 
 /** A duplicate-name rejection — this page's own case, since neither origin store's dictionary has a
@@ -1425,7 +1426,7 @@ const ACCESS_TOKEN_DUPLICATE_NAME_TEMPLATE: Record<string, string> = {
   en: 'A token named "{name}" already exists for {provider}.',
 };
 export function accessTokenDuplicateNameMessage(locale: string, name: string, provider: string): string {
-  return interpolate(localeEntry({ table: ACCESS_TOKEN_DUPLICATE_NAME_TEMPLATE, locale }), { name, provider });
+  return interpolate({ template: localeEntry({ table: ACCESS_TOKEN_DUPLICATE_NAME_TEMPLATE, locale }), vars: { name, provider } });
 }
 
 /** The Remove confirm dialog's three pieces of copy (`rules.ts`'s own "Remove from Tovu, never
@@ -1436,7 +1437,7 @@ export function accessTokenDuplicateNameMessage(locale: string, name: string, pr
  *  inverts the claim. */
 const REMOVE_DIALOG_TITLE_TEMPLATE: Record<string, string> = { en: 'Remove "{name}" from Tovu?' };
 export function removeDialogTitle(locale: string, name: string): string {
-  return interpolate(localeEntry({ table: REMOVE_DIALOG_TITLE_TEMPLATE, locale }), { name });
+  return interpolate({ template: localeEntry({ table: REMOVE_DIALOG_TITLE_TEMPLATE, locale }), vars: { name } });
 }
 
 /** Two placeholders, not one: `{credentialLabel}` (what the saved row is FOR — `AccessTokenProviderInfo.label`,
@@ -1448,7 +1449,7 @@ const REMOVE_DIALOG_BODY_TEMPLATE: Record<string, string> = {
   en: "This deletes Tovu's saved copy of this {credentialLabel} token. It does NOT revoke the token on {vendor} — it stays valid there until you revoke it yourself.",
 };
 export function removeDialogBody(locale: string, credentialLabel: string, vendor: string): string {
-  return interpolate(localeEntry({ table: REMOVE_DIALOG_BODY_TEMPLATE, locale }), { credentialLabel, vendor });
+  return interpolate({ template: localeEntry({ table: REMOVE_DIALOG_BODY_TEMPLATE, locale }), vars: { credentialLabel, vendor } });
 }
 
 /** `external-mcp`'s Remove body — the shared {@link removeDialogBody} does not fit: there is no
@@ -1493,7 +1494,7 @@ const REMOVE_DIALOG_LAST_ROW_TEMPLATE: Record<string, string> = {
   en: "This is the only saved {provider} token — after removing it, nothing here will be marked as connected.",
 };
 export function removeDialogLastRowNote(locale: string, provider: string): string {
-  return interpolate(localeEntry({ table: REMOVE_DIALOG_LAST_ROW_TEMPLATE, locale }), { provider });
+  return interpolate({ template: localeEntry({ table: REMOVE_DIALOG_LAST_ROW_TEMPLATE, locale }), vars: { provider } });
 }
 
 /** site key tab's load-error banner — same `{error}`-interpolated shape as
@@ -1523,7 +1524,7 @@ const SITE_KEY_LOAD_ERROR_TEMPLATE: Record<string, string> = {
   "zh-TW": "無法載入網站金鑰狀態：{error}",
 };
 export function siteKeyLoadErrorMessage(locale: string, error: string): string {
-  return interpolate(localeEntry({ table: SITE_KEY_LOAD_ERROR_TEMPLATE, locale }), { error });
+  return interpolate({ template: localeEntry({ table: SITE_KEY_LOAD_ERROR_TEMPLATE, locale }), vars: { error } });
 }
 
 /** site key tab's generic generate-error banner — used only for a `"generic"` failure; a known
@@ -1554,7 +1555,7 @@ const SITE_KEY_GENERATE_ERROR_TEMPLATE: Record<string, string> = {
   "zh-TW": "無法產生網站金鑰：{error}",
 };
 export function siteKeyGenerateErrorMessage(locale: string, error: string): string {
-  return interpolate(localeEntry({ table: SITE_KEY_GENERATE_ERROR_TEMPLATE, locale }), { error });
+  return interpolate({ template: localeEntry({ table: SITE_KEY_GENERATE_ERROR_TEMPLATE, locale }), vars: { error } });
 }
 
 /** site key tab's reveal-error banner — same `{error}`-interpolated shape. Unlike generate,
@@ -1585,5 +1586,5 @@ const SITE_KEY_REVEAL_ERROR_TEMPLATE: Record<string, string> = {
   "zh-TW": "無法顯示網站金鑰：{error}",
 };
 export function siteKeyRevealErrorMessage(locale: string, error: string): string {
-  return interpolate(localeEntry({ table: SITE_KEY_REVEAL_ERROR_TEMPLATE, locale }), { error });
+  return interpolate({ template: localeEntry({ table: SITE_KEY_REVEAL_ERROR_TEMPLATE, locale }), vars: { error } });
 }

@@ -1,4 +1,6 @@
 import type { CredentialTokenHint } from './credential-copy';
+import type { SettingScope } from "@jini-ai/core/settings";
+import type { MediaProviderCredentials } from "@jini-ai/ui/core";
 import type {
   PublishContentConfirmResult,
   PublishContentExecuteResult,
@@ -45,7 +47,7 @@ export interface AdminUser {
  * user layer from the rest — see that file's header comment for the exact
  * technique and its known limits.
  */
-export type SettingScope = "global" | "workspace" | "user";
+export type { SettingScope };
 
 export interface SettingResolvedValue {
   key: string;
@@ -76,14 +78,8 @@ export interface SettingResetResponse {
  * is send-only: the operator types one and it goes up, but no response ever carries it back — a
  * stored key comes back as `apiKeyConfigured`/`apiKeyTail` instead.
  */
-export interface AdminMediaProviderCredentials {
-  apiKey?: string;
-  baseUrl?: string;
-  model?: string;
-  apiKeyConfigured?: boolean;
-  apiKeyTail?: string;
+export interface AdminMediaProviderCredentials extends MediaProviderCredentials {
   apiKeyHint?: CredentialTokenHint | null;
-  source?: string;
 }
 
 export type AdminMediaProviderMap = Record<string, AdminMediaProviderCredentials>;
@@ -1022,7 +1018,6 @@ export interface AdminCustomCredentialsSnapshot {
   credentials: AdminCustomCredentialSummary[];
 }
 
-// Deployment snapshot types retired with the never-written deployment tables (2026-10-03).
 
 /** Mirrors `PublishDestinationView` in `src/server/inbound/admin-http/routes/publish-content/
  *  destination.ts` — the zero-setup connect action's own response shape. Defined here rather than
@@ -1087,6 +1082,7 @@ export interface PublicAssistantSettings {
 export interface SiteAssistantCredential {
   isSet: boolean;
   masked: string | null;
+  tokenHint?: CredentialTokenHint | null;
   provider: string;
   baseUrl: string | null;
   model: string | null;
@@ -1118,6 +1114,7 @@ export interface SiteAssistantCredentialPatch {
 export interface AdminExecutionCredential {
   isSet: boolean;
   masked: string | null;
+  tokenHint?: CredentialTokenHint | null;
   protocol: string;
   providerId: string | null;
   baseUrl: string | null;
@@ -2183,7 +2180,7 @@ export const REQUEST_TIMEOUT_CODE = "REQUEST_TIMEOUT";
 const DEFAULT_REQUEST_TIMEOUT_MS = 60_000;
 
 function timeoutApiMessage(): string {
-  return `the Tovu API did not respond within ${DEFAULT_REQUEST_TIMEOUT_MS / 1000}s — the browser may be out of free connections for this origin (try closing other admin tabs) or the server is unresponsive`;
+  return `The Tovu API did not respond within ${DEFAULT_REQUEST_TIMEOUT_MS / 1000}s — the browser may be out of free connections for this origin (try closing other admin tabs) or the server is unresponsive`;
 }
 
 /**
@@ -2362,8 +2359,11 @@ export function buildFetchInit(init: RequestInit = {}): RequestInit {
  *  unparseable (see `UNPARSEABLE_BODY`'s own doc). Pulled out of `request` (2026-09-04, complexity
  *  pass) as its own step; the two callers below (`notifyIfUnauthenticated`,
  *  `buildRequestFailedError`) both need `wasUnparseable`, not just `body`. */
-async function parseJsonBody(res: Response): Promise<{ body: Record<string, unknown>; wasUnparseable: boolean }> {
-  const parsed = await res.json().catch(() => UNPARSEABLE_BODY);
+async function parseJsonBody(res: Response, { requireJson = false }: { requireJson?: boolean } = {}): Promise<{ body: Record<string, unknown>; wasUnparseable: boolean }> {
+  const parsed = await res.json().catch((error: unknown) => {
+    if (requireJson) throw error;
+    return UNPARSEABLE_BODY;
+  });
   const wasUnparseable = parsed === UNPARSEABLE_BODY;
   return { body: wasUnparseable ? {} : parsed, wasUnparseable };
 }
@@ -2444,12 +2444,16 @@ function buildRequestFailedError({
  * @overallScore 100
  */
 /** One send through the fetch seam, no restart retry. Exported for `server-reconnect` tests only. */
-export async function requestOnce<T>(path: string, init?: RequestInit, onOk?: (res: Response) => void): Promise<T> {
-  const res = await fetchOrThrowUnreachable(`${BASE}${path}`, buildFetchInit(init));
-  const { body, wasUnparseable } = await parseJsonBody(res);
+export async function requestOnce<T>(
+  { path, init, onOk }: { path: string; init?: RequestInit; onOk?: (res: Response) => void },
+  options: AuthenticatedAdminRequestOptions = {},
+): Promise<T> {
+  const res = await fetchOrThrowUnreachable(`${options.basePath ?? BASE}${path}`, buildFetchInit(init));
+  const { body, wasUnparseable } = await parseJsonBody(res, { requireJson: res.ok && options.requireJson });
   if (!res.ok) {
     notifyIfUnauthenticated({ status: res.status, body });
-    const error = buildRequestFailedError({ status: res.status, body, wasUnparseable });
+    const defaultError = buildRequestFailedError({ status: res.status, body, wasUnparseable });
+    const error = options.errorFactory?.({ response: res, error: defaultError }) ?? defaultError;
     // The dev proxy's mark for "the API refused the connection": this request never reached it.
     if (res.headers.get(UPSTREAM_REFUSED_HEADER) === UPSTREAM_REFUSED_VALUE) upstreamRefusedErrors.add(error);
     throw error;
@@ -2481,17 +2485,40 @@ export async function requestRidingOutRestart<T>(
   }
 }
 
-async function request<T>(path: string, init?: RequestInit, onOk?: (res: Response) => void, options: { retryWrites?: boolean } = {}): Promise<T> {
-  return requestRidingOutRestart({ send: () => requestOnce<T>(path, init, onOk), method: init?.method }, options);
+async function request<T>(path: string, init?: RequestInit, onOk?: (res: Response) => void, options: AuthenticatedAdminRequestOptions = {}): Promise<T> {
+  return requestRidingOutRestart({ send: () => requestOnce<T>({ path, init, onOk }, options), method: init?.method }, options);
+}
+
+export interface AuthenticatedAdminRequestOptions {
+  /** Explicit local API owners only: never send admin cookies to a provider URL. */
+  basePath?: "/api/admin/v1" | "/api/assistant/chats" | "/api/agents";
+  signal?: AbortSignal;
+  headers?: Record<string, string>;
+  keepalive?: boolean;
+  onOk?: (response: Response) => void;
+  retryWrites?: boolean;
+  /** Transcript/inventory readers reject malformed successful JSON instead of accepting `{}`. */
+  requireJson?: boolean;
+  /** Preserve an adapter's status-bearing error contract after session invalidation is checked. */
+  errorFactory?: (input: { response: Response; error: ApiError }) => ApiError;
 }
 
 /** Authenticated package adapters share cookies, bounded requests and session invalidation
- * with every native screen; paths are relative to the existing admin API prefix. */
+ * with every native screen; paths are relative to the explicitly selected local API prefix. */
 export function authenticatedAdminRequest<T>(
   { path, method, body }: { path: string; method: string; body?: unknown },
-  { signal }: { signal?: AbortSignal } = {},
+  options: AuthenticatedAdminRequestOptions = {},
 ): Promise<T> {
-  return request<T>(path, { method, ...(body === undefined ? {} : body instanceof Blob ? { body, headers: { "Content-Type": body.type || "application/octet-stream" } } : { body: JSON.stringify(body) }), ...(signal ? { signal } : {}) });
+  const payload = body === undefined ? {} : body instanceof Blob
+    ? { body, headers: { "Content-Type": body.type || "application/octet-stream" } }
+    : { body: JSON.stringify(body) };
+  return request<T>(path, {
+    method,
+    ...payload,
+    headers: { ...payload.headers, ...options.headers },
+    ...(options.signal ? { signal: options.signal } : {}),
+    ...(options.keepalive === undefined ? {} : { keepalive: options.keepalive }),
+  }, options.onOk, options);
 }
 export function authenticatedAdminUrl({ path }: { path: string }, _optional: Record<string, never> = {}): string {
   return `${BASE}${path}`;
@@ -3157,97 +3184,64 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ policyId }),
     }),
-  listRoles: () => request<{ roles: AdminRole[] }>(`/workspaces/${WORKSPACE_ID}/roles`),
+  listRoles: () => authenticatedAdminRequest<{ roles: AdminRole[] }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/roles` }),
   createRole: (name: string) =>
-    request<{ role: AdminRole }>(`/workspaces/${WORKSPACE_ID}/roles`, {
-      method: "POST",
-      body: JSON.stringify({ name }),
-    }),
+    authenticatedAdminRequest<{ role: AdminRole }>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/roles`, body: { name } }),
   // SPEC-006 0.6.0.
   updateRole: (
     { roleId, name }: { roleId: string; name: string },
     _options: Record<string, never> = {}
   ) =>
-    request<{ role: AdminRole }>(`/workspaces/${WORKSPACE_ID}/roles/${encodeURIComponent(roleId)}`, {
-      method: "PATCH",
-      body: JSON.stringify({ name }),
-    }),
+    authenticatedAdminRequest<{ role: AdminRole }>({ method: "PATCH", path: `/workspaces/${WORKSPACE_ID}/roles/${encodeURIComponent(roleId)}`, body: { name } }),
   deleteRole: (roleId: string) =>
-    request<void>(`/workspaces/${WORKSPACE_ID}/roles/${encodeURIComponent(roleId)}`, { method: "DELETE" }),
-  listPolicies: () => request<{ policies: AdminPolicy[] }>(`/workspaces/${WORKSPACE_ID}/policies`),
+    authenticatedAdminRequest<void>({ method: "DELETE", path: `/workspaces/${WORKSPACE_ID}/roles/${encodeURIComponent(roleId)}` }),
+  listPolicies: () => authenticatedAdminRequest<{ policies: AdminPolicy[] }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/policies` }),
   createPolicy: ({ name }: { name: string }, options: { description?: string } = {}) =>
-    request<{ policy: AdminPolicy }>(`/workspaces/${WORKSPACE_ID}/policies`, {
-      method: "POST",
-      body: JSON.stringify({ name, description: options.description }),
-    }),
+    authenticatedAdminRequest<{ policy: AdminPolicy }>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/policies`, body: { name, description: options.description } }),
   // SPEC-006 0.6.0.
   updatePolicy: (
     { policyId }: { policyId: string },
     options: { name?: string; description?: string } = {}
   ) =>
-    request<{ policy: AdminPolicy }>(`/workspaces/${WORKSPACE_ID}/policies/${encodeURIComponent(policyId)}`, {
-      method: "PATCH",
-      body: JSON.stringify(options),
-    }),
+    authenticatedAdminRequest<{ policy: AdminPolicy }>({ method: "PATCH", path: `/workspaces/${WORKSPACE_ID}/policies/${encodeURIComponent(policyId)}`, body: options }),
   deletePolicy: (policyId: string) =>
-    request<void>(`/workspaces/${WORKSPACE_ID}/policies/${encodeURIComponent(policyId)}`, { method: "DELETE" }),
+    authenticatedAdminRequest<void>({ method: "DELETE", path: `/workspaces/${WORKSPACE_ID}/policies/${encodeURIComponent(policyId)}` }),
   writePolicyPermission: (
     { policyId, permission }: { policyId: string; permission: string },
     options: { resourceType?: string } = {}
   ) =>
-    request<{ policyPermission: unknown }>(`/workspaces/${WORKSPACE_ID}/policies/${encodeURIComponent(policyId)}/permissions`, {
-      method: "POST",
-      body: JSON.stringify({ permission, resourceType: options.resourceType || undefined }),
-    }),
+    authenticatedAdminRequest<{ policyPermission: unknown }>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/policies/${encodeURIComponent(policyId)}/permissions`, body: { permission, resourceType: options.resourceType || undefined } }),
   listPolicyPermissions: (policyId: string) =>
-    request<{ policyPermissions: AdminPolicyPermission[] }>(
-      `/workspaces/${WORKSPACE_ID}/policies/${encodeURIComponent(policyId)}/permissions`
-    ),
+    authenticatedAdminRequest<{ policyPermissions: AdminPolicyPermission[] }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/policies/${encodeURIComponent(policyId)}/permissions` }),
   removePolicyPermission: ({ policyId, policyPermissionId }: { policyId: string; policyPermissionId: string }) =>
-    request<void>(`/workspaces/${WORKSPACE_ID}/policies/${encodeURIComponent(policyId)}/permissions/${encodeURIComponent(policyPermissionId)}`, {
-      method: "DELETE",
-    }),
+    authenticatedAdminRequest<void>({ method: "DELETE", path: `/workspaces/${WORKSPACE_ID}/policies/${encodeURIComponent(policyId)}/permissions/${encodeURIComponent(policyPermissionId)}` }),
 
   // SPEC-044 (Workspace Administration). Note the path shape here differs from every call above:
   // `workspaces` IS the resource (no `/workspaces/${WORKSPACE_ID}/<sub-resource>` nesting) —
   // `/workspaces` (list/create) and `/workspaces/:id` (get/update/delete), matching api.spec.md.
-  getWorkspace: () => request<{ workspace: AdminWorkspace }>(`/workspaces/${WORKSPACE_ID}`),
+  getWorkspace: () => authenticatedAdminRequest<{ workspace: AdminWorkspace }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}` }),
   updateWorkspace: (options: { name?: string; slug?: string } = {}) =>
-    request<{ workspace: AdminWorkspace }>(`/workspaces/${WORKSPACE_ID}`, {
-      method: "PATCH",
-      body: JSON.stringify(options),
-    }),
-  deleteWorkspace: () => request<void>(`/workspaces/${WORKSPACE_ID}`, { method: "DELETE" }),
+    authenticatedAdminRequest<{ workspace: AdminWorkspace }>({ method: "PATCH", path: `/workspaces/${WORKSPACE_ID}`, body: options }),
+  deleteWorkspace: () => authenticatedAdminRequest<void>({ method: "DELETE", path: `/workspaces/${WORKSPACE_ID}` }),
 
   // SPEC-007 Settings (core-only layered ledger) — Phase 6 UI.
   getSettingsEffective: ({ namespace }: { namespace: string }, options: { principalId?: string } = {}) => {
     const params = new URLSearchParams({ namespace });
     if (options.principalId) params.set("principalId", options.principalId);
-    return request<{ data: SettingResolvedValue[] }>(
-      `/workspaces/${WORKSPACE_ID}/settings/effective?${params.toString()}`
-    );
+    return authenticatedAdminRequest<{ data: SettingResolvedValue[] }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/settings/effective?${params.toString()}` });
   },
   setSetting: (
     input: { namespace: string; key: string; scope: SettingScope; valueJson: unknown },
     options: { principalId?: string } = {}
   ) =>
-    request<SettingValueResponse>(`/workspaces/${WORKSPACE_ID}/settings/value`, {
-      method: "PUT",
-      body: JSON.stringify({ ...input, ...options }),
-    }),
+    authenticatedAdminRequest<SettingValueResponse>({ method: "PUT", path: `/workspaces/${WORKSPACE_ID}/settings/value`, body: { ...input, ...options } }),
   clearSetting: (
     input: { namespace: string; key: string; scope: SettingScope },
     options: { principalId?: string } = {}
   ) =>
-    request<SettingValueResponse>(`/workspaces/${WORKSPACE_ID}/settings/value`, {
-      method: "DELETE",
-      body: JSON.stringify({ ...input, ...options }),
-    }),
+    authenticatedAdminRequest<SettingValueResponse>({ method: "DELETE", path: `/workspaces/${WORKSPACE_ID}/settings/value`, body: { ...input, ...options } }),
   resetSettingsNamespace: (input: { namespace: string; scope: SettingScope }) =>
-    request<SettingResetResponse>(`/workspaces/${WORKSPACE_ID}/settings/reset`, {
-      method: "POST",
-      body: JSON.stringify(input),
-    }),
+    authenticatedAdminRequest<SettingResetResponse>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/settings/reset`, body: input }),
 
   // "Execution mode" tab (`@jini-ai/ui`'s `ExecutionTab`) — Local CLI detection + BYOK connection
   // test/model discovery. Deliberately separate from the settings.* methods above: these are
@@ -3255,10 +3249,7 @@ export const api = {
   // `apiKey` field these two POST bodies carry is used for exactly one outbound request server-side
   // and never persisted (ADR-028 §6 — see `apps/admin/src/lib/execution-settings.ts`'s header).
   detectExecutionAgents: () =>
-    request<{ data: AdminExecutionDetectedAgent[] }>(`/workspaces/${WORKSPACE_ID}/assistant/execution/detect-agents`, {
-      method: "POST",
-      body: JSON.stringify({}),
-    }),
+    authenticatedAdminRequest<{ data: AdminExecutionDetectedAgent[] }>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/assistant/execution/detect-agents`, body: {} }),
   // `useStoredCredential` opts a probe into the workspace's encrypted server-side SITE credential
   // when `apiKey` is empty — for the AI Assistant tab's visitor form, whose key is write-only and so
   // genuinely absent from the browser. `useAdminStoredCredential` is the same opt-in for the OTHER
@@ -3276,15 +3267,9 @@ export const api = {
     useStoredCredential?: boolean;
     useAdminStoredCredential?: boolean;
   }) =>
-    request<{ ok: boolean; message: string }>(`/workspaces/${WORKSPACE_ID}/assistant/execution/test-connection`, {
-      method: "POST",
-      body: JSON.stringify(input),
-    }),
+    authenticatedAdminRequest<{ ok: boolean; message: string }>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/assistant/execution/test-connection`, body: input }),
   testExecutionAgent: (input: { agentId: string; model?: string }) =>
-    request<{ ok: boolean; message: string }>(`/workspaces/${WORKSPACE_ID}/assistant/execution/test-agent`, {
-      method: "POST",
-      body: JSON.stringify(input),
-    }),
+    authenticatedAdminRequest<{ ok: boolean; message: string }>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/assistant/execution/test-agent`, body: input }),
   listExecutionModels: (input: {
     protocol: string;
     baseUrl: string;
@@ -3293,44 +3278,33 @@ export const api = {
     useStoredCredential?: boolean;
     useAdminStoredCredential?: boolean;
   }) =>
-    request<{ ok: boolean; models: string[]; message?: string }>(`/workspaces/${WORKSPACE_ID}/assistant/execution/models`, {
-      method: "POST",
-      body: JSON.stringify(input),
-    }),
+    authenticatedAdminRequest<{ ok: boolean; models: string[]; message?: string }>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/assistant/execution/models`, body: input }),
 
   // SPEC-010 Forms (Tier-1 sample plugin) — admin UI.
-  listForms: () => request<{ data: AdminFormDefinition[] }>(`/workspaces/${WORKSPACE_ID}/forms`),
-  getForm: (id: string) => request<{ data: AdminFormDefinition }>(`/workspaces/${WORKSPACE_ID}/forms/${encodeURIComponent(id)}`),
+  listForms: () => authenticatedAdminRequest<{ data: AdminFormDefinition[] }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/forms` }),
+  getForm: (id: string) => authenticatedAdminRequest<{ data: AdminFormDefinition }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/forms/${encodeURIComponent(id)}` }),
   createForm: (
     input: { name: string; slug: string; fields: AdminFormField[]; mode?: "builder" | "html"; html?: string },
     options: { notify?: AdminFormNotify } = {}
   ) =>
-    request<{ data: AdminFormDefinition }>(`/workspaces/${WORKSPACE_ID}/forms`, {
-      method: "POST",
-      body: JSON.stringify({ ...input, ...options }),
-    }),
+    authenticatedAdminRequest<{ data: AdminFormDefinition }>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/forms`, body: { ...input, ...options } }),
   updateForm: (
     { id }: { id: string },
     options: { name?: string; fields?: AdminFormField[]; notify?: AdminFormNotify; status?: "active" | "disabled"; mode?: "builder" | "html"; html?: string } = {}
   ) =>
-    request<{ data: AdminFormDefinition }>(`/workspaces/${WORKSPACE_ID}/forms/${encodeURIComponent(id)}${options.mode !== undefined || options.html !== undefined ? "/authoring" : ""}`, {
-      method: "PUT",
-      body: JSON.stringify(options),
-    }),
+    authenticatedAdminRequest<{ data: AdminFormDefinition }>({ method: "PUT", path: `/workspaces/${WORKSPACE_ID}/forms/${encodeURIComponent(id)}${options.mode !== undefined || options.html !== undefined ? "/authoring" : ""}`, body: options }),
   listFormSubmissions: ({ formId }: { formId: string }, options: { cursor?: string; limit?: number } = {}) => {
     const params = new URLSearchParams();
     if (options.cursor) params.set("cursor", options.cursor);
     if (options.limit) params.set("limit", String(options.limit));
     const qs = params.toString();
-    return request<{ data: AdminFormSubmission[]; nextCursor: string | null }>(
-      `/workspaces/${WORKSPACE_ID}/forms/${encodeURIComponent(formId)}/submissions${qs ? `?${qs}` : ""}`
-    );
+    return authenticatedAdminRequest<{ data: AdminFormSubmission[]; nextCursor: string | null }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/forms/${encodeURIComponent(formId)}/submissions${qs ? `?${qs}` : ""}` });
   },
   getFormSubmission: (
     { formId, submissionId }: { formId: string; submissionId: string },
     _options: Record<string, never> = {}
   ) =>
-    request<{ data: AdminFormSubmission }>(`/workspaces/${WORKSPACE_ID}/forms/${encodeURIComponent(formId)}/submissions/${encodeURIComponent(submissionId)}`),
+    authenticatedAdminRequest<{ data: AdminFormSubmission }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/forms/${encodeURIComponent(formId)}/submissions/${encodeURIComponent(submissionId)}` }),
   // AI Assistant — the visitor-facing assistant's master switch. Same `{ data }` envelope and same
   // partial-PUT shape as the SEO settings pair below, because the two routes are deliberately
   // identical in contract (see `server/routes/admin/assistant/put-settings.ts`).
@@ -3341,26 +3315,18 @@ export const api = {
   // one of exactly two admin-assistant server modules mounted unconditionally, so it is reachable
   // even with that flag off). `App.hooks.tsx`'s `useAdminAssistantAvailability` is the one reader.
   getAssistantSettings: () =>
-    request<{ data: PublicAssistantSettings; adminAssistantEnabled: boolean }>(`/workspaces/${WORKSPACE_ID}/assistant/settings`),
+    authenticatedAdminRequest<{ data: PublicAssistantSettings; adminAssistantEnabled: boolean }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/assistant/settings` }),
   setAssistantSettings: (patch: Partial<PublicAssistantSettings>) =>
-    request<{ data: PublicAssistantSettings }>(`/workspaces/${WORKSPACE_ID}/assistant/settings`, {
-      method: "PUT",
-      body: JSON.stringify(patch),
-    }),
+    authenticatedAdminRequest<{ data: PublicAssistantSettings }>({ method: "PUT", path: `/workspaces/${WORKSPACE_ID}/assistant/settings`, body: patch }),
   // The folder-drop flow — the operator-set `fs-files`
-  // FsFolderIndicator (components/AssistantDock/FsFolderIndicator.tsx and .hooks.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
   // `custom` root the assistant's `fs_list_files`/`fs_read_file` tools may reach outside this
   // repo/site (`apps/website`'s `features/fs-files/custom-root-store.ts`). `path: null` means no
   // folder has been set yet. `setFsFilesCustomRoot` can 400 with a message meant to be shown
   // verbatim (not an absolute path, does not exist, or is a file rather than a directory) — callers
   // read `ApiError.body.error` for that case rather than treating every rejection as unexpected.
-  getFsFilesCustomRoot: () => request<{ path: string | null }>(`/workspaces/${WORKSPACE_ID}/fs-files/custom-root`),
+  getFsFilesCustomRoot: () => authenticatedAdminRequest<{ path: string | null }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/fs-files/custom-root` }),
   setFsFilesCustomRoot: (path: string) =>
-    request<{ path: string }>(`/workspaces/${WORKSPACE_ID}/fs-files/custom-root`, {
-      method: "PUT",
-      body: JSON.stringify({ path }),
-    }),
-  // clearFsFilesCustomRoot (lib/api.ts) was deleted 2026-10-03: unused after removing the folder indicator; see development/DELETED-CODE.md.
+    authenticatedAdminRequest<{ path: string }>({ method: "PUT", path: `/workspaces/${WORKSPACE_ID}/fs-files/custom-root`, body: { path } }),
   // The ADMIN's own agent daemon (Local CLI execution) — manual restart action for
   // `features/ai-assistant/AiAssistant.tsx`'s "Admin AI Assistant" tab. `server/routes/admin/system/
   // assistant-daemon.ts`'s route is synchronous and answers as soon as a restart is INITIATED, never
@@ -3371,7 +3337,7 @@ export const api = {
   // `getAssistantDaemonReadyz` below.
   restartAssistantDaemon: async (): Promise<{ ok: boolean; reason?: string }> => {
     try {
-      return await request<{ ok: true }>(`/workspaces/${WORKSPACE_ID}/system/assistant-daemon/restart`, { method: "POST" });
+      return await authenticatedAdminRequest<{ ok: true }>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/system/assistant-daemon/restart` });
     } catch (e) {
       if (e instanceof ApiError && typeof e.body?.reason === "string") return { ok: false, reason: e.body.reason };
       throw e;
@@ -3411,42 +3377,27 @@ export const api = {
   // when the server has no `TOVU_SITE_KEY` — a fail-closed operator error, not a bug,
   // and one screens must translate rather than show raw (see `features/ai-assistant/AiAssistant.tsx`).
   getAssistantSiteCredential: () =>
-    request<{ data: SiteAssistantCredential }>(`/workspaces/${WORKSPACE_ID}/assistant/site-credential`),
+    authenticatedAdminRequest<{ data: SiteAssistantCredential }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/assistant/site-credential` }),
   setAssistantSiteCredential: (patch: SiteAssistantCredentialPatch) =>
-    request<{ data: SiteAssistantCredential }>(`/workspaces/${WORKSPACE_ID}/assistant/site-credential`, {
-      method: "PUT",
-      body: JSON.stringify(patch),
-    }),
+    authenticatedAdminRequest<{ data: SiteAssistantCredential }>({ method: "PUT", path: `/workspaces/${WORKSPACE_ID}/assistant/site-credential`, body: patch }),
   deleteAssistantSiteCredential: () =>
-    request<{ data: SiteAssistantCredential }>(`/workspaces/${WORKSPACE_ID}/assistant/site-credential`, {
-      method: "DELETE",
-    }),
+    authenticatedAdminRequest<{ data: SiteAssistantCredential }>({ method: "DELETE", path: `/workspaces/${WORKSPACE_ID}/assistant/site-credential` }),
   // The ADMIN's own encrypted provider credential — a DIFFERENT key from the site one directly
   // above, scoped to this admin rather than the workspace. Same write-only `{ data }` envelope and
   // the same `503 SECRET_STORE_UNCONFIGURED` PUT failure mode. See `lib/execution-settings.ts` for
   // the caller-facing wrapper (explicit save only — never called from the debounced ledger-slice
   // auto-save path a typed key would otherwise ride along with).
   getAdminExecutionCredential: () =>
-    request<{ data: AdminExecutionCredential }>(`/workspaces/${WORKSPACE_ID}/assistant/execution-credential`),
+    authenticatedAdminRequest<{ data: AdminExecutionCredential }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/assistant/execution-credential` }),
   setAdminExecutionCredential: (patch: AdminExecutionCredentialPatch) =>
-    request<{ data: AdminExecutionCredential }>(`/workspaces/${WORKSPACE_ID}/assistant/execution-credential`, {
-      method: "PUT",
-      body: JSON.stringify(patch),
-    }),
+    authenticatedAdminRequest<{ data: AdminExecutionCredential }>({ method: "PUT", path: `/workspaces/${WORKSPACE_ID}/assistant/execution-credential`, body: patch }),
   deleteAdminExecutionCredential: () =>
-    request<{ data: AdminExecutionCredential }>(`/workspaces/${WORKSPACE_ID}/assistant/execution-credential`, {
-      method: "DELETE",
-    }),
-  getSeoSettings: () => request<{ data: SeoSettings }>(`/workspaces/${WORKSPACE_ID}/seo/settings`),
+    authenticatedAdminRequest<{ data: AdminExecutionCredential }>({ method: "DELETE", path: `/workspaces/${WORKSPACE_ID}/assistant/execution-credential` }),
+  getSeoSettings: () => authenticatedAdminRequest<{ data: SeoSettings }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/seo/settings` }),
   setSeoSettings: (options: SeoSettingsPatch = {}) =>
-    request<{ data: SeoSettings }>(`/workspaces/${WORKSPACE_ID}/seo/settings`, {
-      method: "PUT",
-      body: JSON.stringify(options),
-    }),
+    authenticatedAdminRequest<{ data: SeoSettings }>({ method: "PUT", path: `/workspaces/${WORKSPACE_ID}/seo/settings`, body: options }),
   regenerateSitemap: () =>
-    request<{ data: { accepted: true } }>(`/workspaces/${WORKSPACE_ID}/seo/sitemap/regenerate`, {
-      method: "POST",
-    }),
+    authenticatedAdminRequest<{ data: { accepted: true } }>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/seo/sitemap/regenerate` }),
   /** GET an entry's effective/resolved SEO meta (SPEC-037 REQ-06). */
   getSeoEntry: (entryId: string) =>
     request<{ data: SeoEntryMeta }>(`/workspaces/${WORKSPACE_ID}/seo/entries/${encodeURIComponent(entryId)}`),
@@ -3728,27 +3679,18 @@ export const api = {
     if (options.cursor) params.set("cursor", options.cursor);
     if (options.limit) params.set("limit", String(options.limit));
     const qs = params.toString();
-    return request<AdminCommentsQueuePage>(`/workspaces/${WORKSPACE_ID}/comments/queue${qs ? `?${qs}` : ""}`);
+    return authenticatedAdminRequest<AdminCommentsQueuePage>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/comments/queue${qs ? `?${qs}` : ""}` });
   },
   moderateComment: (
     { commentId, action, expectedVersion }: { commentId: string; action: CommentModerationAction; expectedVersion: number },
     options: { note?: string } = {}
   ) =>
-    request<void>(`/workspaces/${WORKSPACE_ID}/comments/${encodeURIComponent(commentId)}/${action}`, {
-      method: "POST",
-      body: JSON.stringify({ expectedVersion, note: options.note }),
-    }),
+    authenticatedAdminRequest<void>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/comments/${encodeURIComponent(commentId)}/${action}`, body: { expectedVersion, note: options.note } }),
   purgeComment: ({ commentId }: { commentId: string }, options: { note?: string } = {}) =>
-    request<void>(`/workspaces/${WORKSPACE_ID}/comments/${encodeURIComponent(commentId)}/purge`, {
-      method: "POST",
-      body: JSON.stringify({ note: options.note }),
-    }),
-  getCommentsSettings: () => request<{ data: CommentsSettings }>(`/workspaces/${WORKSPACE_ID}/comments/settings`),
+    authenticatedAdminRequest<void>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/comments/${encodeURIComponent(commentId)}/purge`, body: { note: options.note } }),
+  getCommentsSettings: () => authenticatedAdminRequest<{ data: CommentsSettings }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/comments/settings` }),
   putCommentsSettings: (options: Partial<CommentsSettings> = {}) =>
-    request<{ data: CommentsSettings }>(`/workspaces/${WORKSPACE_ID}/comments/settings`, {
-      method: "PUT",
-      body: JSON.stringify(options),
-    }),
+    authenticatedAdminRequest<{ data: CommentsSettings }>({ method: "PUT", path: `/workspaces/${WORKSPACE_ID}/comments/settings`, body: options }),
 
   // -------------------------------------------------------------------------
   // Trash — the cross-domain recycle bin (design:
@@ -3764,26 +3706,17 @@ export const api = {
     if (options.limit) params.set("limit", String(options.limit));
     if (options.entityTypes?.length) params.set("entityTypes", options.entityTypes.join(","));
     const qs = params.toString();
-    return request<AdminTrashPage>(`/workspaces/${WORKSPACE_ID}/trash${qs ? `?${qs}` : ""}`);
+    return authenticatedAdminRequest<AdminTrashPage>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/trash${qs ? `?${qs}` : ""}` });
   },
   restoreTrashItems: ({ items }: { items: { entityType: string; entityId: string }[] }) =>
-    request<AdminTrashRestoreReport>(`/workspaces/${WORKSPACE_ID}/trash/restore`, {
-      method: "POST",
-      body: JSON.stringify({ items }),
-    }),
+    authenticatedAdminRequest<AdminTrashRestoreReport>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/trash/restore`, body: { items } }),
   purgeTrashItems: ({ ids }: { ids: string[] }) =>
-    request<AdminTrashPurgeReport>(`/workspaces/${WORKSPACE_ID}/trash/purge`, {
-      method: "POST",
-      body: JSON.stringify({ ids }),
-    }),
+    authenticatedAdminRequest<AdminTrashPurgeReport>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/trash/purge`, body: { ids } }),
   /** The generic single-item trash endpoint (`POST /trash/items`, `W/features/trash/`): the way
    *  every OTHER admin feature's delete button (forms, widgets, menus, terms, taxonomies) moves one
    *  row to the Trash, instead of each domain keeping its own bespoke delete call. */
   trash: ({ type, id }: { type: string; id: string }) =>
-    request<{ ok: true; version: number | null }>(`/workspaces/${WORKSPACE_ID}/trash/items`, {
-      method: "POST",
-      body: JSON.stringify({ type, id }),
-    }),
+    authenticatedAdminRequest<{ ok: true; version: number | null }>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/trash/items`, body: { type, id } }),
 
   // -------------------------------------------------------------------------
   // Widgets (SPEC-043, ADR-047) — mirrors the Menus client functions' exact shape
@@ -3795,36 +3728,25 @@ export const api = {
     const qs = params.toString();
     // `skippedCount`/`skippedIds` (dossier C5 follow-up, 2026-08-03) are additive and optional —
     // present only when the server dropped one or more malformed records. Absent in the common case.
-    return request<{ widgets: AdminWidget[]; skippedCount?: number; skippedIds?: string[] }>(
-      `/workspaces/${WORKSPACE_ID}/widgets${qs ? `?${qs}` : ""}`
-    );
+    return authenticatedAdminRequest<{ widgets: AdminWidget[]; skippedCount?: number; skippedIds?: string[] }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/widgets${qs ? `?${qs}` : ""}` });
   },
   getWidget: (id: string) =>
-    request<{ widget: AdminWidget; whereUsed: AdminWidgetWhereUsed }>(`/workspaces/${WORKSPACE_ID}/widgets/${encodeURIComponent(id)}`),
+    authenticatedAdminRequest<{ widget: AdminWidget; whereUsed: AdminWidgetWhereUsed }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/widgets/${encodeURIComponent(id)}` }),
   createWidget: (
     input: { widgetType: AdminWidgetType; title: string; config: Record<string, unknown> },
     options: { slug?: string } = {}
   ) =>
-    request<{ widget: AdminWidget }>(`/workspaces/${WORKSPACE_ID}/widgets`, {
-      method: "POST",
-      body: JSON.stringify({ ...input, ...options }),
-    }),
+    authenticatedAdminRequest<{ widget: AdminWidget }>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/widgets`, body: { ...input, ...options } }),
   updateWidget: (
     { id, baseVersion, config, title }: { id: string; baseVersion: number; config: Record<string, unknown>; title?: string },
     _options: Record<string, never> = {}
   ) =>
-    request<{ widget: AdminWidget }>(`/workspaces/${WORKSPACE_ID}/widgets/${encodeURIComponent(id)}`, {
-      method: "PUT",
-      body: JSON.stringify({ baseVersion, config, ...(title === undefined ? {} : { title }) }),
-    }),
-  listWidgetRegions: () => request<{ regions: AdminWidgetRegionBinding[] }>(`/workspaces/${WORKSPACE_ID}/widgets/regions`),
+    authenticatedAdminRequest<{ widget: AdminWidget }>({ method: "PUT", path: `/workspaces/${WORKSPACE_ID}/widgets/${encodeURIComponent(id)}`, body: { baseVersion, config, ...(title === undefined ? {} : { title }) } }),
+  listWidgetRegions: () => authenticatedAdminRequest<{ regions: AdminWidgetRegionBinding[] }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/widgets/regions` }),
   bindWidgetRegion: (regionKey: string) =>
-    request<{ area: AdminWidgetArea }>(`/workspaces/${WORKSPACE_ID}/widgets/regions`, {
-      method: "POST",
-      body: JSON.stringify({ regionKey }),
-    }),
+    authenticatedAdminRequest<{ area: AdminWidgetArea }>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/widgets/regions`, body: { regionKey } }),
   getWidgetRegion: (regionKey: string) =>
-    request<{ area: AdminWidgetArea; placements: AdminWidgetPlacement[] }>(`/workspaces/${WORKSPACE_ID}/widgets/regions/${encodeURIComponent(regionKey)}`),
+    authenticatedAdminRequest<{ area: AdminWidgetArea; placements: AdminWidgetPlacement[] }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/widgets/regions/${encodeURIComponent(regionKey)}` }),
   mutateWidgetRegionPlacements: (
     {
       regionKey,
@@ -3837,38 +3759,23 @@ export const api = {
     },
     _options: Record<string, never> = {}
   ) =>
-    request<{ area: AdminWidgetArea }>(`/workspaces/${WORKSPACE_ID}/widgets/regions/${encodeURIComponent(regionKey)}`, {
-      method: "PUT",
-      body: JSON.stringify({ baseVersion, placements }),
-    }),
+    authenticatedAdminRequest<{ area: AdminWidgetArea }>({ method: "PUT", path: `/workspaces/${WORKSPACE_ID}/widgets/regions/${encodeURIComponent(regionKey)}`, body: { baseVersion, placements } }),
 
   insertWidgetEmbed: (
     { hostEntryId, baseVersion, widgetEntryId }: { hostEntryId: string; baseVersion: number; widgetEntryId: string },
     _options: Record<string, never> = {}
   ) =>
-    request<{ entry: { id: string; version: number; bodyJson: unknown }; placementId: string }>(
-      `/workspaces/${WORKSPACE_ID}/entries/${encodeURIComponent(hostEntryId)}/widget-embeds`,
-      { method: "POST", body: JSON.stringify({ baseVersion, widgetEntryId }) }
-    ),
+    authenticatedAdminRequest<{ entry: { id: string; version: number; bodyJson: unknown }; placementId: string }>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/entries/${encodeURIComponent(hostEntryId)}/widget-embeds`, body: { baseVersion, widgetEntryId } }),
   removeWidgetEmbed: (
     { hostEntryId, placementId, baseVersion }: { hostEntryId: string; placementId: string; baseVersion: number },
     _options: Record<string, never> = {}
   ) =>
-    request<{ entry: { id: string; version: number; bodyJson: unknown } }>(
-      `/workspaces/${WORKSPACE_ID}/entries/${encodeURIComponent(hostEntryId)}/widget-embeds/${encodeURIComponent(placementId)}`,
-      { method: "DELETE", body: JSON.stringify({ baseVersion }) }
-    ),
+    authenticatedAdminRequest<{ entry: { id: string; version: number; bodyJson: unknown } }>({ method: "DELETE", path: `/workspaces/${WORKSPACE_ID}/entries/${encodeURIComponent(hostEntryId)}/widget-embeds/${encodeURIComponent(placementId)}`, body: { baseVersion } }),
 
   widgetsToolPlace: (input: { widgetInstanceId: string; target: Record<string, unknown> }) =>
-    request<{ tool: "widgets.place"; result: unknown }>(`/workspaces/${WORKSPACE_ID}/widgets/tools/place`, {
-      method: "POST",
-      body: JSON.stringify(input),
-    }),
+    authenticatedAdminRequest<{ tool: "widgets.place"; result: unknown }>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/widgets/tools/place`, body: input }),
   widgetsToolCreate: (input: { widgetType: AdminWidgetType; title: string; config: Record<string, unknown>; target: Record<string, unknown> }) =>
-    request<{ tool: "widgets.create"; widget: AdminWidget; result: unknown }>(`/workspaces/${WORKSPACE_ID}/widgets/tools/create`, {
-      method: "POST",
-      body: JSON.stringify(input),
-    }),
+    authenticatedAdminRequest<{ tool: "widgets.create"; widget: AdminWidget; result: unknown }>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/widgets/tools/create`, body: input }),
 
   // SPEC-005 REQ-12..17 (1.1.0 UI amendment) — consumes REQ-10's PLUGINS_LIST/PLUGIN_SET_ENABLED
   // HTTP contract as a black box (ui.spec.md §3.1/§4.2).
@@ -3971,12 +3878,11 @@ export const api = {
    *  body — see {@link AdminDockerfileSource.etag}'s own doc). */
   getDockerfileSource: (): Promise<AdminDockerfileSource> => {
     let etag = "";
-    return request<{ exists: boolean; contents: string | null }>(
-      `/workspaces/${WORKSPACE_ID}/system/dockerfile`,
-      {},
-      (res) => {
+    return authenticatedAdminRequest<{ exists: boolean; contents: string | null }>(
+      { method: "GET", path: `/workspaces/${WORKSPACE_ID}/system/dockerfile` },
+      { onOk: (res) => {
         etag = res.headers.get("ETag") ?? "";
-      }
+      } }
     ).then((body) => ({ ...body, etag }));
   },
   /** 2026-08-15 — `PUT` half of the Dockerfile tab, `system.write`-gated (distinct from the `GET`
@@ -3990,16 +3896,11 @@ export const api = {
    *  a missing/empty one with `400`; see {@link AdminDockerfileSource.etag}'s own doc for why. */
   setDockerfileSource: (contents: string, ifMatch: string): Promise<AdminDockerfileSource> => {
     let etag = "";
-    return request<{ exists: boolean; contents: string | null }>(
-      `/workspaces/${WORKSPACE_ID}/system/dockerfile`,
-      {
-        method: "PUT",
-        headers: { "If-Match": ifMatch },
-        body: JSON.stringify({ contents }),
-      },
-      (res) => {
+    return authenticatedAdminRequest<{ exists: boolean; contents: string | null }>(
+      { method: "PUT", path: `/workspaces/${WORKSPACE_ID}/system/dockerfile`, body: { contents } },
+      { headers: { "If-Match": ifMatch }, onOk: (res) => {
         etag = res.headers.get("ETag") ?? "";
-      }
+      } }
     ).then((body) => ({ ...body, etag }));
   },
 
@@ -4237,7 +4138,6 @@ export const api = {
   /** `204`, idempotent. */
   deleteCustomCredential: (id: string) => request<void>(`/workspaces/${WORKSPACE_ID}/system/custom/credentials/${encodeURIComponent(id)}`, { method: "DELETE" }),
 
-  // getDeployments retired with the never-written deployment tables (2026-10-03).
 
   // Publish Content — the peer push ceremony behind the Dashboard's "Publish Content"
   // button (`ADS-memory/reports/2026-09-18-publish-feature-implementation-plan.md` §4 task 11).

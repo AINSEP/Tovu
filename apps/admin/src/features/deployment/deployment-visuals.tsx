@@ -1,4 +1,5 @@
-import type { Translate } from "../../lib/dictionary-translator";
+import { Icon } from "@jini-ai/ui";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 import type { DeploymentCapability } from "./rules";
 
 /**
@@ -99,9 +100,7 @@ export function LayersIcon({ size = 20 }: { size?: number }) {
  */
 export function StepDoneIcon({ size = 12 }: { size?: number }) {
   return (
-    <svg {...LINE_ICON} width={size} height={size} stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
-      <path d="m5 13 4.5 4.5L19 6.5" />
-    </svg>
+    <Icon name="check-long" size={size} focusable={undefined} {...LINE_ICON} stroke="currentColor" strokeWidth={2.5} aria-hidden="true" />
   );
 }
 
@@ -125,9 +124,7 @@ export function StepDoneIcon({ size = 12 }: { size?: number }) {
  */
 export function DisclosureChevron({ size = 14 }: { size?: number }) {
   return (
-    <svg {...LINE_ICON} width={size} height={size}>
-      <path d="m6 9 6 6 6-6" />
-    </svg>
+    <Icon name="chevron-down" size={size} focusable={undefined} {...LINE_ICON} />
   );
 }
 

@@ -1,4 +1,5 @@
-import { createDictionaryTranslator } from "../../lib/dictionary-translator";
+import { COMMON_I18N } from "../../lib/i18n-common";
+import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 /**
  * @file Dictionary for the Trash feature.
@@ -35,6 +36,7 @@ import { createDictionaryTranslator } from "../../lib/dictionary-translator";
  */
 export const TRASH_DICT: Record<string, Record<string, string>> = {
   es: {
+    "The Tovu API did not respond. Try refreshing the Trash.": "La API de Tovu no respondió. Prueba a actualizar la papelera.",
     "Select every item shown": "Seleccionar todos los elementos visibles",
     'Select "{title}"': 'Seleccionar "{title}"',
     Restore: "Restaurar",
@@ -86,6 +88,7 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "failed to delete permanently": "no se pudo eliminar permanentemente",
   },
   id: {
+    "The Tovu API did not respond. Try refreshing the Trash.": "API Tovu tidak merespons. Coba muat ulang Sampah.",
     "Select every item shown": "Pilih semua item yang ditampilkan",
     'Select "{title}"': 'Pilih "{title}"',
     Restore: "Pulihkan",
@@ -137,6 +140,7 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "failed to delete permanently": "gagal menghapus permanen",
   },
   de: {
+    "The Tovu API did not respond. Try refreshing the Trash.": "Die Tovu-API hat nicht geantwortet. Versuche, den Papierkorb zu aktualisieren.",
     "Select every item shown": "Alle angezeigten Elemente auswählen",
     'Select "{title}"': '„{title}“ auswählen',
     Restore: "Wiederherstellen",
@@ -188,6 +192,7 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "failed to delete permanently": "Endgültiges Löschen fehlgeschlagen",
   },
   "zh-CN": {
+    "The Tovu API did not respond. Try refreshing the Trash.": "Tovu API 未响应。请尝试刷新回收站。",
     "Select every item shown": "选择所有已显示的项目",
     'Select "{title}"': '选择"{title}"',
     Restore: "恢复",
@@ -239,6 +244,7 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "failed to delete permanently": "永久删除失败",
   },
   "zh-TW": {
+    "The Tovu API did not respond. Try refreshing the Trash.": "Tovu API 未回應。請嘗試重新整理資源回收筒。",
     "Select every item shown": "選擇所有已顯示的項目",
     'Select "{title}"': '選擇「{title}」',
     Restore: "還原",
@@ -290,6 +296,7 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "failed to delete permanently": "永久刪除失敗",
   },
   "pt-BR": {
+    "The Tovu API did not respond. Try refreshing the Trash.": "A API do Tovu não respondeu. Tente atualizar a Lixeira.",
     "Select every item shown": "Selecionar todos os itens exibidos",
     'Select "{title}"': 'Selecionar "{title}"',
     Restore: "Restaurar",
@@ -341,6 +348,7 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "failed to delete permanently": "falha ao excluir permanentemente",
   },
   ru: {
+    "The Tovu API did not respond. Try refreshing the Trash.": "API Tovu не ответил. Попробуйте обновить корзину.",
     "Select every item shown": "Выбрать все показанные элементы",
     'Select "{title}"': "Выбрать «{title}»",
     Restore: "Восстановить",
@@ -392,6 +400,7 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "failed to delete permanently": "не удалось удалить навсегда",
   },
   fa: {
+    "The Tovu API did not respond. Try refreshing the Trash.": "API تووو پاسخ نداد. زباله‌دان را تازه‌سازی کنید.",
     "Select every item shown": "انتخاب همه موارد نمایش‌داده‌شده",
     'Select "{title}"': "انتخاب «{title}»",
     Restore: "بازیابی",
@@ -443,6 +452,7 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "failed to delete permanently": "حذف دائمی ناموفق بود",
   },
   ar: {
+    "The Tovu API did not respond. Try refreshing the Trash.": "لم تستجب واجهة Tovu البرمجية. جرّب تحديث سلة المهملات.",
     "Select every item shown": "تحديد كل العناصر المعروضة",
     'Select "{title}"': 'تحديد "{title}"',
     Restore: "استعادة",
@@ -499,6 +509,7 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "failed to delete permanently": "تعذّر الحذف النهائي",
   },
   ja: {
+    "The Tovu API did not respond. Try refreshing the Trash.": "Tovu API が応答しませんでした。ゴミ箱を再読み込みしてください。",
     "Select every item shown": "表示されているすべての項目を選択",
     'Select "{title}"': "「{title}」を選択",
     Restore: "復元",
@@ -550,6 +561,7 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "failed to delete permanently": "完全に削除できませんでした",
   },
   ko: {
+    "The Tovu API did not respond. Try refreshing the Trash.": "Tovu API가 응답하지 않았습니다. 휴지통을 새로고침해 보세요.",
     "Select every item shown": "표시된 모든 항목 선택",
     'Select "{title}"': '"{title}" 선택',
     Restore: "복원",
@@ -601,6 +613,7 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "failed to delete permanently": "영구 삭제하지 못했습니다",
   },
   pl: {
+    "The Tovu API did not respond. Try refreshing the Trash.": "API Tovu nie odpowiedziało. Spróbuj odświeżyć Kosz.",
     "Select every item shown": "Zaznacz wszystkie widoczne elementy",
     'Select "{title}"': 'Zaznacz "{title}"',
     Restore: "Przywróć",
@@ -652,6 +665,7 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "failed to delete permanently": "nie udało się trwale usunąć",
   },
   hu: {
+    "The Tovu API did not respond. Try refreshing the Trash.": "A Tovu API nem válaszolt. Próbálja meg frissíteni a Kukát.",
     "Select every item shown": "Az összes megjelenített elem kijelölése",
     'Select "{title}"': '„{title}” kijelölése',
     Restore: "Visszaállítás",
@@ -703,6 +717,7 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "failed to delete permanently": "a végleges törlés sikertelen",
   },
   fr: {
+    "The Tovu API did not respond. Try refreshing the Trash.": "L’API Tovu n’a pas répondu. Essayez d’actualiser la corbeille.",
     "Select every item shown": "Sélectionner tous les éléments affichés",
     'Select "{title}"': "Sélectionner « {title} »",
     Restore: "Restaurer",
@@ -754,6 +769,7 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "failed to delete permanently": "échec de la suppression définitive",
   },
   uk: {
+    "The Tovu API did not respond. Try refreshing the Trash.": "API Tovu не відповів. Спробуйте оновити кошик.",
     "Select every item shown": "Вибрати всі показані елементи",
     'Select "{title}"': "Вибрати «{title}»",
     Restore: "Відновити",
@@ -805,6 +821,7 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "failed to delete permanently": "не вдалося видалити назавжди",
   },
   tr: {
+    "The Tovu API did not respond. Try refreshing the Trash.": "Tovu API yanıt vermedi. Çöp kutusunu yenilemeyi deneyin.",
     "Select every item shown": "Görüntülenen tüm öğeleri seç",
     'Select "{title}"': '"{title}" öğesini seç',
     Restore: "Geri yükle",
@@ -856,6 +873,7 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "failed to delete permanently": "kalıcı olarak silme başarısız oldu",
   },
   th: {
+    "The Tovu API did not respond. Try refreshing the Trash.": "Tovu API ไม่ตอบสนอง ลองรีเฟรชถังขยะ",
     "Select every item shown": "เลือกรายการที่แสดงทั้งหมด",
     'Select "{title}"': 'เลือก "{title}"',
     Restore: "กู้คืน",
@@ -907,6 +925,7 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "failed to delete permanently": "ลบอย่างถาวรไม่สำเร็จ",
   },
   it: {
+    "The Tovu API did not respond. Try refreshing the Trash.": "L’API di Tovu non ha risposto. Prova ad aggiornare il Cestino.",
     "Select every item shown": "Seleziona tutti gli elementi visualizzati",
     'Select "{title}"': 'Seleziona "{title}"',
     Restore: "Ripristina",
@@ -958,6 +977,7 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "failed to delete permanently": "impossibile eliminare definitivamente",
   },
   hi: {
+    "The Tovu API did not respond. Try refreshing the Trash.": "Tovu API ने जवाब नहीं दिया। ट्रैश को रीफ़्रेश करके देखें।",
     "Select every item shown": "दिखाए गए सभी आइटम चुनें",
     'Select "{title}"': 'चुनें "{title}"',
     Restore: "पुनर्स्थापित करें",
@@ -1009,6 +1029,7 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "failed to delete permanently": "स्थायी रूप से हटाया नहीं जा सका",
   },
   ur: {
+    "The Tovu API did not respond. Try refreshing the Trash.": "Tovu API نے جواب نہیں دیا۔ ردی کی ٹوکری کو ریفریش کریں۔",
     "Select every item shown": "دکھائے گئے تمام آئٹمز منتخب کریں",
     'Select "{title}"': '"{title}" منتخب کریں',
     Restore: "بحال کریں",
@@ -1060,6 +1081,7 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "failed to delete permanently": "مستقل طور پر حذف نہیں ہو سکا",
   },
   bn: {
+    "The Tovu API did not respond. Try refreshing the Trash.": "Tovu API সাড়া দেয়নি। ট্র্যাশ রিফ্রেশ করে দেখুন।",
     "Select every item shown": "প্রদর্শিত সব আইটেম নির্বাচন করুন",
     'Select "{title}"': '"{title}" নির্বাচন করুন',
     Restore: "পুনরুদ্ধার করুন",
@@ -1112,4 +1134,4 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
   },
 };
 
-export const t = createDictionaryTranslator(TRASH_DICT);
+export const t = createDictionaryTranslator({ featureDictionary: TRASH_DICT }, { commonDictionary: COMMON_I18N });

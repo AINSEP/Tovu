@@ -101,12 +101,12 @@ describe("requestRidingOutRestart", () => {
 
   it("repeats a write the dev proxy marked upstream-refused", async () => {
     const responses = [
-      new Response("The Tovu server is restarting.", { status: 503, headers: { "x-tovu-dev-proxy": "upstream-refused" } }),
+      new Response("The Tovu server is restarting.", { status: 503, headers: { "x-tovu-upstream-status": "upstream-refused" } }),
       new Response(JSON.stringify({ id: "p1" }), { status: 201, headers: { "content-type": "application/json" } }),
     ];
     vi.stubGlobal("fetch", vi.fn(async () => responses.shift()!));
     const reconnect = fakeReconnect(true);
-    const result = await requestRidingOutRestart({ send: () => requestOnce<{ id: string }>("/posts", { method: "POST", body: "{}" }), method: "POST" }, { reconnect });
+    const result = await requestRidingOutRestart({ send: () => requestOnce<{ id: string }>({ path: "/posts", init: { method: "POST", body: "{}" } }), method: "POST" }, { reconnect });
     expect(result).toEqual({ id: "p1" });
     expect(reconnect.waits).toBe(1);
   });

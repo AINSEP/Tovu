@@ -9,10 +9,8 @@ import type { FolderDropNotice as FolderDropNoticeState } from "../../features/f
  * (one `useState` slot in `use-folder-drop.hooks.ts` can only ever hold one shape), not by any
  * mutual-exclusion logic this component adds.
  *
- * Mounted in `AssistantDock.tsx`'s `leadingAccessory`, alongside `SelectedAgentPluginTray` — the same
- * "above the composer's textarea" slot the former folder indicator occupied (see that unpin's own
- * comment in `AssistantDock.tsx`) — never inside the message list, per `ui.spec.md` §6.
- * FsFolderIndicator (components/AssistantDock/FsFolderIndicator.tsx and .hooks.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
+ * Mounted above the composer's textarea in `AssistantDock.tsx`'s `leadingAccessory`, alongside
+ * `SelectedAgentPluginTray` — never inside the message list, per `ui.spec.md` §6.
  */
 export interface FolderDropNoticeProps {
   readonly notice: FolderDropNoticeState | null;

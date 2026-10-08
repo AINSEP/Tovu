@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 import { useNewTermForm, useWiredNewTermForm } from "../hooks/use-new-term-form.hooks";
 import { createFakeNewTermFormPort } from "../hooks/new-term-form-dependencies.hooks";
 import type { AdminTaxonomyWithTerms } from "@/lib/api";
@@ -12,8 +12,8 @@ import type { AdminTaxonomyWithTerms } from "@/lib/api";
  * `parentId` state happens to hold a stale value, since `NewTermForm`'s markup only renders the
  * parent `<select>` when `taxonomy.taxonomy.hierarchical` is true.
  *
- * `wrapper` (2026-08-12, `lib/fetch-query` migration): `createTerm` now goes through
- * `useFetchMutation`, which throws without a `QueryClientProvider` ancestor.
+ * `wrapper` (2026-08-12, `@jini-ai/ui/fetch-query` migration): `createTerm` now goes through
+ * `useFetchMutation`, which throws without a `FetchQueryProvider` ancestor.
  */
 
 function wrapper({ children }: { children: React.ReactNode }) {

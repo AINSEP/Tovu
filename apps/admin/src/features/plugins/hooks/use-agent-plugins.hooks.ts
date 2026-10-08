@@ -3,11 +3,10 @@ import { useEffect, useState } from "react";
 import { describeApiError, type AdminAgentPlugin } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
-import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
+import { useSettlementGeneration, type Translate } from "@jini-ai/ui/panel-kit";
 import { t as translatePlugins } from "../plugins-i18n";
 import { defaultAgentPluginsPort } from "./agent-plugins-dependencies.hooks";
 import type { AgentPluginsPort } from "./agent-plugins-port.hooks";
-import type { Translate } from "@/lib/dictionary-translator";
 import { AGENT_PLUGINS_RESOURCE } from "../rules";
 
 /**
@@ -121,12 +120,12 @@ export function useAgentPlugins({ port, locale, t }: AgentPluginsDependencies): 
     return port
       .listAgentPlugins()
       .then((r) => {
-        if (!settlement.isCurrent(generation)) return;
+        if (!settlement.isCurrent({ generation })) return;
         setAgentPlugins(r.agentPlugins);
         setError(null);
       })
       .catch((e) => {
-        if (settlement.isCurrent(generation)) setError(describeApiError(e, translatePlugins(locale, "failed to load agent plugins")));
+        if (settlement.isCurrent({ generation })) setError(describeApiError(e, translatePlugins({ locale: locale, key: "failed to load agent plugins" })));
       });
   }
 
@@ -150,7 +149,7 @@ export function useAgentPlugins({ port, locale, t }: AgentPluginsDependencies): 
         (current ?? []).map((entry) => (entry.pluginId === agentPlugin.pluginId ? agentPlugin : entry)),
       );
     } catch (e) {
-      setToggleError(describeApiError(e, translatePlugins(locale, "failed to update agent plugin")));
+      setToggleError(describeApiError(e, translatePlugins({ locale: locale, key: "failed to update agent plugin" })));
     } finally {
       setTogglingIds((ids) => withId(ids, plugin.pluginId, false));
     }
@@ -188,6 +187,6 @@ export function useAgentPlugins({ port, locale, t }: AgentPluginsDependencies): 
  */
 export function useWiredAgentPlugins(): AgentPluginsController {
   const locale = useAdminLocale();
-  const t = (key: string): string => translatePlugins(locale, key);
+  const t = (key: string): string => translatePlugins({ locale: locale, key: key });
   return useAgentPlugins({ port: defaultAgentPluginsPort, locale, t });
 }

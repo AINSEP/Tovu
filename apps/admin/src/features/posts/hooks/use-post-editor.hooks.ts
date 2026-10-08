@@ -18,9 +18,8 @@ import { Table, TableRow, TableCell, TableHeader } from "@tiptap/extension-table
 import { TaskList, TaskItem } from "@tiptap/extension-list";
 
 import type { AdminPost, ThemeTier } from "@/lib/api";
-import type { Translate } from "@/lib/dictionary-translator";
-import { interpolate } from "@/lib/template-i18n";
-import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
+import { type Translate, useSettlementGeneration, useDirtyGuard } from "@jini-ai/ui/panel-kit";
+import { interpolate } from "@jini-ai/ui/panel-kit";
 import { MediaImage } from "@/lib/media-image-extension";
 import { Media } from "@/lib/media-embed-extension";
 import { WidgetEmbed } from "@/lib/widget-embed-extension";
@@ -28,7 +27,6 @@ import { PostTitleDocument, PostTitle } from "@/lib/post-title-extension";
 import { navigate as realNavigate } from "@/lib/router";
 import { slugRedirectPath } from "@/lib/slug-redirect-path";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { useDirtyGuard } from "@/hooks/use-dirty-guard.hooks";
 import { useAgentScreenEntry } from "@/hooks/use-agent-screen-context.hooks";
 import {
   useStandingDraftAutosave,
@@ -409,7 +407,7 @@ function schedulePendingContentPreviewSubmit(input: {
  * Mirrors the server's own advisory upload allowlist (`DEFAULT_ALLOWED_MIME_TYPES`,
  * `@jini-ai/cms/media`'s `media-service.ts`) rather than importing it: that subpath is the full
  * server-side upload/DB implementation, which has no place in a browser bundle — unlike
- * `@jini-ai/cms/settings`'s plain i18n dictionaries, which `SettingsUi.tsx` already imports safely
+ * `@jini-ai/core/settings`'s plain i18n dictionaries, which `SettingsUi.tsx` already imports safely
  * elsewhere in this app. Hand-copied, not derived — kept in sync manually with the server list (see
  * the regression test pinning this exactly against a literal copy of `DEFAULT_ALLOWED_MIME_TYPES`);
  * a future addition to the server ceiling needs a matching edit here too, or this comment goes false
@@ -471,10 +469,10 @@ function formatSaveSuccessMessage(statusOverride: "draft" | "published" | undefi
   // A Publish whose time is still ahead does not go live yet (2026-10-05) — saying "Published" next
   // to the "Scheduled" badge contradicted it. The time is shown in local time, as the operator typed it.
   if (statusOverride === "published" && isScheduledPost({ status: saved.status, publishAt: saved.publishAt ?? null }, Date.now())) {
-    return interpolate(t("Scheduled for {time} · version {version}"), {
+    return interpolate({ template: t("Scheduled for {time} · version {version}"), vars: {
       time: isoToLocalDateTimeInput(saved.publishAt ?? null).replace("T", " "),
       version: saved.version,
-    });
+    } });
   }
   return `${statusOverride === "published" ? "Published" : "Saved"} · version ${saved.version}`;
 }
@@ -933,8 +931,11 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
 
   const publishAt = localDateTimeInputToIso(publishAtInput);
   const { isDirty, confirmLeave } = useDirtyGuard<PostFormState>(
-    { title, slug, status, bodyJson, templateChoice, overridesThemePage, publishAt, featuredMediaId },
-    original,
+    {
+      current: { title, slug, status, bodyJson, templateChoice, overridesThemePage, publishAt, featuredMediaId },
+      original,
+    },
+    { host: window, translate: (key) => key },
   );
 
   // Inlined rather than a second `useDirtyGuard` call so this doesn't register its own redundant
@@ -1018,7 +1019,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
       // A newer save/publish was issued after this one — that later call owns the outcome now, so
       // this stale response must not paint over it (root cause 1, 2026-09-05 stale-settlement sweep:
       // "last-to-settle wins" rather than "last-clicked wins").
-      if (!settlement.isCurrent(generation)) return;
+      if (!settlement.isCurrent({ generation })) return;
       setPost(saved);
       setStatus(nextStatus);
       setMessage(formatSaveSuccessMessage(statusOverride, saved, t));
@@ -1028,7 +1029,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
       // of what "Save succeeded" means to the operator.
       void autosave.clearStandingDraft();
     } catch (e) {
-      if (!settlement.isCurrent(generation)) return;
+      if (!settlement.isCurrent({ generation })) return;
       if (post) autosave.preserveFailedSave({ error: e, draft: buildPostAutosaveDraft(post, { title, slug, bodyJson: editor.getJSON() as Record<string, unknown> }) });
       // The version conflict is NOT folded into the generic error line. The two need opposite
       // reactions from the operator (a slug collision or a network blip: fix it and press Save
@@ -1045,7 +1046,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
       // flip the shared `saving` flag back off, or an older call's own settlement could briefly
       // re-enable Save/Publish while a newer call is still in flight. Mirrors
       // `use-page-editor.hooks.ts`'s identical `finally` in `runSave`.
-      if (settlement.isCurrent(generation)) setSaving(false);
+      if (settlement.isCurrent({ generation })) setSaving(false);
     }
   }
 
@@ -1236,6 +1237,6 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
  */
 export function useWiredPostEditor(postId: string): PostEditorController {
   const locale = useAdminLocale();
-  const t = (key: string): string => translate(locale, key);
+  const t = (key: string): string => translate({ locale: locale, key: key });
   return usePostEditor(postId, { port: defaultPostEditorPort, navigate: realNavigate, t });
 }

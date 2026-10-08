@@ -7,8 +7,7 @@ import type { AdminExecutionCredentialPort } from "./admin-execution-credential-
  * `admin-execution-credential-port.hooks.ts` for why the split exists.
  */
 
-/** The live implementation, as a module-level singleton — matches `redirects-dependencies
- *  .hooks.ts`'s `defaultRedirectsPort`. */
+/** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s `redirectsHostPorts`. */
 export const defaultAdminExecutionCredentialPort: AdminExecutionCredentialPort = {
   loadAdminExecutionCredential: () => loadAdminExecutionCredential(),
   saveAdminExecutionCredential: (patch) => saveAdminExecutionCredential(patch),

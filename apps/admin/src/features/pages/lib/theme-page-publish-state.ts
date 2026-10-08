@@ -1,5 +1,5 @@
 import { adminHref } from "../../../lib/router";
-import type { Translate } from "../../../lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 import type { ThemePageRow } from "../hooks/use-theme-pages.hooks";
 
 /**

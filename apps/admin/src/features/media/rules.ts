@@ -1,6 +1,6 @@
 import { ApiError, type AdminMedia } from "../../lib/api";
 import type { RowMenuItem } from "@jini-ai/admin/react";
-import type { QueryKey } from "../../lib/fetch-query";
+import type { QueryKey } from "@jini-ai/ui/fetch-query";
 import type { MediaContentTabId } from "./hooks/use-media-tabs.hooks";
 import { t as translate } from "./media-i18n";
 
@@ -13,7 +13,7 @@ import { t as translate } from "./media-i18n";
  * `KEYS` (fetch-query migration, 2026-08-12): one cache identity for the whole media grid. No
  * separate "detail" key — unlike `forms`/`collections`, `EditMediaPanel` never independently reads
  * an item; it receives `item: AdminMedia` as a prop, already resolved from the list by
- * `findEditingItem` below. So the sibling-vs-nested-key trap `forms/rules.ts`'s `KEYS` doc and
+ * `findEditingItem` below. So the sibling-vs-nested-key trap `@jini-ai/admin/forms` rules.ts's `KEYS` doc and
  * `collections/rules.ts`'s `KEYS` doc both document does not apply here — there is only ever one
  * query on this resource, and every write (`upload`/`trash`/`deleteMedia`/`updateMedia`, whether
  * fired from `use-media.hooks.ts` or `use-edit-media-panel.hooks.ts`) invalidates it.
@@ -379,7 +379,7 @@ export function parseMediaHtmlAttributes(text: string): ParsedMediaHtmlAttribute
  * @complexity O(1).
  */
 export function describeMediaHtmlAttributeError(error: MediaHtmlAttributeError, locale: string): string {
-  const t = (key: string): string => translate(locale, key);
+  const t = (key: string): string => translate({ locale: locale, key: key });
   const ATTRIBUTE_PLACEHOLDER = "{attribute}";
   if (error.reason === "event-handler") {
     return t("Event handler attributes like '{attribute}' are not allowed.").replace(ATTRIBUTE_PLACEHOLDER, error.attribute);
@@ -608,16 +608,16 @@ export function findEditingItem(media: AdminMedia[] | null, editingId: string | 
 
 /**
  * `useMedia`'s error banner, extracted out of that hook (`refactor/fetch-query` complexity pass,
- * 2026-08-12 — same reason `redirects/rules.ts`'s `visibleRedirectsError` was extracted).
+ * 2026-08-12 — same reason `Jini redirects/SOURCE-RATIONALE.md`'s `visibleRedirectsError` was extracted).
  *
  * Precedence: an active write's own failure (upload/trash/purge, in array order) always wins over a
  * background list-refresh failure — `use-media.hooks.ts`'s `clearOtherWriteErrors` is this rule's
- * other half, same pairing `redirects/rules.ts`'s `firstWriteError`/`clearOtherWriteErrors` document,
+ * other half, same pairing `Jini redirects/SOURCE-RATIONALE.md`'s `firstWriteError`/`clearOtherWriteErrors` document,
  * so at most one write error is ever live at a time and array order rarely matters in practice. The
  * list error only surfaces before `media` has ever loaded, matching every other migrated feature's
  * "a later background failure must not blank an already-rendered screen" guard.
  *
- * Fallback strings are passed in, not hardcoded — unlike `forms/rules.ts`'s `visibleFormEditorError`
+ * Fallback strings are passed in, not hardcoded — unlike `@jini-ai/admin/forms` rules.ts's `visibleFormEditorError`
  * (whose hook never localized its own error strings), `use-media.hooks.ts`'s pre-migration catches
  * all used `translate(locale, "...")` fallbacks, and this preserves that.
  *
@@ -665,7 +665,7 @@ export function mediaRowMenuItems(
   handlers: MediaRowMenuHandlers,
   locale: string,
 ): RowMenuItem[] {
-  const t = (key: string): string => translate(locale, key);
+  const t = (key: string): string => translate({ locale: locale, key: key });
   const items: RowMenuItem[] = [
     {
       key: "edit",

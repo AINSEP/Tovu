@@ -1,13 +1,13 @@
 import { act, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { FetchQueryProvider } from "../lib/fetch-query";
-import { useWiredRedirects } from "../features/redirects/hooks/use-redirects.hooks";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
+import { useWiredRedirects } from "./redirects-harness";
 import { Media } from "../features/media/Media";
 import type { AdminFormDefinition } from "../lib/api";
 
 /**
- * @file Measurement instrument — TM-TOVU-2026-08-12-A follow-up ("did `lib/fetch-query` actually
+ * @file Measurement instrument — TM-TOVU-2026-08-12-A follow-up ("did `@jini-ai/ui/fetch-query` actually
  * reduce request volume, or just move it?"). Pins the measured request methods, endpoints and
  * multiplicities, so it fails on any deliberate change to invalidation topology; that's the point,
  * it's the before/after instrument for any Phase 2 change. Run with:
@@ -20,9 +20,9 @@ import type { AdminFormDefinition } from "../lib/api";
  * already established across this package's own test suite (Comments/roles/users/database/etc.).
  *
  * The "remount / re-navigation" block at the end is the one case where sharing a SINGLE
- * `FetchQueryProvider`/`QueryClient` across both "visits" is load-bearing, not incidental — two
+ * `FetchQueryProvider`/`FetchQueryCache` across both "visits" is load-bearing, not incidental — two
  * independent `render`/`renderHook` calls each mint their OWN client (`FetchQueryProvider`'s
- * `useMemo(createClient, [])` runs fresh per mount), which would silently manufacture a guaranteed
+ * `provider-local useMemo` runs fresh per mount), which would silently manufacture a guaranteed
  * cache miss and make "visit 2 also fetched" a foregone, meaningless conclusion. Those tests keep
  * `<FetchQueryProvider>` itself in a fixed position across `rerender()` calls (same component
  * instance, same memoized client) and only mount/unmount the SCREEN inside it — matching production,
@@ -97,7 +97,7 @@ describe("redirects", () => {
    * cost is paid before the test starts, preserving the existing 15s bound and every assertion.
    * Explicit 15s timeout (2026-08-15 flaky-test investigation, `2026-08-15-coverage-and-tests-
    * worklist.md`): this is the FIRST test in the file, so its `await import(...)` below uniquely
-   * pays for cold-transforming the whole `use-redirects.hooks` dependency graph AND every shared
+   * pays for cold-transforming the whole `Jini redirects/react/hooks/use-redirects.hooks.ts` dependency graph AND every shared
    * dependency this file's later tests then reuse already-warm (jsdom env, `@testing-library/
    * react`, `lib/fetch-query`, etc.) — every later `it()` in this file imports a NEW feature's own
    * hooks but finishes in 30-400ms because the expensive shared infra is already transformed.
@@ -142,7 +142,7 @@ describe("redirects", () => {
       },
     ]);
     vi.stubGlobal("fetch", fn);
-    const { useWiredRedirects } = await import("../features/redirects/hooks/use-redirects.hooks");
+    const { useWiredRedirects } = await import("./redirects-harness");
     const { result } = renderHook(() => useWiredRedirects(), { wrapper });
     await waitFor(() => expect(result.current.redirects).not.toBeUndefined());
     calls.length = 0;
@@ -168,7 +168,7 @@ describe("redirects", () => {
       { match: "/redirects", respond: () => jsonResponse({ data: [RULE] }) },
     ]);
     vi.stubGlobal("fetch", fn);
-    const { useWiredRedirects } = await import("../features/redirects/hooks/use-redirects.hooks");
+    const { useWiredRedirects } = await import("./redirects-harness");
     const { result } = renderHook(() => useWiredRedirects(), { wrapper });
     await waitFor(() => expect(result.current.redirects).not.toBeUndefined());
     calls.length = 0;
@@ -191,12 +191,12 @@ describe("redirects", () => {
       { match: "/redirects", respond: () => jsonResponse({ data: [RULE_A] }) },
     ]);
     vi.stubGlobal("fetch", fn);
-    const { useWiredRedirects } = await import("../features/redirects/hooks/use-redirects.hooks");
-    const { useWiredHitCountCell } = await import("../features/redirects/hooks/use-hit-count-cell.hooks");
+    const { useWiredRedirects } = await import("./redirects-harness");
+    const { useWiredHitCountCell } = await import("./redirects-harness");
     // Both hooks MUST share one QueryClient to measure real cross-query fan-out — two independent
     // `renderHook(..., { wrapper })` calls each mint their OWN `FetchQueryProvider`/client (`useMemo
-    // (createClient, [])` runs fresh per mount), so an invalidation on one can never reach the
-    // other. A real screen (Redirects.tsx + its HitCountCell children) shares exactly one client via
+    // (provider cache factory, [])` runs fresh per mount), so an invalidation on one can never reach the
+    // other. A real screen (Jini redirects/react/pages/RedirectsPage.tsx + its HitCountCell children) shares exactly one client via
     // `main.tsx`'s single top-level `FetchQueryProvider` — mount both hooks under one `renderHook`
     // call to match that.
     const combined = renderHook(
@@ -405,7 +405,7 @@ describe("forms", () => {
   it("list initial load", async () => {
     const { fn, calls } = createRecorder([{ match: "/forms", respond: () => jsonResponse({ data: [] }) }]);
     vi.stubGlobal("fetch", fn);
-    const { useWiredFormsList } = await import("../features/forms/hooks/use-forms-list.hooks");
+    const { useWiredFormsList } = await import("./forms-harness");
     const { result } = renderHook(() => useWiredFormsList(), { wrapper });
     await waitFor(() => expect(result.current.forms).not.toBeNull());
     await expectRequests(calls, [`GET ${WORKSPACE}/forms`]);
@@ -417,7 +417,7 @@ describe("forms", () => {
     const FORM: AdminFormDefinition = { id: "f1", workspaceId: "w1", name: "Contact", slug: "contact", status: "active", fields: [], notify: { enabled: false, recipients: [] }, createdAt: "2026-08-01T00:00:00.000Z", updatedAt: "2026-08-01T00:00:00.000Z" };
     const { fn, calls } = createRecorder([{ match: "/forms/f1", respond: () => jsonResponse({ data: FORM }) }]);
     vi.stubGlobal("fetch", fn);
-    const { useWiredFormEditor } = await import("../features/forms/hooks/use-form-editor.hooks");
+    const { useWiredFormEditor } = await import("./forms-harness");
     const { result } = renderHook(() => useWiredFormEditor({ formId: "f1", tab: "fields" }), { wrapper });
     await waitFor(() => expect(result.current.form).not.toBeNull());
     await expectRequests(calls, [`GET ${WORKSPACE}/forms/f1`]);
@@ -433,8 +433,8 @@ describe("forms", () => {
       { match: "/forms", method: "GET", respond: () => jsonResponse({ data: [FORM] }) },
     ]);
     vi.stubGlobal("fetch", fn);
-    const { useWiredFormEditor } = await import("../features/forms/hooks/use-form-editor.hooks");
-    const { useWiredFormsList } = await import("../features/forms/hooks/use-forms-list.hooks");
+    const { useWiredFormEditor } = await import("./forms-harness");
+    const { useWiredFormsList } = await import("./forms-harness");
     const { result } = renderHook(() => ({
       ...useWiredFormEditor({ formId: "f1", tab: "fields" }),
       list: useWiredFormsList(),
@@ -591,14 +591,14 @@ describe("database", () => {
 // `<FetchQueryProvider>` stays mounted (same component instance, same memoized QueryClient) across
 // every `rerender()` below — only the SCREEN inside it mounts/unmounts, matching `main.tsx` (one
 // provider for the app's lifetime) + the router (screens mount/unmount on navigation). Elapsed time
-// inside these tests is milliseconds, far under TanStack's default `gcTime` (5 min), so a refetch
-// observed here is a `staleTime` decision, not a `gcTime` eviction — noted per test.
+// inside these tests is milliseconds, far under Jini's default idle retention (5 min), so a refetch
+// observed here is a `staleTime` decision, not an idle eviction — noted per test.
 // ---------------------------------------------------------------------------
 describe("remount / re-navigation — same QueryClient shared across visits", () => {
   it("redirects: navigate away (unmount the whole screen) and back (remount) — does visit 2 refetch?", async () => {
     const { fn, calls } = createRecorder([{ match: "/redirects", respond: () => jsonResponse({ data: [] }) }]);
     vi.stubGlobal("fetch", fn);
-    const { Redirects } = await import("../features/redirects/Redirects");
+    const { Redirects } = await import("./redirects-harness");
 
     const { rerender } = render(
       <FetchQueryProvider>
@@ -625,7 +625,7 @@ describe("remount / re-navigation — same QueryClient shared across visits", ()
     // eslint-disable-next-line no-console
     console.log(`MEASURE\tredirects\tremount cost: visit2Requests=${visit2} (gcTime not a factor — elapsed time is ms)`);
     expect(visit1).toBeGreaterThan(0);
-    // Owner decision (TM-TOVU-2026-08-12-A, `adapter.tanstack.tsx`'s `staleTime: 0 -> 10_000`
+    // Owner decision (TM-TOVU-2026-08-12-A, Jini's retained `staleTime: 0 -> 10_000`
     // default change): under the OLD `staleTime: 0` default this was 1 — a remount refetched at
     // full cost, identical to a first visit (see this same file's git history for the pre-change
     // number). Now 0: the cache entry survives the remount and is still fresh, so nothing refetches.
@@ -679,7 +679,7 @@ describe("remount / re-navigation — same QueryClient shared across visits", ()
     // eslint-disable-next-line no-console
     console.log(`MEASURE\tcollections\tdetail-panel reopen cost: visit2Requests=${visit2}`);
     expect(visit1).toBeGreaterThan(0);
-    // Owner decision (TM-TOVU-2026-08-12-A, `adapter.tanstack.tsx`'s `staleTime: 0 -> 10_000`
+    // Owner decision (TM-TOVU-2026-08-12-A, Jini's retained `staleTime: 0 -> 10_000`
     // default change): under the OLD `staleTime: 0` default this was 3 — reopening the SAME record
     // refetched all 3 of the combined load's requests again, identical to a first open (see this
     // same file's git history for the pre-change number). Now 0: the cache entry survives the

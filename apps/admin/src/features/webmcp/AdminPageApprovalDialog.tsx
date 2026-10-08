@@ -10,10 +10,10 @@ export function AdminPageApprovalDialog({ locale, approvals }: { locale: string;
   return <>
     {approval.pending ? <ConfirmDialog
       open
-      title={t(locale, "Allow the browser agent to perform this admin action?")}
+      title={t({ locale: locale, key: "Allow the browser agent to perform this admin action?" })}
       body={<pre className="webmcp-page-approval-input">{approval.details}</pre>}
-      confirmLabel={t(locale, "Confirm")}
-      cancelLabel={t(locale, "Cancel")}
+      confirmLabel={t({ locale: locale, key: "Confirm" })}
+      cancelLabel={t({ locale: locale, key: "Cancel" })}
       agentHandle="webmcp-page-approval"
       onConfirm={approval.confirm}
       onCancel={approval.cancel}

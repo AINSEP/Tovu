@@ -130,7 +130,6 @@ test("setPluginEnabled PATCHes { enabled } to /plugins/:id", async () => {
 
 // --- Deployments -----------------------------------------------------------------
 
-// getDeployments assertions retired with the deployment table reader (2026-10-03).
 
 test("getExternalMcpAdmissions hits GET /mcp-servers/admissions", async () => {
   const { calls } = stubFetchCapturing();

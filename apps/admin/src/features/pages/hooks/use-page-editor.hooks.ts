@@ -12,11 +12,9 @@ import { navigate as defaultNavigate } from "@/lib/router";
 import { slugRedirectPath } from "@/lib/slug-redirect-path";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
-import { useDirtyGuard } from "@/hooks/use-dirty-guard.hooks";
+import { useDirtyGuard, type Translate, useSettlementGeneration } from "@jini-ai/ui/panel-kit";
 import { useAgentScreenEntry } from "@/hooks/use-agent-screen-context.hooks";
-import type { Translate } from "@/lib/dictionary-translator";
 import { useExternalEntryRefresh } from "@/hooks/use-external-entry-refresh.hooks";
-import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
 import {
   useStandingDraftAutosave,
   type StandingDraftAutosaveSnapshot,
@@ -630,7 +628,7 @@ export interface PageEditorDependencies {
  * everywhere below — they are stable references in production (`useWiredPageEditor` always passes
  * the same module-level singletons; only `locale` actually varies across renders), so `useCallback`
  * dependency arrays can name them directly without an unstable-identity hazard, matching
- * `redirects-dependencies.hooks.ts`'s "confirmed safe to leave port unmemoized" precedent.
+ * `Jini redirects/SOURCE-RATIONALE.md`'s "confirmed safe to leave port unmemoized" precedent.
  */
 export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): PageEditorController {
   const { port, themeCanvasPort, navigate, t, locale } = deps;
@@ -888,7 +886,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
         // A newer save/publish claimed a later generation while this call was awaiting — that call
         // owns the outcome now, so this stale response must not paint over it (2026-09-05
         // stale-settlement sweep: "last-to-settle wins" rather than "last-clicked wins").
-        if (!settlement.isCurrent(generation)) return;
+        if (!settlement.isCurrent({ generation })) return;
         applySavedPage(
           updated,
           { templateChoice, html: bodyHtml, nextStatus },
@@ -902,7 +900,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
         // not part of what "Save succeeded" means to the operator.
         void autosave.clearStandingDraft();
       } catch (e) {
-        if (!settlement.isCurrent(generation)) return;
+        if (!settlement.isCurrent({ generation })) return;
         autosave.preserveFailedSave({ error: e, draft: buildPageAutosaveDraft(basis, { title, slug, html: bodyHtml }) });
         applySaveFailure(
           e,
@@ -916,7 +914,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
         // Same generation check as the two branches above: only the call that is still current
         // should flip the shared `saving` flag back off, or an older call's own settlement could
         // briefly re-enable Save/Publish while a newer call is still in flight.
-        if (settlement.isCurrent(generation)) setSaving(false);
+        if (settlement.isCurrent({ generation })) setSaving(false);
       }
     },
     [html, title, slug, status, templateChoice, locale, port, t, settlement, autosave.clearStandingDraft, autosave.preserveFailedSave]
@@ -1046,8 +1044,11 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   // instead of computed inline, so `confirmLeave`/the automatic `beforeunload` listener agree with
   // what the Save button itself considers dirty.
   const { confirmLeave } = useDirtyGuard(
-    { title, slug, status, html, templateChoice },
-    pageDirtyGuardBaseline(page, savedHtml, savedTemplateChoice)
+    {
+      current: { title, slug, status, html, templateChoice },
+      original: pageDirtyGuardBaseline(page, savedHtml, savedTemplateChoice),
+    },
+    { host: window, translate: (key) => key },
   );
 
   const onBackLinkClick = useCallback(
@@ -1058,7 +1059,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
       }
       event.preventDefault();
       const flushed = await flushInteractiveEdits();
-      if (confirmLeave(flushed !== undefined && flushed !== savedHtml)) navigate("/pages");
+      if (confirmLeave({}, { unsavedBeyondTracked: flushed !== undefined && flushed !== savedHtml })) navigate("/pages");
     },
     [confirmLeave, flushInteractiveEdits, savedHtml, navigate]
   );

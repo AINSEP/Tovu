@@ -7,8 +7,7 @@ import type { PluginsPort } from "./plugins-port.hooks";
  * its own port at `agent-plugins-dependencies.hooks.ts` — out of scope here.)
  */
 
-/** The live implementation, as a module-level singleton — matches `redirects-dependencies
- *  .hooks.ts`'s `defaultRedirectsPort`. */
+/** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s `redirectsHostPorts`. */
 export const defaultPluginsPort: PluginsPort = {
   listPlugins: () => authenticatedAdminRequest({ path: `/workspaces/${WORKSPACE_ID}/plugins`, method: "GET" }),
   setPluginEnabled: (id, patch) => api.setPluginEnabled(id, patch),

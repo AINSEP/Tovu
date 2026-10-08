@@ -22,7 +22,7 @@ import {
   sourceControlProviderInfoFromDescriptor,
 } from "../source-control/rules";
 import { MEDIA_PROVIDER_CATALOG } from "../media/media-provider-catalog";
-import type { Translate } from "../../lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 
 /**
  * @file Pure data and computation for the Security page's Access Tokens tab — no React, no fetch,

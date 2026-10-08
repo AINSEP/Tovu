@@ -4,7 +4,7 @@ import { tovuKit } from "./integrations/jini-admin/kit";
 import ReactDOM from "react-dom/client";
 import { App } from "./App";
 import { ServerRestartingBanner } from "./components/ServerRestartingBanner/ServerRestartingBanner";
-import { FetchQueryProvider } from "./lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 import { redirectLegacyHashUrl } from "./lib/router";
 import remixiconCss from "@jini-ai/ui/remixicon.css?inline";
 import "./styles.css";

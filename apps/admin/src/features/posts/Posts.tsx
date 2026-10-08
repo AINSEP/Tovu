@@ -5,7 +5,7 @@ import { useState, type ReactNode } from "react";
 
 import type { AdminPost } from "../../lib/api";
 import { siteUrl } from "../../lib/site-url";
-import { formatTimestamp } from "../../lib/format-timestamp";
+import { formatTimestamp } from "@jini-ai/ui/panel-kit";
 import { navigate } from "../../lib/router";
 import {
   postRowMenuItems,
@@ -49,7 +49,7 @@ export interface PostsProps {
  * (2026-08-06, complexity pass, fourth pass) so its two early-return checks collapse into one
  * `if` at the call site. `error && !posts` (not just `error`): once the list has loaded, a later
  * failure (create, delete) surfaces as an inline banner above the table instead of blanking the
- * whole screen — matches Pages.tsx/Media.tsx/Comments.tsx. Mirrors `Pages.tsx`'s identical
+ * whole screen — matches Pages.tsx/Media.tsx and `@jini-ai/admin/comments/react`. Mirrors `Pages.tsx`'s identical
  * `pagesListNotice`.
  */
 export function postsListNotice(posts: AdminPost[] | null, error: string | null, t: (key: string) => string): ReactNode {
@@ -72,7 +72,7 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
     rowMenuHandleById,
   } = usePostsHook();
   const locale = useWiredAdminLocale();
-  const t = (key: string): string => translate(locale, key);
+  const t = (key: string): string => translate({ locale: locale, key: key });
   // Owner ruling (2026-08-14): pure interactive DOM-chrome state — a client-side sort toggle with
   // no I/O behind it — stays LOCAL rather than moving into `use-posts.hooks.ts`, unlike every other
   // piece of state on this screen. The line to draw: async/API/data state always moves into the
@@ -174,7 +174,7 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
             // "desc" (newest first) is this column's own starting direction, unlike the other
             // three's ascending default — unchanged from the pre-existing Updated-only feature.
             sort: { compare: comparePostsByUpdated, defaultDirection: "desc", label: (direction) => updatedColumnSortLabel(t, direction) },
-            cell: (post) => formatTimestamp(post.updatedAt),
+            cell: (post) => formatTimestamp({ iso: post.updatedAt }, { timeZone: "local" }),
           },
           {
             key: "actions",

@@ -3,7 +3,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { type AdminPolicyPermission } from "@/lib/api";
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 import { createFakeRolesPort } from "../hooks/roles-dependencies.hooks";
 import { useRoles, useWiredRoles } from "../hooks/use-roles.hooks";
 
@@ -18,9 +18,9 @@ import { useRoles, useWiredRoles } from "../hooks/use-roles.hooks";
  * off `Roles.tsx` in this extraction, and a drifted string here is the bug class two other files in
  * this same migration already produced once.
  *
- * `wrapper` (2026-08-12, `lib/fetch-query` migration): the combined roles+policies read and every
+ * `wrapper` (2026-08-12, `@jini-ai/ui/fetch-query` migration): the combined roles+policies read and every
  * write now go through `useFetchQuery`/`useFetchMutation`, which throw without a
- * `QueryClientProvider` ancestor.
+ * `FetchQueryProvider` ancestor.
  *
  * `useWiredRoles` (2026-08-14, `useX(dependencies)` / `useWiredX()` conversion): every call below
  * that used to render bare `useRoles()` now renders `useWiredRoles()` instead — same real `fetch`
@@ -113,7 +113,7 @@ describe("onCreateRole", () => {
     expect(result.current.roleName).toBe("");
     expect(result.current.roleSaving).toBe(false);
     expect(result.current.roleError).toBeNull();
-    // `waitFor`, not a bare synchronous read (2026-08-12, `lib/fetch-query` migration): the reload
+    // `waitFor`, not a bare synchronous read (2026-08-12, `@jini-ai/ui/fetch-query` migration): the reload
     // triggered by `invalidates: [KEYS.list]` is a separate, un-awaited background refetch, so
     // `onCreateRole()`'s own promise resolving does not guarantee it has landed yet.
     await waitFor(() => expect(result.current.roles).toHaveLength(2));

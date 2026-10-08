@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 import { defaultAdminLocalePort, DEFAULT_LOCALE } from "./admin-locale-dependencies.hooks";
 import type { AdminLocalePort } from "./admin-locale-port.hooks";
-import { useSettlementGeneration } from "./use-settlement-generation.hooks";
+import { useSettlementGeneration } from "@jini-ai/ui/panel-kit";
 
 /**
  * Fetches the operator's stored `core.language.locale`, defaulting to `DEFAULT_LOCALE` ("en")
@@ -62,7 +62,7 @@ export function useAdminLocale(port: AdminLocalePort = defaultAdminLocalePort): 
       port
         .loadLanguage()
         .then((next) => {
-          if (!cancelled && settlement.isCurrent(generation)) setLocale(next);
+          if (!cancelled && settlement.isCurrent({ generation })) setLocale(next);
         })
         .catch(() => undefined);
     };

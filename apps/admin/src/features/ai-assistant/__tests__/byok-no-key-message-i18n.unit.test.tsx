@@ -38,7 +38,7 @@ function renderLikeAiAssistant(locale: string) {
         onConfigChange={vi.fn()}
         preset={null}
         modelDiscovery={{ status: "idle" }}
-        connectionTest={{ status: "error", message: translateAiAssistant(locale, NO_KEY) }}
+        connectionTest={{ status: "error", message: translateAiAssistant({ locale: locale, key: NO_KEY }) }}
         onTestConnection={vi.fn()}
       />
     </I18nProvider>,

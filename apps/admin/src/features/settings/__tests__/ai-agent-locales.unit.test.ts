@@ -124,18 +124,18 @@ describe('AI agent copy in every supported locale', () => {
   });
   it.each(Object.keys(expected))('%s: exact title, scope, warning and package ARIA overlay', (locale) => {
     const [title, scope, warning] = expected[locale]!;
-    expect(t(locale, 'AI agent')).toBe(title);
-    expect(t(locale, 'Detected on this computer.')).toBe(scope);
-    expect(t(locale, 'Authentication required. Sign in before sending.')).toBe(warning);
+    expect(t({ locale: locale, key: 'AI agent' })).toBe(title);
+    expect(t({ locale: locale, key: 'Detected on this computer.' })).toBe(scope);
+    expect(t({ locale: locale, key: 'Authentication required. Sign in before sending.' })).toBe(warning);
     const dictionaries = aiAgentPanelDictionaries({ dictionaries: SETTINGS_DIALOG_DICTIONARIES });
     expect(dictionaries[locale]?.['Execution mode']).toBe(title);
     expect(dictionaries[locale]?.['AI agent']).toBe(title);
-    expect(tSecurity(locale, 'Settings · AI agent').split(' · ')[1]).toBe(title);
+    expect(tSecurity({ locale: locale, key: 'Settings · AI agent' }).split(' · ')[1]).toBe(title);
     const key = 'It is a different key from the one under Settings → AI agent → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.';
     expect(AI_ASSISTANT_DICT[locale]?.[key] ?? key).toContain(`→ ${title} → BYOK`);
   });
   it('falls back to exact English for unsupported locales', () => {
-    expect(t('unknown', 'AI agent')).toBe('AI agent');
-    expect(t('unknown', 'Authentication required. Sign in before sending.')).toBe('Authentication required. Sign in before sending.');
+    expect(t({ locale: 'unknown', key: 'AI agent' })).toBe('AI agent');
+    expect(t({ locale: 'unknown', key: 'Authentication required. Sign in before sending.' })).toBe('Authentication required. Sign in before sending.');
   });
 });

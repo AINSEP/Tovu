@@ -17,7 +17,6 @@ import { HistoryTab } from "../HistoryTab";
  * for the first tab in this panel to make that same jump.
  */
 
-// Full Site assertions retired with that tab (2026-10-03).
 
 describe("HistoryTab", () => {
   it("renders a real empty state — no fabricated build/deploy rows", () => {

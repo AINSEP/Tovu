@@ -21,9 +21,9 @@ describe("provider backend note", () => {
   });
 
   it("resolves field copy and preserves unlisted provider-specific text", () => {
-    expect(t("es", "Client secret")).toBe("Secreto de cliente");
-    expect(t("es", "required")).toBe("obligatorio");
-    expect(t("unsupported-locale", "Required credentials")).toBe("Required credentials");
-    expect(t("es", "Unlisted setup hint")).toBe("Unlisted setup hint");
+    expect(t({ locale: "es", key: "Client secret" })).toBe("Secreto de cliente");
+    expect(t({ locale: "es", key: "required" })).toBe("obligatorio");
+    expect(t({ locale: "unsupported-locale", key: "Required credentials" })).toBe("Required credentials");
+    expect(t({ locale: "es", key: "Unlisted setup hint" })).toBe("Unlisted setup hint");
   });
 });

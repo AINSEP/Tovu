@@ -1,7 +1,8 @@
 import { SETTINGS_DIALOG_DICTIONARIES, type Locale } from "@jini-ai/ui";
 import { SECRET_REDACTED_NOTICE, CREDENTIAL_CARD_GUIDANCE } from "@jini-ai/chat/core";
 import type { I18nAdapter } from "@jini-ai/chat/react";
-import { createDictionaryTranslator } from "../../lib/dictionary-translator";
+import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
+import { COMMON_I18N } from "../../lib/i18n-common";
 
 /**
  * @file Spanish dictionary for the assistant dock's OWN chrome — `AssistantDock.tsx`'s pane
@@ -250,7 +251,11 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
  *  doesn't carry for a locale still renders translated instead of falling straight to English.
  *  Exported so `App.hooks.tsx`'s `translateAssistantDockLabel` and `AssistantDock.hooks.tsx`'s
  *  `useAssistantDockChrome` can both call it directly instead of each duplicating the lookup. */
-export const t = createDictionaryTranslator(ASSISTANT_DOCK_DICT);
+const translateDockCopy = createDictionaryTranslator(
+  { featureDictionary: ASSISTANT_DOCK_DICT }, { commonDictionary: COMMON_I18N },
+);
+// Keep the dock's host binding stable while its hook is being edited by another worker.
+export const t = (locale: string, key: string): string => translateDockCopy({ locale, key });
 
 /**
  * @file Spanish dictionary backing `@jini-ai/chat/react`'s OWN `I18nAdapter` contract

@@ -100,7 +100,7 @@ it("translates the confirmation choice in every supported locale", () => {
   expect(Object.keys(WEBMCP_DICT)).toHaveLength(22);
   for (const locale of Object.keys(WEBMCP_DICT)) {
     expect(WEBMCP_DICT[locale].Confirm).toBeTruthy();
-    expect(t(locale, "Confirm")).toBe(WEBMCP_DICT[locale].Confirm);
+    expect(t({ locale: locale, key: "Confirm" })).toBe(WEBMCP_DICT[locale].Confirm);
   }
 });
 

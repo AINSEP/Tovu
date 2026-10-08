@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { Workspace } from "../Workspace";
 import type { WorkspaceController } from "../hooks/use-workspace.hooks";
-import { formatTimestamp } from "@/lib/format-timestamp";
+import { formatTimestamp } from "@jini-ai/ui/panel-kit";
 import type { AdminWorkspace } from "@/lib/api";
 
 /**
@@ -60,7 +60,7 @@ describe("rename form", () => {
     expect(screen.getByText("w1")).toBeInTheDocument();
     // Formatted display (`formatTimestamp`), not the raw ISO-8601 value — see `Workspace.tsx`'s
     // own comment on the created-at cell for why.
-    expect(screen.getByText(formatTimestamp(WORKSPACE.createdAt))).toBeInTheDocument();
+    expect(screen.getByText(formatTimestamp({ iso: WORKSPACE.createdAt }, { timeZone: "local" }))).toBeInTheDocument();
   });
 
   it("Save is disabled while the draft matches the persisted workspace (not dirty)", () => {

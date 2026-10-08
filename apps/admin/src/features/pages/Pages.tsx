@@ -4,11 +4,11 @@ import { agentHandle } from "@jini-ai/agentic";
 import { useState, type ReactNode } from "react";
 
 import type { AdminPost } from "../../lib/api";
-import type { Translate } from "../../lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 import { siteUrl } from "../../lib/site-url";
-import { formatTimestamp } from "../../lib/format-timestamp";
+import { formatTimestamp } from "@jini-ai/ui/panel-kit";
 import { adminHref, navigate } from "../../lib/router";
-import { TabBar } from "../../components/TabBar";
+import { TabBar } from "@jini-ai/ui/tab-strip";
 import { ServerLabel } from "@/components/status-labels";
 import { PublishSectionButton } from "../publish-content/PublishSectionButton";
 import {
@@ -90,7 +90,7 @@ function resolveThemePagesHook(override: typeof useWiredThemePages | undefined):
 /**
  * The loading/error guard shown before the table has anything to render — pulled out of `Pages`
  * (2026-08-06, complexity pass, fourth pass) so its two early-return checks collapse into one
- * `if` at the call site. `error && !pages` (not just `error`), matching Media.tsx/Comments.tsx:
+ * `if` at the call site. `error && !pages` (not just `error`), matching Media.tsx and `@jini-ai/admin/comments/react`:
  * once the list has loaded, a later failure (create, delete) surfaces as an inline banner above
  * the table instead of blanking out the whole screen behind it. Mirrors `Posts.tsx`'s identical
  * `postsListNotice`, matching this pair's existing "twin screens" convention (this file's own
@@ -254,7 +254,7 @@ export function Pages(props: PagesProps) {
                 // "desc" (newest first) is this column's own starting direction, unlike the other
                 // three's ascending default — unchanged from the pre-existing Updated-only feature.
                 sort: { compare: comparePagesByUpdated, defaultDirection: "desc", label: (direction) => updatedPageColumnSortLabel(t, direction) },
-                cell: (page) => formatTimestamp(page.updatedAt),
+                cell: (page) => formatTimestamp({ iso: page.updatedAt }, { timeZone: "local" }),
               },
               {
                 key: "actions",

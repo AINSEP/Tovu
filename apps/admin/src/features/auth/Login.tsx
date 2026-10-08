@@ -22,7 +22,7 @@ export interface LoginProps {
 export function Login({ onLogin, useLoginHook = useWiredLogin }: LoginProps) {
   const { username, setUsername, password, setPassword, error, busy, submit } = useLoginHook({ onLogin });
   const locale = useWiredAdminLocale();
-  const t = (key: string): string => translateAuth(locale, key);
+  const t = (key: string): string => translateAuth({ locale: locale, key: key });
 
   return (
     <div className="login-screen">

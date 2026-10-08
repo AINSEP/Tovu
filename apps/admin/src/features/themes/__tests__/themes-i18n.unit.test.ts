@@ -22,11 +22,11 @@ const LOCALES = [
  */
 describe("themes-i18n: theme preview modal key parity across all 21 locales", () => {
   it.each(LOCALES)('translates "Close preview" for locale %s', (locale) => {
-    expect(t(locale, "Close preview")).not.toBe("Close preview");
+    expect(t({ locale: locale, key: "Close preview" })).not.toBe("Close preview");
   });
 
   it.each(LOCALES)('translates "{id} theme preview" for locale %s', (locale) => {
-    expect(t(locale, "{id} theme preview")).not.toBe("{id} theme preview");
+    expect(t({ locale: locale, key: "{id} theme preview" })).not.toBe("{id} theme preview");
   });
 });
 
@@ -76,6 +76,6 @@ describe("THEMES_DICT: cross-locale key parity", () => {
 describe("THEMES_DICT: t() falls back to COMMON_I18N", () => {
   it("translates 'Cancel' in German even though THEMES_DICT.de never carries it", () => {
     expect(THEMES_DICT.de.Cancel).toBeUndefined();
-    expect(t("de", "Cancel")).toBe(COMMON_I18N.de.Cancel);
+    expect(t({ locale: "de", key: "Cancel" })).toBe(COMMON_I18N.de.Cancel);
   });
 });

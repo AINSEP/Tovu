@@ -4,12 +4,11 @@ import { type AdminPost } from "@/lib/api";
 import { navigate as defaultNavigate } from "@/lib/router";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
-import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
+import { useSettlementGeneration, type Translate } from "@jini-ai/ui/panel-kit";
 import { t as translate } from "../pages-i18n";
 import { buildPageRowMenuHandleMap, pageAdminPath, PAGES_RESOURCE } from "../rules";
 import { defaultPagesPort } from "./pages-dependencies.hooks";
 import type { PagesPort } from "./pages-port.hooks";
-import type { Translate } from "@/lib/dictionary-translator";
 
 /**
  * @file Everything the Pages LIST does, so `Pages.tsx` is only markup.
@@ -132,11 +131,11 @@ export function usePages(deps: PagesDependencies): PagesController {
         // notification, or two notifications back to back) — that later call owns `pages` now, and
         // applying this stale result would let whichever request happens to settle LAST win
         // regardless of which one was issued last. See this hook's own header.
-        if (!settlement.isCurrent(generation)) return;
+        if (!settlement.isCurrent({ generation })) return;
         setPages(r.posts.map((entry) => entry.post));
       })
       .catch((e) => {
-        if (!settlement.isCurrent(generation)) return;
+        if (!settlement.isCurrent({ generation })) return;
         setError(e instanceof Error ? e.message : "failed to load pages");
       });
     // `port`/`settlement` are added — see `use-page-editor.hooks.ts`'s identical note: both are
@@ -279,6 +278,6 @@ export function usePages(deps: PagesDependencies): PagesController {
  */
 export function useWiredPages(): PagesController {
   const locale = useAdminLocale();
-  const t = (key: string): string => translate(locale, key);
+  const t = (key: string): string => translate({ locale: locale, key: key });
   return usePages({ port: defaultPagesPort, navigate: defaultNavigate, t, locale });
 }

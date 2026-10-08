@@ -1,7 +1,8 @@
-import { render, renderHook } from "@testing-library/react";
+import { fireEvent, render, renderHook, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { tabFromLastFocusableInDialog } from "@/hooks/__tests__/focus-trap.test-helpers";
+import { LifecycleConfirmDialog } from "../Collections";
+import type { AdminContentType } from "@/lib/api";
 import { useLifecycleConfirmDialog } from "../hooks/use-lifecycle-confirm-dialog.hooks";
 
 /**
@@ -26,34 +27,21 @@ describe("copy + autoFocusCancel derivation", () => {
   });
 });
 
-describe("Escape-to-cancel", () => {
-  it("calls onCancel when Escape is pressed while mounted", () => {
-    const onCancel = vi.fn();
-    renderHook(() => useLifecycleConfirmDialog({ op: "deprecate", onCancel }));
-    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+describe("native lifecycle dialog", () => {
+  it("native cancel reaches onCancel without confirming", () => {
+    const onCancel = vi.fn(), onConfirm = vi.fn();
+    render(<LifecycleConfirmDialog op="tombstone" contentType={{ label: "Recipe" } as AdminContentType}
+      onConfirm={onConfirm} onCancel={onCancel} t={(key) => key} />);
+    fireEvent(screen.getByRole("dialog"), new Event("cancel", { cancelable: true }));
     expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(onConfirm).not.toHaveBeenCalled();
   });
-});
 
-describe("focus trap (M3)", () => {
-  it("Tab from the dialog's last focusable element wraps to the first instead of leaving", () => {
-    function Harness() {
-      const { dialogRef } = useLifecycleConfirmDialog({ op: "deprecate", onCancel: vi.fn() });
-      return (
-        <>
-          <button type="button">page behind</button>
-          <div ref={dialogRef} role="dialog" aria-modal="true">
-            <button type="button">first</button>
-            <button type="button">last</button>
-          </div>
-        </>
-      );
-    }
-    render(<Harness />);
-
-    const { event, first } = tabFromLastFocusableInDialog();
-
-    expect(event.defaultPrevented).toBe(true);
-    expect(document.activeElement).toBe(first);
+  it("uses native modality and keeps destructive confirmation off initial focus", () => {
+    render(<LifecycleConfirmDialog op="tombstone" contentType={{ label: "Recipe" } as AdminContentType}
+      onConfirm={vi.fn()} onCancel={vi.fn()} t={(key) => key} />);
+    expect(screen.getByRole("dialog").tagName).toBe("DIALOG");
+    expect(screen.getByRole("dialog")).toHaveAttribute("open");
+    expect(screen.getByRole("button", { name: "Cancel" })).toHaveFocus();
   });
 });

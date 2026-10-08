@@ -44,7 +44,6 @@ import type { AdminLedgerRow } from "@/lib/api";
  * it was already asserting against with no change to the call itself. A test that needs a specific
  * tab regardless of that inference (or needs to assert on the tab bar itself) passes `tabId`
  * explicitly, which always wins.
- * useRestorePointsSection (features/database/hooks/use-restore-points-section.hooks.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 
 vi.mock("../../../lib/router", () => ({ navigate: vi.fn() }));

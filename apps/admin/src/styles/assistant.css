@@ -974,24 +974,11 @@ button.jini-composer-leading,
   line-height: 1;
 }
 
-/* FsFolderIndicator.tsx/.hooks.ts and .tovu-fs-folder-indicator rules were deleted 2026-10-03: unused; see development/DELETED-CODE.md.
- *
- * The former chat composer's always-visible indicator showed which folder (if any) the assistant's
- * `fs_list_files`/`fs_read_file` tools could reach outside this repo/site. It used a small
- * class family rather than reusing `.jini-attachment-chip` above — that shape is a
- * remove-only chip with no inline editor, built for a growing LIST of pinned items; the former control was a
- * single always-present control with its own "type a path" affordance. No specificity trick is
- * needed there (contrast the plugin tray's own comment two blocks down): `.tovu-fs-*` has no
- * same-named counterpart in Jini's own injected stylesheet, so there is no cascade-order tie to
- * win.
- */
+
 /* --- Folder-drop notice (FolderDropConfirmation/FolderDropError, SPEC-053) ------------------
- * Same slot the former folder indicator occupied (`AssistantDock.tsx`'s `leadingAccessory`), but
- * transient rather than always-present — see that prop's own comment on why a fragment here, not a
- * wrapping element, is what keeps `.admin-chat-dock > * { flex: 1 }` (App.tsx) reaching `ChatPane`'s
- * own root unchanged. Retains the former indicator's row/pill/token shape rather than
- * introducing a second visual language for the same "folder + composer" concern.
- * FsFolderIndicator (components/AssistantDock/FsFolderIndicator.tsx and .hooks.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
+ * Uses `AssistantDock.tsx`'s `leadingAccessory` only transiently. See that prop's rationale for
+ * the fragment that keeps the host flex selector reaching ChatPane's root. Keep a consistent
+ * row/pill/token shape for the folder controls in the composer.
  */
 .tovu-folder-drop-notice {
   display: flex;

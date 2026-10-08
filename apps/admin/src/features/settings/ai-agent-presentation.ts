@@ -25,7 +25,7 @@ export function selectedAgentWarning(
 ): string | null {
   const agent = agents.find((candidate) => candidate.id === agentId);
   return mode === 'local-cli' && agent?.installed && agent.authStatus === 'missing'
-    ? `${agent.label}: ${t(locale, 'Authentication required. Sign in before sending.')}` : null;
+    ? `${agent.label}: ${t({ locale: locale, key: 'Authentication required. Sign in before sending.' })}` : null;
 }
 
 /** Empty strings suppress the shared card's divider; trim whitespace without inventing vendor copy.

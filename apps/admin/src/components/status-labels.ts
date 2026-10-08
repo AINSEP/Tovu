@@ -13,7 +13,7 @@ export const KNOWN_SERVER_LABELS: ReadonlySet<string> = new Set([
 ]);
 
 export function serverLabel(value: string, locale: string): string {
-  return KNOWN_SERVER_LABELS.has(value) ? t(locale, value) : value;
+  return KNOWN_SERVER_LABELS.has(value) ? t({ locale: locale, key: value }) : value;
 }
 
 export function recipientLabel(count: number, locale: string): string {

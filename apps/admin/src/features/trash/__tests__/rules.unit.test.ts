@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { AdminTrashItem } from "@/lib/api";
 import { actorLabel, entityTypeLabel, itemSubtitle } from "../rules";
+import { ApiError, REQUEST_TIMEOUT_CODE } from "@/lib/api";
+import { describeTrashLoadError } from "../rules";
+
+it("localizes a settled Trash timeout with a refresh action", () => {
+  const error = new ApiError("the API timed out", 0, REQUEST_TIMEOUT_CODE, {});
+  expect(describeTrashLoadError({ error, locale: "en" })).toBe("The Tovu API did not respond. Try refreshing the Trash.");
+  expect(describeTrashLoadError({ error, locale: "es" })).toBe("La API de Tovu no respondió. Prueba a actualizar la papelera.");
+});
 
 /**
  * @file `actorLabel`'s fallback chain — server username, then client-resolved username, then

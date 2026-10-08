@@ -160,11 +160,11 @@ it("DI preview origins are preserved just like real site origins", () => {
 it("manual POST plus its SSE echo loads every preview exactly once", async () => {
   const seen: string[] = [];
   const dispose = subscribeThemePreviewRefresh({ listener: ({ revision }) => seen.push(revision) });
-  let finish!: (response: Response) => void;
+  let finish!: (response: { revision: string }) => void;
   const pending = reloadThemePreviews({ request: () => new Promise((resolve) => { finish = resolve; }) });
   expect(seen).toEqual([]);
   publishThemePreviewRefresh({ revision: "manual-result" });
-  finish(new Response(JSON.stringify({ revision: "manual-result" }), { status: 200 }));
+  finish({ revision: "manual-result" });
   await pending;
   expect(seen).toEqual(["manual-result"]);
   dispose();

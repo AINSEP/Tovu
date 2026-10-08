@@ -1,3 +1,4 @@
+import { COMMON_I18N } from "../../lib/i18n-common";
 /**
  * @file Spanish dictionary for `Media.tsx`'s own UI chrome — page header, tab strip, toolbar,
  * empty states, the metadata edit panel, and the lightbox/purge dialogs.
@@ -14,7 +15,7 @@
  *
  * `t()` falls back to `COMMON_I18N` via `createDictionaryTranslator`, same as `trash-i18n.ts`.
  */
-import { createDictionaryTranslator } from "../../lib/dictionary-translator";
+import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 const MEDIA_TRANSLATIONS: Record<string, Record<string, string>> = {
   es: {
@@ -1672,4 +1673,4 @@ export const MEDIA_DICT: Record<string, Record<string, string>> = Object.fromEnt
  *  renders translated instead of falling straight to English. Exported so the feature's
  *  `.hooks.ts`/`rules.ts` files (which have no JSX and build their own `t` closure the way
  *  `Media.tsx` does) can call it directly instead of duplicating the lookup. */
-export const t = createDictionaryTranslator(MEDIA_DICT);
+export const t = createDictionaryTranslator({ featureDictionary: MEDIA_DICT }, { commonDictionary: COMMON_I18N });

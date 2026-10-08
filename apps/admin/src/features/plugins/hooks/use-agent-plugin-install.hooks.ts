@@ -1,7 +1,7 @@
 import { useRef, useState, type ChangeEvent } from "react";
 
 import { ApiError, type AdminAgentPlugin } from "@/lib/api";
-import type { Translate } from "@/lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 import { useZipDrop } from "../../../components/InstallTabCard/use-zip-drop.hooks";
 import { useFolderUpload } from "../../../components/InstallTabCard/use-folder-upload.hooks";
 import { installArchiveSize } from "../../../components/InstallTabCard/install-archive-size";

@@ -1,8 +1,8 @@
 import { agentHandle } from "@jini-ai/agentic";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { navigate } from "../../lib/router";
-import { resolveActiveTabId } from "../../lib/resolve-active-tab-id";
-import { TabBar, type TabBarTab } from "../../components/TabBar";
+import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
+import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
 import { t } from "./deployment-i18n";
 import { OverviewTab } from "./OverviewTab";
 import { StaticSiteTab } from "./StaticSiteTab";
@@ -18,7 +18,7 @@ import { HistoryIcon, LayersIcon, OverviewIcon, StaticSiteIcon } from "./deploym
  * deployment-constraints.md` §9 for that history. The owner has since decided self-hosted-for-
  * developers ships first, which is what these four tabs are built for.
  *
- * `TabBar` (`components/TabBar.tsx`), not `@jini-ai/ui`'s `SettingsDialogShell` — this is a
+ * `TabBar` (`@jini-ai/ui/tab-strip`), not `@jini-ai/ui`'s `SettingsDialogShell` — this is a
  * full-page screen, not a dialog-shaped surface. `SettingsDialogShell` bundles its own vertical
  * sidebar plus a kicker/title/subtitle header, which is the right shape for Settings' 13 tabs but
  * would fight this screen's own `.page-header` the same way `PlaceholderTabs.tsx`'s doc comment
@@ -45,7 +45,7 @@ type DeploymentTabId = (typeof DEPLOYMENT_TAB_IDS)[number];
  *  `WidgetInstanceEditor`'s `?type=` both apply their own guard (a stale link or a typo must not
  *  blank the panel). */
 function resolveDeploymentTabId(tabId: string | null | undefined): DeploymentTabId {
-  return resolveActiveTabId(tabId, DEPLOYMENT_TAB_IDS, "overview");
+  return resolveActiveTabId({ tabId: tabId, validIds: DEPLOYMENT_TAB_IDS, defaultId: "overview" });
 }
 
 /** Dispatches the one active tab's panel as a flat if-chain — same shape `ThemeExplore.tsx`'s
@@ -75,29 +75,28 @@ export function Deployment(props: DeploymentProps) {
   const tabs: TabBarTab[] = [
     {
       id: "overview",
-      label: t(locale, "Overview"),
+      label: t({ locale: locale, key: "Overview" }),
       icon: <OverviewIcon size={16} />,
       handle: "deployment-tab-overview",
       handleLabel: "Switch to the Overview tab — instance diagnostics and the Static vs. Full Site comparison",
     },
     {
       id: "static-site",
-      label: t(locale, "Static Site"),
+      label: t({ locale: locale, key: "Static Site" }),
       icon: <StaticSiteIcon size={16} />,
       handle: "deployment-tab-static-site",
       handleLabel: "Switch to the Static Site tab — export a read-only copy of this site's published pages",
     },
-    // Full Site tab retired with the never-written deployment model (2026-10-03).
     {
       id: "dockerfile",
-      label: t(locale, "Dockerfile"),
+      label: t({ locale: locale, key: "Dockerfile" }),
       icon: <LayersIcon size={16} />,
       handle: "deployment-tab-dockerfile",
       handleLabel: "Switch to the Dockerfile tab — view, edit and save the repo-root Dockerfile",
     },
     {
       id: "history",
-      label: t(locale, "History"),
+      label: t({ locale: locale, key: "History" }),
       icon: <HistoryIcon size={16} />,
       handle: "deployment-tab-history",
       handleLabel: "Switch to the History tab — past builds and deploys",
@@ -118,15 +117,15 @@ export function Deployment(props: DeploymentProps) {
         })}
       >
         <div className="page-header-text">
-          <p className="page-kicker">{t(locale, "Operations")}</p>
-          <h1 className="page-title">{t(locale, "Deployment")}</h1>
+          <p className="page-kicker">{t({ locale: locale, key: "Operations" })}</p>
+          <h1 className="page-title">{t({ locale: locale, key: "Deployment" })}</h1>
           <p className="page-description">
-            {t(locale, "Choose how this site gets published, and see what self-hosting it involves.")}
+            {t({ locale: locale, key: "Choose how this site gets published, and see what self-hosting it involves." })}
           </p>
         </div>
       </div>
       <TabBar
-        ariaLabel={t(locale, "Deployment")}
+        ariaLabel={t({ locale: locale, key: "Deployment" })}
         tabs={tabs}
         activeId={activeTabId}
         onChange={handleTabChange}

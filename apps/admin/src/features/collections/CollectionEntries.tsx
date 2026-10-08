@@ -1,7 +1,7 @@
-import { formatTimestamp } from "../../lib/format-timestamp";
+import { formatTimestamp } from "@jini-ai/ui/panel-kit";
 import { DataTable } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
-import { buildAgentListHandles } from "../../lib/agent-list-handles";
+import { buildAgentListHandles } from "@jini-ai/agentic";
 import { useWiredCollectionEntries } from "./hooks/use-collection-entries.hooks";
 import { ServerLabel } from "@/components/status-labels";
 import { PublishSectionButton } from "../publish-content/PublishSectionButton";
@@ -43,9 +43,7 @@ export function CollectionEntries({ contentTypeKey, useCollectionEntriesHook = u
   // now uses — same reasoning as every other list on this workstream. This screen has no `RowMenu`
   // (no per-row actions beyond opening the editor), so unlike `Collections.tsx`/`FormsList.tsx`
   // there is no dropdown-action gap to note here.
-  const rowHandles = buildAgentListHandles(
-    "collection-entries-row",
-    entries.map((entry) => entry.id),
+  const rowHandles = buildAgentListHandles({ prefix: "collection-entries-row", ids: entries.map((entry) => entry.id) }
   );
 
   return (
@@ -120,7 +118,7 @@ export function CollectionEntries({ contentTypeKey, useCollectionEntriesHook = u
             header: t("Status"),
             cell: (entry) => <span className={`status status-${entry.status}`}><ServerLabel value={entry.status} /></span>,
           },
-          { key: "updated", header: t("Updated"), cell: (entry) => formatTimestamp(entry.updatedAt) },
+          { key: "updated", header: t("Updated"), cell: (entry) => formatTimestamp({ iso: entry.updatedAt }, { timeZone: "local" }) },
         ]}
       />
     </div>

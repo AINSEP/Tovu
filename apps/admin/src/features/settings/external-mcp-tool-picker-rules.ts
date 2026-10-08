@@ -1,5 +1,5 @@
 import { ApiError, describeApiError, type AdminRemoteToolSurfaceEntry } from "@/lib/api";
-import type { Translate } from "@/lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 
 import { parseSavedToolNames } from "./external-mcp-admissions-rules";
 

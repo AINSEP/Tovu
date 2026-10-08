@@ -66,6 +66,6 @@ export function useAnalytics(port: AnalyticsPort, t: (key: string) => string): A
  */
 export function useWiredAnalytics(): AnalyticsController {
   const locale = useAdminLocale();
-  const t = (key: string): string => defaultT(locale, key);
+  const t = (key: string): string => defaultT({ locale: locale, key: key });
   return useAnalytics(defaultAnalyticsPort, t);
 }

@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 import { useTermDetailPanel, useWiredTermDetailPanel } from "../hooks/use-term-detail-panel.hooks";
 import { createFakeTaxonomyPort } from "../hooks/taxonomy-dependencies.hooks";
 import type { AdminTerm } from "@/lib/api";
@@ -12,8 +12,8 @@ import type { AdminTerm } from "@/lib/api";
  * identical rename) and the effect that resets the form when the operator selects a different term
  * in the list, so a half-typed rename for term A does not leak into term B's input.
  *
- * `wrapper` (2026-08-12, `lib/fetch-query` migration): `rename` now goes through
- * `useFetchMutation`, which throws without a `QueryClientProvider` ancestor.
+ * `wrapper` (2026-08-12, `@jini-ai/ui/fetch-query` migration): `rename` now goes through
+ * `useFetchMutation`, which throws without a `FetchQueryProvider` ancestor.
  */
 
 function wrapper({ children }: { children: React.ReactNode }) {

@@ -4,8 +4,8 @@ import { agentHandle } from "@jini-ai/agentic";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { navigate } from "../../lib/router";
-import { resolveActiveTabId } from "../../lib/resolve-active-tab-id";
-import { TabBar, type TabBarTab } from "../../components/TabBar";
+import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
+import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
 import { ComingSoonPanel } from "../../components/ComingSoonPanel";
 import { ExternalMcpSettingsPanel } from "../settings/ExternalMcpSettingsPanel";
 import { AlwaysAllowPanel } from "./AlwaysAllowPanel";
@@ -98,7 +98,7 @@ type ProvidersTabId = (typeof PROVIDERS_TAB_IDS)[number];
  *  redirect (`panels.tsx`'s `integrations` panel) points at `?tab=webhooks` explicitly, so that
  *  URL's pre-merge default screen is preserved regardless of what this function's own default is. */
 function resolveProvidersTabId(tabId: string | null | undefined): ProvidersTabId {
-  return resolveActiveTabId(tabId, PROVIDERS_TAB_IDS, "external-mcp");
+  return resolveActiveTabId({ tabId: tabId, validIds: PROVIDERS_TAB_IDS, defaultId: "external-mcp" });
 }
 
 /** Shared 16px icon frame, so a tab's glyph can be written as bare path data — same helper shape
@@ -140,7 +140,7 @@ export function Providers(props: ProvidersProps) {
   const tabs: TabBarTab[] = [
     {
       id: "external-mcp",
-      label: t(locale, "External MCP"),
+      label: t({ locale: locale, key: "External MCP" }),
       icon: (
         <TabIcon>
           <path d="M6 3v4M12 3v4M4.5 7h9v2a4.5 4.5 0 0 1-9 0z" />
@@ -152,7 +152,7 @@ export function Providers(props: ProvidersProps) {
     },
     {
       id: "always-allow",
-      label: t(locale, "Always allow"),
+      label: t({ locale: locale, key: "Always allow" }),
       icon: (
         <TabIcon>
           <path d="M9 2.5l5.5 2v4.2c0 3.3-2.3 5.9-5.5 6.8-3.2-.9-5.5-3.5-5.5-6.8V4.5z" />
@@ -168,11 +168,11 @@ export function Providers(props: ProvidersProps) {
       // icon, same body (`IntegrationsTab`, now `ComingSoonPanel`-wrapped — see the render block
       // below).
       id: "mcp-server",
-      label: tIntegrations(locale, "MCP Server"),
+      label: tIntegrations({ locale: locale, key: "MCP Server" }),
       // Not wired to a real McpIntegrationsPort yet (see the render block below) — the tag says so
       // from the tab strip itself, before an operator clicks in. Tab stays fully clickable; see
       // `TabBarTab.tag`'s own doc for why this isn't `disabled` instead.
-      tag: tIntegrations(locale, "Soon"),
+      tag: tIntegrations({ locale: locale, key: "Soon" }),
       icon: (
         <TabIcon>
           <path d="M4 6.5h10M4 11.5h10" />
@@ -187,11 +187,11 @@ export function Providers(props: ProvidersProps) {
       // Absorbed from `DeveloperApi.tsx`'s own `webhooks` tab — see the `mcp-server` tab above for
       // the shape of this move.
       id: "webhooks",
-      label: tIntegrations(locale, "Webhooks"),
+      label: tIntegrations({ locale: locale, key: "Webhooks" }),
       // Same "Soon" tag as MCP Server (2026-09-19, owner call): firing a webhook needs an event
       // checklist that doesn't exist yet. Confirmed no saved endpoints exist to hide behind the
       // wash (owner's own screenshot: "No webhooks yet").
-      tag: tIntegrations(locale, "Soon"),
+      tag: tIntegrations({ locale: locale, key: "Soon" }),
       icon: (
         <TabIcon>
           <path d="M6 6l-3 3 3 3M12 6l3 3-3 3M10 4l-2 10" />
@@ -229,18 +229,16 @@ export function Providers(props: ProvidersProps) {
           })}
         >
           <div className="page-header-text">
-            <p className="page-kicker">{t(locale, "Add-Ons")}</p>
-            <h1 className="page-title">{t(locale, "Integrations")}</h1>
+            <p className="page-kicker">{t({ locale: locale, key: "Add-Ons" })}</p>
+            <h1 className="page-title">{t({ locale: locale, key: "Integrations" })}</h1>
             <p className="page-description">
-              {t(
-                locale,
-                "Outside connections in both directions — external MCP tool servers, this install's own MCP server, and outbound webhooks.",
+              {t({ locale: locale, key: "Outside connections in both directions — external MCP tool servers, this install's own MCP server, and outbound webhooks." }
               )}
             </p>
           </div>
         </div>
         <TabBar
-          ariaLabel={t(locale, "Integrations")}
+          ariaLabel={t({ locale: locale, key: "Integrations" })}
           tabs={tabs}
           activeId={activeTabId}
           onChange={handleTabChange}
@@ -264,7 +262,7 @@ export function Providers(props: ProvidersProps) {
             showTitle={false}
             saveStatusLabel={
               p.externalMcp.restartRequired
-                ? t(locale, "Saved — restart Tovu to connect")
+                ? t({ locale: locale, key: "Saved — restart Tovu to connect" })
                 : undefined
             }
           />
@@ -282,8 +280,8 @@ export function Providers(props: ProvidersProps) {
           // real `McpIntegrationsPort` (see `development/todos.md`'s "make the MCP Server real"
           // item) is a one-line change: drop this wrapper and pass a live `port`.
           <ComingSoonPanel
-            label={tIntegrations(locale, "Coming soon")}
-            note={tIntegrations(locale, "Nothing below is connected to anything yet.")}
+            label={tIntegrations({ locale: locale, key: "Coming soon" })}
+            note={tIntegrations({ locale: locale, key: "Nothing below is connected to anything yet." })}
           >
             <IntegrationsTab serverName="tovu" agentHandle="settings-mcp-server" />
           </ComingSoonPanel>
@@ -296,8 +294,8 @@ export function Providers(props: ProvidersProps) {
           // built to be a tab body under a single page shell, first `DeveloperApi.tsx`'s, now this
           // one.
           <ComingSoonPanel
-            label={tIntegrations(locale, "Coming soon")}
-            note={tIntegrations(locale, "Webhooks can't fire yet — nothing here is wired up.")}
+            label={tIntegrations({ locale: locale, key: "Coming soon" })}
+            note={tIntegrations({ locale: locale, key: "Webhooks can't fire yet — nothing here is wired up." })}
           >
             <Integrations useIntegrationsHook={props.useIntegrationsHook} />
           </ComingSoonPanel>

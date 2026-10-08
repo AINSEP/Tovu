@@ -13,7 +13,7 @@ export function useSkillInstall(onInstalled?: () => void | Promise<void>) {
   const proposeFiles = useCallback(async (files: readonly File[], paths?: readonly string[]) => {
     const current = ++generation.current;
     setError(null);
-    try { const payload = await prepareSkillUpload(files, paths); if (current === generation.current) setPending(payload); }
+    try { const payload = await prepareSkillUpload({ files }, { paths }); if (current === generation.current) setPending(payload); }
     catch (e) { if (current === generation.current) setError(e instanceof Error ? e.message : "Could not read skill."); }
   }, []);
   const cancel = useCallback(() => { if (!confirmLock.current) { ++generation.current; setPending(null); setError(null); } }, []);

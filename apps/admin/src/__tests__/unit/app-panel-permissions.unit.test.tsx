@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "../../App";
 import type { UseAdminSession } from "../../App.hooks";
-import { FetchQueryProvider } from "../../lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 
 /**
  * @file The sidebar hides a section the signed-in operator cannot use, and a direct URL to one

@@ -4,10 +4,9 @@ import { describeApiError, type AdminRecoveryStatus, type AdminRestorePoint } fr
 import { RECOVERY_RESOURCE, parseDeepLinkEnvelope } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
-import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
+import { useSettlementGeneration, type Translate } from "@jini-ai/ui/panel-kit";
 import { navigate } from "@/lib/router";
 import { t } from "../recovery-i18n";
-import type { Translate } from "@/lib/dictionary-translator";
 import { defaultRecoveryPort } from "./recovery-dependencies.hooks";
 import type { RecoveryPort } from "./recovery-port.hooks";
 
@@ -51,11 +50,7 @@ export interface RecoveryController {
   status: AdminRecoveryStatus | null;
   points: AdminRestorePoint[] | null;
   error: string | null;
-  /** Restore-point functionality consolidation (2026-09-10) — the create action moved here from
-   *  Database's former restore-point hook. Same no-argument create,
-   *  `creating` reflects the in-flight request.
- * useRestorePointsSection (features/database/hooks/use-restore-points-section.hooks.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
- */
+  /** `creating` reflects the in-flight no-argument restore-point creation request. */
   creating: boolean;
   createRestorePoint: () => Promise<void>;
   /** The restore point a "Restore…" row action selected, or the one a resolved deep link matched —
@@ -84,7 +79,7 @@ export interface RecoveryDependencies {
 export function useRecovery(deps: RecoveryDependencies): RecoveryController {
   const { port } = deps;
   const locale = useAdminLocale();
-  const boundT = (key: string): string => t(locale, key);
+  const boundT = (key: string): string => t({ locale: locale, key: key });
   const [status, setStatus] = useState<AdminRecoveryStatus | null>(null);
   const [points, setPoints] = useState<AdminRestorePoint[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -108,13 +103,13 @@ export function useRecovery(deps: RecoveryDependencies): RecoveryController {
     setError(null);
     Promise.all([port.getRecoveryStatus(), port.listRecoveryRestorePoints()])
       .then(([statusResult, pointsResult]) => {
-        if (!settlement.isCurrent(generation)) return;
+        if (!settlement.isCurrent({ generation })) return;
         setStatus(statusResult);
         setPoints(pointsResult.items);
       })
       .catch((e) => {
-        if (!settlement.isCurrent(generation)) return;
-        setError(describeApiError(e, t(locale, "failed to load Recovery")));
+        if (!settlement.isCurrent({ generation })) return;
+        setError(describeApiError(e, t({ locale: locale, key: "failed to load Recovery" })));
       });
   }, [port, settlement]);
 
@@ -136,7 +131,6 @@ export function useRecovery(deps: RecoveryDependencies): RecoveryController {
    *  `costClass`/banner read comes back too.
    * `t`/`locale` intentionally omitted from this callback's own deps — same gap `load` above
    * documents.
- * useRestorePointsSection (features/database/hooks/use-restore-points-section.hooks.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const createRestorePoint = useCallback(async () => {
@@ -145,7 +139,7 @@ export function useRecovery(deps: RecoveryDependencies): RecoveryController {
       await port.createRestorePoint({ trigger: "manual", costAck: true });
       load();
     } catch (e) {
-      setError(describeApiError(e, t(locale, "Failed to create restore point")));
+      setError(describeApiError(e, t({ locale: locale, key: "Failed to create restore point" })));
     } finally {
       setCreating(false);
     }

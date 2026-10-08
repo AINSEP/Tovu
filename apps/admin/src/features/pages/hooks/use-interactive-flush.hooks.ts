@@ -1,7 +1,7 @@
 import { useCallback, useRef, type RefObject } from "react";
 
 import type { InteractiveHtmlEditorHandle } from "@jini-ai/ui/html-editor";
-import { normalizeEmbedMarkerQuoting } from "@tovu/embed-marker";
+import { normalizeEmbedMarkerQuoting } from "@jini-ai/cms/widgets/markers";
 
 /**
  * @file Interactive flush (2026-09-23 plan) — the admin half of `@jini-ai/ui/html-editor`'s
@@ -90,12 +90,12 @@ export function useInteractiveEditorFlush(
       return undefined;
     }
     if (outcome.html === undefined) return undefined;
-    const html = normalizeEmbedMarkerQuoting(outcome.html);
+    const html = normalizeEmbedMarkerQuoting({ html: outcome.html });
     setHtml(html);
     return html;
   }, [setHtml]);
 
-  const setHtmlFromCanvas = useCallback((value: string) => setHtml(normalizeEmbedMarkerQuoting(value)), [setHtml]);
+  const setHtmlFromCanvas = useCallback((value: string) => setHtml(normalizeEmbedMarkerQuoting({ html: value })), [setHtml]);
 
   return { interactiveEditorRef, flushInteractiveEdits, setHtmlFromCanvas };
 }

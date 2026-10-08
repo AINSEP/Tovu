@@ -39,5 +39,5 @@ export function useWiredThemeExploreTheme(
   optional: { port?: Pick<ThemesPort, "getPresentation"> } = {},
 ) {
   const locale = useAdminLocale();
-  return { ...useThemeExploreTheme(required, optional), t: (key: string) => translateThemes(locale, key) };
+  return { ...useThemeExploreTheme(required, optional), t: (key: string) => translateThemes({ locale: locale, key: key }) };
 }

@@ -80,14 +80,22 @@ describe("sourceControlProviders (IRON RULE: a saved connection never drops off 
 });
 
 describe("buildSourceControlConnectionInput", () => {
-  it("builds a connection with only the trimmed token when the host declares nothing else", () => {
-    expect(buildSourceControlConnectionInput({ ...blankFields("github"), token: "  ghp_abc  " }, GITHUB.fields)).toEqual({ providerId: "github", token: "ghp_abc" });
+  it("passes the token unchanged to the store when the host declares nothing else", () => {
+    expect(buildSourceControlConnectionInput({ ...blankFields("github"), token: "  ghp_abc  " }, GITHUB.fields)).toEqual({ providerId: "github", token: "  ghp_abc  " });
   });
 
-  it("adds each declared field typed non-blank, trimmed, and drops undeclared or blank ones", () => {
+  it("trims ordinary declared fields and drops undeclared or blank ones, preserving the token", () => {
     const input = buildSourceControlConnectionInput({ providerId: "forge", token: " t ", values: { username: " alice ", stray: "x" } }, FORGE.fields);
-    expect(input).toEqual({ providerId: "forge", token: "t", username: "alice" });
+    expect(input).toEqual({ providerId: "forge", token: " t ", username: "alice" });
     expect(buildSourceControlConnectionInput({ providerId: "forge", token: "t", values: { username: "  " } }, FORGE.fields)).toEqual({ providerId: "forge", token: "t" });
+  });
+
+  it("preserves secret fields and canonical keys alongside trimmed ordinary fields", () => {
+    const input = buildSourceControlConnectionInput({
+      providerId: "forge", token: " t ",
+      values: { username: " alice ", password: " p ", blankSecret: "  ", emptySecret: "", optional: "  ", providerId: "other", token: "other", stray: "x" },
+    }, [...FORGE.fields, { name: "password", secret: true }, { name: "blankSecret", secret: true }, { name: "emptySecret", secret: true }, { name: "optional" }, { name: "providerId" }, { name: "token" }]);
+    expect(input).toEqual({ providerId: "forge", token: " t ", username: "alice", password: " p ", blankSecret: "  " });
   });
 });
 

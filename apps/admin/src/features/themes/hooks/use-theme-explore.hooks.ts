@@ -5,8 +5,7 @@ import { resolveThemeLayout } from "@tovu/theme-layout";
 import { ApiError } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
-import { useDirtyGuard } from "@/hooks/use-dirty-guard.hooks";
-import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
+import { useDirtyGuard, type DirtyGuard, useSettlementGeneration, type Translate } from "@jini-ai/ui/panel-kit";
 import { THEME_FILES_RESOURCE } from "../rules";
 import { t as translateThemes } from "../themes-i18n";
 import { defaultThemeExplorePort } from "./theme-explore-dependencies.hooks";
@@ -20,7 +19,6 @@ import {
   resolveRequestedThemeExploreSelection,
   writeThemeExploreSelectionToUrl,
 } from "./theme-explore-url.hooks";
-import type { Translate } from "@/lib/dictionary-translator";
 
 /**
  * @file State for the Explore screen, so `ThemeExplore.tsx` is only markup — same split as
@@ -28,7 +26,7 @@ import type { Translate } from "@/lib/dictionary-translator";
  *
  * `deps.port` is injected (see `theme-explore-port.hooks.ts`) rather than reaching for `lib/api`'s
  * `api` directly. `ApiError` stays a direct import — pure error-classification, no I/O, same
- * reasoning as `redirects-port.hooks.ts`'s own exclusion of `describeApiError`.
+ * reasoning as `Jini redirects/SOURCE-RATIONALE.md`'s own exclusion of `describeApiError`.
  *
  * `deps.t` (standing i18n rule, 2026-08-11 — a component with a hook gets a BOUND `t` from that
  * hook, not its own `useAdminLocale()`/dictionary import, same shape `use-themes.hooks.ts`
@@ -221,7 +219,7 @@ export interface ThemeExploreController {
    *  files; `ThemeExplore.tsx` calls it itself for its own in-app navigations away from this screen
    *  entirely (the "← All themes" back link, the slug-collision warning's link to the colliding
    *  record) that `select` never sees. */
-  confirmLeave: (unsavedBeyondTracked?: boolean) => boolean;
+  confirmLeave: DirtyGuard["confirmLeave"];
   /**
    * True only while `source` holds the open file's text as last read, saved, or reset on the server.
    * False while that read is in flight, after it failed (a file past the 1 MB text-read limit), for a
@@ -975,7 +973,7 @@ export function useThemeExplore(
           path,
           files: nextFiles,
           open: openFileRef.current,
-          clickedSinceLoad: !selectionGeneration.isCurrent(generation),
+          clickedSinceLoad: !selectionGeneration.isCurrent({ generation }),
           listedThemeId: listedThemeRef.current,
         });
         setDetail(nextDetail);
@@ -1091,7 +1089,7 @@ export function useThemeExplore(
    */
   const refreshModifiedState = useCallback(async () => {
     const generation = modifiedRefreshSettlement.next();
-    const stillCurrent = () => modifiedRefreshSettlement.isCurrent(generation) && openFileRef.current.themeId === themeId;
+    const stillCurrent = () => modifiedRefreshSettlement.isCurrent({ generation }) && openFileRef.current.themeId === themeId;
     try {
       const { files: serverFiles } = await fetchThemeExploreState(themeId, port);
       if (!stillCurrent()) return;
@@ -1120,13 +1118,13 @@ export function useThemeExplore(
     const generation = openFileTextSettlement.next();
     try {
       const { content } = await port.getThemeFile(started.themeId, path);
-      if (!openFileTextSettlement.isCurrent(generation)) return;
+      if (!openFileTextSettlement.isCurrent({ generation })) return;
       if (!shouldAdoptRefreshedText({ started, current: openFileRef.current, content })) return;
       setSource(content);
       setSavedSource(content);
       setPreviewNonce((n) => n + 1);
     } catch (e) {
-      if (!openFileTextSettlement.isCurrent(generation) || !isSameOpenFile(openFileRef.current, started)) return;
+      if (!openFileTextSettlement.isCurrent({ generation }) || !isSameOpenFile(openFileRef.current, started)) return;
       setError(e instanceof Error ? e.message : tRef.current("failed to read file"));
     }
   }, [port, openFileTextSettlement]);
@@ -1226,7 +1224,7 @@ export function useThemeExplore(
         // `detail`/`files`/`selected`/`notice` now, and applying this stale result would let
         // whichever rename happens to settle LAST win regardless of which file was actually
         // renamed last. See `renameSettlement`'s doc comment above.
-        if (!renameSettlement.isCurrent(generation)) return;
+        if (!renameSettlement.isCurrent({ generation })) return;
         // The rename is done whatever the re-read says — see `refetchAfterMutation`.
         setNotice(translateWith(tRef.current, "Renamed to {file}", "file", r.path));
         setPreviewNonce((n) => n + 1);
@@ -1246,10 +1244,10 @@ export function useThemeExplore(
         setLoadedFile((current) => loadedFileAfterRename(current, { themeId, from: sourcePath, to: r.path, renamed }));
         setPendingSelection(null);
       } catch (e) {
-        if (!renameSettlement.isCurrent(generation)) return;
+        if (!renameSettlement.isCurrent({ generation })) return;
         setError(renameErrorMessage(e, name, tRef.current));
       } finally {
-        if (!renameSettlement.isCurrent(generation)) return;
+        if (!renameSettlement.isCurrent({ generation })) return;
         setRenaming(false);
         setRenamingPath(null);
         setRenameDraft("");
@@ -1424,7 +1422,7 @@ export function useThemeExplore(
   // are returned to the controller below under their original names. `useDirtyGuard`'s own
   // `beforeunload` listener also closes this screen's other gap from the same review finding: there
   // was no warning at all for leaving the TAB with unsaved theme-file edits.
-  const { isDirty: dirty, confirmLeave } = useDirtyGuard(source, sourceLoaded ? savedSource : null);
+  const { isDirty: dirty, confirmLeave } = useDirtyGuard({ current: source, original: sourceLoaded ? savedSource : null }, { host: window, translate: (key) => key });
 
   /**
    * Select a file, and mirror it into the address bar for shareability — `?page=<label>` for an
@@ -1573,6 +1571,6 @@ export function useThemeExplore(
  */
 export function useWiredThemeExplore(themeId: string, options: ThemeExploreOptions = {}): ThemeExploreController {
   const locale = useAdminLocale();
-  const t = (key: string): string => translateThemes(locale, key);
+  const t = (key: string): string => translateThemes({ locale: locale, key: key });
   return useThemeExplore(themeId, { port: defaultThemeExplorePort, t }, options);
 }

@@ -5,7 +5,7 @@ import { translateAdminNavLabel } from "@/lib/admin-nav-i18n";
  * 2026-10-06). The tab stays fully clickable and usable; the tag only says the install flow is
  * still settling. To drop the tag from both pages, set {@link ADD_PLUGIN_TAB_SOON} to `false`.
  */
-export const ADD_PLUGIN_TAB_SOON = true;
+export const ADD_PLUGIN_TAB_SOON = false;
 
 /**
  * The tag text for the "Add a plugin" tab: the admin sidebar's own translated "Soon" word, so the
@@ -16,5 +16,5 @@ export const ADD_PLUGIN_TAB_SOON = true;
  * @returns The tag text, or `undefined` (an untagged tab) when the flag is off.
  */
 export function addPluginTabSoonTag(locale: string, enabled: boolean = ADD_PLUGIN_TAB_SOON): string | undefined {
-  return enabled ? translateAdminNavLabel(locale, "Soon") : undefined;
+  return enabled ? translateAdminNavLabel({ locale: locale, key: "Soon" }) : undefined;
 }

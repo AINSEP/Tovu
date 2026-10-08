@@ -1,6 +1,6 @@
 import { AgentPluginMemoryPanel } from "./AgentPluginMemoryPanel";
 import { useWiredAgentPluginMemory } from "./hooks/use-agent-plugin-memory.hooks";
-import type { Translate } from "@/lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 import type { InspectedAgentPlugin } from "./hooks/use-agent-plugins.hooks";
 import { PackageFilesModal } from "./PackageFilesModal";
 import {

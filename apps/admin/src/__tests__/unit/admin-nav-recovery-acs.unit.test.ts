@@ -74,7 +74,7 @@ describe("REQ-01/REQ-22/REQ-27: recovery and database stay distinct, single, raw
     const useRecoveryHook = (): RecoveryController => ({
       status: { costClass: "cheap", banner: null }, points: [], error: null, creating: false,
       createRestorePoint: async () => {}, selected: null, setSelected: () => {},
-      locale: "en", t: (key) => t("en", key),
+      locale: "en", t: (key) => t({ locale: "en", key: key }),
     });
     const { container } = render(createElement<RecoveryProps>(Recovery, { useRecoveryHook }));
     const description = container.querySelector(".page-description");

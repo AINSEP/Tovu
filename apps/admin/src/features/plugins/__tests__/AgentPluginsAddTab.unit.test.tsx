@@ -56,10 +56,10 @@ async function openAddTab() {
 const installButton = () => screen.getByRole("button", { name: "Install (stays off)" });
 
 describe("AgentPlugins — Add a plugin", () => {
-  it("the Add a plugin tab label carries the sidebar's Soon tag and the tab still opens", async () => {
+  it("the working Add a plugin tab is untagged and opens", async () => {
     renderAddTab();
     const tab = screen.getByRole("button", { name: /^Add a plugin/ });
-    expect(within(tab).getByText("Soon")).toBeInTheDocument();
+    expect(within(tab).queryByText("Soon")).not.toBeInTheDocument();
     expect(tab).not.toBeDisabled();
     await userEvent.click(tab);
     expect(tab).toHaveClass("active");

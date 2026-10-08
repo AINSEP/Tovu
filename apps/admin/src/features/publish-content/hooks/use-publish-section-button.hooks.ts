@@ -42,7 +42,7 @@ export function usePublishSectionButton(section: PublishSectionId): PublishSecti
   const visible = usePublishToLiveAvailable();
   return {
     visible,
-    label: translateDashboard(locale, entry.labelKey),
+    label: translateDashboard({ locale: locale, key: entry.labelKey }),
     onClick: () => {
       requestPublish({}, { entityTypes: [...entry.entityTypes] });
     },

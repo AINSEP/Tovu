@@ -736,7 +736,8 @@ export function useChatDockLayout(): UseChatDockLayout {
   useEffect(() => {
     if (!chatOpen) return;
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") setChatOpen(false);
+      // The composer consumes Escape to dismiss its palette; keep the containing dock open.
+      if (e.key === "Escape" && !e.defaultPrevented) setChatOpen(false);
     }
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);

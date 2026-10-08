@@ -8,7 +8,7 @@ import { useMenuEditor } from "../hooks/use-menu-editor.hooks";
 
 /**
  * @file `useMenuEditor` driven against the injected `MenusPort`, no `fetch` stub and no `api`
- * spy. `MenuEditor.tsx` has no component-level DI seam (unlike `Redirects.tsx`/`PageEditor.tsx`),
+ * spy. `MenuEditor.tsx` has no component-level DI seam (unlike `Jini redirects/react/pages/RedirectsPage.tsx`/`PageEditor.tsx`),
  * so `MenuEditor.unit.test.tsx` exercises the hook only indirectly through a full component
  * render with `fetch` stubbed — this is the first test to exercise the hook itself.
  */

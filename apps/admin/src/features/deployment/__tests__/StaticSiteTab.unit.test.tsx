@@ -17,7 +17,7 @@ import {
 import { CREDENTIAL_TARGET_IDS, NETLIFY_TARGET, PLAIN_TARGET, PUBLISH_TARGETS } from "./publish-targets.fixture";
 import { usePublishCredentials } from "../hooks/use-publish-credentials.hooks";
 import { createFakePublishCredentialsPort } from "../hooks/publish-credentials-dependencies.hooks";
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 
 /**
  * @file `StaticSiteTab` — driven through its `useStaticExportHook`/`useStaticPublishHook`/

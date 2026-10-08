@@ -56,7 +56,7 @@ describe("pluginInstallPreviewDisplay", () => {
   });
 
   it("translates the notice, the heading and the conflict sentence", () => {
-    const es = (key: string) => translatePlugins("es", key);
+    const es = (key: string) => translatePlugins({ locale: "es", key: key });
     const view = pluginInstallPreviewDisplay({ ...base, hasCode: false, conflicts: [{ kind: "content-type", key: "faq", heldBy: "o", heldByName: "O", heldKey: "faq" }] }, es);
     expect(view.codeNotice).toBe(es("This plugin has no code; nothing in it runs on this computer. Turning it on only adds what it declares."));
     expect(view.codeNotice).not.toMatch(/^This plugin/);
@@ -85,7 +85,7 @@ describe("every plugins locale translates the install-preview copy", () => {
 
   it.each(LOCALES)("%s", (locale) => {
     for (const key of KEYS) {
-      const translated = translatePlugins(locale, key);
+      const translated = translatePlugins({ locale: locale, key: key });
       expect(translated, `${locale}: ${key}`).not.toBe(key);
       expect((translated.match(PLACEHOLDER) ?? []).sort(), `${locale}: ${key}`).toEqual((key.match(PLACEHOLDER) ?? []).sort());
     }

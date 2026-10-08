@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { ApiError } from "@/lib/api";
-import type { Translate } from "@/lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 import type { PluginInstallPort, PluginInstallPreview, PluginInstallSource } from "./plugin-install-port.hooks";
 import { pluginInstallPreviewDisplay } from "../rules";
 import { useZipDrop } from "../../../components/InstallTabCard/use-zip-drop.hooks";
@@ -34,7 +34,7 @@ function errorKey(error: unknown, fallback: string): string {
  * The Plugins "Add a plugin" tab's state: a server folder or one uploaded `.zip` (picker, drop, or a
  * picked folder zipped in the browser), the replace option, the preview (trust review) and the
  * install it unlocks. Changing any input invalidates the preview, so an install always matches what
- * was reviewed. Moved from the retired "Install plugin" popup (2026-10-06); the flow is unchanged.
+ * was reviewed.
  */
 export function usePluginInstall(required: { port: PluginInstallPort; t: Translate; onInstalled: () => Promise<void> }, _optional = {}) {
   const [folder, setFolder] = useState("");

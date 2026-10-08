@@ -8,7 +8,7 @@ import type { SiteKeyController, SiteKeyGenerateFailure } from "./hooks/use-site
 import { useRevealedKeyCopy } from "./SiteKeyTab.hooks";
 import { isSiteKeyLocked, siteKeyLockedNote, useWiredSiteKeyRecovery, type SiteKeyRecoveryController } from "./hooks/use-site-key-recovery.hooks";
 import { SiteKeyRecoveryCard } from "./SiteKeyRecoveryCard";
-import type { Translate } from "../../lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 
 /**
  * @file The Secrets page's Site key tab — view/reveal/generate the file half of

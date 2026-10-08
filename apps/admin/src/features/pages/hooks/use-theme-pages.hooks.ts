@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { NO_THEME_ID } from "@/lib/api";
-import type { Translate } from "@/lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 import { pageAdminPath } from "../rules";
 import { themePagePublishState, themePagePublishTooltip } from "../lib/theme-page-publish-state";
 import { defaultThemePagesPort } from "./theme-pages-dependencies.hooks";

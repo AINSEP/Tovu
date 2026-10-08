@@ -2,7 +2,7 @@ import { createPortal } from "react-dom";
 import type { JSX } from "react";
 import { resolveTone, toneClassName, type RowMenuProps } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
-import { buildAgentListHandles } from "../../lib/agent-list-handles";
+import { buildAgentListHandles } from "@jini-ai/agentic";
 import { useTaxonomyRowMenu } from "./TaxonomyRowMenu.hooks";
 
 export type TaxonomyRowMenuProps = Pick<RowMenuProps, "items" | "triggerLabel" | "agentHandle"> & {
@@ -20,7 +20,7 @@ export type TaxonomyRowMenuProps = Pick<RowMenuProps, "items" | "triggerLabel" |
  */
 export function TaxonomyRowMenu({ items, triggerLabel, agentHandle: baseHandle, portalContainer }: TaxonomyRowMenuProps): JSX.Element {
   const menu = useTaxonomyRowMenu({ itemCount: items.length });
-  const itemHandles = baseHandle ? buildAgentListHandles(`${baseHandle}-item`, items.map((item) => item.key)) : undefined;
+  const itemHandles = baseHandle ? buildAgentListHandles({ prefix: `${baseHandle}-item`, ids: items.map((item) => item.key) }) : undefined;
   return <>
     <button
       ref={menu.triggerRef}

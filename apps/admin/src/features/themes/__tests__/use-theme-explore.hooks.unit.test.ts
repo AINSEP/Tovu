@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { defaultAdminLocalePort } from "@/hooks/admin-locale-dependencies.hooks";
 import { api, ApiError } from "@/lib/api";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
-import type { Translate } from "@/lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 import { t as translateThemes } from "../themes-i18n";
 import { createFakeThemeExplorePort } from "../hooks/theme-explore-dependencies.hooks";
 import type { ThemeExplorePort } from "../hooks/theme-explore-port.hooks";
@@ -4025,6 +4025,6 @@ describe("themes-i18n — Theme Explore toast keys", () => {
   ];
 
   it.each(KEYS)("translates %s in every locale", (key) => {
-    expect(LOCALES.filter((locale) => translateThemes(locale, key) === key)).toEqual([]);
+    expect(LOCALES.filter((locale) => translateThemes({ locale: locale, key: key }) === key)).toEqual([]);
   });
 });

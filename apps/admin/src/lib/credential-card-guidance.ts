@@ -5,7 +5,7 @@ export function guideToPendingCredentialCard(
   { document }: { document: Pick<Document, "querySelectorAll"> }, _optional = {},
 ): boolean {
   const cards = [...document.querySelectorAll<HTMLElement>('[data-agent-element^="mcp-ui-pending-"]')]
-    .filter(element => /credential|external-mcp-save|agent-plugins-access-token|identity-user-create|database-transfer-destination|deploy-ops-secret/.test(element.dataset.agentElement ?? ""));
+    .filter(element => /secret-card/.test(element.dataset.agentElement ?? ""));
   if (cards.length !== 1) return false;
   const card = cards[0]!.closest<HTMLElement>(".mcpui-surface-overflow-wrap") ?? cards[0]!;
   card.scrollIntoView?.({ block: "center", behavior: "smooth" });

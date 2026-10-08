@@ -4,13 +4,13 @@ import { agentHandle } from "@jini-ai/agentic";
 import { NO_THEME_ID, type PresentationSettings, type ThemeTier } from "../../lib/api";
 import { siteUrl } from "../../lib/site-url";
 import { navigate } from "../../lib/router";
-import { resolveActiveTabId } from "../../lib/resolve-active-tab-id";
-import { TabBar, type TabBarTab } from "../../components/TabBar";
-import { ImagePreviewModal } from "../../components/ImagePreviewModal";
-import { buildAgentListHandles } from "../../lib/agent-list-handles";
+import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
+import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
+import { ImagePreviewModal } from "@jini-ai/ui/admin-widgets";
+import { buildAgentListHandles } from "@jini-ai/agentic";
 import { PublishSectionButton } from "../publish-content/PublishSectionButton";
-import type { Translate } from "../../lib/dictionary-translator";
-import { interpolate } from "../../lib/template-i18n";
+import type { Translate } from "@jini-ai/ui/panel-kit";
+import { interpolate } from "@jini-ai/ui/panel-kit";
 import { useThemeCardPreview } from "./hooks/use-theme-card-preview.hooks";
 import { useWiredThemes, type ThemesController } from "./hooks/use-themes.hooks";
 import {
@@ -112,7 +112,7 @@ function ThemeCardPreview({ themeId, previewImageUrl, agentHandleBase, t }: { th
           <ImagePreviewModal
             open={expanded}
             src={src}
-            alt={interpolate(t("{id} theme preview"), { id: themeId })}
+            alt={interpolate({ template: t("{id} theme preview"), vars: { id: themeId } })}
             onClose={() => setExpanded(false)}
             closeLabel={t("Close preview")}
           />
@@ -164,7 +164,7 @@ function resolveThemesActiveTabId(
   themeTiers: Record<string, ThemeTier>,
 ): string {
   const validTabIds: readonly string[] = THEME_TAB_GROUPS;
-  return resolveActiveTabId(tabId, validTabIds, defaultThemeTabGroup(settings, themeTiers));
+  return resolveActiveTabId({ tabId: tabId, validIds: validTabIds, defaultId: defaultThemeTabGroup(settings, themeTiers) });
 }
 
 /**
@@ -296,7 +296,7 @@ function ThemeGrid({
   }
   // Theme ids are stable and unique, same per-row-handle derivation every other list on this
   // workstream uses (`buildAgentListHandles`).
-  const cardHandles = buildAgentListHandles("themes-card", visibleThemes);
+  const cardHandles = buildAgentListHandles({ prefix: "themes-card", ids: visibleThemes });
   return (
     // `role="group"` + `aria-label` names the picker as a whole, matching `PageEditor.tsx`'s
     // `role="group" aria-label="Preview width"` — the codebase's existing pattern for "a set of

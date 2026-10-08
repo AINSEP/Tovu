@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { ApiError, type AdminExternalMcpAdmissionsSnapshot } from "@/lib/api";
-import { FetchQueryProvider, useFetchQuery } from "@/lib/fetch-query";
+import { FetchQueryProvider, useFetchQuery } from "@jini-ai/ui/fetch-query";
 
 import {
   isAssistantStartingError,

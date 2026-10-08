@@ -13,7 +13,6 @@ import { createFakeThemeCanvasPort, defaultThemeCanvasPort } from "../theme-canv
  * (`createFakeThemeCanvasPort()`), but only asserts the HOOK's downstream fallback state, which
  * turns out identical whether this guard rejects or silently resolves `undefined` — so disabling it
  * left that test green. Asserted here directly against the port's own promise instead.
- * useWiredThemeCanvasStyling (features/pages/hooks/use-theme-canvas-styling.hooks.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 
 const originalFetch = global.fetch;

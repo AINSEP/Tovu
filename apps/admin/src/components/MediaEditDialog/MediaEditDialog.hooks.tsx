@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useState } from "react";
 
 import { t as mediaT } from "../../features/media/media-i18n";
 import { describeMediaHtmlAttributeError, parseMediaHtmlAttributes } from "../../features/media/rules";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 
 /**
- * @file `MediaEditDialog`'s draft/validation/Escape state, split out of the component so it can be
+ * @file `MediaEditDialog`'s draft/validation state, split out of the component so it can be
  * swapped for a fake via the `useDialog` prop on `MediaEditDialogProps` — same split
  * `MediaPickerDialog`/`MediaPickerDialog.hooks.tsx` uses.
  *
@@ -61,64 +61,42 @@ export interface MediaEditDialogController {
   /** Translates the dialog's own copy (`media-i18n.ts`, keyed by the English string) for the same
    *  locale the validation hint uses, so the component never reads the locale itself. */
   t: (key: string) => string;
-  /** Attach to the Alt input — see this hook's own focus-management doc comment. Always present
-   *  regardless of draft state, same reasoning `MediaPickerDialogController`'s `cancelRef` gives
-   *  for its own always-available focus target. */
-  altRef: RefObject<HTMLInputElement | null>;
 }
 
 /**
  * Owns `MediaEditDialog`'s draft state on top of the node's current attrs: three controlled text
- * fields, the live `htmlAttributes` validation hint, and the Escape-to-cancel listener.
+ * fields and the live `htmlAttributes` validation hint. Jini owns native cancellation.
  *
  * @param initial - The `media` node's current `alt`/`cssClass`/`htmlAttributes` attrs.
  * @param onSave - Called with the new `{alt, cssClass, htmlAttributes}` triple on Save — the
  *   caller (`MediaEmbedNodeView`) forwards this straight into `props.updateAttributes`.
- * @param onCancel - Called on Escape, backdrop click, or the Cancel button.
+ * @param _onCancel - Retained for the existing hook ABI; the component forwards cancellation to Jini.
  * @param deps - Injected dependencies; `deps.locale` drives {@link describeMediaHtmlAttributeError}
  *   and the returned `t`.
  * @returns The dialog's full render-time contract — see {@link MediaEditDialogController}.
  * @complexity Time/space O(n) in the `htmlAttributes` draft's length (one validation parse per
  *   keystroke, same cost {@link parseMediaHtmlAttributes} itself documents).
- * @sideeffects On mount, captures whatever had focus (the node view's `Edit` button) and moves
+ * @sideeffects Jini captures whatever had focus (the node view's `Edit` button) and moves
  *   focus onto the Alt input; on unmount, restores focus to what was captured — same technique
- *   `MediaPickerDialog.hooks.tsx`'s `useMediaPickerDialog` uses for its own `cancelRef`. Without
+ *   Jini's media picker uses for its own stable Cancel target. Without
  *   this, opening the dialog left focus on the trigger button underneath it (nothing moved into
  *   the now-modal dialog), and closing it left focus on `<body>`.
  */
 export function useMediaEditDialog(
   initial: MediaEditDialogValue,
   onSave: (value: MediaEditDialogValue) => void,
-  onCancel: () => void,
+  _onCancel: () => void,
   deps: { locale: string }
 ): MediaEditDialogController {
   const [alt, setAlt] = useState(initial.alt ?? "");
   const [cssClass, setCssClass] = useState(initial.cssClass ?? "");
   const [htmlAttributes, setHtmlAttributes] = useState(initial.htmlAttributes ?? "");
-  const altRef = useRef<HTMLInputElement | null>(null);
-  // Captured at mount, before focus moves onto Alt below — the element that had focus then is, by
+  // Jini captures at mount, before focus moves onto Alt — the element that had focus then is, by
   // construction, whatever opened this dialog (the node view's `Edit` button). Restored on
   // unmount. This component is only ever rendered while the dialog is open (the caller
   // conditionally mounts it, per `MediaEditDialog.tsx`'s own doc comment), so mount/unmount IS the
-  // open/close transition — same technique `useMediaPickerDialog`'s `triggerRef` uses.
-  const triggerRef = useRef<Element | null>(null);
-
-  useEffect(() => {
-    triggerRef.current = document.activeElement;
-    altRef.current?.focus();
-    return () => {
-      if (triggerRef.current instanceof HTMLElement) triggerRef.current.focus();
-    };
-  }, []);
-
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onCancel();
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onCancel]);
+  // open/close transition. The component marks Alt (or CSS class when Alt is hidden) with Jini's
+  // autofocus attribute so the native owner can focus it and restore the opener on unmount.
 
   const parsed = parseMediaHtmlAttributes(htmlAttributes);
   const htmlAttributesError = parsed.error ? describeMediaHtmlAttributeError(parsed.error, deps.locale) : null;
@@ -131,9 +109,9 @@ export function useMediaEditDialog(
     });
   }
 
-  const t = (key: string) => mediaT(deps.locale, key);
+  const t = (key: string) => mediaT({ locale: deps.locale, key: key });
 
-  return { alt, cssClass, htmlAttributes, setAlt, setCssClass, setHtmlAttributes, htmlAttributesError, save, t, altRef };
+  return { alt, cssClass, htmlAttributes, setAlt, setCssClass, setHtmlAttributes, htmlAttributesError, save, t };
 }
 
 /**

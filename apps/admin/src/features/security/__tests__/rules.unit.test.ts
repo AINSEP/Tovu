@@ -317,14 +317,14 @@ describe("accessTokensCountText", () => {
   });
 
   it("renders a full translated German sentence, not glued fragments", () => {
-    const translate = (key: string) => translateSecurity("de", key);
+    const translate = (key: string) => translateSecurity({ locale: "de", key: key });
     expect(accessTokensCountText(0, 0, "", translate)).toBe("0 Tokens gespeichert");
     expect(accessTokensCountText(1, 1, "", translate)).toBe("1 Token gespeichert");
     expect(accessTokensCountText(5, 2, "abc", translate)).toBe("2 von 5 Tokens, die zu “abc” passen");
   });
 
   it("renders a full translated Japanese sentence with the query reordered to the front", () => {
-    const translate = (key: string) => translateSecurity("ja", key);
+    const translate = (key: string) => translateSecurity({ locale: "ja", key: key });
     expect(accessTokensCountText(5, 2, "abc", translate)).toBe("「abc」に一致するトークン5件中2件");
   });
 });
@@ -529,7 +529,7 @@ describe("accessTokenReplaceReadyToSave (Replace flow)", () => {
 describe("buildAccessTokenConnectionInput", () => {
   it("dispatches to the publish builder for a publish ref", () => {
     const input = buildAccessTokenConnectionInput(blankFields({ name: "x", token: " ghp_abc " }), GITHUB_PAGES_INFO);
-    expect(input).toEqual({ providerId: "github-pages", token: "ghp_abc" });
+    expect(input).toEqual({ providerId: "github-pages", token: " ghp_abc " });
   });
 
   it("dispatches to the source-control builder for a source-control ref", () => {
@@ -681,7 +681,7 @@ describe("providerGroupSubtitleKeys", () => {
 
   it("'Custom credential' is translated in every admin locale", () => {
     for (const locale of ["es", "id", "de", "zh-CN", "zh-TW", "pt-BR", "ru", "fa", "ar", "ja", "ko", "pl", "hu", "fr", "uk", "tr", "th", "it", "hi", "ur", "bn"]) {
-      expect(translateSecurity(locale, "Custom credential"), locale).not.toBe("Custom credential");
+      expect(translateSecurity({ locale: locale, key: "Custom credential" }), locale).not.toBe("Custom credential");
     }
   });
 });

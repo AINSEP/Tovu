@@ -59,7 +59,7 @@ describe("CONTENT_ANALYSIS_DICT", () => {
   });
 
   it("t resolves a locale's translation and falls back to the English key", () => {
-    expect(t("es", "Analyze now")).toBe(CONTENT_ANALYSIS_DICT.es!["Analyze now"]);
-    expect(t("en", "Analyze now")).toBe("Analyze now");
+    expect(t({ locale: "es", key: "Analyze now" })).toBe(CONTENT_ANALYSIS_DICT.es!["Analyze now"]);
+    expect(t({ locale: "en", key: "Analyze now" })).toBe("Analyze now");
   });
 });

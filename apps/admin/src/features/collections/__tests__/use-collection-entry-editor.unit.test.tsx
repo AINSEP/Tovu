@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError, type AdminContentType, type AdminEntry } from "@/lib/api";
 import { COMMON_I18N } from "@/lib/i18n-common";
 import { VERSION_CONFLICT_MESSAGE } from "@/lib/version-conflict";
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 import { navigate } from "@/lib/router";
 import { createFakeCollectionEntryEditorPort } from "../hooks/collection-entry-editor-dependencies.hooks";
 import { useCollectionEntryEditor, useWiredCollectionEntryEditor } from "../hooks/use-collection-entry-editor.hooks";
@@ -17,9 +17,9 @@ import { useCollectionEntryEditor, useWiredCollectionEntryEditor } from "../hook
  * WidgetEmbed] })`) — the same setup `CollectionEntryEditor.unit.test.tsx` already mounts
  * successfully in jsdom, so `editor.getJSON()` is exercised for real rather than stubbed.
  *
- * `wrapper` (2026-08-12, `lib/fetch-query` migration): the combined load and the save/lifecycle
+ * `wrapper` (2026-08-12, `@jini-ai/ui/fetch-query` migration): the combined load and the save/lifecycle
  * writes now go through `useFetchQuery`/`useFetchMutation`, which throw without a
- * `QueryClientProvider` ancestor.
+ * `FetchQueryProvider` ancestor.
  */
 
 function wrapper({ children }: { children: React.ReactNode }) {
@@ -238,7 +238,7 @@ describe("save — new entry", () => {
     expect(view.result.current.saving).toBe(true);
 
     // `useFetchMutation` flips `saving` to `true` synchronously on `mutate()`, same as the
-    // pre-migration `setSaving(true)` did — but defers actually INVOKING `mutationFn` (and
+    // pre-migration `setSaving(true)` did — but defers actually INVOKING `run` (and
     // therefore this `fetch`) by one microtask, so `resolveCreate` is not assigned yet at this
     // exact point. `await Promise.resolve()` lets that deferred call land before reaching for it.
     await act(async () => {

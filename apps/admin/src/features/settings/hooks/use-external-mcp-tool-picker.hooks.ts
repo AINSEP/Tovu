@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { api, type AdminRemoteToolSurfaceEntry } from "@/lib/api";
-import type { Translate } from "@/lib/dictionary-translator";
-import { useFetchQuery } from "@/lib/fetch-query";
+import type { Translate } from "@jini-ai/ui/panel-kit";
+import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 
 import {
   countEnabledToolRows,
@@ -129,6 +129,7 @@ export function useExternalMcpToolPicker(deps: {
   const probe = useFetchQuery({
     key: ["external-mcp", "probe", serverId],
     fetch: () => port.probe(serverId),
+  }, {
     enabled: active,
     staleTime: PROBE_STALE_TIME_MS,
   });

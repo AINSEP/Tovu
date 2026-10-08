@@ -6,8 +6,8 @@ import type { IntegrationDeliveriesPort } from "./integration-deliveries-port.ho
  * delivery log — see `integration-deliveries-port.hooks.ts` for why the split exists.
  */
 
-/** The live implementation, as a module-level singleton — matches `redirects-dependencies.hooks.ts`'s
- *  `defaultRedirectsPort`. */
+/** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s
+ *  `redirectsHostPorts`. */
 export const defaultIntegrationDeliveriesPort: IntegrationDeliveriesPort = {
   listIntegrationDeliveries: (subscriptionId) => api.listIntegrationDeliveries(subscriptionId),
 };

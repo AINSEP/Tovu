@@ -7,8 +7,8 @@ import type { AdminPolicy, AdminPolicyPermission, AdminRole } from "@/lib/api";
  * port.hooks.ts`).
  *
  * One shared port for the whole screen, matching `users-port.hooks.ts`'s identical reasoning
- * (`Roles` is one hook backing one screen; `features/seo/hooks/seo-port.hooks.ts`'s 8-method
- * `SeoPort` is the closest existing precedent for keeping a port this size as one flat interface
+ * (`Roles` is one hook backing one screen; `@jini-ai/admin/seo`'s historical eight-method
+ * SEO port, now core `AdminSeoPort`, is the closest existing precedent for keeping a port this size as one flat interface
  * rather than splitting by concern, e.g. "roles" vs. "policies" — a split this codebase has no
  * existing precedent for anywhere, and which would not reduce what a full-hook or full-render test
  * has to fake, since every render loads both `listRoles` and `listPolicies` together regardless of

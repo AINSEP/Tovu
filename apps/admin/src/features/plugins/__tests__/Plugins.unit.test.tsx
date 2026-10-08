@@ -99,7 +99,7 @@ describe("tabs: Installed, Downloaded, Add a plugin, Marketplace, in that order,
 
     const tablist = await screen.findByRole("tablist");
     const tabs = within(tablist).getAllByRole("tab");
-    expect(tabs.map((tab) => tab.textContent)).toEqual(["Installed", "Downloaded", "Add a pluginSoon", "Marketplace"]);
+    expect(tabs.map((tab) => tab.textContent)).toEqual(["Installed", "Downloaded", "Add a plugin", "Marketplace"]);
     expect(within(tablist).getByRole("tab", { name: "Installed" })).toHaveAttribute("aria-selected", "true");
   });
 });

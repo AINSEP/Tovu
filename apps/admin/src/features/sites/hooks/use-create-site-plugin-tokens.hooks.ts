@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 
 import type { AdminTokenSignInPlugin } from "@/lib/api";
-import { useFetchQuery } from "@/lib/fetch-query";
+import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { KEYS, tokensForCreate } from "../rules";
 import type { SitesPort } from "./sites-port.hooks";
 

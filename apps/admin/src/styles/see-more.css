@@ -1,7 +1,6 @@
 /**
- * `components/SeeMore/SeeMore.tsx` — the line-clamped block plus its "See more" / "See less" toggle.
- * Imported directly by that component, the scoped-partial precedent `styles/select.css` and
- * `styles/assistant.css` establish, rather than a new line in `main.tsx`.
+ * `@jini-ai/ui/admin-widgets` — the line-clamped block plus its "See more" / "See less" toggle.
+ * Loaded by `styles.css` to retain Tovu link colour and text-size bindings for the shared widget.
  *
  * EVERY RULE BELOW IS WRITTEN AT TWO-CLASS SPECIFICITY (`.see-more .see-more-*`) ON PURPOSE. A
  * self-imported partial does NOT reliably load after `styles.css` — measured via

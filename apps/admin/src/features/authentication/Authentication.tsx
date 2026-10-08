@@ -8,7 +8,7 @@ import "@jini-ai/ui/settings-dialog.css";
 import type { ReactElement } from "react";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import type { Translate } from "../../lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 import { providerBackendNote, t as translateAuthentication } from "./authentication-i18n";
 import {
   AUTHENTICATION_PROVIDER_SCHEMAS,
@@ -134,7 +134,7 @@ function AuthenticationHomePanel({ t }: { t: Translate }): ReactElement {
  */
 export function Authentication(): ReactElement {
   const locale = useAdminLocale();
-  const t: Translate = (key) => translateAuthentication(locale, key);
+  const t: Translate = (key) => translateAuthentication({ locale: locale, key: key });
   const tabs: SettingsDialogTab[] = [
     {
       id: "home",

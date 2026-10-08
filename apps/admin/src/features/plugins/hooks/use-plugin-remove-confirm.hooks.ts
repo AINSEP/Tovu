@@ -1,7 +1,7 @@
 import { useEffect, useRef, type RefObject } from "react";
 
 import { useFocusTrap } from "@/hooks/use-focus-trap.hooks";
-import type { Translate } from "@/lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 import { buildPluginRemoveConfirmCopy, type PluginRemoveConfirmCopy } from "../rules";
 
 /**

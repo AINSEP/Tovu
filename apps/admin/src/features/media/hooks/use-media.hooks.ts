@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 
 import type { AdminMedia } from "@/lib/api";
-import { useFetchMutation, useFetchQuery, useInvalidate } from "@/lib/fetch-query";
+import { useFetchMutation, useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { KEYS, MEDIA_RESOURCE, findEditingItem, readFileAsBase64, visibleMediaError, type MediaOrderBy } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
@@ -43,12 +43,12 @@ import type { MediaPort } from "./media-port.hooks";
  * unchanged — same "row-menu builder is a different, out-of-scope thing" precedent
  * `use-pages.hooks.ts` cites for `pageRowMenuItems`.
  *
- * `lib/fetch-query` migration (2026-08-12): the list read is `useFetchQuery({ key: KEYS.list, ...
+ * `@jini-ai/ui/fetch-query` migration (2026-08-12): the list read is `useFetchQuery({ key: KEYS.list, ...
  * })`; `upload`/`trash`/`purge` are three independent `useFetchMutation`s that each `invalidates:
  * [KEYS.list]` instead of calling `load()` by hand. `rules.ts`'s `KEYS` doc explains why there is no
  * separate "detail" key for `EditMediaPanel` to trip over the sibling-vs-nested trap
  * `forms`/`collections` both hit — it has no read of its own. `clearOtherWriteErrors` mirrors
- * `redirects/rules.ts`'s identical-purpose helper: three independent mutations each keep their OWN
+ * `Jini redirects/SOURCE-RATIONALE.md`'s identical-purpose helper: three independent mutations each keep their OWN
  * error until reset, so starting one must clear the other two or a stale failure could survive past
  * a later, unrelated success. `pendingPurge`/`rowSavingId` stay local `useState` per this migration's
  * own dispatch brief (`media` has per-row action state — a shared mutation object cannot carry
@@ -125,7 +125,7 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
   // Stable identity (not an inline arrow) so `useContentRefreshSubscription`'s own effect does not
   // unsubscribe/resubscribe on every render — `KEYS.list` is a module-level constant, so the only
   // thing this closure ever needs is `invalidate`, itself already stable per `useInvalidate`'s doc.
-  const invalidateList = useCallback(() => invalidate(KEYS.list), [invalidate]);
+  const invalidateList = useCallback(() => invalidate({ key: KEYS.list }), [invalidate]);
   useContentRefreshSubscription(MEDIA_RESOURCE, invalidateList);
   const [altDraft, setAltDraft] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -144,16 +144,17 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
   }, []);
 
   const uploadMutation = useFetchMutation({
-    run: (input: { filename: string; contentType: string; dataBase64: string; alt?: string }) =>
+    run: ({ input }: { input: { filename: string; contentType: string; dataBase64: string; alt?: string } }) =>
       port.uploadMedia({ filename: input.filename, contentType: input.contentType, dataBase64: input.dataBase64 }, { alt: input.alt }),
+  }, {
     invalidates: [KEYS.list],
   });
-  const trashMutation = useFetchMutation({ run: (id: string) => port.trashMedia(id), invalidates: [KEYS.list] });
-  const purgeMutation = useFetchMutation({ run: (id: string) => port.deleteMedia(id), invalidates: [KEYS.list] });
+  const trashMutation = useFetchMutation({ run: ({ input: id }: { input: string }) => port.trashMedia(id) }, { invalidates: [KEYS.list] });
+  const purgeMutation = useFetchMutation({ run: ({ input: id }: { input: string }) => port.deleteMedia(id) }, { invalidates: [KEYS.list] });
 
   const writes = [uploadMutation, trashMutation, purgeMutation];
   /** Clears the OTHER writes' failures before starting one — same shape/reasoning as
-   *  `redirects/rules.ts`'s `clearOtherWriteErrors` (see `use-redirects.hooks.ts`'s own copy): three
+   *  `Jini redirects/SOURCE-RATIONALE.md`'s `clearOtherWriteErrors` (see `Jini redirects/SOURCE-RATIONALE.md`'s own copy): three
    *  independent mutations each keep their own error until reset, so a stale failure from one must
    *  not survive past the start of an unrelated one. */
   function clearOtherWriteErrors(active: { reset: () => void }) {
@@ -171,7 +172,7 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
     clearOtherWriteErrors(uploadMutation);
     try {
       const dataBase64 = await readFileAsBase64(file);
-      await uploadMutation.mutate({ filename: file.name, contentType: file.type, dataBase64, alt: altDraft.trim() || undefined });
+      await uploadMutation.mutate({ input: { filename: file.name, contentType: file.type, dataBase64, alt: altDraft.trim() || undefined } });
       setAltDraft("");
       if (fileInputRef.current) fileInputRef.current.value = "";
       setSelectedFileName("");
@@ -187,7 +188,7 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
     clearOtherWriteErrors(trashMutation);
     setRowSavingId(item.id);
     try {
-      await trashMutation.mutate(item.id);
+      await trashMutation.mutate({ input: item.id });
     } catch {
       // already surfaced through trashMutation.error -> error below
     } finally {
@@ -209,7 +210,7 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
     clearOtherWriteErrors(purgeMutation);
     setRowSavingId(item.id);
     try {
-      await purgeMutation.mutate(item.id);
+      await purgeMutation.mutate({ input: item.id });
     } catch {
       // already surfaced through purgeMutation.error -> error below
     } finally {
@@ -235,12 +236,12 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
   const media = list.data?.media ?? null;
   const error = visibleMediaError({
     uploadError: uploadMutation.error,
-    uploadFallback: translate(locale, "upload failed"),
+    uploadFallback: translate({ locale: locale, key: "upload failed" }),
     trashError: trashMutation.error,
     purgeError: purgeMutation.error,
-    deleteFallback: translate(locale, "delete failed"),
+    deleteFallback: translate({ locale: locale, key: "delete failed" }),
     listError: list.error,
-    listFallback: translate(locale, "failed to load media"),
+    listFallback: translate({ locale: locale, key: "failed to load media" }),
     hasMedia: media !== null,
   });
 
@@ -282,6 +283,6 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
  */
 export function useWiredMedia(): MediaController {
   const locale = useAdminLocale();
-  const t = (key: string): string => translate(locale, key);
+  const t = (key: string): string => translate({ locale: locale, key: key });
   return useMedia({ port: defaultMediaPort, locale, t });
 }

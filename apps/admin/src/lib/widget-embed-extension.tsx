@@ -53,7 +53,7 @@ export function widgetTypeLabel(widget: AdminWidget | null | undefined): string 
  *  of only lowering its ESLint per-closure score. Exported for direct testability. */
 export function WidgetEmbedStatus({ widget, isBroken, typeLabel }: { widget: AdminWidget | null | undefined; isBroken: boolean; typeLabel: string }) {
   const locale = useWiredAdminLocale();
-  const t = (key: string): string => translateApp(locale, key);
+  const t = (key: string): string => translateApp({ locale: locale, key: key });
   if (widget === undefined) return <span className="notice">{t("Loading widget…")}</span>;
   if (isBroken) {
     return (
@@ -82,7 +82,7 @@ export function WidgetEmbedNodeView(props: NodeViewProps) {
   // `widget-embed-extension.hooks.ts`.
   const view = useWidgetEmbedNodeView(props);
   const locale = useWiredAdminLocale();
-  const t = (key: string): string => translateApp(locale, key);
+  const t = (key: string): string => translateApp({ locale: locale, key: key });
 
   return (
     <NodeViewWrapper as="div" className={view.nodeClassName} data-drag-handle contentEditable={false}>
@@ -196,7 +196,7 @@ function WidgetEmbedInsertControlEnabled(props: {
 }) {
   const editor = props.editor;
   const locale = useWiredAdminLocale();
-  const t = (key: string): string => translateApp(locale, key);
+  const t = (key: string): string => translateApp({ locale: locale, key: key });
   return (
     <WidgetAddControl
       triggerLabel={t("Insert widget")}

@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 import { useMergeTermSection, useWiredMergeTermSection } from "../hooks/use-merge-term-section.hooks";
 import { createFakeMergeTermSectionPort } from "../hooks/merge-term-section-dependencies.hooks";
 import type { AdminTerm, GatedPlanResult, MergeTermPlanDetails } from "@/lib/api";
@@ -13,13 +13,13 @@ import type { AdminTerm, GatedPlanResult, MergeTermPlanDetails } from "@/lib/api
  * changing `term` mid-wizard must reset everything rather than let a stale plan/confirmation token
  * survive onto a different term.
  *
- * `wrapper` (2026-08-12, `lib/fetch-query` migration): plan/confirm/execute now go through
- * `useFetchMutation`, which throws without a `QueryClientProvider` ancestor.
+ * `wrapper` (2026-08-12, `@jini-ai/ui/fetch-query` migration): plan/confirm/execute now go through
+ * `useFetchMutation`, which throws without a `FetchQueryProvider` ancestor.
  *
  * `error` assertions below are wrapped in `waitFor` (same migration): `error` is now DERIVED from
  * three independent `useMutation`s' own `.error`, which — unlike `step`/`plan`/`confirmationToken`
  * (plain `useState`, already settled synchronously inside the same handler) — updates on a render
- * TanStack schedules after `mutateAsync` settles. Reading it as a bare synchronous `expect` right
+ * Jini schedules after `mutate` settles. Reading it as a bare synchronous `expect` right
  * after `act()` raced that render under this file's own three-mutation-per-hook load (flaky, not
  * deterministically failing) — the other four migrated taxonomy hook test files, each with only one
  * mutation in flight at a time, did not need this.

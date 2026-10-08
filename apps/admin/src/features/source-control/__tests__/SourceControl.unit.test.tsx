@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { SourceControl } from "../SourceControl";
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 import { useSourceControlCredentials } from "../hooks/use-source-control-credentials.hooks";
 import { createFakeSourceControlCredentialsPort } from "../hooks/source-control-credentials-dependencies.hooks";
 import type { SourceControlCredentialRowState, SourceControlCredentialsController } from "../hooks/use-source-control-credentials.hooks";

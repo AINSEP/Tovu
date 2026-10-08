@@ -1,10 +1,8 @@
+import { Icon, ICON_PATH_DATA } from "@jini-ai/ui";
 /**
- * @file The Agent Plugins screen's own icon set — inline SVGs, no icon dependency. Same rationale
- * `features/database/database-visuals.tsx`, `source-control-visuals.tsx`, and
- * `deployment/deployment-visuals.tsx` give for theirs: this app ships no icon component library to
- * `features/`, and importing a glyph across a feature boundary would tie this screen's rendering to
- * a sibling feature another agent owns. (`lucide-react` appears only inside the vendored skill DOCS
- * under `bundled/ui-ux-design/` — it is not a dependency of this app.)
+ * @file The Agent Plugins screen's icon adapters. Exact repeated shapes use Jini UI's icon
+ * owner; unique artwork stays here. Importing a glyph from a sibling feature would couple
+ * this screen to another agent's actively edited file, so reuse goes through the platform.
  *
  * Two families here, and they follow opposite accessibility rules:
  *
@@ -36,11 +34,7 @@ export interface IconProps {
 /** Installed — a package with a check: bytes that are here and catalogued. */
 export function InstalledIcon({ size = 16 }: IconProps) {
   return (
-    <svg {...LINE_ICON} width={size} height={size}>
-      <path d="M20.5 8.2v5.1L12 17.9l-8.5-4.6V8.2" />
-      <path d="M3.5 8.2 12 3.6l8.5 4.6L12 12.8z" />
-      <path d="M15.6 19.4l1.9 1.9 3.4-3.9" />
-    </svg>
+    <Icon name="package-check" size={size} focusable={undefined} {...LINE_ICON} />
   );
 }
 
@@ -48,11 +42,7 @@ export function InstalledIcon({ size = 16 }: IconProps) {
  *  here can be bought or added to anything yet, and a cart would promise a transaction. */
 export function MarketplaceIcon({ size = 16 }: IconProps) {
   return (
-    <svg {...LINE_ICON} width={size} height={size}>
-      <path d="M3.5 8.5h17l-1.2-4H4.7z" />
-      <path d="M5 8.5v11h14v-11" />
-      <path d="M9.75 19.5v-5.5h4.5v5.5" />
-    </svg>
+    <Icon name="storefront" size={size} focusable={undefined} {...LINE_ICON} />
   );
 }
 
@@ -117,7 +107,7 @@ export function PlugIcon({ size = 18 }: IconProps) {
 export function DocumentIcon({ size = 18 }: IconProps) {
   return (
     <svg {...LINE_ICON} width={size} height={size}>
-      <path d="M6.5 3.5h7.6l3.9 3.9v13.1H6.5z" />
+      <path d={ICON_PATH_DATA["document-outline-compact"]} />
       <path d="M14 3.5v4h4" />
       <path d="M9.3 12.2h5.4M9.3 15.6h5.4" />
     </svg>
@@ -129,10 +119,7 @@ export function DocumentIcon({ size = 18 }: IconProps) {
  *  no evidence for. */
 export function PackageIcon({ size = 18 }: IconProps) {
   return (
-    <svg {...LINE_ICON} width={size} height={size}>
-      <path d="M3.5 8.2 12 3.6l8.5 4.6v7.6L12 20.4l-8.5-4.6z" />
-      <path d="M3.5 8.2 12 12.8l8.5-4.6M12 12.8v7.6" />
-    </svg>
+    <Icon name="package-outline" size={size} focusable={undefined} {...LINE_ICON} />
   );
 }
 
@@ -151,11 +138,7 @@ export function EyeIcon({ size = 16 }: IconProps) {
 /** Uninstall. Rendered only in a disabled control on this screen — see `AgentPluginRow`. */
 export function TrashIcon({ size = 16 }: IconProps) {
   return (
-    <svg {...LINE_ICON} width={size} height={size}>
-      <path d="M4.5 7h15M9.5 7V4.6h5V7" />
-      <path d="M6.6 7l.9 12.4h9l.9-12.4" />
-      <path d="M10.4 10.5v6M13.6 10.5v6" />
-    </svg>
+    <Icon name="trash-compact" size={size} focusable={undefined} {...LINE_ICON} />
   );
 }
 
@@ -163,9 +146,7 @@ export function TrashIcon({ size = 16 }: IconProps) {
  *  for a second glyph, so the transition is one continuous motion. */
 export function ChevronIcon({ size = 14 }: IconProps) {
   return (
-    <svg {...LINE_ICON} width={size} height={size} className="agent-plugin-chevron-glyph">
-      <path d="M9 5.5 15.5 12 9 18.5" />
-    </svg>
+    <Icon name="chevron-right-wide" size={size} focusable={undefined} {...LINE_ICON} className="agent-plugin-chevron-glyph" />
   );
 }
 

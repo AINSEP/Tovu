@@ -1,5 +1,5 @@
-import type { Translate } from "@/lib/dictionary-translator";
-import { interpolate } from "@/lib/template-i18n";
+import type { Translate } from "@jini-ai/ui/panel-kit";
+import { interpolate } from "@jini-ai/ui/panel-kit";
 
 import { describeDriftHeadline, type AdmissionDriftConnection, type AdmissionDriftEntry } from "./external-mcp-admissions-rules";
 import type { ExternalMcpAdmissionsController } from "./hooks/use-external-mcp-admissions.hooks";
@@ -30,7 +30,7 @@ import type { ExternalMcpAdmissionsController } from "./hooks/use-external-mcp-a
  *  that is not there. */
 function AdmissionDriftRow(props: { entry: AdmissionDriftEntry; t: Translate; onAllowWrite: (connectionId: string, remoteName: string) => void }) {
   const { entry, t, onAllowWrite } = props;
-  const message = interpolate(t(entry.messageKey), entry.messageVars);
+  const message = interpolate({ template: t(entry.messageKey), vars: entry.messageVars });
   // Bound locally so the null check below narrows inside the `onChange` closure too. A
   // `needs-write-grant` row always names a tool (it comes from a gate refusal), but the type cannot
   // know that, and asserting it would be the more expensive way to be right.
@@ -77,11 +77,11 @@ function AdmissionConnectionSection(props: {
       <h4>{connection.connectionId}</h4>
       {connection.notLoaded.length > 0 ? (
         <p>
-          {interpolate(t("Live now: {live} tools. Saved: {saved} tools — {names} are not loaded."), {
+          {interpolate({ template: t("Live now: {live} tools. Saved: {saved} tools — {names} are not loaded."), vars: {
             live: connection.liveToolCount,
             saved: connection.savedToolCount,
             names: connection.notLoaded.join(", "),
-          })}
+          } })}
         </p>
       ) : null}
       <ul>

@@ -1,23 +1,16 @@
 import type { SkillInstallPayload } from "./api";
 const MAX_BYTES = 8 * 1024 * 1024;
 
-function readBytes(file: File): Promise<ArrayBuffer> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as ArrayBuffer);
-    reader.onerror = () => reject(new Error("Could not read skill files."));
-    reader.readAsArrayBuffer(file);
-  });
-}
 async function base64(file: File) {
-  const bytes = new Uint8Array(await readBytes(file));
+  const buffer = await file.arrayBuffer().catch(() => { throw new Error("Could not read skill files."); });
+  const bytes = new Uint8Array(buffer);
   const chunks: string[] = [];
   for (let offset = 0; offset < bytes.length; offset += 8192) chunks.push(String.fromCharCode(...bytes.subarray(offset, offset + 8192)));
   return btoa(chunks.join(""));
 }
 
 /** The picker and chat drops use identical byte encoding and preserve folder-relative paths. */
-export async function prepareSkillUpload(files: readonly File[], paths?: readonly string[]): Promise<SkillInstallPayload> {
+export async function prepareSkillUpload({ files }: { files: readonly File[] }, { paths }: { paths?: readonly string[] } = {}): Promise<SkillInstallPayload> {
   if (!files.length || files.length > 256 || files.reduce((n, f) => n + f.size, 0) > MAX_BYTES) throw new Error("Choose up to 256 files, 8 MiB total.");
   if (files.length === 1 && files[0]!.name.toLowerCase().endsWith(".zip")) return { archiveBase64: await base64(files[0]!) };
   if (!files.some(f => f.name === "SKILL.md")) throw new Error("Choose a skill folder, ZIP, or SKILL.md.");

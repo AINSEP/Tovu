@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { describeApiError, type AdminTerm } from "@/lib/api";
-import { useFetchMutation } from "@/lib/fetch-query";
+import { useFetchMutation } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../taxonomy-i18n";
 import { KEYS } from "../rules";
@@ -20,7 +20,7 @@ import type { TaxonomyPort } from "./taxonomy-port.hooks";
  * global `fetch`. `useWiredTermDetailPanel` below is the zero-argument pair `Taxonomy.tsx` actually
  * mounts.
  *
- * `lib/fetch-query` migration (2026-08-12): `rename` is a `useFetchMutation` that `invalidates:
+ * `@jini-ai/ui/fetch-query` migration (2026-08-12): `rename` is a `useFetchMutation` that `invalidates:
  * [KEYS.list]` — the rename mutates a name inside `useTaxonomy`'s cached list, and every previous
  * caller of `onRenamed` used it purely to trigger that same list's `load()`. `error` reads the
  * mutation's own `.error`, reset (alongside the local `message`) on the same term-change effect the
@@ -53,7 +53,8 @@ export function useTermDetailPanel(
   const [error, setError] = useState<string | null>(null);
 
   const renameMutation = useFetchMutation({
-    run: (name: string) => port.renameTerm({ termId: term.id, newName: name }),
+    run: ({ input: name }: { input: string }) => port.renameTerm({ termId: term.id, newName: name }),
+  }, {
     invalidates: [KEYS.list],
   });
 
@@ -91,13 +92,13 @@ export function useTermDetailPanel(
     setError(null);
     setSaving(true);
     try {
-      await renameMutation.mutate(newName.trim());
+      await renameMutation.mutate({ input: newName.trim() });
       if (activeTermIdRef.current !== renamingForTermId) return; // superseded by a term switch
-      setMessage(t(locale, "Renamed."));
+      setMessage(t({ locale: locale, key: "Renamed." }));
       onRenamed();
     } catch (err) {
       if (activeTermIdRef.current !== renamingForTermId) return;
-      setError(describeApiError(err, t(locale, "Failed to rename term")));
+      setError(describeApiError(err, t({ locale: locale, key: "Failed to rename term" })));
     } finally {
       if (activeTermIdRef.current === renamingForTermId) setSaving(false);
     }

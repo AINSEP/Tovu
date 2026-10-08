@@ -3,8 +3,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { describeApiError, type AdminMediaProviderMap } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { useSerialWrites } from "@/hooks/use-serial-writes.hooks";
-import type { Translate } from "@/lib/dictionary-translator";
+import { useSerialWrites, type Translate } from "@jini-ai/ui/panel-kit";
 import { t as defaultT, accessTokensLoadErrorMessage, accessTokenSaveErrorMessage } from "../security-i18n";
 import {
   OTHER_CREDENTIAL_STORES,
@@ -111,20 +110,20 @@ function idleStoreState(): StoreState {
 }
 
 /** Reads one single-`apiKey` store's current value into its (0 or 1) row — `site-assistant`/
- *  `admin-byok` share this exact "isSet, plus a bare tail" shape; only the two GET calls' own field
+ *  `admin-byok` share this exact "isSet, plus a server hint" shape; only the two GET calls' own field
  *  names differ, which the two small readers below normalize before this shared mapper ever runs. @complexity O(1). */
-function singleKeyItems(store: OtherCredentialStoreInfo, isSet: boolean, tail: string | null, updatedAt: string | null): RawStoreItem[] {
+function singleKeyItems(store: OtherCredentialStoreInfo, isSet: boolean, valueFact: string | null, updatedAt: string | null): RawStoreItem[] {
   if (!isSet) return [];
-  return [{ itemId: store.id, name: store.label, valueFact: maskedTailFact(tail ?? ""), updatedAt }];
+  return [{ itemId: store.id, name: store.label, valueFact: valueFact ?? "", updatedAt }];
 }
 
-async function readSiteAssistant(port: OtherCredentialsPort, store: OtherCredentialStoreInfo): Promise<RawStoreItem[]> {
+async function readSiteAssistant(port: OtherCredentialsPort, store: OtherCredentialStoreInfo, locale: string): Promise<RawStoreItem[]> {
   const { data } = await port.getSiteAssistantCredential();
-  return singleKeyItems(store, data.isSet, data.masked, data.updatedAt);
+  return singleKeyItems(store, data.isSet, formatCredentialHint({ hint: data.tokenHint, locale }) || maskedTailFact(data.masked?.replace(/^••••/, "") ?? ""), data.updatedAt);
 }
-async function readAdminByok(port: OtherCredentialsPort, store: OtherCredentialStoreInfo): Promise<RawStoreItem[]> {
+async function readAdminByok(port: OtherCredentialsPort, store: OtherCredentialStoreInfo, locale: string): Promise<RawStoreItem[]> {
   const { data } = await port.getAdminByokCredential();
-  return singleKeyItems(store, data.isSet, data.masked, data.updatedAt);
+  return singleKeyItems(store, data.isSet, formatCredentialHint({ hint: data.tokenHint, locale }) || maskedTailFact(data.masked?.replace(/^••••/, "") ?? ""), data.updatedAt);
 }
 /** Every configured media-provider key — one row per provider whose `apiKeyConfigured` is true, not
  *  one row for the whole store (the owner's own mock names a SPECIFIC provider, "Cloudinary (media)",
@@ -160,9 +159,9 @@ async function readExternalMcpServers(port: OtherCredentialsPort, t: Translate, 
 function readStore(port: OtherCredentialsPort, store: OtherCredentialStoreInfo, t: Translate, locale = 'en'): Promise<RawStoreItem[]> {
   switch (store.id) {
     case "site-assistant":
-      return readSiteAssistant(port, store);
+      return readSiteAssistant(port, store, locale);
     case "admin-byok":
-      return readAdminByok(port, store);
+      return readAdminByok(port, store, locale);
     case "media-provider":
       return readMediaProviders(port, locale);
     case "external-mcp":
@@ -250,7 +249,7 @@ export function useOtherCredentials(
   }
 
   function replace(row: OtherCredentialRowState): Promise<void> {
-    return writes.run(() => replaceNow(row));
+    return writes.run({ task: () => replaceNow(row) });
   }
 
   async function replaceNow(row: OtherCredentialRowState): Promise<void> {
@@ -270,7 +269,7 @@ export function useOtherCredentials(
   }
 
   function remove(row: OtherCredentialRowState): Promise<void> {
-    return writes.run(() => removeNow(row));
+    return writes.run({ task: () => removeNow(row) });
   }
 
   async function removeNow(row: OtherCredentialRowState): Promise<void> {
@@ -394,6 +393,6 @@ async function writeRemove(port: OtherCredentialsPort, storeId: OtherCredentialS
  */
 export function useWiredOtherCredentials(filter: { query: string; category: AccessTokenCategoryId }): OtherCredentialsController {
   const locale = useAdminLocale();
-  const boundT = (key: string): string => defaultT(locale, key);
+  const boundT = (key: string): string => defaultT({ locale: locale, key: key });
   return useOtherCredentials(defaultOtherCredentialsPort, boundT, locale, filter);
 }

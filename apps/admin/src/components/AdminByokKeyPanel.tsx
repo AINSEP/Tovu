@@ -59,7 +59,7 @@ export interface AdminByokMigrationPromptProps {
  */
 export function AdminByokMigrationPrompt({ controller, agentHandle: base }: AdminByokMigrationPromptProps) {
   const locale = useAdminLocale();
-  const t = (key: string) => sharedComponentsT(locale, key);
+  const t = (key: string) => sharedComponentsT({ locale: locale, key: key });
   if (!controller.legacyKey) return null;
   const saving = controller.saveState.status === "saving";
 
@@ -115,7 +115,7 @@ export interface AdminByokKeyFooterProps {
  */
 export function AdminByokKeyFooter({ controller, agentHandle: handle, t }: AdminByokKeyFooterProps) {
   const locale = useAdminLocale();
-  const sharedT = (key: string) => sharedComponentsT(locale, key);
+  const sharedT = (key: string) => sharedComponentsT({ locale: locale, key: key });
   const { saveState, canSaveKey, stored, storedKeyIsForOtherEndpoint } = controller;
   const saving = saveState.status === "saving";
   const statusLine = resolveByokFooterStatusLine(saveState.status, stored?.isSet ?? false, storedKeyIsForOtherEndpoint, t ?? sharedT);
@@ -193,7 +193,7 @@ export function resolveByokSettingsStatusLine(
  */
 export function AdminByokSettingsFooter({ controller, agentHandle: handle, t }: AdminByokSettingsFooterProps) {
   const locale = useAdminLocale();
-  const sharedT = (key: string) => sharedComponentsT(locale, key);
+  const sharedT = (key: string) => sharedComponentsT({ locale: locale, key: key });
   const { settingsSaveState } = controller;
   const saving = settingsSaveState.status === "saving";
   const statusLine = resolveByokSettingsStatusLine(settingsSaveState.status, t ?? sharedT);

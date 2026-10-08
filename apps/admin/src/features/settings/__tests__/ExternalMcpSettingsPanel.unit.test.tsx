@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { createFakeSourceConfigDependencies, type SourceConfigItem } from "@jini-ai/ui";
 
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 import { tabFromLastFocusableInDialog } from "@/hooks/__tests__/focus-trap.test-helpers";
 
 import { ExternalMcpSettingsPanel } from "../ExternalMcpSettingsPanel";

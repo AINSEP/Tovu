@@ -1,14 +1,14 @@
 import { hasAttributeOnAnyNodeShape, type CanvasEmbedPlaceholderDescriptor } from "@jini-ai/ui/html-editor";
-import { embedMarkerTarget, parseEmbedMarkerConfig, type EmbedMarkerTarget } from "@tovu/embed-marker";
+import { embedMarkerTarget, parseEmbedMarkerConfig, type EmbedMarkerTarget } from "@jini-ai/cms/widgets/markers";
 
-import type { Translate } from "@/lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 
 /**
  * @file Bug A (2026-09-23 interactive-bugs plan, Slice A2): the Tovu-specific adapter
  * `PageEditor.tsx` (Slice A3) hands to `@jini-ai/ui/html-editor`'s generic `InteractiveHtmlEditor` as
  * `isProtectedElement`/`describeEmbedPlaceholder` — the same two-function shape Jini's own
  * `InteractiveHtmlEditor.tsx` adapter used to supply from inside the Jini package. Moving it here lets
- * this describer read `@tovu/embed-marker`'s `parseEmbedMarkerConfig`/`embedMarkerTarget` (Slice A1)
+ * this describer read `@jini-ai/cms/widgets/markers`'s `parseEmbedMarkerConfig`/`embedMarkerTarget` (Slice A1)
  * directly instead of Jini's adapter carrying its own second copy of "which key names the target" —
  * see the root-cause report (`ADS-memory/.local-artifacts/pages-redo-2026-09-23/interactive-bugs-plan.md`,
  * Bug A) for why that second copy is exactly what produced "Placeholder — Widget / no id set" for a
@@ -88,7 +88,7 @@ function truncateTargetValue(value: string): string {
  * bounded string truncation.
  */
 function targetIdentityLabel(type: string, config: Readonly<Record<string, unknown>>, t: Translate): string {
-  const target: EmbedMarkerTarget | undefined = embedMarkerTarget(type, config);
+  const target: EmbedMarkerTarget | undefined = embedMarkerTarget({ type, config });
   if (target === undefined) return t("no id set");
   if (target.key === "none") {
     const limit = config.limit;
@@ -119,7 +119,7 @@ export function createEmbedPlaceholderDescriber(t: Translate): (el: Element) => 
   return (el: Element): CanvasEmbedPlaceholderDescriptor | undefined => {
     const raw = el.getAttribute("data-embed-config");
     if (!raw) return undefined;
-    const result = parseEmbedMarkerConfig(raw);
+    const result = parseEmbedMarkerConfig({ raw });
     if ("problem" in result) return undefined;
 
     const { config } = result;

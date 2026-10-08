@@ -213,7 +213,7 @@ describe("tabs", () => {
   });
 
   it("translates the shell navigation and create action through Recovery's existing dictionary", () => {
-    renderRecovery({ locale: "es", t: (key) => recoveryT("es", key) });
+    renderRecovery({ locale: "es", t: (key) => recoveryT({ locale: "es", key: key }) });
     expect(screen.getByRole("complementary", { name: "Recuperación" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Puntos de restauración" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "Restaurar" })).toHaveAttribute("aria-pressed", "false");

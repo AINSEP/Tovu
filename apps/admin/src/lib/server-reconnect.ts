@@ -16,7 +16,7 @@
 
 /** Set by the admin dev proxy (`apps/admin/dev-proxy-upstream-close.ts`) on the 503 it answers
  *  when the API refused the connection — proof the request never reached the server. */
-export const UPSTREAM_REFUSED_HEADER = "x-tovu-dev-proxy";
+export const UPSTREAM_REFUSED_HEADER = "x-tovu-upstream-status";
 export const UPSTREAM_REFUSED_VALUE = "upstream-refused";
 
 export type ServerConnectionStatus = "online" | "reconnecting" | "unreachable";

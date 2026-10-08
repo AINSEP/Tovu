@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { describeApiError, type AdminLedgerRow } from "@/lib/api";
-import { useFetchQuery } from "@/lib/fetch-query";
+import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { KEYS } from "../rules";
 import { navigate } from "@/lib/router";
 import { useWiredAdminLocale } from "@/hooks/use-admin-locale.hooks";
@@ -29,15 +29,15 @@ import type { TimelineSectionPort } from "./timeline-section-port.hooks";
  * as a separate prop from `Database`, entirely redundant with the resolution this hook was already
  * doing internally and not using for anything the component could see.
  *
- * `lib/fetch-query` migration (2026-08-12): page 1 is one `useFetchQuery` keyed on `KEYS.
+ * `@jini-ai/ui/fetch-query` migration (2026-08-12): page 1 is one `useFetchQuery` keyed on `KEYS.
  * timeline(appliedFilters)` — `appliedFilters` (NOT `kind`/`outcome`/`fromDate`/`toDate`
  * themselves) is the key, so typing into a filter input does not itself trigger a reload; only
  * `applyFilters` committing the draft into `appliedFilters` does, by changing the query's key (see
  * `rules.ts`'s `KEYS` doc). This also removes the mount-time `useEffect` entirely — `useFetchQuery`
  * fetches on mount by construction, and `appliedFilters` already starts blank. "Load more" pages
- * are NOT folded into that query, for the identical reason `forms/hooks/use-form-
- * submissions.hooks.ts`/`comments/hooks/use-comment-queue.hooks.ts` keep their own cursor-appended
- * pages local: `lib/fetch-query/types.ts`'s `QueryKey` doc binds one hook to one FIXED key.
+ * are NOT folded into that query, for the identical reason `Jini forms/react/hooks/use-form-
+ * submissions.hooks.ts`/`@jini-ai/admin/comments/react`'s queue hook keep their own cursor-appended
+ * pages local: `@jini-ai/ui/fetch-query`'s `QueryKey` doc binds one hook to one FIXED key.
  * `filtersRef` guards that local accumulation against the same class of race the base query gets
  * for free: a `loadMore` in flight when `applyFilters` commits new filters must not append the
  * wrong filter's rows once it resolves.
@@ -120,7 +120,7 @@ export interface TimelineSectionDependencies {
 export function useTimelineSection(deps: TimelineSectionDependencies): TimelineSectionController {
   const { port } = deps;
   const locale = useWiredAdminLocale();
-  const boundT = (key: string): string => t(locale, key);
+  const boundT = (key: string): string => t({ locale: locale, key: key });
 
   function fetchTimelinePage(filters: TimelineFilters, cursor?: string) {
     return port.getDatabaseTimeline({
@@ -186,7 +186,7 @@ export function useTimelineSection(deps: TimelineSectionDependencies): TimelineS
       setMoreCursor(r.nextCursor);
     } catch (e) {
       if (filtersAtCall !== filtersRef.current) return;
-      setMoreError(describeApiError(e, t(locale, "failed to load the Database Timeline")));
+      setMoreError(describeApiError(e, t({ locale: locale, key: "failed to load the Database Timeline" })));
     } finally {
       if (filtersAtCall === filtersRef.current) {
         loadingMoreRef.current = false;
@@ -196,7 +196,7 @@ export function useTimelineSection(deps: TimelineSectionDependencies): TimelineS
   }
 
   const rows = firstPage.data ? [...firstPage.data.items, ...morePages] : null;
-  const error = moreError ?? (firstPage.error ? describeApiError(firstPage.error, t(locale, "failed to load the Database Timeline")) : null);
+  const error = moreError ?? (firstPage.error ? describeApiError(firstPage.error, t({ locale: locale, key: "failed to load the Database Timeline" })) : null);
 
   return {
     rows,

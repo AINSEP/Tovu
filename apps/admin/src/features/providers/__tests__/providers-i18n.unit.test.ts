@@ -59,7 +59,11 @@ describe("PROVIDERS_DICT: cross-locale key parity", () => {
     const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
     const visit = (node: ts.Node): void => {
       if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === "t") {
-        const key = node.arguments[file === "Providers.tsx" ? 1 : 0];
+        const input = node.arguments[0];
+        const property = input && ts.isObjectLiteralExpression(input)
+          ? input.properties.find((property) => ts.isPropertyAssignment(property) && ts.isIdentifier(property.name) && property.name.text === "key")
+          : undefined;
+        const key = property && ts.isPropertyAssignment(property) ? property.initializer : file === "AlwaysAllowPanel.tsx" ? input : undefined;
         expect(key && ts.isStringLiteralLike(key), `${file}: translation key must be auditable`).toBe(true);
         if (key && ts.isStringLiteralLike(key)) CALL_SITE_KEYS.add(key.text);
       }
@@ -80,6 +84,6 @@ describe("PROVIDERS_DICT: cross-locale key parity", () => {
 
 describe("t", () => {
   it("falls back to the English source string for a locale/key with no dictionary entry", () => {
-    expect(t("xx", "External MCP")).toBe("External MCP");
+    expect(t({ locale: "xx", key: "External MCP" })).toBe("External MCP");
   });
 });

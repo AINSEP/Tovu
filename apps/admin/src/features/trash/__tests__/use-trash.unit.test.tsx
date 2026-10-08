@@ -2,7 +2,7 @@ import { act, render, renderHook, screen, waitFor } from "@testing-library/react
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminIdentityUser, AdminTrashItem, AdminTrashPage, AdminTrashRestoreReport } from "@/lib/api";
-import { FetchQueryProvider, useInvalidate, useFetchQuery } from "@/lib/fetch-query";
+import { FetchQueryProvider, useInvalidate, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { createFakeTrashPort } from "../hooks/trash-dependencies.hooks";
 import { useTrash } from "../hooks/use-trash.hooks";
@@ -312,7 +312,7 @@ describe("useTrash — actorUsernames (2026-09-21)", () => {
  * from ANY other screen, the assistant, or a second desktop instance has no single write path that
  * could invalidate this query for it. `staleTime: 0` is what makes the remount case GREEN; before it
  * the query's own `useFetchQuery` call carried no `staleTime`, so a remount inside the client's
- * shared 10s default (`adapter.tanstack.tsx`'s `createClient`) served the stale cached page instead
+ * shared 10s default (`@jini-ai/ui/fetch-query`'s `provider cache factory`) served the stale cached page instead
  * of refetching.
  */
 describe("useTrash — Refresh (2026-09-21)", () => {
@@ -544,7 +544,7 @@ describe("useTrash — Load more paging (2026-09-21)", () => {
     // The reload lands (e.g. `reloadAfterAction` after a restore/purge, or a background
     // content-refresh) while the loadMore above is still in flight.
     setFirstPage([item({ id: "fresh" })], null);
-    act(() => result.current.invalidate(KEYS.listRoot));
+    act(() => result.current.invalidate({ key: KEYS.listRoot }));
     await waitFor(() => expect(result.current.trash.items?.map((i) => i.id)).toEqual(["fresh"]));
 
     // The stale loadMore finally resolves.
@@ -570,7 +570,7 @@ describe("useTrash — Load more paging (2026-09-21)", () => {
     await waitFor(() => expect(cursorCalls).toHaveLength(1));
 
     setFirstPage([item({ id: "fresh" })], null);
-    act(() => result.current.invalidate(KEYS.listRoot));
+    act(() => result.current.invalidate({ key: KEYS.listRoot }));
     await waitFor(() => expect(result.current.trash.items?.map((i) => i.id)).toEqual(["fresh"]));
 
     await act(async () => {
@@ -595,7 +595,7 @@ describe("useTrash — Load more paging (2026-09-21)", () => {
 
     // The reload lands, releasing call 1's lock and superseding its generation.
     setFirstPage([item({ id: "fresh" })], "c3");
-    act(() => result.current.invalidate(KEYS.listRoot));
+    act(() => result.current.invalidate({ key: KEYS.listRoot }));
     await waitFor(() => expect(result.current.trash.items?.map((i) => i.id)).toEqual(["fresh"]));
     expect(result.current.trash.nextCursor).toBe("c3");
     expect(result.current.trash.loadingMore).toBe(false);

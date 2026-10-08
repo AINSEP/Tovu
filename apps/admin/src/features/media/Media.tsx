@@ -6,7 +6,7 @@ import { I18nProvider, MediaProvidersTab, SETTINGS_DIALOG_DICTIONARIES } from "@
 import "@jini-ai/ui/settings-dialog.css";
 import { agentHandle } from "@jini-ai/agentic";
 
-import { buildAgentListHandles } from "../../lib/agent-list-handles";
+import { buildAgentListHandles } from "@jini-ai/agentic";
 import {
   filterMediaByTab,
   hasUntypedMedia,
@@ -26,7 +26,7 @@ import { useMediaCardMetadata } from "./hooks/use-media-card-metadata.hooks";
 import { useMediaTabs, type MediaContentTabId, type MediaTabId, type MediaTabsController } from "./hooks/use-media-tabs.hooks";
 import { MEDIA_PROVIDER_CATALOG, PINNED_MEDIA_PROVIDER_IDS } from "./media-provider-catalog";
 import { mediaProvidersPort } from "./media-providers-port";
-import { TabBar } from "../../components/TabBar";
+import { TabBar } from "@jini-ai/ui/tab-strip";
 import { resolveMediaTabChange, resolveMediaTabs } from "./Media.hooks";
 import { PublishSectionButton } from "../publish-content/PublishSectionButton";
 import { RemoteImageImport } from "./RemoteImageImport";
@@ -1327,7 +1327,7 @@ function MediaPageShell({
       </div>
 
       {/* Tab bar (OD-parity pass, 2026-08-08), `?tab=` deep-linked — see `use-media-tabs.hooks.ts`
-          for the URL-sync convention. Drawn by the shared `components/TabBar` since 2026-09-06
+          for the URL-sync convention. Drawn by the shared `@jini-ai/ui/tab-strip` since 2026-09-06
           (owner: "give the tabs icons … every other tab row in this admin already pairs an icon
           with its label — match that"): the same underline-and-icon primitive Roles, Source
           Control, Database, Sites, Themes and Pages use, replacing the pill row this screen used
@@ -1401,9 +1401,7 @@ export function Media(props: MediaProps) {
   const visibleMedia = sortMediaByOrder(filterMediaByTab(media, activeTab), controller.orderBy);
   // Asset ids are stable and unique, so they disambiguate one card's expand button from another's —
   // same reasoning as every other list on this workstream.
-  const mediaExpandHandles = buildAgentListHandles(
-    "media-item",
-    visibleMedia.map((item) => item.id),
+  const mediaExpandHandles = buildAgentListHandles({ prefix: "media-item", ids: visibleMedia.map((item) => item.id) }
   );
 
   return (

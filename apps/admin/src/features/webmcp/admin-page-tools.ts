@@ -1,3 +1,4 @@
+import { resolveApproval } from "@jini-ai/core";
 import { directPageAction } from "@tovu/headless";
 import {
   PAGE_CAPABILITIES, executePageCapability, toWebMcpTool,
@@ -51,47 +52,30 @@ export function registerAdminPageWebMcpTools(
       execute: async ({ id, args }) => {
         assertOpen();
         const frozenArgs = structuredClone(args);
-        if (!directPageAction({ capabilityId: id, input: frozenArgs })) {
-          if (!requestUserInteraction) throw new Error("This page action requires an app confirmation channel");
-          if (!await requestUserInteraction({ capability: definition, args: structuredClone(frozenArgs) })) throw new Error("Page action declined");
+        const execute = async () => {
           assertOpen();
-        }
-        return executePageCapability({ driver, capabilityId: id, input: frozenArgs });
-      },
-    }, {
-      signal,
-      annotations: { untrustedContentHint: true },
-      requestUserInteraction: requestUserInteraction ? async (interaction) => {
+          return executePageCapability({ driver, capabilityId: id, input: frozenArgs });
+        };
+        if (directPageAction({ capabilityId: id, input: frozenArgs })) return execute();
+        if (approvals) return approvals.propose({
+          interaction: { capability: definition, args: structuredClone(frozenArgs) }, signal, execute,
+        });
+        if (!requestUserInteraction) throw new Error("This page action requires an app confirmation channel");
+        const answer = await resolveApproval({ signal, askHuman: async () =>
+          await requestUserInteraction({ capability: definition, args: structuredClone(frozenArgs) })
+            ? { confirmed: true } : { confirmed: false, reason: "declined" },
+        });
         assertOpen();
-        return requestUserInteraction(interaction);
-      } : undefined,
-    });
-    if (approvals) {
-      register({
-        ...registration,
-        description: `${registration.description} Protected actions return approval_required; explicitly answer through admin.respond_page_approval before they run. Ordinary edits run directly.`,
-        // Reuse Jini's projection validator before recording the proposal. This also avoids
-        // depending on a helper signature that differs between the linked source and its dist.
-        execute: toWebMcpTool({
-          capability: { ...definition, requiresConfirmation: false },
-          execute: async ({ args: input }) => {
-            assertOpen();
-            // Capture values once: the tool caller cannot edit a pending destructive action's input.
-            const args = structuredClone(input);
-            if (directPageAction({ capabilityId: definition.id, input: args })) {
-              return executePageCapability({ driver, capabilityId: definition.id, input: args });
-            }
-            return approvals.propose({
-              interaction: { capability: definition, args: structuredClone(args) }, signal,
-              execute: async () => {
-                assertOpen();
-                return executePageCapability({ driver, capabilityId: definition.id, input: args });
-              },
-            });
-          },
-        }, { signal }).execute,
-      });
-    } else register(registration);
+        if (!answer.confirmed) throw new Error("Page action declined");
+        return execute();
+      },
+    }, { signal, annotations: { untrustedContentHint: true } });
+    // Reuse Jini's projection validator before recording a proposal. Capture values once: the
+    // tool caller cannot edit a pending destructive action's input. Both transports use core's
+    // decision owner, with current browser access checked again by the private execute port.
+    register(approvals ? { ...registration,
+      description: `${registration.description} Protected actions return approval_required; explicitly answer through admin.respond_page_approval before they run. Ordinary edits run directly.`,
+    } : registration);
   }
   if (approvals) register({
     name: "admin.respond_page_approval",

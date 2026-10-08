@@ -2,7 +2,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { AdminContentType, AdminEntry } from "@/lib/api";
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 import { createFakeCollectionEntriesPort } from "../hooks/collection-entries-dependencies.hooks";
 import { useCollectionEntries } from "../hooks/use-collection-entries.hooks";
 
@@ -13,8 +13,8 @@ import { useCollectionEntries } from "../hooks/use-collection-entries.hooks";
  * end-to-end through real `fetch` (mounted via the `CollectionEntries` component); this file proves
  * the pure hook is independently testable against an injected port, no `fetch` stub required.
  *
- * `wrapper` (2026-08-12, `lib/fetch-query` migration): the combined read now goes through
- * `useFetchQuery`, which throws without a `QueryClientProvider` ancestor.
+ * `wrapper` (2026-08-12, `@jini-ai/ui/fetch-query` migration): the combined read now goes through
+ * `useFetchQuery`, which throws without a `FetchQueryProvider` ancestor.
  */
 
 function wrapper({ children }: { children: React.ReactNode }) {

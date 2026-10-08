@@ -1,7 +1,7 @@
 import type { RowMenuItem } from "@jini-ai/admin/react";
 
 import { ApiError, describeApiError as describeApiErrorDefault, type AdminPolicy, type AdminRole } from "../../lib/api";
-import type { QueryKey } from "../../lib/fetch-query";
+import type { QueryKey } from "@jini-ai/ui/fetch-query";
 import { t } from "./roles-i18n";
 
 /**
@@ -53,9 +53,9 @@ const STATIC_ERROR_MESSAGES: Readonly<Record<string, string>> = {
  */
 export function describeApiError(e: unknown, fallback: string, locale: string): string {
   if (e instanceof ApiError) {
-    if (e.code === "VALIDATION_ERROR") return e.message || t(locale, "Please correct the highlighted fields.");
+    if (e.code === "VALIDATION_ERROR") return e.message || t({ locale: locale, key: "Please correct the highlighted fields." });
     const staticMessage = e.code ? STATIC_ERROR_MESSAGES[e.code] : undefined;
-    if (staticMessage) return t(locale, staticMessage);
+    if (staticMessage) return t({ locale: locale, key: staticMessage });
   }
   return describeApiErrorDefault(e, fallback);
 }
@@ -74,8 +74,8 @@ export interface RoleRowMenuHandlers {
  */
 export function roleMenuItems(role: AdminRole, handlers: RoleRowMenuHandlers, locale: string): RowMenuItem[] {
   return [
-    { key: "rename", label: t(locale, "Rename"), onSelect: () => handlers.onRename(role) },
-    { key: "delete", label: t(locale, "Delete"), destructive: true, onSelect: () => handlers.onDelete(role) },
+    { key: "rename", label: t({ locale: locale, key: "Rename" }), onSelect: () => handlers.onRename(role) },
+    { key: "delete", label: t({ locale: locale, key: "Delete" }), destructive: true, onSelect: () => handlers.onDelete(role) },
   ];
 }
 
@@ -101,12 +101,12 @@ export function policyMenuItems(
   locale: string,
 ): RowMenuItem[] {
   return [
-    { key: "rename", label: t(locale, "Rename"), onSelect: () => handlers.onRename(policy) },
+    { key: "rename", label: t({ locale: locale, key: "Rename" }), onSelect: () => handlers.onRename(policy) },
     {
       key: "permission",
-      label: permissionPolicyId === policy.id ? t(locale, "Close") : t(locale, "Add permission"),
+      label: permissionPolicyId === policy.id ? t({ locale: locale, key: "Close" }) : t({ locale: locale, key: "Add permission" }),
       onSelect: () => handlers.onTogglePermissionForm(policy.id),
     },
-    { key: "delete", label: t(locale, "Delete"), destructive: true, onSelect: () => handlers.onDelete(policy) },
+    { key: "delete", label: t({ locale: locale, key: "Delete" }), destructive: true, onSelect: () => handlers.onDelete(policy) },
   ];
 }

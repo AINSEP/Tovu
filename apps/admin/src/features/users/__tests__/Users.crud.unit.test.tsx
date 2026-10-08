@@ -2,7 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 import { Users } from "../UsersPanel";
 
 /**
@@ -12,7 +12,7 @@ import { Users } from "../UsersPanel";
  * screen, which was still 39.4% covered (rank #10 by risk) after that pass.
  *
  * `Users` has no injectable hook seam used here, so every `render(<Users />)` below needs a
- * `FetchQueryProvider` ancestor (2026-08-12, `lib/fetch-query` migration).
+ * `FetchQueryProvider` ancestor (2026-08-12, `@jini-ai/ui/fetch-query` migration).
  */
 
 function jsonResponse(body: unknown, status = 200): Response {

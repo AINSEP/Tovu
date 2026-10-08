@@ -15,12 +15,12 @@ const STORED_KEY_ASKS = [STORED_KEY_OTHER_PROVIDER_COPY, STORED_KEY_NO_ENDPOINT_
 describe("settings-execution-i18n — the stored-key asks", () => {
   it.each(Object.keys(AI_ASSISTANT_DICT))("%s: translated, and worded exactly as AI Assistant words them", (locale) => {
     for (const key of STORED_KEY_ASKS) {
-      expect(t(locale, key)).not.toBe(key);
-      expect(t(locale, key)).toBe(AI_ASSISTANT_DICT[locale]?.[key]);
+      expect(t({ locale: locale, key: key })).not.toBe(key);
+      expect(t({ locale: locale, key: key })).toBe(AI_ASSISTANT_DICT[locale]?.[key]);
     }
   });
 
   it("keeps the English copy for English", () => {
-    for (const key of STORED_KEY_ASKS) expect(t("en", key)).toBe(key);
+    for (const key of STORED_KEY_ASKS) expect(t({ locale: "en", key: key })).toBe(key);
   });
 });

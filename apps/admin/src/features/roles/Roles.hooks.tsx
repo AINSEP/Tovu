@@ -1,6 +1,6 @@
-import type { TabBarTab } from "../../components/TabBar";
-import type { Translate } from "../../lib/dictionary-translator";
-import { resolveActiveTabId } from "../../lib/resolve-active-tab-id";
+import type { TabBarTab } from "@jini-ai/ui/tab-strip";
+import type { Translate } from "@jini-ai/ui/panel-kit";
+import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
 import { navigate } from "../../lib/router";
 
 /**
@@ -38,7 +38,7 @@ import { navigate } from "../../lib/router";
  */
 
 /** Shared attributes for a decorative line icon — the same 24px/1.5-stroke/round-join set
- *  `deployment-visuals.tsx` and `Seo.hooks.tsx` use, so every tab row in this admin reads as one
+ *  `deployment-visuals.tsx` and Jini's `seo/react/components/SeoIcons.tsx` use, so every tab row in this admin reads as one
  *  family. Local rather than imported across a feature boundary (`features/deployment/index.ts` is
  *  that feature's public surface and does not export it, and this app ships no shared icon module —
  *  `App.tsx`'s sidebar glyphs and `SettingsUi.tsx`'s tab icons are inline SVG for the same reason).
@@ -83,7 +83,7 @@ export type RolesTabId = (typeof ROLES_TAB_IDS)[number];
  *  shared guard `Deployment.tsx`/`Sites.tsx`/`Database.tsx`/`Themes.tsx` use — a stale bookmark or
  *  a typo must open a real tab, never a blank panel. */
 export function resolveRolesTabId(tabId: string | null | undefined): RolesTabId {
-  return resolveActiveTabId(tabId, ROLES_TAB_IDS, "roles");
+  return resolveActiveTabId({ tabId: tabId, validIds: ROLES_TAB_IDS, defaultId: "roles" });
 }
 
 /**

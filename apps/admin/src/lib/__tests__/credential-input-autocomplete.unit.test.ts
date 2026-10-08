@@ -4,7 +4,11 @@ import ts from "typescript";
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { fireEvent, render, waitFor } from "@testing-library/react";
 import { AgentCliEnvFields, ByokProviderForm, MediaProvidersTab, SourceConfigField } from "@jini-ai/ui";
+import { Users as JiniUsers } from "@jini-ai/user-management/react";
+import { createFakeUsersPort } from "@jini-ai/user-management/react/testing";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 
 /**
  * @file Guard: every credential-shaped `<input>` in the admin says what the browser may autofill.
@@ -231,10 +235,27 @@ describe("admin credential inputs", () => {
     expect(readFileSync(path.join(SRC, "features/auth/Login.tsx"), "utf8")).toMatch(/autoComplete="username"/);
   });
 
-  it("the reset-password field (Users.tsx RevealablePasswordField) uses new-password", () => {
-    const users = findings.filter((f) => f.file === path.join("features", "users", "Users.tsx") && f.passwordType);
-    expect(users.length).toBeGreaterThanOrEqual(2);
-    expect(users.every((f) => f.autoComplete === "new-password")).toBe(true);
+  it("the installed Jini reset-password fields use new-password, hidden and revealed", async () => {
+    // UsersPanel renders this package entry after extraction. Rendering it covers linked source
+    // and published dist alike; scanning the removed Tovu Users.tsx would guard no actual field.
+    const port = createFakeUsersPort({}, { users: [{
+      principalId: "credential-guard-user", workspaceId: "credential-guard",
+      username: "autofill-guard", status: "active", createdAt: "2026-10-07T00:00:00.000Z",
+      roleIds: [], policyIds: [],
+    }] });
+    const view = render(createElement(FetchQueryProvider, null,
+      createElement(JiniUsers, { port, translate: (key: string) => key, queryScope: "credential-guard", openOwnPasswordReset: true }),
+    ));
+    await waitFor(() => expect(view.container.querySelectorAll('input[type="password"]')).toHaveLength(2));
+    for (const label of ["New password", "Confirm new password"]) {
+      expect(view.getByLabelText(label).getAttribute("autocomplete")).toBe("new-password");
+    }
+    for (const button of view.getAllByRole("button", { name: "Show password" })) fireEvent.click(button);
+    for (const label of ["New password", "Confirm new password"]) {
+      const input = view.getByLabelText(label);
+      expect(input.getAttribute("type")).toBe("text");
+      expect(input.getAttribute("autocomplete")).toBe("new-password");
+    }
   });
 });
 

@@ -1,7 +1,7 @@
-import { useRef, useState, type RefObject } from "react";
+import { useRef, useState } from "react";
 
 import { type AdminContentType } from "@/lib/api";
-import { useFetchMutation } from "@/lib/fetch-query";
+import { useFetchMutation } from "@jini-ai/ui/fetch-query";
 import {
   addDraftField,
   describeEditFieldsError,
@@ -13,13 +13,11 @@ import {
   validateEditFieldsDraft,
   type DraftField,
 } from "../rules";
-import { useEscapeToCancel } from "./use-escape-to-cancel.hooks";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { useFocusTrap } from "@/hooks/use-focus-trap.hooks";
 import { t as translate } from "../collections-i18n";
 import { defaultEditFieldsDialogPort } from "./edit-fields-dialog-dependencies.hooks";
 import type { EditFieldsDialogPort } from "./edit-fields-dialog-port.hooks";
-import type { Translate } from "@/lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 
 /**
  * @file `EditFieldsDialog`'s own state and submit action (SPEC-037 REQ-05 — post-creation
@@ -39,7 +37,7 @@ import type { Translate } from "@/lib/dictionary-translator";
  * actually mounts. No `locale`/`useAdminLocale` here — `describeEditFieldsError` never resolves a
  * translated string (unlike `use-new-content-type-dialog.hooks.ts`'s `t(locale, ...)` fallback).
  *
- * `lib/fetch-query` migration (2026-08-12): `updateContentTypeFields` is a `useFetchMutation` that
+ * `@jini-ai/ui/fetch-query` migration (2026-08-12): `updateContentTypeFields` is a `useFetchMutation` that
  * `invalidates: [KEYS.list]` — a field-schema change affects the content-type list AND every entries
  * list/entry editor nested under it (`rules.ts`'s `KEYS` doc), matching what `props.onSaved`'s caller
  * (`Collections.tsx`, via `load`) used to refresh by hand.
@@ -57,8 +55,6 @@ export interface EditFieldsDialogController {
    * `updateContentTypeFields` is in flight, so those dismiss paths can't unmount the dialog out
    * from under its own pending write (H4). */
   cancel: () => void;
-  /** Attach to the dialog's own `role="dialog"` root so `useFocusTrap` (M3) can find it. */
-  dialogRef: RefObject<HTMLFormElement | null>;
 }
 
 export function useEditFieldsDialog(
@@ -74,19 +70,16 @@ export function useEditFieldsDialog(
   const [fields, setFields] = useState<DraftField[]>(() => draftFieldsFromContentType(props.contentType.fields));
   const [validationError, setValidationError] = useState<string | null>(null);
   const inFlightRef = useRef(false);
-  const dialogRef = useRef<HTMLFormElement | null>(null);
 
   function cancel() {
     if (inFlightRef.current) return;
     props.onCancel();
   }
 
-  useEscapeToCancel(cancel);
-  useFocusTrap(dialogRef);
-
   const updateFieldsMutation = useFetchMutation({
-    run: (input: { key: string; fields: ReturnType<typeof stripDraftFieldRowIds>; expectedVersion: number }) =>
+    run: ({ input }: { input: { key: string; fields: ReturnType<typeof stripDraftFieldRowIds>; expectedVersion: number } }) =>
       port.updateContentTypeFields(input),
+  }, {
     invalidates: [KEYS.list],
   });
 
@@ -114,11 +107,11 @@ export function useEditFieldsDialog(
 
     inFlightRef.current = true;
     try {
-      await updateFieldsMutation.mutate({
+      await updateFieldsMutation.mutate({ input: {
         key: props.contentType.key,
         fields: stripDraftFieldRowIds(fields),
         expectedVersion: props.contentType.version,
-      });
+      } });
       props.onSaved();
     } catch {
       // already surfaced through updateFieldsMutation.error -> error below
@@ -130,7 +123,7 @@ export function useEditFieldsDialog(
   const saving = updateFieldsMutation.status === "pending";
   const error = validationError ?? (updateFieldsMutation.error ? describeEditFieldsError(updateFieldsMutation.error, t) : null);
 
-  return { fields, updateField, removeField, addField, error, saving, submit, cancel, dialogRef };
+  return { fields, updateField, removeField, addField, error, saving, submit, cancel };
 }
 
 /**
@@ -147,6 +140,6 @@ export function useWiredEditFieldsDialog(props: {
   onCancel: () => void;
 }): EditFieldsDialogController {
   const locale = useAdminLocale();
-  const t = (key: string): string => translate(locale, key);
+  const t = (key: string): string => translate({ locale: locale, key: key });
   return useEditFieldsDialog(props, defaultEditFieldsDialogPort, { t });
 }

@@ -5,8 +5,7 @@ import { useFolderPathDropCapture } from "@jini-ai/ui";
 
 import { api, ApiError } from "../../../lib/api";
 import { getFolderDropPort, type FolderDropPort } from "../folder-drop-port";
-import { useSerialWrites } from "@/hooks/use-serial-writes.hooks";
-import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
+import { useSerialWrites, useSettlementGeneration } from "@jini-ai/ui/panel-kit";
 
 /**
  * @file SPEC-053: wires a dropped folder in the admin chat composer (`AssistantDock`) to (a) the
@@ -150,9 +149,7 @@ export function useFolderDrop(input: UseFolderDropInput, deps: UseFolderDropDeps
   const [notice, setNotice] = useState<FolderDropNotice | null>(null);
   const lastAttemptedPath = useRef<string | null>(null);
   const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Guards every `setState` below against firing after unmount — same guard shape
-  // `use-composer-voice-input.hooks.ts` and the former folder-indicator hook used.
-  // FsFolderIndicator.hooks.ts (components/AssistantDock/FsFolderIndicator.hooks.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
+  // Guards every `setState` below against firing after unmount.
   const mountedRef = useRef(true);
   useEffect(() => {
     mountedRef.current = true;
@@ -183,10 +180,10 @@ export function useFolderDrop(input: UseFolderDropInput, deps: UseFolderDropDeps
       // either one's chained task starts running, so the later drop's mint always outranks the
       // earlier one by the time the chain gets to it.
       const generation = settlement.next();
-      return writes.run(async () => {
+      return writes.run({ task: async () => {
         // A newer drop was minted behind this one before this task got its turn on the chain — skip
         // the read, the write and the notice entirely; this drop has nothing left to contribute.
-        if (!settlement.isCurrent(generation)) return;
+        if (!settlement.isCurrent({ generation })) return;
         let previousPath: string | null = null;
         try {
           previousPath = (await getCustomRoot()).path;
@@ -194,10 +191,10 @@ export function useFolderDrop(input: UseFolderDropInput, deps: UseFolderDropDeps
           // Best-effort only — see this module's own doc on why a failed read never blocks REQ-02.
         }
         // A newer drop arrived while this one was reading — never issue this drop's write over it.
-        if (!settlement.isCurrent(generation)) return;
+        if (!settlement.isCurrent({ generation })) return;
         try {
           await setCustomRoot(path);
-          if (!mountedRef.current || !settlement.isCurrent(generation)) return;
+          if (!mountedRef.current || !settlement.isCurrent({ generation })) return;
           setNotice({
             kind: "confirmation",
             path,
@@ -207,10 +204,10 @@ export function useFolderDrop(input: UseFolderDropInput, deps: UseFolderDropDeps
         } catch (err) {
           // The write itself is not cancelled — it already reached the server — but a superseded
           // drop's failure must not replace whatever the newer drop already confirmed.
-          if (!mountedRef.current || !settlement.isCurrent(generation)) return;
+          if (!mountedRef.current || !settlement.isCurrent({ generation })) return;
           setNotice({ kind: "error", path, reason: reasonForCustomRootError(err) });
         }
-      });
+      } });
     },
     [getCustomRoot, setCustomRoot, scheduleAutoDismiss, settlement, writes],
   );

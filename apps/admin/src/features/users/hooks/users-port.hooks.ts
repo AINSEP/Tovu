@@ -11,8 +11,8 @@ import type { AdminIdentityUser, AdminPolicy, AdminRole } from "@/lib/api";
  * `use-users.hooks.ts`, and splitting would not shrink what any one test has to fake — a full-render
  * or full-hook test always loads `listUsers`/`listRoles`/`listPolicies` together regardless of which
  * mutation it exercises. Ten methods sits at, not past, the "roughly 8-10, then split" boundary
- * (`AI-Dev-Shop/skills/frontend-react-orcbash/SKILL.md`); `features/seo/hooks/seo-port.hooks.ts`'s
- * `SeoPort` (8 methods in one interface, shared by three separate hooks) is this codebase's existing
+ * (`AI-Dev-Shop/skills/frontend-react-orcbash/SKILL.md`); `@jini-ai/admin/seo`'s historical SEO port
+ * (8 methods in one interface, now core `AdminSeoPort`, shared by three separate hooks) is this codebase's existing
  * precedent for keeping one flat interface at this size — no port in this codebase is split by
  * concern today, so doing it here first would add a shape with no other example to match.
  */

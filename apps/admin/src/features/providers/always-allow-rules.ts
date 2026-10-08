@@ -1,6 +1,6 @@
 import type { AdminExternalMcpServer, AdminExternalMcpToolApproval } from "@/lib/api";
-import type { QueryKey } from "@/lib/fetch-query";
-import { buildAgentListHandles } from "@/lib/agent-list-handles";
+import type { QueryKey } from "@jini-ai/ui/fetch-query";
+import { buildAgentListHandles } from "@jini-ai/agentic";
 
 /**
  * @file Pure derivations for the Integrations "Always allow" tab (`AlwaysAllowPanel.tsx`).
@@ -41,10 +41,10 @@ export function groupAlwaysAllow(
   const sorted = [...groups.entries()]
     .map(([serverId, tools]) => ({ serverId, label: labels.get(serverId) ?? serverId, tools }))
     .sort((a, b) => a.label.localeCompare(b.label));
-  const handles = buildAgentListHandles("always-allow-server", sorted.map((group) => group.serverId));
+  const handles = buildAgentListHandles({ prefix: "always-allow-server", ids: sorted.map((group) => group.serverId) });
   return sorted.map((group, index) => {
     const handle = handles[index] ?? `always-allow-server-${index + 1}`;
-    const revokeHandles = buildAgentListHandles(`${handle}-revoke`, group.tools.map((tool) => tool.toolName));
+    const revokeHandles = buildAgentListHandles({ prefix: `${handle}-revoke`, ids: group.tools.map((tool) => tool.toolName) });
     return {
       ...group,
       handle,

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 import { DEFAULT_INTERFACE, INTERFACE_NAMESPACE, loadInterface, type InterfaceConfig } from "../lib/settings-tabs";
 import { subscribeToSettingsRefresh } from "../lib/settings-refresh-bus";
-import { useSettlementGeneration } from "./use-settlement-generation.hooks";
+import { useSettlementGeneration } from "@jini-ai/ui/panel-kit";
 
 /**
  * @file Settings → User Interface's preferences, read live for the admin shell. `App.tsx` turns them
@@ -49,7 +49,7 @@ export function useInterfacePreferences(port: InterfacePreferencesPort = default
       port
         .loadInterface()
         .then((next) => {
-          if (!cancelled && settlement.isCurrent(generation)) setPreferences(next);
+          if (!cancelled && settlement.isCurrent({ generation })) setPreferences(next);
         })
         .catch(() => undefined);
     };

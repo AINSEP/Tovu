@@ -1,6 +1,6 @@
 import { agentHandle } from "@jini-ai/agentic";
 
-import type { Translate } from "@/lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 
 /**
  * @file The eye-icon "View Template" trigger that sits left of a template-choice `<select>` — opens

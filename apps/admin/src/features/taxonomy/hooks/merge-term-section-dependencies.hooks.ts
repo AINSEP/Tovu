@@ -6,8 +6,8 @@ import type { MergeTermSectionPort } from "./merge-term-section-port.hooks";
  * ceremony's three routes — see `merge-term-section-port.hooks.ts` for why the split exists.
  */
 
-/** The live implementation, as a module-level singleton — matches `redirects-dependencies.hooks.ts`'s
- *  `defaultRedirectsPort`. */
+/** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s
+ *  `redirectsHostPorts`. */
 export const defaultMergeTermSectionPort: MergeTermSectionPort = {
   planMergeTerm: (target) => api.planMergeTerm(target),
   confirmMergeTerm: (target) => api.confirmMergeTerm(target),

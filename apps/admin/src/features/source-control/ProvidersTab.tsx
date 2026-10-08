@@ -3,8 +3,8 @@ import { agentHandle } from "@jini-ai/agentic";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { navigate } from "../../lib/router";
-import { formatTimestamp } from "../../lib/format-timestamp";
-import type { Translate } from "../../lib/dictionary-translator";
+import { formatTimestamp } from "@jini-ai/ui/panel-kit";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 import type { AdminSourceControlProviderId } from "../../lib/api";
 import { t } from "./source-control-i18n";
 import { fieldHelpText, fieldNameHandleSegment } from "../deployment/rules";
@@ -94,7 +94,7 @@ function resolveSourceControlCredentialsHook(
 
 export function ProvidersTab(props: ProvidersTabProps) {
   const locale = useAdminLocale();
-  const translate = (key: string): string => t(locale, key);
+  const translate = (key: string): string => t({ locale: locale, key: key });
   const useSourceControlCredentialsHook = resolveSourceControlCredentialsHook(props.useSourceControlCredentialsHook);
   const controller = useSourceControlCredentialsHook();
 
@@ -309,7 +309,7 @@ function SourceControlRowSummary({
         {connected ? (
           <>
             <span translate="no">{label}</span> {translate("connected")} · {translate("token stored, encrypted")} ·{" "}
-            {translate("saved")} {formatTimestamp(row.saved!.updatedAt)} <CredentialHint hint={row.saved!.tokenHint} />
+            {translate("saved")} {formatTimestamp({ iso: row.saved!.updatedAt }, { timeZone: "local" })} <CredentialHint hint={row.saved!.tokenHint} />
           </>
         ) : (
           <h3 className="source-control-row-title">

@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import type { AdminRestorePoint } from "@/lib/api";
 import { navigate } from "@/lib/router";
-import { resolveActiveTabId } from "@/lib/resolve-active-tab-id";
+import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
 
 const RECOVERY_TAB_IDS = ["restore-points", "restore"] as const;
 
@@ -22,9 +22,9 @@ export function useRecoveryNavigation(
 ) {
   // A stale link or typo must open the list rather than blank the panel. Same shared guard
   // Database uses; the shell's controlled prop must never receive a raw query value.
-  const activeTabId = resolveActiveTabId(tabId, RECOVERY_TAB_IDS, "restore-points");
+  const activeTabId = resolveActiveTabId({ tabId: tabId, validIds: RECOVERY_TAB_IDS, defaultId: "restore-points" });
   const onTabChange = useCallback((nextTabId: string) => {
-    const next = resolveActiveTabId(nextTabId, RECOVERY_TAB_IDS, "restore-points");
+    const next = resolveActiveTabId({ tabId: nextTabId, validIds: RECOVERY_TAB_IDS, defaultId: "restore-points" });
     port.navigate(`/recovery?tab=${next}`, { replace: true });
   }, [port]);
 

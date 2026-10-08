@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminIdentityUser } from "@/lib/api";
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 import { createFakeUsersPort } from "../hooks/users-dependencies.hooks";
 import { useUsers, useWiredUsers } from "../hooks/users-controller.hooks";
 
@@ -23,14 +23,14 @@ import { useUsers, useWiredUsers } from "../hooks/users-controller.hooks";
  * principalId rather than a plain boolean) are covered here as-is — they are NOT migrated onto
  * `useAsyncAction` in this pass; see that hook's own file header and the refactor report for why.
  *
- * `wrapper` (2026-08-12, `lib/fetch-query` migration): the combined users+roles+policies read and
+ * `wrapper` (2026-08-12, `@jini-ai/ui/fetch-query` migration): the combined users+roles+policies read and
  * every write now go through `useFetchQuery`/`useFetchMutation`, which throw without a
- * `QueryClientProvider` ancestor.
+ * `FetchQueryProvider` ancestor.
  *
  * `useWiredUsers` (2026-08-14, `useX(dependencies)` / `useWiredX()` conversion): every call below
  * that used to render bare `useUsers()` now renders `useWiredUsers()` instead — same real `fetch`
  * harness, same assertions, only the entry point renamed now that `useUsers` takes an injected
- * `UsersDependencies` argument. Matches `use-posts.unit.test.ts`/`use-redirects.hooks.unit.test.tsx`'s
+ * `UsersDependencies` argument. Matches `use-posts.unit.test.ts`/`Jini redirects/react/__tests__/use-redirects.hooks.unit.test.tsx`'s
  * identical split: this file's bulk stays a `fetch`-stubbed `useWiredUsers` suite, and a new
  * "injected port" group at the bottom composes `useUsers` directly against `createFakeUsersPort`
  * with no `fetch` stub at all.
@@ -189,7 +189,7 @@ describe("onCreate", () => {
     expect(result.current.formOpen).toBe(false);
     expect(result.current.saving).toBe(false);
     expect(result.current.formError).toBeNull();
-    // `waitFor`, not a bare synchronous read (2026-08-12, `lib/fetch-query` migration): the
+    // `waitFor`, not a bare synchronous read (2026-08-12, `@jini-ai/ui/fetch-query` migration): the
     // reload triggered by `invalidates: [KEYS.list]` is a separate, un-awaited background
     // refetch, so the mutation's own promise resolving does not guarantee it has landed yet.
     await waitFor(() => expect(result.current.users).toHaveLength(2));
@@ -480,9 +480,9 @@ describe("openResetPassword / confirmResetPassword", () => {
     // Still targeting the original user — the second open was refused.
     expect(result.current.resetPasswordFor).toEqual(USER_A);
 
-    // `useFetchMutation` (TanStack's `useMutation`) flips `passwordSaving` to `true` synchronously
+    // `useFetchMutation` flips `passwordSaving` to `true` synchronously
     // on `mutate()`, same as the pre-migration `setSaving(true)` did — but defers actually INVOKING
-    // `mutationFn` (and therefore this `fetch`) by one microtask, so `d.resolve` is not assigned yet
+    // `run` (and therefore this `fetch`) by one microtask, so `d.resolve` is not assigned yet
     // at this exact point. `await Promise.resolve()` lets that deferred call land before reaching
     // for it — see `use-new-content-type-dialog.unit.test.tsx`'s identical note in `collections`.
     await act(async () => {

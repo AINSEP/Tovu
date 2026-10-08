@@ -153,7 +153,7 @@ export function useMediaEmbedNodeView(
       setEditing(false);
     },
     remove: () => props.deleteNode(),
-    t: (key) => mediaT(deps.locale, key),
+    t: (key) => mediaT({ locale: deps.locale, key: key }),
   };
 }
 

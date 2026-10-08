@@ -3,7 +3,7 @@ import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as translate } from "../plugins-memory-i18n";
 import { defaultAgentPluginMemoryPort } from "./agent-plugin-memory-dependencies.hooks";
 import type { AgentPluginMemoryPort, PluginMemoryListing } from "./agent-plugin-memory-port.hooks";
-import type { Translate } from "@/lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 
 export function useAgentPluginMemory(required: { pluginId: string; port: AgentPluginMemoryPort; t: Translate }, _optional = {}) {
   const { pluginId, port, t } = required;
@@ -54,5 +54,5 @@ export function useAgentPluginMemory(required: { pluginId: string; port: AgentPl
 export type AgentPluginMemoryController = ReturnType<typeof useAgentPluginMemory>;
 export function useWiredAgentPluginMemory({ pluginId }: { pluginId: string }, _optional = {}) {
   const locale = useAdminLocale();
-  return useAgentPluginMemory({ pluginId, port: defaultAgentPluginMemoryPort, t: key => translate(locale, key) });
+  return useAgentPluginMemory({ pluginId, port: defaultAgentPluginMemoryPort, t: key => translate({ locale: locale, key: key }) });
 }

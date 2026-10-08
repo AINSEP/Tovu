@@ -1,4 +1,4 @@
-import type { TabBarTab } from "../../components/TabBar";
+import type { TabBarTab } from "@jini-ai/ui/tab-strip";
 import { MEDIA_TABS, resolveActiveTab, type MediaTabId, type MediaTabsController } from "./hooks/use-media-tabs.hooks";
 
 /**
@@ -9,7 +9,7 @@ import { MEDIA_TABS, resolveActiveTab, type MediaTabId, type MediaTabsController
  * `Roles.hooks.tsx`: they are `ReactNode` values the tab descriptors carry, so the file that
  * builds the descriptors is the file that has to be `.tsx`.
  *
- * The tab strip itself moved to the shared `components/TabBar` on 2026-09-06 (owner: "give the
+ * The tab strip itself moved to the shared `@jini-ai/ui/tab-strip` on 2026-09-06 (owner: "give the
  * tabs icons … every other tab row in this admin already pairs an icon with its label — match
  * that"). Until then `Media.tsx` drew its own pill row (`media.css`'s retired `.media-tabs`), the
  * last tab strip in the admin not drawn by `TabBar`. Which tabs exist, their ids, the `?tab=`

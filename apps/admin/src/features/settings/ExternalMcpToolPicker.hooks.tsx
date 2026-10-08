@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 
-import type { Translate } from "@/lib/dictionary-translator";
-import { buildAgentListHandles } from "@/lib/agent-list-handles";
-import { interpolate } from "@/lib/template-i18n";
+import type { Translate } from "@jini-ai/ui/panel-kit";
+import { buildAgentListHandles } from "@jini-ai/agentic";
+import { interpolate } from "@jini-ai/ui/panel-kit";
 
 import { isToolRowLocked, type ToolPickerRow } from "./external-mcp-tool-picker-rules";
 
@@ -42,7 +42,7 @@ export function useToolRowHandles(base: string, rows: readonly ToolPickerRow[]):
   // dependency. No `eslint-disable` needed: this repo's config sets `noInlineConfig`, which makes
   // an inline disable comment silently ineffective (confirmed: `react-hooks/exhaustive-deps` does
   // not flag this line either way), so a disable comment here would only be misleading.
-  return useMemo(() => buildAgentListHandles(base, names), [base, names.join(" ")]);
+  return useMemo(() => buildAgentListHandles({ prefix: base, ids: names }), [base, names.join(" ")]);
 }
 
 /** What the SERVER declared about one tool, as badges. Never a "safe" or "read-only" badge: the
@@ -78,6 +78,6 @@ export function describeToolRowLock(row: ToolPickerRow, t: Translate): string | 
  *
  *  @complexity O(1). */
 export function describeToolCount(enabled: number, total: number, t: Translate): string {
-  if (enabled === 0) return interpolate(t("0 of {total} tools enabled — this connection contributes nothing"), { total });
-  return interpolate(t("{enabled} of {total} tools enabled"), { enabled, total });
+  if (enabled === 0) return interpolate({ template: t("0 of {total} tools enabled — this connection contributes nothing"), vars: { total } });
+  return interpolate({ template: t("{enabled} of {total} tools enabled"), vars: { enabled, total } });
 }

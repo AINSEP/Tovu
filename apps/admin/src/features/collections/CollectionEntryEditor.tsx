@@ -1,7 +1,7 @@
 import { EditorContent, type Editor } from "@tiptap/react";
 import { agentHandle } from "@jini-ai/agentic";
 import { type ContentTypeFieldDef } from "../../lib/api";
-import { buildAgentListHandles } from "../../lib/agent-list-handles";
+import { buildAgentListHandles } from "@jini-ai/agentic";
 import { WidgetEmbedInsertControl } from "../../lib/widget-embed-extension";
 import { useWiredCollectionEntryEditor } from "./hooks/use-collection-entry-editor.hooks";
 import { ServerLabel } from "@/components/status-labels";
@@ -355,9 +355,7 @@ function EntryFieldsSection(props: {
   // `EditFieldsDialog` is where they're defined) — `buildAgentListHandles` still slugifies+dedupes
   // rather than assuming that, the same defensive stance every other list handle in this workstream
   // takes (a schema author is still free to pick a name that isn't already handle-shaped).
-  const fieldHandles = buildAgentListHandles(
-    "entry-field",
-    fields.map((field) => field.name),
+  const fieldHandles = buildAgentListHandles({ prefix: "entry-field", ids: fields.map((field) => field.name) }
   );
 
   return (

@@ -1,6 +1,6 @@
 import { ApiError, describeApiError as describeApiErrorDefault, type AdminAgentPlugin, type AdminPlugin, type AdminPluginConflict, type AdminPluginFiles, type AdminPluginPackageFile } from "../../lib/api";
 import { t } from "./plugins-i18n";
-import type { Translate } from "@/lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 import type { AgentPluginGlyphKind } from "./agent-plugins-visuals";
 import { buildPackageFileTree, firstPackageFilePath } from "./package-file-tree";
 import type { PluginInstallPreview } from "./hooks/plugin-install-port.hooks";
@@ -248,7 +248,7 @@ export function pluginToggleControl(plugin: AdminPlugin, rowSavingId: string | n
     // The busy-state "…" is locale-neutral (no established translated bare-ellipsis precedent
     // elsewhere in this app — every other busy label pairs it with a word, e.g. posts-i18n.ts's
     // "Creating…") and stays untranslated here on purpose.
-    label: savingThisRow ? "…" : plugin.enabled ? t(locale, "Disable") : t(locale, "Enable"),
+    label: savingThisRow ? "…" : plugin.enabled ? t({ locale: locale, key: "Disable" }) : t({ locale: locale, key: "Enable" }),
   };
 }
 
@@ -267,7 +267,7 @@ export function pluginToggleControl(plugin: AdminPlugin, rowSavingId: string | n
  * @complexity O(1).
  */
 export function pluginToggleAriaLabel(plugin: AdminPlugin, locale: string): string {
-  return `${plugin.enabled ? t(locale, "Disable") : t(locale, "Enable")} ${plugin.name}`;
+  return `${plugin.enabled ? t({ locale: locale, key: "Disable" }) : t({ locale: locale, key: "Enable" })} ${plugin.name}`;
 }
 
 /**
@@ -331,8 +331,8 @@ export function pluginRemoveBlocker(plugin: AdminPlugin): "built-in" | "enabled"
  */
 export function pluginRemoveAriaLabel(plugin: AdminPlugin, locale: string): string {
   return pluginRemoveBlocker(plugin) === null
-    ? `${t(locale, "Remove")} ${plugin.name}`
-    : `${t(locale, "Remove")} ${plugin.name} — ${t(locale, "unavailable")}`;
+    ? `${t({ locale: locale, key: "Remove" })} ${plugin.name}`
+    : `${t({ locale: locale, key: "Remove" })} ${plugin.name} — ${t({ locale: locale, key: "unavailable" })}`;
 }
 
 /** {@link buildPluginRemoveConfirmCopy}'s two pieces of copy — same `{ title, body }` shape as
@@ -481,7 +481,7 @@ export function agentPluginGlyphKind(plugin: {
  * @complexity O(1).
  */
 export function agentPluginToggleAriaLabel(plugin: { pluginId: string; enabled: boolean; displayName?: string | null }, locale: string): string {
-  const verb = plugin.enabled ? t(locale, "Disable") : t(locale, "Enable");
+  const verb = plugin.enabled ? t({ locale: locale, key: "Disable" }) : t({ locale: locale, key: "Enable" });
   return `${verb} ${agentPluginDisplayName(plugin)}`;
 }
 
@@ -552,7 +552,7 @@ export function buildAgentPluginDisableConfirmCopy(
  * @complexity O(1).
  */
 export function agentPluginRemoveOrEnableAriaLabel(plugin: { pluginId: string; enabled: boolean; displayName?: string | null }, locale: string): string {
-  const verb = plugin.enabled ? t(locale, "Turn off") : t(locale, "Enable");
+  const verb = plugin.enabled ? t({ locale: locale, key: "Turn off" }) : t({ locale: locale, key: "Enable" });
   return `${verb} ${agentPluginDisplayName(plugin)}`;
 }
 

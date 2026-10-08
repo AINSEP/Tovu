@@ -1,3 +1,4 @@
+import { Icon } from "@jini-ai/ui";
 /**
  * @file This page's own small icon set — no icon dependency, same rationale
  * `source-control/source-control-visuals.tsx`'s header gives for its own set. This page owns no code
@@ -57,9 +58,7 @@ export function SearchIcon({ size = 16 }: { size?: number }) {
  *  `ConnectedMarkIcon` uses, redrawn locally for the same "no cross-feature dependency" reason. */
 export function ConnectedMarkIcon({ size = 12 }: { size?: number }) {
   return (
-    <svg {...LINE_ICON} width={size} height={size} strokeWidth={2.5} aria-hidden="true">
-      <path d="m5 13 4.5 4.5L19 6.5" />
-    </svg>
+    <Icon name="check-long" size={size} focusable={undefined} {...LINE_ICON} strokeWidth={2.5} aria-hidden="true" />
   );
 }
 
@@ -69,8 +68,6 @@ export function ConnectedMarkIcon({ size = 12 }: { size?: number }) {
  *  a bare chevron on a settled row was owner-reported as undiscoverable on the Static Site tab). */
 export function DisclosureChevronIcon({ size = 14 }: { size?: number }) {
   return (
-    <svg {...LINE_ICON} width={size} height={size}>
-      <path d="m6 9 6 6 6-6" />
-    </svg>
+    <Icon name="chevron-down" size={size} focusable={undefined} {...LINE_ICON} />
   );
 }

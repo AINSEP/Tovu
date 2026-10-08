@@ -116,7 +116,7 @@ it('deployed composer hides the portaled Local CLI row and code-agent list, even
 
 it('has an explicit translation for the saved-choice note in every offered admin locale', () => {
   for (const { code } of ADMIN_LOCALES) {
-    const copy = t(code, DEPLOYED_LOCAL_CLI_NOTE);
+    const copy = t({ locale: code, key: DEPLOYED_LOCAL_CLI_NOTE });
     expect(copy.trim()).not.toBe('');
     if (code !== 'en') expect(copy, code).not.toBe(DEPLOYED_LOCAL_CLI_NOTE);
   }

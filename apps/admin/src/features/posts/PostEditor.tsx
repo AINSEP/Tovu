@@ -11,9 +11,9 @@ import { usePreviewPaneWidth, useDevicePreviewDevice, type DevicePreviewDevice }
 import { DevicePreviewFrame } from "../../components/DevicePreview/DevicePreviewFrame";
 import { DevicePreviewToggle } from "../../components/DevicePreview/DevicePreviewToggle";
 import { EmbedInsertControl } from "../../components/EmbedInsertControl/EmbedInsertControl";
-import { resolveTabBarTabIndex, useTabBarKeyboard } from "../../components/TabBar.hooks";
+import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
 import type { AdminPost, ThemeTier } from "../../lib/api";
-import type { Translate } from "../../lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 import { siteUrl } from "../../lib/site-url";
 import type {
   StandingDraftAutosaveSnapshot,
@@ -482,7 +482,6 @@ function Toolbar({
             (ADR-038); consuming only its UTF-8 `bodyText` would corrupt binary image bytes. It would also introduce SSRF surface that scheme
             validation does not — because with validation the SERVER never fetches anything; the
             reader's browser loads the URL directly.
- * transport.fetch.ts (apps/website/src/platform/http/transport.fetch.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */}
         <button
           className="tb-btn"
@@ -1465,7 +1464,7 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
   } = usePostEditorHook(postId);
   // Above the early returns below: `use*` has to be called unconditionally for the rules-of-hooks
   // lint even though this one holds no state of its own.
-  const { onKeyDown: onViewTabsKeyDown } = useTabBarKeyboard(VIEW_TABS, view, (id) => setView(id as PostEditorView));
+  const { onKeyDown: onViewTabsKeyDown } = useTabBarKeyboard({ tabs: VIEW_TABS, activeId: view, onChange: (id) => setView(id as PostEditorView) });
   // Preview width (2026-09-22) — pure view chrome with nothing to inject, kept out of the injected
   // controller the same way `ThemeExplore.tsx`'s own `device` is.
   const { device, setDevice, width: previewWidth } = useDevicePreviewDevice();
@@ -1561,7 +1560,7 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
               role="tab"
               aria-selected={view === entry.key}
               className={view === entry.key ? "is-active" : undefined}
-              tabIndex={resolveTabBarTabIndex(VIEW_TABS, view, entry)}
+              tabIndex={resolveTabBarTabIndex({ tabs: VIEW_TABS, activeId: view, tab: entry })}
               onClick={() => setView(entry.key)}
               {...agentHandle({ handle: entry.handle }, { role: "button", label: entry.agentLabel })}
             >

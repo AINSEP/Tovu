@@ -1,7 +1,7 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 import { useSchemaStateSection } from "../hooks/use-schema-state-section.hooks";
 import { createFakeSchemaStateSectionPort } from "../hooks/schema-state-section-dependencies.hooks";
 
@@ -15,7 +15,6 @@ import { createFakeSchemaStateSectionPort } from "../hooks/schema-state-section-
  * A screen that silently renders nothing when its health check fails is indistinguishable, to the
  * person reading it, from a screen reporting good health — which is the exact failure the drift
  * warning was built to prevent.
- * restore-points-section-dependencies.hooks.ts (features/database/hooks/restore-points-section-dependencies.hooks.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 
 function wrapper({ children }: { children: React.ReactNode }) {

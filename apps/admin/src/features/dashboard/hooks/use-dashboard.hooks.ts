@@ -4,7 +4,7 @@ import { describeApiError, type AdminPost, type AdminSiteKeyState } from "@/lib/
 import { activeThemeName, mergeRecent, shouldShowDefaultPasswordBanner, shouldShowSiteKeyBanner, siteKeyBannerCopy } from "../rules";
 import { useWiredAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as translate } from "../dashboard-i18n";
-import type { Translate } from "@/lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 import { defaultDashboardPort } from "./dashboard-dependencies.hooks";
 import type { DashboardPort } from "./dashboard-port.hooks";
 
@@ -174,7 +174,7 @@ export function useDashboard({ port, locale, t }: DashboardDependencies): Dashbo
         setPublished(rows.filter((p) => p.status === "published").length);
         setRecent((prev) => mergeRecent(prev, rows));
       })
-      .catch((e) => setPosts({ value: null, error: describeApiError(e, translate(locale, "failed to load posts")) }));
+      .catch((e) => setPosts({ value: null, error: describeApiError(e, translate({ locale: locale, key: "failed to load posts" })) }));
 
     port
       .listPages()
@@ -184,17 +184,17 @@ export function useDashboard({ port, locale, t }: DashboardDependencies): Dashbo
         setDrafts(rows.filter((p) => p.status === "draft").length);
         setRecent((prev) => mergeRecent(prev, rows));
       })
-      .catch((e) => setPages({ value: null, error: describeApiError(e, translate(locale, "failed to load pages")) }));
+      .catch((e) => setPages({ value: null, error: describeApiError(e, translate({ locale: locale, key: "failed to load pages" })) }));
 
     port
       .listMedia()
       .then((r) => setMedia({ value: r.media.filter((m) => m.status === "active").length, error: null }))
-      .catch((e) => setMedia({ value: null, error: describeApiError(e, translate(locale, "failed to load media")) }));
+      .catch((e) => setMedia({ value: null, error: describeApiError(e, translate({ locale: locale, key: "failed to load media" })) }));
 
     port
       .listCommentsQueue({ status: "pending" })
       .then((r) => setComments({ value: r.items.length, error: null }))
-      .catch((e) => setComments({ value: null, error: describeApiError(e, translate(locale, "failed to load comments")) }));
+      .catch((e) => setComments({ value: null, error: describeApiError(e, translate({ locale: locale, key: "failed to load comments" })) }));
 
     port
       .getPresentation()
@@ -202,7 +202,7 @@ export function useDashboard({ port, locale, t }: DashboardDependencies): Dashbo
         setThemeId(r.settings.activeThemeId);
         setThemeName(activeThemeName(r));
       })
-      .catch((e) => setThemeError(describeApiError(e, translate(locale, "failed to load the active theme"))));
+      .catch((e) => setThemeError(describeApiError(e, translate({ locale: locale, key: "failed to load the active theme" }))));
 
     // No `.catch()` sets an error state here — a failed status read means no banner (see this
     // file's `passwordStatus` declaration), not a card showing an em-dash. It's advisory, not
@@ -257,6 +257,6 @@ export function useDashboard({ port, locale, t }: DashboardDependencies): Dashbo
  */
 export function useWiredDashboard(): DashboardController {
   const locale = useWiredAdminLocale();
-  const t = (key: string): string => translate(locale, key);
+  const t = (key: string): string => translate({ locale: locale, key: key });
   return useDashboard({ port: defaultDashboardPort, locale, t });
 }

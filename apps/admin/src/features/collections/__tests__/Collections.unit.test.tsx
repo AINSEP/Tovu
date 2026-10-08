@@ -15,54 +15,22 @@ import type { AdminContentType } from "@/lib/api";
  *
  * `Collections` itself is driven through the injectable `useCollectionsHook` seam (same
  * convention as `Pages.tsx`/`Recovery.tsx`). The three dialogs each declare their own `use*Hook`
- * seam too, but `Collections` never threads a prop through to them when it instantiates them
- * (same situation as `RestoreFlow` in `Recovery.tsx` / the three sections in `Database.tsx`) — so
- * each dialog's hook module is mocked via a `vi.hoisted` ref that tests mutate before rendering,
- * reaching every dialog state without a real `fetch`.
+ * seam too; `Collections.dialogHooks` threads the controller fakes through to each dialog,
+ * reaching every dialog state without a real `fetch` or module mocks.
  */
 
-const { newDialogRef, newDialogPropsRef, editDialogRef, editDialogPropsRef, lifecycleDialogRef, lifecycleDialogPropsRef } = vi.hoisted(() => ({
-  newDialogRef: { current: null as unknown },
-  newDialogPropsRef: { current: null as unknown },
-  editDialogRef: { current: null as unknown },
-  editDialogPropsRef: { current: null as unknown },
-  lifecycleDialogRef: { current: null as unknown },
-  lifecycleDialogPropsRef: { current: null as unknown },
-}));
-
-vi.mock("../hooks/use-new-content-type-dialog.hooks", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../hooks/use-new-content-type-dialog.hooks")>();
-  return {
-    ...actual,
-    // Mocks the zero-deps wrapper `NewContentTypeDialog`'s default prop now points at post-
+    // Substitutes the zero-deps wrapper `NewContentTypeDialog`'s default prop points at post-
     // `useWiredX` conversion — was `useNewContentTypeDialog` (the pure, deps-taking hook) before; a
     // call-site rename of what gets intercepted, not a behavior or assertion change.
-    useWiredNewContentTypeDialog: (props: unknown) => {
-      newDialogPropsRef.current = props;
-      return newDialogRef.current;
-    },
-  };
-});
-vi.mock("../hooks/use-edit-fields-dialog.hooks", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../hooks/use-edit-fields-dialog.hooks")>();
-  return {
-    ...actual,
-    // Mocks the zero-port wrapper `EditFieldsDialog`'s default prop now points at post-`useWiredX`
+    // Substitutes the zero-port wrapper `EditFieldsDialog`'s default prop points at post-`useWiredX`
     // conversion — was `useEditFieldsDialog` (the pure, port-taking hook) before; a call-site
     // rename of what gets intercepted, not a behavior or assertion change.
-    useWiredEditFieldsDialog: (props: unknown) => {
-      editDialogPropsRef.current = props;
-      return editDialogRef.current;
-    },
-  };
-});
-vi.mock("../hooks/use-lifecycle-confirm-dialog.hooks", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../hooks/use-lifecycle-confirm-dialog.hooks")>();
-  return { ...actual, useLifecycleConfirmDialog: (props: unknown) => {
-    lifecycleDialogPropsRef.current = props;
-    return lifecycleDialogRef.current;
-  } };
-});
+const newDialogRef = { current: null as unknown };
+const newDialogPropsRef = { current: null as unknown };
+const editDialogRef = { current: null as unknown };
+const editDialogPropsRef = { current: null as unknown };
+const lifecycleDialogRef = { current: null as unknown };
+const lifecycleDialogPropsRef = { current: null as unknown };
 
 const TYPE: AdminContentType = {
   workspaceId: "w1",
@@ -118,7 +86,6 @@ function newDialogController(overrides: Partial<NewContentTypeDialogController> 
     saving: false,
     submit: vi.fn((e: React.FormEvent) => e.preventDefault()),
     cancel: vi.fn(),
-    dialogRef: { current: null },
     ...overrides,
   };
 }
@@ -133,7 +100,6 @@ function editDialogController(overrides: Partial<EditFieldsDialogController> = {
     saving: false,
     submit: vi.fn((e: React.FormEvent) => e.preventDefault()),
     cancel: vi.fn(),
-    dialogRef: { current: null },
     ...overrides,
   };
 }
@@ -142,7 +108,6 @@ function lifecycleDialogController(overrides: Partial<LifecycleConfirmDialogCont
   return {
     copy: { title: "Deprecate content type", body: "Existing entries stay readable; no new entries can be created." },
     autoFocusCancel: false,
-    dialogRef: { current: null },
     ...overrides,
   };
 }
@@ -157,7 +122,11 @@ beforeEach(() => {
 function renderCollections(overrides: Partial<CollectionsController> = {}) {
   const c = collectionsController(overrides);
   const useCollectionsHook = () => c;
-  render(<Collections useCollectionsHook={useCollectionsHook} />);
+  render(<Collections useCollectionsHook={useCollectionsHook} dialogHooks={{
+    useNewContentTypeDialogHook: (props) => { newDialogPropsRef.current = props; return newDialogRef.current as NewContentTypeDialogController; },
+    useEditFieldsDialogHook: (props) => { editDialogPropsRef.current = props; return editDialogRef.current as EditFieldsDialogController; },
+    useLifecycleConfirmDialogHook: (props) => { lifecycleDialogPropsRef.current = props; return lifecycleDialogRef.current as LifecycleConfirmDialogController; },
+  }} />);
   return c;
 }
 
@@ -434,15 +403,15 @@ describe("NewContentTypeDialog", () => {
     expect(dlg.cancel).toHaveBeenCalledTimes(1);
   });
 
-  // M3's focus trap only works if Collections.tsx actually attaches the hook's ref to this
-  // dialog's own role="dialog" root. The hook tests render their own harness markup, so dropping
-  // `ref={dialogRef}` here left every test green (verified 2026-09-20) while the trap silently
-  // did nothing in the real dialog.
-  it("attaches the hook's dialogRef to the dialog root, so useFocusTrap has an element to trap in (M3)", () => {
+  // Historically M3 required attaching the hook's ref to the real dialog: hook-only harnesses
+  // stayed green when that wiring was missing (verified 2026-09-20). Native modality must likewise
+  // be asserted on the real dialog, not assumed from controller-only tests.
+  it("renders an open native dialog so the browser owns modality (M3)", () => {
     const dlg = newDialogController();
     newDialogRef.current = dlg;
     renderCollections({ showNewDialog: true });
-    expect(dlg.dialogRef.current).toBe(screen.getByRole("dialog"));
+    expect(screen.getByRole("dialog").tagName).toBe("DIALOG");
+    expect(screen.getByRole("dialog")).toHaveAttribute("open");
   });
 
   it("clicking the backdrop calls the dialog's own cancel, but clicking inside the dialog does not", async () => {
@@ -450,9 +419,9 @@ describe("NewContentTypeDialog", () => {
     const dlg = newDialogController();
     newDialogRef.current = dlg;
     renderCollections({ showNewDialog: true });
-    await user.click(screen.getByRole("dialog"));
+    await user.click(screen.getByRole("dialog").querySelector("h2")!);
     expect(dlg.cancel).not.toHaveBeenCalled();
-    await user.click(document.querySelector(".settings-dialog-backdrop")!);
+    await user.click(screen.getByRole("dialog"));
     expect(dlg.cancel).toHaveBeenCalledTimes(1);
   });
 
@@ -575,11 +544,12 @@ describe("EditFieldsDialog", () => {
   });
 
   /** Same wiring check as NewContentTypeDialog's own — see its comment. */
-  it("attaches the hook's dialogRef to the dialog root, so useFocusTrap has an element to trap in (M3)", () => {
+  it("renders an open native dialog so the browser owns modality (M3)", () => {
     const dlg = editDialogController();
     editDialogRef.current = dlg;
     renderCollections({ editingFieldsFor: TYPE });
-    expect(dlg.dialogRef.current).toBe(screen.getByRole("dialog"));
+    expect(screen.getByRole("dialog").tagName).toBe("DIALOG");
+    expect(screen.getByRole("dialog")).toHaveAttribute("open");
   });
 
   // The sibling NewContentTypeDialog describe has had this case since 7cd19b4a7; this dialog's
@@ -591,9 +561,9 @@ describe("EditFieldsDialog", () => {
     const dlg = editDialogController();
     editDialogRef.current = dlg;
     renderCollections({ editingFieldsFor: TYPE });
-    await user.click(screen.getByRole("dialog"));
+    await user.click(screen.getByRole("dialog").querySelector("h2")!);
     expect(dlg.cancel).not.toHaveBeenCalled();
-    await user.click(document.querySelector(".settings-dialog-backdrop")!);
+    await user.click(screen.getByRole("dialog"));
     expect(dlg.cancel).toHaveBeenCalledTimes(1);
   });
 
@@ -664,11 +634,12 @@ describe("LifecycleConfirmDialog", () => {
   });
 
   /** Same wiring check as NewContentTypeDialog's own — see its comment. */
-  it("attaches the hook's dialogRef to the dialog root, so useFocusTrap has an element to trap in (M3)", () => {
+  it("renders an open native dialog so the browser owns modality (M3)", () => {
     const dlg = lifecycleDialogController();
     lifecycleDialogRef.current = dlg;
     renderCollections({ pendingLifecycle: { op: "deprecate", contentType: TYPE } });
-    expect(dlg.dialogRef.current).toBe(screen.getByRole("dialog"));
+    expect(screen.getByRole("dialog").tagName).toBe("DIALOG");
+    expect(screen.getByRole("dialog")).toHaveAttribute("open");
   });
 
   it("autoFocus reflects the hook's autoFocusCancel — cancel focused for tombstone", () => {

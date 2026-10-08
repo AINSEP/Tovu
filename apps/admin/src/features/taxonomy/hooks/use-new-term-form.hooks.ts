@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { describeApiError, type AdminTaxonomyWithTerms } from "@/lib/api";
-import { useFetchMutation } from "@/lib/fetch-query";
+import { useFetchMutation } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../taxonomy-i18n";
 import { KEYS } from "../rules";
@@ -25,7 +25,7 @@ import type { NewTermFormPort } from "./new-term-form-port.hooks";
  * of stubbing global `fetch`. `useWiredNewTermForm` below is the zero-argument pair `Taxonomy.tsx`
  * actually mounts.
  *
- * `lib/fetch-query` migration (2026-08-12): `createTerm` is a `useFetchMutation` that
+ * `@jini-ai/ui/fetch-query` migration (2026-08-12): `createTerm` is a `useFetchMutation` that
  * `invalidates: [KEYS.list]` instead of the parent's `onCreated` calling `load()` by hand — same
  * client-side-validation-vs-request-error precedence as `use-new-taxonomy-form.hooks.ts`.
  */
@@ -58,23 +58,24 @@ export function useNewTermForm(
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const createMutation = useFetchMutation({
-    run: (input: { name: string; parentId: string | null }) =>
+    run: ({ input }: { input: { name: string; parentId: string | null } }) =>
       port.createTerm({ taxonomyId: options.taxonomy.taxonomy.id, name: input.name }, { parentId: input.parentId }),
+  }, {
     invalidates: [KEYS.list],
   });
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) {
-      setValidationError(t(locale, "Name is required."));
+      setValidationError(t({ locale: locale, key: "Name is required." }));
       return;
     }
     setValidationError(null);
     try {
-      await createMutation.mutate({
+      await createMutation.mutate({ input: {
         name: name.trim(),
         parentId: options.taxonomy.taxonomy.hierarchical && parentId ? parentId : null,
-      });
+      } });
       setName("");
       setParentId("");
       setOpen(false);
@@ -85,7 +86,7 @@ export function useNewTermForm(
   }
 
   const saving = createMutation.status === "pending";
-  const error = validationError ?? (createMutation.error ? describeApiError(createMutation.error, t(locale, "Failed to create term")) : null);
+  const error = validationError ?? (createMutation.error ? describeApiError(createMutation.error, t({ locale: locale, key: "Failed to create term" })) : null);
 
   return { open, setOpen, name, setName, parentId, setParentId, error, saving, submit };
 }

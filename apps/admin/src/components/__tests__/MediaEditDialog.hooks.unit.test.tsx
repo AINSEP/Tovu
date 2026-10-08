@@ -1,4 +1,5 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { MediaEditDialog } from "../MediaEditDialog/MediaEditDialog";
+import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { useMediaEditDialog, useWiredMediaEditDialog } from "../MediaEditDialog/MediaEditDialog.hooks";
@@ -106,25 +107,29 @@ describe("useMediaEditDialog — save", () => {
 });
 
 describe("useMediaEditDialog — Escape", () => {
-  it("calls onCancel on Escape, anywhere in the document", () => {
+  it("native cancel calls onCancel through the rendered dialog", () => {
     const onCancel = vi.fn();
-    renderHook(() => useMediaEditDialog({ alt: null, cssClass: null, htmlAttributes: null }, vi.fn(), onCancel, { locale: "en" }));
-    act(() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
+    render(<MediaEditDialog initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={vi.fn()} onCancel={onCancel}
+      useDialog={(initial, onSave, cancel) => useMediaEditDialog(initial, onSave, cancel, { locale: "en" })} />);
+    fireEvent(screen.getByRole("dialog"), new Event("cancel", { cancelable: true }));
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
   it("ignores non-Escape keys", () => {
     const onCancel = vi.fn();
-    renderHook(() => useMediaEditDialog({ alt: null, cssClass: null, htmlAttributes: null }, vi.fn(), onCancel, { locale: "en" }));
+    render(<MediaEditDialog initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={vi.fn()} onCancel={onCancel}
+      useDialog={(initial, onSave, cancel) => useMediaEditDialog(initial, onSave, cancel, { locale: "en" })} />);
     act(() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" })));
     expect(onCancel).not.toHaveBeenCalled();
   });
 
-  it("removes its keydown listener on unmount", () => {
+  it("removes native cancellation on unmount", () => {
     const onCancel = vi.fn();
-    const { unmount } = renderHook(() => useMediaEditDialog({ alt: null, cssClass: null, htmlAttributes: null }, vi.fn(), onCancel, { locale: "en" }));
+    const { unmount } = render(<MediaEditDialog initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={vi.fn()} onCancel={onCancel}
+      useDialog={(initial, onSave, cancel) => useMediaEditDialog(initial, onSave, cancel, { locale: "en" })} />);
+    const dialog = screen.getByRole("dialog");
     unmount();
-    act(() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
+    fireEvent(dialog, new Event("cancel", { cancelable: true }));
     expect(onCancel).not.toHaveBeenCalled();
   });
 });

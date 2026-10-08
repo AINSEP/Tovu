@@ -20,11 +20,11 @@ export function BrowserAgentSettingsPanel({ locale }: { locale: string }) {
           onClick={() => setEnabled({ enabled: !enabled })}
         >
           <span className="jini-toggle-row-text">
-            <span id={`${id}-label`} className="jini-toggle-row-label">{t(locale, "Browser-agent access (WebMCP)")}</span>
+            <span id={`${id}-label`} className="jini-toggle-row-label">{t({ locale: locale, key: "Browser-agent access (WebMCP)" })}</span>
             <span id={`${id}-hint`} className="jini-toggle-row-hint">
-              {t(locale, "Enabled by default. This choice applies to the admin in this browser on this site.")}
+              {t({ locale: locale, key: "Enabled by default. This choice applies to the admin in this browser on this site." })}
               {" "}
-              {t(locale, "Compatible browsers can operate tagged admin controls. Destructive and publish actions require approval.")}
+              {t({ locale: locale, key: "Compatible browsers can operate tagged admin controls. Destructive and publish actions require approval." })}
             </span>
           </span>
           <span className="jini-toggle-row-switch" aria-hidden="true" />

@@ -1,12 +1,10 @@
 import { useCallback, useRef, useState } from "react";
 
 import { describeApiError, type AdminSiteActivation, type AdminSiteListEntry, type AdminSitesSnapshot } from "@/lib/api";
-import { useFetchMutation, useFetchQuery, useInvalidate, type QueryStatus } from "@/lib/fetch-query";
+import { useFetchMutation, useFetchQuery, useInvalidate, type QueryStatus } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
-import { useSerialWrites } from "@/hooks/use-serial-writes.hooks";
-import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
-import type { Translate } from "@/lib/dictionary-translator";
+import { useSerialWrites, useSettlementGeneration, type Translate } from "@jini-ai/ui/panel-kit";
 import { t as defaultT } from "../sites-i18n";
 import { KEYS, SITES_RESOURCE, createdTokensNoteKey, readSnapshot, siteNameErrorKey, siteWriteErrorKey, type ActivationOutlook } from "../rules";
 import { defaultSitesPort } from "./sites-dependencies.hooks";
@@ -17,7 +15,7 @@ import { useCreateSitePluginTokens, type CreateSitePluginTokensController } from
  * @file Everything the Sites screen does, so `Sites.tsx` is only markup.
  *
  * One list read plus two writes, in the `useX(port, t)` / `useWiredX()` shape
- * `use-redirects.hooks.ts` establishes. `port` is injected (`sites-port.hooks.ts`) so a test
+ * `Jini redirects/react/hooks/use-redirects.hooks.ts` establishes. `port` is injected (`sites-port.hooks.ts`) so a test
  * describes outcomes against `createFakeSitesPort` rather than stubbing global `fetch`.
  *
  * ## The one behavior worth stating up front: Activate does not switch anything
@@ -105,9 +103,9 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
   const list = useFetchQuery({ key: KEYS.list, fetch: () => port.listSites() });
 
   // Stable identity (not an inline arrow) so the subscription effect does not resubscribe every
-  // render — same note as `use-redirects.hooks.ts`'s own `invalidateList`.
+  // render — same note as `Jini redirects/react/hooks/use-redirects.hooks.ts`'s own `invalidateList`.
   const invalidate = useInvalidate();
-  const invalidateList = useCallback(() => invalidate(KEYS.list), [invalidate]);
+  const invalidateList = useCallback(() => invalidate({ key: KEYS.list }), [invalidate]);
   useContentRefreshSubscription(SITES_RESOURCE, invalidateList);
 
   const [createName, setCreateNameRaw] = useState("");
@@ -118,11 +116,13 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
   const [createdTokens, setCreatedTokens] = useState<{ names: string[]; note: string } | null>(null);
 
   const createMutation = useFetchMutation({
-    run: (input: { name: string; agentPluginTokens?: Record<string, string> }) => port.createSite(input),
+    run: ({ input }: { input: { name: string; agentPluginTokens?: Record<string, string> } }) => port.createSite(input),
+  }, {
     invalidates: [KEYS.list],
   });
   const activateMutation = useFetchMutation({
-    run: (name: string) => port.activateSite(name),
+    run: ({ input: name }: { input: string }) => port.activateSite(name),
+  }, {
     invalidates: [KEYS.list],
   });
 
@@ -165,7 +165,7 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
     if (creatingRef.current) return;
     creatingRef.current = true;
     // Clears a stale Activate failure so it cannot mask THIS write's own outcome below — mirrors
-    // `use-redirects.hooks.ts`'s `clearOtherWriteErrors`; `mutate` already clears `createMutation`'s
+    // `Jini redirects/SOURCE-RATIONALE.md`'s `clearOtherWriteErrors`; `mutate` already clears `createMutation`'s
     // own prior error, so only the sibling mutation needs the explicit reset.
     activateMutation.reset();
     setCreatedName(null);
@@ -175,7 +175,7 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
     // `MutationResult.mutate`'s own doc): `.then` above it produces a NEW promise, and that one
     // has no handler of its own. The failure is reported through `createMutation.error`.
     createMutation
-      .mutate(agentPluginTokens ? { name, agentPluginTokens } : { name })
+      .mutate({ input: agentPluginTokens ? { name, agentPluginTokens } : { name } })
       .then((result) => {
         setCreatedName(result.site.name);
         setCreatedTokens(resolveCreatedTokens(result.agentPluginTokens, pluginTokens.displayNames, t));
@@ -199,21 +199,21 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
       setActivatingName(name);
       setActivation(null);
       // Never rejects (`.catch` below), so one failed activation cannot wedge the lane.
-      void writes.run(() =>
+      void writes.run({ task: () =>
         activateMutation
-          .mutate(name)
+          .mutate({ input: name })
           .then((result) => {
             // Superseded by a newer activate call started after this one — that later call owns
             // `activation`/`activatingName` now, and applying this stale result would let whichever
             // request happens to settle LAST win regardless of which row was actually clicked last.
-            if (!activateSettlement.isCurrent(generation)) return;
+            if (!activateSettlement.isCurrent({ generation })) return;
             setActivation(result);
           })
           .catch(() => {})
           .finally(() => {
-            if (!activateSettlement.isCurrent(generation)) return;
+            if (!activateSettlement.isCurrent({ generation })) return;
             setActivatingName(null);
-          }),
+          }) },
       );
     },
     [activateMutation, createMutation, activateSettlement, writes],
@@ -296,6 +296,6 @@ function resolveCreateNameError(raw: string, key: string | null, t: Translate): 
  */
 export function useWiredSites(): SitesController {
   const locale = useAdminLocale();
-  const t = useCallback((key: string): string => defaultT(locale, key), [locale]);
+  const t = useCallback((key: string): string => defaultT({ locale: locale, key: key }), [locale]);
   return useSites(defaultSitesPort, t);
 }

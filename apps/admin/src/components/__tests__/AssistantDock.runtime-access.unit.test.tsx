@@ -1,5 +1,5 @@
 import { act, render as renderWithoutProvider } from "@testing-library/react";
-import type { ReactElement, ReactNode } from "react";
+import type { ComponentProps, ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
@@ -13,67 +13,42 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
  * for as long as the tab stayed open, not the fixed one-connection-per-tab cost the settings feed
  * alone would cost. See `ADS-memory/reports/2026-08-17-vite-proxy-pool-saturation-investigation.md`.
  *
- * `ChatPane` is mocked the same way `AssistantDock.unit.test.tsx` mocks it (a full streaming chat
+ * `ChatPane` is injected as a recorder the same way `AssistantDock.unit.test.tsx` injects it (a full streaming chat
  * UI with its own daemon-facing lifecycle — mounting the real thing would test that package, not
  * this host's wiring), but this file captures the `runtimeAccess` prop itself and calls its
  * functions directly, since that object's fetch behavior is exactly what regressed.
  */
 
-const chatPaneSpy = vi.hoisted(() => vi.fn());
+const chatPaneSpy = vi.fn();
 
-vi.mock("@jini-ai/chat/react", () => ({
-  JiniChatProvider: ({ children }: { children: ReactNode }) => children,
-  ChatPane: (props: Record<string, unknown>) => {
-    chatPaneSpy(props);
-    return <div data-testid="chat-pane" />;
-  },
-  ConversationList: () => null,
-  A2uiSurfaceCard: () => null,
-  createDaemonAttachmentUploader: () => vi.fn(),
-  createMcpUiToolCaller: () => vi.fn(),
-  createTypedAnswerPoster: () => vi.fn(),
-  registerExtEventRenderer: vi.fn(),
-  registerMcpUiSurfaceRenderer: vi.fn(),
-  // `AssistantDock.tsx` imports this at module scope and calls
-  // `registerExtEventRenderer(MCP_UI_EXT_EVENT_NAME, ...)`, so a factory that omits it makes the
-  // module throw at import — which vitest reports as a FILE failure while the run's headline test
-  // count still looks healthy, silently skipping every test in here. The real
-  // `@jini-ai/chat/react` does export it; only the mock was short.
-  MCP_UI_EXT_EVENT_NAME: "mcp-ui",
-  // Same trap: passed at module scope as the MCP-UI renderer's `slotKey` (one transcript slot per
-  // `ui://` URI), so a factory without it fails the whole file at import.
-  mcpUiSurfaceSlotKey: () => undefined,
-}));
+import { AssistantDock as RealAssistantDock } from "../AssistantDock/AssistantDock";
+import { DEFAULT_EXECUTION_CONFIG } from "../../lib/execution-settings";
+import { useTovuExecutionPolicy } from "../../hooks/use-tovu-execution-policy.hooks";
 
-vi.mock("../../lib/execution-settings", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../lib/execution-settings")>();
-  return {
-    ...actual,
-    loadExecutionConfig: vi.fn().mockResolvedValue(actual.DEFAULT_EXECUTION_CONFIG),
-    saveExecutionConfig: vi.fn(),
-    createExecutionPort: vi.fn().mockReturnValue({ listModels: vi.fn().mockResolvedValue([]) }),
-    loadAdminExecutionCredential: vi.fn().mockResolvedValue({
-      isSet: false,
-      masked: null,
-      protocol: "anthropic",
-      providerId: "anthropic",
-      baseUrl: null,
-      model: null,
-      maxTokens: null,
-      updatedAt: null,
-    }),
-  };
-});
+// The pane recorder replaces only the render dependency, leaving Jini's clients and factories
+// real. Static execution/BYOK controllers avoid unrelated ledger and model-discovery IO.
+function PaneRecorder(props: ComponentProps<NonNullable<ComponentProps<typeof RealAssistantDock>["ChatPane"]>>) {
+  chatPaneSpy(props);
+  return <div data-testid="chat-pane" />;
+}
+const executionController = {
+  executionConfig: DEFAULT_EXECUTION_CONFIG,
+  executionConfigRef: { current: DEFAULT_EXECUTION_CONFIG },
+  setExecutionConfig: vi.fn(),
+  handleExecutionModeChange: vi.fn(),
+  hasStoredAdminKey: false,
+  configLoaded: true,
+};
+// Exercise the live runtime port with desktop capability; unknown deployment discovery correctly
+// disables CLI probes (owner 2026-10-07) and would otherwise mask the single-flight behavior.
+function AssistantDock(props: ComponentProps<typeof RealAssistantDock>) {
+  return <RealAssistantDock ChatPane={PaneRecorder} useExecutionConfig={() => executionController}
+    useExecutionPolicy={(input) => useTovuExecutionPolicy(input, { desktop: true })}
+    useByokRuntime={() => ({ byokRuntime: { model: "", models: [] }, handleByokModelChange: vi.fn() })}
+    {...props} />;
+}
 
-vi.mock("../../lib/settings-refresh-bus", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../lib/settings-refresh-bus")>();
-  return { ...actual, publishSettingsRefresh: vi.fn() };
-});
-
-vi.mock("../../lib/router", () => ({ navigate: vi.fn() }));
-
-import { AssistantDock } from "../AssistantDock/AssistantDock";
-import { FetchQueryProvider } from "../../lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 
 /** Every render sits under the app's query-cache provider, as `main.tsx` mounts the real dock:
  *  `useRuntimeAccess`/`useAgentsPlaceholder` read the agents list through that cache. */

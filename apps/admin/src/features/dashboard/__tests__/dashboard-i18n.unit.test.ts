@@ -56,12 +56,12 @@ describe("DASHBOARD_DICT: cross-locale key parity", () => {
 describe("DASHBOARD_DICT: t() falls back to COMMON_I18N", () => {
   it("translates 'Save' in German even though DASHBOARD_DICT.de never carries it", () => {
     expect(DASHBOARD_DICT.de.Save).toBeUndefined();
-    expect(t("de", "Save")).toBe(COMMON_I18N.de.Save);
+    expect(t({ locale: "de", key: "Save" })).toBe(COMMON_I18N.de.Save);
   });
 
   it("translates 'Cancel' in German even though DASHBOARD_DICT.de never carries it", () => {
     expect(DASHBOARD_DICT.de.Cancel).toBeUndefined();
-    expect(t("de", "Cancel")).toBe(COMMON_I18N.de.Cancel);
+    expect(t({ locale: "de", key: "Cancel" })).toBe(COMMON_I18N.de.Cancel);
   });
 });
 
@@ -71,7 +71,7 @@ describe("the Publish dialog's column names are translated in every locale", () 
       // Present in every locale (Indonesian and Portuguese really do say "Item").
       expect(COMMON_I18N[locale]?.Item, locale).toBeTruthy();
       expect(COMMON_I18N[locale]?.Entity, locale).toBeUndefined();
-      expect(t(locale, "Item"), locale).toBe(COMMON_I18N[locale].Item);
+      expect(t({ locale: locale, key: "Item" }), locale).toBe(COMMON_I18N[locale].Item);
     }
   });
 

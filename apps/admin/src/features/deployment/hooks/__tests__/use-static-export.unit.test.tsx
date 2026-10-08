@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { useStaticExport } from "../use-static-export.hooks";
 import { createFakeStaticExportPort } from "../static-export-dependencies.hooks";
@@ -166,9 +166,9 @@ describe("useStaticExport — trigger", () => {
     expect(result.current.isRunning).toBe(true);
 
     // NOW the delayed bootstrap GET finally resolves, reporting stale "idle" state from before the
-    // click. Flush the macrotask `useFetchQuery`'s underlying TanStack notification uses (setTimeout(0)
-    // — `await Promise.resolve()` would NOT flush this, see this repo's own fetch-query migration
-    // notes) so the seed effect gets its chance to run (or, with the fix, correctly decline to).
+    // click. Yield through the pending read and React update so the seed effect gets its chance
+    // to run (or, with the fix, correctly decline to); one resolved promise is not enough evidence
+    // that the whole chain has settled.
     await act(async () => {
       resolveInitialStatus(IDLE_RUN);
       await new Promise((resolve) => setTimeout(resolve, 0));

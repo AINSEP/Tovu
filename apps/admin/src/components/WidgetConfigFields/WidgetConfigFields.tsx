@@ -1,8 +1,8 @@
 import { agentHandle } from "@jini-ai/agentic";
 import { isUserCollection } from "../../features/collections/rules";
 import type { AdminContentType, AdminFormDefinition, AdminMenu, AdminWidgetType, ContentTypeFieldKind } from "../../lib/api";
-import type { Translate } from "../../lib/dictionary-translator";
-import { interpolate } from "../../lib/template-i18n";
+import type { Translate } from "@jini-ai/ui/panel-kit";
+import { interpolate } from "@jini-ai/ui/panel-kit";
 import {
   COLLECTION_DISPLAYABLE_FIELD_KINDS,
   humanizeFieldName,
@@ -111,7 +111,7 @@ function SocialLinksConfigFields(props: {
       <p>{t("Social links")}</p>
       {links.map((link, i) => (
         <fieldset key={i} className="widget-config-social-link-row">
-          <legend>{interpolate(t("Link {n}"), { n: i + 1 })}</legend>
+          <legend>{interpolate({ template: t("Link {n}"), vars: { n: i + 1 } })}</legend>
           <label htmlFor={`widget-social-platform-${i}`}>{t("Platform")}</label>
           <input
             id={`widget-social-platform-${i}`}
@@ -228,12 +228,12 @@ function SortSelect(props: { value: string; fields: readonly DisplayableField[];
         <option value="title">{props.t("Title (A–Z)")}</option>
         {props.fields.map((f) => (
           <option key={f.name} value={f.name}>
-            {interpolate(props.t("{field} (ascending)"), { field: humanizeFieldName(f.name) })}
+            {interpolate({ template: props.t("{field} (ascending)"), vars: { field: humanizeFieldName(f.name) } })}
           </option>
         ))}
         {props.fields.map((f) => (
           <option key={`-${f.name}`} value={`-${f.name}`}>
-            {interpolate(props.t("{field} (descending)"), { field: humanizeFieldName(f.name) })}
+            {interpolate({ template: props.t("{field} (descending)"), vars: { field: humanizeFieldName(f.name) } })}
           </option>
         ))}
       </select>

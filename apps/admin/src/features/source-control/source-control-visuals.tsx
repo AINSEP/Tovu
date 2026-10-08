@@ -1,3 +1,4 @@
+import { Icon } from "@jini-ai/ui";
 /**
  * @file This page's own small icon set — three inline SVGs, no icon dependency. Same rationale
  * `deployment/deployment-visuals.tsx`'s header gives for its own set: this app ships no icon
@@ -49,9 +50,7 @@ export function SourceControlIcon({ size = 20 }: { size?: number }) {
  *  row's own summary text already states "connected" in words. */
 export function ConnectedMarkIcon({ size = 12 }: { size?: number }) {
   return (
-    <svg {...LINE_ICON} width={size} height={size} stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
-      <path d="m5 13 4.5 4.5L19 6.5" />
-    </svg>
+    <Icon name="check-long" size={size} focusable={undefined} {...LINE_ICON} stroke="currentColor" strokeWidth={2.5} aria-hidden="true" />
   );
 }
 
@@ -68,8 +67,6 @@ export function ConnectedMarkIcon({ size = 12 }: { size?: number }) {
  */
 export function DisclosureChevronIcon({ size = 14 }: { size?: number }) {
   return (
-    <svg {...LINE_ICON} width={size} height={size}>
-      <path d="m6 9 6 6 6-6" />
-    </svg>
+    <Icon name="chevron-down" size={size} focusable={undefined} {...LINE_ICON} />
   );
 }

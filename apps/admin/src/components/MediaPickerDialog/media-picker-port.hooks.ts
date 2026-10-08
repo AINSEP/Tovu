@@ -5,7 +5,7 @@ import type { AdminMedia } from "../../lib/api";
  * than a direct `lib/api` import.
  *
  * Follows the `useX(dependencies)` / `useWiredX()` pair documented in
- * `development/docs/architecture/wired-hooks-convention.md` and `redirects-port.hooks.ts` (the
+ * `development/docs/architecture/wired-hooks-convention.md` and `Jini redirects/SOURCE-RATIONALE.md` (the
  * canonical reference). This port is deliberately its own file rather than reusing
  * `features/media/hooks/media-port.hooks.ts`'s (larger) `MediaPort`: `components/` sits below
  * every feature and must not import from one (the same "nothing outside this feature needs it"
@@ -15,7 +15,7 @@ import type { AdminMedia } from "../../lib/api";
  * dialog actually calls.
  *
  * `describeApiError` stays a direct import in the hook — pure error-classification, no I/O, same
- * reasoning as `redirects-port.hooks.ts`'s own exclusion of it.
+ * reasoning as `Jini redirects/SOURCE-RATIONALE.md`'s own exclusion of it.
  */
 export interface MediaPickerPort {
   listMedia(): Promise<{ media: AdminMedia[] }>;

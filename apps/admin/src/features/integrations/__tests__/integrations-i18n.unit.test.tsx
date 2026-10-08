@@ -5,13 +5,13 @@ import { ADMIN_LOCALES } from "@/lib/settings-tabs";
 import { actionsForWebhookLabel, deleteWebhookBody, t } from "../integrations-i18n";
 
 it("resolves integration-specific copy, shared fallback, English and unknown locale/key copy", () => {
-  expect(t("es", "Pause")).toBe("Pausar");
-  expect(t("es", "Resume")).toBe("Reanudar");
-  expect(t("es", "Delivery log")).toBe("Registro de entregas");
-  expect(t("de", "Save")).toBe("Speichern");
-  expect(t("en", "Target URL")).toBe("Target URL");
-  expect(t("xx", "Target URL")).toBe("Target URL");
-  expect(t("es", "Unregistered webhook copy")).toBe("Unregistered webhook copy");
+  expect(t({ locale: "es", key: "Pause" })).toBe("Pausar");
+  expect(t({ locale: "es", key: "Resume" })).toBe("Reanudar");
+  expect(t({ locale: "es", key: "Delivery log" })).toBe("Registro de entregas");
+  expect(t({ locale: "de", key: "Save" })).toBe("Speichern");
+  expect(t({ locale: "en", key: "Target URL" })).toBe("Target URL");
+  expect(t({ locale: "xx", key: "Target URL" })).toBe("Target URL");
+  expect(t({ locale: "es", key: "Unregistered webhook copy" })).toBe("Unregistered webhook copy");
 });
 
 describe("parameterized webhook copy", () => {

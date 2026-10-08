@@ -1,3 +1,4 @@
+import { COMMON_I18N } from "../../lib/i18n-common";
 /**
  * @file Spanish dictionary for `Taxonomy.tsx` — the Categories & Tags screen, its new-term/
  * new-taxonomy forms, the merge wizard, the term detail panel, and the two delete dialogs. Same
@@ -8,7 +9,7 @@
  * sentence doesn't always match English). `t()` falls back to `COMMON_I18N` via
  * `createDictionaryTranslator`, same as `trash-i18n.ts`.
  */
-import { createDictionaryTranslator } from "../../lib/dictionary-translator";
+import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
   es: {
@@ -1251,4 +1252,4 @@ mergeDictionaryTranslations(TAXONOMY_DICT, TERM_PICKER_ADD_I18N);
  *  doesn't carry for a locale still renders translated instead of falling straight to English.
  *  Exported so the feature's `.hooks.ts` files (which have no JSX and build their own `t` closure
  *  the way `Taxonomy.tsx` does) can call it directly instead of duplicating the lookup. */
-export const t = createDictionaryTranslator(TAXONOMY_DICT);
+export const t = createDictionaryTranslator({ featureDictionary: TAXONOMY_DICT }, { commonDictionary: COMMON_I18N });

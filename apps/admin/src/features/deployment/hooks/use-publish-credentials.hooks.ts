@@ -10,7 +10,7 @@ import {
   type AdminPublishTargetCredentialSpec,
   type AdminPublishTargetDescriptor,
 } from "@/lib/api";
-import { useFetchQuery } from "@/lib/fetch-query";
+import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import {
   t as defaultT,
@@ -19,7 +19,7 @@ import {
   publishCredentialSelectErrorMessage,
   publishCredentialVerifyErrorMessage,
 } from "../deployment-i18n";
-import type { Translate } from "@/lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 import {
   PUBLISH_CREDENTIAL_ROW_LABEL,
   buildCredentialConnectionInput,
@@ -430,6 +430,6 @@ export function usePublishCredentials(
  */
 export function useWiredPublishCredentials(targets: readonly AdminPublishTargetDescriptor[] | undefined): PublishCredentialsController {
   const locale = useAdminLocale();
-  const t = (key: string): string => defaultT(locale, key);
+  const t = (key: string): string => defaultT({ locale: locale, key: key });
   return usePublishCredentials(defaultPublishCredentialsPort, t, locale, targets);
 }

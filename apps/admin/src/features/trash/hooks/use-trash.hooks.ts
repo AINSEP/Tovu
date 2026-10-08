@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 
 import { describeApiError, type AdminTrashItem } from "@/lib/api";
-import { useFetchQuery, useInvalidate } from "@/lib/fetch-query";
+import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
-import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
+import { useSettlementGeneration } from "@jini-ai/ui/panel-kit";
 import {
   allVisibleSelected,
   describePurgeReport,
   describeRestoreReport,
+  describeTrashLoadError,
   KEYS,
   selectionAfterSelectAll,
   toggleSelection,
@@ -98,7 +99,7 @@ export function useTrash(deps: TrashDependencies): TrashController {
   const invalidate = useInvalidate();
 
   // Stable identity so the subscription effect does not resubscribe every render.
-  const invalidateList = useCallback(() => invalidate(KEYS.listRoot), [invalidate]);
+  const invalidateList = useCallback(() => invalidate({ key: KEYS.listRoot }), [invalidate]);
   useContentRefreshSubscription(TRASH_RESOURCE, invalidateList);
 
   // `staleTime: 0` + `refetchOnWindowFocus: true` (2026-09-21, forms plan §C): deletes can
@@ -108,6 +109,7 @@ export function useTrash(deps: TrashDependencies): TrashController {
   const firstPage = useFetchQuery({
     key: KEYS.list(),
     fetch: () => port.listTrash({}),
+  }, {
     staleTime: 0,
     refetchOnWindowFocus: true,
   });
@@ -119,6 +121,7 @@ export function useTrash(deps: TrashDependencies): TrashController {
   const usersQuery = useFetchQuery({
     key: KEYS.actorUsernames(),
     fetch: () => port.listUsers!(),
+  }, {
     enabled: Boolean(port.listUsers),
   });
   const actorUsernames = useMemo(() => {
@@ -188,17 +191,17 @@ export function useTrash(deps: TrashDependencies): TrashController {
     setLoadingMore(true);
     try {
       const page = await port.listTrash({ cursor: moreCursor });
-      if (!pageSettlement.isCurrent(generation)) return; // superseded by a reload
+      if (!pageSettlement.isCurrent({ generation })) return; // superseded by a reload
       setMorePages((prev) => [...prev, ...page.items]);
       setMoreCursor(page.nextCursor);
     } catch (e) {
-      if (!pageSettlement.isCurrent(generation)) return;
-      setActionError(describeApiError(e, t(locale, "failed to load the Trash")));
+      if (!pageSettlement.isCurrent({ generation })) return;
+      setActionError(describeTrashLoadError({ error: e, locale }));
     } finally {
       // A superseded call's lock was already released by `resetMorePages`; only the still-current
       // call releases it here — otherwise a stale settlement could free the lock a NEWER, still
       // in-flight `loadMore` still owns.
-      if (pageSettlement.isCurrent(generation)) {
+      if (pageSettlement.isCurrent({ generation })) {
         loadingMoreRef.current = false;
         setLoadingMore(false);
       }
@@ -208,7 +211,7 @@ export function useTrash(deps: TrashDependencies): TrashController {
   /** Drops the locally accumulated pages and refetches page 1 — the rows just moved. */
   function reloadAfterAction() {
     resetMorePages();
-    invalidate(KEYS.listRoot);
+    invalidate({ key: KEYS.listRoot });
   }
 
   /**
@@ -241,7 +244,7 @@ export function useTrash(deps: TrashDependencies): TrashController {
       setSelected(new Set<string>());
       reloadAfterAction();
     } catch (e) {
-      setActionError(describeApiError(e, t(locale, "failed to restore")));
+      setActionError(describeApiError(e, t({ locale: locale, key: "failed to restore" })));
     } finally {
       setBusy(false);
     }
@@ -259,7 +262,7 @@ export function useTrash(deps: TrashDependencies): TrashController {
       setPurgeConfirmOpen(false);
       reloadAfterAction();
     } catch (e) {
-      setActionError(describeApiError(e, t(locale, "failed to delete permanently")));
+      setActionError(describeApiError(e, t({ locale: locale, key: "failed to delete permanently" })));
     } finally {
       setBusy(false);
     }
@@ -270,7 +273,7 @@ export function useTrash(deps: TrashDependencies): TrashController {
     nextCursor: moreCursor,
     loadingMore,
     loadMore,
-    error: firstPage.error ? describeApiError(firstPage.error, t(locale, "failed to load the Trash")) : actionError,
+    error: firstPage.error ? describeTrashLoadError({ error: firstPage.error, locale }) : actionError,
     notice,
     busy,
     selected,

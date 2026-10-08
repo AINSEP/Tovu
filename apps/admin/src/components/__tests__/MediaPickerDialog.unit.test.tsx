@@ -1,8 +1,7 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { tabFromLastFocusableInDialog } from "../../hooks/__tests__/focus-trap.test-helpers";
 import { api, ApiError, type AdminMedia } from "../../lib/api";
 import { MediaPickerDialog } from "../MediaPickerDialog/MediaPickerDialog";
 import type { MediaPickerDialogController, useWiredMediaPickerDialog } from "../MediaPickerDialog/MediaPickerDialog.hooks";
@@ -149,24 +148,23 @@ describe("MediaPickerDialog — dismissal", () => {
     const user = userEvent.setup();
     vi.spyOn(api, "listMedia").mockResolvedValue({ media: [] });
     const onCancel = vi.fn();
-    const { container } = render(<MediaPickerDialog onSelect={vi.fn()} onCancel={onCancel} />);
+    render(<MediaPickerDialog onSelect={vi.fn()} onCancel={onCancel} />);
 
-    await user.click(await screen.findByRole("dialog"));
+    await user.click((await screen.findByRole("dialog")).querySelector("h2")!);
     expect(onCancel).not.toHaveBeenCalled();
 
-    await user.click(container.querySelector(".settings-dialog-backdrop")!);
+    await user.click(screen.getByRole("dialog"));
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
   it("calls onCancel on Escape, via the real useMediaPickerDialog hook", async () => {
-    const user = userEvent.setup();
     vi.spyOn(api, "listMedia").mockResolvedValue({ media: [] });
     const onCancel = vi.fn();
     render(<MediaPickerDialog onSelect={vi.fn()} onCancel={onCancel} />);
 
     const cancel = await screen.findByRole("button", { name: "Cancel" });
     cancel.focus();
-    await user.keyboard("{Escape}");
+    fireEvent(screen.getByRole("dialog"), new Event("cancel", { cancelable: true }));
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 });
@@ -186,7 +184,6 @@ describe("MediaPickerDialog — useDialog injection", () => {
       // A `fake://` scheme the real `api.mediaOriginalUrl` could never produce — see the assertion
       // below.
       mediaOriginalUrl: (id) => `fake://media-picker-original/${id}`,
-      cancelRef: { current: null },
       // Identity passthrough — the component now destructures `t` off the controller (Batch D2's
       // i18n wiring); a fake that omits it would throw on the first `t(...)` call. Same note as
       // `WidgetPickerDialog.unit.test.tsx`'s `useFakeDialog`.
@@ -227,7 +224,6 @@ describe("MediaPickerDialog — translated copy (t injection)", () => {
       error: null,
       select: onSelect,
       mediaOriginalUrl: (id) => `fake://${id}`,
-      cancelRef: { current: null },
       t: fakeT,
       locale: "es",
       ...overrides,
@@ -267,16 +263,14 @@ describe("MediaPickerDialog — translated copy (t injection)", () => {
 
 describe("MediaPickerDialog — focus management", () => {
 
-  it("keeps Tab inside the dialog: Tab on the last focusable element wraps to the first", async () => {
+  it("renders an open native dialog; browser Tab containment is provided by showModal", async () => {
     vi.spyOn(api, "listMedia").mockResolvedValue({ media: [mediaItem()] });
     render(<MediaPickerDialog onSelect={vi.fn()} onCancel={vi.fn()} />);
     await screen.findByTitle("Sunset");
     const cancel = screen.getByRole("button", { name: "Cancel" });
-    const { event, first } = tabFromLastFocusableInDialog();
-
-    expect(first).not.toBe(cancel);
-    expect(event.defaultPrevented).toBe(true);
-    expect(document.activeElement).toBe(first);
+    expect(screen.getByRole("dialog").tagName).toBe("DIALOG");
+    expect(screen.getByRole("dialog")).toHaveAttribute("open");
+    expect(cancel).toHaveFocus();
   });
   // No dialog/modal wrapper existed at all before this fix (no useEffect, no ref, nothing) — on
   // close, focus fell through to `<body>` instead of returning to whatever control opened the
@@ -332,7 +326,6 @@ describe("MediaPickerDialog — accept filter", () => {
       error: null,
       select: onSelect,
       mediaOriginalUrl: (id) => `fake://${id}`,
-      cancelRef: { current: null },
       t: (key: string) => key,
       locale: "en",
     });

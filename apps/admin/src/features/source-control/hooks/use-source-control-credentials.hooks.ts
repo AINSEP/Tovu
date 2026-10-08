@@ -3,10 +3,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { describeApiError, type AdminSourceControlCredentialSummary, type AdminSourceControlProviderId } from "@/lib/api";
 import { localizeSourceControlProviders } from "@/lib/descriptor-i18n";
-import { useFetchQuery } from "@/lib/fetch-query";
+import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as defaultT, sourceControlCredentialSaveErrorMessage, sourceControlCredentialsLoadErrorMessage } from "../source-control-i18n";
-import type { Translate } from "@/lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 import {
   SOURCE_CONTROL_CREDENTIAL_ROW_LABEL,
   buildSourceControlConnectionInput,
@@ -209,6 +209,6 @@ export function useSourceControlCredentials(
  */
 export function useWiredSourceControlCredentials(): SourceControlCredentialsController {
   const locale = useAdminLocale();
-  const t = (key: string): string => defaultT(locale, key);
+  const t = (key: string): string => defaultT({ locale: locale, key: key });
   return useSourceControlCredentials(defaultSourceControlCredentialsPort, t, locale);
 }

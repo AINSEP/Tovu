@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api, type AdminMedia } from "@/lib/api";
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { createFakeMediaPort } from "../hooks/media-dependencies.hooks";
 import { useMedia } from "../hooks/use-media.hooks";
@@ -12,11 +12,11 @@ import { MEDIA_RESOURCE } from "../rules";
  * @file `useMedia` — the Media grid screen's list/upload/trash/purge cycle, driven against the
  * injected `MediaPort` rather than a stubbed global `fetch`. `Media.unit.test.tsx` already covers
  * the real-client path end to end (`useWiredMedia` via `Media.tsx`'s default prop); this file is
- * the "injected port" half `use-redirects.hooks.unit.test.tsx`'s own file header describes —
+ * the "injected port" half `Jini redirects/react/__tests__/use-redirects.hooks.unit.test.tsx`'s own file header describes —
  * proof the hook actually reads its dependency from the injected `port`, not from `lib/api`.
  *
  * `fetch-query` migration (2026-08-12): every `renderHook` now needs `wrapper: FetchQueryProvider`
- * — see `redirects/__tests__/use-redirects.hooks.unit.test.tsx`'s identical wrapper for the pilot
+ * — see `Jini redirects/react/__tests__/use-redirects.hooks.unit.test.tsx`'s identical wrapper for the pilot
  * precedent.
  */
 

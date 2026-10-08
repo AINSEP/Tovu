@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { COMMON_I18N } from "../i18n-common";
-import { createDictionaryTranslator } from "../dictionary-translator";
+import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 /**
  * One parity test for the shared dictionary, regardless of how many locales it grows to —
@@ -34,22 +34,22 @@ describe("COMMON_I18N: cross-locale key parity", () => {
 
 describe("createDictionaryTranslator", () => {
   it("prefers the feature dictionary over the common one", () => {
-    const t = createDictionaryTranslator({ es: { Save: "Guardar todo" } });
-    expect(t("es", "Save")).toBe("Guardar todo");
+    const t = createDictionaryTranslator({ featureDictionary: { es: { Save: "Guardar todo" } } }, { commonDictionary: COMMON_I18N });
+    expect(t({ locale: "es", key: "Save" })).toBe("Guardar todo");
   });
 
   it("falls back to COMMON_I18N when the feature dictionary has no entry for the key", () => {
-    const t = createDictionaryTranslator({ es: {} });
-    expect(t("es", "Save")).toBe(COMMON_I18N.es.Save);
+    const t = createDictionaryTranslator({ featureDictionary: { es: {} } }, { commonDictionary: COMMON_I18N });
+    expect(t({ locale: "es", key: "Save" })).toBe(COMMON_I18N.es.Save);
   });
 
   it("falls back to the raw key when neither dictionary has an entry", () => {
-    const t = createDictionaryTranslator({ es: {} });
-    expect(t("es", "this key exists nowhere")).toBe("this key exists nowhere");
+    const t = createDictionaryTranslator({ featureDictionary: { es: {} } }, { commonDictionary: COMMON_I18N });
+    expect(t({ locale: "es", key: "this key exists nowhere" })).toBe("this key exists nowhere");
   });
 
   it("falls back to the raw key for a locale with no dictionary block at all", () => {
-    const t = createDictionaryTranslator({ es: { Save: "Guardar" } });
-    expect(t("xx-nonexistent", "Save")).toBe("Save");
+    const t = createDictionaryTranslator({ featureDictionary: { es: { Save: "Guardar" } } }, { commonDictionary: COMMON_I18N });
+    expect(t({ locale: "xx-nonexistent", key: "Save" })).toBe("Save");
   });
 });

@@ -1,4 +1,5 @@
-import { createDictionaryTranslator } from "../../lib/dictionary-translator";
+import { COMMON_I18N } from "../../lib/i18n-common";
+import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 /**
  * @file Copy for the Sites admin screen (`/admin/sites`).
@@ -234,4 +235,4 @@ for (const [locale, detail] of Object.entries(SITES_TOKEN_DICT)) {
   Object.assign(Reflect.get(SITES_DICT, locale), detail);
 }
 
-export const t = createDictionaryTranslator(SITES_DICT);
+export const t = createDictionaryTranslator({ featureDictionary: SITES_DICT }, { commonDictionary: COMMON_I18N });

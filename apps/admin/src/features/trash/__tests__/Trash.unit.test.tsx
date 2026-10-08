@@ -6,7 +6,7 @@ import type { AdminTrashItem } from "@/lib/api";
 import { Trash } from "../Trash";
 import { useTrash, type TrashController } from "../hooks/use-trash.hooks";
 import { createFakeTrashPort } from "../hooks/trash-dependencies.hooks";
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 
 /**
  * @file The Trash screen's markup, mounted over a stub controller through its `useTrashHook` seam.
@@ -63,6 +63,12 @@ function controller(overrides: Partial<TrashController> = {}): TrashController {
 }
 
 describe("Trash screen", () => {
+  it("shows the settled load error without a simultaneous loading notice", () => {
+    render(<Trash useTrashHook={() => controller({ items: null, error: "The Tovu API did not respond. Try refreshing the Trash." })} />);
+    expect(screen.getByRole("alert")).toHaveTextContent("The Tovu API did not respond. Try refreshing the Trash.");
+    expect(screen.queryByText("Loading the Trash…")).not.toBeInTheDocument();
+    expect(screen.queryByText("The Trash is empty.")).not.toBeInTheDocument();
+  });
   function renderRealTrash(port: ReturnType<typeof createFakeTrashPort>) {
     render(<FetchQueryProvider><Trash useTrashHook={() => useTrash({ port, locale: "en" })} /></FetchQueryProvider>);
   }

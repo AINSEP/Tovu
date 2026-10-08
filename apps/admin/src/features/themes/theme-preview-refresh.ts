@@ -1,4 +1,4 @@
-import { WORKSPACE_ID } from "@/lib/api";
+import { authenticatedAdminRequest, WORKSPACE_ID } from "@/lib/api";
 /** Theme-only notification seam. Each admin document belongs to one site; SSE is workspace-scoped. */
 export interface ThemePreviewRefresh {
   revision: string;
@@ -51,15 +51,12 @@ export function freshPreviewUrl(
 export async function reloadThemePreviews(
   {
     request = () =>
-      fetch(`/api/admin/v1/workspaces/${encodeURIComponent(WORKSPACE_ID)}/themes/preview-reload`, {
-        method: "POST",
-        credentials: "include",
+      authenticatedAdminRequest<ThemePreviewRefresh>({
+        path: `/workspaces/${encodeURIComponent(WORKSPACE_ID)}/themes/preview-reload`, method: "POST",
       }),
-  }: { request?: () => Promise<Response> } = {},
+  }: { request?: () => Promise<ThemePreviewRefresh> } = {},
   _optional: Record<string, never> = {},
 ): Promise<void> {
   // The POST result and its SSE echo share one revision; publishing both is a single load.
-  const response = await request();
-  if (!response.ok) throw new Error("preview reload failed");
-  publishThemePreviewRefresh((await response.json()) as ThemePreviewRefresh);
+  publishThemePreviewRefresh(await request());
 }

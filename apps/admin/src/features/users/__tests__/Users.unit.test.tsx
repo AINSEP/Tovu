@@ -2,7 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 import { UserManagePanel, Users, type UserManageController } from "../UsersPanel";
 
 /**
@@ -27,7 +27,7 @@ import { UserManagePanel, Users, type UserManageController } from "../UsersPanel
  *
  * `Users` has no injectable hook seam used here (`useUsersHook` defaults to the wired `useWiredUsers`,
  * which itself composes `useUsers` with the real `UsersPort` — 2026-08-14 conversion), so every
- * `render(<Users />)` below needs a `FetchQueryProvider` ancestor (2026-08-12, `lib/fetch-query`
+ * `render(<Users />)` below needs a `FetchQueryProvider` ancestor (2026-08-12, `@jini-ai/ui/fetch-query`
  * migration).
  */
 

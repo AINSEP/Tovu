@@ -24,31 +24,31 @@ const ACTIVE_MEMBER: AdminMember = {
 
 describe("describeApiError", () => {
   it("overrides FORBIDDEN with a fixed message", () => {
-    expect(describeApiError({ error: new ApiError("raw", 403, "FORBIDDEN"), fallback: "fallback", translate: key => t("en", key) })).toBe(
+    expect(describeApiError({ error: new ApiError("raw", 403, "FORBIDDEN"), fallback: "fallback", translate: key => t({ locale: "en", key: key }) })).toBe(
       "You do not have permission to do that.",
     );
   });
 
   it("an unrecognized code falls through to the shared default", () => {
-    expect(describeApiError({ error: new ApiError("raw message", 500, "SOMETHING_ELSE"), fallback: "fallback", translate: key => t("en", key) })).toBe(
+    expect(describeApiError({ error: new ApiError("raw message", 500, "SOMETHING_ELSE"), fallback: "fallback", translate: key => t({ locale: "en", key: key }) })).toBe(
       "raw message",
     );
   });
 
   it("a non-ApiError value falls through to the shared default", () => {
-    expect(describeApiError({ error: new Error("plain"), fallback: "fallback", translate: key => t("en", key) })).toBe("plain");
-    expect(describeApiError({ error: "nope", fallback: "fallback", translate: key => t("en", key) })).toBe("fallback");
+    expect(describeApiError({ error: new Error("plain"), fallback: "fallback", translate: key => t({ locale: "en", key: key }) })).toBe("plain");
+    expect(describeApiError({ error: "nope", fallback: "fallback", translate: key => t({ locale: "en", key: key }) })).toBe("fallback");
   });
 
   // C4 — the FORBIDDEN override leaked English regardless of locale.
   it("translates the FORBIDDEN override into the operator's locale (es)", () => {
-    expect(describeApiError({ error: new ApiError("raw", 403, "FORBIDDEN"), fallback: "fallback", translate: key => t("es", key) })).toBe(
+    expect(describeApiError({ error: new ApiError("raw", 403, "FORBIDDEN"), fallback: "fallback", translate: key => t({ locale: "es", key: key }) })).toBe(
       "No tienes permiso para hacer eso.",
     );
   });
 
   it("falls back to English for an unrecognized locale", () => {
-    expect(describeApiError({ error: new ApiError("raw", 403, "FORBIDDEN"), fallback: "fallback", translate: key => t("xx", key) })).toBe(
+    expect(describeApiError({ error: new ApiError("raw", 403, "FORBIDDEN"), fallback: "fallback", translate: key => t({ locale: "xx", key: key }) })).toBe(
       "You do not have permission to do that.",
     );
   });
@@ -63,7 +63,7 @@ describe("members-i18n — C4 key", () => {
 
   for (const locale of LOCALES) {
     it(`t(${locale}, "You do not have permission to do that.") is non-empty and translated`, () => {
-      const translated = t(locale, "You do not have permission to do that.");
+      const translated = t({ locale: locale, key: "You do not have permission to do that." });
       expect(translated.length).toBeGreaterThan(0);
       expect(translated).not.toBe("You do not have permission to do that.");
     });
@@ -80,12 +80,12 @@ describe("memberRowMenuItems", () => {
   const handlers = { onResendSignInLink: vi.fn(), onRequestDisable: vi.fn() };
 
   it("an active member gets both Resend and Disable", () => {
-    const items = memberRowMenuItems({ member: ACTIVE_MEMBER, rs: emptyRowState({}), handlers: handlers, translate: key => t("en", key) });
+    const items = memberRowMenuItems({ member: ACTIVE_MEMBER, rs: emptyRowState({}), handlers: handlers, translate: key => t({ locale: "en", key: key }) });
     expect(items.map((i) => i.key)).toEqual(["resend", "disable"]);
   });
 
   it("a disabled member gets only Resend", () => {
-    const items = memberRowMenuItems({ member: { ...ACTIVE_MEMBER, status: "disabled" }, rs: emptyRowState({}), handlers: handlers, translate: key => t("en", key) });
+    const items = memberRowMenuItems({ member: { ...ACTIVE_MEMBER, status: "disabled" }, rs: emptyRowState({}), handlers: handlers, translate: key => t({ locale: "en", key: key }) });
     expect(items.map((i) => i.key)).toEqual(["resend"]);
   });
 });

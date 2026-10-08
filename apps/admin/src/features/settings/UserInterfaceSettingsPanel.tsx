@@ -14,7 +14,7 @@ import { useUserInterfaceTab, type UserInterfaceTabSlice } from "./hooks/use-use
  */
 export function UserInterfaceSettingsPanel(props: { slice: UserInterfaceTabSlice; locale: string }) {
   const tab = useUserInterfaceTab(props.slice);
-  const t = (key: string) => tInterface(props.locale, key);
+  const t = (key: string) => tInterface({ locale: props.locale, key: key });
   return (
     <>
       <InterfaceSwitchRow

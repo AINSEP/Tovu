@@ -1,9 +1,9 @@
-import { act, render, renderHook, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminContentType } from "@/lib/api";
-import { FetchQueryProvider } from "@/lib/fetch-query";
-import { tabFromLastFocusableInDialog } from "@/hooks/__tests__/focus-trap.test-helpers";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
+import { EditFieldsDialog } from "../Collections";
 import { createFakeEditFieldsDialogPort } from "../hooks/edit-fields-dialog-dependencies.hooks";
 import { useEditFieldsDialog, useWiredEditFieldsDialog } from "../hooks/use-edit-fields-dialog.hooks";
 import type { EditFieldsDialogPort } from "../hooks/edit-fields-dialog-port.hooks";
@@ -15,8 +15,8 @@ import type { EditFieldsDialogPort } from "../hooks/edit-fields-dialog-port.hook
  * list from an EXISTING content type's fields (not one empty field), and its 409 failure path maps
  * to `describeEditFieldsError`'s dedicated stale-version copy.
  *
- * `wrapper` (2026-08-12, `lib/fetch-query` migration): `updateContentTypeFields` now goes through
- * `useFetchMutation`, which throws without a `QueryClientProvider` ancestor.
+ * `wrapper` (2026-08-12, `@jini-ai/ui/fetch-query` migration): `updateContentTypeFields` now goes through
+ * `useFetchMutation`, which throws without a `FetchQueryProvider` ancestor.
  *
  * `mount()` below drives the wired hook (real `fetch`) — unchanged from before the `useWiredX`
  * conversion, just a call-site swap. The "injected port" describe block at the bottom is new
@@ -150,7 +150,7 @@ describe("submit — failure", () => {
       await view.result.current.submit({ preventDefault: vi.fn() } as unknown as React.FormEvent);
     });
 
-    // `waitFor`, not a bare synchronous read (2026-08-12, `lib/fetch-query` migration): `error` is
+    // `waitFor`, not a bare synchronous read (2026-08-12, `@jini-ai/ui/fetch-query` migration): `error` is
     // now derived from `useFetchMutation`'s own `.error`, which can land one render after `submit()`
     // itself resolves — see `use-merge-term-section.unit.test.tsx`'s identical note in `taxonomy`.
     await waitFor(() =>
@@ -171,39 +171,31 @@ describe("submit — failure", () => {
   });
 });
 
-describe("Escape-to-cancel", () => {
-  it("calls onCancel when Escape is pressed while mounted", () => {
-    const { onCancel } = mount();
-    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+describe("native dialog lifecycle (M3)", () => {
+  it("native cancel reaches the domain's current cancel handler", () => {
+    const onCancel = vi.fn();
+    render(<EditFieldsDialog contentType={TYPE} onSaved={vi.fn()} onCancel={onCancel} t={(key) => key}
+      useEditFieldsDialogHook={(props) => useEditFieldsDialog(props, createFakeEditFieldsDialogPort())} />, { wrapper });
+    fireEvent(screen.getByRole("dialog"), new Event("cancel", { cancelable: true }));
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
-});
 
-describe("focus trap (M3)", () => {
-  it("Tab from the dialog's last focusable element wraps to the first instead of leaving", () => {
-    function Harness() {
-      const { dialogRef } = useEditFieldsDialog({ contentType: TYPE, onSaved: vi.fn(), onCancel: vi.fn() }, createFakeEditFieldsDialogPort());
-      return (
-        <>
-          <button type="button">page behind</button>
-          <form ref={dialogRef} role="dialog" aria-modal="true">
-            <button type="button">first</button>
-            <button type="button">last</button>
-          </form>
-        </>
-      );
-    }
-    render(<Harness />, { wrapper });
-
-    const { event, first } = tabFromLastFocusableInDialog();
-
-    expect(event.defaultPrevented).toBe(true);
-    expect(document.activeElement).toBe(first);
+  it("uses native modality and returns focus to the opener on unmount", () => {
+    const opener = document.createElement("button");
+    document.body.appendChild(opener);
+    opener.focus();
+    const { unmount } = render(<EditFieldsDialog contentType={TYPE} onSaved={vi.fn()} onCancel={vi.fn()} t={(key) => key}
+      useEditFieldsDialogHook={(props) => useEditFieldsDialog(props, createFakeEditFieldsDialogPort())} />, { wrapper });
+    expect(screen.getByRole("dialog").tagName).toBe("DIALOG");
+    expect(screen.getByRole("dialog")).toHaveAttribute("open");
+    unmount();
+    expect(opener).toHaveFocus();
+    opener.remove();
   });
 });
 
 describe("cancel — in-flight guard (H4)", () => {
-  it("Escape while the update request is in flight does not dismiss the dialog", async () => {
+  it("cancel while the update request is in flight does not dismiss the dialog", async () => {
     const onCancel = vi.fn();
     const onSaved = vi.fn();
     const updated = deferred<{ contentType: AdminContentType }>();
@@ -217,13 +209,13 @@ describe("cancel — in-flight guard (H4)", () => {
     });
     await waitFor(() => expect(result.current.saving).toBe(true));
 
-    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    act(() => result.current.cancel());
     expect(onCancel).not.toHaveBeenCalled();
 
     updated.resolve({ contentType: TYPE });
     await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
 
-    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    act(() => result.current.cancel());
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 });
@@ -262,7 +254,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
       await result.current.submit({ preventDefault: vi.fn() } as unknown as React.FormEvent);
     });
 
-    // `waitFor`, not a bare synchronous read (2026-08-12, `lib/fetch-query` migration): `error` is
+    // `waitFor`, not a bare synchronous read (2026-08-12, `@jini-ai/ui/fetch-query` migration): `error` is
     // now derived from `useFetchMutation`'s own `.error`, which can land one render after `submit()`
     // itself resolves — see `use-merge-term-section.unit.test.tsx`'s identical note in `taxonomy`.
     await waitFor(() => expect(result.current.error).toBe("network down"));

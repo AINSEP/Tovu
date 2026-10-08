@@ -1,5 +1,5 @@
-import type { Translate } from "@/lib/dictionary-translator";
-import { useFetchQuery } from "@/lib/fetch-query";
+import type { Translate } from "@jini-ai/ui/panel-kit";
+import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useWiredAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { KEYS, resolveSchemaStateWarning, type SchemaStateWarning } from "../rules";
 import { t } from "../database-i18n";
@@ -49,7 +49,7 @@ export interface SchemaStateSectionDependencies {
 export function useSchemaStateSection(deps: SchemaStateSectionDependencies): SchemaStateSectionController {
   const { port } = deps;
   const locale = useWiredAdminLocale();
-  const boundT: Translate = (key: string): string => t(locale, key);
+  const boundT: Translate = (key: string): string => t({ locale: locale, key: key });
 
   const query = useFetchQuery({ key: KEYS.schemaState, fetch: () => port.getDatabaseSchemaState() });
 

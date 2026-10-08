@@ -81,7 +81,7 @@ describe("workspace-i18n — C4 keys", () => {
   for (const key of NEW_KEYS) {
     for (const locale of LOCALES) {
       it(`t(${locale}, "${key}") is non-empty and translated`, () => {
-        const translated = t(locale, key);
+        const translated = t({ locale: locale, key: key });
         expect(translated.length).toBeGreaterThan(0);
         expect(translated).not.toBe(key);
       });

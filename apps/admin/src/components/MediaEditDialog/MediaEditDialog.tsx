@@ -1,5 +1,6 @@
-import { useId, useRef } from "react";
-import { useFocusTrap } from "../../hooks/use-focus-trap.hooks";
+import { useId } from "react";
+import { Dialog } from "@jini-ai/ui-kit/react";
+import "../../styles/native-domain-dialogs.css";
 
 import { useWiredMediaEditDialog, type MediaEditDialogValue } from "./MediaEditDialog.hooks";
 
@@ -13,8 +14,8 @@ import { useWiredMediaEditDialog, type MediaEditDialogValue } from "./MediaEditD
  *
  * A MODAL, not a popover or a right-click context menu (the owner asked about a context menu and
  * it was ruled out: fights the native browser menu, undiscoverable, no touch support). Mirrors
- * `MediaPickerDialog.tsx`'s exact modal chrome (`.settings-dialog`/`.settings-dialog-backdrop`,
- * `role="dialog"`/`aria-modal`/`aria-labelledby`, Escape-to-close, backdrop-click-to-cancel,
+ * `MediaPickerDialog.tsx`'s native Jini modal owner (accessible title, Escape-to-close,
+ * backdrop-click-to-cancel,
  * `useDialog` injection seam) — the SAME modal pattern `MediaEmbedNodeView` already uses for its
  * own `Replace` action, per the owner's explicit direction to follow that established pattern
  * rather than invent a new one.
@@ -45,37 +46,33 @@ export interface MediaEditDialogProps {
 }
 
 export function MediaEditDialog({ initial, onSave, onCancel, showAlt = true, useDialog = useWiredMediaEditDialog }: MediaEditDialogProps) {
-  const { alt, cssClass, htmlAttributes, setAlt, setCssClass, setHtmlAttributes, htmlAttributesError, save, t, altRef } = useDialog(
+  const { alt, cssClass, htmlAttributes, setAlt, setCssClass, setHtmlAttributes, htmlAttributesError, save, t } = useDialog(
     initial,
     onSave,
     onCancel
   );
-  // aria-modal promises the background is unavailable; this is what keeps Tab from reaching it.
-  const dialogRef = useRef<HTMLDivElement | null>(null);
-  useFocusTrap(dialogRef);
-  const titleId = useId();
+  // Native modality keeps Tab inside; Jini also restores the opener when this dialog unmounts.
   const altId = useId();
   const cssClassId = useId();
   const htmlAttributesId = useId();
 
   return (
-    <div className="settings-dialog-backdrop" onClick={onCancel}>
+    <Dialog open title={showAlt ? t("Edit this instance") : t("Style")} onClose={() => onCancel()}
+      className="settings-dialog tovu-domain-dialog media-node-edit-dialog">
       {/* `media-node-edit-dialog`, NOT `media-edit-dialog` — that exact class name is already
           taken by `Media.tsx`'s unrelated native `<dialog>` asset-metadata editor
           (`styles/media.css`'s EDIT MODAL block), which sets its own `border`/`padding`/
           `max-width`/`width` on the bare class. Reusing that name here would leak those rules
-          onto this plain `<div>` modal (an extra border, a wider max-width, altered padding),
+          onto this instance editor (an extra border, a wider max-width, altered padding),
           producing chrome that silently drifts from `MediaPickerDialog`'s clean `.settings-dialog`
           + unique-marker-class pattern this file's header says it mirrors. */}
-      <div ref={dialogRef} className="settings-dialog media-node-edit-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId} onClick={(e) => e.stopPropagation()}>
-        <h2 id={titleId}>{showAlt ? t("Edit this instance") : t("Style")}</h2>
 
         {showAlt ? (
           <div className="field">
             <label className="field-label" htmlFor={altId}>
               {t("Alt text (optional)")}
             </label>
-            <input ref={altRef} id={altId} value={alt} onChange={(e) => setAlt(e.target.value)} />
+            <input data-jini-autofocus="" id={altId} value={alt} onChange={(e) => setAlt(e.target.value)} />
           </div>
         ) : null}
 
@@ -84,9 +81,9 @@ export function MediaEditDialog({ initial, onSave, onCancel, showAlt = true, use
             {t("CSS class (optional)")}
           </label>
           {/* When Alt is hidden (`showAlt={false}`), this is the first field in the dialog, so it
-              takes the always-present focus target the hook otherwise points at Alt — see
+              takes the always-present native focus target otherwise marked on Alt — see
               `MediaEditDialog.hooks.tsx`'s own header on why a focus target must always exist. */}
-          <input ref={showAlt ? undefined : altRef} id={cssClassId} value={cssClass} onChange={(e) => setCssClass(e.target.value)} />
+          <input data-jini-autofocus={showAlt ? undefined : ""} id={cssClassId} value={cssClass} onChange={(e) => setCssClass(e.target.value)} />
         </div>
 
         {/* Same live, as-you-type hint `EditMediaPanel`'s asset-level field shows — never gates
@@ -114,7 +111,6 @@ export function MediaEditDialog({ initial, onSave, onCancel, showAlt = true, use
             </button>
           </span>
         </div>
-      </div>
-    </div>
+    </Dialog>
   );
 }

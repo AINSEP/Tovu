@@ -116,7 +116,7 @@ describe("deployment-i18n — Static Site credential row and publish step", () =
 
   it.each(ADMIN_LOCALES)("%s translates every string the Static Site tab shows", (locale) => {
     for (const key of plain) {
-      const value = t(locale, key);
+      const value = t({ locale: locale, key: key });
       expect(value, `${locale}: ${key}`).not.toBe(key);
       expect(value.trim(), `${locale}: ${key}`).not.toBe("");
     }
@@ -124,19 +124,19 @@ describe("deployment-i18n — Static Site credential row and publish step", () =
 
   it.each(ADMIN_LOCALES)("%s keeps each summary template's placeholder, so the host, time and account land where its grammar puts them", (locale) => {
     for (const [key, token] of Object.entries(templates)) {
-      const value = t(locale, key);
+      const value = t({ locale: locale, key: key });
       expect(value, `${locale}: ${key}`).not.toBe(key);
       expect(value, `${locale}: ${key}`).toContain(token);
     }
   });
 
   it("the connected line says 'as' once: '{host} connected' carries no 'as'", () => {
-    expect(t("es", "{host} connected")).toBe("{host} conectado");
-    expect(t("es", "connected as {account}")).toBe("conectado como {account}");
+    expect(t({ locale: "es", key: "{host} connected" })).toBe("{host} conectado");
+    expect(t({ locale: "es", key: "connected as {account}" })).toBe("conectado como {account}");
   });
 
   it("drops the generic project-name copy: every host names its own field or has none", () => {
-    expect(t("es", "The host finds or creates a project with this name on every publish.")).toBe(
+    expect(t({ locale: "es", key: "The host finds or creates a project with this name on every publish." })).toBe(
       "The host finds or creates a project with this name on every publish."
     );
   });

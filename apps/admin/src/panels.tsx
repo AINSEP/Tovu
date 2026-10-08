@@ -16,7 +16,6 @@ import { IntegrationDeliveries, IntegrationsRedirect } from "./features/integrat
 import { Providers } from "./features/providers";
 import { Users } from "./features/users";
 import { Authentication } from "./features/authentication";
-import { Payments } from "./features/commerce";
 import { Roles } from "./features/roles";
 import { SettingsUi } from "./features/settings";
 import { Seo } from "./features/seo";
@@ -115,7 +114,6 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
       label: "Overview",
       icon: '<rect x="2" y="2" width="6" height="6" rx="1.5"/><rect x="10" y="2" width="6" height="9" rx="1.5"/><rect x="2" y="10" width="6" height="6" rx="1.5"/><rect x="10" y="13" width="6" height="3" rx="1.5"/>',
     },
-    agentReachable: true,
   },
   {
     id: "sites",
@@ -188,7 +186,6 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
       group: "Content",
       icon: '<rect x="3" y="2" width="12" height="14" rx="1.5"/><path d="M6 6h6M6 9h6M6 12h4"/>',
     },
-    agentReachable: true,
   },
   {
     id: "posts",
@@ -219,7 +216,6 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
       group: "Content",
       icon: '<circle cx="3.5" cy="4.5" r="1"/><path d="M6.5 4.5h9"/><circle cx="3.5" cy="9" r="1"/><path d="M6.5 9h9"/><circle cx="3.5" cy="13.5" r="1"/><path d="M6.5 13.5h6"/>',
     },
-    agentReachable: true,
     routes: [{ pattern: "/:postId", view: "post-editor" }],
   },
   {
@@ -236,7 +232,6 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
       group: "Content",
       icon: '<rect x="2" y="3" width="14" height="11" rx="1.5"/><path d="M2 11l4-3 3 2 3-3 4 3"/><circle cx="6" cy="6.5" r="1"/>',
     },
-    agentReachable: true,
   },
   {
     id: "collections",
@@ -264,7 +259,6 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
       group: "Content",
       icon: '<rect x="2.5" y="4" width="13" height="10" rx="1.5"/><path d="M2.5 7.5h13M6 4V2.5M12 4V2.5"/>',
     },
-    agentReachable: true,
     routes: [
       { pattern: "/:contentTypeKey/:entryId", view: "collection-entry-editor" },
       { pattern: "/:contentTypeKey", view: "collection-entries" },
@@ -288,7 +282,6 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
       group: "Content",
       icon: '<path d="M4 3h10M4 7h10M4 11h6M2 3v.01M2 7v.01M2 11v.01"/>',
     },
-    agentReachable: true,
     routes: [
       { pattern: "/new", view: "menu-editor" },
       { pattern: "/:menuId", view: "menu-editor" },
@@ -319,7 +312,6 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
       group: "Content",
       icon: '<rect x="2" y="2" width="6" height="6" rx="1"/><rect x="10" y="2" width="6" height="6" rx="1"/><rect x="2" y="10" width="6" height="6" rx="1"/><rect x="10" y="10" width="6" height="6" rx="1"/>',
     },
-    agentReachable: true,
     routes: [
       // Widget regions is the one case in this manifest where the sidebar highlight and the id an
       // agent is told genuinely disagree, which is why `agentPageId` exists as a per-route field
@@ -348,7 +340,6 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
       // `posts`'/`members`' icons already use circles for their own dots).
       icon: '<path d="M15.4 10.1 10.1 15.4a1.5 1.5 0 0 1-2.1 0L1.5 9V1.5h7.5l6.4 6.4a1.5 1.5 0 0 1 0 2.1z"/><circle cx="5.3" cy="5.3" r="1"/>',
     },
-    agentReachable: true,
   },
   {
     id: "forms",
@@ -379,7 +370,6 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
       group: "Content",
       icon: '<rect x="3" y="2" width="12" height="14" rx="1.5"/><rect x="5.5" y="5.75" width="2" height="2" rx="0.5"/><path d="M9.5 6.75h3.5"/><rect x="5.5" y="10.25" width="2" height="2" rx="0.5"/><path d="M9.5 11.25h3.5"/>',
     },
-    agentReachable: true,
     // Longer pattern (2 segments) first, then the bare `/:formId` (1 segment) — same order
     // `collections` already uses for its own `/:contentTypeKey/:entryId` + `/:contentTypeKey` pair
     // above. Segment count alone disambiguates them (`matchRoute` tries each in order and keeps the
@@ -408,7 +398,6 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
       group: "People",
       icon: '<circle cx="9" cy="6" r="3"/><path d="M3 15c0-3.3 2.7-6 6-6s6 2.7 6 6"/>',
     },
-    agentReachable: true,
     routes: [{ pattern: "/change-password", view: "change-password" }],
   },
   {
@@ -453,7 +442,6 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
       group: "People",
       icon: '<rect x="2.5" y="4" width="13" height="10" rx="1.5"/><path d="M2.5 8h13M6 12h3"/>',
     },
-    agentReachable: true,
   },
   {
     id: "members",
@@ -464,7 +452,6 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
       group: "People",
       icon: '<circle cx="7" cy="6" r="2.5"/><path d="M2 15c0-2.8 2.2-5 5-5s5 2.2 5 5"/><path d="M12.5 6.5l1.3 1.3 2.2-2.5"/>',
     },
-    agentReachable: true,
   },
   {
     id: "comments",
@@ -483,7 +470,6 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
       soonPreviewable: true,
       icon: '<path d="M3 4h12v8H8l-3 3v-3H3V4z"/>',
     },
-    agentReachable: true,
   },
 
   // --- Studio ---
@@ -533,7 +519,6 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
       group: "Studio",
       icon: '<circle cx="6.2" cy="7" r="3.4"/><circle cx="11.8" cy="7" r="3.4"/><circle cx="9" cy="11.6" r="3.4"/>',
     },
-    agentReachable: true,
   },
   {
     id: "design-system",
@@ -588,7 +573,6 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
       group: "Studio",
       icon: '<path d="M4 3h10v3H4zM4 9h10v6H4z"/><circle cx="6.5" cy="12" r="1"/>',
     },
-    agentReachable: true,
   },
 
   // --- Add-Ons ---
@@ -656,7 +640,6 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
       group: "Add-Ons",
       icon: '<path d="M7 2v3H4v9h10V5h-3V2H7z"/>',
     },
-    agentReachable: true,
   },
   {
     id: "agent-plugins",
@@ -675,14 +658,12 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
       group: "Add-Ons",
       icon: '<circle cx="8" cy="8" r="2.25"/><path d="M8 2v2.25M8 11.75V14M2 8h2.25M11.75 8H14M4.5 4.5l1.6 1.6M9.9 9.9l1.6 1.6M4.5 11.5l1.6-1.6M9.9 6.1l1.6-1.6"/>',
     },
-    agentReachable: true,
   },
   {
     id: "skills",
     anyOfPermissions: ["admin.assistant.use"],
     render: () => <Skills />,
     nav: { label: "Skills", group: "Add-Ons", icon: '<path d="M9 2.5l1.9 4 4.4.6-3.2 3.1.8 4.3L9 12.5l-3.9 2 .8-4.3L2.7 7.1l4.4-.6z"/>' },
-    agentReachable: true,
   },
   {
     // Route id stays `providers` — this is the SAME panel that was labelled "Providers" before the
@@ -716,7 +697,6 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
       // INTO Tovu rather than connected to it either way.
       icon: '<rect x="2.5" y="4" width="13" height="10" rx="2"/><circle cx="6.5" cy="9" r="1.25"/><circle cx="11.5" cy="9" r="1.25"/>',
     },
-    agentReachable: true,
   },
   {
     // RETIRED as a nav row (second pass, this state) — no `nav` field, which per `AdminPanel`'s own
@@ -759,29 +739,10 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
           return <IntegrationsRedirect />;
       }
     },
-    agentReachable: true,
     routes: [{ pattern: "/:subscriptionId", view: "integration-deliveries" }],
   },
 
   // --- Commerce ---
-  {
-    id: "payments",
-    // Moved out of People (see git history for the prior comment on this panel, which correctly
-    // anticipated exactly this reshuffle once there was something to group with). This entry is
-    // provider configuration — the `lipay` plugin's Stripe/PayPal integrations — not the billing
-    // data itself; the `member_tiers`/`member_subscriptions` tables it charges against are their
-    // own `subscriptions` entry below. Commerce groups the two together with Orders and Products
-    // because all four are the same business function (running a storefront), which is a
-    // meaningfully different concern from People's identity/access management.
-    render: () => <Payments />,
-    nav: {
-      label: "Payments",
-      group: "Commerce",
-      soon: true,
-      soonPreviewable: true,
-      icon: '<rect x="2" y="4" width="14" height="10" rx="1.5"/><path d="M2 7.5h14"/><path d="M4.5 11h3"/>',
-    },
-  },
   {
     id: "orders",
     // No screen yet — `soon: true` + `Placeholder`, the same shape `skills`/`newsletter`/
@@ -886,7 +847,6 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
       group: "Operations",
       icon: '<ellipse cx="9" cy="4.5" rx="6" ry="2.2"/><path d="M3 4.5v9c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2v-9"/><path d="M3 9c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2"/>',
     },
-    agentReachable: true,
   },
   {
     id: "recovery",
@@ -903,7 +863,6 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
       group: "Operations",
       icon: '<path d="M9 2a7 7 0 107 7"/><path d="M9 5v4l2.5 1.5"/>',
     },
-    agentReachable: true,
   },
   {
     id: "deployment",
@@ -1007,8 +966,8 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
     // item.soonPreviewable` branch) rather than the disabled `is-soon` div a bare `soon: true` alone
     // would render. Renders `Observability.tsx`, a real screen whose Overview tab reads REAL current
     // state over `GET .../system/observability-status` (own
-    // `hooks/use-observability-status.hooks.ts`), same "a real, non-Placeholder component sets
-    // `agentReachable: true` explicitly" convention this file's `agent-plugins` entry documents.
+    // `hooks/use-observability-status.hooks.ts`), with the same
+    // default agent reachability: navigation exposes the screen, while controls opt in separately.
     // Positioned directly ahead of Activity Log / Import & Export (both still `soon`, unbuilt) —
     // same "a BUILT screen belongs beside its nearest neighbours in meaning, not buried under panels
     // nobody can use yet" reasoning `deployment`'s own comment gives for its position relative to
@@ -1026,7 +985,6 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
       // arc, source-control's two-nodes, access-tokens' shield).
       icon: '<rect x="2" y="3" width="14" height="11" rx="1.5"/><path d="M4.5 9h2l1.2-3 1.6 6 1.2-4.5 1 1.5h2.5"/>',
     },
-    agentReachable: true,
   },
   {
     id: "activity-log",
@@ -1075,7 +1033,6 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
       group: "Administration",
       icon: '<circle cx="9" cy="9" r="2.5"/><path d="M9 2v2M9 14v2M2 9h2M14 9h2M4.2 4.2l1.4 1.4M12.4 12.4l1.4 1.4M4.2 13.8l1.4-1.4M12.4 5.6l1.4-1.4"/>',
     },
-    agentReachable: true,
   },
   {
     // RETIRED as a nav row (2026-09-10, owner call) — no `nav` field, the same convention the
@@ -1104,7 +1061,6 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
     // retired-panel-with-a-redirect case; out of scope for this one-screen fold.
     id: "workspace",
     render: () => <WorkspaceRedirect />,
-    agentReachable: true,
   },
   {
     id: "notifications",
@@ -1140,7 +1096,6 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
       group: "Administration",
       icon: '<path d="M3.5 5h11M7 5V3.5h4V5M5 5l.8 9.5h6.4L13 5"/>',
     },
-    agentReachable: true,
   },
 
   // --- Marketing ---
@@ -1156,7 +1111,6 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
       group: "Marketing",
       icon: '<circle cx="8" cy="8" r="5.5"/><path d="M12 12l3.5 3.5"/>',
     },
-    agentReachable: true,
   },
   {
     id: "redirects",
@@ -1167,7 +1121,6 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
       group: "Marketing",
       icon: '<path d="M3 6h8a3 3 0 010 6H6M3 6l2.5-2.5M3 6l2.5 2.5"/>',
     },
-    agentReachable: true,
   },
   {
     id: "newsletter",
@@ -1194,7 +1147,6 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
       group: "Marketing",
       icon: '<path d="M3 15V9M8 15V4M13 15v-4"/>',
     },
-    agentReachable: true,
   },
 
   // --- Routable, no sidebar row (deliberate opt-out — see INFO.md "Adding a new admin section") ---
@@ -1206,6 +1158,5 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
     // explicit base, `Themes`' tab-switch `navigate()` would default to `/themes?tab=...` and silently
     // redirect an operator on this legacy alias to the other URL for the identical screen.
     render: (ctx) => <Themes tabId={ctx.query.get("tab")} basePath="/appearance" />,
-    agentReachable: true,
   },
 ];

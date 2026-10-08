@@ -1,19 +1,25 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, renderHook, screen, waitFor } from "@testing-library/react";
+import { act, render, renderHook, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 
-import { FetchQueryProvider, useCachedLoader, useFetchMutation, useFetchQuery, useInvalidate } from "..";
+import { FetchQueryProvider, useCachedLoader, useFetchMutation, useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 
 /**
- * @file Behavioural contract for `lib/fetch-query`.
+ * @file Admin behavioral contract for the published `@jini-ai/ui/fetch-query` owner.
  *
- * These assert the PROMISES THE INTERFACE MAKES, never TanStack's own
- * behaviour, and they import only from `..` — the public surface. That is
- * deliberate and load-bearing: this file is the acceptance suite a replacement
- * adapter has to pass, so if it referenced `@tanstack/*` types or internals it
- * would silently become untransferable and the rip-out claim in `index.ts`
- * would lose its evidence.
+ * These assert the promises the interface makes and import only from the published
+ * public surface. That is deliberate and load-bearing: reaching into cache internals
+ * would make this acceptance suite untransferable to a replacement implementation.
+ *
+ * Why the admin uses a shared cache: it originally had 38 files and 123 `api.*` call sites
+ * re-fetching on every mount with their own data/loading/error state. Leaving a settings
+ * tab and returning re-ran a 24-process CLI scan. Per-module memos fixed one instance of
+ * that cost but did not generalise; the shared implementation now belongs to Jini.
+ *
+ * Port-driven Jini components own their reads inside their own hooks, so this React cache
+ * never sees those requests. Their caching belongs in the host port implementation —
+ * `execution-settings.ts`'s `cachedDetection` is that case, rather than a missing query.
  *
  * Each `render` gets its own `FetchQueryProvider`, so each test starts from a
  * cold cache (the provider builds its client in a `useMemo` for exactly this
@@ -37,7 +43,7 @@ function deferred<T>() {
 }
 
 function Reader({ fetch, enabled }: { fetch: () => Promise<string>; enabled?: boolean }) {
-  const q = useFetchQuery({ key: ["thing"], fetch, ...(enabled === undefined ? {} : { enabled }) });
+  const q = useFetchQuery({ key: ["thing"], fetch }, { ...(enabled === undefined ? {} : { enabled }) });
   return (
     <div>
       <span data-testid="status">{q.status}</span>
@@ -52,11 +58,50 @@ function Reader({ fetch, enabled }: { fetch: () => Promise<string>; enabled?: bo
 }
 
 function DisabledReader({ fetch }: { fetch: () => Promise<string> }) {
-  const lazy = useFetchQuery({ key: ["thing"], fetch, enabled: false });
+  const lazy = useFetchQuery({ key: ["thing"], fetch }, { enabled: false });
   return <><span data-testid="lazy-status">{lazy.status}</span><span data-testid="lazy-error">{lazy.error?.message ?? "-"}</span></>;
 }
 
 describe("useFetchQuery", () => {
+  it("isolates the same resource key and its invalidation between providers", async () => {
+    const key = ["isolated-resource"] as const;
+    const firstFetch = vi.fn(async () => "first provider");
+    const secondFetch = vi.fn(async () => "second provider");
+    const first = renderHook(() => ({
+      query: useFetchQuery({ key, fetch: firstFetch }),
+      invalidate: useInvalidate(),
+    }), { wrapper: FetchQueryProvider });
+    const second = renderHook(() => useFetchQuery({ key, fetch: secondFetch }), { wrapper: FetchQueryProvider });
+
+    await waitFor(() => {
+      expect(first.result.current.query.data).toBe("first provider");
+      expect(second.result.current.data).toBe("second provider");
+    });
+    act(() => first.result.current.invalidate({ key }));
+    await waitFor(() => expect(firstFetch).toHaveBeenCalledTimes(2));
+    expect(secondFetch).toHaveBeenCalledTimes(1);
+    expect(second.result.current.data).toBe("second provider");
+  });
+
+  it("does not silently retry a failed read, but an explicit refresh can recover", async () => {
+    vi.useFakeTimers();
+    try {
+      const fetch = vi.fn().mockRejectedValueOnce(new Error("denied")).mockResolvedValue("recovered");
+      const { result } = renderHook(() => useFetchQuery({ key: ["no-silent-retry"], fetch }), { wrapper: FetchQueryProvider });
+      // Advancing beyond retry delays catches a delayed retry that an immediate count would miss.
+      await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+      expect(fetch).toHaveBeenCalledTimes(1);
+      expect(result.current.status).toBe("error");
+      expect(result.current.error?.message).toBe("denied");
+
+      await act(async () => { result.current.refetch(); });
+      expect(fetch).toHaveBeenCalledTimes(2);
+      expect(result.current.data).toBe("recovered");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("reports loading, then success with the resolved data", async () => {
     wrap(<Reader fetch={async () => "hello"} />);
     expect(screen.getByTestId("status")).toHaveTextContent("loading");
@@ -119,7 +164,7 @@ describe("useFetchQuery", () => {
   /**
    * Regression — external review, 2026-08-01/02, round 2. The test above only
    * covers a key that NEVER succeeded. A key that succeeded once and then
-   * failed on a LATER background refresh keeps its stale `data` — TanStack
+   * failed on a LATER background refresh keeps its stale `data` — the cache
    * does not clear `data` on a refetch error — and disabling it at that point
    * must not silently launder that into an unqualified success: the data is
    * still real and worth showing (`status` stays `'success'`), but `error`
@@ -168,23 +213,26 @@ describe("useFetchQuery", () => {
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
-  it("uses explicit staleTime across remounts, refetching only after that interval", async () => {
+  it.each([
+    { label: "explicit", staleTime: 60_000, interval: 60_000 },
+    { label: "default", staleTime: undefined, interval: 10_000 },
+  ])("uses $label staleTime across remounts, refetching only after that interval", async ({ staleTime, interval }) => {
     const clock = vi.spyOn(Date, "now").mockReturnValue(1_000_000);
     const fetch = vi.fn().mockResolvedValueOnce("fresh").mockResolvedValue("refreshed");
     function StaleReader() {
-      const q = useFetchQuery<string>({ key: ["stale-thing"], fetch, staleTime: 60_000 });
+      const q = useFetchQuery<string>({ key: ["stale-thing"], fetch }, { ...(staleTime === undefined ? {} : { staleTime }) });
       return <span data-testid="data">{q.data ?? "-"}</span>;
     }
     try {
       const { rerender } = wrap(<StaleReader />);
       await waitFor(() => expect(screen.getByTestId("data")).toHaveTextContent("fresh"));
       rerender(<FetchQueryProvider>{null}</FetchQueryProvider>);
-      clock.mockReturnValue(1_059_999);
+      clock.mockReturnValue(1_000_000 + interval - 1);
       rerender(<FetchQueryProvider><StaleReader /></FetchQueryProvider>);
       expect(screen.getByTestId("data")).toHaveTextContent("fresh");
       expect(fetch).toHaveBeenCalledTimes(1);
       rerender(<FetchQueryProvider>{null}</FetchQueryProvider>);
-      clock.mockReturnValue(1_060_001);
+      clock.mockReturnValue(1_000_000 + interval + 1);
       rerender(<FetchQueryProvider><StaleReader /></FetchQueryProvider>);
       await waitFor(() => expect(screen.getByTestId("data")).toHaveTextContent("refreshed"));
       expect(fetch).toHaveBeenCalledTimes(2);
@@ -231,7 +279,7 @@ function Writer({
   fetch: () => Promise<string>;
 }) {
   const q = useFetchQuery({ key: ["thing"], fetch });
-  const m = useFetchMutation({ run, ...(invalidates ? { invalidates } : {}) });
+  const m = useFetchMutation({ run }, { ...(invalidates ? { invalidates } : {}) });
   return (
     <div>
       <span data-testid="data">{q.data ?? "-"}</span>
@@ -240,7 +288,7 @@ function Writer({
       {/* Deliberately NO `.catch()` — this is the documented fire-and-forget
           form, and a local catch here would make the unhandledrejection test
           below pass no matter what the adapter does. */}
-      <button type="button" onClick={() => void m.mutate(undefined as never)}>
+      <button type="button" onClick={() => void m.mutate({ input: undefined as never })}>
         write
       </button>
       <button type="button" onClick={m.reset}>
@@ -307,9 +355,8 @@ describe("useFetchMutation", () => {
    * runner." That claim was half right: jsdom's `window` `unhandledrejection`
    * event genuinely does not fire under vitest+jsdom. But Node's own
    * `process.on('unhandledRejection', ...)` hook DOES fire here, and it
-   * cleanly discriminates the bug from the fix — reverting `adapter.tsx`'s
-   * `call` to the pre-fix `useCallback((input) => mutateAsync(input), ...)`
-   * (bare, no handler attached) makes this test fail.
+   * cleanly discriminates the bug from the fix — returning a bare rejecting
+   * mutation promise without the owner's attached handler makes this test fail.
    *
    * `process.on`/`process.off` are paired in a `finally` so a failing
    * assertion still removes the listener rather than leaking it into a later
@@ -360,7 +407,7 @@ describe("useFetchMutation", () => {
   /**
    * Coverage-gap-fill (2026-09-05). No test in this file ever asserted `m.status === "pending"`
    * directly, so the status derivation's `mutation.status === "pending" ? "pending" : ...` ternary
-   * (adapter.tanstack.tsx) had only ever taken its `false` branch. A deferred `run` holds the write
+   * (Jini's React adapter) had only ever taken its `false` branch. A deferred `run` holds the write
    * open long enough to observe the in-flight render.
    */
   it("reports status 'pending' while the write is in flight, before it settles either way", async () => {
@@ -384,7 +431,7 @@ describe("useFetchMutation", () => {
           type="button"
           onClick={async () => {
             try {
-              await m.mutate(undefined as never);
+              await m.mutate({ input: undefined as never });
               seen.push("resolved");
             } catch (e) {
               seen.push(`caught:${(e as Error).message}`);
@@ -424,7 +471,7 @@ describe("invalidation matching", () => {
         <div>
           <span data-testid="list">{list.data ?? "-"}</span>
           <span data-testid="child">{child.data ?? "-"}</span>
-          <button type="button" onClick={() => invalidate(["redirects"])}>
+          <button type="button" onClick={() => invalidate({ key: ["redirects"] })}>
             push
           </button>
         </div>
@@ -452,7 +499,7 @@ describe("invalidation matching", () => {
         <div>
           <span data-testid="other">{other.data ?? "-"}</span>
           <span data-testid="sentinel">{sentinel.data ?? "-"}</span>
-          <button type="button" onClick={() => invalidate(["redirects"])}>
+          <button type="button" onClick={() => invalidate({ key: ["redirects"] })}>
             push
           </button>
         </div>
@@ -477,7 +524,7 @@ describe("useInvalidate", () => {
       return (
         <div>
           <span data-testid="data">{q.data ?? "-"}</span>
-          <button type="button" onClick={() => invalidate(["thing"])}>
+          <button type="button" onClick={() => invalidate({ key: ["thing"] })}>
             push
           </button>
         </div>
@@ -495,7 +542,7 @@ describe("useCachedLoader", () => {
   const KEY = ["loader-thing"] as const;
 
   function renderLoader(fetch: () => Promise<string>, staleTime?: number) {
-    return renderHook(() => useCachedLoader({ key: KEY, fetch, ...(staleTime === undefined ? {} : { staleTime }) }), {
+    return renderHook(() => useCachedLoader({ key: KEY, fetch }, { ...(staleTime === undefined ? {} : { staleTime }) }), {
       wrapper: FetchQueryProvider,
     });
   }
@@ -536,7 +583,7 @@ describe("useCachedLoader", () => {
     const { result } = renderLoader(fetch, Infinity);
 
     await result.current.load();
-    result.current.replace("v2");
+    result.current.replace({ value: "v2" });
 
     await expect(result.current.load()).resolves.toBe("v2");
     expect(fetch).toHaveBeenCalledTimes(1);
@@ -547,7 +594,7 @@ describe("useCachedLoader", () => {
     const { result } = renderLoader(() => gate.promise, Infinity);
 
     const inFlight = result.current.load();
-    result.current.replace("v2");
+    result.current.replace({ value: "v2" });
     gate.resolve("v1");
 
     await expect(inFlight).resolves.toBe("v2");

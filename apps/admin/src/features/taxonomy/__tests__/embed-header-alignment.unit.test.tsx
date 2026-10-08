@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { expect, it } from "vitest";
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 import { Taxonomy } from "../Taxonomy";
 import { useTaxonomy } from "../hooks/use-taxonomy.hooks";
 import { createFakeTaxonomyPort } from "../hooks/taxonomy-dependencies.hooks";

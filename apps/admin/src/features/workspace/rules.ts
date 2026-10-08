@@ -21,9 +21,9 @@ import { t } from "./workspace-i18n";
  */
 export function describeApiError(e: unknown, fallback: string, locale: string): string {
   if (e instanceof ApiError) {
-    if (e.code === "FORBIDDEN") return t(locale, "You do not have permission to do that.");
-    if (e.code === "RESOURCE_CONFLICT") return t(locale, "That slug is already in use.");
-    if (e.code === "VALIDATION_ERROR") return e.message || t(locale, "Please correct the highlighted fields.");
+    if (e.code === "FORBIDDEN") return t({ locale: locale, key: "You do not have permission to do that." });
+    if (e.code === "RESOURCE_CONFLICT") return t({ locale: locale, key: "That slug is already in use." });
+    if (e.code === "VALIDATION_ERROR") return e.message || t({ locale: locale, key: "Please correct the highlighted fields." });
   }
   return describeApiErrorDefault(e, fallback);
 }

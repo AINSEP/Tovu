@@ -5,11 +5,11 @@ import { sourceControlCredentialSaveErrorMessage, sourceControlCredentialsLoadEr
 describe("Source Control dictionary assembly and error copy", () => {
   it("combines base provider copy with the Access Tokens link translations", () => {
     // Mutation: drop ACCESS_TOKEN_LINK_TRANSLATIONS from the assembly.
-    expect(t("de", "Replace token")).toBe("Token ersetzen");
-    expect(t("de", "Create access token")).toBe("Zugriffstoken erstellen");
-    expect(t("fr", "Create access token")).toBe("Créer un jeton d’accès");
-    expect(t("xx", "Create access token")).toBe("Create access token");
-    expect(t("de", "extension copy")).toBe("extension copy");
+    expect(t({ locale: "de", key: "Replace token" })).toBe("Token ersetzen");
+    expect(t({ locale: "de", key: "Create access token" })).toBe("Zugriffstoken erstellen");
+    expect(t({ locale: "fr", key: "Create access token" })).toBe("Créer un jeton d’accès");
+    expect(t({ locale: "xx", key: "Create access token" })).toBe("Create access token");
+    expect(t({ locale: "de", key: "extension copy" })).toBe("extension copy");
   });
 
   it.each(["en", "de", "xx"])("interpolates load and save failures with English fallback in %s", (locale) => {

@@ -1,4 +1,4 @@
-import { formatTimestamp } from "../../lib/format-timestamp";
+import { formatTimestamp } from "@jini-ai/ui/panel-kit";
 import { agentHandle } from "@jini-ai/agentic";
 import { isWorkspaceDirty } from "./rules";
 import { useWiredWorkspace } from "./hooks/use-workspace.hooks";
@@ -68,7 +68,7 @@ function WorkspaceFormStatus(props: { locale: string; saveError: string | null; 
   return (
     <>
       {saveError ? <span className="save-error">{saveError}</span> : null}
-      {saved && !dirty ? <span className="save-success">{t(locale, "Saved.")}</span> : null}
+      {saved && !dirty ? <span className="save-success">{t({ locale: locale, key: "Saved." })}</span> : null}
     </>
   );
 }
@@ -140,7 +140,7 @@ export function Workspace({ useWorkspaceHook = useWiredWorkspace, showPageHeader
                 exact class of bug `format-timestamp.ts`'s own file header describes fixing at ~a
                 dozen other call sites; this one was missed. Same shared helper, same YYYY-MM-DD
                 HH:MM display, no new formatting logic. */}
-            <span>{formatTimestamp(workspace.createdAt)}</span>
+            <span>{formatTimestamp({ iso: workspace.createdAt }, { timeZone: "local" })}</span>
           </div>
         </div>
       </form>

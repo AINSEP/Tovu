@@ -1,4 +1,6 @@
-import { isTerminalRunStatus, type ChatMessage } from "@jini-ai/chat/core";
+import type { ChatMessage } from "@jini-ai/chat/core";
+import * as sharedMessages from "@jini-ai/chat/transports/http";
+import { ApiError, authenticatedAdminRequest, type AuthenticatedAdminRequestOptions } from "./api";
 
 /**
  * @file The admin's client for `/api/assistant/chats` — the browser half of durable transcripts.
@@ -16,16 +18,14 @@ import { isTerminalRunStatus, type ChatMessage } from "@jini-ai/chat/core";
  * which point the daemon should persist as it streams rather than the browser persisting at all.
  */
 
-const BASE = "/api/assistant/chats";
+const CHAT_REQUEST_OPTIONS: AuthenticatedAdminRequestOptions = {
+  basePath: "/api/assistant/chats",
+  requireJson: true,
+  errorFactory: ({ response, error }) => new HttpError(response.status, response.statusText, { code: error.code, body: error.body }),
+};
 
-export interface AssistantConversation {
-  id: string;
-  title: string | null;
-  titleSource: "fallback" | "generated" | "manual";
-  messageCount: number;
-  createdAt: number;
-  updatedAt: number;
-}
+export type { AssistantConversation } from "@jini-ai/chat/transports/http";
+import type { AssistantConversation } from "@jini-ai/chat/transports/http";
 
 /**
  * A non-2xx response, carrying the status code rather than only rendering it into a message.
@@ -35,27 +35,19 @@ export interface AssistantConversation {
  * `Error(`${status} ${statusText}`)` forced any caller that cared to parse the number back out of
  * the string, which is the kind of thing that keeps working until someone changes the wording.
  */
-export class HttpError extends Error {
-  readonly status: number;
-
-  constructor(status: number, statusText: string) {
-    super(`${status} ${statusText}`);
+export class HttpError extends ApiError {
+  constructor(status: number, statusText: string, { code, body }: { code?: string; body?: Record<string, unknown> } = {}) {
+    super(`${status} ${statusText}`, status, code, body);
     this.name = "HttpError";
-    this.status = status;
   }
 }
 
-async function json<T>(response: Response): Promise<T> {
-  if (!response.ok) throw new HttpError(response.status, response.statusText);
-  return (await response.json()) as T;
-}
-
 export async function listConversations(): Promise<AssistantConversation[]> {
-  const { conversations } = await json<{ conversations: AssistantConversation[] }>(
-    await fetch(BASE, { credentials: "same-origin" }),
+  const { conversations } = await authenticatedAdminRequest<{ conversations: AssistantConversation[] }>(
+    { path: "", method: "GET" }, CHAT_REQUEST_OPTIONS,
   );
   /*
-   * Coerced, not trusted. `json()` only guarantees the body parsed — not that it has the shape the
+   * Coerced, not trusted. The transport only guarantees the body parsed — not that it has the shape the
    * type annotation claims. A 200 whose body lacks `conversations` returned `undefined` from a
    * function typed `Promise<AssistantConversation[]>`, and `useAssistantChats`'s
    * `.catch(() => [])` does not help: there is no rejection to catch.
@@ -71,39 +63,27 @@ export async function listConversations(): Promise<AssistantConversation[]> {
 
 /** `firstMessage` seeds the local title heuristic; omit it for an untitled empty chat. */
 export async function createConversation(firstMessage?: string): Promise<AssistantConversation> {
-  const { conversation } = await json<{ conversation: AssistantConversation }>(
-    await fetch(BASE, {
-      method: "POST",
-      credentials: "same-origin",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(firstMessage === undefined ? {} : { firstMessage }),
-    }),
+  const { conversation } = await authenticatedAdminRequest<{ conversation: AssistantConversation }>(
+    { path: "", method: "POST", body: firstMessage === undefined ? {} : { firstMessage } }, CHAT_REQUEST_OPTIONS,
   );
   return conversation;
 }
 
 export async function renameConversation(id: string, title: string): Promise<void> {
-  await json(
-    await fetch(`${BASE}/${encodeURIComponent(id)}`, {
-      method: "PATCH",
-      credentials: "same-origin",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ title }),
-    }),
+  await authenticatedAdminRequest(
+    { path: `/${encodeURIComponent(id)}`, method: "PATCH", body: { title } }, CHAT_REQUEST_OPTIONS,
   );
 }
 
 export async function deleteConversation(id: string): Promise<void> {
-  const response = await fetch(`${BASE}/${encodeURIComponent(id)}`, {
-    method: "DELETE",
-    credentials: "same-origin",
-  });
-  if (!response.ok) throw new HttpError(response.status, response.statusText);
+  await authenticatedAdminRequest(
+    { path: `/${encodeURIComponent(id)}`, method: "DELETE" }, { ...CHAT_REQUEST_OPTIONS, requireJson: false },
+  );
 }
 
 export async function loadMessages(conversationId: string): Promise<ChatMessage[]> {
-  const { messages } = await json<{ messages: ChatMessage[] }>(
-    await fetch(`${BASE}/${encodeURIComponent(conversationId)}/messages`, { credentials: "same-origin" }),
+  const { messages } = await authenticatedAdminRequest<{ messages: ChatMessage[] }>(
+    { path: `/${encodeURIComponent(conversationId)}/messages`, method: "GET" }, CHAT_REQUEST_OPTIONS,
   );
   // Same coercion, same reason as `listConversations` above: this feeds `ChatPane`'s
   // `initialMessages`, and an `undefined` transcript is not a state any consumer is typed for.
@@ -111,85 +91,14 @@ export async function loadMessages(conversationId: string): Promise<ChatMessage[
 }
 
 export async function saveMessage(conversationId: string, message: ChatMessage): Promise<void> {
-  await json(
-    await fetch(
-      `${BASE}/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(message.id)}`,
-      {
-        method: "PUT",
-        credentials: "same-origin",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(message),
-      },
-    ),
+  await authenticatedAdminRequest(
+    { path: `/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(message.id)}`, method: "PUT", body: message },
+    CHAT_REQUEST_OPTIONS,
   );
 }
-
-/**
- * The subset of a live transcript that is worth writing: user turns, and assistant turns whose run
- * has reached a terminal status.
- *
- * An assistant message that is still `queued` or `running` is rewritten on every delta, so
- * persisting it would turn one reply into hundreds of writes for a row that is about to be
- * replaced anyway.
- *
- * A `failed`/`canceled` assistant turn with EMPTY content is kept deliberately, and this is the
- * place a future "stop writing those, they are just noise" change would land — don't (2026-09-11
- * chat-lifecycle repair, Defect 3). The row's `events_json` is the only durable record of why the
- * run died: the daemon's own event log is in-memory and gone with the process, so the stored
- * `"Run failed — the agent process exited without answering"` notice with its exit code and signal
- * is all that survives, and the pane renders it on reload. The real problem those rows caused was
- * being replayed into the NEXT run's prompt as if they were answers, and that is fixed on the read
- * side instead — see `assistant-transport.ts`'s `historyForTranscript`/`isAnsweredAssistantTurn`.
- * Deleting them here would trade a history bug for a forensics hole.
- */
-export function persistableMessages(messages: ChatMessage[]): ChatMessage[] {
-  return messages.filter(
-    (message) => message.role === "user" || isTerminalRunStatus({ status: message.runStatus }),
-  );
-}
-
-/**
- * The key the admin's chat writers use to remember "this message is already saved": the message id,
- * plus the run id when there is one.
- *
- * The run id is part of the key because `@jini-ai/chat`'s `retry` keeps the assistant message id and
- * starts a NEW run under it. Keyed by id alone, the first run had already marked the id saved, so the
- * retry's in-flight stub was never written (and the API finalizer never followed it) and its final
- * answer was never saved either. A message with no run id (a user turn, an old row) keys by id alone.
- */
-export function messageWriteKey(message: Pick<ChatMessage, "id" | "runId">): string {
-  return message.runId === undefined ? message.id : `${message.id}:${message.runId}`;
-}
-
-/**
- * The one message worth a durable "this run is in flight" stub write — the newest message, if it is
- * a non-terminal assistant turn that has acquired a `runId`. `null` when there is nothing to record.
- *
- * Exists for reattach (2026-09-11 investigation): {@link persistableMessages} above deliberately
- * never durably writes a `queued`/`running` assistant row (this file's own module doc explains why —
- * avoiding a write per streamed token), which means today a run's `runId` exists NOWHERE outside the
- * live browser tab that started it. Reload the tab, switch conversations and back, or lose the tab
- * to a crash mid-run, and the id needed to resume watching that run is gone even though the run
- * itself is still going server-side — there is nothing left for a reattach to find. `useAssistantChats`'s
- * `persistRunStub` calls this once per `onMessagesChange` delta and writes at most once per message
- * id (see that function's own doc), so this adds exactly one extra `PUT` per run, not one per token.
- *
- * Scoped to the LAST message only, not "any non-terminal assistant message anywhere in the array":
- * `useConversation.ts`'s `sendMessage`/`retry` always append the run's assistant placeholder last,
- * so a non-terminal row earlier in the array can only be a stale leftover from an earlier defect or
- * race — recording ITS id as "the current run" would point a future reattach at the wrong turn.
- *
- * `saveMessage`'s server-side route upserts by message id (`ON CONFLICT(id) DO UPDATE`,
- * `Jini/packages/sqlite`'s `chat-history/store.ts`), so this stub write and the message's eventual
- * terminal-state write (through the normal {@link persistableMessages} path) converge on the same
- * row rather than creating two — the terminal write simply overwrites `run_status`/`content`/
- * `events_json` in place once the run settles.
- *
- * @complexity O(1) — reads only the last array element, unlike {@link persistableMessages}'s O(n)
- *   scan, so calling this on every delta alongside the existing `flush` call costs nothing material.
- */
-export function activeRunStub(messages: ChatMessage[]): ChatMessage | null {
-  const last = messages.at(-1);
-  if (!last || last.role !== "assistant" || last.runId === undefined) return null;
-  return isTerminalRunStatus({ status: last.runStatus }) ? null : last;
-}
+/** Compatibility adapter; shared message selection is owned by Jini. */
+export function persistableMessages(messages: ChatMessage[]): ChatMessage[]  { return sharedMessages.persistableMessages({ messages }, {}); }
+/** Compatibility adapter; shared message selection is owned by Jini. */
+export function messageWriteKey(message: Pick<ChatMessage, "id" | "runId">): string  { return sharedMessages.messageWriteKey({ message }, {}); }
+/** Compatibility adapter; shared message selection is owned by Jini. */
+export function activeRunStub(messages: ChatMessage[]): ChatMessage | null  { return sharedMessages.activeRunStub({ messages }, {}); }

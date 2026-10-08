@@ -1,9 +1,9 @@
 import { agentHandle } from "@jini-ai/agentic";
 
 import { describeApiError, type AdminSitesSnapshot } from "../../lib/api";
-import type { Translate } from "../../lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 import { navigate } from "../../lib/router";
-import { TabBar } from "../../components/TabBar";
+import { TabBar } from "@jini-ai/ui/tab-strip";
 import { AllSitesTab } from "./AllSitesTab";
 import { CreateSiteOnboarding } from "./CreateSiteOnboarding";
 import { resolveSitesTabId, resolveSitesTabs, type SitesTabId } from "./Sites.hooks";
@@ -120,7 +120,7 @@ import { useWiredSites } from "./hooks/use-sites.hooks";
  * domain logic lives in `rules.ts`; derived values specific to this screen's own markup (a button's
  * `disabled`, a card's tooltip and badges, a card's agent handles) live in `Sites.hooks.tsx`, per that file's own
  * header. What stays here is what renders. `t` is threaded down as a prop from `Sites`'s own hook
- * rather than each subcomponent resolving its own — see `Redirects.tsx`'s header for the standing
+ * rather than each subcomponent resolving its own — see `Jini redirects/react/pages/RedirectsPage.tsx`'s header for the standing
  * i18n rule.
  */
 

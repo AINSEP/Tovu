@@ -1,8 +1,10 @@
 import { agentHandle } from "@jini-ai/agentic";
+import { Dialog } from "@jini-ai/ui-kit/react";
+import "../../styles/native-domain-dialogs.css";
 
 import type { PublishCriteria, PublishReportRow, PublishRequestResult, PublishScope } from "@tovu/publish-content-ui";
 
-import type { Translate } from "../../lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 import { overwriteTooltipFor, reportRowNote, reportRowPillClass, usePublishContentConfirm } from "./hooks/use-publish-content-confirm.hooks";
 import type { PublishContentPort } from "./hooks/publish-content-port.hooks";
 
@@ -36,10 +38,9 @@ import type { PublishContentPort } from "./hooks/publish-content-port.hooks";
  * every rule the hook applies comes from `@tovu/publish-content-ui` — the same module the server's
  * own planner semantics are pinned against. This component contains no publish logic at all.
  *
- * Markup, classes (`settings-dialog`/`settings-dialog-backdrop`, `btn-secondary`/`btn-primary`),
- * and behaviour (Escape-to-cancel via the paired hook, Cancel default-focused) mirror
- * `features/plugins/AgentPluginDisableConfirmDialog.tsx` — the most recent precedent for this shape
- * of dialog in this app. Confirm is `.btn-primary` here, not `.btn-danger`: publishing isn't
+ * Domain markup and actions retain the `settings-dialog`/`btn-secondary`/`btn-primary` styling.
+ * Jini owns native cancellation and initial Cancel focus; the original action hierarchy followed
+ * `features/plugins/AgentPluginDisableConfirmDialog.tsx` as the then-current precedent. Confirm is `.btn-primary` here, not `.btn-danger`: publishing isn't
  * destructive the way removing a plugin or an OAuth connection is, it's the app's one deliberate
  * primary action, so it gets the same burnt-orange fill `.btn-primary` already renders everywhere
  * else. Cancel stays the default-focused control anyway: publishing touches the live site and can
@@ -91,7 +92,6 @@ export interface PublishContentDialogProps {
 
 export function PublishContentDialog({ onCancel, t, port, criteria, scope, onPlanned, confirmArmDelayMs }: PublishContentDialogProps) {
   const view = usePublishContentConfirm({ onCancel, t, port, criteria, scope, onPlanned, confirmArmDelayMs });
-  const titleId = "dashboard-publish-content-confirm-title";
   // publish-overwrite-live-plan §4/S9. The column exists only while the peer this plan targets can
   // honour a forced overwrite AND at least one row is offering one — decided in the hook.
   const { showOverwriteColumn } = view;
@@ -174,15 +174,8 @@ export function PublishContentDialog({ onCancel, t, port, criteria, scope, onPla
   );
 
   return (
-    <div className="settings-dialog-backdrop" onClick={view.onDismiss}>
-      <div
-        className={`settings-dialog${view.rows.length > 0 ? " publish-content-dialog" : ""}`}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 id={titleId}>{t(view.title)}</h2>
+    <Dialog open title={t(view.title)} onClose={() => view.onDismiss()} pending={!view.dismissible}
+      className={`settings-dialog tovu-domain-dialog${view.rows.length > 0 ? " publish-content-dialog" : ""}`}>
         <p>{t(view.description)}</p>
         <p>{t("Anything edited on the live site is skipped unless you tick Overwrite on live.")}</p>
 
@@ -355,7 +348,7 @@ export function PublishContentDialog({ onCancel, t, port, criteria, scope, onPla
           <button
             type="button"
             className="btn-secondary"
-            autoFocus
+            data-jini-autofocus=""
             disabled={!view.dismissible}
             onClick={view.onDismiss}
             {...agentHandle({ handle: "dashboard-publish-content-cancel" }, {
@@ -402,7 +395,6 @@ export function PublishContentDialog({ onCancel, t, port, criteria, scope, onPla
             </button>
           )}
         </span>
-      </div>
-    </div>
+    </Dialog>
   );
 }

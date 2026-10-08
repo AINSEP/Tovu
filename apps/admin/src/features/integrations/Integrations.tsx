@@ -1,6 +1,6 @@
 import { DataTable, RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
-import { buildAgentListHandles } from "../../lib/agent-list-handles";
+import { buildAgentListHandles } from "@jini-ai/agentic";
 
 import { integrationRowMenuItems } from "./rules";
 import { useWiredIntegrations } from "./hooks/use-integrations.hooks";
@@ -58,7 +58,7 @@ function IntegrationCreateForm(props: {
     <form onSubmit={props.onSubmit} className="notice integrations-form form-measure">
       {props.formError ? <span className="save-error">{props.formError}</span> : null}
       <label>
-        {t(locale, "Label")}
+        {t({ locale: locale, key: "Label" })}
         <input
           value={props.label}
           onChange={(e) => props.onLabelChange(e.target.value)}
@@ -67,7 +67,7 @@ function IntegrationCreateForm(props: {
         />
       </label>
       <label>
-        {t(locale, "Target URL")}
+        {t({ locale: locale, key: "Target URL" })}
         <input
           value={props.targetUrl}
           onChange={(e) => props.onTargetUrlChange(e.target.value)}
@@ -77,7 +77,7 @@ function IntegrationCreateForm(props: {
         />
       </label>
       <label>
-        {t(locale, "Topics (comma-separated, e.g. post.published, post.*)")}
+        {t({ locale: locale, key: "Topics (comma-separated, e.g. post.published, post.*)" })}
         <input
           value={props.topics}
           onChange={(e) => props.onTopicsChange(e.target.value)}
@@ -91,7 +91,7 @@ function IntegrationCreateForm(props: {
           disabled={props.saving}
           {...agentHandle({ handle: "integrations-create-submit" }, { role: "button", label: "Create this webhook" })}
         >
-          {props.saving ? t(locale, "Saving…") : t(locale, "Create")}
+          {props.saving ? t({ locale: locale, key: "Saving…" }) : t({ locale: locale, key: "Create" })}
         </button>
         <button
           type="button"
@@ -99,7 +99,7 @@ function IntegrationCreateForm(props: {
           onClick={props.onCancel}
           {...agentHandle({ handle: "integrations-create-cancel" }, { role: "button", label: "Close this form without creating a webhook" })}
         >
-          {t(locale, "Cancel")}
+          {t({ locale: locale, key: "Cancel" })}
         </button>
       </span>
     </form>
@@ -107,7 +107,7 @@ function IntegrationCreateForm(props: {
 }
 
 /** The delete-webhook confirm dialog. Stays mounted unconditionally (driven by `open`), matching
- *  the `ConfirmDialog` convention `Comments.tsx`'s `QueuePurgeDialog` also follows. */
+ *  the `ConfirmDialog` convention `@jini-ai/admin/comments/react`'s `QueuePurgeDialog` also follows. */
 function IntegrationDeleteDialog(props: {
   locale: string;
   pendingDelete: { label: string } | null;
@@ -120,9 +120,9 @@ function IntegrationDeleteDialog(props: {
     <ConfirmDialog
       open={props.pendingDelete !== null}
       agentHandle="integrations-delete-webhook"
-      title={t(locale, "Delete webhook?")}
+      title={t({ locale: locale, key: "Delete webhook?" })}
       body={props.pendingDelete ? deleteWebhookBody(locale, props.pendingDelete.label) : null}
-      confirmLabel={t(locale, "Delete")}
+      confirmLabel={t({ locale: locale, key: "Delete" })}
       destructive
       pending={props.deleting}
       onConfirm={props.onConfirm}
@@ -160,9 +160,7 @@ export function Integrations({ useIntegrationsHook = useWiredIntegrations }: Int
 
   // Subscription ids are stable and unique, so they disambiguate one row's menu from another's —
   // same reasoning as every other list on this workstream.
-  const rowMenuHandles = buildAgentListHandles(
-    "integrations-row",
-    subscriptions.map((subscription) => subscription.id),
+  const rowMenuHandles = buildAgentListHandles({ prefix: "integrations-row", ids: subscriptions.map((subscription) => subscription.id) }
   );
 
   return (

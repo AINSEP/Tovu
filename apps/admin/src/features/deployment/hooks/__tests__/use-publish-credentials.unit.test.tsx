@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 import { ApiError, type AdminPublishCredentialSummary, type AdminPublishCredentialsSnapshot } from "@/lib/api";
 import { usePublishCredentials } from "../use-publish-credentials.hooks";
 import { createFakePublishCredentialsPort } from "../publish-credentials-dependencies.hooks";

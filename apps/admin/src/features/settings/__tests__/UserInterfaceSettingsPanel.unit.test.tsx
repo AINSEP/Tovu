@@ -85,8 +85,8 @@ describe("settings-interface-i18n", () => {
       "On: on narrow screens, tab rows wrap onto more lines so every tab is visible. Off: they stay on one row you swipe sideways.",
     ];
     const locales = ["es", "id", "de", "zh-CN", "zh-TW", "pt-BR", "ru", "fa", "ar", "ja", "ko", "pl", "hu", "fr", "uk", "tr", "th", "it", "hi", "ur", "bn"];
-    for (const locale of locales) for (const key of keys) expect(t(locale, key), `${locale}: ${key}`).not.toBe(key);
-    expect(t("es", "User Interface")).toBe("Interfaz de usuario");
-    expect(t("unlisted-locale", "User Interface")).toBe("User Interface");
+    for (const locale of locales) for (const key of keys) expect(t({ locale: locale, key: key }), `${locale}: ${key}`).not.toBe(key);
+    expect(t({ locale: "es", key: "User Interface" })).toBe("Interfaz de usuario");
+    expect(t({ locale: "unlisted-locale", key: "User Interface" })).toBe("User Interface");
   });
 });

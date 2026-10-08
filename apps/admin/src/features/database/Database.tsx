@@ -1,8 +1,8 @@
 import { type AdminLedgerRow } from "../../lib/api";
-import { formatTimestamp } from "../../lib/format-timestamp";
+import { formatTimestamp } from "@jini-ai/ui/panel-kit";
 import { DataTable } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
-import { buildAgentListHandles } from "../../lib/agent-list-handles";
+import { buildAgentListHandles } from "@jini-ai/agentic";
 import { ServerLabel } from "@/components/status-labels";
 
 import { navigateToRecoveryWithDeepLink, useWiredTimelineSection } from "./hooks/use-timeline-section.hooks";
@@ -10,15 +10,15 @@ import { useWiredMigrateForwardSection, type MigrateForwardSectionController } f
 import { useWiredSchemaStateSection } from "./hooks/use-schema-state-section.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { navigate } from "../../lib/router";
-import { resolveActiveTabId } from "../../lib/resolve-active-tab-id";
-import { TabBar, type TabBarTab } from "../../components/TabBar";
+import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
+import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
 import { MigrateForwardIcon, TimelineIcon } from "./database-visuals";
 import { t, planReadyMessage } from "./database-i18n";
 import { viewInRecoveryAccessibleName } from "./rules";
 
 /**
  * @file Database screen (design-spec.md §3, ADR-041) — the `/admin/database` route: the
- * read-first Timeline and the migrate-forward ceremony, behind a `TabBar` (`components/TabBar.tsx`)
+ * read-first Timeline and the migrate-forward ceremony, behind a `TabBar` (`@jini-ai/ui/tab-strip`)
  * with two tabs — Timeline, Migrate forward. Markup only.
  *
  * State and API calls live in `hooks/use-timeline-section.hooks.ts` and
@@ -64,7 +64,6 @@ import { viewInRecoveryAccessibleName } from "./rules";
  * `useAdminLocale()` for its own internal error-string translations (unrelated to this file), so
  * `t`/`locale` are sourced from each section's own hook rather than threaded down from `Database`
  * as a prop — that prop was redundant with a resolution each hook was already doing.
- * useRestorePointsSection (features/database/hooks/use-restore-points-section.hooks.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 
 const DATABASE_TAB_IDS = ["timeline", "migrate-forward"] as const;
@@ -75,7 +74,7 @@ type DatabaseTabId = (typeof DATABASE_TAB_IDS)[number];
  *  `Deployment.tsx`/`Security.tsx`/`SourceControl.tsx`/`Themes.tsx` and `SettingsUi.tsx`'s own
  *  `requestedTabId` all apply (a stale link or a typo must not blank the panel). */
 function resolveDatabaseTabId(tabId: string | null | undefined): DatabaseTabId {
-  return resolveActiveTabId(tabId, DATABASE_TAB_IDS, "timeline");
+  return resolveActiveTabId({ tabId: tabId, validIds: DATABASE_TAB_IDS, defaultId: "timeline" });
 }
 
 const KIND_OPTIONS = [
@@ -116,14 +115,14 @@ function TimelineFilterForm(props: {
   return (
     <form className="notice database-filter-bar toolbar" onSubmit={props.onSubmit}>
       <div className="field">
-        <label className="field-label" htmlFor="database-filter-kind">{t(locale, "Kind")}</label>
+        <label className="field-label" htmlFor="database-filter-kind">{t({ locale: locale, key: "Kind" })}</label>
         <select
           id="database-filter-kind"
           value={props.kind}
           onChange={(e) => props.onKindChange(e.target.value)}
           {...agentHandle({ handle: "database-filter-kind" }, { role: "field", label: "Filter the timeline by event kind" })}
         >
-          <option value="">{t(locale, "(any)")}</option>
+          <option value="">{t({ locale: locale, key: "(any)" })}</option>
           {KIND_OPTIONS.map((k) => (
             <option key={k} value={k}>
               {k}
@@ -132,17 +131,17 @@ function TimelineFilterForm(props: {
         </select>
       </div>
       <div className="field">
-        <label className="field-label" htmlFor="database-filter-outcome">{t(locale, "Outcome")}</label>
+        <label className="field-label" htmlFor="database-filter-outcome">{t({ locale: locale, key: "Outcome" })}</label>
         <input
           id="database-filter-outcome"
           value={props.outcome}
           onChange={(e) => props.onOutcomeChange(e.target.value)}
-          placeholder={t(locale, "e.g. success")}
+          placeholder={t({ locale: locale, key: "e.g. success" })}
           {...agentHandle({ handle: "database-filter-outcome" }, { role: "field", label: "Filter the timeline by outcome text" })}
         />
       </div>
       <div className="field">
-        <label className="field-label" htmlFor="database-filter-from">{t(locale, "From")}</label>
+        <label className="field-label" htmlFor="database-filter-from">{t({ locale: locale, key: "From" })}</label>
         <input
           id="database-filter-from"
           type="date"
@@ -152,7 +151,7 @@ function TimelineFilterForm(props: {
         />
       </div>
       <div className="field">
-        <label className="field-label" htmlFor="database-filter-to">{t(locale, "To")}</label>
+        <label className="field-label" htmlFor="database-filter-to">{t({ locale: locale, key: "To" })}</label>
         <input
           id="database-filter-to"
           type="date"
@@ -166,7 +165,7 @@ function TimelineFilterForm(props: {
         className="btn-secondary"
         {...agentHandle({ handle: "database-filter-apply" }, { role: "button", label: "Apply the timeline filters" })}
       >
-        {t(locale, "Apply filters")}
+        {t({ locale: locale, key: "Apply filters" })}
       </button>
     </form>
   );
@@ -188,15 +187,15 @@ function timelineColumns(
   cell: (row: AdminLedgerRow) => React.ReactNode;
 }> {
   return [
-    { key: "kind", header: t(locale, "Kind"), cell: (row) => row.kind },
+    { key: "kind", header: t({ locale: locale, key: "Kind" }), cell: (row) => row.kind },
     {
       key: "outcome",
-      header: t(locale, "Outcome"),
+      header: t({ locale: locale, key: "Outcome" }),
       cell: (row) => <span className={`status status-${row.outcome}`}><ServerLabel value={row.outcome} /></span>,
     },
     {
       key: "restore-point",
-      header: t(locale, "Restore point"),
+      header: t({ locale: locale, key: "Restore point" }),
       cell: (row: AdminLedgerRow) =>
         row.restorePointId ? (
           <button
@@ -213,13 +212,13 @@ function timelineColumns(
               label: "Open this ledger entry's restore point in Recovery",
             })}
           >
-            {t(locale, "View in Recovery →")}
+            {t({ locale: locale, key: "View in Recovery →" })}
           </button>
         ) : (
           "—"
         ),
     },
-    { key: "time", header: t(locale, "Time"), cell: (row) => formatTimestamp(row.createdAt) },
+    { key: "time", header: t({ locale: locale, key: "Time" }), cell: (row) => formatTimestamp({ iso: row.createdAt }, { timeZone: "local" }) },
   ];
 }
 
@@ -232,14 +231,12 @@ function TimelineBody(props: { locale: string; rows: AdminLedgerRow[]; nextCurso
     return (
       <div className="card">
         <div className="empty-state">
-          <p>{t(locale, "No database activity recorded yet.")}</p>
+          <p>{t({ locale: locale, key: "No database activity recorded yet." })}</p>
         </div>
       </div>
     );
   }
-  const restorePointHandles = buildAgentListHandles(
-    "database-timeline-restore-point",
-    props.rows.map((row) => row.id),
+  const restorePointHandles = buildAgentListHandles({ prefix: "database-timeline-restore-point", ids: props.rows.map((row) => row.id) }
   );
   const restorePointHandleById = new Map(props.rows.map((row, index) => [row.id, restorePointHandles[index]!]));
 
@@ -258,7 +255,7 @@ function TimelineBody(props: { locale: string; rows: AdminLedgerRow[]; nextCurso
           disabled={props.loadingMore}
           {...agentHandle({ handle: "database-timeline-load-more" }, { role: "button", label: "Load more timeline rows" })}
         >
-          {props.loadingMore ? t(locale, "Loading…") : t(locale, "Load more")}
+          {props.loadingMore ? t({ locale: locale, key: "Loading…" }) : t({ locale: locale, key: "Load more" })}
         </button>
       ) : null}
     </>
@@ -326,7 +323,7 @@ function PlanMigrationStep(props: { locale: string; busy: boolean; onStartPlan: 
       disabled={props.busy}
       {...agentHandle({ handle: "database-migrate-plan" }, { role: "button", label: "Plan the forward migration" })}
     >
-      {props.busy ? t(props.locale, "Planning…") : t(props.locale, "Plan migration")}
+      {props.busy ? t({ locale: props.locale, key: "Planning…" }) : t({ locale: props.locale, key: "Plan migration" })}
     </button>
   );
 }
@@ -346,7 +343,7 @@ function PlannedStep(props: { locale: string; plan: { planId: string }; busy: bo
         disabled={props.busy}
         {...agentHandle({ handle: "database-migrate-confirm" }, { role: "button", label: "Confirm the planned migration, issuing a one-time execution token" })}
       >
-        {props.busy ? t(props.locale, "Confirming…") : t(props.locale, "Confirm migration")}
+        {props.busy ? t({ locale: props.locale, key: "Confirming…" }) : t({ locale: props.locale, key: "Confirm migration" })}
       </button>
     </div>
   );
@@ -357,7 +354,7 @@ function PlannedStep(props: { locale: string; plan: { planId: string }; busy: bo
 function ConfirmedStep(props: { locale: string; busy: boolean; onExecute: () => void }) {
   return (
     <div className="notice">
-      <p>{t(props.locale, "Confirmed. Executing runs the migration now.")}</p>
+      <p>{t({ locale: props.locale, key: "Confirmed. Executing runs the migration now." })}</p>
       <button
         type="button"
         className="btn-warning"
@@ -365,7 +362,7 @@ function ConfirmedStep(props: { locale: string; busy: boolean; onExecute: () => 
         disabled={props.busy}
         {...agentHandle({ handle: "database-migrate-execute" }, { role: "button", label: "Execute the confirmed migration now" })}
       >
-        {props.busy ? t(props.locale, "Migrating…") : t(props.locale, "Execute migration")}
+        {props.busy ? t({ locale: props.locale, key: "Migrating…" }) : t({ locale: props.locale, key: "Execute migration" })}
       </button>
     </div>
   );
@@ -375,7 +372,7 @@ function ConfirmedStep(props: { locale: string; busy: boolean; onExecute: () => 
 function DoneStep(props: { locale: string }) {
   return (
     <div className="notice">
-      <p role="status">{t(props.locale, "Migration executed successfully.")}</p>
+      <p role="status">{t({ locale: props.locale, key: "Migration executed successfully." })}</p>
     </div>
   );
 }
@@ -503,8 +500,8 @@ export function Database(props: DatabaseProps) {
   // Icons (2026-09-06): the same icon-beside-label idiom every other `TabBar` row in this admin
   // carries — this was one of two rows still bare after the Media pass. See `database-visuals.tsx`.
   const tabs: TabBarTab[] = [
-    { id: "timeline", label: t(locale, "Timeline"), icon: <TimelineIcon /> },
-    { id: "migrate-forward", label: t(locale, "Migrate forward"), icon: <MigrateForwardIcon /> },
+    { id: "timeline", label: t({ locale: locale, key: "Timeline" }), icon: <TimelineIcon /> },
+    { id: "migrate-forward", label: t({ locale: locale, key: "Migrate forward" }), icon: <MigrateForwardIcon /> },
   ];
 
   function handleTabChange(nextTabId: string) {
@@ -515,16 +512,16 @@ export function Database(props: DatabaseProps) {
     <div className="page">
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">{t(locale, "Operations")}</p>
-          <h1 className="page-title">{t(locale, "Database")}</h1>
+          <p className="page-kicker">{t({ locale: locale, key: "Operations" })}</p>
+          <h1 className="page-title">{t({ locale: locale, key: "Database" })}</h1>
           <p className="page-description">
-            {t(locale, "A read-first record of every migration, snapshot, index change, and template upgrade on this site.")}
+            {t({ locale: locale, key: "A read-first record of every migration, snapshot, index change, and template upgrade on this site." })}
           </p>
         </div>
       </div>
       <SchemaStateWarningBanner />
       <TabBar
-        ariaLabel={t(locale, "Database")}
+        ariaLabel={t({ locale: locale, key: "Database" })}
         tabs={tabs}
         activeId={activeTabId}
         onChange={handleTabChange}

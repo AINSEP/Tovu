@@ -1,4 +1,5 @@
-import { createDictionaryTranslator } from "../../lib/dictionary-translator";
+import { COMMON_I18N } from "../../lib/i18n-common";
+import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 const PLAYGROUND_DICT: Record<string, Record<string, string>> = {
   en: { Studio: "Studio", Playground: "Playground", "Ask the assistant to build anything — try “Show a pie chart of my posts vs pages.” Every real component is already available to it.": "Ask the assistant to build anything — try “Show a pie chart of my posts vs pages.” Every real component is already available to it.", Canvas: "Canvas", "Nothing drawn yet — ask the assistant.": "Nothing drawn yet — ask the assistant." },
@@ -25,4 +26,4 @@ const PLAYGROUND_DICT: Record<string, Record<string, string>> = {
   "zh-TW": { Studio: "工作室", Playground: "遊樂場", "Ask the assistant to build anything — try “Show a pie chart of my posts vs pages.” Every real component is already available to it.": "請助理建立任何內容——試試「顯示我的文章與頁面的圓餅圖」。所有真實元件都已可供使用。", Canvas: "畫布", "Nothing drawn yet — ask the assistant.": "尚未繪製任何內容——請詢問助理。" },
 };
 
-export const t = createDictionaryTranslator(PLAYGROUND_DICT);
+export const t = createDictionaryTranslator({ featureDictionary: PLAYGROUND_DICT }, { commonDictionary: COMMON_I18N });

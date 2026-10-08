@@ -1,6 +1,6 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { api, onUnauthenticated } from "../api";
+import { api, ApiError, authenticatedAdminRequest, onUnauthenticated, requestOnce, requestRidingOutRestart } from "../api";
 
 /**
  * @file Characterization tests for `request()`'s two branches that no existing suite exercised
@@ -68,7 +68,7 @@ test("onOk is not invoked on a non-2xx response", async () => {
   });
 
   await expect(api.getDockerfileSource()).rejects.toThrow("not found");
-  expect(headersGet).not.toHaveBeenCalled();
+  expect(headersGet.mock.calls).toEqual([["x-tovu-upstream-status"]]);
 });
 
 test("a literal JSON null error body is treated as a body with no code/error field, not as UNPARSEABLE", async () => {
@@ -97,4 +97,65 @@ test("a literal JSON null 401 body does not notify unauthenticated listeners —
   } finally {
     unsubscribe();
   }
+});
+
+test("authenticated transport preserves explicit base, signal, headers, keepalive, onOk and a null JSON body", async () => {
+  const signal = new AbortController().signal;
+  const response = new Response("null", { status: 200 });
+  const onOk = vi.fn();
+  const fetchFake = vi.fn(async () => response);
+  vi.stubGlobal("fetch", fetchFake);
+  await expect(authenticatedAdminRequest({ method: "PUT", path: "/rescan", body: null }, {
+    basePath: "/api/agents", signal, headers: { "If-Match": '"version-1"' }, keepalive: true, onOk,
+  })).resolves.toBeNull();
+  expect(fetchFake).toHaveBeenCalledExactlyOnceWith("/api/agents/rescan", {
+    method: "PUT", credentials: "same-origin", body: "null", signal, keepalive: true,
+    headers: { "Content-Type": "application/json", "If-Match": '"version-1"' },
+  });
+  expect(onOk).toHaveBeenCalledExactlyOnceWith(response);
+});
+
+test("authenticated transport preserves binary adapter bodies and their content type", async () => {
+  const body = new Blob(["binary payload"], { type: "application/zip" });
+  const fetchFake = vi.fn(async () => new Response("{}", { status: 200 }));
+  vi.stubGlobal("fetch", fetchFake);
+  await authenticatedAdminRequest({ method: "POST", path: "/upload", body }, { headers: { "If-Match": '"version-1"' } });
+  expect(fetchFake).toHaveBeenCalledExactlyOnceWith("/api/admin/v1/upload", expect.objectContaining({
+    body, headers: { "Content-Type": "application/zip", "If-Match": '"version-1"' },
+  }));
+});
+
+test("custom error contracts retain the upstream-refused proof needed to safely retry an undelivered write", async () => {
+  const fetchFake = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>()
+    .mockImplementationOnce(async () => new Response(null, { status: 503, headers: { "x-tovu-upstream-status": "upstream-refused" } }))
+    .mockImplementationOnce(async () => new Response('{"ok":true}', { status: 200 }));
+  vi.stubGlobal("fetch", fetchFake);
+  const waitUntilReachable = vi.fn(async () => true);
+  const reconnect = { waitUntilReachable, getStatus: () => "online" as const, subscribe: () => () => {} };
+  await expect(requestRidingOutRestart({
+    method: "POST",
+    send: () => requestOnce({ path: "/rescan", init: { method: "POST" } }, {
+      basePath: "/api/agents",
+      errorFactory: ({ error }) => new ApiError("POST /api/agents/rescan answered 503", error.status, error.code, error.body),
+    }),
+  }, { reconnect })).resolves.toEqual({ ok: true });
+  expect(waitUntilReachable).toHaveBeenCalledTimes(1);
+  expect(fetchFake).toHaveBeenCalledTimes(2);
+  expect(fetchFake.mock.calls.map(([url]) => url)).toEqual(["/api/agents/rescan", "/api/agents/rescan"]);
+});
+
+test("custom error contracts do not replay a write that may already have reached the server", async () => {
+  const fetchFake = vi.fn(async () => new Response(null, { status: 503 }));
+  vi.stubGlobal("fetch", fetchFake);
+  const waitUntilReachable = vi.fn(async () => true);
+  const reconnect = { waitUntilReachable, getStatus: () => "online" as const, subscribe: () => () => {} };
+  await expect(requestRidingOutRestart({
+    method: "POST",
+    send: () => requestOnce({ path: "/rescan", init: { method: "POST" } }, {
+      basePath: "/api/agents",
+      errorFactory: ({ error }) => new ApiError("POST /api/agents/rescan answered 503", error.status, error.code, error.body),
+    }),
+  }, { reconnect })).rejects.toThrow("POST /api/agents/rescan answered 503");
+  expect(waitUntilReachable).not.toHaveBeenCalled();
+  expect(fetchFake).toHaveBeenCalledTimes(1);
 });

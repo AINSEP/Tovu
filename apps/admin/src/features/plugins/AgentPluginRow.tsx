@@ -5,7 +5,7 @@ import { PlainTextBlocks } from "@/components/PlainTextBlocks";
 import type { AdminAgentPlugin } from "@/lib/api";
 import { AGENT_PLUGIN_GLYPHS, ChevronIcon, EyeIcon, TrashIcon } from "./agent-plugins-visuals";
 import { agentPluginGlyphKind, agentPluginRemoveOrEnableAriaLabel, agentPluginToggleAriaLabel, agentPluginDisplayName } from "./rules";
-import type { Translate } from "@/lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 
 /**
  * @file One installed Agent Plugin, as a ROW rather than a card (redesign, 2026-09-09).

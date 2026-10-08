@@ -1,10 +1,10 @@
 import { ApiError } from "../../lib/api";
 import type { AdminSiteListEntry, AdminSitesSnapshot } from "../../lib/api";
-import type { QueryKey } from "../../lib/fetch-query";
+import type { QueryKey } from "@jini-ai/ui/fetch-query";
 
 /**
  * @file Pure logic for the `sites` feature — everything that computes a value rather than rendering
- * one. Same convention as `features/redirects/rules.ts`: no React, no hooks, directly testable.
+ * one. Same convention as `Jini redirects/rules.ts`: no React, no hooks, directly testable.
  *
  * The functions here exist for one reason above all others: this screen is capable of telling a
  * lie. Activate persists a choice and returns; nothing switches until a human restarts. Every
@@ -14,7 +14,7 @@ import type { QueryKey } from "../../lib/fetch-query";
  */
 
 /** One cache identity for this screen's single resource, defined once so a write's `invalidates`
- *  and the read's `key` cannot drift apart (`lib/fetch-query/types.ts`'s own `QueryKey` warning). */
+ *  and the read's `key` cannot drift apart (`@jini-ai/ui/fetch-query`'s own `QueryKey` warning). */
 export const KEYS = { list: ["sites"] as QueryKey, tokenSignInPlugins: ["sites-token-sign-in-plugins"] as QueryKey };
 
 /** The create body's `agentPluginTokens`: trimmed, empty fields dropped, `undefined` when nothing

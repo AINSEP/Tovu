@@ -3,12 +3,11 @@ import { useEffect, useState } from "react";
 import type { AdminPlugin } from "@/lib/api";
 import { describeApiError, PLUGINS_RESOURCE } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
+import { useSettlementGeneration, type Translate } from "@jini-ai/ui/panel-kit";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { t as translate } from "../plugins-i18n";
 import { defaultPluginsPort } from "./plugins-dependencies.hooks";
 import type { PluginsPort } from "./plugins-port.hooks";
-import type { Translate } from "@/lib/dictionary-translator";
 import { usePluginInstall, type PluginInstallController } from "./use-plugin-install.hooks";
 import { defaultPluginInstallPort } from "./plugin-install-dependencies.hooks";
 import type { PluginInstallPort } from "./plugin-install-port.hooks";
@@ -145,14 +144,14 @@ export function usePlugins({ port, locale, t, installPort = defaultPluginInstall
     return port
       .listPlugins()
       .then((r) => {
-        if (!settlement.isCurrent(generation)) return; // a newer reload already won
+        if (!settlement.isCurrent({ generation })) return; // a newer reload already won
         setPlugins(r.plugins);
         setCanInstallFolder(r.installSources?.includes("folder") === true);
         setError(null);
       })
       .catch((e) => {
-        if (!settlement.isCurrent(generation)) return;
-        setError(describeApiError(e, translate(locale, "failed to load plugins"), { translate: t }));
+        if (!settlement.isCurrent({ generation })) return;
+        setError(describeApiError(e, translate({ locale: locale, key: "failed to load plugins" }), { translate: t }));
       });
   }
 
@@ -173,7 +172,7 @@ export function usePlugins({ port, locale, t, installPort = defaultPluginInstall
       await port.setPluginEnabled(plugin.id, { enabled: !plugin.enabled });
       await reload();
     } catch (e) {
-      setRowError(describeApiError(e, translate(locale, "failed to update plugin"), { translate: t }));
+      setRowError(describeApiError(e, translate({ locale: locale, key: "failed to update plugin" }), { translate: t }));
     } finally {
       // Only clear THIS row's lock — `rowSavingId` is shared with `onRemovePlugin`, and the EC-11
       // guard above is per-row, so a second row's action starts freely while this one is still
@@ -194,7 +193,7 @@ export function usePlugins({ port, locale, t, installPort = defaultPluginInstall
       await port.uninstallPlugin(plugin.id);
       await reload();
     } catch (e) {
-      setRowError(describeApiError(e, translate(locale, "failed to remove plugin"), { translate: t }));
+      setRowError(describeApiError(e, translate({ locale: locale, key: "failed to remove plugin" }), { translate: t }));
     } finally {
       // Symmetric guard to `onToggleEnabled`'s — see its comment. Keeps this correct regardless of
       // which of the two in-flight actions settles first.
@@ -239,6 +238,6 @@ export function usePlugins({ port, locale, t, installPort = defaultPluginInstall
  */
 export function useWiredPlugins(): PluginsController {
   const locale = useAdminLocale();
-  const t = (key: string): string => translate(locale, key);
+  const t = (key: string): string => translate({ locale: locale, key: key });
   return usePlugins({ port: defaultPluginsPort, locale, t });
 }

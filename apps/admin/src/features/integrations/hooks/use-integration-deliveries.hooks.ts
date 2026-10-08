@@ -1,5 +1,5 @@
 import { describeApiError, type AdminWebhookDelivery } from "@/lib/api";
-import { useFetchQuery } from "@/lib/fetch-query";
+import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { KEYS } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as defaultT } from "../integrations-i18n";
@@ -25,7 +25,7 @@ import type { IntegrationDeliveriesPort } from "./integration-deliveries-port.ho
  * `locale` is threaded — `IntegrationDeliveries.tsx` only ever calls `t(locale, key)` bound-style,
  * it never passes `locale` to a helper that needs it directly.
  *
- * `lib/fetch-query` migration (2026-08-12): the load is one `useFetchQuery` keyed on
+ * `@jini-ai/ui/fetch-query` migration (2026-08-12): the load is one `useFetchQuery` keyed on
  * `KEYS.deliveries(subscriptionId)` — a query cannot commit a response belonging to a prior key,
  * which eliminates the load race an external audit flagged at this file's old line 46 (a plain
  * `.then()`/`.catch()` effect with no cancellation guard, so a `subscriptionId` change mid-flight
@@ -68,6 +68,6 @@ export function useIntegrationDeliveries(
  */
 export function useWiredIntegrationDeliveries(subscriptionId: string): IntegrationDeliveriesController {
   const locale = useAdminLocale();
-  const t = (key: string): string => defaultT(locale, key);
+  const t = (key: string): string => defaultT({ locale: locale, key: key });
   return useIntegrationDeliveries(subscriptionId, defaultIntegrationDeliveriesPort, t);
 }

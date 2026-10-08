@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { ApiError, type AdminExternalMcpToolApproval } from "@/lib/api";
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 
 import { AlwaysAllowPanel } from "../AlwaysAllowPanel";
 import { formatGrantedAt, groupAlwaysAllow } from "../always-allow-rules";

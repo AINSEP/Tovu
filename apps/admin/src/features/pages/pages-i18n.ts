@@ -1,3 +1,4 @@
+import { COMMON_I18N } from "../../lib/i18n-common";
 /**
  * @file Spanish dictionary for the Pages list screen (`Pages.tsx`). `PageEditor.tsx` is
  * deliberately out of scope — see the admin translation dispatch notes — so its strings aren't
@@ -20,7 +21,7 @@
  * embed the verb in the trailing fragment right after the quoted title. Not a missing-translation
  * bug — `pages-i18n.unit.test.ts`'s non-empty-value check excludes this one key for this reason.
  */
-import { createDictionaryTranslator } from "../../lib/dictionary-translator";
+import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 export const PAGES_DICT: Record<string, Record<string, string>> = {
   es: {
@@ -1226,4 +1227,4 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
  *  `use-pages.hooks.ts` each built their own no-fallback `PAGES_DICT[locale]?.[key] ?? key` closure
  *  inline. `createDictionaryTranslator` falls through to `COMMON_I18N` before the raw English key,
  *  same as `trash-i18n.ts`. */
-export const t = createDictionaryTranslator(PAGES_DICT);
+export const t = createDictionaryTranslator({ featureDictionary: PAGES_DICT }, { commonDictionary: COMMON_I18N });

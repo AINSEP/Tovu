@@ -8,9 +8,9 @@ import {
   REQUEST_TIMEOUT_CODE,
   type AdminExternalMcpAdmissionsSnapshot,
 } from "@/lib/api";
-import { useFetchMutation, useFetchQuery } from "@/lib/fetch-query";
-import { hasPermission } from "@/lib/permissions";
-import type { Translate } from "@/lib/dictionary-translator";
+import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
+import { hasPermission } from "@jini-ai/ui/panel-kit";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 
 import { describeAdmissionDrift, type AdmissionDriftConnection, type SavedConnectionIntent } from "../external-mcp-admissions-rules";
 import { useExternalMcpDriftCopy } from "../ExternalMcpSettingsPanel.hooks";
@@ -136,7 +136,7 @@ function useUnavailableRetry(failingTransiently: boolean, isFetching: boolean, r
   });
 
   // Judge the outage only on SETTLED reads. `@jini-ai/ui`'s fetch-query cache clears `error` while a
-  // re-read of a never-answered query is in flight (TanStack kept it), so reading the live value made
+  // re-read of a never-answered query is in flight (Jini kept it), so reading the live value made
   // every retry look like a recovery: the counter reset to 0 each time and a daemon that is genuinely
   // down was polled forever and never reported. Holding the last settled value across the in-flight
   // read keeps the bound real and the "starting" line steady. (React's adjust-state-during-render
@@ -188,9 +188,9 @@ const RESTART_WATCH_ATTEMPTS = 8;
  * the count is the state the UI already needs to render (`watching`), so deriving the schedule from
  * it keeps one source of truth and makes React's own cleanup cancel the pending read on unmount.
  *
- * @param refetch - The admissions query's `refetch`. Read through a ref because `useFetchQuery`
- *   rebuilds it every render (its `useCallback` closes over TanStack's per-render result object),
- *   so depending on it directly would re-arm the timer on every render — a spin, not a schedule.
+ * @param refetch - The admissions query's `refetch`. Read through a ref so a change of query
+ *   identity cannot re-arm the timer on every render — a spin, not a schedule. Jini keeps
+ *   the callable stable while the cache entry stays the same.
  * @complexity O(1) per attempt; at most {@link RESTART_WATCH_ATTEMPTS} attempts per accepted restart.
  */
 function useRestartWatch(refetch: () => void): { watching: boolean; begin: () => void } {
@@ -233,7 +233,7 @@ type RestartOutcome = { ok: boolean; reason?: string };
  * @complexity O(1).
  */
 function useRestartAction(
-  mutate: (input: undefined) => Promise<RestartOutcome>,
+  mutate: (required: { input: undefined }) => Promise<RestartOutcome>,
   setOutcome: (outcome: RestartOutcome | null) => void,
   beginRestartWatch: () => void,
 ): () => void {
@@ -242,7 +242,7 @@ function useRestartAction(
     // `.catch` is required, not defensive: `mutate`'s own promise already carries a handler, but
     // `.then` derives a NEW promise that would reject unhandled. The failure itself is not
     // swallowed — it is read back off `restartCall.error` by the caller.
-    void mutate(undefined)
+    void mutate({ input: undefined })
       .then((result) => {
         setOutcome(result);
         if (result.ok) beginRestartWatch();
@@ -298,7 +298,7 @@ export function useExternalMcpAdmissions(deps: {
     unavailable: waitingForAssistant ? null : resolveUnavailable(admissions.error, t),
     waitingForAssistant,
     connections,
-    canRestart: hasPermission(permissions.data?.effectivePermissions ?? [], "system.write"),
+    canRestart: hasPermission({ permissions: permissions.data?.effectivePermissions ?? [], permission: "system.write" }),
     restarting: restartCall.status === "pending",
     restartError: refusal ?? (restartCall.error ? describeApiError(restartCall.error, t("Could not restart the assistant.")) : null),
     restartAccepted: outcome?.ok === true && watching,

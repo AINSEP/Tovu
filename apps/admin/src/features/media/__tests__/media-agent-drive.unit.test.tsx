@@ -6,7 +6,7 @@ import { createDomPageDriver } from "@jini-ai/agentic/dom";
 import { Media } from "../Media";
 import type { MediaController } from "../hooks/use-media.hooks";
 import type { AdminMedia } from "@/lib/api";
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 
 /**
  * @file Regression test for this batch's agent-control tagging on `Media.tsx` — same shape as
@@ -84,7 +84,7 @@ function mediaController(overrides: Partial<MediaController> = {}): MediaControl
 function renderMedia(overrides: Partial<MediaController> = {}) {
   const controller = mediaController(overrides);
   // `EditMediaPanel` composes its own real `useWiredEditMediaPanel` (not part of `Media`'s own
-  // injected controller), which throws without a `QueryClientProvider` ancestor — see
+  // injected controller), which throws without a `FetchQueryProvider` ancestor — see
   // `Taxonomy.tsx`'s `NewTermForm` for the identical situation. Wrapping every render, not just the
   // edit-panel tests, keeps this helper one shape for the whole file.
   const { container } = render(

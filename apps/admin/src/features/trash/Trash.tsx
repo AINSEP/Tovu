@@ -1,11 +1,11 @@
 import { DataTable, ConfirmDialog, type DataTableColumn } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
-import { InfoTip } from "@/components/InfoTip";
+import { InfoTip } from "@jini-ai/ui/admin-widgets";
 
 import type { AdminTrashItem } from "../../lib/api";
-import { buildAgentListHandles } from "../../lib/agent-list-handles";
-import { formatTimestamp } from "../../lib/format-timestamp";
-import { interpolate } from "../../lib/template-i18n";
+import { buildAgentListHandles } from "@jini-ai/agentic";
+import { formatTimestamp } from "@jini-ai/ui/panel-kit";
+import { interpolate } from "@jini-ai/ui/panel-kit";
 import { translateAdminNavLabel } from "../../lib/admin-nav-i18n";
 import { actorLabel, coverageLine, entityTypeLabel, itemSubtitle } from "./rules";
 import { t } from "./trash-i18n";
@@ -35,10 +35,10 @@ function SelectAllHeader(props: { locale: string; allSelected: boolean; disabled
         onChange={props.onToggle}
         {...agentHandle({ handle: "trash-select-all" }, {
           role: "checkbox",
-          label: t(props.locale, "Select every item shown"),
+          label: t({ locale: props.locale, key: "Select every item shown" }),
         })}
       />
-      <span className="visually-hidden">{t(props.locale, "Select every item shown")}</span>
+      <span className="visually-hidden">{t({ locale: props.locale, key: "Select every item shown" })}</span>
     </label>
   );
 }
@@ -65,7 +65,7 @@ function trashColumns(props: {
           onToggle={props.onToggleAll}
         />
       ),
-      headerLabel: t(props.locale, "Select every item shown"),
+      headerLabel: t({ locale: props.locale, key: "Select every item shown" }),
       cell: (item) => (
         <label className="form-checkbox-field">
           <input
@@ -74,16 +74,16 @@ function trashColumns(props: {
             onChange={() => props.onToggle(item.id)}
             {...agentHandle({ handle: `${props.handleForRow(item.id)}-select` }, {
               role: "checkbox",
-              label: interpolate(t(props.locale, 'Select "{title}"'), { title: item.title }),
+              label: interpolate({ template: t({ locale: props.locale, key: 'Select "{title}"' }), vars: { title: item.title } }),
             })}
           />
-          <span className="visually-hidden">{interpolate(t(props.locale, 'Select "{title}"'), { title: item.title })}</span>
+          <span className="visually-hidden">{interpolate({ template: t({ locale: props.locale, key: 'Select "{title}"' }), vars: { title: item.title } })}</span>
         </label>
       ),
     },
     {
       key: "title",
-      header: t(props.locale, "Title"),
+      header: t({ locale: props.locale, key: "Title" }),
       cell: (item) => (
         <>
           <div>{item.title}</div>
@@ -93,17 +93,17 @@ function trashColumns(props: {
     },
     {
       key: "kind",
-      header: t(props.locale, "Kind"),
+      header: t({ locale: props.locale, key: "Kind" }),
       cell: (item) => entityTypeLabel(props.locale, item.entityType),
     },
     {
       key: "deleted",
-      header: t(props.locale, "Deleted"),
-      cell: (item) => formatTimestamp(item.trashedAt),
+      header: t({ locale: props.locale, key: "Deleted" }),
+      cell: (item) => formatTimestamp({ iso: item.trashedAt }, { timeZone: "local" }),
     },
     {
       key: "actor",
-      header: t(props.locale, "Deleted by"),
+      header: t({ locale: props.locale, key: "Deleted by" }),
       cell: (item) => {
         const actor = actorLabel(props.locale, item, props.actorUsernames);
         // `title` is the plugin/agent id, as a tooltip — see `rules.ts`'s `actorLabel` doc for why
@@ -113,7 +113,7 @@ function trashColumns(props: {
     },
     {
       key: "days",
-      header: t(props.locale, "Days left"),
+      header: t({ locale: props.locale, key: "Days left" }),
       cell: (item) => item.daysRemaining,
     },
   ];
@@ -128,7 +128,7 @@ function TrashToolbar(props: { controller: TrashController; selectedCount: numbe
   return (
     <div className="toolbar trash-toolbar" data-selection-empty={selectedCount === 0}>
       <span className="muted-cell">
-        {interpolate(t(locale, "{count} selected"), { count: String(selectedCount) })}
+        {interpolate({ template: t({ locale: locale, key: "{count} selected" }), vars: { count: String(selectedCount) } })}
       </span>
       <button
         type="button"
@@ -137,28 +137,28 @@ function TrashToolbar(props: { controller: TrashController; selectedCount: numbe
         onClick={() => controller.refresh()}
         {...agentHandle({ handle: "trash-refresh" }, {
           role: "button",
-          label: controller.refreshing ? t(locale, "Refreshing…") : t(locale, "Refresh"),
+          label: controller.refreshing ? t({ locale: locale, key: "Refreshing…" }) : t({ locale: locale, key: "Refresh" }),
         })}
       >
-        {controller.refreshing ? t(locale, "Refreshing…") : t(locale, "Refresh")}
+        {controller.refreshing ? t({ locale: locale, key: "Refreshing…" }) : t({ locale: locale, key: "Refresh" })}
       </button>
       <button
         type="button"
         className="btn-secondary trash-bulk-action"
         disabled={none}
         onClick={() => void controller.onRestoreSelected()}
-        {...agentHandle({ handle: "trash-restore" }, { role: "button", label: t(locale, "Restore") })}
+        {...agentHandle({ handle: "trash-restore" }, { role: "button", label: t({ locale: locale, key: "Restore" }) })}
       >
-        {t(locale, "Restore")}
+        {t({ locale: locale, key: "Restore" })}
       </button>
       <button
         type="button"
         className="btn-danger trash-bulk-action"
         disabled={none}
         onClick={() => controller.setPurgeConfirmOpen(true)}
-        {...agentHandle({ handle: "trash-purge" }, { role: "button", label: t(locale, "Delete permanently") })}
+        {...agentHandle({ handle: "trash-purge" }, { role: "button", label: t({ locale: locale, key: "Delete permanently" }) })}
       >
-        {t(locale, "Delete permanently")}
+        {t({ locale: locale, key: "Delete permanently" })}
       </button>
     </div>
   );
@@ -169,20 +169,18 @@ function TrashItemsView(props: { controller: TrashController }) {
   const { controller } = props;
   const locale = controller.locale;
 
-  if (!controller.items) return <div className="notice">{t(locale, "Loading the Trash…")}</div>;
+  if (!controller.items) return controller.error ? null : <div className="notice">{t({ locale: locale, key: "Loading the Trash…" })}</div>;
   if (controller.items.length === 0) {
     return (
       <div className="card">
         <div className="empty-state">
-          <p>{t(locale, "The Trash is empty.")}</p>
+          <p>{t({ locale: locale, key: "The Trash is empty." })}</p>
         </div>
       </div>
     );
   }
 
-  const rowHandles = buildAgentListHandles(
-    "trash-row",
-    controller.items.map((item) => item.id),
+  const rowHandles = buildAgentListHandles({ prefix: "trash-row", ids: controller.items.map((item) => item.id) }
   );
   const handleById = new Map(controller.items.map((item, index) => [item.id, rowHandles[index]!]));
 
@@ -208,9 +206,9 @@ function TrashItemsView(props: { controller: TrashController }) {
           className="btn-secondary"
           onClick={controller.loadMore}
           disabled={controller.loadingMore}
-          {...agentHandle({ handle: "trash-load-more" }, { role: "button", label: t(locale, "Load more") })}
+          {...agentHandle({ handle: "trash-load-more" }, { role: "button", label: t({ locale: locale, key: "Load more" }) })}
         >
-          {controller.loadingMore ? t(locale, "Loading…") : t(locale, "Load more")}
+          {controller.loadingMore ? t({ locale: locale, key: "Loading…" }) : t({ locale: locale, key: "Load more" })}
         </button>
       ) : null}
     </>
@@ -219,7 +217,7 @@ function TrashItemsView(props: { controller: TrashController }) {
 
 /**
  * The permanent-deletion confirm modal. Stays mounted and is driven by `open`, the same shape
- * `Comments.tsx`'s purge dialog uses.
+ * `@jini-ai/admin/comments/react`'s purge dialog uses.
  */
 function TrashPurgeDialog(props: { controller: TrashController; selectedCount: number }) {
   const { controller, selectedCount } = props;
@@ -228,15 +226,15 @@ function TrashPurgeDialog(props: { controller: TrashController; selectedCount: n
     <ConfirmDialog
       open={controller.purgeConfirmOpen}
       agentHandle="trash-purge-confirm"
-      title={t(locale, "Delete permanently?")}
+      title={t({ locale: locale, key: "Delete permanently?" })}
       body={
         <p>
-          {interpolate(t(locale, "{count} item(s) will be deleted permanently. This cannot be undone."), {
+          {interpolate({ template: t({ locale: locale, key: "{count} item(s) will be deleted permanently. This cannot be undone." }), vars: {
             count: String(selectedCount),
-          })}
+          } })}
         </p>
       }
-      confirmLabel={t(locale, "Delete permanently")}
+      confirmLabel={t({ locale: locale, key: "Delete permanently" })}
       tone="danger"
       pending={controller.busy}
       onConfirm={() => void controller.onPurgeConfirmed()}
@@ -260,15 +258,15 @@ export function Trash(props: { useTrashHook?: () => TrashController } = {}) {
     <div className="page">
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">{translateAdminNavLabel(locale, "Administration")}</p>
+          <p className="page-kicker">{translateAdminNavLabel({ locale: locale, key: "Administration" })}</p>
           <h1 className="page-title">
-            {translateAdminNavLabel(locale, "Trash")}
+            {translateAdminNavLabel({ locale: locale, key: "Trash" })}
             {/* Originally not behind a disclosure, on purpose — see this file's header.
                 Owner update (2026-10-07): use the Users title's InfoTip to shorten the intro. */}
             <InfoTip label={coverageLine(locale)} agentHandle="trash-coverage-info" />
           </h1>
           <p className="page-description">
-            {t(locale, "Deleted items are kept for 60 days.")}
+            {t({ locale: locale, key: "Deleted items are kept for 60 days." })}
           </p>
         </div>
       </div>

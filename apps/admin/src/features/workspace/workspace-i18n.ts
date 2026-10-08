@@ -1,8 +1,9 @@
+import { COMMON_I18N } from "../../lib/i18n-common";
 /**
  * @file Spanish translation for the Workspace admin screen (`/admin/workspace`) — the rename
  * form, the read-only id/created summary, and the disabled delete-workspace notice.
  */
-import { createDictionaryTranslator } from "../../lib/dictionary-translator";
+import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 const WORKSPACE_DICT: Record<string, Record<string, string>> = {
   es: {
@@ -431,4 +432,4 @@ const WORKSPACE_DICT: Record<string, Record<string, string>> = {
 
 /** Same two-step fallback every other `t()` in this app uses: translated value, else the English
  *  source string itself — never a raw dictionary-miss placeholder. */
-export const t = createDictionaryTranslator(WORKSPACE_DICT);
+export const t = createDictionaryTranslator({ featureDictionary: WORKSPACE_DICT }, { commonDictionary: COMMON_I18N });

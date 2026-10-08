@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 import { useNewTaxonomyForm, useWiredNewTaxonomyForm } from "../hooks/use-new-taxonomy-form.hooks";
 import { createFakeNewTaxonomyFormPort } from "../hooks/new-taxonomy-form-dependencies.hooks";
 
@@ -11,8 +11,8 @@ import { createFakeNewTaxonomyFormPort } from "../hooks/new-taxonomy-form-depend
  * `false` after a successful create (a stale "on" checkbox surviving a submit would silently
  * make the next unrelated taxonomy hierarchical).
  *
- * `wrapper` (2026-08-12, `lib/fetch-query` migration): `createTaxonomy` now goes through
- * `useFetchMutation`, which throws without a `QueryClientProvider` ancestor.
+ * `wrapper` (2026-08-12, `@jini-ai/ui/fetch-query` migration): `createTaxonomy` now goes through
+ * `useFetchMutation`, which throws without a `FetchQueryProvider` ancestor.
  */
 
 function wrapper({ children }: { children: React.ReactNode }) {

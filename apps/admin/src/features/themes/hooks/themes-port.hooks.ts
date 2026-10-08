@@ -5,7 +5,7 @@ import type { PresentationSettings, ThemeTier } from "@/lib/api";
  * direct `lib/api` import.
  *
  * Follows the `useX(dependencies)` / `useWiredX()` pair documented in
- * `development/docs/architecture/wired-hooks-convention.md` and `redirects-port.hooks.ts` (the
+ * `development/docs/architecture/wired-hooks-convention.md` and `Jini redirects/SOURCE-RATIONALE.md` (the
  * canonical reference): this file declares, `themes-dependencies.hooks.ts` binds the real `api`
  * client, and nothing else under `features/themes` imports `lib/api` for these three routes. NOT
  * shared with `theme-explore-port.hooks.ts` — that hook edits a single theme's FILES (a different

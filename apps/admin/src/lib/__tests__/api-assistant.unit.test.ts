@@ -190,7 +190,8 @@ test("getAssistantSettings GETs /assistant/settings and resolves data plus the s
   const { calls } = stubFetchCapturing(okJson({ data: { publicEnabled: true }, adminAssistantEnabled: false }));
   const result = await api.getAssistantSettings();
   expect(calls[0].url).toBe(`${BASE}/assistant/settings`);
-  expect(calls[0].init?.method).toBeUndefined();
+  expect(calls[0].init?.method).toBe("GET");
+  expect(calls[0].init?.credentials).toBe("same-origin");
   expect(result).toEqual({ data: { publicEnabled: true }, adminAssistantEnabled: false });
 });
 
@@ -226,7 +227,8 @@ test("getAssistantSiteCredential GETs /assistant/site-credential", async () => {
   const { calls } = stubFetchCapturing(okJson({ data: view }));
   const result = await api.getAssistantSiteCredential();
   expect(calls[0].url).toBe(`${BASE}/assistant/site-credential`);
-  expect(calls[0].init?.method).toBeUndefined();
+  expect(calls[0].init?.method).toBe("GET");
+  expect(calls[0].init?.credentials).toBe("same-origin");
   expect(result).toEqual({ data: view });
 });
 
@@ -263,7 +265,8 @@ test("getAdminExecutionCredential GETs /assistant/execution-credential", async (
   const { calls } = stubFetchCapturing(okJson({ data: view }));
   const result = await api.getAdminExecutionCredential();
   expect(calls[0].url).toBe(`${BASE}/assistant/execution-credential`);
-  expect(calls[0].init?.method).toBeUndefined();
+  expect(calls[0].init?.method).toBe("GET");
+  expect(calls[0].init?.credentials).toBe("same-origin");
   expect(result).toEqual({ data: view });
 });
 

@@ -11,15 +11,15 @@ describe("signed-out operator translations", () => {
     ["Sign in", "Iniciar sesión"],
     ["Signing in…", "Iniciando sesión…"],
   ])("translates Spanish login copy %s", (key, expected) => {
-    expect(t("es", key)).toBe(expected);
+    expect(t({ locale: "es", key: key })).toBe(expected);
   });
 
   it("does not reuse another locale and preserves unknown copy", () => {
-    expect(t("de", "Signing in…")).toBe("Anmeldung läuft…");
-    expect(t("es", "Signing in…")).toBe("Iniciando sesión…");
-    expect(t("es", "Cancel")).toBe("Cancelar");
-    expect(t("en", "Sign in")).toBe("Sign in");
-    expect(t("unknown-locale", "Username")).toBe("Username");
-    expect(t("es", "Unlisted login error")).toBe("Unlisted login error");
+    expect(t({ locale: "de", key: "Signing in…" })).toBe("Anmeldung läuft…");
+    expect(t({ locale: "es", key: "Signing in…" })).toBe("Iniciando sesión…");
+    expect(t({ locale: "es", key: "Cancel" })).toBe("Cancelar");
+    expect(t({ locale: "en", key: "Sign in" })).toBe("Sign in");
+    expect(t({ locale: "unknown-locale", key: "Username" })).toBe("Username");
+    expect(t({ locale: "es", key: "Unlisted login error" })).toBe("Unlisted login error");
   });
 });

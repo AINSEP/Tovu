@@ -57,12 +57,12 @@ describe("TAXONOMY_DICT: cross-locale key parity", () => {
 describe("TAXONOMY_DICT: t() falls back to COMMON_I18N", () => {
   it("translates 'Save' in German even though TAXONOMY_DICT.de never carries it", () => {
     expect(TAXONOMY_DICT.de.Save).toBeUndefined();
-    expect(t("de", "Save")).toBe(COMMON_I18N.de.Save);
+    expect(t({ locale: "de", key: "Save" })).toBe(COMMON_I18N.de.Save);
   });
 
   it("translates 'Cancel' in German even though TAXONOMY_DICT.de never carries it", () => {
     expect(TAXONOMY_DICT.de.Cancel).toBeUndefined();
-    expect(t("de", "Cancel")).toBe(COMMON_I18N.de.Cancel);
+    expect(t({ locale: "de", key: "Cancel" })).toBe(COMMON_I18N.de.Cancel);
   });
 });
 
@@ -90,7 +90,7 @@ describe("TAXONOMY_DICT: the shared Categories & Tags box", () => {
     const untranslated: string[] = [];
     for (const locale of Object.keys(TAXONOMY_DICT)) {
       for (const key of TERM_PICKER_KEYS) {
-        if (t(locale, key) === key) untranslated.push(`${locale}: ${key}`);
+        if (t({ locale: locale, key: key }) === key) untranslated.push(`${locale}: ${key}`);
       }
     }
     expect(untranslated).toEqual([]);

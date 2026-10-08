@@ -5,7 +5,7 @@ import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as translateObservability } from "../observability-i18n";
 import { defaultRecentServerErrorsPort } from "./recent-server-errors-dependencies.hooks";
 import type { RecentServerErrorsPort } from "./recent-server-errors-port.hooks";
-import type { Translate } from "@/lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 
 /**
  * @file State for the Observability screen's Recent errors tab (gap A-04, slice L2): the newest
@@ -53,7 +53,7 @@ export function useRecentServerErrors({ port, locale, t }: RecentServerErrorsDep
     void port
       .getServerLogs({ level: "error", limit: RECENT_ERRORS_LIMIT })
       .then((result) => setLogs(result))
-      .catch((e) => setError(describeApiError(e, translateObservability(locale, "failed to load recent server errors"))))
+      .catch((e) => setError(describeApiError(e, translateObservability({ locale: locale, key: "failed to load recent server errors" }))))
       .finally(() => setLoading(false));
   }, [port, locale]);
 
@@ -78,6 +78,6 @@ function toRows(entries: AdminServerLogEntry[], locale: string): RecentServerErr
 /** Binds the real API client and admin locale — the `useWiredX()` half of the pair. */
 export function useWiredRecentServerErrors(): RecentServerErrorsController {
   const locale = useAdminLocale();
-  const t = useCallback((key: string): string => translateObservability(locale, key), [locale]);
+  const t = useCallback((key: string): string => translateObservability({ locale: locale, key: key }), [locale]);
   return useRecentServerErrors({ port: defaultRecentServerErrorsPort, locale, t });
 }

@@ -121,7 +121,6 @@ export { resolveComposerDiscoveryOutcome, type ResolveComposerDiscoveryOutcomeDe
  * catalog today, since nothing is on `MCP_UI_REDEEMABLE_TOOL_IDS`'s allowlist for that purpose;
  * see `composer-capabilities.ts`'s module doc). One instance, one endpoint, one allowlist gate —
  * never a second POST path to the same route.
- * PendingConfirmationStore (apps/website/src/assistant/pending-confirmations.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 const mcpUiToolCaller = createMcpUiToolCaller({ baseUrl: "", fetch }, { path: "/api/admin/v1/mcp-ui/tool-calls" });
 /**
@@ -282,6 +281,8 @@ declare global {
  */
 
 export interface AssistantDockProps {
+  /** Pane implementation seam: host wiring tests inject a recorder without replacing Jini's module. */
+  ChatPane?: typeof ChatPane;
   useExecutionPolicy?: typeof useTovuExecutionPolicy;
   /**
    * This tab's page-control connection, owned by `App.tsx` (it outlives this pane, which unmounts
@@ -419,6 +420,7 @@ function resolveAgentBridge(override: FrontendSessionBridge | null | undefined):
  * needs no rename since only its `Seam` counterpart, not the bare hook, is imported here.
  */
 export function AssistantDock({
+  ChatPane: ChatPaneView = ChatPane,
   agentBridge: agentBridgeProp,
   useChats,
   principalId,
@@ -544,7 +546,7 @@ export function AssistantDock({
       {/* ChatPane takes `transport` directly as well as via the provider — the package's
           components read their dependencies from props, not implicitly from context. */}
       <div className="admin-chat-dock-drop" data-testid="admin-chat-driver-root" data-tovu-local-cli={executionPolicy.visibility} data-conversation-id={chats.activeId ?? ""} ref={discoveryDraft.rootRef} style={{ display: "contents" }} onClickCapture={captureComposerClick} onChangeCapture={discoveryDraft.captureDraft} onDropCapture={folderDrop.handleDropCapture}>
-      <ChatPane
+      <ChatPaneView
         // Remounts the pane on a conversation switch. `ChatPane` owns its transcript and takes
         // `initialMessages` only at mount, so re-keying is how a different conversation's history
         // gets in — pushing new messages into a live pane would fight its own state.
@@ -702,16 +704,10 @@ export function AssistantDock({
         // until now) avoids the gap entirely, with no change to Jini's package needed.
         // `null` when nothing is pinned (`SelectedAgentPluginTray`'s own early return).
         //
-        // FsFolderIndicator (components/AssistantDock/FsFolderIndicator.tsx and .hooks.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
-        // The old folder control rendered above the plugin chips, as an always-visible
-        // "No folder set" control. Unpinned 2026-09-10 on the owner's call: a persistent chip for a
-        // capability most sessions never use is clutter on the one surface that must stay quiet.
-        // The route and the `custom` fs root still work (`features/fs-files/`), and the live
-        // folder-drop flow below uses them.
-        //
-        // `FolderDropNotice` (SPEC-053) takes this same slot back, but only transiently: unlike the
-        // old always-visible chip, it renders `null` except right after a folder drop, and clears
-        // itself again (auto-dismiss or explicit dismiss) — a fragment here adds no DOM node of its
+        // Owner constraint: a persistent chip for a capability most sessions never use clutters
+        // the composer. `FolderDropNotice` (SPEC-053) renders only after a folder drop and clears
+        // on auto-dismiss or explicit dismiss. The drop flow uses the route and `custom` fs root
+        // in `features/fs-files/`. A fragment here adds no DOM node of its
         // own, so `assistant.css`'s `.admin-chat-dock > * { flex: 1 }` selector still reaches
         // `ChatPane`'s own root exactly as before (see `App.tsx`'s own comment on why a real wrapper
         // element in this position is a layout trap).

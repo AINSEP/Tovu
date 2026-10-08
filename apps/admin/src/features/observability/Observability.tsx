@@ -6,7 +6,7 @@ import { AlertIcon, GaugeIcon, PulseIcon } from "./observability-visuals";
 import { useWiredObservabilityStatus, type ObservabilityStatusController } from "./hooks/use-observability-status.hooks";
 import { useWiredRecentServerErrors } from "./hooks/use-recent-server-errors.hooks";
 import { RecentErrorsPanel } from "./recent-errors-panel";
-import type { Translate } from "@/lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 
 const OTEL_DOCS_URL = "https://opentelemetry.io/docs/";
 

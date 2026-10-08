@@ -3,7 +3,7 @@
  * than a direct `lib/api` import.
  *
  * Follows the `useX(dependencies)` / `useWiredX()` pair documented in
- * `development/docs/architecture/wired-hooks-convention.md` and `redirects-port.hooks.ts` (the
+ * `development/docs/architecture/wired-hooks-convention.md` and `Jini redirects/SOURCE-RATIONALE.md` (the
  * canonical reference): this file declares, `theme-explore-dependencies.hooks.ts` binds the real
  * `api` client, and nothing else under `features/themes` imports `lib/api` for these six routes.
  * NOT shared with `themes-port.hooks.ts` — that hook manages the theme REGISTRY (available themes,
@@ -18,7 +18,7 @@
  * `performRename`'s/`copyFile`'s own comments on why a full refetch, not a targeted patch).
  *
  * `ApiError` stays a direct import in the hook — pure error-classification, no I/O, same reasoning
- * as `redirects-port.hooks.ts`'s own exclusion of `describeApiError`.
+ * as `Jini redirects/SOURCE-RATIONALE.md`'s own exclusion of `describeApiError`.
  */
 
 /** Mirrors the server's file-group taxonomy (`lib/api.ts`'s inline `getThemeDetail` shape).

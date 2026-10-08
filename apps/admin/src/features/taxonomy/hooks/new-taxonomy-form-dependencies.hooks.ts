@@ -6,8 +6,8 @@ import type { NewTaxonomyFormPort } from "./new-taxonomy-form-port.hooks";
  * `createTaxonomy` — see `new-taxonomy-form-port.hooks.ts` for why the split exists.
  */
 
-/** The live implementation, as a module-level singleton — matches `redirects-dependencies.hooks.ts`'s
- *  `defaultRedirectsPort`. */
+/** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s
+ *  `redirectsHostPorts`. */
 export const defaultNewTaxonomyFormPort: NewTaxonomyFormPort = {
   createTaxonomy: (input) => api.createTaxonomy(input),
 };

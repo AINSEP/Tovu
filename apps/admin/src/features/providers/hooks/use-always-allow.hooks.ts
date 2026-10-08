@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { ApiError } from "@/lib/api";
-import { useFetchMutation, useFetchQuery } from "@/lib/fetch-query";
+import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { ALWAYS_ALLOW_KEYS, formatGrantedAt, groupAlwaysAllow, type AlwaysAllowGroup } from "../always-allow-rules";
 import { t as defaultT } from "../providers-i18n";
@@ -52,6 +52,7 @@ export function useAlwaysAllow(port: AlwaysAllowPort, t: (key: string) => string
       const [{ approvals }, { servers }] = await Promise.all([port.listExternalMcpToolApprovals(), port.listExternalMcpServers()]);
       return { approvals, servers };
     },
+  }, {
     staleTime: 0,
     refetchOnWindowFocus: true,
   });
@@ -59,7 +60,7 @@ export function useAlwaysAllow(port: AlwaysAllowPort, t: (key: string) => string
   useEffect(() => setRevoked(new Set()), [list.data]);
 
   const revokeMutation = useFetchMutation({
-    run: async ({ serverId, toolName }: { serverId: string; toolName: string }) => {
+    run: async ({ input: { serverId, toolName } }: { input: { serverId: string; toolName: string } }) => {
       try {
         return await port.revokeExternalMcpToolApproval(serverId, toolName);
       } catch (error) {
@@ -67,6 +68,7 @@ export function useAlwaysAllow(port: AlwaysAllowPort, t: (key: string) => string
         throw error;
       }
     },
+  }, {
     invalidates: [ALWAYS_ALLOW_KEYS.list],
   });
 
@@ -75,7 +77,7 @@ export function useAlwaysAllow(port: AlwaysAllowPort, t: (key: string) => string
     const key = rowKey(serverId, toolName);
     setPendingKey(key);
     revokeMutation
-      .mutate({ serverId, toolName })
+      .mutate({ input: { serverId, toolName } })
       .then(() => setRevoked((current) => new Set(current).add(key)))
       .catch(() => setRevokeError(t("Couldn't revoke. Try again.")))
       .finally(() => setPendingKey(null));
@@ -98,5 +100,5 @@ export function useAlwaysAllow(port: AlwaysAllowPort, t: (key: string) => string
 /** The zero-argument pair `AlwaysAllowPanel.tsx` mounts: the real port and the real locale. */
 export function useWiredAlwaysAllow(): AlwaysAllowController {
   const locale = useAdminLocale();
-  return useAlwaysAllow(defaultAlwaysAllowPort, (key) => defaultT(locale, key), locale);
+  return useAlwaysAllow(defaultAlwaysAllowPort, (key) => defaultT({ locale: locale, key: key }), locale);
 }

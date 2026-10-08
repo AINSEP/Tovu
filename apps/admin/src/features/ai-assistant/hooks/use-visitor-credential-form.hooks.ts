@@ -10,9 +10,8 @@ import {
   type ProviderPreset,
 } from "@jini-ai/ui";
 
-import { useSerialWrites } from "@/hooks/use-serial-writes.hooks";
+import { useSerialWrites, type Translate } from "@jini-ai/ui/panel-kit";
 import type { SiteAssistantCredential, SiteAssistantCredentialPatch } from "@/lib/api";
-import type { Translate } from "@/lib/dictionary-translator";
 import { createExecutionPort } from "@/lib/execution-settings";
 import {
   STORED_KEY_OTHER_PROVIDER_COPY,
@@ -517,16 +516,16 @@ export function useVisitorCredentialForm({
   const writes = useSerialWrites();
 
   function saveKey() {
-    return writes.run(() => saveVisitorKey({ api: apiRef.current, config, writers: { setSaveState, setStored, setConfig } }));
+    return writes.run({ task: () => saveVisitorKey({ api: apiRef.current, config, writers: { setSaveState, setStored, setConfig } }) });
   }
 
   function saveSettings() {
-    return writes.run(() =>
+    return writes.run({ task: () =>
       saveVisitorSettings({
         api: apiRef.current,
         config,
         writers: { setSettingsSaveState, setStored, setDirty },
-      }),
+      }) },
     );
   }
 

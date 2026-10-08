@@ -3,11 +3,11 @@ import { DataTable, RowMenu } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
 import { useState, type ReactNode } from "react";
 
-import type { Translate } from "../../lib/dictionary-translator";
-import { InfoTip } from "../../components/InfoTip";
+import type { Translate } from "@jini-ai/ui/panel-kit";
+import { InfoTip } from "@jini-ai/ui/admin-widgets";
 import { navigate } from "../../lib/router";
 import { siteUrl } from "../../lib/site-url";
-import { buildAgentListHandles } from "../../lib/agent-list-handles";
+import { buildAgentListHandles } from "@jini-ai/agentic";
 import type { ThemePageRow } from "./hooks/use-theme-pages.hooks";
 import { themePageRowMenuItems } from "./rules";
 import { ThemePageDetailsModal } from "./ThemePageDetailsModal";
@@ -311,9 +311,7 @@ export function ThemePagesTab({
   // `pageId`s are the active theme's own filenames — stable and unique within one theme, so they
   // disambiguate one row's publish/menu/link handles from another's, same reasoning as every other
   // list on this workstream.
-  const rowHandles = buildAgentListHandles(
-    "theme-page-row",
-    pages.map((row) => row.pageId),
+  const rowHandles = buildAgentListHandles({ prefix: "theme-page-row", ids: pages.map((row) => row.pageId) }
   );
 
   return (

@@ -24,7 +24,7 @@ import {
   useComposerCapabilities,
   useRuntimeAccess,
 } from "../hooks/AssistantDock.hooks";
-import { FetchQueryProvider } from "../../../lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 import {
   createBundledComposerCapabilitySource,
   emptyComposerCapabilityProjection,
@@ -42,7 +42,6 @@ import {
  * the raw tool-catalog source into the same `Promise.all` as the bundled source),
  * this test fails: `fetch` is called once for `/api/tools/search` and a `tool-catalog` group is
  * projected alongside the bundled ones.
- * createToolCatalogComposerCapabilitySource (features/plugins/tool-catalog-composer-source.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 
 afterEach(() => {
@@ -68,7 +67,12 @@ describe("useComposerCapabilities", () => {
     const groupIds = result.current.composerCapabilities.groups.map((group) => group.id);
     expect(groupIds).not.toContain("tool-catalog");
     expect(groupIds).toEqual(["regular-plugins", "agent-plugins", "mcp", "tools", "installed-skills"]);
-    expect(fetchMock).toHaveBeenCalledWith("/api/admin/v1/workspaces/workspace-local/skills", { credentials: "same-origin" });
+    expect(fetchMock).toHaveBeenCalledWith("/api/admin/v1/workspaces/workspace-local/skills", {
+      credentials: "same-origin",
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+      signal: expect.any(AbortSignal),
+    });
     expect(result.current.composerCapabilities.byItemId.has("installed-skill:skill_incident_response")).toBe(true);
     expect(result.current.composerCapabilities.byItemId.has("skill:ui-ux-design")).toBe(false);
   });
@@ -293,7 +297,7 @@ describe("useRuntimeAccess — resume-capable agentId tracking", () => {
   it("a failed rescan falls back to listAgents() — the resume-capable set still comes from a real response, not stale", async () => {
     const fetchMock = vi
       .fn()
-      .mockResolvedValueOnce({ ok: false, status: 500 })
+      .mockResolvedValueOnce(new Response(null, { status: 500 }))
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({ agents: [{ id: "amr", name: "AMR", carriesOwnMemory: true }] }),
@@ -304,5 +308,8 @@ describe("useRuntimeAccess — resume-capable agentId tracking", () => {
     await result.current.rescanAgents();
 
     expect(getResumeCapableAgentIds()).toEqual(new Set(["amr"]));
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/agents/rescan", expect.objectContaining({ method: "POST", credentials: "same-origin" }));
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/agents", expect.objectContaining({ method: "GET", credentials: "same-origin" }));
   });
 });

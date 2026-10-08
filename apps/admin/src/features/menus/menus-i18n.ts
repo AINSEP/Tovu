@@ -1,3 +1,4 @@
+import { COMMON_I18N } from "../../lib/i18n-common";
 /**
  * @file Spanish dictionary for `Menus.tsx` (list) and `MenuEditor.tsx` (tree editor). `t()` falls
  * back to `COMMON_I18N` via `createDictionaryTranslator`, same as `trash-i18n.ts`.
@@ -5,7 +6,7 @@
  * Out of scope: the native `window.confirm()` prompt `ItemRow`'s Remove button opens for an item
  * with descendants — a browser-chrome dialog, not this app's own styled `ConfirmDialog` surface.
  */
-import { createDictionaryTranslator } from "../../lib/dictionary-translator";
+import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 export const MENUS_DICT: Record<string, Record<string, string>> = {
   es: {
@@ -1184,4 +1185,4 @@ for (const [locale, copy] of Object.entries(PAGE_LINK_COPY)) {
   const [page, choosePage, unpublished] = copy;
   Object.assign(MENUS_DICT[locale], { "Page": page, "Choose a page…": choosePage, "Page not published": unpublished });
 }
-export const t = createDictionaryTranslator(MENUS_DICT);
+export const t = createDictionaryTranslator({ featureDictionary: MENUS_DICT }, { commonDictionary: COMMON_I18N });

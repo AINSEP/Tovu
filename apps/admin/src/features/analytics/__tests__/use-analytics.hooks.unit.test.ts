@@ -63,7 +63,7 @@ describe("useAnalytics", () => {
     // `Response` object to both calls, and a `Response` body can only be read once — the second
     // reader (whichever call loses the race) would throw "body already read" and surface as a
     // generic `request()` failure instead of the real payload. A fresh `Response` per call, same
-    // technique `use-redirects.hooks.unit.test.tsx`'s `routeFetch` helper uses, fixes that.
+    // technique `Jini redirects/react/__tests__/use-redirects.hooks.unit.test.tsx`'s `routeFetch` helper uses, fixes that.
     fetchMock = vi.fn().mockImplementation(() => jsonResponse({ hits: [HIT] }));
     vi.stubGlobal("fetch", fetchMock);
 

@@ -1,6 +1,7 @@
+import { COMMON_I18N } from "../../lib/i18n-common";
 import type { ReactNode } from "react";
-import { createDictionaryTranslator } from "../../lib/dictionary-translator";
-import { interpolate, localeEntry } from "../../lib/template-i18n";
+import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
+import { interpolate, localeEntry } from "@jini-ai/ui/panel-kit";
 
 /**
  * @file Spanish translation for the Integrations list (`/admin/integrations`) and its
@@ -777,7 +778,7 @@ const INTEGRATIONS_DICT: Record<string, Record<string, string>> = {
   },
 };
 
-export const t = createDictionaryTranslator(INTEGRATIONS_DICT);
+export const t = createDictionaryTranslator({ featureDictionary: INTEGRATIONS_DICT }, { commonDictionary: COMMON_I18N });
 
 /** The delete-confirm body embeds the webhook's own label mid-sentence. */
 const DELETE_WEBHOOK_FRAGMENTS: Record<string, { before: string; after: string }> = {
@@ -843,5 +844,5 @@ const ACTIONS_FOR_WEBHOOK_TEMPLATE: Record<string, string> = {
 };
 
 export function actionsForWebhookLabel(locale: string, label: string): string {
-  return interpolate(localeEntry({ table: ACTIONS_FOR_WEBHOOK_TEMPLATE, locale }), { label });
+  return interpolate({ template: localeEntry({ table: ACTIONS_FOR_WEBHOOK_TEMPLATE, locale }), vars: { label } });
 }

@@ -14,16 +14,16 @@ import { describe, expect, it } from "vitest";
  *
  * The rule, checked over every non-test source file under `src/`: a locale dictionary constant
  * (`const X_DICT: Record<string, Record<string, string>>`, or `_I18N`/`_DICTIONARY`) may be indexed
- * only by `lib/dictionary-translator.ts`, and may not be imported by any other non-test file. Every
- * consumer goes through the translator the dictionary's own file exports.
+ * only by the Jini translator. COMMON_I18N may be imported as its commonDictionary binding;
+ * feature dictionaries stay local. Every consumer goes through its dictionary's exported translator.
  */
 
 const SRC = path.resolve(__dirname, "../..");
 
 /** Indexed lookups that are allowed, each with its reason. Keep this list short. */
 const ALLOWED: Record<string, string> = {
-  // The one shared implementation of the fallback chain.
-  "lib/dictionary-translator.ts:COMMON_I18N": "the translator itself",
+  // Owner-local assembly of the shared fallback dictionary, not a translation-time lookup.
+  "lib/i18n-common.ts:DRAFT_RECOVERY_I18N": "common dictionary initialization",
   // `createChatI18nAdapter` feeds `@jini-ai/chat/react`'s own I18nAdapter contract (`t(key, vars)`
   // with `{token}` interpolation), keyed by that package's strings, not by admin copy.
   "components/AssistantDock/assistant-dock-i18n.ts:CHAT_PANE_I18N_DICT": "Jini chat adapter",
@@ -54,8 +54,9 @@ function findInlineDictionaryLookups(files: ReadonlyArray<{ path: string; source
   for (const f of parsed) {
     const own = new Set<string>();
     function declarations(node: ts.Node): void {
-      if (ts.isVariableDeclaration(node)) {
-        for (const match of `const ${node.getText(f.ast)}`.matchAll(DECLARATION)) own.add(match[1]);
+      if (ts.isVariableDeclaration(node) && node.type) {
+        // Initializers can contain entire dictionaries; only the binding and type declare one.
+        for (const match of `const ${node.name.getText(f.ast)}: ${node.type.getText(f.ast)}`.matchAll(DECLARATION)) own.add(match[1]);
       }
       ts.forEachChild(node, declarations);
     }
@@ -112,7 +113,8 @@ function findInlineDictionaryLookups(files: ReadonlyArray<{ path: string; source
       return false;
     }
     function visit(node: ts.Node): void {
-      if (ts.isImportSpecifier(node) && names.has((node.propertyName ?? node.name).text)) {
+      if (ts.isImportSpecifier(node) && names.has((node.propertyName ?? node.name).text) &&
+        (node.propertyName ?? node.name).text !== "COMMON_I18N") {
         report((node.propertyName ?? node.name).text, "imports");
       }
       if (ts.isIdentifier(node) && names.has(node.text)) {
@@ -121,8 +123,14 @@ function findInlineDictionaryLookups(files: ReadonlyArray<{ path: string; source
         const syntaxName = ts.isImportSpecifier(parent) || ts.isExportSpecifier(parent) ||
           (ts.isPropertyAccessExpression(parent) && parent.name === node) ||
           (ts.isPropertyAssignment(parent) && parent.name === node);
-        const translator = ts.isCallExpression(parent) && ts.isIdentifier(parent.expression) &&
-          parent.expression.text === "createDictionaryTranslator" && parent.arguments[0] === node;
+        const call = ts.isPropertyAssignment(parent) && ts.isObjectLiteralExpression(parent.parent)
+          ? parent.parent.parent : parent;
+        const translator = ts.isCallExpression(call) && ts.isIdentifier(call.expression) &&
+          call.expression.text === "createDictionaryTranslator" &&
+          (call.arguments[0] === node || (ts.isPropertyAssignment(parent) &&
+            parent.initializer === node &&
+            ((parent.name.getText(f.ast) === "featureDictionary" && call.arguments[0] === parent.parent) ||
+             (node.text === "COMMON_I18N" && parent.name.getText(f.ast) === "commonDictionary" && call.arguments[1] === parent.parent))));
         if (!declaration && !syntaxName && !translator && !isConstruction(node)) {
           report(node.text, ts.isElementAccessExpression(parent) && parent.expression === node ? "indexes" : "references");
         }
@@ -172,7 +180,8 @@ describe("findInlineDictionaryLookups: the detector", () => {
       path: DICT_FILE.path,
       source: [
         "export const WIDGETS_DICT: Record<string, Record<string, string>> = { es: {} };",
-        "export const t = createDictionaryTranslator(WIDGETS_DICT);",
+        "import { COMMON_I18N } from '../../lib/i18n-common';",
+        "export const t = createDictionaryTranslator({ featureDictionary: WIDGETS_DICT }, { commonDictionary: COMMON_I18N });",
       ].join("\n"),
     };
     const hook = { path: HOOK_FILE.path, source: 'import { t as translate } from "../widgets-i18n";\nconst t = (key: string) => translate(locale, key);' };
@@ -220,6 +229,16 @@ describe("findInlineDictionaryLookups: the detector", () => {
     expect(findInlineDictionaryLookups([{ path: DICT_FILE.path, source }]))
       .toEqual([`${DICT_FILE.path}: references WIDGETS_DICT`]);
   });
+
+  it("permits the common dictionary only as the translator's optional binding", () => {
+    const common = { path: "lib/i18n-common.ts", source: "export const COMMON_I18N: Record<string, Record<string, string>> = {};" };
+    const consumer = { path: HOOK_FILE.path, source: "import { COMMON_I18N } from '../../../lib/i18n-common'; const t = (key) => COMMON_I18N[locale]?.[key] ?? key;" };
+    expect(findInlineDictionaryLookups([common, consumer])).toEqual([
+      `${HOOK_FILE.path}: indexes COMMON_I18N`,
+    ]);
+    const bound = { path: DICT_FILE.path, source: "import { COMMON_I18N } from '../../lib/i18n-common'; const DICT: Record<string, Record<string, string>> = {}; export const t = createDictionaryTranslator({ featureDictionary: DICT }, { commonDictionary: COMMON_I18N });" };
+    expect(findInlineDictionaryLookups([common, bound])).toEqual([]);
+  });
 });
 
 describe("apps/admin/src: no inline dictionary lookup bypasses COMMON_I18N", () => {
@@ -232,5 +251,5 @@ describe("apps/admin/src: no inline dictionary lookup bypasses COMMON_I18N", () 
     const declared = files.filter((f) => /_DICT\s*:\s*Record</.test(f.source)).length;
     expect(declared).toBeGreaterThan(30);
     expect(findInlineDictionaryLookups(files)).toEqual([]);
-  });
+  }, 30_000); // Whole-admin AST scan competes with the other suites in the coordinator's batch.
 });

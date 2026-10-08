@@ -6,8 +6,8 @@ import type { NewTermFormPort } from "./new-term-form-port.hooks";
  * see `new-term-form-port.hooks.ts` for why the split exists.
  */
 
-/** The live implementation, as a module-level singleton — matches `redirects-dependencies.hooks.ts`'s
- *  `defaultRedirectsPort`. */
+/** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s
+ *  `redirectsHostPorts`. */
 export const defaultNewTermFormPort: NewTermFormPort = {
   createTerm: (target, options) => api.createTerm(target, options),
 };

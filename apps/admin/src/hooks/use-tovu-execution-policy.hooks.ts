@@ -39,7 +39,7 @@ export function useTovuExecutionPolicy(
       return localCliAllowed({ mode: snapshot?.mode ?? mode, desktop });
     },
     visibility: allowed ? 'available' : 'hidden',
-    note: !allowed && mode === 'production' && config.mode === 'local-cli' ? t(locale, DEPLOYED_LOCAL_CLI_NOTE) : null,
+    note: !allowed && mode === 'production' && config.mode === 'local-cli' ? t({ locale: locale, key: DEPLOYED_LOCAL_CLI_NOTE }) : null,
     // The shared tab reports its entire projected config on every field edit. Restore only mode.
     preserveChange: (next: ExecutionConfig) => preserveSavedExecutionMode({ saved: config, next, allowed }),
     subtitleKey: allowed ? 'Choose Local CLI or BYOK.' : 'Use your own API credentials',

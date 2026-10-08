@@ -271,6 +271,18 @@ describe("togglePagePublish", () => {
     expect(result.current.rowSavingId).toBeNull();
     expect(result.current.error).toBe("failed to unpublish page");
   });
+
+  it("a failed draft Publish clears rowSavingId and uses the publish-specific fallback", async () => {
+    const draft = { ...PAGE, status: "draft" as const };
+    fetchMock.mockResolvedValueOnce(jsonResponse({ posts: [{ post: draft }] }));
+    const { result } = renderHook(() => useWiredPages());
+    await waitFor(() => expect(result.current.pages).toEqual([draft]));
+    fetchMock.mockRejectedValueOnce("offline");
+    await act(async () => { await result.current.togglePagePublish(draft); });
+    expect(result.current.rowSavingId).toBeNull();
+    expect(result.current.error).toBe("failed to publish page");
+    expect(result.current.pages).toEqual([draft]);
+  });
 });
 
 describe("removePage", () => {
@@ -521,17 +533,21 @@ describe("usePages — content refresh bus", () => {
 
   it("refreshes on a notification that names pages, and ignores one that names only other resources", async () => {
     const port = createFakePagesPort({ pages: [PAGE] });
+    const listSpy = vi.spyOn(port, "listPages");
     const { result } = renderHook(() => usePages({ port, navigate: vi.fn(), t: (k) => k, locale: "en" }));
     await waitFor(() => expect(result.current.pages).toEqual([PAGE]));
 
     port.pages.push(NEW_PAGE);
 
+    const callsBefore = listSpy.mock.calls.length;
+
     // A narrowed notification about somebody else's resource must not cost this screen a refetch.
     act(() => publishContentRefresh(["taxonomy"]));
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(listSpy).toHaveBeenCalledTimes(callsBefore);
     expect(result.current.pages).toEqual([PAGE]);
 
     act(() => publishContentRefresh([PAGES_RESOURCE]));
+    expect(listSpy).toHaveBeenCalledTimes(callsBefore + 1);
     await waitFor(() => expect(result.current.pages).toEqual([PAGE, NEW_PAGE]));
   });
 
@@ -578,7 +594,6 @@ describe("usePages — content refresh bus", () => {
     const callsWhileMounted = listSpy.mock.calls.length;
     unmount();
     act(() => publishContentRefresh());
-    await new Promise((resolve) => setTimeout(resolve, 20));
 
     expect(listSpy).toHaveBeenCalledTimes(callsWhileMounted);
   });

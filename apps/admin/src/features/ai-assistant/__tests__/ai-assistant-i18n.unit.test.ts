@@ -56,6 +56,6 @@ describe("AI_ASSISTANT_DICT: cross-locale key parity", () => {
 describe("AI_ASSISTANT_DICT: t() falls back to COMMON_I18N", () => {
   it("translates 'Cancel' in German even though AI_ASSISTANT_DICT.de never carries it", () => {
     expect(AI_ASSISTANT_DICT.de.Cancel).toBeUndefined();
-    expect(t("de", "Cancel")).toBe(COMMON_I18N.de.Cancel);
+    expect(t({ locale: "de", key: "Cancel" })).toBe(COMMON_I18N.de.Cancel);
   });
 });

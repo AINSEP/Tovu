@@ -19,18 +19,18 @@ describe("site key tab translations", () => {
   for (const locale of locales) {
     it(`supplies the tab disclosure, status, reveal and accessibility copy in ${locale}`, () => {
       for (const key of copy) {
-        const translated = t(locale, key);
+        const translated = t({ locale: locale, key: key });
         expect(translated.trim()).not.toBe("");
         if (locale !== "en") expect(translated, key).not.toBe(key);
       }
-      const label = siteKeyStatusBadgeLabel({ status: { active: true, source: "env", envVarName: "TOVU_SITE_KEY" }, t: key => t(locale, key) });
+      const label = siteKeyStatusBadgeLabel({ status: { active: true, source: "env", envVarName: "TOVU_SITE_KEY" }, t: key => t({ locale: locale, key: key }) });
       expect(label).toContain("TOVU_SITE_KEY");
       expect(label).not.toContain("{name}");
     });
   }
 
   it("renders the German file-key disclosure and Reveal control without advertising hidden Generate", () => {
-    const translate = (key: string) => t("de", key);
+    const translate = (key: string) => t({ locale: "de", key: key });
     const controller: SiteKeyController = {
       status: { active: true, source: "file", state: "active", fingerprint: "a1b2c3", keyFilePath: "/fixture/site-key.hex", runtimeMode: "production" },
       loadError: null, revealing: false, revealError: null, revealedHex: null,

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { type AdminPost } from "@/lib/api";
 import { navigate as defaultNavigate } from "@/lib/router";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
-import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
+import { useSettlementGeneration } from "@jini-ai/ui/panel-kit";
 import { POSTS_RESOURCE, buildPostRowMenuHandleMap } from "../rules";
 import { defaultPostsListPort } from "./posts-list-dependencies.hooks";
 import type { PostsListPort } from "./posts-list-port.hooks";
@@ -120,11 +120,11 @@ export function usePosts(deps: PostsListDependencies): PostsController {
         // notification, or two notifications back to back) — that later call owns `posts` now, and
         // applying this stale result would let whichever request happens to settle LAST win
         // regardless of which one was issued last. See this hook's own header.
-        if (!settlement.isCurrent(generation)) return;
+        if (!settlement.isCurrent({ generation })) return;
         setPosts(r.posts.map((entry) => entry.post));
       })
       .catch((e) => {
-        if (!settlement.isCurrent(generation)) return;
+        if (!settlement.isCurrent({ generation })) return;
         setError(e instanceof Error ? e.message : "failed to load posts");
       });
     // `port`/`settlement` are added — see `use-page-editor.hooks.ts`'s identical note: both are

@@ -72,6 +72,7 @@ describe("TRASH_DICT: cross-locale key parity", () => {
     "Days left",
     "{count} selected",
     "Loading the Trash…",
+    "The Tovu API did not respond. Try refreshing the Trash.",
     "The Trash is empty.",
     "Load more",
     "Loading…",
@@ -129,7 +130,11 @@ describe("TRASH_DICT: cross-locale key parity", () => {
           }
         }
         if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === "t") {
-          const key = node.arguments[1];
+          const input = node.arguments[0];
+          const property = input && ts.isObjectLiteralExpression(input)
+            ? input.properties.find((property) => ts.isPropertyAssignment(property) && ts.isIdentifier(property.name) && property.name.text === "key")
+            : undefined;
+          const key = property && ts.isPropertyAssignment(property) ? property.initializer : undefined;
           if (key && ts.isStringLiteralLike(key)) used.add(key.text);
           else expect(key && ts.isIdentifier(key) && key.text === "label", `${file}: unresolved translation key`).toBe(true);
         }

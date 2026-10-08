@@ -1,4 +1,4 @@
-import type { Translate } from "../../lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 import { DEVICE_PREVIEW_ICONS } from "../device-preview-icons";
 import {
   DEVICE_PREVIEW_OPTIONS,

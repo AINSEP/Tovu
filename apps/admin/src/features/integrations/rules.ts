@@ -1,8 +1,8 @@
 import type { RowMenuItem } from "@jini-ai/admin/react";
 
 import { describeApiError, type AdminWebhookDelivery, type AdminWebhookSubscription } from "../../lib/api";
-import { formatTimestamp } from "../../lib/format-timestamp";
-import type { QueryKey } from "../../lib/fetch-query";
+import { formatTimestamp } from "@jini-ai/ui/panel-kit";
+import type { QueryKey } from "@jini-ai/ui/fetch-query";
 import { t } from "./integrations-i18n";
 
 /**
@@ -20,7 +20,7 @@ import { t } from "./integrations-i18n";
  * read-only sub-resource with no method overlap with subscription CRUD (same split
  * `integrations-port.hooks.ts` already makes with its own two ports), and no subscription write
  * (create/pause/delete) needs to invalidate a delivery log. Same "separate namespaces, no shared
- * prefix" shape `forms/rules.ts`'s `KEYS` uses for `forms` vs `form-submissions`.
+ * prefix" shape `@jini-ai/admin/forms` rules.ts's `KEYS` uses for `forms` vs `form-submissions`.
  */
 export const KEYS = {
   list: ["integrations", "list"] as QueryKey,
@@ -79,12 +79,12 @@ export function integrationRowMenuItems(
   return [
     {
       key: "pause",
-      label: subscription.status === "paused" ? t(locale, "Resume") : t(locale, "Pause"),
+      label: subscription.status === "paused" ? t({ locale: locale, key: "Resume" }) : t({ locale: locale, key: "Pause" }),
       onSelect: () => handlers.onTogglePause(subscription),
     },
     {
       key: "delete",
-      label: t(locale, "Delete"),
+      label: t({ locale: locale, key: "Delete" }),
       destructive: true,
       onSelect: () => handlers.onDelete(subscription),
     },
@@ -98,7 +98,7 @@ export function integrationRowMenuItems(
  * @overallScore 100
  */
 export function displayTimestamp(delivery: AdminWebhookDelivery): string {
-  return formatTimestamp(delivery.deliveredAt ?? delivery.createdAt);
+  return formatTimestamp({ iso: delivery.deliveredAt ?? delivery.createdAt }, { timeZone: "local" });
 }
 
 /**
@@ -109,7 +109,7 @@ export function displayTimestamp(delivery: AdminWebhookDelivery): string {
  * vs `setError` split.
  *
  * Precedence: an active toggle/delete failure outranks a background list-refresh failure, same
- * shape as `redirects/rules.ts`'s `visibleRedirectsError`. The list error only surfaces before
+ * shape as `Jini redirects/rules.ts`'s `visibleRedirectsError`. The list error only surfaces before
  * `subscriptions` has ever loaded.
  *
  * @complexity Time/space: O(1) — three fixed checks, no iteration.
@@ -121,8 +121,8 @@ export function visibleIntegrationsError(params: {
   hasSubscriptions: boolean;
   locale: string;
 }): string | null {
-  if (params.toggleError) return describeApiError(params.toggleError, t(params.locale, "failed to update subscription"));
-  if (params.deleteError) return describeApiError(params.deleteError, t(params.locale, "failed to delete subscription"));
+  if (params.toggleError) return describeApiError(params.toggleError, t({ locale: params.locale, key: "failed to update subscription" }));
+  if (params.deleteError) return describeApiError(params.deleteError, t({ locale: params.locale, key: "failed to delete subscription" }));
   if (params.hasSubscriptions) return null;
-  return params.listError ? describeApiError(params.listError, t(params.locale, "failed to load integrations")) : null;
+  return params.listError ? describeApiError(params.listError, t({ locale: params.locale, key: "failed to load integrations" })) : null;
 }

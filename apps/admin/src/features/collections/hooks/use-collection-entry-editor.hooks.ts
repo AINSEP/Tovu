@@ -6,7 +6,7 @@ import {
   type AdminContentType,
   type AdminEntry,
 } from "@/lib/api";
-import { useFetchMutation, useFetchQuery } from "@/lib/fetch-query";
+import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { KEYS, visibleEntryEditorError } from "../rules";
 import { VERSION_CONFLICT_MESSAGE } from "@/lib/version-conflict";
 import { WidgetEmbed } from "@/lib/widget-embed-extension";
@@ -43,7 +43,7 @@ import type { CollectionEntryEditorPort } from "./collection-entry-editor-port.h
  * stays a direct, uninjected import for this hook's OWN error strings: a pure lookup that already
  * takes `locale` explicitly, not a host reach.
  *
- * `lib/fetch-query` migration (2026-08-12): the combined content-type/entry read is one
+ * `@jini-ai/ui/fetch-query` migration (2026-08-12): the combined content-type/entry read is one
  * `useFetchQuery` keyed on `KEYS.entry(contentTypeKey, entryId)` — a SIBLING of `use-collection-
  * entries.hooks.ts`'s `KEYS.entries(key)`, deliberately NOT nested under it (see `rules.ts`'s `KEYS`
  * doc for the regression that nesting caused: every save background-refetched this SAME hook's own
@@ -173,7 +173,7 @@ export function useCollectionEntryEditor(
 
   const contentType = list.data?.contentType;
   const loaded = list.status !== "loading";
-  const loadError = list.error ? describeApiError(list.error, translate(locale, "failed to load entry")) : null;
+  const loadError = list.error ? describeApiError(list.error, translate({ locale: locale, key: "failed to load entry" })) : null;
 
   // Seeds `entry`/`title`/`slug`/`extFields`/the editor's content from `list.data` exactly once per
   // `(contentTypeKey, entryId)` identity — see this file's own header for why a background refetch
@@ -214,17 +214,20 @@ export function useCollectionEntryEditor(
   }, [props.contentTypeKey, props.entryId, editor, list.status, list.data]);
 
   const updateMutation = useFetchMutation({
-    run: (input: { target: { id: string; expectedVersion: number }; patch: { title?: string; fieldsJson?: unknown; bodyJson?: unknown } }) =>
+    run: ({ input }: { input: { target: { id: string; expectedVersion: number }; patch: { title?: string; fieldsJson?: unknown; bodyJson?: unknown } } }) =>
       port.updateEntry(input.target, input.patch),
+  }, {
     invalidates: [KEYS.entries(props.contentTypeKey)],
   });
   const createMutation = useFetchMutation({
-    run: (input: { input: { type: string; slug: string; title: string }; options: { fieldsJson?: unknown; bodyJson?: unknown } }) =>
+    run: ({ input }: { input: { input: { type: string; slug: string; title: string }; options: { fieldsJson?: unknown; bodyJson?: unknown } } }) =>
       port.createEntry(input.input, input.options),
+  }, {
     invalidates: [KEYS.entries(props.contentTypeKey)],
   });
   const lifecycleMutation = useFetchMutation({
-    run: (input: { id: string; op: "publish" | "unpublish"; expectedVersion: number }) => port.entryLifecycle(input),
+    run: ({ input }: { input: { id: string; op: "publish" | "unpublish"; expectedVersion: number } }) => port.entryLifecycle(input),
+  }, {
     invalidates: [KEYS.entries(props.contentTypeKey)],
   });
 
@@ -238,13 +241,13 @@ export function useCollectionEntryEditor(
    * @complexity Time/space: O(1) — one mutation call, one state write.
    */
   async function saveExisting(current: AdminEntry): Promise<AdminEntry> {
-    const { entry: saved } = await updateMutation.mutate({
+    const { entry: saved } = await updateMutation.mutate({ input: {
       target: { id: current.id, expectedVersion: current.version },
       // `bodyJson` was omitted here while the create branch below sent it, so editing an existing
       // entry's rich text reported "Saved · version N" and left the stored body untouched. Silent
       // data loss on the primary content surface; `PostEditor` has always done this correctly.
       patch: { title, fieldsJson: { ext: { site: extFields } }, bodyJson: editor?.getJSON() },
-    });
+    } });
     setEntry(saved);
     return saved;
   }
@@ -254,7 +257,7 @@ export function useCollectionEntryEditor(
     setMessage(null);
     setValidationError(null);
     if (invalidFields.size > 0) {
-      setValidationError(translate(locale, "Fix the invalid JSON before saving."));
+      setValidationError(translate({ locale: locale, key: "Fix the invalid JSON before saving." }));
       return;
     }
     try {
@@ -262,10 +265,10 @@ export function useCollectionEntryEditor(
         const saved = await saveExisting(entry);
         setMessage(`Saved · version ${saved.version}`);
       } else {
-        const { entry: created } = await createMutation.mutate({
+        const { entry: created } = await createMutation.mutate({ input: {
           input: { type: props.contentTypeKey, slug: slug.trim(), title },
           options: { fieldsJson: { ext: { site: extFields } }, bodyJson: editor.getJSON() },
-        });
+        } });
         setEntry(created);
         setMessage(`Created · version ${created.version}`);
         navigate(`/collections/${props.contentTypeKey}/${created.slug}`);
@@ -291,7 +294,7 @@ export function useCollectionEntryEditor(
     setMessage(null);
     setValidationError(null);
     if (invalidFields.size > 0) {
-      setValidationError(translate(locale, "Fix the invalid JSON before saving."));
+      setValidationError(translate({ locale: locale, key: "Fix the invalid JSON before saving." }));
       return;
     }
     setLastLifecycleOp("publish");
@@ -302,11 +305,11 @@ export function useCollectionEntryEditor(
       return; // already surfaced through updateMutation.error -> error below
     }
     try {
-      const { entry: published } = await lifecycleMutation.mutate({
+      const { entry: published } = await lifecycleMutation.mutate({ input: {
         id: saved.id,
         op: "publish",
         expectedVersion: saved.version,
-      });
+      } });
       setEntry(published);
       setMessage(`Entry published · version ${published.version}`);
     } catch {
@@ -322,7 +325,7 @@ export function useCollectionEntryEditor(
     }
     setLastLifecycleOp(op);
     try {
-      const { entry: saved } = await lifecycleMutation.mutate({ id: entry.id, op, expectedVersion: entry.version });
+      const { entry: saved } = await lifecycleMutation.mutate({ input: { id: entry.id, op, expectedVersion: entry.version } });
       setEntry(saved);
       setMessage(`Entry ${op}ed · version ${saved.version}`);
     } catch {
@@ -344,9 +347,9 @@ export function useCollectionEntryEditor(
     updateError: updateMutation.error,
     createError: createMutation.error,
     lifecycleError: lifecycleMutation.error,
-    saveFallback: translate(locale, "save failed"),
+    saveFallback: translate({ locale: locale, key: "save failed" }),
     lifecycleFallback: lastLifecycleOp ? entryLifecycleFailureMessage(locale, lastLifecycleOp) : null,
-    versionConflictMessage: translate(locale, VERSION_CONFLICT_MESSAGE),
+    versionConflictMessage: translate({ locale: locale, key: VERSION_CONFLICT_MESSAGE }),
   });
 
   return {
@@ -384,6 +387,6 @@ export function useWiredCollectionEntryEditor(props: {
   entryId: string | null;
 }): CollectionEntryEditorController {
   const locale = useAdminLocale();
-  const t = (key: string): string => translate(locale, key);
+  const t = (key: string): string => translate({ locale: locale, key: key });
   return useCollectionEntryEditor(props, { port: defaultCollectionEntryEditorPort, navigate: defaultNavigate, locale, t });
 }

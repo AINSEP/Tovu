@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api, type AdminMedia } from "@/lib/api";
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 import { createFakeMediaPort } from "../hooks/media-dependencies.hooks";
 import { useEditMediaPanel } from "../hooks/use-edit-media-panel.hooks";
 
@@ -12,7 +12,7 @@ import { useEditMediaPanel } from "../hooks/use-edit-media-panel.hooks";
  * already covers the real-client path; this is the "injected port" half.
  *
  * `fetch-query` migration (2026-08-12): every `renderHook` now needs `wrapper: FetchQueryProvider`
- * — see `redirects/__tests__/use-redirects.hooks.unit.test.tsx`'s identical wrapper for the pilot
+ * — see `Jini redirects/react/__tests__/use-redirects.hooks.unit.test.tsx`'s identical wrapper for the pilot
  * precedent.
  */
 

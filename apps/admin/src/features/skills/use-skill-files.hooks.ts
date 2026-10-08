@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { Translate } from "@/lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 import type { PackageFilesModalProps } from "../plugins/PackageFilesModal";
 import { packageFilesViewState, type PackageFilesRead } from "../plugins/rules";
 import { listSkillFiles, type InstalledSkill, type SkillFiles } from "./api";

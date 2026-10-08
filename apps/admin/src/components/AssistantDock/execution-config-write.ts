@@ -4,7 +4,7 @@ import type { ExecutionConfig } from "@jini-ai/ui";
 
 import { EXECUTION_NAMESPACE, saveExecutionConfig } from "@/lib/execution-settings";
 import { publishSettingsRefresh } from "@/lib/settings-refresh-bus";
-import { isAbortError } from "@/lib/retry-unreachable";
+import { isAbortError } from "@jini-ai/ui/panel-kit";
 
 /**
  * @file The dock pickers' one write path: apply a change to `executionConfig`, then save it — the
@@ -55,7 +55,7 @@ export function persistExecutionConfigWrite(write: ExecutionConfigWrite, failure
       return true;
     })
     .catch((error: unknown) => {
-      if (!isAbortError(error)) console.error(failureLog, error);
+      if (!isAbortError({ error })) console.error(failureLog, error);
       return false;
     });
 }

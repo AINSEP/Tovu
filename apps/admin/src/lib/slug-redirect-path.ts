@@ -1,6 +1,6 @@
 /**
  * @file The shared "old id-bookmark lands on the slug URL" redirect rule (readable-slugs S6a,
- * 2026-09-23) — generalised out of `features/widgets/rules.ts`'s `widgetSlugRedirectPath`, the
+ * 2026-09-23) — generalised out of `widgetSlugRedirectPath` (now `@jini-ai/admin/widgets`), the
  * first of these (2026-09-22, URL-uses-slug). Posts, Pages, and Widgets each resolve either a
  * record's id or its current slug server-side (`getPostByIdOrSlug`/`getPageByIdOrSlug`/
  * `getWidgetInstance`), so a stale bookmark or shared link built from the old id-based URL still

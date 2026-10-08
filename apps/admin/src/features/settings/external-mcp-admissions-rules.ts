@@ -359,7 +359,7 @@ export function describeConnectionDrift(
 
 /**
  * The four-combination truth table {@link connectionLevelEntry} documents, as a flat chain rather
- * than a nested ternary — the same extraction `lib/fetch-query/adapter.tanstack.tsx`'s
+ * than a nested ternary — the same extraction `@jini-ai/ui/fetch-query`'s
  * `resolveFetchQueryStatus` records the reasoning for.
  *
  * @returns The disagreement's kind, or `null` when intent and reality agree.

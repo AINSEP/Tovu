@@ -12,7 +12,7 @@ import {
 } from "@jini-ai/ui";
 import { agentHandle } from "@jini-ai/agentic";
 
-import type { Translate } from "@/lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 
 import { ExternalMcpAdmissionsBanner } from "./ExternalMcpAdmissionsBanner";
 import { ExternalMcpRemoveConfirmDialog } from "./ExternalMcpRemoveConfirmDialog";

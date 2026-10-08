@@ -43,7 +43,7 @@ export interface PlaygroundProps {
 export function Playground({ usePlaygroundCanvasHook = usePlaygroundCanvas }: PlaygroundProps = {}) {
   const { registerCanvas } = usePlaygroundCanvasHook();
   const locale = useAdminLocale();
-  const t = (key: string) => translatePlayground(locale, key);
+  const t = (key: string) => translatePlayground({ locale: locale, key: key });
 
   return (
     <div className="page">

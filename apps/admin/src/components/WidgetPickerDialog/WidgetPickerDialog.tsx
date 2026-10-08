@@ -1,9 +1,10 @@
-import { useRef } from "react";
+import { Dialog } from "@jini-ai/ui-kit/react";
+import "../../styles/native-domain-dialogs.css";
 import { agentHandle, type AgentElementRole } from "@jini-ai/agentic";
-import { useFocusTrap } from "../../hooks/use-focus-trap.hooks";
 import type { AdminWidget, AdminWidgetType } from "../../lib/api";
-import { interpolate } from "../../lib/template-i18n";
-import { widgetTypeLabel } from "../../features/widgets/rules";
+import { interpolate } from "@jini-ai/ui/panel-kit";
+import { widgetTypeLabel } from "@jini-ai/admin/widgets";
+import { t as translateWidgets } from "../../features/widgets/widgets-i18n";
 import { WidgetConfigFields, WIDGET_TYPE_OPTIONS } from "../WidgetConfigFields/WidgetConfigFields";
 import { Select, type SelectOption } from "../Select/Select";
 import { useWidgetAddControl, useWiredWidgetAddControl, useWiredWidgetPickerDialog } from "./WidgetPickerDialog.hooks";
@@ -13,9 +14,8 @@ import { useWidgetAddControl, useWiredWidgetAddControl, useWiredWidgetPickerDial
  * modal. Two call sites: `RegionPlacementList.onAddWidgetRequest` and `WidgetEmbedNode`'s toolbar
  * insertion trigger (`widget-embed-extension.tsx`) — no third call site is authorized by the spec.
  *
- * Mirrors `Collections.tsx`'s `.settings-dialog`/`.settings-dialog-backdrop` modal idiom exactly
- * (`role="dialog"`, `aria-modal`, `aria-labelledby`, Escape-to-close, backdrop-click-to-cancel) —
- * no new modal system invented.
+ * Reuses Jini's native dialog owner, like `Collections.tsx`; no second focus trap, global
+ * Escape listener or backdrop lifecycle is needed.
  *
  * `ui.spec.md` §5's rendering rule (followed literally per its own §8 disclosure against ADR-047
  * Amendment 5's "default to reuse" prose): when `existingInstances.length > 0`, BOTH "use existing"
@@ -28,8 +28,8 @@ import { useWidgetAddControl, useWiredWidgetAddControl, useWiredWidgetPickerDial
  * (`ConfirmDialog.tsx`/`ConfirmDialog.hooks.tsx` in that package). Both components below carry the
  * same kind of injectable seam `ConfirmDialog`'s `useDialog` prop is (`useDialog` here, and
  * `useAddControl` on `WidgetAddControl`) — each does real IO (`useExistingInstances`'s fetch,
- * `useWidgetAddControl`'s `api.createWidget`) or DOM work (the Escape listener, the autofocus
- * effect), so a test can swap either for a fake without touching the network or `document`.
+ * `useWidgetAddControl`'s `api.createWidget`) or DOM work (the deferred autofocus
+ * effect), so a test can swap either for a fake without touching the network.
  *
  * ## Agent handles
  *
@@ -97,7 +97,6 @@ export function WidgetPickerDialog({ useDialog = useWiredWidgetPickerDialog, age
     newConfig,
     setNewConfig,
     error,
-    titleId,
     existingSelectId,
     newTitleInputId,
     newTitleInputRef,
@@ -107,21 +106,11 @@ export function WidgetPickerDialog({ useDialog = useWiredWidgetPickerDialog, age
     submitCreateNew,
     t,
   } = useDialog(props);
-  // aria-modal promises the background is unavailable; this is what keeps Tab from reaching it.
-  const dialogRef = useRef<HTMLDivElement | null>(null);
-  useFocusTrap(dialogRef);
+  // Native modality keeps Tab inside; Jini also restores the opener when this dialog unmounts.
 
   return (
-    <div className="settings-dialog-backdrop" onClick={props.onCancel}>
-      <div
-        ref={dialogRef}
-        className="settings-dialog widget-picker-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 id={titleId}>{interpolate(t("Place a {typeLabel} widget"), { typeLabel })}</h2>
+    <Dialog open title={interpolate({ template: t("Place a {typeLabel} widget"), vars: { typeLabel } })}
+      onClose={() => props.onCancel()} className="settings-dialog tovu-domain-dialog widget-picker-dialog">
 
         <div className="widget-picker-body">
           {loadError ? <div className="notice error">{loadError}</div> : null}
@@ -136,7 +125,7 @@ export function WidgetPickerDialog({ useDialog = useWiredWidgetPickerDialog, age
               <h3>{t("Use existing")}</h3>
               <div className="field">
                 <label className="field-label" htmlFor={existingSelectId}>
-                  {interpolate(t("Existing {typeLabel} widgets"), { typeLabel })}
+                  {interpolate({ template: t("Existing {typeLabel} widgets"), vars: { typeLabel } })}
                 </label>
                 <Select
                   id={existingSelectId}
@@ -186,6 +175,7 @@ export function WidgetPickerDialog({ useDialog = useWiredWidgetPickerDialog, age
             <button
               type="button"
               className="btn-secondary"
+              data-jini-autofocus=""
               onClick={props.onCancel}
               {...handleSpread(base, "cancel", { role: "button", label: "Close without placing a widget" })}
             >
@@ -193,8 +183,7 @@ export function WidgetPickerDialog({ useDialog = useWiredWidgetPickerDialog, age
             </button>
           </span>
         </div>
-      </div>
-    </div>
+    </Dialog>
   );
 }
 
@@ -230,7 +219,7 @@ export function WidgetAddControl({ useAddControl = useWiredWidgetAddControl, age
   // `WIDGET_TYPE_OPTIONS`'s own labels are the English source strings; translate them through the
   // same `widgetTypeLabel` lookup `WidgetPickerDialog.hooks.tsx`'s `typeLabel` uses, so this type
   // picker and the dialog it opens agree on one widget type's display name per locale.
-  const typeOptions: SelectOption[] = WIDGET_TYPE_OPTIONS.map((o) => ({ value: o.value, label: widgetTypeLabel(o.value, locale) }));
+  const typeOptions: SelectOption[] = WIDGET_TYPE_OPTIONS.map((o) => ({ value: o.value, label: widgetTypeLabel({ widgetType: o.value, types: WIDGET_TYPE_OPTIONS }, { t: key => translateWidgets({ locale, key }) }) }));
 
   return (
     <span className="widget-add-control">

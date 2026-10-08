@@ -1,3 +1,4 @@
+import { COMMON_I18N } from "../../lib/i18n-common";
 /**
  * @file The Settings screen's own copy for its AI agent tab: what the admin's stored BYOK key
  * cannot do at the form's endpoint, plus the rest of the tab's own copy — `AdminByokKeyFooter`'s
@@ -16,7 +17,7 @@
  * `en` entry mapping each key to itself would be dead weight.
  */
 
-import { createDictionaryTranslator } from "../../lib/dictionary-translator";
+import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 import { ADMIN_LOCALES } from "../../lib/settings-tabs";
 
 const SETTINGS_EXECUTION_DICT: Record<string, Record<string, string>> = {
@@ -316,7 +317,7 @@ const SETTINGS_EXECUTION_DICT: Record<string, Record<string, string>> = {
   },
 };
 
-export const t = createDictionaryTranslator(SETTINGS_EXECUTION_DICT);
+export const t = createDictionaryTranslator({ featureDictionary: SETTINGS_EXECUTION_DICT }, { commonDictionary: COMMON_I18N });
 
 /** Keep the package's internal translation key stable while changing all rendered labels/ARIA.
  * Host dictionary overlays are the published extension point; installed packages stay untouched. */
@@ -326,7 +327,7 @@ export function aiAgentPanelDictionaries(
   const result: Partial<Record<string, Record<string, string>>> = { ...dictionaries };
   // Through the translator, never an inline dictionary index (dictionary-lookup-sinks guard).
   for (const { code: locale } of ADMIN_LOCALES) {
-    const label = t(locale, 'AI agent');
+    const label = t({ locale: locale, key: 'AI agent' });
     result[locale] = { ...dictionaries[locale], 'Execution mode': label, 'AI agent': label };
   }
   return result;

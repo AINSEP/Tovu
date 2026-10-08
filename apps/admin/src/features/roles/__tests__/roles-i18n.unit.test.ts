@@ -51,7 +51,7 @@ const LOCALES = [
 describe('t(locale, "Remove permission?") — C1', () => {
   for (const locale of LOCALES) {
     it(`translates for ${locale}`, () => {
-      const translated = t(locale, "Remove permission?");
+      const translated = t({ locale: locale, key: "Remove permission?" });
       expect(translated.length).toBeGreaterThan(0);
       expect(translated).not.toBe("Remove permission?");
       expect(translated).toBe(EXPECTED_TITLES[locale]);

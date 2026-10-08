@@ -2,10 +2,8 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { InfoTip } from "../InfoTip";
-import { SeeMore } from "../SeeMore/SeeMore";
+import { ImagePreviewModal, InfoTip, SeeMore } from "@jini-ai/ui/admin-widgets";
 import { Select, type SelectOption } from "../Select/Select";
-import { ImagePreviewModal } from "../ImagePreviewModal";
 import { AdminByokKeyFooter, AdminByokMigrationPrompt, AdminByokSettingsFooter } from "../AdminByokKeyPanel";
 import { ComingSoonNotice, Placeholder } from "../Placeholder";
 import type { AdminExecutionCredentialController } from "../../hooks/use-admin-execution-credential.hooks";

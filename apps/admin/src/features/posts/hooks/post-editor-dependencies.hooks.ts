@@ -9,8 +9,7 @@ import type { PostEditorPort } from "./post-editor-port.hooks";
  * for why the split exists.
  */
 
-/** The live implementation, as a module-level singleton — matches `redirects-dependencies
- *  .hooks.ts`'s `defaultRedirectsPort`. */
+/** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s `redirectsHostPorts`. */
 export const defaultPostEditorPort: PostEditorPort = {
   getPost: (id) => api.getPost(id),
   getPresentation: () => api.getPresentation(),

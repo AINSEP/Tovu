@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { decideExternalEntryRefresh, type ExternalEntryRevision } from "@/lib/external-entry-refresh";
 
-import { useSettlementGeneration } from "./use-settlement-generation.hooks";
+import { useSettlementGeneration } from "@jini-ai/ui/panel-kit";
 
 /**
  * @file The stateful half of "did this row change out from under an open editor" (see
@@ -99,7 +99,7 @@ export function useExternalEntryRefresh<Row extends ExternalEntryRevision>(
     latestRef.current
       .fetchLatest(loaded.id)
       .then((fresh) => {
-        if (!generations.isCurrent(generation)) return;
+        if (!generations.isCurrent({ generation })) return;
         const current = latestRef.current;
         const decision = decideExternalEntryRefresh({
           loaded: current.loaded,
@@ -148,7 +148,7 @@ export function useExternalEntryRefresh<Row extends ExternalEntryRevision>(
       () => null
     );
     // A later click (or unmount) owns the in-flight state and any deferred check now.
-    if (!generations.isCurrent(generation)) return;
+    if (!generations.isCurrent({ generation })) return;
     loadInFlightRef.current = false;
     if (fresh === null) {
       latestRef.current.onLoadLatestFailed();

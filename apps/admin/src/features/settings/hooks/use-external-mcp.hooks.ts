@@ -1,6 +1,6 @@
 import { credentialText, formatCredentialHint, formatCredentialHints, translateCredentialMessage, assertCredentialToken, CredentialInputError } from "@/lib/credential-copy";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 import type {
   AddSourceInput,
@@ -28,9 +28,9 @@ import {
   type AdminExternalMcpServer,
   type AdminExternalMcpServerInput,
 } from "@/lib/api";
-import { useSerialWrites } from "@/hooks/use-serial-writes.hooks";
-import { useExternalMcpDriftCopy } from "../ExternalMcpSettingsPanel.hooks";
-import { mergeSourceUpdate, resolveExternalMcpEffectiveAuthMode, validateExternalMcpOAuthIdentity } from "../rules";
+import { useSerialWrites } from "@jini-ai/ui/panel-kit";
+import { t as tExternalMcp } from "../external-mcp-i18n";
+import { mergeSourceUpdate, resolveExternalMcpEffectiveAuthMode, resolveExternalMcpEffectiveTransport, validateExternalMcpOAuthIdentity } from "../rules";
 
 /**
  * @file The real transport behind Settings → External MCP, replacing the empty in-memory fake that
@@ -244,16 +244,22 @@ export interface ExternalMcpController {
  * @complexity O(n) per fetch in the configured server count.
  * @overallScore 100
  */
-async function checkSavedServer({ item, server, locale }: { item: SourceConfigItem; server: AdminExternalMcpServer; locale: string }): Promise<SourceConfigItem> {
+async function checkSavedServer({ item, server, locale, port }: { item: SourceConfigItem; server: AdminExternalMcpServer; locale: string; port: ExternalMcpPort }): Promise<SourceConfigItem> {
   let message = credentialText({ id: 'saved', locale });
   if (server.transport !== 'stdio' && server.enabled) {
-    try { await api.probeExternalMcpServer(server.serverId); message = credentialText({ id: 'connected', locale }); }
+    try { await port.probeExternalMcpServer(server.serverId); message = credentialText({ id: 'connected', locale }); }
     catch (err) { message = translateCredentialMessage({ message: describeApiError(err, credentialText({ id: 'unreachable', locale })), locale }); }
   }
   return { ...item, statusMessage: [item.statusMessage, message].filter(Boolean).join(' · ') };
 }
 
-export function useExternalMcp(): ExternalMcpController {
+/** Existing API contracts remain the owner; injection lets tests use fakes without module mocks. */
+export type ExternalMcpPort = Pick<typeof api, "listExternalMcpServers" | "saveExternalMcpServer" | "deleteExternalMcpServer" | "probeExternalMcpServer">;
+
+export function useExternalMcp(
+  { port = api, useAdminLocaleHook = useAdminLocale }: { port?: ExternalMcpPort; useAdminLocaleHook?: () => string } = {},
+  _optional: Record<string, never> = {},
+): ExternalMcpController {
   const [restartRequired, setRestartRequired] = useState(false);
   // `updateSource` receives a PARTIAL patch, but the write route replaces the whole row, so the
   // last-known field values are kept here to merge against. Without this, toggling `enabled` would
@@ -266,14 +272,16 @@ export function useExternalMcp(): ExternalMcpController {
   // here rather than re-resolving the locale a second way, so `testSource`'s unreachable-server
   // fallback below stays word-for-word identical to the picker's own copy in every locale, not just
   // English.
-  const t = useExternalMcpDriftCopy();
-  const locale = useAdminLocale();
+  // The credential-safety contract now owns probe fallback copy; other tab copy still uses
+  // the same dictionary translator as the picker, with the injected locale resolved once.
+  const locale = useAdminLocaleHook();
+  const t = useCallback((key: string) => tExternalMcp({ locale: locale, key: key }), [locale]);
 
   const dependencies = useMemo<SourceConfigDependencies<SourceConfigItem>>(
     () => ({
       port: {
         async fetchSources() {
-          const { servers } = await api.listExternalMcpServers();
+          const { servers } = await port.listExternalMcpServers();
           const items = servers.map(server => toItem(server, locale));
           lastKnown.current = new Map(items.map((item) => [item.id, item]));
           return items;
@@ -287,20 +295,21 @@ export function useExternalMcp(): ExternalMcpController {
           if (lastKnown.current.has(serverId)) {
             return { ok: false, message: t("A server with this ID already exists. Edit that server instead.") };
           }
-          if (resolveExternalMcpEffectiveAuthMode(input.fields) === 'static_env' && input.fields.transport !== 'stdio') {
+          // An untouched transport saves as STDIO; require a header token only for hosted rows.
+          if (resolveExternalMcpEffectiveAuthMode(input.fields) === 'static_env' && resolveExternalMcpEffectiveTransport(input.fields) !== 'stdio') {
             try { assertCredentialToken({ value: input.fields.accessToken, field: 'accessToken' }); }
             catch (err) { if (err instanceof CredentialInputError) return { ok: false, message: translateCredentialMessage({ message: err.message, locale }) }; throw err; }
           }
           const oauthIdentityIssue = validateExternalMcpOAuthIdentity(input.fields, t);
           if (oauthIdentityIssue) return { ok: false, message: oauthIdentityIssue };
           try {
-            const { server } = await api.saveExternalMcpServer(
+            const { server } = await port.saveExternalMcpServer(
               serverId,
               toWriteBody(input.fields, true, input.fields.label)
             );
             setRestartRequired(true);
             const item = toItem(server, locale);
-            const checked = await checkSavedServer({ item, server, locale });
+            const checked = await checkSavedServer({ item, server, locale, port });
             lastKnown.current.set(item.id, checked);
             return { ok: true, source: checked };
           } catch (e) {
@@ -310,7 +319,7 @@ export function useExternalMcp(): ExternalMcpController {
 
         async removeSource(id: string) {
           try {
-            await api.deleteExternalMcpServer(id);
+            await port.deleteExternalMcpServer(id);
             setRestartRequired(true);
             lastKnown.current.delete(id);
             return true;
@@ -338,22 +347,22 @@ export function useExternalMcp(): ExternalMcpController {
          * each gets its own lane.
          */
         async updateSource(id: string, patch: SourceUpdateInput) {
-          return writes.run(async () => {
+          return writes.run({ task: async () => {
             const previous = lastKnown.current.get(id);
             const merged = mergeSourceUpdate(previous, patch);
             try {
-              const { server } = await api.saveExternalMcpServer(id, toWriteBody(merged.fields, merged.enabled, merged.label));
+              const { server } = await port.saveExternalMcpServer(id, toWriteBody(merged.fields, merged.enabled, merged.label));
               setRestartRequired(true);
               const item = toItem(server, locale);
               const changedToken = (merged.fields.accessToken ?? '') !== '';
-              const checked = changedToken ? await checkSavedServer({ item, server, locale }) : item;
+              const checked = changedToken ? await checkSavedServer({ item, server, locale, port }) : item;
               lastKnown.current.set(item.id, checked);
               return checked;
             } catch (err) {
               if (!previous) return null;
               return { ...previous, statusMessage: translateCredentialMessage({ message: describeApiError(err, t('That server could not be saved.')), locale }) };
             }
-          }, { key: id });
+          } }, { key: id });
         },
 
         /**
@@ -385,7 +394,7 @@ export function useExternalMcp(): ExternalMcpController {
           }
           const startedAt = Date.now();
           try {
-            const { tools } = await api.probeExternalMcpServer(id);
+            const { tools } = await port.probeExternalMcpServer(id);
             return {
               ok: true,
               message: `${tools.length} tool${tools.length === 1 ? "" : "s"} advertised.`,
@@ -397,7 +406,7 @@ export function useExternalMcp(): ExternalMcpController {
         },
       },
     }),
-    [t, writes, locale]
+    [t, writes, locale, port]
   );
 
   return { dependencies, restartRequired };

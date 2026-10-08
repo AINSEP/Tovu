@@ -1,8 +1,9 @@
+import { ICON_PATH_DATA } from "@jini-ai/ui";
 /**
  * @file This screen's own small icon set — one inline SVG, no icon dependency. Same rationale
  * `source-control-visuals.tsx` and `deployment/deployment-visuals.tsx` give for theirs: this app
- * ships no icon component library to `features/`, and importing a glyph across a feature boundary
- * would tie this screen's rendering to a sibling feature another agent owns.
+ * avoids importing a sibling feature's actively edited file. Exact repeated outlines now come
+ * from Jini UI's icon owner; feature-specific inner marks stay here.
  *
  * `aria-hidden` — the icon sits directly beside the text that already says the same thing
  * (`frontend-accessibility`: an icon that duplicates its own visible label is noise to a screen
@@ -27,7 +28,7 @@ const LINE_ICON = {
 export function AllSitesIcon({ size = 16 }: { size?: number }) {
   return (
     <svg {...LINE_ICON} width={size} height={size}>
-      <path d="M3.5 7.5V6A1.5 1.5 0 0 1 5 4.5h4l2 2h8A1.5 1.5 0 0 1 20.5 8v10A1.5 1.5 0 0 1 19 19.5H5A1.5 1.5 0 0 1 3.5 18z" />
+      <path d={ICON_PATH_DATA["folder-outline-compact"]} />
     </svg>
   );
 }
@@ -36,7 +37,7 @@ export function AllSitesIcon({ size = 16 }: { size?: number }) {
 export function NewSiteIcon({ size = 16 }: { size?: number }) {
   return (
     <svg {...LINE_ICON} width={size} height={size}>
-      <path d="M3.5 7.5V6A1.5 1.5 0 0 1 5 4.5h4l2 2h8A1.5 1.5 0 0 1 20.5 8v10A1.5 1.5 0 0 1 19 19.5H5A1.5 1.5 0 0 1 3.5 18z" />
+      <path d={ICON_PATH_DATA["folder-outline-compact"]} />
       <path d="M12 10.5v5M9.5 13h5" />
     </svg>
   );

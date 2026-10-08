@@ -2,18 +2,19 @@ import { useEffect, useId, useRef, useState } from "react";
 import { describeApiError, type AdminWidget, type AdminWidgetType } from "../../lib/api";
 import { DEFAULT_LOCALE } from "../../hooks/admin-locale-dependencies.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import type { Translate } from "../../lib/dictionary-translator";
-import { interpolate } from "../../lib/template-i18n";
-import { widgetTypeLabel } from "../../features/widgets/rules";
+import type { Translate } from "@jini-ai/ui/panel-kit";
+import { interpolate } from "@jini-ai/ui/panel-kit";
+import { widgetTypeLabel } from "@jini-ai/admin/widgets";
+import { t as translateWidgets } from "../../features/widgets/widgets-i18n";
 import { t as sharedComponentsT } from "../shared-components-i18n";
-import { defaultWidgetConfig } from "../WidgetConfigFields/WidgetConfigFields";
+import { defaultWidgetConfig, WIDGET_TYPE_OPTIONS } from "../WidgetConfigFields/WidgetConfigFields";
 import { defaultWidgetPickerPort } from "./widget-picker-dependencies.hooks";
 import type { WidgetPickerPort } from "./widget-picker-port.hooks";
 import type { WidgetAddControlProps, WidgetPickerDialogProps } from "./WidgetPickerDialog";
 
 /**
  * @file `WidgetPickerDialog`'s and `WidgetAddControl`'s state — the existing-instances fetch, the
- * dialog's own form/selection/Escape-listener/autofocus state, and the two-step type-choice flow —
+ * dialog's own form/selection/deferred-autofocus state, and the two-step type-choice flow —
  * split out of the component file so each can be swapped for a fake via the `useDialog`/
  * `useAddControl` props on their respective prop types (see those props' doc comments in
  * `WidgetPickerDialog.tsx`), per the `@jini-ai/admin` `<Name>.tsx`/`<Name>.hooks.tsx` extraction
@@ -74,7 +75,7 @@ export function useExistingInstances(
     port
       .listWidgets({ widgetType })
       .then((r) => setInstances(r.widgets))
-      .catch((e) => setError(describeApiError(e, sharedComponentsT(locale, "failed to load existing widgets"))));
+      .catch((e) => setError(describeApiError(e, sharedComponentsT({ locale: locale, key: "failed to load existing widgets" }))));
     // `port`/`locale` are added to the array below — function-scoped values ESLint's exhaustive-deps
     // rule can see, both referentially/value stable across re-renders in production (the default
     // parameters resolve to the same module-level singleton and the same string), so this changes
@@ -87,7 +88,7 @@ export function useExistingInstances(
 
 /**
  * Owns `WidgetPickerDialog`'s own state on top of `useExistingInstances`: the existing-instance
- * selection, the new-widget draft fields, the shared submit error, the Escape-to-cancel listener,
+ * selection, the new-widget draft fields, the shared submit error,
  * and the defer-until-resolved new-title autofocus.
  *
  * @param props - The dialog's own props (`widgetType`, `onUseExisting`, `onCreateNew`, `onCancel`)
@@ -106,7 +107,7 @@ export function useWidgetPickerDialog(
 ) {
   const port = deps.port ?? defaultWidgetPickerPort;
   const locale = deps.locale ?? DEFAULT_LOCALE;
-  const t: Translate = (key) => sharedComponentsT(locale, key);
+  const t: Translate = (key) => sharedComponentsT({ locale: locale, key: key });
   const { instances, error: loadError } = useExistingInstances(props.widgetType, port, locale);
   const [selectedExistingId, setSelectedExistingId] = useState("");
   const [newTitle, setNewTitle] = useState("");
@@ -120,21 +121,11 @@ export function useWidgetPickerDialog(
   // the alternative is a landmine for whoever adds a second widget control to one screen later —
   // `aria-labelledby`/`htmlFor` both resolve via `getElementById`, which silently returns the
   // first DOM match rather than erroring on a duplicate id.
-  const titleId = useId();
   const existingSelectId = useId();
   const newTitleInputId = useId();
   const newTitleInputRef = useRef<HTMLInputElement | null>(null);
 
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") props.onCancel();
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [props.onCancel]);
-
-  const typeLabel = widgetTypeLabel(props.widgetType, locale);
+  const typeLabel = widgetTypeLabel({ widgetType: props.widgetType, types: WIDGET_TYPE_OPTIONS }, { t: key => translateWidgets({ locale, key }) });
   const hasExisting = (instances?.length ?? 0) > 0;
 
   // Found live in a real browser, not in this file's own jsdom suite: `instances` starts `null`
@@ -182,7 +173,6 @@ export function useWidgetPickerDialog(
     newConfig,
     setNewConfig,
     error,
-    titleId,
     existingSelectId,
     newTitleInputId,
     newTitleInputRef,
@@ -234,7 +224,7 @@ export function useWidgetAddControl(
 ) {
   const port = deps.port ?? defaultWidgetPickerPort;
   const locale = deps.locale ?? DEFAULT_LOCALE;
-  const t: Translate = (key) => sharedComponentsT(locale, key);
+  const t: Translate = (key) => sharedComponentsT({ locale: locale, key: key });
   const [pickerType, setPickerTypeRaw] = useState<AdminWidgetType | null>(null);
   const [selectedType, setSelectedType] = useState<AdminWidgetType>("text");
   const [error, setError] = useState<string | null>(null);
@@ -275,9 +265,7 @@ export function useWidgetAddControl(
     } catch (e) {
       const detail = describeApiError(e, t("failed to place widget"));
       setError(
-        interpolate(
-          t('Widget "{title}" was created but not placed ({detail}). Choose it under Use existing to try again.'),
-          { title, detail }
+        interpolate({ template: t('Widget "{title}" was created but not placed ({detail}). Choose it under Use existing to try again.'), vars: { title, detail } }
         )
       );
     }

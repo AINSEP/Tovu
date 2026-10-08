@@ -4,13 +4,13 @@ import type { EditorView } from "@tiptap/pm/view";
 
 import { type AdminPost } from "../../lib/api";
 import { isVersionConflict, VERSION_CONFLICT_CODE } from "../../lib/version-conflict";
-import type { Translate } from "../../lib/dictionary-translator";
-import { buildAgentListHandles } from "../../lib/agent-list-handles";
+import type { Translate } from "@jini-ai/ui/panel-kit";
+import { buildAgentListHandles } from "@jini-ai/agentic";
 import type {
   StandingDraftAutosaveInput,
   StandingDraftStaleBasis,
 } from "../../hooks/use-standing-draft-autosave.hooks";
-import { formatRelativeMinutesAgo } from "../../lib/format-timestamp";
+import { formatRelativeMinutesAgo } from "@jini-ai/ui/panel-kit";
 import { t as translate } from "./posts-i18n";
 
 /**
@@ -68,7 +68,7 @@ export interface PostRowMenuHandlers {
  * @complexity Time/space: O(1) — exactly three entries, no iteration.
  */
 export function postRowMenuItems(post: AdminPost, handlers: PostRowMenuHandlers, locale: string): RowMenuItem[] {
-  const t = (key: string): string => translate(locale, key);
+  const t = (key: string): string => translate({ locale: locale, key: key });
   const items: RowMenuItem[] = [{ key: "edit", label: t("Edit"), onSelect: () => handlers.onEdit(post) }];
   items.push(
     post.status === "published"
@@ -91,9 +91,7 @@ export function postRowMenuItems(post: AdminPost, handlers: PostRowMenuHandlers,
  */
 export function buildPostRowMenuHandleMap(posts: AdminPost[] | null): Map<string, string> {
   if (!posts) return new Map();
-  const handles = buildAgentListHandles(
-    "posts-row",
-    posts.map((post) => post.id),
+  const handles = buildAgentListHandles({ prefix: "posts-row", ids: posts.map((post) => post.id) }
   );
   return new Map(posts.map((post, index) => [post.id, handles[index]!]));
 }
@@ -130,7 +128,7 @@ export function isAutosaveDraftStale(draftBaseVersion: number, currentVersion: n
  * static `POSTS_DICT[locale][key]` lookup, which has no interpolation mechanism at all.
  */
 export function postAutosaveBannerMessage(savedAt: string, nowMs: number, stale: boolean): string {
-  const when = formatRelativeMinutesAgo(savedAt, nowMs);
+  const when = formatRelativeMinutesAgo({ iso: savedAt, nowMs: nowMs });
   return stale ? `Unsaved changes from before a newer save (captured ${when})` : `Unsaved changes from ${when}`;
 }
 

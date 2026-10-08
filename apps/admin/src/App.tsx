@@ -190,8 +190,8 @@ function NoAccess(props: { locale: string }) {
     <div className="page">
       <div className="page-header">
         <div className="page-header-text">
-          <h1 className="page-title">{tApp(props.locale, "You don't have access to this")}</h1>
-          <p className="page-description">{tApp(props.locale, "Ask the site owner if you need this section.")}</p>
+          <h1 className="page-title">{tApp({ locale: props.locale, key: "You don't have access to this" })}</h1>
+          <p className="page-description">{tApp({ locale: props.locale, key: "Ask the site owner if you need this section." })}</p>
         </div>
       </div>
     </div>
@@ -222,7 +222,7 @@ function UnavailableSectionRedirect() {
  */
 function SidebarLogoutButton(props: { onLogout: () => void; locale: string }) {
   const { railTooltipProps } = useSidebar();
-  const logOutLabel = translateAdminNavLabel(props.locale, "Log out");
+  const logOutLabel = translateAdminNavLabel({ locale: props.locale, key: "Log out" });
   return (
     <button className="cms-logout" onClick={props.onLogout} {...railTooltipProps(logOutLabel)}>
       <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5}>
@@ -278,9 +278,9 @@ function LogoutConfirmDialog(props: { logoutConfirm: UseLogoutConfirm; locale: s
   return (
     <ConfirmDialog
       open={logoutConfirm.open}
-      title={tApp(locale, "Log out?")}
-      body={<p>{tApp(locale, "Are you sure you want to log out?")}</p>}
-      confirmLabel={translateAdminNavLabel(locale, "Log out")}
+      title={tApp({ locale: locale, key: "Log out?" })}
+      body={<p>{tApp({ locale: locale, key: "Are you sure you want to log out?" })}</p>}
+      confirmLabel={translateAdminNavLabel({ locale: locale, key: "Log out" })}
       pending={logoutConfirm.pending}
       onConfirm={logoutConfirm.confirm}
       onCancel={logoutConfirm.cancel}
@@ -394,7 +394,7 @@ function AssistantChrome(props: {
         hidden={!chatOpen}
         inert={!chatOpen}
         tabIndex={-1}
-        aria-label={tApp(locale, "Assistant")}
+        aria-label={tApp({ locale: locale, key: "Assistant" })}
         // SPEC-053: capture phase, on this EXISTING element rather than a new wrapper inside
         // `<AssistantDock>` — a `display: contents` (or any real) div added there is the exact
         // layout trap `data-theme="light"`'s own comment two blocks up already documents for
@@ -623,7 +623,7 @@ export function App(props: AppProps) {
   const interfacePreferences = useInterfacePreferences();
   const hideFabWhileOpen = interfacePreferences.hideChatFabWhileOpen;
   const navGroups = translateAdminNavGroups(navLocale, rawNavGroups);
-  const navSoonLabel = translateAdminNavLabel(navLocale, "Soon");
+  const navSoonLabel = translateAdminNavLabel({ locale: navLocale, key: "Soon" });
 
   /** Same `navLocale`, reused for the assistant dock's mobile-sheet chrome and `ChatFab`'s
    *  "assistant" label below — both live here rather than inside `AssistantDock.tsx`/`ChatFab.tsx`
@@ -634,12 +634,12 @@ export function App(props: AppProps) {
    *  Dashboard's dialog, wherever it mounts — never `tApp`/`dockT`, which would silently regress
    *  every locale but English for this one dialog (both resolve against `app-i18n.ts`'s different
    *  dictionary, which has no entries for this copy). */
-  const dashboardT = (key: string): string => translateDashboard(navLocale, key);
+  const dashboardT = (key: string): string => translateDashboard({ locale: navLocale, key: key });
 
   // See `useCollapsibleNavGroupLabels`'s own doc for which groups collapse and why.
   const collapsibleGroups = useCollapsibleNavGroupLabels(navGroups);
 
-  if (checking) return <div className="boot-screen">{tApp(navLocale, "Loading Tovu…")}</div>;
+  if (checking) return <div className="boot-screen">{tApp({ locale: navLocale, key: "Loading Tovu…" })}</div>;
   if (!user) return <Login onLogin={handleLogin} />;
 
   const content: ReactNode = renderRoute(route, siteSection, { permissions: effectivePermissions, locale: navLocale });
@@ -655,7 +655,7 @@ export function App(props: AppProps) {
     // `app-i18n.ts`'s own `APP_DICT` defines no `"Cancel"` key of its own — see
     // `createDictionaryTranslator`'s doc comment in `lib/dictionary-translator.ts`.
     <AdminModulesProvider permissions={effectivePermissions ?? NO_PERMISSIONS}>
-    <ConfirmDialogDefaultsProvider cancelLabel={tApp(navLocale, "Cancel")}>
+    <ConfirmDialogDefaultsProvider cancelLabel={tApp({ locale: navLocale, key: "Cancel" })}>
       <div className={resolveAdminLayoutClassName(interfacePreferences)}>
         {/* First focusable element in the app, deliberately before `<Sidebar>` — the auditor
             measured 26 Tab presses to reach main content from a fresh load, because every route
@@ -664,7 +664,7 @@ export function App(props: AppProps) {
             `#main-content` on `<main>` below, not a route change, so this works identically
             whichever section is currently rendered there. */}
         <a href="#main-content" className="skip-link">
-          {tApp(navLocale, "Skip to content")}
+          {tApp({ locale: navLocale, key: "Skip to content" })}
         </a>
         {/* `railDefaultCollapsed`: Tovu's admin opens as an icon rail for a first-time operator, so
             the 26-item nav does not claim 232px before anyone has asked it to. It is a DEFAULT, not a
@@ -721,7 +721,7 @@ export function App(props: AppProps) {
               className="admin-topbar-toggle"
               aria-expanded={sidebarOpen}
               aria-controls="admin-sidebar"
-              aria-label={tApp(navLocale, sidebarOpen ? "Close navigation" : "Open navigation")}
+              aria-label={tApp({ locale: navLocale, key: sidebarOpen ? "Close navigation" : "Open navigation" })}
               onClick={() => setSidebarOpen((current) => !current)}
             >
               <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">

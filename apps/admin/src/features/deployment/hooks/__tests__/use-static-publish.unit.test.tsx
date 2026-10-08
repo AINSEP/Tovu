@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 import { useStaticPublish } from "../use-static-publish.hooks";
 import { createFakeStaticPublishPort } from "../static-publish-dependencies.hooks";
 import { PLAIN_TARGET, PUBLISH_TARGETS } from "../../__tests__/publish-targets.fixture";
@@ -552,8 +552,8 @@ describe("useStaticPublish — publish trigger and poll", () => {
     expect(result.current.isPublishing).toBe(true);
 
     // NOW the delayed bootstrap GET finally resolves, reporting stale "idle" state from before the
-    // click. Flush the setTimeout(0) macrotask `useFetchQuery`'s TanStack notification uses — plain
-    // `await Promise.resolve()` would NOT flush this (this repo's own fetch-query migration notes).
+    // click. Yield through the pending read and React update so the seed effect gets its chance
+    // to run; a single resolved promise does not prove that the whole chain has settled.
     await act(async () => {
       resolveInitialStatus(IDLE_RUN);
       await new Promise((resolve) => setTimeout(resolve, 0));

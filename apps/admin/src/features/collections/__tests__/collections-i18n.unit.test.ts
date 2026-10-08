@@ -70,11 +70,11 @@ describe("COLLECTIONS_DICT: cross-locale key parity", () => {
 describe("COLLECTIONS_DICT: t() falls back to COMMON_I18N", () => {
   it("translates 'Save' in German even though COLLECTIONS_DICT.de never carries it", () => {
     expect(COLLECTIONS_DICT.de.Save).toBeUndefined();
-    expect(t("de", "Save")).toBe(COMMON_I18N.de.Save);
+    expect(t({ locale: "de", key: "Save" })).toBe(COMMON_I18N.de.Save);
   });
 
   it("translates 'Cancel' in German even though COLLECTIONS_DICT.de never carries it", () => {
     expect(COLLECTIONS_DICT.de.Cancel).toBeUndefined();
-    expect(t("de", "Cancel")).toBe(COMMON_I18N.de.Cancel);
+    expect(t({ locale: "de", key: "Cancel" })).toBe(COMMON_I18N.de.Cancel);
   });
 });

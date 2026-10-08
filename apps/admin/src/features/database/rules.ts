@@ -1,6 +1,6 @@
 import type { AdminLedgerRow, AdminSchemaState } from "../../lib/api";
-import type { QueryKey } from "../../lib/fetch-query";
-import { formatTimestamp } from "../../lib/format-timestamp";
+import type { QueryKey } from "@jini-ai/ui/fetch-query";
+import { formatTimestamp } from "@jini-ai/ui/panel-kit";
 import { t } from "./database-i18n";
 
 /**
@@ -12,7 +12,7 @@ import { t } from "./database-i18n";
  * resources — the old restore-point create action never reloaded the timeline in
  * the pre-migration code either (each section owns its own load, no cross-invalidation), so they
  * get two entirely separate top-level namespaces rather than a shared grandparent, same shape
- * `forms/rules.ts`'s `KEYS` uses for `forms` vs `form-submissions`.
+ * `@jini-ai/admin/forms` rules.ts's `KEYS` uses for `forms` vs `form-submissions`.
  *
  * `timeline(filters)` keys on the four filter fields together, not on a separate "applied" flag —
  * `use-timeline-section.hooks.ts` keeps a `kind`/`outcome`/`fromDate`/`toDate` DRAFT (bound to the
@@ -25,15 +25,14 @@ import { t } from "./database-i18n";
  * the Timeline's ledger — so it invalidates `KEYS.schemaState` and `KEYS.timelineAll` on success (see
  * that hook's own doc comment, and the 2026-09-20 platform-review fix for the bug this closes: the
  * banner and Timeline used to go stale after a migration with nothing to re-read them).
- * useRestorePointsSection (features/database/hooks/use-restore-points-section.hooks.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 const TIMELINE_ROOT: QueryKey = ["database", "timeline"];
 
 export const KEYS = {
   schemaState: ["database", "schema-state"] as QueryKey,
   restorePoints: ["database", "restore-points"] as QueryKey,
-  /** Prefix of every `timeline(filters)` key below — TanStack invalidation matches by prefix
-   *  (`lib/fetch-query/types.ts`'s `QueryKey` doc), so invalidating this one key refreshes whichever
+  /** Prefix of every `timeline(filters)` key below — Jini invalidation matches by prefix
+   *  (`@jini-ai/ui/fetch-query`'s `QueryKey` doc), so invalidating this one key refreshes whichever
    *  filter set the Timeline currently has cached. Must stay a prefix of `timeline(filters)`'s
    *  return value if that shape ever changes. */
   timelineAll: TIMELINE_ROOT,
@@ -167,5 +166,5 @@ export function resolveSchemaStateWarning(
  * @complexity O(1).
  */
 export function viewInRecoveryAccessibleName(locale: string, row: Pick<AdminLedgerRow, "kind" | "createdAt">): string {
-  return `${t(locale, "View in Recovery →")} — ${row.kind}, ${formatTimestamp(row.createdAt)}`;
+  return `${t({ locale: locale, key: "View in Recovery →" })} — ${row.kind}, ${formatTimestamp({ iso: row.createdAt }, { timeZone: "local" })}`;
 }

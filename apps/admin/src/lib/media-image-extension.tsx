@@ -57,7 +57,7 @@ export function MediaImageNodeView(props: NodeViewProps) {
   const alt = typeof props.node.attrs.alt === "string" ? props.node.attrs.alt : "";
   const [picking, setPicking] = useState(false);
   const locale = useWiredAdminLocale();
-  const t = (key: string): string => translateApp(locale, key);
+  const t = (key: string): string => translateApp({ locale: locale, key: key });
 
   const isRef = assetId.length > 0 && transformName.length > 0;
   const previewSrc = isRef ? api.mediaOriginalUrl(assetId) : legacySrc;

@@ -33,7 +33,7 @@ import { contentRefreshApplies, subscribeToContentRefresh, type ContentRefreshSc
  * ## Deliberately generic over "what a refresh means"
  *
  * `onRefresh` is `() => void`, not `invalidate: (key: QueryKey) => void` — this codebase has two
- * shapes of list hook, and both need to compile: `use-media.hooks.ts`/`use-forms-list.hooks.ts`
+ * shapes of list hook, and both need to compile: `use-media.hooks.ts`/`Jini forms/react/hooks/use-forms-list.hooks.ts`
  * already read through `lib/fetch-query`'s `useFetchQuery`, where "refresh" is
  * `useInvalidate()(KEYS.list)`; `use-posts.hooks.ts`/`use-pages.hooks.ts` predate that migration and
  * hold their list in plain `useState`, where "refresh" is re-running the `port.listX()` call that

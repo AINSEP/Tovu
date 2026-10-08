@@ -1,5 +1,5 @@
 import { agentHandle } from "@jini-ai/agentic";
-import { buildAgentListHandles } from "../../lib/agent-list-handles";
+import { buildAgentListHandles } from "@jini-ai/agentic";
 import { useWiredTermPicker } from "./hooks/use-term-picker.hooks";
 
 /**
@@ -31,15 +31,13 @@ export function TermPicker(props: {
 
   // Term ids are database row ids — globally unique across every taxonomy, not just within one —
   // so one flat handle list across all taxonomies is correct.
-  const termHandles = buildAgentListHandles(
-    "term-picker-term",
-    taxonomies.flatMap(({ terms }) => terms.map((term) => term.id)),
+  const termHandles = buildAgentListHandles({ prefix: "term-picker-term", ids: taxonomies.flatMap(({ terms }) => terms.map((term) => term.id)) }
   );
   let termHandleIndex = 0;
   const taxonomyIds = taxonomies.map(({ taxonomy }) => taxonomy.id);
-  const addInputHandles = buildAgentListHandles("term-picker-new-term", taxonomyIds);
-  const addTriggerHandles = buildAgentListHandles("term-picker-open-new-term", taxonomyIds);
-  const addButtonHandles = buildAgentListHandles("term-picker-add-term", taxonomyIds);
+  const addInputHandles = buildAgentListHandles({ prefix: "term-picker-new-term", ids: taxonomyIds });
+  const addTriggerHandles = buildAgentListHandles({ prefix: "term-picker-open-new-term", ids: taxonomyIds });
+  const addButtonHandles = buildAgentListHandles({ prefix: "term-picker-add-term", ids: taxonomyIds });
 
   return (
     <section className="card term-picker">

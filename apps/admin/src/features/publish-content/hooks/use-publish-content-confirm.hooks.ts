@@ -34,7 +34,7 @@ import {
 import { describeApiError, type AdminPublishDestinationView } from "@/lib/api";
 
 import { useWiredAdminLocale } from "../../../hooks/use-admin-locale.hooks";
-import type { Translate } from "../../../lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 import { defaultPublishContentPort } from "./publish-content-dependencies.hooks";
 import type { PublishContentPort } from "./publish-content-port.hooks";
 import { publishScopeDescriptionKey, publishScopeTitleKey } from "../publish-scope";
@@ -467,7 +467,7 @@ function buildCriteriaPublishResult(
  *   Dashboard's own ordinary open (plan §0's caller 1), which has no one waiting on an answer.
  * @param props.confirmArmDelayMs Defaults to {@link CONFIRM_ARM_DELAY_MS}; tests pass 0.
  * @complexity Time: O(n) per re-render in the plan's row count (row shaping + the summary counts);
- * space: O(n) for the shaped rows. One document-level keydown listener for the mounted lifetime.
+ * space: O(n) for the shaped rows. Native dialog dismissal is owned by Jini.
  */
 export function usePublishContentConfirm(props: {
   onCancel: () => void;
@@ -546,14 +546,6 @@ export function usePublishContentConfirm(props: {
   const onDismiss = (): void => {
     if (dismissible) onCancel();
   };
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape" && dismissible) onCancel();
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onCancel, dismissible]);
 
   // `live` guards every `setState` that follows an `await`: the dialog is unmounted by its own
   // Cancel button and by Escape, either of which can land while a plan or a publish is in flight.

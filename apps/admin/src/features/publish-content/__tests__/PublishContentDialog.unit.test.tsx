@@ -1,4 +1,4 @@
-import { act, render, renderHook, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, renderHook, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -481,12 +481,12 @@ describe("PublishContentDialog — plain column names (owner 2026-09-26)", () =>
   it("translates the Item column through the dashboard dictionary in German", async () => {
     const user = userEvent.setup();
     const port = createFakePublishContentPort({ peers: ONE_PEER, report: SELECTION_REPORT });
-    render(<PublishContentDialog onCancel={() => {}} t={(key) => dashboardT("de", key)} port={port} confirmArmDelayMs={NO_ARM_DELAY} />);
+    render(<PublishContentDialog onCancel={() => {}} t={(key) => dashboardT({ locale: "de", key: key })} port={port} confirmArmDelayMs={NO_ARM_DELAY} />);
     await waitFor(() => expect(port.calls.listPeers).toBe(1));
     await user.click(primaryButton());
     await screen.findByRole("table");
 
-    expect(screen.getByRole("columnheader", { name: dashboardT("de", "Item") })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: dashboardT({ locale: "de", key: "Item" }) })).toBeInTheDocument();
     expect(screen.queryByRole("columnheader", { name: "Item" })).not.toBeInTheDocument();
     expect(screen.queryByRole("columnheader", { name: "Entity" })).not.toBeInTheDocument();
   });
@@ -945,7 +945,7 @@ describe("PublishContentDialog — the blank 'Choose a site…' option is not a 
 // what restore point it made. The three close paths are Escape, the backdrop and Cancel.
 describe("PublishContentDialog — a committed publish can't be closed out from under its result (terra #3)", () => {
   function backdrop(): HTMLElement {
-    const node = document.querySelector(".settings-dialog-backdrop");
+    const node = document.querySelector("dialog");
     if (!node) throw new Error("the publish dialog has no backdrop");
     return node as HTMLElement;
   }
@@ -957,7 +957,7 @@ describe("PublishContentDialog — a committed publish can't be closed out from 
   /** Tries all three close paths, returning how many of them reached `onCancel`. */
   async function tryEveryWayToClose(user: ReturnType<typeof userEvent.setup>, onCancel: ReturnType<typeof vi.fn>): Promise<number> {
     const before = onCancel.mock.calls.length;
-    await user.keyboard("{Escape}");
+    fireEvent(screen.getByRole("dialog"), new Event("cancel", { cancelable: true }));
     await user.click(backdrop());
     if (!cancelButton().disabled) await user.click(cancelButton());
     return onCancel.mock.calls.length - before;

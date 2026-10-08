@@ -5,7 +5,7 @@ import type { AdminPlugin } from "@/lib/api";
 import { PluginChevronIcon, PluginPackageIcon } from "./plugins-visuals";
 import { EyeIcon } from "./agent-plugins-visuals";
 import { PluginMetadataLabel } from "@/components/status-labels";
-import type { Translate } from "@/lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 import { pluginRowDetailView, pluginRowFacts } from "./rules";
 
 /**

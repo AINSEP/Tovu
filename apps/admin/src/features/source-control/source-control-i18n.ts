@@ -1,5 +1,6 @@
-import { interpolate, localeEntry } from "../../lib/template-i18n";
-import { createDictionaryTranslator } from "../../lib/dictionary-translator";
+import { COMMON_I18N } from "../../lib/i18n-common";
+import { interpolate, localeEntry } from "@jini-ai/ui/panel-kit";
+import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 /**
  * @file Translations for the Source Control page (`/admin/source-control`). Same shape as
@@ -573,7 +574,7 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = Object.fromE
   ]),
 );
 
-export const t = createDictionaryTranslator(SOURCE_CONTROL_DICT);
+export const t = createDictionaryTranslator({ featureDictionary: SOURCE_CONTROL_DICT }, { commonDictionary: COMMON_I18N });
 
 /**
  * The row list's LOAD-error banner (`GET .../system/source-control/credentials`) — English only,
@@ -585,9 +586,7 @@ const SOURCE_CONTROL_CREDENTIALS_LOAD_ERROR_TEMPLATE: Record<string, string> = {
 };
 
 export function sourceControlCredentialsLoadErrorMessage(locale: string, error: string): string {
-  return interpolate(
-    localeEntry({ table: SOURCE_CONTROL_CREDENTIALS_LOAD_ERROR_TEMPLATE, locale }),
-    { error }
+  return interpolate({ template: localeEntry({ table: SOURCE_CONTROL_CREDENTIALS_LOAD_ERROR_TEMPLATE, locale }), vars: { error } }
   );
 }
 
@@ -601,8 +600,6 @@ const SOURCE_CONTROL_CREDENTIAL_SAVE_ERROR_TEMPLATE: Record<string, string> = {
 };
 
 export function sourceControlCredentialSaveErrorMessage(locale: string, error: string): string {
-  return interpolate(
-    localeEntry({ table: SOURCE_CONTROL_CREDENTIAL_SAVE_ERROR_TEMPLATE, locale }),
-    { error }
+  return interpolate({ template: localeEntry({ table: SOURCE_CONTROL_CREDENTIAL_SAVE_ERROR_TEMPLATE, locale }), vars: { error } }
   );
 }

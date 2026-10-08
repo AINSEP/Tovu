@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { expect, it } from "vitest";
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 import { RemoteImageImport } from "../RemoteImageImport";
 
 it("uses the upload row's short alt placeholder while keeping a distinct accessible name", () => {

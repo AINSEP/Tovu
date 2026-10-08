@@ -111,6 +111,11 @@
   display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); cursor: pointer; list-style: none; font-size: var(--text-sm); color: var(--fg-2);
 }
 .access-tokens-row-summary::-webkit-details-marker { display: none; }
+/* Static MCP rows can contain several environment hints. Keep the dot beside the text column,
+   and let the facts wrap visibly instead of ellipsizing a credential confirmation. */
+.access-tokens-row-static .access-tokens-row-summary { display: grid; grid-template-columns: 1.75rem minmax(0, 1fr); }
+.access-tokens-row-fact { font-weight: 600; color: var(--fg); min-width: 0; overflow-wrap: anywhere; }
+.access-tokens-row-static .access-tokens-row-summary-meta { grid-column: 2; white-space: normal; }
 .access-tokens-row-marker {
   display: grid; place-items: center; flex-shrink: 0;
   width: 1.75rem; height: 1.75rem; border-radius: 50%;

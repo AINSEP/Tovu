@@ -2,13 +2,11 @@ import { useEffect, useState } from "react";
 
 import { type PresentationSettings, type ThemeTier } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { useSerialWrites } from "@/hooks/use-serial-writes.hooks";
-import { useSettlementGeneration } from "@/hooks/use-settlement-generation.hooks";
+import { useSerialWrites, useSettlementGeneration, type Translate } from "@jini-ai/ui/panel-kit";
 import { themeNamesById } from "../rules";
 import { t as translateThemes } from "../themes-i18n";
 import { defaultThemesPort } from "./themes-dependencies.hooks";
 import type { ThemesPort } from "./themes-port.hooks";
-import type { Translate } from "@/lib/dictionary-translator";
 
 /**
  * @file Everything the Themes screen does, so `Themes.tsx` is only markup.
@@ -155,22 +153,22 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
     const generation = activateSettlement.next();
     setBusyTheme(themeId);
     setError(null);
-    return activateWrites.run(async () => {
+    return activateWrites.run({ task: async () => {
       try {
         const r = await port.setActiveTheme(themeId);
         // Superseded by a newer activate call started after this one — that later call owns
         // `settings`/`busyTheme` now, and applying this stale result would let whichever request
         // happens to settle LAST win regardless of which theme was actually clicked last.
-        if (!activateSettlement.isCurrent(generation)) return;
+        if (!activateSettlement.isCurrent({ generation })) return;
         setSettings(r.settings);
       } catch (e) {
-        if (!activateSettlement.isCurrent(generation)) return;
+        if (!activateSettlement.isCurrent({ generation })) return;
         setError(e instanceof Error ? e.message : t("failed to switch theme"));
       } finally {
-        if (!activateSettlement.isCurrent(generation)) return;
+        if (!activateSettlement.isCurrent({ generation })) return;
         setBusyTheme(null);
       }
-    });
+    } });
   }
 
   return {
@@ -199,7 +197,7 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
  */
 export function useWiredThemes(): ThemesController {
   const locale = useAdminLocale();
-  const t = (key: string): string => translateThemes(locale, key);
+  const t = (key: string): string => translateThemes({ locale: locale, key: key });
   return useThemes({ port: defaultThemesPort, t });
 }
 

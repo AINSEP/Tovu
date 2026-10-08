@@ -1,15 +1,15 @@
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useState } from "react";
 import { acceptsMedia } from "@jini-ai/admin/media";
 import { describeApiError, type AdminMedia } from "../../lib/api";
 import { DEFAULT_LOCALE } from "../../hooks/admin-locale-dependencies.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import type { Translate } from "../../lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 import { t as sharedComponentsT } from "../shared-components-i18n";
 import { defaultMediaPickerPort } from "./media-picker-dependencies.hooks";
 import type { MediaPickerPort } from "./media-picker-port.hooks";
 
 /**
- * @file `MediaPickerDialog`'s data-fetch and Escape-to-cancel state, split out of the component so
+ * @file `MediaPickerDialog`'s data-fetch and selection state, split out of the component so
  * it can be swapped for a fake via the `useDialog` prop on `MediaPickerDialogProps` — see that
  * prop's doc comment in `MediaPickerDialog.tsx`. Same split `ConfirmDialog`/`ConfirmDialog.hooks.tsx`
  * uses in `@jini-ai/admin`.
@@ -17,13 +17,15 @@ import type { MediaPickerPort } from "./media-picker-port.hooks";
  * `useMediaPickerDialog` takes `onSelect`/`onCancel` as two positional callbacks rather than the
  * whole `MediaPickerDialogProps` object — mirrors `useConfirmDialog`'s primitives-in shape there,
  * and avoids a type-only import cycle back into `MediaPickerDialog.tsx` for the `useDialog` prop's
- * own type (`typeof useWiredMediaPickerDialog`). The Escape listener's effect now lists `onCancel`
- * as a dependency (2026-08-21 lint pass) and rebinds whenever its identity changes — every real
+ * own type (`typeof useWiredMediaPickerDialog`). Historically the Escape listener listed `onCancel`
+ * as a dependency (2026-08-21 lint pass) and rebound whenever its identity changed — every real
  * caller passes a fresh arrow per render, so the listener is torn down and re-added on those
  * renders; the `document.removeEventListener`/`addEventListener` pair in the same synchronous
  * effect run keeps that rebind unobservable (no double-fire, no dropped Escape). This closes the
  * stale-closure gap the old mount-once `[]` had — a caller could previously escape-cancel into a
- * `onCancel` captured from an earlier render.
+ * `onCancel` captured from an earlier render. Phase 17 removes that listener entirely: Jini's
+ * native dialog receives the current callback directly, so this reason still applies without
+ * maintaining a second document subscription.
  *
  * `port` is injected (see `media-picker-port.hooks.ts`) rather than reaching for `lib/api`'s `api`
  * directly, so a test can describe "these items are available" against `createFakeMediaPickerPort`
@@ -50,7 +52,7 @@ export function useMediaPickerItems(port: MediaPickerPort, locale: string = DEFA
     port
       .listMedia()
       .then((r) => setItems(r.media.filter((m) => m.status === "active")))
-      .catch((e) => setError(describeApiError(e, sharedComponentsT(locale, "failed to load media"))));
+      .catch((e) => setError(describeApiError(e, sharedComponentsT({ locale: locale, key: "failed to load media" }))));
     // `locale` is added below for the same reason `useExistingInstances`'s does — see that hook's
     // identical eslint-disable note in `WidgetPickerDialog.hooks.tsx`.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -86,10 +88,6 @@ export interface MediaPickerDialogController {
    *  template still crosses this seam rather than staying a direct `lib/api` import in the
    *  component. */
   mediaOriginalUrl: (id: string) => string;
-  /** Attach to the Cancel button — see {@link useMediaPickerDialog}'s own focus-management doc
-   *  comment. Always present regardless of loading/error/empty/populated state, same reasoning
-   *  `useMediaLightbox`'s `closeRef` gives for its own always-available focus target. */
-  cancelRef: RefObject<HTMLButtonElement | null>;
   /** Bound to `deps.locale` (or `DEFAULT_LOCALE`) via `shared-components-i18n.ts`'s `t` — see this
    *  file's header for why it's resolved here rather than at each call site. */
   t: Translate;
@@ -99,18 +97,18 @@ export interface MediaPickerDialogController {
 }
 
 /**
- * Owns the dialog's own state on top of {@link useMediaPickerItems}: the Escape-to-cancel
- * listener, focus management, and the single submit handler. Split out for the same reason
+ * Owns selection on top of {@link useMediaPickerItems}; Jini now owns native cancellation
+ * and focus management. Split out for the same reason
  * `useWidgetPickerDialog` is — a render-free unit to test the interaction logic against.
  *
  * Focus management (2026-09-16 fix — no dialog wrapper or focus/blur handling existed at all
- * before this): on mount, captures whatever had focus and moves focus onto Cancel (a stable
+ * before this): Jini now captures whatever had focus on mount and moves focus onto Cancel (a stable
  * target present regardless of loading/error/empty/populated state); on unmount, restores focus
  * to what was captured. Without this, closing left focus on `<body>` — a keyboard/screen-reader
  * user was dropped to the top of the page instead of back at the control that opened the dialog.
  *
  * @param onSelect - Called with the chosen item when a thumbnail is clicked.
- * @param onCancel - Called on Escape, backdrop click, or the Cancel button.
+ * @param _onCancel - Retained for the existing hook ABI; the component forwards cancellation to Jini.
  * @param deps - Injected `{ port?; locale? }` — both optional/defaulted, mirroring
  *   `useWidgetPickerDialog`'s identical shape in `WidgetPickerDialog.hooks.tsx`. `port` defaults to
  *   {@link defaultMediaPickerPort} and `locale` to `DEFAULT_LOCALE`, so every existing call site
@@ -119,41 +117,23 @@ export interface MediaPickerDialogController {
  */
 export function useMediaPickerDialog(
   onSelect: (item: AdminMedia) => void,
-  onCancel: () => void,
+  _onCancel: () => void,
   deps: { port?: MediaPickerPort; locale?: string }
 ): MediaPickerDialogController {
   const port = deps.port ?? defaultMediaPickerPort;
   const locale = deps.locale ?? DEFAULT_LOCALE;
-  const t: Translate = (key) => sharedComponentsT(locale, key);
+  const t: Translate = (key) => sharedComponentsT({ locale: locale, key: key });
   const { items, error } = useMediaPickerItems(port, locale);
-  const cancelRef = useRef<HTMLButtonElement | null>(null);
-  // Captured at mount, before focus moves onto Cancel below — the element that had focus then is,
+  // Jini captures at mount, before focus moves onto Cancel — the element that had focus then is,
   // by construction, whatever opened this dialog (e.g. the Posts/Pages editor's "Insert from Media
   // Library" toolbar button). Restored on unmount. This component is only ever rendered while the
   // dialog is open (the caller conditionally mounts it, per `MediaPickerDialog.tsx`'s own doc
   // comment), so mount/unmount IS the open/close transition — same technique `ConfirmDialog`
   // (`@jini-ai/admin`) and this app's own `useMediaLightbox` use for an always-mounted native
-  // `<dialog>`'s `showModal()`/`close()` pair, adapted here to a conditionally-mounted div dialog.
-  const triggerRef = useRef<Element | null>(null);
+  // `<dialog>`'s `showModal()`/`close()` pair. The component marks Cancel with Jini's autofocus
+  // attribute so it remains the stable target even while media is loading or the fetch fails.
 
-  useEffect(() => {
-    triggerRef.current = document.activeElement;
-    cancelRef.current?.focus();
-    return () => {
-      if (triggerRef.current instanceof HTMLElement) triggerRef.current.focus();
-    };
-  }, []);
-
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onCancel();
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onCancel]);
-
-  return { items, error, select: onSelect, mediaOriginalUrl: port.mediaOriginalUrl, cancelRef, t, locale };
+  return { items, error, select: onSelect, mediaOriginalUrl: port.mediaOriginalUrl, t, locale };
 }
 
 /**

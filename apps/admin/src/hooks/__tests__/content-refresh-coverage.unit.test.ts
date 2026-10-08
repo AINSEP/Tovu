@@ -54,7 +54,8 @@ const WIRED_HOOKS: readonly string[] = [
   "features/plugins/hooks/use-plugins.hooks.ts",
   "features/plugins/hooks/use-agent-plugins.hooks.ts",
   "features/media/hooks/use-media.hooks.ts",
-  "features/forms/hooks/use-forms-list.hooks.ts",
+  // Jini owns Forms list invalidation; the host port retains its filtered bus subscription.
+  "integrations/jini-admin/forms-ports.ts",
   "features/security/hooks/use-access-tokens.hooks.ts",
   // Coverage-extension pass (see this file's own header "Extending coverage" note): Comments,
   // Database, Deployments, Redirects, Members, Widgets, Webhooks (admin's "integrations" feature),
@@ -66,13 +67,15 @@ const WIRED_HOOKS: readonly string[] = [
   // feature) for the specific reason. Sites and Theme Explore were on that excluded list too, but
   // both have since adopted the subscription in source, so they are tripwired below rather than
   // excluded — the list must describe what the hooks actually do.
-  "features/redirects/hooks/use-redirects.hooks.ts",
-  "features/comments/hooks/use-comment-queue.hooks.ts",
-  // use-restore-points-section.hooks.ts was deleted 2026-10-03: unused; Recovery owns restore points; see development/DELETED-CODE.md.
+  // Jini owns the list lifecycle; the host event port retains the bus subscription.
+  "integrations/jini-admin/redirects-ports.ts",
+  // Jini owns the queue lifecycle; Tovu's event port is the surviving bus subscription.
+  "integrations/jini-admin/comments-ports.ts",
+  // Recovery owns restore points.
   "features/deployment/hooks/use-static-export.hooks.ts",
   "features/members/hooks/members-controller.hooks.ts",
-  "features/widgets/hooks/use-widgets-library.hooks.ts",
-  "features/widgets/hooks/use-widget-regions.hooks.ts",
+  // Jini owns both list lifecycles; the resource-filtered host port retains their subscription.
+  "integrations/jini-admin/widgets-ports.ts",
   "features/integrations/hooks/use-integrations.hooks.ts",
   "features/recovery/hooks/use-recovery.hooks.ts",
   "features/sites/hooks/use-sites.hooks.ts",

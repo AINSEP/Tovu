@@ -148,7 +148,6 @@ describe("deploymentEnvVarNoteKey", () => {
   });
 });
 
-// Full Site provider-list assertions retired with that tab (2026-10-03).
 
 describe("runStatusTone", () => {
   it("maps idle to neutral, running to warning, errored to error", () => {
@@ -281,10 +280,10 @@ describe("credentialFormReadyToSave / buildCredentialConnectionInput", () => {
     expect(credentialFormReadyToSave(keyed, { token: "s" })).toBe(false);
   });
 
-  it("builds the connection from declared fields only, trimmed, with providerId", () => {
+  it("builds the connection from declared fields only, trimming ordinary fields and preserving the token for store validation", () => {
     expect(buildCredentialConnectionInput("cloudflare-pages", spec, { token: " tok ", accountId: " acct ", stray: "x" })).toEqual({
       providerId: "cloudflare-pages",
-      token: "tok",
+      token: " tok ",
       accountId: "acct",
     });
   });

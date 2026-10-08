@@ -1,5 +1,5 @@
 import type { AdminSiteKeyStatus } from "@/lib/api";
-import type { Translate } from "@/lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 
 /** Keep environment provenance in the status rules so rendering has no source policy. */
 export function siteKeyStatusBadgeLabel(

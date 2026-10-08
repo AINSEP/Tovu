@@ -92,7 +92,7 @@ describe("pluginConflictLines", () => {
         { kind: "route", key: "/api/x", heldBy: "core", heldByName: "Tovu core", heldKey: "/api/*" },
       ],
     });
-    expect(pluginConflictLines(plugin, (key) => translatePlugins("es", key))).toEqual([
+    expect(pluginConflictLines(plugin, (key) => translatePlugins({ locale: "es", key: key }))).toEqual([
       'Herramienta "seo_audit": ya en uso por SEO Pro.',
       'Ruta "/api/x": Tovu lo reserva ("/api/*").',
     ]);
@@ -151,7 +151,7 @@ describe("describeApiError — PLUGIN_CONFLICT (409 from PLUGIN_SET_ENABLED)", (
 
   it("translates an override when given a translator", () => {
     expect(
-      describeApiError(new ApiError("server sentence", 409, "PLUGIN_CONFLICT"), "fallback", { translate: (key) => translatePlugins("es", key) }),
+      describeApiError(new ApiError("server sentence", 409, "PLUGIN_CONFLICT"), "fallback", { translate: (key) => translatePlugins({ locale: "es", key: key }) }),
     ).toBe("Este plugin usa nombres que ya tiene el núcleo u otro plugin. Abre sus detalles para ver cuáles y desactiva primero el otro plugin.");
   });
 });
@@ -178,7 +178,7 @@ describe("every plugins locale translates the conflict and quarantine copy", () 
 
   it.each(LOCALES)("%s", (locale) => {
     for (const key of KEYS) {
-      const translated = translatePlugins(locale, key);
+      const translated = translatePlugins({ locale: locale, key: key });
       // A miss falls back to the English key; "Hooks"/"Plugins"-style loanwords are the one place a
       // locale may legitimately keep the English word, so only a full-sentence key must differ.
       if (key.length > 12) expect(translated, `${locale}: ${key}`).not.toBe(key);

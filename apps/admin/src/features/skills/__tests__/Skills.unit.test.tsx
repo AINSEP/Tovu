@@ -1,3 +1,4 @@
+import { File as NativeFile } from "node:buffer";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -62,7 +63,7 @@ describe("Skills", () => {
   it.each(["eye", "name"])("opens the read-only viewer from the %s and selects SKILL.md first", async trigger => {
     const base = "/api/admin/v1/workspaces/workspace-local/skills";
     const fetchMock = vi.fn(async (url, init) => {
-      expect(init?.method).toBeUndefined();
+      expect(init?.method).toBe("GET");
       expect(init?.credentials).toBe("same-origin");
       if (url === base) return Response.json({ skills: [{ toolId: "skill_example", name: "example", description: "Example skill.", enabled: false, source: "uploaded" }] });
       expect(url).toBe(`${base}/skill_example/files`);
@@ -85,7 +86,7 @@ describe("Skills", () => {
     let installed = [{ toolId: "skill_incident_response", name: "incident-response", description: "Respond to outages.", enabled: true, source: "uploaded" }];
     vi.stubGlobal("fetch", vi.fn(async (url, init) => {
       const base = "/api/admin/v1/workspaces/workspace-local/skills";
-      if (url === base && !init?.method) return Response.json({ skills: installed });
+      if (url === base && init?.method === "GET") return Response.json({ skills: installed });
       expect(url).toBe(`${base}/skill_incident_response`);
       if (init?.method === "PATCH") { expect(JSON.parse(init.body)).toEqual({ enabled: false }); installed = installed.map(s => ({ ...s, enabled: false })); return Response.json({ updated: true }); }
       if (init?.method === "DELETE") { installed = []; return Response.json({ removed: true }); }
@@ -143,7 +144,7 @@ describe("Skills", () => {
     }));
     render(<Skills />);
     await userEvent.click(skillTab("Add a skill"));
-    fireEvent.change(screen.getByLabelText(`Choose skill ${picker}`), { target: { files: [new File([md], "SKILL.md")] } });
+    fireEvent.change(screen.getByLabelText(`Choose skill ${picker}`), { target: { files: [new NativeFile([md], "SKILL.md") as unknown as File] } });
     await screen.findByRole("dialog", { name: "Install skill" });
     expect(requests).toEqual([]);
     fireEvent.click(screen.getByRole("button", { name: "Confirm install" }));
@@ -193,19 +194,19 @@ describe("Skills", () => {
   });
 });
 it("folder and ZIP picker inputs retain all package paths and original bytes", async () => {
-  const md = new File(["rules"], "SKILL.md");
+  const md = new NativeFile(["rules"], "SKILL.md");
   Object.defineProperty(md, "webkitRelativePath", { value: "my-skill/SKILL.md" });
-  const ref = new File(["reference"], "check.md");
+  const ref = new NativeFile(["reference"], "check.md");
   Object.defineProperty(ref, "webkitRelativePath", { value: "my-skill/references/check.md" });
-  expect(await prepareSkillUpload([md, ref])).toEqual({ files: [{ path: "my-skill/SKILL.md", contentBase64: btoa("rules") }, { path: "my-skill/references/check.md", contentBase64: btoa("reference") }] });
-  expect(await prepareSkillUpload([new File(["zip bytes"], "skill.zip")])).toEqual({ archiveBase64: btoa("zip bytes") });
+  expect(await prepareSkillUpload({ files: [md, ref] as unknown as File[] })).toEqual({ files: [{ path: "my-skill/SKILL.md", contentBase64: btoa("rules") }, { path: "my-skill/references/check.md", contentBase64: btoa("reference") }] });
+  expect(await prepareSkillUpload({ files: [new NativeFile(["zip bytes"], "skill.zip")] as unknown as File[] })).toEqual({ archiveBase64: btoa("zip bytes") });
 });
 
 
 it("Jini-expanded chat folder paths survive skill upload preparation", async () => {
-  const md = Object.assign(new File(["rules"], "SKILL.md"), { relativePath: "incident/SKILL.md" });
-  const ref = Object.assign(new File(["reference"], "check.md"), { relativePath: "incident/references/check.md" });
-  expect(await prepareSkillUpload([md, ref])).toEqual({ files: [{ path: "incident/SKILL.md", contentBase64: btoa("rules") }, { path: "incident/references/check.md", contentBase64: btoa("reference") }] });
+  const md = Object.assign(new NativeFile(["rules"], "SKILL.md"), { relativePath: "incident/SKILL.md" });
+  const ref = Object.assign(new NativeFile(["reference"], "check.md"), { relativePath: "incident/references/check.md" });
+  expect(await prepareSkillUpload({ files: [md, ref] as unknown as File[] })).toEqual({ files: [{ path: "incident/SKILL.md", contentBase64: btoa("rules") }, { path: "incident/references/check.md", contentBase64: btoa("reference") }] });
 });
 
 

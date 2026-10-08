@@ -62,7 +62,7 @@ describe("POSTS_DICT: template picker copy", () => {
   it.each(["Template", "View Template", "No template chosen", "No templates for this theme"])(
     "translates %j in every locale, not left in English",
     (key) => {
-      for (const locale of Object.keys(POSTS_DICT)) expect(t(locale, key), locale).not.toBe(key);
+      for (const locale of Object.keys(POSTS_DICT)) expect(t({ locale: locale, key: key }), locale).not.toBe(key);
     },
   );
 });
@@ -76,11 +76,11 @@ describe("POSTS_DICT: template picker copy", () => {
 describe("POSTS_DICT: t() falls back to COMMON_I18N", () => {
   it("translates 'Cancel' in German even though POSTS_DICT.de never carries it", () => {
     expect(POSTS_DICT.de.Cancel).toBeUndefined();
-    expect(t("de", "Cancel")).toBe(COMMON_I18N.de.Cancel);
+    expect(t({ locale: "de", key: "Cancel" })).toBe(COMMON_I18N.de.Cancel);
   });
 
   it("translates 'Delete permanently' in German even though POSTS_DICT.de never carries it", () => {
     expect(POSTS_DICT.de["Delete permanently"]).toBeUndefined();
-    expect(t("de", "Delete permanently")).toBe(COMMON_I18N.de["Delete permanently"]);
+    expect(t({ locale: "de", key: "Delete permanently" })).toBe(COMMON_I18N.de["Delete permanently"]);
   });
 });

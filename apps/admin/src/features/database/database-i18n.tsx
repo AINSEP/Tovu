@@ -1,6 +1,7 @@
+import { COMMON_I18N } from "../../lib/i18n-common";
 import type { ReactNode } from "react";
-import { createDictionaryTranslator } from "../../lib/dictionary-translator";
-import { localeEntry } from "../../lib/template-i18n";
+import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
+import { localeEntry } from "@jini-ai/ui/panel-kit";
 
 /**
  * @file Spanish translation for the Database screen (`/admin/database`) — filter bar, table
@@ -54,7 +55,6 @@ const DATABASE_DICT: Record<string, Record<string, string>> = {
       "Un registro de solo lectura de cada migración, instantánea, cambio de índice y actualización de plantilla en este sitio.",
     // Hook-level notice/error strings (use-migrate-forward-section.hooks.ts,
     // use-timeline-section.hooks.ts) — these never got
-    // useRestorePointsSection (features/database/hooks/use-restore-points-section.hooks.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
     // translated during the JSX-only pass since they live in `.hooks.ts` files.
     "Failed to plan the forward migration": "No se pudo planificar la migración hacia adelante",
     "Failed to confirm the forward migration": "No se pudo confirmar la migración hacia adelante",
@@ -1125,7 +1125,7 @@ const DATABASE_DICT: Record<string, Record<string, string>> = {
   },
 };
 
-export const t = createDictionaryTranslator(DATABASE_DICT);
+export const t = createDictionaryTranslator({ featureDictionary: DATABASE_DICT }, { commonDictionary: COMMON_I18N });
 
 /** The "Plan ready" ceremony message embeds `<code>{planId}</code>` mid-sentence, so it can't be a
  *  flat `ES` entry — word order differs by locale, not just the substituted value. */

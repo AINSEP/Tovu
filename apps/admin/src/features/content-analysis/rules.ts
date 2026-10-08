@@ -1,6 +1,6 @@
 import { ApiError, describeApiError } from "@/lib/api";
-import type { Translate } from "@/lib/dictionary-translator";
-import { interpolate } from "@/lib/template-i18n";
+import type { Translate } from "@jini-ai/ui/panel-kit";
+import { interpolate } from "@jini-ai/ui/panel-kit";
 
 /**
  * @file The Content analysis card's pure half — everything `ContentAnalysisCard.tsx` shows, decided
@@ -325,25 +325,25 @@ export interface ContentAnalysisView {
 
 function checkMessage(check: ContentCheck, t: Translate): string {
   const template = check.id === "image-alt" && check.status === "pass" && check.params.images === 0 ? NO_IMAGES : CHECK_MESSAGES[check.id]?.[check.status];
-  return template ? interpolate(t(template), check.params) : "";
+  return template ? interpolate({ template: t(template), vars: check.params }) : "";
 }
 
 function buildStats(report: ContentAnalysisReport, t: Translate): AnalysisStat[] {
   const { fleschReadingEase, gradeLevel, band } = report.readability;
   return [
     { key: "score", label: t(STATS_COPY.score), value: String(report.score), meta: t(STATS_COPY.outOf100) },
-    { key: "words", label: t(STATS_COPY.words), value: String(report.wordCount), meta: interpolate(t(STATS_COPY.sentences), { count: report.sentenceCount }) },
+    { key: "words", label: t(STATS_COPY.words), value: String(report.wordCount), meta: interpolate({ template: t(STATS_COPY.sentences), vars: { count: report.sentenceCount } }) },
     {
       key: "reading-time",
       label: t(STATS_COPY.readingTime),
-      value: interpolate(t(STATS_COPY.minutes), { minutes: report.readingTimeMinutes }),
+      value: interpolate({ template: t(STATS_COPY.minutes), vars: { minutes: report.readingTimeMinutes } }),
       meta: t(STATS_COPY.estimated),
     },
     {
       key: "readability",
       label: t(STATS_COPY.readability),
       value: String(fleschReadingEase),
-      meta: interpolate(t(STATS_COPY.bandGrade), { band: t(BAND_LABELS[band]), grade: gradeLevel }),
+      meta: interpolate({ template: t(STATS_COPY.bandGrade), vars: { band: t(BAND_LABELS[band]), grade: gradeLevel } }),
     },
   ];
 }

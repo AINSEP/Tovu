@@ -1,13 +1,9 @@
+import { Icon } from "@jini-ai/ui";
 /**
- * @file The `.tovu-plugin` Plugins screen's own icon set — inline SVGs, no icon dependency. Same
- * rationale `agent-plugins-visuals.tsx` (this directory's sibling screen's own icon set) gives for
- * its own, independently maintained set, and the same one `database-visuals.tsx`/
- * `source-control-visuals.tsx`/`deployment-visuals.tsx` give theirs: this app ships no icon
- * component library to `features/`, and importing a glyph across a feature boundary — or across
- * this ONE feature's two sibling screens, each owned by a different agent tonight — would tie this
- * screen's rendering to a file another agent is actively editing. Deliberately not a re-export of
- * `agent-plugins-visuals.tsx`'s own `ChevronIcon`/`TrashIcon`/`PackageIcon`, even though the shapes
- * are visually close, for exactly that reason.
+ * @file The `.tovu-plugin` Plugins screen's icon adapters. Exact repeated shapes come from
+ * Jini UI's icon owner, so this screen never imports another feature's actively edited file.
+ * Unique feature artwork stays local; shared geometry keeps dimensions and accessibility at
+ * each call site. The previous independent sets avoided the same cross-feature coupling.
  *
  * One glyph family here, not several: `AdminPlugin` carries no keywords/skills vocabulary the way
  * `AdminAgentPlugin` does for `agentPluginGlyphKind()`'s tiered classification, so every row uses
@@ -36,11 +32,7 @@ export interface IconProps {
 /** Installed — a package with a check: what this workspace has actually turned on. */
 export function InstalledTabIcon({ size = 16 }: IconProps) {
   return (
-    <svg {...LINE_ICON} width={size} height={size}>
-      <path d="M20.5 8.2v5.1L12 17.9l-8.5-4.6V8.2" />
-      <path d="M3.5 8.2 12 3.6l8.5 4.6L12 12.8z" />
-      <path d="M15.6 19.4l1.9 1.9 3.4-3.9" />
-    </svg>
+    <Icon name="package-check" size={size} focusable={undefined} {...LINE_ICON} />
   );
 }
 
@@ -59,14 +51,10 @@ export function DownloadedTabIcon({ size = 16 }: IconProps) {
 /** Marketplace — a shopfront awning over an open door. Deliberately not a shopping cart: nothing
  *  here can be bought or added to anything yet, and a cart would promise a transaction. Same
  *  pictogram concept as `agent-plugins-visuals.tsx`'s own `MarketplaceIcon` (both marketplaces are
- *  equally not-yet-real), redrawn independently rather than imported — see this file's own header. */
+ *  equally not-yet-real); the exact shared shape is owned by Jini UI. */
 export function MarketplaceTabIcon({ size = 16 }: IconProps) {
   return (
-    <svg {...LINE_ICON} width={size} height={size}>
-      <path d="M3.5 8.5h17l-1.2-4H4.7z" />
-      <path d="M5 8.5v11h14v-11" />
-      <path d="M9.75 19.5v-5.5h4.5v5.5" />
-    </svg>
+    <Icon name="storefront" size={size} focusable={undefined} {...LINE_ICON} />
   );
 }
 
@@ -76,10 +64,7 @@ export function MarketplaceTabIcon({ size = 16 }: IconProps) {
  *  classification here. A plain package, generic on purpose. */
 export function PluginPackageIcon({ size = 18 }: IconProps) {
   return (
-    <svg {...LINE_ICON} width={size} height={size}>
-      <path d="M3.5 8.2 12 3.6l8.5 4.6v7.6L12 20.4l-8.5-4.6z" />
-      <path d="M3.5 8.2 12 12.8l8.5-4.6M12 12.8v7.6" />
-    </svg>
+    <Icon name="package-outline" size={size} focusable={undefined} {...LINE_ICON} />
   );
 }
 
@@ -89,11 +74,7 @@ export function PluginPackageIcon({ size = 18 }: IconProps) {
  *  see `PluginRow`'s own call site. */
 export function PluginTrashIcon({ size = 16 }: IconProps) {
   return (
-    <svg {...LINE_ICON} width={size} height={size}>
-      <path d="M4.5 7h15M9.5 7V4.6h5V7" />
-      <path d="M6.6 7l.9 12.4h9l.9-12.4" />
-      <path d="M10.4 10.5v6M13.6 10.5v6" />
-    </svg>
+    <Icon name="trash-compact" size={size} focusable={undefined} {...LINE_ICON} />
   );
 }
 
@@ -101,8 +82,6 @@ export function PluginTrashIcon({ size = 16 }: IconProps) {
  *  for a second glyph, so the transition is one continuous motion. */
 export function PluginChevronIcon({ size = 14 }: IconProps) {
   return (
-    <svg {...LINE_ICON} width={size} height={size} className="plugin-chevron-glyph">
-      <path d="M9 5.5 15.5 12 9 18.5" />
-    </svg>
+    <Icon name="chevron-right-wide" size={size} focusable={undefined} {...LINE_ICON} className="plugin-chevron-glyph" />
   );
 }

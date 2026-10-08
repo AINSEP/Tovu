@@ -315,13 +315,13 @@ describe("dock execution config freshness", () => {
   it("an unrelated execution refresh preserves the picker's normalized default model", async () => {
     const fake = harness();
     fake.saveExternally(savedAgent("claude"));
-    writeAgentsSnapshot([{ id: "claude", name: "Claude", models: [{ id: "default", label: "Default" }] }]);
+    writeAgentsSnapshot([{ id: "claude", name: "Claude", models: [{ id: "claude-sonnet-5", label: "Sonnet 5" }] }]);
     const { result } = renderHook(fake.useDock);
     await flush();
-    act(() => result.current.handleLocalCliSelectionChange({ agentId: "claude", model: "default" }));
+    act(() => result.current.handleLocalCliSelectionChange({ agentId: "claude", model: "claude-sonnet-5" }));
     act(() => publishSettingsRefresh([EXECUTION_NAMESPACE]));
     await flush();
-    expect(result.current.localCliSelection).toEqual({ agentId: "claude", model: "default" });
+    expect(result.current.localCliSelection).toEqual({ agentId: "claude", model: "claude-sonnet-5" });
     expect(fake.persistWrite).not.toHaveBeenCalled();
   });
 

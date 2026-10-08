@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { describeApiError, type AdminTaxonomyWithTerms } from "@/lib/api";
-import { useFetchMutation, useFetchQuery } from "@/lib/fetch-query";
+import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../taxonomy-i18n";
-import { hasPermission } from "@/lib/permissions";
+import { hasPermission } from "@jini-ai/ui/panel-kit";
 import { KEYS, TAXONOMY_MANAGE_PERMISSION, findTermByName, splitTermNames, termPickerSubject } from "../rules";
-import type { Translate } from "@/lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 import { defaultTermPickerPort } from "./term-picker-dependencies.hooks";
 import type { TermPickerPort } from "./term-picker-port.hooks";
 
@@ -113,22 +113,24 @@ export function useTermPicker(props: TermPickerTarget, deps: TermPickerDependenc
   }, [props.contentType, props.contentId]);
   const selected = draft ?? assigned;
   const permissionsQuery = useFetchQuery({ key: KEYS.permissions, fetch: () => port.me() });
-  const canCreate = hasPermission(permissionsQuery.data?.effectivePermissions ?? [], TAXONOMY_MANAGE_PERMISSION);
+  const canCreate = hasPermission({ permissions: permissionsQuery.data?.effectivePermissions ?? [], permission: TAXONOMY_MANAGE_PERMISSION });
   const [names, setNames] = useState<Record<string, string>>({});
   const [openAdds, setOpenAdds] = useState<ReadonlySet<string>>(new Set());
   /** The taxonomy the last create was for — `createMutation`'s error and pending state belong to it. */
   const [createTarget, setCreateTarget] = useState<string | null>(null);
 
   const saveMutation = useFetchMutation({
-    run: async (input: { add: string[]; remove: string[] }) => {
+    run: async ({ input }: { input: { add: string[]; remove: string[] } }) => {
       if (input.add.length > 0) await port.assignTerms({ ...target, termIds: input.add });
       if (input.remove.length > 0) await port.unassignTerms({ ...target, termIds: input.remove });
     },
+  }, {
     invalidates: [key],
   });
 
   const createMutation = useFetchMutation({
-    run: (input: { taxonomyId: string; name: string }) => port.createTerm(input),
+    run: ({ input }: { input: { taxonomyId: string; name: string } }) => port.createTerm(input),
+  }, {
     invalidates: [KEYS.list],
   });
 
@@ -165,7 +167,7 @@ export function useTermPicker(props: TermPickerTarget, deps: TermPickerDependenc
     try {
       for (const name of wanted) {
         const existing = findTermByName(group.terms, name);
-        ids.push(existing ? existing.id : (await createMutation.mutate({ taxonomyId, name })).term.id);
+        ids.push(existing ? existing.id : (await createMutation.mutate({ input: { taxonomyId, name } })).term.id);
       }
     } catch {
       // already surfaced through createMutation.error -> createError below; the terms added
@@ -218,8 +220,8 @@ export function useTermPicker(props: TermPickerTarget, deps: TermPickerDependenc
     if (!dirty) return;
     setMessage(null);
     try {
-      await saveMutation.mutate({ add, remove });
-      setMessage(t(locale, "Categories & tags saved."));
+      await saveMutation.mutate({ input: { add, remove } });
+      setMessage(t({ locale: locale, key: "Categories & tags saved." }));
     } catch {
       // already surfaced through saveMutation.error -> error below
     }
@@ -227,9 +229,9 @@ export function useTermPicker(props: TermPickerTarget, deps: TermPickerDependenc
 
   const loadError = assignedQuery.error ?? taxonomiesQuery.error;
   const error = saveMutation.error
-    ? describeApiError(saveMutation.error, t(locale, "Failed to save categories & tags"))
+    ? describeApiError(saveMutation.error, t({ locale: locale, key: "Failed to save categories & tags" }))
     : loadError
-      ? describeApiError(loadError, t(locale, "Failed to load categories & tags"))
+      ? describeApiError(loadError, t({ locale: locale, key: "Failed to load categories & tags" }))
       : null;
 
   return {
@@ -244,7 +246,7 @@ export function useTermPicker(props: TermPickerTarget, deps: TermPickerDependenc
     message,
     error,
     save,
-    t: (key) => t(locale, key),
+    t: (key) => t({ locale: locale, key: key }),
     canCreate,
     showAddInput,
     showAddTrigger: (taxonomyId) => canCreate && Boolean(groupOf(taxonomyId)) && !showAddInput(taxonomyId),
@@ -256,7 +258,7 @@ export function useTermPicker(props: TermPickerTarget, deps: TermPickerDependenc
     creating: (taxonomyId) => createTarget === taxonomyId && createMutation.status === "pending",
     createError: (taxonomyId) =>
       createTarget === taxonomyId && createMutation.error
-        ? describeApiError(createMutation.error, t(locale, "Failed to create term"))
+        ? describeApiError(createMutation.error, t({ locale: locale, key: "Failed to create term" }))
         : null,
     suggestions: (taxonomyId) =>
       (groupOf(taxonomyId)?.terms ?? []).filter((term) => !selected.has(term.id)).map((term) => term.name),

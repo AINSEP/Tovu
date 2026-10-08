@@ -1,6 +1,6 @@
 import { useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { type AdminPolicy, type AdminPolicyPermission, type AdminRole } from "@/lib/api";
-import { useFetchMutation, useFetchQuery } from "@/lib/fetch-query";
+import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { describeApiError, KEYS } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../roles-i18n";
@@ -35,7 +35,7 @@ import type { RolesPort } from "./roles-port.hooks";
  * second time and rebuild its own `translateRoles(locale, key)` closure, entirely redundant with
  * the resolution this hook was already doing internally.
  *
- * `lib/fetch-query` migration (2026-08-12): the combined roles+policies read is one `useFetchQuery`
+ * `@jini-ai/ui/fetch-query` migration (2026-08-12): the combined roles+policies read is one `useFetchQuery`
  * keyed on `KEYS.list`; every write invalidates it instead of calling `reload()` by hand (see
  * `rules.ts`'s `KEYS` doc) — except `onWritePermission`, which never called `reload()` either, so it
  * stays a plain `useFetchMutation` with no `invalidates`.
@@ -52,7 +52,7 @@ import type { RolesPort } from "./roles-port.hooks";
  * `port.xxx()` — see `roles-port.hooks.ts` for the interface and `roles-dependencies.hooks.ts` for
  * the real binding, the only file left that imports `lib/api` as a value for this feature. Same
  * "no ref/dep-array needed" note as `use-users.hooks.ts`'s identical section: every write here goes
- * through `useFetchMutation` (via `lib/fetch-query`), which takes a fresh `mutationFn` closure every
+ * through `useFetchMutation` (via `@jini-ai/ui/fetch-query`), which takes a fresh `run` closure every
  * render by design — there is no `useEffect([port])` in this file for `port` to be listed in wrongly.
  */
 
@@ -174,7 +174,7 @@ export interface RolesController {
  *  it owns. */
 async function runRowDelete(
   id: string,
-  mutate: (id: string) => Promise<unknown>,
+  mutate: (required: { input: string }) => Promise<unknown>,
   setRowSavingId: Dispatch<SetStateAction<string | null>>,
   setRowError: Dispatch<SetStateAction<string | null>>,
   clearPending: () => void,
@@ -183,7 +183,7 @@ async function runRowDelete(
   setRowSavingId(id);
   setRowError(null);
   try {
-    await mutate(id);
+    await mutate({ input: id });
   } catch (e) {
     setRowError(describeError(e));
   } finally {
@@ -208,7 +208,7 @@ export interface RolesDependencies {
 export function useRoles(deps: RolesDependencies): RolesController {
   const { port } = deps;
   const locale = useAdminLocale();
-  const boundT = (key: string): string => t(locale, key);
+  const boundT = (key: string): string => t({ locale: locale, key: key });
 
   const list = useFetchQuery({
     key: KEYS.list,
@@ -219,7 +219,7 @@ export function useRoles(deps: RolesDependencies): RolesController {
   });
   const roles = list.data?.roles ?? null;
   const policies = list.data?.policies ?? null;
-  const error = list.error ? describeApiError(list.error, t(locale, "failed to load roles/policies"), locale) : null;
+  const error = list.error ? describeApiError(list.error, t({ locale: locale, key: "failed to load roles/policies" }), locale) : null;
 
   const [rowError, setRowError] = useState<string | null>(null);
 
@@ -274,47 +274,53 @@ export function useRoles(deps: RolesDependencies): RolesController {
   const [pendingPermissionRemove, setPendingPermissionRemove] = useState<PendingPermissionRemove | null>(null);
 
   const createRoleMutation = useFetchMutation({
-    run: (name: string) => port.createRole(name),
+    run: ({ input: name }: { input: string }) => port.createRole(name),
+  }, {
     invalidates: [KEYS.list],
   });
   const createPolicyMutation = useFetchMutation({
-    run: (input: { name: string; description: string | undefined }) =>
+    run: ({ input }: { input: { name: string; description: string | undefined } }) =>
       port.createPolicy({ name: input.name }, { description: input.description }),
+  }, {
     invalidates: [KEYS.list],
   });
   const saveRoleMutation = useFetchMutation({
-    run: (input: { roleId: string; name: string }) => port.updateRole(input),
+    run: ({ input }: { input: { roleId: string; name: string } }) => port.updateRole(input),
+  }, {
     invalidates: [KEYS.list],
   });
   const deleteRoleMutation = useFetchMutation({
-    run: (id: string) => port.deleteRole(id),
+    run: ({ input: id }: { input: string }) => port.deleteRole(id),
+  }, {
     invalidates: [KEYS.list],
   });
   const savePolicyMutation = useFetchMutation({
-    run: (input: { policyId: string; name: string; description: string }) =>
+    run: ({ input }: { input: { policyId: string; name: string; description: string } }) =>
       port.updatePolicy({ policyId: input.policyId }, { name: input.name, description: input.description }),
+  }, {
     invalidates: [KEYS.list],
   });
   const deletePolicyMutation = useFetchMutation({
-    run: (id: string) => port.deletePolicy(id),
+    run: ({ input: id }: { input: string }) => port.deletePolicy(id),
+  }, {
     invalidates: [KEYS.list],
   });
   // No `invalidates` — matches the pre-migration `onWritePermission`, which never called `reload()`
   // either.
   const writePermissionMutation = useFetchMutation({
-    run: (input: { policyId: string; permission: string; resourceType: string | undefined }) =>
+    run: ({ input }: { input: { policyId: string; permission: string; resourceType: string | undefined } }) =>
       port.writePolicyPermission({ policyId: input.policyId, permission: input.permission }, { resourceType: input.resourceType }),
   });
   // Also no `invalidates`: removing a permission changes nothing `KEYS.list` caches (the policy
   // list carries no permissions), so the refresh that matters is `loadPermissions` below.
   const removePermissionMutation = useFetchMutation({
-    run: (input: { policyId: string; policyPermissionId: string }) => port.removePolicyPermission(input),
+    run: ({ input }: { input: { policyId: string; policyPermissionId: string } }) => port.removePolicyPermission(input),
   });
 
   async function onCreateRole(e: React.FormEvent) {
     e.preventDefault();
     try {
-      await createRoleMutation.mutate(roleName);
+      await createRoleMutation.mutate({ input: roleName });
       setRoleName("");
     } catch {
       // already surfaced through createRoleMutation.error -> roleError below
@@ -324,7 +330,7 @@ export function useRoles(deps: RolesDependencies): RolesController {
   async function onCreatePolicy(e: React.FormEvent) {
     e.preventDefault();
     try {
-      await createPolicyMutation.mutate({ name: policyName, description: policyDescription || undefined });
+      await createPolicyMutation.mutate({ input: { name: policyName, description: policyDescription || undefined } });
       setPolicyName("");
       setPolicyDescription("");
     } catch {
@@ -350,10 +356,10 @@ export function useRoles(deps: RolesDependencies): RolesController {
     setRowSavingId(roleId);
     setRowError(null);
     try {
-      await saveRoleMutation.mutate({ roleId, name: editingRoleName });
+      await saveRoleMutation.mutate({ input: { roleId, name: editingRoleName } });
       setEditingRoleId((current) => (current === roleId ? null : current));
     } catch (e) {
-      setRowError(describeApiError(e, t(locale, "failed to rename role"), locale));
+      setRowError(describeApiError(e, t({ locale: locale, key: "failed to rename role" }), locale));
     } finally {
       setRowSavingId((current) => (current === roleId ? null : current));
     }
@@ -379,7 +385,7 @@ export function useRoles(deps: RolesDependencies): RolesController {
       setRowSavingId,
       setRowError,
       () => setPendingRoleDelete((current) => (current?.id === role.id ? null : current)),
-      (e) => describeApiError(e, t(locale, "failed to delete role"), locale),
+      (e) => describeApiError(e, t({ locale: locale, key: "failed to delete role" }), locale),
     );
   }
 
@@ -396,10 +402,10 @@ export function useRoles(deps: RolesDependencies): RolesController {
     setRowSavingId(policyId);
     setRowError(null);
     try {
-      await savePolicyMutation.mutate({ policyId, name: editingPolicyName, description: editingPolicyDescription });
+      await savePolicyMutation.mutate({ input: { policyId, name: editingPolicyName, description: editingPolicyDescription } });
       setEditingPolicyId((current) => (current === policyId ? null : current));
     } catch (e) {
-      setRowError(describeApiError(e, t(locale, "failed to update policy"), locale));
+      setRowError(describeApiError(e, t({ locale: locale, key: "failed to update policy" }), locale));
     } finally {
       setRowSavingId((current) => (current === policyId ? null : current));
     }
@@ -416,7 +422,7 @@ export function useRoles(deps: RolesDependencies): RolesController {
       setRowSavingId,
       setRowError,
       () => setPendingPolicyDelete((current) => (current?.id === policy.id ? null : current)),
-      (e) => describeApiError(e, t(locale, "failed to delete policy"), locale),
+      (e) => describeApiError(e, t({ locale: locale, key: "failed to delete policy" }), locale),
     );
   }
 
@@ -436,7 +442,7 @@ export function useRoles(deps: RolesDependencies): RolesController {
     } catch (e) {
       if (permissionsGenerationRef.current !== generation) return;
       setPermissionRows([]);
-      setRowError(describeApiError(e, t(locale, "failed to load permissions"), locale));
+      setRowError(describeApiError(e, t({ locale: locale, key: "failed to load permissions" }), locale));
     } finally {
       if (permissionsGenerationRef.current !== generation) return;
       setPermissionsLoading(false);
@@ -464,7 +470,7 @@ export function useRoles(deps: RolesDependencies): RolesController {
     setRemovingPermissionId(policyPermissionId);
     setRowError(null);
     try {
-      await removePermissionMutation.mutate({ policyId, policyPermissionId });
+      await removePermissionMutation.mutate({ input: { policyId, policyPermissionId } });
       // Refresh only while the panel is still on THIS policy (C2/N1 fix) — see
       // `permissionPolicyIdRef`'s doc comment above. `loadPermissions`'s generation guard orders
       // same-policy loads against each other; it does not protect against a newer call for a
@@ -472,7 +478,7 @@ export function useRoles(deps: RolesDependencies): RolesController {
       // construction, so it used to win even after the operator moved to another policy's panel.
       if (permissionPolicyIdRef.current === policyId) await loadPermissions(policyId);
     } catch (e) {
-      setRowError(describeApiError(e, t(locale, "failed to remove permission"), locale));
+      setRowError(describeApiError(e, t({ locale: locale, key: "failed to remove permission" }), locale));
     } finally {
       // Keyed functional update (same fix class as `runRowDelete`'s `setRowSavingId` above):
       // nothing gates starting a removal on a SECOND row while this one is still in flight, so an
@@ -513,7 +519,7 @@ export function useRoles(deps: RolesDependencies): RolesController {
     setRowSavingId(policyId);
     setRowError(null);
     try {
-      await writePermissionMutation.mutate({ policyId, permission: permissionInput, resourceType: resourceTypeInput || undefined });
+      await writePermissionMutation.mutate({ input: { policyId, permission: permissionInput, resourceType: resourceTypeInput || undefined } });
       if (permissionsGenerationRef.current === generationAtStart) {
         setPermissionInput("");
         setResourceTypeInput("");
@@ -526,17 +532,17 @@ export function useRoles(deps: RolesDependencies): RolesController {
       // load for this one"; only `permissionPolicyIdRef`'s equality check can.
       if (permissionPolicyIdRef.current === policyId) await loadPermissions(policyId);
     } catch (e) {
-      setRowError(describeApiError(e, t(locale, "failed to add permission"), locale));
+      setRowError(describeApiError(e, t({ locale: locale, key: "failed to add permission" }), locale));
     } finally {
       setRowSavingId((current) => (current === policyId ? null : current));
     }
   }
 
   const roleSaving = createRoleMutation.status === "pending";
-  const roleError = createRoleMutation.error ? describeApiError(createRoleMutation.error, t(locale, "failed to create role"), locale) : null;
+  const roleError = createRoleMutation.error ? describeApiError(createRoleMutation.error, t({ locale: locale, key: "failed to create role" }), locale) : null;
   const policySaving = createPolicyMutation.status === "pending";
   const policyError = createPolicyMutation.error
-    ? describeApiError(createPolicyMutation.error, t(locale, "failed to create policy"), locale)
+    ? describeApiError(createPolicyMutation.error, t({ locale: locale, key: "failed to create policy" }), locale)
     : null;
 
   return {

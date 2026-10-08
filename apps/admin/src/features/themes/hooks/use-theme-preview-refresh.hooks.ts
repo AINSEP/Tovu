@@ -52,7 +52,7 @@ export function useThemePreviewReloadButton(
       setError(error instanceof Error ? error.message : "preview reload failed"),
     );
   }, [reload]);
-  return { label: t(locale, "Reload preview"), reload: onReload, error };
+  return { label: t({ locale: locale, key: "Reload preview" }), reload: onReload, error };
 }
 
 /** Keeps dirty content on the POST path; a tool's explicit navigation chooses a public GET. */

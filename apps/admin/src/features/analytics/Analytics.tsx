@@ -1,4 +1,4 @@
-import { formatTimestamp } from "../../lib/format-timestamp";
+import { formatTimestamp } from "@jini-ai/ui/panel-kit";
 import { DataTable } from "@jini-ai/admin/react";
 import { useWiredAnalytics } from "./hooks/use-analytics.hooks";
 
@@ -70,7 +70,7 @@ export function Analytics({ useAnalyticsHook = useWiredAnalytics }: AnalyticsPro
             ),
           },
           { key: "kind", header: t("Kind"), cell: (hit) => (hit.eventName ? `${t("event:")} ${hit.eventName}` : hit.kind) },
-          { key: "time", header: t("Time"), cell: (hit) => formatTimestamp(hit.occurredAt) },
+          { key: "time", header: t("Time"), cell: (hit) => formatTimestamp({ iso: hit.occurredAt }, { timeZone: "local" }) },
         ]}
       />
     </div>

@@ -8,13 +8,13 @@ import { resolveSchemaStateWarning } from "../rules";
 
 // Author Checklist F4.3/F6.2: always returning the English key or skipping shared fallback fails.
 it("resolves feature copy, shared copy and missing-key/locale fallbacks to exact strings", () => {
-  expect(t("es", "Timeline")).toBe("Cronología");
-  expect(t("de", "Migrate forward")).toBe("Vorwärts migrieren");
-  expect(t("es", "Failed to plan the forward migration")).toBe("No se pudo planificar la migración hacia adelante");
-  expect(t("de", "Save")).toBe("Speichern");
-  expect(t("en", "Timeline")).toBe("Timeline");
-  expect(t("xx", "Timeline")).toBe("Timeline");
-  expect(t("es", "New unregistered copy")).toBe("New unregistered copy");
+  expect(t({ locale: "es", key: "Timeline" })).toBe("Cronología");
+  expect(t({ locale: "de", key: "Migrate forward" })).toBe("Vorwärts migrieren");
+  expect(t({ locale: "es", key: "Failed to plan the forward migration" })).toBe("No se pudo planificar la migración hacia adelante");
+  expect(t({ locale: "de", key: "Save" })).toBe("Speichern");
+  expect(t({ locale: "en", key: "Timeline" })).toBe("Timeline");
+  expect(t({ locale: "xx", key: "Timeline" })).toBe("Timeline");
+  expect(t({ locale: "es", key: "New unregistered copy" })).toBe("New unregistered copy");
 });
 
 describe("plan-ready message", () => {
@@ -62,8 +62,8 @@ it("translates every warning emitted by the schema-state rules in every supporte
   expect(locales.map(({ code }) => code)).toContain("es");
   for (const { code } of locales) {
     for (const key of keys) {
-      expect(t(code, key), `${code}: ${key}`).not.toBe(key);
-      expect(t(code, key).trim().length, `${code}: ${key}`).toBeGreaterThan(0);
+      expect(t({ locale: code, key: key }), `${code}: ${key}`).not.toBe(key);
+      expect(t({ locale: code, key: key }).trim().length, `${code}: ${key}`).toBeGreaterThan(0);
     }
   }
 });

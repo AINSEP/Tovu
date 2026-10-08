@@ -6,8 +6,7 @@ import type { MediaPort } from "./media-port.hooks";
  * routes — see `media-port.hooks.ts` for why the split exists.
  */
 
-/** The live implementation, as a module-level singleton — matches `redirects-dependencies
- *  .hooks.ts`'s `defaultRedirectsPort`. Each method wraps its `api` counterpart explicitly rather
+/** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s `redirectsHostPorts`. Each method wraps its `api` counterpart explicitly rather
  *  than pointing at it directly, so a route's default-parameter shape (`uploadMedia`'s
  *  `options = {}`, `updateMedia`'s `options = {}`) stays `lib/api.ts`'s to own. */
 export const defaultMediaPort: MediaPort = {

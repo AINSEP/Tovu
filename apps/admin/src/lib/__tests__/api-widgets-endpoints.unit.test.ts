@@ -48,11 +48,11 @@ function stubFetchCapturing(): { calls: Array<{ url: string; init?: RequestInit 
 
 // --- Widgets -----------------------------------------------------------------
 
-test("getWidget builds a bare GET at /widgets/:id — no query string, no method override", async () => {
+test("getWidget builds an explicit GET at /widgets/:id with no query string", async () => {
   const { calls } = stubFetchCapturing();
   await api.getWidget("w1");
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/widgets/w1`);
-  expect(calls[0].init?.method).toBeUndefined();
+  expect(calls[0].init?.method).toBe("GET");
 });
 
 test("getWidget resolves the widget/whereUsed envelope verbatim", async () => {
@@ -76,7 +76,7 @@ test("listWidgetRegions is a bare GET at /widgets/regions", async () => {
   const { calls } = stubFetchCapturing();
   await api.listWidgetRegions();
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/widgets/regions`);
-  expect(calls[0].init?.method).toBeUndefined();
+  expect(calls[0].init?.method).toBe("GET");
 });
 
 test("bindWidgetRegion POSTs { regionKey } to /widgets/regions", async () => {
@@ -91,7 +91,7 @@ test("getWidgetRegion is a bare GET at /widgets/regions/:regionKey", async () =>
   const { calls } = stubFetchCapturing();
   await api.getWidgetRegion("sidebar");
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/widgets/regions/sidebar`);
-  expect(calls[0].init?.method).toBeUndefined();
+  expect(calls[0].init?.method).toBe("GET");
 });
 
 test("widgetsToolPlace POSTs the input verbatim as the body to /widgets/tools/place", async () => {

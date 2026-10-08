@@ -1,6 +1,7 @@
+import { COMMON_I18N } from "../../lib/i18n-common";
 import type { ReactNode } from "react";
-import { createDictionaryTranslator } from "../../lib/dictionary-translator";
-import { localeEntry } from "../../lib/template-i18n";
+import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
+import { localeEntry } from "@jini-ai/ui/panel-kit";
 
 /**
  * @file Spanish translation for the Recovery screen (`/admin/recovery`) — the restore-points
@@ -1116,7 +1117,7 @@ const RECOVERY_DICT: Record<string, Record<string, string>> = {
 
 /** Same two-step fallback every other `t()` in this app uses: translated value, else the English
  *  source string itself — never a raw dictionary-miss placeholder. */
-export const t = createDictionaryTranslator(RECOVERY_DICT);
+export const t = createDictionaryTranslator({ featureDictionary: RECOVERY_DICT }, { commonDictionary: COMMON_I18N });
 
 /** "Since <strong>{createdAt}</strong>, restoring here would discard at least:" — the timestamp
  *  is emphasized mid-sentence, so this can't be a flat `ES` entry. */

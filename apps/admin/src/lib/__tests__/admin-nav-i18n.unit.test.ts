@@ -40,8 +40,8 @@ describe("admin navigation translation", () => {
     input[0]!.items[0]!.label = "Renamed page";
     expect(translated).toEqual([{ label: "Content", items: [{ id: "pages", label: "Pages", href: "/pages" }] }]);
     expect(translateAdminNavGroups("de", [])).toEqual([]);
-    expect(translateAdminNavLabel("de", "Settings")).toBe("Einstellungen");
-    expect(translateAdminNavLabel("xx", "Settings")).toBe("Settings");
-    expect(translateAdminNavLabel("de", "Atlas extension")).toBe("Atlas extension");
+    expect(translateAdminNavLabel({ locale: "de", key: "Settings" })).toBe("Einstellungen");
+    expect(translateAdminNavLabel({ locale: "xx", key: "Settings" })).toBe("Settings");
+    expect(translateAdminNavLabel({ locale: "de", key: "Atlas extension" })).toBe("Atlas extension");
   });
 });

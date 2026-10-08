@@ -6,7 +6,7 @@ import type { AdminMedia } from "@/lib/api";
  *
  * Follows the `useX(dependencies)` / `useWiredX()` pair documented on
  * `development/docs/architecture/wired-hooks-convention.md` (canonical spec) and
- * `redirects-port.hooks.ts` (canonical reference implementation): this file declares,
+ * `Jini redirects/SOURCE-RATIONALE.md` (canonical reference implementation): this file declares,
  * `media-dependencies.hooks.ts` binds the real `api` client, and nothing else under
  * `features/media` imports `lib/api` for these six routes. One shared port rather than one per
  * hook — all three hooks read/write the same `/media` resource, and a test double for one is a

@@ -6,8 +6,7 @@ import type { AiAssistantPort } from "./ai-assistant-port.hooks";
  * .hooks.ts` for why the split exists.
  */
 
-/** The live implementation, as a module-level singleton — matches `redirects-dependencies
- *  .hooks.ts`'s `defaultRedirectsPort`. */
+/** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s `redirectsHostPorts`. */
 export const defaultAiAssistantPort: AiAssistantPort = {
   getAssistantSettings: () => api.getAssistantSettings(),
   setAssistantSettings: (patch) => api.setAssistantSettings(patch),

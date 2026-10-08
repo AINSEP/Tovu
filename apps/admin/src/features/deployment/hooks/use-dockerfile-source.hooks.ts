@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 
 import { ApiError, describeApiError, type AdminDockerfileSource } from "@/lib/api";
-import { useFetchMutation, useFetchQuery } from "@/lib/fetch-query";
+import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { useDirtyGuard } from "@/hooks/use-dirty-guard.hooks";
+import { useDirtyGuard, type Translate } from "@jini-ai/ui/panel-kit";
 import { t as defaultT, dockerfileLoadErrorMessage, dockerfileSaveErrorMessage } from "../deployment-i18n";
-import type { Translate } from "@/lib/dictionary-translator";
 import { defaultDockerfileSourcePort } from "./dockerfile-source-dependencies.hooks";
 import type { DockerfileSourcePort } from "./dockerfile-source-port.hooks";
 
@@ -26,7 +25,7 @@ import type { DockerfileSourcePort } from "./dockerfile-source-port.hooks";
  * `snapshot`/`draft` are deliberately two different pieces of state, not one: `snapshot` is the
  * last value this hook knows the SERVER holds (from the initial load, or echoed back by a
  * successful save); `draft` is the operator's live edit buffer, seeded from `snapshot` once and
- * otherwise touched only by `setDraft`/a successful `save()`. Same split `use-form-editor.hooks.ts`
+ * otherwise touched only by `setDraft`/a successful `save()`. Same split `Jini forms/react/hooks/use-form-editor.hooks.ts`
  * draws between `list.data` and `form`/`name`/`slug`/etc., and for the identical reason: an
  * in-progress edit must survive a background refresh of the same query key without being clobbered
  * (see `seededRef` below).
@@ -34,7 +33,7 @@ import type { DockerfileSourcePort } from "./dockerfile-source-port.hooks";
  * `save()` calls `setDockerfileSource` through `useFetchMutation` with NO `invalidates` — there is
  * no sibling list resource for a single repo-root file, and the mutation's own response is a fresher
  * answer than a redundant re-`GET` of the same key would be. `snapshot`/`draft` are set directly
- * from that response instead, mirroring `use-form-editor.hooks.ts`'s `handleSave` (which invalidates
+ * from that response instead, mirroring `Jini forms/react/hooks/use-form-editor.hooks.ts`'s `handleSave` (which invalidates
  * only the sibling `KEYS.list`, never its own `KEYS.form(id)` read) and
  * `use-widget-region-editor.hooks.ts`'s `save()` (though that one DOES re-`load()`, for a reason
  * that does not apply here — it reconciles a version counter for OTHER placements that may have
@@ -154,7 +153,7 @@ export function useDockerfileSource(
   // Seeds `snapshot`/`draft` from the query's first successful load, exactly once — a LATER
   // background refetch of the same `["deployment", "dockerfile"]` key (the 10s `staleTime` window,
   // or a remount) must not clobber an in-progress, unsaved edit. Same guard shape
-  // `use-form-editor.hooks.ts`'s `seededFormIdRef` uses; a plain boolean here rather than an
+  // `Jini forms/react/hooks/use-form-editor.hooks.ts`'s `seededFormIdRef` uses; a plain boolean here rather than an
   // identity comparison because this key has no id to key off — it names one fixed file.
   const seededRef = useRef(false);
   useEffect(() => {
@@ -171,10 +170,10 @@ export function useDockerfileSource(
   // No `invalidates` — see this file's header for why a redundant re-`GET` of this hook's own read
   // key would be strictly worse than the response already in hand.
   const saveMutation = useFetchMutation({
-    run: (input: { contents: string; ifMatch: string }) => port.setDockerfileSource(input.contents, input.ifMatch),
+    run: ({ input }: { input: { contents: string; ifMatch: string } }) => port.setDockerfileSource(input.contents, input.ifMatch),
   });
 
-  const { isDirty } = useDirtyGuard(draft, snapshot ? (snapshot.contents ?? "") : null);
+  const { isDirty } = useDirtyGuard({ current: draft, original: snapshot ? (snapshot.contents ?? "") : null }, { host: window, translate: (key) => key });
 
   // Synchronous duplicate-submit guard for `save()` — a ref, not the `saving` (state) value below,
   // because a true double-click/double-Enter can fire two `save()` calls in the same synchronous
@@ -215,7 +214,7 @@ export function useDockerfileSource(
     setSaveConflict(null);
     const sent = draft;
     try {
-      const updated = await saveMutation.mutate({ contents: sent, ifMatch: snapshot.etag });
+      const updated = await saveMutation.mutate({ input: { contents: sent, ifMatch: snapshot.etag } });
       setSnapshot(updated);
       // The response describes what was SENT. An edit typed while the PUT was in flight is newer than
       // both, so the buffer adopts the server's copy only if it still holds exactly what was sent
@@ -284,6 +283,6 @@ export function useDockerfileSource(
  */
 export function useWiredDockerfileSource(): DockerfileSourceController {
   const locale = useAdminLocale();
-  const t = (key: string): string => defaultT(locale, key);
+  const t = (key: string): string => defaultT({ locale: locale, key: key });
   return useDockerfileSource(defaultDockerfileSourcePort, t, locale);
 }

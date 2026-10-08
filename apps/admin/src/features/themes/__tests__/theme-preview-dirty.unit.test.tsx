@@ -1,4 +1,4 @@
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 /** Spec/ADR: ADS-memory/.local-artifacts/theme-preview-refresh/design.md */
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";

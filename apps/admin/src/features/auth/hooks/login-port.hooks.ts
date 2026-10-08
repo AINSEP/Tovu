@@ -6,7 +6,7 @@ import type { AdminUser } from "@/lib/api";
  *
  * Follows the `useX(dependencies)` / `useWiredX()` pair documented in
  * `development/docs/architecture/wired-hooks-convention.md` (canonical spec) and
- * `redirects-port.hooks.ts` (canonical reference implementation): this file declares,
+ * `Jini redirects/SOURCE-RATIONALE.md` (canonical reference implementation): this file declares,
  * `login-dependencies.hooks.ts` binds the real `api` client, and nothing else under
  * `features/auth` imports `lib/api`.
  */

@@ -1,7 +1,7 @@
 import type { AdminDegradedBanner, AdminRestorePoint, DatabaseContextEnvelope } from "../../lib/api";
 import { t } from "./recovery-i18n";
-import { interpolate, localeEntry } from "../../lib/template-i18n";
-import { formatTimestamp } from "../../lib/format-timestamp";
+import { interpolate, localeEntry } from "@jini-ai/ui/panel-kit";
+import { formatTimestamp } from "@jini-ai/ui/panel-kit";
 
 /**
  * @file Pure logic for the `recovery` feature — everything that computes a value rather than
@@ -18,7 +18,6 @@ import { formatTimestamp } from "../../lib/format-timestamp";
  *  header). `backup_execute_restore` (`apps/website/src/features/recovery/agent-tools.ts`, wired,
  *  token-gated) also mutates durable state but a full restore leaves nothing on this screen worth
  *  refreshing afterward, so it needs no separate justification here.
- * useRestorePointsSection (features/database/hooks/use-restore-points-section.hooks.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 export const RECOVERY_RESOURCE = "recovery";
 
@@ -58,8 +57,8 @@ const UNTAUGHT_CATEGORY_TEMPLATE: Record<string, string> = {
  * differs between "<category> writes" and Spanish "escrituras de <category>"), not word-by-word. */
 export function categoryLabel(category: string, locale: string): string {
   const known = CATEGORY_LABELS[category];
-  if (known) return t(locale, known);
-  return interpolate(localeEntry({ table: UNTAUGHT_CATEGORY_TEMPLATE, locale }), { category });
+  if (known) return t({ locale: locale, key: known });
+  return interpolate({ template: localeEntry({ table: UNTAUGHT_CATEGORY_TEMPLATE, locale }), vars: { category } });
 }
 
 /** Short, human badge text for a `restorePoint.costClass`/`status.costClass` value. Never rendered
@@ -77,7 +76,7 @@ const COST_CLASS_LABELS: Record<string, string> = {
 
 export function costClassLabel(costClass: string, locale: string): string {
   const known = COST_CLASS_LABELS[costClass];
-  return known ? t(locale, known) : costClass;
+  return known ? t({ locale: locale, key: known }) : costClass;
 }
 
 /** Visual severity for a Recovery degraded banner — `.notice.error` vs `.notice.warning`, both
@@ -160,5 +159,5 @@ export function parseDeepLinkEnvelope(raw: string): DeepLinkEnvelopeParseResult 
  * @complexity O(1).
  */
 export function restoreButtonAccessibleName(locale: string, point: Pick<AdminRestorePoint, "createdAt">): string {
-  return `${t(locale, "Restore…")} ${formatTimestamp(point.createdAt)}`;
+  return `${t({ locale: locale, key: "Restore…" })} ${formatTimestamp({ iso: point.createdAt }, { timeZone: "local" })}`;
 }

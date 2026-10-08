@@ -3,8 +3,8 @@ import { PreviewModalShell } from "@jini-ai/ui/renderers";
 import { agentHandle } from "@jini-ai/agentic";
 import { Fragment, useId, type ReactNode } from "react";
 
-import { buildAgentListHandles } from "../../lib/agent-list-handles";
-import type { Translate } from "@/lib/dictionary-translator";
+import { buildAgentListHandles } from "@jini-ai/agentic";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 import type { PackageFilesStatus, PackageFileView } from "./rules";
 import { packageFileIconKind, type PackageFileIconKind } from "./package-file-tree";
 import { usePackageFileTree } from "./hooks/use-package-file-tree.hooks";
@@ -106,7 +106,7 @@ function PackageFileTree({
 }) {
   const tree = usePackageFileTree({ paths: files.map((file) => file.relativePath), selectedPath, onOpenFile: onSelectFile });
   const folderPaths = tree.rows.filter((row) => row.node.kind === "folder").map((row) => row.node.path);
-  const folderHandles = buildAgentListHandles(`${handlePrefix}-folder`, folderPaths);
+  const folderHandles = buildAgentListHandles({ prefix: `${handlePrefix}-folder`, ids: folderPaths });
   const folderHandleByPath = new Map(folderPaths.map((path, index) => [path, folderHandles[index]!]));
 
   return (
@@ -259,9 +259,7 @@ export function PackageFilesModal({
   const selectedFileHeadingId = useId();
   // File paths are stable and unique within one package, same per-row-handle derivation every
   // other list on this workstream uses (`buildAgentListHandles`).
-  const fileHandles = buildAgentListHandles(
-    handlePrefix,
-    files.map((file) => file.relativePath),
+  const fileHandles = buildAgentListHandles({ prefix: handlePrefix, ids: files.map((file) => file.relativePath) }
   );
   const fileHandleByPath = new Map(files.map((file, index) => [file.relativePath, fileHandles[index]!]));
 

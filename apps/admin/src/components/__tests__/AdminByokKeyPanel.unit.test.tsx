@@ -198,7 +198,7 @@ describe("AdminByokSettingsFooter", () => {
     render(
       <AdminByokSettingsFooter
         controller={controller({ settingsSaveState: { status: "saved" } })}
-        t={(key) => tSettingsExecution("es", key)}
+        t={(key) => tSettingsExecution({ locale: "es", key: key })}
       />,
     );
     // Proves actual translated output, not merely that the "Settings saved." key exists in the dict.

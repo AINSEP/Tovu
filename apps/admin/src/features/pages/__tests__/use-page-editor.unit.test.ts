@@ -335,7 +335,7 @@ describe("contentDirty (template-preview fix, 2026-08-11)", () => {
  * `useWiredX` dependency-injection conversion — `usePageEditor` driven directly against
  * `createFakePageEditorPort`, a fake `navigate`, and a fake `t`, with NO `fetch` stub and no
  * `useAdminLocale()` race to absorb (`locale` is passed straight in). Mirrors
- * `use-redirects.hooks.unit.test.tsx`'s injected-port block, the reference this conversion follows.
+ * `Jini redirects/react/__tests__/use-redirects.hooks.unit.test.tsx`'s injected-port block, the reference this conversion follows.
  */
 describe("injected port — usePageEditor with no fetch stub", () => {
   function fakeDeps(overrides: { page: unknown; activeThemeTemplates?: string[] }) {
@@ -676,7 +676,7 @@ describe("standing-draft autosave + unsaved-work guard, wired into usePageEditor
     await waitFor(() => expect(result.current.page).not.toBeNull());
     await waitFor(() => expect(result.current.recoverableDraft).not.toBeNull());
 
-    expect(result.current.recoverableDraft).toEqual(seeded);
+    expect(result.current.recoverableDraft).toEqual({ ...seeded, serverUpdatedAt: HTML_PAGE.updatedAt });
     // The banner is offered, not applied — the loaded page's own title/html are still what's shown.
     expect(result.current.title).toBe(HTML_PAGE.title);
     expect(result.current.html).toBe(HTML_PAGE.bodyHtml);

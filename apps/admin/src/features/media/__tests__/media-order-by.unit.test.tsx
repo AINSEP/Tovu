@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Media } from "../Media";
 import { sortMediaByOrder } from "../rules";
 import type { AdminMedia } from "@/lib/api";
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 
 /**
  * @file The Media screen's "Order by" dropdown (owner-directed, 2026-09-11: "have a sort by to see

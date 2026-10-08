@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChatMessage } from "@jini-ai/chat/core";
 import type { FrontendSessionBridge } from "@jini-ai/chat/react";
 import type { ExecutionConfig } from "@jini-ai/ui";
+import { onUnauthenticated } from "../../lib/api";
 
 /**
  * @file `AssistantDock.hooks.tsx` — the three extracted hooks (`useExecutionConfig`,
@@ -126,7 +127,7 @@ import {
   saveExecutionConfig,
 } from "../../lib/execution-settings";
 import { publishSettingsRefresh } from "../../lib/settings-refresh-bus";
-import { FetchQueryProvider } from "../../lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 import { writeAgentsSnapshot } from "../../lib/assistant-agents-snapshot";
 import {
   emptyComposerCapabilityProjection,
@@ -820,7 +821,7 @@ describe("useLocalCliSelection", () => {
   });
 
   it("does not discard a normalized model on an unrelated config change after hydration", () => {
-    writeAgentsSnapshot([{ id: "claude", name: "Claude Code", models: [{ id: "default", label: "Default" }] }]);
+    writeAgentsSnapshot([{ id: "claude", name: "Claude Code", models: [{ id: "claude-sonnet-5", label: "Sonnet 5" }] }]);
     try {
       const config = localCliConfig({ agentId: "claude", modelByAgentId: {} });
       const setExecutionConfig = stubSetExecutionConfig(config);
@@ -828,10 +829,10 @@ describe("useLocalCliSelection", () => {
         ({ executionConfig }) => useLocalCliSelection({ executionConfig, setExecutionConfig, configLoaded: true }),
         { initialProps: { executionConfig: config } },
       );
-      act(() => result.current.handleLocalCliSelectionChange({ agentId: "claude", model: "default" }));
+      act(() => result.current.handleLocalCliSelectionChange({ agentId: "claude", model: "claude-sonnet-5" }));
       expect(setExecutionConfig).not.toHaveBeenCalled();
       rerender({ executionConfig: { ...config, byok: { ...config.byok, model: "gpt-5" } } });
-      expect(result.current.localCliSelection).toEqual({ agentId: "claude", model: "default" });
+      expect(result.current.localCliSelection).toEqual({ agentId: "claude", model: "claude-sonnet-5" });
     } finally {
       localStorage.clear();
     }
@@ -855,12 +856,13 @@ describe("useLocalCliSelection", () => {
   });
 
   // 2026-09-23: `ChatPane` echoes its normalized selection back through `onSelectionChange` on
-  // mount (`{agentId: "claude"}` -> `{agentId: "claude", model: "default"}`). Treated as an
+  // mount by filling the configured concrete model. Treated as an
   // operator pick, that echo wrote `localCli.agentId`/`.model` on EVERY admin page load and
   // blocked the ledger's hydration, resetting a saved agent to claude.
   describe("ChatPane normalization echoes", () => {
+    // Jini filters routing aliases such as "default"; echoes carry concrete model IDs.
     const inventory = [
-      { id: "claude", name: "Claude Code", models: [{ id: "default", label: "Default" }, { id: "opus", label: "Opus" }] },
+      { id: "claude", name: "Claude Code", models: [{ id: "claude-sonnet-5", label: "Sonnet 5" }, { id: "claude-opus-5", label: "Opus 5" }] },
       { id: "codex", name: "Codex", models: [{ id: "gpt-5", label: "GPT-5" }], reasoningOptions: [{ id: "medium", label: "Medium" }] },
       { id: "aider", name: "Aider", available: false },
     ];
@@ -875,9 +877,9 @@ describe("useLocalCliSelection", () => {
         { initialProps: { executionConfig: DEFAULT_EXECUTION_CONFIG, configLoaded: false } },
       );
 
-      act(() => result.current.handleLocalCliSelectionChange({ agentId: "claude", model: "default" }));
+      act(() => result.current.handleLocalCliSelectionChange({ agentId: "claude", model: "claude-sonnet-5" }));
 
-      expect(result.current.localCliSelection).toEqual({ agentId: "claude", model: "default" });
+      expect(result.current.localCliSelection).toEqual({ agentId: "claude", model: "claude-sonnet-5" });
       expect(setExecutionConfig).not.toHaveBeenCalled();
       expect(mockSaveExecutionConfig).not.toHaveBeenCalled();
 
@@ -908,7 +910,7 @@ describe("useLocalCliSelection", () => {
         useLocalCliSelection({ executionConfig: config, setExecutionConfig, configLoaded: true }),
       );
 
-      act(() => result.current.handleLocalCliSelectionChange({ agentId: "claude", model: "default" }));
+      act(() => result.current.handleLocalCliSelectionChange({ agentId: "claude", model: "claude-sonnet-5" }));
 
       expect(setExecutionConfig).not.toHaveBeenCalled();
       expect(mockSaveExecutionConfig).not.toHaveBeenCalled();
@@ -920,13 +922,13 @@ describe("useLocalCliSelection", () => {
       const { result } = renderHook(() =>
         useLocalCliSelection({ executionConfig: config, setExecutionConfig, configLoaded: true }),
       );
-      act(() => result.current.handleLocalCliSelectionChange({ agentId: "claude", model: "default" }));
+      act(() => result.current.handleLocalCliSelectionChange({ agentId: "claude", model: "claude-sonnet-5" }));
 
-      act(() => result.current.handleLocalCliSelectionChange({ agentId: "claude", model: "opus" }));
+      act(() => result.current.handleLocalCliSelectionChange({ agentId: "claude", model: "claude-opus-5" }));
 
       expect(mockSaveExecutionConfig).toHaveBeenCalledTimes(1);
       expect(mockSaveExecutionConfig).toHaveBeenCalledWith(
-        expect.objectContaining({ localCli: { agentId: "claude", modelByAgentId: { claude: "opus" } } }),
+        expect.objectContaining({ localCli: { agentId: "claude", modelByAgentId: { claude: "claude-opus-5" } } }),
         config,
       );
     });
@@ -1380,7 +1382,7 @@ describe("useRuntimeAccess", () => {
    * the daemon restarted under an open dock. Rejecting tells the pane "no answer yet", so it retries.
    */
   it("listAgents rejects when the GET is not ok, so the pane retries instead of reading 'no CLIs'", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 503 })));
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(async () => new Response(JSON.stringify({ error: "agents unavailable" }), { status: 503 })));
 
     const { result } = renderHook(() => useRuntimeAccess(), { wrapper: FetchQueryProvider });
 
@@ -1426,6 +1428,31 @@ describe("useRuntimeAccess", () => {
     // Two real fetches: the failed rescan POST, then the listAgents() fallback GET.
     expect(fetchSpy).toHaveBeenCalledTimes(2);
     expect(fetchSpy.mock.calls[1]?.[0]).toBe("/api/agents");
+  });
+
+  it.each([
+    ["UNAUTHENTICATED", 1],
+    ["PROVIDER_AUTH_FAILED", 0],
+  ] as const)("agent inventory 401 with %s follows the session-expiry contract", async (code, notifications) => {
+    const listener = vi.fn();
+    const unsubscribe = onUnauthenticated(listener);
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ code }), { status: 401 })));
+    try {
+      const { result } = renderHook(() => useRuntimeAccess(), { wrapper: FetchQueryProvider });
+      await expect(result.current.listAgents()).rejects.toThrow("GET /api/agents answered 401");
+      expect(listener).toHaveBeenCalledTimes(notifications);
+    } finally {
+      unsubscribe();
+    }
+  });
+
+  it("a canceled rescan rejects without issuing a fallback GET", async () => {
+    const error = new DOMException("rescan canceled", "AbortError");
+    const fetchFake = vi.fn(async () => { throw error; });
+    vi.stubGlobal("fetch", fetchFake);
+    const { result } = renderHook(() => useRuntimeAccess(), { wrapper: FetchQueryProvider });
+    await expect(result.current.rescanAgents()).rejects.toBe(error);
+    expect(fetchFake).toHaveBeenCalledTimes(1);
   });
 
   it("memoizes the returned object across re-renders", () => {
@@ -1490,7 +1517,7 @@ describe("agents cache (useRuntimeAccess + useAgentsPlaceholder)", () => {
   it("does not cache a non-ok answer — the next listAgents() asks the server again", async () => {
     const fetchSpy = vi
       .fn()
-      .mockResolvedValueOnce(new Response(null, { status: 503 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: "agents unavailable" }), { status: 503 }))
       .mockImplementationOnce(() => okAgents([{ id: "codex", name: "Codex" }]));
     vi.stubGlobal("fetch", fetchSpy);
     const { result } = renderAgents();
@@ -1544,7 +1571,7 @@ describe("agents cache (useRuntimeAccess + useAgentsPlaceholder)", () => {
     const fetchSpy = vi
       .fn()
       .mockImplementationOnce(() => okAgents([{ id: "claude", name: "Claude Code" }]))
-      .mockResolvedValue(new Response(null, { status: 500 }));
+      .mockImplementation(async () => new Response(JSON.stringify({ error: "agents unavailable" }), { status: 500 }));
     vi.stubGlobal("fetch", fetchSpy);
     const { result } = renderAgents();
 

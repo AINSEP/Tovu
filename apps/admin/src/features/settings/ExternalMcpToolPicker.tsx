@@ -1,9 +1,9 @@
 import { agentHandle } from "@jini-ai/agentic";
 import { useT } from "@jini-ai/ui";
 
-import type { Translate } from "@/lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 
-import { SeeMore } from "../../components/SeeMore/SeeMore";
+import { SeeMore } from "@jini-ai/ui/admin-widgets";
 
 import { useExternalMcpDriftCopy } from "./ExternalMcpSettingsPanel.hooks";
 import {

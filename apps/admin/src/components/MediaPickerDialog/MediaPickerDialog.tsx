@@ -1,10 +1,10 @@
 import { useJiniMediaPicker } from "./JiniMediaPicker.hooks";
-import { useId, useRef } from "react";
-import { useFocusTrap } from "../../hooks/use-focus-trap.hooks";
+import { Dialog } from "@jini-ai/ui-kit/react";
+import "../../styles/native-domain-dialogs.css";
 import { agentHandle } from "@jini-ai/agentic";
 import type { AdminMedia } from "../../lib/api";
-import { buildAgentListHandles } from "../../lib/agent-list-handles";
-import { splitOnPlaceholders } from "../../lib/template-i18n";
+import { buildAgentListHandles } from "@jini-ai/agentic";
+import { splitOnPlaceholders } from "@jini-ai/ui/panel-kit";
 import { acceptedMediaItems, useWiredMediaPickerDialog } from "./MediaPickerDialog.hooks";
 
 /**
@@ -13,9 +13,8 @@ import { acceptedMediaItems, useWiredMediaPickerDialog } from "./MediaPickerDial
  * Library"), replacing the old blind `window.prompt("Image URL:")` flow with a real picker over
  * the same library `features/media/Media.tsx` already manages.
  *
- * Mirrors `WidgetPickerDialog.tsx`'s exact modal chrome (`.settings-dialog`/
- * `.settings-dialog-backdrop`, `role="dialog"`, `aria-modal`, `aria-labelledby`,
- * Escape-to-close, backdrop-click-to-cancel) — no new modal idiom invented. Unlike
+ * Reuses Jini's native dialog owner, like `WidgetPickerDialog.tsx`: the browser provides
+ * modal isolation and Jini owns open/close, Escape, backdrop dismissal and focus return. Unlike
  * `WidgetPickerDialog`, there is no "create new" branch here: a new asset is uploaded through
  * `features/media/Media.tsx`'s own upload flow, not inline from an editor toolbar (uploading a
  * file mid-edit, with its own alt/caption/credit fields, is a bigger surface than this picker's
@@ -29,7 +28,7 @@ import { acceptedMediaItems, useWiredMediaPickerDialog } from "./MediaPickerDial
  * grid needs just the image case, not the video/`<video>`/download-link branches a general asset
  * preview does. `active` assets only — a trashed asset is not a legal choice for new content.
  *
- * State/effects — the once-per-mount media fetch and the Escape-to-cancel listener — live in
+ * Domain state/effects — the once-per-mount media fetch — live in
  * `MediaPickerDialog.hooks.tsx`, split out the same way `ConfirmDialog`/`ConfirmDialog.hooks.tsx`
  * does in `@jini-ai/admin`: this file stays props-and-JSX only, and the `useDialog` prop below lets
  * a test render this JSX against a fake hook — no real `api.listMedia()` call and no real
@@ -68,31 +67,20 @@ export interface MediaPickerDialogProps {
 
 function LegacyMediaPickerDialog({ useDialog = useWiredMediaPickerDialog, agentHandle: base, accept, ...props }: MediaPickerDialogProps) {
   const dialog = useDialog(props.onSelect, props.onCancel);
-  const { error, select, mediaOriginalUrl, cancelRef, t } = dialog;
+  const { error, select, mediaOriginalUrl, t } = dialog;
   const items = acceptedMediaItems(dialog.items, accept);
-  // aria-modal promises the background is unavailable; this is what keeps Tab from reaching it.
-  const dialogRef = useRef<HTMLDivElement | null>(null);
-  useFocusTrap(dialogRef);
-  const titleId = useId();
-  const itemHandles = base && items ? buildAgentListHandles(`${base}-item`, items.map((item) => item.id)) : undefined;
+  // Native modality keeps Tab inside; Jini also restores the opener when this dialog unmounts.
+  // Cancel is always present regardless of loading/error/empty/populated state, the same reason
+  // useMediaLightbox has an always-available Close target.
+  const itemHandles = base && items ? buildAgentListHandles({ prefix: `${base}-item`, ids: items.map((item) => item.id) }) : undefined;
   // `{link}` must render as a real `<a>` node, not plain text — interpolate() can't produce that,
   // so this splits the template around the token instead. See `lib/template-i18n.ts`'s own header.
-  const [emptyStateBefore, emptyStateAfter] = splitOnPlaceholders(
-    t("No media uploaded yet. Upload an asset from the {link} screen first."),
-    ["{link}"]
+  const [emptyStateBefore, emptyStateAfter] = splitOnPlaceholders({ template: t("No media uploaded yet. Upload an asset from the {link} screen first."), tokens: ["{link}"] }
   );
 
   return (
-    <div className="settings-dialog-backdrop" onClick={props.onCancel}>
-      <div
-        ref={dialogRef}
-        className="settings-dialog media-picker-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 id={titleId}>{t("Choose an image")}</h2>
+    <Dialog open title={t("Choose an image")} onClose={() => props.onCancel()}
+      className="settings-dialog tovu-domain-dialog media-picker-dialog">
 
         <div className="media-picker-body">
           {error ? <div className="notice error">{error}</div> : null}
@@ -126,7 +114,7 @@ function LegacyMediaPickerDialog({ useDialog = useWiredMediaPickerDialog, agentH
         <div className="widget-picker-footer">
           <span className="editor-actions">
             <button
-              ref={cancelRef}
+              data-jini-autofocus=""
               type="button"
               className="btn-secondary"
               onClick={props.onCancel}
@@ -136,8 +124,7 @@ function LegacyMediaPickerDialog({ useDialog = useWiredMediaPickerDialog, agentH
             </button>
           </span>
         </div>
-      </div>
-    </div>
+    </Dialog>
   );
 }
 

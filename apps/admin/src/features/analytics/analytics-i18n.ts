@@ -1,3 +1,4 @@
+import { COMMON_I18N } from "../../lib/i18n-common";
 /**
  * @file Translations for the Analytics screen (`/admin/analytics`) — the raw recent-hits table and
  * its "not a dashboard yet" honesty notice. **21 locales**, not one: es, id, de, zh-CN, zh-TW,
@@ -11,7 +12,7 @@
  * 21-block change, always.
  */
 
-import { createDictionaryTranslator } from "../../lib/dictionary-translator";
+import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 const ANALYTICS_DICT: Record<string, Record<string, string>> = {
   es: {
@@ -352,4 +353,4 @@ const ANALYTICS_DICT: Record<string, Record<string, string>> = {
   },
 };
 
-export const t = createDictionaryTranslator(ANALYTICS_DICT);
+export const t = createDictionaryTranslator({ featureDictionary: ANALYTICS_DICT }, { commonDictionary: COMMON_I18N });

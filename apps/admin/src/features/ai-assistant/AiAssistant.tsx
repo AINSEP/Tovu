@@ -14,7 +14,7 @@ import {
 } from "@jini-ai/ui";
 import "@jini-ai/ui/settings-dialog.css";
 import { agentHandle } from "@jini-ai/agentic";
-import { SeeMore } from "../../components/SeeMore/SeeMore";
+import { SeeMore } from "@jini-ai/ui/admin-widgets";
 import { AdminByokKeyFooter, AdminByokMigrationPrompt, AdminByokSettingsFooter } from "../../components/AdminByokKeyPanel";
 import { useAdminAssistantSwitch } from "./hooks/use-admin-assistant-switch.hooks";
 import { useAdminExecutionMode } from "./hooks/use-admin-execution-mode.hooks";
@@ -33,11 +33,12 @@ import {
   visitorCredentialSettingsStatusMessage,
   type VisitorCredentialFormController,
 } from "./hooks/use-visitor-credential-form.hooks";
+import { useStoredCredentialHint } from "../../hooks/use-credential-hint.hooks";
 import { useWiredAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { translateAdminNavLabel } from "../../lib/admin-nav-i18n";
 import { t as translateAiAssistantLabel } from "./ai-assistant-i18n";
 import { useWiredAiAssistantLocaleSync } from "./hooks/use-ai-assistant-locale-sync.hooks";
-import type { Translate } from "../../lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 
 /**
  * @file "AI Assistant" admin screen — the `/admin/ai-assistant` route. Markup only.
@@ -70,7 +71,7 @@ import type { Translate } from "../../lib/dictionary-translator";
  *    {@link AdminExecutionMode} for why it is copied here rather than moved, and for the one prop
  *    the two mounts must never disagree about.
  *
- * Mirrors `features/workspace/Workspace.tsx`'s fetch/loading/error shape and `features/comments/Comments.tsx`'s
+ * Mirrors `features/workspace/Workspace.tsx`'s fetch/loading/error shape and `@jini-ai/admin/comments/react`'s
  * settings-form conventions. Its CSS lives with the other `--page-flow` rules in `styles.css`,
  * scoped to `.settings-ui-section--page-flow` so nothing here can reach the Settings screen, which
  * renders the same shell and the same `ByokProviderForm` and deliberately keeps its card look.
@@ -686,25 +687,7 @@ export function VisitorCredentialSettingsFooter({
   );
 }
 
-/** The server's `••••<last 4>` shown IN the key field — which key is stored, answered where the
- *  operator is already looking, instead of in a sentence underneath. `undefined` (no placeholder)
- *  whenever nothing is stored or the server didn't send a mask.
- *
- *  Safe precisely BECAUSE it is a placeholder: `config.apiKey` stays empty, so `saveKey`
- *  sends nothing at all and the stored key is left alone. A pre-filled value here would be a
- *  real value the save path would persist AS the key. Pulled to a top-level pure function per the
- *  complexity-pass extraction rule — one of the few remaining branch points in
- *  `VisitorCredentialForm` itself once {@link VisitorCredentialKeyFooter} moved out.
- *
- *  Also `undefined` when the stored key belongs to another endpoint: after a provider switch the mask
- *  would read as a key saved for the provider now selected. */
-export function visitorCredentialApiKeyPlaceholder(
-  stored: VisitorCredentialFormController["stored"],
-  storedKeyIsForOtherEndpoint = false,
-): string | undefined {
-  if (storedKeyIsForOtherEndpoint) return undefined;
-  return stored?.isSet ? (stored.masked ?? undefined) : undefined;
-}
+export { visitorCredentialApiKeyPlaceholder } from "./rules";
 
 interface VisitorCredentialFormProps {
   useVisitorCredentialFormHook?: typeof useWiredVisitorCredentialForm;
@@ -749,6 +732,7 @@ export function VisitorCredentialForm({
    * `configuredPresetIds` for what a chip's filled dot actually claims.
    */
   const { protocols, gateways } = groupPresets(DEFAULT_PROVIDER_PRESETS);
+  const apiKeyPlaceholder = useStoredCredentialHint({ stored, storedKeyIsForOtherEndpoint });
 
   return (
     <>
@@ -757,7 +741,7 @@ export function VisitorCredentialForm({
         — this screen exists because an operator could not tell the two API keys apart — but all of it
         at once is a wall of explanation standing between the operator and the one field they came to
         fill in. Clamping keeps the full text in the DOM (findable by in-page search and by a screen
-        reader walking the region; see `components/SeeMore/SeeMore.tsx`'s header) while letting the form be the
+        reader walking the region; see `SeeMore`'s Jini owner documentation) while letting the form be the
         first thing on the screen.
 
         3 lines, not the component's default 2, so the first paragraph's point — "this key is for your
@@ -841,7 +825,7 @@ export function VisitorCredentialForm({
         // `hasUsableKey` rather than "a key is stored": a key stored for another endpoint cannot be
         // probed here, so after a provider switch the field is genuinely required again.
         apiKeyStoredExternally={hasUsableKey}
-        apiKeyPlaceholder={visitorCredentialApiKeyPlaceholder(stored, storedKeyIsForOtherEndpoint)}
+        apiKeyPlaceholder={apiKeyPlaceholder}
         apiKeyFooter={
           <VisitorCredentialKeyFooter
             config={config}
@@ -923,7 +907,7 @@ export function AiAssistant({ useAiAssistantHook = useWiredAiAssistant, tabId }:
    * `I18nProvider` mounted below can't call that package's own `useT()`).
    */
   const locale = useWiredAdminLocale();
-  const t = (key: string): string => translateAiAssistantLabel(locale, key);
+  const t = (key: string): string => translateAiAssistantLabel({ locale: locale, key: key });
 
   if (loadError) return <div className="notice error">{loadError}</div>;
   if (!settings) return <div className="notice">{t("Loading AI assistant settings…")}</div>;
@@ -1041,8 +1025,8 @@ export function AiAssistant({ useAiAssistantHook = useWiredAiAssistant, tabId }:
           {/* Reuses the exact nav vocabulary (`admin-nav-i18n.ts`'s `ES` dict) rather than a second,
               independent translation of the same two words — "Overview" and "AI Assistant" are the
               sidebar's own kicker/label for this screen. */}
-          <p className="page-kicker">{translateAdminNavLabel(locale, "Overview")}</p>
-          <h1 className="page-title">{translateAdminNavLabel(locale, "AI Assistant")}</h1>
+          <p className="page-kicker">{translateAdminNavLabel({ locale: locale, key: "Overview" })}</p>
+          <h1 className="page-title">{translateAdminNavLabel({ locale: locale, key: "AI Assistant" })}</h1>
           <p className="page-description">{t("Turn the visitor-facing assistant on or off for your public site.")}</p>
         </div>
       </div>

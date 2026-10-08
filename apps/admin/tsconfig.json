@@ -15,11 +15,10 @@
       "@tovu/headless": ["../website/src/contracts/headless/index.ts"],
       "@tovu/theme-layout": ["../website/src/features/theme/theme-layout.ts"],
       "@tovu/publish-content-ui": ["../website/src/features/publish-content/ui/index.ts"],
-      "@tovu/embed-marker": ["../website/src/contracts/core/embeds/marker.ts"],
       "@tovu/assistant-run-events": ["../website/src/contracts/core/assistant-run-events.ts"]
     }
   },
-  "include": ["src", "vite.config.ts", "../website/src/contracts/headless/**/*.ts", "../website/src/features/theme/theme-layout.ts", "../website/src/features/publish-content/ui/index.ts", "../website/src/contracts/core/embeds/marker.ts", "../website/src/contracts/core/assistant-run-events.ts"],
+  "include": ["src", "vite.config.ts", "../website/src/contracts/headless/**/*.ts", "../website/src/features/theme/theme-layout.ts", "../website/src/features/publish-content/ui/index.ts", "../website/src/contracts/core/assistant-run-events.ts"],
   "exclude": [
     "node_modules"
   ]

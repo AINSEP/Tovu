@@ -1,8 +1,8 @@
 import type { AdminPost } from "../../lib/api";
 import { siteUrl } from "../../lib/site-url";
 import { adminHref } from "../../lib/router";
-import { formatTimestamp } from "../../lib/format-timestamp";
-import type { Translate } from "../../lib/dictionary-translator";
+import { formatTimestamp } from "@jini-ai/ui/panel-kit";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 import { agentHandle } from "@jini-ai/agentic";
 import { Icon } from "@jini-ai/ui";
 import { useWiredDashboard, type StatState } from "./hooks/use-dashboard.hooks";
@@ -38,7 +38,7 @@ function ActivityRow({ row, t }: { row: AdminPost; t: Translate }) {
         {row.title || t("Untitled")}
       </a>
       <span className="dash-kind">{row.kind}</span>
-      <span className="dash-activity-time">{formatTimestamp(row.updatedAt)}</span>
+      <span className="dash-activity-time">{formatTimestamp({ iso: row.updatedAt }, { timeZone: "local" })}</span>
     </div>
   );
 }

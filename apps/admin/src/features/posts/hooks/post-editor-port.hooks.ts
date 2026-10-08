@@ -6,8 +6,7 @@ import type { StandingDraftAutosavePort } from "@/hooks/use-standing-draft-autos
  * direct `lib/api` import.
  *
  * Follows the `useX(dependencies)` / `useWiredX()` pair documented on `assistant-chats-port.hooks.ts`
- * (the canonical reference in this workspace) and copied from `features/redirects/hooks/
- * redirects-port.hooks.ts`'s own split: this file declares, `post-editor-dependencies.hooks.ts` binds
+ * (the canonical reference in this workspace) and copied from `Jini redirects/SOURCE-RATIONALE.md`'s own split: this file declares, `post-editor-dependencies.hooks.ts` binds
  * the real `api` client, and nothing else under this hook imports `lib/api` for these four routes.
  *
  * `navigate` (`lib/router`) is injected alongside this port on `usePostEditor`'s own second

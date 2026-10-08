@@ -21,9 +21,8 @@ export interface FakeSchemaStateSectionPortOptions {
 }
 
 /**
- * An in-memory {@link SchemaStateSectionPort} for tests — "every port gets a fake" (following the former restore-point seam). Defaults to a clean in-sync pair so a test that
+ * An in-memory {@link SchemaStateSectionPort} for tests. Defaults to a clean in-sync pair so a test that
  * only cares about some OTHER section can mount the screen without opting into a warning.
- * restore-points-section-dependencies.hooks.ts (features/database/hooks/restore-points-section-dependencies.hooks.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 export function createFakeSchemaStateSectionPort(options: FakeSchemaStateSectionPortOptions = {}): SchemaStateSectionPort {
   return {

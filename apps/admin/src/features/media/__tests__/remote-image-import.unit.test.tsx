@@ -1,7 +1,7 @@
 /** Quick wins A: visible URL-import action, retryable errors, and media-list invalidation. */
 import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { FetchQueryProvider, useFetchQuery } from "@/lib/fetch-query";
+import { FetchQueryProvider, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { RemoteImageImport } from "../RemoteImageImport";
 import { useRemoteImageImport } from "../hooks/use-remote-image-import.hooks";
 import { KEYS } from "../rules";

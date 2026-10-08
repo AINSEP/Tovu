@@ -95,10 +95,10 @@ it("new consent and tab strings are translated in all supported locales", () => 
   const keys = ["Add a plugin", "Folder on this server", "Replace existing version", "Preview plugin", "Install (stays off)", "Local plugin · unverified publisher", "Capabilities", "Hooks", "This plugin runs code with full access to this computer and every site on it.", "It stays off in every workspace until you turn it on.", "Failed to preview plugin.", "Failed to install plugin.", "Package changed. Review it again before installing.", "Local folder installs are disabled on this server.", "Turn this plugin off in every workspace before installing.", "Installation conflicts with an existing plugin. Check its version and replacement option.", "Invalid plugin package. Check its manifest, integrity and folder.", "{name} is installed and switched off. Turn it on in Downloaded.", "Plugins that ship with Tovu can't be uninstalled: they come back on the next restart. To remove one you added, ask the assistant.", "Upload a .zip or a folder", "A .zip or a plugin folder, up to 32 MiB.", "Choose a folder", "Choose a plugin folder", "Advanced: install from a path on this server", "The full path of a plugin folder on the computer running Tovu.", "That folder is empty.", "Could not read that folder. Try again.", "That folder has more than 4096 files."];
   for (const locale of ["es", "id", "de", "zh-CN", "zh-TW", "pt-BR", "ru", "fa", "ar", "ja", "ko", "pl", "hu", "fr", "uk", "tr", "th", "it", "hi", "ur", "bn"]) {
     for (const key of keys) {
-      expect(t(locale, key)).toBeTruthy();
-      if (key !== "Hooks") expect(t(locale, key)).not.toBe(key);
+      expect(t({ locale: locale, key: key })).toBeTruthy();
+      if (key !== "Hooks") expect(t({ locale: locale, key: key })).not.toBe(key);
     }
-    expect(t(locale, "{name} is installed and switched off. Turn it on in Downloaded.")).toContain("{name}");
+    expect(t({ locale: locale, key: "{name} is installed and switched off. Turn it on in Downloaded." })).toContain("{name}");
   }
 });
 
@@ -124,12 +124,12 @@ it("an empty picked folder is refused in plain words and leaves nothing to previ
   expect((screen.getByRole("button", { name: "Preview plugin" }) as HTMLButtonElement).disabled).toBe(true);
 });
 
-it("the Add a plugin tab label carries the sidebar's Soon tag and still switches to the tab", async () => {
+it("the working Add a plugin tab is untagged and switches to the tab", async () => {
   const port = createFakePluginsPort({ plugins: [], installSources: ["folder"] });
   function useHook() { return usePlugins({ port, installPort: createFakePluginInstallPort({ preview }), locale: "en", t: (key) => key }); }
   render(<Plugins tabId="installed" usePluginsHook={useHook} />);
   const tab = await screen.findByRole("tab", { name: /^Add a plugin/ });
-  expect(tab.querySelector(".tab-bar-tag")?.textContent).toBe("Soon");
+  expect(tab.querySelector(".tab-bar-tag")).toBeNull();
   expect(tab).not.toBeDisabled();
   await userEvent.setup().click(tab);
   expect(window.location.search).toBe("?tab=add");

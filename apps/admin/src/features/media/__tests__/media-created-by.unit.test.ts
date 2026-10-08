@@ -16,14 +16,14 @@ describe("media creation attribution", () => {
     expect(mediaCreatedByLabel({ item: { createdBy: null }, unknownLabel: "Unknown" }, { userNames })).toBe("Unknown");
   });
   it("shows localized unknown for both legacy server omission and NULL", () => {
-    expect(mediaCreatedByLabel({ item: {}, unknownLabel: t("es", "Unknown") })).toBe("Desconocido");
-    expect(mediaCreatedByLabel({ item: { createdBy: null }, unknownLabel: t("de", "Unknown") })).toBe("Unbekannt");
+    expect(mediaCreatedByLabel({ item: {}, unknownLabel: t({ locale: "es", key: "Unknown" }) })).toBe("Desconocido");
+    expect(mediaCreatedByLabel({ item: { createdBy: null }, unknownLabel: t({ locale: "de", key: "Unknown" }) })).toBe("Unbekannt");
   });
   it("has both provenance strings in every locale", () => {
     for (const [locale, dictionary] of Object.entries(MEDIA_DICT)) {
       for (const key of ["Created by", "Unknown"]) {
         expect(dictionary[key], `${locale}: ${key}`).toBeTruthy();
-        expect(t(locale, key), `${locale}: ${key}`).not.toBe(key);
+        expect(t({ locale: locale, key: key }), `${locale}: ${key}`).not.toBe(key);
       }
     }
   });

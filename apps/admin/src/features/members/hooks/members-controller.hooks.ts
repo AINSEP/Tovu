@@ -21,7 +21,7 @@ export interface MembersDependencies { port: MembersPort }
 /** Bind Tovu transport, translated copy and agent refresh to the shared controller. */
 export function useMembers({ port }: MembersDependencies, _optional: Record<string, never> = {}): MembersController {
   const locale = useAdminLocale();
-  const translate = useCallback((key: string) => t(locale, key), [locale]);
+  const translate = useCallback((key: string) => t({ locale: locale, key: key }), [locale]);
   const jiniPort = useMemo(() => toJiniMembersPort({ port }), [port]);
   const controller = useJiniMembers({ port: jiniPort, translate }, { refresh });
   return { ...controller, locale, stateFor: id => controller.stateFor({ id }) };

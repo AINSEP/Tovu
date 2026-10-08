@@ -1,4 +1,5 @@
-import { createDictionaryTranslator, type LocaleDictionary } from "../../lib/dictionary-translator";
+import { COMMON_I18N } from "../../lib/i18n-common";
+import { createDictionaryTranslator, type LocaleDictionary } from "@jini-ai/ui/panel-kit";
 
 export const WEBMCP_KEYS = [
   "Browser-agent access (WebMCP)",
@@ -60,4 +61,4 @@ const confirmLabels: Record<string, string> = {
 export const WEBMCP_DICT: LocaleDictionary = Object.fromEntries(
   Object.entries(translations).map(([locale, values]) => [locale, { ...Object.fromEntries(WEBMCP_KEYS.map((key, index) => [key, values[index]])), Confirm: confirmLabels[locale] }]),
 );
-export const t = createDictionaryTranslator(WEBMCP_DICT);
+export const t = createDictionaryTranslator({ featureDictionary: WEBMCP_DICT }, { commonDictionary: COMMON_I18N });

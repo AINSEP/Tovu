@@ -4,7 +4,7 @@ import type { AdminWorkspace } from "@/lib/api";
 import { describeApiError } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../workspace-i18n";
-import type { Translate } from "@/lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 import { defaultWorkspacePort } from "./workspace-dependencies.hooks";
 import type { WorkspacePort } from "./workspace-port.hooks";
 
@@ -58,7 +58,7 @@ export interface WorkspaceController {
  */
 export function useWorkspace({ port }: WorkspaceDependencies): WorkspaceController {
   const locale = useAdminLocale();
-  const boundT = (key: string): string => t(locale, key);
+  const boundT = (key: string): string => t({ locale: locale, key: key });
   const [workspace, setWorkspace] = useState<AdminWorkspace | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -76,7 +76,7 @@ export function useWorkspace({ port }: WorkspaceDependencies): WorkspaceControll
         setName(r.workspace.name);
         setSlug(r.workspace.slug);
       })
-      .catch((e) => setError(describeApiError(e, t(locale, "failed to load workspace"), locale)));
+      .catch((e) => setError(describeApiError(e, t({ locale: locale, key: "failed to load workspace" }), locale)));
   }
 
   useEffect(() => {
@@ -94,7 +94,7 @@ export function useWorkspace({ port }: WorkspaceDependencies): WorkspaceControll
       setWorkspace(updated);
       setSaved(true);
     } catch (e) {
-      setSaveError(describeApiError(e, t(locale, "failed to save workspace"), locale));
+      setSaveError(describeApiError(e, t({ locale: locale, key: "failed to save workspace" }), locale));
     } finally {
       setSaving(false);
     }

@@ -1,5 +1,5 @@
 import { describeApiError, type AdminContentType, type AdminEntry } from "@/lib/api";
-import { useFetchQuery } from "@/lib/fetch-query";
+import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { KEYS } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as translate } from "../collections-i18n";
@@ -26,7 +26,7 @@ import type { CollectionEntriesPort } from "./collection-entries-port.hooks";
  * stays a direct, uninjected import for this hook's OWN error string (pure, takes `locale`
  * explicitly, not a host reach).
  *
- * `lib/fetch-query` migration (2026-08-12): the combined content-type + entries read (still one
+ * `@jini-ai/ui/fetch-query` migration (2026-08-12): the combined content-type + entries read (still one
  * `Promise.all`, since the screen genuinely needs both before it can render) is now one
  * `useFetchQuery` keyed on `KEYS.entries(contentTypeKey)` — a child of `use-collections.hooks.ts`'s
  * `KEYS.list`, so a content-type lifecycle/field change refreshes this list too. `use-collection-
@@ -72,7 +72,7 @@ export function useCollectionEntries(
 
   const contentType: AdminContentType | null | undefined = list.data?.contentType;
   const entries: AdminEntry[] | null = list.data?.entries ?? null;
-  const error = list.error ? describeApiError(list.error, translate(locale, "failed to load entries")) : null;
+  const error = list.error ? describeApiError(list.error, translate({ locale: locale, key: "failed to load entries" })) : null;
 
   return { contentType, entries, error, t };
 }
@@ -86,6 +86,6 @@ export function useCollectionEntries(
  */
 export function useWiredCollectionEntries(props: { contentTypeKey: string }): CollectionEntriesController {
   const locale = useAdminLocale();
-  const t = (key: string): string => translate(locale, key);
+  const t = (key: string): string => translate({ locale: locale, key: key });
   return useCollectionEntries(props, { port: defaultCollectionEntriesPort, locale, t });
 }

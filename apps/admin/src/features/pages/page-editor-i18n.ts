@@ -1,3 +1,4 @@
+import { COMMON_I18N } from "../../lib/i18n-common";
 /**
  * @file Spanish dictionary for `use-page-editor.hooks.ts`'s own notice/error strings
  * (`setMessage`/`setError` fallbacks) — NOT `PageEditor.tsx`'s JSX markup, which `pages-i18n.ts`'s
@@ -8,7 +9,7 @@
  * Same two-step fallback every other `t()` in this app uses: translated value, else the English
  * source string itself.
  */
-import { createDictionaryTranslator } from "../../lib/dictionary-translator";
+import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 import { t as postT } from "../posts/posts-i18n";
 
 /**
@@ -376,9 +377,9 @@ const PAGE_EDITOR_HOOK_DICT: Record<string, Record<string, string>> = {
 
 export const PAGE_EDITOR_DICT = PAGE_EDITOR_HOOK_DICT;
 
-const hookT = createDictionaryTranslator(PAGE_EDITOR_DICT);
-const markupT = createDictionaryTranslator(pageEditorMarkupTranslations);
-const controlT = createDictionaryTranslator(pageEditorControlTranslations);
+const hookT = createDictionaryTranslator({ featureDictionary: PAGE_EDITOR_DICT }, { commonDictionary: COMMON_I18N });
+const markupT = createDictionaryTranslator({ featureDictionary: pageEditorMarkupTranslations }, { commonDictionary: COMMON_I18N });
+const controlT = createDictionaryTranslator({ featureDictionary: pageEditorControlTranslations }, { commonDictionary: COMMON_I18N });
 const markupKeys = new Set(Object.keys(pageEditorMarkupTranslations.es));
 
 /**
@@ -387,8 +388,8 @@ const markupKeys = new Set(Object.keys(pageEditorMarkupTranslations.es));
  * dictionary is consumed only by the translator exported from its own module.
  */
 export function t(locale: string, key: string): string {
-  if (postEditorKeys.has(key as never)) return postT(locale, key);
-  if (["Move", "Desktop", "Tablet", "Mobile", "Interactive", "Preview"].includes(key)) return controlT(locale, key);
-  if (markupKeys.has(key)) return markupT(locale, key);
-  return hookT(locale, key);
+  if (postEditorKeys.has(key as never)) return postT({ locale: locale, key: key });
+  if (["Move", "Desktop", "Tablet", "Mobile", "Interactive", "Preview"].includes(key)) return controlT({ locale: locale, key: key });
+  if (markupKeys.has(key)) return markupT({ locale: locale, key: key });
+  return hookT({ locale: locale, key: key });
 }

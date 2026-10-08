@@ -63,11 +63,11 @@ describe("PAGES_DICT: cross-locale key parity", () => {
 describe("PAGES_DICT: t() falls back to COMMON_I18N", () => {
   it("translates 'Cancel' in German even though PAGES_DICT.de never carries it", () => {
     expect(PAGES_DICT.de.Cancel).toBeUndefined();
-    expect(t("de", "Cancel")).toBe(COMMON_I18N.de.Cancel);
+    expect(t({ locale: "de", key: "Cancel" })).toBe(COMMON_I18N.de.Cancel);
   });
 
   it("translates 'Delete permanently' in German even though PAGES_DICT.de never carries it", () => {
     expect(PAGES_DICT.de["Delete permanently"]).toBeUndefined();
-    expect(t("de", "Delete permanently")).toBe(COMMON_I18N.de["Delete permanently"]);
+    expect(t({ locale: "de", key: "Delete permanently" })).toBe(COMMON_I18N.de["Delete permanently"]);
   });
 });

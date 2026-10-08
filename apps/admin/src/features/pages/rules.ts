@@ -3,14 +3,14 @@ import type { RowMenuItem } from "@jini-ai/admin/react";
 
 import type { CanvasStyling } from "@jini-ai/ui/html-editor";
 
-import { buildAgentListHandles } from "../../lib/agent-list-handles";
+import { buildAgentListHandles } from "@jini-ai/agentic";
 import { type AdminPost } from "../../lib/api";
-import type { Translate } from "../../lib/dictionary-translator";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 import type {
   StandingDraftAutosaveInput,
   StandingDraftStaleBasis,
 } from "../../hooks/use-standing-draft-autosave.hooks";
-import { formatRelativeMinutesAgo } from "../../lib/format-timestamp";
+import { formatRelativeMinutesAgo } from "@jini-ai/ui/panel-kit";
 import { isVersionConflict, VERSION_CONFLICT_CODE } from "../../lib/version-conflict";
 import { t as translate } from "./pages-i18n";
 import type { ThemePageRow } from "./hooks/use-theme-pages.hooks";
@@ -143,7 +143,7 @@ export interface PageRowMenuHandlers {
  * @overallScore 100
  */
 export function pageRowMenuItems(page: AdminPost, handlers: PageRowMenuHandlers, locale: string): RowMenuItem[] {
-  const t = (key: string): string => translate(locale, key);
+  const t = (key: string): string => translate({ locale: locale, key: key });
   const items: RowMenuItem[] = [{ key: "edit", label: t("Edit"), onSelect: () => handlers.onEdit(page) }];
   items.push(
     page.status === "published"
@@ -169,9 +169,7 @@ export function pageRowMenuItems(page: AdminPost, handlers: PageRowMenuHandlers,
  */
 export function buildPageRowMenuHandleMap(pages: AdminPost[] | null): Map<string, string> {
   if (!pages) return new Map();
-  const handles = buildAgentListHandles(
-    "pages-row",
-    pages.map((page) => page.id),
+  const handles = buildAgentListHandles({ prefix: "pages-row", ids: pages.map((page) => page.id) }
   );
   return new Map(pages.map((page, index) => [page.id, handles[index]!]));
 }
@@ -414,7 +412,7 @@ export function isAutosaveDraftStale(draftBaseVersion: number, currentVersion: n
  *  only (`use-page-editor.hooks.ts`'s file header's own rule). `nowMs` is threaded through rather
  *  than read internally, same reasoning `formatRelativeMinutesAgo` itself documents. */
 export function pageAutosaveBannerMessage(savedAt: string, nowMs: number, stale: boolean): string {
-  const when = formatRelativeMinutesAgo(savedAt, nowMs);
+  const when = formatRelativeMinutesAgo({ iso: savedAt, nowMs: nowMs });
   return stale ? `Unsaved changes from before a newer save (captured ${when})` : `Unsaved changes from ${when}`;
 }
 

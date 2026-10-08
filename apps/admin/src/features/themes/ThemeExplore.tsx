@@ -5,16 +5,16 @@ import { ConfirmDialog, RowMenu } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
 import { Toast } from "@jini-ai/ui";
 
-import { InfoTip } from "../../components/InfoTip";
-import { resolveTabBarTabIndex, useTabBarKeyboard } from "../../components/TabBar.hooks";
+import { InfoTip } from "@jini-ai/ui/admin-widgets";
+import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
 import { useDevicePreviewDevice, usePreviewPaneWidth, type DevicePreviewDevice } from "../../components/DevicePreview/DevicePreview.hooks";
 import { DevicePreviewFrame } from "../../components/DevicePreview/DevicePreviewFrame";
 import { DevicePreviewToggle } from "../../components/DevicePreview/DevicePreviewToggle";
 import { siteUrl } from "../../lib/site-url";
 import { navigate } from "../../lib/router";
-import type { Translate } from "../../lib/dictionary-translator";
-import { splitOnPlaceholders } from "../../lib/template-i18n";
-import { buildAgentListHandles } from "../../lib/agent-list-handles";
+import type { Translate } from "@jini-ai/ui/panel-kit";
+import { splitOnPlaceholders } from "@jini-ai/ui/panel-kit";
+import { buildAgentListHandles } from "@jini-ai/agentic";
 import { themePageCollisionAdminPath } from "../pages/hooks/use-theme-pages.hooks";
 import {
   THEME_FILE_GROUPS,
@@ -26,6 +26,7 @@ import {
   themeExploreHtmlMode,
   useWiredThemeExplore,
   type ThemeExploreDetail,
+  type ThemeExploreController,
   type ThemeExploreFile,
   type ThemeExplorePublishState,
   type ThemeExploreSlugCollision,
@@ -457,9 +458,7 @@ function ThemeExploreFileList({
   // another's regardless of which group renders it — same reasoning `Taxonomy.tsx`'s `termHandles`
   // documents for its own flat, cross-group id list. Computed once here, before the per-kind
   // filtering below, so a path's handle never depends on which group it lands in.
-  const fileMenuHandles = buildAgentListHandles(
-    "theme-explore-file",
-    files.map((file) => file.path),
+  const fileMenuHandles = buildAgentListHandles({ prefix: "theme-explore-file", ids: files.map((file) => file.path) }
   );
   const fileMenuHandleByPath = new Map(files.map((file, index) => [file.path, fileMenuHandles[index]!]));
   return (
@@ -541,7 +540,7 @@ function ThemeExploreDirectionsNotice({
  * and the one it came from, and calling it a child would teach that changing the original still
  * feeds into this one, which it does not.
  *
- * Reuses `InfoTip` (`components/InfoTip.tsx`) rather than a second bespoke tooltip — it already
+ * Reuses `InfoTip` (`@jini-ai/ui/admin-widgets`) rather than a second bespoke tooltip — it already
  * opens on hover AND focus and is keyboard-reachable (`tabIndex={0}` + `aria-label`), which is the
  * actual accessibility bar here: the native `title` attribute was rejected for this exact component
  * already (see `InfoTip`'s own doc), and touch devices can't hover at all.
@@ -614,11 +613,9 @@ function PageRenameWarningBody({
   // it, so the old fragment order was ungrammatical there regardless of the words being correct.
   // `splitOnPlaceholders` keeps the `<code>` elements as real React nodes while the key itself
   // carries a full, reorderable sentence per locale.
-  const [before, between, after] = splitOnPlaceholders(
-    t(
+  const [before, between, after] = splitOnPlaceholders({ template: t(
       "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.",
-    ),
-    ["{file}", "{name}"],
+    ), tokens: ["{file}", "{name}"] }
   );
   return (
     <p>
@@ -642,9 +639,7 @@ function PageRenameWarningBody({
 function DeleteFileWarningBody({ deleteTarget, t }: { deleteTarget: string | null; t: Translate }) {
   // One whole sentence with a `{file}` placeholder — see `PageRenameWarningBody`'s comment for why
   // this replaced two fragments split around the `<code>` element.
-  const [before, after] = splitOnPlaceholders(
-    t("Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back."),
-    ["{file}"],
+  const [before, after] = splitOnPlaceholders({ template: t("Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back."), tokens: ["{file}"] }
   );
   return (
     <p>
@@ -669,11 +664,9 @@ function DeleteFileWarningBody({ deleteTarget, t }: { deleteTarget: string | nul
  * @complexity O(1).
  */
 function ResetFileWarningBody({ selected, t }: { selected: string | null; t: Translate }) {
-  const [before, after] = splitOnPlaceholders(
-    t(
+  const [before, after] = splitOnPlaceholders({ template: t(
       "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.",
-    ),
-    ["{file}"],
+    ), tokens: ["{file}"] }
   );
   return (
     <p>
@@ -968,7 +961,7 @@ function ThemeExploreSlugCollisionWarning({
   /** Gate before navigating away to the colliding record — this screen's other in-app navigation
    *  away from an open, possibly dirty file (see `ThemeExplore`'s "← All themes" button and
    *  `useThemeExplore`'s own `select`, `confirmLeave`'s other two call sites). */
-  confirmLeave: (unsavedBeyondTracked?: boolean) => boolean;
+  confirmLeave: ThemeExploreController["confirmLeave"];
   t: Translate;
 }) {
   if (!collidingContent) return null;
@@ -1203,7 +1196,7 @@ function ThemeExploreContent({
   } = useThemeExploreFullscreen();
   // Above the early returns below: `use*` has to be called unconditionally for the rules-of-hooks
   // lint even though this one holds no state of its own.
-  const { onKeyDown: onViewTabsKeyDown } = useTabBarKeyboard(VIEW_TABS, view, (id) => setView(id as ThemeExploreView));
+  const { onKeyDown: onViewTabsKeyDown } = useTabBarKeyboard({ tabs: VIEW_TABS, activeId: view, onChange: (id) => setView(id as ThemeExploreView) });
 
   const previewSrc = useThemeExplorePreviewHook({ themeId, detail, files, selected, previewNonce });
 
@@ -1319,7 +1312,7 @@ function ThemeExploreContent({
                     role="tab"
                     aria-selected={view === entry.key}
                     className={view === entry.key ? "is-active" : undefined}
-                    tabIndex={resolveTabBarTabIndex(VIEW_TABS, view, entry)}
+                    tabIndex={resolveTabBarTabIndex({ tabs: VIEW_TABS, activeId: view, tab: entry })}
                     onClick={() => setView(entry.key)}
                   >
                     {t(entry.label)}

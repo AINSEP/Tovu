@@ -108,6 +108,6 @@ it("uploads raw ZIP bytes through the authenticated API seam for review and conf
 
 it("ZIP labels and size errors are translated in every supported locale", () => {
   for (const locale of ["es", "id", "de", "zh-CN", "zh-TW", "pt-BR", "ru", "fa", "ar", "ja", "ko", "pl", "hu", "fr", "uk", "tr", "th", "it", "hi", "ur", "bn"]) {
-    for (const key of ["Upload .zip (max 32 MiB)", "ZIP exceeds the upload or expanded package size limit."]) expect(t(locale, key)).not.toBe(key);
+    for (const key of ["Upload .zip (max 32 MiB)", "ZIP exceeds the upload or expanded package size limit."]) expect(t({ locale: locale, key: key })).not.toBe(key);
   }
 });

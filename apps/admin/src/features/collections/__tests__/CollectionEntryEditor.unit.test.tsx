@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 import { CollectionEntryEditor } from "../CollectionEntryEditor";
 import type { CollectionEntryEditorController } from "../hooks/use-collection-entry-editor.hooks";
 
@@ -17,7 +17,7 @@ import type { CollectionEntryEditorController } from "../hooks/use-collection-en
  *
  * `CollectionEntryEditor` composes the real `useWiredCollectionEntryEditor` by default, so every
  * render exercising that real path needs a `FetchQueryProvider` ancestor (2026-08-12,
- * `lib/fetch-query` migration). The "injected hook seam" describe block below drives the screen
+ * `@jini-ai/ui/fetch-query` migration). The "injected hook seam" describe block below drives the screen
  * through a fake controller instead — see `CollectionEntryEditorProps.useCollectionEntryEditorHook`.
  */
 

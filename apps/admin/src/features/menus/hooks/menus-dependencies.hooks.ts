@@ -11,8 +11,7 @@ import { pagePublicPath } from "../../pages/rules";
  * from here.
  */
 
-/** The live implementation, as a module-level singleton — matches `redirects-dependencies
- *  .hooks.ts`'s `defaultRedirectsPort`. */
+/** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s `redirectsHostPorts`. */
 export const defaultMenusPort: MenusPort = {
   listPages: async (_required, _optional = {}) => ({ pages: (await api.listPages()).posts.map(({ post }) => ({ id: post.id, title: post.title, status: post.status, publicPath: pagePublicPath(post.slug) })) }),
   listMenus: () => api.listMenus(),

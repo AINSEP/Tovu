@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { describeApiError } from "@/lib/api";
-import { useFetchMutation, useInvalidate, type QueryKey } from "@/lib/fetch-query";
+import { useFetchMutation, useInvalidate, type QueryKey } from "@jini-ai/ui/fetch-query";
 import { useWiredAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { KEYS } from "../rules";
 import { t } from "../database-i18n";
@@ -19,7 +19,7 @@ import type { MigrateForwardSectionPort } from "./migrate-forward-section-port.h
  * the raw value, still needed for this section's own local step subcomponents and
  * `planReadyMessage`) on the return value adds no new fetch.
  *
- * `lib/fetch-query` migration (2026-08-12): `startPlan`/`doConfirm`/`doExecute` are three
+ * `@jini-ai/ui/fetch-query` migration (2026-08-12): `startPlan`/`doConfirm`/`doExecute` are three
  * `useFetchMutation`s. `startPlan`/`doConfirm` declare no `invalidates` — they write nothing another
  * screen reads (`step`/`plan`/`confirmationToken`/`done` are pure client-side workflow state, not a
  * server resource another screen could invalidate into). `useFetchMutation` is still the right seam
@@ -93,19 +93,20 @@ export interface MigrateForwardSectionDependencies {
 export function useMigrateForwardSection(deps: MigrateForwardSectionDependencies): MigrateForwardSectionController {
   const { port } = deps;
   const locale = useWiredAdminLocale();
-  const boundT = (key: string): string => t(locale, key);
+  const boundT = (key: string): string => t({ locale: locale, key: key });
   const invalidate = useInvalidate();
   const [step, setStep] = useState<CeremonyStep>("idle");
   const [plan, setPlan] = useState<{ planId: string; planHash: string } | null>(null);
   const [confirmationToken, setConfirmationToken] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
-  const startPlanMutation = useFetchMutation({ run: (_: undefined) => port.planMigrateForward() });
+  const startPlanMutation = useFetchMutation({ run: ({ input: _ }: { input: undefined }) => port.planMigrateForward() });
   const confirmMutation = useFetchMutation({
-    run: (input: { planId: string; planHash: string }) => port.confirmMigrateForward(input),
+    run: ({ input }: { input: { planId: string; planHash: string } }) => port.confirmMigrateForward(input),
   });
   const executeMutation = useFetchMutation({
-    run: (confirmationTokenInput: string) => port.executeMigrateForward(confirmationTokenInput),
+    run: ({ input: confirmationTokenInput }: { input: string }) => port.executeMigrateForward(confirmationTokenInput),
+  }, {
     invalidates: MIGRATION_CHANGES_READS,
   });
 
@@ -121,7 +122,7 @@ export function useMigrateForwardSection(deps: MigrateForwardSectionDependencies
 
   async function startPlan() {
     try {
-      const r = await startPlanMutation.mutate(undefined);
+      const r = await startPlanMutation.mutate({ input: undefined });
       setPlan({ planId: r.planId, planHash: r.planHash });
       setStep("planned");
     } catch {
@@ -132,7 +133,7 @@ export function useMigrateForwardSection(deps: MigrateForwardSectionDependencies
   async function doConfirm() {
     if (!plan) return;
     try {
-      const r = await confirmMutation.mutate({ planId: plan.planId, planHash: plan.planHash });
+      const r = await confirmMutation.mutate({ input: { planId: plan.planId, planHash: plan.planHash } });
       setConfirmationToken(r.confirmationToken);
       setStep("confirmed");
     } catch {
@@ -143,7 +144,7 @@ export function useMigrateForwardSection(deps: MigrateForwardSectionDependencies
   async function doExecute() {
     if (!confirmationToken) return;
     try {
-      await executeMutation.mutate(confirmationToken);
+      await executeMutation.mutate({ input: confirmationToken });
       setDone(true);
       setStep("done");
     } catch {
@@ -152,7 +153,7 @@ export function useMigrateForwardSection(deps: MigrateForwardSectionDependencies
       // the server already committed the write (a timeout or a dropped connection), so a stale
       // "in-sync"/old-Timeline read is a worse failure mode than one extra fetch. See this file's
       // header.
-      for (const key of MIGRATION_CHANGES_READS) invalidate(key);
+      for (const key of MIGRATION_CHANGES_READS) invalidate({ key: key });
     }
   }
 
@@ -163,11 +164,11 @@ export function useMigrateForwardSection(deps: MigrateForwardSectionDependencies
   const rawError = startPlanMutation.error ?? confirmMutation.error ?? executeMutation.error;
   let error: string | null = null;
   if (startPlanMutation.error) {
-    error = describeApiError(rawError, t(locale, "Failed to plan the forward migration"));
+    error = describeApiError(rawError, t({ locale: locale, key: "Failed to plan the forward migration" }));
   } else if (confirmMutation.error) {
-    error = describeApiError(rawError, t(locale, "Failed to confirm the forward migration"));
+    error = describeApiError(rawError, t({ locale: locale, key: "Failed to confirm the forward migration" }));
   } else if (executeMutation.error) {
-    error = describeApiError(rawError, t(locale, "Failed to execute the forward migration"));
+    error = describeApiError(rawError, t({ locale: locale, key: "Failed to execute the forward migration" }));
   }
 
   return { step, busy, error, plan, confirmationToken, done, reset, startPlan, doConfirm, doExecute, t: boundT, locale };

@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApiError, type AdminSiteActivation, type AdminSitesSnapshot } from "@/lib/api";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { SITES_RESOURCE } from "../rules";
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 import { createFakeSitesPort } from "../hooks/sites-dependencies.hooks";
 import { useSites } from "../hooks/use-sites.hooks";
 
@@ -158,7 +158,7 @@ describe("useSites — create", () => {
     act(() => result.current.setCreateName("gamma"));
     // Two clicks before the first request ever resolves — the doc comment on `createSite` already
     // claims this is a no-op; this test is what actually proves it. Both clicks are synchronous
-    // (same tick) — `mutateAsync` only reaches the port on a later microtask, so the guard has to be
+    // (same tick) — `mutate` only reaches the port on a later microtask, so the guard has to be
     // a synchronous check-then-set, not a wait for `creating`/`status` to reflect the first click.
     act(() => result.current.createSite());
     act(() => result.current.createSite());
@@ -281,7 +281,7 @@ describe("useSites — activate race safety", () => {
     act(() => result.current.activate("alpha"));
     act(() => result.current.activate("beta"));
     // Activations reach the server one at a time (see `activateChainRef`), so only alpha is in
-    // flight — beta waits for it. `mutateAsync` invokes the mutation function on a microtask.
+    // flight — beta waits for it. `mutate` invokes the mutation function on a microtask.
     await waitFor(() => expect(activateSite).toHaveBeenCalledTimes(1));
     expect(activateSite).toHaveBeenLastCalledWith("alpha");
 

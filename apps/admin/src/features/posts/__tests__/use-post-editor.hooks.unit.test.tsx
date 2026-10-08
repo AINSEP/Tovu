@@ -19,7 +19,7 @@ import type { PostEditorPort } from "../hooks/post-editor-port.hooks";
  * conversion this file lands alongside; see `use-post-editor.hooks.ts`'s own file header).
  *
  * Drives {@link usePostEditor} directly with `createFakePostEditorPort` throughout — unlike
- * `use-redirects.hooks.unit.test.tsx`'s split (a `fetch`-stubbed `useWiredRedirects` group plus a
+ * `Jini redirects/react/__tests__/use-redirects.hooks.unit.test.tsx`'s split (a `fetch`-stubbed `useWiredRedirects` group plus a
  * smaller injected-port group), this hook has no `lib/fetch-query` wiring to also exercise, so there
  * is nothing a `fetch` stub would additionally cover that the injected port doesn't already reach.
  * One small `useWiredPostEditor` smoke test at the end confirms the wiring itself (real port, real
@@ -858,8 +858,7 @@ describe("usePostEditor — delete", () => {
 describe("usePostEditor — injected port is genuinely read (negative verification)", () => {
   /**
    * Confirms the hook's `title`/`slug` truly come from whatever port is passed in, not a fixture the
-   * test file happens to reuse everywhere else above — the same reasoning `use-redirects.hooks
-   * .unit.test.tsx`'s own "does not resolve `redirects` while the injected port's list call is still
+   * test file happens to reuse everywhere else above — the same reasoning `Jini redirects/react/__tests__/use-redirects.hooks.unit.test.tsx`'s own "does not resolve `redirects` while the injected port's list call is still
    * pending" test states for itself.
    */
   it("reflects a DIFFERENT post's title/slug than every other test in this file uses", async () => {
@@ -1030,7 +1029,7 @@ describe("usePostEditor — standing-draft autosave + recovery", () => {
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     await waitFor(() => expect(result.current.recoverableDraft).not.toBeNull());
 
-    expect(result.current.recoverableDraft).toEqual(seeded);
+    expect(result.current.recoverableDraft).toEqual({ ...seeded, serverUpdatedAt: POST.updatedAt });
     // The banner is offered, not applied — the loaded post's own title is still what's shown.
     expect(result.current.title).toBe(POST.title);
     expect(result.current.slug).toBe(POST.slug);
@@ -1317,7 +1316,7 @@ describe("useWiredPostEditor", () => {
   /**
    * Smoke test for the composition itself (real `defaultPostEditorPort` + real `navigate`), NOT a
    * network test — `fetch` is stubbed to fail deterministically (same discipline every other test in
-   * this file, and `use-redirects.hooks.unit.test.tsx`, already follows: never let a real request
+   * this file, and `Jini redirects/react/__tests__/use-redirects.hooks.unit.test.tsx`, already follows: never let a real request
    * reach the network — jsdom's pinned test origin, `http://localhost:3000/`
    * (`vitest.config.ts`), is this machine's real dev server, and an unstubbed call here would
    * actually hit it). Assert the requested post and method as well as the server's settled error,

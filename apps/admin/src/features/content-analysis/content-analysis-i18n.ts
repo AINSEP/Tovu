@@ -1,3 +1,4 @@
+import { COMMON_I18N } from "../../lib/i18n-common";
 /**
  * @file The Content analysis card's dictionary (AW-7 Tier 2, `ContentAnalysisCard.tsx` and
  * `rules.ts`'s copy tables), in all 21 locales the admin ships. Same `DICT[locale]?.[key] ?? key`
@@ -12,7 +13,7 @@
  * `{placeholder}` templates are filled by `interpolate` AFTER translation (see `rules.ts`), so each
  * locale places the value where its own grammar wants it.
  */
-import { createDictionaryTranslator } from "@/lib/dictionary-translator";
+import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 export const CONTENT_ANALYSIS_KEYS = [
   "Content analysis",
@@ -701,4 +702,4 @@ export const CONTENT_ANALYSIS_DICT: Record<string, Record<string, string>> = bui
 
 /** `CONTENT_ANALYSIS_DICT[locale]?.[key] ?? COMMON_I18N[locale]?.[key] ?? key` — the feature's hook
  *  binds it to the admin locale (`use-content-analysis.hooks.ts`). */
-export const t = createDictionaryTranslator(CONTENT_ANALYSIS_DICT);
+export const t = createDictionaryTranslator({ featureDictionary: CONTENT_ANALYSIS_DICT }, { commonDictionary: COMMON_I18N });

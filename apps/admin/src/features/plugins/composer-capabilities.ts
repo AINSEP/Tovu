@@ -82,7 +82,6 @@ export interface TovuComposerCapabilityPreview {
  * `resolve` receives the invocation's `argument` exactly as `ComposerDiscoverySelection` carries
  * it (`undefined` for a plain item, `null` | `""` | the typed text for a `command`-bearing one) so
  * a binding can be built from what the composer actually resolved, not a pre-computed guess.
- * createToolCatalogComposerCapabilitySource (features/plugins/tool-catalog-composer-source.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 export interface TovuComposerCapability {
   readonly groupId: string;

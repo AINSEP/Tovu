@@ -6,8 +6,7 @@ import type { MediaPickerPort } from "./media-picker-port.hooks";
  * `media-picker-port.hooks.ts` for why the split exists.
  */
 
-/** The live implementation, as a module-level singleton — matches `redirects-dependencies
- *  .hooks.ts`'s `defaultRedirectsPort`. */
+/** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s `redirectsHostPorts`. */
 export const defaultMediaPickerPort: MediaPickerPort = {
   listMedia: () => api.listMedia(),
   mediaOriginalUrl: (id) => api.mediaOriginalUrl(id),

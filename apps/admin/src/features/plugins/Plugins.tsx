@@ -1,9 +1,9 @@
 import type { ComponentType } from "react";
 
 import type { AdminPlugin } from "@/lib/api";
-import { buildAgentListHandles } from "../../lib/agent-list-handles";
-import { TabBar, type TabBarTab } from "../../components/TabBar";
-import { resolveActiveTabId } from "../../lib/resolve-active-tab-id";
+import { buildAgentListHandles } from "@jini-ai/agentic";
+import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
+import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
 import { navigate } from "../../lib/router";
 import { PluginRow } from "./PluginRow";
 import { PluginPackageFilesModal } from "./PluginPackageFilesModal";
@@ -72,7 +72,7 @@ type PluginsTabId = (typeof PLUGINS_TAB_IDS)[number];
  *  shared `../../lib/resolve-active-tab-id` guard every other URL-deep-linked tabbed admin screen
  *  uses. */
 function resolvePluginsTabId(tabId: string | null | undefined): PluginsTabId {
-  return resolveActiveTabId(tabId, PLUGINS_TAB_IDS, "installed");
+  return resolveActiveTabId({ tabId: tabId, validIds: PLUGINS_TAB_IDS, defaultId: "installed" });
 }
 
 /** The Installed tab's own row list — the Enable/Disable toggle unchanged from the pre-split table,
@@ -325,9 +325,7 @@ function LoadedPlugins({ plugins, controller, activeTabId }: { plugins: AdminPlu
   // workstream uses (`buildAgentListHandles`), computed once from the FULL unfiltered list so a
   // plugin's handle is identical whichever tab currently lists it (mirrors `AgentPluginRow`'s own
   // reasoning for deriving from the id alone, not list position).
-  const rowHandles = buildAgentListHandles(
-    "plugins-row",
-    plugins.map((plugin) => plugin.id),
+  const rowHandles = buildAgentListHandles({ prefix: "plugins-row", ids: plugins.map((plugin) => plugin.id) }
   );
   const rowHandleById = new Map(plugins.map((plugin, index) => [plugin.id, rowHandles[index]!]));
   const ActivePanel = PLUGINS_TAB_PANELS[activeTabId];

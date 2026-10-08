@@ -5,170 +5,6 @@ export { usePanelPosition } from "@jini-ai/ui/admin-widgets";
 export type { PanelPosition, SelectOption } from "@jini-ai/ui/admin-widgets";
 
 // Live state/effects and their rationale: Jini/packages/ui/src/features/admin-widgets/components/Select/Select.hooks.tsx.
-/**
- * @file Extraction history: `Select`'s open/search/highlight/position state, every effect that watches
- * scroll/resize/outside-click/keyboard, and the pure DOM helper functions that state calls
- * (`computePosition`, `buildOptionId`, `focusableInDomOrder`) — split out of the component so it
- * can be swapped for a fake via the `useDropdown` prop on `SelectProps` (see that prop's doc
- * comment in `Select.tsx`), the same seam `ConfirmDialog.hooks.tsx` documents for
- * `useConfirmDialog` in `@jini-ai/admin`.
- *
- * The three helpers below moved here rather than staying in `Select.tsx`: none of them touch JSX,
- * all three exist purely to serve this hook's own state (`position`, the `<li>` id scheme, the
- * Tab-handling DOM walk), and `Select.hooks.unit.test.tsx` exercises them directly rather than only
- * through the rendered component.
- *
- * **2026-08-06 complexity pass:** `useSelectDropdown` was, by a wide margin, the highest-complexity
- * symbol in the admin app — every effect, action, and keyboard handler it owns was declared inline
- * in its own body, so reviewing (or scoring) it meant holding all of that at once. The five private
- * hooks below (`usePanelPosition`, `useCloseOnOutsideClick`, `useResetHighlightOnQueryChange`,
- * `useScrollHighlightedIntoView`, `useSelectKeyboardHandlers`) are a LITERAL extraction, not a
- * rewrite: every effect/handler body is unchanged from before this pass, each is now called
- * unconditionally from `useSelectDropdown` in the same relative order the inline code used to run
- * in (Rules of Hooks — hooks calling hooks is ordinary React, not a new pattern), and
- * `useSelectDropdown`'s own exported signature and return shape are byte-identical to before, so
- * the `useDropdown` injectable seam on `SelectProps` and every existing test against it are
- * unaffected at that time. `handlePanelKeyDown` moved as-is in this pass (same flat `switch`, no internal
- * change) — it simply now lives inside the small `useSelectKeyboardHandlers` hook instead of the
- * mega-hook's own body. Moving a function doesn't change its own complexity score, so this pass
- * left `handlePanelKeyDown` over the file's 9-cyclomatic ceiling; see the 2026-08-12 note below.
- *
- * **2026-08-12 complexity pass:** `handlePanelKeyDown` was the one function the 2026-08-06 pass
- * didn't fix — cyclomatic complexity 13 (limit 9), from the seven `case`s themselves plus the
- * `Home`/`End` ternaries and `Enter`'s `if`/`&&`, none of which relocating the function touched.
- * `"Escape"` and `"Tab"` stay inline in `handlePanelKeyDown`: both do something that has to run
- * against the live event/DOM (`stopPropagation`; `resolveTabTarget` + `.focus()`) rather than a
- * plain calculation. The other five keys (`ArrowDown`/`ArrowUp`/`Home`/`End`/`Enter`) moved to
- * `applyHighlightKey`, a plain top-level function — callable with spies and no `renderHook`, which
- * is also the answer to this pass's second ask ("a regular function inside the hooks... export and
- * test it"). `Select.hooks.unit.test.tsx` covers every key directly.
-
- *
- * Pre-extraction host rationale (historical names below describe the original layout).
- * The shared implementation and its active lifecycle constraints now live in Jini; Tovu keeps
- * this provenance so the adapter does not erase policy, bug history or the reasons for thresholds.
- *
- * @file `Select`'s open/search/highlight/position state, every effect that watches
- * scroll/resize/outside-click/keyboard, and the pure DOM helper functions that state calls
- * (`computePosition`, `buildOptionId`, `focusableInDomOrder`) — split out of the component so it
- * can be swapped for a fake via the `useDropdown` prop on `SelectProps` (see that prop's doc
- * comment in `Select.tsx`), the same seam `ConfirmDialog.hooks.tsx` documents for
- * `useConfirmDialog` in `@jini-ai/admin`.
- *
- * The three helpers below moved here rather than staying in `Select.tsx`: none of them touch JSX,
- * all three exist purely to serve this hook's own state (`position`, the `<li>` id scheme, the
- * Tab-handling DOM walk), and `Select.hooks.unit.test.tsx` exercises them directly rather than only
- * through the rendered component.
- *
- * **2026-08-06 complexity pass:** `useSelectDropdown` was, by a wide margin, the highest-complexity
- * symbol in the admin app — every effect, action, and keyboard handler it owns was declared inline
- * in its own body, so reviewing (or scoring) it meant holding all of that at once. The five private
- * hooks below (`usePanelPosition`, `useCloseOnOutsideClick`, `useResetHighlightOnQueryChange`,
- * `useScrollHighlightedIntoView`, `useSelectKeyboardHandlers`) are a LITERAL extraction, not a
- * rewrite: every effect/handler body is unchanged from before this pass, each is now called
- * unconditionally from `useSelectDropdown` in the same relative order the inline code used to run
- * in (Rules of Hooks — hooks calling hooks is ordinary React, not a new pattern), and
- * `useSelectDropdown`'s own exported signature and return shape are byte-identical to before, so
- * the `useDropdown` injectable seam on `SelectProps` and every existing test against it are
- * unaffected. `handlePanelKeyDown` moved as-is in this pass (same flat `switch`, no internal
- * change) — it simply now lives inside the small `useSelectKeyboardHandlers` hook instead of the
- * mega-hook's own body. Moving a function doesn't change its own complexity score, so this pass
- * left `handlePanelKeyDown` over the file's 9-cyclomatic ceiling; see the 2026-08-12 note below.
- *
- * **2026-08-12 complexity pass:** `handlePanelKeyDown` was the one function the 2026-08-06 pass
- * didn't fix — cyclomatic complexity 13 (limit 9), from the seven `case`s themselves plus the
- * `Home`/`End` ternaries and `Enter`'s `if`/`&&`, none of which relocating the function touched.
- * `"Escape"` and `"Tab"` stay inline in `handlePanelKeyDown`: both do something that has to run
- * against the live event/DOM (`stopPropagation`; `resolveTabTarget` + `.focus()`) rather than a
- * plain calculation. The other five keys (`ArrowDown`/`ArrowUp`/`Home`/`End`/`Enter`) moved to
- * `applyHighlightKey`, a plain top-level function — callable with spies and no `renderHook`, which
- * is also the answer to this pass's second ask ("a regular function inside the hooks... export and
- * test it"). `Select.hooks.unit.test.tsx` covers every key directly.
- *
- *  A search box over a handful of options looks silly (the design ask, not a guess) — below this
- * many options the panel is just the list, no search input at all.
- *
- * Owns the floating panel's `position` state: the measure-then-focus effect that computes it after
- * open, and the scroll/resize effect that keeps it anchored to the trigger (or reports the trigger
- * has left view / is obscured, via `onOutOfView`, rather than deciding what to do about that
- * itself — closing the panel is `useSelectDropdown`'s `closePanel`, not this hook's business).
- *
- * Extracted from `useSelectDropdown` verbatim — both effect bodies are unchanged from before this
- * pass; only the `closePanel({refocusTrigger:false})` calls became `onOutOfView()`.
- *
- *  Closes the panel on an outside mousedown while it's open — extracted from `useSelectDropdown`
- *  verbatim (same effect body, `closePanel({refocusTrigger:false})` became `onOutside()`).
- *
- *  The previously-highlighted option may not even be in `filtered` once the search narrows the
- *  list, so re-anchor the highlight to the top match every time the query changes — extracted from
- *  `useSelectDropdown` verbatim.
- *
- * Found live in a real browser, not by this component's own test suite until added just now: a
- * list longer than the panel's own `max-height` (`styles/select.css`) moved the LOGICAL highlight
- * correctly via ArrowUp/ArrowDown (`aria-activedescendant`, the `.is-highlighted` class both
- * updated), but nothing ever scrolled `.select-list` to bring that row into view — keyboard-
- * navigating past the visible fold silently lost track of where the highlight even was.
- * `"nearest"` (not `"center"`) only scrolls the minimum needed, so it doesn't fight a user who has
- * manually scrolled partway through an unrelated portion of the list. Extracted from
- * `useSelectDropdown` verbatim.
- *
- * Guarded the same way as `document.elementFromPoint` above — this app's own jsdom test
- * harness doesn't implement `scrollIntoView` at all (not even as a no-op), so an unguarded call
- * throws inside the effect on every highlight change.
- *
- * `Select`'s two keyboard handlers. `handleTriggerKeyDown` is unchanged since the 2026-08-06
- * extraction — still the same body, just relocated. `handlePanelKeyDown` picked up a real
- * restructure in the 2026-08-12 pass (see its own doc comment and `applyHighlightKey`, above):
- * the flat switch the 2026-08-06 pass preserved verbatim was still over the file's 9-cyclomatic
- * ceiling, since relocating a function doesn't change its own score. The `"Tab"` case's own
- * focus-walking math is `resolveTabTarget`, above — the 2026-08-06 pass's fix for the *other*
- * complexity load on this same function (16/15 before that pass, 13/8 after): the nested
- * `if` + `indexOf` + `shiftKey` ternary inside one case, not the switch itself.
- *
- * Dispatches on `e.key`. `"Escape"` and `"Tab"` are handled inline — each needs something that
- * has to run against the live event/DOM (`stopPropagation()`; `resolveTabTarget` + `.focus()`)
- * rather than a plain calculation. The other five keys (`ArrowDown`/`ArrowUp`/`Home`/`End`/
- * `Enter`) are `applyHighlightKey`, above — extracted under the 2026-08-12 complexity pass
- * because this function's own cyclomatic complexity (13: the seven `case`s, the `Home`/`End`
- * ternaries, and `Enter`'s `if`/`&&`) exceeded the file's 9 ceiling; that extraction drops it to
- * 4. See `applyHighlightKey`'s own doc comment for why `preventDefault` is injected there rather
- * than decided by return value here.
- *
- * Must not bubble: a host dialog (`WidgetPickerDialog`) listens for Escape on `document`
- * to cancel the whole modal. Without stopping propagation here, closing just this dropdown
- * would also close the dialog underneath it — the regression `Select.unit.test.tsx` pins.
- *
- * See `resolveTabTarget`'s own comment: walk the trigger's real DOM-order neighbours rather
- * than let native Tab handling run, since this event is bubbling from a panel portaled to
- * the end of `document.body`, not sitting next to the trigger in the DOM.
- *
- * Owns every piece of `Select`'s open/search/highlight/position state, its outside-click,
- * scroll/resize, and keyboard-driven effects, and the handlers the trigger/panel JSX wires up to —
- * everything except the inert rendering itself. Split out so the branch combinations below (search
- * visibility, highlight wraparound, upward/downward placement, the outside-viewport auto-close)
- * are exercisable directly with `renderHook`, not only by driving the full portaled DOM tree.
- *
- * Composed from five smaller private hooks (`usePanelPosition`, `useCloseOnOutsideClick`,
- * `useResetHighlightOnQueryChange`, `useScrollHighlightedIntoView`, `useSelectKeyboardHandlers`) as
- * of the 2026-08-06 complexity pass — see this file's header for why. Its own return shape and
- * every field on it are unchanged from before that pass.
- *
- * @param input.value - The currently selected option's value (may not match any option).
- * @param input.onChange - Called with the newly selected option's value.
- * @param input.options - The full option list; `filtered` narrows this by the live search query.
- * @param input.disabled - When true, `openPanel` and the trigger's own key handler both no-op.
- * @returns Everything `Select`'s JSX reads or calls: open/search/highlight state and their
- *   setters, the trigger/panel/search-input/option refs, `listboxId`, `showSearch`, `filtered`,
- *   `selectedOption`, the `openPanel`/`closePanel`/`selectOption` actions, the trigger/panel
- *   keydown handlers, and `optionId` (bound to this hook's own `listboxId`).
- * @example
- * const { open, filtered, handleTriggerKeyDown } = useSelectDropdown({ value, onChange, options });
- *
- * Index -> `<li>` node, so the highlight-follow effect below can scroll the right row into view
- * without an id-based `querySelector` (this component's ids come from `useId()`, which can
- * contain characters — `:`, in React's own scheme — that need escaping in a CSS selector; a
- * direct ref avoids that entirely). Populated by each option's own ref callback below.
- */
 
 
 /** Keep the host's single options object, including disabled, at the injectable React hook seam. */
@@ -218,20 +54,14 @@ export function computePosition(trigger: HTMLElement): PanelPosition {
 }
 
 /** Builds a listbox option's DOM `id`, shared between the `<li>` itself and the trigger's
- * `aria-activedescendant` — a small pure function pulled out of the hook below so the id scheme is
- * directly assertable without rendering anything. */
+ * `aria-activedescendant`, so both elements use the same id scheme. */
 export function buildOptionId(listboxId: string, index: number): string {
   return `${listboxId}-option-${index}`;
 }
 
 /**
- * The scroll/resize repositioning decision — extracted from `usePanelPosition`'s effect as a
- * top-level function under the tightened ≤9/≤9 pass: a function declared inside a `useEffect` is
- * still a closure nested inside the hook that owns it, one level removed from the hook's own top
- * scope rather than zero, and it still doesn't lower the whole-hook view (§2 of the
- * complexity-ceiling brief). Takes the trigger element and the two callbacks it needs
- * (`onOutOfView`, `setPosition`) as parameters instead of closing over them, so it can be tested
- * without mounting anything.
+ * The scroll/resize repositioning decision accepts the trigger and callbacks explicitly so it
+ * can be exercised without mounting the dropdown.
  *
  * A native `<select>`'s OS popup does not survive its trigger leaving view; this closes the panel
  * instead of chasing a trigger nobody can see, the same idea. `elementFromPoint` at the trigger's
@@ -260,11 +90,7 @@ export function repositionOrClose(trigger: HTMLElement, onOutOfView: () => void,
   setPosition(computePosition(trigger));
 }
 
-/** Resolves Tab's DOM-order neighbour of the trigger — the one piece of `handlePanelKeyDown`'s
- *  `"Tab"` case that wasn't a one-line action, and the reason that case scored high on cognitive
- *  complexity despite the switch itself staying flat (see this file's header, 2026-08-06 pass).
- *  Same `focusableInDomOrder` walk, same `indexOf`, same neighbour arithmetic as before — only
- *  moved out of the switch case so the case body is a single call plus two side effects. Returns
+/** Resolves Tab's DOM-order neighbour of the trigger. Returns
  *  `null` when the trigger can't be found among the focusable nodes (disabled mid-session — see
  *  `Select.unit.test.tsx`'s "Tab closes the panel without moving focus..." regression), which the
  *  caller reads as "don't move focus, just close." */
@@ -280,10 +106,7 @@ export function resolveTabTarget(
 }
 
 /** Home/End's highlight target within `filtered` — the first or last index, or `-1` when the list
- *  is empty (nothing to highlight). Extracted from `handlePanelKeyDown`'s own `"Home"`/`"End"` cases
- *  under the 2026-08-12 complexity pass: each case's own `filtered.length ? … : -1` ternary was one
- *  of the branch points pushing that function's cyclomatic complexity to 13 (limit 9). Both cases'
- *  behavior is unchanged — same guard, same values, just called instead of inlined. */
+ *  is empty (nothing to highlight). */
 export function edgeHighlightIndex(filteredLength: number, edge: "first" | "last"): number {
   if (filteredLength === 0) return -1;
   return edge === "first" ? 0 : filteredLength - 1;
@@ -291,9 +114,7 @@ export function edgeHighlightIndex(filteredLength: number, edge: "first" | "last
 
 /** The option Enter should select — the currently-highlighted row, or `null` when nothing valid is
  *  highlighted (highlight reset to `-1`, or stale after `filtered` shrank out from under it, e.g. a
- *  search query narrowing the list). Extracted from `handlePanelKeyDown`'s own `"Enter"` case
- *  (`if (highlightedIndex >= 0 && filtered[highlightedIndex]) …`) under the same 2026-08-12 pass —
- *  same guard, same value, just called instead of inlined. */
+ *  search query narrowing the list). */
 export function highlightedOptionOrNull(filtered: SelectOption[], highlightedIndex: number): SelectOption | null {
   return highlightedIndex >= 0 ? (filtered[highlightedIndex] ?? null) : null;
 }
@@ -303,21 +124,17 @@ export function highlightedOptionOrNull(filtered: SelectOption[], highlightedInd
  * `handlePanelKeyDown`'s `"Escape"` and `"Tab"` cases deliberately stay in the handler itself
  * instead of coming here too: both do something that has to run against the live event/DOM
  * (`stopPropagation()`; `resolveTabTarget` + `.focus()`) rather than a plain calculation, the same
- * "DOM handles stay in the handler" line this pass's brief draws for refs.
+ * separation between DOM effects and highlight decisions.
  *
  * `preventDefault` is injected as a callback rather than left to the caller based on this
- * function's return value, so every case keeps the exact call order `handlePanelKeyDown` used
- * before this split — `preventDefault()` immediately before the state change it goes with, not
+ * function's return value, so every case calls `preventDefault()` immediately before the state
+ * change it goes with, not
  * after. A boolean-return design can't do that: `Enter` needs `preventDefault()` unconditionally
  * regardless of whether `highlightedOptionOrNull` finds a row to select, so the caller would have to
  * call it *after* resolving the action, reordering that case relative to the other four.
  *
- * Split out under the 2026-08-12 complexity pass to fix `handlePanelKeyDown`'s cyclomatic
- * complexity of 13 (limit 9) — see `Select.hooks.unit.test.tsx` for the direct coverage this
- * unlocks: every branch below is asserted with plain arguments and `vi.fn()` spies, no
- * `renderHook`. Every case's behavior is unchanged from the switch it was pulled out of. Returns
- * whether the key was recognized (`false` for the `default` case, matching the original switch's
- * own no-op fallthrough) — `handlePanelKeyDown` doesn't currently use this, but it makes "did this
+ * Returns whether the key was recognized (`false` for an unhandled key). The return value makes
+ * "did this
  * key do anything" directly assertable instead of only inferable from which spy fired.
  */
 export function applyHighlightKey(

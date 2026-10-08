@@ -2,7 +2,7 @@ import { act, fireEvent, render, renderHook, screen, waitFor, within } from "@te
 import { describe, expect, it, vi } from "vitest";
 
 import type { AdminSitesSnapshot, AdminTokenSignInPlugin } from "@/lib/api";
-import { FetchQueryProvider } from "@/lib/fetch-query";
+import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
 import { CreateSiteOnboarding, type CreateSiteOnboardingProps } from "../CreateSiteOnboarding";
 import { createFakeSitesPort } from "../hooks/sites-dependencies.hooks";
 import { useCreateSitePluginTokens, type CreateSitePluginTokensController } from "../hooks/use-create-site-plugin-tokens.hooks";

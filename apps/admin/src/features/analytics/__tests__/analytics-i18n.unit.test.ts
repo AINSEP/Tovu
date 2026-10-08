@@ -18,15 +18,15 @@ describe("analytics screen translations", () => {
     ["Time", "Hora"],
     ["Loading recent hits…", "Cargando visitas recientes…"],
   ])("translates Spanish analytics copy %s", (key, expected) => {
-    expect(t("es", key)).toBe(expected);
+    expect(t({ locale: "es", key: key })).toBe(expected);
   });
 
   it("uses the locale on every call and retains the fallback chain", () => {
-    expect(t("de", "No hits recorded yet.")).toBe("Noch keine Treffer erfasst.");
-    expect(t("es", "No hits recorded yet.")).toBe("Aún no se han registrado visitas.");
-    expect(t("es", "Cancel")).toBe("Cancelar");
-    expect(t("en", "Loading recent hits…")).toBe("Loading recent hits…");
-    expect(t("unknown-locale", "Path")).toBe("Path");
-    expect(t("es", "Unlisted analytics error")).toBe("Unlisted analytics error");
+    expect(t({ locale: "de", key: "No hits recorded yet." })).toBe("Noch keine Treffer erfasst.");
+    expect(t({ locale: "es", key: "No hits recorded yet." })).toBe("Aún no se han registrado visitas.");
+    expect(t({ locale: "es", key: "Cancel" })).toBe("Cancelar");
+    expect(t({ locale: "en", key: "Loading recent hits…" })).toBe("Loading recent hits…");
+    expect(t({ locale: "unknown-locale", key: "Path" })).toBe("Path");
+    expect(t({ locale: "es", key: "Unlisted analytics error" })).toBe("Unlisted analytics error");
   });
 });

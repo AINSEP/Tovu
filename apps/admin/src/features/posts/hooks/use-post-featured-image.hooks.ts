@@ -5,7 +5,7 @@ import type { MediaPickerPort } from "@/components/MediaPickerDialog/media-picke
 
 /**
  * @file The featured-image chooser's picker state (2026-10-05) — the same shape as
- * `features/seo/MediaRefField.hooks.tsx`, but the value is a bare media asset id (what
+ * `@jini-ai/admin/seo`'s media-ref controller, but the value is a bare media asset id (what
  * `AdminPost.featuredMediaId` stores), not an `{id}:{transform}` ref.
  *
  * `value`/`onChange` are `usePostEditor`'s own `featuredMediaId` state: the save path needs it, so the

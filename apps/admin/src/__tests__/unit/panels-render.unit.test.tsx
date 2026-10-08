@@ -19,7 +19,6 @@ import { IntegrationDeliveries, IntegrationsRedirect } from "../../features/inte
 import { Providers } from "../../features/providers";
 import { Users } from "../../features/users";
 import { Authentication } from "../../features/authentication";
-import { Payments } from "../../features/commerce";
 import { Roles } from "../../features/roles";
 import { SettingsUi } from "../../features/settings";
 import { Seo } from "../../features/seo";
@@ -77,9 +76,9 @@ describe("ADMIN_PANELS — manifest shape", () => {
   // Webhooks) moved into `providers` (now labelled "Integrations"), and its own id/route stayed for
   // the `/:subscriptionId` deliveries drill-down and the retired index route's redirect — see
   // `panels.tsx`'s own comment on both panels for the full history.
-  it("has 47 panels, and every id is unique", () => {
-    expect(ADMIN_PANELS).toHaveLength(47);
-    expect(new Set(ADMIN_PANELS.map((p) => p.id)).size).toBe(47);
+  it("has 46 panels, and every id is unique", () => {
+    expect(ADMIN_PANELS).toHaveLength(46);
+    expect(new Set(ADMIN_PANELS.map((p) => p.id)).size).toBe(46);
   });
 });
 
@@ -99,7 +98,6 @@ const SIMPLE_PANELS: ReadonlyArray<{ id: string; component: unknown; extraProps?
   { id: "playground", component: Playground },
   { id: "plugins", component: Plugins },
   { id: "agent-plugins", component: AgentPlugins },
-  { id: "payments", component: Payments },
   { id: "orders", component: Placeholder, extraProps: { sectionId: "orders" } },
   { id: "products", component: Placeholder, extraProps: { sectionId: "products" } },
   { id: "subscriptions", component: Placeholder, extraProps: { sectionId: "subscriptions" } },
@@ -290,7 +288,7 @@ describe("panel 'forms'", () => {
     expect(el.props).toMatchObject({ formId: "f1", tab: "submissions" });
     // Same key as the form-editor view's element above for the SAME formId — this is what lets
     // React treat a Fields<->Submissions switch as a prop update rather than a remount, so
-    // in-progress Fields edits survive (see `FormEditor.unit.test.tsx`'s direct DOM-level proof).
+    // in-progress Fields edits survive (see `Jini forms/react/__tests__/FormEditor.unit.test.tsx`'s direct DOM-level proof).
     expect(el.key).toBe("f1");
   });
 });

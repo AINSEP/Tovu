@@ -1,8 +1,8 @@
 import { useState } from "react";
 
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import type { Translate } from "@/lib/dictionary-translator";
-import { useFetchMutation, useFetchQuery } from "@/lib/fetch-query";
+import type { Translate } from "@jini-ai/ui/panel-kit";
+import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { t as translate } from "../content-analysis-i18n";
 import {
   CONTENT_ANALYZER_PLUGIN_ID,
@@ -66,10 +66,10 @@ const STATUS_KEY = ["content-analysis", "preview-status"] as const;
 export function useContentAnalysis(props: ContentAnalysisTarget, deps: ContentAnalysisDependencies): ContentAnalysisController {
   const { port, locale } = deps;
   const { post } = props;
-  const t: Translate = (key) => translate(locale, key);
-  const statusQuery = useFetchQuery({ key: STATUS_KEY, fetch: () => port.previewStatus({ pluginId: CONTENT_ANALYZER_PLUGIN_ID }), staleTime: 0 });
+  const t: Translate = (key) => translate({ locale: locale, key: key });
+  const statusQuery = useFetchQuery({ key: STATUS_KEY, fetch: () => port.previewStatus({ pluginId: CONTENT_ANALYZER_PLUGIN_ID }) }, { staleTime: 0 });
   const previewMutation = useFetchMutation({
-    run: (body: PluginPreviewRequest) => port.previewPlugin({ pluginId: CONTENT_ANALYZER_PLUGIN_ID }, body),
+    run: ({ input: body }: { input: PluginPreviewRequest }) => port.previewPlugin({ pluginId: CONTENT_ANALYZER_PLUGIN_ID }, body),
   });
   const [fresh, setFresh] = useState<FreshAnalysis | null>(null);
 
@@ -77,7 +77,7 @@ export function useContentAnalysis(props: ContentAnalysisTarget, deps: ContentAn
     // Tagged with the version the draft was sent against, so a save landing mid-flight wins.
     const basis = { postId: post.id, version: post.version };
     try {
-      const response = await previewMutation.mutate(previewRequestBody({ postId: post.id, title: props.title, bodyJson: props.bodyJson }));
+      const response = await previewMutation.mutate({ input: previewRequestBody({ postId: post.id, title: props.title, bodyJson: props.bodyJson }) });
       setFresh({ ...basis, state: previewAnalysis(response.fields) });
     } catch {
       // Reported through `previewMutation.error` below; the shown analysis stays as it was.

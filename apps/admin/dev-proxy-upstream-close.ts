@@ -4,7 +4,7 @@ type ConfigureProxy = NonNullable<ProxyOptions["configure"]>;
 
 /** Mirrors `src/lib/server-reconnect.ts`'s constants — this leaf module must not import from `src/`
  *  (it is loaded by `vite.config.ts`'s own config loader, not the app bundle). */
-export const UPSTREAM_REFUSED_HEADER = "x-tovu-dev-proxy";
+export const UPSTREAM_REFUSED_HEADER = "x-tovu-upstream-status";
 export const UPSTREAM_REFUSED_VALUE = "upstream-refused";
 
 /**

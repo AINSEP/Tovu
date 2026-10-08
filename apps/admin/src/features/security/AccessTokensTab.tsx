@@ -2,10 +2,10 @@ import { CredentialHint } from "@/components/CredentialHint";
 import { forwardRef, useRef } from "react";
 import { agentHandle } from "@jini-ai/agentic";
 
-import { resolveTabBarTabIndex, useTabBarKeyboard } from "../../components/TabBar.hooks";
+import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { formatTimestamp } from "../../lib/format-timestamp";
-import type { Translate } from "../../lib/dictionary-translator";
+import { formatTimestamp } from "@jini-ai/ui/panel-kit";
+import type { Translate } from "@jini-ai/ui/panel-kit";
 import type { AdminPublishTargetField } from "../../lib/api";
 import { fieldHelpText } from "../deployment/rules";
 import { removeDialogBody, removeDialogLastRowNote, removeDialogTitle } from "./security-i18n";
@@ -181,7 +181,7 @@ function AccessTokensCategoryFilter({ controller, onAddCustomProvider }: { contr
   // of these categories are ever disabled. `[role="tab"]` scoping already skips the non-tab
   // "+ Add custom provider" button below (this file's own header on why that button stays out of
   // the tablist's tab order).
-  const { onKeyDown } = useTabBarKeyboard(ACCESS_TOKEN_CATEGORIES, controller.category, (id) => controller.setCategory(id as AccessTokenCategoryId));
+  const { onKeyDown } = useTabBarKeyboard({ tabs: ACCESS_TOKEN_CATEGORIES, activeId: controller.category, onChange: (id) => controller.setCategory(id as AccessTokenCategoryId) });
   return (
     <div
       className="access-tokens-category-filter"
@@ -197,7 +197,7 @@ function AccessTokensCategoryFilter({ controller, onAddCustomProvider }: { contr
           role="tab"
           className="access-tokens-category-filter-item"
           aria-selected={controller.category === c.id}
-          tabIndex={resolveTabBarTabIndex(ACCESS_TOKEN_CATEGORIES, controller.category, c)}
+          tabIndex={resolveTabBarTabIndex({ tabs: ACCESS_TOKEN_CATEGORIES, activeId: controller.category, tab: c })}
           onClick={() => controller.setCategory(c.id as AccessTokenCategoryId)}
           {...agentHandle({ handle: `security-access-tokens-category-${c.id}` }, { role: "button", label: `Filter the credential list to ${c.label}` })}
         >
@@ -362,7 +362,7 @@ function TokenRow({
         <span className="access-tokens-row-name">{state.name}</span>
         <TokenRowDefaultIndicator state={state} showDefaultUi={showDefaultUi} controller={controller} t={translate} />
         <span className="access-tokens-row-summary-meta">
-          {translate("saved")} {formatTimestamp(state.row.updatedAt)} <CredentialHint hint={state.row.tokenHint} />
+          {translate("saved")} {formatTimestamp({ iso: state.row.updatedAt }, { timeZone: "local" })} <CredentialHint hint={state.row.tokenHint} />
         </span>
         <span className="access-tokens-row-summary-expand">
           {translate("Replace token")}
