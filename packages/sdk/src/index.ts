@@ -19,20 +19,20 @@
  * freshly-built handle of plain closures, never a reference to a live core singleton. This file
  * only declares the TYPES for that contract; the runtime object satisfying `PluginSdk` (with its
  * capability-gated stub-vs-absent behavior, CIC U-003) is built by
- * `src/features/plugin-runtime/capability-sdk.ts` inside core, not here — this package has zero
+ * `Jini/packages/plugins/src/host/capability-sdk.ts` inside core, not here — this package has zero
  * dependency on `src/` (Module Map: "Must never import anything from `src/` — it is consumed by
  * plugin code, not by core").
  *
  * Architectural role:
  * TDD-certified implementation (implementation outline C-001…C-004). Signatures and JSDoc are
  * design-frozen; `definePlugin()` is a pure identity wrap — no side effects, no I/O — that exists
- * for the plugin author's type inference; `loadPlugin()` in `plugin-runtime/loader.ts` is what
+ * for the plugin author's type inference; `loadPlugin()` in `Jini/packages/plugins/src/host/node/loader.ts` is what
  * actually invokes the wrapped `definition.setup(sdk)`. Verified against
  * `__tests__/unit/sdk-public-api.unit.test.ts`.
  */
 
 /** C-004 — the exactly-three v1 capability tokens (REQ-04). A manifest declaring any other
- * string is `invalid` with `CAPABILITY_UNKNOWN` (validated in `plugin-runtime/manifest.ts`, not
+ * string is `invalid` with `CAPABILITY_UNKNOWN` (validated in `Jini/packages/plugins/src/host/manifest.ts`, not
  * here — this file is the single source of truth for the token *strings* only). */
 export const CONTENT_READ = "content.read" as const;
 export const CONTENT_EXTEND = "content.extend" as const;
@@ -140,10 +140,10 @@ export interface HookAttachOptions {
 /**
  * The capability-scoped handle passed to `PluginDefinition.setup`. Built fresh per plugin load
  * (never a shared module-level singleton, ADR Decision item 2) by
- * `plugin-runtime/capability-sdk.ts`. **Every surface below is always present on a real `PluginSdk`
+ * `Jini/packages/plugins/src/host/capability-sdk.ts`. **Every surface below is always present on a real `PluginSdk`
  * instance** — an ungranted capability's surface is a stub that throws a typed `CAPABILITY_DENIED`
  * error when invoked, never an absent/`undefined` property (CIC U-003; this file declares the
- * TYPE only, the runtime stub-vs-absent behavior lives in `capability-sdk.ts`).
+ * TYPE only, the runtime stub-vs-absent behavior lives in `Jini/packages/plugins/src/host/capability-sdk.ts`).
  */
 export interface PluginSdk {
   readonly content: {
@@ -187,7 +187,7 @@ export interface Plugin {
 
 /**
  * Wraps a `PluginDefinition` for type inference at the plugin author's call site. Pure identity
- * at runtime (no side effects, no I/O) — `loader.ts` invokes the wrapped `definition.setup(sdk)`
+ * at runtime (no side effects, no I/O) — `Jini/packages/plugins/src/host/node/loader.ts` invokes the wrapped `definition.setup(sdk)`
  * after the load pipeline's integrity/sdkRange/import steps all pass (BR-01).
  *
  * @param def - The plugin's registration definition (`{ setup(sdk) => void }`).
