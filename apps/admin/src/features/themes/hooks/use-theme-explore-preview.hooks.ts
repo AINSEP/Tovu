@@ -10,6 +10,8 @@ import { useThemePreviewRefresh } from "./use-theme-preview-refresh.hooks";
  * `fileGroup` (`explore.ts`) has no `templates/` case, so every `.liquid` file lands in the generic
  * `"other"` group today — indistinguishable from `NOTICE.md` by `kind` alone, but NOT
  * indistinguishable by what the Preview tab owes the operator (see {@link previewSrcFor}).
+ * v2 places Liquid in `render/pages/`, where it is grouped as `page`; the extension still owns
+ * template rendering, so it must be checked before the static-page group.
  *
  * @complexity O(1).
  */
@@ -40,6 +42,7 @@ function isLiquidTemplateFile(file: ThemeExploreFile): boolean {
  *   render as themselves. 2026-08-17 owner ask (verbatim): "Can we get preview to just render everything,
  *   in a simple manner. If it's an image, it renders that. If it's a JavaScript, it just renders like
  *   HTML. If it's JSON same." — every file type should show SOMETHING in Preview, not just images.
+ * @complexity O(k) time and space for k characters in the theme id and selected file path/label.
  */
 export function previewSrcFor(
   themeId: string,
@@ -48,14 +51,15 @@ export function previewSrcFor(
 ): string | null {
   if (!file) return null;
   const theme = encodeURIComponent(themeId);
+  // v2 Liquid pages share the page group with HTML, but need the gated template renderer.
+  if (isLiquidTemplateFile(file)) {
+    const templateId = file.label.replace(/\.liquid$/i, "");
+    return siteUrl(`/theme-explore/${theme}/template/${encodeURIComponent(templateId)}?v=${previewNonce}`);
+  }
   if (file.kind === "page")
     return siteUrl(`/theme-explore/${theme}/${encodeURIComponent(file.label)}?v=${previewNonce}`);
   if (file.kind === "partial") {
     return siteUrl(`/theme-explore/${theme}/partial/${encodeURIComponent(file.label)}?v=${previewNonce}`);
-  }
-  if (isLiquidTemplateFile(file)) {
-    const templateId = file.label.replace(/\.liquid$/i, "");
-    return siteUrl(`/theme-explore/${theme}/template/${encodeURIComponent(templateId)}?v=${previewNonce}`);
   }
   return siteUrl(
     `/theme-assets/${theme}/${file.path.split("/").map(encodeURIComponent).join("/")}?v=${previewNonce}`,

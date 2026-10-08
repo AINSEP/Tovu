@@ -269,10 +269,13 @@ const CONTENT_EDIT_LOCKED_GROUPS: ReadonlySet<ThemeExploreFileGroup> = new Set([
  * affordance) moves it back out; writing it in place through PUT would be a second, unaudited way to
  * mutate soft-deleted content, the exact "hidden state nothing else knows about" failure mode the
  * earlier `_unpublished/` convention was removed for.
+ * @complexity O(k) time and space for k characters in the relative path; no I/O.
  */
 function isThemeFileWritable(relativePath: string, apiVersion: 2 | undefined): boolean {
   return (
     isTextReadable(relativePath) &&
+    // v2's render/pages grouping must not turn the read-only Liquid preview into an edit surface.
+    !relativePath.toLowerCase().endsWith(".liquid") &&
     !CONTENT_EDIT_LOCKED_GROUPS.has(fileGroup(relativePath, apiVersion)) &&
     !isGeneratedThemePath(relativePath) &&
     !isTrashedThemePath(relativePath)

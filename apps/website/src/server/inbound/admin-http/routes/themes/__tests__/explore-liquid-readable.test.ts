@@ -149,6 +149,34 @@ test("EMPIRICAL: PUT to a .liquid path is still refused (403 READ_ONLY_FILE) aft
   assert.equal(fs.readFileSync(onDisk, "utf8"), ORIGINAL_HOME, "disk must be untouched by the refused PUT");
 });
 
+test("v2 Liquid pages stay readable and read-only even in the page group, with PUT refused", async (t) => {
+  const themesDir = makeThemesRoot();
+  t.after(() => fs.rmSync(themesDir, { recursive: true, force: true }));
+  const live = path.join(themesDir, "templated", "fashion-fixture");
+  fs.mkdirSync(path.join(live, "render"));
+  fs.renameSync(path.join(live, "templates"), path.join(live, "render", "pages"));
+  const manifestPath = path.join(live, "theme.json");
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  fs.writeFileSync(manifestPath, JSON.stringify({ ...manifest, apiVersion: 2 }));
+  const baseUrl = await startTestServer(buildTestApp(themesDir), t);
+  const relativePath = "render/pages/home.liquid";
+  const detailResponse = await fetch(`${baseUrl}${BASE("fashion-fixture")}`);
+  assert.equal(detailResponse.status, 200);
+  const detail = await detailResponse.json() as { files: { path: string; group: string; readable: boolean; editable: boolean }[] };
+  const home = detail.files.find((file) => file.path === relativePath);
+  assert.ok(home);
+  assert.equal(home.group, "page");
+  assert.equal(home.readable, true);
+  assert.equal(home.editable, false);
+  const put = await fetch(`${baseUrl}${BASE("fashion-fixture")}/file`, {
+    method: "PUT", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ path: relativePath, content: "{% comment %}replacement{% endcomment %}" }),
+  });
+  assert.equal(put.status, 403);
+  assert.equal((await put.json() as { code: string }).code, "READ_ONLY_FILE");
+  assert.equal(fs.readFileSync(path.join(live, relativePath), "utf8"), ORIGINAL_HOME);
+});
+
 /**
  * Reset is a NARROWER operation than PUT and is not gated by `isThemeFileWritable` at all — by
  * design (`registerAdminThemeFileResetRoute`'s own doc comment: a read-only-to-EDIT file can still

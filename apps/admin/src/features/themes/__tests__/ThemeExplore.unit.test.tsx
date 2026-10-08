@@ -282,6 +282,15 @@ describe("preview src — pages, partials, and templates", () => {
     expect(iframe.src).toContain("/theme-explore/novice/template/home?v=0");
     expect(screen.queryByText(/select a file to preview/i)).not.toBeInTheDocument();
   });
+  it("renders a v2 Liquid page through the template route despite its page group", () => {
+    renderExplore({
+      files: [{ path: "render/pages/entry.liquid", label: "entry.liquid", kind: "page", readable: true, editable: false, resettable: true, modified: false, published: null, collidingContent: null }],
+      selected: "render/pages/entry.liquid",
+    });
+    const iframe = screen.getByTitle("Theme preview") as HTMLIFrameElement;
+    expect(new URL(iframe.src).pathname).toBe("/theme-explore/novice/template/entry");
+    expect(iframe.getAttribute("sandbox")).toBe("allow-scripts");
+  });
 });
 
 /**
