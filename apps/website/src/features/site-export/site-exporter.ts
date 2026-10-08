@@ -164,10 +164,9 @@ export { firstExportFailure, type ExportFailureSummary } from "./export-failure-
    *  never the route path). `RouteDeps.observability`; the no-op port in hermetic roots. */
 /** The same composition-root object `createApp`/`server/deps.ts` already build — the exporter
    *  boots the real app with this, exactly like `cli/commands/serve.ts` does. */
-/** When the output directory already has contents, `exportSite` refuses by default (removing
-   *  files this process did not write is destructive — see this option's own call site in
-   *  `cli/commands/export.ts` for the `--clean` flag that sets it). Pass `true` to remove the
-   *  directory's existing contents before writing. */
+/** By default, replace this export's files and keep unrelated files (removing files this process
+   *  did not write is destructive — see `cli/commands/export.ts` for the `--clean` flag).
+   *  Pass `true` to remove the directory's existing contents before writing. */
 /**
    * When set (e.g. `"/my-repo"` for a GitHub Pages project site), every root-relative reference this
    * exporter writes — HTML `href`/`src`/`srcset`, `sitemap.xml`'s `<loc>`, `robots.txt`'s `Sitemap:` line, a
@@ -176,12 +175,12 @@ export { firstExportFailure, type ExportFailureSummary } from "./export-failure-
    * `site-exporter.test.ts`'s own "unset is inert" regression test, not just asserted in this
    * comment.
    */
-/** Thrown when `outputDir` has existing contents and `options.clean` was not set. */
+/** The legacy nonempty-output error remains re-exported for compatibility. */
 /**
- * Ensures `outputDir` exists and is ready to receive a fresh export: creates it if missing, leaves
- * it alone if already empty, and only clears existing contents when `clean` is explicitly `true`.
+ * Ensures `outputDir` exists and is ready to receive an export: creates it if missing, preserves
+ * existing contents by default, and only clears them when `clean` is explicitly `true`.
  *
- * @throws {ExportOutputNotEmptyError} the directory has entries and `clean` is not `true`.
+ * @throws when output storage fails the path/symlink checks or a filesystem operation fails.
  * @complexity O(n) in the directory's own (typically small) top-level entry count.
  */
 /** `"/"` -> `<outputDir>/index.html`; `"/about"` -> `<outputDir>/about/index.html` — the standard
@@ -442,8 +441,8 @@ export { firstExportFailure, type ExportFailureSummary } from "./export-failure-
  *
  * Never throws for an individual route or asset failure — each is recorded in the returned report
  * (`routes.failed`/`assets.failed`) so a caller can print an honest summary; it DOES throw
- * `ExportOutputNotEmptyError` up front (before booting anything) when `outputDir` has contents and
- * `options.clean` was not set, and propagates any error from booting the app itself uncaught.
+ * up front (before booting anything) when output storage is unsafe or inaccessible, and
+ * propagates any error from booting the app itself uncaught.
  *
  * @complexity O(R + A) HTTP requests for R manifest routes and A discovered asset URLs — see
  *   {@link fetchAssets}'s own complexity note for the asset side. All routes are fetched serially,
@@ -480,10 +479,9 @@ export interface ExportSiteOptions {
    *  boots the real app with this, exactly like `cli/commands/serve.ts` does. */
   routeDeps: ExportSiteRouteDeps;
   outputDir: string;
-  /** When the output directory already has contents, `exportSite` refuses by default (removing
-   *  files this process did not write is destructive — see this option's own call site in
-   *  `cli/commands/export.ts` for the `--clean` flag that sets it). Pass `true` to remove the
-   *  directory's existing contents before writing. */
+  /** By default, replace this export's files and keep unrelated files (removing files this process
+   *  did not write is destructive — see `cli/commands/export.ts` for the `--clean` flag).
+   *  Pass `true` to remove the directory's existing contents before writing. */
   clean?: boolean;
   /**
    * When set (e.g. `"/my-repo"` for a GitHub Pages project site), every root-relative reference this
@@ -509,9 +507,7 @@ export async function exportSite({ routeDeps, outputDir, clean, basePath }: Expo
     outputDir: path.resolve(outputDir),
     manifest: { build: () => buildRouteManifest(routeDeps) },
     app: createNodeAppFactory({ createApp: () => routeDeps.createSiteApp() }, {}),
-    writer: createNodeArtifactWriter({}, { nonemptyReason: ({ outputDir, count }) =>
-      `export output directory '${outputDir}' is not empty (${count} existing ${count === 1 ? "entry" : "entries"}) — ` +
-      "pass --clean to remove its contents first, or point --out at an empty/new directory" }),
+    writer: createNodeArtifactWriter({}, {}),
     fetch: ({ url }, options) => tracedFetch(url, options?.init),
     assetSource: createNodeAssetSource({}, {}),
     themeLayout: { resolve: ({ theme }) => ({

@@ -92,7 +92,7 @@ test("tovu export <dir> --out <out>: exits 0, prints an honest route/asset summa
   for (const url of assetUrls) assert.ok(fs.statSync(path.join(outDir, url.slice(1))).size > 0, `${url} must be exported with content`);
 });
 
-test("tovu export: a non-empty --out is refused (EXPORT_OUTPUT_NOT_EMPTY, exit 3) unless --clean is passed", (t) => {
+test("tovu export: a non-empty --out preserves unrelated files unless --clean is passed", (t) => {
   const parent = mkTempParent();
   t.after(() => fs.rmSync(parent, { recursive: true, force: true }));
   const installDir = path.join(parent, "site");
@@ -102,10 +102,10 @@ test("tovu export: a non-empty --out is refused (EXPORT_OUTPUT_NOT_EMPTY, exit 3
   fs.mkdirSync(outDir, { recursive: true });
   fs.writeFileSync(path.join(outDir, "stale.html"), "leftover", "utf8");
 
-  const refused = runCli(["export", installDir, "--out", outDir]);
-  assert.equal(refused.status, 3, `stderr: ${refused.stderr}`);
-  assert.match(refused.stderr, /^tovu: EXPORT_OUTPUT_NOT_EMPTY:/m);
-  assert.ok(fs.existsSync(path.join(outDir, "stale.html")), "refusing must not touch existing contents");
+  const preserved = runCli(["export", installDir, "--out", outDir]);
+  assert.equal(preserved.status, 0, `stderr: ${preserved.stderr}`);
+  assert.equal(fs.readFileSync(path.join(outDir, "stale.html"), "utf8"), "leftover");
+  assert.ok(fs.existsSync(path.join(outDir, "index.html")));
 
   const cleaned = runCli(["export", installDir, "--out", outDir, "--clean"]);
   assert.equal(cleaned.status, 0, `stderr: ${cleaned.stderr}`);

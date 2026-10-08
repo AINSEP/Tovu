@@ -15,7 +15,7 @@ import { registerTransform, uploadMedia } from "#src/features/media/index";
 import { setPublicAssistantSettings } from "#src/assistant/index";
 import { startTestServer } from "../../../server/__tests__/helpers/http-test-server.js";
 import { createCommerceSiteTestApp } from "#src/server/inbound/public-http/routes/site/__tests__/commerce-site-app";
-import { ExportOutputNotEmptyError, exportSite, firstExportFailure, redirectOutcomeFor } from "../site-exporter.js";
+import { exportSite, firstExportFailure, redirectOutcomeFor } from "../site-exporter.js";
 import type { ExportReport } from "../site-exporter.js";
 
 /**
@@ -609,14 +609,15 @@ test("exportSite: an asset URL discovered via a CSS file's own url(...) referenc
   );
 });
 
-test("exportSite: refuses a non-empty output directory unless clean is set, and clears stale files when it is", async (t) => {
+test("exportSite: preserves existing files by default and clears stale files when clean is set", async (t) => {
   const outputDir = makeTmpOutputDir();
   t.after(() => rmSync(outputDir, { recursive: true, force: true }));
   const staleFile = path.join(outputDir, "stale-from-a-previous-export.html");
   writeFileSync(staleFile, "leftover", "utf8");
 
-  await assert.rejects(() => exportSite({ routeDeps: createRouteDeps(), outputDir }), ExportOutputNotEmptyError);
-  assert.ok(existsSync(staleFile), "refusing must not have touched the existing contents");
+  const preserved = await exportSite({ routeDeps: createRouteDeps(), outputDir });
+  assert.deepEqual(preserved.routes.failed, []);
+  assert.equal(readFileSync(staleFile, "utf8"), "leftover", "the default rebuild must preserve unrelated files");
 
   const report = await exportSite({ routeDeps: createRouteDeps(), outputDir, clean: true });
   assert.deepEqual(report.routes.failed, []);
@@ -640,17 +641,16 @@ test("exportSite: creates outputDir when it does not exist yet, rather than requ
   assert.ok(existsSync(path.join(outputDir, "index.html")), "exportSite must create the missing directory itself");
 });
 
-test("exportSite: the non-empty-output-dir refusal message pluralizes 'entries' for more than one stale file", async (t) => {
+test("exportSite: clean:false preserves multiple existing files in a non-empty output directory", async (t) => {
   const outputDir = makeTmpOutputDir();
   t.after(() => rmSync(outputDir, { recursive: true, force: true }));
   writeFileSync(path.join(outputDir, "stale-one.html"), "leftover", "utf8");
   writeFileSync(path.join(outputDir, "stale-two.html"), "leftover", "utf8");
 
-  await assert.rejects(() => exportSite({ routeDeps: createRouteDeps(), outputDir }), (err: unknown) => {
-    assert.ok(err instanceof ExportOutputNotEmptyError);
-    assert.match(err.message, /\(2 existing entries\)/, "two or more stale entries must use the plural 'entries', not 'entry'");
-    return true;
-  });
+  const report = await exportSite({ routeDeps: createRouteDeps(), outputDir, clean: false });
+  assert.deepEqual(report.routes.failed, []);
+  assert.equal(readFileSync(path.join(outputDir, "stale-one.html"), "utf8"), "leftover");
+  assert.equal(readFileSync(path.join(outputDir, "stale-two.html"), "utf8"), "leftover");
 });
 
 test("exportSite: a route that fails to render is reported as a failure, not silently missing from the output", async (t) => {
