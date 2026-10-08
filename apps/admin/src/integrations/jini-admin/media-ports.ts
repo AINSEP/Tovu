@@ -3,7 +3,7 @@ import type { MediaApiPort, MediaProvidersPort, MediaProvider, MediaEventsPort }
 import { authenticatedAdminRequest, authenticatedAdminUrl, WORKSPACE_ID, type AdminMediaProviderMap } from '../../lib/api';
 import { MEDIA_PROVIDER_CATALOG, PINNED_MEDIA_PROVIDER_IDS } from '../../features/media/media-provider-catalog';
 import { contentRefreshApplies, subscribeToContentRefresh } from '../../lib/content-refresh-bus';
-import { hasPermission } from '../../lib/permissions';
+import { hasPermission } from "@jini-ai/ui/panel-kit";
 
 export const mediaBasePath = `/workspaces/${WORKSPACE_ID}/media`;
 export const mediaTransport = { request: authenticatedAdminRequest, url: authenticatedAdminUrl };
@@ -35,10 +35,10 @@ const capabilities = ['media.read', 'media.upload', 'media.update', 'media.trash
 /** Flattened session wildcards must expand before Jini's explicit-grant composition check.
  * This only controls affordances; the server reauthorizes every operation. */
 export function mediaSessionGrants({ permissions }: { permissions: readonly string[] }, _optional: Record<string, never> = {}) {
-  return [...capabilities.filter(permission => hasPermission(permissions, permission)),
-    ...(hasPermission(permissions, 'admin.integrations.manage') ? ['media.providers'] : []),
+  return [...capabilities.filter(permission => hasPermission({ permissions: permissions, permission: permission })),
+    ...(hasPermission({ permissions: permissions, permission: 'admin.integrations.manage' }) ? ['media.providers'] : []),
     // Mirror Trash's entry and per-kind gates; the reread also requires media.read.
-    ...(hasPermission(permissions, 'content.read') && hasPermission(permissions, 'media.delete') && hasPermission(permissions, 'media.read') ? ['media.restore'] : [])];
+    ...(hasPermission({ permissions: permissions, permission: 'content.read' }) && hasPermission({ permissions: permissions, permission: 'media.delete' }) && hasPermission({ permissions: permissions, permission: 'media.read' }) ? ['media.restore'] : [])];
 }
 export const mediaEvents: MediaEventsPort = {
   subscribe({ onRefresh }) {

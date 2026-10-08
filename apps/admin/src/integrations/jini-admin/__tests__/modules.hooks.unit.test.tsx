@@ -18,7 +18,7 @@ afterEach(() => { cleanup(); window.history.replaceState(null, '', '/'); });
 
 type Runtime = NonNullable<ReturnType<typeof useAdminModules>>;
 
-/** A second, real module the media-only host does not ship: proves the generic path. */
+/** Another real module the host does not ship: proves the generic path. */
 function reportsRuntime(): Runtime {
   const reports = defineAdminModule({ id: 'reports', pages: { overview: { path: '/reports', label: 'Reports', tabs: { daily: { label: 'Daily' }, weekly: { label: 'Weekly' } } } } });
   const admin = createAdmin({ modules: [reports], ports: {} });
@@ -40,10 +40,17 @@ describe('createHostAdminScope', () => {
   it('describes the media library page, exposes the picker and keys the scope by its grants', () => {
     const scope = createHostAdminScope({ permissions: ['media.read'] });
     expect(scope.permissionKey).toBe('["media.read"]');
-    expect(scope.admin.describe().pages.map((page) => [page.id, page.path])).toEqual([['media.library', '/media']]);
+    expect(scope.admin.describe().pages.map((page) => [page.id, page.path])).toEqual([['media.library', '/media'], ['comments.queue', '/comments'], ['redirects.list', '/redirects'], ['seo.settings', '/seo'], ['widgets.library', '/widgets'], ['widgets.editor', '/widgets/:widgetId'], ['widgets.regions', '/widgets/regions'], ['widgets.region', '/widgets/regions/:regionKey'], ['forms.list', '/forms'], ['forms.editor', '/forms/:formId']]);
     expect(typeof scope.picker.pick).toBe('function');
-    expect(Object.keys(scope.bindings)).toEqual(['media']);
+    expect(Object.keys(scope.bindings)).toEqual(['media', 'comments', 'redirects', 'seo', 'widgets', 'forms']);
     expect(Object.keys(scope.bindings.media!.pages)).toEqual(['library']);
+    expect(Object.keys(scope.bindings.comments!.pages)).toEqual(['queue']);
+    expect(Object.keys(scope.bindings.redirects!.pages)).toEqual(['list']);
+    expect(Object.keys(scope.bindings.seo!.pages)).toEqual(['settings']);
+    expect(Object.keys(scope.bindings.seo!.pages.settings!.tabs)).toEqual(['defaults', 'sitemap', 'entries']);
+    expect(Object.keys(scope.bindings.widgets!.pages)).toEqual(['library', 'editor', 'regions', 'region']);
+    expect(Object.keys(scope.bindings.forms!.pages)).toEqual(['list', 'editor']);
+    expect(Object.keys(scope.bindings.forms!.pages.editor!.tabs)).toEqual(['fields', 'submissions']);
     scope.admin.dispose(); scope.overlays.dispose();
   });
 });
