@@ -999,6 +999,8 @@ div:where(.tovu-form-success, [data-tovu-form-success], .tovu-form-error, [data-
   padding-top: 0;
   margin: 0;
 }
+/* `.docs-layout--no-toc` (two columns, reading caps lifted) lives in an inline <style> in
+   `posts-sidebar.html`, the only template that uses it. */
 
 .docs-content h2[id],
 .docs-content h3[id] {
@@ -1477,6 +1479,81 @@ html.mnav-open, html.mnav-open body { overflow: hidden; }
   .mnav[open] { animation: none; }
   .mnav-disclose svg { transition: none; }
 }
+
+/* kUInetic's lightbox, site-wide (docs image galleries and the landing page's admin ring alike).
+   kUInetic builds it on <body>, so these rules are global, and they sit outside its @layer so they
+   win. Its buttons carry text glyphs (‹ › ×) that sit on the font baseline and never centre in the
+   circle: hide the glyph, draw an SVG icon pinned to the button's centre (absolute + inset 0 +
+   margin auto; the hidden glyph is still a text box, so a grid/flex centre would share the button
+   with it and drift).
+   Prev/next leave the screen edges for a bottom-right pair on the counter row, so they never cover
+   the image or caption. Keys, swipe and aria-labels are kUInetic's and unchanged.
+   Lifted from the landing page's admin-tour <style> (2026-10-06) so every lightbox matches. */
+.kui-lightbox-close, .kui-lightbox-prev, .kui-lightbox-next { padding: 0; font-size: 0; line-height: 0; }
+.kui-lightbox-close::before, .kui-lightbox-prev::before, .kui-lightbox-next::before {
+  content: ""; position: absolute; inset: 0; margin: auto; width: 18px; height: 18px; background: currentColor; forced-color-adjust: none;
+  -webkit-mask: var(--lb-icon) center / contain no-repeat; mask: var(--lb-icon) center / contain no-repeat;
+}
+.kui-lightbox-close { --lb-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.25' stroke-linecap='round'%3E%3Cpath d='M6 6l12 12M18 6L6 18'/%3E%3C/svg%3E"); }
+.kui-lightbox-prev { --lb-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14.5 6l-6 6 6 6'/%3E%3C/svg%3E"); }
+.kui-lightbox-next { --lb-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9.5 6l6 6-6 6'/%3E%3C/svg%3E"); }
+.kui-lightbox-gallery { grid-template-columns: minmax(0, 1fr) auto auto; column-gap: 8px; }
+.kui-lightbox-gallery > figure { grid-column: 1 / -1; }
+.kui-lightbox-gallery > .kui-lightbox-counter { grid-row: 2; grid-column: 1 / -1; justify-self: center; align-self: center; }
+.kui-lightbox-gallery > .kui-lightbox-prev, .kui-lightbox-gallery > .kui-lightbox-next { position: relative; inset: auto; grid-row: 2; }
+.kui-lightbox-gallery > .kui-lightbox-prev { grid-column: 2; }
+.kui-lightbox-gallery > .kui-lightbox-next { grid-column: 3; }
+
+/* The authored landing deck's next arrow can scroll behind the fixed 56px site-chat FAB.
+   Reserve control gutters on phones; the existing video/dot rows still span the full grid.
+   The extra attribute outranks the page body's later .tv .deck-shell style without !important. */
+@media (max-width: 640px) {
+  .tv .deck-shell[data-od-id="proof-deck"] {
+    grid-template-columns: 72px minmax(0, 1fr) 72px;
+  }
+}
+
+/* Landing hero "Site made with Tovu · Theme: Tovu Theme" site badge (2026-10-07). The markup is the
+   last child of the hero in the Landing page body; the owner picked the bottom-right corner pill
+   over an above-the-headline one, so only the corner placement exists.
+   Not a video caption: text under the video is reserved for explaining the video (owner).
+   Colours come from the page's --x-* tokens (light + dark), falling back to the theme's own. */
+.tv-hero { position: relative; }
+.tv .made-with {
+  display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 2px 8px;
+  width: fit-content; max-width: 100%; margin: 0; padding: 6px 14px; border-radius: 9999px;
+  border: 1px solid var(--x-dove, var(--border));
+  background: color-mix(in srgb, var(--x-ink, var(--fg)) 4%, transparent);
+  font-family: var(--x-body, var(--font-body)); font-size: 13px; line-height: 20px;
+  color: var(--x-steel, var(--muted));
+}
+.tv .made-with-star { color: var(--x-gold, var(--accent)); }
+/* The logo gold is never text on light (the page's token rule), so the star darkens there. */
+:root[data-theme="light"] .tv .made-with-star { color: color-mix(in srgb, var(--x-gold, #f8b838) 62%, var(--x-ink, #0a0a0a)); }
+.tv .made-with-brand { color: var(--x-ink, var(--fg)); font-weight: 500; }
+.tv .made-with a {
+  color: inherit; text-decoration: underline; text-underline-offset: 3px;
+  text-decoration-color: var(--x-dove, var(--border)); transition: color .18s ease, text-decoration-color .18s ease;
+}
+.tv .made-with a b { color: var(--x-ink, var(--fg)); font-weight: 500; }
+.tv .made-with a:hover { text-decoration-color: currentColor; }
+:root[data-theme="light"] .tv .made-with a:hover, :root[data-theme="light"] .tv .made-with a:hover b { color: var(--x-hover, var(--fg)); }
+/* Corner: right edge lines up with the hero .wrap's content edge (1200px max, same gutter). */
+.tv .made-with-corner {
+  position: absolute; bottom: clamp(24px, 3vw, 40px);
+  right: max(clamp(20px, 4vw, 32px), calc((100% - 1200px) / 2 + clamp(20px, 4vw, 32px)));
+}
+/* Once the hero stacks (<=900px), the corner badge closes the hero, centred under the video. */
+@media (max-width: 900px) {
+  .tv .made-with-corner { display: flex; position: static; margin: clamp(40px, 10vw, 56px) auto 0; max-width: calc(100% - 40px); }
+}
+
+/* The landing hero video enters with kUInetic's fade-right (distance:48px), which starts it 48px
+   right of its place. Once the hero stacks on a phone the video spans the content width, so for
+   that entrance its edge sits past the screen and the whole page scrolls sideways (404px wide at
+   375). The hero band is full-bleed, so clipping it sideways hides nothing that should show.
+   `clip`, not `hidden`: no scroll container, and the vertical axis stays visible. */
+.tv-hero { overflow-x: clip; }
 
 /* Authored titles can contain an unbroken word: wrap it on phones instead of widening the page.
    Scope to narrow screens so desktop heading sizing and line breaks stay unchanged. */

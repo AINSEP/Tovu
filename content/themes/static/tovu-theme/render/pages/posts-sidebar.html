@@ -21,6 +21,22 @@
 <link rel="stylesheet" href="../css/kuinetic-cloak.css" />
 <link rel="preload" href="https://cdn.jsdelivr.net/npm/kuinetic@0/dist/kuinetic.all.min.js" as="script" crossorigin="anonymous" />
 <script src="../scripts/kui-cloak.js"></script>
+<!-- No right-hand "On this page" column on this template, so the article takes the freed track and
+     the reading caps (.post-detail 720px, .post-detail-body 66ch) are lifted. Inline rather than in
+     css/theme.css so it ships with the template and cannot be masked by a cached stylesheet. -->
+<style>
+@media (min-width: 901px) {
+  .docs-layout--no-toc { grid-template-columns: 220px minmax(0, 1fr); grid-template-areas: "sidebar content"; }
+}
+.docs-layout--no-toc .docs-content,
+.docs-layout--no-toc .post-detail-body { max-width: none; }
+/* With the right sidebar gone, the article ran to .wrap's 24px edge padding and looked jammed
+   against the window at mid widths (~900-1200px). Give it breathing room that grows with the
+   window, desktop layout only (mobile keeps .wrap's padding). */
+@media (min-width: 901px) {
+  .docs-layout--no-toc .docs-content { padding-right: clamp(24px, 5vw, 72px); }
+}
+</style>
 </head>
 <body>
 <!-- How this template works, in plain words. Every element with data-embed-config is a MARKER:
@@ -64,7 +80,7 @@
        `open` attribute, contradicting this very comment and the docs IA proposal's "the sidebar
        collapses to a 'Docs menu' disclosure" — caught visually at 390px, both toggles rendered
        pre-expanded on first mobile load instead of as a collapsed disclosure.) -->
-  <div class="docs-layout wrap">
+  <div class="docs-layout docs-layout--no-toc wrap">
     <!-- Mobile: "the disclosure only shows the current group" (docs IA proposal) — theme.css hides
          every `.has-children:not(.is-active)` top-level group at the same breakpoint that collapses
          this into a real disclosure; the full tree is still one tap away via the site's own nav
@@ -106,8 +122,13 @@
       <!-- Marker: the post's featured image goes inside this element. A post with no featured image
            removes the whole element, so no empty frame is left behind. -->
       <figure class="post-featured" data-embed-config='{"type":"featured-image"}'></figure>
-      <!-- Marker: the body of the page or post at this URL goes inside this element. -->
-      <div data-embed-config='{"type":"content"}'></div>
+      <!-- kUInetic's built-in lightbox: every image in the page body opens in one gallery (prev/next,
+           figcaption as caption). `target:img` keeps it to images — the default target also takes
+           every a[href], which would hijack ordinary links in the docs prose. -->
+      <div class="docs-body" data-kui="lightbox target:img">
+        <!-- Marker: the body of the page or post at this URL goes inside this element. -->
+        <div data-embed-config='{"type":"content"}'></div>
+      </div>
 
       <!-- Previous/Next, crossing group boundaries — `docs-prev-next` (reserved id, same function as
            `docs-section` above) resolves 0-2 synthetic items tagged `docs-pager-prev`/`docs-pager-next`
