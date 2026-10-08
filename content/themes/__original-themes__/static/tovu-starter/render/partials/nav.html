@@ -1,6 +1,6 @@
 <header class="site-header">
   <div class="wrap nav-row">
-    <a href="/" class="brand">
+    <a href="/" class="brand" data-toolname="starter_home" data-tooldescription="Your Site">
       <span class="mark"><img src="/theme-assets/tovu-starter/assets/logo.png" srcset="/theme-assets/tovu-starter/assets/logo@2x.png 2x" width="28" height="28" alt="" /></span>
       Your Site
     </a>
@@ -12,18 +12,18 @@
          hover/focus dropdown. Changing this back to flat silently deletes the dropdown. -->
     <!-- Marker: the header menu (Admin > Menus). "tree" renders the dropdowns; flat would drop every child item. The links inside are the fallback. -->
     <nav class="main-nav" data-embed-config='{"type":"menu","id":"menu-header-nav","variant":"tree"}'>
-      <a href="/" data-nav-id="index">Home</a>
-      <a href="/blog" data-nav-id="blog">Blog</a>
+      <a href="/" data-nav-id="index" data-toolname="starter_nav_home" data-tooldescription="Home">Home</a>
+      <a href="/blog" data-nav-id="blog" data-toolname="starter_nav_blog" data-tooldescription="Blog">Blog</a>
     </nav>
     <div class="nav-actions">
-      <button class="theme-toggle" type="button" aria-label="Switch to light mode" data-theme-toggle>
+      <button class="theme-toggle" type="button" aria-label="Switch to light mode" data-theme-toggle data-toolname="starter_theme_toggle" data-tooldescription="Appearance">
         <span class="icon-stack">
           <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 3v2.2M12 18.8V21M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M3 12h2.2M18.8 12H21M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6"/></svg>
           <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/></svg>
         </span>
       </button>
       <!-- No CTA by default. To add one back: <a href="/your-page.html" class="btn btn-solid nav-cta">Get started</a> -->
-      <button class="nav-toggle btn btn-ghost" type="button" aria-expanded="false" aria-controls="mnav" aria-label="Open menu">
+      <button class="nav-toggle btn btn-ghost" type="button" aria-expanded="false" aria-controls="mnav" aria-label="Open menu" data-toolname="starter_menu_open" data-tooldescription="Open menu">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
       </button>
     </div>
@@ -37,7 +37,7 @@
     <div class="mnav-panel">
       <div class="mnav-head">
         <span class="mnav-title">Menu</span>
-        <button class="mnav-close" type="button" aria-label="Close menu" data-mnav-close>
+        <button class="mnav-close" type="button" aria-label="Close menu" data-mnav-close data-toolname="starter_menu_close" data-tooldescription="Close menu">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
         </button>
       </div>
@@ -45,7 +45,7 @@
       <div class="mnav-foot">
         <div class="mnav-theme">
           <span>Appearance</span>
-          <button class="theme-toggle" type="button" aria-label="Switch to light mode" data-theme-toggle>
+          <button class="theme-toggle" type="button" aria-label="Switch to light mode" data-theme-toggle data-toolname="starter_mobile_theme_toggle" data-tooldescription="Appearance">
             <span class="icon-stack">
               <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 3v2.2M12 18.8V21M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M3 12h2.2M18.8 12H21M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6"/></svg>
               <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/></svg>

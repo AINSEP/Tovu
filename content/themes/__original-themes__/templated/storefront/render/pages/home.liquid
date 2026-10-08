@@ -11,7 +11,7 @@
     <p class="hero__eyebrow">NEW ARRIVALS</p>
     <h1 class="hero__title">Made slow. Built to last.</h1>
     <p class="hero__sub">Every product below is real, seeded data from Tovu's sample store plugin — not hardcoded into this theme.</p>
-    <a class="btn btn--primary" href="/products">Shop all products</a>
+    <a class="btn btn--primary" href="/products" data-toolname="storefront_products" data-tooldescription="Shop all products">Shop all products</a>
   </div>
 </section>
 
@@ -24,7 +24,7 @@
       <ul class="product-grid">
         {%- for product in products -%}
           <li class="product-card">
-            <a href="/products/{{ product.slug }}">
+            <a href="/products/{{ product.slug }}" data-toolname="storefront_product_{{ forloop.index0 }}" data-tooldescription="{{ product.title | escape }}">
               <div class="product-card__image" aria-hidden="true"></div>
               <h3 class="product-card__title">{{ product.title }}</h3>
               <p class="product-card__price">{{ product.priceFormatted }}</p>
