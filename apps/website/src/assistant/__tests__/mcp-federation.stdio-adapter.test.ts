@@ -6,7 +6,7 @@ import { IDENTITY_STDIO_LAUNCH_RESOLVER, spawnMcpStdioChannel as spawnSharedStdi
 
 import { ScriptedMcpStdioChannel, type CapturedRpcMessage } from "../mcp-federation/adapter.memory.js";
 import { createDefaultConnect } from "../mcp-federation/bootstrap.js";
-import type { McpSessionPort, McpStdioChannel } from "../mcp-federation/ports.js";
+import type { McpSessionPort, McpStdioChannel } from "@jini-ai/mcp/federation";
 import { tovuFederationMessages } from "../mcp-federation/presets.js";
 
 // The stdio client moved to @jini-ai/mcp/federation/stdio (adapter.stdio.ts was deleted). Each
@@ -19,15 +19,9 @@ function connectMcpStdioSession({ channel, requestTimeoutMs }: { channel: McpStd
   });
 }
 
-/** The real child-process channel, adapted to the host line-callback ABI the way bootstrap.ts does. */
+/** The real child-process channel, with the same host close wording as bootstrap.ts. */
 function spawnMcpStdioChannel(resolved: ResolvedStdioLaunch): McpStdioChannel {
-  const channel = spawnSharedStdioChannel({ ...resolved, messages: tovuFederationMessages });
-  return {
-    send: (message) => channel.send({ message }),
-    onMessage: (listener) => channel.onMessage({ listener: ({ message }) => listener(message) }),
-    onClose: (listener) => channel.onClose({ listener: ({ reason }) => listener(reason) }),
-    close: () => channel.close({}),
-  };
+  return spawnSharedStdioChannel({ ...resolved, messages: tovuFederationMessages });
 }
 
 /**
@@ -212,10 +206,24 @@ test("an aborted call rejects instead of leaving the caller waiting on a remote 
   const session = await connectMcpStdioSession({ channel, requestTimeoutMs: 5_000 });
 
   const controller = new AbortController();
-  const pending = session.callTool({ name: "list_tables", arguments: {}, signal: controller.signal });
+  const pending = session.callTool({ name: "list_tables", arguments: {} }, { signal: controller.signal });
   controller.abort();
 
   await assert.rejects(() => pending, /was aborted/);
+});
+
+test("a pre-aborted stdio call sends no tools/call frame", async () => {
+  const channel = new ScriptedMcpStdioChannel({ respond: politeServer() });
+  const session = await connectMcpStdioSession({ channel, requestTimeoutMs: 5_000 });
+  const controller = new AbortController();
+  controller.abort();
+  try {
+    await assert.rejects(session.callTool({ name: "list_tables", arguments: {} }, { signal: controller.signal }),
+      { message: "mcp-federation: 'tools/call' was aborted before it was sent" });
+    assert.equal(channel.sent.filter(message => message.method === "tools/call").length, 0);
+  } finally {
+    await session.close({});
+  }
 });
 
 // ---------------------------------------------------------------------------
@@ -248,8 +256,8 @@ test("a late reply to a timed-out request never resolves a different, later call
   const currentId = abandoned[1]?.id;
   assert.equal(typeof currentId, 'number');
   assert.notEqual(currentId, staleId);
-  channel.deliver({ jsonrpc: "2.0", id: staleId, result: { content: [{ type: "text", text: "STALE" }] } });
-  channel.deliver({ jsonrpc: '2.0', id: currentId, result: { content: [{ type: 'text', text: 'CORRECT' }] } });
+  channel.deliver({ message: { jsonrpc: "2.0", id: staleId, result: { content: [{ type: "text", text: "STALE" }] } } });
+  channel.deliver({ message: { jsonrpc: '2.0', id: currentId, result: { content: [{ type: 'text', text: 'CORRECT' }] } } });
 
   const result = await pending;
   assert.deepEqual(result.content, [{ type: "text", text: "CORRECT" }], "the stale reply must not have settled this call");
@@ -260,16 +268,16 @@ test("a duplicate reply to an already-settled id is ignored rather than throwing
   const session = await connectMcpStdioSession({ channel, requestTimeoutMs: 1_000 });
 
   await session.callTool({ name: "list_tables", arguments: {} });
-  const callId = channel.idFor("tools/call");
-  assert.doesNotThrow(() => channel.deliver({ jsonrpc: "2.0", id: callId, result: { content: "again" } }));
+  const callId = channel.idFor({ method: "tools/call" });
+  assert.doesNotThrow(() => channel.deliver({ message: { jsonrpc: "2.0", id: callId, result: { content: "again" } } }));
 });
 
 test("non-JSON banner noise on the stream is dropped, not treated as a protocol failure", async () => {
   const channel = new ScriptedMcpStdioChannel({ respond: politeServer() });
   const session = await connectMcpStdioSession({ channel, requestTimeoutMs: 1_000 });
 
-  assert.doesNotThrow(() => channel.deliver("Supabase MCP server starting up..."));
-  assert.doesNotThrow(() => channel.deliver("{not json at all"));
+  assert.doesNotThrow(() => channel.deliver({ message: "Supabase MCP server starting up..." }));
+  assert.doesNotThrow(() => channel.deliver({ message: "{not json at all" }));
 
   // The session still works afterwards.
   assert.deepEqual((await session.listTools()).map((tool) => tool.name), ["list_tables"]);
@@ -283,7 +291,7 @@ test("the channel dying mid-flight rejects every in-flight request instead of ha
 
   const first = session.callTool({ name: "a", arguments: {} });
   const second = session.callTool({ name: "b", arguments: {} });
-  channel.fail("child process exited (code=1, signal=null)");
+  channel.fail({ reason: "child process exited (code=1, signal=null)" });
 
   await assert.rejects(() => first, /session closed before the request completed/);
   await assert.rejects(() => second, /session closed before the request completed/);
@@ -300,7 +308,7 @@ test("an unsolicited server request (sampling/createMessage) is refused with met
   await connectMcpStdioSession({ channel, requestTimeoutMs: 1_000 });
 
   // The escalation attempt: the remote asks Tovu to run model inference on its behalf.
-  channel.deliver({ jsonrpc: "2.0", id: 77, method: "sampling/createMessage", params: { messages: [] } });
+  channel.deliver({ message: { jsonrpc: "2.0", id: 77, method: "sampling/createMessage", params: { messages: [] } } });
   await Promise.resolve();
 
   const refusal = channel.sent.find((message) => message.id === 77);
@@ -314,7 +322,7 @@ test("a tools/list_changed notification is ignored — the admitted set is froze
   const before = channel.sent.length;
 
   // The rug-pull attempt: the server announces a changed surface after being vetted.
-  channel.deliver({ jsonrpc: "2.0", method: "notifications/tools/list_changed" });
+  channel.deliver({ message: { jsonrpc: "2.0", method: "notifications/tools/list_changed" } });
   await Promise.resolve();
 
   // No re-listing, no reply, no crash — the notification is inert.
@@ -326,7 +334,7 @@ test("close() shuts the channel down and makes further calls fail fast", async (
   const channel = new ScriptedMcpStdioChannel({ respond: politeServer() });
   const session = await connectMcpStdioSession({ channel, requestTimeoutMs: 1_000 });
 
-  await session.close();
+  await session.close({});
 
   assert.equal(channel.closedReason, "closed by Tovu");
   await assert.rejects(() => session.callTool({ name: "x", arguments: {} }), /session is closed/);
@@ -359,7 +367,7 @@ test('real stdout framing reassembles a split reply and drains two replies in on
       [{ type: 'text', text: 'first' }], [{ type: 'text', text: 'second' }],
     ]);
   } finally {
-    channel.close();
+    channel.close({});
   }
 });
 
@@ -367,10 +375,10 @@ test('real stdout framing closes on an unterminated message over the 4 MiB cap',
   const channel = spawnMcpStdioChannel({ command: process.execPath,
     args: ['-e', "process.stdout.write('x'.repeat(4 * 1024 * 1024 + 1)); setInterval(() => {}, 1000);"], env: {}, launchEnv: {} });
   try {
-    const reason = await new Promise<string>((resolve) => channel.onClose(resolve));
+    const reason = await new Promise<string>((resolve) => channel.onClose({ listener: ({ reason }) => resolve(reason) }));
     assert.equal(reason, 'inbound message exceeded the size cap');
-    assert.throws(() => channel.send('{}'), /closed stdio channel/);
+    assert.throws(() => channel.send({ message: '{}' }), /closed stdio channel/);
   } finally {
-    channel.close();
+    channel.close({});
   }
 });

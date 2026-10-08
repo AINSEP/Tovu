@@ -26,7 +26,7 @@ import type { PluginDiscoveryRecord } from "../features/plugin-runtime/discovery
 
 import { createFederationRuntime, type FederationRuntime } from "./external-mcp-federation-runtime.js";
 import type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
-import type { McpSessionPort } from "./mcp-federation/ports.js";
+import type { McpSessionPort } from "@jini-ai/mcp/federation";
 import type { FederationReloadResult } from "@jini-ai/mcp/federation";
 import type { FederationDeps } from "./mcp-federation/registrations.js";
 

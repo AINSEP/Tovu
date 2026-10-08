@@ -27,7 +27,7 @@ import {
   readEnabledExternalMcpConfigs,
   saveExternalMcpServer,
 } from "../external-mcp-store.js";
-import type { FederatedCallTarget } from "../mcp-federation/ports.js";
+import type { FederatedCallTarget } from "@jini-ai/mcp/federation";
 
 /**
  * @file `external-mcp-oauth.ts` — the join between the generic OAuth client and one connection row.

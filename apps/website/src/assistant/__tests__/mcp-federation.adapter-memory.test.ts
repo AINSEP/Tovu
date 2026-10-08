@@ -21,17 +21,17 @@ test("InMemoryMcpSession: with no onCall supplied, callTool falls back to echoin
 
 test("ScriptedMcpStdioChannel: send() after close() throws, rather than silently accepting a message on a dead channel", () => {
   const channel = new ScriptedMcpStdioChannel({ respond: () => undefined });
-  channel.close();
-  assert.throws(() => channel.send(JSON.stringify({ jsonrpc: "2.0", method: "ping" })), /scripted channel is closed/);
+  channel.close({});
+  assert.throws(() => channel.send({ message: JSON.stringify({ jsonrpc: "2.0", method: "ping" }) }), /scripted channel is closed/);
 });
 
 test("ScriptedMcpStdioChannel: fail() is idempotent — a second call does not re-notify close listeners or overwrite the first reason", () => {
   const channel = new ScriptedMcpStdioChannel({ respond: () => undefined });
   const reasons: string[] = [];
-  channel.onClose((reason) => reasons.push(reason));
+  channel.onClose({ listener: ({ reason }) => reasons.push(reason) });
 
-  channel.fail("first failure");
-  channel.fail("second failure");
+  channel.fail({ reason: "first failure" });
+  channel.fail({ reason: "second failure" });
 
   assert.deepEqual(reasons, ["first failure"], "the close listener must fire exactly once, with the FIRST reason");
   assert.equal(channel.closedReason, "first failure");
@@ -39,6 +39,6 @@ test("ScriptedMcpStdioChannel: fail() is idempotent — a second call does not r
 
 test("ScriptedMcpStdioChannel: idFor returns undefined for a method the client never sent", () => {
   const channel = new ScriptedMcpStdioChannel({ respond: () => undefined });
-  channel.send(JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }));
-  assert.equal(channel.idFor("tools/call"), undefined);
+  channel.send({ message: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }) });
+  assert.equal(channel.idFor({ method: "tools/call" }), undefined);
 });

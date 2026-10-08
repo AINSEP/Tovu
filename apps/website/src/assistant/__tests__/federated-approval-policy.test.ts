@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { buildFederatedMcpRegistrations } from '../mcp-federation/registrations.js';
-import type { RemoteToolDescriptor, FederatedMcpConnectionConfig } from '../mcp-federation/ports.js';
+import type { RemoteToolDescriptor, FederatedMcpConnectionConfig } from "@jini-ai/mcp/federation";
 import { createToolRegistry, type ToolExecutionContext } from '@jini-ai/core';
 import { createToolExecutor } from '@jini-ai/daemon';
 import { createFederationRuntime } from '../external-mcp-federation-runtime.js';

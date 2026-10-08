@@ -4,7 +4,7 @@ import type { ToolRegistry } from "@jini-ai/core";
 
 import { attachFederatedMcpTools, type FederationLogger } from "./mcp-federation/bootstrap.js";
 import type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
-import type { McpSessionPort } from "./mcp-federation/ports.js";
+import type { McpSessionPort } from "@jini-ai/mcp/federation";
 import { buildFederatedRefusalPrefix } from "@jini-ai/mcp/federation";
 import { createFederationReloadCoordinator } from "./mcp-federation/reload-adapter.js";
 import type { FederationReloadResult } from "@jini-ai/mcp/federation";

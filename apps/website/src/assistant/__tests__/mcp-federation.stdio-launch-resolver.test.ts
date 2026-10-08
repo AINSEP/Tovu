@@ -9,7 +9,7 @@ import {
 } from "@jini-ai/mcp/federation/stdio";
 
 import { tovuStdioLaunchResolverFromEnv as stdioLaunchResolverFromEnv } from "../mcp-federation/bootstrap.js";
-import type { McpStdioLaunchSpec } from "../mcp-federation/ports.js";
+import type { McpStdioLaunchSpec } from "@jini-ai/mcp/federation";
 import { tovuFederationMessages } from "../mcp-federation/presets.js";
 
 // The resolver moved to @jini-ai/mcp/federation/stdio. Tovu's launch copy is injected exactly as the

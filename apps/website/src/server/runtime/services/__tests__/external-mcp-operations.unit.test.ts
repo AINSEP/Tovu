@@ -58,7 +58,7 @@ for (const phase of ["connect", "list", "close"] as const) test(`shared probe ha
     return { listTools: async () => { if (phase === "list") throw new Error("private-token-in-upstream-error"); return []; }, callTool: async () => { throw new Error("unused"); }, close: async () => { closed++; if (phase === "close") throw new Error("close failed"); } };
   } }, "hosted");
   assert.equal(result.ok, phase === "close");
-  if (phase !== "close") assert.deepEqual(result, { ok: false, status: 502, body: { error: "could not reach this server — the probe did not complete", code: "MCP_SERVER_UNREACHABLE" } });
+  if (phase !== "close") assert.deepEqual(result, { ok: false, status: 502, body: { error: "Could not reach the server.", code: "MCP_SERVER_UNREACHABLE" } });
   assert.equal(closed, phase === "connect" ? 0 : 1);
   assert.equal(JSON.stringify(result).includes("private-token"), false);
 });

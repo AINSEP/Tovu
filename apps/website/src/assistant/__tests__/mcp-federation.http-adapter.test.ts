@@ -4,7 +4,7 @@ import test from "node:test";
 import { type CapturedHttpRequest, ScriptedMcpHttpExchange, type ScriptedHttpReply } from "../mcp-federation/adapter.memory.js";
 import { connectMcpHttpSession, createFetchMcpHttpExchange } from "../mcp-federation/adapter.http.js";
 import { McpAuthFailedError, McpProtocolError } from "@jini-ai/mcp/federation";
-import type { McpHttpLaunchSpec } from "../mcp-federation/ports.js";
+import type { McpHttpLaunchSpec } from "@jini-ai/mcp/federation";
 
 /**
  * @file Tests for the REAL hosted MCP client in `mcp-federation/adapter.http.ts`, driven against
@@ -89,7 +89,7 @@ test("every request carries the operator's configured auth header and both accep
   const session = await connect(exchange);
   await session.listTools();
 
-  const listRequest = exchange.lastRequestFor("tools/list");
+  const listRequest = exchange.lastRequestFor({ method: "tools/list" });
   assert.equal(listRequest?.headers.authorization, "Bearer token-abc");
   assert.equal(listRequest?.headers.accept, "application/json, text/event-stream");
   assert.equal(listRequest?.headers["content-type"], "application/json");
@@ -115,7 +115,7 @@ test("the session id the server issues at initialize is echoed on every later re
   const session = await connect(exchange);
   await session.listTools();
 
-  assert.equal(exchange.lastRequestFor("tools/list")?.headers["mcp-session-id"], "sess-xyz");
+  assert.equal(exchange.lastRequestFor({ method: "tools/list" })?.headers["mcp-session-id"], "sess-xyz");
 });
 
 test("a server that issues no session id gets no session header back, rather than an empty one", async () => {
@@ -129,7 +129,7 @@ test("a server that issues no session id gets no session header back, rather tha
   const session = await connect(exchange);
   await session.listTools();
 
-  assert.equal(exchange.lastRequestFor("tools/list")?.headers["mcp-session-id"], undefined);
+  assert.equal(exchange.lastRequestFor({ method: "tools/list" })?.headers["mcp-session-id"], undefined);
 });
 
 test("a session id containing CRLF is refused — it would inject headers into every later request", async () => {
@@ -354,7 +354,7 @@ test("a successful hosted call sends the remote name and arguments and returns t
   const exchange = new ScriptedMcpHttpExchange({ respond: politeServer({ callResult: expected, sessionId: "sess-call" }) });
   const session = await connect(exchange);
   const result = await session.callTool({ name: "generate_image", arguments: { prompt: "x" } });
-  const sent = exchange.lastRequestFor("tools/call");
+  const sent = exchange.lastRequestFor({ method: "tools/call" });
   assert.ok(sent);
   assert.equal(sent.method, "POST");
   assert.equal(sent.url, SPEC.url);
@@ -396,7 +396,7 @@ test("a caller's own abort signal cancels the call, and is reported as an abort 
   const session = await connect(exchange, 5_000);
 
   const controller = new AbortController();
-  const pending = session.callTool({ name: "generate_image", arguments: {}, signal: controller.signal });
+  const pending = session.callTool({ name: "generate_image", arguments: {} }, { signal: controller.signal });
   controller.abort();
 
   await assert.rejects(pending, /the request was aborted/);
@@ -410,7 +410,7 @@ test("a signal that is already aborted before the call starts aborts it immediat
 
   const controller = new AbortController();
   controller.abort();
-  const pending = session.callTool({ name: "generate_image", arguments: {}, signal: controller.signal });
+  const pending = session.callTool({ name: "generate_image", arguments: {} }, { signal: controller.signal });
 
   await assert.rejects(pending, /the request was aborted/);
 });
@@ -450,7 +450,7 @@ test("close tells the server to drop the session, carrying the id it issued", as
   const exchange = new ScriptedMcpHttpExchange({ respond: politeServer({ sessionId: "sess-close" }) });
   const session = await connect(exchange);
 
-  await session.close();
+  await session.close({});
 
   const deleteRequest = exchange.sent.at(-1);
   assert.equal(deleteRequest?.method, "DELETE");
@@ -464,7 +464,7 @@ test("a server that refuses the shutdown DELETE does not make close throw", asyn
   const session = await connect(exchange);
 
   // The spec explicitly allows a server to refuse session termination. Tidying up must not throw.
-  await session.close();
+  await session.close({});
 });
 
 test("close does not throw when the DELETE fails at the transport level, not just with a refusal status", async () => {
@@ -476,7 +476,7 @@ test("close does not throw when the DELETE fails at the transport level, not jus
   });
   const session = await connect(exchange);
 
-  await assert.doesNotReject(session.close());
+  await assert.doesNotReject(session.close({}));
 });
 
 test("a failed handshake that already had a session id issued still cleans it up, even when the cleanup DELETE itself fails", async () => {
@@ -501,7 +501,7 @@ test("a failed handshake that already had a session id issued still cleans it up
 test("a closed session refuses further calls instead of reopening one", async () => {
   const exchange = new ScriptedMcpHttpExchange({ respond: politeServer() });
   const session = await connect(exchange);
-  await session.close();
+  await session.close({});
 
   await assert.rejects(session.listTools(), /session is closed/);
 });
@@ -510,9 +510,9 @@ test("close is idempotent — a second call issues no second DELETE", async () =
   const exchange = new ScriptedMcpHttpExchange({ respond: politeServer() });
   const session = await connect(exchange);
 
-  await session.close();
+  await session.close({});
   const afterFirst = exchange.sent.length;
-  await session.close();
+  await session.close({});
 
   assert.equal(exchange.sent.length, afterFirst);
 });
@@ -523,24 +523,24 @@ test("close is idempotent — a second call issues no second DELETE", async () =
 
 test("the fetch exchange refuses to follow redirects, so a bearer token is never re-sent to a host the server nominated", async () => {
   let seenInit: RequestInit | undefined;
-  const exchange = createFetchMcpHttpExchange((async (_url: string, init: RequestInit) => {
+  const exchange = createFetchMcpHttpExchange({ fetch: (async (_url: string, init: RequestInit) => {
     seenInit = init;
     return new Response("{}", { status: 200, headers: { "content-type": "application/json" } });
-  }) as unknown as typeof fetch);
+  }) as unknown as typeof fetch });
 
-  await exchange.send({ url: SPEC.url, method: "POST", headers: { authorization: "Bearer t" }, body: "{}" });
+  await exchange.send({ url: SPEC.url, method: "POST", headers: { authorization: "Bearer t" } }, { body: "{}" });
 
   assert.equal(seenInit?.redirect, "error");
 });
 
 test("the fetch exchange lowercases the content type and surfaces the session id header", async () => {
-  const exchange = createFetchMcpHttpExchange((async () =>
+  const exchange = createFetchMcpHttpExchange({ fetch: (async () =>
     new Response("{}", {
       status: 200,
       headers: { "content-type": "TEXT/EVENT-STREAM; charset=UTF-8", "mcp-session-id": "s-1" },
-    })) as unknown as typeof fetch);
+    })) as unknown as typeof fetch });
 
-  const response = await exchange.send({ url: SPEC.url, method: "POST", headers: {}, body: "{}" });
+  const response = await exchange.send({ url: SPEC.url, method: "POST", headers: {} }, { body: "{}" });
 
   assert.equal(response.contentType, "text/event-stream; charset=utf-8");
   assert.equal(response.sessionId, "s-1");
@@ -548,13 +548,46 @@ test("the fetch exchange lowercases the content type and surfaces the session id
 
 test("the fetch exchange sends no body on a DELETE", async () => {
   let seenInit: RequestInit | undefined;
-  const exchange = createFetchMcpHttpExchange((async (_url: string, init: RequestInit) => {
+  const exchange = createFetchMcpHttpExchange({ fetch: (async (_url: string, init: RequestInit) => {
     seenInit = init;
     return new Response("", { status: 200 });
-  }) as unknown as typeof fetch);
+  }) as unknown as typeof fetch });
 
   await exchange.send({ url: SPEC.url, method: "DELETE", headers: {} });
 
   assert.equal(seenInit?.method, "DELETE");
   assert.equal(seenInit?.body, undefined);
+});
+
+test("run cancellation reaches the outbound fetch through the canonical session and exchange", async () => {
+  const controller = new AbortController();
+  let outboundSignal: AbortSignal | undefined;
+  let started!: () => void;
+  const remoteStarted = new Promise<void>(resolve => { started = resolve; });
+  const exchange = createFetchMcpHttpExchange({ fetch: (async (_url, init) => {
+    const message = JSON.parse(init!.body as string) as { id?: number; method: string };
+    if (message.method === "initialize") {
+      return new Response(JSON.stringify({ jsonrpc: "2.0", id: message.id, result: INIT_RESULT }),
+        { headers: { "content-type": "application/json" } });
+    }
+    if (message.method === "notifications/initialized") return new Response(null, { status: 202 });
+    outboundSignal = init!.signal!;
+    started();
+    assert.equal(message.method, "tools/call");
+    return new Promise<Response>((_resolve, reject) => {
+      outboundSignal!.addEventListener("abort", () => reject(new Error("fetch aborted")), { once: true });
+    });
+  }) as typeof fetch });
+  const session = await connectMcpHttpSession({ exchange, spec: SPEC, requestTimeoutMs: 5_000 });
+  const pending = session.callTool({ name: "generate_image", arguments: {} }, { signal: controller.signal });
+  const rejected = assert.rejects(pending, { message: "mcp-federation: the request was aborted" });
+  try {
+    await Promise.race([remoteStarted, rejected]);
+    controller.abort();
+    await rejected;
+    assert.equal(outboundSignal?.aborted, true);
+  } finally {
+    controller.abort();
+    await session.close({});
+  }
 });

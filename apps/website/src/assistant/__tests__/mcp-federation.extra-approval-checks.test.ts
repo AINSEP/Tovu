@@ -11,7 +11,7 @@ import { WRITE_SHAPED_INPUT_WORDS, admitRemoteTools, type FederatedToolIdentity 
 import { InMemoryExternalMcpToolApprovalRepo, createInMemoryConversationToolApprovalStore } from "../external-mcp-tool-approval-adapters.js";
 import type { ConversationToolApprovalStore, ExternalMcpToolApprovalRepoPort } from "../external-mcp-tool-approval-ports.js";
 import { InMemoryMcpSession } from "../mcp-federation/adapter.memory.js";
-import type { FederatedMcpConnectionConfig, RemoteToolDescriptor } from "../mcp-federation/ports.js";
+import type { FederatedMcpConnectionConfig, RemoteToolDescriptor } from "@jini-ai/mcp/federation";
 import { TOVU_MCP_APPROVAL_FINGERPRINT_DOMAIN } from "../mcp-federation/presets.js";
 import { buildFederatedMcpRegistrations, type FederationDeps } from "../mcp-federation/registrations.js";
 
@@ -76,12 +76,11 @@ function harness(stores: Stores, tools: RemoteToolDescriptor[] = TOOLS): Harness
   const store = createSurfaceExchangeStore();
   const sent: { name: string; args: Record<string, unknown> }[] = [];
   const session = new InMemoryMcpSession({
-    tools,
-    onCall: (name, args) => {
+    tools }, {
+    onCall: ({ name, args }) => {
       sent.push({ name, args: JSON.parse(JSON.stringify(args)) as Record<string, unknown> });
       return { content: [{ type: "text", text: `ran ${name}` }] };
-    },
-  });
+    } });
   const authorize: FederationDeps["authorize"] = async () => ({ allowed: true, reason: "matched" });
   const deps: FederationDeps = {
     authorize,

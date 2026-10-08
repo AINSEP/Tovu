@@ -21,13 +21,26 @@ for (const [name, args, hints] of [
   ["create_project", {}, {readOnlyHint: false}],
   ["generate_image", {}, undefined],
   ["search", {query: "red fox"}, {readOnlyHint: true}],
-  ["execute_sql", {query: "select 1"}, {destructiveHint: true}],
-  ["apply_migration", {query: "create table demo (id integer)"}, {destructiveHint: true}],
-  ["trash_item", {id: "one"}, {destructiveHint: true}],
+  ["execute_sql", {query: "select 1"}, {readOnlyHint: true}],
+  ["apply_migration", {query: "create table demo (id integer)"}, undefined],
 ] as const) test(`n06: ${name} ordinary call needs no card`, async () => {
   const result = await run(name, args, hints);
   assert.deepEqual(result.cards, []);
   assert.equal(result.session.calls.length, 1);
+});
+
+// Tovu's mandatory declaration policy adds approval even when Jini classifies the SQL as safe.
+for (const [name, args] of [
+  ["execute_sql", {query: "select 1"}],
+  ["apply_migration", {query: "create table demo (id integer)"}],
+  ["trash_item", {id: "one"}],
+  ["execute_sql", {query: "select 'drop table demo' as example"}],
+] as const) test(`n06: ${name} destructive declaration stays gated: ${JSON.stringify(args)}`, async () => {
+  const result = await run(name, args, {destructiveHint: true});
+  assert.deepEqual(result.cards, [name]);
+  assert.deepEqual(result.destructive, [true]);
+  assert.deepEqual(result.session.calls, []);
+  assert.deepEqual(result.result, {cancelled: true});
 });
 
 for (const [name, args, hints] of [
@@ -53,8 +66,8 @@ for (const query of ["truncate demo", "drop /* comment */ table demo", "select 1
   assert.equal(result.session.calls.length, 0);
 });
 
-test("n06: SQL literal text does not require confirmation", async () => {
-  const result = await run("execute_sql", {query: "select 'drop table demo' as example"}, {destructiveHint: true});
+test("n06: SQL literal text without a destructive declaration does not require confirmation", async () => {
+  const result = await run("execute_sql", {query: "select 'drop table demo' as example"}, {readOnlyHint: true});
   assert.deepEqual(result.cards, []);
   assert.equal(result.session.calls.length, 1);
 });

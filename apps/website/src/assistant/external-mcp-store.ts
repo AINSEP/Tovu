@@ -6,7 +6,7 @@ import { nowIso, type Clock as ClockPort, type ISODateTime, type UUID } from "@j
 
 import type { KeyringPort, SealedSecret, SecretSealerPort } from "../features/webhooks/index.js";
 import { FEDERATED_CONNECTION_DEFAULTS, type ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
-import type { McpLaunchSpec } from "./mcp-federation/ports.js";
+import type { McpLaunchSpec } from "@jini-ai/mcp/federation";
 import { assertValidConnectionId } from "@jini-ai/mcp/federation";
 import {
   EXTERNAL_MCP_AUTH_MODES,
@@ -148,7 +148,7 @@ export interface ExternalMcpServerRecord {
   /**
    * JSON array of remote tool names separately authorized to write, as stored. `trust.ts` R3's
    * override — a tool declaring `readOnlyHint: false` is admitted only when it also appears in
-   * {@link allowedToolNames}. See `mcp-federation/ports.ts`'s `FederatedMcpConnectionConfig
+   * {@link allowedToolNames}. See `@jini-ai/mcp/federation`'s `FederatedMcpConnectionConfig
    * .writeAllowedToolNames` for the full argument.
    */
   writeAllowedToolNames: string | null;
@@ -238,7 +238,7 @@ export interface ExternalMcpServerRepoPort {
  *
  * A union rather than a flat shape with an empty `command` on one arm and an empty `url` on the
  * other: a config carrying both is not a degraded row to tolerate, it is a bug, and this makes it
- * unrepresentable. It mirrors `mcp-federation/ports.ts`'s `McpLaunchSpec` deliberately — this is
+ * unrepresentable. It mirrors `@jini-ai/mcp/federation`'s `McpLaunchSpec` deliberately — this is
  * the same distinction one layer earlier, before policy is attached.
  */
 export type ExternalMcpServerTarget =

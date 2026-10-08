@@ -18,7 +18,7 @@ import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
 import { InMemoryMcpSession } from "../mcp-federation/adapter.memory.js";
 import { attachFederatedMcpTools } from "../mcp-federation/bootstrap.js";
 import type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
-import type { FederatedMcpConnectionConfig, RemoteToolDescriptor } from "../mcp-federation/ports.js";
+import type { FederatedMcpConnectionConfig, RemoteToolDescriptor } from "@jini-ai/mcp/federation";
 import { createFakeClock, type FakeClock } from "#src/__tests__/support/fake-clock";
 
 /**

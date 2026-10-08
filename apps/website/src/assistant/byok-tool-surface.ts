@@ -53,7 +53,7 @@ import { buildExternalMcpFederationDeps, createStoredExternalMcpConnectionSource
 import { attachAssistantToolExtensions, type InstalledExtensionRegistrar } from "./installed-extension-tools.js";
 import type { FederationRuntime } from "./external-mcp-federation-runtime.js";
 import type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
-import type { McpSessionPort } from "./mcp-federation/ports.js";
+import type { McpSessionPort } from "@jini-ai/mcp/federation";
 import { buildToolCatalogQuery, listToolCatalogEntries } from "./tool-catalog-query.js";
 import { type AssistantToolRegistryDeps, buildAssistantToolRegistrations } from "./tool-registrations.js";
 import { createAssistantToolExecutor } from "./tool-executor-stack.js";

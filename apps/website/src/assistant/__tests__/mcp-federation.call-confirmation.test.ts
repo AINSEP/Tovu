@@ -14,7 +14,7 @@ import {
 } from "../../contracts/core/tool-surface-exchanges.js";
 import { buildFederatedCallConfirmSpec, createFederatedCallConfirmer } from "../external-mcp-call-confirmation.js";
 import { InMemoryMcpSession } from "../mcp-federation/adapter.memory.js";
-import type { FederatedMcpConnectionConfig, RemoteToolDescriptor } from "../mcp-federation/ports.js";
+import type { FederatedMcpConnectionConfig, RemoteToolDescriptor } from "@jini-ai/mcp/federation";
 import { buildFederatedMcpRegistrations, type FederationDeps } from "../mcp-federation/registrations.js";
 import * as shared from "@jini-ai/mcp/federation";
 import { admitRemoteTools } from "@jini-ai/mcp/federation";
@@ -130,12 +130,11 @@ function harness(options: { store?: SurfaceExchangeStore; withConfirmer?: boolea
   const store = options.store ?? createSurfaceExchangeStore();
   const sent: { name: string; args: Record<string, unknown> }[] = [];
   const session = new InMemoryMcpSession({
-    tools: TOOLS,
-    onCall: (name, args) => {
+    tools: TOOLS }, {
+    onCall: ({ name, args }) => {
       sent.push({ name, args: JSON.parse(JSON.stringify(args)) as Record<string, unknown> });
       return { content: [{ type: "text", text: `ran ${name}` }] };
-    },
-  });
+    } });
   const deps: FederationDeps = {
     authorize: async () => ({ allowed: true, reason: "matched" }),
     workspaceId: "ws-g3",

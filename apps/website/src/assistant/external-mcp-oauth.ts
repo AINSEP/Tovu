@@ -7,7 +7,7 @@ import { OAuthError as LegacyOAuthError } from "../platform/oauth/errors.js";
 
 import type { KeyringPort, SecretSealerPort } from "../features/webhooks/index.js";
 import { ExternalMcpConnectionRevokedError, rosterRefusalFor } from "./external-mcp-revocation.js";
-import type { FederatedCallTarget } from "./mcp-federation/ports.js";
+import type { FederatedCallTarget } from "@jini-ai/mcp/federation";
 import {
   beginAuthorizationCode,
   beginDeviceAuthorization,

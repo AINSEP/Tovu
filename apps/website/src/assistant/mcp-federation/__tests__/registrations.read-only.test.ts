@@ -3,7 +3,7 @@ import test from "node:test";
 import type { ToolExecutionContext } from "@jini-ai/core";
 import { InMemoryMcpSession } from "../adapter.memory.js";
 import { federateSession } from "../registrations.js";
-import type { FederatedMcpConnectionConfig, RemoteToolDescriptor } from "../ports.js";
+import type { FederatedMcpConnectionConfig, RemoteToolDescriptor } from "@jini-ai/mcp/federation";
 
 const config: FederatedMcpConnectionConfig = {
   connectionId: "higgsfield", label: "Higgsfield", allowedToolNames: ["models_explore", "job_status", "generate"],
@@ -41,7 +41,8 @@ test("a fresh roster admission drops readOnly when the remote contradicts the re
   assert.equal(initial.registrations[0]!.descriptor.readOnly, true);
   for (const annotations of [{ readOnlyHint: false }, { readOnlyHint: true, destructiveHint: true }]) {
     const reloaded = await load([{ name: "models_explore", inputSchema: schema, annotations }]);
-    assert.equal(reloaded.registrations[0]!.descriptor.readOnly, undefined);
+    // Mandatory destructive approval explicitly vetoes readOnly; a write hint only removes the grant.
+    assert.equal(reloaded.registrations[0]!.descriptor.readOnly, annotations.destructiveHint ? false : undefined);
     assert.equal(reloaded.report.admitted[0]!.confirmation, annotations.destructiveHint ? "confirm-destructive" : "none");
     await reloaded.registrations[0]!.handler(ctx);
     assert.deepEqual(reloaded.cards, annotations.destructiveHint ? ["models_explore"] : []);

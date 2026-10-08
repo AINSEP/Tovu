@@ -5,7 +5,7 @@ import express from "express";
 
 import type { ExternalMcpOAuthService, ExternalMcpServerRecord } from "../../assistant/index.js";
 import { saveExternalMcpServer } from "../../assistant/index.js";
-import type { McpHttpLaunchSpec, McpSessionPort, RemoteToolDescriptor } from "../../assistant/mcp-federation/ports.js";
+import type { McpHttpLaunchSpec, McpSessionPort, RemoteToolDescriptor } from "@jini-ai/mcp/federation";
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
 import { createExternalMcpModule } from "../runtime/composition/modules/external-mcp.js";

@@ -4,7 +4,7 @@ import test from "node:test";
 import * as shared from "@jini-ai/mcp/federation";
 import { admitRemoteTools, type FederatedAdmissionReport, type FederationAdmissionSnapshotEntry, type ToolRefusalReason } from "@jini-ai/mcp/federation";
 
-import type { FederatedMcpConnectionConfig } from "../mcp-federation/ports.js";
+import type { FederatedMcpConnectionConfig } from "@jini-ai/mcp/federation";
 import { tovuFederationMessages as messages } from "../mcp-federation/presets.js";
 
 // The reducers moved to @jini-ai/mcp/federation; Tovu's settings copy is injected exactly as the

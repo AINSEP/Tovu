@@ -15,7 +15,7 @@ import type { FederatedToolIdentity } from "@jini-ai/mcp/federation";
 import { InMemoryExternalMcpToolApprovalRepo, createInMemoryConversationToolApprovalStore } from "../external-mcp-tool-approval-adapters.js";
 import type { ConversationToolApprovalStore, ExternalMcpToolApprovalRepoPort } from "../external-mcp-tool-approval-ports.js";
 import { InMemoryMcpSession } from "../mcp-federation/adapter.memory.js";
-import type { FederatedMcpConnectionConfig, RemoteToolDescriptor } from "../mcp-federation/ports.js";
+import type { FederatedMcpConnectionConfig, RemoteToolDescriptor } from "@jini-ai/mcp/federation";
 import { TOVU_MCP_APPROVAL_FINGERPRINT_DOMAIN } from "../mcp-federation/presets.js";
 import { buildFederatedMcpRegistrations, type FederationDeps } from "../mcp-federation/registrations.js";
 import { createSqliteConversationToolApprovalStore } from "../persistence/conversation-tool-approval-store.js";
@@ -86,12 +86,11 @@ function harness(
   const sent: { name: string; args: Record<string, unknown> }[] = [];
   const tools = options.tools ?? TOOLS;
   const session = new InMemoryMcpSession({
-    tools,
-    onCall: (name, args) => {
+    tools }, {
+    onCall: ({ name, args }) => {
       sent.push({ name, args: JSON.parse(JSON.stringify(args)) as Record<string, unknown> });
       return { content: [{ type: "text", text: `ran ${name}` }] };
-    },
-  });
+    } });
   // Calling a federated tool at all already takes `admin.integrations.manage` on the connection
   // (entity "federated-mcp-connection"); "Always allow" re-checks it on the site's integrations
   // (entity "integration"), the scope the setting it saves lives in. Denied only there, here.

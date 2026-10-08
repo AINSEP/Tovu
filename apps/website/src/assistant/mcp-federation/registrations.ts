@@ -10,10 +10,9 @@ import {
   type FederationDeps as JiniFederationDeps,
 } from "@jini-ai/mcp/federation";
 import { McpAuthFailedError } from "@jini-ai/mcp/federation";
-import { toJiniMcpSession } from "./adapter.http.js";
 import { tovuFederationMessages } from "./presets.js";
 import type { FederatedCallConfirmationOutcome, FederatedCallConfirmationRequest, FederatedCallTarget,
-  FederatedMcpConnectionConfig, McpSessionPort, RemoteToolDescriptor } from "./ports.js";
+  FederatedMcpConnectionConfig, McpSessionPort, RemoteToolDescriptor } from "@jini-ai/mcp/federation";
 import type { FederatedAdmissionReport } from "@jini-ai/mcp/federation";
 // Implementation and security rationale: Jini/packages/mcp/src/federation/{registrations,trust}.ts.
 
@@ -225,8 +224,7 @@ export function buildFederatedMcpRegistrations(params: {
     confirmCall: (ctx, request) => params.deps.confirmCall!(ctx, needsApproval(request.remoteName, request.arguments)
       ? { ...request, destructive: true, approvalClass: classify(request.remoteName, request.arguments) } : request),
   } : {}) };
-  const built = buildJiniRegistrations({ ...params, session: toJiniMcpSession({ session: params.session }),
-    deps: toJiniFederationDeps({ deps }) });
+  const built = buildJiniRegistrations({ ...params, deps: toJiniFederationDeps({ deps }) });
   return { ...built, registrations: built.registrations.map((registration, index) => {
     const admitted = built.report.admitted[index]!;
     // Remote declarations only veto read-only admission; they never grant it.

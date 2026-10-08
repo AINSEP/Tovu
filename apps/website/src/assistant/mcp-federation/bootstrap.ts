@@ -1,12 +1,11 @@
 // Local federation forks moved to @jini-ai/mcp/federation (+ /stdio, /approvals); see development/DELETED-CODE.md.
 // Boot-loop implementation and rationale: Jini/packages/mcp/src/federation/bootstrap.ts.
-import { attachFederatedMcpTools as attachJiniTools, type McpSessionPort as JiniMcpSessionPort } from "@jini-ai/mcp/federation";
+import { attachFederatedMcpTools as attachJiniTools } from "@jini-ai/mcp/federation";
 import type { ToolRegistration, ToolRegistry } from "@jini-ai/core";
 
-import { toJiniMcpSession, toTovuMcpSession } from "./adapter.http.js";
 import { createDefaultConnect as createJiniConnect, stdioLaunchResolverFromEnv, type McpStdioLaunchResolver, type ResolvedStdioLaunch, type StdioLaunchResolverFromEnvOptions } from "@jini-ai/mcp/federation/stdio";
 import type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
-import type { McpSessionPort, McpStdioChannel } from "./ports.js";
+import type { McpSessionPort, McpStdioChannel } from "@jini-ai/mcp/federation";
 import { listFederatedMcpPresets, tovuFederationMessages, TOVU_MCP_CLIENT_INFO } from "./presets.js";
 import { buildFederatedMcpRegistrations, toJiniFederationDeps, type FederationDeps } from "./registrations.js";
 // The shared admission report is canonical in Jini; the host registration adapter does not redeclare it.
@@ -251,7 +250,7 @@ export function tovuStdioLaunchResolverFromEnv(env: NodeJS.ProcessEnv, options: 
 
 export async function attachFederatedMcpTools(params: AttachFederatedMcpToolsParams): Promise<AttachFederatedToolsResult> {
   const { logger, connect, connections } = resolveFederationAttachInputs(params);
-  const originalSessions = new Map<JiniMcpSessionPort, McpSessionPort>();
+  const originalSessions = new Map<McpSessionPort, McpSessionPort>();
   const classified = new Map<string, ToolRegistration>();
   const result = await attachJiniTools({
     // Jini owns the boot loop, reports and session cleanup. Bind the same enumerated tools to
@@ -263,14 +262,17 @@ export async function attachFederatedMcpTools(params: AttachFederatedMcpToolsPar
     } }, deps: toJiniFederationDeps({ deps: params.deps }),
     async connect({ connection }) {
       const hostSession = await connect(connection);
-      const session = toJiniMcpSession({ session: hostSession });
-      session.listTools = async () => {
-        const tools = await hostSession.listTools();
-        const built = buildFederatedMcpRegistrations({ tools, session: hostSession, config: connection.config,
-          deps: params.deps, nativeToolIds: new Set(params.registry.list({}).map(tool => tool.id)),
-        });
-        for (const registration of built.registrations) classified.set(registration.descriptor.id, registration);
-        return tools;
+      const session: McpSessionPort = {
+        callTool: (request, options = {}) => hostSession.callTool(request, options),
+        close: required => hostSession.close(required),
+        async listTools() {
+          const tools = await hostSession.listTools();
+          const built = buildFederatedMcpRegistrations({ tools, session: hostSession, config: connection.config,
+            deps: params.deps, nativeToolIds: new Set(params.registry.list({}).map(tool => tool.id)),
+          });
+          for (const registration of built.registrations) classified.set(registration.descriptor.id, registration);
+          return tools;
+        },
       };
       originalSessions.set(session, hostSession);
       return session;
@@ -286,7 +288,7 @@ export async function attachFederatedMcpTools(params: AttachFederatedMcpToolsPar
       error: ({ message }) => logger.warn(message),
     },
   });
-  return { ...result, sessions: result.sessions.map(session => originalSessions.get(session) ?? toTovuMcpSession({ session })) };
+  return { ...result, sessions: result.sessions.map(session => originalSessions.get(session) ?? session) };
 }
 
 /**
@@ -330,17 +332,9 @@ export function createDefaultConnect({ resolver }: { resolver: McpStdioLaunchRes
     messages: tovuFederationMessages, bearerToken: () => undefined,
   }, {
     logger: { warn: ({ message }) => logger.warn(message) },
-    ...(spawnChannel ? { spawnChannel: ({ resolved }: { resolved: ResolvedStdioLaunch }) => {
-      const channel = spawnChannel(resolved);
-      return {
-        send: ({ message }: { message: string }) => channel.send(message),
-        onMessage: ({ listener }: { listener: (required: { message: string }) => void }) => channel.onMessage(message => listener({ message })),
-        onClose: ({ listener }: { listener: (required: { reason: string }) => void }) => channel.onClose(reason => listener({ reason })),
-        close: () => channel.close(),
-      };
-    } } : {}),
+    ...(spawnChannel ? { spawnChannel: ({ resolved }: { resolved: ResolvedStdioLaunch }) => spawnChannel(resolved) } : {}),
   });
-  return async connection => toTovuMcpSession({ session: await connect({ connection }) });
+  return connection => connect({ connection });
 }
 
 function messageOf(error: unknown): string {

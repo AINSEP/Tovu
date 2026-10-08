@@ -6,7 +6,7 @@ import type { ToolDescriptor, ToolRegistration, ToolRegistry } from "@jini-ai/co
 import type { AttachFederatedMcpToolsParams, AttachFederatedToolsResult } from "../mcp-federation/bootstrap.js";
 import * as shared from "@jini-ai/mcp/federation";
 import { FEDERATED_CONNECTION_DEFAULTS, type ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
-import type { FederatedMcpConnectionConfig, McpHttpLaunchSpec } from "../mcp-federation/ports.js";
+import type { FederatedMcpConnectionConfig, McpHttpLaunchSpec } from "@jini-ai/mcp/federation";
 import { createFederationReloadCoordinator as createTovuReloadCoordinator, type FederationReloadCoordinatorDeps } from "../mcp-federation/reload-adapter.js";
 
 // The coordinator moved to @jini-ai/mcp/federation; Tovu's reload-adapter binds its registrations

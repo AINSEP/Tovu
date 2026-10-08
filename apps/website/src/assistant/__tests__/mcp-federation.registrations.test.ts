@@ -12,7 +12,7 @@ import { ForbiddenError } from "@jini-ai/cms/core";
 import { InMemoryMcpSession } from "../mcp-federation/adapter.memory.js";
 import { attachFederatedMcpTools } from "../mcp-federation/bootstrap.js";
 import { FEDERATED_ENTITY_TYPE, FEDERATED_TOOL_PERMISSION, McpAuthFailedError, type ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
-import type { FederatedMcpConnectionConfig, RemoteToolDescriptor } from "../mcp-federation/ports.js";
+import type { FederatedMcpConnectionConfig, RemoteToolDescriptor, RemoteToolResult } from "@jini-ai/mcp/federation";
 import {
   registerFederatedMcpPreset,
   resetFederatedMcpPresetsForTests,
@@ -85,18 +85,59 @@ function toolContext(input: unknown): ToolExecutionContext {
 
 function sessionFor(order?: string[]): InMemoryMcpSession {
   return new InMemoryMcpSession({
-    tools: REMOTE_TOOLS,
-    onCall: (name, args) => {
+    tools: REMOTE_TOOLS }, {
+    onCall: ({ name, args }) => {
       order?.push(`remote:${name}`);
       return { content: [{ type: "text", text: `rows for ${name} ${JSON.stringify(args)}` }] };
-    },
-  });
+    } });
 }
 
 function registrationFor(registrations: ToolRegistration[], toolId: string): ToolRegistration {
   const found = registrations.find((registration) => registration.descriptor.id === toolId);
   assert.ok(found, `expected a registration for ${toolId}`);
   return found;
+}
+
+for (const path of ["direct", "boot"] as const) {
+  test(`${path} federation forwards run cancellation to the remote and closes the original session`, async () => {
+    const controller = new AbortController();
+    let started!: () => void;
+    const remoteStarted = new Promise<void>(resolve => { started = resolve; });
+    const session = new InMemoryMcpSession({ tools: REMOTE_TOOLS }, {
+      onCall: ({ name, args }, { signal } = {}) => {
+        started();
+        assert.equal(name, "list_tables");
+        assert.deepEqual(args, { schemas: ["public"] });
+        assert.equal(signal, controller.signal);
+        return new Promise<RemoteToolResult>((_resolve, reject) => {
+          signal!.addEventListener("abort", () => reject(new Error("remote call aborted")), { once: true });
+        });
+      },
+    });
+    const registry = fakeRegistry();
+    const attached = path === "boot" ? await attachFederatedMcpTools({
+      registry, deps: fakeDeps().deps, connections: [{ config: CONFIG, launch: FAKE_LAUNCH }],
+      connect: async () => session, logger: collectingLogger().logger, env: {},
+    }) : undefined;
+    const registrations = attached ? registry.registered : (await federateSession({
+      session, config: CONFIG, deps: fakeDeps().deps, nativeToolIds: new Set(),
+    })).registrations;
+    if (attached) assert.equal(attached.sessions[0], session, "shutdown must retain the original session");
+    const pending = registrationFor(registrations, "mcp__supabase__list_tables").handler({
+      ...toolContext({ schemas: ["public"] }), signal: controller.signal,
+    });
+    const rejected = assert.rejects(pending, { message: "remote call aborted" });
+    try {
+      await Promise.race([remoteStarted, rejected]);
+      controller.abort();
+      await rejected;
+      assert.deepEqual(session.calls, [{ name: "list_tables", arguments: { schemas: ["public"] } }]);
+    } finally {
+      controller.abort();
+      await (attached?.sessions[0] ?? session).close({});
+    }
+    assert.equal(session.closed, true);
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -190,11 +231,10 @@ test("with no onAuthFailed configured, a live auth failure propagates unchanged"
   const { deps } = fakeDeps();
   const refused = new McpAuthFailedError({ message: "mcp-federation: the server refused 'tools/call' with 401" });
   const session = new InMemoryMcpSession({
-    tools: REMOTE_TOOLS,
+    tools: REMOTE_TOOLS }, {
     onCall: () => {
       throw refused;
-    },
-  });
+    } });
   const { registrations } = await federateSession({ session, config: CONFIG, deps, nativeToolIds: new Set() });
 
   await assert.rejects(
@@ -219,11 +259,10 @@ test("onAuthFailed runs on a live McpAuthFailedError, naming the connection, and
     },
   };
   const session = new InMemoryMcpSession({
-    tools: REMOTE_TOOLS,
+    tools: REMOTE_TOOLS }, {
     onCall: () => {
       throw new McpAuthFailedError({ message: "mcp-federation: the server refused 'tools/call' with 401" });
-    },
-  });
+    } });
   const { registrations } = await federateSession({ session, config: CONFIG, deps, nativeToolIds: new Set() });
 
   await assert.rejects(() => registrationFor(registrations, "mcp__supabase__list_tables").handler(toolContext({})), (error: unknown) => error === translated);
@@ -245,11 +284,10 @@ test("onAuthFailed does NOT run for an ordinary transport failure — only an au
   };
   const ordinary = new Error("mcp-federation: the request timed out after 1000ms");
   const session = new InMemoryMcpSession({
-    tools: REMOTE_TOOLS,
+    tools: REMOTE_TOOLS }, {
     onCall: () => {
       throw ordinary;
-    },
-  });
+    } });
   const { registrations } = await federateSession({ session, config: CONFIG, deps, nativeToolIds: new Set() });
 
   await assert.rejects(() => registrationFor(registrations, "mcp__supabase__list_tables").handler(toolContext({})), (error: unknown) => error === ordinary);
@@ -388,7 +426,7 @@ test("a federated result reaches the model inside the untrusted-data envelope, t
 
 test("a remote result claiming isError is reported as data rather than acted on", async () => {
   const { deps } = fakeDeps();
-  const session = new InMemoryMcpSession({ tools: REMOTE_TOOLS, onCall: () => ({ content: "denied", isError: true }) });
+  const session = new InMemoryMcpSession({ tools: REMOTE_TOOLS }, { onCall: () => ({ content: "denied", isError: true }) });
   const { registrations } = await federateSession({ session, config: CONFIG, deps, nativeToolIds: new Set() });
 
   const result = (await registrationFor(registrations, "mcp__supabase__list_tables").handler(toolContext({}))) as {
@@ -415,15 +453,14 @@ test("a federated image result is exposed as a top-level `content` array with th
   // Comfortably under CONFIG.maxResultBytes (4096), so a failure here cannot be explained by size.
   const imageData = "A".repeat(200);
   const session = new InMemoryMcpSession({
-    tools: REMOTE_TOOLS,
+    tools: REMOTE_TOOLS }, {
     onCall: () => ({
       content: [
         { type: "text", text: "Generated an image." },
         // Deliberately not PNG — the fix must not assume a mime type.
         { type: "image", mimeType: "image/jpeg", data: imageData },
       ],
-    }),
-  });
+    }) });
   const { registrations } = await federateSession({ session, config: CONFIG, deps, nativeToolIds: new Set() });
 
   const result = (await registrationFor(registrations, "mcp__supabase__list_tables").handler(toolContext({}))) as {
@@ -442,9 +479,8 @@ test("an image over maxResultBytes is dropped rather than truncated into a corru
   const { deps } = fakeDeps();
   const oversizedData = "B".repeat(CONFIG.maxResultBytes + 1);
   const session = new InMemoryMcpSession({
-    tools: REMOTE_TOOLS,
-    onCall: () => ({ content: [{ type: "image", mimeType: "image/png", data: oversizedData }] }),
-  });
+    tools: REMOTE_TOOLS }, {
+    onCall: () => ({ content: [{ type: "image", mimeType: "image/png", data: oversizedData }] }) });
   const { registrations } = await federateSession({ session, config: CONFIG, deps, nativeToolIds: new Set() });
 
   const result = (await registrationFor(registrations, "mcp__supabase__list_tables").handler(toolContext({}))) as {
@@ -480,8 +516,8 @@ test("an omitted input is sent as {}, and a non-object input is refused rather t
   await registration.handler(toolContext(undefined));
   assert.deepEqual(session.calls[0], { name: "list_tables", arguments: {} });
 
-  await assert.rejects(() => registration.handler(toolContext("just a string")), /input must be an object/);
-  await assert.rejects(() => registration.handler(toolContext([1, 2, 3])), /input must be an object/);
+  await assert.rejects(() => registration.handler(toolContext("just a string")), { name: "ToolInputError", message: "Federated tool arguments must be an object." });
+  await assert.rejects(() => registration.handler(toolContext([1, 2, 3])), { name: "ToolInputError", message: "Federated tool arguments must be an object." });
 });
 
 // ---------------------------------------------------------------------------
@@ -684,11 +720,10 @@ test("a remote that connects but cannot enumerate is stepped over, and its sessi
   const registry = fakeRegistry();
   const { logger } = collectingLogger();
   const session = new InMemoryMcpSession({
-    tools: [],
+    tools: [] }, {
     onListTools: async () => {
       throw new Error("remote returned JSON-RPC error -32000: invalid access token");
-    },
-  });
+    } });
 
   const result = await attachFederatedMcpTools({
     registry,
@@ -876,7 +911,7 @@ test("omitting `connect` uses the real defaultConnect — a genuine spawn + hand
     // `attachFederatedMcpTools` hands live sessions back for the CALLER to close at shutdown (see
     // its own doc) — it never closes them itself. Leaving this open would leak the real child
     // process and its stdio pipes, which keeps the test runner's event loop alive indefinitely.
-    await Promise.all(result.sessions.map((session) => session.close()));
+    await Promise.all(result.sessions.map((session) => session.close({})));
   }
 });
 
@@ -964,7 +999,7 @@ test("defaultConnect: a real child writing to stderr does not fail, hang, or lea
       `stderr noise must not fail the handshake; got: ${JSON.stringify(messages)}`,
     );
   } finally {
-    await Promise.all(result.sessions.map((session) => session.close()));
+    await Promise.all(result.sessions.map((session) => session.close({})));
   }
 });
 
@@ -1058,7 +1093,7 @@ test("omitting `connect` routes a HOSTED connection to the HTTP adapter — a re
       `every request must carry the token; saw ${JSON.stringify(server.seenAuth)}`,
     );
   } finally {
-    await Promise.all(result.sessions.map((session) => session.close()));
+    await Promise.all(result.sessions.map((session) => session.close({})));
     await server.close();
   }
 });
@@ -1147,9 +1182,8 @@ test("an admitted write-authorized tool is logged as a WARN, naming the connecti
     writeAllowedToolNames: ["generate_image"],
   };
   const session = new InMemoryMcpSession({
-    tools: [{ name: "generate_image", description: "Generates an image.", inputSchema: OBJECT_SCHEMA, annotations: { readOnlyHint: false } }],
-    onCall: () => ({ content: [{ type: "text", text: "ok" }] }),
-  });
+    tools: [{ name: "generate_image", description: "Generates an image.", inputSchema: OBJECT_SCHEMA, annotations: { readOnlyHint: false } }] }, {
+    onCall: () => ({ content: [{ type: "text", text: "ok" }] }) });
 
   const result = await attachFederatedMcpTools({
     registry,

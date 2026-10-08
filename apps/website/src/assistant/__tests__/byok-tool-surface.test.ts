@@ -859,9 +859,8 @@ test("BYOK federation: settled admitted tools execute with remote names and argu
       { name: "echo", inputSchema: { type: "object" }, annotations: { readOnlyHint: true } },
       { name: "write_ungranted", inputSchema: { type: "object" }, annotations: { readOnlyHint: false } },
       { name: "unlisted", inputSchema: { type: "object" }, annotations: { readOnlyHint: true } },
-    ],
-    onCall: () => remoteResult,
-  });
+    ] }, {
+    onCall: () => remoteResult });
   const s = createByokToolSurface(federationRouteDeps(repo, sealer), { ...( { federationConnect: async () => session }), contributions });
   assert.deepEqual(await s.awaitFederation(1000), { settled: true });
   const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "mcp__echo-server__echo", input: { text: "hello" } }));

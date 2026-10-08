@@ -10,7 +10,7 @@ test("read-only gateway executes operator-listed federation reads and refuses un
   const session = new InMemoryMcpSession({ tools: [
     { name: "models_explore", inputSchema: { type: "object" } },
     { name: "generate", inputSchema: { type: "object" }, annotations: { readOnlyHint: true } },
-  ], onCall: () => ({ content: [{ type: "text", text: "models: []" }] }) });
+  ] }, { onCall: () => ({ content: [{ type: "text", text: "models: []" }] }) });
   const { registrations } = await federateSession({ session, nativeToolIds: new Set(), config: {
     connectionId: "higgsfield", label: "Higgsfield", allowedToolNames: ["models_explore", "generate"], writeAllowedToolNames: [],
     readOnlyRemoteNames: new Set(["models_explore"]), connectTimeoutMs: 1000, callTimeoutMs: 1000, maxResultBytes: 4096, maxTools: 8,

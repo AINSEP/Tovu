@@ -7,7 +7,7 @@ import { createFederationRuntime } from "../external-mcp-federation-runtime.js";
 import type { AttachFederatedMcpToolsParams, AttachFederatedToolsResult } from "../mcp-federation/bootstrap.js";
 import { InMemoryMcpSession } from "../mcp-federation/adapter.memory.js";
 import { FEDERATED_CONNECTION_DEFAULTS, type ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
-import type { FederatedMcpConnectionConfig, McpHttpLaunchSpec } from "../mcp-federation/ports.js";
+import type { FederatedMcpConnectionConfig, McpHttpLaunchSpec } from "@jini-ai/mcp/federation";
 import type { FederationDeps } from "../mcp-federation/registrations.js";
 
 /**

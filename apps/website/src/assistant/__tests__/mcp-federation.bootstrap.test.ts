@@ -12,7 +12,7 @@ import type {
   McpSessionPort,
   McpStdioChannel,
   McpStdioLaunchSpec,
-} from "../mcp-federation/ports.js";
+} from "@jini-ai/mcp/federation";
 
 /**
  * @file `bootstrap.ts`'s `defaultConnect` — the production session factory `attachFederatedMcpTools`

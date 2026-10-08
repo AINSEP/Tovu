@@ -1,14 +1,13 @@
 // Local federation forks moved to @jini-ai/mcp/federation (+ /stdio, /approvals); see development/DELETED-CODE.md.
 import {
   connectMcpHttpSession as connectJiniHttpSession,
-  createFetchMcpHttpExchange as createJiniFetchExchange,
-  type McpSessionPort as JiniMcpSessionPort,
   type McpBearerTokenSupplier,
   type McpAuthenticationChallengeHook,
 } from "@jini-ai/mcp/federation";
 import { TOVU_MCP_CLIENT_INFO } from "./presets.js";
 import { tovuFederationMessages } from "./presets.js";
-import type { McpHttpExchange, McpHttpLaunchSpec, McpSessionPort } from "./ports.js";
+import type { McpHttpExchange, McpHttpLaunchSpec, McpSessionPort } from "@jini-ai/mcp/federation";
+export { createFetchMcpHttpExchange } from "@jini-ai/mcp/federation";
 // Transport code and rationale: Jini/packages/mcp/src/federation/{adapter.http,mcp-protocol}.ts.
 
 /**
@@ -163,32 +162,6 @@ import type { McpHttpExchange, McpHttpLaunchSpec, McpSessionPort } from "./ports
  * @overallScore 100
  */
 
-/** Adapts the session's optional call fields and close ABI; stdio and HTTP still share one host port. */
-export function toJiniMcpSession({ session }: { session: McpSessionPort }): JiniMcpSessionPort {
-  return {
-    listTools: () => session.listTools(),
-    async callTool(request, options = {}) {
-      return session.callTool({ ...request, ...(options.signal === undefined ? {} : { signal: options.signal }) });
-    },
-    close: () => session.close(),
-  };
-}
-
-/** Keeps native host session consumers linking while the package takes optional cancellation separately. */
-export function toTovuMcpSession({ session }: { session: JiniMcpSessionPort }): McpSessionPort {
-  return {
-    async listTools() {
-      return session.listTools();
-    },
-    async callTool({ name, arguments: args, signal }) {
-      return session.callTool({ name, arguments: args }, { signal });
-    },
-    async close() {
-      await session.close({});
-    },
-  };
-}
-
 /** Binds Tovu's protocol identity, refusal copy and existing exchange to the Jini transport.
  * Static headers stay the default credential source; a host token supplier can refresh per request.
  * A 401 hook observes challenges without retrying a remote tool or hiding the terminal auth error.
@@ -200,20 +173,11 @@ export async function connectMcpHttpSession(deps: {
   bearerToken?: McpBearerTokenSupplier;
   onAuthenticationChallenge?: McpAuthenticationChallengeHook;
 } = {}): Promise<McpSessionPort> {
-  const session = await connectJiniHttpSession({
-      exchange: { send: (request, options = {}) => deps.exchange.send({ ...request, ...options }) },
-      spec: deps.spec, requestTimeoutMs: deps.requestTimeoutMs,
-      messages: tovuFederationMessages, clientInfo: TOVU_MCP_CLIENT_INFO,
-      // Undefined explicitly preserves the supplied authenticating headers; it is not an OAuth fallback.
-      bearerToken: optional.bearerToken ?? (() => undefined),
-    }, { onAuthenticationChallenge: optional.onAuthenticationChallenge });
-  return toTovuMcpSession({ session });
-}
-
-/** Adapts native fetch to the host exchange; Jini owns redirect refusal and protocol response fields. */
-export function createFetchMcpHttpExchange(fetchImpl: typeof fetch = fetch): McpHttpExchange {
-  const exchange = createJiniFetchExchange({ fetch: fetchImpl });
-  return {
-    send: ({ url, method, headers, body, signal }) => exchange.send({ url, method, headers }, { body, signal }),
-  };
+  return connectJiniHttpSession({
+    exchange: deps.exchange,
+    spec: deps.spec, requestTimeoutMs: deps.requestTimeoutMs,
+    messages: tovuFederationMessages, clientInfo: TOVU_MCP_CLIENT_INFO,
+    // Undefined explicitly preserves the supplied authenticating headers; it is not an OAuth fallback.
+    bearerToken: optional.bearerToken ?? (() => undefined),
+  }, { onAuthenticationChallenge: optional.onAuthenticationChallenge });
 }

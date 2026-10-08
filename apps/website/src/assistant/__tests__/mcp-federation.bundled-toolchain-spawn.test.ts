@@ -8,7 +8,7 @@ import type { ToolDescriptor, ToolRegistration, ToolRegistry } from "@jini-ai/co
 
 import { attachFederatedMcpTools } from "../mcp-federation/bootstrap.js";
 import { FEDERATED_CONNECTION_DEFAULTS } from "@jini-ai/mcp/federation";
-import type { FederatedMcpConnectionConfig, McpStdioLaunchSpec } from "../mcp-federation/ports.js";
+import type { FederatedMcpConnectionConfig, McpStdioLaunchSpec } from "@jini-ai/mcp/federation";
 
 /**
  * @file End-to-end proof that the desktop-npx resolver is WIRED, not just correct in isolation:
@@ -90,7 +90,7 @@ async function attachAndReport(launch: McpStdioLaunchSpec, env: NodeJS.ProcessEn
     logger: { info: () => undefined, warn: (message: string) => warnings.push(message) },
     env,
   });
-  await Promise.all(result.sessions.map((session) => session.close()));
+  await Promise.all(result.sessions.map((session) => session.close({})));
   assert.deepEqual(warnings, [], "the fixture connection must attach cleanly");
   return JSON.parse(fs.readFileSync(reportPath, "utf8")) as ChildReport;
 }

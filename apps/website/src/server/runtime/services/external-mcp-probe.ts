@@ -12,7 +12,7 @@ import {
   type ExternalMcpOAuthService,
   type ExternalMcpServerRecord,
 } from "#src/assistant/index";
-import { isHttpLaunchSpec, type FederatedMcpConnectionConfig, type McpHttpLaunchSpec, type McpSessionPort } from "#src/assistant/mcp-federation/ports";
+import type { FederatedMcpConnectionConfig, McpHttpLaunchSpec, McpSessionPort } from "@jini-ai/mcp/federation";
 import { McpAuthFailedError, McpProtocolError, describeRemoteToolSurface } from "@jini-ai/mcp/federation";
 import type { ExternalMcpToolDeps } from "#src/features/external-mcp/deps";
 
@@ -42,7 +42,7 @@ export type ExternalMcpProbeServiceDeps = Pick<ExternalMcpToolDeps, "workspaceId
  *  handshake and is the correct bound rather than a reused wrong one.
  *  @complexity O(1) beyond the remote's round-trip. */
 async function defaultProbeConnect(spec: McpHttpLaunchSpec, requestTimeoutMs: number): Promise<McpSessionPort> {
-  return connectMcpHttpSession({ exchange: createFetchMcpHttpExchange(), spec, requestTimeoutMs });
+  return connectMcpHttpSession({ exchange: createFetchMcpHttpExchange({ fetch }), spec, requestTimeoutMs });
 }
 
 /** One resolved, probeable target: the trust-tier config `describeRemoteToolSurface` needs, and the
@@ -149,7 +149,7 @@ async function resolveProbeTarget(deps: ExternalMcpProbeServiceDeps, serverId: s
   // `record.transport` — both come from the same row): the whole point of D-7 is that this route
   // must never launch a child process, and a launch-spec SHAPE check right before connecting is the
   // cheapest possible second guarantee of that, independent of whatever produced `resolved`.
-  if (!resolved || !isHttpLaunchSpec(resolved.launch)) {
+  if (!resolved || !("url" in resolved.launch)) {
     return { ok: false, status: 400, body: { error: "probe is not available for local-command servers yet", code: "PROBE_UNSUPPORTED_TRANSPORT" } };
   }
 
@@ -174,7 +174,7 @@ async function runProbe(connect: ExternalMcpProbeSessionFactory, target: ProbeTa
     const timeout = err instanceof Error && (err.name === 'AbortError' || err.name === 'TimeoutError' || (err instanceof McpProtocolError && /request (?:timed out|was aborted)/.test(err.message)));
     return { ok: false, kind: auth ? 'auth' : timeout ? 'timeout' : 'unreachable' };
   } finally {
-    await session?.close().catch(() => undefined);
+    await session?.close({}).catch(() => undefined);
   }
 }
 

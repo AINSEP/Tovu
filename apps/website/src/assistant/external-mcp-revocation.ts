@@ -7,7 +7,7 @@ import {
   resolveExternalMcpOAuthStatus,
   type ExternalMcpServerRecord,
 } from "./external-mcp-store.js";
-import type { FederatedCallTarget } from "./mcp-federation/ports.js";
+import type { FederatedCallTarget } from "@jini-ai/mcp/federation";
 import { refusalForAdmittedToolUnderCurrentGrants } from "@jini-ai/mcp/federation";
 
 /**

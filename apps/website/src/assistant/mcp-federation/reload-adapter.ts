@@ -1,6 +1,5 @@
 /** @file Host DI/ABI adapter; reload.ts's admission freeze and trailing-edge queue moved to Jini. */
 import { createFederationReloadCoordinator as createJiniReload, type FederationReloadResult } from "@jini-ai/mcp/federation";
-import { toJiniMcpSession } from "./adapter.http.js";
 import { attachFederatedMcpTools, createDefaultConnect, tovuStdioLaunchResolverFromEnv, type AttachFederatedMcpToolsParams, type FederationLogger } from "./bootstrap.js";
 import { toJiniFederationDeps, type FederationDeps } from "./registrations.js";
 import type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
@@ -30,14 +29,13 @@ export function createFederationReloadCoordinator({ coordDeps, initiallyAdmitted
   const coordinator = createJiniReload({ initiallyAdmitted, coordDeps: {
     registry: coordDeps.registry, deps: toJiniFederationDeps({ deps: coordDeps.deps }),
     resolveConnections: coordDeps.resolveConnections,
-    connect: async ({ connection }) => toJiniMcpSession({ session: await connect(connection) }),
+    connect: ({ connection }) => connect(connection),
     // Keep the existing host attach injection usable without running a second boot/preset pass.
     attach: async (_required, options = {}) => {
-      const result = await attach({ registry: coordDeps.registry, deps: coordDeps.deps, connect,
+      return attach({ registry: coordDeps.registry, deps: coordDeps.deps, connect,
         connections: options.connections, extraConnections: options.extraConnections,
         ...(coordDeps.logger ? { logger: coordDeps.logger } : {}),
       });
-      return { ...result, sessions: result.sessions.map(session => toJiniMcpSession({ session })) };
     },
     ...(coordDeps.logger ? { logger: {
       info: ({ message }: { message: string }) => coordDeps.logger!.info(message),
