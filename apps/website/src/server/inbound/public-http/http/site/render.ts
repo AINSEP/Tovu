@@ -978,13 +978,25 @@ function headingAnchorId(node: JsonValue): string {
  * `id` as its FIRST attribute, which is exactly the shape the `heading` case emits and is not a shape
  * authored content can reach (doc nodes cannot carry raw HTML attributes), so no author-supplied
  * markup is rewritten by this.
+ * Checks every candidate against emitted ids, including literal suffixed slugs such as `foo-2`.
+ * Additional heading attributes (such as alignment styles) remain untouched.
+ *
+ * @complexity O(L + P) time for L HTML characters and P candidate-id checks; O(H) auxiliary space
+ * for H headings. Per-base counters keep repeated headings from restarting the suffix search.
  */
 function dedupeHeadingIds(html: string): string {
   const seen = new Map<string, number>();
-  return html.replace(/<h([1-6]) id="([^"]*)">/g, (_m, level: string, id: string) => {
-    const count = (seen.get(id) ?? 0) + 1;
+  const used = new Set<string>();
+  return html.replace(/<h([1-6]) id="([^"]*)"(?=[\s>])/g, (_m, level: string, id: string) => {
+    let count = (seen.get(id) ?? 0) + 1;
+    let uniqueId = count === 1 ? id : `${id}-${count}`;
+    while (used.has(uniqueId)) {
+      count += 1;
+      uniqueId = `${id}-${count}`;
+    }
     seen.set(id, count);
-    return count === 1 ? `<h${level} id="${id}">` : `<h${level} id="${id}-${count}">`;
+    used.add(uniqueId);
+    return `<h${level} id="${uniqueId}"`;
   });
 }
 

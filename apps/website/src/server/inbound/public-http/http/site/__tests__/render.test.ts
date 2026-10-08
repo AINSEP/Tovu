@@ -2655,6 +2655,38 @@ test("renderDocNode: repeated headings are suffixed within one document, first o
   assert.ok(html.includes('<h3 id="overview-3">'));
 });
 
+test("renderDocNode: heading suffixes skip literal ids already emitted", () => {
+  const html = renderDocNode(headingDoc(["Foo", 2], ["Foo-2", 2], ["Foo", 3]));
+  assert.equal(html, '<h2 id="foo">Foo</h2><h2 id="foo-2">Foo-2</h2><h3 id="foo-3">Foo</h3>');
+});
+
+test("renderDocNode: literal heading ids cannot reuse previously generated suffixes", () => {
+  const html = renderDocNode(headingDoc(["Foo", 2], ["Foo", 2], ["Foo-2", 3], ["Foo-2-2", 4], ["Foo-2", 5]));
+  assert.equal(html, '<h2 id="foo">Foo</h2><h2 id="foo-2">Foo</h2><h3 id="foo-2-2">Foo-2</h3><h4 id="foo-2-2-2">Foo-2-2</h4><h5 id="foo-2-3">Foo-2</h5>');
+});
+
+test("renderDocNode: transliterated headings share the same collision-safe id namespace", () => {
+  const html = renderDocNode(headingDoc(["Café", 2], ["Cafe-2", 2], ["Cafe", 3], ["Café", 4]));
+  assert.equal(html, '<h2 id="cafe">Café</h2><h2 id="cafe-2">Cafe-2</h2><h3 id="cafe-3">Cafe</h3><h4 id="cafe-4">Café</h4>');
+});
+
+test("renderDocNode: styled headings participate in dedupe without changing their styles", () => {
+  const html = renderDocNode({
+    type: "doc",
+    content: ["Foo", "Foo-2", "Foo"].map((text) => ({
+      type: "heading",
+      attrs: { level: 2, textAlign: "right" },
+      content: [{ type: "text", text }],
+    })),
+  });
+  assert.equal(html, '<h2 id="foo" style="text-align:right">Foo</h2><h2 id="foo-2" style="text-align:right">Foo-2</h2><h2 id="foo-3" style="text-align:right">Foo</h2>');
+});
+
+test("renderDocNode: documents without id collisions retain byte-identical heading output", () => {
+  const html = renderDocNode(headingDoc(["Overview", 2], ["Overview", 2], ["Overview", 3], ["Café", 4], ["Foo-2", 5]));
+  assert.equal(html, '<h2 id="overview">Overview</h2><h2 id="overview-2">Overview</h2><h3 id="overview-3">Overview</h3><h4 id="cafe">Café</h4><h5 id="foo-2">Foo-2</h5>');
+});
+
 test("renderDocNode: dedupe is per-document — two documents may each own the same anchor", () => {
   const a = renderDocNode(headingDoc(["Overview", 2]));
   const b = renderDocNode(headingDoc(["Overview", 2]));
