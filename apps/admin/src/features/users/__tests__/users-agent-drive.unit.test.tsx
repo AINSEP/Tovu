@@ -4,8 +4,8 @@ import { describe, expect, it, vi } from "vitest";
 import { executePageCapability } from "@jini-ai/agentic/core";
 import { createDomPageDriver } from "@jini-ai/agentic/dom";
 
-import { UserManagePanel, Users, type UserManageController } from "../Users";
-import { useUsers, type UsersController } from "../hooks/use-users.hooks";
+import { UserManagePanel, Users, type UserManageController } from "../UsersPanel";
+import { useUsers, type UsersController } from "../hooks/users-controller.hooks";
 import { createFakeUsersPort } from "../hooks/users-dependencies.hooks";
 import { FetchQueryProvider } from "@/lib/fetch-query";
 import userEvent from "@testing-library/user-event";

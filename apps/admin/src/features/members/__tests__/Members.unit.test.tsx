@@ -2,7 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { Members } from "../Members";
+import { Members } from "../MembersPanel";
 
 /**
  * @file `Members` — pins the `RowMenu` rollout (task: roll `RowMenu` out to `Users.tsx`/

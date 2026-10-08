@@ -70,7 +70,7 @@ const WIRED_HOOKS: readonly string[] = [
   "features/comments/hooks/use-comment-queue.hooks.ts",
   // use-restore-points-section.hooks.ts was deleted 2026-10-03: unused; Recovery owns restore points; see development/DELETED-CODE.md.
   "features/deployment/hooks/use-static-export.hooks.ts",
-  "features/members/hooks/use-members.hooks.ts",
+  "features/members/hooks/members-controller.hooks.ts",
   "features/widgets/hooks/use-widgets-library.hooks.ts",
   "features/widgets/hooks/use-widget-regions.hooks.ts",
   "features/integrations/hooks/use-integrations.hooks.ts",

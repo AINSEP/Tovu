@@ -242,7 +242,7 @@ test("DELETE_USER route: 409 OWNER_REQUIRED when a non-owner admin with user.man
       deps: { identity: svcDeps, removeUser: deps.removeUser, isInTrash: deps.isInTrash },
       input: { workspaceId: WORKSPACE_ID, callerPrincipalId: caller.id, principalId: target.id, seededOwnerPrincipalId: ownerId },
     }),
-    (err: unknown) => err instanceof OwnerRequiredError && err.message === "only an owner can modify an owner principal"
+    (err: unknown) => err instanceof OwnerRequiredError && err.message === "only an owner can delete, trash, disable or reset the password of an admin or owner account"
   );
   const handler = extractRouteHandler(mountApp(deps, caller.id), "delete", ROUTE_PATH);
   const { res, capture } = createCapturingResponse();
@@ -250,7 +250,7 @@ test("DELETE_USER route: 409 OWNER_REQUIRED when a non-owner admin with user.man
   res.locals.principal = { id: caller.id };
   await handler({ params: { workspaceId: WORKSPACE_ID, principalId: target.id } }, res);
   assert.equal(capture.statusCode, 409);
-  assert.deepEqual(capture.jsonBody, { error: "only an owner can modify an owner principal", code: "OWNER_REQUIRED" });
+  assert.deepEqual(capture.jsonBody, { error: "only an owner can delete, trash, disable or reset the password of an admin or owner account", code: "OWNER_REQUIRED" });
   assert.deepEqual(await deps.principalRepo.findById({ workspaceId: WORKSPACE_ID, id: target.id }), before);
   assert.equal(await deps.isInTrash!(target.id), false);
 });

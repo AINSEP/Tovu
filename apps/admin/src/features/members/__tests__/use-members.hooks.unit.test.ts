@@ -4,8 +4,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AdminMember } from "@/lib/api";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { createFakeMembersPort } from "../hooks/members-dependencies.hooks";
-import { useMembers, useWiredMembers } from "../hooks/use-members.hooks";
-import { MEMBERS_RESOURCE } from "../rules";
+import { useMembers, useWiredMembers } from "../hooks/members-controller.hooks";
+import { MEMBERS_RESOURCE } from "../hooks/members-dependencies.hooks";
 
 /**
  * @file `useMembers`'s own `t`/`locale` fields (2026-08-11, standing i18n rule — see this hook's
@@ -123,16 +123,18 @@ describe("useMembers — content refresh bus", () => {
   it("does not let a slower, earlier-triggered refresh overwrite a newer one that already settled (out-of-order response race)", async () => {
     vi.stubGlobal("fetch", stubFetchWithLocale("en"));
     const port = createFakeMembersPort({ members: [MEMBER] });
-    const { result } = renderHook(() => useMembers({ port }));
-    await waitFor(() => expect(result.current.members).toEqual([MEMBER]));
 
     // Two assistant writes land back to back, each publishing its own content-refresh
     // notification — two overlapping `listMembers()` calls with no ordering guarantee on responses.
     let resolveFirst!: (v: { members: AdminMember[] }) => void;
     let resolveSecond!: (v: { members: AdminMember[] }) => void;
+    // Install before mount: the host adapter captures the port's methods when it is composed.
     vi.spyOn(port, "listMembers")
+      .mockResolvedValueOnce({ members: [MEMBER] })
       .mockImplementationOnce(() => new Promise((resolve) => (resolveFirst = resolve)))
       .mockImplementationOnce(() => new Promise((resolve) => (resolveSecond = resolve)));
+    const { result } = renderHook(() => useMembers({ port }));
+    await waitFor(() => expect(result.current.members).toEqual([MEMBER]));
 
     act(() => {
       publishContentRefresh();

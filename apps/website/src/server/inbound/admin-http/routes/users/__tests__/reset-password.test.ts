@@ -298,10 +298,11 @@ test("RESET_USER_PASSWORD route: 500 internal error when an unexpected error is 
     findByUsername: async () => null,
     save: async () => {},
   };
-  const { app } = await buildApp({ userRepo: throwingRepo as unknown as UsersRouteDeps["userRepo"] });
+  const { app, ownerId } = await buildApp({ userRepo: throwingRepo as unknown as UsersRouteDeps["userRepo"] });
   const baseUrl = await startTestServer(app, t);
 
-  const res = await fetch(`${baseUrl}${urlFor("any-id")}`, {
+  // Use a real target so account protection does not return 404 before the failing repo read.
+  const res = await fetch(`${baseUrl}${urlFor(ownerId)}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ password: "some-p4ssw0rd!" }),

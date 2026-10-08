@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/lib/fetch-query";
-import { Users } from "../Users";
+import { Users } from "../UsersPanel";
 
 /**
  * @file Regression coverage for the owner-reported bug: the "New user" form's `type="password"`

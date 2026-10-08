@@ -168,3 +168,13 @@ export function createFakeUsersPort(options: FakeUsersPortOptions = {}): UsersPo
     },
   };
 }
+
+/** Adapt Tovu's HTTP/client contract to the shared screen port. No account policy lives here. */
+export function toJiniUsersPort({ port }: { port: UsersPort }, _optional: Record<string, never> = {}): import("@jini-ai/user-management/react").UsersPort {
+  return {
+    ...port,
+    disableUser: ({ principalId }) => port.disableUser(principalId),
+    enableUser: ({ principalId }) => port.enableUser(principalId),
+    deleteUser: ({ principalId }) => port.deleteUser(principalId),
+  };
+}

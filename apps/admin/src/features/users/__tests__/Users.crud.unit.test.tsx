@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/lib/fetch-query";
-import { Users } from "../Users";
+import { Users } from "../UsersPanel";
 
 /**
  * @file `Users` — covers the create-user form, the loading/error/empty states, and the expanded
@@ -289,7 +289,7 @@ describe("Disable failure", () => {
     const user = userEvent.setup();
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ users: [ACTIVE_USER] }))
-      .mockResolvedValueOnce(jsonResponse({ roles: [] }))
+      .mockResolvedValueOnce(jsonResponse({ roles: [ROLE] }))
       .mockResolvedValueOnce(jsonResponse({ policies: [] }))
       .mockResolvedValueOnce(jsonResponse({ error: "cannot", code: "OWNER_REQUIRED" }, 409));
     render(<FetchQueryProvider><Users /></FetchQueryProvider>);

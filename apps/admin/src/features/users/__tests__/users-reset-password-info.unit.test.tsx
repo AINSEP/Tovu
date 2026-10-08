@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/lib/fetch-query";
-import { Users } from "../Users";
+import { Users } from "../UsersPanel";
 
 /**
  * @file Owner ask (2026-09-24): an info icon on the Users page explains that there is no

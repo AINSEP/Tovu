@@ -2,7 +2,7 @@ import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import type { AdminIdentityUser } from "@/lib/api";
-import { useResetPasswordFields, type ResetPasswordFieldsInput } from "../hooks/use-reset-password-fields.hooks";
+import { useResetPasswordFields, type ResetPasswordFieldsInput } from "@jini-ai/user-management/react";
 
 /**
  * @file `useResetPasswordFields` — the confirm-field + reveal-toggle state extracted out of

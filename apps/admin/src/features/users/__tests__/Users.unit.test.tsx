@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/lib/fetch-query";
-import { UserManagePanel, Users, type UserManageController } from "../Users";
+import { UserManagePanel, Users, type UserManageController } from "../UsersPanel";
 
 /**
  * @file `Users` — pins the `RowMenu` rollout (task: roll `RowMenu` out to `Users.tsx`/
@@ -606,10 +606,10 @@ describe("UserManagePanel controller seam", () => {
     renderPanel(manage);
 
     await userEvent.click(screen.getByRole("button", { name: "Assign" }));
-    expect(manage.roleGrant?.submit).toHaveBeenCalledWith("p-1");
+    expect(manage.roleGrant?.submit).toHaveBeenCalledWith({ principalId: "p-1" });
 
     await userEvent.click(screen.getByRole("button", { name: "Attach" }));
-    expect(manage.policyGrant?.submit).toHaveBeenCalledWith("p-1");
+    expect(manage.policyGrant?.submit).toHaveBeenCalledWith({ principalId: "p-1" });
 
     // The built-in marker comes from the option's own flag, not from a full `AdminPolicy` record —
     // the shared `GrantSelect` only ever sees `GrantOption`.
@@ -626,7 +626,7 @@ describe("UserManagePanel controller seam", () => {
     for (const button of blocked) expect(button).toBeDisabled();
     // ...while the email control has its own, and is still pressable.
     await userEvent.click(screen.getByRole("button", { name: "Save email" }));
-    expect(manage.email.save).toHaveBeenCalledWith("p-1");
+    expect(manage.email.save).toHaveBeenCalledWith({ principalId: "p-1" });
   });
 
   it("shows the one shared error line the panel's three writes all report through", () => {

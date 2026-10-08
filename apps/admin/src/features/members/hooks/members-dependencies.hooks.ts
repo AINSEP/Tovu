@@ -67,3 +67,16 @@ export function createFakeMembersPort(options: FakeMembersPortOptions = {}): Mem
     },
   };
 }
+
+/** This screen's name on `lib/content-refresh-bus.ts` — see `taxonomy/rules.ts`'s
+ *  `TAXONOMY_RESOURCE` for why this is a plain colocated constant rather than a shared registry.
+ *  Agent-writable via `members_disable` (`apps/website/src/features/members/agent-tools.ts`), which
+ *  flips a member's status this list renders. `members_request_magic_link` mutates durable state too
+ *  but changes nothing this screen displays, so it needs no separate justification here. */
+export const MEMBERS_RESOURCE = "members";
+
+
+/** Adapt the product HTTP client to Jini's object-argument contract. */
+export function toJiniMembersPort({ port }: { port: MembersPort }, _optional: Record<string, never> = {}): import("@jini-ai/user-management/react").MembersPort {
+  return { ...port, getMember: ({ id }) => port.getMember(id), disableMember: ({ id }) => port.disableMember(id) };
+}

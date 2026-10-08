@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AdminIdentityUser } from "@/lib/api";
 import { FetchQueryProvider } from "@/lib/fetch-query";
 import { createFakeUsersPort } from "../hooks/users-dependencies.hooks";
-import { useUsers, useWiredUsers } from "../hooks/use-users.hooks";
+import { useUsers, useWiredUsers } from "../hooks/users-controller.hooks";
 
 /**
  * @file First dedicated hook-level test file for `useUsers` (0% before this pass — the highest-
@@ -626,7 +626,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
   });
 
   it("onToggleStatus disables an active user through the injected port", async () => {
-    const port = createFakeUsersPort({ users: [USER_A], roles: [ROLE], policies: [POLICY] });
+    const port = createFakeUsersPort({ meId: "another-admin", users: [USER_A], roles: [ROLE], policies: [POLICY] });
     const { result } = renderHook(() => useUsers({ port }), { wrapper });
     await waitFor(() => expect(result.current.users).not.toBeNull());
 
@@ -693,7 +693,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
     });
 
     it("confirmDelete calls the fake deleteUser once and closes the dialog", async () => {
-      const port = createFakeUsersPort({ users: [USER_A], roles: [ROLE], policies: [POLICY] });
+      const port = createFakeUsersPort({ meId: "another-admin", users: [USER_A], roles: [ROLE], policies: [POLICY] });
       const spy = vi.spyOn(port, "deleteUser");
       const { result } = renderHook(() => useUsers({ port }), { wrapper });
       await waitFor(() => expect(result.current.users).not.toBeNull());
@@ -712,7 +712,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
     });
 
     it("on failure, sets toggleError and still closes the dialog", async () => {
-      const port = createFakeUsersPort({
+      const port = createFakeUsersPort({ meId: "another-admin",
         users: [USER_A],
         roles: [ROLE],
         policies: [POLICY],
@@ -781,7 +781,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
   // See `confirmDisable`'s own doc comment.
   it("confirmDisable: a stale settlement after the operator opened a DIFFERENT user's confirm dialog must not silently close it", async () => {
     let resolveA!: (v: { user: AdminIdentityUser }) => void;
-    const port = createFakeUsersPort({ users: [USER_A, USER_B], roles: [ROLE], policies: [POLICY] });
+    const port = createFakeUsersPort({ meId: "another-admin", users: [USER_A, USER_B], roles: [ROLE], policies: [POLICY] });
     port.disableUser = vi.fn(() => new Promise<{ user: AdminIdentityUser }>((resolve) => { resolveA = resolve; }));
 
     const { result } = renderHook(() => useUsers({ port }), { wrapper });

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { ApiError, type AdminIdentityUser } from "@/lib/api";
-import { describeApiError, formatGrantLabel, userRowMenuItems } from "../rules";
+import { describeUsersError as describeApiError, formatGrantLabel, userRowMenuItems } from "@jini-ai/user-management/react";
 import { t } from "../users-i18n";
 
 /**
@@ -30,27 +30,27 @@ describe("describeApiError", () => {
     ["RESOURCE_CONFLICT", "That username is already in use."],
     ["OWNER_REQUIRED", "The workspace must keep at least one active owner."],
   ])("overrides code %s with a fixed message", (code, expected) => {
-    expect(describeApiError(new ApiError("raw", 400, code), "fallback", "en")).toBe(expected);
+    expect(describeApiError({ error: new ApiError("raw", 400, code), fallback: "fallback", translate: key => t("en", key) })).toBe(expected);
   });
 
   it("VALIDATION_ERROR prefers the server's own message, falling back when blank", () => {
-    expect(describeApiError(new ApiError("username too short", 400, "VALIDATION_ERROR"), "fallback", "en")).toBe(
+    expect(describeApiError({ error: new ApiError("username too short", 400, "VALIDATION_ERROR"), fallback: "fallback", translate: key => t("en", key) })).toBe(
       "username too short",
     );
-    expect(describeApiError(new ApiError("", 400, "VALIDATION_ERROR"), "fallback", "en")).toBe(
+    expect(describeApiError({ error: new ApiError("", 400, "VALIDATION_ERROR"), fallback: "fallback", translate: key => t("en", key) })).toBe(
       "Please correct the highlighted fields.",
     );
   });
 
   it("an unrecognized code falls through to the shared default", () => {
-    expect(describeApiError(new ApiError("raw message", 500, "SOMETHING_ELSE"), "fallback", "en")).toBe(
+    expect(describeApiError({ error: new ApiError("raw message", 500, "SOMETHING_ELSE"), fallback: "fallback", translate: key => t("en", key) })).toBe(
       "raw message",
     );
   });
 
   it("a non-ApiError value falls through to the shared default", () => {
-    expect(describeApiError(new Error("plain"), "fallback", "en")).toBe("plain");
-    expect(describeApiError("nope", "fallback", "en")).toBe("fallback");
+    expect(describeApiError({ error: new Error("plain"), fallback: "fallback", translate: key => t("en", key) })).toBe("plain");
+    expect(describeApiError({ error: "nope", fallback: "fallback", translate: key => t("en", key) })).toBe("fallback");
   });
 
   // C4 — the four static overrides plus the VALIDATION_ERROR fallback leaked English regardless of
@@ -61,19 +61,19 @@ describe("describeApiError", () => {
     ["RESOURCE_CONFLICT", "Ese nombre de usuario ya está en uso."],
     ["OWNER_REQUIRED", "El espacio de trabajo debe conservar al menos un propietario activo."],
   ])("translates the %s override into the operator's locale (es)", (code, expected) => {
-    const translated = describeApiError(new ApiError("raw", 400, code), "fallback", "es");
+    const translated = describeApiError({ error: new ApiError("raw", 400, code), fallback: "fallback", translate: key => t("es", key) });
     expect(translated).toBe(expected);
     expect(translated).not.toBe(STATIC_ENGLISH[code]);
   });
 
   it("translates the VALIDATION_ERROR fallback into the operator's locale (es)", () => {
-    expect(describeApiError(new ApiError("", 400, "VALIDATION_ERROR"), "fallback", "es")).toBe(
+    expect(describeApiError({ error: new ApiError("", 400, "VALIDATION_ERROR"), fallback: "fallback", translate: key => t("es", key) })).toBe(
       "Corrige los campos resaltados.",
     );
   });
 
   it("falls back to English for an unrecognized locale", () => {
-    expect(describeApiError(new ApiError("raw", 400, "FORBIDDEN"), "fallback", "xx")).toBe(
+    expect(describeApiError({ error: new ApiError("raw", 400, "FORBIDDEN"), fallback: "fallback", translate: key => t("xx", key) })).toBe(
       "You do not have permission to do that.",
     );
   });
@@ -148,7 +148,7 @@ describe("users-i18n — delete-user plan v2 keys", () => {
     ["USER_IN_TRASH", "This user is in the Trash; restore them first."],
     ["USERNAME_IN_TRASH", "A user with this username is in the Trash; restore or delete them permanently first."],
   ])("describeApiError overrides code %s with a fixed message", (code, expected) => {
-    expect(describeApiError(new ApiError("raw", 409, code), "fallback", "en")).toBe(expected);
+    expect(describeApiError({ error: new ApiError("raw", 409, code), fallback: "fallback", translate: key => t("en", key) })).toBe(expected);
   });
 });
 
@@ -162,14 +162,14 @@ describe("userRowMenuItems", () => {
   };
 
   it("has exactly three items when canDelete is false: toggle, manage, reset password", () => {
-    const items = userRowMenuItems(ACTIVE_USER, false, handlers, "en", false);
+    const items = userRowMenuItems({ user: ACTIVE_USER, toggleSaving: false, handlers: handlers, translate: key => t("en", key), canDelete: false, capabilities: false });
     expect(items.map((i) => i.key)).toEqual(["toggle", "manage", "reset-password"]);
   });
 
   it("an active user's toggle item reads Disable and asks (onRequestDisable), not immediate", () => {
     handlers.onRequestDisable.mockClear();
     handlers.onEnable.mockClear();
-    const items = userRowMenuItems(ACTIVE_USER, false, handlers, "en", false);
+    const items = userRowMenuItems({ user: ACTIVE_USER, toggleSaving: false, handlers: handlers, translate: key => t("en", key), canDelete: false, capabilities: false });
     const toggle = items.find((i) => i.key === "toggle")!;
     expect(toggle.label).toBe("Disable");
     expect(toggle.tone).toBe("warning");
@@ -181,7 +181,7 @@ describe("userRowMenuItems", () => {
   it("a disabled user's toggle item reads Enable and fires immediately, no confirm", () => {
     handlers.onRequestDisable.mockClear();
     handlers.onEnable.mockClear();
-    const items = userRowMenuItems(DISABLED_USER, false, handlers, "en", false);
+    const items = userRowMenuItems({ user: DISABLED_USER, toggleSaving: false, handlers: handlers, translate: key => t("en", key), canDelete: false, capabilities: false });
     const toggle = items.find((i) => i.key === "toggle")!;
     expect(toggle.label).toBe("Enable");
     expect(toggle.tone).toBe("default");
@@ -193,7 +193,7 @@ describe("userRowMenuItems", () => {
   it("the toggle item no-ops while another row action is in flight (toggleSaving)", () => {
     handlers.onRequestDisable.mockClear();
     handlers.onEnable.mockClear();
-    const items = userRowMenuItems(ACTIVE_USER, true, handlers, "en", false);
+    const items = userRowMenuItems({ user: ACTIVE_USER, toggleSaving: true, handlers: handlers, translate: key => t("en", key), canDelete: false, capabilities: false });
     items.find((i) => i.key === "toggle")!.onSelect();
     expect(handlers.onRequestDisable).not.toHaveBeenCalled();
     expect(handlers.onEnable).not.toHaveBeenCalled();
@@ -202,7 +202,7 @@ describe("userRowMenuItems", () => {
   it("manage and reset-password wire straight through to their handlers", () => {
     handlers.onManage.mockClear();
     handlers.onResetPassword.mockClear();
-    const items = userRowMenuItems(ACTIVE_USER, false, handlers, "en", false);
+    const items = userRowMenuItems({ user: ACTIVE_USER, toggleSaving: false, handlers: handlers, translate: key => t("en", key), canDelete: false, capabilities: false });
     items.find((i) => i.key === "manage")!.onSelect();
     items.find((i) => i.key === "reset-password")!.onSelect();
     expect(handlers.onManage).toHaveBeenCalledWith(ACTIVE_USER);
@@ -210,9 +210,9 @@ describe("userRowMenuItems", () => {
   });
 
   it("translates labels to Spanish when locale is es", () => {
-    const items = userRowMenuItems(ACTIVE_USER, false, handlers, "es", false);
+    const items = userRowMenuItems({ user: ACTIVE_USER, toggleSaving: false, handlers: handlers, translate: key => t("es", key), canDelete: false, capabilities: false });
     expect(items.map((i) => i.label)).toEqual(["Desactivar", "Administrar", "Restablecer contraseña"]);
-    const disabledItems = userRowMenuItems(DISABLED_USER, false, handlers, "es", false);
+    const disabledItems = userRowMenuItems({ user: DISABLED_USER, toggleSaving: false, handlers: handlers, translate: key => t("es", key), canDelete: false, capabilities: false });
     expect(disabledItems.find((i) => i.key === "toggle")?.label).toBe("Activar");
   });
 
@@ -221,12 +221,12 @@ describe("userRowMenuItems", () => {
   // own doc comment for why that decision lives outside this pure builder).
   describe("the Delete item (canDelete)", () => {
     it("is absent when canDelete is false", () => {
-      const items = userRowMenuItems(ACTIVE_USER, false, handlers, "en", false);
+      const items = userRowMenuItems({ user: ACTIVE_USER, toggleSaving: false, handlers: handlers, translate: key => t("en", key), canDelete: false, capabilities: false });
       expect(items.find((i) => i.key === "delete")).toBeUndefined();
     });
 
     it("is the 4th item, tone danger, when canDelete is true", () => {
-      const items = userRowMenuItems(ACTIVE_USER, false, handlers, "en", true);
+      const items = userRowMenuItems({ user: ACTIVE_USER, toggleSaving: false, handlers: handlers, translate: key => t("en", key), canDelete: true, capabilities: true });
       expect(items.map((i) => i.key)).toEqual(["toggle", "manage", "reset-password", "delete"]);
       const del = items.find((i) => i.key === "delete")!;
       expect(del.label).toBe("Delete");
@@ -235,13 +235,13 @@ describe("userRowMenuItems", () => {
 
     it("calls onRequestDelete, never firing immediately", () => {
       handlers.onRequestDelete.mockClear();
-      const items = userRowMenuItems(ACTIVE_USER, false, handlers, "en", true);
+      const items = userRowMenuItems({ user: ACTIVE_USER, toggleSaving: false, handlers: handlers, translate: key => t("en", key), canDelete: true, capabilities: true });
       items.find((i) => i.key === "delete")!.onSelect();
       expect(handlers.onRequestDelete).toHaveBeenCalledWith(ACTIVE_USER);
     });
 
     it("translates to Spanish (shares COMMON_I18N's Delete, not a users-i18n key)", () => {
-      const items = userRowMenuItems(ACTIVE_USER, false, handlers, "es", true);
+      const items = userRowMenuItems({ user: ACTIVE_USER, toggleSaving: false, handlers: handlers, translate: key => t("es", key), canDelete: true, capabilities: true });
       expect(items.find((i) => i.key === "delete")?.label).toBe("Eliminar");
     });
   });
@@ -254,14 +254,14 @@ describe("formatGrantLabel", () => {
   ]);
 
   it("is null for an empty grant list", () => {
-    expect(formatGrantLabel([], byId)).toBeNull();
+    expect(formatGrantLabel({ ids: [], byId: byId, translate: key => t("en", key) })).toBeNull();
   });
 
   it("joins resolved names for held grants", () => {
-    expect(formatGrantLabel(["r1", "r2"], byId)).toBe("Editor, Owner");
+    expect(formatGrantLabel({ ids: ["r1", "r2"], byId: byId, translate: key => t("en", key) })).toBe("Editor, Owner");
   });
 
   it("falls back to the raw id when a grant has no matching entry (deleted out from under it)", () => {
-    expect(formatGrantLabel(["r1", "deleted-role"], byId)).toBe("Editor, deleted-role");
+    expect(formatGrantLabel({ ids: ["r1", "deleted-role"], byId: byId, translate: key => t("en", key) })).toBe("Editor, deleted-role");
   });
 });

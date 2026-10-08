@@ -194,14 +194,21 @@ test("DISABLE_PRINCIPAL route: 403 FORBIDDEN when caller lacks user.manage", asy
   assert.equal(body.details.permission, "user.manage");
 });
 
-test("REQ-13: DISABLE_PRINCIPAL route: 409 OWNER_REQUIRED when the target is the seeded owner", async (t) => {
-  const { app, ownerId } = await buildApp();
-  const baseUrl = await startTestServer(app, t);
-
-  const res = await fetch(`${baseUrl}${urlFor(ownerId)}`, { method: "POST" });
-  assert.equal(res.status, 409);
-  const body = (await res.json()) as { code: string };
-  assert.equal(body.code, "OWNER_REQUIRED");
+test("REQ-13: DISABLE_PRINCIPAL route: 409 OWNER_REQUIRED when the target is the seeded owner", async () => {
+  const { app, deps, ownerId } = await buildApp();
+  const callerId = await createTestUser(deps, ownerId, "seeded-owner-disable-caller");
+  await attachSinglePermissionPolicy(deps, callerId, "*");
+  // A different owner isolates the seeded-owner refusal; self-disable has its own SELF_DELETE rule.
+  const handler = extractRouteHandler(app, "post", ROUTE_PATH);
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = { id: callerId };
+  await handler({ params: { workspaceId: WORKSPACE_ID, principalId: ownerId } }, res);
+  assert.equal(capture.statusCode, 409);
+  assert.deepEqual(capture.jsonBody, {
+    error: "the seeded owner principal can never be disabled",
+    code: "OWNER_REQUIRED",
+  });
+  assert.equal((await deps.principalRepo.findById({ workspaceId: WORKSPACE_ID, id: ownerId }))?.status, "active");
 });
 
 test("INV-08: DISABLE_PRINCIPAL route: 409 OWNER_REQUIRED when disabling the target would drop the active owner-`*` count to zero", async (t) => {
@@ -215,11 +222,12 @@ test("INV-08: DISABLE_PRINCIPAL route: 409 OWNER_REQUIRED when disabling the tar
   assert.ok(realSeededOwner);
   await base.principalRepo.save({ ...realSeededOwner!, status: "disabled", disabledAt: base.clock.nowIso() });
 
-  // The lone remaining owner acts on itself to pass the owner-target guard — NOT the recognized "seeded owner" (see the
-  // `ownerPrincipalId` override below), so only the INV-08 count check can refuse this, not the
-  // seeded-owner identity check.
+  // A stale authenticated context from the disabled seeded owner still holds its wildcard grant
+  // for target classification, but is excluded from the active-owner count. This defensive fixture
+  // isolates INV-08 without hitting SELF_DELETE or the seeded-owner target check (see the override
+  // below). Live session authentication would reject this disabled caller before the route runs.
   const lastOwnerId = "inv08-last-owner";
-  const callerId = lastOwnerId;
+  const callerId = realSeededOwnerId;
   await base.principalRepo.save({
     id: lastOwnerId,
     workspaceId: WORKSPACE_ID,
