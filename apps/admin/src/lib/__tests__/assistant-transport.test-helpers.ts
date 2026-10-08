@@ -1,5 +1,3 @@
-import { vi } from "vitest";
-
 /**
  * @file Shared fakes for `assistant-transport.*.unit.test.ts`.
  *
@@ -82,8 +80,4 @@ export function streamFromChunks(chunks: string[]): ReadableStream<Uint8Array> {
  *  a test asserts on their side effects. */
 export async function flushMicrotasks(): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 0));
-}
-
-export function stubFetchJsonOk(body: unknown, status = 200): ReturnType<typeof vi.fn<(...args: any[]) => any>> {
-  return vi.fn(async () => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } }));
 }

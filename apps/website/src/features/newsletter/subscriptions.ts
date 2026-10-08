@@ -120,11 +120,6 @@ export async function unsubscribeSubscription(required: {
   return { subscription: updated };
 }
 
-export interface ImportRowResult {
-  index: number;
-  subscription?: SubscriptionRow;
-  error?: { code: string; message: string };
-}
 
 /**
  * C-013 — import a batch (1-500) of subscriber ids, routing EVERY row through the identical

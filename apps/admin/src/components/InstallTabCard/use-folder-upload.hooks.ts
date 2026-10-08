@@ -52,5 +52,3 @@ export function useFolderUpload(
     },
   };
 }
-
-export type FolderUploadController = ReturnType<typeof useFolderUpload>;

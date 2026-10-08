@@ -1,5 +1,3 @@
-import type { Express } from "express";
-
 import type { DatabaseRecoveryDeps, RouteDeps } from "#src/server/routes/types";
 
 /**
@@ -50,5 +48,3 @@ import type { DatabaseRecoveryDeps, RouteDeps } from "#src/server/routes/types";
  */
 export type DatabaseRecoveryRouteDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "clock" | "databaseIntrospection"> &
   DatabaseRecoveryDeps;
-
-export type DatabaseRecoveryRouteRegistrar = (app: Express, deps: DatabaseRecoveryRouteDeps) => void;

@@ -88,9 +88,3 @@ export async function buildAc11FixtureInstallDir(): Promise<{
 
   return { installDir: pluginsDir, builtIns: [WORD_COUNT_BUILT_IN] };
 }
-
-export const AC11_FIXTURE_MANIFESTS = {
-  builtIn: WORD_COUNT_BUILT_IN.manifest,
-  validSite: VALID_SITE_PLUGIN_MANIFEST,
-  invalidSite: INVALID_SITE_PLUGIN_MANIFEST,
-};

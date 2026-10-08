@@ -1,7 +1,6 @@
 import type { AgentEvent } from "@jini-ai/chat/core";
 import type { AcceptedRunRequest, DurableRun } from "./ports.js";
 
-export const CONTINUING_EVENT = { kind: "status", code: "run_recovering", label: "Continuing…" } as const;
 export const CONTINUATION_DIVIDER = "\n\n---\n\nContinued\n\n";
 export const UNKNOWN_MUTATION_ERROR = "This operation may already be done. Its earlier outcome is unknown; verify the current state before repeating it.";
 

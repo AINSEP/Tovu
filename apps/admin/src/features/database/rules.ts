@@ -56,7 +56,6 @@ export const KEYS = {
  *  no agent tool can execute; the timeline is a pure read of the same ledger a restore-point create
  *  also writes to, but re-querying it on every unrelated assistant run for a filtered, paginated
  *  view a human is actively scrolling is a worse trade than leaving it on its existing reload). */
-export const DATABASE_RESTORE_POINTS_RESOURCE = "database-restore-points";
 
 /** How loudly the Database screen's drift warning presents itself. Maps onto the two `.notice`
  *  variants `styles.css` already ships (`.notice.error` / `.notice.warning`) — no new CSS. */
