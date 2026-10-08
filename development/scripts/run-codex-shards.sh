@@ -34,7 +34,14 @@ persona_preamble() {
   else
     printf '%s\n' "- Read the roster /Users/la/Programming/Tovu/AI-Dev-Shop/framework/routing/agent-index.md, pick the 1-2 personas that best fit THIS task (e.g. programmer, refactor, software-architect, tdd, qa-e2e, security, database, web-design), read each one's /Users/la/Programming/Tovu/AI-Dev-Shop/agents/<name>/skills.md, and work as them. Name your pick and why in one line at the top of your report."
   fi
-  printf '%s\n\n' "- REUSE BEFORE YOU WRITE: before adding any new module, form, store, helper, wrapper or test harness, search Tovu and Jini (/Users/la/Programming/Jini) for an existing one that does the job, and extend it. Never copy a sibling feature's lifecycle code. If two places would share logic, put it in ONE shared place (generic logic belongs in Jini); a new generic path must replace the old ones, not sit beside them. Add no abstraction that has only one user. Say in your report what you reused."
+  # The reuse rule's single home is AI-Dev-Shop implementation-guardrails "## Before You Write"
+  # (owner-approved 2026-10-07); render it at send time so briefs never carry a drifting copy.
+  local gr=/Users/la/Programming/Tovu/AI-Dev-Shop/skills/implementation-guardrails/SKILL.md
+  if grep -q '^## Before You Write' "$gr" 2>/dev/null; then
+    awk '/^## Before You Write/{on=1} on&&/^## /&&!/^## Before You Write/{exit} on' "$gr"; printf '\n'
+  else
+    printf '%s\n\n' "- REUSE BEFORE YOU WRITE: before adding any new module, form, store, helper, wrapper or test harness, search Tovu and Jini (/Users/la/Programming/Jini) for an existing one that does the job, and extend it. Never copy a sibling feature's lifecycle code. If two places would share logic, put it in ONE shared place (generic logic belongs in Jini); a new generic path must replace the old ones, not sit beside them. Add no abstraction that has only one user. Say in your report what you reused."
+  fi
 }
 
 case "$SANDBOX" in
